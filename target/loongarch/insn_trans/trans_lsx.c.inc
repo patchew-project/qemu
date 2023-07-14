@@ -4,53 +4,90 @@
  * Copyright (c) 2022-2023 Loongson Technology Corporation Limited
  */
 
-static bool gen_vvvv(DisasContext *ctx, arg_vvvv *a,
-                     void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32,
-                                  TCGv_i32, TCGv_i32))
+static bool gen_vvvv(DisasContext *ctx, arg_vvvv *a, int oprsz,
+                     gen_helper_gvec_4 *fn)
 {
-    TCGv_i32 vd = tcg_constant_i32(a->vd);
-    TCGv_i32 vj = tcg_constant_i32(a->vj);
-    TCGv_i32 vk = tcg_constant_i32(a->vk);
-    TCGv_i32 va = tcg_constant_i32(a->va);
-
     CHECK_VEC;
-    func(cpu_env, vd, vj, vk, va);
+
+    tcg_gen_gvec_4_ool(vec_full_offset(a->vd),
+                       vec_full_offset(a->vj),
+                       vec_full_offset(a->vk),
+                       vec_full_offset(a->va),
+                       oprsz, ctx->vl / 8, oprsz, fn);
     return true;
 }
 
-static bool gen_vvv(DisasContext *ctx, arg_vvv *a,
-                    void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+static bool gen_vvv(DisasContext *ctx, arg_vvv *a, int oprsz,
+                    gen_helper_gvec_3 * fn)
 {
-    TCGv_i32 vd = tcg_constant_i32(a->vd);
-    TCGv_i32 vj = tcg_constant_i32(a->vj);
-    TCGv_i32 vk = tcg_constant_i32(a->vk);
-
     CHECK_VEC;
 
-    func(cpu_env, vd, vj, vk);
+    tcg_gen_gvec_3_ool(vec_full_offset(a->vd),
+                       vec_full_offset(a->vj),
+                       vec_full_offset(a->vk),
+                       oprsz, ctx->vl / 8, oprsz, fn);
     return true;
 }
 
-static bool gen_vv(DisasContext *ctx, arg_vv *a,
-                   void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32))
+static bool gen_vv(DisasContext *ctx, arg_vv *a, int oprsz,
+                   gen_helper_gvec_2 * fn)
 {
-    TCGv_i32 vd = tcg_constant_i32(a->vd);
-    TCGv_i32 vj = tcg_constant_i32(a->vj);
-
     CHECK_VEC;
-    func(cpu_env, vd, vj);
+
+    tcg_gen_gvec_2_ool(vec_full_offset(a->vd),
+                       vec_full_offset(a->vj),
+                       oprsz, ctx->vl / 8, oprsz, fn);
     return true;
 }
 
-static bool gen_vv_i(DisasContext *ctx, arg_vv_i *a,
-                     void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+static bool gen_vvvv_f(DisasContext *ctx, arg_vvvv *a, int oprsz,
+                       gen_helper_gvec_4_ptr *fn)
 {
-    TCGv_i32 vd = tcg_constant_i32(a->vd);
-    TCGv_i32 vj = tcg_constant_i32(a->vj);
-    TCGv_i32 imm = tcg_constant_i32(a->imm);
-
     CHECK_VEC;
-    func(cpu_env, vd, vj, imm);
+
+    tcg_gen_gvec_4_ptr(vec_full_offset(a->vd),
+                       vec_full_offset(a->vj),
+                       vec_full_offset(a->vk),
+                       vec_full_offset(a->va),
+                       cpu_env,
+                       oprsz, ctx->vl / 8, oprsz, fn);
+    return true;
+}
+
+static bool gen_vvv_f(DisasContext *ctx, arg_vvv *a, int oprsz,
+                      gen_helper_gvec_3_ptr * fn)
+{
+    CHECK_VEC;
+
+    tcg_gen_gvec_3_ptr(vec_full_offset(a->vd),
+                       vec_full_offset(a->vj),
+                       vec_full_offset(a->vk),
+                       cpu_env,
+                       oprsz, ctx->vl / 8, oprsz, fn);
+    return true;
+}
+
+static bool gen_vv_f(DisasContext *ctx, arg_vv *a, int oprsz,
+                     gen_helper_gvec_2_ptr * fn)
+{
+    CHECK_VEC;
+
+    tcg_gen_gvec_2_ptr(vec_full_offset(a->vd),
+                       vec_full_offset(a->vj),
+                       cpu_env,
+                       oprsz, ctx->vl / 8, oprsz, fn);
+    return true;
+}
+
+static bool gen_vv_i(DisasContext *ctx, arg_vv_i *a, int oprsz,
+                     gen_helper_gvec_2i * fn)
+{
+    CHECK_VEC;
+
+    tcg_gen_gvec_2i_ool(vec_full_offset(a->vd),
+                        vec_full_offset(a->vj),
+                        tcg_constant_i64(a->imm),
+                        oprsz, ctx->vl / 8, oprsz, fn);
     return true;
 }
 
@@ -195,22 +232,22 @@ TRANS(vssub_hu, gvec_vvv, 16, MO_16, tcg_gen_gvec_ussub)
 TRANS(vssub_wu, gvec_vvv, 16, MO_32, tcg_gen_gvec_ussub)
 TRANS(vssub_du, gvec_vvv, 16, MO_64, tcg_gen_gvec_ussub)
 
-TRANS(vhaddw_h_b, gen_vvv, gen_helper_vhaddw_h_b)
-TRANS(vhaddw_w_h, gen_vvv, gen_helper_vhaddw_w_h)
-TRANS(vhaddw_d_w, gen_vvv, gen_helper_vhaddw_d_w)
-TRANS(vhaddw_q_d, gen_vvv, gen_helper_vhaddw_q_d)
-TRANS(vhaddw_hu_bu, gen_vvv, gen_helper_vhaddw_hu_bu)
-TRANS(vhaddw_wu_hu, gen_vvv, gen_helper_vhaddw_wu_hu)
-TRANS(vhaddw_du_wu, gen_vvv, gen_helper_vhaddw_du_wu)
-TRANS(vhaddw_qu_du, gen_vvv, gen_helper_vhaddw_qu_du)
-TRANS(vhsubw_h_b, gen_vvv, gen_helper_vhsubw_h_b)
-TRANS(vhsubw_w_h, gen_vvv, gen_helper_vhsubw_w_h)
-TRANS(vhsubw_d_w, gen_vvv, gen_helper_vhsubw_d_w)
-TRANS(vhsubw_q_d, gen_vvv, gen_helper_vhsubw_q_d)
-TRANS(vhsubw_hu_bu, gen_vvv, gen_helper_vhsubw_hu_bu)
-TRANS(vhsubw_wu_hu, gen_vvv, gen_helper_vhsubw_wu_hu)
-TRANS(vhsubw_du_wu, gen_vvv, gen_helper_vhsubw_du_wu)
-TRANS(vhsubw_qu_du, gen_vvv, gen_helper_vhsubw_qu_du)
+TRANS(vhaddw_h_b, gen_vvv, 16, gen_helper_vhaddw_h_b)
+TRANS(vhaddw_w_h, gen_vvv, 16, gen_helper_vhaddw_w_h)
+TRANS(vhaddw_d_w, gen_vvv, 16, gen_helper_vhaddw_d_w)
+TRANS(vhaddw_q_d, gen_vvv, 16, gen_helper_vhaddw_q_d)
+TRANS(vhaddw_hu_bu, gen_vvv, 16, gen_helper_vhaddw_hu_bu)
+TRANS(vhaddw_wu_hu, gen_vvv, 16, gen_helper_vhaddw_wu_hu)
+TRANS(vhaddw_du_wu, gen_vvv, 16, gen_helper_vhaddw_du_wu)
+TRANS(vhaddw_qu_du, gen_vvv, 16, gen_helper_vhaddw_qu_du)
+TRANS(vhsubw_h_b, gen_vvv, 16, gen_helper_vhsubw_h_b)
+TRANS(vhsubw_w_h, gen_vvv, 16, gen_helper_vhsubw_w_h)
+TRANS(vhsubw_d_w, gen_vvv, 16, gen_helper_vhsubw_d_w)
+TRANS(vhsubw_q_d, gen_vvv, 16, gen_helper_vhsubw_q_d)
+TRANS(vhsubw_hu_bu, gen_vvv, 16, gen_helper_vhsubw_hu_bu)
+TRANS(vhsubw_wu_hu, gen_vvv, 16, gen_helper_vhsubw_wu_hu)
+TRANS(vhsubw_du_wu, gen_vvv, 16, gen_helper_vhsubw_du_wu)
+TRANS(vhsubw_qu_du, gen_vvv, 16, gen_helper_vhsubw_qu_du)
 
 static void gen_vaddwev_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -2714,22 +2751,22 @@ TRANS(vmaddwod_h_bu_b, gvec_vvv, 16, MO_8, do_vmaddwod_u_s)
 TRANS(vmaddwod_w_hu_h, gvec_vvv, 16, MO_16, do_vmaddwod_u_s)
 TRANS(vmaddwod_d_wu_w, gvec_vvv, 16, MO_32, do_vmaddwod_u_s)
 
-TRANS(vdiv_b, gen_vvv, gen_helper_vdiv_b)
-TRANS(vdiv_h, gen_vvv, gen_helper_vdiv_h)
-TRANS(vdiv_w, gen_vvv, gen_helper_vdiv_w)
-TRANS(vdiv_d, gen_vvv, gen_helper_vdiv_d)
-TRANS(vdiv_bu, gen_vvv, gen_helper_vdiv_bu)
-TRANS(vdiv_hu, gen_vvv, gen_helper_vdiv_hu)
-TRANS(vdiv_wu, gen_vvv, gen_helper_vdiv_wu)
-TRANS(vdiv_du, gen_vvv, gen_helper_vdiv_du)
-TRANS(vmod_b, gen_vvv, gen_helper_vmod_b)
-TRANS(vmod_h, gen_vvv, gen_helper_vmod_h)
-TRANS(vmod_w, gen_vvv, gen_helper_vmod_w)
-TRANS(vmod_d, gen_vvv, gen_helper_vmod_d)
-TRANS(vmod_bu, gen_vvv, gen_helper_vmod_bu)
-TRANS(vmod_hu, gen_vvv, gen_helper_vmod_hu)
-TRANS(vmod_wu, gen_vvv, gen_helper_vmod_wu)
-TRANS(vmod_du, gen_vvv, gen_helper_vmod_du)
+TRANS(vdiv_b, gen_vvv, 16, gen_helper_vdiv_b)
+TRANS(vdiv_h, gen_vvv, 16, gen_helper_vdiv_h)
+TRANS(vdiv_w, gen_vvv, 16, gen_helper_vdiv_w)
+TRANS(vdiv_d, gen_vvv, 16, gen_helper_vdiv_d)
+TRANS(vdiv_bu, gen_vvv, 16, gen_helper_vdiv_bu)
+TRANS(vdiv_hu, gen_vvv, 16, gen_helper_vdiv_hu)
+TRANS(vdiv_wu, gen_vvv, 16, gen_helper_vdiv_wu)
+TRANS(vdiv_du, gen_vvv, 16, gen_helper_vdiv_du)
+TRANS(vmod_b, gen_vvv, 16, gen_helper_vmod_b)
+TRANS(vmod_h, gen_vvv, 16, gen_helper_vmod_h)
+TRANS(vmod_w, gen_vvv, 16, gen_helper_vmod_w)
+TRANS(vmod_d, gen_vvv, 16, gen_helper_vmod_d)
+TRANS(vmod_bu, gen_vvv, 16, gen_helper_vmod_bu)
+TRANS(vmod_hu, gen_vvv, 16, gen_helper_vmod_hu)
+TRANS(vmod_wu, gen_vvv, 16, gen_helper_vmod_wu)
+TRANS(vmod_du, gen_vvv, 16, gen_helper_vmod_du)
 
 static void gen_vsat_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec max)
 {
@@ -2832,14 +2869,14 @@ TRANS(vsat_hu, gvec_vv_i, 16, MO_16, do_vsat_u)
 TRANS(vsat_wu, gvec_vv_i, 16, MO_32, do_vsat_u)
 TRANS(vsat_du, gvec_vv_i, 16, MO_64, do_vsat_u)
 
-TRANS(vexth_h_b, gen_vv, gen_helper_vexth_h_b)
-TRANS(vexth_w_h, gen_vv, gen_helper_vexth_w_h)
-TRANS(vexth_d_w, gen_vv, gen_helper_vexth_d_w)
-TRANS(vexth_q_d, gen_vv, gen_helper_vexth_q_d)
-TRANS(vexth_hu_bu, gen_vv, gen_helper_vexth_hu_bu)
-TRANS(vexth_wu_hu, gen_vv, gen_helper_vexth_wu_hu)
-TRANS(vexth_du_wu, gen_vv, gen_helper_vexth_du_wu)
-TRANS(vexth_qu_du, gen_vv, gen_helper_vexth_qu_du)
+TRANS(vexth_h_b, gen_vv, 16, gen_helper_vexth_h_b)
+TRANS(vexth_w_h, gen_vv, 16, gen_helper_vexth_w_h)
+TRANS(vexth_d_w, gen_vv, 16, gen_helper_vexth_d_w)
+TRANS(vexth_q_d, gen_vv, 16, gen_helper_vexth_q_d)
+TRANS(vexth_hu_bu, gen_vv, 16, gen_helper_vexth_hu_bu)
+TRANS(vexth_wu_hu, gen_vv, 16, gen_helper_vexth_wu_hu)
+TRANS(vexth_du_wu, gen_vv, 16, gen_helper_vexth_du_wu)
+TRANS(vexth_qu_du, gen_vv, 16, gen_helper_vexth_qu_du)
 
 static void gen_vsigncov(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
@@ -2894,12 +2931,12 @@ TRANS(vsigncov_h, gvec_vvv, 16, MO_16, do_vsigncov)
 TRANS(vsigncov_w, gvec_vvv, 16, MO_32, do_vsigncov)
 TRANS(vsigncov_d, gvec_vvv, 16, MO_64, do_vsigncov)
 
-TRANS(vmskltz_b, gen_vv, gen_helper_vmskltz_b)
-TRANS(vmskltz_h, gen_vv, gen_helper_vmskltz_h)
-TRANS(vmskltz_w, gen_vv, gen_helper_vmskltz_w)
-TRANS(vmskltz_d, gen_vv, gen_helper_vmskltz_d)
-TRANS(vmskgez_b, gen_vv, gen_helper_vmskgez_b)
-TRANS(vmsknz_b, gen_vv, gen_helper_vmsknz_b)
+TRANS(vmskltz_b, gen_vv, 16, gen_helper_vmskltz_b)
+TRANS(vmskltz_h, gen_vv, 16, gen_helper_vmskltz_h)
+TRANS(vmskltz_w, gen_vv, 16, gen_helper_vmskltz_w)
+TRANS(vmskltz_d, gen_vv, 16, gen_helper_vmskltz_d)
+TRANS(vmskgez_b, gen_vv, 16, gen_helper_vmskgez_b)
+TRANS(vmsknz_b, gen_vv, 16, gen_helper_vmsknz_b)
 
 #define EXPAND_BYTE(bit)  ((uint64_t)(bit ? 0xff : 0))
 
@@ -3130,138 +3167,138 @@ TRANS(vrotri_h, gvec_vv_i, 16, MO_16, tcg_gen_gvec_rotri)
 TRANS(vrotri_w, gvec_vv_i, 16, MO_32, tcg_gen_gvec_rotri)
 TRANS(vrotri_d, gvec_vv_i, 16, MO_64, tcg_gen_gvec_rotri)
 
-TRANS(vsllwil_h_b, gen_vv_i, gen_helper_vsllwil_h_b)
-TRANS(vsllwil_w_h, gen_vv_i, gen_helper_vsllwil_w_h)
-TRANS(vsllwil_d_w, gen_vv_i, gen_helper_vsllwil_d_w)
-TRANS(vextl_q_d, gen_vv, gen_helper_vextl_q_d)
-TRANS(vsllwil_hu_bu, gen_vv_i, gen_helper_vsllwil_hu_bu)
-TRANS(vsllwil_wu_hu, gen_vv_i, gen_helper_vsllwil_wu_hu)
-TRANS(vsllwil_du_wu, gen_vv_i, gen_helper_vsllwil_du_wu)
-TRANS(vextl_qu_du, gen_vv, gen_helper_vextl_qu_du)
+TRANS(vsllwil_h_b, gen_vv_i, 16, gen_helper_vsllwil_h_b)
+TRANS(vsllwil_w_h, gen_vv_i, 16, gen_helper_vsllwil_w_h)
+TRANS(vsllwil_d_w, gen_vv_i, 16, gen_helper_vsllwil_d_w)
+TRANS(vextl_q_d, gen_vv, 16, gen_helper_vextl_q_d)
+TRANS(vsllwil_hu_bu, gen_vv_i, 16, gen_helper_vsllwil_hu_bu)
+TRANS(vsllwil_wu_hu, gen_vv_i, 16, gen_helper_vsllwil_wu_hu)
+TRANS(vsllwil_du_wu, gen_vv_i, 16, gen_helper_vsllwil_du_wu)
+TRANS(vextl_qu_du, gen_vv, 16, gen_helper_vextl_qu_du)
 
-TRANS(vsrlr_b, gen_vvv, gen_helper_vsrlr_b)
-TRANS(vsrlr_h, gen_vvv, gen_helper_vsrlr_h)
-TRANS(vsrlr_w, gen_vvv, gen_helper_vsrlr_w)
-TRANS(vsrlr_d, gen_vvv, gen_helper_vsrlr_d)
-TRANS(vsrlri_b, gen_vv_i, gen_helper_vsrlri_b)
-TRANS(vsrlri_h, gen_vv_i, gen_helper_vsrlri_h)
-TRANS(vsrlri_w, gen_vv_i, gen_helper_vsrlri_w)
-TRANS(vsrlri_d, gen_vv_i, gen_helper_vsrlri_d)
+TRANS(vsrlr_b, gen_vvv, 16, gen_helper_vsrlr_b)
+TRANS(vsrlr_h, gen_vvv, 16, gen_helper_vsrlr_h)
+TRANS(vsrlr_w, gen_vvv, 16, gen_helper_vsrlr_w)
+TRANS(vsrlr_d, gen_vvv, 16, gen_helper_vsrlr_d)
+TRANS(vsrlri_b, gen_vv_i, 16, gen_helper_vsrlri_b)
+TRANS(vsrlri_h, gen_vv_i, 16, gen_helper_vsrlri_h)
+TRANS(vsrlri_w, gen_vv_i, 16, gen_helper_vsrlri_w)
+TRANS(vsrlri_d, gen_vv_i, 16, gen_helper_vsrlri_d)
 
-TRANS(vsrar_b, gen_vvv, gen_helper_vsrar_b)
-TRANS(vsrar_h, gen_vvv, gen_helper_vsrar_h)
-TRANS(vsrar_w, gen_vvv, gen_helper_vsrar_w)
-TRANS(vsrar_d, gen_vvv, gen_helper_vsrar_d)
-TRANS(vsrari_b, gen_vv_i, gen_helper_vsrari_b)
-TRANS(vsrari_h, gen_vv_i, gen_helper_vsrari_h)
-TRANS(vsrari_w, gen_vv_i, gen_helper_vsrari_w)
-TRANS(vsrari_d, gen_vv_i, gen_helper_vsrari_d)
+TRANS(vsrar_b, gen_vvv, 16, gen_helper_vsrar_b)
+TRANS(vsrar_h, gen_vvv, 16, gen_helper_vsrar_h)
+TRANS(vsrar_w, gen_vvv, 16, gen_helper_vsrar_w)
+TRANS(vsrar_d, gen_vvv, 16, gen_helper_vsrar_d)
+TRANS(vsrari_b, gen_vv_i, 16, gen_helper_vsrari_b)
+TRANS(vsrari_h, gen_vv_i, 16, gen_helper_vsrari_h)
+TRANS(vsrari_w, gen_vv_i, 16, gen_helper_vsrari_w)
+TRANS(vsrari_d, gen_vv_i, 16, gen_helper_vsrari_d)
 
-TRANS(vsrln_b_h, gen_vvv, gen_helper_vsrln_b_h)
-TRANS(vsrln_h_w, gen_vvv, gen_helper_vsrln_h_w)
-TRANS(vsrln_w_d, gen_vvv, gen_helper_vsrln_w_d)
-TRANS(vsran_b_h, gen_vvv, gen_helper_vsran_b_h)
-TRANS(vsran_h_w, gen_vvv, gen_helper_vsran_h_w)
-TRANS(vsran_w_d, gen_vvv, gen_helper_vsran_w_d)
+TRANS(vsrln_b_h, gen_vvv, 16, gen_helper_vsrln_b_h)
+TRANS(vsrln_h_w, gen_vvv, 16, gen_helper_vsrln_h_w)
+TRANS(vsrln_w_d, gen_vvv, 16, gen_helper_vsrln_w_d)
+TRANS(vsran_b_h, gen_vvv, 16, gen_helper_vsran_b_h)
+TRANS(vsran_h_w, gen_vvv, 16, gen_helper_vsran_h_w)
+TRANS(vsran_w_d, gen_vvv, 16, gen_helper_vsran_w_d)
 
-TRANS(vsrlni_b_h, gen_vv_i, gen_helper_vsrlni_b_h)
-TRANS(vsrlni_h_w, gen_vv_i, gen_helper_vsrlni_h_w)
-TRANS(vsrlni_w_d, gen_vv_i, gen_helper_vsrlni_w_d)
-TRANS(vsrlni_d_q, gen_vv_i, gen_helper_vsrlni_d_q)
-TRANS(vsrani_b_h, gen_vv_i, gen_helper_vsrani_b_h)
-TRANS(vsrani_h_w, gen_vv_i, gen_helper_vsrani_h_w)
-TRANS(vsrani_w_d, gen_vv_i, gen_helper_vsrani_w_d)
-TRANS(vsrani_d_q, gen_vv_i, gen_helper_vsrani_d_q)
+TRANS(vsrlni_b_h, gen_vv_i, 16, gen_helper_vsrlni_b_h)
+TRANS(vsrlni_h_w, gen_vv_i, 16, gen_helper_vsrlni_h_w)
+TRANS(vsrlni_w_d, gen_vv_i, 16, gen_helper_vsrlni_w_d)
+TRANS(vsrlni_d_q, gen_vv_i, 16, gen_helper_vsrlni_d_q)
+TRANS(vsrani_b_h, gen_vv_i, 16, gen_helper_vsrani_b_h)
+TRANS(vsrani_h_w, gen_vv_i, 16, gen_helper_vsrani_h_w)
+TRANS(vsrani_w_d, gen_vv_i, 16, gen_helper_vsrani_w_d)
+TRANS(vsrani_d_q, gen_vv_i, 16, gen_helper_vsrani_d_q)
 
-TRANS(vsrlrn_b_h, gen_vvv, gen_helper_vsrlrn_b_h)
-TRANS(vsrlrn_h_w, gen_vvv, gen_helper_vsrlrn_h_w)
-TRANS(vsrlrn_w_d, gen_vvv, gen_helper_vsrlrn_w_d)
-TRANS(vsrarn_b_h, gen_vvv, gen_helper_vsrarn_b_h)
-TRANS(vsrarn_h_w, gen_vvv, gen_helper_vsrarn_h_w)
-TRANS(vsrarn_w_d, gen_vvv, gen_helper_vsrarn_w_d)
+TRANS(vsrlrn_b_h, gen_vvv, 16, gen_helper_vsrlrn_b_h)
+TRANS(vsrlrn_h_w, gen_vvv, 16, gen_helper_vsrlrn_h_w)
+TRANS(vsrlrn_w_d, gen_vvv, 16, gen_helper_vsrlrn_w_d)
+TRANS(vsrarn_b_h, gen_vvv, 16, gen_helper_vsrarn_b_h)
+TRANS(vsrarn_h_w, gen_vvv, 16, gen_helper_vsrarn_h_w)
+TRANS(vsrarn_w_d, gen_vvv, 16, gen_helper_vsrarn_w_d)
 
-TRANS(vsrlrni_b_h, gen_vv_i, gen_helper_vsrlrni_b_h)
-TRANS(vsrlrni_h_w, gen_vv_i, gen_helper_vsrlrni_h_w)
-TRANS(vsrlrni_w_d, gen_vv_i, gen_helper_vsrlrni_w_d)
-TRANS(vsrlrni_d_q, gen_vv_i, gen_helper_vsrlrni_d_q)
-TRANS(vsrarni_b_h, gen_vv_i, gen_helper_vsrarni_b_h)
-TRANS(vsrarni_h_w, gen_vv_i, gen_helper_vsrarni_h_w)
-TRANS(vsrarni_w_d, gen_vv_i, gen_helper_vsrarni_w_d)
-TRANS(vsrarni_d_q, gen_vv_i, gen_helper_vsrarni_d_q)
+TRANS(vsrlrni_b_h, gen_vv_i, 16, gen_helper_vsrlrni_b_h)
+TRANS(vsrlrni_h_w, gen_vv_i, 16, gen_helper_vsrlrni_h_w)
+TRANS(vsrlrni_w_d, gen_vv_i, 16, gen_helper_vsrlrni_w_d)
+TRANS(vsrlrni_d_q, gen_vv_i, 16, gen_helper_vsrlrni_d_q)
+TRANS(vsrarni_b_h, gen_vv_i, 16, gen_helper_vsrarni_b_h)
+TRANS(vsrarni_h_w, gen_vv_i, 16, gen_helper_vsrarni_h_w)
+TRANS(vsrarni_w_d, gen_vv_i, 16, gen_helper_vsrarni_w_d)
+TRANS(vsrarni_d_q, gen_vv_i, 16, gen_helper_vsrarni_d_q)
 
-TRANS(vssrln_b_h, gen_vvv, gen_helper_vssrln_b_h)
-TRANS(vssrln_h_w, gen_vvv, gen_helper_vssrln_h_w)
-TRANS(vssrln_w_d, gen_vvv, gen_helper_vssrln_w_d)
-TRANS(vssran_b_h, gen_vvv, gen_helper_vssran_b_h)
-TRANS(vssran_h_w, gen_vvv, gen_helper_vssran_h_w)
-TRANS(vssran_w_d, gen_vvv, gen_helper_vssran_w_d)
-TRANS(vssrln_bu_h, gen_vvv, gen_helper_vssrln_bu_h)
-TRANS(vssrln_hu_w, gen_vvv, gen_helper_vssrln_hu_w)
-TRANS(vssrln_wu_d, gen_vvv, gen_helper_vssrln_wu_d)
-TRANS(vssran_bu_h, gen_vvv, gen_helper_vssran_bu_h)
-TRANS(vssran_hu_w, gen_vvv, gen_helper_vssran_hu_w)
-TRANS(vssran_wu_d, gen_vvv, gen_helper_vssran_wu_d)
+TRANS(vssrln_b_h, gen_vvv, 16, gen_helper_vssrln_b_h)
+TRANS(vssrln_h_w, gen_vvv, 16, gen_helper_vssrln_h_w)
+TRANS(vssrln_w_d, gen_vvv, 16, gen_helper_vssrln_w_d)
+TRANS(vssran_b_h, gen_vvv, 16, gen_helper_vssran_b_h)
+TRANS(vssran_h_w, gen_vvv, 16, gen_helper_vssran_h_w)
+TRANS(vssran_w_d, gen_vvv, 16, gen_helper_vssran_w_d)
+TRANS(vssrln_bu_h, gen_vvv, 16, gen_helper_vssrln_bu_h)
+TRANS(vssrln_hu_w, gen_vvv, 16, gen_helper_vssrln_hu_w)
+TRANS(vssrln_wu_d, gen_vvv, 16, gen_helper_vssrln_wu_d)
+TRANS(vssran_bu_h, gen_vvv, 16, gen_helper_vssran_bu_h)
+TRANS(vssran_hu_w, gen_vvv, 16, gen_helper_vssran_hu_w)
+TRANS(vssran_wu_d, gen_vvv, 16, gen_helper_vssran_wu_d)
 
-TRANS(vssrlni_b_h, gen_vv_i, gen_helper_vssrlni_b_h)
-TRANS(vssrlni_h_w, gen_vv_i, gen_helper_vssrlni_h_w)
-TRANS(vssrlni_w_d, gen_vv_i, gen_helper_vssrlni_w_d)
-TRANS(vssrlni_d_q, gen_vv_i, gen_helper_vssrlni_d_q)
-TRANS(vssrani_b_h, gen_vv_i, gen_helper_vssrani_b_h)
-TRANS(vssrani_h_w, gen_vv_i, gen_helper_vssrani_h_w)
-TRANS(vssrani_w_d, gen_vv_i, gen_helper_vssrani_w_d)
-TRANS(vssrani_d_q, gen_vv_i, gen_helper_vssrani_d_q)
-TRANS(vssrlni_bu_h, gen_vv_i, gen_helper_vssrlni_bu_h)
-TRANS(vssrlni_hu_w, gen_vv_i, gen_helper_vssrlni_hu_w)
-TRANS(vssrlni_wu_d, gen_vv_i, gen_helper_vssrlni_wu_d)
-TRANS(vssrlni_du_q, gen_vv_i, gen_helper_vssrlni_du_q)
-TRANS(vssrani_bu_h, gen_vv_i, gen_helper_vssrani_bu_h)
-TRANS(vssrani_hu_w, gen_vv_i, gen_helper_vssrani_hu_w)
-TRANS(vssrani_wu_d, gen_vv_i, gen_helper_vssrani_wu_d)
-TRANS(vssrani_du_q, gen_vv_i, gen_helper_vssrani_du_q)
+TRANS(vssrlni_b_h, gen_vv_i, 16, gen_helper_vssrlni_b_h)
+TRANS(vssrlni_h_w, gen_vv_i, 16, gen_helper_vssrlni_h_w)
+TRANS(vssrlni_w_d, gen_vv_i, 16, gen_helper_vssrlni_w_d)
+TRANS(vssrlni_d_q, gen_vv_i, 16, gen_helper_vssrlni_d_q)
+TRANS(vssrani_b_h, gen_vv_i, 16, gen_helper_vssrani_b_h)
+TRANS(vssrani_h_w, gen_vv_i, 16, gen_helper_vssrani_h_w)
+TRANS(vssrani_w_d, gen_vv_i, 16, gen_helper_vssrani_w_d)
+TRANS(vssrani_d_q, gen_vv_i, 16, gen_helper_vssrani_d_q)
+TRANS(vssrlni_bu_h, gen_vv_i, 16, gen_helper_vssrlni_bu_h)
+TRANS(vssrlni_hu_w, gen_vv_i, 16, gen_helper_vssrlni_hu_w)
+TRANS(vssrlni_wu_d, gen_vv_i, 16, gen_helper_vssrlni_wu_d)
+TRANS(vssrlni_du_q, gen_vv_i, 16, gen_helper_vssrlni_du_q)
+TRANS(vssrani_bu_h, gen_vv_i, 16, gen_helper_vssrani_bu_h)
+TRANS(vssrani_hu_w, gen_vv_i, 16, gen_helper_vssrani_hu_w)
+TRANS(vssrani_wu_d, gen_vv_i, 16, gen_helper_vssrani_wu_d)
+TRANS(vssrani_du_q, gen_vv_i, 16, gen_helper_vssrani_du_q)
 
-TRANS(vssrlrn_b_h, gen_vvv, gen_helper_vssrlrn_b_h)
-TRANS(vssrlrn_h_w, gen_vvv, gen_helper_vssrlrn_h_w)
-TRANS(vssrlrn_w_d, gen_vvv, gen_helper_vssrlrn_w_d)
-TRANS(vssrarn_b_h, gen_vvv, gen_helper_vssrarn_b_h)
-TRANS(vssrarn_h_w, gen_vvv, gen_helper_vssrarn_h_w)
-TRANS(vssrarn_w_d, gen_vvv, gen_helper_vssrarn_w_d)
-TRANS(vssrlrn_bu_h, gen_vvv, gen_helper_vssrlrn_bu_h)
-TRANS(vssrlrn_hu_w, gen_vvv, gen_helper_vssrlrn_hu_w)
-TRANS(vssrlrn_wu_d, gen_vvv, gen_helper_vssrlrn_wu_d)
-TRANS(vssrarn_bu_h, gen_vvv, gen_helper_vssrarn_bu_h)
-TRANS(vssrarn_hu_w, gen_vvv, gen_helper_vssrarn_hu_w)
-TRANS(vssrarn_wu_d, gen_vvv, gen_helper_vssrarn_wu_d)
+TRANS(vssrlrn_b_h, gen_vvv, 16, gen_helper_vssrlrn_b_h)
+TRANS(vssrlrn_h_w, gen_vvv, 16, gen_helper_vssrlrn_h_w)
+TRANS(vssrlrn_w_d, gen_vvv, 16, gen_helper_vssrlrn_w_d)
+TRANS(vssrarn_b_h, gen_vvv, 16, gen_helper_vssrarn_b_h)
+TRANS(vssrarn_h_w, gen_vvv, 16, gen_helper_vssrarn_h_w)
+TRANS(vssrarn_w_d, gen_vvv, 16, gen_helper_vssrarn_w_d)
+TRANS(vssrlrn_bu_h, gen_vvv, 16, gen_helper_vssrlrn_bu_h)
+TRANS(vssrlrn_hu_w, gen_vvv, 16, gen_helper_vssrlrn_hu_w)
+TRANS(vssrlrn_wu_d, gen_vvv, 16, gen_helper_vssrlrn_wu_d)
+TRANS(vssrarn_bu_h, gen_vvv, 16, gen_helper_vssrarn_bu_h)
+TRANS(vssrarn_hu_w, gen_vvv, 16, gen_helper_vssrarn_hu_w)
+TRANS(vssrarn_wu_d, gen_vvv, 16, gen_helper_vssrarn_wu_d)
 
-TRANS(vssrlrni_b_h, gen_vv_i, gen_helper_vssrlrni_b_h)
-TRANS(vssrlrni_h_w, gen_vv_i, gen_helper_vssrlrni_h_w)
-TRANS(vssrlrni_w_d, gen_vv_i, gen_helper_vssrlrni_w_d)
-TRANS(vssrlrni_d_q, gen_vv_i, gen_helper_vssrlrni_d_q)
-TRANS(vssrarni_b_h, gen_vv_i, gen_helper_vssrarni_b_h)
-TRANS(vssrarni_h_w, gen_vv_i, gen_helper_vssrarni_h_w)
-TRANS(vssrarni_w_d, gen_vv_i, gen_helper_vssrarni_w_d)
-TRANS(vssrarni_d_q, gen_vv_i, gen_helper_vssrarni_d_q)
-TRANS(vssrlrni_bu_h, gen_vv_i, gen_helper_vssrlrni_bu_h)
-TRANS(vssrlrni_hu_w, gen_vv_i, gen_helper_vssrlrni_hu_w)
-TRANS(vssrlrni_wu_d, gen_vv_i, gen_helper_vssrlrni_wu_d)
-TRANS(vssrlrni_du_q, gen_vv_i, gen_helper_vssrlrni_du_q)
-TRANS(vssrarni_bu_h, gen_vv_i, gen_helper_vssrarni_bu_h)
-TRANS(vssrarni_hu_w, gen_vv_i, gen_helper_vssrarni_hu_w)
-TRANS(vssrarni_wu_d, gen_vv_i, gen_helper_vssrarni_wu_d)
-TRANS(vssrarni_du_q, gen_vv_i, gen_helper_vssrarni_du_q)
+TRANS(vssrlrni_b_h, gen_vv_i, 16, gen_helper_vssrlrni_b_h)
+TRANS(vssrlrni_h_w, gen_vv_i, 16, gen_helper_vssrlrni_h_w)
+TRANS(vssrlrni_w_d, gen_vv_i, 16, gen_helper_vssrlrni_w_d)
+TRANS(vssrlrni_d_q, gen_vv_i, 16, gen_helper_vssrlrni_d_q)
+TRANS(vssrarni_b_h, gen_vv_i, 16, gen_helper_vssrarni_b_h)
+TRANS(vssrarni_h_w, gen_vv_i, 16, gen_helper_vssrarni_h_w)
+TRANS(vssrarni_w_d, gen_vv_i, 16, gen_helper_vssrarni_w_d)
+TRANS(vssrarni_d_q, gen_vv_i, 16, gen_helper_vssrarni_d_q)
+TRANS(vssrlrni_bu_h, gen_vv_i, 16, gen_helper_vssrlrni_bu_h)
+TRANS(vssrlrni_hu_w, gen_vv_i, 16, gen_helper_vssrlrni_hu_w)
+TRANS(vssrlrni_wu_d, gen_vv_i, 16, gen_helper_vssrlrni_wu_d)
+TRANS(vssrlrni_du_q, gen_vv_i, 16, gen_helper_vssrlrni_du_q)
+TRANS(vssrarni_bu_h, gen_vv_i, 16, gen_helper_vssrarni_bu_h)
+TRANS(vssrarni_hu_w, gen_vv_i, 16, gen_helper_vssrarni_hu_w)
+TRANS(vssrarni_wu_d, gen_vv_i, 16, gen_helper_vssrarni_wu_d)
+TRANS(vssrarni_du_q, gen_vv_i, 16, gen_helper_vssrarni_du_q)
 
-TRANS(vclo_b, gen_vv, gen_helper_vclo_b)
-TRANS(vclo_h, gen_vv, gen_helper_vclo_h)
-TRANS(vclo_w, gen_vv, gen_helper_vclo_w)
-TRANS(vclo_d, gen_vv, gen_helper_vclo_d)
-TRANS(vclz_b, gen_vv, gen_helper_vclz_b)
-TRANS(vclz_h, gen_vv, gen_helper_vclz_h)
-TRANS(vclz_w, gen_vv, gen_helper_vclz_w)
-TRANS(vclz_d, gen_vv, gen_helper_vclz_d)
+TRANS(vclo_b, gen_vv, 16, gen_helper_vclo_b)
+TRANS(vclo_h, gen_vv, 16, gen_helper_vclo_h)
+TRANS(vclo_w, gen_vv, 16, gen_helper_vclo_w)
+TRANS(vclo_d, gen_vv, 16, gen_helper_vclo_d)
+TRANS(vclz_b, gen_vv, 16, gen_helper_vclz_b)
+TRANS(vclz_h, gen_vv, 16, gen_helper_vclz_h)
+TRANS(vclz_w, gen_vv, 16, gen_helper_vclz_w)
+TRANS(vclz_d, gen_vv, 16, gen_helper_vclz_d)
 
-TRANS(vpcnt_b, gen_vv, gen_helper_vpcnt_b)
-TRANS(vpcnt_h, gen_vv, gen_helper_vpcnt_h)
-TRANS(vpcnt_w, gen_vv, gen_helper_vpcnt_w)
-TRANS(vpcnt_d, gen_vv, gen_helper_vpcnt_d)
+TRANS(vpcnt_b, gen_vv, 16, gen_helper_vpcnt_b)
+TRANS(vpcnt_h, gen_vv, 16, gen_helper_vpcnt_h)
+TRANS(vpcnt_w, gen_vv, 16, gen_helper_vpcnt_w)
+TRANS(vpcnt_d, gen_vv, 16, gen_helper_vpcnt_d)
 
 static void do_vbit(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
                     void (*func)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec))
@@ -3568,107 +3605,107 @@ TRANS(vbitrevi_h, gvec_vv_i, 16, MO_16, do_vbitrevi)
 TRANS(vbitrevi_w, gvec_vv_i, 16, MO_32, do_vbitrevi)
 TRANS(vbitrevi_d, gvec_vv_i, 16, MO_64, do_vbitrevi)
 
-TRANS(vfrstp_b, gen_vvv, gen_helper_vfrstp_b)
-TRANS(vfrstp_h, gen_vvv, gen_helper_vfrstp_h)
-TRANS(vfrstpi_b, gen_vv_i, gen_helper_vfrstpi_b)
-TRANS(vfrstpi_h, gen_vv_i, gen_helper_vfrstpi_h)
+TRANS(vfrstp_b, gen_vvv, 16, gen_helper_vfrstp_b)
+TRANS(vfrstp_h, gen_vvv, 16, gen_helper_vfrstp_h)
+TRANS(vfrstpi_b, gen_vv_i, 16, gen_helper_vfrstpi_b)
+TRANS(vfrstpi_h, gen_vv_i, 16, gen_helper_vfrstpi_h)
 
-TRANS(vfadd_s, gen_vvv, gen_helper_vfadd_s)
-TRANS(vfadd_d, gen_vvv, gen_helper_vfadd_d)
-TRANS(vfsub_s, gen_vvv, gen_helper_vfsub_s)
-TRANS(vfsub_d, gen_vvv, gen_helper_vfsub_d)
-TRANS(vfmul_s, gen_vvv, gen_helper_vfmul_s)
-TRANS(vfmul_d, gen_vvv, gen_helper_vfmul_d)
-TRANS(vfdiv_s, gen_vvv, gen_helper_vfdiv_s)
-TRANS(vfdiv_d, gen_vvv, gen_helper_vfdiv_d)
+TRANS(vfadd_s, gen_vvv_f, 16, gen_helper_vfadd_s)
+TRANS(vfadd_d, gen_vvv_f, 16, gen_helper_vfadd_d)
+TRANS(vfsub_s, gen_vvv_f, 16, gen_helper_vfsub_s)
+TRANS(vfsub_d, gen_vvv_f, 16, gen_helper_vfsub_d)
+TRANS(vfmul_s, gen_vvv_f, 16, gen_helper_vfmul_s)
+TRANS(vfmul_d, gen_vvv_f, 16, gen_helper_vfmul_d)
+TRANS(vfdiv_s, gen_vvv_f, 16, gen_helper_vfdiv_s)
+TRANS(vfdiv_d, gen_vvv_f, 16, gen_helper_vfdiv_d)
 
-TRANS(vfmadd_s, gen_vvvv, gen_helper_vfmadd_s)
-TRANS(vfmadd_d, gen_vvvv, gen_helper_vfmadd_d)
-TRANS(vfmsub_s, gen_vvvv, gen_helper_vfmsub_s)
-TRANS(vfmsub_d, gen_vvvv, gen_helper_vfmsub_d)
-TRANS(vfnmadd_s, gen_vvvv, gen_helper_vfnmadd_s)
-TRANS(vfnmadd_d, gen_vvvv, gen_helper_vfnmadd_d)
-TRANS(vfnmsub_s, gen_vvvv, gen_helper_vfnmsub_s)
-TRANS(vfnmsub_d, gen_vvvv, gen_helper_vfnmsub_d)
+TRANS(vfmadd_s, gen_vvvv_f, 16, gen_helper_vfmadd_s)
+TRANS(vfmadd_d, gen_vvvv_f, 16, gen_helper_vfmadd_d)
+TRANS(vfmsub_s, gen_vvvv_f, 16, gen_helper_vfmsub_s)
+TRANS(vfmsub_d, gen_vvvv_f, 16, gen_helper_vfmsub_d)
+TRANS(vfnmadd_s, gen_vvvv_f, 16, gen_helper_vfnmadd_s)
+TRANS(vfnmadd_d, gen_vvvv_f, 16, gen_helper_vfnmadd_d)
+TRANS(vfnmsub_s, gen_vvvv_f, 16, gen_helper_vfnmsub_s)
+TRANS(vfnmsub_d, gen_vvvv_f, 16, gen_helper_vfnmsub_d)
 
-TRANS(vfmax_s, gen_vvv, gen_helper_vfmax_s)
-TRANS(vfmax_d, gen_vvv, gen_helper_vfmax_d)
-TRANS(vfmin_s, gen_vvv, gen_helper_vfmin_s)
-TRANS(vfmin_d, gen_vvv, gen_helper_vfmin_d)
+TRANS(vfmax_s, gen_vvv_f, 16, gen_helper_vfmax_s)
+TRANS(vfmax_d, gen_vvv_f, 16, gen_helper_vfmax_d)
+TRANS(vfmin_s, gen_vvv_f, 16, gen_helper_vfmin_s)
+TRANS(vfmin_d, gen_vvv_f, 16, gen_helper_vfmin_d)
 
-TRANS(vfmaxa_s, gen_vvv, gen_helper_vfmaxa_s)
-TRANS(vfmaxa_d, gen_vvv, gen_helper_vfmaxa_d)
-TRANS(vfmina_s, gen_vvv, gen_helper_vfmina_s)
-TRANS(vfmina_d, gen_vvv, gen_helper_vfmina_d)
+TRANS(vfmaxa_s, gen_vvv_f, 16, gen_helper_vfmaxa_s)
+TRANS(vfmaxa_d, gen_vvv_f, 16, gen_helper_vfmaxa_d)
+TRANS(vfmina_s, gen_vvv_f, 16, gen_helper_vfmina_s)
+TRANS(vfmina_d, gen_vvv_f, 16, gen_helper_vfmina_d)
 
-TRANS(vflogb_s, gen_vv, gen_helper_vflogb_s)
-TRANS(vflogb_d, gen_vv, gen_helper_vflogb_d)
+TRANS(vflogb_s, gen_vv_f, 16, gen_helper_vflogb_s)
+TRANS(vflogb_d, gen_vv_f, 16, gen_helper_vflogb_d)
 
-TRANS(vfclass_s, gen_vv, gen_helper_vfclass_s)
-TRANS(vfclass_d, gen_vv, gen_helper_vfclass_d)
+TRANS(vfclass_s, gen_vv_f, 16, gen_helper_vfclass_s)
+TRANS(vfclass_d, gen_vv_f, 16, gen_helper_vfclass_d)
 
-TRANS(vfsqrt_s, gen_vv, gen_helper_vfsqrt_s)
-TRANS(vfsqrt_d, gen_vv, gen_helper_vfsqrt_d)
-TRANS(vfrecip_s, gen_vv, gen_helper_vfrecip_s)
-TRANS(vfrecip_d, gen_vv, gen_helper_vfrecip_d)
-TRANS(vfrsqrt_s, gen_vv, gen_helper_vfrsqrt_s)
-TRANS(vfrsqrt_d, gen_vv, gen_helper_vfrsqrt_d)
+TRANS(vfsqrt_s, gen_vv_f, 16, gen_helper_vfsqrt_s)
+TRANS(vfsqrt_d, gen_vv_f, 16, gen_helper_vfsqrt_d)
+TRANS(vfrecip_s, gen_vv_f, 16, gen_helper_vfrecip_s)
+TRANS(vfrecip_d, gen_vv_f, 16, gen_helper_vfrecip_d)
+TRANS(vfrsqrt_s, gen_vv_f, 16, gen_helper_vfrsqrt_s)
+TRANS(vfrsqrt_d, gen_vv_f, 16, gen_helper_vfrsqrt_d)
 
-TRANS(vfcvtl_s_h, gen_vv, gen_helper_vfcvtl_s_h)
-TRANS(vfcvth_s_h, gen_vv, gen_helper_vfcvth_s_h)
-TRANS(vfcvtl_d_s, gen_vv, gen_helper_vfcvtl_d_s)
-TRANS(vfcvth_d_s, gen_vv, gen_helper_vfcvth_d_s)
-TRANS(vfcvt_h_s, gen_vvv, gen_helper_vfcvt_h_s)
-TRANS(vfcvt_s_d, gen_vvv, gen_helper_vfcvt_s_d)
+TRANS(vfcvtl_s_h, gen_vv_f, 16, gen_helper_vfcvtl_s_h)
+TRANS(vfcvth_s_h, gen_vv_f, 16, gen_helper_vfcvth_s_h)
+TRANS(vfcvtl_d_s, gen_vv_f, 16, gen_helper_vfcvtl_d_s)
+TRANS(vfcvth_d_s, gen_vv_f, 16, gen_helper_vfcvth_d_s)
+TRANS(vfcvt_h_s, gen_vvv_f, 16, gen_helper_vfcvt_h_s)
+TRANS(vfcvt_s_d, gen_vvv_f, 16, gen_helper_vfcvt_s_d)
 
-TRANS(vfrintrne_s, gen_vv, gen_helper_vfrintrne_s)
-TRANS(vfrintrne_d, gen_vv, gen_helper_vfrintrne_d)
-TRANS(vfrintrz_s, gen_vv, gen_helper_vfrintrz_s)
-TRANS(vfrintrz_d, gen_vv, gen_helper_vfrintrz_d)
-TRANS(vfrintrp_s, gen_vv, gen_helper_vfrintrp_s)
-TRANS(vfrintrp_d, gen_vv, gen_helper_vfrintrp_d)
-TRANS(vfrintrm_s, gen_vv, gen_helper_vfrintrm_s)
-TRANS(vfrintrm_d, gen_vv, gen_helper_vfrintrm_d)
-TRANS(vfrint_s, gen_vv, gen_helper_vfrint_s)
-TRANS(vfrint_d, gen_vv, gen_helper_vfrint_d)
+TRANS(vfrintrne_s, gen_vv_f, 16, gen_helper_vfrintrne_s)
+TRANS(vfrintrne_d, gen_vv_f, 16, gen_helper_vfrintrne_d)
+TRANS(vfrintrz_s, gen_vv_f, 16, gen_helper_vfrintrz_s)
+TRANS(vfrintrz_d, gen_vv_f, 16, gen_helper_vfrintrz_d)
+TRANS(vfrintrp_s, gen_vv_f, 16, gen_helper_vfrintrp_s)
+TRANS(vfrintrp_d, gen_vv_f, 16, gen_helper_vfrintrp_d)
+TRANS(vfrintrm_s, gen_vv_f, 16, gen_helper_vfrintrm_s)
+TRANS(vfrintrm_d, gen_vv_f, 16, gen_helper_vfrintrm_d)
+TRANS(vfrint_s, gen_vv_f, 16, gen_helper_vfrint_s)
+TRANS(vfrint_d, gen_vv_f, 16, gen_helper_vfrint_d)
 
-TRANS(vftintrne_w_s, gen_vv, gen_helper_vftintrne_w_s)
-TRANS(vftintrne_l_d, gen_vv, gen_helper_vftintrne_l_d)
-TRANS(vftintrz_w_s, gen_vv, gen_helper_vftintrz_w_s)
-TRANS(vftintrz_l_d, gen_vv, gen_helper_vftintrz_l_d)
-TRANS(vftintrp_w_s, gen_vv, gen_helper_vftintrp_w_s)
-TRANS(vftintrp_l_d, gen_vv, gen_helper_vftintrp_l_d)
-TRANS(vftintrm_w_s, gen_vv, gen_helper_vftintrm_w_s)
-TRANS(vftintrm_l_d, gen_vv, gen_helper_vftintrm_l_d)
-TRANS(vftint_w_s, gen_vv, gen_helper_vftint_w_s)
-TRANS(vftint_l_d, gen_vv, gen_helper_vftint_l_d)
-TRANS(vftintrz_wu_s, gen_vv, gen_helper_vftintrz_wu_s)
-TRANS(vftintrz_lu_d, gen_vv, gen_helper_vftintrz_lu_d)
-TRANS(vftint_wu_s, gen_vv, gen_helper_vftint_wu_s)
-TRANS(vftint_lu_d, gen_vv, gen_helper_vftint_lu_d)
-TRANS(vftintrne_w_d, gen_vvv, gen_helper_vftintrne_w_d)
-TRANS(vftintrz_w_d, gen_vvv, gen_helper_vftintrz_w_d)
-TRANS(vftintrp_w_d, gen_vvv, gen_helper_vftintrp_w_d)
-TRANS(vftintrm_w_d, gen_vvv, gen_helper_vftintrm_w_d)
-TRANS(vftint_w_d, gen_vvv, gen_helper_vftint_w_d)
-TRANS(vftintrnel_l_s, gen_vv, gen_helper_vftintrnel_l_s)
-TRANS(vftintrneh_l_s, gen_vv, gen_helper_vftintrneh_l_s)
-TRANS(vftintrzl_l_s, gen_vv, gen_helper_vftintrzl_l_s)
-TRANS(vftintrzh_l_s, gen_vv, gen_helper_vftintrzh_l_s)
-TRANS(vftintrpl_l_s, gen_vv, gen_helper_vftintrpl_l_s)
-TRANS(vftintrph_l_s, gen_vv, gen_helper_vftintrph_l_s)
-TRANS(vftintrml_l_s, gen_vv, gen_helper_vftintrml_l_s)
-TRANS(vftintrmh_l_s, gen_vv, gen_helper_vftintrmh_l_s)
-TRANS(vftintl_l_s, gen_vv, gen_helper_vftintl_l_s)
-TRANS(vftinth_l_s, gen_vv, gen_helper_vftinth_l_s)
+TRANS(vftintrne_w_s, gen_vv_f, 16, gen_helper_vftintrne_w_s)
+TRANS(vftintrne_l_d, gen_vv_f, 16, gen_helper_vftintrne_l_d)
+TRANS(vftintrz_w_s, gen_vv_f, 16, gen_helper_vftintrz_w_s)
+TRANS(vftintrz_l_d, gen_vv_f, 16, gen_helper_vftintrz_l_d)
+TRANS(vftintrp_w_s, gen_vv_f, 16, gen_helper_vftintrp_w_s)
+TRANS(vftintrp_l_d, gen_vv_f, 16, gen_helper_vftintrp_l_d)
+TRANS(vftintrm_w_s, gen_vv_f, 16, gen_helper_vftintrm_w_s)
+TRANS(vftintrm_l_d, gen_vv_f, 16, gen_helper_vftintrm_l_d)
+TRANS(vftint_w_s, gen_vv_f, 16, gen_helper_vftint_w_s)
+TRANS(vftint_l_d, gen_vv_f, 16, gen_helper_vftint_l_d)
+TRANS(vftintrz_wu_s, gen_vv_f, 16, gen_helper_vftintrz_wu_s)
+TRANS(vftintrz_lu_d, gen_vv_f, 16, gen_helper_vftintrz_lu_d)
+TRANS(vftint_wu_s, gen_vv_f, 16, gen_helper_vftint_wu_s)
+TRANS(vftint_lu_d, gen_vv_f, 16, gen_helper_vftint_lu_d)
+TRANS(vftintrne_w_d, gen_vvv_f, 16, gen_helper_vftintrne_w_d)
+TRANS(vftintrz_w_d, gen_vvv_f, 16, gen_helper_vftintrz_w_d)
+TRANS(vftintrp_w_d, gen_vvv_f, 16, gen_helper_vftintrp_w_d)
+TRANS(vftintrm_w_d, gen_vvv_f, 16, gen_helper_vftintrm_w_d)
+TRANS(vftint_w_d, gen_vvv_f, 16, gen_helper_vftint_w_d)
+TRANS(vftintrnel_l_s, gen_vv_f, 16, gen_helper_vftintrnel_l_s)
+TRANS(vftintrneh_l_s, gen_vv_f, 16, gen_helper_vftintrneh_l_s)
+TRANS(vftintrzl_l_s, gen_vv_f, 16, gen_helper_vftintrzl_l_s)
+TRANS(vftintrzh_l_s, gen_vv_f, 16, gen_helper_vftintrzh_l_s)
+TRANS(vftintrpl_l_s, gen_vv_f, 16, gen_helper_vftintrpl_l_s)
+TRANS(vftintrph_l_s, gen_vv_f, 16, gen_helper_vftintrph_l_s)
+TRANS(vftintrml_l_s, gen_vv_f, 16, gen_helper_vftintrml_l_s)
+TRANS(vftintrmh_l_s, gen_vv_f, 16, gen_helper_vftintrmh_l_s)
+TRANS(vftintl_l_s, gen_vv_f, 16, gen_helper_vftintl_l_s)
+TRANS(vftinth_l_s, gen_vv_f, 16, gen_helper_vftinth_l_s)
 
-TRANS(vffint_s_w, gen_vv, gen_helper_vffint_s_w)
-TRANS(vffint_d_l, gen_vv, gen_helper_vffint_d_l)
-TRANS(vffint_s_wu, gen_vv, gen_helper_vffint_s_wu)
-TRANS(vffint_d_lu, gen_vv, gen_helper_vffint_d_lu)
-TRANS(vffintl_d_w, gen_vv, gen_helper_vffintl_d_w)
-TRANS(vffinth_d_w, gen_vv, gen_helper_vffinth_d_w)
-TRANS(vffint_s_l, gen_vvv, gen_helper_vffint_s_l)
+TRANS(vffint_s_w, gen_vv_f, 16, gen_helper_vffint_s_w)
+TRANS(vffint_d_l, gen_vv_f, 16, gen_helper_vffint_d_l)
+TRANS(vffint_s_wu, gen_vv_f, 16, gen_helper_vffint_s_wu)
+TRANS(vffint_d_lu, gen_vv_f, 16, gen_helper_vffint_d_lu)
+TRANS(vffintl_d_w, gen_vv_f, 16, gen_helper_vffintl_d_w)
+TRANS(vffinth_d_w, gen_vv_f, 16, gen_helper_vffinth_d_w)
+TRANS(vffint_s_l, gen_vvv_f, 16, gen_helper_vffint_s_l)
 
 static bool do_cmp(DisasContext *ctx, arg_vvv *a, MemOp mop, TCGCond cond)
 {
@@ -4200,48 +4237,48 @@ static bool trans_vbsrl_v(DisasContext *ctx, arg_vv_i *a)
     return true;
 }
 
-TRANS(vpackev_b, gen_vvv, gen_helper_vpackev_b)
-TRANS(vpackev_h, gen_vvv, gen_helper_vpackev_h)
-TRANS(vpackev_w, gen_vvv, gen_helper_vpackev_w)
-TRANS(vpackev_d, gen_vvv, gen_helper_vpackev_d)
-TRANS(vpackod_b, gen_vvv, gen_helper_vpackod_b)
-TRANS(vpackod_h, gen_vvv, gen_helper_vpackod_h)
-TRANS(vpackod_w, gen_vvv, gen_helper_vpackod_w)
-TRANS(vpackod_d, gen_vvv, gen_helper_vpackod_d)
+TRANS(vpackev_b, gen_vvv, 16, gen_helper_vpackev_b)
+TRANS(vpackev_h, gen_vvv, 16, gen_helper_vpackev_h)
+TRANS(vpackev_w, gen_vvv, 16, gen_helper_vpackev_w)
+TRANS(vpackev_d, gen_vvv, 16, gen_helper_vpackev_d)
+TRANS(vpackod_b, gen_vvv, 16, gen_helper_vpackod_b)
+TRANS(vpackod_h, gen_vvv, 16, gen_helper_vpackod_h)
+TRANS(vpackod_w, gen_vvv, 16, gen_helper_vpackod_w)
+TRANS(vpackod_d, gen_vvv, 16, gen_helper_vpackod_d)
 
-TRANS(vpickev_b, gen_vvv, gen_helper_vpickev_b)
-TRANS(vpickev_h, gen_vvv, gen_helper_vpickev_h)
-TRANS(vpickev_w, gen_vvv, gen_helper_vpickev_w)
-TRANS(vpickev_d, gen_vvv, gen_helper_vpickev_d)
-TRANS(vpickod_b, gen_vvv, gen_helper_vpickod_b)
-TRANS(vpickod_h, gen_vvv, gen_helper_vpickod_h)
-TRANS(vpickod_w, gen_vvv, gen_helper_vpickod_w)
-TRANS(vpickod_d, gen_vvv, gen_helper_vpickod_d)
+TRANS(vpickev_b, gen_vvv, 16, gen_helper_vpickev_b)
+TRANS(vpickev_h, gen_vvv, 16, gen_helper_vpickev_h)
+TRANS(vpickev_w, gen_vvv, 16, gen_helper_vpickev_w)
+TRANS(vpickev_d, gen_vvv, 16, gen_helper_vpickev_d)
+TRANS(vpickod_b, gen_vvv, 16, gen_helper_vpickod_b)
+TRANS(vpickod_h, gen_vvv, 16, gen_helper_vpickod_h)
+TRANS(vpickod_w, gen_vvv, 16, gen_helper_vpickod_w)
+TRANS(vpickod_d, gen_vvv, 16, gen_helper_vpickod_d)
 
-TRANS(vilvl_b, gen_vvv, gen_helper_vilvl_b)
-TRANS(vilvl_h, gen_vvv, gen_helper_vilvl_h)
-TRANS(vilvl_w, gen_vvv, gen_helper_vilvl_w)
-TRANS(vilvl_d, gen_vvv, gen_helper_vilvl_d)
-TRANS(vilvh_b, gen_vvv, gen_helper_vilvh_b)
-TRANS(vilvh_h, gen_vvv, gen_helper_vilvh_h)
-TRANS(vilvh_w, gen_vvv, gen_helper_vilvh_w)
-TRANS(vilvh_d, gen_vvv, gen_helper_vilvh_d)
+TRANS(vilvl_b, gen_vvv, 16, gen_helper_vilvl_b)
+TRANS(vilvl_h, gen_vvv, 16, gen_helper_vilvl_h)
+TRANS(vilvl_w, gen_vvv, 16, gen_helper_vilvl_w)
+TRANS(vilvl_d, gen_vvv, 16, gen_helper_vilvl_d)
+TRANS(vilvh_b, gen_vvv, 16, gen_helper_vilvh_b)
+TRANS(vilvh_h, gen_vvv, 16, gen_helper_vilvh_h)
+TRANS(vilvh_w, gen_vvv, 16, gen_helper_vilvh_w)
+TRANS(vilvh_d, gen_vvv, 16, gen_helper_vilvh_d)
 
-TRANS(vshuf_b, gen_vvvv, gen_helper_vshuf_b)
-TRANS(vshuf_h, gen_vvv, gen_helper_vshuf_h)
-TRANS(vshuf_w, gen_vvv, gen_helper_vshuf_w)
-TRANS(vshuf_d, gen_vvv, gen_helper_vshuf_d)
-TRANS(vshuf4i_b, gen_vv_i, gen_helper_vshuf4i_b)
-TRANS(vshuf4i_h, gen_vv_i, gen_helper_vshuf4i_h)
-TRANS(vshuf4i_w, gen_vv_i, gen_helper_vshuf4i_w)
-TRANS(vshuf4i_d, gen_vv_i, gen_helper_vshuf4i_d)
+TRANS(vshuf_b, gen_vvvv, 16, gen_helper_vshuf_b)
+TRANS(vshuf_h, gen_vvv, 16, gen_helper_vshuf_h)
+TRANS(vshuf_w, gen_vvv, 16, gen_helper_vshuf_w)
+TRANS(vshuf_d, gen_vvv, 16, gen_helper_vshuf_d)
+TRANS(vshuf4i_b, gen_vv_i, 16, gen_helper_vshuf4i_b)
+TRANS(vshuf4i_h, gen_vv_i, 16, gen_helper_vshuf4i_h)
+TRANS(vshuf4i_w, gen_vv_i, 16, gen_helper_vshuf4i_w)
+TRANS(vshuf4i_d, gen_vv_i, 16, gen_helper_vshuf4i_d)
 
-TRANS(vpermi_w, gen_vv_i, gen_helper_vpermi_w)
+TRANS(vpermi_w, gen_vv_i, 16, gen_helper_vpermi_w)
 
-TRANS(vextrins_b, gen_vv_i, gen_helper_vextrins_b)
-TRANS(vextrins_h, gen_vv_i, gen_helper_vextrins_h)
-TRANS(vextrins_w, gen_vv_i, gen_helper_vextrins_w)
-TRANS(vextrins_d, gen_vv_i, gen_helper_vextrins_d)
+TRANS(vextrins_b, gen_vv_i, 16, gen_helper_vextrins_b)
+TRANS(vextrins_h, gen_vv_i, 16, gen_helper_vextrins_h)
+TRANS(vextrins_w, gen_vv_i, 16, gen_helper_vextrins_w)
+TRANS(vextrins_d, gen_vv_i, 16, gen_helper_vextrins_d)
 
 static bool trans_vld(DisasContext *ctx, arg_vr_i *a)
 {
