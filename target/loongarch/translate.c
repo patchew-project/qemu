@@ -220,6 +220,7 @@ static void set_fpr(int reg_num, TCGv val)
 #include "insn_trans/trans_branch.c.inc"
 #include "insn_trans/trans_privileged.c.inc"
 #include "insn_trans/trans_lsx.c.inc"
+#include "insn_trans/trans_lasx.c.inc"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
