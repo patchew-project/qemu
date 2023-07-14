@@ -63,7 +63,7 @@ bool cris_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                               access_type, mmu_idx, 0);
     if (likely(!miss)) {
         /*
-         * Mask off the cache selection bit. The ETRAX busses do not
+         * Mask off the cache selection bit. The ETRAX buses do not
          * see the top bit.
          */
         phy = res.phy & ~0x80000000;

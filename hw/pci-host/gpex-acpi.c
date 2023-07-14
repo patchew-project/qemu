@@ -213,7 +213,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
 
     /*
      * At this point crs_range_set has all the ranges used by pci
-     * busses *other* than PCI0.  These ranges will be excluded from
+     * buses *other* than PCI0.  These ranges will be excluded from
      * the PCI0._CRS.
      */
     rbuf = aml_resource_template();

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
 /*
- * Definitions for virtio I2C Adpter
+ * Definitions for virtio I2C Adapter
  *
  * Copyright (c) 2021 Intel Corporation. All rights reserved.
  */

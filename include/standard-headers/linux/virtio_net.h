@@ -267,7 +267,7 @@ struct virtio_net_ctrl_mac {
  * Control VLAN filtering
  *
  * The VLAN filter table is controlled via a simple ADD/DEL interface.
- * VLAN IDs not added may be filterd by the hypervisor.  Del is the
+ * VLAN IDs not added may be filtered by the hypervisor.  Del is the
  * opposite of add.  Both commands expect an out entry containing a 2
  * byte VLAN ID.  VLAN filterting is available with the
  * VIRTIO_NET_F_CTRL_VLAN feature bit.
@@ -280,7 +280,7 @@ struct virtio_net_ctrl_mac {
  * Control link announce acknowledgement
  *
  * The command VIRTIO_NET_CTRL_ANNOUNCE_ACK is used to indicate that
- * driver has recevied the notification; device would clear the
+ * driver has received the notification; device would clear the
  * VIRTIO_NET_S_ANNOUNCE bit in the status field after it receives
  * this command.
  */
