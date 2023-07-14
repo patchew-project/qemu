@@ -340,6 +340,13 @@ TRANS(xvsigncov_h, gvec_vvv, 32, MO_16, do_vsigncov)
 TRANS(xvsigncov_w, gvec_vvv, 32, MO_32, do_vsigncov)
 TRANS(xvsigncov_d, gvec_vvv, 32, MO_64, do_vsigncov)
 
+TRANS(xvmskltz_b, gen_vv, 32, gen_helper_vmskltz_b)
+TRANS(xvmskltz_h, gen_vv, 32, gen_helper_vmskltz_h)
+TRANS(xvmskltz_w, gen_vv, 32, gen_helper_vmskltz_w)
+TRANS(xvmskltz_d, gen_vv, 32, gen_helper_vmskltz_d)
+TRANS(xvmskgez_b, gen_vv, 32, gen_helper_vmskgez_b)
+TRANS(xvmsknz_b, gen_vv, 32, gen_helper_vmsknz_b)
+
 TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)

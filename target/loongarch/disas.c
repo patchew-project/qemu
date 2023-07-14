@@ -2010,6 +2010,13 @@ INSN_LASX(vext2xv_wu_hu,     vv)
 INSN_LASX(vext2xv_du_hu,     vv)
 INSN_LASX(vext2xv_du_wu,     vv)
 
+INSN_LASX(xvmskltz_b,        vv)
+INSN_LASX(xvmskltz_h,        vv)
+INSN_LASX(xvmskltz_w,        vv)
+INSN_LASX(xvmskltz_d,        vv)
+INSN_LASX(xvmskgez_b,        vv)
+INSN_LASX(xvmsknz_b,         vv)
+
 INSN_LASX(xvsigncov_b,       vvv)
 INSN_LASX(xvsigncov_h,       vvv)
 INSN_LASX(xvsigncov_w,       vvv)
