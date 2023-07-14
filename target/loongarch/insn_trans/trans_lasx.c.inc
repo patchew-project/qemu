@@ -704,6 +704,48 @@ TRANS(xvslti_du, do_vslti_u, 32, MO_64)
 TRANS(xvfcmp_cond_s, do_vfcmp_cond_s, 32)
 TRANS(xvfcmp_cond_d, do_vfcmp_cond_d, 32)
 
+TRANS(xvbitsel_v, do_vbitsel_v, 32)
+TRANS(xvbitseli_b, do_vbitseli_b, 32)
+
+#define XVSET(NAME, COND)                                                      \
+static bool trans_## NAME(DisasContext *ctx, arg_cv * a)                       \
+{                                                                              \
+    TCGv_i64 t1, t2, d[4];                                                     \
+                                                                               \
+    d[0] = tcg_temp_new_i64();                                                 \
+    d[1] = tcg_temp_new_i64();                                                 \
+    d[2] = tcg_temp_new_i64();                                                 \
+    d[3] = tcg_temp_new_i64();                                                 \
+    t1 = tcg_temp_new_i64();                                                   \
+    t2 = tcg_temp_new_i64();                                                   \
+                                                                               \
+    get_vreg64(d[0], a->vj, 0);                                                \
+    get_vreg64(d[1], a->vj, 1);                                                \
+    get_vreg64(d[2], a->vj, 2);                                                \
+    get_vreg64(d[3], a->vj, 3);                                                \
+                                                                               \
+    CHECK_VEC;                                                                 \
+    tcg_gen_or_i64(t1, d[0], d[1]);                                            \
+    tcg_gen_or_i64(t2, d[2], d[3]);                                            \
+    tcg_gen_or_i64(t1, t2, t1);                                                \
+    tcg_gen_setcondi_i64(COND, t1, t1, 0);                                     \
+    tcg_gen_st8_tl(t1, cpu_env, offsetof(CPULoongArchState, cf[a->cd & 0x7])); \
+                                                                               \
+    return true;                                                               \
+}
+
+XVSET(xvseteqz_v, TCG_COND_EQ)
+XVSET(xvsetnez_v, TCG_COND_NE)
+
+TRANS(xvsetanyeqz_b, gen_cv, 32, gen_helper_vsetanyeqz_b)
+TRANS(xvsetanyeqz_h, gen_cv, 32, gen_helper_vsetanyeqz_h)
+TRANS(xvsetanyeqz_w, gen_cv, 32, gen_helper_vsetanyeqz_w)
+TRANS(xvsetanyeqz_d, gen_cv, 32, gen_helper_vsetanyeqz_d)
+TRANS(xvsetallnez_b, gen_cv, 32, gen_helper_vsetallnez_b)
+TRANS(xvsetallnez_h, gen_cv, 32, gen_helper_vsetallnez_h)
+TRANS(xvsetallnez_w, gen_cv, 32, gen_helper_vsetallnez_w)
+TRANS(xvsetallnez_d, gen_cv, 32, gen_helper_vsetallnez_d)
+
 TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)
