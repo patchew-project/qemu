@@ -22,7 +22,7 @@ config TPM_TIS
 
 config TPM_CRB
     bool
-    depends on TPM && PC
+    depends on TPM && ISA_BUS
     select TPM_BACKEND
 
 config TPM_SPAPR
