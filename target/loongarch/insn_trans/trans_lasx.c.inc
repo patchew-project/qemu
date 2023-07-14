@@ -701,6 +701,9 @@ TRANS(xvslti_hu, do_vslti_u, 32, MO_16)
 TRANS(xvslti_wu, do_vslti_u, 32, MO_32)
 TRANS(xvslti_du, do_vslti_u, 32, MO_64)
 
+TRANS(xvfcmp_cond_s, do_vfcmp_cond_s, 32)
+TRANS(xvfcmp_cond_d, do_vfcmp_cond_d, 32)
+
 TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)
