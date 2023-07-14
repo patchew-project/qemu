@@ -349,6 +349,17 @@ TRANS(xvmsknz_b, gen_vv, 32, gen_helper_vmsknz_b)
 
 TRANS(xvldi, do_vldi, 32)
 
+TRANS(xvand_v, gvec_vvv, 32, MO_64, tcg_gen_gvec_and)
+TRANS(xvor_v, gvec_vvv, 32, MO_64, tcg_gen_gvec_or)
+TRANS(xvxor_v, gvec_vvv, 32, MO_64, tcg_gen_gvec_xor)
+TRANS(xvnor_v, gvec_vvv, 32, MO_64, tcg_gen_gvec_nor)
+TRANS(xvandn_v, do_vandn_v, 32)
+TRANS(xvorn_v, gvec_vvv, 32, MO_64, tcg_gen_gvec_orc)
+TRANS(xvandi_b, gvec_vv_i, 32, MO_8, tcg_gen_gvec_andi)
+TRANS(xvori_b, gvec_vv_i, 32, MO_8, tcg_gen_gvec_ori)
+TRANS(xvxori_b, gvec_vv_i, 32, MO_8, tcg_gen_gvec_xori)
+TRANS(xvnori_b, gvec_vv_i, 32, MO_8, do_vnori_b)
+
 TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)
