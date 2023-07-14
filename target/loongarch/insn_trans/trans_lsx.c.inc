@@ -2367,38 +2367,42 @@ TRANS(vmaddwev_h_b, gvec_vvv, 16, MO_8, do_vmaddwev_s)
 TRANS(vmaddwev_w_h, gvec_vvv, 16, MO_16, do_vmaddwev_s)
 TRANS(vmaddwev_d_w, gvec_vvv, 16, MO_32, do_vmaddwev_s)
 
-#define VMADD_Q(NAME, FN, idx1, idx2)                     \
-static bool trans_## NAME (DisasContext *ctx, arg_vvv *a) \
-{                                                         \
-    TCGv_i64 rh, rl, arg1, arg2, th, tl;                  \
-                                                          \
-    rh = tcg_temp_new_i64();                              \
-    rl = tcg_temp_new_i64();                              \
-    arg1 = tcg_temp_new_i64();                            \
-    arg2 = tcg_temp_new_i64();                            \
-    th = tcg_temp_new_i64();                              \
-    tl = tcg_temp_new_i64();                              \
-                                                          \
-    get_vreg64(arg1, a->vj, idx1);                        \
-    get_vreg64(arg2, a->vk, idx2);                        \
-    get_vreg64(rh, a->vd, 1);                             \
-    get_vreg64(rl, a->vd, 0);                             \
-                                                          \
-    tcg_gen_## FN ##_i64(tl, th, arg1, arg2);             \
-    tcg_gen_add2_i64(rl, rh, rl, rh, tl, th);             \
-                                                          \
-    set_vreg64(rh, a->vd, 1);                             \
-    set_vreg64(rl, a->vd, 0);                             \
-                                                          \
-    return true;                                          \
+static bool gen_vmadd_q(DisasContext * ctx,
+                        arg_vvv *a, int oprsz, int idx1, int idx2,
+                        void (*func)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 rh, rl, arg1, arg2, th, tl;
+    int i;
+
+    rh = tcg_temp_new_i64();
+    rl = tcg_temp_new_i64();
+    arg1 = tcg_temp_new_i64();
+    arg2 = tcg_temp_new_i64();
+    th = tcg_temp_new_i64();
+    tl = tcg_temp_new_i64();
+
+    for (i = 0; i < oprsz / 16; i++) {
+        get_vreg64(arg1, a->vj, 2 * i + idx1);
+        get_vreg64(arg2, a->vk, 2 * i + idx2);
+        get_vreg64(rh, a->vd, 2 * i + 1);
+        get_vreg64(rl, a->vd, 2 * i);
+
+        func(tl, th, arg1, arg2);
+        tcg_gen_add2_i64(rl, rh, rl, rh, tl, th);
+
+        set_vreg64(rh, a->vd, 2 * i + 1);
+        set_vreg64(rl, a->vd, 2 * i);
+    }
+
+    return true;
 }
 
-VMADD_Q(vmaddwev_q_d, muls2, 0, 0)
-VMADD_Q(vmaddwod_q_d, muls2, 1, 1)
-VMADD_Q(vmaddwev_q_du, mulu2, 0, 0)
-VMADD_Q(vmaddwod_q_du, mulu2, 1, 1)
-VMADD_Q(vmaddwev_q_du_d, mulus2, 0, 0)
-VMADD_Q(vmaddwod_q_du_d, mulus2, 1, 1)
+TRANS(vmaddwev_q_d, gen_vmadd_q, 16, 0, 0, tcg_gen_muls2_i64)
+TRANS(vmaddwod_q_d, gen_vmadd_q, 16, 1, 1, tcg_gen_muls2_i64)
+TRANS(vmaddwev_q_du, gen_vmadd_q, 16, 0, 0, tcg_gen_mulu2_i64)
+TRANS(vmaddwod_q_du, gen_vmadd_q, 16, 1, 1, tcg_gen_mulu2_i64)
+TRANS(vmaddwev_q_du_d, gen_vmadd_q, 16, 0, 0, tcg_gen_mulus2_i64)
+TRANS(vmaddwod_q_du_d, gen_vmadd_q, 16, 1, 1, tcg_gen_mulus2_i64)
 
 static void gen_vmaddwod_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
