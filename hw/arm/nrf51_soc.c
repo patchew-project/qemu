@@ -150,6 +150,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* Pass all GPIOs to the SOC layer so they are available to the board */
     qdev_pass_gpios(DEVICE(&s->gpio), dev_soc, NULL);
+    qdev_pass_gpios(DEVICE(&s->gpio), dev_soc, "detect");
 
     /* TIMER */
     for (i = 0; i < NRF51_NUM_TIMERS; i++) {
