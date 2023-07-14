@@ -766,8 +766,6 @@ VEXT2XV(vext2xv_wu_hu, 32, UW, UH)
 VEXT2XV(vext2xv_du_hu, 64, UD, UH)
 VEXT2XV(vext2xv_du_wu, 64, UD, UW)
 
-#define DO_SIGNCOV(a, b)  (a == 0 ? 0 : a < 0 ? -b : b)
-
 DO_3OP(vsigncov_b, 8, B, DO_SIGNCOV)
 DO_3OP(vsigncov_h, 16, H, DO_SIGNCOV)
 DO_3OP(vsigncov_w, 32, W, DO_SIGNCOV)
