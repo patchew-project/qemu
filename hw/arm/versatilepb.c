@@ -175,7 +175,7 @@ static void vpb_sic_init(Object *obj)
 /* Board init.  */
 
 /* The AB and PB boards both use the same core, just with different
-   peripherals and expansion busses.  For now we emulate a subset of the
+   peripherals and expansion buses.  For now we emulate a subset of the
    PB peripherals and just change the board ID.  */
 
 static struct arm_boot_info versatile_binfo;

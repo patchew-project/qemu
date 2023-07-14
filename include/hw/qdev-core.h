@@ -35,7 +35,7 @@
  *
  * As an interim step, the #DeviceState.realized property can also be
  * set with qdev_realize(). In the future, devices will propagate this
- * state change to their children and along busses they expose. The
+ * state change to their children and along buses they expose. The
  * point in time will be deferred to machine creation, so that values
  * set in @realize will not be introspectable beforehand. Therefore
  * devices must not create children during @realize; they should

@@ -386,7 +386,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
                     sysbus_mmio_get_region(SYS_BUS_DEVICE(s->iommu), 0), 1);
     pci_setup_iommu(phb->bus, sabre_pci_dma_iommu, s->iommu);
 
-    /* APB secondary busses */
+    /* APB secondary buses */
     pci_dev = pci_new_multifunction(PCI_DEVFN(1, 0), TYPE_SIMBA_PCI_BRIDGE);
     s->bridgeB = PCI_BRIDGE(pci_dev);
     pci_bridge_map_irq(s->bridgeB, "pciB", pci_simbaB_map_irq);

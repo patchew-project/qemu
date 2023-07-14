@@ -295,7 +295,7 @@ static void pit_reset(DeviceState *dev)
 }
 
 /* When HPET is operating in legacy mode, suppress the ignored timer IRQ,
- * reenable it when legacy mode is left again. */
+ * re-enable it when legacy mode is left again. */
 static void pit_irq_control(void *opaque, int n, int enable)
 {
     PITCommonState *pit = opaque;

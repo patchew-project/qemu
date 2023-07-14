@@ -95,7 +95,7 @@ static void progress_dummy_init(void)
     /*
      * SIGUSR1 is SIG_IPI and gets blocked in qemu_init_main_loop(). In the
      * tools that use the progress report SIGUSR1 isn't used in this meaning
-     * and instead should print the progress, so reenable it.
+     * and instead should print the progress, so re-enable it.
      */
     sigemptyset(&set);
     sigaddset(&set, SIGUSR1);

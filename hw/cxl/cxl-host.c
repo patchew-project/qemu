@@ -329,7 +329,7 @@ void cxl_machine_init(Object *obj, CXLState *state)
 
 void cxl_hook_up_pxb_registers(PCIBus *bus, CXLState *state, Error **errp)
 {
-    /* Walk the pci busses looking for pxb busses to hook up */
+    /* Walk the pci buses looking for pxb buses to hook up */
     if (bus) {
         QLIST_FOREACH(bus, &bus->child, sibling) {
             if (!pci_bus_is_root(bus)) {

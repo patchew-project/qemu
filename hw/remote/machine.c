@@ -2,7 +2,7 @@
  * Machine for remote device
  *
  *  This machine type is used by the remote device process in multi-process
- *  QEMU. QEMU device models depend on parent busses, interrupt controllers,
+ *  QEMU. QEMU device models depend on parent buses, interrupt controllers,
  *  memory regions, etc. The remote machine type offers this environment so
  *  that QEMU device models can be used as remote devices.
  *

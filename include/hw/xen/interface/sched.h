@@ -66,7 +66,7 @@
 /*
  * Block execution of this VCPU until an event is received for processing.
  * If called with event upcalls masked, this operation will atomically
- * reenable event delivery and check for pending events before blocking the
+ * re-enable event delivery and check for pending events before blocking the
  * VCPU. This avoids a "wakeup waiting" race.
  * @arg == NULL.
  */

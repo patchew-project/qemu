@@ -39,7 +39,7 @@ static void spapr_phb_vfio_eeh_reenable(SpaprPhbState *sphb)
 void spapr_phb_vfio_reset(DeviceState *qdev)
 {
     /*
-     * The PE might be in frozen state. To reenable the EEH
+     * The PE might be in frozen state. To re-enable the EEH
      * functionality on it will clean the frozen state, which
      * ensures that the contained PCI devices will work properly
      * after reboot.
@@ -78,7 +78,7 @@ int spapr_phb_vfio_eeh_set_option(SpaprPhbState *sphb,
          * call. Now we just need to check the validity of the PCI
          * pass-through devices (vfio-pci) under this sphb bus.
          * We have already validated that all the devices under this sphb
-         * are from same iommu group (within same PE) before comming here.
+         * are from same iommu group (within same PE) before coming here.
          *
          * Prior to linux commit 98ba956f6a389 ("powerpc/pseries/eeh:
          * Rework device EEH PE determination") kernel would call
@@ -144,7 +144,7 @@ static void spapr_phb_vfio_eeh_clear_dev_msix(PCIBus *bus,
 
     /*
      * The MSIx table will be cleaned out by reset. We need
-     * disable it so that it can be reenabled properly. Also,
+     * disable it so that it can be re-enabled properly. Also,
      * the cached MSIx table should be cleared as it's not
      * reflecting the contents in hardware.
      */

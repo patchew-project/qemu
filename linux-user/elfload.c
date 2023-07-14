@@ -2717,7 +2717,7 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
         /*
          * Extend the allocation to include the commpage.
          * For a 64-bit host, this is just 4GiB; for a 32-bit host we
-         * need to ensure there is space bellow the guest_base so we
+         * need to ensure there is space below the guest_base so we
          * can map the commpage in the place needed when the address
          * arithmetic wraps around.
          */
