@@ -1,6 +1,6 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
-# tpm_crb.c
+# tpm_crb_common.c
 tpm_crb_mmio_read(uint64_t addr, unsigned size, uint32_t val) "CRB read 0x%016" PRIx64 " len:%u val: 0x%" PRIx32
 tpm_crb_mmio_write(uint64_t addr, unsigned size, uint32_t val) "CRB write 0x%016" PRIx64 " len:%u val: 0x%" PRIx32
 
