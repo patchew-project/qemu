@@ -388,8 +388,12 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         || strcmp(words[0], "irq_intercept_in") == 0) {
         DeviceState *dev;
         NamedGPIOList *ngl;
+        bool is_named;
+        bool is_outbound;
 
         g_assert(words[1]);
+        is_named = words[2] != NULL;
+        is_outbound = words[0][14] == 'o';
         dev = DEVICE(object_resolve_path(words[1], NULL));
         if (!dev) {
             qtest_send_prefix(chr);
@@ -408,19 +412,28 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         }
 
         QLIST_FOREACH(ngl, &dev->gpios, node) {
-            /* We don't support intercept of named GPIOs yet */
-            if (ngl->name) {
-                continue;
-            }
-            if (words[0][14] == 'o') {
-                int i;
-                for (i = 0; i < ngl->num_out; ++i) {
-                    qemu_irq *disconnected = g_new0(qemu_irq, 1);
-                    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
-                                                      disconnected, i);
+            /* We don't support inbound interception of named GPIOs yet */
+            if (is_outbound) {
+                if (is_named) {
+                    if (ngl->name && strcmp(ngl->name, words[2]) == 0) {
+                        qemu_irq *disconnected = g_new0(qemu_irq, 1);
+                        qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
+                                                          disconnected, 0);
 
-                    *disconnected = qdev_intercept_gpio_out(dev, icpt,
-                                                            ngl->name, i);
+                        *disconnected = qdev_intercept_gpio_out(dev, icpt,
+                                                                ngl->name, 0);
+                        break;
+                    }
+                } else if (!ngl->name) {
+                    int i;
+                    for (i = 0; i < ngl->num_out; ++i) {
+                        qemu_irq *disconnected = g_new0(qemu_irq, 1);
+                        qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
+                                                          disconnected, i);
+
+                        *disconnected = qdev_intercept_gpio_out(dev, icpt,
+                                                                ngl->name, i);
+                    }
                 }
             } else {
                 qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
