@@ -4430,33 +4430,33 @@ static bool trans_vstx(DisasContext *ctx, arg_vrr *a)
     return true;
 }
 
-#define VLDREPL(NAME, MO)                                                 \
-static bool trans_## NAME (DisasContext *ctx, arg_vr_i *a)                \
-{                                                                         \
-    TCGv addr, temp;                                                      \
-    TCGv_i64 val;                                                         \
-                                                                          \
-    CHECK_VEC;                                                            \
-                                                                          \
-    addr = gpr_src(ctx, a->rj, EXT_NONE);                                 \
-    val = tcg_temp_new_i64();                                             \
-                                                                          \
-    if (a->imm) {                                                         \
-        temp = tcg_temp_new();                                            \
-        tcg_gen_addi_tl(temp, addr, a->imm);                              \
-        addr = temp;                                                      \
-    }                                                                     \
-                                                                          \
-    tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, MO);                     \
-    tcg_gen_gvec_dup_i64(MO, vec_full_offset(a->vd), 16, ctx->vl/8, val); \
-                                                                          \
-    return true;                                                          \
+static bool do_vldrepl(DisasContext *ctx, arg_vr_i * a,
+                       uint32_t oprsz, MemOp mop)
+{
+    TCGv addr, temp;
+    TCGv_i64 val;
+
+    CHECK_VEC;
+
+    addr = gpr_src(ctx, a->rj, EXT_NONE);
+    val = tcg_temp_new_i64();
+
+    if (a->imm) {
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, addr, a->imm);
+        addr = temp;
+    }
+
+    tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, mop);
+    tcg_gen_gvec_dup_i64(mop, vec_full_offset(a->vd), oprsz, ctx->vl / 8, val);
+
+    return true;
 }
 
-VLDREPL(vldrepl_b, MO_8)
-VLDREPL(vldrepl_h, MO_16)
-VLDREPL(vldrepl_w, MO_32)
-VLDREPL(vldrepl_d, MO_64)
+TRANS(vldrepl_b, do_vldrepl, 16, MO_8)
+TRANS(vldrepl_h, do_vldrepl, 16, MO_16)
+TRANS(vldrepl_w, do_vldrepl, 16, MO_32)
+TRANS(vldrepl_d, do_vldrepl, 16, MO_64)
 
 #define VSTELM(NAME, MO, E)                                                  \
 static bool trans_## NAME (DisasContext *ctx, arg_vr_ii *a)                  \

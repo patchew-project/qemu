@@ -926,3 +926,83 @@ TRANS(xvextrins_b, gen_vv_i, 32, gen_helper_vextrins_b)
 TRANS(xvextrins_h, gen_vv_i, 32, gen_helper_vextrins_h)
 TRANS(xvextrins_w, gen_vv_i, 32, gen_helper_vextrins_w)
 TRANS(xvextrins_d, gen_vv_i, 32, gen_helper_vextrins_d)
+
+static bool gen_lasx_memory(DisasContext *ctx, arg_vr_i *a,
+                            void (*func)(DisasContext *, int, TCGv))
+{
+    TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv temp = NULL;
+
+    CHECK_VEC;
+
+    if (a->imm) {
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, addr, a->imm);
+        addr = temp;
+    }
+
+    func(ctx, a->vd, addr);
+    return true;
+}
+
+static void gen_xvld(DisasContext *ctx, int vreg, TCGv addr)
+{
+    int i;
+    TCGv temp = tcg_temp_new();
+    TCGv dest = tcg_temp_new();
+
+    tcg_gen_qemu_ld_i64(dest, addr, ctx->mem_idx, MO_TEUQ);
+    set_vreg64(dest, vreg, 0);
+
+    for (i = 1; i < 4; i++) {
+        tcg_gen_addi_tl(temp, addr, 8 * i);
+        tcg_gen_qemu_ld_i64(dest, temp, ctx->mem_idx, MO_TEUQ);
+        set_vreg64(dest, vreg, i);
+    }
+}
+
+static void gen_xvst(DisasContext * ctx, int vreg, TCGv addr)
+{
+    int i;
+    TCGv temp = tcg_temp_new();
+    TCGv dest = tcg_temp_new();
+
+    get_vreg64(dest, vreg, 0);
+    tcg_gen_qemu_st_i64(dest, addr, ctx->mem_idx, MO_TEUQ);
+
+    for (i = 1; i < 4; i++) {
+        tcg_gen_addi_tl(temp, addr, 8 * i);
+        get_vreg64(dest, vreg, i);
+        tcg_gen_qemu_st_i64(dest, temp, ctx->mem_idx, MO_TEUQ);
+    }
+}
+
+TRANS(xvld, gen_lasx_memory, gen_xvld)
+TRANS(xvst, gen_lasx_memory, gen_xvst)
+
+static bool gen_lasx_memoryx(DisasContext *ctx, arg_vrr *a,
+                             void (*func)(DisasContext*, int, TCGv))
+{
+    TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv src2 = gpr_src(ctx, a->rk, EXT_NONE);
+    TCGv addr = tcg_temp_new();
+
+    CHECK_VEC;
+
+    tcg_gen_add_tl(addr, src1, src2);
+    func(ctx, a->vd, addr);
+
+    return true;
+}
+
+TRANS(xvldx, gen_lasx_memoryx, gen_xvld)
+TRANS(xvstx, gen_lasx_memoryx, gen_xvst)
+
+TRANS(xvldrepl_b, do_vldrepl, 32, MO_8)
+TRANS(xvldrepl_h, do_vldrepl, 32, MO_16)
+TRANS(xvldrepl_w, do_vldrepl, 32, MO_32)
+TRANS(xvldrepl_d, do_vldrepl, 32, MO_64)
+VSTELM(xvstelm_b, MO_8, B)
+VSTELM(xvstelm_h, MO_16, H)
+VSTELM(xvstelm_w, MO_32, W)
+VSTELM(xvstelm_d, MO_64, D)
