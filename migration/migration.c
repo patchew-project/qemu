@@ -2058,6 +2058,21 @@ static int await_return_path_close_on_source(MigrationState *ms)
     return ms->rp_state.error;
 }
 
+static int close_return_path_on_source(MigrationState *ms)
+{
+    int ret;
+
+    if (!ms->rp_state.rp_thread_created) {
+        return 0;
+    }
+
+    trace_migration_return_path_end_before();
+    ret = await_return_path_close_on_source(ms);
+    trace_migration_return_path_end_after(ret);
+
+    return ret;
+}
+
 static inline void
 migration_wait_main_channel(MigrationState *ms)
 {
@@ -2288,102 +2303,67 @@ static int migration_maybe_pause(MigrationState *s,
     return s->state == new_state ? 0 : -EINVAL;
 }
 
-/**
- * migration_completion: Used by migration_thread when there's not much left.
- *   The caller 'breaks' the loop when this returns.
- *
- * @s: Current migration state
- */
-static void migration_completion(MigrationState *s)
+static int migration_completion_precopy(MigrationState *s,
+                                        int *current_active_state)
 {
     int ret;
-    int current_active_state = s->state;
 
-    if (s->state == MIGRATION_STATUS_ACTIVE) {
-        qemu_mutex_lock_iothread();
-        s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
+    qemu_mutex_lock_iothread();
+    s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
 
-        s->vm_old_state = runstate_get();
-        global_state_store();
+    s->vm_old_state = runstate_get();
+    global_state_store();
 
-        ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-        trace_migration_completion_vm_stop(ret);
-        if (ret >= 0) {
-            ret = migration_maybe_pause(s, &current_active_state,
-                                        MIGRATION_STATUS_DEVICE);
-        }
-        if (ret >= 0) {
-            /*
-             * Inactivate disks except in COLO, and track that we
-             * have done so in order to remember to reactivate
-             * them if migration fails or is cancelled.
-             */
-            s->block_inactive = !migrate_colo();
-            migration_rate_set(RATE_LIMIT_DISABLED);
-            ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
-                                                     s->block_inactive);
-        }
+    ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+    trace_migration_completion_vm_stop(ret);
+    if (ret < 0) {
+        goto out_unlock;
+    }
 
-        qemu_mutex_unlock_iothread();
-
-        if (ret < 0) {
-            goto fail;
-        }
-    } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
-        trace_migration_completion_postcopy_end();
-
-        qemu_mutex_lock_iothread();
-        qemu_savevm_state_complete_postcopy(s->to_dst_file);
-        qemu_mutex_unlock_iothread();
-
-        /*
-         * Shutdown the postcopy fast path thread.  This is only needed
-         * when dest QEMU binary is old (7.1/7.2).  QEMU 8.0+ doesn't need
-         * this.
-         */
-        if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
-            postcopy_preempt_shutdown_file(s);
-        }
-
-        trace_migration_completion_postcopy_end_after_complete();
-    } else {
-        goto fail;
+    ret = migration_maybe_pause(s, current_active_state,
+                                MIGRATION_STATUS_DEVICE);
+    if (ret < 0) {
+        goto out_unlock;
     }
 
     /*
-     * If rp was opened we must clean up the thread before
-     * cleaning everything else up (since if there are no failures
-     * it will wait for the destination to send it's status in
-     * a SHUT command).
+     * Inactivate disks except in COLO, and track that we have done so in order
+     * to remember to reactivate them if migration fails or is cancelled.
      */
-    if (s->rp_state.rp_thread_created) {
-        int rp_error;
-        trace_migration_return_path_end_before();
-        rp_error = await_return_path_close_on_source(s);
-        trace_migration_return_path_end_after(rp_error);
-        if (rp_error) {
-            goto fail;
-        }
+    s->block_inactive = !migrate_colo();
+    migration_rate_set(RATE_LIMIT_DISABLED);
+    ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
+                                             s->block_inactive);
+out_unlock:
+    qemu_mutex_unlock_iothread();
+    return ret;
+}
+
+static int migration_completion_postcopy(MigrationState *s)
+{
+    trace_migration_completion_postcopy_end();
+
+    qemu_mutex_lock_iothread();
+    qemu_savevm_state_complete_postcopy(s->to_dst_file);
+    qemu_mutex_unlock_iothread();
+
+    /*
+     * Shutdown the postcopy fast path thread.  This is only needed when dest
+     * QEMU binary is old (7.1/7.2).  QEMU 8.0+ doesn't need this.
+     */
+    if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
+        postcopy_preempt_shutdown_file(s);
     }
 
-    if (qemu_file_get_error(s->to_dst_file)) {
-        trace_migration_completion_file_err();
-        goto fail;
-    }
+    trace_migration_completion_postcopy_end_after_complete();
 
-    if (migrate_colo() && s->state == MIGRATION_STATUS_ACTIVE) {
-        /* COLO does not support postcopy */
-        migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
-                          MIGRATION_STATUS_COLO);
-    } else {
-        migrate_set_state(&s->state, current_active_state,
-                          MIGRATION_STATUS_COMPLETED);
-    }
+    return 0;
+}
 
-    return;
-
-fail:
+static void migration_completion_failed(MigrationState *s,
+                                        int current_active_state)
+{
     if (s->block_inactive && (s->state == MIGRATION_STATUS_ACTIVE ||
                               s->state == MIGRATION_STATUS_DEVICE)) {
         /*
@@ -2404,6 +2384,57 @@ fail:
 
     migrate_set_state(&s->state, current_active_state,
                       MIGRATION_STATUS_FAILED);
+}
+
+/**
+ * migration_completion: Used by migration_thread when there's not much left.
+ *   The caller 'breaks' the loop when this returns.
+ *
+ * @s: Current migration state
+ */
+static void migration_completion(MigrationState *s)
+{
+    int ret = -1;
+    int current_active_state = s->state;
+
+    if (s->state == MIGRATION_STATUS_ACTIVE) {
+        ret = migration_completion_precopy(s, &current_active_state);
+    } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+        ret = migration_completion_postcopy(s);
+    }
+
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /*
+     * If rp was opened we must clean up the thread before
+     * cleaning everything else up (since if there are no failures
+     * it will wait for the destination to send it's status in
+     * a SHUT command).
+     */
+    if (close_return_path_on_source(s) < 0) {
+        goto fail;
+    }
+
+    if (qemu_file_get_error(s->to_dst_file)) {
+        trace_migration_completion_file_err();
+        goto fail;
+    }
+
+    if (migrate_colo() && s->state == MIGRATION_STATUS_ACTIVE) {
+        /* COLO does not support postcopy */
+        migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_COLO);
+    } else {
+        migrate_set_state(&s->state, current_active_state,
+                          MIGRATION_STATUS_COMPLETED);
+    }
+
+    return;
+
+fail:
+    migration_completion_failed(s, current_active_state);
 }
 
 /**
