@@ -556,6 +556,11 @@ TRANS(xvbitrevi_h, gvec_vv_i, 32, MO_16, do_vbitrevi)
 TRANS(xvbitrevi_w, gvec_vv_i, 32, MO_32, do_vbitrevi)
 TRANS(xvbitrevi_d, gvec_vv_i, 32, MO_64, do_vbitrevi)
 
+TRANS(xvfrstp_b, gen_vvv, 32, gen_helper_vfrstp_b)
+TRANS(xvfrstp_h, gen_vvv, 32, gen_helper_vfrstp_h)
+TRANS(xvfrstpi_b, gen_vv_i, 32, gen_helper_vfrstpi_b)
+TRANS(xvfrstpi_h, gen_vv_i, 32, gen_helper_vfrstpi_h)
+
 TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)

@@ -2251,37 +2251,45 @@ DO_BITI(vbitrevi_d, 64, UD, DO_BITREV)
 #define VFRSTP(NAME, BIT, MASK, E)                             \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t desc) \
 {                                                              \
-    int i, m;                                                  \
+    int i, j, m, ofs;                                          \
     VReg *Vd = (VReg *)vd;                                     \
     VReg *Vj = (VReg *)vj;                                     \
     VReg *Vk = (VReg *)vk;                                     \
+    int oprsz = simd_oprsz(desc);                              \
                                                                \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                        \
-        if (Vj->E(i) < 0) {                                    \
-            break;                                             \
+    ofs = LSX_LEN / BIT;                                       \
+    for (i = 0; i < oprsz / 16; i++) {                         \
+        m = Vk->E(i * ofs) & MASK;                             \
+        for (j = 0; j < ofs; j++) {                            \
+            if (Vj->E(j + ofs * i) < 0) {                      \
+                break;                                         \
+            }                                                  \
         }                                                      \
+        Vd->E(m + i * ofs) = j;                                \
     }                                                          \
-    m = Vk->E(0) & MASK;                                       \
-    Vd->E(m) = i;                                              \
 }
 
 VFRSTP(vfrstp_b, 8, 0xf, B)
 VFRSTP(vfrstp_h, 16, 0x7, H)
 
-#define VFRSTPI(NAME, BIT, E)                                     \
-void HELPER(NAME)(void *vd, void vj, uint64_t imm, uint32_t desc) \
-{                                                                 \
-    int i, m;                                                     \
-    VReg *Vd = (VReg *)vd;                                        \
-    VReg *Vj = (VReg *)vj;                                        \
-                                                                  \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                           \
-        if (Vj->E(i) < 0) {                                       \
-            break;                                                \
-        }                                                         \
-    }                                                             \
-    m = imm % (LSX_LEN/BIT);                                      \
-    Vd->E(m) = i;                                                 \
+#define VFRSTPI(NAME, BIT, E)                                       \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t desc)  \
+{                                                                   \
+    int i, j, m, ofs;                                               \
+    VReg *Vd = (VReg *)vd;                                          \
+    VReg *Vj = (VReg *)vj;                                          \
+    int oprsz = simd_oprsz(desc);                                   \
+                                                                    \
+    ofs = LSX_LEN / BIT;                                            \
+    m = imm % ofs;                                                  \
+    for (i = 0; i < oprsz / 16; i++) {                              \
+        for (j = 0; j < ofs; j++) {                                 \
+            if (Vj->E(j + ofs * i) < 0) {                           \
+                break;                                              \
+            }                                                       \
+        }                                                           \
+        Vd->E(m + i * ofs) = j;                                     \
+    }                                                               \
 }
 
 VFRSTPI(vfrstpi_b, 8,  B)
