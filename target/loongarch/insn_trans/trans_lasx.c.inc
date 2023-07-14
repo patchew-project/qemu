@@ -524,6 +524,11 @@ TRANS(xvclz_h, gen_vv, 32, gen_helper_vclz_h)
 TRANS(xvclz_w, gen_vv, 32, gen_helper_vclz_w)
 TRANS(xvclz_d, gen_vv, 32, gen_helper_vclz_d)
 
+TRANS(xvpcnt_b, gen_vv, 32, gen_helper_vpcnt_b)
+TRANS(xvpcnt_h, gen_vv, 32, gen_helper_vpcnt_h)
+TRANS(xvpcnt_w, gen_vv, 32, gen_helper_vpcnt_w)
+TRANS(xvpcnt_d, gen_vv, 32, gen_helper_vpcnt_d)
+
 TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)
