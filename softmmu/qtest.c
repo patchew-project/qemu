@@ -399,6 +399,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         NamedGPIOList *ngl;
         bool is_named;
         bool is_outbound;
+        bool interception_succeeded = false;
 
         g_assert(words[1]);
         is_named = words[2] != NULL;
@@ -431,6 +432,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
                 if (is_named) {
                     if (ngl->name && strcmp(ngl->name, words[2]) == 0) {
                         qtest_install_gpio_out_intercepts(dev, ngl->name, 0);
+                        interception_succeeded = true;
                         break;
                     }
                 } else if (!ngl->name) {
@@ -438,15 +440,22 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
                     for (i = 0; i < ngl->num_out; ++i) {
                         qtest_install_gpio_out_intercepts(dev, ngl->name, i);
                     }
+                    interception_succeeded = true;
                 }
             } else {
                 qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
                                       ngl->num_in);
+                interception_succeeded = true;
             }
         }
-        irq_intercept_dev = dev;
+
         qtest_send_prefix(chr);
-        qtest_send(chr, "OK\n");
+        if (interception_succeeded) {
+            irq_intercept_dev = dev;
+            qtest_send(chr, "OK\n");
+        } else {
+            qtest_send(chr, "FAIL No intercepts installed\n");
+        }
     } else if (strcmp(words[0], "set_irq_in") == 0) {
         DeviceState *dev;
         qemu_irq irq;
