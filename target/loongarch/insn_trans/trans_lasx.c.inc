@@ -56,6 +56,11 @@ TRANS(xvsubi_hu, gvec_subi, 32, MO_16)
 TRANS(xvsubi_wu, gvec_subi, 32, MO_32)
 TRANS(xvsubi_du, gvec_subi, 32, MO_64)
 
+TRANS(xvneg_b, gvec_vv, 32, MO_8, tcg_gen_gvec_neg)
+TRANS(xvneg_h, gvec_vv, 32, MO_16, tcg_gen_gvec_neg)
+TRANS(xvneg_w, gvec_vv, 32, MO_32, tcg_gen_gvec_neg)
+TRANS(xvneg_d, gvec_vv, 32, MO_64, tcg_gen_gvec_neg)
+
 TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)
