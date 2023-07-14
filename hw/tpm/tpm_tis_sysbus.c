@@ -124,6 +124,11 @@ static void tpm_tis_sysbus_realizefn(DeviceState *dev, Error **errp)
         error_setg(errp, "'tpmdev' property is required");
         return;
     }
+
+    if (s->ppi_enabled) {
+        error_setg(errp, "'ppi=on' is not supported by this device");
+        return;
+    }
 }
 
 static void tpm_tis_sysbus_class_init(ObjectClass *klass, void *data)
