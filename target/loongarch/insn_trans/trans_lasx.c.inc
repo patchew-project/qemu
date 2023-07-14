@@ -46,3 +46,8 @@ TRANS(xvsub_b, gvec_vvv, 32, MO_8, tcg_gen_gvec_sub)
 TRANS(xvsub_h, gvec_vvv, 32, MO_16, tcg_gen_gvec_sub)
 TRANS(xvsub_w, gvec_vvv, 32, MO_32, tcg_gen_gvec_sub)
 TRANS(xvsub_d, gvec_vvv, 32, MO_64, tcg_gen_gvec_sub)
+
+TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
+TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
+TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)
+TRANS(xvreplgr2vr_d, gvec_dup, 32, MO_64)
