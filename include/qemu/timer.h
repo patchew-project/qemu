@@ -353,7 +353,7 @@ void timerlist_notify(QEMUTimerList *timer_list);
  * Initialise a timer list group. This must already be
  * allocated in memory and zeroed. The notifier callback is
  * called whenever a clock in the timer list group is
- * reenabled or whenever a timer associated with any timer
+ * re-enabled or whenever a timer associated with any timer
  * list is modified. If @cb is specified as null, qemu_notify()
  * is used instead.
  */
