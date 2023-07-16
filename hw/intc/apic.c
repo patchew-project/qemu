@@ -619,9 +619,10 @@ int apic_accept_pic_intr(DeviceState *dev)
     return 0;
 }
 
-static void apic_timer_update(APICCommonState *s, int64_t current_time)
+static void apic_timer_update(APICCommonState *s, int64_t current_time,
+                              bool switch_to_periodic)
 {
-    if (apic_next_timer(s, current_time)) {
+    if (apic_next_timer(s, current_time, switch_to_periodic)) {
         timer_mod(s->timer, s->next_time);
     } else {
         timer_del(s->timer);
@@ -633,7 +634,7 @@ static void apic_timer(void *opaque)
     APICCommonState *s = opaque;
 
     apic_local_deliver(s, APIC_LVT_TIMER);
-    apic_timer_update(s, s->next_time);
+    apic_timer_update(s, s->next_time, false);
 }
 
 static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
@@ -814,18 +815,38 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x32 ... 0x37:
         {
             int n = index - 0x32;
-            s->lvt[n] = val;
             if (n == APIC_LVT_TIMER) {
-                apic_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-            } else if (n == APIC_LVT_LINT0 && apic_check_pic(s)) {
-                apic_update_irq(s);
+                uint32_t old_val = s->lvt[n];
+
+                /* Check if we switch from one-shot to periodic mode */
+                if (!(old_val & APIC_LVT_TIMER_PERIODIC) &&
+                    (val & APIC_LVT_TIMER_PERIODIC)) {
+                    apic_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                                      true);
+                } else {
+                    apic_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                                      false);
+                }
+                /*
+                 * Set the lvt timer entry after we handle the switch mode
+                 * so that a concurrent apic_timer_update triggered via
+                 * apic_timer does not see the new value before we handle
+                 * the switch properly.
+                 */
+                s->lvt[n] = val;
+            } else {
+                s->lvt[n] = val;
+                if (n == APIC_LVT_LINT0 && apic_check_pic(s)) {
+                    apic_update_irq(s);
+                }
             }
         }
         break;
     case 0x38:
         s->initial_count = val;
         s->initial_count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        apic_timer_update(s, s->initial_count_load_time);
+        s->timer_stop = false;
+        apic_timer_update(s, s->initial_count_load_time, false);
         break;
     case 0x39:
         break;

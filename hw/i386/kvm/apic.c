@@ -92,7 +92,7 @@ void kvm_get_apic_state(DeviceState *dev, struct kvm_lapic_state *kapic)
     s->count_shift = (v + 1) & 7;
 
     s->initial_count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    apic_next_timer(s, s->initial_count_load_time);
+    apic_next_timer(s, s->initial_count_load_time, false);
 }
 
 static void kvm_apic_set_base(APICCommonState *s, uint64_t val)

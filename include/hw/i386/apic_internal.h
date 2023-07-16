@@ -187,6 +187,8 @@ struct APICCommonState {
     DeviceState *vapic;
     hwaddr vapic_paddr; /* note: persistence via kvmvapic */
     bool legacy_instance_id;
+
+    bool timer_stop;
 };
 
 typedef struct VAPICState {
@@ -199,7 +201,8 @@ typedef struct VAPICState {
 
 extern bool apic_report_tpr_access;
 
-bool apic_next_timer(APICCommonState *s, int64_t current_time);
+bool apic_next_timer(APICCommonState *s, int64_t current_time,
+                     bool switch_to_periodic);
 void apic_enable_tpr_access_reporting(DeviceState *d, bool enable);
 void apic_enable_vapic(DeviceState *d, hwaddr paddr);
 

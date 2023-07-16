@@ -130,7 +130,8 @@ void apic_deliver_nmi(DeviceState *dev)
     info->external_nmi(s);
 }
 
-bool apic_next_timer(APICCommonState *s, int64_t current_time)
+bool apic_next_timer(APICCommonState *s, int64_t current_time,
+                     bool switch_to_periodic)
 {
     int64_t d;
 
@@ -146,10 +147,24 @@ bool apic_next_timer(APICCommonState *s, int64_t current_time)
 
     d = (current_time - s->initial_count_load_time) >> s->count_shift;
 
+    /*
+     * The switch_to_periodic is true only when we write to the
+     * timer lvt entry to change timer mode from one-shot mode
+     * to periodic mode. In that case,  we need to check if the
+     * timer current count reaches 0. If so, don't start the new
+     * timer, only start the time when there is a write to
+     * initial count.
+     */
+    if (switch_to_periodic && d >= s->initial_count) {
+        s->timer_stop = true;
+        return false;
+    }
+
     if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
         if (!s->initial_count) {
             return false;
         }
+
         d = ((d / ((uint64_t)s->initial_count + 1)) + 1) *
             ((uint64_t)s->initial_count + 1);
     } else {
@@ -167,6 +182,11 @@ uint32_t apic_get_current_count(APICCommonState *s)
 {
     int64_t d;
     uint32_t val;
+
+    if (s->timer_stop) {
+        return 0;
+    }
+
     d = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->initial_count_load_time) >>
         s->count_shift;
     if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
@@ -282,6 +302,7 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     if (s->legacy_instance_id) {
         instance_id = VMSTATE_INSTANCE_ID_ANY;
     }
+    s->timer_stop = false;
     vmstate_register_with_alias_id(NULL, instance_id, &vmstate_apic_common,
                                    s, -1, 0, NULL);
 }
@@ -309,6 +330,7 @@ static int apic_pre_load(void *opaque)
      * absent.
      */
     s->wait_for_sipi = 0;
+    s->timer_stop = false;
     return 0;
 }
 
@@ -353,6 +375,22 @@ static const VMStateDescription vmstate_apic_common_sipi = {
     }
 };
 
+static bool apic_common_timer_stop_needed(void *opaque)
+{
+    APICCommonState *s = APIC_COMMON(opaque);
+    return s->timer_stop != 0;
+}
+
+static const VMStateDescription vmstate_apic_common_timer_stop = {
+    .name = "apic_timer_stop",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = apic_common_timer_stop_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(timer_stop, APICCommonState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 static const VMStateDescription vmstate_apic_common = {
     .name = "apic",
     .version_id = 3,
@@ -385,6 +423,7 @@ static const VMStateDescription vmstate_apic_common = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_apic_common_sipi,
+        &vmstate_apic_common_timer_stop,
         NULL
     }
 };
