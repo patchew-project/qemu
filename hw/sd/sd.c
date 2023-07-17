@@ -108,6 +108,7 @@ struct SDState {
     uint8_t spec_version;
     BlockBackend *blk;
     bool spi;
+    bool bypass_pow2_size_check;
 
     /* Runtime changeables */
 
@@ -2126,6 +2127,9 @@ static void sd_instance_finalize(Object *obj)
     timer_free(sd->ocr_power_timer);
 }
 
+#define PROP_NAME_BYPASS_POW2_SIZE_CHECK \
+    "allow-unsafe-unsupported-not-power-of-2-size"
+
 static void sd_realize(DeviceState *dev, Error **errp)
 {
     SDState *sd = SD_CARD(dev);
@@ -2151,7 +2155,13 @@ static void sd_realize(DeviceState *dev, Error **errp)
         }
 
         blk_size = blk_getlength(sd->blk);
-        if (blk_size > 0 && !is_power_of_2(blk_size)) {
+        if (sd->bypass_pow2_size_check) {
+            warn_report_once("Unsupported property '%s' enabled: some guests"
+                             " might trigger data corruption and/or crash"
+                             " (thus this process is vulnerable to"
+                             " CVE-2020-13253).",
+                             PROP_NAME_BYPASS_POW2_SIZE_CHECK);
+        } else if (blk_size > 0 && !is_power_of_2(blk_size)) {
             int64_t blk_size_aligned = pow2ceil(blk_size);
             char *blk_size_str;
 
@@ -2161,11 +2171,15 @@ static void sd_realize(DeviceState *dev, Error **errp)
 
             blk_size_str = size_to_str(blk_size_aligned);
             error_append_hint(errp,
-                              "SD card size has to be a power of 2, e.g. %s.\n"
+                              "SD card size should be a power of 2, e.g. %s.\n"
                               "You can resize disk images with"
                               " 'qemu-img resize <imagefile> <new-size>'\n"
                               "(note that this will lose data if you make the"
-                              " image smaller than it currently is).\n",
+                              " image smaller than it currently is).\n"
+                              "Note: you can disable this check by setting"
+                              " the '" PROP_NAME_BYPASS_POW2_SIZE_CHECK "'"
+                              " global property but this is DANGEROUS"
+                              " and unsupported.\n",
                               blk_size_str);
             g_free(blk_size_str);
 
@@ -2190,6 +2204,17 @@ static Property sd_properties[] = {
      * board to ensure that ssi transfers only occur when the chip select
      * is asserted.  */
     DEFINE_PROP_BOOL("spi", SDState, spi, false),
+    /*
+     * Some guests (at least Linux) consider sizes that are not a power
+     * of 2 as a firmware bug and round the card size up to the next
+     * power of 2. For simplicity and security (see CVE-2020-13253) we
+     * only model guest access to the full drive, so we only accept drives
+     * having a power-of-2 size. That said, some guests might behave
+     * correctly with non-power-of-2 cards. Users want to experiment
+     * booting such guests so we provide a way to disable the check.
+     */
+    DEFINE_PROP_BOOL(PROP_NAME_BYPASS_POW2_SIZE_CHECK,
+                     SDState, bypass_pow2_size_check, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
