@@ -29,7 +29,9 @@
 #include "trace.h"
 
 /* enabled until disconnected backend stabilizes */
-#define _VHOST_DEBUG 1
+
+/* uncomment macro _VHOST_DEBUG to enable VHOST_OPS_DEBUG */
+/* #define _VHOST_DEBUG 1 */
 
 #ifdef _VHOST_DEBUG
 #define VHOST_OPS_DEBUG(retval, fmt, ...) \
@@ -1332,7 +1334,10 @@ static void vhost_virtqueue_error_notifier(EventNotifier *n)
     struct vhost_virtqueue *vq = container_of(n, struct vhost_virtqueue,
                                               error_notifier);
     struct vhost_dev *dev = vq->dev;
+
+#ifdef _VHOST_DEBUG
     int index = vq - dev->vqs;
+#endif
 
     if (event_notifier_test_and_clear(n) && dev->vdev) {
         VHOST_OPS_DEBUG(-EINVAL,  "vhost vring error in virtqueue %d",
