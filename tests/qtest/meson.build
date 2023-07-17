@@ -5,6 +5,7 @@ slow_qtests = {
   'qom-test' : 900,
   'test-hmp' : 240,
   'pxe-test': 180,
+  'prom-env-test': 180,
 }
 
 qtests_generic = [
