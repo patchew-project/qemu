@@ -937,7 +937,20 @@ int main(int argc, char **argv)
             ret = qemu_daemon(1, 0);
 
             /* Temporarily redirect stderr to the parent's pipe...  */
-            dup2(stderr_fd[1], STDERR_FILENO);
+            if (dup2(stderr_fd[1], STDERR_FILENO) < 0) {
+                char str[256];
+                snprintf(str, sizeof(str),
+                         "%s: Failed to link stderr to the pipe: %s\n",
+                         g_get_prgname(), strerror(errno));
+                /*
+                 * We are unable to use error_report() here as we need to get
+                 * stderr pointed to the parent's pipe. Write to that pipe
+                 * manually.
+                 */
+                ret = write(stderr_fd[1], str, strlen(str));
+                exit(EXIT_FAILURE);
+            }
+
             if (ret < 0) {
                 error_report("Failed to daemonize: %s", strerror(errno));
                 exit(EXIT_FAILURE);
