@@ -1816,6 +1816,11 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
         if (vs->last_x != -1) {
             qemu_input_queue_rel(con, INPUT_AXIS_X, x - vs->last_x);
             qemu_input_queue_rel(con, INPUT_AXIS_Y, y - vs->last_y);
+        } else {
+            qemu_input_queue_rel(con, INPUT_AXIS_X, 0 - width);
+            qemu_input_queue_rel(con, INPUT_AXIS_Y, 0 - height);
+            x = 0;
+            y = 0;
         }
         vs->last_x = x;
         vs->last_y = y;
