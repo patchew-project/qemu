@@ -7,6 +7,7 @@ slow_qtests = {
   'pxe-test': 180,
   'prom-env-test': 180,
   'boot-serial-test': 180,
+  'qos-test': 120,
 }
 
 qtests_generic = [
