@@ -643,6 +643,9 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
     uint64_t lsb = 0;
     uint64_t w = 0;
 
+    /* The caller should have checked this */
+    assert(directory_shift > 0 && leaf_shift > 0);
+
     if (get_physical_address(env, &paddr, &prot, *vaddr, MMU_DATA_LOAD,
                              cpu_mmu_index(env, false)) !=
                              TLBRET_MATCH) {
@@ -743,13 +746,8 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
             (ptew == 1) ? native_shift + 1 : native_shift;
 
     /* Offsets into tables */
-    int goffset = gindex << directory_shift;
-    int uoffset = uindex << directory_shift;
-    int moffset = mindex << directory_shift;
-    int ptoffset0 = (ptindex >> 1) << (leaf_shift + 1);
-    int ptoffset1 = ptoffset0 | (1 << (leaf_shift));
-
-    uint32_t leafentry_size = 1 << (leaf_shift + 3);
+    int goffset, uoffset, moffset, ptoffset0, ptoffset1;
+    uint32_t leafentry_size;
 
     /* Starting address - Page Table Base */
     uint64_t vaddr = env->CP0_PWBase;
@@ -774,6 +772,14 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
     if ((directory_shift == -1) || (leaf_shift == -1)) {
         return false;
     }
+
+    goffset = gindex << directory_shift;
+    uoffset = uindex << directory_shift;
+    moffset = mindex << directory_shift;
+    ptoffset0 = (ptindex >> 1) << (leaf_shift + 1);
+    ptoffset1 = ptoffset0 | (1 << (leaf_shift));
+
+    leafentry_size = 1 << (leaf_shift + 3);
 
     /* Global Directory */
     if (gdw > 0) {
