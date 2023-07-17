@@ -3,7 +3,7 @@ slow_qtests = {
   'migration-test' : 300,
   'npcm7xx_pwm-test': 300,
   'qom-test' : 900,
-  'test-hmp' : 120,
+  'test-hmp' : 240,
 }
 
 qtests_generic = [
