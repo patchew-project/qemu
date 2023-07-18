@@ -399,6 +399,51 @@ static target_ulong h_guest_get_capabilities(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
+static target_ulong h_guest_set_capabilities(PowerPCCPU *cpu,
+                                             SpaprMachineState *spapr,
+                                             target_ulong opcode,
+                                              target_ulong *args)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong flags = args[0];
+    target_ulong capabilities = args[1];
+
+    if (flags) { /* don't handle any flags capabilities for now */
+        return H_PARAMETER;
+    }
+
+
+    /* isn't supported */
+    if (capabilities & H_GUEST_CAPABILITIES_COPY_MEM) {
+        env->gpr[4] = 0;
+        return H_P2;
+    }
+
+    if ((env->spr[SPR_PVR] & CPU_POWERPC_POWER_SERVER_MASK) ==
+        (CPU_POWERPC_POWER9_BASE)) {
+        /* We are a P9 */
+        if (!(capabilities & H_GUEST_CAPABILITIES_P9_MODE)) {
+            env->gpr[4] = 1;
+            return H_P2;
+        }
+    }
+
+    if ((env->spr[SPR_PVR] & CPU_POWERPC_POWER_SERVER_MASK) ==
+        (CPU_POWERPC_POWER10_BASE)) {
+        /* We are a P10 */
+        if (!(capabilities & H_GUEST_CAPABILITIES_P10_MODE)) {
+            env->gpr[4] = 2;
+            return H_P2;
+        }
+    }
+
+    spapr->nested.capabilities_set = true;
+
+    spapr->nested.pvr_base = env->spr[SPR_PVR];
+
+    return H_SUCCESS;
+}
+
 void spapr_register_nested(void)
 {
     spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
@@ -410,6 +455,7 @@ void spapr_register_nested(void)
 void spapr_register_nested_phyp(void)
 {
     spapr_register_hypercall(H_GUEST_GET_CAPABILITIES, h_guest_get_capabilities);
+    spapr_register_hypercall(H_GUEST_SET_CAPABILITIES, h_guest_set_capabilities);
 }
 
 #else
