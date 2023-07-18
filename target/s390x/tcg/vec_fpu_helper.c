@@ -915,7 +915,7 @@ static void vfminmax32(S390Vector *v1, const S390Vector *v2,
         float32 b = s390_vec_read_float32(v3, i);
         float32 result;
 
-        if (type != S390_MINMAX_TYPE_IEEE) {
+        if (type > S390_MINMAX_TYPE_IEEE && type <= S390_MINMAX_TYPE_F) {
             S390MinMaxRes res;
 
             if (is_abs) {
@@ -944,12 +944,14 @@ static void vfminmax32(S390Vector *v1, const S390Vector *v2,
             default:
                 g_assert_not_reached();
             }
-        } else if (!is_abs) {
+        } else if (type == S390_MINMAX_TYPE_IEEE && !is_abs) {
             result = is_min ? float32_minnum(a, b, &env->fpu_status) :
                               float32_maxnum(a, b, &env->fpu_status);
-        } else {
+        } else if (type == S390_MINMAX_TYPE_IEEE) {
             result = is_min ? float32_minnummag(a, b, &env->fpu_status) :
                               float32_maxnummag(a, b, &env->fpu_status);
+        } else {
+            tcg_s390_program_interrupt(env, PGM_SPECIFICATION, retaddr);
         }
 
         s390_vec_write_float32(&tmp, i, result);
@@ -977,7 +979,7 @@ static void vfminmax64(S390Vector *v1, const S390Vector *v2,
         float64 b = s390_vec_read_float64(v3, i);
         float64 result;
 
-        if (type != S390_MINMAX_TYPE_IEEE) {
+        if (type > S390_MINMAX_TYPE_IEEE && type <= S390_MINMAX_TYPE_F) {
             S390MinMaxRes res;
 
             if (is_abs) {
@@ -1006,12 +1008,14 @@ static void vfminmax64(S390Vector *v1, const S390Vector *v2,
             default:
                 g_assert_not_reached();
             }
-        } else if (!is_abs) {
+        } else if (type == S390_MINMAX_TYPE_IEEE && !is_abs) {
             result = is_min ? float64_minnum(a, b, &env->fpu_status) :
                               float64_maxnum(a, b, &env->fpu_status);
-        } else {
+        } else if (type == S390_MINMAX_TYPE_IEEE) {
             result = is_min ? float64_minnummag(a, b, &env->fpu_status) :
                               float64_maxnummag(a, b, &env->fpu_status);
+        } else {
+            tcg_s390_program_interrupt(env, PGM_SPECIFICATION, retaddr);
         }
 
         s390_vec_write_float64(&tmp, i, result);
@@ -1035,7 +1039,7 @@ static void vfminmax128(S390Vector *v1, const S390Vector *v2,
     uint8_t vxc, vec_exc = 0;
     float128 result;
 
-    if (type != S390_MINMAX_TYPE_IEEE) {
+    if (type > S390_MINMAX_TYPE_IEEE && type <= S390_MINMAX_TYPE_F) {
         S390MinMaxRes res;
 
         if (is_abs) {
@@ -1064,12 +1068,14 @@ static void vfminmax128(S390Vector *v1, const S390Vector *v2,
         default:
             g_assert_not_reached();
         }
-    } else if (!is_abs) {
+    } else if (type == S390_MINMAX_TYPE_IEEE && !is_abs) {
         result = is_min ? float128_minnum(a, b, &env->fpu_status) :
                           float128_maxnum(a, b, &env->fpu_status);
-    } else {
+    } else if (type == S390_MINMAX_TYPE_IEEE) {
         result = is_min ? float128_minnummag(a, b, &env->fpu_status) :
                           float128_maxnummag(a, b, &env->fpu_status);
+    } else {
+        tcg_s390_program_interrupt(env, PGM_SPECIFICATION, retaddr);
     }
 
     vxc = check_ieee_exc(env, 0, false, &vec_exc);
