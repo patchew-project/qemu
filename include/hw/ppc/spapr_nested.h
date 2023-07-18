@@ -199,6 +199,7 @@
 
 /* Nested PAPR API macros */
 #define NESTED_GUEST_MAX 4096
+#define NESTED_GUEST_VCPU_MAX 2048
 
 typedef struct SpaprMachineStateNestedGuest {
     unsigned long vcpus;
