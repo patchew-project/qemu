@@ -1692,6 +1692,37 @@ static void exit_process_output_buffer(PowerPCCPU *cpu,
     return;
 }
 
+static target_ulong h_guest_delete(PowerPCCPU *cpu,
+                                   SpaprMachineState *spapr,
+                                   target_ulong opcode,
+                                   target_ulong *args)
+{
+    target_ulong flags = args[0];
+    target_ulong lpid = args[1];
+    struct SpaprMachineStateNestedGuest *guest;
+
+    if (!spapr_get_cap(spapr, SPAPR_CAP_NESTED_PAPR)) {
+        return H_FUNCTION;
+    }
+
+    /* handle flag deleteAllGuests, remaining bits reserved */
+    if (flags & ~H_GUEST_DELETE_ALL_MASK) {
+        return H_UNSUPPORTED_FLAG;
+    } else if (flags & H_GUEST_DELETE_ALL_MASK) {
+        g_hash_table_destroy(spapr->nested.guests);
+        return H_SUCCESS;
+    }
+
+    guest = g_hash_table_lookup(spapr->nested.guests, GINT_TO_POINTER(lpid));
+    if (!guest) {
+        return H_P2;
+    }
+
+    g_hash_table_remove(spapr->nested.guests, GINT_TO_POINTER(lpid));
+
+    return H_SUCCESS;
+}
+
 void spapr_register_nested(void)
 {
     spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
@@ -1709,6 +1740,7 @@ void spapr_register_nested_phyp(void)
     spapr_register_hypercall(H_GUEST_SET_STATE       , h_guest_set_state);
     spapr_register_hypercall(H_GUEST_GET_STATE       , h_guest_get_state);
     spapr_register_hypercall(H_GUEST_RUN_VCPU        , h_guest_run_vcpu);
+    spapr_register_hypercall(H_GUEST_DELETE          , h_guest_delete);
 }
 
 #else
