@@ -283,6 +283,24 @@ static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
     return tcg_gen_code(tcg_ctx, tb, pc);
 }
 
+static vaddr get_guest_insn_vaddr(TranslationBlock *tb, vaddr pc, size_t insn)
+{
+    g_assert(insn < tb->icount);
+
+    /* FIXME: This replicates the restore_state_to_opc() logic. */
+    vaddr addr = tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS];
+
+    if (tb_cflags(tb) & CF_PCREL) {
+        addr |= (pc & TARGET_PAGE_MASK);
+    } else {
+#if defined(TARGET_I386)
+        addr -= tb->cs_base;
+#endif
+    }
+
+    return addr;
+}
+
 /* Called with mmap_lock held for user mode emulation.  */
 TranslationBlock *tb_gen_code(CPUState *cpu,
                               vaddr pc, uint64_t cs_base,
@@ -458,7 +476,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             fprintf(logfile, "OUT: [size=%d]\n", gen_code_size);
             fprintf(logfile,
                     "  -- guest addr 0x%016" PRIx64 " + tb prologue\n",
-                    tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS]);
+                    get_guest_insn_vaddr(tb, pc, insn));
             chunk_start = tcg_ctx->gen_insn_end_off[insn];
             disas(logfile, tb->tc.ptr, chunk_start);
 
@@ -471,7 +489,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                 size_t chunk_end = tcg_ctx->gen_insn_end_off[insn];
                 if (chunk_end > chunk_start) {
                     fprintf(logfile, "  -- guest addr 0x%016" PRIx64 "\n",
-                            tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS]);
+                            get_guest_insn_vaddr(tb, pc, insn));
                     disas(logfile, tb->tc.ptr + chunk_start,
                           chunk_end - chunk_start);
                     chunk_start = chunk_end;
