@@ -367,6 +367,16 @@ struct SpaprMachineState {
 #define H_NOOP            -63
 #define H_UNSUPPORTED     -67
 #define H_OVERLAP         -68
+#define H_STATE           -75
+#define H_INVALID_ELEMENT_ID               -79
+#define H_INVALID_ELEMENT_SIZE             -80
+#define H_INVALID_ELEMENT_VALUE            -81
+#define H_INPUT_BUFFER_NOT_DEFINED         -82
+#define H_INPUT_BUFFER_TOO_SMALL           -83
+#define H_OUTPUT_BUFFER_NOT_DEFINED        -84
+#define H_OUTPUT_BUFFER_TOO_SMALL          -85
+#define H_PARTITION_PAGE_TABLE_NOT_DEFINED -86
+#define H_GUEST_VCPU_STATE_NOT_HV_OWNED    -87
 #define H_UNSUPPORTED_FLAG -256
 #define H_MULTI_THREADS_ACTIVE -9005
 
@@ -586,8 +596,17 @@ struct SpaprMachineState {
 #define H_RPT_INVALIDATE        0x448
 #define H_SCM_FLUSH             0x44C
 #define H_WATCHDOG              0x45C
+#define H_GUEST_GET_CAPABILITIES 0x460
+#define H_GUEST_SET_CAPABILITIES 0x464
+#define H_GUEST_CREATE           0x470
+#define H_GUEST_CREATE_VCPU      0x474
+#define H_GUEST_GET_STATE        0x478
+#define H_GUEST_SET_STATE        0x47C
+#define H_GUEST_RUN_VCPU         0x480
+#define H_GUEST_COPY_MEMORY      0x484
+#define H_GUEST_DELETE           0x488
 
-#define MAX_HCALL_OPCODE        H_WATCHDOG
+#define MAX_HCALL_OPCODE        H_GUEST_DELETE
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
