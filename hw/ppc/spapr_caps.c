@@ -511,6 +511,7 @@ static void cap_nested_papr_apply(SpaprMachineState *spapr,
             return;
         }
         spapr->nested.api = NESTED_API_PAPR;
+        spapr_register_nested_phyp();
     } else if (kvm_enabled()) {
         /*
          * this gets executed in L1 qemu when L2 is launched,
