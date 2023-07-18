@@ -358,6 +358,12 @@ struct guest_state_request {
     uint16_t flags;
 };
 
+struct run_vcpu_exit_cause {
+    uint64_t nia;
+    uint64_t count;
+    uint16_t ids[10]; /* max ids supported by run_vcpu_exit_causes */
+};
+
 /*
  * Register state for entering a nested guest with H_ENTER_NESTED.
  * New member must be added at the end.
