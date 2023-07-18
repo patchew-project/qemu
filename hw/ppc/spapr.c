@@ -1361,9 +1361,23 @@ static bool spapr_get_pate(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu,
         patb += 16 * lpid;
         entry->dw0 = ldq_phys(CPU(cpu)->as, patb);
         entry->dw1 = ldq_phys(CPU(cpu)->as, patb + 8);
+        return true;
     }
 
+#ifdef CONFIG_TCG
+    /* Nested PAPR API */
+    SpaprMachineStateNestedGuest *guest;
+    assert(lpid != 0);
+    guest = spapr_get_nested_guest(spapr, lpid);
+    assert(guest != NULL);
+
+    entry->dw0 = guest->parttbl[0];
+    entry->dw1 = guest->parttbl[1];
+
     return true;
+#else
+    return false;
+#endif
 }
 
 #define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))
