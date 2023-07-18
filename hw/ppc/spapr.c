@@ -1340,8 +1340,8 @@ static bool spapr_get_pate(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu,
 
         assert(lpid != 0);
 
-        patb = spapr->nested_ptcr & PTCR_PATB;
-        pats = spapr->nested_ptcr & PTCR_PATS;
+        patb = spapr->nested.ptcr & PTCR_PATB;
+        pats = spapr->nested.ptcr & PTCR_PATS;
 
         /* Check if partition table is properly aligned */
         if (patb & MAKE_64BIT_MASK(0, pats + 12)) {
