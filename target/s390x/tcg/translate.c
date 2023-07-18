@@ -2516,6 +2516,12 @@ static DisasJumpType op_icm(DisasContext *s, DisasOps *o)
         len = 8;
         goto one_insert;
 
+    case 0:
+        /* Recognize access exceptions for the first byte.  */
+        tcg_gen_qemu_ld_i64(tmp, o->in2, get_mem_index(s), MO_UB);
+        gen_op_movi_cc(s, 0);
+        return DISAS_NEXT;
+
     one_insert:
         pos = base + ctz32(m3) * 8;
         tcg_gen_deposit_i64(o->out, o->out, tmp, pos, len);
