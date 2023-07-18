@@ -206,6 +206,9 @@
 #define HVMASK_MSR            0xEBFFFFFFFFBFEFFF
 #define HVMASK_HDEXCR         0x00000000FFFFFFFF
 #define HVMASK_TB_OFFSET      0x000000FFFFFFFFFF
+#define H_GUEST_GETSET_STATE_FLAG_GUEST_WIDE 0x8000000000000000 /* BE in GSB */
+#define GUEST_STATE_REQUEST_GUEST_WIDE       0x1
+#define GUEST_STATE_REQUEST_SET              0x2
 
 #define GUEST_STATE_ELEMENT(i, sz, s, f, ptr, c) { \
     .id = (i),                                     \
@@ -334,6 +337,25 @@ struct guest_state_element_type {
     size_t offset;
     void (*copy)(void *, void *, bool);
     uint64_t mask;
+};
+
+struct guest_state_element {
+    uint16_t id;   /* Big Endian */
+    uint16_t size; /* Big Endian */
+    uint8_t value[]; /* Big Endian (based on size above) */
+} QEMU_PACKED;
+
+struct guest_state_buffer {
+    uint32_t num_elements; /* Big Endian */
+    struct guest_state_element elements[];
+} QEMU_PACKED;
+
+/* Actuall buffer plus some metadata about the request */
+struct guest_state_request {
+    struct guest_state_buffer *gsb;
+    int64_t buf;
+    int64_t len;
+    uint16_t flags;
 };
 
 /*
