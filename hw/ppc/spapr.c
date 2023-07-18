@@ -1334,8 +1334,11 @@ static bool spapr_get_pate(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu,
         /* Copy PATE1:GR into PATE0:HR */
         entry->dw0 = spapr->patb_entry & PATE0_HR;
         entry->dw1 = spapr->patb_entry;
+        return true;
+    }
+    assert(spapr->nested.api);
 
-    } else {
+    if (spapr->nested.api == NESTED_API_KVM_HV) {
         uint64_t patb, pats;
 
         assert(lpid != 0);
@@ -3437,6 +3440,8 @@ static void spapr_instance_init(Object *obj)
         spapr_get_host_serial, spapr_set_host_serial);
     object_property_set_description(obj, "host-serial",
         "Host serial number to advertise in guest device tree");
+    /* Nested */
+    spapr->nested.api = 0;
 }
 
 static void spapr_machine_finalizefn(Object *obj)
