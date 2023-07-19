@@ -295,7 +295,10 @@ static int vhost_net_start_one(struct vhost_net *net,
     }
 
     if (net->nc->info->load) {
+        int64_t start_us = g_get_monotonic_time();
         r = net->nc->info->load(net->nc);
+        error_report("vhost_vdpa_net_load() = %ld us",
+                     g_get_monotonic_time() - start_us);
         if (r < 0) {
             goto fail;
         }
