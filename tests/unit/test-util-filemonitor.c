@@ -398,7 +398,7 @@ test_file_monitor_events(void)
     };
     Error *local_err = NULL;
     GError *gerr = NULL;
-    QFileMonitor *mon = qemu_file_monitor_new(&local_err);
+    QFileMonitor *mon;
     QemuThread th;
     GTimer *timer;
     gchar *dir = NULL;
@@ -407,11 +407,8 @@ test_file_monitor_events(void)
     char *pathsrc = NULL;
     char *pathdst = NULL;
     QFileMonitorTestData data;
-    GHashTable *ids = g_hash_table_new(g_int64_hash, g_int64_equal);
+    GHashTable *ids;
     char *travis_arch;
-
-    qemu_mutex_init(&data.lock);
-    data.records = NULL;
 
     /*
      * This test does not work on Travis LXD containers since some
@@ -422,6 +419,12 @@ test_file_monitor_events(void)
         g_test_skip("Test does not work on non-x86 Travis containers.");
         return;
     }
+
+    mon = qemu_file_monitor_new(&local_err);
+    ids = g_hash_table_new(g_int64_hash, g_int64_equal);
+
+    qemu_mutex_init(&data.lock);
+    data.records = NULL;
 
     /*
      * The file monitor needs the main loop running in
