@@ -150,6 +150,7 @@ struct VirtIOPCIProxy {
     uint32_t flags;
     bool disable_modern;
     bool ignore_backend_features;
+    uint16_t sriov_max_vfs;
     OnOffAuto disable_legacy;
     /* Transitional device id */
     uint16_t trans_devid;

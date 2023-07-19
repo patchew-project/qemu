@@ -421,8 +421,12 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
         return ret;
     }
 
-    pci_register_bar(dev, bar_nr, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                     &dev->msix_exclusive_bar);
+    if (pci_is_vf(dev)) {
+        pcie_sriov_vf_register_bar(dev, bar_nr, &dev->msix_exclusive_bar);
+    } else {
+        pci_register_bar(dev, bar_nr, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                         &dev->msix_exclusive_bar);
+    }
 
     return 0;
 }

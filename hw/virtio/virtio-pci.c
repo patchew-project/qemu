@@ -49,6 +49,8 @@
  * configuration space */
 #define VIRTIO_PCI_CONFIG_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_enabled(dev))
 
+#define VIRTIO_MAX_VFS 127
+
 static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtIOPCIProxy *dev);
 static void virtio_pci_reset(DeviceState *qdev);
@@ -1907,6 +1909,11 @@ static void virtio_pci_pre_plugged(DeviceState *d, Error **errp)
 
     if (virtio_pci_modern(proxy)) {
         virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
+        if (proxy->sriov_max_vfs) {
+            virtio_add_feature(&vdev->host_features, VIRTIO_F_SR_IOV);
+        }
+    } else if (proxy->sriov_max_vfs) {
+        error_setg(errp, "VirtIO PCI modern is required for the use of SR-IOV");
     }
 
     virtio_add_feature(&vdev->host_features, VIRTIO_F_BAD_FEATURE);
@@ -2015,22 +2022,62 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);
         virtio_pci_modern_mem_region_map(proxy, &proxy->notify, &notify.cap);
 
+        if (!pci_is_vf(&proxy->pci_dev) && proxy->sriov_max_vfs) {
+            if (virtio_bus_get_vdev_id(bus) != VIRTIO_ID_NET) {
+                error_setg(errp, "sriov_max_vfs prop is not supported by %s",
+                           proxy->pci_dev.name);
+                return;
+            }
+            if (proxy->sriov_max_vfs > VIRTIO_MAX_VFS) {
+                error_setg(errp, "sriov_max_vfs must be between 0 and %d",
+                           VIRTIO_MAX_VFS);
+                return;
+            }
+
+            pcie_sriov_pf_init(&proxy->pci_dev, PCI_CONFIG_SPACE_SIZE,
+                               proxy->pci_dev.name,
+                               PCI_DEVICE_ID_VIRTIO_10_BASE
+                               + virtio_bus_get_vdev_id(bus),
+                               proxy->sriov_max_vfs, proxy->sriov_max_vfs, 1, 1);
+            if (proxy->flags & VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY) {
+                pcie_sriov_pf_init_vf_bar(&proxy->pci_dev, proxy->modern_io_bar_idx,
+                                          PCI_BASE_ADDRESS_SPACE_IO, 4);
+            }
+            if (proxy->nvectors) {
+                pcie_sriov_pf_init_vf_bar(&proxy->pci_dev, proxy->msix_bar_idx,
+                                          PCI_BASE_ADDRESS_SPACE_MEMORY, 4 * 1024);
+            }
+            pcie_sriov_pf_init_vf_bar(&proxy->pci_dev, proxy->modern_mem_bar_idx,
+                                      PCI_BASE_ADDRESS_SPACE_MEMORY |
+                                      PCI_BASE_ADDRESS_MEM_PREFETCH |
+                                      PCI_BASE_ADDRESS_MEM_TYPE_64,
+                                      16 * 1024);
+        }
+
         if (modern_pio) {
             memory_region_init(&proxy->io_bar, OBJECT(proxy),
                                "virtio-pci-io", 0x4);
 
-            pci_register_bar(&proxy->pci_dev, proxy->modern_io_bar_idx,
-                             PCI_BASE_ADDRESS_SPACE_IO, &proxy->io_bar);
+            if (pci_is_vf(&proxy->pci_dev))
+                pcie_sriov_vf_register_bar(&proxy->pci_dev, proxy->modern_io_bar_idx,
+                                           &proxy->io_bar);
+            else
+                pci_register_bar(&proxy->pci_dev, proxy->modern_io_bar_idx,
+                                 PCI_BASE_ADDRESS_SPACE_IO, &proxy->io_bar);
 
             virtio_pci_modern_io_region_map(proxy, &proxy->notify_pio,
                                             &notify_pio.cap);
         }
 
-        pci_register_bar(&proxy->pci_dev, proxy->modern_mem_bar_idx,
-                         PCI_BASE_ADDRESS_SPACE_MEMORY |
-                         PCI_BASE_ADDRESS_MEM_PREFETCH |
-                         PCI_BASE_ADDRESS_MEM_TYPE_64,
-                         &proxy->modern_bar);
+        if (pci_is_vf(&proxy->pci_dev))
+            pcie_sriov_vf_register_bar(&proxy->pci_dev, proxy->modern_mem_bar_idx,
+                                       &proxy->modern_bar);
+        else
+            pci_register_bar(&proxy->pci_dev, proxy->modern_mem_bar_idx,
+                             PCI_BASE_ADDRESS_SPACE_MEMORY |
+                             PCI_BASE_ADDRESS_MEM_PREFETCH |
+                             PCI_BASE_ADDRESS_MEM_TYPE_64,
+                             &proxy->modern_bar);
 
         proxy->config_cap = virtio_pci_add_mem_cap(proxy, &cfg.cap);
         cfg_mask = (void *)(proxy->pci_dev.wmask + proxy->config_cap);
@@ -2298,6 +2345,7 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_INIT_FLR_BIT, true),
     DEFINE_PROP_BIT("aer", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_AER_BIT, false),
+    DEFINE_PROP_UINT16("sriov_max_vfs", VirtIOPCIProxy, sriov_max_vfs, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
