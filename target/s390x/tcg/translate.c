@@ -1991,11 +1991,18 @@ static DisasJumpType op_cxlgb(DisasContext *s, DisasOps *o)
 static DisasJumpType op_cksm(DisasContext *s, DisasOps *o)
 {
     int r2 = get_field(s, r2);
-    TCGv_i128 pair = tcg_temp_new_i128();
-    TCGv_i64 len = tcg_temp_new_i64();
+    TCGv_i128 pair;
+    TCGv_i64 len;
 
+    if (r2 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    pair = tcg_temp_new_i128();
     gen_helper_cksm(pair, cpu_env, o->in1, o->in2, regs[r2 + 1]);
     set_cc_static(s);
+    len = tcg_temp_new_i64();
     tcg_gen_extr_i128_i64(o->out, len, pair);
 
     tcg_gen_add_i64(regs[r2], regs[r2], len);
