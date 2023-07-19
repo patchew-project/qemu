@@ -155,11 +155,22 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
     }
 
     if (s->msix != ON_OFF_AUTO_OFF) {
-        /* TODO check for errors, and should fail when msix=on */
-        msix_init(dev, s->xhci.numintrs,
-                  &s->xhci.mem, 0, OFF_MSIX_TABLE,
-                  &s->xhci.mem, 0, OFF_MSIX_PBA,
-                  0x90, NULL);
+        ret = msix_init(dev, s->xhci.numintrs,
+                        &s->xhci.mem, 0, OFF_MSIX_TABLE,
+                        &s->xhci.mem, 0, OFF_MSIX_PBA,
+                        0x90, &err);
+        if (ret < 0) {
+            if (s->msi == ON_OFF_AUTO_ON) {
+                /* Can't satisfy user's explicit msi=on request, fail */
+                error_append_hint(&err, "You might have to use msi=auto"
+                                        " (default) or msi=off with this"
+                                        " machine type.\n");
+                error_propagate(errp, err);
+                return;
+            }
+            /* report that msix is not supported, but do not error out */
+            warn_report_err(err);
+        }
     }
     s->xhci.as = pci_get_address_space(dev);
 }
