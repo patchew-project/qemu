@@ -46,6 +46,23 @@
 #define ACPI_BUILD_DPRINTF(fmt, ...)
 #endif
 
+void virt_madt_cpu_entry(int uid,
+                         const CPUArchIdList *apic_ids,
+                         GArray *entry, bool force_enabled)
+{
+    uint32_t apic_id = apic_ids->cpus[uid].arch_id;
+    /* Flags – Local APIC Flags */
+    uint32_t flags = apic_ids->cpus[uid].cpu != NULL || force_enabled ?
+                     1 /* Enabled */ : 0;
+
+    /* Rev 1.0b, Table 5-13 Processor Local APIC Structure */
+    build_append_int_noprefix(entry, 0, 1);       /* Type */
+    build_append_int_noprefix(entry, 8, 1);       /* Length */
+    build_append_int_noprefix(entry, uid, 1);     /* ACPI Processor ID */
+    build_append_int_noprefix(entry, apic_id, 1); /* APIC ID */
+    build_append_int_noprefix(entry, flags, 4); /* Flags */
+}
+
 /* build FADT */
 static void init_common_fadt_data(AcpiFadtData *data)
 {
@@ -121,15 +138,18 @@ build_madt(GArray *table_data, BIOSLinker *linker, LoongArchMachineState *lams)
     build_append_int_noprefix(table_data, 1 /* PCAT_COMPAT */, 4); /* Flags */
 
     for (i = 0; i < arch_ids->len; i++) {
+        uint32_t flags;
+
         /* Processor Core Interrupt Controller Structure */
         arch_id = arch_ids->cpus[i].arch_id;
+        flags = arch_ids->cpus[i].cpu ? 1 : 0;
 
         build_append_int_noprefix(table_data, 17, 1);    /* Type */
         build_append_int_noprefix(table_data, 15, 1);    /* Length */
         build_append_int_noprefix(table_data, 1, 1);     /* Version */
-        build_append_int_noprefix(table_data, i + 1, 4); /* ACPI Processor ID */
+        build_append_int_noprefix(table_data, i, 4);     /* ACPI Processor ID */
         build_append_int_noprefix(table_data, arch_id, 4); /* Core ID */
-        build_append_int_noprefix(table_data, 1, 4);     /* Flags */
+        build_append_int_noprefix(table_data, flags, 4);   /* Flags */
     }
 
     /* Extend I/O Interrupt Controller Structure */
@@ -291,6 +311,17 @@ build_la_ged_aml(Aml *dsdt, MachineState *machine)
         build_memory_hotplug_aml(dsdt, machine->ram_slots, "\\_SB", NULL,
                                  AML_SYSTEM_MEMORY,
                                  VIRT_GED_MEM_ADDR);
+    }
+
+    if (event & ACPI_GED_CPU_HOTPLUG_EVT) {
+        CPUHotplugFeatures opts = {
+            .acpi_1_compatible = false,
+            .has_legacy_cphp = false
+        };
+
+        build_cpus_aml(dsdt, machine, opts, VIRT_GED_CPUHP_ADDR,
+                       "\\_SB", "\\_GPE._E01", AML_SYSTEM_MEMORY);
+
     }
     acpi_dsdt_add_power_button(dsdt);
 }

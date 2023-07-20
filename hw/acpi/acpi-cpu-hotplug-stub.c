@@ -19,6 +19,15 @@ void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
     return;
 }
 
+void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
+                    hwaddr mmap_io_base,
+                    const char *res_root,
+                    const char *event_handler_method,
+                    AmlRegionSpace rs)
+{
+    return;
+}
+
 void acpi_cpu_ospm_status(CPUHotplugState *cpu_st, ACPIOSTInfoList ***list)
 {
     return;
