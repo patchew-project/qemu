@@ -17,7 +17,7 @@ from collections import deque
 import socket
 import threading
 import time
-from typing import Deque, Optional
+from typing import Deque, Optional, Union
 
 
 class ConsoleSocket(socket.socket):
@@ -30,13 +30,16 @@ class ConsoleSocket(socket.socket):
     Optionally a file path can be passed in and we will also
     dump the characters to this file for debugging purposes.
     """
-    def __init__(self, address: str, file: Optional[str] = None,
+    def __init__(self, address: Union[str, int], file: Optional[str] = None,
                  drain: bool = False):
         self._recv_timeout_sec = 300.0
         self._sleep_time = 0.5
         self._buffer: Deque[int] = deque()
-        socket.socket.__init__(self, socket.AF_UNIX, socket.SOCK_STREAM)
-        self.connect(address)
+        if isinstance(address, str):
+            socket.socket.__init__(self, socket.AF_UNIX, socket.SOCK_STREAM)
+            self.connect(address)
+        else:
+            socket.socket.__init__(self, fileno=address)
         self._logfile = None
         if file:
             # pylint: disable=consider-using-with
