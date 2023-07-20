@@ -367,6 +367,10 @@ struct ArchCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    int32_t socket_id;  /* socket-id of this VCPU */
+    int32_t core_id;    /* core-id of this VCPU */
+    int32_t thread_id;  /* thread-id of this VCPU */
+    int32_t node_id;    /* NUMA node this CPU belongs to */
     CPUNegativeOffsetState neg;
     CPULoongArchState env;
     QEMUTimer timer;

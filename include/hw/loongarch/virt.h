@@ -31,6 +31,7 @@
 #define VIRT_GED_EVT_ADDR       0x100e0000
 #define VIRT_GED_MEM_ADDR       (VIRT_GED_EVT_ADDR + ACPI_GED_EVT_SEL_LEN)
 #define VIRT_GED_REG_ADDR       (VIRT_GED_MEM_ADDR + MEMORY_HOTPLUG_IO_LEN)
+#define VIRT_GED_CPUHP_ADDR     (VIRT_GED_REG_ADDR + ACPI_CPU_HOTPLUG_REG_LEN)
 
 struct LoongArchMachineState {
     /*< private >*/
@@ -42,7 +43,7 @@ struct LoongArchMachineState {
     MemoryRegion bios;
     bool         bios_loaded;
     /* State for other subsystems/APIs: */
-    FWCfgState  *fw_cfg;
+    FWCfgState   *fw_cfg;
     Notifier     machine_done;
     Notifier     powerdown_notifier;
     OnOffAuto    acpi;
@@ -50,13 +51,19 @@ struct LoongArchMachineState {
     char         *oem_table_id;
     DeviceState  *acpi_ged;
     int          fdt_size;
-    DeviceState *platform_bus_dev;
+    DeviceState  *platform_bus_dev;
     PCIBus       *pci_bus;
     PFlashCFI01  *flash;
+    DeviceState  *extioi;
+    unsigned int boot_cpus;
 };
 
 #define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchMachineState, LOONGARCH_MACHINE)
 bool loongarch_is_acpi_enabled(LoongArchMachineState *lams);
 void loongarch_acpi_setup(LoongArchMachineState *lams);
+void virt_madt_cpu_entry(int uid,
+                         const CPUArchIdList *apic_ids, GArray *entry,
+                         bool force_enabled);
+
 #endif
