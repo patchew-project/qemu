@@ -159,6 +159,8 @@ class QEMUMachine:
 
         self._name = name or f"{id(self):x}"
         self._sock_pair: Optional[Tuple[socket.socket, socket.socket]] = None
+        self._cons_sock_pair: Optional[
+            Tuple[socket.socket, socket.socket]] = None
         self._temp_dir: Optional[str] = None
         self._base_temp_dir = base_temp_dir
         self._sock_dir = sock_dir
@@ -315,8 +317,9 @@ class QEMUMachine:
         for _ in range(self._console_index):
             args.extend(['-serial', 'null'])
         if self._console_set:
-            chardev = ('socket,id=console,path=%s,server=on,wait=off' %
-                       self._console_address)
+            assert self._cons_sock_pair is not None
+            fd = self._cons_sock_pair[0].fileno()
+            chardev = f"socket,id=console,fd={fd}"
             args.extend(['-chardev', chardev])
             if self._console_device_type is None:
                 args.extend(['-serial', 'chardev:console'])
@@ -350,6 +353,10 @@ class QEMUMachine:
                 server=bool(self._monitor_address),
                 nickname=self._name
             )
+
+        if self._console_set:
+            self._cons_sock_pair = socket.socketpair()
+            os.set_inheritable(self._cons_sock_pair[0].fileno(), True)
 
         # NOTE: Make sure any opened resources are *definitely* freed in
         # _post_shutdown()!
@@ -873,8 +880,12 @@ class QEMUMachine:
         Returns a socket connected to the console
         """
         if self._console_socket is None:
+            if not self._console_set:
+                raise QEMUMachineError(
+                    "Attempt to access console socket with no connection")
+            assert self._cons_sock_pair is not None
             self._console_socket = console_socket.ConsoleSocket(
-                self._console_address,
+                self._cons_sock_pair[1].fileno(),
                 file=self._console_log_path,
                 drain=self._drain_console)
         return self._console_socket
