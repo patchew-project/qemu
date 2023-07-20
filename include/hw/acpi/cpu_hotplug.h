@@ -19,6 +19,16 @@
 #include "hw/hotplug.h"
 #include "hw/acpi/cpu.h"
 
+#define ACPI_CPU_HOTPLUG_REG_LEN 12
+#define ACPI_CPU_SELECTOR_OFFSET_WR 0
+#define ACPI_CPU_FLAGS_OFFSET_RW 4
+#define ACPI_CPU_CMD_OFFSET_WR 5
+#define ACPI_CPU_CMD_DATA_OFFSET_RW 8
+#define ACPI_CPU_CMD_DATA2_OFFSET_R 0
+
+#define ACPI_CPU_SCAN_METHOD "CSCN"
+#define ACPI_CPU_CONTAINER "\\_SB.CPUS"
+
 typedef struct AcpiCpuHotplug {
     Object *device;
     MemoryRegion io;
