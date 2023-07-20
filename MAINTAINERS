@@ -1971,6 +1971,12 @@ F: include/hw/i2c/ppc4xx_i2c.h
 F: hw/intc/ppc-uic.c
 F: include/hw/intc/ppc-uic.h
 
+RISC-V IOMMU
+M: Tomasz Jeznach <tjeznach@rivosinc.com>
+L: qemu-riscv@nongnu.org
+S: Maintained
+F: hw/riscv/riscv-iommu*
+
 Character devices
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
 R: Paolo Bonzini <pbonzini@redhat.com>
