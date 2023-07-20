@@ -2236,6 +2236,12 @@ static void riscv_iommu_realize(DeviceState *dev, Error **errp)
     /* Report QEMU target physical address space limits */
     s->cap = set_field(s->cap, RISCV_IOMMU_CAP_PAS, TARGET_PHYS_ADDR_SPACE_BITS);
 
+    /* Restricted to the size of MemTxAttrs.pasid field. */
+    if (s->cap & RISCV_IOMMU_CAP_PD8) {
+        MemTxAttrs attrs = { .pasid = ~0 };
+        s->pasid_bits = ctz32(~((unsigned)attrs.pasid));
+    }
+
     /* Adjust reported PD capabilities */
     if (s->pasid_bits < 20) {
         s->cap &= ~RISCV_IOMMU_CAP_PD20;
@@ -2506,12 +2512,13 @@ void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
 static int riscv_iommu_memory_region_index(IOMMUMemoryRegion *iommu_mr,
     MemTxAttrs attrs)
 {
-    return RISCV_IOMMU_NOPASID;
+    return attrs.unspecified ? RISCV_IOMMU_NOPASID : (int)attrs.pasid;
 }
 
 static int riscv_iommu_memory_region_index_len(IOMMUMemoryRegion *iommu_mr)
 {
-    return 1;
+    RISCVIOMMUSpace *as = container_of(iommu_mr, RISCVIOMMUSpace, iova_mr);
+    return 1 << as->iommu->pasid_bits;
 }
 
 static void riscv_iommu_memory_region_init(ObjectClass *klass, void *data)
