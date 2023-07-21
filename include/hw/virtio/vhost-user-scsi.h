@@ -29,6 +29,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostUserSCSI, VHOST_USER_SCSI)
 struct VHostUserSCSI {
     VHostSCSICommon parent_obj;
     VhostUserState vhost_user;
+    bool connected;
+
+    struct vhost_virtqueue *vhost_vqs;
 };
 
 #endif /* VHOST_USER_SCSI_H */
