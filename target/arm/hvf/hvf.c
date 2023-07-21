@@ -2063,29 +2063,31 @@ int hvf_arch_remove_sw_breakpoint(CPUState *cpu, struct hvf_sw_breakpoint *bp)
     return 0;
 }
 
-int hvf_arch_insert_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+int hvf_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     switch (type) {
     case GDB_BREAKPOINT_HW:
-        return insert_hw_breakpoint(addr);
+        return insert_hw_breakpoint((target_ulong) addr);
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_WRITE:
     case GDB_WATCHPOINT_ACCESS:
-        return insert_hw_watchpoint(addr, len, type);
+        return insert_hw_watchpoint((target_ulong) addr,
+                                    (target_ulong) len, type);
     default:
         return -ENOSYS;
     }
 }
 
-int hvf_arch_remove_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+int hvf_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     switch (type) {
     case GDB_BREAKPOINT_HW:
-        return delete_hw_breakpoint(addr);
+        return delete_hw_breakpoint((target_ulong) addr);
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_WRITE:
     case GDB_WATCHPOINT_ACCESS:
-        return delete_hw_watchpoint(addr, len, type);
+        return delete_hw_watchpoint((target_ulong) addr,
+                                    (target_ulong) len, type);
     default:
         return -ENOSYS;
     }
