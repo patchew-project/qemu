@@ -764,6 +764,8 @@ void kvm_riscv_init_user_properties(Object *cpu_obj)
     kvm_riscv_destroy_scratch_vcpu(&kvmcpu);
 }
 
+const int kvm_arch_default_type;
+
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };

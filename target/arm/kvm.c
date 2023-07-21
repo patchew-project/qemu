@@ -32,6 +32,8 @@
 #include "hw/irq.h"
 #include "qemu/log.h"
 
+const int kvm_arch_default_type = 32;
+
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };

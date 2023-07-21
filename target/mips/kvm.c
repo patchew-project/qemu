@@ -33,6 +33,8 @@
 static int kvm_mips_fpu_cap;
 static int kvm_mips_msa_cap;
 
+const int kvm_arch_default_type;
+
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };

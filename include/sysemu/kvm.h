@@ -347,6 +347,7 @@ bool kvm_device_supported(int vmfd, uint64_t type);
 
 /* Arch specific hooks */
 
+extern const int kvm_arch_default_type;
 extern const KVMCapabilityInfo kvm_arch_required_capabilities[];
 
 void kvm_arch_accel_class_init(ObjectClass *oc);

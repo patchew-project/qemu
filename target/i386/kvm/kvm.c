@@ -87,6 +87,8 @@
 
 static void kvm_init_msrs(X86CPU *cpu);
 
+const int kvm_arch_default_type;
+
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(SET_TSS_ADDR),
     KVM_CAP_INFO(EXT_CPUID),

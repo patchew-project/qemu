@@ -144,6 +144,8 @@ static CPUWatchpoint hw_watchpoint;
 static struct kvm_hw_breakpoint *hw_breakpoints;
 static int nb_hw_breakpoints;
 
+const int kvm_arch_default_type;
+
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };

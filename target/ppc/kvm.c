@@ -54,6 +54,8 @@
 #define DEBUG_RETURN_GUEST 0
 #define DEBUG_RETURN_GDB   1
 
+const int kvm_arch_default_type;
+
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
