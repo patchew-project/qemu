@@ -995,8 +995,7 @@ static int insert_hw_breakpoint(target_ulong addr, int len, int type)
     return 0;
 }
 
-int kvm_arch_insert_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type)
+int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     switch (type) {
     case GDB_BREAKPOINT_HW:
@@ -1011,14 +1010,14 @@ int kvm_arch_insert_hw_breakpoint(target_ulong addr,
     default:
         return -ENOSYS;
     }
-    return insert_hw_breakpoint(addr, len, type);
+    return insert_hw_breakpoint((target_ulong) addr, (target_ulong) len, type);
 }
 
-int kvm_arch_remove_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type)
+int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     int size;
-    struct kvm_hw_breakpoint *bp = find_hw_breakpoint(addr, len, type);
+    struct kvm_hw_breakpoint *bp = find_hw_breakpoint((target_ulong) addr,
+                                                      (target_ulong) len, type);
 
     if (bp == NULL) {
         return -ENOENT;

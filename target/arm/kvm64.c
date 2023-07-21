@@ -49,32 +49,32 @@ void kvm_arm_init_debug(KVMState *s)
     return;
 }
 
-int kvm_arch_insert_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type)
+int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     switch (type) {
     case GDB_BREAKPOINT_HW:
-        return insert_hw_breakpoint(addr);
+        return insert_hw_breakpoint((target_ulong) addr);
         break;
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_WRITE:
     case GDB_WATCHPOINT_ACCESS:
-        return insert_hw_watchpoint(addr, len, type);
+        return insert_hw_watchpoint((target_ulong) addr,
+                                    (target_ulong) len, type);
     default:
         return -ENOSYS;
     }
 }
 
-int kvm_arch_remove_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type)
+int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     switch (type) {
     case GDB_BREAKPOINT_HW:
-        return delete_hw_breakpoint(addr);
+        return delete_hw_breakpoint((target_ulong) addr);
     case GDB_WATCHPOINT_READ:
     case GDB_WATCHPOINT_WRITE:
     case GDB_WATCHPOINT_ACCESS:
-        return delete_hw_watchpoint(addr, len, type);
+        return delete_hw_watchpoint((target_ulong) addr,
+                                    (target_ulong) len, type);
     default:
         return -ENOSYS;
     }

@@ -4995,7 +4995,7 @@ MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
         kvm_rate_limit_on_bus_lock();
     }
 
-#ifdef CONFIG_XEN_EMU    
+#ifdef CONFIG_XEN_EMU
     /*
      * If the callback is asserted as a GSI (or PCI INTx) then check if
      * vcpu_info->evtchn_upcall_pending has been cleared, and deassert
@@ -5156,8 +5156,7 @@ static int find_hw_breakpoint(target_ulong addr, int len, int type)
     return -1;
 }
 
-int kvm_arch_insert_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type)
+int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     switch (type) {
     case GDB_BREAKPOINT_HW:
@@ -5189,20 +5188,20 @@ int kvm_arch_insert_hw_breakpoint(target_ulong addr,
     if (find_hw_breakpoint(addr, len, type) >= 0) {
         return -EEXIST;
     }
-    hw_breakpoint[nb_hw_breakpoint].addr = addr;
-    hw_breakpoint[nb_hw_breakpoint].len = len;
+    hw_breakpoint[nb_hw_breakpoint].addr = (target_ulong) addr;
+    hw_breakpoint[nb_hw_breakpoint].len = (int) len;
     hw_breakpoint[nb_hw_breakpoint].type = type;
     nb_hw_breakpoint++;
 
     return 0;
 }
 
-int kvm_arch_remove_hw_breakpoint(target_ulong addr,
-                                  target_ulong len, int type)
+int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type)
 {
     int n;
 
-    n = find_hw_breakpoint(addr, (type == GDB_BREAKPOINT_HW) ? 1 : len, type);
+    n = find_hw_breakpoint((target_ulong) addr,
+                           (type == GDB_BREAKPOINT_HW) ? 1 : len, type);
     if (n < 0) {
         return -ENOENT;
     }
