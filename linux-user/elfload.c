@@ -3618,6 +3618,8 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 
     if (elf_interpreter) {
         load_elf_interp(elf_interpreter, &interp_info, bprm->buf);
+#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
+/* FIXME: this breaks aarch64, ppc64el, s390x, hence the #if for now */
         /*
          * adjust brk address if the interpreter was loaded above the main
          * executable, e.g. happens with static binaries on armhf
@@ -3625,6 +3627,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
         if (interp_info.brk > info->brk) {
             info->brk = interp_info.brk;
         }
+#endif
 
         /* If the program interpreter is one of these two, then assume
            an iBCS2 image.  Otherwise assume a native linux image.  */
