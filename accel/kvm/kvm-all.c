@@ -86,6 +86,7 @@ struct KVMParkedVcpu {
 };
 
 KVMState *kvm_state;
+bool kvm_has_create_irqchip;
 bool kvm_kernel_irqchip;
 bool kvm_split_irqchip;
 bool kvm_async_interrupts_allowed;
@@ -2377,8 +2378,10 @@ static void kvm_irqchip_create(KVMState *s)
         if (s->kernel_irqchip_split == ON_OFF_AUTO_ON) {
             error_report("Split IRQ chip mode not supported.");
             exit(1);
-        } else {
+        } else if (kvm_has_create_irqchip) {
             ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+        } else {
+            return;
         }
     }
     if (ret < 0) {
