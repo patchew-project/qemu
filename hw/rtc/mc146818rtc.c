@@ -96,8 +96,8 @@ static void rtc_coalesced_timer_update(MC146818RtcState *s)
     if (s->irq_coalesced == 0) {
         timer_del(s->coalesced_timer);
     } else {
-        /* divide each RTC interval to 2 - 8 smaller intervals */
-        int c = MIN(s->irq_coalesced, 7) + 1;
+        /* divide each RTC interval to 2 - 32 smaller intervals */
+        int c = MIN(s->irq_coalesced, 31) + 1;
         int64_t next_clock = qemu_clock_get_ns(rtc_clock) +
             periodic_clock_to_ns(s->period / c);
         timer_mod(s->coalesced_timer, next_clock);
