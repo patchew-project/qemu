@@ -662,6 +662,7 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
         QDict *options, int flags, Error **errp)
 {
     const char *path = qdict_get_try_str(options, "path");
+    const char *blkio_driver = bs->drv->protocol_name;
     BDRVBlkioState *s = bs->opaque;
     bool fd_supported = false;
     int fd, ret;
@@ -676,7 +677,8 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    if (blkio_get_int(s->blkio, "fd", &fd) == 0) {
+    if (strcmp(blkio_driver, "virtio-blk-vhost-vdpa") == 0 &&
+        blkio_get_int(s->blkio, "fd", &fd) == 0) {
         fd_supported = true;
     }
 
