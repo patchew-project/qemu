@@ -665,7 +665,7 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
     const char *blkio_driver = bs->drv->protocol_name;
     BDRVBlkioState *s = bs->opaque;
     bool fd_supported = false;
-    int fd, ret;
+    int ret;
 
     if (!path) {
         error_setg(errp, "missing 'path' option");
@@ -678,7 +678,7 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
     }
 
     if (strcmp(blkio_driver, "virtio-blk-vhost-vdpa") == 0 &&
-        blkio_get_int(s->blkio, "fd", &fd) == 0) {
+        blkio_set_int(s->blkio, "fd", -1) == 0) {
         fd_supported = true;
     }
 
@@ -688,7 +688,7 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
      * layer through the "/dev/fdset/N" special path.
      */
     if (fd_supported) {
-        int open_flags;
+        int open_flags, fd;
 
         if (flags & BDRV_O_RDWR) {
             open_flags = O_RDWR;
