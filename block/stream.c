@@ -207,6 +207,12 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         }
     }
 
+    /*
+     * Complete stream_populate,force flush l2_table_cache,to
+     * avoid unexpected termination of process, l2_table loss
+     */
+    qcow2_cache_flush(bs, ((BDRVQcow2State *)bs->opaque)->l2_table_cache);
+
     /* Do not remove the backing file if an error was there but ignored. */
     return error;
 }
