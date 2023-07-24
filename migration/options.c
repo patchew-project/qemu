@@ -121,6 +121,8 @@ Property migration_properties[] = {
                       parameters.cpu_throttle_tailslow, false),
     DEFINE_PROP_SIZE("x-max-bandwidth", MigrationState,
                       parameters.max_bandwidth, MAX_THROTTLE),
+    DEFINE_PROP_SIZE("available-bandwidth", MigrationState,
+                      parameters.available_bandwidth, 0),
     DEFINE_PROP_UINT64("x-downtime-limit", MigrationState,
                       parameters.downtime_limit,
                       DEFAULT_MIGRATE_SET_DOWNTIME),
@@ -735,6 +737,13 @@ uint64_t migrate_max_bandwidth(void)
     return s->parameters.max_bandwidth;
 }
 
+uint64_t migrate_available_bandwidth(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.available_bandwidth;
+}
+
 uint64_t migrate_max_postcopy_bandwidth(void)
 {
     MigrationState *s = migrate_get_current();
@@ -872,6 +881,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
                                  s->parameters.tls_authz : "");
     params->has_max_bandwidth = true;
     params->max_bandwidth = s->parameters.max_bandwidth;
+    params->has_available_bandwidth = true;
+    params->available_bandwidth = s->parameters.available_bandwidth;
     params->has_downtime_limit = true;
     params->downtime_limit = s->parameters.downtime_limit;
     params->has_x_checkpoint_delay = true;
@@ -999,6 +1010,15 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     if (params->has_max_bandwidth && (params->max_bandwidth > SIZE_MAX)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "max_bandwidth",
+                   "an integer in the range of 0 to "stringify(SIZE_MAX)
+                   " bytes/second");
+        return false;
+    }
+
+    if (params->has_available_bandwidth &&
+        (params->available_bandwidth > SIZE_MAX)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "available_bandwidth",
                    "an integer in the range of 0 to "stringify(SIZE_MAX)
                    " bytes/second");
         return false;
@@ -1156,6 +1176,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->max_bandwidth = params->max_bandwidth;
     }
 
+    if (params->has_available_bandwidth) {
+        dest->available_bandwidth = params->available_bandwidth;
+    }
+
     if (params->has_downtime_limit) {
         dest->downtime_limit = params->downtime_limit;
     }
@@ -1262,6 +1286,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         if (s->to_dst_file && !migration_in_postcopy()) {
             migration_rate_set(s->parameters.max_bandwidth);
         }
+    }
+
+    if (params->has_available_bandwidth) {
+        s->parameters.available_bandwidth = params->available_bandwidth;
     }
 
     if (params->has_downtime_limit) {
