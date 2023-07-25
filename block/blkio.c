@@ -686,15 +686,7 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
      * layer through the "/dev/fdset/N" special path.
      */
     if (fd_supported) {
-        int open_flags;
-
-        if (flags & BDRV_O_RDWR) {
-            open_flags = O_RDWR;
-        } else {
-            open_flags = O_RDONLY;
-        }
-
-        fd = qemu_open(path, open_flags, errp);
+        fd = qemu_open(path, O_RDWR, errp);
         if (fd < 0) {
             return -EINVAL;
         }
