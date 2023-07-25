@@ -152,4 +152,15 @@ void block_job_ratelimit_sleep(BlockJob *job);
 BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         int is_read, int error);
 
+/**
+ * block_job_final_target_flush:
+ * @job: The job to signal an error for if flush failed.
+ * @target_bs: The bs to flush.
+ *
+ * The function is intended to be called at the end of .run() for any data
+ * copying job.
+ */
+int coroutine_fn
+block_job_final_target_flush(BlockJob *job, BlockDriverState *target_bs);
+
 #endif

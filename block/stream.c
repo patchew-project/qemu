@@ -131,6 +131,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
     BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
     int64_t len;
     int64_t offset = 0;
+    int ret;
     int error = 0;
     int64_t n = 0; /* bytes */
 
@@ -149,7 +150,6 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
 
     for ( ; offset < len; offset += n) {
         bool copy;
-        int ret;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -205,6 +205,11 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         if (copy) {
             block_job_ratelimit_processed_bytes(&s->common, n);
         }
+    }
+
+    ret = block_job_final_target_flush(&s->common, s->target_bs);
+    if (error == 0) {
+        error = ret;
     }
 
     /* Do not remove the backing file if an error was there but ignored. */

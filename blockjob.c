@@ -611,3 +611,21 @@ AioContext *block_job_get_aio_context(BlockJob *job)
     GLOBAL_STATE_CODE();
     return job->job.aio_context;
 }
+
+int coroutine_fn
+block_job_final_target_flush(BlockJob *job, BlockDriverState *target_bs)
+{
+    int ret;
+
+    WITH_GRAPH_RDLOCK_GUARD() {
+        ret = bdrv_co_flush(target_bs);
+    }
+
+    if (ret < 0 && !block_job_is_internal(job)) {
+        qapi_event_send_block_job_error(job->job.id,
+                                        IO_OPERATION_TYPE_WRITE,
+                                        BLOCK_ERROR_ACTION_REPORT);
+    }
+
+    return ret;
+}

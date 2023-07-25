@@ -1143,6 +1143,10 @@ immediate_exit:
     g_free(s->in_flight_bitmap);
     bdrv_dirty_iter_free(s->dbi);
 
+    if (ret >= 0) {
+        ret = block_job_final_target_flush(&s->common, blk_bs(s->target));
+    }
+
     if (need_drain) {
         s->in_drain = true;
         bdrv_drained_begin(bs);

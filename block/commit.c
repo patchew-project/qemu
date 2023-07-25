@@ -187,7 +187,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         }
     }
 
-    return 0;
+    return block_job_final_target_flush(&s->common, blk_bs(s->base));
 }
 
 static const BlockJobDriver commit_job_driver = {

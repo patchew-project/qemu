@@ -295,10 +295,13 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
             job_yield(job);
         }
     } else {
-        return backup_loop(s);
+        ret = backup_loop(s);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
-    return 0;
+    return block_job_final_target_flush(&s->common, s->target_bs);
 }
 
 static void coroutine_fn backup_pause(Job *job)
