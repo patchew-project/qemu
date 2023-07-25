@@ -290,6 +290,9 @@ if [ "$IMGOPTSSYNTAX" = "true" ]; then
     elif [ "$IMGPROTO" = "fuse" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="$DRIVER,file.filename=$SOCK_DIR/fuse-t.$IMGFMT"
+    elif [ "$IMGPROTO" = "io_uring" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG="$DRIVER,file.driver=$IMGPROTO,file.filename=$TEST_DIR/t.$IMGFMT"
     elif [ "$IMGPROTO" = "ssh" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="$DRIVER,file.driver=ssh,file.host=127.0.0.1,file.path=$TEST_IMG_FILE"
@@ -309,6 +312,9 @@ else
     elif [ "$IMGPROTO" = "fuse" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="$SOCK_DIR/fuse-t.$IMGFMT"
+    elif [ "$IMGPROTO" = "io_uring" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG=io_uring:$TEST_DIR/t.$IMGFMT
     elif [ "$IMGPROTO" = "ssh" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         REMOTE_TEST_DIR="ssh://\\($USER@\\)\\?127.0.0.1\\(:[0-9]\\+\\)\\?$TEST_DIR"
@@ -398,6 +404,10 @@ _test_img_to_test_img_file()
 
         fuse)
             echo "$1" | sed -e "s#$SOCK_DIR/fuse-#$TEST_DIR/#"
+            ;;
+
+        io_uring)
+            echo "$1" | sed -e "s#io_uring:##"
             ;;
 
         nfs)
@@ -653,7 +663,7 @@ _cleanup_test_img()
             FUSE_EXPORTS=()
             ;;
 
-        file)
+        file|io_uring)
             _rm_test_img "$TEST_DIR/t.$IMGFMT"
             _rm_test_img "$TEST_DIR/t.$IMGFMT.orig"
             _rm_test_img "$TEST_DIR/t.$IMGFMT.base"
