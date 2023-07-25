@@ -81,6 +81,7 @@ int vhost_scsi_common_start(VHostSCSICommon *vsc)
         error_report("Error start vhost dev");
         goto err_guest_notifiers;
     }
+    vsc->started_vu = true;
 
     /* guest_notifier_mask/pending not used yet, so just unmask
      * everything here.  virtio-pci will do the right thing by
@@ -105,6 +106,11 @@ void vhost_scsi_common_stop(VHostSCSICommon *vsc)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret = 0;
+
+    if (!vsc->started_vu) {
+        return;
+    }
+    vsc->started_vu = false;
 
     vhost_dev_stop(&vsc->dev, vdev, true);
 

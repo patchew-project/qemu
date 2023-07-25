@@ -37,6 +37,9 @@ struct VHostSCSICommon {
     bool migratable;
 
     struct vhost_inflight *inflight;
+
+    /* vhost_scsi_common_start/vhost_scsi_common_stop */
+    bool started_vu;
 };
 
 int vhost_scsi_common_start(VHostSCSICommon *vsc);
