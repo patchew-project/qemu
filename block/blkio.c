@@ -1032,6 +1032,8 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
     .instance_size           = sizeof(BDRVBlkioState), \
     .bdrv_file_open          = blkio_file_open, \
     .bdrv_close              = blkio_close, \
+    .bdrv_co_create_opts     = bdrv_co_create_opts_simple, \
+    .create_opts             = &bdrv_create_opts_simple, \
     .bdrv_co_getlength       = blkio_co_getlength, \
     .bdrv_co_truncate        = blkio_truncate, \
     .bdrv_co_get_info        = blkio_co_get_info, \
