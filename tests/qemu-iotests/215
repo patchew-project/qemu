@@ -65,7 +65,9 @@ fi
 _make_test_img 4G
 $QEMU_IO -c "write -P 55 3G 1k" "$TEST_IMG" | _filter_qemu_io
 IMGPROTO=file IMGFMT=qcow2 TEST_IMG_FILE="$TEST_WRAP" \
-    _make_test_img --no-opts -F "$IMGFMT" -b "$TEST_IMG" | _filter_img_create
+    _make_test_img --no-opts -F "$IMGFMT" -b "$TEST_IMG" | \
+    _filter_img_create_backing_file | \
+    _filter_img_create
 $QEMU_IO -f qcow2 -c "write -z -u 1M 64k" "$TEST_WRAP" | _filter_qemu_io
 
 # Ensure that a read of two clusters, but where one is already allocated,

@@ -206,6 +206,14 @@ _filter_img_create()
     done
 }
 
+# When creating additional images with different IMGPROTO, IMGFMT, etc than the
+# main test image, _filter_img_create cannot filter backing_file since it
+# contains different IMGPROTO, IMGFMT, etc values than currently in use.
+_filter_img_create_backing_file()
+{
+    sed -e "s/ backing_file=[^ ]*/ backing_file=BACKING_FILE/g"
+}
+
 _filter_img_create_size()
 {
     gsed -e "s# size=[0-9]\\+# size=SIZE#g"
