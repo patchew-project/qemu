@@ -18,6 +18,18 @@
 #ifndef LINUX_USER_LOADER_H
 #define LINUX_USER_LOADER_H
 
+/* where to map binaries? */
+#if HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 64
+# define TASK_UNMAPPED_BASE_PIE 0x5500000000
+# define TASK_UNMAPPED_BASE	0x7000000000
+#elif HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 32
+# define TASK_UNMAPPED_BASE_PIE	0x40000000
+# define TASK_UNMAPPED_BASE	0xf0000000
+#else /* HOST_LONG_BITS == 32 && TARGET_ABI_BITS == 32 */
+# define TASK_UNMAPPED_BASE_PIE	0x00000000
+# define TASK_UNMAPPED_BASE	0x40000000
+#endif
+
 /*
  * Read a good amount of data initially, to hopefully get all the
  * program headers loaded.
