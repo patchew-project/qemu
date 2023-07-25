@@ -603,6 +603,12 @@ static void blkio_unregister_buf(BlockDriverState *bs, void *host, size_t size)
     }
 }
 
+static void blkio_io_uring_parse_filename(const char *filename, QDict *options,
+                                          Error **errp)
+{
+    bdrv_parse_filename_strip_prefix(filename, "io_uring:", options);
+}
+
 static int blkio_io_uring_open(BlockDriverState *bs, QDict *options, int flags,
                                Error **errp)
 {
@@ -1049,6 +1055,7 @@ static BlockDriver bdrv_io_uring = {
     .format_name         = "io_uring",
     .protocol_name       = "io_uring",
     .bdrv_needs_filename = true,
+    .bdrv_parse_filename = blkio_io_uring_parse_filename,
     BLKIO_DRIVER_COMMON
 };
 
