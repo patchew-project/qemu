@@ -1945,8 +1945,15 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     int fd;
     bool created;
     RAMBlock *block;
+    
+    /*
+     * If map is private, the fd does not need to be writable.
+     * This only get effective when the file is existent.
+     */
+    bool open_as_readonly = readonly || !(ram_flags & RAM_SHARED);
 
-    fd = file_ram_open(mem_path, memory_region_name(mr), readonly, &created,
+    fd = file_ram_open(mem_path, memory_region_name(mr),
+                       open_as_readonly, &created,
                        errp);
     if (fd < 0) {
         return NULL;
