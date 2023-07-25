@@ -8131,14 +8131,18 @@ static int open_self_maps_1(CPUArchState *cpu_env, int fd, bool smaps)
                 continue;
             }
 
+            path = e->path;
+
+            if (ts->heap_base && h2g(min) == ts->heap_base) {
+                path = "[heap]";
+            }
+
 #ifdef TARGET_HPPA
             if (h2g(max) == ts->info->stack_limit) {
 #else
             if (h2g(min) == ts->info->stack_limit) {
 #endif
                 path = "[stack]";
-            } else {
-                path = e->path;
             }
 
             count = dprintf(fd, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
