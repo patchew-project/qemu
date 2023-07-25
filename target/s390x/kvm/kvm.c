@@ -391,6 +391,17 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     kvm_set_max_memslot_size(KVM_SLOT_MAX_BYTES);
+
+    kvm_has_create_irqchip = kvm_check_extension(s, KVM_CAP_S390_IRQCHIP);
+    if (kvm_has_create_irqchip) {
+        int ret = kvm_vm_enable_cap(s, KVM_CAP_S390_IRQCHIP, 0);
+
+        if (ret < 0) {
+            fprintf(stderr, "Enable kernel irqchip failed: %s\n", strerror(-ret));
+            exit(1);
+        }
+    }
+
     return 0;
 }
 
