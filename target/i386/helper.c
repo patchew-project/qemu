@@ -149,6 +149,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
         env->efer &= ~MSR_EFER_LMA;
         env->hflags &= ~(HF_LMA_MASK | HF_CS64_MASK);
         env->eip &= 0xffffffff;
+        env->regs[R_ESP] &= 0xffffffff;
     }
 #endif
     env->cr[0] = new_cr0 | CR0_ET_MASK;
