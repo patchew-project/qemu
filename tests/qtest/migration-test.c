@@ -701,7 +701,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                               const char *uri, MigrateStart *args)
 {
     g_autofree gchar *arch_source = NULL;
-    g_autofree gchar *arch_target = NULL;
     /* options for source and target */
     g_autofree gchar *arch_opts = NULL;
     g_autofree gchar *cmd_source = NULL;
@@ -810,12 +809,11 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  "-m %s "
                                  "-serial file:%s/dest_serial "
                                  "-incoming %s "
-                                 "%s %s %s %s %s",
+                                 "%s %s %s %s",
                                  args->use_dirty_ring ?
                                  ",dirty-ring-size=4096" : "",
                                  memory_size, tmpfs, uri,
                                  arch_opts ? arch_opts : "",
-                                 arch_target ? arch_target : "",
                                  shmem_opts,
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
