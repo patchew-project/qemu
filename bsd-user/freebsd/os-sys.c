@@ -585,9 +585,10 @@ abi_long do_freebsd_sysctl(CPUArchState *env, abi_ulong namep, int32_t namelen,
     if (oldlenp && (ret == 0 || ret == -TARGET_ENOMEM)) {
         put_user_ual(holdlen, oldlenp);
     }
-    unlock_user(hnamep, namep, 0);
     unlock_user(holdp, oldp, ret == 0 ? holdlen : 0);
 out:
+    unlock_user(hnamep, namep, 0);
+    unlock_user(hnewp, newp, 0);
     g_free(snamep);
     return ret;
 }
