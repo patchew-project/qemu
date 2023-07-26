@@ -243,6 +243,12 @@ DECLARE_TEST_CASE_SETUP(GET_MIN_CLOCK_RATE, ANY) {
 }
 
 /*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(GET_CLOCKS) {
+    g_assert_cmphex(tag->response.value.root_clock, ==, CLOCK_ID_ROOT);
+    g_assert_cmphex(tag->response.value.arm_clock, ==, CLOCK_ID_ARM);
+}
+
+/*----------------------------------------------------------------------------*/
 DECLARE_TEST_CASE(GET_TEMPERATURE) {
     g_assert_cmphex(tag->response.value.temperature_id, ==, TEMPERATURE_ID_SOC);
     g_assert_cmpint(tag->response.value.temperature, ==, TEMPERATURE_SOC);
@@ -509,8 +515,28 @@ DECLARE_TEST_CASE(GET_COMMANDLINE) {
 }
 
 /*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(GET_THROTTLED) {
+    g_assert_cmpint(tag->response.value.throttled, ==, 0);
+}
+
+/*----------------------------------------------------------------------------*/
 DECLARE_TEST_CASE(GET_NUM_DISPLAYS) {
     g_assert_cmpint(tag->response.value.num_displays, ==, 1);
+}
+
+/*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(GET_DISPLAY_SETTINGS) {
+    g_assert_cmpint(tag->response.value.display_num, ==, 0);
+    g_assert_cmpint(tag->response.value.phys_width, ==, 800);
+    g_assert_cmpint(tag->response.value.phys_height, ==, 600);
+    g_assert_cmpint(tag->response.value.bpp, ==, 32);
+    g_assert_cmpint(tag->response.value.pitch, ==, 32);
+    g_assert_cmpint(tag->response.value.virt_width, ==, 0);
+    g_assert_cmpint(tag->response.value.virt_height, ==, 0);
+    g_assert_cmpint(tag->response.value.virt_width_offset, ==, 0);
+    g_assert_cmpint(tag->response.value.virt_height_offset, ==, 0);
+    g_assert_cmphex(tag->response.value.fb_bus_address_lo, ==, 0x00000000);
+    g_assert_cmphex(tag->response.value.fb_bus_address_hi, ==, 0x00000000);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -519,6 +545,54 @@ DECLARE_TEST_CASE(SET_PITCH) {
 }
 DECLARE_TEST_CASE_SETUP(SET_PITCH) {
     tag->request.value.pitch = DUMMY_VALUE;
+}
+
+/*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(GET_GPIO_CONFIG) {
+    g_assert_cmpint(tag->response.value.zero, ==, 0);
+    g_assert_cmphex(tag->response.value.direction, ==, GPIO_DIRECTION_IN);
+    g_assert_cmphex(tag->response.value.polarity, ==, GPIO_POLARITY_LOW);
+    g_assert_cmphex(tag->response.value.term_en, ==, GPIO_TERMINATION_DISABLED);
+    g_assert_cmphex(tag->response.value.term_pull_up, ==, GPIO_TERMINATION_PULLUP_DISABLED);
+}
+DECLARE_TEST_CASE_SETUP(GET_GPIO_CONFIG) {
+    tag->request.value.gpio_num = GPIO_0;
+}
+
+/*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(SET_GPIO_CONFIG) {
+    g_assert_cmpint(tag->response.value.zero, ==, 0);
+}
+DECLARE_TEST_CASE_SETUP(SET_GPIO_CONFIG) {
+    tag->request.value.gpio_num = GPIO_0;
+    tag->request.value.direction = DUMMY_VALUE;
+    tag->request.value.polarity = DUMMY_VALUE;
+    tag->request.value.term_en = DUMMY_VALUE;
+    tag->request.value.term_pull_up = DUMMY_VALUE;
+    tag->request.value.state = DUMMY_VALUE;
+}
+
+/*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(GET_GPIO_STATE) {
+    g_assert_cmpint(tag->response.value.zero, ==, 0);
+    g_assert_cmphex(tag->response.value.state, ==, GPIO_STATE_DOWN);
+}
+DECLARE_TEST_CASE_SETUP(GET_GPIO_STATE) {
+    tag->request.value.gpio_num = GPIO_0;
+}
+
+/*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(SET_GPIO_STATE) {
+    g_assert_cmpint(tag->response.value.zero, ==, 0);
+}
+DECLARE_TEST_CASE_SETUP(SET_GPIO_STATE) {
+    tag->request.value.gpio_num = GPIO_0;
+    tag->request.value.state = GPIO_STATE_DOWN;
+}
+
+/*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(INITIALIZE_VCHIQ) {
+    g_assert_cmpint(tag->response.value.zero, ==, 0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -544,6 +618,7 @@ int main(int argc, char **argv)
     QTEST_ADD_TEST_CASE(GET_CLOCK_RATE, ANY);
     QTEST_ADD_TEST_CASE(GET_MAX_CLOCK_RATE, ANY);
     QTEST_ADD_TEST_CASE(GET_MIN_CLOCK_RATE, ANY);
+    QTEST_ADD_TEST_CASE(GET_CLOCKS);
     QTEST_ADD_TEST_CASE(GET_TEMPERATURE);
     QTEST_ADD_TEST_CASE(GET_MAX_TEMPERATURE);
     QTEST_ADD_TEST_CASE(ALLOCATE_BUFFER);
@@ -577,8 +652,15 @@ int main(int argc, char **argv)
     QTEST_ADD_TEST_CASE(SET_OVERSCAN);
     QTEST_ADD_TEST_CASE(GET_DMA_CHANNELS);
     QTEST_ADD_TEST_CASE(GET_COMMANDLINE);
+    QTEST_ADD_TEST_CASE(GET_THROTTLED);
     QTEST_ADD_TEST_CASE(GET_NUM_DISPLAYS);
+    QTEST_ADD_TEST_CASE(GET_DISPLAY_SETTINGS);
     QTEST_ADD_TEST_CASE(SET_PITCH);
+    QTEST_ADD_TEST_CASE(GET_GPIO_CONFIG);
+    QTEST_ADD_TEST_CASE(SET_GPIO_CONFIG);
+    QTEST_ADD_TEST_CASE(GET_GPIO_STATE);
+    QTEST_ADD_TEST_CASE(SET_GPIO_STATE);
+    QTEST_ADD_TEST_CASE(INITIALIZE_VCHIQ);
 
     return g_test_run();
 }
