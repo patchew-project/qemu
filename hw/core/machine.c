@@ -1362,6 +1362,8 @@ static void is_cpu_type_supported(MachineState *machine, Error **errp)
      * type is provided through '-cpu' option.
      */
     if (mc->valid_cpu_types && machine->cpu_type) {
+        assert(mc->valid_cpu_models && mc->valid_cpu_models[0]);
+
         for (i = 0; mc->valid_cpu_types[i]; i++) {
             if (object_class_dynamic_cast(oc, mc->valid_cpu_types[i])) {
                 break;
@@ -1371,10 +1373,10 @@ static void is_cpu_type_supported(MachineState *machine, Error **errp)
         /* The user specified CPU type isn't valid */
         if (!mc->valid_cpu_types[i]) {
             error_setg(errp, "Invalid CPU type: %s", machine->cpu_type);
-            error_append_hint(errp, "The valid types are: %s",
-                              mc->valid_cpu_types[0]);
-            for (i = 1; mc->valid_cpu_types[i]; i++) {
-                error_append_hint(errp, ", %s", mc->valid_cpu_types[i]);
+            error_append_hint(errp, "The valid models are: %s",
+                              mc->valid_cpu_models[0]);
+            for (i = 1; mc->valid_cpu_models[i]; i++) {
+                error_append_hint(errp, ", %s", mc->valid_cpu_models[i]);
             }
             error_append_hint(errp, "\n");
 
