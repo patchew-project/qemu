@@ -686,16 +686,17 @@ bool ppc_decr_clear_on_delivery(CPUPPCState *env)
 static inline int64_t _cpu_ppc_load_decr(CPUPPCState *env, uint64_t next)
 {
     ppc_tb_t *tb_env = env->tb_env;
-    int64_t decr, diff;
+    uint64_t now, n;
+    int64_t decr;
 
-    diff = next - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    if (diff >= 0) {
-        decr = muldiv64(diff, tb_env->decr_freq, NANOSECONDS_PER_SECOND);
-    } else if (tb_env->flags & PPC_TIMER_BOOKE) {
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    n = muldiv64(now, tb_env->decr_freq, NANOSECONDS_PER_SECOND);
+    if (next > n && tb_env->flags & PPC_TIMER_BOOKE) {
         decr = 0;
-    }  else {
-        decr = -muldiv64(-diff, tb_env->decr_freq, NANOSECONDS_PER_SECOND);
+    } else {
+        decr = next - n;
     }
+
     trace_ppc_decr_load(decr);
 
     return decr;
@@ -834,11 +835,11 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
 
     /* Calculate the next timer event */
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    next = now + muldiv64(value, NANOSECONDS_PER_SECOND, tb_env->decr_freq);
-    *nextp = next;
+    next = muldiv64(now, tb_env->decr_freq, NANOSECONDS_PER_SECOND) + value;
+    *nextp = next; /* nextp is in timebase units */
 
     /* Adjust timer */
-    timer_mod(timer, next);
+    timer_mod(timer, muldiv64(next, NANOSECONDS_PER_SECOND, tb_env->decr_freq));
 }
 
 static inline void _cpu_ppc_store_decr(PowerPCCPU *cpu, target_ulong decr,
@@ -1153,14 +1154,20 @@ static void start_stop_pit (CPUPPCState *env, ppc_tb_t *tb_env, int is_excp)
     } else {
         trace_ppc4xx_pit_start(ppc40x_timer->pit_reload);
         now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        next = now + muldiv64(ppc40x_timer->pit_reload,
-                              NANOSECONDS_PER_SECOND, tb_env->decr_freq);
-        if (is_excp)
-            next += tb_env->decr_next - now;
-        if (next == now)
-            next++;
+
+        if (is_excp) {
+            tb_env->decr_next += ppc40x_timer->pit_reload;
+        } else {
+            tb_env->decr_next = muldiv64(now, tb_env->decr_freq,
+                                         NANOSECONDS_PER_SECOND)
+                                + ppc40x_timer->pit_reload;
+        }
+        next = muldiv64(tb_env->decr_next, NANOSECONDS_PER_SECOND,
+                        tb_env->decr_freq);
+        if (next <= now) {
+            next = now + 1;
+        }
         timer_mod(tb_env->decr_timer, next);
-        tb_env->decr_next = next;
     }
 }
 
