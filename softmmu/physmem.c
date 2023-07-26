@@ -1296,6 +1296,7 @@ static int file_ram_open(const char *path,
     char *sanitized_name;
     char *c;
     int fd = -1;
+    bool first_trial = true;
 
     *created = false;
     for (;;) {
@@ -1332,6 +1333,18 @@ static int file_ram_open(const char *path,
                 break;
             }
             g_free(filename);
+        } else if (first_trial && !readonly && errno == EACCES) {
+            /* @path may be a read only file */
+            fd = open(path, O_RDONLY);
+            if (fd >= 0) {
+                /*
+                 * Sometimes this behavior is not desired. Fire a warning but
+                 * continue.
+                 */
+                warn_report("backing store %s is opened readonly because the"
+                            "file is not writable", path);
+                break;
+            }
         }
         if (errno != EEXIST && errno != EINTR) {
             error_setg_errno(errp, errno,
@@ -1343,6 +1356,7 @@ static int file_ram_open(const char *path,
          * Try again on EINTR and EEXIST.  The latter happens when
          * something else creates the file between our two open().
          */
+        first_trial = false;
     }
 
     return fd;
