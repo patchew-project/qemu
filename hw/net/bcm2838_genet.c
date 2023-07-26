@@ -47,6 +47,108 @@ static void bcm2838_genet_set_irq_prio(BCM2838GenetState *s)
     qemu_set_irq(s->irq_prio, level);
 }
 
+static void bcm2838_genet_phy_aux_ctl_write(BCM2838GenetState *s,
+                                            uint16_t value)
+{
+    BCM2838GenetPhyAuxCtl phy_aux_ctl = {.value = value};
+    uint16_t *phy_aux_ctl_shd_reg_id
+        = (uint16_t *)&s->phy_aux_ctl_shd_regs + phy_aux_ctl.fields_1.reg_id;
+    uint16_t *phy_aux_ctl_shd_reg_id_mask
+        = (uint16_t *)&s->phy_aux_ctl_shd_regs + phy_aux_ctl.fields_1.reg_id_mask;
+
+    if (phy_aux_ctl.fields_1.reg_id_mask == BCM2838_GENET_PHY_AUX_CTL_MISC) {
+        if (phy_aux_ctl.fields_1.reg_id == BCM2838_GENET_PHY_AUX_CTL_MISC) {
+            if (phy_aux_ctl.fields_1.misc_wren == 0) {
+                /* write for subsequent read (8-bit from AUX_CTL_MISC) */
+                phy_aux_ctl.fields_1.reg_data = *phy_aux_ctl_shd_reg_id;
+            } else {
+                /* write 8 bits to AUX_CTL_MISC */
+                *phy_aux_ctl_shd_reg_id_mask = phy_aux_ctl.fields_1.reg_data;
+            }
+        } else {
+            /* write for subsequent read (12-bit) */
+            phy_aux_ctl.fields_2.reg_data = *phy_aux_ctl_shd_reg_id;
+        }
+    } else {
+        /* write 12 bits */
+        *phy_aux_ctl_shd_reg_id_mask = phy_aux_ctl.fields_2.reg_data;
+    }
+
+    s->phy_regs.aux_ctl.value = phy_aux_ctl.value;
+}
+
+static void bcm2838_genet_phy_shadow_write(BCM2838GenetState *s,
+                                           uint16_t value)
+{
+    BCM2838GenetPhyShadow phy_shadow = {.value = value};
+    uint16_t *phy_shd_reg
+        = (uint16_t *)&s->phy_shd_regs + phy_shadow.fields.reg_id;
+
+    if (phy_shadow.fields.wr == 0) {
+        phy_shadow.fields.reg_data = *phy_shd_reg;
+    } else {
+        *phy_shd_reg = phy_shadow.fields.reg_data;
+    }
+
+    s->phy_regs.shd.value = phy_shadow.value;
+}
+
+static void bcm2838_genet_phy_exp_shadow_write(BCM2838GenetState *s,
+                                               uint16_t value)
+{
+    /* TODO Stub implementation without side effect,
+            just storing registers values */
+    BCM2838GenetPhyExpSel* exp_ctrl = &s->phy_regs.exp_ctrl;
+    s->phy_exp_shd_regs.regs[exp_ctrl->block_id][exp_ctrl->reg_id] = value;
+}
+
+static uint16_t bcm2838_genet_phy_exp_shadow_read(BCM2838GenetState *s)
+{
+    BCM2838GenetPhyExpSel* exp_ctrl = &s->phy_regs.exp_ctrl;
+    return s->phy_exp_shd_regs.regs[exp_ctrl->block_id][exp_ctrl->reg_id];
+}
+
+static uint64_t bcm2838_genet_mdio_cmd(BCM2838GenetState *s, uint64_t cmd)
+{
+    BCM2838GenetUmacMdioCmd umac_mdio_cmd = {.value = cmd};
+    uint8_t phy_reg_id = umac_mdio_cmd.fields.reg_id;
+    uint16_t phy_reg_data = umac_mdio_cmd.fields.reg_data;
+    uint16_t *phy_reg = (uint16_t *)&s->phy_regs + phy_reg_id;
+    BCM2838GenetPhyBmcr phy_bmcr = {.value = phy_reg_data};
+
+    if (umac_mdio_cmd.fields.start_busy != 0) {
+        umac_mdio_cmd.fields.start_busy = 0;
+
+        if (umac_mdio_cmd.fields.rd != 0) {
+            if (phy_reg_id == BCM2838_GENET_EXP_DATA) {
+                umac_mdio_cmd.fields.reg_data
+                    = bcm2838_genet_phy_exp_shadow_read(s);
+            } else {
+                umac_mdio_cmd.fields.reg_data = *phy_reg;
+            }
+        } else if (umac_mdio_cmd.fields.wr != 0) {
+            if (phy_reg_id == BCM2838_GENET_PHY_AUX_CTL) {
+                bcm2838_genet_phy_aux_ctl_write(s, phy_reg_data);
+            } else if (phy_reg_id == BCM2838_GENET_PHY_SHD) {
+                bcm2838_genet_phy_shadow_write(s, phy_reg_data);
+            } else if (phy_reg_id == BCM2838_GENET_EXP_DATA) {
+                bcm2838_genet_phy_exp_shadow_write(s, phy_reg_data);
+            } else {
+                if (phy_reg_id == BCM2838_GENET_PHY_BMCR) {
+                    /* Initiate auto-negotiation once it has been restarted */
+                    if (phy_bmcr.fields.anrestart == 1) {
+                        phy_bmcr.fields.anrestart = 0;
+                        phy_reg_data = phy_bmcr.value;
+                    }
+                }
+                *phy_reg = phy_reg_data;
+            }
+        }
+    }
+
+    return umac_mdio_cmd.value;
+}
+
 static uint64_t bcm2838_genet_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint64_t value = ~0;
@@ -134,10 +236,12 @@ static void bcm2838_genet_write(void *opaque, hwaddr offset, uint64_t value,
             trace_bcm2838_genet_mac_address(ncs->info_str);
             break;
         case BCM2838_GENET_UMAC_MDIO_CMD:
+            value = bcm2838_genet_mdio_cmd(s, value);
+            s->regs.intrl0.stat.fields.mdio_done = 1;
+            break;
         case BCM2838_GENET_TDMA_REGS
             ... BCM2838_GENET_TDMA_REGS + sizeof(BCM2838GenetRegsTdma) - 1:
-            qemu_log_mask(LOG_UNIMP,
-                "UMAC MDIO and TDMA aren't implemented yet");
+            qemu_log_mask(LOG_UNIMP, "TDMA isn't implemented yet");
             break;
         default:
             break;
@@ -231,6 +335,7 @@ static void bcm2838_genet_reset(DeviceState *d)
 
     trace_bcm2838_genet_reset("done");
 
+    bcm2838_genet_set_qemu_mac(s);
     bcm2838_genet_phy_reset(s);
 }
 
