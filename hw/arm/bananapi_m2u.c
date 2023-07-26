@@ -29,6 +29,16 @@
 
 static struct arm_boot_info bpim2u_binfo;
 
+static const char * const valid_cpu_types[] = {
+    ARM_CPU_TYPE_NAME("cortex-a7"),
+    NULL
+};
+
+static const char * const valid_cpu_models[] = {
+    "cortex-a7",
+    NULL
+};
+
 /*
  * R40 can boot from mmc0 and mmc2, and bpim2u has two mmc interface, one is
  * connected to sdcard and another mount an emmc media.
@@ -67,12 +77,6 @@ static void bpim2u_init(MachineState *machine)
     /* BIOS is not supported by this board */
     if (machine->firmware) {
         error_report("BIOS not supported for this machine");
-        exit(1);
-    }
-
-    /* Only allow Cortex-A7 for this board */
-    if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("cortex-a7")) != 0) {
-        error_report("This board can only be used with cortex-a7 CPU");
         exit(1);
     }
 
@@ -138,6 +142,8 @@ static void bpim2u_machine_init(MachineClass *mc)
     mc->max_cpus = AW_R40_NUM_CPUS;
     mc->default_cpus = AW_R40_NUM_CPUS;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a7");
+    mc->valid_cpu_types = valid_cpu_types;
+    mc->valid_cpu_models = valid_cpu_models;
     mc->default_ram_size = 1 * GiB;
     mc->default_ram_id = "bpim2u.ram";
 }

@@ -55,6 +55,16 @@
 
 static const char npcm7xx_default_bootrom[] = "npcm7xx_bootrom.bin";
 
+static const char * const valid_cpu_types[] = {
+    ARM_CPU_TYPE_NAME("cortex-a9"),
+    NULL
+};
+
+static const char * const valid_cpu_models[] = {
+    "cortex-a9",
+    NULL
+};
+
 static void npcm7xx_load_bootrom(MachineState *machine, NPCM7xxState *soc)
 {
     const char *bios_name = machine->firmware ?: npcm7xx_default_bootrom;
@@ -121,14 +131,7 @@ static NPCM7xxState *npcm7xx_create_soc(MachineState *machine,
                                         uint32_t hw_straps)
 {
     NPCM7xxMachineClass *nmc = NPCM7XX_MACHINE_GET_CLASS(machine);
-    MachineClass *mc = MACHINE_CLASS(nmc);
     Object *obj;
-
-    if (strcmp(machine->cpu_type, mc->default_cpu_type) != 0) {
-        error_report("This board can only be used with %s",
-                     mc->default_cpu_type);
-        exit(1);
-    }
 
     obj = object_new_with_props(nmc->soc_type, OBJECT(machine), "soc",
                                 &error_abort, NULL);
@@ -469,6 +472,8 @@ static void npcm7xx_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->default_ram_id = "ram";
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+    mc->valid_cpu_types = valid_cpu_types;
+    mc->valid_cpu_models = valid_cpu_models;
 }
 
 /*

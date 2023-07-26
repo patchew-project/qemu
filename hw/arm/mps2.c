@@ -110,6 +110,36 @@ OBJECT_DECLARE_TYPE(MPS2MachineState, MPS2MachineClass, MPS2_MACHINE)
  */
 #define REFCLK_FRQ (1 * 1000 * 1000)
 
+static const char * const valid_cpu_types[] = {
+    ARM_CPU_TYPE_NAME("cortex-m3"),
+    NULL
+};
+
+static const char * const mps2_an386_valid_cpu_types[] = {
+    ARM_CPU_TYPE_NAME("cortex-m4"),
+    NULL
+};
+
+static const char * const mps2_an500_valid_cpu_types[] = {
+    ARM_CPU_TYPE_NAME("cortex-m7"),
+    NULL
+};
+
+static const char * const valid_cpu_models[] = {
+    "cortex-m3",
+    NULL
+};
+
+static const char * const mps2_an386_valid_cpu_models[] = {
+    "cortex-m4",
+    NULL
+};
+
+static const char * const mps2_an500_valid_cpu_models[] = {
+    "cortex-m7",
+    NULL
+};
+
 /* Initialize the auxiliary RAM region @mr and map it into
  * the memory map at @base.
  */
@@ -139,12 +169,6 @@ static void mps2_common_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     DeviceState *armv7m, *sccdev;
     int i;
-
-    if (strcmp(machine->cpu_type, mc->default_cpu_type) != 0) {
-        error_report("This board can only be used with CPU %s",
-                     mc->default_cpu_type);
-        exit(1);
-    }
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -484,6 +508,8 @@ static void mps2_an385_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM MPS2 with AN385 FPGA image for Cortex-M3";
     mmc->fpga_type = FPGA_AN385;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
+    mc->valid_cpu_types = valid_cpu_types;
+    mc->valid_cpu_models = valid_cpu_models;
     mmc->scc_id = 0x41043850;
     mmc->psram_base = 0x21000000;
     mmc->ethernet_base = 0x40200000;
@@ -498,6 +524,8 @@ static void mps2_an386_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM MPS2 with AN386 FPGA image for Cortex-M4";
     mmc->fpga_type = FPGA_AN386;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m4");
+    mc->valid_cpu_types = mps2_an386_valid_cpu_types;
+    mc->valid_cpu_models = mps2_an386_valid_cpu_models;
     mmc->scc_id = 0x41043860;
     mmc->psram_base = 0x21000000;
     mmc->ethernet_base = 0x40200000;
@@ -512,6 +540,8 @@ static void mps2_an500_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM MPS2 with AN500 FPGA image for Cortex-M7";
     mmc->fpga_type = FPGA_AN500;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m7");
+    mc->valid_cpu_types = mps2_an500_valid_cpu_types;
+    mc->valid_cpu_models = mps2_an500_valid_cpu_models;
     mmc->scc_id = 0x41045000;
     mmc->psram_base = 0x60000000;
     mmc->ethernet_base = 0xa0000000;
@@ -526,6 +556,8 @@ static void mps2_an511_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM MPS2 with AN511 DesignStart FPGA image for Cortex-M3";
     mmc->fpga_type = FPGA_AN511;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
+    mc->valid_cpu_types = valid_cpu_types;
+    mc->valid_cpu_models = valid_cpu_models;
     mmc->scc_id = 0x41045110;
     mmc->psram_base = 0x21000000;
     mmc->ethernet_base = 0x40200000;
