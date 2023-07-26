@@ -22,6 +22,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(BCM2838GenetState, BCM2838_GENET)
 #define BCM2838_GENET_DMA_RING_CNT      17
 #define BCM2838_GENET_DMA_RING_DEFAULT  (BCM2838_GENET_DMA_RING_CNT - 1)
 
+#define BCM2838_GENET_HFB_FILTER_CNT      48
+#define BCM2838_GENET_HFB_FILTER_SIZE     128
+
 typedef union {
     uint32_t value;
     struct {
@@ -178,6 +181,25 @@ typedef union {
         uint32_t reserved_2_31:30;
     } fields;
 } BCM2838GenetDmaStatus;
+
+typedef union {
+    uint32_t value;
+    struct {
+        uint32_t reserved_0_3:4;
+        uint32_t do_csum:1;
+        uint32_t ow_crc:1;
+        uint32_t append_crc:1;
+        uint32_t reserved_7_8:2;
+        uint32_t underrun:1;
+        uint32_t reserved_10_11:2;
+        uint32_t wrap:1;
+        uint32_t sop:1;
+        uint32_t eop:1;
+        uint32_t own:1;
+        uint32_t buflength:12;
+        uint32_t reserved_28_31:4;
+    } fields;
+} BCM2838GenetTdmaLengthStatus;
 
 typedef union {
     uint32_t value;
@@ -347,6 +369,53 @@ typedef struct {
 } __attribute__((__packed__)) BCM2838GenetRegsRdma;
 
 typedef struct {
+    BCM2838GenetTdmaLengthStatus length_status;
+    uint32_t address_lo;
+    uint32_t address_hi;
+} __attribute__((__packed__)) BCM2838GenetTdmaDesc;
+
+typedef struct {
+    uint32_t read_ptr;
+    uint32_t read_ptr_hi;
+    BCM2838GenetDmaConsIndex cons_index;
+    BCM2838GenetDmaProdIndex prod_index;
+    uint32_t ring_buf_size;
+    uint32_t start_addr;
+    uint32_t start_addr_hi;
+    uint32_t end_addr;
+    uint32_t end_addr_hi;
+    uint32_t mbuf_done_tresh;
+    uint32_t flow_period;
+    uint32_t write_ptr;
+    uint32_t write_ptr_hi;
+    uint8_t reserved_0x34[0xC];
+} __attribute__((__packed__)) BCM2838GenetTdmaRing;
+
+typedef struct {
+    BCM2838GenetTdmaDesc descs[BCM2838_GENET_DMA_DESC_CNT];
+    BCM2838GenetTdmaRing rings[BCM2838_GENET_DMA_RING_CNT];
+    BCM2838GenetDmaRingCfg ring_cfg;
+    BCM2838GenetDmaCtrl ctrl;
+    BCM2838GenetDmaStatus status;
+    uint32_t scb_burst_size;
+    uint8_t reserved_0x1050[0x1C];
+    uint32_t arb_ctrl;
+    uint32_t priority[3];
+    uint8_t reserved_0x10D0[0xF84];
+} __attribute__((__packed__)) BCM2838GenetRegsTdma;
+
+typedef struct {
+    uint8_t flt[BCM2838_GENET_HFB_FILTER_CNT * BCM2838_GENET_HFB_FILTER_SIZE
+                * sizeof(uint32_t)];
+    uint8_t reserved_0x6000[0x1C00];
+    uint32_t ctrl;
+    uint32_t flt_enable[2];
+    uint8_t reserved_0x7C0C[0x10];
+    uint32_t flt_len[BCM2838_GENET_HFB_FILTER_CNT / sizeof(uint32_t)];
+    uint8_t reserved_0x7C4C[0x3B4];
+} __attribute__((__packed__)) BCM2838GenetRegsHfb;
+
+typedef struct {
     BCM2838GenetRegsSys sys;
     BCM2838GenetRegsGrBridge gr_bridge;
     BCM2838GenetRegsExt ext;
@@ -361,7 +430,143 @@ typedef struct {
     BCM2838GenetRegsUmac umac;
     uint8_t reserved_0x1000[0x1000];
     BCM2838GenetRegsRdma rdma;
+    BCM2838GenetRegsTdma tdma;
+    uint8_t reserved_0x6000[0x2000];
+    BCM2838GenetRegsHfb hfb;
 } __attribute__((__packed__)) BCM2838GenetRegs;
+
+typedef union {
+    uint16_t value;
+    struct {
+        uint16_t reserved_0_5:6;
+        uint16_t speed1000:1;
+        uint16_t ctst:1;
+        uint16_t fulldplx:1;
+        uint16_t anrestart:1;
+        uint16_t isolate:1;
+        uint16_t pdown:1;
+        uint16_t aenable:1;
+        uint16_t speed100:1;
+        uint16_t loopback:1;
+        uint16_t reset:1;
+    } fields;
+} BCM2838GenetPhyBmcr;
+
+typedef union {
+    uint16_t value;
+    struct {
+        uint16_t ercap:1;
+        uint16_t jcd:1;
+        uint16_t lstatus:1;
+        uint16_t anegcapable:1;
+        uint16_t rfault:1;
+        uint16_t anegcomplete:1;
+        uint16_t reserved_6_7:2;
+        uint16_t estaten:1;
+        uint16_t _100half2:1;
+        uint16_t _100full2:1;
+        uint16_t _10half:1;
+        uint16_t _10full:1;
+        uint16_t _100half:1;
+        uint16_t _100full:1;
+        uint16_t _100base4:1;
+    } fields;
+} BCM2838GenetPhyBmsr;
+
+typedef union {
+    uint16_t value;
+    struct {
+        uint16_t slct:5;
+        uint16_t _10half_1000xfull:1;
+        uint16_t _10full_1000xhalf:1;
+        uint16_t _100half_1000xpause:1;
+        uint16_t _100full_1000xpause_asym:1;
+        uint16_t _100base4:1;
+        uint16_t pause_cap:1;
+        uint16_t pause_asym:1;
+        uint16_t reserved_12:1;
+        uint16_t rfault:1;
+        uint16_t lpack:1;
+        uint16_t npage:1;
+    } fields;
+} BCM2838GenetPhyLpa;
+
+typedef union {
+    uint16_t value;
+    struct {
+        uint16_t reserved_0_9:10;
+        uint16_t _1000half:1;
+        uint16_t _1000full:1;
+        uint16_t _1000remrxok:1;
+        uint16_t _1000localrxok:1;
+        uint16_t _1000msres:1;
+        uint16_t _1000msfail:1;
+    } fields;
+} BCM2838GenetPhyStat1000;
+
+typedef union {
+    uint16_t value;
+    struct {
+        uint16_t reg_id_mask:3;
+        uint16_t reserved_3:1;
+        uint16_t reg_data:8;
+        uint16_t reg_id:3;
+        uint16_t misc_wren:1;
+    } fields_1;
+    struct {
+        uint16_t reserved_0_3:4;
+        uint16_t reg_data:12;
+    } fields_2;
+} BCM2838GenetPhyAuxCtl;
+
+typedef union {
+    uint16_t value;
+    struct {
+        uint16_t reg_data:10;
+        uint16_t reg_id:5;
+        uint16_t wr:1;
+    } fields;
+} BCM2838GenetPhyShadow;
+
+
+typedef struct {
+    uint8_t reg_id;
+    uint8_t block_id;
+}  __attribute__((__packed__)) BCM2838GenetPhyExpSel;
+
+typedef struct {
+    BCM2838GenetPhyBmcr bmcr;
+    BCM2838GenetPhyBmsr bmsr;
+    uint16_t sid1;
+    uint16_t sid2;
+    uint16_t advertise;
+    BCM2838GenetPhyLpa lpa;
+    uint16_t expansion;
+    uint16_t next_page;
+    uint16_t lpa_next_page;
+    uint16_t ctrl1000;
+    BCM2838GenetPhyStat1000 stat1000;
+    uint16_t reserved_11_12[2];
+    uint16_t mmd_ctrl;
+    uint16_t mmd_data;
+    uint16_t estatus;
+    uint16_t ecr;
+    uint16_t esr;
+    uint16_t dcounter;
+    uint16_t fcscounter;
+    uint16_t nwaytest;
+    uint16_t exp_data;
+    uint16_t srevision;
+    BCM2838GenetPhyExpSel exp_ctrl;
+    BCM2838GenetPhyAuxCtl aux_ctl;
+    uint16_t phyaddr;
+    uint16_t isr;
+    uint16_t imr;
+    BCM2838GenetPhyShadow shd;
+    uint16_t reserved_29;
+    uint16_t rdb_addr;
+    uint16_t rdb_data;
+} __attribute__((__packed__)) BCM2838GenetPhyRegs;
 
 struct BCM2838GenetState {
     /*< private >*/
@@ -373,6 +578,7 @@ struct BCM2838GenetState {
     AddressSpace dma_as;
 
     BCM2838GenetRegs regs;
+    BCM2838GenetPhyRegs phy_regs;
 
     qemu_irq irq_default;
     qemu_irq irq_prio;
