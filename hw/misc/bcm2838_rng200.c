@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qom/object_interfaces.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/bcm2838_rng200.h"
@@ -33,6 +34,15 @@ static void bcm2838_rng200_update_irq(BCM2838Rng200State *state)
 {
     qemu_set_irq(state->irq, !!(state->rng_int_enable.value
                               & state->rng_int_status.value));
+}
+
+static void bcm2838_rng200_update_rbg_period(void *opaque, ClockEvent event)
+{
+    BCM2838Rng200State *s = (BCM2838Rng200State *)opaque;
+
+    ptimer_transaction_begin(s->ptimer);
+    ptimer_set_period_from_clock(s->ptimer, s->clock, s->rng_fifo_cap * 8);
+    ptimer_transaction_commit(s->ptimer);
 }
 
 static void bcm2838_rng200_update_fifo(void *opaque, const void *buf,
@@ -62,10 +72,11 @@ static void bcm2838_rng200_update_fifo(void *opaque, const void *buf,
     if ((num == 0) && (num_bits > 0)) {
         num = 1;
     }
-    if (num > 0) {
+    if (!state->use_timer || (num > 0)) {
         fifo8_push_all(fifo, buf, num);
 
-        if (fifo8_num_used(fifo) > state->rng_fifo_count.thld) {
+        if (!state->use_timer
+                || (fifo8_num_used(fifo) > state->rng_fifo_count.thld)) {
             state->rng_int_status.total_bits_count_irq = 1;
         }
     }
@@ -82,10 +93,14 @@ static void bcm2838_rng200_fill_fifo(BCM2838Rng200State *state)
                                 bcm2838_rng200_update_fifo, state);
 }
 
-/* state is temporary unused */
-static void bcm2838_rng200_disable_rbg(BCM2838Rng200State *state
-                                       __attribute__((unused)))
+static void bcm2838_rng200_disable_rbg(BCM2838Rng200State *state)
 {
+    if (state->use_timer) {
+        ptimer_transaction_begin(state->ptimer);
+        ptimer_stop(state->ptimer);
+        ptimer_transaction_commit(state->ptimer);
+    }
+
     trace_bcm2838_rng200_disable_rbg();
 }
 
@@ -93,9 +108,36 @@ static void bcm2838_rng200_enable_rbg(BCM2838Rng200State *state)
 {
     state->rng_total_bit_count = RNG_WARM_UP_PERIOD_ELAPSED;
 
-    bcm2838_rng200_fill_fifo(state);
+    if (state->use_timer) {
+        uint32_t div = state->rng_ctrl.div + 1;
+
+        ptimer_transaction_begin(state->ptimer);
+        ptimer_set_limit(state->ptimer, div, 1);
+        ptimer_set_count(state->ptimer, div);
+        ptimer_run(state->ptimer, 0);
+        ptimer_transaction_commit(state->ptimer);
+    } else {
+        bcm2838_rng200_fill_fifo(state);
+    }
 
     trace_bcm2838_rng200_enable_rbg();
+}
+
+static void bcm2838_rng200_ptimer_cb(void *arg)
+{
+    BCM2838Rng200State *state = (BCM2838Rng200State *)arg;
+    Fifo8 *fifo = &state->fifo;
+    size_t size = fifo8_num_free(fifo);
+
+    assert(state->rng_ctrl.rbg_enable);
+
+    if (size > 0) {
+        rng_backend_request_entropy(state->rng, size,
+                                    bcm2838_rng200_update_fifo, state);
+    } else {
+        ptimer_stop(state->ptimer);
+        trace_bcm2838_rng200_fifo_full();
+    }
 }
 
 static void bcm2838_rng200_rng_reset(BCM2838Rng200State *state)
@@ -129,6 +171,12 @@ static uint32_t bcm2838_rng200_read_fifo_data(BCM2838Rng200State *state)
         buf = fifo8_pop_buf(fifo, max, &num);
         if ((buf != NULL) && (num > 0)) {
             memcpy(&ret, buf, num);
+
+            if (state->rng_ctrl.rbg_enable && state->use_timer) {
+                ptimer_transaction_begin(state->ptimer);
+                ptimer_run(state->ptimer, 0);
+                ptimer_transaction_commit(state->ptimer);
+            }
         }
     } else {
         qemu_log_mask(
@@ -138,7 +186,10 @@ static uint32_t bcm2838_rng200_read_fifo_data(BCM2838Rng200State *state)
     }
 
     state->rng_fifo_count.count = fifo8_num_used(fifo) >> 2;
-    bcm2838_rng200_fill_fifo(state);
+
+    if (!state->use_timer) {
+        bcm2838_rng200_fill_fifo(state);
+    }
 
     return ret;
 }
@@ -237,7 +288,11 @@ static void bcm2838_rng200_write(void *opaque, hwaddr offset,
         break;
     case RNG_TOTAL_BIT_COUNT_THRESHOLD_OFFSET:
         s->rng_bit_count_threshold = value;
-        s->rng_total_bit_count = value + 1;
+        if (s->use_timer) {
+            s->rng_total_bit_count = 0;
+        } else {
+            s->rng_total_bit_count = value + 1;
+        }
         break;
     default:
         qemu_log_mask(
@@ -253,14 +308,38 @@ static const MemoryRegionOps bcm2838_rng200_ops = {
     .read = bcm2838_rng200_read,
     .write = bcm2838_rng200_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .max_access_size = 4,
+        .min_access_size = 4,
+    },
+    .valid = {
+        .max_access_size = 4,
+        .min_access_size = 4
+    },
 };
 
 static void bcm2838_rng200_realize(DeviceState *dev, Error **errp)
 {
     BCM2838Rng200State *s = BCM2838_RNG200(dev);
 
+    if (s->use_timer) {
+        s->ptimer = ptimer_init(bcm2838_rng200_ptimer_cb, s,
+                                BCM2838_RNG200_PTIMER_POLICY);
+        if (s->ptimer == NULL) {
+            error_setg(&error_fatal, "Failed to init RBG timer");
+            return;
+        }
+    }
+
     if (s->rng == NULL) {
         Object *default_backend = object_new(TYPE_RNG_BUILTIN);
+
+        if (!user_creatable_complete(USER_CREATABLE(default_backend),
+                                     errp)) {
+            object_unref(default_backend);
+            error_setg(errp, "Failed to create user creatable RNG backend");
+            return;
+        }
 
         object_property_add_child(OBJECT(dev), "default-backend",
                                   default_backend);
@@ -268,6 +347,12 @@ static void bcm2838_rng200_realize(DeviceState *dev, Error **errp)
 
         object_property_set_link(OBJECT(dev), "rng", default_backend,
                                  errp);
+    }
+
+    if (s->use_timer && !clock_has_source(s->clock)) {
+        ptimer_transaction_begin(s->ptimer);
+        ptimer_set_period(s->ptimer, s->rbg_period * s->rng_fifo_cap * 8);
+        ptimer_transaction_commit(s->ptimer);
     }
 
     fifo8_create(&s->fifo, s->rng_fifo_cap);
@@ -280,7 +365,7 @@ static void bcm2838_rng200_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     s->clock = qdev_init_clock_in(DEVICE(s), "rbg-clock",
-                                  NULL, s,
+                                  bcm2838_rng200_update_rbg_period, s,
                                   ClockPreUpdate);
     if (s->clock == NULL) {
         error_setg(&error_fatal, "Failed to init RBG clock");
@@ -305,7 +390,7 @@ static Property bcm2838_rng200_properties[] = {
     DEFINE_PROP_UINT32("rng-fifo-cap", BCM2838Rng200State, rng_fifo_cap, 128),
     DEFINE_PROP_LINK("rng", BCM2838Rng200State, rng,
                      TYPE_RNG_BACKEND, RngBackend *),
-    DEFINE_PROP_BOOL("use-timer", BCM2838Rng200State, use_timer, false),
+    DEFINE_PROP_BOOL("use-timer", BCM2838Rng200State, use_timer, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
