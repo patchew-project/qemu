@@ -812,6 +812,11 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
         return;
     }
 
+    /* Calculate the next timer event */
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    next = muldiv64(now, tb_env->decr_freq, NANOSECONDS_PER_SECOND) + value;
+    *nextp = next; /* nextp is in timebase units */
+
     /*
      * Going from 1 -> 0 or 0 -> -1 is the event to generate a DEC interrupt.
      *
@@ -832,11 +837,6 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
     if (signed_value >= 0 && (flags & PPC_DECR_UNDERFLOW_LEVEL)) {
         (*lower_excp)(cpu);
     }
-
-    /* Calculate the next timer event */
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    next = muldiv64(now, tb_env->decr_freq, NANOSECONDS_PER_SECOND) + value;
-    *nextp = next; /* nextp is in timebase units */
 
     /* Adjust timer */
     timer_mod(timer, muldiv64(next, NANOSECONDS_PER_SECOND, tb_env->decr_freq));
