@@ -217,7 +217,9 @@ static const char * const valid_cpu_types[] = {
 #endif
     ARM_CPU_TYPE_NAME("cortex-a53"),
     ARM_CPU_TYPE_NAME("cortex-a57"),
+#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     ARM_CPU_TYPE_NAME("host"),
+#endif
     ARM_CPU_TYPE_NAME("max"),
     NULL
 };
@@ -236,7 +238,9 @@ static const char * const valid_cpu_models[] = {
 #endif
     "cortex-a53",
     "cortex-a57",
+#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     "host",
+#endif
     "max",
     NULL
 };
