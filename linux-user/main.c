@@ -955,6 +955,7 @@ int main(int argc, char **argv, char **envp)
        the real value of GUEST_BASE into account.  */
     tcg_prologue_init(tcg_ctx);
 
+    ts->heap_base = info->brk;
     target_cpu_copy_regs(env, regs);
 
     if (gdbstub) {
