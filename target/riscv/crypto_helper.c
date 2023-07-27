@@ -25,29 +25,6 @@
 #include "crypto/aes-round.h"
 #include "crypto/sm4.h"
 
-#define AES_XTIME(a) \
-    ((a << 1) ^ ((a & 0x80) ? 0x1b : 0))
-
-#define AES_GFMUL(a, b) (( \
-    (((b) & 0x1) ? (a) : 0) ^ \
-    (((b) & 0x2) ? AES_XTIME(a) : 0) ^ \
-    (((b) & 0x4) ? AES_XTIME(AES_XTIME(a)) : 0) ^ \
-    (((b) & 0x8) ? AES_XTIME(AES_XTIME(AES_XTIME(a))) : 0)) & 0xFF)
-
-static inline uint32_t aes_mixcolumn_byte(uint8_t x, bool fwd)
-{
-    uint32_t u;
-
-    if (fwd) {
-        u = (AES_GFMUL(x, 3) << 24) | (x << 16) | (x << 8) |
-            (AES_GFMUL(x, 2) << 0);
-    } else {
-        u = (AES_GFMUL(x, 0xb) << 24) | (AES_GFMUL(x, 0xd) << 16) |
-            (AES_GFMUL(x, 0x9) << 8) | (AES_GFMUL(x, 0xe) << 0);
-    }
-    return u;
-}
-
 #define sext32_xlen(x) (target_ulong)(int32_t)(x)
 
 static inline target_ulong aes32_operation(target_ulong shamt,
@@ -62,17 +39,20 @@ static inline target_ulong aes32_operation(target_ulong shamt,
     if (enc) {
         so = AES_sbox[si];
         if (mix) {
-            mixed = aes_mixcolumn_byte(so, true);
+            mixed = AES_Te0[si];
         } else {
             mixed = so;
         }
     } else {
         so = AES_isbox[si];
         if (mix) {
-            mixed = aes_mixcolumn_byte(so, false);
+            mixed = AES_Td0[si];
         } else {
             mixed = so;
         }
+    }
+    if (!HOST_BIG_ENDIAN && mix) {
+        mixed = bswap32(mixed);
     }
     mixed = rol32(mixed, shamt);
     res = rs1 ^ mixed;
