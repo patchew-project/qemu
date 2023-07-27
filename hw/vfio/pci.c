@@ -375,6 +375,38 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
     int ret = 0, i, argsz;
     int32_t *fds;
 
+    /*
+     * If dynamic MSI-X allocation is supported, the vectors to be allocated
+     * and enabled can be scattered. Before kernel enabling MSI-X, setting
+     * nr_vectors causes all these vectors being allocated on host.
+     *
+     * To keep allocation as needed, first setup vector 0 with an invalid
+     * fd to make MSI-X enabled, then enable vectors by setting all so that
+     * kernel allocates and enables interrupts only when enabled in guest.
+     */
+    if (msix && !(vdev->msix->irq_info_flags & VFIO_IRQ_INFO_NORESIZE)) {
+        argsz = sizeof(*irq_set) + sizeof(*fds);
+
+        irq_set = g_malloc0(argsz);
+        irq_set->argsz = argsz;
+        irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+                         VFIO_IRQ_SET_ACTION_TRIGGER;
+        irq_set->index = msix ? VFIO_PCI_MSIX_IRQ_INDEX :
+                         VFIO_PCI_MSI_IRQ_INDEX;
+        irq_set->start = 0;
+        irq_set->count = 1;
+        fds = (int32_t *)&irq_set->data;
+        fds[0] = -1;
+
+        ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
+
+        g_free(irq_set);
+
+        if (ret) {
+            return ret;
+        }
+    }
+
     argsz = sizeof(*irq_set) + (vdev->nr_vectors * sizeof(*fds));
 
     irq_set = g_malloc0(argsz);
