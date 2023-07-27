@@ -236,7 +236,7 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
     uint8_t satp_mode_max;
 
     for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
-        RISCVCPU *cpu_ptr = &s->soc[socket].harts[cpu];
+        RISCVCPU *cpu_ptr = riscv_array_get_hart(&s->soc[socket], cpu);
 
         cpu_phandle = (*phandle)++;
 
@@ -730,12 +730,12 @@ static void create_fdt_pmu(RISCVVirtState *s)
 {
     char *pmu_name;
     MachineState *ms = MACHINE(s);
-    RISCVCPU hart = s->soc[0].harts[0];
+    RISCVCPU *hart = riscv_array_get_hart(&s->soc[0], 0);
 
     pmu_name = g_strdup_printf("/soc/pmu");
     qemu_fdt_add_subnode(ms->fdt, pmu_name);
     qemu_fdt_setprop_string(ms->fdt, pmu_name, "compatible", "riscv,pmu");
-    riscv_pmu_generate_fdt_node(ms->fdt, hart.cfg.pmu_num, pmu_name);
+    riscv_pmu_generate_fdt_node(ms->fdt, hart->cfg.pmu_num, pmu_name);
 
     g_free(pmu_name);
 }

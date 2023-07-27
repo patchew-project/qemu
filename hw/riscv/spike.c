@@ -61,6 +61,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     uint32_t cpu_phandle, intc_phandle, phandle = 1;
     char *name, *mem_name, *clint_name, *clust_name;
     char *core_name, *cpu_name, *intc_name;
+    RISCVCPU *hart;
     static const char * const clint_compat[2] = {
         "sifive,clint0", "riscv,clint0"
     };
@@ -103,6 +104,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
         clint_cells =  g_new0(uint32_t, s->soc[socket].num_harts * 4);
 
         for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
+            hart = riscv_array_get_hart(&s->soc[socket], cpu);
             cpu_phandle = phandle++;
 
             cpu_name = g_strdup_printf("/cpus/cpu@%d",
@@ -113,7 +115,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
             } else {
                 qemu_fdt_setprop_string(fdt, cpu_name, "mmu-type", "riscv,sv48");
             }
-            name = riscv_isa_string(&s->soc[socket].harts[cpu]);
+            name = riscv_isa_string(hart);
             qemu_fdt_setprop_string(fdt, cpu_name, "riscv,isa", name);
             g_free(name);
             qemu_fdt_setprop_string(fdt, cpu_name, "compatible", "riscv");

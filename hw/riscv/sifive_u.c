@@ -104,6 +104,7 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     char *nodename;
     uint32_t plic_phandle, prci_phandle, gpio_phandle, phandle = 1;
     uint32_t hfclk_phandle, rtcclk_phandle, phy_phandle;
+    RISCVCPU *hart;
     static const char * const ethclk_names[2] = { "pclk", "hclk" };
     static const char * const clint_compat[2] = {
         "sifive,clint0", "riscv,clint0"
@@ -180,9 +181,11 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
             } else {
                 qemu_fdt_setprop_string(fdt, nodename, "mmu-type", "riscv,sv48");
             }
-            isa = riscv_isa_string(&s->soc.u_cpus.harts[cpu - 1]);
+            hart = riscv_array_get_hart(&s->soc.u_cpus, cpu - 1);
+            isa = riscv_isa_string(hart);
         } else {
-            isa = riscv_isa_string(&s->soc.e_cpus.harts[0]);
+            hart = riscv_array_get_hart(&s->soc.e_cpus, 0);
+            isa = riscv_isa_string(hart);
         }
         qemu_fdt_setprop_string(fdt, nodename, "riscv,isa", isa);
         qemu_fdt_setprop_string(fdt, nodename, "compatible", "riscv");

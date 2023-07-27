@@ -43,24 +43,28 @@ static void riscv_harts_cpu_reset(void *opaque)
 }
 
 static bool riscv_hart_realize(RISCVHartArrayState *s, int idx,
-                               char *cpu_type, Error **errp)
+                               char *cpu_type, size_t size, Error **errp)
 {
-    object_initialize_child(OBJECT(s), "harts[*]", &s->harts[idx], cpu_type);
-    qdev_prop_set_uint64(DEVICE(&s->harts[idx]), "resetvec", s->resetvec);
-    s->harts[idx].env.mhartid = s->hartid_base + idx;
-    qemu_register_reset(riscv_harts_cpu_reset, &s->harts[idx]);
-    return qdev_realize(DEVICE(&s->harts[idx]), NULL, errp);
+    RISCVCPU *hart = riscv_array_get_hart(s, idx);
+    object_initialize_child_internal(OBJECT(s), "harts[*]",
+                                    hart, size, cpu_type);
+    qdev_prop_set_uint64(DEVICE(hart), "resetvec", s->resetvec);
+    hart->env.mhartid = s->hartid_base + idx;
+    qemu_register_reset(riscv_harts_cpu_reset, hart);
+    return qdev_realize(DEVICE(hart), NULL, errp);
 }
 
 static void riscv_harts_realize(DeviceState *dev, Error **errp)
 {
     RISCVHartArrayState *s = RISCV_HART_ARRAY(dev);
+    size_t size = object_type_get_instance_size(s->cpu_type);
     int n;
 
-    s->harts = g_new0(RISCVCPU, s->num_harts);
+    s->harts = g_new0(RISCVCPU *, s->num_harts);
 
     for (n = 0; n < s->num_harts; n++) {
-        if (!riscv_hart_realize(s, n, s->cpu_type, errp)) {
+        s->harts[n] = RISCV_CPU(object_new(s->cpu_type));
+        if (!riscv_hart_realize(s, n, s->cpu_type, size, errp)) {
             return;
         }
     }
