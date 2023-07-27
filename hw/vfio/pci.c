@@ -512,12 +512,20 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     }
 
     /*
-     * We don't want to have the host allocate all possible MSI vectors
-     * for a device if they're not in use, so we shutdown and incrementally
-     * increase them as needed.
+     * When dynamic allocation is not supported, we don't want to have the
+     * host allocate all possible MSI vectors for a device if they're not
+     * in use, so we shutdown and incrementally increase them as needed.
+     * And nr_vectors stands for the number of vectors being allocated.
+     *
+     * When dynamic allocation is supported, let the host only allocate
+     * and enable a vector when it is in use in guest. nr_vectors stands
+     * for the upper bound of vectors being enabled (but not all of the
+     * ranges is allocated or enabled).
      */
-    if (vdev->nr_vectors < nr + 1) {
+    if ((vdev->msix->irq_info_flags & VFIO_IRQ_INFO_NORESIZE) &&
+        (vdev->nr_vectors < nr + 1)) {
         vdev->nr_vectors = nr + 1;
+
         if (!vdev->defer_kvm_irq_routing) {
             vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
             ret = vfio_enable_vectors(vdev, true);
@@ -529,16 +537,22 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         Error *err = NULL;
         int32_t fd;
 
-        if (vector->virq >= 0) {
-            fd = event_notifier_get_fd(&vector->kvm_interrupt);
-        } else {
-            fd = event_notifier_get_fd(&vector->interrupt);
-        }
+        if (!vdev->defer_kvm_irq_routing) {
+            if (vector->virq >= 0) {
+                fd = event_notifier_get_fd(&vector->kvm_interrupt);
+            } else {
+                fd = event_notifier_get_fd(&vector->interrupt);
+            }
 
-        if (vfio_set_irq_signaling(&vdev->vbasedev,
-                                     VFIO_PCI_MSIX_IRQ_INDEX, nr,
-                                     VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
-            error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+            if (vfio_set_irq_signaling(&vdev->vbasedev,
+                                       VFIO_PCI_MSIX_IRQ_INDEX, nr,
+                                       VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
+                error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+            }
+        }
+        /* Increase for dynamic allocation case. */
+        if (vdev->nr_vectors < nr + 1) {
+            vdev->nr_vectors = nr + 1;
         }
     }
 
