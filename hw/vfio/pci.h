@@ -113,6 +113,7 @@ typedef struct VFIOMSIXInfo {
     uint32_t table_offset;
     uint32_t pba_offset;
     unsigned long *pending;
+    uint32_t irq_info_flags;
 } VFIOMSIXInfo;
 
 #define TYPE_VFIO_PCI "vfio-pci"

@@ -1572,6 +1572,7 @@ static void vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
 
 static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 {
+    struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
     int ret;
     Error *err = NULL;
 
@@ -1623,6 +1624,17 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
                                  "vfio-no-msix-emulation", NULL)) {
         memory_region_set_enabled(&vdev->pdev.msix_table_mmio, false);
     }
+
+    irq_info.index = VFIO_PCI_MSIX_IRQ_INDEX;
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
+    if (ret) {
+        /* This can fail for an old kernel or legacy PCI dev */
+        trace_vfio_msix_setup_get_irq_info_failure(strerror(errno));
+    } else {
+        vdev->msix->irq_info_flags = irq_info.flags;
+    }
+    trace_vfio_msix_setup_irq_info_flags(vdev->vbasedev.name,
+                                         vdev->msix->irq_info_flags);
 
     return 0;
 }
