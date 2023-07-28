@@ -946,6 +946,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    info->brk = TARGET_PAGE_ALIGN(info->brk);
     target_set_brk(info->brk);
     syscall_init();
     signal_init();
@@ -955,6 +956,7 @@ int main(int argc, char **argv, char **envp)
        the real value of GUEST_BASE into account.  */
     tcg_prologue_init(tcg_ctx);
 
+    ts->heap_base = info->brk;
     target_cpu_copy_regs(env, regs);
 
     if (gdbstub) {
