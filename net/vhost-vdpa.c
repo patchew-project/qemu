@@ -1255,6 +1255,15 @@ static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
     .avail_handler = vhost_vdpa_net_handle_ctrl_avail,
 };
 
+static bool vhost_vdpa_should_enable(const struct vhost_vdpa *v)
+{
+    return true;
+}
+
+static const VhostVDPAVirtIOOps vhost_vdpa_virtio_net_ops = {
+    .should_enable = vhost_vdpa_should_enable,
+};
+
 /**
  * Probe if CVQ is isolated
  *
@@ -1378,6 +1387,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     s->vhost_vdpa.shadow_vqs_enabled = svq;
     s->vhost_vdpa.iova_range = iova_range;
     s->vhost_vdpa.shadow_data = svq;
+    s->vhost_vdpa.virtio_ops = &vhost_vdpa_virtio_net_ops;
     if (queue_pair_index == 0) {
         vhost_vdpa_net_valid_svq_features(features,
                                           &s->vhost_vdpa.migration_blocker);
