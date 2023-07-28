@@ -3335,7 +3335,7 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
     }
 
     if (entry->irte.__reserved_0 || entry->irte.__reserved_1 ||
-        entry->irte.__reserved_2) {
+        entry->irte.__reserved_2 || entry->irte.__reserved_3) {
         error_report_once("%s: detected non-zero reserved IRTE "
                           "(index=%u, high=0x%" PRIx64 ", low=0x%" PRIx64 ")",
                           __func__, index, le64_to_cpu(entry->data[1]),

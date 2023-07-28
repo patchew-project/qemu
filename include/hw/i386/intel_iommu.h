@@ -204,18 +204,20 @@ union VTD_IR_TableEntry {
 #endif
         uint32_t dest_id;            /* Destination ID */
         uint16_t source_id;          /* Source-ID */
+        uint16_t __reserved_2;       /* Reserved 2 */
 #if HOST_BIG_ENDIAN
-        uint64_t __reserved_2:44;    /* Reserved 2 */
-        uint64_t sid_vtype:2;        /* Source-ID Validation Type */
-        uint64_t sid_q:2;            /* Source-ID Qualifier */
+        uint32_t __reserved_3:28;    /* Reserved 3 */
+        uint32_t sid_vtype:2;        /* Source-ID Validation Type */
+        uint32_t sid_q:2;            /* Source-ID Qualifier */
 #else
-        uint64_t sid_q:2;            /* Source-ID Qualifier */
-        uint64_t sid_vtype:2;        /* Source-ID Validation Type */
-        uint64_t __reserved_2:44;    /* Reserved 2 */
+        uint32_t sid_q:2;            /* Source-ID Qualifier */
+        uint32_t sid_vtype:2;        /* Source-ID Validation Type */
+        uint32_t __reserved_3:28;    /* Reserved 3 */
 #endif
     } QEMU_PACKED irte;
     uint64_t data[2];
 };
+QEMU_BUILD_BUG_ON(sizeof(union VTD_IR_TableEntry) != 16);
 
 #define VTD_IR_INT_FORMAT_COMPAT     (0) /* Compatible Interrupt */
 #define VTD_IR_INT_FORMAT_REMAP      (1) /* Remappable Interrupt */
