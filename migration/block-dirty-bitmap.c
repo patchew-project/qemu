@@ -805,8 +805,11 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
                      "destination", bdrv_dirty_bitmap_name(s->bitmap));
         return -EINVAL;
     } else {
+        AioContext *ctx = bdrv_get_aio_context(s->bs);
+        aio_context_acquire(ctx);
         s->bitmap = bdrv_create_dirty_bitmap(s->bs, granularity,
                                              s->bitmap_name, &local_err);
+        aio_context_release(ctx);
         if (!s->bitmap) {
             error_report_err(local_err);
             return -EINVAL;
@@ -833,7 +836,10 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
 
     bdrv_disable_dirty_bitmap(s->bitmap);
     if (flags & DIRTY_BITMAP_MIG_START_FLAG_ENABLED) {
+        AioContext *ctx = bdrv_get_aio_context(s->bs);
+        aio_context_acquire(ctx);
         bdrv_dirty_bitmap_create_successor(s->bitmap, &local_err);
+        aio_context_release(ctx);
         if (local_err) {
             error_report_err(local_err);
             return -EINVAL;
