@@ -3021,6 +3021,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     struct elfhdr *ehdr = (struct elfhdr *)bprm_buf;
     struct elf_phdr *phdr;
     abi_ulong load_addr, load_bias, loaddr, hiaddr, error;
+    unsigned long load_offset = 0;
     int i, retval, prot_exec;
     Error *err = NULL;
     bool is_main_executable;
@@ -3121,6 +3122,7 @@ static void load_elf_image(const char *image_name, int image_fd,
              * select guest_base.  In this case we pass a size.
              */
             probe_guest_base(image_name, 0, hiaddr - loaddr);
+            load_offset = TASK_UNMAPPED_BASE_PIE;
         }
     }
 
@@ -3138,7 +3140,7 @@ static void load_elf_image(const char *image_name, int image_fd,
      * In both cases, we will overwrite pages in this range with mappings
      * from the executable.
      */
-    load_addr = target_mmap(loaddr, (size_t)hiaddr - loaddr + 1, PROT_NONE,
+    load_addr = target_mmap(loaddr + load_offset, (size_t)hiaddr - loaddr + 1, PROT_NONE,
                             MAP_PRIVATE | MAP_ANON | MAP_NORESERVE |
                             (is_main_executable ? MAP_FIXED : 0),
                             -1, 0);
@@ -3176,7 +3178,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     info->start_data = -1;
     info->end_data = 0;
     /* possible start for brk is behind all sections of this ELF file. */
-    info->brk = TARGET_PAGE_ALIGN(hiaddr);
+    info->brk = TARGET_PAGE_ALIGN(load_offset + hiaddr);
     info->elf_flags = ehdr->e_flags;
 
     prot_exec = PROT_EXEC;
