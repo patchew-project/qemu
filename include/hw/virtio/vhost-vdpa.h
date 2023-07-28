@@ -30,6 +30,13 @@ typedef struct VhostVDPAHostNotifier {
     void *addr;
 } VhostVDPAHostNotifier;
 
+struct vhost_vdpa;
+typedef bool (*vhost_vdpa_virtio_should_enable_op)(const struct vhost_vdpa *v);
+
+typedef struct VhostVDPAVirtIOOps {
+    vhost_vdpa_virtio_should_enable_op should_enable;
+} VhostVDPAVirtIOOps;
+
 typedef struct vhost_vdpa {
     int device_fd;
     int index;
@@ -48,6 +55,7 @@ typedef struct vhost_vdpa {
     VhostIOVATree *iova_tree;
     GPtrArray *shadow_vqs;
     const VhostShadowVirtqueueOps *shadow_vq_ops;
+    const VhostVDPAVirtIOOps *virtio_ops;
     void *shadow_vq_ops_opaque;
     struct vhost_dev *dev;
     Error *migration_blocker;
