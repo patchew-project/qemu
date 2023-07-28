@@ -43,7 +43,6 @@
       $MINGW_TARGET-curl
       $MINGW_TARGET-cyrus-sasl
       $MINGW_TARGET-dtc
-      $MINGW_TARGET-gcc
       $MINGW_TARGET-glib2
       $MINGW_TARGET-gnutls
       $MINGW_TARGET-gtk3
@@ -63,9 +62,9 @@
       $MINGW_TARGET-SDL2
       $MINGW_TARGET-SDL2_image
       $MINGW_TARGET-snappy
-      $MINGW_TARGET-spice
       $MINGW_TARGET-usbredir
-      $MINGW_TARGET-zstd "
+      $MINGW_TARGET-zstd
+      $EXTRA_PACKAGES "
   - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
   - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
   - mkdir build
@@ -77,13 +76,15 @@
 msys2-64bit:
   extends: .shared_msys2_builder
   variables:
-    MINGW_TARGET: mingw-w64-x86_64
-    MSYSTEM: MINGW64
+    MINGW_TARGET: mingw-w64-clang-x86_64
+    MSYSTEM: CLANG64
+    EXTRA_PACKAGES: binutils mingw-w64-clang-x86_64-clang
     # do not remove "--without-default-devices"!
     # commit 9f8e6cad65a6 ("gitlab-ci: Speed up the msys2-64bit job by using --without-default-devices"
     # changed to compile QEMU with the --without-default-devices switch
     # for the msys2 64-bit job, due to the build could not complete within
-    CONFIGURE_ARGS:  --target-list=x86_64-softmmu --without-default-devices
+    CONFIGURE_ARGS: --target-list=x86_64-softmmu --without-default-devices
+                    --cc=clang --disable-dbus-display
     # qTests don't run successfully with "--without-default-devices",
     # so let's exclude the qtests from CI for now.
     TEST_ARGS: --no-suite qtest
@@ -93,5 +94,6 @@ msys2-32bit:
   variables:
     MINGW_TARGET: mingw-w64-i686
     MSYSTEM: MINGW32
+    EXTRA_PACKAGES: mingw-w64-i686-gcc mingw-w64-i686-spice
     CONFIGURE_ARGS:  --target-list=ppc64-softmmu
     TEST_ARGS: --no-suite qtest
