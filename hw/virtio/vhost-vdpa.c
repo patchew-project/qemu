@@ -896,6 +896,11 @@ static int vhost_vdpa_set_vrings_ready(struct vhost_dev *dev)
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
 
+    if (v->virtio_ops && v->virtio_ops->should_enable
+        && !(v->virtio_ops->should_enable(v))) {
+        return 0;
+    }
+
     for (i = 0; i < dev->nvqs; ++i) {
         vhost_vdpa_set_vring_ready(v, dev->vq_index + i);
     }
