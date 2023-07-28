@@ -283,6 +283,15 @@ static VhostVDPAState *vhost_vdpa_net_first_nc_vdpa(VhostVDPAState *s)
     return DO_UPCAST(VhostVDPAState, nc, nc0);
 }
 
+/** From any vdpa net client, get the netclient of the last queue pair */
+static VhostVDPAState *vhost_vdpa_net_last_nc_vdpa(VhostVDPAState *s)
+{
+    VirtIONet *n = qemu_get_nic_opaque(s->nc.peer);
+    NetClientState *nc = qemu_get_peer(n->nic->ncs, n->max_ncs - 1);
+
+    return DO_UPCAST(VhostVDPAState, nc, nc);
+}
+
 static void vhost_vdpa_net_log_global_enable(VhostVDPAState *s, bool enable)
 {
     struct vhost_vdpa *v = &s->vhost_vdpa;
@@ -996,6 +1005,13 @@ static int vhost_vdpa_net_load(NetClientState *nc)
         return r;
     }
 
+    for (int i = 0; i < v->dev->vq_index; ++i) {
+        r = vhost_vdpa_set_vring_ready(v, i);
+        if (unlikely(r)) {
+            return r;
+        }
+    }
+
     return 0;
 }
 
@@ -1255,9 +1271,35 @@ static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
     .avail_handler = vhost_vdpa_net_handle_ctrl_avail,
 };
 
+/**
+ * Check if a vhost_vdpa device should enable before DRIVER_OK
+ *
+ * CVQ must always start first if we want to restore the state safely. Do not
+ * start data vqs if the device has CVQ.
+ */
 static bool vhost_vdpa_should_enable(const struct vhost_vdpa *v)
 {
-    return true;
+    struct vhost_dev *dev = v->dev;
+    VhostVDPAState *s = container_of(v, VhostVDPAState, vhost_vdpa);
+    VhostVDPAState *cvq_s = vhost_vdpa_net_last_nc_vdpa(s);
+
+    if (!(dev->vq_index_end % 2)) {
+        /* vDPA device does not have CVQ */
+        return true;
+    }
+
+    if (dev->vq_index + 1 == dev->vq_index_end) {
+        /* We're evaluating CVQ, that must always enable first */
+        return true;
+    }
+
+    if (!vhost_vdpa_net_valid_svq_features(v->dev->features, NULL) ||
+        !cvq_s->cvq_isolated) {
+        /* CVQ is not isolated, so let's enable as usual */
+        return true;
+    }
+
+    return false;
 }
 
 static const VhostVDPAVirtIOOps vhost_vdpa_virtio_net_ops = {
