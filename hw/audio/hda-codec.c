@@ -121,7 +121,7 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
 #define QEMU_HDA_PCM_FORMATS (AC_SUPPCM_BITS_16 |       \
                               0x1fc /* 16 -> 96 kHz */)
 #define QEMU_HDA_AMP_NONE    (0)
-#define QEMU_HDA_AMP_STEPS   0x4a
+#define QEMU_HDA_AMP_STEPS   0x31 /* 20 * log10(255) = 48 dB dynamic range */
 
 #define   PARAM mixemu
 #define   HDA_MIXER
@@ -433,6 +433,14 @@ static void hda_audio_set_running(HDAAudioStream *st, bool running)
     }
 }
 
+/* first muted; then from -48 dB to 0 dB */
+static const uint32_t hda_vol_table[] = {
+    0,   1,   1,   1,   1,   2,   2,   2,   2,   3,   3,   3,   4,   4,   5,
+    5,   6,   6,   7,   8,   9,   10,  11,  13,  14,  16,  18,  20,  23,  26,
+    29,  32,  36,  40,  45,  51,  57,  64,  72,  81,  90,  102, 114, 128, 143,
+    161, 181, 203, 227, 255
+}
+
 static void hda_audio_set_amp(HDAAudioStream *st)
 {
     bool muted;
@@ -446,8 +454,8 @@ static void hda_audio_set_amp(HDAAudioStream *st)
     left  = st->mute_left  ? 0 : st->gain_left;
     right = st->mute_right ? 0 : st->gain_right;
 
-    left = left * 255 / QEMU_HDA_AMP_STEPS;
-    right = right * 255 / QEMU_HDA_AMP_STEPS;
+    left = hda_vol_table[left];
+    right = hda_vol_table[right];
 
     if (!st->state->mixer) {
         return;
