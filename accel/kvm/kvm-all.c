@@ -2464,6 +2464,7 @@ static int kvm_init(MachineState *ms)
     qemu_mutex_init(&kml_slots_lock);
 
     s = KVM_STATE(ms->accelerator);
+    kvm_state = s;
 
     /*
      * On systems where the kernel can support different base page
@@ -2694,8 +2695,6 @@ static int kvm_init(MachineState *ms)
         }
 #endif
     }
-
-    kvm_state = s;
 
     ret = kvm_arch_init(ms, s);
     if (ret < 0) {
