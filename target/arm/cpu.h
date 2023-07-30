@@ -2740,6 +2740,13 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
 
 #define cpu_list arm_cpu_list
 
+#ifdef CONFIG_SOFTMMU
+CpuModelExpansionInfo *get_cpu_model_expansion(CpuModelExpansionType type,
+                                               CpuModelInfo *model,
+                                               Error **errp);
+#define cpu_model_expansion get_cpu_model_expansion
+#endif
+
 /* ARM has the following "translation regimes" (as the ARM ARM calls them):
  *
  * If EL3 is 64-bit:

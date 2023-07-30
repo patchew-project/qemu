@@ -6,6 +6,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
 #endif
+#include "qapi/qapi-commands-machine.h"
 
 /**
  * vaddr:
@@ -166,5 +167,11 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 
 /* vl.c */
 void list_cpus(void);
+
+CpuModelExpansionInfo *get_cpu_model_expansion_info(CpuModelExpansionType type,
+                                                    CpuModelInfo *model,
+                                                    Error **errp);
+void list_cpu_model_expansion(CpuModelExpansionType type,
+                              CpuModelInfo *model, Error **errp);
 
 #endif /* CPU_COMMON_H */

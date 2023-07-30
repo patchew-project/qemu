@@ -292,6 +292,26 @@ void list_cpus(void)
 #endif
 }
 
+CpuModelExpansionInfo *get_cpu_model_expansion_info(CpuModelExpansionType type,
+                                                    CpuModelInfo *model,
+                                                    Error **errp)
+{
+    /* XXX: implement cpu_model_expansion for targets that still miss it */
+#if defined(cpu_model_expansion)
+    return cpu_model_expansion(type, model, errp);
+#else
+    error_setg(errp, "Could not query cpu model information");
+    return NULL;
+#endif
+}
+
+CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
+                                                     CpuModelInfo *model,
+                                                     Error **errp)
+{
+    return get_cpu_model_expansion_info(type, model, errp);
+}
+
 #if defined(CONFIG_USER_ONLY)
 void tb_invalidate_phys_addr(hwaddr addr)
 {

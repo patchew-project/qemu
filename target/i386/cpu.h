@@ -2249,6 +2249,12 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #endif
 
 #define cpu_list x86_cpu_list
+#ifdef CONFIG_SOFTMMU
+CpuModelExpansionInfo *get_cpu_model_expansion(CpuModelExpansionType type,
+                                               CpuModelInfo *model,
+                                               Error **errp);
+#define cpu_model_expansion get_cpu_model_expansion
+#endif
 
 /* MMU modes definitions */
 #define MMU_KSMAP_IDX   0

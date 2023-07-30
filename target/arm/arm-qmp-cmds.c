@@ -22,6 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/boards.h"
+#include "cpu.h"
 #include "kvm_arm.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
@@ -99,9 +100,9 @@ static const char *cpu_model_advertised_features[] = {
     NULL
 };
 
-CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
-                                                     CpuModelInfo *model,
-                                                     Error **errp)
+CpuModelExpansionInfo *get_cpu_model_expansion(CpuModelExpansionType type,
+                                               CpuModelInfo *model,
+                                               Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
     const QDict *qdict_in = NULL;
