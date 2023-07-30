@@ -447,3 +447,8 @@ void qdict_unref(QDict *q)
 {
     qobject_unref(q);
 }
+
+int dict_key_compare(QDictEntry **entry1, QDictEntry **entry2)
+{
+    return g_strcmp0(qdict_entry_key(*entry1), qdict_entry_key(*entry2));
+}

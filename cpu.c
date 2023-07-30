@@ -43,6 +43,10 @@
 #include "trace/trace-root.h"
 #include "qemu/accel.h"
 #include "qemu/plugin.h"
+#include "qemu/cutils.h"
+#include "qemu/qemu-print.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qobject.h"
 
 uintptr_t qemu_host_page_size;
 intptr_t qemu_host_page_mask;
@@ -310,6 +314,43 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                      Error **errp)
 {
     return get_cpu_model_expansion_info(type, model, errp);
+}
+
+void list_cpu_model_expansion(CpuModelExpansionType type,
+                              CpuModelInfo *model,
+                              Error **errp)
+{
+    CpuModelExpansionInfo *expansion_info;
+    QDict *qdict;
+    QDictEntry *qdict_entry;
+    const char *key;
+    QObject *obj;
+    QType q_type;
+    GPtrArray *array;
+    int i;
+    const char *type_name;
+
+    expansion_info = get_cpu_model_expansion_info(type, model, errp);
+    if (expansion_info) {
+        qdict = qobject_to(QDict, expansion_info->model->props);
+        if (qdict) {
+            qemu_printf("%s features:\n", model->name);
+            array = g_ptr_array_new();
+            for (qdict_entry = (QDictEntry *)qdict_first(qdict); qdict_entry;
+                 qdict_entry = (QDictEntry *)qdict_next(qdict, qdict_entry)) {
+                g_ptr_array_add(array, qdict_entry);
+            }
+            g_ptr_array_sort(array, (GCompareFunc)dict_key_compare);
+            for (i = 0; i < array->len; i++) {
+                qdict_entry = array->pdata[i];
+                key = qdict_entry_key(qdict_entry);
+                obj = qdict_get(qdict, key);
+                q_type = qobject_type(obj);
+                type_name = QType_str(q_type);
+                qemu_printf("  %s=<%s>\n", key, type_name);
+            }
+        }
+    }
 }
 
 #if defined(CONFIG_USER_ONLY)
