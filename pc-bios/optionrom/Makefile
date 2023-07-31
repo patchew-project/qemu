@@ -19,7 +19,7 @@ quiet-command = $(call quiet-@,$2 $@)$1
 override CPPFLAGS += -MMD -MP -MT $@ -MF $(@D)/$(*F).d
 
 override CFLAGS += -march=i486 -Wall $(EXTRA_CFLAGS) -m16
-override CFLAGS += -ffreestanding -I$(TOPSRC_DIR)/include
+override CFLAGS += -ffreestanding -fno-stack-protector -I$(TOPSRC_DIR)/include
 
 cc-test = $(CC) -Werror $1 -c -o /dev/null -xc /dev/null >/dev/null 2>/dev/null
 cc-option = if $(call cc-test, $1); then \
