@@ -119,7 +119,8 @@ static void acpi_dsdt_add_fw_cfg(Aml *scope, const MemMapEntry *fw_cfg_memmap)
 /*
  * ACPI spec, Revision 6.5+
  * 5.2.36 RISC-V Hart Capabilities Table (RHCT)
- * REF: https://github.com/riscv-non-isa/riscv-acpi/issues/16
+ * REF: https://github.com/riscv-non-isa/riscv-acpi/issues/18
+ *      https://drive.google.com/file/d/1sKbOa8m1UZw1JkquZYe3F1zQBN1xXsaf/view
  *      https://drive.google.com/file/d/1nP3nFiH4jkPMp6COOxP6123DCZKR-tia/view
  */
 static void build_rhct(GArray *table_data,
@@ -133,6 +134,7 @@ static void build_rhct(GArray *table_data,
     uint32_t isa_offset, num_rhct_nodes;
     RISCVCPU *cpu;
     char *isa;
+    uint8_t mmu_type;
 
     AcpiTable table = { .sig = "RHCT", .rev = 1, .oem_id = s->oem_id,
                         .oem_table_id = s->oem_table_id };
@@ -145,8 +147,8 @@ static void build_rhct(GArray *table_data,
     build_append_int_noprefix(table_data,
                               RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, 8);
 
-    /* ISA + N hart info */
-    num_rhct_nodes = 1 + ms->smp.cpus;
+    /* ISA + MMU + N hart info */
+    num_rhct_nodes = 2 + ms->smp.cpus;
 
     /* Number of RHCT nodes*/
     build_append_int_noprefix(table_data, num_rhct_nodes, 4);
@@ -173,6 +175,15 @@ static void build_rhct(GArray *table_data,
     if (aligned_len != len) {
         build_append_int_noprefix(table_data, 0x0, 1);   /* Optional Padding */
     }
+
+    /* MMU Node */
+    build_append_int_noprefix(table_data, 2, 2); /* Type 2 */
+    build_append_int_noprefix(table_data, 8, 2); /* Length */
+    build_append_int_noprefix(table_data, 1, 2); /* Revision */
+    build_append_int_noprefix(table_data, 0, 1); /* Reserved */
+    
+    mmu_type = satp_mode_max_from_map(riscv_cpu_cfg(&cpu->env)->satp_mode.map) - 8;
+    build_append_int_noprefix(table_data, mmu_type, 1); /* MMU Type */
 
     /* Hart Info Node */
     for (int i = 0; i < arch_ids->len; i++) {
