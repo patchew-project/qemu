@@ -75,7 +75,9 @@
 #error "Can't accomodate all IMSIC groups in address space"
 #endif
 
-static const MemMapEntry virt_memmap[] = {
+#define LOW_MEM (1 * GiB)
+
+static MemMapEntry virt_memmap[] = {
     [VIRT_DEBUG] =        {        0x0,         0x100 },
     [VIRT_MROM] =         {     0x1000,        0xf000 },
     [VIRT_TEST] =         {   0x100000,        0x1000 },
@@ -96,6 +98,7 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_PCIE_ECAM] =    { 0x30000000,    0x10000000 },
     [VIRT_PCIE_MMIO] =    { 0x40000000,    0x40000000 },
     [VIRT_DRAM] =         { 0x80000000,           0x0 },
+    [VIRT_DRAM_HIGH] =    { 0x100000000,          0x0 },
 };
 
 /* PCIe high mmio is fixed for RV32 */
@@ -295,15 +298,12 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
     }
 }
 
-static void create_fdt_socket_memory(RISCVVirtState *s,
-                                     const MemMapEntry *memmap, int socket)
+static void create_fdt_socket_mem_range(RISCVVirtState *s, uint64_t addr,
+                                        uint64_t size, int socket)
 {
     char *mem_name;
-    uint64_t addr, size;
     MachineState *ms = MACHINE(s);
 
-    addr = memmap[VIRT_DRAM].base + riscv_socket_mem_offset(ms, socket);
-    size = riscv_socket_mem_size(ms, socket);
     mem_name = g_strdup_printf("/memory@%lx", (long)addr);
     qemu_fdt_add_subnode(ms->fdt, mem_name);
     qemu_fdt_setprop_cells(ms->fdt, mem_name, "reg",
@@ -311,6 +311,34 @@ static void create_fdt_socket_memory(RISCVVirtState *s,
     qemu_fdt_setprop_string(ms->fdt, mem_name, "device_type", "memory");
     riscv_socket_fdt_write_id(ms, mem_name, socket);
     g_free(mem_name);
+}
+
+static void create_fdt_socket_memory(RISCVVirtState *s,
+                                     const MemMapEntry *memmap, int socket)
+{
+    uint64_t addr, size;
+    MachineState *mc = MACHINE(s);
+    uint64_t sock_offset = riscv_socket_mem_offset(mc, socket);
+    uint64_t sock_size = riscv_socket_mem_size(mc, socket);
+
+    if (sock_offset < memmap[VIRT_DRAM].size) {
+        uint64_t low_mem_end = memmap[VIRT_DRAM].base + memmap[VIRT_DRAM].size;
+
+        addr = memmap[VIRT_DRAM].base + sock_offset;
+        size = MIN(low_mem_end - addr, sock_size);
+        create_fdt_socket_mem_range(s, addr, size, socket);
+
+        size = sock_size - size;
+        if (size > 0) {
+            create_fdt_socket_mem_range(s, memmap[VIRT_DRAM_HIGH].base,
+                                        size, socket);
+        }
+    } else {
+        addr = memmap[VIRT_DRAM_HIGH].base +
+               sock_offset - memmap[VIRT_DRAM].size;
+
+        create_fdt_socket_mem_range(s, addr, sock_size, socket);
+    }
 }
 
 static void create_fdt_socket_clint(RISCVVirtState *s,
@@ -1334,10 +1362,12 @@ static void virt_machine_done(Notifier *notifier, void *data)
 
 static void virt_machine_init(MachineState *machine)
 {
-    const MemMapEntry *memmap = virt_memmap;
+    MemMapEntry *memmap = virt_memmap;
     RISCVVirtState *s = RISCV_VIRT_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_below_4g, *ram_above_4g;
+    uint64_t ram_size_low, ram_size_high;
     char *soc_name;
     DeviceState *mmio_irqchip, *virtio_irqchip, *pcie_irqchip;
     int i, base_hartid, hart_count;
@@ -1448,6 +1478,17 @@ static void virt_machine_init(MachineState *machine)
         }
     }
 
+    if (machine->ram_size > LOW_MEM) {
+        ram_size_high = machine->ram_size - LOW_MEM;
+        ram_size_low = LOW_MEM;
+    } else {
+        ram_size_high = 0;
+        ram_size_low = machine->ram_size;
+    }
+
+    memmap[VIRT_DRAM].size = ram_size_low;
+    memmap[VIRT_DRAM_HIGH].size = ram_size_high;
+
     if (riscv_is_32bit(&s->soc[0])) {
 #if HOST_LONG_BITS == 64
         /* limit RAM size in a 32-bit system */
@@ -1460,7 +1501,8 @@ static void virt_machine_init(MachineState *machine)
         virt_high_pcie_memmap.size = VIRT32_HIGH_PCIE_MMIO_SIZE;
     } else {
         virt_high_pcie_memmap.size = VIRT64_HIGH_PCIE_MMIO_SIZE;
-        virt_high_pcie_memmap.base = memmap[VIRT_DRAM].base + machine->ram_size;
+        virt_high_pcie_memmap.base = memmap[VIRT_DRAM_HIGH].base +
+                                     memmap[VIRT_DRAM_HIGH].size;
         virt_high_pcie_memmap.base =
             ROUND_UP(virt_high_pcie_memmap.base, virt_high_pcie_memmap.size);
     }
@@ -1468,8 +1510,22 @@ static void virt_machine_init(MachineState *machine)
     s->memmap = virt_memmap;
 
     /* register system main memory (actual RAM) */
+    ram_below_4g = g_malloc(sizeof(*ram_below_4g));
+    memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", machine->ram,
+                             0, memmap[VIRT_DRAM].size);
     memory_region_add_subregion(system_memory, memmap[VIRT_DRAM].base,
-        machine->ram);
+                                ram_below_4g);
+
+    if (memmap[VIRT_DRAM_HIGH].size) {
+        ram_above_4g = g_malloc(sizeof(*ram_above_4g));
+        memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g",
+                                 machine->ram,
+                                 memmap[VIRT_DRAM].size,
+                                 memmap[VIRT_DRAM_HIGH].size);
+        memory_region_add_subregion(system_memory,
+                                    memmap[VIRT_DRAM_HIGH].base,
+                                    ram_above_4g);
+    }
 
     /* boot rom */
     memory_region_init_rom(mask_rom, NULL, "riscv_virt_board.mrom",
