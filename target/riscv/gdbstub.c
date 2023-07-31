@@ -47,7 +47,8 @@ static const struct TypeSize vec_lanes[] = {
     { "uint8", "bytes", 8, 'b' },
 };
 
-int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                                bool has_xml)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
@@ -73,7 +74,8 @@ int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                 bool has_xml)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;

@@ -423,7 +423,7 @@ static int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
     GDBRegisterState *r;
 
     if (reg < cc->gdb_num_core_regs) {
-        return cc->gdb_read_register(cpu, buf, reg);
+        return cc->gdb_read_register(cpu, buf, reg, gdb_has_xml);
     }
 
     for (r = cpu->gdb_regs; r; r = r->next) {
@@ -441,7 +441,7 @@ static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
     GDBRegisterState *r;
 
     if (reg < cc->gdb_num_core_regs) {
-        return cc->gdb_write_register(cpu, mem_buf, reg);
+        return cc->gdb_write_register(cpu, mem_buf, reg, gdb_has_xml);
     }
 
     for (r = cpu->gdb_regs; r; r = r->next) {

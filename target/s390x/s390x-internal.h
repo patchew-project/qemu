@@ -316,8 +316,10 @@ uint16_t float128_dcmask(CPUS390XState *env, float128 f1);
 
 
 /* gdbstub.c */
-int s390_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-int s390_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int s390_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                               bool has_xml);
+int s390_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                                bool has_xml);
 void s390_cpu_gdb_init(CPUState *cs);
 
 

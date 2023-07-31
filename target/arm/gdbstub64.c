@@ -22,7 +22,8 @@
 #include "internals.h"
 #include "gdbstub/helpers.h"
 
-int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                                  bool has_xml)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -43,7 +44,8 @@ int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int aarch64_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int aarch64_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                   bool has_xml)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;

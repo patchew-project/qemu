@@ -20,7 +20,8 @@
 #include "cpu.h"
 #include "internal.h"
 
-int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                              bool has_xml)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
@@ -40,7 +41,8 @@ int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     g_assert_not_reached();
 }
 
-int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                               bool has_xml)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
