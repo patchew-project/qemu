@@ -4696,9 +4696,12 @@ static void format_inst(char *buf, size_t buflen, size_t tab, rv_decode *dec)
             break;
         case 'U':
             fmt++;
-            snprintf(tmp, sizeof(tmp), "%d", dec->imm >> 12);
-            append(buf, tmp, buflen);
-            if (*fmt == 'o') {
+            if (*fmt == 'i') {
+                snprintf(tmp, sizeof(tmp), "%d", dec->imm >> 12 & 0xfffff);
+                append(buf, tmp, buflen);
+            } else if (*fmt == 'o') {
+                snprintf(tmp, sizeof(tmp), "%d", dec->imm >> 12);
+                append(buf, tmp, buflen);
                 while (strlen(buf) < tab * 2) {
                     append(buf, " ", buflen);
                 }
