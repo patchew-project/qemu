@@ -407,11 +407,11 @@ static const char *get_feature_xml(const char *p, const char **newp,
         }
     }
     for (i = 0; ; i++) {
-        name = xml_builtin[i][0];
+        name = gdb_features[i].xmlname;
         if (!name || (strncmp(name, p, len) == 0 && strlen(name) == len))
             break;
     }
-    return name ? xml_builtin[i][1] : NULL;
+    return name ? gdb_features[i].xml : NULL;
 }
 
 static int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
