@@ -15,7 +15,7 @@ CRT_PATH=$(ALPHA_SYSTEM_SRC)
 LINK_SCRIPT=$(ALPHA_SYSTEM_SRC)/kernel.ld
 LDFLAGS=-Wl,-T$(LINK_SCRIPT)
 TESTS+=$(ALPHA_TESTS) $(MULTIARCH_TESTS)
-CFLAGS+=-nostdlib -g -O1 -mcpu=ev6 $(MINILIB_INC)
+CFLAGS+=-fno-stack-protector -nostdlib -g -O1 -mcpu=ev6 $(MINILIB_INC)
 LDFLAGS+=-static -nostdlib $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
 
 # building head blobs

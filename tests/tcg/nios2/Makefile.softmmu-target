@@ -12,7 +12,7 @@ VPATH += $(NIOS2_SYSTEM_SRC)
 CRT_OBJS = boot.o intr.o $(MINILIB_OBJS)
 LINK_SCRIPT = $(NIOS2_SYSTEM_SRC)/10m50-ghrd.ld
 
-CFLAGS  += -nostdlib -g -O0 $(MINILIB_INC)
+CFLAGS  += -nostdlib -fno-stack-protector -g -O0 $(MINILIB_INC)
 LDFLAGS += -Wl,-T$(LINK_SCRIPT) -static -nostdlib $(CRT_OBJS) -lgcc
 
 %.o: %.S

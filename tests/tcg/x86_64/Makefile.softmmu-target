@@ -15,7 +15,7 @@ CRT_OBJS=boot.o
 CRT_PATH=$(X64_SYSTEM_SRC)
 LINK_SCRIPT=$(X64_SYSTEM_SRC)/kernel.ld
 LDFLAGS=-Wl,-T$(LINK_SCRIPT) -Wl,-melf_x86_64
-CFLAGS+=-nostdlib -ggdb -O0 $(MINILIB_INC)
+CFLAGS+=-nostdlib -fno-stack-protector -ggdb -O0 $(MINILIB_INC)
 LDFLAGS+=-static -nostdlib $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
 
 TESTS+=$(MULTIARCH_TESTS)
