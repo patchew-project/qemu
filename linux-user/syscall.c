@@ -8323,7 +8323,8 @@ void target_exception_dump(CPUArchState *env, const char *fmt, int code)
 
 #if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN || \
     defined(TARGET_SPARC) || defined(TARGET_M68K) || defined(TARGET_HPPA) || \
-    defined(TARGET_RISCV) || defined(TARGET_S390X)
+    defined(TARGET_RISCV) || defined(TARGET_S390X) || defined(TARGET_ARM) || \
+    defined(TARGET_AARCH64)
 static int is_proc(const char *filename, const char *entry)
 {
     return strcmp(filename, entry) == 0;
@@ -8539,6 +8540,58 @@ static int open_hardware(CPUArchState *cpu_env, int fd)
 }
 #endif
 
+#if defined(TARGET_AARCH64) || defined(TARGET_ARM)
+static int open_cpuinfo(CPUArchState *cpu_env, int fd)
+{
+    const int is64 = TARGET_ABI_BITS == 64;
+    uint32_t elf_hwcap = get_elf_hwcap();
+    uint32_t elf_hwcap2 = get_elf_hwcap2();
+    const char *hwcap_str;
+    int i, j, num_cpus;
+
+    num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    for (i = 0; i < num_cpus; i++) {
+        dprintf(fd, "processor\t: %d\n", i);
+        if (!is64) {
+            dprintf(fd, "model name\t: ARMv7 Processor rev 2 (v7l)\n");
+        }
+        dprintf(fd, "BogoMIPS\t: %d.00\n", is64 ? 100 : 50);
+        dprintf(fd, "Features\t:");
+        for (j = 0; j < sizeof(elf_hwcap) * 8; j++) {
+            if (!(elf_hwcap & (1 << j))) {
+                continue;
+            }
+            hwcap_str = elf_hwcap_str(j);
+            if (hwcap_str) {
+                dprintf(fd, " %s", hwcap_str);
+            }
+        }
+        for (j = 0; j < sizeof(elf_hwcap2) * 8; j++) {
+            if (!(elf_hwcap2 & (1 << j))) {
+                continue;
+            }
+            hwcap_str = elf_hwcap2_str(j);
+            if (hwcap_str) {
+                dprintf(fd, " %s", hwcap_str);
+            }
+        }
+        dprintf(fd, "\n");
+        dprintf(fd, "CPU implementer\t: 0x%d\n", is64 ? 50 : 56);
+        dprintf(fd, "CPU architecture: %d\n",    is64 ? 8 : 7);
+        dprintf(fd, "CPU variant\t: 0x%d\n",     is64 ? 0 : 2);
+        dprintf(fd, "CPU part\t: 0x%d\n",        is64 ? 0 : 584);
+        dprintf(fd, "CPU revision\t: %d\n\n",    is64 ? 1 : 2);
+    }
+
+    if (!is64) {
+        dprintf(fd, "Hardware\t: %s\n", is64 ? "??" : "Marvell Armada 370/XP (Device Tree)");
+        dprintf(fd, "Revision\t: 0000\n");
+        dprintf(fd, "Serial\t\t: 0000000000000000\n");
+    }
+
+    return 0;
+}
+#endif
 
 int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *fname,
                     int flags, mode_t mode, bool safe)
@@ -8561,7 +8614,8 @@ int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *fname,
         { "/proc/net/route", open_net_route, is_proc },
 #endif
 #if defined(TARGET_SPARC) || defined(TARGET_HPPA) || \
-    defined(TARGET_RISCV) || defined(TARGET_S390X)
+    defined(TARGET_RISCV) || defined(TARGET_S390X) || \
+    defined(TARGET_ARM)   || defined(TARGET_AARCH64)
         { "/proc/cpuinfo", open_cpuinfo, is_proc },
 #endif
 #if defined(TARGET_M68K)
