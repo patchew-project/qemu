@@ -739,6 +739,7 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
      * directly setting `path`.
      */
     if (fd_supported && ret == -EINVAL) {
+        fd_supported = false;
         qemu_close(fd);
 
         /*
@@ -763,6 +764,14 @@ static int blkio_virtio_blk_connect(BlockDriverState *bs, QDict *options,
     }
 
     if (ret < 0) {
+        if (fd_supported) {
+            /*
+             * libblkio drivers take ownership of `fd` only after a successful
+             * blkio_connect(), so if it fails, we are still the owners.
+             */
+            qemu_close(fd);
+        }
+
         error_setg_errno(errp, -ret, "blkio_connect failed: %s",
                          blkio_get_error_msg());
         return ret;
