@@ -757,6 +757,9 @@ for opt do
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
   ;;
+  # Pass through -Dxxxx options to meson
+  -D*) meson_options="$meson_options $opt"
+  ;;
   esac
 done
 
@@ -886,6 +889,8 @@ cat << EOF
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
   debug-tcg       TCG debugging (default is disabled)
+
+  -Dmesonoptname=val      passthrough option to meson unmodified
 
 NOTE: The object files are built at the place where configure is launched
 EOF
