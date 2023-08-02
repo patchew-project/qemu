@@ -610,6 +610,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             goto fail;
         }
 
+        if (reserved_va) {
+            flags = (flags & ~MAP_FIXED_NOREPLACE) | MAP_FIXED;
+        }
+
         /*
          * worst case: we cannot map the file because the offset is not
          * aligned, so we read it
