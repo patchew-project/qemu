@@ -77,8 +77,10 @@ hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 uint64_t read_fcc(CPULoongArchState *env);
 void write_fcc(CPULoongArchState *env, uint64_t val);
 
-int loongarch_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n);
-int loongarch_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n);
+int loongarch_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                                    bool has_xml);
+int loongarch_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                     bool has_xml);
 void loongarch_cpu_register_gdb_regs_for_features(CPUState *cs);
 
 #endif

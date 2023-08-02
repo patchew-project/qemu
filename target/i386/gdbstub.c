@@ -32,9 +32,7 @@ static const int gpr_map[16] = {
 static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 
 /*
- * Keep these in sync with assignment to
- * gdb_num_core_regs in target/i386/cpu.c
- * and with the machine description
+ * Keep these in sync with the machine description
  */
 
 /*
@@ -96,7 +94,8 @@ static int gdb_write_reg_cs64(uint32_t hflags, uint8_t *buf, target_ulong *val)
     return 4;
 }
 
-int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                              bool has_xml)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -248,7 +247,8 @@ static int x86_cpu_gdb_load_seg(X86CPU *cpu, X86Seg sreg, uint8_t *mem_buf)
     return 4;
 }
 
-int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                               bool has_xml)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;

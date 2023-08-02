@@ -48,7 +48,7 @@ static int ppc_gdb_register_len_apple(int n)
     }
 }
 
-static int ppc_gdb_register_len(int n)
+static int ppc_gdb_register_len(int n, bool has_xml)
 {
     switch (n) {
     case 0 ... 31:
@@ -56,7 +56,7 @@ static int ppc_gdb_register_len(int n)
         return sizeof(target_ulong);
     case 32 ... 63:
         /* fprs */
-        if (gdb_has_xml) {
+        if (has_xml) {
             return 0;
         }
         return 8;
@@ -76,7 +76,7 @@ static int ppc_gdb_register_len(int n)
         return sizeof(target_ulong);
     case 70:
         /* fpscr */
-        if (gdb_has_xml) {
+        if (has_xml) {
             return 0;
         }
         return sizeof(target_ulong);
@@ -118,12 +118,13 @@ void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)
  * the FP regs zero size when talking to a newer gdb.
  */
 
-int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
+int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n,
+                              bool has_xml)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
     uint8_t *mem_buf;
-    int r = ppc_gdb_register_len(n);
+    int r = ppc_gdb_register_len(n, has_xml);
 
     if (!r) {
         return r;
@@ -168,7 +169,8 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
     return r;
 }
 
-int ppc_cpu_gdb_read_register_apple(CPUState *cs, GByteArray *buf, int n)
+int ppc_cpu_gdb_read_register_apple(CPUState *cs, GByteArray *buf, int n,
+                                    bool has_xml)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
@@ -222,11 +224,12 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, GByteArray *buf, int n)
     return r;
 }
 
-int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                               bool has_xml)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
-    int r = ppc_gdb_register_len(n);
+    int r = ppc_gdb_register_len(n, has_xml);
 
     if (!r) {
         return r;
@@ -269,7 +272,8 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     }
     return r;
 }
-int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
+int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n,
+                                     bool has_xml)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;

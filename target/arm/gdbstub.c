@@ -37,7 +37,8 @@ typedef struct RegisterSysregFeatureParam {
    We hack round this by giving the FPA regs zero size when talking to a
    newer gdb.  */
 
-int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                              bool has_xml)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -48,7 +49,7 @@ int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     }
     if (n < 24) {
         /* FPA registers.  */
-        if (gdb_has_xml) {
+        if (has_xml) {
             return 0;
         }
         return gdb_get_zeroes(mem_buf, 12);
@@ -56,7 +57,7 @@ int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     switch (n) {
     case 24:
         /* FPA status register.  */
-        if (gdb_has_xml) {
+        if (has_xml) {
             return 0;
         }
         return gdb_get_reg32(mem_buf, 0);
@@ -72,7 +73,8 @@ int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                               bool has_xml)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -102,7 +104,7 @@ int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     }
     if (n < 24) { /* 16-23 */
         /* FPA registers (ignored).  */
-        if (gdb_has_xml) {
+        if (has_xml) {
             return 0;
         }
         return 12;
@@ -110,7 +112,7 @@ int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     switch (n) {
     case 24:
         /* FPA status register (ignored).  */
-        if (gdb_has_xml) {
+        if (has_xml) {
             return 0;
         }
         return 4;

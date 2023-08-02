@@ -214,8 +214,10 @@ struct ArchCPU {
 
 
 void superh_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-int superh_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-int superh_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int superh_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                                 bool has_xml);
+int superh_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                                  bool has_xml);
 G_NORETURN void superh_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                                MMUAccessType access_type, int mmu_idx,
                                                uintptr_t retaddr);

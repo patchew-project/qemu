@@ -321,8 +321,10 @@ static inline void cpu_hppa_change_prot_id(CPUHPPAState *env) { }
 void cpu_hppa_change_prot_id(CPUHPPAState *env);
 #endif
 
-int hppa_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-int hppa_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int hppa_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                               bool has_xml);
+int hppa_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                                bool has_xml);
 void hppa_cpu_dump_state(CPUState *cs, FILE *f, int);
 #ifndef CONFIG_USER_ONLY
 hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr);

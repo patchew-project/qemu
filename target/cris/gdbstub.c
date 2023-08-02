@@ -21,7 +21,8 @@
 #include "cpu.h"
 #include "gdbstub/helpers.h"
 
-int crisv10_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int crisv10_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                                  bool has_xml)
 {
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
@@ -53,7 +54,8 @@ int crisv10_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int cris_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int cris_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                               bool has_xml)
 {
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
@@ -88,7 +90,8 @@ int cris_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int cris_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int cris_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                bool has_xml)
 {
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
