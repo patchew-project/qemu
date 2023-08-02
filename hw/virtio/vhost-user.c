@@ -1632,29 +1632,23 @@ vhost_user_backend_handle_shared_object_remove(VhostUserShared *object)
     return virtio_remove_resource(&uuid);
 }
 
-static bool
-vhost_user_backend_send_dmabuf_fd(QIOChannel *ioc, VhostUserHeader *hdr,
-                                  VhostUserPayload *payload)
+static bool vhost_user_send_resp(QIOChannel *ioc, VhostUserHeader *hdr,
+                                 VhostUserPayload *payload)
 {
     Error *local_err = NULL;
-    struct iovec iov[2];
+    struct iovec iov[] = {
+        { .iov_base = hdr,      .iov_len = VHOST_USER_HDR_SIZE },
+        { .iov_base = payload,  .iov_len = hdr->size },
+    };
 
-    if (hdr->flags & VHOST_USER_NEED_REPLY_MASK) {
-        hdr->flags &= ~VHOST_USER_NEED_REPLY_MASK;
-    }
+    hdr->flags &= ~VHOST_USER_NEED_REPLY_MASK;
     hdr->flags |= VHOST_USER_REPLY_MASK;
-
-    hdr->size = sizeof(payload->u64);
-
-    iov[0].iov_base = hdr;
-    iov[0].iov_len = VHOST_USER_HDR_SIZE;
-    iov[1].iov_base = payload;
-    iov[1].iov_len = hdr->size;
 
     if (qio_channel_writev_all(ioc, iov, ARRAY_SIZE(iov), &local_err)) {
         error_report_err(local_err);
         return false;
     }
+
     return true;
 }
 
@@ -1834,22 +1828,10 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
      * directly in their request handlers.
      */
     if (hdr.flags & VHOST_USER_NEED_REPLY_MASK) {
-        struct iovec iovec[2];
-
-
-        hdr.flags &= ~VHOST_USER_NEED_REPLY_MASK;
-        hdr.flags |= VHOST_USER_REPLY_MASK;
-
         payload.u64 = !!ret;
         hdr.size = sizeof(payload.u64);
 
-        iovec[0].iov_base = &hdr;
-        iovec[0].iov_len = VHOST_USER_HDR_SIZE;
-        iovec[1].iov_base = &payload;
-        iovec[1].iov_len = hdr.size;
-
-        if (qio_channel_writev_all(ioc, iovec, ARRAY_SIZE(iovec), &local_err)) {
-            error_report_err(local_err);
+        if (!vhost_user_send_resp(ioc, &hdr, &payload)) {
             goto err;
         }
     }
