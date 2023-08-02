@@ -25,6 +25,7 @@
 #include "hw/misc/imx7_ccm.h"
 #include "hw/misc/imx7_snvs.h"
 #include "hw/misc/imx7_gpr.h"
+#include "hw/misc/imx7_src.h"
 #include "hw/watchdog/wdt_imx2.h"
 #include "hw/gpio/imx_gpio.h"
 #include "hw/char/imx_serial.h"
@@ -74,6 +75,7 @@ struct FslIMX7State {
     IMX7CCMState       ccm;
     IMX7AnalogState    analog;
     IMX7SNVSState      snvs;
+    IMX7SRCState       src;
     IMXGPCv2State      gpcv2;
     IMXSPIState        spi[FSL_IMX7_NUM_ECSPIS];
     IMXI2CState        i2c[FSL_IMX7_NUM_I2CS];
