@@ -263,7 +263,11 @@ static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
         void *p = mmap(host_start, qemu_host_page_size,
                        target_to_host_prot(prot),
                        flags | MAP_ANONYMOUS, -1, 0);
-        if (p == MAP_FAILED) {
+        if (p != host_start) {
+            if (p != MAP_FAILED) {
+                munmap(p, qemu_host_page_size);
+                errno = EEXIST;
+            }
             return false;
         }
         prot_old = prot;
@@ -686,7 +690,11 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             }
             p = mmap(g2h_untagged(real_start), real_last - real_start + 1,
                      target_to_host_prot(target_prot), flags, fd, offset1);
-            if (p == MAP_FAILED) {
+            if (p != g2h_untagged(real_start)) {
+                if (p != MAP_FAILED) {
+                    munmap(p, real_last - real_start + 1);
+                    errno = EEXIST;
+                }
                 goto fail;
             }
             passthrough_start = real_start;
