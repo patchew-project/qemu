@@ -316,11 +316,11 @@ static void output_vector_union_type(GString *s, int reg_width,
     g_string_append(s, "</union>");
 }
 
-int arm_gen_dynamic_svereg_xml(CPUState *cs, int orig_base_reg)
+GDBFeature *arm_gen_dynamic_svereg_feature(CPUState *cs, int orig_base_reg)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     GString *s = g_string_new(NULL);
-    DynamicGDBXMLInfo *info = &cpu->dyn_svereg_xml;
+    DynamicGDBFeatureInfo *info = &cpu->dyn_svereg_feature;
     int reg_width = cpu->sve_max_vq * 128;
     int pred_width = cpu->sve_max_vq * 16;
     int base_reg = orig_base_reg;
@@ -375,7 +375,8 @@ int arm_gen_dynamic_svereg_xml(CPUState *cs, int orig_base_reg)
 
     g_string_append_printf(s, "</feature>");
 
-    info->desc = g_string_free(s, false);
-    info->num = base_reg - orig_base_reg;
-    return info->num;
+    info->desc.xmlname = "sve-registers.xml";
+    info->desc.xml = g_string_free(s, false);
+    info->desc.num_regs = base_reg - orig_base_reg;
+    return &info->desc;
 }
