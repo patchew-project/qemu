@@ -164,6 +164,7 @@ struct CPUClass {
     vaddr (*gdb_adjust_breakpoint)(CPUState *cpu, vaddr addr);
 
     const char *gdb_core_xml_file;
+    GHashTable *gdb_reg_names;
     gchar * (*gdb_arch_name)(CPUState *cpu);
     const char * (*gdb_get_dynamic_xml)(CPUState *cpu, const char *xmlname);
 
@@ -329,6 +330,8 @@ struct CPUState {
     DeviceState parent_obj;
     /* cache to avoid expensive CPU_GET_CLASS */
     CPUClass *cc;
+    /* cache to avoid expensive arch casts like X86_CPU */
+    ArchCPU *arch;
     /*< public >*/
 
     int nr_cores;

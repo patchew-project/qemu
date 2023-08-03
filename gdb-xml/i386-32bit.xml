@@ -189,4 +189,13 @@
   <reg name="xmm7" bitsize="128" type="vec128"/>
 
   <reg name="mxcsr" bitsize="32" type="i386_mxcsr" group="vector"/>
+
+  <reg name="ymm0h" bitsize="128" type="uint128"/>
+  <reg name="ymm1h" bitsize="128" type="uint128"/>
+  <reg name="ymm2h" bitsize="128" type="uint128"/>
+  <reg name="ymm3h" bitsize="128" type="uint128"/>
+  <reg name="ymm4h" bitsize="128" type="uint128"/>
+  <reg name="ymm5h" bitsize="128" type="uint128"/>
+  <reg name="ymm6h" bitsize="128" type="uint128"/>
+  <reg name="ymm7h" bitsize="128" type="uint128"/>
 </feature>

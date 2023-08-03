@@ -20,6 +20,16 @@
   qemu_plugin_n_vcpus;
   qemu_plugin_outs;
   qemu_plugin_path_to_binary;
+  qemu_plugin_find_reg;
+  qemu_plugin_get_available_reg_names;
+  qemu_plugin_read_reg;
+  qemu_plugin_n_regs;
+  qemu_plugin_reg_create_context;
+  qemu_plugin_reg_free_context;
+  qemu_plugin_reg_name;
+  qemu_plugin_reg_ptr;
+  qemu_plugin_reg_size;
+  qemu_plugin_regs_load;
   qemu_plugin_register_atexit_cb;
   qemu_plugin_register_flush_cb;
   qemu_plugin_register_vcpu_exit_cb;

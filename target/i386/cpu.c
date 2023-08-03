@@ -7210,6 +7210,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     X86CPU *cpu = X86_CPU(dev);
+    /* cache the arch class for the hotpath */
+    cs->arch = (struct ArchCPU *)cpu;
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
@@ -7964,10 +7966,10 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->gdb_arch_name = x86_gdb_arch_name;
 #ifdef TARGET_X86_64
     cc->gdb_core_xml_file = "i386-64bit.xml";
-    cc->gdb_num_core_regs = 66;
+    cc->gdb_num_core_regs = 82;
 #else
     cc->gdb_core_xml_file = "i386-32bit.xml";
-    cc->gdb_num_core_regs = 50;
+    cc->gdb_num_core_regs = 58;
 #endif
     cc->disas_set_info = x86_disas_set_info;
 

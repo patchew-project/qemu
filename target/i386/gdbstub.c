@@ -49,12 +49,13 @@ static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 #define IDX_NB_SEG      (6 + 3)
 #define IDX_NB_CTL      6
 #define IDX_NB_FP       16
+#define IDX_NB_YMM      16
 /*
  * fpu regs ----------> 8 or 16
  */
 #define IDX_NB_MXCSR    1
 /*
- *          total ----> 8+1+1+9+6+16+8+1=50 or 16+1+1+9+6+16+16+1=66
+ *          total ----> 8+1+1+9+6+16+8+1+8=58 or 16+1+1+9+6+16+16+1+16=82
  */
 
 #define IDX_IP_REG      CPU_NB_REGS
@@ -64,6 +65,7 @@ static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 #define IDX_FP_REGS     (IDX_CTL_REGS + IDX_NB_CTL)
 #define IDX_XMM_REGS    (IDX_FP_REGS + IDX_NB_FP)
 #define IDX_MXCSR_REG   (IDX_XMM_REGS + CPU_NB_REGS)
+#define IDX_YMM_REGS    (IDX_MXCSR_REG + IDX_NB_MXCSR)
 
 #define IDX_CTL_CR0_REG     (IDX_CTL_REGS + 0)
 #define IDX_CTL_CR2_REG     (IDX_CTL_REGS + 1)
@@ -98,9 +100,10 @@ static int gdb_write_reg_cs64(uint32_t hflags, uint8_t *buf, target_ulong *val)
 
 int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
-    X86CPU *cpu = X86_CPU(cs);
+    X86CPU *cpu = (X86CPU *)cs->arch;
     CPUX86State *env = &cpu->env;
 
+    uint32_t eflags;
     uint64_t tpr;
 
     /* N.B. GDB can't deal with changes in registers or sizes in the middle
@@ -134,6 +137,14 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
                                   env->xmm_regs[n].ZMM_Q(1),
                                   env->xmm_regs[n].ZMM_Q(0));
         }
+    }
+    else if (n >= IDX_YMM_REGS && n < IDX_YMM_REGS + IDX_NB_YMM) {
+        n -= IDX_YMM_REGS;
+        if (n < CPU_NB_REGS32 || TARGET_LONG_BITS == 64) {
+            return gdb_get_reg128(mem_buf,
+                                  env->xmm_regs[n].ZMM_Q(3),
+                                  env->xmm_regs[n].ZMM_Q(2));
+        }
     } else {
         switch (n) {
         case IDX_IP_REG:
@@ -147,7 +158,8 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
                 return gdb_get_reg32(mem_buf, env->eip);
             }
         case IDX_FLAGS_REG:
-            return gdb_get_reg32(mem_buf, env->eflags);
+            eflags = cpu_compute_eflags(env);
+            return gdb_get_reg32(mem_buf, eflags);
 
         case IDX_SEG_REGS:
             return gdb_get_reg32(mem_buf, env->segs[R_CS].selector);
@@ -284,6 +296,13 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             env->xmm_regs[n].ZMM_Q(0) = ldq_p(mem_buf);
             env->xmm_regs[n].ZMM_Q(1) = ldq_p(mem_buf + 8);
             return 16;
+        }
+    } else if (n >= IDX_YMM_REGS && n < IDX_YMM_REGS + IDX_NB_YMM) {
+        n -= IDX_YMM_REGS;
+        if (n < CPU_NB_REGS32 || TARGET_LONG_BITS == 64) {
+            env->xmm_regs[n].ZMM_Q(2) = ldq_p(mem_buf);
+            env->xmm_regs[n].ZMM_Q(3) = ldq_p(mem_buf + 8);
+            return 32;
         }
     } else {
         switch (n) {

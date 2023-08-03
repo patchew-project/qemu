@@ -51,7 +51,7 @@ typedef uint64_t qemu_plugin_id_t;
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 1
+#define QEMU_PLUGIN_VERSION 2
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -393,6 +393,109 @@ uint64_t qemu_plugin_insn_vaddr(const struct qemu_plugin_insn *insn);
  * Returns: hardware (physical) target address of instruction
  */
 void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn);
+
+#define QEMU_PLUGIN_REGISTERS_ENABLED
+
+/**
+ * qemu_plugin_find_reg() - find register by name
+ * @name: register name
+ * @regnum: a pointer to store register number
+ *
+ * Returns: true if found, false otherwise
+ */
+bool qemu_plugin_find_reg(const char *name, int *regnum);
+
+/**
+ * qemu_plugin_get_available_reg_names() - write the names of all
+ * available registers for the current CPU to destination buffer
+ * @buf: destination buffer to write data, can be NULL
+ * @buf_size: destination buffer size, can be 0
+ *
+ * The register names in the buffer are separated by commas
+ * 
+ * Returns: the size of the data in bytes written to the buffer.
+ * Or if @buf is NULL, the size of the buffer needed to write data
+ */
+size_t qemu_plugin_get_available_reg_names(char *buf, size_t buf_size);
+
+/**
+ * qemu_plugin_read_reg() - return register data
+ * @regnum: register number
+ * @size: a pointer to store allocated memory size
+ *
+ * Returns: allocated memory containing register data,
+ * memory must be freed manually using g_free()
+ */
+const void *qemu_plugin_read_reg(int regnum, size_t *size);
+
+/** struct qemu_plugin_reg_ctx - Opaque handle for register context */
+struct qemu_plugin_reg_ctx;
+
+/**
+ * qemu_plugin_n_regs() - query helper for number of registers in context
+ * @ctx: register context
+ *
+ * Returns: number of registers in context
+ */
+size_t qemu_plugin_n_regs(const struct qemu_plugin_reg_ctx *ctx);
+
+/**
+ * qemu_plugin_reg_create_context() - create a context for working with registers
+ * @names: array with register names
+ * @len: array length
+ *
+ * Limitation: cannot be called from init_cpu callback
+ * 
+ * Returns: opaque handle to register context
+ */
+struct qemu_plugin_reg_ctx *
+qemu_plugin_reg_create_context(const char *const *names,
+                               size_t len);
+
+/**
+ * qemu_plugin_reg_free_context() - free the register context
+ * @ctx: register context
+ */
+void qemu_plugin_reg_free_context(struct qemu_plugin_reg_ctx *ctx);
+
+/**
+ * qemu_plugin_reg_name() - query helper for register name in context
+ * @ctx: register context
+ * @idx: register index
+ *
+ * Returns: returns register name
+ */
+const char *qemu_plugin_reg_name(const struct qemu_plugin_reg_ctx *ctx, size_t idx);
+
+/**
+ * qemu_plugin_reg_ptr() - query helper for a pointer to register data in context
+ * @ctx: register context
+ * @idx: register index
+ *
+ * Returns: pointer to register data
+ */
+const void *qemu_plugin_reg_ptr(const struct qemu_plugin_reg_ctx *ctx, size_t idx);
+
+/**
+ * qemu_plugin_reg_size() - query helper for register size in context
+ * @ctx: register context
+ * @idx: register index
+ *
+ * Returns: size of register data in bytes 
+ */
+size_t qemu_plugin_reg_size(const struct qemu_plugin_reg_ctx *ctx, size_t idx);
+
+/**
+ * qemu_plugin_regs_load() - load data from all registers
+ * and store them in context
+ * @ctx: register context
+ *
+ * This call does not require qemu_plugin_reg_ptr()
+ * or qemu_plugin_reg_size() to be called again,
+ * because the data will be overwritten in the context at the same positions.
+ * So it's just an update call
+ */
+void qemu_plugin_regs_load(struct qemu_plugin_reg_ctx *ctx);
 
 /**
  * typedef qemu_plugin_meminfo_t - opaque memory transaction handle

@@ -49,7 +49,7 @@ static const struct TypeSize vec_lanes[] = {
 
 int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
-    RISCVCPU *cpu = RISCV_CPU(cs);
+    RISCVCPU *cpu = (RISCVCPU *)cs->arch;
     CPURISCVState *env = &cpu->env;
     target_ulong tmp;
 
@@ -169,6 +169,7 @@ static int riscv_gdb_get_csr(CPURISCVState *env, GByteArray *buf, int n)
             return gdb_get_regl(buf, val);
         }
     }
+    g_assert_not_reached();
     return 0;
 }
 

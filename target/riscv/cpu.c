@@ -1391,7 +1391,10 @@ static void riscv_cpu_validate_misa_priv(CPURISCVState *env, Error **errp)
 
 static void riscv_cpu_realize_tcg(DeviceState *dev, Error **errp)
 {
+    CPUState *cs = CPU(dev);
     RISCVCPU *cpu = RISCV_CPU(dev);
+    /* cache the arch class for the hotpath */
+    cs->arch = (struct ArchCPU *)cpu;
     CPURISCVState *env = &cpu->env;
     Error *local_err = NULL;
 

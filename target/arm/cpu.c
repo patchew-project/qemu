@@ -1584,6 +1584,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     ARMCPU *cpu = ARM_CPU(dev);
+    /* cache the arch class for the hotpath */
+    cs->arch = (struct ArchCPU *)cpu;
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(dev);
     CPUARMState *env = &cpu->env;
     int pagebits;

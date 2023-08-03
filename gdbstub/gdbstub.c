@@ -351,12 +351,32 @@ static CPUState *gdb_get_cpu(uint32_t pid, uint32_t tid)
     }
 }
 
+static const char *get_feature_xml_from_cpu(CPUState *cpu, const char *xmlname)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    size_t len = strlen(xmlname);
+
+    if (cc->gdb_get_dynamic_xml) {
+        const char *xml = cc->gdb_get_dynamic_xml(cpu, xmlname);
+        if (xml) {
+            return xml;
+        }
+    }
+
+    const char *name = NULL;
+    int i;
+    for (i = 0; ; i++) {
+        name = xml_builtin[i][0];
+        if (!name || (strncmp(name, xmlname, len) == 0 && strlen(name) == len))
+            break;
+    }
+    return name ? xml_builtin[i][1] : NULL;
+}
+
 static const char *get_feature_xml(const char *p, const char **newp,
                                    GDBProcess *process)
 {
     size_t len;
-    int i;
-    const char *name;
     CPUState *cpu = gdb_get_first_cpu_in_process(process);
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
@@ -365,7 +385,6 @@ static const char *get_feature_xml(const char *p, const char **newp,
         len++;
     *newp = p + len;
 
-    name = NULL;
     if (strncmp(p, "target.xml", len) == 0) {
         char *buf = process->target_xml;
         const size_t buf_sz = sizeof(process->target_xml);
@@ -397,26 +416,257 @@ static const char *get_feature_xml(const char *p, const char **newp,
         }
         return buf;
     }
-    if (cc->gdb_get_dynamic_xml) {
-        char *xmlname = g_strndup(p, len);
-        const char *xml = cc->gdb_get_dynamic_xml(cpu, xmlname);
 
-        g_free(xmlname);
-        if (xml) {
-            return xml;
-        }
-    }
-    for (i = 0; ; i++) {
-        name = xml_builtin[i][0];
-        if (!name || (strncmp(name, p, len) == 0 && strlen(name) == len))
-            break;
-    }
-    return name ? xml_builtin[i][1] : NULL;
+    char *xmlname = g_strndup(p, len);
+    const char *xml = get_feature_xml_from_cpu(cpu, xmlname);
+    g_free(xmlname);
+    return xml;
 }
 
-static int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
+typedef struct reg_table_data {
+    int bitsize;
+    int regnum;
+} reg_table_data;
+
+typedef struct xml_parser_data {
+    CPUState *cpu;
+    int next_regnum;
+} xml_parser_data;
+
+#ifdef DEBUG
+static void validate_regnums_in_reg_table(gpointer key,
+                                          gpointer value,
+                                          gpointer userdata)
+{
+    const int *regnum = userdata;
+    const reg_table_data *reg_data = value;
+    if (reg_data->regnum == *regnum) {
+        error_report("Error inserting register: \
+                      table already contains register '%s' \
+                      with the same register number %d", \
+                      (const gchar *)key, reg_data->regnum);
+        exit(EXIT_FAILURE);
+    }
+}
+#endif
+
+/*
+ * Handle the start of a <reg> element.
+ * Here we are parsing an XML file which is a Gdb Target description format
+*/
+static void xml_start_reg(GMarkupParseContext *context,
+                          const gchar *elem_name,
+                          const gchar **attr_names,
+                          const gchar **attr_values,
+                          gpointer user_data,
+                          GError **error)
+{
+    if (strcmp(elem_name, "reg") != 0)
+        return;
+
+    const char *name;
+    int regnum, bitsize = 0, i;
+    int exist_regnum, exist_bitsize = 0;
+
+    xml_parser_data *parser_data = (xml_parser_data *)user_data;
+    CPUClass *cc = parser_data->cpu->cc;
+    regnum = parser_data->next_regnum;
+
+    i = 0;
+    name = NULL;
+    /* Each register has required attributes 'name' and 'bitsize',
+       as well as an optional attribute 'regnum'.*/
+    while (attr_names[i] != NULL) {
+        /* The register’s name; it must be unique within the target description */
+        if (strcmp(attr_names[i], "name") == 0) {
+            name = attr_values[i];
+        }
+        /* The register’s number. If omitted, a register’s number is one greater
+        than that of the previous register (either in the current feature
+        or in a preceding feature); the first register in the target description
+        defaults to zero. This register number is used to read or write the register */
+        else if (strcmp(attr_names[i], "regnum") == 0) {
+            // Should we set regnum as is or use base_regnum + regnum instead?
+            regnum = atoi(attr_values[i]);
+        }
+        else if (strcmp(attr_names[i], "bitsize") == 0) {
+            bitsize = atoi(attr_values[i]);
+        }
+        i++;
+    }
+
+    if (name == NULL || name[0] == '\0') {
+        error_report("Register in xml file does not contain a name");
+        exit(EXIT_FAILURE);
+    }
+
+    if (regnum < parser_data->next_regnum) {
+        error_report("Bad gdb register numbering for register '%s', "
+                     "expected %d got %d", name, parser_data->next_regnum, regnum);
+        exit(EXIT_FAILURE);
+    }
+
+    if (g_hash_table_contains(cc->gdb_reg_names, name)) {
+        gdb_find_register_num_and_bitsize(parser_data->cpu, name, &exist_regnum, &exist_bitsize);
+        error_report("Gdb register '%s' with num %d, already exists with num %d", name, regnum, exist_regnum);
+        exit(EXIT_FAILURE);
+    }
+
+    parser_data->next_regnum = regnum + 1;
+
+#ifdef DEBUG
+    /* Check that regnum is unique in table */
+    g_hash_table_foreach(cc->gdb_reg_names, validate_regnums_in_reg_table, &regnum);
+#endif
+
+    /* memory will be freed automatically when table is destroyed */
+    reg_table_data *reg_data = g_new0(reg_table_data, 1);
+    reg_data->bitsize = bitsize;
+    reg_data->regnum = regnum;
+    g_hash_table_insert(cc->gdb_reg_names, g_strdup(name), reg_data);
+}
+
+static void parse_target_xml(xml_parser_data *data, const char *xml)
+{
+    if (!xml)
+        return;
+
+    GMarkupParser *parser;
+    GMarkupParseContext *context;
+    GError *error = NULL;
+
+    parser = g_new0(GMarkupParser, 1);
+    parser->start_element = xml_start_reg;
+
+    context = g_markup_parse_context_new(parser, 0, data, 0);
+    g_markup_parse_context_parse(context, xml, strlen(xml), &error);
+    g_markup_parse_context_free(context);
+    if (error != NULL){
+        error_report("Failed to parse xml file: %s", error->message);
+        g_error_free(error);
+    }
+    g_free(parser);
+}
+
+static const char *get_target_xml(CPUState *cpu)
+{
+    CPUClass *cc = cpu->cc;
+    if (cc->gdb_core_xml_file == NULL)
+        return NULL;
+    return get_feature_xml_from_cpu(cpu, cc->gdb_core_xml_file);
+}
+
+/**
+ * Allocates the global @gdb_reg_names hash table only once
+ */
+static void init_register_names_table(CPUState *cpu)
+{
+    CPUClass *cc = cpu->cc;
+    if (cc->gdb_reg_names) {
+        return;
+    }
+
+    cc->gdb_reg_names = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                              g_free, g_free);
+
+    xml_parser_data *data = g_new0(xml_parser_data, 1);
+    data->cpu = cpu;
+    data->next_regnum = 0;
+
+    const char *xml = get_target_xml(cpu);
+    if (xml) {
+        parse_target_xml(data, xml);
+    }
+
+    /* parse additional xml files */
+    GDBRegisterState *r;
+    for (r = cpu->gdb_regs; r; r = r->next) {
+        if (r && r->xml) {
+            const char *xml = get_feature_xml_from_cpu(cpu, r->xml);
+            if (xml) {
+                parse_target_xml(data, xml);
+            }
+        }
+    }
+
+    g_free(data);
+}
+
+size_t gdb_get_available_reg_names(CPUState *cpu, char *buf, size_t buf_size)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
+    init_register_names_table(cpu);
+
+    size_t total_bytes = 0, table_size;
+    guint keys_arr_len = 0, i;
+    gpointer *keys_arr;
+    const bool buf_exists = (buf && buf_size > 0);
+
+    table_size = g_hash_table_size(cc->gdb_reg_names);
+    if (table_size == 0)
+        return total_bytes;
+
+    keys_arr = g_hash_table_get_keys_as_array(cc->gdb_reg_names, &keys_arr_len);
+    for (i = 0; i < keys_arr_len; i++) {
+        char *key;
+        size_t key_len, bytes_needed;
+
+        key = keys_arr[i];
+        key_len = strlen(key);
+        if (key_len == 0)
+            continue;
+
+        bytes_needed = key_len + 1; // string + delimiter
+
+        if (!buf_exists) {
+            total_bytes += bytes_needed;
+            continue; // just count how many bytes are needed
+        }
+
+        if (total_bytes + bytes_needed > buf_size) {
+            break; // not enough space for copying a new string + delimiter
+        }
+
+        memcpy(buf + total_bytes, key, key_len);
+        buf[total_bytes + key_len] = ',';
+        total_bytes += bytes_needed;
+    }
+
+    if (buf_exists) {
+        buf[total_bytes - (total_bytes > 0)] = '\0';
+    }
+
+    return total_bytes;
+}
+
+bool gdb_find_register_num_and_bitsize(CPUState *cpu,
+                                       const char *name,
+                                       int *reg,
+                                       int *bitsize)
+{
+    CPUClass *cc = cpu->cc;
+    init_register_names_table(cpu);
+
+    if (!cc->gdb_reg_names)
+        return false;
+
+    gpointer orig_key, val;
+    bool res = g_hash_table_lookup_extended(cc->gdb_reg_names, name,
+                                            &orig_key, &val);
+    if (res == false || val == NULL) {
+        return false;
+    }
+
+    reg_table_data *data = (reg_table_data *)val;
+    *reg = data->regnum;
+    *bitsize = data->bitsize;
+
+    return true;
+}
+
+int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
+{
+    CPUClass *cc = cpu->cc;
     CPUArchState *env = cpu->env_ptr;
     GDBRegisterState *r;
 

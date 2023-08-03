@@ -39,7 +39,7 @@ typedef struct RegisterSysregXmlParam {
 
 int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
-    ARMCPU *cpu = ARM_CPU(cs);
+    ARMCPU *cpu = (ARMCPU *)cs->arch;
     CPUARMState *env = &cpu->env;
 
     if (n < 16) {
