@@ -2684,7 +2684,7 @@ static void migration_update_counters(MigrationState *s,
 {
     uint64_t transferred, transferred_pages, time_spent;
     uint64_t current_bytes; /* bytes transferred since the beginning */
-    double bandwidth;
+    double bandwidth, avail_bw;
 
     if (current_time < s->iteration_start_time + BUFFER_DELAY) {
         return;
@@ -2694,7 +2694,17 @@ static void migration_update_counters(MigrationState *s,
     transferred = current_bytes - s->iteration_initial_bytes;
     time_spent = current_time - s->iteration_start_time;
     bandwidth = (double)transferred / time_spent;
-    s->threshold_size = bandwidth * migrate_downtime_limit();
+    if (migrate_max_switchover_bandwidth()) {
+        /*
+         * If the user specified an available bandwidth, let's trust the
+         * user so that can be more accurate than what we estimated.
+         */
+        avail_bw = migrate_max_switchover_bandwidth();
+    } else {
+        /* If the user doesn't specify bandwidth, we use the estimated */
+        avail_bw = bandwidth;
+    }
+    s->threshold_size = avail_bw * migrate_downtime_limit();
 
     s->mbps = (((double) transferred * 8.0) /
                ((double) time_spent / 1000.0)) / 1000.0 / 1000.0;
@@ -2711,7 +2721,7 @@ static void migration_update_counters(MigrationState *s,
     if (stat64_get(&mig_stats.dirty_pages_rate) &&
         transferred > 10000) {
         s->expected_downtime =
-            stat64_get(&mig_stats.dirty_bytes_last_sync) / bandwidth;
+            stat64_get(&mig_stats.dirty_bytes_last_sync) / avail_bw;
     }
 
     migration_rate_reset(s->to_dst_file);
@@ -2719,7 +2729,8 @@ static void migration_update_counters(MigrationState *s,
     update_iteration_initial_status(s);
 
     trace_migrate_transferred(transferred, time_spent,
-                              bandwidth, s->threshold_size);
+                              bandwidth, migrate_max_switchover_bandwidth(),
+                              s->threshold_size);
 }
 
 static bool migration_can_switchover(MigrationState *s)
