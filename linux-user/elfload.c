@@ -3021,7 +3021,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     struct elfhdr *ehdr = (struct elfhdr *)bprm_buf;
     struct elf_phdr *phdr;
     abi_ulong load_addr, load_bias, loaddr, hiaddr, error;
-    int i, retval, prot_exec;
+    int i, retval, prot_exec, load_map_flags;
     Error *err = NULL;
 
     /* First of all, some simple consistency checks */
@@ -3106,6 +3106,19 @@ static void load_elf_image(const char *image_name, int image_fd,
         }
     }
 
+    load_addr = loaddr;
+
+    /*
+     * For ET_EXEC, load_addr is required.  Use MAP_FIXED_NOREPLACE instead
+     * of MAP_FIXED on the off-chance that the guest address overlaps a
+     * host address.  There should be no other conflict this early in the
+     * loading process.
+     */
+    if (ehdr->e_type == ET_EXEC) {
+        load_map_flags = MAP_FIXED_NOREPLACE;
+    } else {
+        load_map_flags = 0;
+    }
     if (pinterp_name != NULL) {
         /*
          * This is the main executable.
@@ -3135,11 +3148,34 @@ static void load_elf_image(const char *image_name, int image_fd,
              */
             probe_guest_base(image_name, loaddr, hiaddr);
         } else {
+            abi_ulong align;
+
             /*
              * The binary is dynamic, but we still need to
              * select guest_base.  In this case we pass a size.
              */
             probe_guest_base(image_name, 0, hiaddr - loaddr);
+
+            /*
+             * Avoid collision with the loader by providing a different
+             * default load address.
+             */
+            load_addr = loaddr + elf_et_dyn_base;
+
+            /*
+             * TODO: Better support for mmap alignment is desirable.
+             * Without reserved_va we would prefer any host conflict be
+             * resolved by choosing a different address, therefore we
+             * don't want to use MAP_FIXED.  But without that we cannot
+             * cannot guarantee alignment, only suggest it.
+             */
+            align = pow2ceil(info->alignment);
+            if (align) {
+                load_addr &= -align;
+            }
+            if (reserved_va) {
+                load_map_flags = MAP_FIXED_NOREPLACE;
+            }
         }
     }
 
@@ -3157,10 +3193,9 @@ static void load_elf_image(const char *image_name, int image_fd,
      * In both cases, we will overwrite pages in this range with mappings
      * from the executable.
      */
-    load_addr = target_mmap(loaddr, (size_t)hiaddr - loaddr + 1, PROT_NONE,
+    load_addr = target_mmap(load_addr, (size_t)hiaddr - loaddr + 1, PROT_NONE,
                             MAP_PRIVATE | MAP_ANON | MAP_NORESERVE |
-                            (ehdr->e_type == ET_EXEC ? MAP_FIXED : 0),
-                            -1, 0);
+                            load_map_flags, -1, 0);
     if (load_addr == -1) {
         goto exit_mmap;
     }
