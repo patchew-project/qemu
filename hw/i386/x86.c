@@ -878,9 +878,9 @@ void x86_load_linux(X86MachineState *x86ms,
                 initrd_size = g_mapped_file_get_length(mapped_file);
                 initrd_max = x86ms->below_4g_mem_size - acpi_data_size - 1;
                 if (initrd_size >= initrd_max) {
-                    fprintf(stderr, "qemu: initrd is too large, cannot support."
-                            "(max: %"PRIu32", need %"PRId64")\n",
-                            initrd_max, (uint64_t)initrd_size);
+                    fprintf(stderr, "qemu: initrd is too large, cannot support it. "
+                            "(max: %"PRIu32" MB, need %"PRId64" MB)\n",
+                            initrd_max>>20, (uint64_t)initrd_size>>20);
                     exit(1);
                 }
 
@@ -1023,9 +1023,9 @@ void x86_load_linux(X86MachineState *x86ms,
         initrd_data = g_mapped_file_get_contents(mapped_file);
         initrd_size = g_mapped_file_get_length(mapped_file);
         if (initrd_size >= initrd_max) {
-            fprintf(stderr, "qemu: initrd is too large, cannot support."
-                    "(max: %"PRIu32", need %"PRId64")\n",
-                    initrd_max, (uint64_t)initrd_size);
+            fprintf(stderr, "qemu: initrd is too large, cannot support this. "
+                    "(max: %"PRIu32" MB, need %"PRId64" MB)\n",
+                    initrd_max>>20, (uint64_t)initrd_size>>20);
             exit(1);
         }
 
