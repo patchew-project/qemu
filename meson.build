@@ -1881,6 +1881,13 @@ if libbpf.found() and not cc.links('''
   endif
 endif
 
+# libxdp
+libxdp = not_found
+if not get_option('af_xdp').auto() or have_system
+    libxdp = dependency('libxdp', required: get_option('af_xdp'),
+                        version: '>=1.4.0', method: 'pkg-config')
+endif
+
 # libdw
 libdw = not_found
 if not get_option('libdw').auto() or \
@@ -2102,6 +2109,7 @@ config_host_data.set('CONFIG_HEXAGON_IDEF_PARSER', get_option('hexagon_idef_pars
 config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_EBPF', libbpf.found())
+config_host_data.set('CONFIG_AF_XDP', libxdp.found())
 config_host_data.set('CONFIG_LIBDAXCTL', libdaxctl.found())
 config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
 config_host_data.set('CONFIG_LIBNFS', libnfs.found())
@@ -4260,6 +4268,7 @@ summary_info = {}
 if targetos == 'darwin'
   summary_info += {'vmnet.framework support': vmnet}
 endif
+summary_info += {'AF_XDP support':    libxdp}
 summary_info += {'slirp support':     slirp}
 summary_info += {'vde support':       vde}
 summary_info += {'netmap support':    have_netmap}
