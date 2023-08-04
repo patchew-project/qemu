@@ -224,12 +224,14 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
 
 /* map an incomplete host page */
 static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
-                      int prot, int flags, int fd, off_t offset)
+                      int prot, int flags, int fd, off_t offset, bool *mapped)
 {
     abi_ulong real_last;
     void *host_start;
     int prot_old, prot_new;
     int host_prot_old, host_prot_new;
+
+    *mapped = false;
 
     if (!(flags & MAP_ANONYMOUS)
         && (flags & MAP_TYPE) == MAP_SHARED
@@ -271,6 +273,7 @@ static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
             return false;
         }
         prot_old = prot;
+        *mapped = true;
     }
     prot_new = prot | prot_old;
 
@@ -448,7 +451,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong align)
 abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
                      int flags, int fd, off_t offset)
 {
-    abi_ulong ret, last, real_start, real_last, retaddr, host_len;
+    abi_ulong ret, last, real_start, retaddr, host_len;
     abi_ulong passthrough_start = -1, passthrough_last = 0;
     int page_flags;
     off_t host_offset;
@@ -577,12 +580,16 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         passthrough_start = start;
         passthrough_last = last;
     } else {
+        abi_ulong middle_start = HOST_PAGE_ALIGN(start);
+        abi_ulong middle_last = ((start + len) & qemu_host_page_mask) - 1;
+        abi_ulong mapped_len = 0;
+        bool mapped;
+
         if (start & ~TARGET_PAGE_MASK) {
             errno = EINVAL;
             goto fail;
         }
         last = start + len - 1;
-        real_last = HOST_PAGE_ALIGN(last) - 1;
 
         /*
          * Test if requested memory area fits target address space
@@ -649,35 +656,26 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         }
 
         /* handle the start of the mapping */
-        if (start > real_start) {
-            if (real_last == real_start + qemu_host_page_size - 1) {
+        if (start < middle_start) {
+            if (last < middle_start) {
                 /* one single host page */
                 if (!mmap_frag(real_start, start, last,
-                               target_prot, flags, fd, offset)) {
+                               target_prot, flags, fd, offset, &mapped)) {
                     goto fail;
                 }
                 goto the_end1;
             }
-            if (!mmap_frag(real_start, start,
-                           real_start + qemu_host_page_size - 1,
-                           target_prot, flags, fd, offset)) {
+            if (!mmap_frag(real_start, start, middle_start - 1,
+                           target_prot, flags, fd, offset, &mapped)) {
                 goto fail;
             }
-            real_start += qemu_host_page_size;
-        }
-        /* handle the end of the mapping */
-        if (last < real_last) {
-            abi_ulong real_page = real_last - qemu_host_page_size + 1;
-            if (!mmap_frag(real_page, real_page, last,
-                           target_prot, flags, fd,
-                           offset + real_page - start)) {
-                goto fail;
+            if (mapped) {
+                mapped_len = qemu_host_page_size;
             }
-            real_last -= qemu_host_page_size;
         }
 
         /* map the middle (easier) */
-        if (real_start < real_last) {
+        if (middle_start < middle_last) {
             void *p, *want_p;
             off_t offset1;
             size_t len1;
@@ -685,10 +683,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             if (flags & MAP_ANONYMOUS) {
                 offset1 = 0;
             } else {
-                offset1 = offset + real_start - start;
+                offset1 = offset + middle_start - start;
             }
-            len1 = real_last - real_start + 1;
-            want_p = g2h_untagged(real_start);
+            len1 = middle_last - middle_start + 1;
+            want_p = g2h_untagged(middle_start);
 
             p = mmap(want_p, len1, target_to_host_prot(target_prot),
                      flags, fd, offset1);
@@ -697,10 +695,27 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
                     munmap(p, len1);
                     errno = EEXIST;
                 }
+                if (mapped_len) {
+                    munmap(g2h_untagged(middle_start - mapped_len), mapped_len);
+                }
                 goto fail;
             }
-            passthrough_start = real_start;
-            passthrough_last = real_last;
+            mapped_len += len1;
+            passthrough_start = middle_start;
+            passthrough_last = middle_last;
+        }
+
+        /* handle the end of the mapping */
+        if (last > middle_last) {
+            abi_ulong real_page = middle_last + 1;
+            if (!mmap_frag(real_page, real_page, last,
+                           target_prot, flags, fd,
+                           offset + real_page - start, &mapped)) {
+                if (mapped_len) {
+                    munmap(g2h_untagged(real_page - mapped_len), mapped_len);
+                }
+                goto fail;
+            }
         }
     }
  the_end1:
