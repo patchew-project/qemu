@@ -20,6 +20,7 @@
 
 extern abi_ulong task_unmapped_base;
 extern abi_ulong mmap_next_start;
+extern abi_ulong elf_et_dyn_base;
 
 int target_mprotect(abi_ulong start, abi_ulong len, int prot);
 abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
