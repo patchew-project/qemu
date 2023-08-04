@@ -2642,31 +2642,41 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
     uintptr_t ptr = get_jmp_target_addr(s, which);
 
     if (USE_REG_TB) {
+        /*
+         * With REG_TB, we must always use indirect branching,
+         * so that the branch destination and TCG_REG_TB match.
+         */
         ptrdiff_t offset = tcg_tbrel_diff(s, (void *)ptr);
         tcg_out_mem_long(s, LD, LDX, TCG_REG_TB, TCG_REG_TB, offset);
-    
-        /* TODO: Use direct branches when possible. */
-        set_jmp_insn_offset(s, which);
         tcg_out32(s, MTSPR | RS(TCG_REG_TB) | CTR);
-
         tcg_out32(s, BCCTR | BO_ALWAYS);
 
         /* For the unlinked case, need to reset TCG_REG_TB.  */
         set_jmp_reset_offset(s, which);
         tcg_out_mem_long(s, ADDI, ADD, TCG_REG_TB, TCG_REG_TB,
                          -tcg_current_code_size(s));
+        return;
+    }
+
+    if (have_isa_3_10) {
+        /* Align, so that we can patch 8 bytes atomically. */
+        if ((uintptr_t)s->code_ptr & 7) {
+            tcg_out32(s, NOP);
+        }
+        set_jmp_insn_offset(s, which);
+        /* Direct branch will be patched by tb_target_set_jmp_target. */
+        tcg_out_mls_d(s, ADDI, TCG_REG_TMP1, 0, 0, 1);
     } else {
         /* Direct branch will be patched by tb_target_set_jmp_target. */
-        set_jmp_insn_offset(s, which);
-        tcg_out32(s, NOP);
-
+        tcg_out32(s, B);
         /* When branch is out of range, fall through to indirect. */
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP1, ptr - (int16_t)ptr);
         tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_REG_TMP1, (int16_t)ptr);
-        tcg_out32(s, MTSPR | RS(TCG_REG_TMP1) | CTR);
-        tcg_out32(s, BCCTR | BO_ALWAYS);
-        set_jmp_reset_offset(s, which);
     }
+
+    tcg_out32(s, MTSPR | RS(TCG_REG_TMP1) | CTR);
+    tcg_out32(s, BCCTR | BO_ALWAYS);
+    set_jmp_reset_offset(s, which);
 }
 
 void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
@@ -2674,20 +2684,50 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
 {
     uintptr_t addr = tb->jmp_target_addr[n];
     intptr_t diff = addr - jmp_rx;
-    tcg_insn_unit insn;
 
     if (USE_REG_TB) {
         return;
     }
 
-    if (in_range_b(diff)) {
-        insn = B | (diff & 0x3fffffc);
-    } else {
-        insn = NOP;
-    }
+    if (have_isa_3_10) {
+        tcg_insn_unit insn1, insn2;
+        uint64_t pair;
 
-    qatomic_set((uint32_t *)jmp_rw, insn);
-    flush_idcache_range(jmp_rx, jmp_rw, 4);
+        if (in_range_b(diff)) {
+            insn1 = B | (diff & 0x3fffffc);
+            insn2 = NOP;
+        } else if (diff == sextract64(diff, 0, 34)) {
+            /* PLA tmp1, diff */
+            insn1 = OPCD(1) | (2 << 24) | (1 << 20) | ((diff >> 16) & 0x3ffff);
+            insn2 = ADDI | TAI(TCG_REG_TMP1, 0, diff);
+        } else {
+            addr = (uintptr_t)&tb->jmp_target_addr[n];
+            diff = addr - jmp_rx;
+            tcg_debug_assert(diff == sextract64(diff, 0, 34));
+            /* PLD tmp1, diff */
+            insn1 = OPCD(1) | (1 << 20) | ((diff >> 16) & 0x3ffff);
+            insn2 = PLD | TAI(TCG_REG_TMP1, 0, diff);
+        }
+
+        if (HOST_BIG_ENDIAN) {
+            pair = ((uint64_t)insn1) << 32 | insn2;
+        } else {
+            pair = ((uint64_t)insn2) << 32 | insn1;
+        }
+
+        qatomic_set((uint64_t *)jmp_rw, pair);
+        flush_idcache_range(jmp_rx, jmp_rw, 8);
+    } else {
+        tcg_insn_unit insn;
+
+        if (in_range_b(diff)) {
+            insn = B | (diff & 0x3fffffc);
+        } else {
+            insn = NOP;
+        }
+        qatomic_set((uint32_t *)jmp_rw, insn);
+        flush_idcache_range(jmp_rx, jmp_rw, 4);
+    }
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
