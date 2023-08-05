@@ -1716,6 +1716,7 @@ static Property virtio_blk_properties[] = {
 #endif
     DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
                     true),
+    DEFINE_PROP_BOOL("auto-num-queues", VirtIOBlock, auto_num_queues, true),
     DEFINE_PROP_UINT16("num-queues", VirtIOBlock, conf.num_queues,
                        VIRTIO_BLK_AUTO_NUM_QUEUES),
     DEFINE_PROP_UINT16("queue-size", VirtIOBlock, conf.queue_size, 256),
