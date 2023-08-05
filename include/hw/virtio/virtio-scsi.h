@@ -72,6 +72,11 @@ struct VirtIOSCSICommon {
     VirtQueue *ctrl_vq;
     VirtQueue *event_vq;
     VirtQueue **cmd_vqs;
+    /*
+     * Set to true if virtqueues allow to be allocated to
+     * match the number of virtual CPUs automatically.
+     */
+    bool auto_num_queues;
 };
 
 struct VirtIOSCSIReq;

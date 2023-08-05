@@ -57,8 +57,15 @@ static void vhost_user_scsi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOSCSIConf *conf = &dev->vdev.parent_obj.parent_obj.conf;
 
     if (conf->num_queues == VIRTIO_SCSI_AUTO_NUM_QUEUES) {
-        conf->num_queues =
-            virtio_pci_optimal_num_queues(VIRTIO_SCSI_VQ_NUM_FIXED);
+        /*
+         * Allocate virtqueues automatically only if auto_num_queues
+         * property set true.
+         */
+        if (dev->vdev.parent_obj.parent_obj.auto_num_queues)
+            conf->num_queues =
+                virtio_pci_optimal_num_queues(VIRTIO_SCSI_VQ_NUM_FIXED);
+        else
+            conf->num_queues = 1;
     }
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
