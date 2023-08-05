@@ -56,7 +56,14 @@ static void vhost_user_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     DeviceState *vdev = DEVICE(&dev->vdev);
 
     if (dev->vdev.num_queues == VHOST_USER_BLK_AUTO_NUM_QUEUES) {
-        dev->vdev.num_queues = virtio_pci_optimal_num_queues(0);
+        /*
+         * Allocate virtqueues automatically only if auto_num_queues
+         * property set true.
+         */
+        if (dev->vdev.auto_num_queues)
+            dev->vdev.num_queues = virtio_pci_optimal_num_queues(0);
+        else
+            dev->vdev.num_queues = 1;
     }
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
