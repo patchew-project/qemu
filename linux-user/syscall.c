@@ -863,8 +863,8 @@ abi_long do_brk(abi_ulong brk_val)
     if (new_host_brk_page > brk_page) {
         new_alloc_size = new_host_brk_page - brk_page;
         mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
-                                        PROT_READ|PROT_WRITE,
-                                        MAP_ANON|MAP_PRIVATE, 0, 0));
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_ANON | MAP_PRIVATE, 0, 0));
     } else {
         new_alloc_size = 0;
         mapped_addr = brk_page;
@@ -6128,8 +6128,8 @@ static abi_long write_ldt(CPUX86State *env,
     if (!ldt_table) {
         env->ldt.base = target_mmap(0,
                                     TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE,
-                                    PROT_READ|PROT_WRITE,
-                                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+                                    PROT_READ | PROT_WRITE,
+                                    MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
         if (env->ldt.base == -1)
             return -TARGET_ENOMEM;
         memset(g2h_untagged(env->ldt.base), 0,
