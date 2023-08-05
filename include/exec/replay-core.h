@@ -52,6 +52,9 @@ void replay_gdb_attached(void);
 
 /* Interrupts and exceptions */
 
+bool replay_switch_cpu(void);
+bool replay_has_switch_cpu(void);
+
 /* Called by exception handler to write or read exception processing events */
 bool replay_exception(void);
 /*

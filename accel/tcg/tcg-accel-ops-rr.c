@@ -27,6 +27,7 @@
 #include "qemu/lockable.h"
 #include "sysemu/tcg.h"
 #include "sysemu/replay.h"
+#include "sysemu/reset.h"
 #include "sysemu/cpu-timers.h"
 #include "qemu/main-loop.h"
 #include "qemu/notify.h"
@@ -61,6 +62,19 @@ void rr_kick_vcpu_thread(CPUState *unused)
 
 static QEMUTimer *rr_kick_vcpu_timer;
 static CPUState *rr_current_cpu;
+static CPUState *rr_next_cpu;
+static CPUState *rr_last_cpu;
+
+static void record_replay_reset(void *param)
+{
+    if (rr_kick_vcpu_timer) {
+        timer_del(rr_kick_vcpu_timer);
+    }
+    rr_current_cpu = NULL;
+    rr_next_cpu = NULL;
+    rr_last_cpu = NULL;
+    current_cpu = NULL;
+}
 
 static inline int64_t rr_next_kick_time(void)
 {
@@ -113,8 +127,6 @@ static void rr_wait_io_event(void)
         rr_stop_kick_timer();
         qemu_cond_wait_iothread(first_cpu->halt_cond);
     }
-
-    rr_start_kick_timer();
 
     CPU_FOREACH(cpu) {
         qemu_wait_io_event_common(cpu);
@@ -182,6 +194,8 @@ static void *rr_cpu_thread_fn(void *arg)
     Notifier force_rcu;
     CPUState *cpu = arg;
 
+    qemu_register_reset(record_replay_reset, NULL);
+
     assert(tcg_enabled());
     rcu_register_thread();
     force_rcu.notify = rr_force_rcu;
@@ -207,8 +221,6 @@ static void *rr_cpu_thread_fn(void *arg)
         }
     }
 
-    rr_start_kick_timer();
-
     cpu = first_cpu;
 
     /* process any pending work */
@@ -222,9 +234,19 @@ static void *rr_cpu_thread_fn(void *arg)
         replay_mutex_lock();
         qemu_mutex_lock_iothread();
 
-        if (icount_enabled()) {
-            int cpu_count = rr_cpu_count();
+        rr_start_kick_timer();
 
+        if (!rr_next_cpu) {
+            qatomic_set_mb(&rr_next_cpu, first_cpu);
+        }
+        cpu = rr_next_cpu;
+
+        if (cpu != rr_last_cpu) {
+            replay_switch_cpu();
+            qatomic_set_mb(&rr_last_cpu, cpu);
+        }
+
+        if (icount_enabled()) {
             /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
             icount_account_warp_timer();
             /*
@@ -233,14 +255,10 @@ static void *rr_cpu_thread_fn(void *arg)
              */
             icount_handle_deadline();
 
-            cpu_budget = icount_percpu_budget(cpu_count);
+            cpu_budget = icount_percpu_budget(rr_cpu_count());
         }
 
         replay_mutex_unlock();
-
-        if (!cpu) {
-            cpu = first_cpu;
-        }
 
         while (cpu && cpu_work_list_empty(cpu) && !cpu->exit_request) {
             /* Store rr_current_cpu before evaluating cpu_can_run().  */
@@ -280,7 +298,21 @@ static void *rr_cpu_thread_fn(void *arg)
                 break;
             }
 
-            cpu = CPU_NEXT(cpu);
+            if (replay_mode == REPLAY_MODE_NONE) {
+                cpu = CPU_NEXT(cpu);
+	    } else if (replay_mode == REPLAY_MODE_RECORD) {
+                cpu = CPU_NEXT(cpu);
+                break;
+            } else if (replay_mode == REPLAY_MODE_PLAY) {
+                qemu_mutex_unlock_iothread();
+                replay_mutex_lock();
+                qemu_mutex_lock_iothread();
+                if (replay_has_switch_cpu()) {
+                    cpu = CPU_NEXT(cpu);
+                }
+                replay_mutex_unlock();
+                break;
+            }
         } /* while (cpu && !cpu->exit_request).. */
 
         /* Does not need a memory barrier because a spurious wakeup is okay.  */
@@ -289,6 +321,8 @@ static void *rr_cpu_thread_fn(void *arg)
         if (cpu && cpu->exit_request) {
             qatomic_set_mb(&cpu->exit_request, 0);
         }
+
+        qatomic_set(&rr_next_cpu, cpu);
 
         if (icount_enabled() && all_cpu_threads_idle()) {
             /*

@@ -98,9 +98,41 @@ void replay_account_executed_instructions(void)
     }
 }
 
+bool replay_switch_cpu(void)
+{
+    if (replay_mode == REPLAY_MODE_RECORD) {
+        g_assert(replay_mutex_locked());
+        replay_save_instructions();
+        replay_put_event(EVENT_SWITCH_CPU);
+        return true;
+    } else if (replay_mode == REPLAY_MODE_PLAY) {
+        bool res = replay_has_switch_cpu();
+        if (res) {
+            replay_finish_event();
+        } else {
+            assert(0);
+        }
+        return res;
+    }
+
+    return true;
+}
+
+bool replay_has_switch_cpu(void)
+{
+    bool res = false;
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        g_assert(replay_mutex_locked());
+        replay_account_executed_instructions();
+        res = replay_next_event_is(EVENT_SWITCH_CPU);
+    }
+
+    return res;
+}
+
+
 bool replay_exception(void)
 {
-
     if (replay_mode == REPLAY_MODE_RECORD) {
         g_assert(replay_mutex_locked());
         replay_save_instructions();

@@ -93,10 +93,15 @@ void icount_handle_deadline(void)
 int64_t icount_percpu_budget(int cpu_count)
 {
     int64_t limit = icount_get_limit();
-    int64_t timeslice = limit / cpu_count;
+    int64_t timeslice;
 
-    if (timeslice == 0) {
+    if (replay_mode == REPLAY_MODE_PLAY) {
         timeslice = limit;
+    } else {
+        timeslice = limit / cpu_count;
+        if (timeslice == 0) {
+            timeslice = limit;
+        }
     }
 
     return timeslice;

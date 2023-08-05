@@ -1870,7 +1870,7 @@ static void qemu_apply_machine_options(QDict *qdict)
         semihosting_arg_fallback(current_machine->kernel_filename, current_machine->kernel_cmdline);
     }
 
-    if (current_machine->smp.cpus > 1) {
+    if (0 && current_machine->smp.cpus > 1) {
         replay_add_blocker("smp");
     }
 }

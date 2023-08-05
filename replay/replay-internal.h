@@ -58,6 +58,7 @@ enum ReplayEvents {
     /* some of greater codes are reserved for checkpoints */
     EVENT_CHECKPOINT,
     EVENT_CHECKPOINT_LAST = EVENT_CHECKPOINT + CHECKPOINT_COUNT - 1,
+    EVENT_SWITCH_CPU,
     /* end of log event */
     EVENT_END,
     EVENT_COUNT
