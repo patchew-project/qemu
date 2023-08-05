@@ -50,6 +50,11 @@ struct VHostUserBlk {
     bool connected;
     /* vhost_user_blk_start/vhost_user_blk_stop */
     bool started_vu;
+    /*
+     * Set to true if virtqueues allow to be allocated to
+     * match the number of virtual CPUs automatically.
+     */
+    bool auto_num_queues;
 };
 
 #endif
