@@ -1279,6 +1279,8 @@ static void virtio_scsi_device_unrealize(DeviceState *dev)
 }
 
 static Property virtio_scsi_properties[] = {
+    DEFINE_PROP_BOOL("auto_num_queues", VirtIOSCSI, parent_obj.auto_num_queues,
+                     true),
     DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues,
                        VIRTIO_SCSI_AUTO_NUM_QUEUES),
     DEFINE_PROP_UINT32("virtqueue_size", VirtIOSCSI,
