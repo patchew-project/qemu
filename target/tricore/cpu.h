@@ -366,7 +366,7 @@ int tricore_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n);
 
 void fpu_set_state(CPUTriCoreState *env);
 
-#define MMU_USER_IDX 2
+#define MMU_USER_IDX MMU_INDEX(2)
 
 void tricore_cpu_list(void);
 
@@ -374,7 +374,7 @@ void tricore_cpu_list(void);
 
 static inline int cpu_mmu_index(CPUTriCoreState *env, bool ifetch)
 {
-    return 0;
+    return MMU_INDEX(0);
 }
 
 #include "exec/cpu-all.h"
