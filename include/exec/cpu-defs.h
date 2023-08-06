@@ -60,6 +60,11 @@
  */
 #define NB_MMU_MODES 16
 
+/*
+ * MMU_INDEX() helper to specify MMU index.
+ */
+#define MMU_INDEX(n)    (n)
+
 #if defined(CONFIG_SOFTMMU) && defined(CONFIG_TCG)
 #include "exec/tlb-common.h"
 
