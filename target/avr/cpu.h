@@ -40,8 +40,8 @@
  * ST/LD instructions access data space
  * LPM/SPM and instruction fetching access code memory space
  */
-#define MMU_CODE_IDX 0
-#define MMU_DATA_IDX 1
+#define MMU_CODE_IDX MMU_INDEX(0)
+#define MMU_DATA_IDX MMU_INDEX(1)
 
 #define EXCP_RESET 1
 #define EXCP_INT(n) (EXCP_RESET + (n) + 1)
