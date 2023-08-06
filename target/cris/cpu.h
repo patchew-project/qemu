@@ -248,10 +248,10 @@ enum {
 #define CPU_RESOLVING_TYPE TYPE_CRIS_CPU
 
 /* MMU modes definitions */
-#define MMU_USER_IDX 1
+#define MMU_USER_IDX MMU_INDEX(1)
 static inline int cpu_mmu_index (CPUCRISState *env, bool ifetch)
 {
-	return !!(env->pregs[PR_CCS] & U_FLAG);
+	return MMU_INDEX(!!(env->pregs[PR_CCS] & U_FLAG));
 }
 
 /* Support function regs.  */
