@@ -571,11 +571,11 @@ enum {
 #define cpu_list m68k_cpu_list
 
 /* MMU modes definitions */
-#define MMU_KERNEL_IDX 0
-#define MMU_USER_IDX 1
+#define MMU_KERNEL_IDX  MMU_INDEX(0)
+#define MMU_USER_IDX    MMU_INDEX(1)
 static inline int cpu_mmu_index (CPUM68KState *env, bool ifetch)
 {
-    return (env->sr & SR_S) == 0 ? 1 : 0;
+    return (env->sr & SR_S) == 0 ? MMU_USER_IDX : MMU_KERNEL_IDX;
 }
 
 bool m68k_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
