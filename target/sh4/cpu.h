@@ -260,15 +260,16 @@ void cpu_load_tlb(CPUSH4State * env);
 #define cpu_list sh4_cpu_list
 
 /* MMU modes definitions */
-#define MMU_USER_IDX 1
+#define MMU_KERNEL_IDX  MMU_INDEX(0)
+#define MMU_USER_IDX    MMU_INDEX(1)
 static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
 {
     /* The instruction in a RTE delay slot is fetched in privileged
        mode, but executed in user mode.  */
     if (ifetch && (env->flags & TB_FLAG_DELAY_SLOT_RTE)) {
-        return 0;
+        return MMU_KERNEL_IDX;
     } else {
-        return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
+        return (env->sr & (1u << SR_MD)) == 0 ? MMU_USER_IDX : MMU_KERNEL_IDX;
     }
 }
 
