@@ -62,8 +62,13 @@
 
 /*
  * MMU_INDEX() helper to specify MMU index.
+ *
+ * Inverse the number here to count downwards from NB_MMU_MODES-1 to 0.  Since
+ * the MMU is placed within CPUNegativeOffsetState, this makes the negative
+ * offsets smaller for which the tcg backend will generate shorter instruction
+ * sequencies to access the MMU.
  */
-#define MMU_INDEX(n)    (n)
+#define MMU_INDEX(n)    (NB_MMU_MODES - 1 - (n))
 
 #if defined(CONFIG_SOFTMMU) && defined(CONFIG_TCG)
 #include "exec/tlb-common.h"
