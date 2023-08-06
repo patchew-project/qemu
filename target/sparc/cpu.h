@@ -659,16 +659,16 @@ hwaddr cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
 
 /* MMU modes definitions */
 #if defined (TARGET_SPARC64)
-#define MMU_USER_IDX   0
-#define MMU_USER_SECONDARY_IDX   1
-#define MMU_KERNEL_IDX 2
-#define MMU_KERNEL_SECONDARY_IDX 3
-#define MMU_NUCLEUS_IDX 4
-#define MMU_PHYS_IDX   5
+#define MMU_USER_IDX            MMU_INDEX(0)
+#define MMU_USER_SECONDARY_IDX  MMU_INDEX(1)
+#define MMU_KERNEL_IDX          MMU_INDEX(2)
+#define MMU_KERNEL_SECONDARY_IDX MMU_INDEX(3)
+#define MMU_NUCLEUS_IDX         MMU_INDEX(4)
+#define MMU_PHYS_IDX            MMU_INDEX(5)
 #else
-#define MMU_USER_IDX   0
-#define MMU_KERNEL_IDX 1
-#define MMU_PHYS_IDX   2
+#define MMU_USER_IDX            MMU_INDEX(0)
+#define MMU_KERNEL_IDX          MMU_INDEX(1)
+#define MMU_PHYS_IDX            MMU_INDEX(2)
 #endif
 
 #if defined (TARGET_SPARC64)
@@ -701,7 +701,7 @@ static inline int cpu_mmu_index(CPUSPARCState *env, bool ifetch)
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
         return MMU_PHYS_IDX;
     } else {
-        return env->psrs;
+        return MMU_INDEX(env->psrs);
     }
 #else
     /* IMMU or DMMU disabled.  */
