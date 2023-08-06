@@ -394,9 +394,9 @@ void mb_tcg_init(void);
 #define CPU_RESOLVING_TYPE TYPE_MICROBLAZE_CPU
 
 /* MMU modes definitions */
-#define MMU_NOMMU_IDX   0
-#define MMU_KERNEL_IDX  1
-#define MMU_USER_IDX    2
+#define MMU_NOMMU_IDX   MMU_INDEX(0)
+#define MMU_KERNEL_IDX  MMU_INDEX(1)
+#define MMU_USER_IDX    MMU_INDEX(2)
 /* See NB_MMU_MODES in cpu-defs.h. */
 
 #include "exec/cpu-all.h"
