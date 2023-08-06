@@ -194,9 +194,9 @@ enum {
    PALcode cheats and uses the KSEG mapping for its code+data rather than
    physical addresses.  */
 
-#define MMU_KERNEL_IDX   0
-#define MMU_USER_IDX     1
-#define MMU_PHYS_IDX     2
+#define MMU_KERNEL_IDX   MMU_INDEX(0)
+#define MMU_USER_IDX     MMU_INDEX(1)
+#define MMU_PHYS_IDX     MMU_INDEX(2)
 
 typedef struct CPUArchState {
     uint64_t ir[31];
