@@ -1231,14 +1231,14 @@ extern uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env);
  * MMU modes definitions. We carefully match the indices with our
  * hflags layout.
  */
-#define MMU_USER_IDX 2
+#define MMU_USER_IDX MMU_INDEX(2)
 
 static inline int hflags_mmu_index(uint32_t hflags)
 {
     if (hflags & MIPS_HFLAG_ERL) {
-        return 3; /* ERL */
+        return MMU_INDEX(3); /* ERL */
     } else {
-        return hflags & MIPS_HFLAG_KSU;
+        return MMU_INDEX(hflags & MIPS_HFLAG_KSU);
     }
 }
 
