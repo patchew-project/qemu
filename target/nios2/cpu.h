@@ -277,8 +277,8 @@ void do_nios2_semihosting(CPUNios2State *env);
 #define CPU_SAVE_VERSION 1
 
 /* MMU modes definitions */
-#define MMU_SUPERVISOR_IDX  0
-#define MMU_USER_IDX        1
+#define MMU_SUPERVISOR_IDX  MMU_INDEX(0)
+#define MMU_USER_IDX        MMU_INDEX(1)
 
 static inline int cpu_mmu_index(CPUNios2State *env, bool ifetch)
 {
