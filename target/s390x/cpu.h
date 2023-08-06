@@ -38,7 +38,7 @@
 
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
-#define MMU_USER_IDX 0
+#define MMU_USER_IDX MMU_INDEX(0)
 
 #define S390_MAX_CPUS 248
 
@@ -342,10 +342,10 @@ extern const VMStateDescription vmstate_s390_cpu;
 #define CR14_CHANNEL_REPORT_SC  0x0000000010000000ULL
 
 /* MMU */
-#define MMU_PRIMARY_IDX         0
-#define MMU_SECONDARY_IDX       1
-#define MMU_HOME_IDX            2
-#define MMU_REAL_IDX            3
+#define MMU_PRIMARY_IDX         MMU_INDEX(0)
+#define MMU_SECONDARY_IDX       MMU_INDEX(1)
+#define MMU_HOME_IDX            MMU_INDEX(2)
+#define MMU_REAL_IDX            MMU_INDEX(3)
 
 static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
 {
