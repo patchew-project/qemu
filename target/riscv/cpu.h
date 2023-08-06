@@ -88,7 +88,7 @@ typedef enum {
     EXT_STATUS_DIRTY,
 } RISCVExtStatus;
 
-#define MMU_USER_IDX 3
+#define MMU_USER_IDX MMU_INDEX(3)
 
 #define MAX_RISCV_PMPS (16)
 
@@ -446,7 +446,7 @@ void riscv_cpu_list(void);
 void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp);
 
 #define cpu_list riscv_cpu_list
-#define cpu_mmu_index riscv_cpu_mmu_index
+#define cpu_mmu_index(e,i)      MMU_INDEX(riscv_cpu_mmu_index(e,i))
 
 #ifndef CONFIG_USER_ONLY
 void riscv_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
