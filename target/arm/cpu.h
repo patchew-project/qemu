@@ -2930,7 +2930,7 @@ typedef enum ARMMMUIdxBit {
 
 #undef TO_CORE_BIT
 
-#define MMU_USER_IDX 0
+#define MMU_USER_IDX MMU_INDEX(0)
 
 /* Indexes used when registering address spaces with cpu_address_space_init */
 typedef enum ARMASIdx {
@@ -3166,7 +3166,7 @@ FIELD(TBFLAG_A64, NAA, 30, 1)
  */
 static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
 {
-    return EX_TBFLAG_ANY(env->hflags, MMUIDX);
+    return MMU_INDEX(EX_TBFLAG_ANY(env->hflags, MMUIDX));
 }
 
 /**
