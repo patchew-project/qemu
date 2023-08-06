@@ -51,7 +51,7 @@
 void hexagon_cpu_list(void);
 #define cpu_list hexagon_cpu_list
 
-#define MMU_USER_IDX 0
+#define MMU_USER_IDX MMU_INDEX(0)
 
 typedef struct {
     target_ulong va;
