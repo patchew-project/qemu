@@ -404,9 +404,9 @@ struct LoongArchCPUClass {
  */
 #define MMU_PLV_KERNEL   0
 #define MMU_PLV_USER     3
-#define MMU_IDX_KERNEL   MMU_PLV_KERNEL
-#define MMU_IDX_USER     MMU_PLV_USER
-#define MMU_IDX_DA       4
+#define MMU_IDX_KERNEL   MMU_INDEX(MMU_PLV_KERNEL)
+#define MMU_IDX_USER     MMU_INDEX(MMU_PLV_USER)
+#define MMU_IDX_DA       MMU_INDEX(4)
 
 static inline int cpu_mmu_index(CPULoongArchState *env, bool ifetch)
 {
@@ -414,7 +414,7 @@ static inline int cpu_mmu_index(CPULoongArchState *env, bool ifetch)
     return MMU_IDX_USER;
 #else
     if (FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG)) {
-        return FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
+        return MMU_INDEX(FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV));
     }
     return MMU_IDX_DA;
 #endif
