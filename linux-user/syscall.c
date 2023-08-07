@@ -8037,7 +8037,7 @@ static int open_self_cmdline(CPUArchState *cpu_env, int fd)
     return 0;
 }
 
-static void show_smaps(int fd, unsigned long size)
+static void show_smaps(int fd, unsigned long size, int flags)
 {
     unsigned long page_size_kb = TARGET_PAGE_SIZE >> 10;
     unsigned long size_kb = size >> 10;
@@ -8053,7 +8053,7 @@ static void show_smaps(int fd, unsigned long size)
                 "Private_Clean:         0 kB\n"
                 "Private_Dirty:         0 kB\n"
                 "Referenced:            0 kB\n"
-                "Anonymous:             0 kB\n"
+                "Anonymous:             %lu kB\n"
                 "LazyFree:              0 kB\n"
                 "AnonHugePages:         0 kB\n"
                 "ShmemPmdMapped:        0 kB\n"
@@ -8063,7 +8063,9 @@ static void show_smaps(int fd, unsigned long size)
                 "Swap:                  0 kB\n"
                 "SwapPss:               0 kB\n"
                 "Locked:                0 kB\n"
-                "THPeligible:    0\n", size_kb, page_size_kb, page_size_kb);
+                "THPeligible:    0\n",
+            size_kb, page_size_kb, page_size_kb,
+            (flags & PAGE_ANON) ? size_kb : 0);
 }
 
 static int open_self_maps_1(CPUArchState *cpu_env, int fd, bool smaps)
@@ -8114,7 +8116,7 @@ static int open_self_maps_1(CPUArchState *cpu_env, int fd, bool smaps)
                 dprintf(fd, "\n");
             }
             if (smaps) {
-                show_smaps(fd, max - min);
+                show_smaps(fd, max - min, flags);
                 dprintf(fd, "VmFlags:%s%s%s%s%s%s%s%s\n",
                         (flags & PAGE_READ) ? " rd" : "",
                         (flags & PAGE_WRITE_ORG) ? " wr" : "",
@@ -8140,7 +8142,7 @@ static int open_self_maps_1(CPUArchState *cpu_env, int fd, bool smaps)
                     TARGET_VSYSCALL_PAGE, TARGET_VSYSCALL_PAGE + TARGET_PAGE_SIZE);
     dprintf(fd, "%*s%s\n", 73 - count, "",  "[vsyscall]");
     if (smaps) {
-        show_smaps(fd, TARGET_PAGE_SIZE);
+        show_smaps(fd, TARGET_PAGE_SIZE, PAGE_EXEC);
         dprintf(fd, "VmFlags: ex\n");
     }
 #endif
