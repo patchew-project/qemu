@@ -1071,7 +1071,8 @@ static void virtqueue_split_get_avail_bytes(VirtQueue *vq,
     VirtIODevice *vdev = vq->vdev;
     unsigned int idx;
     unsigned int total_bufs, in_total, out_total;
-    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
+    MemoryRegionCache indirect_desc_cache;
+    MemoryRegionCache *desc_cache = NULL;
     int64_t len = 0;
     int rc;
 
@@ -1079,7 +1080,6 @@ static void virtqueue_split_get_avail_bytes(VirtQueue *vq,
     total_bufs = in_total = out_total = 0;
 
     while ((rc = virtqueue_num_heads(vq, idx)) > 0) {
-        MemoryRegionCache *desc_cache = &caches->desc;
         unsigned int num_bufs;
         VRingDesc desc;
         unsigned int i;
@@ -1090,6 +1090,8 @@ static void virtqueue_split_get_avail_bytes(VirtQueue *vq,
         if (!virtqueue_get_head(vq, idx++, &i)) {
             goto err;
         }
+
+        desc_cache = &caches->desc;
 
         vring_split_desc_read(vdev, &desc, desc_cache, i);
 
@@ -1156,7 +1158,9 @@ static void virtqueue_split_get_avail_bytes(VirtQueue *vq,
     }
 
 done:
-    address_space_cache_destroy(&indirect_desc_cache);
+    if (desc_cache == &indirect_desc_cache) {
+        address_space_cache_destroy(&indirect_desc_cache);
+    }
     if (in_bytes) {
         *in_bytes = in_total;
     }
@@ -1207,8 +1211,8 @@ static void virtqueue_packed_get_avail_bytes(VirtQueue *vq,
     VirtIODevice *vdev = vq->vdev;
     unsigned int idx;
     unsigned int total_bufs, in_total, out_total;
-    MemoryRegionCache *desc_cache;
-    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
+    MemoryRegionCache indirect_desc_cache;
+    MemoryRegionCache *desc_cache = NULL;
     int64_t len = 0;
     VRingPackedDesc desc;
     bool wrap_counter;
@@ -1297,7 +1301,9 @@ static void virtqueue_packed_get_avail_bytes(VirtQueue *vq,
     vq->shadow_avail_idx = idx;
     vq->shadow_avail_wrap_counter = wrap_counter;
 done:
-    address_space_cache_destroy(&indirect_desc_cache);
+    if (desc_cache == &indirect_desc_cache) {
+        address_space_cache_destroy(&indirect_desc_cache);
+    }
     if (in_bytes) {
         *in_bytes = in_total;
     }
@@ -1487,8 +1493,8 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
 {
     unsigned int i, head, max;
     VRingMemoryRegionCaches *caches;
-    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
-    MemoryRegionCache *desc_cache;
+    MemoryRegionCache indirect_desc_cache;
+    MemoryRegionCache *desc_cache = NULL;
     int64_t len;
     VirtIODevice *vdev = vq->vdev;
     VirtQueueElement *elem = NULL;
@@ -1611,7 +1617,9 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
 
     trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
 done:
-    address_space_cache_destroy(&indirect_desc_cache);
+    if (desc_cache == &indirect_desc_cache) {
+        address_space_cache_destroy(&indirect_desc_cache);
+    }
 
     return elem;
 
@@ -1624,8 +1632,8 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
 {
     unsigned int i, max;
     VRingMemoryRegionCaches *caches;
-    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
-    MemoryRegionCache *desc_cache;
+    MemoryRegionCache indirect_desc_cache;
+    MemoryRegionCache *desc_cache = NULL;
     int64_t len;
     VirtIODevice *vdev = vq->vdev;
     VirtQueueElement *elem = NULL;
@@ -1746,7 +1754,9 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
 
     trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
 done:
-    address_space_cache_destroy(&indirect_desc_cache);
+    if (desc_cache == &indirect_desc_cache) {
+        address_space_cache_destroy(&indirect_desc_cache);
+    }
 
     return elem;
 
@@ -3935,8 +3945,8 @@ VirtioQueueElement *qmp_x_query_virtio_queue_element(const char *path,
     } else {
         unsigned int head, i, max;
         VRingMemoryRegionCaches *caches;
-        MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
-        MemoryRegionCache *desc_cache;
+        MemoryRegionCache indirect_desc_cache;
+        MemoryRegionCache *desc_cache = NULL;
         VRingDesc desc;
         VirtioRingDescList *list = NULL;
         VirtioRingDescList *node;
@@ -4011,7 +4021,9 @@ VirtioQueueElement *qmp_x_query_virtio_queue_element(const char *path,
         } while (rc == VIRTQUEUE_READ_DESC_MORE);
         element->descs = list;
 done:
-        address_space_cache_destroy(&indirect_desc_cache);
+        if (desc_cache == &indirect_desc_cache) {
+            address_space_cache_destroy(&indirect_desc_cache);
+        }
     }
 
     return element;
