@@ -272,9 +272,16 @@ struct LoongArchTLB {
 };
 typedef struct LoongArchTLB LoongArchTLB;
 
+/* Current LoongArch mode */
+typedef enum LoongArchMode {
+    LA32 = 0,
+    LA64 = 1,
+} LoongArchMode;
+
 typedef struct CPUArchState {
     uint64_t gpr[32];
     uint64_t pc;
+    LoongArchMode mode;
 
     fpr_t fpr[32];
     float_status fp_status;
