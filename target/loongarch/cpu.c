@@ -710,7 +710,13 @@ static const struct SysemuCPUOps loongarch_sysemu_ops = {
 
 static gchar *loongarch_gdb_arch_name(CPUState *cs)
 {
-    return g_strdup("loongarch64");
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    CPULoongArchState *env = &cpu->env;
+    if (env->mode == LA64) {
+        return g_strdup("loongarch64");
+    } else {
+        return g_strdup("loongarch32");
+    }
 }
 
 static void loongarch_cpu_class_init(ObjectClass *c, void *data)
@@ -750,6 +756,8 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
 
 static void loongarch32_cpu_class_init(ObjectClass *c, void *data)
 {
+    CPUClass *cc = CPU_CLASS(c);
+    cc->gdb_core_xml_file = "loongarch-base32.xml";
 }
 
 #define DEFINE_LOONGARCH_CPU_TYPE(model, initfn) \
