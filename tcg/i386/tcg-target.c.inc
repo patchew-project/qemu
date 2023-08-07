@@ -1342,6 +1342,13 @@ static void tgen_arithi(TCGContext *s, int c, int r0,
                 /* AND with no high bits set can use a 32-bit operation.  */
                 rexw = 0;
             }
+            if ((val & 0xffffffffffff0000) == 0xffffffffffff0000) {
+                /* mask lower 16 bits on 16-bit register */
+                tcg_out8(s, 0x66);
+                tcg_out_modrm(s, OPC_ARITH_EvIz, c, r0);
+                tcg_out16(s, val);
+                return;
+            }
         }
         if (val == 0xffu && (r0 < 4 || TCG_TARGET_REG_BITS == 64)) {
             tcg_out_ext8u(s, r0, r0);
