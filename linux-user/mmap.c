@@ -301,6 +301,7 @@ static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
 
 abi_ulong task_unmapped_base;
 abi_ulong mmap_next_start;
+abi_ulong elf_et_dyn_base;
 
 /*
  * Subroutine of mmap_find_vma, used when we have pre-allocated
