@@ -362,6 +362,8 @@ static void loongarch_la464_initfn(Object *obj)
     CPULoongArchState *env = &cpu->env;
     int i;
 
+    env->mode = LA64;
+
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }
@@ -437,6 +439,20 @@ static void loongarch_la464_initfn(Object *obj)
     env->cpucfg[20] = data;
 
     env->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
+}
+
+static void loongarch_la132_initfn(Object *obj)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    CPULoongArchState *env = &cpu->env;
+
+    env->mode = LA32;
+
+    cpu->dtb_compatible = "loongarch,Loongson-3C103";
+
+    uint32_t data = 0;
+    data = FIELD_DP32(data, CPUCFG1, ARCH, 1); /* LA32 */
+    env->cpucfg[1] = data;
 }
 
 static void loongarch_cpu_list_entry(gpointer data, gpointer user_data)
@@ -732,6 +748,10 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
 #endif
 }
 
+static void loongarch32_cpu_class_init(ObjectClass *c, void *data)
+{
+}
+
 #define DEFINE_LOONGARCH_CPU_TYPE(model, initfn) \
     { \
         .parent = TYPE_LOONGARCH_CPU, \
@@ -754,3 +774,24 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
 };
 
 DEFINE_TYPES(loongarch_cpu_type_infos)
+
+#define DEFINE_LOONGARCH32_CPU_TYPE(model, initfn) \
+    { \
+        .parent = TYPE_LOONGARCH32_CPU, \
+        .instance_init = initfn, \
+        .name = LOONGARCH_CPU_TYPE_NAME(model), \
+    }
+
+static const TypeInfo loongarch32_cpu_type_infos[] = {
+    {
+        .name = TYPE_LOONGARCH32_CPU,
+        .parent = TYPE_LOONGARCH_CPU,
+        .instance_size = sizeof(LoongArchCPU),
+
+        .abstract = true,
+        .class_size = sizeof(LoongArchCPUClass),
+        .class_init = loongarch32_cpu_class_init,
+    },
+    DEFINE_LOONGARCH32_CPU_TYPE("la132", loongarch_la132_initfn),
+};
+DEFINE_TYPES(loongarch32_cpu_type_infos)
