@@ -157,7 +157,8 @@ static uint16_t nvme_dif_prchk_crc16(NvmeNamespace *ns, NvmeDifTuple *dif,
 {
     switch (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
     case NVME_ID_NS_DPS_TYPE_3:
-        if (be32_to_cpu(dif->g16.reftag) != 0xffffffff) {
+        if ((be32_to_cpu(dif->g16.reftag) != 0xffffffff) ||
+            (be16_to_cpu(dif->g16.apptag) != 0xffff)) {
             break;
         }
 
@@ -225,7 +226,7 @@ static uint16_t nvme_dif_prchk_crc64(NvmeNamespace *ns, NvmeDifTuple *dif,
 
     switch (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
     case NVME_ID_NS_DPS_TYPE_3:
-        if (r != 0xffffffffffff) {
+        if (r != 0xffffffffffff || (be16_to_cpu(dif->g64.apptag) != 0xffff)) {
             break;
         }
 
