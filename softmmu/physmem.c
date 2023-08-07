@@ -1289,8 +1289,7 @@ static int64_t get_file_align(int fd)
 static int file_ram_open(const char *path,
                          const char *region_name,
                          bool readonly,
-                         bool *created,
-                         Error **errp)
+                         bool *created)
 {
     char *filename;
     char *sanitized_name;
@@ -1334,10 +1333,7 @@ static int file_ram_open(const char *path,
             g_free(filename);
         }
         if (errno != EEXIST && errno != EINTR) {
-            error_setg_errno(errp, errno,
-                             "can't open backing store %s for guest RAM",
-                             path);
-            return -1;
+            return -errno;
         }
         /*
          * Try again on EINTR and EEXIST.  The latter happens when
@@ -1946,9 +1942,23 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     bool created;
     RAMBlock *block;
 
-    fd = file_ram_open(mem_path, memory_region_name(mr), readonly, &created,
-                       errp);
+    fd = file_ram_open(mem_path, memory_region_name(mr), readonly, &created);
+    if (fd == -EACCES && !(ram_flags & RAM_SHARED) && !readonly) {
+        /*
+         * We can have a writable MAP_PRIVATE mapping of a readonly file.
+         * However, some operations like ftruncate() or fallocate() might fail
+         * later, let's warn the user.
+         */
+        fd = file_ram_open(mem_path, memory_region_name(mr), true, &created);
+        if (fd >= 0) {
+            warn_report("backing store %s for guest RAM (MAP_PRIVATE) opened"
+                        " readonly because the file is not writable", mem_path);
+        }
+    }
     if (fd < 0) {
+        error_setg_errno(errp, -fd,
+                         "can't open backing store %s for guest RAM",
+                         mem_path);
         return NULL;
     }
 
