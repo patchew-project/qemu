@@ -60,6 +60,11 @@
 #include "semihosting/semihost.h"
 #endif
 
+#if defined(CONFIG_NATIVE_CALL)
+#include "native/native.h"
+char *native_lib_path;
+#endif
+
 #ifndef AT_FLAGS_PRESERVE_ARGV0
 #define AT_FLAGS_PRESERVE_ARGV0_BIT 0
 #define AT_FLAGS_PRESERVE_ARGV0 (1 << AT_FLAGS_PRESERVE_ARGV0_BIT)
@@ -293,6 +298,17 @@ static void handle_arg_set_env(const char *arg)
     free(r);
 }
 
+#if defined(CONFIG_NATIVE_CALL)
+static void handle_arg_native_bypass(const char *arg)
+{
+    if (access(arg, F_OK) != 0) {
+        fprintf(stderr, "native library %s does not exist\n", arg);
+        exit(EXIT_FAILURE);
+    }
+    native_lib_path = strdup(arg);
+}
+#endif
+
 static void handle_arg_unset_env(const char *arg)
 {
     char *r, *p, *token;
@@ -522,6 +538,10 @@ static const struct qemu_argument arg_table[] = {
      "",           "Generate a /tmp/perf-${pid}.map file for perf"},
     {"jitdump",    "QEMU_JITDUMP",     false, handle_arg_jitdump,
      "",           "Generate a jit-${pid}.dump file for perf"},
+#if defined(CONFIG_NATIVE_CALL)
+    {"native-bypass", "QEMU_NATIVE_BYPASS", true, handle_arg_native_bypass,
+     "",           "native bypass for library calls in user mode only."},
+#endif
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
@@ -834,6 +854,24 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+#if defined(CONFIG_NATIVE_CALL)
+    /* Set the library for native bypass  */
+    if (native_lib_path) {
+        if (g_file_test(native_lib_path, G_FILE_TEST_EXISTS)) {
+            GString *lib = g_string_new(native_lib_path);
+            lib = g_string_prepend(lib, "LD_PRELOAD=");
+            if (envlist_appendenv(envlist, g_string_free(lib, false), ":")) {
+                fprintf(stderr,
+                    "failed to append the native library to environment.\n");
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            fprintf(stderr, "native library %s does not exist.\n",
+                    native_lib_path);
+            exit(EXIT_FAILURE);
+        }
+    }
+#endif
     target_environ = envlist_to_environ(envlist, NULL);
     envlist_free(envlist);
 
