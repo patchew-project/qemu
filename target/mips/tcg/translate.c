@@ -36,6 +36,7 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+#include "native/native.h"
 
 /*
  * Many sysemu-only helpers are not reachable for user-only.
@@ -13487,7 +13488,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
 static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd, sa;
-    uint32_t op1;
+    uint32_t op1, sig;
 
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
@@ -13583,6 +13584,24 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 #endif
         break;
     case OPC_SYSCALL:
+        sig = (ctx->opcode) >> 6;
+        if ((sig == 0xffff) && native_bypass_enabled()) {
+            TCGv arg1 = tcg_temp_new();
+            TCGv arg2 = tcg_temp_new();
+            TCGv arg3 = tcg_temp_new();
+            TCGv ret = tcg_temp_new();
+            const char *fun_name = lookup_symbol((ctx->base.pc_next) & 0xfff);
+            tcg_gen_mov_tl(arg1, cpu_gpr[4]);
+            tcg_gen_mov_tl(arg2, cpu_gpr[5]);
+            tcg_gen_mov_tl(arg3, cpu_gpr[6]);
+#if defined(TARGET_MIPS64)
+            gen_native_call_i64(fun_name, ret, arg1, arg2, arg3);
+#else
+            gen_native_call_i32(fun_name, ret, arg1, arg2, arg3);
+#endif
+            tcg_gen_mov_tl(cpu_gpr[2], ret);
+            break;
+        }
         generate_exception_end(ctx, EXCP_SYSCALL);
         break;
     case OPC_BREAK:
