@@ -7175,6 +7175,9 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
             mark_unavailable_features(cpu, FEAT_7_0_EBX, CPUID_7_0_EBX_INTEL_PT, prefix);
         }
     }
+
+    /* Update XSAVE components again based on the filtered CPU feature flags */
+    x86_cpu_enable_xsave_components(cpu);
 }
 
 static void x86_cpu_hyperv_realize(X86CPU *cpu)
