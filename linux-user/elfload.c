@@ -22,6 +22,9 @@
 #include "qemu/error-report.h"
 #include "target_signal.h"
 #include "accel/tcg/debuginfo.h"
+#if defined(CONFIG_NATIVE_CALL)
+#include "native/native.h"
+#endif
 
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
@@ -2057,8 +2060,10 @@ static inline void bswap_mips_abiflags(Mips_elf_abiflags_v0 *abiflags) { }
 #ifdef USE_ELF_CORE_DUMP
 static int elf_core_dump(int, const CPUArchState *);
 #endif /* USE_ELF_CORE_DUMP */
-static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias);
-
+static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias,
+                         uint load_type);
+#define ELF_SYM 1
+#define NATIVE_LIB_SYM 2
 /* Verify the portions of EHDR within E_IDENT for the target.
    This can be performed before bswapping the entire header.  */
 static bool elf_check_ident(struct elfhdr *ehdr)
@@ -3321,7 +3326,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     }
 
     if (qemu_log_enabled()) {
-        load_symbols(ehdr, image_fd, load_bias);
+        load_symbols(ehdr, image_fd, load_bias, ELF_SYM);
     }
 
     debuginfo_report_elf(image_name, image_fd, load_bias);
@@ -3417,7 +3422,8 @@ static int symcmp(const void *s0, const void *s1)
 }
 
 /* Best attempt to load symbols from this ELF object. */
-static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
+static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias,
+                         uint load_type)
 {
     int i, shnum, nsyms, sym_idx = 0, str_idx = 0;
     uint64_t segsz;
@@ -3475,7 +3481,21 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
     for (i = 0; i < nsyms; ) {
         bswap_sym(syms + i);
         /* Throw away entries which we do not need.  */
-        if (syms[i].st_shndx == SHN_UNDEF
+        if (load_type == NATIVE_LIB_SYM)  {
+            /*
+             * Load the native library.
+             * Since the base address of a shared library is determined
+             * by the dynamic linker, we only consider the last three
+             * digits here, which are within the same page and are not
+             * affected by the base address.
+             */
+#if defined(TARGET_ARM) || defined(TARGET_MIPS)
+            /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
+            syms[i].st_value &= ~(target_ulong)1;
+#endif
+            syms[i].st_value &= 0xfff;
+            i++;
+        } else if (syms[i].st_shndx == SHN_UNDEF
             || syms[i].st_shndx >= SHN_LORESERVE
             || ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) {
             if (i < --nsyms) {
@@ -3561,14 +3581,63 @@ uint32_t get_elf_eflags(int fd)
     return ehdr.e_flags;
 }
 
+#if defined(CONFIG_NATIVE_CALL)
+static void load_native_library(const char *filename, struct image_info *info,
+                         char bprm_buf[BPRM_BUF_SIZE])
+{
+    int fd, retval;
+    Error *err = NULL;
+
+    fd = open(path(filename), O_RDONLY);
+    if (fd < 0) {
+        error_setg_file_open(&err, errno, filename);
+        error_report_err(err);
+        exit(-1);
+    }
+
+    retval = read(fd, bprm_buf, BPRM_BUF_SIZE);
+    if (retval < 0) {
+        error_setg_errno(&err, errno, "Error reading file header");
+        error_reportf_err(err, "%s: ", filename);
+        exit(-1);
+    }
+
+    if (retval < BPRM_BUF_SIZE) {
+        memset(bprm_buf + retval, 0, BPRM_BUF_SIZE - retval);
+    }
+
+    struct elfhdr *ehdr = (struct elfhdr *)bprm_buf;
+
+    if (!elf_check_ident(ehdr)) {
+        error_setg(&err, "Invalid ELF image for this architecture");
+        goto exit_errmsg;
+    }
+    bswap_ehdr(ehdr);
+    if (!elf_check_ehdr(ehdr)) {
+        error_setg(&err, "Invalid ELF image for this architecture");
+        goto exit_errmsg;
+    }
+
+    /* We are only concerned with the symbols of native library. */
+    load_symbols(ehdr, fd, 0, NATIVE_LIB_SYM);
+    return;
+
+exit_errmsg:
+    error_reportf_err(err, "%s: ", filename);
+    exit(-1);
+}
+#endif
+
 int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 {
     struct image_info interp_info;
+    struct image_info nativelib_info;
     struct elfhdr elf_ex;
     char *elf_interpreter = NULL;
     char *scratch;
 
     memset(&interp_info, 0, sizeof(interp_info));
+    memset(&nativelib_info, 0, sizeof(nativelib_info));
 #ifdef TARGET_MIPS
     interp_info.fp_abi = MIPS_ABI_FP_UNKNOWN;
 #endif
@@ -3683,6 +3752,12 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
         abi_ulong end_brk = TARGET_PAGE_ALIGN(info->brk + info->reserve_brk);
         target_munmap(start_brk, end_brk - start_brk);
     }
+
+#if defined(CONFIG_NATIVE_CALL)
+    if (native_bypass_enabled()) {
+        load_native_library(native_lib_path, &nativelib_info, bprm->buf);
+    }
+#endif
 
     return 0;
 }
