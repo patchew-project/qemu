@@ -712,6 +712,17 @@ void aarch64_max_tcg_initfn(Object *obj)
     uint32_t u;
 
     /*
+     * Expanded cache set
+     */
+    cpu->clidr = 0x8204923; /* 4 4 4 4 3 in 3 bit fields */
+    cpu->ccsidr[0] = 0x000000ff0000001aull; /* 64KB L1 dcache */
+    cpu->ccsidr[1] = 0x000000ff0000001aull; /* 64KB L1 icache */
+    cpu->ccsidr[2] = 0x000007ff0000003aull; /* 1MB L2 unified cache */
+    cpu->ccsidr[4] = 0x000007ff0000007cull; /* 2MB L3 cache 128B line */
+    cpu->ccsidr[6] = 0x00007fff0000007cull; /* 16MB L4 cache 128B line */
+    cpu->ccsidr[8] = 0x0007ffff0000007cull; /* 2048MB L5 cache 128B line */
+
+    /*
      * Reset MIDR so the guest doesn't mistake our 'max' CPU type for a real
      * one and try to apply errata workarounds or use impdef features we
      * don't provide.
@@ -828,6 +839,7 @@ void aarch64_max_tcg_initfn(Object *obj)
     t = FIELD_DP64(t, ID_AA64MMFR2, BBM, 2);      /* FEAT_BBM at level 2 */
     t = FIELD_DP64(t, ID_AA64MMFR2, EVT, 2);      /* FEAT_EVT */
     t = FIELD_DP64(t, ID_AA64MMFR2, E0PD, 1);     /* FEAT_E0PD */
+    t = FIELD_DP64(t, ID_AA64MMFR2, CCIDX, 1);      /* FEAT_TTCNP */
     cpu->isar.id_aa64mmfr2 = t;
 
     t = cpu->isar.id_aa64zfr0;
