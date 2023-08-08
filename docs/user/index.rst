@@ -12,3 +12,4 @@ processes compiled for one CPU on another CPU.
    :maxdepth: 2
 
    main
+   native_calls
