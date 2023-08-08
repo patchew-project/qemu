@@ -289,8 +289,12 @@ void QEMU_ERROR("code path is reachable")
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS MAP_ANON
 #endif
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE 0
+#if defined(__linux__) && !defined(MAP_FIXED_NOREPLACE)
+#if MAP_HUGETLB == 0x100000
+#define MAP_FIXED_NOREPLACE 0x200000
+#else
+#define MAP_FIXED_NOREPLACE 0x100000
+#endif
 #endif
 #ifndef MAP_NORESERVE
 #define MAP_NORESERVE 0
