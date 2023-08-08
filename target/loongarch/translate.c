@@ -208,6 +208,16 @@ static void set_fpr(int reg_num, TCGv val)
                    offsetof(CPULoongArchState, fpr[reg_num].vreg.D(0)));
 }
 
+static TCGv va32_address(DisasContext *ctx, TCGv addr)
+{
+    if (ctx->va32) {
+        TCGv temp = tcg_temp_new();
+        tcg_gen_ext32u_tl(temp, addr);
+        addr = temp;
+    }
+    return addr;
+}
+
 #include "decode-insns.c.inc"
 #include "insn_trans/trans_arith.c.inc"
 #include "insn_trans/trans_shift.c.inc"

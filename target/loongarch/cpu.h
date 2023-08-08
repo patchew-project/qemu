@@ -457,7 +457,11 @@ static inline void cpu_get_tb_cpu_state(CPULoongArchState *env, vaddr *pc,
         va32 = 1;
     }
 
-    *pc = env->pc;
+    if (va32) {
+        *pc = (uint32_t)env->pc;
+    } else {
+        *pc = env->pc;
+    }
     *cs_base = 0;
     *flags = env->CSR_CRMD & (R_CSR_CRMD_PLV_MASK | R_CSR_CRMD_PG_MASK);
     *flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, FPE) * HW_FLAGS_EUEN_FPE;

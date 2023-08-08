@@ -4271,6 +4271,7 @@ static bool trans_vld(DisasContext *ctx, arg_vr_i *a)
         tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
+    addr = va32_address(ctx, addr);
 
     tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
     tcg_gen_extr_i128_i64(rl, rh, val);
@@ -4298,6 +4299,7 @@ static bool trans_vst(DisasContext *ctx, arg_vr_i *a)
         tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
+    addr = va32_address(ctx, addr);
 
     get_vreg64(ah, a->vd, 1);
     get_vreg64(al, a->vd, 0);
@@ -4323,6 +4325,7 @@ static bool trans_vldx(DisasContext *ctx, arg_vrr *a)
     rh = tcg_temp_new_i64();
 
     tcg_gen_add_tl(addr, src1, src2);
+    addr = va32_address(ctx, addr);
     tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
     tcg_gen_extr_i128_i64(rl, rh, val);
     set_vreg64(rh, a->vd, 1);
@@ -4347,6 +4350,7 @@ static bool trans_vstx(DisasContext *ctx, arg_vrr *a)
     al = tcg_temp_new_i64();
 
     tcg_gen_add_tl(addr, src1, src2);
+    addr = va32_address(ctx, addr);
     get_vreg64(ah, a->vd, 1);
     get_vreg64(al, a->vd, 0);
     tcg_gen_concat_i64_i128(val, al, ah);
@@ -4371,6 +4375,7 @@ static bool trans_## NAME (DisasContext *ctx, arg_vr_i *a)                \
         tcg_gen_addi_tl(temp, addr, a->imm);                              \
         addr = temp;                                                      \
     }                                                                     \
+    addr = va32_address(ctx, addr);                                        \
                                                                           \
     tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, MO);                     \
     tcg_gen_gvec_dup_i64(MO, vec_full_offset(a->vd), 16, ctx->vl/8, val); \
@@ -4399,6 +4404,7 @@ static bool trans_## NAME (DisasContext *ctx, arg_vr_ii *a)                  \
         tcg_gen_addi_tl(temp, addr, a->imm);                                 \
         addr = temp;                                                         \
     }                                                                        \
+    addr = va32_address(ctx, addr);                                           \
                                                                              \
     tcg_gen_ld_i64(val, cpu_env,                                             \
                    offsetof(CPULoongArchState, fpr[a->vd].vreg.E(a->imm2))); \
