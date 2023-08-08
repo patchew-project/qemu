@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/DMTF/libspdm.git
+revision = 55f5141436d2f6debf4b7cd57641cc78d8e4c6fc
+depth = 1
+clone-recursive = true
