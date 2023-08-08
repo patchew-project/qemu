@@ -81,8 +81,9 @@ struct PnvLpcController {
     uint32_t lpc_hc_irqstat;
     uint32_t lpc_hc_error_addr;
 
-    /* XSCOM registers */
+    /* Registers */
     MemoryRegion xscom_regs;
+    MemoryRegion mmio_regs;
 
     /* PSI to generate interrupts */
     qemu_irq psi_irq;

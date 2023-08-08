@@ -1565,7 +1565,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(get_system_memory(), PNV9_LPCM_BASE(chip),
-                                &chip9->lpc.xscom_regs);
+                                &chip9->lpc.mmio_regs);
 
     chip->fw_mr = &chip9->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
@@ -1784,7 +1784,7 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(get_system_memory(), PNV10_LPCM_BASE(chip),
-                                &chip10->lpc.xscom_regs);
+                                &chip10->lpc.mmio_regs);
 
     chip->fw_mr = &chip10->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",

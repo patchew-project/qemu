@@ -664,7 +664,7 @@ static void pnv_lpc_power9_realize(DeviceState *dev, Error **errp)
     }
 
     /* P9 uses a MMIO region */
-    memory_region_init_io(&lpc->xscom_regs, OBJECT(lpc), &pnv_lpc_mmio_ops,
+    memory_region_init_io(&lpc->mmio_regs, OBJECT(lpc), &pnv_lpc_mmio_ops,
                           lpc, "lpcm", PNV9_LPCM_SIZE);
 }
 
