@@ -1994,23 +1994,150 @@ static void build_processor_hierarchy_node(GArray *tbl, uint32_t flags,
     }
 }
 
+static void build_cache_nodes(GArray *tbl, ACPIPPTTCache *cache,
+                              uint32_t next_offset,
+                              bool has_id, unsigned int id)
+{
+    int val;
+
+    /* Type 1 - cache */
+    build_append_byte(tbl, 1);
+    /* Length */
+    build_append_byte(tbl, 28);
+    /* Reserved */
+    build_append_int_noprefix(tbl, 0, 2);
+    /* Flags - everything except possibly the ID */
+    build_append_int_noprefix(tbl, has_id ? 0xff : 0x7f, 4);
+    /* Offset of next cache up */
+    build_append_int_noprefix(tbl, next_offset, 4);
+    build_append_int_noprefix(tbl, cache->size, 4);
+    build_append_int_noprefix(tbl, cache->sets, 4);
+    build_append_byte(tbl, cache->associativity);
+    /* Read and Write allocate amd WB */
+    val = 0x3 | (1 << 4);
+    switch (cache->type) {
+    case INSTRUCTION:
+        val |= (1 << 2);
+        break;
+    case DATA:
+        val |= (0 << 2); /* Data */
+        break;
+    case UNIFIED:
+        val |= (3 << 2); /* Unified */
+        break;
+    }
+    build_append_byte(tbl, val);
+    build_append_int_noprefix(tbl, cache->linesize, 2);
+    build_append_int_noprefix(tbl,
+                              has_id ?
+                              (cache->type << 24) | (cache->level << 16) | id :
+                              0, 4);
+}
+
+static void build_caches_subset(GArray *table_data, uint32_t pptt_start,
+                                int num_caches, ACPIPPTTCache *caches,
+                                bool assign_ids, int base_id,
+                                uint8_t level_high, uint8_t level_low,
+                                uint32_t *data_offset, uint32_t *instr_offset)
+{
+    uint32_t next_level_offset_data = 0, next_level_offset_instruction = 0;
+    uint32_t this_offset, next_offset = 0;
+    int c, l;
+
+    /* Walk caches from top to bottom */
+
+    for (l = level_high; l >= level_low; l--) { /* Walk down levels */
+        for (c = 0; c < num_caches; c++) {
+            if (caches[c].level != l) {
+                continue;
+            }
+
+            /* Assume only unified above l1 for now */
+            this_offset = table_data->len - pptt_start;
+            switch (caches[c].type) {
+            case INSTRUCTION:
+                next_offset = next_level_offset_instruction;
+                break;
+            case DATA:
+                next_offset = next_level_offset_data;
+                break;
+            case UNIFIED:
+                /* Either is fine here - hopefully */
+                next_offset = next_level_offset_instruction;
+                break;
+            }
+            build_cache_nodes(table_data, &caches[c], next_offset,
+                              assign_ids, base_id);
+            switch (caches[c].type) {
+            case INSTRUCTION:
+                next_level_offset_instruction = this_offset;
+                break;
+            case DATA:
+                next_level_offset_data = this_offset;
+                break;
+            case UNIFIED:
+                next_level_offset_instruction = this_offset;
+                next_level_offset_data = this_offset;
+                break;
+            }
+            *data_offset = next_level_offset_data;
+            *instr_offset = next_level_offset_instruction;
+        }
+    }
+}
+
 /*
  * ACPI spec, Revision 6.3
  * 5.2.29 Processor Properties Topology Table (PPTT)
  */
 void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
-                const char *oem_id, const char *oem_table_id)
+                const char *oem_id, const char *oem_table_id,
+                int num_caches, ACPIPPTTCache *caches)
 {
+    bool share_structs = false;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     CPUArchIdList *cpus = ms->possible_cpus;
     int64_t socket_id = -1, cluster_id = -1, core_id = -1;
     uint32_t socket_offset = 0, cluster_offset = 0, core_offset = 0;
     uint32_t pptt_start = table_data->len;
     int n;
-    AcpiTable table = { .sig = "PPTT", .rev = 2,
+    AcpiTable table = { .sig = "PPTT", .rev = 3,
                         .oem_id = oem_id, .oem_table_id = oem_table_id };
+    uint32_t l1_data_offset = 0;
+    uint32_t l1_instr_offset = 0;
+    uint32_t cluster_data_offset = 0;
+    uint32_t cluster_instr_offset = 0;
+    uint32_t node_data_offset = 0;
+    uint32_t node_instr_offset = 0;
+    int top_node = 7;
+    int top_cluster = 7;
+    int top_core = 7;
 
     acpi_table_begin(&table, table_data);
+
+    /* Let us have a unified cache description for now */
+
+    if (share_structs && num_caches >= 1) {
+        if (ms->smp.cache_node_start_level) {
+            build_caches_subset(table_data, pptt_start, num_caches, caches,
+                                false, 0,
+                                top_node, ms->smp.cache_node_start_level,
+                                &node_data_offset, &node_instr_offset);
+            top_cluster = ms->smp.cache_node_start_level - 1;
+        }
+        /* Assumption that some caches below this */
+        if (ms->smp.cache_cluster_start_level) {
+            build_caches_subset(table_data, pptt_start, num_caches, caches,
+                                false, 0,
+                                top_cluster,  ms->smp.cache_cluster_start_level,
+                                &cluster_data_offset, &cluster_instr_offset);
+            top_core = ms->smp.cache_cluster_start_level - 1;
+        }
+        build_caches_subset(table_data, pptt_start, num_caches, caches,
+                            false, 0,
+                            top_core , 0,
+                            &l1_data_offset, &l1_instr_offset);
+    }
 
     /*
      * This works with the assumption that cpus[n].props.*_id has been
@@ -2018,8 +2145,24 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
      * Otherwise, the unexpected and duplicated containers will be
      * created.
      */
+
     for (n = 0; n < cpus->len; n++) {
         if (cpus->cpus[n].props.socket_id != socket_id) {
+            uint32_t priv_rsrc[2];
+            int num_priv = 0;
+
+            if (!share_structs && ms->smp.cache_node_start_level) {
+                build_caches_subset(table_data, pptt_start, num_caches, caches,
+                                    true, n,
+                                    top_node, ms->smp.cache_node_start_level,
+                                    &node_data_offset, &node_instr_offset);
+                top_cluster = ms->smp.cache_node_start_level - 1;
+            }
+            priv_rsrc[0] = node_instr_offset;
+            priv_rsrc[1] = node_data_offset;
+            if (node_instr_offset || node_data_offset) {
+                num_priv = node_instr_offset == node_data_offset ? 1 : 2;
+            }
             assert(cpus->cpus[n].props.socket_id > socket_id);
             socket_id = cpus->cpus[n].props.socket_id;
             cluster_id = -1;
@@ -2027,36 +2170,70 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
             socket_offset = table_data->len - pptt_start;
             build_processor_hierarchy_node(table_data,
                 (1 << 0), /* Physical package */
-                0, socket_id, NULL, 0);
+                0, socket_id, priv_rsrc, num_priv);
         }
+
 
         if (mc->smp_props.clusters_supported && mc->smp_props.has_clusters) {
             if (cpus->cpus[n].props.cluster_id != cluster_id) {
+                uint32_t priv_rsrc[2];
+                int num_priv = 0;
+
+                if (!share_structs && ms->smp.cache_cluster_start_level) {
+                    build_caches_subset(table_data, pptt_start, num_caches,
+                                        caches, true, n,
+                                        top_cluster,
+                                        ms->smp.cache_cluster_start_level,
+                                        &cluster_data_offset,
+                                        &cluster_instr_offset);
+                    top_core = ms->smp.cache_cluster_start_level - 1;
+                }
+                priv_rsrc[0] = cluster_instr_offset;
+                priv_rsrc[1] = cluster_data_offset;
+
                 assert(cpus->cpus[n].props.cluster_id > cluster_id);
                 cluster_id = cpus->cpus[n].props.cluster_id;
                 core_id = -1;
                 cluster_offset = table_data->len - pptt_start;
+
+                if (cluster_instr_offset || cluster_data_offset) {
+                    num_priv = cluster_instr_offset == cluster_data_offset ?
+                        1 : 2;
+                }
                 build_processor_hierarchy_node(table_data,
                     (0 << 0), /* Not a physical package */
-                    socket_offset, cluster_id, NULL, 0);
+                    socket_offset, cluster_id, priv_rsrc, num_priv);
             }
         } else {
             cluster_offset = socket_offset;
         }
 
+        if (!share_structs &&
+            cpus->cpus[n].props.core_id != core_id) {
+            build_caches_subset(table_data, pptt_start, num_caches, caches,
+                                true, n,
+                                top_core , 0,
+                                &l1_data_offset, &l1_instr_offset);
+        }
         if (ms->smp.threads == 1) {
+            uint32_t priv_rsrc[2] = { l1_instr_offset, l1_data_offset };
+
             build_processor_hierarchy_node(table_data,
                 (1 << 1) | /* ACPI Processor ID valid */
                 (1 << 3),  /* Node is a Leaf */
-                cluster_offset, n, NULL, 0);
+                cluster_offset, n, priv_rsrc,
+                l1_instr_offset == l1_data_offset ? 1 : 2);
         } else {
             if (cpus->cpus[n].props.core_id != core_id) {
+                uint32_t priv_rsrc[2] = { l1_instr_offset, l1_data_offset };
+
                 assert(cpus->cpus[n].props.core_id > core_id);
                 core_id = cpus->cpus[n].props.core_id;
                 core_offset = table_data->len - pptt_start;
                 build_processor_hierarchy_node(table_data,
                     (0 << 0), /* Not a physical package */
-                    cluster_offset, core_id, NULL, 0);
+                    cluster_offset, core_id, priv_rsrc,
+                    l1_instr_offset == l1_data_offset ? 1 : 2);
             }
 
             build_processor_hierarchy_node(table_data,

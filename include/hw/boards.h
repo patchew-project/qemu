@@ -316,6 +316,8 @@ typedef struct DeviceMemoryState {
  * @cores: the number of cores in one cluster
  * @threads: the number of threads in one core
  * @max_cpus: the maximum number of logical processors on the machine
+ * @cache_cluster_start_level: First cache level attached to cluster
+ * @cache_node_start_level: First cache level attached to node
  */
 typedef struct CpuTopology {
     unsigned int cpus;
@@ -325,6 +327,8 @@ typedef struct CpuTopology {
     unsigned int cores;
     unsigned int threads;
     unsigned int max_cpus;
+    unsigned int cache_cluster_start_level;
+    unsigned int cache_node_start_level;
 } CpuTopology;
 
 /**

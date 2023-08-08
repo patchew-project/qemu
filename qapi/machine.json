@@ -1494,6 +1494,10 @@
 # @maxcpus: maximum number of hotpluggable virtual CPUs in the virtual
 #     machine
 #
+# @cache-cluster-start-level: Level of first cache attached to cluster
+#
+# @cache-node-start-level: Level of first cache attached to cluster
+#
 # Since: 6.1
 ##
 { 'struct': 'SMPConfiguration', 'data': {
@@ -1503,7 +1507,9 @@
      '*clusters': 'int',
      '*cores': 'int',
      '*threads': 'int',
-     '*maxcpus': 'int' } }
+     '*maxcpus': 'int',
+     '*cache-cluster-start-level': 'int',
+     '*cache-node-start-level': 'int'} }
 
 ##
 # @x-query-irq:

@@ -81,6 +81,10 @@ void machine_parse_smp_config(MachineState *ms,
     unsigned cores   = config->has_cores ? config->cores : 0;
     unsigned threads = config->has_threads ? config->threads : 0;
     unsigned maxcpus = config->has_maxcpus ? config->maxcpus : 0;
+    unsigned cache_cl_start = config->has_cache_cluster_start_level ?
+        config->cache_cluster_start_level : 0;
+    unsigned cache_nd_start = config->has_cache_node_start_level ?
+        config->cache_node_start_level : 0;
 
     /*
      * Specified CPU topology parameters must be greater than zero,
@@ -161,6 +165,10 @@ void machine_parse_smp_config(MachineState *ms,
     ms->smp.max_cpus = maxcpus;
 
     mc->smp_props.has_clusters = config->has_clusters;
+    if (mc->smp_props.has_clusters) {
+        ms->smp.cache_cluster_start_level = cache_cl_start;
+        ms->smp.cache_node_start_level = cache_nd_start;
+    }
 
     /* sanity-check of the computed topology */
     if (sockets * dies * clusters * cores * threads != maxcpus) {

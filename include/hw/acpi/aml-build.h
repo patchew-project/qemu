@@ -489,8 +489,25 @@ void build_srat_memory(GArray *table_data, uint64_t base,
 void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 const char *oem_id, const char *oem_table_id);
 
+typedef enum ACPIPPTTCacheType {
+    DATA,
+    INSTRUCTION,
+    UNIFIED,
+} ACPIPPTTCacheType;
+
+typedef struct ACPIPPTTCache {
+    ACPIPPTTCacheType type;
+    int sets;
+    int size;
+    int associativity;
+    int linesize;
+    unsigned int pptt_id;
+    int level;
+} ACPIPPTTCache;
+
 void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
-                const char *oem_id, const char *oem_table_id);
+                const char *oem_id, const char *oem_table_id,
+                int num_caches, ACPIPPTTCache *caches);
 
 void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
                 const char *oem_id, const char *oem_table_id);
