@@ -1421,15 +1421,15 @@ static void tcg_out_jxx(TCGContext *s, int opc, TCGLabel *l, bool small)
     }
 }
 
-static void tcg_out_cmp(TCGContext *s, TCGArg arg1, TCGArg arg2,
-                        int const_arg2, int rexw)
+static void tcg_out_cmp(TCGContext *s, int rexw, TCGArg arg1, TCGArg arg2,
+                        int const_arg2, bool cf)
 {
     if (const_arg2) {
-        if (arg2 == 0) {
+        if (arg2 == 0 && !cf) {
             /* test r, r */
             tcg_out_modrm(s, OPC_TESTL + rexw, arg1, arg1);
         } else {
-            tgen_arithi(s, ARITH_CMP + rexw, arg1, arg2, 0);
+            tgen_arithi(s, ARITH_CMP + rexw, arg1, arg2, cf);
         }
     } else {
         tgen_arithr(s, ARITH_CMP + rexw, arg1, arg2);
@@ -1440,7 +1440,7 @@ static void tcg_out_brcond(TCGContext *s, int rexw, TCGCond cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
                            TCGLabel *label, bool small)
 {
-    tcg_out_cmp(s, arg1, arg2, const_arg2, rexw);
+    tcg_out_cmp(s, rexw, arg1, arg2, const_arg2, false);
     tcg_out_jxx(s, tcg_cond_to_jcc[cond], label, small);
 }
 
@@ -1531,7 +1531,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
                             TCGArg dest, TCGArg arg1, TCGArg arg2,
                             int const_arg2)
 {
-    tcg_out_cmp(s, arg1, arg2, const_arg2, rexw);
+    tcg_out_cmp(s, rexw, arg1, arg2, const_arg2, false);
     tcg_out_modrm(s, OPC_SETCC | tcg_cond_to_jcc[cond], 0, dest);
     tcg_out_ext8u(s, dest, dest);
 }
@@ -1597,7 +1597,7 @@ static void tcg_out_movcond(TCGContext *s, int rexw, TCGCond cond,
                             TCGReg dest, TCGReg c1, TCGArg c2, int const_c2,
                             TCGReg v1)
 {
-    tcg_out_cmp(s, c1, c2, const_c2, rexw);
+    tcg_out_cmp(s, rexw, c1, c2, const_c2, false);
     tcg_out_cmov(s, cond, rexw, dest, v1);
 }
 
@@ -1640,7 +1640,7 @@ static void tcg_out_clz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
         tgen_arithi(s, ARITH_XOR + rexw, dest, rexw ? 63 : 31, 0);
 
         /* Since we have destroyed the flags from BSR, we have to re-test.  */
-        tcg_out_cmp(s, arg1, 0, 1, rexw);
+        tcg_out_cmp(s, rexw, arg1, 0, 1, false);
         tcg_out_cmov(s, TCG_COND_EQ, rexw, dest, arg2);
     }
 }
