@@ -356,30 +356,18 @@ static bool loongarch_cpu_has_work(CPUState *cs)
 #endif
 }
 
-static void loongarch_la464_initfn(Object *obj)
+static void loongarch_cpu_initfn_common(CPULoongArchState *env)
 {
-    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-    CPULoongArchState *env = &cpu->env;
     int i;
 
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }
 
-    cpu->dtb_compatible = "loongarch,Loongson-3A5000";
-    env->cpucfg[0] = 0x14c010;  /* PRID */
-
     uint32_t data = 0;
-    data = FIELD_DP32(data, CPUCFG1, ARCH, 2);
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
-    data = FIELD_DP32(data, CPUCFG1, PALEN, 0x2f);
-    data = FIELD_DP32(data, CPUCFG1, VALEN, 0x2f);
     data = FIELD_DP32(data, CPUCFG1, UAL, 1);
-    data = FIELD_DP32(data, CPUCFG1, RI, 1);
-    data = FIELD_DP32(data, CPUCFG1, EP, 1);
-    data = FIELD_DP32(data, CPUCFG1, RPLV, 1);
-    data = FIELD_DP32(data, CPUCFG1, HP, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR_BRD, 1);
     env->cpucfg[1] = data;
 
@@ -437,6 +425,45 @@ static void loongarch_la464_initfn(Object *obj)
     env->cpucfg[20] = data;
 
     env->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
+}
+
+static void loongarch_la464_initfn(Object *obj)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    CPULoongArchState *env = &cpu->env;
+
+    loongarch_cpu_initfn_common(env);
+
+    cpu->dtb_compatible = "loongarch,Loongson-3A5000";
+    env->cpucfg[0] = 0x14c010;  /* PRID */
+
+    uint32_t data = env->cpucfg[1];
+    data = FIELD_DP32(data, CPUCFG1, ARCH, 2); /* LA64 */
+    data = FIELD_DP32(data, CPUCFG1, PALEN, 0x2f); /* 48 bits */
+    data = FIELD_DP32(data, CPUCFG1, VALEN, 0x2f); /* 48 bits */
+    data = FIELD_DP32(data, CPUCFG1, RI, 1);
+    data = FIELD_DP32(data, CPUCFG1, EP, 1);
+    data = FIELD_DP32(data, CPUCFG1, RPLV, 1);
+    env->cpucfg[1] = data;
+}
+
+static void loongarch_la132_initfn(Object *obj)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    CPULoongArchState *env = &cpu->env;
+
+    loongarch_cpu_initfn_common(env);
+
+    cpu->dtb_compatible = "loongarch,Loongson-1C103";
+
+    uint32_t data = env->cpucfg[1];
+    data = FIELD_DP32(data, CPUCFG1, ARCH, 1); /* LA32 */
+    data = FIELD_DP32(data, CPUCFG1, PALEN, 0x1f); /* 32 bits */
+    data = FIELD_DP32(data, CPUCFG1, VALEN, 0x1f); /* 32 bits */
+    data = FIELD_DP32(data, CPUCFG1, RI, 0);
+    data = FIELD_DP32(data, CPUCFG1, EP, 0);
+    data = FIELD_DP32(data, CPUCFG1, RPLV, 0);
+    env->cpucfg[1] = data;
 }
 
 static void loongarch_cpu_list_entry(gpointer data, gpointer user_data)
@@ -784,5 +811,6 @@ static const TypeInfo loongarch32_cpu_type_infos[] = {
         .class_size = sizeof(LoongArchCPUClass),
         .class_init = loongarch32_cpu_class_init,
     },
+    DEFINE_LOONGARCH32_CPU_TYPE("la132", loongarch_la132_initfn),
 };
 DEFINE_TYPES(loongarch32_cpu_type_infos)
