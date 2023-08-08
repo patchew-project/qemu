@@ -7,6 +7,7 @@
 #define TYPE_MPAM_MSC_MEM "mpam-msc-mem"
 #define TYPE_MPAM_MSC_CACHE "mpam-msc-cache"
 
+#define MPAM_SIZE 0x4000 /* Big enough for anyone ;) */
 void mpam_cache_fill_info(Object *obj, MpamCacheInfo *info);
 
 #endif /* _MPAM_H_ */

@@ -49,6 +49,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/arm/virt.h"
+#include "hw/arm/mpam.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/platform-bus.h"
@@ -511,6 +512,198 @@ build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     build_append_int_noprefix(table_data, 0, 4); /* PCI Flags */
     build_append_int_noprefix(table_data, 0, 1); /* PCI Segment */
     build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+
+    acpi_table_end(linker, &table);
+}
+
+static void build_msc_memory_controller(GArray *table_data, int identifier,
+                                        hwaddr base_addr, uint32_t mpam_id,
+                                        int num_ris, uint64_t *nodes)
+{
+    int length = 72 + 24 * num_ris;
+    int i;
+
+    build_append_int_noprefix(table_data, length, 2);
+    /* Interface Type */
+    build_append_int_noprefix(table_data, 0 /* MMIO */, 1);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 1);
+    build_append_int_noprefix(table_data, identifier, 4);
+    build_append_int_noprefix(table_data, base_addr, 8);
+    build_append_int_noprefix(table_data, MPAM_SIZE, 4);
+    /* Overflow interrupt - HACK */
+    build_append_int_noprefix(table_data, 0x2C, 4);
+    /* Edge - SPI */
+    build_append_int_noprefix(table_data, 1, 4);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* Overflow Int Affinity - HACK */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* Error interrupt - HACK */
+    build_append_int_noprefix(table_data, 0x2D, 4);
+    /* Edge - SPI */
+    build_append_int_noprefix(table_data, 1, 4);
+    /* More reserved */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* Error Int Affinity */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* MAX_NRDY_USEC */
+    build_append_int_noprefix(table_data, 100, 4);
+    /* Linked Device - none for now */
+    build_append_int_noprefix(table_data, 0, 8);
+    /* _UID of linked device */
+    build_append_int_noprefix(table_data, 0, 4);
+    build_append_int_noprefix(table_data, num_ris, 4);
+    /* Build a memory controller resouce */
+    for (i = 0; i < num_ris; i++) {
+        build_append_int_noprefix(table_data, mpam_id, 4);
+        build_append_int_noprefix(table_data, i, 1);
+        /* Reserved1 */
+        build_append_int_noprefix(table_data, 0, 2);
+        /* Locator type - 1 = Memory */
+        build_append_int_noprefix(table_data, 1, 1);
+        /* Locator part 1 Node */
+        build_append_int_noprefix(table_data, nodes[i], 8);
+        /* Locator part 2 reserved */
+        build_append_int_noprefix(table_data, 0, 4);
+        /* Num functional dependencies */
+        build_append_int_noprefix(table_data, 0, 4);
+    }
+}
+
+static void build_msc_cache_controller(GArray *table_data, int identifier,
+                                       hwaddr base_addr, uint32_t mpam_id,
+                                       int num_ris, uint64_t *cache_id)
+{
+    int length = 72 + 24 * num_ris;
+    int i;
+
+    build_append_int_noprefix(table_data, length, 2);
+    /* Interface Type */
+    build_append_int_noprefix(table_data, 0 /* MMIO */, 1);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 1);
+    build_append_int_noprefix(table_data, identifier, 4);
+    build_append_int_noprefix(table_data, base_addr, 8);
+    build_append_int_noprefix(table_data, MPAM_SIZE, 4);
+    /* Overflow interrupt - HACK */
+    build_append_int_noprefix(table_data, 0x2C, 4);
+    /* Edge - SPI */
+    build_append_int_noprefix(table_data, 1, 4);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* Overflow Int Affinity */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* Error interrupt - HACK */
+    build_append_int_noprefix(table_data, 0x2D, 4);
+    /* Edge - SPI */
+    build_append_int_noprefix(table_data, 1, 4);
+    /* More reserved */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* Error Int Affinity */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* MAX_NRDY_USEC */
+    build_append_int_noprefix(table_data, 100, 4);
+    /* Linked Device - none for now */
+    build_append_int_noprefix(table_data, 0, 8);
+    /* _UID of linked device */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* Num resource nodes */
+    build_append_int_noprefix(table_data, num_ris, 4);
+    /* Build a memory controller resouce */
+    for (i = 0; i < num_ris; i++) {
+        /* Identifier */
+        build_append_int_noprefix(table_data, mpam_id, 4);
+        /* RIS index */
+        build_append_int_noprefix(table_data, i, 1);
+        /* Reserved1 */
+        build_append_int_noprefix(table_data, 0, 2);
+        /* Locator type - 0 = Cache */
+        build_append_int_noprefix(table_data, 0, 1);
+        /* Locator part 1 PPTT ID */
+        build_append_int_noprefix(table_data, cache_id[i], 8);
+        /* Locator part 2 reserved */
+        build_append_int_noprefix(table_data, 0, 4);
+        /* Num functional dependencies */
+        build_append_int_noprefix(table_data, 0, 4);
+    }
+}
+
+struct mpam_stat {
+    MachineState *ms;
+    GArray *table_data;
+    hwaddr base_addr;
+    int count;
+    int cpu_count;
+    uint32_t mpam_id; /* Just needs to be unique */
+};
+
+static int mpam_add_msc(Object *obj, void *opaque)
+{
+    if (object_dynamic_cast(obj, TYPE_MPAM_MSC_MEM)) {
+        struct mpam_stat *mpam_s = opaque;
+        SysBusDevice *s = SYS_BUS_DEVICE(obj);
+        int num_ris = object_property_get_uint(obj, "num-ris", &error_fatal);
+        uint64_t *ids = g_new0(uint64_t, num_ris);
+        int j = 0;
+        int i;
+
+        /* Fill them in based on which nodes have memory */
+        for (i = 0; i < mpam_s->ms->numa_state->num_nodes; i++) {
+            if (mpam_s->ms->numa_state->nodes[i].node_mem) {
+                ids[j++] = i;
+            }
+        }
+
+        build_msc_memory_controller(mpam_s->table_data, mpam_s->count,
+                                    s->mmio[0].addr, mpam_s->mpam_id++,
+                                    num_ris, ids);
+        mpam_s->count++;
+        g_free(ids);
+    }
+
+    if (object_dynamic_cast(obj, TYPE_MPAM_MSC_CACHE)) {
+        struct mpam_stat *mpam_s = opaque;
+        SysBusDevice *s = SYS_BUS_DEVICE(obj);
+        int num_ris = 1;
+        uint64_t *ids = g_new0(uint64_t, num_ris);
+        uint8_t cache_level = object_property_get_uint(obj, "cache-level",
+                                                       &error_fatal);
+        uint8_t cache_type = object_property_get_uint(obj, "cache-type",
+                                                      &error_fatal);
+        uint16_t cpu = object_property_get_uint(obj, "cpu", &error_fatal);
+
+        ids[0] = cpu | (cache_level << 16) | (cache_type << 24);
+        printf("MPAM has a cache with ID %lx\n", ids[0]);
+        build_msc_cache_controller(mpam_s->table_data, mpam_s->count,
+                                   s->mmio[0].addr, mpam_s->mpam_id++,
+                                   num_ris, ids);
+        mpam_s->count++;
+        g_free(ids);
+    }
+
+    return 0;
+}
+
+static void
+build_mpam(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
+{
+    AcpiTable table = {
+        .sig = "MPAM",
+        .rev = 1,
+        .oem_id = vms->oem_id,
+        .oem_table_id = vms->oem_table_id,
+    };
+    struct mpam_stat mpam_s = {
+        .ms = MACHINE(vms),
+        .count = 0,
+        .base_addr = vms->memmap[VIRT_MPAM_MSC].base,
+        .table_data = table_data,
+    };
+
+    acpi_table_begin(&table, table_data);
+
+    object_child_foreach_recursive(object_get_root(), mpam_add_msc, &mpam_s);
 
     acpi_table_end(linker, &table);
 }
@@ -1123,6 +1316,10 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
             build_hmat(tables_blob, tables->linker, ms->numa_state,
                        vms->oem_id, vms->oem_table_id);
         }
+    }
+    if (vms->mpam) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_mpam(tables_blob, tables->linker, vms);
     }
 
     if (ms->nvdimms_state->is_enabled) {

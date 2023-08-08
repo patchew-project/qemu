@@ -79,6 +79,7 @@
 #include "hw/virtio/virtio-md-pci.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
+#include "hw/arm/mpam.h"
 #include "qemu/guest-random.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
@@ -156,6 +157,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_PVTIME] =             { 0x090a0000, 0x00010000 },
     [VIRT_SECURE_GPIO] =        { 0x090b0000, 0x00001000 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
+    [VIRT_MPAM_MSC] =           { 0x0b006000, 0x00004000 * 256 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
     [VIRT_SECURE_MEM] =         { 0x0e000000, 0x01000000 },
@@ -1406,6 +1408,98 @@ static void create_virtio_iommu_dt_bindings(VirtMachineState *vms)
                            bdf + 1, vms->iommu_phandle, bdf + 1, 0xffff - bdf);
 }
 
+static void create_mpam_msc_cache(VirtMachineState *vms, int level,
+                                  hwaddr *base)
+{
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+    MachineClass *mc = MACHINE_CLASS(vmc);
+    MachineState *ms = MACHINE(vms);
+    const CPUArchIdList *cpu_list = mc->possible_cpu_arch_ids(ms);
+    DeviceState *dev;
+    int step, i;
+
+    /* First check if L2 is at socket level */
+    if (ms->smp.cache_node_start_level &&
+        ms->smp.cache_node_start_level <= level) {
+        step = cpu_list->len / ms->smp.sockets;
+        /* If not check cluster level */
+    } else if (ms->smp.cache_cluster_start_level <= level) {
+        step = cpu_list->len / ms->smp.clusters;
+        /* Must be private then (or non existent?) */
+    } else {
+        step = ms->smp.threads;
+    }
+
+    for (i = 0; i < cpu_list->len; i += step) {
+        dev = qdev_new(TYPE_MPAM_MSC_CACHE);
+        object_property_set_uint(OBJECT(dev), "num-ris", 1, &error_fatal);
+        object_property_set_uint(OBJECT(dev), "num-partid", 256, &error_fatal);
+        object_property_set_uint(OBJECT(dev), "num-int-partid", 32,
+                                 &error_fatal);
+        object_property_set_uint(OBJECT(dev), "cache-level", level,
+                                 &error_fatal);
+        object_property_set_uint(OBJECT(dev), "cache-type", UNIFIED,
+                                 &error_fatal);
+        object_property_set_uint(OBJECT(dev), "cpu", i, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, *base);
+        *base += MPAM_SIZE;
+    }
+}
+
+static void create_mpam_msc(VirtMachineState *vms, Error **errp)
+{
+    MachineState *ms = MACHINE(vms);
+    DeviceState *dev;
+    int i, count = 0;
+    hwaddr base = vms->memmap[VIRT_MPAM_MSC].base;
+
+    if (ms->numa_state->num_nodes == 0) {
+        error_setg(errp,
+                   "MPAM support requires NUMA nodes to be specified");
+        return;
+    }
+    if (!vms->mpam_min_msc) {
+        for (i = 0; i < ms->numa_state->num_nodes; i++) {
+            if (ms->numa_state->nodes[i].node_mem > 0 && count < 16) {
+                dev = qdev_new(TYPE_MPAM_MSC_MEM);
+
+                object_property_set_uint(OBJECT(dev), "num-ris", 1,
+                                         &error_fatal);
+                object_property_set_uint(OBJECT(dev), "num-partid", 256,
+                                         &error_fatal);
+                object_property_set_uint(OBJECT(dev), "num-int-partid", 32,
+                                         &error_fatal);
+                sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+                sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+                base += MPAM_SIZE;
+            }
+        }
+    } else {
+        /* One MSC for all numa nodes with memory */
+        int count_with_mem = 0;
+
+        for (i = 0; i < ms->numa_state->num_nodes; i++) {
+            if (ms->numa_state->nodes[i].node_mem) {
+                count_with_mem++;
+            }
+        }
+        dev = qdev_new(TYPE_MPAM_MSC_MEM);
+        object_property_set_uint(OBJECT(dev), "num-ris", count_with_mem,
+                                 &error_fatal);
+        object_property_set_uint(OBJECT(dev), "num-partid", 256, &error_fatal);
+        object_property_set_uint(OBJECT(dev), "num-int-partid", 2,
+                                 &error_fatal);
+
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+        base += MPAM_SIZE;
+    }
+
+    create_mpam_msc_cache(vms, 3, &base);
+    create_mpam_msc_cache(vms, 2, &base);
+}
+
 static void create_pcie(VirtMachineState *vms)
 {
     hwaddr base_mmio = vms->memmap[VIRT_PCIE_MMIO].base;
@@ -2280,6 +2374,10 @@ static void machvirt_init(MachineState *machine)
 
     create_pcie(vms);
 
+    if (vms->mpam) {
+        create_mpam_msc(vms, &error_fatal);
+    }
+
     if (has_ged && aarch64 && firmware_loaded && virt_is_acpi_enabled(vms)) {
         vms->acpi_dev = create_acpi_ged(vms);
     } else {
@@ -2455,6 +2553,34 @@ static void virt_set_dtb_randomness(Object *obj, bool value, Error **errp)
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
     vms->dtb_randomness = value;
+}
+
+static bool virt_get_mpam(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->mpam;
+}
+
+static void virt_set_mpam(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->mpam = value;
+}
+
+static bool virt_get_mpam_min_msc(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->mpam_min_msc;
+}
+
+static void virt_set_mpam_min_msc(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->mpam_min_msc = value;
 }
 
 static char *virt_get_oem_id(Object *obj, Error **errp)
@@ -3052,6 +3178,14 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
                                           "Set on/off to enable/disable emulating a "
                                           "guest CPU which implements the ARM "
                                           "Memory Tagging Extension");
+
+    object_class_property_add_bool(oc, "mpam", virt_get_mpam, virt_set_mpam);
+    object_class_property_set_description(oc, "mpam", "Enable MPAM");
+
+    object_class_property_add_bool(oc, "mpam-min-msc", virt_get_mpam_min_msc,
+                                   virt_set_mpam_min_msc);
+    object_class_property_set_description(oc, "mpam-min-msc",
+                                          "Use RIS to reduce MSCs exposed.");
 
     object_class_property_add_bool(oc, "its", virt_get_its,
                                    virt_set_its);
