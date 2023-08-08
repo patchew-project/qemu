@@ -33,6 +33,7 @@
 #include "helper-tcg.h"
 
 #include "exec/log.h"
+#include "native/native.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -6809,6 +6810,32 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0x1c4 ... 0x1c6:
     case 0x1d0 ... 0x1fe:
         disas_insn_new(s, cpu, b);
+        break;
+    case 0x1ff:
+        if (native_bypass_enabled()) {
+            TCGv ret = tcg_temp_new();
+            TCGv arg1 = tcg_temp_new();
+            TCGv arg2 = tcg_temp_new();
+            TCGv arg3 = tcg_temp_new();
+            const char *fun_name = lookup_symbol((s->base.pc_next) & 0xfff);
+#ifdef TARGET_X86_64
+            tcg_gen_mov_tl(arg1, cpu_regs[R_EDI]);
+            tcg_gen_mov_tl(arg2, cpu_regs[R_ESI]);
+            tcg_gen_mov_tl(arg3, cpu_regs[R_EDX]);
+            gen_native_call_i64(fun_name, ret, arg1, arg2, arg3);
+#else
+            uintptr_t ra = GETPC();
+            uint32_t a1 = cpu_ldl_data_ra(env, env->regs[R_ESP] + 4, ra);
+            uint32_t a2 = cpu_ldl_data_ra(env, env->regs[R_ESP] + 8, ra);
+            uint32_t a3 = cpu_ldl_data_ra(env, env->regs[R_ESP] + 12, ra);
+            tcg_gen_movi_tl(arg1, a1);
+            tcg_gen_movi_tl(arg2, a2);
+            tcg_gen_movi_tl(arg3, a3);
+            gen_native_call_i32(fun_name, ret, arg1, arg2, arg3);
+#endif
+            tcg_gen_mov_tl(cpu_regs[R_EAX], ret);
+            break;
+        }
         break;
     default:
         goto unknown_op;
