@@ -218,6 +218,11 @@ int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset, uint64_t lpcm_addr,
     offset = fdt_add_subnode(fdt, lpcm_offset, name);
     _FDT(offset);
     g_free(name);
+    uint32_t lpc_pcba = PNV9_XSCOM_LPC_BASE;
+    reg[0] = cpu_to_be32(lpc_pcba);
+    reg[1] = cpu_to_be32(PNV_XSCOM_LPC_SIZE);
+
+    _FDT((fdt_setprop(fdt, offset, "reg", reg, sizeof(reg))));
     _FDT((fdt_setprop_cell(fdt, offset, "#address-cells", 2)));
     _FDT((fdt_setprop_cell(fdt, offset, "#size-cells", 1)));
     _FDT((fdt_setprop(fdt, offset, "compatible", lpc_compat,
