@@ -1840,6 +1840,45 @@ if test "$tcg" = "enabled"; then
 fi
 )
 
+# common-user/native configuration
+(mkdir -p common-user/native
+
+native_targets=
+for target in $target_list; do
+  case $target in
+    *-softmmu)
+    continue
+    ;;
+  esac
+
+  # native call is only supported on these architectures
+  arch=${target%%-*}
+  config_target_mak=common-user/native/$target/config-target.mak
+  case $arch in
+    i386|x86_64|arm|aarch64|mips|mips64)
+      if test -f cross-build/$target/config-target.mak; then
+        mkdir -p "common-user/native/$target"
+        ln -srf cross-build/$target/config-target.mak "$config_target_mak"
+        if test $arch = arm; then
+          echo "EXTRA_NATIVE_CALL_FLAGS=-marm" >> "$config_target_mak"
+        fi
+        if test $arch = $cpu || \
+          { test $arch = i386 && test $cpu = x86_64; } || \
+          { test $arch = arm && test $cpu = aarch64; } || \
+          { test $arch = mips && test $cpu = mips64; }; then
+          echo "LD_PREFIX=/" >> "$config_target_mak"
+        fi
+        echo "LIBNATIVE=$PWD/common-user/native/$target/libnative.so" >> "$config_target_mak"
+        ln -sf $source_path/common-user/native/Makefile.target common-user/native/$target/Makefile
+        native_targets="$native_targets $target"
+      fi
+    ;;
+  esac
+done
+
+echo "NATIVE_TARGETS=$native_targets" >> config-host.mak
+)
+
 if test "$skip_meson" = no; then
   cross="config-meson.cross.new"
   meson_quote() {

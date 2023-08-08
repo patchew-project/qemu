@@ -1,0 +1,22 @@
+# -*- Mode: makefile -*-
+#
+# Library for native calls
+#
+
+all:
+-include ../../config-host.mak
+-include config-target.mak
+
+CFLAGS+=-O1 -fPIC -shared -fno-stack-protector -I$(SRC_PATH)/include -D$(TARGET_NAME)
+LDFLAGS+=
+
+SRC = $(SRC_PATH)/common-user/native/libnative.c
+LIBNATIVE = libnative.so
+
+all: $(LIBNATIVE)
+
+$(LIBNATIVE): $(SRC)
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(EXTRA_NATIVE_CALL_FLAGS) $< -o $@ $(LDFLAGS)
+
+clean:
+	rm -f $(LIBNATIVE)
