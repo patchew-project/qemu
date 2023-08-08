@@ -71,6 +71,7 @@ enum {
     VIRT_SMMU,
     VIRT_UART,
     VIRT_MMIO,
+    VIRT_MPAM_MSC,
     VIRT_RTC,
     VIRT_FW_CFG,
     VIRT_PCIE,
@@ -160,6 +161,7 @@ struct VirtMachineState {
     bool ras;
     bool mte;
     bool dtb_randomness;
+    bool mpam, mpam_min_msc;
     OnOffAuto acpi;
     VirtGICType gic_version;
     VirtIOMMUType iommu;

@@ -67,6 +67,10 @@ arm_ss.add(when: 'CONFIG_XEN', if_true: files('xen_arm.c'))
 arm_ss.add_all(xen_ss)
 
 system_ss.add(when: 'CONFIG_ARM_SMMUV3', if_true: files('smmu-common.c'))
+system_ss.add(when: 'CONFIG_MPAM', if_true: files('mpam.c', 'mpam-qapi.c'))
+system_ss.add(when: 'CONFIG_MPAM', if_false: files('mpam-qapi-stubs.c'))
+system_ss.add(when: 'CONFIG_ALL', if_true: files('mpam-qapi-stubs.c'))
+
 system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4_boards.c'))
 system_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2835_peripherals.c'))
 system_ss.add(when: 'CONFIG_TOSA', if_true: files('tosa.c'))

@@ -41,6 +41,7 @@ qapi_all_modules = [
   'migration',
   'misc',
   'misc-target',
+  'mpam',
   'net',
   'pragma',
   'qom',

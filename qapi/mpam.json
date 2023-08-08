@@ -1,0 +1,78 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+
+##
+# = ARM MPAM State Introspection
+##
+
+##
+# @MpamBm:
+##
+{ 'struct': 'MpamBm',
+  'data' : { 'words' : [ 'int' ]
+           }
+}
+
+##
+# @MpamRegs:
+#
+# Per RIS Register State
+#
+##
+{ 'struct' : 'MpamRegs',
+  'data' : { 'idr' : 'int',
+             'iidr' : 'int',
+             'aidr' : 'int',
+             'cpor-idr': 'int',
+             'ccap-idr': 'int',
+             'mbw-idr': 'int',
+             'pri-idr': 'int',
+             'partid-nrw-idr': 'int',
+             'msmon-idr': 'int',
+             'csumon-idr': 'int',
+             'mbwumon-idr': 'int',
+             'ecr': 'int',
+             'esr': 'int',
+             'cfg-part-sel': 'int',
+             'cfg-cpbm': ['MpamBm']#lazy
+          }
+}
+
+##
+# @MpamCacheInfo:
+#
+# Information about MPAM Cache MSCs
+#
+# @cpu: First CPU of the set associated with the cache
+#
+# @level: Level of cache
+#
+# @type: type of cache - make an enum
+#
+# Since: 9.0
+##
+
+{ 'struct': 'MpamCacheInfo',
+  'data' : { 'cpu' : 'int',
+             'level' : 'int',
+             'type' : 'int',
+             'regs' : ['MpamRegs']
+           }
+}
+
+##
+# @query-mpam-cache:
+#
+# Get a list of MpamInfo for all Cache Related MSC
+#
+# @level: Provide a cache level to filter against
+#
+# Returns: a list of @MpamCacheInfo describing all
+#   the MPAM cache MSC instances
+#
+# Since: 9.0
+##
+{ 'command': 'query-mpam-cache',
+  'data': { '*level': 'int' },
+  'returns' : ['MpamCacheInfo'],
+  'allow-preconfig': true }

@@ -32,6 +32,7 @@ config ARM_VIRT
     select VIRTIO_MEM_SUPPORTED
     select ACPI_CXL
     select ACPI_HMAT
+    select MPAM
 
 config CHEETAH
     bool
@@ -591,6 +592,9 @@ config FSL_IMX7
     select UNIMP
 
 config ARM_SMMUV3
+    bool
+
+config MPAM
     bool
 
 config FSL_IMX6UL
