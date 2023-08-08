@@ -218,6 +218,19 @@ static TCGv va32_address(DisasContext *ctx, TCGv addr)
     return addr;
 }
 
+static uint64_t sign_extend32(uint64_t data)
+{
+    return (data & 0x7FFFFFFF) - (data & 0x80000000);
+}
+
+static uint64_t va32_result(DisasContext *ctx, uint64_t addr)
+{
+    if (ctx->va32) {
+        addr = sign_extend32(addr);
+    }
+    return addr;
+}
+
 #include "decode-insns.c.inc"
 #include "insn_trans/trans_arith.c.inc"
 #include "insn_trans/trans_shift.c.inc"
