@@ -206,6 +206,11 @@
 #include "hw/pci/pcie_sriov.h"
 #include "migration/vmstate.h"
 
+#ifdef CONFIG_LIBSPDM
+#include "library/spdm_common_lib.h"
+#include "library/spdm_responder_lib.h"
+#endif
+
 #include "nvme.h"
 #include "dif.h"
 #include "trace.h"
@@ -8075,6 +8080,16 @@ static int nvme_add_pm_capability(PCIDevice *pci_dev, uint8_t offset)
 #ifdef CONFIG_LIBSPDM
 static bool nvme_doe_spdm_rsp(DOECap *doe_cap)
 {
+    void *context = (void *)malloc(libspdm_get_context_size());
+    uint32_t *session_id;
+    bool is_app_message;
+
+    libspdm_init_context(context);
+
+    libspdm_process_request(context, &session_id, &is_app_message,
+                            doe_cap->write_mbox_len,
+                            doe_cap->write_mbox);
+
     return false;
 }
 #endif
