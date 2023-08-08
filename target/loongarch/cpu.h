@@ -404,6 +404,17 @@ struct LoongArchCPUClass {
     ResettablePhases parent_phases;
 };
 
+#define TYPE_LOONGARCH32_CPU "loongarch32-cpu"
+typedef struct LoongArch32CPUClass LoongArch32CPUClass;
+DECLARE_CLASS_CHECKERS(LoongArch32CPUClass, LOONGARCH32_CPU,
+                       TYPE_LOONGARCH32_CPU)
+
+struct LoongArch32CPUClass {
+    /*< private >*/
+    LoongArchCPUClass parent_class;
+    /*< public >*/
+};
+
 /*
  * LoongArch CPUs has 4 privilege levels.
  * 0 for kernel mode, 3 for user mode.
