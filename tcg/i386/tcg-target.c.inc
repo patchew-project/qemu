@@ -1529,7 +1529,7 @@ static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
 
 static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
                             TCGArg dest, TCGArg arg1, TCGArg arg2,
-                            int const_arg2)
+                            int const_arg2, bool neg)
 {
     bool inv = false;
     bool cleared;
@@ -1570,11 +1570,13 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
          * This is always smaller than the SETCC expansion.
          */
         tcg_out_cmp(s, rexw, arg1, arg2, const_arg2, true);
-        tgen_arithr(s, ARITH_SBB, dest, dest);              /* T:-1 F:0 */
-        if (inv) {
-            tgen_arithi(s, ARITH_ADD, dest, 1, 0);          /* T:0  F:1 */
-        } else {
-            tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_NEG, dest);  /* T:1  F:0 */
+        tgen_arithr(s, ARITH_SBB + (neg ? rexw : 0), dest, dest); /* T:-1 F:0 */
+        if (inv && neg) {
+            tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NOT, dest); /* T:0 F:-1 */
+        } else if (inv) {
+            tgen_arithi(s, ARITH_ADD, dest, 1, 0);                /* T:0  F:1 */
+        } else if (!neg) {
+            tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_NEG, dest);        /* T:1  F:0 */
         }
         return;
 
@@ -1588,7 +1590,8 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
             if (inv) {
                 tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NOT, dest);
             }
-            tcg_out_shifti(s, SHIFT_SHR + rexw, dest, rexw ? 63 : 31);
+            tcg_out_shifti(s, (neg ? SHIFT_SAR : SHIFT_SHR) + rexw,
+                           dest, rexw ? 63 : 31);
             return;
         }
         break;
@@ -1613,6 +1616,9 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
 
     if (!cleared) {
         tcg_out_ext8u(s, dest, dest);
+    }
+    if (neg) {
+        tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NEG, dest);
     }
 }
 
@@ -2632,7 +2638,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        arg_label(args[3]), 0);
         break;
     OP_32_64(setcond):
-        tcg_out_setcond(s, rexw, args[3], a0, a1, a2, const_a2);
+        tcg_out_setcond(s, rexw, args[3], a0, a1, a2, const_a2, false);
+        break;
+    OP_32_64(negsetcond):
+        tcg_out_setcond(s, rexw, args[3], a0, a1, a2, const_a2, true);
         break;
     OP_32_64(movcond):
         tcg_out_movcond(s, rexw, args[5], a0, a1, a2, const_a2, args[3]);
@@ -3360,6 +3369,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_setcond_i32:
     case INDEX_op_setcond_i64:
+    case INDEX_op_negsetcond_i32:
+    case INDEX_op_negsetcond_i64:
         return C_O1_I2(q, r, re);
 
     case INDEX_op_movcond_i32:
