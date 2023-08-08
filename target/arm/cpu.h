@@ -735,6 +735,10 @@ typedef struct CPUArchState {
      * to keep the offsets into the rest of the structure smaller.
      */
     ARMVectorReg zarray[ARM_MAX_VQ * 16];
+
+    uint64_t mpam0_el1;
+    uint64_t mpam1_el1;
+
 #endif
 
     struct CPUBreakpoint *cpu_breakpoint[16];
@@ -1043,6 +1047,7 @@ struct ArchCPU {
         uint64_t id_aa64zfr0;
         uint64_t id_aa64smfr0;
         uint64_t reset_pmcr_el0;
+        uint64_t mpamidr_el1;
     } isar;
     uint64_t midr;
     uint32_t revidr;
@@ -2326,6 +2331,16 @@ FIELD(DBGDEVID, VIRTEXTNS, 16, 4)
 FIELD(DBGDEVID, DOUBLELOCK, 20, 4)
 FIELD(DBGDEVID, AUXREGS, 24, 4)
 FIELD(DBGDEVID, CIDMASK, 28, 4)
+
+FIELD(MPAMIDR, PARTID_MAX, 0, 16)
+FIELD(MPAMIDR, HAS_HCR, 17, 1)
+FIELD(MPAMIDR, VMR_MAX, 18, 3)
+FIELD(MPAMIDR, PMG_MAX, 32, 8)
+FIELD(MPAMIDR, HAS_ALTSP, 57, 1)
+FIELD(MPAMIDR, HAS_TIDR, 58, 1)
+FIELD(MPAMIDR, SP4, 59, 1)
+FIELD(MPAMIDR, HAS_FORCE_NS, 60, 1)
+FIELD(MPAMIDR, HAS_SDEFLT, 61, 1)
 
 FIELD(MVFR0, SIMDREG, 0, 4)
 FIELD(MVFR0, FPSP, 4, 4)

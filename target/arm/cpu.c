@@ -305,6 +305,9 @@ static void arm_cpu_reset_hold(Object *obj)
         env->cp15.rvbar = cpu->rvbar_prop;
         env->pc = env->cp15.rvbar;
 #endif
+
+        env->mpam1_el1 = 1ULL << 63;
+
     } else {
 #if defined(CONFIG_USER_ONLY)
         /* Userspace expects access to cp10 and cp11 for FP/Neon */
@@ -2097,7 +2100,12 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
             FIELD_DP32(cpu->isar.id_pfr0, ID_PFR0, AMU, 0);
         /* FEAT_MPAM (Memory Partitioning and Monitoring Extension) */
         cpu->isar.id_aa64pfr0 =
-            FIELD_DP64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, MPAM, 0);
+            FIELD_DP64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, MPAM, 1);
+        cpu->isar.mpamidr_el1 =
+            FIELD_DP64(cpu->isar.mpamidr_el1, MPAMIDR, PARTID_MAX, 63);
+        cpu->isar.mpamidr_el1 =
+            FIELD_DP64(cpu->isar.mpamidr_el1, MPAMIDR, PMG_MAX, 3);
+
         /* FEAT_NV (Nested Virtualization) */
         cpu->isar.id_aa64mmfr2 =
             FIELD_DP64(cpu->isar.id_aa64mmfr2, ID_AA64MMFR2, NV, 0);

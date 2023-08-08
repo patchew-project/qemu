@@ -8072,7 +8072,17 @@ static const ARMCPRegInfo actlr2_hactlr2_reginfo[] = {
       .access = PL2_RW, .type = ARM_CP_CONST,
       .resetvalue = 0 },
 };
+/*
+static uint64_t mpam_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return 0;
+}
 
+static void mpam_el1_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t val)
+{
+    return;
+}
+*/
 void register_cp_regs_for_features(ARMCPU *cpu)
 {
     /* Register all the coprocessor registers based on feature bits */
@@ -8404,6 +8414,26 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .access = PL1_R, .type = ARM_CP_CONST,
               .accessfn = access_aa64_tid3,
               .resetvalue = 0 },
+
+            /* Should be separate feature */
+            { .name = "MPAMIDR_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0xa, .crm = 4, .opc2 = 4,
+              .access = PL1_R, .type = ARM_CP_CONST,
+              .accessfn = access_aa64_tid3,
+              .resetvalue = cpu->isar.mpamidr_el1 },
+            /* TODO: check the accessfn and whether we need a reset value for these */
+            { .name = "MPAM0_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0xa, .crm = 5, .opc2 = 1,
+              .access = PL1_RW, .type = ARM_CP_ALIAS,
+              .accessfn = access_aa64_tid3,
+              .fieldoffset = offsetof(CPUARMState, mpam0_el1),
+            },
+            { .name = "MPAM1_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 0xa, .crm = 5, .opc2 = 0,
+              .access = PL1_RW, .type = ARM_CP_ALIAS,
+              .accessfn = access_aa64_tid3,
+              .fieldoffset = offsetof(CPUARMState, mpam1_el1),
+            },
             { .name = "MVFR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 3, .opc2 = 0,
               .access = PL1_R, .type = ARM_CP_CONST,
