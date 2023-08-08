@@ -903,6 +903,12 @@ void tcg_gen_ld_vec(TCGv_vec r, TCGv_ptr base, TCGArg offset);
 void tcg_gen_st_vec(TCGv_vec r, TCGv_ptr base, TCGArg offset);
 void tcg_gen_stl_vec(TCGv_vec r, TCGv_ptr base, TCGArg offset, TCGType t);
 
+/* Host <-> guest conversions */
+void tcg_gen_g2h_i32(TCGv_ptr ret, TCGv_i32 arg);
+void tcg_gen_g2h_i64(TCGv_ptr ret, TCGv_i64 arg);
+void tcg_gen_h2g_i32(TCGv_i32 ret, TCGv_ptr arg);
+void tcg_gen_h2g_i64(TCGv_i64 ret, TCGv_ptr arg);
+
 /* Host pointer ops */
 
 #if UINTPTR_MAX == UINT32_MAX
@@ -936,6 +942,11 @@ static inline void tcg_gen_add_ptr(TCGv_ptr r, TCGv_ptr a, TCGv_ptr b)
 static inline void tcg_gen_addi_ptr(TCGv_ptr r, TCGv_ptr a, intptr_t b)
 {
     glue(tcg_gen_addi_,PTR)((NAT)r, (NAT)a, b);
+}
+
+static inline void tcg_gen_subi_ptr(TCGv_ptr r, TCGv_ptr a, intptr_t b)
+{
+    glue(tcg_gen_subi_, PTR)((NAT)r, (NAT)a, b);
 }
 
 static inline void tcg_gen_mov_ptr(TCGv_ptr d, TCGv_ptr s)
