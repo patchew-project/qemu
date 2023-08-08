@@ -170,3 +170,74 @@ abi_long h2t_freebsd11_statfs(abi_ulong target_addr,
     return 0;
 }
 
+/*
+ * fcntl cmd conversion
+ */
+abi_long target_to_host_fcntl_cmd(int cmd)
+{
+
+    switch (cmd) {
+    case TARGET_F_DUPFD:
+        return F_DUPFD;
+
+    case TARGET_F_DUP2FD:
+        return F_DUP2FD;
+
+    case TARGET_F_GETFD:
+        return F_GETFD;
+
+    case TARGET_F_SETFD:
+        return F_SETFD;
+
+    case TARGET_F_GETFL:
+        return F_GETFL;
+
+    case TARGET_F_SETFL:
+        return F_SETFL;
+
+    case TARGET_F_GETOWN:
+        return F_GETOWN;
+
+    case TARGET_F_SETOWN:
+        return F_SETOWN;
+
+    case TARGET_F_GETLK:
+        return F_GETLK;
+
+    case TARGET_F_SETLK:
+        return F_SETLK;
+
+    case TARGET_F_SETLKW:
+        return F_SETLKW;
+
+    case TARGET_F_READAHEAD:
+        return F_READAHEAD;
+
+    case TARGET_F_RDAHEAD:
+        return F_RDAHEAD;
+
+#ifdef F_DUPFD_CLOEXEC
+    case TARGET_F_DUPFD_CLOEXEC:
+        return F_DUPFD_CLOEXEC;
+#endif
+
+#ifdef F_DUP2FD_CLOEXEC
+    case TARGET_F_DUP2FD_CLOEXEC:
+        return F_DUP2FD_CLOEXEC;
+#endif
+
+#ifdef F_ADD_SEALS
+    case TARGET_F_ADD_SEALS:
+        return F_ADD_SEALS;
+#endif
+
+#ifdef F_GET_SEALS
+    case TARGET_F_GET_SEALS:
+        return F_GET_SEALS;
+#endif
+
+    default:
+        return -TARGET_EINVAL;
+    }
+}
+
