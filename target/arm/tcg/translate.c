@@ -27,6 +27,7 @@
 #include "arm_ldst.h"
 #include "semihosting/semihost.h"
 #include "cpregs.h"
+#include "native/native.h"
 #include "exec/helper-proto.h"
 
 #define HELPER_H "helper.h"
@@ -1139,6 +1140,16 @@ static inline void gen_hlt(DisasContext *s, int imm)
      * semihosting, to provide some semblance of security
      * (and for consistency with our 32-bit semihosting).
      */
+    if (native_bypass_enabled() && (imm == 0xffff)) {
+        TCGv_i32 arg1 = load_reg(s, 0);
+        TCGv_i32 arg2 = load_reg(s, 1);
+        TCGv_i32 arg3 = load_reg(s, 2);
+        TCGv_i32 ret = tcg_temp_new_i32();
+        const char *fun_name = lookup_symbol((s->base.pc_next) & 0xfff);
+        gen_native_call_i32(fun_name, ret, arg1, arg2, arg3);
+        store_reg(s, 0, ret);
+        return;
+    }
     if (semihosting_enabled(s->current_el == 0) &&
         (imm == (s->thumb ? 0x3c : 0xf000))) {
         gen_exception_internal_insn(s, EXCP_SEMIHOST);
