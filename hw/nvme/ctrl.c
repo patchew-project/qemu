@@ -202,6 +202,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/hostmem.h"
 #include "hw/pci/msix.h"
+#include "hw/pci/pcie_doe.h"
 #include "hw/pci/pcie_sriov.h"
 #include "migration/vmstate.h"
 
@@ -8071,6 +8072,13 @@ static int nvme_add_pm_capability(PCIDevice *pci_dev, uint8_t offset)
     return 0;
 }
 
+#ifdef CONFIG_LIBSPDM
+static bool nvme_doe_spdm_rsp(DOECap *doe_cap)
+{
+    return false;
+}
+#endif
+
 static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 {
     ERRP_GUARD();
@@ -8300,6 +8308,13 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
                             BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
 }
 
+#ifdef CONFIG_LIBSPDM
+static DOEProtocol doe_spdm_prot[] = {
+    { PCI_VENDOR_ID_PCI_SIG, PCI_SIG_DOE_SPDM, nvme_doe_spdm_rsp },
+    { }
+};
+#endif
+
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
@@ -8342,6 +8357,11 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 
         nvme_attach_ns(n, ns);
     }
+
+#ifdef CONFIG_LIBSPDM
+    /* DOE Initailization */
+    pcie_doe_init(pci_dev, &n->doe_spdm, 0x190, doe_spdm_prot, true, 0);
+#endif
 }
 
 static void nvme_exit(PCIDevice *pci_dev)

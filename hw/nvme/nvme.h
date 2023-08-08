@@ -20,6 +20,7 @@
 
 #include "qemu/uuid.h"
 #include "hw/pci/pci_device.h"
+#include "hw/pci/pcie_doe.h"
 #include "hw/block/block.h"
 
 #include "block/nvme.h"
@@ -602,6 +603,9 @@ typedef struct NvmeCtrl {
         uint16_t    vqrfap;
         uint16_t    virfap;
     } next_pri_ctrl_cap;    /* These override pri_ctrl_cap after reset */
+
+    /* DOE */
+    DOECap doe_spdm;
 } NvmeCtrl;
 
 typedef enum NvmeResetType {
