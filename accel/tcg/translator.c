@@ -180,6 +180,12 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
             ops->translate_insn(db, cpu);
         }
 
+
+        /* Stop translation if translate_insn so indicated.  */
+        if (db->is_jmp != DISAS_NEXT) {
+            break;
+        }
+
         /*
          * We can't instrument after instructions that change control
          * flow although this only really affects post-load operations.
@@ -191,11 +197,6 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
          */
         if (plugin_enabled) {
             plugin_gen_insn_end();
-        }
-
-        /* Stop translation if translate_insn so indicated.  */
-        if (db->is_jmp != DISAS_NEXT) {
-            break;
         }
 
         /* Stop translation if the output buffer is full,
@@ -211,6 +212,13 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     gen_tb_end(tb, cflags, icount_start_insn, db->num_insns);
 
     if (plugin_enabled) {
+        /*
+         * Last chance to call plugin_gen_insn_end() if is skipped in translation
+         * loop above.
+         */
+        if (db->is_jmp != DISAS_NEXT && tcg_ctx->exitreq_label == NULL) {
+            plugin_gen_insn_end();
+        }
         plugin_gen_tb_end(cpu);
     }
 

@@ -2819,6 +2819,22 @@ void tcg_gen_exit_tb(const TranslationBlock *tb, unsigned idx)
         tcg_debug_assert(idx == TB_EXIT_REQUESTED);
     }
 
+#ifdef CONFIG_PLUGIN
+    /*
+     * Some of instruction generators insert exit_tb explicitelly to
+     * trigger early exit from translation block. On the other hand
+     * translation loop (translator_loop()) inserts plugin callbacks
+     * after instruction is generated, but it appears as dead code
+     * because of the explicit exit_tb insert.
+     *
+     * Calling plugin_gen_insn_end() here before the exit allows
+     * plugins to receive control before translation block exits.
+     */
+    if (tcg_ctx->plugin_insn) {
+        plugin_gen_insn_end();
+    }
+#endif
+
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }
 

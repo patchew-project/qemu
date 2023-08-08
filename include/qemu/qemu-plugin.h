@@ -51,7 +51,7 @@ typedef uint64_t qemu_plugin_id_t;
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 1
+#define QEMU_PLUGIN_VERSION 2
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -315,6 +315,21 @@ void qemu_plugin_register_vcpu_insn_exec_cb(struct qemu_plugin_insn *insn,
                                             void *userdata);
 
 /**
+ * qemu_plugin_register_vcpu_after_insn_exec_cb() - register cb
+ * after insn execution
+ * @insn: the opaque qemu_plugin_insn handle for an instruction
+ * @cb: callback function
+ * @flags: does the plugin read or write the CPU's registers?
+ * @userdata: any plugin data to pass to the @cb?
+ *
+ * The @cb function is called every time after a non-control-flow
+ * instruction is executed
+ */
+void qemu_plugin_register_vcpu_after_insn_exec_cb(
+    struct qemu_plugin_insn *insn, qemu_plugin_vcpu_udata_cb_t cb,
+    enum qemu_plugin_cb_flags flags, void *userdata);
+
+/**
  * qemu_plugin_register_vcpu_insn_exec_inline() - insn execution inline op
  * @insn: the opaque qemu_plugin_insn handle for an instruction
  * @op: the type of qemu_plugin_op (e.g. ADD_U64)
@@ -327,6 +342,22 @@ void qemu_plugin_register_vcpu_insn_exec_cb(struct qemu_plugin_insn *insn,
 void qemu_plugin_register_vcpu_insn_exec_inline(struct qemu_plugin_insn *insn,
                                                 enum qemu_plugin_op op,
                                                 void *ptr, uint64_t imm);
+
+/**
+ * qemu_plugin_register_vcpu_after_insn_exec_inline() - after insn execution
+ * inline op
+ * @insn: the opaque qemu_plugin_insn handle for an instruction
+ * @op: the type of qemu_plugin_op (e.g. ADD_U64)
+ * @ptr: the target memory location for the op
+ * @imm: the op data (e.g. 1)
+ *
+ * Insert an inline op to every time after a non-control-flow
+ * instruction executes.
+ * Useful if you just want to increment a single counter somewhere in memory.
+ */
+void qemu_plugin_register_vcpu_after_insn_exec_inline(
+    struct qemu_plugin_insn *insn, enum qemu_plugin_op op,
+    void *ptr, uint64_t imm);
 
 /**
  * qemu_plugin_tb_n_insns() - query helper for number of insns in TB

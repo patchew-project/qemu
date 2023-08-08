@@ -180,6 +180,8 @@ static void plugin_gen_empty_callback(enum plugin_gen_from from)
 {
     switch (from) {
     case PLUGIN_GEN_AFTER_INSN:
+        gen_wrapped(from, PLUGIN_GEN_CB_UDATA, gen_empty_udata_cb);
+        gen_wrapped(from, PLUGIN_GEN_CB_INLINE, gen_empty_inline_cb);
         gen_wrapped(from, PLUGIN_GEN_DISABLE_MEM_HELPER,
                     gen_empty_mem_helper);
         break;
@@ -598,18 +600,21 @@ static void plugin_gen_tb_inline(const struct qemu_plugin_tb *ptb,
 }
 
 static void plugin_gen_insn_udata(const struct qemu_plugin_tb *ptb,
+                                  enum plugin_dyn_cb_type cb_type,
                                   TCGOp *begin_op, int insn_idx)
 {
+    g_assert(cb_type == PLUGIN_CB_INSN || cb_type == PLUGIN_CB_AFTER_INSN);
     struct qemu_plugin_insn *insn = g_ptr_array_index(ptb->insns, insn_idx);
-
-    inject_udata_cb(insn->cbs[PLUGIN_CB_INSN][PLUGIN_CB_REGULAR], begin_op);
+    inject_udata_cb(insn->cbs[cb_type][PLUGIN_CB_REGULAR], begin_op);
 }
 
 static void plugin_gen_insn_inline(const struct qemu_plugin_tb *ptb,
+                                   enum plugin_dyn_cb_type cb_type,
                                    TCGOp *begin_op, int insn_idx)
 {
+    g_assert(cb_type == PLUGIN_CB_INSN || cb_type == PLUGIN_CB_AFTER_INSN);
     struct qemu_plugin_insn *insn = g_ptr_array_index(ptb->insns, insn_idx);
-    inject_inline_cb(insn->cbs[PLUGIN_CB_INSN][PLUGIN_CB_INLINE],
+    inject_inline_cb(insn->cbs[cb_type][PLUGIN_CB_INLINE],
                      begin_op, op_ok);
 }
 
@@ -738,10 +743,12 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 
                 switch (type) {
                 case PLUGIN_GEN_CB_UDATA:
-                    plugin_gen_insn_udata(plugin_tb, op, insn_idx);
+                    plugin_gen_insn_udata(plugin_tb, PLUGIN_CB_INSN,
+                                          op, insn_idx);
                     break;
                 case PLUGIN_GEN_CB_INLINE:
-                    plugin_gen_insn_inline(plugin_tb, op, insn_idx);
+                    plugin_gen_insn_inline(plugin_tb, PLUGIN_CB_INSN,
+                                           op, insn_idx);
                     break;
                 case PLUGIN_GEN_ENABLE_MEM_HELPER:
                     plugin_gen_enable_mem_helper(plugin_tb, op, insn_idx);
@@ -773,6 +780,14 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
                 g_assert(insn_idx >= 0);
 
                 switch (type) {
+                case PLUGIN_GEN_CB_UDATA:
+                    plugin_gen_insn_udata(plugin_tb, PLUGIN_CB_AFTER_INSN,
+                                          op, insn_idx);
+                    break;
+                case PLUGIN_GEN_CB_INLINE:
+                    plugin_gen_insn_inline(plugin_tb, PLUGIN_CB_AFTER_INSN,
+                                           op, insn_idx);
+                    break;
                 case PLUGIN_GEN_DISABLE_MEM_HELPER:
                     plugin_gen_disable_mem_helper(plugin_tb, op, insn_idx);
                     break;
