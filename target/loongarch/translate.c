@@ -86,6 +86,10 @@ void generate_exception(DisasContext *ctx, int excp)
 
 static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
+    if (ctx->va32) {
+        dest = (uint32_t) dest;
+    }
+
     if (translator_use_goto_tb(&ctx->base, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_tl(cpu_pc, dest);
@@ -208,6 +212,30 @@ static void set_fpr(int reg_num, TCGv val)
                    offsetof(CPULoongArchState, fpr[reg_num].vreg.D(0)));
 }
 
+static TCGv make_address_x(DisasContext *ctx, TCGv base, TCGv addend)
+{
+    TCGv temp = NULL;
+
+    if (addend || ctx->va32) {
+        temp = tcg_temp_new();
+    }
+    if (addend) {
+        tcg_gen_add_tl(temp, base, addend);
+        base = temp;
+    }
+    if (ctx->va32) {
+        tcg_gen_ext32u_tl(temp, base);
+        base = temp;
+    }
+    return base;
+}
+
+static TCGv make_address_i(DisasContext *ctx, TCGv base, target_long ofs)
+{
+    TCGv addend = ofs ? tcg_constant_tl(ofs) : NULL;
+    return make_address_x(ctx, base, addend);
+}
+
 #include "decode-insns.c.inc"
 #include "insn_trans/trans_arith.c.inc"
 #include "insn_trans/trans_shift.c.inc"
@@ -239,6 +267,10 @@ static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     }
 
     ctx->base.pc_next += 4;
+
+    if (ctx->va32) {
+        ctx->base.pc_next = (uint32_t)ctx->base.pc_next;
+    }
 }
 
 static void loongarch_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
