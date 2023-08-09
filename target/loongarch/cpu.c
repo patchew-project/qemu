@@ -732,9 +732,19 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
 #endif
 }
 
+static void loongarch32_cpu_class_init(ObjectClass *c, void *data)
+{
+}
+
 #define DEFINE_LOONGARCH_CPU_TYPE(model, initfn) \
     { \
         .parent = TYPE_LOONGARCH_CPU, \
+        .instance_init = initfn, \
+        .name = LOONGARCH_CPU_TYPE_NAME(model), \
+    }
+#define DEFINE_LOONGARCH32_CPU_TYPE(model, initfn) \
+    { \
+        .parent = TYPE_LOONGARCH32_CPU, \
         .instance_init = initfn, \
         .name = LOONGARCH_CPU_TYPE_NAME(model), \
     }
@@ -749,6 +759,15 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .abstract = true,
         .class_size = sizeof(LoongArchCPUClass),
         .class_init = loongarch_cpu_class_init,
+    },
+    {
+        .name = TYPE_LOONGARCH32_CPU,
+        .parent = TYPE_LOONGARCH_CPU,
+        .instance_size = sizeof(LoongArchCPU),
+
+        .abstract = true,
+        .class_size = sizeof(LoongArchCPUClass),
+        .class_init = loongarch32_cpu_class_init,
     },
     DEFINE_LOONGARCH_CPU_TYPE("la464", loongarch_la464_initfn),
 };
