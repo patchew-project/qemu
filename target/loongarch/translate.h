@@ -14,6 +14,13 @@
     static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
     { return FUNC(ctx, a, __VA_ARGS__); }
 
+/* for LoongArch64-only instructions */
+#define TRANS_64(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
+    { \
+        return ctx->la64 && FUNC(ctx, a, __VA_ARGS__); \
+    }
+
 /*
  * If an operation is being performed on less than TARGET_LONG_BITS,
  * it may require the inputs to be sign- or zero-extended; which will
