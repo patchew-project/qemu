@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include <linux/mman.h>
 #include "trace.h"
 #include "exec/log.h"
 #include "qemu.h"
