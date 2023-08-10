@@ -121,6 +121,7 @@
 #ifdef HAVE_BTRFS_H
 #include <linux/btrfs.h>
 #endif
+#include <linux/mman.h>
 #ifdef HAVE_DRM_H
 #include <libdrm/drm.h>
 #include <libdrm/i915_drm.h>
