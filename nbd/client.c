@@ -880,7 +880,7 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
 static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
                                QCryptoTLSCreds *tlscreds,
                                const char *hostname, QIOChannel **outioc,
-                               bool structured_reply, bool *zeroes,
+                               NBDMode max_mode, bool *zeroes,
                                Error **errp)
 {
     ERRP_GUARD();
@@ -958,7 +958,7 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
         if (fixedNewStyle) {
             int result = 0;
 
-            if (structured_reply) {
+            if (max_mode >= NBD_MODE_STRUCTURED) {
                 result = nbd_request_simple_option(ioc,
                                                    NBD_OPT_STRUCTURED_REPLY,
                                                    false, errp);
@@ -1028,20 +1028,19 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     trace_nbd_receive_negotiate_name(info->name);
 
     result = nbd_start_negotiate(aio_context, ioc, tlscreds, hostname, outioc,
-                                 info->structured_reply, &zeroes, errp);
+                                 info->mode, &zeroes, errp);
     if (result < 0) {
         return result;
     }
 
-    info->structured_reply = false;
+    info->mode = result;
     info->base_allocation = false;
     if (tlscreds && *outioc) {
         ioc = *outioc;
     }
 
-    switch ((NBDMode)result) {
+    switch (info->mode) {
     case NBD_MODE_STRUCTURED:
-        info->structured_reply = true;
         if (base_allocation) {
             result = nbd_negotiate_simple_meta_context(ioc, info, errp);
             if (result < 0) {
@@ -1150,8 +1149,8 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     QIOChannel *sioc = NULL;
 
     *info = NULL;
-    result = nbd_start_negotiate(NULL, ioc, tlscreds, hostname, &sioc, true,
-                                 NULL, errp);
+    result = nbd_start_negotiate(NULL, ioc, tlscreds, hostname, &sioc,
+                                 NBD_MODE_STRUCTURED, NULL, errp);
     if (tlscreds && sioc) {
         ioc = sioc;
     }
@@ -1182,7 +1181,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             memset(&array[count - 1], 0, sizeof(*array));
             array[count - 1].name = name;
             array[count - 1].description = desc;
-            array[count - 1].structured_reply = result == NBD_MODE_STRUCTURED;
+            array[count - 1].mode = result;
         }
 
         for (i = 0; i < count; i++) {
@@ -1215,6 +1214,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
         /* Lone export name is implied, but we can parse length and flags */
         array = g_new0(NBDExportInfo, 1);
         array->name = g_strdup("");
+        array->mode = NBD_MODE_OLDSTYLE;
         count = 1;
 
         if (nbd_negotiate_finish_oldstyle(ioc, array, errp) < 0) {
