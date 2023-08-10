@@ -1580,6 +1580,24 @@ void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
     }
 }
 
+/* callers must free the returned string with g_free() */
+static char *arm_cpu_typename(ARMCPU *cpu)
+{
+    const char *cpu_type = object_get_typename(OBJECT(cpu));
+
+    return g_strndup(cpu_type, strlen(cpu_type) - strlen(ARM_CPU_TYPE_SUFFIX));
+}
+
+#define DISABLE_UNIMP_CPU_FEATURE(size, cpu, storage, reg, field, desc) \
+    if (FIELD_EX##size(cpu->isar.storage, reg, field)) { \
+        g_autofree char *cpu_type = arm_cpu_typename(cpu); \
+        \
+        qemu_log_mask(LOG_UNIMP, \
+                      "CPU#%d: Disabling unimplemented feature '%s' for %s\n", \
+                      CPU(cpu)->cpu_index, desc, cpu_type); \
+        cpu->isar.storage = FIELD_DP##size(cpu->isar.storage, reg, field, 0); \
+    }
+
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -2075,32 +2093,34 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * try to access the non-existent system registers for them.
          */
         /* FEAT_SPE (Statistical Profiling Extension) */
-        cpu->isar.id_aa64dfr0 =
-            FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, PMSVER, 0);
+        DISABLE_UNIMP_CPU_FEATURE(64, cpu, id_aa64dfr0, ID_AA64DFR0, PMSVER,
+                                  "FEAT_SPE (Statistical Profiling Extension)");
+
         /* FEAT_TRF (Self-hosted Trace Extension) */
-        cpu->isar.id_aa64dfr0 =
-            FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, TRACEFILT, 0);
-        cpu->isar.id_dfr0 =
-            FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, TRACEFILT, 0);
+        DISABLE_UNIMP_CPU_FEATURE(64, cpu, id_aa64dfr0, ID_AA64DFR0, TRACEFILT,
+                                  "FEAT_TRF (Self-hosted Trace Extension)");
+        DISABLE_UNIMP_CPU_FEATURE(32, cpu, id_dfr0, ID_DFR0, TRACEFILT,
+                                  "FEAT_TRF (Self-hosted Trace Extension)");
         /* Trace Macrocell system register access */
-        cpu->isar.id_aa64dfr0 =
-            FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, TRACEVER, 0);
-        cpu->isar.id_dfr0 =
-            FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, COPTRC, 0);
+        DISABLE_UNIMP_CPU_FEATURE(64, cpu, id_aa64dfr0, ID_AA64DFR0, TRACEVER,
+                                  "Trace Macrocell system register access");
+        DISABLE_UNIMP_CPU_FEATURE(32, cpu, id_dfr0, ID_DFR0, COPTRC,
+                                  "Trace Macrocell system register access");
         /* Memory mapped trace */
-        cpu->isar.id_dfr0 =
-            FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, MMAPTRC, 0);
+        DISABLE_UNIMP_CPU_FEATURE(32, cpu, id_dfr0, ID_DFR0, MMAPTRC,
+                                  "Memory-mapped Trace");
         /* FEAT_AMU (Activity Monitors Extension) */
-        cpu->isar.id_aa64pfr0 =
-            FIELD_DP64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, AMU, 0);
-        cpu->isar.id_pfr0 =
-            FIELD_DP32(cpu->isar.id_pfr0, ID_PFR0, AMU, 0);
+        DISABLE_UNIMP_CPU_FEATURE(64, cpu, id_aa64pfr0, ID_AA64PFR0, AMU,
+                                  "FEAT_AMU (Activity Monitors Extension)");
+        DISABLE_UNIMP_CPU_FEATURE(32, cpu, id_pfr0, ID_PFR0, AMU,
+                                  "FEAT_AMU (Activity Monitors Extension)");
         /* FEAT_MPAM (Memory Partitioning and Monitoring Extension) */
-        cpu->isar.id_aa64pfr0 =
-            FIELD_DP64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, MPAM, 0);
+        DISABLE_UNIMP_CPU_FEATURE(64, cpu, id_aa64pfr0, ID_AA64PFR0, MPAM,
+                                  "FEAT_MPAM (Memory Partitioning"
+                                  " and Monitoring Extension)");
         /* FEAT_NV (Nested Virtualization) */
-        cpu->isar.id_aa64mmfr2 =
-            FIELD_DP64(cpu->isar.id_aa64mmfr2, ID_AA64MMFR2, NV, 0);
+        DISABLE_UNIMP_CPU_FEATURE(64, cpu, id_aa64mmfr2, ID_AA64MMFR2, NV,
+                                  "FEAT_NV (Nested Virtualization)");
     }
 
     /* MPU can be configured out of a PMSA CPU either by setting has-mpu
