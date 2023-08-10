@@ -269,8 +269,8 @@ def prepare_env(cfg):
     # for cross builds
     if binary_exists('arm-linux-gnu-gcc'):
         os.environ['GCC5_ARM_PREFIX'] = 'arm-linux-gnu-'
-    if binary_exists('loongarch64-linux-gnu-gcc'):
-        os.environ['GCC5_LOONGARCH64_PREFIX'] = 'loongarch64-linux-gnu-'
+    if binary_exists('loongarch64-unknown-linux-gnu-gcc'):
+        os.environ['GCC5_LOONGARCH64_PREFIX'] = 'loongarch64-unknown-linux-gnu-'
 
     hostarch = os.uname().machine
     if binary_exists('aarch64-linux-gnu-gcc') and hostarch != 'aarch64':

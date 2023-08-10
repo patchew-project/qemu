@@ -43,3 +43,6 @@
 [submodule "tests/lcitool/libvirt-ci"]
 	path = tests/lcitool/libvirt-ci
 	url = https://gitlab.com/libvirt/libvirt-ci.git
+[submodule "roms/edk2-platforms"]
+	path = roms/edk2-platforms
+	url = https://github.com/tianocore/edk2-platforms.git
