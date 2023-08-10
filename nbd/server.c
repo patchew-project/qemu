@@ -2084,7 +2084,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
 }
 
 typedef struct NBDExtentArray {
-    NBDExtent *extents;
+    NBDExtent32 *extents;
     unsigned int nb_alloc;
     unsigned int count;
     uint64_t total_length;
@@ -2097,7 +2097,7 @@ static NBDExtentArray *nbd_extent_array_new(unsigned int nb_alloc)
     NBDExtentArray *ea = g_new0(NBDExtentArray, 1);
 
     ea->nb_alloc = nb_alloc;
-    ea->extents = g_new(NBDExtent, nb_alloc);
+    ea->extents = g_new(NBDExtent32, nb_alloc);
     ea->can_add = true;
 
     return ea;
@@ -2160,7 +2160,7 @@ static int nbd_extent_array_add(NBDExtentArray *ea,
     }
 
     ea->total_length += length;
-    ea->extents[ea->count] = (NBDExtent) {.length = length, .flags = flags};
+    ea->extents[ea->count] = (NBDExtent32) {.length = length, .flags = flags};
     ea->count++;
 
     return 0;
