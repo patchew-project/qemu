@@ -618,7 +618,7 @@ static void aarch64_neoverse_v1_initfn(Object *obj)
     cpu->dcz_blocksize = 4;
     cpu->id_aa64afr0 = 0x00000000;
     cpu->id_aa64afr1 = 0x00000000;
-    cpu->isar.id_aa64dfr0  = 0x000001f210305519ull;
+    cpu->isar.id_aa64dfr0  = 0x000000f210305519ull; /* w/o FEAT_TRF */
     cpu->isar.id_aa64dfr1 = 0x00000000;
     cpu->isar.id_aa64isar0 = 0x1011111110212120ull; /* with FEAT_RNG */
     cpu->isar.id_aa64isar1 = 0x0111000001211032ull;
@@ -628,7 +628,7 @@ static void aarch64_neoverse_v1_initfn(Object *obj)
     cpu->isar.id_aa64pfr0  = 0x1101110120111112ull; /* GIC filled in later */
     cpu->isar.id_aa64pfr1  = 0x0000000000000020ull;
     cpu->id_afr0       = 0x00000000;
-    cpu->isar.id_dfr0  = 0x15011099;
+    cpu->isar.id_dfr0  = 0x05011099; /* w/o FEAT_TRF */
     cpu->isar.id_isar0 = 0x02101110;
     cpu->isar.id_isar1 = 0x13112111;
     cpu->isar.id_isar2 = 0x21232042;
