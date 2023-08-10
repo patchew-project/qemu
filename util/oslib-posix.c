@@ -585,7 +585,7 @@ char *qemu_get_pid_name(pid_t pid)
 
 void *qemu_alloc_stack(size_t *sz)
 {
-    void *ptr, *guardpage;
+    void *ptr;
     int flags;
 #ifdef CONFIG_DEBUG_STACK_USAGE
     void *ptr2;
@@ -618,17 +618,7 @@ void *qemu_alloc_stack(size_t *sz)
         abort();
     }
 
-#if defined(HOST_IA64)
-    /* separate register stack */
-    guardpage = ptr + (((*sz - pagesz) / 2) & ~pagesz);
-#elif defined(HOST_HPPA)
-    /* stack grows up */
-    guardpage = ptr + *sz - pagesz;
-#else
-    /* stack grows down */
-    guardpage = ptr;
-#endif
-    if (mprotect(guardpage, pagesz, PROT_NONE) != 0) {
+    if (mprotect(ptr, pagesz, PROT_NONE) != 0) {
         perror("failed to set up stack guard page");
         abort();
     }
