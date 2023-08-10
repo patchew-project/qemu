@@ -2334,7 +2334,8 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
                                                Error **errp)
 {
     NBDClient *client = req->client;
-    bool check_length = false;
+    bool extended_with_payload;
+    bool check_length;
     bool check_rofs = false;
     bool allocate_buffer = false;
     unsigned payload_len = 0;
@@ -2350,6 +2351,9 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
 
     trace_nbd_co_receive_request_decode_type(request->cookie, request->type,
                                              nbd_cmd_lookup(request->type));
+    check_length = extended_with_payload = client->mode >= NBD_MODE_EXTENDED &&
+        request->flags & NBD_CMD_FLAG_PAYLOAD_LEN;
+
     switch (request->type) {
     case NBD_CMD_DISC:
         /* Special case: we're going to disconnect without a reply,
@@ -2366,6 +2370,14 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
         break;
 
     case NBD_CMD_WRITE:
+        if (client->mode >= NBD_MODE_EXTENDED) {
+            if (!extended_with_payload) {
+                /* The client is noncompliant. Trace it, but proceed. */
+                trace_nbd_co_receive_ext_payload_compliance(request->from,
+                                                            request->len);
+            }
+            valid_flags |= NBD_CMD_FLAG_PAYLOAD_LEN;
+        }
         payload_len = request->len;
         check_length = true;
         allocate_buffer = true;
@@ -2407,6 +2419,15 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
                    request->len, NBD_MAX_BUFFER_SIZE);
         return -EINVAL;
     }
+    if (extended_with_payload && !allocate_buffer) {
+        /*
+         * For now, we don't support payloads on other commands; but
+         * we can keep the connection alive by ignoring the payload.
+         */
+        assert(request->type != NBD_CMD_WRITE);
+        payload_len = request->len;
+        request->len = 0;
+    }
     if (allocate_buffer) {
         /* READ, WRITE */
         req->data = blk_try_blockalign(client->exp->common.blk,
@@ -2417,10 +2438,12 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
         }
     }
     if (payload_len) {
-        /* WRITE */
-        assert(req->data);
-        ret = nbd_read(client->ioc, req->data, payload_len,
-                       "CMD_WRITE data", errp);
+        if (req->data) {
+            ret = nbd_read(client->ioc, req->data, payload_len,
+                           "CMD_WRITE data", errp);
+        } else {
+            ret = nbd_drop(client->ioc, payload_len, errp);
+        }
         if (ret < 0) {
             return -EIO;
         }
