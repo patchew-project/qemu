@@ -3580,6 +3580,10 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         n->host_features |= (1ULL << VIRTIO_NET_F_MTU);
     }
 
+    if (n->host_features & (1ULL << VIRTIO_NET_F_GUEST_ANNOUNCE)) {
+        replay_add_blocker("-device virtio-net-device,guest_announce=true");
+    }
+
     if (n->net_conf.duplex_str) {
         if (strncmp(n->net_conf.duplex_str, "half", 5) == 0) {
             n->net_conf.duplex = DUPLEX_HALF;
