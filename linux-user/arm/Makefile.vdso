@@ -1,0 +1,17 @@
+CROSS_CC ?= arm-linux-gnueabihf-gcc
+LDFLAGS := -nostdlib -shared -Wl,-T,vdso.ld \
+	   -Wl,-h,linux-vdso.so.1 -Wl,--hash-style=sysv -Wl,--build-id=sha1
+
+all: vdso-arm-le.so vdso-arm-be.so vdso-thm-le.so vdso-thm-be.so
+
+vdso-arm-le.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS) -mlittle-endian -marm vdso.S -o $@
+
+vdso-arm-be.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS) -mbig-endian -marm vdso.S -o $@
+
+vdso-thm-le.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS) -mlittle-endian -mthumb vdso.S -o $@
+
+vdso-thm-be.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS) -mbig-endian -mthumb vdso.S -o $@
