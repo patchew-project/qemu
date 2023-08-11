@@ -1,0 +1,6 @@
+CROSS_CC ?= hppa-linux-gnu-gcc
+
+vdso.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) -nostdlib -shared -Wl,-T,vdso.ld \
+	  -Wl,-h,linux-vdso.so.1 -Wl,--build-id=sha1 \
+	  -Wl,--hash-style=sysv vdso.S -o $@

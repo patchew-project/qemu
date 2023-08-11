@@ -41,7 +41,6 @@ struct target_ucontext {
 };
 
 struct target_rt_sigframe {
-    abi_uint tramp[2];  /* syscall restart return address */
     target_siginfo_t info;
     struct target_ucontext uc;
     /* hidden location of upper halves of pa2.0 64-bit gregs */
