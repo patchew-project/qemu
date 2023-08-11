@@ -1,0 +1,5 @@
+CROSS_CC ?= $(CC)
+
+vdso.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) -nostdlib -shared -Wl,-T,vdso.ld -Wl,--build-id=sha1 \
+	  -Wl,-h,linux-vdso.so.1 -Wl,--hash-style=both vdso.S -o $@
