@@ -573,6 +573,18 @@ static const ARMCPRegInfo neoverse_v1_cp_reginfo[] = {
       .access = PL3_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
 };
 
+/*
+ * TODO: For a write with bit 1 set, do something with arm_reset_cpu().
+ * In the meantime, "the bit is strictly a request", so we are in spec
+ * just ignoring writes.
+ */
+static const ARMCPRegInfo rmr_reginfo = {
+    .name = "RMR_EL3", .state = ARM_CP_STATE_AA64,
+    .opc0 = 3, .opc1 = 6, .crn = 12, .crm = 0, .opc2 = 2,
+    .access = PL3_RW, .type = ARM_CP_CONST,
+    .resetvalue = 1, /* [31:2] RES0, [1] reset 0, [0] RES1 */
+};
+
 static void define_neoverse_v1_cp_reginfo(ARMCPU *cpu)
 {
     /*
@@ -581,6 +593,7 @@ static void define_neoverse_v1_cp_reginfo(ARMCPU *cpu)
      */
     define_arm_cp_regs(cpu, neoverse_n1_cp_reginfo);
     define_arm_cp_regs(cpu, neoverse_v1_cp_reginfo);
+    define_one_arm_cp_reg(cpu, &rmr_reginfo);
 }
 
 static void aarch64_neoverse_n1_initfn(Object *obj)
