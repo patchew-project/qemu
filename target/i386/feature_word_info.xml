@@ -1,3 +1,6 @@
+<!--
+    Run `feature_word_info.py` when you make changes to this file.
+-->
 <feature_words>
     <feature_word index="FEAT_1_EDX">
         <type>CPUID_FEATURE_WORD</type>
