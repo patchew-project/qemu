@@ -2057,11 +2057,10 @@ static int await_return_path_close_on_source(MigrationState *ms)
      * need to cause it to exit. shutdown(2), if we have it, will
      * cause it to unblock if it's stuck waiting for the destination.
      */
-    if (qemu_file_get_error(ms->to_dst_file)) {
-        WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
-            if (ms->rp_state.from_dst_file) {
-                qemu_file_shutdown(ms->rp_state.from_dst_file);
-            }
+    WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
+        if (ms->to_dst_file && ms->rp_state.from_dst_file &&
+            qemu_file_get_error(ms->to_dst_file)) {
+            qemu_file_shutdown(ms->rp_state.from_dst_file);
         }
     }
 
