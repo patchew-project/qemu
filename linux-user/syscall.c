@@ -8557,6 +8557,58 @@ static int open_hardware(CPUArchState *cpu_env, int fd)
 }
 #endif
 
+/*
+ * Handle non-intercepted guest open operations. This gives us the
+ * opportunity to track some information
+ */
+
+static QemuMutex fd_tracking_lock;
+static GHashTable *fd_path;
+
+__attribute__((constructor))
+static void fd_tracking_init(void)
+{
+    qemu_mutex_init(&fd_tracking_lock);
+}
+
+static int do_plain_guest_openat(int dirfd, const char *pathname,
+                                 int flags, mode_t mode, bool safe)
+{
+    const char * real_path = path(pathname);
+    int fd;
+
+    if (safe) {
+        fd = safe_openat(dirfd, real_path, flags, mode);
+    } else {
+        fd = openat(dirfd, real_path, flags, mode);
+    }
+
+    /* If we opened an fd save some details */
+    if (fd >= 0) {
+        WITH_QEMU_LOCK_GUARD(&fd_tracking_lock) {
+            if (!fd_path) {
+                fd_path = g_hash_table_new(NULL, NULL);
+            }
+
+            if (!g_hash_table_insert(fd_path, GINT_TO_POINTER(fd), g_strdup(real_path))) {
+                fprintf(stderr, "%s: duplicate fd %d in fd_path hash\n", __func__, fd);
+            }
+        }
+    }
+
+    return fd;
+}
+
+static void fd_path_cleanup(int fd) {
+    WITH_QEMU_LOCK_GUARD(&fd_tracking_lock) {
+        /*
+         * Assume success, if we failed to cleanup its totally
+         * possible the guest got confused and closed something twice.
+         */
+        g_hash_table_remove(fd_path, GINT_TO_POINTER(fd));
+    }
+}
+
 
 int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *fname,
                     int flags, mode_t mode, bool safe)
@@ -8643,11 +8695,7 @@ int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *fname,
         return fd;
     }
 
-    if (safe) {
-        return safe_openat(dirfd, path(pathname), flags, mode);
-    } else {
-        return openat(dirfd, path(pathname), flags, mode);
-    }
+    return do_plain_guest_openat(dirfd, pathname, flags, mode, safe);
 }
 
 ssize_t do_guest_readlink(const char *pathname, char *buf, size_t bufsiz)
@@ -9355,6 +9403,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         return get_errno(pidfd_getfd(arg1, arg2, arg3));
 #endif
     case TARGET_NR_close:
+        fd_path_cleanup(arg1);
         fd_trans_unregister(arg1);
         return get_errno(close(arg1));
 #if defined(__NR_close_range) && defined(TARGET_NR_close_range)
