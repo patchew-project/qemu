@@ -146,8 +146,6 @@ void yank_unregister_function(const YankInstance *instance,
             return;
         }
     }
-
-    abort();
 }
 
 void qmp_yank(YankInstanceList *instances,
