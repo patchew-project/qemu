@@ -1,0 +1,11 @@
+CROSS_CC ?= riscv64-linux-gnu-gcc
+LDFLAGS := -nostdlib -shared -Wl,-T,vdso.ld \
+	   -Wl,-h,linux-vdso.so.1 -Wl,--hash-style=both -Wl,--build-id=sha1
+
+all: vdso-64.so vdso-32.so
+
+vdso-64.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS) -mabi=lp64d -march=rv64g -fpic -o $@ vdso.S
+
+vdso-32.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS) -mabi=ilp32d -march=rv32g -fpic -o $@ vdso.S

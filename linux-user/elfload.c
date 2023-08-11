@@ -1752,8 +1752,10 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #ifdef TARGET_RISCV32
 #define ELF_CLASS ELFCLASS32
+#include "vdso-32.c.inc"
 #else
 #define ELF_CLASS ELFCLASS64
+#include "vdso-64.c.inc"
 #endif
 
 #define ELF_HWCAP get_elf_hwcap()
@@ -1769,6 +1771,8 @@ static uint32_t get_elf_hwcap(void)
     return cpu->env.misa_ext & mask;
 #undef MISA_BIT
 }
+
+#define vdso_image_info()    &vdso_image_info
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
