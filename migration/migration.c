@@ -1175,6 +1175,7 @@ static void migrate_fd_cleanup(MigrationState *s)
          * critical section won't block for long.
          */
         migration_ioc_unregister_yank_from_file(tmp);
+        qemu_file_shutdown(tmp);
         qemu_fclose(tmp);
     }
 
@@ -1844,6 +1845,7 @@ static void migration_release_dst_files(MigrationState *ms)
         ms->postcopy_qemufile_src = NULL;
     }
 
+    qemu_file_shutdown(file);
     qemu_fclose(file);
 }
 
