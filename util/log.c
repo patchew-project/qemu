@@ -48,6 +48,15 @@ int qemu_loglevel;
 static bool log_per_thread;
 static GArray *debug_regions;
 
+static QemuMutex debug_names_lock;
+static GPtrArray *debug_names; /* unresolved named ranges */
+
+__attribute__((constructor))
+static void debug_names_init(void)
+{
+    qemu_mutex_init(&debug_names_lock);
+}
+
 /* Returns true if qemu_log() will really write somewhere. */
 bool qemu_log_enabled(void)
 {
@@ -393,6 +402,8 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
 
     debug_regions = g_array_sized_new(FALSE, FALSE,
                                       sizeof(Range), g_strv_length(ranges));
+    debug_names = g_ptr_array_new();
+
     for (i = 0; ranges[i]; i++) {
         const char *r = ranges[i];
         const char *range_op, *r2, *e;
@@ -410,7 +421,8 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
             r2 = range_op ? range_op + 2 : NULL;
         }
         if (!range_op) {
-            error_setg(errp, "Bad range specifier");
+            /* this might be a libname, defer until we map stuff */
+            g_ptr_array_add(debug_names, g_strdup(r));
             goto out;
         }
 
@@ -451,6 +463,28 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
     }
 out:
     g_strfreev(ranges);
+}
+
+void qemu_maybe_append_dfilter_range(const char *path, uint64_t start, uint64_t end)
+{
+    if (!debug_names) {
+        return;
+    }
+
+    WITH_QEMU_LOCK_GUARD(&debug_names_lock) {
+        int i;
+        for (i = 0; i < debug_names->len; i++) {
+            char *name = g_ptr_array_index(debug_names, i);
+
+            if (strstr(path, name) != NULL) {
+                struct Range range;
+                range_set_bounds(&range, start, end);
+                g_array_append_val(debug_regions, range);
+                g_free(g_ptr_array_remove_index(debug_names, i));
+                break;
+            }
+        }
+    }
 }
 
 const QEMULogItem qemu_log_items[] = {

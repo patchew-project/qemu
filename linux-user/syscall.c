@@ -6019,6 +6019,18 @@ static const bitmask_transtbl mmap_flags_tbl[] = {
 #define TARGET_MAP_HUGE_1GB 0
 #endif
 
+static char *get_fd_path_mapping(int fd);
+
+static void track_exec_segments(int fd, abi_ulong addr, abi_ulong len, off_t offset)
+{
+    g_autofree char *path = get_fd_path_mapping(fd);
+    if (path) {
+        uint64_t start = addr + offset;
+        uint64_t end = start + len;
+        qemu_maybe_append_dfilter_range(path, start, end);
+    }
+}
+
 static abi_long do_mmap(abi_ulong addr, abi_ulong len, int prot,
                         int target_flags, int fd, off_t offset)
 {
@@ -6045,6 +6057,7 @@ static abi_long do_mmap(abi_ulong addr, abi_ulong len, int prot,
                                | TARGET_MAP_HUGE_1GB
     };
     int host_flags;
+    abi_long map_addr;
 
     switch (target_flags & TARGET_MAP_TYPE) {
     case TARGET_MAP_PRIVATE:
@@ -6071,7 +6084,14 @@ static abi_long do_mmap(abi_ulong addr, abi_ulong len, int prot,
     }
     host_flags |= target_to_host_bitmask(target_flags, mmap_flags_tbl);
 
-    return get_errno(target_mmap(addr, len, prot, host_flags, fd, offset));
+
+    map_addr = target_mmap(addr, len, prot, host_flags, fd, offset);
+    /* Have we successfully mapped an executable segment? */
+    if (map_addr > 0 /* && prot & PROT_EXEC */) {
+        track_exec_segments(fd, map_addr, len, offset);
+    }
+
+    return get_errno(map_addr);
 }
 
 /*
@@ -8569,6 +8589,15 @@ __attribute__((constructor))
 static void fd_tracking_init(void)
 {
     qemu_mutex_init(&fd_tracking_lock);
+}
+
+/* caller owns result */
+static char * get_fd_path_mapping(int fd) {
+    gpointer value;
+    WITH_QEMU_LOCK_GUARD(&fd_tracking_lock) {
+        value = g_hash_table_lookup(fd_path, GINT_TO_POINTER(fd));
+    }
+    return g_strdup(value);
 }
 
 static int do_plain_guest_openat(int dirfd, const char *pathname,

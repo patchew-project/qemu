@@ -86,6 +86,18 @@ bool qemu_set_log(int log_flags, Error **errp);
 bool qemu_set_log_filename(const char *filename, Error **errp);
 bool qemu_set_log_filename_flags(const char *name, int flags, Error **errp);
 void qemu_set_dfilter_ranges(const char *ranges, Error **errp);
+
+/**
+ * qemu_maybe_append_dfilter_range() - maybe add mapped binary range to dfilter
+ * @path - the full path to the mapped binary
+ * @start - start guest address
+ * @end - end guest address
+ *
+ * This allows *-user to add ranges to the dfilter list after the fact
+ * as binary sections are mapped in.
+ */
+void qemu_maybe_append_dfilter_range(const char *path, uint64_t start, uint64_t end);
+
 bool qemu_log_in_addr_range(uint64_t addr);
 int qemu_str_to_log_mask(const char *str);
 
