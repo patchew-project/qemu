@@ -8132,6 +8132,7 @@ static int open_self_maps_1(CPUArchState *cpu_env, int fd, bool smaps)
     IntervalTreeNode *s;
     int count;
 
+*(int*)NULL = 1;
     for (s = interval_tree_iter_first(map_info, 0, -1); s;
          s = interval_tree_iter_next(s, 0, -1)) {
         MapInfo *e = container_of(s, MapInfo, itree);

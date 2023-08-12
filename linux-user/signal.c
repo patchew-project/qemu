@@ -23,6 +23,7 @@
 
 #include <sys/ucontext.h>
 #include <sys/resource.h>
+#include <execinfo.h>
 
 #include "qemu.h"
 #include "user-internals.h"
@@ -781,6 +782,34 @@ static inline void rewind_if_in_safe_syscall(void *puc)
     }
 }
 
+static void qemu_show_backtrace(siginfo_t *info)
+{
+    void *array[20];
+    char **strings;
+    int size, i;
+
+    fprintf(stderr, "QEMU linux-user v" QEMU_VERSION " for target "
+                     UNAME_MACHINE "\n");
+    fprintf(stderr, "QEMU internal error: signal=%d, errno=%d, "
+                    "code=%d, addr=%p\n",
+                    info->si_signo, info->si_errno, info->si_code,
+                    info->si_addr);
+    fprintf(stderr, "while running: %s\n", exec_path);
+    size = backtrace(array, ARRAY_SIZE(array));
+    strings = backtrace_symbols(array, size);
+    if (strings) {
+        fprintf(stderr, "QEMU backtrace:\n");
+        for (i = 0; i < size; i++)
+            fprintf(stderr, "%s\n", strings[i]);
+    }
+    free (strings);
+    exit(info->si_code);
+}
+
+/* _init and _fini are provided by the linker */
+extern char _init;
+extern char _fini;
+
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
     CPUArchState *env = thread_cpu->env_ptr;
@@ -818,6 +847,13 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 
         if (host_sig == SIGSEGV) {
             bool maperr = true;
+
+            /* Did segfault happened in qemu source code? */
+            if ((pc >= (uintptr_t) &_init && pc < (uintptr_t) &_fini) ||
+                (TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
+                 && !h2g_valid(host_addr))) {
+                qemu_show_backtrace(info);
+            }
 
             if (info->si_code == SEGV_ACCERR && h2g_valid(host_addr)) {
                 /* If this was a write to a TB protected page, restart. */
