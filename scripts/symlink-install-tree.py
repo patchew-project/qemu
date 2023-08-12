@@ -15,8 +15,7 @@ def destdir_join(d1: str, d2: str) -> str:
     return str(PurePath(d1, *PurePath(d2).parts[1:]))
 
 introspect = os.environ.get('MESONINTROSPECT')
-out = subprocess.run([*shlex.split(introspect), '--installed'],
-                     stdout=subprocess.PIPE, check=True).stdout
+out = subprocess.check_output([*shlex.split(introspect), '--installed'])
 for source, dest in json.loads(out).items():
     bundle_dest = destdir_join('qemu-bundle', dest)
     path = os.path.dirname(bundle_dest)
