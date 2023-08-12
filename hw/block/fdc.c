@@ -1404,7 +1404,6 @@ static int fdctrl_seek_to_next_sect(FDCtrl *fdctrl, FDrive *cur_drv)
             } else {
                 new_head = 0;
                 new_track++;
-                fdctrl->status0 |= FD_SR0_SEEK;
                 if ((cur_drv->flags & FDISK_DBL_SIDES) == 0) {
                     ret = 0;
                 }
