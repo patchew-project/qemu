@@ -580,7 +580,7 @@ void qemu_system_wakeup_request(WakeupReason reason, Error **errp)
     if (!(wakeup_reason_mask & (1 << reason))) {
         return;
     }
-    runstate_set(RUN_STATE_RUNNING);
+    vm_wakeup();
     wakeup_reason = reason;
     qemu_notify_event();
 }
