@@ -16,7 +16,8 @@
 #include "libqtest.h"
 
 typedef struct QTestMigrationState {
-    bool stop_seen, resume_seen;
+    bool suspend_me;
+    bool stop_seen, suspend_seen, resume_seen;
 } QTestMigrationState;
 
 bool migrate_watch_for_events(QTestState *who, const char *name,
