@@ -11,6 +11,7 @@
 import os
 import logging
 import time
+import subprocess
 
 from avocado import skipUnless
 from avocado_qemu import BUILD_DIR
@@ -20,6 +21,11 @@ from avocado.utils import vmimage
 from avocado.utils import datadrainer
 from avocado.utils.path import find_command
 from avocado_qemu import LinuxTest
+
+from pathlib import Path
+
+self_dir = Path(__file__).parent
+src_dir = self_dir.parent.parent
 
 class ReplayLinux(LinuxTest):
     """
@@ -94,7 +100,7 @@ class ReplayLinux(LinuxTest):
         else:
             vm.event_wait('SHUTDOWN', self.timeout)
             vm.shutdown(True)
-            logger.info('successfully fihished the replay')
+            logger.info('successfully finished the replay')
         elapsed = time.time() - start_time
         logger.info('elapsed time %.2f sec' % elapsed)
         return elapsed
@@ -104,6 +110,14 @@ class ReplayLinux(LinuxTest):
         t2 = self.launch_and_wait(False, args, shift)
         logger = logging.getLogger('replay')
         logger.info('replay overhead {:.2%}'.format(t2 / t1 - 1))
+
+        try:
+            replay_path = os.path.join(self.workdir, 'replay.bin')
+            subprocess.check_call(["./scripts/replay-dump.py",
+                                   "-f", replay_path],
+                                  cwd=src_dir, stdout=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            self.fail('replay-dump.py failed')
 
 @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
 class ReplayLinuxX8664(ReplayLinux):

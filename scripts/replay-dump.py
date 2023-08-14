@@ -21,6 +21,7 @@
 import argparse
 import struct
 import os
+import sys
 from collections import namedtuple
 
 # This mirrors some of the global replay state which some of the
@@ -97,7 +98,7 @@ def call_decode(table, index, dumpfile):
         print("Could not decode index: %d" % (index))
         print("Entry is: %s" % (decoder))
         print("Decode Table is:\n%s" % (table))
-        return False
+        sys.exit(1)
     else:
         return decoder.fn(decoder.eid, decoder.name, dumpfile)
 
@@ -118,7 +119,7 @@ def print_event(eid, name, string=None, event_count=None):
 def decode_unimp(eid, name, _unused_dumpfile):
     "Unimplimented decoder, will trigger exit"
     print("%s not handled - will now stop" % (name))
-    return False
+    sys.exit(1)
 
 # Checkpoint decoder
 def swallow_async_qword(eid, name, dumpfile):
@@ -401,3 +402,4 @@ def decode_file(filename):
 if __name__ == "__main__":
     args = parse_arguments()
     decode_file(args.file)
+    sys.exit(0)
