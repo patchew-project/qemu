@@ -20,6 +20,7 @@
 
 import argparse
 import struct
+import os
 from collections import namedtuple
 
 # This mirrors some of the global replay state which some of the
@@ -61,6 +62,10 @@ replay_state = ReplayState()
 def read_byte(fin):
     "Read a single byte"
     return struct.unpack('>B', fin.read(1))[0]
+
+def read_bytes(fin, nr):
+    "Read a nr bytes"
+    return fin.read(nr)
 
 def read_event(fin):
     "Read a single byte event, but save some state"
@@ -122,12 +127,18 @@ def swallow_async_qword(eid, name, dumpfile):
     print("  %s(%d) @ %d" % (name, eid, step_id))
     return True
 
+def swallow_bytes(eid, name, dumpfile, nr):
+    "Swallow nr bytes of data without looking at it"
+    dumpfile.seek(nr, os.SEEK_CUR)
+    return True
+
 async_decode_table = [ Decoder(0, "REPLAY_ASYNC_EVENT_BH", swallow_async_qword),
-                       Decoder(1, "REPLAY_ASYNC_INPUT", decode_unimp),
-                       Decoder(2, "REPLAY_ASYNC_INPUT_SYNC", decode_unimp),
-                       Decoder(3, "REPLAY_ASYNC_CHAR_READ", decode_unimp),
-                       Decoder(4, "REPLAY_ASYNC_EVENT_BLOCK", decode_unimp),
-                       Decoder(5, "REPLAY_ASYNC_EVENT_NET", decode_unimp),
+                       Decoder(1, "REPLAY_ASYNC_BH_ONESHOT", decode_unimp),
+                       Decoder(2, "REPLAY_ASYNC_INPUT", decode_unimp),
+                       Decoder(3, "REPLAY_ASYNC_INPUT_SYNC", decode_unimp),
+                       Decoder(4, "REPLAY_ASYNC_CHAR_READ", decode_unimp),
+                       Decoder(5, "REPLAY_ASYNC_EVENT_BLOCK", decode_unimp),
+                       Decoder(6, "REPLAY_ASYNC_EVENT_NET", decode_unimp),
 ]
 # See replay_read_events/replay_read_event
 def decode_async(eid, name, dumpfile):
@@ -156,6 +167,13 @@ def decode_audio_out(eid, name, dumpfile):
     print_event(eid, name, "%d" % (audio_data))
     return True
 
+def decode_random(eid, name, dumpfile):
+    ret = read_dword(dumpfile)
+    size = read_dword(dumpfile)
+    swallow_bytes(eid, name, dumpfile, size)
+    print_event(eid, name, "%d %d" % (ret, size))
+    return True
+
 def decode_checkpoint(eid, name, dumpfile):
     """Decode a checkpoint.
 
@@ -182,6 +200,38 @@ def decode_checkpoint_init(eid, name, dumpfile):
 
 def decode_interrupt(eid, name, dumpfile):
     print_event(eid, name)
+    return True
+
+def decode_exception(eid, name, dumpfile):
+    print_event(eid, name)
+    return True
+
+def decode_shutdown(eid, name, dumpfile):
+    print_event(eid, name)
+    return True
+
+def decode_end(eid, name, dumpfile):
+    print_event(eid, name)
+    return False
+
+def decode_char_write(eid, name, dumpfile):
+    res = read_dword(dumpfile)
+    offset = read_dword(dumpfile)
+    print_event(eid, name)
+    return True
+
+def decode_async_char_read(eid, name, dumpfile):
+    char_id = read_byte(dumpfile)
+    size = read_dword(dumpfile)
+    print_event(eid, name, "device:%x chars:%s" % (char_id, read_bytes(dumpfile, size)))
+    return True
+
+def decode_async_net(eid, name, dumpfile):
+    net_id = read_byte(dumpfile)
+    flags = read_dword(dumpfile)
+    size = read_dword(dumpfile)
+    swallow_bytes(eid, name, dumpfile, size)
+    print_event(eid, name, "net:%x flags:%x bytes:%d" % (net_id, flags, size))
     return True
 
 def decode_clock(eid, name, dumpfile):
@@ -268,6 +318,48 @@ v7_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
                   Decoder(28, "EVENT_CP_RESET", decode_checkpoint),
 ]
 
+v12_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
+                  Decoder(1, "EVENT_INTERRUPT", decode_interrupt),
+                  Decoder(2, "EVENT_EXCEPTION", decode_exception),
+                  Decoder(3, "EVENT_ASYNC_BH", swallow_async_qword),
+                  Decoder(4, "EVENT_ASYNC_BH_ONESHOT", swallow_async_qword),
+                  Decoder(5, "EVENT_ASYNC_INPUT", decode_unimp),
+                  Decoder(6, "EVENT_ASYNC_INPUT_SYNC", decode_unimp),
+                  Decoder(7, "EVENT_ASYNC_CHAR_READ", decode_async_char_read),
+                  Decoder(8, "EVENT_ASYNC_BLOCK", swallow_async_qword),
+                  Decoder(9, "EVENT_ASYNC_NET", decode_async_net),
+                  Decoder(10, "EVENT_SHUTDOWN", decode_unimp),
+                  Decoder(11, "EVENT_SHUTDOWN_HOST_ERR", decode_shutdown),
+                  Decoder(12, "EVENT_SHUTDOWN_HOST_QMP_QUIT", decode_shutdown),
+                  Decoder(13, "EVENT_SHUTDOWN_HOST_QMP_RESET", decode_shutdown),
+                  Decoder(14, "EVENT_SHUTDOWN_HOST_SIGNAL", decode_shutdown),
+                  Decoder(15, "EVENT_SHUTDOWN_HOST_UI", decode_shutdown),
+                  Decoder(16, "EVENT_SHUTDOWN_GUEST_SHUTDOWN", decode_shutdown),
+                  Decoder(17, "EVENT_SHUTDOWN_GUEST_RESET", decode_shutdown),
+                  Decoder(18, "EVENT_SHUTDOWN_GUEST_PANIC", decode_shutdown),
+                  Decoder(19, "EVENT_SHUTDOWN_SUBSYS_RESET", decode_shutdown),
+                  Decoder(20, "EVENT_SHUTDOWN_SNAPSHOT_LOAD", decode_shutdown),
+                  Decoder(21, "EVENT_SHUTDOWN___MAX", decode_shutdown),
+                  Decoder(22, "EVENT_CHAR_WRITE", decode_char_write),
+                  Decoder(23, "EVENT_CHAR_READ_ALL", decode_unimp),
+                  Decoder(24, "EVENT_CHAR_READ_ALL_ERROR", decode_unimp),
+                  Decoder(25, "EVENT_AUDIO_OUT", decode_audio_out),
+                  Decoder(26, "EVENT_AUDIO_IN", decode_unimp),
+                  Decoder(27, "EVENT_RANDOM", decode_random),
+                  Decoder(28, "EVENT_CLOCK_HOST", decode_clock),
+                  Decoder(29, "EVENT_CLOCK_VIRTUAL_RT", decode_clock),
+                  Decoder(30, "EVENT_CP_CLOCK_WARP_START", decode_checkpoint),
+                  Decoder(31, "EVENT_CP_CLOCK_WARP_ACCOUNT", decode_checkpoint),
+                  Decoder(32, "EVENT_CP_RESET_REQUESTED", decode_checkpoint),
+                  Decoder(33, "EVENT_CP_SUSPEND_REQUESTED", decode_checkpoint),
+                  Decoder(34, "EVENT_CP_CLOCK_VIRTUAL", decode_checkpoint),
+                  Decoder(35, "EVENT_CP_CLOCK_HOST", decode_checkpoint),
+                  Decoder(36, "EVENT_CP_CLOCK_VIRTUAL_RT", decode_checkpoint),
+                  Decoder(37, "EVENT_CP_INIT", decode_checkpoint_init),
+                  Decoder(38, "EVENT_CP_RESET", decode_checkpoint),
+                  Decoder(39, "EVENT_END", decode_end),
+]
+
 def parse_arguments():
     "Grab arguments for script"
     parser = argparse.ArgumentParser()
@@ -285,7 +377,10 @@ def decode_file(filename):
 
     print("HEADER: version 0x%x" % (version))
 
-    if version == 0xe02007:
+    if version == 0xe0200c:
+        event_decode_table = v12_event_table
+        replay_state.checkpoint_start = 12
+    elif version == 0xe02007:
         event_decode_table = v7_event_table
         replay_state.checkpoint_start = 12
     elif version == 0xe02006:
