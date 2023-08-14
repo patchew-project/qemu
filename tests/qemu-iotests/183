@@ -97,7 +97,9 @@ if echo "$reply" | grep "compiled without old-style" > /dev/null; then
 fi
 
 timeout_comm=$QEMU_COMM_TIMEOUT
-if [ "${VALGRIND_QEMU}" == "y" ]; then
+if echo "$MAKEFLAGS" | grep -q "\-j"; then
+    QEMU_COMM_TIMEOUT=10
+elif [ "${VALGRIND_QEMU}" == "y" ]; then
     QEMU_COMM_TIMEOUT=4
 else
     QEMU_COMM_TIMEOUT=0.1
