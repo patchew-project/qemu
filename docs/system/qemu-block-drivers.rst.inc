@@ -172,6 +172,45 @@ This section describes each format and the options that are supported for it.
     filename`` to check if the NOCOW flag is set or not (Capital 'C' is
     NOCOW flag).
 
+  .. option:: zoned_profile
+
+    The option configures the zoned format feature on the qcow2 driver. If
+    this is set to ``zbc``, then it follows the basics of ZBC/ZAC protocol.
+    If setting to ``zns``, then it follows NVMe ZNS protocol.
+
+    The virtio-blk device allows ``zbc`` and ``zns`` options to pass through
+    zoned devices. While NVMe ZNS device only allows ``zns`` option.
+
+  .. option:: zone_size
+
+    The size of a zone of the zoned device in bytes. The device is divided
+    into zones of this size with the exception of the last zone, which may
+    be smaller.
+
+  .. option:: zone_capacity
+
+    The initial capacity value for all zones. The capacity must be less than
+    or equal to zone size. If the last zone is smaller, then its capacity is
+    capped. The device follows the ZBC protocol tends to have the same size
+    as its zone.
+
+  .. option:: zone_nr_conv
+
+    The number of conventional zones of the zoned device.
+
+  .. option:: max_open_zones
+
+    The maximal allowed open zones.
+
+  .. option:: max_active_zones
+
+    The limit of the zones with implicit open, explicit open or closed state.
+
+  .. option:: max_append_sectors
+
+    The maximal sectors in 512B blocks that is allowed to append to zones
+    while writing.
+
 .. program:: image-formats
 .. option:: qed
 
