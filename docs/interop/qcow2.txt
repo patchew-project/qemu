@@ -354,6 +354,8 @@ The fields of the zoned extension are:
           20 - 23:  max_active_zones
           24 - 27:  max_open_zones
           28 - 31:  max_append_sectors
+          32 - 39:  zonedmeta_offset
+          40 - 47:  zonedmeta_size
 
 == Full disk encryption header pointer ==
 
