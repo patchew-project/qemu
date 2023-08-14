@@ -5020,24 +5020,42 @@
 #
 # @compression-type: The image cluster compression method
 #     (default: zlib, since 5.1)
+# @zoned-profile: Two zoned device protocol options, zbc or zns
+#                 (default: off, since 8.0)
+# @zone-size: The size of a zone of the zoned device (since 8.0)
+# @zone-capacity: The capacity of a zone of the zoned device (since 8.0)
+# @zone-nr-conv: The number of conventional zones of the zoned device
+#                (since 8.0)
+# @max-open-zones: The maximal allowed open zones (since 8.0)
+# @max-active-zones: The limit of the zones that have the implicit open,
+#                    explicit open or closed state (since 8.0)
+# @max-append-sectors: The maximal sectors that is allowed to append write
+#                      (since 8.0)
 #
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsQcow2',
-  'data': { 'file':             'BlockdevRef',
-            '*data-file':       'BlockdevRef',
-            '*data-file-raw':   'bool',
-            '*extended-l2':     'bool',
-            'size':             'size',
-            '*version':         'BlockdevQcow2Version',
-            '*backing-file':    'str',
-            '*backing-fmt':     'BlockdevDriver',
-            '*encrypt':         'QCryptoBlockCreateOptions',
-            '*cluster-size':    'size',
-            '*preallocation':   'PreallocMode',
-            '*lazy-refcounts':  'bool',
-            '*refcount-bits':   'int',
-            '*compression-type':'Qcow2CompressionType' } }
+  'data': { 'file':                'BlockdevRef',
+            '*data-file':          'BlockdevRef',
+            '*data-file-raw':      'bool',
+            '*extended-l2':        'bool',
+            'size':                'size',
+            '*version':            'BlockdevQcow2Version',
+            '*backing-file':       'str',
+            '*backing-fmt':        'BlockdevDriver',
+            '*encrypt':            'QCryptoBlockCreateOptions',
+            '*cluster-size':       'size',
+            '*preallocation':      'PreallocMode',
+            '*lazy-refcounts':     'bool',
+            '*refcount-bits':      'int',
+            '*compression-type':   'Qcow2CompressionType',
+            '*zoned-profile':      'str',
+            '*zone-size':          'size',
+            '*zone-capacity':      'size',
+            '*zone-nr-conv':       'uint32',
+            '*max-open-zones':     'uint32',
+            '*max-active-zones':   'uint32',
+            '*max-append-sectors': 'uint32'}}
 
 ##
 # @BlockdevCreateOptionsQed:

@@ -331,6 +331,30 @@ The fields of the bitmaps extension are:
                    Offset into the image file at which the bitmap directory
                    starts. Must be aligned to a cluster boundary.
 
+== Zoned extension ==
+
+The zoned extension is an optional header extension. It is required when
+using the qcow2 file as the backing image for zoned device.
+
+The fields of the zoned extension are:
+    Byte  0:  zoned_profile
+              Type of zoned format. Must be `zbc` or `zns`.
+                  1: `zbc`
+                  2: `zns`
+
+          1:  zoned
+              Type of zone.
+
+          2 - 3:  Reserved, must be zero.
+
+          4 - 7:  zone_size
+          8 - 11:  zone_capacity
+          12 - 15:  nr_zones
+          16 - 19:  zone_nr_conv
+          20 - 23:  max_active_zones
+          24 - 27:  max_open_zones
+          28 - 31:  max_append_sectors
+
 == Full disk encryption header pointer ==
 
 The full disk encryption header must be present if, and only if, the

@@ -236,6 +236,20 @@ typedef struct Qcow2CryptoHeaderExtension {
     uint64_t length;
 } QEMU_PACKED Qcow2CryptoHeaderExtension;
 
+typedef struct Qcow2ZonedHeaderExtension {
+    /* Zoned device attributes */
+    uint8_t zoned_profile;
+    uint8_t zoned;
+    uint16_t reserved16;
+    uint32_t zone_size;
+    uint32_t zone_capacity;
+    uint32_t nr_zones;
+    uint32_t zone_nr_conv;
+    uint32_t max_active_zones;
+    uint32_t max_open_zones;
+    uint32_t max_append_sectors;
+} QEMU_PACKED Qcow2ZonedHeaderExtension;
+
 typedef struct Qcow2UnknownHeaderExtension {
     uint32_t magic;
     uint32_t len;
@@ -422,6 +436,13 @@ typedef struct BDRVQcow2State {
      * is to convert the image with the desired compression type set.
      */
     Qcow2CompressionType compression_type;
+
+    /* States of zoned device */
+    Qcow2ZonedHeaderExtension zoned_header;
+    uint32_t nr_zones_exp_open;
+    uint32_t nr_zones_imp_open;
+    uint32_t nr_zones_closed;
+    BlockZoneWps *wps;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {

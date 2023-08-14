@@ -57,6 +57,14 @@
 #define BLOCK_OPT_DATA_FILE_RAW     "data_file_raw"
 #define BLOCK_OPT_COMPRESSION_TYPE  "compression_type"
 #define BLOCK_OPT_EXTL2             "extended_l2"
+#define BLOCK_OPT_Z_PROFILE         "zoned_profile"
+#define BLOCK_OPT_Z_MODEL           "zoned"
+#define BLOCK_OPT_Z_SIZE            "zone_size"
+#define BLOCK_OPT_Z_CAP             "zone_capacity"
+#define BLOCK_OPT_Z_NR_COV          "zone_nr_conv"
+#define BLOCK_OPT_Z_MAS             "max_append_sectors"
+#define BLOCK_OPT_Z_MAZ             "max_active_zones"
+#define BLOCK_OPT_Z_MOZ             "max_open_zones"
 
 #define BLOCK_PROBE_BUF_SIZE        512
 
@@ -872,11 +880,19 @@ typedef struct BlockLimits {
      */
     bool has_variable_length;
 
+    BlockZonedProfile zoned_profile;
+
     /* device zone model */
     BlockZoneModel zoned;
 
     /* zone size expressed in bytes */
     uint32_t zone_size;
+
+    /*
+     * the number of usable logical blocks within the zone, expressed
+     * in bytes. A zone capacity is smaller or equal to the zone size.
+     */
+    uint32_t zone_capacity;
 
     /* total number of zones */
     uint32_t nr_zones;

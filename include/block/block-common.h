@@ -108,6 +108,11 @@ typedef enum BlockZoneType {
     BLK_ZT_SWP = 0x3, /* Sequential writes preferred */
 } BlockZoneType;
 
+typedef enum BlockZonedProfile {
+    BLK_ZP_ZBC = 0x1,
+    BLK_ZP_ZNS = 0x2,
+} BlockZonedProfile;
+
 /*
  * Zone descriptor data structure.
  * Provides information on a zone with all position and size values in bytes.
