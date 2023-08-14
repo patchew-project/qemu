@@ -45,6 +45,17 @@ typedef enum ReplayCheckpoint ReplayCheckpoint;
 
 typedef struct ReplayNetState ReplayNetState;
 
+enum ReplaySnapshotMode {
+    REPLAY_SNAPSHOT_MODE_INITIAL,
+    REPLAY_SNAPSHOT_MODE_PERIODIC,
+};
+typedef enum ReplaySnapshotMode ReplaySnapshotMode;
+
+extern ReplaySnapshotMode replay_snapshot_mode;
+
+extern uint64_t replay_snapshot_periodic_delay;
+extern int replay_snapshot_periodic_nr_keep;
+
 /* Name of the initial VM snapshot */
 extern char *replay_snapshot;
 

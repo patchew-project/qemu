@@ -446,6 +446,15 @@ static QemuOptsList qemu_icount_opts = {
         }, {
             .name = "rrsnapshot",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "rrsnapmode",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "rrsnaptime",
+            .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "rrsnapcount",
+            .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }
     },
