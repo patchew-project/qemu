@@ -2133,6 +2133,10 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
     ram_addr_t offset = ((ram_addr_t)pss->page) << TARGET_PAGE_BITS;
     int res;
 
+    if (qemu_file_get_error(pss->pss_channel)) {
+        return -1;
+    }
+
     if (control_save_page(pss, block, offset, &res)) {
         return res;
     }
