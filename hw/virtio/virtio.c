@@ -28,6 +28,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 #include "sysemu/runstate.h"
 #include "virtio-qmp.h"
@@ -2426,6 +2427,13 @@ static bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
+/* Batch irqs while inside a blk_io_plug()/blk_io_unplug() section */
+static void virtio_notify_irqfd_unplug_fn(void *opaque)
+{
+    EventNotifier *notifier = opaque;
+    event_notifier_set(notifier);
+}
+
 void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
 {
     WITH_RCU_READ_LOCK_GUARD() {
@@ -2452,7 +2460,7 @@ void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
      * to an atomic operation.
      */
     virtio_set_isr(vq->vdev, 0x1);
-    event_notifier_set(&vq->guest_notifier);
+    blk_io_plug_call(virtio_notify_irqfd_unplug_fn, &vq->guest_notifier);
 }
 
 static void virtio_irq(VirtQueue *vq)

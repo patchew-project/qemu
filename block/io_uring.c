@@ -124,6 +124,9 @@ static void luring_process_completions(LuringState *s)
 {
     struct io_uring_cqe *cqes;
     int total_bytes;
+
+    blk_io_plug();
+
     /*
      * Request completion callbacks can run the nested event loop.
      * Schedule ourselves so the nested event loop will "see" remaining
@@ -216,7 +219,10 @@ end:
             aio_co_wake(luringcb->co);
         }
     }
+
     qemu_bh_cancel(s->completion_bh);
+
+    blk_io_unplug();
 }
 
 static int ioq_submit(LuringState *s)

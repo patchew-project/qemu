@@ -204,6 +204,8 @@ static void qemu_laio_process_completions(LinuxAioState *s)
 {
     struct io_event *events;
 
+    blk_io_plug();
+
     /* Reschedule so nested event loops see currently pending completions */
     qemu_bh_schedule(s->completion_bh);
 
@@ -230,6 +232,8 @@ static void qemu_laio_process_completions(LinuxAioState *s)
      * own `for` loop.  If we are the last all counters droped to zero. */
     s->event_max = 0;
     s->event_idx = 0;
+
+    blk_io_unplug();
 }
 
 static void qemu_laio_process_completions_and_submit(LinuxAioState *s)
