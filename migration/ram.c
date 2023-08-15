@@ -1169,23 +1169,24 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss, RAMBlock *block,
 {
     int len = save_zero_page_to_file(pss, block, offset);
 
-    if (len) {
-        stat64_add(&mig_stats.zero_pages, 1);
-        ram_transferred_add(len);
-
-        /*
-         * Must let xbzrle know, otherwise a previous (now 0'd) cached
-         * page would be stale.
-         */
-        if (rs->xbzrle_started) {
-            XBZRLE_cache_lock();
-            xbzrle_cache_zero_page(block->offset + offset);
-            XBZRLE_cache_unlock();
-        }
-
-        return 1;
+    if (!len) {
+        return -1;
     }
-    return -1;
+
+    stat64_add(&mig_stats.zero_pages, 1);
+    ram_transferred_add(len);
+
+    /*
+     * Must let xbzrle know, otherwise a previous (now 0'd) cached
+     * page would be stale.
+     */
+    if (rs->xbzrle_started) {
+        XBZRLE_cache_lock();
+        xbzrle_cache_zero_page(block->offset + offset);
+        XBZRLE_cache_unlock();
+    }
+
+    return 1;
 }
 
 /*
