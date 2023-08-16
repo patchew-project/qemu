@@ -248,7 +248,7 @@ static void encode_cache_cpuid4(CPUCacheInfo *cache,
     *eax = CACHE_TYPE(cache->type) |
            CACHE_LEVEL(cache->level) |
            (cache->self_init ? CACHE_SELF_INIT_LEVEL : 0) |
-           ((num_cores - 1) << 26) |
+           ((MIN(num_cores, 64) - 1) << 26) |
            ((num_apic_ids - 1) << 14);
 
     assert(cache->line_size > 0);
