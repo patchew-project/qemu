@@ -28,7 +28,8 @@
 #include "sysemu/hw_accel.h"
 #include "sysemu/tcg.h"
 
-int s390_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int s390_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                               bool has_xml)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
@@ -44,7 +45,8 @@ int s390_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int s390_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int s390_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                bool has_xml)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;

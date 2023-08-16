@@ -89,12 +89,14 @@ void cpu_exit(CPUState *cpu)
     qatomic_set(&cpu->icount_decr_ptr->u16.high, -1);
 }
 
-static int cpu_common_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
+static int cpu_common_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                                        bool has_xml)
 {
     return 0;
 }
 
-static int cpu_common_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg)
+static int cpu_common_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                                         bool has_xml)
 {
     return 0;
 }

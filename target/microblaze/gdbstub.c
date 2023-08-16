@@ -46,7 +46,8 @@ enum {
     GDB_SP_SHR,
 };
 
-int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                             bool has_xml)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUClass *cc = CPU_GET_CLASS(cs);
@@ -111,7 +112,8 @@ int mb_cpu_gdb_read_stack_protect(CPUMBState *env, GByteArray *mem_buf, int n)
     return gdb_get_reg32(mem_buf, val);
 }
 
-int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                              bool has_xml)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUClass *cc = CPU_GET_CLASS(cs);

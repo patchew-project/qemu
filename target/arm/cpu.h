@@ -1128,8 +1128,11 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                          MemTxAttrs *attrs);
 #endif /* !CONFIG_USER_ONLY */
 
-int arm_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-int arm_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int arm_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                              bool has_xml);
+
+int arm_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                               bool has_xml);
 
 int arm_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
                              int cpuid, DumpState *s);
@@ -1137,8 +1140,10 @@ int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                              int cpuid, DumpState *s);
 
 #ifdef TARGET_AARCH64
-int aarch64_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-int aarch64_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int aarch64_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                                  bool has_xml);
+int aarch64_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                                   bool has_xml);
 void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq);
 void aarch64_sve_change_el(CPUARMState *env, int old_el,
                            int new_el, bool el0_a64);

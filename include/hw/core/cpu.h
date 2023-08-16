@@ -157,8 +157,10 @@ struct CPUClass {
     int64_t (*get_arch_id)(CPUState *cpu);
     void (*set_pc)(CPUState *cpu, vaddr value);
     vaddr (*get_pc)(CPUState *cpu);
-    int (*gdb_read_register)(CPUState *cpu, GByteArray *buf, int reg);
-    int (*gdb_write_register)(CPUState *cpu, uint8_t *buf, int reg);
+    int (*gdb_read_register)(CPUState *cpu, GByteArray *buf, int reg,
+                             bool has_xml);
+    int (*gdb_write_register)(CPUState *cpu, uint8_t *buf, int reg,
+                              bool has_xml);
     vaddr (*gdb_adjust_breakpoint)(CPUState *cpu, vaddr addr);
 
     const GDBFeature *gdb_core_feature;

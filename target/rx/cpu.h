@@ -126,8 +126,10 @@ bool rx_cpu_exec_interrupt(CPUState *cpu, int int_req);
 hwaddr rx_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 #endif /* !CONFIG_USER_ONLY */
 void rx_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-int rx_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-int rx_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int rx_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                             bool has_xml);
+int rx_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                              bool has_xml);
 
 void rx_translate_init(void);
 void rx_cpu_list(void);

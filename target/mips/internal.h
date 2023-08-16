@@ -92,8 +92,10 @@ extern const char fregnames[32][4];
 extern const struct mips_def_t mips_defs[];
 extern const int mips_defs_number;
 
-int mips_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-int mips_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int mips_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                               bool has_xml);
+int mips_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                                bool has_xml);
 
 #define USEG_LIMIT      ((target_ulong)(int32_t)0x7FFFFFFFUL)
 #define KSEG0_BASE      ((target_ulong)(int32_t)0x80000000UL)

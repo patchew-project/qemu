@@ -312,8 +312,10 @@ struct ArchCPU {
 
 void cpu_openrisc_list(void);
 void openrisc_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-int openrisc_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-int openrisc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+int openrisc_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg,
+                                   bool has_xml);
+int openrisc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg,
+                                    bool has_xml);
 void openrisc_translate_init(void);
 int print_insn_or1k(bfd_vma addr, disassemble_info *info);
 
