@@ -1,0 +1,5 @@
+CROSS_CC ?= s390x-linux-gnu-gcc
+
+vdso.so: vdso.S vdso.ld Makefile.vdso
+	$(CROSS_CC) -nostdlib -shared -Wl,-T,vdso.ld -Wl,--build-id=sha1 \
+	  -Wl,-h,linux-vdso64.so.1 -Wl,--hash-style=both vdso.S -o $@
