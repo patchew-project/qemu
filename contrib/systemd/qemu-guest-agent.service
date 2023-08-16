@@ -2,6 +2,7 @@
 Description=QEMU Guest Agent
 BindTo=dev-virtio\x2dports-org.qemu.guest_agent.0.device
 After=dev-virtio\x2dports-org.qemu.guest_agent.0.device
+After=NetworkManager.service
 
 [Service]
 ExecStart=-/usr/bin/qemu-ga
