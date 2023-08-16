@@ -16,6 +16,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+G_BEGIN_DECLS
+
 /*
  * For best performance, build the plugin with -fvisibility=hidden so that
  * QEMU_PLUGIN_LOCAL is implicit. Then, just mark qemu_plugin_install with
@@ -722,5 +724,7 @@ qemu_plugin_get_register_files(unsigned int vcpu_index, int *size);
  * order.
  */
 int qemu_plugin_read_register(GByteArray *buf, int reg);
+
+G_END_DECLS
 
 #endif /* QEMU_QEMU_PLUGIN_H */
