@@ -63,7 +63,8 @@ void xtensa_count_regs(const XtensaConfig *config,
     }
 }
 
-int xtensa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int xtensa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                                 bool has_xml)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
@@ -118,7 +119,8 @@ int xtensa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     }
 }
 
-int xtensa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int xtensa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                  bool has_xml)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;

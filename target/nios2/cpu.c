@@ -280,7 +280,8 @@ static void nios2_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
     info->print_insn = print_insn_nios2;
 }
 
-static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                                       bool has_xml)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUNios2State *env = &cpu->env;
@@ -305,7 +306,8 @@ static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return gdb_get_reg32(mem_buf, val);
 }
 
-static int nios2_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+static int nios2_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                        bool has_xml)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUClass *cc = CPU_GET_CLASS(cs);

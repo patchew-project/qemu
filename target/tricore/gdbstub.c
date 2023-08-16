@@ -104,7 +104,8 @@ static void tricore_cpu_gdb_write_csfr(CPUTriCoreState *env, int n,
 }
 
 
-int tricore_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int tricore_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                                  bool has_xml)
 {
     TriCoreCPU *cpu = TRICORE_CPU(cs);
     CPUTriCoreState *env = &cpu->env;
@@ -119,7 +120,8 @@ int tricore_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int tricore_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int tricore_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                   bool has_xml)
 {
     TriCoreCPU *cpu = TRICORE_CPU(cs);
     CPUTriCoreState *env = &cpu->env;

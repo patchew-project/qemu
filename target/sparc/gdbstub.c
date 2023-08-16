@@ -27,7 +27,8 @@
 #define gdb_get_rega(buf, val) gdb_get_regl(buf, val)
 #endif
 
-int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n,
+                                bool has_xml)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
@@ -104,7 +105,8 @@ int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n,
+                                 bool has_xml)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
