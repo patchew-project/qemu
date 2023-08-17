@@ -924,6 +924,9 @@ static void vdagent_chr_fini(Object *obj)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
 
+    if (vd->mouse_hs) {
+        qemu_input_handler_unregister(vd->mouse_hs);
+    }
     migrate_del_blocker(vd->migration_blocker);
     buffer_free(&vd->outbuf);
     error_free(vd->migration_blocker);
