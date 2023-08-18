@@ -169,6 +169,8 @@ struct HDAAudioStream {
     uint8_t buf[8192]; /* size must be power of two */
     int64_t rpos;
     int64_t wpos;
+    int64_t wanted_rpos;
+    int64_t wanted_wpos;
     QEMUTimer *buft;
     int64_t buft_start;
 };
@@ -226,16 +228,18 @@ static void hda_audio_input_timer(void *opaque)
     int64_t wpos = st->wpos;
     int64_t rpos = st->rpos;
 
-    int64_t wanted_rpos = hda_bytes_per_second(st) * (now - buft_start)
+    int64_t wanted_rpos_delta = hda_bytes_per_second(st) * (now - buft_start)
                           / NANOSECONDS_PER_SECOND;
-    wanted_rpos &= -4; /* IMPORTANT! clip to frames */
+    st->wanted_rpos += wanted_rpos_delta;
+    st->wanted_rpos &= -4; /* IMPORTANT! clip to frames */
 
-    if (wanted_rpos <= rpos) {
+    st->buft_start = now;
+    if (st->wanted_rpos <= rpos) {
         /* we already transmitted the data */
         goto out_timer;
     }
 
-    int64_t to_transfer = MIN(wpos - rpos, wanted_rpos - rpos);
+    int64_t to_transfer = MIN(wpos - rpos, st->wanted_rpos - rpos);
     while (to_transfer) {
         uint32_t start = (rpos & B_MASK);
         uint32_t chunk = MIN(B_SIZE - start, to_transfer);
@@ -290,16 +294,18 @@ static void hda_audio_output_timer(void *opaque)
     int64_t wpos = st->wpos;
     int64_t rpos = st->rpos;
 
-    int64_t wanted_wpos = hda_bytes_per_second(st) * (now - buft_start)
+    int64_t wanted_wpos_delta = hda_bytes_per_second(st) * (now - buft_start)
                           / NANOSECONDS_PER_SECOND;
-    wanted_wpos &= -4; /* IMPORTANT! clip to frames */
+    st->wanted_wpos += wanted_wpos_delta;
+    st->wanted_wpos &= -4; /* IMPORTANT! clip to frames */
 
-    if (wanted_wpos <= wpos) {
+    st->buft_start = now;
+    if (st->wanted_wpos <= wpos) {
         /* we already received the data */
         goto out_timer;
     }
 
-    int64_t to_transfer = MIN(B_SIZE - (wpos - rpos), wanted_wpos - wpos);
+    int64_t to_transfer = MIN(B_SIZE - (wpos - rpos), st->wanted_wpos - wpos);
     while (to_transfer) {
         uint32_t start = (wpos & B_MASK);
         uint32_t chunk = MIN(B_SIZE - start, to_transfer);
@@ -420,6 +426,8 @@ static void hda_audio_set_running(HDAAudioStream *st, bool running)
             int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             st->rpos = 0;
             st->wpos = 0;
+            st->wanted_rpos = 0;
+            st->wanted_wpos = 0;
             st->buft_start = now;
             timer_mod_anticipate_ns(st->buft, now + HDA_TIMER_TICKS);
         } else {
