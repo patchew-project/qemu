@@ -76,7 +76,7 @@ void G_NORETURN do_raise_exception(CPULoongArchState *env,
     cpu_loop_exit_restore(cs, pc);
 }
 
-static void loongarch_cpu_set_pc(CPUState *cs, vaddr value)
+static void loongarch64_cpu_set_pc(CPUState *cs, vaddr value)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
     CPULoongArchState *env = &cpu->env;
@@ -84,7 +84,7 @@ static void loongarch_cpu_set_pc(CPUState *cs, vaddr value)
     env->pc = value;
 }
 
-static vaddr loongarch_cpu_get_pc(CPUState *cs)
+static vaddr loongarch64_cpu_get_pc(CPUState *cs)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
     CPULoongArchState *env = &cpu->env;
@@ -356,7 +356,7 @@ static bool loongarch_cpu_has_work(CPUState *cs)
 #endif
 }
 
-static void loongarch_la464_initfn(Object *obj)
+static void loongarch64_la464_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     CPULoongArchState *env = &cpu->env;
@@ -694,7 +694,7 @@ static const struct SysemuCPUOps loongarch_sysemu_ops = {
 };
 #endif
 
-static gchar *loongarch_gdb_arch_name(CPUState *cs)
+static gchar *loongarch64_gdb_arch_name(CPUState *cs)
 {
     return g_strdup("loongarch64");
 }
@@ -714,8 +714,8 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
     cc->class_by_name = loongarch_cpu_class_by_name;
     cc->has_work = loongarch_cpu_has_work;
     cc->dump_state = loongarch_cpu_dump_state;
-    cc->set_pc = loongarch_cpu_set_pc;
-    cc->get_pc = loongarch_cpu_get_pc;
+    cc->set_pc = loongarch64_cpu_set_pc;
+    cc->get_pc = loongarch64_cpu_get_pc;
 #ifndef CONFIG_USER_ONLY
     dc->vmsd = &vmstate_loongarch_cpu;
     cc->sysemu_ops = &loongarch_sysemu_ops;
@@ -726,14 +726,14 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
     cc->gdb_num_core_regs = 35;
     cc->gdb_core_xml_file = "loongarch-base64.xml";
     cc->gdb_stop_before_watchpoint = true;
-    cc->gdb_arch_name = loongarch_gdb_arch_name;
+    cc->gdb_arch_name = loongarch64_gdb_arch_name;
 
 #ifdef CONFIG_TCG
     cc->tcg_ops = &loongarch_tcg_ops;
 #endif
 }
 
-#define DEFINE_LOONGARCH_CPU_TYPE(model, initfn) \
+#define DEFINE_LOONGARCH64_CPU_TYPE(model, initfn) \
     { \
         .parent = TYPE_LOONGARCH_CPU, \
         .instance_init = initfn, \
@@ -751,7 +751,7 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .class_size = sizeof(LoongArchCPUClass),
         .class_init = loongarch_cpu_class_init,
     },
-    DEFINE_LOONGARCH_CPU_TYPE("la464", loongarch_la464_initfn),
+    DEFINE_LOONGARCH64_CPU_TYPE("la464", loongarch64_la464_initfn),
 };
 
 DEFINE_TYPES(loongarch_cpu_type_infos)
