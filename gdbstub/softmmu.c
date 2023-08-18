@@ -434,6 +434,17 @@ void gdb_exit(int code)
     }
 
     qemu_chr_fe_deinit(&gdbserver_system_state.chr, true);
+
+    /*
+     * Shutdown request is a clean way to stop the QEMU, compared
+     * to a direct call to exit(). But we can't pass the exit code
+     * through it so avoid doing that when it can matter.
+     */
+    if (code) {
+        exit(code);
+    } else {
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    }
 }
 
 /*
