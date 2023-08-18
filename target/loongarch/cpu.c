@@ -694,11 +694,6 @@ static const struct SysemuCPUOps loongarch_sysemu_ops = {
 };
 #endif
 
-static gchar *loongarch64_gdb_arch_name(CPUState *cs)
-{
-    return g_strdup("loongarch64");
-}
-
 static void loongarch_cpu_class_init(ObjectClass *c, void *data)
 {
     LoongArchCPUClass *lacc = LOONGARCH_CPU_CLASS(c);
@@ -714,8 +709,6 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
     cc->class_by_name = loongarch_cpu_class_by_name;
     cc->has_work = loongarch_cpu_has_work;
     cc->dump_state = loongarch_cpu_dump_state;
-    cc->set_pc = loongarch64_cpu_set_pc;
-    cc->get_pc = loongarch64_cpu_get_pc;
 #ifndef CONFIG_USER_ONLY
     dc->vmsd = &vmstate_loongarch_cpu;
     cc->sysemu_ops = &loongarch_sysemu_ops;
@@ -723,21 +716,35 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
     cc->disas_set_info = loongarch_cpu_disas_set_info;
     cc->gdb_read_register = loongarch_cpu_gdb_read_register;
     cc->gdb_write_register = loongarch_cpu_gdb_write_register;
-    cc->gdb_num_core_regs = 35;
-    cc->gdb_core_xml_file = "loongarch-base64.xml";
     cc->gdb_stop_before_watchpoint = true;
-    cc->gdb_arch_name = loongarch64_gdb_arch_name;
 
 #ifdef CONFIG_TCG
     cc->tcg_ops = &loongarch_tcg_ops;
 #endif
 }
 
+static gchar *loongarch64_gdb_arch_name(CPUState *cs)
+{
+    return g_strdup("loongarch64");
+}
+
+static void loongarch64_cpu_class_init(ObjectClass *c, void *data)
+{
+    CPUClass *cc = CPU_CLASS(c);
+
+    cc->set_pc = loongarch64_cpu_set_pc;
+    cc->get_pc = loongarch64_cpu_get_pc;
+    cc->gdb_num_core_regs = 35;
+    cc->gdb_core_xml_file = "loongarch-base64.xml";
+    cc->gdb_arch_name = loongarch64_gdb_arch_name;
+}
+
 #define DEFINE_LOONGARCH64_CPU_TYPE(model, initfn) \
     { \
         .parent = TYPE_LOONGARCH_CPU, \
-        .instance_init = initfn, \
         .name = LOONGARCH_CPU_TYPE_NAME(model), \
+        .instance_init = initfn, \
+        .class_init = loongarch64_cpu_class_init, \
     }
 
 static const TypeInfo loongarch_cpu_type_infos[] = {
