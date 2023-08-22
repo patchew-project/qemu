@@ -486,6 +486,10 @@ Misc
          into 32-bit output *t0*.  Depending on the host, this may be a simple shift,
          or may require additional canonicalization.
 
+   * - hswap_i32/i64 *t0*, *t1*
+
+     - | Swap 16-bit halfwords within a 32/64-bit value.
+
 
 Conditional moves
 -----------------
