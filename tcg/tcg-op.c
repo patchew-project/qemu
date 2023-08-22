@@ -1828,6 +1828,11 @@ void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
     }
 }
 
+/*
+ * bswap64_i64: 64-bit byte swap on a 64-bit value.
+ *
+ * Byte pattern:  bswap64_i64(abcdefgh) -> hgfedcba
+ */
 void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
     if (TCG_TARGET_REG_BITS == 32) {
