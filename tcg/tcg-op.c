@@ -1021,6 +1021,13 @@ void tcg_gen_ext16u_i32(TCGv_i32 ret, TCGv_i32 arg)
     }
 }
 
+/*
+ * bswap16_i32: 16-bit byte swap on the low bits of a 32-bit value.
+ *
+ * Byte pattern:  bswap16_i32(xxab) -> ..ba             (TCG_BSWAP_OZ)
+ *                bswap16_i32(xxab) -> ssba             (TCG_BSWAP_OS)
+ *                bswap16_i32(xxab) -> xxba
+ */
 void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg, int flags)
 {
     /* Only one extension flag may be present. */
@@ -1032,22 +1039,23 @@ void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg, int flags)
         TCGv_i32 t0 = tcg_temp_ebb_new_i32();
         TCGv_i32 t1 = tcg_temp_ebb_new_i32();
 
-        tcg_gen_shri_i32(t0, arg, 8);
+                                            /* arg = xxab */
+        tcg_gen_shri_i32(t0, arg, 8);       /*  t0 = .xxa */
         if (!(flags & TCG_BSWAP_IZ)) {
-            tcg_gen_ext8u_i32(t0, t0);
+            tcg_gen_ext8u_i32(t0, t0);      /*  t0 = ...a */
         }
 
         if (flags & TCG_BSWAP_OS) {
-            tcg_gen_shli_i32(t1, arg, 24);
-            tcg_gen_sari_i32(t1, t1, 16);
+            tcg_gen_shli_i32(t1, arg, 24);  /*  t1 = b... */
+            tcg_gen_sari_i32(t1, t1, 16);   /*  t1 = ssb. */
         } else if (flags & TCG_BSWAP_OZ) {
-            tcg_gen_ext8u_i32(t1, arg);
-            tcg_gen_shli_i32(t1, t1, 8);
+            tcg_gen_ext8u_i32(t1, arg);     /*  t1 = ...b */
+            tcg_gen_shli_i32(t1, t1, 8);    /*  t1 = ..b. */
         } else {
-            tcg_gen_shli_i32(t1, arg, 8);
+            tcg_gen_shli_i32(t1, arg, 8);   /*  t1 = xab. */
         }
 
-        tcg_gen_or_i32(ret, t0, t1);
+        tcg_gen_or_i32(ret, t0, t1);        /* ret = ssba */
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
     }
@@ -1721,6 +1729,13 @@ void tcg_gen_ext32u_i64(TCGv_i64 ret, TCGv_i64 arg)
     }
 }
 
+/*
+ * bswap16_i64: 16-bit byte swap on the low bits of a 64-bit value.
+ *
+ * Byte pattern:  bswap16_i32(xxxxxxab) -> ......ba     (TCG_BSWAP_OZ)
+ *                bswap16_i32(xxxxxxab) -> ssssssba     (TCG_BSWAP_OS)
+ *                bswap16_i32(xxxxxxab) -> xxxxxxba
+ */
 void tcg_gen_bswap16_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
 {
     /* Only one extension flag may be present. */
@@ -1739,22 +1754,23 @@ void tcg_gen_bswap16_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
         TCGv_i64 t0 = tcg_temp_ebb_new_i64();
         TCGv_i64 t1 = tcg_temp_ebb_new_i64();
 
-        tcg_gen_shri_i64(t0, arg, 8);
+                                            /* arg = xxxxxxab */
+        tcg_gen_shri_i64(t0, arg, 8);       /*  t0 = .xxxxxxa */
         if (!(flags & TCG_BSWAP_IZ)) {
-            tcg_gen_ext8u_i64(t0, t0);
+            tcg_gen_ext8u_i64(t0, t0);      /*  t0 = .......a */
         }
 
         if (flags & TCG_BSWAP_OS) {
-            tcg_gen_shli_i64(t1, arg, 56);
-            tcg_gen_sari_i64(t1, t1, 48);
+            tcg_gen_shli_i64(t1, arg, 56);  /*  t1 = b....... */
+            tcg_gen_sari_i64(t1, t1, 48);   /*  t1 = ssssssb. */
         } else if (flags & TCG_BSWAP_OZ) {
-            tcg_gen_ext8u_i64(t1, arg);
-            tcg_gen_shli_i64(t1, t1, 8);
+            tcg_gen_ext8u_i64(t1, arg);     /*  t1 = .......b */
+            tcg_gen_shli_i64(t1, t1, 8);    /*  t1 = ......b. */
         } else {
-            tcg_gen_shli_i64(t1, arg, 8);
+            tcg_gen_shli_i64(t1, arg, 8);   /*  t1 = xxxxxxb. */
         }
 
-        tcg_gen_or_i64(ret, t0, t1);
+        tcg_gen_or_i64(ret, t0, t1);        /* ret = ssssssba */
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
     }
