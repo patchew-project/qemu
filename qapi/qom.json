@@ -668,6 +668,9 @@
 # @readonly: if true, the backing file is opened read-only; if false,
 #     it is opened read-write.  (default: false)
 #
+# @rom: whether to create Read Only Memory (ROM).  If set to 'auto', it
+#       defaults to the value of @readonly.  (default: auto, since 8.2)
+#
 # Since: 2.1
 ##
 { 'struct': 'MemoryBackendFileProperties',
@@ -677,7 +680,8 @@
             '*discard-data': 'bool',
             'mem-path': 'str',
             '*pmem': { 'type': 'bool', 'if': 'CONFIG_LIBPMEM' },
-            '*readonly': 'bool' } }
+            '*readonly': 'bool',
+            '*rom': 'OnOffAuto' } }
 
 ##
 # @MemoryBackendMemfdProperties:

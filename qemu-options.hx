@@ -4976,7 +4976,7 @@ SRST
     they are specified. Note that the 'id' property must be set. These
     objects are placed in the '/objects' path.
 
-    ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,offset=offset,readonly=on|off``
+    ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,offset=offset,readonly=on|off,rom=on|off|auto``
         Creates a memory file backend object, which can be used to back
         the guest RAM with huge pages.
 
@@ -5065,6 +5065,14 @@ SRST
 
         The ``readonly`` option specifies whether the backing file is opened
         read-only or read-write (default).
+
+        The ``rom`` option specifies whether to create Read Only Memory (ROM)
+        that cannot be modified by the VM. If set to ``on``, the VM cannot
+        modify the memory. If set to ``off``, the VM can modify the memory.
+        If set to ``auto`` (default), the value of the ``readonly`` property
+        is used. This option is primarily helpful for VM templating, where we
+        want to open a file readonly (``readonly=on``) and allow private
+        modifications of the memory by the VM (``share=off``, ``rom=off``).
 
     ``-object memory-backend-ram,id=id,merge=on|off,dump=on|off,share=on|off,prealloc=on|off,size=size,host-nodes=host-nodes,policy=default|preferred|bind|interleave``
         Creates a memory backend object, which can be used to back the
