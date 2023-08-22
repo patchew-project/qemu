@@ -23,6 +23,7 @@
 
 #include <sys/ucontext.h>
 #include <sys/resource.h>
+#include <execinfo.h>
 
 #include "qemu.h"
 #include "user-internals.h"
@@ -32,6 +33,7 @@
 #include "signal-common.h"
 #include "host-signal.h"
 #include "user/safe-syscall.h"
+#include "tcg/tcg.h"
 
 static struct target_sigaction sigact_table[TARGET_NSIG];
 
@@ -785,6 +787,34 @@ static inline void rewind_if_in_safe_syscall(void *puc)
     }
 }
 
+static G_NORETURN
+void die_with_backtrace(siginfo_t *info)
+{
+    void *array[20];
+    int size;
+
+    fprintf(stderr,
+            "QEMU internal SIG%s {si_code=%d, si_addr=%p}\n"
+            "QEMU v" QEMU_VERSION " target " UNAME_MACHINE " running %s\n",
+            sigabbrev_np(info->si_signo), info->si_code, info->si_addr,
+            exec_path);
+
+    size = backtrace(array, ARRAY_SIZE(array));
+    if (size) {
+        char **strings = backtrace_symbols(array, size);
+        if (strings) {
+            fprintf(stderr, "QEMU backtrace:\n");
+            for (int i = 0; i < size; ++i) {
+                fprintf(stderr, "    %s\n", strings[i]);
+            }
+            free(strings);
+        }
+    }
+
+    preexit_cleanup(thread_cpu->env_ptr, TARGET_SIGKILL);
+    die_with_signal(info->si_signo);
+}
+
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
     CPUArchState *env = thread_cpu->env_ptr;
@@ -820,16 +850,28 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
         is_write = host_signal_write(info, uc);
         access_type = adjust_signal_pc(&pc, is_write);
 
+        /* If this was a write to a TB protected page, restart. */
+        if (is_write
+            && host_sig == SIGSEGV
+            && info->si_code == SEGV_ACCERR
+            && h2g_valid(host_addr)
+            && handle_sigsegv_accerr_write(cpu, sigmask, pc, guest_addr)) {
+            return;
+        }
+
+        /*
+         * If the access was not on behalf of the guest, within the executable
+         * mapping of the generated code buffer, then it is a host bug.
+         */
+        if (access_type != MMU_INST_FETCH
+            && !in_code_gen_buffer((void *)(pc - tcg_splitwx_diff))) {
+            die_with_backtrace(info);
+        }
+
         if (host_sig == SIGSEGV) {
             bool maperr = true;
 
             if (info->si_code == SEGV_ACCERR && h2g_valid(host_addr)) {
-                /* If this was a write to a TB protected page, restart. */
-                if (is_write &&
-                    handle_sigsegv_accerr_write(cpu, sigmask, pc, guest_addr)) {
-                    return;
-                }
-
                 /*
                  * With reserved_va, the whole address space is PROT_NONE,
                  * which means that we may get ACCERR when we want MAPERR.
