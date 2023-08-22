@@ -7255,7 +7255,7 @@ static bool trans_UBFX(DisasContext *s, arg_UBFX *a)
 static bool trans_BFCI(DisasContext *s, arg_BFCI *a)
 {
     int msb = a->msb, lsb = a->lsb;
-    TCGv_i32 t_in, t_rd;
+    TCGv_i32 t_rd;
     int width;
 
     if (!ENABLE_ARCH_6T2) {
@@ -7268,15 +7268,14 @@ static bool trans_BFCI(DisasContext *s, arg_BFCI *a)
     }
 
     width = msb + 1 - lsb;
+    t_rd = load_reg(s, a->rd);
     if (a->rn == 15) {
         /* BFC */
-        t_in = tcg_constant_i32(0);
+        tcg_gen_deposit_z_i32(t_rd, t_rd, lsb, width);
     } else {
         /* BFI */
-        t_in = load_reg(s, a->rn);
+        tcg_gen_deposit_i32(t_rd, t_rd, load_reg(s, a->rn), lsb, width);
     }
-    t_rd = load_reg(s, a->rd);
-    tcg_gen_deposit_i32(t_rd, t_rd, t_in, lsb, width);
     store_reg(s, a->rd, t_rd);
     return true;
 }
