@@ -1908,6 +1908,11 @@ void tcg_gen_hswap_i64(TCGv_i64 ret, TCGv_i64 arg)
     tcg_temp_free_i64(t1);
 }
 
+/*
+ * wswap_i64: Swap 32-bit words within a 64-bit value.
+ *
+ * Byte pattern:  wswap_i64(abcdefgh) -> efghabcd
+ */
 void tcg_gen_wswap_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
     /* Swapping 2 32-bit elements is a rotate. */

@@ -490,6 +490,10 @@ Misc
 
      - | Swap 16-bit halfwords within a 32/64-bit value.
 
+   * - wswap_i64 *t0*, *t1*
+
+     - | Swap 32-bit words within a 64-bit value.
+
 
 Conditional moves
 -----------------
