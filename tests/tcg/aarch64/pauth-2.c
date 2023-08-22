@@ -1,5 +1,21 @@
 #include <stdint.h>
+#include <signal.h>
+#include <stdlib.h>
 #include <assert.h>
+#include <sys/auxv.h>
+
+static void sigill(int sig, siginfo_t *info, void *vuc)
+{
+    ucontext_t *uc = vuc;
+    uint64_t test;
+
+    /* There is only one insn below that is allowed to fault. */
+    asm volatile("adr %0, auth2_insn" : "=r"(test));
+    assert(test == uc->uc_mcontext.pc);
+    exit(0);
+}
+
+static int pac_feature;
 
 void do_test(uint64_t value)
 {
@@ -27,31 +43,60 @@ void do_test(uint64_t value)
      * An invalid salt usually fails authorization, but again there
      * is a chance of choosing another salt that works.
      * Iterate until we find another salt which does fail.
+     *
+     * With FEAT_FPAC, this will SIGILL instead of producing a result.
      */
     for (salt2 = salt1 + 1; ; salt2++) {
-        asm volatile("autda %0, %2" : "=r"(decode) : "0"(encode), "r"(salt2));
+        asm volatile("auth2_insn: autda %0, %2"
+                     : "=r"(decode) : "0"(encode), "r"(salt2));
         if (decode != value) {
             break;
         }
     }
 
+    assert(pac_feature < 4);  /* No FEAT_FPAC */
+
     /* The VA bits, bit 55, and the TBI bits, should be unchanged.  */
     assert(((decode ^ value) & 0xff80ffffffffffffull) == 0);
 
     /*
-     * Bits [54:53] are an error indicator based on the key used;
-     * the DA key above is keynumber 0, so error == 0b01.  Otherwise
-     * bit 55 of the original is sign-extended into the rest of the auth.
+     * Without FEAT_Pauth2, bits [54:53] are an error indicator based on
+     * the key used; the DA key above is keynumber 0, so error == 0b01.
+     * Otherwise * bit 55 of the original is sign-extended into the rest
+     * of the auth.
      */
-    if ((value >> 55) & 1) {
-        assert(((decode >> 48) & 0xff) == 0b10111111);
-    } else {
-        assert(((decode >> 48) & 0xff) == 0b00100000);
+    if (pac_feature < 3) {
+        if ((value >> 55) & 1) {
+            assert(((decode >> 48) & 0xff) == 0b10111111);
+        } else {
+            assert(((decode >> 48) & 0xff) == 0b00100000);
+        }
     }
 }
 
 int main()
 {
+    static const struct sigaction sa = {
+        .sa_sigaction = sigill,
+        .sa_flags = SA_SIGINFO
+    };
+    unsigned long isar1, isar2;
+
+    assert(getauxval(AT_HWCAP) & HWCAP_CPUID);
+
+    asm("mrs %0, id_aa64isar1_el1" : "=r"(isar1));
+    asm("mrs %0, id_aa64isar2_el1" : "=r"(isar2));
+
+    pac_feature = ((isar1 >> 4) & 0xf)   /* APA */
+                | ((isar1 >> 8) & 0xf)   /* API */
+                | ((isar2 >> 12) & 0xf); /* APA3 */
+    assert(pac_feature != 0);
+
+    if (pac_feature >= 4) {
+        /* FEAT_FPAC */
+        sigaction(SIGILL, &sa, NULL);
+    }
+
     do_test(0);
     do_test(0xda004acedeadbeefull);
     return 0;
