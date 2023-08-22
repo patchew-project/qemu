@@ -718,7 +718,7 @@ void die_with_signal(int sig)
     sigsuspend(&act.sa_mask);
 
     /* unreachable */
-    abort();
+    _exit(EXIT_FAILURE);
 }
 
 static G_NORETURN
