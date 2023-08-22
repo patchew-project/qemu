@@ -121,7 +121,8 @@ static void gen_revb_2h(TCGv dest, TCGv src1)
     tcg_gen_and_tl(t0, t0, mask);
     tcg_gen_and_tl(t1, src1, mask);
     tcg_gen_shli_tl(t1, t1, 8);
-    tcg_gen_or_tl(dest, t0, t1);
+    tcg_gen_or_tl(t0, t0, t1);
+    tcg_gen_ext32s_tl(dest, t0);
 }
 
 static void gen_revb_4h(TCGv dest, TCGv src1)
