@@ -2436,6 +2436,12 @@ static inline bool arm_space_is_secure(ARMSecuritySpace space)
     return space == ARMSS_Secure || space == ARMSS_Root;
 }
 
+/* Return true if @space is Realm space */
+static inline bool arm_space_is_realm(ARMSecuritySpace space)
+{
+    return space == ARMSS_Realm;
+}
+
 /* Return the ARMSecuritySpace for @secure, assuming !RME or EL[0-2]. */
 static inline ARMSecuritySpace arm_secure_to_space(bool secure)
 {

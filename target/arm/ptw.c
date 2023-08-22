@@ -59,6 +59,13 @@ typedef struct S1Translate {
      */
     bool in_secure;
     /*
+     * in_realm: whether the translation regime is Realm
+     * This is always requal to arm_space_in_realm(in_space).
+     * If a Realm ptw is "downgraded" to a NonSecure by an NSTable bit
+     * this field is updated accordingly.
+     */
+    bool in_realm;
+    /*
      * in_debug: is this a QEMU debug access (gdbstub, etc)? Debug
      * accesses will not update the guest page table access flags
      * and will not change the state of the softmmu TLBs.
@@ -535,6 +542,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
             .in_mmu_idx = s2_mmu_idx,
             .in_ptw_idx = ptw_idx_for_stage_2(env, s2_mmu_idx),
             .in_secure = arm_space_is_secure(s2_space),
+            .in_realm = arm_space_is_realm(s2_space),
             .in_space = s2_space,
             .in_debug = true,
         };
@@ -724,7 +732,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
             fi->s2addr = ptw->out_virt;
             fi->stage2 = true;
             fi->s1ptw = true;
-            fi->s1ns = !ptw->in_secure;
+            fi->s1ns = !ptw->in_secure && !ptw->in_realm;
             return 0;
         }
 
@@ -1767,6 +1775,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         QEMU_BUILD_BUG_ON(ARMMMUIdx_Stage2_S + 1 != ARMMMUIdx_Stage2);
         ptw->in_ptw_idx += 1;
         ptw->in_secure = false;
+        ptw->in_realm = false;
         ptw->in_space = ARMSS_NonSecure;
     }
 
@@ -1872,7 +1881,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
      */
     attrs = new_descriptor & (MAKE_64BIT_MASK(2, 10) | MAKE_64BIT_MASK(50, 14));
     if (!regime_is_stage2(mmu_idx)) {
-        attrs |= !ptw->in_secure << 5; /* NS */
+        attrs |= (!ptw->in_secure && !ptw->in_realm) << 5; /* NS */
         if (!param.hpd) {
             attrs |= extract64(tableattrs, 0, 2) << 53;     /* XN, PXN */
             /*
@@ -3139,6 +3148,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
     ptw->in_mmu_idx = ipa_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2;
     ptw->in_secure = ipa_secure;
     ptw->in_space = ipa_space;
+    ptw->in_realm = arm_space_is_realm(ipa_space);
     ptw->in_ptw_idx = ptw_idx_for_stage_2(env, ptw->in_mmu_idx);
 
     /*
@@ -3371,6 +3381,7 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
     S1Translate ptw = {
         .in_mmu_idx = mmu_idx,
         .in_secure = is_secure,
+        .in_realm = false,
         .in_space = arm_secure_to_space(is_secure),
     };
     return get_phys_addr_gpc(env, &ptw, address, access_type, result, fi);
@@ -3443,6 +3454,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
 
     ptw.in_space = ss;
     ptw.in_secure = arm_space_is_secure(ss);
+    ptw.in_realm = arm_space_is_realm(ss);
     return get_phys_addr_gpc(env, &ptw, address, access_type, result, fi);
 }
 
@@ -3457,6 +3469,7 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
         .in_mmu_idx = mmu_idx,
         .in_space = ss,
         .in_secure = arm_space_is_secure(ss),
+        .in_realm = arm_space_is_realm(ss),
         .in_debug = true,
     };
     GetPhysAddrResult res = {};
