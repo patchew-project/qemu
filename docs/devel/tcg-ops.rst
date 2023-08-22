@@ -449,6 +449,10 @@ Misc
        |
        |     *dest* = (*t1* & ~0x0f00) | ((*t2* << 8) & 0x0f00)
 
+   * - deposit_z_i32/i64 *dest*, *t1*, *pos*, *len*
+
+     - | Similar to deposit, except that a zero value is deposited.
+
    * - extract_i32/i64 *dest*, *t1*, *pos*, *len*
 
        sextract_i32/i64 *dest*, *t1*, *pos*, *len*
