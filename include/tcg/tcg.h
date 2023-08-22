@@ -172,6 +172,9 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_v256             0
 #endif
 
+QEMU_BUILD_BUG_MSG(TCG_TARGET_HAS_extrl_i64_i32 != TCG_TARGET_HAS_extrh_i64_i32,
+                   "Both extrl_i64_i32()/extrh_i64_i32() must exist");
+
 typedef enum TCGOpcode {
 #define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
 #include "tcg/tcg-opc.h"
