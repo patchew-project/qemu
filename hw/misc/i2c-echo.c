@@ -1,3 +1,11 @@
+/*
+ * Example I2C device using asynchronous I2C send.
+ *
+ * Copyright (C) 2023 Samsung Electronics Co., Ltd. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
