@@ -904,7 +904,8 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 
     /*
      * Non-spoofed SIGSEGV and SIGBUS are synchronous, and need special
-     * handling wrt signal blocking and unwinding.
+     * handling wrt signal blocking and unwinding.  Non-spoofed SIGILL,
+     * SIGFPE, SIGTRAP are always host bugs.
      */
     if (info->si_code > 0) {
         switch (host_sig) {
@@ -916,6 +917,10 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
             host_sigbus_handler(cpu, info, uc);
             sync_sig = true;
             break;
+        case SIGILL:
+        case SIGFPE:
+        case SIGTRAP:
+            die_with_backtrace(info);
         }
     }
 
