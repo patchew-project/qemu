@@ -331,14 +331,21 @@ static int qio_channel_command_close(QIOChannel *ioc,
 
 
 static void qio_channel_command_set_aio_fd_handler(QIOChannel *ioc,
-                                                   AioContext *ctx,
+                                                   AioContext *read_ctx,
                                                    IOHandler *io_read,
+                                                   AioContext *write_ctx,
                                                    IOHandler *io_write,
                                                    void *opaque)
 {
     QIOChannelCommand *cioc = QIO_CHANNEL_COMMAND(ioc);
-    aio_set_fd_handler(ctx, cioc->readfd, io_read, NULL, NULL, NULL, opaque);
-    aio_set_fd_handler(ctx, cioc->writefd, NULL, io_write, NULL, NULL, opaque);
+    if (read_ctx) {
+        aio_set_fd_handler(read_ctx, cioc->readfd, io_read, NULL,
+                NULL, NULL, opaque);
+    }
+    if (write_ctx) {
+        aio_set_fd_handler(write_ctx, cioc->writefd, NULL, io_write,
+                NULL, NULL, opaque);
+    }
 }
 
 
