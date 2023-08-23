@@ -1367,7 +1367,7 @@ Removing "unreachable" stuff like events that can't be triggered
 anymore, optional return or event data members that can't be sent
 anymore, and return or event data member (enumeration) values that
 can't be sent anymore makes no difference to clients, except for
-introspection.  The latter can conceivably confuse clients, so tread
+introspection.  The latter can conceivably confuse clients, so treat
 carefully.
 
 Incompatible changes include removing return and event data members.
