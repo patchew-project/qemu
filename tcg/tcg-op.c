@@ -1796,6 +1796,13 @@ void tcg_gen_bswap16_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
     }
 }
 
+/*
+ * bswap32_i64: 32-bit byte swap on the low bits of a 64-bit value.
+ *
+ *                                                          flags
+ * Byte pattern:  bswap32_i64(xxxxabcd) -> ssssdcba     (TCG_BSWAP_OS)
+ *                bswap32_i64(xxxxabcd) -> ....dcba
+ */
 void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
 {
     /* Only one extension flag may be present. */
@@ -1815,8 +1822,10 @@ void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
         TCGv_i64 t1 = tcg_temp_ebb_new_i64();
         TCGv_i64 t2 = tcg_constant_i64(0x00ff00ff);
 
-                                            /* arg = xxxxabcd */
-        tcg_gen_shri_i64(t0, arg, 8);       /*  t0 = .xxxxabc */
+                                            /* arg = xxxxabcd (IZ=0) */
+                                            /*       ....abcd (IZ=1) */
+        tcg_gen_shri_i64(t0, arg, 8);       /*  t0 = .xxxxabc (IZ=0) */
+                                            /*       .....abc (IZ=1) */
         tcg_gen_and_i64(t1, arg, t2);       /*  t1 = .....b.d */
         tcg_gen_and_i64(t0, t0, t2);        /*  t0 = .....a.c */
         tcg_gen_shli_i64(t1, t1, 8);        /*  t1 = ....b.d. */
@@ -1825,11 +1834,12 @@ void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
         tcg_gen_shli_i64(t1, ret, 48);      /*  t1 = dc...... */
         tcg_gen_shri_i64(t0, ret, 16);      /*  t0 = ......ba */
         if (flags & TCG_BSWAP_OS) {
-            tcg_gen_sari_i64(t1, t1, 32);   /*  t1 = ssssdc.. */
+            tcg_gen_sari_i64(t1, t1, 32);   /*  t1 = ssssdc.. (OS=1) */
         } else {
-            tcg_gen_shri_i64(t1, t1, 32);   /*  t1 = ....dc.. */
+            tcg_gen_shri_i64(t1, t1, 32);   /*  t1 = ....dc.. (OS=0) */
         }
-        tcg_gen_or_i64(ret, t0, t1);        /* ret = ssssdcba */
+        tcg_gen_or_i64(ret, t0, t1);        /* ret = ssssdcba (OS=1) */
+                                            /*       ....dcba (OS=0) */
 
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
