@@ -893,13 +893,27 @@ qio_channel_socket_shutdown(QIOChannel *ioc,
 }
 
 static void qio_channel_socket_set_aio_fd_handler(QIOChannel *ioc,
-                                                  AioContext *ctx,
+                                                  AioContext *read_ctx,
                                                   IOHandler *io_read,
+                                                  AioContext *write_ctx,
                                                   IOHandler *io_write,
                                                   void *opaque)
 {
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
-    aio_set_fd_handler(ctx, sioc->fd, io_read, io_write, NULL, NULL, opaque);
+
+    if (read_ctx == write_ctx) {
+        aio_set_fd_handler(read_ctx, sioc->fd, io_read, io_write,
+                           NULL, NULL, opaque);
+    } else {
+        if (read_ctx) {
+            aio_set_fd_handler(read_ctx, sioc->fd, io_read, NULL,
+                               NULL, NULL, opaque);
+        }
+        if (write_ctx) {
+            aio_set_fd_handler(write_ctx, sioc->fd, NULL, io_write,
+                               NULL, NULL, opaque);
+        }
+    }
 }
 
 static GSource *qio_channel_socket_create_watch(QIOChannel *ioc,

@@ -948,7 +948,7 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
                 ioc = *outioc;
                 if (aio_context) {
                     qio_channel_set_blocking(ioc, false, NULL);
-                    qio_channel_attach_aio_context(ioc, aio_context);
+                    qio_channel_set_follow_coroutine_ctx(ioc, true);
                 }
             } else {
                 error_setg(errp, "Server does not support STARTTLS");
