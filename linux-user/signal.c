@@ -721,6 +721,18 @@ void die_with_signal(int sig)
     _exit(EXIT_FAILURE);
 }
 
+/*
+ * The system abort() will raise SIGABRT, which will get caught and deferred
+ * by host_signal_handler.  Returning into system abort will try harder.
+ * Eventually, on x86, it will execute HLT, which raises SIGSEGV.  This goes
+ * back into host_signal_handler, through a different path which may longjmp
+ * back to the main loop.  This often explodes.
+ */
+void abort(void)
+{
+    die_with_signal(SIGABRT);
+}
+
 static G_NORETURN
 void dump_core_and_abort(CPUArchState *cpu_env, int target_sig)
 {
