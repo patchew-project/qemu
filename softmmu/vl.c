@@ -3469,6 +3469,12 @@ void qemu_init(int argc, char **argv)
                 exit(1);
 #endif
                 break;
+            case QEMU_OPTION_max_bounce_buffer_size:
+                if (qemu_strtosz(optarg, NULL, &max_bounce_buffer_size) < 0) {
+                    error_report("invalid -max-ounce-buffer-size value");
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_object:
                 object_option_parse(optarg);
                 break;

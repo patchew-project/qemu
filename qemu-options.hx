@@ -4959,6 +4959,33 @@ SRST
 ERST
 #endif
 
+DEF("max-bounce-buffer-size", HAS_ARG,
+    QEMU_OPTION_max_bounce_buffer_size,
+    "-max-bounce-buffer-size size\n"
+    "                DMA bounce buffer size limit in bytes (default=4096)\n",
+    QEMU_ARCH_ALL)
+SRST
+``-max-bounce-buffer-size size``
+    Set the limit in bytes for DMA bounce buffer allocations.
+
+    DMA bounce buffers are used when device models request memory-mapped access
+    to memory regions that can't be directly mapped by the qemu process, so the
+    memory must read or written to a temporary local buffer for the device
+    model to work with. This is the case e.g. for I/O memory regions, and when
+    running in multi-process mode without shared access to memory.
+
+    Whether bounce buffering is necessary depends heavily on the device model
+    implementation. Some devices use explicit DMA read and write operations
+    which do not require bounce buffers. Some devices, notably storage, will
+    retry a failed DMA map request after bounce buffer space becomes available
+    again. Most other devices will bail when encountering map request failures,
+    which will typically appear to the guest as a hardware error.
+
+    Suitable bounce buffer size values depend on the workload and guest
+    configuration. A few kilobytes up to a few megabytes are common sizes
+    encountered in practice.
+ERST
+
 DEFHEADING()
 
 DEFHEADING(Generic object creation:)

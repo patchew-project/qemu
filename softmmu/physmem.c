@@ -50,6 +50,7 @@
 #include "sysemu/dma.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/hw_accel.h"
+#include "sysemu/sysemu.h"
 #include "sysemu/xen-mapcache.h"
 #include "trace/trace-root.h"
 
@@ -2904,13 +2905,12 @@ void cpu_flush_icache_range(hwaddr start, hwaddr len)
 
 typedef struct {
     MemoryRegion *mr;
-    void *buffer;
     hwaddr addr;
-    hwaddr len;
-    bool in_use;
+    size_t len;
+    uint8_t buffer[];
 } BounceBuffer;
 
-static BounceBuffer bounce;
+static size_t bounce_buffer_size;
 
 typedef struct MapClient {
     QEMUBH *bh;
@@ -2945,9 +2945,9 @@ void cpu_register_map_client(QEMUBH *bh)
     qemu_mutex_lock(&map_client_list_lock);
     client->bh = bh;
     QLIST_INSERT_HEAD(&map_client_list, client, link);
-    /* Write map_client_list before reading in_use.  */
+    /* Write map_client_list before reading bounce_buffer_size.  */
     smp_mb();
-    if (!qatomic_read(&bounce.in_use)) {
+    if (qatomic_read(&bounce_buffer_size) < max_bounce_buffer_size) {
         cpu_notify_map_clients_locked();
     }
     qemu_mutex_unlock(&map_client_list_lock);
@@ -3076,31 +3076,35 @@ void *address_space_map(AddressSpace *as,
     RCU_READ_LOCK_GUARD();
     fv = address_space_to_flatview(as);
     mr = flatview_translate(fv, addr, &xlat, &l, is_write, attrs);
+    memory_region_ref(mr);
 
     if (!memory_access_is_direct(mr, is_write)) {
-        if (qatomic_xchg(&bounce.in_use, true)) {
+        size_t size = qatomic_add_fetch(&bounce_buffer_size, l);
+        if (size > max_bounce_buffer_size) {
+            size_t excess = size - max_bounce_buffer_size;
+            l -= excess;
+            qatomic_sub(&bounce_buffer_size, excess);
+        }
+
+        if (l == 0) {
             *plen = 0;
             return NULL;
         }
-        /* Avoid unbounded allocations */
-        l = MIN(l, TARGET_PAGE_SIZE);
-        bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, l);
-        bounce.addr = addr;
-        bounce.len = l;
 
-        memory_region_ref(mr);
-        bounce.mr = mr;
+        BounceBuffer *bounce = g_malloc(l + sizeof(BounceBuffer));
+        bounce->mr = mr;
+        bounce->addr = addr;
+        bounce->len = l;
+
         if (!is_write) {
             flatview_read(fv, addr, MEMTXATTRS_UNSPECIFIED,
-                               bounce.buffer, l);
+                          bounce->buffer, l);
         }
 
         *plen = l;
-        return bounce.buffer;
+        return bounce->buffer;
     }
 
-
-    memory_region_ref(mr);
     *plen = flatview_extend_translation(fv, addr, len, mr, xlat,
                                         l, is_write, attrs);
     fuzz_dma_read_cb(addr, *plen, mr);
@@ -3114,31 +3118,37 @@ void *address_space_map(AddressSpace *as,
 void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
                          bool is_write, hwaddr access_len)
 {
-    if (buffer != bounce.buffer) {
-        MemoryRegion *mr;
-        ram_addr_t addr1;
+    MemoryRegion *mr;
+    ram_addr_t addr1;
 
-        mr = memory_region_from_host(buffer, &addr1);
-        assert(mr != NULL);
+    mr = memory_region_from_host(buffer, &addr1);
+    if (mr == NULL) {
+        /*
+         * Must be a bounce buffer (unless the caller passed a pointer which
+         * wasn't returned by address_space_map, which is illegal).
+         */
+        BounceBuffer *bounce = container_of(buffer, BounceBuffer, buffer);
+
         if (is_write) {
-            invalidate_and_set_dirty(mr, addr1, access_len);
+            address_space_write(as, bounce->addr, MEMTXATTRS_UNSPECIFIED,
+                                bounce->buffer, access_len);
         }
-        if (xen_enabled()) {
-            xen_invalidate_map_cache_entry(buffer);
-        }
-        memory_region_unref(mr);
+
+        memory_region_unref(bounce->mr);
+        qatomic_sub(&bounce_buffer_size, bounce->len);
+        /* Write bounce_buffer_size before reading map_client_list. */
+        smp_mb();
+        cpu_notify_map_clients();
+        g_free(bounce);
         return;
     }
-    if (is_write) {
-        address_space_write(as, bounce.addr, MEMTXATTRS_UNSPECIFIED,
-                            bounce.buffer, access_len);
+
+    if (xen_enabled()) {
+        xen_invalidate_map_cache_entry(buffer);
     }
-    qemu_vfree(bounce.buffer);
-    bounce.buffer = NULL;
-    memory_region_unref(bounce.mr);
-    /* Clear in_use before reading map_client_list.  */
-    qatomic_set_mb(&bounce.in_use, false);
-    cpu_notify_map_clients();
+    if (is_write) {
+        invalidate_and_set_dirty(mr, addr1, access_len);
+    }
 }
 
 void *cpu_physical_memory_map(hwaddr addr,

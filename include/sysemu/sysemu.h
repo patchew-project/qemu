@@ -61,6 +61,8 @@ extern int nb_option_roms;
 extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;
 
+extern uint64_t max_bounce_buffer_size;
+
 /* serial ports */
 
 /* Return the Chardev for serial port i, or NULL if none */
