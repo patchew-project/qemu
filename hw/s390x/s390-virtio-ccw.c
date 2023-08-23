@@ -438,12 +438,12 @@ static void s390_machine_reset(MachineState *machine, ShutdownCause reason)
     switch (reset_type) {
     case S390_RESET_EXTERNAL:
     case S390_RESET_REIPL:
+        qemu_devices_reset(reason);
+        s390_crypto_reset();
+
         if (s390_is_pv()) {
             s390_machine_unprotect(ms);
         }
-
-        qemu_devices_reset(reason);
-        s390_crypto_reset();
 
         /* configure and start the ipl CPU only */
         run_on_cpu(cs, s390_do_cpu_ipl, RUN_ON_CPU_NULL);
