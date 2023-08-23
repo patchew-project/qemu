@@ -1021,6 +1021,15 @@ void tcg_gen_ext16u_i32(TCGv_i32 ret, TCGv_i32 arg)
     }
 }
 
+/*
+ * bswap16_i32: 16-bit byte swap on the low bits of a 32-bit value.
+ *
+ *                                                           flags
+ * Byte pattern:  bswap16_i32(..ab) -> .aba             (TCG_BSWAP_IZ)
+ *                bswap16_i32(xxab) -> ..ba             (TCG_BSWAP_OZ)
+ *                bswap16_i32(xxab) -> ssba             (TCG_BSWAP_OS)
+ *                bswap16_i32(xxab) -> xaba
+ */
 void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg, int flags)
 {
     /* Only one extension flag may be present. */
@@ -1032,22 +1041,29 @@ void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg, int flags)
         TCGv_i32 t0 = tcg_temp_ebb_new_i32();
         TCGv_i32 t1 = tcg_temp_ebb_new_i32();
 
-        tcg_gen_shri_i32(t0, arg, 8);
+                                            /* arg = xxab (IZ=0)    */
+                                            /*     = ..ab (IZ=1)    */
+        tcg_gen_shri_i32(t0, arg, 8);       /*  t0 = .xxa (IZ=0)    */
+                                            /*     = ...a (IZ=1)    */
         if (!(flags & TCG_BSWAP_IZ)) {
-            tcg_gen_ext8u_i32(t0, t0);
+            tcg_gen_ext8u_i32(t0, t0);      /*  t0 = ...a (IZ=0)    */
         }
 
         if (flags & TCG_BSWAP_OS) {
-            tcg_gen_shli_i32(t1, arg, 24);
-            tcg_gen_sari_i32(t1, t1, 16);
+            tcg_gen_shli_i32(t1, arg, 24);  /*  t1 = b... (OS=1)    */
+            tcg_gen_sari_i32(t1, t1, 16);   /*  t1 = ssb. (OS=1)    */
         } else if (flags & TCG_BSWAP_OZ) {
-            tcg_gen_ext8u_i32(t1, arg);
-            tcg_gen_shli_i32(t1, t1, 8);
+            tcg_gen_ext8u_i32(t1, arg);     /*  t1 = ...b (OZ=1)    */
+            tcg_gen_shli_i32(t1, t1, 8);    /*  t1 = ..b. (OZ=1)    */
         } else {
-            tcg_gen_shli_i32(t1, arg, 8);
+            tcg_gen_shli_i32(t1, arg, 8);   /*  t1 = xab. (IZ=0)    */
+                                            /*     = .ab. (IZ=1)    */
         }
 
-        tcg_gen_or_i32(ret, t0, t1);
+        tcg_gen_or_i32(ret, t0, t1);        /* ret = ..ba (OZ=1)    */
+                                            /*     = ssba (OS=1)    */
+                                            /*     = .aba (IZ=1)    */
+                                            /*     = xaba (no flag) */
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
     }
