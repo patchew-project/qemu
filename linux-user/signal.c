@@ -523,8 +523,15 @@ static void signal_table_init(void)
      * multiplexed over a single host signal.
      * Attempts for configure "missing" signals via sigaction will be
      * silently ignored.
+     *
+     * If the host is using gprof, treat SIGPROF the same way.
      */
-    for (hsig = SIGRTMIN; hsig <= SIGRTMAX; hsig++) {
+    hsig = SIGRTMIN;
+#ifdef CONFIG_GPROF
+    host_to_target_signal_table[SIGPROF] = 0;
+    host_to_target_signal_table[hsig++] = TARGET_SIGPROF;
+#endif
+    for (; hsig <= SIGRTMAX; hsig++) {
         tsig = hsig - SIGRTMIN + TARGET_SIGRTMIN;
         if (tsig <= TARGET_NSIG) {
             host_to_target_signal_table[hsig] = tsig;
