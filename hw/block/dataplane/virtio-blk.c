@@ -59,11 +59,16 @@ static void notify_guest_bh(void *opaque)
 {
     VirtIOBlockDataPlane *s = opaque;
     unsigned nvqs = s->conf->num_queues;
-    unsigned long bitmap[BITS_TO_LONGS(nvqs)];
+    DECLARE_BITMAP(bitmap, VIRTIO_QUEUE_MAX);
     unsigned j;
 
-    memcpy(bitmap, s->batch_notify_vqs, sizeof(bitmap));
-    memset(s->batch_notify_vqs, 0, sizeof(bitmap));
+    /*
+     * Note that our local 'bitmap' is declared at a fixed
+     * worst case size, but s->batch_notify_vqs has only
+     * nvqs bits in it.
+     */
+    bitmap_copy(bitmap, s->batch_notify_vqs, nvqs);
+    bitmap_zero(s->batch_notify_vqs, nvqs);
 
     for (j = 0; j < nvqs; j += BITS_PER_LONG) {
         unsigned long bits = bitmap[j / BITS_PER_LONG];
