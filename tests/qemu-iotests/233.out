@@ -41,8 +41,10 @@ exports available: 1
   min block: 1
 
 == check TLS fail over TCP with mismatched hostname ==
+qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
 qemu-img: Could not open 'driver=nbd,host=localhost,port=PORT,tls-creds=tls0': Certificate does not match the hostname localhost
 qemu-nbd: Certificate does not match the hostname localhost
+qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
 
 == check TLS works over TCP with mismatched hostname and override ==
 image: nbd://localhost:PORT
@@ -55,7 +57,9 @@ exports available: 1
   min block: 1
 
 == check TLS with different CA fails ==
+qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': The certificate hasn't got a known issuer
+qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
 qemu-nbd: The certificate hasn't got a known issuer
 
 == perform I/O over TLS ==
@@ -67,11 +71,15 @@ read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == check TLS with authorization ==
+qemu-nbd: option negotiation failed: TLS x509 authz check for C=South Pacific,L=R'lyeh,O=Cthulhu Dark Lord Enterprises client1,CN=localhost is denied
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': Failed to read option reply: Cannot read from TLS channel: Software caused connection abort
+qemu-nbd: option negotiation failed: TLS x509 authz check for C=South Pacific,L=R'lyeh,O=Cthulhu Dark Lord Enterprises client3,CN=localhost is denied
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': Failed to read option reply: Cannot read from TLS channel: Software caused connection abort
 
 == check TLS fail over UNIX with no hostname ==
+qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
 qemu-img: Could not open 'driver=nbd,path=SOCK_DIR/qemu-nbd.sock,tls-creds=tls0': No hostname for certificate validation
+qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
 qemu-nbd: No hostname for certificate validation
 
 == check TLS works over UNIX with hostname override ==
@@ -95,18 +103,10 @@ exports available: 1
   min block: 1
 
 == check TLS fails over UNIX with mismatch PSK ==
+qemu-nbd: option negotiation failed: TLS handshake failed: An illegal parameter has been received.
 qemu-img: Could not open 'driver=nbd,path=SOCK_DIR/qemu-nbd.sock,tls-creds=tls0': TLS handshake failed: The TLS connection was non-properly terminated.
+qemu-nbd: option negotiation failed: TLS handshake failed: An illegal parameter has been received.
 qemu-nbd: TLS handshake failed: The TLS connection was non-properly terminated.
 
 == final server log ==
-qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
-qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
-qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
-qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
-qemu-nbd: option negotiation failed: TLS x509 authz check for DISTINGUISHED-NAME is denied
-qemu-nbd: option negotiation failed: TLS x509 authz check for DISTINGUISHED-NAME is denied
-qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
-qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
-qemu-nbd: option negotiation failed: TLS handshake failed: An illegal parameter has been received.
-qemu-nbd: option negotiation failed: TLS handshake failed: An illegal parameter has been received.
 *** done

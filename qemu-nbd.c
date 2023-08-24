@@ -944,9 +944,24 @@ int main(int argc, char **argv)
 
             close(stderr_fd[0]);
 
-            ret = qemu_daemon(1, 0);
+            ret = qemu_daemon(1, verbose);
             saved_errno = errno;    /* dup2 will overwrite error below */
 
+            if (verbose) {
+                /* We want stdin at /dev/null when qemu_daemon didn't do it */
+                stdin = freopen("/dev/null", "r", stdin);
+                if (stdin == NULL) {
+                    error_report("Failed to redirect stdin: %s",
+                                 strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                /* To keep the parent's stderr alive, copy it to stdout */
+                if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
+                    error_report("Failed to redirect stdout: %s",
+                                 strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+            }
             /* Temporarily redirect stderr to the parent's pipe...  */
             if (dup2(stderr_fd[1], STDERR_FILENO) < 0) {
                 char str[256];
@@ -1180,6 +1195,10 @@ int main(int argc, char **argv)
     }
 
     if (fork_process) {
+        /*
+         * See above. If verbose is false, stdout is /dev/null (thanks
+         * to qemu_daemon); otherwise, stdout is the parent's stderr.
+         */
         if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0) {
             error_report("Could not set stderr to /dev/null: %s",
                          strerror(errno));
