@@ -2358,6 +2358,10 @@ static gboolean gtkinit;
 
 static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 {
+    if (!gtkinit) {
+        fprintf(stderr, "gtk initialization failed\n");
+        exit(1);
+    }
     VirtualConsole *vc;
 
     GtkDisplayState *s = g_malloc0(sizeof(*s));
@@ -2365,10 +2369,6 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     GtkIconTheme *theme;
     char *dir;
 
-    if (!gtkinit) {
-        fprintf(stderr, "gtk initialization failed\n");
-        exit(1);
-    }
     assert(opts->type == DISPLAY_TYPE_GTK);
     s->opts = opts;
 
