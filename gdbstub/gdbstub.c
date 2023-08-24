@@ -75,8 +75,6 @@ void gdb_init_gdbserver_state(void)
     gdbserver_state.sstep_flags &= gdbserver_state.supported_sstep_flags;
 }
 
-bool gdb_has_xml;
-
 /* writes 2*len+1 bytes in buf */
 void gdb_memtohex(GString *buf, const uint8_t *mem, int len)
 {
@@ -349,6 +347,11 @@ static CPUState *gdb_get_cpu(uint32_t pid, uint32_t tid)
 
         return cpu;
     }
+}
+
+bool gdb_has_xml(void)
+{
+    return !!gdb_get_cpu_process(gdbserver_state.g_cpu)->target_xml;
 }
 
 static const char *get_feature_xml(const char *p, const char **newp,
@@ -1078,7 +1081,7 @@ static void handle_set_reg(GArray *params, void *user_ctx)
 {
     int reg_size;
 
-    if (!gdb_has_xml) {
+    if (!gdb_get_cpu_process(gdbserver_state.g_cpu)->target_xml) {
         gdb_put_packet("");
         return;
     }
@@ -1099,7 +1102,7 @@ static void handle_get_reg(GArray *params, void *user_ctx)
 {
     int reg_size;
 
-    if (!gdb_has_xml) {
+    if (!gdb_get_cpu_process(gdbserver_state.g_cpu)->target_xml) {
         gdb_put_packet("");
         return;
     }
@@ -1566,7 +1569,6 @@ static void handle_query_xfer_features(GArray *params, void *user_ctx)
         return;
     }
 
-    gdb_has_xml = true;
     p = get_param(params, 0)->data;
     xml = get_feature_xml(p, &p, process);
     if (!xml) {
