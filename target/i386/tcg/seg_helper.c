@@ -78,6 +78,10 @@ static inline int load_segment_ra(CPUX86State *env, uint32_t *e1_ptr,
     } else {
         dt = &env->gdt;
     }
+    /* Check valid DT base before fetching segment descriptor*/
+    if (!dt->base) {
+        return -1;
+    }
     index = selector & ~7;
     if ((index + 7) > dt->limit) {
         return -1;
