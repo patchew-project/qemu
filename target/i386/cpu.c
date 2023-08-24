@@ -1314,8 +1314,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .feat_names = {
             "vmx-ept-execonly", NULL, NULL, NULL,
             NULL, NULL, "vmx-page-walk-4", "vmx-page-walk-5",
-            NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            "vmx-ept-uc", NULL, NULL, NULL,
+            NULL, NULL, "vmx-ept-wb", NULL,
             "vmx-ept-2mb", "vmx-ept-1gb", NULL, NULL,
             "vmx-invept", "vmx-eptad", "vmx-ept-advanced-exitinfo", NULL,
             NULL, "vmx-invept-single-context", "vmx-invept-all-context", NULL,
