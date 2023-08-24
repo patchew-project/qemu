@@ -1487,14 +1487,12 @@ static abi_long do_pselect6(abi_long arg1, abi_long arg2, abi_long arg3,
 static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
                          abi_long arg4, abi_long arg5, bool ppoll, bool time64)
 {
-    struct target_pollfd *target_pfd;
+    struct target_pollfd *target_pfd = NULL;
     unsigned int nfds = arg2;
-    struct pollfd *pfd;
+    struct pollfd *pfd = NULL;
     unsigned int i;
     abi_long ret;
 
-    pfd = NULL;
-    target_pfd = NULL;
     if (nfds) {
         if (nfds > (INT_MAX / sizeof(struct target_pollfd))) {
             return -TARGET_EINVAL;
@@ -1505,7 +1503,11 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
             return -TARGET_EFAULT;
         }
 
-        pfd = alloca(sizeof(struct pollfd) * nfds);
+        pfd = g_try_new(struct pollfd, nfds);
+        if (!pfd) {
+            ret = -TARGET_ENOMEM;
+            goto out;
+        }
         for (i = 0; i < nfds; i++) {
             pfd[i].fd = tswap32(target_pfd[i].fd);
             pfd[i].events = tswap16(target_pfd[i].events);
@@ -1516,16 +1518,11 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
         sigset_t *set = NULL;
 
         if (arg3) {
-            if (time64) {
-                if (target_to_host_timespec64(timeout_ts, arg3)) {
-                    unlock_user(target_pfd, arg1, 0);
-                    return -TARGET_EFAULT;
-                }
-            } else {
-                if (target_to_host_timespec(timeout_ts, arg3)) {
-                    unlock_user(target_pfd, arg1, 0);
-                    return -TARGET_EFAULT;
-                }
+            if (time64
+                ? target_to_host_timespec64(timeout_ts, arg3)
+                : target_to_host_timespec(timeout_ts, arg3)) {
+                ret = -TARGET_EFAULT;
+                goto out;
             }
         } else {
             timeout_ts = NULL;
@@ -1534,8 +1531,7 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
         if (arg4) {
             ret = process_sigsuspend_mask(&set, arg4, arg5);
             if (ret != 0) {
-                unlock_user(target_pfd, arg1, 0);
-                return ret;
+                goto out;
             }
         }
 
@@ -1546,14 +1542,11 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
             finish_sigsuspend_mask(ret);
         }
         if (!is_error(ret) && arg3) {
-            if (time64) {
-                if (host_to_target_timespec64(arg3, timeout_ts)) {
-                    return -TARGET_EFAULT;
-                }
-            } else {
-                if (host_to_target_timespec(arg3, timeout_ts)) {
-                    return -TARGET_EFAULT;
-                }
+            if (time64
+                ? host_to_target_timespec64(arg3, timeout_ts)
+                : host_to_target_timespec(arg3, timeout_ts)) {
+                ret = -TARGET_EFAULT;
+                goto out;
             }
         }
     } else {
@@ -1576,6 +1569,8 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
             target_pfd[i].revents = tswap16(pfd[i].revents);
         }
     }
+out:
+    g_free(pfd);
     unlock_user(target_pfd, arg1, sizeof(struct target_pollfd) * nfds);
     return ret;
 }
