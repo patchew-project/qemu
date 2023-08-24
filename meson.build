@@ -3277,6 +3277,7 @@ if have_system
     'hw/ssi',
     'hw/timer',
     'hw/tpm',
+    'hw/ufs',
     'hw/usb',
     'hw/vfio',
     'hw/virtio',
