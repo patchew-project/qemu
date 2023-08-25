@@ -999,7 +999,15 @@ void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
 /* Called within rcu_read_lock().  */
 static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
 {
-    uint16_t num_heads = vring_avail_idx(vq) - idx;
+    uint16_t num_heads;
+
+    if (vq->shadow_avail_idx != idx) {
+        num_heads = vq->shadow_avail_idx - idx;
+
+        return num_heads;
+    }
+
+    num_heads = vring_avail_idx(vq) - idx;
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     if (num_heads > vq->vring.num) {
