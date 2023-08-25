@@ -2226,6 +2226,16 @@ void riscv_cpu_list(void)
     g_slist_free(list);
 }
 
+void riscv_cpu_list_props(CPUState *cs)
+{
+    char *enabled_isa;
+
+    enabled_isa = riscv_isa_string(RISCV_CPU(cs));
+    qemu_printf("Enable extension:\n");
+    qemu_printf("\t%s\n", enabled_isa);
+    /* TODO: output all user configurable options and all possible extensions */
+}
+
 #define DEFINE_CPU(type_name, initfn)      \
     {                                      \
         .name = type_name,                 \
