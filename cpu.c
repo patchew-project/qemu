@@ -257,28 +257,35 @@ void cpu_exec_initfn(CPUState *cpu)
 #endif
 }
 
-const char *parse_cpu_option(const char *cpu_option)
+static const char *cpu_type_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
+    const char *cpu_type;
+
+
+    oc = cpu_class_by_name(CPU_RESOLVING_TYPE, cpu_model);
+    if (oc == NULL) {
+        error_report("unable to find CPU model '%s'", cpu_model);
+        exit(EXIT_FAILURE);
+    }
+
+    cpu_type = object_class_get_name(oc);
+    return cpu_type;
+}
+
+const char *parse_cpu_option(const char *cpu_option)
+{
+    const char *cpu_type;
     CPUClass *cc;
     gchar **model_pieces;
-    const char *cpu_type;
 
     model_pieces = g_strsplit(cpu_option, ",", 2);
     if (!model_pieces[0]) {
         error_report("-cpu option cannot be empty");
         exit(1);
     }
-
-    oc = cpu_class_by_name(CPU_RESOLVING_TYPE, model_pieces[0]);
-    if (oc == NULL) {
-        error_report("unable to find CPU model '%s'", model_pieces[0]);
-        g_strfreev(model_pieces);
-        exit(EXIT_FAILURE);
-    }
-
-    cpu_type = object_class_get_name(oc);
-    cc = CPU_CLASS(oc);
+    cpu_type = cpu_type_by_name(model_pieces[0]);
+    cc = CPU_CLASS(object_class_by_name(cpu_type));
     cc->parse_features(cpu_type, model_pieces[1], &error_fatal);
     g_strfreev(model_pieces);
     return cpu_type;
