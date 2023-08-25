@@ -658,6 +658,17 @@ CPUState *cpu_create(const char *typename);
 const char *parse_cpu_option(const char *cpu_option);
 
 /**
+ * cpu_type_by_name:
+ * @cpu_model: The -cpu command line model name.
+ *
+ * Looks up type name by the -cpu command line model name
+ *
+ * Returns: type name of CPU or prints error and terminates process
+ *          if an error occurred.
+ */
+const char *cpu_type_by_name(const char *cpu_model);
+
+/**
  * cpu_has_work:
  * @cpu: The vCPU to check.
  *

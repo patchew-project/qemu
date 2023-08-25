@@ -257,7 +257,7 @@ void cpu_exec_initfn(CPUState *cpu)
 #endif
 }
 
-static const char *cpu_type_by_name(const char *cpu_model)
+const char *cpu_type_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
     const char *cpu_type;
