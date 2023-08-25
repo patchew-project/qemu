@@ -1471,6 +1471,26 @@ static void test_postcopy_preempt_all(void)
 
 #endif
 
+/*
+ * We have a few parameters that allows null as input, test them to make
+ * sure they won't crash (where some used to).
+ */
+static void test_null_parameters(void)
+{
+    const char *allow_null_params[] = {
+        "tls-authz", "tls-hostname", "tls-creds"};
+    QTestState *vm = qtest_init("");
+    int i;
+
+    for (i = 0; i < sizeof(allow_null_params) / sizeof(const char *); i++) {
+        qtest_qmp_assert_success(vm, "{ 'execute': 'migrate-set-parameters',"
+                                 "'arguments': { %s: null } }",
+                                 allow_null_params[i]);
+    }
+
+    qtest_quit(vm);
+}
+
 static void test_baddest(void)
 {
     MigrateStart args = {
@@ -2827,6 +2847,7 @@ int main(int argc, char **argv)
         }
     }
 
+    qtest_add_func("/migration/null_parameters", test_null_parameters);
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix/plain", test_precopy_unix_plain);
     qtest_add_func("/migration/precopy/unix/xbzrle", test_precopy_unix_xbzrle);
