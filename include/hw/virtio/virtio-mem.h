@@ -33,6 +33,7 @@ OBJECT_DECLARE_TYPE(VirtIOMEM, VirtIOMEMClass,
 #define VIRTIO_MEM_UNPLUGGED_INACCESSIBLE_PROP "unplugged-inaccessible"
 #define VIRTIO_MEM_EARLY_MIGRATION_PROP "x-early-migration"
 #define VIRTIO_MEM_PREALLOC_PROP "prealloc"
+#define VIRTIO_MEM_MULTIPLE_MEMSLOTS_PROP "multiple-memslots"
 
 struct VirtIOMEM {
     VirtIODevice parent_obj;
@@ -44,7 +45,22 @@ struct VirtIOMEM {
     int32_t bitmap_size;
     unsigned long *bitmap;
 
-    /* assigned memory backend and memory region */
+    /* Device memory region in which we map the individual memslots. */
+    MemoryRegion *mr;
+
+    /* The individual memslots (aliases into the memory backend). */
+    MemoryRegion *memslots;
+
+    /* The total number of memslots. */
+    uint16_t nb_memslots;
+
+    /* Size of one memslot (the last one can be smaller). */
+    uint64_t memslot_size;
+
+    /*
+     * Assigned memory backend with the RAM memory region we split into
+     * memslots, to map the individual memslots only on demand.
+     */
     HostMemoryBackend *memdev;
 
     /* NUMA node */
@@ -82,6 +98,9 @@ struct VirtIOMEM {
      */
     bool early_migration;
 
+    /* Whether we may use multiple memslots instead of only a single one. */
+    bool multiple_memslots;
+
     /* notifiers to notify when "size" changes */
     NotifierList size_change_notifiers;
 
@@ -96,6 +115,8 @@ struct VirtIOMEMClass {
     /* public */
     void (*fill_device_info)(const VirtIOMEM *vmen, VirtioMEMDeviceInfo *vi);
     MemoryRegion *(*get_memory_region)(VirtIOMEM *vmem, Error **errp);
+    void (*decide_memslots)(VirtIOMEM *vmem, unsigned int limit);
+    unsigned int (*get_memslots)(VirtIOMEM *vmem);
     void (*add_size_change_notifier)(VirtIOMEM *vmem, Notifier *notifier);
     void (*remove_size_change_notifier)(VirtIOMEM *vmem, Notifier *notifier);
     void (*unplug_request_check)(VirtIOMEM *vmem, Error **errp);
