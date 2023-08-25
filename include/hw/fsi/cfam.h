@@ -12,8 +12,6 @@
 #include "hw/fsi/fsi-slave.h"
 #include "hw/fsi/lbus.h"
 
-#define TYPE_FSI_BUS "fsi.bus"
-
 #define TYPE_CFAM "cfam"
 #define CFAM(obj) OBJECT_CHECK(CFAMState, (obj), TYPE_CFAM)
 
