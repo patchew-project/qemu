@@ -27,6 +27,8 @@
 #define SQRT_NAN  0x7fc00004
 #define DIV_NAN   0x7fc00008
 #define MUL_NAN   0x7fc00002
+#define HP_NEG_INFINITY 0xfc00
+#define HP_POS_INFINITY 0x7c00
 #define FPU_FS PSW_USB_C
 #define FPU_FI PSW_USB_V
 #define FPU_FV PSW_USB_SV
@@ -371,6 +373,45 @@ uint32_t helper_ftoi(CPUTriCoreState *env, uint32_t arg)
         env->FPU_FS = 0;
     }
     return (uint32_t)result;
+}
+
+uint32_t helper_ftohp(CPUTriCoreState *env, uint32_t arg)
+{
+    float32 f_arg = make_float32(arg);
+    uint32_t result = 0;
+    int32_t flags = 0;
+
+    if (float32_is_infinity(f_arg)) {
+        if (float32_is_neg(f_arg)) {
+            return  HP_NEG_INFINITY;
+        } else {
+            return  HP_POS_INFINITY;
+        }
+    } else if (float32_is_any_nan(f_arg)) {
+        if (float32_is_signaling_nan(f_arg, &env->fp_status)) {
+            flags |= float_flag_invalid;
+        }
+        result = float16_set_sign(result, arg >> 31);
+        result = deposit32(result, 10, 5, 0x1f);
+        result = deposit32(result, 8, 2, extract32(arg, 21, 2));
+        result = deposit32(result, 0, 8, extract32(arg, 0, 8));
+        if (extract32(result, 0, 10) == 0) {
+            result |= (1 << 8);
+        }
+    } else {
+        set_flush_to_zero(0, &env->fp_status);
+        result = float32_to_float16(f_arg, true, &env->fp_status);
+        set_flush_to_zero(1, &env->fp_status);
+        flags = f_get_excp_flags(env);
+    }
+
+    if (flags) {
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+
+    return result;
 }
 
 uint32_t helper_itof(CPUTriCoreState *env, uint32_t arg)
