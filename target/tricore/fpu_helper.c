@@ -29,6 +29,8 @@
 #define MUL_NAN   0x7fc00002
 #define HP_NEG_INFINITY 0xfc00
 #define HP_POS_INFINITY 0x7c00
+#define NEG_INFINITY 0xff800000
+#define POS_INFINITY 0x7f800000
 #define FPU_FS PSW_USB_C
 #define FPU_FI PSW_USB_V
 #define FPU_FV PSW_USB_SV
@@ -373,6 +375,43 @@ uint32_t helper_ftoi(CPUTriCoreState *env, uint32_t arg)
         env->FPU_FS = 0;
     }
     return (uint32_t)result;
+}
+
+uint32_t helper_hptof(CPUTriCoreState *env, uint32_t arg)
+{
+    float16 f_arg = make_float16(arg);
+    uint32_t result = 0;
+    int32_t flags = 0;
+
+    if (float16_is_any_nan(f_arg)) {
+        if (float16_is_signaling_nan(f_arg, &env->fp_status)) {
+            flags |= float_flag_invalid;
+        }
+        result = 0;
+        result = float32_set_sign(result, f_arg >> 15);
+        result = deposit32(result, 23, 8, 0xff);
+        result = deposit32(result, 21, 2, extract32(f_arg, 8, 2));
+        result = deposit32(result, 0, 8, extract32(f_arg, 0, 8));
+    } else if (float16_is_infinity(f_arg)) {
+        if (float16_is_neg(f_arg)) {
+            result = NEG_INFINITY;
+        } else {
+            result = POS_INFINITY;
+        }
+    } else {
+        set_flush_inputs_to_zero(0, &env->fp_status);
+        result = float16_to_float32(f_arg, true, &env->fp_status);
+        set_flush_inputs_to_zero(1, &env->fp_status);
+        flags = f_get_excp_flags(env);
+    }
+
+    if (flags) {
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+
+    return result;
 }
 
 uint32_t helper_ftohp(CPUTriCoreState *env, uint32_t arg)
