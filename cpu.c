@@ -299,6 +299,14 @@ void list_cpus(void)
 #endif
 }
 
+void list_cpu_props(CPUState *cs)
+{
+    /* XXX: implement xxx_cpu_list_props for targets that still miss it */
+#if defined(cpu_list_props)
+    cpu_list_props(cs);
+#endif
+}
+
 #if defined(CONFIG_USER_ONLY)
 void tb_invalidate_phys_addr(hwaddr addr)
 {

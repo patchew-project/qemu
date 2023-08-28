@@ -166,5 +166,6 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 
 /* vl.c */
 void list_cpus(void);
+void list_cpu_props(CPUState *);
 
 #endif /* CPU_COMMON_H */

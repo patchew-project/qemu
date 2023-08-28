@@ -2226,6 +2226,20 @@ void riscv_cpu_list(void)
     g_slist_free(list);
 }
 
+void riscv_cpu_list_props(CPUState *cs)
+{
+    char *enabled_isa;
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
+    ObjectClass *oc = OBJECT_CLASS(mcc);
+
+    enabled_isa = riscv_isa_string(RISCV_CPU(cs));
+    qemu_printf("Enabled extensions:\n");
+    qemu_printf("\t%s\n", enabled_isa);
+    qemu_printf("To get all configuable options for this cpu, use"
+                " -device %s,help\n", object_class_get_name(oc));
+}
+
 #define DEFINE_CPU(type_name, initfn)      \
     {                                      \
         .name = type_name,                 \
