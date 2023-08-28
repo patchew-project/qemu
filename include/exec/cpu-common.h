@@ -168,4 +168,6 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 void list_cpus(void);
 void list_cpu_props(CPUState *);
 
+int cpu_help_func(void *opaque, QemuOpts *opts, Error **errp);
+extern QemuOptsList qemu_cpu_opts;
 #endif /* CPU_COMMON_H */

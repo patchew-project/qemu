@@ -362,6 +362,15 @@ static void handle_arg_cpu(const char *arg)
         list_cpus();
         exit(EXIT_FAILURE);
     }
+    QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("cpu"),
+                                             arg, true);
+    if (!opts) {
+        exit(1);
+    }
+    if (qemu_opts_foreach(qemu_find_opts("cpu"),
+                          cpu_help_func, NULL, NULL)) {
+        exit(0);
+    }
 }
 
 static void handle_arg_guest_base(const char *arg)
@@ -720,6 +729,7 @@ int main(int argc, char **argv, char **envp)
     cpu_model = NULL;
 
     qemu_add_opts(&qemu_trace_opts);
+    qemu_add_opts(&qemu_cpu_opts);
     qemu_plugin_add_opts();
 
     optind = parse_args(argc, argv);

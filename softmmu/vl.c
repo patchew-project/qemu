@@ -218,15 +218,6 @@ static struct {
     { .driver = "virtio-vga-gl",        .flag = &default_vga       },
 };
 
-static QemuOptsList qemu_cpu_opts = {
-    .name = "cpu",
-    .implied_opt_name = "cpu_model",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_cpu_opts.head),
-    .desc = {
-        { /* end of list */ }
-    },
-};
-
 static QemuOptsList qemu_rtc_opts = {
     .name = "rtc",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_rtc_opts.head),
@@ -1147,21 +1138,6 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     fw_cfg_add_file(fw_cfg, name, buf, size);
     fw_cfg_reset_order_override(fw_cfg);
     return 0;
-}
-
-static int cpu_help_func(void *opaque, QemuOpts *opts, Error **errp)
-{
-    const char *cpu_model, *cpu_type;
-    cpu_model = qemu_opt_get(opts, "cpu_model");
-    if (!cpu_model) {
-        return 1;
-    }
-    if (!qemu_opt_has_help_opt(opts)) {
-        return 0;
-    }
-    cpu_type = cpu_type_by_name(cpu_model);
-    list_cpu_props((CPUState *)object_new(cpu_type));
-    return 1;
 }
 
 static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)

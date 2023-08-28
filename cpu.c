@@ -47,6 +47,30 @@
 uintptr_t qemu_host_page_size;
 intptr_t qemu_host_page_mask;
 
+QemuOptsList qemu_cpu_opts = {
+    .name = "cpu",
+    .implied_opt_name = "cpu_model",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_cpu_opts.head),
+    .desc = {
+        { /* end of list */ }
+    },
+};
+
+int cpu_help_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *cpu_model, *cpu_type;
+    cpu_model = qemu_opt_get(opts, "cpu_model");
+    if (!cpu_model) {
+        return 1;
+    }
+    if (!qemu_opt_has_help_opt(opts)) {
+        return 0;
+    }
+    cpu_type = cpu_type_by_name(cpu_model);
+    list_cpu_props((CPUState *)object_new(cpu_type));
+    return 1;
+}
+
 #ifndef CONFIG_USER_ONLY
 static int cpu_common_post_load(void *opaque, int version_id)
 {
