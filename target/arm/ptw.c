@@ -9,7 +9,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/range.h"
-#include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "cpu.h"
 #include "internals.h"
