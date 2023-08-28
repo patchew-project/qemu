@@ -172,6 +172,45 @@ This section describes each format and the options that are supported for it.
     filename`` to check if the NOCOW flag is set or not (Capital 'C' is
     NOCOW flag).
 
+  .. option:: zoned
+    The zoned interface of zoned storage divices can different forms which
+    is referred to as models. This option uses number to represent, 1 for
+    host-managed and 0 for non-zoned.
+
+  .. option:: zone_size
+
+    The size of a zone of the zoned device in bytes. The device is divided
+    into zones of this size with the exception of the last zone, which may
+    be smaller.
+
+  .. option:: zone_capacity
+
+    The initial capacity value for all zones. The capacity must be less than
+    or equal to zone size. If the last zone is smaller, then its capacity is
+    capped. The device follows the ZBC protocol tends to have the same size
+    as its zone.
+
+    The zone capacity is per zone and may be different between zones in real
+    devices. For simplicity, limits QCow2 emulation to the same zone capacity
+    for all zones.
+
+  .. option:: zone_nr_conv
+
+    The number of conventional zones of the zoned device.
+
+  .. option:: max_open_zones
+
+    The maximal allowed open zones.
+
+  .. option:: max_active_zones
+
+    The limit of the zones with implicit open, explicit open or closed state.
+
+  .. option:: max_append_sectors
+
+    The maximal sectors in 512B blocks that is allowed to append to zones
+    while writing.
+
 .. program:: image-formats
 .. option:: qed
 
