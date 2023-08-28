@@ -218,6 +218,15 @@ static struct {
     { .driver = "virtio-vga-gl",        .flag = &default_vga       },
 };
 
+static QemuOptsList qemu_cpu_opts = {
+    .name = "cpu",
+    .implied_opt_name = "cpu_model",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_cpu_opts.head),
+    .desc = {
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList qemu_rtc_opts = {
     .name = "rtc",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_rtc_opts.head),
@@ -1138,6 +1147,21 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     fw_cfg_add_file(fw_cfg, name, buf, size);
     fw_cfg_reset_order_override(fw_cfg);
     return 0;
+}
+
+static int cpu_help_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *cpu_model, *cpu_type;
+    cpu_model = qemu_opt_get(opts, "cpu_model");
+    if (!cpu_model) {
+        return 1;
+    }
+    if (!qemu_opt_has_help_opt(opts)) {
+        return 0;
+    }
+    cpu_type = cpu_type_by_name(cpu_model);
+    list_cpu_props((CPUState *)object_new(cpu_type));
+    return 1;
 }
 
 static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
@@ -2467,6 +2491,11 @@ static void qemu_process_help_options(void)
         exit(0);
     }
 
+    if (qemu_opts_foreach(qemu_find_opts("cpu"),
+                          cpu_help_func, NULL, NULL)) {
+        exit(0);
+    }
+
     if (qemu_opts_foreach(qemu_find_opts("device"),
                           device_help_func, NULL, NULL)) {
         exit(0);
@@ -2680,6 +2709,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_drive_opts(&bdrv_runtime_opts);
     qemu_add_opts(&qemu_chardev_opts);
     qemu_add_opts(&qemu_device_opts);
+    qemu_add_opts(&qemu_cpu_opts);
     qemu_add_opts(&qemu_netdev_opts);
     qemu_add_opts(&qemu_nic_opts);
     qemu_add_opts(&qemu_net_opts);
@@ -2756,6 +2786,11 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 cpu_option = optarg;
+                opts = qemu_opts_parse_noisily(qemu_find_opts("cpu"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_hda:
             case QEMU_OPTION_hdb:
