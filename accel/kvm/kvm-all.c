@@ -51,6 +51,7 @@
 
 #include "hw/boards.h"
 #include "sysemu/stats.h"
+#include "sysemu/sysemu.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -132,6 +133,8 @@ static QLIST_HEAD(, KVMResampleFd) kvm_resample_fd_list =
     QLIST_HEAD_INITIALIZER(kvm_resample_fd_list);
 
 static QemuMutex kml_slots_lock;
+
+static Notifier dirty_ring_reaper_machine_done;
 
 #define kvm_slots_lock()    qemu_mutex_lock(&kml_slots_lock)
 #define kvm_slots_unlock()  qemu_mutex_unlock(&kml_slots_lock)
@@ -1454,8 +1457,9 @@ static void *kvm_dirty_ring_reaper_thread(void *data)
     return NULL;
 }
 
-static void kvm_dirty_ring_reaper_init(KVMState *s)
+static void kvm_dirty_ring_reaper_init(Notifier *n, void *unused)
 {
+    KVMState *s = kvm_state;
     struct KVMDirtyRingReaper *r = &s->reaper;
 
     qemu_thread_create(&r->reaper_thr, "kvm-reaper",
@@ -2742,7 +2746,8 @@ static int kvm_init(MachineState *ms)
     }
 
     if (s->kvm_dirty_ring_size) {
-        kvm_dirty_ring_reaper_init(s);
+        dirty_ring_reaper_machine_done.notify = kvm_dirty_ring_reaper_init;
+        qemu_add_machine_init_done_notifier(&dirty_ring_reaper_machine_done);
     }
 
     if (kvm_check_extension(kvm_state, KVM_CAP_BINARY_STATS_FD)) {
