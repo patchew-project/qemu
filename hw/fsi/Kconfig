@@ -1,2 +1,6 @@
+config SCRATCHPAD
+    bool
+    select LBUS
+
 config LBUS
     bool
