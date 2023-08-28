@@ -13,6 +13,8 @@ void qdev_propinfo_get_enum(Object *obj, Visitor *v, const char *name,
 void qdev_propinfo_set_enum(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp);
 
+void qdev_propinfo_set_default_value_string(ObjectProperty *op,
+                                            const Property *prop);
 void qdev_propinfo_set_default_value_enum(ObjectProperty *op,
                                           const Property *prop);
 void qdev_propinfo_set_default_value_int(ObjectProperty *op,

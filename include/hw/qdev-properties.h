@@ -22,6 +22,7 @@ struct Property {
     union {
         int64_t i;
         uint64_t u;
+        void *p;
     } defval;
     int          arrayoffset;
     const PropertyInfo *arrayinfo;
@@ -90,6 +91,11 @@ extern const PropertyInfo qdev_prop_link;
     DEFINE_PROP(_name, _state, _field, _prop, _type,                       \
                 .set_default = true,                                       \
                 .defval.u  = (_type)_defval)
+
+#define DEFINE_PROP_STR(_name, _state, _field, _defval, _prop, _type)      \
+    DEFINE_PROP(_name, _state, _field, _prop, _type,                       \
+                .set_default = true,                                       \
+                .defval.p  = (_type)_defval)
 
 #define DEFINE_PROP_UNSIGNED_NODEFAULT(_name, _state, _field, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type)
@@ -171,6 +177,8 @@ extern const PropertyInfo qdev_prop_link;
     DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, qdev_prop_size, uint64_t)
 #define DEFINE_PROP_STRING(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_string, char*)
+#define DEFINE_PROP_STRING_DEF(_n, _s, _f, _d)             \
+    DEFINE_PROP_STR(_n, _s, _f, _d, qdev_prop_string, char*)
 #define DEFINE_PROP_ON_OFF_AUTO(_n, _s, _f, _d) \
     DEFINE_PROP_SIGNED(_n, _s, _f, _d, qdev_prop_on_off_auto, OnOffAuto)
 #define DEFINE_PROP_SIZE32(_n, _s, _f, _d)                       \

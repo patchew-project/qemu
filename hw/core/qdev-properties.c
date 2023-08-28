@@ -96,6 +96,12 @@ static ObjectPropertyAccessor *field_prop_setter(const PropertyInfo *info)
     return info->set ? field_prop_set : NULL;
 }
 
+void qdev_propinfo_set_default_value_string(ObjectProperty *op,
+                                            const Property *prop)
+{
+    object_property_set_default_str(op, prop->defval.p);
+}
+
 void qdev_propinfo_get_enum(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
@@ -488,6 +494,7 @@ const PropertyInfo qdev_prop_string = {
     .release = release_string,
     .get   = get_string,
     .set   = set_string,
+    .set_default_value = qdev_propinfo_set_default_value_string,
 };
 
 /* --- on/off/auto --- */
