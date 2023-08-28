@@ -1671,6 +1671,29 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         }
         tcg_out_opc_vld(s, a0, base, offset);
         break;
+    case INDEX_op_and_vec:
+        tcg_out_opc_vand_v(s, a0, a1, a2);
+        break;
+    case INDEX_op_andc_vec:
+        /*
+         * vandn vd, vj, vk: vd = vk & ~vj
+         * andc_vec vd, vj, vk: vd = vj & ~vk
+         * vk and vk are swapped
+         */
+        tcg_out_opc_vandn_v(s, a0, a2, a1);
+        break;
+    case INDEX_op_or_vec:
+        tcg_out_opc_vor_v(s, a0, a1, a2);
+        break;
+    case INDEX_op_orc_vec:
+        tcg_out_opc_vorn_v(s, a0, a1, a2);
+        break;
+    case INDEX_op_xor_vec:
+        tcg_out_opc_vxor_v(s, a0, a1, a2);
+        break;
+    case INDEX_op_nor_vec:
+        tcg_out_opc_vnor_v(s, a0, a1, a2);
+        break;
     case INDEX_op_cmp_vec:
         TCGCond cond = args[3];
         insn = cmp_vec_insn[cond][vece];
@@ -1707,6 +1730,12 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_cmp_vec:
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
+    case INDEX_op_and_vec:
+    case INDEX_op_andc_vec:
+    case INDEX_op_or_vec:
+    case INDEX_op_orc_vec:
+    case INDEX_op_xor_vec:
+    case INDEX_op_nor_vec:
         return 1;
     default:
         return 0;
@@ -1871,6 +1900,12 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_cmp_vec:
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
+    case INDEX_op_and_vec:
+    case INDEX_op_andc_vec:
+    case INDEX_op_or_vec:
+    case INDEX_op_orc_vec:
+    case INDEX_op_xor_vec:
+    case INDEX_op_nor_vec:
         return C_O1_I2(w, w, w);
 
     default:
