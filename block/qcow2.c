@@ -73,6 +73,7 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_CRYPTO_HEADER 0x0537be77
 #define  QCOW2_EXT_MAGIC_BITMAPS 0x23852875
 #define  QCOW2_EXT_MAGIC_DATA_FILE 0x44415441
+#define  QCOW2_EXT_MAGIC_ZONED_FORMAT 0x7a6264
 
 static int coroutine_fn
 qcow2_co_preadv_compressed(BlockDriverState *bs,
@@ -210,6 +211,7 @@ qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
     uint64_t offset;
     int ret;
     Qcow2BitmapHeaderExt bitmaps_ext;
+    Qcow2ZonedHeaderExtension zoned_ext;
 
     if (need_update_header != NULL) {
         *need_update_header = false;
@@ -427,6 +429,55 @@ qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             }
 #ifdef DEBUG_EXT
             printf("Qcow2: Got external data file %s\n", s->image_data_file);
+#endif
+            break;
+        }
+
+        case QCOW2_EXT_MAGIC_ZONED_FORMAT:
+        {
+            if (ext.len != sizeof(zoned_ext)) {
+                error_setg(errp, "zoned_ext: Invalid extension length");
+                return -EINVAL;
+            }
+            ret = bdrv_pread(bs->file, offset, ext.len, &zoned_ext, 0);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "zoned_ext: "
+                                             "Could not read ext header");
+                return ret;
+            }
+
+            zoned_ext.zone_size = be32_to_cpu(zoned_ext.zone_size);
+            zoned_ext.zone_capacity = be32_to_cpu(zoned_ext.zone_capacity);
+            zoned_ext.nr_conv_zones = be32_to_cpu(zoned_ext.nr_conv_zones);
+            zoned_ext.nr_zones = be32_to_cpu(zoned_ext.nr_zones);
+            zoned_ext.max_open_zones = be32_to_cpu(zoned_ext.max_open_zones);
+            zoned_ext.max_active_zones =
+                be32_to_cpu(zoned_ext.max_active_zones);
+            zoned_ext.max_append_sectors =
+                be32_to_cpu(zoned_ext.max_append_sectors);
+            s->zoned_header = zoned_ext;
+
+            /* refuse to open broken images */
+            if (zoned_ext.zone_size == 0) {
+                error_setg(errp, "Zoned extension header zone_size field "
+                                 "can not be 0");
+                return -EINVAL;
+            }
+            if (zoned_ext.zone_capacity > zoned_ext.zone_size) {
+                error_setg(errp, "Zoned extension header zone_capacity field "
+                                 "can not be larger that zone_size field");
+                return -EINVAL;
+            }
+            if (zoned_ext.nr_zones != DIV_ROUND_UP(
+                bs->total_sectors * BDRV_SECTOR_SIZE, zoned_ext.zone_size)) {
+                error_setg(errp, "Zoned extension header nr_zones field "
+                                 "gets wrong");
+                return -EINVAL;
+            }
+
+#ifdef DEBUG_EXT
+            printf("Qcow2: Got zoned format extension: "
+                   "offset=%" PRIu32 "\n", offset);
 #endif
             break;
         }
@@ -1967,6 +2018,14 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
     }
     bs->bl.pwrite_zeroes_alignment = s->subcluster_size;
     bs->bl.pdiscard_alignment = s->cluster_size;
+    bs->bl.zoned = s->zoned_header.zoned;
+    bs->bl.nr_zones = s->zoned_header.nr_zones;
+    bs->wps = s->wps;
+    bs->bl.max_append_sectors = s->zoned_header.max_append_sectors;
+    bs->bl.max_active_zones = s->zoned_header.max_active_zones;
+    bs->bl.max_open_zones = s->zoned_header.max_open_zones;
+    bs->bl.zone_size = s->zoned_header.zone_size;
+    bs->bl.write_granularity = BDRV_SECTOR_SIZE;
 }
 
 static int qcow2_reopen_prepare(BDRVReopenState *state,
@@ -3089,6 +3148,30 @@ int qcow2_update_header(BlockDriverState *bs)
         buflen -= ret;
     }
 
+    /* Zoned devices header extension */
+    if (s->zoned_header.zoned == BLK_Z_HM) {
+        Qcow2ZonedHeaderExtension zoned_header = {
+            .zoned              = s->zoned_header.zoned,
+            .zone_size          = cpu_to_be32(s->zoned_header.zone_size),
+            .zone_capacity      = cpu_to_be32(s->zoned_header.zone_capacity),
+            .nr_conv_zones      = cpu_to_be32(s->zoned_header.nr_conv_zones),
+            .nr_zones           = cpu_to_be32(s->zoned_header.nr_zones),
+            .max_open_zones     = cpu_to_be32(s->zoned_header.max_open_zones),
+            .max_active_zones   =
+                cpu_to_be32(s->zoned_header.max_active_zones),
+            .max_append_sectors =
+                cpu_to_be32(s->zoned_header.max_append_sectors)
+        };
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_ZONED_FORMAT,
+                             &zoned_header, sizeof(zoned_header),
+                             buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+        buf += ret;
+        buflen -= ret;
+    }
+
     /* Keep unknown header extensions */
     QLIST_FOREACH(uext, &s->unknown_header_ext, next) {
         ret = header_ext_add(buf, uext->magic, uext->data, uext->len, buflen);
@@ -3768,9 +3851,58 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
 
     /* Set the external data file if necessary */
+    BDRVQcow2State *s = blk_bs(blk)->opaque;
     if (data_bs) {
-        BDRVQcow2State *s = blk_bs(blk)->opaque;
         s->image_data_file = g_strdup(data_bs->filename);
+    }
+
+    if (qcow2_opts->has_zone_model && qcow2_opts->zone_model == BLK_Z_HM) {
+        if (qcow2_opts->has_zone_size && qcow2_opts->zone_size == 0) {
+            s->zoned_header.zoned = BLK_Z_NONE;
+            error_setg(errp, "Zoned devices can not allow a larger-than-zero "
+                             "zone_size");
+            goto out;
+        }
+        s->zoned_header.zoned = qcow2_opts->zone_model;
+        s->zoned_header.zone_size = qcow2_opts->zone_size;
+        s->zoned_header.nr_zones = DIV_ROUND_UP(qcow2_opts->size,
+                                                qcow2_opts->zone_size);
+
+        if (qcow2_opts->has_zone_capacity) {
+            if (qcow2_opts->zone_capacity > qcow2_opts->zone_size) {
+                s->zoned_header.zoned = BLK_Z_NONE;
+                error_setg(errp, "zone capacity %" PRIu64 "B exceeds zone size "
+                           "%" PRIu64"B", qcow2_opts->zone_capacity,
+                           qcow2_opts->zone_size);
+                goto out;
+            }
+            s->zoned_header.zone_capacity = qcow2_opts->zone_capacity;
+        } else {
+            s->zoned_header.zone_capacity = qcow2_opts->zone_size;
+        }
+
+        if (qcow2_opts->has_nr_conv_zones) {
+            s->zoned_header.nr_conv_zones = qcow2_opts->nr_conv_zones;
+        }
+
+        if (qcow2_opts->has_max_active_zones) {
+            if (qcow2_opts->max_open_zones > qcow2_opts->max_active_zones) {
+                s->zoned_header.zoned = BLK_Z_NONE;
+                error_setg(errp, "max_open_zones %" PRIu32 " exceeds "
+                           "max_active_zones %" PRIu32"",
+                           qcow2_opts->max_open_zones,
+                           qcow2_opts->max_active_zones);
+                goto out;
+            }
+            if (qcow2_opts->has_max_open_zones) {
+                s->zoned_header.max_open_zones = qcow2_opts->max_active_zones;
+            } else {
+                s->zoned_header.max_open_zones = qcow2_opts->max_active_zones;
+            }
+        }
+        s->zoned_header.max_append_sectors = qcow2_opts->max_append_sectors;
+    } else {
+        s->zoned_header.zoned = BLK_Z_NONE;
     }
 
     /* Create a full header (including things like feature table) */
@@ -3903,6 +4035,13 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
         { BLOCK_OPT_COMPAT_LEVEL,       "version" },
         { BLOCK_OPT_DATA_FILE_RAW,      "data-file-raw" },
         { BLOCK_OPT_COMPRESSION_TYPE,   "compression-type" },
+        { BLOCK_OPT_Z_MODEL,            "zone-model"},
+        { BLOCK_OPT_Z_NR_COV,           "nr-conv-zones"},
+        { BLOCK_OPT_Z_MOZ,              "max-open-zones"},
+        { BLOCK_OPT_Z_MAZ,              "max-active-zones"},
+        { BLOCK_OPT_Z_MAS,              "max-append-sectors"},
+        { BLOCK_OPT_Z_SIZE,             "zone-size"},
+        { BLOCK_OPT_Z_CAP,              "zone-capacity"},
         { NULL, NULL },
     };
 
@@ -6066,6 +6205,41 @@ static QemuOptsList qcow2_create_opts = {
             .help = "Compression method used for image cluster "        \
                     "compression",                                      \
             .def_value_str = "zlib"                                     \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_Z_MODEL,                                  \
+            .type = QEMU_OPT_NUMBER,                                    \
+            .help = "zone model",                                      \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_Z_SIZE,                                   \
+            .type = QEMU_OPT_SIZE,                                      \
+            .help = "zone size",                                        \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_Z_CAP,                                    \
+            .type = QEMU_OPT_SIZE,                                      \
+            .help = "zone capacity",                                    \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_Z_NR_COV,                                 \
+            .type = QEMU_OPT_NUMBER,                                    \
+            .help = "numbers of conventional zones",                    \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_Z_MAS,                                    \
+            .type = QEMU_OPT_NUMBER,                                    \
+            .help = "max append sectors",                               \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_Z_MAZ,                                    \
+            .type = QEMU_OPT_NUMBER,                                    \
+            .help = "max active zones",                                 \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_Z_MOZ,                                    \
+            .type = QEMU_OPT_NUMBER,                                    \
+            .help = "max open zones",                                   \
         },
         QCOW_COMMON_OPTIONS,
         { /* end of list */ }

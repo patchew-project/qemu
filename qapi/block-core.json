@@ -5021,6 +5021,27 @@
 # @compression-type: The image cluster compression method
 #     (default: zlib, since 5.1)
 #
+# @zone-model: Zoned device model, 1 for host-managed and 0 for
+#     non-zoned devices (default: 0, since 8.0)
+#
+# @zone-size: Total number of logical blocks within zones in bytes
+#     (since 8.0)
+#
+# @zone-capacity: The number of usable logical blocks within zones
+#     in bytes. A zone capacity is always smaller or equal to the
+#     zone size. (since 8.0)
+#
+# @nr-conv-zones: The number of conventional zones of the zoned device
+#     (since 8.0)
+#
+# @max-open-zones: The maximal allowed open zones (since 8.0)
+#
+# @max-active-zones: The limit of the zones that have the implicit
+#     open, explicit open or closed state (since 8.0)
+#
+# @max-append-sectors: The maximal data size in sectors of a zone
+#     append request that can be issued to the device. (since 8.0)
+#
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsQcow2',
@@ -5037,7 +5058,14 @@
             '*preallocation':   'PreallocMode',
             '*lazy-refcounts':  'bool',
             '*refcount-bits':   'int',
-            '*compression-type':'Qcow2CompressionType' } }
+            '*compression-type':'Qcow2CompressionType',
+            '*zone-model':         'uint8',
+            '*zone-size':          'size',
+            '*zone-capacity':      'size',
+            '*nr-conv-zones':      'uint32',
+            '*max-open-zones':     'uint32',
+            '*max-active-zones':   'uint32',
+            '*max-append-sectors': 'uint32' } }
 
 ##
 # @BlockdevCreateOptionsQed:
