@@ -367,6 +367,12 @@ The fields of the zoned extension are:
                     The maximal data size in sectors of a zone
                     append request that can be issued to the device.
 
+          36 - 43:  zonedmeta_offset
+                    The offset of zoned metadata structure in the file in bytes.
+
+          44 - 51:  zonedmeta_size
+                    The size of zoned metadata in bytes.
+
 == Full disk encryption header pointer ==
 
 The full disk encryption header must be present if, and only if, the

@@ -247,6 +247,8 @@ typedef struct Qcow2ZonedHeaderExtension {
     uint32_t max_active_zones;
     uint32_t max_open_zones;
     uint32_t max_append_sectors;
+    uint64_t zonedmeta_offset;
+    uint64_t zonedmeta_size;
 } QEMU_PACKED Qcow2ZonedHeaderExtension;
 
 typedef struct Qcow2UnknownHeaderExtension {
