@@ -611,7 +611,7 @@ static int nbd_parse_offset_hole_payload(BDRVNBDState *s,
 static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
                                          NBDStructuredReplyChunk *chunk,
                                          uint8_t *payload, uint64_t orig_length,
-                                         NBDExtent *extent, Error **errp)
+                                         NBDExtent32 *extent, Error **errp)
 {
     uint32_t context_id;
 
@@ -1119,7 +1119,7 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
 
 static int coroutine_fn
 nbd_co_receive_blockstatus_reply(BDRVNBDState *s, uint64_t cookie,
-                                 uint64_t length, NBDExtent *extent,
+                                 uint64_t length, NBDExtent32 *extent,
                                  int *request_ret, Error **errp)
 {
     NBDReplyChunkIter iter;
@@ -1374,7 +1374,7 @@ static int coroutine_fn GRAPH_RDLOCK nbd_client_co_block_status(
         int64_t *pnum, int64_t *map, BlockDriverState **file)
 {
     int ret, request_ret;
-    NBDExtent extent = { 0 };
+    NBDExtent32 extent = { 0 };
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     Error *local_err = NULL;
 
