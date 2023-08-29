@@ -486,21 +486,8 @@ static void process_incoming_migration_bh(void *opaque)
 
     dirty_bitmap_mig_before_vm_start();
 
-    if (!global_state_received() ||
-        global_state_get_runstate() == RUN_STATE_RUNNING) {
-        if (autostart) {
-            vm_start();
-        } else {
-            runstate_set(RUN_STATE_PAUSED);
-        }
-    } else if (migration_incoming_colo_enabled()) {
-        migration_incoming_disable_colo();
-        vm_start();
-    } else if (global_state_get_runstate() == RUN_STATE_SUSPENDED) {
-        vm_prepare_start(false, global_state_get_runstate());
-    } else {
-        runstate_set(global_state_get_runstate());
-    }
+    migrate_set_runstate();
+
     /*
      * This must happen after any state changes since as soon as an external
      * observer sees this event they might start to prod at the VM assuming
@@ -1140,6 +1127,26 @@ void migrate_set_state(int *state, int old_state, int new_state)
     if (qatomic_cmpxchg(state, old_state, new_state) == old_state) {
         trace_migrate_set_state(MigrationStatus_str(new_state));
         migrate_generate_event(new_state);
+    }
+}
+
+void migrate_set_runstate(void)
+{
+    RunState state = global_state_get_runstate();
+
+    if (!global_state_received() || state == RUN_STATE_RUNNING) {
+        if (autostart) {
+            vm_start();
+        } else {
+            runstate_set(RUN_STATE_PAUSED);
+        }
+    } else if (migration_incoming_colo_enabled()) {
+        migration_incoming_disable_colo();
+        vm_start();
+    } else if (state == RUN_STATE_SUSPENDED) {
+        vm_prepare_start(false, state);
+    } else {
+        runstate_set(state);
     }
 }
 

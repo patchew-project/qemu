@@ -2070,18 +2070,7 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
 
     dirty_bitmap_mig_before_vm_start();
 
-    if (!global_state_received() ||
-        global_state_get_runstate() == RUN_STATE_RUNNING) {
-        if (autostart) {
-            vm_start();
-        } else {
-            runstate_set(RUN_STATE_PAUSED);
-        }
-    } else if (global_state_get_runstate() == RUN_STATE_SUSPENDED) {
-        vm_prepare_start(false, RUN_STATE_SUSPENDED);
-    } else {
-        runstate_set(global_state_get_runstate());
-    }
+    migrate_set_runstate();
 
     qemu_bh_delete(mis->bh);
 
