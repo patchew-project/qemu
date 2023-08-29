@@ -30,6 +30,7 @@ linux_user_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING', if_true: files('sem
 
 syscall_nr_generators = {}
 
+build_vdso_cmd = find_program('build-vdso.sh')
 gen_vdso_exe = executable('gen-vdso', 'gen-vdso.c',
                           native: true, build_by_default: false)
 gen_vdso = generator(gen_vdso_exe, output: '@BASENAME@.c.inc',
