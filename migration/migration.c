@@ -2027,6 +2027,13 @@ out:
 
     res = qemu_file_get_error(rp);
     if (res) {
+        /* We have forwarded any error in "err" already, reuse "error" */
+        assert(err == NULL);
+        /* Try to deliver this file error to migration state */
+        qemu_file_get_error_obj(rp, &err);
+        migrate_set_error(ms, err);
+        err = NULL;
+
         if (res && migration_in_postcopy()) {
             /*
              * Maybe there is something we can do: it looks like a
