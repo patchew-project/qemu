@@ -204,6 +204,7 @@ static void igbvf_write_config(PCIDevice *dev, uint32_t addr, uint32_t val,
 {
     trace_igbvf_write_config(addr, val, len);
     pci_default_write_config(dev, addr, val, len);
+    pcie_cap_flr_write_config(dev, addr, val, len);
 }
 
 static uint64_t igbvf_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -265,6 +266,8 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
     if (pcie_endpoint_cap_init(dev, 0xa0) < 0) {
         hw_error("Failed to initialize PCIe capability");
     }
+
+    pcie_cap_flr_init(dev);
 
     if (pcie_aer_init(dev, 1, 0x100, 0x40, errp) < 0) {
         hw_error("Failed to initialize AER capability");
