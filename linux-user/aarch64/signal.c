@@ -21,6 +21,7 @@
 #include "user-internals.h"
 #include "signal-common.h"
 #include "linux-user/trace.h"
+#include "target/arm/syndrome.h"
 
 struct target_sigcontext {
     uint64_t fault_address;
@@ -62,6 +63,13 @@ struct target_fpsimd_context {
     uint32_t fpsr;
     uint32_t fpcr;
     uint64_t vregs[32 * 2]; /* really uint128_t vregs[32] */
+};
+
+#define TARGET_ESR_MAGIC    0x45535201
+
+struct target_esr_context {
+    struct target_aarch64_ctx head;
+    uint64_t esr;
 };
 
 #define TARGET_EXTRA_MAGIC  0x45585401
@@ -189,6 +197,14 @@ static void target_setup_end_record(struct target_aarch64_ctx *end)
 {
     __put_user(0, &end->magic);
     __put_user(0, &end->size);
+}
+
+static void target_setup_esr_record(struct target_esr_context *esr,
+                                    CPUARMState *env)
+{
+    __put_user(TARGET_ESR_MAGIC, &esr->head.magic);
+    __put_user(sizeof(struct target_esr_context), &esr->head.size);
+    __put_user(env->exception.syndrome, &esr->esr);
 }
 
 static void target_setup_sve_record(struct target_sve_context *sve,
@@ -443,6 +459,10 @@ static int target_restore_sigframe(CPUARMState *env,
             fpsimd = (struct target_fpsimd_context *)ctx;
             break;
 
+        case TARGET_ESR_MAGIC:
+            /* ignore */
+            break;
+
         case TARGET_SVE_MAGIC:
             if (sve || size < sizeof(struct target_sve_context)) {
                 goto err;
@@ -558,6 +578,27 @@ static int alloc_sigframe_space(int this_size, target_sigframe_layout *l)
     return this_loc;
 }
 
+static bool need_save_esr(target_siginfo_t *info, CPUARMState *env)
+{
+    int sig = info->si_signo;
+    int type = info->si_code >> 16;
+
+    if (type != QEMU_SI_FAULT) {
+        return false;
+    }
+
+    /*
+     * See arch/arm64/mm/fault.c, for invocations of set_thread_esr.
+     * We populate ESR in arm_cpu_record_sigsegv or arm_cpu_record_sigbus,
+     * called via cpu_loop_exit_{sigsegv,sigbus}.
+     */
+    if (sig == TARGET_SIGSEGV || sig == TARGET_SIGBUS) {
+        return true;
+    }
+
+    return false;
+}
+
 static void target_setup_frame(int usig, struct target_sigaction *ka,
                                target_siginfo_t *info, target_sigset_t *set,
                                CPUARMState *env)
@@ -567,7 +608,7 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
         .total_size = offsetof(struct target_rt_sigframe,
                                uc.tuc_mcontext.__reserved),
     };
-    int fpsimd_ofs, fr_ofs, sve_ofs = 0, za_ofs = 0;
+    int fpsimd_ofs, fr_ofs, esr_ofs = 0, sve_ofs = 0, za_ofs = 0;
     int sve_size = 0, za_size = 0;
     struct target_rt_sigframe *frame;
     struct target_rt_frame_record *fr;
@@ -576,6 +617,12 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
     /* FPSIMD record is always in the standard space.  */
     fpsimd_ofs = alloc_sigframe_space(sizeof(struct target_fpsimd_context),
                                       &layout);
+
+    /* ESR state needs saving only for certain signals. */
+    if (need_save_esr(info, env)) {
+        esr_ofs = alloc_sigframe_space(sizeof(struct target_esr_context),
+                                       &layout);
+    }
 
     /* SVE state needs saving only if it exists.  */
     if (cpu_isar_feature(aa64_sve, env_archcpu(env)) ||
@@ -636,6 +683,9 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
                                   frame_addr + layout.extra_base,
                                   layout.extra_size);
         target_setup_end_record((void *)frame + layout.extra_end_ofs);
+    }
+    if (esr_ofs) {
+        target_setup_esr_record((void *)frame + esr_ofs, env);
     }
     if (sve_ofs) {
         target_setup_sve_record((void *)frame + sve_ofs, env, sve_size);

@@ -354,7 +354,13 @@ void arm_cpu_record_sigsegv(CPUState *cs, vaddr addr,
 {
     ARMMMUFaultInfo fi = {
         .type = maperr ? ARMFault_Translation : ARMFault_Permission,
-        .level = 3,
+        /*
+         * In arch/arm64/mm/fault.c, set_thread_esr, for kernel-space
+         * addresses (i.e. TTBR1) the kernel cleans the ESR value to
+         * always report level 0.  Since we're manufacturing a level
+         * here, we might as well pick 0 always.
+         */
+        .level = 0,
     };
     ARMCPU *cpu = ARM_CPU(cs);
 
