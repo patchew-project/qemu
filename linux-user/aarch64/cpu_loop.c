@@ -110,7 +110,12 @@ void cpu_loop(CPUARMState *env)
             /* just indicate that signals should be handled asap */
             break;
         case EXCP_UDEF:
-            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC, env->pc);
+            /* See kernel's do_el0_fpac, and our need_save_esr(). */
+            if (syn_get_ec(env->exception.syndrome) == EC_PACFAIL) {
+                force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPN, env->pc);
+            } else {
+                force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC, env->pc);
+            }
             break;
         case EXCP_PREFETCH_ABORT:
         case EXCP_DATA_ABORT:

@@ -582,6 +582,7 @@ static bool need_save_esr(target_siginfo_t *info, CPUARMState *env)
 {
     int sig = info->si_signo;
     int type = info->si_code >> 16;
+    int code = info->si_code & 0xffff;
 
     if (type != QEMU_SI_FAULT) {
         return false;
@@ -593,6 +594,11 @@ static bool need_save_esr(target_siginfo_t *info, CPUARMState *env)
      * called via cpu_loop_exit_{sigsegv,sigbus}.
      */
     if (sig == TARGET_SIGSEGV || sig == TARGET_SIGBUS) {
+        return true;
+    }
+
+    /* See arch/arm64/kernel/traps.c, do_el0_fpac, and our cpu_loop(). */
+    if (sig == TARGET_SIGILL && code == TARGET_ILL_ILLOPN) {
         return true;
     }
 

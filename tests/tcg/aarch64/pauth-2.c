@@ -5,14 +5,37 @@
 #include "pauth.h"
 
 
+static inline struct _aarch64_ctx *first_ctx(ucontext_t *uc)
+{
+    return (struct _aarch64_ctx *)&uc->uc_mcontext.__reserved;
+}
+
+static inline struct _aarch64_ctx *next_ctx(struct _aarch64_ctx *hdr)
+{
+    return (struct _aarch64_ctx *)((char *)hdr + hdr->size);
+}
+
 static void sigill(int sig, siginfo_t *info, void *vuc)
 {
     ucontext_t *uc = vuc;
-    uint64_t test;
+    struct _aarch64_ctx *hdr;
+    struct esr_context *ec;
+    uint64_t test, esr;
 
     /* There is only one insn below that is allowed to fault. */
     asm volatile("adr %0, auth2_insn" : "=r"(test));
     assert(test == uc->uc_mcontext.pc);
+
+    /* Find the esr_context. */
+    for (hdr = first_ctx(uc); hdr->magic != ESR_MAGIC; hdr = next_ctx(hdr)) {
+        assert(hdr->magic != 0);
+    }
+
+    ec = (struct esr_context *)hdr;
+    esr = ec->esr;
+
+    assert((esr >> 26) == 0x1c); /* EC_PACFAIL */
+    assert((esr & 3) == 2);      /* AUTDA: data=1 key=0 */
     exit(0);
 }
 
