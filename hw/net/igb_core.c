@@ -2153,10 +2153,12 @@ static void igb_set_vfmailbox(IGBCore *core, int index, uint32_t val)
     }
 }
 
-static void igb_vf_reset(IGBCore *core, uint16_t vfn)
+void igb_core_vf_reset(IGBCore *core, uint16_t vfn)
 {
     uint16_t qn0 = vfn;
     uint16_t qn1 = vfn + IGB_NUM_VM_POOLS;
+
+    trace_igb_core_vf_reset(vfn);
 
     /* disable Rx and Tx for the VF*/
     core->mac[RXDCTL0 + (qn0 * 16)] &= ~E1000_RXDCTL_QUEUE_ENABLE;
@@ -2236,7 +2238,7 @@ static void igb_set_vtctrl(IGBCore *core, int index, uint32_t val)
 
     if (val & E1000_CTRL_RST) {
         vfn = (index - PVTCTRL0) / 0x40;
-        igb_vf_reset(core, vfn);
+        igb_core_vf_reset(core, vfn);
     }
 }
 
