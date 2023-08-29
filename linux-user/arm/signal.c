@@ -167,9 +167,8 @@ setup_return(CPUARMState *env, struct target_sigaction *ka, int usig,
     abi_ulong handler = 0;
     abi_ulong handler_fdpic_GOT = 0;
     abi_ulong retcode;
-    int thumb, retcode_idx;
+    int thumb;
     int is_fdpic = info_is_fdpic(((TaskState *)thread_cpu->opaque)->info);
-    bool copy_retcode;
 
     if (is_fdpic) {
         /* In FDPIC mode, ka->_sa_handler points to a function
@@ -184,9 +183,7 @@ setup_return(CPUARMState *env, struct target_sigaction *ka, int usig,
     } else {
         handler = ka->_sa_handler;
     }
-
     thumb = handler & 1;
-    retcode_idx = thumb + (ka->sa_flags & TARGET_SA_SIGINFO ? 2 : 0);
 
     uint32_t cpsr = cpsr_read(env);
 
@@ -202,24 +199,23 @@ setup_return(CPUARMState *env, struct target_sigaction *ka, int usig,
         cpsr &= ~CPSR_E;
     }
 
+    /* Our vdso default_sigreturn label is a table of entry points. */
+    int idx = is_fdpic * 2 + ((ka->sa_flags & TARGET_SA_SIGINFO) != 0);
+    retcode = default_sigreturn + idx * 16;
+
+    /*
+     * Put the sigreturn code on the stack no matter which return
+     * mechanism we use in order to remain ABI compliant.
+     */
+    memcpy(frame->retcode, g2h_untagged(retcode & ~1), 16);
+
     if (ka->sa_flags & TARGET_SA_RESTORER) {
         if (is_fdpic) {
+            /* Place the function descriptor in slot 3. */
             __put_user((abi_ulong)ka->sa_restorer, &frame->retcode[3]);
-            retcode = (sigreturn_fdpic_tramp +
-                       retcode_idx * RETCODE_BYTES + thumb);
-            copy_retcode = true;
         } else {
             retcode = ka->sa_restorer;
-            copy_retcode = false;
         }
-    } else {
-        retcode = default_sigreturn + retcode_idx * RETCODE_BYTES + thumb;
-        copy_retcode = true;
-    }
-
-    /* Copy the code to the stack slot for ABI compatibility. */
-    if (copy_retcode) {
-        memcpy(frame->retcode, g2h_untagged(retcode & ~1), RETCODE_BYTES);
     }
 
     env->regs[0] = usig;
