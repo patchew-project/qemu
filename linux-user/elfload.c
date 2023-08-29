@@ -768,6 +768,13 @@ static uint32_t get_elf_hwcap2(void)
 
 #undef GET_FEATURE_ID
 
+#if TARGET_BIG_ENDIAN
+# include "vdso-be.c.inc"
+#else
+# include "vdso-le.c.inc"
+#endif
+#define vdso_image_info()    &vdso_image_info
+
 #endif /* not TARGET_AARCH64 */
 #endif /* TARGET_ARM */
 
