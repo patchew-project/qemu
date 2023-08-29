@@ -1835,7 +1835,7 @@ static int migrate_handle_rp_resume_ack(MigrationState *s,
                       MIGRATION_STATUS_POSTCOPY_ACTIVE);
 
     /* Notify send thread that time to continue send pages */
-    qemu_sem_post(&s->rp_state.rp_sem);
+    migration_rp_kick(s);
 
     return 0;
 }
@@ -2503,7 +2503,7 @@ static int postcopy_resume_handshake(MigrationState *s)
     qemu_savevm_send_postcopy_resume(s->to_dst_file);
 
     while (s->state == MIGRATION_STATUS_POSTCOPY_RECOVER) {
-        qemu_sem_wait(&s->rp_state.rp_sem);
+        migration_rp_wait(s);
     }
 
     if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
