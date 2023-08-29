@@ -1679,6 +1679,26 @@ static void test_precopy_unix_suspend_notlive(void)
     test_precopy_common(&args);
 }
 
+static void *test_bg_suspend_start(QTestState *from, QTestState *to)
+{
+    migrate_set_capability(from, "background-snapshot", true);
+    return NULL;
+}
+
+static void test_bg_suspend(void)
+{
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    MigrateCommon args = {
+        .listen_uri = uri,
+        .connect_uri = uri,
+        .live = true,       /* runs fast, the src suspends immediately. */
+        .start.suspend_me = true,
+        .start_hook = test_bg_suspend_start
+    };
+
+    test_precopy_common(&args);
+}
+
 static void test_precopy_unix_dirty_ring(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
@@ -2905,6 +2925,7 @@ int main(int argc, char **argv)
         if (is_x86) {
             qtest_add_func("/migration/postcopy/suspend",
                            test_postcopy_suspend);
+            qtest_add_func("/migration/bg/suspend", test_bg_suspend);
         }
     }
 
