@@ -157,6 +157,36 @@ static bool icount_shift_state_needed(void *opaque)
     return icount_enabled() == 2;
 }
 
+static int cpu_pre_save_ticks(void *opaque)
+{
+    TimersState *t = &timers_state;
+    TimersState *snap = opaque;
+
+    seqlock_write_lock(&t->vm_clock_seqlock, &t->vm_clock_lock);
+
+    if (t->cpu_ticks_enabled) {
+        snap->cpu_ticks_offset = t->cpu_ticks_offset + cpu_get_host_ticks();
+        snap->cpu_clock_offset = cpu_get_clock_locked();
+    } else {
+        snap->cpu_ticks_offset = t->cpu_ticks_offset;
+        snap->cpu_clock_offset = t->cpu_clock_offset;
+    }
+    seqlock_write_unlock(&t->vm_clock_seqlock, &t->vm_clock_lock);
+    return 0;
+}
+
+static int cpu_post_load_ticks(void *opaque, int version_id)
+{
+    TimersState *t = &timers_state;
+    TimersState *snap = opaque;
+
+    seqlock_write_lock(&t->vm_clock_seqlock, &t->vm_clock_lock);
+    t->cpu_ticks_offset = snap->cpu_ticks_offset;
+    t->cpu_clock_offset = snap->cpu_clock_offset;
+    seqlock_write_unlock(&t->vm_clock_seqlock, &t->vm_clock_lock);
+    return 0;
+}
+
 /*
  * Subsection for warp timer migration is optional, because may not be created
  */
@@ -221,6 +251,8 @@ static const VMStateDescription vmstate_timers = {
     .name = "timer",
     .version_id = 2,
     .minimum_version_id = 1,
+    .pre_save = cpu_pre_save_ticks,
+    .post_load = cpu_post_load_ticks,
     .fields = (VMStateField[]) {
         VMSTATE_INT64(cpu_ticks_offset, TimersState),
         VMSTATE_UNUSED(8),
@@ -269,9 +301,11 @@ TimersState timers_state;
 /* initialize timers state and the cpu throttle for convenience */
 void cpu_timers_init(void)
 {
+    static TimersState timers_snapshot;
+
     seqlock_init(&timers_state.vm_clock_seqlock);
     qemu_spin_init(&timers_state.vm_clock_lock);
-    vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
+    vmstate_register(NULL, 0, &vmstate_timers, &timers_snapshot);
 
     cpu_throttle_init();
 }
