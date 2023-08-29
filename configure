@@ -374,12 +374,9 @@ fi
 
 # OS specific
 
-mingw32="no"
 bsd="no"
-linux="no"
 case $targetos in
 windows)
-  mingw32="yes"
   plugins="no"
   pie="no"
 ;;
@@ -404,9 +401,6 @@ darwin)
 ;;
 haiku)
   pie="no"
-;;
-linux)
-  linux="yes"
 ;;
 esac
 
@@ -622,7 +616,7 @@ do
     fi
 done
 
-if test "$mingw32" = "yes" ; then
+if test "$targetos" = "windows" ; then
   EXESUF=".exe"
   prefix="/qemu"
   bindir=""
@@ -805,7 +799,7 @@ for opt do
   ;;
   --enable-download) download="enabled"; git_submodules_action=update;
   ;;
-  --enable-plugins) if test "$mingw32" = "yes"; then
+  --enable-plugins) if test "$targetos" = "windows"; then
                         error_exit "TCG plugins not currently supported on Windows platforms"
                     else
                         plugins="yes"
@@ -1070,7 +1064,7 @@ fi
 # by default.  Only enable by default for git builds
 if test -z "$werror" ; then
     if test -e "$source_path/.git" && \
-        { test "$linux" = "yes" || test "$mingw32" = "yes"; }; then
+        { test "$targetos" = linux || test "$targetos" = "windows"; }; then
         werror="yes"
     else
         werror="no"
@@ -1708,7 +1702,7 @@ echo all: >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
-if test "$mingw32" = "yes" ; then
+if test "$targetos" = "windows"; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
   echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER-QEMU}" >> $config_host_mak
   echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO-Linux}" >> $config_host_mak
@@ -1717,7 +1711,7 @@ else
   echo "CONFIG_POSIX=y" >> $config_host_mak
 fi
 
-if test "$linux" = "yes" ; then
+if test "$targetos" = "linux" ; then
   echo "CONFIG_LINUX=y" >> $config_host_mak
 fi
 
@@ -1755,7 +1749,7 @@ echo "NINJA=$ninja" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 
 # use included Linux headers for KVM architectures
-if test "$linux" = "yes" && test -n "$linux_arch"; then
+if test "$targetos" = "linux" && test -n "$linux_arch"; then
   symlink "$source_path/linux-headers/asm-$linux_arch" linux-headers/asm
 fi
 
