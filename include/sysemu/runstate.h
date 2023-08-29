@@ -39,8 +39,9 @@ void vm_start(void);
  * vm_prepare_start: Prepare for starting/resuming the VM
  *
  * @step_pending: whether any of the CPUs is about to be single-stepped by gdb
+ * @state: the vm state to setup
  */
-int vm_prepare_start(bool step_pending);
+int vm_prepare_start(bool step_pending, RunState state);
 int vm_stop(RunState state);
 int vm_stop_force_state(RunState state);
 int vm_shutdown(void);

@@ -565,7 +565,7 @@ int gdb_continue_partial(char *newstates)
             }
         }
 
-        if (vm_prepare_start(step_requested)) {
+        if (vm_prepare_start(step_requested, RUN_STATE_RUNNING)) {
             return 0;
         }
 

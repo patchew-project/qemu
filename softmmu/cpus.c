@@ -681,7 +681,7 @@ int vm_stop(RunState state)
  * Returns -1 if the vCPUs are not to be restarted (e.g. if they are already
  * running or in case of an error condition), 0 otherwise.
  */
-int vm_prepare_start(bool step_pending)
+int vm_prepare_start(bool step_pending, RunState state)
 {
     RunState requested;
 
@@ -713,14 +713,14 @@ int vm_prepare_start(bool step_pending)
     qapi_event_send_resume();
 
     cpu_enable_ticks();
-    runstate_set(RUN_STATE_RUNNING);
-    vm_state_notify(1, RUN_STATE_RUNNING);
+    runstate_set(state);
+    vm_state_notify(1, state);
     return 0;
 }
 
 void vm_start(void)
 {
-    if (!vm_prepare_start(false)) {
+    if (!vm_prepare_start(false, RUN_STATE_RUNNING)) {
         resume_all_vcpus();
     }
 }
