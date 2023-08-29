@@ -98,17 +98,6 @@ static void *mttcg_cpu_thread_fn(void *arg)
             case EXCP_DEBUG:
                 cpu_handle_guest_debug(cpu);
                 break;
-            case EXCP_HALTED:
-                /*
-                 * during start-up the vCPU is reset and the thread is
-                 * kicked several times. If we don't ensure we go back
-                 * to sleep in the halted state we won't cleanly
-                 * start-up when the vCPU is enabled.
-                 *
-                 * cpu->halted should ensure we sleep in wait_io_event
-                 */
-                g_assert(cpu->halted);
-                break;
             case EXCP_ATOMIC:
                 qemu_mutex_unlock_iothread();
                 cpu_exec_step_atomic(cpu);
