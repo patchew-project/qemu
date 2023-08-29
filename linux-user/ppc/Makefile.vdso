@@ -1,0 +1,18 @@
+CROSS_CC ?= powerpc64-linux-gnu-gcc
+
+all: vdso-32.so vdso-64.so vdso-64le.so
+
+LDFLAGS32 := -nostdlib -shared -Wl,-T,vdso-32.ld \
+	     -Wl,-h,linux-vdso32.so.1 -Wl,--hash-style=both -Wl,--build-id=sha1
+LDFLAGS64 := -nostdlib -shared -Wl,-T,vdso-64.ld \
+	     -Wl,-h,linux-vdso64.so.1 -Wl,--hash-style=both -Wl,--build-id=sha1
+
+vdso-32.so: vdso.S vdso-32.ld vdso-asmoffset.h Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS32) -m32 vdso.S -o $@
+
+vdso-64.so: vdso.S vdso-64.ld vdso-asmoffset.h Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS64) -mbig-endian vdso.S -o $@
+
+vdso-64le.so: vdso.S vdso-64.ld vdso-asmoffset.h Makefile.vdso
+	$(CROSS_CC) $(LDFLAGS64) -mlittle-endian vdso.S -o $@
+

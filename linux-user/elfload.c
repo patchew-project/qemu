@@ -1015,6 +1015,15 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
+#ifndef TARGET_PPC64
+# include "vdso-32.c.inc"
+#elif TARGET_BIG_ENDIAN
+# include "vdso-64.c.inc"
+#else
+# include "vdso-64le.c.inc"
+#endif
+#define vdso_image_info()    &vdso_image_info
+
 #endif
 
 #ifdef TARGET_LOONGARCH64
