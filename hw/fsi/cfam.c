@@ -10,6 +10,7 @@
 #include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "trace.h"
 
 #include "hw/fsi/cfam.h"
 #include "hw/fsi/fsi.h"
@@ -35,8 +36,7 @@ static uint64_t cfam_config_read(void *opaque, hwaddr addr, unsigned size)
     config = CFAM_CONFIG(opaque);
     cfam = container_of(config, CFAMState, config);
 
-    qemu_log_mask(LOG_UNIMP, "%s: read @0x%" HWADDR_PRIx " size=%d\n",
-                  __func__, addr, size);
+    trace_cfam_config_read(addr, size);
 
     assert(size == 4);
     assert(!(addr & 3));
@@ -85,8 +85,7 @@ static void cfam_config_write(void *opaque, hwaddr addr, uint64_t data,
 {
     CFAMConfig *s = CFAM_CONFIG(opaque);
 
-    qemu_log_mask(LOG_UNIMP, "%s: write @0x%" HWADDR_PRIx " size=%d "
-                  "value=%"PRIx64"\n", __func__, addr, size, data);
+    trace_cfam_config_write(addr, size, data);
 
     assert(size == 4);
     assert(!(addr & 3));
@@ -142,8 +141,7 @@ static const TypeInfo cfam_config_info = {
 static uint64_t cfam_unimplemented_read(void *opaque, hwaddr addr,
                                         unsigned size)
 {
-    qemu_log_mask(LOG_UNIMP, "%s: read @0x%" HWADDR_PRIx " size=%d\n",
-                  __func__, addr, size);
+    trace_cfam_unimplemented_read(addr, size);
 
     return 0;
 }
@@ -151,8 +149,7 @@ static uint64_t cfam_unimplemented_read(void *opaque, hwaddr addr,
 static void cfam_unimplemented_write(void *opaque, hwaddr addr, uint64_t data,
                                      unsigned size)
 {
-    qemu_log_mask(LOG_UNIMP, "%s: write @0x%" HWADDR_PRIx " size=%d "
-                  "value=%"PRIx64"\n", __func__, addr, size, data);
+    trace_cfam_unimplemented_write(addr, size, data);
 }
 
 static const struct MemoryRegionOps cfam_unimplemented_ops = {

@@ -3395,6 +3395,26 @@ F: tests/qtest/adm1272-test.c
 F: tests/qtest/max34451-test.c
 F: tests/qtest/isl_pmbus_vr-test.c
 
+FSI
+M: Ninad Palsule <ninad@linux.ibm.com>
+S: Maintained
+F: hw/fsi/aspeed-apb2opb.c
+F: hw/fsi/cfam.c
+F: hw/fsi/fsi.c
+F: hw/fsi/fsi-slave.c
+F: hw/fsi/opb.c
+F: hw/fsi/engine-scratchpad.c
+F: hw/fsi/fsi-master.c
+F: hw/fsi/lbus.c
+F: include/hw/fsi/aspeed-apb2opb.h
+F: include/hw/fsi/cfam.h
+F: include/hw/fsi/fsi.h
+F: include/hw/fsi/fsi-slave.h
+F: include/hw/fsi/opb.h
+F: include/hw/fsi/engine-scratchpad.h
+F: include/hw/fsi/fsi-master.h
+F: include/hw/fsi/lbus.h
+
 Firmware schema specifications
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Daniel P. Berrange <berrange@redhat.com>
