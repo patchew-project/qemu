@@ -219,7 +219,22 @@ void vfio_unblock_multiple_devices_migration(void)
 
 bool vfio_viommu_preset(VFIODevice *vbasedev)
 {
-    return vbasedev->group->container->space->as != &address_space_memory;
+    VFIOAddressSpace *space;
+    VFIOContainer *container;
+    VFIODevice *tmp_dev;
+
+    QLIST_FOREACH(space, &vfio_address_spaces, list) {
+        QLIST_FOREACH(container, &space->containers, next) {
+            tmp_dev = NULL;
+            while ((tmp_dev = vfio_container_dev_iter_next(container,
+                                                           tmp_dev))) {
+                if (vbasedev == tmp_dev) {
+                    return space->as != &address_space_memory;
+                }
+            }
+        }
+    }
+    g_assert_not_reached();
 }
 
 static void vfio_set_migration_error(int err)
