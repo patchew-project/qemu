@@ -170,6 +170,11 @@ TRANS(xvabsd_hu, LASX, gvec_vvv, 32, MO_16, do_vabsd_u)
 TRANS(xvabsd_wu, LASX, gvec_vvv, 32, MO_32, do_vabsd_u)
 TRANS(xvabsd_du, LASX, gvec_vvv, 32, MO_64, do_vabsd_u)
 
+TRANS(xvadda_b, LASX, gvec_vvv, 32, MO_8, do_vadda)
+TRANS(xvadda_h, LASX, gvec_vvv, 32, MO_16, do_vadda)
+TRANS(xvadda_w, LASX, gvec_vvv, 32, MO_32, do_vadda)
+TRANS(xvadda_d, LASX, gvec_vvv, 32, MO_64, do_vadda)
+
 TRANS(xvreplgr2vr_b, LASX, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, LASX, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, LASX, gvec_dup, 32, MO_32)
