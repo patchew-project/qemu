@@ -85,4 +85,8 @@
 #define DO_CLZ_W(N)  (clz32(N))
 #define DO_CLZ_D(N)  (clz64(N))
 
+#define DO_BITCLR(a, bit) (a & ~(1ull << bit))
+#define DO_BITSET(a, bit) (a | 1ull << bit)
+#define DO_BITREV(a, bit) (a ^ (1ull << bit))
+
 #endif /* LOONGARCH_VEC_H */
