@@ -589,6 +589,7 @@ config FSL_IMX7
     select PCI_EXPRESS_DESIGNWARE
     select SDHCI
     select UNIMP
+    select FSI_APB2OPB_ASPEED
 
 config ARM_SMMUV3
     bool
