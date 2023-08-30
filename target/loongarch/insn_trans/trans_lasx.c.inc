@@ -351,6 +351,8 @@ TRANS(xvmskltz_d, LASX, gen_vv, 32, gen_helper_vmskltz_d)
 TRANS(xvmskgez_b, LASX, gen_vv, 32, gen_helper_vmskgez_b)
 TRANS(xvmsknz_b, LASX, gen_vv, 32, gen_helper_vmsknz_b)
 
+TRANS(xvldi, LASX, do_vldi, 32)
+
 TRANS(xvreplgr2vr_b, LASX, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, LASX, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, LASX, gvec_dup, 32, MO_32)

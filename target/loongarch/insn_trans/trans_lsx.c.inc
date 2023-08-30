@@ -3068,7 +3068,7 @@ static uint64_t vldi_get_value(DisasContext *ctx, uint32_t imm)
     return data;
 }
 
-static bool trans_vldi(DisasContext *ctx, arg_vldi *a)
+static bool do_vldi(DisasContext *ctx, arg_vldi *a, uint32_t oprsz)
 {
     int sel, vece;
     uint64_t value;
@@ -3089,10 +3089,12 @@ static bool trans_vldi(DisasContext *ctx, arg_vldi *a)
         vece = (a->imm >> 10) & 0x3;
     }
 
-    tcg_gen_gvec_dup_i64(vece, vec_full_offset(a->vd), 16, ctx->vl/8,
+    tcg_gen_gvec_dup_i64(vece, vec_full_offset(a->vd), oprsz, ctx->vl / 8,
                          tcg_constant_i64(value));
     return true;
 }
+
+TRANS(vldi, LSX, do_vldi, 16)
 
 TRANS(vand_v, LSX, gvec_vvv, 16, MO_64, tcg_gen_gvec_and)
 TRANS(vor_v, LSX, gvec_vvv, 16, MO_64, tcg_gen_gvec_or)
