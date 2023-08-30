@@ -89,4 +89,8 @@
 #define DO_BITSET(a, bit) (a | 1ull << bit)
 #define DO_BITREV(a, bit) (a ^ (1ull << bit))
 
+#define VSEQ(a, b) (a == b ? -1 : 0)
+#define VSLE(a, b) (a <= b ? -1 : 0)
+#define VSLT(a, b) (a < b ? -1 : 0)
+
 #endif /* LOONGARCH_VEC_H */
