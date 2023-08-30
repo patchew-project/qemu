@@ -4283,7 +4283,8 @@ static bool trans_vreplvei_d(DisasContext *ctx, arg_vv_i *a)
     return true;
 }
 
-static bool gen_vreplve(DisasContext *ctx, arg_vvr *a, int vece, int bit,
+static bool gen_vreplve(DisasContext *ctx, arg_vvr *a,
+                        uint32_t  oprsz, int vece, int bit,
                         void (*func)(TCGv_i64, TCGv_ptr, tcg_target_long))
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
@@ -4296,29 +4297,74 @@ static bool gen_vreplve(DisasContext *ctx, arg_vvr *a, int vece, int bit,
 
     CHECK_VEC;
 
-    tcg_gen_andi_i64(t0, gpr_src(ctx, a->rk, EXT_NONE), (LSX_LEN/bit) -1);
+    tcg_gen_andi_i64(t0, gpr_src(ctx, a->rk, EXT_NONE), (LSX_LEN / bit) - 1);
     tcg_gen_shli_i64(t0, t0, vece);
     if (HOST_BIG_ENDIAN) {
-        tcg_gen_xori_i64(t0, t0, vece << ((LSX_LEN/bit) -1));
+        tcg_gen_xori_i64(t0, t0, vece << ((LSX_LEN / bit) - 1));
     }
 
     tcg_gen_trunc_i64_ptr(t1, t0);
     tcg_gen_add_ptr(t1, t1, cpu_env);
     func(t2, t1, vec_full_offset(a->vj));
-    tcg_gen_gvec_dup_i64(vece, vec_full_offset(a->vd), 16, ctx->vl/8, t2);
+    tcg_gen_gvec_dup_i64(vece, vec_full_offset(a->vd), 16, 16, t2);
+    if (oprsz == 32) {
+        func(t2, t1,  offsetof(CPULoongArchState, fpr[a->vj].vreg.Q(1)));
+        tcg_gen_gvec_dup_i64(vece,
+                             offsetof(CPULoongArchState, fpr[a->vd].vreg.Q(1)),
+                             16, 16, t2);
+    }
 
     return true;
 }
 
-TRANS(vreplve_b, LSX, gen_vreplve, MO_8,  8, tcg_gen_ld8u_i64)
-TRANS(vreplve_h, LSX, gen_vreplve, MO_16, 16, tcg_gen_ld16u_i64)
-TRANS(vreplve_w, LSX, gen_vreplve, MO_32, 32, tcg_gen_ld32u_i64)
-TRANS(vreplve_d, LSX, gen_vreplve, MO_64, 64, tcg_gen_ld_i64)
+TRANS(vreplve_b, LSX, gen_vreplve, 16, MO_8, 8, tcg_gen_ld8u_i64)
+TRANS(vreplve_h, LSX, gen_vreplve, 16, MO_16, 16, tcg_gen_ld16u_i64)
+TRANS(vreplve_w, LSX, gen_vreplve, 16, MO_32, 32, tcg_gen_ld32u_i64)
+TRANS(vreplve_d, LSX, gen_vreplve, 16, MO_64, 64, tcg_gen_ld_i64)
 
-static bool trans_vbsll_v(DisasContext *ctx, arg_vv_i *a)
+static bool do_vbsll_v(DisasContext *ctx, arg_vv_i *a, uint32_t oprsz)
 {
+    int i, max;
     int ofs;
-    TCGv_i64 desthigh, destlow, high, low;
+    TCGv_i64 desthigh[2], destlow[2], high[2], low[2];
+
+    if (!avail_LSX(ctx)) {
+        return false;
+    }
+
+    CHECK_VEC;
+    max = (oprsz == 16) ? 1 : 2;
+
+    for (i = 0; i < max; i++) {
+        desthigh[i] = tcg_temp_new_i64();
+        destlow[i] = tcg_temp_new_i64();
+        high[i] = tcg_temp_new_i64();
+        low[i] = tcg_temp_new_i64();
+
+        get_vreg64(low[i], a->vj, 2 * i);
+
+        ofs = ((a->imm) & 0xf) * 8;
+        if (ofs < 64) {
+            get_vreg64(high[i], a->vj, 2 * i + 1);
+            tcg_gen_extract2_i64(desthigh[i], low[i], high[i], 64 - ofs);
+            tcg_gen_shli_i64(destlow[i], low[i], ofs);
+        } else {
+            tcg_gen_shli_i64(desthigh[i], low[i], ofs - 64);
+            destlow[i] = tcg_constant_i64(0);
+        }
+
+        set_vreg64(desthigh[i], a->vd, 2 * i + 1);
+        set_vreg64(destlow[i], a->vd, 2 * i);
+    }
+
+    return true;
+}
+
+static bool do_vbsrl_v(DisasContext *ctx, arg_vv_i *a, uint32_t oprsz)
+{
+    int i, max;
+    TCGv_i64 desthigh[2], destlow[2], high[2], low[2];
+    int ofs;
 
     if (!avail_LSX(ctx)) {
         return false;
@@ -4326,62 +4372,35 @@ static bool trans_vbsll_v(DisasContext *ctx, arg_vv_i *a)
 
     CHECK_VEC;
 
-    desthigh = tcg_temp_new_i64();
-    destlow = tcg_temp_new_i64();
-    high = tcg_temp_new_i64();
-    low = tcg_temp_new_i64();
+    max = (oprsz == 16) ? 1 : 2;
 
-    get_vreg64(low, a->vj, 0);
+    for (i = 0; i < max; i++) {
+        desthigh[i] = tcg_temp_new_i64();
+        destlow[i] = tcg_temp_new_i64();
+        high[i] = tcg_temp_new_i64();
+        low[i] = tcg_temp_new_i64();
 
-    ofs = ((a->imm) & 0xf) * 8;
-    if (ofs < 64) {
-        get_vreg64(high, a->vj, 1);
-        tcg_gen_extract2_i64(desthigh, low, high, 64 - ofs);
-        tcg_gen_shli_i64(destlow, low, ofs);
-    } else {
-        tcg_gen_shli_i64(desthigh, low, ofs - 64);
-        destlow = tcg_constant_i64(0);
+        get_vreg64(high[i], a->vj, 2 * i + 1);
+
+        ofs = ((a->imm) & 0xf) * 8;
+        if (ofs < 64) {
+            get_vreg64(low[i], a->vj, 2 * i);
+            tcg_gen_extract2_i64(destlow[i], low[i], high[i], ofs);
+            tcg_gen_shri_i64(desthigh[i], high[i], ofs);
+        } else {
+            tcg_gen_shri_i64(destlow[i], high[i], ofs - 64);
+            desthigh[i] = tcg_constant_i64(0);
+        }
+
+        set_vreg64(desthigh[i], a->vd, 2 * i + 1);
+        set_vreg64(destlow[i], a->vd, 2 * i);
     }
-
-    set_vreg64(desthigh, a->vd, 1);
-    set_vreg64(destlow, a->vd, 0);
 
     return true;
 }
 
-static bool trans_vbsrl_v(DisasContext *ctx, arg_vv_i *a)
-{
-    TCGv_i64 desthigh, destlow, high, low;
-    int ofs;
-
-    if (!avail_LSX(ctx)) {
-        return false;
-    }
-
-    CHECK_VEC;
-
-    desthigh = tcg_temp_new_i64();
-    destlow = tcg_temp_new_i64();
-    high = tcg_temp_new_i64();
-    low = tcg_temp_new_i64();
-
-    get_vreg64(high, a->vj, 1);
-
-    ofs = ((a->imm) & 0xf) * 8;
-    if (ofs < 64) {
-        get_vreg64(low, a->vj, 0);
-        tcg_gen_extract2_i64(destlow, low, high, ofs);
-        tcg_gen_shri_i64(desthigh, high, ofs);
-    } else {
-        tcg_gen_shri_i64(destlow, high, ofs - 64);
-        desthigh = tcg_constant_i64(0);
-    }
-
-    set_vreg64(desthigh, a->vd, 1);
-    set_vreg64(destlow, a->vd, 0);
-
-    return true;
-}
+TRANS(vbsll_v, LSX, do_vbsll_v, 16)
+TRANS(vbsrl_v, LSX, do_vbsrl_v, 16)
 
 TRANS(vpackev_b, LSX, gen_vvv, 16, gen_helper_vpackev_b)
 TRANS(vpackev_h, LSX, gen_vvv, 16, gen_helper_vpackev_h)

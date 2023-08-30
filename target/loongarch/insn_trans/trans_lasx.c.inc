@@ -806,3 +806,121 @@ TRANS(xvreplgr2vr_b, LASX, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, LASX, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, LASX, gvec_dup, 32, MO_32)
 TRANS(xvreplgr2vr_d, LASX, gvec_dup, 32, MO_64)
+
+TRANS(xvreplve_b, LASX, gen_vreplve, 32, MO_8, 8, tcg_gen_ld8u_i64)
+TRANS(xvreplve_h, LASX, gen_vreplve, 32, MO_16, 16, tcg_gen_ld16u_i64)
+TRANS(xvreplve_w, LASX, gen_vreplve, 32, MO_32, 32, tcg_gen_ld32u_i64)
+TRANS(xvreplve_d, LASX, gen_vreplve, 32, MO_64, 64, tcg_gen_ld_i64)
+
+static bool trans_xvrepl128vei_b(DisasContext *ctx, arg_vv_i * a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+
+    CHECK_VEC;
+
+    tcg_gen_gvec_dup_mem(MO_8,
+                         offsetof(CPULoongArchState, fpr[a->vd].vreg.B(0)),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.B((a->imm))),
+                         16, 16);
+    tcg_gen_gvec_dup_mem(MO_8,
+                         offsetof(CPULoongArchState, fpr[a->vd].vreg.B(16)),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.B((a->imm + 16))),
+                         16, 16);
+    return true;
+}
+
+static bool trans_xvrepl128vei_h(DisasContext *ctx, arg_vv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+
+    CHECK_VEC;
+
+    tcg_gen_gvec_dup_mem(MO_16,
+                         offsetof(CPULoongArchState, fpr[a->vd].vreg.H(0)),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.H((a->imm))),
+                         16, 16);
+    tcg_gen_gvec_dup_mem(MO_16,
+                         offsetof(CPULoongArchState, fpr[a->vd].vreg.H(8)),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.H((a->imm + 8))),
+                         16, 16);
+    return true;
+}
+
+static bool trans_xvrepl128vei_w(DisasContext *ctx, arg_vv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+
+    CHECK_VEC;
+
+    tcg_gen_gvec_dup_mem(MO_32,
+                         offsetof(CPULoongArchState, fpr[a->vd].vreg.W(0)),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.W((a->imm))),
+                         16, 16);
+    tcg_gen_gvec_dup_mem(MO_32,
+                         offsetof(CPULoongArchState, fpr[a->vd].vreg.W(4)),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.W((a->imm + 4))),
+                         16, 16);
+    return true;
+}
+
+static bool trans_xvrepl128vei_d(DisasContext *ctx, arg_vv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+
+    CHECK_VEC;
+
+    tcg_gen_gvec_dup_mem(MO_64,
+                         offsetof(CPULoongArchState, fpr[a->vd].vreg.D(0)),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.D((a->imm))),
+                         16, 16);
+    tcg_gen_gvec_dup_mem(MO_64,
+                         offsetof(CPULoongArchState, fpr[a->vd].vreg.D(2)),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.D((a->imm + 2))),
+                         16, 16);
+    return true;
+}
+
+#define XVREPLVE0(NAME, MOP)                                                  \
+static bool trans_## NAME(DisasContext *ctx, arg_vv * a)                      \
+{                                                                             \
+    if (!avail_LASX(ctx)) {                                                   \
+        return false;                                                         \
+    }                                                                         \
+                                                                              \
+    CHECK_VEC;                                                                \
+                                                                              \
+    tcg_gen_gvec_dup_mem(MOP, vec_full_offset(a->vd), vec_full_offset(a->vj), \
+                         32, 32);                                             \
+    return true;                                                              \
+}
+
+XVREPLVE0(xvreplve0_b, MO_8)
+XVREPLVE0(xvreplve0_h, MO_16)
+XVREPLVE0(xvreplve0_w, MO_32)
+XVREPLVE0(xvreplve0_d, MO_64)
+XVREPLVE0(xvreplve0_q, MO_128)
+
+TRANS(xvinsve0_w, LASX, gen_vv_i, 32, gen_helper_xvinsve0_w)
+TRANS(xvinsve0_d, LASX, gen_vv_i, 32, gen_helper_xvinsve0_d)
+
+TRANS(xvpickve_w, LASX, gen_vv_i, 32, gen_helper_xvpickve_w)
+TRANS(xvpickve_d, LASX, gen_vv_i, 32, gen_helper_xvpickve_d)
+
+TRANS(xvbsll_v, LASX, do_vbsll_v, 32)
+TRANS(xvbsrl_v, LASX, do_vbsrl_v, 32)
