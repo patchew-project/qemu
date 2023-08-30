@@ -2578,6 +2578,7 @@ M: Alexander Graf <agraf@csgraf.de>
 S: Maintained
 F: hw/vmapple/*
 F: include/hw/vmapple/*
+F: docs/system/arm/vmapple.rst
 
 Subsystems
 ----------

@@ -12,3 +12,22 @@ config VMAPPLE_PVG
 
 config VMAPPLE_VIRTIO_BLK
     bool
+
+config VMAPPLE
+    bool
+    depends on ARM && HVF
+    default y if ARM && HVF
+    imply PCI_DEVICES
+    select ARM_GIC
+    select PLATFORM_BUS
+    select PCI_EXPRESS
+    select PCI_EXPRESS_GENERIC_BRIDGE
+    select PL011 # UART
+    select PL031 # RTC
+    select PL061 # GPIO
+    select GPIO_PWR
+    select PVPANIC_MMIO
+    select VMAPPLE_AES
+    select VMAPPLE_BDIF
+    select VMAPPLE_CFG
+    select VMAPPLE_PVG

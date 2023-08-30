@@ -106,6 +106,7 @@ undocumented; you can get a complete list by running
    arm/stellaris
    arm/stm32
    arm/virt
+   arm/vmapple
    arm/xlnx-versal-virt
    arm/xenpvh
 
