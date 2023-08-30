@@ -74,6 +74,7 @@ config FRAMEBUFFER
 
 config SM501
     bool
+    depends on PIXMAN
     select I2C
     select DDC
     select SERIAL
