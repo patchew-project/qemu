@@ -602,13 +602,24 @@ DeviceState *cpu_get_current_apic(void)
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;
-
+    int i8259_pin = n;
     trace_x86_gsi_interrupt(n, level);
     switch (n) {
-    case 0 ... ISA_NUM_IRQS - 1:
-        if (s->i8259_irq[n]) {
+    case 2:
+        /*
+         * Special case for HPET legacy mode, which is defined as routing HPET
+         * timer 0 to IRQ2 of the I/O APIC and IRQ0 of the i8259 PIC. Since
+         * IRQ2 on the i8259 is the cascade, it isn't otherwise valid so we
+         * handle it via this special case.
+         */
+        i8259_pin = 0;
+        /* fall through */
+    case 0:
+    case 1:
+    case 3 ... ISA_NUM_IRQS - 1:
+        if (s->i8259_irq[i8259_pin]) {
             /* Under KVM, Kernel will forward to both PIC and IOAPIC */
-            qemu_set_irq(s->i8259_irq[n], level);
+            qemu_set_irq(s->i8259_irq[i8259_pin], level);
         }
         /* fall through */
     case ISA_NUM_IRQS ... IOAPIC_NUM_PINS - 1:
