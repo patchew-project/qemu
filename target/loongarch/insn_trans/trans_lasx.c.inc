@@ -339,6 +339,11 @@ TRANS(vext2xv_wu_hu, LASX, gen_vv, 32, gen_helper_vext2xv_wu_hu)
 TRANS(vext2xv_du_hu, LASX, gen_vv, 32, gen_helper_vext2xv_du_hu)
 TRANS(vext2xv_du_wu, LASX, gen_vv, 32, gen_helper_vext2xv_du_wu)
 
+TRANS(xvsigncov_b, LASX, gvec_vvv, 32, MO_8, do_vsigncov)
+TRANS(xvsigncov_h, LASX, gvec_vvv, 32, MO_16, do_vsigncov)
+TRANS(xvsigncov_w, LASX, gvec_vvv, 32, MO_32, do_vsigncov)
+TRANS(xvsigncov_d, LASX, gvec_vvv, 32, MO_64, do_vsigncov)
+
 TRANS(xvreplgr2vr_b, LASX, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, LASX, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, LASX, gvec_dup, 32, MO_32)
