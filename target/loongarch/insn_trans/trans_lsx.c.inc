@@ -3101,7 +3101,7 @@ TRANS(vor_v, LSX, gvec_vvv, 16, MO_64, tcg_gen_gvec_or)
 TRANS(vxor_v, LSX, gvec_vvv, 16, MO_64, tcg_gen_gvec_xor)
 TRANS(vnor_v, LSX, gvec_vvv, 16, MO_64, tcg_gen_gvec_nor)
 
-static bool trans_vandn_v(DisasContext *ctx, arg_vvv *a)
+static bool do_vandn_v(DisasContext *ctx, arg_vvv *a, uint32_t oprsz)
 {
     uint32_t vd_ofs, vj_ofs, vk_ofs;
 
@@ -3115,9 +3115,10 @@ static bool trans_vandn_v(DisasContext *ctx, arg_vvv *a)
     vj_ofs = vec_full_offset(a->vj);
     vk_ofs = vec_full_offset(a->vk);
 
-    tcg_gen_gvec_andc(MO_64, vd_ofs, vk_ofs, vj_ofs, 16, ctx->vl/8);
+    tcg_gen_gvec_andc(MO_64, vd_ofs, vk_ofs, vj_ofs, oprsz, ctx->vl / 8);
     return true;
 }
+TRANS(vandn_v, LSX, do_vandn_v, 16)
 TRANS(vorn_v, LSX, gvec_vvv, 16, MO_64, tcg_gen_gvec_orc)
 TRANS(vandi_b, LSX, gvec_vv_i, 16, MO_8, tcg_gen_gvec_andi)
 TRANS(vori_b, LSX, gvec_vv_i, 16, MO_8, tcg_gen_gvec_ori)
