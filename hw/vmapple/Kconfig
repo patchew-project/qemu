@@ -1,1 +1,3 @@
+config VMAPPLE_AES
+    bool
 
