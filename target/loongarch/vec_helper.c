@@ -2334,9 +2334,10 @@ void HELPER(NAME)(void *vd, void *vj, void *vk,             \
     VReg *Vd = (VReg *)vd;                                  \
     VReg *Vj = (VReg *)vj;                                  \
     VReg *Vk = (VReg *)vk;                                  \
+    int oprsz = simd_oprsz(desc);                           \
                                                             \
     vec_clear_cause(env);                                   \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {               \
         Vd->E(i) = FN(Vj->E(i), Vk->E(i), &env->fp_status); \
         vec_update_fcsr0(env, GETPC());                     \
     }                                                       \
@@ -2368,9 +2369,10 @@ void HELPER(NAME)(void *vd, void *vj, void *vk, void *va,                    \
     VReg *Vj = (VReg *)vj;                                                   \
     VReg *Vk = (VReg *)vk;                                                   \
     VReg *Va = (VReg *)va;                                                   \
+    int oprsz = simd_oprsz(desc);                                            \
                                                                              \
     vec_clear_cause(env);                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                                \
         Vd->E(i) = FN(Vj->E(i), Vk->E(i), Va->E(i), flags, &env->fp_status); \
         vec_update_fcsr0(env, GETPC());                                      \
     }                                                                        \
@@ -2387,47 +2389,51 @@ DO_4OP_F(vfnmsub_s, 32, UW, float32_muladd,
 DO_4OP_F(vfnmsub_d, 64, UD, float64_muladd,
          float_muladd_negate_c | float_muladd_negate_result)
 
-#define DO_2OP_F(NAME, BIT, E, FN)                                           \
-void HELPER(NAME)(void *vd, void *vj, CPULoongArchState *env, uint32_t desc) \
-{                                                                            \
-    int i;                                                                   \
-    VReg *Vd = (VReg *)vd;                                                   \
-    VReg *Vj = (VReg *)vj;                                                   \
-                                                                             \
-    vec_clear_cause(env);                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
-        Vd->E(i) = FN(env, Vj->E(i));                                        \
-    }                                                                        \
+#define DO_2OP_F(NAME, BIT, E, FN)                       \
+void HELPER(NAME)(void *vd, void * vj,                   \
+                  CPULoongArchState *env, uint32_t desc) \
+{                                                        \
+    int i;                                               \
+    VReg *Vd = (VReg *)vd;                               \
+    VReg *Vj = (VReg *)vj;                               \
+    int oprsz = simd_oprsz(desc);                        \
+                                                         \
+    vec_clear_cause(env);                                \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {            \
+        Vd->E(i) = FN(env, Vj->E(i));                    \
+    }                                                    \
 }
 
-#define FLOGB(BIT, T)                                            \
-static T do_flogb_## BIT(CPULoongArchState *env, T fj)           \
-{                                                                \
-    T fp, fd;                                                    \
-    float_status *status = &env->fp_status;                      \
-    FloatRoundMode old_mode = get_float_rounding_mode(status);   \
-                                                                 \
-    set_float_rounding_mode(float_round_down, status);           \
-    fp = float ## BIT ##_log2(fj, status);                       \
-    fd = float ## BIT ##_round_to_int(fp, status);               \
-    set_float_rounding_mode(old_mode, status);                   \
-    vec_update_fcsr0_mask(env, GETPC(), float_flag_inexact);     \
-    return fd;                                                   \
+#define FLOGB(BIT, T)                                          \
+static T do_flogb_## BIT(CPULoongArchState *env, T fj)         \
+{                                                              \
+    T fp, fd;                                                  \
+    float_status *status = &env->fp_status;                    \
+    FloatRoundMode old_mode = get_float_rounding_mode(status); \
+                                                               \
+    set_float_rounding_mode(float_round_down, status);         \
+    fp = float ## BIT ##_log2(fj, status);                     \
+    fd = float ## BIT ##_round_to_int(fp, status);             \
+    set_float_rounding_mode(old_mode, status);                 \
+    vec_update_fcsr0_mask(env, GETPC(), float_flag_inexact);   \
+    return fd;                                                 \
 }
 
 FLOGB(32, uint32_t)
 FLOGB(64, uint64_t)
 
-#define FCLASS(NAME, BIT, E, FN)                                             \
-void HELPER(NAME)(void *vd, void *vj, CPULoongArchState *env, uint32_t desc) \
-{                                                                            \
-    int i;                                                                   \
-    VReg *Vd = (VReg *)vd;                                                   \
-    VReg *Vj = (VReg *)vj;                                                   \
-                                                                             \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
-        Vd->E(i) = FN(env, Vj->E(i));                                        \
-    }                                                                        \
+#define FCLASS(NAME, BIT, E, FN)                        \
+void HELPER(NAME)(void *vd, void* vj,                   \
+                  CPULoongArchState *env,uint32_t desc) \
+{                                                       \
+    int i;                                              \
+    VReg *Vd = (VReg *)vd;                              \
+    VReg *Vj = (VReg *)vj;                              \
+    int oprsz = simd_oprsz(desc);                       \
+                                                        \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {           \
+        Vd->E(i) = FN(env, Vj->E(i));                   \
+    }                                                   \
 }
 
 FCLASS(vfclass_s, 32, UW, helper_fclass_s)
