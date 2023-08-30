@@ -32,6 +32,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/irq.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -50,7 +51,7 @@ static void gpex_set_irq(void *opaque, int irq_num, int level)
 
 int gpex_set_irq_num(GPEXHost *s, int index, int gsi)
 {
-    if (index >= GPEX_NUM_IRQS) {
+    if (index >= s->nr_irqs) {
         return -EINVAL;
     }
 
@@ -74,13 +75,28 @@ static PCIINTxRoute gpex_route_intx_pin_to_irq(void *opaque, int pin)
     return route;
 }
 
+static int gpex_swizzle_map_irq_fn(PCIDevice *pci_dev, int pin)
+{
+    PCIBus *bus = pci_device_root_bus(pci_dev);
+
+    return (PCI_SLOT(pci_dev->devfn) + pin) % bus->nirq;
+}
+
 static void gpex_host_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     GPEXHost *s = GPEX_HOST(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PCIExpressHost *pex = PCIE_HOST_BRIDGE(dev);
+    pci_map_irq_fn map_irq_fn = pci_swizzle_map_irq_fn;
     int i;
+
+    s->irq = g_malloc0(s->nr_irqs * sizeof(*s->irq));
+    s->irq_num = g_malloc0(s->nr_irqs * sizeof(*s->irq_num));
+
+    if (s->nr_irqs != PCI_NUM_PINS) {
+        map_irq_fn = gpex_swizzle_map_irq_fn;
+    }
 
     pcie_host_mmcfg_init(pex, PCIE_MMCFG_SIZE_MAX);
     sysbus_init_mmio(sbd, &pex->mmio);
@@ -128,17 +144,25 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
         sysbus_init_mmio(sbd, &s->io_ioport);
     }
 
-    for (i = 0; i < GPEX_NUM_IRQS; i++) {
+    for (i = 0; i < s->nr_irqs; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
         s->irq_num[i] = -1;
     }
 
-    pci->bus = pci_register_root_bus(dev, "pcie.0", gpex_set_irq,
-                                     pci_swizzle_map_irq_fn, s, &s->io_mmio,
-                                     &s->io_ioport, 0, 4, TYPE_PCIE_BUS);
+    pci->bus = pci_register_root_bus(dev, "pcie.0", gpex_set_irq, map_irq_fn,
+                                     s, &s->io_mmio, &s->io_ioport, 0,
+                                     s->nr_irqs, TYPE_PCIE_BUS);
 
     pci_bus_set_route_irq_fn(pci->bus, gpex_route_intx_pin_to_irq);
     qdev_realize(DEVICE(&s->gpex_root), BUS(pci->bus), &error_fatal);
+}
+
+static void gpex_host_unrealize(DeviceState *dev)
+{
+    GPEXHost *s = GPEX_HOST(dev);
+
+    g_free(s->irq);
+    g_free(s->irq_num);
 }
 
 static const char *gpex_host_root_bus_path(PCIHostState *host_bridge,
@@ -154,6 +178,7 @@ static Property gpex_host_properties[] = {
      */
     DEFINE_PROP_BOOL("allow-unmapped-accesses", GPEXHost,
                      allow_unmapped_accesses, true),
+    DEFINE_PROP_UINT32("nr-irqs", GPEXHost, nr_irqs, PCI_NUM_PINS),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -164,6 +189,7 @@ static void gpex_host_class_init(ObjectClass *klass, void *data)
 
     hc->root_bus_path = gpex_host_root_bus_path;
     dc->realize = gpex_host_realize;
+    dc->unrealize = gpex_host_unrealize;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
     device_class_set_props(dc, gpex_host_properties);
