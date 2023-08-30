@@ -4161,7 +4161,7 @@ static bool trans_vpickve2gr_du(DisasContext *ctx, arg_rv_i *a)
     return true;
 }
 
-static bool gvec_dup(DisasContext *ctx, arg_vr *a, MemOp mop)
+static bool gvec_dup(DisasContext *ctx, arg_vr *a, uint32_t oprsz, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
 
@@ -4172,14 +4172,14 @@ static bool gvec_dup(DisasContext *ctx, arg_vr *a, MemOp mop)
     CHECK_VEC;
 
     tcg_gen_gvec_dup_i64(mop, vec_full_offset(a->vd),
-                         16, ctx->vl/8, src);
+                         oprsz, ctx->vl / 8, src);
     return true;
 }
 
-TRANS(vreplgr2vr_b, LSX, gvec_dup, MO_8)
-TRANS(vreplgr2vr_h, LSX, gvec_dup, MO_16)
-TRANS(vreplgr2vr_w, LSX, gvec_dup, MO_32)
-TRANS(vreplgr2vr_d, LSX, gvec_dup, MO_64)
+TRANS(vreplgr2vr_b, LSX, gvec_dup, 16, MO_8)
+TRANS(vreplgr2vr_h, LSX, gvec_dup, 16, MO_16)
+TRANS(vreplgr2vr_w, LSX, gvec_dup, 16, MO_32)
+TRANS(vreplgr2vr_d, LSX, gvec_dup, 16, MO_64)
 
 static bool trans_vreplvei_b(DisasContext *ctx, arg_vv_i *a)
 {

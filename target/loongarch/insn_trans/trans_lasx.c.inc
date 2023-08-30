@@ -50,3 +50,8 @@ TRANS(xvsub_b, LASX, gvec_vvv, 32, MO_8, tcg_gen_gvec_sub)
 TRANS(xvsub_h, LASX, gvec_vvv, 32, MO_16, tcg_gen_gvec_sub)
 TRANS(xvsub_w, LASX, gvec_vvv, 32, MO_32, tcg_gen_gvec_sub)
 TRANS(xvsub_d, LASX, gvec_vvv, 32, MO_64, tcg_gen_gvec_sub)
+
+TRANS(xvreplgr2vr_b, LASX, gvec_dup, 32, MO_8)
+TRANS(xvreplgr2vr_h, LASX, gvec_dup, 32, MO_16)
+TRANS(xvreplgr2vr_w, LASX, gvec_dup, 32, MO_32)
+TRANS(xvreplgr2vr_d, LASX, gvec_dup, 32, MO_64)
