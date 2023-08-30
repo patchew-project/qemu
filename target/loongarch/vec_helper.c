@@ -2506,14 +2506,19 @@ static uint32_t float64_cvt_float32(uint64_t d, float_status *status)
 void HELPER(vfcvtl_s_h)(void *vd, void *vj,
                         CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
+    ofs = LSX_LEN / 32;
     vec_clear_cause(env);
-    for (i = 0; i < LSX_LEN/32; i++) {
-        temp.UW(i) = float16_cvt_float32(Vj->UH(i), &env->fp_status);
+    for (i = 0; i < oprsz / 16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.UW(j + ofs * i) =float16_cvt_float32(Vj->UH(j + ofs * 2 * i),
+                                                      &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
@@ -2522,14 +2527,19 @@ void HELPER(vfcvtl_s_h)(void *vd, void *vj,
 void HELPER(vfcvtl_d_s)(void *vd, void *vj,
                         CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
+    ofs = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < LSX_LEN/64; i++) {
-        temp.UD(i) = float32_cvt_float64(Vj->UW(i), &env->fp_status);
+    for (i = 0; i < oprsz / 16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.UD(j + ofs * i) = float32_cvt_float64(Vj->UW(j + ofs * 2 * i),
+                                                       &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
@@ -2538,14 +2548,19 @@ void HELPER(vfcvtl_d_s)(void *vd, void *vj,
 void HELPER(vfcvth_s_h)(void *vd, void *vj,
                         CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
+    ofs = LSX_LEN / 32;
     vec_clear_cause(env);
-    for (i = 0; i < LSX_LEN/32; i++) {
-        temp.UW(i) = float16_cvt_float32(Vj->UH(i + 4), &env->fp_status);
+    for (i = 0; i < oprsz / 16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.UW(j + ofs * i) = float16_cvt_float32(Vj->UH(j + ofs * (2 * i + 1)),
+                                                       &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
@@ -2554,14 +2569,19 @@ void HELPER(vfcvth_s_h)(void *vd, void *vj,
 void HELPER(vfcvth_d_s)(void *vd, void *vj,
                         CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
+    ofs = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < LSX_LEN/64; i++) {
-        temp.UD(i) = float32_cvt_float64(Vj->UW(i + 2), &env->fp_status);
+    for (i = 0; i < oprsz / 16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.UD(j + ofs * i) = float32_cvt_float64(Vj->UW(j + ofs * (2 * i + 1)),
+                                                        &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
@@ -2570,16 +2590,22 @@ void HELPER(vfcvth_d_s)(void *vd, void *vj,
 void HELPER(vfcvt_h_s)(void *vd, void *vj, void *vk,
                        CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
+    int oprsz = simd_oprsz(desc);
 
+    ofs = LSX_LEN / 32;
     vec_clear_cause(env);
-    for(i = 0; i < LSX_LEN/32; i++) {
-        temp.UH(i + 4) = float32_cvt_float16(Vj->UW(i), &env->fp_status);
-        temp.UH(i)  = float32_cvt_float16(Vk->UW(i), &env->fp_status);
+    for(i = 0; i < oprsz / 16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.UH(j + ofs * (2 * i + 1)) = float32_cvt_float16(Vj->UW(j + ofs * i),
+                                                                 &env->fp_status);
+            temp.UH(j + ofs * 2 * i) = float32_cvt_float16(Vk->UW(j + ofs * i),
+                                                           &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
@@ -2588,16 +2614,22 @@ void HELPER(vfcvt_h_s)(void *vd, void *vj, void *vk,
 void HELPER(vfcvt_s_d)(void *vd, void *vj, void *vk,
                        CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
+    int oprsz = simd_oprsz(desc);
 
+    ofs = LSX_LEN / 64;
     vec_clear_cause(env);
-    for(i = 0; i < LSX_LEN/64; i++) {
-        temp.UW(i + 2) = float64_cvt_float32(Vj->UD(i), &env->fp_status);
-        temp.UW(i)  = float64_cvt_float32(Vk->UD(i), &env->fp_status);
+    for(i = 0; i < oprsz / 16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.UW(j + ofs * (2 * i + 1)) = float64_cvt_float32(Vj->UD(j + ofs * i),
+                                                                 &env->fp_status);
+            temp.UW(j + ofs * 2 * i) = float64_cvt_float32(Vk->UD(j + ofs * i),
+                                                           &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
@@ -2609,12 +2641,14 @@ void HELPER(vfrint_s)(void *vd, void *vj,
     int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
     vec_clear_cause(env);
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < oprsz / 4; i++) {
         Vd->W(i) = float32_round_to_int(Vj->UW(i), &env->fp_status);
         vec_update_fcsr0(env, GETPC());
     }
+}
 
 
 void HELPER(vfrint_d)(void *vd, void *vj,
@@ -2623,29 +2657,32 @@ void HELPER(vfrint_d)(void *vd, void *vj,
     int i;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
     vec_clear_cause(env);
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < oprsz / 8; i++) {
         Vd->D(i) = float64_round_to_int(Vj->UD(i), &env->fp_status);
         vec_update_fcsr0(env, GETPC());
     }
 }
 
-#define FCVT_2OP(NAME, BIT, E, MODE)                                         \
-void HELPER(NAME)(void *vd, void *vj, CPULoongArchState *env, uint32_t desc) \
-{                                                                            \
-    int i;                                                                   \
-    VReg *Vd = (VReg *)vd;                                                   \
-    VReg *Vj = (VReg *)vj;                                                   \
-                                                                             \
-    vec_clear_cause(env);                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
-        FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);  \
-        set_float_rounding_mode(MODE, &env->fp_status);                      \
-        Vd->E(i) = float## BIT ## _round_to_int(Vj->E(i), &env->fp_status);  \
-        set_float_rounding_mode(old_mode, &env->fp_status);                  \
-        vec_update_fcsr0(env, GETPC());                                      \
-    }                                                                        \
+#define FCVT_2OP(NAME, BIT, E, MODE)                                        \
+void HELPER(NAME)(void *vd, void *vj,                                       \
+                  CPULoongArchState *env, uint32_t desc)                    \
+{                                                                           \
+    int i;                                                                  \
+    VReg *Vd = (VReg *)vd;                                                  \
+    VReg *Vj = (VReg *)vj;                                                  \
+    int oprsz = simd_oprsz(desc);                                           \
+                                                                            \
+    vec_clear_cause(env);                                                   \
+    for (i = 0; i < oprsz / (BIT / 8); i++) {                               \
+        FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status); \
+        set_float_rounding_mode(MODE, &env->fp_status);                     \
+        Vd->E(i) = float## BIT ## _round_to_int(Vj->E(i), &env->fp_status); \
+        set_float_rounding_mode(old_mode, &env->fp_status);                 \
+        vec_update_fcsr0(env, GETPC());                                     \
+    }                                                                       \
 }
 
 FCVT_2OP(vfrintrne_s, 32, UW, float_round_nearest_even)
@@ -2724,22 +2761,26 @@ FTINT(rp_w_d, float64, int32, uint64_t, uint32_t, float_round_up)
 FTINT(rz_w_d, float64, int32, uint64_t, uint32_t, float_round_to_zero)
 FTINT(rne_w_d, float64, int32, uint64_t, uint32_t, float_round_nearest_even)
 
-#define FTINT_W_D(NAME, FN)                             \
-void HELPER(NAME)(void *vd, void *vj, void *vk,         \
-                  CPULoongArchState *env,uint32_t desc) \
-{                                                       \
-    int i;                                              \
-    VReg temp;                                          \
-    VReg *Vd = (VReg *)vd;                              \
-    VReg *Vj = (VReg *)vj;                              \
-    VReg *Vk = (VReg *)vk;                              \
-                                                        \
-    vec_clear_cause(env);                               \
-    for (i = 0; i < 2; i++) {                           \
-        temp.W(i + 2) = FN(env, Vj->UD(i));             \
-        temp.W(i) = FN(env, Vk->UD(i));                 \
-    }                                                   \
-    *Vd = temp;                                         \
+#define FTINT_W_D(NAME, FN)                                               \
+void HELPER(NAME)(void *vd, void *vj, void *vk,                           \
+                  CPULoongArchState *env, uint32_t desc)                  \
+{                                                                         \
+    int i, j, ofs;                                                        \
+    VReg temp = {};                                                       \
+    VReg *Vd = (VReg *)vd;                                                \
+    VReg *Vj = (VReg *)vj;                                                \
+    VReg *Vk = (VReg *)vk;                                                \
+    int oprsz = simd_oprsz(desc);                                         \
+                                                                          \
+    ofs = LSX_LEN / 64;                                                   \
+    vec_clear_cause(env);                                                 \
+    for (i = 0; i < oprsz / 16; i++) {                                    \
+        for (j = 0; j < ofs; j++) {                                       \
+            temp.W(j + ofs * (2 * i + 1)) = FN(env, Vj->UD(j + ofs * i)); \
+            temp.W(j + ofs * 2 * i) = FN(env, Vk->UD(j + ofs * i));       \
+        }                                                                 \
+    }                                                                     \
+    *Vd = temp;                                                           \
 }
 
 FTINT_W_D(vftint_w_d, do_float64_to_int32)
@@ -2757,19 +2798,24 @@ FTINT(rph_l_s, float32, int64, uint32_t, uint64_t, float_round_up)
 FTINT(rzh_l_s, float32, int64, uint32_t, uint64_t, float_round_to_zero)
 FTINT(rneh_l_s, float32, int64, uint32_t, uint64_t, float_round_nearest_even)
 
-#define FTINTL_L_S(NAME, FN)                                                 \
-void HELPER(NAME)(void *vd, void *vj, CPULoongArchState *env, uint32_t desc) \
-{                                                                            \
-    int i;                                                                   \
-    VReg temp;                                                               \
-    VReg *Vd = (VReg *)vd;                                                   \
-    VReg *Vj = (VReg *)vj;                                                   \
-                                                                             \
-    vec_clear_cause(env);                                                    \
-    for (i = 0; i < 2; i++) {                                                \
-        temp.D(i) = FN(env, Vj->UW(i));                                      \
-    }                                                                        \
-    *Vd = temp;                                                              \
+#define FTINTL_L_S(NAME, FN)                                        \
+void HELPER(NAME)(void *vd, void *vj,                               \
+                  CPULoongArchState *env, uint32_t desc)            \
+{                                                                   \
+    int i, j, ofs;                                                  \
+    VReg temp;                                                      \
+    VReg *Vd = (VReg *)vd;                                          \
+    VReg *Vj = (VReg *)vj;                                          \
+    int oprsz = simd_oprsz(desc);                                   \
+                                                                    \
+    ofs = LSX_LEN / 64;                                             \
+    vec_clear_cause(env);                                           \
+    for (i = 0; i < oprsz / 16; i++) {                              \
+        for (j = 0; j < ofs; j++) {                                 \
+            temp.D(j + ofs * i) = FN(env, Vj->UW(j + ofs * 2 * i)); \
+        }                                                           \
+    }                                                               \
+    *Vd = temp;                                                     \
 }
 
 FTINTL_L_S(vftintl_l_s, do_float32_to_int64)
@@ -2778,19 +2824,24 @@ FTINTL_L_S(vftintrpl_l_s, do_ftintrpl_l_s)
 FTINTL_L_S(vftintrzl_l_s, do_ftintrzl_l_s)
 FTINTL_L_S(vftintrnel_l_s, do_ftintrnel_l_s)
 
-#define FTINTH_L_S(NAME, FN)                                                 \
-void HELPER(NAME)(void *vd, void *vj, CPULoongArchState *env, uint32_t desc) \
-{                                                                            \
-    int i;                                                                   \
-    VReg temp;                                                               \
-    VReg *Vd = (VReg *)vd;                                                   \
-    VReg *Vj = (VReg *)vj;                                                   \
-                                                                             \
-    vec_clear_cause(env);                                                    \
-    for (i = 0; i < 2; i++) {                                                \
-        temp.D(i) = FN(env, Vj->UW(i + 2));                                  \
-    }                                                                        \
-    *Vd = temp;                                                              \
+#define FTINTH_L_S(NAME, FN)                                              \
+void HELPER(NAME)(void *vd, void *vj,                                     \
+                  CPULoongArchState *env, uint32_t desc)                  \
+{                                                                         \
+    int i, j, ofs;                                                        \
+    VReg temp = {};                                                       \
+    VReg *Vd = (VReg *)vd;                                                \
+    VReg *Vj = (VReg *)vj;                                                \
+    int oprsz = simd_oprsz(desc);                                         \
+                                                                          \
+    ofs = LSX_LEN / 64;                                                   \
+    vec_clear_cause(env);                                                 \
+    for (i = 0; i < oprsz / 16; i++) {                                    \
+        for (j = 0; j < ofs; j++) {                                       \
+            temp.D(j + ofs * i) = FN(env, Vj->UW(j + ofs * (2 * i + 1))); \
+        }                                                                 \
+    }                                                                     \
+    *Vd = temp;                                                           \
 }
 
 FTINTH_L_S(vftinth_l_s, do_float32_to_int64)
@@ -2822,14 +2873,19 @@ DO_2OP_F(vffint_d_lu, 64, UD, do_ffint_d_lu)
 void HELPER(vffintl_d_w)(void *vd, void *vj,
                          CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc); 
 
+    ofs = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < 2; i++) {
-        temp.D(i) = int32_to_float64(Vj->W(i), &env->fp_status);
+    for (i = 0; i < oprsz / 16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.D(j + ofs * i) = int32_to_float64(Vj->W(j + ofs * 2 * i),
+                                                   &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
@@ -2838,14 +2894,19 @@ void HELPER(vffintl_d_w)(void *vd, void *vj,
 void HELPER(vffinth_d_w)(void *vd, void *vj,
                          CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
+    int oprsz = simd_oprsz(desc);
 
+    ofs = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < 2; i++) {
-        temp.D(i) = int32_to_float64(Vj->W(i + 2), &env->fp_status);
+    for (i = 0; i < oprsz /16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.D(j + ofs * i) = int32_to_float64(Vj->W(j + ofs * (2 * i + 1)),
+                                                   &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
@@ -2854,16 +2915,22 @@ void HELPER(vffinth_d_w)(void *vd, void *vj,
 void HELPER(vffint_s_l)(void *vd, void *vj, void *vk,
                         CPULoongArchState *env, uint32_t desc)
 {
-    int i;
-    VReg temp;
+    int i, j, ofs;
+    VReg temp = {};
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
+    int oprsz = simd_oprsz(desc);
 
+    ofs = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < 2; i++) {
-        temp.W(i + 2) = int64_to_float32(Vj->D(i), &env->fp_status);
-        temp.W(i) = int64_to_float32(Vk->D(i), &env->fp_status);
+    for (i = 0; i < oprsz / 16; i++) {
+        for (j = 0; j < ofs; j++) {
+            temp.W(j + ofs * (2 * i + 1)) = int64_to_float32(Vj->D(j + ofs * i),
+                                                             &env->fp_status);
+            temp.W(j + ofs * 2 * i) = int64_to_float32(Vk->D(j + ofs * i),
+                                                       &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
