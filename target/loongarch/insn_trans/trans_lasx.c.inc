@@ -754,6 +754,54 @@ TRANS(xvsetallnez_h, LASX, gen_cv, 32, gen_helper_vsetallnez_h)
 TRANS(xvsetallnez_w, LASX, gen_cv, 32, gen_helper_vsetallnez_w)
 TRANS(xvsetallnez_d, LASX, gen_cv, 32, gen_helper_vsetallnez_d)
 
+static bool trans_xvinsgr2vr_w(DisasContext *ctx, arg_vr_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vinsgr2vr_w(ctx, a);
+}
+
+static bool trans_xvinsgr2vr_d(DisasContext *ctx, arg_vr_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vinsgr2vr_d(ctx, a);
+}
+
+static bool trans_xvpickve2gr_w(DisasContext *ctx, arg_rv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vpickve2gr_w(ctx, a);
+}
+
+static bool trans_xvpickve2gr_d(DisasContext *ctx, arg_rv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vpickve2gr_d(ctx, a);
+}
+
+static bool trans_xvpickve2gr_wu(DisasContext *ctx, arg_rv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vpickve2gr_wu(ctx, a);
+}
+
+static bool trans_xvpickve2gr_du(DisasContext *ctx, arg_rv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vpickve2gr_du(ctx, a);
+}
+
 TRANS(xvreplgr2vr_b, LASX, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, LASX, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, LASX, gvec_dup, 32, MO_32)
