@@ -42,6 +42,7 @@
 #include "qapi/error.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file.h"
+#include "linux/iommufd.h"
 
 #define TYPE_VFIO_PCI_NOHOTPLUG "vfio-pci-nohotplug"
 
@@ -2378,10 +2379,48 @@ static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
     return (strcmp(tmp, name) == 0);
 }
 
-static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
+static int vfio_pci_get_pci_hot_reset_info(VFIOPCIDevice *vdev,
+                                       struct vfio_pci_hot_reset_info **info_p)
+{
+    struct vfio_pci_hot_reset_info *info;
+    int ret, count;
+
+    assert(info_p && !*info_p);
+
+    info = g_malloc0(sizeof(*info));
+    info->argsz = sizeof(*info);
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret && errno != ENOSPC) {
+        ret = -errno;
+        g_free(info);
+        if (!vdev->has_pm_reset) {
+            error_report("vfio: Cannot reset device %s, "
+                         "no available reset mechanism.", vdev->vbasedev.name);
+        }
+        return ret;
+    }
+
+    count = info->count;
+    info = g_realloc(info, sizeof(*info) + (count * sizeof(info->devices[0])));
+    info->argsz = sizeof(*info) + (count * sizeof(info->devices[0]));
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret) {
+        ret = -errno;
+        g_free(info);
+        error_report("vfio: hot reset info failed: %m");
+        return ret;
+    }
+
+    *info_p = info;
+    return 0;
+}
+
+static int vfio_pci_hot_reset_legacy(VFIOPCIDevice *vdev, bool single)
 {
     VFIOGroup *group;
-    struct vfio_pci_hot_reset_info *info;
+    struct vfio_pci_hot_reset_info *info = NULL;
     struct vfio_pci_dependent_device *devices;
     struct vfio_pci_hot_reset *reset;
     int32_t *fds;
@@ -2395,30 +2434,12 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     }
     vdev->vbasedev.needs_reset = false;
 
-    info = g_malloc0(sizeof(*info));
-    info->argsz = sizeof(*info);
+    ret = vfio_pci_get_pci_hot_reset_info(vdev, &info);
 
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
-    if (ret && errno != ENOSPC) {
-        ret = -errno;
-        if (!vdev->has_pm_reset) {
-            error_report("vfio: Cannot reset device %s, "
-                         "no available reset mechanism.", vdev->vbasedev.name);
-        }
-        goto out_single;
-    }
-
-    count = info->count;
-    info = g_realloc(info, sizeof(*info) + (count * sizeof(*devices)));
-    info->argsz = sizeof(*info) + (count * sizeof(*devices));
-    devices = &info->devices[0];
-
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
     if (ret) {
-        ret = -errno;
-        error_report("vfio: hot reset info failed: %m");
         goto out_single;
     }
+    devices = &info->devices[0];
 
     trace_vfio_pci_hot_reset_has_dep_devices(vdev->vbasedev.name);
 
@@ -2559,6 +2580,175 @@ out_single:
 
     return ret;
 }
+
+#ifdef CONFIG_IOMMUFD
+static VFIODevice *vfio_pci_find_by_iommufd_devid(__u32 devid)
+{
+    VFIOAddressSpace *space;
+    VFIOContainer *bcontainer;
+    VFIOIOMMUFDContainer *container;
+    VFIOIOASHwpt *hwpt;
+    VFIODevice *vbasedev_iter;
+    VFIOIOMMUBackendOpsClass *ops = VFIO_IOMMU_BACKEND_OPS_CLASS(
+        object_class_by_name(TYPE_VFIO_IOMMU_BACKEND_IOMMUFD_OPS));
+
+     QLIST_FOREACH(space, &vfio_address_spaces, list) {
+        QLIST_FOREACH(bcontainer, &space->containers, next) {
+            if (bcontainer->ops != ops) {
+                continue;
+            }
+            container = container_of(bcontainer, VFIOIOMMUFDContainer,
+                                     bcontainer);
+            QLIST_FOREACH(hwpt, &container->hwpt_list, next) {
+                QLIST_FOREACH(vbasedev_iter, &hwpt->device_list, next) {
+                    if (devid == vbasedev_iter->devid) {
+                        return vbasedev_iter;
+                    }
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
+static int vfio_pci_hot_reset_iommufd(VFIOPCIDevice *vdev, bool single)
+{
+    struct vfio_pci_hot_reset_info *info = NULL;
+    struct vfio_pci_dependent_device *devices;
+    struct vfio_pci_hot_reset *reset;
+    int ret, i;
+    bool multi = false;
+
+    trace_vfio_pci_hot_reset(vdev->vbasedev.name, single ? "one" : "multi");
+
+    if (!single) {
+        vfio_pci_pre_reset(vdev);
+    }
+    vdev->vbasedev.needs_reset = false;
+
+    ret = vfio_pci_get_pci_hot_reset_info(vdev, &info);
+
+    if (ret) {
+        goto out_single;
+    }
+
+    assert(info->flags & VFIO_PCI_HOT_RESET_FLAG_DEV_ID);
+
+    devices = &info->devices[0];
+
+    if (!(info->flags & VFIO_PCI_HOT_RESET_FLAG_DEV_ID_OWNED)) {
+        if (!vdev->has_pm_reset) {
+            for (i = 0; i < info->count; i++) {
+                if (devices[i].devid == VFIO_PCI_DEVID_NOT_OWNED) {
+                    error_report("vfio: Cannot reset device %s, "
+                                 "depends on device %04x:%02x:%02x.%x "
+                                 "which is not owned.",
+                                 vdev->vbasedev.name, devices[i].segment,
+                                 devices[i].bus, PCI_SLOT(devices[i].devfn),
+                                 PCI_FUNC(devices[i].devfn));
+                }
+            }
+        }
+        ret = -EPERM;
+        goto out_single;
+    }
+
+    trace_vfio_pci_hot_reset_has_dep_devices(vdev->vbasedev.name);
+
+    for (i = 0; i < info->count; i++) {
+        VFIOPCIDevice *tmp;
+        VFIODevice *vbasedev_iter;
+
+        trace_vfio_pci_hot_reset_dep_devices_iommufd(devices[i].segment,
+                                             devices[i].bus,
+                                             PCI_SLOT(devices[i].devfn),
+                                             PCI_FUNC(devices[i].devfn),
+                                             devices[i].devid);
+
+        /*
+         * If a VFIO cdev device is resettable, all the dependent devices
+         * are either bound to same iommufd or within same iommu_groups as
+         * one of the iommufd bound devices.
+         */
+        assert(devices[i].devid != VFIO_PCI_DEVID_NOT_OWNED);
+
+        if (devices[i].devid == vdev->vbasedev.devid ||
+            devices[i].devid == VFIO_PCI_DEVID_OWNED) {
+            continue;
+        }
+
+        vbasedev_iter = vfio_pci_find_by_iommufd_devid(devices[i].devid);
+        if (!vbasedev_iter || !vbasedev_iter->dev->realized ||
+            vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
+            continue;
+        }
+        tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
+        if (single) {
+            ret = -EINVAL;
+            goto out_single;
+        }
+        vfio_pci_pre_reset(tmp);
+        tmp->vbasedev.needs_reset = false;
+        multi = true;
+    }
+
+    if (!single && !multi) {
+        ret = -EINVAL;
+        goto out_single;
+    }
+
+    /* Use zero length array for hot reset with iommufd backend */
+    reset = g_malloc0(sizeof(*reset));
+    reset->argsz = sizeof(*reset);
+
+     /* Bus reset! */
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_PCI_HOT_RESET, reset);
+    g_free(reset);
+
+    trace_vfio_pci_hot_reset_result(vdev->vbasedev.name,
+                                    ret ? strerror(errno) : "Success");
+
+    /* Re-enable INTx on affected devices */
+    for (i = 0; i < info->count; i++) {
+        VFIOPCIDevice *tmp;
+        VFIODevice *vbasedev_iter;
+
+        if (devices[i].devid == vdev->vbasedev.devid ||
+            devices[i].devid == VFIO_PCI_DEVID_OWNED) {
+            continue;
+        }
+
+        vbasedev_iter = vfio_pci_find_by_iommufd_devid(devices[i].devid);
+        if (!vbasedev_iter || !vbasedev_iter->dev->realized ||
+            vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
+            continue;
+        }
+        tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
+        vfio_pci_post_reset(tmp);
+    }
+out_single:
+    if (!single) {
+        vfio_pci_post_reset(vdev);
+    }
+    g_free(info);
+
+    return ret;
+}
+#endif
+
+static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
+{
+#ifdef CONFIG_IOMMUFD
+    if (vdev->vbasedev.iommufd) {
+        return vfio_pci_hot_reset_iommufd(vdev, single);
+    } else
+#endif
+    {
+        return vfio_pci_hot_reset_legacy(vdev, single);
+    }
+}
+
+
 
 /*
  * We want to differentiate hot reset of multiple in-use devices vs hot reset
