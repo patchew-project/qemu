@@ -528,6 +528,11 @@ TRANS(xvclz_h, LASX, gen_vv, 32, gen_helper_vclz_h)
 TRANS(xvclz_w, LASX, gen_vv, 32, gen_helper_vclz_w)
 TRANS(xvclz_d, LASX, gen_vv, 32, gen_helper_vclz_d)
 
+TRANS(xvpcnt_b, LASX, gen_vv, 32, gen_helper_vpcnt_b)
+TRANS(xvpcnt_h, LASX, gen_vv, 32, gen_helper_vpcnt_h)
+TRANS(xvpcnt_w, LASX, gen_vv, 32, gen_helper_vpcnt_w)
+TRANS(xvpcnt_d, LASX, gen_vv, 32, gen_helper_vpcnt_d)
+
 TRANS(xvreplgr2vr_b, LASX, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, LASX, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, LASX, gvec_dup, 32, MO_32)
