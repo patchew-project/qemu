@@ -390,6 +390,10 @@
 #
 # @rows: console height, in chars
 #
+# Note: the options are only effective when using the built-in QEMU graphical VC
+# (with the SDL display). When the VC is handled by the display backend (with
+# GTK/VTE, Spice or D-Bus), they are simply ignored.
+#
 # Since: 1.5
 ##
 { 'struct': 'ChardevVC',
