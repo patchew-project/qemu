@@ -705,6 +705,9 @@ TRANS(xvslti_hu, LASX, do_vslti_u, 32, MO_16)
 TRANS(xvslti_wu, LASX, do_vslti_u, 32, MO_32)
 TRANS(xvslti_du, LASX, do_vslti_u, 32, MO_64)
 
+TRANS(xvfcmp_cond_s, LASX, do_vfcmp_cond_s, 32)
+TRANS(xvfcmp_cond_d, LASX, do_vfcmp_cond_d, 32)
+
 TRANS(xvreplgr2vr_b, LASX, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, LASX, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, LASX, gvec_dup, 32, MO_32)

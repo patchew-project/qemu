@@ -3001,7 +3001,7 @@ static uint64_t vfcmp_common(CPULoongArchState *env,
 }
 
 #define VFCMP(NAME, BIT, E, FN)                                          \
-void HELPER(NAME)(CPULoongArchState *env,                                \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,                \
                   uint32_t vd, uint32_t vj, uint32_t vk, uint32_t flags) \
 {                                                                        \
     int i;                                                               \
@@ -3011,7 +3011,7 @@ void HELPER(NAME)(CPULoongArchState *env,                                \
     VReg *Vk = &(env->fpr[vk].vreg);                                     \
                                                                          \
     vec_clear_cause(env);                                                \
-    for (i = 0; i < LSX_LEN/BIT ; i++) {                                 \
+    for (i = 0; i < oprsz / (BIT / 8) ; i++) {                           \
         FloatRelation cmp;                                               \
         cmp = FN(Vj->E(i), Vk->E(i), &env->fp_status);                   \
         t.E(i) = vfcmp_common(env, cmp, flags);                          \

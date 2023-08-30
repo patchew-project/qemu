@@ -3921,13 +3921,14 @@ TRANS(vslti_hu, LSX, do_vslti_u, 16, MO_16)
 TRANS(vslti_wu, LSX, do_vslti_u, 16, MO_32)
 TRANS(vslti_du, LSX, do_vslti_u, 16, MO_64)
 
-static bool trans_vfcmp_cond_s(DisasContext *ctx, arg_vvv_fcond *a)
+static bool do_vfcmp_cond_s(DisasContext *ctx, arg_vvv_fcond *a, uint32_t sz)
 {
     uint32_t flags;
-    void (*fn)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
+    void (*fn)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
     TCGv_i32 vd = tcg_constant_i32(a->vd);
     TCGv_i32 vj = tcg_constant_i32(a->vj);
     TCGv_i32 vk = tcg_constant_i32(a->vk);
+    TCGv_i32 oprsz = tcg_constant_i32(sz);
 
     if (!avail_LSX(ctx)) {
         return false;
@@ -3937,18 +3938,19 @@ static bool trans_vfcmp_cond_s(DisasContext *ctx, arg_vvv_fcond *a)
 
     fn = (a->fcond & 1 ? gen_helper_vfcmp_s_s : gen_helper_vfcmp_c_s);
     flags = get_fcmp_flags(a->fcond >> 1);
-    fn(cpu_env, vd, vj, vk,  tcg_constant_i32(flags));
+    fn(cpu_env, oprsz, vd, vj, vk,  tcg_constant_i32(flags));
 
     return true;
 }
 
-static bool trans_vfcmp_cond_d(DisasContext *ctx, arg_vvv_fcond *a)
+static bool do_vfcmp_cond_d(DisasContext *ctx, arg_vvv_fcond *a, uint32_t sz)
 {
     uint32_t flags;
-    void (*fn)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
+    void (*fn)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
     TCGv_i32 vd = tcg_constant_i32(a->vd);
     TCGv_i32 vj = tcg_constant_i32(a->vj);
     TCGv_i32 vk = tcg_constant_i32(a->vk);
+    TCGv_i32 oprsz = tcg_constant_i32(sz);
 
     if (!avail_LSX(ctx)) {
         return false;
@@ -3958,10 +3960,13 @@ static bool trans_vfcmp_cond_d(DisasContext *ctx, arg_vvv_fcond *a)
 
     fn = (a->fcond & 1 ? gen_helper_vfcmp_s_d : gen_helper_vfcmp_c_d);
     flags = get_fcmp_flags(a->fcond >> 1);
-    fn(cpu_env, vd, vj, vk, tcg_constant_i32(flags));
+    fn(cpu_env, oprsz, vd, vj, vk, tcg_constant_i32(flags));
 
     return true;
 }
+
+TRANS(vfcmp_cond_s, LSX, do_vfcmp_cond_s, 16)
+TRANS(vfcmp_cond_d, LSX, do_vfcmp_cond_d, 16)
 
 static bool trans_vbitsel_v(DisasContext *ctx, arg_vvvv *a)
 {
