@@ -7,5 +7,5 @@
 
 # Boards:
 #
-CONFIG_R2D=y
+#CONFIG_R2D=n
 CONFIG_SHIX=y
