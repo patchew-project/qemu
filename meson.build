@@ -1549,7 +1549,10 @@ endif
 vnc = not_found
 jpeg = not_found
 sasl = not_found
-if get_option('vnc').allowed() and have_system
+if get_option('vnc') \
+  .disable_auto_if(not pixman.found()) \
+  .require(pixman.found()) \
+  .allowed() and have_system
   vnc = declare_dependency() # dummy dependency
   jpeg = dependency('libjpeg', required: get_option('vnc_jpeg'),
                     method: 'pkg-config')
