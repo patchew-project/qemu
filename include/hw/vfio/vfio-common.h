@@ -242,6 +242,7 @@ struct vfio_info_cap_header *
 vfio_get_device_info_cap(struct vfio_device_info *info, uint16_t id);
 struct vfio_info_cap_header *
 vfio_get_cap(void *ptr, uint32_t cap_offset, uint16_t id);
+int vfio_device_get_name(VFIODevice *vbasedev, Error **errp);
 #endif
 extern const MemoryListener vfio_prereg_listener;
 
