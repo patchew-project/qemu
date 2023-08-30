@@ -125,6 +125,8 @@ struct QemuConsole {
     QTAILQ_ENTRY(QemuConsole) next;
 };
 
+OBJECT_DEFINE_TYPE(QemuConsole, qemu_console, QEMU_CONSOLE, OBJECT)
+
 struct VCChardev {
     Chardev parent;
     QemuConsole *console;
@@ -1312,6 +1314,21 @@ static QemuConsole *new_console(console_type_t console_type,
         }
     }
     return s;
+}
+
+static void
+qemu_console_finalize(Object *obj)
+{
+}
+
+static void
+qemu_console_class_init(ObjectClass *oc, void *data)
+{
+}
+
+static void
+qemu_console_init(Object *obj)
+{
 }
 
 #ifdef WIN32
@@ -2647,13 +2664,6 @@ void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp)
     }
 }
 
-static const TypeInfo qemu_console_info = {
-    .name = TYPE_QEMU_CONSOLE,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QemuConsole),
-    .class_size = sizeof(QemuConsoleClass),
-};
-
 static void char_vc_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -2679,10 +2689,3 @@ void qemu_console_early_init(void)
         type_register(&char_vc_type_info);
     }
 }
-
-static void register_types(void)
-{
-    type_register_static(&qemu_console_info);
-}
-
-type_init(register_types);
