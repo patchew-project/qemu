@@ -36,6 +36,34 @@
 #include "qemu/cutils.h"
 #include "qemu/char_dev.h"
 
+static VFIODevice *iommufd_dev_iter_next(VFIOContainer *bcontainer,
+                                           VFIODevice *curr)
+{
+
+    VFIOIOASHwpt *hwpt;
+
+    assert(object_class_dynamic_cast(OBJECT_CLASS(bcontainer->ops),
+                                     TYPE_VFIO_IOMMU_BACKEND_IOMMUFD_OPS));
+
+    VFIOIOMMUFDContainer *container = container_of(bcontainer,
+                                                   VFIOIOMMUFDContainer,
+                                                   bcontainer);
+
+    if (!curr) {
+        hwpt = QLIST_FIRST(&container->hwpt_list);
+    } else {
+        if (curr->next.le_next) {
+            return curr->next.le_next;
+        }
+        hwpt = curr->hwpt->next.le_next;
+    }
+
+    if (!hwpt) {
+        return NULL;
+    }
+    return QLIST_FIRST(&hwpt->device_list);
+}
+
 static int iommufd_map(VFIOContainer *bcontainer, hwaddr iova,
                        ram_addr_t size, void *vaddr, bool readonly)
 {
@@ -501,6 +529,7 @@ static void vfio_iommu_backend_iommufd_ops_class_init(ObjectClass *oc,
                                                      void *data) {
     VFIOIOMMUBackendOpsClass *ops = VFIO_IOMMU_BACKEND_OPS_CLASS(oc);
 
+    ops->dev_iter_next = iommufd_dev_iter_next;
     ops->dma_map = iommufd_map;
     ops->dma_unmap = iommufd_unmap;
     ops->attach_device = iommufd_attach_device;
