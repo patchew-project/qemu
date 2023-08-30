@@ -105,7 +105,7 @@ if dbus_display
   ui_modules += {'dbus' : dbus_ss}
 endif
 
-if gtk.found()
+if gtk.found() and pixman.found()
   system_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
 
   gtk_ss = ss.source_set()
