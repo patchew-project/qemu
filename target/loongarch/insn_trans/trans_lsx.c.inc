@@ -81,7 +81,7 @@ static bool gvec_vvv(DisasContext *ctx, arg_vvv *a, uint32_t oprsz, MemOp mop,
     return true;
 }
 
-static bool gvec_vv(DisasContext *ctx, arg_vv *a, MemOp mop,
+static bool gvec_vv(DisasContext *ctx, arg_vv *a, uint32_t oprsz, MemOp mop,
                     void (*func)(unsigned, uint32_t, uint32_t,
                                  uint32_t, uint32_t))
 {
@@ -92,7 +92,7 @@ static bool gvec_vv(DisasContext *ctx, arg_vv *a, MemOp mop,
     vd_ofs = vec_full_offset(a->vd);
     vj_ofs = vec_full_offset(a->vj);
 
-    func(mop, vd_ofs, vj_ofs, 16, ctx->vl/8);
+    func(mop, vd_ofs, vj_ofs, oprsz, ctx->vl / 8);
     return true;
 }
 
@@ -177,10 +177,10 @@ TRANS(vsubi_hu, LSX, gvec_subi, 16, MO_16)
 TRANS(vsubi_wu, LSX, gvec_subi, 16, MO_32)
 TRANS(vsubi_du, LSX, gvec_subi, 16, MO_64)
 
-TRANS(vneg_b, LSX, gvec_vv, MO_8, tcg_gen_gvec_neg)
-TRANS(vneg_h, LSX, gvec_vv, MO_16, tcg_gen_gvec_neg)
-TRANS(vneg_w, LSX, gvec_vv, MO_32, tcg_gen_gvec_neg)
-TRANS(vneg_d, LSX, gvec_vv, MO_64, tcg_gen_gvec_neg)
+TRANS(vneg_b, LSX, gvec_vv, 16, MO_8, tcg_gen_gvec_neg)
+TRANS(vneg_h, LSX, gvec_vv, 16, MO_16, tcg_gen_gvec_neg)
+TRANS(vneg_w, LSX, gvec_vv, 16, MO_32, tcg_gen_gvec_neg)
+TRANS(vneg_d, LSX, gvec_vv, 16, MO_64, tcg_gen_gvec_neg)
 
 TRANS(vsadd_b, LSX, gvec_vvv, 16, MO_8, tcg_gen_gvec_ssadd)
 TRANS(vsadd_h, LSX, gvec_vvv, 16, MO_16, tcg_gen_gvec_ssadd)
