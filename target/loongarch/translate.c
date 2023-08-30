@@ -18,6 +18,7 @@
 #include "fpu/softfloat.h"
 #include "translate.h"
 #include "internals.h"
+#include "vec.h"
 
 /* Global register indices */
 TCGv cpu_gpr[32], cpu_pc;
@@ -121,6 +122,9 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
 
     if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LSX)) {
         ctx->vl = LSX_LEN;
+    }
+    if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LASX)) {
+        ctx->vl = LASX_LEN;
     }
 
     ctx->la64 = is_la64(env);

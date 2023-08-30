@@ -8,6 +8,23 @@
 #ifndef LOONGARCH_VEC_H
 #define LOONGARCH_VEC_H
 
+#ifndef CONFIG_USER_ONLY
+ #define CHECK_VEC do { \
+     if ((ctx->vl == LSX_LEN) && \
+         (ctx->base.tb->flags & HW_FLAGS_EUEN_SXE) == 0) { \
+         generate_exception(ctx, EXCCODE_SXD); \
+         return true; \
+     } \
+     if ((ctx->vl == LASX_LEN) && \
+         (ctx->base.tb->flags & HW_FLAGS_EUEN_ASXE) == 0) { \
+         generate_exception(ctx, EXCCODE_ASXD); \
+         return true; \
+     } \
+ } while (0)
+#else
+ #define CHECK_VEC
+#endif /*!CONFIG_USER_ONLY */
+
 #if HOST_BIG_ENDIAN
 #define B(x)  B[(x) ^ 15]
 #define H(x)  H[(x) ^ 7]
