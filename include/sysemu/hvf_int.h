@@ -17,6 +17,8 @@
 #include <Hypervisor/hv.h>
 #endif
 
+#define HVF_MAX_SLOTS 512
+
 /* hvf_slot flags */
 #define HVF_SLOT_LOG (1 << 0)
 
@@ -40,7 +42,7 @@ typedef struct hvf_vcpu_caps {
 
 struct HVFState {
     AccelState parent;
-    hvf_slot slots[32];
+    hvf_slot slots[HVF_MAX_SLOTS];
     int num_slots;
 
     hvf_vcpu_caps *hvf_caps;

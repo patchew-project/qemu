@@ -88,7 +88,7 @@ struct mac_slot {
     uint64_t gva;
 };
 
-struct mac_slot mac_slots[32];
+struct mac_slot mac_slots[HVF_MAX_SLOTS];
 
 static int do_hvf_set_memory(hvf_slot *slot, hv_memory_flags_t flags)
 {
