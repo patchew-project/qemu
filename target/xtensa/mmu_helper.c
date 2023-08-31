@@ -980,9 +980,10 @@ uint32_t HELPER(pptlb)(CPUXtensaState *env, uint32_t v)
     } else if (nhits == 1 && (env->sregs[MPUENB] & (1u << segment))) {
         return env->mpu_fg[segment].attr | segment | XTENSA_MPU_PROBE_V;
     } else {
-        xtensa_mpu_lookup(env->config->mpu_bg,
-                          env->config->n_mpu_bg_segments,
-                          v, &bg_segment);
+        nhits = xtensa_mpu_lookup(env->config->mpu_bg,
+                                  env->config->n_mpu_bg_segments,
+                                  v, &bg_segment);
+        assert(nhits > 0);
         return env->config->mpu_bg[bg_segment].attr | segment;
     }
 }
@@ -1005,9 +1006,10 @@ static int get_physical_addr_mpu(CPUXtensaState *env,
     } else if (nhits == 1 && (env->sregs[MPUENB] & (1u << segment))) {
         attr = env->mpu_fg[segment].attr;
     } else {
-        xtensa_mpu_lookup(env->config->mpu_bg,
-                          env->config->n_mpu_bg_segments,
-                          vaddr, &segment);
+        nhits = xtensa_mpu_lookup(env->config->mpu_bg,
+                                  env->config->n_mpu_bg_segments,
+                                  vaddr, &segment);
+        assert(nhits > 0);
         attr = env->config->mpu_bg[segment].attr;
     }
 
