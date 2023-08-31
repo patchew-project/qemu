@@ -887,7 +887,7 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     }
 #endif
 
-    flags |= VIRGL_RENDERER_VENUS;
+    flags |= VIRGL_RENDERER_VENUS | VIRGL_RENDERER_RENDER_SERVER;
 
     ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
     if (ret != 0) {
