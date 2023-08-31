@@ -217,6 +217,25 @@ MigrationIncomingState *migration_incoming_get_current(void)
     return current_incoming;
 }
 
+static void migration_file_release(QEMUFile **file)
+{
+    MigrationState *ms = migrate_get_current();
+    QEMUFile *tmp;
+
+    /*
+     * Reset the pointer before releasing it to avoid holding the lock
+     * for too long.
+     */
+    WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
+        tmp = *file;
+        *file = NULL;
+    }
+
+    if (tmp) {
+        qemu_fclose(tmp);
+    }
+}
+
 void migration_incoming_transport_cleanup(MigrationIncomingState *mis)
 {
     if (mis->socket_address_list) {
@@ -1155,8 +1174,6 @@ static void migrate_fd_cleanup(MigrationState *s)
     qemu_savevm_state_cleanup();
 
     if (s->to_dst_file) {
-        QEMUFile *tmp;
-
         trace_migrate_fd_cleanup();
         qemu_mutex_unlock_iothread();
         if (s->migration_thread_running) {
@@ -1166,16 +1183,9 @@ static void migrate_fd_cleanup(MigrationState *s)
         qemu_mutex_lock_iothread();
 
         multifd_save_cleanup();
-        qemu_mutex_lock(&s->qemu_file_lock);
-        tmp = s->to_dst_file;
-        s->to_dst_file = NULL;
-        qemu_mutex_unlock(&s->qemu_file_lock);
-        /*
-         * Close the file handle without the lock to make sure the
-         * critical section won't block for long.
-         */
-        migration_ioc_unregister_yank_from_file(tmp);
-        qemu_fclose(tmp);
+
+        migration_ioc_unregister_yank_from_file(s->to_dst_file);
+        migration_file_release(&s->to_dst_file);
     }
 
     /*
@@ -1816,38 +1826,6 @@ static int migrate_handle_rp_resume_ack(MigrationState *s, uint32_t value)
 }
 
 /*
- * Release ms->rp_state.from_dst_file (and postcopy_qemufile_src if
- * existed) in a safe way.
- */
-static void migration_release_dst_files(MigrationState *ms)
-{
-    QEMUFile *file;
-
-    WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
-        /*
-         * Reset the from_dst_file pointer first before releasing it, as we
-         * can't block within lock section
-         */
-        file = ms->rp_state.from_dst_file;
-        ms->rp_state.from_dst_file = NULL;
-    }
-
-    /*
-     * Do the same to postcopy fast path socket too if there is.  No
-     * locking needed because this qemufile should only be managed by
-     * return path thread.
-     */
-    if (ms->postcopy_qemufile_src) {
-        migration_ioc_unregister_yank_from_file(ms->postcopy_qemufile_src);
-        qemu_file_shutdown(ms->postcopy_qemufile_src);
-        qemu_fclose(ms->postcopy_qemufile_src);
-        ms->postcopy_qemufile_src = NULL;
-    }
-
-    qemu_fclose(file);
-}
-
-/*
  * Handles messages sent on the return path towards the source VM
  *
  */
@@ -2046,7 +2024,12 @@ static int await_return_path_close_on_source(MigrationState *ms)
     ret = ms->rp_state.error;
     ms->rp_state.error = false;
 
-    migration_release_dst_files(ms);
+    migration_file_release(&ms->rp_state.from_dst_file);
+
+    if (ms->postcopy_qemufile_src) {
+        migration_ioc_unregister_yank_from_file(ms->postcopy_qemufile_src);
+    }
+    migration_file_release(&ms->postcopy_qemufile_src);
 
     trace_migration_return_path_end_after(ret);
     return ret;
@@ -2502,26 +2485,10 @@ static MigThrError postcopy_pause(MigrationState *s)
     assert(s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 
     while (true) {
-        QEMUFile *file;
-
-        /*
-         * Current channel is possibly broken. Release it.  Note that this is
-         * guaranteed even without lock because to_dst_file should only be
-         * modified by the migration thread.  That also guarantees that the
-         * unregister of yank is safe too without the lock.  It should be safe
-         * even to be within the qemu_file_lock, but we didn't do that to avoid
-         * taking more mutex (yank_lock) within qemu_file_lock.  TL;DR: we make
-         * the qemu_file_lock critical section as small as possible.
-         */
+        /* Current channel is possibly broken. Release it. */
         assert(s->to_dst_file);
         migration_ioc_unregister_yank_from_file(s->to_dst_file);
-        qemu_mutex_lock(&s->qemu_file_lock);
-        file = s->to_dst_file;
-        s->to_dst_file = NULL;
-        qemu_mutex_unlock(&s->qemu_file_lock);
-
-        qemu_file_shutdown(file);
-        qemu_fclose(file);
+        migration_file_release(&s->to_dst_file);
 
         /*
          * We're already pausing, so ignore any errors on the return

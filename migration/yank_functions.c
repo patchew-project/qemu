@@ -48,6 +48,11 @@ void migration_ioc_unregister_yank(QIOChannel *ioc)
     }
 }
 
+/*
+ * There's no direct relationship between the QEMUFile and the
+ * yank. This is just a convenience helper because the QIOChannel and
+ * the QEMUFile lifecycles happen to match.
+ */
 void migration_ioc_unregister_yank_from_file(QEMUFile *file)
 {
     QIOChannel *ioc = qemu_file_get_ioc(file);
