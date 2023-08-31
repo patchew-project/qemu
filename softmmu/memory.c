@@ -1797,6 +1797,15 @@ Object *memory_region_owner(MemoryRegion *mr)
 
 void memory_region_ref(MemoryRegion *mr)
 {
+    if (!mr) {
+        return;
+    }
+
+    /* Obtain a reference to prevent the memory region object
+     * from being released under our feet.
+     */
+    object_ref(OBJECT(mr));
+
     /* MMIO callbacks most likely will access data that belongs
      * to the owner, hence the need to ref/unref the owner whenever
      * the memory region is in use.
@@ -1807,16 +1816,22 @@ void memory_region_ref(MemoryRegion *mr)
      * Memory regions without an owner are supposed to never go away;
      * we do not ref/unref them because it slows down DMA sensibly.
      */
-    if (mr && mr->owner) {
+    if (mr->owner) {
         object_ref(mr->owner);
     }
 }
 
 void memory_region_unref(MemoryRegion *mr)
 {
-    if (mr && mr->owner) {
+    if (!mr) {
+        return;
+    }
+
+    if (mr->owner) {
         object_unref(mr->owner);
     }
+
+    object_unref(OBJECT(mr));
 }
 
 uint64_t memory_region_size(MemoryRegion *mr)
