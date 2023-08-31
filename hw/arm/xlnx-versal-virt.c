@@ -391,6 +391,25 @@ static void fdt_add_rtc_node(VersalVirt *s)
     g_free(name);
 }
 
+static void fdt_add_trng_node(VersalVirt *s)
+{
+    const char compat[] = TYPE_XLNX_VERSAL_TRNG;
+    const char interrupt_names[] = "trng";
+    g_autofree char *name = g_strdup_printf("/trng@%x", MM_PMC_TRNG);
+
+    qemu_fdt_add_subnode(s->fdt, name);
+
+    qemu_fdt_setprop_cells(s->fdt, name, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, VERSAL_TRNG_IRQ,
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    qemu_fdt_setprop(s->fdt, name, "interrupt-names",
+                     interrupt_names, sizeof(interrupt_names));
+    qemu_fdt_setprop_sized_cells(s->fdt, name, "reg",
+                                 2, MM_PMC_TRNG,
+                                 2, MM_PMC_TRNG_SIZE);
+    qemu_fdt_setprop(s->fdt, name, "compatible", compat, sizeof(compat));
+}
+
 static void fdt_add_bbram_node(VersalVirt *s)
 {
     const char compat[] = TYPE_XLNX_BBRAM;
@@ -690,6 +709,7 @@ static void versal_virt_init(MachineState *machine)
     fdt_add_usb_xhci_nodes(s);
     fdt_add_sd_nodes(s);
     fdt_add_rtc_node(s);
+    fdt_add_trng_node(s);
     fdt_add_bbram_node(s);
     fdt_add_efuse_ctrl_node(s);
     fdt_add_efuse_cache_node(s);
