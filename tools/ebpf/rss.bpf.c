@@ -81,6 +81,7 @@ struct {
     __uint(key_size, sizeof(__u32));
     __uint(value_size, sizeof(struct rss_config_t));
     __uint(max_entries, 1);
+    __uint(map_flags, BPF_F_MMAPABLE);
 } tap_rss_map_configurations SEC(".maps");
 
 struct {
@@ -88,6 +89,7 @@ struct {
     __uint(key_size, sizeof(__u32));
     __uint(value_size, sizeof(struct toeplitz_key_data_t));
     __uint(max_entries, 1);
+    __uint(map_flags, BPF_F_MMAPABLE);
 } tap_rss_map_toeplitz_key SEC(".maps");
 
 struct {
@@ -95,6 +97,7 @@ struct {
     __uint(key_size, sizeof(__u32));
     __uint(value_size, sizeof(__u16));
     __uint(max_entries, INDIRECTION_TABLE_SIZE);
+    __uint(map_flags, BPF_F_MMAPABLE);
 } tap_rss_map_indirection_table SEC(".maps");
 
 static inline void net_rx_rss_add_chunk(__u8 *rss_input, size_t *bytes_written,
@@ -528,7 +531,7 @@ static inline __u32 calculate_rss_hash(struct __sk_buff *skb,
     return result;
 }
 
-SEC("tun_rss_steering")
+SEC("socket")
 int tun_rss_steering_prog(struct __sk_buff *skb)
 {
 
