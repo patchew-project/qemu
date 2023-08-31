@@ -432,7 +432,7 @@ _eth_get_rss_ex_src_addr(const struct iovec *pkt, int pkt_frags,
         }
 
         if (opthdr.type == IP6_OPT_HOME) {
-            size_t input_size = iov_size(pkt, pkt_frags);
+            input_size = iov_size(pkt, pkt_frags);
 
             if (input_size < opt_offset + sizeof(opthdr)) {
                 return false;
