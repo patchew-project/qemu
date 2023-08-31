@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/int128.h"
+#include "qemu/interval-tree.h"
 #include "tcg/tcg-op-common.h"
 #include "tcg-internal.h"
 
@@ -37,10 +38,18 @@
         glue(glue(case INDEX_op_, x), _i64):    \
         glue(glue(case INDEX_op_, x), _vec)
 
+typedef struct MemCopyInfo {
+    IntervalTreeNode itree;
+    QSIMPLEQ_ENTRY (MemCopyInfo) next;
+    TCGTemp *ts;
+    TCGType type;
+} MemCopyInfo;
+
 typedef struct TempOptInfo {
     bool is_const;
     TCGTemp *prev_copy;
     TCGTemp *next_copy;
+    QSIMPLEQ_HEAD(, MemCopyInfo) mem_copy;
     uint64_t val;
     uint64_t z_mask;  /* mask bit is 0 if and only if value bit is 0 */
     uint64_t s_mask;  /* a left-aligned mask of clrsb(value) bits. */
@@ -50,6 +59,9 @@ typedef struct OptContext {
     TCGContext *tcg;
     TCGOp *prev_mb;
     TCGTempSet temps_used;
+
+    IntervalTreeRoot mem_copy;
+    QSIMPLEQ_HEAD(, MemCopyInfo) mem_free;
 
     /* In flight values from optimization. */
     uint64_t a_mask;  /* mask bit is 0 iff value identical to first input */
@@ -128,6 +140,7 @@ static void reset_ts(OptContext *ctx, TCGTemp *ts)
     TempOptInfo *ti = ts_info(ts);
     TempOptInfo *pi = ts_info(ti->prev_copy);
     TempOptInfo *ni = ts_info(ti->next_copy);
+    MemCopyInfo *mc;
 
     ni->prev_copy = ti->prev_copy;
     pi->next_copy = ti->next_copy;
@@ -136,6 +149,11 @@ static void reset_ts(OptContext *ctx, TCGTemp *ts)
     ti->is_const = false;
     ti->z_mask = -1;
     ti->s_mask = 0;
+
+    QSIMPLEQ_FOREACH(mc, &ti->mem_copy, next) {
+        interval_tree_remove(&mc->itree, &ctx->mem_copy);
+    }
+    QSIMPLEQ_CONCAT(&ctx->mem_free, &ti->mem_copy);
 }
 
 static void reset_temp(OptContext *ctx, TCGArg arg)
@@ -162,6 +180,7 @@ static void init_ts_info(OptContext *ctx, TCGTemp *ts)
 
     ti->next_copy = ts;
     ti->prev_copy = ts;
+    QSIMPLEQ_INIT(&ti->mem_copy);
     if (ts->kind == TEMP_CONST) {
         ti->is_const = true;
         ti->val = ts->val;
@@ -172,6 +191,68 @@ static void init_ts_info(OptContext *ctx, TCGTemp *ts)
         ti->z_mask = -1;
         ti->s_mask = 0;
     }
+}
+
+static MemCopyInfo *mem_copy_first(OptContext *ctx, intptr_t s, intptr_t l)
+{
+    IntervalTreeNode *r = interval_tree_iter_first(&ctx->mem_copy, s, l);
+    return r ? container_of(r, MemCopyInfo, itree) : NULL;
+}
+
+static MemCopyInfo *mem_copy_next(MemCopyInfo *mem, intptr_t s, intptr_t l)
+{
+    IntervalTreeNode *r = interval_tree_iter_next(&mem->itree, s, l);
+    return r ? container_of(r, MemCopyInfo, itree) : NULL;
+}
+
+static void remove_mem_copy(OptContext *ctx, MemCopyInfo *mc)
+{
+    TCGTemp *ts = mc->ts;
+    TempOptInfo *ti = ts_info(ts);
+
+    interval_tree_remove(&mc->itree, &ctx->mem_copy);
+    QSIMPLEQ_REMOVE(&ti->mem_copy, mc, MemCopyInfo, next);
+    QSIMPLEQ_INSERT_TAIL(&ctx->mem_free, mc, next);
+}
+
+static void remove_mem_copy_in(OptContext *ctx, intptr_t s, intptr_t l)
+{
+    while (true) {
+        MemCopyInfo *mc = mem_copy_first(ctx, s, l);
+        if (!mc) {
+            break;
+        }
+        remove_mem_copy(ctx, mc);
+    }
+}
+
+static void remove_mem_copy_all(OptContext *ctx)
+{
+    remove_mem_copy_in(ctx, 0, -1);
+    tcg_debug_assert(interval_tree_is_empty(&ctx->mem_copy));
+}
+
+static void record_mem_copy(OptContext *ctx, TCGType type,
+                            TCGTemp *ts, intptr_t start, intptr_t last)
+{
+    MemCopyInfo *mc;
+    TempOptInfo *ti = ts_info(ts);
+
+    mc = QSIMPLEQ_FIRST(&ctx->mem_free);
+    if (mc) {
+        QSIMPLEQ_REMOVE_HEAD(&ctx->mem_free, next);
+    } else {
+        mc = tcg_malloc(sizeof(*mc));
+    }
+
+    memset(mc, 0, sizeof(*mc));
+    mc->type = type;
+    mc->ts = ts;
+    mc->itree.start = start;
+    mc->itree.last = last;
+
+    interval_tree_insert(&mc->itree, &ctx->mem_copy);
+    QSIMPLEQ_INSERT_TAIL(&ti->mem_copy, mc, next);
 }
 
 static TCGTemp *find_better_copy(TCGContext *s, TCGTemp *ts)
@@ -226,6 +307,18 @@ static bool args_are_copies(TCGArg arg1, TCGArg arg2)
     return ts_are_copies(arg_temp(arg1), arg_temp(arg2));
 }
 
+static TCGTemp *find_mem_copy_for(OptContext *ctx, TCGType type, intptr_t s)
+{
+    MemCopyInfo *mc;
+
+    for (mc = mem_copy_first(ctx, s, s); mc; mc = mem_copy_next(mc, s, s)) {
+        if (mc->itree.start == s && mc->type == type) {
+            return find_better_copy(ctx->tcg, mc->ts);
+        }
+    }
+    return NULL;
+}
+
 static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
 {
     TCGTemp *dst_ts = arg_temp(dst);
@@ -268,6 +361,7 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
 
     if (src_ts->type == dst_ts->type) {
         TempOptInfo *ni = ts_info(si->next_copy);
+        MemCopyInfo *mc;
 
         di->next_copy = si->next_copy;
         di->prev_copy = src_ts;
@@ -275,6 +369,11 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
         si->next_copy = dst_ts;
         di->is_const = si->is_const;
         di->val = si->val;
+
+        QSIMPLEQ_FOREACH(mc, &si->mem_copy, next) {
+            record_mem_copy(ctx, mc->type, dst_ts,
+                            mc->itree.start, mc->itree.last);
+        }
     }
     return true;
 }
@@ -693,6 +792,7 @@ static void finish_folding(OptContext *ctx, TCGOp *op)
      */
     if (def->flags & TCG_OPF_BB_END) {
         memset(&ctx->temps_used, 0, sizeof(ctx->temps_used));
+        remove_mem_copy_all(ctx);
         ctx->prev_mb = NULL;
         return;
     }
@@ -1216,6 +1316,11 @@ static bool fold_call(OptContext *ctx, TCGOp *op)
                 reset_ts(ctx, &ctx->tcg->temps[i]);
             }
         }
+    }
+
+    /* If the function has side effects, reset mem data. */
+    if (!(flags & TCG_CALL_NO_SIDE_EFFECTS)) {
+        remove_mem_copy_all(ctx);
     }
 
     /* Reset temp data for outputs. */
@@ -2075,6 +2180,83 @@ static bool fold_tcg_ld(OptContext *ctx, TCGOp *op)
     return false;
 }
 
+static bool fold_tcg_ld_memcopy(OptContext *ctx, TCGOp *op)
+{
+    TCGTemp *dst, *src;
+    intptr_t ofs;
+    TCGType type;
+
+    if (op->args[1] != tcgv_ptr_arg(cpu_env)) {
+        return false;
+    }
+
+    type = ctx->type;
+    ofs = op->args[2];
+    dst = arg_temp(op->args[0]);
+    src = find_mem_copy_for(ctx, type, ofs);
+    if (src && src->base_type == type) {
+        return tcg_opt_gen_mov(ctx, op, temp_arg(dst), temp_arg(src));
+    }
+
+    reset_ts(ctx, dst);
+    record_mem_copy(ctx, type, dst, ofs, ofs + tcg_type_size(type) - 1);
+    return true;
+}
+
+static bool fold_tcg_st(OptContext *ctx, TCGOp *op)
+{
+    intptr_t ofs = op->args[2];
+    intptr_t lm1;
+
+    if (op->args[1] != tcgv_ptr_arg(cpu_env)) {
+        remove_mem_copy_all(ctx);
+        return false;
+    }
+
+    switch (op->opc) {
+    CASE_OP_32_64(st8):
+        lm1 = 0;
+        break;
+    CASE_OP_32_64(st16):
+        lm1 = 1;
+        break;
+    case INDEX_op_st32_i64:
+    case INDEX_op_st_i32:
+        lm1 = 3;
+        break;
+    case INDEX_op_st_i64:
+        lm1 = 7;
+        break;
+    case INDEX_op_st_vec:
+        lm1 = tcg_type_size(ctx->type) - 1;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    remove_mem_copy_in(ctx, ofs, ofs + lm1);
+    return false;
+}
+
+static bool fold_tcg_st_memcopy(OptContext *ctx, TCGOp *op)
+{
+    TCGTemp *src;
+    intptr_t ofs, last;
+    TCGType type;
+
+    if (op->args[1] != tcgv_ptr_arg(cpu_env)) {
+        fold_tcg_st(ctx, op);
+        return false;
+    }
+
+    src = arg_temp(op->args[0]);
+    ofs = op->args[2];
+    type = ctx->type;
+    last = ofs + tcg_type_size(type) - 1;
+    remove_mem_copy_in(ctx, ofs, last);
+    record_mem_copy(ctx, type, src, ofs, last);
+    return false;
+}
+
 static bool fold_xor(OptContext *ctx, TCGOp *op)
 {
     if (fold_const2_commutative(ctx, op) ||
@@ -2097,6 +2279,8 @@ void tcg_optimize(TCGContext *s)
     int nb_temps, i;
     TCGOp *op, *op_next;
     OptContext ctx = { .tcg = s };
+
+    QSIMPLEQ_INIT(&ctx.mem_free);
 
     /* Array VALS has an element for each temp.
        If this temp holds a constant then its value is kept in VALS' element.
@@ -2218,6 +2402,21 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_ld32s_i64:
         case INDEX_op_ld32u_i64:
             done = fold_tcg_ld(&ctx, op);
+            break;
+        case INDEX_op_ld_i32:
+        case INDEX_op_ld_i64:
+        case INDEX_op_ld_vec:
+            done = fold_tcg_ld_memcopy(&ctx, op);
+            break;
+        CASE_OP_32_64(st8):
+        CASE_OP_32_64(st16):
+        case INDEX_op_st32_i64:
+            done = fold_tcg_st(&ctx, op);
+            break;
+        case INDEX_op_st_i32:
+        case INDEX_op_st_i64:
+        case INDEX_op_st_vec:
+            done = fold_tcg_st_memcopy(&ctx, op);
             break;
         case INDEX_op_mb:
             done = fold_mb(&ctx, op);
