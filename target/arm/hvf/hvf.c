@@ -1933,7 +1933,6 @@ int hvf_vcpu_exec(CPUState *cpu)
         uint32_t rt = (syndrome >> 5) & 0x1f;
         uint32_t reg = syndrome & SYSREG_MASK;
         uint64_t val;
-        int ret = 0;
 
         if (isread) {
             ret = hvf_sysreg_read(cpu, reg, rt);

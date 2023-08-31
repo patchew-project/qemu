@@ -924,8 +924,8 @@ DO_1OP_IMM(vorri, DO_ORRI)
         bool qc = false;                                                \
         for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
             bool sat = false;                                           \
-            TYPE r = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], &sat);          \
-            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+            TYPE r_ = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], &sat);         \
+            mergemask(&d[H##ESIZE(e)], r_, mask);                       \
             qc |= sat & mask & 1;                                       \
         }                                                               \
         if (qc) {                                                       \
@@ -2460,7 +2460,7 @@ static inline int64_t do_sqrshl48_d(int64_t src, int64_t shift,
             return extval;
         }
     } else if (shift < 48) {
-        int64_t extval = sextract64(src << shift, 0, 48);
+        extval = sextract64(src << shift, 0, 48);
         if (!sat || src == (extval >> shift)) {
             return extval;
         }
@@ -2492,7 +2492,7 @@ static inline uint64_t do_uqrshl48_d(uint64_t src, int64_t shift,
             return extval;
         }
     } else if (shift < 48) {
-        uint64_t extval = extract64(src << shift, 0, 48);
+        extval = extract64(src << shift, 0, 48);
         if (!sat || src == (extval >> shift)) {
             return extval;
         }
