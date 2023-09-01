@@ -15,9 +15,34 @@
 #include "hw/boards.h"
 #include "qapi/qapi-types-machine-target.h"
 
+#define S390_TOPOLOGY_CPU_IFL   0x03
+
+typedef union s390_topology_id {
+    uint64_t id;
+    struct {
+        uint8_t _reserved0;
+        uint8_t drawer;
+        uint8_t book;
+        uint8_t socket;
+        uint8_t type;
+        uint8_t inv_polarization;
+        uint8_t not_dedicated;
+        uint8_t origin;
+    };
+} s390_topology_id;
+
+typedef struct S390TopologyEntry {
+    QTAILQ_ENTRY(S390TopologyEntry) next;
+    s390_topology_id id;
+    uint64_t mask;
+} S390TopologyEntry;
+
 typedef struct S390Topology {
     uint8_t *cores_per_socket;
+    CpuS390Polarization polarization;
 } S390Topology;
+
+typedef QTAILQ_HEAD(, S390TopologyEntry) S390TopologyList;
 
 #ifdef CONFIG_KVM
 bool s390_has_topology(void);
