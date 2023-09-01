@@ -131,6 +131,13 @@ Use ``-accel tcg,one-insn-per-tb=on`` instead.
 User-mode emulator command line arguments
 -----------------------------------------
 
+``-p`` (since 8.2)
+''''''''''''''''''
+
+The ``-p`` option pretends to control the host page size.  However,
+it is not possible to change the host page size, and using the
+option only causes failures.
+
 ``-singlestep`` (since 8.1)
 '''''''''''''''''''''''''''
 
