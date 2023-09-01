@@ -1652,6 +1652,16 @@ const VMStateDescription vmstate_x86_cpu = {
         VMSTATE_UINT64(env.cstar, X86CPU),
         VMSTATE_UINT64(env.fmask, X86CPU),
         VMSTATE_UINT64(env.kernelgsbase, X86CPU),
+        VMSTATE_UINT64(env.fred_rsp0, X86CPU),
+        VMSTATE_UINT64(env.fred_rsp1, X86CPU),
+        VMSTATE_UINT64(env.fred_rsp2, X86CPU),
+        VMSTATE_UINT64(env.fred_rsp3, X86CPU),
+        VMSTATE_UINT64(env.fred_stklvls, X86CPU),
+        VMSTATE_UINT64(env.fred_ssp0, X86CPU),
+        VMSTATE_UINT64(env.fred_ssp1, X86CPU),
+        VMSTATE_UINT64(env.fred_ssp2, X86CPU),
+        VMSTATE_UINT64(env.fred_ssp3, X86CPU),
+        VMSTATE_UINT64(env.fred_config, X86CPU),
 #endif
         VMSTATE_UINT32(env.smbase, X86CPU),
 
