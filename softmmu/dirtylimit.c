@@ -411,13 +411,28 @@ void dirtylimit_set_all(uint64_t quota,
 
 void dirtylimit_vcpu_execute(CPUState *cpu)
 {
+    int64_t sleep_us, endtime_us;
+
+    dirtylimit_state_lock();
     if (dirtylimit_in_service() &&
         dirtylimit_vcpu_get_state(cpu->cpu_index)->enabled &&
         cpu->throttle_us_per_full) {
         trace_dirtylimit_vcpu_execute(cpu->cpu_index,
                 cpu->throttle_us_per_full);
-        usleep(cpu->throttle_us_per_full);
-    }
+        sleep_us = cpu->throttle_us_per_full;
+        dirtylimit_state_unlock();
+        endtime_us = qemu_clock_get_us(QEMU_CLOCK_REALTIME) + sleep_us;
+        while (sleep_us > 0 && !cpu->stop) {
+            if (sleep_us > SCALE_US) {
+                qemu_mutex_lock_iothread();
+                qemu_cond_timedwait_iothread(cpu->halt_cond, sleep_us / SCALE_US);
+                qemu_mutex_unlock_iothread();
+            } else
+                g_usleep(sleep_us);
+            sleep_us = endtime_us - qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+        }
+    } else
+        dirtylimit_state_unlock();
 }
 
 static void dirtylimit_init(void)
