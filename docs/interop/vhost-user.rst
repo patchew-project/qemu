@@ -7,6 +7,7 @@ Vhost-user Protocol
 ..
   Copyright 2014 Virtual Open Systems Sarl.
   Copyright 2019 Intel Corporation
+  Copyright 2023 Linaro Ltd
   Licence: This work is licensed under the terms of the GNU GPL,
            version 2 or later. See the COPYING file in the top-level
            directory.
@@ -27,16 +28,30 @@ The protocol defines 2 sides of the communication, *front-end* and
 *back-end*. The *front-end* is the application that shares its virtqueues, in
 our case QEMU. The *back-end* is the consumer of the virtqueues.
 
-In the current implementation QEMU is the *front-end*, and the *back-end*
-is the external process consuming the virtio queues, for example a
-software Ethernet switch running in user space, such as Snabbswitch,
-or a block device back-end processing read & write to a virtual
-disk. In order to facilitate interoperability between various back-end
-implementations, it is recommended to follow the :ref:`Backend program
-conventions <backend_conventions>`.
+In the current implementation a Virtual Machine Manager (VMM) such as
+QEMU is the *front-end*, and the *back-end* is the external process
+consuming the virtio queues, for example a software Ethernet switch
+running in user space, such as Snabbswitch, or a block device back-end
+processing read & write to a virtual disk. In order to facilitate
+interoperability between various back-end implementations, it is
+recommended to follow the :ref:`Backend program conventions
+<backend_conventions>`.
 
 The *front-end* and *back-end* can be either a client (i.e. connecting) or
 server (listening) in the socket communication.
+
+Probing device details
+----------------------
+
+Traditionally the vhost-user daemon *back-end* shares configuration
+responsibilities with the VMM *front-end* which needs to know certain
+key bits of information about the device. This means the VMM needs to
+define at least a minimal stub for each VirtIO device it wants to
+support. If the daemon supports the right set of protocol features the
+VMM can probe the daemon for the information it needs to setup the
+device. See :ref:`Probing features for standalone daemons
+<probing_features>` for more details.
+
 
 Support for platforms other than Linux
 --------------------------------------
@@ -316,6 +331,7 @@ replies. Here is a list of the ones that do:
 * ``VHOST_USER_GET_VRING_BASE``
 * ``VHOST_USER_SET_LOG_BASE`` (if ``VHOST_USER_PROTOCOL_F_LOG_SHMFD``)
 * ``VHOST_USER_GET_INFLIGHT_FD`` (if ``VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD``)
+* ``VHOST_USER_GET_BACKEND_SPECS`` (if ``VHOST_USER_PROTOCOL_F_STANDALONE``)
 
 .. seealso::
 
@@ -396,9 +412,10 @@ must support changing some configuration aspects on the fly.
 Multiple queue support
 ----------------------
 
-Many devices have a fixed number of virtqueues.  In this case the front-end
-already knows the number of available virtqueues without communicating with the
-back-end.
+Many devices have a fixed number of virtqueues. In this case the
+*front-end* usually already knows the number of available virtqueues
+without communicating with the back-end. For standalone daemons this
+number can be can be probed with the ``VHOST_USER_GET_MIN_VQ`` message.
 
 Some devices do not have a fixed number of virtqueues.  Instead the maximum
 number of virtqueues is chosen by the back-end.  The number can depend on host
@@ -885,6 +902,23 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
   #define VHOST_USER_PROTOCOL_F_XEN_MMAP             17
+  #define VHOST_USER_PROTOCOL_F_PROBE                18
+
+.. _probing_features:
+
+Probing features for standalone daemons
+---------------------------------------
+
+The protocol feature ``VHOST_USER_PROTOCOL_F_PROBE`` enables a number
+of additional messages which allow the *front-end* to probe details
+about the VirtIO device from the *back-end*. However for a *back-end*
+to be described as standalone it must also support:
+
+  * ``VHOST_USER_PROTOCOL_F_STATUS``
+  * ``VHOST_USER_PROTOCOL_F_CONFIG`` (if there is a config space)
+
+which are required to ensure the *back-end* daemon can operate
+without the *front-end* managing some aspects of its configuration.
 
 Front-end message types
 -----------------------
@@ -1440,6 +1474,42 @@ Front-end message types
   query the back-end for its device status as defined in the Virtio
   specification.
 
+``VHOST_USER_GET_DEVICE_ID``
+  :id: 41
+  :request payload: N/A
+  :reply payload: ``u32``
+
+  When the ``VHOST_USER_PROTOCOL_F_PROBE`` protocol feature has been
+  successfully negotiated, this message is submitted by the front-end
+  to query what VirtIO device the back-end support. This is intended
+  to remove the need for the front-end to know ahead of time what the
+  VirtIO device the backend emulates is.
+
+``VHOST_USER_GET_CONFIG_SIZE``
+  :id: 42
+  :request payload: N/A
+  :reply payload: ``u32``
+
+  When the ``VHOST_USER_PROTOCOL_F_PROBE`` protocol feature has been
+  successfully negotiated, this message is submitted by the front-end
+  to query the size of the VirtIO device's config space. This is
+  intended to remove the need for the front-end to know ahead of time
+  what the size is. Replying with 0 when
+  ``VHOST_USER_PROTOCOL_F_CONFIG`` has been negotiated would indicate
+  an bug.
+
+``VHOST_USER_GET_MIN_VQ``
+  :id: 43
+  :request payload: N/A
+  :reply payload: ``u32``
+
+  When the ``VHOST_USER_PROTOCOL_F_PROBE`` protocol feature has been
+  successfully negotiated, this message is submitted by the front-end to
+  query minimum number of VQ's required to support the device. A
+  device may support more than this number of VQ's if it advertises
+  the ``VHOST_USER_PROTOCOL_F_MQ`` protocol feature. Reporting a
+  number greater than the result of ``VHOST_USER_GET_QUEUE_NUM`` would
+  indicate a bug.
 
 Back-end message types
 ----------------------
