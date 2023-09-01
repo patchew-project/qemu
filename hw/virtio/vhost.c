@@ -1935,6 +1935,11 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
     hdev->started = true;
     hdev->vdev = vdev;
 
+    if (!hdev->nvqs) {
+        error_report("device nvqs not set");
+        goto fail_nvqs;
+    }
+
     r = vhost_dev_set_features(hdev, hdev->log_enabled);
     if (r < 0) {
         goto fail_features;
@@ -2028,6 +2033,7 @@ fail_mem:
     if (vhost_dev_has_iommu(hdev)) {
         memory_listener_unregister(&hdev->iommu_listener);
     }
+fail_nvqs:
 fail_features:
     vdev->vhost_started = false;
     hdev->started = false;
