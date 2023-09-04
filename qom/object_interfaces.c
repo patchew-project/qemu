@@ -51,7 +51,37 @@ static void object_set_properties_from_qdict(Object *obj, const QDict *qdict,
     if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
         return;
     }
+
+    /* Layering violation here...
+     *
+     * DEFINE_PROP_ARRAY() creates a property 'len-$ARRAY-PROP-NAME'
+     * which, when set, will create a sequence of '$ARRAY-PROP-NAME[N]'
+     * properties.
+     *
+     * This only works if the 'len-$ARRAY-PROP-NAME' property is
+     * set first, and the array elements afterwards. Historically
+     * this required the user to get correct ordering and QemuOpts
+     * traversal would preserve that ordering. With QemuOpts now
+     * converted to QDict, iteration ordering is undefined. Thus
+     * to keep array properties working, we iterate over the QDict
+     * twice.
+     */
+
+    /* First the props that control array property length */
     for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
+        if (!g_str_has_prefix(e->key, "len-")) {
+            continue;
+        }
+        if (!object_property_set(obj, e->key, v, errp)) {
+            goto out;
+        }
+    }
+
+    /* Then any other normal properties */
+    for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
+        if (g_str_has_prefix(e->key, "len-")) {
+            continue;
+        }
         if (!object_property_set(obj, e->key, v, errp)) {
             goto out;
         }
