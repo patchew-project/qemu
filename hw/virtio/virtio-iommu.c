@@ -1180,8 +1180,14 @@ static int virtio_iommu_set_iova_ranges(IOMMUMemoryRegion *mr,
                                         Error **errp)
 {
     IOMMUDevice *sdev = container_of(mr, IOMMUDevice, iommu_mr);
+    uint64_t max_iova;
+
     assert(nr_ranges);
 
+    max_iova = range_upb(&iova_ranges[nr_ranges - 1]);
+    if (max_iova < UINT64_MAX) {
+        memory_region_set_size(&mr->parent_obj, max_iova + 1);
+    }
 
     range_inverse_array(nr_ranges, iova_ranges,
                         &sdev->nr_host_resv_regions, &sdev->host_resv_regions);
