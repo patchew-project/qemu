@@ -238,7 +238,21 @@ static inline int cxl_decoder_count_enc(int count)
     return 0;
 }
 
+static inline int cxl_decoder_count_dec(int enc_cnt)
+{
+    switch (enc_cnt) {
+    case 0: return 1;
+    case 1: return 2;
+    case 2: return 4;
+    case 3: return 6;
+    case 4: return 8;
+    case 5: return 10;
+    }
+    return 0;
+}
+
 uint8_t cxl_interleave_ways_enc(int iw, Error **errp);
+int cxl_interleave_ways_dec(uint8_t iw_enc, Error **errp);
 uint8_t cxl_interleave_granularity_enc(uint64_t gran, Error **errp);
 
 static inline hwaddr cxl_decode_ig(int ig)
