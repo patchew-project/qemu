@@ -367,7 +367,7 @@ void do_common_semihosting(CPUState *cs)
     target_ulong ul_ret;
     char * s;
     int nr;
-    uint32_t ret;
+    int ret;
     int64_t elapsed;
 
     nr = common_semi_arg(cs, 0) & 0xffffffffU;
@@ -376,7 +376,7 @@ void do_common_semihosting(CPUState *cs)
     switch (nr) {
     case TARGET_SYS_OPEN:
     {
-        int ret, err = 0;
+        int err = 0;
         int hostfd;
 
         GET_ARG(0);
@@ -679,14 +679,11 @@ void do_common_semihosting(CPUState *cs)
              * allocate it using sbrk.
              */
             if (!ts->heap_limit) {
-                abi_ulong ret;
-
                 ts->heap_base = do_brk(0);
                 limit = ts->heap_base + COMMON_SEMI_HEAP_SIZE;
                 /* Try a big heap, and reduce the size if that fails.  */
                 for (;;) {
-                    ret = do_brk(limit);
-                    if (ret >= limit) {
+                    if (do_brk(limit) >= limit) {
                         break;
                     }
                     limit = (ts->heap_base >> 1) + (limit >> 1);
