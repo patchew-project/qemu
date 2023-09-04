@@ -219,4 +219,7 @@ static inline int ranges_overlap(uint64_t first1, uint64_t len1,
 
 GList *range_list_insert(GList *list, Range *data);
 
+void range_inverse_array(uint32_t nr_ranges, Range *ranges,
+                         uint32_t *nr_inv_ranges, Range **inv_ranges);
+
 #endif

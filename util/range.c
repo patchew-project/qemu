@@ -70,3 +70,38 @@ GList *range_list_insert(GList *list, Range *data)
 
     return list;
 }
+
+/*
+ * Inverse an array of sorted ranges over the UINT64_MAX span, ie.
+ * original ranges becomes holes in the newly allocated inv_ranges
+ */
+void range_inverse_array(uint32_t nr_ranges, Range *ranges,
+                         uint32_t *nr_inv_ranges, Range **inv_ranges)
+{
+    Range *resv;
+    int i = 0, j = 0;
+
+    resv = g_malloc0_n(nr_ranges + 1, sizeof(Range));
+
+    /* first range lob is greater than 0, insert a first range */
+    if (range_lob(&ranges[0]) > 0) {
+        range_set_bounds(&resv[i++], 0,
+                         range_lob(&ranges[0]) - 1);
+    }
+
+    /* insert a range inbetween each original range */
+    for (; j < nr_ranges - 1; j++) {
+        if (range_compare(&ranges[j], &ranges[j + 1])) {
+            range_set_bounds(&resv[i++], range_upb(&ranges[j]) + 1,
+                             range_lob(&ranges[j + 1]) - 1);
+        }
+    }
+    /* last range upb is less than UINT64_MAX, insert a last range */
+    if (range_upb(&ranges[nr_ranges - 1]) <  UINT64_MAX) {
+        range_set_bounds(&resv[i++],
+                          range_upb(&ranges[nr_ranges - 1]) + 1, UINT64_MAX);
+    }
+    *nr_inv_ranges = i;
+    resv = g_realloc(resv, i * sizeof(Range));
+    *inv_ranges = resv;
+}
