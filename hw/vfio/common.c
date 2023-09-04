@@ -1187,6 +1187,14 @@ static void vfio_listener_region_add(MemoryListener *listener,
             goto fail;
         }
 
+        ret = memory_region_iommu_set_iova_ranges(giommu->iommu_mr,
+                container->nr_iovas, (struct Range *)container->iova_ranges,
+                &err);
+        if (ret) {
+            g_free(giommu);
+            goto fail;
+        }
+
         ret = memory_region_register_iommu_notifier(section->mr, &giommu->n,
                                                     &err);
         if (ret) {
@@ -2059,6 +2067,29 @@ bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
     return true;
 }
 
+static void vfio_get_info_iova_range(struct vfio_iommu_type1_info *info,
+                                     unsigned int *nr_iovas,
+                                     struct  vfio_iova_range **iova_ranges)
+{
+    struct vfio_info_cap_header *hdr;
+    struct vfio_iommu_type1_info_cap_iova_range *cap;
+
+    hdr = vfio_get_iommu_type1_info_cap(info,
+                                        VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE);
+    if (hdr == NULL) {
+        return;
+    }
+
+    cap = (void *)hdr;
+    *nr_iovas = cap->nr_iovas;
+
+    if (*nr_iovas == 0) {
+        return;
+    }
+    *iova_ranges = g_memdup2(cap->iova_ranges,
+                             *nr_iovas * sizeof(struct  vfio_iova_range));
+}
+
 static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
                                           struct vfio_region_info *info)
 {
@@ -2511,6 +2542,12 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
     }
 }
 
+static void vfio_free_container(VFIOContainer *container)
+{
+    g_free(container->iova_ranges);
+    g_free(container);
+}
+
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                                   Error **errp)
 {
@@ -2628,6 +2665,10 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         if (!vfio_get_info_dma_avail(info, &container->dma_max_mappings)) {
             container->dma_max_mappings = 65535;
         }
+
+        vfio_get_info_iova_range(info, &container->nr_iovas,
+                                 &container->iova_ranges);
+
         vfio_get_iommu_info_migration(container, info);
         g_free(info);
 
@@ -2741,7 +2782,7 @@ enable_discards_exit:
     vfio_ram_block_discard_disable(container, false);
 
 free_container_exit:
-    g_free(container);
+    vfio_free_container(container);
 
 close_fd_exit:
     close(fd);
@@ -2795,7 +2836,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
         trace_vfio_disconnect_container(container->fd);
         close(container->fd);
-        g_free(container);
+        vfio_free_container(container);
 
         vfio_put_address_space(space);
     }
