@@ -1975,16 +1975,7 @@ static int discard_in_l2_slice(BlockDriverState *bs, uint64_t offset,
         if (has_subclusters(s)) {
             set_l2_bitmap(s, l2_slice, l2_index + i, new_l2_bitmap);
         }
-        if (!keep_reference) {
-            /* Then decrease the refcount */
-            qcow2_free_any_cluster(bs, old_l2_entry, type);
-        } else if (s->discard_passthrough[type] &&
-                   (cluster_type == QCOW2_CLUSTER_NORMAL ||
-                    cluster_type == QCOW2_CLUSTER_ZERO_ALLOC)) {
-            /* If we keep the reference, pass on the discard still */
-            bdrv_pdiscard(s->data_file, old_l2_entry & L2E_OFFSET_MASK,
-                          s->cluster_size);
-       }
+        qcow2_free_any_cluster(bs, old_l2_entry, type);
     }
 
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
@@ -2062,8 +2053,13 @@ zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
         QCow2ClusterType type = qcow2_get_cluster_type(bs, old_l2_entry);
         bool unmap = (type == QCOW2_CLUSTER_COMPRESSED) ||
             ((flags & BDRV_REQ_MAY_UNMAP) && qcow2_cluster_is_allocated(type));
-        uint64_t new_l2_entry = unmap ? 0 : old_l2_entry;
+        uint64_t new_l2_entry = old_l2_entry;
         uint64_t new_l2_bitmap = old_l2_bitmap;
+
+        if (unmap &&
+            !(s->discard_no_unref && type != QCOW2_CLUSTER_COMPRESSED)) {
+            new_l2_entry = 0;
+        }
 
         if (has_subclusters(s)) {
             new_l2_bitmap = QCOW_L2_BITMAP_ALL_ZEROES;
