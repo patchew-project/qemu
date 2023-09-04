@@ -21,6 +21,7 @@
 #include "qemu/log.h"
 #include "qemu/iov.h"
 #include "qemu/range.h"
+#include "qemu/reserved-region.h"
 #include "exec/target_page.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio.h"
@@ -630,11 +631,25 @@ static int consolidate_resv_regions(IOMMUDevice *sdev)
     VirtIOIOMMU *s = sdev->viommu;
     int i;
 
+    /* First add host reserved regions if any, all tagged as RESERVED */
+    for (i = 0; i < sdev->nr_host_resv_regions; i++) {
+        ReservedRegion *reg = g_new0(ReservedRegion, 1);
+        reg->range = sdev->host_resv_regions[i];
+        reg->type = VIRTIO_IOMMU_RESV_MEM_T_RESERVED;
+        sdev->resv_regions = resv_region_list_insert(sdev->resv_regions, reg);
+        trace_virtio_iommu_host_resv_regions(sdev->iommu_mr.parent_obj.name, i,
+                                             range_lob(&reg->range),
+                                             range_upb(&reg->range));
+    }
+    /*
+     * then add higher priority reserved regions set through properties by the
+     * machine
+     */
     for (i = 0; i < s->nr_prop_resv_regions; i++) {
         ReservedRegion *reg = g_new0(ReservedRegion, 1);
 
         *reg = s->prop_resv_regions[i];
-        sdev->resv_regions = g_list_append(sdev->resv_regions, reg);
+        sdev->resv_regions = resv_region_list_insert(sdev->resv_regions, reg);
     }
     return 0;
 }
