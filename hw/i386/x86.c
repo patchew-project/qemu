@@ -136,7 +136,7 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
      * With KVM's in-kernel lapic: only if X2APIC API is enabled.
      */
     if (x86ms->apic_id_limit > 255 && !xen_enabled() &&
-        (!kvm_irqchip_in_kernel() || !kvm_enable_x2apic())) {
+        kvm_enabled() && (!kvm_irqchip_in_kernel() || !kvm_enable_x2apic())) {
         error_report("current -smp configuration requires kernel "
                      "irqchip and X2APIC API support.");
         exit(EXIT_FAILURE);
