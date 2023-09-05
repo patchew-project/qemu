@@ -84,6 +84,57 @@
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT_PERIOD     1000    /* milliseconds */
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT            1       /* MB/s */
 
+const char *MigrationParameter_string[MIGRATION_PARAMETER__MAX] = {
+    [MIGRATION_PARAMETER_ANNOUNCE_INITIAL] = "announce-initial",
+    [MIGRATION_PARAMETER_ANNOUNCE_MAX] = "announce-max",
+    [MIGRATION_PARAMETER_ANNOUNCE_ROUNDS] = "announce-rounds",
+    [MIGRATION_PARAMETER_ANNOUNCE_STEP] = "announce-step",
+    [MIGRATION_PARAMETER_COMPRESS_LEVEL] = "compress-level",
+    [MIGRATION_PARAMETER_COMPRESS_THREADS] = "compress-threads",
+    [MIGRATION_PARAMETER_DECOMPRESS_THREADS] = "decompress-threads",
+    [MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD] = "compress-wait-thread",
+    [MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD] = "throttle-trigger-threshold",
+    [MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL] = "cpu-throttle-initial",
+    [MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT] = "cpu-throttle-increment",
+    [MIGRATION_PARAMETER_CPU_THROTTLE_TAILSLOW] = "cpu-throttle-tailslow",
+    [MIGRATION_PARAMETER_TLS_CREDS] = "tls-creds",
+    [MIGRATION_PARAMETER_TLS_HOSTNAME] = "tls-hostname",
+    [MIGRATION_PARAMETER_TLS_AUTHZ] = "tls-authz",
+    [MIGRATION_PARAMETER_MAX_BANDWIDTH] = "max-bandwidth",
+    [MIGRATION_PARAMETER_DOWNTIME_LIMIT] = "downtime-limit",
+    [MIGRATION_PARAMETER_X_CHECKPOINT_DELAY] = "x-checkpoint-delay",
+    [MIGRATION_PARAMETER_BLOCK_INCREMENTAL] = "block-incremental",
+    [MIGRATION_PARAMETER_MULTIFD_CHANNELS] = "multifd-channels",
+    [MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE] = "xbzrle-cache-size",
+    [MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH] = "max-postcopy-bandwidth",
+    [MIGRATION_PARAMETER_MAX_CPU_THROTTLE] = "max-cpu-throttle",
+    [MIGRATION_PARAMETER_MULTIFD_COMPRESSION] = "multifd-compression",
+    [MIGRATION_PARAMETER_MULTIFD_ZLIB_LEVEL] = "multifd-zlib-level",
+    [MIGRATION_PARAMETER_MULTIFD_ZSTD_LEVEL] = "multifd-zstd-level",
+    [MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING] = "block-bitmap-mapping",
+    [MIGRATION_PARAMETER_X_VCPU_DIRTY_LIMIT_PERIOD] = "x-vcpu-dirty-limit-period",
+    [MIGRATION_PARAMETER_VCPU_DIRTY_LIMIT] = "vcpu-dirty-limit",
+};
+
+int MigrationParameter_from_str(const char *param, Error **errp)
+{
+    int i;
+
+    if (!param) {
+        error_setg(errp, "Missing parameter value");
+        return -1;
+    }
+
+    for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
+        if (!strcmp(param, MigrationParameter_string[i])) {
+            return i;
+        }
+    }
+
+    error_setg(errp, "Invalid parameter value: %s", param);
+    return -1;
+}
+
 Property migration_properties[] = {
     DEFINE_PROP_BOOL("store-global-state", MigrationState,
                      store_global_state, true),

@@ -31,6 +31,7 @@
 #include "ui/qemu-spice.h"
 #include "sysemu/sysemu.h"
 #include "migration.h"
+#include "migration/options.h"
 
 static void migration_global_dump(Monitor *mon)
 {
@@ -505,7 +506,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
     int val, ret;
 
-    val = qapi_enum_parse(&MigrationParameter_lookup, param, -1, &err);
+    val = MigrationParameter_from_str(param, &err);
     if (val < 0) {
         goto cleanup;
     }
