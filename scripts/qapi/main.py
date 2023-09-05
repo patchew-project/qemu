@@ -13,6 +13,7 @@ from typing import Optional
 
 from .commands import gen_commands
 from .common import must_match
+from .dumpexamples import gen_examples
 from .error import QAPIError
 from .events import gen_events
 from .introspect import gen_introspect
@@ -54,6 +55,7 @@ def generate(schema_file: str,
     gen_events(schema, output_dir, prefix)
     gen_introspect(schema, output_dir, prefix, unmask)
 
+    gen_examples(schema, output_dir, prefix)
 
 def main() -> int:
     """
