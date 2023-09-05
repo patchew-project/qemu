@@ -1941,12 +1941,12 @@
 # 1. Measurement is in progress:
 #
 # <- {"status": "measuring", "sample-pages": 512,
-#     "mode": "page-sampling", "start-time": 3665220, "calc-time": 10}
+#     "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10}
 #
 # 2. Measurement has been completed:
 #
 # <- {"status": "measured", "sample-pages": 512, "dirty-rate": 108,
-#     "mode": "page-sampling", "start-time": 3665220, "calc-time": 10}
+#     "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10}
 ##
 { 'command': 'query-dirty-rate', 'returns': 'DirtyRateInfo' }
 
