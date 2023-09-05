@@ -2010,7 +2010,7 @@
 #
 # Example:
 #
-# -> {"execute": "cancel-vcpu-dirty-limit"},
+# -> {"execute": "cancel-vcpu-dirty-limit",
 #     "arguments": { "cpu-index": 1 } }
 # <- { "return": {} }
 ##
