@@ -16,3 +16,5 @@ system_ss.add(when: 'CONFIG_VHOST_USER_INPUT', if_true: files('vhost-user-input.
 system_ss.add(when: 'CONFIG_PXA2XX', if_true: files('pxa2xx_keypad.c'))
 system_ss.add(when: 'CONFIG_TSC210X', if_true: files('tsc210x.c'))
 system_ss.add(when: 'CONFIG_LASIPS2', if_true: files('lasips2.c'))
+
+system_ss.add(when: 'CONFIG_ALLWINNER_A10', if_true: files('allwinner-a10-ps2.c'))

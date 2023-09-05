@@ -17,6 +17,7 @@
 #include "hw/display/allwinner-a10-lcdc.h"
 #include "hw/display/allwinner-gpu.h"
 #include "hw/i2c/allwinner-i2c.h"
+#include "hw/input/allwinner-a10-ps2.h"
 #include "hw/watchdog/allwinner-wdt.h"
 #include "sysemu/block-backend.h"
 
@@ -51,6 +52,8 @@ struct AwA10State {
     AwGpuState gpu;
     AwA10HdmiState hdmi;
     AwA10LcdcState lcd0;
+    AwA10PS2KbdState kbd;
+    AwA10PS2MouseState mouse;
     MemoryRegion sram_a;
     EHCISysBusState ehci[AW_A10_NUM_USB];
     OHCISysBusState ohci[AW_A10_NUM_USB];
