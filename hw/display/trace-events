@@ -186,6 +186,11 @@ allwinner_a10_debe_write(uint64_t offset, uint64_t data) "Write: offset 0x%" PRI
 allwinner_a10_hdmi_read(uint64_t offset, uint64_t data) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64
 allwinner_a10_hdmi_write(uint64_t offset, uint64_t data) "Write: offset 0x%" PRIx64 " data 0x%" PRIx64
 
+# allwinner-a10-lcdc.c
+allwinner_a10_lcdc_read(uint64_t offset, uint64_t data) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64
+allwinner_a10_lcdc_write(uint64_t offset, uint64_t data) "Write: offset 0x%" PRIx64 " data 0x%" PRIx64
+allwinner_a10_draw(uint32_t first, uint32_t last, uint32_t invalidate) "Draw: 0x%x, 0x%x, 0x%x"
+
 # allwinner-gpu.c
 allwinner_gpu_read(uint64_t offset, uint64_t data) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64
 allwinner_gpu_write(uint64_t offset, uint64_t data) "Write: offset 0x%" PRIx64 " data 0x%" PRIx64

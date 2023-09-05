@@ -14,6 +14,7 @@
 #include "hw/misc/allwinner-a10-dramc.h"
 #include "hw/display/allwinner-a10-debe.h"
 #include "hw/display/allwinner-a10-hdmi.h"
+#include "hw/display/allwinner-a10-lcdc.h"
 #include "hw/display/allwinner-gpu.h"
 #include "hw/i2c/allwinner-i2c.h"
 #include "hw/watchdog/allwinner-wdt.h"
@@ -49,6 +50,7 @@ struct AwA10State {
     AwA10DEBEState de_be0;
     AwGpuState gpu;
     AwA10HdmiState hdmi;
+    AwA10LcdcState lcd0;
     MemoryRegion sram_a;
     EHCISysBusState ehci[AW_A10_NUM_USB];
     OHCISysBusState ohci[AW_A10_NUM_USB];
