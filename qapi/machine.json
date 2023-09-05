@@ -1684,7 +1684,7 @@
 #
 # Example:
 #
-# -> { "execute": "dumpdtb" }
+# -> { "execute": "dumpdtb",
 #      "arguments": { "filename": "fdt.dtb" } }
 # <- { "return": {} }
 ##
