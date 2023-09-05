@@ -146,7 +146,6 @@ struct audio_driver {
     void (*set_dbus_server) (AudioState *s, GDBusObjectManagerServer *manager, bool p2p);
 #endif
     struct audio_pcm_ops *pcm_ops;
-    int can_be_default;
     int max_voices_out;
     int max_voices_in;
     size_t voice_size_out;
@@ -297,7 +296,6 @@ typedef struct AudiodevListEntry {
 } AudiodevListEntry;
 
 typedef QSIMPLEQ_HEAD(, AudiodevListEntry) AudiodevListHead;
-AudiodevListHead audio_handle_legacy_opts(void);
 
 void audio_free_audiodev_list(AudiodevListHead *head);
 

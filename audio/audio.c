@@ -111,8 +111,6 @@ const struct mixeng_volume nominal_volume = {
 #endif
 };
 
-static bool legacy_config = true;
-
 int audio_bug (const char *funcname, int cond)
 {
     if (cond) {
@@ -1712,46 +1710,14 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
     /* silence gcc warning about uninitialized variable */
     AudiodevListHead head = QSIMPLEQ_HEAD_INITIALIZER(head);
 
-    if (using_spice) {
-        /*
-         * When using spice allow the spice audio driver being picked
-         * as default.
-         *
-         * Temporary hack.  Using audio devices without explicit
-         * audiodev= property is already deprecated.  Same goes for
-         * the -soundhw switch.  Once this support gets finally
-         * removed we can also drop the concept of a default audio
-         * backend and this can go away.
-         */
-        driver = audio_driver_lookup("spice");
-        if (driver) {
-            driver->can_be_default = 1;
-        }
-    }
-
     if (dev) {
         /* -audiodev option */
-        legacy_config = false;
         drvname = AudiodevDriver_str(dev->driver);
     } else if (!QTAILQ_EMPTY(&audio_states)) {
-        if (!legacy_config) {
-            dolog("Device %s: audiodev default parameter is deprecated, please "
-                  "specify audiodev=%s\n", name,
-                  QTAILQ_FIRST(&audio_states)->dev->id);
-        }
+        dolog("Device %s: audiodev default parameter is deprecated, please "
+              "specify audiodev=%s\n", name,
+              QTAILQ_FIRST(&audio_states)->dev->id);
         return QTAILQ_FIRST(&audio_states);
-    } else {
-        /* legacy implicit initialization */
-        head = audio_handle_legacy_opts();
-        /*
-         * In case of legacy initialization, all Audiodevs in the list will have
-         * the same configuration (except the driver), so it doesn't matter which
-         * one we chose.  We need an Audiodev to set up AudioState before we can
-         * init a driver.  Also note that dev at this point is still in the
-         * list.
-         */
-        dev = QSIMPLEQ_FIRST(&head)->dev;
-        audio_validate_opts(dev, &error_abort);
     }
 
     s = g_new0(AudioState, 1);
@@ -1876,9 +1842,7 @@ CaptureVoiceOut *AUD_add_capture(
     struct capture_callback *cb;
 
     if (!s) {
-        if (!legacy_config) {
-            dolog("Capturing without setting an audiodev is deprecated\n");
-        }
+        dolog("Capturing without setting an audiodev is deprecated\n");
         s = audio_init(NULL, NULL);
     }
 
