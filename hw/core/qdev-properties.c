@@ -2,6 +2,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qapi/qapi-types-misc.h"
+#include "qapi/qapi-visit-misc.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ctype.h"
 #include "qemu/error-report.h"
@@ -488,6 +489,45 @@ const PropertyInfo qdev_prop_string = {
     .release = release_string,
     .get   = get_string,
     .set   = set_string,
+};
+
+/* --- StrOrNull --- */
+
+static void release_str_or_null(Object *obj, const char *name, void *opaque)
+{
+    Property *prop = opaque;
+
+    qapi_free_StrOrNull(*(StrOrNull **)object_field_prop_ptr(obj, prop));
+}
+
+static void get_str_or_null(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    StrOrNull **ptr = object_field_prop_ptr(obj, prop);
+
+    visit_type_StrOrNull(v, name, ptr, errp);
+}
+
+static void set_str_or_null(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    StrOrNull **ptr = object_field_prop_ptr(obj, prop);
+    StrOrNull *son;
+
+    if (!visit_type_StrOrNull(v, name, &son, errp)) {
+        return;
+    }
+    qapi_free_StrOrNull(*ptr);
+    *ptr = son;
+}
+
+const PropertyInfo qdev_prop_str_or_null = {
+    .name  = "StrOrNull",
+    .release = release_str_or_null,
+    .get   = get_str_or_null,
+    .set   = set_str_or_null,
 };
 
 /* --- on/off/auto --- */

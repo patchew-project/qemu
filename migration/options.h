@@ -56,6 +56,7 @@ bool migrate_zero_copy_send(void);
 
 bool migrate_multifd_flush_after_each_section(void);
 bool migrate_postcopy(void);
+/* Check whether TLS is enabled for migration */
 bool migrate_tls(void);
 
 /* capabilities helpers */
@@ -90,6 +91,8 @@ const char *migrate_tls_authz(void);
 const char *migrate_tls_creds(void);
 const char *migrate_tls_hostname(void);
 uint64_t migrate_xbzrle_cache_size(void);
+StrOrNull *StrOrNull_from_str(const char *str);
+const char *str_from_StrOrNull(StrOrNull *obj);
 
 /* parameters setters */
 
