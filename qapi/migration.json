@@ -1986,7 +1986,7 @@
 #
 # Example:
 #
-# -> {"execute": "set-vcpu-dirty-limit"}
+# -> {"execute": "set-vcpu-dirty-limit",
 #     "arguments": { "dirty-rate": 200,
 #                    "cpu-index": 1 } }
 # <- { "return": {} }
