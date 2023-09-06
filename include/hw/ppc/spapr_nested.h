@@ -189,6 +189,11 @@
 /* End of list of Guest State Buffer Element IDs */
 #define GSB_LAST                GSB_VCPU_SPR_ASDR
 
+/* Bit masks to be used in nested PAPR API */
+#define H_GUEST_CAPABILITIES_COPY_MEM 0x8000000000000000
+#define H_GUEST_CAPABILITIES_P9_MODE  0x4000000000000000
+#define H_GUEST_CAPABILITIES_P10_MODE 0x2000000000000000
+
 typedef struct SpaprMachineStateNestedGuest {
     unsigned long vcpus;
     struct SpaprMachineStateNestedGuestVcpu *vcpu;
@@ -331,6 +336,7 @@ struct nested_ppc_state {
 };
 
 void spapr_register_nested(void);
+void spapr_register_nested_phyp(void);
 void spapr_exit_nested(PowerPCCPU *cpu, int excp);
 
 #endif /* HW_SPAPR_NESTED_H */
