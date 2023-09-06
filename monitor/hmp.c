@@ -1111,15 +1111,17 @@ typedef struct HandleHmpCommandCo {
     Monitor *mon;
     const HMPCommand *cmd;
     QDict *qdict;
-    bool done;
 } HandleHmpCommandCo;
 
-static void handle_hmp_command_co(void *opaque)
+static void coroutine_fn handle_hmp_command_co(void *opaque)
 {
     HandleHmpCommandCo *data = opaque;
+
     handle_hmp_command_exec(data->mon, data->cmd, data->qdict);
     monitor_set_cur(qemu_coroutine_self(), NULL);
-    data->done = true;
+    qobject_unref(data->qdict);
+    monitor_resume(data->mon);
+    g_free(data);
 }
 
 void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
@@ -1157,20 +1159,20 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
         Monitor *old_mon = monitor_set_cur(qemu_coroutine_self(), &mon->common);
         handle_hmp_command_exec(&mon->common, cmd, qdict);
         monitor_set_cur(qemu_coroutine_self(), old_mon);
+        qobject_unref(qdict);
     } else {
-        HandleHmpCommandCo data = {
-            .mon = &mon->common,
-            .cmd = cmd,
-            .qdict = qdict,
-            .done = false,
-        };
-        Coroutine *co = qemu_coroutine_create(handle_hmp_command_co, &data);
+        HandleHmpCommandCo *data; /* freed by handle_hmp_command_co() */
+
+        data = g_new(HandleHmpCommandCo, 1);
+        data->mon = &mon->common;
+        data->cmd = cmd;
+        data->qdict = qdict; /* freed by handle_hmp_command_co() */
+
+        Coroutine *co = qemu_coroutine_create(handle_hmp_command_co, data);
+        monitor_suspend(&mon->common); /* resumed by handle_hmp_command_co() */
         monitor_set_cur(co, &mon->common);
         aio_co_enter(qemu_get_aio_context(), co);
-        AIO_WAIT_WHILE_UNLOCKED(NULL, !data.done);
     }
-
-    qobject_unref(qdict);
 }
 
 static void cmd_completion(MonitorHMP *mon, const char *name, const char *list)
