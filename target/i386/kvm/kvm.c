@@ -590,16 +590,21 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
-                      MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S;
+                      MCI_STATUS_MISCV | MCI_STATUS_ADDRV;
     uint64_t mcg_status = MCG_STATUS_MCIP;
     int flags = 0;
 
-    if (code == BUS_MCEERR_AR) {
-        status |= MCI_STATUS_AR | 0x134;
-        mcg_status |= MCG_STATUS_RIPV | MCG_STATUS_EIPV;
+    if (!IS_AMD_CPU(env)) {
+        status |= MCI_STATUS_S;
+        if (code == BUS_MCEERR_AR) {
+            status |= MCI_STATUS_AR | 0x134;
+            mcg_status |= MCG_STATUS_RIPV | MCG_STATUS_EIPV;
+        } else {
+            status |= 0xc0;
+            mcg_status |= MCG_STATUS_RIPV;
+        }
     } else {
-        status |= 0xc0;
-        mcg_status |= MCG_STATUS_RIPV;
+        mcg_status |= MCG_STATUS_EIPV | MCG_STATUS_RIPV;
     }
 
     flags = cpu_x86_support_mca_broadcast(env) ? MCE_INJECT_BROADCAST : 0;
