@@ -1145,7 +1145,8 @@ static int save_zero_page_to_file(PageSearchStatus *pss, QEMUFile *file,
     uint8_t *p = block->host + offset;
     int len = 0;
 
-    if (buffer_is_zero(p, TARGET_PAGE_SIZE)) {
+    if ((kvm_enabled() && kvm_hwpoisoned_page(block, (void *)offset)) ||
+        buffer_is_zero(p, TARGET_PAGE_SIZE)) {
         len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
         qemu_put_byte(file, 0);
         len += 1;
