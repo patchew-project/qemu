@@ -130,6 +130,27 @@ The core RCU API is small:
 
             g_free_rcu(&foo, rcu);
 
+     void coroutine_fn drain_call_rcu_co(void);
+
+        drain_call_rcu_co() yields until the reclamation phase is finished.
+        Reclaimer functions previously submitted with call_rcu1() in this
+        thread will have finished by the time drain_call_rcu_co() returns.
+
+     void drain_call_rcu(void);
+
+        drain_call_rcu() releases the Big QEMU Lock (BQL), if held, waits until
+        the reclamation phase is finished, and then re-acquires the BQL, if
+        previously held.  Reclaimer functions previously submitted with
+        call_rcu1() in this thread will have finished by the time
+        drain_call_rcu() returns.
+
+        drain_call_rcu() has the following limitations:
+        1. It deadlocks when called within an RCU read-side critical section.
+        2. All functions on the call stack must be designed to handle dropping
+           the BQL.
+
+        Prefer drain_call_rcu_co() over drain_call_rcu().
+
      typeof(*p) qatomic_rcu_read(p);
 
         qatomic_rcu_read() is similar to qatomic_load_acquire(), but it makes

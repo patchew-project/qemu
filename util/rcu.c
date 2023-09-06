@@ -32,6 +32,7 @@
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
 #include "qemu/lockable.h"
+#include "rcu-internal.h"
 #if defined(CONFIG_MALLOC_TRIM)
 #include <malloc.h>
 #endif
@@ -46,7 +47,7 @@
 unsigned long rcu_gp_ctr = RCU_GP_LOCKED;
 
 QemuEvent rcu_gp_event;
-static int in_drain_call_rcu;
+int in_drain_call_rcu;
 static QemuMutex rcu_registry_lock;
 static QemuMutex rcu_sync_lock;
 

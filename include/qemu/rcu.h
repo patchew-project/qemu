@@ -141,6 +141,7 @@ struct rcu_head {
 };
 
 void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
+void coroutine_fn drain_call_rcu_co(void);
 void drain_call_rcu(void);
 
 /* The operands of the minus operator must have the same type,

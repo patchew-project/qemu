@@ -2908,6 +2908,8 @@ F: include/qemu/rcu*.h
 F: tests/unit/rcutorture.c
 F: tests/unit/test-rcu-*.c
 F: util/rcu.c
+F: util/rcu-co.c
+F: util/rcu-internal.h
 
 Human Monitor (HMP)
 M: Dr. David Alan Gilbert <dave@treblig.org>

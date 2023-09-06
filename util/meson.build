@@ -43,7 +43,7 @@ util_ss.add(files('keyval.c'))
 util_ss.add(files('crc32c.c'))
 util_ss.add(files('uuid.c'))
 util_ss.add(files('getauxval.c'))
-util_ss.add(files('rcu.c'))
+util_ss.add(files('rcu.c', 'rcu-co.c'))
 if have_membarrier
   util_ss.add(files('sys_membarrier.c'))
 endif
