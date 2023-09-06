@@ -604,6 +604,10 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
             mcg_status |= MCG_STATUS_RIPV;
         }
     } else {
+        if (code == BUS_MCEERR_AO) {
+            /* XXX we don't support BUS_MCEERR_AO injection on AMD yet */
+            return;
+        }
         mcg_status |= MCG_STATUS_EIPV | MCG_STATUS_RIPV;
     }
 
@@ -655,7 +659,9 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
         if (ram_addr != RAM_ADDR_INVALID &&
             kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
             kvm_hwpoison_page_add(ram_addr);
-            kvm_mce_inject(cpu, paddr, code);
+            if (!IS_AMD_CPU(env) || code != BUS_MCEERR_AO) {
+                kvm_mce_inject(cpu, paddr, code);
+            }
 
             /*
              * Use different logging severity based on error type.
@@ -668,8 +674,9 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
                     addr, paddr, "BUS_MCEERR_AR");
             } else {
                  warn_report("Guest MCE Memory Error at QEMU addr %p and "
-                     "GUEST addr 0x%" HWADDR_PRIx " of type %s injected",
-                     addr, paddr, "BUS_MCEERR_AO");
+                     "GUEST addr 0x%" HWADDR_PRIx " of type %s %s",
+                     addr, paddr, "BUS_MCEERR_AO",
+                     IS_AMD_CPU(env) ? "ignored on AMD guest" : "injected");
             }
 
             return;
