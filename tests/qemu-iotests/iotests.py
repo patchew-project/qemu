@@ -1353,6 +1353,17 @@ def notrun(reason):
     logger.warning("%s not run: %s", seq, reason)
     sys.exit(0)
 
+def skip(reason):
+    '''Skip this test suite for a purpose'''
+    # Each test in qemu-iotests has a number ("seq")
+    seq = os.path.basename(sys.argv[0])
+
+    with open('%s/%s.skip' % (test_dir, seq), 'w', encoding='utf-8') \
+            as outfile:
+        outfile.write(reason + '\n')
+    logger.warning("%s not run: %s", seq, reason)
+    sys.exit(0)
+
 def case_notrun(reason):
     '''Mark this test case as not having been run (without actually
     skipping it, that is left to the caller).  See
@@ -1377,7 +1388,7 @@ def _verify_image_format(supported_fmts: Sequence[str] = (),
 
     not_sup = supported_fmts and (imgfmt not in supported_fmts)
     if not_sup or (imgfmt in unsupported_fmts):
-        notrun('not suitable for this image format: %s' % imgfmt)
+        skip('not suitable for this image format: %s' % imgfmt)
 
     if imgfmt == 'luks':
         verify_working_luks()
@@ -1391,7 +1402,7 @@ def _verify_protocol(supported: Sequence[str] = (),
 
     not_sup = supported and (imgproto not in supported)
     if not_sup or (imgproto in unsupported):
-        notrun('not suitable for this protocol: %s' % imgproto)
+        skip('not suitable for this protocol: %s' % imgproto)
 
 def _verify_platform(supported: Sequence[str] = (),
                      unsupported: Sequence[str] = ()) -> None:
@@ -1404,11 +1415,11 @@ def _verify_platform(supported: Sequence[str] = (),
 
 def _verify_cache_mode(supported_cache_modes: Sequence[str] = ()) -> None:
     if supported_cache_modes and (cachemode not in supported_cache_modes):
-        notrun('not suitable for this cache mode: %s' % cachemode)
+        skip('not suitable for this cache mode: %s' % cachemode)
 
 def _verify_aio_mode(supported_aio_modes: Sequence[str] = ()) -> None:
     if supported_aio_modes and (aiomode not in supported_aio_modes):
-        notrun('not suitable for this aio mode: %s' % aiomode)
+        skip('not suitable for this aio mode: %s' % aiomode)
 
 def _verify_formats(required_formats: Sequence[str] = ()) -> None:
     usf_list = list(set(required_formats) - set(supported_formats()))

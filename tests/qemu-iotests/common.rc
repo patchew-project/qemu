@@ -37,6 +37,15 @@ _notrun()
     exit
 }
 
+# bail out, setting up .skip file
+_skip()
+{
+    echo "$*" >"$TEST_DIR/$seq.skip"
+    echo "$seq skipped: $*"
+    status=0
+    exit
+}
+
 if ! command -v gsed >/dev/null 2>&1; then
     if sed --version 2>&1 | grep -v 'not GNU sed' | grep 'GNU sed' > /dev/null;
     then
@@ -782,7 +791,7 @@ _supported_fmt()
         fi
     done
 
-    _notrun "not suitable for this image format: $IMGFMT"
+    _skip "not suitable for this image format: $IMGFMT"
 }
 
 # tests whether $IMGFMT is one of the unsupported image format for a test
@@ -791,7 +800,7 @@ _unsupported_fmt()
 {
     for f; do
         if [ "$f" = "$IMGFMT" ]; then
-            _notrun "not suitable for this image format: $IMGFMT"
+            _skip "not suitable for this image format: $IMGFMT"
         fi
     done
 }
@@ -806,7 +815,7 @@ _supported_proto()
         fi
     done
 
-    _notrun "not suitable for this image protocol: $IMGPROTO"
+    _skip "not suitable for this image protocol: $IMGPROTO"
 }
 
 # tests whether $IMGPROTO is specified as an unsupported image protocol for a test
@@ -815,7 +824,7 @@ _unsupported_proto()
 {
     for f; do
         if [ "$f" = "$IMGPROTO" ]; then
-            _notrun "not suitable for this image protocol: $IMGPROTO"
+            _skip "not suitable for this image protocol: $IMGPROTO"
             return
         fi
     done
@@ -843,7 +852,7 @@ _supported_cache_modes()
             return
         fi
     done
-    _notrun "not suitable for cache mode: $CACHEMODE"
+    _skip "not suitable for cache mode: $CACHEMODE"
 }
 
 # Check whether the filesystem supports O_DIRECT
@@ -895,7 +904,7 @@ _supported_aio_modes()
             return
         fi
     done
-    _notrun "not suitable for aio mode: $AIOMODE"
+    _skip "not suitable for aio mode: $AIOMODE"
 }
 _default_aio_mode()
 {
@@ -911,7 +920,7 @@ _unsupported_imgopts()
         # end of an option (\b or \> are not portable)
         if echo "$IMGOPTS " | grep -q 2>/dev/null "$bad_opt"
         then
-            _notrun "not suitable for image option: $bad_opt"
+            _skip "not suitable for image option: $bad_opt"
         fi
     done
 }

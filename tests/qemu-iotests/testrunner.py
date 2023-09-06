@@ -200,6 +200,8 @@ class TestRunner(ContextManager['TestRunner']):
                 col = '\033[1m\033[31m'
             elif status == 'not run':
                 col = '\033[33m'
+            elif status == 'skipped':
+                col = '\033[34m'
             else:
                 col = ''
 
@@ -268,8 +270,9 @@ class TestRunner(ContextManager['TestRunner']):
         f_bad = Path(test_dir, f_test.name + '.out.bad')
         f_notrun = Path(test_dir, f_test.name + '.notrun')
         f_casenotrun = Path(test_dir, f_test.name + '.casenotrun')
+        f_skipped = Path(test_dir, f_test.name + '.skip')
 
-        for p in (f_notrun, f_casenotrun):
+        for p in (f_notrun, f_casenotrun, f_skipped):
             silent_unlink(p)
 
         t0 = time.time()
@@ -298,6 +301,10 @@ class TestRunner(ContextManager['TestRunner']):
             return TestResult(
                 status='not run',
                 description=f_notrun.read_text(encoding='utf-8').strip())
+        if f_skipped.exists():
+            return TestResult(
+                status='skipped',
+                description=f_skipped.read_text(encoding='utf-8').strip())
 
         casenotrun = ''
         if f_casenotrun.exists():
@@ -370,6 +377,7 @@ class TestRunner(ContextManager['TestRunner']):
         n_run = 0
         failed = []
         notrun = []
+        skipped = []
         casenotrun = []
 
         if self.tap:
@@ -392,7 +400,7 @@ class TestRunner(ContextManager['TestRunner']):
             else:
                 res = self.run_test(t, test_field_width)
 
-            assert res.status in ('pass', 'fail', 'not run')
+            assert res.status in ('pass', 'fail', 'not run', 'skipped')
 
             if res.casenotrun:
                 casenotrun.append(t)
@@ -409,6 +417,8 @@ class TestRunner(ContextManager['TestRunner']):
                         print('\n'.join(res.diff))
             elif res.status == 'not run':
                 notrun.append(name)
+            elif res.status == 'skipped':
+                skipped.append(name)
             elif res.status == 'pass':
                 assert res.elapsed is not None
                 self.last_elapsed.update(t, res.elapsed)
@@ -418,6 +428,9 @@ class TestRunner(ContextManager['TestRunner']):
                 break
 
         if not self.tap:
+            if skipped:
+                print('Skipped:', ' '.join(skipped))
+
             if notrun:
                 print('Not run:', ' '.join(notrun))
 
