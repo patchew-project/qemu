@@ -839,8 +839,28 @@ void hmp_info_qdm(Monitor *mon, const QDict *qdict)
     qdev_print_devinfos(true);
 }
 
-void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
+typedef struct {
+    Coroutine *co;
+    QemuOpts *opts;
+    Error **errp;
+    DeviceState *dev;
+} QmpDeviceAdd;
+
+static void qmp_device_add_bh(void *opaque)
 {
+    QmpDeviceAdd *data = opaque;
+
+    data->dev = qdev_device_add(data->opts, data->errp);
+    aio_co_wake(data->co);
+}
+
+void coroutine_fn
+qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
+{
+    QmpDeviceAdd data = {
+        .co = qemu_coroutine_self(),
+        .errp = errp,
+    };
     QemuOpts *opts;
     DeviceState *dev;
 
@@ -852,7 +872,13 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
         qemu_opts_del(opts);
         return;
     }
-    dev = qdev_device_add(opts, errp);
+
+    /* Perform qdev_device_add() call outside coroutine context */
+    data.opts = opts;
+    aio_bh_schedule_oneshot(qemu_coroutine_get_aio_context(data.co),
+                            qmp_device_add_bh, &data);
+    qemu_coroutine_yield();
+    dev = data.dev;
 
     /*
      * Drain all pending RCU callbacks. This is done because
@@ -863,7 +889,7 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
      * will finish its job completely once qmp command returns result
      * to the user
      */
-    drain_call_rcu();
+    drain_call_rcu_co();
 
     if (!dev) {
         qemu_opts_del(opts);
@@ -956,7 +982,7 @@ void qmp_device_del(const char *id, Error **errp)
     }
 }
 
-void hmp_device_add(Monitor *mon, const QDict *qdict)
+void coroutine_fn hmp_device_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 

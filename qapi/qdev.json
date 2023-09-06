@@ -79,6 +79,7 @@
 ##
 { 'command': 'device_add',
   'data': {'driver': 'str', '*bus': 'str', '*id': 'str'},
+  'coroutine': true,
   'gen': false, # so we can get the additional arguments
   'features': ['json-cli', 'json-cli-hotplug'] }
 

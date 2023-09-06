@@ -695,6 +695,7 @@ ERST
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
         .cmd        = hmp_device_add,
+        .coroutine  = true,
         .command_completion = device_add_completion,
     },
 
