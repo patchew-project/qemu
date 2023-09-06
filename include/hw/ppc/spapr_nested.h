@@ -197,6 +197,9 @@
 #define H_GUEST_CAP_P9_MODE_BMAP    1
 #define H_GUEST_CAP_P10_MODE_BMAP   2
 
+/* Nested PAPR API macros */
+#define NESTED_GUEST_MAX 4096
+
 typedef struct SpaprMachineStateNestedGuest {
     unsigned long vcpus;
     struct SpaprMachineStateNestedGuestVcpu *vcpu;
