@@ -371,6 +371,7 @@ struct SpaprMachineState {
 #define H_UNSUPPORTED     -67
 #define H_OVERLAP         -68
 #define H_STATE           -75
+#define H_IN_USE          -77
 #define H_INVALID_ELEMENT_ID               -79
 #define H_INVALID_ELEMENT_SIZE             -80
 #define H_INVALID_ELEMENT_VALUE            -81
