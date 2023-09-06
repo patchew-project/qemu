@@ -560,6 +560,9 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
                          VIRT_RTC_IRQ - VIRT_GSI_BASE));
     fdt_add_rtc_node(lams);
 
+    /* virtio-mmio device */
+    sysbus_create_simple("virtio-mmio", 0x1e200000, qdev_get_gpio_in(pch_pic, 7));
+
     pm_mem = g_new(MemoryRegion, 1);
     memory_region_init_io(pm_mem, NULL, &loongarch_virt_pm_ops,
                           NULL, "loongarch_virt_pm", PM_SIZE);
