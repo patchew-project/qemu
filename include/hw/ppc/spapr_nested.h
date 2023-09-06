@@ -189,6 +189,39 @@
 /* End of list of Guest State Buffer Element IDs */
 #define GSB_LAST                GSB_VCPU_SPR_ASDR
 
+typedef struct SpaprMachineStateNestedGuest {
+    unsigned long vcpus;
+    struct SpaprMachineStateNestedGuestVcpu *vcpu;
+    uint64_t parttbl[2];
+    uint32_t pvr_logical;
+    uint64_t tb_offset;
+} SpaprMachineStateNestedGuest;
+
+struct SpaprMachineStateNested {
+
+    uint8_t api;
+#define NESTED_API_KVM_HV  1
+#define NESTED_API_PAPR    2
+    uint64_t ptcr;
+    uint32_t lpid_max;
+    uint32_t pvr_base;
+    bool capabilities_set;
+    GHashTable *guests;
+};
+
+struct SpaprMachineStateNestedGuestVcpuRunBuf {
+    uint64_t addr;
+    uint64_t size;
+};
+
+typedef struct SpaprMachineStateNestedGuestVcpu {
+    bool enabled;
+    struct SpaprMachineStateNestedGuestVcpuRunBuf runbufin;
+    struct SpaprMachineStateNestedGuestVcpuRunBuf runbufout;
+    CPUPPCState env;
+    int64_t tb_offset;
+    int64_t dec_expiry_tb;
+} SpaprMachineStateNestedGuestVcpu;
 
 /*
  * Register state for entering a nested guest with H_ENTER_NESTED.
@@ -228,6 +261,21 @@ struct kvmppc_hv_guest_state {
     uint64_t dawr1;
     uint64_t dawrx1;
     /* Version 2 ends here */
+    uint64_t dec;
+    uint64_t fscr;
+    uint64_t fpscr;
+    uint64_t bescr;
+    uint64_t ebbhr;
+    uint64_t ebbrr;
+    uint64_t tar;
+    uint64_t dexcr;
+    uint64_t hdexcr;
+    uint64_t hashkeyr;
+    uint64_t hashpkeyr;
+    uint64_t ctrl;
+    uint64_t vscr;
+    uint64_t vrsave;
+    ppc_vsr_t vsr[64];
 };
 
 /* Latest version of hv_guest_state structure */
