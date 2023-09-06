@@ -3443,6 +3443,7 @@ static void spapr_instance_init(Object *obj)
         "Host serial number to advertise in guest device tree");
     /* Nested */
     spapr->nested.api = 0;
+    spapr->nested.capabilities_set = false;
 }
 
 static void spapr_machine_finalizefn(Object *obj)
