@@ -33,6 +33,8 @@ struct ppc_tb_t {
     QEMUTimer *decr_timer;
     /* Hypervisor decrementer management */
     uint64_t hdecr_next;    /* Tick for next hdecr interrupt  */
+    /* TB that HDEC should fire and return ctrl back to the Host partition */
+    uint64_t hdecr_expiry_tb;
     QEMUTimer *hdecr_timer;
     int64_t purr_offset;
     void *opaque;

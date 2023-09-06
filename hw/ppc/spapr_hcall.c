@@ -1580,6 +1580,7 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_UPDATE_DT, h_update_dt);
 
     spapr_register_nested();
+    init_nested();
 }
 
 type_init(hypercall_register_types)

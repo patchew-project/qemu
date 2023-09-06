@@ -200,6 +200,95 @@
 /* Nested PAPR API macros */
 #define NESTED_GUEST_MAX 4096
 #define NESTED_GUEST_VCPU_MAX 2048
+#define VCPU_OUT_BUF_MIN_SZ   0x80ULL
+#define HVMASK_DEFAULT        0xffffffffffffffff
+#define HVMASK_LPCR           0x0070000003820800 /* BE format */
+#define HVMASK_MSR            0xEBFFFFFFFFBFEFFF
+#define HVMASK_HDEXCR         0x00000000FFFFFFFF
+#define HVMASK_TB_OFFSET      0x000000FFFFFFFFFF
+
+#define GUEST_STATE_ELEMENT(i, sz, s, f, ptr, c) { \
+    .id = (i),                                     \
+    .size = (sz),                                  \
+    .location = ptr,                               \
+    .offset = offsetof(struct s, f),               \
+    .copy = (c)                                    \
+}
+
+#define GSBE_NESTED(i, sz, f, c) {                             \
+    .id = (i),                                                 \
+    .size = (sz),                                              \
+    .location = get_guest_ptr,                                 \
+    .offset = offsetof(struct SpaprMachineStateNestedGuest, f),\
+    .copy = (c),                                               \
+    .mask = HVMASK_DEFAULT                                     \
+}
+
+#define GSBE_NESTED_MSK(i, sz, f, c, m) {                      \
+    .id = (i),                                                 \
+    .size = (sz),                                              \
+    .location = get_guest_ptr,                                 \
+    .offset = offsetof(struct SpaprMachineStateNestedGuest, f),\
+    .copy = (c),                                               \
+    .mask = (m)                                                \
+}
+
+#define GSBE_NESTED_VCPU(i, sz, f, c) {                            \
+    .id = (i),                                                     \
+    .size = (sz),                                                  \
+    .location = get_vcpu_ptr,                                      \
+    .offset = offsetof(struct SpaprMachineStateNestedGuestVcpu, f),\
+    .copy = (c),                                                   \
+    .mask = HVMASK_DEFAULT                                         \
+}
+
+#define GUEST_STATE_ELEMENT_NOP(i, sz) { \
+    .id = (i),                             \
+    .size = (sz),                          \
+    .location = NULL,                      \
+    .offset = 0,                           \
+    .copy = NULL,                          \
+    .mask = HVMASK_DEFAULT                 \
+}
+
+#define GUEST_STATE_ELEMENT_NOP_DW(i)   \
+        GUEST_STATE_ELEMENT_NOP(i, 8)
+#define GUEST_STATE_ELEMENT_NOP_W(i) \
+        GUEST_STATE_ELEMENT_NOP(i, 4)
+
+#define GUEST_STATE_ELEMENT_ENV_BASE(i, s, c) {  \
+            .id = (i),                           \
+            .size = (s),                         \
+            .location = get_vcpu_env_ptr,        \
+            .offset = 0,                         \
+            .copy = (c),                         \
+            .mask = HVMASK_DEFAULT               \
+    }
+
+#define GUEST_STATE_ELEMENT_ENV(i, s, f, c) {    \
+            .id = (i),                           \
+            .size = (s),                         \
+            .location = get_vcpu_env_ptr,        \
+            .offset = offsetof(CPUPPCState, f),  \
+            .copy = (c),                         \
+            .mask = HVMASK_DEFAULT               \
+    }
+
+#define GUEST_STATE_ELEMENT_MSK(i, s, f, c, m) { \
+            .id = (i),                           \
+            .size = (s),                         \
+            .location = get_vcpu_env_ptr,        \
+            .offset = offsetof(CPUPPCState, f),  \
+            .copy = (c),                         \
+            .mask = (m)                          \
+    }
+
+#define GUEST_STATE_ELEMENT_ENV_DW(i, f) \
+    GUEST_STATE_ELEMENT_ENV(i, 8, f, copy_state_8to8)
+#define GUEST_STATE_ELEMENT_ENV_W(i, f) \
+    GUEST_STATE_ELEMENT_ENV(i, 4, f, copy_state_4to8)
+#define GSE_ENV_DWM(i, f, m) \
+    GUEST_STATE_ELEMENT_MSK(i, 8, f, copy_state_8to8, m)
 
 typedef struct SpaprMachineStateNestedGuest {
     unsigned long vcpus;
@@ -234,6 +323,18 @@ typedef struct SpaprMachineStateNestedGuestVcpu {
     int64_t tb_offset;
     int64_t dec_expiry_tb;
 } SpaprMachineStateNestedGuestVcpu;
+
+struct guest_state_element_type {
+    uint16_t id;
+    int size;
+#define GUEST_STATE_ELEMENT_TYPE_FLAG_GUEST_WIDE 0x1
+#define GUEST_STATE_ELEMENT_TYPE_FLAG_READ_ONLY  0x2
+   uint16_t flags;
+    void *(*location)(SpaprMachineStateNestedGuest *, target_ulong);
+    size_t offset;
+    void (*copy)(void *, void *, bool);
+    uint64_t mask;
+};
 
 /*
  * Register state for entering a nested guest with H_ENTER_NESTED.
@@ -345,5 +446,6 @@ struct nested_ppc_state {
 void spapr_register_nested(void);
 void spapr_register_nested_phyp(void);
 void spapr_exit_nested(PowerPCCPU *cpu, int excp);
+void init_nested(void);
 
 #endif /* HW_SPAPR_NESTED_H */
