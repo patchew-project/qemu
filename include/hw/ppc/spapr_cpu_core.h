@@ -53,7 +53,12 @@ typedef struct SpaprCpuState {
 
     /* Fields for nested-HV support */
     bool in_nested; /* true while the L2 is executing */
-    struct nested_ppc_state *nested_host_state; /* holds the L1 state while L2 executes */
+    union {
+        /* nested-hv needs minimal set of regs as L1 stores L2 state */
+        struct nested_ppc_state *nested_hv_host;
+        /* In nested-papr, L0 retains entire L2 state, so keep it all safe. */
+        CPUPPCState *nested_papr_host;
+    };
 } SpaprCpuState;
 
 static inline SpaprCpuState *spapr_cpu_state(PowerPCCPU *cpu)
