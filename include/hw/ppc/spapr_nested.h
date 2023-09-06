@@ -209,6 +209,7 @@
 #define H_GUEST_GETSET_STATE_FLAG_GUEST_WIDE 0x8000000000000000 /* BE in GSB */
 #define GUEST_STATE_REQUEST_GUEST_WIDE       0x1
 #define GUEST_STATE_REQUEST_SET              0x2
+#define H_GUEST_DELETE_ALL_MASK              0x8000000000000000ULL
 
 #define GUEST_STATE_ELEMENT(i, sz, s, f, ptr, c) { \
     .id = (i),                                     \
