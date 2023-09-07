@@ -545,7 +545,7 @@ static void append_stats_line(GString *line, uint64_t l1_daccess,
     l1_dmiss_rate = ((double) l1_dmisses) / (l1_daccess) * 100.0;
     l1_imiss_rate = ((double) l1_imisses) / (l1_iaccess) * 100.0;
 
-    g_string_append_printf(line, "%-14lu %-12lu %9.4lf%%  %-14lu %-12lu"
+    g_string_append_printf(line, "%-14" PRIu64 " %-12" PRIu64 " %9.4lf%%  %-14" PRIu64 " %-12" PRIu64
                            " %9.4lf%%",
                            l1_daccess,
                            l1_dmisses,
@@ -556,7 +556,7 @@ static void append_stats_line(GString *line, uint64_t l1_daccess,
 
     if (use_l2) {
         l2_miss_rate =  ((double) l2_misses) / (l2_access) * 100.0;
-        g_string_append_printf(line, "  %-12lu %-11lu %10.4lf%%",
+        g_string_append_printf(line, "  %-12" PRIu64 " %-11" PRIu64 " %10.4lf%%",
                                l2_access,
                                l2_misses,
                                l2_access ? l2_miss_rate : 0.0);
@@ -662,7 +662,7 @@ static void log_top_insns(void)
         if (insn->symbol) {
             g_string_append_printf(rep, " (%s)", insn->symbol);
         }
-        g_string_append_printf(rep, ", %ld, %s\n", insn->l1_dmisses,
+        g_string_append_printf(rep, ", %" PRId64 ", %s\n", insn->l1_dmisses,
                                insn->disas_str);
     }
 
@@ -675,7 +675,7 @@ static void log_top_insns(void)
         if (insn->symbol) {
             g_string_append_printf(rep, " (%s)", insn->symbol);
         }
-        g_string_append_printf(rep, ", %ld, %s\n", insn->l1_imisses,
+        g_string_append_printf(rep, ", %" PRId64 ", %s\n", insn->l1_imisses,
                                insn->disas_str);
     }
 
@@ -692,7 +692,7 @@ static void log_top_insns(void)
         if (insn->symbol) {
             g_string_append_printf(rep, " (%s)", insn->symbol);
         }
-        g_string_append_printf(rep, ", %ld, %s\n", insn->l2_misses,
+        g_string_append_printf(rep, ", %" PRId64 ", %s\n", insn->l2_misses,
                                insn->disas_str);
     }
 
