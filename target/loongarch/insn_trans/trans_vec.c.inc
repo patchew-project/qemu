@@ -5268,6 +5268,54 @@ static bool trans_vpickve2gr_du(DisasContext *ctx, arg_rv_i *a)
     return true;
 }
 
+static bool trans_xvinsgr2vr_w(DisasContext *ctx, arg_vr_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vinsgr2vr_w(ctx, a);
+}
+
+static bool trans_xvinsgr2vr_d(DisasContext *ctx, arg_vr_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vinsgr2vr_d(ctx, a);
+}
+
+static bool trans_xvpickve2gr_w(DisasContext *ctx, arg_rv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vpickve2gr_w(ctx, a);
+}
+
+static bool trans_xvpickve2gr_d(DisasContext *ctx, arg_rv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vpickve2gr_d(ctx, a);
+}
+
+static bool trans_xvpickve2gr_wu(DisasContext *ctx, arg_rv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vpickve2gr_wu(ctx, a);
+}
+
+static bool trans_xvpickve2gr_du(DisasContext *ctx, arg_rv_i *a)
+{
+    if (!avail_LASX(ctx)) {
+        return false;
+    }
+    return trans_vpickve2gr_du(ctx, a);
+}
+
 static bool gvec_dup_vl(DisasContext *ctx, arg_vr *a,
                         uint32_t oprsz, MemOp mop)
 {
