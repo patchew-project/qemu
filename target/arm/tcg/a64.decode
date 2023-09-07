@@ -574,3 +574,15 @@ SETE            00 011001110 ..... 10 . . 01 ..... ..... @set
 SETGP           00 011101110 ..... 00 . . 01 ..... ..... @set
 SETGM           00 011101110 ..... 01 . . 01 ..... ..... @set
 SETGE           00 011101110 ..... 10 . . 01 ..... ..... @set
+
+# Memmove/Memcopy: the move bit is 1 for the CPY insns which
+# allow overlapping src/dest and copy in the correct direction,
+# and 0 for the CPYF insns which always copy forwards.
+#
+# options has the nontemporal and unpriv bits for src and dest
+&cpy rs rn rd options move
+@cpy            .. ... move:1 ..... rs:5 options:4 .. rn:5 rd:5 &cpy
+
+CPYP            00 011 . 01000 ..... .... 01 ..... ..... @cpy
+CPYM            00 011 . 01010 ..... .... 01 ..... ..... @cpy
+CPYE            00 011 . 01100 ..... .... 01 ..... ..... @cpy
