@@ -52,6 +52,16 @@ static bool gen_vvvv_ptr(DisasContext *ctx, arg_vvvv *a,
     return gen_vvvv_ptr_vl(ctx, a, 16, fn);
 }
 
+static bool gen_xxxx_ptr(DisasContext *ctx, arg_vvvv *a,
+                         gen_helper_gvec_4_ptr *fn)
+{
+    if (!check_vec(ctx, 32)) {
+        return true;
+    }
+
+    return gen_vvvv_ptr_vl(ctx, a, 32, fn);
+}
+
 static bool gen_vvvv_vl(DisasContext *ctx, arg_vvvv *a, uint32_t oprsz,
                         gen_helper_gvec_4 *fn)
 {
@@ -92,6 +102,16 @@ static bool gen_vvv_ptr(DisasContext *ctx, arg_vvv *a,
     }
 
     return gen_vvv_ptr_vl(ctx, a, 16, fn);
+}
+
+static bool gen_xxx_ptr(DisasContext *ctx, arg_vvv *a,
+                        gen_helper_gvec_3_ptr *fn)
+{
+    if (!check_vec(ctx, 32)) {
+        return true;
+    }
+
+    return gen_vvv_ptr_vl(ctx, a, 32, fn);
 }
 
 static bool gen_vvv_vl(DisasContext *ctx, arg_vvv *a, uint32_t oprsz,
@@ -140,6 +160,16 @@ static bool gen_vv_ptr(DisasContext *ctx, arg_vv *a,
     }
 
     return gen_vv_ptr_vl(ctx, a, 16, fn);
+}
+
+static bool gen_xx_ptr(DisasContext *ctx, arg_vv *a,
+                       gen_helper_gvec_2_ptr *fn)
+{
+    if (!check_vec(ctx, 32)) {
+        return true;
+    }
+
+    return gen_vv_ptr_vl(ctx, a, 32, fn);
 }
 
 static bool gen_vv_vl(DisasContext *ctx, arg_vv *a, uint32_t oprsz,
@@ -4377,6 +4407,14 @@ TRANS(vfmul_s, LSX, gen_vvv_ptr, gen_helper_vfmul_s)
 TRANS(vfmul_d, LSX, gen_vvv_ptr, gen_helper_vfmul_d)
 TRANS(vfdiv_s, LSX, gen_vvv_ptr, gen_helper_vfdiv_s)
 TRANS(vfdiv_d, LSX, gen_vvv_ptr, gen_helper_vfdiv_d)
+TRANS(xvfadd_s, LASX, gen_xxx_ptr, gen_helper_vfadd_s)
+TRANS(xvfadd_d, LASX, gen_xxx_ptr, gen_helper_vfadd_d)
+TRANS(xvfsub_s, LASX, gen_xxx_ptr, gen_helper_vfsub_s)
+TRANS(xvfsub_d, LASX, gen_xxx_ptr, gen_helper_vfsub_d)
+TRANS(xvfmul_s, LASX, gen_xxx_ptr, gen_helper_vfmul_s)
+TRANS(xvfmul_d, LASX, gen_xxx_ptr, gen_helper_vfmul_d)
+TRANS(xvfdiv_s, LASX, gen_xxx_ptr, gen_helper_vfdiv_s)
+TRANS(xvfdiv_d, LASX, gen_xxx_ptr, gen_helper_vfdiv_d)
 
 TRANS(vfmadd_s, LSX, gen_vvvv_ptr, gen_helper_vfmadd_s)
 TRANS(vfmadd_d, LSX, gen_vvvv_ptr, gen_helper_vfmadd_d)
@@ -4386,22 +4424,42 @@ TRANS(vfnmadd_s, LSX, gen_vvvv_ptr, gen_helper_vfnmadd_s)
 TRANS(vfnmadd_d, LSX, gen_vvvv_ptr, gen_helper_vfnmadd_d)
 TRANS(vfnmsub_s, LSX, gen_vvvv_ptr, gen_helper_vfnmsub_s)
 TRANS(vfnmsub_d, LSX, gen_vvvv_ptr, gen_helper_vfnmsub_d)
+TRANS(xvfmadd_s, LASX, gen_xxxx_ptr, gen_helper_vfmadd_s)
+TRANS(xvfmadd_d, LASX, gen_xxxx_ptr, gen_helper_vfmadd_d)
+TRANS(xvfmsub_s, LASX, gen_xxxx_ptr, gen_helper_vfmsub_s)
+TRANS(xvfmsub_d, LASX, gen_xxxx_ptr, gen_helper_vfmsub_d)
+TRANS(xvfnmadd_s, LASX, gen_xxxx_ptr, gen_helper_vfnmadd_s)
+TRANS(xvfnmadd_d, LASX, gen_xxxx_ptr, gen_helper_vfnmadd_d)
+TRANS(xvfnmsub_s, LASX, gen_xxxx_ptr, gen_helper_vfnmsub_s)
+TRANS(xvfnmsub_d, LASX, gen_xxxx_ptr, gen_helper_vfnmsub_d)
 
 TRANS(vfmax_s, LSX, gen_vvv_ptr, gen_helper_vfmax_s)
 TRANS(vfmax_d, LSX, gen_vvv_ptr, gen_helper_vfmax_d)
 TRANS(vfmin_s, LSX, gen_vvv_ptr, gen_helper_vfmin_s)
 TRANS(vfmin_d, LSX, gen_vvv_ptr, gen_helper_vfmin_d)
+TRANS(xvfmax_s, LASX, gen_xxx_ptr, gen_helper_vfmax_s)
+TRANS(xvfmax_d, LASX, gen_xxx_ptr, gen_helper_vfmax_d)
+TRANS(xvfmin_s, LASX, gen_xxx_ptr, gen_helper_vfmin_s)
+TRANS(xvfmin_d, LASX, gen_xxx_ptr, gen_helper_vfmin_d)
 
 TRANS(vfmaxa_s, LSX, gen_vvv_ptr, gen_helper_vfmaxa_s)
 TRANS(vfmaxa_d, LSX, gen_vvv_ptr, gen_helper_vfmaxa_d)
 TRANS(vfmina_s, LSX, gen_vvv_ptr, gen_helper_vfmina_s)
 TRANS(vfmina_d, LSX, gen_vvv_ptr, gen_helper_vfmina_d)
+TRANS(xvfmaxa_s, LASX, gen_xxx_ptr, gen_helper_vfmaxa_s)
+TRANS(xvfmaxa_d, LASX, gen_xxx_ptr, gen_helper_vfmaxa_d)
+TRANS(xvfmina_s, LASX, gen_xxx_ptr, gen_helper_vfmina_s)
+TRANS(xvfmina_d, LASX, gen_xxx_ptr, gen_helper_vfmina_d)
 
 TRANS(vflogb_s, LSX, gen_vv_ptr, gen_helper_vflogb_s)
 TRANS(vflogb_d, LSX, gen_vv_ptr, gen_helper_vflogb_d)
+TRANS(xvflogb_s, LASX, gen_xx_ptr, gen_helper_vflogb_s)
+TRANS(xvflogb_d, LASX, gen_xx_ptr, gen_helper_vflogb_d)
 
 TRANS(vfclass_s, LSX, gen_vv_ptr, gen_helper_vfclass_s)
 TRANS(vfclass_d, LSX, gen_vv_ptr, gen_helper_vfclass_d)
+TRANS(xvfclass_s, LASX, gen_xx_ptr, gen_helper_vfclass_s)
+TRANS(xvfclass_d, LASX, gen_xx_ptr, gen_helper_vfclass_d)
 
 TRANS(vfsqrt_s, LSX, gen_vv_ptr, gen_helper_vfsqrt_s)
 TRANS(vfsqrt_d, LSX, gen_vv_ptr, gen_helper_vfsqrt_d)
@@ -4409,6 +4467,12 @@ TRANS(vfrecip_s, LSX, gen_vv_ptr, gen_helper_vfrecip_s)
 TRANS(vfrecip_d, LSX, gen_vv_ptr, gen_helper_vfrecip_d)
 TRANS(vfrsqrt_s, LSX, gen_vv_ptr, gen_helper_vfrsqrt_s)
 TRANS(vfrsqrt_d, LSX, gen_vv_ptr, gen_helper_vfrsqrt_d)
+TRANS(xvfsqrt_s, LASX, gen_xx_ptr, gen_helper_vfsqrt_s)
+TRANS(xvfsqrt_d, LASX, gen_xx_ptr, gen_helper_vfsqrt_d)
+TRANS(xvfrecip_s, LASX, gen_xx_ptr, gen_helper_vfrecip_s)
+TRANS(xvfrecip_d, LASX, gen_xx_ptr, gen_helper_vfrecip_d)
+TRANS(xvfrsqrt_s, LASX, gen_xx_ptr, gen_helper_vfrsqrt_s)
+TRANS(xvfrsqrt_d, LASX, gen_xx_ptr, gen_helper_vfrsqrt_d)
 
 TRANS(vfcvtl_s_h, LSX, gen_vv_ptr, gen_helper_vfcvtl_s_h)
 TRANS(vfcvth_s_h, LSX, gen_vv_ptr, gen_helper_vfcvth_s_h)
