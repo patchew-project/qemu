@@ -89,9 +89,11 @@ static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void alpha_cpu_list_entry(gpointer data, gpointer user_data)
 {
-    ObjectClass *oc = data;
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    char *model = cpu_model_from_type(typename);
 
-    qemu_printf("  %s\n", object_class_get_name(oc));
+    qemu_printf("  %s\n", model);
+    g_free(model);
 }
 
 void alpha_cpu_list(void)
