@@ -292,6 +292,9 @@ bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                         MMUAccessType access_type, int mmu_idx,
                         bool probe, uintptr_t retaddr);
 #endif
+void nios2_cpu_list(void);
+
+#define cpu_list nios2_cpu_list
 
 typedef CPUNios2State CPUArchState;
 typedef Nios2CPU ArchCPU;

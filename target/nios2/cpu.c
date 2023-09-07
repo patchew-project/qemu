@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "exec/log.h"
 #include "gdbstub/helpers.h"
@@ -110,6 +111,25 @@ static void iic_set_irq(void *opaque, int irq, int level)
     }
 }
 #endif
+
+static void nios2_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    char *model = cpu_model_from_type(typename);
+
+    qemu_printf("  %s\n", model);
+    g_free(model);
+}
+
+void nios2_cpu_list(void)
+{
+    GSList *list;
+
+    list = object_class_get_list_sorted(TYPE_NIOS2_CPU, false);
+    qemu_printf("Available CPUs:\n");
+    g_slist_foreach(list, nios2_cpu_list_entry, NULL);
+    g_slist_free(list);
+}
 
 static void nios2_cpu_initfn(Object *obj)
 {
