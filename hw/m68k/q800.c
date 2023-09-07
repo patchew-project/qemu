@@ -596,7 +596,7 @@ static GlobalProperty hw_compat_q800[] = {
 };
 static const size_t hw_compat_q800_len = G_N_ELEMENTS(hw_compat_q800);
 
-static const char *q800_machine_valid_cpu_types[] = {
+static const char * const q800_machine_valid_cpu_types[] = {
     M68K_CPU_TYPE_NAME("m68040"),
     NULL
 };
