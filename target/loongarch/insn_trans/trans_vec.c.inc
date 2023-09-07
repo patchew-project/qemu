@@ -160,6 +160,15 @@ static bool gen_vv(DisasContext *ctx, arg_vv *a, gen_helper_gvec_2 *fn)
     return gen_vv_vl(ctx, a, 16, fn);
 }
 
+static bool gen_xx(DisasContext *ctx, arg_vv *a, gen_helper_gvec_2 *fn)
+{
+    if (!check_vec(ctx, 32)) {
+        return true;
+    }
+
+    return gen_vv_vl(ctx, a, 32, fn);
+}
+
 static bool gen_vv_i_vl(DisasContext *ctx, arg_vv_i *a, uint32_t oprsz,
                         gen_helper_gvec_2i *fn)
 {
@@ -3389,6 +3398,14 @@ TRANS(vexth_hu_bu, LSX, gen_vv, gen_helper_vexth_hu_bu)
 TRANS(vexth_wu_hu, LSX, gen_vv, gen_helper_vexth_wu_hu)
 TRANS(vexth_du_wu, LSX, gen_vv, gen_helper_vexth_du_wu)
 TRANS(vexth_qu_du, LSX, gen_vv, gen_helper_vexth_qu_du)
+TRANS(xvexth_h_b, LASX, gen_xx, gen_helper_vexth_h_b)
+TRANS(xvexth_w_h, LASX, gen_xx, gen_helper_vexth_w_h)
+TRANS(xvexth_d_w, LASX, gen_xx, gen_helper_vexth_d_w)
+TRANS(xvexth_q_d, LASX, gen_xx, gen_helper_vexth_q_d)
+TRANS(xvexth_hu_bu, LASX, gen_xx, gen_helper_vexth_hu_bu)
+TRANS(xvexth_wu_hu, LASX, gen_xx, gen_helper_vexth_wu_hu)
+TRANS(xvexth_du_wu, LASX, gen_xx, gen_helper_vexth_du_wu)
+TRANS(xvexth_qu_du, LASX, gen_xx, gen_helper_vexth_qu_du)
 
 static void gen_vsigncov(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
 {
