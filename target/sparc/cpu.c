@@ -745,7 +745,12 @@ static ObjectClass *sparc_cpu_class_by_name(const char *cpu_model)
     typename = sparc_cpu_type_name(cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
-    return oc;
+    if (object_class_dynamic_cast(oc, TYPE_SPARC_CPU) &&
+        !object_class_is_abstract(oc)) {
+        return oc;
+    }
+
+    return NULL;
 }
 
 static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
