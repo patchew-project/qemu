@@ -9,6 +9,7 @@ the basics if you are adding new files and targets to the build.
    :maxdepth: 3
 
    build-system
+   cross-compiling
    kconfig
    testing
    acpi-bits
