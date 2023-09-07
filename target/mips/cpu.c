@@ -532,7 +532,12 @@ static ObjectClass *mips_cpu_class_by_name(const char *cpu_model)
     typename = mips_cpu_type_name(cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
-    return oc;
+    if (object_class_dynamic_cast(oc, TYPE_MIPS_CPU) &&
+        !object_class_is_abstract(oc)) {
+        return oc;
+    }
+
+    return NULL;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -565,6 +570,24 @@ static const struct TCGCPUOps mips_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 #endif /* CONFIG_TCG */
+
+static void mips_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    char *model = cpu_model_from_type(typename);
+
+    qemu_printf("  %s\n", model);
+    g_free(model);
+}
+
+void mips_cpu_list(void)
+{
+    GSList *list;
+    list = object_class_get_list_sorted(TYPE_MIPS_CPU, false);
+    qemu_printf("Available CPUs:\n");
+    g_slist_foreach(list, mips_cpu_list_entry, NULL);
+    g_slist_free(list);
+}
 
 static void mips_cpu_class_init(ObjectClass *c, void *data)
 {
