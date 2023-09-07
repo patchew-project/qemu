@@ -7029,16 +7029,15 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     DeviceClass *family = DEVICE_CLASS(ppc_cpu_get_family_class(pcc));
     const char *typename = object_class_get_name(oc);
-    char *name;
+    char *model;
     int i;
 
     if (unlikely(strcmp(typename, TYPE_HOST_POWERPC_CPU) == 0)) {
         return;
     }
 
-    name = g_strndup(typename,
-                     strlen(typename) - strlen(POWERPC_CPU_TYPE_SUFFIX));
-    qemu_printf("PowerPC %-16s PVR %08x\n", name, pcc->pvr);
+    model = cpu_model_from_type(typename);
+    qemu_printf("PowerPC %-16s PVR %08x\n", model, pcc->pvr);
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
         ObjectClass *alias_oc = ppc_cpu_class_by_name(alias->model);
@@ -7055,10 +7054,10 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
                         alias->alias, family->desc);
         } else {
             qemu_printf("PowerPC %-16s (alias for %s)\n",
-                        alias->alias, name);
+                        alias->alias, model);
         }
     }
-    g_free(name);
+    g_free(model);
 }
 
 void ppc_cpu_list(void)
