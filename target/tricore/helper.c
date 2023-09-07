@@ -98,14 +98,11 @@ bool tricore_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 static void tricore_cpu_list_entry(gpointer data, gpointer user_data)
 {
-    ObjectClass *oc = data;
-    const char *typename;
-    char *name;
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    char *model = cpu_model_from_type(typename);
 
-    typename = object_class_get_name(oc);
-    name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_TRICORE_CPU));
-    qemu_printf("  %s\n", name);
-    g_free(name);
+    qemu_printf("  %s\n", model);
+    g_free(model);
 }
 
 void tricore_cpu_list(void)
