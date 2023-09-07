@@ -91,9 +91,11 @@ static void rx_cpu_reset_hold(Object *obj)
 
 static void rx_cpu_list_entry(gpointer data, gpointer user_data)
 {
-    ObjectClass *oc = data;
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    char *model = cpu_model_from_type(typename);
 
-    qemu_printf("  %s\n", object_class_get_name(oc));
+    qemu_printf("  %s\n", model);
+    g_free(model);
 }
 
 void rx_cpu_list(void)
@@ -111,18 +113,20 @@ static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
     char *typename;
 
     oc = object_class_by_name(cpu_model);
-    if (oc != NULL && object_class_dynamic_cast(oc, TYPE_RX_CPU) != NULL &&
+    if (object_class_dynamic_cast(oc, TYPE_RX_CPU) &&
         !object_class_is_abstract(oc)) {
         return oc;
     }
+
     typename = g_strdup_printf(RX_CPU_TYPE_NAME("%s"), cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
-    if (oc != NULL && object_class_is_abstract(oc)) {
-        oc = NULL;
+    if (object_class_dynamic_cast(oc, TYPE_RX_CPU) &&
+        !object_class_is_abstract(oc)) {
+        return oc;
     }
 
-    return oc;
+    return NULL;
 }
 
 static void rx_cpu_realize(DeviceState *dev, Error **errp)
