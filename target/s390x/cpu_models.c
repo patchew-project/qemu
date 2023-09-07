@@ -338,7 +338,8 @@ static void s390_print_cpu_model_list_entry(gpointer data, gpointer user_data)
 {
     const S390CPUClass *scc = S390_CPU_CLASS((ObjectClass *)data);
     CPUClass *cc = CPU_CLASS(scc);
-    char *name = g_strdup(object_class_get_name((ObjectClass *)data));
+    const char *typename = object_class_get_name((ObjectClass *)data);
+    char *model = cpu_model_from_type(typename);
     g_autoptr(GString) details = g_string_new("");
 
     if (scc->is_static) {
@@ -355,14 +356,12 @@ static void s390_print_cpu_model_list_entry(gpointer data, gpointer user_data)
         g_string_truncate(details, details->len - 2);
     }
 
-    /* strip off the -s390x-cpu */
-    g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
     if (details->len) {
-        qemu_printf("s390 %-15s %-35s (%s)\n", name, scc->desc, details->str);
+        qemu_printf("s390 %-15s %-35s (%s)\n", model, scc->desc, details->str);
     } else {
-        qemu_printf("s390 %-15s %-35s\n", name, scc->desc);
+        qemu_printf("s390 %-15s %-35s\n", model, scc->desc);
     }
-    g_free(name);
+    g_free(model);
 }
 
 static gint s390_cpu_list_compare(gconstpointer a, gconstpointer b)
@@ -916,7 +915,12 @@ ObjectClass *s390_cpu_class_by_name(const char *name)
 
     oc = object_class_by_name(typename);
     g_free(typename);
-    return oc;
+    if (object_class_dynamic_cast(oc, TYPE_S390_CPU) &&
+        !object_class_is_abstract(oc)) {
+        return oc;
+    }
+
+    return NULL;
 }
 
 static const TypeInfo qemu_s390_cpu_type_info = {
