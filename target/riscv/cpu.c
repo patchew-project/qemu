@@ -612,18 +612,19 @@ static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
     char *typename;
-    char **cpuname;
+    char **model;
 
-    cpuname = g_strsplit(cpu_model, ",", 1);
-    typename = g_strdup_printf(RISCV_CPU_TYPE_NAME("%s"), cpuname[0]);
+    model = g_strsplit(cpu_model, ",", 1);
+    typename = g_strdup_printf(RISCV_CPU_TYPE_NAME("%s"), model[0]);
     oc = object_class_by_name(typename);
-    g_strfreev(cpuname);
+    g_strfreev(model);
     g_free(typename);
-    if (!oc || !object_class_dynamic_cast(oc, TYPE_RISCV_CPU) ||
-        object_class_is_abstract(oc)) {
-        return NULL;
+    if (object_class_dynamic_cast(oc, TYPE_RISCV_CPU) &&
+        !object_class_is_abstract(oc)) {
+        return oc;
     }
-    return oc;
+
+    return NULL;
 }
 
 static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
@@ -2211,9 +2212,10 @@ static gint riscv_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void riscv_cpu_list_entry(gpointer data, gpointer user_data)
 {
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
-    int len = strlen(typename) - strlen(RISCV_CPU_TYPE_SUFFIX);
+    char *model = cpu_model_from_type(typename);
 
-    qemu_printf("%.*s\n", len, typename);
+    qemu_printf("  %s\n", model);
+    g_free(model);
 }
 
 void riscv_cpu_list(void)
@@ -2222,6 +2224,7 @@ void riscv_cpu_list(void)
 
     list = object_class_get_list(TYPE_RISCV_CPU, false);
     list = g_slist_sort(list, riscv_cpu_list_compare);
+    qemu_printf("Available CPUs:\n");
     g_slist_foreach(list, riscv_cpu_list_entry, NULL);
     g_slist_free(list);
 }
