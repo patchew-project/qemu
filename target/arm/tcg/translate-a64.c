@@ -3954,10 +3954,15 @@ TRANS_FEAT(STZ2G, aa64_mte_insn_reg, do_STG, a, true, true)
 
 typedef void SetFn(TCGv_env, TCGv_i32, TCGv_i32);
 
-static bool do_SET(DisasContext *s, arg_set *a, bool is_epilogue, SetFn fn)
+static bool do_SET(DisasContext *s, arg_set *a, bool is_epilogue,
+                   bool is_setg, SetFn fn)
 {
     int memidx;
     uint32_t syndrome, desc = 0;
+
+    if (is_setg && !dc_isar_feature(aa64_mte, s)) {
+        return false;
+    }
 
     /*
      * UNPREDICTABLE cases: we choose to UNDEF, which allows
@@ -3975,10 +3980,10 @@ static bool do_SET(DisasContext *s, arg_set *a, bool is_epilogue, SetFn fn)
      * We pass option_a == true, matching our implementation;
      * we pass wrong_option == false: helper function may set that bit.
      */
-    syndrome = syn_mop(true, false, (a->nontemp << 1) | a->unpriv,
+    syndrome = syn_mop(true, is_setg, (a->nontemp << 1) | a->unpriv,
                        is_epilogue, false, true, a->rd, a->rs, a->rn);
 
-    if (s->mte_active[a->unpriv]) {
+    if (is_setg ? s->ata[a->unpriv] : s->mte_active[a->unpriv]) {
         /* We may need to do MTE tag checking, so assemble the descriptor */
         desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
         desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
@@ -3997,9 +4002,12 @@ static bool do_SET(DisasContext *s, arg_set *a, bool is_epilogue, SetFn fn)
     return true;
 }
 
-TRANS_FEAT(SETP, aa64_mops, do_SET, a, false, gen_helper_setp)
-TRANS_FEAT(SETM, aa64_mops, do_SET, a, false, gen_helper_setm)
-TRANS_FEAT(SETE, aa64_mops, do_SET, a, true, gen_helper_sete)
+TRANS_FEAT(SETP, aa64_mops, do_SET, a, false, false, gen_helper_setp)
+TRANS_FEAT(SETM, aa64_mops, do_SET, a, false, false, gen_helper_setm)
+TRANS_FEAT(SETE, aa64_mops, do_SET, a, true, false, gen_helper_sete)
+TRANS_FEAT(SETGP, aa64_mops, do_SET, a, false, true, gen_helper_setp)
+TRANS_FEAT(SETGM, aa64_mops, do_SET, a, false, true, gen_helper_setm)
+TRANS_FEAT(SETGE, aa64_mops, do_SET, a, true, true, gen_helper_sete)
 
 typedef void ArithTwoOp(TCGv_i64, TCGv_i64, TCGv_i64);
 
