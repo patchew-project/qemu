@@ -658,6 +658,18 @@ CPUState *cpu_create(const char *typename);
 const char *parse_cpu_option(const char *cpu_option);
 
 /**
+ * cpu_model_from_type:
+ * @typename: The CPU type name
+ *
+ * Extract the CPU model name from the CPU type name. The
+ * CPU type name is either the combination of the CPU model
+ * name and suffix, or same to the CPU model name.
+ *
+ * Returns: CPU model name
+ */
+char *cpu_model_from_type(const char *typename);
+
+/**
  * cpu_has_work:
  * @cpu: The vCPU to check.
  *

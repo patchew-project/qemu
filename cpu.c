@@ -284,6 +284,22 @@ const char *parse_cpu_option(const char *cpu_option)
     return cpu_type;
 }
 
+char *cpu_model_from_type(const char *typename)
+{
+    const char *suffix = "-" CPU_RESOLVING_TYPE;
+
+    if (!object_class_by_name(typename)) {
+        return NULL;
+    }
+
+    if (strlen(typename) > strlen(suffix) &&
+        !strcmp(typename + strlen(typename) - strlen(suffix), suffix)) {
+        return g_strndup(typename, strlen(typename) - strlen(suffix));
+    }
+
+    return g_strdup(typename);
+}
+
 void list_cpus(void)
 {
     /* XXX: implement xxx_cpu_list for targets that still miss it */
