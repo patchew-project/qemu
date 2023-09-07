@@ -49,14 +49,11 @@ static gint m68k_cpu_list_compare(gconstpointer a, gconstpointer b)
 
 static void m68k_cpu_list_entry(gpointer data, gpointer user_data)
 {
-    ObjectClass *c = data;
-    const char *typename;
-    char *name;
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    char *model = cpu_model_from_type(typename);
 
-    typename = object_class_get_name(c);
-    name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_M68K_CPU));
-    qemu_printf("%s\n", name);
-    g_free(name);
+    qemu_printf("  %s\n", model);
+    g_free(model);
 }
 
 void m68k_cpu_list(void)
@@ -65,6 +62,7 @@ void m68k_cpu_list(void)
 
     list = object_class_get_list(TYPE_M68K_CPU, false);
     list = g_slist_sort(list, m68k_cpu_list_compare);
+    qemu_printf("Available CPUs:\n");
     g_slist_foreach(list, m68k_cpu_list_entry, NULL);
     g_slist_free(list);
 }
