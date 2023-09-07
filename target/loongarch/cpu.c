@@ -473,14 +473,17 @@ static void loongarch_la132_initfn(Object *obj)
 static void loongarch_cpu_list_entry(gpointer data, gpointer user_data)
 {
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    char *model = cpu_model_from_type(typename);
 
-    qemu_printf("%s\n", typename);
+    qemu_printf("  %s\n", model);
+    g_free(model);
 }
 
 void loongarch_cpu_list(void)
 {
     GSList *list;
     list = object_class_get_list_sorted(TYPE_LOONGARCH_CPU, false);
+    qemu_printf("Available CPUs:\n");
     g_slist_foreach(list, loongarch_cpu_list_entry, NULL);
     g_slist_free(list);
 }
