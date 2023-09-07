@@ -28,6 +28,11 @@
 
 static struct arm_boot_info orangepi_binfo;
 
+static const char * const valid_cpu_types[] = {
+    ARM_CPU_TYPE_NAME("cortex-a7"),
+    NULL
+};
+
 static void orangepi_init(MachineState *machine)
 {
     AwH3State *h3;
@@ -45,12 +50,6 @@ static void orangepi_init(MachineState *machine)
     /* This board has fixed size RAM */
     if (machine->ram_size != 1 * GiB) {
         error_report("This machine can only be used with 1GiB of RAM");
-        exit(1);
-    }
-
-    /* Only allow Cortex-A7 for this board */
-    if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("cortex-a7")) != 0) {
-        error_report("This board can only be used with cortex-a7 CPU");
         exit(1);
     }
 
@@ -118,6 +117,7 @@ static void orangepi_machine_init(MachineClass *mc)
     mc->max_cpus = AW_H3_NUM_CPUS;
     mc->default_cpus = AW_H3_NUM_CPUS;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a7");
+    mc->valid_cpu_types = valid_cpu_types;
     mc->default_ram_size = 1 * GiB;
     mc->default_ram_id = "orangepi.ram";
 }

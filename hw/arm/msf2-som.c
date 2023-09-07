@@ -42,6 +42,11 @@
 #define M2S010_ENVM_SIZE      (256 * KiB)
 #define M2S010_ESRAM_SIZE     (64 * KiB)
 
+static const char * const valid_cpu_types[] = {
+    ARM_CPU_TYPE_NAME("cortex-m3"),
+    NULL
+};
+
 static void emcraft_sf2_s2s010_init(MachineState *machine)
 {
     DeviceState *dev;
@@ -54,12 +59,6 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ddr = g_new(MemoryRegion, 1);
     Clock *m3clk;
-
-    if (strcmp(machine->cpu_type, mc->default_cpu_type) != 0) {
-        error_report("This board can only be used with CPU %s",
-                     mc->default_cpu_type);
-        exit(1);
-    }
 
     memory_region_init_ram(ddr, NULL, "ddr-ram", DDR_SIZE,
                            &error_fatal);
@@ -109,6 +108,7 @@ static void emcraft_sf2_machine_init(MachineClass *mc)
     mc->desc = "SmartFusion2 SOM kit from Emcraft (M2S010)";
     mc->init = emcraft_sf2_s2s010_init;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
+    mc->valid_cpu_types = valid_cpu_types;
 }
 
 DEFINE_MACHINE("emcraft-sf2", emcraft_sf2_machine_init)
