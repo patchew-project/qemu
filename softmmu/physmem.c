@@ -2505,22 +2505,27 @@ static void tcg_commit(MemoryListener *listener)
     cpuas = container_of(listener, CPUAddressSpace, tcg_as_listener);
     cpu = cpuas->cpu;
 
-    /*
-     * Defer changes to as->memory_dispatch until the cpu is quiescent.
-     * Otherwise we race between (1) other cpu threads and (2) ongoing
-     * i/o for the current cpu thread, with data cached by mmu_lookup().
-     *
-     * In addition, queueing the work function will kick the cpu back to
-     * the main loop, which will end the RCU critical section and reclaim
-     * the memory data structures.
-     *
-     * That said, the listener is also called during realize, before
-     * all of the tcg machinery for run-on is initialized: thus halt_cond.
-     */
-    if (cpu->halt_cond) {
-        async_run_on_cpu(cpu, tcg_commit_cpu, RUN_ON_CPU_HOST_PTR(cpuas));
-    } else {
+    if (!cpu->created) {
+        /*
+         * The listener is also called during realize, before
+         * all of the tcg machinery for run-on is initialized.
+         */
+        return;
+    }
+
+    if (unlikely(qemu_cpu_is_self(cpu))) {
         tcg_commit_cpu(cpu, RUN_ON_CPU_HOST_PTR(cpuas));
+    } else {
+        /*
+         * Defer changes to as->memory_dispatch until the cpu is quiescent.
+         * Otherwise we race between (1) other cpu threads and (2) ongoing
+         * i/o for the current cpu thread, with data cached by mmu_lookup().
+         *
+         * In addition, queueing the work function will kick the cpu back to
+         * the main loop, which will end the RCU critical section and reclaim
+         * the memory data structures.
+         */
+        async_run_on_cpu(cpu, tcg_commit_cpu, RUN_ON_CPU_HOST_PTR(cpuas));
     }
 }
 
