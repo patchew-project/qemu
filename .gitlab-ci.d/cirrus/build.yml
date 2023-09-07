@@ -29,7 +29,7 @@ build_task:
     - cd build
     - ../configure --enable-werror $CONFIGURE_ARGS
       || { cat config.log meson-logs/meson-log.txt; exit 1; }
-    - $MAKE -j$(sysctl -n hw.ncpu)
+    - $MAKE -j$(sysctl -n hw.ncpu) V=1
     - for TARGET in $TEST_TARGETS ;
       do
         $MAKE -j$(sysctl -n hw.ncpu) $TARGET V=1 ;
