@@ -116,6 +116,22 @@ static void fdt_add_rtc_node(LoongArchMachineState *lams)
     g_free(nodename);
 }
 
+static void fdt_add_virtio_mmio_node(LoongArchMachineState *lams)
+{
+    char *nodename;
+    hwaddr base = VIRT_VIRTIO_MMIO_BASE;
+    hwaddr size = VIRT_VIRTIO_MMIO_SIZE;
+    MachineState *ms = MACHINE(lams);
+
+    nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, base);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
+                            "compatible", "virtio,mmio");
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    g_free(nodename);
+}
+
 static void fdt_add_uart_node(LoongArchMachineState *lams)
 {
     char *nodename;
@@ -559,6 +575,12 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
                          qdev_get_gpio_in(pch_pic,
                          VIRT_RTC_IRQ - VIRT_GSI_BASE));
     fdt_add_rtc_node(lams);
+
+    /* virtio-mmio device */
+    sysbus_create_simple("virtio-mmio", VIRT_VIRTIO_MMIO_BASE,
+                         qdev_get_gpio_in(pch_pic,
+                         VIRT_VIRTIO_MMIO_IRQ - VIRT_GSI_BASE));
+    fdt_add_virtio_mmio_node(lams);
 
     pm_mem = g_new(MemoryRegion, 1);
     memory_region_init_io(pm_mem, NULL, &loongarch_virt_pm_ops,

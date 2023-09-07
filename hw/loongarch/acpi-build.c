@@ -363,6 +363,25 @@ static void acpi_dsdt_add_tpm(Aml *scope, LoongArchMachineState *vms)
 }
 #endif
 
+static void acpi_dsdt_add_virtio(Aml *scope)
+{
+    uint32_t irq = VIRT_VIRTIO_MMIO_IRQ;
+    hwaddr base = VIRT_VIRTIO_MMIO_BASE;
+    hwaddr size = VIRT_VIRTIO_MMIO_SIZE;
+    Aml *dev = aml_device("VR%02u", 0);
+
+    aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0005")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
+
+    Aml *crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(base, size, AML_READ_WRITE));
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+               AML_EXCLUSIVE, &irq, 1));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    aml_append(scope, dev);
+}
+
 /* build DSDT */
 static void
 build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
@@ -381,6 +400,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 #ifdef CONFIG_TPM
     acpi_dsdt_add_tpm(dsdt, lams);
 #endif
+    acpi_dsdt_add_virtio(dsdt);
     /* System State Package */
     scope = aml_scope("\\");
     pkg = aml_package(4);
