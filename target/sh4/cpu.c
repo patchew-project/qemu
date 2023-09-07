@@ -125,9 +125,10 @@ static void superh_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 static void superh_cpu_list_entry(gpointer data, gpointer user_data)
 {
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
-    int len = strlen(typename) - strlen(SUPERH_CPU_TYPE_SUFFIX);
+    char *model = cpu_model_from_type(typename);
 
-    qemu_printf("%.*s\n", len, typename);
+    qemu_printf("  %s\n", model);
+    g_free(model);
 }
 
 void sh4_cpu_list(void)
@@ -135,6 +136,7 @@ void sh4_cpu_list(void)
     GSList *list;
 
     list = object_class_get_list_sorted(TYPE_SUPERH_CPU, false);
+    qemu_printf("Available CPUs:\n");
     g_slist_foreach(list, superh_cpu_list_entry, NULL);
     g_slist_free(list);
 }
@@ -146,20 +148,20 @@ static ObjectClass *superh_cpu_class_by_name(const char *cpu_model)
 
     s = g_ascii_strdown(cpu_model, -1);
     if (strcmp(s, "any") == 0) {
-        oc = object_class_by_name(TYPE_SH7750R_CPU);
-        goto out;
+        typename = g_strdup(TYPE_SH7750R_CPU);
+    } else {
+        typename = g_strdup_printf(SUPERH_CPU_TYPE_NAME("%s"), s);
     }
 
-    typename = g_strdup_printf(SUPERH_CPU_TYPE_NAME("%s"), s);
     oc = object_class_by_name(typename);
-    if (oc != NULL && object_class_is_abstract(oc)) {
-        oc = NULL;
-    }
-
-out:
     g_free(s);
     g_free(typename);
-    return oc;
+    if (object_class_dynamic_cast(oc, TYPE_SUPERH_CPU) &&
+        !object_class_is_abstract(oc)) {
+        return oc;
+    }
+
+    return NULL;
 }
 
 static void sh7750r_cpu_initfn(Object *obj)
