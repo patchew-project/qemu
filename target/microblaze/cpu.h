@@ -372,6 +372,9 @@ int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 int mb_cpu_gdb_read_stack_protect(CPUArchState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_stack_protect(CPUArchState *cpu, uint8_t *buf, int reg);
+void microblaze_cpu_list(void);
+
+#define cpu_list microblaze_cpu_list
 
 static inline uint32_t mb_cpu_read_msr(const CPUMBState *env)
 {

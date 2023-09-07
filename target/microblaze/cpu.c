@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
+#include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
@@ -289,6 +290,25 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     cpu->cfg.addr_mask = MAKE_64BIT_MASK(0, cpu->cfg.addr_size);
 
     mcc->parent_realize(dev, errp);
+}
+
+static void microblaze_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    char *model = cpu_model_from_type(typename);
+
+    qemu_printf("  %s\n", model);
+    g_free(model);
+}
+
+void microblaze_cpu_list(void)
+{
+    GSList *list;
+
+    list = object_class_get_list_sorted(TYPE_MICROBLAZE_CPU, false);
+    qemu_printf("Available CPUs:\n");
+    g_slist_foreach(list, microblaze_cpu_list_entry, NULL);
+    g_slist_free(list);
 }
 
 static void mb_cpu_initfn(Object *obj)
