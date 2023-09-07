@@ -188,6 +188,15 @@ static bool gen_vv_i(DisasContext *ctx, arg_vv_i *a, gen_helper_gvec_2i *fn)
     return gen_vv_i_vl(ctx, a, 16, fn);
 }
 
+static bool gen_xx_i(DisasContext *ctx, arg_vv_i *a, gen_helper_gvec_2i *fn)
+{
+    if (!check_vec(ctx, 32)) {
+        return true;
+    }
+
+    return gen_vv_i_vl(ctx, a, 32, fn);
+}
+
 static bool gen_cv(DisasContext *ctx, arg_cv *a,
                     void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32))
 {
@@ -3777,6 +3786,14 @@ TRANS(vsllwil_hu_bu, LSX, gen_vv_i, gen_helper_vsllwil_hu_bu)
 TRANS(vsllwil_wu_hu, LSX, gen_vv_i, gen_helper_vsllwil_wu_hu)
 TRANS(vsllwil_du_wu, LSX, gen_vv_i, gen_helper_vsllwil_du_wu)
 TRANS(vextl_qu_du, LSX, gen_vv, gen_helper_vextl_qu_du)
+TRANS(xvsllwil_h_b, LASX, gen_xx_i, gen_helper_vsllwil_h_b)
+TRANS(xvsllwil_w_h, LASX, gen_xx_i, gen_helper_vsllwil_w_h)
+TRANS(xvsllwil_d_w, LASX, gen_xx_i, gen_helper_vsllwil_d_w)
+TRANS(xvextl_q_d, LASX, gen_xx, gen_helper_vextl_q_d)
+TRANS(xvsllwil_hu_bu, LASX, gen_xx_i, gen_helper_vsllwil_hu_bu)
+TRANS(xvsllwil_wu_hu, LASX, gen_xx_i, gen_helper_vsllwil_wu_hu)
+TRANS(xvsllwil_du_wu, LASX, gen_xx_i, gen_helper_vsllwil_du_wu)
+TRANS(xvextl_qu_du, LASX, gen_xx, gen_helper_vextl_qu_du)
 
 TRANS(vsrlr_b, LSX, gen_vvv, gen_helper_vsrlr_b)
 TRANS(vsrlr_h, LSX, gen_vvv, gen_helper_vsrlr_h)
