@@ -351,5 +351,8 @@ void hppa_cpu_alarm_timer(void *);
 int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr);
 #endif
 G_NORETURN void hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra);
+void hppa_cpu_list(void);
+
+#define cpu_list hppa_cpu_list
 
 #endif /* HPPA_CPU_H */
