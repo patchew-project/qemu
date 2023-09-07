@@ -122,11 +122,10 @@ static void cris_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     const char *typename = object_class_get_name(oc);
-    char *name;
+    char *model = cpu_model_from_type(typename);
 
-    name = g_strndup(typename, strlen(typename) - strlen(CRIS_CPU_TYPE_SUFFIX));
-    qemu_printf("  %s\n", name);
-    g_free(name);
+    qemu_printf("  %s\n", model);
+    g_free(model);
 }
 
 void cris_cpu_list(void)
