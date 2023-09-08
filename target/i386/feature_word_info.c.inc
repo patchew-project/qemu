@@ -19,7 +19,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = {.eax = 1, .reg = R_EDX, },
+        .cpuid = {
+            .eax = 1,
+            .reg = R_EDX,
+        },
         .tcg_features = TCG_FEATURES,
     },
     [FEAT_1_ECX] = {
@@ -42,7 +45,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 1, .reg = R_ECX, },
+        .cpuid = {
+            .eax = 1,
+            .reg = R_ECX,
+        },
         .tcg_features = TCG_EXT_FEATURES,
     },
     [FEAT_8000_0001_EDX] = {
@@ -65,7 +71,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 0x80000001, .reg = R_EDX, },
+        .cpuid = {
+            .eax = 0x80000001,
+            .reg = R_EDX,
+        },
         .tcg_features = TCG_EXT2_FEATURES,
     },
     [FEAT_8000_0001_ECX] = {
@@ -88,7 +97,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 0x80000001, .reg = R_ECX, },
+        .cpuid = {
+            .eax = 0x80000001,
+            .reg = R_ECX,
+        },
         .tcg_features = TCG_EXT3_FEATURES,
         .no_autoenable_flags = CPUID_EXT3_TOPOEXT,
     },
@@ -112,7 +124,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 0xC0000001, .reg = R_EDX, },
+        .cpuid = {
+            .eax = 0xC0000001,
+            .reg = R_EDX,
+        },
         .tcg_features = TCG_EXT4_FEATURES,
     },
     [FEAT_KVM] = {
@@ -135,7 +150,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = KVM_CPUID_FEATURES, .reg = R_EAX, },
+        .cpuid = {
+            .eax = KVM_CPUID_FEATURES,
+            .reg = R_EAX,
+        },
         .tcg_features = TCG_KVM_FEATURES,
     },
     [FEAT_KVM_HINTS] = {
@@ -158,7 +176,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = KVM_CPUID_FEATURES, .reg = R_EDX, },
+        .cpuid = {
+            .eax = KVM_CPUID_FEATURES,
+            .reg = R_EDX,
+        },
         .tcg_features = TCG_KVM_FEATURES,
         .no_autoenable_flags = ~0U,
     },
@@ -182,7 +203,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 0x8000000A, .reg = R_EDX, },
+        .cpuid = {
+            .eax = 0x8000000A,
+            .reg = R_EDX,
+        },
         .tcg_features = TCG_SVM_FEATURES,
     },
     [FEAT_7_0_EBX] = {
@@ -207,7 +231,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 7,
-            .needs_ecx = true, .ecx = 0,
+            .needs_ecx = true,
+            .ecx = 0,
             .reg = R_EBX,
         },
         .tcg_features = TCG_7_0_EBX_FEATURES,
@@ -234,7 +259,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 7,
-            .needs_ecx = true, .ecx = 0,
+            .needs_ecx = true,
+            .ecx = 0,
             .reg = R_ECX,
         },
         .tcg_features = TCG_7_0_ECX_FEATURES,
@@ -261,7 +287,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 7,
-            .needs_ecx = true, .ecx = 0,
+            .needs_ecx = true,
+            .ecx = 0,
             .reg = R_EDX,
         },
         .tcg_features = TCG_7_0_EDX_FEATURES,
@@ -288,7 +315,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 7,
-            .needs_ecx = true, .ecx = 1,
+            .needs_ecx = true,
+            .ecx = 1,
             .reg = R_EAX,
         },
         .tcg_features = TCG_7_1_EAX_FEATURES,
@@ -315,7 +343,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 7,
-            .needs_ecx = true, .ecx = 1,
+            .needs_ecx = true,
+            .ecx = 1,
             .reg = R_EDX,
         },
         .tcg_features = TCG_7_1_EDX_FEATURES,
@@ -342,7 +371,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 7,
-            .needs_ecx = true, .ecx = 2,
+            .needs_ecx = true,
+            .ecx = 2,
             .reg = R_EDX,
         },
         .tcg_features = TCG_7_2_EDX_FEATURES,
@@ -367,7 +397,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 0x80000007, .reg = R_EDX, },
+        .cpuid = {
+            .eax = 0x80000007,
+            .reg = R_EDX,
+        },
         .tcg_features = TCG_APM_FEATURES,
         .unmigratable_flags = CPUID_APM_INVTSC,
     },
@@ -391,7 +424,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 0x80000008, .reg = R_EBX, },
+        .cpuid = {
+            .eax = 0x80000008,
+            .reg = R_EBX,
+        },
         .tcg_features = TCG_8000_0008_EBX,
         .unmigratable_flags = 0,
     },
@@ -415,7 +451,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 0x80000021, .reg = R_EAX, },
+        .cpuid = {
+            .eax = 0x80000021,
+            .reg = R_EAX,
+        },
         .tcg_features = 0,
         .unmigratable_flags = 0,
     },
@@ -441,7 +480,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 0xd,
-            .needs_ecx = true, .ecx = 1,
+            .needs_ecx = true,
+            .ecx = 1,
             .reg = R_EAX,
         },
         .tcg_features = TCG_XSAVE_FEATURES,
@@ -497,7 +537,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .eax = 0xD,
             .needs_ecx = true,
             .ecx = 1,
-            .reg = R_EDX
+            .reg = R_EDX,
         },
     },
     [FEAT_6_EAX] = {
@@ -520,7 +560,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
-        .cpuid = { .eax = 6, .reg = R_EAX, },
+        .cpuid = {
+            .eax = 6,
+            .reg = R_EAX,
+        },
         .tcg_features = TCG_6_EAX_FEATURES,
     },
     [FEAT_XSAVE_XCR0_LO] = {
@@ -545,7 +588,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 0xD,
-            .needs_ecx = true, .ecx = 0,
+            .needs_ecx = true,
+            .ecx = 0,
             .reg = R_EAX,
         },
         .tcg_features = ~0U,
@@ -576,7 +620,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 0xD,
-            .needs_ecx = true, .ecx = 0,
+            .needs_ecx = true,
+            .ecx = 0,
             .reg = R_EDX,
         },
         .tcg_features = ~0U,
@@ -905,7 +950,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 0x14,
-            .needs_ecx = true, .ecx = 0,
+            .needs_ecx = true,
+            .ecx = 0,
             .reg = R_ECX,
         },
         .tcg_features = TCG_14_0_ECX_FEATURES,
@@ -933,7 +979,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 0x12,
-            .needs_ecx = true, .ecx = 0,
+            .needs_ecx = true,
+            .ecx = 0,
             .reg = R_EAX,
         },
         .tcg_features = TCG_SGX_12_0_EAX_FEATURES,
@@ -961,7 +1008,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 0x12,
-            .needs_ecx = true, .ecx = 0,
+            .needs_ecx = true,
+            .ecx = 0,
             .reg = R_EBX,
         },
         .tcg_features = TCG_SGX_12_0_EBX_FEATURES,
@@ -989,7 +1037,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = {
             .eax = 0x12,
-            .needs_ecx = true, .ecx = 1,
+            .needs_ecx = true,
+            .ecx = 1,
             .reg = R_EAX,
         },
         .tcg_features = TCG_SGX_12_1_EAX_FEATURES,
