@@ -12,14 +12,14 @@
 #include "hw/fsi/fsi-slave.h"
 #include "hw/fsi/lbus.h"
 
-#define TYPE_FSI_BUS "fsi.bus"
-
 #define TYPE_CFAM "cfam"
 #define CFAM(obj) OBJECT_CHECK(CFAMState, (obj), TYPE_CFAM)
 
 #define CFAM_NR_REGS ((0x2e0 >> 2) + 1)
 
 #define TYPE_CFAM_CONFIG "cfam.config"
+OBJECT_DECLARE_SIMPLE_TYPE(CFAMConfig, CFAM_CONFIG)
+
 #define CFAM_CONFIG(obj) \
     OBJECT_CHECK(CFAMConfig, (obj), TYPE_CFAM_CONFIG)
 /* P9-ism */
@@ -35,8 +35,8 @@ typedef struct CFAMConfig {
 } CFAMConfig;
 
 #define TYPE_CFAM_PEEK "cfam.peek"
-#define CFAM_PEEK(obj) \
-    OBJECT_CHECK(CFAMPeek, (obj), TYPE_CFAM_PEEK)
+OBJECT_DECLARE_SIMPLE_TYPE(CFAMPeek, CFAM_PEEK)
+
 #define CFAM_PEEK_NR_REGS ((0x130 >> 2) + 1)
 
 typedef struct CFAMPeek {

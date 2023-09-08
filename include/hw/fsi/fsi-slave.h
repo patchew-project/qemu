@@ -15,8 +15,8 @@
 #include <stdint.h>
 
 #define TYPE_FSI_SLAVE "fsi.slave"
-#define FSI_SLAVE(obj) \
-    OBJECT_CHECK(FSISlaveState, (obj), TYPE_FSI_SLAVE)
+OBJECT_DECLARE_SIMPLE_TYPE(FSISlaveState, FSI_SLAVE)
+
 #define FSI_SLAVE_CONTROL_NR_REGS ((0x40 >> 2) + 1)
 
 typedef struct FSISlaveState {
