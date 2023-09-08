@@ -419,6 +419,22 @@ void vfio_unblock_multiple_devices_migration(void)
     multiple_devices_migration_blocker = NULL;
 }
 
+bool vfio_devices_all_iommu_passthrough(void)
+{
+    VFIODevice *vbasedev;
+    VFIOGroup *group;
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if (!vbasedev->iommu_passthrough) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 bool vfio_viommu_preset(VFIODevice *vbasedev)
 {
     return vbasedev->group->container->space->as != &address_space_memory;
@@ -1164,6 +1180,18 @@ static void vfio_listener_region_add(MemoryListener *listener,
             goto fail;
         }
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
+
+        /*
+         * Any attempts to use make vIOMMU mappings will fail the live migration
+         */
+        if (vfio_devices_all_iommu_passthrough()) {
+            MigrationState *ms = migrate_get_current();
+
+            if (migration_is_setup_or_active(ms->state)) {
+                vfio_set_migration_error(-EOPNOTSUPP);
+            }
+        }
+
         memory_region_iommu_replay(giommu->iommu_mr, &giommu->n);
 
         return;
@@ -1549,6 +1577,44 @@ static int vfio_devices_dma_logging_start(VFIOContainer *container)
     VFIODevice *vbasedev;
     VFIOGroup *group;
     int ret = 0;
+
+    /*
+     * vIOMMU models traditionally define the maximum address space width, which
+     * is a superset of the effective IOVA addresses being used e.g.
+     * intel-iommu defines 39-bit and 48-bit, and similarly AMD hardware.  The
+     * problem is that these limits are really big, for device dirty trackers
+     * when the iommu gets passed for the sole usage of interrupt remapping i.e.
+     * >=256 vCPUs while IOMMU is kept in passthrough mode.
+     *
+     * With x-migration-iommu-pt assume that a guest being migrated won't use
+     * the vIOMMU in a non passthrough manner (throughout migration). In that
+     * case, try to use the boot memory layout that VFIO DMA maps to minimize
+     * having to stress high dirty tracking limits, and fail on any new gIOMMU
+     * mappings which may:
+     *
+     * 1) Prevent the migration from starting i.e. gIOMMU mappings done
+     * migration which would be no different than having the migration blocker.
+     * So this behaviour is obviously kept.
+     *
+     * 2) Cancelling an active migration i.e. new gIOMMU mappings mid migration
+     * From a Linux guest perspective this means for example the guest kexec's
+     * with 'iommu=on intel_iommu=on amd_iommu=on' or etc and at boot it will
+     * establish some vIOMMU mappings.
+     *
+     * This option should be specially relevant for old guests (<5.10) which
+     * don't probe for DMA translation services being off when initializing
+     * IOMMU devices, thus ending up in crashes when dma-translation=off is
+     * passed.
+     *
+     */
+    if (vfio_devices_all_iommu_passthrough() &&
+        !QLIST_EMPTY(&container->giommu_list)) {
+        ret = EOPNOTSUPP;
+        error_report("vIOMMU mappings active "
+                     "cannot start dirty tracking, err %d (%s)",
+                     -ret, strerror(ret));
+        return -ret;
+    }
 
     vfio_dirty_tracking_init(container, &ranges);
     feature = vfio_device_feature_dma_logging_start_create(container,
