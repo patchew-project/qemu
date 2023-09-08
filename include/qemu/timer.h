@@ -979,6 +979,25 @@ static inline int64_t cpu_get_host_ticks(void)
     return cur - ofs;
 }
 
+#elif defined(__riscv) && defined(__riscv_xlen) && __riscv_xlen == 32
+static inline int64_t cpu_get_host_ticks(void)
+{
+    uint32_t lo, hi;
+    asm volatile("RDCYCLE %0\n\t"
+                 "RDCYCLEH %1"
+                 : "=r"(lo), "=r"(hi));
+    return lo | (uint64_t)hi << 32;
+}
+
+#elif defined(__riscv) && defined(__riscv_xlen) && __riscv_xlen > 32
+static inline int64_t cpu_get_host_ticks(void)
+{
+    int64_t val;
+
+    asm volatile("RDCYCLE %0" : "=r"(val));
+    return val;
+}
+
 #else
 /* The host CPU doesn't have an easily accessible cycle counter.
    Just return a monotonically increasing value.  This will be
