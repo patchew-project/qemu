@@ -187,7 +187,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
             "npt", "lbrv", "svm-lock", "nrip-save",
-            "tsc-scale", "vmcb-clean",  "flushbyasid", "decodeassists",
+            "tsc-scale", "vmcb-clean", "flushbyasid", "decodeassists",
             NULL, NULL, "pause-filter", NULL,
             "pfthreshold", "avic", NULL, "v-vmsave-vmload",
             "vgif", NULL, NULL, NULL,
@@ -593,10 +593,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_EAX,
         },
         .tcg_features = ~0U,
-        .migratable_flags = XSTATE_FP_MASK | XSTATE_SSE_MASK |
-            XSTATE_YMM_MASK | XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK |
-            XSTATE_OPMASK_MASK | XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK |
-            XSTATE_PKRU_MASK,
+        .migratable_flags = XSTATE_FP_MASK | XSTATE_SSE_MASK | XSTATE_YMM_MASK | XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK | XSTATE_OPMASK_MASK | XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK | XSTATE_PKRU_MASK,
     },
     [FEAT_XSAVE_XCR0_HI] = {
         .type = CPUID_FEATURE_WORD,
@@ -699,7 +696,6 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .index = MSR_IA32_PERF_CAPABILITIES,
         },
     },
-
     [FEAT_VMX_PROCBASED_CTLS] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -722,9 +718,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_VMX_TRUE_PROCBASED_CTLS,
-        }
+        },
     },
-
     [FEAT_VMX_SECONDARY_CTLS] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -747,9 +742,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_VMX_PROCBASED_CTLS2,
-        }
+        },
     },
-
     [FEAT_VMX_PINBASED_CTLS] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -772,9 +766,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_VMX_TRUE_PINBASED_CTLS,
-        }
+        },
     },
-
     [FEAT_VMX_EXIT_CTLS] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -783,8 +776,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             "vmx-exit-load-perf-global-ctrl", NULL, NULL, "vmx-exit-ack-intr",
             NULL, NULL, "vmx-exit-save-pat", "vmx-exit-load-pat",
-            "vmx-exit-save-efer", "vmx-exit-load-efer",
-                "vmx-exit-save-preemption-timer", "vmx-exit-clear-bndcfgs",
+            "vmx-exit-save-efer", "vmx-exit-load-efer", "vmx-exit-save-preemption-timer", "vmx-exit-clear-bndcfgs",
             NULL, "vmx-exit-clear-rtit-ctl", NULL, NULL,
             NULL, "vmx-exit-load-pkrs", NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -798,9 +790,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_VMX_TRUE_EXIT_CTLS,
-        }
+        },
     },
-
     [FEAT_VMX_ENTRY_CTLS] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -823,9 +814,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_VMX_TRUE_ENTRY_CTLS,
-        }
+        },
     },
-
     [FEAT_VMX_MISC] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -848,9 +838,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_VMX_MISC,
-        }
+        },
     },
-
     [FEAT_VMX_EPT_VPID_CAPS] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -864,8 +853,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             "vmx-invvpid", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
-            "vmx-invvpid-single-addr", "vmx-invvpid-single-context",
-                "vmx-invvpid-all-context", "vmx-invvpid-single-context-noglobals",
+            "vmx-invvpid-single-addr", "vmx-invvpid-single-context", "vmx-invvpid-all-context", "vmx-invvpid-single-context-noglobals",
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -874,9 +862,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_VMX_EPT_VPID_CAP,
-        }
+        },
     },
-
     [FEAT_VMX_BASIC] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -902,7 +889,6 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .no_autoenable_flags = MSR_VMX_BASIC_DUAL_MONITOR,
     },
-
     [FEAT_VMX_VMFUNC] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
@@ -925,9 +911,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_VMX_VMFUNC,
-        }
+        },
     },
-
     [FEAT_14_0_ECX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
@@ -955,8 +940,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_ECX,
         },
         .tcg_features = TCG_14_0_ECX_FEATURES,
-     },
-
+    },
     [FEAT_SGX_12_0_EAX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
@@ -985,7 +969,6 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .tcg_features = TCG_SGX_12_0_EAX_FEATURES,
     },
-
     [FEAT_SGX_12_0_EBX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
@@ -1014,7 +997,6 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .tcg_features = TCG_SGX_12_0_EBX_FEATURES,
     },
-
     [FEAT_SGX_12_1_EAX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
