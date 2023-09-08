@@ -31,6 +31,7 @@
 #include "hw/i386/topology.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/i386/vmport.h"
+#include "hw/mem/memory-device.h"
 #include "sysemu/cpus.h"
 #include "hw/block/fdc.h"
 #include "hw/ide/internal.h"
@@ -1007,6 +1008,17 @@ void pc_memory_init(PCMachineState *pcms,
     }
 
     /*
+     * check if the VM started with more ram configured than max physical
+     * address available with the current processor.
+     */
+    if (machine->ram_size > maxphysaddr + 1) {
+        error_report("Address space limit 0x%"PRIx64" < 0x%"PRIx64
+                     " (max configured memory), phys-bits too low (%u)",
+                     maxphysaddr, machine->ram_size, cpu->phys_bits);
+        exit(EXIT_FAILURE);
+    }
+
+    /*
      * Split single memory region and use aliases to address portions of it,
      * done for backwards compatibility with older qemus.
      */
@@ -1845,6 +1857,38 @@ static bool pc_hotplug_allowed(MachineState *ms, DeviceState *dev, Error **errp)
     return true;
 }
 
+static bool pc_mem_hotplug_allowed(MachineState *ms,
+                                   MemoryRegion *mr, Error **errp)
+{
+    hwaddr maxphysaddr;
+    uint64_t dimm_size, size, ram_size, total_mem_size;
+    X86CPU *cpu = X86_CPU(first_cpu);
+
+    if (!mr) {
+        return true;
+    }
+
+    dimm_size = ms->device_memory->dimm_size;
+    size = memory_region_size(mr);
+    ram_size = (uint64_t) ms->ram_size;
+    total_mem_size = ram_size + dimm_size + size;
+
+    maxphysaddr = ((hwaddr)1 << cpu->phys_bits) - 1;
+
+    /*
+     * total memory after hotplug will exceed the maximum physical
+     * address limit of the processor. So hotplug cannot be allowed.
+     */
+    if ((total_mem_size > (uint64_t)maxphysaddr + 1) &&
+        (total_mem_size > ram_size + dimm_size)) {
+        error_setg(errp, "Address space limit 0x%"PRIx64" < 0x%"PRIx64
+                   " phys-bits too low (%u)",
+                   maxphysaddr, total_mem_size, cpu->phys_bits);
+        return false;
+    }
+    return true;
+}
+
 static void pc_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1870,6 +1914,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = pc_get_hotplug_handler;
     mc->hotplug_allowed = pc_hotplug_allowed;
+    mc->mem_hotplug_allowed = pc_mem_hotplug_allowed;
     mc->cpu_index_to_instance_props = x86_cpu_index_to_props;
     mc->get_default_cpu_node_id = x86_get_default_cpu_node_id;
     mc->possible_cpu_arch_ids = x86_possible_cpu_arch_ids;

@@ -57,6 +57,7 @@ static void memory_device_check_addable(MachineState *ms, MemoryRegion *mr,
 {
     const uint64_t used_region_size = ms->device_memory->used_region_size;
     const uint64_t size = memory_region_size(mr);
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
 
     /* we will need a new memory slot for kvm and vhost */
     if (kvm_enabled() && !kvm_has_free_slot(ms)) {
@@ -65,6 +66,11 @@ static void memory_device_check_addable(MachineState *ms, MemoryRegion *mr,
     }
     if (!vhost_has_free_slot()) {
         error_setg(errp, "a used vhost backend has no free memory slots left");
+        return;
+    }
+
+    if (mc->mem_hotplug_allowed &&
+        (!(mc->mem_hotplug_allowed(ms, mr, errp)))) {
         return;
     }
 
