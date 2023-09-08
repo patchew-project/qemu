@@ -127,6 +127,13 @@ extern const PropertyInfo qdev_prop_link;
  * @_arrayprop: PropertyInfo defining what property the array elements have
  * @_arraytype: C type of the array elements
  *
+ * Note: this macro is forbidden to use with user creatable devices
+ *       as its behaviour relies on the precise ordering with which
+ *       properties are set. Ordering is not guaranteed for our public
+ *       facing interfaces (-device CLI / device_add QMP) for creating
+ *       devices. Any attempt to use this on a user creatable device
+ *       will trigger an error at runtime.
+ *
  * Define device properties for a variable-length array _name.  A
  * static property "len-arrayname" is defined. When the device creator
  * sets this property to the desired length of array, further dynamic

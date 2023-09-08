@@ -584,6 +584,12 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
     void *eltptr;
     const char *arrayname;
     int i;
+    DeviceClass *devc = DEVICE_CLASS(object_get_class(obj));
+
+    if (devc->user_creatable) {
+        error_setg(errp, "array property not permitted for user creatable devices");
+        return;
+    }
 
     if (*alenptr) {
         error_setg(errp, "array size property %s may not be set more than once",
