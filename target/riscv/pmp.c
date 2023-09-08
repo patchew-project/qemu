@@ -98,16 +98,49 @@ static bool pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
                 locked = false;
             }
 
-            /* mseccfg.MML is set */
-            if (MSECCFG_MML_ISSET(env)) {
-                /* not adding execute bit */
-                if ((val & PMP_LOCK) != 0 && (val & PMP_EXEC) != PMP_EXEC) {
+            /*
+             * mseccfg.MML is set. Locked rules cannot be removed or modified
+             * until a PMP reset. Besides, from Smepmp specification version 1.0
+             * , chapter 2 section 4b says:
+             * Adding a rule with executable privileges that either is
+             * M-mode-only or a locked Shared-Region is not possible and such
+             * pmpcfg writes are ignored, leaving pmpcfg unchanged.
+             */
+            if (MSECCFG_MML_ISSET(env) && !pmp_is_locked(env, pmp_index)) {
+                /*
+                 * Convert the PMP permissions to match the truth table in the
+                 * ePMP spec.
+                 */
+                const uint8_t epmp_operation =
+                    ((val & PMP_LOCK) >> 4) | ((val & PMP_READ) << 2) |
+                    (val & PMP_WRITE) | ((val & PMP_EXEC) >> 2);
+
+                switch (epmp_operation) {
+                /* pmpcfg.L = 0. Neither M-mode-only nor locked Shared-Region */
+                case 0:
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                /* pmpcfg.L = 1 and pmpcfg.X = 0 (but case 10 is not allowed) */
+                case 8:
+                case 12:
+                case 14:
+                /* pmpcfg.LRWX = 1111 */
+                case 15:  /* Read-only locked Shared-Region on all modes */
                     locked = false;
-                }
-                /* shared region and not adding X bit */
-                if ((val & PMP_LOCK) != PMP_LOCK &&
-                    (val & 0x7) != (PMP_WRITE | PMP_EXEC)) {
-                    locked = false;
+                    break;
+                /* Other rules which add new code regions are not allowed */
+                case 9:
+                case 10:  /* Execute-only locked Shared-Region on all modes */
+                case 11:
+                case 13:
+                    break;
+                default:
+                    g_assert_not_reached();
                 }
             }
         } else {
