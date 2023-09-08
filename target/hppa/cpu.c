@@ -192,6 +192,7 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_realize(dc, hppa_cpu_realizefn,
                                     &acc->parent_realize);
 
+    cc->cpu_resolving_type = TYPE_HPPA_CPU;
     cc->class_by_name = hppa_cpu_class_by_name;
     cc->has_work = hppa_cpu_has_work;
     cc->dump_state = hppa_cpu_dump_state;

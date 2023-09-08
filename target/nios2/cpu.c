@@ -381,6 +381,7 @@ static void nios2_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, nios2_cpu_reset_hold, NULL,
                                        &ncc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_NIOS2_CPU;
     cc->class_by_name = nios2_cpu_class_by_name;
     cc->has_work = nios2_cpu_has_work;
     cc->dump_state = nios2_cpu_dump_state;

@@ -283,6 +283,7 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, superh_cpu_reset_hold, NULL,
                                        &scc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_SUPERH_CPU;
     cc->class_by_name = superh_cpu_class_by_name;
     cc->has_work = superh_cpu_has_work;
     cc->dump_state = superh_cpu_dump_state;

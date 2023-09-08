@@ -381,6 +381,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     resettable_class_set_parent_phases(rc, NULL, hexagon_cpu_reset_hold, NULL,
                                        &mcc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_HEXAGON_CPU;
     cc->class_by_name = hexagon_cpu_class_by_name;
     cc->has_work = hexagon_cpu_has_work;
     cc->dump_state = hexagon_dump_state;

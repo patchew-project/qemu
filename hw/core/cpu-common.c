@@ -155,7 +155,7 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
     assert(cpu_model);
     oc = object_class_by_name(typename);
     cc = CPU_CLASS(oc);
-    assert(cc->class_by_name);
+    assert(cc->cpu_resolving_type && cc->class_by_name);
     oc = cc->class_by_name(cpu_model);
     if (oc == NULL || object_class_is_abstract(oc)) {
         return NULL;

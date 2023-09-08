@@ -414,6 +414,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, mb_cpu_reset_hold, NULL,
                                        &mcc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_MICROBLAZE_CPU;
     cc->class_by_name = mb_cpu_class_by_name;
     cc->has_work = mb_cpu_has_work;
 

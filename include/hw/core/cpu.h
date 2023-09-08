@@ -100,6 +100,7 @@ struct SysemuCPUOps;
 
 /**
  * CPUClass:
+ * @cpu_resolving_type: CPU QOM type name
  * @class_by_name: Callback to map -cpu command line model name to an
  *                 instantiatable CPU type.
  * @parse_features: Callback to parse command line arguments.
@@ -148,6 +149,7 @@ struct CPUClass {
     DeviceClass parent_class;
     /*< public >*/
 
+    const char *cpu_resolving_type;
     ObjectClass *(*class_by_name)(const char *cpu_model);
     void (*parse_features)(const char *typename, char *str, Error **errp);
 

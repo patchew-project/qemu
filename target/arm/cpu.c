@@ -2377,6 +2377,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, arm_cpu_reset_hold, NULL,
                                        &acc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_ARM_CPU;
     cc->class_by_name = arm_cpu_class_by_name;
     cc->has_work = arm_cpu_has_work;
     cc->dump_state = arm_cpu_dump_state;

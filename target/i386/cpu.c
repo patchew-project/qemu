@@ -7951,6 +7951,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
                                        &xcc->parent_phases);
     cc->reset_dump_flags = CPU_DUMP_FPU | CPU_DUMP_CCOP;
 
+    cc->cpu_resolving_type = TYPE_X86_CPU;
     cc->class_by_name = x86_cpu_class_by_name;
     cc->parse_features = x86_cpu_parse_featurestr;
     cc->has_work = x86_cpu_has_work;

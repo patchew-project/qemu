@@ -202,6 +202,7 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
 
     resettable_class_set_parent_phases(rc, NULL, tricore_cpu_reset_hold, NULL,
                                        &mcc->parent_phases);
+    cc->cpu_resolving_type = TYPE_TRICORE_CPU;
     cc->class_by_name = tricore_cpu_class_by_name;
     cc->has_work = tricore_cpu_has_work;
 

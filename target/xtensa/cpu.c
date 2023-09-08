@@ -252,6 +252,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, xtensa_cpu_reset_hold, NULL,
                                        &xcc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_XTENSA_CPU;
     cc->class_by_name = xtensa_cpu_class_by_name;
     cc->has_work = xtensa_cpu_has_work;
     cc->dump_state = xtensa_cpu_dump_state;

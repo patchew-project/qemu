@@ -336,6 +336,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_reset(dc, s390_cpu_reset_full, &scc->parent_reset);
 
     scc->reset = s390_cpu_reset;
+    cc->cpu_resolving_type = TYPE_S390_CPU;
     cc->class_by_name = s390_cpu_class_by_name,
     cc->has_work = s390_cpu_has_work;
     cc->dump_state = s390_cpu_dump_state;

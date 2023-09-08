@@ -222,6 +222,7 @@ static void rx_cpu_class_init(ObjectClass *klass, void *data)
     resettable_class_set_parent_phases(rc, NULL, rx_cpu_reset_hold, NULL,
                                        &rcc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_RX_CPU;
     cc->class_by_name = rx_cpu_class_by_name;
     cc->has_work = rx_cpu_has_work;
     cc->dump_state = rx_cpu_dump_state;

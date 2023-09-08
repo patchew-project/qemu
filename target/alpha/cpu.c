@@ -254,6 +254,7 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_realize(dc, alpha_cpu_realizefn,
                                     &acc->parent_realize);
 
+    cc->cpu_resolving_type = TYPE_ALPHA_CPU;
     cc->class_by_name = alpha_cpu_class_by_name;
     cc->has_work = alpha_cpu_has_work;
     cc->dump_state = alpha_cpu_dump_state;

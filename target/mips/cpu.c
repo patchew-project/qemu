@@ -578,6 +578,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     resettable_class_set_parent_phases(rc, NULL, mips_cpu_reset_hold, NULL,
                                        &mcc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_MIPS_CPU;
     cc->class_by_name = mips_cpu_class_by_name;
     cc->has_work = mips_cpu_has_work;
     cc->dump_state = mips_cpu_dump_state;

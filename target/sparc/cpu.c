@@ -902,6 +902,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, sparc_cpu_reset_hold, NULL,
                                        &scc->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_SPARC_CPU;
     cc->class_by_name = sparc_cpu_class_by_name;
     cc->parse_features = sparc_cpu_parse_features;
     cc->has_work = sparc_cpu_has_work;

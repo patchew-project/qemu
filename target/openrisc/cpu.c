@@ -243,6 +243,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, openrisc_cpu_reset_hold, NULL,
                                        &occ->parent_phases);
 
+    cc->cpu_resolving_type = TYPE_OPENRISC_CPU;
     cc->class_by_name = openrisc_cpu_class_by_name;
     cc->has_work = openrisc_cpu_has_work;
     cc->dump_state = openrisc_cpu_dump_state;
