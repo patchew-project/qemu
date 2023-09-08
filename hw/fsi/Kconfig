@@ -1,19 +1,23 @@
-config OPB
+config FSI_APB2OPB_ASPEED
     bool
-    select CFAM
+    select FSI_OPB
 
-config CFAM
+config FSI_OPB
+    bool
+    select FSI_CFAM
+
+config FSI_CFAM
     bool
     select FSI
-    select SCRATCHPAD
-    select LBUS
+    select FSI_SCRATCHPAD
+    select FSI_LBUS
 
 config FSI
     bool
 
-config SCRATCHPAD
+config FSI_SCRATCHPAD
     bool
-    select LBUS
+    select FSI_LBUS
 
-config LBUS
+config FSI_LBUS
     bool
