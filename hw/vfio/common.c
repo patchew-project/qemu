@@ -27,6 +27,7 @@
 
 #include "hw/vfio/vfio-common.h"
 #include "hw/vfio/vfio.h"
+#include "hw/vfio/pci.h"
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
 #include "exec/ram_addr.h"
@@ -1371,6 +1372,8 @@ typedef struct VFIODirtyRanges {
     hwaddr max32;
     hwaddr min64;
     hwaddr max64;
+    hwaddr minpci;
+    hwaddr maxpci;
 } VFIODirtyRanges;
 
 typedef struct VFIODirtyRangesListener {
@@ -1378,6 +1381,31 @@ typedef struct VFIODirtyRangesListener {
     VFIODirtyRanges ranges;
     MemoryListener listener;
 } VFIODirtyRangesListener;
+
+static bool vfio_section_is_vfio_pci(MemoryRegionSection *section,
+                                     VFIOContainer *container)
+{
+    VFIOPCIDevice *pcidev;
+    VFIODevice *vbasedev;
+    VFIOGroup *group;
+    Object *owner;
+
+    owner = memory_region_owner(section->mr);
+
+    QLIST_FOREACH(group, &container->group_list, container_next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if (vbasedev->type != VFIO_DEVICE_TYPE_PCI) {
+                continue;
+            }
+            pcidev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+            if (OBJECT(pcidev) == owner) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
 
 static void vfio_dirty_tracking_update(MemoryListener *listener,
                                        MemoryRegionSection *section)
@@ -1405,9 +1433,14 @@ static void vfio_dirty_tracking_update(MemoryListener *listener,
      * would be an IOVATree but that has a much bigger runtime overhead and
      * unnecessary complexity.
      */
-    min = (end <= UINT32_MAX) ? &range->min32 : &range->min64;
-    max = (end <= UINT32_MAX) ? &range->max32 : &range->max64;
-
+    if (vfio_section_is_vfio_pci(section, dirty->container) &&
+        iova >= UINT32_MAX) {
+        min = &range->minpci;
+        max = &range->maxpci;
+    } else {
+        min = (end <= UINT32_MAX) ? &range->min32 : &range->min64;
+        max = (end <= UINT32_MAX) ? &range->max32 : &range->max64;
+    }
     if (*min > iova) {
         *min = iova;
     }
@@ -1432,6 +1465,7 @@ static void vfio_dirty_tracking_init(VFIOContainer *container,
     memset(&dirty, 0, sizeof(dirty));
     dirty.ranges.min32 = UINT32_MAX;
     dirty.ranges.min64 = UINT64_MAX;
+    dirty.ranges.minpci = UINT64_MAX;
     dirty.listener = vfio_dirty_tracking_listener;
     dirty.container = container;
 
@@ -1502,7 +1536,8 @@ vfio_device_feature_dma_logging_start_create(VFIOContainer *container,
      * DMA logging uAPI guarantees to support at least a number of ranges that
      * fits into a single host kernel base page.
      */
-    control->num_ranges = !!tracking->max32 + !!tracking->max64;
+    control->num_ranges = !!tracking->max32 + !!tracking->max64 +
+        !!tracking->maxpci;
     ranges = g_try_new0(struct vfio_device_feature_dma_logging_range,
                         control->num_ranges);
     if (!ranges) {
@@ -1521,11 +1556,17 @@ vfio_device_feature_dma_logging_start_create(VFIOContainer *container,
     if (tracking->max64) {
         ranges->iova = tracking->min64;
         ranges->length = (tracking->max64 - tracking->min64) + 1;
+        ranges++;
+    }
+    if (tracking->maxpci) {
+        ranges->iova = tracking->minpci;
+        ranges->length = (tracking->maxpci - tracking->minpci) + 1;
     }
 
     trace_vfio_device_dirty_tracking_start(control->num_ranges,
                                            tracking->min32, tracking->max32,
-                                           tracking->min64, tracking->max64);
+                                           tracking->min64, tracking->max64,
+                                           tracking->minpci, tracking->maxpci);
 
     return feature;
 }
