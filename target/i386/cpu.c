@@ -1664,6 +1664,7 @@ static inline uint64_t x86_cpu_xsave_xss_components(X86CPU *cpu)
            cpu->env.features[FEAT_XSAVE_XSS_LO];
 }
 
+#ifndef CONFIG_USER_ONLY
 /*
  * Returns the set of feature flags that are supported and migratable by
  * QEMU, for a given FeatureWord.
@@ -1686,6 +1687,7 @@ static uint64_t x86_cpu_get_migratable_flags(FeatureWord w)
     }
     return r;
 }
+#endif /* !CONFIG_USER_ONLY */
 
 void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
@@ -5677,8 +5679,6 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-#endif /* !CONFIG_USER_ONLY */
-
 uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                             bool migratable_only)
 {
@@ -5780,6 +5780,38 @@ static void x86_cpu_get_cache_cpuid(uint32_t func, uint32_t index,
         host_cpuid(func, index, eax, ebx, ecx, edx);
     }
 }
+
+#else /* CONFIG_USER_ONLY */
+
+uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
+                                            bool migratable_only)
+{
+    FeatureWordInfo *wi = &feature_word_info[w];
+
+    return wi->tcg_features;
+}
+
+static void x86_cpu_get_supported_cpuid(uint32_t func, uint32_t index,
+                                        uint32_t *eax, uint32_t *ebx,
+                                        uint32_t *ecx, uint32_t *edx)
+{
+    *eax = 0;
+    *ebx = 0;
+    *ecx = 0;
+    *edx = 0;
+}
+
+static void x86_cpu_get_cache_cpuid(uint32_t func, uint32_t index,
+                                    uint32_t *eax, uint32_t *ebx,
+                                    uint32_t *ecx, uint32_t *edx)
+{
+    *eax = 0;
+    *ebx = 0;
+    *ecx = 0;
+    *edx = 0;
+}
+
+#endif /* !CONFIG_USER_ONLY */
 
 /*
  * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
@@ -6163,6 +6195,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             }
             *edx = env->features[FEAT_7_0_EDX]; /* Feature flags */
 
+#ifndef CONFIG_USER_ONLY
             /*
              * SGX cannot be emulated in software.  If hardware does not
              * support enabling SGX and/or SGX flexible launch control,
@@ -6181,6 +6214,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                     CPUID_7_0_ECX_SGX_LC))) {
                 *ecx &= ~CPUID_7_0_ECX_SGX_LC;
             }
+#endif
         } else if (count == 1) {
             *eax = env->features[FEAT_7_1_EAX];
             *edx = env->features[FEAT_7_1_EDX];
@@ -6876,6 +6910,8 @@ static void mce_init(X86CPU *cpu)
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+
 static void x86_cpu_adjust_level(X86CPU *cpu, uint32_t *min, uint32_t value)
 {
     if (*min < value) {
@@ -6947,6 +6983,8 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
     env->features[FEAT_XSAVE_XSS_LO] = mask & CPUID_XSTATE_XSS_MASK;
     env->features[FEAT_XSAVE_XSS_HI] = mask >> 32;
 }
+
+#endif /* !CONFIG_USER_ONLY */
 
 /***** Steps involved on loading and filtering CPUID data
  *
@@ -7040,6 +7078,7 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
+#ifndef CONFIG_USER_ONLY
     if (!kvm_enabled() || !cpu->expose_kvm) {
         env->features[FEAT_KVM] = 0;
     }
@@ -7111,6 +7150,8 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         return;
     }
 
+#endif /* !CONFIG_USER_ONLY */
+
     /* Set cpuid_*level* based on cpuid_min_*level, if not explicitly set */
     if (env->cpuid_level_func7 == UINT32_MAX) {
         env->cpuid_level_func7 = env->cpuid_min_level_func7;
@@ -7152,6 +7193,7 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
         mark_unavailable_features(cpu, w, unavailable_features, prefix);
     }
 
+#ifndef CONFIG_USER_ONLY
     if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT) &&
         kvm_enabled()) {
         KVMState *s = CPU(cpu)->kvm_state;
@@ -7179,6 +7221,7 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
             mark_unavailable_features(cpu, FEAT_7_0_EBX, CPUID_7_0_EBX_INTEL_PT, prefix);
         }
     }
+#endif
 }
 
 static void x86_cpu_hyperv_realize(X86CPU *cpu)
