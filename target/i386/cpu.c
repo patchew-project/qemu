@@ -26,7 +26,7 @@
 #include "tcg/helper-tcg.h"
 #include "sysemu/reset.h"
 #include "sysemu/hvf.h"
-#include "kvm/kvm_i386.h"
+#include "sysemu/kvm.h"
 #include "sev.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -40,6 +40,7 @@
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "hw/i386/sgx-epc.h"
+#include "kvm/kvm_i386.h"
 #endif
 
 #include "disas/capstone.h"
