@@ -22,3 +22,4 @@ config LOONGARCH_VIRT
     select DIMM
     select PFLASH_CFI01
     select ACPI_HMAT
+    select VIRTIO_MMIO
