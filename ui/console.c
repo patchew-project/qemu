@@ -1742,6 +1742,9 @@ bool dpy_ui_info_supported(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
+    if (con == NULL) {
+        return false;
+    }
 
     return con->hw_ops->ui_info != NULL;
 }
@@ -1751,6 +1754,9 @@ const QemuUIInfo *dpy_get_ui_info(const QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
+    if (con == NULL) {
+        return NULL;
+    }
 
     return &con->ui_info;
 }
@@ -1759,6 +1765,9 @@ int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info, bool delay)
 {
     if (con == NULL) {
         con = active_console;
+    }
+    if (con == NULL) {
+        return -1;
     }
 
     if (!dpy_ui_info_supported(con)) {
@@ -2335,6 +2344,10 @@ QEMUCursor *qemu_console_get_cursor(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
+    if (con == NULL) {
+        return NULL;
+    }
+
     return QEMU_IS_GRAPHIC_CONSOLE(con) ? QEMU_GRAPHIC_CONSOLE(con)->cursor : NULL;
 }
 
@@ -2348,6 +2361,10 @@ bool qemu_console_is_graphic(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
+    if (con == NULL) {
+        return false;
+    }
+
     return con && QEMU_IS_GRAPHIC_CONSOLE(con);
 }
 
@@ -2356,6 +2373,10 @@ bool qemu_console_is_fixedsize(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
+    if (con == NULL) {
+        return false;
+    }
+
     return con && (QEMU_IS_GRAPHIC_CONSOLE(con) || QEMU_IS_FIXED_TEXT_CONSOLE(con));
 }
 
@@ -2427,6 +2448,10 @@ int qemu_console_get_index(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
+    if (con == NULL) {
+        return -1;
+    }
+
     return con ? con->index : -1;
 }
 
