@@ -7107,6 +7107,10 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
+    if (kvm_enabled() && !kvm_hyperv_expand_features(cpu, errp)) {
+        return;
+    }
+
     /* Set cpuid_*level* based on cpuid_min_*level, if not explicitly set */
     if (env->cpuid_level_func7 == UINT32_MAX) {
         env->cpuid_level_func7 = env->cpuid_min_level_func7;
@@ -7119,10 +7123,6 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     }
     if (env->cpuid_xlevel2 == UINT32_MAX) {
         env->cpuid_xlevel2 = env->cpuid_min_xlevel2;
-    }
-
-    if (kvm_enabled()) {
-        kvm_hyperv_expand_features(cpu, errp);
     }
 }
 
