@@ -82,7 +82,7 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
         }
     }
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
-                     PCI_BASE_ADDRESS_MEM_TYPE_64, &pcie_br->shpc_bar);
+                     PCI_BASE_ADDRESS_MEM_TYPE_32, &pcie_br->shpc_bar);
     return;
 
 msi_error:
