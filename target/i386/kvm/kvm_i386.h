@@ -32,7 +32,6 @@
 
 bool kvm_has_smm(void);
 bool kvm_enable_x2apic(void);
-bool kvm_hv_vpindex_settable(void);
 bool kvm_has_pit_state2(void);
 
 bool kvm_enable_sgx_provisioning(KVMState *s);
@@ -41,8 +40,6 @@ bool kvm_hyperv_expand_features(X86CPU *cpu, Error **errp);
 void kvm_arch_reset_vcpu(X86CPU *cs);
 void kvm_arch_after_reset_vcpu(X86CPU *cpu);
 void kvm_arch_do_init_vcpu(X86CPU *cs);
-uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
-                                      uint32_t index, int reg);
 uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index);
 
 void kvm_set_max_apic_id(uint32_t max_apic_id);
@@ -60,6 +57,10 @@ void kvm_put_apicbase(X86CPU *cpu, uint64_t value);
 
 bool kvm_has_x2apic_api(void);
 bool kvm_has_waitpkg(void);
+bool kvm_hv_vpindex_settable(void);
+
+uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
+                                      uint32_t index, int reg);
 
 uint64_t kvm_swizzle_msi_ext_dest_id(uint64_t address);
 void kvm_update_msi_routes_all(void *private, bool global,
@@ -75,6 +76,20 @@ typedef struct kvm_msr_handlers {
 
 bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
                     QEMUWRMSRHandler *wrmsr);
+
+#elif defined(__clang__) && !defined(__OPTIMIZE__)
+
+static inline bool kvm_hv_vpindex_settable(void)
+{
+    g_assert_not_reached();
+}
+
+static inline uint32_t kvm_arch_get_supported_cpuid(KVMState *env,
+                                                    uint32_t function,
+                                                    uint32_t index, int reg)
+{
+    g_assert_not_reached();
+}
 
 #endif /* CONFIG_KVM */
 
