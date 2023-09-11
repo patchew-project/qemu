@@ -10,8 +10,31 @@
 #include "qemu/osdep.h"
 #include "io/channel.h"
 #include "yank_functions.h"
+#include "qemu/lockable.h"
 #include "qemu/yank.h"
 #include "qemu-file.h"
+
+static QemuMutex ioc_list_lock;
+static QLIST_HEAD(, Yankable) yankable_ioc_list
+    = QLIST_HEAD_INITIALIZER(yankable_ioc_list);
+
+static void __attribute__((constructor)) ioc_list_lock_init(void)
+{
+    qemu_mutex_init(&ioc_list_lock);
+}
+
+static void yankable_ref(Yankable *yankable)
+{
+    assert(yankable->refcnt > 0);
+    yankable->refcnt++;
+    assert(yankable->refcnt < INT_MAX);
+}
+
+static void yankable_unref(Yankable *yankable)
+{
+    assert(yankable->refcnt > 0);
+    yankable->refcnt--;
+}
 
 void migration_yank_iochannel(void *opaque)
 {
@@ -28,20 +51,62 @@ static bool migration_ioc_yank_supported(QIOChannel *ioc)
 
 void migration_ioc_register_yank(QIOChannel *ioc)
 {
-    if (migration_ioc_yank_supported(ioc)) {
-        yank_register_function(MIGRATION_YANK_INSTANCE,
-                               migration_yank_iochannel,
-                               ioc);
+    Yankable *new, *entry;
+
+    if (!ioc || !migration_ioc_yank_supported(ioc)) {
+        return;
     }
+
+    WITH_QEMU_LOCK_GUARD(&ioc_list_lock) {
+        QLIST_FOREACH(entry, &yankable_ioc_list, next) {
+            if (entry->opaque == ioc) {
+                yankable_ref(entry);
+                return;
+            }
+        }
+
+        new = g_new0(Yankable, 1);
+        new->refcnt = 1;
+        new->opaque = ioc;
+        object_ref(ioc);
+
+        QLIST_INSERT_HEAD(&yankable_ioc_list, new, next);
+    }
+
+    yank_register_function(MIGRATION_YANK_INSTANCE,
+                           migration_yank_iochannel,
+                           ioc);
 }
 
 void migration_ioc_unregister_yank(QIOChannel *ioc)
 {
-    if (migration_ioc_yank_supported(ioc)) {
-        yank_unregister_function(MIGRATION_YANK_INSTANCE,
-                                 migration_yank_iochannel,
-                                 ioc);
+    Yankable *entry, *tmp;
+
+    if (!ioc || !migration_ioc_yank_supported(ioc)) {
+        return;
     }
+
+    WITH_QEMU_LOCK_GUARD(&ioc_list_lock) {
+        QLIST_FOREACH_SAFE(entry, &yankable_ioc_list, next, tmp) {
+            if (entry->opaque == ioc) {
+                yankable_unref(entry);
+
+                if (!entry->refcnt) {
+                    QLIST_REMOVE(entry, next);
+                    g_free(entry);
+                    goto unreg;
+                }
+            }
+        }
+    }
+
+    return;
+
+unreg:
+    yank_unregister_function(MIGRATION_YANK_INSTANCE,
+                             migration_yank_iochannel,
+                             ioc);
+    object_unref(ioc);
 }
 
 void migration_ioc_unregister_yank_from_file(QEMUFile *file)

@@ -7,6 +7,14 @@
  * See the COPYING file in the top-level directory.
  */
 
+struct Yankable {
+    void *opaque;
+    int refcnt;
+    QLIST_ENTRY(Yankable) next;
+};
+
+typedef struct Yankable Yankable;
+
 /**
  * migration_yank_iochannel: yank function for iochannel
  *
