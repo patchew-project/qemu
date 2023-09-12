@@ -485,17 +485,6 @@ static inline CPUNegativeOffsetState *cpu_neg(CPUState *cpu)
 }
 
 /**
- * env_tlb(env)
- * @env: The architecture environment
- *
- * Return the CPUTLB state associated with the environment.
- */
-static inline CPUTLB *env_tlb(CPUArchState *env)
-{
-    return &env_neg(env)->tlb;
-}
-
-/**
  * cpu_tlb(cpu)
  * @cpu: The generic CPUState
  *
