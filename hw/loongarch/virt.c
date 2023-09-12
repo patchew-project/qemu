@@ -624,11 +624,11 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
                                     sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
                                     1));
         /*
-	 * extioi iocsr memory region
-	 * only one extioi is added on loongarch virt machine
-	 * external device interrupt can only be routed to cpu 0-3
-	 */
-	if (cpu < EXTIOI_CPUS)
+         * extioi iocsr memory region
+         * only one extioi is added on loongarch virt machine
+         * external device interrupt can only be routed to cpu 0-3
+         */
+        if (cpu < EXTIOI_CPUS)
             memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi),
                                 cpu));
@@ -789,9 +789,7 @@ static void loongarch_init(MachineState *machine)
     NodeInfo *numa_info = machine->numa_state->nodes;
     int i;
     hwaddr fdt_base;
-    const CPUArchIdList *possible_cpus;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    CPUState *cpu;
     char *ramName = NULL;
 
     if (!cpu_model) {
@@ -803,16 +801,41 @@ static void loongarch_init(MachineState *machine)
         exit(1);
     }
     create_fdt(lams);
-    /* Init CPUs */
 
-    possible_cpus = mc->possible_cpu_arch_ids(machine);
-    for (i = 0; i < possible_cpus->len; i++) {
-        cpu = cpu_create(machine->cpu_type);
-        cpu->cpu_index = i;
-        machine->possible_cpus->cpus[i].cpu = OBJECT(cpu);
-        lacpu = LOONGARCH_CPU(cpu);
-        lacpu->phy_id = machine->possible_cpus->cpus[i].arch_id;
+    /* Init CPUs */
+    mc->possible_cpu_arch_ids(machine);
+    for (i = 0; i < machine->smp.cpus; i++) {
+        Object *cpuobj;
+        cpuobj = object_new(machine->cpu_type);
+        lacpu = LOONGARCH_CPU(cpuobj);
+
+        lacpu->arch_id = machine->possible_cpus->cpus[i].arch_id;
+        object_property_set_int(cpuobj, "socket-id",
+                                machine->possible_cpus->cpus[i].props.socket_id,
+                                NULL);
+        object_property_set_int(cpuobj, "core-id",
+                                machine->possible_cpus->cpus[i].props.core_id,
+                                NULL);
+        object_property_set_int(cpuobj, "thread-id",
+                                machine->possible_cpus->cpus[i].props.thread_id,
+                                NULL);
+        /*
+         * The CPU in place at the time of machine startup will also enter
+         * the CPU hot-plug process when it is created, but at this time,
+         * the GED device has not been created, resulting in exit in the CPU
+         * hot-plug process, which can avoid the incumbent CPU repeatedly
+         * applying for resources.
+         *
+         * The interrupt resource of the in-place CPU will be requested at
+         * the current function call loongarch_irq_init().
+         *
+         * The interrupt resource of the subsequently inserted CPU will be
+         * requested in the CPU hot-plug process.
+         */
+        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+        object_unref(cpuobj);
     }
+
     fdt_add_cpu_nodes(lams);
 
     /* Node0 memory */
@@ -983,6 +1006,37 @@ static void virt_mem_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     pc_dimm_pre_plug(PC_DIMM(dev), MACHINE(hotplug_dev), NULL, errp);
 }
 
+static int virt_get_arch_id_from_cpu_topo(const MachineState *ms,
+                                          LoongArchCPUTopo *cpu_topo)
+{
+    int arch_id, sock_vcpu_num, core_vcpu_num;
+
+    /*
+     * calculate total logical cpus across socket/core/thread.
+     * For more information on how to calculate the arch_id,
+     * you can refer to the CPU Topology chapter of the
+     * docs/system/loongarch/virt.rst document.
+     */
+    sock_vcpu_num = cpu_topo->socket_id * (ms->smp.threads * ms->smp.cores);
+    core_vcpu_num = cpu_topo->core_id * ms->smp.threads;
+
+    /* get vcpu-id(logical cpu index) for this vcpu from this topology */
+    arch_id = (sock_vcpu_num + core_vcpu_num) + cpu_topo->thread_id;
+
+    assert(arch_id >= 0 && arch_id < ms->possible_cpus->len);
+
+    return arch_id;
+}
+
+static void virt_get_cpu_topo_by_cpu_index(const MachineState *ms,
+                                           LoongArchCPUTopo *cpu_topo,
+                                           int cpu_index)
+{
+    cpu_topo->socket_id  = cpu_index / (ms->smp.cores * ms->smp.threads);
+    cpu_topo->core_id = cpu_index / ms->smp.threads % ms->smp.cores;
+    cpu_topo->thread_id = cpu_index % ms->smp.threads;
+}
+
 static void virt_machine_device_pre_plug(HotplugHandler *hotplug_dev,
                                             DeviceState *dev, Error **errp)
 {
@@ -1069,6 +1123,8 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
 {
     int n;
     unsigned int max_cpus = ms->smp.max_cpus;
+    unsigned int smp_threads = ms->smp.threads;
+    LoongArchCPUTopo cpu_topo;
 
     if (ms->possible_cpus) {
         assert(ms->possible_cpus->len == max_cpus);
@@ -1079,17 +1135,20 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
                                   sizeof(CPUArchId) * max_cpus);
     ms->possible_cpus->len = max_cpus;
     for (n = 0; n < ms->possible_cpus->len; n++) {
+        ms->possible_cpus->cpus[n].vcpus_count = smp_threads;
         ms->possible_cpus->cpus[n].type = ms->cpu_type;
-        ms->possible_cpus->cpus[n].arch_id = n;
+
+        virt_get_cpu_topo_by_cpu_index(ms, &cpu_topo, n);
 
         ms->possible_cpus->cpus[n].props.has_socket_id = true;
-        ms->possible_cpus->cpus[n].props.socket_id  =
-                                   n / (ms->smp.cores * ms->smp.threads);
+        ms->possible_cpus->cpus[n].props.socket_id  = cpu_topo.socket_id;
         ms->possible_cpus->cpus[n].props.has_core_id = true;
-        ms->possible_cpus->cpus[n].props.core_id =
-                                   n / ms->smp.threads % ms->smp.cores;
+        ms->possible_cpus->cpus[n].props.core_id = cpu_topo.core_id;
         ms->possible_cpus->cpus[n].props.has_thread_id = true;
-        ms->possible_cpus->cpus[n].props.thread_id = n % ms->smp.threads;
+        ms->possible_cpus->cpus[n].props.thread_id = cpu_topo.thread_id;
+
+        ms->possible_cpus->cpus[n].arch_id =
+                                virt_get_arch_id_from_cpu_topo(ms, &cpu_topo);
     }
     return ms->possible_cpus;
 }

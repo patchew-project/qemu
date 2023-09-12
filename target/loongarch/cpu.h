@@ -362,6 +362,12 @@ typedef struct CPUArchState {
 #endif
 } CPULoongArchState;
 
+typedef struct LoongArchCPUTopo {
+    int32_t socket_id;  /* socket-id of this VCPU */
+    int32_t core_id;    /* core-id of this VCPU */
+    int32_t thread_id;  /* thread-id of this VCPU */
+} LoongArchCPUTopo;
+
 /**
  * LoongArchCPU:
  * @env: #CPULoongArchState
@@ -373,10 +379,14 @@ struct ArchCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    int32_t socket_id;  /* socket-id of this VCPU */
+    int32_t core_id;    /* core-id of this VCPU */
+    int32_t thread_id;  /* thread-id of this VCPU */
+    int32_t node_id;    /* NUMA node this CPU belongs to */
     CPUNegativeOffsetState neg;
     CPULoongArchState env;
     QEMUTimer timer;
-    uint32_t  phy_id;
+    uint32_t  arch_id;
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;

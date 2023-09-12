@@ -28,6 +28,37 @@ The ``qemu-system-loongarch64`` provides emulation for virt
 machine. You can specify the machine type ``virt`` and
 cpu type ``la464``.
 
+CPU Topology
+--------------------
+
+The ``LA464`` type CPUs have the concept of Socket Core and Thread.
+
+For example:
+
+``-smp 1,maxcpus=M,sockets=S,cores=C,threads=T``
+
+The above parameters indicate that the machine has a maximum of ``M`` vCPUs and
+``S`` sockets, each socket has ``C`` cores, each core has ``T`` threads,
+and each thread corresponds to a vCPU.
+
+Then ``M`` ``S`` ``C`` ``T`` has the following relationship:
+
+``M = S * C * T``
+
+In the CPU topology relationship, When we know the ``socket_id`` ``core_id``
+and ``thread_id`` of the CPU, we can calculate its ``arch_id``:
+
+``arch_id = (socket_id * S) + (core_id * C) + (thread_id * T)``
+
+Similarly, when we know the ``arch_id`` of the CPU,
+we can also get its ``socket_id`` ``core_id`` and ``thread_id``:
+
+``socket_id = arch_id / (C * T)``
+
+``core_id = (arch_id / T) % C``
+
+``thread_id = arch_id % T``
+
 Boot options
 ------------
 
