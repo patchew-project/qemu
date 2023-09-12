@@ -15,7 +15,7 @@
   stage: build
   image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:master
   needs: []
-  timeout: 80m
+  timeout: 100m
   allow_failure: true
   script:
     - source .gitlab-ci.d/cirrus/$NAME.vars
