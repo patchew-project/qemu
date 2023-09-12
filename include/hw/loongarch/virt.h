@@ -42,7 +42,7 @@ struct LoongArchMachineState {
     MemoryRegion bios;
     bool         bios_loaded;
     /* State for other subsystems/APIs: */
-    FWCfgState  *fw_cfg;
+    FWCfgState   *fw_cfg;
     Notifier     machine_done;
     Notifier     powerdown_notifier;
     OnOffAuto    acpi;
@@ -50,9 +50,10 @@ struct LoongArchMachineState {
     char         *oem_table_id;
     DeviceState  *acpi_ged;
     int          fdt_size;
-    DeviceState *platform_bus_dev;
+    DeviceState  *platform_bus_dev;
     PCIBus       *pci_bus;
     PFlashCFI01  *flash;
+    DeviceState  *extioi;
 };
 
 #define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")

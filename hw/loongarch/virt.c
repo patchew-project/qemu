@@ -46,6 +46,8 @@
 #include "hw/block/flash.h"
 #include "qemu/error-report.h"
 
+static LoongArchCPU *loongarch_cpu_irq_init(MachineState *machine,
+                                LoongArchCPU *cpu, Error **errp);
 
 static void virt_flash_create(LoongArchMachineState *lams)
 {
@@ -573,16 +575,16 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
 static void loongarch_irq_init(LoongArchMachineState *lams)
 {
     MachineState *ms = MACHINE(lams);
-    DeviceState *pch_pic, *pch_msi, *cpudev;
-    DeviceState *ipi, *extioi;
+    DeviceState *pch_pic, *pch_msi;
+    DeviceState *extioi;
     SysBusDevice *d;
     LoongArchCPU *lacpu;
-    CPULoongArchState *env;
     CPUState *cpu_state;
-    int cpu, pin, i, start, num;
+    int cpu, i, start, num;
 
     extioi = qdev_new(TYPE_LOONGARCH_EXTIOI);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
+    lams->extioi = extioi;
 
     /*
      * The connection of interrupts:
@@ -607,44 +609,8 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
      */
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
         cpu_state = qemu_get_cpu(cpu);
-        cpudev = DEVICE(cpu_state);
         lacpu = LOONGARCH_CPU(cpu_state);
-        env = &(lacpu->env);
-
-        ipi = qdev_new(TYPE_LOONGARCH_IPI);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
-
-        /* connect ipi irq to cpu irq */
-        qdev_connect_gpio_out(ipi, 0, qdev_get_gpio_in(cpudev, IRQ_IPI));
-        /* IPI iocsr memory region */
-        memory_region_add_subregion(&env->system_iocsr, SMP_IPI_MAILBOX,
-                                    sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
-                                    0));
-        memory_region_add_subregion(&env->system_iocsr, MAIL_SEND_ADDR,
-                                    sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
-                                    1));
-        /*
-         * extioi iocsr memory region
-         * only one extioi is added on loongarch virt machine
-         * external device interrupt can only be routed to cpu 0-3
-         */
-        if (cpu < EXTIOI_CPUS)
-            memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi),
-                                cpu));
-        env->ipistate = ipi;
-    }
-
-    /*
-     * connect ext irq to the cpu irq
-     * cpu_pin[9:2] <= intc_pin[7:0]
-     */
-    for (cpu = 0; cpu < MIN(ms->smp.cpus, EXTIOI_CPUS); cpu++) {
-        cpudev = DEVICE(qemu_get_cpu(cpu));
-        for (pin = 0; pin < LS3A_INTC_IP; pin++) {
-            qdev_connect_gpio_out(extioi, (cpu * 8 + pin),
-                                  qdev_get_gpio_in(cpudev, pin + 2));
-        }
+        loongarch_cpu_irq_init(ms, lacpu, &error_fatal);
     }
 
     pch_pic = qdev_new(TYPE_LOONGARCH_PCH_PIC);
@@ -927,11 +893,7 @@ static void loongarch_init(MachineState *machine)
         }
     }
     fdt_add_flash_node(lams);
-    /* register reset function */
-    for (i = 0; i < machine->smp.cpus; i++) {
-        lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
-        qemu_register_reset(reset_load_elf, lacpu);
-    }
+
     /* Initialize the IO interrupt subsystem */
     loongarch_irq_init(lams);
     fdt_add_irqchip_node(lams);
@@ -1089,6 +1051,57 @@ static void virt_mem_plug(HotplugHandler *hotplug_dev,
     pc_dimm_plug(PC_DIMM(dev), MACHINE(lams));
     hotplug_handler_plug(HOTPLUG_HANDLER(lams->acpi_ged),
                          dev, &error_abort);
+}
+
+static LoongArchCPU *loongarch_cpu_irq_init(MachineState *machine,
+                                LoongArchCPU *cpu, Error **errp)
+{
+    LoongArchMachineState *lsms = LOONGARCH_MACHINE(machine);
+    CPUState *cs = CPU(cpu);
+    unsigned int cpu_index = cs->cpu_index;
+    DeviceState *cpudev = DEVICE(cpu);
+    DeviceState *extioi = lsms->extioi;
+    CPULoongArchState *env = &cpu->env;
+    DeviceState *ipi;
+    int pin;
+
+    qemu_register_reset(reset_load_elf, cpu);
+
+    ipi = qdev_new(TYPE_LOONGARCH_IPI);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), errp);
+
+    /* connect ipi irq to cpu irq */
+    qdev_connect_gpio_out(ipi, 0, qdev_get_gpio_in(cpudev, IRQ_IPI));
+    /* IPI iocsr memory region */
+    memory_region_add_subregion(&env->system_iocsr, SMP_IPI_MAILBOX,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
+                                0));
+    memory_region_add_subregion(&env->system_iocsr, MAIL_SEND_ADDR,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
+                                1));
+    /*
+     * extioi iocsr memory region
+     * only one extioi is added on loongarch virt machine
+     * external device interrupt can only be routed to cpu 0-3
+     */
+    if (cpu_index < EXTIOI_CPUS)
+        memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi),
+                            cpu_index));
+    env->ipistate = ipi;
+
+    /*
+     * connect ext irq to the cpu irq
+     * cpu_pin[9:2] <= intc_pin[7:0]
+     */
+    if (cpu_index < EXTIOI_CPUS) {
+        for (pin = 0; pin < LS3A_INTC_IP; pin++) {
+            qdev_connect_gpio_out(extioi, (cpu_index * 8 + pin),
+                                  qdev_get_gpio_in(cpudev, pin + 2));
+        }
+    }
+
+    return cpu;
 }
 
 static void loongarch_machine_device_plug_cb(HotplugHandler *hotplug_dev,
