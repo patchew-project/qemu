@@ -6,13 +6,6 @@
 #include "trace.h"
 #include "sysemu/numa.h"
 
-#define ACPI_CPU_HOTPLUG_REG_LEN 12
-#define ACPI_CPU_SELECTOR_OFFSET_WR 0
-#define ACPI_CPU_FLAGS_OFFSET_RW 4
-#define ACPI_CPU_CMD_OFFSET_WR 5
-#define ACPI_CPU_CMD_DATA_OFFSET_RW 8
-#define ACPI_CPU_CMD_DATA2_OFFSET_R 0
-
 #define OVMF_CPUHP_SMI_CMD 4
 
 enum {
