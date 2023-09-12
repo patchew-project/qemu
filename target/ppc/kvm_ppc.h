@@ -89,6 +89,8 @@ void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset);
 
 int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run);
 
+struct ppc_radix_page_info *kvmppc_get_radix_page_info(void);
+
 #define kvmppc_eieio() \
     do {                                          \
         if (kvm_enabled()) {                          \
