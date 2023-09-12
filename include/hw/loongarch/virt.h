@@ -60,4 +60,8 @@ struct LoongArchMachineState {
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchMachineState, LOONGARCH_MACHINE)
 bool loongarch_is_acpi_enabled(LoongArchMachineState *lams);
 void loongarch_acpi_setup(LoongArchMachineState *lams);
+void virt_madt_cpu_entry(int uid,
+                         const CPUArchIdList *apic_ids, GArray *entry,
+                         bool force_enabled);
+
 #endif
