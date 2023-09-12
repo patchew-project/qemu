@@ -238,7 +238,12 @@ typedef struct SavedIOTLB {
 } SavedIOTLB;
 #endif
 
+/* see include/exec/cpu-defs.h */
+struct CPUTLB;
+
+/* see include/sysemu/kvm_int.h */
 struct KVMState;
+/* see linux-headers/linux/kvm.h */
 struct kvm_run;
 
 /* work queue */
@@ -372,6 +377,7 @@ struct CPUState {
 
     CPUArchState *env_ptr;
     IcountDecr *icount_decr_ptr;
+    struct CPUTLB *tlb_ptr;
 
     CPUJumpCache *tb_jmp_cache;
 

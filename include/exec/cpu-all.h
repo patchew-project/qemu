@@ -435,6 +435,7 @@ static inline void cpu_set_cpustate_pointers(ArchCPU *cpu)
 {
     cpu->parent_obj.env_ptr = &cpu->env;
     cpu->parent_obj.icount_decr_ptr = &cpu->neg.icount_decr;
+    cpu->parent_obj.tlb_ptr = &cpu->neg.tlb;
 }
 
 /**
@@ -492,6 +493,17 @@ static inline CPUNegativeOffsetState *cpu_neg(CPUState *cpu)
 static inline CPUTLB *env_tlb(CPUArchState *env)
 {
     return &env_neg(env)->tlb;
+}
+
+/**
+ * cpu_tlb(cpu)
+ * @cpu: The generic CPUState
+ *
+ * Return the CPUTLB state associated with the cpu.
+ */
+static inline CPUTLB *cpu_tlb(CPUState *cpu)
+{
+    return cpu->tlb_ptr;
 }
 
 #endif /* CPU_ALL_H */
