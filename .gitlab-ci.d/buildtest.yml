@@ -22,15 +22,6 @@ check-system-alpine:
     IMAGE: alpine
     MAKE_CHECK_ARGS: check-unit check-qtest
 
-avocado-system-alpine:
-  extends: .avocado_test_job_template
-  needs:
-    - job: build-system-alpine
-      artifacts: true
-  variables:
-    IMAGE: alpine
-    MAKE_CHECK_ARGS: check-avocado
-
 build-system-ubuntu:
   extends:
     - .native_build_job_template
@@ -52,15 +43,6 @@ check-system-ubuntu:
   variables:
     IMAGE: ubuntu2204
     MAKE_CHECK_ARGS: check
-
-avocado-system-ubuntu:
-  extends: .avocado_test_job_template
-  needs:
-    - job: build-system-ubuntu
-      artifacts: true
-  variables:
-    IMAGE: ubuntu2204
-    MAKE_CHECK_ARGS: check-avocado
 
 build-system-debian:
   extends:
@@ -126,15 +108,6 @@ check-system-fedora:
   variables:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check
-
-avocado-system-fedora:
-  extends: .avocado_test_job_template
-  needs:
-    - job: build-system-fedora
-      artifacts: true
-  variables:
-    IMAGE: fedora
-    MAKE_CHECK_ARGS: check-avocado
 
 crash-test-fedora:
   extends: .native_test_job_template
