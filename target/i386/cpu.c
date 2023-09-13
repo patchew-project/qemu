@@ -1664,29 +1664,6 @@ static inline uint64_t x86_cpu_xsave_xss_components(X86CPU *cpu)
            cpu->env.features[FEAT_XSAVE_XSS_LO];
 }
 
-/*
- * Returns the set of feature flags that are supported and migratable by
- * QEMU, for a given FeatureWord.
- */
-static uint64_t x86_cpu_get_migratable_flags(FeatureWord w)
-{
-    FeatureWordInfo *wi = &feature_word_info[w];
-    uint64_t r = 0;
-    int i;
-
-    for (i = 0; i < 64; i++) {
-        uint64_t f = 1ULL << i;
-
-        /* If the feature name is known, it is implicitly considered migratable,
-         * unless it is explicitly set in unmigratable_flags */
-        if ((wi->migratable_flags & f) ||
-            (wi->feat_names[i] && !(wi->unmigratable_flags & f))) {
-            r |= f;
-        }
-    }
-    return r;
-}
-
 void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 {
@@ -5678,6 +5655,29 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 }
 
 #endif /* !CONFIG_USER_ONLY */
+
+/*
+ * Returns the set of feature flags that are supported and migratable by
+ * QEMU, for a given FeatureWord.
+ */
+static uint64_t x86_cpu_get_migratable_flags(FeatureWord w)
+{
+    FeatureWordInfo *wi = &feature_word_info[w];
+    uint64_t r = 0;
+    int i;
+
+    for (i = 0; i < 64; i++) {
+        uint64_t f = 1ULL << i;
+
+        /* If the feature name is known, it is implicitly considered migratable,
+         * unless it is explicitly set in unmigratable_flags */
+        if ((wi->migratable_flags & f) ||
+            (wi->feat_names[i] && !(wi->unmigratable_flags & f))) {
+            r |= f;
+        }
+    }
+    return r;
+}
 
 uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                             bool migratable_only)
