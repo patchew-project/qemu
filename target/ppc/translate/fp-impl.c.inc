@@ -15,19 +15,10 @@ static inline void gen_compute_fprf_float64(TCGv_i64 arg)
     gen_helper_float_check_status(cpu_env);
 }
 
-#if defined(TARGET_PPC64)
-static void gen_set_cr1_from_fpscr(DisasContext *ctx)
-{
-    TCGv tmp = tcg_temp_new();
-    tcg_gen_mov_tl(tmp, cpu_fpscr);
-    tcg_gen_shri_tl(cpu_crf[1], tmp, FPSCR_OX);
-}
-#else
 static void gen_set_cr1_from_fpscr(DisasContext *ctx)
 {
     tcg_gen_shri_tl(cpu_crf[1], cpu_fpscr, FPSCR_OX);
 }
-#endif
 
 /***                       Floating-Point arithmetic                       ***/
 #define _GEN_FLOAT_ACB(name, op1, op2, set_fprf, type)                        \
@@ -518,7 +509,7 @@ static void gen_fmrgow(DisasContext *ctx)
 /* mcrfs */
 static void gen_mcrfs(DisasContext *ctx)
 {
-    TCGv tmp = tcg_temp_new();
+    TCGv cr = cpu_crf[crfD(ctx->opcode)];
     TCGv_i32 tmask;
     TCGv_i64 tnew_fpscr = tcg_temp_new_i64();
     int bfa;
@@ -532,10 +523,8 @@ static void gen_mcrfs(DisasContext *ctx)
     bfa = crfS(ctx->opcode);
     nibble = 7 - bfa;
     shift = 4 * nibble;
-    tcg_gen_shri_tl(tmp, cpu_fpscr, shift);
-    tcg_gen_mov_tl(cpu_crf[crfD(ctx->opcode)], tmp);
-    tcg_gen_andi_tl(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)],
-                     0xf);
+    tcg_gen_shri_tl(cr, cpu_fpscr, shift);
+    tcg_gen_andi_tl(cr, cr, 0xf);
     tcg_gen_extu_tl_i64(tnew_fpscr, cpu_fpscr);
     /* Only the exception bits (including FX) should be cleared if read */
     tcg_gen_andi_i64(tnew_fpscr, tnew_fpscr,
