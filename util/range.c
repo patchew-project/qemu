@@ -70,3 +70,48 @@ GList *range_list_insert(GList *list, Range *data)
 
     return list;
 }
+
+void range_inverse_array(uint32_t nr_ranges, Range *ranges,
+                         uint32_t *nr_inv_ranges, Range **inv_ranges,
+                         uint64_t low, uint64_t high)
+{
+    Range *resv;
+    int i = 0, j = 0;
+
+    resv = g_malloc0_n(nr_ranges + 1, sizeof(Range));
+
+    for (; j < nr_ranges  && (range_upb(&ranges[j]) < low); j++) {
+        continue; /* skip all ranges below mon */
+    }
+
+    if (j == nr_ranges) {
+        range_set_bounds(&resv[i++], low, high);
+        goto realloc;
+    }
+
+    /* first range lob is greater than min, insert a first range */
+    if (range_lob(&ranges[j]) > low) {
+        range_set_bounds(&resv[i++], low,
+                         MIN(range_lob(&ranges[j]) - 1, high));
+    }
+
+    /* insert a range inbetween each original range until we reach max */
+    for (; j < nr_ranges - 1; j++) {
+        if (range_lob(&ranges[j]) >= high) {
+            goto realloc;
+        }
+        if (range_compare(&ranges[j], &ranges[j + 1])) {
+            range_set_bounds(&resv[i++], range_upb(&ranges[j]) + 1,
+                             MIN(range_lob(&ranges[j + 1]) - 1, high));
+        }
+    }
+    /* last range upb is less than max, insert a last range */
+    if (range_upb(&ranges[j]) <  high) {
+        range_set_bounds(&resv[i++],
+                          range_upb(&ranges[j]) + 1, high);
+    }
+realloc:
+    *nr_inv_ranges = i;
+    resv = g_realloc(resv, i * sizeof(Range));
+    *inv_ranges = resv;
+}

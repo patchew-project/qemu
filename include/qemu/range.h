@@ -219,4 +219,12 @@ static inline int ranges_overlap(uint64_t first1, uint64_t len1,
 
 GList *range_list_insert(GList *list, Range *data);
 
+/*
+ * Inverse an array of sorted ranges over the [low, high] span, ie.
+ * original ranges becomes holes in the newly allocated inv_ranges
+ */
+void range_inverse_array(uint32_t nr_ranges, Range *ranges,
+                         uint32_t *nr_inv_ranges, Range **inv_ranges,
+                         uint64_t low, uint64_t high);
+
 #endif
