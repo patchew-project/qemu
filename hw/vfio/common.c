@@ -1142,13 +1142,6 @@ static void vfio_listener_region_add(MemoryListener *listener,
 #endif
     }
 
-    hostwin = vfio_find_hostwin(container, iova, end);
-    if (!hostwin) {
-        error_setg(&err, "Container %p can't map guest IOVA region"
-                   " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx, container, iova, end);
-        goto fail;
-    }
-
     memory_region_ref(section->mr);
 
     if (memory_region_is_iommu(section->mr)) {
@@ -1206,6 +1199,14 @@ static void vfio_listener_region_add(MemoryListener *listener,
 
         return;
     }
+
+    hostwin = vfio_find_hostwin(container, iova, end);
+    if (!hostwin) {
+        error_setg(&err, "Container %p can't map guest IOVA region"
+                   " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx, container, iova, end);
+        goto fail;
+    }
+
 
     /* Here we assume that memory_region_is_ram(section->mr)==true */
 
@@ -2672,12 +2673,10 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         vfio_get_iommu_info_migration(container, info);
         g_free(info);
 
-        /*
-         * FIXME: We should parse VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE
-         * information to get the actual window extent rather than assume
-         * a 64-bit IOVA address space.
-         */
-        vfio_host_win_add(container, 0, (hwaddr)-1, container->pgsizes);
+        g_assert(container->nr_iovas);
+        vfio_host_win_add(container, 0,
+                          container->iova_ranges[container->nr_iovas - 1].end,
+                          container->pgsizes);
 
         break;
     }
