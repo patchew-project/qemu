@@ -98,6 +98,8 @@ typedef struct VFIOContainer {
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_HEAD(, VFIORamDiscardListener) vrdl_list;
     QLIST_ENTRY(VFIOContainer) next;
+    unsigned nr_iovas;
+    struct  vfio_iova_range *iova_ranges;
 } VFIOContainer;
 
 typedef struct VFIOGuestIOMMU {
