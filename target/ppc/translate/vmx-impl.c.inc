@@ -1230,7 +1230,7 @@ static void do_vcmp_rc(int vrt)
     tcg_gen_shli_i64(set, set, 3);
 
     tcg_gen_or_i64(tmp, set, clr);
-    tcg_gen_extrl_i64_i32(cpu_crf[6], tmp);
+    tcg_gen_trunc_i64_tl(cpu_crf[6], tmp);
 }
 
 static bool do_vcmp(DisasContext *ctx, arg_VC *a, TCGCond cond, int vece)
@@ -1347,9 +1347,9 @@ static bool trans_VCMPEQUQ(DisasContext *ctx, arg_VC *a)
     set_avr64(a->vrt, t1, false);
 
     if (a->rc) {
-        tcg_gen_extrl_i64_i32(cpu_crf[6], t1);
-        tcg_gen_andi_i32(cpu_crf[6], cpu_crf[6], 0xa);
-        tcg_gen_xori_i32(cpu_crf[6], cpu_crf[6], 0x2);
+        tcg_gen_trunc_i64_tl(cpu_crf[6], t1);
+        tcg_gen_andi_tl(cpu_crf[6], cpu_crf[6], 0xa);
+        tcg_gen_xori_tl(cpu_crf[6], cpu_crf[6], 0x2);
     }
     return true;
 }
@@ -1377,9 +1377,9 @@ static bool do_vcmpgtq(DisasContext *ctx, arg_VC *a, bool sign)
     set_avr64(a->vrt, t1, false);
 
     if (a->rc) {
-        tcg_gen_extrl_i64_i32(cpu_crf[6], t1);
-        tcg_gen_andi_i32(cpu_crf[6], cpu_crf[6], 0xa);
-        tcg_gen_xori_i32(cpu_crf[6], cpu_crf[6], 0x2);
+        tcg_gen_trunc_i64_tl(cpu_crf[6], t1);
+        tcg_gen_andi_tl(cpu_crf[6], cpu_crf[6], 0xa);
+        tcg_gen_xori_tl(cpu_crf[6], cpu_crf[6], 0x2);
     }
     return true;
 }
@@ -1411,15 +1411,15 @@ static bool do_vcmpq(DisasContext *ctx, arg_VX_bf *a, bool sign)
     tcg_gen_brcond_i64(TCG_COND_GTU, vra, vrb, gt);
     tcg_gen_brcond_i64(TCG_COND_LTU, vra, vrb, lt);
 
-    tcg_gen_movi_i32(cpu_crf[a->bf], CRF_EQ);
+    tcg_gen_movi_tl(cpu_crf[a->bf], CRF_EQ);
     tcg_gen_br(done);
 
     gen_set_label(gt);
-    tcg_gen_movi_i32(cpu_crf[a->bf], CRF_GT);
+    tcg_gen_movi_tl(cpu_crf[a->bf], CRF_GT);
     tcg_gen_br(done);
 
     gen_set_label(lt);
-    tcg_gen_movi_i32(cpu_crf[a->bf], CRF_LT);
+    tcg_gen_movi_tl(cpu_crf[a->bf], CRF_LT);
     tcg_gen_br(done);
 
     gen_set_label(done);
@@ -2262,7 +2262,7 @@ TRANS(VCNTMBW, do_vcntmb, MO_32)
 TRANS(VCNTMBD, do_vcntmb, MO_64)
 
 static bool do_vstri(DisasContext *ctx, arg_VX_tb_rc *a,
-                     void (*gen_helper)(TCGv_i32, TCGv_ptr, TCGv_ptr))
+                     void (*gen_helper)(TCGv, TCGv_ptr, TCGv_ptr))
 {
     TCGv_ptr vrt, vrb;
 
@@ -2275,7 +2275,7 @@ static bool do_vstri(DisasContext *ctx, arg_VX_tb_rc *a,
     if (a->rc) {
         gen_helper(cpu_crf[6], vrt, vrb);
     } else {
-        TCGv_i32 discard = tcg_temp_new_i32();
+        TCGv discard = tcg_temp_new();
         gen_helper(discard, vrt, vrb);
     }
     return true;

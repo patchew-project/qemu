@@ -7481,7 +7481,7 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
     qemu_fprintf(f, "CR ");
     for (i = 0; i < 8; i++)
-        qemu_fprintf(f, "%01x", env->crf[i]);
+        qemu_fprintf(f, "%01x", (uint32_t)env->crf[i]);
     qemu_fprintf(f, "  [");
     for (i = 0; i < 8; i++) {
         char a = '-';

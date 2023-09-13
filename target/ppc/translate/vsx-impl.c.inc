@@ -791,7 +791,7 @@ TRANS(XVCPSGNDP, do_xvcpsgn, MO_64)
 #define VSX_CMP(name, op1, op2, inval, type)                                  \
 static void gen_##name(DisasContext *ctx)                                     \
 {                                                                             \
-    TCGv_i32 ignored;                                                         \
+    TCGv ignored;                                                             \
     TCGv_ptr xt, xa, xb;                                                      \
     if (unlikely(!ctx->vsx_enabled)) {                                        \
         gen_exception(ctx, POWERPC_EXCP_VSXU);                                \
@@ -803,7 +803,7 @@ static void gen_##name(DisasContext *ctx)                                     \
     if ((ctx->opcode >> (31 - 21)) & 1) {                                     \
         gen_helper_##name(cpu_crf[6], cpu_env, xt, xa, xb);                   \
     } else {                                                                  \
-        ignored = tcg_temp_new_i32();                                         \
+        ignored = tcg_temp_new();                                             \
         gen_helper_##name(ignored, cpu_env, xt, xa, xb);                      \
     }                                                                         \
 }
@@ -1808,7 +1808,7 @@ static bool trans_XVTLSBB(DisasContext *ctx, arg_XX2_bf_xb *a)
     tcg_gen_shli_i64(all_true, all_true, 3);
 
     tcg_gen_or_i64(t0, all_false, all_true);
-    tcg_gen_extrl_i64_i32(cpu_crf[a->bf], t0);
+    tcg_gen_trunc_i64_tl(cpu_crf[a->bf], t0);
     return true;
 }
 

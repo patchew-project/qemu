@@ -725,7 +725,7 @@ const VMStateDescription vmstate_ppc_cpu = {
 #if !defined(TARGET_PPC64)
         VMSTATE_UINTTL_ARRAY(env.gprh, PowerPCCPU, 32),
 #endif
-        VMSTATE_UINT32_ARRAY(env.crf, PowerPCCPU, 8),
+        VMSTATE_ARRAY(env.crf, PowerPCCPU, 8, 0, vmstate_info_uint32, target_ulong),
         VMSTATE_UINTTL(env.nip, PowerPCCPU),
 
         /* SPRs */

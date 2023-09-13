@@ -344,7 +344,7 @@ static bool do_set_bool_cond(DisasContext *ctx, arg_X_bi *a, bool neg, bool rev)
     TCGv temp = tcg_temp_new();
     TCGv zero = tcg_constant_tl(0);
 
-    tcg_gen_extu_i32_tl(temp, cpu_crf[a->bi >> 2]);
+    tcg_gen_mov_tl(temp, cpu_crf[a->bi >> 2]);
     tcg_gen_andi_tl(temp, temp, mask);
     if (neg) {
         tcg_gen_negsetcond_tl(cond, cpu_gpr[a->rt], temp, zero);

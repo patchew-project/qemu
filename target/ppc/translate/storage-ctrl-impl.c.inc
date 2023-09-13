@@ -141,9 +141,9 @@ static bool trans_SLBFEE(DisasContext *ctx, arg_SLBFEE *a)
                              cpu_gpr[a->rb]);
     l1 = gen_new_label();
     l2 = gen_new_label();
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+    tcg_gen_mov_tl(cpu_crf[0], cpu_so);
     tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[a->rt], -1, l1);
-    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], CRF_EQ);
+    tcg_gen_ori_tl(cpu_crf[0], cpu_crf[0], CRF_EQ);
     tcg_gen_br(l2);
     gen_set_label(l1);
     tcg_gen_movi_tl(cpu_gpr[a->rt], 0);

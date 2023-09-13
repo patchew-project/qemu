@@ -1107,7 +1107,7 @@ struct CPUArchState {
     target_ulong gprh[32]; /* storage for GPR MSB, used by the SPE extension */
     target_ulong lr;
     target_ulong ctr;
-    uint32_t crf[8];       /* condition register */
+    target_ulong crf[8];       /* condition register */
 #if defined(TARGET_PPC64)
     target_ulong cfar;
 #endif

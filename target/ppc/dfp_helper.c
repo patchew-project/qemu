@@ -493,7 +493,7 @@ DFP_HELPER_TAB(DDIV, decNumberDivide, DIV_PPs, 64)
 DFP_HELPER_TAB(DDIVQ, decNumberDivide, DIV_PPs, 128)
 
 #define DFP_HELPER_BF_AB(op, dnop, postprocs, size)                            \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)           \
+target_ulong helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)       \
 {                                                                              \
     struct PPC_DFP dfp;                                                        \
     dfp_prepare_decimal##size(&dfp, a, b, env);                                \
@@ -525,7 +525,7 @@ DFP_HELPER_BF_AB(DCMPO, decNumberCompare, CMPO_PPs, 64)
 DFP_HELPER_BF_AB(DCMPOQ, decNumberCompare, CMPO_PPs, 128)
 
 #define DFP_HELPER_TSTDC(op, size)                                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)      \
+target_ulong helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)  \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     int match = 0;                                                       \
@@ -553,7 +553,7 @@ DFP_HELPER_TSTDC(DTSTDC, 64)
 DFP_HELPER_TSTDC(DTSTDCQ, 128)
 
 #define DFP_HELPER_TSTDG(op, size)                                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)      \
+target_ulong helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)  \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     int minexp, maxexp, nzero_digits, nzero_idx, is_negative, is_zero,   \
@@ -608,7 +608,7 @@ DFP_HELPER_TSTDG(DTSTDG, 64)
 DFP_HELPER_TSTDG(DTSTDGQ, 128)
 
 #define DFP_HELPER_TSTEX(op, size)                                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)     \
+target_ulong helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b) \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     int expa, expb, a_is_special, b_is_special;                          \
@@ -640,7 +640,7 @@ DFP_HELPER_TSTEX(DTSTEX, 64)
 DFP_HELPER_TSTEX(DTSTEXQ, 128)
 
 #define DFP_HELPER_TSTSF(op, size)                                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)     \
+target_ulong helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b) \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     unsigned k;                                                          \
@@ -677,7 +677,7 @@ DFP_HELPER_TSTSF(DTSTSF, 64)
 DFP_HELPER_TSTSF(DTSTSFQ, 128)
 
 #define DFP_HELPER_TSTSFI(op, size)                                     \
-uint32_t helper_##op(CPUPPCState *env, uint32_t a, ppc_fprp_t *b)       \
+target_ulong helper_##op(CPUPPCState *env, uint32_t a, ppc_fprp_t *b)   \
 {                                                                       \
     struct PPC_DFP dfp;                                                 \
     unsigned uim;                                                       \

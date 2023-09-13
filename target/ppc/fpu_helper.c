@@ -903,7 +903,7 @@ uint64_t helper_FSEL(uint64_t a, uint64_t b, uint64_t c)
     }
 }
 
-uint32_t helper_ftdiv(uint64_t fra, uint64_t frb)
+target_ulong helper_ftdiv(uint64_t fra, uint64_t frb)
 {
     int fe_flag = 0;
     int fg_flag = 0;
@@ -939,7 +939,7 @@ uint32_t helper_ftdiv(uint64_t fra, uint64_t frb)
     return 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0);
 }
 
-uint32_t helper_ftsqrt(uint64_t frb)
+target_ulong helper_ftsqrt(uint64_t frb)
 {
     int fe_flag = 0;
     int fg_flag = 0;
@@ -1285,7 +1285,7 @@ HELPER_SPE_VECTOR_ARITH(fsmul);
 HELPER_SPE_VECTOR_ARITH(fsdiv);
 
 /* Single-precision floating-point comparisons */
-static inline uint32_t efscmplt(CPUPPCState *env, uint32_t op1, uint32_t op2)
+static inline target_ulong efscmplt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1294,7 +1294,7 @@ static inline uint32_t efscmplt(CPUPPCState *env, uint32_t op1, uint32_t op2)
     return float32_lt(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
-static inline uint32_t efscmpgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
+static inline target_ulong efscmpgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1303,7 +1303,7 @@ static inline uint32_t efscmpgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
     return float32_le(u1.f, u2.f, &env->vec_status) ? 0 : 4;
 }
 
-static inline uint32_t efscmpeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
+static inline target_ulong efscmpeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1312,26 +1312,26 @@ static inline uint32_t efscmpeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
     return float32_eq(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
-static inline uint32_t efststlt(CPUPPCState *env, uint32_t op1, uint32_t op2)
+static inline target_ulong efststlt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: ignore special values (NaN, infinites, ...) */
     return efscmplt(env, op1, op2);
 }
 
-static inline uint32_t efststgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
+static inline target_ulong efststgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: ignore special values (NaN, infinites, ...) */
     return efscmpgt(env, op1, op2);
 }
 
-static inline uint32_t efststeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
+static inline target_ulong efststeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: ignore special values (NaN, infinites, ...) */
     return efscmpeq(env, op1, op2);
 }
 
 #define HELPER_SINGLE_SPE_CMP(name)                                     \
-    uint32_t helper_e##name(CPUPPCState *env, uint32_t op1, uint32_t op2) \
+    target_ulong helper_e##name(CPUPPCState *env, uint32_t op1, uint32_t op2) \
     {                                                                   \
         return e##name(env, op1, op2);                                  \
     }
@@ -1348,13 +1348,13 @@ HELPER_SINGLE_SPE_CMP(fscmpgt);
 /* efscmpeq */
 HELPER_SINGLE_SPE_CMP(fscmpeq);
 
-static inline uint32_t evcmp_merge(int t0, int t1)
+static inline target_ulong evcmp_merge(int t0, int t1)
 {
     return (t0 << 3) | (t1 << 2) | ((t0 | t1) << 1) | (t0 & t1);
 }
 
 #define HELPER_VECTOR_SPE_CMP(name)                                     \
-    uint32_t helper_ev##name(CPUPPCState *env, uint64_t op1, uint64_t op2) \
+    target_ulong helper_ev##name(CPUPPCState *env, uint64_t op1, uint64_t op2) \
     {                                                                   \
         return evcmp_merge(e##name(env, op1 >> 32, op2 >> 32),          \
                            e##name(env, op1, op2));                     \
@@ -1607,7 +1607,7 @@ uint64_t helper_efddiv(CPUPPCState *env, uint64_t op1, uint64_t op2)
 }
 
 /* Double precision floating point helpers */
-uint32_t helper_efdtstlt(CPUPPCState *env, uint64_t op1, uint64_t op2)
+target_ulong helper_efdtstlt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1616,7 +1616,7 @@ uint32_t helper_efdtstlt(CPUPPCState *env, uint64_t op1, uint64_t op2)
     return float64_lt(u1.d, u2.d, &env->vec_status) ? 4 : 0;
 }
 
-uint32_t helper_efdtstgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
+target_ulong helper_efdtstgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1625,7 +1625,7 @@ uint32_t helper_efdtstgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
     return float64_le(u1.d, u2.d, &env->vec_status) ? 0 : 4;
 }
 
-uint32_t helper_efdtsteq(CPUPPCState *env, uint64_t op1, uint64_t op2)
+target_ulong helper_efdtsteq(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1634,19 +1634,19 @@ uint32_t helper_efdtsteq(CPUPPCState *env, uint64_t op1, uint64_t op2)
     return float64_eq_quiet(u1.d, u2.d, &env->vec_status) ? 4 : 0;
 }
 
-uint32_t helper_efdcmplt(CPUPPCState *env, uint64_t op1, uint64_t op2)
+target_ulong helper_efdcmplt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return helper_efdtstlt(env, op1, op2);
 }
 
-uint32_t helper_efdcmpgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
+target_ulong helper_efdcmpgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return helper_efdtstgt(env, op1, op2);
 }
 
-uint32_t helper_efdcmpeq(CPUPPCState *env, uint64_t op1, uint64_t op2)
+target_ulong helper_efdcmpeq(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
     return helper_efdtsteq(env, op1, op2);
@@ -2585,11 +2585,11 @@ VSX_MAX_MINJ(XSMINJDP, 0);
  *   exp   - expected result of comparison
  */
 #define VSX_CMP(op, nels, tp, fld, cmp, svxvc, exp)                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                     \
+target_ulong helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                 \
                      ppc_vsr_t *xa, ppc_vsr_t *xb)                        \
 {                                                                         \
     ppc_vsr_t t = *xt;                                                    \
-    uint32_t crf6 = 0;                                                    \
+    target_ulong crf6 = 0;                                                \
     int i;                                                                \
     int all_true = 1;                                                     \
     int all_false = 1;                                                    \

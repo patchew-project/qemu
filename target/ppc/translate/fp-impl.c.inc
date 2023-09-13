@@ -18,9 +18,9 @@ static inline void gen_compute_fprf_float64(TCGv_i64 arg)
 #if defined(TARGET_PPC64)
 static void gen_set_cr1_from_fpscr(DisasContext *ctx)
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_trunc_tl_i32(tmp, cpu_fpscr);
-    tcg_gen_shri_i32(cpu_crf[1], tmp, 28);
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_mov_tl(tmp, cpu_fpscr);
+    tcg_gen_shri_tl(cpu_crf[1], tmp, 28);
 }
 #else
 static void gen_set_cr1_from_fpscr(DisasContext *ctx)
@@ -533,8 +533,8 @@ static void gen_mcrfs(DisasContext *ctx)
     nibble = 7 - bfa;
     shift = 4 * nibble;
     tcg_gen_shri_tl(tmp, cpu_fpscr, shift);
-    tcg_gen_trunc_tl_i32(cpu_crf[crfD(ctx->opcode)], tmp);
-    tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)],
+    tcg_gen_mov_tl(cpu_crf[crfD(ctx->opcode)], tmp);
+    tcg_gen_andi_tl(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)],
                      0xf);
     tcg_gen_extu_tl_i64(tnew_fpscr, cpu_fpscr);
     /* Only the exception bits (including FX) should be cleared if read */
@@ -694,8 +694,8 @@ static void gen_mtfsb0(DisasContext *ctx)
         gen_helper_fpscr_clrbit(cpu_env, tcg_constant_i32(crb));
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
+        tcg_gen_mov_tl(cpu_crf[1], cpu_fpscr);
+        tcg_gen_shri_tl(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
 }
 
@@ -714,8 +714,8 @@ static void gen_mtfsb1(DisasContext *ctx)
         gen_helper_fpscr_setbit(cpu_env, tcg_constant_i32(crb));
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
+        tcg_gen_mov_tl(cpu_crf[1], cpu_fpscr);
+        tcg_gen_shri_tl(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a deferred exception */
     gen_helper_fpscr_check_status(cpu_env);
@@ -750,8 +750,8 @@ static void gen_mtfsf(DisasContext *ctx)
     get_fpr(t1, rB(ctx->opcode));
     gen_helper_store_fpscr(cpu_env, t1, t0);
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
+        tcg_gen_mov_tl(cpu_crf[1], cpu_fpscr);
+        tcg_gen_shri_tl(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a deferred exception */
     gen_helper_fpscr_check_status(cpu_env);
@@ -779,8 +779,8 @@ static void gen_mtfsfi(DisasContext *ctx)
     t1 = tcg_constant_i32(1 << sh);
     gen_helper_store_fpscr(cpu_env, t0, t1);
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
+        tcg_gen_mov_tl(cpu_crf[1], cpu_fpscr);
+        tcg_gen_shri_tl(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a deferred exception */
     gen_helper_fpscr_check_status(cpu_env);
