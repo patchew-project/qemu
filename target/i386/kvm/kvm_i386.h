@@ -13,6 +13,10 @@
 
 #include "sysemu/kvm.h"
 
+#ifdef CONFIG_USER_ONLY
+#error Cannot include kvm_i386.h from user emulation
+#endif
+
 #ifdef CONFIG_KVM
 
 #define kvm_pit_in_kernel() \
