@@ -33,6 +33,7 @@ static void cxl_fixed_memory_window_config(CXLState *cxl_state,
     for (target = object->targets; target; target = target->next) {
         fw->num_targets++;
     }
+    assert(fw->num_targets <= ARRAY_SIZE(fw->target_hbs));
 
     fw->enc_int_ways = cxl_interleave_ways_enc(fw->num_targets, errp);
     if (*errp) {
