@@ -188,15 +188,11 @@ static int pdb_init_symbols(struct pdb_reader *r)
 
     r->symbols = symbols;
 
-    if (symbols->stream_index_size != sizeof(PDB_STREAM_INDEXES)) {
-        err = 1;
-        goto out_symbols;
-    }
-
-    memcpy(sidx, (const char *)symbols + sizeof(PDB_SYMBOLS) +
+    sidx->segments = *(uint16_t *)((const char *)symbols + sizeof(PDB_SYMBOLS) +
             symbols->module_size + symbols->offset_size +
             symbols->hash_size + symbols->srcmodule_size +
-            symbols->pdbimport_size + symbols->unknown2_size, sizeof(*sidx));
+            symbols->pdbimport_size + symbols->unknown2_size +
+            offsetof(PDB_STREAM_INDEXES, segments));
 
     /* Read global symbol table */
     r->modimage = pdb_ds_read_file(r, symbols->gsym_file);
