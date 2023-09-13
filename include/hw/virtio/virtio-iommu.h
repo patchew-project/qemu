@@ -40,6 +40,8 @@ typedef struct IOMMUDevice {
     MemoryRegion root;          /* The root container of the device */
     MemoryRegion bypass_mr;     /* The alias of shared memory MR */
     GList *resv_regions;
+    Range *host_resv_regions;
+    uint32_t nr_host_resv_regions;
 } IOMMUDevice;
 
 typedef struct IOMMUPciBus {
