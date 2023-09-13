@@ -545,6 +545,11 @@ static void vhost_commit(MemoryListener *listener)
     dev->mem_sections = dev->tmp_sections;
     dev->n_mem_sections = dev->n_tmp_sections;
 
+    if (old_sections == dev->mem_sections) {
+        assert(n_old_sections ==  dev->n_mem_sections);
+        return;
+    }
+
     if (dev->n_mem_sections != n_old_sections) {
         changed = true;
     } else {
