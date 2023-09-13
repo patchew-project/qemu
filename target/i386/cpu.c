@@ -5654,8 +5654,6 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-#endif /* !CONFIG_USER_ONLY */
-
 /*
  * Returns the set of feature flags that are supported and migratable by
  * QEMU, for a given FeatureWord.
@@ -5780,6 +5778,38 @@ static void x86_cpu_get_cache_cpuid(uint32_t func, uint32_t index,
         host_cpuid(func, index, eax, ebx, ecx, edx);
     }
 }
+
+#else /* CONFIG_USER_ONLY */
+
+uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
+                                            bool migratable_only)
+{
+    FeatureWordInfo *wi = &feature_word_info[w];
+
+    return wi->tcg_features;
+}
+
+static void x86_cpu_get_supported_cpuid(uint32_t func, uint32_t index,
+                                        uint32_t *eax, uint32_t *ebx,
+                                        uint32_t *ecx, uint32_t *edx)
+{
+    *eax = 0;
+    *ebx = 0;
+    *ecx = 0;
+    *edx = 0;
+}
+
+static void x86_cpu_get_cache_cpuid(uint32_t func, uint32_t index,
+                                    uint32_t *eax, uint32_t *ebx,
+                                    uint32_t *ecx, uint32_t *edx)
+{
+    *eax = 0;
+    *ebx = 0;
+    *ecx = 0;
+    *edx = 0;
+}
+
+#endif /* !CONFIG_USER_ONLY */
 
 /*
  * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
@@ -6918,7 +6948,6 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     int i;
     uint64_t mask;
-    static bool request_perm;
 
     if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
         env->features[FEAT_XSAVE_XCR0_LO] = 0;
@@ -6934,11 +6963,15 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
         }
     }
 
+#ifndef CONFIG_USER_ONLY
+    static bool request_perm;
+
     /* Only request permission for first vcpu */
     if (kvm_enabled() && !request_perm) {
         kvm_request_xsave_components(cpu, mask);
         request_perm = true;
     }
+#endif /* !CONFIG_USER_ONLY */
 
     env->features[FEAT_XSAVE_XCR0_LO] = mask & CPUID_XSTATE_XCR0_MASK;
     env->features[FEAT_XSAVE_XCR0_HI] = mask >> 32;
@@ -7119,9 +7152,11 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         env->cpuid_xlevel2 = env->cpuid_min_xlevel2;
     }
 
+#ifndef CONFIG_USER_ONLY
     if (kvm_enabled() && !kvm_hyperv_expand_features(cpu, errp)) {
         return;
     }
+#endif /* !CONFIG_USER_ONLY */
 }
 
 /*
