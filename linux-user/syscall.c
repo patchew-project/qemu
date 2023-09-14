@@ -1489,7 +1489,7 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
 {
     struct target_pollfd *target_pfd = NULL;
     unsigned int nfds = arg2;
-    struct pollfd *pfd = NULL;
+    struct pollfd *pfd = NULL, *heap_pfd = NULL;
     unsigned int i;
     abi_long ret;
 
@@ -1503,7 +1503,17 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
             return -TARGET_EFAULT;
         }
 
-        pfd = alloca(sizeof(struct pollfd) * nfds);
+        /* arbitrary "small" number to limit stack usage */
+        if (nfds <= 64) {
+            pfd = alloca(sizeof(struct pollfd) * nfds);
+        } else {
+            heap_pfd = g_try_new(struct pollfd, nfds);
+            if (!heap_pfd) {
+                ret = -TARGET_ENOMEM;
+                goto out;
+            }
+            pfd = heap_pfd;
+        }
         for (i = 0; i < nfds; i++) {
             pfd[i].fd = tswap32(target_pfd[i].fd);
             pfd[i].events = tswap16(target_pfd[i].events);
@@ -1567,6 +1577,7 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
     }
 
 out:
+    g_free(heap_pfd);
     unlock_user(target_pfd, arg1, sizeof(struct target_pollfd) * nfds);
     return ret;
 }
