@@ -6,6 +6,10 @@ config I2C_DEVICES
     # to any board's i2c bus
     bool
 
+config I2C_MCTP
+    bool
+    select I2C
+
 config SMBUS
     bool
     select I2C
