@@ -18,7 +18,7 @@
 
 static void gen_io_start(void)
 {
-    tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
+    tcg_gen_st_i32(tcg_constant_i32(1), tcg_env,
                    offsetof(ArchCPU, parent_obj.neg.can_do_io) -
                    offsetof(ArchCPU, env));
 }
@@ -52,7 +52,7 @@ static TCGOp *gen_tb_start(uint32_t cflags)
     TCGv_i32 count = tcg_temp_new_i32();
     TCGOp *icount_start_insn = NULL;
 
-    tcg_gen_ld_i32(count, cpu_env,
+    tcg_gen_ld_i32(count, tcg_env,
                    offsetof(ArchCPU, parent_obj.neg.icount_decr.u32)
                    - offsetof(ArchCPU, env));
 
@@ -81,7 +81,7 @@ static TCGOp *gen_tb_start(uint32_t cflags)
     }
 
     if (cflags & CF_USE_ICOUNT) {
-        tcg_gen_st16_i32(count, cpu_env,
+        tcg_gen_st16_i32(count, tcg_env,
                          offsetof(ArchCPU, parent_obj.neg.icount_decr.u16.low)
                          - offsetof(ArchCPU, env));
         /*
@@ -91,7 +91,7 @@ static TCGOp *gen_tb_start(uint32_t cflags)
          * translator. Doing it here means we don't need a gen_io_end() to
          * go with gen_io_start().
          */
-        tcg_gen_st_i32(tcg_constant_i32(0), cpu_env,
+        tcg_gen_st_i32(tcg_constant_i32(0), tcg_env,
                        offsetof(ArchCPU, parent_obj.neg.can_do_io) -
                        offsetof(ArchCPU, env));
     }
