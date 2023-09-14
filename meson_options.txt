@@ -134,6 +134,8 @@ option('cap_ng', type : 'feature', value : 'auto',
        description: 'cap_ng support')
 option('blkio', type : 'feature', value : 'auto',
        description: 'libblkio block device driver')
+option('sev', type : 'feature', value : 'auto',
+        description: 'SEV Rust library')
 option('bpf', type : 'feature', value : 'auto',
         description: 'eBPF support')
 option('cocoa', type : 'feature', value : 'auto',
