@@ -157,6 +157,7 @@ typedef struct DumpState {
     MemoryMappingList list;
     bool resume;
     bool detached;
+    bool kdump_reassembled;
     hwaddr memory_offset;
     int fd;
 
