@@ -715,27 +715,14 @@ sev_read_file_base64(const char *filename, guchar **data, gsize *len)
     return 0;
 }
 
-static int
-sev_launch_update_vmsa(SevGuestState *sev)
-{
-    int ret, fw_error;
-
-    ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_UPDATE_VMSA, NULL, &fw_error);
-    if (ret) {
-        error_report("%s: LAUNCH_UPDATE_VMSA ret=%d fw_error=%d '%s'",
-                __func__, ret, fw_error, fw_error_to_str(fw_error));
-    }
-
-    return ret;
-}
-
 static void
 sev_launch_get_measure(Notifier *notifier, void *unused)
 {
     SevGuestState *sev = sev_guest;
-    int ret, error;
+    int ret, fw_error;
     g_autofree guchar *data = NULL;
     struct kvm_sev_launch_measure measurement = {};
+    KVMState *s = kvm_state;
 
     if (!sev_check_state(sev, SEV_STATE_LAUNCH_UPDATE)) {
         return;
@@ -743,18 +730,20 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
 
     if (sev_es_enabled()) {
         /* measure all the VM save areas before getting launch_measure */
-        ret = sev_launch_update_vmsa(sev);
+        ret = sev_launch_update_vmsa(s->vmfd, &fw_error);
         if (ret) {
+            error_report("%s: LAUNCH_UPDATE_VMSA ret=%d fw_error=%d '%s'",
+                __func__, ret, fw_error, fw_error_to_str(fw_error));
             exit(1);
         }
     }
 
     /* query the measurement blob length */
     ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_MEASURE,
-                    &measurement, &error);
+                    &measurement, &fw_error);
     if (!measurement.len) {
         error_report("%s: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
-                     __func__, ret, error, fw_error_to_str(errno));
+                     __func__, ret, fw_error, fw_error_to_str(fw_error));
         return;
     }
 
@@ -763,10 +752,10 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
 
     /* get the measurement blob */
     ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_MEASURE,
-                    &measurement, &error);
+                    &measurement, &fw_error);
     if (ret) {
         error_report("%s: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
-                     __func__, ret, error, fw_error_to_str(errno));
+                     __func__, ret, fw_error, fw_error_to_str(fw_error));
         return;
     }
 
