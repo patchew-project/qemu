@@ -2209,7 +2209,7 @@ static uint64_t do_ld_whole_be8(CPUState *cpu, uintptr_t ra,
                                 MMULookupPageData *p, uint64_t ret_be)
 {
     int o = p->addr & 7;
-    uint64_t x = load_atomic8_or_exit(cpu_env(cpu), ra, p->haddr - o);
+    uint64_t x = load_atomic8_or_exit(cpu, ra, p->haddr - o);
 
     x = cpu_to_be64(x);
     x <<= o * 8;
@@ -2229,7 +2229,7 @@ static Int128 do_ld_whole_be16(CPUState *cpu, uintptr_t ra,
                                MMULookupPageData *p, uint64_t ret_be)
 {
     int o = p->addr & 15;
-    Int128 x, y = load_atomic16_or_exit(cpu_env(cpu), ra, p->haddr - o);
+    Int128 x, y = load_atomic16_or_exit(cpu, ra, p->haddr - o);
     int size = p->size;
 
     if (!HOST_BIG_ENDIAN) {
@@ -2373,7 +2373,7 @@ static uint16_t do_ld_2(CPUState *cpu, MMULookupPageData *p, int mmu_idx,
         }
     } else {
         /* Perform the load host endian, then swap if necessary. */
-        ret = load_atom_2(cpu_env(cpu), ra, p->haddr, memop);
+        ret = load_atom_2(cpu, ra, p->haddr, memop);
         if (memop & MO_BSWAP) {
             ret = bswap16(ret);
         }
@@ -2394,7 +2394,7 @@ static uint32_t do_ld_4(CPUState *cpu, MMULookupPageData *p, int mmu_idx,
         }
     } else {
         /* Perform the load host endian. */
-        ret = load_atom_4(cpu_env(cpu), ra, p->haddr, memop);
+        ret = load_atom_4(cpu, ra, p->haddr, memop);
         if (memop & MO_BSWAP) {
             ret = bswap32(ret);
         }
@@ -2415,7 +2415,7 @@ static uint64_t do_ld_8(CPUState *cpu, MMULookupPageData *p, int mmu_idx,
         }
     } else {
         /* Perform the load host endian. */
-        ret = load_atom_8(cpu_env(cpu), ra, p->haddr, memop);
+        ret = load_atom_8(cpu, ra, p->haddr, memop);
         if (memop & MO_BSWAP) {
             ret = bswap64(ret);
         }
@@ -2578,7 +2578,7 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr,
             }
         } else {
             /* Perform the load host endian. */
-            ret = load_atom_16(cpu_env(cpu), ra, l.page[0].haddr, l.memop);
+            ret = load_atom_16(cpu, ra, l.page[0].haddr, l.memop);
             if (l.memop & MO_BSWAP) {
                 ret = bswap128(ret);
             }
@@ -2893,7 +2893,7 @@ static void do_st_2(CPUState *cpu, MMULookupPageData *p, uint16_t val,
         if (memop & MO_BSWAP) {
             val = bswap16(val);
         }
-        store_atom_2(cpu_env(cpu), ra, p->haddr, memop, val);
+        store_atom_2(cpu, ra, p->haddr, memop, val);
     }
 }
 
@@ -2913,7 +2913,7 @@ static void do_st_4(CPUState *cpu, MMULookupPageData *p, uint32_t val,
         if (memop & MO_BSWAP) {
             val = bswap32(val);
         }
-        store_atom_4(cpu_env(cpu), ra, p->haddr, memop, val);
+        store_atom_4(cpu, ra, p->haddr, memop, val);
     }
 }
 
@@ -2933,7 +2933,7 @@ static void do_st_8(CPUState *cpu, MMULookupPageData *p, uint64_t val,
         if (memop & MO_BSWAP) {
             val = bswap64(val);
         }
-        store_atom_8(cpu_env(cpu), ra, p->haddr, memop, val);
+        store_atom_8(cpu, ra, p->haddr, memop, val);
     }
 }
 
@@ -3064,7 +3064,7 @@ static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val,
             if (l.memop & MO_BSWAP) {
                 val = bswap128(val);
             }
-            store_atom_16(cpu_env(cpu), ra, l.page[0].haddr, l.memop, val);
+            store_atom_16(cpu, ra, l.page[0].haddr, l.memop, val);
         }
         return;
     }
