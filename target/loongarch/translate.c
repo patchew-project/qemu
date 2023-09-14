@@ -37,6 +37,19 @@ static inline int vec_full_offset(int regno)
     return  offsetof(CPULoongArchState, fpr[regno]);
 }
 
+static inline int vec_reg_offset(int regno, int index, MemOp mop)
+{
+    const uint8_t size = 1 << mop;
+    int offs = index * size;
+
+#if HOST_BIG_ENDIAN
+    if (size < 8 ) {
+        offs ^ = (8 - size);
+    }
+#endif
+    return offs + vec_full_offset(regno);
+}
+
 static inline void get_vreg64(TCGv_i64 dest, int regno, int index)
 {
     tcg_gen_ld_i64(dest, cpu_env,
