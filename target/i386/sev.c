@@ -983,88 +983,44 @@ sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
     return 0;
 }
 
-int sev_inject_launch_secret(const char *packet_hdr, const char *secret,
-                             uint64_t gpa, Error **errp)
-{
-    struct kvm_sev_launch_secret input;
-    g_autofree guchar *data = NULL, *hdr = NULL;
-    int error, ret = 1;
-    void *hva;
-    gsize hdr_sz = 0, data_sz = 0;
-    MemoryRegion *mr = NULL;
-
-    if (!sev_guest) {
-        error_setg(errp, "SEV not enabled for guest");
-        return 1;
-    }
-
-    /* secret can be injected only in this state */
-    if (!sev_check_state(sev_guest, SEV_STATE_LAUNCH_SECRET)) {
-        error_setg(errp, "SEV: Not in correct state. (LSECRET) %x",
-                     sev_guest->state);
-        return 1;
-    }
-
-    hdr = g_base64_decode(packet_hdr, &hdr_sz);
-    if (!hdr || !hdr_sz) {
-        error_setg(errp, "SEV: Failed to decode sequence header");
-        return 1;
-    }
-
-    data = g_base64_decode(secret, &data_sz);
-    if (!data || !data_sz) {
-        error_setg(errp, "SEV: Failed to decode data");
-        return 1;
-    }
-
-    hva = gpa2hva(&mr, gpa, data_sz, errp);
-    if (!hva) {
-        error_prepend(errp, "SEV: Failed to calculate guest address: ");
-        return 1;
-    }
-
-    input.hdr_uaddr = (uint64_t)(unsigned long)hdr;
-    input.hdr_len = hdr_sz;
-
-    input.trans_uaddr = (uint64_t)(unsigned long)data;
-    input.trans_len = data_sz;
-
-    input.guest_uaddr = (uint64_t)(unsigned long)hva;
-    input.guest_len = data_sz;
-
-    trace_kvm_sev_launch_secret(gpa, input.guest_uaddr,
-                                input.trans_uaddr, input.trans_len);
-
-    ret = sev_ioctl(sev_guest->sev_fd, KVM_SEV_LAUNCH_SECRET,
-                    &input, &error);
-    if (ret) {
-        error_setg(errp, "SEV: failed to inject secret ret=%d fw_error=%d '%s'",
-                     ret, error, fw_error_to_str(error));
-        return ret;
-    }
-
-    return 0;
-}
-
 #define SEV_SECRET_GUID "4c2eb361-7d9b-4cc3-8081-127c90d3d294"
 struct sev_secret_area {
     uint32_t base;
     uint32_t size;
 };
 
-void qmp_sev_inject_launch_secret(const char *packet_hdr,
-                                  const char *secret,
+void qmp_sev_inject_launch_secret(const char *hdr_b64,
+                                  const char *secret_b64,
                                   bool has_gpa, uint64_t gpa,
                                   Error **errp)
 {
+    int ret, fw_error = 0;
+    g_autofree guchar *hdr = NULL, *secret = NULL;
+    uint8_t *data = NULL;
+    KVMState *s = kvm_state;
+    gsize hdr_sz = 0, secret_sz = 0;
+    MemoryRegion *mr = NULL;
+    void *hva;
+    struct sev_secret_area *area = NULL;
+
     if (!sev_enabled()) {
         error_setg(errp, "SEV not enabled for guest");
         return;
     }
-    if (!has_gpa) {
-        uint8_t *data;
-        struct sev_secret_area *area;
 
+    hdr = g_base64_decode(hdr_b64, &hdr_sz);
+    if (!hdr || !hdr_sz) {
+        error_setg(errp, "SEV: Failed to decode sequence header");
+        return;
+    }
+
+    secret = g_base64_decode(secret_b64, &secret_sz);
+    if (!secret || !secret_sz) {
+        error_setg(errp, "SEV: Failed to decode secret");
+        return;
+    }
+
+    if (!has_gpa) {
         if (!pc_system_ovmf_table_find(SEV_SECRET_GUID, &data, NULL)) {
             error_setg(errp, "SEV: no secret area found in OVMF,"
                        " gpa must be specified.");
@@ -1074,7 +1030,18 @@ void qmp_sev_inject_launch_secret(const char *packet_hdr,
         gpa = area->base;
     }
 
-    sev_inject_launch_secret(packet_hdr, secret, gpa, errp);
+    hva = gpa2hva(&mr, gpa, secret_sz, errp);
+    if (!hva) {
+        error_prepend(errp, "SEV: Failed to calculate guest address: ");
+        return;
+    }
+
+    ret = sev_inject_launch_secret(s->vmfd, hdr, secret, secret_sz,
+                                   hva, &fw_error);
+    if (ret < 0) {
+        error_setg(errp, "%s: LAUNCH_SECRET ret=%d fw_error=%d '%s'", __func__,
+                   ret, fw_error, fw_error_to_str(fw_error));
+    }
 }
 
 static int
