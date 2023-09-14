@@ -425,16 +425,6 @@ int cpu_exec(CPUState *cpu);
 void tcg_exec_realizefn(CPUState *cpu, Error **errp);
 void tcg_exec_unrealizefn(CPUState *cpu);
 
-/**
- * cpu_set_cpustate_pointers(cpu)
- * @cpu: The cpu object
- *
- * Set the generic pointers in CPUState into the outer object.
- */
-static inline void cpu_set_cpustate_pointers(ArchCPU *cpu)
-{
-}
-
 /* Validate correct placement of CPUArchState. */
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, parent_obj) != 0);
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
