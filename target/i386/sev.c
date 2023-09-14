@@ -716,51 +716,6 @@ sev_read_file_base64(const char *filename, guchar **data, gsize *len)
 }
 
 static int
-sev_launch_start(SevGuestState *sev)
-{
-    gsize sz;
-    int ret = 1;
-    int fw_error, rc;
-    struct kvm_sev_launch_start start = {
-        .handle = sev->handle, .policy = sev->policy
-    };
-    guchar *session = NULL, *dh_cert = NULL;
-
-    if (sev->session_file) {
-        if (sev_read_file_base64(sev->session_file, &session, &sz) < 0) {
-            goto out;
-        }
-        start.session_uaddr = (unsigned long)session;
-        start.session_len = sz;
-    }
-
-    if (sev->dh_cert_file) {
-        if (sev_read_file_base64(sev->dh_cert_file, &dh_cert, &sz) < 0) {
-            goto out;
-        }
-        start.dh_uaddr = (unsigned long)dh_cert;
-        start.dh_len = sz;
-    }
-
-    trace_kvm_sev_launch_start(start.policy, session, dh_cert);
-    rc = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_START, &start, &fw_error);
-    if (rc < 0) {
-        error_report("%s: LAUNCH_START ret=%d fw_error=%d '%s'",
-                __func__, ret, fw_error, fw_error_to_str(fw_error));
-        goto out;
-    }
-
-    sev_set_guest_state(sev, SEV_STATE_LAUNCH_UPDATE);
-    sev->handle = start.handle;
-    ret = 0;
-
-out:
-    g_free(session);
-    g_free(dh_cert);
-    return ret;
-}
-
-static int
 sev_launch_update_data(SevGuestState *sev, uint8_t *addr, uint64_t len)
 {
     int ret, fw_error;
@@ -913,11 +868,13 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     SevGuestState *sev
         = (SevGuestState *)object_dynamic_cast(OBJECT(cgs), TYPE_SEV_GUEST);
+    gsize sz;
     char *devname;
-    int ret, fw_error;
+    int ret = -1, fw_error;
     uint32_t ebx;
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
+    guchar *session = NULL, *dh_cert = NULL;
     KVMState *s = kvm_state;
 
     if (!sev) {
@@ -1007,11 +964,27 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         goto err;
     }
 
-    ret = sev_launch_start(sev);
-    if (ret) {
-        error_setg(errp, "%s: failed to create encryption context", __func__);
+    if (!sev->session_file || !sev->dh_cert_file) {
         goto err;
     }
+
+    if (sev_read_file_base64(sev->session_file, &session, &sz) < 0) {
+        goto err;
+    }
+
+    if (sev_read_file_base64(sev->dh_cert_file, &dh_cert, &sz) < 0) {
+        goto err;
+    }
+
+    ret = sev_launch_start(s->vmfd, sev->policy, (void *) dh_cert,
+                           (void *) session, &fw_error);
+    if (ret) {
+        error_setg(errp, "%s: LAUNCH_START ret=%d fw_error=%d '%s'",
+                   __func__, ret, fw_error, fw_error_to_str(fw_error));
+        goto err;
+    }
+
+    sev_set_guest_state(sev, SEV_STATE_LAUNCH_UPDATE);
 
     ram_block_notifier_add(&sev_ram_notifier);
     qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
@@ -1019,11 +992,18 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 
     cgs->ready = true;
 
-    return 0;
+    ret = 0;
+    goto out;
+
 err:
     sev_guest = NULL;
     ram_block_discard_disable(false);
-    return -1;
+out:
+    g_free(session);
+    g_free(dh_cert);
+
+    return ret;
+
 }
 
 int
