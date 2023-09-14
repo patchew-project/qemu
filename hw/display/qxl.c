@@ -1309,16 +1309,17 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     QXLDevMemSlot memslot;
     int i;
 
-    guest_start = le64_to_cpu(d->guest_slots[slot_id].slot.mem_start);
-    guest_end   = le64_to_cpu(d->guest_slots[slot_id].slot.mem_end);
-
-    trace_qxl_memslot_add_guest(d->id, slot_id, guest_start, guest_end);
-
     if (slot_id >= NUM_MEMSLOTS) {
         qxl_set_guest_bug(d, "%s: slot_id >= NUM_MEMSLOTS %d >= %d", __func__,
                       slot_id, NUM_MEMSLOTS);
         return 1;
     }
+
+    guest_start = le64_to_cpu(d->guest_slots[slot_id].slot.mem_start);
+    guest_end   = le64_to_cpu(d->guest_slots[slot_id].slot.mem_end);
+
+    trace_qxl_memslot_add_guest(d->id, slot_id, guest_start, guest_end);
+
     if (guest_start > guest_end) {
         qxl_set_guest_bug(d, "%s: guest_start > guest_end 0x%" PRIx64
                          " > 0x%" PRIx64, __func__, guest_start, guest_end);
