@@ -1079,6 +1079,12 @@ if targetos == 'linux' and (have_system or have_tools)
                        method: 'pkg-config',
                        required: get_option('libudev'))
 endif
+sev = not_found
+if not get_option('sev').auto()
+  sev = dependency('sev', version: '1.2.1',
+                      method: 'pkg-config',
+                      required: get_option('sev'))
+endif
 
 mpathlibs = [libudev]
 mpathpersist = not_found
@@ -4283,6 +4289,7 @@ summary_info += {'PAM':               pam}
 summary_info += {'iconv support':     iconv}
 summary_info += {'virgl support':     virgl}
 summary_info += {'blkio support':     blkio}
+summary_info += {'sev support':       sev}
 summary_info += {'curl support':      curl}
 summary_info += {'Multipath support': mpathpersist}
 summary_info += {'Linux AIO support': libaio}
