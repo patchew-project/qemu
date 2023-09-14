@@ -239,16 +239,18 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
     uint32_t cpu_phandle;
     MachineState *ms = MACHINE(s);
     char *name, *cpu_name, *core_name, *intc_name, *sv_name;
+    uint32_t num_harts = s->soc[socket].num_harts;
+    uint32_t hartid_base = s->soc[socket].hartid_base;
     bool is_32_bit = riscv_is_32bit(&s->soc[0]);
     uint8_t satp_mode_max;
 
-    for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
-        RISCVCPU *cpu_ptr = &s->soc[socket].harts[cpu];
+    for (cpu = num_harts - 1; cpu >= 0; cpu--) {
+        int cpu_index = hartid_base + cpu;
+        RISCVCPU *cpu_ptr = RISCV_CPU(qemu_get_cpu(cpu_index));
 
         cpu_phandle = (*phandle)++;
 
-        cpu_name = g_strdup_printf("/cpus/cpu@%d",
-            s->soc[socket].hartid_base + cpu);
+        cpu_name = g_strdup_printf("/cpus/cpu@%d", cpu_index);
         qemu_fdt_add_subnode(ms->fdt, cpu_name);
 
         if (cpu_ptr->cfg.satp_mode.supported != 0) {
@@ -275,8 +277,7 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
 
         qemu_fdt_setprop_string(ms->fdt, cpu_name, "compatible", "riscv");
         qemu_fdt_setprop_string(ms->fdt, cpu_name, "status", "okay");
-        qemu_fdt_setprop_cell(ms->fdt, cpu_name, "reg",
-            s->soc[socket].hartid_base + cpu);
+        qemu_fdt_setprop_cell(ms->fdt, cpu_name, "reg", cpu_index);
         qemu_fdt_setprop_string(ms->fdt, cpu_name, "device_type", "cpu");
         riscv_socket_fdt_write_id(ms, cpu_name, socket);
         qemu_fdt_setprop_cell(ms->fdt, cpu_name, "phandle", cpu_phandle);
@@ -717,12 +718,12 @@ static void create_fdt_pmu(RISCVVirtState *s)
 {
     char *pmu_name;
     MachineState *ms = MACHINE(s);
-    RISCVCPU hart = s->soc[0].harts[0];
+    RISCVCPU *hart = RISCV_CPU(qemu_get_cpu(0));
 
     pmu_name = g_strdup_printf("/pmu");
     qemu_fdt_add_subnode(ms->fdt, pmu_name);
     qemu_fdt_setprop_string(ms->fdt, pmu_name, "compatible", "riscv,pmu");
-    riscv_pmu_generate_fdt_node(ms->fdt, hart.cfg.pmu_num, pmu_name);
+    riscv_pmu_generate_fdt_node(ms->fdt, hart->cfg.pmu_num, pmu_name);
 
     g_free(pmu_name);
 }

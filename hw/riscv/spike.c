@@ -97,29 +97,32 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     qemu_fdt_add_subnode(fdt, "/cpus/cpu-map");
 
     for (socket = (riscv_socket_count(ms) - 1); socket >= 0; socket--) {
+        uint32_t num_harts = s->soc[socket].num_harts;
+        uint32_t hartid_base = s->soc[socket].hartid_base;
+
         clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
         qemu_fdt_add_subnode(fdt, clust_name);
 
-        clint_cells =  g_new0(uint32_t, s->soc[socket].num_harts * 4);
+        clint_cells =  g_new0(uint32_t, num_harts * 4);
 
-        for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
+        for (cpu = num_harts - 1; cpu >= 0; cpu--) {
+            int cpu_index = hartid_base + cpu;
+            RISCVCPU *hart = RISCV_CPU(qemu_get_cpu(cpu_index));
             cpu_phandle = phandle++;
 
-            cpu_name = g_strdup_printf("/cpus/cpu@%d",
-                s->soc[socket].hartid_base + cpu);
+            cpu_name = g_strdup_printf("/cpus/cpu@%d", cpu_index);
             qemu_fdt_add_subnode(fdt, cpu_name);
             if (is_32_bit) {
                 qemu_fdt_setprop_string(fdt, cpu_name, "mmu-type", "riscv,sv32");
             } else {
                 qemu_fdt_setprop_string(fdt, cpu_name, "mmu-type", "riscv,sv48");
             }
-            name = riscv_isa_string(&s->soc[socket].harts[cpu]);
+            name = riscv_isa_string(hart);
             qemu_fdt_setprop_string(fdt, cpu_name, "riscv,isa", name);
             g_free(name);
             qemu_fdt_setprop_string(fdt, cpu_name, "compatible", "riscv");
             qemu_fdt_setprop_string(fdt, cpu_name, "status", "okay");
-            qemu_fdt_setprop_cell(fdt, cpu_name, "reg",
-                s->soc[socket].hartid_base + cpu);
+            qemu_fdt_setprop_cell(fdt, cpu_name, "reg", cpu_index);
             qemu_fdt_setprop_string(fdt, cpu_name, "device_type", "cpu");
             riscv_socket_fdt_write_id(ms, cpu_name, socket);
             qemu_fdt_setprop_cell(fdt, cpu_name, "phandle", cpu_phandle);

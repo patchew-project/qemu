@@ -168,6 +168,7 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     qemu_fdt_setprop_cell(fdt, "/cpus", "#address-cells", 0x1);
 
     for (cpu = ms->smp.cpus - 1; cpu >= 0; cpu--) {
+        RISCVCPU *hart;
         int cpu_phandle = phandle++;
         nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
         char *intc = g_strdup_printf("/cpus/cpu@%d/interrupt-controller", cpu);
@@ -180,9 +181,11 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
             } else {
                 qemu_fdt_setprop_string(fdt, nodename, "mmu-type", "riscv,sv48");
             }
-            isa = riscv_isa_string(&s->soc.u_cpus.harts[cpu - 1]);
+            hart = RISCV_CPU(qemu_get_cpu(cpu - 1));
+            isa = riscv_isa_string(hart);
         } else {
-            isa = riscv_isa_string(&s->soc.e_cpus.harts[0]);
+            hart = RISCV_CPU(qemu_get_cpu(0));
+            isa = riscv_isa_string(hart);
         }
         qemu_fdt_setprop_string(fdt, nodename, "riscv,isa", isa);
         qemu_fdt_setprop_string(fdt, nodename, "compatible", "riscv");
