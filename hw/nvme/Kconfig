@@ -2,3 +2,7 @@ config NVME_PCI
     bool
     default y if PCI_DEVICES || PCIE_DEVICES
     depends on PCI
+
+config NVME_NMI_I2C
+    bool
+    default y if I2C_MCTP
