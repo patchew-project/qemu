@@ -433,7 +433,6 @@ void tcg_exec_unrealizefn(CPUState *cpu);
  */
 static inline void cpu_set_cpustate_pointers(ArchCPU *cpu)
 {
-    cpu->parent_obj.env_ptr = &cpu->env;
 }
 
 /* Validate correct placement of CPUArchState. */
