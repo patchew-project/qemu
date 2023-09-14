@@ -2089,6 +2089,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
                            bool has_detach, bool detach,
                            bool has_begin, int64_t begin, bool has_length,
                            int64_t length, bool has_format,
+                           bool has_reassembled, bool reassembled,
                            DumpGuestMemoryFormat format, Error **errp)
 {
     ERRP_GUARD();
@@ -2119,6 +2120,12 @@ void qmp_dump_guest_memory(bool paging, const char *file,
                          "filter");
         return;
     }
+    if (has_reassembled && format != DUMP_GUEST_MEMORY_FORMAT_KDUMP_ZLIB
+                        && format != DUMP_GUEST_MEMORY_FORMAT_KDUMP_LZO
+                        && format != DUMP_GUEST_MEMORY_FORMAT_KDUMP_SNAPPY) {
+        error_setg(errp, "'reassembled' only applies to kdump format");
+        return;
+    }
     if (has_begin && !has_length) {
         error_setg(errp, QERR_MISSING_PARAMETER, "length");
         return;
@@ -2129,6 +2136,9 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     }
     if (has_detach) {
         detach_p = detach;
+    }
+    if (!has_reassembled) {
+        reassembled = false;
     }
 
     /* check whether lzo/snappy is supported */
@@ -2192,7 +2202,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     dump_state_prepare(s);
 
     dump_init(s, fd, has_format, format, paging, has_begin,
-              begin, length, false, errp);
+              begin, length, reassembled, errp);
     if (*errp) {
         qatomic_set(&s->status, DUMP_STATUS_FAILED);
         return;

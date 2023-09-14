@@ -24,9 +24,11 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     bool has_begin = qdict_haskey(qdict, "begin");
     bool has_length = qdict_haskey(qdict, "length");
     bool has_detach = qdict_haskey(qdict, "detach");
+    bool has_reassembled = qdict_haskey(qdict, "reassembled");
     int64_t begin = 0;
     int64_t length = 0;
     bool detach = false;
+    bool reassembled = false;
     enum DumpGuestMemoryFormat dump_format = DUMP_GUEST_MEMORY_FORMAT_ELF;
     char *prot;
 
@@ -61,11 +63,15 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     if (has_detach) {
         detach = qdict_get_bool(qdict, "detach");
     }
+    if (has_reassembled) {
+        reassembled = qdict_get_bool(qdict, "reassembled");
+    }
 
     prot = g_strconcat("file:", file, NULL);
 
     qmp_dump_guest_memory(paging, prot, true, detach, has_begin, begin,
-                          has_length, length, true, dump_format, &err);
+                          has_length, length, true, has_reassembled,
+                          reassembled, dump_format, &err);
     hmp_handle_error(mon, err);
     g_free(prot);
 }

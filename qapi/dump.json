@@ -69,6 +69,18 @@
 #     to dump all guest's memory, please specify the start @begin and
 #     @length
 #
+# @reassembled: if false (the default), the kdump output formats will use the
+#     "makedumpfile flattened" variant of the format, which is less broadly
+#     compatible with analysis tools. The flattened dump can be reassembled
+#     after the fact using the command "makedumpfile -R". If true, Qemu
+#     attempts to generate the standard kdump format. This requires a
+#     seekable file as output -- if the output file is not seekable, then
+#     the flattened format is still generated. The standard format is more
+#     broadly compatible with debugging tools, but generating it requires a
+#     seekable output file descriptor, and could use more system memory due
+#     to page cache utilization. This should be left unspecified for non-kdump
+#     output formats.
+#
 # @format: if specified, the format of guest memory dump.  But non-elf
 #     format is conflict with paging and filter, ie.  @paging, @begin
 #     and @length is not allowed to be specified with non-elf @format
@@ -89,7 +101,7 @@
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
             '*begin': 'int', '*length': 'int',
-            '*format': 'DumpGuestMemoryFormat'} }
+            '*reassembled': 'bool', '*format': 'DumpGuestMemoryFormat'} }
 
 ##
 # @DumpStatus:
