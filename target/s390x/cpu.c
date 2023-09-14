@@ -363,7 +363,7 @@ static const TypeInfo s390_cpu_type_info = {
     .name = TYPE_S390_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(S390CPU),
-    .instance_align = __alignof__(S390CPU),
+    .instance_align = __alignof(S390CPU),
     .instance_init = s390_cpu_initfn,
 
 #ifndef CONFIG_USER_ONLY
