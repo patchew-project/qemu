@@ -38,7 +38,7 @@ struct RISCVHartArrayState {
     uint32_t hartid_base;
     char *cpu_type;
     uint64_t resetvec;
-    RISCVCPU *harts;
+    RISCVCPU **harts;
 };
 
 #endif
