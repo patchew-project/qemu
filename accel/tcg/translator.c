@@ -14,7 +14,7 @@
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
 #include "tcg/tcg-op-common.h"
-#include "internal.h"
+#include "internal-target.h"
 
 static void gen_io_start(void)
 {
