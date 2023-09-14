@@ -1394,7 +1394,7 @@ static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
     mr = section->mr;
     mr_offset = (full->xlat_section & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
-    if (!cpu->can_do_io) {
+    if (!cpu->neg.can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
 
@@ -1433,7 +1433,7 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
     section = iotlb_to_section(cpu, full->xlat_section, full->attrs);
     mr = section->mr;
     mr_offset = (full->xlat_section & TARGET_PAGE_MASK) + addr;
-    if (!cpu->can_do_io) {
+    if (!cpu->neg.can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
     cpu->mem_io_pc = retaddr;

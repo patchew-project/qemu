@@ -19,7 +19,7 @@
 static void gen_io_start(void)
 {
     tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
-                   offsetof(ArchCPU, parent_obj.can_do_io) -
+                   offsetof(ArchCPU, parent_obj.neg.can_do_io) -
                    offsetof(ArchCPU, env));
 }
 
@@ -92,7 +92,7 @@ static TCGOp *gen_tb_start(uint32_t cflags)
          * go with gen_io_start().
          */
         tcg_gen_st_i32(tcg_constant_i32(0), cpu_env,
-                       offsetof(ArchCPU, parent_obj.can_do_io) -
+                       offsetof(ArchCPU, parent_obj.neg.can_do_io) -
                        offsetof(ArchCPU, env));
     }
 

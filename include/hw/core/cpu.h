@@ -350,6 +350,7 @@ typedef union IcountDecr {
  */
 typedef struct CPUNegativeOffsetState {
     CPUTLB tlb;
+    uint32_t can_do_io;
     IcountDecr icount_decr;
 } CPUNegativeOffsetState;
 
@@ -557,7 +558,6 @@ struct CPUState {
     int cluster_index;
     uint32_t tcg_cflags;
     uint32_t halted;
-    uint32_t can_do_io;
     int32_t exception_index;
 
     AccelCPUState *accel;
