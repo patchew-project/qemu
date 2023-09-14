@@ -1516,16 +1516,11 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
         sigset_t *set = NULL;
 
         if (arg3) {
-            if (time64) {
-                if (target_to_host_timespec64(timeout_ts, arg3)) {
-                    unlock_user(target_pfd, arg1, 0);
-                    return -TARGET_EFAULT;
-                }
-            } else {
-                if (target_to_host_timespec(timeout_ts, arg3)) {
-                    unlock_user(target_pfd, arg1, 0);
-                    return -TARGET_EFAULT;
-                }
+            if (time64
+                ? target_to_host_timespec64(timeout_ts, arg3)
+                : target_to_host_timespec(timeout_ts, arg3)) {
+                unlock_user(target_pfd, arg1, 0);
+                return -TARGET_EFAULT;
             }
         } else {
             timeout_ts = NULL;
@@ -1546,14 +1541,10 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
             finish_sigsuspend_mask(ret);
         }
         if (!is_error(ret) && arg3) {
-            if (time64) {
-                if (host_to_target_timespec64(arg3, timeout_ts)) {
-                    return -TARGET_EFAULT;
-                }
-            } else {
-                if (host_to_target_timespec(arg3, timeout_ts)) {
-                    return -TARGET_EFAULT;
-                }
+            if (time64
+                ? host_to_target_timespec64(arg3, timeout_ts)
+                : host_to_target_timespec(arg3, timeout_ts)) {
+                return -TARGET_EFAULT;
             }
         }
     } else {
