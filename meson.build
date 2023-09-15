@@ -1068,6 +1068,11 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
                        cc.has_function('virgl_renderer_resource_create_blob',
                                        prefix: '#include <virglrenderer.h>',
                                        dependencies: virgl))
+  if virgl.version().version_compare('>= 0.9.0') and virgl.version().version_compare('< 1.0.0')
+    message('Enabling virglrenderer unstable APIs')
+    virgl = declare_dependency(compile_args: '-DVIRGL_RENDERER_UNSTABLE_APIS',
+                               dependencies: virgl)
+  endif
 endif
 blkio = not_found
 if not get_option('blkio').auto() or have_block
