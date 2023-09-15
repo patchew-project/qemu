@@ -122,15 +122,32 @@ void accel_cpu_instance_init(CPUState *cpu)
 bool accel_cpu_realize(CPUState *cpu, Error **errp)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
+    AccelState *accel = current_accel();
+    AccelClass *acc = ACCEL_GET_CLASS(accel);
 
-    if (cc->accel_cpu && cc->accel_cpu->cpu_realizefn) {
-        return cc->accel_cpu->cpu_realizefn(cpu, errp);
+    /* target specific realization */
+    if (cc->accel_cpu && cc->accel_cpu->cpu_realizefn
+        && !cc->accel_cpu->cpu_realizefn(cpu, errp)) {
+        return false;
     }
+
+    /* generic realization */
+    if (acc->realize_cpu && !acc->realize_cpu(cpu, errp)) {
+        return false;
+    }
+
     return true;
 }
 
 void accel_cpu_unrealize(CPUState *cpu)
 {
+    AccelState *accel = current_accel();
+    AccelClass *acc = ACCEL_GET_CLASS(accel);
+
+    /* generic unrealization */
+    if (acc->unrealize_cpu) {
+        acc->unrealize_cpu(cpu);
+    }
 }
 
 int accel_supported_gdbstub_sstep_flags(void)
