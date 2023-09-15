@@ -163,6 +163,8 @@ struct CPUAddressSpace {
     AddressSpace *as;
     struct AddressSpaceDispatch *memory_dispatch;
     MemoryListener tcg_as_listener;
+    uint32_t commit_gen;
+    uint32_t layout_gen;
 };
 
 struct DirtyBitmapSnapshot {
@@ -2486,12 +2488,21 @@ static void tcg_log_global_after_sync(MemoryListener *listener)
     }
 }
 
-static void tcg_commit_cpu(CPUState *cpu, run_on_cpu_data data)
+static void tcg_commit_cpu_0(CPUState *cpu, CPUAddressSpace *cpuas)
 {
-    CPUAddressSpace *cpuas = data.host_ptr;
-
     cpuas->memory_dispatch = address_space_to_dispatch(cpuas->as);
     tlb_flush(cpu);
+}
+
+static void tcg_commit_cpu_1(CPUState *cpu, run_on_cpu_data data)
+{
+    CPUAddressSpace *cpuas = data.host_ptr;
+    uint32_t gen = qatomic_load_acquire(&cpuas->layout_gen);
+
+    if (cpuas->commit_gen != gen) {
+        cpuas->commit_gen = gen;
+        tcg_commit_cpu_0(cpu, cpuas);
+    }
 }
 
 static void tcg_commit(MemoryListener *listener)
@@ -2518,9 +2529,10 @@ static void tcg_commit(MemoryListener *listener)
      * all of the tcg machinery for run-on is initialized: thus created.
      */
     if (cpu->created) {
-        async_run_on_cpu(cpu, tcg_commit_cpu, RUN_ON_CPU_HOST_PTR(cpuas));
+        qatomic_store_release(&cpuas->layout_gen, cpuas->layout_gen + 1);
+        async_run_on_cpu(cpu, tcg_commit_cpu_1, RUN_ON_CPU_HOST_PTR(cpuas));
     } else {
-        tcg_commit_cpu(cpu, RUN_ON_CPU_HOST_PTR(cpuas));
+        tcg_commit_cpu_0(cpu, cpuas);
     }
 }
 
