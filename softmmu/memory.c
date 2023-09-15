@@ -1800,6 +1800,9 @@ void memory_region_ref(MemoryRegion *mr)
     /* MMIO callbacks most likely will access data that belongs
      * to the owner, hence the need to ref/unref the owner whenever
      * the memory region is in use.
+     * Likewise, the owner keeps references to the memory region,
+     * hence the need to ref/unref the memory region object to prevent
+     * its automatic deallocation while still referenced by its owner.
      *
      * The memory region is a child of its owner.  As long as the
      * owner doesn't call unparent itself on the memory region,
@@ -1808,6 +1811,7 @@ void memory_region_ref(MemoryRegion *mr)
      * we do not ref/unref them because it slows down DMA sensibly.
      */
     if (mr && mr->owner) {
+        object_ref(OBJECT(mr));
         object_ref(mr->owner);
     }
 }
@@ -1816,6 +1820,7 @@ void memory_region_unref(MemoryRegion *mr)
 {
     if (mr && mr->owner) {
         object_unref(mr->owner);
+        object_unref(OBJECT(mr));
     }
 }
 
