@@ -1025,6 +1025,38 @@ static int parallels_update_header(BlockDriverState *bs)
     return bdrv_pwrite_sync(bs->file, 0, size, s->header, 0);
 }
 
+
+static int parallels_opts_prealloc(BlockDriverState *bs, QDict *options,
+                                   Error **errp)
+{
+    char *buf;
+    int64_t bytes;
+    BDRVParallelsState *s = bs->opaque;
+    Error *local_err = NULL;
+    QemuOpts *opts = qemu_opts_create(&parallels_runtime_opts, NULL, 0, errp);
+    if (!opts) {
+        return -ENOMEM;
+    }
+
+    if (!qemu_opts_absorb_qdict(opts, options, errp)) {
+        return -EINVAL;
+    }
+
+    bytes = qemu_opt_get_size_del(opts, PARALLELS_OPT_PREALLOC_SIZE, 0);
+    s->prealloc_size = bytes >> BDRV_SECTOR_BITS;
+    buf = qemu_opt_get_del(opts, PARALLELS_OPT_PREALLOC_MODE);
+    /* prealloc_mode can be downgraded later during allocate_clusters */
+    s->prealloc_mode = qapi_enum_parse(&prealloc_mode_lookup, buf,
+                                       PRL_PREALLOC_MODE_FALLOCATE,
+                                       &local_err);
+    g_free(buf);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return -EINVAL;
+    }
+    return 0;
+}
+
 static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
 {
@@ -1033,10 +1065,12 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     int ret, size, i;
     int64_t file_nb_sectors, sector;
     uint32_t data_start;
-    QemuOpts *opts = NULL;
-    Error *local_err = NULL;
-    char *buf;
     bool data_off_is_correct;
+
+    ret = parallels_opts_prealloc(bs, options, errp);
+    if (ret < 0) {
+        return ret;
+    }
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
@@ -1078,6 +1112,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EFBIG;
         goto fail;
     }
+    s->prealloc_size = MAX(s->tracks, s->prealloc_size);
     s->cluster_size = s->tracks << BDRV_SECTOR_BITS;
 
     s->bat_size = le32_to_cpu(ph.bat_entries);
@@ -1115,29 +1150,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
          * and actual data. We can't avoid read-modify-write...
          */
         s->header_size = size;
-    }
-
-    opts = qemu_opts_create(&parallels_runtime_opts, NULL, 0, errp);
-    if (!opts) {
-        goto fail_options;
-    }
-
-    if (!qemu_opts_absorb_qdict(opts, options, errp)) {
-        goto fail_options;
-    }
-
-    s->prealloc_size =
-        qemu_opt_get_size_del(opts, PARALLELS_OPT_PREALLOC_SIZE, 0);
-    s->prealloc_size = MAX(s->tracks, s->prealloc_size >> BDRV_SECTOR_BITS);
-    buf = qemu_opt_get_del(opts, PARALLELS_OPT_PREALLOC_MODE);
-    /* prealloc_mode can be downgraded later during allocate_clusters */
-    s->prealloc_mode = qapi_enum_parse(&prealloc_mode_lookup, buf,
-                                       PRL_PREALLOC_MODE_FALLOCATE,
-                                       &local_err);
-    g_free(buf);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        goto fail_options;
     }
 
     if (ph.ext_off) {
@@ -1214,7 +1226,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
 fail_format:
     error_setg(errp, "Image not in Parallels format");
-fail_options:
     ret = -EINVAL;
 fail:
     /*
