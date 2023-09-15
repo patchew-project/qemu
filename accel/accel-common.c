@@ -129,6 +129,10 @@ bool accel_cpu_realize(CPUState *cpu, Error **errp)
     return true;
 }
 
+void accel_cpu_unrealize(CPUState *cpu)
+{
+}
+
 int accel_supported_gdbstub_sstep_flags(void)
 {
     AccelState *accel = current_accel();
