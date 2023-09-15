@@ -3053,8 +3053,10 @@ static int vfio_pci_dev_mem_probe(VFIOPCIDevice *vPciDev,
     VFIODevice *vdev = &vPciDev->vbasedev;
     MachineState *ms = MACHINE(qdev_get_machine());
     int ret = 0;
-    uint32_t dev_node_start = vPciDev->dev_node_start;
-    uint32_t dev_node_count = vPciDev->dev_nodes;
+    uint32_t dev_node_start = vPciDev->dev_node_start ?
+                              vPciDev->dev_node_start :
+                              ms->numa_state->num_nodes;
+    uint32_t dev_node_count = vPciDev->dev_nodes ? vPciDev->dev_nodes : 8;
 
     if (!vdev->sysfsdev || !vfio_pci_read_cohmem_support_sysfs(vdev)) {
         ret = -ENODEV;
