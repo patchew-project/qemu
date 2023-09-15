@@ -58,6 +58,11 @@ struct virtio_gpu_simple_resource {
     int dmabuf_fd;
     uint8_t *remapped;
 
+#ifdef HAVE_VIRGL_RESOURCE_BLOB
+    /* only blob resource needs this region to be mapped as guest mmio */
+    MemoryRegion *region;
+#endif
+
     QTAILQ_ENTRY(virtio_gpu_simple_resource) next;
 };
 
