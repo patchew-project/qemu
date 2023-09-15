@@ -2536,6 +2536,26 @@ static void tcg_commit(MemoryListener *listener)
     }
 }
 
+void cpu_address_space_sync(CPUState *cpu)
+{
+    int i, n = cpu->num_ases;
+    bool need_flush = false;
+
+    for (i = 0; i < n; ++i) {
+        CPUAddressSpace *cpuas = &cpu->cpu_ases[i];
+        uint32_t gen = qatomic_load_acquire(&cpuas->layout_gen);
+
+        if (cpuas->commit_gen != gen) {
+            cpuas->commit_gen = gen;
+            cpuas->memory_dispatch = address_space_to_dispatch(cpuas->as);
+            need_flush = true;
+        }
+    }
+    if (need_flush) {
+        tlb_flush(cpu);
+    }
+}
+
 static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));

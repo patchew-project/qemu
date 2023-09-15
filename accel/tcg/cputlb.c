@@ -1903,6 +1903,8 @@ static bool mmu_lookup(CPUArchState *env, vaddr addr, MemOpIdx oi,
     l->page[1].size = 0;
     crosspage = (addr ^ l->page[1].addr) & TARGET_PAGE_MASK;
 
+    cpu_address_space_sync(env_cpu(env));
+
     if (likely(!crosspage)) {
         mmu_lookup1(env, &l->page[0], l->mmu_idx, type, ra);
 

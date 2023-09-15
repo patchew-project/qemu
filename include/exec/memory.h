@@ -2780,6 +2780,12 @@ void address_space_cache_destroy(MemoryRegionCache *cache);
 IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
                                             bool is_write, MemTxAttrs attrs);
 
+/*
+ * Ensure all cpu address spaces are up-to-date.
+ * Return true if changes made and tlb flushed.
+ */
+void cpu_address_space_sync(CPUState *cpu);
+
 /* address_space_translate: translate an address range into an address space
  * into a MemoryRegion and an address range into that section.  Should be
  * called from an RCU critical section, to avoid that the last reference
