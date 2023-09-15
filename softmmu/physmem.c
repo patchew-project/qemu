@@ -2515,9 +2515,9 @@ static void tcg_commit(MemoryListener *listener)
      * the memory data structures.
      *
      * That said, the listener is also called during realize, before
-     * all of the tcg machinery for run-on is initialized: thus halt_cond.
+     * all of the tcg machinery for run-on is initialized: thus created.
      */
-    if (cpu->halt_cond) {
+    if (cpu->created) {
         async_run_on_cpu(cpu, tcg_commit_cpu, RUN_ON_CPU_HOST_PTR(cpuas));
     } else {
         tcg_commit_cpu(cpu, RUN_ON_CPU_HOST_PTR(cpuas));
