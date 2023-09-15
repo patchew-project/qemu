@@ -966,6 +966,38 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
     virtio_gpu_cleanup_mapping(g, res);
 }
 
+void virtio_gpu_resource_assign_uuid(VirtIOGPU *g,
+                                     struct virtio_gpu_ctrl_command *cmd)
+{
+    struct virtio_gpu_simple_resource *res;
+    struct virtio_gpu_resource_assign_uuid assign;
+    struct virtio_gpu_resp_resource_uuid resp;
+    QemuUUID *uuid;
+
+    VIRTIO_GPU_FILL_CMD(assign);
+    virtio_gpu_bswap_32(&assign, sizeof(assign));
+    trace_virtio_gpu_cmd_res_assign_uuid(assign.resource_id);
+
+    res = virtio_gpu_find_check_resource(g, assign.resource_id, false, __func__, &cmd->error);
+    if (!res) {
+        return;
+    }
+
+    memset(&resp, 0, sizeof(resp));
+    resp.hdr.type = VIRTIO_GPU_RESP_OK_RESOURCE_UUID;
+
+    uuid = g_hash_table_lookup(g->resource_uuids, GUINT_TO_POINTER(assign.resource_id));
+    if (!uuid) {
+        uuid = g_new(QemuUUID, 1);
+        qemu_uuid_generate(uuid);
+        g_hash_table_insert(g->resource_uuids, GUINT_TO_POINTER(assign.resource_id), uuid);
+        res->has_uuid = true;
+    }
+
+    memcpy(resp.uuid, uuid, sizeof(QemuUUID));
+    virtio_gpu_ctrl_response(g, cmd, &resp.hdr, sizeof(resp));
+}
+
 void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
                                    struct virtio_gpu_ctrl_command *cmd)
 {
@@ -1013,6 +1045,9 @@ void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
         break;
     case VIRTIO_GPU_CMD_RESOURCE_DETACH_BACKING:
         virtio_gpu_resource_detach_backing(g, cmd);
+        break;
+    case VIRTIO_GPU_CMD_RESOURCE_ASSIGN_UUID:
+        virtio_gpu_resource_assign_uuid(g, cmd);
         break;
     default:
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
@@ -1208,6 +1243,7 @@ static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
     VirtIOGPU *g = opaque;
     struct virtio_gpu_simple_resource *res;
     int i;
+    QemuUUID *uuid;
 
     /* in 2d mode we should never find unprocessed commands here */
     assert(QTAILQ_EMPTY(&g->cmdq));
@@ -1224,8 +1260,16 @@ static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
         }
         qemu_put_buffer(f, (void *)pixman_image_get_data(res->image),
                         pixman_image_get_stride(res->image) * res->height);
+
+        qemu_put_byte(f, res->has_uuid);
+        if (res->has_uuid) {
+            uuid = g_hash_table_lookup(g->resource_uuids, GUINT_TO_POINTER(res->resource_id));
+            qemu_put_buffer(f, (void *)uuid, sizeof(QemuUUID));
+        }
     }
     qemu_put_be32(f, 0); /* end of list */
+
+    g_hash_table_destroy(g->resource_uuids);
 
     return vmstate_save_state(f, &vmstate_virtio_gpu_scanouts, g, NULL);
 }
@@ -1239,8 +1283,11 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
     uint32_t resource_id, pformat;
     void *bits = NULL;
     int i;
+    QemuUUID *uuid = NULL;
 
     g->hostmem = 0;
+
+    g->resource_uuids = g_hash_table_new_full(NULL, NULL, NULL, g_free);
 
     resource_id = qemu_get_be32(f);
     while (resource_id != 0) {
@@ -1293,6 +1340,12 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
         }
         qemu_get_buffer(f, (void *)pixman_image_get_data(res->image),
                         pixman_image_get_stride(res->image) * res->height);
+
+        res->has_uuid = qemu_get_byte(f);
+        if (res->has_uuid) {
+            qemu_get_buffer(f, (void *)uuid, sizeof(QemuUUID));
+            g_hash_table_insert(g->resource_uuids, GUINT_TO_POINTER(res->resource_id), uuid);
+        }
 
         /* restore mapping */
         for (i = 0; i < res->iov_cnt; i++) {
@@ -1395,12 +1448,15 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     QTAILQ_INIT(&g->reslist);
     QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
+
+    g->resource_uuids = g_hash_table_new_full(NULL, NULL, NULL, g_free);
 }
 
 static void virtio_gpu_device_unrealize(DeviceState *qdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(qdev);
 
+    g_hash_table_destroy(g->resource_uuids);
     g_clear_pointer(&g->ctrl_bh, qemu_bh_delete);
     g_clear_pointer(&g->cursor_bh, qemu_bh_delete);
     g_clear_pointer(&g->reset_bh, qemu_bh_delete);
@@ -1453,6 +1509,8 @@ void virtio_gpu_reset(VirtIODevice *vdev)
         g->inflight--;
         g_free(cmd);
     }
+
+    g_hash_table_remove_all(g->resource_uuids);
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
 }
