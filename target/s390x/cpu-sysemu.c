@@ -122,9 +122,8 @@ void s390_cpu_init_sysemu(Object *obj)
     s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 }
 
-bool s390_cpu_realize_sysemu(DeviceState *dev, Error **errp)
+bool s390_cpu_realize_sysemu(S390CPU *cpu, Error **errp)
 {
-    S390CPU *cpu = S390_CPU(dev);
     MachineState *ms = MACHINE(qdev_get_machine());
     unsigned int max_cpus = ms->smp.max_cpus;
 

@@ -241,7 +241,7 @@ uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
 unsigned int s390_cpu_halt(S390CPU *cpu);
 void s390_cpu_unhalt(S390CPU *cpu);
 void s390_cpu_init_sysemu(Object *obj);
-bool s390_cpu_realize_sysemu(DeviceState *dev, Error **errp);
+bool s390_cpu_realize_sysemu(S390CPU *cpu, Error **errp);
 void s390_cpu_finalize(Object *obj);
 void s390_cpu_class_init_sysemu(CPUClass *cc);
 void s390_cpu_machine_reset_cb(void *opaque);

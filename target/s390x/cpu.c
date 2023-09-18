@@ -237,12 +237,6 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
         goto out;
     }
 
-#if !defined(CONFIG_USER_ONLY)
-    if (!s390_cpu_realize_sysemu(dev, &err)) {
-        goto out;
-    }
-#endif
-
     cpu_exec_realizefn(cs, &err);
     if (err != NULL) {
         goto out;

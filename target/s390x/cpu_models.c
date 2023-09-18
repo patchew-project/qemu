@@ -612,6 +612,10 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
         cpu->env.cpuid = deposit64(cpu->env.cpuid, CPU_PHYS_ADDR_SHIFT,
                                    CPU_PHYS_ADDR_BITS, cpu->env.core_id);
     }
+
+    if (!s390_cpu_realize_sysemu(cpu, &err)) {
+        return;
+    }
 #endif
 }
 
