@@ -97,6 +97,7 @@ struct GuestExecInfo {
     int64_t pid_numeric;
     gint status;
     bool has_output;
+    bool stream_output;
     bool finished;
     GuestExecIOData in;
     GuestExecIOData out;
@@ -218,6 +219,15 @@ GuestExecStatus *qmp_guest_exec_status(int64_t pid, Error **errp)
 
         QTAILQ_REMOVE(&guest_exec_state.processes, gei, next);
         g_free(gei);
+    } else if (gei->stream_output) {
+        if (gei->out.length > 0) {
+            ges->out_data = g_base64_encode(gei->out.data, gei->out.length);
+            ges->has_out_truncated = gei->out.truncated;
+        }
+        if (gei->err.length > 0) {
+            ges->err_data = g_base64_encode(gei->err.data, gei->err.length);
+            ges->has_err_truncated = gei->err.truncated;
+        }
     }
 
     return ges;
@@ -410,6 +420,7 @@ GuestExec *qmp_guest_exec(const char *path,
                        bool has_env, strList *env,
                        const char *input_data,
                        GuestExecCaptureOutput *capture_output,
+                       bool has_stream_output, bool stream_output,
                        Error **errp)
 {
     GPid pid;
@@ -485,6 +496,7 @@ GuestExec *qmp_guest_exec(const char *path,
 
     gei = guest_exec_info_add(pid);
     gei->has_output = has_output;
+    gei->stream_output = has_stream_output && stream_output;
     g_child_watch_add(pid, guest_exec_child_watch, gei);
 
     if (input_data) {

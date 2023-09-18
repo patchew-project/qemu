@@ -1315,13 +1315,18 @@
 # @capture-output: bool flag to enable capture of stdout/stderr of
 #     running process.  defaults to false.
 #
+# @stream-output: causes future guest-exec-status calls to always
+#     return current captured output rather than waiting to return
+#     it all when the command exits. defaults to false. (since: 8.2)
+#
 # Returns: PID on success.
 #
 # Since: 2.5
 ##
 { 'command': 'guest-exec',
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
-               '*input-data': 'str', '*capture-output': 'GuestExecCaptureOutput' },
+               '*input-data': 'str', '*capture-output': 'GuestExecCaptureOutput',
+               '*stream-output': 'bool' },
   'returns': 'GuestExec' }
 
 
