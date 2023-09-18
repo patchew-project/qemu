@@ -1046,19 +1046,19 @@ err_resolve_create_id:
 /*
  * Create protection domain and completion queues
  */
-static int qemu_rdma_alloc_pd_cq(RDMAContext *rdma)
+static int qemu_rdma_alloc_pd_cq(RDMAContext *rdma, Error **errp)
 {
     /* allocate pd */
     rdma->pd = ibv_alloc_pd(rdma->verbs);
     if (!rdma->pd) {
-        error_report("failed to allocate protection domain");
+        error_setg(errp, "failed to allocate protection domain");
         return -1;
     }
 
     /* create receive completion channel */
     rdma->recv_comp_channel = ibv_create_comp_channel(rdma->verbs);
     if (!rdma->recv_comp_channel) {
-        error_report("failed to allocate receive completion channel");
+        error_setg(errp, "failed to allocate receive completion channel");
         goto err_alloc_pd_cq;
     }
 
@@ -1068,21 +1068,21 @@ static int qemu_rdma_alloc_pd_cq(RDMAContext *rdma)
     rdma->recv_cq = ibv_create_cq(rdma->verbs, (RDMA_SIGNALED_SEND_MAX * 3),
                                   NULL, rdma->recv_comp_channel, 0);
     if (!rdma->recv_cq) {
-        error_report("failed to allocate receive completion queue");
+        error_setg(errp, "failed to allocate receive completion queue");
         goto err_alloc_pd_cq;
     }
 
     /* create send completion channel */
     rdma->send_comp_channel = ibv_create_comp_channel(rdma->verbs);
     if (!rdma->send_comp_channel) {
-        error_report("failed to allocate send completion channel");
+        error_setg(errp, "failed to allocate send completion channel");
         goto err_alloc_pd_cq;
     }
 
     rdma->send_cq = ibv_create_cq(rdma->verbs, (RDMA_SIGNALED_SEND_MAX * 3),
                                   NULL, rdma->send_comp_channel, 0);
     if (!rdma->send_cq) {
-        error_report("failed to allocate send completion queue");
+        error_setg(errp, "failed to allocate send completion queue");
         goto err_alloc_pd_cq;
     }
 
@@ -2451,6 +2451,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
 
 static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
 {
+    ERRP_GUARD();
     int ret, idx;
 
     /*
@@ -2464,12 +2465,12 @@ static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
         goto err_rdma_source_init;
     }
 
-    ret = qemu_rdma_alloc_pd_cq(rdma);
+    ret = qemu_rdma_alloc_pd_cq(rdma, errp);
     if (ret < 0) {
-        error_setg(errp, "RDMA ERROR: "
-                   "rdma migration: error allocating pd and cq! Your mlock()"
-                   " limits may be too low. Please check $ ulimit -a # and "
-                   "search for 'ulimit -l' in the output");
+        error_append_hint(errp,
+                          "Your mlock() limits may be too low. "
+                          "Please check $ ulimit -a # and "
+                          "search for 'ulimit -l' in the output\n");
         goto err_rdma_source_init;
     }
 
@@ -3451,9 +3452,9 @@ static int qemu_rdma_accept(RDMAContext *rdma)
 
     qemu_rdma_dump_id("dest_init", verbs);
 
-    ret = qemu_rdma_alloc_pd_cq(rdma);
+    ret = qemu_rdma_alloc_pd_cq(rdma, &err);
     if (ret < 0) {
-        error_report("rdma migration: error allocating pd and cq!");
+        error_report_err(err);
         goto err_rdma_dest_wait;
     }
 
