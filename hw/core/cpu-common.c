@@ -224,6 +224,11 @@ static void cpu_common_unrealizefn(DeviceState *dev)
 
     /* Destroy vCPU thread */
     cpu_remove_sync(cpu);
+
+    /* Destroy CPU address space */
+    for (unsigned idx = 0; idx < cpu->num_ases; idx++) {
+        cpu_address_space_destroy(cpu, idx);
+    }
 }
 
 static void cpu_common_initfn(Object *obj)
