@@ -160,13 +160,6 @@ static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     cs->gdb_num_regs = xcc->config->gdb_regmap.num_regs;
 

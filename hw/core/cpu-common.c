@@ -204,6 +204,10 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
         }
     }
 
+    if (!cpu_exec_realizefn(cpu, errp)) {
+        return;
+    }
+
     /* Create CPU address space and vCPU thread */
     qemu_init_vcpu(cpu);
 

@@ -207,13 +207,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     uint8_t version_code = 0;
     const char *version;
     int i = 0;
-    Error *local_err = NULL;
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     if (cpu->cfg.addr_size < 32 || cpu->cfg.addr_size > 64) {
         error_setg(errp, "addr-size %d is out of range (32 - 64)",

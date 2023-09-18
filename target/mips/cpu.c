@@ -462,13 +462,6 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
     MIPSCPU *cpu = MIPS_CPU(dev);
     CPUMIPSState *env = &cpu->env;
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     env->exception_base = (int32_t)0xBFC00000;
 

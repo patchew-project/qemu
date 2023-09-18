@@ -133,13 +133,6 @@ static void openrisc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     occ->parent_realize(dev, errp);
     cpu_reset(cs);

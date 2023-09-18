@@ -1503,12 +1503,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
     if (tcg_enabled()) {
         riscv_cpu_realize_tcg(dev, &local_err);
         if (local_err != NULL) {

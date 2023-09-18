@@ -199,13 +199,6 @@ static void nios2_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUState *cs = CPU(dev);
     Nios2CPU *cpu = NIOS2_CPU(cs);
     Nios2CPUClass *ncc = NIOS2_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     realize_cr_status(cs);
 

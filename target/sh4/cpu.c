@@ -220,13 +220,6 @@ static void superh_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     scc->parent_realize(dev, errp);
     cpu_reset(cs);

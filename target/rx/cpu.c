@@ -129,13 +129,6 @@ static void rx_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     RXCPUClass *rcc = RX_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     rcc->parent_realize(dev, errp);
     cpu_reset(cs);

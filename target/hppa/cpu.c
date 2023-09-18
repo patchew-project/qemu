@@ -121,22 +121,11 @@ void hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 
 static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    CPUState *cs = CPU(dev);
     HPPACPUClass *acc = HPPA_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
 #ifndef CONFIG_USER_ONLY
-    {
-        HPPACPU *cpu = HPPA_CPU(cs);
-        cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                        hppa_cpu_alarm_timer, cpu);
-    }
+    cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                    hppa_cpu_alarm_timer, HPPA_CPU(dev));
 #endif
 
     acc->parent_realize(dev, errp);
