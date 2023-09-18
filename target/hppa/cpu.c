@@ -131,8 +131,6 @@ static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    acc->parent_realize(dev, errp);
-
 #ifndef CONFIG_USER_ONLY
     {
         HPPACPU *cpu = HPPA_CPU(cs);
@@ -140,6 +138,8 @@ static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
                                         hppa_cpu_alarm_timer, cpu);
     }
 #endif
+
+    acc->parent_realize(dev, errp);
 }
 
 static void hppa_cpu_initfn(Object *obj)
