@@ -430,6 +430,11 @@ struct CPUState {
      */
     bool throttle_thread_scheduled;
 
+    /* Used to keep last cpu throttle tick
+     *
+     */
+    int64_t throttle_last_tick;
+
     /*
      * Sleep throttle_us_per_full microseconds once dirty ring is full
      * if dirty page rate limit is enabled.
