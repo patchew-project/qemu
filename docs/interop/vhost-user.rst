@@ -885,6 +885,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
   #define VHOST_USER_PROTOCOL_F_XEN_MMAP             17
+  #define VHOST_USER_PROTOCOL_F_PRESETUP             18
 
 Front-end message types
 -----------------------
@@ -1440,6 +1441,15 @@ Front-end message types
   query the back-end for its device status as defined in the Virtio
   specification.
 
+``VHOST_USER_PRESETUP``
+  :id: 41
+  :equivalent ioctl: N/A
+  :request payload: ``u64``
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_PRESETUP`` protocol feature has been
+  successfully negotiated, this message is submitted by the front-end to
+  indicate start or end early setup. Value 1 means start, 2 means end.
 
 Back-end message types
 ----------------------

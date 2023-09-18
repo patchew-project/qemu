@@ -74,6 +74,8 @@ enum VhostUserProtocolFeature {
     /* Feature 14 reserved for VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS. */
     VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS = 15,
     VHOST_USER_PROTOCOL_F_STATUS = 16,
+    /* Feature 17 reserved for VHOST_USER_PROTOCOL_F_XEN_MMAP. */
+    VHOST_USER_PROTOCOL_F_PRESETUP = 18,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -121,6 +123,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_REM_MEM_REG = 38,
     VHOST_USER_SET_STATUS = 39,
     VHOST_USER_GET_STATUS = 40,
+    VHOST_USER_PRESETUP = 41,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -131,6 +134,11 @@ typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_VRING_HOST_NOTIFIER_MSG = 3,
     VHOST_USER_BACKEND_MAX
 }  VhostUserBackendRequest;
+
+typedef enum VhostUserPresetupState {
+    VHOST_USER_PRESETUP_START = 1,
+    VHOST_USER_PRESETUP_END = 2,
+} VhostUserPresetupState;
 
 typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
@@ -2741,6 +2749,27 @@ static void vhost_user_reset_status(struct vhost_dev *dev)
     }
 }
 
+static int vhost_user_set_presetup_state(struct vhost_dev *dev, bool start)
+{
+    if (start) {
+        return vhost_user_set_u64(dev, VHOST_USER_PRESETUP,
+                                  VHOST_USER_PRESETUP_START, false);
+    } else {
+        return vhost_user_set_u64(dev, VHOST_USER_PRESETUP,
+                                  VHOST_USER_PRESETUP_END, false);
+    }
+}
+
+static int vhost_user_presetup(struct vhost_dev *dev, bool start)
+{
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_PRESETUP)) {
+        return -ENOTSUP;
+    }
+
+    return vhost_user_set_presetup_state(dev, start);
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_backend_init,
@@ -2777,4 +2806,5 @@ const VhostOps user_ops = {
         .vhost_set_inflight_fd = vhost_user_set_inflight_fd,
         .vhost_dev_start = vhost_user_dev_start,
         .vhost_reset_status = vhost_user_reset_status,
+        .vhost_presetup = vhost_user_presetup,
 };
