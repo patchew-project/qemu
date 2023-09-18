@@ -131,7 +131,7 @@ const VMStateDescription vmstate_cpu_common = {
 };
 #endif
 
-void cpu_exec_realizefn(CPUState *cpu, Error **errp)
+bool cpu_exec_realizefn(CPUState *cpu, Error **errp)
 {
     /* cache the cpu class for the hotpath */
     cpu->cc = CPU_GET_CLASS(cpu);
@@ -142,7 +142,7 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
     }
 
     if (!accel_cpu_realizefn(cpu, errp)) {
-        return;
+        return false;
     }
 
     /* NB: errp parameter is unused currently */
@@ -169,6 +169,8 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
         vmstate_register(NULL, cpu->cpu_index, cpu->cc->sysemu_ops->legacy_vmsd, cpu);
     }
 #endif /* CONFIG_USER_ONLY */
+
+    return true;
 }
 
 void cpu_exec_unrealizefn(CPUState *cpu)
