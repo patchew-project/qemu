@@ -1588,7 +1588,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma,
     if (rdma->received_error) {
         return -EPIPE;
     }
-    return rdma->error_state;
+    return -!!rdma->error_state;
 }
 
 static struct ibv_comp_channel *to_channel(RDMAContext *rdma, uint64_t wrid)
