@@ -103,6 +103,9 @@ struct SysemuCPUOps;
  * @class_by_name: Callback to map -cpu command line model name to an
  * instantiatable CPU type.
  * @parse_features: Callback to parse command line arguments.
+ * @verify_accel_features: Callback to verify if all requested CPU are
+ *        compatible with the requested accelerator. Called before the
+ *        accelerator realize a vCPU.
  * @reset_dump_flags: #CPUDumpFlags to use for reset logging.
  * @has_work: Callback for checking if there is work to do.
  * @memory_rw_debug: Callback for GDB memory access.
@@ -183,6 +186,7 @@ struct CPUClass {
      * class data that depends on the accelerator, see accel/accel-common.c.
      */
     void (*init_accel_cpu)(struct AccelCPUClass *accel_cpu, CPUClass *cc);
+    bool (*verify_accel_features)(CPUState *cs, Error **errp);
 
     /*
      * Keep non-pointer data at the end to minimize holes.

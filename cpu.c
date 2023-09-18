@@ -136,6 +136,11 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
     /* cache the cpu class for the hotpath */
     cpu->cc = CPU_GET_CLASS(cpu);
 
+    if (cpu->cc->verify_accel_features
+        && !cpu->cc->verify_accel_features(cpu, errp)) {
+        return false;
+    }
+
     if (!accel_cpu_realizefn(cpu, errp)) {
         return;
     }
