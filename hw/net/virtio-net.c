@@ -46,6 +46,7 @@
 #include "net_rx_pkt.h"
 #include "hw/virtio/vhost.h"
 #include "sysemu/qtest.h"
+#include "sysemu/runstate.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -3568,6 +3569,95 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     return qatomic_read(&n->failover_primary_hidden);
 }
 
+static int virtio_net_load_early_setup(void *opaque, int version_id)
+{
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    NetClientState *nc = qemu_get_queue(n->nic);
+    int queue_pairs = n->multiqueue ? n->max_queue_pairs : 1;
+    int cvq = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ) ?
+        n->max_ncs - n->max_queue_pairs : 0;
+    VHostNetState *net;
+    int r;
+
+    assert(nc->peer);
+    assert(nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER);
+
+    net = get_vhost_net(nc->peer);
+    assert(net);
+    assert(net->dev.vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+
+    trace_virtio_net_load_early_setup();
+
+    /* backend should support presetup */
+    r = vhost_dev_set_presetup_state(&net->dev, true);
+    if (r < 0) {
+        error_report("Start presetup device fail: %d", r);
+        return r;
+    }
+
+    if (virtio_has_feature(vdev->guest_features, VIRTIO_NET_F_MTU)) {
+        r = vhost_net_set_mtu(get_vhost_net(nc->peer), n->net_conf.mtu);
+        if (r < 0) {
+            error_report("%uBytes MTU not supported by the backend",
+                         n->net_conf.mtu);
+            goto error;
+        }
+    }
+
+    r = vhost_net_presetup(vdev, n->nic->ncs, queue_pairs, cvq);
+    if (r < 0) {
+        error_report("Presetup device fail: %d", r);
+        goto error;
+    }
+
+    r = vhost_dev_set_presetup_state(&net->dev, false);
+    if (r < 0) {
+        error_report("Finish presetup device fail: %d", r);
+        return r;
+    }
+    return 0;
+
+error:
+    vhost_dev_set_presetup_state(&net->dev, false);
+    return r;
+}
+
+static bool virtio_net_early_setup_needed(void *opaque)
+{
+    VirtIONet *n = opaque;
+    NetClientState *nc = qemu_get_queue(n->nic);
+    VHostNetState *net = get_vhost_net(nc->peer);
+
+    /*
+     * Presetup aims to reduce live migration downtime by sync device
+     * status in setup stage. So only do presetup when source VM is in
+     * running state.
+     */
+    if (runstate_is_running() &&
+        nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER &&
+        net->dev.vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER &&
+        !vhost_dev_has_iommu(&net->dev) &&
+        n->vhost_started &&
+        n->status & VIRTIO_NET_S_LINK_UP) {
+        return true;
+    }
+    return false;
+}
+
+static const VMStateDescription vmstate_virtio_net_early = {
+    .name = "virtio-net-early",
+    .minimum_version_id = VIRTIO_NET_VM_VERSION,
+    .version_id = VIRTIO_NET_VM_VERSION,
+    .fields = (VMStateField[]) {
+        VMSTATE_EARLY_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+    .early_setup = true,
+    .post_load = virtio_net_load_early_setup,
+    .needed = virtio_net_early_setup_needed,
+};
+
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -3743,6 +3833,11 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     if (virtio_has_feature(n->host_features, VIRTIO_NET_F_RSS)) {
         virtio_net_load_ebpf(n);
     }
+
+    if (n->early_migration) {
+        vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY,
+                         &vmstate_virtio_net_early, n);
+    }
 }
 
 static void virtio_net_device_unrealize(DeviceState *dev)
@@ -3787,6 +3882,10 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     g_free(n->rss_data.indirections_table);
     net_rx_pkt_uninit(n->rx_pkt);
     virtio_cleanup(vdev);
+
+    if (n->early_migration) {
+        vmstate_unregister(NULL, &vmstate_virtio_net_early, n);
+    }
 }
 
 static void virtio_net_instance_init(Object *obj)
@@ -3922,6 +4021,7 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
     DEFINE_PROP_BOOL("failover", VirtIONet, failover, false),
+    DEFINE_PROP_BOOL("x-early-migration", VirtIONet, early_migration, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
