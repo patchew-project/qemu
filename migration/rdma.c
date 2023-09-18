@@ -2238,7 +2238,8 @@ retry:
  * We support sending out multiple chunks at the same time.
  * Not all of them need to get signaled in the completion queue.
  */
-static int qemu_rdma_write_flush(QEMUFile *f, RDMAContext *rdma)
+static int qemu_rdma_write_flush(QEMUFile *f, RDMAContext *rdma,
+                                 Error **errp)
 {
     int ret;
 
@@ -2250,6 +2251,7 @@ static int qemu_rdma_write_flush(QEMUFile *f, RDMAContext *rdma)
             rdma->current_index, rdma->current_addr, rdma->current_length);
 
     if (ret < 0) {
+        error_setg(errp, "FIXME temporary error message");
         return -1;
     }
 
@@ -2323,6 +2325,7 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
                            uint64_t block_offset, uint64_t offset,
                            uint64_t len)
 {
+    Error *err = NULL;
     uint64_t current_addr = block_offset + offset;
     uint64_t index = rdma->current_index;
     uint64_t chunk = rdma->current_chunk;
@@ -2330,8 +2333,9 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
 
     /* If we cannot merge it, we flush the current buffer first. */
     if (!qemu_rdma_buffer_mergable(rdma, current_addr, len)) {
-        ret = qemu_rdma_write_flush(f, rdma);
+        ret = qemu_rdma_write_flush(f, rdma, &err);
         if (ret < 0) {
+            error_report_err(err);
             return -1;
         }
         rdma->current_length = 0;
@@ -2348,7 +2352,10 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
 
     /* flush it if buffer is too large */
     if (rdma->current_length >= RDMA_MERGE_MAX) {
-        return qemu_rdma_write_flush(f, rdma);
+        if (qemu_rdma_write_flush(f, rdma, &err) < 0) {
+            error_report_err(err);
+            return -1;
+        }
     }
 
     return 0;
@@ -2809,10 +2816,9 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
      * Push out any writes that
      * we're queued up for VM's ram.
      */
-    ret = qemu_rdma_write_flush(f, rdma);
+    ret = qemu_rdma_write_flush(f, rdma, errp);
     if (ret < 0) {
         rdma->errored = true;
-        error_setg(errp, "qemu_rdma_write_flush failed");
         return -1;
     }
 
@@ -2954,9 +2960,11 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
  */
 static int qemu_rdma_drain_cq(QEMUFile *f, RDMAContext *rdma)
 {
+    Error *err = NULL;
     int ret;
 
-    if (qemu_rdma_write_flush(f, rdma) < 0) {
+    if (qemu_rdma_write_flush(f, rdma, &err) < 0) {
+        error_report_err(err);
         return -1;
     }
 
