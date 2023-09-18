@@ -1138,24 +1138,71 @@ out:
     return ret;
 }
 
-int vhost_virtqueue_start(struct vhost_dev *dev,
-                          struct VirtIODevice *vdev,
-                          struct vhost_virtqueue *vq,
-                          unsigned idx)
+static void vhost_virtqueue_memory_unmap(struct vhost_dev *dev,
+                                         struct VirtIODevice *vdev,
+                                         struct vhost_virtqueue *vq,
+                                         unsigned idx)
 {
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
-    hwaddr s, l, a;
-    int r;
+    if (vq->used) {
+        vhost_memory_unmap(dev, vq->used,
+                           virtio_queue_get_used_size(vdev, idx),
+                           1, virtio_queue_get_used_size(vdev, idx));
+        vq->used = NULL;
+    }
+
+    if (vq->avail) {
+        vhost_memory_unmap(dev, vq->avail,
+                           virtio_queue_get_avail_size(vdev, idx),
+                           0, virtio_queue_get_avail_size(vdev, idx));
+        vq->avail = NULL;
+    }
+
+    if (vq->desc) {
+        vhost_memory_unmap(dev, vq->desc,
+                           virtio_queue_get_desc_size(vdev, idx),
+                           0, virtio_queue_get_desc_size(vdev, idx));
+        vq->desc = NULL;
+    }
+}
+
+static int vhost_virtqueue_disable_notify(struct vhost_dev *dev,
+                                          struct VirtIODevice *vdev,
+                                          struct vhost_virtqueue *vq,
+                                          unsigned idx)
+{
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_file file = {
         .index = vhost_vq_index
     };
+    int r;
+
+    file.fd = -1;
+    r = dev->vhost_ops->vhost_set_vring_kick(dev, &file);
+    if (r) {
+        VHOST_OPS_DEBUG(r, "vhost_set_vring_kick failed");
+        return r;
+    }
+
+    r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
+    if (r) {
+        VHOST_OPS_DEBUG(r, "vhost_set_vring_call failed");
+        return r;
+    }
+
+    return 0;
+}
+
+static int vhost_virtqueue_vring_setup(struct vhost_dev *dev,
+                                       struct VirtIODevice *vdev,
+                                       struct vhost_virtqueue *vq,
+                                       unsigned idx)
+{
+    hwaddr s, l, a;
+    int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_state state = {
         .index = vhost_vq_index
     };
-    struct VirtQueue *vvq = virtio_get_queue(vdev, idx);
+    int r;
 
     a = virtio_queue_get_desc_addr(vdev, idx);
     if (a == 0) {
@@ -1186,6 +1233,10 @@ int vhost_virtqueue_start(struct vhost_dev *dev,
         }
     }
 
+    if (vq->desc) {
+        vhost_virtqueue_memory_unmap(dev, vdev, vq, idx);
+    }
+
     vq->desc_size = s = l = virtio_queue_get_desc_size(vdev, idx);
     vq->desc_phys = a;
     vq->desc = vhost_memory_map(dev, a, &l, false);
@@ -1211,6 +1262,36 @@ int vhost_virtqueue_start(struct vhost_dev *dev,
     r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
     if (r < 0) {
         goto fail_alloc;
+    }
+    return 0;
+
+fail_alloc:
+fail_alloc_used:
+fail_alloc_avail:
+    vhost_virtqueue_memory_unmap(dev, vdev, vq, idx);
+fail_alloc_desc:
+    return r;
+}
+
+int vhost_virtqueue_start(struct vhost_dev *dev,
+                          struct VirtIODevice *vdev,
+                          struct vhost_virtqueue *vq,
+                          unsigned idx)
+{
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    int r;
+    int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
+    struct vhost_vring_file file = {
+        .index = vhost_vq_index
+    };
+    struct VirtQueue *vvq = virtio_get_queue(vdev, idx);
+
+    r = vhost_virtqueue_vring_setup(dev, vdev, vq, idx);
+    if (r) {
+        VHOST_OPS_DEBUG(r, "vhost_virtqueue_vring_setup failed");
+        goto fail_vring_setup;
     }
 
     file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq));
@@ -1245,16 +1326,8 @@ int vhost_virtqueue_start(struct vhost_dev *dev,
 
 fail_vector:
 fail_kick:
-fail_alloc:
-    vhost_memory_unmap(dev, vq->used, virtio_queue_get_used_size(vdev, idx),
-                       0, 0);
-fail_alloc_used:
-    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
-                       0, 0);
-fail_alloc_avail:
-    vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
-                       0, 0);
-fail_alloc_desc:
+    vhost_virtqueue_memory_unmap(dev, vdev, vq, idx);
+fail_vring_setup:
     return r;
 }
 
@@ -1296,12 +1369,7 @@ void vhost_virtqueue_stop(struct vhost_dev *dev,
                                                 vhost_vq_index);
     }
 
-    vhost_memory_unmap(dev, vq->used, virtio_queue_get_used_size(vdev, idx),
-                       1, virtio_queue_get_used_size(vdev, idx));
-    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
-                       0, virtio_queue_get_avail_size(vdev, idx));
-    vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
-                       0, virtio_queue_get_desc_size(vdev, idx));
+    vhost_virtqueue_memory_unmap(dev, vdev, vq, idx);
 }
 
 static int vhost_virtqueue_set_busyloop_timeout(struct vhost_dev *dev,
@@ -1921,6 +1989,43 @@ static int vhost_dev_set_vring_enable(struct vhost_dev *hdev, int enable)
     return hdev->vhost_ops->vhost_set_vring_enable(hdev, enable);
 }
 
+int vhost_dev_presetup(struct vhost_dev *hdev, VirtIODevice *vdev)
+{
+    int i, r;
+
+    /* should only be called after backend is connected */
+    assert(hdev->vhost_ops);
+
+    r = vhost_dev_set_features(hdev, hdev->log_enabled);
+    if (r < 0) {
+        return r;
+    }
+
+    r = hdev->vhost_ops->vhost_set_mem_table(hdev, hdev->mem);
+    if (r < 0) {
+        VHOST_OPS_DEBUG(r, "vhost_set_mem_table failed");
+        return r;
+    }
+
+    for (i = 0; i < hdev->nvqs; ++i) {
+        r = vhost_virtqueue_vring_setup(hdev, vdev,
+                                        hdev->vqs + i,
+                                        hdev->vq_index + i);
+        if (r < 0) {
+            VHOST_OPS_DEBUG(r, "vhost_virtqueue_setup failed");
+            return r;
+        }
+        r = vhost_virtqueue_disable_notify(hdev, vdev,
+                                           hdev->vqs + i,
+                                           hdev->vq_index + i);
+        if (r < 0) {
+            return r;
+        }
+    }
+
+    return 0;
+}
+
 /* Host notifiers must be enabled at this point. */
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
 {
@@ -2086,4 +2191,13 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
     }
 
     return -ENOSYS;
+}
+
+int vhost_dev_set_presetup_state(struct vhost_dev *hdev, bool start)
+{
+    if (!hdev->vhost_ops->vhost_presetup) {
+        return -ENOTSUP;
+    }
+
+    return hdev->vhost_ops->vhost_presetup(hdev, start);
 }

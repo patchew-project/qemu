@@ -193,6 +193,17 @@ bool vhost_config_pending(struct vhost_dev *hdev);
 void vhost_config_mask(struct vhost_dev *hdev, VirtIODevice *vdev, bool mask);
 
 /**
+ * vhost_dev_presetup() - pre-setup the vhost device in LM
+ * @hdev: common vhost_dev structure
+ * @vdev: the VirtIODevice structure
+ *
+ * During live migration, send out device information to backend in early
+ * running state. Backend can have enough time to prepare HW.
+ * Return: 0 on success, < 0 on error.
+ */
+int vhost_dev_presetup(struct vhost_dev *hdev, VirtIODevice *vdev);
+
+/**
  * vhost_dev_is_started() - report status of vhost device
  * @hdev: common vhost_dev structure
  *
@@ -338,4 +349,5 @@ int vhost_dev_set_inflight(struct vhost_dev *dev,
 int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
                            struct vhost_inflight *inflight);
 bool vhost_dev_has_iommu(struct vhost_dev *dev);
+int vhost_dev_set_presetup_state(struct vhost_dev *hdev, bool start);
 #endif
