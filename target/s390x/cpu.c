@@ -232,8 +232,7 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     Error *err = NULL;
 
     /* the model has to be realized before qemu_init_vcpu() due to kvm */
-    s390_realize_cpu_model(cs, &err);
-    if (err) {
+    if (!s390_realize_cpu_model(cs, &err)) {
         goto out;
     }
 

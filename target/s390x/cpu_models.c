@@ -567,7 +567,7 @@ S390CPUModel *get_max_cpu_model(Error **errp)
     return &max_model;
 }
 
-void s390_realize_cpu_model(CPUState *cs, Error **errp)
+bool s390_realize_cpu_model(CPUState *cs, Error **errp)
 {
     Error *err = NULL;
     S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
@@ -576,19 +576,19 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
 
     if (xcc->kvm_required && !kvm_enabled()) {
         error_setg(errp, "CPU definition requires KVM");
-        return;
+        return false;
     }
 
     if (!cpu->model) {
         /* no host model support -> perform compatibility stuff */
         apply_cpu_model(NULL, errp);
-        return;
+        return false;
     }
 
     max_model = get_max_cpu_model(errp);
     if (!max_model) {
         error_prepend(errp, "CPU models are not available: ");
-        return;
+        return false;
     }
 
     /* copy over properties that can vary */
@@ -601,7 +601,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     check_compatibility(max_model, cpu->model, &err);
     if (err) {
         error_propagate(errp, err);
-        return;
+        return false;
     }
 
     apply_cpu_model(cpu->model, errp);
@@ -617,6 +617,8 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
         return;
     }
 #endif
+
+    return true;
 }
 
 static void get_feature(Object *obj, Visitor *v, const char *name,
