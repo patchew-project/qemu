@@ -935,14 +935,14 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
 
     if (rdma->host == NULL || !strcmp(rdma->host, "")) {
         ERROR(errp, "RDMA hostname has not been set");
-        return -EINVAL;
+        return -1;
     }
 
     /* create CM channel */
     rdma->channel = rdma_create_event_channel();
     if (!rdma->channel) {
         ERROR(errp, "could not create CM channel");
-        return -EINVAL;
+        return -1;
     }
 
     /* create CM id */
@@ -956,7 +956,7 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
     port_str[15] = '\0';
 
     ret = rdma_getaddrinfo(rdma->host, port_str, NULL, &res);
-    if (ret < 0) {
+    if (ret) {
         ERROR(errp, "could not rdma_getaddrinfo address %s", rdma->host);
         goto err_resolve_get_addr;
     }
@@ -998,7 +998,6 @@ route:
                 rdma_event_str(cm_event->event));
         error_report("rdma_resolve_addr");
         rdma_ack_cm_event(cm_event);
-        ret = -EINVAL;
         goto err_resolve_get_addr;
     }
     rdma_ack_cm_event(cm_event);
@@ -1019,7 +1018,6 @@ route:
         ERROR(errp, "result not equal to event_route_resolved: %s",
                         rdma_event_str(cm_event->event));
         rdma_ack_cm_event(cm_event);
-        ret = -EINVAL;
         goto err_resolve_get_addr;
     }
     rdma_ack_cm_event(cm_event);
@@ -1034,7 +1032,7 @@ err_resolve_get_addr:
 err_resolve_create_id:
     rdma_destroy_event_channel(rdma->channel);
     rdma->channel = NULL;
-    return ret;
+    return -1;
 }
 
 /*
@@ -2644,7 +2642,7 @@ static int qemu_rdma_dest_init(RDMAContext *rdma, Error **errp)
     port_str[15] = '\0';
 
     ret = rdma_getaddrinfo(rdma->host, port_str, NULL, &res);
-    if (ret < 0) {
+    if (ret) {
         ERROR(errp, "could not rdma_getaddrinfo address %s", rdma->host);
         goto err_dest_init_bind_addr;
     }
@@ -2688,7 +2686,7 @@ err_dest_init_create_listen_id:
     rdma_destroy_event_channel(rdma->channel);
     rdma->channel = NULL;
     rdma->error_state = ret;
-    return ret;
+    return -1;
 
 }
 
