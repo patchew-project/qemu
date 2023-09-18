@@ -231,11 +231,6 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
     Error *err = NULL;
 
-    /* the model has to be realized before qemu_init_vcpu() due to kvm */
-    if (!s390_realize_cpu_model(cs, &err)) {
-        goto out;
-    }
-
     cpu_exec_realizefn(cs, &err);
     if (err != NULL) {
         goto out;
@@ -329,6 +324,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
 
     scc->reset = s390_cpu_reset;
     cc->class_by_name = s390_cpu_class_by_name,
+    cc->verify_accel_features = s390_realize_cpu_model;
     cc->has_work = s390_cpu_has_work;
     cc->dump_state = s390_cpu_dump_state;
     cc->query_cpu_fast = s390_query_cpu_fast;
