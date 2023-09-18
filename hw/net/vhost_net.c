@@ -345,6 +345,46 @@ static void vhost_net_stop_one(struct vhost_net *net,
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
 
+int vhost_net_presetup(VirtIODevice *dev, NetClientState *ncs,
+                    int data_queue_pairs, int cvq)
+{
+    VirtIONet *n = VIRTIO_NET(dev);
+    int nvhosts = data_queue_pairs + cvq;
+    struct vhost_net *net;
+    int r = 0, i, index_end = data_queue_pairs * 2;
+    NetClientState *peer;
+
+    if (cvq) {
+        index_end += 1;
+    }
+
+    for (i = 0; i < nvhosts; i++) {
+        if (i < data_queue_pairs) {
+            peer = qemu_get_peer(ncs, i);
+        } else { /* Control Virtqueue */
+            peer = qemu_get_peer(ncs, n->max_queue_pairs);
+        }
+
+        net = get_vhost_net(peer);
+        vhost_net_set_vq_index(net, i * 2, index_end);
+
+        r = vhost_dev_presetup(&net->dev, dev);
+        if (r < 0) {
+            return r;
+        }
+
+        if (peer->vring_enable) {
+            /* restore vring enable state */
+            r = vhost_set_vring_enable(peer, peer->vring_enable);
+            if (r < 0) {
+                return r;
+            }
+        }
+    }
+
+    return r;
+}
+
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
                     int data_queue_pairs, int cvq)
 {
