@@ -7472,7 +7472,6 @@ static void x86_cpu_unrealizefn(DeviceState *dev)
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
 
 #ifndef CONFIG_USER_ONLY
-    cpu_remove_sync(CPU(dev));
     qemu_unregister_reset(x86_cpu_machine_reset_cb, dev);
 #endif
 

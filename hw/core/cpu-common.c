@@ -221,6 +221,9 @@ static void cpu_common_unrealizefn(DeviceState *dev)
 
     /* NOTE: latest generic point before the cpu is fully unrealized */
     cpu_exec_unrealizefn(cpu);
+
+    /* Destroy vCPU thread */
+    cpu_remove_sync(cpu);
 }
 
 static void cpu_common_initfn(Object *obj)

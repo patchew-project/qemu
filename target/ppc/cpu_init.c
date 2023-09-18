@@ -6853,8 +6853,6 @@ static void ppc_cpu_unrealize(DeviceState *dev)
 
     pcc->parent_unrealize(dev);
 
-    cpu_remove_sync(CPU(cpu));
-
     destroy_ppc_opcodes(cpu);
 }
 
