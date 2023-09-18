@@ -7457,9 +7457,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         }
     }
 #endif /* !CONFIG_USER_ONLY */
-    cpu_reset(cs);
 
     xcc->parent_realize(dev, &local_err);
+    cpu_reset(cs);
 
 out:
     if (local_err != NULL) {
