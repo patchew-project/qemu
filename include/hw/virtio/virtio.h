@@ -280,6 +280,7 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 int virtio_save(VirtIODevice *vdev, QEMUFile *f);
 
 extern const VMStateInfo virtio_vmstate_info;
+extern const VMStateInfo virtio_early_vmstate_info;
 
 #define VMSTATE_VIRTIO_DEVICE \
     {                                         \
@@ -288,7 +289,14 @@ extern const VMStateInfo virtio_vmstate_info;
         .flags = VMS_SINGLE,                  \
     }
 
-int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id);
+#define VMSTATE_EARLY_VIRTIO_DEVICE \
+    {                                         \
+        .name = "virtio-early",            \
+        .info = &virtio_early_vmstate_info,\
+        .flags = VMS_SINGLE,                  \
+    }
+
+int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id, bool early);
 
 /**
  * virtio_notify_config() - signal a change to device config

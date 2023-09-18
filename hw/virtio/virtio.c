@@ -2832,12 +2832,28 @@ virtio_device_get(QEMUFile *f, void *opaque, size_t size,
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
     DeviceClass *dc = DEVICE_CLASS(VIRTIO_DEVICE_GET_CLASS(vdev));
 
-    return virtio_load(vdev, f, dc->vmsd->version_id);
+    return virtio_load(vdev, f, dc->vmsd->version_id, false);
+}
+
+/* A wrapper for use as a VMState .get function */
+static int virtio_early_device_get(QEMUFile *f, void *opaque, size_t size,
+                                      const VMStateField *field)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
+    DeviceClass *dc = DEVICE_CLASS(VIRTIO_DEVICE_GET_CLASS(vdev));
+
+    return virtio_load(vdev, f, dc->vmsd->version_id, true);
 }
 
 const VMStateInfo  virtio_vmstate_info = {
     .name = "virtio",
     .get = virtio_device_get,
+    .put = virtio_device_put,
+};
+
+const VMStateInfo virtio_early_vmstate_info = {
+    .name = "virtio-early",
+    .get = virtio_early_device_get,
     .put = virtio_device_put,
 };
 
@@ -2940,8 +2956,75 @@ size_t virtio_get_config_size(const VirtIOConfigSizeParams *params,
     return config_size;
 }
 
+static int virtio_load_check_index(VirtIODevice *vdev, int num)
+{
+    int i;
+
+    RCU_READ_LOCK_GUARD();
+
+    for (i = 0; i < num; i++) {
+        if (vdev->vq[i].vring.desc) {
+            uint16_t nheads;
+
+            /*
+             * VIRTIO-1 devices migrate desc, used, and avail ring addresses so
+             * only the region cache needs to be set up.  Legacy devices need
+             * to calculate used and avail ring addresses based on the desc
+             * address.
+             */
+            if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+                virtio_init_region_cache(vdev, i);
+            } else {
+                virtio_queue_update_rings(vdev, i);
+            }
+
+            if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+                vdev->vq[i].shadow_avail_idx = vdev->vq[i].last_avail_idx;
+                vdev->vq[i].shadow_avail_wrap_counter =
+                                        vdev->vq[i].last_avail_wrap_counter;
+                continue;
+            }
+
+            nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
+            /* Check it isn't doing strange things with descriptor numbers. */
+            if (nheads > vdev->vq[i].vring.num) {
+                virtio_error(vdev, "VQ %d size 0x%x Guest index 0x%x "
+                             "inconsistent with Host index 0x%x: delta 0x%x",
+                             i, vdev->vq[i].vring.num,
+                             vring_avail_idx(&vdev->vq[i]),
+                             vdev->vq[i].last_avail_idx, nheads);
+                vdev->vq[i].used_idx = 0;
+                vdev->vq[i].shadow_avail_idx = 0;
+                vdev->vq[i].inuse = 0;
+                continue;
+            }
+            vdev->vq[i].used_idx = vring_used_idx(&vdev->vq[i]);
+            vdev->vq[i].shadow_avail_idx = vring_avail_idx(&vdev->vq[i]);
+
+            /*
+             * Some devices migrate VirtQueueElements that have been popped
+             * from the avail ring but not yet returned to the used ring.
+             * Since max ring size < UINT16_MAX it's safe to use modulo
+             * UINT16_MAX + 1 subtraction.
+             */
+            vdev->vq[i].inuse = (uint16_t)(vdev->vq[i].last_avail_idx -
+                                vdev->vq[i].used_idx);
+            if (vdev->vq[i].inuse > vdev->vq[i].vring.num) {
+                error_report("VQ %d size 0x%x < last_avail_idx 0x%x - "
+                             "used_idx 0x%x",
+                             i, vdev->vq[i].vring.num,
+                             vdev->vq[i].last_avail_idx,
+                             vdev->vq[i].used_idx);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int coroutine_mixed_fn
-virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
+virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id, bool early)
 {
     int i, ret;
     int32_t config_len;
@@ -3078,62 +3161,15 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         vdev->start_on_kick = true;
     }
 
-    RCU_READ_LOCK_GUARD();
-    for (i = 0; i < num; i++) {
-        if (vdev->vq[i].vring.desc) {
-            uint16_t nheads;
-
-            /*
-             * VIRTIO-1 devices migrate desc, used, and avail ring addresses so
-             * only the region cache needs to be set up.  Legacy devices need
-             * to calculate used and avail ring addresses based on the desc
-             * address.
-             */
-            if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
-                virtio_init_region_cache(vdev, i);
-            } else {
-                virtio_queue_update_rings(vdev, i);
-            }
-
-            if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
-                vdev->vq[i].shadow_avail_idx = vdev->vq[i].last_avail_idx;
-                vdev->vq[i].shadow_avail_wrap_counter =
-                                        vdev->vq[i].last_avail_wrap_counter;
-                continue;
-            }
-
-            nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
-            /* Check it isn't doing strange things with descriptor numbers. */
-            if (nheads > vdev->vq[i].vring.num) {
-                virtio_error(vdev, "VQ %d size 0x%x Guest index 0x%x "
-                             "inconsistent with Host index 0x%x: delta 0x%x",
-                             i, vdev->vq[i].vring.num,
-                             vring_avail_idx(&vdev->vq[i]),
-                             vdev->vq[i].last_avail_idx, nheads);
-                vdev->vq[i].used_idx = 0;
-                vdev->vq[i].shadow_avail_idx = 0;
-                vdev->vq[i].inuse = 0;
-                continue;
-            }
-            vdev->vq[i].used_idx = vring_used_idx(&vdev->vq[i]);
-            vdev->vq[i].shadow_avail_idx = vring_avail_idx(&vdev->vq[i]);
-
-            /*
-             * Some devices migrate VirtQueueElements that have been popped
-             * from the avail ring but not yet returned to the used ring.
-             * Since max ring size < UINT16_MAX it's safe to use modulo
-             * UINT16_MAX + 1 subtraction.
-             */
-            vdev->vq[i].inuse = (uint16_t)(vdev->vq[i].last_avail_idx -
-                                vdev->vq[i].used_idx);
-            if (vdev->vq[i].inuse > vdev->vq[i].vring.num) {
-                error_report("VQ %d size 0x%x < last_avail_idx 0x%x - "
-                             "used_idx 0x%x",
-                             i, vdev->vq[i].vring.num,
-                             vdev->vq[i].last_avail_idx,
-                             vdev->vq[i].used_idx);
-                return -1;
-            }
+    /*
+     * Early setup happens in LM setup stage when the guest memory hasn't
+     * synced to target VM yet. So skip all guest memory access and index check
+     * in early load.
+     */
+    if (!early) {
+        ret = virtio_load_check_index(vdev, num);
+        if (ret) {
+            return ret;
         }
     }
 
