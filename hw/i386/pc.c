@@ -904,13 +904,43 @@ static uint64_t pc_get_cxl_range_end(PCMachineState *pcms)
     return start;
 }
 
+/*
+ * The 64bit pci hole starts after "above 4G RAM" and
+ * potentially the space reserved for memory hotplug.
+ * This function returns unaligned start address.
+ */
+static uint64_t pc_pci_hole64_start_unaligned(void)
+{
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    MachineState *ms = MACHINE(pcms);
+    uint64_t hole64_start = 0;
+    ram_addr_t size = 0;
+
+    if (pcms->cxl_devices_state.is_enabled) {
+        hole64_start = pc_get_cxl_range_end(pcms);
+    } else if (pcmc->has_reserved_memory && (ms->ram_size < ms->maxram_size)) {
+        pc_get_device_memory_range(pcms, &hole64_start, &size);
+        if (!pcmc->broken_reserved_end) {
+            hole64_start += size;
+        }
+    } else {
+        hole64_start = pc_above_4g_end(pcms);
+    }
+
+    return hole64_start;
+}
+
 static hwaddr pc_max_used_gpa(PCMachineState *pcms, uint64_t pci_hole64_size)
 {
     X86CPU *cpu = X86_CPU(first_cpu);
 
-    /* 32-bit systems don't have hole64 thus return max CPU address */
-    if (cpu->phys_bits <= 32) {
-        return ((hwaddr)1 << cpu->phys_bits) - 1;
+    /*
+     * 32-bit systems don't have hole64, but we might have a region for
+     * memory hotplug.
+     */
+    if (!(cpu->env.features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM)) {
+        return pc_pci_hole64_start_unaligned() - 1;
     }
 
     return pc_pci_hole64_start() + pci_hole64_size - 1;
@@ -1147,30 +1177,10 @@ void pc_memory_init(PCMachineState *pcms,
     pcms->memhp_io_base = ACPI_MEMORY_HOTPLUG_BASE;
 }
 
-/*
- * The 64bit pci hole starts after "above 4G RAM" and
- * potentially the space reserved for memory hotplug.
- */
+/* returns 1 GiB aligned hole64 start address */
 uint64_t pc_pci_hole64_start(void)
 {
-    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
-    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
-    MachineState *ms = MACHINE(pcms);
-    uint64_t hole64_start = 0;
-    ram_addr_t size = 0;
-
-    if (pcms->cxl_devices_state.is_enabled) {
-        hole64_start = pc_get_cxl_range_end(pcms);
-    } else if (pcmc->has_reserved_memory && (ms->ram_size < ms->maxram_size)) {
-        pc_get_device_memory_range(pcms, &hole64_start, &size);
-        if (!pcmc->broken_reserved_end) {
-            hole64_start += size;
-        }
-    } else {
-        hole64_start = pc_above_4g_end(pcms);
-    }
-
-    return ROUND_UP(hole64_start, 1 * GiB);
+    return ROUND_UP(pc_pci_hole64_start_unaligned(), 1 * GiB);
 }
 
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
