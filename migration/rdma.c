@@ -1349,7 +1349,6 @@ static int qemu_rdma_reg_control(RDMAContext *rdma, int idx)
         rdma->total_registrations++;
         return 0;
     }
-    error_report("qemu_rdma_reg_control failed");
     return -1;
 }
 
