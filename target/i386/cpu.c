@@ -7210,25 +7210,18 @@ static void x86_cpu_hyperv_realize(X86CPU *cpu)
     cpu->hyperv_limits[2] = 0;
 }
 
-static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
+/*
+ * note: the call to the framework needs to happen after feature expansion,
+ * but before the checks/modifications to ucode_rev, mwait, phys_bits.
+ * These may be set by the accel-specific code,
+ * and the results are subsequently checked / assumed in x86_cpu_realizefn().
+ */
+static bool x86_cpu_verify_accel_features(CPUState *cs, Error **errp)
 {
-    CPUState *cs = CPU(dev);
-    X86CPU *cpu = X86_CPU(dev);
-    X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
+    X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
-    static bool ht_warned;
     unsigned requested_lbr_fmt;
-
-    /* Use pc-relative instructions in system-mode */
-#ifndef CONFIG_USER_ONLY
-    cs->tcg_cflags |= CF_PCREL;
-#endif
-
-    if (cpu->apic_id == UNASSIGNED_APIC_ID) {
-        error_setg(errp, "apic-id property was not initialized properly");
-        return;
-    }
 
     /*
      * Process Hyper-V enlightenments.
@@ -7238,7 +7231,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     x86_cpu_expand_features(cpu, &local_err);
     if (local_err) {
-        goto out;
+        return false;
     }
 
     /*
@@ -7248,7 +7241,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     if (cpu->lbr_fmt != ~PERF_CAP_LBR_FMT) {
         if ((cpu->lbr_fmt & PERF_CAP_LBR_FMT) != cpu->lbr_fmt) {
             error_setg(errp, "invalid lbr-fmt");
-            return;
+            return false;
         }
         env->features[FEAT_PERF_CAPABILITIES] &= ~PERF_CAP_LBR_FMT;
         env->features[FEAT_PERF_CAPABILITIES] |= cpu->lbr_fmt;
@@ -7267,13 +7260,13 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
         if (!cpu->enable_pmu) {
             error_setg(errp, "vPMU: LBR is unsupported without pmu=on");
-            return;
+            return false;
         }
         if (requested_lbr_fmt != host_lbr_fmt) {
             error_setg(errp, "vPMU: the lbr-fmt value (0x%x) does not match "
                         "the host value (0x%x).",
                         requested_lbr_fmt, host_lbr_fmt);
-            return;
+            return false;
         }
     }
 
@@ -7284,7 +7277,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
                    accel_uses_host_cpuid() ?
                        "Host doesn't support requested features" :
                        "TCG doesn't support requested features");
-        goto out;
+        return false;
     }
 
     /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
@@ -7298,12 +7291,28 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     x86_cpu_set_sgxlepubkeyhash(env);
 
-    /*
-     * note: the call to the framework needs to happen after feature expansion,
-     * but before the checks/modifications to ucode_rev, mwait, phys_bits.
-     * These may be set by the accel-specific code,
-     * and the results are subsequently checked / assumed in this function.
-     */
+    return true;
+}
+
+static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    CPUState *cs = CPU(dev);
+    X86CPU *cpu = X86_CPU(dev);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
+    CPUX86State *env = &cpu->env;
+    Error *local_err = NULL;
+    static bool ht_warned;
+
+    /* Use pc-relative instructions in system-mode */
+#ifndef CONFIG_USER_ONLY
+    cs->tcg_cflags |= CF_PCREL;
+#endif
+
+    if (cpu->apic_id == UNASSIGNED_APIC_ID) {
+        error_setg(errp, "apic-id property was not initialized properly");
+        return;
+    }
+
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -7952,6 +7961,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = x86_cpu_class_by_name;
     cc->parse_features = x86_cpu_parse_featurestr;
+    cc->verify_accel_features = x86_cpu_verify_accel_features;
     cc->has_work = x86_cpu_has_work;
     cc->dump_state = x86_cpu_dump_state;
     cc->set_pc = x86_cpu_set_pc;
