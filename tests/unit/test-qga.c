@@ -952,6 +952,81 @@ static void test_qga_guest_exec_merged(gconstpointer fix)
 }
 #endif
 
+#if defined(G_OS_WIN32)
+static void test_qga_guest_exec_stream(gconstpointer fix)
+{
+}
+#else
+static void test_qga_guest_exec_stream(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+    g_autofree char *fifo_path = NULL;
+    g_autofree char *cmd = NULL;
+    QDict *val;
+    const gchar *out;
+    g_autofree guchar *decoded = NULL;
+    int64_t pid, exitcode;
+    bool exited;
+    gsize len;
+    int fifo;
+
+    fifo_path = g_strdup_printf("%s/fifo", fixture->test_dir);
+    g_assert_cmpint(mkfifo(fifo_path, 0644), ==, 0);
+
+    /* Echo two lines with a fifo barrier in between */
+    cmd = g_strdup_printf("echo line1; cat %s; echo line2;", fifo_path);
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec', 'arguments': {"
+                 " 'path': '/bin/bash',"
+                 " 'arg': [ '-c', %s ],"
+                 " 'capture-output': 'stdout',"
+                 " 'stream-output': true } }",
+                 cmd);
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+    val = qdict_get_qdict(ret, "return");
+    pid = qdict_get_int(val, "pid");
+    g_assert_cmpint(pid, >, 0);
+    qobject_unref(ret);
+
+    /* Give bash some time to run */
+    usleep(G_USEC_PER_SEC / 20);
+
+    /* Check first line comes out */
+    ret = qmp_fd(fixture->fd,
+                 "{'execute': 'guest-exec-status',"
+                 " 'arguments': { 'pid': %" PRId64 " } }", pid);
+    g_assert_nonnull(ret);
+    val = qdict_get_qdict(ret, "return");
+    exited = qdict_get_bool(val, "exited");
+    g_assert_false(exited);
+    out = qdict_get_str(val, "out-data");
+    decoded = g_base64_decode(out, &len);
+    g_assert_cmpint(len, ==, 6);
+    g_assert_cmpstr((char *)decoded, ==, "line1\n");
+    g_free(decoded);
+    qobject_unref(ret);
+
+    /* Trigger second line */
+    fifo = open(fifo_path, O_WRONLY);
+    g_assert_cmpint(fifo, >=, 0);
+    close(fifo);
+    ret = wait_for_guest_exec_completion(fixture->fd, pid);
+
+    /* Check second line comes out after process exits */
+    val = qdict_get_qdict(ret, "return");
+    exited = qdict_get_bool(val, "exited");
+    g_assert_true(exited);
+    exitcode = qdict_get_int(val, "exitcode");
+    g_assert_cmpint(exitcode, ==, 0);
+    out = qdict_get_str(val, "out-data");
+    decoded = g_base64_decode(out, &len);
+    g_assert_cmpint(len, ==, 12);
+    g_assert_cmpstr((char *)decoded, ==, "line1\nline2\n");
+    g_assert_cmpint(unlink(fifo_path), ==, 0);
+}
+#endif
+
 static void test_qga_guest_exec_invalid(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -1127,6 +1202,8 @@ int main(int argc, char **argv)
                          test_qga_guest_exec_separated);
     g_test_add_data_func("/qga/guest-exec-merged", &fix,
                          test_qga_guest_exec_merged);
+    g_test_add_data_func("/qga/guest-exec-stream", &fix,
+                         test_qga_guest_exec_stream);
     g_test_add_data_func("/qga/guest-exec-invalid", &fix,
                          test_qga_guest_exec_invalid);
     g_test_add_data_func("/qga/guest-get-osinfo", &fix,
