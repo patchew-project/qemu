@@ -530,9 +530,12 @@ static void mips_itu_realize(DeviceState *dev, Error **errp)
     if (!s->cpu0) {
         error_setg(errp, "Missing 'cpu[0]' property");
         return;
+    } else if (!object_dynamic_cast(OBJECT(s->cpu0), TYPE_MIPS_CPU)) {
+        error_setg(errp, "MIPS ITU expects a MIPS CPU");
+        return;
     }
 
-    env = &s->cpu0->env;
+    env = &MIPS_CPU(s->cpu0)->env;
     if (env->saarp) {
         s->saar = env->CP0_SAAR;
     }
@@ -563,7 +566,7 @@ static Property mips_itu_properties[] = {
                       ITC_FIFO_NUM_MAX),
     DEFINE_PROP_UINT32("num-semaphores", MIPSITUState, num_semaphores,
                       ITC_SEMAPH_NUM_MAX),
-    DEFINE_PROP_LINK("cpu[0]", MIPSITUState, cpu0, TYPE_MIPS_CPU, MIPSCPU *),
+    DEFINE_PROP_LINK("cpu[0]", MIPSITUState, cpu0, TYPE_CPU, CPUState *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
