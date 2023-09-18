@@ -808,7 +808,7 @@ struct omap_mmc_s *omap_mmc_init(hwaddr base,
 struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
                 BlockBackend *blk, qemu_irq irq, qemu_irq dma[],
                 omap_clk fclk, omap_clk iclk);
-void omap_mmc_reset(struct omap_mmc_s *s);
+void omap_mmc_reset(struct omap_mmc_s *s, bool realized);
 void omap_mmc_handlers(struct omap_mmc_s *s, qemu_irq ro, qemu_irq cover);
 void omap_mmc_enable(struct omap_mmc_s *s, int enable);
 

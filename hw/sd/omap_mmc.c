@@ -287,7 +287,7 @@ static void omap_mmc_pseudo_reset(struct omap_mmc_s *host)
     host->fifo_len = 0;
 }
 
-void omap_mmc_reset(struct omap_mmc_s *host)
+void omap_mmc_reset(struct omap_mmc_s *host, bool realized)
 {
     host->last_cmd = 0;
     memset(host->rsp, 0, sizeof(host->rsp));
@@ -314,11 +314,14 @@ void omap_mmc_reset(struct omap_mmc_s *host)
 
     omap_mmc_pseudo_reset(host);
 
-    /* Since we're still using the legacy SD API the card is not plugged
-     * into any bus, and we must reset it manually. When omap_mmc is
-     * QOMified this must move into the QOM reset function.
-     */
-    device_cold_reset(DEVICE(host->card));
+    if (realized) {
+        /*
+         * Since we're still using the legacy SD API the card is not plugged
+         * into any bus, and we must reset it manually. When omap_mmc is
+         * QOMified this must move into the QOM reset function.
+         */
+        device_cold_reset(DEVICE(host->card));
+    }
 }
 
 static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
@@ -556,7 +559,7 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
         break;
     case 0x64:	/* MMC_SYSC */
         if (value & (1 << 2))					/* SRTS */
-            omap_mmc_reset(s);
+            omap_mmc_reset(s, true);
         break;
     case 0x68:	/* MMC_SYSS */
         OMAP_RO_REG(offset);
@@ -613,7 +616,7 @@ struct omap_mmc_s *omap_mmc_init(hwaddr base,
         exit(1);
     }
 
-    omap_mmc_reset(s);
+    omap_mmc_reset(s, false);
 
     return s;
 }
@@ -643,7 +646,7 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
     s->cdet = qemu_allocate_irq(omap_mmc_cover_cb, s, 0);
     sd_set_cb(s->card, NULL, s->cdet);
 
-    omap_mmc_reset(s);
+    omap_mmc_reset(s, false);
 
     return s;
 }
