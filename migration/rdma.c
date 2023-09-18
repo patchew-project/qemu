@@ -1801,7 +1801,7 @@ static int qemu_rdma_post_recv_control(RDMAContext *rdma, int idx)
  * Block and wait for a RECV control channel message to arrive.
  */
 static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
-                RDMAControlHeader *head, int expecting, int idx)
+                RDMAControlHeader *head, uint32_t expecting, int idx)
 {
     uint32_t byte_len;
     int ret = qemu_rdma_block_for_wrid(rdma, RDMA_WRID_RECV_CONTROL + idx,
@@ -1959,7 +1959,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
  * control-channel message.
  */
 static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
-                                int expecting)
+                                   uint32_t expecting)
 {
     RDMAControlHeader ready = {
                                 .len = 0,
@@ -2851,7 +2851,7 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
     RDMAContext *rdma;
     RDMAControlHeader head;
     int ret = 0;
-    ssize_t i;
+    size_t i;
     size_t done = 0;
 
     RCU_READ_LOCK_GUARD();
