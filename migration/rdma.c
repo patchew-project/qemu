@@ -2320,9 +2320,8 @@ static inline bool qemu_rdma_buffer_mergable(RDMAContext *rdma,
  */
 static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
                            uint64_t block_offset, uint64_t offset,
-                           uint64_t len)
+                           uint64_t len, Error **errp)
 {
-    Error *err = NULL;
     uint64_t current_addr = block_offset + offset;
     uint64_t index = rdma->current_index;
     uint64_t chunk = rdma->current_chunk;
@@ -2330,9 +2329,8 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
 
     /* If we cannot merge it, we flush the current buffer first. */
     if (!qemu_rdma_buffer_mergable(rdma, current_addr, len)) {
-        ret = qemu_rdma_write_flush(f, rdma, &err);
+        ret = qemu_rdma_write_flush(f, rdma, errp);
         if (ret < 0) {
-            error_report_err(err);
             return -1;
         }
         rdma->current_length = 0;
@@ -2349,10 +2347,7 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
 
     /* flush it if buffer is too large */
     if (rdma->current_length >= RDMA_MERGE_MAX) {
-        if (qemu_rdma_write_flush(f, rdma, &err) < 0) {
-            error_report_err(err);
-            return -1;
-        }
+        return qemu_rdma_write_flush(f, rdma, errp);
     }
 
     return 0;
@@ -3249,6 +3244,7 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
                                   size_t size, uint64_t *bytes_sent)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
+    Error *err = NULL;
     RDMAContext *rdma;
     int ret;
 
@@ -3274,9 +3270,9 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
      * is full, or the page doesn't belong to the current chunk,
      * an actual RDMA write will occur and a new chunk will be formed.
      */
-    ret = qemu_rdma_write(f, rdma, block_offset, offset, size);
+    ret = qemu_rdma_write(f, rdma, block_offset, offset, size, &err);
     if (ret < 0) {
-        error_report("rdma migration: write error");
+        error_report_err(err);
         goto err;
     }
 
