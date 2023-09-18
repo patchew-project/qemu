@@ -252,6 +252,8 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
 
 void device_cold_reset(DeviceState *dev)
 {
+    /* TODO: Also cover CPUs once we removed manual calls to cpu_reset() */
+    assert(object_dynamic_cast(OBJECT(dev), TYPE_CPU) || dev->realized);
     resettable_reset(OBJECT(dev), RESET_TYPE_COLD);
 }
 
@@ -280,6 +282,7 @@ static void device_reset_child_foreach(Object *obj, ResettableChildCallback cb,
 bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
 {
     assert(!dev->realized && !dev->parent_bus);
+    assert(!device_is_in_reset(dev));
 
     if (bus) {
         if (!qdev_set_parent_bus(dev, bus, errp)) {
