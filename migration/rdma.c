@@ -871,12 +871,12 @@ static int qemu_rdma_broken_ipv6_kernel(struct ibv_context *verbs, Error **errp)
 
         if (roce_found) {
             if (ib_found) {
-                fprintf(stderr, "WARN: migrations may fail:"
-                                " IPv6 over RoCE / iWARP in linux"
-                                " is broken. But since you appear to have a"
-                                " mixed RoCE / IB environment, be sure to only"
-                                " migrate over the IB fabric until the kernel "
-                                " fixes the bug.\n");
+                warn_report("WARN: migrations may fail:"
+                            " IPv6 over RoCE / iWARP in linux"
+                            " is broken. But since you appear to have a"
+                            " mixed RoCE / IB environment, be sure to only"
+                            " migrate over the IB fabric until the kernel "
+                            " fixes the bug.");
             } else {
                 error_setg(errp, "RDMA ERROR: "
                            "You only have RoCE / iWARP devices in your systems"
@@ -1407,7 +1407,8 @@ static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
         block->remote_keys[chunk] = 0;
 
         if (ret != 0) {
-            perror("unregistration chunk failed");
+            error_report("unregistration chunk failed: %s",
+                         strerror(errno));
             return -1;
         }
         rdma->total_registrations--;
@@ -3752,7 +3753,8 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                 block->pmr[reg->key.chunk] = NULL;
 
                 if (ret != 0) {
-                    perror("rdma unregistration chunk failed");
+                    error_report("rdma unregistration chunk failed: %s",
+                                 strerror(errno));
                     goto err;
                 }
 
@@ -3941,10 +3943,10 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
          */
 
         if (local->nb_blocks != nb_dest_blocks) {
-            fprintf(stderr, "ram blocks mismatch (Number of blocks %d vs %d) "
-                    "Your QEMU command line parameters are probably "
-                    "not identical on both the source and destination.",
-                    local->nb_blocks, nb_dest_blocks);
+            error_report("ram blocks mismatch (Number of blocks %d vs %d)",
+                         local->nb_blocks, nb_dest_blocks);
+            error_printf("Your QEMU command line parameters are probably "
+                         "not identical on both the source and destination.");
             rdma->errored = true;
             return -1;
         }
@@ -3957,10 +3959,11 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
 
             /* We require that the blocks are in the same order */
             if (rdma->dest_blocks[i].length != local->block[i].length) {
-                fprintf(stderr, "Block %s/%d has a different length %" PRIu64
-                        "vs %" PRIu64, local->block[i].block_name, i,
-                        local->block[i].length,
-                        rdma->dest_blocks[i].length);
+                error_report("Block %s/%d has a different length %" PRIu64
+                             "vs %" PRIu64,
+                             local->block[i].block_name, i,
+                             local->block[i].length,
+                             rdma->dest_blocks[i].length);
                 rdma->errored = true;
                 return -1;
             }
@@ -4076,7 +4079,7 @@ static void rdma_accept_incoming_migration(void *opaque)
     ret = qemu_rdma_accept(rdma);
 
     if (ret < 0) {
-        fprintf(stderr, "RDMA ERROR: Migration initialization failed\n");
+        error_report("RDMA ERROR: Migration initialization failed");
         return;
     }
 
@@ -4088,7 +4091,7 @@ static void rdma_accept_incoming_migration(void *opaque)
 
     f = rdma_new_input(rdma);
     if (f == NULL) {
-        fprintf(stderr, "RDMA ERROR: could not open RDMA for input\n");
+        error_report("RDMA ERROR: could not open RDMA for input");
         qemu_rdma_cleanup(rdma);
         return;
     }
