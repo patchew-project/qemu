@@ -152,8 +152,6 @@ static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_init_vcpu(cs);
-
     ccc->parent_realize(dev, errp);
     cpu_reset(cs);
 }

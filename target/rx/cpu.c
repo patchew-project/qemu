@@ -137,8 +137,6 @@ static void rx_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_init_vcpu(cs);
-
     rcc->parent_realize(dev, errp);
     cpu_reset(cs);
 }

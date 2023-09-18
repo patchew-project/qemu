@@ -216,7 +216,6 @@ static void nios2_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     realize_cr_status(cs);
-    qemu_init_vcpu(cs);
 
     /* We have reserved storage for cpuid; might as well use it. */
     cpu->env.ctrl[CR_CPUID] = cs->cpu_index;

@@ -6833,7 +6833,6 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
     init_ppc_proc(cpu);
 
     ppc_gdb_init(cs, pcc);
-    qemu_init_vcpu(cs);
 
     pcc->parent_realize(dev, errp);
 

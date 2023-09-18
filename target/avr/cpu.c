@@ -119,7 +119,6 @@ static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    qemu_init_vcpu(cs);
 
     mcc->parent_realize(dev, errp);
     cpu_reset(cs);

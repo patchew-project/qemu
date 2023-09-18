@@ -2277,8 +2277,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         }
     }
 
-    qemu_init_vcpu(cs);
-
     acc->parent_realize(dev, errp);
     cpu_reset(cs);
 }

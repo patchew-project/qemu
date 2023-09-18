@@ -321,8 +321,6 @@ static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
 
     m68k_cpu_init_gdb(cpu);
 
-    qemu_init_vcpu(cs);
-
     mcc->parent_realize(dev, errp);
     cpu_reset(cs);
 }

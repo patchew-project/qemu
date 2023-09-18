@@ -118,7 +118,6 @@ static void tricore_cpu_realizefn(DeviceState *dev, Error **errp)
     if (tricore_has_feature(env, TRICORE_FEATURE_131)) {
         set_feature(env, TRICORE_FEATURE_13);
     }
-    qemu_init_vcpu(cs);
 
     tcc->parent_realize(dev, errp);
     cpu_reset(cs);
