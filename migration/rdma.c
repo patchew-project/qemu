@@ -2330,7 +2330,6 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
 
 static void qemu_rdma_cleanup(RDMAContext *rdma)
 {
-    Error *err = NULL;
     int idx;
 
     if (rdma->cm_id && rdma->connected) {
@@ -2341,10 +2340,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
                                        .type = RDMA_CONTROL_ERROR,
                                        .repeat = 1,
                                      };
-            error_report("Early error. Sending error.");
-            if (qemu_rdma_post_send_control(rdma, NULL, &head, &err) < 0) {
-                error_report_err(err);
-            }
+            qemu_rdma_post_send_control(rdma, NULL, &head, NULL);
         }
 
         rdma_disconnect(rdma->cm_id);
