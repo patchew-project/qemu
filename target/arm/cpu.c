@@ -1748,7 +1748,15 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
             return;
         }
     }
+#endif
 
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+#ifndef CONFIG_USER_ONLY
     {
         uint64_t scale;
 
@@ -1775,12 +1783,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
                                                   arm_gt_hvtimer_cb, cpu);
     }
 #endif
-
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     arm_cpu_finalize_features(cpu, &local_err);
     if (local_err != NULL) {
