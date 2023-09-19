@@ -249,8 +249,7 @@
 #                   "cookie": 0,
 #                   "action": {"goto-tbl": 10},
 #                   "mask": {"in-pport": 4294901760}
-#                  },
-#                  {...more...},
+#                  }
 #    ]}
 ##
 { 'command': 'query-rocker-of-dpa-flows',
