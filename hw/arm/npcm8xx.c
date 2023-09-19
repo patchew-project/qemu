@@ -440,9 +440,6 @@ static void npcm8xx_init(Object *obj)
         object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_NPCM7XX_GPIO);
     }
 
-    object_initialize_child(obj, "gpiotx", &s->gpiotx,
-                            TYPE_GOOGLE_GPIO_TRANSMITTER);
-
     for (i = 0; i < ARRAY_SIZE(s->smbus); i++) {
         object_initialize_child(obj, "smbus[*]", &s->smbus[i],
                                 TYPE_NPCM8XX_SMBUS);
@@ -633,12 +630,9 @@ static void npcm8xx_realize(DeviceState *dev, Error **errp)
 
     /* GPIO modules. Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm8xx_gpio) != ARRAY_SIZE(s->gpio));
-    sysbus_realize(SYS_BUS_DEVICE(&s->gpiotx), &error_abort);
     for (i = 0; i < ARRAY_SIZE(s->gpio); i++) {
         Object *obj = OBJECT(&s->gpio[i]);
 
-        object_property_set_link(obj, "gpio-tx", OBJECT(&s->gpiotx),
-                                 &error_abort);
         object_property_set_uint(obj, "reset-pullup",
                                  npcm8xx_gpio[i].reset_pu, &error_abort);
         object_property_set_uint(obj, "reset-pulldown",
@@ -724,12 +718,6 @@ static void npcm8xx_realize(DeviceState *dev, Error **errp)
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm8xx_gmac_addr) != ARRAY_SIZE(s->gmac));
     for (i = 0; i < ARRAY_SIZE(s->gmac); i++) {
         SysBusDevice *sbd = SYS_BUS_DEVICE(&s->gmac[i]);
-
-        /* This is used to make sure that the NIC can create the device */
-        if (nd_table[i].used) {
-            qemu_check_nic_model(&nd_table[i], TYPE_NPCM_GMAC);
-            qdev_set_nic_properties(DEVICE(sbd), &nd_table[i]);
-        }
 
         /*
          * The device exists regardless of whether it's connected to a QEMU
