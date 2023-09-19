@@ -1922,7 +1922,7 @@
 # Example:
 #
 # -> {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
-#                                                 'sample-pages': 512} }
+#                                                 "sample-pages": 512} }
 # <- { "return": {} }
 ##
 { 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64',
