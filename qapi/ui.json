@@ -363,8 +363,7 @@
 #                "host": "127.0.0.1",
 #                "channel-id": 0,
 #                "tls": false
-#             },
-#             [ ... more channels follow ... ]
+#             }
 #          ]
 #       }
 #    }
