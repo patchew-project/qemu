@@ -17,6 +17,13 @@
 
 #define PMC_COUNTER_NEGATIVE_VAL 0x80000000UL
 
+#define BHRB_TYPE_NORECORD      0x00
+#define BHRB_TYPE_CALL          0x01
+#define BHRB_TYPE_INDIRECT      0x02
+#define BHRB_TYPE_COND          0x04
+#define BHRB_TYPE_OTHER         0x08
+#define BHRB_TYPE_XL_FORM       0x10
+
 void cpu_ppc_pmu_init(CPUPPCState *env);
 void pmu_mmcr01a_updated(CPUPPCState *env);
 #else
