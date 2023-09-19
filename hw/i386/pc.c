@@ -907,10 +907,20 @@ static uint64_t pc_get_cxl_range_end(PCMachineState *pcms)
 static hwaddr pc_max_used_gpa(PCMachineState *pcms, uint64_t pci_hole64_size)
 {
     X86CPU *cpu = X86_CPU(first_cpu);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
 
-    /* 32-bit systems don't have hole64 thus return max CPU address */
-    if (cpu->phys_bits <= 32) {
-        return ((hwaddr)1 << cpu->phys_bits) - 1;
+    /*
+     * 32-bit systems don't have hole64 and does not support
+     * memory hotplug.
+     */
+    if (pcmc->fixed_32bit_mem_addr_check) {
+        if (!(cpu->env.features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM)) {
+            return pc_above_4g_end(pcms) - 1;
+        }
+    } else {
+        if (cpu->phys_bits <= 32) {
+            return ((hwaddr)1 << cpu->phys_bits) - 1;
+        }
     }
 
     return pc_pci_hole64_start() + pci_hole64_size - 1;
@@ -1867,6 +1877,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->pvh_enabled = true;
     pcmc->kvmclock_create_always = true;
     pcmc->resizable_acpi_blob = true;
+    pcmc->fixed_32bit_mem_addr_check = true;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = pc_get_hotplug_handler;
     mc->hotplug_allowed = pc_hotplug_allowed;
