@@ -38,12 +38,19 @@ struct NPCMGMACRxDesc {
 /* RDES2 and RDES3 are buffer address pointers */
 /* Owner: 0 = software, 1 = gmac */
 #define RX_DESC_RDES0_OWNER_MASK BIT(31)
+<<<<<<< HEAD
 /* Owner*/
 #define RX_DESC_RDES0_OWNER_SHIFT 31
 /* Destination Address Filter Fail */
 #define RX_DESC_RDES0_DEST_ADDR_FILT_FAIL_MASK BIT(30)
 /* Frame length*/
 #define RX_DESC_RDES0_FRAME_LEN_MASK(word) extract32(word, 16, 29)
+=======
+/* Destination Address Filter Fail */
+#define RX_DESC_RDES0_DEST_ADDR_FILT_FAIL_MASK BIT(30)
+/* Frame length*/
+#define RX_DESC_RDES0_FRAME_LEN_MASK extract32(rdes0, 16, 29)
+>>>>>>> f17fd3e311 (include/hw/net: Implemented Classes and Masks for GMAC Descriptors)
 /* Error Summary */
 #define RX_DESC_RDES0_ERR_SUMM_MASK BIT(15)
 /* Descriptor Error */
@@ -84,11 +91,17 @@ struct NPCMGMACRxDesc {
 /* Second Address Chained */
 #define RX_DESC_RDES1_SEC_ADDR_CHND_MASK BIT(24)
 /* Receive Buffer 2 Size */
+<<<<<<< HEAD
 #define RX_DESC_RDES1_BFFR2_SZ_SHIFT 11
 #define RX_DESC_RDES1_BFFR2_SZ_MASK(word) extract32(word, \
     RX_DESC_RDES1_BFFR2_SZ_SHIFT, 10 + RX_DESC_RDES1_BFFR2_SZ_SHIFT)
 /* Receive Buffer 1 Size */
 #define RX_DESC_RDES1_BFFR1_SZ_MASK(word) extract32(word, 0, 10)
+=======
+#define RX_DESC_RDES1_BFFR2_SZ_MASK extract32(rdes1, 11, 21)
+/* Receive Buffer 1 Size */
+#define RX_DESC_RDES1_BFFR1_SZ_MASK extract32(rdes1, 0, 10)
+>>>>>>> f17fd3e311 (include/hw/net: Implemented Classes and Masks for GMAC Descriptors)
 
 
 struct NPCMGMACTxDesc {
@@ -125,7 +138,11 @@ struct NPCMGMACTxDesc {
 /* VLAN Frame */
 #define TX_DESC_TDES0_VLAN_FRM_MASK BIT(7)
 /* Collision Count */
+<<<<<<< HEAD
 #define TX_DESC_TDES0_COLL_CNT_MASK(word) extract32(word, 3, 6)
+=======
+#define TX_DESC_TDES0_COLL_CNT_MASK extract32(tdes0, 3, 6)
+>>>>>>> f17fd3e311 (include/hw/net: Implemented Classes and Masks for GMAC Descriptors)
 /* Excessive Deferral */
 #define TX_DESC_TDES0_EXCS_DEF_MASK BIT(2)
 /* Underflow Error */
@@ -140,7 +157,11 @@ struct NPCMGMACTxDesc {
 /* Last Segment */
 #define TX_DESC_TDES1_FIRST_SEG_MASK BIT(29)
 /* Checksum Insertion Control */
+<<<<<<< HEAD
 #define TX_DESC_TDES1_CHKSM_INS_CTRL_MASK(word) extract32(word, 27, 28)
+=======
+#define TX_DESC_TDES1_CHKSM_INS_CTRL_MASK extract32(tdes1, 27, 28)
+>>>>>>> f17fd3e311 (include/hw/net: Implemented Classes and Masks for GMAC Descriptors)
 /* Disable Cyclic Redundancy Check */
 #define TX_DESC_TDES1_DIS_CDC_MASK BIT(26)
 /* Transmit End of Ring */
@@ -148,9 +169,15 @@ struct NPCMGMACTxDesc {
 /* Secondary Address Chained */
 #define TX_DESC_TDES1_SEC_ADDR_CHND_MASK BIT(24)
 /* Transmit Buffer 2 Size */
+<<<<<<< HEAD
 #define TX_DESC_TDES1_BFFR2_SZ_MASK(word) extract32(word, 11, 21)
 /* Transmit Buffer 1 Size */
 #define TX_DESC_TDES1_BFFR1_SZ_MASK(word) extract32(word, 0, 10)
+=======
+#define TX_DESC_TDES1_BFFR2_SZ_MASK extract32(tdes1, 11, 21)
+/* Transmit Buffer 1 Size */
+#define TX_DESC_TDES1_BFFR1_SZ_MASK extract32(tdes1, 0, 10)
+>>>>>>> f17fd3e311 (include/hw/net: Implemented Classes and Masks for GMAC Descriptors)
 
 typedef struct NPCMGMACState {
     SysBusDevice parent;
