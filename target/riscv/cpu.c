@@ -623,8 +623,10 @@ static void riscv_host_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
 #if defined(TARGET_RISCV32)
     set_misa(env, MXL_RV32, 0);
+    set_satp_mode_max_supported(RISCV_CPU(obj), VM_1_10_SV32);
 #elif defined(TARGET_RISCV64)
     set_misa(env, MXL_RV64, 0);
+    set_satp_mode_max_supported(RISCV_CPU(obj), VM_1_10_SV57);
 #endif
     riscv_cpu_add_user_properties(obj);
 }
