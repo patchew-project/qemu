@@ -21,6 +21,7 @@
 #include "qemu/event_notifier.h"
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
+#include "standard-headers/linux/virtio_pci.h"
 #include "qom/object.h"
 
 /*
@@ -106,6 +107,7 @@ struct VirtIODevice
     DeviceState parent_obj;
     const char *name;
     uint8_t status;
+    virtio_pci_freeze_mode_t freeze_mode;
     uint8_t isr;
     uint16_t queue_sel;
     /**

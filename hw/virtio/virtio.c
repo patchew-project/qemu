@@ -3201,6 +3201,7 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
     vdev->vhost_started = false;
     vdev->device_id = device_id;
     vdev->status = 0;
+    vdev->freeze_mode = VIRTIO_PCI_FREEZE_MODE_UNFREEZE;
     qatomic_set(&vdev->isr, 0);
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;

@@ -1651,6 +1651,11 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
             proxy->vqs[vdev->queue_sel].enabled = 0;
         }
         break;
+    case VIRTIO_PCI_COMMON_F_MODE:
+        virtio_pci_freeze_mode_t freeze_mode = (virtio_pci_freeze_mode_t)val;
+        if ((1 << freeze_mode) & VIRTIO_PCI_FREEZE_MODE_MASK)
+            vdev->freeze_mode = freeze_mode;
+        break;
     default:
         break;
     }
