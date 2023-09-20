@@ -34,6 +34,7 @@
 #include "qemu/error-report.h"
 #include "migration.h"
 #include "options.h"
+#include "ram.h"
 #include "io/channel-null.h"
 #include "exec/target_page.h"
 #include "exec/ramblock.h"
@@ -198,7 +199,7 @@ static CompressResult do_compress_ram_page(QEMUFile *f, z_stream *stream,
 
     assert(qemu_file_buffer_empty(f));
 
-    if (buffer_is_zero(p, page_size)) {
+    if (migration_buffer_is_zero(block, offset, page_size)) {
         return RES_ZEROPAGE;
     }
 
