@@ -18,6 +18,7 @@
 #include "qapi/opts-visitor.h"
 #include "qemu/config-file.h"
 #include "qemu/keyval.h"
+#include "hw/qdev-properties.h"
 
 bool user_creatable_complete(UserCreatable *uc, Error **errp)
 {
@@ -52,8 +53,22 @@ static void object_set_properties_from_qdict(Object *obj, const QDict *qdict,
         return;
     }
     for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-        if (!object_property_set(obj, e->key, v, errp)) {
-            goto out;
+        /* set "len-" first for the array props to be allocated first */
+        if (strncmp(e->key, PROP_ARRAY_LEN_PREFIX,
+                    strlen(PROP_ARRAY_LEN_PREFIX)) == 0) {
+            if (!object_property_set(obj, e->key, v, errp)) {
+                goto out;
+            }
+        }
+    }
+
+    for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
+        /* "len-" has been set above */
+        if (strncmp(e->key, PROP_ARRAY_LEN_PREFIX,
+                    strlen(PROP_ARRAY_LEN_PREFIX)) != 0) {
+            if (!object_property_set(obj, e->key, v, errp)) {
+                goto out;
+            }
         }
     }
     visit_check_struct(v, errp);
