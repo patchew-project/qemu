@@ -906,8 +906,12 @@ static void ide_dma_cb(void *opaque, int ret)
         s->nsector -= n;
     }
 
-    /* end of transfer ? */
-    if (s->nsector == 0) {
+    /*
+     * End of transfer ?
+     * If a bus reset occurs immediately before the callback is invoked the
+     * bus state will have been cleared. Terminate the transfer.
+     */
+    if (s->nsector == 0 || !(s->status & DRQ_STAT)) {
         s->status = READY_STAT | SEEK_STAT;
         ide_bus_set_irq(s->bus);
         goto eot;
