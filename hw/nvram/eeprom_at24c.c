@@ -98,12 +98,20 @@ uint8_t at24c_eeprom_recv(I2CSlave *s)
     EEPROMState *ee = AT24C_EE(s);
     uint8_t ret;
 
-    /*
-     * If got the byte address but not completely with address size
-     * will return the invalid value
-     */
     if (ee->haveaddr > 0 && ee->haveaddr < ee->asize) {
-        return 0xff;
+        /*
+         * Provide behaviour that aligns with NVMe MI 1.2c, section 8.2.
+         *
+         * https://nvmexpress.org/wp-content/uploads/NVM-Express-Management-Interface-Specification-1.2c-2022.10.06-Ratified.pdf
+         *
+         * Otherwise, the clocked-out data is meaningless anyway, and so reading
+         * off memory is as good a behaviour as anything. This also happens to
+         * help the address-width detection heuristic in OpenBMC's userspace.
+         *
+         * https://github.com/openbmc/entity-manager/blob/0422a24bb6033605ce75479f675fedc76abb1167/src/fru_device.cpp#L197-L229
+         */
+        ee->haveaddr = ee->asize;
+        ee->cur %= ee->rsize;
     }
 
     ret = ee->mem[ee->cur];
