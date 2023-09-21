@@ -907,12 +907,39 @@ static uint64_t pc_get_cxl_range_end(PCMachineState *pcms)
 static hwaddr pc_max_used_gpa(PCMachineState *pcms, uint64_t pci_hole64_size)
 {
     X86CPU *cpu = X86_CPU(first_cpu);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    MachineState *ms = MACHINE(pcms);
+    uint64_t devmem_start = 0;
+    ram_addr_t devmem_size = 0;
 
-    /* 32-bit systems don't have hole64 thus return max CPU address */
-    if (cpu->phys_bits <= 32) {
-        return ((hwaddr)1 << cpu->phys_bits) - 1;
+    /*
+     * 32-bit systems don't have hole64 but they might have a region for
+     * memory devices. Even if additional hotplugged memory devices might
+     * not be usable by most guest OSes, we need to still consider them for
+     * calculating the highest possible GPA so that we can properly report
+     * if someone configures them on a CPU that cannot possibly address them.
+     */
+    if (!(cpu->env.features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM)) {
+        /* 32-bit systems */
+        if (pcmc->fixed_32bit_mem_addr_check) {
+            if (pcmc->has_reserved_memory &&
+                (ms->ram_size < ms->maxram_size)) {
+                pc_get_device_memory_range(pcms, &devmem_start,
+                                           &devmem_size);
+                if (!pcmc->broken_reserved_end) {
+                    devmem_start += devmem_size;
+                }
+                return devmem_start - 1;
+            } else {
+                return pc_above_4g_end(pcms) - 1;
+            }
+        } else {
+            /* old value for compatibility reasons */
+            return ((hwaddr)1 << cpu->phys_bits) - 1;
+        }
     }
 
+    /* 64-bit systems */
     return pc_pci_hole64_start() + pci_hole64_size - 1;
 }
 
@@ -1867,6 +1894,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->pvh_enabled = true;
     pcmc->kvmclock_create_always = true;
     pcmc->resizable_acpi_blob = true;
+    pcmc->fixed_32bit_mem_addr_check = true;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = pc_get_hotplug_handler;
     mc->hotplug_allowed = pc_hotplug_allowed;
