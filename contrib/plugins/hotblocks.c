@@ -70,6 +70,8 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 
         g_list_free(it);
         g_mutex_unlock(&lock);
+    } else {
+        g_mutex_unlock(&lock);
     }
 
     qemu_plugin_outs(report->str);
