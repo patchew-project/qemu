@@ -536,7 +536,7 @@ void multifd_save_cleanup(void)
         p->c = NULL;
         qemu_mutex_destroy(&p->mutex);
         qemu_sem_destroy(&p->sem);
-        qemu_sem_destroy(&p->sem_sync);
+        qemu_sem_destroy(&p->sem_done);
         g_free(p->name);
         p->name = NULL;
         multifd_pages_clear(p->pages);
@@ -587,12 +587,18 @@ int multifd_send_sync_main(QEMUFile *f)
 
     if (!migrate_multifd()) {
         return 0;
-    }
+
     if (multifd_send_state->pages->num) {
         if (multifd_send_pages(f) < 0) {
             error_report("%s: multifd_send_pages fail", __func__);
             return -1;
         }
+    }
+
+    /* wait for all channels to be idle */
+    for (i = 0; i < migrate_multifd_channels(); i++) {
+        trace_multifd_send_sync_main_wait(p->id);
+        qemu_sem_wait(&multifd_send_state->channels_ready);
     }
 
     /*
@@ -605,8 +611,45 @@ int multifd_send_sync_main(QEMUFile *f)
      * to be less frequent, e.g. only after we finished one whole scanning of
      * all the dirty bitmaps.
      */
-
     flush_zero_copy = migrate_zero_copy_send();
+
+    for (i = 0; i < migrate_multifd_channels(); i++) {
+        MultiFDSendParams *p = &multifd_send_state->params[i];
+
+        qemu_mutex_lock(&p->mutex);
+        assert(!p->pending_job);
+        qemu_mutex_unlock(&p->mutex);
+
+        qemu_sem_post(&p->sem);
+        qemu_sem_wait(&p->sem_done);
+
+        if (flush_zero_copy && p->c && (multifd_zero_copy_flush(p->c) < 0)) {
+            return -1;
+        }
+    }
+
+    /*
+     * All channels went idle and have no more jobs. Unless we send
+     * them more work, we're good to allow any cleanup code to run at
+     * this point.
+     */
+
+    return 0;
+}
+
+int multifd_send_sync_main(QEMUFile *f)
+{
+    int i, ret;
+
+    if (!migrate_multifd()) {
+        return 0;
+    }
+    if (multifd_send_state->pages->num) {
+        if (multifd_send_pages(f) < 0) {
+            error_report("%s: multifd_send_pages fail", __func__);
+            return -1;
+        }
+    }
 
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
@@ -628,11 +671,21 @@ int multifd_send_sync_main(QEMUFile *f)
         qemu_mutex_unlock(&p->mutex);
         qemu_sem_post(&p->sem);
     }
+
+    for (i = 0; i < migrate_multifd_channels(); i++) {
+        trace_multifd_send_wait(migrate_multifd_channels() - i);
+        qemu_sem_wait(&multifd_send_state->channels_ready);
+    }
+
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
-        trace_multifd_send_sync_main_wait(p->id);
-        qemu_sem_wait(&p->sem_sync);
+        qemu_mutex_lock(&p->mutex);
+        assert(!p->pending_job);
+        qemu_mutex_unlock(&p->mutex);
+
+        qemu_sem_post(&p->sem);
+        qemu_sem_wait(&p->sem_done);
 
         if (flush_zero_copy && p->c && (multifd_zero_copy_flush(p->c) < 0)) {
             return -1;
@@ -734,15 +787,9 @@ static void *multifd_send_thread(void *opaque)
             p->pending_job--;
             qemu_mutex_unlock(&p->mutex);
 
-            if (flags & MULTIFD_FLAG_SYNC) {
-                qemu_sem_post(&p->sem_sync);
-            }
-        } else if (p->quit) {
-            qemu_mutex_unlock(&p->mutex);
-            break;
         } else {
+            qemu_sem_post(&p->sem_done);
             qemu_mutex_unlock(&p->mutex);
-            /* sometimes there are spurious wakeups */
         }
     }
 
@@ -759,7 +806,7 @@ out:
      */
     if (ret != 0) {
         qemu_sem_post(&multifd_send_state->channels_ready);
-        qemu_sem_post(&p->sem_sync);
+        qemu_sem_post(&p->sem_done);
     }
 
     qemu_mutex_lock(&p->mutex);
@@ -797,7 +844,7 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
          */
         p->quit = true;
         qemu_sem_post(&multifd_send_state->channels_ready);
-        qemu_sem_post(&p->sem_sync);
+        qemu_sem_post(&p->sem_done);
     }
 }
 
@@ -875,7 +922,7 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
      migrate_set_error(migrate_get_current(), err);
      /* Error happen, we need to tell who pay attention to me */
      qemu_sem_post(&multifd_send_state->channels_ready);
-     qemu_sem_post(&p->sem_sync);
+     qemu_sem_post(&p->sem_done);
      /*
       * Although multifd_send_thread is not created, but main migration
       * thread need to judge whether it is running, so we need to mark
@@ -928,7 +975,7 @@ int multifd_save_setup(Error **errp)
 
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem, 0);
-        qemu_sem_init(&p->sem_sync, 0);
+        qemu_sem_init(&p->sem_done, 0);
         p->quit = false;
         p->pending_job = 0;
         p->id = i;
@@ -1037,7 +1084,7 @@ void multifd_load_cleanup(void)
              * multifd_recv_thread may hung at MULTIFD_FLAG_SYNC handle code,
              * however try to wakeup it without harm in cleanup phase.
              */
-            qemu_sem_post(&p->sem_sync);
+            qemu_sem_post(&p->sem_done);
         }
 
         qemu_thread_join(&p->thread);
@@ -1049,7 +1096,7 @@ void multifd_load_cleanup(void)
         object_unref(OBJECT(p->c));
         p->c = NULL;
         qemu_mutex_destroy(&p->mutex);
-        qemu_sem_destroy(&p->sem_sync);
+        qemu_sem_destroy(&p->sem_done);
         g_free(p->name);
         p->name = NULL;
         p->packet_len = 0;
@@ -1090,7 +1137,7 @@ void multifd_recv_sync_main(void)
             }
         }
         trace_multifd_recv_sync_main_signal(p->id);
-        qemu_sem_post(&p->sem_sync);
+        qemu_sem_post(&p->sem_done);
     }
     trace_multifd_recv_sync_main(multifd_recv_state->packet_num);
 }
@@ -1142,7 +1189,7 @@ static void *multifd_recv_thread(void *opaque)
 
         if (flags & MULTIFD_FLAG_SYNC) {
             qemu_sem_post(&multifd_recv_state->sem_sync);
-            qemu_sem_wait(&p->sem_sync);
+            qemu_sem_wait(&p->sem_done);
         }
     }
 
@@ -1185,7 +1232,7 @@ int multifd_load_setup(Error **errp)
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
         qemu_mutex_init(&p->mutex);
-        qemu_sem_init(&p->sem_sync, 0);
+        qemu_sem_init(&p->sem_done, 0);
         p->quit = false;
         p->id = i;
         p->packet_len = sizeof(MultiFDPacket_t)

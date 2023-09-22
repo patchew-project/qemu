@@ -90,8 +90,8 @@ typedef struct {
 
     /* sem where to wait for more work */
     QemuSemaphore sem;
-    /* syncs main thread and channels */
-    QemuSemaphore sem_sync;
+    /* channel is done transmitting until more pages are queued */
+    QemuSemaphore sem_done;
 
     /* this mutex protects the following parameters */
     QemuMutex mutex;
@@ -153,8 +153,8 @@ typedef struct {
     /* number of pages in a full packet */
     uint32_t page_count;
 
-    /* syncs main thread and channels */
-    QemuSemaphore sem_sync;
+    /* channel is done transmitting until more pages are queued */
+    QemuSemaphore sem_done;
 
     /* this mutex protects the following parameters */
     QemuMutex mutex;
