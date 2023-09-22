@@ -2508,11 +2508,17 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
             switch (read_u16 (data, 2)) {
             case VNC_MSG_CLIENT_QEMU_AUDIO_ENABLE:
                 trace_vnc_msg_client_audio_enable(vs, vs->ioc);
-                audio_add(vs);
+                if (vs->vd->audio_state) {
+                    audio_add(vs);
+                } else {
+                    error_report("audio not available, use audiodev= option for vnc");
+                }
                 break;
             case VNC_MSG_CLIENT_QEMU_AUDIO_DISABLE:
                 trace_vnc_msg_client_audio_disable(vs, vs->ioc);
-                audio_del(vs);
+                if (vs->vd->audio_state) {
+                    audio_del(vs);
+                }
                 break;
             case VNC_MSG_CLIENT_QEMU_AUDIO_SET_FORMAT:
                 if (len == 4)
