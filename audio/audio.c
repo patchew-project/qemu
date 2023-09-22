@@ -73,7 +73,7 @@ void audio_driver_register(audio_driver *drv)
     QLIST_INSERT_HEAD(&audio_drivers, drv, next);
 }
 
-audio_driver *audio_driver_lookup(const char *name)
+static audio_driver *audio_driver_lookup(const char *name)
 {
     struct audio_driver *d;
     Error *local_err = NULL;
@@ -110,8 +110,6 @@ const struct mixeng_volume nominal_volume = {
     .l = 1ULL << 32,
 #endif
 };
-
-static bool legacy_config = true;
 
 int audio_bug (const char *funcname, int cond)
 {
@@ -1712,46 +1710,26 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
     /* silence gcc warning about uninitialized variable */
     AudiodevListHead head = QSIMPLEQ_HEAD_INITIALIZER(head);
 
-    if (using_spice) {
-        /*
-         * When using spice allow the spice audio driver being picked
-         * as default.
-         *
-         * Temporary hack.  Using audio devices without explicit
-         * audiodev= property is already deprecated.  Same goes for
-         * the -soundhw switch.  Once this support gets finally
-         * removed we can also drop the concept of a default audio
-         * backend and this can go away.
-         */
-        driver = audio_driver_lookup("spice");
-        if (driver) {
-            driver->can_be_default = 1;
-        }
-    }
-
     if (dev) {
         /* -audiodev option */
-        legacy_config = false;
         drvname = AudiodevDriver_str(dev->driver);
-    } else if (!QTAILQ_EMPTY(&audio_states)) {
-        if (!legacy_config) {
-            dolog("Device %s: audiodev default parameter is deprecated, please "
-                  "specify audiodev=%s\n", name,
-                  QTAILQ_FIRST(&audio_states)->dev->id);
-        }
-        return QTAILQ_FIRST(&audio_states);
     } else {
-        /* legacy implicit initialization */
-        head = audio_handle_legacy_opts();
-        /*
-         * In case of legacy initialization, all Audiodevs in the list will have
-         * the same configuration (except the driver), so it doesn't matter which
-         * one we chose.  We need an Audiodev to set up AudioState before we can
-         * init a driver.  Also note that dev at this point is still in the
-         * list.
-         */
-        dev = QSIMPLEQ_FIRST(&head)->dev;
-        audio_validate_opts(dev, &error_abort);
+        if (!QTAILQ_EMPTY(&audio_states)) {
+            dev = QTAILQ_FIRST(&audio_states)->dev;
+            if (!g_str_equal(dev->id, "#none")) {
+                dolog("Device %s: audiodev default parameter is deprecated, please "
+                      "specify audiodev=%s\n", name,
+                      dev->id);
+            }
+            return QTAILQ_FIRST(&audio_states);
+        }
+
+        dolog("No audio device specified\n");
+        dev = g_new0(Audiodev, 1);
+        dev->id = g_strdup("#none");
+        dev->driver = AUDIODEV_DRIVER_NONE;
+        dev->u.none.in = g_new0(AudiodevPerDirectionOptions, 1);
+        dev->u.none.out = g_new0(AudiodevPerDirectionOptions, 1);
     }
 
     s = g_new0(AudioState, 1);
@@ -1876,9 +1854,7 @@ CaptureVoiceOut *AUD_add_capture(
     struct capture_callback *cb;
 
     if (!s) {
-        if (!legacy_config) {
-            dolog("Capturing without setting an audiodev is deprecated\n");
-        }
+        dolog("Capturing without setting an audiodev is deprecated\n");
         s = audio_init(NULL, NULL);
     }
 
