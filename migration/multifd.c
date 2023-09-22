@@ -580,24 +580,14 @@ static int multifd_zero_copy_flush(QIOChannel *c)
     return ret;
 }
 
-int multifd_send_sync_main(QEMUFile *f)
+static int multifd_send_wait(void)
 {
-    int i;
     bool flush_zero_copy;
-
-    if (!migrate_multifd()) {
-        return 0;
-
-    if (multifd_send_state->pages->num) {
-        if (multifd_send_pages(f) < 0) {
-            error_report("%s: multifd_send_pages fail", __func__);
-            return -1;
-        }
-    }
+    int i;
 
     /* wait for all channels to be idle */
     for (i = 0; i < migrate_multifd_channels(); i++) {
-        trace_multifd_send_sync_main_wait(p->id);
+        trace_multifd_send_wait(migrate_multifd_channels() - i);
         qemu_sem_wait(&multifd_send_state->channels_ready);
     }
 
@@ -672,28 +662,10 @@ int multifd_send_sync_main(QEMUFile *f)
         qemu_sem_post(&p->sem);
     }
 
-    for (i = 0; i < migrate_multifd_channels(); i++) {
-        trace_multifd_send_wait(migrate_multifd_channels() - i);
-        qemu_sem_wait(&multifd_send_state->channels_ready);
-    }
-
-    for (i = 0; i < migrate_multifd_channels(); i++) {
-        MultiFDSendParams *p = &multifd_send_state->params[i];
-
-        qemu_mutex_lock(&p->mutex);
-        assert(!p->pending_job);
-        qemu_mutex_unlock(&p->mutex);
-
-        qemu_sem_post(&p->sem);
-        qemu_sem_wait(&p->sem_done);
-
-        if (flush_zero_copy && p->c && (multifd_zero_copy_flush(p->c) < 0)) {
-            return -1;
-        }
-    }
+    ret = multifd_send_wait();
     trace_multifd_send_sync_main(multifd_send_state->packet_num);
 
-    return 0;
+    return ret;
 }
 
 static void *multifd_send_thread(void *opaque)
