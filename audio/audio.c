@@ -2194,8 +2194,8 @@ const char *audio_maybe_init_dummy(const char *default_id)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
 
-    if (ms->default_audiodev) {
-        return ms->default_audiodev;
+    if (ms->audiodev) {
+        return ms->audiodev;
     }
 
     dolog("warning: No audiodev specified for implicit machine devices, "
