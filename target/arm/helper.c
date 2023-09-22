@@ -2483,9 +2483,9 @@ static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx,
                 return CP_ACCESS_TRAP_EL2;
             }
         } else {
-            /* If HCR_EL2.<E2H> == 0: check CNTHCTL_EL2.EL1PCEN. */
+            /* If HCR_EL2.<E2H> == 0: check CNTHCTL_EL2.EL1PCTEN. */
             if (has_el2 && timeridx == GTIMER_PHYS &&
-                !extract32(env->cp15.cnthctl_el2, 1, 1)) {
+                !extract32(env->cp15.cnthctl_el2, 0, 1)) {
                 return CP_ACCESS_TRAP_EL2;
             }
         }
