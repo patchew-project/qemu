@@ -931,6 +931,8 @@ cat << EOF
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
 
+  -Dmesonoptname=val      passthrough option to meson unmodified
+
 NOTE: The object files are built at the place where configure is launched
 EOF
 exit 0
