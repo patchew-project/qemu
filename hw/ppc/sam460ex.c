@@ -530,6 +530,8 @@ static void sam460ex_machine_init(MachineClass *mc)
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("460exb");
     mc->default_ram_size = 512 * MiB;
     mc->default_ram_id = "ppc4xx.sdram";
+
+    machine_add_audiodev_property(mc);
 }
 
 DEFINE_MACHINE("sam460ex", sam460ex_machine_init)

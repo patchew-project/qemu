@@ -578,6 +578,8 @@ static void via_isa_init(Object *obj)
     object_initialize_child(obj, "uhci2", &s->uhci[1], TYPE_VT82C686B_USB_UHCI);
     object_initialize_child(obj, "ac97", &s->ac97, TYPE_VIA_AC97);
     object_initialize_child(obj, "mc97", &s->mc97, TYPE_VIA_MC97);
+
+    object_property_add_alias(obj, "audiodev", OBJECT(&s->ac97), "audiodev");
 }
 
 static const TypeInfo via_isa_info = {
