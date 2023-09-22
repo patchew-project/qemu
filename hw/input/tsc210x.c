@@ -1105,7 +1105,7 @@ static void tsc210x_init(TSC210xState *s,
                    s->card.name);
     }
 
-    AUD_register_card(s->name, &s->card);
+    AUD_register_card(s->name, &s->card, &error_abort);
 
     qemu_register_reset((void *) tsc210x_reset, s);
     vmstate_register(NULL, 0, vmsd, s);

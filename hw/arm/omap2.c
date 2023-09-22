@@ -617,7 +617,7 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
                    s->codec.card.name);
     }
 
-    AUD_register_card("OMAP EAC", &s->codec.card);
+    AUD_register_card("OMAP EAC", &s->codec.card, &error_abort);
 
     memory_region_init_io(&s->iomem, NULL, &omap_eac_ops, s, "omap.eac",
                           omap_l4_region_size(ta, 0));
