@@ -2933,11 +2933,12 @@ void qemu_init(int argc, char **argv)
                 if (!qdict_haskey(dict, "id")) {
                     qdict_put_str(dict, "id", "audiodev0");
                 }
-                if (!qdict_haskey(dict, "model")) {
-                    error_setg(&error_fatal, "Parameter 'model' is missing");
+                if (qdict_haskey(dict, "model")) {
+                    model = g_strdup(qdict_get_str(dict, "model"));
+                    qdict_del(dict, "model");
+                } else {
+                    model = g_strdup("default");
                 }
-                model = g_strdup(qdict_get_str(dict, "model"));
-                qdict_del(dict, "model");
                 if (is_help_option(model)) {
                     show_valid_soundhw();
                     exit(0);
@@ -2947,7 +2948,11 @@ void qemu_init(int argc, char **argv)
                 visit_type_Audiodev(v, NULL, &dev, &error_fatal);
                 visit_free(v);
                 audio_define(dev);
-                select_soundhw(model, dev->id);
+                if (g_str_equal(model, "default")) {
+                    qdict_put_str(machine_opts_dict, "audiodev", dev->id);
+                } else {
+                    select_soundhw(model, dev->id);
+                }
                 g_free(model);
                 break;
             }
