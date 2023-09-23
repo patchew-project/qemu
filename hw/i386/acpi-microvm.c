@@ -78,18 +78,18 @@ static void acpi_dsdt_add_virtio(Aml *scope,
             hwaddr base = VIRTIO_MMIO_BASE + index * 512;
             hwaddr size = 512;
 
-            Aml *dev = aml_device("VR%02u", (unsigned)index);
-            aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0005")));
-            aml_append(dev, aml_name_decl("_UID", aml_int(index)));
-            aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
+            Aml *adev = aml_device("VR%02u", (unsigned)index);
+            aml_append(adev, aml_name_decl("_HID", aml_string("LNRO0005")));
+            aml_append(adev, aml_name_decl("_UID", aml_int(index)));
+            aml_append(adev, aml_name_decl("_CCA", aml_int(1)));
 
             Aml *crs = aml_resource_template();
             aml_append(crs, aml_memory32_fixed(base, size, AML_READ_WRITE));
             aml_append(crs,
                        aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
                                      AML_EXCLUSIVE, &irq, 1));
-            aml_append(dev, aml_name_decl("_CRS", crs));
-            aml_append(scope, dev);
+            aml_append(adev, aml_name_decl("_CRS", crs));
+            aml_append(scope, adev);
         }
     }
 }

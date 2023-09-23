@@ -3770,9 +3770,9 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     while (remain >= VTD_PAGE_SIZE) {
         IOMMUTLBEvent event;
         uint64_t mask = dma_aligned_pow2_mask(start, end, s->aw_bits);
-        uint64_t size = mask + 1;
+        uint64_t sz = mask + 1;
 
-        assert(size);
+        assert(sz);
 
         event.type = IOMMU_NOTIFIER_UNMAP;
         event.entry.iova = start;
@@ -3784,8 +3784,8 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 
         memory_region_notify_iommu_one(n, &event);
 
-        start += size;
-        remain -= size;
+        start += sz;
+        remain -= sz;
     }
 
     assert(!remain);
