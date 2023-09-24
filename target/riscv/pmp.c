@@ -102,16 +102,40 @@ static bool pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
                 locked = false;
             }
 
-            /* mseccfg.MML is set */
-            if (MSECCFG_MML_ISSET(env)) {
-                /* not adding execute bit */
-                if ((val & PMP_LOCK) != 0 && (val & PMP_EXEC) != PMP_EXEC) {
+            /*
+             * mseccfg.MML is set. Locked rules cannot be removed or modified
+             * until a PMP reset. Besides, from Smepmp specification version 1.0
+             * , chapter 2 section 4b says:
+             * Adding a rule with executable privileges that either is
+             * M-mode-only or a locked Shared-Region is not possible and such
+             * pmpcfg writes are ignored, leaving pmpcfg unchanged.
+             */
+            if (MSECCFG_MML_ISSET(env) && !pmp_is_locked(env, pmp_index)) {
+                /*
+                 * Convert the PMP permissions to match the truth table in the
+                 * Smepmp spec.
+                 */
+                const uint8_t smepmp_operation =
+                    ((val & PMP_LOCK) >> 4) | ((val & PMP_READ) << 2) |
+                    (val & PMP_WRITE) | ((val & PMP_EXEC) >> 2);
+
+                switch (smepmp_operation) {
+                case 0 ... 8:
                     locked = false;
-                }
-                /* shared region and not adding X bit */
-                if ((val & PMP_LOCK) != PMP_LOCK &&
-                    (val & 0x7) != (PMP_WRITE | PMP_EXEC)) {
+                    break;
+                case 9 ... 11:
+                    break;
+                case 12:
                     locked = false;
+                    break;
+                case 13:
+                    break;
+                case 14:
+                case 15:
+                    locked = false;
+                    break;
+                default:
+                    g_assert_not_reached();
                 }
             }
         } else {
