@@ -1788,6 +1788,8 @@ for target in $target_list; do
           echo "HOST_GDB_SUPPORTS_ARCH=y" >> "$config_target_mak"
       fi
 
+      echo "$config_target_mak: configure" >> Makefile.prereqs
+      echo "build-tcg-tests-$target: $config_target_mak" >> Makefile.prereqs
       echo "run-tcg-tests-$target: $qemu\$(EXESUF)" >> Makefile.prereqs
       tcg_tests_targets="$tcg_tests_targets $target"
   fi
