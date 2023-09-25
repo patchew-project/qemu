@@ -3217,6 +3217,11 @@ F: qapi/migration.json
 F: tests/migration/
 F: util/userfaultfd.c
 
+RDMA Migration
+R: Li Zhijian <lizhijian@fujitsu.com>
+S: Odd Fixes
+F: migration/rdma*
+
 Migration dirty limit and dirty page rate
 M: Hyman Huang <yong.huang@smartx.com>
 S: Maintained
