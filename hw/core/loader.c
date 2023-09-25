@@ -281,11 +281,26 @@ ssize_t load_aout(const char *filename, hwaddr addr, int max_sz,
 
 /* ELF loader */
 
+#define ELF_LOAD_MAX (1024 * 1024 * 1024)
+
 static void *load_at(int fd, off_t offset, size_t size)
 {
     void *ptr;
-    if (lseek(fd, offset, SEEK_SET) < 0)
+
+    /*
+     * We often come here with @size, which was previously read from file
+     * descriptor too. That's not good to read and allocate for unchecked
+     * number of bytes. Coverity also doesn't like it and generate problems.
+     * So, let's limit all load_at() calls to ELF_LOAD_MAX at least.
+     */
+    if (size > ELF_LOAD_MAX) {
         return NULL;
+    }
+
+    if (lseek(fd, offset, SEEK_SET) < 0) {
+        return NULL;
+    }
+
     ptr = g_malloc(size);
     if (read(fd, ptr, size) != size) {
         g_free(ptr);
