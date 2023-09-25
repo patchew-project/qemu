@@ -84,8 +84,33 @@ int64_t cpu_get_clock(void);
 
 void qemu_timer_notify_cb(void *opaque, QEMUClockType type);
 
-/* get the VIRTUAL clock and VM elapsed ticks via the cpus accel interface */
+/**
+ * cpus_get_virtual_clock() - return current virtual clock.
+ *
+ * This is a wrapper around accelerator specific get_virtual_clock()
+ *
+ * Returns: ns of virtual time
+ */
 int64_t cpus_get_virtual_clock(void);
+
+/**
+ * cpus_set_virtual_clock() - set the virtual clock
+ * @new_time: new value in ns
+ *
+ * This is a wrapper around accelerator specific set_virtual_clock()
+ */
+void cpus_set_virtual_clock(int64_t new_time);
+
+/**
+ * cpus_get_elapsed_ticks() - get elapsed host time
+ *
+ * This is usually the current value of the host tick counter (i.e.
+ * not taking into account guest pauses). However some accelerators
+ * which want to keep elapsed time in sync with virtual time will
+ * return the virtual clock.
+ *
+ * Returns: ticks of elapsed host time (usually ns)
+ */
 int64_t cpus_get_elapsed_ticks(void);
 
 #endif /* SYSEMU_CPU_TIMERS_H */
