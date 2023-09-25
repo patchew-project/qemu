@@ -101,17 +101,24 @@ ssize_t load_image_size(const char *filename, void *addr, size_t size)
     return actsize < 0 ? -1 : l;
 }
 
+#define READ_TARGPHYS_MAX_BYTES (1024 * 1024 * 1024)
 /* read()-like version */
-ssize_t read_targphys(const char *name,
-                      int fd, hwaddr dst_addr, size_t nbytes)
+static ssize_t read_targphys(const char *name,
+                             int fd, hwaddr dst_addr, size_t nbytes)
 {
     uint8_t *buf;
     ssize_t did;
 
+    if (nbytes > READ_TARGPHYS_MAX_BYTES) {
+        return -1;
+    }
+
     buf = g_malloc(nbytes);
     did = read(fd, buf, nbytes);
-    if (did > 0)
+    if (did > 0) {
         rom_add_blob_fixed("read", buf, did, dst_addr);
+    }
+
     g_free(buf);
     return did;
 }
