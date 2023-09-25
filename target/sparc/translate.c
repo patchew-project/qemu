@@ -4750,7 +4750,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x031: /* VIS I fmul8x16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8x16);
+                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
+                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
+                    cpu_dst_64 = gen_dest_fpr_D(dc, rd);
+                    gen_helper_fmul8x16(cpu_dst_64, cpu_src1_32, cpu_src2_64);
+                    gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x033: /* VIS I fmul8x16au */
                     CHECK_FPU_FEATURE(dc, VIS1);
