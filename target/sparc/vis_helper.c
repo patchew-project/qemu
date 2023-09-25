@@ -282,10 +282,10 @@ uint64_t helper_fexpand(uint32_t src2)
         s.ll = src1;                                    \
         d.ll = src2;                                    \
                                                         \
-        d.VIS_W64(0) = F(d.VIS_W64(0), s.VIS_W64(0));   \
-        d.VIS_W64(1) = F(d.VIS_W64(1), s.VIS_W64(1));   \
-        d.VIS_W64(2) = F(d.VIS_W64(2), s.VIS_W64(2));   \
-        d.VIS_W64(3) = F(d.VIS_W64(3), s.VIS_W64(3));   \
+        d.VIS_W64(0) = F(s.VIS_W64(0), d.VIS_W64(0));   \
+        d.VIS_W64(1) = F(s.VIS_W64(1), d.VIS_W64(1));   \
+        d.VIS_W64(2) = F(s.VIS_W64(2), d.VIS_W64(2));   \
+        d.VIS_W64(3) = F(s.VIS_W64(3), d.VIS_W64(3));   \
                                                         \
         return d.ll;                                    \
     }                                                   \
@@ -297,8 +297,8 @@ uint64_t helper_fexpand(uint32_t src2)
         s.l = src1;                                     \
         d.l = src2;                                     \
                                                         \
-        d.VIS_W32(0) = F(d.VIS_W32(0), s.VIS_W32(0));   \
-        d.VIS_W32(1) = F(d.VIS_W32(1), s.VIS_W32(1));   \
+        d.VIS_W32(0) = F(s.VIS_W32(0), d.VIS_W32(0));   \
+        d.VIS_W32(1) = F(s.VIS_W32(1), d.VIS_W32(1));   \
                                                         \
         return d.l;                                     \
     }                                                   \
@@ -310,8 +310,8 @@ uint64_t helper_fexpand(uint32_t src2)
         s.ll = src1;                                    \
         d.ll = src2;                                    \
                                                         \
-        d.VIS_L64(0) = F(d.VIS_L64(0), s.VIS_L64(0));   \
-        d.VIS_L64(1) = F(d.VIS_L64(1), s.VIS_L64(1));   \
+        d.VIS_L64(0) = F(s.VIS_L64(0), d.VIS_L64(0));   \
+        d.VIS_L64(1) = F(s.VIS_L64(1), d.VIS_L64(1));   \
                                                         \
         return d.ll;                                    \
     }                                                   \
@@ -323,7 +323,7 @@ uint64_t helper_fexpand(uint32_t src2)
         s.l = src1;                                     \
         d.l = src2;                                     \
                                                         \
-        d.l = F(d.l, s.l);                              \
+        d.l = F(s.l, d.l);                              \
                                                         \
         return d.l;                                     \
     }
