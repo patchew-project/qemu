@@ -49,6 +49,7 @@ target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
 #define VIS_L64(n) l[1 - (n)]
 #define VIS_B32(n) b[3 - (n)]
 #define VIS_W32(n) w[1 - (n)]
+#define VIS_SW32(n) sw[1 - (n)]
 #else
 #define VIS_B64(n) b[n]
 #define VIS_W64(n) w[n]
@@ -56,6 +57,7 @@ target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
 #define VIS_L64(n) l[n]
 #define VIS_B32(n) b[n]
 #define VIS_W32(n) w[n]
+#define VIS_SW32(n) sw[n]
 #endif
 
 typedef union {
@@ -70,6 +72,7 @@ typedef union {
 typedef union {
     uint8_t b[4];
     uint16_t w[2];
+    int16_t sw[2];
     uint32_t l;
     float32 f;
 } VIS32;
@@ -143,16 +146,17 @@ uint64_t helper_fmul8x16al(uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8x16au(uint64_t src1, uint64_t src2)
+uint64_t helper_fmul8x16au(uint32_t src1, uint32_t src2)
 {
-    VIS64 s, d;
+    VIS32 s1, s2;
+    VIS64 d;
     uint32_t tmp;
 
-    s.ll = src1;
-    d.ll = src2;
+    s1.l = src1;
+    s2.l = src2;
 
 #define PMUL(r)                                                 \
-    tmp = (int32_t)d.VIS_SW64(0) * (int32_t)s.VIS_B64(r);       \
+    tmp = (int32_t)s2.VIS_SW32(1) * (int32_t)s1.VIS_B64(r);     \
     if ((tmp & 0xff) > 0x7f) {                                  \
         tmp += 0x100;                                           \
     }                                                           \

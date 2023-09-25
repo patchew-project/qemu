@@ -1786,6 +1786,23 @@ static void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
     gen_store_fpr_D(dc, rd, dst);
 }
 
+#ifdef TARGET_SPARC64
+static void gen_ne_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
+                           void (*gen)(TCGv_i64, TCGv_i32, TCGv_i32))
+{
+    TCGv_i64 dst;
+    TCGv_i32 src1, src2;
+
+    src1 = gen_load_fpr_F(dc, rs1);
+    src2 = gen_load_fpr_F(dc, rs2);
+    dst = gen_dest_fpr_D(dc, rd);
+
+    gen(dst, src1, src2);
+
+    gen_store_fpr_D(dc, rd, dst);
+}
+#endif
+
 static void gen_fop_QDD(DisasContext *dc, int rd, int rs1, int rs2,
                         void (*gen)(TCGv_ptr, TCGv_i64, TCGv_i64))
 {
@@ -4758,7 +4775,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x033: /* VIS I fmul8x16au */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8x16au);
+                    gen_ne_fop_DFF(dc, rd, rs1, rs2, gen_helper_fmul8x16au);
                     break;
                 case 0x035: /* VIS I fmul8x16al */
                     CHECK_FPU_FEATURE(dc, VIS1);
