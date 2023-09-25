@@ -660,7 +660,7 @@ void qmp_dumpdtb(const char *filename, Error **errp)
 
     size = fdt_totalsize(current_machine->fdt);
 
-    g_assert(size > 0);
+    g_assert(size > 0 && size <= FDT_MAX_SIZE);
 
     if (!g_file_set_contents(filename, current_machine->fdt, size, &err)) {
         error_setg(errp, "Error saving FDT to file %s: %s",
