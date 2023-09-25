@@ -3988,6 +3988,9 @@ typedef struct StatsDescriptors {
 static QTAILQ_HEAD(, StatsDescriptors) stats_descriptors =
     QTAILQ_HEAD_INITIALIZER(stats_descriptors);
 
+
+#define KVM_STATS_QEMU_MAX_NAME_SIZE (1024 * 1024)
+#define KVM_STATS_QEMU_MAX_NUM_DESC (1024)
 /*
  * Return the descriptors for 'target', that either have already been read
  * or are retrieved from 'stats_fd'.
@@ -4018,6 +4021,18 @@ static StatsDescriptors *find_stats_descriptors(StatsTarget target, int stats_fd
         error_setg(errp, "KVM stats: failed to read stats header: "
                    "expected %zu actual %zu",
                    sizeof(*kvm_stats_header), ret);
+        g_free(descriptors);
+        return NULL;
+    }
+    if (kvm_stats_header->name_size > KVM_STATS_QEMU_MAX_NAME_SIZE) {
+        error_setg(errp, "KVM stats: too large name_size: %" PRIu32,
+                   kvm_stats_header->name_size);
+        g_free(descriptors);
+        return NULL;
+    }
+    if (kvm_stats_header->num_desc > KVM_STATS_QEMU_MAX_NUM_DESC) {
+        error_setg(errp, "KVM stats: too large num_desc: %" PRIu32,
+                   kvm_stats_header->num_desc);
         g_free(descriptors);
         return NULL;
     }
