@@ -4825,7 +4825,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x04b: /* VIS I fpmerge */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpmerge);
+                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
+                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
+                    cpu_dst_64 = gen_dest_fpr_D(dc, rd);
+                    gen_helper_fpmerge(cpu_dst_64, cpu_src1_32, cpu_src2_32);
+                    gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x04c: /* VIS II bshuffle */
                     CHECK_FPU_FEATURE(dc, VIS2);
