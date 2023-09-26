@@ -2312,6 +2312,21 @@ static int migration_maybe_pause(MigrationState *s,
     return s->state == new_state ? 0 : -EINVAL;
 }
 
+void migration_set_timestamp(MigrationDowntime type)
+{
+    MigrationState *s = migrate_get_current();
+
+    s->timestamp[type] = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+}
+
+int64_t migration_get_timestamp(MigrationDowntime type)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->timestamp[type];
+}
+
+
 /**
  * migration_completion: Used by migration_thread when there's not much left.
  *   The caller 'breaks' the loop when this returns.
@@ -2325,7 +2340,7 @@ static void migration_completion(MigrationState *s)
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
         qemu_mutex_lock_iothread();
-        s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        migration_set_timestamp(MIGRATION_DOWNTIME_START);
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
 
         s->vm_old_state = runstate_get();
@@ -2670,7 +2685,7 @@ static void migration_calculate_complete(MigrationState *s)
          * It's still not set, so we are precopy migration.  For
          * postcopy, downtime is calculated during postcopy_start().
          */
-        s->downtime = end_time - s->downtime_start;
+        s->downtime = end_time - migration_get_timestamp(MIGRATION_DOWNTIME_START);
     }
 
     transfer_time = s->total_time - s->setup_time;
@@ -3069,7 +3084,8 @@ static void bg_migration_vm_start_bh(void *opaque)
     s->vm_start_bh = NULL;
 
     vm_start();
-    s->downtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - s->downtime_start;
+    s->downtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) -
+             migration_get_timestamp(MIGRATION_DOWNTIME_START);
 }
 
 /**
@@ -3134,7 +3150,7 @@ static void *bg_migration_thread(void *opaque)
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
 
     trace_migration_thread_setup_complete();
-    s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    migration_set_timestamp(MIGRATION_DOWNTIME_START);
 
     qemu_mutex_lock_iothread();
 

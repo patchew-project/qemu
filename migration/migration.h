@@ -319,8 +319,8 @@ struct MigrationState {
     int64_t start_time;
     /* Total time used by latest migration (ms) */
     int64_t total_time;
-    /* Timestamp when VM is down (ms) to migrate the last stuff */
-    int64_t downtime_start;
+    /* Timestamps e.g. when VM is down (ms) to migrate the last stuff */
+    int64_t timestamp[MIGRATION_DOWNTIME__MAX];
     int64_t downtime;
     int64_t expected_downtime;
     bool capabilities[MIGRATION_CAPABILITY__MAX];
@@ -515,5 +515,8 @@ void migration_cancel(const Error *error);
 void migration_populate_vfio_info(MigrationInfo *info);
 void migration_reset_vfio_bytes_transferred(void);
 void postcopy_temp_page_reset(PostcopyTmpPage *tmp_page);
+
+void migration_set_timestamp(MigrationDowntime tm);
+int64_t migration_get_timestamp(MigrationDowntime tm);
 
 #endif

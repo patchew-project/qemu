@@ -191,6 +191,20 @@
   'data': {'transferred': 'int' } }
 
 ##
+# @MigrationDowntime:
+#
+# An enumeration of downtime timestamps for all
+# steps of the switchover.
+#
+# @start:Timestamp taken at the start of the switchover right before
+#        we stop the VM.
+#
+# Since: 8.2
+##
+{ 'enum': 'MigrationDowntime',
+  'data': [ 'start' ] }
+
+##
 # @MigrationInfo:
 #
 # Information about current migration process.
