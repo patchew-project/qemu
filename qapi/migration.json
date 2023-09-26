@@ -217,6 +217,27 @@
   'data': [ 'start', 'stop', 'precopy-iterable', 'precopy-noniterable',
             'resume-return-path' ] }
 
+##
+# @DowntimeStats:
+#
+# Detailed migration downtime statistics.
+#
+# @stop: Time taken to stop the VM during switchover.
+#
+# @precopy: Time taken to save all precopy state during switchover.
+#
+# @precopy-iterable: Time taken to save all precopy iterable state.
+#
+# @precopy-noniterable: Time taken to save all precopy non iterable state.
+#
+# @resume-return-path: Time taken to resume if return path is enabled,
+#                      otherwise zero.
+#
+# Since: 8.2
+##
+{ 'struct': 'DowntimeStats',
+  'data': {'stop': 'int64', 'precopy': 'int64', 'precopy-iterable': 'int64',
+           'precopy-noniterable': 'int64', 'resume-return-path': 'int64' } }
 
 ##
 # @MigrationInfo:
@@ -308,6 +329,7 @@
            '*total-time': 'int',
            '*expected-downtime': 'int',
            '*downtime': 'int',
+           '*downtime-stats': 'DowntimeStats',
            '*setup-time': 'int',
            '*cpu-throttle-percentage': 'int',
            '*error-desc': 'str',

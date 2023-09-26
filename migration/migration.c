@@ -921,6 +921,19 @@ static int64_t migrate_get_downtime_resume_rp(MigrationState *s)
     return 0;
 }
 
+static void populate_downtime_info(MigrationInfo *info, MigrationState *s)
+{
+    DowntimeStats *stats;
+
+    info->downtime_stats = g_malloc0(sizeof(*info->downtime_stats));
+    stats = info->downtime_stats;
+    stats->stop = migrate_get_downtime_stop(s);
+    stats->precopy_iterable = migrate_get_downtime_precopy_iterable(s);
+    stats->precopy_noniterable = migrate_get_downtime_precopy_noniterable(s);
+    stats->precopy = stats->precopy_iterable + stats->precopy_noniterable;
+    stats->resume_return_path = migrate_get_downtime_resume_rp(s);
+}
+
 static void populate_time_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_status = true;
@@ -939,6 +952,7 @@ static void populate_time_info(MigrationInfo *info, MigrationState *s)
     if (migrate_show_downtime(s)) {
         info->has_downtime = true;
         info->downtime = s->downtime;
+        populate_downtime_info(info, s);
     } else {
         info->has_expected_downtime = true;
         info->expected_downtime = s->expected_downtime;
