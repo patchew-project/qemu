@@ -98,6 +98,7 @@ typedef struct VFIOContainer {
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_HEAD(, VFIORamDiscardListener) vrdl_list;
     QLIST_ENTRY(VFIOContainer) next;
+    QLIST_HEAD(, VFIODevice) device_list;
 } VFIOContainer;
 
 typedef struct VFIOGuestIOMMU {
@@ -129,7 +130,10 @@ typedef struct VFIODeviceOps VFIODeviceOps;
 
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
+    QLIST_ENTRY(VFIODevice) container_next;
+    QLIST_ENTRY(VFIODevice) global_next;
     struct VFIOGroup *group;
+    VFIOContainer *container;
     char *sysfsdev;
     char *name;
     DeviceState *dev;
@@ -229,6 +233,7 @@ int vfio_kvm_device_del_fd(int fd, Error **errp);
 
 extern const MemoryRegionOps vfio_region_ops;
 typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;
+typedef QLIST_HEAD(VFIODeviceList, VFIODevice) VFIODeviceList;
 extern VFIOGroupList vfio_group_list;
 
 bool vfio_mig_active(void);
