@@ -70,9 +70,9 @@
 # @qom-path: path to the CPU object in the QOM tree
 #
 # @thread-id: ID of the underlying host thread
-#
-# @props: properties describing to which node/socket/core/thread
-#     virtual CPU belongs to, provided if supported by board
+
+# @props: properties of type CpuInstanceProperties associated with a
+#     virtual CPU, e.g. the socket id
 #
 # @target: the QEMU system emulation target, which determines which
 #     additional fields will be listed (since 3.0)
@@ -899,6 +899,9 @@
 # should be passed by management with device_add command when a CPU is
 # being hotplugged.
 #
+# Which members are optional and which mandatory depends on the architecture
+# and board.
+#
 # @node-id: NUMA node ID the CPU belongs to
 #
 # @socket-id: socket number within node/board the CPU belongs to
@@ -912,15 +915,13 @@
 #
 # @thread-id: thread number within core the CPU belongs to
 #
-# Note: currently there are 6 properties that could be present but
-#     management should be prepared to pass through other properties
-#     with device_add command to allow for future interface extension.
-#     This also requires the filed names to be kept in sync with the
-#     properties passed to -device/device_add.
+# Note: management should be prepared to pass through additional
+# properties with device_add.
 #
 # Since: 2.7
 ##
 { 'struct': 'CpuInstanceProperties',
+  # Keep these in sync with the properties device_add accepts
   'data': { '*node-id': 'int',
             '*socket-id': 'int',
             '*die-id': 'int',
