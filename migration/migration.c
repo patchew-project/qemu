@@ -943,6 +943,10 @@ static void populate_time_info(MigrationInfo *info, MigrationState *s)
     if (s->state == MIGRATION_STATUS_COMPLETED) {
         info->has_total_time = true;
         info->total_time = s->total_time;
+        if (s->expected_downtime) {
+            info->has_expected_downtime = true;
+            info->expected_downtime = s->expected_downtime;
+        }
     } else {
         info->has_total_time = true;
         info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) -
@@ -2844,6 +2848,10 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 
     if ((!pending_size || pending_size < s->threshold_size) && can_switchover) {
         trace_migration_thread_low_pending(pending_size);
+        if (s->threshold_size) {
+            s->expected_downtime = (pending_size * s->parameters.downtime_limit) /
+                                   s->threshold_size;
+        }
         migration_completion(s);
         return MIG_ITERATE_BREAK;
     }
