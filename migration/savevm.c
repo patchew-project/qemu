@@ -1468,6 +1468,7 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
         }
     }
 
+    migration_set_timestamp(MIGRATION_DOWNTIME_PRECOPY_ITERABLE);
     return 0;
 }
 
@@ -1524,6 +1525,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
     json_writer_free(vmdesc);
     ms->vmdesc = NULL;
 
+    migration_set_timestamp(MIGRATION_DOWNTIME_PRECOPY_NONITERABLE);
     return 0;
 }
 

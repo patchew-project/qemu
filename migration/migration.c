@@ -2348,6 +2348,8 @@ static void migration_completion(MigrationState *s)
 
         ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
         trace_migration_completion_vm_stop(ret);
+        migration_set_timestamp(MIGRATION_DOWNTIME_STOP);
+
         if (ret >= 0) {
             ret = migration_maybe_pause(s, &current_active_state,
                                         MIGRATION_STATUS_DEVICE);
@@ -2401,6 +2403,7 @@ static void migration_completion(MigrationState *s)
         trace_migration_return_path_end_before();
         rp_error = await_return_path_close_on_source(s);
         trace_migration_return_path_end_after(rp_error);
+        migration_set_timestamp(MIGRATION_DOWNTIME_RESUME_RETURN_PATH);
         if (rp_error) {
             goto fail;
         }
@@ -3166,6 +3169,8 @@ static void *bg_migration_thread(void *opaque)
     if (vm_stop_force_state(RUN_STATE_PAUSED)) {
         goto fail;
     }
+    migration_set_timestamp(MIGRATION_DOWNTIME_STOP);
+
     /*
      * Put vCPUs in sync with shadow context structures, then
      * save their state to channel-buffer along with devices.

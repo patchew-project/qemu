@@ -199,10 +199,24 @@
 # @start:Timestamp taken at the start of the switchover right before
 #        we stop the VM.
 #
+# @stop: Timestamp taken after stopping the VM.
+#
+# @precopy-iterable: Timestamp taken after copying all iterable state
+#                    in stop copy phase.
+#
+# @precopy-noniterable: Timestamp taken after copying all non iterable
+#                       state in stop copy phase.
+#
+# @resume-return-path: Timestamp taken after return path has finished
+#                      migration on destination. It is zero if
+#                      'return-path' is not enabled.
+#
 # Since: 8.2
 ##
 { 'enum': 'MigrationDowntime',
-  'data': [ 'start' ] }
+  'data': [ 'start', 'stop', 'precopy-iterable', 'precopy-noniterable',
+            'resume-return-path' ] }
+
 
 ##
 # @MigrationInfo:
