@@ -47,6 +47,7 @@
 #include "util.h"
 #include "migration/register.h"
 #include "migration/qemu-file-types.h"
+#include "migration/vmstate.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {
@@ -659,7 +660,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
      * specific version?
      */
     g_assert(slirp_state_version() == 4);
-    register_savevm_live("slirp", 0, slirp_state_version(),
+    register_savevm_live("slirp", VMSTATE_INSTANCE_ID_ANY, slirp_state_version(),
                          &savevm_slirp_state, s->slirp);
 
     s->poll_notifier.notify = net_slirp_poll_notify;
