@@ -189,6 +189,7 @@ migrate_transferred(uint64_t transferred, uint64_t time_spent, uint64_t bandwidt
 process_incoming_migration_co_end(int ret, int ps) "ret=%d postcopy-state=%d"
 process_incoming_migration_co_postcopy_end_main(void) ""
 postcopy_preempt_enabled(bool value) "%d"
+source_downtime_stats(int64_t downtime, int64_t stop, int64_t iterable, int64_t non_iterable, int64_t resume_rp) "downtime %"PRIi64": stop %"PRIi64" iterable %"PRIi64" non_iterable %"PRIi64" resume-rp %"PRIi64
 
 # migration-stats
 migration_transferred_bytes(uint64_t qemu_file, uint64_t multifd) "qemu_file %" PRIu64 " multifd %" PRIu64

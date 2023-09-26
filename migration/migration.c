@@ -893,6 +893,34 @@ static bool migrate_show_downtime(MigrationState *s)
     return (s->state == MIGRATION_STATUS_COMPLETED) || migration_in_postcopy();
 }
 
+static int64_t migrate_get_downtime_stop(MigrationState *s)
+{
+    return migration_get_timestamp(MIGRATION_DOWNTIME_STOP) -
+        migration_get_timestamp(MIGRATION_DOWNTIME_START);
+}
+
+static int64_t migrate_get_downtime_precopy_iterable(MigrationState *s)
+{
+    return migration_get_timestamp(MIGRATION_DOWNTIME_PRECOPY_ITERABLE) -
+         migration_get_timestamp(MIGRATION_DOWNTIME_STOP);
+}
+
+static int64_t migrate_get_downtime_precopy_noniterable(MigrationState *s)
+{
+    return migration_get_timestamp(MIGRATION_DOWNTIME_PRECOPY_NONITERABLE) -
+           migration_get_timestamp(MIGRATION_DOWNTIME_PRECOPY_ITERABLE);
+}
+
+static int64_t migrate_get_downtime_resume_rp(MigrationState *s)
+{
+    if (migrate_return_path()) {
+        return migration_get_timestamp(MIGRATION_DOWNTIME_RESUME_RETURN_PATH) -
+               migration_get_timestamp(MIGRATION_DOWNTIME_PRECOPY_NONITERABLE);
+    }
+
+    return 0;
+}
+
 static void populate_time_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_status = true;
@@ -2689,6 +2717,12 @@ static void migration_calculate_complete(MigrationState *s)
          * postcopy, downtime is calculated during postcopy_start().
          */
         s->downtime = end_time - migration_get_timestamp(MIGRATION_DOWNTIME_START);
+
+        trace_source_downtime_stats(s->downtime,
+                                    migrate_get_downtime_stop(s),
+                                    migrate_get_downtime_precopy_iterable(s),
+                                    migrate_get_downtime_precopy_noniterable(s),
+                                    migrate_get_downtime_resume_rp(s));
     }
 
     transfer_time = s->total_time - s->setup_time;
