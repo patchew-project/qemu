@@ -3203,6 +3203,7 @@ Migration
 M: Juan Quintela <quintela@redhat.com>
 R: Peter Xu <peterx@redhat.com>
 R: Leonardo Bras <leobras@redhat.com>
+R: Fabiano Rosas <farosas@suse.de>
 S: Maintained
 F: hw/core/vmstate-if.c
 F: include/hw/vmstate-if.h
