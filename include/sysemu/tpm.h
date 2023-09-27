@@ -17,8 +17,8 @@
 
 #ifdef CONFIG_TPM
 
-int tpm_config_parse(QemuOptsList *opts_list, const char *optarg);
-int tpm_init(void);
+void tpm_config_parse(const char *optarg);
+void tpm_init(void);
 void tpm_cleanup(void);
 
 typedef enum TPMVersion {
