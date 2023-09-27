@@ -331,6 +331,74 @@ STRUCT(drm_version,
        TYPE_ULONG, /* desc_len */
        TYPE_PTRVOID) /* desc */
 
+STRUCT(drm_auth,
+       TYPE_INT) /* magic */
+
+STRUCT(drm_client,
+       TYPE_INT, /* idx */
+       TYPE_INT, /* auth */
+       TYPE_ULONG, /* pid */
+       TYPE_ULONG, /* uid */
+       TYPE_ULONG, /* magic */
+       TYPE_ULONG) /* iocs */
+
+STRUCT(drm_gem_close,
+       TYPE_INT, /* handle */
+       TYPE_INT) /* pad */
+
+STRUCT(drm_get_cap,
+       TYPE_ULONGLONG, /* capability */
+       TYPE_ULONGLONG) /* value */
+
+STRUCT(drm_prime_handle,
+       TYPE_INT, /* handle */
+       TYPE_INT, /* flags */
+       TYPE_INT) /* fd */
+
+STRUCT(drm_syncobj_create,
+       TYPE_INT, /* handle */
+       TYPE_INT) /* flags */
+
+STRUCT(drm_syncobj_destroy,
+       TYPE_INT, /* handle */
+       TYPE_INT) /* pad */
+
+STRUCT(drm_syncobj_handle,
+       TYPE_INT, /* handle */
+       TYPE_INT, /* flags */
+       TYPE_INT, /* fd */
+       TYPE_INT) /* pad */
+
+STRUCT(drm_syncobj_transfer,
+       TYPE_INT, /* src_handle */
+       TYPE_INT, /* dst_handle */
+       TYPE_ULONGLONG, /* src_point */
+       TYPE_ULONGLONG, /* dst_point */
+       TYPE_INT, /* flags */
+       TYPE_INT) /* pad */
+
+STRUCT(drm_syncobj_wait,
+       TYPE_ULONGLONG, /* handles */
+       TYPE_LONGLONG, /* timeout_nsec */
+       TYPE_INT, /* count_handles */
+       TYPE_INT, /* flags */
+       TYPE_INT, /* first_signaled */
+       TYPE_INT) /* pad */
+
+STRUCT(drm_syncobj_timeline_wait,
+       TYPE_ULONGLONG, /* handles */
+       TYPE_ULONGLONG, /* points */
+       TYPE_LONGLONG, /* timeout_nsec */
+       TYPE_INT, /* count_handles */
+       TYPE_INT, /* flags */
+       TYPE_INT, /* first_signaled */
+       TYPE_INT) /* pad */
+
+STRUCT(drm_syncobj_array,
+       TYPE_ULONGLONG, /* handles */
+       TYPE_INT, /* count_handles */
+       TYPE_INT) /* pad */
+
 STRUCT(drm_i915_getparam,
        TYPE_INT, /* param */
        TYPE_PTRVOID) /* value */
