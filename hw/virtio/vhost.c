@@ -44,6 +44,7 @@
 
 static struct vhost_log *vhost_log;
 static struct vhost_log *vhost_log_shm;
+static struct vhost_dev *vhost_log_dev;
 
 static unsigned int used_memslots;
 static QLIST_HEAD(, vhost_dev) vhost_devices =
@@ -124,6 +125,21 @@ bool vhost_dev_has_iommu(struct vhost_dev *dev)
     }
 }
 
+static bool vhost_log_dev_enabled(struct vhost_dev *dev)
+{
+    return dev == vhost_log_dev;
+}
+
+static void vhost_log_set_dev(struct vhost_dev *dev)
+{
+    vhost_log_dev = dev;
+}
+
+static bool vhost_log_dev_is_set(void)
+{
+    return vhost_log_dev != NULL;
+}
+
 static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
                                    MemoryRegionSection *section,
                                    hwaddr first,
@@ -141,13 +157,16 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
     start_addr = MAX(first, start_addr);
     end_addr = MIN(last, end_addr);
 
-    for (i = 0; i < dev->mem->nregions; ++i) {
-        struct vhost_memory_region *reg = dev->mem->regions + i;
-        vhost_dev_sync_region(dev, section, start_addr, end_addr,
-                              reg->guest_phys_addr,
-                              range_get_last(reg->guest_phys_addr,
-                                             reg->memory_size));
+    if (vhost_log_dev_enabled(dev)) {
+        for (i = 0; i < dev->mem->nregions; ++i) {
+            struct vhost_memory_region *reg = dev->mem->regions + i;
+            vhost_dev_sync_region(dev, section, start_addr, end_addr,
+                                  reg->guest_phys_addr,
+                                  range_get_last(reg->guest_phys_addr,
+                                                 reg->memory_size));
+        }
     }
+
     for (i = 0; i < dev->nvqs; ++i) {
         struct vhost_virtqueue *vq = dev->vqs + i;
 
@@ -943,6 +962,19 @@ static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
             goto err_vq;
         }
     }
+
+    /*
+     * During migration devices can't be removed, so we at log start
+     * we select our vhost_device that will scan the memory sections
+     * and skip for the others. This is possible because the log is shared
+     * amongst all vhost devices.
+     */
+    if (enable_log && !vhost_log_dev_is_set()) {
+        vhost_log_set_dev(dev);
+    } else if (!enable_log) {
+        vhost_log_set_dev(NULL);
+    }
+
     return 0;
 err_vq:
     for (; i >= 0; --i) {
