@@ -301,6 +301,10 @@ if gnutls.found()
   endif
 endif
 
+configure_file(input: meson.project_source_root() / 'scripts/analyze-migration.py',
+               output: 'analyze-migration.py',
+               configuration: configuration_data())
+
 qtests = {
   'bios-tables-test': [io, 'boot-sector.c', 'acpi-utils.c', 'tpm-emu.c'],
   'cdrom-test': files('boot-sector.c'),
@@ -355,6 +359,8 @@ foreach dir : target_dirs
     qtest_env.set('QTEST_QEMU_STORAGE_DAEMON_BINARY', './storage-daemon/qemu-storage-daemon')
     test_deps += [qsd]
   endif
+
+  qtest_env.set('PYTHON', python.full_path())
 
   foreach test : target_qtests
     # Executables are shared across targets, declare them only the first time we

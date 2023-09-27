@@ -66,6 +66,8 @@ static bool got_dst_resume;
  */
 #define DIRTYLIMIT_TOLERANCE_RANGE  25  /* MB/s */
 
+#define ANALYZE_SCRIPT "tests/qtest/analyze-migration.py"
+
 #if defined(__linux__)
 #include <sys/syscall.h>
 #include <sys/vfs.h>
@@ -1486,6 +1488,52 @@ static void test_baddest(void)
     test_migrate_end(from, to, false);
 }
 
+#ifndef _WIN32
+static void test_analyze_script(void)
+{
+    MigrateStart args = {};
+    QTestState *from, *to;
+    g_autofree char *uri = NULL;
+    g_autofree char *file = NULL;
+    int pid, wstatus;
+    const char *python = g_getenv("PYTHON");
+
+    if (!python) {
+        g_test_skip("PYTHON variable not set");
+        return;
+    }
+
+    /* dummy url */
+    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
+        return;
+    }
+
+    file = g_strdup_printf("%s/migfile", tmpfs);
+    uri = g_strdup_printf("exec:cat > %s", file);
+
+    migrate_ensure_converge(from);
+    migrate_qmp(from, uri, "{}");
+    wait_for_migration_complete(from);
+
+    pid = fork();
+    if (!pid) {
+        close(1);
+        open("/dev/null", O_WRONLY);
+        execl(python, python, ANALYZE_SCRIPT,
+              "-f", file, NULL);
+        g_assert_not_reached();
+    }
+
+    assert(waitpid(pid, &wstatus, 0) == pid);
+    if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != 0) {
+        g_test_message("Failed to analyze the migration stream");
+        g_test_fail();
+    }
+    test_migrate_end(from, to, false);
+    cleanup("migfile");
+}
+#endif
+
 static void test_precopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
@@ -2828,6 +2876,9 @@ int main(int argc, char **argv)
     }
 
     qtest_add_func("/migration/bad_dest", test_baddest);
+#ifndef _WIN32
+    qtest_add_func("/migration/analyze-script", test_analyze_script);
+#endif
     qtest_add_func("/migration/precopy/unix/plain", test_precopy_unix_plain);
     qtest_add_func("/migration/precopy/unix/xbzrle", test_precopy_unix_xbzrle);
     /*
