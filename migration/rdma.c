@@ -2532,7 +2532,8 @@ static int qemu_get_cm_event_timeout(RDMAContext *rdma,
     }
 }
 
-static int qemu_rdma_connect(RDMAContext *rdma, Error **errp, bool return_path)
+static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
+                             Error **errp)
 {
     RDMACapabilities cap = {
                                 .version = RDMA_CONTROL_VERSION_CURRENT,
@@ -4175,7 +4176,7 @@ void rdma_start_outgoing_migration(void *opaque,
     }
 
     trace_rdma_start_outgoing_migration_after_rdma_source_init();
-    ret = qemu_rdma_connect(rdma, errp, false);
+    ret = qemu_rdma_connect(rdma, false, errp);
 
     if (ret) {
         goto err;
@@ -4196,7 +4197,7 @@ void rdma_start_outgoing_migration(void *opaque,
             goto return_path_err;
         }
 
-        ret = qemu_rdma_connect(rdma_return_path, errp, true);
+        ret = qemu_rdma_connect(rdma_return_path, true, errp);
 
         if (ret) {
             goto return_path_err;
