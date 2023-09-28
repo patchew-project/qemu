@@ -37,6 +37,7 @@
 #include "qemu/datadir.h"
 #include "sysemu/device_tree.h"
 #include "hw/ppc/vof.h"
+#include "audio/audio.h"
 
 #include <libfdt.h>
 
@@ -180,8 +181,11 @@ static void pegasos2_init(MachineState *machine)
     pci_bus_irqs(pci_bus, pegasos2_pci_irq, pm, PCI_NUM_PINS);
 
     /* VIA VT8231 South Bridge (multifunction PCI device) */
-    via = OBJECT(pci_create_simple_multifunction(pci_bus, PCI_DEVFN(12, 0),
-                                                 TYPE_VT8231_ISA));
+    via = OBJECT(pci_new_multifunction(PCI_DEVFN(12, 0), TYPE_VT8231_ISA));
+    if (machine->audiodev) {
+        qdev_prop_set_string(DEVICE(via), "audiodev", machine->audiodev);
+    }
+    pci_realize_and_unref(PCI_DEVICE(via), pci_bus, &error_abort);
     for (i = 0; i < PCI_NUM_PINS; i++) {
         pm->via_pirq[i] = qdev_get_gpio_in_named(DEVICE(via), "pirq", i);
     }
@@ -564,6 +568,8 @@ static void pegasos2_machine_class_init(ObjectClass *oc, void *data)
     vhc->encode_hpt_for_kvm_pr = vhyp_encode_hpt_for_kvm_pr;
 
     vmc->setprop = pegasos2_setprop;
+
+    machine_add_audiodev_property(mc);
 }
 
 static const TypeInfo pegasos2_machine_info = {
