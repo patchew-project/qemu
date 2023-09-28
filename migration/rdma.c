@@ -2852,7 +2852,7 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
     RDMAControlHeader head;
     int ret = 0;
     ssize_t i;
-    size_t done = 0;
+    size_t done = 0, len;
 
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmain);
@@ -2873,9 +2873,9 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
          * were given and dish out the bytes until we run
          * out of bytes.
          */
-        ret = qemu_rdma_fill(rdma, data, want, 0);
-        done += ret;
-        want -= ret;
+        len = qemu_rdma_fill(rdma, data, want, 0);
+        done += len;
+        want -= len;
         /* Got what we needed, so go to next iovec */
         if (want == 0) {
             continue;
@@ -2902,9 +2902,9 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
         /*
          * SEND was received with new bytes, now try again.
          */
-        ret = qemu_rdma_fill(rdma, data, want, 0);
-        done += ret;
-        want -= ret;
+        len = qemu_rdma_fill(rdma, data, want, 0);
+        done += len;
+        want -= len;
 
         /* Still didn't get enough, so lets just return */
         if (want) {
