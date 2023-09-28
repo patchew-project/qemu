@@ -1803,15 +1803,17 @@ static AudioState *audio_init(Audiodev *dev)
     return s;
 }
 
-void AUD_register_card (const char *name, QEMUSoundCard *card)
+bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
 {
     if (!card->state) {
+        if (!QSIMPLEQ_EMPTY(&audiodevs)) {
+            error_setg(errp, "No audiodev specified for %s", name);
+            error_append_hint(errp, "Perhaps you wanted to set audiodev=%s?",
+                              QSIMPLEQ_FIRST(&audiodevs)->dev->id);
+            return false;
+        }
+
         if (!QTAILQ_EMPTY(&audio_states)) {
-            if (!legacy_config) {
-                dolog("Device %s: audiodev default parameter is deprecated, please "
-                      "specify audiodev=%s\n", name,
-                      QTAILQ_FIRST(&audio_states)->dev->id);
-            }
             card->state = QTAILQ_FIRST(&audio_states);
         } else {
             if (QSIMPLEQ_EMPTY(&default_audiodevs)) {
@@ -1824,6 +1826,8 @@ void AUD_register_card (const char *name, QEMUSoundCard *card)
     card->name = g_strdup (name);
     memset (&card->entries, 0, sizeof (card->entries));
     QLIST_INSERT_HEAD(&card->state->card_head, card, entries);
+
+    return true;
 }
 
 void AUD_remove_card (QEMUSoundCard *card)
