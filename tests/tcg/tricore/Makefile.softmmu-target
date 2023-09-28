@@ -6,6 +6,7 @@ LDFLAGS = -T$(TESTS_PATH)/link.ld --mcpu=tc162
 ASFLAGS = -mtc162
 CFLAGS = -mtc162 -c -I$(TESTS_PATH)
 
+TESTS += test_arith.asm.tst
 TESTS += test_abs.asm.tst
 TESTS += test_bmerge.asm.tst
 TESTS += test_clz.asm.tst
@@ -29,7 +30,7 @@ TESTS += test_muls.asm.tst
 TESTS += test_boot_to_main.c.tst
 TESTS += test_context_save_areas.c.tst
 
-QEMU_OPTS += -M tricore_testboard -cpu tc37x -nographic -kernel
+QEMU_OPTS += -M tricore_testboard -cpu tc37x -nographic -d guest_errors -kernel
 
 %.pS: $(ASM_TESTS_PATH)/%.S
 	$(CC) -E -o $@ $<

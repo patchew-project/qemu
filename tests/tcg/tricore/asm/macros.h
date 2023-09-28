@@ -112,6 +112,11 @@ test_ ## num:                                                    \
     insn DREG_CORRECT_RESULT, DREG_RS1;               \
     )
 
+#define TEST_D_I(insn, num, result, imm)      \
+    TEST_CASE(num, DREG_CALC_RESULT, result,  \
+    insn DREG_CALC_RESULT, imm;               \
+    )
+
 #define TEST_D_DDD(insn, num, result, rs1, rs2, rs3)        \
     TEST_CASE(num, DREG_CALC_RESULT, result,                \
     LI(DREG_RS1, rs1);                                      \
@@ -127,6 +132,51 @@ test_ ## num:                                                    \
     LI(DREG_RS2, rs2);                                  \
     rstv;                                               \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2;          \
+    )
+
+#define TEST_D_DI(insn, num, result, rs1, imm1) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,     \
+    LI(DREG_RS1, rs1);                          \
+    rstv;                                       \
+    insn DREG_CALC_RESULT, DREG_RS1, imm1;      \
+    )
+
+#define TEST_D_D15I(insn, num, result, rs1, imm1) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,       \
+    LI(%d15, rs1);                                \
+    rstv;                                         \
+    insn DREG_CALC_RESULT, %d15, imm1;            \
+    )
+
+#define TEST_D15_DD(insn, num, result, rs1, rs2) \
+    TEST_CASE(num, %d15, result,                 \
+    LI(DREG_RS1, rs1);                           \
+    LI(DREG_RS2, rs2);                           \
+    rstv;                                        \
+    insn %d15, DREG_RS1, DREG_RS2;               \
+    )
+
+#define TEST_D15_DI(insn, num, result, rs1, imm) \
+    TEST_CASE(num, %d15, result,                 \
+    LI(DREG_RS1, rs1);                           \
+    rstv;                                        \
+    insn %d15, DREG_RS1, imm;                    \
+    )
+
+#define TEST_D_DD(insn, num, result, rs1, rs2) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,   \
+    LI(DREG_RS1, rs1);                         \
+    LI(DREG_RS2, rs2);                         \
+    rstv;                                      \
+    insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2; \
+    )
+
+#define TEST_D_D15D(insn, num, result, rs1, rs2) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,   \
+    LI(%d15, rs1);                             \
+    LI(DREG_RS2, rs2);                         \
+    rstv;                                      \
+    insn DREG_CALC_RESULT, %d15, DREG_RS2;     \
     )
 
 #define TEST_D_DDD_PSW(insn, num, result, psw, rs1, rs2, rs3) \
