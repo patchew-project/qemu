@@ -34,6 +34,9 @@
 #define EREG_RS2 %e2
 #define EREG_RS2_LO %d2
 #define EREG_RS2_HI %d3
+#define EREG_RS3 %e4
+#define EREG_RS3_LO %d4
+#define EREG_RS3_HI %d5
 #define EREG_CALC_RESULT %e6
 #define EREG_CALC_RESULT_LO %d6
 #define EREG_CALC_RESULT_HI %d7
@@ -131,6 +134,26 @@ test_ ## num:                                                    \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, DREG_RS3; \
     )
 
+#define TEST_D_DDDI(insn, num, result, rs1, rs2, rs3, imm)    \
+    TEST_CASE(num, DREG_CALC_RESULT, result,                  \
+    LI(DREG_RS1, rs1);                                        \
+    LI(DREG_RS2, rs2);                                        \
+    LI(DREG_RS3, rs3);                                        \
+    rstv;                                                     \
+    insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, DREG_RS3, imm; \
+    )
+
+
+#define TEST_D_DDE(insn, num, result, rs1, rs2, rs3_lo, rs3_hi) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,                    \
+    LI(DREG_RS1, rs1);                                          \
+    LI(DREG_RS2, rs2);                                          \
+    LI(EREG_RS3_LO, rs3_lo);                                    \
+    LI(EREG_RS3_HI, rs3_hi);                                    \
+    rstv;                                                       \
+    insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, EREG_RS3;        \
+    )
+
 #define TEST_D_DD_PSW(insn, num, result, psw, rs1, rs2) \
     TEST_CASE_PSW(num, DREG_CALC_RESULT, result, psw,   \
     LI(DREG_RS1, rs1);                                  \
@@ -209,6 +232,12 @@ test_ ## num:                                                    \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, imm;           \
     )
 
+#define TEST_E_DII(insn, num, res_lo, res_hi, rs1, imm1, imm2) \
+    TEST_CASE_E(num, res_lo, res_hi,                           \
+    LI(DREG_RS1, rs1);                                         \
+    insn EREG_CALC_RESULT, DREG_RS1, imm1, imm2;               \
+    )
+
 #define TEST_D_DIDI(insn, num, result, rs1, imm1, rs2, imm2) \
     TEST_CASE(num, DREG_CALC_RESULT, result,                 \
     LI(DREG_RS1, rs1);                                       \
@@ -247,7 +276,7 @@ test_ ## num:                                                    \
     insn EREG_CALC_RESULT, DREG_RS1;             \
     )
 
-#define TEST_E_ED(insn, num, res_hi, res_lo, rs1_hi, rs1_lo, rs2) \
+#define TEST_E_ED(insn, num, res_lo, res_hi, rs1_lo, rs1_hi, rs2) \
     TEST_CASE_E(num, res_lo, res_hi,                              \
     LI(EREG_RS1_LO, rs1_lo);                                      \
     LI(EREG_RS1_HI, rs1_hi);                                      \
@@ -255,14 +284,32 @@ test_ ## num:                                                    \
     insn EREG_CALC_RESULT, EREG_RS1, DREG_RS2;                    \
     )
 
-#define TEST_E_IDI(insn, num, res_hi, res_lo, imm1, rs1, imm2) \
+#define TEST_E_IDI(insn, num, res_lo, res_hi, imm1, rs1, imm2) \
     TEST_CASE_E(num, res_lo, res_hi,                           \
     LI(DREG_RS1, rs1);                                         \
     rstv;                                                      \
     insn EREG_CALC_RESULT, imm1, DREG_RS1, imm2;               \
     )
 
+#define TEST_E_DD(insn, num, res_lo, res_hi, rs1, rs2) \
+    TEST_CASE_E(num, res_lo, res_hi,                   \
+    LI(DREG_RS1, rs1);                                 \
+    LI(DREG_RS2, rs2);                                 \
+    insn EREG_CALC_RESULT, DREG_RS1, DREG_RS2;         \
+    )
 
+#define TEST_E_DDI(insn, num, res_lo, res_hi, rs1, rs2, imm) \
+    TEST_CASE_E(num, res_lo, res_hi,                         \
+    LI(DREG_RS1, rs1);                                       \
+    LI(DREG_RS2, rs2);                                       \
+    insn EREG_CALC_RESULT, DREG_RS1, DREG_RS2, imm;          \
+    )
+
+#define TEST_E_III(insn, num, res_lo, res_hi, imm1, imm2, imm3) \
+    TEST_CASE_E(num, res_lo, res_hi,                            \
+    rstv;                                                       \
+    insn EREG_CALC_RESULT, imm1, imm2, imm3;                    \
+    )
 
 /* Pass/Fail handling part */
 #define TEST_PASSFAIL                       \
