@@ -1806,10 +1806,12 @@ static AudioState *audio_init(Audiodev *dev)
 bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
 {
     if (!card->state) {
-        if (!QSIMPLEQ_EMPTY(&audiodevs)) {
+        if (!QSIMPLEQ_EMPTY(&audiodevs) || !defaults_enabled()) {
             error_setg(errp, "No audiodev specified for %s", name);
-            error_append_hint(errp, "Perhaps you wanted to set audiodev=%s?",
-                              QSIMPLEQ_FIRST(&audiodevs)->dev->id);
+            if (!QSIMPLEQ_EMPTY(&audiodevs)) {
+                error_append_hint(errp, "Perhaps you wanted to set audiodev=%s?",
+                                  QSIMPLEQ_FIRST(&audiodevs)->dev->id);
+            }
             return false;
         }
 
