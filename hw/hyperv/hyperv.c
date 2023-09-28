@@ -588,7 +588,7 @@ uint16_t hyperv_hcall_post_message(uint64_t param, bool fast)
 
     len = sizeof(*msg);
     msg = cpu_physical_memory_map(param, &len, 0);
-    if (len < sizeof(*msg)) {
+    if (!msg || len < sizeof(*msg)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto unmap;
     }
