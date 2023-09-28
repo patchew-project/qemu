@@ -2535,7 +2535,11 @@ static int qemu_get_cm_event_timeout(RDMAContext *rdma,
         ERROR(errp, "failed to poll cm event, errno=%i", errno);
         return -1;
     } else if (poll_fd.revents & POLLIN) {
-        return rdma_get_cm_event(rdma->channel, cm_event);
+        if (rdma_get_cm_event(rdma->channel, cm_event) < 0) {
+            ERROR(errp, "failed to get cm event");
+            return -1;
+        }
+        return 0;
     } else {
         ERROR(errp, "no POLLIN event, revent=%x", poll_fd.revents);
         return -1;
@@ -2585,6 +2589,9 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
         ret = qemu_get_cm_event_timeout(rdma, &cm_event, 5000, errp);
     } else {
         ret = rdma_get_cm_event(rdma->channel, &cm_event);
+        if (ret < 0) {
+            ERROR(errp, "failed to get cm event");
+        }
     }
     if (ret) {
         /*
@@ -2593,7 +2600,6 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
          * Will go away later in this series.
          */
         perror("rdma_get_cm_event after rdma_connect");
-        ERROR(errp, "connecting to destination!");
         goto err_rdma_source_connect;
     }
 
