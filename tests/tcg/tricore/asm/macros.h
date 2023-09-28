@@ -143,6 +143,14 @@ test_ ## num:                                                    \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, DREG_RS3, imm; \
     )
 
+#define TEST_D_ED(insn, num, result, rs1_lo, rs1_hi, rs2) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,              \
+    LI(EREG_RS1_LO, rs1_lo);                              \
+    LI(EREG_RS1_HI, rs1_hi);                              \
+    LI(DREG_RS2, rs2);                                    \
+    rstv;                                                 \
+    insn DREG_CALC_RESULT, EREG_RS1, DREG_RS2;            \
+    )
 
 #define TEST_D_DDE(insn, num, result, rs1, rs2, rs3_lo, rs3_hi) \
     TEST_CASE(num, DREG_CALC_RESULT, result,                    \
@@ -282,6 +290,11 @@ test_ ## num:                                                    \
     LI(EREG_RS1_HI, rs1_hi);                                      \
     LI(DREG_RS2, rs2);                                            \
     insn EREG_CALC_RESULT, EREG_RS1, DREG_RS2;                    \
+    )
+
+#define TEST_E_I(insn, num, res_lo, res_hi, imm) \
+    TEST_CASE_E(num, res_lo, res_hi,             \
+    insn EREG_CALC_RESULT, imm;                  \
     )
 
 #define TEST_E_IDI(insn, num, res_lo, res_hi, imm1, rs1, imm2) \
