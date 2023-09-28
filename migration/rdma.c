@@ -1978,7 +1978,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
  * control-channel message.
  */
 static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
-                                   uint32_t expecting)
+                                   uint32_t expecting, Error **errp)
 {
     RDMAControlHeader ready = {
                                 .len = 0,
@@ -1993,7 +1993,7 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
     ret = qemu_rdma_post_send_control(rdma, NULL, &ready);
 
     if (ret < 0) {
-        error_report("Failed to send control buffer!");
+        error_setg(errp, "Failed to send control buffer!");
         return -1;
     }
 
@@ -2004,6 +2004,7 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
                                           expecting, RDMA_WRID_READY);
 
     if (ret < 0) {
+        error_setg(errp, "FIXME temporary error message");
         return -1;
     }
 
@@ -2014,7 +2015,7 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
      */
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
     if (ret < 0) {
-        error_report("rdma migration: error posting second control recv!");
+        error_setg(errp, "rdma migration: error posting second control recv!");
         return -1;
     }
 
@@ -2938,11 +2939,11 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
         /* We've got nothing at all, so lets wait for
          * more to arrive
          */
-        ret = qemu_rdma_exchange_recv(rdma, &head, RDMA_CONTROL_QEMU_FILE);
+        ret = qemu_rdma_exchange_recv(rdma, &head, RDMA_CONTROL_QEMU_FILE,
+                                      errp);
 
         if (ret < 0) {
             rdma->errored = true;
-            error_setg(errp, "qemu_rdma_exchange_recv failed");
             return -1;
         }
 
@@ -3567,6 +3568,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
     RDMAControlHeader blocks = { .type = RDMA_CONTROL_RAM_BLOCKS_RESULT,
                                  .repeat = 1 };
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
+    Error *err = NULL;
     RDMAContext *rdma;
     RDMALocalBlocks *local;
     RDMAControlHeader head;
@@ -3596,9 +3598,10 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
     do {
         trace_qemu_rdma_registration_handle_wait();
 
-        ret = qemu_rdma_exchange_recv(rdma, &head, RDMA_CONTROL_NONE);
+        ret = qemu_rdma_exchange_recv(rdma, &head, RDMA_CONTROL_NONE, &err);
 
         if (ret < 0) {
+            error_report_err(err);
             break;
         }
 
