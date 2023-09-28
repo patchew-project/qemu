@@ -3250,12 +3250,11 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
     rdma = qatomic_rcu_read(&rioc->rdmaout);
 
     if (!rdma) {
-        return -EIO;
+        return -1;
     }
 
-    ret = check_error_state(rdma);
-    if (ret) {
-        return ret;
+    if (check_error_state(rdma)) {
+        return -1;
     }
 
     qemu_fflush(f);
@@ -3321,9 +3320,10 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
     }
 
     return RAM_SAVE_CONTROL_DELAYED;
+
 err:
     rdma->error_state = ret;
-    return ret;
+    return -1;
 }
 
 static void rdma_accept_incoming_migration(void *opaque);
@@ -3569,12 +3569,11 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
     rdma = qatomic_rcu_read(&rioc->rdmain);
 
     if (!rdma) {
-        return -EIO;
+        return -1;
     }
 
-    ret = check_error_state(rdma);
-    if (ret) {
-        return ret;
+    if (check_error_state(rdma)) {
+        return -1;
     }
 
     local = &rdma->local_ram_blocks;
@@ -3607,7 +3606,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                              (unsigned int)comp->block_idx,
                              rdma->local_ram_blocks.nb_blocks);
                 ret = -EIO;
-                goto out;
+                goto err;
             }
             block = &(rdma->local_ram_blocks.block[comp->block_idx]);
 
@@ -3619,7 +3618,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
 
         case RDMA_CONTROL_REGISTER_FINISHED:
             trace_qemu_rdma_registration_handle_finished();
-            goto out;
+            return 0;
 
         case RDMA_CONTROL_RAM_BLOCKS_REQUEST:
             trace_qemu_rdma_registration_handle_ram_blocks();
@@ -3640,7 +3639,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                 if (ret) {
                     error_report("rdma migration: error dest "
                                     "registering ram blocks");
-                    goto out;
+                    goto err;
                 }
             }
 
@@ -3679,7 +3678,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
 
             if (ret < 0) {
                 error_report("rdma migration: error sending remote info");
-                goto out;
+                goto err;
             }
 
             break;
@@ -3706,7 +3705,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                                  (unsigned int)reg->current_index,
                                  rdma->local_ram_blocks.nb_blocks);
                     ret = -ENOENT;
-                    goto out;
+                    goto err;
                 }
                 block = &(rdma->local_ram_blocks.block[reg->current_index]);
                 if (block->is_ram_block) {
@@ -3716,7 +3715,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                             block->block_name, block->offset,
                             reg->key.current_addr);
                         ret = -ERANGE;
-                        goto out;
+                        goto err;
                     }
                     host_addr = (block->local_host_addr +
                                 (reg->key.current_addr - block->offset));
@@ -3732,7 +3731,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                             " chunk: %" PRIx64,
                             block->block_name, reg->key.chunk);
                         ret = -ERANGE;
-                        goto out;
+                        goto err;
                     }
                 }
                 chunk_start = ram_chunk_start(block, chunk);
@@ -3744,7 +3743,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                             chunk, chunk_start, chunk_end)) {
                     error_report("cannot get rkey");
                     ret = -EINVAL;
-                    goto out;
+                    goto err;
                 }
                 reg_result->rkey = tmp_rkey;
 
@@ -3761,7 +3760,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
 
             if (ret < 0) {
                 error_report("Failed to send control buffer");
-                goto out;
+                goto err;
             }
             break;
         case RDMA_CONTROL_UNREGISTER_REQUEST:
@@ -3784,7 +3783,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
                 if (ret != 0) {
                     perror("rdma unregistration chunk failed");
                     ret = -ret;
-                    goto out;
+                    goto err;
                 }
 
                 rdma->total_registrations--;
@@ -3797,24 +3796,23 @@ static int qemu_rdma_registration_handle(QEMUFile *f)
 
             if (ret < 0) {
                 error_report("Failed to send control buffer");
-                goto out;
+                goto err;
             }
             break;
         case RDMA_CONTROL_REGISTER_RESULT:
             error_report("Invalid RESULT message at dest.");
             ret = -EIO;
-            goto out;
+            goto err;
         default:
             error_report("Unknown control message %s", control_desc(head.type));
             ret = -EIO;
-            goto out;
+            goto err;
         }
     } while (1);
-out:
-    if (ret < 0) {
-        rdma->error_state = ret;
-    }
-    return ret;
+
+err:
+    rdma->error_state = ret;
+    return -1;
 }
 
 /* Destination:
@@ -3836,7 +3834,7 @@ rdma_block_notification_handle(QEMUFile *f, const char *name)
     rdma = qatomic_rcu_read(&rioc->rdmain);
 
     if (!rdma) {
-        return -EIO;
+        return -1;
     }
 
     /* Find the matching RAMBlock in our local list */
@@ -3849,7 +3847,7 @@ rdma_block_notification_handle(QEMUFile *f, const char *name)
 
     if (found == -1) {
         error_report("RAMBlock '%s' not found on destination", name);
-        return -ENOENT;
+        return -1;
     }
 
     rdma->local_ram_blocks.block[curr].src_index = rdma->next_src_index;
@@ -3879,7 +3877,6 @@ static int qemu_rdma_registration_start(QEMUFile *f,
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     RDMAContext *rdma;
-    int ret;
 
     if (migration_in_postcopy()) {
         return 0;
@@ -3888,12 +3885,11 @@ static int qemu_rdma_registration_start(QEMUFile *f,
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
-        return -EIO;
+        return -1;
     }
 
-    ret = check_error_state(rdma);
-    if (ret) {
-        return ret;
+    if (check_error_state(rdma)) {
+        return -1;
     }
 
     trace_qemu_rdma_registration_start(flags);
@@ -3922,12 +3918,11 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
-        return -EIO;
+        return -1;
     }
 
-    ret = check_error_state(rdma);
-    if (ret) {
-        return ret;
+    if (check_error_state(rdma)) {
+        return -1;
     }
 
     qemu_fflush(f);
@@ -3958,7 +3953,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
                     qemu_rdma_reg_whole_ram_blocks : NULL);
         if (ret < 0) {
             fprintf(stderr, "receiving remote info!");
-            return ret;
+            return -1;
         }
 
         nb_dest_blocks = resp.len / sizeof(RDMADestBlock);
@@ -3981,7 +3976,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
                     "not identical on both the source and destination.",
                     local->nb_blocks, nb_dest_blocks);
             rdma->error_state = -EINVAL;
-            return -EINVAL;
+            return -1;
         }
 
         qemu_rdma_move_header(rdma, reg_result_idx, &resp);
@@ -3997,7 +3992,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
                         local->block[i].length,
                         rdma->dest_blocks[i].length);
                 rdma->error_state = -EINVAL;
-                return -EINVAL;
+                return -1;
             }
             local->block[i].remote_host_addr =
                     rdma->dest_blocks[i].remote_host_addr;
@@ -4017,7 +4012,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
     return 0;
 err:
     rdma->error_state = ret;
-    return ret;
+    return -1;
 }
 
 static const QEMUFileHooks rdma_read_hooks = {
