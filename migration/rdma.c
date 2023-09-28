@@ -3352,6 +3352,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
 
     if (cm_event->event != RDMA_CM_EVENT_CONNECT_REQUEST) {
         rdma_ack_cm_event(cm_event);
+        ret = -1;
         goto err_rdma_dest_wait;
     }
 
@@ -3364,6 +3365,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         rdma_return_path = qemu_rdma_data_init(rdma->host_port, NULL);
         if (rdma_return_path == NULL) {
             rdma_ack_cm_event(cm_event);
+            ret = -1;
             goto err_rdma_dest_wait;
         }
 
@@ -3375,10 +3377,11 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     network_to_caps(&cap);
 
     if (cap.version < 1 || cap.version > RDMA_CONTROL_VERSION_CURRENT) {
-            error_report("Unknown source RDMA version: %d, bailing...",
-                            cap.version);
-            rdma_ack_cm_event(cm_event);
-            goto err_rdma_dest_wait;
+        error_report("Unknown source RDMA version: %d, bailing...",
+                     cap.version);
+        rdma_ack_cm_event(cm_event);
+        ret = -1;
+        goto err_rdma_dest_wait;
     }
 
     /*
@@ -3408,9 +3411,10 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     if (!rdma->verbs) {
         rdma->verbs = verbs;
     } else if (rdma->verbs != verbs) {
-            error_report("ibv context not matching %p, %p!", rdma->verbs,
-                         verbs);
-            goto err_rdma_dest_wait;
+        error_report("ibv context not matching %p, %p!", rdma->verbs,
+                     verbs);
+        ret = -1;
+        goto err_rdma_dest_wait;
     }
 
     qemu_rdma_dump_id("dest_init", verbs);
@@ -3467,6 +3471,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     if (cm_event->event != RDMA_CM_EVENT_ESTABLISHED) {
         error_report("rdma_accept not event established");
         rdma_ack_cm_event(cm_event);
+        ret = -1;
         goto err_rdma_dest_wait;
     }
 
