@@ -317,8 +317,11 @@ R: Daniel Henrique Barboza <dbarboza@ventanamicro.com>
 R: Liu Zhiwei <zhiwei_liu@linux.alibaba.com>
 L: qemu-riscv@nongnu.org
 S: Supported
+F: configs/targets/riscv*
+F: docs/system/target-riscv.rst
 F: target/riscv/
 F: hw/riscv/
+F: hw/intc/riscv*
 F: include/hw/riscv/
 F: linux-user/host/riscv32/
 F: linux-user/host/riscv64/
@@ -330,6 +333,7 @@ L: qemu-riscv@nongnu.org
 S: Supported
 F: target/riscv/insn_trans/trans_xthead.c.inc
 F: target/riscv/xthead*.decode
+F: disas/riscv-xthead*
 
 RISC-V XVentanaCondOps extension
 M: Philipp Tomsich <philipp.tomsich@vrull.eu>
@@ -337,6 +341,7 @@ L: qemu-riscv@nongnu.org
 S: Maintained
 F: target/riscv/XVentanaCondOps.decode
 F: target/riscv/insn_trans/trans_xventanacondops.c.inc
+F: disas/riscv-xventana*
 
 RENESAS RX CPUs
 R: Yoshinori Sato <ysato@users.sourceforge.jp>
@@ -1518,6 +1523,7 @@ Microchip PolarFire SoC Icicle Kit
 M: Bin Meng <bin.meng@windriver.com>
 L: qemu-riscv@nongnu.org
 S: Supported
+F: docs/system/riscv/microchip-icicle-kit.rst
 F: hw/riscv/microchip_pfsoc.c
 F: hw/char/mchp_pfsoc_mmuart.c
 F: hw/misc/mchp_pfsoc_dmc.c
@@ -1533,6 +1539,7 @@ Shakti C class SoC
 M: Vijai Kumar K <vijai@behindbytes.com>
 L: qemu-riscv@nongnu.org
 S: Supported
+F: docs/system/riscv/shakti-c.rst
 F: hw/riscv/shakti_c.c
 F: hw/char/shakti_uart.c
 F: include/hw/riscv/shakti_c.h
@@ -1544,6 +1551,7 @@ M: Bin Meng <bin.meng@windriver.com>
 M: Palmer Dabbelt <palmer@dabbelt.com>
 L: qemu-riscv@nongnu.org
 S: Supported
+F: docs/system/riscv/sifive_u.rst
 F: hw/*/*sifive*.c
 F: include/hw/*/*sifive*.h
 
@@ -3543,7 +3551,7 @@ M: Alistair Francis <Alistair.Francis@wdc.com>
 L: qemu-riscv@nongnu.org
 S: Maintained
 F: tcg/riscv/
-F: disas/riscv.c
+F: disas/riscv.[ch]
 
 S390 TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
