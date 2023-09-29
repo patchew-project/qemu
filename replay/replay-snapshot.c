@@ -75,6 +75,7 @@ void replay_vmstate_init(void)
 
     if (replay_snapshot) {
         if (replay_mode == REPLAY_MODE_RECORD) {
+            replay_state.current_icount = replay_get_current_icount();
             if (!save_snapshot(replay_snapshot,
                                true, NULL, false, NULL, &err)) {
                 error_report_err(err);
