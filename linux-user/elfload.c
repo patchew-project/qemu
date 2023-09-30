@@ -1886,6 +1886,8 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE 4096
 
+#define VDSO_HEADER "vdso.c.inc"
+
 #endif /* TARGET_S390X */
 
 #ifdef TARGET_RISCV
