@@ -28,6 +28,7 @@
 #include "ui/console.h"
 #include "target/m68k/cpu.h"
 #include "migration/vmstate.h"
+#include "net/net.h"
 
 /* #define DEBUG_NEXT */
 #ifdef DEBUG_NEXT
@@ -908,6 +909,32 @@ static void next_escc_init(DeviceState *pcdev)
     sysbus_mmio_map(s, 0, 0x2118000);
 }
 
+static void nextnet_init(DeviceState *pcdev)
+{
+    DeviceState *dev;
+    SysBusDevice *sbd;
+    NICInfo *ni = &nd_table[0];
+    int i;
+
+    dev = qdev_new(TYPE_NEXT_NET);
+    if (ni->used) {
+        qemu_check_nic_model(ni, TYPE_NEXT_NET);
+        qdev_set_nic_properties(dev, ni);
+    }
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(sbd, 0, 0x02000110);
+    sysbus_mmio_map(sbd, 1, 0x02004100);
+    sysbus_mmio_map(sbd, 2, 0x02004310);
+    sysbus_mmio_map(sbd, 3, 0x02106000);
+
+    /* Set up TX/RX and DMA irqs */
+    for (i = 0; i < NEXTNET_NUM_IRQS; i++) {
+        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(pcdev, NEXTNET_TX_I_DMA +i));
+    }
+}
+
 static void next_pc_reset(DeviceState *dev)
 {
     NeXTPC *s = NEXT_PC(dev);
@@ -1081,14 +1108,15 @@ static void next_cube_init(MachineState *machine)
     /* Serial */
     next_escc_init(pcdev);
 
-    /* TODO: */
-    /* Network */
     /* SCSI */
     next_scsi_init(pcdev, cpu);
 
     /* DMA */
     memory_region_init_io(dmamem, NULL, &dma_ops, machine, "next.dma", 0x5000);
     memory_region_add_subregion(sysmem, 0x02000000, dmamem);
+
+    /* Network */
+    nextnet_init(pcdev);
 }
 
 static void next_machine_class_init(ObjectClass *oc, void *data)
