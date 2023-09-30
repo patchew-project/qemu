@@ -962,7 +962,7 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
                 (s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
             /* Data out.  */
             qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
-            s->rregs[ESP_FIFO] = 0;
+            s->rregs[ESP_FIFO] = esp_fifo_pop(&s->fifo);
         } else {
             if ((s->rregs[ESP_RSTAT] & 0x7) == STAT_DI) {
                 if (s->ti_size) {
