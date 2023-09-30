@@ -589,8 +589,6 @@ static const MemoryRegionOps scr_ops = {
 
 #define NEXTDMA_SCSI(x)      (0x10 + x)
 #define NEXTDMA_FD(x)        (0x10 + x)
-#define NEXTDMA_ENTX(x)      (0x110 + x)
-#define NEXTDMA_ENRX(x)      (0x150 + x)
 #define NEXTDMA_CSR          0x0
 #define NEXTDMA_NEXT         0x4000
 #define NEXTDMA_LIMIT        0x4004
@@ -605,37 +603,6 @@ static void dma_writel(void *opaque, hwaddr addr, uint64_t value,
     NeXTState *next_state = NEXT_MACHINE(opaque);
 
     switch (addr) {
-    case NEXTDMA_ENRX(NEXTDMA_CSR):
-        if (value & DMA_DEV2M) {
-            next_state->dma[NEXTDMA_ENRX].csr |= DMA_DEV2M;
-        }
-
-        if (value & DMA_SETENABLE) {
-            /* DPRINTF("SCSI DMA ENABLE\n"); */
-            next_state->dma[NEXTDMA_ENRX].csr |= DMA_ENABLE;
-        }
-        if (value & DMA_SETSUPDATE) {
-            next_state->dma[NEXTDMA_ENRX].csr |= DMA_SUPDATE;
-        }
-        if (value & DMA_CLRCOMPLETE) {
-            next_state->dma[NEXTDMA_ENRX].csr &= ~DMA_COMPLETE;
-        }
-
-        if (value & DMA_RESET) {
-            next_state->dma[NEXTDMA_ENRX].csr &= ~(DMA_COMPLETE | DMA_SUPDATE |
-                                                  DMA_ENABLE | DMA_DEV2M);
-        }
-        /* DPRINTF("RXCSR \tWrite: %x\n",value); */
-        break;
-    case NEXTDMA_ENRX(NEXTDMA_NEXT_INIT):
-        next_state->dma[NEXTDMA_ENRX].next_initbuf = value;
-        break;
-    case NEXTDMA_ENRX(NEXTDMA_NEXT):
-        next_state->dma[NEXTDMA_ENRX].next = value;
-        break;
-    case NEXTDMA_ENRX(NEXTDMA_LIMIT):
-        next_state->dma[NEXTDMA_ENRX].limit = value;
-        break;
     case NEXTDMA_SCSI(NEXTDMA_CSR):
         if (value & DMA_DEV2M) {
             next_state->dma[NEXTDMA_SCSI].csr |= DMA_DEV2M;
@@ -692,15 +659,6 @@ static uint64_t dma_readl(void *opaque, hwaddr addr, unsigned int size)
     case NEXTDMA_SCSI(NEXTDMA_CSR):
         DPRINTF("SCSI DMA CSR READ\n");
         return next_state->dma[NEXTDMA_SCSI].csr;
-    case NEXTDMA_ENRX(NEXTDMA_CSR):
-        return next_state->dma[NEXTDMA_ENRX].csr;
-    case NEXTDMA_ENRX(NEXTDMA_NEXT_INIT):
-        return next_state->dma[NEXTDMA_ENRX].next_initbuf;
-    case NEXTDMA_ENRX(NEXTDMA_NEXT):
-        return next_state->dma[NEXTDMA_ENRX].next;
-    case NEXTDMA_ENRX(NEXTDMA_LIMIT):
-        return next_state->dma[NEXTDMA_ENRX].limit;
-
     case NEXTDMA_SCSI(NEXTDMA_NEXT):
         return next_state->dma[NEXTDMA_SCSI].next;
     case NEXTDMA_SCSI(NEXTDMA_NEXT_INIT):
