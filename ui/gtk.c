@@ -724,18 +724,32 @@ static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
 
 static void gd_set_ui_refresh_rate(VirtualConsole *vc, int refresh_rate)
 {
+    const QemuUIInfo *p_info;
     QemuUIInfo info;
 
-    info = *dpy_get_ui_info(vc->gfx.dcl.con);
+    p_info = dpy_get_ui_info(vc->gfx.dcl.con);
+    if (!p_info) {
+        /* not supported by guest */
+        return;
+    }
+
+    info = *p_info;
     info.refresh_rate = refresh_rate;
     dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
 }
 
 static void gd_set_ui_size(VirtualConsole *vc, gint width, gint height)
 {
+    const QemuUIInfo *p_info;
     QemuUIInfo info;
 
-    info = *dpy_get_ui_info(vc->gfx.dcl.con);
+    p_info = dpy_get_ui_info(vc->gfx.dcl.con);
+    if (!p_info) {
+        /* not supported by guest */
+        return;
+    }
+
+    info = *p_info;
     info.width = width;
     info.height = height;
     dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
