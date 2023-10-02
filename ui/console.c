@@ -815,7 +815,9 @@ bool dpy_ui_info_supported(const QemuConsole *con)
 
 const QemuUIInfo *dpy_get_ui_info(const QemuConsole *con)
 {
-    assert(dpy_ui_info_supported(con));
+    if (!dpy_ui_info_supported(con)) {
+        return NULL;
+    }
 
     if (con == NULL) {
         con = active_console;
