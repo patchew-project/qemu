@@ -90,7 +90,11 @@ typedef struct BDRVParallelsState {
     Error *migration_blocker;
 } BDRVParallelsState;
 
+int64_t parallels_allocate_host_clusters(BlockDriverState *bs,
+                                         int64_t *clusters);
+
 int parallels_read_format_extension(BlockDriverState *bs,
                                     int64_t ext_off, Error **errp);
+
 
 #endif
