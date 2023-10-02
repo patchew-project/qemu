@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "hw/loader.h"
 #include "hw/display/ramfb.h"
@@ -27,6 +28,8 @@ struct QEMU_PACKED RAMFBCfg {
     uint32_t height;
     uint32_t stride;
 };
+
+typedef struct RAMFBCfg RAMFBCfg;
 
 struct RAMFBState {
     DisplaySurface *ds;
@@ -115,6 +118,23 @@ void ramfb_display_update(QemuConsole *con, RAMFBState *s)
     dpy_gfx_update_full(con);
 }
 
+static int ramfb_post_load(void *opaque, int version_id)
+{
+    ramfb_fw_cfg_write(opaque, 0, 0);
+    return 0;
+}
+
+static const VMStateDescription vmstate_ramfb = {
+    .name = "ramfb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = ramfb_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_BUFFER_UNSAFE(cfg, RAMFBState, 0, sizeof(RAMFBCfg)),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 RAMFBState *ramfb_setup(Error **errp)
 {
     FWCfgState *fw_cfg = fw_cfg_find();
@@ -127,6 +147,7 @@ RAMFBState *ramfb_setup(Error **errp)
 
     s = g_new0(RAMFBState, 1);
 
+    vmstate_register(NULL, 0, &vmstate_ramfb, s);
     rom_add_vga("vgabios-ramfb.bin");
     fw_cfg_add_file_callback(fw_cfg, "etc/ramfb",
                              NULL, ramfb_fw_cfg_write, s,
