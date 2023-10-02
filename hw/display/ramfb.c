@@ -135,7 +135,7 @@ static const VMStateDescription vmstate_ramfb = {
     }
 };
 
-RAMFBState *ramfb_setup(Error **errp)
+RAMFBState *ramfb_setup(bool migrate, Error **errp)
 {
     FWCfgState *fw_cfg = fw_cfg_find();
     RAMFBState *s;
@@ -147,7 +147,9 @@ RAMFBState *ramfb_setup(Error **errp)
 
     s = g_new0(RAMFBState, 1);
 
-    vmstate_register(NULL, 0, &vmstate_ramfb, s);
+    if (migrate) {
+        vmstate_register(NULL, 0, &vmstate_ramfb, s);
+    }
     rom_add_vga("vgabios-ramfb.bin");
     fw_cfg_add_file_callback(fw_cfg, "etc/ramfb",
                              NULL, ramfb_fw_cfg_write, s,

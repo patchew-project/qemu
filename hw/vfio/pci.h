@@ -156,6 +156,7 @@ struct VFIOPCIDevice {
     OnOffAuto display;
     uint32_t display_xres;
     uint32_t display_yres;
+    bool ramfb_migrate;
     int32_t bootindex;
     uint32_t igd_gms;
     OffAutoPCIBAR msix_relo;

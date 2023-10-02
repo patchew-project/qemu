@@ -15,6 +15,7 @@ struct RAMFBStandaloneState {
     SysBusDevice parent_obj;
     QemuConsole *con;
     RAMFBState *state;
+    bool migrate;
 };
 
 static void display_update_wrapper(void *dev)
@@ -37,9 +38,13 @@ static void ramfb_realizefn(DeviceState *dev, Error **errp)
     RAMFBStandaloneState *ramfb = RAMFB(dev);
 
     ramfb->con = graphic_console_init(dev, 0, &wrapper_ops, dev);
-    ramfb->state = ramfb_setup(errp);
+    ramfb->state = ramfb_setup(ramfb->migrate, errp);
 }
 
+static Property ramfb_properties[] = {
+    DEFINE_PROP_BOOL("migrate", RAMFBStandaloneState, migrate,  true),
+    DEFINE_PROP_END_OF_LIST(),
+};
 static void ramfb_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -48,6 +53,7 @@ static void ramfb_class_initfn(ObjectClass *klass, void *data)
     dc->realize = ramfb_realizefn;
     dc->desc = "ram framebuffer standalone device";
     dc->user_creatable = true;
+    device_class_set_props(dc, ramfb_properties);
 }
 
 static const TypeInfo ramfb_info = {

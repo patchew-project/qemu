@@ -3484,6 +3484,7 @@ static const TypeInfo vfio_pci_dev_info = {
 
 static Property vfio_pci_dev_nohotplug_properties[] = {
     DEFINE_PROP_BOOL("ramfb", VFIOPCIDevice, enable_ramfb, false),
+    DEFINE_PROP_BOOL("ramfb-migrate", VFIOPCIDevice, ramfb_migrate,  true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
