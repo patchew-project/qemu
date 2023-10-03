@@ -557,6 +557,27 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         return tb;
     }
 
+    /* Record JIT statistics, if required. */
+    if (unlikely(tb_stats_enabled & TB_STATS_JIT)) {
+        TBStatistics *s = tb->tb_stats;
+        if (s) {
+            s->code.num_tcg_ops += tcg_ctx->orig_nb_ops;
+            s->code.num_tcg_ops_opt += tcg_ctx->nb_ops;
+            s->code.temps += tcg_ctx->nb_temps;
+            s->code.deleted_ops += tcg_ctx->nb_deleted_ops;
+            s->code.spills += tcg_ctx->nb_spills;
+
+            s->code.num_guest_inst += tb->icount;
+            s->code.in_len += tb->size;
+            s->code.out_len += tb->tc.size;
+            s->code.search_out_len += search_size;
+            s->translations.total += 1;
+            if (tb_page_addr1(tb) != -1) {
+                s->translations.spanning += 1;
+            }
+        }
+    }
+
     /*
      * Insert TB into the corresponding region tree before publishing it
      * through QHT. Otherwise rewinding happened in the TB might fail to
