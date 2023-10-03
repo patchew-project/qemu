@@ -564,6 +564,9 @@ struct TCGContext {
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     uint64_t *gen_insn_data;
 
+    /* Used by TBStatistics */
+    int orig_nb_ops;
+
     /* Exit to translator on overflow. */
     sigjmp_buf jmp_trans;
 };

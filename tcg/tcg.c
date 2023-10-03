@@ -5924,6 +5924,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     int i, start_words, num_insns;
     TCGOp *op;
 
+    s->orig_nb_ops = s->nb_ops;
+
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)
                  && qemu_log_in_addr_range(pc_start))) {
         FILE *logfile = qemu_log_trylock();
