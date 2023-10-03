@@ -2608,6 +2608,25 @@ static bool vfio_msix_present(void *opaque, int version_id)
     return msix_present(pdev);
 }
 
+static bool vfio_display_needed(void *opaque)
+{
+    VFIOPCIDevice *vdev = opaque;
+
+    /* the only thing that justifies the VFIODisplay sub-section atm */
+    return vdev->ramfb_migrate != ON_OFF_AUTO_OFF;
+}
+
+const VMStateDescription vmstate_vfio_display = {
+    .name = "VFIOPCIDevice/VFIODisplay",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vfio_display_needed,
+    .fields = (VMStateField[]){
+        VMSTATE_STRUCT_POINTER(dpy, VFIOPCIDevice, vfio_display_vmstate, VFIODisplay),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_vfio_pci_config = {
     .name = "VFIOPCIDevice",
     .version_id = 1,
@@ -2616,6 +2635,10 @@ const VMStateDescription vmstate_vfio_pci_config = {
         VMSTATE_PCI_DEVICE(pdev, VFIOPCIDevice),
         VMSTATE_MSIX_TEST(pdev, VFIOPCIDevice, vfio_msix_present),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_vfio_display,
+        NULL
     }
 };
 
@@ -3275,6 +3298,14 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         if (!vfio_migration_realize(vbasedev, errp)) {
             goto out_deregister;
         }
+        if (vbasedev->enable_migration == ON_OFF_AUTO_OFF) {
+            if (vdev->ramfb_migrate == ON_OFF_AUTO_AUTO) {
+                vdev->ramfb_migrate = ON_OFF_AUTO_OFF;
+            } else if (vdev->ramfb_migrate == ON_OFF_AUTO_ON) {
+                error_setg(errp, "x-ramfb-migrate requires migration");
+                goto out_deregister;
+            }
+        }
     }
 
     vfio_register_err_notifier(vdev);
@@ -3484,6 +3515,7 @@ static const TypeInfo vfio_pci_dev_info = {
 
 static Property vfio_pci_dev_nohotplug_properties[] = {
     DEFINE_PROP_BOOL("ramfb", VFIOPCIDevice, enable_ramfb, false),
+    DEFINE_PROP_ON_OFF_AUTO("x-ramfb-migrate", VFIOPCIDevice, ramfb_migrate, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_END_OF_LIST(),
 };
 

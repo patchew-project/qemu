@@ -542,3 +542,26 @@ void vfio_display_finalize(VFIOPCIDevice *vdev)
     vfio_display_edid_exit(vdev->dpy);
     g_free(vdev->dpy);
 }
+
+static bool migrate_needed(void *opaque)
+{
+    /*
+     * If we are here, it's because vfio_display_needed(), which is only true
+     * when dpy->ramfb_migrate atm.
+     *
+     * If the migration condition is changed, we should check here if
+     * ramfb_migrate is true. (this will need a way to lookup the associated
+     * VFIOPCIDevice somehow, or fields to be moved, ..)
+     */
+    return true;
+}
+
+const VMStateDescription vfio_display_vmstate = {
+    .name = "VFIODisplay",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = migrate_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_POINTER(ramfb, VFIODisplay, ramfb_vmstate, RAMFBState),
+    }
+};
