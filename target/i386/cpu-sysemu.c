@@ -247,7 +247,7 @@ void x86_cpu_machine_reset_cb(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-APICCommonClass *apic_get_class(Error **errp)
+APICCommonClass *apic_get_class(void)
 {
     const char *apic_type = "apic";
 
@@ -266,7 +266,7 @@ APICCommonClass *apic_get_class(Error **errp)
 void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
 {
     APICCommonState *apic;
-    APICCommonClass *apic_class = apic_get_class(errp);
+    APICCommonClass *apic_class = apic_get_class();
 
     cpu->apic_state = DEVICE(object_new_with_class(OBJECT_CLASS(apic_class)));
     object_property_add_child(OBJECT(cpu), "lapic",
