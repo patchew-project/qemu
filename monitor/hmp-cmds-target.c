@@ -120,21 +120,20 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
 }
 
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
-                        hwaddr addr, int is_physical)
+                        hwaddr addr, MonitorDisasSpace space)
 {
     int l, line_size, i, max_digits, len;
     uint8_t buf[16];
     uint64_t v;
     CPUState *cs = mon_get_cpu(mon);
 
-    if (!cs && (format == 'i' || !is_physical)) {
+    if (space == MON_DISAS_GVA || format == 'i') {
         monitor_printf(mon, "Can not dump without CPU\n");
         return;
     }
 
     if (format == 'i') {
-        monitor_disas(mon, cs, addr, count, is_physical);
-        return;
+        monitor_disas(mon, cs, addr, count, space);
     }
 
     len = wsize * count;
@@ -163,15 +162,21 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     }
 
     while (len > 0) {
-        if (is_physical) {
-            monitor_printf(mon, HWADDR_FMT_plx ":", addr);
-        } else {
+        switch (space) {
+        case MON_DISAS_GVA:
             monitor_printf(mon, TARGET_FMT_lx ":", (target_ulong)addr);
+            break;
+        case MON_DISAS_GPA:
+            monitor_printf(mon, HWADDR_FMT_plx ":", addr);
+            break;
+        default:
+            g_assert_not_reached();
         }
         l = len;
-        if (l > line_size)
+        if (l > line_size) {
             l = line_size;
-        if (is_physical) {
+        }
+        if (space == MON_DISAS_GPA) {
             AddressSpace *as = cs ? cs->as : &address_space_memory;
             MemTxResult r = address_space_read(as, addr,
                                                MEMTXATTRS_UNSPECIFIED, buf, l);
@@ -235,7 +240,7 @@ void hmp_memory_dump(Monitor *mon, const QDict *qdict)
     int size = qdict_get_int(qdict, "size");
     target_long addr = qdict_get_int(qdict, "addr");
 
-    memory_dump(mon, count, format, size, addr, 0);
+    memory_dump(mon, count, format, size, addr, MON_DISAS_GVA);
 }
 
 void hmp_physical_memory_dump(Monitor *mon, const QDict *qdict)
@@ -245,7 +250,7 @@ void hmp_physical_memory_dump(Monitor *mon, const QDict *qdict)
     int size = qdict_get_int(qdict, "size");
     hwaddr addr = qdict_get_int(qdict, "addr");
 
-    memory_dump(mon, count, format, size, addr, 1);
+    memory_dump(mon, count, format, size, addr, MON_DISAS_GPA);
 }
 
 void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, uint64_t size, Error **errp)

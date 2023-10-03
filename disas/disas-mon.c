@@ -23,9 +23,27 @@ physical_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
     return res == MEMTX_OK ? 0 : EIO;
 }
 
+static int
+ram_addr_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
+                     struct disassemble_info *info)
+{
+    hwaddr hw_length;
+    void *p;
+
+    RCU_READ_LOCK_GUARD();
+
+    hw_length = length;
+    p = qemu_ram_ptr_length(NULL, memaddr, &hw_length, false);
+    if (hw_length < length) {
+        return EIO;
+    }
+    memcpy(myaddr, p, length);
+    return 0;
+}
+
 /* Disassembler for the monitor.  */
 void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
-                   int nb_insn, bool is_physical)
+                   int nb_insn, MonitorDisasSpace space)
 {
     int count, i;
     CPUDebug s;
@@ -35,8 +53,18 @@ void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
     s.info.fprintf_func = disas_gstring_printf;
     s.info.stream = (FILE *)ds;  /* abuse this slot */
 
-    if (is_physical) {
+    switch (space) {
+    case MON_DISAS_GVA:
+        /* target_read_memory set in disas_initialize_debug_target */
+        break;
+    case MON_DISAS_GPA:
         s.info.read_memory_func = physical_read_memory;
+        break;
+    case MON_DISAS_GRA:
+        s.info.read_memory_func = ram_addr_read_memory;
+        break;
+    default:
+        g_assert_not_reached();
     }
     s.info.buffer_vma = pc;
 

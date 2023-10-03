@@ -5,8 +5,14 @@
 void disas(FILE *out, const void *code, size_t size);
 void target_disas(FILE *out, CPUState *cpu, uint64_t code, size_t size);
 
+typedef enum {
+    MON_DISAS_GVA, /* virtual */
+    MON_DISAS_GPA, /* physical */
+    MON_DISAS_GRA, /* ram_addr_t */
+} MonitorDisasSpace;
+
 void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
-                   int nb_insn, bool is_physical);
+                   int nb_insn, MonitorDisasSpace space);
 
 char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size);
 
