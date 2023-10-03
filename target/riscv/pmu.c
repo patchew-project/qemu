@@ -437,6 +437,13 @@ int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
 void riscv_pmu_init(RISCVCPU *cpu, Error **errp)
 {
     uint8_t pmu_num = cpu->cfg.pmu_num;
+    uint32_t pmu_mask = cpu->cfg.pmu_mask;
+
+    if (pmu_mask && ctpop32(pmu_mask) != pmu_num) {
+        error_setg(errp, "Mismatch between number of enabled counters in "
+                         "\"pmu-mask\" and \"pmu-num\"");
+        return;
+    }
 
     if (pmu_num > (RV_MAX_MHPMCOUNTERS - 3)) {
         error_setg(errp, "Number of counters exceeds maximum available");
@@ -449,6 +456,10 @@ void riscv_pmu_init(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    /* Create a bitmask of available programmable counters */
-    cpu->pmu_avail_ctrs = MAKE_32BIT_MASK(3, pmu_num);
+    /* Create a bitmask of available programmable counters if none supplied */
+    if (pmu_mask) {
+        cpu->pmu_avail_ctrs = pmu_mask;
+    } else {
+        cpu->pmu_avail_ctrs = MAKE_32BIT_MASK(3, pmu_num);
+    }
 }

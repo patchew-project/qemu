@@ -124,6 +124,7 @@ struct RISCVCPUConfig {
     bool ext_XVentanaCondOps;
 
     uint8_t pmu_num;
+    uint32_t pmu_mask;
     char *priv_spec;
     char *user_spec;
     char *bext_spec;
