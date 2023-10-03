@@ -1452,7 +1452,8 @@ SRST
 
         ``discard-no-unref``
             When enabled, discards from the guest will not cause cluster
-            allocations to be relinquished. This prevents qcow2 fragmentation
+            allocations to be relinquished. The same will happen for
+            discards trigged in zeroize. This prevents qcow2 fragmentation
             that would be caused by such discards. Besides potential
             performance degradation, such fragmentation can lead to increased
             allocation of clusters past the end of the image file,
