@@ -22,6 +22,7 @@
 #include "qemu.h"
 #include "user-internals.h"
 #include "qemu/plugin.h"
+#include "tcg/tb-stats.h"
 
 #ifdef CONFIG_GCOV
 extern void __gcov_dump(void);
@@ -30,9 +31,10 @@ extern void __gcov_dump(void);
 void preexit_cleanup(CPUArchState *env, int code)
 {
 #ifdef CONFIG_GCOV
-        __gcov_dump();
+    __gcov_dump();
 #endif
-        gdb_exit(code);
-        qemu_plugin_user_exit();
-        perf_exit();
+    gdb_exit(code);
+    qemu_plugin_user_exit();
+    perf_exit();
+    tb_stats_dump_atexit();
 }

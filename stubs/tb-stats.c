@@ -11,6 +11,10 @@
 #include "qemu/osdep.h"
 #include "tcg/tb-stats.h"
 
-void tb_stats_init(uint32_t flags)
+void tb_stats_init(uint32_t flags, uint32_t atexit)
+{
+}
+
+void tb_stats_dump_atexit(void)
 {
 }

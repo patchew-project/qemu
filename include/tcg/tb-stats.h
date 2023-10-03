@@ -41,11 +41,12 @@ extern uint32_t tb_stats_enabled;
 /**
  * tb_stats_init:
  * @flags: TB_STATS_* flags to enable.
+ * @atexit: count of hottest tbs to log.
  *
  * Initialize translation block statistics, enabling @flags.
  * If @flags is 0, disable all statistics.
  */
-void tb_stats_init(uint32_t flags);
+void tb_stats_init(uint32_t flags, uint32_t atexit);
 
 /*
  * This struct stores statistics such as execution count of the
@@ -153,5 +154,12 @@ gint tb_stats_sort_by_hg(gconstpointer, gconstpointer);
  * @index is included in the output.
  */
 GString *tb_stats_dump(TBStatistics *s, unsigned index);
+
+/**
+ * tb_stats_dump_atexit:
+ *
+ * Log any requested TBs at end of execution.
+ */
+void tb_stats_dump_atexit(void);
 
 #endif /* TCG_TB_STATS_H */

@@ -526,19 +526,31 @@ int qemu_str_to_log_mask(const char *str, Error **errp)
 #ifdef CONFIG_TCG
         } else if (g_str_has_prefix(t, "tb_stats:") && t[9] != '\0') {
             int flags = TB_STATS_NONE;
+            unsigned atexit = 0;
             char *v = t + 9;
+            char *e = strchr(v, ':');
+            size_t len;
 
-            if (g_str_equal(v, "all")) {
+            if (e) {
+                len = e - v;
+                if (qemu_strtoui(e + 1, NULL, 10, &atexit) < 0) {
+                    error_setg(errp, "Invalid -d option \"%s\"", t);
+                    goto error;
+                }
+            } else {
+                len = strlen(v);
+            }
+            if (strncmp(v, "all", len) == 0) {
                 flags = TB_STATS_ALL;
-            } else if (g_str_equal(v, "jit")) {
+            } else if (strncmp(v, "jit", len) == 0) {
                 flags = TB_STATS_JIT;
-            } else if (g_str_equal(v, "exec")) {
+            } else if (strncmp(v, "exec", len) == 0) {
                 flags = TB_STATS_EXEC;
             } else {
                 error_setg(errp, "Invalid -d option \"%s\"", t);
                 goto error;
             }
-            tb_stats_init(flags);
+            tb_stats_init(flags, atexit);
 #endif
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {

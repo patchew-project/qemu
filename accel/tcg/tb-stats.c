@@ -8,10 +8,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/xxhash.h"
+#include "qemu/log.h"
 #include "tcg/tb-stats.h"
 #include "tb-context.h"
 
 uint32_t tb_stats_enabled;
+static uint32_t tb_stats_atexit;
 
 static bool tb_stats_cmp(const void *ap, const void *bp)
 {
@@ -34,7 +36,7 @@ static void tb_stats_free(void *p, uint32_t hash, void *userp)
     g_free(s);
 }
 
-void tb_stats_init(uint32_t flags)
+void tb_stats_init(uint32_t flags, uint32_t atexit)
 {
     tb_stats_enabled = flags;
     if (flags) {
@@ -47,6 +49,14 @@ void tb_stats_init(uint32_t flags)
         tb_ctx.last_search = NULL;
         qht_iter(&tb_ctx.stats, tb_stats_free, NULL);
         qht_destroy(&tb_ctx.stats);
+    }
+
+    /*
+     * This function is also used by HMP, when atexit is 0.
+     * Preserve the value set from the command-line.
+     */
+    if (atexit) {
+        tb_stats_atexit = atexit;
     }
 }
 
@@ -203,4 +213,19 @@ GString *tb_stats_dump(TBStatistics *s, unsigned index)
             (double)s->code.out_len / s->code.num_guest_inst);
     }
     return buf;
+}
+
+void tb_stats_dump_atexit(void)
+{
+    if (tb_stats_enabled && tb_stats_atexit) {
+        g_autoptr(GPtrArray) array =
+            tb_stats_collect(tb_stats_atexit, tb_stats_sort_by_coverage);
+
+        for (uint32_t i = 0, n = array->len; i < n; ++i) {
+            TBStatistics *s = g_ptr_array_index(array, i);
+            g_autoptr(GString) str = tb_stats_dump(s, i);
+
+            qemu_log("%s\n", str->str);
+        }
+    }
 }

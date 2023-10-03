@@ -245,7 +245,7 @@ static void tb_stats_init_safe(CPUState *cpu, run_on_cpu_data icmd)
 {
     uint32_t flags = icmd.host_int;
 
-    tb_stats_init(flags);
+    tb_stats_init(flags, 0);
     tb_flush(cpu);
 }
 
@@ -335,8 +335,10 @@ static void hmp_info_tblist(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    g_ptr_array_unref(tb_ctx.last_search);
-    tb_ctx.last_search = NULL;
+    if (tb_ctx.last_search) {
+        g_ptr_array_unref(tb_ctx.last_search);
+        tb_ctx.last_search = NULL;
+    }
 
     array = tb_stats_collect(max, sort);
     max = array->len;

@@ -21,12 +21,14 @@
 #define BSD_PROC_H_
 
 #include <sys/resource.h>
+#include "tcg/tb-stats.h"
 
 /* exit(2) */
 static inline abi_long do_bsd_exit(void *cpu_env, abi_long arg1)
 {
     gdb_exit(arg1);
     qemu_plugin_user_exit();
+    tb_stats_dump_atexit();
     _exit(arg1);
 
     return 0;
