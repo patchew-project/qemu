@@ -72,7 +72,7 @@ int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
         }
     }
 
-    ps->block = malloc(sizeof(*ps->block) * ps->block_nr);
+    ps->block = g_new(struct pa_block, ps->block_nr);
     if (!ps->block) {
         return 1;
     }
@@ -97,7 +97,7 @@ int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
 void pa_space_destroy(struct pa_space *ps)
 {
     ps->block_nr = 0;
-    free(ps->block);
+    g_free(ps->block);
 }
 
 void va_space_set_dtb(struct va_space *vs, uint64_t dtb)

@@ -120,14 +120,14 @@ static KDDEBUGGER_DATA64 *get_kdbg(uint64_t KernBase, struct pdb_reader *pdb,
         }
     }
 
-    kdbg = malloc(kdbg_hdr.Size);
+    kdbg = g_malloc(kdbg_hdr.Size);
     if (!kdbg) {
         return NULL;
     }
 
     if (va_space_rw(vs, KdDebuggerDataBlock, kdbg, kdbg_hdr.Size, 0)) {
         eprintf("Failed to extract entire KDBG\n");
-        free(kdbg);
+        g_free(kdbg);
         return NULL;
     }
 
@@ -643,7 +643,7 @@ int main(int argc, char *argv[])
     }
 
 out_kdbg:
-    free(kdbg);
+    g_free(kdbg);
 out_pdb:
     pdb_exit(&pdb);
 out_pdb_file:
