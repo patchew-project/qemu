@@ -265,7 +265,6 @@ APICCommonClass *apic_get_class(void)
 
 void x86_cpu_apic_new(X86CPU *cpu)
 {
-    APICCommonState *apic;
     APICCommonClass *apic_class = apic_get_class();
 
     cpu->apic_state = DEVICE(object_new_with_class(OBJECT_CLASS(apic_class)));
@@ -273,11 +272,11 @@ void x86_cpu_apic_new(X86CPU *cpu)
                               OBJECT(cpu->apic_state));
     object_unref(OBJECT(cpu->apic_state));
 
+    object_property_set_link(OBJECT(cpu->apic_state), "cpu",
+                             OBJECT(cpu), &error_abort);
     qdev_prop_set_uint32(cpu->apic_state, "id", cpu->apic_id);
-    /* TODO: convert to link<> */
-    apic = APIC_COMMON(cpu->apic_state);
-    apic->cpu = cpu;
-    apic->apicbase = APIC_DEFAULT_ADDRESS | MSR_IA32_APICBASE_ENABLE;
+    qdev_prop_set_uint32(cpu->apic_state, "base-addr",
+                         APIC_DEFAULT_ADDRESS | MSR_IA32_APICBASE_ENABLE);
 }
 
 void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
