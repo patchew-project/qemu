@@ -129,4 +129,29 @@ void tb_stats_reset_tbs(void);
 TBStatistics *tb_stats_lookup(tb_page_addr_t phys_pc, vaddr pc,
                               uint32_t flags, uint64_t flags2);
 
+/**
+ * tb_stats_collect:
+ * @max: maximum number of results
+ * @sort: sort function
+ *
+ * Collect all TBStatistics and return the first @max items,
+ * as dictated by the sort criteria.
+ */
+GPtrArray *tb_stats_collect(unsigned max, GCompareFunc sort);
+
+/* Sort functions for tb_stats_collect. */
+gint tb_stats_sort_by_spills(gconstpointer, gconstpointer);
+gint tb_stats_sort_by_coverage(gconstpointer, gconstpointer);
+gint tb_stats_sort_by_hg(gconstpointer, gconstpointer);
+
+/**
+ * tb_stats_dump:
+ * @s: structure to dump
+ * @index: label to emit
+ *
+ * Return a string with the rendering of the data in @s;
+ * @index is included in the output.
+ */
+GString *tb_stats_dump(TBStatistics *s, unsigned index);
+
 #endif /* TCG_TB_STATS_H */
