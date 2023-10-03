@@ -65,6 +65,7 @@
 #include "internal-target.h"
 #include "perf.h"
 #include "tcg/insn-start-words.h"
+#include "tcg/tb-stats.h"
 
 TBContext tb_ctx;
 
@@ -352,6 +353,24 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #else
     tcg_ctx->guest_mo = TCG_MO_ALL;
 #endif
+
+    /*
+     * Insert the TB into the corresponding stats structure, if required.
+     * Do this before code generation so that translator_loop can see
+     * the structure address.
+     */
+    tb->tb_stats = NULL;
+    if (unlikely(tb_stats_enabled) && qemu_log_in_addr_range(pc)) {
+        TBStatistics *s = tb_stats_lookup(phys_pc,
+                                          cflags & CF_PCREL ? 0 : pc,
+                                          flags, cs_base);
+        if (s) {
+            tb->tb_stats = s;
+            qemu_mutex_lock(&s->jit_stats_lock);
+            g_ptr_array_add(s->tbs, tb);
+            qemu_mutex_unlock(&s->jit_stats_lock);
+        }
+    }
 
  restart_translate:
     trace_translate_block(tb, pc, tb->tc.ptr);

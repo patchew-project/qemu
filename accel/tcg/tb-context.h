@@ -29,8 +29,8 @@
 typedef struct TBContext TBContext;
 
 struct TBContext {
-
     struct qht htable;
+    struct qht stats;
 
     /* statistics */
     unsigned tb_flush_count;
