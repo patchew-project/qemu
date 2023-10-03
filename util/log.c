@@ -30,6 +30,9 @@
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
 #endif
+#ifdef CONFIG_TCG
+#include "tcg/tb-stats.h"
+#endif
 
 
 typedef struct RCUCloseFILE {
@@ -509,22 +512,41 @@ int qemu_str_to_log_mask(const char *str, Error **errp)
     char **tmp;
 
     for (tmp = parts; tmp && *tmp; tmp++) {
-        if (g_str_equal(*tmp, "all")) {
+        char *t = *tmp;
+
+        if (g_str_equal(t, "all")) {
             for (item = qemu_log_items; item->mask != 0; item++) {
                 mask |= item->mask;
             }
 #ifdef CONFIG_TRACE_LOG
-        } else if (g_str_has_prefix(*tmp, "trace:") && (*tmp)[6] != '\0') {
-            trace_enable_events((*tmp) + 6);
+        } else if (g_str_has_prefix(t, "trace:") && t[6] != '\0') {
+            trace_enable_events(t + 6);
             mask |= LOG_TRACE;
+#endif
+#ifdef CONFIG_TCG
+        } else if (g_str_has_prefix(t, "tb_stats:") && t[9] != '\0') {
+            int flags = TB_STATS_NONE;
+            char *v = t + 9;
+
+            if (g_str_equal(v, "all")) {
+                flags = TB_STATS_ALL;
+            } else if (g_str_equal(v, "jit")) {
+                flags = TB_STATS_JIT;
+            } else if (g_str_equal(v, "exec")) {
+                flags = TB_STATS_EXEC;
+            } else {
+                error_setg(errp, "Invalid -d option \"%s\"", t);
+                goto error;
+            }
+            tb_stats_init(flags);
 #endif
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {
-                if (g_str_equal(*tmp, item->name)) {
+                if (g_str_equal(t, item->name)) {
                     goto found;
                 }
             }
-            error_setg(errp, "Invalid -d option \"%s\"", *tmp);
+            error_setg(errp, "Invalid -d option \"%s\"", t);
             goto error;
         found:
             mask |= item->mask;
@@ -546,6 +568,10 @@ void qemu_print_log_usage(FILE *f)
     for (item = qemu_log_items; item->mask != 0; item++) {
         fprintf(f, "%-15s %s\n", item->name, item->help);
     }
+#ifdef CONFIG_TCG
+    fprintf(f, "tb_stats:WHICH  enable translation block statistics"
+            " (all, exec, jit)\n");
+#endif
 #ifdef CONFIG_TRACE_LOG
     fprintf(f, "trace:PATTERN   enable trace events\n");
     fprintf(f, "\nUse \"-d trace:help\" to get a list of trace events.\n\n");
