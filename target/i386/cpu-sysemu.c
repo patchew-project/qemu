@@ -263,7 +263,7 @@ APICCommonClass *apic_get_class(void)
     return APIC_COMMON_CLASS(object_class_by_name(apic_type));
 }
 
-void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
+void x86_cpu_apic_new(X86CPU *cpu)
 {
     APICCommonState *apic;
     APICCommonClass *apic_class = apic_get_class();

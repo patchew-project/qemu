@@ -7418,10 +7418,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
 
     if (cpu->env.features[FEAT_1_EDX] & CPUID_APIC || ms->smp.cpus > 1) {
-        x86_cpu_apic_create(cpu, &local_err);
-        if (local_err != NULL) {
-            goto out;
-        }
+        x86_cpu_apic_new(cpu);
     }
 #endif
 

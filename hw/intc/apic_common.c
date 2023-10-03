@@ -451,7 +451,7 @@ static void apic_common_class_init(ObjectClass *klass, void *data)
     dc->unrealize = apic_common_unrealize;
     /*
      * Reason: APIC and CPU need to be wired up by
-     * x86_cpu_apic_create()
+     * x86_cpu_apic_new()
      */
     dc->user_creatable = false;
 }

@@ -62,7 +62,7 @@ GuestPanicInformation *x86_cpu_get_crash_info(CPUState *cs);
 void x86_cpu_get_crash_info_qom(Object *obj, Visitor *v,
                                 const char *name, void *opaque, Error **errp);
 
-void x86_cpu_apic_create(X86CPU *cpu, Error **errp);
+void x86_cpu_apic_new(X86CPU *cpu);
 void x86_cpu_apic_realize(X86CPU *cpu, Error **errp);
 void x86_cpu_machine_reset_cb(void *opaque);
 #endif /* !CONFIG_USER_ONLY */
