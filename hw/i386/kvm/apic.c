@@ -228,6 +228,11 @@ static void kvm_apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
 
+    if (!kvm_irqchip_in_kernel()) {
+        error_setg(errp, "KVM does not support userspace APIC");
+        return;
+    }
+
     memory_region_init_io(&s->io_memory, OBJECT(s), &kvm_apic_io_ops, s,
                           "kvm-apic-msi", APIC_SPACE_SIZE);
 
