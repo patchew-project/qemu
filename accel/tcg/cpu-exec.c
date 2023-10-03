@@ -26,6 +26,7 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
+#include "tcg/tb-stats.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
 #include "exec/log.h"
@@ -601,6 +602,11 @@ void cpu_exec_step_atomic(CPUState *cpu)
         }
 
         cpu_exec_enter(cpu);
+
+        if (tb_stats_enabled_for_tb(tb, TB_STATS_EXEC)) {
+            tb->tb_stats->executions.atomic++;
+        }
+
         /* execute the generated code */
         trace_exec_tb(tb, pc);
         cpu_tb_exec(cpu, tb, &tb_exit);
