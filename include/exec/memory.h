@@ -2874,6 +2874,8 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    hwaddr len, hwaddr addr1, hwaddr l,
                                    MemoryRegion *mr);
 void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
+void *qemu_ram_ptr_length(RAMBlock *ram_block, ram_addr_t addr,
+                          hwaddr *size, bool lock);
 
 /* Internal functions, part of the implementation of address_space_read_cached
  * and address_space_write_cached.  */
