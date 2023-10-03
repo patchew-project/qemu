@@ -1495,6 +1495,7 @@ void tcg_func_start(TCGContext *s)
     s->nb_ops = 0;
     s->nb_labels = 0;
     s->nb_deleted_ops = 0;
+    s->nb_spills = 0;
     s->current_frame_offset = s->frame_start;
 
 #ifdef CONFIG_DEBUG_TCG
@@ -4118,8 +4119,11 @@ static inline void temp_dead(TCGContext *s, TCGTemp *ts)
    is non-zero, subsequently release the temporary; if it is positive, the
    temp is dead; if it is negative, the temp is free.  */
 static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs,
-                      TCGRegSet preferred_regs, int free_or_dead)
+                      TCGRegSet preferred_regs, int free_or_dead,
+                      bool account_spill)
 {
+    bool did_spill = false;
+
     if (!temp_readonly(ts) && !ts->mem_coherent) {
         if (!ts->mem_allocated) {
             temp_allocate_frame(s, ts);
@@ -4132,6 +4136,7 @@ static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs,
             if (free_or_dead
                 && tcg_out_sti(s, ts->type, ts->val,
                                ts->mem_base->reg, ts->mem_offset)) {
+                did_spill = account_spill;
                 break;
             }
             temp_load(s, ts, tcg_target_available_regs[ts->type],
@@ -4139,6 +4144,7 @@ static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs,
             /* fallthrough */
 
         case TEMP_VAL_REG:
+            did_spill = account_spill;
             tcg_out_st(s, ts->type, ts->reg,
                        ts->mem_base->reg, ts->mem_offset);
             break;
@@ -4155,6 +4161,9 @@ static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs,
     if (free_or_dead) {
         temp_free_or_dead(s, ts, free_or_dead);
     }
+    if (did_spill) {
+        s->nb_spills += 1;
+    }
 }
 
 /* free register 'reg' by spilling the corresponding temporary if necessary */
@@ -4162,7 +4171,7 @@ static void tcg_reg_free(TCGContext *s, TCGReg reg, TCGRegSet allocated_regs)
 {
     TCGTemp *ts = s->reg_to_temp[reg];
     if (ts != NULL) {
-        temp_sync(s, ts, allocated_regs, 0, -1);
+        temp_sync(s, ts, allocated_regs, 0, -1, true);
     }
 }
 
@@ -4442,7 +4451,8 @@ static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
     ots->val = val;
     ots->mem_coherent = 0;
     if (NEED_SYNC_ARG(0)) {
-        temp_sync(s, ots, s->reserved_regs, preferred_regs, IS_DEAD_ARG(0));
+        temp_sync(s, ots, s->reserved_regs, preferred_regs,
+                  IS_DEAD_ARG(0), false);
     } else if (IS_DEAD_ARG(0)) {
         temp_dead(s, ots);
     }
@@ -4544,7 +4554,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
     ots->mem_coherent = 0;
 
     if (NEED_SYNC_ARG(0)) {
-        temp_sync(s, ots, allocated_regs, 0, 0);
+        temp_sync(s, ots, allocated_regs, 0, 0, false);
     }
 }
 
@@ -4621,7 +4631,7 @@ static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
                 break;
             }
             /* Sync the temp back to its slot and load from there.  */
-            temp_sync(s, its, s->reserved_regs, 0, 0);
+            temp_sync(s, its, s->reserved_regs, 0, 0, true);
         }
         /* fall through */
 
@@ -4652,7 +4662,7 @@ static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
         temp_dead(s, its);
     }
     if (NEED_SYNC_ARG(0)) {
-        temp_sync(s, ots, s->reserved_regs, 0, 0);
+        temp_sync(s, ots, s->reserved_regs, 0, 0, false);
     }
     if (IS_DEAD_ARG(0)) {
         temp_dead(s, ots);
@@ -4870,7 +4880,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
                  * Cross register class move not supported.  Sync the
                  * temp back to its slot and load from there.
                  */
-                temp_sync(s, ts, i_allocated_regs, 0, 0);
+                temp_sync(s, ts, i_allocated_regs, 0, 0, true);
                 tcg_out_ld(s, ts->type, reg,
                            ts->mem_base->reg, ts->mem_offset);
             }
@@ -5019,7 +5029,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         tcg_debug_assert(!temp_readonly(ts));
 
         if (NEED_SYNC_ARG(i)) {
-            temp_sync(s, ts, o_allocated_regs, 0, IS_DEAD_ARG(i));
+            temp_sync(s, ts, o_allocated_regs, 0, IS_DEAD_ARG(i), false);
         } else if (IS_DEAD_ARG(i)) {
             temp_dead(s, ts);
         }
@@ -5086,8 +5096,8 @@ static bool tcg_reg_alloc_dup2(TCGContext *s, const TCGOp *op)
         itsl == itsh + (HOST_BIG_ENDIAN ? 1 : -1)) {
         TCGTemp *its = itsl - HOST_BIG_ENDIAN;
 
-        temp_sync(s, its + 0, s->reserved_regs, 0, 0);
-        temp_sync(s, its + 1, s->reserved_regs, 0, 0);
+        temp_sync(s, its + 0, s->reserved_regs, 0, 0, true);
+        temp_sync(s, its + 1, s->reserved_regs, 0, 0, true);
 
         if (tcg_out_dupm_vec(s, vtype, MO_64, ots->reg,
                              its->mem_base->reg, its->mem_offset)) {
@@ -5107,7 +5117,7 @@ static bool tcg_reg_alloc_dup2(TCGContext *s, const TCGOp *op)
         temp_dead(s, itsh);
     }
     if (NEED_SYNC_ARG(0)) {
-        temp_sync(s, ots, s->reserved_regs, 0, IS_DEAD_ARG(0));
+        temp_sync(s, ots, s->reserved_regs, 0, IS_DEAD_ARG(0), false);
     } else if (IS_DEAD_ARG(0)) {
         temp_dead(s, ots);
     }
@@ -5125,7 +5135,7 @@ static void load_arg_reg(TCGContext *s, TCGReg reg, TCGTemp *ts,
                  * Cross register class move not supported.  Sync the
                  * temp back to its slot and load from there.
                  */
-                temp_sync(s, ts, allocated_regs, 0, 0);
+                temp_sync(s, ts, allocated_regs, 0, 0, true);
                 tcg_out_ld(s, ts->type, reg,
                            ts->mem_base->reg, ts->mem_offset);
             }
@@ -5307,7 +5317,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     for (i = 0; i < nb_oargs; i++) {
         TCGTemp *ts = arg_temp(op->args[i]);
         if (NEED_SYNC_ARG(i)) {
-            temp_sync(s, ts, s->reserved_regs, 0, IS_DEAD_ARG(i));
+            temp_sync(s, ts, s->reserved_regs, 0, IS_DEAD_ARG(i), false);
         } else if (IS_DEAD_ARG(i)) {
             temp_dead(s, ts);
         }

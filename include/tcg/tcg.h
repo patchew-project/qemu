@@ -567,6 +567,7 @@ struct TCGContext {
     /* Used by TBStatistics */
     int orig_nb_ops;
     int nb_deleted_ops;
+    int nb_spills;
 
     /* Exit to translator on overflow. */
     sigjmp_buf jmp_trans;
