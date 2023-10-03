@@ -12,11 +12,15 @@
 #include "qapi/error.h"
 #include "qapi/type-helpers.h"
 #include "qapi/qapi-commands-machine.h"
+#include "qapi/qmp/qdict.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "sysemu/cpus.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "tcg/tcg.h"
+#include "tcg/tb-stats.h"
+#include "exec/tb-flush.h"
 #include "internal-common.h"
 #include "tb-context.h"
 
@@ -235,10 +239,74 @@ HumanReadableText *qmp_x_query_opcount(Error **errp)
     return human_readable_text_from_str(buf);
 }
 
+static void tb_stats_init_safe(CPUState *cpu, run_on_cpu_data icmd)
+{
+    uint32_t flags = icmd.host_int;
+
+    tb_stats_init(flags);
+    tb_flush(cpu);
+}
+
+static void hmp_tbstats(Monitor *mon, const QDict *qdict)
+{
+    uint32_t flags = TB_STATS_NONE;
+    const char *cmd;
+
+    if (!tcg_enabled()) {
+        monitor_printf(mon, "Only available with accel=tcg\n");
+        return;
+    }
+
+    cmd = qdict_get_try_str(qdict, "command");
+
+    if (strcmp(cmd, "start") == 0) {
+        const char *sflag = qdict_get_try_str(qdict, "flag");
+
+        flags = TB_STATS_ALL;
+        if (sflag) {
+            if (strcmp(sflag, "all") == 0) {
+                flags = TB_STATS_ALL;
+            } else if (strcmp(sflag, "jit") == 0) {
+                flags = TB_STATS_JIT;
+            } else if (strcmp(sflag, "exec") == 0) {
+                flags = TB_STATS_EXEC;
+            } else {
+                monitor_printf(mon, "Invalid argument to tb_stats start\n");
+                return;
+            }
+        }
+
+        if (tb_stats_enabled) {
+            monitor_printf(mon, "TB statistics already being recorded\n");
+            return;
+        }
+    } else if (strcmp(cmd, "stop") == 0) {
+        if (!tb_stats_enabled) {
+            monitor_printf(mon, "TB statistics not being recorded\n");
+            return;
+        }
+    } else if (strcmp(cmd, "status") == 0) {
+        if (tb_stats_enabled) {
+            monitor_printf(mon, "TB statistics are enabled:%s%s\n",
+                           tb_stats_enabled & TB_STATS_EXEC ? " EXEC" : "",
+                           tb_stats_enabled & TB_STATS_JIT ? " JIT" : "");
+        } else {
+            monitor_printf(mon, "TB statistics are disabled\n");
+        }
+        return;
+    } else {
+        monitor_printf(mon, "Invalid command\n");
+        return;
+    }
+
+    async_safe_run_on_cpu(first_cpu, tb_stats_init_safe,
+                          RUN_ON_CPU_HOST_INT(flags));
+}
+
 static void hmp_tcg_register(void)
 {
     monitor_register_hmp_info_hrt("jit", qmp_x_query_jit);
     monitor_register_hmp_info_hrt("opcount", qmp_x_query_opcount);
+    monitor_register_hmp("tb_stats", false, hmp_tbstats);
 }
-
 type_init(hmp_tcg_register);
