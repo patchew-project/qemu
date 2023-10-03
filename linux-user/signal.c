@@ -522,8 +522,16 @@ static void signal_table_init(void)
      * multiplexed over a single host signal.
      * Attempts for configure "missing" signals via sigaction will be
      * silently ignored.
+     *
+     * Remap the target SIGABRT, so that we can distinguish host abort
+     * from guest abort.
      */
-    for (hsig = SIGRTMIN; hsig <= SIGRTMAX; hsig++) {
+
+    hsig = SIGRTMIN;
+    host_to_target_signal_table[SIGABRT] = 0;
+    host_to_target_signal_table[hsig++] = TARGET_SIGABRT;
+
+    for (; hsig <= SIGRTMAX; hsig++) {
         tsig = hsig - SIGRTMIN + TARGET_SIGRTMIN;
         if (tsig <= TARGET_NSIG) {
             host_to_target_signal_table[hsig] = tsig;
@@ -582,13 +590,21 @@ void signal_init(void)
         int hsig = target_to_host_signal(tsig);
         abi_ptr thand = TARGET_SIG_IGN;
 
-        if (hsig < _NSIG) {
-            struct sigaction *iact = core_dump_signal(tsig) ? &act : NULL;
+        if (hsig >= _NSIG) {
+            continue;
+        }
 
+        /* As we force remap SIGABRT, cannot probe and install in one step. */
+        if (tsig == TARGET_SIGABRT) {
+            sigaction(SIGABRT, NULL, &oact);
+            sigaction(hsig, &act, NULL);
+        } else {
+            struct sigaction *iact = core_dump_signal(tsig) ? &act : NULL;
             sigaction(hsig, iact, &oact);
-            if (oact.sa_sigaction != (void *)SIG_IGN) {
-                thand = TARGET_SIG_DFL;
-            }
+        }
+
+        if (oact.sa_sigaction != (void *)SIG_IGN) {
+            thand = TARGET_SIG_DFL;
         }
         sigact_table[tsig - 1]._sa_handler = thand;
     }
@@ -711,7 +727,12 @@ void dump_core_and_abort(CPUArchState *env, int target_sig)
     TaskState *ts = (TaskState *)cpu->opaque;
     int host_sig, core_dumped = 0;
 
-    host_sig = target_to_host_signal(target_sig);
+    /* On exit, undo the remapping of SIGABRT. */
+    if (target_sig == TARGET_SIGABRT) {
+        host_sig = SIGABRT;
+    } else {
+        host_sig = target_to_host_signal(target_sig);
+    }
     trace_user_dump_core_and_abort(env, target_sig, host_sig);
     gdb_signalled(env, target_sig);
 
