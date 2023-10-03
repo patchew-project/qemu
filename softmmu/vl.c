@@ -2486,8 +2486,11 @@ static void qemu_process_early_options(void)
     {
         int mask = 0;
         if (log_mask) {
-            mask = qemu_str_to_log_mask(log_mask);
-            if (!mask) {
+            Error *err = NULL;
+
+            mask = qemu_str_to_log_mask(log_mask, &err);
+            if (err) {
+                error_report_err(err);
                 qemu_print_log_usage(stdout);
                 exit(1);
             }

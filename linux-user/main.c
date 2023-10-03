@@ -264,8 +264,11 @@ static void handle_arg_help(const char *arg)
 
 static void handle_arg_log(const char *arg)
 {
-    last_log_mask = qemu_str_to_log_mask(arg);
-    if (!last_log_mask) {
+    Error *err = NULL;
+
+    last_log_mask = qemu_str_to_log_mask(arg, &err);
+    if (err) {
+        error_report_err(err);
         qemu_print_log_usage(stdout);
         exit(EXIT_FAILURE);
     }

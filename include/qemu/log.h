@@ -87,7 +87,7 @@ bool qemu_set_log_filename(const char *filename, Error **errp);
 bool qemu_set_log_filename_flags(const char *name, int flags, Error **errp);
 void qemu_set_dfilter_ranges(const char *ranges, Error **errp);
 bool qemu_log_in_addr_range(uint64_t addr);
-int qemu_str_to_log_mask(const char *str);
+int qemu_str_to_log_mask(const char *str, Error **errp);
 
 /* Print a usage message listing all the valid logging categories
  * to the specified FILE*.

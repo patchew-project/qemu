@@ -500,8 +500,8 @@ const QEMULogItem qemu_log_items[] = {
     { 0, NULL, NULL },
 };
 
-/* takes a comma separated list of log masks. Return 0 if error. */
-int qemu_str_to_log_mask(const char *str)
+/* Takes a comma separated list of log masks. */
+int qemu_str_to_log_mask(const char *str, Error **errp)
 {
     const QEMULogItem *item;
     int mask = 0;
@@ -524,6 +524,7 @@ int qemu_str_to_log_mask(const char *str)
                     goto found;
                 }
             }
+            error_setg(errp, "Invalid -d option \"%s\"", *tmp);
             goto error;
         found:
             mask |= item->mask;

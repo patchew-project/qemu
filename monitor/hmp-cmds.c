@@ -291,8 +291,9 @@ void hmp_log(Monitor *mon, const QDict *qdict)
     if (!strcmp(items, "none")) {
         mask = 0;
     } else {
-        mask = qemu_str_to_log_mask(items);
-        if (!mask) {
+        mask = qemu_str_to_log_mask(items, &err);
+        if (err) {
+            error_free(err);
             hmp_help_cmd(mon, "log");
             return;
         }
