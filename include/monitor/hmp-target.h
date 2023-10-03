@@ -25,16 +25,13 @@
 #ifndef MONITOR_HMP_TARGET_H
 #define MONITOR_HMP_TARGET_H
 
-#include "cpu.h"
-
 #define MD_TLONG 0
 #define MD_I32   1
 
 struct MonitorDef {
     const char *name;
     int offset;
-    target_long (*get_value)(Monitor *mon, const struct MonitorDef *md,
-                             int val);
+    int64_t (*get_value)(Monitor *mon, const struct MonitorDef *md, int val);
     int type;
 };
 

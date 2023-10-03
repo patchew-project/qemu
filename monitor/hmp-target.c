@@ -35,6 +35,8 @@
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "cpu-param.h"
+#include "exec/target_long.h"
 
 #if defined(TARGET_S390X)
 #include "hw/s390x/storage-keys.h"

@@ -32,8 +32,8 @@
 #include "cpu-models.h"
 #include "cpu-qom.h"
 
-static target_long monitor_get_ccr(Monitor *mon, const struct MonitorDef *md,
-                                   int val)
+static int64_t monitor_get_ccr(Monitor *mon, const struct MonitorDef *md,
+                               int val)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
     unsigned int u;
@@ -43,15 +43,15 @@ static target_long monitor_get_ccr(Monitor *mon, const struct MonitorDef *md,
     return u;
 }
 
-static target_long monitor_get_xer(Monitor *mon, const struct MonitorDef *md,
-                                   int val)
+static int64_t monitor_get_xer(Monitor *mon, const struct MonitorDef *md,
+                               int val)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
     return cpu_read_xer(env);
 }
 
-static target_long monitor_get_decr(Monitor *mon, const struct MonitorDef *md,
-                                    int val)
+static int64_t monitor_get_decr(Monitor *mon, const struct MonitorDef *md,
+                                int val)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
     if (!env->tb_env) {
@@ -60,8 +60,8 @@ static target_long monitor_get_decr(Monitor *mon, const struct MonitorDef *md,
     return cpu_ppc_load_decr(env);
 }
 
-static target_long monitor_get_tbu(Monitor *mon, const struct MonitorDef *md,
-                                   int val)
+static int64_t monitor_get_tbu(Monitor *mon, const struct MonitorDef *md,
+                               int val)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
     if (!env->tb_env) {
@@ -70,8 +70,8 @@ static target_long monitor_get_tbu(Monitor *mon, const struct MonitorDef *md,
     return cpu_ppc_load_tbu(env);
 }
 
-static target_long monitor_get_tbl(Monitor *mon, const struct MonitorDef *md,
-                                   int val)
+static int64_t monitor_get_tbl(Monitor *mon, const struct MonitorDef *md,
+                               int val)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
     if (!env->tb_env) {
