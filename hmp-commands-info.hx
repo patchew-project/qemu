@@ -262,6 +262,20 @@ ERST
         .params     = "",
         .help       = "show dynamic compiler info",
     },
+    {
+        .name       = "tb-list",
+        .args_type  = "number:i?,sortedby:s?",
+        .params     = "[number sortedby]",
+        .help       = "show a [number] translated blocks sorted by [sortedby]"
+                      "sortedby opts: hotness hg spills",
+    },
+    {
+        .name       = "tb",
+        .args_type  = "id:i",
+        .params     = "id",
+        .help       = "show information about one translated block by id,"
+                      "from the result of a previous \"info tb-list\"",
+    },
 #endif
 
 SRST

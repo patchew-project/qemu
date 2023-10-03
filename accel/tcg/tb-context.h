@@ -35,6 +35,8 @@ struct TBContext {
     /* statistics */
     unsigned tb_flush_count;
     unsigned tb_phys_invalidate_count;
+
+    GPtrArray *last_search;
 };
 
 extern TBContext tb_ctx;

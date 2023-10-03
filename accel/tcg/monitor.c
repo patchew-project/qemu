@@ -15,12 +15,14 @@
 #include "qapi/qmp/qdict.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
+#include "monitor/hmp-target.h"
 #include "sysemu/cpus.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "tcg/tcg.h"
 #include "tcg/tb-stats.h"
 #include "exec/tb-flush.h"
+#include "disas/disas.h"
 #include "internal-common.h"
 #include "tb-context.h"
 
@@ -303,10 +305,99 @@ static void hmp_tbstats(Monitor *mon, const QDict *qdict)
                           RUN_ON_CPU_HOST_INT(flags));
 }
 
+static void hmp_info_tblist(Monitor *mon, const QDict *qdict)
+{
+    int max;
+    const char *sortedby_str;
+    GCompareFunc sort;
+    GPtrArray *array;
+
+    if (!tcg_enabled()) {
+        monitor_printf(mon, "Only available with accel=tcg\n");
+        return;
+    }
+    if (!tb_stats_enabled) {
+        monitor_printf(mon, "TB statistics not being recorded\n");
+        return;
+    }
+
+    max = qdict_get_try_int(qdict, "number", 10);
+    sortedby_str = qdict_get_try_str(qdict, "sortedby");
+
+    if (sortedby_str == NULL || g_str_equal(sortedby_str, "hotness")) {
+        sort = tb_stats_sort_by_coverage;
+    } else if (g_str_equal(sortedby_str, "hg")) {
+        sort = tb_stats_sort_by_hg;
+    } else if (g_str_equal(sortedby_str, "spills")) {
+        sort = tb_stats_sort_by_spills;
+    } else {
+        monitor_printf(mon, "Sort options are: hotness, hg, spills\n");
+        return;
+    }
+
+    g_ptr_array_unref(tb_ctx.last_search);
+    tb_ctx.last_search = NULL;
+
+    array = tb_stats_collect(max, sort);
+    max = array->len;
+    if (max == 0) {
+        monitor_printf(mon, "No TB statistics collected\n");
+        g_ptr_array_free(array, true);
+        return;
+    }
+
+    for (int i = 0; i < max; ++i) {
+        TBStatistics *s = g_ptr_array_index(array, i);
+        g_autoptr(GString) buf = tb_stats_dump(s, i);
+        monitor_puts(mon, buf->str);
+    }
+
+    /* Remember for the next "info tb" */
+    tb_ctx.last_search = array;
+}
+
+static void hmp_info_tb(Monitor *mon, const QDict *qdict)
+{
+    GPtrArray *array;
+    int id;
+
+    if (!tcg_enabled()) {
+        monitor_printf(mon, "Only available with accel=tcg\n");
+        return;
+    }
+
+    array = g_ptr_array_ref(tb_ctx.last_search);
+    if (!array) {
+        monitor_printf(mon, "No TB statistics collected\n");
+        return;
+    }
+
+    id = qdict_get_int(qdict, "id");
+    if (id < array->len) {
+        TBStatistics *s = g_ptr_array_index(array, id);
+        g_autoptr(GString) buf = tb_stats_dump(s, id);
+        monitor_puts(mon, buf->str);
+
+        for (int i = s->tbs->len - 1; i >= 0; --i) {
+            TranslationBlock *tb = g_ptr_array_index(s->tbs, i);
+            if (!(tb->cflags & CF_INVALID)) {
+                monitor_disas(mon, mon_get_cpu(mon), s->phys_pc,
+                              tb->icount, MON_DISAS_GRA);
+            }
+        }
+    } else {
+        monitor_printf(mon, "TB %d information not recorded\n", id);
+    }
+
+    g_ptr_array_unref(array);
+}
+
 static void hmp_tcg_register(void)
 {
     monitor_register_hmp_info_hrt("jit", qmp_x_query_jit);
     monitor_register_hmp_info_hrt("opcount", qmp_x_query_opcount);
     monitor_register_hmp("tb_stats", false, hmp_tbstats);
+    monitor_register_hmp("tb-list", true, hmp_info_tblist);
+    monitor_register_hmp("tb", true, hmp_info_tb);
 }
 type_init(hmp_tcg_register);

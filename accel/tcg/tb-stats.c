@@ -43,6 +43,8 @@ void tb_stats_init(uint32_t flags)
                      CODE_GEN_HTABLE_SIZE, QHT_MODE_AUTO_RESIZE);
         }
     } else {
+        g_ptr_array_unref(tb_ctx.last_search);
+        tb_ctx.last_search = NULL;
         qht_iter(&tb_ctx.stats, tb_stats_free, NULL);
         qht_destroy(&tb_ctx.stats);
     }
