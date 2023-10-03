@@ -116,7 +116,7 @@ static void *pdb_ds_read(const PDB_DS_HEADER *header,
 
     nBlocks = (size + header->block_size - 1) / header->block_size;
 
-    buffer = malloc(nBlocks * header->block_size);
+    buffer = g_malloc(nBlocks * header->block_size);
     if (!buffer) {
         return NULL;
     }
@@ -201,7 +201,7 @@ static int pdb_init_symbols(struct pdb_reader *r)
     return 0;
 
 out_symbols:
-    free(symbols);
+    g_free(symbols);
 
     return err;
 }
