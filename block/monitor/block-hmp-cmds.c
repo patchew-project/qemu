@@ -252,7 +252,7 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
     };
 
     if (!filename) {
-        error_setg(&err, QERR_MISSING_PARAMETER, "target");
+        error_setg(&err, "Parameter 'target' is missing");
         goto end;
     }
     qmp_drive_mirror(&mirror, &err);
@@ -281,7 +281,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
     };
 
     if (!filename) {
-        error_setg(&err, QERR_MISSING_PARAMETER, "target");
+        error_setg(&err, "Parameter 'target' is missing");
         goto end;
     }
 
@@ -356,7 +356,7 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
          * In the future, if 'snapshot-file' is not specified, the snapshot
          * will be taken internally. Today it's actually required.
          */
-        error_setg(&err, QERR_MISSING_PARAMETER, "snapshot-file");
+        error_setg(&err, "Parameter 'snapshot-file' is missing");
         goto end;
     }
 

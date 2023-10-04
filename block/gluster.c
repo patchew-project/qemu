@@ -530,20 +530,20 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
 
     num_servers = qdict_array_entries(options, GLUSTER_OPT_SERVER_PATTERN);
     if (num_servers < 1) {
-        error_setg(&local_err, QERR_MISSING_PARAMETER, "server");
+        error_setg(&local_err, "Parameter 'server' is missing");
         goto out;
     }
 
     ptr = qemu_opt_get(opts, GLUSTER_OPT_VOLUME);
     if (!ptr) {
-        error_setg(&local_err, QERR_MISSING_PARAMETER, GLUSTER_OPT_VOLUME);
+        error_setg(&local_err, "Parameter " GLUSTER_OPT_VOLUME " is missing");
         goto out;
     }
     gconf->volume = g_strdup(ptr);
 
     ptr = qemu_opt_get(opts, GLUSTER_OPT_PATH);
     if (!ptr) {
-        error_setg(&local_err, QERR_MISSING_PARAMETER, GLUSTER_OPT_PATH);
+        error_setg(&local_err, "Parameter " GLUSTER_OPT_PATH " is missing");
         goto out;
     }
     gconf->path = g_strdup(ptr);
@@ -562,7 +562,8 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
 
         ptr = qemu_opt_get(opts, GLUSTER_OPT_TYPE);
         if (!ptr) {
-            error_setg(&local_err, QERR_MISSING_PARAMETER, GLUSTER_OPT_TYPE);
+            error_setg(&local_err,
+                       "Parameter " GLUSTER_OPT_TYPE " is missing");
             error_append_hint(&local_err, GERR_INDEX_HINT, i);
             goto out;
 
@@ -592,16 +593,16 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
 
             ptr = qemu_opt_get(opts, GLUSTER_OPT_HOST);
             if (!ptr) {
-                error_setg(&local_err, QERR_MISSING_PARAMETER,
-                           GLUSTER_OPT_HOST);
+                error_setg(&local_err,
+                           "Parameter " GLUSTER_OPT_HOST " is missing");
                 error_append_hint(&local_err, GERR_INDEX_HINT, i);
                 goto out;
             }
             gsconf->u.inet.host = g_strdup(ptr);
             ptr = qemu_opt_get(opts, GLUSTER_OPT_PORT);
             if (!ptr) {
-                error_setg(&local_err, QERR_MISSING_PARAMETER,
-                           GLUSTER_OPT_PORT);
+                error_setg(&local_err,
+                           "Parameter " GLUSTER_OPT_PORT " is missing");
                 error_append_hint(&local_err, GERR_INDEX_HINT, i);
                 goto out;
             }
@@ -648,8 +649,8 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
                 goto out;
             }
             if (!ptr) {
-                error_setg(&local_err, QERR_MISSING_PARAMETER,
-                           GLUSTER_OPT_PATH);
+                error_setg(&local_err,
+                           "Parameter " GLUSTER_OPT_PATH " is missing");
                 error_append_hint(&local_err, GERR_INDEX_HINT, i);
                 goto out;
             }

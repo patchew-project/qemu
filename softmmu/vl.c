@@ -1801,7 +1801,7 @@ static void object_option_parse(const char *optarg)
 
         type = qemu_opt_get(opts, "qom-type");
         if (!type) {
-            error_setg(&error_fatal, QERR_MISSING_PARAMETER, "qom-type");
+            error_setg(&error_fatal, "Parameter 'qom-type' is missing");
         }
         if (user_creatable_print_help(type, opts)) {
             exit(0);
@@ -2266,7 +2266,7 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
     bool qtest_with_kvm;
 
     if (!acc) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "accel");
+        error_setg(errp, "Parameter 'accel' is missing");
         goto bad;
     }
 

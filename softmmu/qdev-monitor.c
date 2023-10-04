@@ -622,7 +622,7 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
 
     driver = qdict_get_try_str(opts, "driver");
     if (!driver) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "driver");
+        error_setg(errp, "Parameter 'driver' is missing");
         return NULL;
     }
 
