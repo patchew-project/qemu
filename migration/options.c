@@ -1002,137 +1002,121 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 {
     if (params->has_compress_level &&
         (params->compress_level > 9)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
-                   "a value between 0 and 9");
+        error_setg(errp,
+                   "Parameter 'compress_level' expects a value between 0 and 9");
         return false;
     }
 
     if (params->has_compress_threads && (params->compress_threads < 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "compress_threads",
-                   "a value between 1 and 255");
+        error_setg(errp,
+                   "Parameter 'compress_threads' expects a value between 1 and 255");
         return false;
     }
 
     if (params->has_decompress_threads && (params->decompress_threads < 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "decompress_threads",
-                   "a value between 1 and 255");
+        error_setg(errp,
+                   "Parameter 'decompress_threads' expects a value between 1 and 255");
         return false;
     }
 
     if (params->has_throttle_trigger_threshold &&
         (params->throttle_trigger_threshold < 1 ||
          params->throttle_trigger_threshold > 100)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "throttle_trigger_threshold",
-                   "an integer in the range of 1 to 100");
+        error_setg(errp,
+                   "Parameter 'throttle_trigger_threshold' expects an integer in the range of 1 to 100");
         return false;
     }
 
     if (params->has_cpu_throttle_initial &&
         (params->cpu_throttle_initial < 1 ||
          params->cpu_throttle_initial > 99)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "cpu_throttle_initial",
-                   "an integer in the range of 1 to 99");
+        error_setg(errp,
+                   "Parameter 'cpu_throttle_initial' expects an integer in the range of 1 to 99");
         return false;
     }
 
     if (params->has_cpu_throttle_increment &&
         (params->cpu_throttle_increment < 1 ||
          params->cpu_throttle_increment > 99)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "cpu_throttle_increment",
-                   "an integer in the range of 1 to 99");
+        error_setg(errp,
+                   "Parameter 'cpu_throttle_increment' expects an integer in the range of 1 to 99");
         return false;
     }
 
     if (params->has_max_bandwidth && (params->max_bandwidth > SIZE_MAX)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "max_bandwidth",
-                   "an integer in the range of 0 to "stringify(SIZE_MAX)
-                   " bytes/second");
+        error_setg(errp,"Parameter 'max_bandwidth' expects an integer in the range of 0 to " stringify ( SIZE_MAX ) 
+                    " bytes/second");
         return false;
     }
 
     if (params->has_downtime_limit &&
         (params->downtime_limit > MAX_MIGRATE_DOWNTIME)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "downtime_limit",
-                   "an integer in the range of 0 to "
-                    stringify(MAX_MIGRATE_DOWNTIME)" ms");
+        error_setg(errp,
+                   "Parameter 'downtime_limit' expects an integer in the range of 0 to " stringify ( MAX_MIGRATE_DOWNTIME ) " ms");
         return false;
     }
 
     /* x_checkpoint_delay is now always positive */
 
     if (params->has_multifd_channels && (params->multifd_channels < 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "multifd_channels",
-                   "a value between 1 and 255");
+        error_setg(errp,
+                   "Parameter 'multifd_channels' expects a value between 1 and 255");
         return false;
     }
 
     if (params->has_multifd_zlib_level &&
         (params->multifd_zlib_level > 9)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "multifd_zlib_level",
-                   "a value between 0 and 9");
+        error_setg(errp,
+                   "Parameter 'multifd_zlib_level' expects a value between 0 and 9");
         return false;
     }
 
     if (params->has_multifd_zstd_level &&
         (params->multifd_zstd_level > 20)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "multifd_zstd_level",
-                   "a value between 0 and 20");
+        error_setg(errp,
+                   "Parameter 'multifd_zstd_level' expects a value between 0 and 20");
         return false;
     }
 
     if (params->has_xbzrle_cache_size &&
         (params->xbzrle_cache_size < qemu_target_page_size() ||
          !is_power_of_2(params->xbzrle_cache_size))) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "xbzrle_cache_size",
-                   "a power of two no less than the target page size");
+        error_setg(errp,
+                   "Parameter 'xbzrle_cache_size' expects a power of two no less than the target page size");
         return false;
     }
 
     if (params->has_max_cpu_throttle &&
         (params->max_cpu_throttle < params->cpu_throttle_initial ||
          params->max_cpu_throttle > 99)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "max_cpu_throttle",
-                   "an integer in the range of cpu_throttle_initial to 99");
+        error_setg(errp,
+                   "Parameter 'max_cpu_throttle' expects an integer in the range of cpu_throttle_initial to 99");
         return false;
     }
 
     if (params->has_announce_initial &&
         params->announce_initial > 100000) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "announce_initial",
-                   "a value between 0 and 100000");
+        error_setg(errp,
+                   "Parameter 'announce_initial' expects a value between 0 and 100000");
         return false;
     }
     if (params->has_announce_max &&
         params->announce_max > 100000) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "announce_max",
-                   "a value between 0 and 100000");
+        error_setg(errp,
+                   "Parameter 'announce_max' expects a value between 0 and 100000");
        return false;
     }
     if (params->has_announce_rounds &&
         params->announce_rounds > 1000) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "announce_rounds",
-                   "a value between 0 and 1000");
+        error_setg(errp,
+                   "Parameter 'announce_rounds' expects a value between 0 and 1000");
        return false;
     }
     if (params->has_announce_step &&
         (params->announce_step < 1 ||
         params->announce_step > 10000)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "announce_step",
-                   "a value between 0 and 10000");
+        error_setg(errp,
+                   "Parameter 'announce_step' expects a value between 0 and 10000");
        return false;
     }
 
@@ -1155,17 +1139,15 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     if (params->has_x_vcpu_dirty_limit_period &&
         (params->x_vcpu_dirty_limit_period < 1 ||
          params->x_vcpu_dirty_limit_period > 1000)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "x-vcpu-dirty-limit-period",
-                   "a value between 1 and 1000");
+        error_setg(errp,
+                   "Parameter 'x-vcpu-dirty-limit-period' expects a value between 1 and 1000");
         return false;
     }
 
     if (params->has_vcpu_dirty_limit &&
         (params->vcpu_dirty_limit < 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "vcpu_dirty_limit",
-                   "is invalid, it must greater then 1 MB/s");
+        error_setg(errp,
+                   "Parameter 'vcpu_dirty_limit' expects is invalid, it must greater then 1 MB/s");
         return false;
     }
 

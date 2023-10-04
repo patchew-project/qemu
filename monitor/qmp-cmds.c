@@ -173,8 +173,7 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     if (has_cpu_index) {
         int ret = monitor_set_cpu(&hmp.common, cpu_index);
         if (ret < 0) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
-                       "a CPU number");
+            error_setg(errp, "Parameter 'cpu-index' expects a CPU number");
             goto out;
         }
     }

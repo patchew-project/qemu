@@ -1435,8 +1435,8 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
                                            &dev->filter_rules,
                                            &dev->filter_rules_count);
         if (i) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "filter",
-                       "a usb device filter string");
+            error_setg(errp,
+                       "Parameter 'filter' expects a usb device filter string");
             return;
         }
     }

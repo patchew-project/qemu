@@ -2340,7 +2340,7 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
     }
 
     if (size < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
+        error_setg(errp, "Parameter 'size' expects a >0 size");
         return;
     }
 
@@ -2905,13 +2905,12 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
-                   "a value in range [512B, 64MB]");
+        error_setg(errp,
+                   "Parameter 'granularity' expects a value in range [512B, 64MB]");
         return;
     }
     if (granularity & (granularity - 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
-                   "a power of 2");
+        error_setg(errp, "Parameter 'granularity' expects a power of 2");
         return;
     }
 

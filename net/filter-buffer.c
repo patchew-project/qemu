@@ -121,8 +121,7 @@ static void filter_buffer_setup(NetFilterState *nf, Error **errp)
      * or COLO use this filter to release packets on demand.
      */
     if (!s->interval) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "interval",
-                   "a non-zero interval");
+        error_setg(errp, "Parameter 'interval' expects a non-zero interval");
         return;
     }
 

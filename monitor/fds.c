@@ -67,8 +67,8 @@ static bool monitor_add_fd(Monitor *mon, int fd, const char *fdname, Error **err
 
     if (qemu_isdigit(fdname[0])) {
         close(fd);
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
-                   "a name not starting with a digit");
+        error_setg(errp,
+                   "Parameter 'fdname' expects a name not starting with a digit");
         return false;
     }
 
@@ -353,8 +353,8 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
 
         if (has_fdset_id) {
             if (fdset_id < 0) {
-                error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "fdset-id",
-                           "a non-negative value");
+                error_setg(errp,
+                           "Parameter 'fdset-id' expects a non-negative value");
                 return NULL;
             }
             /* Use specified fdset ID */
