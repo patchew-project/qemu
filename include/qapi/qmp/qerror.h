@@ -17,9 +17,6 @@
  * add new ones!
  */
 
-#define QERR_QGA_COMMAND_FAILED \
-    "Guest agent command failed, error was '%s'"
-
 #define QERR_UNSUPPORTED \
     "this feature or command is not currently supported"
 
