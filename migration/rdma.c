@@ -4014,13 +4014,6 @@ err:
     return ret;
 }
 
-static const QEMUFileHooks rdma_read_hooks = {
-};
-
-static const QEMUFileHooks rdma_write_hooks = {
-};
-
-
 static void qio_channel_rdma_finalize(Object *obj)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(obj);
@@ -4072,7 +4065,6 @@ static QEMUFile *rdma_new_input(RDMAContext *rdma)
     rioc->file = qemu_file_new_input(QIO_CHANNEL(rioc));
     rioc->rdmain = rdma;
     rioc->rdmaout = rdma->return_path;
-    qemu_file_set_hooks(rioc->file, &rdma_read_hooks);
 
     return rioc->file;
 }
@@ -4084,7 +4076,6 @@ static QEMUFile *rdma_new_output(RDMAContext *rdma)
     rioc->file = qemu_file_new_output(QIO_CHANNEL(rioc));
     rioc->rdmaout = rdma;
     rioc->rdmain = rdma->return_path;
-    qemu_file_set_hooks(rioc->file, &rdma_write_hooks);
 
     return rioc->file;
 }
