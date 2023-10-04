@@ -5086,7 +5086,8 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v,
         return;
     }
     if (value < min || value > max) {
-        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+        error_setg(errp, "Property %s doesn't take value %" PRId64
+                         " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
                    name ? name : "null", value, min, max);
         return;
     }
@@ -5126,7 +5127,8 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v,
         return;
     }
     if (value < min || value > max) {
-        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+        error_setg(errp, "Property %s doesn't take value %" PRId64
+                         " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
                    name ? name : "null", value, min, max);
         return;
     }
@@ -5161,7 +5163,8 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
         return;
     }
     if (value < min || value > max) {
-        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+        error_setg(errp, "Property %s doesn't take value %" PRId64
+                         " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
                    name ? name : "null", value, min, max);
         return;
     }
@@ -5263,7 +5266,8 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
         return;
     }
     if (value < min || value > max) {
-        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+        error_setg(errp, "Property %s doesn't take value %" PRId64
+                         " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
                    name ? name : "null", value, min, max);
         return;
     }

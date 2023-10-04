@@ -1535,7 +1535,8 @@ static void openpic_realize(DeviceState *dev, Error **errp)
     };
 
     if (opp->nb_cpus > MAX_CPU) {
-        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+        error_setg(errp, "Property %s.%s doesn't take value %" PRId64
+                         " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
                    TYPE_OPENPIC, "nb_cpus", (uint64_t)opp->nb_cpus,
                    (uint64_t)0, (uint64_t)MAX_CPU);
         return;

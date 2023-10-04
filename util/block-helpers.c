@@ -30,7 +30,8 @@ void check_block_size(const char *id, const char *name, int64_t value,
 {
     /* value of 0 means "unset" */
     if (value && (value < MIN_BLOCK_SIZE || value > MAX_BLOCK_SIZE)) {
-        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+        error_setg(errp, "Property %s.%s doesn't take value %" PRId64
+                         " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
                    id, name, value, MIN_BLOCK_SIZE, MAX_BLOCK_SIZE);
         return;
     }
