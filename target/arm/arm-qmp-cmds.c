@@ -154,7 +154,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     if (model->props) {
         qdict_in = qobject_to(QDict, model->props);
         if (!qdict_in) {
-            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
+            error_setg(errp,
+                       "Invalid parameter type for 'props', expected: dict");
             return NULL;
         }
     }
