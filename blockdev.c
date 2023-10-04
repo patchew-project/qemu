@@ -1433,7 +1433,7 @@ static void external_snapshot_action(TransactionAction *action,
 
     if (!bdrv_is_read_only(state->old_bs)) {
         if (bdrv_flush(state->old_bs)) {
-            error_setg(errp, QERR_IO_ERROR);
+            error_setg(errp, "An IO error has occurred");
             goto out;
         }
     }
