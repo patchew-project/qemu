@@ -34,3 +34,4 @@ the :ref:`tcg_internals`.
    index-api
    index-internals
    index-tcg
+   python/index
