@@ -143,6 +143,8 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
     int64_t offset = 0;
     int error = 0;
     int64_t n = 0; /* bytes */
+    BlockErrorAction action;
+    int ret;
 
     if (unfiltered_bs == s->base_overlay) {
         /* Nothing to stream */
@@ -159,7 +161,6 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
 
     for ( ; offset < len; offset += n) {
         bool copy;
-        int ret;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -196,8 +197,8 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
             ret = stream_populate(s->blk, offset, n);
         }
         if (ret < 0) {
-            BlockErrorAction action =
-                block_job_error_action(&s->common, s->on_error, true, -ret);
+            action = block_job_error_action(&s->common, s->on_error,
+                                            true, -ret);
             if (action == BLOCK_ERROR_ACTION_STOP) {
                 n = 0;
                 continue;
@@ -206,7 +207,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
                 error = ret;
             }
             if (action == BLOCK_ERROR_ACTION_REPORT) {
-                break;
+                return error;
             }
         }
 
@@ -215,6 +216,18 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         if (copy) {
             block_job_ratelimit_processed_bytes(&s->common, n);
         }
+    }
+
+    do {
+        ret = blk_co_flush(s->blk);
+        if (ret < 0) {
+            action = block_job_error_action(&s->common, s->on_error,
+                                            false, -ret);
+        }
+    } while (ret < 0 && action == BLOCK_ERROR_ACTION_STOP);
+
+    if (error == 0) {
+        error = ret;
     }
 
     /* Do not remove the backing file if an error was there but ignored. */

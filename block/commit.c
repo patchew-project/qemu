@@ -120,6 +120,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     int64_t n = 0; /* bytes */
     QEMU_AUTO_VFREE void *buf = NULL;
     int64_t len, base_len;
+    BlockErrorAction action;
 
     len = blk_co_getlength(s->top);
     if (len < 0) {
@@ -169,9 +170,8 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
             }
         }
         if (ret < 0) {
-            BlockErrorAction action =
-                block_job_error_action(&s->common, s->on_error,
-                                       error_in_source, -ret);
+            action = block_job_error_action(&s->common, s->on_error,
+                                            error_in_source, -ret);
             if (action == BLOCK_ERROR_ACTION_REPORT) {
                 return ret;
             } else {
@@ -187,7 +187,15 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         }
     }
 
-    return 0;
+    do {
+        ret = blk_co_flush(s->base);
+        if (ret < 0) {
+            action = block_job_error_action(&s->common, s->on_error,
+                                            false, -ret);
+        }
+    } while (ret < 0 && action != BLOCK_ERROR_ACTION_REPORT);
+
+    return ret;
 }
 
 static const BlockJobDriver commit_job_driver = {
