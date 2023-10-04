@@ -161,27 +161,6 @@ static const char *const sev_fw_errlist[] = {
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
 
 static int
-sev_ioctl(int fd, int cmd, void *data, int *error)
-{
-    int r;
-    struct kvm_sev_cmd input;
-
-    memset(&input, 0x0, sizeof(input));
-
-    input.id = cmd;
-    input.sev_fd = fd;
-    input.data = (__u64)(unsigned long)data;
-
-    r = kvm_vm_ioctl(kvm_state, KVM_MEMORY_ENCRYPT_OP, &input);
-
-    if (error) {
-        *error = input.error;
-    }
-
-    return r;
-}
-
-static int
 sev_platform_ioctl(int fd, int cmd, void *data, int *error)
 {
     int r;
@@ -629,73 +608,45 @@ SevCapability *qmp_query_sev_capabilities(Error **errp)
     return sev_get_capabilities(errp);
 }
 
-static SevAttestationReport *sev_get_attestation_report(const char *mnonce,
-                                                        Error **errp)
+SevAttestationReport *qmp_query_sev_attestation_report(const char *mnonce_b64,
+                                                       Error **errp)
 {
-    struct kvm_sev_attestation_report input = {};
     SevAttestationReport *report = NULL;
-    SevGuestState *sev = sev_guest;
-    g_autofree guchar *data = NULL;
-    g_autofree guchar *buf = NULL;
-    gsize len;
-    int err = 0, ret;
+    g_autofree guchar *data = NULL, *mnonce = NULL;
+    gsize len, data_len;
+    int ret, fw_error;
+    KVMState *s = kvm_state;
 
     if (!sev_enabled()) {
         error_setg(errp, "SEV is not enabled");
         return NULL;
     }
 
-    /* lets decode the mnonce string */
-    buf = g_base64_decode(mnonce, &len);
-    if (!buf) {
+    mnonce = g_base64_decode(mnonce_b64, &len);
+    if (!mnonce) {
         error_setg(errp, "SEV: failed to decode mnonce input");
         return NULL;
     }
 
-    /* verify the input mnonce length */
-    if (len != sizeof(input.mnonce)) {
-        error_setg(errp, "SEV: mnonce must be %zu bytes (got %" G_GSIZE_FORMAT ")",
-                sizeof(input.mnonce), len);
+    if (len != SEV_ATTESTATION_REPORT_MNONCE_SIZE) {
+        error_setg(errp, "SEV: mnonce must be %d bytes (found %" G_GSIZE_FORMAT ")",
+            SEV_ATTESTATION_REPORT_MNONCE_SIZE, len);
         return NULL;
     }
 
-    /* Query the report length */
-    ret = sev_ioctl(sev->sev_fd, KVM_SEV_GET_ATTESTATION_REPORT,
-            &input, &err);
-    if (ret < 0) {
-        if (err != SEV_RET_INVALID_LEN) {
-            error_setg(errp, "SEV: Failed to query the attestation report"
-                             " length ret=%d fw_err=%d (%s)",
-                       ret, err, fw_error_to_str(err));
-            return NULL;
-        }
-    }
-
-    data = g_malloc(input.len);
-    input.uaddr = (unsigned long)data;
-    memcpy(input.mnonce, buf, sizeof(input.mnonce));
-
-    /* Query the report */
-    ret = sev_ioctl(sev->sev_fd, KVM_SEV_GET_ATTESTATION_REPORT,
-            &input, &err);
+    ret = sev_attestation_report(s->vmfd, mnonce, len, (void *) data,
+                                (unsigned int *) &data_len, &fw_error);
     if (ret) {
         error_setg_errno(errp, errno, "SEV: Failed to get attestation report"
-                " ret=%d fw_err=%d (%s)", ret, err, fw_error_to_str(err));
-        return NULL;
+          " ret = %d fw_err=%d (%s)", ret, fw_error, fw_error_to_str(fw_error));
     }
 
     report = g_new0(SevAttestationReport, 1);
-    report->data = g_base64_encode(data, input.len);
+    report->data = g_base64_encode(data, data_len);
 
-    trace_kvm_sev_attestation_report(mnonce, report->data);
+    trace_kvm_sev_attestation_report((char *) mnonce, report->data);
 
     return report;
-}
-
-SevAttestationReport *qmp_query_sev_attestation_report(const char *mnonce,
-                                                       Error **errp)
-{
-    return sev_get_attestation_report(mnonce, errp);
 }
 
 static int

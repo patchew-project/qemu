@@ -48,6 +48,8 @@ bool sev_es_enabled(void);
 #define sev_es_enabled() 0
 #endif
 
+#define SEV_ATTESTATION_REPORT_MNONCE_SIZE 16
+
 uint32_t sev_get_cbit_position(void);
 uint32_t sev_get_reduced_phys_bits(void);
 bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp);
