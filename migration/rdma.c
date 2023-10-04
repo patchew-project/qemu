@@ -3554,7 +3554,7 @@ static int dest_ram_sort_func(const void *a, const void *b)
  *
  * Keep doing this until the source tells us to stop.
  */
-int qemu_rdma_registration_handle(QEMUFile *f)
+int rdma_registration_handle(QEMUFile *f)
 {
     RDMAControlHeader reg_resp = { .len = sizeof(RDMARegisterResult),
                                .type = RDMA_CONTROL_REGISTER_RESULT,
@@ -3597,7 +3597,7 @@ int qemu_rdma_registration_handle(QEMUFile *f)
 
     local = &rdma->local_ram_blocks;
     do {
-        trace_qemu_rdma_registration_handle_wait();
+        trace_rdma_registration_handle_wait();
 
         ret = qemu_rdma_exchange_recv(rdma, &head, RDMA_CONTROL_NONE);
 
@@ -3617,9 +3617,9 @@ int qemu_rdma_registration_handle(QEMUFile *f)
             comp = (RDMACompress *) rdma->wr_data[idx].control_curr;
             network_to_compress(comp);
 
-            trace_qemu_rdma_registration_handle_compress(comp->length,
-                                                         comp->block_idx,
-                                                         comp->offset);
+            trace_rdma_registration_handle_compress(comp->length,
+                                                    comp->block_idx,
+                                                    comp->offset);
             if (comp->block_idx >= rdma->local_ram_blocks.nb_blocks) {
                 error_report("rdma: 'compress' bad block index %u (vs %d)",
                              (unsigned int)comp->block_idx,
@@ -3636,11 +3636,11 @@ int qemu_rdma_registration_handle(QEMUFile *f)
             break;
 
         case RDMA_CONTROL_REGISTER_FINISHED:
-            trace_qemu_rdma_registration_handle_finished();
+            trace_rdma_registration_handle_finished();
             goto out;
 
         case RDMA_CONTROL_RAM_BLOCKS_REQUEST:
-            trace_qemu_rdma_registration_handle_ram_blocks();
+            trace_rdma_registration_handle_ram_blocks();
 
             /* Sort our local RAM Block list so it's the same as the source,
              * we can do this since we've filled in a src_index in the list
@@ -3680,7 +3680,7 @@ int qemu_rdma_registration_handle(QEMUFile *f)
                 rdma->dest_blocks[i].length = local->block[i].length;
 
                 dest_block_to_network(&rdma->dest_blocks[i]);
-                trace_qemu_rdma_registration_handle_ram_blocks_loop(
+                trace_rdma_registration_handle_ram_blocks_loop(
                     local->block[i].block_name,
                     local->block[i].offset,
                     local->block[i].length,
@@ -3702,7 +3702,7 @@ int qemu_rdma_registration_handle(QEMUFile *f)
 
             break;
         case RDMA_CONTROL_REGISTER_REQUEST:
-            trace_qemu_rdma_registration_handle_register(head.repeat);
+            trace_rdma_registration_handle_register(head.repeat);
 
             reg_resp.repeat = head.repeat;
             registers = (RDMARegister *) rdma->wr_data[idx].control_curr;
@@ -3716,7 +3716,7 @@ int qemu_rdma_registration_handle(QEMUFile *f)
 
                 reg_result = &results[count];
 
-                trace_qemu_rdma_registration_handle_register_loop(count,
+                trace_rdma_registration_handle_register_loop(count,
                          reg->current_index, reg->key.current_addr, reg->chunks);
 
                 if (reg->current_index >= rdma->local_ram_blocks.nb_blocks) {
@@ -3768,8 +3768,7 @@ int qemu_rdma_registration_handle(QEMUFile *f)
 
                 reg_result->host_addr = (uintptr_t)block->local_host_addr;
 
-                trace_qemu_rdma_registration_handle_register_rkey(
-                                                           reg_result->rkey);
+                trace_rdma_registration_handle_register_rkey(reg_result->rkey);
 
                 result_to_network(reg_result);
             }
@@ -3783,7 +3782,7 @@ int qemu_rdma_registration_handle(QEMUFile *f)
             }
             break;
         case RDMA_CONTROL_UNREGISTER_REQUEST:
-            trace_qemu_rdma_registration_handle_unregister(head.repeat);
+            trace_rdma_registration_handle_unregister(head.repeat);
             unreg_resp.repeat = head.repeat;
             registers = (RDMARegister *) rdma->wr_data[idx].control_curr;
 
@@ -3791,7 +3790,7 @@ int qemu_rdma_registration_handle(QEMUFile *f)
                 reg = &registers[count];
                 network_to_register(reg);
 
-                trace_qemu_rdma_registration_handle_unregister_loop(count,
+                trace_rdma_registration_handle_unregister_loop(count,
                            reg->current_index, reg->key.chunk);
 
                 block = &(rdma->local_ram_blocks.block[reg->current_index]);
@@ -3807,8 +3806,7 @@ int qemu_rdma_registration_handle(QEMUFile *f)
 
                 rdma->total_registrations--;
 
-                trace_qemu_rdma_registration_handle_unregister_success(
-                                                       reg->key.chunk);
+                trace_rdma_registration_handle_unregister_success(reg->key.chunk);
             }
 
             ret = qemu_rdma_post_send_control(rdma, NULL, &unreg_resp);
@@ -3878,7 +3876,7 @@ int rdma_block_notification_handle(QEMUFile *f, const char *name)
     return 0;
 }
 
-int qemu_rdma_registration_start(QEMUFile *f, uint64_t flags)
+int rdma_registration_start(QEMUFile *f, uint64_t flags)
 {
     if (!migrate_rdma () || migration_in_postcopy()) {
         return 0;
@@ -3893,7 +3891,7 @@ int qemu_rdma_registration_start(QEMUFile *f, uint64_t flags)
 
     CHECK_ERROR_STATE();
 
-    trace_qemu_rdma_registration_start(flags);
+    trace_rdma_registration_start(flags);
     qemu_put_be64(f, RAM_SAVE_FLAG_HOOK);
     qemu_fflush(f);
 
@@ -3904,7 +3902,7 @@ int qemu_rdma_registration_start(QEMUFile *f, uint64_t flags)
  * Inform dest that dynamic registrations are done for now.
  * First, flush writes, if any.
  */
-int qemu_rdma_registration_stop(QEMUFile *f, uint64_t flags)
+int rdma_registration_stop(QEMUFile *f, uint64_t flags)
 {
     QIOChannelRDMA *rioc;
     RDMAContext *rdma;
@@ -3937,7 +3935,7 @@ int qemu_rdma_registration_stop(QEMUFile *f, uint64_t flags)
         int reg_result_idx, i, nb_dest_blocks;
 
         head.type = RDMA_CONTROL_RAM_BLOCKS_REQUEST;
-        trace_qemu_rdma_registration_stop_ram();
+        trace_rdma_registration_stop_ram();
 
         /*
          * Make sure that we parallelize the pinning on both sides.
@@ -3999,7 +3997,7 @@ int qemu_rdma_registration_stop(QEMUFile *f, uint64_t flags)
         }
     }
 
-    trace_qemu_rdma_registration_stop(flags);
+    trace_rdma_registration_stop(flags);
 
     head.type = RDMA_CONTROL_REGISTER_FINISHED;
     ret = qemu_rdma_exchange_send(rdma, &head, NULL, NULL, NULL, NULL);
