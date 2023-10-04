@@ -716,29 +716,6 @@ sev_read_file_base64(const char *filename, guchar **data, gsize *len)
 }
 
 static int
-sev_launch_update_data(SevGuestState *sev, uint8_t *addr, uint64_t len)
-{
-    int ret, fw_error;
-    struct kvm_sev_launch_update_data update;
-
-    if (!addr || !len) {
-        return 1;
-    }
-
-    update.uaddr = (__u64)(unsigned long)addr;
-    update.len = len;
-    trace_kvm_sev_launch_update_data(addr, len);
-    ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_UPDATE_DATA,
-                    &update, &fw_error);
-    if (ret) {
-        error_report("%s: LAUNCH_UPDATE ret=%d fw_error=%d '%s'",
-                __func__, ret, fw_error, fw_error_to_str(fw_error));
-    }
-
-    return ret;
-}
-
-static int
 sev_launch_update_vmsa(SevGuestState *sev)
 {
     int ret, fw_error;
@@ -1009,15 +986,19 @@ out:
 int
 sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
 {
+    KVMState *s = kvm_state;
+    int fw_error;
+
     if (!sev_guest) {
         return 0;
     }
 
     /* if SEV is in update state then encrypt the data else do nothing */
     if (sev_check_state(sev_guest, SEV_STATE_LAUNCH_UPDATE)) {
-        int ret = sev_launch_update_data(sev_guest, ptr, len);
+        int ret = sev_launch_update_data(s->vmfd, (__u64) ptr, len, &fw_error);
         if (ret < 0) {
-            error_setg(errp, "SEV: Failed to encrypt pflash rom");
+            error_setg(errp, "SEV: Failed to encrypt pflash rom fw_err=%d",
+                       fw_error);
             return ret;
         }
     }
