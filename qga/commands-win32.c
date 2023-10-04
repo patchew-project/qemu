@@ -1213,7 +1213,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
     if (!vss_initialized()) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "this feature or command is not currently supported");
         return 0;
     }
 
@@ -1241,7 +1241,7 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
     Error *local_err = NULL;
 
     if (!vss_initialized()) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "this feature or command is not currently supported");
         return 0;
     }
 
@@ -1276,7 +1276,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
     int i;
 
     if (!vss_initialized()) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "this feature or command is not currently supported");
         return 0;
     }
 
@@ -1509,7 +1509,7 @@ out:
 
 void qmp_guest_suspend_hybrid(Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    error_setg(errp, "this feature or command is not currently supported");
 }
 
 static IP_ADAPTER_ADDRESSES *guest_get_adapters_addresses(Error **errp)
@@ -1877,7 +1877,7 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 
 int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    error_setg(errp, "this feature or command is not currently supported");
     return -1;
 }
 
@@ -1938,7 +1938,7 @@ void qmp_guest_set_user_password(const char *username,
     GError *gerr = NULL;
 
     if (crypted) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "this feature or command is not currently supported");
         return;
     }
 
@@ -1983,20 +1983,20 @@ done:
 
 GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    error_setg(errp, "this feature or command is not currently supported");
     return NULL;
 }
 
 GuestMemoryBlockResponseList *
 qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    error_setg(errp, "this feature or command is not currently supported");
     return NULL;
 }
 
 GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    error_setg(errp, "this feature or command is not currently supported");
     return NULL;
 }
 
@@ -2522,12 +2522,12 @@ char *qga_get_host_name(Error **errp)
 
 GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    error_setg(errp, "this feature or command is not currently supported");
     return NULL;
 }
 
 GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    error_setg(errp, "this feature or command is not currently supported");
     return NULL;
 }
