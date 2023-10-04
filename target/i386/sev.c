@@ -18,6 +18,8 @@
 
 #include <sys/ioctl.h>
 
+#include <libsev.h>
+
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "qemu/base64.h"
@@ -27,6 +29,7 @@
 #include "crypto/hash.h"
 #include "sysemu/kvm.h"
 #include "sev.h"
+#include "sysemu/kvm_int.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "trace.h"
@@ -911,10 +914,11 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     SevGuestState *sev
         = (SevGuestState *)object_dynamic_cast(OBJECT(cgs), TYPE_SEV_GUEST);
     char *devname;
-    int ret, fw_error, cmd;
+    int ret, fw_error;
     uint32_t ebx;
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
+    KVMState *s = kvm_state;
 
     if (!sev) {
         return 0;
@@ -990,13 +994,13 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
                          __func__);
             goto err;
         }
-        cmd = KVM_SEV_ES_INIT;
+        trace_kvm_sev_es_init();
+        ret = sev_es_init(s->vmfd, sev->sev_fd, &fw_error);
     } else {
-        cmd = KVM_SEV_INIT;
+        trace_kvm_sev_init();
+        ret = sev_init(s->vmfd, sev->sev_fd, &fw_error);
     }
 
-    trace_kvm_sev_init();
-    ret = sev_ioctl(sev->sev_fd, cmd, NULL, &fw_error);
     if (ret) {
         error_setg(errp, "%s: failed to initialize ret=%d fw_error=%d '%s'",
                    __func__, ret, fw_error, fw_error_to_str(fw_error));
