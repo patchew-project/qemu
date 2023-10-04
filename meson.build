@@ -960,6 +960,13 @@ if not get_option('slirp').auto() or have_system
   endif
 endif
 
+sev = not_found
+if not get_option('sev').auto()
+  sev = dependency('sev',
+                   method: 'pkg-config',
+                   required: get_option('sev'))
+endif
+
 vde = not_found
 if not get_option('vde').auto() or have_system or have_tools
   vde = cc.find_library('vdeplug', has_headers: ['libvdeplug.h'],
@@ -4331,6 +4338,7 @@ summary_info += {'libudev':           libudev}
 # Dummy dependency, keep .found()
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary_info += {'selinux':           selinux}
+summary_info += {'sev':               sev}
 summary_info += {'libdw':             libdw}
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 

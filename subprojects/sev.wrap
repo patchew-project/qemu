@@ -1,0 +1,6 @@
+[wrap-git]
+url = https://github.com/tylerfanelli/sev
+revision = b81b1da5df50055600a5b0349b0c4afda677cccb
+
+[provide]
+sev = sev_dep
