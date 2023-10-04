@@ -356,7 +356,6 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "%(visit)s.h"
 ''',
                                       visit=visit))

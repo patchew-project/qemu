@@ -17,7 +17,6 @@
 #include "sysemu/kvm.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qapi-commands-machine-target.h"

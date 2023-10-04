@@ -29,7 +29,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-events-qdev.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"

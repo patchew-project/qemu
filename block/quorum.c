@@ -24,7 +24,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-events-block.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 #include "crypto/hash.h"

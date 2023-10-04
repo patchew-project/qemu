@@ -21,7 +21,6 @@
 #include "qom/object.h"
 #include "ui/vnc_keysym.h" /* use name2keysym from VNC as we use X11 values */
 #include "qemu/cutils.h"
-#include "qapi/qmp/qerror.h"
 #include "input-barrier.h"
 
 #define TYPE_INPUT_BARRIER "input-barrier"
