@@ -786,34 +786,28 @@ static Notifier sev_machine_done_notify = {
 };
 
 static void
-sev_launch_finish(SevGuestState *sev)
-{
-    int ret, error;
-
-    trace_kvm_sev_launch_finish();
-    ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_FINISH, 0, &error);
-    if (ret) {
-        error_report("%s: LAUNCH_FINISH ret=%d fw_error=%d '%s'",
-                     __func__, ret, error, fw_error_to_str(error));
-        exit(1);
-    }
-
-    sev_set_guest_state(sev, SEV_STATE_RUNNING);
-
-    /* add migration blocker */
-    error_setg(&sev_mig_blocker,
-               "SEV: Migration is not implemented");
-    migrate_add_blocker(sev_mig_blocker, &error_fatal);
-}
-
-static void
 sev_vm_state_change(void *opaque, bool running, RunState state)
 {
     SevGuestState *sev = opaque;
+    int ret, fw_error;
+    KVMState *s = kvm_state;
 
     if (running) {
         if (!sev_check_state(sev, SEV_STATE_RUNNING)) {
-            sev_launch_finish(sev);
+            trace_kvm_sev_launch_finish();
+            ret = sev_launch_finish(s->vmfd, &fw_error);
+            if (ret) {
+                error_report("%s: LAUNCH_FINISH ret=%d fw_error=%d '%s'",
+                             __func__, ret, fw_error,
+                             fw_error_to_str(fw_error));
+                exit(1);
+            }
+
+            sev_set_guest_state(sev, SEV_STATE_RUNNING);
+
+            // add migration blocker.
+            error_setg(&sev_mig_blocker, "SEV: Migration is not implemented");
+            migrate_add_blocker(sev_mig_blocker, &error_fatal);
         }
     }
 }
