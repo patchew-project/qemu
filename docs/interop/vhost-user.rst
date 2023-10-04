@@ -1424,10 +1424,23 @@ Front-end message types
   :request payload: ``u64``
   :reply payload: N/A
 
-  When the ``VHOST_USER_PROTOCOL_F_STATUS`` protocol feature has been
-  successfully negotiated, this message is submitted by the front-end to
-  notify the back-end with updated device status as defined in the Virtio
+.. admonition:: Deprecated
+
+  This is no longer used. Used to be sent by the front-end to notify the
+  back-end with updated device status as defined in the Virtio
   specification.
+
+  However, its purpose in vhost-user was never well-defined; for
+  example, how or if it would replace VHOST_USER_RESET_DEVICE, or how it
+  integrates with the feature negotiation phase.  Therefore,
+  implementations in practice were less than strict in how the status
+  value was handled, which means there was actually no protocol between
+  front-end and back-end on the use of the status value.
+
+  For resetting, use VHOST_USER_RESET_DEVICE instead.  For feature
+  negotiation with acknowledgment from the device, use
+  VHOST_USER_SET_FEATURES with the :ref:`REPLY_ACK <reply_ack>` feature
+  instead.
 
 ``VHOST_USER_GET_STATUS``
   :id: 40
@@ -1435,10 +1448,11 @@ Front-end message types
   :request payload: N/A
   :reply payload: ``u64``
 
-  When the ``VHOST_USER_PROTOCOL_F_STATUS`` protocol feature has been
-  successfully negotiated, this message is submitted by the front-end to
-  query the back-end for its device status as defined in the Virtio
-  specification.
+.. admonition:: Deprecated
+
+  This is no longer used. Used to be sent by the front-end to query the
+  back-end for its device status as defined in the Virtio specification.
+  Deprecated together with VHOST_USER_SET_STATUS.
 
 
 Back-end message types
