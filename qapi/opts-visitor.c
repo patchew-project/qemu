@@ -515,8 +515,7 @@ opts_type_size(Visitor *v, const char *name, uint64_t *obj, Error **errp)
 
     err = qemu_strtosz(opt->str ? opt->str : "", NULL, obj);
     if (err < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-                   "a size value");
+        error_setg(errp, "Parameter '%s' expects a size value", opt->name);
         return false;
     }
 

@@ -189,16 +189,17 @@ static bool parse_type_int64(Visitor *v, const char *name, int64_t *obj,
     case LM_NONE:
         /* just parse a simple int64, bail out if not completely consumed */
         if (qemu_strtoi64(siv->string, NULL, 0, &val)) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "int64");
+            error_setg(errp, "Parameter '%s' expects int64",
+                       name ? name : "null");
             return false;
         }
         *obj = val;
         return true;
     case LM_UNPARSED:
         if (try_parse_int64_list_entry(siv, obj)) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                       "list of int64 values or ranges");
+            error_setg(errp,
+                       "Parameter '%s' expects list of int64 values or ranges",
+                       name ? name : "null");
             return false;
         }
         assert(siv->lm == LM_INT64_RANGE);
@@ -279,16 +280,17 @@ static bool parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
     case LM_NONE:
         /* just parse a simple uint64, bail out if not completely consumed */
         if (qemu_strtou64(siv->string, NULL, 0, &val)) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                       "uint64");
+            error_setg(errp, "Parameter '%s' expects uint64",
+                       name ? name : "null");
             return false;
         }
         *obj = val;
         return true;
     case LM_UNPARSED:
         if (try_parse_uint64_list_entry(siv, obj)) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                       "list of uint64 values or ranges");
+            error_setg(errp,
+                       "Parameter '%s' expects list of uint64 values or ranges",
+                       name ? name : "null");
             return false;
         }
         assert(siv->lm == LM_UINT64_RANGE);
