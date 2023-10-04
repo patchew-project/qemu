@@ -441,7 +441,7 @@ opts_type_int64(Visitor *v, const char *name, int64_t *obj, Error **errp)
             }
         }
     }
-    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+    error_setg(errp, "Parameter '%s' expects %s", opt->name,
                (ov->list_mode == LM_NONE) ? "an int64 value" :
                                             "an int64 value or range");
     return false;
@@ -494,7 +494,7 @@ opts_type_uint64(Visitor *v, const char *name, uint64_t *obj, Error **errp)
             }
         }
     }
-    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+    error_setg(errp, "Parameter '%s' expects %s", opt->name,
                (ov->list_mode == LM_NONE) ? "a uint64 value" :
                                             "a uint64 value or range");
     return false;
