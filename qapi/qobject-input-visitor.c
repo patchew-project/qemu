@@ -168,7 +168,7 @@ static QObject *qobject_input_get_object(QObjectInputVisitor *qiv,
     QObject *obj = qobject_input_try_get_object(qiv, name, consume);
 
     if (!obj) {
-        error_setg(errp, QERR_MISSING_PARAMETER, full_name(qiv, name));
+        error_setg(errp, "Parameter '%s' is missing", full_name(qiv, name));
     }
     return obj;
 }

@@ -49,7 +49,7 @@ static bool forward_field_translate_name(ForwardFieldVisitor *v, const char **na
         *name = v->to;
         return true;
     }
-    error_setg(errp, QERR_MISSING_PARAMETER, *name);
+    error_setg(errp, "Parameter '%s' is missing", *name);
     return false;
 }
 

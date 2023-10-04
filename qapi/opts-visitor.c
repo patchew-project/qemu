@@ -218,7 +218,7 @@ lookup_distinct(const OptsVisitor *ov, const char *name, Error **errp)
 
     list = g_hash_table_lookup(ov->unprocessed_opts, name);
     if (!list) {
-        error_setg(errp, QERR_MISSING_PARAMETER, name);
+        error_setg(errp, "Parameter '%s' is missing", name);
     }
     return list;
 }
