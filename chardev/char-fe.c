@@ -217,7 +217,7 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
     return true;
 
 unavailable:
-    error_setg(errp, QERR_DEVICE_IN_USE, s->label);
+    error_setg(errp, "Device '%s' is in use", s->label);
     return false;
 }
 
