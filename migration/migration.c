@@ -1884,6 +1884,7 @@ static void *source_return_path_thread(void *opaque)
         header_len = qemu_get_be16(rp);
 
         if (qemu_file_get_error(rp)) {
+            qemu_file_get_error_obj(rp, &err);
             goto out;
         }
 
