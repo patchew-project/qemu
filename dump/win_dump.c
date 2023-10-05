@@ -67,7 +67,7 @@ static size_t write_run(uint64_t base_page, uint64_t page_count,
         l = qemu_write_full(fd, buf, len);
         cpu_physical_memory_unmap(buf, addr, false, len);
         if (l != len) {
-            error_setg(errp, QERR_IO_ERROR);
+            error_setg(errp, "An IO error has occurred");
             return 0;
         }
 
@@ -459,7 +459,7 @@ void create_win_dump(DumpState *s, Error **errp)
 
     s->written_size = qemu_write_full(s->fd, h, hdr_size);
     if (s->written_size != hdr_size) {
-        error_setg(errp, QERR_IO_ERROR);
+        error_setg(errp, "An IO error has occurred");
         goto out_restore;
     }
 
