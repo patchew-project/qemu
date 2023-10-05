@@ -15,7 +15,6 @@
 #include "qemu/osdep.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qapi/visitor-impl.h"
 #include "trace.h"

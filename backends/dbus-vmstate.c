@@ -16,7 +16,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
-#include "qapi/qmp/qerror.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "qom/object.h"

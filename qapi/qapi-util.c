@@ -14,7 +14,6 @@
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qemu/ctype.h"
-#include "qapi/qmp/qerror.h"
 
 CompatPolicy compat_policy;
 
