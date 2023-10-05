@@ -234,6 +234,7 @@ static void pcie_slot_class_init(ObjectClass *oc, void *data)
     hc->unplug = pcie_cap_slot_unplug_cb;
     hc->unplug_request = pcie_cap_slot_unplug_request_cb;
     hc->is_hotpluggable_bus = pcie_slot_is_hotpluggbale_bus;
+    hc->get_hotplug_state = pcie_cap_slot_get_hotplug_state;
 }
 
 static const TypeInfo pcie_slot_type_info = {
