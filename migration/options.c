@@ -1163,9 +1163,8 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 
     if (params->has_vcpu_dirty_limit &&
         (params->vcpu_dirty_limit < 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "vcpu_dirty_limit",
-                   "is invalid, it must greater then 1 MB/s");
+        error_setg(errp, "Parameter 'vcpu_dirty_limit' is invalid,"
+                         " it must greater then 1 MB/s");
         return false;
     }
 
