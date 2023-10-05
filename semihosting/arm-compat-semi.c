@@ -725,7 +725,7 @@ void do_common_semihosting(CPUState *cs)
     case TARGET_SYS_EXIT:
     case TARGET_SYS_EXIT_EXTENDED:
     {
-        uint32_t ret;
+        int ret;
 
         if (common_semi_sys_exit_extended(cs, nr)) {
             /*
