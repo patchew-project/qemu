@@ -449,16 +449,10 @@ QEMU does not create default audio backends anymore if any of the
 ``-audiodev``, ``-audio`` or ``-nodefaults`` options are used on the
 command line.
 
-If an audio backend is created with ``-audiodev``, each sound card
-that wants to use it should specify an ``audiodev=``
+If an audio backend is created with ``-audiodev``, each audio client
+(a sound card or VNC) that wants to use it should specify an ``audiodev=``
 property.  Previously, the first audiodev command line option would be
 used as a fallback.
-
-Creating vnc without ``audiodev=`` property (removed in 8.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-When using vnc, you should specify an ``audiodev=`` property if
-you plan to transmit audio through the VNC protocol.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
