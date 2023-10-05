@@ -1810,7 +1810,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     s->fd = fd;
     if (has_filter && !length) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "length");
+        error_setg(errp, "Invalid parameter 'length'");
         goto cleanup;
     }
     s->filter_area_begin = begin;
@@ -1841,7 +1841,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     /* Is the filter filtering everything? */
     if (validate_start_block(s) == -1) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "begin");
+        error_setg(errp, "Invalid parameter 'begin'");
         goto cleanup;
     }
 
@@ -2145,7 +2145,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     }
 
     if (fd == -1) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "protocol");
+        error_setg(errp, "Invalid parameter 'protocol'");
         return;
     }
 
