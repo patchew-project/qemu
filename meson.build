@@ -437,6 +437,11 @@ hardening_flags = [
     # upon its return. This makes it harder to assemble
     # ROP gadgets into something usable
     '-fzero-call-used-regs=used-gpr',
+
+    # Initialize all stack variables to zero. This makes
+    # it harder to take advantage of uninitialized stack
+    # data to drive exploits
+    '-ftrivial-var-auto-init=zero',
 ]
 
 qemu_common_flags += cc.get_supported_arguments(hardening_flags)
