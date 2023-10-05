@@ -17,9 +17,6 @@
  * add new ones!
  */
 
-#define QERR_MISSING_PARAMETER \
-    "Parameter '%s' is missing"
-
 #define QERR_PROPERTY_VALUE_BAD \
     "Property '%s.%s' doesn't take value '%s'"
 
