@@ -139,6 +139,7 @@ void qemu_ram_free(RAMBlock *block);
 int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp);
 
 void qemu_ram_msync(RAMBlock *block, ram_addr_t start, ram_addr_t length);
+void ram_block_add_list(RAMBlock *new_block);
 
 /* Clear whole block of mem */
 static inline void qemu_ram_block_writeback(RAMBlock *block)
