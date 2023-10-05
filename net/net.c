@@ -1236,8 +1236,8 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
 
         substrings = g_strsplit(ip6_net, "/", 2);
         if (!substrings || !substrings[0]) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "ipv6-net",
-                       "a valid IPv6 prefix");
+            error_setg(errp,
+                       "Parameter 'ipv6-net' expects a valid IPv6 prefix");
             goto out;
         }
 
@@ -1247,8 +1247,7 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
         if (substrings[1] &&
             qemu_strtoul(substrings[1], NULL, 10, &prefix_len))
         {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       "ipv6-prefixlen", "a number");
+            error_setg(errp, "Parameter 'ipv6-prefixlen' expects a number");
             goto out;
         }
 
@@ -1283,7 +1282,7 @@ void netdev_add(QemuOpts *opts, Error **errp)
 void qmp_netdev_add(Netdev *netdev, Error **errp)
 {
     if (!id_wellformed(netdev->id)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
+        error_setg(errp, "Parameter 'id' expects an identifier");
         return;
     }
 

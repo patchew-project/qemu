@@ -297,8 +297,7 @@ bool block_job_set_speed_locked(BlockJob *job, int64_t speed, Error **errp)
         return false;
     }
     if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative value");
+        error_setg(errp, "Parameter 'speed' expects a non-negative value");
         return false;
     }
 

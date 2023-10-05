@@ -209,7 +209,7 @@ void qmp_client_migrate_info(const char *protocol, const char *hostname,
         return;
     }
 
-    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "protocol", "'spice'");
+    error_setg(errp, "Parameter 'protocol' expects 'spice'");
 }
 
 #ifdef CONFIG_PNG

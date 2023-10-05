@@ -246,16 +246,15 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
     }
 
     if (object_class_is_abstract(oc)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
-                   "a non-abstract device type");
+        error_setg(errp,
+                   "Parameter 'driver' expects a non-abstract device type");
         return NULL;
     }
 
     dc = DEVICE_CLASS(oc);
     if (!dc->user_creatable ||
         (phase_check(PHASE_MACHINE_READY) && !dc->hotpluggable)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
-                   "a pluggable device type");
+        error_setg(errp, "Parameter 'driver' expects a pluggable device type");
         return NULL;
     }
 
@@ -263,8 +262,8 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
         /* sysbus devices need to be allowed by the machine */
         MachineClass *mc = MACHINE_CLASS(object_get_class(qdev_get_machine()));
         if (!device_type_is_dynamic_sysbus(mc, *driver)) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
-                       "a dynamic sysbus device type for the machine");
+            error_setg(errp,
+                       "Parameter 'driver' expects a dynamic sysbus device type for the machine");
             return NULL;
         }
     }

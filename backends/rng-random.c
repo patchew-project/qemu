@@ -72,8 +72,7 @@ static void rng_random_opened(RngBackend *b, Error **errp)
     RngRandom *s = RNG_RANDOM(b);
 
     if (s->filename == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "filename", "a valid filename");
+        error_setg(errp, "Parameter 'filename' expects a valid filename");
     } else {
         s->fd = qemu_open_old(s->filename, O_RDONLY | O_NONBLOCK);
         if (s->fd == -1) {

@@ -84,7 +84,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
     Error *local_err = NULL;
 
     if (id != NULL && !id_wellformed(id)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
+        error_setg(errp, "Parameter 'id' expects an identifier");
         error_append_hint(errp, "Identifiers consist of letters, digits, "
                           "'-', '.', '_', starting with a letter.\n");
         return NULL;

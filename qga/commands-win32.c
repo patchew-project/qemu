@@ -328,8 +328,8 @@ void qmp_guest_shutdown(const char *mode, Error **errp)
     } else if (strcmp(mode, "reboot") == 0) {
         shutdown_flag |= EWX_REBOOT;
     } else {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
-                   "'halt', 'powerdown', or 'reboot'");
+        error_setg(errp,
+                   "Parameter 'mode' expects 'halt', 'powerdown', or 'reboot'");
         return;
     }
 

@@ -882,8 +882,7 @@ static int quorum_valid_threshold(int threshold, int num_children, Error **errp)
 {
 
     if (threshold < 1) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "vote-threshold", "a value >= 1");
+        error_setg(errp, "Parameter 'vote-threshold' expects a value >= 1");
         return -ERANGE;
     }
 

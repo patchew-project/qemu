@@ -232,8 +232,7 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
                                           NET_CLIENT_DRIVER_NIC,
                                           MAX_QUEUE_NUM);
     if (queues < 1) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "netdev",
-                   "a network backend id");
+        error_setg(errp, "Parameter 'netdev' expects a network backend id");
         return;
     } else if (queues > 1) {
         error_setg(errp, "multiqueue is not supported");
@@ -251,8 +250,8 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
         char *position_id;
 
         if (!g_str_has_prefix(nf->position, "id=")) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "position",
-                       "'head', 'tail' or 'id=<id>'");
+            error_setg(errp,
+                       "Parameter 'position' expects 'head', 'tail' or 'id=<id>'");
             return;
         }
 

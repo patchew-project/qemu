@@ -622,8 +622,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
     } else if (id) {
         assert(fail_if_exists);
         if (!id_wellformed(id)) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id",
-                       "an identifier");
+            error_setg(errp, "Parameter 'id' expects an identifier");
             error_append_hint(errp, "Identifiers consist of letters, digits, "
                               "'-', '.', '_', starting with a letter.\n");
             return NULL;

@@ -136,8 +136,8 @@ cryptodev_vhost_claim_chardev(CryptoDevBackendVhostUser *s,
     Chardev *chr;
 
     if (s->chr_name == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "chardev", "a valid character device");
+        error_setg(errp,
+                   "Parameter 'chardev' expects a valid character device");
         return NULL;
     }
 

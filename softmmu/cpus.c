@@ -753,8 +753,7 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
 
     cpu = qemu_get_cpu(cpu_index);
     if (cpu == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
-                   "a CPU number");
+        error_setg(errp, "Parameter 'cpu-index' expects a CPU number");
         return;
     }
 

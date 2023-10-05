@@ -97,7 +97,7 @@ void qmp_balloon(int64_t target, Error **errp)
     }
 
     if (target <= 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "target", "a size");
+        error_setg(errp, "Parameter 'target' expects a size");
         return;
     }
 
