@@ -194,7 +194,7 @@ static bool visit_type_uintN(Visitor *v, uint64_t *obj, const char *name,
     }
     if (value > max) {
         assert(v->type == VISITOR_INPUT);
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+        error_setg(errp, "Parameter '%s' expects %s",
                    name ? name : "null", type);
         return false;
     }
@@ -262,7 +262,7 @@ static bool visit_type_intN(Visitor *v, int64_t *obj, const char *name,
     }
     if (value < min || value > max) {
         assert(v->type == VISITOR_INPUT);
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+        error_setg(errp, "Parameter '%s' expects %s",
                    name ? name : "null", type);
         return false;
     }

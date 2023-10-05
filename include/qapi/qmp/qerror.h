@@ -17,9 +17,6 @@
  * add new ones!
  */
 
-#define QERR_INVALID_PARAMETER_VALUE \
-    "Parameter '%s' expects %s"
-
 #define QERR_IO_ERROR \
     "An IO error has occurred"
 
