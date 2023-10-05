@@ -442,9 +442,17 @@ line using a ``secret`` object instance.
 The ``-audiodev`` and ``-audio`` command line options are now the only
 way to specify audio backend settings.
 
+Using ``-audiodev`` to define the default audio backend (removed in 8.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
 QEMU does not create default audio backends anymore if any of the
 ``-audiodev``, ``-audio`` or ``-nodefaults`` options are used on the
 command line.
+
+If an audio backend is created with ``-audiodev``, each sound card
+that wants to use it should specify an ``audiodev=``
+property.  Previously, the first audiodev command line option would be
+used as a fallback.
 
 Creating vnc without ``audiodev=`` property (removed in 8.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
