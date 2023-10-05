@@ -1426,7 +1426,7 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
     int i;
 
     if (!qemu_chr_fe_backend_connected(&dev->cs)) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "chardev");
+        error_setg(errp, "Parameter 'chardev' is missing");
         return;
     }
 

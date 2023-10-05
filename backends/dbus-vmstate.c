@@ -413,7 +413,7 @@ dbus_vmstate_complete(UserCreatable *uc, Error **errp)
     }
 
     if (!self->dbus_addr) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "addr");
+        error_setg(errp, "Parameter 'addr' is missing");
         return;
     }
 

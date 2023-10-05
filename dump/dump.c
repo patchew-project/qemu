@@ -2096,11 +2096,11 @@ void qmp_dump_guest_memory(bool paging, const char *file,
         return;
     }
     if (has_begin && !has_length) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "length");
+        error_setg(errp, "Parameter 'length' is missing");
         return;
     }
     if (!has_begin && has_length) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "begin");
+        error_setg(errp, "Parameter 'begin' is missing");
         return;
     }
     if (has_detach) {

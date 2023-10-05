@@ -493,7 +493,7 @@ static void input_barrier_complete(UserCreatable *uc, Error **errp)
     Error *local_err = NULL;
 
     if (!ib->name) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "name");
+        error_setg(errp, "Parameter 'name' is missing");
         return;
     }
 
