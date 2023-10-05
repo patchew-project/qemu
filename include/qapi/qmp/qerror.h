@@ -17,7 +17,4 @@
  * add new ones!
  */
 
-#define QERR_UNSUPPORTED \
-    "this feature or command is not currently supported"
-
 #endif /* QERROR_H */
