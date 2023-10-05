@@ -229,6 +229,13 @@ struct DeviceState {
      * @realized: has device been realized?
      */
     bool realized;
+
+    /**
+     * @device_on_event_sent: When true means that DEVICE_ON event was already
+     *                        sent.
+     */
+    bool device_on_event_sent;
+
     /**
      * @pending_deleted_event: track pending deletion events during unplug
      */
