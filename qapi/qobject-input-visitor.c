@@ -424,8 +424,8 @@ static bool qobject_input_type_int64_keyval(Visitor *v, const char *name,
 
     if (qemu_strtoi64(str, NULL, 0, obj) < 0) {
         /* TODO report -ERANGE more nicely */
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   full_name(qiv, name), "integer");
+        error_setg(errp, "Parameter '%s' expects integer",
+                   full_name(qiv, name));
         return false;
     }
     return true;
@@ -458,8 +458,7 @@ static bool qobject_input_type_uint64(Visitor *v, const char *name,
     }
 
 err:
-    error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-               full_name(qiv, name), "uint64");
+    error_setg(errp, "Parameter '%s' expects uint64", full_name(qiv, name));
     return false;
 }
 
@@ -475,8 +474,8 @@ static bool qobject_input_type_uint64_keyval(Visitor *v, const char *name,
 
     if (qemu_strtou64(str, NULL, 0, obj) < 0) {
         /* TODO report -ERANGE more nicely */
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   full_name(qiv, name), "integer");
+        error_setg(errp, "Parameter '%s' expects integer",
+                   full_name(qiv, name));
         return false;
     }
     return true;
@@ -514,8 +513,8 @@ static bool qobject_input_type_bool_keyval(Visitor *v, const char *name,
     }
 
     if (!qapi_bool_parse(name, str, obj, NULL)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   full_name(qiv, name), "'on' or 'off'");
+        error_setg(errp, "Parameter '%s' expects 'on' or 'off'",
+                   full_name(qiv, name));
         return false;
     }
     return true;
@@ -643,8 +642,7 @@ static bool qobject_input_type_size_keyval(Visitor *v, const char *name,
 
     if (qemu_strtosz(str, NULL, obj) < 0) {
         /* TODO report -ERANGE more nicely */
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   full_name(qiv, name), "size");
+        error_setg(errp, "Parameter '%s' expects size", full_name(qiv, name));
         return false;
     }
     return true;

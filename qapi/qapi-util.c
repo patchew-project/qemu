@@ -101,8 +101,7 @@ bool qapi_bool_parse(const char *name, const char *value, bool *obj, Error **err
         return true;
     }
 
-    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
-               "'on' or 'off'");
+    error_setg(errp, "Parameter '%s' expects 'on' or 'off'", name);
     return false;
 }
 

@@ -769,8 +769,9 @@ static void set_pci_devfn(Object *obj, Visitor *v, const char *name,
             return;
         }
         if (value < -1 || value > 255) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "a value between -1 and 255");
+            error_setg(errp,
+                       "Parameter '%s' expects a value between -1 and 255",
+                       name ? name : "null");
             return;
         }
         *ptr = value;

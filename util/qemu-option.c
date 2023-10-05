@@ -101,7 +101,7 @@ static bool parse_option_number(const char *name, const char *value,
         return false;
     }
     if (err) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+        error_setg(errp, "Parameter '%s' expects a number", name);
         return false;
     }
     *ret = number;
@@ -142,8 +142,9 @@ bool parse_option_size(const char *name, const char *value,
         return false;
     }
     if (err) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
-                   "a non-negative number below 2^64");
+        error_setg(errp,
+                   "Parameter '%s' expects a non-negative number below 2^64",
+                   name);
         error_append_hint(errp, "Optional suffix k, M, G, T, P or E means"
                           " kilo-, mega-, giga-, tera-, peta-\n"
                           "and exabytes, respectively.\n");
