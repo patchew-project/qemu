@@ -140,25 +140,21 @@ static const MemoryRegionOps pm_io_ops = {
 
 static void pm_update_sci(ViaPMState *s)
 {
-    int sci_level, pmsts;
+    int sci_irq, pmsts;
 
     pmsts = acpi_pm1_evt_get_sts(&s->ar);
-    sci_level = (((pmsts & s->ar.pm1.evt.en) &
-                  (ACPI_BITMASK_RT_CLOCK_ENABLE |
-                   ACPI_BITMASK_POWER_BUTTON_ENABLE |
-                   ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
-                   ACPI_BITMASK_TIMER_ENABLE)) != 0);
-    if (pci_get_byte(s->dev.config + PCI_INTERRUPT_PIN)) {
-        /*
-         * FIXME:
-         * Fix device model that realizes this PM device and remove
-         * this work around.
-         * The device model should wire SCI and setup
-         * PCI_INTERRUPT_PIN properly.
-         * If PIN# = 0(interrupt pin isn't used), don't raise SCI as
-         * work around.
-         */
-        pci_set_irq(&s->dev, sci_level);
+    sci_irq = pci_get_byte(s->dev.config + 0x42) & 0xf;
+    if (sci_irq) {
+        int sci_level = (((pmsts & s->ar.pm1.evt.en) &
+                          (ACPI_BITMASK_RT_CLOCK_ENABLE |
+                              ACPI_BITMASK_POWER_BUTTON_ENABLE |
+                              ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
+                              ACPI_BITMASK_TIMER_ENABLE)) != 0);
+
+        if (sci_irq == 2) {
+            qemu_log_mask(LOG_GUEST_ERROR, "IRQ 2 for VIA PM SCI is reserved");
+        }
+        via_isa_set_irq(pci_get_function_0(&s->dev), sci_irq, sci_level);
     }
     /* schedule a timer interruption if needed */
     acpi_pm_tmr_update(&s->ar, (s->ar.pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
