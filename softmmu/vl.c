@@ -1258,6 +1258,7 @@ struct device_config {
         DEV_PARALLEL,  /* -parallel      */
         DEV_DEBUGCON,  /* -debugcon */
         DEV_GDB,       /* -gdb, -s */
+        DEV_MCD,       /* -mcd */
         DEV_SCLP,      /* s390 sclp */
     } type;
     const char *cmdline;
@@ -3010,6 +3011,9 @@ void qemu_init(int argc, char **argv)
                 break;
             case QEMU_OPTION_gdb:
                 add_device_config(DEV_GDB, optarg);
+                break;
+            case QEMU_OPTION_mcd:
+                add_device_config(DEV_MCD, optarg);
                 break;
             case QEMU_OPTION_L:
                 if (is_help_option(optarg)) {
