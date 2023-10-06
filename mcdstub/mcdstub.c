@@ -1303,12 +1303,15 @@ int init_resets(GArray *resets)
 
 int init_trigger(mcd_trigger_into_st *trigger)
 {
-    trigger->type = (MCD_TRIG_TYPE_IP | MCD_TRIG_TYPE_READ |
-        MCD_TRIG_TYPE_WRITE | MCD_TRIG_TYPE_RW);
-    trigger->option = (MCD_TRIG_OPT_DATA_IS_CONDITION);
-    trigger->action = (MCD_TRIG_ACTION_DBG_DEBUG);
-    /* there is no specific upper limit for trigger */
-    trigger->nr_trigger = 0;
+    snprintf(trigger->type, sizeof(trigger->type),
+        "%d,%d,%d,%d", MCD_BREAKPOINT_HW, MCD_BREAKPOINT_READ,
+        MCD_BREAKPOINT_WRITE, MCD_BREAKPOINT_RW);
+    snprintf(trigger->option, sizeof(trigger->option),
+        "%s", MCD_TRIG_OPT_VALUE);
+    snprintf(trigger->action, sizeof(trigger->action),
+        "%s", MCD_TRIG_ACT_BREAK);
+    /* there can be 16 breakpoints and 16 watchpoints each */
+    trigger->nr_trigger = 16;
     return 0;
 }
 
@@ -1348,9 +1351,9 @@ void handle_query_cores(GArray *params, void *user_ctx)
     CPUClass *cc = CPU_GET_CLASS(cpu);
     gchar *arch = cc->gdb_arch_name(cpu);
 
-    int nr_cores = cpu->nr_cores;
+    uint32_t nr_cores = cpu->nr_cores;
     char device_name[] = DEVICE_NAME_TEMPLATE(arch);
-    g_string_printf(mcdserver_state.str_buf, "%s=%s.%s=%s.%s=%d.",
+    g_string_printf(mcdserver_state.str_buf, "%s=%s.%s=%s.%s=%u.",
         TCP_ARGUMENT_DEVICE, device_name, TCP_ARGUMENT_CORE, cpu_model,
         TCP_ARGUMENT_AMOUNT_CORE, nr_cores);
     mcd_put_strbuf();
@@ -1576,7 +1579,7 @@ void handle_query_reset_f(GArray *params, void *user_ctx)
     }
     /* 2. send data */
     mcd_reset_st reset = g_array_index(mcdserver_state.resets, mcd_reset_st, 0);
-    g_string_append_printf(mcdserver_state.str_buf, "%s=%s.%s=%d.",
+    g_string_append_printf(mcdserver_state.str_buf, "%s=%s.%s=%u.",
         TCP_ARGUMENT_NAME, reset.name, TCP_ARGUMENT_ID, reset.id);
     mcd_put_strbuf();
 }
@@ -1592,13 +1595,13 @@ void handle_query_reset_c(GArray *params, void *user_ctx)
         /* indicates this is the last packet */
         g_string_printf(mcdserver_state.str_buf, "0!");
     } else {
-        g_string_printf(mcdserver_state.str_buf, "%d!", query_index + 1);
+        g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
     }
 
     /* 2. send data */
     mcd_reset_st reset = g_array_index(mcdserver_state.resets,
         mcd_reset_st, query_index);
-    g_string_append_printf(mcdserver_state.str_buf, "%s=%s.%s=%d.",
+    g_string_append_printf(mcdserver_state.str_buf, "%s=%s.%s=%u.",
         TCP_ARGUMENT_NAME, reset.name, TCP_ARGUMENT_ID, reset.id);
     mcd_put_strbuf();
 }
@@ -1652,9 +1655,10 @@ void handle_close_server(GArray *params, void *user_ctx)
 void handle_query_trigger(GArray *params, void *user_ctx)
 {
     mcd_trigger_into_st trigger = mcdserver_state.trigger;
-    g_string_printf(mcdserver_state.str_buf, "%s=%d.%s=%d.%s=%d.%s=%d.",
+    g_string_printf(mcdserver_state.str_buf, "%s=%u.%s=%s.%s=%s.%s=%s.",
         TCP_ARGUMENT_AMOUNT_TRIGGER, trigger.nr_trigger,
-        TCP_ARGUMENT_TYPE, trigger.type, TCP_ARGUMENT_OPTION, trigger.option,
+        TCP_ARGUMENT_TYPE, trigger.type,
+        TCP_ARGUMENT_OPTION, trigger.option,
         TCP_ARGUMENT_ACTION, trigger.action);
     mcd_put_strbuf();
 }
@@ -1714,13 +1718,16 @@ void handle_query_mem_spaces_f(GArray *params, void *user_ctx)
     /* 3. send data */
     mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st, 0);
     g_string_append_printf(mcdserver_state.str_buf,
-        "%s=%s.%s=%d.%s=%d.%s=%d.%s=%d.%s=%d.%s=%ld.%s=%ld.%s=%d.",
-        TCP_ARGUMENT_NAME, space.name, TCP_ARGUMENT_ID, space.id,
-        TCP_ARGUMENT_TYPE, space.type, TCP_ARGUMENT_BITS_PER_MAU,
-        space.bits_per_mau, TCP_ARGUMENT_INVARIANCE, space.invariance,
-        TCP_ARGUMENT_ENDIAN, space.endian, TCP_ARGUMENT_MIN, space.min_addr,
-        TCP_ARGUMENT_MAX, space.max_addr, TCP_ARGUMENT_SUPPORTED_ACCESS_OPTIONS,
-        space.supported_access_options);
+        "%s=%s.%s=%u.%s=%u.%s=%u.%s=%u.%s=%u.%s=%ld.%s=%ld.%s=%u.",
+        TCP_ARGUMENT_NAME, space.name,
+        TCP_ARGUMENT_ID, space.id,
+        TCP_ARGUMENT_TYPE, space.type,
+        TCP_ARGUMENT_BITS_PER_MAU, space.bits_per_mau,
+        TCP_ARGUMENT_INVARIANCE, space.invariance,
+        TCP_ARGUMENT_ENDIAN, space.endian,
+        TCP_ARGUMENT_MIN, space.min_addr,
+        TCP_ARGUMENT_MAX, space.max_addr,
+        TCP_ARGUMENT_SUPPORTED_ACCESS_OPTIONS, space.supported_access_options);
     mcd_put_strbuf();
 }
 
@@ -1740,20 +1747,23 @@ void handle_query_mem_spaces_c(GArray *params, void *user_ctx)
         /* indicates this is the last packet */
         g_string_printf(mcdserver_state.str_buf, "0!");
     } else {
-        g_string_printf(mcdserver_state.str_buf, "%d!", query_index + 1);
+        g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
     }
 
     /* 3. send the correct memspace */
     mcd_mem_space_st space = g_array_index(memspaces,
         mcd_mem_space_st, query_index);
     g_string_append_printf(mcdserver_state.str_buf,
-        "%s=%s.%s=%d.%s=%d.%s=%d.%s=%d.%s=%d.%s=%ld.%s=%ld.%s=%d.",
-        TCP_ARGUMENT_NAME, space.name, TCP_ARGUMENT_ID,
-        space.id, TCP_ARGUMENT_TYPE, space.type, TCP_ARGUMENT_BITS_PER_MAU,
-        space.bits_per_mau, TCP_ARGUMENT_INVARIANCE, space.invariance,
-        TCP_ARGUMENT_ENDIAN, space.endian, TCP_ARGUMENT_MIN, space.min_addr,
-        TCP_ARGUMENT_MAX, space.max_addr, TCP_ARGUMENT_SUPPORTED_ACCESS_OPTIONS,
-        space.supported_access_options);
+        "%s=%s.%s=%u.%s=%u.%s=%u.%s=%u.%s=%u.%s=%ld.%s=%ld.%s=%u.",
+        TCP_ARGUMENT_NAME, space.name,
+        TCP_ARGUMENT_ID, space.id,
+        TCP_ARGUMENT_TYPE, space.type,
+        TCP_ARGUMENT_BITS_PER_MAU, space.bits_per_mau,
+        TCP_ARGUMENT_INVARIANCE, space.invariance,
+        TCP_ARGUMENT_ENDIAN, space.endian,
+        TCP_ARGUMENT_MIN, space.min_addr,
+        TCP_ARGUMENT_MAX, space.max_addr,
+        TCP_ARGUMENT_SUPPORTED_ACCESS_OPTIONS, space.supported_access_options);
     mcd_put_strbuf();
 }
 
@@ -1774,7 +1784,7 @@ void handle_query_reg_groups_f(GArray *params, void *user_ctx)
     }
     /* 3. send data */
     mcd_reg_group_st group = g_array_index(reggroups, mcd_reg_group_st, 0);
-    g_string_append_printf(mcdserver_state.str_buf, "%s=%d.%s=%s.",
+    g_string_append_printf(mcdserver_state.str_buf, "%s=%u.%s=%s.",
         TCP_ARGUMENT_ID, group.id, TCP_ARGUMENT_NAME, group.name);
     mcd_put_strbuf();
 }
@@ -1795,13 +1805,13 @@ void handle_query_reg_groups_c(GArray *params, void *user_ctx)
         /* indicates this is the last packet */
         g_string_printf(mcdserver_state.str_buf, "0!");
     } else {
-        g_string_printf(mcdserver_state.str_buf, "%d!", query_index + 1);
+        g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
     }
 
     /* 3. send the correct reggroup */
     mcd_reg_group_st group = g_array_index(reggroups, mcd_reg_group_st,
         query_index);
-    g_string_append_printf(mcdserver_state.str_buf, "%s=%d.%s=%s.",
+    g_string_append_printf(mcdserver_state.str_buf, "%s=%u.%s=%s.",
         TCP_ARGUMENT_ID, group.id, TCP_ARGUMENT_NAME, group.name);
     mcd_put_strbuf();
 }
@@ -1852,7 +1862,7 @@ void handle_query_regs_c(GArray *params, void *user_ctx)
         /* indicates this is the last packet */
         g_string_printf(mcdserver_state.str_buf, "0!");
     } else {
-        g_string_printf(mcdserver_state.str_buf, "%d!", query_index + 1);
+        g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
     }
 
     /* 3. send the correct register */

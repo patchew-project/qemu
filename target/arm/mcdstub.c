@@ -333,7 +333,7 @@ uint16_t arm_mcd_get_opcode(CPUState *cs, uint32_t n)
 
 int arm_mcd_set_scr(CPUState *cs, bool secure)
 {
-    /* swtiches between secure and non secure mode */
+    /* switches between secure and non secure mode */
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     /* set bit 0 to 1 if non secure, to 0 if secure*/

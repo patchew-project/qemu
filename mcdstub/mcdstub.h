@@ -13,22 +13,6 @@
 #define MCD_TRIG_OPT_DATA_IS_CONDITION 0x00000008
 #define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
 
-typedef uint32_t mcd_trig_type_et;
-/* TODO: replace mcd defines with custom layer */
-enum {
-    MCD_TRIG_TYPE_UNDEFINED = 0x00000000,
-    MCD_TRIG_TYPE_IP        = 0x00000001,
-    MCD_TRIG_TYPE_READ      = 0x00000002,
-    MCD_TRIG_TYPE_WRITE     = 0x00000004,
-    MCD_TRIG_TYPE_RW        = 0x00000008,
-    MCD_TRIG_TYPE_NOCYCLE   = 0x00000010,
-    MCD_TRIG_TYPE_TRIG_BUS  = 0x00000020,
-    MCD_TRIG_TYPE_COUNTER   = 0x00000040,
-    MCD_TRIG_TYPE_CUSTOM    = 0x00000080,
-    MCD_TRIG_TYPE_CUSTOM_LO = 0x00010000,
-    MCD_TRIG_TYPE_CUSTOM_HI = 0x40000000,
-};
-
 typedef uint32_t mcd_core_event_et;
 /* TODO: replace mcd defines with custom layer */
 enum {
@@ -60,6 +44,7 @@ enum {
 #define QUERY_TOTAL_NUMBER 12
 #define CMD_SCHEMA_LENGTH 6
 #define MCD_SYSTEM_NAME "qemu-system"
+#define ARGUMENT_STRING_LENGTH 64
 
 /* tcp query packet values templates */
 #define DEVICE_NAME_TEMPLATE(s) "qemu-" #s "-device"
@@ -126,9 +111,9 @@ typedef struct breakpoint_st {
 } breakpoint_st;
 
 typedef struct mcd_trigger_into_st {
-    uint32_t type;
-    uint32_t option;
-    uint32_t action;
+    char type[ARGUMENT_STRING_LENGTH];
+    char option[ARGUMENT_STRING_LENGTH];
+    char action[ARGUMENT_STRING_LENGTH];
     uint32_t nr_trigger;
 } mcd_trigger_into_st;
 
@@ -195,15 +180,15 @@ typedef struct mcd_reg_group_st {
 } mcd_reg_group_st;
 
 typedef struct xml_attrib {
-    char argument[64];
-    char value[64];
+    char argument[ARGUMENT_STRING_LENGTH];
+    char value[ARGUMENT_STRING_LENGTH];
 } xml_attrib;
 
 typedef struct mcd_reg_st {
     /* xml info */
-    char name[64];
-    char group[64];
-    char type[64];
+    char name[ARGUMENT_STRING_LENGTH];
+    char group[ARGUMENT_STRING_LENGTH];
+    char type[ARGUMENT_STRING_LENGTH];
     uint32_t bitsize;
     uint32_t id; /* id used by the mcd interface */
     uint32_t internal_id; /* id inside reg type */

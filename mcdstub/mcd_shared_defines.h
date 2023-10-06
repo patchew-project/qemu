@@ -91,4 +91,12 @@
 #define MCD_BREAKPOINT_WRITE 3
 #define MCD_BREAKPOINT_RW 4
 
+/* trigger data */
+#define MCD_TRIG_ACT_BREAK "check_data_value"
+#define MCD_TRIG_OPT_VALUE "break_on_trigger"
+
+/* register mem space key words */
+#define MCD_GRP_KEYWORD "GPR"
+#define MCD_CP_KEYWORD "CP"
+
 #endif
