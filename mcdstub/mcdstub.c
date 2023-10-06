@@ -8,7 +8,6 @@
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
-//#include "trace.h"
 #include "exec/mcdstub.h"
 #include "mcdstub/syscalls.h"
 #include "hw/cpu/cluster.h"
@@ -31,8 +30,10 @@
 #include "chardev/char-fe.h"
 #include "monitor/monitor.h"
 
-// just used for the xml_builtin stuff
-//#include "exec/gdbstub.h"       /* xml_builtin */
+//architecture specific stuff
+#include "target/arm/mcdstub.h"
+
+// FIXME: delete the following line and check if it worked
 #include "hw/core/sysemu-cpu-ops.h"
 
 typedef struct {
@@ -73,6 +74,15 @@ static const MCDCmdParseEntry mcd_gen_query_table[] = {
     {
         .handler = handle_query_reg_groups_c,
         .cmd = "reggroupc",
+        .schema = "i",
+    },
+    {
+        .handler = handle_query_regs_f,
+        .cmd = "regf",
+    },
+    {
+        .handler = handle_query_regs_c,
+        .cmd = "regc",
         .schema = "i",
     },
 };
@@ -494,21 +504,21 @@ void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd)
     }
 }
 
-int cmd_parse_params(const char *data, const char *schema, GArray *params)
-{
+int cmd_parse_params(const char *data, const char *schema, GArray *params) {
     MCDCmdVariant this_param;
 
+    char data_buffer[64] = {0};
     if (schema[0] == 's') {
         this_param.data = data;
         g_array_append_val(params, this_param);
     }
     else if (schema[0] == 'i') {
-        this_param.index_handle = atoi(data);
-    g_array_append_val(params, this_param);
+        strncat(data_buffer, data, strlen(data));
+        this_param.index_handle = atoi(data_buffer);
+        g_array_append_val(params, this_param);
     }
 
     return 0;
-    
 }
 
 int process_string_cmd(void *user_ctx, const char *data, const MCDCmdParseEntry *cmds, int num_cmds)
@@ -885,23 +895,248 @@ CPUState *find_cpu(uint32_t thread_id)
     return NULL;
 }
 
+
+void parse_reg_xml(const char *xml, int size) {
+    // iterates over the complete xml file
+    int i, j;
+    int still_to_skip = 0;
+    char argument[64] = {0};
+    char value[64] = {0};
+    bool is_reg = false;
+    bool is_argument = false;
+    bool is_value = false;
+    GArray *reg_data;
+
+    char c;
+    char *c_ptr;
+
+    xml_attrib attribute_j;
+    const char *argument_j;
+    const char *value_j;
+
+    for (i = 0; i < size; i++) {
+        c = xml[i];
+        c_ptr = &c;
+
+        if (still_to_skip>0) {
+            // skip chars unwanted chars
+            still_to_skip --;
+            continue;
+        }
+
+        if (strncmp(&xml[i], "<reg", 4)==0) {
+            // start of a register
+            still_to_skip = 3;
+            is_reg = true;
+            reg_data = g_array_new(false, true, sizeof(xml_attrib));
+        }
+        else if (is_reg) {
+            if (strncmp(&xml[i], "/>", 2)==0) {
+                // end of register info
+                still_to_skip = 1;
+                is_reg = false;
+
+                // create empty register
+                mcd_reg_st my_register = (const struct mcd_reg_st){ 0 };
+
+                // add found attribtues
+                for (j = 0; j<reg_data->len; j++) {
+                    attribute_j = g_array_index(reg_data, xml_attrib, j);
+
+                    argument_j = attribute_j.argument;
+                    value_j = attribute_j.value;
+
+                    if (strcmp(argument_j, "name")==0) {
+                        strcpy(my_register.name, value_j);
+                    }
+                    else if (strcmp(argument_j, "regnum")==0) {
+                        my_register.id = atoi(value_j);
+                    }
+                    else if (strcmp(argument_j, "bitsize")==0) {
+                        my_register.bitsize = atoi(value_j);
+                    }
+                    else if (strcmp(argument_j, "type")==0) {
+                        strcpy(my_register.type, value_j);
+                    }
+                    else if (strcmp(argument_j, "group")==0) {
+                        strcpy(my_register.group, value_j);
+                    }
+                }
+                // store register
+                g_array_append_vals(mcdserver_state.registers, (gconstpointer)&my_register, 1);
+                // free memory
+                g_array_free(reg_data, false);
+            }
+            else {
+                // store info for register
+                switch (c) {
+                    case ' ':
+                        break;
+                    case '=':
+                        is_argument = false;
+                        break;
+                    case '"':
+                        if (is_value) {
+                            // end of value reached
+                            is_value = false;
+                            // store arg-val combo
+                            xml_attrib current_attribute;
+                            strcpy(current_attribute.argument, argument);
+                            strcpy(current_attribute.value, value);
+                            g_array_append_vals(reg_data, (gconstpointer)&current_attribute, 1);
+                            memset(argument, 0, sizeof(argument));
+                            memset(value, 0, sizeof(value));
+                        }
+                        else {
+                            //start of value
+                            is_value = true;
+                        }
+                        break;
+                    default:
+                        if (is_argument) {
+                            strncat(argument, c_ptr, 1);
+                        }
+                        else if (is_value) {
+                            strncat(value, c_ptr, 1);
+                        }
+                        else {
+                            is_argument = true;
+                            strncat(argument, c_ptr, 1);
+                        }
+                        break;
+                }
+            }
+        }
+    }
+}
+
+int int_cmp(gconstpointer a, gconstpointer b) {
+    int a_int = *(int*)a;
+    int b_int = *(int*)b;
+    if (a_int == b_int) {
+        return 0;
+    }
+    else {
+        return 1;
+    }
+}
+
 void handle_init(GArray *params, void *user_ctx) {
     CPUState *cpu = mcdserver_state.c_cpu;
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     gchar *arch = cc->gdb_arch_name(cpu);
 
-    // store reg groups
+    
     if (strcmp(arch, "arm")==0) {
+        // store reg groups
+        uint32_t current_group_id = 0;
+
         // at the moment we just assume there are 3 spaces (gpr, per and debug)
         // TODO: this might cause a memory leak when called a second time -> maybe free the Garray first
         mcdserver_state.reggroups = g_array_new(false, true, sizeof(mcd_reg_group_st));
 
-        mcd_reg_group_st group1 = { .name = "GPR Registers", .id = "1" };
+        // store the registers themselves
+        mcdserver_state.registers = g_array_new(false, true, sizeof(mcd_reg_st));
+        GList *register_numbers = NULL;
+
+        const char *xml_filename = NULL;
+        const char *xml_content = NULL;
+        const char *name = NULL;
+        int i;
+
+        // 1. check out the core xml file
+        xml_filename = cc->gdb_core_xml_file;
+
+        for (i = 0; ; i++) {
+                name = xml_builtin[i][0];
+                if (!name || (strncmp(name, xml_filename, strlen(xml_filename)) == 0 && strlen(name) == strlen(xml_filename)))
+                break;
+            }
+        // without gpr registers we can do nothing
+        assert(name);
+        // add group for gpr registers
+        current_group_id = 1;
+        mcd_reg_group_st group1 = { .name = "GPR Registers", .id = current_group_id };
         g_array_append_vals(mcdserver_state.reggroups, (gconstpointer)&group1, 1);
 
-        mcd_reg_group_st group2 = { .name = "CP15 Registers", .id = "2" };
-        g_array_append_vals(mcdserver_state.reggroups, (gconstpointer)&group2, 1);
+        // parse xml
+        xml_content = xml_builtin[i][1];
+        parse_reg_xml(xml_content, strlen(xml_content));
+
+        // 2. iterate over all other xml files
+        GDBRegisterState *r;
+        for (r = cpu->gdb_regs; r; r = r->next) {
+            xml_filename = r->xml;
+            xml_content = NULL;
+
+            // first, check if this is a coprocessor xml
+
+            // funciton call
+            xml_content = arm_mcd_get_dynamic_xml(cpu, xml_filename);
+            if (xml_content) {
+                if (strcmp(xml_filename, "system-registers.xml")==0) {
+                    //these are the coprocessor register
+                    current_group_id = 2;
+                    mcd_reg_group_st group2 = { .name = "CP15 Registers", .id = current_group_id };
+                    g_array_append_vals(mcdserver_state.reggroups, (gconstpointer)&group2, 1);
+                }
+                
+            }
+            else {
+                // its not a coprocessor xml -> it is a static xml file
+                for (i = 0; ; i++) {
+                    name = xml_builtin[i][0];
+                    if (!name || (strncmp(name, xml_filename, strlen(xml_filename)) == 0 && strlen(name) == strlen(xml_filename)))
+                    break;
+                }
+                if (name) {
+                    xml_content = xml_builtin[i][1];
+                }
+                else {
+                    printf("no data found for %s\n", xml_filename);
+                    continue;
+                }
+            }
+
+            // parse xml
+            parse_reg_xml(xml_content, strlen(xml_content));
+        }
+        // go over the register array and collect all additional data
+        mcd_reg_st *current_register;
+        int id_neg_offset = 0;
+        int effective_id;
+        for (i = 0; i < mcdserver_state.registers->len; i++) {
+            current_register = &(g_array_index(mcdserver_state.registers, mcd_reg_st, i));
+            // ad an id handle
+            if (current_register->id) {
+                // id is already in place
+                //FIXME: we are missing 10 registers (likely the FPA regs or sth)
+                int used_id = current_register->id;
+                register_numbers = g_list_append(register_numbers, &used_id);
+                id_neg_offset ++;
+            }
+            else {
+                effective_id = i - id_neg_offset;
+                if (g_list_find_custom(register_numbers, &effective_id, (GCompareFunc)int_cmp)!=NULL) {
+                    id_neg_offset --;
+                }
+                current_register->id = i - id_neg_offset;
+            }
+            // sort into correct reg_group and according mem_space
+            if (strcmp(current_register->group, "cp_regs")==0) {
+                current_register->mcd_reg_group_id = 2;
+                current_register->mcd_mem_space_id = 6;
+                // get info for opcode
+            }
+            else {
+                // gpr register
+                current_register->mcd_reg_group_id = 1;
+                current_register->mcd_mem_space_id = 5;
+            }
+        }
+        // free memory
+        g_list_free(register_numbers);
     }
     else {
         // we don't support other architectures
@@ -910,7 +1145,7 @@ void handle_init(GArray *params, void *user_ctx) {
     g_free(arch);
 
     // the mcdserver is set up and we return the handshake
-    mcd_put_packet("shaking your hand");
+    mcd_put_packet("shaking your hand"); 
 }
 
 void handle_query_system(GArray *params, void *user_ctx) {
@@ -932,10 +1167,6 @@ void handle_query_cores(GArray *params, void *user_ctx) {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     gchar *arch = cc->gdb_arch_name(cpu);
     
-    //const char *cpu_name = object_get_canonical_path_component(OBJECT(cpu));
-    //int process_id = mcd_get_cpu_pid(cpu);
-    //int cpu_index = cpu->cpu_index;
-    //int cpu_cluster = cpu->cluster_index;
     int nr_cores = cpu->nr_cores;
 
     g_string_append_printf(mcdserver_state.str_buf, "device=\"qemu-%s-device\",core=\"%s\",nr_cores=\"%d\"", arch, cpu_model, nr_cores);
@@ -1039,13 +1270,21 @@ void handle_query_mem_spaces(GArray *params, void *user_ctx) {
 
 void handle_query_reg_groups_f(GArray *params, void *user_ctx) {
     // send the first reg group
+    int nb_groups = mcdserver_state.reggroups->len;
+    if (nb_groups == 1) {
+        // indicates this is the last packet
+        g_string_printf(mcdserver_state.str_buf, "0!");
+    }
+    else {
+        g_string_printf(mcdserver_state.str_buf, "1!");
+    }
     mcd_reg_group_st group = g_array_index(mcdserver_state.reggroups, mcd_reg_group_st, 0);
-    g_string_printf(mcdserver_state.str_buf, "1!id=%s.name=%s.", group.id, group.name);
+    g_string_append_printf(mcdserver_state.str_buf, "id=%d.name=%s.", group.id, group.name);
     mcd_put_strbuf();
 }
 
 void handle_query_reg_groups_c(GArray *params, void *user_ctx) {
-    // this funcitons send all reg groups exept for the first
+    // this funcitons send all reg groups except for the first
     // 1. get parameter
     int query_index = get_param(params, 0)->index_handle;
 
@@ -1056,12 +1295,51 @@ void handle_query_reg_groups_c(GArray *params, void *user_ctx) {
         g_string_printf(mcdserver_state.str_buf, "0!");
     }
     else {
-        // provides
         g_string_printf(mcdserver_state.str_buf, "%d!", query_index+1);
     }
 
     // 3. send the correct reggroup
     mcd_reg_group_st group = g_array_index(mcdserver_state.reggroups, mcd_reg_group_st, query_index);
-    g_string_append_printf(mcdserver_state.str_buf, "id=%s.name=%s.", group.id, group.name);
+    g_string_append_printf(mcdserver_state.str_buf, "id=%d.name=%s.", group.id, group.name);
+    mcd_put_strbuf();
+}
+
+void handle_query_regs_f(GArray *params, void *user_ctx) {
+    // send the first register
+    int nb_regs = mcdserver_state.registers->len;
+    if (nb_regs == 1) {
+        // indicates this is the last packet
+        g_string_printf(mcdserver_state.str_buf, "0!");
+    }
+    else {
+        g_string_printf(mcdserver_state.str_buf, "1!");
+    }
+    mcd_reg_st my_register = g_array_index(mcdserver_state.registers, mcd_reg_st, 0);
+    g_string_append_printf(mcdserver_state.str_buf, "id=%d.name=%s.size=%d.reggroupid=%d.memspaceid=%d.type=%d.thread=%d.",
+        my_register.id, my_register.name, my_register.bitsize, my_register.mcd_reg_group_id,
+        my_register.mcd_mem_space_id, my_register.mcd_reg_type, my_register.mcd_hw_thread_id);
+    mcd_put_strbuf();
+}
+
+void handle_query_regs_c(GArray *params, void *user_ctx) {
+    // this funcitons send all registers except for the first
+    // 1. get parameter
+    int query_index = get_param(params, 0)->index_handle;
+
+    // 2. check weather this was the last register
+    int nb_regs = mcdserver_state.registers->len;
+    if (query_index+1 == nb_regs) {
+        // indicates this is the last packet
+        g_string_printf(mcdserver_state.str_buf, "0!");
+    }
+    else {
+        g_string_printf(mcdserver_state.str_buf, "%d!", query_index+1);
+    }
+
+    // 3. send the correct register
+    mcd_reg_st my_register = g_array_index(mcdserver_state.registers, mcd_reg_st, query_index);
+    g_string_append_printf(mcdserver_state.str_buf, "id=%d.name=%s.size=%d.reggroupid=%d.memspaceid=%d.type=%d.thread=%d.",
+        my_register.id, my_register.name, my_register.bitsize, my_register.mcd_reg_group_id,
+        my_register.mcd_mem_space_id, my_register.mcd_reg_type, my_register.mcd_hw_thread_id);
     mcd_put_strbuf();
 }

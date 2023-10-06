@@ -8,6 +8,8 @@
 
 #include "exec/cpu-common.h"
 #include "chardev/char.h"
+// just used for the register xml files
+#include "exec/gdbstub.h"       /* xml_builtin */
 
 #define MAX_PACKET_LENGTH 1024
 
@@ -19,6 +21,15 @@
 #define MCD_TRIG_OPT_DATA_IS_CONDITION 0x00000008
 #define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
 
+// GDB stuff thats needed for GDB function, which we use
+typedef struct GDBRegisterState {
+    int base_reg;
+    int num_regs;
+    gdb_get_reg_cb get_reg;
+    gdb_set_reg_cb set_reg;
+    const char *xml;
+    struct GDBRegisterState *next;
+} GDBRegisterState;
 
 /*
  * struct for an MCD Process, each process can establish one connection
@@ -75,10 +86,6 @@ enum RSState {
     RS_IDLE,
     RS_GETLINE,
     RS_DATAEND,
-    //RS_GETLINE_ESC,
-    //RS_GETLINE_RLE,
-    //RS_CHKSUM1,
-    //RS_CHKSUM2,
 };
 
 typedef struct MCDState {
@@ -103,6 +110,7 @@ typedef struct MCDState {
 
     // my stuff
     GArray *reggroups;
+    GArray *registers;
 } MCDState;
 
 /* lives in main mcdstub.c */
@@ -110,9 +118,34 @@ extern MCDState mcdserver_state;
 
 typedef struct mcd_reg_group_st {
     const char *name;
-    const char *id;
+    uint32_t id;
 } mcd_reg_group_st;
 
+typedef struct xml_attrib {
+    char argument[64];
+    char value[64];
+} xml_attrib;
+
+typedef struct mcd_reg_st {
+    // xml info
+    char name[64];
+    char group[64];
+    char type[64];
+    uint32_t bitsize;
+    uint32_t id;
+    // mcd metadata
+    uint32_t mcd_reg_group_id;
+    uint32_t mcd_mem_space_id;
+    uint32_t mcd_reg_type;
+    uint32_t mcd_hw_thread_id;
+    // data for op-code
+    uint8_t cp;
+    uint8_t crn;
+    uint8_t crm;
+    uint8_t opc0; // <- might not be needed!
+    uint8_t opc1;
+    uint8_t opc2;
+} mcd_reg_st;
 
 // Inline utility function, convert from int to hex and back
 
@@ -139,12 +172,6 @@ static inline int tohex(int v)
     }
 }
 
-
-/*old functions
-void mcd_init_mcdserver_state(void);
-int mcd_open_tcp_socket(int tcp_port);
-int mcd_extract_tcp_port_num(const char *in_string, char *out_string);
-*/
 #ifndef _WIN32
 void mcd_sigterm_handler(int signal);
 #endif
@@ -194,10 +221,16 @@ void mcd_continue(void);
 void handle_query_mem_spaces(GArray *params, void *user_ctx);
 void handle_query_reg_groups_f(GArray *params, void *user_ctx);
 void handle_query_reg_groups_c(GArray *params, void *user_ctx);
+void handle_query_regs_f(GArray *params, void *user_ctx);
+void handle_query_regs_c(GArray *params, void *user_ctx);
 void handle_init(GArray *params, void *user_ctx);
+void parse_reg_xml(const char *xml, int size);
 
 /* sycall handling */
 void mcd_syscall_reset(void);
 void mcd_disable_syscalls(void);
+
+// helpers
+int int_cmp(gconstpointer a, gconstpointer b);
 
 #endif /* MCDSTUB_INTERNALS_H */
