@@ -2846,6 +2846,9 @@ S: Maintained
 F: mcdstub/*
 F: include/exec/mcdstub.h
 F: include/mcdstub/*
+F: include/qemu/debug.h
+F: debug/debug-common.c
+F: debug/debug-mcd.c
 F: target/arm/mcdstub.c
 
 Memory API

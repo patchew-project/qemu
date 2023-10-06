@@ -4,6 +4,7 @@
 #include "sysemu/tcg.h"
 #include "internals.h"
 #include "cpregs.h"
+#include "qemu/debug.h"
 
 #include "mcdstub/arm_mcdstub.h"
 
@@ -332,20 +333,6 @@ uint16_t arm_mcd_get_opcode(CPUState *cs, uint32_t n)
     return 0;
 }
 
-int arm_mcd_set_scr(CPUState *cs, bool secure)
-{
-    /* switches between secure and non secure mode */
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-    /* set bit 0 to 1 if non secure, to 0 if secure*/
-    if (secure) {
-        env->cp15.scr_el3 &= 0xFFFFFFFE;
-    } else {
-        env->cp15.scr_el3 |= 1;
-    }
-    return 0;
-}
-
 int arm_mcd_store_mem_spaces(CPUState *cpu, GArray *memspaces)
 {
     int nr_address_spaces = cpu->num_ases;
@@ -379,7 +366,7 @@ int arm_mcd_store_mem_spaces(CPUState *cpu, GArray *memspaces)
         .is_secure = false,
     };
     g_array_append_vals(memspaces, (gconstpointer)&phys_non_secure, 1);
-    if(nr_address_spaces > 1) {
+    if (nr_address_spaces > 1) {
         mem_space_id++;
         mcd_mem_space_st secure = {
             .name = "Secure",

@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
+#include "qemu/debug.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/syscalls.h"
 #include "exec/hwaddr.h"
@@ -404,6 +405,9 @@ int gdbserver_start(const char *device)
     gdbserver_state.state = chr ? RS_IDLE : RS_INACTIVE;
     gdbserver_system_state.mon_chr = mon_chr;
     gdb_syscall_reset();
+
+    /* create new debug object */
+    gdb_init_debug_class();
 
     return 0;
 }

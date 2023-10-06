@@ -7,6 +7,7 @@
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
+#include "qemu/debug.h"
 #include "exec/mcdstub.h"
 #include "mcdstub/syscalls.h"
 #include "hw/cpu/cluster.h"
@@ -67,6 +68,14 @@ void mcd_init_mcdserver_state(void)
             .info_str = STATE_STR_INIT_HALTED,
     };
     mcdserver_state.cpu_state = cpu_state;
+
+    /* create new debug object */
+    mcd_init_debug_class();
+ }
+
+void mcd_set_stop_cpu(CPUState *cpu)
+{
+    mcdserver_state.c_cpu = cpu;
 }
 
 void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table)
@@ -1804,19 +1813,22 @@ int mcd_write_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len)
 void handle_read_memory(GArray *params, void *user_ctx)
 {
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
-    uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
     uint64_t mem_address = get_param(params, 2)->data_uint64_t;
     uint32_t len = get_param(params, 3)->data_uint32_t;
 
     CPUState *cpu = mcd_get_cpu(cpu_id);
-    /* check if the mem space is secure */
-    GArray *memspaces = g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
-    mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
-        mem_space_id - 1);
-    if (arm_mcd_set_scr(cpu, space.is_secure)) {
-        mcd_put_packet(TCP_EXECUTION_ERROR);
-        return;
-    }
+    /*
+     * TODO: select to correct address space
+     * uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
+     * GArray *memspaces =
+     *     g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+     * mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
+     *     mem_space_id - 1);
+     * if (arm_mcd_set_scr(cpu, space.is_secure)) {
+     *     mcd_put_packet(TCP_EXECUTION_ERROR);
+     *     return;
+     * }
+     */
     /* read memory */
     g_byte_array_set_size(mcdserver_state.mem_buf, len);
     if (mcd_read_memory(cpu, mem_address, mcdserver_state.mem_buf->data,
@@ -1832,18 +1844,21 @@ void handle_read_memory(GArray *params, void *user_ctx)
 void handle_write_memory(GArray *params, void *user_ctx)
 {
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
-    uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
     uint64_t mem_address = get_param(params, 2)->data_uint64_t;
     uint32_t len = get_param(params, 3)->data_uint32_t;
     CPUState *cpu = mcd_get_cpu(cpu_id);
-    /* check if the mem space is secure */
-    GArray *memspaces = g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
-    mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
-        mem_space_id - 1);
-    if (arm_mcd_set_scr(cpu, space.is_secure)) {
-        mcd_put_packet(TCP_EXECUTION_ERROR);
-        return;
-    }
+    /*
+     * TODO: select to correct address space
+     * uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
+     * GArray *memspaces =
+     *     g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+     * mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
+     *     mem_space_id - 1);
+     * if (arm_mcd_set_scr(cpu, space.is_secure)) {
+     *     mcd_put_packet(TCP_EXECUTION_ERROR);
+     *     return;
+     * }
+     */
     /* write memory */
     mcd_hextomem(mcdserver_state.mem_buf, mcdserver_state.str_buf->str, len);
     if (mcd_write_memory(cpu, mem_address,
