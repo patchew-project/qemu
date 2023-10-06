@@ -21,6 +21,11 @@
 #define MCD_TRIG_OPT_DATA_IS_CONDITION 0x00000008
 #define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
 
+// schema defines
+#define ARG_SCHEMA_QRY_HANDLE "q"
+#define ARG_SCHEMA_STRING "s"
+#define ARG_SCHEMA_CORE_NUM "c" 
+
 // GDB stuff thats needed for GDB function, which we use
 typedef struct GDBRegisterState {
     int base_reg;
@@ -60,17 +65,16 @@ typedef enum MCDThreadIdKind {
 
 typedef union MCDCmdVariant {
     const char *data;
-    uint8_t opcode;
-    unsigned long val_ul;
-    unsigned long long val_ull;
+    
     struct {
         MCDThreadIdKind kind;
         uint32_t pid;
         uint32_t tid;
     } thread_id;
 
-    // used to synchronize stub and dll for functions with multiple packets
-    int index_handle;
+    int query_handle;
+    int cpu_id;
+
 } MCDCmdVariant;
 
 #define get_param(p, i)    (&g_array_index(p, MCDCmdVariant, i))
@@ -109,12 +113,25 @@ typedef struct MCDState {
     int supported_sstep_flags;
 
     // my stuff
+    GArray *memspaces;
     GArray *reggroups;
     GArray *registers;
 } MCDState;
 
 /* lives in main mcdstub.c */
 extern MCDState mcdserver_state;
+
+typedef struct mcd_mem_space_st {
+    const char *name;
+    uint32_t id;
+    uint32_t type;
+    uint32_t bits_per_mau;
+    uint8_t invariance;
+    uint32_t endian;
+    uint64_t min_addr;
+    uint64_t max_addr;
+    uint32_t supported_access_options;
+} mcd_mem_space_st;
 
 typedef struct mcd_reg_group_st {
     const char *name;
@@ -213,18 +230,22 @@ void handle_query_cores(GArray *params, void *user_ctx);
 void handle_query_system(GArray *params, void *user_ctx);
 CPUState *get_first_cpu_in_process(MCDProcess *process);
 CPUState *find_cpu(uint32_t thread_id);
-void handle_core_open(GArray *params, void *user_ctx);
+void handle_open_core(GArray *params, void *user_ctx);
 void handle_query_reset(GArray *params, void *user_ctx);
 void handle_detach(GArray *params, void *user_ctx);
 void handle_query_trigger(GArray *params, void *user_ctx);
 void mcd_continue(void);
-void handle_query_mem_spaces(GArray *params, void *user_ctx);
 void handle_query_reg_groups_f(GArray *params, void *user_ctx);
 void handle_query_reg_groups_c(GArray *params, void *user_ctx);
+void handle_query_mem_spaces_f(GArray *params, void *user_ctx);
+void handle_query_mem_spaces_c(GArray *params, void *user_ctx);
 void handle_query_regs_f(GArray *params, void *user_ctx);
 void handle_query_regs_c(GArray *params, void *user_ctx);
 void handle_init(GArray *params, void *user_ctx);
 void parse_reg_xml(const char *xml, int size);
+
+// arm specific functions
+void mcd_arm_store_mem_spaces(int nr_address_spaces);
 
 /* sycall handling */
 void mcd_syscall_reset(void);
