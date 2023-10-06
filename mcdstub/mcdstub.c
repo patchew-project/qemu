@@ -218,12 +218,6 @@ int find_cpu_clusters(Object *child, void *opaque)
         s->processes = g_renew(MCDProcess, s->processes, ++s->process_num);
 
         process = &s->processes[s->process_num - 1];
-
-        /*
-         * GDB process IDs -1 and 0 are reserved. To avoid subtle errors at
-         * runtime, we enforce here that the machine does not use a cluster ID
-         * that would lead to PID 0.
-         */
         assert(cluster->cluster_id != UINT32_MAX);
         process->pid = cluster->cluster_id + 1;
         process->attached = false;
@@ -925,7 +919,7 @@ void mcd_vm_state_change(void *opaque, bool running, RunState state)
 
 int mcd_put_packet(const char *buf)
 {
-    return mcd_put_packet_binary(buf, strlen(buf), false);
+    return mcd_put_packet_binary(buf, strlen(buf));
 }
 
 void mcd_put_strbuf(void)
@@ -933,7 +927,7 @@ void mcd_put_strbuf(void)
     mcd_put_packet(mcdserver_state.str_buf->str);
 }
 
-int mcd_put_packet_binary(const char *buf, int len, bool dump)
+int mcd_put_packet_binary(const char *buf, int len)
 {
     for (;;) {
         g_byte_array_set_size(mcdserver_state.last_packet, 0);
@@ -999,12 +993,12 @@ MCDProcess *mcd_get_process(uint32_t pid)
     return NULL;
 }
 
-CPUState *mcd_get_cpu(uint32_t i_cpu_index)
+CPUState *mcd_get_cpu(uint32_t cpu_index)
 {
     CPUState *cpu = first_cpu;
 
     while (cpu) {
-        if (cpu->cpu_index == i_cpu_index) {
+        if (cpu->cpu_index == cpu_index) {
             return cpu;
         }
         cpu = mcd_next_attached_cpu(cpu);
@@ -1344,15 +1338,13 @@ void handle_open_core(GArray *params, void *user_ctx)
 
 void handle_query_reset_f(GArray *params, void *user_ctx)
 {
-    /* TODO: vull reset over the qemu monitor */
-
     /* 1. check length */
     int nb_resets = mcdserver_state.resets->len;
     if (nb_resets == 1) {
         /* indicates this is the last packet */
-        g_string_printf(mcdserver_state.str_buf, "0!");
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
     } else {
-        g_string_printf(mcdserver_state.str_buf, "1!");
+        g_string_printf(mcdserver_state.str_buf, "1%s", QUERY_END_INDEX);
     }
     /* 2. send data */
     mcd_reset_st reset = g_array_index(mcdserver_state.resets, mcd_reset_st, 0);
@@ -1370,7 +1362,7 @@ void handle_query_reset_c(GArray *params, void *user_ctx)
     int nb_groups = mcdserver_state.resets->len;
     if (query_index + 1 == nb_groups) {
         /* indicates this is the last packet */
-        g_string_printf(mcdserver_state.str_buf, "0!");
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
     } else {
         g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
     }
@@ -1487,9 +1479,9 @@ void handle_query_mem_spaces_f(GArray *params, void *user_ctx)
     int nb_groups = memspaces->len;
     if (nb_groups == 1) {
         /* indicates this is the last packet */
-        g_string_printf(mcdserver_state.str_buf, "0!");
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
     } else {
-        g_string_printf(mcdserver_state.str_buf, "1!");
+        g_string_printf(mcdserver_state.str_buf, "1%s", QUERY_END_INDEX);
     }
 
     /* 3. send data */
@@ -1522,7 +1514,7 @@ void handle_query_mem_spaces_c(GArray *params, void *user_ctx)
     int nb_groups = memspaces->len;
     if (query_index + 1 == nb_groups) {
         /* indicates this is the last packet */
-        g_string_printf(mcdserver_state.str_buf, "0!");
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
     } else {
         g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
     }
@@ -1555,9 +1547,9 @@ void handle_query_reg_groups_f(GArray *params, void *user_ctx)
     int nb_groups = reggroups->len;
     if (nb_groups == 1) {
         /* indicates this is the last packet */
-        g_string_printf(mcdserver_state.str_buf, "0!");
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
     } else {
-        g_string_printf(mcdserver_state.str_buf, "1!");
+        g_string_printf(mcdserver_state.str_buf, "1%s", QUERY_END_INDEX);
     }
     /* 3. send data */
     mcd_reg_group_st group = g_array_index(reggroups, mcd_reg_group_st, 0);
@@ -1580,7 +1572,7 @@ void handle_query_reg_groups_c(GArray *params, void *user_ctx)
     int nb_groups = reggroups->len;
     if (query_index + 1 == nb_groups) {
         /* indicates this is the last packet */
-        g_string_printf(mcdserver_state.str_buf, "0!");
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
     } else {
         g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
     }
@@ -1604,9 +1596,9 @@ void handle_query_regs_f(GArray *params, void *user_ctx)
     int nb_regs = registers->len;
     if (nb_regs == 1) {
         /* indicates this is the last packet */
-        g_string_printf(mcdserver_state.str_buf, "0!");
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
     } else {
-        g_string_printf(mcdserver_state.str_buf, "1!");
+        g_string_printf(mcdserver_state.str_buf, "1%s", QUERY_END_INDEX);
     }
     /* 3. send data */
     mcd_reg_st my_register = g_array_index(registers, mcd_reg_st, 0);
@@ -1637,7 +1629,7 @@ void handle_query_regs_c(GArray *params, void *user_ctx)
     int nb_regs = registers->len;
     if (query_index + 1 == nb_regs) {
         /* indicates this is the last packet */
-        g_string_printf(mcdserver_state.str_buf, "0!");
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
     } else {
         g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
     }
@@ -1672,19 +1664,8 @@ void handle_query_state(GArray *params, void *user_ctx)
      * get state info
      */
     mcd_cpu_state_st state_info = mcdserver_state.cpu_state;
-    mcd_core_event_et event = MCD_CORE_EVENT_NONE;
-    if (state_info.memory_changed) {
-        event = event | MCD_CORE_EVENT_MEMORY_CHANGE;
-        state_info.memory_changed = false;
-    }
-    if (state_info.registers_changed) {
-        event = event | MCD_CORE_EVENT_REGISTER_CHANGE;
-        state_info.registers_changed = false;
-    }
-    if (state_info.target_was_stopped) {
-        event = event | MCD_CORE_EVENT_STOPPED;
-        state_info.target_was_stopped = false;
-    }
+    /* TODO: add event information */
+    uint32_t event = 0;
     /* send data */
     g_string_printf(mcdserver_state.str_buf,
         "%s=%s.%s=%u.%s=%u.%s=%u.%s=%lu.%s=%s.%s=%s.",
@@ -1863,7 +1844,7 @@ void handle_write_memory(GArray *params, void *user_ctx)
         mcd_put_packet(TCP_EXECUTION_ERROR);
         return;
     }
-    /* read memory */
+    /* write memory */
     mcd_hextomem(mcdserver_state.mem_buf, mcdserver_state.str_buf->str, len);
     if (mcd_write_memory(cpu, mem_address,
         mcdserver_state.mem_buf->data, len) != 0) {
@@ -1879,7 +1860,7 @@ int mcd_breakpoint_insert(CPUState *cpu, int type, vaddr addr)
     int bp_type = 0;
     CPUClass *cc = CPU_GET_CLASS(cpu);
     if (cc->gdb_stop_before_watchpoint) {
-        //bp_type |= BP_STOP_BEFORE_ACCESS;
+        /* bp_type |= BP_STOP_BEFORE_ACCESS; */
     }
     int return_value = 0;
     switch (type) {
@@ -1909,7 +1890,7 @@ int mcd_breakpoint_remove(CPUState *cpu, int type, vaddr addr)
     int bp_type = 0;
     CPUClass *cc = CPU_GET_CLASS(cpu);
     if (cc->gdb_stop_before_watchpoint) {
-        //bp_type |= BP_STOP_BEFORE_ACCESS;
+        /* bp_type |= BP_STOP_BEFORE_ACCESS; */
     }
     int return_value = 0;
     switch (type) {

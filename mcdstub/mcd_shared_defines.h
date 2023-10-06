@@ -38,6 +38,7 @@
 /* tcp query arguments */
 #define QUERY_FIRST "f"
 #define QUERY_CONSEQUTIVE "c"
+#define QUERY_END_INDEX "!"
 
 #define QUERY_ARG_SYSTEM "system"
 #define QUERY_ARG_CORES "cores"

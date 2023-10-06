@@ -350,11 +350,6 @@ int arm_mcd_store_mem_spaces(CPUState *cpu, GArray *memspaces)
     int nr_address_spaces = cpu->num_ases;
     uint32_t mem_space_id = 0;
 
-    /*
-     * TODO: atm we can only access physical memory addresses,
-     * but trace32 needs fake locical spaces to work with
-    */
-
     mem_space_id++;
     mcd_mem_space_st non_secure = {
         .name = "Non Secure",
@@ -413,7 +408,6 @@ int arm_mcd_store_mem_spaces(CPUState *cpu, GArray *memspaces)
         };
         g_array_append_vals(memspaces, (gconstpointer)&phys_secure, 1);
     }
-    /* TODO: get dynamically how the per (CP15) space is called */
     mem_space_id++;
     mcd_mem_space_st gpr = {
         .name = "GPR Registers",

@@ -3,4 +3,4 @@
 
 typedef void (*gdb_syscall_complete_cb)(CPUState *cpu, uint64_t ret, int err);
 
-#endif /* _SYSCALLS_H_ */
+#endif /* _MCD_SYSCALLS_H_ */
