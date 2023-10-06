@@ -4,8 +4,7 @@
 #include "exec/cpu-common.h"
 #include "chardev/char.h"
 #include "hw/core/cpu.h"
-/* just used for the register xml files */
-#include "exec/gdbstub.h"
+#include "mcdstub_common.h"
 
 #define MAX_PACKET_LENGTH 1024
 
@@ -44,7 +43,9 @@ enum {
 #define QUERY_TOTAL_NUMBER 12
 #define CMD_SCHEMA_LENGTH 6
 #define MCD_SYSTEM_NAME "qemu-system"
-#define ARGUMENT_STRING_LENGTH 64
+
+/* supported architectures */
+#define MCDSTUB_ARCH_ARM "arm"
 
 /* tcp query packet values templates */
 #define DEVICE_NAME_TEMPLATE(s) "qemu-" #s "-device"
@@ -62,16 +63,6 @@ enum {
 #define STATE_STR_BREAK_WRITE(d) "stopped beacuse of write access at " #d
 #define STATE_STR_BREAK_RW(d) "stopped beacuse of read or write access at " #d
 #define STATE_STR_BREAK_UNKNOWN "stopped for unknown reason"
-
-typedef struct GDBRegisterState {
-    /* needed for the used gdb functions */
-    int base_reg;
-    int num_regs;
-    gdb_get_reg_cb get_reg;
-    gdb_set_reg_cb set_reg;
-    const char *xml;
-    struct GDBRegisterState *next;
-} GDBRegisterState;
 
 typedef struct MCDProcess {
     uint32_t pid;
@@ -160,47 +151,10 @@ typedef struct MCDState {
 /* lives in main mcdstub.c */
 extern MCDState mcdserver_state;
 
-typedef struct mcd_mem_space_st {
-    const char *name;
-    uint32_t id;
-    uint32_t type;
-    uint32_t bits_per_mau;
-    uint8_t invariance;
-    uint32_t endian;
-    uint64_t min_addr;
-    uint64_t max_addr;
-    uint32_t supported_access_options;
-    /* internal */
-    bool is_secure;
-} mcd_mem_space_st;
-
-typedef struct mcd_reg_group_st {
-    const char *name;
-    uint32_t id;
-} mcd_reg_group_st;
-
 typedef struct xml_attrib {
     char argument[ARGUMENT_STRING_LENGTH];
     char value[ARGUMENT_STRING_LENGTH];
 } xml_attrib;
-
-typedef struct mcd_reg_st {
-    /* xml info */
-    char name[ARGUMENT_STRING_LENGTH];
-    char group[ARGUMENT_STRING_LENGTH];
-    char type[ARGUMENT_STRING_LENGTH];
-    uint32_t bitsize;
-    uint32_t id; /* id used by the mcd interface */
-    uint32_t internal_id; /* id inside reg type */
-    uint8_t reg_type;
-    /* mcd metadata */
-    uint32_t mcd_reg_group_id;
-    uint32_t mcd_mem_space_id;
-    uint32_t mcd_reg_type;
-    uint32_t mcd_hw_thread_id;
-    /* data for op-code */
-    uint32_t opcode;
-} mcd_reg_st;
 
 typedef struct mcd_reset_st {
     const char *name;
@@ -291,8 +245,6 @@ void handle_query_mem_spaces_c(GArray *params, void *user_ctx);
 void handle_query_regs_f(GArray *params, void *user_ctx);
 void handle_query_regs_c(GArray *params, void *user_ctx);
 void handle_open_server(GArray *params, void *user_ctx);
-void parse_reg_xml(const char *xml, int size, GArray* registers,
-    uint8_t reg_type);
 void handle_reset(GArray *params, void *user_ctx);
 void handle_query_state(GArray *params, void *user_ctx);
 void handle_read_register(GArray *params, void *user_ctx);
@@ -308,14 +260,6 @@ void handle_breakpoint_remove(GArray *params, void *user_ctx);
 int mcd_breakpoint_insert(CPUState *cpu, int type, vaddr addr);
 int mcd_breakpoint_remove(CPUState *cpu, int type, vaddr addr);
 
-/* arm specific functions */
-int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces);
-int mcd_arm_parse_core_xml_file(CPUClass *cc, GArray *reggroups,
-    GArray *registers, int *current_group_id);
-int mcd_arm_parse_general_xml_files(CPUState *cpu, GArray* reggroups,
-    GArray *registers, int *current_group_id);
-int mcd_arm_get_additional_register_info(GArray *reggroups, GArray *registers,
-    CPUState *cpu);
 /* sycall handling */
 void mcd_syscall_reset(void);
 void mcd_disable_syscalls(void);

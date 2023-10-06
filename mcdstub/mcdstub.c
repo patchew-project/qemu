@@ -1192,104 +1192,6 @@ int int_cmp(gconstpointer a, gconstpointer b)
     }
 }
 
-int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces)
-{
-    int nr_address_spaces = cpu->num_ases;
-    uint32_t mem_space_id = 0;
-
-    /*
-     * TODO: atm we can only access physical memory addresses,
-     * but trace32 needs fake locical spaces to work with
-    */
-
-    mem_space_id++;
-    mcd_mem_space_st non_secure = {
-        .name = "Non Secure",
-        .id = mem_space_id,
-        .type = 34,
-        .bits_per_mau = 8,
-        .invariance = 1,
-        .endian = 1,
-        .min_addr = 0,
-        .max_addr = -1,
-        .supported_access_options = 0,
-        .is_secure = false,
-    };
-    g_array_append_vals(memspaces, (gconstpointer)&non_secure, 1);
-    mem_space_id++;
-    mcd_mem_space_st phys_non_secure = {
-        .name = "Physical (Non Secure)",
-        .id = mem_space_id,
-        .type = 18,
-        .bits_per_mau = 8,
-        .invariance = 1,
-        .endian = 1,
-        .min_addr = 0,
-        .max_addr = -1,
-        .supported_access_options = 0,
-        .is_secure = false,
-    };
-    g_array_append_vals(memspaces, (gconstpointer)&phys_non_secure, 1);
-    if(nr_address_spaces > 1) {
-        mem_space_id++;
-        mcd_mem_space_st secure = {
-            .name = "Secure",
-            .id = mem_space_id,
-            .type = 34,
-            .bits_per_mau = 8,
-            .invariance = 1,
-            .endian = 1,
-            .min_addr = 0,
-            .max_addr = -1,
-            .supported_access_options = 0,
-            .is_secure = true,
-        };
-        g_array_append_vals(memspaces, (gconstpointer)&secure, 1);
-        mem_space_id++;
-        mcd_mem_space_st phys_secure = {
-            .name = "Physical (Secure)",
-            .id = mem_space_id,
-            .type = 18,
-            .bits_per_mau = 8,
-            .invariance = 1,
-            .endian = 1,
-            .min_addr = 0,
-            .max_addr = -1,
-            .supported_access_options = 0,
-            .is_secure = true,
-        };
-        g_array_append_vals(memspaces, (gconstpointer)&phys_secure, 1);
-    }
-    /* TODO: get dynamically how the per (CP15) space is called */
-    mem_space_id++;
-    mcd_mem_space_st gpr = {
-        .name = "GPR Registers",
-        .id = mem_space_id,
-        .type = 1,
-        .bits_per_mau = 8,
-        .invariance = 1,
-        .endian = 1,
-        .min_addr = 0,
-        .max_addr = -1,
-        .supported_access_options = 0,
-    };
-    g_array_append_vals(memspaces, (gconstpointer)&gpr, 1);
-    mem_space_id++;
-    mcd_mem_space_st cpr = {
-        .name = "CP15 Registers",
-        .id = mem_space_id,
-        .type = 1,
-        .bits_per_mau = 8,
-        .invariance = 1,
-        .endian = 1,
-        .min_addr = 0,
-        .max_addr = -1,
-        .supported_access_options = 0,
-    };
-    g_array_append_vals(memspaces, (gconstpointer)&cpr, 1);
-    return 0;
-}
-
 int init_resets(GArray *resets)
 {
     mcd_reset_st system_reset = { .id = 0, .name = RESET_SYSTEM};
@@ -1360,138 +1262,6 @@ void handle_query_cores(GArray *params, void *user_ctx)
     g_free(arch);
 }
 
-int mcd_arm_parse_core_xml_file(CPUClass *cc, GArray *reggroups,
-    GArray *registers, int *current_group_id)
-{
-    const char *xml_filename = NULL;
-    const char *current_xml_filename = NULL;
-    const char *xml_content = NULL;
-    int i = 0;
-
-    /* 1. get correct file */
-    xml_filename = cc->gdb_core_xml_file;
-    for (i = 0; ; i++) {
-        current_xml_filename = xml_builtin[i][0];
-        if (!current_xml_filename || (strncmp(current_xml_filename,
-            xml_filename, strlen(xml_filename)) == 0
-            && strlen(current_xml_filename) == strlen(xml_filename)))
-            break;
-    }
-    /* without gpr registers we can do nothing */
-    if (!current_xml_filename) {
-        return -1;
-    }
-
-    /* 2. add group for gpr registers */
-    mcd_reg_group_st gprregs = {
-        .name = "GPR Registers",
-        .id = *current_group_id
-    };
-    g_array_append_vals(reggroups, (gconstpointer)&gprregs, 1);
-    *current_group_id = *current_group_id + 1;
-
-    /* 3. parse xml */
-    xml_content = xml_builtin[i][1];
-    parse_reg_xml(xml_content, strlen(xml_content), registers,
-        MCD_ARM_REG_TYPE_GPR);
-    return 0;
-}
-
-int mcd_arm_parse_general_xml_files(CPUState *cpu, GArray *reggroups,
-    GArray *registers, int *current_group_id) {
-    const char *xml_filename = NULL;
-    const char *current_xml_filename = NULL;
-    const char *xml_content = NULL;
-    int i = 0;
-    uint8_t reg_type;
-
-    /* iterate over all gdb xml files*/
-    GDBRegisterState *r;
-    for (r = cpu->gdb_regs; r; r = r->next) {
-        xml_filename = r->xml;
-        xml_content = NULL;
-
-        /* 1. get xml content */
-        xml_content = arm_mcd_get_dynamic_xml(cpu, xml_filename);
-        if (xml_content) {
-            if (strcmp(xml_filename, "system-registers.xml") == 0) {
-                /* these are the coprocessor register */
-                mcd_reg_group_st corprocessorregs = {
-                    .name = "CP15 Registers",
-                    .id = *current_group_id
-                };
-                g_array_append_vals(reggroups,
-                    (gconstpointer)&corprocessorregs, 1);
-                *current_group_id = *current_group_id + 1;
-                reg_type = MCD_ARM_REG_TYPE_CPR;
-            }
-        } else {
-            /* its not a coprocessor xml -> it is a static xml file */
-            for (i = 0; ; i++) {
-                current_xml_filename = xml_builtin[i][0];
-                if (!current_xml_filename || (strncmp(current_xml_filename,
-                    xml_filename, strlen(xml_filename)) == 0
-                    && strlen(current_xml_filename) == strlen(xml_filename)))
-                    break;
-            }
-            if (current_xml_filename) {
-                xml_content = xml_builtin[i][1];
-                /* select correct reg_type */
-                if (strcmp(current_xml_filename, "arm-vfp.xml") == 0) {
-                    reg_type = MCD_ARM_REG_TYPE_VFP;
-                } else if (strcmp(current_xml_filename, "arm-vfp3.xml") == 0) {
-                    reg_type = MCD_ARM_REG_TYPE_VFP;
-                } else if (strcmp(current_xml_filename,
-                    "arm-vfp-sysregs.xml") == 0) {
-                    reg_type = MCD_ARM_REG_TYPE_VFP_SYS;
-                } else if (strcmp(current_xml_filename,
-                    "arm-neon.xml") == 0) {
-                    reg_type = MCD_ARM_REG_TYPE_VFP;
-                } else if (strcmp(current_xml_filename,
-                    "arm-m-profile-mve.xml") == 0) {
-                    reg_type = MCD_ARM_REG_TYPE_MVE;
-                }
-            } else {
-                continue;
-            }
-        }
-        /* 2. parse xml */
-        parse_reg_xml(xml_content, strlen(xml_content), registers, reg_type);
-    }
-    return 0;
-}
-
-int mcd_arm_get_additional_register_info(GArray *reggroups, GArray *registers,
-    CPUState *cpu)
-{
-    mcd_reg_st *current_register;
-    uint32_t i = 0;
-
-    /* iterate over all registers */
-    for (i = 0; i < registers->len; i++) {
-        current_register = &(g_array_index(registers, mcd_reg_st, i));
-        current_register->id = i;
-        /* add mcd_reg_group_id and mcd_mem_space_id */
-        if (strcmp(current_register->group, "cp_regs") == 0) {
-            /* coprocessor registers */
-            current_register->mcd_reg_group_id = 2;
-            current_register->mcd_mem_space_id = 6;
-            /*
-             * get info for opcode
-             * for 32bit the opcode is only 16 bit long
-             * for 64bit it is 32 bit long
-             */
-            current_register->opcode |=
-                arm_mcd_get_opcode(cpu, current_register->internal_id);
-        } else {
-            /* gpr register */
-            current_register->mcd_reg_group_id = 1;
-            current_register->mcd_mem_space_id = 5;
-        }
-    }
-    return 0;
-}
-
 void handle_open_core(GArray *params, void *user_ctx)
 {
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
@@ -1506,28 +1276,28 @@ void handle_open_core(GArray *params, void *user_ctx)
     GArray *reggroups = g_array_new(false, true, sizeof(mcd_reg_group_st));
     GArray *registers = g_array_new(false, true, sizeof(mcd_reg_st));
 
-    if (strcmp(arch, "arm") == 0) {
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
         /* TODO: make group and memspace ids dynamic */
         int current_group_id = 1;
         /* 1. store mem spaces */
-        return_value = mcd_arm_store_mem_spaces(cpu, memspaces);
+        return_value = arm_mcd_store_mem_spaces(cpu, memspaces);
         if (return_value != 0) {
             g_assert_not_reached();
         }
         /* 2. parse core xml */
-        return_value = mcd_arm_parse_core_xml_file(cc, reggroups,
+        return_value = arm_mcd_parse_core_xml_file(cc, reggroups,
             registers, &current_group_id);
         if (return_value != 0) {
             g_assert_not_reached();
         }
         /* 3. parse other xmls */
-        return_value = mcd_arm_parse_general_xml_files(cpu, reggroups,
+        return_value = arm_mcd_parse_general_xml_files(cpu, reggroups,
             registers, &current_group_id);
         if (return_value != 0) {
             g_assert_not_reached();
         }
         /* 4. add additional data the the regs from the xmls */
-        return_value = mcd_arm_get_additional_register_info(reggroups,
+        return_value = arm_mcd_get_additional_register_info(reggroups,
             registers, cpu);
         if (return_value != 0) {
             g_assert_not_reached();
@@ -1939,7 +1709,7 @@ int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg)
     /* 2. read register */
     CPUClass *cc = CPU_GET_CLASS(cpu);
     gchar *arch = cc->gdb_arch_name(cpu);
-    if (strcmp(arch, "arm") == 0) {
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
         g_free(arch);
         return arm_mcd_read_register(cpu, buf, reg_type, internal_id);
     } else {
@@ -1959,7 +1729,7 @@ int mcd_write_register(CPUState *cpu, GByteArray *buf, int reg)
     /* 2. write register */
     CPUClass *cc = CPU_GET_CLASS(cpu);
     gchar *arch = cc->gdb_arch_name(cpu);
-    if (strcmp(arch, "arm") == 0) {
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
         g_free(arch);
         return arm_mcd_write_register(cpu, buf, reg_type, internal_id);
     } else {
