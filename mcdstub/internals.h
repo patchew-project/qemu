@@ -22,9 +22,9 @@
 #define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
 
 // schema defines
-#define ARG_SCHEMA_QRY_HANDLE "q"
+#define ARG_SCHEMA_QRYHANDLE "q"
 #define ARG_SCHEMA_STRING "s"
-#define ARG_SCHEMA_CORE_NUM "c" 
+#define ARG_SCHEMA_CORENUM "c" 
 
 // GDB stuff thats needed for GDB function, which we use
 typedef struct GDBRegisterState {

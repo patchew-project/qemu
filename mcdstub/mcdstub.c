@@ -72,7 +72,7 @@ static const MCDCmdParseEntry mcd_gen_query_table[] = {
     {
         .handler = handle_query_mem_spaces_c,
         .cmd = "memoryc",
-        .schema = ARG_SCHEMA_QRY_HANDLE,
+        .schema = ARG_SCHEMA_QRYHANDLE,
     },
     {
         .handler = handle_query_reg_groups_f,
@@ -81,7 +81,7 @@ static const MCDCmdParseEntry mcd_gen_query_table[] = {
     {
         .handler = handle_query_reg_groups_c,
         .cmd = "reggroupc",
-        .schema = ARG_SCHEMA_QRY_HANDLE,
+        .schema = ARG_SCHEMA_QRYHANDLE,
     },
     {
         .handler = handle_query_regs_f,
@@ -90,7 +90,7 @@ static const MCDCmdParseEntry mcd_gen_query_table[] = {
     {
         .handler = handle_query_regs_c,
         .cmd = "regc",
-        .schema = ARG_SCHEMA_QRY_HANDLE,
+        .schema = ARG_SCHEMA_QRYHANDLE,
     },
 };
 
@@ -303,22 +303,22 @@ void mcd_read_byte(uint8_t ch)
     if (mcdserver_state.last_packet->len) {
         /* Waiting for a response to the last packet.  If we see the start
            of a new command then abandon the previous response.  */
-        if (ch == '-') {
+        if (ch == TCP_NOT_ACKNOWLEDGED) {
             //the previous packet was not akcnowledged
             //trace_gdbstub_err_got_nack();
             //we are resending the last packet
             mcd_put_buffer(mcdserver_state.last_packet->data, mcdserver_state.last_packet->len);
         }
-        else if (ch == '+') {
+        else if (ch == TCP_ACKNOWLEDGED) {
             //the previous packet was acknowledged
             //trace_gdbstub_io_got_ack();
         }
 
-        if (ch == '+' || ch == '$') {
+        if (ch == TCP_ACKNOWLEDGED || ch == TCP_COMMAND_START) {
             //either acknowledged or a new communication starts -> we discard previous communication
             g_byte_array_set_size(mcdserver_state.last_packet, 0);
         }
-        if (ch != '$') {
+        if (ch != TCP_COMMAND_START) {
             // we only continue if we are processing a new commant. otherwise we skip to ne next character in the packet which sould be a $
             return;
         }
@@ -331,7 +331,7 @@ void mcd_read_byte(uint8_t ch)
     else {
         switch(mcdserver_state.state) {
         case RS_IDLE:
-            if (ch == '$') {
+            if (ch == TCP_COMMAND_START) {
                 /* start of command packet */
                 mcdserver_state.line_buf_index = 0;
                 mcdserver_state.line_sum = 0;
@@ -343,7 +343,7 @@ void mcd_read_byte(uint8_t ch)
             }
             break;
         case RS_GETLINE:
-            if (ch == '#') {
+            if (ch == TCP_COMMAND_END) {
                 /* end of command, start of checksum*/
                 mcdserver_state.line_buf[mcdserver_state.line_buf_index++] = 0;
                 //mcdserver_state.line_sum += ch;
@@ -365,24 +365,24 @@ void mcd_read_byte(uint8_t ch)
             // we are now done with copying the data and in the suffix of the packet
             // TODO: maybe wanna implement a checksum or sth like the gdb protocol has
 
-            if (ch == '~') {
+            if (ch == TCP_WAS_NOT_LAST) {
                 // ~ indicates that there is an additional package coming
                 //acknowledged -> send +
-                reply = '+';
+                reply = TCP_ACKNOWLEDGED;
                 mcd_put_buffer(&reply, 1);
                 mcdserver_state.state = mcd_handle_packet(mcdserver_state.line_buf);
             }
-            else if (ch == '|') {
+            else if (ch == TCP_WAS_LAST) {
                 //acknowledged -> send +
                 // | indicates that there is no additional package coming
-                reply = '+';
+                reply = TCP_ACKNOWLEDGED;
                 mcd_put_buffer(&reply, 1);
                 mcdserver_state.state = mcd_handle_packet(mcdserver_state.line_buf);
             }
             else {
                 //trace_gdbstub_err_checksum_incorrect(mcdserver_state.line_sum, mcdserver_state.line_csum);
                 //not acknowledged -> send -
-                reply = '-';
+                reply = TCP_NOT_ACKNOWLEDGED;
                 mcd_put_buffer(&reply, 1);
                 //waiting for package to get resent
                 mcdserver_state.state = RS_IDLE;
@@ -400,58 +400,58 @@ int mcd_handle_packet(const char *line_buf)
     const MCDCmdParseEntry *cmd_parser = NULL;
 
     switch (line_buf[0]) {
-    case 'i':
+    case TCP_CHAR_INIT:
         // handshake and lookup initialization
         {
-            static const MCDCmdParseEntry continue_cmd_desc = {
+            static MCDCmdParseEntry init_cmd_desc = {
                 .handler = handle_init,
-                .cmd = "i",
             };
-            cmd_parser = &continue_cmd_desc;
+            init_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_INIT, '\0' };
+            cmd_parser = &init_cmd_desc;
         }
         break;
-    case 'c':
+    case TCP_CHAR_GO:
         // go command
         {
-            static const MCDCmdParseEntry continue_cmd_desc = {
+            static MCDCmdParseEntry go_cmd_desc = {
                 .handler = handle_continue,
-                .cmd = "c",
             };
-            cmd_parser = &continue_cmd_desc;
+            go_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_GO, '\0' };
+            cmd_parser = &go_cmd_desc;
         }
         break;
-    case 'k':
+    case TCP_CHAR_KILLQEMU:
         // kill qemu completely
         error_report("QEMU: Terminated via MCDstub");
         mcd_exit(0);
         exit(0);
-    case 'q':
+    case TCP_CHAR_QUERY:
         //query inquiry
         {
-            static const MCDCmdParseEntry gen_query_cmd_desc = {
+            static MCDCmdParseEntry query_cmd_desc = {
                 .handler = handle_gen_query,
-                .cmd = "q",
                 .schema = ARG_SCHEMA_STRING
             };
-            cmd_parser = &gen_query_cmd_desc;
+            query_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_QUERY, '\0' };
+            cmd_parser = &query_cmd_desc;
         }
         break;
-    case 'H':
+    case TCP_CHAR_OPEN_CORE:
         {
-            static const MCDCmdParseEntry gen_open_core = {
+            static MCDCmdParseEntry gen_open_core = {
                 .handler = handle_open_core,
-                .cmd = "H",
-                .schema = ARG_SCHEMA_CORE_NUM
+                .schema = ARG_SCHEMA_CORENUM
             };
+            gen_open_core.cmd = (char[2]) { (char) TCP_CHAR_OPEN_CORE, '\0' };
             cmd_parser = &gen_open_core;
         }
         break;
-    case 'D':
+    case TCP_CHAR_DETACH:
         {
-            static const MCDCmdParseEntry detach_cmd_desc = {
+            static MCDCmdParseEntry detach_cmd_desc = {
                 .handler = handle_detach,
-                .cmd = "D",
             };
+            detach_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_DETACH, '\0' };
             cmd_parser = &detach_cmd_desc;
         }
         break;
@@ -518,12 +518,12 @@ int cmd_parse_params(const char *data, const char *schema, GArray *params) {
         this_param.data = data;
         g_array_append_val(params, this_param);
     }
-    else if (schema[0] == atoi(ARG_SCHEMA_QRY_HANDLE)) {
+    else if (schema[0] == atoi(ARG_SCHEMA_QRYHANDLE)) {
         strncat(data_buffer, data, strlen(data));
         this_param.query_handle = atoi(data_buffer);
         g_array_append_val(params, this_param);
     }
-    else if (schema[0] == atoi(ARG_SCHEMA_CORE_NUM)) {
+    else if (schema[0] == atoi(ARG_SCHEMA_CORENUM)) {
         strncat(data_buffer, data, strlen(data));
         this_param.cpu_id = atoi(data_buffer);
         g_array_append_val(params, this_param);
