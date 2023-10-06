@@ -12,9 +12,20 @@ typedef struct {
     int current_syscall_cb;
 } MCDSyscallState;
 
+static enum {
+    MCD_SYS_UNKNOWN,
+    MCD_SYS_ENABLED,
+    MCD_SYS_DISABLED,
+} mcd_syscall_mode;
+
 static MCDSyscallState mcdserver_syscall_state;
 
 void mcd_syscall_reset(void)
 {
     mcdserver_syscall_state.current_syscall_cb = 0;
+}
+
+void mcd_disable_syscalls(void)
+{
+    mcd_syscall_mode = MCD_SYS_DISABLED;
 }
