@@ -25,6 +25,7 @@
 // schema defines
 #define ARG_SCHEMA_QRYHANDLE 'q'
 #define ARG_SCHEMA_STRING 's'
+#define ARG_SCHEMA_INT 'd'
 #define ARG_SCHEMA_CORENUM 'c'
 
 // resets
@@ -34,8 +35,8 @@
 
 // more
 #define QUERY_TOTAL_NUMBER 11 //FIXME: set this to a usefull value in the end
-#define CMD_SCHEMA_LENGTH 2
-#define MCD_MAX_CORES 128
+#define CMD_SCHEMA_LENGTH 3
+#define MAX_SCHEMA_ARGS CMD_SCHEMA_LENGTH-1
 #define MCD_SYSTEM_NAME "qemu-system"
 // tcp query packet values templates
 #define DEVICE_NAME_TEMPLATE(s) "qemu-" #s "-device"
@@ -77,16 +78,16 @@ typedef enum MCDThreadIdKind {
 } MCDThreadIdKind;
 
 typedef union MCDCmdVariant {
-    const char *data;
     
+    const char *data;
+    int data_int;
+    int query_handle;
+    int cpu_id;
     struct {
         MCDThreadIdKind kind;
         uint32_t pid;
         uint32_t tid;
     } thread_id;
-
-    int query_handle;
-    int cpu_id;
 
 } MCDCmdVariant;
 
@@ -277,6 +278,7 @@ void handle_query_regs_f(GArray *params, void *user_ctx);
 void handle_query_regs_c(GArray *params, void *user_ctx);
 void handle_open_server(GArray *params, void *user_ctx);
 void parse_reg_xml(const char *xml, int size, GArray* registers);
+void handle_reset(GArray *params, void *user_ctx);
 
 // arm specific functions
 int mcd_arm_store_mem_spaces(CPUState *cpu, GArray* memspaces);

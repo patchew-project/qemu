@@ -508,6 +508,16 @@ int mcd_handle_packet(const char *line_buf)
             cmd_parser = &close_core_cmd_desc;
         }
         break;
+    case TCP_CHAR_RESET:
+        {
+            static MCDCmdParseEntry reset_cmd_desc = {
+                .handler = handle_reset,
+            };
+            reset_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_RESET, '\0' };
+            strcpy(reset_cmd_desc.schema, (char[3]) { (char) ARG_SCHEMA_INT, ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &reset_cmd_desc;
+        }
+        break;
     default:
         // could not perform the command (because its unknown)
         mcd_put_packet("");
@@ -564,24 +574,42 @@ void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd)
 }
 
 int cmd_parse_params(const char *data, const char *schema, GArray *params) {
-    MCDCmdVariant this_param;
-
+    
     char data_buffer[64] = {0};
-    if (schema[0] == ARG_SCHEMA_STRING) {
-        this_param.data = data;
-        g_array_append_val(params, this_param);
-    }
-    else if (schema[0] == ARG_SCHEMA_QRYHANDLE) {
-        strncat(data_buffer, data, strlen(data));
-        this_param.query_handle = atoi(data_buffer);
-        g_array_append_val(params, this_param);
-    }
-    else if (schema[0] == ARG_SCHEMA_CORENUM) {
-        strncat(data_buffer, data, strlen(data));
-        this_param.cpu_id = atoi(data_buffer);
-        g_array_append_val(params, this_param);
-    }
+    char *separator = strchr(data_buffer, ARGUMENT_SEPARATOR);
+    int seperator_index = (int)(separator - data);
 
+    if (separator) {
+        // we got two arguments
+        strncpy(data_buffer, data, seperator_index);
+    }
+    else {
+        strncpy(data_buffer, data, strlen(data));
+    }
+    for (int i = 0; i<MAX_SCHEMA_ARGS; i++) {
+        MCDCmdVariant this_param;
+        if (schema[i] == ARG_SCHEMA_STRING) {
+            this_param.data = data_buffer;
+            g_array_append_val(params, this_param);
+        }
+        else if (schema[i] == ARG_SCHEMA_INT) {
+            this_param.data_int = atoi(data_buffer);
+            g_array_append_val(params, this_param);
+        }
+        else if (schema[i] == ARG_SCHEMA_QRYHANDLE) {
+            this_param.query_handle = atoi(data_buffer);
+            g_array_append_val(params, this_param);
+        }
+        else if (schema[i] == ARG_SCHEMA_CORENUM) {
+            this_param.cpu_id = atoi(data_buffer);
+            g_array_append_val(params, this_param);
+        }
+
+        if (separator) {
+            // we got two arguments
+            strncpy(data_buffer, &data[seperator_index+1], strlen(&data[seperator_index+1]));
+        }
+    }
     return 0;
 }
 
@@ -1531,4 +1559,13 @@ void handle_query_regs_c(GArray *params, void *user_ctx) {
         TCP_ARGUMENT_REGGROUPID, my_register.mcd_reg_group_id, TCP_ARGUMENT_MEMSPACEID, my_register.mcd_mem_space_id,
         TCP_ARGUMENT_TYPE, my_register.mcd_reg_type, TCP_ARGUMENT_THREAD, my_register.mcd_hw_thread_id);
     mcd_put_strbuf();
+}
+
+void handle_reset(GArray *params, void *user_ctx) {
+    int reset_id = get_param(params, 0)->data_int;
+    int bool_halt_after_reset = get_param(params, 1)->data_int;
+    if (reset_id>=0 && bool_halt_after_reset) {
+        //fun for the compiler
+    }
+    
 }

@@ -11,6 +11,7 @@
 #define TCP_CHAR_CLOSE_SERVER 'D'
 #define TCP_CHAR_CLOSE_CORE 'd'
 #define TCP_CHAR_KILLQEMU 'k'
+#define TCP_CHAR_RESET 'r'
 
 // tcp protocol chars
 #define TCP_ACKNOWLEDGED '+'
@@ -53,5 +54,8 @@
 #define TCP_ARGUMENT_AMOUNT_TRIGGER "nr_trigger"
 #define TCP_ARGUMENT_OPTION "option"
 #define TCP_ARGUMENT_ACTION "action"
+
+// for packets sent to qemu
+#define ARGUMENT_SEPARATOR ';'
 
 #endif
