@@ -68,6 +68,13 @@ void mcd_init_mcdserver_state(void)
 
     // init query table
     init_query_cmds_table(mcdserver_state.mcd_query_cmds_table);
+
+    // at this time the cpu hans't been started! -> set cpu_state
+    mcd_cpu_state_st cpu_state =  {
+            .state = CORE_STATE_HALTED,
+            .info_str = STATE_STR_INIT_HALTED,
+    };
+    mcdserver_state.cpu_state = cpu_state;
 }
 
 void init_query_cmds_table(MCDCmdParseEntry* mcd_query_cmds_table) {
@@ -156,6 +163,14 @@ void init_query_cmds_table(MCDCmdParseEntry* mcd_query_cmds_table) {
     };
     strcpy(query_regs_c.schema, (char[2]) { (char) ARG_SCHEMA_QRYHANDLE, '\0' });
     mcd_query_cmds_table[cmd_number] = query_regs_c;
+    cmd_number++;
+
+    MCDCmdParseEntry query_state = {
+        .handler = handle_query_state,
+        .cmd = QUERY_ARG_STATE,
+    };
+    strcpy(query_state.schema, (char[2]) { (char) ARG_SCHEMA_CORENUM, '\0' });
+    mcd_query_cmds_table[cmd_number] = query_state;
 }
 
 void reset_mcdserver_state(void)
@@ -336,6 +351,7 @@ void mcd_chr_receive(void *opaque, const uint8_t *buf, int size)
 	
     for (i = 0; i < size; i++) {
         mcd_read_byte(buf[i]);
+        if (buf[i]==0) break;
     }
 }
 
@@ -366,12 +382,12 @@ void mcd_read_byte(uint8_t ch)
             return;
         }
     }
-    if (runstate_is_running()) {
+    //if (runstate_is_running()) {
         /* when the CPU is running, we cannot do anything except stop
            it when receiving a char */
-        vm_stop(RUN_STATE_PAUSED);
-    }
-    else {
+        //vm_stop(RUN_STATE_PAUSED);
+    //}
+    //else {
         switch(mcdserver_state.state) {
         case RS_IDLE:
             if (ch == TCP_COMMAND_START) {
@@ -434,7 +450,7 @@ void mcd_read_byte(uint8_t ch)
         default:
             abort();
         }
-    }
+    //}
 }
 
 int mcd_handle_packet(const char *line_buf)
@@ -457,10 +473,20 @@ int mcd_handle_packet(const char *line_buf)
         // go command
         {
             static MCDCmdParseEntry go_cmd_desc = {
-                .handler = handle_continue,
+                .handler = handle_vm_start,
             };
             go_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_GO, '\0' };
             cmd_parser = &go_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_BREAK:
+        // go command
+        {
+            static MCDCmdParseEntry break_cmd_desc = {
+                .handler = handle_vm_stop,
+            };
+            break_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_BREAK, '\0' };
+            cmd_parser = &break_cmd_desc;
         }
         break;
     case TCP_CHAR_KILLQEMU:
@@ -514,7 +540,7 @@ int mcd_handle_packet(const char *line_buf)
                 .handler = handle_reset,
             };
             reset_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_RESET, '\0' };
-            strcpy(reset_cmd_desc.schema, (char[3]) { (char) ARG_SCHEMA_INT, ARG_SCHEMA_INT, '\0' });
+            strcpy(reset_cmd_desc.schema, (char[2]) { (char) ARG_SCHEMA_INT, '\0' });
             cmd_parser = &reset_cmd_desc;
         }
         break;
@@ -532,16 +558,14 @@ int mcd_handle_packet(const char *line_buf)
     return RS_IDLE;
 }
 
-void handle_continue(GArray *params, void *user_ctx)
-{
-    /*
-    if (params->len) {
-        gdb_set_cpu_pc(get_param(params, 0)->val_ull);
-    }
+void handle_vm_start(GArray *params, void *user_ctx) {
+    // todo add partial restart with arguments and so on
+    mcd_vm_start();
+}
 
-    mcdserver_state.signal = 0;
-    gdb_continue();
-    */
+void handle_vm_stop(GArray *params, void *user_ctx) {
+    // todo add partial stop with arguments and so on
+    mcd_vm_stop();
 }
 
 void handle_gen_query(GArray *params, void *user_ctx)
@@ -576,7 +600,7 @@ void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd)
 int cmd_parse_params(const char *data, const char *schema, GArray *params) {
     
     char data_buffer[64] = {0};
-    char *separator = strchr(data_buffer, ARGUMENT_SEPARATOR);
+    char *separator = strchr(data, ARGUMENT_SEPARATOR);
     int seperator_index = (int)(separator - data);
 
     if (separator) {
@@ -586,25 +610,29 @@ int cmd_parse_params(const char *data, const char *schema, GArray *params) {
     else {
         strncpy(data_buffer, data, strlen(data));
     }
-    for (int i = 0; i<MAX_SCHEMA_ARGS; i++) {
-        MCDCmdVariant this_param;
-        if (schema[i] == ARG_SCHEMA_STRING) {
-            this_param.data = data_buffer;
+    for (int i = 0; i<strlen(schema); i++) {
+        MCDCmdVariant this_param; 
+        switch (schema[i]) {
+        case ARG_SCHEMA_STRING:
+            this_param.data = data;
             g_array_append_val(params, this_param);
-        }
-        else if (schema[i] == ARG_SCHEMA_INT) {
+            break;
+        case ARG_SCHEMA_INT:
             this_param.data_int = atoi(data_buffer);
             g_array_append_val(params, this_param);
-        }
-        else if (schema[i] == ARG_SCHEMA_QRYHANDLE) {
+            break;
+        case ARG_SCHEMA_QRYHANDLE:
             this_param.query_handle = atoi(data_buffer);
             g_array_append_val(params, this_param);
-        }
-        else if (schema[i] == ARG_SCHEMA_CORENUM) {
+            break;
+        case ARG_SCHEMA_CORENUM:
             this_param.cpu_id = atoi(data_buffer);
             g_array_append_val(params, this_param);
+            break;
+        default:
+            return -1;
         }
-
+        
         if (separator) {
             // we got two arguments
             strncpy(data_buffer, &data[seperator_index+1], strlen(&data[seperator_index+1]));
@@ -633,7 +661,7 @@ int process_string_cmd(void *user_ctx, const char *data, const MCDCmdParseEntry 
         }
 
         // if a schema is provided we need to extract parameters from the data string
-        if (cmd->schema) {
+        if (strlen(cmd->schema)) {
             // this only gets the data from data beginning after the command name
             if (cmd_parse_params(&data[strlen(cmd->cmd)], cmd->schema, params)) {
                 return -1;
@@ -679,7 +707,7 @@ void mcd_chr_event(void *opaque, QEMUChrEvent event)
 
         s->c_cpu = mcd_first_attached_cpu();
 
-        vm_stop(RUN_STATE_PAUSED);
+        //vm_stop(RUN_STATE_PAUSED);
 		//TODO: this might not be necessary
         //replay_gdb_attached();
         //gdb_has_xml = false;
@@ -709,14 +737,98 @@ void mcd_sigterm_handler(int signal)
 
 void mcd_vm_state_change(void *opaque, bool running, RunState state)
 {
-	printf("this calls state_change\n");
+	CPUState *cpu = mcdserver_state.c_cpu;
+
+    // update cpu state
+    mcdserver_state.vm_previous_state = mcdserver_state.vm_current_state;
+    mcdserver_state.vm_current_state = state;
+
+    if (mcdserver_state.state == RS_INACTIVE) {
+        return;
+    }
+
+    if (cpu == NULL) {
+        if (running) {
+            // this is the case if qemu starts the vm before any mcd is connected
+            const char *mcd_state;
+            mcd_state = CORE_STATE_RUNNING;
+            const char *info_str;
+            info_str = STATE_STR_INIT_RUNNING;
+            mcdserver_state.cpu_state.state = mcd_state;
+            mcdserver_state.cpu_state.state = info_str;
+        }
+        return;
+    }
+
+    const char *mcd_state;
+    const char *stop_str;
+    const char *info_str;
+    uint32_t trig_id = 0;
+    switch (state) {
+    case RUN_STATE_RUNNING:
+        mcd_state = CORE_STATE_RUNNING;
+        info_str = STATE_STR_RUNNING(cpu->cpu_index);
+        stop_str = "";
+        break;
+    case RUN_STATE_DEBUG:
+        mcd_state = CORE_STATE_DEBUG;
+        info_str = STATE_STR_DEBUG(cpu->cpu_index);
+        if (cpu->watchpoint_hit) {
+            switch (cpu->watchpoint_hit->flags & BP_MEM_ACCESS) {
+            case BP_MEM_READ:
+                trig_id = MCD_TRIG_TYPE_READ;
+                stop_str = STATE_STR_BREAK_READ(cpu->watchpoint_hit->hitaddr);
+                break;
+            case BP_MEM_WRITE:
+                trig_id = MCD_TRIG_TYPE_WRITE;
+                stop_str = STATE_STR_BREAK_WRITE(cpu->watchpoint_hit->hitaddr);
+                break;
+            case BP_MEM_ACCESS:
+                trig_id = MCD_TRIG_TYPE_RW;
+                stop_str = STATE_STR_BREAK_RW(cpu->watchpoint_hit->hitaddr);
+                break;
+            default:
+                break;
+                stop_str = STATE_STR_BREAK_UNKNOWN;
+            }
+            cpu->watchpoint_hit = NULL;
+        } else {
+            // "hardware" breakpoint hit!
+            trig_id = MCD_TRIG_TYPE_IP;
+            stop_str = STATE_STR_BREAK_HW;
+            tb_flush(cpu);
+        }
+        break;
+    case RUN_STATE_PAUSED:
+        info_str = STATE_STR_HALTED(cpu->cpu_index);
+        mcd_state = CORE_STATE_HALTED;
+        stop_str = "";
+        break;
+    case RUN_STATE_WATCHDOG:
+        info_str = STATE_STR_UNKNOWN(cpu->cpu_index);
+        mcd_state = CORE_STATE_UNKNOWN;
+        stop_str = "";
+        printf("runstate watchdog hit\n");
+        break;
+    default:
+        info_str = STATE_STR_UNKNOWN(cpu->cpu_index);
+        mcd_state = CORE_STATE_UNKNOWN;
+        stop_str = "";
+        // we don't care;
+        break;
+    }
+
+    mcdserver_state.cpu_state.state = mcd_state;
+    mcdserver_state.cpu_state.trig_id = trig_id;
+    mcdserver_state.cpu_state.stop_str = stop_str;
+    mcdserver_state.cpu_state.info_str = info_str;
+
+    /* disable single step if it was enabled */
+    cpu_single_step(cpu, 0);
 }
 
 int mcd_put_packet(const char *buf)
 {
-	//tracing
-    //trace_gdbstub_io_reply(buf);
-
     return mcd_put_packet_binary(buf, strlen(buf), false);
 }
 
@@ -1267,6 +1379,7 @@ void handle_open_core(GArray *params, void *user_ctx) {
     // get the cpu whith the given id
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
     CPUState *cpu = mcd_get_cpu(cpu_id);
+    mcdserver_state.c_cpu = cpu;
     CPUClass *cc = CPU_GET_CLASS(cpu);
     gchar *arch = cc->gdb_arch_name(cpu);
     int return_value = 0;
@@ -1318,6 +1431,7 @@ void handle_open_core(GArray *params, void *user_ctx) {
         // we don't support other architectures
         assert(0);
     }
+
     g_free(arch);
 }
 
@@ -1367,10 +1481,13 @@ void handle_close_core(GArray *params, void *user_ctx) {
     // free memory for correct core
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
     GArray* memspaces = g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcdserver_state.all_memspaces = g_list_remove(mcdserver_state.all_memspaces, memspaces);
     g_array_free(memspaces, TRUE);
     GArray* reggroups = g_list_nth_data(mcdserver_state.all_reggroups, cpu_id);
+    mcdserver_state.all_reggroups = g_list_remove(mcdserver_state.all_reggroups, reggroups);
     g_array_free(reggroups, TRUE);
     GArray* registers = g_list_nth_data(mcdserver_state.all_registers, cpu_id);
+    mcdserver_state.all_registers = g_list_remove(mcdserver_state.all_registers, registers);
     g_array_free(registers, TRUE);
 }
 
@@ -1395,7 +1512,7 @@ void handle_close_server(GArray *params, void *user_ctx) {
     if (!mcdserver_state.c_cpu) {
         /* No more process attached */
         mcd_disable_syscalls();
-        mcd_continue();
+        mcd_vm_start();
     }
 }
 
@@ -1407,10 +1524,16 @@ void handle_query_trigger(GArray *params, void *user_ctx) {
     mcd_put_strbuf();
 }
 
-void mcd_continue(void)
-{
-    if (!runstate_needs_reset()) {
+void mcd_vm_start(void) {
+    if (!runstate_needs_reset() && !runstate_is_running()) {
         vm_start();
+    }
+}
+
+void mcd_vm_stop(void) {
+    if (runstate_is_running()) {
+        //might want to have DEBUG state here but idk
+        vm_stop(RUN_STATE_PAUSED);
     }
 }
 
@@ -1563,9 +1686,33 @@ void handle_query_regs_c(GArray *params, void *user_ctx) {
 
 void handle_reset(GArray *params, void *user_ctx) {
     int reset_id = get_param(params, 0)->data_int;
-    int bool_halt_after_reset = get_param(params, 1)->data_int;
-    if (reset_id>=0 && bool_halt_after_reset) {
+    //int bool_halt_after_reset = get_param(params, 1)->data_int;
+    if (reset_id>=0) {
         //fun for the compiler
     }
-    
+}
+
+void handle_query_state(GArray *params, void *user_ctx) {
+    // send state from correct core
+    //uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    // get state info
+    mcd_cpu_state_st state_info = mcdserver_state.cpu_state;
+    mcd_core_event_et event = MCD_CORE_EVENT_NONE;
+    if (state_info.memory_changed) {
+        event = event | MCD_CORE_EVENT_MEMORY_CHANGE;
+        state_info.memory_changed = false;
+    }
+    if (state_info.registers_changed) {
+        event = event | MCD_CORE_EVENT_REGISTER_CHANGE;
+        state_info.registers_changed = false;
+    }
+    if (state_info.target_was_stopped) {
+        event = event | MCD_CORE_EVENT_STOPPED;
+        state_info.target_was_stopped = false;
+    }
+    // send data
+    g_string_printf(mcdserver_state.str_buf, "%s=%s.%s=%d.%s=%d.%s=%d.%s=%s.%s=%s.", TCP_ARGUMENT_STATE, state_info.state,
+        TCP_ARGUMENT_EVENT, event, TCP_ARGUMENT_THREAD, 0, TCP_ARGUMENT_TRIGGER_ID, state_info.trig_id,
+        TCP_ARGUMENT_STOP_STRING, state_info.stop_str, TCP_ARGUMENT_INFO_STRING, state_info.info_str);
+    mcd_put_strbuf();
 }

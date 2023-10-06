@@ -22,6 +22,21 @@
 #define MCD_TRIG_OPT_DATA_IS_CONDITION 0x00000008
 #define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
 
+typedef uint32_t mcd_core_event_et;
+enum {
+	MCD_CORE_EVENT_NONE            = 0x00000000,   /**< No since the last poll.                                 */
+	MCD_CORE_EVENT_MEMORY_CHANGE   = 0x00000001,   /**< Memory content has changed.                             */
+	MCD_CORE_EVENT_REGISTER_CHANGE = 0x00000002,   /**< Register contents have changed.                         */
+	MCD_CORE_EVENT_TRACE_CHANGE    = 0x00000004,   /**< Trace contents or states have changed.                  */
+	MCD_CORE_EVENT_TRIGGER_CHANGE  = 0x00000008,   /**< Triggers or trigger states have changed.                */
+	MCD_CORE_EVENT_STOPPED         = 0x00000010,   /**< Target was stopped at least once since the last poll,
+		it may already be running again.                        */
+	MCD_CORE_EVENT_CHL_PENDING     = 0x00000020,   /**< A target communication channel request from the target
+		is pending.                                             */
+	MCD_CORE_EVENT_CUSTOM_LO       = 0x00010000,   /**< Begin Range: User defined core events.                  */
+	MCD_CORE_EVENT_CUSTOM_HI       = 0x40000000,   /**< End   Range: User defined core events.                  */
+};
+
 // schema defines
 #define ARG_SCHEMA_QRYHANDLE 'q'
 #define ARG_SCHEMA_STRING 's'
@@ -34,12 +49,24 @@
 #define RESET_MEMORY "memory_reset"
 
 // more
-#define QUERY_TOTAL_NUMBER 11 //FIXME: set this to a usefull value in the end
-#define CMD_SCHEMA_LENGTH 3
-#define MAX_SCHEMA_ARGS CMD_SCHEMA_LENGTH-1
+#define QUERY_TOTAL_NUMBER 12 //FIXME: set this to a usefull value in the end
+#define CMD_SCHEMA_LENGTH 2
 #define MCD_SYSTEM_NAME "qemu-system"
 // tcp query packet values templates
 #define DEVICE_NAME_TEMPLATE(s) "qemu-" #s "-device"
+
+// state strings
+#define STATE_STR_UNKNOWN(d) "cpu " #d " in unknown state"
+#define STATE_STR_DEBUG(d) "cpu " #d " in debug state"
+#define STATE_STR_RUNNING(d) "cpu " #d " running"
+#define STATE_STR_HALTED(d) "cpu " #d " currently halted"
+#define STATE_STR_INIT_HALTED "vm halted since boot"
+#define STATE_STR_INIT_RUNNING "vm running since boot"
+#define STATE_STR_BREAK_HW "stopped beacuse of HW breakpoint"
+#define STATE_STR_BREAK_READ(d) "stopped beacuse of read access at " #d
+#define STATE_STR_BREAK_WRITE(d) "stopped beacuse of write access at " #d
+#define STATE_STR_BREAK_RW(d) "stopped beacuse of read or write access at " #d
+#define STATE_STR_BREAK_UNKNOWN "stopped for unknown reason"
 
 // GDB stuff thats needed for GDB function, which we use
 typedef struct GDBRegisterState {
@@ -113,6 +140,16 @@ typedef struct mcd_trigger_st {
     uint32_t nr_trigger;
 } mcd_trigger_st;
 
+typedef struct mcd_cpu_state_st {
+    const char *state;
+    bool memory_changed;
+    bool registers_changed;
+    bool target_was_stopped;
+    uint32_t trig_id;
+    const char *stop_str;
+    const char *info_str;
+} mcd_cpu_state_st;
+
 typedef struct MCDState {
     bool init;       /* have we been initialised? */
     CPUState *c_cpu; /* current CPU for everything */
@@ -134,12 +171,15 @@ typedef struct MCDState {
     int supported_sstep_flags;
 
     // my stuff
+    RunState vm_current_state;
+    RunState vm_previous_state;
     uint32_t query_cpu_id;
     GList *all_memspaces;
     GList *all_reggroups;
     GList *all_registers;
     GArray *resets;
     mcd_trigger_st trigger;
+    mcd_cpu_state_st cpu_state;
     MCDCmdParseEntry mcd_query_cmds_table[QUERY_TOTAL_NUMBER];
 } MCDState;
 
@@ -254,9 +294,9 @@ void mcd_exit(int code);
 void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd);
 int process_string_cmd(void *user_ctx, const char *data, const MCDCmdParseEntry *cmds, int num_cmds);
 int cmd_parse_params(const char *data, const char *schema, GArray *params);
-void handle_continue(GArray *params, void *user_ctx);
+void handle_vm_start(GArray *params, void *user_ctx);
+void handle_vm_stop(GArray *params, void *user_ctx);
 void handle_gen_query(GArray *params, void *user_ctx);
-void mcd_append_thread_id(CPUState *cpu, GString *buf);
 int mcd_get_cpu_index(CPUState *cpu);
 CPUState* mcd_get_cpu(uint32_t i_cpu_index);
 void handle_query_cores(GArray *params, void *user_ctx);
@@ -269,7 +309,8 @@ void handle_query_reset_c(GArray *params, void *user_ctx);
 void handle_close_server(GArray *params, void *user_ctx);
 void handle_close_core(GArray *params, void *user_ctx);
 void handle_query_trigger(GArray *params, void *user_ctx);
-void mcd_continue(void);
+void mcd_vm_start(void);
+void mcd_vm_stop(void);
 void handle_query_reg_groups_f(GArray *params, void *user_ctx);
 void handle_query_reg_groups_c(GArray *params, void *user_ctx);
 void handle_query_mem_spaces_f(GArray *params, void *user_ctx);
@@ -279,6 +320,7 @@ void handle_query_regs_c(GArray *params, void *user_ctx);
 void handle_open_server(GArray *params, void *user_ctx);
 void parse_reg_xml(const char *xml, int size, GArray* registers);
 void handle_reset(GArray *params, void *user_ctx);
+void handle_query_state(GArray *params, void *user_ctx);
 
 // arm specific functions
 int mcd_arm_store_mem_spaces(CPUState *cpu, GArray* memspaces);

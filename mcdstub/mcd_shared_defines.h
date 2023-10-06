@@ -7,6 +7,7 @@
 #define TCP_CHAR_OPEN_SERVER 'I'
 #define TCP_CHAR_OPEN_CORE 'i'
 #define TCP_CHAR_GO 'c'
+#define TCP_CHAR_BREAK 'b'
 #define TCP_CHAR_QUERY 'q'
 #define TCP_CHAR_CLOSE_SERVER 'D'
 #define TCP_CHAR_CLOSE_CORE 'd'
@@ -33,6 +34,7 @@
 #define QUERY_ARG_MEMORY "memory"
 #define QUERY_ARG_REGGROUP "reggroup"
 #define QUERY_ARG_REG "reg"
+#define QUERY_ARG_STATE "state"
 
 // tcp query packet argument list
 #define TCP_ARGUMENT_NAME "name"
@@ -48,6 +50,11 @@
 #define TCP_ARGUMENT_MEMSPACEID "memspaceid"
 #define TCP_ARGUMENT_SIZE "size"
 #define TCP_ARGUMENT_THREAD "thread"
+#define TCP_ARGUMENT_TRIGGER_ID "trig_id"
+#define TCP_ARGUMENT_STOP_STRING "stop_str"
+#define TCP_ARGUMENT_INFO_STRING "info_str"
+#define TCP_ARGUMENT_STATE "state"
+#define TCP_ARGUMENT_EVENT "event"
 #define TCP_ARGUMENT_DEVICE "device"
 #define TCP_ARGUMENT_CORE "core"
 #define TCP_ARGUMENT_AMOUNT_CORE "nr_cores"
@@ -57,5 +64,11 @@
 
 // for packets sent to qemu
 #define ARGUMENT_SEPARATOR ';'
+
+// core states
+#define CORE_STATE_RUNNING "running"
+#define CORE_STATE_HALTED "halted"
+#define CORE_STATE_DEBUG "debug"
+#define CORE_STATE_UNKNOWN "unknown"
 
 #endif
