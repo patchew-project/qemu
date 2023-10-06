@@ -306,7 +306,10 @@ void cpu_handle_guest_debug(CPUState *cpu)
             cpu_single_step(cpu, 0);
         }
     } else {
-        /*gdb_set_stop_cpu(cpu);*/
+        /*
+         * TODO: was gdb_set_stop_cpu(cpu), need to abstract options to
+         * a QOM class.
+         */
         qemu_system_debug_request();
         cpu->stopped = true;
     }
