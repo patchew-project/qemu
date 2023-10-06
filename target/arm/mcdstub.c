@@ -4,7 +4,8 @@
 #include "sysemu/tcg.h"
 #include "internals.h"
 #include "cpregs.h"
-#include "mcdstub.h"
+
+#include "mcdstub/arm_mcdstub.h"
 
 static inline int mcd_get_reg32(GByteArray *buf, uint32_t val)
 {

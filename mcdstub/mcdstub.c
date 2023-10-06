@@ -25,11 +25,11 @@
 #include "monitor/monitor.h"
 
 /* mcdstub header files */
-#include "mcd_shared_defines.h"
-#include "mcdstub.h"
+#include "mcdstub/mcd_shared_defines.h"
+#include "mcdstub/mcdstub.h"
 
 /* architecture specific stubs */
-#include "target/arm/mcdstub.h"
+#include "mcdstub/arm_mcdstub.h"
 
 typedef struct {
     CharBackend chr;

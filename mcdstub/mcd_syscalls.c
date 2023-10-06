@@ -3,7 +3,7 @@
 #include "semihosting/semihost.h"
 #include "sysemu/runstate.h"
 #include "mcdstub/syscalls.h"
-#include "mcdstub.h"
+#include "mcdstub/mcdstub.h"
 
 typedef struct {
     char syscall_buf[256];
