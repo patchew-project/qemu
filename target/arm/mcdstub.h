@@ -16,5 +16,6 @@ int arm_mcd_read_register(CPUState *cs, GByteArray *mem_buf, uint8_t reg_type,
 int arm_mcd_write_register(CPUState *cs, GByteArray *mem_buf, uint8_t reg_type,
     uint32_t n);
 uint16_t arm_mcd_get_opcode(CPUState *cs, uint32_t n);
+int arm_mcd_set_scr(CPUState *cs, bool secure);
 
 #endif /* ARM_MCDSTUB_H */

@@ -548,8 +548,8 @@ int mcd_handle_packet(const char *line_buf)
             };
             read_mem_cmd_desc.cmd = (char[2]) { TCP_CHAR_READ_MEMORY, '\0' };
             strcpy(read_mem_cmd_desc.schema,
-                (char[4]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T,
-                ARG_SCHEMA_INT, '\0' });
+                (char[5]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT,
+                ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT, '\0' });
             cmd_parser = &read_mem_cmd_desc;
         }
         break;
@@ -560,8 +560,9 @@ int mcd_handle_packet(const char *line_buf)
             };
             write_mem_cmd_desc.cmd = (char[2]) { TCP_CHAR_WRITE_MEMORY, '\0' };
             strcpy(write_mem_cmd_desc.schema,
-                (char[5]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T,
-                ARG_SCHEMA_INT, ARG_SCHEMA_HEXDATA, '\0' });
+                (char[6]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT,
+                ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT,
+                ARG_SCHEMA_HEXDATA, '\0' });
             cmd_parser = &write_mem_cmd_desc;
         }
         break;
@@ -1194,10 +1195,17 @@ int int_cmp(gconstpointer a, gconstpointer b)
 int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces)
 {
     int nr_address_spaces = cpu->num_ases;
+    uint32_t mem_space_id = 0;
 
-    mcd_mem_space_st space1 = {
+    /*
+     * TODO: atm we can only access physical memory addresses,
+     * but trace32 needs fake locical spaces to work with
+    */
+
+    mem_space_id++;
+    mcd_mem_space_st non_secure = {
         .name = "Non Secure",
-        .id = 1,
+        .id = mem_space_id,
         .type = 34,
         .bits_per_mau = 8,
         .invariance = 1,
@@ -1205,12 +1213,13 @@ int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces)
         .min_addr = 0,
         .max_addr = -1,
         .supported_access_options = 0,
+        .is_secure = false,
     };
-    g_array_append_vals(memspaces, (gconstpointer)&space1, 1);
-
-    mcd_mem_space_st space2 = {
+    g_array_append_vals(memspaces, (gconstpointer)&non_secure, 1);
+    mem_space_id++;
+    mcd_mem_space_st phys_non_secure = {
         .name = "Physical (Non Secure)",
-        .id = 2,
+        .id = mem_space_id,
         .type = 18,
         .bits_per_mau = 8,
         .invariance = 1,
@@ -1218,40 +1227,44 @@ int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces)
         .min_addr = 0,
         .max_addr = -1,
         .supported_access_options = 0,
+        .is_secure = false,
     };
-    g_array_append_vals(memspaces, (gconstpointer)&space2, 1);
-
-    if (nr_address_spaces == 2) {
-        mcd_mem_space_st space3 = {
-        .name = "Secure",
-        .id = 3,
-        .type = 34,
-        .bits_per_mau = 8,
-        .invariance = 1,
-        .endian = 1,
-        .min_addr = 0,
-        .max_addr = -1,
-        .supported_access_options = 0,
-    };
-    g_array_append_vals(memspaces, (gconstpointer)&space3, 1);
-    mcd_mem_space_st space4 = {
-        .name = "Physical (Secure)",
-        .id = 4,
-        .type = 18,
-        .bits_per_mau = 8,
-        .invariance = 1,
-        .endian = 1,
-        .min_addr = 0,
-        .max_addr = -1,
-        .supported_access_options = 0,
-    };
-    g_array_append_vals(memspaces, (gconstpointer)&space4, 1);
+    g_array_append_vals(memspaces, (gconstpointer)&phys_non_secure, 1);
+    if(nr_address_spaces > 1) {
+        mem_space_id++;
+        mcd_mem_space_st secure = {
+            .name = "Secure",
+            .id = mem_space_id,
+            .type = 34,
+            .bits_per_mau = 8,
+            .invariance = 1,
+            .endian = 1,
+            .min_addr = 0,
+            .max_addr = -1,
+            .supported_access_options = 0,
+            .is_secure = true,
+        };
+        g_array_append_vals(memspaces, (gconstpointer)&secure, 1);
+        mem_space_id++;
+        mcd_mem_space_st phys_secure = {
+            .name = "Physical (Secure)",
+            .id = mem_space_id,
+            .type = 18,
+            .bits_per_mau = 8,
+            .invariance = 1,
+            .endian = 1,
+            .min_addr = 0,
+            .max_addr = -1,
+            .supported_access_options = 0,
+            .is_secure = true,
+        };
+        g_array_append_vals(memspaces, (gconstpointer)&phys_secure, 1);
     }
-
     /* TODO: get dynamically how the per (CP15) space is called */
-    mcd_mem_space_st space5 = {
+    mem_space_id++;
+    mcd_mem_space_st gpr = {
         .name = "GPR Registers",
-        .id = 5,
+        .id = mem_space_id,
         .type = 1,
         .bits_per_mau = 8,
         .invariance = 1,
@@ -1260,10 +1273,11 @@ int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces)
         .max_addr = -1,
         .supported_access_options = 0,
     };
-    g_array_append_vals(memspaces, (gconstpointer)&space5, 1);
-    mcd_mem_space_st space6 = {
+    g_array_append_vals(memspaces, (gconstpointer)&gpr, 1);
+    mem_space_id++;
+    mcd_mem_space_st cpr = {
         .name = "CP15 Registers",
-        .id = 6,
+        .id = mem_space_id,
         .type = 1,
         .bits_per_mau = 8,
         .invariance = 1,
@@ -1272,7 +1286,7 @@ int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces)
         .max_addr = -1,
         .supported_access_options = 0,
     };
-    g_array_append_vals(memspaces, (gconstpointer)&space6, 1);
+    g_array_append_vals(memspaces, (gconstpointer)&cpr, 1);
     return 0;
 }
 
@@ -2022,10 +2036,20 @@ int mcd_write_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len)
 void handle_read_memory(GArray *params, void *user_ctx)
 {
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
-    uint64_t mem_address = get_param(params, 1)->data_uint64_t;
-    uint32_t len = get_param(params, 2)->data_uint32_t;
+    uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
+    uint64_t mem_address = get_param(params, 2)->data_uint64_t;
+    uint32_t len = get_param(params, 3)->data_uint32_t;
 
     CPUState *cpu = mcd_get_cpu(cpu_id);
+    /* check if the mem space is secure */
+    GArray *memspaces = g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
+        mem_space_id - 1);
+    if (arm_mcd_set_scr(cpu, space.is_secure)) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+        return;
+    }
+    /* read memory */
     g_byte_array_set_size(mcdserver_state.mem_buf, len);
     if (mcd_read_memory(cpu, mem_address, mcdserver_state.mem_buf->data,
         mcdserver_state.mem_buf->len) != 0) {
@@ -2040,10 +2064,19 @@ void handle_read_memory(GArray *params, void *user_ctx)
 void handle_write_memory(GArray *params, void *user_ctx)
 {
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
-    uint64_t mem_address = get_param(params, 1)->data_uint64_t;
-    uint32_t len = get_param(params, 2)->data_uint32_t;
-
+    uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
+    uint64_t mem_address = get_param(params, 2)->data_uint64_t;
+    uint32_t len = get_param(params, 3)->data_uint32_t;
     CPUState *cpu = mcd_get_cpu(cpu_id);
+    /* check if the mem space is secure */
+    GArray *memspaces = g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
+        mem_space_id - 1);
+    if (arm_mcd_set_scr(cpu, space.is_secure)) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+        return;
+    }
+    /* read memory */
     mcd_hextomem(mcdserver_state.mem_buf, mcdserver_state.str_buf->str, len);
     if (mcd_write_memory(cpu, mem_address,
         mcdserver_state.mem_buf->data, len) != 0) {

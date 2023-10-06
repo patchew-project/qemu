@@ -58,7 +58,7 @@ enum {
 
 /* misc */
 #define QUERY_TOTAL_NUMBER 12
-#define CMD_SCHEMA_LENGTH 5
+#define CMD_SCHEMA_LENGTH 6
 #define MCD_SYSTEM_NAME "qemu-system"
 
 /* tcp query packet values templates */
@@ -185,6 +185,8 @@ typedef struct mcd_mem_space_st {
     uint64_t min_addr;
     uint64_t max_addr;
     uint32_t supported_access_options;
+    /* internal */
+    bool is_secure;
 } mcd_mem_space_st;
 
 typedef struct mcd_reg_group_st {
