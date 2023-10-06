@@ -2839,6 +2839,15 @@ F: tests/tcg/multiarch/gdbstub/
 F: scripts/feature_to_c.sh
 F: scripts/probe-gdb-support.py
 
+MCD stub
+M: Nicolas Eder <nicolas.eder@lauterbach.com>
+R: Alex Bennée <alex.bennee@linaro.org>
+S: Maintained
+F: mcdstub/*
+F: include/exec/mcdstub.h
+F: include/mcdstub/*
+F: target/arm/mcdstub.c
+
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Xu <peterx@redhat.com>
