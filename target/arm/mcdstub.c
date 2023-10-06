@@ -8,8 +8,10 @@
 
 static inline int mcd_get_reg32(GByteArray *buf, uint32_t val)
 {
-    //TODO: move this to a separate file
-    // convert endianess if necessary
+    /*
+     *TODO: move this to a separate file
+     *convert endianess if necessary
+     */
     uint32_t to_long = tswap32(val);
     g_byte_array_append(buf, (uint8_t *) &to_long, 4);
     return 4;
@@ -17,7 +19,7 @@ static inline int mcd_get_reg32(GByteArray *buf, uint32_t val)
 
 static inline int mcd_get_zeroes(GByteArray *array, size_t len)
 {
-    //TODO: move this to a separate file
+    /*TODO: move this to a separate file */
     guint oldlen = array->len;
     g_byte_array_set_size(array, oldlen + len);
     memset(array->data + oldlen, 0, len);
@@ -43,7 +45,8 @@ const char *arm_mcd_get_dynamic_xml(CPUState *cs, const char *xmlname)
     return NULL;
 }
 
-int arm_mcd_read_register(CPUState *cs, GByteArray *mem_buf, int n) {
+int arm_mcd_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+{
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
@@ -52,12 +55,12 @@ int arm_mcd_read_register(CPUState *cs, GByteArray *mem_buf, int n) {
         return mcd_get_reg32(mem_buf, env->regs[n]);
     }
     if (n < 24) {
-        // TODO: these numbers don't match mine
+        /* TODO: these numbers don't match mine */
         return mcd_get_zeroes(mem_buf, 12);
     }
     switch (n) {
     case 24:
-        // TODO: these numbers don't match mine
+        /* TODO: these numbers don't match mine */
         return mcd_get_reg32(mem_buf, 0);
     case 25:
         /* CPSR, or XPSR for M-profile */
@@ -67,17 +70,18 @@ int arm_mcd_read_register(CPUState *cs, GByteArray *mem_buf, int n) {
             return mcd_get_reg32(mem_buf, cpsr_read(env));
         }
     }
-    //TODO: add funcitons for the remaining regs (including cp_regs)
+    /* TODO: add funcitons for the remaining regs (including cp_regs) */
     return 0;
 }
 
-int arm_mcd_write_register(CPUState *cs, GByteArray *mem_buf, int n) {
+int arm_mcd_write_register(CPUState *cs, GByteArray *mem_buf, int n)
+{
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     uint32_t tmp;
 
     tmp = ldl_p(mem_buf);
-    tmp = *((uint32_t*)mem_buf->data);
+    tmp = *((uint32_t *)mem_buf->data);
 
     /*
      * Mask out low bits of PC to workaround gdb bugs.
@@ -122,6 +126,6 @@ int arm_mcd_write_register(CPUState *cs, GByteArray *mem_buf, int n) {
         }
         return 4;
     }
-    //TODO: add funcitons for the remaining regs (including cp_regs)
+    /* TODO: add funcitons for the remaining regs (including cp_regs) */
     return 0;
 }

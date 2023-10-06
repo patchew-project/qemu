@@ -2663,9 +2663,9 @@ static void qemu_machine_creation_done(void)
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);
     }
-    
+
     if (foreach_device_config(DEV_MCD, mcdserver_start) < 0) {
-        /* 
+        /*
          * starts the mcdserver if the mcd option was set
          */
         exit(1);

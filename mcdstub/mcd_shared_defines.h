@@ -1,9 +1,12 @@
-// this file is shared between the mcd dll and the mcd stub. it has to be kept exectly the same!
+/*
+ *this file is shared between the mcd dll and the mcd stub.
+ *it has to be kept exectly the same!
+ */
 
 #ifndef MCD_SHARED_DEFINES
 #define MCD_SHARED_DEFINES
 
-// tcp data characters
+/* tcp data characters */
 #define TCP_CHAR_OPEN_SERVER 'I'
 #define TCP_CHAR_OPEN_CORE 'i'
 #define TCP_CHAR_GO 'C'
@@ -19,7 +22,7 @@
 #define TCP_CHAR_READ_MEMORY 'm'
 #define TCP_CHAR_WRITE_MEMORY 'M'
 
-// tcp protocol chars
+/* tcp protocol chars */
 #define TCP_ACKNOWLEDGED '+'
 #define TCP_NOT_ACKNOWLEDGED '-'
 #define TCP_COMMAND_START '$'
@@ -30,7 +33,7 @@
 #define TCP_EXECUTION_SUCCESS "success"
 #define TCP_EXECUTION_ERROR "error"
 
-// tcp query arguments
+/* tcp query arguments */
 #define QUERY_FIRST "f"
 #define QUERY_CONSEQUTIVE "c"
 
@@ -43,7 +46,7 @@
 #define QUERY_ARG_REG "reg"
 #define QUERY_ARG_STATE "state"
 
-// tcp query packet argument list
+/* tcp query packet argument list */
 #define TCP_ARGUMENT_NAME "name"
 #define TCP_ARGUMENT_DATA "data"
 #define TCP_ARGUMENT_ID "id"
@@ -70,10 +73,10 @@
 #define TCP_ARGUMENT_OPTION "option"
 #define TCP_ARGUMENT_ACTION "action"
 
-// for packets sent to qemu
+/* for packets sent to qemu */
 #define ARGUMENT_SEPARATOR ';'
 
-// core states
+/* core states */
 #define CORE_STATE_RUNNING "running"
 #define CORE_STATE_HALTED "halted"
 #define CORE_STATE_DEBUG "debug"

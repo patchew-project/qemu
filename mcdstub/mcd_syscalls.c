@@ -3,12 +3,11 @@
 #include "semihosting/semihost.h"
 #include "sysemu/runstate.h"
 #include "mcdstub/syscalls.h"
-//#include "trace.h"
-#include "internals.h"
+#include "mcdstub.h"
 
 typedef struct {
     char syscall_buf[256];
-    //TODO: this needs to be get fixed mcd_syscall_complete_cb
+    /* TODO: this needs to be get fixed mcd_syscall_complete_cb */
     int current_syscall_cb;
 } MCDSyscallState;
 
