@@ -6,8 +6,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
+#include "exec/mcdstub.h"
 #define MAX 80
-#define DEFAULT_MCDSTUB_PORT "1234"
 #define SA struct sockaddr
 
 // Function designed for chat between client and server.

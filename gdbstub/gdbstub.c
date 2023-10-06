@@ -857,7 +857,7 @@ static int process_string_cmd(const char *data,
 
         if (cmd->schema) {
             if (cmd_parse_params(&data[strlen(cmd->cmd)],
-                                 cmd->schema, params)) {
+                                 cmd->schema, params)) { 
                 return -1;
             }
         }

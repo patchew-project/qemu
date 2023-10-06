@@ -4414,6 +4414,31 @@ SRST
     (see the :ref:`GDB usage` chapter in the System Emulation Users Guide).
 ERST
 
+DEF("mcd", HAS_ARG, QEMU_OPTION_mcd, \
+    "-mcd dev        accept mcd connection on 'dev'. (QEMU defaults to starting\n"
+    "                the guest without waiting for a mcd client to connect; use -S too\n"
+    "                if you want it to not start execution.)\n",
+    QEMU_ARCH_ALL)
+SRST
+``-mcd dev``
+    Accept a mcd connection on device dev. Note that this option does not pause QEMU
+    execution -- if you want QEMU to not start the guest until you
+    connect with mcd and issue a ``run`` command, you will need to
+    also pass the ``-S`` option to QEMU.
+
+    The most usual configuration is to listen on a local TCP socket::
+
+        -mcd tcp::1234
+ERST
+
+DEF("mcdd", 0, QEMU_OPTION_mcdd, \
+    "-mcdd              shorthand for -mcd tcp::" DEFAULT_MCDSTUB_PORT "\n",
+    QEMU_ARCH_ALL)
+SRST
+``-mcdd``
+    Shorthand for -mcd tcp::1234, i.e. open a mcdserver on TCP port 1234
+ERST
+
 DEF("d", HAS_ARG, QEMU_OPTION_d, \
     "-d item1,...    enable logging of specified items (use '-d help' for a list of log items)\n",
     QEMU_ARCH_ALL)
