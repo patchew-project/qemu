@@ -78,6 +78,8 @@
 
 /* for packets sent to qemu */
 #define ARGUMENT_SEPARATOR ';'
+#define NEGATIVE_FLAG 0
+#define POSITIVE_FLAG 1
 
 /* core states */
 #define CORE_STATE_RUNNING "running"

@@ -435,7 +435,7 @@ int mcd_handle_packet(const char *line_buf)
             };
             go_cmd_desc.cmd = (char[2]) { TCP_CHAR_GO, '\0' };
             strcpy(go_cmd_desc.schema,
-                (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
+                (char[3]) { ARG_SCHEMA_INT, ARG_SCHEMA_CORENUM, '\0' });
             cmd_parser = &go_cmd_desc;
         }
         break;
@@ -446,7 +446,7 @@ int mcd_handle_packet(const char *line_buf)
             };
             step_cmd_desc.cmd = (char[2]) { TCP_CHAR_STEP, '\0' };
             strcpy(step_cmd_desc.schema,
-                (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
+                (char[3]) { ARG_SCHEMA_INT, ARG_SCHEMA_CORENUM, '\0' });
             cmd_parser = &step_cmd_desc;
         }
         break;
@@ -608,28 +608,35 @@ int mcd_handle_packet(const char *line_buf)
 
 void handle_vm_start(GArray *params, void *user_ctx)
 {
-    /* TODO: add partial restart with arguments and so on */
-    uint32_t cpu_id = get_param(params, 0)->cpu_id;
-    CPUState *cpu = mcd_get_cpu(cpu_id);
-    mcd_cpu_start(cpu);
+    uint32_t global = get_param(params, 0)->data_uint32_t;
+    if (global == 1) {
+        mcd_vm_start();
+    } else{
+        uint32_t cpu_id = get_param(params, 1)->cpu_id;
+        CPUState *cpu = mcd_get_cpu(cpu_id);
+        mcd_cpu_start(cpu);
+    }
 }
 
 void handle_vm_step(GArray *params, void *user_ctx)
 {
-    /* TODO: add partial restart with arguments and so on */
-    uint32_t cpu_id = get_param(params, 0)->cpu_id;
-
-    CPUState *cpu = mcd_get_cpu(cpu_id);
-    int return_value = mcd_cpu_sstep(cpu);
-    if (return_value != 0) {
-        g_assert_not_reached();
+    uint32_t global = get_param(params, 0)->data_uint32_t;
+    if (global == 1) {
+        /* TODO: add multicore support */
+    } else{
+        uint32_t cpu_id = get_param(params, 1)->cpu_id;
+        CPUState *cpu = mcd_get_cpu(cpu_id);
+        int return_value = mcd_cpu_sstep(cpu);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
     }
 }
 
 
 void handle_vm_stop(GArray *params, void *user_ctx)
 {
-    /* TODO: add partial stop with arguments and so on */
+    /* TODO: add core dependant break option */
     mcd_vm_stop();
 }
 
