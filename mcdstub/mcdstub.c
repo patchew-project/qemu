@@ -465,7 +465,7 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry open_server_cmd_desc = {
                 .handler = handle_open_server,
             };
-            open_server_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_OPEN_SERVER, '\0' };
+            open_server_cmd_desc.cmd = (char[2]) { TCP_CHAR_OPEN_SERVER, '\0' };
             cmd_parser = &open_server_cmd_desc;
         }
         break;
@@ -475,7 +475,7 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry go_cmd_desc = {
                 .handler = handle_vm_start,
             };
-            go_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_GO, '\0' };
+            go_cmd_desc.cmd = (char[2]) { TCP_CHAR_GO, '\0' };
             cmd_parser = &go_cmd_desc;
         }
         break;
@@ -485,7 +485,7 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry break_cmd_desc = {
                 .handler = handle_vm_stop,
             };
-            break_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_BREAK, '\0' };
+            break_cmd_desc.cmd = (char[2]) { TCP_CHAR_BREAK, '\0' };
             cmd_parser = &break_cmd_desc;
         }
         break;
@@ -500,8 +500,8 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry query_cmd_desc = {
                 .handler = handle_gen_query,
             };
-            query_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_QUERY, '\0' };
-            strcpy(query_cmd_desc.schema, (char[2]) { (char) ARG_SCHEMA_STRING, '\0' });
+            query_cmd_desc.cmd = (char[2]) { TCP_CHAR_QUERY, '\0' };
+            strcpy(query_cmd_desc.schema, (char[2]) { ARG_SCHEMA_STRING, '\0' });
             cmd_parser = &query_cmd_desc;
         }
         break;
@@ -510,8 +510,8 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry open_core_cmd_desc = {
                 .handler = handle_open_core,
             };
-            open_core_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_OPEN_CORE, '\0' };
-            strcpy(open_core_cmd_desc.schema, (char[2]) { (char) ARG_SCHEMA_CORENUM, '\0' });
+            open_core_cmd_desc.cmd = (char[2]) { TCP_CHAR_OPEN_CORE, '\0' };
+            strcpy(open_core_cmd_desc.schema, (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
             cmd_parser = &open_core_cmd_desc;
         }
         break;
@@ -520,7 +520,7 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry close_server_cmd_desc = {
                 .handler = handle_close_server,
             };
-            close_server_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_CLOSE_SERVER, '\0' };
+            close_server_cmd_desc.cmd = (char[2]) { TCP_CHAR_CLOSE_SERVER, '\0' };
             cmd_parser = &close_server_cmd_desc;
         }
         break;
@@ -529,8 +529,8 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry close_core_cmd_desc = {
                 .handler = handle_close_core,
             };
-            close_core_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_CLOSE_CORE, '\0' };
-            strcpy(close_core_cmd_desc.schema, (char[2]) { (char) ARG_SCHEMA_CORENUM, '\0' });
+            close_core_cmd_desc.cmd = (char[2]) { TCP_CHAR_CLOSE_CORE, '\0' };
+            strcpy(close_core_cmd_desc.schema, (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
             cmd_parser = &close_core_cmd_desc;
         }
         break;
@@ -539,8 +539,8 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry reset_cmd_desc = {
                 .handler = handle_reset,
             };
-            reset_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_RESET, '\0' };
-            strcpy(reset_cmd_desc.schema, (char[2]) { (char) ARG_SCHEMA_INT, '\0' });
+            reset_cmd_desc.cmd = (char[2]) { TCP_CHAR_RESET, '\0' };
+            strcpy(reset_cmd_desc.schema, (char[2]) { ARG_SCHEMA_INT, '\0' });
             cmd_parser = &reset_cmd_desc;
         }
         break;
@@ -549,7 +549,7 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry read_reg_cmd_desc = {
                 .handler = handle_read_register,
             };
-            read_reg_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_READ_REGISTER, '\0' };
+            read_reg_cmd_desc.cmd = (char[2]) { TCP_CHAR_READ_REGISTER, '\0' };
             strcpy(read_reg_cmd_desc.schema, (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT, '\0' });
             cmd_parser = &read_reg_cmd_desc;
         }
@@ -559,7 +559,7 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry write_reg_cmd_desc = {
                 .handler = handle_write_register,
             };
-            write_reg_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_WRITE_REGISTER, '\0' };
+            write_reg_cmd_desc.cmd = (char[2]) { TCP_CHAR_WRITE_REGISTER, '\0' };
             strcpy(write_reg_cmd_desc.schema, (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT, '\0' });
             cmd_parser = &write_reg_cmd_desc;
         }
@@ -569,8 +569,8 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry read_mem_cmd_desc = {
                 .handler = handle_read_memory,
             };
-            read_mem_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_READ_MEMORY, '\0' };
-            strcpy(read_mem_cmd_desc.schema, (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT, '\0' });
+            read_mem_cmd_desc.cmd = (char[2]) { TCP_CHAR_READ_MEMORY, '\0' };
+            strcpy(read_mem_cmd_desc.schema, (char[4]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT, '\0' });
             cmd_parser = &read_mem_cmd_desc;
         }
         break;
@@ -579,8 +579,8 @@ int mcd_handle_packet(const char *line_buf)
             static MCDCmdParseEntry write_mem_cmd_desc = {
                 .handler = handle_write_memory,
             };
-            write_mem_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_WRITE_MEMORY, '\0' };
-            strcpy(write_mem_cmd_desc.schema, (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT, '\0' });
+            write_mem_cmd_desc.cmd = (char[2]) { TCP_CHAR_WRITE_MEMORY, '\0' };
+            strcpy(write_mem_cmd_desc.schema, (char[5]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT, ARG_SCHEMA_HEXDATA, '\0' });
             cmd_parser = &write_mem_cmd_desc;
         }
         break;
@@ -652,29 +652,43 @@ uint64_t atouint64_t(const char* in) {
 int cmd_parse_params(const char *data, const char *schema, GArray *params) {
     
     char data_buffer[64] = {0};
-    char *separator = strchr(data, ARGUMENT_SEPARATOR);
-    int seperator_index = (int)(separator - data);
-
-    if (separator) {
-        // we got two arguments
-        strncpy(data_buffer, data, seperator_index);
-    }
-    else {
-        strncpy(data_buffer, data, strlen(data));
-    }
+    const char *remaining_data = data;
+    
     for (int i = 0; i<strlen(schema); i++) {
+        // get correct part of string
+        char *separator = strchr(remaining_data, ARGUMENT_SEPARATOR);
+
+        if (separator) {
+            // we multiple arguments left
+            int seperator_index = (int)(separator - remaining_data);
+            strncpy(data_buffer, remaining_data, seperator_index);
+            data_buffer[seperator_index] = 0;
+            // update remaining data for the next run
+            remaining_data = &(remaining_data[seperator_index+1]);
+        }
+        else {
+            strncpy(data_buffer, remaining_data, strlen(remaining_data));
+            data_buffer[strlen(remaining_data)] = 0;
+        }
+        
+        // store right data
         MCDCmdVariant this_param; 
         switch (schema[i]) {
         case ARG_SCHEMA_STRING:
-            this_param.data = data;
+            // a string has to be the last argument
+            this_param.data = remaining_data;
             g_array_append_val(params, this_param);
+            break;
+        case ARG_SCHEMA_HEXDATA:
+            // a string has to be the last argument
+            g_string_printf(mcdserver_state.str_buf, "%s", data_buffer);
             break;
         case ARG_SCHEMA_INT:
             this_param.data_int = atoi(data_buffer);
             g_array_append_val(params, this_param);
             break;
-        case ARG_SCHEMA_UINT32_T:
-            this_param.data_int = atoi(data_buffer);
+        case ARG_SCHEMA_UINT64_T:
+            this_param.data_uint64_t = atouint64_t(data_buffer);
             g_array_append_val(params, this_param);
             break;
         case ARG_SCHEMA_QRYHANDLE:
@@ -687,11 +701,6 @@ int cmd_parse_params(const char *data, const char *schema, GArray *params) {
             break;
         default:
             return -1;
-        }
-        
-        if (separator) {
-            // we got two arguments
-            strncpy(data_buffer, &data[seperator_index+1], strlen(&data[seperator_index+1]));
         }
     }
     return 0;
@@ -1796,6 +1805,16 @@ void mcd_memtohex(GString *buf, const uint8_t *mem, int len) {
     g_string_append_c(buf, '\0');
 }
 
+void mcd_hextomem(GByteArray *mem, const char *buf, int len) {
+    int i;
+
+    for(i = 0; i < len; i++) {
+        guint8 byte = fromhex(buf[0]) << 4 | fromhex(buf[1]);
+        g_byte_array_append(mem, &byte, 1);
+        buf += 2;
+    }
+}
+
 void handle_read_register(GArray *params, void *user_ctx) {
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
     int reg_num = get_param(params, 1)->data_int;
@@ -1805,8 +1824,6 @@ void handle_read_register(GArray *params, void *user_ctx) {
 
     reg_size = mcd_read_register(cpu, mcdserver_state.mem_buf, reg_num);
     mcd_memtohex(mcdserver_state.str_buf,  mcdserver_state.mem_buf->data, reg_size);
-    //g_string_printf(mcdserver_state.str_buf, "%s=%d;%d.%s=%d.",
-    //    TCP_ARGUMENT_DATA, *mcdserver_state.mem_buf->data, mcdserver_state.mem_buf->data[1], TCP_ARGUMENT_SIZE, reg_size);
     mcd_put_strbuf();
 }
 
@@ -1814,8 +1831,7 @@ void handle_write_register(GArray *params, void *user_ctx) {
 
 }
 
-int mcd_read_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len)
-{
+int mcd_read_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len) {
     CPUClass *cc;
     //TODO: add physical mem cpu_physical_memory_read(addr, buf, len);
     cc = CPU_GET_CLASS(cpu);
@@ -1827,21 +1843,45 @@ int mcd_read_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len)
     return cpu_memory_rw_debug(cpu, addr, buf, len, false);
 }
 
+int mcd_write_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len) {
+    CPUClass *cc;
+    //TODO: add physical mem cpu_physical_memory_read(addr, buf, len);
+    cc = CPU_GET_CLASS(cpu);
+    if (cc->memory_rw_debug) {
+        // TODO: check out the difference between those two calls
+        return cc->memory_rw_debug(cpu, addr, buf, len, true);
+    }
+
+    return cpu_memory_rw_debug(cpu, addr, buf, len, true);
+}
+
 void handle_read_memory(GArray *params, void *user_ctx) {
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
     uint64_t mem_address = get_param(params, 1)->data_uint64_t;
     int len = get_param(params, 2)->data_int;
 
     CPUState *cpu = mcd_get_cpu(cpu_id);
-    if (mcd_read_memory(cpu, mem_address, mcdserver_state.mem_buf, len)!=0) {
+    g_byte_array_set_size(mcdserver_state.mem_buf, len);
+    if (mcd_read_memory(cpu, mem_address, mcdserver_state.mem_buf->data, mcdserver_state.mem_buf->len)!=0) {
         mcd_put_packet(TCP_EXECUTION_ERROR);
     }
     else {
-        mcd_memtohex(mcdserver_state.str_buf,  mcdserver_state.mem_buf->data, len);
+        mcd_memtohex(mcdserver_state.str_buf, mcdserver_state.mem_buf->data, mcdserver_state.mem_buf->len);
         mcd_put_strbuf();
     }
 }
 
 void handle_write_memory(GArray *params, void *user_ctx) {
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint64_t mem_address = get_param(params, 1)->data_uint64_t;
+    int len = get_param(params, 2)->data_int;
 
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    mcd_hextomem(mcdserver_state.mem_buf, mcdserver_state.str_buf->str, len);
+    if (mcd_write_memory(cpu, mem_address, mcdserver_state.mem_buf->data, len)!=0) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+    }
+    else {
+        mcd_put_packet(TCP_EXECUTION_SUCCESS);
+    }
 }

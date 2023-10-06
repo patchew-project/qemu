@@ -27,7 +27,7 @@
 #define TCP_WAS_NOT_LAST '~'
 #define TCP_HANDSHAKE_SUCCESS "shaking your hand"
 #define TCP_EXECUTION_SUCCESS "success"
-#define TCP_EXECUTION_ERROR ""
+#define TCP_EXECUTION_ERROR "error"
 
 // tcp query arguments
 #define QUERY_FIRST "f"
