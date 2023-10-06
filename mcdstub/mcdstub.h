@@ -309,6 +309,10 @@ int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mcd_write_register(CPUState *cpu, GByteArray *buf, int reg);
 int mcd_read_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len);
 int mcd_write_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len);
+void handle_breakpoint_insert(GArray *params, void *user_ctx);
+void handle_breakpoint_remove(GArray *params, void *user_ctx);
+int mcd_breakpoint_insert(CPUState *cpu, int type, vaddr addr, vaddr len);
+int mcd_breakpoint_remove(CPUState *cpu, int type, vaddr addr, vaddr len);
 
 /* arm specific functions */
 int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces);

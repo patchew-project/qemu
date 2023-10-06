@@ -21,6 +21,8 @@
 #define TCP_CHAR_WRITE_REGISTER 'P'
 #define TCP_CHAR_READ_MEMORY 'm'
 #define TCP_CHAR_WRITE_MEMORY 'M'
+#define TCP_CHAR_BREAKPOINT_INSERT 't'
+#define TCP_CHAR_BREAKPOINT_REMOVE 'T'
 
 /* tcp protocol chars */
 #define TCP_ACKNOWLEDGED '+'
@@ -81,5 +83,11 @@
 #define CORE_STATE_HALTED "halted"
 #define CORE_STATE_DEBUG "debug"
 #define CORE_STATE_UNKNOWN "unknown"
+
+/* breakpoint types */
+#define MCD_BREAKPOINT_HW 1
+#define MCD_BREAKPOINT_READ 2
+#define MCD_BREAKPOINT_WRITE 3
+#define MCD_BREAKPOINT_RW 4
 
 #endif
