@@ -1252,3 +1252,8 @@ void qdev_hotplug_device_on_event(DeviceState *dev)
     dev->device_on_event_sent = true;
     qapi_event_send_x_device_on(dev->id, dev->canonical_path);
 }
+
+void qdev_config_read_event(DeviceState *dev)
+{
+    qapi_event_send_x_config_read(dev->id, dev->canonical_path);
+}

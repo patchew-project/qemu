@@ -329,3 +329,25 @@
 # Since: 8.2
 ##
 { 'command': 'x-device-sync-config', 'data': {'id': 'str'} }
+
+##
+# @X_CONFIG_READ:
+#
+# Emitted whenever guest reads virtio device config after config change.
+#
+# @device: device name
+#
+# @path: device path
+#
+# Since: 5.0.1-24
+#
+# Example:
+#
+# <- { "event": "X_CONFIG_READ",
+#      "data": { "device": "virtio-net-pci-0",
+#                "path": "/machine/peripheral/virtio-net-pci-0" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'X_CONFIG_READ',
+  'data': { '*device': 'str', 'path': 'str' } }
