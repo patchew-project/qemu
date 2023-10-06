@@ -11,6 +11,14 @@
 
 #define MAX_PACKET_LENGTH 1024
 
+// trigger defines
+#define MCD_TRIG_TYPE_IP 0x00000001
+#define MCD_TRIG_TYPE_READ 0x00000002
+#define MCD_TRIG_TYPE_WRITE 0x00000004
+#define MCD_TRIG_TYPE_RW 0x00000008
+#define MCD_TRIG_OPT_DATA_IS_CONDITION 0x00000008
+#define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
+
 /*
  * lookuptable for transmitted signals
  */
@@ -180,6 +188,7 @@ CPUState *find_cpu(uint32_t thread_id);
 void handle_core_open(GArray *params, void *user_ctx);
 void handle_query_reset(GArray *params, void *user_ctx);
 void handle_detach(GArray *params, void *user_ctx);
+void handle_query_trigger(GArray *params, void *user_ctx);
 void mcd_continue(void);
 
 /* sycall handling */

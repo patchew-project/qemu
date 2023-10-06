@@ -57,6 +57,10 @@ static const MCDCmdParseEntry mcd_gen_query_table[] = {
         .handler = handle_query_reset,
         .cmd = "reset",
     },
+    {
+        .handler = handle_query_trigger,
+        .cmd = "trigger",
+    },
 };
 
 void mcd_init_mcdserver_state(void)
@@ -991,7 +995,8 @@ void handle_core_open(GArray *params, void *user_ctx) {
 void handle_query_reset(GArray *params, void *user_ctx) {
     // resetting has to be done over a monitor (look ar Rcmd) so we tell MCD that we can reset but this still need to be implemented
     // we only support one reset over this monitor and that would be a fully "system_restart"
-    mcd_put_packet("info_rst=\"results in a full system restart\"");
+    mcd_put_packet("nr=\"3\",info=\"0,full_system_reset;1,gpr_reset;2,memory_reset;\"");
+    // TODO: we still need to implement the gpr and memory reset here!
 }
 
 void handle_detach(GArray *params, void *user_ctx) {
@@ -1020,6 +1025,18 @@ void handle_detach(GArray *params, void *user_ctx) {
         mcd_disable_syscalls();
         mcd_continue();
     }
+}
+
+void handle_query_trigger(GArray *params, void *user_ctx) {
+    // set the type, option and action bitmask and send it
+
+    uint32_t type = (MCD_TRIG_TYPE_IP | MCD_TRIG_TYPE_READ | MCD_TRIG_TYPE_WRITE | MCD_TRIG_TYPE_RW);
+    uint32_t option = (MCD_TRIG_OPT_DATA_IS_CONDITION);
+    uint32_t action = (MCD_TRIG_ACTION_DBG_DEBUG);
+    uint32_t nr_trigger = 4;
+
+    g_string_append_printf(mcdserver_state.str_buf, "nr=\"%d\",info=\"%d;%d;%d;\"", nr_trigger, type, option, action);
+    mcd_put_strbuf();
 }
 
 void mcd_continue(void)
