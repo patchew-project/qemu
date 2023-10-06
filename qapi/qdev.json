@@ -315,3 +315,17 @@
 # Since: 8.2
 ##
 { 'event': 'X_DEVICE_ON', 'data': 'DeviceAndPath' }
+
+##
+# @x-device-sync-config:
+#
+# Sync config from backend to the guest.
+#
+# @id: the device's ID or QOM path
+#
+# Returns: Nothing on success
+#          If @id is not a valid device, DeviceNotFound
+#
+# Since: 8.2
+##
+{ 'command': 'x-device-sync-config', 'data': {'id': 'str'} }
