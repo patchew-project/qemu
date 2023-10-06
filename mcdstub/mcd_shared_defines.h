@@ -13,6 +13,10 @@
 #define TCP_CHAR_CLOSE_CORE 'd'
 #define TCP_CHAR_KILLQEMU 'k'
 #define TCP_CHAR_RESET 'r'
+#define TCP_CHAR_READ_REGISTER 'p'
+#define TCP_CHAR_WRITE_REGISTER 'P'
+#define TCP_CHAR_READ_MEMORY 'm'
+#define TCP_CHAR_WRITE_MEMORY 'M'
 
 // tcp protocol chars
 #define TCP_ACKNOWLEDGED '+'
@@ -22,6 +26,8 @@
 #define TCP_WAS_LAST '|'
 #define TCP_WAS_NOT_LAST '~'
 #define TCP_HANDSHAKE_SUCCESS "shaking your hand"
+#define TCP_EXECUTION_SUCCESS "success"
+#define TCP_EXECUTION_ERROR ""
 
 // tcp query arguments
 #define QUERY_FIRST "f"
@@ -38,6 +44,7 @@
 
 // tcp query packet argument list
 #define TCP_ARGUMENT_NAME "name"
+#define TCP_ARGUMENT_DATA "data"
 #define TCP_ARGUMENT_ID "id"
 #define TCP_ARGUMENT_TYPE "type"
 #define TCP_ARGUMENT_BITS_PER_MAU "bpm"

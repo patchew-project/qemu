@@ -544,6 +544,46 @@ int mcd_handle_packet(const char *line_buf)
             cmd_parser = &reset_cmd_desc;
         }
         break;
+    case TCP_CHAR_READ_REGISTER:
+        {
+            static MCDCmdParseEntry read_reg_cmd_desc = {
+                .handler = handle_read_register,
+            };
+            read_reg_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_READ_REGISTER, '\0' };
+            strcpy(read_reg_cmd_desc.schema, (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &read_reg_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_WRITE_REGISTER:
+        {
+            static MCDCmdParseEntry write_reg_cmd_desc = {
+                .handler = handle_write_register,
+            };
+            write_reg_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_WRITE_REGISTER, '\0' };
+            strcpy(write_reg_cmd_desc.schema, (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &write_reg_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_READ_MEMORY:
+        {
+            static MCDCmdParseEntry read_mem_cmd_desc = {
+                .handler = handle_read_memory,
+            };
+            read_mem_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_READ_MEMORY, '\0' };
+            strcpy(read_mem_cmd_desc.schema, (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &read_mem_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_WRITE_MEMORY:
+        {
+            static MCDCmdParseEntry write_mem_cmd_desc = {
+                .handler = handle_write_memory,
+            };
+            write_mem_cmd_desc.cmd = (char[2]) { (char) TCP_CHAR_WRITE_MEMORY, '\0' };
+            strcpy(write_mem_cmd_desc.schema, (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &write_mem_cmd_desc;
+        }
+        break;
     default:
         // could not perform the command (because its unknown)
         mcd_put_packet("");
@@ -597,6 +637,18 @@ void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd)
     }
 }
 
+uint64_t atouint64_t(const char* in) {
+    uint64_t res = 0;
+    for (int i = 0; i < strlen(in); ++i)
+    {
+        const char c = in[i];
+        res *= 10;
+        res += c - '0';
+    }
+
+    return res;
+}
+
 int cmd_parse_params(const char *data, const char *schema, GArray *params) {
     
     char data_buffer[64] = {0};
@@ -618,6 +670,10 @@ int cmd_parse_params(const char *data, const char *schema, GArray *params) {
             g_array_append_val(params, this_param);
             break;
         case ARG_SCHEMA_INT:
+            this_param.data_int = atoi(data_buffer);
+            g_array_append_val(params, this_param);
+            break;
+        case ARG_SCHEMA_UINT32_T:
             this_param.data_int = atoi(data_buffer);
             g_array_append_val(params, this_param);
             break;
@@ -1715,4 +1771,77 @@ void handle_query_state(GArray *params, void *user_ctx) {
         TCP_ARGUMENT_EVENT, event, TCP_ARGUMENT_THREAD, 0, TCP_ARGUMENT_TRIGGER_ID, state_info.trig_id,
         TCP_ARGUMENT_STOP_STRING, state_info.stop_str, TCP_ARGUMENT_INFO_STRING, state_info.info_str);
     mcd_put_strbuf();
+}
+
+int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg) {
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    gchar *arch = cc->gdb_arch_name(cpu);
+    if (strcmp(arch, "arm")==0) {
+        g_free(arch);
+        return arm_mcd_read_register(cpu, buf, reg);
+    }
+    else {
+        g_free(arch);
+        return 0;
+    }
+}
+
+void mcd_memtohex(GString *buf, const uint8_t *mem, int len) {
+    int i, c;
+    for(i = 0; i < len; i++) {
+        c = mem[i];
+        g_string_append_c(buf, tohex(c >> 4));
+        g_string_append_c(buf, tohex(c & 0xf));
+    }
+    g_string_append_c(buf, '\0');
+}
+
+void handle_read_register(GArray *params, void *user_ctx) {
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    int reg_num = get_param(params, 1)->data_int;
+    int reg_size;
+
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+
+    reg_size = mcd_read_register(cpu, mcdserver_state.mem_buf, reg_num);
+    mcd_memtohex(mcdserver_state.str_buf,  mcdserver_state.mem_buf->data, reg_size);
+    //g_string_printf(mcdserver_state.str_buf, "%s=%d;%d.%s=%d.",
+    //    TCP_ARGUMENT_DATA, *mcdserver_state.mem_buf->data, mcdserver_state.mem_buf->data[1], TCP_ARGUMENT_SIZE, reg_size);
+    mcd_put_strbuf();
+}
+
+void handle_write_register(GArray *params, void *user_ctx) {
+
+}
+
+int mcd_read_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len)
+{
+    CPUClass *cc;
+    //TODO: add physical mem cpu_physical_memory_read(addr, buf, len);
+    cc = CPU_GET_CLASS(cpu);
+    if (cc->memory_rw_debug) {
+        // TODO: check out the difference between those two calls
+        return cc->memory_rw_debug(cpu, addr, buf, len, false);
+    }
+
+    return cpu_memory_rw_debug(cpu, addr, buf, len, false);
+}
+
+void handle_read_memory(GArray *params, void *user_ctx) {
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint64_t mem_address = get_param(params, 1)->data_uint64_t;
+    int len = get_param(params, 2)->data_int;
+
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    if (mcd_read_memory(cpu, mem_address, mcdserver_state.mem_buf, len)!=0) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+    }
+    else {
+        mcd_memtohex(mcdserver_state.str_buf,  mcdserver_state.mem_buf->data, len);
+        mcd_put_strbuf();
+    }
+}
+
+void handle_write_memory(GArray *params, void *user_ctx) {
+
 }

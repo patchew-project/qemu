@@ -41,6 +41,7 @@ enum {
 #define ARG_SCHEMA_QRYHANDLE 'q'
 #define ARG_SCHEMA_STRING 's'
 #define ARG_SCHEMA_INT 'd'
+#define ARG_SCHEMA_UINT32_T 'l'
 #define ARG_SCHEMA_CORENUM 'c'
 
 // resets
@@ -50,7 +51,7 @@ enum {
 
 // more
 #define QUERY_TOTAL_NUMBER 12 //FIXME: set this to a usefull value in the end
-#define CMD_SCHEMA_LENGTH 2
+#define CMD_SCHEMA_LENGTH 3
 #define MCD_SYSTEM_NAME "qemu-system"
 // tcp query packet values templates
 #define DEVICE_NAME_TEMPLATE(s) "qemu-" #s "-device"
@@ -108,6 +109,7 @@ typedef union MCDCmdVariant {
     
     const char *data;
     int data_int;
+    uint64_t data_uint64_t;
     int query_handle;
     int cpu_id;
     struct {
@@ -321,6 +323,12 @@ void handle_open_server(GArray *params, void *user_ctx);
 void parse_reg_xml(const char *xml, int size, GArray* registers);
 void handle_reset(GArray *params, void *user_ctx);
 void handle_query_state(GArray *params, void *user_ctx);
+void handle_read_register(GArray *params, void *user_ctx);
+void handle_write_register(GArray *params, void *user_ctx);
+void handle_read_memory(GArray *params, void *user_ctx);
+void handle_write_memory(GArray *params, void *user_ctx);
+int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg);
+int mcd_read_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len);
 
 // arm specific functions
 int mcd_arm_store_mem_spaces(CPUState *cpu, GArray* memspaces);
@@ -334,5 +342,6 @@ void mcd_disable_syscalls(void);
 
 // helpers
 int int_cmp(gconstpointer a, gconstpointer b);
+void mcd_memtohex(GString *buf, const uint8_t *mem, int len);
 
 #endif /* MCDSTUB_INTERNALS_H */
