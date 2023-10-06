@@ -74,6 +74,7 @@
 #define TCP_ARGUMENT_AMOUNT_TRIGGER "nr_trigger"
 #define TCP_ARGUMENT_OPTION "option"
 #define TCP_ARGUMENT_ACTION "action"
+#define TCP_ARGUMENT_OPCODE "opcode"
 
 /* for packets sent to qemu */
 #define ARGUMENT_SEPARATOR ';'

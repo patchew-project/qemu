@@ -1064,10 +1064,12 @@ CPUState *find_cpu(uint32_t thread_id)
 }
 
 
-void parse_reg_xml(const char *xml, int size, GArray *registers)
+void parse_reg_xml(const char *xml, int size, GArray *registers,
+    uint8_t reg_type)
 {
     /* iterates over the complete xml file */
     int i, j;
+    uint32_t internal_id = 0;
     int still_to_skip = 0;
     char argument[64] = {0};
     char value[64] = {0};
@@ -1116,8 +1118,11 @@ void parse_reg_xml(const char *xml, int size, GArray *registers)
 
                     if (strcmp(argument_j, "name") == 0) {
                         strcpy(my_register.name, value_j);
-                    } else if (strcmp(argument_j, "regnum") == 0) {
-                        my_register.id = atoi(value_j);
+                    /*
+                     * we might want to read out the regnum
+                     * } else if (strcmp(argument_j, "regnum") == 0) {
+                     * my_register.internal_id = atoi(value_j);
+                     */
                     } else if (strcmp(argument_j, "bitsize") == 0) {
                         my_register.bitsize = atoi(value_j);
                     } else if (strcmp(argument_j, "type") == 0) {
@@ -1126,6 +1131,10 @@ void parse_reg_xml(const char *xml, int size, GArray *registers)
                         strcpy(my_register.group, value_j);
                     }
                 }
+                /* add reg_type and internal id */
+                my_register.reg_type = reg_type;
+                my_register.internal_id = internal_id;
+                internal_id++;
                 /* store register */
                 g_array_append_vals(registers, (gconstpointer)&my_register, 1);
                 /* free memory */
@@ -1238,6 +1247,7 @@ int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces)
     };
     g_array_append_vals(memspaces, (gconstpointer)&space4, 1);
     }
+
     /* TODO: get dynamically how the per (CP15) space is called */
     mcd_mem_space_st space5 = {
         .name = "GPR Registers",
@@ -1263,7 +1273,6 @@ int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces)
         .supported_access_options = 0,
     };
     g_array_append_vals(memspaces, (gconstpointer)&space6, 1);
-
     return 0;
 }
 
@@ -1366,7 +1375,8 @@ int mcd_arm_parse_core_xml_file(CPUClass *cc, GArray *reggroups,
 
     /* 3. parse xml */
     xml_content = xml_builtin[i][1];
-    parse_reg_xml(xml_content, strlen(xml_content), registers);
+    parse_reg_xml(xml_content, strlen(xml_content), registers,
+        MCD_ARM_REG_TYPE_GPR);
     return 0;
 }
 
@@ -1376,6 +1386,7 @@ int mcd_arm_parse_general_xml_files(CPUState *cpu, GArray *reggroups,
     const char *current_xml_filename = NULL;
     const char *xml_content = NULL;
     int i = 0;
+    uint8_t reg_type;
 
     /* iterate over all gdb xml files*/
     GDBRegisterState *r;
@@ -1395,6 +1406,7 @@ int mcd_arm_parse_general_xml_files(CPUState *cpu, GArray *reggroups,
                 g_array_append_vals(reggroups,
                     (gconstpointer)&corprocessorregs, 1);
                 *current_group_id = *current_group_id + 1;
+                reg_type = MCD_ARM_REG_TYPE_CPR;
             }
         } else {
             /* its not a coprocessor xml -> it is a static xml file */
@@ -1407,58 +1419,59 @@ int mcd_arm_parse_general_xml_files(CPUState *cpu, GArray *reggroups,
             }
             if (current_xml_filename) {
                 xml_content = xml_builtin[i][1];
+                /* select correct reg_type */
+                if (strcmp(current_xml_filename, "arm-vfp.xml") == 0) {
+                    reg_type = MCD_ARM_REG_TYPE_VFP;
+                } else if (strcmp(current_xml_filename, "arm-vfp3.xml") == 0) {
+                    reg_type = MCD_ARM_REG_TYPE_VFP;
+                } else if (strcmp(current_xml_filename,
+                    "arm-vfp-sysregs.xml") == 0) {
+                    reg_type = MCD_ARM_REG_TYPE_VFP_SYS;
+                } else if (strcmp(current_xml_filename,
+                    "arm-neon.xml") == 0) {
+                    reg_type = MCD_ARM_REG_TYPE_VFP;
+                } else if (strcmp(current_xml_filename,
+                    "arm-m-profile-mve.xml") == 0) {
+                    reg_type = MCD_ARM_REG_TYPE_MVE;
+                }
             } else {
                 continue;
             }
         }
         /* 2. parse xml */
-        parse_reg_xml(xml_content, strlen(xml_content), registers);
+        parse_reg_xml(xml_content, strlen(xml_content), registers, reg_type);
     }
     return 0;
 }
 
-int mcd_arm_get_additional_register_info(GArray *reggroups, GArray *registers)
+int mcd_arm_get_additional_register_info(GArray *reggroups, GArray *registers,
+    CPUState *cpu)
 {
-    GList *register_numbers = NULL;
     mcd_reg_st *current_register;
-    int i = 0;
-    int id_neg_offset = 0;
-    int effective_id = 0;
+    uint32_t i = 0;
 
     /* iterate over all registers */
     for (i = 0; i < registers->len; i++) {
         current_register = &(g_array_index(registers, mcd_reg_st, i));
-        /* 1. ad the id */
-        if (current_register->id) {
-            /*
-             *id is already in place
-             *NOTE: qemu doesn't emulate the FPA regs
-             *(so we are missing the indices 16 to 24)
-             */
-            int used_id = current_register->id;
-            register_numbers = g_list_append(register_numbers, &used_id);
-            id_neg_offset++;
-        } else {
-            effective_id = i - id_neg_offset;
-            if (g_list_find_custom(register_numbers, &effective_id,
-                (GCompareFunc)int_cmp) != NULL) {
-                id_neg_offset--;
-            }
-            current_register->id = i - id_neg_offset;
-        }
-        /* 2. add mcd_reg_group_id and mcd_mem_space_id */
+        current_register->id = i;
+        /* add mcd_reg_group_id and mcd_mem_space_id */
         if (strcmp(current_register->group, "cp_regs") == 0) {
             /* coprocessor registers */
             current_register->mcd_reg_group_id = 2;
             current_register->mcd_mem_space_id = 6;
-            /* TODO: get info for opcode */
+            /*
+             * get info for opcode
+             * for 32bit the opcode is only 16 bit long
+             * for 64bit it is 32 bit long
+             */
+            current_register->opcode |=
+                arm_mcd_get_opcode(cpu, current_register->internal_id);
         } else {
             /* gpr register */
             current_register->mcd_reg_group_id = 1;
             current_register->mcd_mem_space_id = 5;
         }
     }
-    g_list_free(register_numbers);
     return 0;
 }
 
@@ -1498,7 +1511,7 @@ void handle_open_core(GArray *params, void *user_ctx)
         }
         /* 4. add additional data the the regs from the xmls */
         return_value = mcd_arm_get_additional_register_info(reggroups,
-            registers);
+            registers, cpu);
         if (return_value != 0) {
             g_assert_not_reached();
         }
@@ -1797,13 +1810,15 @@ void handle_query_regs_f(GArray *params, void *user_ctx)
     /* 3. send data */
     mcd_reg_st my_register = g_array_index(registers, mcd_reg_st, 0);
     g_string_append_printf(mcdserver_state.str_buf,
-        "%s=%d.%s=%s.%s=%d.%s=%d.%s=%d.%s=%d.%s=%d.",
-        TCP_ARGUMENT_ID, my_register.id, TCP_ARGUMENT_NAME,
-        my_register.name, TCP_ARGUMENT_SIZE, my_register.bitsize,
+        "%s=%u.%s=%s.%s=%u.%s=%u.%s=%u.%s=%u.%s=%u.%s=%u.",
+        TCP_ARGUMENT_ID, my_register.id,
+        TCP_ARGUMENT_NAME, my_register.name,
+        TCP_ARGUMENT_SIZE, my_register.bitsize,
         TCP_ARGUMENT_REGGROUPID, my_register.mcd_reg_group_id,
         TCP_ARGUMENT_MEMSPACEID, my_register.mcd_mem_space_id,
         TCP_ARGUMENT_TYPE, my_register.mcd_reg_type,
-        TCP_ARGUMENT_THREAD, my_register.mcd_hw_thread_id);
+        TCP_ARGUMENT_THREAD, my_register.mcd_hw_thread_id,
+        TCP_ARGUMENT_OPCODE, my_register.opcode);
     mcd_put_strbuf();
 }
 
@@ -1829,13 +1844,15 @@ void handle_query_regs_c(GArray *params, void *user_ctx)
     /* 3. send the correct register */
     mcd_reg_st my_register = g_array_index(registers, mcd_reg_st, query_index);
     g_string_append_printf(mcdserver_state.str_buf,
-        "%s=%d.%s=%s.%s=%d.%s=%d.%s=%d.%s=%d.%s=%d.",
-        TCP_ARGUMENT_ID, my_register.id, TCP_ARGUMENT_NAME,
-        my_register.name, TCP_ARGUMENT_SIZE, my_register.bitsize,
+        "%s=%u.%s=%s.%s=%u.%s=%u.%s=%u.%s=%u.%s=%u.%s=%u.",
+        TCP_ARGUMENT_ID, my_register.id,
+        TCP_ARGUMENT_NAME, my_register.name,
+        TCP_ARGUMENT_SIZE, my_register.bitsize,
         TCP_ARGUMENT_REGGROUPID, my_register.mcd_reg_group_id,
         TCP_ARGUMENT_MEMSPACEID, my_register.mcd_mem_space_id,
         TCP_ARGUMENT_TYPE, my_register.mcd_reg_type,
-        TCP_ARGUMENT_THREAD, my_register.mcd_hw_thread_id);
+        TCP_ARGUMENT_THREAD, my_register.mcd_hw_thread_id,
+        TCP_ARGUMENT_OPCODE, my_register.opcode);
     mcd_put_strbuf();
 }
 
@@ -1889,11 +1906,18 @@ void handle_query_state(GArray *params, void *user_ctx)
 
 int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg)
 {
+    /* 1. get reg type and internal id */
+    GArray *registers =
+        g_list_nth_data(mcdserver_state.all_registers, cpu->cpu_index);
+    mcd_reg_st desired_register = g_array_index(registers, mcd_reg_st, reg);
+    uint8_t reg_type = desired_register.reg_type;
+    uint32_t internal_id = desired_register.internal_id;
+    /* 2. read register */
     CPUClass *cc = CPU_GET_CLASS(cpu);
     gchar *arch = cc->gdb_arch_name(cpu);
     if (strcmp(arch, "arm") == 0) {
         g_free(arch);
-        return arm_mcd_read_register(cpu, buf, reg);
+        return arm_mcd_read_register(cpu, buf, reg_type, internal_id);
     } else {
         g_free(arch);
         return 0;
@@ -1902,11 +1926,18 @@ int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg)
 
 int mcd_write_register(CPUState *cpu, GByteArray *buf, int reg)
 {
+    /* 1. get reg type and internal id */
+    GArray *registers =
+        g_list_nth_data(mcdserver_state.all_registers, cpu->cpu_index);
+    mcd_reg_st desired_register = g_array_index(registers, mcd_reg_st, reg);
+    uint8_t reg_type = desired_register.reg_type;
+    uint32_t internal_id = desired_register.internal_id;
+    /* 2. write register */
     CPUClass *cc = CPU_GET_CLASS(cpu);
     gchar *arch = cc->gdb_arch_name(cpu);
     if (strcmp(arch, "arm") == 0) {
         g_free(arch);
-        return arm_mcd_write_register(cpu, buf, reg);
+        return arm_mcd_write_register(cpu, buf, reg_type, internal_id);
     } else {
         g_free(arch);
         return 0;

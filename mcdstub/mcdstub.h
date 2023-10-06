@@ -203,19 +203,16 @@ typedef struct mcd_reg_st {
     char group[64];
     char type[64];
     uint32_t bitsize;
-    uint32_t id;
+    uint32_t id; /* id used by the mcd interface */
+    uint32_t internal_id; /* id inside reg type */
+    uint8_t reg_type;
     /* mcd metadata */
     uint32_t mcd_reg_group_id;
     uint32_t mcd_mem_space_id;
     uint32_t mcd_reg_type;
     uint32_t mcd_hw_thread_id;
     /* data for op-code */
-    uint8_t cp;
-    uint8_t crn;
-    uint8_t crm;
-    uint8_t opc0; /* <- might not be needed! */
-    uint8_t opc1;
-    uint8_t opc2;
+    uint32_t opcode;
 } mcd_reg_st;
 
 typedef struct mcd_reset_st {
@@ -307,7 +304,8 @@ void handle_query_mem_spaces_c(GArray *params, void *user_ctx);
 void handle_query_regs_f(GArray *params, void *user_ctx);
 void handle_query_regs_c(GArray *params, void *user_ctx);
 void handle_open_server(GArray *params, void *user_ctx);
-void parse_reg_xml(const char *xml, int size, GArray* registers);
+void parse_reg_xml(const char *xml, int size, GArray* registers,
+    uint8_t reg_type);
 void handle_reset(GArray *params, void *user_ctx);
 void handle_query_state(GArray *params, void *user_ctx);
 void handle_read_register(GArray *params, void *user_ctx);
@@ -329,8 +327,8 @@ int mcd_arm_parse_core_xml_file(CPUClass *cc, GArray *reggroups,
     GArray *registers, int *current_group_id);
 int mcd_arm_parse_general_xml_files(CPUState *cpu, GArray* reggroups,
     GArray *registers, int *current_group_id);
-int mcd_arm_get_additional_register_info(GArray *reggroups, GArray *registers);
-
+int mcd_arm_get_additional_register_info(GArray *reggroups, GArray *registers,
+    CPUState *cpu);
 /* sycall handling */
 void mcd_syscall_reset(void);
 void mcd_disable_syscalls(void);
