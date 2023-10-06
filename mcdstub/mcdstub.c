@@ -434,6 +434,8 @@ int mcd_handle_packet(const char *line_buf)
                 .handler = handle_vm_start,
             };
             go_cmd_desc.cmd = (char[2]) { TCP_CHAR_GO, '\0' };
+            strcpy(go_cmd_desc.schema,
+                (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
             cmd_parser = &go_cmd_desc;
         }
         break;
@@ -606,7 +608,9 @@ int mcd_handle_packet(const char *line_buf)
 void handle_vm_start(GArray *params, void *user_ctx)
 {
     /* TODO: add partial restart with arguments and so on */
-    mcd_vm_start();
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    mcd_cpu_start(cpu);
 }
 
 void handle_vm_step(GArray *params, void *user_ctx)
@@ -615,7 +619,7 @@ void handle_vm_step(GArray *params, void *user_ctx)
     uint32_t cpu_id = get_param(params, 0)->cpu_id;
 
     CPUState *cpu = mcd_get_cpu(cpu_id);
-    int return_value = mcd_vm_sstep(cpu);
+    int return_value = mcd_cpu_sstep(cpu);
     if (return_value != 0) {
         g_assert_not_reached();
     }
@@ -1619,11 +1623,25 @@ void mcd_vm_start(void)
     }
 }
 
-int mcd_vm_sstep(CPUState *cpu)
+void mcd_cpu_start(CPUState *cpu)
+{
+    if (!runstate_needs_reset() && !runstate_is_running() &&
+        !vm_prepare_start(false)) {
+        mcdserver_state.c_cpu = cpu;
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+        cpu_resume(cpu);
+    }
+}
+
+int mcd_cpu_sstep(CPUState *cpu)
 {
     mcdserver_state.c_cpu = cpu;
     cpu_single_step(cpu, mcdserver_state.sstep_flags);
-    mcd_vm_start();
+    if (!runstate_needs_reset() && !runstate_is_running() &&
+        !vm_prepare_start(true)) {
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+        cpu_resume(cpu);
+    }
     return 0;
 }
 
