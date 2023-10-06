@@ -19,21 +19,13 @@
 #define MCD_TRIG_OPT_DATA_IS_CONDITION 0x00000008
 #define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
 
-/*
- * lookuptable for transmitted signals
- */
-
-enum {
-    MCD_SIGNAL_HANDSHAKE = 0
-};
-
 
 /*
  * struct for an MCD Process, each process can establish one connection
  */
 
 typedef struct MCDProcess {
-    //this is probably what we would call a system (in qemu its a cluster)
+    //this is a relict from the gdb process, we might be able to delete this
     uint32_t pid;
     bool attached;
 
@@ -65,6 +57,9 @@ typedef union MCDCmdVariant {
         uint32_t pid;
         uint32_t tid;
     } thread_id;
+
+    // used to synchronize stub and dll for functions with multiple packets
+    int index_handle;
 } MCDCmdVariant;
 
 #define get_param(p, i)    (&g_array_index(p, MCDCmdVariant, i))
@@ -88,9 +83,7 @@ enum RSState {
 
 typedef struct MCDState {
     bool init;       /* have we been initialised? */
-    CPUState *c_cpu; /* current CPU for step/continue ops */
-    CPUState *g_cpu; /* current CPU for other ops */
-    CPUState *query_cpu; /* for q{f|s}ThreadInfo */
+    CPUState *c_cpu; /* current CPU for everything */
     enum RSState state; /* parsing state */
     char line_buf[MAX_PACKET_LENGTH];
     int line_buf_index;
@@ -107,10 +100,18 @@ typedef struct MCDState {
     // maybe we don't need those flags
     int sstep_flags;
     int supported_sstep_flags;
+
+    // my stuff
+    GArray *reggroups;
 } MCDState;
 
 /* lives in main mcdstub.c */
 extern MCDState mcdserver_state;
+
+typedef struct mcd_reg_group_st {
+    const char *name;
+    const char *id;
+} mcd_reg_group_st;
 
 
 // Inline utility function, convert from int to hex and back
@@ -190,6 +191,10 @@ void handle_query_reset(GArray *params, void *user_ctx);
 void handle_detach(GArray *params, void *user_ctx);
 void handle_query_trigger(GArray *params, void *user_ctx);
 void mcd_continue(void);
+void handle_query_mem_spaces(GArray *params, void *user_ctx);
+void handle_query_reg_groups_f(GArray *params, void *user_ctx);
+void handle_query_reg_groups_c(GArray *params, void *user_ctx);
+void handle_init(GArray *params, void *user_ctx);
 
 /* sycall handling */
 void mcd_syscall_reset(void);
