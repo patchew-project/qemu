@@ -8,6 +8,7 @@
 
 #include "exec/cpu-common.h"
 #include "chardev/char.h"
+#include "hw/core/cpu.h"
 // just used for the register xml files
 #include "exec/gdbstub.h"       /* xml_builtin */
 
@@ -22,9 +23,22 @@
 #define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
 
 // schema defines
-#define ARG_SCHEMA_QRYHANDLE "q"
-#define ARG_SCHEMA_STRING "s"
-#define ARG_SCHEMA_CORENUM "c" 
+#define ARG_SCHEMA_QRYHANDLE 'q'
+#define ARG_SCHEMA_STRING 's'
+#define ARG_SCHEMA_CORENUM 'c'
+
+// resets
+#define RESET_SYSTEM "full_system_reset"
+#define RESET_GPR "gpr_reset"
+#define RESET_MEMORY "memory_reset"
+
+// more
+#define QUERY_TOTAL_NUMBER 11 //FIXME: set this to a usefull value in the end
+#define CMD_SCHEMA_LENGTH 2
+#define MCD_MAX_CORES 128
+#define MCD_SYSTEM_NAME "qemu-system"
+// tcp query packet values templates
+#define DEVICE_NAME_TEMPLATE(s) "qemu-" #s "-device"
 
 // GDB stuff thats needed for GDB function, which we use
 typedef struct GDBRegisterState {
@@ -52,8 +66,7 @@ typedef void (*MCDCmdHandler)(GArray *params, void *user_ctx);
 typedef struct MCDCmdParseEntry {
     MCDCmdHandler handler;
     const char *cmd;
-    bool cmd_startswith;
-    const char *schema;
+    char schema[CMD_SCHEMA_LENGTH];
 } MCDCmdParseEntry;
 
 typedef enum MCDThreadIdKind {
@@ -92,6 +105,13 @@ enum RSState {
     RS_DATAEND,
 };
 
+typedef struct mcd_trigger_st {
+    uint32_t type;
+    uint32_t option;
+    uint32_t action;
+    uint32_t nr_trigger;
+} mcd_trigger_st;
+
 typedef struct MCDState {
     bool init;       /* have we been initialised? */
     CPUState *c_cpu; /* current CPU for everything */
@@ -113,9 +133,13 @@ typedef struct MCDState {
     int supported_sstep_flags;
 
     // my stuff
-    GArray *memspaces;
-    GArray *reggroups;
-    GArray *registers;
+    uint32_t query_cpu_id;
+    GList *all_memspaces;
+    GList *all_reggroups;
+    GList *all_registers;
+    GArray *resets;
+    mcd_trigger_st trigger;
+    MCDCmdParseEntry mcd_query_cmds_table[QUERY_TOTAL_NUMBER];
 } MCDState;
 
 /* lives in main mcdstub.c */
@@ -164,6 +188,11 @@ typedef struct mcd_reg_st {
     uint8_t opc2;
 } mcd_reg_st;
 
+typedef struct mcd_reset_st {
+    const char *name;
+    uint8_t id;
+} mcd_reset_st;
+
 // Inline utility function, convert from int to hex and back
 
 
@@ -194,6 +223,9 @@ void mcd_sigterm_handler(int signal);
 #endif
 
 void mcd_init_mcdserver_state(void);
+void init_query_cmds_table(MCDCmdParseEntry* mcd_query_cmds_table);
+int init_resets(GArray* resets);
+int init_trigger(mcd_trigger_st* trigger);
 void reset_mcdserver_state(void);
 void create_processes(MCDState *s);
 void mcd_create_default_process(MCDState *s);
@@ -231,8 +263,10 @@ void handle_query_system(GArray *params, void *user_ctx);
 CPUState *get_first_cpu_in_process(MCDProcess *process);
 CPUState *find_cpu(uint32_t thread_id);
 void handle_open_core(GArray *params, void *user_ctx);
-void handle_query_reset(GArray *params, void *user_ctx);
-void handle_detach(GArray *params, void *user_ctx);
+void handle_query_reset_f(GArray *params, void *user_ctx);
+void handle_query_reset_c(GArray *params, void *user_ctx);
+void handle_close_server(GArray *params, void *user_ctx);
+void handle_close_core(GArray *params, void *user_ctx);
 void handle_query_trigger(GArray *params, void *user_ctx);
 void mcd_continue(void);
 void handle_query_reg_groups_f(GArray *params, void *user_ctx);
@@ -241,11 +275,14 @@ void handle_query_mem_spaces_f(GArray *params, void *user_ctx);
 void handle_query_mem_spaces_c(GArray *params, void *user_ctx);
 void handle_query_regs_f(GArray *params, void *user_ctx);
 void handle_query_regs_c(GArray *params, void *user_ctx);
-void handle_init(GArray *params, void *user_ctx);
-void parse_reg_xml(const char *xml, int size);
+void handle_open_server(GArray *params, void *user_ctx);
+void parse_reg_xml(const char *xml, int size, GArray* registers);
 
 // arm specific functions
-void mcd_arm_store_mem_spaces(int nr_address_spaces);
+int mcd_arm_store_mem_spaces(CPUState *cpu, GArray* memspaces);
+int mcd_arm_parse_core_xml_file(CPUClass *cc, GArray* reggroups, GArray* registers, int* current_group_id);
+int mcd_arm_parse_general_xml_files(CPUState *cpu, GArray* reggroups, GArray* registers, int* current_group_id);
+int mcd_arm_get_additional_register_info(GArray* reggroups, GArray* registers);
 
 /* sycall handling */
 void mcd_syscall_reset(void);

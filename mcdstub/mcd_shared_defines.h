@@ -3,12 +3,13 @@
 #ifndef MCD_SHARED_DEFINES
 #define MCD_SHARED_DEFINES
 
-// tcp characters
-#define TCP_CHAR_INIT 'i'
+// tcp data characters
+#define TCP_CHAR_OPEN_SERVER 'I'
+#define TCP_CHAR_OPEN_CORE 'i'
 #define TCP_CHAR_GO 'c'
 #define TCP_CHAR_QUERY 'q'
-#define TCP_CHAR_OPEN_CORE 'H'
-#define TCP_CHAR_DETACH 'D'
+#define TCP_CHAR_CLOSE_SERVER 'D'
+#define TCP_CHAR_CLOSE_CORE 'd'
 #define TCP_CHAR_KILLQEMU 'k'
 
 // tcp protocol chars
@@ -18,7 +19,39 @@
 #define TCP_COMMAND_END '#'
 #define TCP_WAS_LAST '|'
 #define TCP_WAS_NOT_LAST '~'
+#define TCP_HANDSHAKE_SUCCESS "shaking your hand"
 
+// tcp query arguments
+#define QUERY_FIRST "f"
+#define QUERY_CONSEQUTIVE "c"
 
+#define QUERY_ARG_SYSTEM "system"
+#define QUERY_ARG_CORES "cores"
+#define QUERY_ARG_RESET "reset"
+#define QUERY_ARG_TRIGGER "trigger"
+#define QUERY_ARG_MEMORY "memory"
+#define QUERY_ARG_REGGROUP "reggroup"
+#define QUERY_ARG_REG "reg"
+
+// tcp query packet argument list
+#define TCP_ARGUMENT_NAME "name"
+#define TCP_ARGUMENT_ID "id"
+#define TCP_ARGUMENT_TYPE "type"
+#define TCP_ARGUMENT_BITS_PER_MAU "bpm"
+#define TCP_ARGUMENT_INVARIANCE "i"
+#define TCP_ARGUMENT_ENDIAN "e"
+#define TCP_ARGUMENT_MIN "min"
+#define TCP_ARGUMENT_MAX "max"
+#define TCP_ARGUMENT_SUPPORTED_ACCESS_OPTIONS "sao"
+#define TCP_ARGUMENT_REGGROUPID "reggroupid"
+#define TCP_ARGUMENT_MEMSPACEID "memspaceid"
+#define TCP_ARGUMENT_SIZE "size"
+#define TCP_ARGUMENT_THREAD "thread"
+#define TCP_ARGUMENT_DEVICE "device"
+#define TCP_ARGUMENT_CORE "core"
+#define TCP_ARGUMENT_AMOUNT_CORE "nr_cores"
+#define TCP_ARGUMENT_AMOUNT_TRIGGER "nr_trigger"
+#define TCP_ARGUMENT_OPTION "option"
+#define TCP_ARGUMENT_ACTION "action"
 
 #endif
