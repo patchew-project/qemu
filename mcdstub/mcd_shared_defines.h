@@ -63,7 +63,7 @@
 #define TCP_ARGUMENT_MEMSPACEID "memspaceid"
 #define TCP_ARGUMENT_SIZE "size"
 #define TCP_ARGUMENT_THREAD "thread"
-#define TCP_ARGUMENT_TRIGGER_ID "trig_id"
+#define TCP_ARGUMENT_ADDRESS "address"
 #define TCP_ARGUMENT_STOP_STRING "stop_str"
 #define TCP_ARGUMENT_INFO_STRING "info_str"
 #define TCP_ARGUMENT_STATE "state"

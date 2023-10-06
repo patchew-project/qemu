@@ -104,10 +104,10 @@ typedef struct MCDCmdParseEntry {
 
 typedef union MCDCmdVariant {
     const char *data;
-    int data_int;
+    uint32_t data_uint32_t;
     uint64_t data_uint64_t;
-    int query_handle;
-    int cpu_id;
+    uint32_t query_handle;
+    uint32_t cpu_id;
 } MCDCmdVariant;
 
 #define get_param(p, i)    (&g_array_index(p, MCDCmdVariant, i))
@@ -119,19 +119,26 @@ enum RSState {
     RS_DATAEND,
 };
 
-typedef struct mcd_trigger_st {
+typedef struct breakpoint_st {
+    uint32_t type;
+    uint64_t address;
+    uint32_t id;
+} breakpoint_st;
+
+typedef struct mcd_trigger_into_st {
     uint32_t type;
     uint32_t option;
     uint32_t action;
     uint32_t nr_trigger;
-} mcd_trigger_st;
+} mcd_trigger_into_st;
 
 typedef struct mcd_cpu_state_st {
     const char *state;
     bool memory_changed;
     bool registers_changed;
     bool target_was_stopped;
-    uint32_t trig_id;
+    uint32_t bp_type;
+    uint64_t bp_address;
     const char *stop_str;
     const char *info_str;
 } mcd_cpu_state_st;
@@ -158,8 +165,9 @@ typedef struct MCDState {
     GList *all_memspaces;
     GList *all_reggroups;
     GList *all_registers;
+    GList *all_breakpoints;
     GArray *resets;
-    mcd_trigger_st trigger;
+    mcd_trigger_into_st trigger;
     mcd_cpu_state_st cpu_state;
     MCDCmdParseEntry mcd_query_cmds_table[QUERY_TOTAL_NUMBER];
 } MCDState;
@@ -244,7 +252,7 @@ void mcd_sigterm_handler(int signal);
 void mcd_init_mcdserver_state(void);
 void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table);
 int init_resets(GArray *resets);
-int init_trigger(mcd_trigger_st *trigger);
+int init_trigger(mcd_trigger_into_st *trigger);
 void reset_mcdserver_state(void);
 void create_processes(MCDState *s);
 void mcd_create_default_process(MCDState *s);
@@ -312,8 +320,8 @@ int mcd_read_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len);
 int mcd_write_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len);
 void handle_breakpoint_insert(GArray *params, void *user_ctx);
 void handle_breakpoint_remove(GArray *params, void *user_ctx);
-int mcd_breakpoint_insert(CPUState *cpu, int type, vaddr addr, vaddr len);
-int mcd_breakpoint_remove(CPUState *cpu, int type, vaddr addr, vaddr len);
+int mcd_breakpoint_insert(CPUState *cpu, int type, vaddr addr);
+int mcd_breakpoint_remove(CPUState *cpu, int type, vaddr addr);
 
 /* arm specific functions */
 int mcd_arm_store_mem_spaces(CPUState *cpu, GArray *memspaces);
@@ -332,5 +340,6 @@ int int_cmp(gconstpointer a, gconstpointer b);
 void mcd_memtohex(GString *buf, const uint8_t *mem, int len);
 void mcd_hextomem(GByteArray *mem, const char *buf, int len);
 uint64_t atouint64_t(const char *in);
+uint32_t atouint32_t(const char *in);
 
 #endif /* MCDSTUB_INTERNALS_H */
