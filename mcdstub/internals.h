@@ -1,8 +1,3 @@
-/*
- * this header includes a lookup table for the transmitted messages over the tcp connection to trace32,
- * as well as function declarations for all functios used inside the mcdstub
- */
-
 #ifndef MCDSTUB_INTERNALS_H
 #define MCDSTUB_INTERNALS_H
 
@@ -10,19 +5,33 @@
 #include "chardev/char.h"
 #include "hw/core/cpu.h"
 // just used for the register xml files
-#include "exec/gdbstub.h"       /* xml_builtin */
+#include "exec/gdbstub.h"
 
 #define MAX_PACKET_LENGTH 1024
 
 // trigger defines
-#define MCD_TRIG_TYPE_IP 0x00000001
-#define MCD_TRIG_TYPE_READ 0x00000002
-#define MCD_TRIG_TYPE_WRITE 0x00000004
-#define MCD_TRIG_TYPE_RW 0x00000008
 #define MCD_TRIG_OPT_DATA_IS_CONDITION 0x00000008
 #define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
 
+typedef uint32_t mcd_trig_type_et;
+// TODO: replace mcd defines with custom layer
+enum {
+	MCD_TRIG_TYPE_UNDEFINED = 0x00000000, /**< Undefined trigger type.                                                   */
+	MCD_TRIG_TYPE_IP        = 0x00000001, /**< Trigger on a changing instruction pointer.                                */
+	MCD_TRIG_TYPE_READ      = 0x00000002, /**< Trigger on a read data access to a specific address or address range.     */
+	MCD_TRIG_TYPE_WRITE     = 0x00000004, /**< Trigger on a write data access to a specific address or address range.    */
+	MCD_TRIG_TYPE_RW        = 0x00000008, /**< Trigger on a read or a write data access to a specific address or
+		   address range.                                                            */
+	MCD_TRIG_TYPE_NOCYCLE   = 0x00000010, /**< Trigger on core information other than an IP or data compare trigger.     */
+	MCD_TRIG_TYPE_TRIG_BUS  = 0x00000020, /**< Trigger on a trigger bus combination.                                     */
+	MCD_TRIG_TYPE_COUNTER   = 0x00000040, /**< Trigger on an elapsed trigger counter.                                    */
+	MCD_TRIG_TYPE_CUSTOM    = 0x00000080, /**< Custom trigger using standard format as defined by \ref mcd_trig_custom_st. */
+	MCD_TRIG_TYPE_CUSTOM_LO = 0x00010000, /**< Begin Range: User defined trigger types.                                  */
+	MCD_TRIG_TYPE_CUSTOM_HI = 0x40000000, /**< End   Range: User defined trigger types.                                  */
+};
+
 typedef uint32_t mcd_core_event_et;
+// TODO: replace mcd defines with custom layer
 enum {
 	MCD_CORE_EVENT_NONE            = 0x00000000,   /**< No since the last poll.                                 */
 	MCD_CORE_EVENT_MEMORY_CHANGE   = 0x00000001,   /**< Memory content has changed.                             */
@@ -50,10 +59,11 @@ enum {
 #define RESET_GPR "gpr_reset"
 #define RESET_MEMORY "memory_reset"
 
-// more
-#define QUERY_TOTAL_NUMBER 12 //FIXME: set this to a usefull value in the end
+// misc
+#define QUERY_TOTAL_NUMBER 12 
 #define CMD_SCHEMA_LENGTH 5
 #define MCD_SYSTEM_NAME "qemu-system"
+
 // tcp query packet values templates
 #define DEVICE_NAME_TEMPLATE(s) "qemu-" #s "-device"
 
@@ -65,13 +75,14 @@ enum {
 #define STATE_STR_INIT_HALTED "vm halted since boot"
 #define STATE_STR_INIT_RUNNING "vm running since boot"
 #define STATE_STR_BREAK_HW "stopped beacuse of HW breakpoint"
+#define STATE_STEP_PERFORMED "stopped beacuse of single step"
 #define STATE_STR_BREAK_READ(d) "stopped beacuse of read access at " #d
 #define STATE_STR_BREAK_WRITE(d) "stopped beacuse of write access at " #d
 #define STATE_STR_BREAK_RW(d) "stopped beacuse of read or write access at " #d
 #define STATE_STR_BREAK_UNKNOWN "stopped for unknown reason"
 
-// GDB stuff thats needed for GDB function, which we use
 typedef struct GDBRegisterState {
+    // needed for the used gdb functions
     int base_reg;
     int num_regs;
     gdb_get_reg_cb get_reg;
@@ -80,12 +91,7 @@ typedef struct GDBRegisterState {
     struct GDBRegisterState *next;
 } GDBRegisterState;
 
-/*
- * struct for an MCD Process, each process can establish one connection
- */
-
 typedef struct MCDProcess {
-    //this is a relict from the gdb process, we might be able to delete this
     uint32_t pid;
     bool attached;
 
@@ -99,34 +105,15 @@ typedef struct MCDCmdParseEntry {
     char schema[CMD_SCHEMA_LENGTH];
 } MCDCmdParseEntry;
 
-typedef enum MCDThreadIdKind {
-    GDB_ONE_THREAD = 0,
-    GDB_ALL_THREADS,     /* One process, all threads */
-    GDB_ALL_PROCESSES,
-    GDB_READ_THREAD_ERR
-} MCDThreadIdKind;
-
 typedef union MCDCmdVariant {
     const char *data;
     int data_int;
     uint64_t data_uint64_t;
     int query_handle;
     int cpu_id;
-    struct {
-        MCDThreadIdKind kind;
-        uint32_t pid;
-        uint32_t tid;
-    } thread_id;
-
 } MCDCmdVariant;
 
 #define get_param(p, i)    (&g_array_index(p, MCDCmdVariant, i))
-
-
-/*
- * not sure for what this is used exactly
- */
-
 
 enum RSState {
     RS_INACTIVE,
@@ -162,19 +149,14 @@ typedef struct MCDState {
     int line_csum; /* checksum at the end of the packet */
     GByteArray *last_packet;
     int signal;
-    //the next one is about stub compatibility and we should be able to assume this is true anyway
-    //bool multiprocess;
+
     MCDProcess *processes;
     int process_num;
     GString *str_buf;
     GByteArray *mem_buf;
-    // maybe we don't need those flags
     int sstep_flags;
     int supported_sstep_flags;
 
-    // my stuff
-    RunState vm_current_state;
-    RunState vm_previous_state;
     uint32_t query_cpu_id;
     GList *all_memspaces;
     GList *all_reggroups;
@@ -236,9 +218,6 @@ typedef struct mcd_reset_st {
     uint8_t id;
 } mcd_reset_st;
 
-// Inline utility function, convert from int to hex and back
-
-
 static inline int fromhex(int v)
 {
     if (v >= '0' && v <= '9') {
@@ -283,7 +262,6 @@ int mcd_put_packet(const char *buf);
 int mcd_put_packet_binary(const char *buf, int len, bool dump);
 bool mcd_got_immediate_ack(void);
 void mcd_put_buffer(const uint8_t *buf, int len);
-void mcd_set_stop_cpu(CPUState *cpu);
 MCDProcess *mcd_get_cpu_process(CPUState *cpu);
 uint32_t mcd_get_cpu_pid(CPUState *cpu);
 MCDProcess *mcd_get_process(uint32_t pid);
@@ -297,6 +275,7 @@ void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd);
 int process_string_cmd(void *user_ctx, const char *data, const MCDCmdParseEntry *cmds, int num_cmds);
 int cmd_parse_params(const char *data, const char *schema, GArray *params);
 void handle_vm_start(GArray *params, void *user_ctx);
+void handle_vm_step(GArray *params, void *user_ctx);
 void handle_vm_stop(GArray *params, void *user_ctx);
 void handle_gen_query(GArray *params, void *user_ctx);
 int mcd_get_cpu_index(CPUState *cpu);
@@ -312,6 +291,7 @@ void handle_close_server(GArray *params, void *user_ctx);
 void handle_close_core(GArray *params, void *user_ctx);
 void handle_query_trigger(GArray *params, void *user_ctx);
 void mcd_vm_start(void);
+int mcd_vm_sstep(CPUState *cpu);
 void mcd_vm_stop(void);
 void handle_query_reg_groups_f(GArray *params, void *user_ctx);
 void handle_query_reg_groups_c(GArray *params, void *user_ctx);
@@ -328,6 +308,7 @@ void handle_write_register(GArray *params, void *user_ctx);
 void handle_read_memory(GArray *params, void *user_ctx);
 void handle_write_memory(GArray *params, void *user_ctx);
 int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg);
+int mcd_write_register(CPUState *cpu, GByteArray *buf, int reg);
 int mcd_read_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len);
 int mcd_write_memory(CPUState *cpu, hwaddr addr, uint8_t *buf, int len);
 
@@ -337,7 +318,7 @@ int mcd_arm_parse_core_xml_file(CPUClass *cc, GArray* reggroups, GArray* registe
 int mcd_arm_parse_general_xml_files(CPUState *cpu, GArray* reggroups, GArray* registers, int* current_group_id);
 int mcd_arm_get_additional_register_info(GArray* reggroups, GArray* registers);
 
-/* sycall handling */
+// sycall handling
 void mcd_syscall_reset(void);
 void mcd_disable_syscalls(void);
 

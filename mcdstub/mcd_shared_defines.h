@@ -6,7 +6,8 @@
 // tcp data characters
 #define TCP_CHAR_OPEN_SERVER 'I'
 #define TCP_CHAR_OPEN_CORE 'i'
-#define TCP_CHAR_GO 'c'
+#define TCP_CHAR_GO 'C'
+#define TCP_CHAR_STEP 'c'
 #define TCP_CHAR_BREAK 'b'
 #define TCP_CHAR_QUERY 'q'
 #define TCP_CHAR_CLOSE_SERVER 'D'
