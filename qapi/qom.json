@@ -795,6 +795,20 @@
   'data': { 'socket': 'SocketAddress', 'device': 'str' } }
 
 ##
+# @AcpiGenericInitiatorProperties:
+#
+# Properties for acpi-generic-initiator objects.
+#
+# @device: the ID of the device to be associated with the node
+#
+# @node: the ID of the numa node
+#
+# Since: 8.0
+##
+{ 'struct': 'AcpiGenericInitiatorProperties',
+  'data': { 'device': 'str', 'node': 'uint32' } }
+
+##
 # @RngProperties:
 #
 # Properties for objects of classes derived from rng.
@@ -962,7 +976,8 @@
     'tls-creds-x509',
     'tls-cipher-suites',
     { 'name': 'x-remote-object', 'features': [ 'unstable' ] },
-    { 'name': 'x-vfio-user-server', 'features': [ 'unstable' ] }
+    { 'name': 'x-vfio-user-server', 'features': [ 'unstable' ] },
+    'acpi-generic-initiator'
   ] }
 
 ##
@@ -1029,7 +1044,8 @@
       'tls-creds-x509':             'TlsCredsX509Properties',
       'tls-cipher-suites':          'TlsCredsProperties',
       'x-remote-object':            'RemoteObjectProperties',
-      'x-vfio-user-server':         'VfioUserServerProperties'
+      'x-vfio-user-server':         'VfioUserServerProperties',
+      'acpi-generic-initiator':     'AcpiGenericInitiatorProperties'
   } }
 
 ##

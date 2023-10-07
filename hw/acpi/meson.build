@@ -5,6 +5,7 @@ acpi_ss.add(files(
   'bios-linker-loader.c',
   'core.c',
   'utils.c',
+  'acpi-generic-initiator.c',
 ))
 acpi_ss.add(when: 'CONFIG_ACPI_CPU_HOTPLUG', if_true: files('cpu.c', 'cpu_hotplug.c'))
 acpi_ss.add(when: 'CONFIG_ACPI_CPU_HOTPLUG', if_false: files('acpi-cpu-hotplug-stub.c'))
