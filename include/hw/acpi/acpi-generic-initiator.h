@@ -9,9 +9,13 @@
 #include "qom/object_interfaces.h"
 
 #define TYPE_ACPI_GENERIC_INITIATOR "acpi-generic-initiator"
+#define TYPE_NVIDIA_ACPI_GENERIC_INITIATOR "nvidia-acpi-generic-initiator"
 
 #define ACPI_GENERIC_INITIATOR_DEVICE_PROP "device"
 #define ACPI_GENERIC_INITIATOR_NODE_PROP "node"
+
+#define NVIDIA_ACPI_GENERIC_INITIATOR_NODE_START_PROP "numa-node-start"
+#define NVIDIA_ACPI_GENERIC_INITIATOR_NODE_COUNT_PROP "numa-node-count"
 
 typedef struct AcpiGenericInitiator {
     /* private */
@@ -46,6 +50,14 @@ typedef struct PCIDeviceHandle {
     uint32_t res0;
     uint64_t res1;
 } PCIDeviceHandle;
+
+typedef struct NvidiaAcpiGenericInitiator {
+    AcpiGenericInitiator parent;
+} NvidiaAcpiGenericInitiator;
+
+typedef struct NvidiaAcpiGenericInitiatorClass {
+        AcpiGenericInitiatorClass parent_class;
+} NvidiaAcpiGenericInitiatorClass;
 
 void build_srat_generic_initiator(GArray *table_data);
 

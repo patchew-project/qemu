@@ -150,3 +150,64 @@ void build_srat_generic_initiator(GArray *table_data)
     }
     g_slist_free(list);
 }
+
+static void
+nvidia_acpi_generic_initiator_set_node_start(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    AcpiGenericInitiator *gi = ACPI_GENERIC_INITIATOR(obj);
+    uint32_t value;
+
+    if (!visit_type_uint32(v, name, &value, errp)) {
+        return;
+    }
+
+    if (value >= MAX_NODES) {
+        return;
+    }
+
+    gi->node = value;
+}
+
+static void
+nvidia_acpi_generic_initiator_set_node_count(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    AcpiGenericInitiator *gi = ACPI_GENERIC_INITIATOR(obj);
+    uint32_t value;
+
+    if (!visit_type_uint32(v, name, &value, errp)) {
+        return;
+    }
+
+    gi->node_count = value;
+}
+
+static void nvidia_acpi_generic_initiator_class_init(ObjectClass *oc, void *data)
+{
+    object_class_property_add(oc, NVIDIA_ACPI_GENERIC_INITIATOR_NODE_START_PROP,
+                              "uint32", NULL,
+                              nvidia_acpi_generic_initiator_set_node_start,
+                              NULL, NULL);
+    object_class_property_add(oc, NVIDIA_ACPI_GENERIC_INITIATOR_NODE_COUNT_PROP,
+                              "uint32", NULL,
+                              nvidia_acpi_generic_initiator_set_node_count,
+                              NULL, NULL);
+}
+
+static const TypeInfo nvidia_acpi_generic_initiator_info = {
+    .parent = TYPE_ACPI_GENERIC_INITIATOR,
+    .name = TYPE_NVIDIA_ACPI_GENERIC_INITIATOR,
+    .instance_size = sizeof(NvidiaAcpiGenericInitiator),
+    .class_size = sizeof(NvidiaAcpiGenericInitiatorClass),
+    .class_init = nvidia_acpi_generic_initiator_class_init,
+};
+
+static void
+nvidia_acpi_generic_initiator_register_types(void)
+{
+    type_register_static(&nvidia_acpi_generic_initiator_info);
+}
+type_init(nvidia_acpi_generic_initiator_register_types);
