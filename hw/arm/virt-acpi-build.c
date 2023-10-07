@@ -58,6 +58,7 @@
 #include "migration/vmstate.h"
 #include "hw/acpi/ghes.h"
 #include "hw/acpi/viot.h"
+#include "hw/acpi/acpi-generic-initiator.h"
 
 #define ARM_SPI_BASE 32
 
@@ -557,6 +558,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
             mem_base += ms->numa_state->nodes[i].node_mem;
         }
     }
+
+    build_srat_generic_initiator(table_data);
 
     if (ms->nvdimms_state->is_enabled) {
         nvdimm_build_srat(table_data);

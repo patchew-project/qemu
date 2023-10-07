@@ -43,8 +43,6 @@
 #include "migration/blocker.h"
 #include "migration/qemu-file.h"
 
-#define TYPE_VFIO_PCI_NOHOTPLUG "vfio-pci-nohotplug"
-
 /* Protected by BQL */
 static KVMRouteChange vfio_route_change;
 

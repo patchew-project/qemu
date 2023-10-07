@@ -72,3 +72,81 @@ static void acpi_generic_initiator_class_init(ObjectClass *oc, void *data)
                               NULL, acpi_generic_initiator_set_node, NULL,
                               NULL);
 }
+
+static int acpi_generic_initiator_list(Object *obj, void *opaque)
+{
+    GSList **list = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_ACPI_GENERIC_INITIATOR)) {
+        *list = g_slist_append(*list, ACPI_GENERIC_INITIATOR(obj));
+    }
+
+    object_child_foreach(obj, acpi_generic_initiator_list, opaque);
+    return 0;
+}
+
+/*
+ * Identify Generic Initiator objects and link them into the list which is
+ * returned to the caller.
+ *
+ * Note: it is the caller's responsibility to free the list to avoid
+ * memory leak.
+ */
+static GSList *acpi_generic_initiator_get_list(void)
+{
+    GSList *list = NULL;
+
+    object_child_foreach(object_get_root(), acpi_generic_initiator_list, &list);
+    return list;
+}
+
+/*
+ * ACPI spec, Revision 6.5
+ * 5.2.16.6 Generic Initiator Affinity Structure
+ */
+static void build_srat_generic_initiator_affinity(GArray *table_data, int node,
+                                                  PCIDeviceHandle *handle,
+                                                  GenericAffinityFlags flags)
+{
+    build_append_int_noprefix(table_data, 5, 1);     /* Type */
+    build_append_int_noprefix(table_data, 32, 1);    /* Length */
+    build_append_int_noprefix(table_data, 0, 1);     /* Reserved */
+    build_append_int_noprefix(table_data, 1, 1);     /* Device Handle Type */
+    build_append_int_noprefix(table_data, node, 4);  /* Proximity Domain */
+    build_append_int_noprefix(table_data, handle->segment, 2);
+    build_append_int_noprefix(table_data, handle->bdf, 2);
+    build_append_int_noprefix(table_data, handle->res0, 4);
+    build_append_int_noprefix(table_data, handle->res1, 8);
+    build_append_int_noprefix(table_data, flags, 4); /* Flags */
+    build_append_int_noprefix(table_data, 0, 4);     /* Reserved */
+}
+
+void build_srat_generic_initiator(GArray *table_data)
+{
+    GSList *gi_list, *list = acpi_generic_initiator_get_list();
+    for (gi_list = list; gi_list; gi_list = gi_list->next) {
+        AcpiGenericInitiator *gi = gi_list->data;
+        Object *o;
+        int count;
+
+        if (gi->node == MAX_NODES) {
+            continue;
+        }
+
+        o = object_resolve_path_type(gi->device, TYPE_VFIO_PCI_NOHOTPLUG, NULL);
+        if (!o) {
+            continue;
+        }
+
+        for (count = 0; count < gi->node_count; count++) {
+            PCIDeviceHandle dev_handle = {0};
+            PCIDevice *pci_dev = PCI_DEVICE(o);
+
+            dev_handle.bdf = pci_dev->devfn;
+            build_srat_generic_initiator_affinity(table_data,
+                                                  gi->node + count, &dev_handle,
+                                                  GEN_AFFINITY_ENABLED);
+        }
+    }
+    g_slist_free(list);
+}

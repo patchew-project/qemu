@@ -118,6 +118,8 @@ typedef struct VFIOMSIXInfo {
 #define TYPE_VFIO_PCI "vfio-pci"
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI)
 
+#define TYPE_VFIO_PCI_NOHOTPLUG "vfio-pci-nohotplug"
+
 struct VFIOPCIDevice {
     PCIDevice pdev;
     VFIODevice vbasedev;
