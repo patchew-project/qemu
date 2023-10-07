@@ -253,6 +253,14 @@ deprecated; use the new name ``dtb-randomness`` instead. The new name
 better reflects the way this property affects all random data within
 the device tree blob, not just the ``kaslr-seed`` node.
 
+``next-cube`` m68k machine (since 8.2)
+''''''''''''''''''''''''''''''''''''''
+
+The machine never got fully implemented and can only show the firmware prompt.
+Given the incomplete state and slow progress on improvements, it might get
+removed again without replacement.
+
+
 Backend options
 ---------------
 
