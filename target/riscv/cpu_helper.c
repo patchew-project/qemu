@@ -66,7 +66,11 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
                           uint64_t *cs_base, uint32_t *pflags)
 {
     CPUState *cs = env_cpu(env);
-    RISCVCPU *cpu = RISCV_CPU(cs);
+    /*
+     * Using the checked cast RISCV_CPU(cs) imposes ~ 5% overhead when
+     * QOM cast debugging is enabled, so use a direct cast instead.
+     */
+    RISCVCPU *cpu = (RISCVCPU *)cs;
     RISCVExtStatus fs, vs;
     uint32_t flags = 0;
 
