@@ -24,15 +24,15 @@
 
 extern const SemanticInsn opcode_genptr[];
 
-void gen_store32(TCGv vaddr, TCGv src, int width, uint32_t slot);
-void gen_store1(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot);
-void gen_store2(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot);
-void gen_store4(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot);
-void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src, uint32_t slot);
-void gen_store1i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot);
-void gen_store2i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot);
-void gen_store4i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot);
-void gen_store8i(TCGv_env cpu_env, TCGv vaddr, int64_t src, uint32_t slot);
+void gen_store32(TCGv v_addr, TCGv src, int width, uint32_t slot);
+void gen_store1(TCGv_env tcg_env_, TCGv v_addr, TCGv src, uint32_t slot);
+void gen_store2(TCGv_env tcg_env_, TCGv v_addr, TCGv src, uint32_t slot);
+void gen_store4(TCGv_env tcg_env_, TCGv v_addr, TCGv src, uint32_t slot);
+void gen_store8(TCGv_env tcg_env_, TCGv v_addr, TCGv_i64 src, uint32_t slot);
+void gen_store1i(TCGv_env tcg_env_, TCGv v_addr, int32_t src, uint32_t slot);
+void gen_store2i(TCGv_env tcg_env_, TCGv v_addr, int32_t src, uint32_t slot);
+void gen_store4i(TCGv_env tcg_env_, TCGv v_addr, int32_t src, uint32_t slot);
+void gen_store8i(TCGv_env tcg_env_, TCGv v_addr, int64_t src, uint32_t slot);
 TCGv gen_read_reg(TCGv result, int num);
 TCGv gen_read_preg(TCGv pred, uint8_t num);
 TCGv get_result_gpr(DisasContext *ctx, int rnum);

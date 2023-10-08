@@ -19,12 +19,12 @@
 #include "cpu.h"
 #include "mmvec/system_ext_mmvec.h"
 
-void mem_gather_store(CPUHexagonState *env, target_ulong vaddr, int slot)
+void mem_gather_store(CPUHexagonState *env, target_ulong v_addr, int slot)
 {
     size_t size = sizeof(MMVector);
 
     env->vstore_pending[slot] = 1;
-    env->vstore[slot].va   = vaddr;
+    env->vstore[slot].va   = v_addr;
     env->vstore[slot].size = size;
     memcpy(&env->vstore[slot].data.ub[0], &env->tmp_VRegs[0], size);
 
