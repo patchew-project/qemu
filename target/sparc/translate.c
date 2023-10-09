@@ -2820,19 +2820,19 @@ static void gen_fmovq(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 }
 
 #ifndef CONFIG_USER_ONLY
-static void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_env tcg_env)
+static void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_env env)
 {
     TCGv_i32 r_tl = tcg_temp_new_i32();
 
     /* load env->tl into r_tl */
-    tcg_gen_ld_i32(r_tl, tcg_env, offsetof(CPUSPARCState, tl));
+    tcg_gen_ld_i32(r_tl, env, offsetof(CPUSPARCState, tl));
 
     /* tl = [0 ... MAXTL_MASK] where MAXTL_MASK must be power of 2 */
     tcg_gen_andi_i32(r_tl, r_tl, MAXTL_MASK);
 
     /* calculate offset to current trap state from env->ts, reuse r_tl */
     tcg_gen_muli_i32(r_tl, r_tl, sizeof (trap_state));
-    tcg_gen_addi_ptr(r_tsptr, tcg_env, offsetof(CPUSPARCState, ts));
+    tcg_gen_addi_ptr(r_tsptr, env, offsetof(CPUSPARCState, ts));
 
     /* tsptr = env->ts[env->tl & MAXTL_MASK] */
     {
