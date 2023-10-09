@@ -1246,6 +1246,27 @@ static bool commit_active_cancel(Job *job, bool force)
     return force || !job_is_ready(job);
 }
 
+static void mirror_change(BlockJob *job, BlockJobChangeOptions *opts,
+                          Error **errp)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    BlockJobChangeOptionsMirror *change_opts = &opts->u.mirror;
+
+    if (s->copy_mode == change_opts->copy_mode) {
+        return;
+    }
+
+    if (s->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING) {
+        error_setg(errp, "Cannot switch away from copy mode 'write-blocking'");
+        return;
+    }
+
+    assert(s->copy_mode == MIRROR_COPY_MODE_BACKGROUND &&
+           change_opts->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING);
+
+    s->copy_mode = MIRROR_COPY_MODE_WRITE_BLOCKING;
+}
+
 static const BlockJobDriver mirror_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
@@ -1260,6 +1281,7 @@ static const BlockJobDriver mirror_job_driver = {
         .cancel                 = mirror_cancel,
     },
     .drained_poll           = mirror_drained_poll,
+    .change                 = mirror_change,
 };
 
 static const BlockJobDriver commit_active_job_driver = {
