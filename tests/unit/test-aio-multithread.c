@@ -223,7 +223,7 @@ static void coroutine_fn test_multi_co_mutex_entry(void *opaque)
     qatomic_dec(&running);
 }
 
-static void test_multi_co_mutex(int threads, int seconds)
+static void test_multi_co_mutex(unsigned ctx_num, int seconds)
 {
     int i;
 
@@ -233,9 +233,9 @@ static void test_multi_co_mutex(int threads, int seconds)
     now_stopping = false;
 
     create_aio_contexts();
-    assert(threads <= NUM_CONTEXTS);
-    running = threads;
-    for (i = 0; i < threads; i++) {
+    assert(ctx_num <= NUM_CONTEXTS);
+    running = ctx_num;
+    for (i = 0; i < ctx_num; i++) {
         Coroutine *co1 = qemu_coroutine_create(test_multi_co_mutex_entry, NULL);
         aio_co_schedule(ctx[i], co1);
     }
@@ -398,7 +398,7 @@ static void test_multi_mutex_entry(void *opaque)
     qatomic_dec(&running);
 }
 
-static void test_multi_mutex(int threads, int seconds)
+static void test_multi_mutex(unsigned ctx_num, int seconds)
 {
     int i;
 
@@ -408,9 +408,9 @@ static void test_multi_mutex(int threads, int seconds)
     now_stopping = false;
 
     create_aio_contexts();
-    assert(threads <= NUM_CONTEXTS);
-    running = threads;
-    for (i = 0; i < threads; i++) {
+    assert(ctx_num <= NUM_CONTEXTS);
+    running = ctx_num;
+    for (i = 0; i < ctx_num; i++) {
         Coroutine *co1 = qemu_coroutine_create(test_multi_mutex_entry, NULL);
         aio_co_schedule(ctx[i], co1);
     }
