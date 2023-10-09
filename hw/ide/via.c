@@ -132,11 +132,6 @@ static void via_ide_reset(DeviceState *dev)
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_FAST_BACK |
                  PCI_STATUS_DEVSEL_MEDIUM);
 
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_0, 0x000001f0);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_1, 0x000003f4);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_2, 0x00000170);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_3, 0x00000374);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_4, 0x0000cc01); /* BMIBA: 20-23h */
     pci_set_long(pci_conf + PCI_INTERRUPT_LINE, 0x0000010e);
 
     /* IDE chip enable, IDE configuration 1/2, IDE FIFO Configuration*/
@@ -157,6 +152,41 @@ static void via_ide_reset(DeviceState *dev)
     pci_set_long(pci_conf + 0x68, 0x00000200);
     /* PCI PM Block */
     pci_set_long(pci_conf + 0xc0, 0x00020001);
+}
+
+static void via_ide_cfg_write(PCIDevice *pd, uint32_t addr,
+                              uint32_t val, int len)
+{
+    pci_default_write_config(pd, addr, val, len);
+    /*
+     * Bits 0 and 2 of the PCI programming interface register select between
+     * legacy and native mode for the two IDE channels. We don't emulate this
+     * because we cannot easily switch between ISA and PCI in QEMU so instead
+     * when guest selects legacy mode we set the PCI BARs to legacy ports which
+     * works the same. We also don't care about setting each channel separately
+     * as no guest is known to do or need that. We only do this when BARs are
+     * unset when writing this register as logs from real hardware show that
+     * setting legacy mode after BARs were set it will still use ports set by
+     * BARs not ISA ports (e.g. pegasos2 Linux does this after firmware set
+     * native mode and programmed BARs and calls it non-100% native mode).
+     * But if 0x8a is written righr after reset without setting BARs then we
+     * want legacy ports (this is done by the AmigaOne firmware).
+     */
+    if (addr == PCI_CLASS_PROG && val == 0x8a &&
+        pci_get_long(pd->config + PCI_BASE_ADDRESS_0) ==
+        PCI_BASE_ADDRESS_SPACE_IO) {
+        pci_set_long(pd->config + PCI_BASE_ADDRESS_0, 0x1f0
+                     | PCI_BASE_ADDRESS_SPACE_IO);
+        pci_set_long(pd->config + PCI_BASE_ADDRESS_1, 0x3f6
+                     | PCI_BASE_ADDRESS_SPACE_IO);
+        pci_set_long(pd->config + PCI_BASE_ADDRESS_2, 0x170
+                     | PCI_BASE_ADDRESS_SPACE_IO);
+        pci_set_long(pd->config + PCI_BASE_ADDRESS_3, 0x376
+                     | PCI_BASE_ADDRESS_SPACE_IO);
+        /* BMIBA: 20-23h */
+        pci_set_long(pd->config + PCI_BASE_ADDRESS_4, 0xcc00
+                     | PCI_BASE_ADDRESS_SPACE_IO);
+    }
 }
 
 static void via_ide_realize(PCIDevice *dev, Error **errp)
@@ -221,6 +251,7 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     /* Reason: only works as function of VIA southbridge */
     dc->user_creatable = false;
 
+    k->config_write = via_ide_cfg_write;
     k->realize = via_ide_realize;
     k->exit = via_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_VIA;
