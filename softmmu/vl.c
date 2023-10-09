@@ -674,8 +674,7 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
 
 }
 
-static void configure_blockdev(BlockdevOptionsQueue *bdo_queue,
-                               MachineClass *machine_class, int snapshot)
+static void configure_blockdev(MachineClass *machine_class, int snapshot)
 {
     /*
      * If the currently selected machine wishes to override the
@@ -688,10 +687,10 @@ static void configure_blockdev(BlockdevOptionsQueue *bdo_queue,
     }
 
     /* open the virtual block devices */
-    while (!QSIMPLEQ_EMPTY(bdo_queue)) {
-        BlockdevOptionsQueueEntry *bdo = QSIMPLEQ_FIRST(bdo_queue);
+    while (!QSIMPLEQ_EMPTY(&bdo_queue)) {
+        BlockdevOptionsQueueEntry *bdo = QSIMPLEQ_FIRST(&bdo_queue);
 
-        QSIMPLEQ_REMOVE_HEAD(bdo_queue, entry);
+        QSIMPLEQ_REMOVE_HEAD(&bdo_queue, entry);
         loc_push_restore(&bdo->loc);
         qmp_blockdev_add(bdo->bdo, &error_fatal);
         loc_pop(&bdo->loc);
@@ -712,7 +711,6 @@ static void configure_blockdev(BlockdevOptionsQueue *bdo_queue,
                   CDROM_OPTS);
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
-
 }
 
 static QemuOptsList qemu_smp_opts = {
@@ -1961,7 +1959,7 @@ static void qemu_create_early_backends(void)
      * Note: we need to create audio and block backends before
      * setting machine properties, so they can be referred to.
      */
-    configure_blockdev(&bdo_queue, machine_class, snapshot);
+    configure_blockdev(machine_class, snapshot);
     audio_init_audiodevs();
 }
 
