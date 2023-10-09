@@ -157,7 +157,7 @@ static inline int c6_to_8(int v)
 }
 
 bool vga_common_init(VGACommonState *s, Object *obj, Error **errp);
-void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
+void vga_init(VGACommonState *s, Object *obj, MemoryRegion *io,
               MemoryRegion *address_space_io, bool init_vga_ports);
 MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,
                           const MemoryRegionPortio **vga_ports,
