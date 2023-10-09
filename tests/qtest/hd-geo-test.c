@@ -78,6 +78,7 @@ static const CHST hd_chst[backend_last][mbr_last] = {
 };
 
 static char *img_file_name[backend_last];
+static char *qcow2_imgpath;
 
 static const CHST *cur_ide[4];
 
@@ -607,18 +608,17 @@ static TestArgs *create_args(void)
 static void add_drive_with_mbr(TestArgs *args,
                                MBRpartitions mbr, uint64_t sectors)
 {
-    char *img_file_name;
     char part[300];
     int ret;
 
     g_assert(args->n_drives < MAX_DRIVES);
 
-    img_file_name = create_qcow2_with_mbr(mbr, sectors);
+    qcow2_imgpath = create_qcow2_with_mbr(mbr, sectors);
 
-    args->drives[args->n_drives] = img_file_name;
+    args->drives[args->n_drives] = qcow2_imgpath;
     ret = snprintf(part, sizeof(part),
                    "-drive file=%s,if=none,format=qcow2,id=disk%d",
-                   img_file_name, args->n_drives);
+                   qcow2_imgpath, args->n_drives);
     g_assert((0 < ret) && (ret <= sizeof(part)));
     args->argc = append_arg(args->argc, args->argv, ARGV_SIZE, g_strdup(part));
     args->n_drives++;
@@ -1138,6 +1138,10 @@ test_add_done:
             unlink(img_file_name[i]);
             g_free(img_file_name[i]);
         }
+    }
+    if (qcow2_imgpath) {
+        unlink(qcow2_imgpath);
+        g_free(qcow2_imgpath);
     }
 
     return ret;
