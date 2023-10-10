@@ -655,6 +655,14 @@ bool qtest_big_endian(QTestState *s);
 const char *qtest_get_arch(void);
 
 /**
+ * qtest_get_arch_bits:
+ *
+ * Returns: The architecture bits (a.k.a. word size) for the QEMU executable
+ * under test.
+ */
+unsigned qtest_get_arch_bits(void);
+
+/**
  * qtest_has_accel:
  * @accel_name: Accelerator name to check for.
  *

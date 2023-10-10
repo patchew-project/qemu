@@ -923,6 +923,27 @@ const char *qtest_get_arch(void)
     return end + 1;
 }
 
+unsigned qtest_get_arch_bits(void)
+{
+    static const char *const arch64[] = {
+        "aarch64", "hppa", "x86_64", "loongarch64", "mips64",
+        "mips64el", "ppc64", "riscv64", "s390x", "sparc64",
+    };
+    const char *arch = qtest_get_arch();
+
+    if (!strcmp(arch, "avr")) {
+        return 8;
+    }
+
+    for (unsigned i = 0; i < ARRAY_SIZE(arch64); i++) {
+        if (!strcmp(arch, arch64[i])) {
+            return 64;
+        }
+    }
+
+    return 32;
+}
+
 bool qtest_has_accel(const char *accel_name)
 {
     if (g_str_equal(accel_name, "tcg")) {
