@@ -151,7 +151,7 @@ static void discard_vq_data(VirtQueue *vq, VirtIODevice *vdev)
 static void discard_throttle_data(VirtIOSerialPort *port)
 {
     if (port->elem) {
-        virtqueue_detach_element(port->ovq, port->elem, 0);
+        virtqueue_push(port->ovq, port->elem, 0);
         g_free(port->elem);
         port->elem = NULL;
     }
