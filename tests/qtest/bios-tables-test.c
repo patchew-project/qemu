@@ -2089,7 +2089,7 @@ int main(int argc, char *argv[])
             qtest_add_func("acpi/piix4/nohpet", test_acpi_piix4_tcg_nohpet);
 
             /* i386 does not support memory hotplug */
-            if (strcmp(arch, "i386")) {
+            if (qtest_get_arch_bits() == 64) {
                 qtest_add_func("acpi/piix4/memhp", test_acpi_piix4_tcg_memhp);
                 qtest_add_func("acpi/piix4/dimmpxm",
                                test_acpi_piix4_tcg_dimm_pxm);
@@ -2127,7 +2127,7 @@ int main(int argc, char *argv[])
                            test_acpi_q35_tcg_acpi_hmat_noinitiator);
 
             /* i386 does not support memory hotplug */
-            if (strcmp(arch, "i386")) {
+            if (qtest_get_arch_bits() == 64) {
                 qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
                 qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
                 qtest_add_func("acpi/q35/acpihmat",
@@ -2164,15 +2164,13 @@ int main(int argc, char *argv[])
                            test_acpi_microvm_ioapic2_tcg);
             qtest_add_func("acpi/microvm/oem-fields",
                            test_acpi_microvm_oem_fields);
-            if (has_tcg) {
-                if (strcmp(arch, "x86_64") == 0) {
-                    qtest_add_func("acpi/microvm/pcie",
-                                   test_acpi_microvm_pcie_tcg);
+            if (has_tcg && qtest_get_arch_bits() == 64) {
+                qtest_add_func("acpi/microvm/pcie",
+                               test_acpi_microvm_pcie_tcg);
 #ifdef CONFIG_POSIX
-                    qtest_add_func("acpi/microvm/acpierst",
-                                   test_acpi_microvm_acpi_erst);
+                qtest_add_func("acpi/microvm/acpierst",
+                               test_acpi_microvm_acpi_erst);
 #endif
-                }
             }
         }
     } else if (strcmp(arch, "aarch64") == 0) {

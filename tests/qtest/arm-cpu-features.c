@@ -462,7 +462,7 @@ static void test_query_cpu_model_expansion(const void *data)
     assert_has_not_feature(qts, "max", "kvm-no-adjvtime");
     assert_has_not_feature(qts, "max", "kvm-steal-time");
 
-    if (g_str_equal(qtest_get_arch(), "aarch64")) {
+    if (qtest_get_arch_bits() == 64) {
         assert_has_feature_enabled(qts, "max", "aarch64");
         assert_has_feature_enabled(qts, "max", "sve");
         assert_has_feature_enabled(qts, "max", "sve128");
@@ -507,7 +507,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
     assert_set_feature(qts, "host", "kvm-no-adjvtime", true);
     assert_set_feature(qts, "host", "kvm-no-adjvtime", false);
 
-    if (g_str_equal(qtest_get_arch(), "aarch64")) {
+    if (qtest_get_arch_bits() == 64) {
         bool kvm_supports_steal_time;
         bool kvm_supports_sve;
         char max_name[8], name[8];
@@ -636,34 +636,31 @@ int main(int argc, char **argv)
                             NULL, test_query_cpu_model_expansion);
     }
 
-    if (!g_str_equal(qtest_get_arch(), "aarch64")) {
-        goto out;
-    }
-
-    /*
-     * For now we only run KVM specific tests with AArch64 QEMU in
-     * order avoid attempting to run an AArch32 QEMU with KVM on
-     * AArch64 hosts. That won't work and isn't easy to detect.
-     */
-    if (qtest_has_accel("kvm")) {
+    if (qtest_get_arch_bits() == 64) {
         /*
-         * This tests target the 'host' CPU type, so register it only if
-         * KVM is available.
+         * For now we only run KVM specific tests with AArch64 QEMU in
+         * order avoid attempting to run an AArch32 QEMU with KVM on
+         * AArch64 hosts. That won't work and isn't easy to detect.
          */
-        qtest_add_data_func("/arm/kvm/query-cpu-model-expansion",
-                            NULL, test_query_cpu_model_expansion_kvm);
+        if (qtest_has_accel("kvm")) {
+            /*
+             * This tests target the 'host' CPU type, so register it only if
+             * KVM is available.
+             */
+            qtest_add_data_func("/arm/kvm/query-cpu-model-expansion",
+                                NULL, test_query_cpu_model_expansion_kvm);
 
-        qtest_add_data_func("/arm/kvm/query-cpu-model-expansion/sve-off",
-                            NULL, sve_tests_sve_off_kvm);
+            qtest_add_data_func("/arm/kvm/query-cpu-model-expansion/sve-off",
+                                NULL, sve_tests_sve_off_kvm);
+        }
+
+        if (qtest_has_accel("tcg")) {
+            qtest_add_data_func("/arm/max/query-cpu-model-expansion/sve-max-vq-8",
+                                NULL, sve_tests_sve_max_vq_8);
+            qtest_add_data_func("/arm/max/query-cpu-model-expansion/sve-off",
+                                NULL, sve_tests_sve_off);
+        }
     }
 
-    if (qtest_has_accel("tcg")) {
-        qtest_add_data_func("/arm/max/query-cpu-model-expansion/sve-max-vq-8",
-                            NULL, sve_tests_sve_max_vq_8);
-        qtest_add_data_func("/arm/max/query-cpu-model-expansion/sve-off",
-                            NULL, sve_tests_sve_off);
-    }
-
-out:
     return g_test_run();
 }
