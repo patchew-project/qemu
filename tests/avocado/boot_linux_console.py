@@ -1348,6 +1348,59 @@ class BootLinuxConsole(LinuxKernelTest):
         tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
         self.do_test_advcal_2018('19', tar_hash, 'uImage')
 
+    def test_ppc64_e6500(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:ppce500
+        :avocado: tags=cpu:e6500
+        :avocado: tags=accel:tcg
+        """
+        kernel_url = ('https://gitlab.com/npiggin/qemu-ci-images/-/raw/main/ppc/corenet64_vmlinux?ref_type=heads&inline=false')
+        kernel_hash = '01051590b083fec66cb3b9e2e553e95d4cf47691'
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
+        initrd_url = ('https://github.com/groeck/linux-build-test/raw/master/rootfs/ppc64/rootfs.cpio.gz')
+        initrd_hash = '798acffc036c3b1ae6cacf95c869bba2'
+        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                       algorithm="md5")
+
+        self.vm.set_console()
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
+        self.vm.add_args('-smp', '2',
+                         '-kernel', kernel_path,
+                         '-initrd', initrd_path,
+                         '-append', kernel_command_line,
+                         '-no-reboot')
+        self.vm.launch()
+        # Wait for VM to shut down gracefully
+        self.vm.wait()
+
+    def test_ppc32_mpc85xx(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:ppce500
+        :avocado: tags=cpu:mpc8568
+        :avocado: tags=accel:tcg
+        """
+        kernel_url = ('https://gitlab.com/npiggin/qemu-ci-images/-/raw/main/ppc/mpc85xx_vmlinux?ref_type=heads&inline=false')
+        kernel_hash = '726f7f574a491282454850b48546b3827593142b'
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
+        initrd_url = ('https://github.com/groeck/linux-build-test/raw/master/rootfs/ppc/rootfs.cpio.gz')
+        initrd_hash = '4d30fa93b742c493e8cf2140e49bbd9a'
+        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                       algorithm="md5")
+
+        self.vm.set_console()
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
+        self.vm.add_args('-kernel', kernel_path,
+                         '-initrd', initrd_path,
+                         '-append', kernel_command_line,
+                         '-no-reboot')
+        self.vm.launch()
+        # Wait for VM to shut down gracefully
+        self.vm.wait()
+
     def do_test_ppc64_powernv(self, proc):
         self.require_accelerator("tcg")
         images_url = ('https://github.com/open-power/op-build/releases/download/v2.7/')
