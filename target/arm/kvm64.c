@@ -500,10 +500,6 @@ uint32_t kvm_arm_sve_get_vls(CPUState *cs)
             .target = -1,
             .features[0] = (1 << KVM_ARM_VCPU_SVE),
         };
-        struct kvm_one_reg reg = {
-            .id = KVM_REG_ARM64_SVE_VLS,
-            .addr = (uint64_t)&vls[0],
-        };
         int fdarray[3], ret;
 
         probed = true;
@@ -512,7 +508,7 @@ uint32_t kvm_arm_sve_get_vls(CPUState *cs)
             error_report("failed to create scratch VCPU with SVE enabled");
             abort();
         }
-        ret = ioctl(fdarray[2], KVM_GET_ONE_REG, &reg);
+        ret = read_sys_reg64(fdarray[2], &vls[0], KVM_REG_ARM64_SVE_VLS);
         kvm_arm_destroy_scratch_host_vcpu(fdarray);
         if (ret) {
             error_report("failed to get KVM_REG_ARM64_SVE_VLS: %s",
