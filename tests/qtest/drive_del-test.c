@@ -125,9 +125,9 @@ static void drive_del(QTestState *qts)
  */
 static const char *qvirtio_get_dev_type(void)
 {
-    const char *arch = qtest_get_arch();
+    const char *arch = qtest_get_base_arch();
 
-    if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
+    if (g_str_equal(arch, "arm")) {
         return "device";  /* for virtio-mmio */
     } else if (g_str_equal(arch, "s390x")) {
         return "ccw";
@@ -249,7 +249,6 @@ static void test_drive_del_device_del(void)
 static void test_cli_device_del(void)
 {
     QTestState *qts;
-    const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
     if (!has_device_builtin("virtio-blk")) {
@@ -257,7 +256,7 @@ static void test_cli_device_del(void)
         return;
     }
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(qtest_get_base_arch(), "x86") == 0) {
         machine_addition = "-machine pc";
     }
 
@@ -323,7 +322,6 @@ static void test_empty_device_del(void)
 static void test_device_add_and_del(void)
 {
     QTestState *qts;
-    const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
     if (!has_device_builtin("virtio-blk")) {
@@ -331,7 +329,7 @@ static void test_device_add_and_del(void)
         return;
     }
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(qtest_get_base_arch(), "x86") == 0) {
         machine_addition = "-machine pc";
     }
 
@@ -394,7 +392,6 @@ static void test_device_add_and_del_q35(void)
 static void test_drive_add_device_add_and_del(void)
 {
     QTestState *qts;
-    const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
     if (!has_device_builtin("virtio-blk")) {
@@ -402,7 +399,7 @@ static void test_drive_add_device_add_and_del(void)
         return;
     }
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(qtest_get_base_arch(), "x86") == 0) {
         machine_addition = "-machine pc";
     }
 
@@ -447,7 +444,6 @@ static void test_drive_add_device_add_and_del_q35(void)
 static void test_blockdev_add_device_add_and_del(void)
 {
     QTestState *qts;
-    const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
     if (!has_device_builtin("virtio-blk")) {
@@ -455,7 +451,7 @@ static void test_blockdev_add_device_add_and_del(void)
         return;
     }
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(qtest_get_base_arch(), "x86") == 0) {
         machine_addition = "-machine pc";
     }
 

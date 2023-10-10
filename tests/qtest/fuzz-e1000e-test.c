@@ -40,11 +40,9 @@ static void test_lp1879531_eth_get_rss_ex_dst_addr(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
-
     g_test_init(&argc, &argv, NULL);
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(qtest_get_base_arch(), "x86") == 0) {
         qtest_add_func("fuzz/test_lp1879531_eth_get_rss_ex_dst_addr",
                        test_lp1879531_eth_get_rss_ex_dst_addr);
     }

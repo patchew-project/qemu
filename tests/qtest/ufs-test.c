@@ -552,7 +552,6 @@ static void *ufs_blk_test_setup(GString *cmd_line, void *arg)
 
 static void ufs_register_nodes(void)
 {
-    const char *arch;
     QOSGraphEdgeOptions edge_opts = {
         .before_cmd_line = "-blockdev null-co,node-name=drv0,read-zeroes=on",
         .after_cmd_line = "-device ufs-lu,bus=ufs0,drive=drv0,lun=0",
@@ -575,8 +574,7 @@ static void ufs_register_nodes(void)
      * Check architecture
      * TODO: Enable ufs io tests for ppc64
      */
-    arch = qtest_get_arch();
-    if (!strcmp(arch, "ppc64")) {
+    if (!strcmp(qtest_get_base_arch(), "ppc") && qtest_get_arch_bits() == 64) {
         g_test_message("Skipping ufs io tests for ppc64");
         return;
     }

@@ -293,8 +293,10 @@ static void walk_path(QOSGraphNode *orig_path, int len)
     path_vec[0] = g_string_free(cmd_line, false);
 
     if (path->u.test.subprocess) {
-        gchar *subprocess_path = g_strdup_printf("/%s/%s/subprocess",
-                                                 qtest_get_arch(), path_str);
+        gchar *subprocess_path = g_strdup_printf("/%s/%u/%s/subprocess",
+                                                 qtest_get_base_arch(),
+                                                 qtest_get_arch_bits(),
+                                                 path_str);
         qtest_add_data_func(path_str, subprocess_path, subprocess_run_one_test);
         g_test_add_data_func(subprocess_path, path_vec, run_one_test);
     } else {

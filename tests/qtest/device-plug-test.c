@@ -65,7 +65,6 @@ static void process_device_remove(QTestState *qtest, const char *id)
 static void test_pci_unplug_request(void)
 {
     QTestState *qtest;
-    const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
     if (!qtest_has_device("virtio-mouse-pci")) {
@@ -73,7 +72,7 @@ static void test_pci_unplug_request(void)
         return;
     }
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(qtest_get_base_arch(), "x86") == 0) {
         machine_addition = "-machine pc";
     }
 
@@ -107,7 +106,6 @@ static void test_q35_pci_unplug_request(void)
 static void test_pci_unplug_json_request(void)
 {
     QTestState *qtest;
-    const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
     if (!qtest_has_device("virtio-mouse-pci")) {
@@ -115,7 +113,7 @@ static void test_pci_unplug_json_request(void)
         return;
     }
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(qtest_get_base_arch(), "x86") == 0) {
         machine_addition = "-machine pc";
     }
 

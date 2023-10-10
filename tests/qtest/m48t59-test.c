@@ -239,15 +239,13 @@ static void fuzz_registers(void)
 
 static void base_setup(void)
 {
-    const char *arch = qtest_get_arch();
-
-    if (g_str_equal(arch, "sparc")) {
+    if (g_str_equal(qtest_get_arch(), "sparc")) {
         /* Note: For sparc64, we'd need to map-in the PCI bridge memory first */
         base = 0x71200000;
         base_year = 1968;
         base_machine = "SS-5";
         use_mmio = true;
-    } else if (g_str_equal(arch, "ppc") || g_str_equal(arch, "ppc64")) {
+    } else if (g_str_equal(qtest_get_base_arch(), "ppc")) {
         base = 0xF0000000;
         base_year = 1968;
         base_machine = "ref405ep";

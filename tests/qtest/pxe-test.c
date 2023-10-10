@@ -129,7 +129,7 @@ static void test_batch(const testdef_t *tests, bool ipv6)
 int main(int argc, char *argv[])
 {
     int ret;
-    const char *arch = qtest_get_arch();
+    const char *arch = qtest_get_base_arch();
 
     g_test_init(&argc, &argv, NULL);
 
@@ -143,12 +143,12 @@ int main(int argc, char *argv[])
         return ret;
 
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(arch, "x86") == 0) {
         test_batch(x86_tests, false);
         if (g_test_slow()) {
             test_batch(x86_tests_slow, false);
         }
-    } else if (strcmp(arch, "ppc64") == 0) {
+    } else if (strcmp(arch, "ppc") == 0 && qtest_get_arch_bits() == 64) {
         test_batch(ppc64_tests, g_test_slow());
         if (g_test_slow()) {
             test_batch(ppc64_tests_slow, true);

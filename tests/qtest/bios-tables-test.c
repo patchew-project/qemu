@@ -2044,7 +2044,7 @@ static void test_acpi_virt_oem_fields(void)
 
 int main(int argc, char *argv[])
 {
-    const char *arch = qtest_get_arch();
+    const char *arch = qtest_get_base_arch();
     bool has_kvm, has_tcg;
     char *v_env = getenv("V");
     int ret;
@@ -2063,7 +2063,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(arch, "x86") == 0) {
         ret = boot_sector_init(disk);
         if (ret) {
             return ret;
@@ -2173,7 +2173,7 @@ int main(int argc, char *argv[])
 #endif
             }
         }
-    } else if (strcmp(arch, "aarch64") == 0) {
+    } else if (strcmp(arch, "arm") == 0 && qtest_get_arch_bits() == 64) {
         if (has_tcg && qtest_has_device("virtio-blk-pci")) {
             qtest_add_func("acpi/virt", test_acpi_virt_tcg);
             qtest_add_func("acpi/virt/acpihmatvirt",

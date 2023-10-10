@@ -1835,7 +1835,7 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
 
 int main(int argc, char **argv)
 {
-    const char *arch, *base;
+    const char *base;
     int ret;
     int fd;
     int c;
@@ -1867,8 +1867,7 @@ int main(int argc, char **argv)
     }
 
     /* Check architecture */
-    arch = qtest_get_arch();
-    if (strcmp(arch, "i386") && strcmp(arch, "x86_64")) {
+    if (strcmp(qtest_get_base_arch(), "x86")) {
         g_test_message("Skipping test for non-x86");
         return 0;
     }

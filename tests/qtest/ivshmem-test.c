@@ -397,9 +397,9 @@ static void test_ivshmem_hotplug_q35(void)
 static void test_ivshmem_hotplug(void)
 {
     QTestState *qts;
-    const char *arch = qtest_get_arch();
+    const char *arch = qtest_get_base_arch();
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(arch, "x86") == 0) {
         qts = qtest_init("-object memory-backend-ram,size=1M,id=mb1"
                          " -machine pc");
     } else {
@@ -409,7 +409,7 @@ static void test_ivshmem_hotplug(void)
     qtest_qmp_device_add(qts, "ivshmem-plain", "iv1",
                          "{'addr': %s, 'memdev': 'mb1'}",
                          stringify(PCI_SLOT_HP));
-    if (strcmp(arch, "ppc64") != 0) {
+    if (strcmp(arch, "ppc") != 0 && qtest_get_arch_bits() == 64) {
         qpci_unplug_acpi_device_test(qts, "iv1", PCI_SLOT_HP);
     }
 

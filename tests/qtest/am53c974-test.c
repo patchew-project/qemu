@@ -253,11 +253,9 @@ static void test_reset_before_transfer_ok(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
-
     g_test_init(&argc, &argv, NULL);
 
-    if (strcmp(arch, "i386") == 0) {
+    if (!strcmp(qtest_get_base_arch(), "x86") && qtest_get_arch_bits() == 32) {
         qtest_add_func("am53c974/test_cmdfifo_underflow_ok",
                        test_cmdfifo_underflow_ok);
         qtest_add_func("am53c974/test_cmdfifo_underflow2_ok",

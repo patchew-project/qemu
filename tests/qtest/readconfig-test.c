@@ -382,13 +382,9 @@ static void test_docs_q35_virtio_serial(void)
 
 int main(int argc, char *argv[])
 {
-    const char *arch;
     g_test_init(&argc, &argv, NULL);
 
-    arch = qtest_get_arch();
-
-    if (g_str_equal(arch, "i386") ||
-        g_str_equal(arch, "x86_64")) {
+    if (g_str_equal(qtest_get_base_arch(), "x86")) {
         qtest_add_func("readconfig/x86/memdev", test_x86_memdev);
         if (qtest_has_device("ich9-usb-ehci1") &&
             qtest_has_device("ich9-usb-uhci1")) {

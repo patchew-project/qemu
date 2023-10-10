@@ -90,7 +90,7 @@ int boot_sector_init(char *fname)
     int fd, ret;
     size_t len;
     char *boot_code;
-    const char *arch = qtest_get_arch();
+    const char *arch = qtest_get_base_arch();
 
     fd = mkstemp(fname);
     if (fd < 0) {
@@ -98,12 +98,12 @@ int boot_sector_init(char *fname)
         return 1;
     }
 
-    if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64")) {
+    if (g_str_equal(arch, "x86")) {
         /* Q35 requires a minimum 0x7e000 bytes disk (bug or feature?) */
         len = MAX(0x7e000, sizeof(x86_boot_sector));
         boot_code = g_malloc0(len);
         memcpy(boot_code, x86_boot_sector, sizeof(x86_boot_sector));
-    } else if (g_str_equal(arch, "ppc64")) {
+    } else if (g_str_equal(arch, "ppc") && qtest_get_arch_bits() == 64) {
         /* For Open Firmware based system, use a Forth script */
         boot_code = g_strdup_printf("\\ Bootscript\n%x %x c! %x %x c!\n",
                                     LOW(SIGNATURE), SIGNATURE_ADDR,

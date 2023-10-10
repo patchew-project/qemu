@@ -53,7 +53,7 @@ static void test_usb_storage_hotplug(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
+    const char *arch = qtest_get_base_arch();
     const char *cmd = "-device piix3-usb-uhci,id=uhci,addr=1d.0"
                       " -drive id=drive0,if=none,file=null-co://,"
                       "file.read-zeroes=on,format=raw"
@@ -73,9 +73,9 @@ int main(int argc, char **argv)
         qtest_add_func("/uhci/pci/hotplug/usb-storage", test_usb_storage_hotplug);
     }
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+    if (strcmp(arch, "x86") == 0) {
         qs = qtest_pc_boot("%s", cmd);
-    } else if (strcmp(arch, "ppc64") == 0) {
+    } else if (strcmp(arch, "ppc") == 0 && qtest_get_arch_bits() == 64) {
         qs = qtest_spapr_boot("%s", cmd);
     } else {
         g_printerr("usb-hcd-uhci-test tests are only "

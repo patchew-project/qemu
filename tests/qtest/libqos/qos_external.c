@@ -31,10 +31,12 @@
 
 static void machine_apply_to_node(const char *name)
 {
-    char *machine_name = g_strconcat(qtest_get_arch(), "/", name, NULL);
+    g_autofree char *machine_name = g_strdup_printf("%s/%u/%s",
+                                                    qtest_get_base_arch(),
+                                                    qtest_get_arch_bits(),
+                                                    name);
 
     qos_graph_node_set_availability(machine_name, true);
-    g_free(machine_name);
 }
 
 void machines_apply_to_node(MachineInfoList *mach_info)

@@ -36,11 +36,9 @@ static void test_rtas_get_time_of_day_vof(void)
 
 int main(int argc, char *argv[])
 {
-    const char *arch = qtest_get_arch();
-
     g_test_init(&argc, &argv, NULL);
 
-    if (strcmp(arch, "ppc64")) {
+    if (strcmp(qtest_get_base_arch(), "ppc") && qtest_get_arch_bits() != 64) {
         g_printerr("RTAS requires qemu-system-ppc64\n");
         exit(EXIT_FAILURE);
     }
