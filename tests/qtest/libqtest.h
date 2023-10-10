@@ -655,6 +655,13 @@ bool qtest_big_endian(QTestState *s);
 const char *qtest_get_arch(void);
 
 /**
+ * qtest_get_base_arch:
+ *
+ * Returns: The base architecture for the QEMU executable under test.
+ */
+const char *qtest_get_base_arch(void);
+
+/**
  * qtest_get_arch_bits:
  *
  * Returns: The architecture bits (a.k.a. word size) for the QEMU executable

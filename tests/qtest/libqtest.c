@@ -923,6 +923,34 @@ const char *qtest_get_arch(void)
     return end + 1;
 }
 
+const char *qtest_get_base_arch(void)
+{
+    static const struct {
+        const char *const arch;
+        const char *const base;
+    } basearch[] = {
+        { "aarch64", "arm" },
+        { "i386", "x86" },
+        { "loongarch64", "loongarch" },
+        { "mipsel", "mips" },
+        { "mips64", "mips" },
+        { "mips64el", "mips" },
+        { "ppc64", "ppc" },
+        { "riscv32", "riscv" },
+        { "riscv64", "riscv" },
+        { "sparc64", "sparc" },
+        { "x86_64", "x86" },
+    };
+    const char *arch = qtest_get_arch();
+
+    for (unsigned i = 0; i < ARRAY_SIZE(basearch); i++) {
+        if (!strcmp(arch, basearch[i].arch)) {
+            return basearch[i].base;
+        }
+    }
+    g_assert_not_reached();
+}
+
 unsigned qtest_get_arch_bits(void)
 {
     static const char *const arch64[] = {
