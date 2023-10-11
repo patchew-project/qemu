@@ -76,7 +76,7 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
 
     pci_config_set_interrupt_pin(pci_conf, 1); /* interrupt pin 0 */
 
-    isabus = isa_bus_new(dev, get_system_memory(),
+    isabus = isa_bus_new(dev, pci_address_space(pci),
                          pci_address_space_io(pci), errp);
     if (!isabus) {
         return;
