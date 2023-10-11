@@ -729,6 +729,9 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     trace_migration_block_save("setup", block_mig_state.submitted,
                                block_mig_state.transferred);
 
+    warn_report("block migration is deprecated.  Use driver-mirror with"
+                "NBD instead.");
+
     qemu_mutex_lock_iothread();
     ret = init_blk_migration(f);
     if (ret < 0) {

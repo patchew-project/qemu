@@ -431,3 +431,13 @@ The new way to modify migration is using migration parameters.
 ``blk`` functionality can be achieved by setting the
 ``block`` migration capability to ``true``.
 
+block migration (since 8.2)
+'''''''''''''''''''''''''''
+
+Block migration is too inflexible.  It needs to migrate all block
+devices or none.
+
+Please see "QMP invocation for live storage migration with
+``driver-mirror`` + NBD" in docs/interop/live-block-operations.rst for
+a detailed explanation.
+
