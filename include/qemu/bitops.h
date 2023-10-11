@@ -25,6 +25,9 @@
 #define BIT_WORD(nr)            ((nr) / BITS_PER_LONG)
 #define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
 
+#define MAKE_32BIT_MASK(shift, length) \
+    (((uint32_t)(~0UL) >> (32 - (length))) << (shift))
+
 #define MAKE_64BIT_MASK(shift, length) \
     (((~0ULL) >> (64 - (length))) << (shift))
 
