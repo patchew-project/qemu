@@ -1,2 +1,6 @@
+config FSI_SCRATCHPAD
+    bool
+    select FSI_LBUS
+
 config FSI_LBUS
     bool
