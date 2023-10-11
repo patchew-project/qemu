@@ -654,13 +654,6 @@ static void vfio_listener_region_add(MemoryListener *listener,
         goto fail;
     }
 
-    hostwin = vfio_find_hostwin(container, iova, end);
-    if (!hostwin) {
-        error_setg(&err, "Container %p can't map guest IOVA region"
-                   " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx, container, iova, end);
-        goto fail;
-    }
-
     memory_region_ref(section->mr);
 
     if (memory_region_is_iommu(section->mr)) {
@@ -718,6 +711,13 @@ static void vfio_listener_region_add(MemoryListener *listener,
         memory_region_iommu_replay(giommu->iommu_mr, &giommu->n);
 
         return;
+    }
+
+    hostwin = vfio_find_hostwin(container, iova, end);
+    if (!hostwin) {
+        error_setg(&err, "Container %p can't map guest IOVA region"
+                   " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx, container, iova, end);
+        goto fail;
     }
 
     /* Here we assume that memory_region_is_ram(section->mr)==true */

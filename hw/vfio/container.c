@@ -693,12 +693,23 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         vfio_get_iommu_info_migration(container, info);
         g_free(info);
 
-        /*
-         * FIXME: We should parse VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE
-         * information to get the actual window extent rather than assume
-         * a 64-bit IOVA address space.
-         */
-        vfio_host_win_add(container, 0, (hwaddr)-1, container->pgsizes);
+        if (container->nr_iovas == -1) {
+            /*
+             * no available info on usable IOVA ranges,
+             * assume 64b IOVA space
+             */
+            vfio_host_win_add(container, 0, (hwaddr)-1, container->pgsizes);
+        } else {
+            GList *l;
+
+            g_assert(container->nr_iovas);
+            for (l = container->iova_ranges; l; l = l->next) {
+                Range *r = l->data;
+
+                vfio_host_win_add(container, range_lob(r), range_upb(r),
+                                  container->pgsizes);
+            }
+        }
 
         break;
     }
