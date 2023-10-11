@@ -243,7 +243,9 @@
 #
 # @compression: migration compression statistics, only returned if
 #     compression feature is on and status is 'active' or 'completed'
-#     (Since 3.1)
+#     This feature is unreliable and not tested. It is recommended to
+#     use multifd migration instead, which offers an alternative
+#     reliable and tested compression implementation.  (Since 3.1)
 #
 # @socket-address: Only used for tcp, to know what the real port is
 #     (Since 4.0)
@@ -271,8 +273,11 @@
 #
 # Features:
 #
-# @deprecated: @disk migration is deprecated.  Use driver-mirror
-#     with NBD instead.
+# @deprecated: @disk migration is deprecated.  Use driver-mirror with
+#     NBD instead.  @compression is unreliable and untested. It is
+#     recommended to use multifd migration, which offers an
+#     alternative compression implementation that is reliable and
+#     tested.
 #
 # Since: 0.14
 ##
@@ -290,7 +295,7 @@
            '*blocked-reasons': ['str'],
            '*postcopy-blocktime': 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
-           '*compression': 'CompressionStats',
+           '*compression': { 'type': 'CompressionStats', 'features': ['deprecated'] },
            '*socket-address': ['SocketAddress'],
            '*dirty-limit-throttle-time-per-round': 'uint64',
            '*dirty-limit-ring-full-time': 'uint64'} }
@@ -445,7 +450,8 @@
 #     compress and xbzrle are both on, compress only takes effect in
 #     the ram bulk stage, after that, it will be disabled and only
 #     xbzrle takes effect, this can help to minimize migration
-#     traffic.  The feature is disabled by default.  (since 2.4 )
+#     traffic.  The feature is disabled by default.  Obsolete.  Use
+#     multifd compression methods if needed. (since 2.4 )
 #
 # @events: generate events for each migration state change (since 2.4
 #     )
@@ -531,8 +537,9 @@
 #
 # Features:
 #
-# @deprecated: @block migration is deprecated.  Use driver-mirror
-#     with NBD instead.
+# @deprecated: @block migration is deprecated.  Use driver-mirror with
+#     NBD instead. @compress is obsolete, use multifd compression
+#     methods instead.
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
@@ -540,7 +547,8 @@
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           'compress', 'events', 'postcopy-ram',
+           { 'name': 'compress', 'features': [ 'deprecated' ] },
+           'events', 'postcopy-ram',
            { 'name': 'x-colo', 'features': [ 'unstable' ] },
            'release-ram',
            { 'name': 'block', 'features': [ 'deprecated' ] },
@@ -701,22 +709,24 @@
 #     migration, the compression level is an integer between 0 and 9,
 #     where 0 means no compression, 1 means the best compression
 #     speed, and 9 means best compression ratio which will consume
-#     more CPU.
+#     more CPU. Obsolete, see multifd compression if needed.
 #
 # @compress-threads: Set compression thread count to be used in live
 #     migration, the compression thread count is an integer between 1
-#     and 255.
+#     and 255. Obsolete, see multifd compression if needed.
 #
 # @compress-wait-thread: Controls behavior when all compression
 #     threads are currently busy.  If true (default), wait for a free
 #     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
+#     uncompressed. Obsolete, see multifd compression if
+#     needed. (Since 3.1)
 #
 # @decompress-threads: Set decompression thread count to be used in
 #     live migration, the decompression thread count is an integer
 #     between 1 and 255. Usually, decompression is at least 4 times as
 #     fast as compression, so set the decompress-threads to the number
-#     about 1/4 of compress-threads is adequate.
+#     about 1/4 of compress-threads is adequate. Obsolete, see multifd
+#     compression if needed.
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
@@ -836,7 +846,9 @@
 # Features:
 #
 # @deprecated: Member @block-incremental is obsolete. Use
-#     driver-mirror with NBD instead.
+#     driver-mirror with NBD instead. Compression is obsolete, so
+#     members @compress-level, @compress-threads, @decompress-threads
+#     and @compress-wait-thread should not be used.
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
 #     are experimental.
@@ -846,8 +858,11 @@
 { 'enum': 'MigrationParameter',
   'data': ['announce-initial', 'announce-max',
            'announce-rounds', 'announce-step',
-           'compress-level', 'compress-threads', 'decompress-threads',
-           'compress-wait-thread', 'throttle-trigger-threshold',
+           { 'name': 'compress-level', 'features': [ 'deprecated' ] },
+           { 'name': 'compress-threads', 'features': [ 'deprecated' ] },
+           { 'name': 'decompress-threads', 'features': [ 'deprecated' ] },
+           { 'name': 'compress-wait-thread', 'features': [ 'deprecated' ] },
+           'throttle-trigger-threshold',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
@@ -877,16 +892,17 @@
 # @announce-step: Increase in delay (in milliseconds) between
 #     subsequent packets in the announcement (Since 4.0)
 #
-# @compress-level: compression level
+# @compress-level: compression level. Obsolete and deprecated.
 #
-# @compress-threads: compression thread count
+# @compress-threads: compression thread count. Obsolete and deprecated.
 #
 # @compress-wait-thread: Controls behavior when all compression
 #     threads are currently busy.  If true (default), wait for a free
 #     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
+#     uncompressed.  Obsolete and deprecated. (Since 3.1)
 #
-# @decompress-threads: decompression thread count
+# @decompress-threads: decompression thread count. Obsolete and
+#     deprecated.
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
@@ -1005,7 +1021,9 @@
 # Features:
 #
 # @deprecated: Member @block-incremental is obsolete. Use
-#     driver-mirror with NBD instead.
+#     driver-mirror with NBD instead. Compression is obsolete, so
+#     members @compress-level, @compress-threads, @decompress-threads
+#     and @compress-wait-thread should not be used.
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
 #     are experimental.
@@ -1020,10 +1038,14 @@
             '*announce-max': 'size',
             '*announce-rounds': 'size',
             '*announce-step': 'size',
-            '*compress-level': 'uint8',
-            '*compress-threads': 'uint8',
-            '*compress-wait-thread': 'bool',
-            '*decompress-threads': 'uint8',
+            '*compress-level': { 'type': 'uint8',
+                                 'features': [ 'deprecated' ] },
+            '*compress-threads':  { 'type': 'uint8',
+                                    'features': [ 'deprecated' ] },
+            '*compress-wait-thread':  { 'type': 'bool',
+                                        'features': [ 'deprecated' ] },
+            '*decompress-threads':  { 'type': 'uint8',
+                                      'features': [ 'deprecated' ] },
             '*throttle-trigger-threshold': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
@@ -1059,7 +1081,7 @@
 # Example:
 #
 # -> { "execute": "migrate-set-parameters" ,
-#      "arguments": { "compress-level": 1 } }
+#      "arguments": { "multifd-channels": 5 } }
 # <- { "return": {} }
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
@@ -1082,16 +1104,18 @@
 # @announce-step: Increase in delay (in milliseconds) between
 #     subsequent packets in the announcement (Since 4.0)
 #
-# @compress-level: compression level
+# @compress-level: compression level. Obsolete and deprecated.
 #
-# @compress-threads: compression thread count
+# @compress-threads: compression thread count. Obsolete and
+#     deprecated.
 #
 # @compress-wait-thread: Controls behavior when all compression
 #     threads are currently busy.  If true (default), wait for a free
 #     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
+#     uncompressed. Obsolete and deprecated. (Since 3.1)
 #
-# @decompress-threads: decompression thread count
+# @decompress-threads: decompression thread count. Obsolete and
+#     deprecated.
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
@@ -1212,7 +1236,9 @@
 # Features:
 #
 # @deprecated: Member @block-incremental is obsolete. Use
-#     driver-mirror with NBD instead.
+#     driver-mirror with NBD instead. Compression is obsolete, so
+#     members @compress-level, @compress-threads, @decompress-threads
+#     and @compress-wait-thread should not be used.
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
 #     are experimental.
@@ -1224,10 +1250,14 @@
             '*announce-max': 'size',
             '*announce-rounds': 'size',
             '*announce-step': 'size',
-            '*compress-level': 'uint8',
-            '*compress-threads': 'uint8',
-            '*compress-wait-thread': 'bool',
-            '*decompress-threads': 'uint8',
+            '*compress-level': { 'type': 'uint8',
+                                 'features': [ 'deprecated' ] },
+            '*compress-threads': { 'type': 'uint8',
+                                   'features': [ 'deprecated' ] },
+            '*compress-wait-thread': { 'type': 'bool',
+                                       'features': [ 'deprecated' ] },
+            '*decompress-threads': { 'type': 'uint8',
+                                     'features': [ 'deprecated' ] },
             '*throttle-trigger-threshold': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
@@ -1266,10 +1296,8 @@
 #
 # -> { "execute": "query-migrate-parameters" }
 # <- { "return": {
-#          "decompress-threads": 2,
+#          "multifd-channels": 2,
 #          "cpu-throttle-increment": 10,
-#          "compress-threads": 8,
-#          "compress-level": 1,
 #          "cpu-throttle-initial": 20,
 #          "max-bandwidth": 33554432,
 #          "downtime-limit": 300
