@@ -700,14 +700,14 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
 
     /* Map PCI IO Space  0x1fd0 0000 - 0x1fd1 0000 */
     memory_region_init_alias(&s->bonito_pciio, OBJECT(s), "isa_mmio",
-                             get_system_io(), 0, BONITO_PCIIO_SIZE);
+                             pci_address_space_io(dev), 0, BONITO_PCIIO_SIZE);
     sysbus_init_mmio(sysbus, &s->bonito_pciio);
     sysbus_mmio_map(sysbus, 5, BONITO_PCIIO_BASE);
 
     /* add pci local io mapping */
 
     memory_region_init_alias(&s->bonito_localio, OBJECT(s), "IOCS[0]",
-                             get_system_io(), 0, 256 * KiB);
+                             pci_address_space_io(dev), 0, 256 * KiB);
     sysbus_init_mmio(sysbus, &s->bonito_localio);
     sysbus_mmio_map(sysbus, 6, BONITO_DEV_BASE);
     create_unimplemented_device("IOCS[1]", BONITO_DEV_BASE + 1 * 256 * KiB,
@@ -719,7 +719,7 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
 
     memory_region_init_alias(pcimem_alias, NULL, "pci.mem.alias",
                              &bs->pci_mem, 0, BONITO_PCIHI_SIZE);
-    memory_region_add_subregion(get_system_memory(),
+    memory_region_add_subregion(pci_address_space(dev),
                                 BONITO_PCIHI_BASE, pcimem_alias);
     create_unimplemented_device("PCI_2",
                                 (hwaddr)BONITO_PCIHI_BASE + BONITO_PCIHI_SIZE,
