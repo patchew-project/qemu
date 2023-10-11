@@ -1486,12 +1486,19 @@
 #
 # @blk: do block migration (full disk copy)
 #
-# @inc: incremental disk copy migration
+# @inc: incremental disk copy migration.  This option is deprecated.
+#     Set the 'block-incremetantal' migration parameter to 'true'
+#     instead.
 #
 # @detach: this argument exists only for compatibility reasons and is
 #     ignored by QEMU
 #
 # @resume: resume one paused migration, default "off". (since 3.0)
+#
+# Features:
+#
+# @deprecated: option @inc should be enabled by setting the
+#     'block-incremental' migration parameter to 'true'.
 #
 # Returns: nothing on success
 #
@@ -1514,7 +1521,8 @@
 # <- { "return": {} }
 ##
 { 'command': 'migrate',
-  'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool',
+  'data': {'uri': 'str', '*blk': 'bool',
+           '*inc': { 'type': 'bool', 'features': ['deprecated'] },
            '*detach': 'bool', '*resume': 'bool' } }
 
 ##
