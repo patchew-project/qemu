@@ -10,8 +10,8 @@
 #include "qapi/error.h"
 #include "trace.h"
 
-#include "hw/fsi/bits.h"
 #include "hw/fsi/cfam.h"
+#include "hw/fsi/fsi.h"
 #include "hw/fsi/engine-scratchpad.h"
 
 #include "hw/qdev-properties.h"
