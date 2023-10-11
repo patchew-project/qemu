@@ -1484,7 +1484,9 @@
 #
 # @uri: the Uniform Resource Identifier of the destination VM
 #
-# @blk: do block migration (full disk copy)
+# @blk: do block migration (full disk copy). This option is
+#     deprecated.  Set the 'block' migration capability to 'true'
+#     instead.
 #
 # @inc: incremental disk copy migration.  This option is deprecated.
 #     Set the 'block-incremetantal' migration parameter to 'true'
@@ -1498,7 +1500,8 @@
 # Features:
 #
 # @deprecated: option @inc should be enabled by setting the
-#     'block-incremental' migration parameter to 'true'.
+#     'block-incremental' migration parameter to 'true', option @blk
+#     should be enabled by setting the 'block' capability to 'true'.
 #
 # Returns: nothing on success
 #
@@ -1521,7 +1524,8 @@
 # <- { "return": {} }
 ##
 { 'command': 'migrate',
-  'data': {'uri': 'str', '*blk': 'bool',
+  'data': {'uri': 'str',
+           '*blk': { 'type': 'bool', 'features': ['deprecated'] },
            '*inc': { 'type': 'bool', 'features': ['deprecated'] },
            '*detach': 'bool', '*resume': 'bool' } }
 

@@ -424,3 +424,10 @@ The new way to modify migration is using migration parameters.
 ``inc`` functionality can be achieved by setting the
 ``block-incremental`` migration parameter to ``true``.
 
+``blk`` migrate command option (since 8.2)
+''''''''''''''''''''''''''''''''''''''''''
+
+The new way to modify migration is using migration parameters.
+``blk`` functionality can be achieved by setting the
+``block`` migration capability to ``true``.
+
