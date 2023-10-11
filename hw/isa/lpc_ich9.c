@@ -707,8 +707,8 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
         return;
     }
 
-    isa_bus = isa_bus_new(DEVICE(d), get_system_memory(), get_system_io(),
-                          errp);
+    isa_bus = isa_bus_new(DEVICE(d), pci_address_space(d),
+                          pci_address_space_io(d), errp);
     if (!isa_bus) {
         return;
     }
