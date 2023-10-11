@@ -45,7 +45,13 @@ typedef struct {
     uint32_t pages_alloc;
     /* non zero pages */
     uint32_t normal_pages;
-    /* size of the next packet that contains pages */
+    /*
+     * amount of data to be sent to the destination
+     * that is calculated as
+     *  - number of the normal guest dirty pages * page_size in non
+     *    compression case;
+     *  - equals of the compressed data size to be received;
+     */
     uint32_t next_packet_size;
     uint64_t packet_num;
     uint64_t unused[4];    /* Reserved for future use */
@@ -79,11 +85,18 @@ typedef struct {
     QIOChannel *c;
     /* is the yank function registered */
     bool registered_yank;
-    /* packet allocated len */
+    /*
+     * allocated length of a packet to be transferred.
+     * It has a size of MultiFDPacket struct plus
+     * the size of the array of guest page offsets (page_count * page_size).
+     */
     uint32_t packet_len;
     /* guest page size */
     uint32_t page_size;
-    /* number of pages in a full packet */
+    /*
+     * maximum number of dirty pages in a full packet calculated as
+     * MULTIFD_PACKET_SIZE / qemu_target_page_size()
+     */
     uint32_t page_count;
     /* multifd flags for sending ram */
     int write_flags;
@@ -116,7 +129,13 @@ typedef struct {
 
     /* pointer to the packet */
     MultiFDPacket_t *packet;
-    /* size of the next packet that contains pages */
+    /*
+     * amount of data to be sent to the destination
+     * that is calculated as
+     *  - number of the normal guest dirty pages * page_size in non
+     *    compression case;
+     *  - equals of the compressed data size to be received;
+     */
     uint32_t next_packet_size;
     /* packets sent through this channel */
     uint64_t num_packets;
@@ -171,7 +190,13 @@ typedef struct {
 
     /* pointer to the packet */
     MultiFDPacket_t *packet;
-    /* size of the next packet that contains pages */
+    /*
+     * amount of data to be received by the destination
+     * that is calculated as
+     *  - number of the normal guest dirty pages * page_size in non
+     *    compression case;
+     *  - equals of the compressed data size to be received;
+     */
     uint32_t next_packet_size;
     /* packets sent through this channel */
     uint64_t num_packets;
