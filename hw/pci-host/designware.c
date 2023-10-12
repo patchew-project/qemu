@@ -109,20 +109,21 @@ static void designware_pcie_root_update_msi_mapping(DesignwarePCIERoot *root)
 }
 
 static DesignwarePCIEViewport *
-designware_pcie_root_get_current_viewport(DesignwarePCIERoot *root)
+designware_pcie_host_get_current_viewport(DesignwarePCIEHost *host)
 {
-    const unsigned int idx = root->atu_viewport & 0xF;
+    const unsigned int idx = host->atu_viewport & 0xF;
     const unsigned int dir =
-        !!(root->atu_viewport & DESIGNWARE_PCIE_ATU_REGION_INBOUND);
-    return &root->viewports[dir][idx];
+        !!(host->atu_viewport & DESIGNWARE_PCIE_ATU_REGION_INBOUND);
+    return &host->viewports[dir][idx];
 }
 
 static uint32_t
 designware_pcie_root_config_read(PCIDevice *d, uint32_t address, int len)
 {
     DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(d);
+    DesignwarePCIEHost *host = root->host;
     DesignwarePCIEViewport *viewport =
-        designware_pcie_root_get_current_viewport(root);
+        designware_pcie_host_get_current_viewport(host);
 
     uint32_t val;
 
@@ -170,7 +171,7 @@ designware_pcie_root_config_read(PCIDevice *d, uint32_t address, int len)
         break;
 
     case DESIGNWARE_PCIE_ATU_VIEWPORT:
-        val = root->atu_viewport;
+        val = host->atu_viewport;
         break;
 
     case DESIGNWARE_PCIE_ATU_LOWER_BASE:
@@ -294,7 +295,7 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
     DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(d);
     DesignwarePCIEHost *host = root->host;
     DesignwarePCIEViewport *viewport =
-        designware_pcie_root_get_current_viewport(root);
+        designware_pcie_host_get_current_viewport(host);
 
     switch (address) {
     case DESIGNWARE_PCIE_PORT_LINK_CONTROL:
@@ -332,7 +333,7 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
         break;
 
     case DESIGNWARE_PCIE_ATU_VIEWPORT:
-        root->atu_viewport = val;
+        host->atu_viewport = val;
         break;
 
     case DESIGNWARE_PCIE_ATU_LOWER_BASE:
@@ -420,7 +421,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         const char *direction;
         char *name;
 
-        viewport = &root->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][i];
+        viewport = &host->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][i];
         viewport->inbound = true;
         viewport->base    = 0x0000000000000000ULL;
         viewport->target  = 0x0000000000000000ULL;
@@ -443,7 +444,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         memory_region_set_enabled(mem, false);
         g_free(name);
 
-        viewport = &root->viewports[DESIGNWARE_PCIE_VIEWPORT_OUTBOUND][i];
+        viewport = &host->viewports[DESIGNWARE_PCIE_VIEWPORT_OUTBOUND][i];
         viewport->host    = host;
         viewport->inbound = false;
         viewport->base    = 0x0000000000000000ULL;
@@ -490,7 +491,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
      * NOTE: This will not work correctly for the case when first
      * configured inbound window is window 0
      */
-    viewport = &root->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][0];
+    viewport = &host->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][0];
     viewport->cr[1] = DESIGNWARE_PCIE_ATU_ENABLE;
     designware_pcie_update_viewport(root, viewport);
 
@@ -563,18 +564,10 @@ static const VMStateDescription vmstate_designware_pcie_viewport = {
 
 static const VMStateDescription vmstate_designware_pcie_root = {
     .name = "designware-pcie-root",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
-        VMSTATE_UINT32(atu_viewport, DesignwarePCIERoot),
-        VMSTATE_STRUCT_2DARRAY(viewports,
-                               DesignwarePCIERoot,
-                               2,
-                               DESIGNWARE_PCIE_NUM_VIEWPORTS,
-                               1,
-                               vmstate_designware_pcie_viewport,
-                               DesignwarePCIEViewport),
         VMSTATE_STRUCT(msi,
                        DesignwarePCIERoot,
                        1,
@@ -711,14 +704,22 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
 
 static const VMStateDescription vmstate_designware_pcie_host = {
     .name = "designware-pcie-host",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(root,
                        DesignwarePCIEHost,
                        1,
                        vmstate_designware_pcie_root,
                        DesignwarePCIERoot),
+        VMSTATE_UINT32(atu_viewport, DesignwarePCIEHost),
+        VMSTATE_STRUCT_2DARRAY(viewports,
+                               DesignwarePCIEHost,
+                               2,
+                               DESIGNWARE_PCIE_NUM_VIEWPORTS,
+                               1,
+                               vmstate_designware_pcie_viewport,
+                               DesignwarePCIEViewport),
         VMSTATE_END_OF_LIST()
     }
 };
