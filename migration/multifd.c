@@ -533,7 +533,7 @@ void multifd_save_cleanup(void)
         p->c = NULL;
         qemu_mutex_destroy(&p->mutex);
         qemu_sem_destroy(&p->sem);
-        qemu_sem_destroy(&p->sem_sync);
+        qemu_sem_destroy(&p->sem_done);
         g_free(p->name);
         p->name = NULL;
         multifd_pages_clear(p->pages);
@@ -591,19 +591,6 @@ int multifd_send_sync_main(QEMUFile *f)
         }
     }
 
-    /*
-     * When using zero-copy, it's necessary to flush the pages before any of
-     * the pages can be sent again, so we'll make sure the new version of the
-     * pages will always arrive _later_ than the old pages.
-     *
-     * Currently we achieve this by flushing the zero-page requested writes
-     * per ram iteration, but in the future we could potentially optimize it
-     * to be less frequent, e.g. only after we finished one whole scanning of
-     * all the dirty bitmaps.
-     */
-
-    flush_zero_copy = migrate_zero_copy_send();
-
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
@@ -623,11 +610,39 @@ int multifd_send_sync_main(QEMUFile *f)
         qemu_mutex_unlock(&p->mutex);
         qemu_sem_post(&p->sem);
     }
+
+    /* wait for all channels to be idle */
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
-        trace_multifd_send_sync_main_wait(p->id);
-        qemu_sem_wait(&p->sem_sync);
+        /*
+         * Even idle channels will wait for p->sem at the top of the
+         * loop.
+         */
+        qemu_sem_post(&p->sem);
+
+        trace_multifd_send_wait(migrate_multifd_channels() - i);
+        qemu_sem_wait(&p->sem_done);
+
+        qemu_mutex_lock(&p->mutex);
+        assert(!p->pending_job || p->quit);
+        qemu_mutex_unlock(&p->mutex);
+    }
+
+    /*
+     * When using zero-copy, it's necessary to flush the pages before any of
+     * the pages can be sent again, so we'll make sure the new version of the
+     * pages will always arrive _later_ than the old pages.
+     *
+     * Currently we achieve this by flushing the zero-page requested writes
+     * per ram iteration, but in the future we could potentially optimize it
+     * to be less frequent, e.g. only after we finished one whole scanning of
+     * all the dirty bitmaps.
+     */
+    flush_zero_copy = migrate_zero_copy_send();
+
+    for (i = 0; i < migrate_multifd_channels(); i++) {
+        MultiFDSendParams *p = &multifd_send_state->params[i];
 
         if (flush_zero_copy && p->c && (multifd_zero_copy_flush(p->c) < 0)) {
             return -1;
@@ -728,12 +743,9 @@ static void *multifd_send_thread(void *opaque)
             p->pending_job--;
             qemu_mutex_unlock(&p->mutex);
 
-            if (flags & MULTIFD_FLAG_SYNC) {
-                qemu_sem_post(&p->sem_sync);
-            }
         } else {
             qemu_mutex_unlock(&p->mutex);
-            /* sometimes there are spurious wakeups */
+            qemu_sem_post(&p->sem_done);
         }
     }
 
@@ -749,7 +761,7 @@ out:
      * who pay attention to me.
      */
     if (ret != 0) {
-        qemu_sem_post(&p->sem_sync);
+        qemu_sem_post(&p->sem_done);
     }
 
     qemu_mutex_lock(&p->mutex);
@@ -786,7 +798,7 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
          * is not created, and then tell who pay attention to me.
          */
         p->quit = true;
-        qemu_sem_post(&p->sem_sync);
+        qemu_sem_post(&p->sem_done);
     }
 }
 
@@ -863,7 +875,7 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
 {
      migrate_set_error(migrate_get_current(), err);
      /* Error happen, we need to tell who pay attention to me */
-     qemu_sem_post(&p->sem_sync);
+     qemu_sem_post(&p->sem_done);
      /*
       * Although multifd_send_thread is not created, but main migration
       * thread need to judge whether it is running, so we need to mark
@@ -915,7 +927,7 @@ int multifd_save_setup(Error **errp)
 
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem, 0);
-        qemu_sem_init(&p->sem_sync, 0);
+        qemu_sem_init(&p->sem_done, 0);
         p->quit = false;
         p->pending_job = 0;
         p->id = i;
