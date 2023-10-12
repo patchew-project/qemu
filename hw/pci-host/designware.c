@@ -384,22 +384,10 @@ static char *designware_pcie_viewport_name(const char *direction,
 static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
 {
     DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(dev);
-    DesignwarePCIEHost *host = DESIGNWARE_PCIE_HOST(
-                                    qdev_get_parent_bus(DEVICE(dev))->parent);
-    MemoryRegion *host_mem = get_system_memory();
-    MemoryRegion *address_space = &host->pci.memory;
     PCIBridge *br = PCI_BRIDGE(dev);
-    DesignwarePCIEViewport *viewport;
-    /*
-     * Dummy values used for initial configuration of MemoryRegions
-     * that belong to a given viewport
-     */
-    const hwaddr dummy_offset = 0;
-    const uint64_t dummy_size = 4;
-    size_t i;
 
     br->bus_name  = "dw-pcie";
-    root->host = host;
+    root->host = DESIGNWARE_PCIE_HOST(qdev_get_parent_bus(DEVICE(dev))->parent);
 
     pci_set_word(dev->config + PCI_COMMAND,
                  PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
@@ -414,97 +402,6 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
 
     msi_nonbroken = true;
     msi_init(dev, 0x50, 32, true, true, &error_fatal);
-
-    for (i = 0; i < DESIGNWARE_PCIE_NUM_VIEWPORTS; i++) {
-        MemoryRegion *source, *destination, *mem;
-        const char *direction;
-        char *name;
-
-        viewport = &host->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][i];
-        viewport->inbound = true;
-        viewport->base    = 0x0000000000000000ULL;
-        viewport->target  = 0x0000000000000000ULL;
-        viewport->limit   = UINT32_MAX;
-        viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
-
-        source      = &host->pci.address_space_root;
-        destination = host_mem;
-        direction   = "Inbound";
-
-        /*
-         * Configure MemoryRegion implementing PCI -> CPU memory
-         * access
-         */
-        mem  = &viewport->mem;
-        name = designware_pcie_viewport_name(direction, i, "MEM");
-        memory_region_init_alias(mem, OBJECT(root), name, destination,
-                                 dummy_offset, dummy_size);
-        memory_region_add_subregion_overlap(source, dummy_offset, mem, -1);
-        memory_region_set_enabled(mem, false);
-        g_free(name);
-
-        viewport = &host->viewports[DESIGNWARE_PCIE_VIEWPORT_OUTBOUND][i];
-        viewport->host    = host;
-        viewport->inbound = false;
-        viewport->base    = 0x0000000000000000ULL;
-        viewport->target  = 0x0000000000000000ULL;
-        viewport->limit   = UINT32_MAX;
-        viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
-
-        destination = &host->pci.memory;
-        direction   = "Outbound";
-        source      = host_mem;
-
-        /*
-         * Configure MemoryRegion implementing CPU -> PCI memory
-         * access
-         */
-        mem  = &viewport->mem;
-        name = designware_pcie_viewport_name(direction, i, "MEM");
-        memory_region_init_alias(mem, OBJECT(root), name, destination,
-                                 dummy_offset, dummy_size);
-        memory_region_add_subregion(source, dummy_offset, mem);
-        memory_region_set_enabled(mem, false);
-        g_free(name);
-
-        /*
-         * Configure MemoryRegion implementing access to configuration
-         * space
-         */
-        mem  = &viewport->cfg;
-        name = designware_pcie_viewport_name(direction, i, "CFG");
-        memory_region_init_io(&viewport->cfg, OBJECT(root),
-                              &designware_pci_host_conf_ops,
-                              viewport, name, dummy_size);
-        memory_region_add_subregion(source, dummy_offset, mem);
-        memory_region_set_enabled(mem, false);
-        g_free(name);
-    }
-
-    /*
-     * If no inbound iATU windows are configured, HW defaults to
-     * letting inbound TLPs to pass in. We emulate that by explicitly
-     * configuring first inbound window to cover all of target's
-     * address space.
-     *
-     * NOTE: This will not work correctly for the case when first
-     * configured inbound window is window 0
-     */
-    viewport = &host->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][0];
-    viewport->cr[1] = DESIGNWARE_PCIE_ATU_ENABLE;
-    designware_pcie_update_viewport(root, viewport);
-
-    memory_region_init_io(&host->msi.iomem, OBJECT(root),
-                          &designware_pci_host_msi_ops,
-                          root, "pcie-msi", 0x4);
-    /*
-     * We initially place MSI interrupt I/O region at address 0 and
-     * disable it. It'll be later moved to correct offset and enabled
-     * in designware_pcie_root_update_msi_mapping() as a part of
-     * initialization done by guest OS
-     */
-    memory_region_add_subregion(address_space, dummy_offset, &host->msi.iomem);
-    memory_region_set_enabled(&host->msi.iomem, false);
 }
 
 static void designware_pcie_set_irq(void *opaque, int irq_num, int level)
@@ -590,7 +487,7 @@ static void designware_pcie_root_class_init(ObjectClass *klass, void *data)
     dc->reset = pci_bridge_reset;
     /*
      * PCI-facing part of the host bridge, not usable without the
-     * host-facing part, which can't be device_add'ed, yet.
+     * host-facing part.
      */
     dc->user_creatable = false;
     dc->vmsd = &vmstate_designware_pcie_root;
@@ -650,7 +547,16 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     DesignwarePCIEHost *s = DESIGNWARE_PCIE_HOST(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    MemoryRegion *host_mem = get_system_memory();
+    DesignwarePCIEViewport *viewport;
     size_t i;
+
+    /*
+     * Dummy values used for initial configuration of MemoryRegions
+     * that belong to a given viewport
+     */
+    const hwaddr dummy_offset = 0;
+    const uint64_t dummy_size = 4;
 
     for (i = 0; i < ARRAY_SIZE(s->pci.irqs); i++) {
         sysbus_init_irq(sbd, &s->pci.irqs[i]);
@@ -694,6 +600,97 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_int32(DEVICE(&s->root), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(&s->root), "multifunction", false);
     qdev_realize(DEVICE(&s->root), BUS(pci->bus), &error_fatal);
+
+    memory_region_init_io(&s->msi.iomem, OBJECT(s),
+                          &designware_pci_host_msi_ops,
+                          s, "pcie-msi", 0x4);
+    /*
+     * We initially place MSI interrupt I/O region at address 0 and
+     * disable it. It'll be later moved to correct offset and enabled
+     * in designware_pcie_host_update_msi_mapping() as a part of
+     * initialization done by guest OS
+     */
+    memory_region_add_subregion(&s->pci.memory, dummy_offset, &s->msi.iomem);
+    memory_region_set_enabled(&s->msi.iomem, false);
+
+    for (i = 0; i < DESIGNWARE_PCIE_NUM_VIEWPORTS; i++) {
+        MemoryRegion *source, *destination, *mem;
+        const char *direction;
+        char *name;
+
+        viewport = &s->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][i];
+        viewport->inbound = true;
+        viewport->base    = 0x0000000000000000ULL;
+        viewport->target  = 0x0000000000000000ULL;
+        viewport->limit   = UINT32_MAX;
+        viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
+
+        source      = &s->pci.address_space_root;
+        destination = host_mem;
+        direction   = "Inbound";
+
+        /*
+         * Configure MemoryRegion implementing PCI -> CPU memory
+         * access
+         */
+        mem  = &viewport->mem;
+        name = designware_pcie_viewport_name(direction, i, "MEM");
+        memory_region_init_alias(mem, OBJECT(s), name, destination,
+                                 dummy_offset, dummy_size);
+        memory_region_add_subregion_overlap(source, dummy_offset, mem, -1);
+        memory_region_set_enabled(mem, false);
+        g_free(name);
+
+        viewport = &s->viewports[DESIGNWARE_PCIE_VIEWPORT_OUTBOUND][i];
+        viewport->host    = s;
+        viewport->inbound = false;
+        viewport->base    = 0x0000000000000000ULL;
+        viewport->target  = 0x0000000000000000ULL;
+        viewport->limit   = UINT32_MAX;
+        viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
+
+        destination = &s->pci.memory;
+        direction   = "Outbound";
+        source      = host_mem;
+
+        /*
+         * Configure MemoryRegion implementing CPU -> PCI memory
+         * access
+         */
+        mem  = &viewport->mem;
+        name = designware_pcie_viewport_name(direction, i, "MEM");
+        memory_region_init_alias(mem, OBJECT(s), name, destination,
+                                 dummy_offset, dummy_size);
+        memory_region_add_subregion(source, dummy_offset, mem);
+        memory_region_set_enabled(mem, false);
+        g_free(name);
+
+        /*
+         * Configure MemoryRegion implementing access to configuration
+         * space
+         */
+        mem  = &viewport->cfg;
+        name = designware_pcie_viewport_name(direction, i, "CFG");
+        memory_region_init_io(&viewport->cfg, OBJECT(s),
+                              &designware_pci_host_conf_ops,
+                              viewport, name, dummy_size);
+        memory_region_add_subregion(source, dummy_offset, mem);
+        memory_region_set_enabled(mem, false);
+        g_free(name);
+    }
+
+    /*
+     * If no inbound iATU windows are configured, HW defaults to
+     * letting inbound TLPs to pass in. We emulate that by explicitly
+     * configuring first inbound window to cover all of target's
+     * address space.
+     *
+     * NOTE: This will not work correctly for the case when first
+     * configured inbound window is window 0
+     */
+    viewport = &s->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][0];
+    viewport->cr[1] = DESIGNWARE_PCIE_ATU_ENABLE;
+    designware_pcie_update_viewport(&s->root, viewport);
 }
 
 static const VMStateDescription vmstate_designware_pcie_host = {
