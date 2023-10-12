@@ -189,7 +189,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
          * to accurately track instrumented helpers that might access memory.
          */
         if (plugin_enabled) {
-            plugin_gen_insn_end();
+            plugin_gen_insn_end(cpu);
         }
 
         /* Stop translation if translate_insn so indicated.  */

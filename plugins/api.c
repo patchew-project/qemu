@@ -89,8 +89,13 @@ void qemu_plugin_register_vcpu_tb_exec_cb(struct qemu_plugin_tb *tb,
                                           void *udata)
 {
     if (!tb->mem_only) {
+        bool read = flags == QEMU_PLUGIN_CB_R_REGS ||
+                    flags == QEMU_PLUGIN_CB_RW_REGS;
+
         plugin_register_dyn_cb__udata(&tb->cbs[PLUGIN_CB_REGULAR],
-                                      cb, flags, udata);
+                                      cb,
+                                      read ? BIT(QEMU_PLUGIN_FLAG_TB_CB_READ) : 0,
+                                      udata);
     }
 }
 
@@ -109,8 +114,13 @@ void qemu_plugin_register_vcpu_insn_exec_cb(struct qemu_plugin_insn *insn,
                                             void *udata)
 {
     if (!insn->mem_only) {
+        bool read = flags == QEMU_PLUGIN_CB_R_REGS ||
+                    flags == QEMU_PLUGIN_CB_RW_REGS;
+
         plugin_register_dyn_cb__udata(&insn->cbs[PLUGIN_CB_INSN][PLUGIN_CB_REGULAR],
-                                      cb, flags, udata);
+                                      cb,
+                                      read ? BIT(QEMU_PLUGIN_FLAG_INSN_CB_READ) : 0,
+                                      udata);
     }
 }
 
