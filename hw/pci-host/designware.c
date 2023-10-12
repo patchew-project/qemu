@@ -707,6 +707,10 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
                        "pcie-bus-address-space");
     pci_setup_iommu(pci->bus, designware_pcie_host_set_iommu, s);
 
+    object_initialize_child(OBJECT(dev), "root", &s->root,
+                            TYPE_DESIGNWARE_PCIE_ROOT);
+    qdev_prop_set_int32(DEVICE(&s->root), "addr", PCI_DEVFN(0, 0));
+    qdev_prop_set_bit(DEVICE(&s->root), "multifunction", false);
     qdev_realize(DEVICE(&s->root), BUS(pci->bus), &error_fatal);
 }
 
@@ -736,22 +740,11 @@ static void designware_pcie_host_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_designware_pcie_host;
 }
 
-static void designware_pcie_host_init(Object *obj)
-{
-    DesignwarePCIEHost *s = DESIGNWARE_PCIE_HOST(obj);
-    DesignwarePCIERoot *root = &s->root;
-
-    object_initialize_child(obj, "root", root, TYPE_DESIGNWARE_PCIE_ROOT);
-    qdev_prop_set_int32(DEVICE(root), "addr", PCI_DEVFN(0, 0));
-    qdev_prop_set_bit(DEVICE(root), "multifunction", false);
-}
-
 static const TypeInfo designware_pcie_types[] = {
     {
         .name           = TYPE_DESIGNWARE_PCIE_HOST,
         .parent         = TYPE_PCI_HOST_BRIDGE,
         .instance_size  = sizeof(DesignwarePCIEHost),
-        .instance_init  = designware_pcie_host_init,
         .class_init     = designware_pcie_host_class_init,
     }, {
         .name           = TYPE_DESIGNWARE_PCIE_ROOT,
