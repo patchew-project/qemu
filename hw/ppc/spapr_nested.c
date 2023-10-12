@@ -238,21 +238,21 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
         return H_PARAMETER;
     }
 
-    spapr_cpu->nested_host_state = g_try_new(struct nested_ppc_state, 1);
-    if (!spapr_cpu->nested_host_state) {
+    spapr_cpu->nested_hv_host = g_try_new(struct nested_ppc_state, 1);
+    if (!spapr_cpu->nested_hv_host) {
         return H_NO_MEM;
     }
 
     assert(env->spr[SPR_LPIDR] == 0);
     assert(env->spr[SPR_DPDES] == 0);
-    nested_save_state(spapr_cpu->nested_host_state, cpu);
+    nested_save_state(spapr_cpu->nested_hv_host, cpu);
 
     len = sizeof(*regs);
     regs = address_space_map(CPU(cpu)->as, regs_ptr, &len, false,
                                 MEMTXATTRS_UNSPECIFIED);
     if (!regs || len != sizeof(*regs)) {
         address_space_unmap(CPU(cpu)->as, regs, len, 0, false);
-        g_free(spapr_cpu->nested_host_state);
+        g_free(spapr_cpu->nested_hv_host);
         return H_P2;
     }
 
@@ -330,8 +330,8 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     CPUPPCState *env = &cpu->env;
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
     struct nested_ppc_state l2_state;
-    target_ulong hv_ptr = spapr_cpu->nested_host_state->gpr[4];
-    target_ulong regs_ptr = spapr_cpu->nested_host_state->gpr[5];
+    target_ulong hv_ptr = spapr_cpu->nested_hv_host->gpr[4];
+    target_ulong regs_ptr = spapr_cpu->nested_hv_host->gpr[5];
     target_ulong hsrr0, hsrr1, hdar, asdr, hdsisr;
     struct kvmppc_hv_guest_state *hvstate;
     struct kvmppc_pt_regs *regs;
@@ -350,15 +350,15 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
      * Switch back to the host environment (including for any error).
      */
     assert(env->spr[SPR_LPIDR] != 0);
-    nested_load_state(cpu, spapr_cpu->nested_host_state);
+    nested_load_state(cpu, spapr_cpu->nested_hv_host);
     env->gpr[3] = env->excp_vectors[excp]; /* hcall return value */
 
     cpu_ppc_hdecr_exit(env);
 
     spapr_cpu->in_nested = false;
 
-    g_free(spapr_cpu->nested_host_state);
-    spapr_cpu->nested_host_state = NULL;
+    g_free(spapr_cpu->nested_hv_host);
+    spapr_cpu->nested_hv_host = NULL;
 
     len = sizeof(*hvstate);
     hvstate = address_space_map(CPU(cpu)->as, hv_ptr, &len, true,
