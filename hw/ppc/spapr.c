@@ -1377,10 +1377,7 @@ static bool spapr_get_pate(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu,
         return true;
     } else {
         assert(spapr->nested.api);
-        if (spapr->nested.api == NESTED_API_KVM_HV) {
-            return spapr_get_pate_nested(spapr, cpu, lpid, entry);
-        }
-        return false;
+        return spapr_get_pate_nested(spapr, cpu, lpid, entry);
     }
 }
 

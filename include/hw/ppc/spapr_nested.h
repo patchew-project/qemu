@@ -457,4 +457,7 @@ bool spapr_get_pate_nested(SpaprMachineState *spapr, PowerPCCPU *cpu,
 void spapr_register_nested_papr(void);
 void spapr_nested_init(SpaprMachineState *spapr);
 void spapr_nested_gsb_init(void);
+SpaprMachineStateNestedGuest *spapr_get_nested_guest(SpaprMachineState *spapr,
+                                                     target_ulong lpid);
+
 #endif /* HW_SPAPR_NESTED_H */

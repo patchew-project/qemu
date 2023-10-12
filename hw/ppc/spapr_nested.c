@@ -19,29 +19,45 @@ void spapr_nested_init(SpaprMachineState *spapr)
 bool spapr_get_pate_nested(SpaprMachineState *spapr, PowerPCCPU *cpu,
                            target_ulong lpid, ppc_v3_pate_t *entry)
 {
-    uint64_t patb, pats;
+    if (spapr->nested.api == NESTED_API_KVM_HV) {
+        uint64_t patb, pats;
 
+        assert(lpid != 0);
+
+        patb = spapr->nested.ptcr & PTCR_PATB;
+        pats = spapr->nested.ptcr & PTCR_PATS;
+
+        /* Check if partition table is properly aligned */
+        if (patb & MAKE_64BIT_MASK(0, pats + 12)) {
+            return false;
+        }
+
+        /* Calculate number of entries */
+        pats = 1ull << (pats + 12 - 4);
+        if (pats <= lpid) {
+            return false;
+        }
+
+        /* Grab entry */
+        patb += 16 * lpid;
+        entry->dw0 = ldq_phys(CPU(cpu)->as, patb);
+        entry->dw1 = ldq_phys(CPU(cpu)->as, patb + 8);
+        return true;
+    }
+#ifdef CONFIG_TCG
+    /* Nested PAPR API */
+    SpaprMachineStateNestedGuest *guest;
     assert(lpid != 0);
+    guest = spapr_get_nested_guest(spapr, lpid);
+    assert(guest != NULL);
 
-    patb = spapr->nested.ptcr & PTCR_PATB;
-    pats = spapr->nested.ptcr & PTCR_PATS;
+    entry->dw0 = guest->parttbl[0];
+    entry->dw1 = guest->parttbl[1];
 
-    /* Check if partition table is properly aligned */
-    if (patb & MAKE_64BIT_MASK(0, pats + 12)) {
-        return false;
-    }
-
-    /* Calculate number of entries */
-    pats = 1ull << (pats + 12 - 4);
-    if (pats <= lpid) {
-        return false;
-    }
-
-    /* Grab entry */
-    patb += 16 * lpid;
-    entry->dw0 = ldq_phys(CPU(cpu)->as, patb);
-    entry->dw1 = ldq_phys(CPU(cpu)->as, patb + 8);
     return true;
+#else
+    return false;
+#endif
 }
 
 #ifdef CONFIG_TCG
@@ -412,7 +428,6 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     address_space_unmap(CPU(cpu)->as, regs, len, len, true);
 }
 
-static
 SpaprMachineStateNestedGuest *spapr_get_nested_guest(SpaprMachineState *spapr,
                                                      target_ulong guestid)
 {
