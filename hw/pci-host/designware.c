@@ -211,12 +211,11 @@ static uint64_t designware_pcie_root_data_access(void *opaque, hwaddr addr,
                                                  uint64_t *val, unsigned len)
 {
     DesignwarePCIEViewport *viewport = opaque;
-    DesignwarePCIERoot *root = viewport->root;
+    PCIHostState *pci = PCI_HOST_BRIDGE(viewport->host);
 
     const uint8_t busnum = DESIGNWARE_PCIE_ATU_BUS(viewport->target);
     const uint8_t devfn  = DESIGNWARE_PCIE_ATU_DEVFN(viewport->target);
-    PCIBus    *pcibus    = pci_get_bus(PCI_DEVICE(root));
-    PCIDevice *pcidev    = pci_find_device(pcibus, busnum, devfn);
+    PCIDevice *pcidev    = pci_find_device(pci->bus, busnum, devfn);
 
     if (pcidev) {
         addr &= pci_config_size(pcidev) - 1;
@@ -445,7 +444,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         g_free(name);
 
         viewport = &root->viewports[DESIGNWARE_PCIE_VIEWPORT_OUTBOUND][i];
-        viewport->root    = root;
+        viewport->host    = host;
         viewport->inbound = false;
         viewport->base    = 0x0000000000000000ULL;
         viewport->target  = 0x0000000000000000ULL;
