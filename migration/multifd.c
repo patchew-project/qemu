@@ -497,13 +497,11 @@ static void multifd_send_terminate_threads(Error *err)
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
-        qemu_mutex_lock(&p->mutex);
-        p->quit = true;
+        /* kick the channel if it was waiting for work */
         qemu_sem_post(&p->sem);
         if (p->c) {
             qio_channel_shutdown(p->c, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
         }
-        qemu_mutex_unlock(&p->mutex);
     }
 }
 
@@ -690,6 +688,9 @@ static void *multifd_send_thread(void *opaque)
         qemu_sem_wait(&p->sem);
 
         if (qatomic_read(&multifd_send_state->exiting)) {
+            qemu_mutex_lock(&p->mutex);
+            p->quit = true;
+            qemu_mutex_unlock(&p->mutex);
             break;
         }
         qemu_mutex_lock(&p->mutex);
@@ -765,6 +766,11 @@ static void *multifd_send_thread(void *opaque)
 out:
     if (local_err) {
         trace_multifd_send_error(p->id);
+
+        qemu_mutex_lock(&p->mutex);
+        p->quit = true;
+        qemu_mutex_unlock(&p->mutex);
+
         multifd_send_terminate_threads(local_err);
         error_free(local_err);
     }
