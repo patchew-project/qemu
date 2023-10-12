@@ -514,6 +514,7 @@ static void cap_nested_papr_apply(SpaprMachineState *spapr,
     if (!spapr->nested.api) {
         spapr->nested.api = NESTED_API_PAPR;
         spapr_register_nested_papr();
+        spapr_nested_gsb_init();
     } else {
         error_setg(errp, "Nested-HV APIs are mutually exclusive/incompatible");
         error_append_hint(errp, "Please use either cap-nested-hv or "
