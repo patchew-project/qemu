@@ -456,6 +456,7 @@ static void cap_nested_kvm_hv_apply(SpaprMachineState *spapr,
 
     if (!spapr->nested.api) {
         spapr->nested.api = NESTED_API_KVM_HV;
+        spapr_register_nested();
     } else {
         error_setg(errp, "Nested-HV APIs are mutually exclusive/incompatible");
         error_append_hint(errp, "Please use either cap-nested-hv or "
