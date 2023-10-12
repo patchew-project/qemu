@@ -6,6 +6,9 @@
 
 typedef struct SpaprMachineStateNested {
     uint64_t ptcr;
+    uint8_t api;
+#define NESTED_API_KVM_HV  1
+#define NESTED_API_PAPR    2
 } SpaprMachineStateNested;
 
 /*
@@ -105,4 +108,6 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp);
 typedef struct SpaprMachineState SpaprMachineState;
 bool spapr_get_pate_nested(SpaprMachineState *spapr, PowerPCCPU *cpu,
                            target_ulong lpid, ppc_v3_pate_t *entry);
+void spapr_register_nested_papr(void);
+void spapr_nested_init(SpaprMachineState *spapr);
 #endif /* HW_SPAPR_NESTED_H */

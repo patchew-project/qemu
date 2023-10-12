@@ -8,6 +8,11 @@
 #include "hw/ppc/spapr_nested.h"
 #include "mmu-book3s-v3.h"
 
+void spapr_nested_init(SpaprMachineState *spapr)
+{
+    spapr->nested.api = 0;
+}
+
 bool spapr_get_pate_nested(SpaprMachineState *spapr, PowerPCCPU *cpu,
                            target_ulong lpid, ppc_v3_pate_t *entry)
 {
@@ -411,6 +416,11 @@ void spapr_register_nested(void)
     spapr_register_hypercall(KVMPPC_H_TLB_INVALIDATE, h_tlb_invalidate);
     spapr_register_hypercall(KVMPPC_H_COPY_TOFROM_GUEST, h_copy_tofrom_guest);
 }
+
+void spapr_register_nested_papr(void)
+{
+    /* register hcalls here */
+}
 #else
 void spapr_exit_nested(PowerPCCPU *cpu, int excp)
 {
@@ -418,6 +428,11 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
 }
 
 void spapr_register_nested(void)
+{
+    /* DO NOTHING */
+}
+
+void spapr_register_nested_papr(void)
 {
     /* DO NOTHING */
 }
