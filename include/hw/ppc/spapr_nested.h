@@ -98,5 +98,6 @@ struct nested_ppc_state {
 
 void spapr_register_nested(void);
 void spapr_exit_nested(PowerPCCPU *cpu, int excp);
-
+bool spapr_get_pate_nested(SpaprMachineState *spapr, PowerPCCPU *cpu,
+                           target_ulong lpid, ppc_v3_pate_t *entry);
 #endif /* HW_SPAPR_NESTED_H */
