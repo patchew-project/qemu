@@ -63,7 +63,6 @@ typedef struct DesignwarePCIEMSI {
 struct DesignwarePCIERoot {
     PCIBridge parent_obj;
 
-    DesignwarePCIEMSI msi;
     DesignwarePCIEHost *host;
 };
 
@@ -71,6 +70,7 @@ struct DesignwarePCIEHost {
     PCIHostState parent_obj;
 
     DesignwarePCIERoot root;
+    DesignwarePCIEMSI msi;
 
     uint32_t atu_viewport;
 #define DESIGNWARE_PCIE_VIEWPORT_OUTBOUND    0

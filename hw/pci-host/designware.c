@@ -57,7 +57,7 @@
 
 #define DESIGNWARE_PCIE_IRQ_MSI                    3
 
-static uint64_t designware_pcie_root_msi_read(void *opaque, hwaddr addr,
+static uint64_t designware_pcie_host_msi_read(void *opaque, hwaddr addr,
                                               unsigned size)
 {
     /*
@@ -74,22 +74,21 @@ static uint64_t designware_pcie_root_msi_read(void *opaque, hwaddr addr,
     return 0;
 }
 
-static void designware_pcie_root_msi_write(void *opaque, hwaddr addr,
+static void designware_pcie_host_msi_write(void *opaque, hwaddr addr,
                                            uint64_t val, unsigned len)
 {
-    DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(opaque);
-    DesignwarePCIEHost *host = root->host;
+    DesignwarePCIEHost *host = opaque;
 
-    root->msi.intr[0].status |= BIT(val) & root->msi.intr[0].enable;
+    host->msi.intr[0].status |= BIT(val) & host->msi.intr[0].enable;
 
-    if (root->msi.intr[0].status & ~root->msi.intr[0].mask) {
+    if (host->msi.intr[0].status & ~host->msi.intr[0].mask) {
         qemu_set_irq(host->pci.irqs[DESIGNWARE_PCIE_IRQ_MSI], 1);
     }
 }
 
 static const MemoryRegionOps designware_pci_host_msi_ops = {
-    .read = designware_pcie_root_msi_read,
-    .write = designware_pcie_root_msi_write,
+    .read = designware_pcie_host_msi_read,
+    .write = designware_pcie_host_msi_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -97,12 +96,12 @@ static const MemoryRegionOps designware_pci_host_msi_ops = {
     },
 };
 
-static void designware_pcie_root_update_msi_mapping(DesignwarePCIERoot *root)
+static void designware_pcie_host_update_msi_mapping(DesignwarePCIEHost *host)
 
 {
-    MemoryRegion *mem   = &root->msi.iomem;
-    const uint64_t base = root->msi.base;
-    const bool enable   = root->msi.intr[0].enable;
+    MemoryRegion *mem   = &host->msi.iomem;
+    const uint64_t base = host->msi.base;
+    const bool enable   = host->msi.intr[0].enable;
 
     memory_region_set_address(mem, base);
     memory_region_set_enabled(mem, enable);
@@ -147,23 +146,23 @@ designware_pcie_root_config_read(PCIDevice *d, uint32_t address, int len)
         break;
 
     case DESIGNWARE_PCIE_MSI_ADDR_LO:
-        val = root->msi.base;
+        val = host->msi.base;
         break;
 
     case DESIGNWARE_PCIE_MSI_ADDR_HI:
-        val = root->msi.base >> 32;
+        val = host->msi.base >> 32;
         break;
 
     case DESIGNWARE_PCIE_MSI_INTR0_ENABLE:
-        val = root->msi.intr[0].enable;
+        val = host->msi.intr[0].enable;
         break;
 
     case DESIGNWARE_PCIE_MSI_INTR0_MASK:
-        val = root->msi.intr[0].mask;
+        val = host->msi.intr[0].mask;
         break;
 
     case DESIGNWARE_PCIE_MSI_INTR0_STATUS:
-        val = root->msi.intr[0].status;
+        val = host->msi.intr[0].status;
         break;
 
     case DESIGNWARE_PCIE_PHY_DEBUG_R1:
@@ -305,29 +304,29 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
         break;
 
     case DESIGNWARE_PCIE_MSI_ADDR_LO:
-        root->msi.base &= 0xFFFFFFFF00000000ULL;
-        root->msi.base |= val;
-        designware_pcie_root_update_msi_mapping(root);
+        host->msi.base &= 0xFFFFFFFF00000000ULL;
+        host->msi.base |= val;
+        designware_pcie_host_update_msi_mapping(host);
         break;
 
     case DESIGNWARE_PCIE_MSI_ADDR_HI:
-        root->msi.base &= 0x00000000FFFFFFFFULL;
-        root->msi.base |= (uint64_t)val << 32;
-        designware_pcie_root_update_msi_mapping(root);
+        host->msi.base &= 0x00000000FFFFFFFFULL;
+        host->msi.base |= (uint64_t)val << 32;
+        designware_pcie_host_update_msi_mapping(host);
         break;
 
     case DESIGNWARE_PCIE_MSI_INTR0_ENABLE:
-        root->msi.intr[0].enable = val;
-        designware_pcie_root_update_msi_mapping(root);
+        host->msi.intr[0].enable = val;
+        designware_pcie_host_update_msi_mapping(host);
         break;
 
     case DESIGNWARE_PCIE_MSI_INTR0_MASK:
-        root->msi.intr[0].mask = val;
+        host->msi.intr[0].mask = val;
         break;
 
     case DESIGNWARE_PCIE_MSI_INTR0_STATUS:
-        root->msi.intr[0].status ^= val;
-        if (!root->msi.intr[0].status) {
+        host->msi.intr[0].status ^= val;
+        if (!host->msi.intr[0].status) {
             qemu_set_irq(host->pci.irqs[DESIGNWARE_PCIE_IRQ_MSI], 0);
         }
         break;
@@ -495,7 +494,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
     viewport->cr[1] = DESIGNWARE_PCIE_ATU_ENABLE;
     designware_pcie_update_viewport(root, viewport);
 
-    memory_region_init_io(&root->msi.iomem, OBJECT(root),
+    memory_region_init_io(&host->msi.iomem, OBJECT(root),
                           &designware_pci_host_msi_ops,
                           root, "pcie-msi", 0x4);
     /*
@@ -504,8 +503,8 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
      * in designware_pcie_root_update_msi_mapping() as a part of
      * initialization done by guest OS
      */
-    memory_region_add_subregion(address_space, dummy_offset, &root->msi.iomem);
-    memory_region_set_enabled(&root->msi.iomem, false);
+    memory_region_add_subregion(address_space, dummy_offset, &host->msi.iomem);
+    memory_region_set_enabled(&host->msi.iomem, false);
 }
 
 static void designware_pcie_set_irq(void *opaque, int irq_num, int level)
@@ -564,15 +563,10 @@ static const VMStateDescription vmstate_designware_pcie_viewport = {
 
 static const VMStateDescription vmstate_designware_pcie_root = {
     .name = "designware-pcie-root",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
-        VMSTATE_STRUCT(msi,
-                       DesignwarePCIERoot,
-                       1,
-                       vmstate_designware_pcie_msi,
-                       DesignwarePCIEMSI),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -704,8 +698,8 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
 
 static const VMStateDescription vmstate_designware_pcie_host = {
     .name = "designware-pcie-host",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(root,
                        DesignwarePCIEHost,
@@ -720,6 +714,11 @@ static const VMStateDescription vmstate_designware_pcie_host = {
                                1,
                                vmstate_designware_pcie_viewport,
                                DesignwarePCIEViewport),
+        VMSTATE_STRUCT(msi,
+                       DesignwarePCIEHost,
+                       1,
+                       vmstate_designware_pcie_msi,
+                       DesignwarePCIEMSI),
         VMSTATE_END_OF_LIST()
     }
 };
