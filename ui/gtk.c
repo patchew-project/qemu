@@ -1452,29 +1452,53 @@ static void gd_accel_show_menubar(void *opaque)
 static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
-    VirtualConsole *vc = gd_vc_find_current(s);
+    VirtualConsole *vc;
+    int i;
 
     if (!s->full_screen) {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
         gtk_widget_hide(s->menu_bar);
-        if (vc->type == GD_VC_GFX) {
-            gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
-        }
-        gtk_window_fullscreen(GTK_WINDOW(s->window));
         s->full_screen = TRUE;
+        gtk_window_fullscreen(GTK_WINDOW(s->window));
+
+        for (i = 0; i < s->nb_vcs; i++) {
+            vc = &s->vc[i];
+            if (!vc->window) {
+                continue;
+            }
+            if (vc->type == GD_VC_GFX) {
+                gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
+            }
+            gtk_window_fullscreen(GTK_WINDOW(vc->window));
+        }
     } else {
         gtk_window_unfullscreen(GTK_WINDOW(s->window));
+
+        for (i = 0; i < s->nb_vcs; i++) {
+            vc = &s->vc[i];
+            if (!vc->window) {
+                continue;
+            }
+            gtk_window_unfullscreen(GTK_WINDOW(vc->window));
+
+            if (vc->type == GD_VC_GFX) {
+                vc->gfx.scale_x = 1.0;
+                vc->gfx.scale_y = 1.0;
+                gd_update_windowsize(vc);
+            }
+        }
+
         gd_menu_show_tabs(GTK_MENU_ITEM(s->show_tabs_item), s);
         if (gtk_check_menu_item_get_active(
                     GTK_CHECK_MENU_ITEM(s->show_menubar_item))) {
             gtk_widget_show(s->menu_bar);
         }
         s->full_screen = FALSE;
-        if (vc->type == GD_VC_GFX) {
-            vc->gfx.scale_x = 1.0;
-            vc->gfx.scale_y = 1.0;
-            gd_update_windowsize(vc);
-        }
+    }
+
+    vc = gd_vc_find_current(s);
+    if (!vc) {
+        return;
     }
 
     gd_update_cursor(vc);
