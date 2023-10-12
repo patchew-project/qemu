@@ -576,6 +576,35 @@ static int multifd_zero_copy_flush(QIOChannel *c)
     return ret;
 }
 
+static void multifd_send_wait(void)
+{
+    int i;
+
+    /* wait for all channels to be idle */
+    for (i = 0; i < migrate_multifd_channels(); i++) {
+        MultiFDSendParams *p = &multifd_send_state->params[i];
+
+        /*
+         * Even idle channels will wait for p->sem at the top of the
+         * loop.
+         */
+        qemu_sem_post(&p->sem);
+
+        trace_multifd_send_wait(migrate_multifd_channels() - i);
+        qemu_sem_wait(&p->sem_done);
+
+        qemu_mutex_lock(&p->mutex);
+        assert(!p->pending_job || p->quit);
+        qemu_mutex_unlock(&p->mutex);
+    }
+
+    /*
+     * All channels went idle and have no more jobs. Unless we send
+     * them more work, we're good to allow any cleanup code to run at
+     * this point.
+     */
+}
+
 int multifd_send_sync_main(QEMUFile *f)
 {
     int i;
@@ -611,23 +640,7 @@ int multifd_send_sync_main(QEMUFile *f)
         qemu_sem_post(&p->sem);
     }
 
-    /* wait for all channels to be idle */
-    for (i = 0; i < migrate_multifd_channels(); i++) {
-        MultiFDSendParams *p = &multifd_send_state->params[i];
-
-        /*
-         * Even idle channels will wait for p->sem at the top of the
-         * loop.
-         */
-        qemu_sem_post(&p->sem);
-
-        trace_multifd_send_wait(migrate_multifd_channels() - i);
-        qemu_sem_wait(&p->sem_done);
-
-        qemu_mutex_lock(&p->mutex);
-        assert(!p->pending_job || p->quit);
-        qemu_mutex_unlock(&p->mutex);
-    }
+    multifd_send_wait();
 
     /*
      * When using zero-copy, it's necessary to flush the pages before any of
