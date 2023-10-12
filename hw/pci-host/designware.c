@@ -57,13 +57,6 @@
 
 #define DESIGNWARE_PCIE_IRQ_MSI                    3
 
-static DesignwarePCIEHost *
-designware_pcie_root_to_host(DesignwarePCIERoot *root)
-{
-    BusState *bus = qdev_get_parent_bus(DEVICE(root));
-    return DESIGNWARE_PCIE_HOST(bus->parent);
-}
-
 static uint64_t designware_pcie_root_msi_read(void *opaque, hwaddr addr,
                                               unsigned size)
 {
@@ -85,7 +78,7 @@ static void designware_pcie_root_msi_write(void *opaque, hwaddr addr,
                                            uint64_t val, unsigned len)
 {
     DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(opaque);
-    DesignwarePCIEHost *host = designware_pcie_root_to_host(root);
+    DesignwarePCIEHost *host = root->host;
 
     root->msi.intr[0].status |= BIT(val) & root->msi.intr[0].enable;
 
@@ -300,7 +293,7 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
                                               uint32_t val, int len)
 {
     DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(d);
-    DesignwarePCIEHost *host = designware_pcie_root_to_host(root);
+    DesignwarePCIEHost *host = root->host;
     DesignwarePCIEViewport *viewport =
         designware_pcie_root_get_current_viewport(root);
 
@@ -392,7 +385,8 @@ static char *designware_pcie_viewport_name(const char *direction,
 static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
 {
     DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(dev);
-    DesignwarePCIEHost *host = designware_pcie_root_to_host(root);
+    DesignwarePCIEHost *host = DESIGNWARE_PCIE_HOST(
+                                    qdev_get_parent_bus(DEVICE(dev))->parent);
     MemoryRegion *host_mem = get_system_memory();
     MemoryRegion *address_space = &host->pci.memory;
     PCIBridge *br = PCI_BRIDGE(dev);
@@ -406,6 +400,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
     size_t i;
 
     br->bus_name  = "dw-pcie";
+    root->host = host;
 
     pci_set_word(dev->config + PCI_COMMAND,
                  PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);

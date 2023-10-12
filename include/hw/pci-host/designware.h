@@ -71,6 +71,7 @@ struct DesignwarePCIERoot {
 
     DesignwarePCIEViewport viewports[2][DESIGNWARE_PCIE_NUM_VIEWPORTS];
     DesignwarePCIEMSI msi;
+    DesignwarePCIEHost *host;
 };
 
 struct DesignwarePCIEHost {
