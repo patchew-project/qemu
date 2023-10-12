@@ -93,8 +93,8 @@ typedef struct {
     /* channel is done transmitting until more pages are queued */
     QemuSemaphore sem_done;
 
-    /* this mutex protects the following parameters */
-    QemuMutex mutex;
+    QemuSemaphore ready;
+
     /* is this channel thread running */
     bool running;
     /* should this thread finish */
@@ -209,4 +209,3 @@ typedef struct {
 void multifd_register_ops(int method, MultiFDMethods *ops);
 
 #endif
-
