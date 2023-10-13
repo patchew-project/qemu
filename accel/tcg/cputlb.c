@@ -2244,7 +2244,7 @@ static uint64_t do_ld_beN(CPUState *cpu, MMULookupPageData *p,
                 return do_ld_whole_be8(cpu, ra, p, ret_be);
             }
         }
-        /* fall through */
+        fallthrough;
 
     case MO_ATOM_IFALIGN:
     case MO_ATOM_WITHIN16:
@@ -2664,7 +2664,7 @@ static uint64_t do_st_leN(CPUState *cpu, MMULookupPageData *p,
                 cpu_loop_exit_atomic(cpu, ra);
             }
         }
-        /* fall through */
+        fallthrough;
 
     case MO_ATOM_IFALIGN:
     case MO_ATOM_WITHIN16:

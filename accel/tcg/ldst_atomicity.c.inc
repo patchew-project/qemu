@@ -41,7 +41,7 @@ static int required_atomicity(CPUState *cpu, uintptr_t p, MemOp memop)
 
     case MO_ATOM_IFALIGN_PAIR:
         size = half;
-        /* fall through */
+        fallthrough;
 
     case MO_ATOM_IFALIGN:
         tmp = (1 << size) - 1;
