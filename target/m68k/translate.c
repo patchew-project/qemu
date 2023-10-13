@@ -732,7 +732,7 @@ static TCGv gen_lea_mode(CPUM68KState *env, DisasContext *s,
         if (opsize == OS_UNSIZED) {
             return NULL_QREG;
         }
-        /* fallthru */
+        fallthrough;
     case 2: /* Indirect register */
         return get_areg(s, reg0);
     case 4: /* Indirect predecrememnt.  */
@@ -1221,7 +1221,7 @@ static void gen_cc_cond(DisasCompare *c, DisasContext *s, int cond)
             c->v1 = tmp = tcg_temp_new();
             tcg_gen_sub_i32(tmp, QREG_CC_N, QREG_CC_V);
             gen_ext(tmp, tmp, op - CC_OP_CMPB, 1);
-            /* fallthru */
+            fallthrough;
         case 12: /* GE */
         case 13: /* LT */
             tcond = TCG_COND_LT;
@@ -1260,7 +1260,7 @@ static void gen_cc_cond(DisasCompare *c, DisasContext *s, int cond)
         if (op != CC_OP_LOGIC) {
             break;
         }
-        /* fallthru */
+        fallthrough;
     case 10: /* PL (!N) */
     case 11: /* MI (N) */
         /* Several cases represent N normally.  */
@@ -1292,7 +1292,7 @@ static void gen_cc_cond(DisasCompare *c, DisasContext *s, int cond)
             c->v1 = QREG_CC_X;
             goto done;
         }
-        /* fallthru */
+        fallthrough;
     case 8: /* VC (!V) */
     case 9: /* VS (V) */
         /* Logic operations clear V and C.  */
@@ -4234,7 +4234,7 @@ DISAS_INSN(chk)
             opsize = OS_LONG;
             break;
         }
-        /* fallthru */
+        fallthrough;
     default:
         gen_exception(s, s->base.pc_next, EXCP_ILLEGAL);
         return;

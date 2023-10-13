@@ -418,7 +418,7 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
             do_stack_frame(env, &sp, 1, oldsr, 0, env->pc);
             break;
         }
-        /* fall through */
+        fallthrough;
 
     default:
         do_stack_frame(env, &sp, 0, oldsr, 0, env->pc);
@@ -917,6 +917,7 @@ static struct bf_data bf_prep(uint32_t addr, int32_t ofs, uint32_t len)
             addr -= 1;
         }
         /* fallthru */
+        fallthrough;
     case 3:
         bofs += 32;
         break;
