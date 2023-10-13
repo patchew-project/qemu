@@ -803,7 +803,7 @@ static void opcode_add_resource(struct slot_prop *op,
         op->in[op->n_in].resource = resource;
         op->in[op->n_in].index = index;
         ++op->n_in;
-        /* fall through */
+        fallthrough;
     case 'o':
         if (direction == 'm' || direction == 'o') {
             assert(op->n_out < ARRAY_SIZE(op->out));
