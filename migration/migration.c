@@ -66,6 +66,7 @@
 #include "sysemu/qtest.h"
 #include "options.h"
 #include "sysemu/dirtylimit.h"
+#include "sysemu/kvm.h"
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -1643,6 +1644,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     if (runstate_check(RUN_STATE_POSTMIGRATE)) {
         error_setg(errp, "Can't migrate the vm that was paused due to "
                    "previous migration");
+        return false;
+    }
+
+    if (kvm_hwpoisoned_unknown()) {
+        error_setg(errp, "Can't migrate this vm with ignored poisoned page");
         return false;
     }
 
