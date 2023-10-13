@@ -159,7 +159,7 @@ static int xen_block_parse_request(XenBlockRequest *request)
         if (!request->req.nr_segments) {
             return 0;
         }
-        /* fall through */
+        fallthrough;
     case BLKIF_OP_WRITE:
         break;
     case BLKIF_OP_DISCARD:
@@ -299,7 +299,7 @@ static void xen_block_complete_aio(void *opaque, int ret)
         if (!request->req.nr_segments) {
             break;
         }
-        /* fall through */
+        fallthrough;
     case BLKIF_OP_READ:
         if (request->status == BLKIF_RSP_OKAY) {
             block_acct_done(blk_get_stats(dataplane->blk), &request->acct);

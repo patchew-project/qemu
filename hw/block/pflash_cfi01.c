@@ -276,6 +276,7 @@ static uint32_t pflash_read(PFlashCFI01 *pfl, hwaddr offset,
          */
         pfl->cmd = 0x00;
         /* fall through to read code */
+        fallthrough;
     case 0x00: /* This model reset value for READ_ARRAY (not CFI compliant) */
         /* Flash area read */
         ret = pflash_data_read(pfl, offset, width, be);

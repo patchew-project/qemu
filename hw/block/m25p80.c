@@ -1462,7 +1462,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             s->state = STATE_COLLECTING_DATA;
             break;
         }
-        /* Fallthrough */
+        fallthrough;
 
     default:
         s->pos = 0;

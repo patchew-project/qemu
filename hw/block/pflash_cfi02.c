@@ -328,6 +328,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
         trace_pflash_read_unknown_state(pfl->name, pfl->cmd);
         pflash_reset_state_machine(pfl);
         /* fall through to the read code */
+        fallthrough;
     case 0x80: /* Erase (unlock) */
         /* We accept reads during second unlock sequence... */
     case 0x00:
@@ -359,6 +360,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
                 break;
             }
             /* Fall through to data read. */
+            fallthrough;
         default:
             ret = pflash_data_read(pfl, offset, width);
         }
@@ -368,7 +370,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
     case 0x30: /* Sector Erase */
         /* Toggle bit 2 during erase, but not program. */
         toggle_dq2(pfl);
-        /* fall through */
+        fallthrough;
     case 0xA0: /* Program */
         /* Toggle bit 6 */
         toggle_dq6(pfl);
@@ -582,7 +584,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
                 pfl->cmd = 0x98;
                 return;
             }
-            /* fall through */
+            fallthrough;
         default:
             trace_pflash_write_invalid(pfl->name, pfl->cmd);
             goto reset_flash;
