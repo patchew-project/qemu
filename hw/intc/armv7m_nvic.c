@@ -2224,7 +2224,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
     /* reads of set and clear both return the status */
     case 0x100 ... 0x13f: /* NVIC Set enable */
         offset += 0x80;
-        /* fall through */
+        fallthrough;
     case 0x180 ... 0x1bf: /* NVIC Clear enable */
         val = 0;
         startvec = 8 * (offset - 0x180) + NVIC_FIRST_IRQ; /* vector # */
@@ -2238,7 +2238,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         break;
     case 0x200 ... 0x23f: /* NVIC Set pend */
         offset += 0x80;
-        /* fall through */
+        fallthrough;
     case 0x280 ... 0x2bf: /* NVIC Clear pend */
         val = 0;
         startvec = 8 * (offset - 0x280) + NVIC_FIRST_IRQ; /* vector # */
@@ -2280,7 +2280,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
             val = 0;
             break;
         }
-        /* fall through */
+        fallthrough;
     case 0xd1c ... 0xd23: /* System Handler Priority (SHPR2, SHPR3) */
         val = 0;
         for (i = 0; i < size; i++) {
@@ -2355,7 +2355,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
     case 0x100 ... 0x13f: /* NVIC Set enable */
         offset += 0x80;
         setval = 1;
-        /* fall through */
+        fallthrough;
     case 0x180 ... 0x1bf: /* NVIC Clear enable */
         startvec = 8 * (offset - 0x180) + NVIC_FIRST_IRQ;
 
@@ -2373,7 +2373,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
          */
         offset += 0x80;
         setval = 1;
-        /* fall through */
+        fallthrough;
     case 0x280 ... 0x2bf: /* NVIC Clear pend */
         startvec = 8 * (offset - 0x280) + NVIC_FIRST_IRQ; /* vector # */
 
@@ -2408,7 +2408,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
         if (!arm_feature(&s->cpu->env, ARM_FEATURE_M_MAIN)) {
             goto exit_ok;
         }
-        /* fall through */
+        fallthrough;
     case 0xd1c ... 0xd23: /* System Handler Priority (SHPR2, SHPR3) */
         for (i = 0; i < size; i++) {
             unsigned hdlidx = (offset - 0xd14) + i;
