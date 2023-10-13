@@ -360,7 +360,7 @@ void pcie_doe_write_config(DOECap *doe_cap,
         doe_cap->write_mbox_len++;
         break;
     case PCI_EXP_DOE_CAP:
-        /* fallthrough */
+        fallthrough;
     default:
         break;
     }
