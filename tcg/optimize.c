@@ -1089,7 +1089,7 @@ static bool fold_brcond2(OptContext *ctx, TCGOp *op)
 
     case TCG_COND_NE:
         inv = 1;
-        QEMU_FALLTHROUGH;
+        fallthrough;
     case TCG_COND_EQ:
         /*
          * Simplify EQ/NE comparisons where one of the pairs
@@ -1445,7 +1445,7 @@ static bool fold_exts(OptContext *ctx, TCGOp *op)
         break;
     case INDEX_op_ext_i32_i64:
         type_change = true;
-        QEMU_FALLTHROUGH;
+        fallthrough;
     case INDEX_op_ext32s_i64:
         sign = INT32_MIN;
         z_mask = (uint32_t)z_mask;
@@ -1489,7 +1489,7 @@ static bool fold_extu(OptContext *ctx, TCGOp *op)
     case INDEX_op_extrl_i64_i32:
     case INDEX_op_extu_i32_i64:
         type_change = true;
-        QEMU_FALLTHROUGH;
+        fallthrough;
     case INDEX_op_ext32u_i64:
         z_mask = (uint32_t)z_mask;
         break;
@@ -1861,7 +1861,7 @@ static bool fold_setcond2(OptContext *ctx, TCGOp *op)
 
     case TCG_COND_NE:
         inv = 1;
-        QEMU_FALLTHROUGH;
+        fallthrough;
     case TCG_COND_EQ:
         /*
          * Simplify EQ/NE comparisons where one of the pairs

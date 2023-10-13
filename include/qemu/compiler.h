@@ -165,15 +165,31 @@
 #define QEMU_ALWAYS_INLINE
 #endif
 
-/**
- * In most cases, normal "fallthrough" comments are good enough for
- * switch-case statements, but sometimes the compiler has problems
- * with those. In that case you can use QEMU_FALLTHROUGH instead.
+/*
+ * Add the pseudo keyword 'fallthrough' so case statement blocks
+ * must end with any of these keywords:
+ *   break;
+ *   fallthrough;
+ *   continue;
+ *   goto <label>;
+ *   return [expression];
+ *
+ *  gcc: https://gcc.gnu.org/onlinedocs/gcc/Statement-Attributes.html#Statement-Attributes
  */
-#if __has_attribute(fallthrough)
-# define QEMU_FALLTHROUGH __attribute__((fallthrough))
+
+/*
+ * glib_macros.h contains its own definition of fallthrough, so if we define
+ * the pseudokeyword here it will expand when the glib header checks for the
+ * attribute. glib headers must be #included after this header.
+ */
+#ifdef fallthrough
+#undef fallthrough
+#endif
+
+#if __has_attribute(__fallthrough__)
+# define fallthrough                    __attribute__((__fallthrough__))
 #else
-# define QEMU_FALLTHROUGH do {} while (0) /* fallthrough */
+# define fallthrough                    do {} while (0)  /* fallthrough */
 #endif
 
 #ifdef CONFIG_CFI
