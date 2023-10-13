@@ -7782,7 +7782,7 @@ static int do_futex(CPUState *cpu, bool time64, target_ulong uaddr,
     case FUTEX_CMP_REQUEUE:
     case FUTEX_CMP_REQUEUE_PI:
         val3 = tswap32(val3);
-        /* fall through */
+        fallthrough;
     case FUTEX_REQUEUE:
     case FUTEX_WAKE_OP:
         /*
