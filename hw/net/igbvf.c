@@ -188,7 +188,7 @@ static hwaddr vf_to_pf_addr(hwaddr addr, uint16_t vfn, bool write)
         if (write) {
             return HWADDR_MAX;
         }
-        /* fallthrough */
+        fallthrough;
     case 0x34E8: /* PBTWAC */
     case 0x24E8: /* PBRWAC */
         return addr;

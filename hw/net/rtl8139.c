@@ -2447,8 +2447,10 @@ static uint32_t rtl8139_TxStatus_TxAddr_read(RTL8139State *s, uint32_t regs[],
     }
 
     switch (size) {
-    case 1: /* fall through */
-    case 2: /* fall through */
+    case 1:
+        fallthrough;
+    case 2:
+        fallthrough;
     case 4:
         ret = (regs[reg] >> offset * 8) & (((uint64_t)1 << (size * 8)) - 1);
         DPRINTF("TxStatus/TxAddr[%d] read addr=0x%x size=0x%x val=0x%08x\n",

@@ -918,7 +918,7 @@ static void imx_eth_write(void *opaque, hwaddr offset, uint64_t value,
                           TYPE_IMX_FEC, __func__);
             return;
         }
-        /* fall through */
+        fallthrough;
     case ENET_TDAR:
         if (s->regs[ENET_ECR] & ENET_ECR_ETHEREN) {
             s->regs[index] = ENET_TDAR_TDAR;

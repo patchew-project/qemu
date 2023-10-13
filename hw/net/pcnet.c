@@ -1502,7 +1502,7 @@ static void pcnet_bcr_writew(PCNetState *s, uint32_t rap, uint32_t val)
 #ifdef PCNET_DEBUG
        printf("BCR_SWS=0x%04x\n", val);
 #endif
-        /* fall through */
+       fallthrough;
     case BCR_LNKST:
     case BCR_LED1:
     case BCR_LED2:
