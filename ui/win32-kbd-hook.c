@@ -26,19 +26,12 @@ static LRESULT CALLBACK keyboard_hook_cb(int code, WPARAM wparam, LPARAM lparam)
 
             switch (hooked->vkCode) {
             case VK_CAPITAL:
-                /* fall through */
             case VK_SCROLL:
-                /* fall through */
             case VK_NUMLOCK:
-                /* fall through */
             case VK_LSHIFT:
-                /* fall through */
             case VK_RSHIFT:
-                /* fall through */
             case VK_RCONTROL:
-                /* fall through */
             case VK_LMENU:
-                /* fall through */
             case VK_RMENU:
                 break;
 
