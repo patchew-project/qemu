@@ -564,7 +564,7 @@ static void onenand_command(OneNANDState *s)
         break;
     case 0x95:  /* Multi-block erase */
         qemu_irq_pulse(s->intr);
-        /* Fall through.  */
+        fallthrough;
     case 0x94:  /* Block erase */
         sec = ((s->addr[ONEN_BUF_BLOCK] & 0xfff) |
                         (s->addr[ONEN_BUF_BLOCK] >> 15 ? s->density_mask : 0))
