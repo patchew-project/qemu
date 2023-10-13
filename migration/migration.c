@@ -1607,6 +1607,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                     " instead.");
     }
 
+    if (blk) {
+        warn_report("@blk/-i migrate option is deprecated, set the "
+                    "'block' capability to 'true' instead.");
+    }
+
     if (resume) {
         if (s->state != MIGRATION_STATUS_POSTCOPY_PAUSED) {
             error_setg(errp, "Cannot resume if there is no "
