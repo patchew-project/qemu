@@ -210,7 +210,7 @@ static void hiomap_cmd(IPMIBmcSim *ibs, uint8_t *cmd, unsigned int cmd_len,
 
     case HIOMAP_C_CREATE_READ_WINDOW:
         readonly = true;
-        /* Fall through */
+        fallthrough;
 
     case HIOMAP_C_CREATE_WRITE_WINDOW:
         memory_region_set_readonly(&pnor->mmio, readonly);
