@@ -1522,7 +1522,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
             /* Hyperprivileged access only */
             sparc_raise_mmu_fault(cs, addr, false, false, 1, size, GETPC());
         }
-        /* fall through */
+        fallthrough;
     case ASI_HYP_SCRATCHPAD: /* UA2005 hyperprivileged scratchpad */
         {
             unsigned int i = (addr >> 3) & 0x7;
@@ -1865,7 +1865,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             /* Hyperprivileged access only */
             sparc_raise_mmu_fault(cs, addr, true, false, 1, size, GETPC());
         }
-        /* fall through */
+        fallthrough;
     case ASI_HYP_SCRATCHPAD: /* UA2005 hyperprivileged scratchpad */
         {
             unsigned int i = (addr >> 3) & 0x7;
