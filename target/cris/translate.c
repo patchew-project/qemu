@@ -3113,7 +3113,7 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
                 break;
             }
             tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
-            /* fall through */
+            fallthrough;
 
         case JMP_INDIRECT:
             tcg_gen_movcond_tl(TCG_COND_NE, env_pc,
@@ -3140,7 +3140,7 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         break;
     case DISAS_UPDATE_NEXT:
         tcg_gen_movi_tl(env_pc, npc);
-        /* fall through */
+        fallthrough;
     case DISAS_JUMP:
         tcg_gen_lookup_and_goto_ptr();
         break;
