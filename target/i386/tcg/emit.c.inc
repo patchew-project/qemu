@@ -209,7 +209,7 @@ static bool sse_needs_alignment(DisasContext *s, X86DecodedInsn *decode, MemOp o
             /* MOST legacy SSE instructions require aligned memory operands, but not all.  */
             return false;
         }
-        /* fall through */
+        fallthrough;
     case 1:
         return ot >= MO_128;
 

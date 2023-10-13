@@ -1108,7 +1108,7 @@ static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp
             *ot = MO_64;
             return true;
         }
-        /* fall through */
+        fallthrough;
     case X86_SIZE_ps: /* SSE/AVX packed single precision */
     case X86_SIZE_pd: /* SSE/AVX packed double precision */
         *ot = s->vex_l ? MO_256 : MO_128;
@@ -1220,7 +1220,7 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 
     case X86_TYPE_WM:  /* modrm byte selects an XMM/YMM memory operand */
         op->unit = X86_OP_SSE;
-        /* fall through */
+        fallthrough;
     case X86_TYPE_M:  /* modrm byte selects a memory operand */
         modrm = get_modrm(s, env);
         if ((modrm >> 6) == 3) {
@@ -1538,7 +1538,7 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
             (decode->op[2].n == decode->mem.index || decode->op[2].n == decode->op[1].n)) {
             goto illegal;
         }
-        /* fall through */
+        fallthrough;
     case 6:
     case 11:
         if (!(s->prefix & PREFIX_VEX)) {

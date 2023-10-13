@@ -6134,7 +6134,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                                         eax, ebx, ecx, edx);
                     break;
                 }
-                /* fall through */
+                fallthrough;
             default: /* end of info */
                 *eax = *ebx = *ecx = *edx = 0;
                 break;

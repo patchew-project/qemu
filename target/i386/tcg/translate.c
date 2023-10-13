@@ -1004,7 +1004,7 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
     switch (s->cc_op) {
     case CC_OP_DYNAMIC:
         gen_compute_eflags(s);
-        /* FALLTHRU */
+        fallthrough;
     case CC_OP_EFLAGS:
     case CC_OP_ADCX:
     case CC_OP_ADOX:
@@ -1047,7 +1047,7 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
     switch (s->cc_op) {
     case CC_OP_DYNAMIC:
         gen_compute_eflags(s);
-        /* FALLTHRU */
+        fallthrough;
     case CC_OP_EFLAGS:
     case CC_OP_ADCX:
     case CC_OP_ADOX:
@@ -3298,7 +3298,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0x82:
         if (CODE64(s))
             goto illegal_op;
-        /* fall through */
         fallthrough;
     case 0x80: /* GRP1 */
     case 0x81:
@@ -6734,7 +6733,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                 }
                 break;
             }
-            /* fallthru */
+            fallthrough;
         case 0xf9 ... 0xff: /* sfence */
             if (!(s->cpuid_features & CPUID_SSE)
                 || (prefixes & PREFIX_LOCK)) {
@@ -7048,7 +7047,6 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_EOB_NEXT:
         gen_update_cc_op(dc);
         gen_update_eip_cur(dc);
-        /* fall through */
         fallthrough;
     case DISAS_EOB_ONLY:
         gen_eob(dc);
