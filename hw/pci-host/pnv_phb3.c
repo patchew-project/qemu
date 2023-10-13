@@ -531,7 +531,7 @@ void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size)
         if (changed) {
             pnv_phb3_update_all_msi_regions(phb);
         }
-        /* fall through */
+        fallthrough;
     case PHB_M32_BASE_ADDR:
     case PHB_M32_BASE_MASK:
     case PHB_M32_START_ADDR:
