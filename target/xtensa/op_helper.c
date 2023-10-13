@@ -108,10 +108,10 @@ void HELPER(check_atomctl)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr)
     switch (access & PAGE_CACHE_MASK) {
     case PAGE_CACHE_WB:
         atomctl >>= 2;
-        /* fall through */
+        fallthrough;
     case PAGE_CACHE_WT:
         atomctl >>= 2;
-        /* fall through */
+        fallthrough;
     case PAGE_CACHE_BYPASS:
         if ((atomctl & 0x3) == 0) {
             HELPER(exception_cause_vaddr)(env, pc,
@@ -150,10 +150,10 @@ void HELPER(check_exclusive)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr,
     switch (access & PAGE_CACHE_MASK) {
     case PAGE_CACHE_WB:
         atomctl >>= 2;
-        /* fall through */
+        fallthrough;
     case PAGE_CACHE_WT:
         atomctl >>= 2;
-        /* fall through */
+        fallthrough;
     case PAGE_CACHE_BYPASS:
         if ((atomctl & 0x3) == 0) {
             HELPER(exception_cause_vaddr)(env, pc,
