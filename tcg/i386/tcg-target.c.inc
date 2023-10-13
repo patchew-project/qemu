@@ -181,6 +181,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
             return false;
         }
         /* FALLTHRU */
+        fallthrough;
     case R_386_32:
         tcg_patch32(code_ptr, value);
         break;
@@ -845,6 +846,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
     case TCG_TYPE_I64:
         rexw = P_REXW;
         /* fallthru */
+        fallthrough;
     case TCG_TYPE_I32:
         if (ret < 16) {
             if (arg < 16) {
@@ -898,10 +900,12 @@ static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
             tcg_out_vex_modrm(s, OPC_PUNPCKLBW, r, a, a);
             a = r;
             /* FALLTHRU */
+            fallthrough;
         case MO_16:
             tcg_out_vex_modrm(s, OPC_PUNPCKLWD, r, a, a);
             a = r;
             /* FALLTHRU */
+            fallthrough;
         case MO_32:
             tcg_out_vex_modrm(s, OPC_PSHUFD, r, 0, a);
             /* imm8 operand: all output lanes selected from input lane 0.  */
@@ -1126,6 +1130,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
             break;
         }
         /* FALLTHRU */
+        fallthrough;
     case TCG_TYPE_V64:
         /* There is no instruction that can validate 8-byte alignment.  */
         tcg_debug_assert(ret >= 16);
@@ -1171,6 +1176,7 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
             break;
         }
         /* FALLTHRU */
+        fallthrough;
     case TCG_TYPE_V64:
         /* There is no instruction that can validate 8-byte alignment.  */
         tcg_debug_assert(arg >= 16);
@@ -1537,7 +1543,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
     switch (cond) {
     case TCG_COND_NE:
         inv = true;
-        /* fall through */
+        fallthrough;
     case TCG_COND_EQ:
         /* If arg2 is 0, convert to LTU/GEU vs 1. */
         if (const_arg2 && arg2 == 0) {
@@ -1548,7 +1554,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
 
     case TCG_COND_LEU:
         inv = true;
-        /* fall through */
+        fallthrough;
     case TCG_COND_GTU:
         /* If arg2 is a register, swap for LTU/GEU. */
         if (!const_arg2) {
@@ -1561,7 +1567,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
 
     case TCG_COND_GEU:
         inv = true;
-        /* fall through */
+        fallthrough;
     case TCG_COND_LTU:
     do_ltu:
         /*
@@ -1587,7 +1593,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
 
     case TCG_COND_GE:
         inv = true;
-        /* fall through */
+        fallthrough;
     case TCG_COND_LT:
         /* If arg2 is 0, extract the sign bit. */
         if (const_arg2 && arg2 == 0) {
@@ -2443,6 +2449,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_, x), _i64): \
             rexw = P_REXW; /* FALLTHRU */    \
+            fallthrough;                     \
         case glue(glue(INDEX_op_, x), _i32)
 #else
 # define OP_32_64(x) \
@@ -2689,7 +2696,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_qemu_ld(s, a0, -1, a1, a2, args[3], TCG_TYPE_I32);
             break;
         }
-        /* fall through */
+        fallthrough;
     case INDEX_op_qemu_ld_a32_i32:
         tcg_out_qemu_ld(s, a0, -1, a1, -1, a2, TCG_TYPE_I32);
         break;
@@ -2719,7 +2726,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_qemu_st(s, a0, -1, a1, a2, args[3], TCG_TYPE_I32);
             break;
         }
-        /* fall through */
+        fallthrough;
     case INDEX_op_qemu_st_a32_i32:
     case INDEX_op_qemu_st8_a32_i32:
         tcg_out_qemu_st(s, a0, -1, a1, -1, a2, TCG_TYPE_I32);
@@ -2846,6 +2853,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             break;
         }
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_extract_i32:
         /* On the off-chance that we can use the high-byte registers.
            Otherwise we emit the same ext16 + shift pattern that we

@@ -298,7 +298,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
         break;
     case TCG_CT_CONST_ANDI:
         val = ~val;
-        /* fallthru */
+        fallthrough;
     case TCG_CT_CONST_ORRI:
         if (val == deposit64(val, 32, 32, val)) {
             int cmode, imm8;
@@ -1190,6 +1190,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
             break;
         }
         /* FALLTHRU */
+        fallthrough;
 
     case TCG_TYPE_V64:
         tcg_debug_assert(ret >= 32 && arg >= 32);
@@ -2090,6 +2091,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_add_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_add_i64:
         if (c2) {
             tcg_out_addsubi(s, ext, a0, a1, a2);
@@ -2101,6 +2103,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_sub_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_sub_i64:
         if (c2) {
             tcg_out_addsubi(s, ext, a0, a1, -a2);
@@ -2117,6 +2120,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_and_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_and_i64:
         if (c2) {
             tcg_out_logicali(s, I3404_ANDI, ext, a0, a1, a2);
@@ -2128,6 +2132,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_andc_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_andc_i64:
         if (c2) {
             tcg_out_logicali(s, I3404_ANDI, ext, a0, a1, ~a2);
@@ -2139,6 +2144,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_or_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_or_i64:
         if (c2) {
             tcg_out_logicali(s, I3404_ORRI, ext, a0, a1, a2);
@@ -2150,6 +2156,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_orc_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_orc_i64:
         if (c2) {
             tcg_out_logicali(s, I3404_ORRI, ext, a0, a1, ~a2);
@@ -2161,6 +2168,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_xor_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_xor_i64:
         if (c2) {
             tcg_out_logicali(s, I3404_EORI, ext, a0, a1, a2);
@@ -2172,6 +2180,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_eqv_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_eqv_i64:
         if (c2) {
             tcg_out_logicali(s, I3404_EORI, ext, a0, a1, ~a2);
@@ -2268,6 +2277,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_brcond_i32:
         a1 = (int32_t)a1;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_brcond_i64:
         tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], arg_label(args[3]));
         break;
@@ -2275,6 +2285,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_setcond_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_setcond_i64:
         tcg_out_cmp(s, ext, a1, a2, c2);
         /* Use CSET alias of CSINC Wd, WZR, WZR, invert(cond).  */
@@ -2285,6 +2296,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_negsetcond_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_negsetcond_i64:
         tcg_out_cmp(s, ext, a1, a2, c2);
         /* Use CSETM alias of CSINV Wd, WZR, WZR, invert(cond).  */
@@ -2295,6 +2307,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_movcond_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_movcond_i64:
         tcg_out_cmp(s, ext, a1, a2, c2);
         tcg_out_insn(s, 3506, CSEL, ext, a0, REG0(3), REG0(4), args[5]);

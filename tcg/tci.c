@@ -1310,7 +1310,7 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
             info->fprintf_func(info->stream, "align");
             break;
         }
-        /* fall through */
+        fallthrough;
 
     default:
         info->fprintf_func(info->stream, "illegal opcode %d", op);

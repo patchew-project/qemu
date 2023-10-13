@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/compiler.h"
 
 /* Define to jump the ELF file used to communicate with GDB.  */
 #undef DEBUG_JIT
@@ -1192,7 +1193,7 @@ static void init_call_layout(TCGHelperInfo *info)
             switch (TCG_TARGET_CALL_ARG_I32) {
             case TCG_CALL_ARG_EVEN:
                 layout_arg_even(&cum);
-                /* fall through */
+                fallthrough;
             case TCG_CALL_ARG_NORMAL:
                 layout_arg_1(&cum, info, TCG_CALL_ARG_NORMAL);
                 break;
@@ -1209,7 +1210,7 @@ static void init_call_layout(TCGHelperInfo *info)
             switch (TCG_TARGET_CALL_ARG_I64) {
             case TCG_CALL_ARG_EVEN:
                 layout_arg_even(&cum);
-                /* fall through */
+                fallthrough;
             case TCG_CALL_ARG_NORMAL:
                 if (TCG_TARGET_REG_BITS == 32) {
                     layout_arg_normal_n(&cum, info, 2);
@@ -1226,7 +1227,7 @@ static void init_call_layout(TCGHelperInfo *info)
             switch (TCG_TARGET_CALL_ARG_I128) {
             case TCG_CALL_ARG_EVEN:
                 layout_arg_even(&cum);
-                /* fall through */
+                fallthrough;
             case TCG_CALL_ARG_NORMAL:
                 layout_arg_normal_n(&cum, info, 128 / TCG_TARGET_REG_BITS);
                 break;
@@ -2299,7 +2300,7 @@ static void tcg_reg_alloc_start(TCGContext *s)
             break;
         case TEMP_EBB:
             val = TEMP_VAL_DEAD;
-            /* fall through */
+            fallthrough;
         case TEMP_TB:
             ts->mem_allocated = 0;
             break;
@@ -3556,7 +3557,7 @@ liveness_pass_1(TCGContext *s)
                                 *la_temp_pref(ts) = 0;
                                 break;
                             }
-                            /* fall through */
+                            fallthrough;
                         default:
                             *la_temp_pref(ts) =
                                 tcg_target_available_regs[ts->type];
@@ -4135,7 +4136,7 @@ static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs,
             }
             temp_load(s, ts, tcg_target_available_regs[ts->type],
                       allocated_regs, preferred_regs);
-            /* fallthrough */
+            fallthrough;
 
         case TEMP_VAL_REG:
             tcg_out_st(s, ts->type, ts->reg,
@@ -4622,7 +4623,7 @@ static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
             /* Sync the temp back to its slot and load from there.  */
             temp_sync(s, its, s->reserved_regs, 0, 0);
         }
-        /* fall through */
+        fallthrough;
 
     case TEMP_VAL_MEM:
         lowpart_ofs = 0;
@@ -5289,6 +5290,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
                        ts->mem_base->reg, ts->mem_offset);
         }
         /* fall through to mark all parts in memory */
+        fallthrough;
 
     case TCG_CALL_RET_BY_REF:
         /* The callee has performed a write through the reference. */
@@ -5489,7 +5491,7 @@ static void tcg_out_helper_load_slots(TCGContext *s,
 
         /* No conflicts: perform this move and continue. */
         tcg_out_movext1(s, &mov[3]);
-        /* fall through */
+        fallthrough;
 
     case 3:
         tcg_out_movext3(s, mov, mov + 1, mov + 2,
@@ -5741,7 +5743,7 @@ static void tcg_out_ld_helper_ret(TCGContext *s, const TCGLabelQemuLdst *ldst,
         if (TCG_TARGET_REG_BITS == 32) {
             break;
         }
-        /* fall through */
+        fallthrough;
 
     case TCG_TYPE_I32:
         mov[0].dst = ldst->datalo_reg;
@@ -5781,7 +5783,7 @@ static void tcg_out_ld_helper_ret(TCGContext *s, const TCGLabelQemuLdst *ldst,
             tcg_out_st(s, TCG_TYPE_V128,
                        tcg_target_call_oarg_reg(TCG_CALL_RET_BY_VEC, 0),
                        TCG_REG_CALL_STACK, ofs_slot0);
-            /* fall through */
+            fallthrough;
         case TCG_CALL_RET_BY_REF:
             tcg_out_ld(s, TCG_TYPE_I64, ldst->datalo_reg,
                        TCG_REG_CALL_STACK, ofs_slot0 + 8 * HOST_BIG_ENDIAN);
@@ -6069,7 +6071,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             if (tcg_reg_alloc_dup2(s, op)) {
                 break;
             }
-            /* fall through */
+            fallthrough;
         default:
             /* Sanity check that we've not introduced any unhandled opcodes. */
             tcg_debug_assert(tcg_op_supported(opc));

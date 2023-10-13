@@ -529,6 +529,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
     case TCG_CT_CONST_ANDI:
         val = ~val;
         /* fallthru */
+        fallthrough;
     case TCG_CT_CONST_ORRI:
         if (val == deposit64(val, 32, 32, val)) {
             int cmode, imm8;
@@ -2677,7 +2678,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
             return;
         }
         a2 = ~a2;
-        /* fall through */
+        fallthrough;
     case INDEX_op_and_vec:
         if (const_args[2]) {
             is_shimm1632(~a2, &cmode, &imm8);
@@ -2697,7 +2698,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
             return;
         }
         a2 = ~a2;
-        /* fall through */
+        fallthrough;
     case INDEX_op_or_vec:
         if (const_args[2]) {
             is_shimm1632(a2, &cmode, &imm8);

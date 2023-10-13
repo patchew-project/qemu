@@ -917,6 +917,7 @@ static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
     case TCG_COND_GT:
         s_opc = OPC_SLT;
         /* FALLTHRU */
+        fallthrough;
 
     case TCG_COND_LTU:
     case TCG_COND_GEU:
@@ -974,6 +975,7 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
         }
         s_opc = OPC_SLT;
         /* FALLTHRU */
+        fallthrough;
 
     case TCG_COND_LTU:
     case TCG_COND_GTU:
@@ -1109,6 +1111,7 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
     case TCG_COND_EQ:
         eqz = true;
         /* FALLTHRU */
+        fallthrough;
     case TCG_COND_NE:
         if (c2 != 0) {
             tcg_out_opc_reg(s, OPC_XOR, TCG_TMP0, c1, c2);
@@ -1430,6 +1433,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg lo, TCGReg hi,
             break;
         }
         /* FALLTHRU */
+        fallthrough;
     case MO_SL:
         tcg_out_opc_imm(s, OPC_LW, lo, base, 0);
         break;
@@ -2117,7 +2121,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_qemu_ld(s, a0, 0, a1, a2, args[3], TCG_TYPE_I32);
             break;
         }
-        /* fall through */
+        fallthrough;
     case INDEX_op_qemu_ld_a32_i32:
         tcg_out_qemu_ld(s, a0, 0, a1, 0, a2, TCG_TYPE_I32);
         break;
@@ -2141,7 +2145,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_qemu_st(s, a0, 0, a1, a2, args[3], TCG_TYPE_I32);
             break;
         }
-        /* fall through */
+        fallthrough;
     case INDEX_op_qemu_st_a32_i32:
         tcg_out_qemu_st(s, a0, 0, a1, 0, a2, TCG_TYPE_I32);
         break;

@@ -524,7 +524,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     case TCG_TYPE_I32:
 #if TCG_TARGET_REG_BITS == 64
         arg = (int32_t)arg;
-        /* fall through */
+        fallthrough;
     case TCG_TYPE_I64:
 #endif
         break;

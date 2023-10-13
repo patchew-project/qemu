@@ -724,6 +724,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
     case TCG_TYPE_I64:
         tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
         /* fallthru */
+        fallthrough;
     case TCG_TYPE_I32:
         if (ret < TCG_REG_V0) {
             if (arg < TCG_REG_V0) {
@@ -748,6 +749,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
             }
         }
         /* fallthru */
+        fallthrough;
     case TCG_TYPE_V64:
     case TCG_TYPE_V128:
         tcg_debug_assert(ret >= TCG_REG_V0 && arg >= TCG_REG_V0);
@@ -1300,6 +1302,7 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
     case LD: case LWA:
         align = 3;
         /* FALLTHRU */
+        fallthrough;
     default:
         if (rt > TCG_REG_R0 && rt < TCG_REG_V0) {
             rs = rt;
@@ -1317,6 +1320,7 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
     case STD:
         align = 3;
         /* FALLTHRU */
+        fallthrough;
     case STB: case STH: case STW:
         is_int_store = true;
         break;
@@ -1389,6 +1393,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
             break;
         }
         /* fallthru */
+        fallthrough;
     case TCG_TYPE_V64:
         tcg_debug_assert(ret >= TCG_REG_V0);
         if (have_vsx) {
@@ -1444,6 +1449,7 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
             break;
         }
         /* fallthru */
+        fallthrough;
     case TCG_TYPE_V64:
         tcg_debug_assert(arg >= TCG_REG_V0);
         if (have_vsx) {
@@ -1659,6 +1665,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
             tcg_out32(s, NOR | SAB(arg1, arg0, arg1));
             arg1 = arg0;
             /* FALLTHRU */
+            fallthrough;
         case TCG_COND_LT:
             /* Extract the sign bit.  */
             if (type == TCG_TYPE_I32) {
@@ -1719,7 +1726,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     case TCG_COND_LE:
     case TCG_COND_LEU:
         inv = true;
-        /* fall through */
+        fallthrough;
     case TCG_COND_GT:
     case TCG_COND_GTU:
         sh = 30; /* CR7 CR_GT */
@@ -1728,7 +1735,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     case TCG_COND_GE:
     case TCG_COND_GEU:
         inv = true;
-        /* fall through */
+        fallthrough;
     case TCG_COND_LT:
     case TCG_COND_LTU:
         sh = 29; /* CR7 CR_LT */
@@ -2744,6 +2751,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
             break;
         }
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_orc_i64:
         tcg_out32(s, ORC | SAB(args[1], args[0], args[2]));
         break;
@@ -2753,6 +2761,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
             break;
         }
         /* FALLTHRU */
+        fallthrough;
     case INDEX_op_eqv_i64:
         tcg_out32(s, EQV | SAB(args[1], args[0], args[2]));
         break;
@@ -2968,7 +2977,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                             args[3], TCG_TYPE_I32);
             break;
         }
-        /* fall through */
+        fallthrough;
     case INDEX_op_qemu_ld_a32_i32:
         tcg_out_qemu_ld(s, args[0], -1, args[1], -1, args[2], TCG_TYPE_I32);
         break;
@@ -3002,7 +3011,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                             args[3], TCG_TYPE_I32);
             break;
         }
-        /* fall through */
+        fallthrough;
     case INDEX_op_qemu_st_a32_i32:
         tcg_out_qemu_st(s, args[0], -1, args[1], -1, args[2], TCG_TYPE_I32);
         break;
@@ -3591,7 +3600,7 @@ static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
         if (have_isa_3_00 && vece <= MO_32) {
             break;
         }
-        /* fall through */
+        fallthrough;
     case TCG_COND_LE:
     case TCG_COND_LEU:
         need_inv = true;
