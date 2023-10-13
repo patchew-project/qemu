@@ -812,7 +812,7 @@ int rdma_backend_create_qp(RdmaBackendQP *qp, uint8_t qp_type,
         return 0;
 
     case IBV_QPT_RC:
-        /* fall through */
+        fallthrough;
     case IBV_QPT_UD:
         /* do nothing */
         break;
