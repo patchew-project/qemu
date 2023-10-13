@@ -731,7 +731,20 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     const char *uri = qdict_get_str(qdict, "uri");
     Error *err = NULL;
 
-    qmp_migrate(uri, !!blk, blk, !!inc, inc,
+    if (inc) {
+        monitor_printf(mon, "-i migrate option is deprecated, set the"
+                       "'block-incremental' migration parameter to 'true'"
+                       " instead.\n");
+        return;
+    }
+
+    if (blk) {
+        monitor_printf(mon, "-b migrate option is deprecated, set the "
+                       "'block' capability to 'true' instead.\n");
+        return;
+    }
+
+    qmp_migrate(uri, false, false, false, false,
                 false, false, true, resume, &err);
     if (hmp_handle_error(mon, err)) {
         return;

@@ -1599,17 +1599,17 @@ bool migration_is_blocked(Error **errp)
 static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                             bool resume, Error **errp)
 {
-    Error *local_err = NULL;
-
     if (blk_inc) {
-        warn_report("@inc/-i migrate option is deprecated, set the"
-                    "'block-incremental' migration parameter to 'true'"
-                    " instead.");
+        error_setg(errp, "@inc migrate option is deprecated, set the"
+                   "'block-incremental' migration parameter to 'true'"
+                   " instead.");
+        return false;
     }
 
     if (blk) {
-        warn_report("@blk/-i migrate option is deprecated, set the "
-                    "'block' capability to 'true' instead.");
+        error_setg(errp, "@blk/-i migrate option is deprecated, set the "
+                   "'block' capability to 'true' instead.");
+        return false;
     }
 
     if (resume) {
@@ -1659,27 +1659,6 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
 
     if (migration_is_blocked(errp)) {
         return false;
-    }
-
-    if (blk || blk_inc) {
-        if (migrate_colo()) {
-            error_setg(errp, "No disk migration is required in COLO mode");
-            return false;
-        }
-        if (migrate_block() || migrate_block_incremental()) {
-            error_setg(errp, "Command options are incompatible with "
-                       "current migration capabilities");
-            return false;
-        }
-        if (!migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, true, &local_err)) {
-            error_propagate(errp, local_err);
-            return false;
-        }
-        s->must_remove_block_options = true;
-    }
-
-    if (blk_inc) {
-        migrate_set_block_incremental(true);
     }
 
     if (migrate_init(s, errp)) {
