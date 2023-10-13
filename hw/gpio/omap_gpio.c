@@ -563,7 +563,7 @@ static void omap2_gpio_module_writep(void *opaque, hwaddr addr,
         cur = omap2_gpio_module_read(opaque, addr & ~3) &
                 ~(mask << ((addr & 3) << 3));
 
-        /* Fall through.  */
+        fallthrough;
     case 0x18:	/* GPIO_IRQSTATUS1 */
     case 0x28:	/* GPIO_IRQSTATUS2 */
     case 0x60:	/* GPIO_CLEARIRQENABLE1 */
