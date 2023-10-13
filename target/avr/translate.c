@@ -2773,13 +2773,13 @@ static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             break;
         }
         tcg_gen_movi_tl(cpu_pc, ctx->npc);
-        /* fall through */
+        fallthrough;
     case DISAS_LOOKUP:
         if (!force_exit) {
             tcg_gen_lookup_and_goto_ptr();
             break;
         }
-        /* fall through */
+        fallthrough;
     case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);
         break;
