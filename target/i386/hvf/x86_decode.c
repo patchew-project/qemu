@@ -1886,6 +1886,7 @@ static void decode_prefix(CPUX86State *env, struct x86_decode *decode)
                 break;
             }
             /* fall through when not in long mode */
+            fallthrough;
         default:
             decode->len--;
             return;

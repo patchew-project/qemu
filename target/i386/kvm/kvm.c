@@ -553,7 +553,7 @@ uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index)
                 value |= (uint64_t)VMX_SECONDARY_EXEC_RDTSCP << 32;
             }
         }
-        /* fall through */
+        fallthrough;
     case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
     case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
     case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
@@ -1962,7 +1962,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             if (env->nr_dies < 2) {
                 break;
             }
-            /* fallthrough */
+            fallthrough;
         case 4:
         case 0xb:
         case 0xd:
