@@ -8,16 +8,16 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#include <spa/param/audio/format-utils.h>
+#include <spa/utils/ringbuffer.h>
+#include <spa/utils/result.h>
+#include <spa/param/props.h>
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "audio.h"
 #include <errno.h>
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include <spa/param/audio/format-utils.h>
-#include <spa/utils/ringbuffer.h>
-#include <spa/utils/result.h>
-#include <spa/param/props.h>
 
 #include <pipewire/pipewire.h>
 #include "trace.h"

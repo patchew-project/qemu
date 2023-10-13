@@ -50,8 +50,6 @@
  */
 #pragma GCC poison TARGET_WORDS_BIGENDIAN
 
-#include "qemu/compiler.h"
-
 /* Older versions of C++ don't get definitions of various macros from
  * stdlib.h unless we define these macros before first inclusion of
  * that system header.
@@ -159,6 +157,8 @@ QEMU_EXTERN_C int daemon(int, int);
  * which will not compile if inside an extern "C" block.
  */
 #include "glib-compat.h"
+
+#include "qemu/compiler.h"
 
 #ifdef _WIN32
 #include "sysemu/os-win32.h"

@@ -178,7 +178,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
             env->CSR_DBG = FIELD_DP64(env->CSR_DBG, CSR_DBG, DEI, 1);
             goto set_DERA;
         }
-        QEMU_FALLTHROUGH;
+        fallthrough;
     case EXCCODE_PIF:
     case EXCCODE_ADEF:
         cause = cs->exception_index;
@@ -193,7 +193,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     case EXCCODE_SXD:
     case EXCCODE_ASXD:
         env->CSR_BADV = env->pc;
-        QEMU_FALLTHROUGH;
+        fallthrough;
     case EXCCODE_BCE:
     case EXCCODE_ADEM:
     case EXCCODE_PIL:
