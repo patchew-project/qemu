@@ -1086,7 +1086,7 @@ static int s390_kvm_irq_to_interrupt(struct kvm_s390_irq *irq,
     switch (irq->type) {
     case KVM_S390_INT_VIRTIO:
         interrupt->parm = irq->u.ext.ext_params;
-        /* fall through */
+        fallthrough;
     case KVM_S390_INT_PFAULT_INIT:
     case KVM_S390_INT_PFAULT_DONE:
         interrupt->parm64 = irq->u.ext.ext_params2;
