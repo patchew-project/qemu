@@ -1457,7 +1457,7 @@ static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
                 DPRINTF("xhci: data direction mismatch for TR_DATA\n");
                 goto err;
             }
-            /* fallthrough */
+            fallthrough;
         case TR_NORMAL:
         case TR_ISOCH:
             addr = xhci_mask64(trb->parameter);
@@ -2678,7 +2678,7 @@ static void xhci_port_reset(XHCIPort *port, bool warm_reset)
         if (warm_reset) {
             port->portsc |= PORTSC_WRC;
         }
-        /* fall through */
+        fallthrough;
     case USB_SPEED_LOW:
     case USB_SPEED_FULL:
     case USB_SPEED_HIGH:

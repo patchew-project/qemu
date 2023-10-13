@@ -741,7 +741,7 @@ static void tusb_musb_core_intr(void *opaque, int source, int level)
     case musb_irq_tx:
     case musb_irq_rx:
         s->usbip_intr = musb_core_intr_get(s->musb);
-        /* Fall through.  */
+        fallthrough;
     default:
         if (level)
             s->intr |= 1 << source;

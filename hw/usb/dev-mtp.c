@@ -1648,7 +1648,7 @@ static void usb_mtp_write_data(MTPState *s, uint32_t handle)
                 d->write_status = WRITE_END;
             }
         }
-        /* fall through */
+        fallthrough;
     case WRITE_CONTINUE:
     case WRITE_END:
         rc = write_retry(d->fd, d->data, d->data_offset,
