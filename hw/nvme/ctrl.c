@@ -1918,7 +1918,7 @@ static uint16_t nvme_zrm_finish(NvmeNamespace *ns, NvmeZone *zone)
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
         nvme_aor_dec_open(ns);
-        /* fallthrough */
+        fallthrough;
     case NVME_ZONE_STATE_CLOSED:
         nvme_aor_dec_active(ns);
 
@@ -1929,7 +1929,7 @@ static uint16_t nvme_zrm_finish(NvmeNamespace *ns, NvmeZone *zone)
             }
         }
 
-        /* fallthrough */
+        fallthrough;
     case NVME_ZONE_STATE_EMPTY:
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_FULL);
         return NVME_SUCCESS;
@@ -1946,7 +1946,7 @@ static uint16_t nvme_zrm_close(NvmeNamespace *ns, NvmeZone *zone)
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         nvme_aor_dec_open(ns);
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
-        /* fall through */
+        fallthrough;
     case NVME_ZONE_STATE_CLOSED:
         return NVME_SUCCESS;
 
@@ -1961,7 +1961,7 @@ static uint16_t nvme_zrm_reset(NvmeNamespace *ns, NvmeZone *zone)
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         nvme_aor_dec_open(ns);
-        /* fallthrough */
+        fallthrough;
     case NVME_ZONE_STATE_CLOSED:
         nvme_aor_dec_active(ns);
 
@@ -1971,12 +1971,12 @@ static uint16_t nvme_zrm_reset(NvmeNamespace *ns, NvmeZone *zone)
             }
         }
 
-        /* fallthrough */
+        fallthrough;
     case NVME_ZONE_STATE_FULL:
         zone->w_ptr = zone->d.zslba;
         zone->d.wp = zone->w_ptr;
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_EMPTY);
-        /* fallthrough */
+        fallthrough;
     case NVME_ZONE_STATE_EMPTY:
         return NVME_SUCCESS;
 
@@ -2017,7 +2017,7 @@ static uint16_t nvme_zrm_open_flags(NvmeCtrl *n, NvmeNamespace *ns,
     case NVME_ZONE_STATE_EMPTY:
         act = 1;
 
-        /* fallthrough */
+        fallthrough;
 
     case NVME_ZONE_STATE_CLOSED:
         if (n->params.auto_transition_zones) {
@@ -2040,7 +2040,7 @@ static uint16_t nvme_zrm_open_flags(NvmeCtrl *n, NvmeNamespace *ns,
             return NVME_SUCCESS;
         }
 
-        /* fallthrough */
+        fallthrough;
 
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         if (flags & NVME_ZRM_AUTO) {
@@ -2049,7 +2049,7 @@ static uint16_t nvme_zrm_open_flags(NvmeCtrl *n, NvmeNamespace *ns,
 
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_EXPLICITLY_OPEN);
 
-        /* fallthrough */
+        fallthrough;
 
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
         if (flags & NVME_ZRM_ZRWA) {
@@ -3582,7 +3582,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
                     return NVME_INVALID_PROT_INFO | NVME_DNR;
                 }
 
-                /* fallthrough */
+                fallthrough;
 
             case NVME_ID_NS_DPS_TYPE_2:
                 if (piremap) {
@@ -3737,7 +3737,7 @@ static uint16_t nvme_offline_zone(NvmeNamespace *ns, NvmeZone *zone,
     switch (state) {
     case NVME_ZONE_STATE_READ_ONLY:
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_OFFLINE);
-        /* fall through */
+        fallthrough;
     case NVME_ZONE_STATE_OFFLINE:
         return NVME_SUCCESS;
     default:
@@ -4914,7 +4914,7 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
     switch (NVME_CC_CSS(ldl_le_p(&n->bar.cc))) {
     case NVME_CC_CSS_NVM:
         src_iocs = nvme_cse_iocs_nvm;
-        /* fall through */
+        fallthrough;
     case NVME_CC_CSS_ADMIN_ONLY:
         break;
     case NVME_CC_CSS_CSI:

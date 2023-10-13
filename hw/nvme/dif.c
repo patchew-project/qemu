@@ -161,7 +161,7 @@ static uint16_t nvme_dif_prchk_crc16(NvmeNamespace *ns, NvmeDifTuple *dif,
             break;
         }
 
-        /* fallthrough */
+        fallthrough;
     case NVME_ID_NS_DPS_TYPE_1:
     case NVME_ID_NS_DPS_TYPE_2:
         if (be16_to_cpu(dif->g16.apptag) != 0xffff) {
@@ -229,7 +229,7 @@ static uint16_t nvme_dif_prchk_crc64(NvmeNamespace *ns, NvmeDifTuple *dif,
             break;
         }
 
-        /* fallthrough */
+        fallthrough;
     case NVME_ID_NS_DPS_TYPE_1:
     case NVME_ID_NS_DPS_TYPE_2:
         if (be16_to_cpu(dif->g64.apptag) != 0xffff) {
