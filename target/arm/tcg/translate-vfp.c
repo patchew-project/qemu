@@ -819,7 +819,7 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
                                               tcg_constant_i32(a->rt),
                                               tcg_constant_i32(a->reg));
             }
-            /* fall through */
+            fallthrough;
         case ARM_VFP_FPEXC:
         case ARM_VFP_FPINST:
         case ARM_VFP_FPINST2:

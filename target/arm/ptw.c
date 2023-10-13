@@ -2374,7 +2374,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
                     break; /* no access */
                 case 3:
                     result->f.prot |= PAGE_WRITE;
-                    /* fall through */
+                    fallthrough;
                 case 2:
                 case 6:
                     result->f.prot |= PAGE_READ | PAGE_EXEC;
@@ -2385,7 +2385,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
                         result->f.prot |= PAGE_READ | PAGE_EXEC;
                         break;
                     }
-                    /* fall through */
+                    fallthrough;
                 default:
                     qemu_log_mask(LOG_GUEST_ERROR,
                                   "DRACR[%d]: Bad value for AP bits: 0x%"
@@ -2399,7 +2399,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
                 case 2:
                 case 3:
                     result->f.prot |= PAGE_WRITE;
-                    /* fall through */
+                    fallthrough;
                 case 5:
                 case 6:
                     result->f.prot |= PAGE_READ | PAGE_EXEC;
@@ -2410,7 +2410,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
                         result->f.prot |= PAGE_READ | PAGE_EXEC;
                         break;
                     }
-                    /* fall through */
+                    fallthrough;
                 default:
                     qemu_log_mask(LOG_GUEST_ERROR,
                                   "DRACR[%d]: Bad value for AP bits: 0x%"
@@ -3333,7 +3333,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
             return get_phys_addr_twostage(env, ptw, address, access_type,
                                           result, fi);
         }
-        /* fall through */
+        fallthrough;
 
     default:
         /* Single stage uses physical for ptw. */

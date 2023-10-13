@@ -191,7 +191,7 @@ void arm_handle_psci_call(ARMCPU *cpu)
                 ret = 0;
                 break;
             }
-            /* fallthrough */
+            fallthrough;
         case QEMU_PSCI_0_1_FN_MIGRATE:
         case QEMU_PSCI_0_2_FN_MIGRATE:
         default:

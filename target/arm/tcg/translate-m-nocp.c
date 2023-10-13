@@ -374,8 +374,8 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
             s->base.is_jmp = DISAS_NEXT;
             break;
         }
+        fallthrough;
     }
-    /* fall through */
     case ARM_VFP_FPCXT_S:
     {
         TCGv_i32 sfpa, control;
