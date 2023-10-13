@@ -174,19 +174,19 @@ static void gen_mips16_save(DisasContext *ctx,
         gen_load_gpr(t1, 7);
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
                            ctx->default_tcg_memop_mask);
-        /* Fall through */
+        fallthrough;
     case 3:
         gen_base_offset_addr(ctx, t0, 29, 8);
         gen_load_gpr(t1, 6);
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
                            ctx->default_tcg_memop_mask);
-        /* Fall through */
+        fallthrough;
     case 2:
         gen_base_offset_addr(ctx, t0, 29, 4);
         gen_load_gpr(t1, 5);
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
                            ctx->default_tcg_memop_mask);
-        /* Fall through */
+        fallthrough;
     case 1:
         gen_base_offset_addr(ctx, t0, 29, 0);
         gen_load_gpr(t1, 4);
@@ -211,22 +211,22 @@ static void gen_mips16_save(DisasContext *ctx,
     switch (xsregs) {
     case 7:
         DECR_AND_STORE(30);
-        /* Fall through */
+        fallthrough;
     case 6:
         DECR_AND_STORE(23);
-        /* Fall through */
+        fallthrough;
     case 5:
         DECR_AND_STORE(22);
-        /* Fall through */
+        fallthrough;
     case 4:
         DECR_AND_STORE(21);
-        /* Fall through */
+        fallthrough;
     case 3:
         DECR_AND_STORE(20);
-        /* Fall through */
+        fallthrough;
     case 2:
         DECR_AND_STORE(19);
-        /* Fall through */
+        fallthrough;
     case 1:
         DECR_AND_STORE(18);
     }
@@ -315,22 +315,22 @@ static void gen_mips16_restore(DisasContext *ctx,
     switch (xsregs) {
     case 7:
         DECR_AND_LOAD(30);
-        /* Fall through */
+        fallthrough;
     case 6:
         DECR_AND_LOAD(23);
-        /* Fall through */
+        fallthrough;
     case 5:
         DECR_AND_LOAD(22);
-        /* Fall through */
+        fallthrough;
     case 4:
         DECR_AND_LOAD(21);
-        /* Fall through */
+        fallthrough;
     case 3:
         DECR_AND_LOAD(20);
-        /* Fall through */
+        fallthrough;
     case 2:
         DECR_AND_LOAD(19);
-        /* Fall through */
+        fallthrough;
     case 1:
         DECR_AND_LOAD(18);
     }

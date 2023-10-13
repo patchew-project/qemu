@@ -1845,7 +1845,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
 #endif
-            /* fall through */
+            fallthrough;
         case LWP:
         case SWP:
             gen_ldst_pair(ctx, minor, rt, rs, SIMM(ctx->opcode, 0, 12));
@@ -1856,7 +1856,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
 #endif
-            /* fall through */
+            fallthrough;
         case LWM32:
         case SWM32:
             gen_ldst_multiple(ctx, minor, rt, rs, SIMM(ctx->opcode, 0, 12));

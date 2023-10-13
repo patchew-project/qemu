@@ -4573,7 +4573,7 @@ static void decode_opc_mxu__pool06(DisasContext *ctx)
             gen_mxu_s32ldxvx(ctx, opcode, false, strd2);
             break;
         }
-        /* fallthrough */
+        fallthrough;
     default:
         MIPS_INVAL("decode_opc_mxu");
         gen_reserved_instruction(ctx);
@@ -4593,7 +4593,7 @@ static void decode_opc_mxu__pool07(DisasContext *ctx)
             gen_mxu_s32stxvx(ctx, opcode, false, strd2);
             break;
         }
-        /* fallthrough */
+        fallthrough;
     default:
         MIPS_INVAL("decode_opc_mxu");
         gen_reserved_instruction(ctx);
@@ -4639,7 +4639,7 @@ static void decode_opc_mxu__pool10(DisasContext *ctx)
             gen_mxu_s32ldxvx(ctx, opcode, true, strd2);
             break;
         }
-        /* fallthrough */
+        fallthrough;
     default:
         MIPS_INVAL("decode_opc_mxu");
         gen_reserved_instruction(ctx);
@@ -4659,7 +4659,7 @@ static void decode_opc_mxu__pool11(DisasContext *ctx)
             gen_mxu_s32stxvx(ctx, opcode, true, strd2);
             break;
         }
-        /* fallthrough */
+        fallthrough;
     default:
         MIPS_INVAL("decode_opc_mxu");
         gen_reserved_instruction(ctx);
