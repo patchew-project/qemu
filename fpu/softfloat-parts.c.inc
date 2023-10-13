@@ -181,7 +181,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         break;
     case float_round_to_odd:
         overflow_norm = true;
-        /* fall through */
+        fallthrough;
     case float_round_to_odd_inf:
         if (N > 64 && frac_lsb == 0) {
             inc = p->frac_hi & 1 ? 0 : round_mask;
@@ -1068,7 +1068,7 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
     switch (p->cls) {
     case float_class_snan:
         flags |= float_flag_invalid_snan;
-        /* fall through */
+        fallthrough;
     case float_class_qnan:
         flags |= float_flag_invalid;
         r = max;
@@ -1135,7 +1135,7 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
     switch (p->cls) {
     case float_class_snan:
         flags |= float_flag_invalid_snan;
-        /* fall through */
+        fallthrough;
     case float_class_qnan:
         flags |= float_flag_invalid;
         r = max;
@@ -1198,7 +1198,7 @@ static int64_t partsN(float_to_sint_modulo)(FloatPartsN *p,
     switch (p->cls) {
     case float_class_snan:
         flags |= float_flag_invalid_snan;
-        /* fall through */
+        fallthrough;
     case float_class_qnan:
         flags |= float_flag_invalid;
         r = 0;
