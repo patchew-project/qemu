@@ -457,7 +457,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             break;
         case RTC_IBM_PS2_CENTURY_BYTE:
             s->cmos_index = RTC_CENTURY;
-            /* fall through */
+            fallthrough;
         case RTC_CENTURY:
         case RTC_SECONDS:
         case RTC_MINUTES:
@@ -686,7 +686,7 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
         switch(s->cmos_index) {
         case RTC_IBM_PS2_CENTURY_BYTE:
             s->cmos_index = RTC_CENTURY;
-            /* fall through */
+            fallthrough;
         case RTC_CENTURY:
         case RTC_SECONDS:
         case RTC_MINUTES:

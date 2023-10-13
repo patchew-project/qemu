@@ -78,7 +78,7 @@ static uint64_t aspeed_rtc_read(void *opaque, hwaddr addr,
         if (rtc->reg[CONTROL] & RTC_ENABLED) {
             rtc->reg[r] = aspeed_rtc_get_counter(rtc, r);
         }
-        /* fall through */
+        fallthrough;
     case CONTROL:
         val = rtc->reg[r];
         break;
@@ -106,7 +106,7 @@ static void aspeed_rtc_write(void *opaque, hwaddr addr,
         if (!(rtc->reg[CONTROL] & RTC_UNLOCKED)) {
             break;
         }
-        /* fall through */
+        fallthrough;
     case CONTROL:
         rtc->reg[r] = val;
         aspeed_rtc_calc_offset(rtc);
