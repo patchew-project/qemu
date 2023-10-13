@@ -2151,7 +2151,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
     case MFI_IQPL:
         trace_megasas_mmio_writel("MFI_IQPL", val);
         /* Received low 32 bits of a 64 bit MFI frame address */
-        /* Fallthrough */
+        fallthrough;
     case MFI_IQP:
         if (addr == MFI_IQP) {
             trace_megasas_mmio_writel("MFI_IQP", val);
