@@ -206,3 +206,7 @@ SRA_r       10 ..... 100111 ..... 0 .   0000000 .....      @shiftr
 SLL_i       10 ..... 100101 ..... 1 .   000000 ......      @shifti
 SRL_i       10 ..... 100110 ..... 1 .   000000 ......      @shifti
 SRA_i       10 ..... 100111 ..... 1 .   000000 ......      @shifti
+
+MOVcc       10 rd:5  101100 1 cond:4 imm:1 cc:1 0 rs2_or_imm:s11
+MOVfcc      10 rd:5  101100 0 cond:4 imm:1 cc:2   rs2_or_imm:s11
+MOVR        10 rd:5  101111 rs1:5    imm:1 cond:3 rs2_or_imm:s10
