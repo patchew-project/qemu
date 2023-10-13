@@ -122,7 +122,7 @@ static TCGCond gen_compare_i128(bool bz, TCGv rl,
 
     case TCG_COND_LTU:
         invert = true;
-        /* fallthrough */
+        fallthrough;
     case TCG_COND_GEU:
         {
             TCGv tmp = tcg_temp_new();
