@@ -2115,7 +2115,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LWE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_LW:
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TESL |
                            ctx->default_tcg_memop_mask);
@@ -2123,7 +2123,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LHE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_LH:
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TESW |
                            ctx->default_tcg_memop_mask);
@@ -2131,7 +2131,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LHUE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_LHU:
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUW |
                            ctx->default_tcg_memop_mask);
@@ -2139,21 +2139,21 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LBE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_LB:
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_SB);
         gen_store_gpr(t0, rt);
         break;
     case OPC_LBUE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_LBU:
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_UB);
         gen_store_gpr(t0, rt);
         break;
     case OPC_LWLE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_LWL:
         t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
@@ -2163,7 +2163,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LWRE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_LWR:
         t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
@@ -2173,7 +2173,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LLE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_LL:
     case R6_OPC_LL:
         op_ld_ll(t0, t0, mem_idx, ctx);
@@ -2207,33 +2207,33 @@ static void gen_st(DisasContext *ctx, uint32_t opc, int rt,
 #endif
     case OPC_SWE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_SW:
         tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUL |
                            ctx->default_tcg_memop_mask);
         break;
     case OPC_SHE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_SH:
         tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUW |
                            ctx->default_tcg_memop_mask);
         break;
     case OPC_SBE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_SB:
         tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_8);
         break;
     case OPC_SWLE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_SWL:
         gen_helper_0e2i(swl, t1, t0, mem_idx);
         break;
     case OPC_SWRE:
         mem_idx = MIPS_HFLAG_UM;
-        /* fall through */
+        fallthrough;
     case OPC_SWR:
         gen_helper_0e2i(swr, t1, t0, mem_idx);
         break;
@@ -2329,7 +2329,7 @@ static void gen_cop1_ldst(DisasContext *ctx, uint32_t op, int rt,
         case OPC_LDC1:
         case OPC_SDC1:
             check_insn(ctx, ISA_MIPS2);
-            /* Fallthrough */
+            fallthrough;
         default:
             gen_base_offset_addr(ctx, t0, rs, imm);
             gen_flt_ldst(ctx, op, rt, t0);
@@ -3477,7 +3477,7 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
     switch (opc) {
     case MMI_OPC_MULT1:
         acc = 1;
-        /* Fall through */
+        fallthrough;
     case OPC_MULT:
         {
             TCGv_i32 t2 = tcg_temp_new_i32();
@@ -3494,7 +3494,7 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
         break;
     case MMI_OPC_MULTU1:
         acc = 1;
-        /* Fall through */
+        fallthrough;
     case OPC_MULTU:
         {
             TCGv_i32 t2 = tcg_temp_new_i32();
@@ -3511,7 +3511,7 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
         break;
     case MMI_OPC_MADD1:
         acc = 1;
-        /* Fall through */
+        fallthrough;
     case MMI_OPC_MADD:
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
@@ -3531,7 +3531,7 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
         break;
     case MMI_OPC_MADDU1:
         acc = 1;
-        /* Fall through */
+        fallthrough;
     case MMI_OPC_MADDU:
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
@@ -4042,6 +4042,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
             /* We want to shift in zeros for SRL; zero-extend first.  */
             tcg_gen_ext32u_i64(t0, t0);
             /* FALLTHRU */
+            fallthrough;
         case OPC_DSRL_CP2:
             tcg_gen_shr_i64(t0, t0, t1);
             break;
@@ -4717,7 +4718,7 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc,
             break;
         case OPC_JALX:
             ctx->hflags |= MIPS_HFLAG_BX;
-            /* Fallthrough */
+            fallthrough;
         case OPC_JAL:
             blink = 31;
             ctx->hflags |= MIPS_HFLAG_B;
@@ -4883,9 +4884,11 @@ static void gen_bitops(DisasContext *ctx, uint32_t opc, int rt,
     case OPC_DINSU:
         lsb += 32;
         /* FALLTHRU */
+        fallthrough;
     case OPC_DINSM:
         msb += 32;
         /* FALLTHRU */
+        fallthrough;
     case OPC_DINS:
         if (lsb > msb) {
             goto fail;
@@ -8550,7 +8553,7 @@ static void gen_mftr(CPUMIPSState *env, DisasContext *ctx, int rt, int rd,
         /* COP2: Not implemented. */
         case 4:
         case 5:
-            /* fall through */
+            fallthrough;
         default:
             goto die;
         }
@@ -8752,7 +8755,7 @@ static void gen_mttr(CPUMIPSState *env, DisasContext *ctx, int rd, int rt,
         /* COP2: Not implemented. */
         case 4:
         case 5:
-            /* fall through */
+            fallthrough;
         default:
             goto die;
         }
@@ -11345,13 +11348,13 @@ static void gen_compute_compact_branch(DisasContext *ctx, uint32_t opc,
         switch (opc) {
         case OPC_JIALC:
             tcg_gen_movi_tl(cpu_gpr[31], ctx->base.pc_next + 4 + m16_lowbit);
-            /* Fallthrough */
+            fallthrough;
         case OPC_JIC:
             ctx->hflags |= MIPS_HFLAG_BR;
             break;
         case OPC_BALC:
             tcg_gen_movi_tl(cpu_gpr[31], ctx->base.pc_next + 4 + m16_lowbit);
-            /* Fallthrough */
+            fallthrough;
         case OPC_BC:
             ctx->hflags |= MIPS_HFLAG_B;
             break;
@@ -13504,7 +13507,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
                 break;
             }
         }
-        /* Fallthrough */
+        fallthrough;
     case OPC_SRA:
         gen_shift_imm(ctx, op1, rd, rt, sa);
         break;
@@ -13515,7 +13518,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
             if (ctx->insn_flags & ISA_MIPS_R2) {
                 op1 = OPC_ROTR;
             }
-            /* Fallthrough */
+            fallthrough;
         case 0:
             gen_shift_imm(ctx, op1, rd, rt, sa);
             break;
@@ -13541,7 +13544,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
             if (ctx->insn_flags & ISA_MIPS_R2) {
                 op1 = OPC_ROTRV;
             }
-            /* Fallthrough */
+            fallthrough;
         case 0:
             gen_shift(ctx, op1, rd, rs, rt);
             break;
@@ -13609,7 +13612,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
             if (ctx->insn_flags & ISA_MIPS_R2) {
                 op1 = OPC_DROTR;
             }
-            /* Fallthrough */
+            fallthrough;
         case 0:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
@@ -13627,7 +13630,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
             if (ctx->insn_flags & ISA_MIPS_R2) {
                 op1 = OPC_DROTR32;
             }
-            /* Fallthrough */
+            fallthrough;
         case 0:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
@@ -13659,7 +13662,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
             if (ctx->insn_flags & ISA_MIPS_R2) {
                 op1 = OPC_DROTRV;
             }
-            /* Fallthrough */
+            fallthrough;
         case 0:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
@@ -14669,7 +14672,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         case OPC_BGEZALL:
             check_insn(ctx, ISA_MIPS2);
             check_insn_opc_removed(ctx, ISA_MIPS_R6);
-            /* Fallthrough */
+            fallthrough;
         case OPC_BLTZ:
         case OPC_BGEZ:
             gen_compute_branch(ctx, op1, 4, rs, -1, imm << 2, 4);
@@ -14942,7 +14945,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
     case OPC_BNEL:
         check_insn(ctx, ISA_MIPS2);
          check_insn_opc_removed(ctx, ISA_MIPS_R6);
-        /* Fallthrough */
+        fallthrough;
     case OPC_BEQ:
     case OPC_BNE:
          gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
@@ -14952,7 +14955,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         if (ctx->insn_flags & INSN_R5900) {
             check_insn_opc_user_only(ctx, INSN_R5900);
         }
-        /* Fallthrough */
+        fallthrough;
     case OPC_LWL:
     case OPC_LWR:
     case OPC_LB:
@@ -15006,7 +15009,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         case OPC_MTHC1:
             check_cp1_enabled(ctx);
             check_insn(ctx, ISA_MIPS_R2);
-            /* fall through */
+            fallthrough;
         case OPC_MFC1:
         case OPC_CFC1:
         case OPC_MTC1:
@@ -15048,7 +15051,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             check_insn_opc_removed(ctx, ISA_MIPS_R6);
             check_cop1x(ctx);
             check_insn(ctx, ASE_MIPS3D);
-            /* fall through */
+            fallthrough;
         case OPC_BC1:
             check_cp1_enabled(ctx);
             check_insn_opc_removed(ctx, ISA_MIPS_R6);
@@ -15057,7 +15060,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             break;
         case OPC_PS_FMT:
             check_ps(ctx);
-            /* fall through */
+            fallthrough;
         case OPC_S_FMT:
         case OPC_D_FMT:
             check_cp1_enabled(ctx);
@@ -15186,7 +15189,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             case OPC_LUXC1:
             case OPC_SUXC1:
                 check_insn(ctx, ISA_MIPS5 | ISA_MIPS_R2);
-                /* Fallthrough */
+                fallthrough;
             case OPC_LWXC1:
             case OPC_LDXC1:
             case OPC_SWXC1:
@@ -15200,7 +15203,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
                 break;
             case OPC_ALNV_PS:
                 check_insn(ctx, ISA_MIPS5 | ISA_MIPS_R2);
-                /* Fallthrough */
+                fallthrough;
             case OPC_MADD_S:
             case OPC_MADD_D:
             case OPC_MADD_PS:
@@ -15232,7 +15235,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         if (ctx->insn_flags & INSN_R5900) {
             check_insn_opc_user_only(ctx, INSN_R5900);
         }
-        /* fall through */
+        fallthrough;
     case OPC_LDL:
     case OPC_LDR:
     case OPC_LWU:

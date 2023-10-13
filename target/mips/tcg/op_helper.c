@@ -238,7 +238,7 @@ void helper_pmon(CPUMIPSState *env, int function)
         if (env->active_tc.gpr[4] == 0) {
             env->active_tc.gpr[2] = -1;
         }
-        /* Fall through */
+        fallthrough;
     case 11: /* TODO: char inbyte (void); */
         env->active_tc.gpr[2] = -1;
         break;

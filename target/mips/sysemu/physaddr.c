@@ -44,7 +44,7 @@ static int is_seg_am_mapped(unsigned int am, bool eu, int mmu_idx)
         if (eu) {
             return 0;
         }
-        /* fall through */
+        fallthrough;
     case MIPS_HFLAG_KM:
         /* Never AdE, TLB mapped if AM={1,2,3} */
         adetlb_mask = 0x70000000;
