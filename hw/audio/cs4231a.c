@@ -311,7 +311,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
 
     case 6:
         as.endianness = 1;
-        /* fall through */
+        fallthrough;
     case 2:
         as.fmt = AUDIO_FORMAT_S16;
         s->shift = as.nchannels;

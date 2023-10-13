@@ -229,7 +229,7 @@ static int generate_fifo(ASCState *s, int maxsamples)
                 break;
 
             default:
-                /* fallthrough */
+                fallthrough;
             case 0x80:
                 /* Raw mode */
                 if (fs->cnt) {
