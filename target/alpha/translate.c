@@ -1436,7 +1436,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
     case 0x09:
         /* LDAH */
         disp16 = (uint32_t)disp16 << 16;
-        /* fall through */
+        fallthrough;
     case 0x08:
         /* LDA */
         va = dest_gpr(ctx, ra);
@@ -2940,9 +2940,11 @@ static void alpha_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             tcg_gen_exit_tb(ctx->base.tb, 0);
         }
         /* FALLTHRU */
+        fallthrough;
     case DISAS_PC_STALE:
         tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
         /* FALLTHRU */
+        fallthrough;
     case DISAS_PC_UPDATED:
         tcg_gen_lookup_and_goto_ptr();
         break;

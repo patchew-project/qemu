@@ -452,17 +452,17 @@ bool alpha_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         if (interrupt_request & CPU_INTERRUPT_HARD) {
             idx = EXCP_DEV_INTERRUPT;
         }
-        /* FALLTHRU */
+        fallthrough;
     case 4:
         if (interrupt_request & CPU_INTERRUPT_TIMER) {
             idx = EXCP_CLK_INTERRUPT;
         }
-        /* FALLTHRU */
+        fallthrough;
     case 5:
         if (interrupt_request & CPU_INTERRUPT_SMP) {
             idx = EXCP_SMP_INTERRUPT;
         }
-        /* FALLTHRU */
+        fallthrough;
     case 6:
         if (interrupt_request & CPU_INTERRUPT_MCHK) {
             idx = EXCP_MCHK;
