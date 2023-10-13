@@ -198,7 +198,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
     case EXCP_TLB_D:
         tlbmisc_set = CR_TLBMISC_D;
-        /* fall through */
+        fallthrough;
     case EXCP_TLB_X:
         if (env->ctrl[CR_STATUS] & CR_STATUS_EH) {
             tlbmisc_set |= CR_TLBMISC_DBL;
@@ -220,7 +220,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     case EXCP_PERM_R:
     case EXCP_PERM_W:
         tlbmisc_set = CR_TLBMISC_D;
-        /* fall through */
+        fallthrough;
     case EXCP_PERM_X:
         tlbmisc_set |= CR_TLBMISC_PERM;
         if (!(env->ctrl[CR_STATUS] & CR_STATUS_EH)) {
@@ -232,7 +232,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     case EXCP_SUPERA_D:
     case EXCP_UNALIGN:
         tlbmisc_set = CR_TLBMISC_D;
-        /* fall through */
+        fallthrough;
     case EXCP_SUPERA_X:
     case EXCP_UNALIGND:
         tlbmisc_set |= CR_TLBMISC_BAD;
