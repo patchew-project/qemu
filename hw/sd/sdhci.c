@@ -92,7 +92,7 @@ static void sdhci_check_capareg(SDHCIState *s, Error **errp)
         trace_sdhci_capareg("ADMA3", val);
         msk = FIELD_DP64(msk, SDHC_CAPAB, ADMA3, 0);
 
-    /* fallthrough */
+        fallthrough;
     case 3:
         val = FIELD_EX64(s->capareg, SDHC_CAPAB, ASYNC_INT);
         trace_sdhci_capareg("async interrupt", val);
@@ -136,7 +136,7 @@ static void sdhci_check_capareg(SDHCIState *s, Error **errp)
         trace_sdhci_capareg("clock multiplier", val);
         msk = FIELD_DP64(msk, SDHC_CAPAB, CLOCK_MULT, 0);
 
-    /* fallthrough */
+        fallthrough;
     case 2: /* default version */
         val = FIELD_EX64(s->capareg, SDHC_CAPAB, ADMA2);
         trace_sdhci_capareg("ADMA2", val);
@@ -150,7 +150,7 @@ static void sdhci_check_capareg(SDHCIState *s, Error **errp)
         trace_sdhci_capareg("64-bit system bus (v3)", val);
         msk = FIELD_DP64(msk, SDHC_CAPAB, BUS64BIT, 0);
 
-    /* fallthrough */
+        fallthrough;
     case 1:
         y = FIELD_EX64(s->capareg, SDHC_CAPAB, TOUNIT);
         msk = FIELD_DP64(msk, SDHC_CAPAB, TOUNIT, 0);
@@ -1839,7 +1839,7 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
          * so we artificially set it to that value.
          */
         val |= 0x7 << 12;
-        /* FALLTHROUGH */
+        fallthrough;
     default:
         sdhci_write(opaque, offset, val, size);
         break;
