@@ -3014,6 +3014,74 @@ static bool trans_SETHI(DisasContext *dc, arg_SETHI *a)
     return advance_pc(dc);
 }
 
+static bool do_tcc(DisasContext *dc, int cc, int cond,
+                   bool imm, int rs1, int rs2_or_imm)
+{
+    TCGLabel *l1 = NULL;
+    TCGv_i32 trap;
+    int mask;
+
+    /* Reject %xcc for sparc32. */
+    if (avail_32(dc) && cc) {
+        return false;
+    }
+
+    /* Trap never.  */
+    if (cond == 0) {
+        return advance_pc(dc);
+    }
+
+    save_state(dc);
+
+    /* Conditional trap.  */
+    if (cond != 8) {
+        DisasCompare cmp;
+
+        gen_compare(&cmp, cc, cond, dc);
+        l1 = gen_new_label();
+        tcg_gen_brcond_tl(tcg_invert_cond(cmp.cond), cmp.c1, cmp.c2, l1);
+    }
+
+    mask = ((dc->def->features & CPU_FEATURE_HYPV) && supervisor(dc)
+            ? UA2005_HTRAP_MASK : V8_TRAP_MASK);
+
+    if (rs2_or_imm == 0) {
+        imm = true;
+    }
+    if (rs1 == 0 && imm) {
+        trap = tcg_constant_i32((rs2_or_imm & mask) + TT_TRAP);
+    } else {
+        TCGv tmp = tcg_temp_new();
+        TCGv src1 = gen_load_gpr(dc, rs1);
+
+        if (imm) {
+            tcg_gen_addi_tl(tmp, src1, rs2_or_imm);
+        } else {
+            tcg_gen_add_tl(tmp, src1, gen_load_gpr(dc, rs2_or_imm));
+        }
+
+        trap = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(trap, tmp);
+        tcg_gen_andi_i32(trap, trap, mask);
+        tcg_gen_addi_i32(trap, trap, TT_TRAP);
+    }
+
+    gen_helper_raise_exception(tcg_env, trap);
+
+    if (l1 == NULL) {
+        /* An unconditional trap ends the TB.  */
+        dc->base.is_jmp = DISAS_NORETURN;
+        return true;
+    }
+
+    /* A conditional trap falls through to the next insn.  */
+    gen_set_label(l1);
+    return advance_pc(dc);
+}
+
+TRANS(Tcc_r, ALL, do_tcc, a->cc, a->cond, false, a->rs1, a->rs2)
+TRANS(Tcc_i, ALL, do_tcc, a->cc, a->cond, true, a->rs1, a->i)
+
 #define CHECK_IU_FEATURE(dc, FEATURE)                      \
     if (!((dc)->def->features & CPU_FEATURE_ ## FEATURE))  \
         goto illegal_insn;
@@ -3044,85 +3112,7 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
             TCGv cpu_dst = tcg_temp_new();
             TCGv cpu_tmp0;
 
-            if (xop == 0x3a) {  /* generate trap */
-                int cond = GET_FIELD(insn, 3, 6);
-                TCGv_i32 trap;
-                TCGLabel *l1 = NULL;
-                int mask;
-
-                if (cond == 0) {
-                    /* Trap never.  */
-                    break;
-                }
-
-                save_state(dc);
-
-                if (cond != 8) {
-                    /* Conditional trap.  */
-                    DisasCompare cmp;
-#ifdef TARGET_SPARC64
-                    /* V9 icc/xcc */
-                    int cc = GET_FIELD_SP(insn, 11, 12);
-                    if (cc == 0) {
-                        gen_compare(&cmp, 0, cond, dc);
-                    } else if (cc == 2) {
-                        gen_compare(&cmp, 1, cond, dc);
-                    } else {
-                        goto illegal_insn;
-                    }
-#else
-                    gen_compare(&cmp, 0, cond, dc);
-#endif
-                    l1 = gen_new_label();
-                    tcg_gen_brcond_tl(tcg_invert_cond(cmp.cond),
-                                      cmp.c1, cmp.c2, l1);
-                }
-
-                mask = ((dc->def->features & CPU_FEATURE_HYPV) && supervisor(dc)
-                        ? UA2005_HTRAP_MASK : V8_TRAP_MASK);
-
-                /* Don't use the normal temporaries, as they may well have
-                   gone out of scope with the branch above.  While we're
-                   doing that we might as well pre-truncate to 32-bit.  */
-                trap = tcg_temp_new_i32();
-
-                rs1 = GET_FIELD_SP(insn, 14, 18);
-                if (IS_IMM) {
-                    rs2 = GET_FIELD_SP(insn, 0, 7);
-                    if (rs1 == 0) {
-                        tcg_gen_movi_i32(trap, (rs2 & mask) + TT_TRAP);
-                        /* Signal that the trap value is fully constant.  */
-                        mask = 0;
-                    } else {
-                        TCGv t1 = gen_load_gpr(dc, rs1);
-                        tcg_gen_trunc_tl_i32(trap, t1);
-                        tcg_gen_addi_i32(trap, trap, rs2);
-                    }
-                } else {
-                    TCGv t1, t2;
-                    rs2 = GET_FIELD_SP(insn, 0, 4);
-                    t1 = gen_load_gpr(dc, rs1);
-                    t2 = gen_load_gpr(dc, rs2);
-                    tcg_gen_add_tl(t1, t1, t2);
-                    tcg_gen_trunc_tl_i32(trap, t1);
-                }
-                if (mask != 0) {
-                    tcg_gen_andi_i32(trap, trap, mask);
-                    tcg_gen_addi_i32(trap, trap, TT_TRAP);
-                }
-
-                gen_helper_raise_exception(tcg_env, trap);
-
-                if (cond == 8) {
-                    /* An unconditional trap ends the TB.  */
-                    dc->base.is_jmp = DISAS_NORETURN;
-                    goto jmp_insn;
-                } else {
-                    /* A conditional trap falls through to the next insn.  */
-                    gen_set_label(l1);
-                    break;
-                }
-            } else if (xop == 0x28) {
+            if (xop == 0x28) {
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch(rs1) {
                 case 0: /* rdy */
