@@ -634,6 +634,29 @@ are still some caveats to beware of
         return g_steal_pointer(&foo);
     }
 
+Implicit switch case fall-through
+=================================
+
+The C language allows switch cases to "fall-through" when a "break" statement
+is missing at the end of a case. This, however, introduces ambiguity in the
+code, as it's not always clear if the missing break is intentional or a bug.
+
+As this behaviour allows for bugs we do not allow "implicit fall-through".
+
+In order to identify intentional fall-through cases, we have adopted a
+pseudo-keyword macro 'fallthrough' which expands to gcc's extension
+__attribute__((__fallthrough__)).  `Statement Attributes
+<https://gcc.gnu.org/onlinedocs/gcc/Statement-Attributes.html>`_
+
+All switch/case blocks must end in one of:
+
+.. code-block:: c
+
+	  break;
+	  fallthrough;
+	  continue;
+	  goto <label>;
+	  return [expression];
 
 QEMU Specific Idioms
 ********************
