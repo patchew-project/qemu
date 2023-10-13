@@ -64,8 +64,7 @@ hwaddr cxl_decode_ig(int ig)
 static uint64_t cxl_cache_mem_read_reg(void *opaque, hwaddr offset,
                                        unsigned size)
 {
-    CXLComponentState *cxl_cstate = opaque;
-    ComponentRegisters *cregs = &cxl_cstate->crb;
+    ComponentRegisters *cregs = opaque;
 
     if (size == 8) {
         qemu_log_mask(LOG_UNIMP,
@@ -113,8 +112,7 @@ static void dumb_hdm_handler(CXLComponentState *cxl_cstate, hwaddr offset,
 static void cxl_cache_mem_write_reg(void *opaque, hwaddr offset, uint64_t value,
                                     unsigned size)
 {
-    CXLComponentState *cxl_cstate = opaque;
-    ComponentRegisters *cregs = &cxl_cstate->crb;
+    ComponentRegisters *cregs = opaque;
     uint32_t mask;
 
     if (size == 8) {
