@@ -2847,7 +2847,7 @@ static void migration_iteration_finish(MigrationState *s)
         assert(migrate_colo());
         migrate_start_colo_process(s);
         s->vm_old_state = RUN_STATE_RUNNING;
-        /* Fallthrough */
+        fallthrough;
     case MIGRATION_STATUS_FAILED:
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_CANCELLING:
