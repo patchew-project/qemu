@@ -167,27 +167,27 @@ static uint64_t pxa2xx_timer_read(void *opaque, hwaddr offset,
 
     switch (offset) {
     case OSMR3:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR2:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR1:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR0:
         return s->timer[tm].value;
     case OSMR11: tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR10: tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR9:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR8:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR7:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR6:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR5:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR4:
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;
@@ -196,19 +196,19 @@ static uint64_t pxa2xx_timer_read(void *opaque, hwaddr offset,
         return s->clock + muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
                         s->lastload, s->freq, NANOSECONDS_PER_SECOND);
     case OSCR11: tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR10: tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR9:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR8:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR7:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR6:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR5:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR4:
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;
@@ -236,19 +236,19 @@ static uint64_t pxa2xx_timer_read(void *opaque, hwaddr offset,
     case OWER:
         return s->reset3;
     case OMCR11: tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR10: tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR9:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR8:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR7:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR6:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR5:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR4:
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;
@@ -277,29 +277,29 @@ static void pxa2xx_timer_write(void *opaque, hwaddr offset,
 
     switch (offset) {
     case OSMR3:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR2:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR1:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR0:
         s->timer[tm].value = value;
         pxa2xx_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case OSMR11: tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR10: tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR9:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR8:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR7:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR6:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR5:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSMR4:
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;
@@ -313,19 +313,19 @@ static void pxa2xx_timer_write(void *opaque, hwaddr offset,
         pxa2xx_timer_update(s, s->lastload);
         break;
     case OSCR11: tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR10: tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR9:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR8:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR7:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR6:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR5:  tm ++;
-        /* fall through */
+        fallthrough;
     case OSCR4:
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;
@@ -350,11 +350,11 @@ static void pxa2xx_timer_write(void *opaque, hwaddr offset,
         s->reset3 = value;
         break;
     case OMCR7:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR6:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR5:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR4:
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;
@@ -368,11 +368,11 @@ static void pxa2xx_timer_write(void *opaque, hwaddr offset,
         }
         break;
     case OMCR11: tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR10: tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR9:  tm ++;
-        /* fall through */
+        fallthrough;
     case OMCR8:  tm += 4;
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;

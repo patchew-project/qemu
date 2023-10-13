@@ -131,7 +131,7 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
             if (s->feat & TIMER_FEAT_EXTCLK) {
                 break;
             }
-            /* fallthrough */
+            fallthrough;
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Reserved TPSC value\n", __func__);
@@ -145,7 +145,7 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
             if (s->feat & TIMER_FEAT_EXTCLK) {
                 break;
             }
-            /* fallthrough */
+            fallthrough;
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Reserved CKEG value\n", __func__);
@@ -158,7 +158,7 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
             if (s->feat & TIMER_FEAT_CAPT) {
                 break;
             }
-            /* fallthrough */
+            fallthrough;
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Reserved ICPE value\n", __func__);
@@ -194,7 +194,7 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
             s->tcpr = value;
             break;
         }
-        /* fallthrough */
+        fallthrough;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, offset);
