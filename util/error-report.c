@@ -369,7 +369,7 @@ static void qemu_log_func(const gchar *log_domain,
           (log_domain == NULL || !strstr(qemu_glog_domains, log_domain))) {
             break;
         }
-        /* Fall through */
+        fallthrough;
     case G_LOG_LEVEL_MESSAGE:
         info_report("%s%s%s",
                     log_domain ?: "", log_domain ? ": " : "", message);
