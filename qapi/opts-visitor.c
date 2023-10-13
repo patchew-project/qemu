@@ -266,6 +266,7 @@ opts_next_list(Visitor *v, GenericList *tail, size_t size)
         }
         ov->list_mode = LM_IN_PROGRESS;
         /* range has been completed, fall through in order to pop option */
+        fallthrough;
 
     case LM_IN_PROGRESS: {
         const QemuOpt *opt;

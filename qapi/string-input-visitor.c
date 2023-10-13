@@ -202,7 +202,7 @@ static bool parse_type_int64(Visitor *v, const char *name, int64_t *obj,
             return false;
         }
         assert(siv->lm == LM_INT64_RANGE);
-        /* fall through */
+        fallthrough;
     case LM_INT64_RANGE:
         /* return the next element in the range */
         assert(siv->rangeNext.i64 <= siv->rangeEnd.i64);
@@ -292,7 +292,7 @@ static bool parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
             return false;
         }
         assert(siv->lm == LM_UINT64_RANGE);
-        /* fall through */
+        fallthrough;
     case LM_UINT64_RANGE:
         /* return the next element in the range */
         assert(siv->rangeNext.u64 <= siv->rangeEnd.u64);
