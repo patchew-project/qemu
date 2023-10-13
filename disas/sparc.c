@@ -2803,7 +2803,7 @@ print_insn_sparc (bfd_vma memaddr, disassemble_info *info)
                   {
                   case '+':
                     found_plus = 1;
-                    /* Fall through.  */
+                    fallthrough;
 
                   default:
                     (*info->fprintf_func) (stream, "%c", *s);

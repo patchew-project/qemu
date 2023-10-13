@@ -2027,7 +2027,7 @@ print_insn_hppa (bfd_vma memaddr, disassemble_info *info)
 			 completer.  */
 		    case 'X':
 		      fputs_filtered (" ", info);
-		      /* FALLTHRU */
+		      fallthrough;
 
 		    case 'A':
 		      if (GET_FIELD (insn, 24, 24))
@@ -2104,7 +2104,7 @@ print_insn_hppa (bfd_vma memaddr, disassemble_info *info)
 			 format completer.  */
 		    case 'E':
 		      fputs_filtered (" ", info);
-		      /* FALLTHRU */
+		      fallthrough;
 
 		    case 'e':
 		      if (GET_FIELD (insn, 30, 30))

@@ -1757,7 +1757,7 @@ print_insn_sh (bfd_vma memaddr, struct disassemble_info *info)
 	    case REG_N_D:
 	      if ((nibs[n] & 1) != 0)
 		goto fail;
-	      /* fall through */
+        fallthrough;
 	    case REG_N:
 	      rn = nibs[n];
 	      break;
@@ -1963,7 +1963,7 @@ print_insn_sh (bfd_vma memaddr, struct disassemble_info *info)
 		  fprintf_fn (stream, "xd%d", rn & ~1);
 		  break;
 		}
-	      /* fallthrough */
+        fallthrough;
 	    case D_REG_N:
 	      fprintf_fn (stream, "dr%d", rn);
 	      break;
@@ -1973,7 +1973,7 @@ print_insn_sh (bfd_vma memaddr, struct disassemble_info *info)
 		  fprintf_fn (stream, "xd%d", rm & ~1);
 		  break;
 		}
-	      /* fallthrough */
+        fallthrough;
 	    case D_REG_M:
 	      fprintf_fn (stream, "dr%d", rm);
 	      break;
