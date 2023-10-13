@@ -834,10 +834,10 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
                 qemu_log_mask(LOG_UNIMP, "TCP compare offsets"
                               "unimplemented - assuming UDP\n");
                 offset += 8;
-                /* Fallthrough */
+                fallthrough;
             case 2: /* skip the IP header */
                 offset += 20;
-                /* Fallthrough */
+                fallthrough;
             case 1: /* Count from after the ethertype */
                 offset += 14;
                 break;

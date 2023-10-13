@@ -1419,7 +1419,7 @@ igb_build_rx_metadata_common(IGBCore *core,
             if (!csum_valid) {
                 *status_flags |= E1000_RXDEXT_STATERR_TCPE;
             }
-            /* fall through */
+            fallthrough;
         case ETH_L4_HDR_PROTO_TCP:
             *status_flags |= E1000_RXD_STAT_TCPCS;
             break;
