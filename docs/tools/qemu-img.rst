@@ -501,7 +501,7 @@ Command description:
   modified by specifying *BLOCK_SIZE*. If count=\ *BLOCKS* is specified
   dd will stop reading input after reading *BLOCKS* input blocks.
 
-  The size syntax is similar to :manpage:`dd(1)`'s size syntax.
+  The skip syntax is similar to :manpage:`dd(1)`'s skip syntax.
 
 .. option:: info [--object OBJECTDEF] [--image-opts] [-f FMT] [--output=OFMT] [--backing-chain] [-U] FILENAME
 
