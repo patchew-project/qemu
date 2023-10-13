@@ -558,13 +558,13 @@ static int get_physical_address_data(CPUSPARCState *env, CPUTLBEntryFull *full,
         g_assert_not_reached();
     case MMU_USER_IDX:
         is_user = true;
-        /* fallthru */
+        fallthrough;
     case MMU_KERNEL_IDX:
         context = env->dmmu.mmu_primary_context & 0x1fff;
         break;
     case MMU_USER_SECONDARY_IDX:
         is_user = true;
-        /* fallthru */
+        fallthrough;
     case MMU_KERNEL_SECONDARY_IDX:
         context = env->dmmu.mmu_secondary_context & 0x1fff;
         break;
@@ -657,7 +657,7 @@ static int get_physical_address_code(CPUSPARCState *env, CPUTLBEntryFull *full,
         g_assert_not_reached();
     case MMU_USER_IDX:
         is_user = true;
-        /* fallthru */
+        fallthrough;
     case MMU_KERNEL_IDX:
         context = env->dmmu.mmu_primary_context & 0x1fff;
         break;

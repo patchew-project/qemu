@@ -1123,6 +1123,7 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
         gen_helper_compute_psr(tcg_env);
         dc->cc_op = CC_OP_FLAGS;
         /* FALLTHRU */
+        fallthrough;
 
     case CC_OP_FLAGS:
         /* We're going to generate a boolean result.  */
@@ -2204,7 +2205,7 @@ static void gen_st_asi(DisasContext *dc, TCGv src, TCGv addr,
         /* in OpenSPARC T1+ CPUs TWINX ASIs in store instructions
          * are ST_BLKINIT_ ASIs */
 #endif
-        /* fall through */
+        fallthrough;
     case GET_ASI_DIRECT:
         gen_address_mask(dc, addr);
         tcg_gen_qemu_st_tl(src, addr, da.mem_idx, da.memop | MO_ALIGN);
