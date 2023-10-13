@@ -170,7 +170,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
             break;
         case 0x160:
             env->spc += 2; /* special case for TRAPA */
-            /* fall through */
+            fallthrough;
         default:
             env->pc = env->vbr + 0x100;
             break;
