@@ -326,17 +326,16 @@ build_prepend_package_length(GArray *package, unsigned length, bool incl_self)
         byte = length >> PACKAGE_LENGTH_4BYTE_SHIFT;
         build_prepend_byte(package, byte);
         length &= (1 << PACKAGE_LENGTH_4BYTE_SHIFT) - 1;
-        /* fall through */
+        fallthrough;
     case 3:
         byte = length >> PACKAGE_LENGTH_3BYTE_SHIFT;
         build_prepend_byte(package, byte);
         length &= (1 << PACKAGE_LENGTH_3BYTE_SHIFT) - 1;
-        /* fall through */
+        fallthrough;
     case 2:
         byte = length >> PACKAGE_LENGTH_2BYTE_SHIFT;
         build_prepend_byte(package, byte);
         length &= (1 << PACKAGE_LENGTH_2BYTE_SHIFT) - 1;
-        /* fall through */
     }
     /*
      * Most significant two bits of byte zero indicate how many following bytes
@@ -528,6 +527,7 @@ void aml_append(Aml *parent_ctx, Aml *child)
          */
         build_append_byte(buf, 0);
         /* fall through, to pack resources in buffer */
+        fallthrough;
     case AML_BUFFER:
         build_buffer(buf, child->op);
         break;
