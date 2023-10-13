@@ -250,23 +250,23 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *a
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
         is_signed = true;
-        /* fall through */
+        fallthrough;
     case AUDIO_FORMAT_U8:
         break;
 
     case AUDIO_FORMAT_S16:
         is_signed = true;
-        /* fall through */
+        fallthrough;
     case AUDIO_FORMAT_U16:
         bits = 16;
         break;
 
     case AUDIO_FORMAT_F32:
         is_float = true;
-        /* fall through */
+        fallthrough;
     case AUDIO_FORMAT_S32:
         is_signed = true;
-        /* fall through */
+        fallthrough;
     case AUDIO_FORMAT_U32:
         bits = 32;
         break;
@@ -290,14 +290,14 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
         is_signed = true;
-        /* fall through */
+        fallthrough;
     case AUDIO_FORMAT_U8:
         mul = 1;
         break;
 
     case AUDIO_FORMAT_S16:
         is_signed = true;
-        /* fall through */
+        fallthrough;
     case AUDIO_FORMAT_U16:
         bits = 16;
         mul = 2;
@@ -305,10 +305,10 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 
     case AUDIO_FORMAT_F32:
         is_float = true;
-        /* fall through */
+        fallthrough;
     case AUDIO_FORMAT_S32:
         is_signed = true;
-        /* fall through */
+        fallthrough;
     case AUDIO_FORMAT_U32:
         bits = 32;
         mul = 4;
