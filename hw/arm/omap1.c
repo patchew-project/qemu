@@ -552,7 +552,7 @@ static uint64_t omap_ulpd_pm_read(void *opaque, hwaddr addr,
     case 0x28:	/* Reserved */
     case 0x2c:	/* Reserved */
         OMAP_BAD_REG(addr);
-        /* fall through */
+        fallthrough;
     case 0x00:	/* COUNTER_32_LSB */
     case 0x04:	/* COUNTER_32_MSB */
     case 0x08:	/* COUNTER_HIGH_FREQ_LSB */
@@ -658,7 +658,7 @@ static void omap_ulpd_pm_write(void *opaque, hwaddr addr,
     case 0x28:	/* Reserved */
     case 0x2c:	/* Reserved */
         OMAP_BAD_REG(addr);
-        /* fall through */
+        fallthrough;
     case 0x24:	/* SETUP_ANALOG_CELL3_ULPD1 */
     case 0x38:	/* COUNTER_32_FIQ */
     case 0x48:	/* LOCL_TIME */
@@ -3181,7 +3181,7 @@ static uint64_t omap_mcbsp_read(void *opaque, hwaddr addr,
     case 0x00:	/* DRR2 */
         if (((s->rcr[0] >> 5) & 7) < 3)			/* RWDLEN1 */
             return 0x0000;
-        /* Fall through.  */
+        fallthrough;
     case 0x02:	/* DRR1 */
         if (s->rx_req < 2) {
             printf("%s: Rx FIFO underrun\n", __func__);
@@ -3279,7 +3279,7 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
     case 0x04:	/* DXR2 */
         if (((s->xcr[0] >> 5) & 7) < 3)			/* XWDLEN1 */
             return;
-        /* Fall through.  */
+        fallthrough;
     case 0x06:	/* DXR1 */
         if (s->tx_req > 1) {
             s->tx_req -= 2;

@@ -157,6 +157,7 @@ static int ssys_board_class(const ssys_state *s)
             return did0 & DID0_CLASS_MASK;
         }
         /* for unknown classes, fall through */
+        fallthrough;
     default:
         /* This can only happen if the hardwired constant did0 value
          * in this board's stellaris_board_info struct is wrong.
