@@ -686,13 +686,6 @@ bool migrate_has_block_bitmap_mapping(void)
     return s->parameters.has_block_bitmap_mapping;
 }
 
-bool migrate_block_incremental(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->parameters.block_incremental;
-}
-
 uint32_t migrate_checkpoint_delay(void)
 {
     MigrationState *s = migrate_get_current();
@@ -890,8 +883,6 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->downtime_limit = s->parameters.downtime_limit;
     params->has_x_checkpoint_delay = true;
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
-    params->has_block_incremental = true;
-    params->block_incremental = s->parameters.block_incremental;
     params->has_multifd_channels = true;
     params->multifd_channels = s->parameters.multifd_channels;
     params->has_multifd_compression = true;
@@ -947,7 +938,6 @@ void migrate_params_init(MigrationParameters *params)
     params->has_max_bandwidth = true;
     params->has_downtime_limit = true;
     params->has_x_checkpoint_delay = true;
-    params->has_block_incremental = true;
     params->has_multifd_channels = true;
     params->has_multifd_compression = true;
     params->has_multifd_zlib_level = true;
@@ -1202,9 +1192,6 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->x_checkpoint_delay = params->x_checkpoint_delay;
     }
 
-    if (params->has_block_incremental) {
-        dest->block_incremental = params->block_incremental;
-    }
     if (params->has_multifd_channels) {
         dest->multifd_channels = params->multifd_channels;
     }
@@ -1327,11 +1314,6 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         colo_checkpoint_delay_set();
     }
 
-    if (params->has_block_incremental) {
-        warn_report("Block migration is deprecated. "
-                    "Use blockdev-mirror with NBD instead.");
-        s->parameters.block_incremental = params->block_incremental;
-    }
     if (params->has_multifd_channels) {
         s->parameters.multifd_channels = params->multifd_channels;
     }

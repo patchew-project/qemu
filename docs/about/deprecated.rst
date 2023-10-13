@@ -452,13 +452,6 @@ Migration
 ``skipped`` field in Migration stats has been deprecated.  It hasn't
 been used for more than 10 years.
 
-``inc`` migrate command option (since 8.2)
-''''''''''''''''''''''''''''''''''''''''''
-
-The new way to modify migration is using migration parameters.
-``inc`` functionality can be achieved by setting the
-``block-incremental`` migration parameter to ``true``.
-
 ``blk`` migrate command option (since 8.2)
 ''''''''''''''''''''''''''''''''''''''''''
 

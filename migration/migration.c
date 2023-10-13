@@ -1595,16 +1595,9 @@ bool migration_is_blocked(Error **errp)
 }
 
 /* Returns true if continue to migrate, or false if error detected */
-static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
+static bool migrate_prepare(MigrationState *s, bool blk,
                             bool resume, Error **errp)
 {
-    if (blk_inc) {
-        error_setg(errp, "@inc migrate option is deprecated, set the"
-                   "'block-incremental' migration parameter to 'true'"
-                   " instead.");
-        return false;
-    }
-
     if (blk) {
         error_setg(errp, "@blk/-i migrate option is deprecated, set the "
                    "'block' capability to 'true' instead.");
@@ -1668,7 +1661,7 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
 }
 
 void qmp_migrate(const char *uri, bool has_blk, bool blk,
-                 bool has_inc, bool inc, bool has_detach, bool detach,
+                 bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp)
 {
     bool resume_requested;
@@ -1682,7 +1675,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     resume_requested = has_resume && resume;
-    if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
+    if (!migrate_prepare(s, has_blk && blk,
                          resume_requested, errp)) {
         /* Error detected, put into errp */
         return;
