@@ -163,6 +163,12 @@ struct SpaprMachineClass {
     SpaprIrq *irq;
 };
 
+typedef struct PPCTimebase {
+    uint64_t guest_timebase;
+    int64_t time_of_the_day_ns;
+    bool runstate_paused;
+} PPCTimebase;
+
 #define WDT_MAX_WATCHDOGS       4      /* Maximum number of watchdog devices */
 
 #define TYPE_SPAPR_WDT "spapr-wdt"

@@ -197,26 +197,4 @@ struct PowerPCCPUClass {
     int  (*check_pow)(CPUPPCState *env);
 };
 
-#ifndef CONFIG_USER_ONLY
-typedef struct PPCTimebase {
-    uint64_t guest_timebase;
-    int64_t time_of_the_day_ns;
-    bool runstate_paused;
-} PPCTimebase;
-
-extern const VMStateDescription vmstate_ppc_timebase;
-
-#define VMSTATE_PPC_TIMEBASE_V(_field, _state, _version) {            \
-    .name       = (stringify(_field)),                                \
-    .version_id = (_version),                                         \
-    .size       = sizeof(PPCTimebase),                                \
-    .vmsd       = &vmstate_ppc_timebase,                              \
-    .flags      = VMS_STRUCT,                                         \
-    .offset     = vmstate_offset_value(_state, _field, PPCTimebase),  \
-}
-
-void cpu_ppc_clock_vm_state_change(void *opaque, bool running,
-                                   RunState state);
-#endif
-
 #endif

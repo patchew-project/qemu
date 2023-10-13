@@ -37,6 +37,7 @@
 #include "sysemu/numa.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "sysemu/replay.h"
 #include "sysemu/runstate.h"
 #include "qemu/log.h"
 #include "hw/fw-path-provider.h"
@@ -1809,6 +1810,100 @@ static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
     }
 }
 
+static void timebase_save(PPCTimebase *tb)
+{
+    uint64_t ticks = cpu_get_host_ticks();
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+
+    if (!first_ppc_cpu->env.tb_env) {
+        error_report("No timebase object");
+        return;
+    }
+
+    if (replay_mode == REPLAY_MODE_NONE) {
+        /* not used anymore, we keep it for compatibility */
+        tb->time_of_the_day_ns = qemu_clock_get_ns(QEMU_CLOCK_HOST);
+    } else {
+        /* simpler for record-replay to avoid this event, compat not needed */
+        tb->time_of_the_day_ns = 0;
+    }
+
+    /*
+     * tb_offset is only expected to be changed by QEMU so
+     * there is no need to update it from KVM here
+     */
+    tb->guest_timebase = ticks + first_ppc_cpu->env.tb_env->tb_offset;
+
+    tb->runstate_paused =
+        runstate_check(RUN_STATE_PAUSED) || runstate_check(RUN_STATE_SAVE_VM);
+}
+
+static void timebase_load(PPCTimebase *tb)
+{
+    CPUState *cpu;
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+    int64_t tb_off_adj, tb_off;
+    unsigned long freq;
+
+    if (!first_ppc_cpu->env.tb_env) {
+        error_report("No timebase object");
+        return;
+    }
+
+    freq = first_ppc_cpu->env.tb_env->tb_freq;
+
+    tb_off_adj = tb->guest_timebase - cpu_get_host_ticks();
+
+    tb_off = first_ppc_cpu->env.tb_env->tb_offset;
+    trace_ppc_tb_adjust(tb_off, tb_off_adj, tb_off_adj - tb_off,
+                        (tb_off_adj - tb_off) / freq);
+
+    /* Set new offset to all CPUs */
+    CPU_FOREACH(cpu) {
+        PowerPCCPU *pcpu = POWERPC_CPU(cpu);
+        pcpu->env.tb_env->tb_offset = tb_off_adj;
+        kvmppc_set_reg_tb_offset(pcpu, pcpu->env.tb_env->tb_offset);
+    }
+}
+
+static void cpu_ppc_clock_vm_state_change(void *opaque, bool running,
+                                          RunState state)
+{
+    PPCTimebase *tb = opaque;
+
+    if (running) {
+        timebase_load(tb);
+    } else {
+        timebase_save(tb);
+    }
+}
+
+/*
+ * When migrating a running guest, read the clock just
+ * before migration, so that the guest clock counts
+ * during the events between:
+ *
+ *  * vm_stop()
+ *  *
+ *  * pre_save()
+ *
+ *  This reduces clock difference on migration from 5s
+ *  to 0.1s (when max_downtime == 5s), because sending the
+ *  final pages of memory (which happens between vm_stop()
+ *  and pre_save()) takes max_downtime.
+ */
+static int timebase_pre_save(void *opaque)
+{
+    PPCTimebase *tb = opaque;
+
+    /* guest_timebase won't be overridden in case of paused guest or savevm */
+    if (!tb->runstate_paused) {
+        timebase_save(tb);
+    }
+
+    return 0;
+}
+
 static int spapr_pre_load(void *opaque)
 {
     int rc;
@@ -2080,6 +2175,27 @@ static const VMStateDescription vmstate_spapr_fwnmi = {
         VMSTATE_END_OF_LIST()
     },
 };
+
+static const VMStateDescription vmstate_spapr_timebase = {
+    .name = "timebase",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_save = timebase_pre_save,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(guest_timebase, PPCTimebase),
+        VMSTATE_INT64(time_of_the_day_ns, PPCTimebase),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+#define VMSTATE_PPC_TIMEBASE_V(_field, _state, _version) {            \
+    .name       = (stringify(_field)),                                \
+    .version_id = (_version),                                         \
+    .size       = sizeof(PPCTimebase),                                \
+    .vmsd       = &vmstate_spapr_timebase,                            \
+    .flags      = VMS_STRUCT,                                         \
+    .offset     = vmstate_offset_value(_state, _field, PPCTimebase),  \
+}
 
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
