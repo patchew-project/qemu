@@ -151,8 +151,9 @@ int pcie_aer_init(PCIDevice *dev, uint8_t cap_ver, uint16_t offset,
     switch (pcie_cap_get_type(dev)) {
     case PCI_EXP_TYPE_ROOT_PORT:
         /* this case will be set by pcie_aer_root_init() */
-        /* fallthrough */
+        fallthrough;
     case PCI_EXP_TYPE_DOWNSTREAM:
+        fallthrough;
     case PCI_EXP_TYPE_UPSTREAM:
         pci_word_test_and_set_mask(dev->wmask + PCI_BRIDGE_CONTROL,
                                    PCI_BRIDGE_CTL_SERR);
