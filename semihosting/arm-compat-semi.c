@@ -786,7 +786,7 @@ void do_common_semihosting(CPUState *cs)
             common_semi_set_ret(cs, 0);
             break;
         }
-        /* fall through */
+        fallthrough;
     default:
         fprintf(stderr, "qemu: Unsupported SemiHosting SWI 0x%02x\n", nr);
         cpu_dump_state(cs, stderr, 0);
