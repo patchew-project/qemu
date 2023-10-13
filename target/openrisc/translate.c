@@ -1618,7 +1618,7 @@ static void openrisc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
            However, we will have stored into jmp_pc as well;
            we know now that it wasn't needed.  */
         tcg_gen_discard_tl(jmp_pc);
-        /* fallthru */
+        fallthrough;
 
     case DISAS_TOO_MANY:
         if (translator_use_goto_tb(&dc->base, jmp_dest)) {
