@@ -1013,7 +1013,7 @@ static void tcg_out_qemu_ld_indexed(TCGContext *s, MemOp opc, TCGType type,
             tcg_out_opc_ldx_wu(s, rd, h.base, h.index);
             break;
         }
-        /* fallthrough */
+        fallthrough;
     case MO_SL:
         tcg_out_opc_ldx_w(s, rd, h.base, h.index);
         break;
@@ -1303,7 +1303,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_bswap32_i32:
         /* All 32-bit values are computed sign-extended in the register.  */
         a2 = TCG_BSWAP_OS;
-        /* fallthrough */
+        fallthrough;
     case INDEX_op_bswap32_i64:
         tcg_out_opc_revb_2w(s, a0, a1);
         if (a2 & TCG_BSWAP_OS) {

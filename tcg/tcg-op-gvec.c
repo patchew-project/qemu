@@ -496,7 +496,7 @@ static void do_dup_store(TCGType type, uint32_t dofs, uint32_t oprsz,
         for (; i + 32 <= oprsz; i += 32) {
             tcg_gen_stl_vec(t_vec, tcg_env, dofs + i, TCG_TYPE_V256);
         }
-        /* fallthru */
+        fallthrough;
     case TCG_TYPE_V128:
         for (; i + 16 <= oprsz; i += 16) {
             tcg_gen_stl_vec(t_vec, tcg_env, dofs + i, TCG_TYPE_V128);
@@ -1229,7 +1229,7 @@ void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
         aofs += some;
         oprsz -= some;
         maxsz -= some;
-        /* fallthru */
+        fallthrough;
     case TCG_TYPE_V128:
         expand_2_vec(g->vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128,
                      g->load_dest, g->fniv);
@@ -1293,7 +1293,7 @@ void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
         aofs += some;
         oprsz -= some;
         maxsz -= some;
-        /* fallthru */
+        fallthrough;
     case TCG_TYPE_V128:
         expand_2i_vec(g->vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128,
                       c, g->load_dest, g->fniv);
@@ -1367,7 +1367,7 @@ void tcg_gen_gvec_2s(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
             aofs += some;
             oprsz -= some;
             maxsz -= some;
-            /* fallthru */
+            fallthrough;
 
         case TCG_TYPE_V128:
             expand_2s_vec(g->vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128,
@@ -1440,7 +1440,7 @@ void tcg_gen_gvec_3(uint32_t dofs, uint32_t aofs, uint32_t bofs,
         bofs += some;
         oprsz -= some;
         maxsz -= some;
-        /* fallthru */
+        fallthrough;
     case TCG_TYPE_V128:
         expand_3_vec(g->vece, dofs, aofs, bofs, oprsz, 16, TCG_TYPE_V128,
                      g->load_dest, g->fniv);
@@ -1508,7 +1508,7 @@ void tcg_gen_gvec_3i(uint32_t dofs, uint32_t aofs, uint32_t bofs,
         bofs += some;
         oprsz -= some;
         maxsz -= some;
-        /* fallthru */
+        fallthrough;
     case TCG_TYPE_V128:
         expand_3i_vec(g->vece, dofs, aofs, bofs, oprsz, 16, TCG_TYPE_V128,
                       c, g->load_dest, g->fniv);
@@ -1574,7 +1574,7 @@ void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
         cofs += some;
         oprsz -= some;
         maxsz -= some;
-        /* fallthru */
+        fallthrough;
     case TCG_TYPE_V128:
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, oprsz,
                      16, TCG_TYPE_V128, g->write_aofs, g->fniv);
@@ -1645,7 +1645,7 @@ void tcg_gen_gvec_4i(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
         cofs += some;
         oprsz -= some;
         maxsz -= some;
-        /* fallthru */
+        fallthrough;
     case TCG_TYPE_V128:
         expand_4i_vec(g->vece, dofs, aofs, bofs, cofs, oprsz,
                        16, TCG_TYPE_V128, c, g->fniv);
@@ -3173,7 +3173,7 @@ do_gvec_shifts(unsigned vece, uint32_t dofs, uint32_t aofs, TCGv_i32 shift,
             aofs += some;
             oprsz -= some;
             maxsz -= some;
-            /* fallthru */
+            fallthrough;
         case TCG_TYPE_V128:
             expand_2sh_vec(vece, dofs, aofs, oprsz, 16,
                            TCG_TYPE_V128, shift, g->fniv_s);
@@ -3216,7 +3216,7 @@ do_gvec_shifts(unsigned vece, uint32_t dofs, uint32_t aofs, TCGv_i32 shift,
             aofs += some;
             oprsz -= some;
             maxsz -= some;
-            /* fallthru */
+            fallthrough;
         case TCG_TYPE_V128:
             expand_2s_vec(vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128,
                           v_shift, false, g->fniv_v);
@@ -3808,7 +3808,7 @@ void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
         bofs += some;
         oprsz -= some;
         maxsz -= some;
-        /* fallthru */
+        fallthrough;
     case TCG_TYPE_V128:
         expand_cmp_vec(vece, dofs, aofs, bofs, oprsz, 16, TCG_TYPE_V128, cond);
         break;
@@ -3926,7 +3926,7 @@ void tcg_gen_gvec_cmps(TCGCond cond, unsigned vece, uint32_t dofs,
             dofs += some;
             oprsz -= some;
             maxsz -= some;
-            /* fallthru */
+            fallthrough;
 
         case TCG_TYPE_V128:
             some = QEMU_ALIGN_DOWN(oprsz, 16);

@@ -948,7 +948,7 @@ static void tcg_out_negsetcond(TCGContext *s, TCGCond cond, TCGReg ret,
         case TCG_COND_GE:
             tcg_out_opc_imm(s, OPC_XORI, ret, arg1, -1);
             arg1 = ret;
-            /* fall through */
+            fallthrough;
         case TCG_COND_LT:
             tcg_out_opc_imm(s, OPC_SRAI, ret, arg1, TCG_TARGET_REG_BITS - 1);
             return;
@@ -1373,6 +1373,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg val,
             break;
         }
         /* FALLTHRU */
+        fallthrough;
     case MO_SL:
         tcg_out_opc_imm(s, OPC_LW, val, base, 0);
         break;
@@ -1754,7 +1755,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_bswap32_i32:
         a2 = 0;
-        /* fall through */
+        fallthrough;
     case INDEX_op_bswap32_i64:
         tcg_out_opc_imm(s, OPC_REV8, a0, a1, 0);
         if (a2 & TCG_BSWAP_OZ) {

@@ -1996,6 +1996,7 @@ static void gen_shiftd_rm_T1(DisasContext *s, MemOp ot, int op1,
          * If TARGET_X86_64 defined then fall through into MO_32 case,
          * otherwise fall through default case.
          */
+        fallthrough;
     case MO_32:
 #ifdef TARGET_X86_64
         /* Concatenate the two 32-bit values and use a 64-bit shift.  */
@@ -3298,6 +3299,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (CODE64(s))
             goto illegal_op;
         /* fall through */
+        fallthrough;
     case 0x80: /* GRP1 */
     case 0x81:
     case 0x83:
@@ -7046,6 +7048,7 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_update_cc_op(dc);
         gen_update_eip_cur(dc);
         /* fall through */
+        fallthrough;
     case DISAS_EOB_ONLY:
         gen_eob(dc);
         break;

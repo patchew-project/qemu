@@ -809,7 +809,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
             tcg_out_insn(s, RR, LR, dst, src);
             break;
         }
-        /* fallthru */
+        fallthrough;
 
     case TCG_TYPE_I64:
         if (likely(is_general_reg(dst))) {
@@ -823,7 +823,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
             tcg_out_insn(s, VRSb, VLVG, dst, 0, 0, src, 3);
             break;
         }
-        /* fallthru */
+        fallthrough;
 
     case TCG_TYPE_V64:
     case TCG_TYPE_V128:
@@ -981,6 +981,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg data,
             break;
         }
         /* fallthru */
+        fallthrough;
 
     case TCG_TYPE_V64:
         tcg_out_vrx_mem(s, VRX_VLLEZ, data, base, TCG_REG_NONE, ofs, MO_64);
@@ -1014,6 +1015,7 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg data,
             break;
         }
         /* fallthru */
+        fallthrough;
 
     case TCG_TYPE_V64:
         tcg_out_vrx_mem(s, VRX_VSTEG, data, base, TCG_REG_NONE, ofs, 0);
@@ -1306,6 +1308,7 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
             break;
         }
         /* fallthru */
+        fallthrough;
 
     case TCG_COND_GTU:
     case TCG_COND_GT:
@@ -1333,6 +1336,7 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
             break;
         }
         /* fallthru */
+        fallthrough;
 
     case TCG_COND_LEU:
     case TCG_COND_LE:

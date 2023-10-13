@@ -70,7 +70,7 @@ static MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
             op &= ~MO_SIGN;
             break;
         }
-        /* fall through */
+        fallthrough;
     default:
         g_assert_not_reached();
     }
