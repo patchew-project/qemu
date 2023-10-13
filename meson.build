@@ -452,7 +452,7 @@ warn_flags = [
   '-Wnested-externs',
   '-Wendif-labels',
   '-Wexpansion-to-defined',
-  '-Wimplicit-fallthrough=2',
+  '-Wimplicit-fallthrough=5',
   '-Wmissing-format-attribute',
   '-Wno-initializer-overrides',
   '-Wno-missing-include-dirs',
