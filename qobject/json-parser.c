@@ -214,7 +214,7 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
                 }
                 ptr++;
             }
-            /* fall through */
+            fallthrough;
         default:
             cp = mod_utf8_codepoint(ptr, 6, &end);
             if (cp < 0) {
@@ -518,8 +518,9 @@ static QObject *parse_literal(JSONParserContext *ctxt)
             }
             assert(ret == -ERANGE);
         }
+        /* fall through to JSON_FLOAT */
+        fallthrough;
     }
-    /* fall through to JSON_FLOAT */
     case JSON_FLOAT:
         /* FIXME dependent on locale; a pervasive issue in QEMU */
         /* FIXME our lexer matches RFC 8259 in forbidding Inf or NaN,

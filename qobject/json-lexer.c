@@ -312,7 +312,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         case JSON_STRING:
             json_message_process_token(lexer, lexer->token, new_state,
                                        lexer->x, lexer->y);
-            /* fall through */
+            fallthrough;
         case IN_START:
             g_string_truncate(lexer->token, 0);
             new_state = lexer->start_state;
@@ -321,7 +321,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             json_message_process_token(lexer, lexer->token, JSON_ERROR,
                                        lexer->x, lexer->y);
             new_state = IN_RECOVERY;
-            /* fall through */
+            fallthrough;
         case IN_RECOVERY:
             g_string_truncate(lexer->token, 0);
             break;
