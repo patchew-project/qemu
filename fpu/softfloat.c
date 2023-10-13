@@ -1835,6 +1835,7 @@ static floatx80 floatx80_round_pack_canonical(FloatParts128 *p,
             break;
         }
         /* rounded to inf -- fall through to set frac correctly */
+        fallthrough;
 
     case float_class_inf:
         /* x86 and m68k differ in the setting of the integer bit. */
@@ -2670,7 +2671,7 @@ static void parts_float_to_ahp(FloatParts64 *a, float_status *s)
     switch (a->cls) {
     case float_class_snan:
         float_raise(float_flag_invalid_snan, s);
-        /* fall through */
+        fallthrough;
     case float_class_qnan:
         /*
          * There is no NaN in the destination format.  Raise Invalid
@@ -3199,7 +3200,7 @@ static Int128 float128_to_int128_scalbn(float128 a, FloatRoundMode rmode,
     switch (p.cls) {
     case float_class_snan:
         flags |= float_flag_invalid_snan;
-        /* fall through */
+        fallthrough;
     case float_class_qnan:
         flags |= float_flag_invalid;
         r = UINT128_MAX;
@@ -3626,7 +3627,7 @@ static Int128 float128_to_uint128_scalbn(float128 a, FloatRoundMode rmode,
     switch (p.cls) {
     case float_class_snan:
         flags |= float_flag_invalid_snan;
-        /* fall through */
+        fallthrough;
     case float_class_qnan:
         flags |= float_flag_invalid;
         r = UINT128_MAX;
