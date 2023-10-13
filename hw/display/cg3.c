@@ -231,7 +231,7 @@ static void cg3_reg_write(void *opaque, hwaddr addr, uint64_t val,
                 s->b[s->dac_index] = regval;
                 /* Index autoincrement */
                 s->dac_index = (s->dac_index + 1) & 0xff;
-                /* fall through */
+                fallthrough;
             default:
                 s->dac_state = 0;
                 break;
