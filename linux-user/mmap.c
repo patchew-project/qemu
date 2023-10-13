@@ -1012,7 +1012,7 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
     case MADV_WIPEONFORK:
     case MADV_KEEPONFORK:
         ret = -EINVAL;
-        /* fall through */
+        fallthrough;
     case MADV_DONTNEED:
         if (page_check_range(start, len, PAGE_PASSTHROUGH)) {
             ret = get_errno(madvise(g2h_untagged(start), len, advice));
