@@ -673,6 +673,7 @@ virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data)
          * Set S_DONE before migrating the vmstate, so the guest will reuse
          * all hinted pages once running on the destination. Fall through.
          */
+        fallthrough;
     case PRECOPY_NOTIFY_CLEANUP:
         /*
          * Especially, if something goes wrong during precopy or if migration
