@@ -1025,7 +1025,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
     switch (saddr) {
     case ESP_TCHI:
         s->tchi_written = true;
-        /* fall through */
+        fallthrough;
     case ESP_TCLO:
     case ESP_TCMID:
         s->rregs[ESP_RSTAT] &= ~STAT_TC;

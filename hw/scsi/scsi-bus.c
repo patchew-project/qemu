@@ -1078,7 +1078,7 @@ static int scsi_req_xfer(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
         if (cmd->xfer == 0) {
             cmd->xfer = 256;
         }
-        /* fall through */
+        fallthrough;
     case WRITE_10:
     case WRITE_VERIFY_10:
     case WRITE_12:
@@ -1093,7 +1093,7 @@ static int scsi_req_xfer(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
         if (cmd->xfer == 0) {
             cmd->xfer = 256;
         }
-        /* fall through */
+        fallthrough;
     case READ_10:
     case READ_12:
     case READ_16:
