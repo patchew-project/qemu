@@ -71,7 +71,7 @@ int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
     case I2C_START_SEND:
     case I2C_FINISH:
         ee->haveaddr = 0;
-        /* fallthrough */
+        fallthrough;
     case I2C_START_RECV:
         DPRINTK("clear\n");
         if (ee->blk && ee->changed) {
