@@ -220,7 +220,7 @@ static void dma_mem_write(void *opaque, hwaddr addr,
         break;
     case 1:
         s->dmaregs[0] |= DMA_LOADED;
-        /* fall through */
+        fallthrough;
     default:
         s->dmaregs[saddr] = val;
         break;

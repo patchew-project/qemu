@@ -278,7 +278,7 @@ static uint64_t pxa2xx_dma_read(void *opaque, hwaddr offset,
     switch (offset) {
     case DRCMR64 ... DRCMR74:
         offset -= DRCMR64 - DRCMR0 - (64 << 2);
-        /* Fall through */
+        fallthrough;
     case DRCMR0 ... DRCMR63:
         channel = (offset - DRCMR0) >> 2;
         return s->req[channel];
@@ -338,7 +338,7 @@ static void pxa2xx_dma_write(void *opaque, hwaddr offset,
     switch (offset) {
     case DRCMR64 ... DRCMR74:
         offset -= DRCMR64 - DRCMR0 - (64 << 2);
-        /* Fall through */
+        fallthrough;
     case DRCMR0 ... DRCMR63:
         channel = (offset - DRCMR0) >> 2;
 
