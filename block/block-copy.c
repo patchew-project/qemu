@@ -508,6 +508,7 @@ block_copy_do_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
         trace_block_copy_copy_range_fail(s, offset, ret);
         *method = COPY_READ_WRITE;
         /* Fall through to read+write with allocated buffer */
+        fallthrough;
 
     case COPY_READ_WRITE_CLUSTER:
     case COPY_READ_WRITE:

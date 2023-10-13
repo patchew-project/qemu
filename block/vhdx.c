@@ -1205,10 +1205,14 @@ vhdx_co_readv(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 
             /* check the payload block state */
             switch (s->bat[sinfo.bat_idx] & VHDX_BAT_STATE_BIT_MASK) {
-            case PAYLOAD_BLOCK_NOT_PRESENT: /* fall through */
+            case PAYLOAD_BLOCK_NOT_PRESENT:
+                fallthrough;
             case PAYLOAD_BLOCK_UNDEFINED:
+                fallthrough;
             case PAYLOAD_BLOCK_UNMAPPED:
+                fallthrough;
             case PAYLOAD_BLOCK_UNMAPPED_v095:
+                fallthrough;
             case PAYLOAD_BLOCK_ZERO:
                 /* return zero */
                 qemu_iovec_memset(&hd_qiov, 0, 0, sinfo.bytes_avail);
@@ -1226,6 +1230,7 @@ vhdx_co_readv(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
             case PAYLOAD_BLOCK_PARTIALLY_PRESENT:
                 /* we don't yet support difference files, fall through
                  * to error */
+                fallthrough;
             default:
                 ret = -EIO;
                 goto exit;
@@ -1377,10 +1382,13 @@ vhdx_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                  * data that is not part of this write, so we must pad
                  * the rest of the buffer to zeroes */
                 use_zero_buffers = true;
-                /* fall through */
-            case PAYLOAD_BLOCK_NOT_PRESENT: /* fall through */
+                fallthrough;
+            case PAYLOAD_BLOCK_NOT_PRESENT:
+                fallthrough;
             case PAYLOAD_BLOCK_UNMAPPED:
+                fallthrough;
             case PAYLOAD_BLOCK_UNMAPPED_v095:
+                fallthrough;
             case PAYLOAD_BLOCK_UNDEFINED:
                 bat_prior_offset = sinfo.file_offset;
                 ret = vhdx_allocate_block(bs, s, &sinfo.file_offset,
@@ -1435,7 +1443,7 @@ vhdx_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                     }
                 }
 
-                /* fall through */
+                fallthrough;
             case PAYLOAD_BLOCK_FULLY_PRESENT:
                 /* if the file offset address is in the header zone,
                  * there is a problem */
@@ -1461,6 +1469,7 @@ vhdx_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
             case PAYLOAD_BLOCK_PARTIALLY_PRESENT:
                 /* we don't yet support difference files, fall through
                  * to error */
+                fallthrough;
             default:
                 ret = -EIO;
                 goto exit;

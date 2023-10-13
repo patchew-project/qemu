@@ -1461,6 +1461,7 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
                 break;
             }
             /* Fall through and try READ CAPACITY(10) instead.  */
+            fallthrough;
         case TYPE_ROM:
             task = iscsi_readcapacity10_sync(iscsilun->iscsi, iscsilun->lun, 0, 0);
             if (task != NULL && task->status == SCSI_STATUS_GOOD) {

@@ -1333,13 +1333,16 @@ static bool cluster_needs_new_alloc(BlockDriverState *bs, uint64_t l2_entry)
 {
     switch (qcow2_get_cluster_type(bs, l2_entry)) {
     case QCOW2_CLUSTER_NORMAL:
+        fallthrough;
     case QCOW2_CLUSTER_ZERO_ALLOC:
         if (l2_entry & QCOW_OFLAG_COPIED) {
             return false;
         }
-        /* fallthrough */
+        fallthrough;
     case QCOW2_CLUSTER_UNALLOCATED:
+        fallthrough;
     case QCOW2_CLUSTER_COMPRESSED:
+        fallthrough;
     case QCOW2_CLUSTER_ZERO_PLAIN:
         return true;
     default:
