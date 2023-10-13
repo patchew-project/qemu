@@ -285,7 +285,7 @@ static void pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
             cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HALT);
             break;
         }
-        /* Fall through.  */
+        fallthrough;
 
     case 2:
         /* Deep-Idle */
@@ -425,7 +425,7 @@ static uint64_t pxa2xx_mm_read(void *opaque, hwaddr addr,
     case MDCNFG ... SA1110:
         if ((addr & 3) == 0)
             return s->mm_regs[addr >> 2];
-        /* fall through */
+        fallthrough;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad read offset 0x%"HWADDR_PRIx"\n",
@@ -446,7 +446,7 @@ static void pxa2xx_mm_write(void *opaque, hwaddr addr,
             s->mm_regs[addr >> 2] = value;
             break;
         }
-        /* fallthrough */
+        fallthrough;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad write offset 0x%"HWADDR_PRIx"\n",
