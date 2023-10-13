@@ -72,6 +72,11 @@ struct BlockJobDriver {
      * Change the @job's options according to @opts.
      */
     void (*change)(BlockJob *job, BlockJobChangeOptions *opts, Error **errp);
+
+    /*
+     * Query information specific to this kind of block job.
+     */
+    void (*query)(BlockJob *job, BlockJobInfo *info);
 };
 
 /*
