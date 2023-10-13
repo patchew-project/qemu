@@ -174,7 +174,7 @@ static void addchar(IPMIBmcExtern *ibe, unsigned char ch)
         ibe->outbuf[ibe->outlen] = VM_ESCAPE_CHAR;
         ibe->outlen++;
         ch |= 0x10;
-        /* fall through */
+        fallthrough;
     default:
         ibe->outbuf[ibe->outlen] = ch;
         ibe->outlen++;

@@ -252,7 +252,7 @@ static int ipmi_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
     switch (cmd) {
     case SSIF_IPMI_REQUEST:
         send = true;
-        /* FALLTHRU */
+        fallthrough;
     case SSIF_IPMI_MULTI_PART_REQUEST_START:
         if (len < 2) {
             return -1; /* Bogus. */
@@ -263,7 +263,7 @@ static int ipmi_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
 
     case SSIF_IPMI_MULTI_PART_REQUEST_END:
         send = true;
-        /* FALLTHRU */
+        fallthrough;
     case SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE:
         if (!sid->inlen) {
             return -1; /* Bogus. */
