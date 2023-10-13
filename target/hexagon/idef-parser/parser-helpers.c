@@ -29,6 +29,7 @@
 #include "parser-helpers.h"
 #include "idef-parser.tab.h"
 #include "idef-parser.yy.h"
+#include "qemu/compiler.h"
 
 void yyerror(YYLTYPE *locp,
              yyscan_t scanner __attribute__((unused)),
@@ -645,7 +646,7 @@ static void gen_asl_op(Context *c, YYLTYPE *locp, unsigned bit_width,
     case IMM_REG:
         op1_m.bit_width = bit_width;
         op1_m = rvalue_materialize(c, locp, &op1_m);
-        /* fallthrough */
+        fallthrough;
     case REG_REG: {
         OUT(c, locp, "tcg_gen_shl_", bit_suffix,
             "(", res, ", ", &op1_m, ", ", op2, ");\n");
@@ -829,7 +830,7 @@ static void gen_minmax_op(Context *c, YYLTYPE *locp, unsigned bit_width,
     case REG_IMM:
         op2_m.bit_width = bit_width;
         op2_m = rvalue_materialize(c, locp, &op2_m);
-        /* Fallthrough */
+        fallthrough;
     case REG_REG:
         OUT(c, locp, mm, "_i", &bit_width, "(");
         OUT(c, locp, res, ", ", op1, ", ", &op2_m, ");\n");
