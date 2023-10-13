@@ -80,7 +80,7 @@ static void mailbox_mem_writel(uint32_t *reg_state, hwaddr offset,
 {
     switch (offset) {
     case A_CXL_DEV_MAILBOX_CTRL:
-        /* fallthrough */
+        fallthrough;
     case A_CXL_DEV_MAILBOX_CAP:
         /* RO register */
         break;
@@ -102,7 +102,7 @@ static void mailbox_mem_writeq(uint64_t *reg_state, hwaddr offset,
         break;
     case A_CXL_DEV_BG_CMD_STS:
         /* BG not supported */
-        /* fallthrough */
+        fallthrough;
     case A_CXL_DEV_MAILBOX_STS:
         /* Read only register, will get updated by the state machine */
         return;
