@@ -396,7 +396,7 @@ static uint64_t tcx_dac_readl(void *opaque, hwaddr addr,
     case 2:
         val = s->b[s->dac_index] << 24;
         s->dac_index = (s->dac_index + 1) & 0xff; /* Index autoincrement */
-        /* fall through */
+        fallthrough;
     default:
         s->dac_state = 0;
         break;
@@ -438,7 +438,7 @@ static void tcx_dac_writel(void *opaque, hwaddr addr, uint64_t val,
             s->b[index] = val >> 24;
             update_palette_entries(s, index, index + 1);
             s->dac_index = (s->dac_index + 1) & 0xff; /* Index autoincrement */
-            /* fall through */
+            fallthrough;
         default:
             s->dac_state = 0;
             break;
