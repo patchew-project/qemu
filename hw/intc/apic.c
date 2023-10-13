@@ -183,7 +183,7 @@ void apic_deliver_pic_intr(DeviceState *dev, int level)
             if (!(lvt & APIC_LVT_LEVEL_TRIGGER))
                 break;
             apic_reset_bit(s->irr, lvt & 0xff);
-            /* fall through */
+            fallthrough;
         case APIC_DM_EXTINT:
             apic_update_irq(s);
             break;

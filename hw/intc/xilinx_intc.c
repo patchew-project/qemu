@@ -131,7 +131,7 @@ static void pic_write(void *opaque, hwaddr addr,
             if ((p->regs[R_MER] & 2)) {
                 break;
             }
-            /* fallthrough */
+            fallthrough;
         default:
             if (addr < ARRAY_SIZE(p->regs))
                 p->regs[addr] = value;
