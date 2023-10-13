@@ -156,7 +156,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
     case RECEIVING_BIT7:
         i2c->buffer = i2c_recv(i2c->bus);
         trace_bitbang_i2c_recv(i2c->buffer);
-        /* Fall through... */
+        fallthrough;
     case RECEIVING_BIT6 ... RECEIVING_BIT0:
         data = i2c->buffer >> 7;
         /* will end up in SENDING_ACK */
