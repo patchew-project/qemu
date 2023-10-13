@@ -69,7 +69,7 @@ static int wdt_diag288_handle_timer(DIAG288State *diag288,
     switch (func) {
     case WDT_DIAG288_INIT:
         diag288->enabled = true;
-        /* fall through */
+        fallthrough;
     case WDT_DIAG288_CHANGE:
         if (!diag288->enabled) {
             return -1;
