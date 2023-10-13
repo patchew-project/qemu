@@ -576,6 +576,7 @@ static void gen_op_calc_cc(DisasContext *s)
     default:
         dummy = tcg_constant_i64(0);
         /* FALLTHRU */
+        fallthrough;
     case CC_OP_ADD_64:
     case CC_OP_SUB_64:
     case CC_OP_ADD_32:
@@ -820,6 +821,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         /* Calculate cc value.  */
         gen_op_calc_cc(s);
         /* FALLTHRU */
+        fallthrough;
 
     case CC_OP_STATIC:
         /* Jump based on CC.  We'll load up the real cond below;
@@ -1323,7 +1325,7 @@ static void compute_carry(DisasContext *s)
         break;
     default:
         gen_op_calc_cc(s);
-        /* fall through */
+        fallthrough;
     case CC_OP_STATIC:
         /* The carry flag is the msb of CC; compute into cc_src. */
         tcg_gen_extu_i32_i64(cc_src, cc_op);
@@ -2612,13 +2614,13 @@ static DisasJumpType op_msa(DisasContext *s, DisasOps *o)
             gen_program_exception(s, PGM_SPECIFICATION);
             return DISAS_NORETURN;
         }
-        /* FALL THROUGH */
+        fallthrough;
     case S390_FEAT_TYPE_KMCTR:
         if (r3 & 1 || !r3) {
             gen_program_exception(s, PGM_SPECIFICATION);
             return DISAS_NORETURN;
         }
-        /* FALL THROUGH */
+        fallthrough;
     case S390_FEAT_TYPE_PPNO:
     case S390_FEAT_TYPE_KMF:
     case S390_FEAT_TYPE_KMC:
@@ -2628,7 +2630,7 @@ static DisasJumpType op_msa(DisasContext *s, DisasOps *o)
             gen_program_exception(s, PGM_SPECIFICATION);
             return DISAS_NORETURN;
         }
-        /* FALL THROUGH */
+        fallthrough;
     case S390_FEAT_TYPE_KMAC:
     case S390_FEAT_TYPE_KIMD:
     case S390_FEAT_TYPE_KLMD:
@@ -2636,7 +2638,7 @@ static DisasJumpType op_msa(DisasContext *s, DisasOps *o)
             gen_program_exception(s, PGM_SPECIFICATION);
             return DISAS_NORETURN;
         }
-        /* FALL THROUGH */
+        fallthrough;
     case S390_FEAT_TYPE_PCKMO:
     case S390_FEAT_TYPE_PCC:
         break;
@@ -4585,12 +4587,12 @@ static void compute_borrow(DisasContext *s)
         break;
     default:
         gen_op_calc_cc(s);
-        /* fall through */
+        fallthrough;
     case CC_OP_STATIC:
         /* The carry flag is the msb of CC; compute into cc_src. */
         tcg_gen_extu_i32_i64(cc_src, cc_op);
         tcg_gen_shri_i64(cc_src, cc_src, 1);
-        /* fall through */
+        fallthrough;
     case CC_OP_ADDU:
         /* Convert carry (1,0) to borrow (0,-1). */
         tcg_gen_subi_i64(cc_src, cc_src, 1);
@@ -6486,11 +6488,13 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_TOO_MANY:
         update_psw_addr(dc);
         /* FALLTHRU */
+        fallthrough;
     case DISAS_PC_UPDATED:
         /* Next TB starts off with CC_OP_DYNAMIC, so make sure the
            cc op type is in env */
         update_cc_op(dc);
         /* FALLTHRU */
+        fallthrough;
     case DISAS_PC_CC_UPDATED:
         /* Exit the TB, either by raising a debug exception or by return.  */
         if (dc->exit_to_mainloop) {

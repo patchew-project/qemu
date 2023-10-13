@@ -199,7 +199,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
             *flags &= ~PAGE_WRITE;
         }
         gaddr = (entry & REGION_ENTRY_ORIGIN) + VADDR_REGION2_TX(vaddr) * 8;
-        /* fall through */
+        fallthrough;
     case ASCE_TYPE_REGION2:
         if (!read_table_entry(env, gaddr, &entry)) {
             return PGM_ADDRESSING;
@@ -218,7 +218,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
             *flags &= ~PAGE_WRITE;
         }
         gaddr = (entry & REGION_ENTRY_ORIGIN) + VADDR_REGION3_TX(vaddr) * 8;
-        /* fall through */
+        fallthrough;
     case ASCE_TYPE_REGION3:
         if (!read_table_entry(env, gaddr, &entry)) {
             return PGM_ADDRESSING;
@@ -248,7 +248,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
             return PGM_SEGMENT_TRANS;
         }
         gaddr = (entry & REGION_ENTRY_ORIGIN) + VADDR_SEGMENT_TX(vaddr) * 8;
-        /* fall through */
+        fallthrough;
     case ASCE_TYPE_SEGMENT:
         if (!read_table_entry(env, gaddr, &entry)) {
             return PGM_ADDRESSING;
