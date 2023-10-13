@@ -429,6 +429,7 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
         case CCW_DEVTYPE_VIRTIO_NET:
             ipl->netboot = true;
             /* Fall through to CCW_DEVTYPE_VIRTIO case */
+            fallthrough;
         case CCW_DEVTYPE_VIRTIO:
             ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
             ipl->iplb.blk0_len =

@@ -66,7 +66,7 @@ static bool sccb_verify_boundary(uint64_t sccb_addr, uint16_t sccb_len,
         if (s390_has_feat(S390_FEAT_EXTENDED_LENGTH_SCCB)) {
             return true;
         }
-        /* fallthrough */
+        fallthrough;
     default:
         if (sccb_max_addr < sccb_boundary) {
             return true;
@@ -224,7 +224,7 @@ static void sclp_configure_io_adapter(SCLPDevice *sclp, SCCB *sccb,
             }
             return;
         }
-        /* fallthrough */
+        fallthrough;
     default:
         rc = SCLP_RC_ADAPTER_TYPE_NOT_RECOGNIZED;
     }
