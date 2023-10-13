@@ -40,6 +40,9 @@ class NetBSDVM(basevm.BaseVM):
         "gsed",
         "gettext-tools",
 
+        # libs: basic
+        "dtc",
+
         # libs: crypto
         "gnutls",
 
