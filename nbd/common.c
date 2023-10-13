@@ -249,7 +249,7 @@ int nbd_errno_to_system_errno(int err)
         break;
     default:
         trace_nbd_unknown_error(err);
-        /* fallthrough */
+        fallthrough;
     case NBD_EINVAL:
         ret = EINVAL;
         break;

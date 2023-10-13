@@ -632,7 +632,7 @@ int main(int argc, char **argv)
             break;
         case 'n':
             optarg = (char *) "none";
-            /* fallthrough */
+            fallthrough;
         case QEMU_NBD_OPT_CACHE:
             if (seen_cache) {
                 error_report("-n and --cache can only be specified once");
@@ -708,7 +708,7 @@ int main(int argc, char **argv)
             } else {
                 sn_id_or_name = optarg;
             }
-            /* fall through */
+            fallthrough;
         case 'r':
             readonly = true;
             flags &= ~BDRV_O_RDWR;

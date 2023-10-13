@@ -1051,7 +1051,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             }
             info->base_allocation = result == 1;
         }
-        /* fall through */
+        fallthrough;
     case NBD_MODE_SIMPLE:
         /* Try NBD_OPT_GO first - if it works, we are done (it
          * also gives us a good message if the server requires
@@ -1074,7 +1074,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
         if (nbd_receive_query_exports(ioc, info->name, errp) < 0) {
             return -EINVAL;
         }
-        /* fall through */
+        fallthrough;
     case NBD_MODE_EXPORT_NAME:
         /* write the export name request */
         if (nbd_send_option_request(ioc, NBD_OPT_EXPORT_NAME, -1, info->name,
