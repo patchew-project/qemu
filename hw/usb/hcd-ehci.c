@@ -1477,7 +1477,7 @@ static int ehci_process_itd(EHCIState *ehci,
             default:
                 fprintf(stderr, "Unexpected iso usb result: %d\n",
                         ehci->ipacket.status);
-                /* Fall through */
+                fallthrough;
             case USB_RET_IOERROR:
             case USB_RET_NODEV:
                 /* 3.3.2: XACTERR is only allowed on IN transactions */
@@ -2140,6 +2140,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
         }
         ehci_set_state(ehci, async, EST_ACTIVE);
         // No break, fall through to ACTIVE
+        fallthrough;
 
     case EST_ACTIVE:
         if (!ehci_async_enabled(ehci)) {
@@ -2197,6 +2198,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         if (!(ehci->frindex & 7) && ehci_periodic_enabled(ehci)) {
             ehci_set_state(ehci, async, EST_ACTIVE);
             // No break, fall through to ACTIVE
+            fallthrough;
         } else
             break;
 

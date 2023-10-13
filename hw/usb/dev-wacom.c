@@ -389,7 +389,7 @@ static void usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
             usb_packet_copy(p, buf, len);
             break;
         }
-        /* Fall through.  */
+        fallthrough;
     case USB_TOKEN_OUT:
     default:
         p->status = USB_RET_STALL;

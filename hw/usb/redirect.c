@@ -1814,7 +1814,7 @@ static void usbredir_ep_info(void *priv,
         case usb_redir_type_iso:
             usbredir_mark_speed_incompatible(dev, USB_SPEED_FULL);
             usbredir_mark_speed_incompatible(dev, USB_SPEED_HIGH);
-            /* Fall through */
+            fallthrough;
         case usb_redir_type_interrupt:
             if (!usbredirparser_peer_has_cap(dev->parser,
                                      usb_redir_cap_ep_info_max_packet_size) ||
@@ -1831,7 +1831,7 @@ static void usbredir_ep_info(void *priv,
                 usbredir_reject_device(dev);
                 return;
             }
-            /* Fall through */
+            fallthrough;
         case usb_redir_type_control:
         case usb_redir_type_bulk:
             DPRINTF("ep: %02X type: %d interface: %d\n", I2EP(i),
