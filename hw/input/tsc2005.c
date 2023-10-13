@@ -262,7 +262,7 @@ static void tsc2005_pin_update(TSC2005State *s)
             s->enabled = false;
         if (!s->pressure)
             return;
-        /* Fall through */
+        fallthrough;
     case TSC_MODE_AUX_SCAN:
         break;
 
@@ -271,7 +271,7 @@ static void tsc2005_pin_update(TSC2005State *s)
     case TSC_MODE_Z:
         if (!s->pressure)
             return;
-        /* Fall through */
+        fallthrough;
     case TSC_MODE_AUX:
     case TSC_MODE_TEMP1:
     case TSC_MODE_TEMP2:
