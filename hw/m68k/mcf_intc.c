@@ -84,7 +84,7 @@ static uint64_t mcf_intc_read(void *opaque, hwaddr addr,
         /* LnIACK */
         qemu_log_mask(LOG_UNIMP, "%s: LnIACK not implemented (offset 0x%02x)\n",
                       __func__, offset);
-        /* fallthru */
+        fallthrough;
     default:
         return 0;
     }
