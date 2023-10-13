@@ -649,7 +649,7 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
     case CR_IENABLE:
         /* If interrupts were enabled using WRCTL, trigger them. */
         dc->base.is_jmp = DISAS_UPDATE;
-        /* fall through */
+        fallthrough;
     default:
         if (wr == -1) {
             /* The register is entirely writable. */
