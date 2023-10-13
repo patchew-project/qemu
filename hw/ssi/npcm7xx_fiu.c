@@ -167,7 +167,7 @@ static uint64_t npcm7xx_fiu_flash_read(void *opaque, hwaddr addr,
     switch (FIU_DRD_CFG_ADDSIZ(drd_cfg)) {
     case FIU_ADDSIZ_4BYTES:
         ssi_transfer(fiu->spi, extract32(addr, 24, 8));
-        /* fall through */
+        fallthrough;
     case FIU_ADDSIZ_3BYTES:
         ssi_transfer(fiu->spi, extract32(addr, 16, 8));
         ssi_transfer(fiu->spi, extract32(addr, 8, 8));
@@ -226,7 +226,7 @@ static void npcm7xx_fiu_flash_write(void *opaque, hwaddr addr, uint64_t v,
     switch (FIU_DWR_CFG_ADDSIZ(dwr_cfg)) {
     case FIU_ADDSIZ_4BYTES:
         ssi_transfer(fiu->spi, extract32(addr, 24, 8));
-        /* fall through */
+        fallthrough;
     case FIU_ADDSIZ_3BYTES:
         ssi_transfer(fiu->spi, extract32(addr, 16, 8));
         ssi_transfer(fiu->spi, extract32(addr, 8, 8));
@@ -285,16 +285,16 @@ static void send_address(SSIBus *spi, unsigned int addsiz, uint32_t addr)
     switch (addsiz) {
     case 4:
         ssi_transfer(spi, extract32(addr, 24, 8));
-        /* fall through */
+        fallthrough;
     case 3:
         ssi_transfer(spi, extract32(addr, 16, 8));
-        /* fall through */
+        fallthrough;
     case 2:
         ssi_transfer(spi, extract32(addr, 8, 8));
-        /* fall through */
+        fallthrough;
     case 1:
         ssi_transfer(spi, extract32(addr, 0, 8));
-        /* fall through */
+        fallthrough;
     case 0:
         break;
     }
@@ -391,7 +391,7 @@ static void npcm7xx_fiu_ctrl_write(void *opaque, hwaddr addr, uint64_t v,
             value &= ~FIU_UMA_CFG_CMMLCK_MASK;
             value |= (s->regs[reg] & FIU_UMA_CFG_CMMLCK_MASK);
         }
-        /* fall through */
+        fallthrough;
     case NPCM7XX_FIU_DRD_CFG:
     case NPCM7XX_FIU_DWR_CFG:
         if (s->regs[reg] & NPCM7XX_FIU_CFG_LCK) {
