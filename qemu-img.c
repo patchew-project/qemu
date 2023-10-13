@@ -1906,7 +1906,7 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
                 }
                 break;
             }
-            /* fall-through */
+            fallthrough;
 
         case BLK_ZERO:
             if (s->has_zero_init) {
