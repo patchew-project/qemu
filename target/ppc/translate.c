@@ -7472,10 +7472,10 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             tcg_gen_exit_tb(ctx->base.tb, 0);
             break;
         }
-        /* fall through */
+        fallthrough;
     case DISAS_CHAIN_UPDATE:
         gen_update_nip(ctx, nip);
-        /* fall through */
+        fallthrough;
     case DISAS_CHAIN:
         /*
          * tcg_gen_lookup_and_goto_ptr will exit the TB if
@@ -7490,7 +7490,7 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 
     case DISAS_EXIT_UPDATE:
         gen_update_nip(ctx, nip);
-        /* fall through */
+        fallthrough;
     case DISAS_EXIT:
         pmu_count_insns(ctx);
         tcg_gen_exit_tb(NULL, 0);
