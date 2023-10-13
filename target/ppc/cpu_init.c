@@ -894,25 +894,25 @@ static void register_BookE206_sprs(CPUPPCState *env, uint32_t mas_mask,
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, SPR_NOACCESS,
                      tlbncfg[3]);
-        /* Fallthru */
+        fallthrough;
     case 3:
         spr_register(env, SPR_BOOKE_TLB2CFG, "TLB2CFG",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, SPR_NOACCESS,
                      tlbncfg[2]);
-        /* Fallthru */
+        fallthrough;
     case 2:
         spr_register(env, SPR_BOOKE_TLB1CFG, "TLB1CFG",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, SPR_NOACCESS,
                      tlbncfg[1]);
-        /* Fallthru */
+        fallthrough;
     case 1:
         spr_register(env, SPR_BOOKE_TLB0CFG, "TLB0CFG",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, SPR_NOACCESS,
                      tlbncfg[0]);
-        /* Fallthru */
+        fallthrough;
     case 0:
     default:
         break;

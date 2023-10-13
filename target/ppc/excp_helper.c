@@ -1334,7 +1334,7 @@ static bool is_prefix_insn_excp(PowerPCCPU *cpu, int excp)
              */
             break;
         }
-        /* fall through */
+        fallthrough;
     case POWERPC_EXCP_MCHECK:
     case POWERPC_EXCP_DSI:
     case POWERPC_EXCP_DSEG:
@@ -1576,7 +1576,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         break;
     case POWERPC_EXCP_TRACE:     /* Trace exception                          */
         msr |= env->error_code;
-        /* fall through */
+        fallthrough;
     case POWERPC_EXCP_DSEG:      /* Data segment exception                   */
     case POWERPC_EXCP_ISEG:      /* Instruction segment exception            */
     case POWERPC_EXCP_SDOOR:     /* Doorbell interrupt                       */
@@ -1584,7 +1584,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         break;
     case POWERPC_EXCP_HISI:      /* Hypervisor instruction storage exception */
         msr |= env->error_code;
-        /* fall through */
+        fallthrough;
     case POWERPC_EXCP_HDECR:     /* Hypervisor decrementer exception         */
     case POWERPC_EXCP_HDSI:      /* Hypervisor data storage exception        */
     case POWERPC_EXCP_SDOOR_HV:  /* Hypervisor Doorbell interrupt            */

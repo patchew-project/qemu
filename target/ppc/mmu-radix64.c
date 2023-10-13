@@ -126,7 +126,7 @@ static void ppc_radix64_raise_si(PowerPCCPU *cpu, MMUAccessType access_type,
         break;
     case MMU_DATA_STORE:
         cause |= DSISR_ISSTORE;
-        /* fall through */
+        fallthrough;
     case MMU_DATA_LOAD:
         /* Data Storage Interrupt */
         cs->exception_index = POWERPC_EXCP_DSI;
@@ -166,7 +166,7 @@ static void ppc_radix64_raise_hsi(PowerPCCPU *cpu, MMUAccessType access_type,
         break;
     case MMU_DATA_STORE:
         cause |= DSISR_ISSTORE;
-        /* fall through */
+        fallthrough;
     case MMU_DATA_LOAD:
         /* H Data Storage Interrupt */
         cs->exception_index = POWERPC_EXCP_HDSI;
@@ -226,7 +226,7 @@ static int ppc_radix64_check_rc(MMUAccessType access_type, uint64_t pte)
         if (!(pte & R_PTE_C)) {
             break;
         }
-        /* fall through */
+        fallthrough;
     case MMU_INST_FETCH:
     case MMU_DATA_LOAD:
         if (!(pte & R_PTE_R)) {
