@@ -1225,6 +1225,7 @@ static void cmd_read_dvd_structure(IDEState *s, uint8_t* buf)
                 break;
             }
             /* TODO: BD support, fall through for now */
+            fallthrough;
 
         /* Generic disk structures */
         case 0x80: /* TODO: AACS volume identifier */
