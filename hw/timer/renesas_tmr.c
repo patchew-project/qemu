@@ -236,7 +236,7 @@ static uint64_t tmr_read(void *opaque, hwaddr addr, unsigned size)
         } else if (ch == 0) {
             return concat_reg(tmr->tcora);
         }
-        /* fall through */
+        fallthrough;
     case A_TCORB:
         if (size == 1) {
             return tmr->tcorb[ch];

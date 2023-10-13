@@ -143,7 +143,7 @@ static uint64_t a9_gtimer_read(void *opaque, hwaddr addr, unsigned size)
     switch (addr) {
     case R_COUNTER_HI:
         shift = 32;
-        /* fallthrough */
+        fallthrough;
     case R_COUNTER_LO:
         update = a9_gtimer_get_update(s);
         ret = extract64(update.new, shift, 32);
@@ -156,7 +156,7 @@ static uint64_t a9_gtimer_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case R_COMPARATOR_HI:
         shift = 32;
-        /* fallthrough */
+        fallthrough;
     case R_COMPARATOR_LO:
         ret = extract64(gtb->compare, shift, 32);
         break;
@@ -185,7 +185,7 @@ static void a9_gtimer_write(void *opaque, hwaddr addr, uint64_t value,
     switch (addr) {
     case R_COUNTER_HI:
         shift = 32;
-        /* fallthrough */
+        fallthrough;
     case R_COUNTER_LO:
         /*
          * Keep it simple - ARM docco explicitly says to disable timer before
@@ -209,7 +209,7 @@ static void a9_gtimer_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case R_COMPARATOR_HI:
         shift = 32;
-        /* fallthrough */
+        fallthrough;
     case R_COMPARATOR_LO:
         a9_gtimer_update(s, false);
         gtb->compare = deposit64(gtb->compare, shift, 32, value);

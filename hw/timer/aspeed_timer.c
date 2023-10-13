@@ -284,6 +284,7 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
             break;
         }
         /* fall through to re-enable */
+        fallthrough;
     case TIMER_REG_STATUS:
         if (timer_enabled(t)) {
             uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
