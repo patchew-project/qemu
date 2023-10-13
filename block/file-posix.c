@@ -1013,6 +1013,7 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
                               bs->filename);
         }
         /* fall through to unlock bytes. */
+        fallthrough;
     case RAW_PL_ABORT:
         raw_apply_lock_bytes(s, s->fd, s->perm, ~s->shared_perm,
                              true, &local_err);

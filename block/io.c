@@ -2060,6 +2060,7 @@ bdrv_co_write_req_finish(BdrvChild *child, int64_t offset, int64_t bytes,
         case BDRV_TRACKED_WRITE:
             stat64_max(&bs->wr_highest_offset, offset + bytes);
             /* fall through, to set dirty bits */
+            fallthrough;
         case BDRV_TRACKED_DISCARD:
             bdrv_set_dirty(bs, offset, bytes);
             break;
