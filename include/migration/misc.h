@@ -42,14 +42,6 @@ void ram_mig_init(void);
 void qemu_guest_free_page_hint(void *addr, size_t len);
 bool migrate_ram_is_ignored(RAMBlock *block);
 
-/* migration/block.c */
-
-#ifdef CONFIG_LIVE_BLOCK_MIGRATION
-void blk_mig_init(void);
-#else
-static inline void blk_mig_init(void) {}
-#endif
-
 AnnounceParameters *migrate_announce_params(void);
 /* migration/savevm.c */
 

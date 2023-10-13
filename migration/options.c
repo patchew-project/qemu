@@ -187,7 +187,6 @@ Property migration_properties[] = {
                         MIGRATION_CAPABILITY_POSTCOPY_PREEMPT),
     DEFINE_PROP_MIG_CAP("x-colo", MIGRATION_CAPABILITY_X_COLO),
     DEFINE_PROP_MIG_CAP("x-release-ram", MIGRATION_CAPABILITY_RELEASE_RAM),
-    DEFINE_PROP_MIG_CAP("x-block", MIGRATION_CAPABILITY_BLOCK),
     DEFINE_PROP_MIG_CAP("x-return-path", MIGRATION_CAPABILITY_RETURN_PATH),
     DEFINE_PROP_MIG_CAP("x-multifd", MIGRATION_CAPABILITY_MULTIFD),
     DEFINE_PROP_MIG_CAP("x-background-snapshot",
@@ -214,13 +213,6 @@ bool migrate_background_snapshot(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
-}
-
-bool migrate_block(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_BLOCK];
 }
 
 bool migrate_colo(void)
@@ -461,19 +453,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     ERRP_GUARD();
-#ifndef CONFIG_LIVE_BLOCK_MIGRATION
-    if (new_caps[MIGRATION_CAPABILITY_BLOCK]) {
-        error_setg(errp, "QEMU compiled without old-style (blk/-b, inc/-i) "
-                   "block migration");
-        error_append_hint(errp, "Use blockdev-mirror with NBD instead.\n");
-        return false;
-    }
-#endif
-    if (new_caps[MIGRATION_CAPABILITY_BLOCK]) {
-        warn_report("Block migration is deprecated. "
-                    "Use blockdev-mirror with NBD instead.");
-    }
-
     if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
         warn_report("Old compression method is deprecated. "
                     "Use multifd compression methods instead.");
@@ -630,11 +609,6 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
     int i;
 
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-#ifndef CONFIG_LIVE_BLOCK_MIGRATION
-        if (i == MIGRATION_CAPABILITY_BLOCK) {
-            continue;
-        }
-#endif
         caps = g_malloc0(sizeof(*caps));
         caps->capability = i;
         caps->state = s->capabilities[i];
