@@ -235,7 +235,7 @@ static void zynq_xadc_write(void *opaque, hwaddr offset, uint64_t val,
             break;
         case CMD_WRITE:
             s->xadc_regs[xadc_reg] = xadc_data;
-            /* fallthrough */
+            fallthrough;
         case CMD_NOP:
             xadc_push_dfifo(s, 0);
             break;
