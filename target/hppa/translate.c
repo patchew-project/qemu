@@ -483,7 +483,7 @@ static void cond_free(DisasCond *cond)
     default:
         cond->a0 = NULL;
         cond->a1 = NULL;
-        /* fallthru */
+        fallthrough;
     case TCG_COND_ALWAYS:
         cond->c = TCG_COND_NEVER;
         break;
@@ -3848,13 +3848,13 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
             goto done;
         case 2: /* rej */
             inv = true;
-            /* fallthru */
+            fallthrough;
         case 1: /* acc */
             mask = 0x43ff800;
             break;
         case 6: /* rej8 */
             inv = true;
-            /* fallthru */
+            fallthrough;
         case 5: /* acc8 */
             mask = 0x43f8000;
             break;
@@ -4230,13 +4230,13 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
         copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
         nullify_save(ctx);
-        /* FALLTHRU */
+        fallthrough;
     case DISAS_IAQ_N_UPDATED:
         if (is_jmp != DISAS_IAQ_N_STALE_EXIT) {
             tcg_gen_lookup_and_goto_ptr();
             break;
         }
-        /* FALLTHRU */
+        fallthrough;
     case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);
         break;
