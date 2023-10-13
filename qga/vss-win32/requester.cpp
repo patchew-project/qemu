@@ -611,6 +611,7 @@ void requester_thaw(int *num_vols, void *mountpints, ErrorSet *errset)
             break;
         }
         /* fall through if hEventTimeout is signaled */
+        fallthrough;
 
     case (HRESULT)VSS_E_HOLD_WRITES_TIMEOUT:
         err_set(errset, hr, "couldn't hold writes: "
