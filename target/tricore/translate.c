@@ -3014,7 +3014,7 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         break;
     case OPC1_32_B_JLA:
         tcg_gen_movi_tl(cpu_gpr_a[11], ctx->pc_succ_insn);
-        /* fall through */
+        fallthrough;
     case OPC1_32_B_JA:
         gen_goto_tb(ctx, 0, EA_B_ABSOLUT(offset));
         break;
@@ -8452,7 +8452,7 @@ static void tricore_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         break;
     case DISAS_EXIT_UPDATE:
         gen_save_pc(ctx->base.pc_next);
-        /* fall through */
+        fallthrough;
     case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);
         break;
