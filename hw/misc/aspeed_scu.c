@@ -672,7 +672,7 @@ static void aspeed_ast2600_scu_write(void *opaque, hwaddr offset,
         if (s->regs[reg + 2]) {
             return;
         }
-        /* fall through */
+        fallthrough;
     case AST2600_SYS_RST_CTRL:
     case AST2600_SYS_RST_CTRL2:
     case AST2600_CLK_STOP_CTRL:
