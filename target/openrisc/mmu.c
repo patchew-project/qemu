@@ -168,7 +168,7 @@ hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         if (!excp) {
             return phys_addr;
         }
-        /* fallthru */
+        fallthrough;
 
     case 0:
         /* The mmu is definitely disabled; lookups never fail.  */
