@@ -576,7 +576,7 @@ static void qjack_client_fini_locked(QJackClient *c)
     switch (c->state) {
     case QJACK_STATE_RUNNING:
         jack_deactivate(c->client);
-        /* fallthrough */
+        fallthrough;
 
     case QJACK_STATE_SHUTDOWN:
         jack_client_close(c->client);
@@ -587,7 +587,7 @@ static void qjack_client_fini_locked(QJackClient *c)
         g_free(c->process_buffers);
 
         c->state = QJACK_STATE_DISCONNECTED;
-        /* fallthrough */
+        fallthrough;
 
     case QJACK_STATE_DISCONNECTED:
         break;
