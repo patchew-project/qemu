@@ -1471,7 +1471,7 @@ static uint64_t omap_dma_read(void *opaque, hwaddr addr, unsigned size)
                 break;
             return ret;
         }
-        /* Fall through. */
+        fallthrough;
     case 0x000 ... 0x2fe:
         reg = addr & 0x3f;
         ch = (addr >> 6) & 0x0f;
@@ -1482,7 +1482,7 @@ static uint64_t omap_dma_read(void *opaque, hwaddr addr, unsigned size)
     case 0x404 ... 0x4fe:
         if (s->model <= omap_dma_3_1)
             break;
-        /* Fall through. */
+        fallthrough;
     case 0x400:
         if (omap_dma_sys_read(s, addr, &ret))
             break;
@@ -1519,7 +1519,7 @@ static void omap_dma_write(void *opaque, hwaddr addr,
                 break;
             return;
         }
-        /* Fall through.  */
+        fallthrough;
     case 0x000 ... 0x2fe:
         reg = addr & 0x3f;
         ch = (addr >> 6) & 0x0f;
@@ -1530,7 +1530,7 @@ static void omap_dma_write(void *opaque, hwaddr addr,
     case 0x404 ... 0x4fe:
         if (s->model <= omap_dma_3_1)
             break;
-        /* fall through */
+        fallthrough;
     case 0x400:
         if (omap_dma_sys_write(s, addr, value))
             break;
@@ -1716,25 +1716,25 @@ static uint64_t omap_dma4_read(void *opaque, hwaddr addr,
 
     case 0x14:	/* DMA4_IRQSTATUS_L3 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x10:	/* DMA4_IRQSTATUS_L2 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x0c:	/* DMA4_IRQSTATUS_L1 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x08:	/* DMA4_IRQSTATUS_L0 */
         return s->irqstat[irqn];
 
     case 0x24:	/* DMA4_IRQENABLE_L3 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x20:	/* DMA4_IRQENABLE_L2 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x1c:	/* DMA4_IRQENABLE_L1 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x18:	/* DMA4_IRQENABLE_L0 */
         return s->irqen[irqn];
 
@@ -1870,13 +1870,13 @@ static void omap_dma4_write(void *opaque, hwaddr addr,
     switch (addr) {
     case 0x14:	/* DMA4_IRQSTATUS_L3 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x10:	/* DMA4_IRQSTATUS_L2 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x0c:	/* DMA4_IRQSTATUS_L1 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x08:	/* DMA4_IRQSTATUS_L0 */
         s->irqstat[irqn] &= ~value;
         if (!s->irqstat[irqn])
@@ -1885,13 +1885,13 @@ static void omap_dma4_write(void *opaque, hwaddr addr,
 
     case 0x24:	/* DMA4_IRQENABLE_L3 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x20:	/* DMA4_IRQENABLE_L2 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x1c:	/* DMA4_IRQENABLE_L1 */
         irqn ++;
-        /* fall through */
+        fallthrough;
     case 0x18:	/* DMA4_IRQENABLE_L0 */
         s->irqen[irqn] = value;
         return;
