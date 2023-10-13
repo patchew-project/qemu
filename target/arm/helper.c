@@ -2526,7 +2526,7 @@ static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx,
         if (!extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
             return CP_ACCESS_TRAP;
         }
-        /* fall through */
+        fallthrough;
 
     case 1:
         if (has_el2 && timeridx == GTIMER_PHYS) {
@@ -3588,7 +3588,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
             break;
         case 2:
             g_assert(ss != ARMSS_Secure);  /* ARMv8.4-SecEL2 is 64-bit only */
-            /* fall through */
+            fallthrough;
         case 1:
             if (ri->crm == 9 && (env->uncached_cpsr & CPSR_PAN)) {
                 mmu_idx = ARMMMUIdx_Stage1_E1_PAN;
@@ -4657,7 +4657,7 @@ static CPAccessResult aa64_cacheop_poc_access(CPUARMState *env,
         if (!(arm_sctlr(env, 0) & SCTLR_UCI)) {
             return CP_ACCESS_TRAP;
         }
-        /* fall through */
+        fallthrough;
     case 1:
         /* ... EL1 must trap to EL2 if HCR_EL2.TPCP is set.  */
         if (arm_hcr_el2_eff(env) & HCR_TPCP) {
@@ -4677,7 +4677,7 @@ static CPAccessResult do_cacheop_pou_access(CPUARMState *env, uint64_t hcrflags)
         if (!(arm_sctlr(env, 0) & SCTLR_UCI)) {
             return CP_ACCESS_TRAP;
         }
-        /* fall through */
+        fallthrough;
     case 1:
         /* ... EL1 must trap to EL2 if relevant HCR_EL2 flags are set.  */
         if (arm_hcr_el2_eff(env) & hcrflags) {
@@ -6757,7 +6757,7 @@ int sve_exception_el(CPUARMState *env, int el)
             if (el != 0) {
                 break;
             }
-            /* fall through */
+            fallthrough;
         case 0:
         case 2:
             return 1;
@@ -6772,7 +6772,7 @@ int sve_exception_el(CPUARMState *env, int el)
                 if (el != 0 || !(env->cp15.hcr_el2 & HCR_TGE)) {
                     break;
                 }
-                /* fall through */
+                fallthrough;
             case 0:
             case 2:
                 return 2;
@@ -6806,7 +6806,7 @@ int sme_exception_el(CPUARMState *env, int el)
             if (el != 0) {
                 break;
             }
-            /* fall through */
+            fallthrough;
         case 0:
         case 2:
             return 1;
@@ -6821,7 +6821,7 @@ int sme_exception_el(CPUARMState *env, int el)
                 if (el != 0 || !(env->cp15.hcr_el2 & HCR_TGE)) {
                     break;
                 }
-                /* fall through */
+                fallthrough;
             case 0:
             case 2:
                 return 2;
@@ -9731,7 +9731,7 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
         if (r->cp == 0) {
             break;
         }
-        /* fall through */
+        fallthrough;
     case ARM_CP_STATE_AA32:
         if (arm_feature(&cpu->env, ARM_FEATURE_V8) &&
             !arm_feature(&cpu->env, ARM_FEATURE_M)) {
@@ -10660,7 +10660,7 @@ static void take_aarch32_exception(CPUARMState *env, int new_mode,
                     break;
                 }
                 /* ... the target is EL3, from secure state ... */
-                /* fall through */
+                fallthrough;
             case 1:
                 /* ... the target is EL1 and SCTLR.SPAN is 0.  */
                 if (!(env->cp15.sctlr_el[new_el] & SCTLR_SPAN)) {
@@ -10712,6 +10712,7 @@ static void arm_cpu_do_interrupt_aarch32_hyp(CPUState *cs)
         break;
     case EXCP_BKPT:
         /* Fall through to prefetch abort.  */
+        fallthrough;
     case EXCP_PREFETCH_ABORT:
         env->cp15.ifar_s = env->exception.vaddress;
         qemu_log_mask(CPU_LOG_INT, "...with HIFAR 0x%x\n",
@@ -10837,6 +10838,7 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
         break;
     case EXCP_BKPT:
         /* Fall through to prefetch abort.  */
+        fallthrough;
     case EXCP_PREFETCH_ABORT:
         A32_BANKED_CURRENT_REG_SET(env, ifsr, env->exception.fsr);
         A32_BANKED_CURRENT_REG_SET(env, ifar, env->exception.vaddress);
@@ -11091,7 +11093,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
                 is_aa64 = (hcr & HCR_RW) != 0;
                 break;
             }
-            /* fall through */
+            fallthrough;
         case 1:
             is_aa64 = is_a64(env);
             break;
@@ -11112,7 +11114,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
     case EXCP_GPC:
         qemu_log_mask(CPU_LOG_INT, "...with MFAR 0x%" PRIx64 "\n",
                       env->cp15.mfar_el3);
-        /* fall through */
+        fallthrough;
     case EXCP_PREFETCH_ABORT:
     case EXCP_DATA_ABORT:
         /*
@@ -11126,7 +11128,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         env->cp15.far_el[new_el] = env->exception.vaddress;
         qemu_log_mask(CPU_LOG_INT, "...with FAR 0x%" PRIx64 "\n",
                       env->cp15.far_el[new_el]);
-        /* fall through */
+        fallthrough;
     case EXCP_BKPT:
     case EXCP_UDEF:
     case EXCP_SWI:
@@ -11218,7 +11220,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
                 != (HCR_E2H | HCR_TGE)) {
                 break;
             }
-            /* fall through */
+            fallthrough;
         case 1:
             /* ... the target is EL1 ... */
             /* ... and SCTLR_ELx.SPAN == 0, then set to 1.  */
@@ -11956,7 +11958,7 @@ int fp_exception_el(CPUARMState *env, int cur_el)
             if (cur_el != 0) {
                 break;
             }
-            /* fall through */
+            fallthrough;
         case 0:
         case 2:
             /* Trap from Secure PL0 or PL1 to Secure PL1. */
@@ -11995,7 +11997,7 @@ int fp_exception_el(CPUARMState *env, int cur_el)
                 if (cur_el != 0 || !(hcr_el2 & HCR_TGE)) {
                     break;
                 }
-                /* fall through */
+                fallthrough;
             case 0:
             case 2:
                 return 2;

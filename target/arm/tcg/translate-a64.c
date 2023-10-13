@@ -5758,7 +5758,7 @@ static void disas_fp_compare(DisasContext *s, uint32_t insn)
         if (dc_isar_feature(aa64_fp16, s)) {
             break;
         }
-        /* fallthru */
+        fallthrough;
     default:
         unallocated_encoding(s);
         return;
@@ -5808,7 +5808,7 @@ static void disas_fp_ccomp(DisasContext *s, uint32_t insn)
         if (dc_isar_feature(aa64_fp16, s)) {
             break;
         }
-        /* fallthru */
+        fallthrough;
     default:
         unallocated_encoding(s);
         return;
@@ -5872,7 +5872,7 @@ static void disas_fp_csel(DisasContext *s, uint32_t insn)
         if (dc_isar_feature(aa64_fp16, s)) {
             break;
         }
-        /* fallthru */
+        fallthrough;
     default:
         unallocated_encoding(s);
         return;
@@ -6194,7 +6194,7 @@ static void disas_fp_1src(DisasContext *s, uint32_t insn)
         if (type > 1 || !dc_isar_feature(aa64_frint, s)) {
             goto do_unallocated;
         }
-        /* fall through */
+        fallthrough;
     case 0x0 ... 0x3:
     case 0x8 ... 0xc:
     case 0xe ... 0xf:
@@ -6623,7 +6623,7 @@ static void disas_fp_imm(DisasContext *s, uint32_t insn)
         if (dc_isar_feature(aa64_fp16, s)) {
             break;
         }
-        /* fallthru */
+        fallthrough;
     default:
         unallocated_encoding(s);
         return;
@@ -6831,7 +6831,7 @@ static void disas_fp_fixed_conv(DisasContext *s, uint32_t insn)
         if (dc_isar_feature(aa64_fp16, s)) {
             break;
         }
-        /* fallthru */
+        fallthrough;
     default:
         unallocated_encoding(s);
         return;
@@ -6958,13 +6958,13 @@ static void disas_fp_int_conv(DisasContext *s, uint32_t insn)
     case 2: /* SCVTF */
     case 3: /* UCVTF */
         itof = true;
-        /* fallthru */
+        fallthrough;
     case 4: /* FCVTAS */
     case 5: /* FCVTAU */
         if (rmode != 0) {
             goto do_unallocated;
         }
-        /* fallthru */
+        fallthrough;
     case 0: /* FCVT[NPMZ]S */
     case 1: /* FCVT[NPMZ]U */
         switch (type) {
@@ -6994,7 +6994,7 @@ static void disas_fp_int_conv(DisasContext *s, uint32_t insn)
             if (!dc_isar_feature(aa64_fp16, s)) {
                 goto do_unallocated;
             }
-            /* fallthru */
+            fallthrough;
         case 0b00000110: /* FMOV 32-bit */
         case 0b00000111:
         case 0b10100110: /* FMOV 64-bit */
@@ -7386,7 +7386,7 @@ static void disas_simd_across_lanes(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
+        fallthrough;
     case 0x3: /* SADDLV, UADDLV */
     case 0xa: /* SMAXV, UMAXV */
     case 0x1a: /* SMINV, UMINV */
@@ -8292,7 +8292,7 @@ static void handle_simd_qshl(DisasContext *s, bool scalar, bool is_q,
         switch (size) {
         case 0:
             shift |= shift << 8;
-            /* fall through */
+            fallthrough;
         case 1:
             shift |= shift << 16;
             break;
@@ -8639,7 +8639,7 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
+        fallthrough;
     case 0x00: /* SSHR / USHR */
     case 0x02: /* SSRA / USRA */
     case 0x04: /* SRSHR / URSHR */
@@ -8740,7 +8740,7 @@ static void disas_simd_scalar_three_reg_diff(DisasContext *s, uint32_t insn)
             break;
         case 0xb: /* SQDMLSL, SQDMLSL2 */
             tcg_gen_neg_i64(tcg_res, tcg_res);
-            /* fall through */
+            fallthrough;
         case 0x9: /* SQDMLAL, SQDMLAL2 */
             read_vec_element(s, tcg_op1, rd, 0, MO_64);
             gen_helper_neon_addl_saturate_s64(tcg_res, tcg_env,
@@ -8764,7 +8764,7 @@ static void disas_simd_scalar_three_reg_diff(DisasContext *s, uint32_t insn)
             break;
         case 0xb: /* SQDMLSL, SQDMLSL2 */
             gen_helper_neon_negl_u32(tcg_res, tcg_res);
-            /* fall through */
+            fallthrough;
         case 0x9: /* SQDMLAL, SQDMLAL2 */
         {
             TCGv_i64 tcg_op3 = tcg_temp_new_i64();
@@ -8887,7 +8887,7 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             case 0x39: /* FMLS */
                 /* As usual for ARM, separate negation for fused multiply-add */
                 gen_helper_vfp_negd(tcg_op1, tcg_op1);
-                /* fall through */
+                fallthrough;
             case 0x19: /* FMLA */
                 read_vec_element(s, tcg_res, rd, pass, MO_64);
                 gen_helper_vfp_muladdd(tcg_res, tcg_op1, tcg_op2,
@@ -8963,7 +8963,7 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             case 0x39: /* FMLS */
                 /* As usual for ARM, separate negation for fused multiply-add */
                 gen_helper_vfp_negs(tcg_op1, tcg_op1);
-                /* fall through */
+                fallthrough;
             case 0x19: /* FMLA */
                 read_vec_element_i32(s, tcg_res, rd, pass, MO_32);
                 gen_helper_vfp_muladds(tcg_res, tcg_op1, tcg_op2,
@@ -9489,7 +9489,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
         switch (opcode) {
         case 0x2e: /* FCMLT (zero) */
             swap = true;
-            /* fallthrough */
+            fallthrough;
         case 0x2c: /* FCMGT (zero) */
             genfn = gen_helper_neon_cgt_f64;
             break;
@@ -9498,7 +9498,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
             break;
         case 0x6d: /* FCMLE (zero) */
             swap = true;
-            /* fall through */
+            fallthrough;
         case 0x6c: /* FCMGE (zero) */
             genfn = gen_helper_neon_cge_f64;
             break;
@@ -9529,7 +9529,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
             switch (opcode) {
             case 0x2e: /* FCMLT (zero) */
                 swap = true;
-                /* fall through */
+                fallthrough;
             case 0x2c: /* FCMGT (zero) */
                 genfn = gen_helper_advsimd_cgt_f16;
                 break;
@@ -9538,7 +9538,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
                 break;
             case 0x6d: /* FCMLE (zero) */
                 swap = true;
-                /* fall through */
+                fallthrough;
             case 0x6c: /* FCMGE (zero) */
                 genfn = gen_helper_advsimd_cge_f16;
                 break;
@@ -9549,7 +9549,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
             switch (opcode) {
             case 0x2e: /* FCMLT (zero) */
                 swap = true;
-                /* fall through */
+                fallthrough;
             case 0x2c: /* FCMGT (zero) */
                 genfn = gen_helper_neon_cgt_f32;
                 break;
@@ -9558,7 +9558,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
                 break;
             case 0x6d: /* FCMLE (zero) */
                 swap = true;
-                /* fall through */
+                fallthrough;
             case 0x6c: /* FCMGE (zero) */
                 genfn = gen_helper_neon_cge_f32;
                 break;
@@ -9888,7 +9888,7 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
+        fallthrough;
     case 0x8: /* CMGT, CMGE */
     case 0x9: /* CMEQ, CMLE */
     case 0xb: /* ABS, NEG */
@@ -9902,7 +9902,7 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
+        fallthrough;
     case 0x14: /* SQXTN, UQXTN */
         if (size == 3) {
             unallocated_encoding(s);
@@ -10252,7 +10252,7 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
+        fallthrough;
     case 0x00: /* SSHR / USHR */
     case 0x02: /* SSRA / USRA (accumulate) */
     case 0x04: /* SRSHR / URSHR (rounding) */
@@ -10686,7 +10686,7 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
+        fallthrough;
     case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
     case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
     case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
@@ -11009,7 +11009,7 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
+        fallthrough;
     case 0x0: /* SHADD, UHADD */
     case 0x2: /* SRHADD, URHADD */
     case 0x4: /* SHSUB, UHSUB */
@@ -11972,7 +11972,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
+        fallthrough;
     case 0x8: /* CMGT, CMGE */
     case 0x9: /* CMEQ, CMLE */
     case 0xb: /* ABS, NEG */
@@ -12075,7 +12075,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 unallocated_encoding(s);
                 return;
             }
-            /* fall through */
+            fallthrough;
         case 0x3d: /* FRECPE */
         case 0x7d: /* FRSQRTE */
             if (size == 3 && !is_q) {
@@ -12092,7 +12092,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 unallocated_encoding(s);
                 return;
             }
-            /* fall through */
+            fallthrough;
         case 0x16: /* FCVTN, FCVTN2 */
             /* handle_2misc_narrow does a 2*size -> size operation, but these
              * instructions encode the source size rather than dest size.
@@ -12123,7 +12123,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x38: /* FRINTP */
         case 0x39: /* FRINTZ */
             rmode = extract32(opcode, 5, 1) | (extract32(opcode, 0, 1) << 1);
-            /* fall through */
+            fallthrough;
         case 0x59: /* FRINTX */
         case 0x79: /* FRINTI */
             need_fpstatus = true;
@@ -12149,7 +12149,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x1e: /* FRINT32Z */
         case 0x1f: /* FRINT64Z */
             rmode = FPROUNDING_ZERO;
-            /* fall through */
+            fallthrough;
         case 0x5e: /* FRINT32X */
         case 0x5f: /* FRINT64X */
             need_fpstatus = true;
@@ -12988,7 +12988,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             case 0x05: /* FMLS */
                 /* As usual for ARM, separate negation for fused multiply-add */
                 gen_helper_vfp_negd(tcg_op, tcg_op);
-                /* fall through */
+                fallthrough;
             case 0x01: /* FMLA */
                 read_vec_element(s, tcg_res, rd, pass, MO_64);
                 gen_helper_vfp_muladdd(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
@@ -13244,7 +13244,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                     break;
                 case 0x7: /* SQDMLSL, SQDMLSL2 */
                     tcg_gen_neg_i64(tcg_passres, tcg_passres);
-                    /* fall through */
+                    fallthrough;
                 case 0x3: /* SQDMLAL, SQDMLAL2 */
                     gen_helper_neon_addl_saturate_s64(tcg_res[pass], tcg_env,
                                                       tcg_res[pass],
@@ -13318,7 +13318,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                     break;
                 case 0x7: /* SQDMLSL, SQDMLSL2 */
                     gen_helper_neon_negl_u32(tcg_passres, tcg_passres);
-                    /* fall through */
+                    fallthrough;
                 case 0x3: /* SQDMLAL, SQDMLAL2 */
                     gen_helper_neon_addl_saturate_s32(tcg_res[pass], tcg_env,
                                                       tcg_res[pass],
@@ -14212,7 +14212,7 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         switch (dc->base.is_jmp) {
         default:
             gen_a64_update_pc(dc, 4);
-            /* fall through */
+            fallthrough;
         case DISAS_EXIT:
         case DISAS_JUMP:
             gen_step_complete_exception(dc);
@@ -14229,13 +14229,13 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         default:
         case DISAS_UPDATE_EXIT:
             gen_a64_update_pc(dc, 4);
-            /* fall through */
+            fallthrough;
         case DISAS_EXIT:
             tcg_gen_exit_tb(NULL, 0);
             break;
         case DISAS_UPDATE_NOCHAIN:
             gen_a64_update_pc(dc, 4);
-            /* fall through */
+            fallthrough;
         case DISAS_JUMP:
             tcg_gen_lookup_and_goto_ptr();
             break;

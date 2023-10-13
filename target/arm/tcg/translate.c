@@ -1596,7 +1596,7 @@ static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
             break;
         case ARM_IWMMXT_wCon:
             gen_op_iwmmxt_set_cup();
-            /* Fall through.  */
+            fallthrough;
         case ARM_IWMMXT_wCSSF:
             tmp = iwmmxt_load_creg(wrd);
             tmp2 = load_reg(s, rd);
@@ -9576,7 +9576,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         case DISAS_UPDATE_EXIT:
         case DISAS_UPDATE_NOCHAIN:
             gen_update_pc(dc, curr_insn_len(dc));
-            /* fall through */
+            fallthrough;
         default:
             /* FIXME: Single stepping a WFI insn will not halt the CPU. */
             gen_singlestep_exception(dc);
@@ -9600,13 +9600,13 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             break;
         case DISAS_UPDATE_NOCHAIN:
             gen_update_pc(dc, curr_insn_len(dc));
-            /* fall through */
+            fallthrough;
         case DISAS_JUMP:
             gen_goto_ptr();
             break;
         case DISAS_UPDATE_EXIT:
             gen_update_pc(dc, curr_insn_len(dc));
-            /* fall through */
+            fallthrough;
         default:
             /* indicate that the hash table must be used to find the next TB */
             tcg_gen_exit_tb(NULL, 0);
