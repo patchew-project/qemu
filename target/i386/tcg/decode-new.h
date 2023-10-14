@@ -130,14 +130,27 @@ typedef enum X86OpUnit {
     X86_OP_MMX,     /* address in either s->ptrX or s->A0 depending on has_ea */
 } X86OpUnit;
 
+typedef enum X86InsnCheck {
+    /* Illegal or exclusive to 64-bit mode */
+    X86_CHECK_i64 = 1,
+    X86_CHECK_o64 = 2,
+
+    /* Fault outside protected mode */
+    X86_CHECK_prot = 4,
+
+    /* Privileged instruction checks */
+    X86_CHECK_cpl0 = 8,
+    X86_CHECK_vm86_iopl = 16,
+
+    /* Fault if VEX.L=1 */
+    X86_CHECK_VEX128 = 32,
+} X86InsnCheck;
+
 typedef enum X86InsnSpecial {
     X86_SPECIAL_None,
 
     /* Always locked if it has a memory operand (XCHG) */
     X86_SPECIAL_Locked,
-
-    /* Fault outside protected mode */
-    X86_SPECIAL_ProtMode,
 
     /*
      * Register operand 0/2 is zero extended to 32 bits.  Rd/Mb or Rd/Mw
@@ -157,10 +170,6 @@ typedef enum X86InsnSpecial {
      * become P/P/Q/N, and size "x" becomes "q".
      */
     X86_SPECIAL_MMX,
-
-    /* Illegal or exclusive to 64-bit mode */
-    X86_SPECIAL_i64,
-    X86_SPECIAL_o64,
 } X86InsnSpecial;
 
 /*
@@ -224,6 +233,8 @@ struct X86OpEntry {
     unsigned     vex_class:8;
     X86VEXSpecial vex_special:8;
     uint16_t     valid_prefix:16;
+    uint8_t      check:8;
+    uint8_t      intercept:8;
     bool         is_decode:1;
 };
 
