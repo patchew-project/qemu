@@ -699,18 +699,18 @@ static inline void gen_op_movl_T0_Dshift(DisasContext *s, MemOp ot)
     tcg_gen_shli_tl(s->T0, s->T0, ot);
 };
 
-static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
+static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp ot)
 {
-    switch (size) {
+    switch (ot & MO_SIZE) {
     case MO_8:
-        if (sign) {
+        if (ot & MO_SIGN) {
             tcg_gen_ext8s_tl(dst, src);
         } else {
             tcg_gen_ext8u_tl(dst, src);
         }
         return dst;
     case MO_16:
-        if (sign) {
+        if (ot & MO_SIGN) {
             tcg_gen_ext16s_tl(dst, src);
         } else {
             tcg_gen_ext16u_tl(dst, src);
@@ -718,7 +718,7 @@ static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
         return dst;
 #ifdef TARGET_X86_64
     case MO_32:
-        if (sign) {
+        if (ot & MO_SIGN) {
             tcg_gen_ext32s_tl(dst, src);
         } else {
             tcg_gen_ext32u_tl(dst, src);
@@ -732,12 +732,12 @@ static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
 
 static void gen_extu(MemOp ot, TCGv reg)
 {
-    gen_ext_tl(reg, reg, ot, false);
+    gen_ext_tl(reg, reg, ot);
 }
 
 static void gen_exts(MemOp ot, TCGv reg)
 {
-    gen_ext_tl(reg, reg, ot, true);
+    gen_ext_tl(reg, reg, ot | MO_SIGN);
 }
 
 static void gen_op_j_ecx(DisasContext *s, TCGCond cond, TCGLabel *label1)
@@ -926,7 +926,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
     case CC_OP_SUBB ... CC_OP_SUBQ:
         /* (DATA_TYPE)CC_SRCT < (DATA_TYPE)CC_SRC */
         size = s->cc_op - CC_OP_SUBB;
-        t1 = gen_ext_tl(s->tmp0, cpu_cc_src, size, false);
+        t1 = gen_ext_tl(s->tmp0, cpu_cc_src, size);
         /* If no temporary was used, be careful not to alias t1 and t0.  */
         t0 = t1 == cpu_cc_src ? s->tmp0 : reg;
         tcg_gen_mov_tl(t0, s->cc_srcT);
@@ -936,8 +936,8 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
     case CC_OP_ADDB ... CC_OP_ADDQ:
         /* (DATA_TYPE)CC_DST < (DATA_TYPE)CC_SRC */
         size = s->cc_op - CC_OP_ADDB;
-        t1 = gen_ext_tl(s->tmp0, cpu_cc_src, size, false);
-        t0 = gen_ext_tl(reg, cpu_cc_dst, size, false);
+        t1 = gen_ext_tl(s->tmp0, cpu_cc_src, size);
+        t0 = gen_ext_tl(reg, cpu_cc_dst, size);
     add_sub:
         return (CCPrepare) { .cond = TCG_COND_LTU, .reg = t0,
                              .reg2 = t1, .mask = -1, .use_reg2 = true };
@@ -965,7 +965,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
 
     case CC_OP_BMILGB ... CC_OP_BMILGQ:
         size = s->cc_op - CC_OP_BMILGB;
-        t0 = gen_ext_tl(reg, cpu_cc_src, size, false);
+        t0 = gen_ext_tl(reg, cpu_cc_src, size);
         return (CCPrepare) { .cond = TCG_COND_EQ, .reg = t0, .mask = -1 };
 
     case CC_OP_ADCX:
@@ -1017,7 +1017,7 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
     default:
         {
             MemOp size = (s->cc_op - CC_OP_ADDB) & 3;
-            TCGv t0 = gen_ext_tl(reg, cpu_cc_dst, size, true);
+            TCGv t0 = gen_ext_tl(reg, cpu_cc_dst, size | MO_SIGN);
             return (CCPrepare) { .cond = TCG_COND_LT, .reg = t0, .mask = -1 };
         }
     }
@@ -1062,7 +1062,7 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
     default:
         {
             MemOp size = (s->cc_op - CC_OP_ADDB) & 3;
-            TCGv t0 = gen_ext_tl(reg, cpu_cc_dst, size, false);
+            TCGv t0 = gen_ext_tl(reg, cpu_cc_dst, size);
             return (CCPrepare) { .cond = TCG_COND_EQ, .reg = t0, .mask = -1 };
         }
     }
@@ -1088,7 +1088,7 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
         case JCC_BE:
             tcg_gen_mov_tl(s->tmp4, s->cc_srcT);
             gen_extu(size, s->tmp4);
-            t0 = gen_ext_tl(s->tmp0, cpu_cc_src, size, false);
+            t0 = gen_ext_tl(s->tmp0, cpu_cc_src, size);
             cc = (CCPrepare) { .cond = TCG_COND_LEU, .reg = s->tmp4,
                                .reg2 = t0, .mask = -1, .use_reg2 = true };
             break;
@@ -1101,7 +1101,7 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
         fast_jcc_l:
             tcg_gen_mov_tl(s->tmp4, s->cc_srcT);
             gen_exts(size, s->tmp4);
-            t0 = gen_ext_tl(s->tmp0, cpu_cc_src, size, true);
+            t0 = gen_ext_tl(s->tmp0, cpu_cc_src, size | MO_SIGN);
             cc = (CCPrepare) { .cond = cond, .reg = s->tmp4,
                                .reg2 = t0, .mask = -1, .use_reg2 = true };
             break;
