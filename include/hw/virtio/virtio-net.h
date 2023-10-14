@@ -56,6 +56,7 @@ typedef struct virtio_net_conf
     char *duplex_str;
     uint8_t duplex;
     char *primary_id_str;
+    bool link_up; /* if set enforce link up, never down */
 } virtio_net_conf;
 
 /* Coalesced packets type & status */
@@ -180,6 +181,7 @@ struct VirtIONet {
     size_t guest_hdr_len;
     uint64_t host_features;
     uint32_t rsc_timeout;
+    uint32_t link_up; /* if set enforce link up, never down */
     uint8_t rsc4_enabled;
     uint8_t rsc6_enabled;
     uint8_t has_ufo;

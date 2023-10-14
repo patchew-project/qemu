@@ -78,6 +78,9 @@
    tso/gso/gro 'off'. */
 #define VIRTIO_NET_RSC_DEFAULT_INTERVAL 300000
 
+/* force always link up */
+#define VIRTIO_NET_LINK_UP false
+
 #define VIRTIO_NET_RSS_SUPPORTED_HASHES (VIRTIO_NET_RSS_HASH_TYPE_IPv4 | \
                                          VIRTIO_NET_RSS_HASH_TYPE_TCPv4 | \
                                          VIRTIO_NET_RSS_HASH_TYPE_UDPv4 | \
@@ -445,6 +448,9 @@ static void virtio_net_set_link_status(NetClientState *nc)
     if (nc->link_down)
         n->status &= ~VIRTIO_NET_S_LINK_UP;
     else
+        n->status |= VIRTIO_NET_S_LINK_UP;
+
+    if (n->net_conf.link_up)
         n->status |= VIRTIO_NET_S_LINK_UP;
 
     if (n->status != old_status)
@@ -3947,6 +3953,8 @@ static Property virtio_net_properties[] = {
                       VIRTIO_NET_F_GUEST_USO6, true),
     DEFINE_PROP_BIT64("host_uso", VirtIONet, host_features,
                       VIRTIO_NET_F_HOST_USO, true),
+    DEFINE_PROP_BOOL("link_up", VirtIONet, net_conf.link_up,
+                       VIRTIO_NET_LINK_UP),
     DEFINE_PROP_END_OF_LIST(),
 };
 
