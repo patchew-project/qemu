@@ -136,6 +136,7 @@
 
 #define cpuid(feat) .cpuid = X86_FEAT_##feat,
 #define nowb .special = X86_SPECIAL_NoWriteback,
+#define noseg .special = X86_SPECIAL_NoSeg,
 #define xchg .special = X86_SPECIAL_Locked,
 #define mmx .special = X86_SPECIAL_MMX,
 #define zext0 .special = X86_SPECIAL_ZExtOp0,
@@ -178,6 +179,9 @@
 #define p_00_66_f3    .valid_prefix = P_00 | P_66 | P_F3,
 #define p_66_f3_f2    .valid_prefix = P_66 | P_F3 | P_F2,
 #define p_00_66_f3_f2 .valid_prefix = P_00 | P_66 | P_F3 | P_F2,
+
+static X86OpEntry illegal_opcode =
+    X86_OP_ENTRY0(illegal);
 
 static uint8_t get_modrm(DisasContext *s, CPUX86State *env)
 {
@@ -1078,6 +1082,46 @@ static void decode_0F(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint
     do_decode_0F(s, env, entry, b);
 }
 
+static void decode_63(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86OpEntry arpl = X86_OP_ENTRY2(ARPL, E,w, G,w, chk(prot));
+    static const X86OpEntry mov = X86_OP_ENTRY3(MOV, G,v, E,v, None, None);
+    static const X86OpEntry movsxd = X86_OP_ENTRY3(MOVSXD, G,v, E,d, None, None);
+    if (!CODE64(s)) {
+        *entry = arpl;
+    } else if (REX_W(s)) {
+        *entry = movsxd;
+    } else {
+        *entry = mov;
+    }
+}
+
+static void decode_group1(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86GenFunc group1_gen[8] = {
+        gen_ADD, gen_OR, gen_ADC, gen_SBB, gen_AND, gen_SUB, gen_XOR, gen_SUB,
+    };
+    int op = (get_modrm(s, env) >> 3) & 7;
+    entry->gen = group1_gen[op];
+
+    if (op == 7) {
+        /* CMP */
+        entry->special = X86_SPECIAL_NoWriteback;
+    }
+}
+
+static void decode_group1A(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    int op = (get_modrm(s, env) >> 3) & 7;
+    if (op != 0) {
+        *entry = illegal_opcode;
+    } else {
+        entry->gen = gen_POP;
+        /* The address must use the value of ESP after the pop.  */
+        s->popl_esp_hack = 1 << mo_pushpop(s, s->dflag);
+    }
+}
+
 static const X86OpEntry opcodes_root[256] = {
     [0x00] = X86_OP_ENTRY2(ADD, E,b, G,b),
     [0x01] = X86_OP_ENTRY2(ADD, E,v, G,v),
@@ -1133,6 +1177,60 @@ static const X86OpEntry opcodes_root[256] = {
     [0x56] = X86_OP_ENTRYr(PUSH, LoBits,d64),
     [0x57] = X86_OP_ENTRYr(PUSH, LoBits,d64),
 
+    [0x60] = X86_OP_ENTRY0(PUSHA, chk(i64)),
+    [0x61] = X86_OP_ENTRY0(POPA, chk(i64)),
+    [0x62] = X86_OP_ENTRY2(BOUND, G,v, M,a, chk(i64)),
+    [0x63] = X86_OP_GROUP0(63),
+    [0x64] = {},
+    [0x65] = {},
+    [0x66] = {},
+    [0x67] = {},
+
+    [0x70] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x71] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x72] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x73] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x74] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x75] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x76] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x77] = X86_OP_ENTRYr(Jcc, J,b),
+
+    [0x80] = X86_OP_GROUP2(group1, E,b, I,b),
+    [0x81] = X86_OP_GROUP2(group1, E,v, I,z),
+    [0x82] = X86_OP_GROUP2(group1, E,b, I,b, chk(i64)),
+    [0x83] = X86_OP_GROUP2(group1, E,v, I,b),
+    [0x84] = X86_OP_ENTRY2(AND, E,b, G,b, nowb),
+    [0x85] = X86_OP_ENTRY2(AND, E,v, G,v, nowb),
+    [0x86] = X86_OP_ENTRY2(XCHG, E,b, G,b, xchg),
+    [0x87] = X86_OP_ENTRY2(XCHG, E,v, G,v, xchg),
+
+    [0x90] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x91] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x92] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x93] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x94] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x95] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x96] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x97] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+
+    [0xA0] = X86_OP_ENTRY3(MOV, 0,b, O,b, None, None), /* AL, Ob */
+    [0xA1] = X86_OP_ENTRY3(MOV, 0,v, O,v, None, None), /* rAX, Ov */
+    [0xA2] = X86_OP_ENTRY3(MOV, O,b, 0,b, None, None), /* Ob, AL */
+    [0xA3] = X86_OP_ENTRY3(MOV, O,v, 0,v, None, None), /* Ov, rAX */
+    [0xA4] = X86_OP_ENTRY2(MOVS, Y,b, X,b, nowb),
+    [0xA5] = X86_OP_ENTRY2(MOVS, Y,v, X,v, nowb),
+    [0xA6] = X86_OP_ENTRY2(CMPS, Y,b, X,b, nowb),
+    [0xA7] = X86_OP_ENTRY2(CMPS, Y,v, X,v, nowb),
+
+    [0xB0] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB1] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB2] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB3] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB4] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB5] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB6] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB7] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+
 
     [0x08] = X86_OP_ENTRY2(OR, E,b, G,b),
     [0x09] = X86_OP_ENTRY2(OR, E,v, G,v),
@@ -1187,6 +1285,60 @@ static const X86OpEntry opcodes_root[256] = {
     [0x5D] = X86_OP_ENTRYw(POP, LoBits,d64),
     [0x5E] = X86_OP_ENTRYw(POP, LoBits,d64),
     [0x5F] = X86_OP_ENTRYw(POP, LoBits,d64),
+
+    [0x68] = X86_OP_ENTRYr(PUSH, I,z),
+    [0x69] = X86_OP_ENTRY3(IMUL3, G,v, E,v, I,z, nowb),
+    [0x6A] = X86_OP_ENTRYr(PUSH, I,b),
+    [0x6B] = X86_OP_ENTRY3(IMUL3, G,v, E,v, I,b, nowb),
+    [0x6C] = X86_OP_ENTRY2(INS, Y,b, 2,w, nowb), /* DX */
+    [0x6D] = X86_OP_ENTRY2(INS, Y,z, 2,w, nowb), /* DX */
+    [0x6E] = X86_OP_ENTRY2(OUTS, 2,w, X,b, nowb), /* DX */
+    [0x6F] = X86_OP_ENTRY2(OUTS, 2,w, X,b, nowb), /* DX */
+
+    [0x78] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x79] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7A] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7B] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7C] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7D] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7E] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7F] = X86_OP_ENTRYr(Jcc, J,b),
+
+    [0x88] = X86_OP_ENTRY3(MOV, E,b, G,b, None, None),
+    [0x89] = X86_OP_ENTRY3(MOV, E,v, G,v, None, None),
+    [0x8A] = X86_OP_ENTRY3(MOV, G,b, E,b, None, None),
+    [0x8B] = X86_OP_ENTRY3(MOV, G,v, E,v, None, None),
+    [0x8C] = X86_OP_ENTRY3(MOV, E,v, S,w, None, None),
+    [0x8D] = X86_OP_ENTRY3(LEA, G,v, M,v, None, None, noseg),
+    [0x8E] = X86_OP_ENTRY3(MOV, S,w, E,v, None, None),
+    [0x8F] = X86_OP_GROUPw(group1A, E,v),
+
+    [0x98] = X86_OP_ENTRY1(CBW, 0,v), /* rAX */
+    [0x99] = X86_OP_ENTRY3(CWD, 2,v, 0,v, None, None), /* rDX, rAX */
+    [0x9A] = X86_OP_ENTRYr(CALLF, A,p, chk(i64)),
+    [0x9B] = X86_OP_ENTRY0(WAIT),
+    [0x9C] = X86_OP_ENTRY0(PUSHF, chk(vm86_iopl) svm(PUSHF)),
+    [0x9D] = X86_OP_ENTRY0(POPF, chk(vm86_iopl) svm(POPF)),
+    [0x9E] = X86_OP_ENTRY0(SAHF),
+    [0x9F] = X86_OP_ENTRY0(LAHF),
+
+    [0xA8] = X86_OP_ENTRY2(AND, 0,b, I,b, nowb),   /* AL, Ib */
+    [0xA9] = X86_OP_ENTRY2(AND, 0,v, I,z, nowb),   /* rAX, Iz */
+    [0xAA] = X86_OP_ENTRY2(STOS, Y,b, 0,b, nowb),
+    [0xAB] = X86_OP_ENTRY2(STOS, Y,v, 0,v, nowb),
+    [0xAC] = X86_OP_ENTRY2(LODS, 0,b, X,b, nowb),
+    [0xAD] = X86_OP_ENTRY2(LODS, 0,v, X,v, nowb),
+    [0xAE] = X86_OP_ENTRY2(SCAS, 0,b, Y,b, nowb),
+    [0xAF] = X86_OP_ENTRY2(SCAS, 0,v, Y,v, nowb),
+
+    [0xB8] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xB9] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBA] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBB] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBC] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBD] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBE] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBF] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
 };
 
 #undef mmx
@@ -2026,6 +2178,11 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         break;
 
     default:
+        break;
+
+    case X86_SPECIAL_NoSeg:
+        decode.mem.def_seg = -1;
+        s->override = -1;
         break;
     }
 
