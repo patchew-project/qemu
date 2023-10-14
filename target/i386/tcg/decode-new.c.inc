@@ -1701,6 +1701,9 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     X86DecodedInsn decode;
     X86DecodeFunc decode_func = decode_root;
 
+#ifdef CONFIG_USER_ONLY
+    if (limit) { --limit; }
+#endif
     s->has_modrm = false;
 
  next_byte:
@@ -1987,7 +1990,7 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         tcg_gen_mov_tl(cpu_cc_src, decode.cc_src);
     }
     if (decode.cc_src2) {
-        tcg_gen_mov_tl(cpu_cc_src, decode.cc_src2);
+        tcg_gen_mov_tl(cpu_cc_src2, decode.cc_src2);
     }
     if (decode.cc_srcT) {
         tcg_gen_mov_tl(s->cc_srcT, decode.cc_srcT);
