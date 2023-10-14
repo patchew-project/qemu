@@ -1943,6 +1943,26 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         decode.e.gen(s, env, &decode);
         gen_writeback(s, &decode, 0, s->T0);
     }
+
+    /*
+     * Write back flags after last memory access.  Some newer ALU instructions, as
+     * well as SSE instructions, write flags in the gen_* function, but that can
+     * cause incorrect tracking of CC_OP for instructions that write to both memory
+     * and flags.
+     */
+    if (decode.cc_dst) {
+        tcg_gen_mov_tl(cpu_cc_dst, decode.cc_dst);
+    }
+    if (decode.cc_src) {
+        tcg_gen_mov_tl(cpu_cc_src, decode.cc_src);
+    }
+    if (decode.cc_src2) {
+        tcg_gen_mov_tl(cpu_cc_src, decode.cc_src2);
+    }
+    if (decode.cc_srcT) {
+        tcg_gen_mov_tl(s->cc_srcT, decode.cc_srcT);
+    }
+
     return;
  gp_fault:
     gen_exception_gpf(s);

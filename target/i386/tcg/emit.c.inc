@@ -323,6 +323,12 @@ static inline int vector_len(DisasContext *s, X86DecodedInsn *decode)
     return s->vex_l ? 32 : 16;
 }
 
+static void prepare_update1_cc(X86DecodedInsn *decode, DisasContext *s, CCOp op)
+{
+    decode->cc_dst = s->T0;
+    set_cc_op(s, op);
+}
+
 static void gen_store_sse(DisasContext *s, X86DecodedInsn *decode, int src_ofs)
 {
     MemOp ot = decode->op[0].ot;
@@ -1073,8 +1079,7 @@ static void gen_ANDN(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     MemOp ot = decode->op[0].ot;
 
     tcg_gen_andc_tl(s->T0, s->T1, s->T0);
-    gen_op_update1_cc(s);
-    set_cc_op(s, CC_OP_LOGICB + ot);
+    prepare_update1_cc(decode, s, CC_OP_LOGICB + ot);
 }
 
 static void gen_BEXTR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1105,8 +1110,7 @@ static void gen_BEXTR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     tcg_gen_movcond_tl(TCG_COND_LEU, s->T1, s->A0, bound, s->T1, zero);
     tcg_gen_andc_tl(s->T0, s->T0, s->T1);
 
-    gen_op_update1_cc(s);
-    set_cc_op(s, CC_OP_LOGICB + ot);
+    prepare_update1_cc(decode, s, CC_OP_LOGICB + ot);
 }
 
 static void gen_BLSI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1161,8 +1165,7 @@ static void gen_BZHI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     tcg_gen_movcond_tl(TCG_COND_LEU, s->A0, s->T1, bound, s->A0, zero);
     tcg_gen_andc_tl(s->T0, s->T0, s->A0);
 
-    gen_op_update1_cc(s);
-    set_cc_op(s, CC_OP_BMILGB + ot);
+    prepare_update1_cc(decode, s, CC_OP_BMILGB + ot);
 }
 
 static void gen_CRC32(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
