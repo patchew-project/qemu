@@ -1168,6 +1168,104 @@ static void gen_BZHI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     prepare_update1_cc(decode, s, CC_OP_BMILGB + ot);
 }
 
+static void gen_CMPccXADD(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    TCGv z_tl = tcg_constant_tl(0);
+    TCGLabel *label_top = gen_new_label();
+    TCGLabel *label_bottom = gen_new_label();
+    TCGv oldv = tcg_temp_new();
+    TCGv memv = tcg_temp_new();
+    TCGv newv = tcg_temp_new();
+    TCGv cmpv = tcg_temp_new();
+    TCGv tmp_cc = tcg_temp_new();
+
+    TCGv cmp_lhs, cmp_rhs;
+    MemOp ot, ot_full;
+
+    int jcc_op = (decode->b >> 1) & 7;
+    static const uint8_t cond[16] = {
+        TCG_COND_NE,  /* o, just test OF=1 */
+        TCG_COND_EQ,  /* no, just test OF=0 */
+        TCG_COND_LTU, /* b */
+        TCG_COND_GEU, /* ae (nb) */
+        TCG_COND_EQ,  /* z */
+        TCG_COND_NE,  /* nz */
+        TCG_COND_LEU, /* be */
+        TCG_COND_GTU, /* a (nbe) */
+        TCG_COND_LT,  /* s, compares result against 0 */
+        TCG_COND_GE,  /* ns, compares result against 0 */
+        TCG_COND_NE,  /* p, just test PF=1 */
+        TCG_COND_EQ,  /* np, just test PF=0 */
+        TCG_COND_LT,  /* l */
+        TCG_COND_GE,  /* ge (nl) */
+        TCG_COND_LE,  /* le */
+        TCG_COND_GT,  /* g (nle) */
+    };
+
+    ot = decode->op[0].ot;
+    ot_full = ot | MO_LE;
+    if (jcc_op >= JCC_S) {
+        /*
+         * Sign-extend values before subtracting for S, P (zero/sign extension
+         * does not matter there) L, LE and their inverses.
+         */
+        ot_full |= MO_SIGN;
+    }
+
+    gen_ext_tl(cmpv, cpu_regs[decode->op[1].n], ot_full);
+
+    /*
+     * Cmpxchg loop starts here.
+     * s->A0: dest address; cmpv: compare operand; s->T1: addition operand.
+     */
+    gen_set_label(label_top);
+    gen_op_ld_v(s, ot_full, memv, s->A0);
+    tcg_gen_sub_tl(s->T0, memv, cmpv);
+
+    /* Compute comparison result but do not clobber cc_* yet.  */
+    switch (jcc_op) {
+    case JCC_O:
+    case JCC_P:
+        tcg_gen_sub_tl(s->T0, memv, cmpv);
+        gen_helper_cc_compute_all(tmp_cc, s->T0, cmpv, z_tl,
+                                  tcg_constant_i32(CC_OP_SUBB + ot));
+        decode->cc_src = tmp_cc;
+        set_cc_op(s, CC_OP_EFLAGS);
+
+        tcg_gen_andi_tl(s->T0, tmp_cc, (jcc_op == JCC_O ? CC_O : CC_P));
+        cmp_lhs = s->T0, cmp_rhs = z_tl;
+        break;
+
+    case JCC_S:
+        cmp_lhs = s->T0, cmp_rhs = z_tl;
+        goto cc_sub;
+
+    default:
+        cmp_lhs = memv, cmp_rhs = cmpv;
+    cc_sub:
+        decode->cc_dst = s->T0;
+        decode->cc_src = cmpv;
+        decode->cc_srcT = memv;
+        set_cc_op(s, CC_OP_SUBB + ot);
+        break;
+    }
+
+    /* Compute new value: if condition does not hold, just store back memv */
+    tcg_gen_add_tl(newv, memv, s->T1);
+    tcg_gen_movcond_tl(cond[decode->b & 15], newv, cmp_lhs, cmp_rhs, newv, memv);
+    tcg_gen_atomic_cmpxchg_tl(oldv, s->A0, memv, newv, s->mem_index, ot_full);
+
+    /* Exit unconditionally if cmpxchg succeeded.  */
+    tcg_gen_brcond_tl(TCG_COND_EQ, oldv, memv, label_bottom);
+
+    /* Try again if there was actually a store to make.  */
+    tcg_gen_brcond_tl(cond[decode->b & 15], cmp_lhs, cmp_rhs, label_top);
+    gen_set_label(label_bottom);
+
+    /* Store old value only after a successful store.  */
+    gen_writeback(s, decode, 1, memv);
+}
+
 static void gen_CRC32(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
