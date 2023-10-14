@@ -150,8 +150,6 @@ static void riscv_cpu_validate_misa_priv(CPURISCVState *env, Error **errp)
 
 static void riscv_cpu_validate_misa_mxl(RISCVCPU *cpu, Error **errp)
 {
-    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
-    CPUClass *cc = CPU_CLASS(mcc);
     CPURISCVState *env = &cpu->env;
 
     /* Validate that MISA_MXL is set properly. */
@@ -159,11 +157,9 @@ static void riscv_cpu_validate_misa_mxl(RISCVCPU *cpu, Error **errp)
 #ifdef TARGET_RISCV64
     case MXL_RV64:
     case MXL_RV128:
-        cc->gdb_core_xml_file = "riscv-64bit-cpu.xml";
         break;
 #elif defined(TARGET_RISCV32)
     case MXL_RV32:
-        cc->gdb_core_xml_file = "riscv-32bit-cpu.xml";
         break;
 #endif
     default:
