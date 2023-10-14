@@ -1617,6 +1617,16 @@ static void gen_Jcc(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     gen_jcc(s, decode->b & 0xf, decode->immediate);
 }
 
+static void gen_SETcc(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_setcc1(s, decode->b & 0xf, s->T0);
+}
+
+static void gen_CMOVcc(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_cmovcc1(s, decode->b & 0xf, s->T0, s->T1);
+}
+
 static void gen_LAHF(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     if (CODE64(s) && !(s->cpuid_ext3_features & CPUID_EXT3_LAHF_LM)) {
