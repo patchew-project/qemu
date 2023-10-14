@@ -106,6 +106,7 @@ struct QemuClipboardNotify {
  * @types: clipboard data array (one entry per type).
  * @has_serial: whether @serial is available.
  * @serial: the grab serial counter.
+ * @serial_last: used by GTK UI to discard outdated transaction results.
  *
  * Clipboard content data and metadata.
  */
@@ -115,6 +116,7 @@ struct QemuClipboardInfo {
     QemuClipboardSelection selection;
     bool has_serial;
     uint32_t serial;
+    uint32_t serial_last;
     struct {
         bool available;
         bool requested;
