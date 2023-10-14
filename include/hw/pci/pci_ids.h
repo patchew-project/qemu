@@ -171,6 +171,8 @@
 #define PCI_VENDOR_ID_DEC                0x1011
 #define PCI_DEVICE_ID_DEC_21143          0x0019
 
+#define PCI_VENDOR_ID_HP                 0x103c
+
 #define PCI_VENDOR_ID_CIRRUS             0x1013
 
 #define PCI_VENDOR_ID_IBM                0x1014
