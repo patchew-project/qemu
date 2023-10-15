@@ -164,6 +164,52 @@ static void tricore_vio_set_result(CPUTriCoreState *env, int retval,
     env->gpr_d[12] = tricore_vio_errno_h2g(host_errno);
 }
 
+static void tricore_vio_readwrite(CPUTriCoreState *env, bool is_write)
+{
+    CPUState *cs = env_cpu(env);
+    hwaddr paddr, sz;
+    uint32_t page_left, io_sz, vaddr;
+    size_t count;
+    ssize_t ret = 0;
+
+    int fd = env->gpr_d[4];
+    vaddr  = env->gpr_a[4];
+    count = env->gpr_d[5];
+
+    while (count > 0) {
+        paddr = cpu_get_phys_page_debug(cs, vaddr);
+        page_left = TARGET_PAGE_SIZE - (vaddr & (TARGET_PAGE_SIZE - 1));
+        io_sz = page_left < count ? page_left : count;
+        sz = io_sz;
+        void *buf = cpu_physical_memory_map(paddr, &sz, true);
+
+        if (buf) {
+            vaddr += io_sz;
+            count -= io_sz;
+            ret = is_write ?
+                write(fd, buf, io_sz) :
+                read(fd, buf, io_sz);
+            if (ret == -1) {
+                ret = 0;
+                tricore_vio_set_result(env, ret, EINVAL);
+            } else {
+                tricore_vio_set_result(env, ret, errno);
+            }
+        }
+        cpu_physical_memory_unmap(buf, sz, !is_write, ret);
+    }
+}
+
+static void tricore_vio_read(CPUTriCoreState *env)
+{
+    tricore_vio_readwrite(env, false);
+}
+
+static void tricore_vio_write(CPUTriCoreState *env)
+{
+    tricore_vio_readwrite(env, true);
+}
+
 
 #define TRICORE_VIO_MARKER 0x6f69765f /* "_vio" */
 #define TRICORE_VIO_EXIT_MARKER 0xE60
@@ -188,6 +234,12 @@ void helper_tricore_semihost(CPUTriCoreState *env, uint32_t pc)
 
     syscall = (int)env->gpr_d[12];
     switch (syscall) {
+    case SYS__READ:
+        tricore_vio_read(env);
+        break;
+    case SYS__WRITE:
+        tricore_vio_write(env);
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s(%d): not implemented\n", __func__,
                       syscall);
