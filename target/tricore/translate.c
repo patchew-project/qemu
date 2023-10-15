@@ -25,6 +25,7 @@
 #include "tcg/tcg-op.h"
 #include "exec/cpu_ldst.h"
 #include "qemu/qemu-print.h"
+#include "semihosting/semihost.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -3151,6 +3152,14 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
     }
 }
 
+static void gen_debug(DisasContext *ctx)
+{
+    if (semihosting_enabled(false)) {
+        gen_helper_1arg(tricore_semihost, ctx->base.pc_next);
+    } else {
+        /* raise EXCP_DEBUG */
+    }
+}
 
 /*
  * Functions for decoding instructions
@@ -3497,7 +3506,7 @@ static void decode_sr_system(DisasContext *ctx)
         ctx->base.is_jmp = DISAS_EXIT;
         break;
     case OPC2_16_SR_DEBUG:
-        /* raise EXCP_DEBUG */
+        gen_debug(ctx);
         break;
     case OPC2_16_SR_FRET:
         gen_fret(ctx);
@@ -7926,7 +7935,7 @@ static void decode_sys_interrupts(DisasContext *ctx)
 
     switch (op2) {
     case OPC2_32_SYS_DEBUG:
-        /* raise EXCP_DEBUG */
+        gen_debug(ctx);
         break;
     case OPC2_32_SYS_DISABLE:
         if (ctx->priv == TRICORE_PRIV_SM || ctx->priv == TRICORE_PRIV_UM1) {

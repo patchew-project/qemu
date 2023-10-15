@@ -185,6 +185,9 @@ for that architecture.
   * - RISC-V
     - System and User-mode
     - https://github.com/riscv/riscv-semihosting-spec/blob/main/riscv-semihosting-spec.adoc
+  * - TriCore
+    - System
+    - Infineon ISS syscall handling (for GNU tools)
   * - Xtensa
     - System
     - Tensilica ISS SIMCALL
