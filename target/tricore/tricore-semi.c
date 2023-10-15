@@ -164,6 +164,17 @@ static void tricore_vio_set_result(CPUTriCoreState *env, int retval,
     env->gpr_d[12] = tricore_vio_errno_h2g(host_errno);
 }
 
+
+static void tricore_vio_lseek(CPUTriCoreState *env)
+{
+    int fd = env->gpr_d[4];
+    off_t offset = env->gpr_d[5];
+    int whence = env->gpr_d[6];
+
+    off_t res = lseek(fd, offset, whence);
+    tricore_vio_set_result(env, res, errno);
+}
+
 static void tricore_vio_readwrite(CPUTriCoreState *env, bool is_write)
 {
     CPUState *cs = env_cpu(env);
@@ -234,6 +245,9 @@ void helper_tricore_semihost(CPUTriCoreState *env, uint32_t pc)
 
     syscall = (int)env->gpr_d[12];
     switch (syscall) {
+    case SYS__LSEEK:
+        tricore_vio_lseek(env);
+        break;
     case SYS__READ:
         tricore_vio_read(env);
         break;
