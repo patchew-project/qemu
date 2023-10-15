@@ -480,6 +480,7 @@
   'data': {
     'chardev':        'str',
     '*vhostforce':    'bool',
+    '*linkup':        'bool',
     '*queues':        'int' } }
 
 ##

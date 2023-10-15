@@ -251,6 +251,7 @@ static void chr_closed_bh(void *opaque)
     NetVhostUserState *s;
     Error *err = NULL;
     int queues, i;
+    const NetdevVhostUserOptions *vhost_user_opts = NULL;
 
     queues = qemu_find_net_clients_except(name, ncs,
                                           NET_CLIENT_DRIVER_NIC,
@@ -263,6 +264,9 @@ static void chr_closed_bh(void *opaque)
         vhost_user_save_acked_features(ncs[i]);
     }
 
+    /* TODO how to get vhost_user_opts ? from the name ? or from ncs ? */
+
+    if (vhost_user_opts->has_linkup && !vhost_user_opts->linkup)
     qmp_set_link(name, false, &err);
 
     qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, net_vhost_user_event,
