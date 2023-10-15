@@ -73,6 +73,21 @@ enum {
     TARGET_ENAMETOOLONG = 9
 };
 
+enum {
+    TARGET_O_RDONLY   = 0x00001,
+    TARGET_O_WRONLY   = 0x00002,
+    TARGET_O_RDWR     = 0x00003,
+    TARGET_O_APPEND   = 0x00008,
+    TARGET_O_CREAT    = 0x00200,
+    TARGET_O_TRUNC    = 0x00400,
+    TARGET_O_EXCL     = 0x00800,
+    TARGET_O_NDELAY   = 0x01000,
+    TARGET_O_SYNC     = 0x02000,
+    TARGET_O_NONBLOCK = 0x04000,
+    TARGET_O_NOCTTY   = 0x08000,
+    TARGET_O_BINARY   = 0x10000,
+};
+
 static int
 tricore_vio_errno_h2g(int host_errno)
 {
@@ -152,6 +167,49 @@ tricore_vio_errno_h2g(int host_errno)
     }
 }
 
+static int tricore_vio_open_flags_g2h(int guest_flags)
+{
+    int host_flags = guest_flags & 0x3;
+    if (guest_flags & TARGET_O_APPEND) {
+        host_flags |= O_APPEND;
+    }
+
+    if (guest_flags & TARGET_O_CREAT) {
+        host_flags |= O_CREAT;
+    }
+
+    if (guest_flags & TARGET_O_TRUNC) {
+        host_flags |= O_TRUNC;
+    }
+
+    if (guest_flags & TARGET_O_EXCL) {
+        host_flags |= O_EXCL;
+    }
+
+    if (guest_flags & TARGET_O_NDELAY) {
+        host_flags |= O_NDELAY;
+    }
+
+    if (guest_flags & TARGET_O_SYNC) {
+        host_flags |= O_SYNC;
+    }
+
+    if (guest_flags & TARGET_O_NONBLOCK) {
+        host_flags |= O_NONBLOCK;
+    }
+
+    if (guest_flags & TARGET_O_NOCTTY) {
+        host_flags |= O_NOCTTY;
+    }
+#ifdef O_BINARY
+    if (guest_flags & TARGET_O_BINARY) {
+        host_flags |= O_BINARY;
+    }
+#endif
+
+    return host_flags;
+}
+
 /*
  * Set return and errno values;  the ___virtio function takes care
  * that the target's errno variable gets updated from %d12, and
@@ -162,6 +220,43 @@ static void tricore_vio_set_result(CPUTriCoreState *env, int retval,
 {
     env->gpr_d[11] = retval;
     env->gpr_d[12] = tricore_vio_errno_h2g(host_errno);
+}
+
+static void tricore_vio_opencreat(CPUTriCoreState *env, bool do_creat)
+{
+    CPUState *cs = env_cpu(env);
+    char name[1024];
+    int rc, i, res;
+    uint32_t nameptr = env->gpr_a[4];
+    for (i = 0; i < ARRAY_SIZE(name); ++i) {
+        rc = cpu_memory_rw_debug(cs, nameptr + i, (uint8_t *)name + i, 1, 0);
+        if (rc != 0 || name[i] == 0) {
+            break;
+        }
+    }
+
+    if (rc == 0 && i < ARRAY_SIZE(name)) {
+        if (do_creat) {
+            /* Infineon's TSIM hardcodes 'mode' */
+            res = creat(name, S_IROTH | S_IRUSR | S_IWUSR | S_IRGRP);
+        } else {
+            int flags = tricore_vio_open_flags_g2h(env->gpr_d[4]);
+            res = open(name, flags);
+        }
+        tricore_vio_set_result(env, res, errno);
+    } else {
+        tricore_vio_set_result(env, -1, EIO);
+    }
+}
+
+static void tricore_vio_open(CPUTriCoreState *env)
+{
+    tricore_vio_opencreat(env, false);
+}
+
+static void tricore_vio_creat(CPUTriCoreState *env)
+{
+    tricore_vio_opencreat(env, true);
 }
 
 static void tricore_vio_close(CPUTriCoreState *env)
@@ -258,6 +353,9 @@ void helper_tricore_semihost(CPUTriCoreState *env, uint32_t pc)
 
     syscall = (int)env->gpr_d[12];
     switch (syscall) {
+    case SYS__OPEN:
+        tricore_vio_open(env);
+        break;
     case SYS__CLOSE:
         tricore_vio_close(env);
         break;
@@ -269,6 +367,9 @@ void helper_tricore_semihost(CPUTriCoreState *env, uint32_t pc)
         break;
     case SYS__WRITE:
         tricore_vio_write(env);
+        break;
+    case SYS__CREAT:
+        tricore_vio_creat(env);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s(%d): not implemented\n", __func__,
