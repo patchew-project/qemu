@@ -6,6 +6,7 @@ tricore_ss.add(files(
   'op_helper.c',
   'translate.c',
   'gdbstub.c',
+  'tricore-semi.c',
 ))
 tricore_ss.add(zlib)
 
