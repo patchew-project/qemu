@@ -333,6 +333,22 @@ static char *xen_console_get_name(XenDevice *xendev, Error **errp)
 {
     XenConsole *con = XEN_CONSOLE_DEVICE(xendev);
 
+    if (con->dev == -1) {
+        char name[11];
+        int idx = 1;
+
+        /* Theoretically we could go up to INT_MAX here but that's overkill */
+        while (idx < 100) {
+            snprintf(name, sizeof(name), "%u", idx);
+            if (!xen_backend_exists("console", name)) {
+                con->dev = idx;
+                return g_strdup(name);
+            }
+            idx++;
+        }
+        error_setg(errp, "cannot find device index for console device");
+        return NULL;
+    }
     return g_strdup_printf("%u", con->dev);
 }
 
