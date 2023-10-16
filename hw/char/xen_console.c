@@ -32,6 +32,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/xen/interface/io/console.h"
+#include "hw/i386/kvm/xen_primary_console.h"
 #include "trace.h"
 
 struct buffer {
@@ -334,8 +335,8 @@ static char *xen_console_get_name(XenDevice *xendev, Error **errp)
     XenConsole *con = XEN_CONSOLE_DEVICE(xendev);
 
     if (con->dev == -1) {
+        int idx = (xen_mode == XEN_EMULATE) ? 0 : 1;
         char name[11];
-        int idx = 1;
 
         /* Theoretically we could go up to INT_MAX here but that's overkill */
         while (idx < 100) {
@@ -386,10 +387,13 @@ static void xen_console_realize(XenDevice *xendev, Error **errp)
      * be mapped directly as foreignmem (not a grant ref), and the guest port
      * was allocated *for* the guest by the toolstack. The guest gets these
      * through HVMOP_get_param and can use the console long before it's got
-     * XenStore up and running. We cannot create those for a Xen guest.
+     * XenStore up and running. We cannot create those for a true Xen guest,
+     * but we can for Xen emulation.
      */
     if (!con->dev) {
-        if (xen_device_frontend_scanf(xendev, "ring-ref", "%u", &u) != 1 ||
+        if (xen_mode == XEN_EMULATE) {
+            xen_primary_console_create();
+        } else if (xen_device_frontend_scanf(xendev, "ring-ref", "%u", &u) != 1 ||
             xen_device_frontend_scanf(xendev, "port", "%u", &u) != 1) {
             error_setg(errp, "cannot create primary Xen console");
             return;
@@ -404,7 +408,7 @@ static void xen_console_realize(XenDevice *xendev, Error **errp)
     }
 
     /* No normal PV driver initialization for the primary console */
-    if (!con->dev) {
+    if (!con->dev && xen_mode != XEN_EMULATE) {
         xen_console_connect(xendev, errp);
     }
 }

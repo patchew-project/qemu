@@ -25,6 +25,7 @@
 #include "hw/xen/xen_backend_ops.h"
 #include "xen_overlay.h"
 #include "xen_gnttab.h"
+#include "xen_primary_console.h"
 
 #include "sysemu/kvm.h"
 #include "sysemu/kvm_xen.h"
@@ -38,6 +39,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(XenGnttabState, XEN_GNTTAB)
 #define ENTRIES_PER_FRAME_V1 (XEN_PAGE_SIZE / sizeof(grant_entry_v1_t))
 
 static struct gnttab_backend_ops emu_gnttab_backend_ops;
+static struct foreignmem_backend_ops emu_foreignmem_backend_ops;
 
 struct XenGnttabState {
     /*< private >*/
@@ -100,6 +102,7 @@ static void xen_gnttab_realize(DeviceState *dev, Error **errp)
     s->map_track = g_new0(uint8_t, s->max_frames * ENTRIES_PER_FRAME_V1);
 
     xen_gnttab_ops = &emu_gnttab_backend_ops;
+    xen_foreignmem_ops = &emu_foreignmem_backend_ops;
 }
 
 static int xen_gnttab_post_load(void *opaque, int version_id)
@@ -524,6 +527,29 @@ static struct gnttab_backend_ops emu_gnttab_backend_ops = {
     .unmap = xen_be_gnttab_unmap,
 };
 
+/* Dummy implementation of foriegnmem; just enough for console */
+static void *xen_be_foreignmem_map(uint32_t dom, void *addr, int prot,
+                                   size_t pages, xen_pfn_t *pfns,
+                                   int *errs)
+{
+    if (dom == xen_domid && !addr && pages == 1 &&
+        pfns[0] == xen_primary_console_get_pfn()) {
+        return xen_primary_console_get_map();
+    }
+
+    return NULL;
+}
+
+static int xen_be_foreignmem_unmap(void *addr, size_t pages)
+{
+    return 0;
+}
+
+static struct foreignmem_backend_ops emu_foreignmem_backend_ops = {
+    .map = xen_be_foreignmem_map,
+    .unmap = xen_be_foreignmem_unmap,
+};
+
 int xen_gnttab_reset(void)
 {
     XenGnttabState *s = xen_gnttab_singleton;
@@ -537,9 +563,13 @@ int xen_gnttab_reset(void)
     s->nr_frames = 0;
 
     memset(s->entries.v1, 0, XEN_PAGE_SIZE * s->max_frames);
-
     s->entries.v1[GNTTAB_RESERVED_XENSTORE].flags = GTF_permit_access;
     s->entries.v1[GNTTAB_RESERVED_XENSTORE].frame = XEN_SPECIAL_PFN(XENSTORE);
+
+    if (xen_primary_console_get_pfn()) {
+        s->entries.v1[GNTTAB_RESERVED_CONSOLE].flags = GTF_permit_access;
+        s->entries.v1[GNTTAB_RESERVED_CONSOLE].frame = XEN_SPECIAL_PFN(CONSOLE);
+    }
 
     memset(s->map_track, 0, s->max_frames * ENTRIES_PER_FRAME_V1);
 
