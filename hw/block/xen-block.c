@@ -34,6 +34,31 @@ static char *xen_block_get_name(XenDevice *xendev, Error **errp)
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
     XenBlockVdev *vdev = &blockdev->props.vdev;
 
+    if (blockdev->props.vdev.type == XEN_BLOCK_VDEV_TYPE_INVALID) {
+        char name[11];
+        int disk = 0;
+        unsigned long idx;
+
+        /* Find an unoccupied device name */
+        while (disk < (1 << 20)) {
+            if (disk < (1 << 4)) {
+                idx = (202 << 8) | (disk << 4);
+            } else {
+                idx = (1 << 28) | (disk << 8);
+            }
+            snprintf(name, sizeof(name), "%lu", idx);
+            if (!xen_backend_exists("qdisk", name)) {
+                vdev->type = XEN_BLOCK_VDEV_TYPE_XVD;
+                vdev->partition = 0;
+                vdev->disk = disk;
+                vdev->number = idx;
+                return g_strdup(name);
+            }
+            disk++;
+        }
+        error_setg(errp, "cannot find device vdev for block device");
+        return NULL;
+    }
     return g_strdup_printf("%lu", vdev->number);
 }
 
