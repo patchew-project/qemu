@@ -15,5 +15,6 @@ the basics if you are adding new files and targets to the build.
    qtest
    ci
    qapi-code-gen
+   qapi-golang-code-gen
    fuzzing
    control-flow-integrity
