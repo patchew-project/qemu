@@ -22,18 +22,20 @@ from .visit import gen_visit
 
 
 def invalid_prefix_char(prefix: str) -> Optional[str]:
-    match = must_match(r'([A-Za-z_.-][A-Za-z0-9_.-]*)?', prefix)
+    match = must_match(r"([A-Za-z_.-][A-Za-z0-9_.-]*)?", prefix)
     if match.end() != len(prefix):
         return prefix[match.end()]
     return None
 
 
-def generate(schema_file: str,
-             output_dir: str,
-             prefix: str,
-             unmask: bool = False,
-             builtins: bool = False,
-             gen_tracing: bool = False) -> None:
+def generate(
+    schema_file: str,
+    output_dir: str,
+    prefix: str,
+    unmask: bool = False,
+    builtins: bool = False,
+    gen_tracing: bool = False,
+) -> None:
     """
     Generate C code for the given schema into the target directory.
 
@@ -63,25 +65,41 @@ def main() -> int:
     :return: int, 0 on success, 1 on failure.
     """
     parser = argparse.ArgumentParser(
-        description='Generate code from a QAPI schema')
-    parser.add_argument('-b', '--builtins', action='store_true',
-                        help="generate code for built-in types")
-    parser.add_argument('-o', '--output-dir', action='store',
-                        default='',
-                        help="write output to directory OUTPUT_DIR")
-    parser.add_argument('-p', '--prefix', action='store',
-                        default='',
-                        help="prefix for symbols")
-    parser.add_argument('-u', '--unmask-non-abi-names', action='store_true',
-                        dest='unmask',
-                        help="expose non-ABI names in introspection")
+        description="Generate code from a QAPI schema"
+    )
+    parser.add_argument(
+        "-b",
+        "--builtins",
+        action="store_true",
+        help="generate code for built-in types",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        action="store",
+        default="",
+        help="write output to directory OUTPUT_DIR",
+    )
+    parser.add_argument(
+        "-p", "--prefix", action="store", default="", help="prefix for symbols"
+    )
+    parser.add_argument(
+        "-u",
+        "--unmask-non-abi-names",
+        action="store_true",
+        dest="unmask",
+        help="expose non-ABI names in introspection",
+    )
 
     # Option --suppress-tracing exists so we can avoid solving build system
     # problems.  TODO Drop it when we no longer need it.
-    parser.add_argument('--suppress-tracing', action='store_true',
-                        help="suppress adding trace events to qmp marshals")
+    parser.add_argument(
+        "--suppress-tracing",
+        action="store_true",
+        help="suppress adding trace events to qmp marshals",
+    )
 
-    parser.add_argument('schema', action='store')
+    parser.add_argument("schema", action="store")
     args = parser.parse_args()
 
     funny_char = invalid_prefix_char(args.prefix)
@@ -91,12 +109,14 @@ def main() -> int:
         return 1
 
     try:
-        generate(args.schema,
-                 output_dir=args.output_dir,
-                 prefix=args.prefix,
-                 unmask=args.unmask,
-                 builtins=args.builtins,
-                 gen_tracing=not args.suppress_tracing)
+        generate(
+            args.schema,
+            output_dir=args.output_dir,
+            prefix=args.prefix,
+            unmask=args.unmask,
+            builtins=args.builtins,
+            gen_tracing=not args.suppress_tracing,
+        )
     except QAPIError as err:
         print(err, file=sys.stderr)
         return 1
