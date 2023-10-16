@@ -110,6 +110,26 @@ func (s *{name}) UnmarshalJSON(data []byte) error {{
 """
 
 
+TEMPLATE_STRUCT_WITH_NULLABLE_MARSHAL = """
+func (s {type_name}) MarshalJSON() ([]byte, error) {{
+\tm := make(map[string]any)
+{map_members}{map_special}
+\treturn json.Marshal(&m)
+}}
+
+func (s *{type_name}) UnmarshalJSON(data []byte) error {{
+\ttmp := {struct}{{}}
+
+\tif err := json.Unmarshal(data, &tmp); err != nil {{
+\t\treturn err
+\t}}
+
+{set_members}{set_special}
+\treturn nil
+}}
+"""
+
+
 def gen_golang(schema: QAPISchema, output_dir: str, prefix: str) -> None:
     vis = QAPISchemaGenGolangVisitor(prefix)
     schema.visit(vis)
@@ -256,20 +276,30 @@ def get_struct_field(
     self: QAPISchemaGenGolangVisitor,
     qapi_name: str,
     qapi_type_name: str,
+    within_nullable_struct: bool,
     is_optional: bool,
     is_variant: bool,
-) -> dict[str:str]:
+) -> Tuple[dict[str:str], bool]:
 
     field = qapi_to_field_name(qapi_name)
     member_type = qapi_schema_type_to_go_type(qapi_type_name)
+    is_nullable = False
 
     optional = ""
     if is_optional:
-        if member_type not in self.accept_null_types:
+        if member_type in self.accept_null_types:
+            is_nullable = True
+        else:
             optional = ",omitempty"
 
     # Use pointer to type when field is optional
     isptr = "*" if is_optional and member_type[0] not in "*[" else ""
+
+    if within_nullable_struct:
+        # Within a struct which has a field of type that can hold JSON NULL,
+        # we have to _not_ use a pointer, otherwise the Marshal methods are
+        # not called.
+        isptr = "" if member_type in self.accept_null_types else isptr
 
     fieldtag = (
         '`json:"-"`' if is_variant else f'`json:"{qapi_name}{optional}"`'
@@ -279,32 +309,202 @@ def get_struct_field(
         "type": f"{isptr}{member_type}",
         "tag": f"{fieldtag}",
     }
-    return arg
+    return arg, is_nullable
+
+
+# This helper is used whithin a struct that has members that accept JSON NULL.
+def map_and_set(
+    is_nullable: bool, field: str, field_is_optional: bool, name: str
+) -> Tuple[str, str]:
+
+    mapstr = ""
+    setstr = ""
+    if is_nullable:
+        mapstr = f"""
+\tif val, absent := s.{field}.ToAnyOrAbsent(); !absent {{
+\t\tm["{name}"] = val
+\t}}
+"""
+        setstr += f"""
+\tif _, absent := (&tmp.{field}).ToAnyOrAbsent(); !absent {{
+\t\ts.{field} = &tmp.{field}
+\t}}
+"""
+    elif field_is_optional:
+        mapstr = f"""
+\tif s.{field} != nil {{
+\t\tm["{name}"] = s.{field}
+\t}}
+"""
+        setstr = f"""\ts.{field} = tmp.{field}\n"""
+    else:
+        mapstr = f"""\tm["{name}"] = s.{field}\n"""
+        setstr = f"""\ts.{field} = tmp.{field}\n"""
+
+    return mapstr, setstr
+
+
+def recursive_base_nullable(
+    self: QAPISchemaGenGolangVisitor, base: Optional[QAPISchemaObjectType]
+) -> Tuple[List[dict[str:str]], str, str, str, str]:
+    fields: List[dict[str:str]] = []
+    map_members = ""
+    set_members = ""
+    map_special = ""
+    set_special = ""
+
+    if not base:
+        return fields, map_members, set_members, map_special, set_special
+
+    if base.base is not None:
+        embed_base = self.schema.lookup_entity(base.base.name)
+        (
+            fields,
+            map_members,
+            set_members,
+            map_special,
+            set_special,
+        ) = recursive_base_nullable(self, embed_base)
+
+    for member in base.local_members:
+        field, _ = get_struct_field(
+            self, member.name, member.type.name, True, member.optional, False
+        )
+        fields.append(field)
+
+        member_type = qapi_schema_type_to_go_type(member.type.name)
+        nullable = member_type in self.accept_null_types
+        field_name = qapi_to_field_name(member.name)
+        tomap, toset = map_and_set(
+            nullable, field_name, member.optional, member.name
+        )
+        if nullable:
+            map_special += tomap
+            set_special += toset
+        else:
+            map_members += tomap
+            set_members += toset
+
+    return fields, map_members, set_members, map_special, set_special
+
+
+# Helper function. This is executed when the QAPI schema has members
+# that could accept JSON NULL (e.g: StrOrNull in QEMU"s QAPI schema).
+# This struct will need to be extended with Marshal/Unmarshal methods to
+# properly handle such atypical members.
+#
+# Only the Marshallaing methods are generated but we do need to iterate over
+# all the members to properly set/check them in those methods.
+def struct_with_nullable_generate_marshal(
+    self: QAPISchemaGenGolangVisitor,
+    name: str,
+    base: Optional[QAPISchemaObjectType],
+    members: List[QAPISchemaObjectTypeMember],
+    variants: Optional[QAPISchemaVariants],
+) -> str:
+
+    (
+        fields,
+        map_members,
+        set_members,
+        map_special,
+        set_special,
+    ) = recursive_base_nullable(self, base)
+
+    if members:
+        for member in members:
+            field, _ = get_struct_field(
+                self,
+                member.name,
+                member.type.name,
+                True,
+                member.optional,
+                False,
+            )
+            fields.append(field)
+
+            member_type = qapi_schema_type_to_go_type(member.type.name)
+            nullable = member_type in self.accept_null_types
+            tomap, toset = map_and_set(
+                nullable,
+                qapi_to_field_name(member.name),
+                member.optional,
+                member.name,
+            )
+            if nullable:
+                map_special += tomap
+                set_special += toset
+            else:
+                map_members += tomap
+                set_members += toset
+
+    if variants:
+        for variant in variants.variants:
+            if variant.type.is_implicit():
+                continue
+
+            field, _ = get_struct_field(
+                self,
+                variant.name,
+                variant.type.name,
+                True,
+                variant.optional,
+                True,
+            )
+            fields.append(field)
+
+            member_type = qapi_schema_type_to_go_type(variant.type.name)
+            nullable = member_type in self.accept_null_types
+            tomap, toset = map_and_set(
+                nullable,
+                qapi_to_field_name(variant.name),
+                variant.optional,
+                variant.name,
+            )
+            if nullable:
+                map_special += tomap
+                set_special += toset
+            else:
+                map_members += tomap
+                set_members += toset
+
+    type_name = qapi_to_go_type_name(name)
+    struct = generate_struct_type("", fields, ident=1)[:-1]
+    return TEMPLATE_STRUCT_WITH_NULLABLE_MARSHAL.format(
+        struct=struct[1:],
+        type_name=type_name,
+        map_members=map_members,
+        map_special=map_special,
+        set_members=set_members,
+        set_special=set_special,
+    )
 
 
 def recursive_base(
     self: QAPISchemaGenGolangVisitor,
     base: Optional[QAPISchemaObjectType],
     discriminator: Optional[str] = None,
-) -> List[dict[str:str]]:
+) -> Tuple[List[dict[str:str]], bool]:
     fields: List[dict[str:str]] = []
+    with_nullable = False
 
     if not base:
-        return fields
+        return fields, with_nullable
 
     if base.base is not None:
         embed_base = self.schema.lookup_entity(base.base.name)
-        fields = recursive_base(self, embed_base, discriminator)
+        fields, with_nullable = recursive_base(self, embed_base, discriminator)
 
     for member in base.local_members:
         if discriminator and member.name == discriminator:
             continue
-        field = get_struct_field(
-            self, member.name, member.type.name, member.optional, False
+        field, nullable = get_struct_field(
+            self, member.name, member.type.name, False, member.optional, False
         )
         fields.append(field)
+        with_nullable = True if nullable else with_nullable
 
-    return fields
+    return fields, with_nullable
 
 
 # Helper function that is used for most of QAPI types
@@ -319,14 +519,20 @@ def qapi_to_golang_struct(
     variants: Optional[QAPISchemaVariants],
 ) -> str:
 
-    fields = recursive_base(self, base)
+    fields, with_nullable = recursive_base(self, base)
 
     if members:
         for member in members:
-            field = get_struct_field(
-                self, member.name, member.type.name, member.optional, False
+            field, nullable = get_struct_field(
+                self,
+                member.name,
+                member.type.name,
+                False,
+                member.optional,
+                False,
             )
             fields.append(field)
+            with_nullable = True if nullable else with_nullable
 
     if variants:
         fields.append({"comment": "Variants fields"})
@@ -334,13 +540,18 @@ def qapi_to_golang_struct(
             if variant.type.is_implicit():
                 continue
 
-            field = get_struct_field(
-                self, variant.name, variant.type.name, True, True
+            field, nullable = get_struct_field(
+                self, variant.name, variant.type.name, False, True, True
             )
             fields.append(field)
+            with_nullable = True if nullable else with_nullable
 
     type_name = qapi_to_go_type_name(name)
     content = generate_struct_type(type_name, fields)
+    if with_nullable:
+        content += struct_with_nullable_generate_marshal(
+            self, name, base, members, variants
+        )
     return content
 
 
@@ -465,7 +676,9 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
         for target in self.target:
             self.target[target] = f"package {self.golang_package_name}\n"
 
-            if target == "helper":
+            if target == "struct":
+                imports = '\nimport "encoding/json"\n'
+            elif target == "helper":
                 imports = """\nimport (
 \t"encoding/json"
 \t"strings"
