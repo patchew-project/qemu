@@ -39,6 +39,15 @@ const (
 """
 
 TEMPLATE_HELPER = """
+type QAPIError struct {
+\tClass       string `json:"class"`
+\tDescription string `json:"desc"`
+}
+
+func (err *QAPIError) Error() string {
+\treturn err.Description
+}
+
 // Creates a decoder that errors on unknown Fields
 // Returns nil if successfully decoded @from payload to @into type
 // Returns error if failed to decode @from payload to @into type
@@ -271,12 +280,17 @@ func (c *{type_name}) GetName() string {{
 func (s *{type_name}) GetId() string {{
 \treturn s.MessageId
 }}
+
+func (s *{type_name}) GetReturnType() CommandReturn {{
+\treturn &{cmd_ret_name}{{}}
+}}
 """
 
 TEMPLATE_COMMAND = """
 type Command interface {{
 \tGetId() string
 \tGetName() string
+\tGetReturnType() CommandReturn
 }}
 
 func MarshalCommand(c Command) ([]byte, error) {{
@@ -307,6 +321,37 @@ func UnmarshalCommand(data []byte) (Command, error) {{
 \treturn nil, errors.New("Failed to recognize command")
 }}
 """
+
+TEMPLATE_COMMAND_RETURN = """
+type CommandReturn interface {
+\tGetId() string
+\tGetCommandName() string
+\tGetError() error
+}
+"""
+
+TEMPLATE_COMMAND_RETURN_METHODS = """
+func (r *{cmd_ret_name}) GetCommandName() string {{
+\treturn "{name}"
+}}
+
+func (r *{cmd_ret_name}) GetId() string {{
+\treturn r.MessageId
+}}
+
+func (r *{cmd_ret_name}) GetError() error {{
+\treturn r.Error
+}}{marshal_empty}
+"""
+
+TEMPLATE_COMMAND_RETURN_MARSHAL_EMPTY = """
+func (r {cmd_ret_name}) MarshalJSON() ([]byte, error) {{
+\tif r.Error != nil {{
+\t\ttype Alias {cmd_ret_name}
+\t\treturn json.Marshal(Alias(r))
+\t}}
+\treturn []byte(`{{"return":{{}}}}`), nil
+}}"""
 
 
 def gen_golang(schema: QAPISchema, output_dir: str, prefix: str) -> None:
@@ -346,7 +391,7 @@ def qapi_to_go_type_name(name: str, meta: Optional[str] = None) -> str:
 
     name += "".join(word.title() for word in words[1:])
 
-    types = ["event", "command"]
+    types = ["event", "command", "command return"]
     if meta in types:
         name = name[:-3] if name.endswith("Arg") else name
         name += meta.title().replace(" ", "")
@@ -943,18 +988,19 @@ def generate_template_command(commands: dict[str, Tuple[str, str]]) -> str:
         case_type, gocode = commands[name]
         content += gocode
         cases += f"""
-case "{name}":
-    command := struct {{
-        Args {case_type} `json:"arguments"`
-    }}{{}}
+\tcase "{name}":
+\t\tcommand := struct {{
+\t\t\tArgs {case_type} `json:"arguments"`
+\t\t}}{{}}
 
-    if err := json.Unmarshal(data, &command); err != nil {{
-        return nil, fmt.Errorf("Failed to unmarshal: %s", string(data))
-    }}
-    command.Args.MessageId = base.MessageId
-    return &command.Args, nil
+\t\tif err := json.Unmarshal(data, &command); err != nil {{
+\t\t\treturn nil, fmt.Errorf("Failed to unmarshal: %s", string(data))
+\t\t}}
+\t\tcommand.Args.MessageId = base.MessageId
+\t\treturn &command.Args, nil
 """
     content += TEMPLATE_COMMAND.format(cases=cases)
+    content += TEMPLATE_COMMAND_RETURN
     return content
 
 
@@ -1182,6 +1228,34 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
         type_name = qapi_to_go_type_name(name, info.defn_meta)
 
+        cmd_ret_name = qapi_to_go_type_name(name, "command return")
+        marshal_empty = TEMPLATE_COMMAND_RETURN_MARSHAL_EMPTY.format(
+            cmd_ret_name=cmd_ret_name
+        )
+        retargs: List[dict[str:str]] = [
+            {
+                "name": "MessageId",
+                "type": "string",
+                "tag": """`json:"id,omitempty"`""",
+            },
+            {
+                "name": "Error",
+                "type": "*QAPIError",
+                "tag": """`json:"error,omitempty"`""",
+            },
+        ]
+        if ret_type:
+            marshal_empty = ""
+            ret_type_name = qapi_schema_type_to_go_type(ret_type.name)
+            isptr = "*" if ret_type_name[0] not in "*[" else ""
+            retargs.append(
+                {
+                    "name": "Result",
+                    "type": f"{isptr}{ret_type_name}",
+                    "tag": """`json:"return"`""",
+                }
+            )
+
         content = ""
         if boxed or not arg_type or not qapi_name_is_object(arg_type.name):
             args: List[dict[str:str]] = []
@@ -1213,7 +1287,13 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
             )
 
         content += TEMPLATE_COMMAND_METHODS.format(
-            name=name, type_name=type_name
+            name=name, type_name=type_name, cmd_ret_name=cmd_ret_name
+        )
+        content += generate_struct_type(cmd_ret_name, retargs)
+        content += TEMPLATE_COMMAND_RETURN_METHODS.format(
+            name=name,
+            cmd_ret_name=cmd_ret_name,
+            marshal_empty=marshal_empty,
         )
         self.commands[name] = (type_name, content)
 
