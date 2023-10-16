@@ -796,9 +796,7 @@ void tcg_flush_jmp_cache(CPUState *cpu)
         return;
     }
 
-    for (int i = 0; i < TB_JMP_CACHE_SIZE; i++) {
-        qatomic_set(&jc->array[i].tb, NULL);
-    }
+    memset(jc->array, 0, TB_JMP_CACHE_SIZE * sizeof jc->array[0]);
 }
 
 /* This is a wrapper for common code that can not use CONFIG_SOFTMMU */
