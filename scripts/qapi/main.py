@@ -15,6 +15,7 @@ from .commands import gen_commands
 from .common import must_match
 from .error import QAPIError
 from .events import gen_events
+from .golang import gen_golang
 from .introspect import gen_introspect
 from .schema import QAPISchema
 from .types import gen_types
@@ -55,6 +56,8 @@ def generate(
     gen_commands(schema, output_dir, prefix, gen_tracing)
     gen_events(schema, output_dir, prefix)
     gen_introspect(schema, output_dir, prefix, unmask)
+
+    gen_golang(schema, output_dir, prefix)
 
 
 def main() -> int:
