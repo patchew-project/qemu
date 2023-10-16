@@ -468,7 +468,7 @@ static void xen_console_device_create(XenBackendInstance *backend,
     Chardev *cd = NULL;
     struct qemu_xs_handle *xsh = xenbus->xsh;
 
-    if (qemu_strtoul(name, NULL, 10, &number)) {
+    if (qemu_strtoul(name, NULL, 10, &number) || number >= INT_MAX) {
         error_setg(errp, "failed to parse name '%s'", name);
         goto fail;
     }

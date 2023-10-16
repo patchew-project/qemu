@@ -38,4 +38,7 @@ void xen_backend_device_create(XenBus *xenbus, const char *type,
                                const char *name, QDict *opts, Error **errp);
 bool xen_backend_try_device_destroy(XenDevice *xendev, Error **errp);
 
+bool xen_backend_device_realized(XenDevice *xendev, Error **errp);
+void xen_backend_device_unrealized(XenDevice *xendev);
+
 #endif /* HW_XEN_BACKEND_H */

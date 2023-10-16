@@ -101,22 +101,28 @@ static XenBackendInstance *xen_backend_list_find(XenDevice *xendev)
     return NULL;
 }
 
+static XenBackendInstance *xen_backend_lookup(const XenBackendImpl *impl, const char *name)
+{
+    XenBackendInstance *backend;
+
+    QLIST_FOREACH(backend, &backend_list, entry) {
+        if (backend->impl == impl && !strcmp(backend->name, name)) {
+            return backend;
+        }
+    }
+
+    return NULL;
+}
+
 bool xen_backend_exists(const char *type, const char *name)
 {
     const XenBackendImpl *impl = xen_backend_table_lookup(type);
-    XenBackendInstance *backend;
 
     if (!impl) {
         return false;
     }
 
-    QLIST_FOREACH(backend, &backend_list, entry) {
-        if (backend->impl == impl && !strcmp(backend->name, name)) {
-            return true;
-        }
-    }
-
-    return false;
+    return !!xen_backend_lookup(impl, name);
 }
 
 static void xen_backend_list_remove(XenBackendInstance *backend)
@@ -138,11 +144,10 @@ void xen_backend_device_create(XenBus *xenbus, const char *type,
     backend = g_new0(XenBackendInstance, 1);
     backend->xenbus = xenbus;
     backend->name = g_strdup(name);
-
-    impl->create(backend, opts, errp);
-
     backend->impl = impl;
     xen_backend_list_add(backend);
+
+    impl->create(backend, opts, errp);
 }
 
 XenBus *xen_backend_get_bus(XenBackendInstance *backend)
@@ -153,13 +158,6 @@ XenBus *xen_backend_get_bus(XenBackendInstance *backend)
 const char *xen_backend_get_name(XenBackendInstance *backend)
 {
     return backend->name;
-}
-
-void xen_backend_set_device(XenBackendInstance *backend,
-                            XenDevice *xendev)
-{
-    g_assert(!backend->xendev);
-    backend->xendev = xendev;
 }
 
 XenDevice *xen_backend_get_device(XenBackendInstance *backend)
@@ -178,13 +176,51 @@ bool xen_backend_try_device_destroy(XenDevice *xendev, Error **errp)
     }
 
     impl = backend->impl;
-    if (backend->xendev) {
-        impl->destroy(backend, errp);
-    }
+    impl->destroy(backend, errp);
 
     xen_backend_list_remove(backend);
     g_free(backend->name);
     g_free(backend);
 
     return true;
+}
+
+bool xen_backend_device_realized(XenDevice *xendev, Error **errp)
+{
+    XenDeviceClass *xendev_class = XEN_DEVICE_GET_CLASS(xendev);
+    const char *type = xendev_class->backend ? : object_get_typename(OBJECT(xendev));
+    const XenBackendImpl *impl = xen_backend_table_lookup(type);
+    XenBackendInstance *backend;
+
+    if (!impl) {
+        return false;
+    }
+
+    backend = xen_backend_lookup(impl, xendev->name);
+    if (backend) {
+        if (backend->xendev && backend->xendev != xendev) {
+            error_setg(errp, "device %s/%s already exists", type, xendev->name);
+            return false;
+        }
+        backend->xendev = xendev;
+        return true;
+    }
+
+    backend = g_new0(XenBackendInstance, 1);
+    backend->xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
+    backend->xendev = xendev;
+    backend->name = g_strdup(xendev->name);
+    backend->impl = impl;
+
+    xen_backend_list_add(backend);
+    return true;
+}
+
+void xen_backend_device_unrealized(XenDevice *xendev)
+{
+    XenBackendInstance *backend = xen_backend_list_find(xendev);
+
+    if (backend) {
+        backend->xendev = NULL;
+    }
 }

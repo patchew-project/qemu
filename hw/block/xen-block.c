@@ -975,7 +975,6 @@ static void xen_block_device_create(XenBackendInstance *backend,
         goto fail;
     }
 
-    xen_backend_set_device(backend, xendev);
     return;
 
 fail:

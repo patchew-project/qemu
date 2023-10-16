@@ -359,6 +359,8 @@ static void xen_bus_realize(BusState *bus, Error **errp)
 
     g_free(type);
     g_free(key);
+
+    xen_bus_enumerate(xenbus);
     return;
 
 fail:
@@ -958,6 +960,8 @@ static void xen_device_unrealize(DeviceState *dev)
 
     trace_xen_device_unrealize(type, xendev->name);
 
+    xen_backend_device_unrealized(xendev);
+
     if (xendev->exit.notify) {
         qemu_remove_exit_notifier(&xendev->exit);
         xendev->exit.notify = NULL;
@@ -1021,6 +1025,10 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
     xendev->name = xendev_class->get_name(xendev, errp);
     if (*errp) {
         error_prepend(errp, "failed to get device name: ");
+        goto unrealize;
+    }
+
+    if (!xen_backend_device_realized(xendev, errp)) {
         goto unrealize;
     }
 
