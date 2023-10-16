@@ -471,7 +471,10 @@ ERST
 
 SRST
 ``x/``\ *fmt* *addr*
-  Virtual memory dump starting at *addr*.
+  Virtual memory dump starting at *addr*. See xp/ for physical memory and xr/ for ram
+
+  *fmt* is a format which tells the command how to format the
+  data. Its syntax is: ``/{count}{format}{size}``
 ERST
 
     {
@@ -530,7 +533,21 @@ SRST
     0x000b8090: 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720 0x0720
 
 ERST
+    {
+        .name       = "xr",
+        .args_type  = "fmt:/,addr:l",
+        .params     = "/fmt addr",
+        .help       = "ram memory dump starting at 'addr'",
+        .cmd        = hmp_ram_memory_dump,
+    },
 
+SRST
+``xr /``\ *fmt* *addr*
+  RAM memory dump starting at *addr*. See xp/ for physical and x/ for virtual memory
+
+  *fmt* is a format which tells the command how to format the
+  data. Its syntax is: ``/{count}{format}{size}``
+ERST
     {
         .name       = "gpa2hva",
         .args_type  = "addr:l",
