@@ -84,29 +84,32 @@ void helper_tick_set_limit(void *opaque, uint64_t limit)
 static target_ulong do_udiv(CPUSPARCState *env, target_ulong a,
                             target_ulong b, int cc, uintptr_t ra)
 {
-    int overflow = 0;
-    uint64_t x0;
-    uint32_t x1;
-
-    x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
-    x1 = (b & 0xffffffff);
+    target_ulong v, r;
+    uint64_t x0 = (uint32_t)a | ((uint64_t)env->y << 32);
+    uint32_t x1 = b;
 
     if (x1 == 0) {
         cpu_raise_exception_ra(env, TT_DIV_ZERO, ra);
     }
 
     x0 = x0 / x1;
-    if (x0 > UINT32_MAX) {
-        x0 = UINT32_MAX;
-        overflow = 1;
+    r = x0;
+    v = 0;
+    if (unlikely(x0 > UINT32_MAX)) {
+        v = r = UINT32_MAX;
     }
 
     if (cc) {
-        env->cc_dst = x0;
-        env->cc_src2 = overflow;
-        env->cc_op = CC_OP_DIV;
+        env->cc_N = r;
+        env->cc_V = v;
+        env->cc_icc_Z = r;
+        env->cc_icc_C = 0;
+#ifdef TARGET_SPARC64
+        env->cc_xcc_Z = r;
+        env->cc_xcc_C = 0;
+#endif
     }
-    return x0;
+    return r;
 }
 
 target_ulong helper_udiv(CPUSPARCState *env, target_ulong a, target_ulong b)
@@ -122,32 +125,46 @@ target_ulong helper_udiv_cc(CPUSPARCState *env, target_ulong a, target_ulong b)
 static target_ulong do_sdiv(CPUSPARCState *env, target_ulong a,
                             target_ulong b, int cc, uintptr_t ra)
 {
-    int overflow = 0;
-    int64_t x0;
-    int32_t x1;
-
-    x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
-    x1 = (b & 0xffffffff);
+    target_ulong v;
+    target_long r;
+    int64_t x0 = (uint32_t)a | ((uint64_t)env->y << 32);
+    int32_t x1 = b;
 
     if (x1 == 0) {
         cpu_raise_exception_ra(env, TT_DIV_ZERO, ra);
-    } else if (x1 == -1 && x0 == INT64_MIN) {
-        x0 = INT32_MAX;
-        overflow = 1;
+    }
+    if (unlikely(x0 == INT64_MIN)) {
+        /*
+         * Special case INT64_MIN / -1 is required to avoid trap on x86 host.
+         * However, with a dividend of INT64_MIN, there is no 32-bit divisor
+         * which can yield a 32-bit result:
+         *    INT64_MIN / INT32_MIN =  0x1_0000_0000
+         *    INT64_MIN / INT32_MAX = -0x1_0000_0002
+         * Therefore we know we must overflow and saturate.
+         */
+        r = x1 < 0 ? INT32_MAX : INT32_MIN;
+        v = UINT32_MAX;
     } else {
         x0 = x0 / x1;
-        if ((int32_t) x0 != x0) {
-            x0 = x0 < 0 ? INT32_MIN : INT32_MAX;
-            overflow = 1;
+        r = (int32_t)x0;
+        v = 0;
+        if (unlikely(r != x0)) {
+            r = x0 < 0 ? INT32_MIN : INT32_MAX;
+            v = UINT32_MAX;
         }
     }
 
     if (cc) {
-        env->cc_dst = x0;
-        env->cc_src2 = overflow;
-        env->cc_op = CC_OP_DIV;
+        env->cc_N = r;
+        env->cc_V = v;
+        env->cc_icc_Z = r;
+        env->cc_icc_C = 0;
+#ifdef TARGET_SPARC64
+        env->cc_xcc_Z = r;
+        env->cc_xcc_C = 0;
+#endif
     }
-    return x0;
+    return r;
 }
 
 target_ulong helper_sdiv(CPUSPARCState *env, target_ulong a, target_ulong b)

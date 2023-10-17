@@ -437,7 +437,6 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     TCGv carry;
 
     switch (dc->cc_op) {
-    case CC_OP_DIV:
     case CC_OP_LOGIC:
         /* Carry is known to be zero.  Fall back to plain ADD.  */
         if (update_cc) {
@@ -510,7 +509,6 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     TCGv carry;
 
     switch (dc->cc_op) {
-    case CC_OP_DIV:
     case CC_OP_LOGIC:
         /* Carry is known to be zero.  Fall back to plain SUB.  */
         if (update_cc) {
@@ -3759,7 +3757,7 @@ static bool do_flags_arith(DisasContext *dc, arg_r_r_ri *a, int cc_op,
                            void (*func)(TCGv, TCGv, TCGv))
 {
     if (do_arith(dc, a, func, NULL)) {
-        /* Assume FUNC has set env->cc_op and all cc_foo variables. */
+        tcg_gen_movi_i32(cpu_cc_op, cc_op);
         dc->cc_op = cc_op;
         return true;
     }
@@ -3816,8 +3814,8 @@ TRANS(ORNcc, ALL, do_cc_arith, a, CC_OP_LOGIC, tcg_gen_orc_tl, NULL)
 TRANS(XORNcc, ALL, do_cc_arith, a, CC_OP_LOGIC, tcg_gen_eqv_tl, NULL)
 TRANS(UMULcc, MUL, do_cc_arith, a, CC_OP_LOGIC, gen_op_umul, NULL)
 TRANS(SMULcc, MUL, do_cc_arith, a, CC_OP_LOGIC, gen_op_smul, NULL)
-TRANS(UDIVcc, DIV, do_flags_arith, a, CC_OP_DIV, gen_op_udivcc)
-TRANS(SDIVcc, DIV, do_flags_arith, a, CC_OP_DIV, gen_op_sdivcc)
+TRANS(UDIVcc, DIV, do_flags_arith, a, CC_OP_FLAGS, gen_op_udivcc)
+TRANS(SDIVcc, DIV, do_flags_arith, a, CC_OP_FLAGS, gen_op_sdivcc)
 TRANS(TADDcc, ALL, do_cc_arith, a, CC_OP_TADD, gen_op_add_cc, NULL)
 TRANS(TSUBcc, ALL, do_cc_arith, a, CC_OP_TSUB, gen_op_sub_cc, NULL)
 TRANS(TADDccTV, ALL, do_flags_arith, a, CC_OP_TADDTV, gen_op_taddcctv)
