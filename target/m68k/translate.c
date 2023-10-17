@@ -4293,23 +4293,17 @@ DISAS_INSN(chk2)
 
 static void m68k_copy_line(TCGv dst, TCGv src, int index)
 {
+    MemOp mop = MO_128 | MO_TE;
+    TCGv_i128 t = tcg_temp_new_i128();
     TCGv addr;
-    TCGv_i64 t0, t1;
 
     addr = tcg_temp_new();
 
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
     tcg_gen_andi_i32(addr, src, ~15);
-    tcg_gen_qemu_ld_i64(t0, addr, index, MO_TEUQ);
-    tcg_gen_addi_i32(addr, addr, 8);
-    tcg_gen_qemu_ld_i64(t1, addr, index, MO_TEUQ);
+    tcg_gen_qemu_ld_i128(t, addr, index, mop);
 
     tcg_gen_andi_i32(addr, dst, ~15);
-    tcg_gen_qemu_st_i64(t0, addr, index, MO_TEUQ);
-    tcg_gen_addi_i32(addr, addr, 8);
-    tcg_gen_qemu_st_i64(t1, addr, index, MO_TEUQ);
+    tcg_gen_st_i128(t, addr, index);
 }
 
 DISAS_INSN(move16_reg)
