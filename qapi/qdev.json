@@ -161,3 +161,35 @@
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @VirtqueueError:
+#
+# @vhost-vring-error: Vhost device reported failure through
+#     through vring error fd.
+#
+# Since: 8.2
+##
+{ 'enum': 'VirtqueueError',
+  'data': [ 'vhost-vring-error' ] }
+
+##
+# @VIRTQUEUE_ERROR:
+#
+# Emitted when a device virtqueue fails in runtime.
+#
+# @device: the device's ID if it has one
+#
+# @path: the device's QOM path
+#
+# @virtqueue: virtqueue index
+#
+# @error: error identifier
+#
+# @description: human readable description
+#
+# Since: 8.2
+##
+{ 'event': 'VIRTQUEUE_ERROR',
+ 'data': { '*device': 'str', 'path': 'str', 'virtqueue': 'int',
+            'error': 'VirtqueueError', 'description': 'str'} }
