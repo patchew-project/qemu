@@ -5458,18 +5458,16 @@ static bool gen_lasx_memory(DisasContext *ctx, arg_vr_i *a,
 
 static void gen_xvld(DisasContext *ctx, int vreg, TCGv addr)
 {
-    int i;
+    MemOp mop = MO_128 | MO_TE;
     TCGv temp = tcg_temp_new();
-    TCGv dest = tcg_temp_new();
+    TCGv_i128 dest = tcg_temp_new_i128();
 
-    tcg_gen_qemu_ld_i64(dest, addr, ctx->mem_idx, MO_TEUQ);
-    set_vreg64(dest, vreg, 0);
+    tcg_gen_qemu_ld_i128(dest, addr, ctx->mem_idx, mop);
+    set_vreg128(dest, vreg, 0);
 
-    for (i = 1; i < 4; i++) {
-        tcg_gen_addi_tl(temp, addr, 8 * i);
-        tcg_gen_qemu_ld_i64(dest, temp, ctx->mem_idx, MO_TEUQ);
-        set_vreg64(dest, vreg, i);
-    }
+    tcg_gen_addi_tl(temp, addr, 16);
+    tcg_gen_qemu_ld_i128(dest, temp, ctx->mem_idx, mop);
+    set_vreg128(dest, vreg, 1);
 }
 
 static void gen_xvst(DisasContext * ctx, int vreg, TCGv addr)

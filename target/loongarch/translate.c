@@ -67,6 +67,12 @@ static inline void get_vreg128(TCGv_i128 dest, int regno, int index)
                     offsetof(CPULoongArchState, fpr[regno].vreg.Q(index)));
 }
 
+static inline void set_vreg128(TCGv_i128 src, int regno, int index)
+{
+    tcg_gen_st_i128(src, tcg_env,
+                    offsetof(CPULoongArchState, fpr[regno].vreg.Q(index)));
+}
+
 static inline int plus_1(DisasContext *ctx, int x)
 {
     return x + 1;
