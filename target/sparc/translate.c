@@ -977,7 +977,7 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 {
     TCGv t1, t2, zero;
 
-    cmp->c1 = NULL;
+    cmp->c1 = t1 = tcg_temp_new();
     cmp->c2 = 0;
 
     switch (cond & 7) {
@@ -989,16 +989,14 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
     case 0x1: /* eq */
         cmp->cond = TCG_COND_EQ;
         if (TARGET_LONG_BITS == 32 || xcc) {
-            cmp->c1 = cpu_cc_Z;
+            tcg_gen_mov_tl(t1, cpu_cc_Z);
         } else {
-            cmp->c1 = t1 = tcg_temp_new();
             tcg_gen_ext32u_tl(t1, cpu_icc_Z);
         }
         break;
 
     case 0x2: /* le: Z | (N ^ V) */
         cmp->cond = TCG_COND_LT;
-        cmp->c1 = t1 = tcg_temp_new();
         zero = tcg_constant_tl(0);
         if (TARGET_LONG_BITS == 32 || xcc) {
             tcg_gen_negsetcond_tl(TCG_COND_EQ, t1, cpu_cc_Z, zero);
@@ -1016,7 +1014,6 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 
     case 0x3: /* lt: N ^ V */
         cmp->cond = TCG_COND_LT;
-        cmp->c1 = t1 = tcg_temp_new();
         tcg_gen_xor_tl(t1, cpu_cc_N, cpu_cc_V);
         if (TARGET_LONG_BITS == 64 && !xcc) {
             tcg_gen_ext32s_tl(t1, t1);
@@ -1025,7 +1022,6 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 
     case 0x4: /* leu: C | Z -> !(!C & !Z) */
         cmp->cond = TCG_COND_EQ;
-        cmp->c1 = t1 = tcg_temp_new();
         if (TARGET_LONG_BITS == 32 || xcc) {
             tcg_gen_subi_tl(t1, cpu_cc_C, 1);
             tcg_gen_and_tl(t1, t1, cpu_cc_Z);
@@ -1041,9 +1037,8 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
     case 0x5: /* ltu: C */
         cmp->cond = TCG_COND_NE;
         if (TARGET_LONG_BITS == 32 || xcc) {
-            cmp->c1 = cpu_cc_C;
+            tcg_gen_mov_tl(t1, cpu_cc_C);
         } else {
-            cmp->c1 = t1 = tcg_temp_new();
             tcg_gen_extract_tl(t1, cpu_icc_C, 32, 1);
         }
         break;
@@ -1051,9 +1046,8 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
     case 0x6: /* neg: N */
         cmp->cond = TCG_COND_LT;
         if (TARGET_LONG_BITS == 32 || xcc) {
-            cmp->c1 = cpu_cc_N;
+            tcg_gen_mov_tl(t1, cpu_cc_N);
         } else {
-            cmp->c1 = t1 = tcg_temp_new();
             tcg_gen_ext32s_tl(t1, cpu_cc_N);
         }
         break;
@@ -1061,9 +1055,8 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
     case 0x7: /* vs: V */
         cmp->cond = TCG_COND_LT;
         if (TARGET_LONG_BITS == 32 || xcc) {
-            cmp->c1 = cpu_cc_V;
+            tcg_gen_mov_tl(t1, cpu_cc_V);
         } else {
-            cmp->c1 = t1 = tcg_temp_new();
             tcg_gen_ext32s_tl(t1, cpu_cc_V);
         }
         break;
@@ -1166,8 +1159,9 @@ static const TCGCond gen_tcg_cond_reg[8] = {
 static void gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
 {
     cmp->cond = tcg_invert_cond(gen_tcg_cond_reg[cond]);
-    cmp->c1 = r_src;
+    cmp->c1 = tcg_temp_new();
     cmp->c2 = 0;
+    tcg_gen_mov_tl(cmp->c1, r_src);
 }
 
 static void gen_op_clear_ieee_excp_and_FTT(void)
