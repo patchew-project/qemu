@@ -5285,7 +5285,6 @@ static bool trans_vst(DisasContext *ctx, arg_vr_i *a)
 {
     TCGv addr;
     TCGv_i128 val;
-    TCGv_i64 ah, al;
 
     if (!avail_LSX(ctx)) {
         return false;
@@ -5297,14 +5296,10 @@ static bool trans_vst(DisasContext *ctx, arg_vr_i *a)
 
     addr = gpr_src(ctx, a->rj, EXT_NONE);
     val = tcg_temp_new_i128();
-    ah = tcg_temp_new_i64();
-    al = tcg_temp_new_i64();
 
     addr = make_address_i(ctx, addr, a->imm);
 
-    get_vreg64(ah, a->vd, 1);
-    get_vreg64(al, a->vd, 0);
-    tcg_gen_concat_i64_i128(val, al, ah);
+    get_vreg128(val, a->vd, 0);
     tcg_gen_qemu_st_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
 
     return true;
@@ -5342,7 +5337,6 @@ static bool trans_vldx(DisasContext *ctx, arg_vrr *a)
 static bool trans_vstx(DisasContext *ctx, arg_vrr *a)
 {
     TCGv addr, src1, src2;
-    TCGv_i64 ah, al;
     TCGv_i128 val;
 
     if (!avail_LSX(ctx)) {
@@ -5356,13 +5350,9 @@ static bool trans_vstx(DisasContext *ctx, arg_vrr *a)
     src1 = gpr_src(ctx, a->rj, EXT_NONE);
     src2 = gpr_src(ctx, a->rk, EXT_NONE);
     val = tcg_temp_new_i128();
-    ah = tcg_temp_new_i64();
-    al = tcg_temp_new_i64();
 
     addr = make_address_x(ctx, src1, src2);
-    get_vreg64(ah, a->vd, 1);
-    get_vreg64(al, a->vd, 0);
-    tcg_gen_concat_i64_i128(val, al, ah);
+    get_vreg128(val, a->vd, 0);
     tcg_gen_qemu_st_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
 
     return true;
@@ -5484,18 +5474,16 @@ static void gen_xvld(DisasContext *ctx, int vreg, TCGv addr)
 
 static void gen_xvst(DisasContext * ctx, int vreg, TCGv addr)
 {
-    int i;
+    MemOp mop = MO_128 | MO_TE;
     TCGv temp = tcg_temp_new();
-    TCGv dest = tcg_temp_new();
+    TCGv_i128 dest = tcg_temp_new_i128();
 
-    get_vreg64(dest, vreg, 0);
-    tcg_gen_qemu_st_i64(dest, addr, ctx->mem_idx, MO_TEUQ);
+    get_vreg128(dest, vreg, 0);
+    tcg_gen_qemu_st_i128(dest, addr, ctx->mem_idx, mop);
 
-    for (i = 1; i < 4; i++) {
-        tcg_gen_addi_tl(temp, addr, 8 * i);
-        get_vreg64(dest, vreg, i);
-        tcg_gen_qemu_st_i64(dest, temp, ctx->mem_idx, MO_TEUQ);
-    }
+    tcg_gen_addi_tl(temp, addr, 16);
+    get_vreg128(dest, vreg, 1);
+    tcg_gen_qemu_st_i128(dest, temp, ctx->mem_idx, mop);
 }
 
 TRANS(xvld, LASX, gen_lasx_memory, gen_xvld)
