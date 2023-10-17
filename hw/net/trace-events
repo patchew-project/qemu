@@ -482,3 +482,12 @@ dp8393x_receive_oversize(int size) "oversize packet, pkt_size is %d"
 dp8393x_receive_not_netcard(void) "packet not for netcard"
 dp8393x_receive_packet(int crba) "Receive packet at 0x%"PRIx32
 dp8393x_receive_write_status(int crba) "Write status at 0x%"PRIx32
+
+# xen_nic.c
+xen_netdev_realize(int idx, const char *info) "idx %u info '%s'"
+xen_netdev_unrealize(int idx) "idx %u"
+xen_netdev_create(int idx) "idx %u"
+xen_netdev_destroy(int idx) "idx %u"
+xen_netdev_disconnect(int idx) "idx %u"
+xen_netdev_connect(int idx, unsigned int tx, unsigned int rx, int port) "idx %u tx %u rx %u port %u"
+xen_netdev_frontend_changed(const char *idx, int state) "idx %s state %d"
