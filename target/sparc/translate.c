@@ -3700,8 +3700,8 @@ TRANS(UDIVcc, DIV, do_flags_arith, a, CC_OP_FLAGS, gen_op_udivcc)
 TRANS(SDIVcc, DIV, do_flags_arith, a, CC_OP_FLAGS, gen_op_sdivcc)
 TRANS(TADDcc, ALL, do_flags_arith, a, CC_OP_FLAGS, gen_op_taddcc)
 TRANS(TSUBcc, ALL, do_flags_arith, a, CC_OP_FLAGS, gen_op_tsubcc)
-TRANS(TADDccTV, ALL, do_flags_arith, a, CC_OP_TADDTV, gen_op_taddcctv)
-TRANS(TSUBccTV, ALL, do_flags_arith, a, CC_OP_TSUBTV, gen_op_tsubcctv)
+TRANS(TADDccTV, ALL, do_flags_arith, a, CC_OP_FLAGS, gen_op_taddcctv)
+TRANS(TSUBccTV, ALL, do_flags_arith, a, CC_OP_FLAGS, gen_op_tsubcctv)
 
 static TCGv gen_rs2_or_imm(DisasContext *dc, bool imm, int rs2_or_imm)
 {
