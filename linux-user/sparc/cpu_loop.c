@@ -197,11 +197,21 @@ static uint32_t do_getpsr(CPUSPARCState *env)
 /* Avoid ifdefs below for the abi32 and abi64 paths. */
 #ifdef TARGET_ABI32
 #define TARGET_TT_SYSCALL  (TT_TRAP + 0x10) /* t_linux */
-#define syscall_cc         psr
 #else
 #define TARGET_TT_SYSCALL  (TT_TRAP + 0x6d) /* tl0_linux64 */
-#define syscall_cc         xcc
 #endif
+
+static void set_syscall_cc(CPUSPARCState *env, bool val)
+{
+#ifndef TARGET_SPARC64
+    env->cc_icc_C = val;
+#elif defined(TARGET_ABI32)
+    env->cc_icc_C = (uint64_t)val << 32;
+#else
+    env->cc_xcc_C = val;
+#endif
+}
+
 
 /* Avoid ifdefs below for the v9 and pre-v9 hw traps. */
 #ifdef TARGET_SPARC64
@@ -240,10 +250,10 @@ void cpu_loop (CPUSPARCState *env)
                 break;
             }
             if ((abi_ulong)ret >= (abi_ulong)(-515)) {
-                env->syscall_cc |= PSR_CARRY;
+                set_syscall_cc(env, 1);
                 ret = -ret;
             } else {
-                env->syscall_cc &= ~PSR_CARRY;
+                set_syscall_cc(env, 0);
             }
             env->regwptr[0] = ret;
             /* next instruction */

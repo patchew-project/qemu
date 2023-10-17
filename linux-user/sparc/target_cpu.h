@@ -59,9 +59,9 @@ static inline void cpu_clone_regs_child(CPUSPARCState *env, target_ulong newsp,
          */
         env->regwptr[WREG_O0] = 0;
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
-        env->xcc &= ~PSR_CARRY;
+        env->cc_xcc_C = 0;
 #else
-        env->psr &= ~PSR_CARRY;
+        env->cc_icc_C = 0;
 #endif
         env->pc = env->npc;
         env->npc = env->npc + 4;

@@ -118,20 +118,36 @@ static void gen_helper_array8(TCGv r, TCGv a, TCGv b)
 static TCGv_ptr cpu_regwptr;
 static TCGv cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
 static TCGv_i32 cpu_cc_op;
-static TCGv_i32 cpu_psr;
 static TCGv cpu_fsr, cpu_pc, cpu_npc;
 static TCGv cpu_regs[32];
 static TCGv cpu_y;
 static TCGv cpu_tbr;
 static TCGv cpu_cond;
+static TCGv cpu_cc_N;
+static TCGv cpu_cc_V;
+static TCGv cpu_icc_Z;
+static TCGv cpu_icc_C;
 #ifdef TARGET_SPARC64
-static TCGv_i32 cpu_xcc, cpu_fprs;
+static TCGv cpu_xcc_Z;
+static TCGv cpu_xcc_C;
+static TCGv_i32 cpu_fprs;
 static TCGv cpu_gsr;
 static TCGv cpu_tick_cmpr, cpu_stick_cmpr, cpu_hstick_cmpr;
 static TCGv cpu_hintp, cpu_htba, cpu_hver, cpu_ssr, cpu_ver;
 #else
 static TCGv cpu_wim;
 #endif
+
+#ifdef TARGET_SPARC64
+#define cpu_cc_Z  cpu_xcc_Z
+#define cpu_cc_C  cpu_xcc_C
+#else
+#define cpu_cc_Z  cpu_icc_Z
+#define cpu_cc_C  cpu_icc_C
+#define cpu_xcc_Z ({ qemu_build_not_reached(); NULL; })
+#define cpu_xcc_C ({ qemu_build_not_reached(); NULL; })
+#endif
+
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
@@ -364,31 +380,6 @@ static void gen_goto_tb(DisasContext *s, int tb_num,
     }
 }
 
-// XXX suboptimal
-static void gen_mov_reg_N(TCGv reg, TCGv_i32 src)
-{
-    tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_extract_tl(reg, reg, PSR_NEG_SHIFT, 1);
-}
-
-static void gen_mov_reg_Z(TCGv reg, TCGv_i32 src)
-{
-    tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_extract_tl(reg, reg, PSR_ZERO_SHIFT, 1);
-}
-
-static void gen_mov_reg_V(TCGv reg, TCGv_i32 src)
-{
-    tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_extract_tl(reg, reg, PSR_OVF_SHIFT, 1);
-}
-
-static void gen_mov_reg_C(TCGv reg, TCGv_i32 src)
-{
-    tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_extract_tl(reg, reg, PSR_CARRY_SHIFT, 1);
-}
-
 static void gen_op_add_cc(TCGv dst, TCGv src1, TCGv src2)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
@@ -601,13 +592,11 @@ static void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_deposit_tl(cpu_y, t0, cpu_cc_src, 31, 1);
 
     // b1 = N ^ V;
-    gen_mov_reg_N(t0, cpu_psr);
-    gen_mov_reg_V(r_temp, cpu_psr);
-    tcg_gen_xor_tl(t0, t0, r_temp);
+    tcg_gen_xor_tl(t0, cpu_cc_N, cpu_cc_V);
 
     // T0 = (b1 << 31) | (T0 >> 1);
     // src1 = T0;
-    tcg_gen_shli_tl(t0, t0, 31);
+    tcg_gen_andi_tl(t0, t0, 1u << 31);
     tcg_gen_shri_tl(cpu_cc_src, cpu_cc_src, 1);
     tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, t0);
 
@@ -779,112 +768,10 @@ static void gen_op_eval_ba(TCGv dst)
     tcg_gen_movi_tl(dst, 1);
 }
 
-// Z
-static void gen_op_eval_be(TCGv dst, TCGv_i32 src)
-{
-    gen_mov_reg_Z(dst, src);
-}
-
-// Z | (N ^ V)
-static void gen_op_eval_ble(TCGv dst, TCGv_i32 src)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_N(t0, src);
-    gen_mov_reg_V(dst, src);
-    tcg_gen_xor_tl(dst, dst, t0);
-    gen_mov_reg_Z(t0, src);
-    tcg_gen_or_tl(dst, dst, t0);
-}
-
-// N ^ V
-static void gen_op_eval_bl(TCGv dst, TCGv_i32 src)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_V(t0, src);
-    gen_mov_reg_N(dst, src);
-    tcg_gen_xor_tl(dst, dst, t0);
-}
-
-// C | Z
-static void gen_op_eval_bleu(TCGv dst, TCGv_i32 src)
-{
-    TCGv t0 = tcg_temp_new();
-    gen_mov_reg_Z(t0, src);
-    gen_mov_reg_C(dst, src);
-    tcg_gen_or_tl(dst, dst, t0);
-}
-
-// C
-static void gen_op_eval_bcs(TCGv dst, TCGv_i32 src)
-{
-    gen_mov_reg_C(dst, src);
-}
-
-// V
-static void gen_op_eval_bvs(TCGv dst, TCGv_i32 src)
-{
-    gen_mov_reg_V(dst, src);
-}
-
 // 0
 static void gen_op_eval_bn(TCGv dst)
 {
     tcg_gen_movi_tl(dst, 0);
-}
-
-// N
-static void gen_op_eval_bneg(TCGv dst, TCGv_i32 src)
-{
-    gen_mov_reg_N(dst, src);
-}
-
-// !Z
-static void gen_op_eval_bne(TCGv dst, TCGv_i32 src)
-{
-    gen_mov_reg_Z(dst, src);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !(Z | (N ^ V))
-static void gen_op_eval_bg(TCGv dst, TCGv_i32 src)
-{
-    gen_op_eval_ble(dst, src);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !(N ^ V)
-static void gen_op_eval_bge(TCGv dst, TCGv_i32 src)
-{
-    gen_op_eval_bl(dst, src);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !(C | Z)
-static void gen_op_eval_bgu(TCGv dst, TCGv_i32 src)
-{
-    gen_op_eval_bleu(dst, src);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !C
-static void gen_op_eval_bcc(TCGv dst, TCGv_i32 src)
-{
-    gen_mov_reg_C(dst, src);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !N
-static void gen_op_eval_bpos(TCGv dst, TCGv_i32 src)
-{
-    gen_mov_reg_N(dst, src);
-    tcg_gen_xori_tl(dst, dst, 0x1);
-}
-
-// !V
-static void gen_op_eval_bvc(TCGv dst, TCGv_i32 src)
-{
-    gen_mov_reg_V(dst, src);
-    tcg_gen_xori_tl(dst, dst, 0x1);
 }
 
 /*
@@ -1203,34 +1090,22 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
         TCG_COND_ALWAYS, /* vc:  !V -> 1 */
     };
 
-    TCGv_i32 r_src;
-    TCGv r_dst;
+    TCGv t1, t2;
 
-#ifdef TARGET_SPARC64
-    if (xcc) {
-        r_src = cpu_xcc;
-    } else {
-        r_src = cpu_psr;
-    }
-#else
-    r_src = cpu_psr;
-#endif
+    cmp->is_bool = false;
 
     switch (dc->cc_op) {
     case CC_OP_LOGIC:
         cmp->cond = logic_cond[cond];
     do_compare_dst_0:
-        cmp->is_bool = false;
         cmp->c2 = tcg_constant_tl(0);
-#ifdef TARGET_SPARC64
-        if (!xcc) {
-            cmp->c1 = tcg_temp_new();
-            tcg_gen_ext32s_tl(cmp->c1, cpu_cc_dst);
-            break;
+        if (TARGET_LONG_BITS == 32 || xcc) {
+            cmp->c1 = cpu_cc_dst;
+        } else {
+            cmp->c1 = t1 = tcg_temp_new();
+            tcg_gen_ext32s_tl(t1, cpu_cc_dst);
         }
-#endif
-        cmp->c1 = cpu_cc_dst;
-        break;
+        return;
 
     case CC_OP_SUB:
         switch (cond) {
@@ -1241,92 +1116,128 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 
         case 7: /* overflow */
         case 15: /* !overflow */
-            goto do_dynamic;
+            break;
 
         default:
             cmp->cond = subcc_cond[cond];
-            cmp->is_bool = false;
-#ifdef TARGET_SPARC64
-            if (!xcc) {
+            if (TARGET_LONG_BITS == 32 || xcc) {
+                cmp->c1 = cpu_cc_src;
+                cmp->c2 = cpu_cc_src2;
+            } else {
                 /* Note that sign-extension works for unsigned compares as
                    long as both operands are sign-extended.  */
-                cmp->c1 = tcg_temp_new();
-                cmp->c2 = tcg_temp_new();
-                tcg_gen_ext32s_tl(cmp->c1, cpu_cc_src);
-                tcg_gen_ext32s_tl(cmp->c2, cpu_cc_src2);
-                break;
+                cmp->c1 = t1 = tcg_temp_new();
+                tcg_gen_ext32s_tl(t1, cpu_cc_src);
+                cmp->c2 = t2 = tcg_temp_new();
+                tcg_gen_ext32s_tl(t2, cpu_cc_src2);
             }
-#endif
-            cmp->c1 = cpu_cc_src;
-            cmp->c2 = cpu_cc_src2;
-            break;
+            return;
         }
         break;
 
     default:
-    do_dynamic:
         gen_helper_compute_psr(tcg_env);
         dc->cc_op = CC_OP_FLAGS;
-        /* FALLTHRU */
+        break;
 
     case CC_OP_FLAGS:
-        /* We're going to generate a boolean result.  */
-        cmp->cond = TCG_COND_NE;
-        cmp->is_bool = true;
-        cmp->c1 = r_dst = tcg_temp_new();
-        cmp->c2 = tcg_constant_tl(0);
+        break;
+    }
 
-        switch (cond) {
-        case 0x0:
-            gen_op_eval_bn(r_dst);
-            break;
-        case 0x1:
-            gen_op_eval_be(r_dst, r_src);
-            break;
-        case 0x2:
-            gen_op_eval_ble(r_dst, r_src);
-            break;
-        case 0x3:
-            gen_op_eval_bl(r_dst, r_src);
-            break;
-        case 0x4:
-            gen_op_eval_bleu(r_dst, r_src);
-            break;
-        case 0x5:
-            gen_op_eval_bcs(r_dst, r_src);
-            break;
-        case 0x6:
-            gen_op_eval_bneg(r_dst, r_src);
-            break;
-        case 0x7:
-            gen_op_eval_bvs(r_dst, r_src);
-            break;
-        case 0x8:
-            gen_op_eval_ba(r_dst);
-            break;
-        case 0x9:
-            gen_op_eval_bne(r_dst, r_src);
-            break;
-        case 0xa:
-            gen_op_eval_bg(r_dst, r_src);
-            break;
-        case 0xb:
-            gen_op_eval_bge(r_dst, r_src);
-            break;
-        case 0xc:
-            gen_op_eval_bgu(r_dst, r_src);
-            break;
-        case 0xd:
-            gen_op_eval_bcc(r_dst, r_src);
-            break;
-        case 0xe:
-            gen_op_eval_bpos(r_dst, r_src);
-            break;
-        case 0xf:
-            gen_op_eval_bvc(r_dst, r_src);
-            break;
+    cmp->c1 = NULL;
+    cmp->c2 = tcg_constant_tl(0);
+
+    switch (cond & 7) {
+    case 0x0: /* never */
+        cmp->cond = TCG_COND_NEVER;
+        cmp->c1 = cmp->c2;
+        break;
+
+    case 0x1: /* eq */
+        cmp->cond = TCG_COND_EQ;
+        if (TARGET_LONG_BITS == 32 || xcc) {
+            cmp->c1 = cpu_cc_Z;
+        } else {
+            cmp->c1 = t1 = tcg_temp_new();
+            tcg_gen_ext32u_tl(t1, cpu_icc_Z);
         }
         break;
+
+    case 0x2: /* le: Z | (N ^ V) */
+        cmp->cond = TCG_COND_LT;
+        cmp->c1 = t1 = tcg_temp_new();
+        if (TARGET_LONG_BITS == 32 || xcc) {
+            tcg_gen_negsetcond_tl(TCG_COND_EQ, t1, cpu_cc_Z, cmp->c2);
+        } else {
+            tcg_gen_ext32u_tl(t1, cpu_icc_Z);
+            tcg_gen_negsetcond_tl(TCG_COND_EQ, t1, t1, cmp->c2);
+        }
+        t2 = tcg_temp_new();
+        tcg_gen_xor_tl(t2, cpu_cc_N, cpu_cc_V);
+        if (TARGET_LONG_BITS == 64 && !xcc) {
+            tcg_gen_ext32s_tl(t2, t2);
+        }
+        tcg_gen_or_tl(t1, t1, t2);
+        break;
+
+    case 0x3: /* lt: N ^ V */
+        cmp->cond = TCG_COND_LT;
+        cmp->c1 = t1 = tcg_temp_new();
+        tcg_gen_xor_tl(t1, cpu_cc_N, cpu_cc_V);
+        if (TARGET_LONG_BITS == 64 && !xcc) {
+            tcg_gen_ext32s_tl(t1, t1);
+        }
+        break;
+
+    case 0x4: /* leu: C | Z -> !(!C & !Z) */
+        cmp->cond = TCG_COND_EQ;
+        cmp->c1 = t1 = tcg_temp_new();
+        if (TARGET_LONG_BITS == 32 || xcc) {
+            tcg_gen_subi_tl(t1, cpu_cc_C, 1);
+            tcg_gen_and_tl(t1, t1, cpu_cc_Z);
+        } else {
+            tcg_gen_extract_tl(t1, cpu_icc_C, 32, 1);
+            tcg_gen_subi_tl(t1, t1, 1);
+            t2 = tcg_temp_new();
+            tcg_gen_ext32u_tl(t2, cpu_icc_Z);
+            tcg_gen_and_tl(t1, t1, t2);
+        }
+        break;
+
+    case 0x5: /* ltu: C */
+        cmp->cond = TCG_COND_NE;
+        cmp->is_bool = true;
+        if (TARGET_LONG_BITS == 32 || xcc) {
+            cmp->c1 = cpu_cc_C;
+        } else {
+            cmp->c1 = t1 = tcg_temp_new();
+            tcg_gen_extract_tl(t1, cpu_icc_C, 32, 1);
+        }
+        break;
+
+    case 0x6: /* neg: N */
+        cmp->cond = TCG_COND_LT;
+        if (TARGET_LONG_BITS == 32 || xcc) {
+            cmp->c1 = cpu_cc_N;
+        } else {
+            cmp->c1 = t1 = tcg_temp_new();
+            tcg_gen_ext32s_tl(t1, cpu_cc_N);
+        }
+        break;
+
+    case 0x7: /* vs: V */
+        cmp->cond = TCG_COND_LT;
+        if (TARGET_LONG_BITS == 32 || xcc) {
+            cmp->c1 = cpu_cc_V;
+        } else {
+            cmp->c1 = t1 = tcg_temp_new();
+            tcg_gen_ext32s_tl(t1, cpu_cc_V);
+        }
+        break;
+    }
+    if (cond & 8) {
+        cmp->cond = tcg_invert_cond(cmp->cond);
+        cmp->is_bool = false;
     }
 }
 
@@ -5602,13 +5513,11 @@ void sparc_tcg_init(void)
 
     static const struct { TCGv_i32 *ptr; int off; const char *name; } r32[] = {
 #ifdef TARGET_SPARC64
-        { &cpu_xcc, offsetof(CPUSPARCState, xcc), "xcc" },
         { &cpu_fprs, offsetof(CPUSPARCState, fprs), "fprs" },
 #else
         { &cpu_wim, offsetof(CPUSPARCState, wim), "wim" },
 #endif
         { &cpu_cc_op, offsetof(CPUSPARCState, cc_op), "cc_op" },
-        { &cpu_psr, offsetof(CPUSPARCState, psr), "psr" },
     };
 
     static const struct { TCGv *ptr; int off; const char *name; } rtl[] = {
@@ -5623,7 +5532,13 @@ void sparc_tcg_init(void)
         { &cpu_hver, offsetof(CPUSPARCState, hver), "hver" },
         { &cpu_ssr, offsetof(CPUSPARCState, ssr), "ssr" },
         { &cpu_ver, offsetof(CPUSPARCState, version), "ver" },
+        { &cpu_xcc_Z, offsetof(CPUSPARCState, cc_xcc_Z), "xcc_Z" },
+        { &cpu_xcc_C, offsetof(CPUSPARCState, cc_xcc_C), "xcc_C" },
 #endif
+        { &cpu_cc_N, offsetof(CPUSPARCState, cc_N), "cc_N" },
+        { &cpu_cc_V, offsetof(CPUSPARCState, cc_V), "cc_V" },
+        { &cpu_icc_Z, offsetof(CPUSPARCState, cc_icc_Z), "icc_Z" },
+        { &cpu_icc_C, offsetof(CPUSPARCState, cc_icc_C), "icc_C" },
         { &cpu_cond, offsetof(CPUSPARCState, cond), "cond" },
         { &cpu_cc_src, offsetof(CPUSPARCState, cc_src), "cc_src" },
         { &cpu_cc_src2, offsetof(CPUSPARCState, cc_src2), "cc_src2" },
