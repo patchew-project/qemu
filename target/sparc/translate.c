@@ -437,15 +437,6 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     TCGv carry;
 
     switch (dc->cc_op) {
-    case CC_OP_LOGIC:
-        /* Carry is known to be zero.  Fall back to plain ADD.  */
-        if (update_cc) {
-            gen_op_add_cc(dst, src1, src2);
-        } else {
-            tcg_gen_add_tl(dst, src1, src2);
-        }
-        return;
-
     case CC_OP_ADD:
     case CC_OP_TADD:
     case CC_OP_TADDTV:
@@ -509,15 +500,6 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     TCGv carry;
 
     switch (dc->cc_op) {
-    case CC_OP_LOGIC:
-        /* Carry is known to be zero.  Fall back to plain SUB.  */
-        if (update_cc) {
-            gen_op_sub_cc(dst, src1, src2);
-        } else {
-            tcg_gen_sub_tl(dst, src1, src2);
-        }
-        return;
-
     case CC_OP_ADD:
     case CC_OP_TADD:
     case CC_OP_TADDTV:
@@ -1069,48 +1051,25 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
         -1, /* no overflow */
     };
 
-    static int logic_cond[16] = {
-        TCG_COND_NEVER,
-        TCG_COND_EQ,     /* eq:  Z */
-        TCG_COND_LE,     /* le:  Z | (N ^ V) -> Z | N */
-        TCG_COND_LT,     /* lt:  N ^ V -> N */
-        TCG_COND_EQ,     /* leu: C | Z -> Z */
-        TCG_COND_NEVER,  /* ltu: C -> 0 */
-        TCG_COND_LT,     /* neg: N */
-        TCG_COND_NEVER,  /* vs:  V -> 0 */
-        TCG_COND_ALWAYS,
-        TCG_COND_NE,     /* ne:  !Z */
-        TCG_COND_GT,     /* gt:  !(Z | (N ^ V)) -> !(Z | N) */
-        TCG_COND_GE,     /* ge:  !(N ^ V) -> !N */
-        TCG_COND_NE,     /* gtu: !(C | Z) -> !Z */
-        TCG_COND_ALWAYS, /* geu: !C -> 1 */
-        TCG_COND_GE,     /* pos: !N */
-        TCG_COND_ALWAYS, /* vc:  !V -> 1 */
-    };
-
     TCGv t1, t2;
 
     cmp->is_bool = false;
 
     switch (dc->cc_op) {
-    case CC_OP_LOGIC:
-        cmp->cond = logic_cond[cond];
-    do_compare_dst_0:
-        cmp->c2 = tcg_constant_tl(0);
-        if (TARGET_LONG_BITS == 32 || xcc) {
-            cmp->c1 = cpu_cc_dst;
-        } else {
-            cmp->c1 = t1 = tcg_temp_new();
-            tcg_gen_ext32s_tl(t1, cpu_cc_dst);
-        }
-        return;
 
     case CC_OP_SUB:
         switch (cond) {
         case 6:  /* neg */
         case 14: /* pos */
             cmp->cond = (cond == 6 ? TCG_COND_LT : TCG_COND_GE);
-            goto do_compare_dst_0;
+            cmp->c2 = tcg_constant_tl(0);
+            if (TARGET_LONG_BITS == 32 || xcc) {
+                cmp->c1 = cpu_cc_dst;
+            } else {
+                cmp->c1 = t1 = tcg_temp_new();
+                tcg_gen_ext32s_tl(t1, cpu_cc_dst);
+            }
+            return;
 
         case 7: /* overflow */
         case 15: /* !overflow */
@@ -3726,6 +3685,8 @@ static bool do_cc_arith(DisasContext *dc, arg_r_r_ri *a, int cc_op,
 
     if (cc_op < 0) {
         dst = gen_dest_gpr(dc, a->rd);
+    } else if (cc_op == CC_OP_FLAGS) {
+        dst = cpu_cc_N;
     } else {
         dst = cpu_cc_dst;
         tcg_gen_movi_i32(cpu_cc_op, cc_op);
@@ -3742,6 +3703,21 @@ static bool do_cc_arith(DisasContext *dc, arg_r_r_ri *a, int cc_op,
     } else {
         func(dst, src1, cpu_regs[a->rs2_or_imm]);
     }
+
+    /* Logic insn; to be cleaned up later. */
+    if (cc_op == CC_OP_FLAGS) {
+        tcg_gen_movi_tl(cpu_cc_V, 0);
+        tcg_gen_movi_tl(cpu_icc_C, 0);
+#ifdef TARGET_SPARC64
+        tcg_gen_movi_tl(cpu_xcc_C, 0);
+        tcg_gen_mov_tl(cpu_xcc_Z, dst);
+#endif
+        tcg_gen_mov_tl(cpu_icc_Z, dst);
+
+        tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
+        dc->cc_op = CC_OP_FLAGS;
+    }
+
     gen_store_gpr(dc, a->rd, dst);
     return advance_pc(dc);
 }
@@ -3762,6 +3738,13 @@ static bool do_flags_arith(DisasContext *dc, arg_r_r_ri *a, int cc_op,
         return true;
     }
     return false;
+}
+
+static bool do_logic_cc(DisasContext *dc, arg_r_r_ri *a,
+                        void (*func)(TCGv, TCGv, TCGv),
+                        void (*funci)(TCGv, TCGv, target_long))
+{
+    return do_cc_arith(dc, a, CC_OP_FLAGS, func, funci);
 }
 
 static bool trans_OR(DisasContext *dc, arg_r_r_ri *a)
@@ -3805,15 +3788,15 @@ TRANS(SDIV, DIV, do_arith, a, gen_op_sdiv, NULL)
 TRANS(POPC, 64, do_arith, a, gen_op_popc, NULL)
 
 TRANS(ADDcc, ALL, do_cc_arith, a, CC_OP_ADD, gen_op_add_cc, NULL)
-TRANS(ANDcc, ALL, do_cc_arith, a, CC_OP_LOGIC, tcg_gen_and_tl, tcg_gen_andi_tl)
-TRANS(ORcc, ALL, do_cc_arith, a, CC_OP_LOGIC, tcg_gen_or_tl, tcg_gen_ori_tl)
-TRANS(XORcc, ALL, do_cc_arith, a, CC_OP_LOGIC, tcg_gen_xor_tl, tcg_gen_xori_tl)
+TRANS(ANDcc, ALL, do_logic_cc, a, tcg_gen_and_tl, tcg_gen_andi_tl)
+TRANS(ORcc, ALL, do_logic_cc, a, tcg_gen_or_tl, tcg_gen_ori_tl)
+TRANS(XORcc, ALL, do_logic_cc, a, tcg_gen_xor_tl, tcg_gen_xori_tl)
 TRANS(SUBcc, ALL, do_cc_arith, a, CC_OP_SUB, gen_op_sub_cc, NULL)
-TRANS(ANDNcc, ALL, do_cc_arith, a, CC_OP_LOGIC, tcg_gen_andc_tl, NULL)
-TRANS(ORNcc, ALL, do_cc_arith, a, CC_OP_LOGIC, tcg_gen_orc_tl, NULL)
-TRANS(XORNcc, ALL, do_cc_arith, a, CC_OP_LOGIC, tcg_gen_eqv_tl, NULL)
-TRANS(UMULcc, MUL, do_cc_arith, a, CC_OP_LOGIC, gen_op_umul, NULL)
-TRANS(SMULcc, MUL, do_cc_arith, a, CC_OP_LOGIC, gen_op_smul, NULL)
+TRANS(ANDNcc, ALL, do_logic_cc, a, tcg_gen_andc_tl, NULL)
+TRANS(ORNcc, ALL, do_logic_cc, a, tcg_gen_orc_tl, NULL)
+TRANS(XORNcc, ALL, do_logic_cc, a, tcg_gen_eqv_tl, NULL)
+TRANS(UMULcc, MUL, do_logic_cc, a, gen_op_umul, NULL)
+TRANS(SMULcc, MUL, do_logic_cc, a, gen_op_smul, NULL)
 TRANS(UDIVcc, DIV, do_flags_arith, a, CC_OP_FLAGS, gen_op_udivcc)
 TRANS(SDIVcc, DIV, do_flags_arith, a, CC_OP_FLAGS, gen_op_sdivcc)
 TRANS(TADDcc, ALL, do_cc_arith, a, CC_OP_TADD, gen_op_add_cc, NULL)

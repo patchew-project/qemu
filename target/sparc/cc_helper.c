@@ -354,23 +354,6 @@ static uint32_t compute_all_tsubtv(CPUSPARCState *env)
     return ret;
 }
 
-static uint32_t compute_all_logic(CPUSPARCState *env)
-{
-    return get_NZ_icc(CC_DST);
-}
-
-static uint32_t compute_C_logic(CPUSPARCState *env)
-{
-    return 0;
-}
-
-#ifdef TARGET_SPARC64
-static uint32_t compute_all_logic_xcc(CPUSPARCState *env)
-{
-    return get_NZ_xcc(CC_DST);
-}
-#endif
-
 typedef struct CCTable {
     uint32_t (*compute_all)(CPUSPARCState *env); /* return all the flags */
     uint32_t (*compute_c)(CPUSPARCState *env);  /* return the C flag */
@@ -386,7 +369,6 @@ static const CCTable icc_table[CC_OP_NB] = {
     [CC_OP_SUBX] = { compute_all_subx, compute_C_subx },
     [CC_OP_TSUB] = { compute_all_tsub, compute_C_sub },
     [CC_OP_TSUBTV] = { compute_all_tsubtv, compute_C_sub },
-    [CC_OP_LOGIC] = { compute_all_logic, compute_C_logic },
 };
 
 #ifdef TARGET_SPARC64
@@ -400,7 +382,6 @@ static const CCTable xcc_table[CC_OP_NB] = {
     [CC_OP_SUBX] = { compute_all_subx_xcc, compute_C_subx_xcc },
     [CC_OP_TSUB] = { compute_all_sub_xcc, compute_C_sub_xcc },
     [CC_OP_TSUBTV] = { compute_all_sub_xcc, compute_C_sub_xcc },
-    [CC_OP_LOGIC] = { compute_all_logic_xcc, compute_C_logic },
 };
 #endif
 
