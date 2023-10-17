@@ -25,6 +25,8 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/error.h"
 
+#include "sysemu/runstate.h"
+
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
@@ -530,7 +532,11 @@ static void xen_netdev_unrealize(XenDevice *xendev)
     /* Disconnect from the frontend in case this has not already happened */
     xen_netdev_disconnect(xendev, NULL);
 
-    if (netdev->nic) {
+    /*
+     * WTF? In RUN_STATE_SHUTDOWN, qemu_cleanup()→net_cleanup() already deleted
+     * our NIC from underneath us!
+     */
+    if (netdev->nic && !runstate_check(RUN_STATE_SHUTDOWN)) {
         qemu_del_nic(netdev->nic);
     }
 }
