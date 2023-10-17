@@ -576,11 +576,6 @@ static void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
     gen_op_multiply(dst, src1, src2, 1);
 }
 
-static void gen_op_udiv(TCGv dst, TCGv src1, TCGv src2)
-{
-    gen_helper_udiv(dst, tcg_env, src1, src2);
-}
-
 static void gen_op_sdiv(TCGv dst, TCGv src1, TCGv src2)
 {
     gen_helper_sdiv(dst, tcg_env, src1, src2);
@@ -3615,7 +3610,6 @@ TRANS(XORN, ALL, do_arith, a, tcg_gen_eqv_tl, NULL)
 TRANS(MULX, 64, do_arith, a, tcg_gen_mul_tl, tcg_gen_muli_tl)
 TRANS(UMUL, MUL, do_arith, a, gen_op_umul, NULL)
 TRANS(SMUL, MUL, do_arith, a, gen_op_smul, NULL)
-TRANS(UDIV, DIV, do_arith, a, gen_op_udiv, NULL)
 TRANS(SDIV, DIV, do_arith, a, gen_op_sdiv, NULL)
 TRANS(ADDC, ALL, do_arith, a, gen_op_addc, NULL)
 TRANS(SUBC, ALL, do_arith, a, gen_op_subc, NULL)
@@ -3641,6 +3635,52 @@ TRANS(TSUBccTV, ALL, do_arith, a, gen_op_tsubcctv, NULL)
 TRANS(ADDCcc, ALL, do_arith, a, gen_op_addccc, NULL)
 TRANS(SUBCcc, ALL, do_arith, a, gen_op_subccc, NULL)
 TRANS(MULScc, ALL, do_arith, a, gen_op_mulscc, NULL)
+
+static bool trans_UDIV(DisasContext *dc, arg_r_r_ri *a)
+{
+    TCGv_i64 t1, t2;
+    TCGv dst;
+
+    /* For simplicity, we under-decoded the rs2 form. */
+    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+        return false;
+    }
+
+    if (unlikely(a->rs2_or_imm == 0)) {
+        gen_exception(dc, TT_DIV_ZERO);
+        return true;
+    }
+
+    if (a->imm) {
+        t2 = tcg_constant_i64((uint32_t)a->rs2_or_imm);
+    } else {
+        TCGLabel *lab;
+        TCGv_i32 n2;
+
+        finishing_insn(dc);
+        flush_cond(dc);
+
+        n2 = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(n2, cpu_regs[a->rs2_or_imm]);
+
+        lab = delay_exception(dc, TT_DIV_ZERO);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, n2, 0, lab);
+
+        t2 = tcg_temp_new_i64();
+        tcg_gen_extu_tl_i64(t2, cpu_regs[a->rs2_or_imm]);
+    }
+
+    t1 = tcg_temp_new_i64();
+    tcg_gen_concat_tl_i64(t1, gen_load_gpr(dc, a->rs1), cpu_y);
+
+    tcg_gen_divu_i64(t1, t1, t2);
+    tcg_gen_umin_i64(t1, t1, tcg_constant_i64(UINT32_MAX));
+
+    dst = gen_dest_gpr(dc, a->rd);
+    tcg_gen_trunc_i64_tl(dst, t1);
+    gen_store_gpr(dc, a->rd, dst);
+    return advance_pc(dc);
+}
 
 static bool trans_UDIVX(DisasContext *dc, arg_r_r_ri *a)
 {

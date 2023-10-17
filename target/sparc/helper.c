@@ -81,15 +81,14 @@ void helper_tick_set_limit(void *opaque, uint64_t limit)
 }
 #endif
 
-static target_ulong do_udiv(CPUSPARCState *env, target_ulong a,
-                            target_ulong b, int cc, uintptr_t ra)
+target_ulong helper_udiv_cc(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
     target_ulong v, r;
     uint64_t x0 = (uint32_t)a | ((uint64_t)env->y << 32);
     uint32_t x1 = b;
 
     if (x1 == 0) {
-        cpu_raise_exception_ra(env, TT_DIV_ZERO, ra);
+        cpu_raise_exception_ra(env, TT_DIV_ZERO, GETPC());
     }
 
     x0 = x0 / x1;
@@ -99,27 +98,15 @@ static target_ulong do_udiv(CPUSPARCState *env, target_ulong a,
         v = r = UINT32_MAX;
     }
 
-    if (cc) {
-        env->cc_N = r;
-        env->cc_V = v;
-        env->cc_icc_Z = r;
-        env->cc_icc_C = 0;
+    env->cc_N = r;
+    env->cc_V = v;
+    env->cc_icc_Z = r;
+    env->cc_icc_C = 0;
 #ifdef TARGET_SPARC64
-        env->cc_xcc_Z = r;
-        env->cc_xcc_C = 0;
+    env->cc_xcc_Z = r;
+    env->cc_xcc_C = 0;
 #endif
-    }
     return r;
-}
-
-target_ulong helper_udiv(CPUSPARCState *env, target_ulong a, target_ulong b)
-{
-    return do_udiv(env, a, b, 0, GETPC());
-}
-
-target_ulong helper_udiv_cc(CPUSPARCState *env, target_ulong a, target_ulong b)
-{
-    return do_udiv(env, a, b, 1, GETPC());
 }
 
 static target_ulong do_sdiv(CPUSPARCState *env, target_ulong a,
