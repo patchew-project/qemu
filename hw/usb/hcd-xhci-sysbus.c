@@ -60,10 +60,6 @@ static void xhci_sysbus_instance_init(Object *obj)
     object_initialize_child(obj, "xhci-core", &s->xhci, TYPE_XHCI);
     qdev_alias_all_properties(DEVICE(&s->xhci), obj);
 
-    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
-                             (Object **)&s->xhci.dma_mr,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_STRONG);
     s->xhci.intr_update = NULL;
     s->xhci.intr_raise = xhci_sysbus_intr_raise;
 }
