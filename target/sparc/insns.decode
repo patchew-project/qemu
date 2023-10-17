@@ -205,3 +205,7 @@ SRL_i       10 ..... 100110 ..... 1 .   000000 ......      @shifti
 SRA_i       10 ..... 100111 ..... 1 .   000000 ......      @shifti
 
 Tcc         10 0 cond:4 111010 rs1:5 imm:1 cc:1 00000 rs2_or_imm:7
+
+MOVcc       10 rd:5  101100 1 cond:4 imm:1 cc:1 0 rs2_or_imm:s11
+MOVfcc      10 rd:5  101100 0 cond:4 imm:1 cc:2   rs2_or_imm:s11
+MOVR        10 rd:5  101111 rs1:5    imm:1 cond:3 rs2_or_imm:s10
