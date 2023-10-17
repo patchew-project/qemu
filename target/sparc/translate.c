@@ -3207,10 +3207,7 @@ TRANS(WRPOWERDOWN, POWERDOWN, do_wr_special, a, supervisor(dc), do_wrpowerdown)
 static void do_wrpsr(DisasContext *dc, TCGv src)
 {
     gen_helper_wrpsr(tcg_env, src);
-    save_state(dc);
-    gen_op_next_insn();
-    tcg_gen_exit_tb(NULL, 0);
-    dc->base.is_jmp = DISAS_NORETURN;
+    dc->base.is_jmp = DISAS_EXIT;
 }
 
 TRANS(WRPSR, 32, do_wr_special, a, supervisor(dc), do_wrpsr)
