@@ -1837,8 +1837,10 @@ static struct rp_cmd_args {
  * Process a request for pages received on the return path,
  * We're allowed to send more than requested (e.g. to round to our page size)
  * and we don't need to send pages that have already been sent.
+ *
+ * Returns true if succeed, false otherwise.
  */
-static void
+static bool
 migrate_handle_rp_req_pages(MigrationState *ms, const char* rbname,
                             ram_addr_t start, size_t len, Error **errp)
 {
@@ -1854,10 +1856,10 @@ migrate_handle_rp_req_pages(MigrationState *ms, const char* rbname,
         !QEMU_IS_ALIGNED(len, our_host_ps)) {
         error_setg(errp, "MIG_RP_MSG_REQ_PAGES: Misaligned page request, start:"
                    RAM_ADDR_FMT " len: %zd", start, len);
-        return;
+        return false;
     }
 
-    ram_save_queue_pages(rbname, start, len, errp);
+    return ram_save_queue_pages(rbname, start, len, errp);
 }
 
 static bool migrate_handle_rp_recv_bitmap(MigrationState *s, char *block_name,
@@ -2007,8 +2009,7 @@ static void *source_return_path_thread(void *opaque)
         case MIG_RP_MSG_REQ_PAGES:
             start = ldq_be_p(buf);
             len = ldl_be_p(buf + 8);
-            migrate_handle_rp_req_pages(ms, NULL, start, len, &err);
-            if (err) {
+            if (!migrate_handle_rp_req_pages(ms, NULL, start, len, &err)) {
                 goto out;
             }
             break;
@@ -2029,9 +2030,8 @@ static void *source_return_path_thread(void *opaque)
                            header_len, expected_len);
                 goto out;
             }
-            migrate_handle_rp_req_pages(ms, (char *)&buf[13], start, len,
-                                        &err);
-            if (err) {
+            if (!migrate_handle_rp_req_pages(ms, (char *)&buf[13], start, len,
+                                             &err)) {
                 goto out;
             }
             break;

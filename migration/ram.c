@@ -1932,15 +1932,15 @@ static void migration_page_queue_free(RAMState *rs)
  *
  * A request from postcopy destination for example.
  *
- * Returns zero on success or negative on error
+ * Returns true on success or false on error (detailed error put in @errp)
  *
  * @rbname: Name of the RAMBLock of the request. NULL means the
  *          same that last one.
  * @start: starting address from the start of the RAMBlock
  * @len: length (in bytes) to send
  */
-int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
-                         Error **errp)
+bool ram_save_queue_pages(const char *rbname, ram_addr_t start,
+                          ram_addr_t len, Error **errp)
 {
     RAMBlock *ramblock;
     RAMState *rs = ram_state;
@@ -1958,7 +1958,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
              * it's the 1st request.
              */
             error_setg(errp, "MIG_RP_MSG_REQ_PAGES has no previous block");
-            return -1;
+            return false;
         }
     } else {
         ramblock = qemu_ram_block_by_name(rbname);
@@ -1966,7 +1966,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
         if (!ramblock) {
             /* We shouldn't be asked for a non-existent RAMBlock */
             error_setg(errp, "MIG_RP_MSG_REQ_PAGES has no block '%s'", rbname);
-            return -1;
+            return false;
         }
         rs->last_req_rb = ramblock;
     }
@@ -1976,7 +1976,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
                    "start=" RAM_ADDR_FMT " len="
                    RAM_ADDR_FMT " blocklen=" RAM_ADDR_FMT,
                    start, len, ramblock->used_length);
-        return -1;
+        return false;
     }
 
     /*
@@ -1987,7 +1987,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
         ram_addr_t page_start = start >> TARGET_PAGE_BITS;
         size_t page_size = qemu_ram_pagesize(ramblock);
         PageSearchStatus *pss = &ram_state->pss[RAM_CHANNEL_POSTCOPY];
-        int ret = 0;
+        bool ret = true;
 
         qemu_mutex_lock(&rs->bitmap_mutex);
 
@@ -2010,7 +2010,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
                 error_setg(errp, "ram_save_host_page_urgent() failed: "
                            "ramblock=%s, start_addr=0x"RAM_ADDR_FMT,
                            ramblock->idstr, start);
-                ret = -1;
+                ret = false;
                 break;
             }
             /*
@@ -2041,7 +2041,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
     migration_make_urgent_request();
     qemu_mutex_unlock(&rs->src_page_req_mutex);
 
-    return 0;
+    return true;
 }
 
 static bool save_page_use_compression(RAMState *rs)
