@@ -32,7 +32,7 @@ typedef struct target_reg {
 typedef struct target_fp_reg {
     uint32_t        fp_exponent;
     uint32_t        fp_mantissa_hi;
-    u_int32_t       fp_mantissa_lo;
+    uint32_t       fp_mantissa_lo;
 } target_fp_reg_t;
 
 typedef struct target_fpreg {
