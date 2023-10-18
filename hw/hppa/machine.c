@@ -133,7 +133,7 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
     fw_cfg_add_file(fw_cfg, "/etc/firmware-min-version",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
-    val = cpu_to_le64(HPPA_TLB_ENTRIES - HPPA_BTLB_ENTRIES);
+    val = cpu_to_le64(HPPA_TLB_ENTRIES - HPPA_BTLB_ENTRIES(&cpu[0]->env));
     fw_cfg_add_file(fw_cfg, "/etc/cpu/tlb_entries",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
@@ -429,10 +429,6 @@ static void hppa_machine_reset(MachineState *ms, ShutdownCause reason)
 
         cs->exception_index = -1;
         cs->halted = 0;
-
-        /* clear any existing TLB and BTLB entries */
-        memset(cpu[i]->env.tlb, 0, sizeof(cpu[i]->env.tlb));
-        cpu[i]->env.tlb_last = HPPA_BTLB_ENTRIES;
     }
 
     /* already initialized by machine_hppa_init()? */
