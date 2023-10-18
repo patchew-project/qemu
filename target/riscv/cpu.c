@@ -1169,6 +1169,11 @@ static void riscv_cpu_post_init(Object *obj)
 
 static void riscv_cpu_init(Object *obj)
 {
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
+    /* Using property default value would spam deprecation warning */
+    cpu->cfg.pmu_num = 16;
+
 #ifndef CONFIG_USER_ONLY
     qdev_init_gpio_in(DEVICE(obj), riscv_cpu_set_irq,
                       IRQ_LOCAL_MAX + IRQ_LOCAL_GUEST_MAX);
@@ -1362,8 +1367,32 @@ const RISCVCPUMultiExtConfig riscv_cpu_deprecated_exts[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void prop_pmu_num_set(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
+    visit_type_uint8(v, name, &cpu->cfg.pmu_num, errp);
+    warn_report("\"pmu-num\" property is deprecated; use \"pmu-mask\"");
+}
+
+static void prop_pmu_num_get(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
+    visit_type_uint8(v, name, &cpu->cfg.pmu_num, errp);
+}
+
+const PropertyInfo prop_pmu_num = {
+    .name = "pmu-num",
+    .get = prop_pmu_num_get,
+    .set = prop_pmu_num_set,
+};
+
 Property riscv_cpu_options[] = {
-    DEFINE_PROP_UINT8("pmu-num", RISCVCPU, cfg.pmu_num, 16),
+    DEFINE_PROP("pmu-num", RISCVCPU, cfg.pmu_num, prop_pmu_num, uint8_t), /* Deprecated */
+    DEFINE_PROP_UINT32("pmu-mask", RISCVCPU, cfg.pmu_mask, MAKE_64BIT_MASK(3, 16)),
 
     DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
     DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
