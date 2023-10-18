@@ -239,9 +239,16 @@ struct ArchCPU {
 
     CPUHPPAState env;
     QEMUTimer *alarm_timer;
+
+    bool is_pa20;
 };
 
 #include "exec/cpu-all.h"
+
+static inline bool hppa_is_pa20(HPPACPU *cpu)
+{
+    return cpu->is_pa20;
+}
 
 static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
 {

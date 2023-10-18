@@ -262,6 +262,7 @@ typedef struct DisasContext {
     int mmu_idx;
     int privilege;
     bool psw_n_nonzero;
+    bool is_pa20;
 
 #ifdef CONFIG_USER_ONLY
     MemOp unalign;
@@ -4087,10 +4088,12 @@ static bool trans_diag(DisasContext *ctx, arg_diag *a)
 static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    HPPACPU *cpu = HPPA_CPU(cs);
     int bound;
 
     ctx->cs = cs;
     ctx->tb_flags = ctx->base.tb->flags;
+    ctx->is_pa20 = cpu->is_pa20;
 
 #ifdef CONFIG_USER_ONLY
     ctx->privilege = MMU_IDX_TO_PRIV(MMU_USER_IDX);
