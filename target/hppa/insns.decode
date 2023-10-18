@@ -152,6 +152,10 @@ ixtlbx          000001 b:5 r:5 ... 000000 addr:1 0 00000        \
 # pcxl and pcxl2 Fast TLB Insert instructions
 ixtlbxf         000001 00000 r:5 00 0 data:1 01000 addr:1 0 00000
 
+# pa2.0 tlb insert instructions
+ixtlbt          000001 r2:5 r1:5 000 1100000 0 00000    # idtlbt
+ixtlbt          000001 r2:5 r1:5 000 0100000 0 00000    # iitlbt
+
 pxtlbx          000001 b:5 x:5 sp:2 0100100 local:1 m:1 -----   data=1
 pxtlbx          000001 b:5 x:5 ... 000100 local:1 m:1 -----     \
                 sp=%assemble_sr3x data=0
