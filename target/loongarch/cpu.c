@@ -478,6 +478,7 @@ static void loongarch_max_initfn(Object *obj)
 {
     /* '-cpu max' for TCG: we use cpu la464. */
     loongarch_la464_initfn(obj);
+    loongarch_cpu_post_init(obj);
 }
 
 static void loongarch_cpu_list_entry(gpointer data, gpointer user_data)
@@ -621,6 +622,69 @@ static const MemoryRegionOps loongarch_qemu_ops = {
     },
 };
 #endif
+
+static bool loongarch_get_lsx(Object *obj, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LSX)) {
+        cpu->has_lsx = true;
+    } else {
+        cpu->has_lsx = false;
+    }
+    return cpu->has_lsx;
+}
+
+static void loongarch_set_lsx(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    if (value) {
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LSX, 1);
+    } else {
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LSX, 0);
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 0);
+    }
+
+    cpu->has_lsx = value;
+}
+
+static bool loongarch_get_lasx(Object *obj, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LASX)) {
+        cpu->has_lasx = true;
+    } else {
+        cpu->has_lasx = false;
+    }
+    return cpu->has_lasx;
+}
+
+static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    if (value) {
+        if (!FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LSX)) {
+            error_setg(errp, "Enabled LASX, need enabled LSX first!");
+            return;
+	}
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 1);
+    } else {
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 0);
+    }
+
+    cpu->has_lasx = value;
+}
+
+void loongarch_cpu_post_init(Object *obj)
+{
+    object_property_add_bool(obj, "lsx", loongarch_get_lsx,
+                             loongarch_set_lsx);
+    object_property_add_bool(obj, "lasx", loongarch_get_lasx,
+                             loongarch_set_lasx);
+}
 
 static void loongarch_cpu_init(Object *obj)
 {

@@ -381,6 +381,11 @@ struct ArchCPU {
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
+
+    /* CPU has LSX */
+    bool has_lsx;
+    /* CPU has  LASX */
+    bool has_lasx;
 };
 
 #define TYPE_LOONGARCH_CPU "loongarch-cpu"
@@ -485,5 +490,7 @@ void loongarch_cpu_list(void);
 #define LOONGARCH_CPU_TYPE_SUFFIX "-" TYPE_LOONGARCH_CPU
 #define LOONGARCH_CPU_TYPE_NAME(model) model LOONGARCH_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_LOONGARCH_CPU
+
+void loongarch_cpu_post_init(Object *obj);
 
 #endif /* LOONGARCH_CPU_H */
