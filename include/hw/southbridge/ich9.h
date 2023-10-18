@@ -202,6 +202,8 @@ struct ICH9LPCState {
 #define ICH9_PMIO_SMI_EN_APMC_EN                (1 << 5)
 #define ICH9_PMIO_SMI_EN_TCO_EN                 (1 << 13)
 #define ICH9_PMIO_SMI_STS                       0x34
+#define ICH9_PMIO_SMI_STS_APMC                  (1 << 5)
+#define ICH9_PMIO_SMI_STS_TCO                   (1 << 13)
 #define ICH9_PMIO_TCO_RLD                       0x60
 #define ICH9_PMIO_TCO_LEN                       32
 

@@ -71,6 +71,7 @@ static void tco_timer_expired(void *opaque)
     }
 
     if (pm->smi_en & ICH9_PMIO_SMI_EN_TCO_EN) {
+        lpc->pm.smi_sts |= ICH9_PMIO_SMI_STS_TCO;
         ich9_generate_smi();
     }
     tr->tco.rld = tr->tco.tmr;
@@ -139,6 +140,9 @@ static uint32_t tco_ioport_readw(TCOIORegs *tr, uint32_t addr)
 
 static void tco_ioport_writew(TCOIORegs *tr, uint32_t addr, uint32_t val)
 {
+    ICH9LPCPMRegs *pm = container_of(tr, ICH9LPCPMRegs, tco_regs);
+    ICH9LPCState *lpc = container_of(pm, ICH9LPCState, pm);
+
     trace_tco_io_write(addr, val);
     switch (addr) {
     case TCO_RLD:
@@ -153,6 +157,7 @@ static void tco_ioport_writew(TCOIORegs *tr, uint32_t addr, uint32_t val)
     case TCO_DAT_IN:
         tr->tco.din = val;
         tr->tco.sts1 |= SW_TCO_SMI;
+        lpc->pm.smi_sts |= ICH9_PMIO_SMI_STS_TCO;
         ich9_generate_smi();
         break;
     case TCO_DAT_OUT:
