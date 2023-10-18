@@ -3131,11 +3131,6 @@ bool kvm_has_sync_mmu(void)
     return kvm_state->sync_mmu;
 }
 
-int kvm_has_robust_singlestep(void)
-{
-    return kvm_state->robust_singlestep;
-}
-
 int kvm_max_nested_state_length(void)
 {
     return kvm_state->max_nested_state_len;
