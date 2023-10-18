@@ -71,6 +71,15 @@ target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
      * so let this go without comment.
      */
     env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
+
+    /*
+     * Changes to PSW_W change the translation of absolute to physical.
+     * This currently (incorrectly) affects all translations.
+     */
+    if ((psw ^ env->psw) & (PSW_P | PSW_W)) {
+        tlb_flush(env_cpu(env));
+    }
+
     return psw & PSW_SM;
 }
 
