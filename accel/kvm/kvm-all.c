@@ -2521,13 +2521,6 @@ static int kvm_init(MachineState *ms)
         }
     }
 
-#ifdef KVM_CAP_VCPU_EVENTS
-    s->vcpu_events = kvm_check_extension(s, KVM_CAP_VCPU_EVENTS);
-#endif
-
-    s->robust_singlestep =
-        kvm_check_extension(s, KVM_CAP_X86_ROBUST_SINGLESTEP);
-
     s->max_nested_state_len = kvm_check_extension(s, KVM_CAP_NESTED_STATE);
 
     s->irq_set_ioctl = KVM_IRQ_LINE;
@@ -3136,11 +3129,6 @@ int kvm_device_access(int fd, int group, uint64_t attr,
 bool kvm_has_sync_mmu(void)
 {
     return kvm_state->sync_mmu;
-}
-
-int kvm_has_vcpu_events(void)
-{
-    return kvm_state->vcpu_events;
 }
 
 int kvm_has_robust_singlestep(void)
