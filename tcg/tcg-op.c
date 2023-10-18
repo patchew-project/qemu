@@ -602,6 +602,7 @@ void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2,
 {
     uint32_t mask;
     TCGv_i32 t1;
+    TCGTemp *ts;
 
     tcg_debug_assert(ofs < 32);
     tcg_debug_assert(len > 0);
@@ -614,6 +615,19 @@ void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2,
     }
     if (TCG_TARGET_HAS_deposit_i32 && TCG_TARGET_deposit_i32_valid(ofs, len)) {
         tcg_gen_op5ii_i32(INDEX_op_deposit_i32, ret, arg1, arg2, ofs, len);
+        return;
+    }
+
+    /* Deposit of a constant into a value. */
+    ts = tcgv_i32_temp(arg2);
+    if (ts->kind == TEMP_CONST) {
+        uint32_t mask0 = deposit32(-1, ofs, len, 0);
+        uint32_t maski = deposit32(0, ofs, len, ts->val);
+
+        if (mask0 != ~maski) {
+            tcg_gen_andi_i32(ret, arg1, mask0);
+        }
+        tcg_gen_ori_i32(ret, ret, maski);
         return;
     }
 
@@ -2217,6 +2231,7 @@ void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2,
 {
     uint64_t mask;
     TCGv_i64 t1;
+    TCGTemp *ts;
 
     tcg_debug_assert(ofs < 64);
     tcg_debug_assert(len > 0);
@@ -2229,6 +2244,19 @@ void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2,
     }
     if (TCG_TARGET_HAS_deposit_i64 && TCG_TARGET_deposit_i64_valid(ofs, len)) {
         tcg_gen_op5ii_i64(INDEX_op_deposit_i64, ret, arg1, arg2, ofs, len);
+        return;
+    }
+
+    /* Deposit of a constant into a value. */
+    ts = tcgv_i64_temp(arg2);
+    if (ts->kind == TEMP_CONST) {
+        uint64_t mask0 = deposit64(-1, ofs, len, 0);
+        uint64_t maski = deposit64(0, ofs, len, ts->val);
+
+        if (mask0 != ~maski) {
+            tcg_gen_andi_i64(ret, arg1, mask0);
+        }
+        tcg_gen_ori_i64(ret, ret, maski);
         return;
     }
 
