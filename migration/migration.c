@@ -237,7 +237,7 @@ void migration_incoming_state_destroy(void)
     struct MigrationIncomingState *mis = migration_incoming_get_current();
 
     multifd_load_cleanup();
-    compress_threads_load_cleanup();
+    ram_compress_load_cleanup();
 
     if (mis->to_src_file) {
         /* Tell source that we are done */
@@ -527,7 +527,7 @@ process_incoming_migration_co(void *opaque)
 
     assert(mis->from_src_file);
 
-    if (compress_threads_load_setup(mis->from_src_file)) {
+    if (ram_compress_load_setup(mis->from_src_file)) {
         error_report("Failed to setup decompress threads");
         goto fail;
     }
@@ -580,7 +580,7 @@ fail:
     qemu_fclose(mis->from_src_file);
 
     multifd_load_cleanup();
-    compress_threads_load_cleanup();
+    ram_compress_load_cleanup();
 
     exit(EXIT_FAILURE);
 }

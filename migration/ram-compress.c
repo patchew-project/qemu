@@ -105,11 +105,11 @@ static void *do_data_compress(void *opaque)
     return NULL;
 }
 
-void compress_threads_save_cleanup(void)
+static void compress_threads_save_cleanup(void)
 {
     int i, thread_count;
 
-    if (!migrate_compress() || !comp_param) {
+    if (!comp_param) {
         return;
     }
 
@@ -144,13 +144,10 @@ void compress_threads_save_cleanup(void)
     comp_param = NULL;
 }
 
-int compress_threads_save_setup(void)
+static int compress_threads_save_setup(void)
 {
     int i, thread_count;
 
-    if (!migrate_compress()) {
-        return 0;
-    }
     thread_count = migrate_compress_threads();
     compress_threads = g_new0(QemuThread, thread_count);
     comp_param = g_new0(CompressParam, thread_count);
@@ -370,6 +367,11 @@ int wait_for_decompress_done(void)
         return 0;
     }
 
+    if (migrate_compress_with_iaa()) {
+        /* Implement in next patch */
+        return 0;
+    }
+
     thread_count = migrate_decompress_threads();
     qemu_mutex_lock(&decomp_done_lock);
     for (idx = 0; idx < thread_count; idx++) {
@@ -381,13 +383,10 @@ int wait_for_decompress_done(void)
     return qemu_file_get_error(decomp_file);
 }
 
-void compress_threads_load_cleanup(void)
+static void compress_threads_load_cleanup(void)
 {
     int i, thread_count;
 
-    if (!migrate_compress()) {
-        return;
-    }
     thread_count = migrate_decompress_threads();
     for (i = 0; i < thread_count; i++) {
         /*
@@ -422,13 +421,9 @@ void compress_threads_load_cleanup(void)
     decomp_file = NULL;
 }
 
-int compress_threads_load_setup(QEMUFile *f)
+static int compress_threads_load_setup(QEMUFile *f)
 {
     int i, thread_count;
-
-    if (!migrate_compress()) {
-        return 0;
-    }
 
     thread_count = migrate_decompress_threads();
     decompress_threads = g_new0(QemuThread, thread_count);
@@ -457,7 +452,7 @@ exit:
     return -1;
 }
 
-void decompress_data_with_multi_threads(QEMUFile *f, void *host, int len)
+static void decompress_data_with_multi_threads(QEMUFile *f, void *host, int len)
 {
     int idx, thread_count;
 
@@ -482,4 +477,58 @@ void decompress_data_with_multi_threads(QEMUFile *f, void *host, int len)
             qemu_cond_wait(&decomp_done_cond, &decomp_done_lock);
         }
     }
+}
+
+int ram_compress_save_setup(void)
+{
+    if (!migrate_compress()) {
+        return 0;
+    }
+    if (migrate_compress_with_iaa()) {
+        /* Implement in next patch */
+        return 0;
+    }
+    return compress_threads_save_setup();
+}
+
+void ram_compress_save_cleanup(void)
+{
+    if (!migrate_compress()) {
+        return;
+    }
+    if (migrate_compress_with_iaa()) {
+        /* Implement in next patch */
+        return;
+    }
+    compress_threads_save_cleanup();
+}
+
+void ram_decompress_data(QEMUFile *f, void *host, int len)
+{
+    if (migrate_compress_with_iaa()) {
+        /* Implement in next patch */
+    }
+    decompress_data_with_multi_threads(f, host, len);
+}
+
+int ram_compress_load_setup(QEMUFile *f)
+{
+    if (!migrate_compress()) {
+        return 0;
+    }
+    if (migrate_compress_with_iaa()) {
+        /* Implement in next patch */
+    }
+    return compress_threads_load_setup(f);
+}
+
+void ram_compress_load_cleanup(void)
+{
+    if (!migrate_compress()) {
+        return;
+    }
+    if (migrate_compress_with_iaa()) {
+        /* Implement in next patch */
+    }
+    compress_threads_load_cleanup();
 }

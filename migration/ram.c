@@ -1350,6 +1350,10 @@ static void ram_flush_compressed_data(RAMState *rs)
     if (!save_page_use_compression(rs)) {
         return;
     }
+    if (migrate_compress_with_iaa()) {
+        /* Implement in next patch */
+        return;
+    }
 
     flush_compressed_data(send_queued_data);
 }
@@ -2103,6 +2107,10 @@ static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
         return false;
     }
 
+    if (migrate_compress_with_iaa()) {
+        /* Implement in next patch */
+        return true;
+    }
     if (compress_page_with_multi_thread(block, offset, send_queued_data) > 0) {
         return true;
     }
@@ -2493,7 +2501,7 @@ static void ram_save_cleanup(void *opaque)
     }
 
     xbzrle_cleanup();
-    compress_threads_save_cleanup();
+    ram_compress_save_cleanup();
     ram_state_cleanup(rsp);
     g_free(migration_ops);
     migration_ops = NULL;
@@ -3015,14 +3023,14 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     RAMBlock *block;
     int ret;
 
-    if (compress_threads_save_setup()) {
+    if (ram_compress_save_setup()) {
         return -1;
     }
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
         if (ram_init_all(rsp) != 0) {
-            compress_threads_save_cleanup();
+            ram_compress_save_cleanup();
             return -1;
         }
     }
@@ -3768,7 +3776,7 @@ int ram_load_postcopy(QEMUFile *f, int channel)
                 ret = -EINVAL;
                 break;
             }
-            decompress_data_with_multi_threads(f, page_buffer, len);
+            ram_decompress_data(f, page_buffer, len);
             break;
         case RAM_SAVE_FLAG_MULTIFD_FLUSH:
             multifd_recv_sync_main();
@@ -4058,7 +4066,7 @@ static int ram_load_precopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
-            decompress_data_with_multi_threads(f, host, len);
+            ram_decompress_data(f, host, len);
             break;
 
         case RAM_SAVE_FLAG_XBZRLE:
