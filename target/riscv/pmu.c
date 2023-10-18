@@ -25,8 +25,6 @@
 #include "sysemu/device_tree.h"
 
 #define RISCV_TIMEBASE_FREQ 1000000000 /* 1Ghz */
-#define MAKE_32BIT_MASK(shift, length) \
-        (((uint32_t)(~0UL) >> (32 - (length))) << (shift))
 
 /*
  * To keep it simple, any event can be mapped to any programmable counters in
@@ -455,7 +453,7 @@ void riscv_pmu_init(RISCVCPU *cpu, Error **errp)
     if (pmu_num == 0) {
         cpu->cfg.pmu_mask = 0;
     } else if (pmu_num != 16) {
-        cpu->cfg.pmu_mask = MAKE_32BIT_MASK(3, pmu_num);
+        cpu->cfg.pmu_mask = MAKE_64BIT_MASK(3, pmu_num);
     }
 
     cpu->pmu_avail_ctrs = cpu->cfg.pmu_mask;
