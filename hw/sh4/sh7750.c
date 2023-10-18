@@ -59,6 +59,9 @@ typedef struct SH7750State {
     uint16_t bcr3;
     uint32_t bcr4;
     uint16_t rfcr;
+    /* Power-Down Modes */
+    uint8_t stbcr;
+    uint8_t stbcr2;
     /* PCMCIA controller */
     uint16_t pcr;
     /* IO ports */
@@ -219,7 +222,13 @@ static void ignore_access(const char *kind, hwaddr addr)
 
 static uint32_t sh7750_mem_readb(void *opaque, hwaddr addr)
 {
+    SH7750State *s = opaque;
+
     switch (addr) {
+    case SH7750_STBCR_A7:
+        return s->stbcr;
+    case SH7750_STBCR2_A7:
+        return s->stbcr2;
     default:
         error_access("byte read", addr);
         abort();
@@ -318,14 +327,24 @@ static uint32_t sh7750_mem_readl(void *opaque, hwaddr addr)
 static void sh7750_mem_writeb(void *opaque, hwaddr addr,
                               uint32_t mem_value)
 {
+    SH7750State *s = opaque;
 
     if (is_in_sdrmx(addr, 2) || is_in_sdrmx(addr, 3)) {
         ignore_access("byte write", addr);
         return;
     }
 
-    error_access("byte write", addr);
-    abort();
+    switch (addr) {
+    case SH7750_STBCR_A7:
+        s->stbcr = mem_value;
+        return;
+    case SH7750_STBCR2_A7:
+        s->stbcr2 = mem_value;
+        return;
+    default:
+        error_access("byte write", addr);
+        abort();
+    }
 }
 
 static void sh7750_mem_writew(void *opaque, hwaddr addr,
