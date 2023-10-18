@@ -133,26 +133,85 @@ static void gd_clipboard_notify(Notifier *notifier, void *data)
     }
 }
 
+/*
+ * asynchronous clipboard text transfer callback
+ * called when host (gtk) is ready to deliver to guest
+ */
+static void gd_clipboard_request_text_callback
+    (GtkClipboard *clipboard, const gchar *text, gpointer data)
+{
+    QemuClipboardInfo *info = (QemuClipboardInfo *)data;
+
+    if (!text || !qemu_clipboard_check_serial(info, true)) {
+        return;
+    }
+
+    qemu_clipboard_set_data(info->owner, info, QEMU_CLIPBOARD_TYPE_TEXT,
+                            strlen(text), text, true);
+    return;
+}
+
+/*
+ * asynchronous clipboard data transfer initiator
+ * guest requests, host delivers when ready
+ */
 static void gd_clipboard_request(QemuClipboardInfo *info,
                                  QemuClipboardType type)
 {
     GtkDisplayState *gd = container_of(info->owner, GtkDisplayState, cbpeer);
-    char *text;
 
     switch (type) {
     case QEMU_CLIPBOARD_TYPE_TEXT:
-        text = gtk_clipboard_wait_for_text(gd->gtkcb[info->selection]);
-        if (text) {
-            qemu_clipboard_set_data(&gd->cbpeer, info, type,
-                                    strlen(text), text, true);
-            g_free(text);
-        }
+        gtk_clipboard_request_text
+            (gd->gtkcb[info->selection],
+             gd_clipboard_request_text_callback, info);
         break;
     default:
         break;
     }
 }
 
+/*
+ * asynchronous clipboard text availability notification callback
+ * called when host (gtk) is ready to notify guest
+ */
+static void gd_owner_change_text_callback
+    (GtkClipboard *clipboard, const gchar *text, gpointer data)
+{
+    QemuClipboardInfo *info = (QemuClipboardInfo *)data;
+
+    static uint32_t notification_serial_last;
+
+    /*
+     * performing the subtraction of uints as ints
+     * is a neat trick to guard against rollover issues
+     */
+    if (!text ||
+        (((int32_t)(info->serial - notification_serial_last)) <= 0))
+    {
+        goto end;
+    }
+
+    notification_serial_last = info->serial;
+
+    info->types[QEMU_CLIPBOARD_TYPE_TEXT].available = true;
+    qemu_clipboard_update(info);
+
+    goto end;
+
+end:
+    /*
+     * this notification info struct is temporary
+     * and can safely be freed after use
+     */
+    qemu_clipboard_info_unref(info);
+    return;
+}
+
+/*
+ * asynchronous clipboard data availability notification initiator
+ * host notifies guest when ready
+ */
 static void gd_owner_change(GtkClipboard *clipboard,
                             GdkEvent *event,
                             gpointer data)
@@ -160,22 +219,19 @@ static void gd_owner_change(GtkClipboard *clipboard,
     GtkDisplayState *gd = data;
     QemuClipboardSelection s = gd_find_selection(gd, clipboard);
     QemuClipboardInfo *info;
+    static uint32_t notification_serial;
 
     if (gd->cbowner[s]) {
         /* ignore notifications about our own grabs */
         return;
     }
 
-
     switch (event->owner_change.reason) {
     case GDK_OWNER_CHANGE_NEW_OWNER:
         info = qemu_clipboard_info_new(&gd->cbpeer, s);
-        if (gtk_clipboard_wait_is_text_available(clipboard)) {
-            info->types[QEMU_CLIPBOARD_TYPE_TEXT].available = true;
-        }
-
-        qemu_clipboard_update(info);
-        qemu_clipboard_info_unref(info);
+        info->serial = ++notification_serial;
+        gtk_clipboard_request_text
+            (clipboard, gd_owner_change_text_callback, info);
         break;
     default:
         qemu_clipboard_peer_release(&gd->cbpeer, s);
