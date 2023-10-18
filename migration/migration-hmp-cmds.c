@@ -281,6 +281,10 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_THREADS),
             params->compress_threads);
+        assert(params->has_compress_with_iaa);
+        monitor_printf(mon, "%s: %s\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_WITH_IAA),
+            params->compress_with_iaa ? "on" : "off");
         assert(params->has_compress_wait_thread);
         monitor_printf(mon, "%s: %s\n",
             MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD),
@@ -520,6 +524,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_COMPRESS_THREADS:
         p->has_compress_threads = true;
         visit_type_uint8(v, param, &p->compress_threads, &err);
+        break;
+    case MIGRATION_PARAMETER_COMPRESS_WITH_IAA:
+        p->has_compress_with_iaa = true;
+        visit_type_bool(v, param, &p->compress_with_iaa, &err);
         break;
     case MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD:
         p->has_compress_wait_thread = true;

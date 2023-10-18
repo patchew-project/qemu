@@ -107,6 +107,8 @@ Property migration_properties[] = {
     DEFINE_PROP_UINT8("x-compress-threads", MigrationState,
                       parameters.compress_threads,
                       DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT),
+    DEFINE_PROP_BOOL("x-compress-with-iaa", MigrationState,
+                      parameters.compress_with_iaa, false),
     DEFINE_PROP_BOOL("x-compress-wait-thread", MigrationState,
                       parameters.compress_wait_thread, true),
     DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
@@ -733,6 +735,13 @@ int migrate_compress_threads(void)
     return s->parameters.compress_threads;
 }
 
+bool migrate_compress_with_iaa(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.compress_with_iaa;
+}
+
 int migrate_compress_wait_thread(void)
 {
     MigrationState *s = migrate_get_current();
@@ -915,6 +924,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->compress_level = s->parameters.compress_level;
     params->has_compress_threads = true;
     params->compress_threads = s->parameters.compress_threads;
+    params->has_compress_with_iaa = true;
+    params->compress_with_iaa = s->parameters.compress_with_iaa;
     params->has_compress_wait_thread = true;
     params->compress_wait_thread = s->parameters.compress_wait_thread;
     params->has_decompress_threads = true;
@@ -987,6 +998,7 @@ void migrate_params_init(MigrationParameters *params)
     /* Set has_* up only for parameter checks */
     params->has_compress_level = true;
     params->has_compress_threads = true;
+    params->has_compress_with_iaa = true;
     params->has_compress_wait_thread = true;
     params->has_decompress_threads = true;
     params->has_throttle_trigger_threshold = true;
@@ -1222,6 +1234,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->decompress_threads = params->decompress_threads;
     }
 
+    if (params->has_compress_with_iaa) {
+        dest->compress_with_iaa = params->compress_with_iaa;
+    }
+
     if (params->has_throttle_trigger_threshold) {
         dest->throttle_trigger_threshold = params->throttle_trigger_threshold;
     }
@@ -1329,6 +1345,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_decompress_threads) {
         s->parameters.decompress_threads = params->decompress_threads;
+    }
+
+    if (params->has_compress_with_iaa) {
+        s->parameters.compress_with_iaa = params->compress_with_iaa;
     }
 
     if (params->has_throttle_trigger_threshold) {
