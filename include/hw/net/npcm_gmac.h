@@ -37,8 +37,6 @@ struct NPCMGMACRxDesc {
 /* RDES2 and RDES3 are buffer address pointers */
 /* Owner: 0 = software, 1 = gmac */
 #define RX_DESC_RDES0_OWNER_MASK BIT(31)
-/* Owner*/
-#define RX_DESC_RDES0_OWNER_SHIFT 31
 /* Destination Address Filter Fail */
 #define RX_DESC_RDES0_DEST_ADDR_FILT_FAIL_MASK BIT(30)
 /* Frame length*/
