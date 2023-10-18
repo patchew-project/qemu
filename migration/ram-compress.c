@@ -30,6 +30,9 @@
 #include "qemu/cutils.h"
 
 #include "ram-compress.h"
+#ifdef CONFIG_QPL
+#include "iaa-ram-compress.h"
+#endif
 
 #include "qemu/error-report.h"
 #include "migration.h"
@@ -484,10 +487,11 @@ int ram_compress_save_setup(void)
     if (!migrate_compress()) {
         return 0;
     }
+#ifdef CONFIG_QPL
     if (migrate_compress_with_iaa()) {
-        /* Implement in next patch */
-        return 0;
+        return iaa_compress_init(false);
     }
+#endif
     return compress_threads_save_setup();
 }
 
@@ -496,10 +500,12 @@ void ram_compress_save_cleanup(void)
     if (!migrate_compress()) {
         return;
     }
+#ifdef CONFIG_QPL
     if (migrate_compress_with_iaa()) {
-        /* Implement in next patch */
+        iaa_compress_deinit();
         return;
     }
+#endif
     compress_threads_save_cleanup();
 }
 
@@ -516,9 +522,11 @@ int ram_compress_load_setup(QEMUFile *f)
     if (!migrate_compress()) {
         return 0;
     }
+#ifdef CONFIG_QPL
     if (migrate_compress_with_iaa()) {
-        /* Implement in next patch */
+        return iaa_compress_init(true);
     }
+#endif
     return compress_threads_load_setup(f);
 }
 
@@ -527,8 +535,11 @@ void ram_compress_load_cleanup(void)
     if (!migrate_compress()) {
         return;
     }
+#ifdef CONFIG_QPL
     if (migrate_compress_with_iaa()) {
-        /* Implement in next patch */
+        iaa_compress_deinit();
+        return;
     }
+#endif
     compress_threads_load_cleanup();
 }
