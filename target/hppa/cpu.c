@@ -253,7 +253,6 @@ static const TypeInfo hppa_cpu_type_info = {
     .class_init = hppa_cpu_class_init,
 };
 
-#ifdef TARGET_HPPA64
 static void hppa64_cpu_initfn(Object *obj)
 {
     HPPACPU *cpu = HPPA_CPU(obj);
@@ -265,14 +264,11 @@ static const TypeInfo hppa64_cpu_type_info = {
     .parent = TYPE_HPPA_CPU,
     .instance_init = hppa64_cpu_initfn,
 };
-#endif
 
 static void hppa_cpu_register_types(void)
 {
     type_register_static(&hppa_cpu_type_info);
-#ifdef TARGET_HPPA64
     type_register_static(&hppa64_cpu_type_info);
-#endif
 }
 
 type_init(hppa_cpu_register_types)
