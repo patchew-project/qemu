@@ -211,6 +211,12 @@ void pc_system_firmware_init(PCMachineState *pcms,
         x86_bios_rom_init(MACHINE(pcms), "bios.bin", rom_memory, true);
         return;
     }
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo) {
+        /* SPI flash and BIOS will be emulated by MTD controller */
+        pc_system_flash_cleanup_unused(pcms);
+        return;
+    }
 
     /* Map legacy -drive if=pflash to machine properties */
     for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
