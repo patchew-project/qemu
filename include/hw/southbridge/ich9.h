@@ -7,6 +7,8 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_device.h"
 #include "hw/rtc/mc146818rtc.h"
+#include "hw/sysbus.h"
+#include "hw/southbridge/ich9_spi.h"
 #include "exec/memory.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
@@ -34,6 +36,7 @@ struct ICH9LPCState {
     MC146818RtcState rtc;
     APMState apm;
     ICH9LPCPMRegs pm;
+    ICH9SPIState spi;
     uint32_t sci_level; /* track sci level */
     uint8_t sci_gsi;
 
@@ -97,6 +100,7 @@ struct ICH9LPCState {
 #define ICH9_CC_GCS                             0x3410
 #define ICH9_CC_GCS_DEFAULT                     0x00000020
 #define ICH9_CC_GCS_NO_REBOOT                   (1 << 5)
+#define ICH9_LPC_RCBA_SPIBAR                    0x3800
 
 /* D28:F[0-5] */
 #define ICH9_PCIE_DEV                           28

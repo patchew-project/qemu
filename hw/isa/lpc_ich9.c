@@ -41,6 +41,7 @@
 #include "hw/isa/apm.h"
 #include "hw/pci/pci.h"
 #include "hw/southbridge/ich9.h"
+#include "hw/southbridge/ich9_spi.h"
 #include "hw/i386/pc.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
@@ -751,6 +752,7 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     pci_bus_set_route_irq_fn(pci_bus, ich9_route_intx_pin_to_irq);
 
     ich9_lpc_pm_init(lpc);
+    ich9_spi_init(PCI_DEVICE(lpc), &lpc->spi, &lpc->rcrb_mem);
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)
@@ -803,6 +805,7 @@ static const VMStateDescription vmstate_ich9_lpc = {
         VMSTATE_PCI_DEVICE(d, ICH9LPCState),
         VMSTATE_STRUCT(apm, ICH9LPCState, 0, vmstate_apm, APMState),
         VMSTATE_STRUCT(pm, ICH9LPCState, 0, vmstate_ich9_pm, ICH9LPCPMRegs),
+        VMSTATE_STRUCT(spi, ICH9LPCState, 0, vmstate_ich9_spi, ICH9SPIState),
         VMSTATE_UINT8_ARRAY(chip_config, ICH9LPCState, ICH9_CC_SIZE),
         VMSTATE_UINT32(sci_level, ICH9LPCState),
         VMSTATE_END_OF_LIST()

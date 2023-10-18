@@ -81,3 +81,5 @@ config LPC_ICH9
     select ISA_BUS
     select ACPI_ICH9
     select MC146818RTC
+    select SSI
+    select SSI_M25P80
