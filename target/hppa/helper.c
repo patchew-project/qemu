@@ -124,13 +124,17 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     target_ureg psw = cpu_hppa_get_psw(env);
     target_ureg psw_cb;
     char psw_c[20];
-    int i;
+    int i, w;
+    uint64_t m;
+
+    w = cpu->is_pa20 ? 16 : 8;
+    m = cpu->is_pa20 ? UINT64_MAX : UINT32_MAX;
 
     qemu_fprintf(f, "IA_F " TARGET_FMT_lx " IA_B " TARGET_FMT_lx
-                 " IIR " TREG_FMT_lx  "\n",
+                 " IIR %0*" PRIx64 "\n",
                  hppa_form_gva_psw(psw, env->iasq_f, env->iaoq_f),
                  hppa_form_gva_psw(psw, env->iasq_b, env->iaoq_b),
-                 env->cr[CR_IIR]);
+                 w, m & env->cr[CR_IIR]);
 
     psw_c[0]  = (psw & PSW_W ? 'W' : '-');
     psw_c[1]  = (psw & PSW_E ? 'E' : '-');
@@ -151,13 +155,15 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     psw_c[16] = (psw & PSW_D ? 'D' : '-');
     psw_c[17] = (psw & PSW_I ? 'I' : '-');
     psw_c[18] = '\0';
-    psw_cb = ((env->psw_cb >> 4) & 0x01111111) | (env->psw_cb_msb << 28);
+    psw_cb = ((env->psw_cb >> 4) & ((target_ureg)-1 / 0xf))
+           | (env->psw_cb_msb << (TARGET_REGISTER_BITS - 4));
 
-    qemu_fprintf(f, "PSW  " TREG_FMT_lx " CB   " TREG_FMT_lx " %s\n",
-                 psw, psw_cb, psw_c);
+    qemu_fprintf(f, "PSW  %0*" PRIx64 " CB   %0*" PRIx64 " %s\n",
+                 w, m & psw, w, m & psw_cb, psw_c);
 
     for (i = 0; i < 32; i++) {
-        qemu_fprintf(f, "GR%02d " TREG_FMT_lx "%c", i, env->gr[i],
+        qemu_fprintf(f, "GR%02d %0*" PRIx64 "%c",
+                     i, w, m & env->gr[i],
                      (i & 3) == 3 ? '\n' : ' ');
     }
 #ifndef CONFIG_USER_ONLY
