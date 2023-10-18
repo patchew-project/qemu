@@ -814,7 +814,7 @@ static bool cond_need_cb(int c)
 /* Need extensions from TCGv_i32 to TCGv_reg. */
 static bool cond_need_ext(DisasContext *ctx, bool d)
 {
-    return TARGET_REGISTER_BITS == 64 && !d;
+    return TARGET_REGISTER_BITS == 64 && !(ctx->is_pa20 && d);
 }
 
 /*
@@ -822,8 +822,8 @@ static bool cond_need_ext(DisasContext *ctx, bool d)
  * the Parisc 1.1 Architecture Reference Manual for details.
  */
 
-static DisasCond do_cond(unsigned cf, TCGv_reg res,
-                         TCGv_reg cb_msb, TCGv_reg sv)
+static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
+                         TCGv_reg res, TCGv_reg cb_msb, TCGv_reg sv)
 {
     DisasCond cond;
     TCGv_reg tmp;
@@ -833,11 +833,19 @@ static DisasCond do_cond(unsigned cf, TCGv_reg res,
         cond = cond_make_f();
         break;
     case 1: /* = / <>        (Z / !Z) */
+        if (cond_need_ext(ctx, d)) {
+            tmp = tcg_temp_new();
+            tcg_gen_ext32u_reg(tmp, res);
+            res = tmp;
+        }
         cond = cond_make_0(TCG_COND_EQ, res);
         break;
     case 2: /* < / >=        (N ^ V / !(N ^ V) */
         tmp = tcg_temp_new();
         tcg_gen_xor_reg(tmp, res, sv);
+        if (cond_need_ext(ctx, d)) {
+            tcg_gen_ext32s_reg(tmp, tmp);
+        }
         cond = cond_make_0_tmp(TCG_COND_LT, tmp);
         break;
     case 3: /* <= / >        (N ^ V) | Z / !((N ^ V) | Z) */
@@ -852,20 +860,35 @@ static DisasCond do_cond(unsigned cf, TCGv_reg res,
          */
         tmp = tcg_temp_new();
         tcg_gen_eqv_reg(tmp, res, sv);
-        tcg_gen_sari_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
-        tcg_gen_and_reg(tmp, tmp, res);
+        if (cond_need_ext(ctx, d)) {
+            tcg_gen_sextract_reg(tmp, tmp, 31, 1);
+            tcg_gen_and_reg(tmp, tmp, res);
+            tcg_gen_ext32u_reg(tmp, tmp);
+        } else {
+            tcg_gen_sari_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
+            tcg_gen_and_reg(tmp, tmp, res);
+        }
         cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
         break;
     case 4: /* NUV / UV      (!C / C) */
+        /* Only bit 0 of cb_msb is ever set. */
         cond = cond_make_0(TCG_COND_EQ, cb_msb);
         break;
     case 5: /* ZNV / VNZ     (!C | Z / C & !Z) */
         tmp = tcg_temp_new();
         tcg_gen_neg_reg(tmp, cb_msb);
         tcg_gen_and_reg(tmp, tmp, res);
+        if (cond_need_ext(ctx, d)) {
+            tcg_gen_ext32u_reg(tmp, tmp);
+        }
         cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
         break;
     case 6: /* SV / NSV      (V / !V) */
+        if (cond_need_ext(ctx, d)) {
+            tmp = tcg_temp_new();
+            tcg_gen_ext32s_reg(tmp, sv);
+            sv = tmp;
+        }
         cond = cond_make_0(TCG_COND_LT, sv);
         break;
     case 7: /* OD / EV */
@@ -887,10 +910,11 @@ static DisasCond do_cond(unsigned cf, TCGv_reg res,
    can use the inputs directly.  This can allow other computation to be
    deleted as unused.  */
 
-static DisasCond do_sub_cond(unsigned cf, TCGv_reg res,
+static DisasCond do_sub_cond(DisasContext *ctx, unsigned cf, TCGv_reg res,
                              TCGv_reg in1, TCGv_reg in2, TCGv_reg sv)
 {
     DisasCond cond;
+    bool d = false;
 
     switch (cf >> 1) {
     case 1: /* = / <> */
@@ -909,7 +933,7 @@ static DisasCond do_sub_cond(unsigned cf, TCGv_reg res,
         cond = cond_make(TCG_COND_LEU, in1, in2);
         break;
     default:
-        return do_cond(cf, res, NULL, sv);
+        return do_cond(ctx, cf, d, res, NULL, sv);
     }
     if (cf & 1) {
         cond.c = tcg_invert_cond(cond.c);
@@ -927,8 +951,10 @@ static DisasCond do_sub_cond(unsigned cf, TCGv_reg res,
  * how cases c={2,3} are treated.
  */
 
-static DisasCond do_log_cond(unsigned cf, TCGv_reg res)
+static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, TCGv_reg res)
 {
+    bool d = false;
+
     switch (cf) {
     case 0:  /* never */
     case 9:  /* undef, C */
@@ -957,7 +983,7 @@ static DisasCond do_log_cond(unsigned cf, TCGv_reg res)
 
     case 14: /* OD */
     case 15: /* EV */
-        return do_cond(cf, res, NULL, NULL);
+        return do_cond(ctx, cf, d, res, NULL, NULL);
 
     default:
         g_assert_not_reached();
@@ -966,7 +992,7 @@ static DisasCond do_log_cond(unsigned cf, TCGv_reg res)
 
 /* Similar, but for shift/extract/deposit conditions.  */
 
-static DisasCond do_sed_cond(unsigned orig, TCGv_reg res)
+static DisasCond do_sed_cond(DisasContext *ctx, unsigned orig, TCGv_reg res)
 {
     unsigned c, f;
 
@@ -979,7 +1005,7 @@ static DisasCond do_sed_cond(unsigned orig, TCGv_reg res)
     }
     f = (orig & 4) / 4;
 
-    return do_log_cond(c * 2 + f, res);
+    return do_log_cond(ctx, c * 2 + f, res);
 }
 
 /* Similar, but for unit conditions.  */
@@ -1151,7 +1177,7 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     }
 
     /* Emit any conditional trap before any writeback.  */
-    cond = do_cond(cf, dest, cb_cond, sv);
+    cond = do_cond(ctx, cf, d, dest, cb_cond, sv);
     if (is_tc) {
         tmp = tcg_temp_new();
         tcg_gen_setcond_reg(cond.c, tmp, cond.a0, cond.a1);
@@ -1241,9 +1267,9 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 
     /* Compute the condition.  We cannot use the special case for borrow.  */
     if (!is_b) {
-        cond = do_sub_cond(cf, dest, in1, in2, sv);
+        cond = do_sub_cond(ctx, cf, dest, in1, in2, sv);
     } else {
-        cond = do_cond(cf, dest, get_carry(ctx, d, cb, cb_msb), sv);
+        cond = do_cond(ctx, cf, d, dest, get_carry(ctx, d, cb, cb_msb), sv);
     }
 
     /* Emit any conditional trap before any writeback.  */
@@ -1306,7 +1332,7 @@ static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     }
 
     /* Form the condition for the compare.  */
-    cond = do_sub_cond(cf, dest, in1, in2, sv);
+    cond = do_sub_cond(ctx, cf, dest, in1, in2, sv);
 
     /* Clear.  */
     tcg_gen_movi_reg(dest, 0);
@@ -1330,7 +1356,7 @@ static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (cf) {
-        ctx->null_cond = do_log_cond(cf, dest);
+        ctx->null_cond = do_log_cond(ctx, cf, dest);
     }
 }
 
@@ -2796,7 +2822,7 @@ static bool trans_ds(DisasContext *ctx, arg_rrr_cf *a)
             /* ??? The lshift is supposed to contribute to overflow.  */
             sv = do_add_sv(ctx, dest, add1, add2);
         }
-        ctx->null_cond = do_cond(a->cf, dest, cout, sv);
+        ctx->null_cond = do_cond(ctx, a->cf, false, dest, cout, sv);
     }
 
     return nullify_end(ctx);
@@ -3013,7 +3039,7 @@ static bool do_cmpb(DisasContext *ctx, unsigned r, TCGv_reg in1,
         sv = do_sub_sv(ctx, dest, in1, in2);
     }
 
-    cond = do_sub_cond(c * 2 + f, dest, in1, in2, sv);
+    cond = do_sub_cond(ctx, c * 2 + f, dest, in1, in2, sv);
     return do_cbranch(ctx, disp, n, &cond);
 }
 
@@ -3057,7 +3083,7 @@ static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
         sv = do_add_sv(ctx, dest, in1, in2);
     }
 
-    cond = do_cond(c * 2 + f, dest, cb_cond, sv);
+    cond = do_cond(ctx, c * 2 + f, d, dest, cb_cond, sv);
     save_gpr(ctx, r, dest);
     return do_cbranch(ctx, disp, n, &cond);
 }
@@ -3128,7 +3154,7 @@ static bool trans_movb(DisasContext *ctx, arg_movb *a)
         tcg_gen_mov_reg(dest, cpu_gr[a->r1]);
     }
 
-    cond = do_sed_cond(a->c, dest);
+    cond = do_sed_cond(ctx, a->c, dest);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
@@ -3142,7 +3168,7 @@ static bool trans_movbi(DisasContext *ctx, arg_movbi *a)
     dest = dest_gpr(ctx, a->r);
     tcg_gen_movi_reg(dest, a->i);
 
-    cond = do_sed_cond(a->c, dest);
+    cond = do_sed_cond(ctx, a->c, dest);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
@@ -3180,7 +3206,7 @@ static bool trans_shrpw_sar(DisasContext *ctx, arg_shrpw_sar *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, dest);
     }
     return nullify_end(ctx);
 }
@@ -3216,7 +3242,7 @@ static bool trans_shrpw_imm(DisasContext *ctx, arg_shrpw_imm *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, dest);
     }
     return nullify_end(ctx);
 }
@@ -3250,7 +3276,7 @@ static bool trans_extrw_sar(DisasContext *ctx, arg_extrw_sar *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, dest);
     }
     return nullify_end(ctx);
 }
@@ -3277,7 +3303,7 @@ static bool trans_extrw_imm(DisasContext *ctx, arg_extrw_imm *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, dest);
     }
     return nullify_end(ctx);
 }
@@ -3314,7 +3340,7 @@ static bool trans_depwi_imm(DisasContext *ctx, arg_depwi_imm *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, dest);
     }
     return nullify_end(ctx);
 }
@@ -3344,7 +3370,7 @@ static bool trans_depw_imm(DisasContext *ctx, arg_depw_imm *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(a->c, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, dest);
     }
     return nullify_end(ctx);
 }
@@ -3381,7 +3407,7 @@ static bool do_depw_sar(DisasContext *ctx, unsigned rt, unsigned c,
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (c) {
-        ctx->null_cond = do_sed_cond(c, dest);
+        ctx->null_cond = do_sed_cond(ctx, c, dest);
     }
     return nullify_end(ctx);
 }
