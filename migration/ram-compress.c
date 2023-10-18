@@ -370,10 +370,11 @@ int wait_for_decompress_done(void)
         return 0;
     }
 
+#ifdef CONFIG_QPL
     if (migrate_compress_with_iaa()) {
-        /* Implement in next patch */
-        return 0;
+        return flush_iaa_jobs(true, NULL);
     }
+#endif
 
     thread_count = migrate_decompress_threads();
     qemu_mutex_lock(&decomp_done_lock);
@@ -511,9 +512,12 @@ void ram_compress_save_cleanup(void)
 
 void ram_decompress_data(QEMUFile *f, void *host, int len)
 {
+#ifdef CONFIG_QPL
     if (migrate_compress_with_iaa()) {
-        /* Implement in next patch */
+        decompress_data_with_iaa(f, host, len);
+        return;
     }
+#endif
     decompress_data_with_multi_threads(f, host, len);
 }
 

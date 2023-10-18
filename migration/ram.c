@@ -70,6 +70,9 @@
 #include "qemu/userfaultfd.h"
 #endif /* defined(__linux__) */
 
+#ifdef CONFIG_QPL
+#include "iaa-ram-compress.h"
+#endif
 /***********************************************************/
 /* ram save/restore */
 
@@ -1345,16 +1348,59 @@ static int send_queued_data(CompressParam *param)
     return len;
 }
 
+#ifdef CONFIG_QPL
+static int send_iaa_compressed_page(RAMBlock *block, ram_addr_t offset,
+                                    uint8_t *data, uint32_t data_len,
+                                    CompressResult result)
+{
+    PageSearchStatus *pss = &ram_state->pss[RAM_CHANNEL_PRECOPY];
+    MigrationState *ms = migrate_get_current();
+    QEMUFile *file = ms->to_dst_file;
+    int len = 0;
+
+    assert(block == pss->last_sent_block);
+    if (result == RES_ZEROPAGE) {
+        len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
+        qemu_put_byte(file, 0);
+        len += 1;
+        ram_release_page(block->idstr, offset);
+        stat64_add(&mig_stats.zero_pages, 1);
+    } else if (result == RES_COMPRESS) {
+        assert(data != NULL);
+        assert((data_len > 0) && (data_len < qemu_target_page_size()));
+        len += save_page_header(pss, file, block,
+                                offset | RAM_SAVE_FLAG_COMPRESS_PAGE);
+        qemu_put_be32(file, data_len);
+        qemu_put_buffer(file, data, data_len);
+        len += data_len;
+        /* 8 means a header with RAM_SAVE_FLAG_CONTINUE. */
+        compression_counters.compressed_size += len - 8;
+        compression_counters.pages++;
+    } else if (result == RES_NONE) {
+        assert((data != NULL) && (data_len == TARGET_PAGE_SIZE));
+        len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_PAGE);
+        qemu_put_buffer(file, data, data_len);
+        len += data_len;
+        stat64_add(&mig_stats.normal_pages, 1);
+    } else {
+        abort();
+    }
+    ram_transferred_add(len);
+    return len;
+}
+#endif
+
 static void ram_flush_compressed_data(RAMState *rs)
 {
     if (!save_page_use_compression(rs)) {
         return;
     }
+#ifdef CONFIG_QPL
     if (migrate_compress_with_iaa()) {
-        /* Implement in next patch */
+        flush_iaa_jobs(true, send_iaa_compressed_page);
         return;
     }
-
+#endif
     flush_compressed_data(send_queued_data);
 }
 
@@ -2106,11 +2152,11 @@ static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
         ram_flush_compressed_data(rs);
         return false;
     }
-
+#ifdef CONFIG_QPL
     if (migrate_compress_with_iaa()) {
-        /* Implement in next patch */
-        return true;
+        return compress_page_with_iaa(block, offset, send_iaa_compressed_page);
     }
+#endif
     if (compress_page_with_multi_thread(block, offset, send_queued_data) > 0) {
         return true;
     }
