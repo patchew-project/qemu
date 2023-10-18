@@ -34,6 +34,7 @@
 #include "qemu/log.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
+    KVM_CAP_INFO(VCPU_EVENTS),
     KVM_CAP_LAST_INFO
 };
 
@@ -756,10 +757,6 @@ int kvm_put_vcpu_events(ARMCPU *cpu)
     struct kvm_vcpu_events events;
     int ret;
 
-    if (!kvm_has_vcpu_events()) {
-        return 0;
-    }
-
     memset(&events, 0, sizeof(events));
     events.exception.serror_pending = env->serror.pending;
 
@@ -784,10 +781,6 @@ int kvm_get_vcpu_events(ARMCPU *cpu)
     CPUARMState *env = &cpu->env;
     struct kvm_vcpu_events events;
     int ret;
-
-    if (!kvm_has_vcpu_events()) {
-        return 0;
-    }
 
     memset(&events, 0, sizeof(events));
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_VCPU_EVENTS, &events);
@@ -927,7 +920,6 @@ static int kvm_arm_handle_dabt_nisv(CPUState *cs, uint64_t esr_iss,
          * synchronization can be exceptionally skipped.
          */
         events.exception.ext_dabt_pending = 1;
-        /* KVM_CAP_ARM_INJECT_EXT_DABT implies KVM_CAP_VCPU_EVENTS */
         if (!kvm_vcpu_ioctl(cs, KVM_SET_VCPU_EVENTS, &events)) {
             env->ext_dabt_raised = 1;
             return 0;
