@@ -501,6 +501,7 @@ static void net_l2tpv3_cleanup(NetClientState *nc)
     l2tpv3_write_poll(s, false);
     if (s->fd >= 0) {
         close(s->fd);
+        s->fd = -1;
     }
     destroy_vector(s->msgvec, MAX_L2TPV3_MSGCNT, IOVSIZE);
     g_free(s->vec);
