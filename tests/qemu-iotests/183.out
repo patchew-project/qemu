@@ -29,6 +29,7 @@ read 65536/65536 bytes at offset 0
 { 'execute': 'migrate',
        'arguments': { 'uri': 'unix:SOCK_DIR/migrate', 'blk': true } }
 warning: parameter 'blk' is deprecated; use blockdev-mirror with NBD instead
+warning: block migration is deprecated; use blockdev-mirror with NBD instead
 {"return": {}}
 { 'execute': 'query-status' }
 {"return": {"status": "postmigrate", "singlestep": false, "running": false}}
