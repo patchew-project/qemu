@@ -32,6 +32,7 @@
 
 static void xen_init_pv(MachineState *machine)
 {
+    BusState *xen_bus;
     int i;
 
     setup_xen_backend_ops();
@@ -62,14 +63,16 @@ static void xen_init_pv(MachineState *machine)
         vga_interface_created = true;
     }
 
+    xen_bus = xen_bus_init();
+
     /* configure nics */
     for (i = 0; i < nb_nics; i++) {
-        if (!nd_table[i].model || 0 != strcmp(nd_table[i].model, "xen"))
-            continue;
-        xen_config_dev_nic(nd_table + i);
+        if (!nd_table[i].model ||
+            g_str_equal(nd_table[i].model, "xen") ||
+            g_str_equal(nd_table[i].model, "xen-net-device")) {
+                xen_config_dev_nic(xen_bus, nd_table + i);
+            }
     }
-
-    xen_bus_init();
 
     /* config cleanup hook */
     atexit(xen_config_cleanup);
