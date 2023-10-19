@@ -38,6 +38,7 @@
 #include "qapi/qapi-events-migration.h"
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
+#include "migration/register.h"
 #include "standard-headers/linux/ethtool.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
@@ -3808,9 +3809,27 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     virtio_cleanup(vdev);
 }
 
+static int virtio_net_load_setup(QEMUFile *f, void *opaque)
+{
+    VirtIONet *n = opaque;
+    NetClientState *nc = qemu_get_subqueue(n->nic, 0);
+
+    if (nc->peer->info->load_setup) {
+        return nc->peer->info->load_setup(nc->peer, n->nic);
+    }
+
+    return 0;
+}
+
+static const SaveVMHandlers savevm_virtio_net_handlers = {
+    .load_setup = virtio_net_load_setup,
+};
+
+
 static void virtio_net_instance_init(Object *obj)
 {
     VirtIONet *n = VIRTIO_NET(obj);
+    g_autoptr(GString) id = g_string_new(NULL);
 
     /*
      * The default config_size is sizeof(struct virtio_net_config).
@@ -3822,6 +3841,10 @@ static void virtio_net_instance_init(Object *obj)
                                   DEVICE(n));
 
     ebpf_rss_init(&n->ebpf_rss);
+
+    g_string_printf(id, "%p", n);
+    register_savevm_live(id->str, VMSTATE_INSTANCE_ID_ANY, 1,
+                         &savevm_virtio_net_handlers, n);
 }
 
 static int virtio_net_pre_save(void *opaque)
