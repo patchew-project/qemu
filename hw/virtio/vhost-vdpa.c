@@ -802,7 +802,7 @@ static int vhost_vdpa_set_features(struct vhost_dev *dev,
         return 0;
     }
 
-    if (v->shadow_vqs_enabled) {
+    if (v->shared->shadow_data) {
         if ((v->acked_features ^ features) == BIT_ULL(VHOST_F_LOG_ALL)) {
             /*
              * QEMU is just trying to enable or disable logging. SVQ handles
@@ -1353,7 +1353,7 @@ static int vhost_vdpa_set_log_base(struct vhost_dev *dev, uint64_t base,
                                      struct vhost_log *log)
 {
     struct vhost_vdpa *v = dev->opaque;
-    if (v->shadow_vqs_enabled || !vhost_vdpa_first_dev(dev)) {
+    if (v->shared->shadow_data || !vhost_vdpa_first_dev(dev)) {
         return 0;
     }
 
