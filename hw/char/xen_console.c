@@ -33,6 +33,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/xen/interface/io/console.h"
 #include "hw/xen/interface/io/xs_wire.h"
+#include "hw/i386/kvm/xen_primary_console.h"
 #include "trace.h"
 
 struct buffer {
@@ -335,14 +336,19 @@ static char *xen_console_get_name(XenDevice *xendev, Error **errp)
     if (con->dev == -1) {
         XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
         char fe_path[XENSTORE_ABS_PATH_MAX + 1];
+        int idx = (xen_mode == XEN_EMULATE) ? 0 : 1;
         char *value;
-        int idx = 1;
 
         /* Theoretically we could go up to INT_MAX here but that's overkill */
         while (idx < 100) {
-            snprintf(fe_path, sizeof(fe_path),
-                     "/local/domain/%u/device/console/%u",
-                     xendev->frontend_id, idx);
+            if (!idx) {
+                snprintf(fe_path, sizeof(fe_path),
+                         "/local/domain/%u/console", xendev->frontend_id);
+            } else {
+                snprintf(fe_path, sizeof(fe_path),
+                         "/local/domain/%u/device/console/%u",
+                         xendev->frontend_id, idx);
+            }
             value = qemu_xen_xs_read(xenbus->xsh, XBT_NULL, fe_path, NULL);
             if (!value) {
                 if (errno == ENOENT) {
@@ -397,11 +403,15 @@ static void xen_console_realize(XenDevice *xendev, Error **errp)
      * be mapped directly as foreignmem (not a grant ref), and the guest port
      * was allocated *for* the guest by the toolstack. The guest gets these
      * through HVMOP_get_param and can use the console long before it's got
-     * XenStore up and running. We cannot create those for a Xen guest.
+     * XenStore up and running. We cannot create those for a true Xen guest,
+     * but we can for Xen emulation.
      */
     if (!con->dev) {
-        if (xen_device_frontend_scanf(xendev, "ring-ref", "%u", &u) != 1 ||
-            xen_device_frontend_scanf(xendev, "port", "%u", &u) != 1) {
+        if (xen_mode == XEN_EMULATE) {
+            xen_primary_console_create();
+        } else if (xen_device_frontend_scanf(xendev, "ring-ref", "%u", &u)
+                   != 1 ||
+                   xen_device_frontend_scanf(xendev, "port", "%u", &u) != 1) {
             error_setg(errp, "cannot create primary Xen console");
             return;
         }
@@ -414,8 +424,8 @@ static void xen_console_realize(XenDevice *xendev, Error **errp)
         xen_device_frontend_printf(xendev, "tty", "%s", cs->filename + 4);
     }
 
-    /* No normal PV driver initialization for the primary console */
-    if (!con->dev) {
+    /* No normal PV driver initialization for the primary console under Xen */
+    if (!con->dev && xen_mode != XEN_EMULATE) {
         xen_console_connect(xendev, errp);
     }
 }
