@@ -133,6 +133,13 @@ static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
 {
     assert(n >= 0 && n < dev->num_mmio);
 
+    if (!DEVICE(dev)->realized) {
+        error_report("sysbus_mmio_map(type:%s, index:%d, addr:0x%"HWADDR_PRIx","
+                     " prio:%d) but object is not realized",
+                     object_get_typename(OBJECT(dev)), n, addr, priority);
+        abort();
+    }
+
     if (dev->mmio[n].addr == addr) {
         /* ??? region already mapped here.  */
         return;
