@@ -21,6 +21,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/ctype.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler)
@@ -162,6 +163,12 @@ void qbus_init(void *bus, size_t size, const char *typename,
 BusState *qbus_new(const char *typename, DeviceState *parent, const char *name)
 {
     BusState *bus;
+
+    if (parent->realized) {
+        error_report("qbus_new(type:%s parent:%s, name:%s) but parent realized",
+                     typename, object_get_typename(OBJECT(parent)), name);
+        abort();
+    }
 
     bus = BUS(object_new(typename));
     qbus_init_internal(bus, parent, name);
