@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "exec/address-spaces.h"
@@ -192,6 +193,11 @@ void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory)
     int n;
 
     assert(dev->num_mmio < QDEV_MAX_MMIO);
+    if (DEVICE(dev)->realized) {
+        error_report("sysbus_init_mmio(type:%s) but object is realized",
+                     object_get_typename(OBJECT(dev)));
+        abort();
+    }
     n = dev->num_mmio++;
     dev->mmio[n].addr = -1;
     dev->mmio[n].memory = memory;
