@@ -42,6 +42,7 @@ typedef struct NICConf {
 
 /* Net clients */
 
+struct NICState;
 typedef void (NetPoll)(NetClientState *, bool enable);
 typedef bool (NetCanReceive)(NetClientState *);
 typedef int (NetStart)(NetClientState *);
@@ -69,6 +70,8 @@ typedef void (SocketReadStateFinalize)(SocketReadState *rs);
 typedef void (NetAnnounce)(NetClientState *);
 typedef bool (SetSteeringEBPF)(NetClientState *, int);
 typedef bool (NetCheckPeerType)(NetClientState *, ObjectClass *, Error **);
+/* This can be called before start & pair, so get also the peer */
+typedef int (NetMigrationLoadSetup)(NetClientState *, struct NICState *);
 
 typedef struct NetClientInfo {
     NetClientDriver type;
@@ -98,6 +101,7 @@ typedef struct NetClientInfo {
     NetAnnounce *announce;
     SetSteeringEBPF *set_steering_ebpf;
     NetCheckPeerType *check_peer_type;
+    NetMigrationLoadSetup *load_setup;
 } NetClientInfo;
 
 struct NetClientState {

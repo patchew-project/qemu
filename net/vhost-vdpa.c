@@ -396,6 +396,15 @@ static void vhost_vdpa_net_client_stop(NetClientState *nc)
     }
 }
 
+static int vhost_vdpa_net_load_setup(NetClientState *nc, NICState *nic)
+{
+    VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
+    VirtIONet *n = qemu_get_nic_opaque(&nic->ncs[0]);
+
+    vhost_vdpa_load_setup(s->vhost_vdpa.shared, n->parent_obj.dma_as);
+    return 0;
+}
+
 static NetClientInfo net_vhost_vdpa_info = {
         .type = NET_CLIENT_DRIVER_VHOST_VDPA,
         .size = sizeof(VhostVDPAState),
@@ -407,6 +416,7 @@ static NetClientInfo net_vhost_vdpa_info = {
         .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
         .has_ufo = vhost_vdpa_has_ufo,
         .check_peer_type = vhost_vdpa_check_peer_type,
+        .load_setup = vhost_vdpa_net_load_setup,
 };
 
 static int64_t vhost_vdpa_get_vring_group(int device_fd, unsigned vq_index,
