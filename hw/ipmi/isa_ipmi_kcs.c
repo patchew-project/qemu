@@ -132,7 +132,7 @@ static void isa_ipmi_kcs_init(Object *obj)
      * IPMI device, so receive it, but transmit a different
      * version.
      */
-    vmstate_register(NULL, 0, &vmstate_ISAIPMIKCSDevice, iik);
+    vmstate_register_any(NULL, &vmstate_ISAIPMIKCSDevice, iik);
 }
 
 static void *isa_ipmi_kcs_get_backend_data(IPMIInterface *ii)
