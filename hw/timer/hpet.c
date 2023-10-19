@@ -196,8 +196,11 @@ static void update_irq(struct HPETTimer *timer, int set)
         /* if LegacyReplacementRoute bit is set, HPET specification requires
          * timer0 be routed to IRQ0 in NON-APIC or IRQ2 in the I/O APIC,
          * timer1 be routed to IRQ8 in NON-APIC or IRQ8 in the I/O APIC.
+         *
+         * There is a special case in the x86 gsi_handler() which converts
+         * IRQ2 into IRQ0 for the i8259 PIC and makes this work correctly.
          */
-        route = (timer->tn == 0) ? 0 : RTC_ISA_IRQ;
+        route = (timer->tn == 0) ? 2 : RTC_ISA_IRQ;
     } else {
         route = timer_int_route(timer);
     }
