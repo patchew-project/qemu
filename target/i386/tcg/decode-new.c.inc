@@ -1823,6 +1823,7 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     }
 
     memset(&decode, 0, sizeof(decode));
+    decode.cc_op = -1;
     decode.b = b;
     if (!decode_insn(s, env, decode_func, &decode)) {
         goto illegal_op;
@@ -1943,6 +1944,36 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         decode.e.gen(s, env, &decode);
         gen_writeback(s, &decode, 0, s->T0);
     }
+
+    /*
+     * Write back flags after last memory access.  Some newer ALU instructions, as
+     * well as SSE instructions, write flags in the gen_* function, but that can
+     * cause incorrect tracking of CC_OP for instructions that write to both memory
+     * and flags.
+     */
+    if (decode.cc_op != -1) {
+        if (decode.cc_dst) {
+            tcg_gen_mov_tl(cpu_cc_dst, decode.cc_dst);
+        }
+        if (decode.cc_src) {
+            tcg_gen_mov_tl(cpu_cc_src, decode.cc_src);
+        }
+        if (decode.cc_src2) {
+            tcg_gen_mov_tl(cpu_cc_src2, decode.cc_src2);
+        }
+        if (decode.cc_op == CC_OP_DYNAMIC) {
+            tcg_gen_mov_i32(cpu_cc_op, decode.cc_op_dynamic);
+        } else {
+            assert(!decode.cc_op_dynamic);
+        }
+        set_cc_op(s, decode.cc_op);
+    } else {
+        assert(!decode.cc_dst);
+        assert(!decode.cc_src);
+        assert(!decode.cc_src2);
+        assert(!decode.cc_op_dynamic);
+    }
+
     return;
  gp_fault:
     gen_exception_gpf(s);
