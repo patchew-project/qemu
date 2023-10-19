@@ -112,17 +112,19 @@ static int add_semihosting_arg(void *opaque,
 /* Use strings passed via -kernel/-append to initialize semihosting.argv[] */
 void semihosting_arg_fallback(const char *file, const char *cmd)
 {
-    char *cmd_token;
+    char *cmd_token, *cmd_dup;
 
     /* argv[0] */
     add_semihosting_arg(&semihosting, "arg", file, NULL);
 
     /* split -append and initialize argv[1..n] */
-    cmd_token = strtok(g_strdup(cmd), " ");
+    cmd_dup = g_strdup(cmd);
+    cmd_token = strtok(cmd_dup, " ");
     while (cmd_token) {
         add_semihosting_arg(&semihosting, "arg", cmd_token, NULL);
         cmd_token = strtok(NULL, " ");
     }
+    g_free(cmd_dup);
 }
 
 void qemu_semihosting_enable(void)
