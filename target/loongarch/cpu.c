@@ -366,6 +366,10 @@ static void loongarch_la464_initfn(Object *obj)
     CPULoongArchState *env = &cpu->env;
     int i;
 
+    env->features = 0;
+    set_feature(env, CPU_FEATURE_LSX);
+    set_feature(env, CPU_FEATURE_LASX);
+
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }

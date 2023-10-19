@@ -295,6 +295,8 @@ typedef struct CPUArchState {
     uint64_t lladdr; /* LL virtual address compared against SC */
     uint64_t llval;
 
+    uint64_t features;
+
     /* LoongArch CSRs */
     uint64_t CSR_CRMD;
     uint64_t CSR_PRMD;
@@ -363,6 +365,36 @@ typedef struct CPUArchState {
     DeviceState *ipistate;
 #endif
 } CPULoongArchState;
+
+/*
+ * See arch/loongarch/include/asm/cpu.h
+ * and arch/loongarch/include/uapi/asm/hwcap.h
+ */
+enum loongarch_features {
+    CPU_FEATURE_CPUCFG,
+    CPU_FEATURE_LAM,
+    CPU_FEATURE_UAL,
+    CPU_FEATURE_FPU,
+    CPU_FEATURE_LSX,
+    CPU_FEATURE_LASX,
+    CPU_FEATURE_CRC32,
+    CPU_FEATURE_COMPLEX,
+    CPU_FEATURE_CRYPTO,
+    CPU_FEATURE_LVZ,
+    CPU_FEATURE_LBT_X86,
+    CPU_FEATURE_LBT_ARM,
+    CPU_FEATURE_LBT_MIPS,
+};
+
+static inline int loongarch_feature(CPULoongArchState *env, int feature)
+{
+    return (env->features & (1ULL << feature)) != 0;
+}
+
+static inline void set_feature(CPULoongArchState *env, int feature)
+{
+    env->features |= 1ULL << feature;
+}
 
 /**
  * LoongArchCPU:
