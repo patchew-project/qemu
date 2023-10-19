@@ -244,6 +244,7 @@ static void parallels_free_used_bitmap(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
     s->used_bmap_size = 0;
+    s->used_bmap = NULL;
     g_free(s->used_bmap);
 }
 
