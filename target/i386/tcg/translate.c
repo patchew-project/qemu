@@ -238,20 +238,7 @@ static void gen_eob(DisasContext *s);
 static void gen_jr(DisasContext *s);
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num);
 static void gen_jmp_rel_csize(DisasContext *s, int diff, int tb_num);
-static void gen_op(DisasContext *s1, int op, MemOp ot, int d);
 static void gen_exception_gpf(DisasContext *s);
-
-/* i386 arith/logic operations */
-enum {
-    OP_ADDL,
-    OP_ORL,
-    OP_ADCL,
-    OP_SBBL,
-    OP_ANDL,
-    OP_SUBL,
-    OP_XORL,
-    OP_CMPL,
-};
 
 /* i386 shift ops */
 enum {
@@ -853,13 +840,6 @@ static void gen_op_update2_cc(DisasContext *s)
     tcg_gen_mov_tl(cpu_cc_dst, s->T0);
 }
 
-static void gen_op_update3_cc(DisasContext *s, TCGv reg)
-{
-    tcg_gen_mov_tl(cpu_cc_src2, reg);
-    tcg_gen_mov_tl(cpu_cc_src, s->T1);
-    tcg_gen_mov_tl(cpu_cc_dst, s->T0);
-}
-
 static inline void gen_op_testl_T0_T1_cc(DisasContext *s)
 {
     tcg_gen_and_tl(cpu_cc_dst, s->T0, s->T1);
@@ -1288,7 +1268,12 @@ static void gen_scas(DisasContext *s, MemOp ot)
 {
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
-    gen_op(s, OP_CMPL, ot, R_EAX);
+    gen_op_mov_v_reg(s, ot, s->T0, R_EAX);
+    tcg_gen_mov_tl(cpu_cc_src, s->T1);
+    tcg_gen_mov_tl(s->cc_srcT, s->T0);
+    tcg_gen_sub_tl(cpu_cc_dst, s->T0, s->T1);
+    set_cc_op(s, CC_OP_SUBB + ot);
+
     gen_op_movl_T0_Dshift(s, ot);
     gen_op_add_reg_T0(s, s->aflag, R_EDI);
 }
@@ -1298,7 +1283,12 @@ static void gen_cmps(DisasContext *s, MemOp ot)
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
     gen_string_movl_A0_ESI(s);
-    gen_op(s, OP_CMPL, ot, OR_TMP0);
+    gen_op_ld_v(s, ot, s->T0, s->A0);
+    tcg_gen_mov_tl(cpu_cc_src, s->T1);
+    tcg_gen_mov_tl(s->cc_srcT, s->T0);
+    tcg_gen_sub_tl(cpu_cc_dst, s->T0, s->T1);
+    set_cc_op(s, CC_OP_SUBB + ot);
+
     gen_op_movl_T0_Dshift(s, ot);
     gen_op_add_reg_T0(s, s->aflag, R_ESI);
     gen_op_add_reg_T0(s, s->aflag, R_EDI);
@@ -1504,117 +1494,6 @@ static bool check_iopl(DisasContext *s)
     }
     gen_exception_gpf(s);
     return false;
-}
-
-/* if d == OR_TMP0, it means memory operand (address in A0) */
-static void gen_op(DisasContext *s1, int op, MemOp ot, int d)
-{
-    if (d != OR_TMP0) {
-        if (s1->prefix & PREFIX_LOCK) {
-            /* Lock prefix when destination is not memory.  */
-            gen_illegal_opcode(s1);
-            return;
-        }
-        gen_op_mov_v_reg(s1, ot, s1->T0, d);
-    } else if (!(s1->prefix & PREFIX_LOCK)) {
-        gen_op_ld_v(s1, ot, s1->T0, s1->A0);
-    }
-    switch(op) {
-    case OP_ADCL:
-        gen_compute_eflags_c(s1, s1->tmp4);
-        if (s1->prefix & PREFIX_LOCK) {
-            tcg_gen_add_tl(s1->T0, s1->tmp4, s1->T1);
-            tcg_gen_atomic_add_fetch_tl(s1->T0, s1->A0, s1->T0,
-                                        s1->mem_index, ot | MO_LE);
-        } else {
-            tcg_gen_add_tl(s1->T0, s1->T0, s1->T1);
-            tcg_gen_add_tl(s1->T0, s1->T0, s1->tmp4);
-            gen_op_st_rm_T0_A0(s1, ot, d);
-        }
-        gen_op_update3_cc(s1, s1->tmp4);
-        set_cc_op(s1, CC_OP_ADCB + ot);
-        break;
-    case OP_SBBL:
-        gen_compute_eflags_c(s1, s1->tmp4);
-        if (s1->prefix & PREFIX_LOCK) {
-            tcg_gen_add_tl(s1->T0, s1->T1, s1->tmp4);
-            tcg_gen_neg_tl(s1->T0, s1->T0);
-            tcg_gen_atomic_add_fetch_tl(s1->T0, s1->A0, s1->T0,
-                                        s1->mem_index, ot | MO_LE);
-        } else {
-            tcg_gen_sub_tl(s1->T0, s1->T0, s1->T1);
-            tcg_gen_sub_tl(s1->T0, s1->T0, s1->tmp4);
-            gen_op_st_rm_T0_A0(s1, ot, d);
-        }
-        gen_op_update3_cc(s1, s1->tmp4);
-        set_cc_op(s1, CC_OP_SBBB + ot);
-        break;
-    case OP_ADDL:
-        if (s1->prefix & PREFIX_LOCK) {
-            tcg_gen_atomic_add_fetch_tl(s1->T0, s1->A0, s1->T1,
-                                        s1->mem_index, ot | MO_LE);
-        } else {
-            tcg_gen_add_tl(s1->T0, s1->T0, s1->T1);
-            gen_op_st_rm_T0_A0(s1, ot, d);
-        }
-        gen_op_update2_cc(s1);
-        set_cc_op(s1, CC_OP_ADDB + ot);
-        break;
-    case OP_SUBL:
-        if (s1->prefix & PREFIX_LOCK) {
-            tcg_gen_neg_tl(s1->T0, s1->T1);
-            tcg_gen_atomic_fetch_add_tl(s1->cc_srcT, s1->A0, s1->T0,
-                                        s1->mem_index, ot | MO_LE);
-            tcg_gen_sub_tl(s1->T0, s1->cc_srcT, s1->T1);
-        } else {
-            tcg_gen_mov_tl(s1->cc_srcT, s1->T0);
-            tcg_gen_sub_tl(s1->T0, s1->T0, s1->T1);
-            gen_op_st_rm_T0_A0(s1, ot, d);
-        }
-        gen_op_update2_cc(s1);
-        set_cc_op(s1, CC_OP_SUBB + ot);
-        break;
-    default:
-    case OP_ANDL:
-        if (s1->prefix & PREFIX_LOCK) {
-            tcg_gen_atomic_and_fetch_tl(s1->T0, s1->A0, s1->T1,
-                                        s1->mem_index, ot | MO_LE);
-        } else {
-            tcg_gen_and_tl(s1->T0, s1->T0, s1->T1);
-            gen_op_st_rm_T0_A0(s1, ot, d);
-        }
-        gen_op_update1_cc(s1);
-        set_cc_op(s1, CC_OP_LOGICB + ot);
-        break;
-    case OP_ORL:
-        if (s1->prefix & PREFIX_LOCK) {
-            tcg_gen_atomic_or_fetch_tl(s1->T0, s1->A0, s1->T1,
-                                       s1->mem_index, ot | MO_LE);
-        } else {
-            tcg_gen_or_tl(s1->T0, s1->T0, s1->T1);
-            gen_op_st_rm_T0_A0(s1, ot, d);
-        }
-        gen_op_update1_cc(s1);
-        set_cc_op(s1, CC_OP_LOGICB + ot);
-        break;
-    case OP_XORL:
-        if (s1->prefix & PREFIX_LOCK) {
-            tcg_gen_atomic_xor_fetch_tl(s1->T0, s1->A0, s1->T1,
-                                        s1->mem_index, ot | MO_LE);
-        } else {
-            tcg_gen_xor_tl(s1->T0, s1->T0, s1->T1);
-            gen_op_st_rm_T0_A0(s1, ot, d);
-        }
-        gen_op_update1_cc(s1);
-        set_cc_op(s1, CC_OP_LOGICB + ot);
-        break;
-    case OP_CMPL:
-        tcg_gen_mov_tl(cpu_cc_src, s1->T1);
-        tcg_gen_mov_tl(s1->cc_srcT, s1->T0);
-        tcg_gen_sub_tl(cpu_cc_dst, s1->T0, s1->T1);
-        set_cc_op(s1, CC_OP_SUBB + ot);
-        break;
-    }
 }
 
 /* if d == OR_TMP0, it means memory operand (address in A0) */
