@@ -1325,7 +1325,9 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
                          "IOMMU and try again");
             return -1;
         }
-        memory_listener_register(&v->shared->listener, dev->vdev->dma_as);
+        if (!v->shared->listener_registered) {
+            memory_listener_register(&v->shared->listener, dev->vdev->dma_as);
+        }
 
         return vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
     }
@@ -1528,3 +1530,16 @@ const VhostOps vdpa_ops = {
         .vhost_set_config_call = vhost_vdpa_set_config_call,
         .vhost_reset_status = vhost_vdpa_reset_status,
 };
+
+int vhost_vdpa_load_setup(VhostVDPAShared *shared, AddressSpace *dma_as)
+{
+    uint8_t s = VIRTIO_CONFIG_S_ACKNOWLEDGE | VIRTIO_CONFIG_S_DRIVER;
+    int r = ioctl(shared->device_fd, VHOST_VDPA_SET_STATUS, &s);
+    if (unlikely(r < 0)) {
+        return r;
+    }
+
+    memory_listener_register(&shared->listener, dma_as);
+    shared->listener_registered = true;
+    return 0;
+}
