@@ -112,6 +112,15 @@ uint16_t xen_primary_console_get_port(void)
     return s->guest_port;
 }
 
+void xen_primary_console_set_be_port(uint16_t port)
+{
+    XenPrimaryConsoleState *s = xen_primary_console_singleton;
+    if (s) {
+        printf("be port set to %d\n", port);
+        s->be_port = port;
+    }
+}
+
 uint64_t xen_primary_console_get_pfn(void)
 {
     XenPrimaryConsoleState *s = xen_primary_console_singleton;
@@ -142,6 +151,20 @@ static void alloc_guest_port(XenPrimaryConsoleState *s)
     }
 }
 
+static void rebind_guest_port(XenPrimaryConsoleState *s)
+{
+    struct evtchn_bind_interdomain inter = {
+        .remote_dom = DOMID_QEMU,
+        .remote_port = s->be_port,
+    };
+
+    if (!xen_evtchn_bind_interdomain_op(&inter)) {
+        s->guest_port = inter.local_port;
+    }
+
+    s->be_port = 0;
+}
+
 int xen_primary_console_reset(void)
 {
     XenPrimaryConsoleState *s = xen_primary_console_singleton;
@@ -154,7 +177,11 @@ int xen_primary_console_reset(void)
         xen_overlay_do_map_page(&s->console_page, gpa);
     }
 
-    alloc_guest_port(s);
+    if (s->be_port) {
+        rebind_guest_port(s);
+    } else {
+        alloc_guest_port(s);
+    }
 
     trace_xen_primary_console_reset(s->guest_port);
 

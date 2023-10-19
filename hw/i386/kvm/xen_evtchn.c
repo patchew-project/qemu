@@ -40,6 +40,7 @@
 #include "xen_evtchn.h"
 #include "xen_overlay.h"
 #include "xen_xenstore.h"
+#include "xen_primary_console.h"
 
 #include "sysemu/kvm.h"
 #include "sysemu/kvm_xen.h"
@@ -1098,6 +1099,7 @@ int xen_evtchn_soft_reset(void)
 {
     XenEvtchnState *s = xen_evtchn_singleton;
     bool flush_kvm_routes;
+    uint16_t con_port = xen_primary_console_get_port();
     int i;
 
     if (!s) {
@@ -1107,6 +1109,13 @@ int xen_evtchn_soft_reset(void)
     assert(qemu_mutex_iothread_locked());
 
     qemu_mutex_lock(&s->port_lock);
+
+    if (con_port) {
+        XenEvtchnPort *p = &s->port_table[con_port];
+        if (p->type == EVTCHNSTAT_interdomain) {
+            xen_primary_console_set_be_port(p->u.interdomain.port);
+        }
+    }
 
     for (i = 0; i < s->nr_ports; i++) {
         close_port(s, i, &flush_kvm_routes);
