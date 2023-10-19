@@ -55,19 +55,19 @@ struct qemu_plugin_ctx *plugin_id_to_ctx_locked(qemu_plugin_id_t id)
 
 static void plugin_cpu_update__async(CPUState *cpu, run_on_cpu_data data)
 {
-    bitmap_copy(cpu->plugin_mask, &data.host_ulong, QEMU_PLUGIN_EV_MAX);
+    cpu->plugin_flags = data.host_ulong;
     tcg_flush_jmp_cache(cpu);
 }
 
 static void plugin_cpu_update__locked(gpointer k, gpointer v, gpointer udata)
 {
     CPUState *cpu = container_of(k, CPUState, cpu_index);
-    run_on_cpu_data mask = RUN_ON_CPU_HOST_ULONG(*plugin.mask);
+    run_on_cpu_data flags = RUN_ON_CPU_HOST_ULONG(plugin.flags);
 
     if (DEVICE(cpu)->realized) {
-        async_run_on_cpu(cpu, plugin_cpu_update__async, mask);
+        async_run_on_cpu(cpu, plugin_cpu_update__async, flags);
     } else {
-        plugin_cpu_update__async(cpu, mask);
+        plugin_cpu_update__async(cpu, flags);
     }
 }
 
@@ -83,7 +83,7 @@ void plugin_unregister_cb__locked(struct qemu_plugin_ctx *ctx,
     g_free(cb);
     ctx->callbacks[ev] = NULL;
     if (QLIST_EMPTY_RCU(&plugin.cb_lists[ev])) {
-        clear_bit(ev, plugin.mask);
+        plugin.flags &= ~BIT(ev);
         g_hash_table_foreach(plugin.cpu_ht, plugin_cpu_update__locked, NULL);
     }
 }
@@ -186,8 +186,8 @@ do_plugin_register_cb(qemu_plugin_id_t id, enum qemu_plugin_event ev,
             cb->udata = udata;
             ctx->callbacks[ev] = cb;
             QLIST_INSERT_HEAD_RCU(&plugin.cb_lists[ev], cb, entry);
-            if (!test_bit(ev, plugin.mask)) {
-                set_bit(ev, plugin.mask);
+            if (!(plugin.flags & BIT(ev))) {
+                plugin.flags |= BIT(ev);
                 g_hash_table_foreach(plugin.cpu_ht, plugin_cpu_update__locked,
                                      NULL);
             }
@@ -296,15 +296,20 @@ void plugin_register_inline_op(GArray **arr,
 
 void plugin_register_dyn_cb__udata(GArray **arr,
                                    qemu_plugin_vcpu_udata_cb_t cb,
-                                   enum qemu_plugin_cb_flags flags,
+                                   unsigned int flags,
                                    void *udata)
 {
     struct qemu_plugin_dyn_cb *dyn_cb = plugin_get_dyn_cb(arr);
 
     dyn_cb->userp = udata;
-    /* Note flags are discarded as unused. */
     dyn_cb->f.vcpu_udata = cb;
     dyn_cb->type = PLUGIN_CB_REGULAR;
+
+    if (flags) {
+        QEMU_LOCK_GUARD(&plugin.lock);
+        plugin.flags |= flags;
+        g_hash_table_foreach(plugin.cpu_ht, plugin_cpu_update__locked, NULL);
+    }
 }
 
 void plugin_register_vcpu_mem_cb(GArray **arr,
@@ -357,7 +362,7 @@ qemu_plugin_vcpu_syscall(CPUState *cpu, int64_t num, uint64_t a1, uint64_t a2,
     struct qemu_plugin_cb *cb, *next;
     enum qemu_plugin_event ev = QEMU_PLUGIN_EV_VCPU_SYSCALL;
 
-    if (!test_bit(ev, cpu->plugin_mask)) {
+    if (!(cpu->plugin_flags & BIT(ev))) {
         return;
     }
 
@@ -379,7 +384,7 @@ void qemu_plugin_vcpu_syscall_ret(CPUState *cpu, int64_t num, int64_t ret)
     struct qemu_plugin_cb *cb, *next;
     enum qemu_plugin_event ev = QEMU_PLUGIN_EV_VCPU_SYSCALL_RET;
 
-    if (!test_bit(ev, cpu->plugin_mask)) {
+    if (!(cpu->plugin_flags & BIT(ev))) {
         return;
     }
 
@@ -428,6 +433,7 @@ void qemu_plugin_flush_cb(void)
 {
     qht_iter_remove(&plugin.dyn_cb_arr_ht, free_dyn_cb_arr, NULL);
     qht_reset(&plugin.dyn_cb_arr_ht);
+    plugin.flags &= ~BIT(QEMU_PLUGIN_FLAG_INSIN_CB_READ);
 
     plugin_cb__simple(QEMU_PLUGIN_EV_FLUSH);
 }
