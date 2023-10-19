@@ -100,6 +100,11 @@ int64_t parallels_allocate_host_clusters(BlockDriverState *bs,
 
 int parallels_read_format_extension(BlockDriverState *bs,
                                     int64_t ext_off, Error **errp);
+void parallels_store_persistent_dirty_bitmaps(BlockDriverState *bs,
+                                              Error **errp);
+bool coroutine_fn
+parallels_co_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
+                                        uint32_t granularity, Error **errp);
 
 
 #endif
