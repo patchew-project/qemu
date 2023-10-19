@@ -61,7 +61,7 @@ class KVMXenGuest(QemuSystemTest, LinuxSSHMixIn):
                          '-append', self.kernel_params,
                          '-drive',  f"file={self.rootfs},if=none,format=raw,id=drv0",
                          '-device', 'xen-disk,drive=drv0,vdev=xvda',
-                         '-device', 'virtio-net-pci,netdev=unet',
+                         '-device', 'xen-net-device,netdev=unet',
                          '-netdev', 'user,id=unet,hostfwd=:127.0.0.1:0-:22')
 
         try:
