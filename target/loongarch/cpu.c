@@ -447,6 +447,7 @@ static void loongarch_la464_initfn(Object *obj)
     env->cpucfg[20] = data;
 
     env->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
+    loongarch_cpu_post_init(obj);
 }
 
 static void loongarch_la132_initfn(Object *obj)
@@ -625,6 +626,83 @@ static const MemoryRegionOps loongarch_qemu_ops = {
     },
 };
 #endif
+
+static bool loongarch_get_lsx(Object *obj, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    bool ret;
+
+    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LSX)) {
+        ret = true;
+        cpu->has_lsx = ON_OFF_AUTO_AUTO;
+    } else {
+        ret = false;
+        cpu->has_lsx = ON_OFF_AUTO_OFF;
+    }
+    return ret;
+}
+
+static void loongarch_set_lsx(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    if (value) {
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LSX, 1);
+    } else {
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LSX, 0);
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 0);
+    }
+
+    cpu->has_lsx = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+}
+
+static bool loongarch_get_lasx(Object *obj, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    bool ret;
+
+    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LASX)) {
+        ret = true;
+        cpu->has_lasx = true;
+    } else {
+        ret = false;
+        cpu->has_lasx = false;
+    }
+    return ret;
+}
+
+static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    if (value) {
+        if (cpu->has_lsx == ON_OFF_AUTO_AUTO || cpu->has_lsx == ON_OFF_AUTO_OFF) {
+            cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LSX, 1);
+	}
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 1);
+    } else {
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 0);
+    }
+
+    cpu->has_lasx = value;
+}
+
+void loongarch_cpu_post_init(Object *obj)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    CPULoongArchState *env = &cpu->env;
+
+    if (loongarch_feature(env, CPU_FEATURE_LSX)) {
+        cpu->has_lsx = ON_OFF_AUTO_AUTO;
+        object_property_add_bool(obj, "lsx", loongarch_get_lsx,
+                                 loongarch_set_lsx);
+    }
+    if (loongarch_feature(env, CPU_FEATURE_LASX)) {
+        cpu->has_lasx = ON_OFF_AUTO_AUTO;
+        object_property_add_bool(obj, "lasx", loongarch_get_lasx,
+                                 loongarch_set_lasx);
+    }
+}
 
 static void loongarch_cpu_init(Object *obj)
 {
