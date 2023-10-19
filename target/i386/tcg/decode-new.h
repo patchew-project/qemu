@@ -164,6 +164,9 @@ typedef enum X86InsnSpecial {
     /* Writeback not needed or done manually in the callback */
     X86_SPECIAL_NoWriteback,
 
+    /* Do not apply segment base to effective address */
+    X86_SPECIAL_NoSeg,
+
     /*
      * Register operand 0/2 is zero extended to 32 bits.  Rd/Mb or Rd/Mw
      * in the manual.
