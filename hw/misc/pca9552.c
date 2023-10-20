@@ -112,14 +112,15 @@ static void pca955x_update_pin_input(PCA955xState *s)
 
     for (i = 0; i < k->pin_count; i++) {
         uint8_t input_reg = PCA9552_INPUT0 + (i / 8);
-        uint8_t input_shift = (i % 8);
+        uint8_t bit_mask = 1 << (i % 8);
         uint8_t config = pca955x_pin_get_config(s, i);
+        uint8_t old_value = s->regs[input_reg] & bit_mask;
+        uint8_t new_value;
 
         switch (config) {
         case PCA9552_LED_ON:
             /* Pin is set to 0V to turn on LED */
-            qemu_set_irq(s->gpio_out[i], 0);
-            s->regs[input_reg] &= ~(1 << input_shift);
+            s->regs[input_reg] &= ~bit_mask;
             break;
         case PCA9552_LED_OFF:
             /*
@@ -128,11 +129,9 @@ static void pca955x_update_pin_input(PCA955xState *s)
              * external device drives it low.
              */
             if (s->ext_state[i] == PCA9552_PIN_LOW) {
-                qemu_set_irq(s->gpio_out[i], 0);
-                s->regs[input_reg] &= ~(1 << input_shift);
+                s->regs[input_reg] &= ~bit_mask;
             } else {
-                qemu_set_irq(s->gpio_out[i], 1);
-                s->regs[input_reg] |= 1 << input_shift;
+                s->regs[input_reg] |=  bit_mask;
             }
             break;
         case PCA9552_LED_PWM0:
@@ -140,6 +139,18 @@ static void pca955x_update_pin_input(PCA955xState *s)
             /* TODO */
         default:
             break;
+        }
+
+        /* update irq state only if pin state changed */
+        new_value = s->regs[input_reg] & bit_mask;
+        if (new_value != old_value) {
+            if (new_value) {
+                /* changed from 0 to 1 */
+                qemu_set_irq(s->gpio_out[i], 1);
+            } else {
+                /* changed from 1 to 0 */
+                qemu_set_irq(s->gpio_out[i], 0);
+            }
         }
     }
 }
