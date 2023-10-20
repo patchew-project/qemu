@@ -125,7 +125,7 @@ static void isa_ipmi_bt_init(Object *obj)
 
     ipmi_bmc_find_and_link(obj, (Object **) &iib->bt.bmc);
 
-    vmstate_register(NULL, 0, &vmstate_ISAIPMIBTDevice, iib);
+    vmstate_register_any(NULL, &vmstate_ISAIPMIBTDevice, iib);
 }
 
 static void *isa_ipmi_bt_get_backend_data(IPMIInterface *ii)
