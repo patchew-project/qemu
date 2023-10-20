@@ -28,6 +28,7 @@
 #define QEMU_VMSTATE_H
 
 #include "hw/vmstate-if.h"
+#include "qemu/error-report.h"
 
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateField VMStateField;
@@ -1226,6 +1227,11 @@ static inline int vmstate_register(VMStateIf *obj, int instance_id,
                                    const VMStateDescription *vmsd,
                                    void *opaque)
 {
+    if (instance_id == VMSTATE_INSTANCE_ID_ANY) {
+        error_report("vmstate_register: Invalid device: %s instance_id: %d",
+                     vmsd->name, instance_id);
+        return -1;
+    }
     return vmstate_register_with_alias_id(obj, instance_id, vmsd,
                                           opaque, -1, 0, NULL);
 }
