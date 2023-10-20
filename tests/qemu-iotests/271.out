@@ -426,6 +426,7 @@ L2 entry #29: 0x0000000000000000 0000ffff00000000
 ### Discarding clusters with non-zero bitmaps (backing file: yes) ###
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+L2 entry #0: 0x8000000000050000 0000000ffffffff0
 L2 entry #0: 0x0000000000000000 ffffffff00000000
 L2 entry #1: 0x0000000000000000 ffffffff00000000
 Image resized.
@@ -436,6 +437,7 @@ L2 entry #1: 0x0000000000000000 ffffffff00000000
 ### Discarding clusters with non-zero bitmaps (backing file: no) ###
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+L2 entry #0: 0x8000000000050000 0000000ffffffff0
 L2 entry #0: 0x0000000000000000 ffffffff00000000
 L2 entry #1: 0x0000000000000000 ffffffff00000000
 Image resized.

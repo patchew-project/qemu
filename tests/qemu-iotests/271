@@ -81,6 +81,15 @@ _verify_l2_bitmap()
     fi
 }
 
+# Check disk usage delta after a discard/unmap operation
+# _verify_du_delta $before $after $expected_delta
+_verify_du_delta()
+{
+    if [ $(($1 - $2)) -ne $3 ]; then
+        printf "ERROR: unexpected delta: $1 - $2 = $(($1 - $2)) != $3\n"
+    fi
+}
+
 # This should be called as _run_test c=XXX sc=XXX off=XXX len=XXX cmd=XXX
 # c:   cluster number (0 if unset)
 # sc:  subcluster number inside cluster @c (0 if unset)
@@ -198,9 +207,12 @@ for use_backing_file in yes no; do
     alloc="$(seq 0 31)"; zero=""
     _run_test sc=0 len=64k
 
-    ### Zero and unmap half of cluster #0 (this won't unmap it)
+    ### Zero and unmap half of cluster #0 (this will unmap it)
     alloc="$(seq 16 31)"; zero="$(seq 0 15)"
+    before=$(disk_usage "$TEST_IMG")
     _run_test sc=0 len=32k cmd=unmap
+    after=$(disk_usage "$TEST_IMG")
+    _verify_du_delta $before $after 32768
 
     ### Zero and unmap cluster #0
     alloc=""; zero="$(seq 0 31)"
@@ -447,7 +459,10 @@ for use_backing_file in yes no; do
 
     # Subcluster-aligned request from clusters #12 to #14
     alloc="$(seq 0 15)"; zero="$(seq 16 31)"
+    before=$(disk_usage "$TEST_IMG")
     _run_test c=12 sc=16 len=128k cmd=unmap
+    after=$(disk_usage "$TEST_IMG")
+    _verify_du_delta $before $after $((128 * 1024))
     alloc=""; zero="$(seq 0 31)"
     _verify_l2_bitmap 13
     alloc="$(seq 16 31)"; zero="$(seq 0 15)"
@@ -528,6 +543,14 @@ for use_backing_file in yes no; do
     else
         _make_test_img -o extended_l2=on 1M
     fi
+    # Write cluster #0 and discard its subclusters #0-#3
+    $QEMU_IO -c 'write -q 0 64k' "$TEST_IMG"
+    before=$(disk_usage "$TEST_IMG")
+    $QEMU_IO -c 'discard -q 0 8k' "$TEST_IMG"
+    after=$(disk_usage "$TEST_IMG")
+    _verify_du_delta $before $after 8192
+    alloc="$(seq 4 31)"; zero="$(seq 0 3)"
+    _verify_l2_bitmap 0
     # Write clusters #0-#2 and then discard them
     $QEMU_IO -c 'write -q 0 128k' "$TEST_IMG"
     $QEMU_IO -c 'discard -q 0 128k' "$TEST_IMG"
