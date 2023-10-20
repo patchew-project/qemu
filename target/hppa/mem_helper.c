@@ -312,7 +312,7 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 }
 
 /* Insert (Insn/Data) TLB Address.  Note this is PA 1.1 only.  */
-void HELPER(itlba_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
+void HELPER(itlba_pa11)(CPUHPPAState *env, target_ulong addr, target_ulong reg)
 {
     hppa_tlb_entry *empty = NULL;
     int i;
@@ -343,7 +343,7 @@ void HELPER(itlba_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 }
 
 static void set_access_bits_pa11(CPUHPPAState *env, hppa_tlb_entry *ent,
-                                 target_ureg reg)
+                                 target_ulong reg)
 {
     ent->access_id = extract32(reg, 1, 18);
     ent->u = extract32(reg, 19, 1);
@@ -359,7 +359,7 @@ static void set_access_bits_pa11(CPUHPPAState *env, hppa_tlb_entry *ent,
 }
 
 /* Insert (Insn/Data) TLB Protection.  Note this is PA 1.1 only.  */
-void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
+void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ulong reg)
 {
     hppa_tlb_entry *ent = hppa_find_tlb(env, addr);
 
@@ -370,7 +370,7 @@ void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
     set_access_bits_pa11(env, ent, reg);
 }
 
-void HELPER(itlbt_pa20)(CPUHPPAState *env, target_ureg r1, target_ureg r2)
+void HELPER(itlbt_pa20)(CPUHPPAState *env, target_ulong r1, target_ulong r2)
 {
     hppa_tlb_entry *ent, *empty = NULL;
     vaddr va_b, va_e;
@@ -471,7 +471,7 @@ void HELPER(change_prot_id)(CPUHPPAState *env)
     cpu_hppa_change_prot_id(env);
 }
 
-target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
+target_ulong HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
 {
     hwaddr phys;
     int prot, excp;

@@ -21,21 +21,12 @@
 #include "cpu.h"
 #include "migration/cpu.h"
 
-#if TARGET_REGISTER_BITS == 64
 #define qemu_put_betr   qemu_put_be64
 #define qemu_get_betr   qemu_get_be64
 #define VMSTATE_UINTTR_V(_f, _s, _v) \
     VMSTATE_UINT64_V(_f, _s, _v)
 #define VMSTATE_UINTTR_ARRAY_V(_f, _s, _n, _v) \
     VMSTATE_UINT64_ARRAY_V(_f, _s, _n, _v)
-#else
-#define qemu_put_betr   qemu_put_be32
-#define qemu_get_betr   qemu_get_be32
-#define VMSTATE_UINTTR_V(_f, _s, _v) \
-    VMSTATE_UINT32_V(_f, _s, _v)
-#define VMSTATE_UINTTR_ARRAY_V(_f, _s, _n, _v) \
-    VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)
-#endif
 
 #define VMSTATE_UINTTR(_f, _s) \
     VMSTATE_UINTTR_V(_f, _s, 0)
