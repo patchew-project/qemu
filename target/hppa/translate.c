@@ -3473,80 +3473,50 @@ static bool trans_extr_imm(DisasContext *ctx, arg_extr_imm *a)
     return nullify_end(ctx);
 }
 
-static bool trans_depi_imm(DisasContext *ctx, arg_depi_imm *a)
+static bool do_dep_imm(DisasContext *ctx, unsigned rt, unsigned c,
+                       bool d, unsigned len, unsigned cpos,
+                       TCGv_i64 src, TCGv_i64 val)
 {
-    unsigned len, width;
-    uint64_t mask0, mask1;
+    unsigned width = d ? 64 : 32;
     TCGv_i64 dest;
 
-    if (!ctx->is_pa20 && a->d) {
-        return false;
+    if (cpos + len > width) {
+        len = width - cpos;
     }
-    if (a->c) {
+
+    if (c) {
         nullify_over(ctx);
     }
 
-    len = a->len;
-    width = a->d ? 64 : 32;
-    if (a->cpos + len > width) {
-        len = width - a->cpos;
-    }
+    dest = dest_gpr(ctx, rt);
+    tcg_gen_deposit_i64(dest, src, val, cpos, len);
+    save_gpr(ctx, rt, dest);
 
-    dest = dest_gpr(ctx, a->t);
-    mask0 = deposit64(0, a->cpos, len, a->i);
-    mask1 = deposit64(-1, a->cpos, len, a->i);
-
-    if (a->nz) {
-        TCGv_i64 src = load_gpr(ctx, a->t);
-        tcg_gen_andi_i64(dest, src, mask1);
-        tcg_gen_ori_i64(dest, dest, mask0);
-    } else {
-        tcg_gen_movi_i64(dest, mask0);
-    }
-    save_gpr(ctx, a->t, dest);
-
-    /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
+    if (c) {
+        ctx->null_cond = do_sed_cond(ctx, c, d, dest);
     }
     return nullify_end(ctx);
 }
 
-static bool trans_dep_imm(DisasContext *ctx, arg_dep_imm *a)
+static bool trans_depi_imm(DisasContext *ctx, arg_depi_imm *a)
 {
-    unsigned rs = a->nz ? a->t : 0;
-    unsigned len, width;
-    TCGv_i64 dest, val;
-
     if (!ctx->is_pa20 && a->d) {
         return false;
     }
-    if (a->c) {
-        nullify_over(ctx);
-    }
+    return do_dep_imm(ctx, a->t, a->c, a->d, a->len, a->cpos,
+                      a->nz ? load_gpr(ctx, a->t) : ctx->zero,
+                      tcg_constant_i64(a->i));
+}
 
-    len = a->len;
-    width = a->d ? 64 : 32;
-    if (a->cpos + len > width) {
-        len = width - a->cpos;
+static bool trans_dep_imm(DisasContext *ctx, arg_dep_imm *a)
+{
+    if (!ctx->is_pa20 && a->d) {
+        return false;
     }
-
-    dest = dest_gpr(ctx, a->t);
-    val = load_gpr(ctx, a->r);
-    if (rs == 0) {
-        tcg_gen_deposit_z_i64(dest, val, a->cpos, len);
-    } else {
-        tcg_gen_deposit_i64(dest, cpu_gr[rs], val, a->cpos, len);
-    }
-    save_gpr(ctx, a->t, dest);
-
-    /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
-    return nullify_end(ctx);
+    return do_dep_imm(ctx, a->t, a->c, a->d, a->len, a->cpos,
+                      a->nz ? load_gpr(ctx, a->t) : ctx->zero,
+                      load_gpr(ctx, a->r));
 }
 
 static bool do_dep_sar(DisasContext *ctx, unsigned rt, unsigned c,
