@@ -2156,7 +2156,6 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
 
     switch (ctl) {
     case CR_SAR:
-#ifdef TARGET_HPPA64
         if (a->e == 0) {
             /* MFSAR without ,W masks low 5 bits.  */
             tmp = dest_gpr(ctx, rt);
@@ -2164,7 +2163,6 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
             save_gpr(ctx, rt, tmp);
             goto done;
         }
-#endif
         save_gpr(ctx, rt, cpu_sar);
         goto done;
     case CR_IT: /* Interval Timer */
