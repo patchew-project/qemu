@@ -891,6 +891,8 @@ int coroutine_fn qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *re
                                        BdrvCheckMode fix);
 
 void qcow2_process_discards(BlockDriverState *bs, int ret);
+void qcow2_queue_discard(BlockDriverState *bs, uint64_t offset,
+                         uint64_t length);
 
 int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
                                  int64_t size);
