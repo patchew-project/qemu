@@ -312,7 +312,7 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 }
 
 /* Insert (Insn/Data) TLB Address.  Note this is PA 1.1 only.  */
-void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
+void HELPER(itlba_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 {
     hppa_tlb_entry *empty = NULL;
     int i;
@@ -338,15 +338,12 @@ void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
     /* Note that empty->entry_valid == 0 already.  */
     empty->va_b = addr & TARGET_PAGE_MASK;
     empty->va_e = empty->va_b + TARGET_PAGE_SIZE - 1;
-    /*
-     * FIXME: This is wrong, as this is a pa1.1 function.
-     * But for the moment translate abs address for pa2.0.
-     */
-    empty->pa = hppa_abs_to_phys(env, extract32(reg, 5, 20) << TARGET_PAGE_BITS);
+    empty->pa = extract32(reg, 5, 20) << TARGET_PAGE_BITS;
     trace_hppa_tlb_itlba(env, empty, empty->va_b, empty->va_e, empty->pa);
 }
 
-static void set_access_bits(CPUHPPAState *env, hppa_tlb_entry *ent, target_ureg reg)
+static void set_access_bits_pa11(CPUHPPAState *env, hppa_tlb_entry *ent,
+                                 target_ureg reg)
 {
     ent->access_id = extract32(reg, 1, 18);
     ent->u = extract32(reg, 19, 1);
@@ -362,7 +359,7 @@ static void set_access_bits(CPUHPPAState *env, hppa_tlb_entry *ent, target_ureg 
 }
 
 /* Insert (Insn/Data) TLB Protection.  Note this is PA 1.1 only.  */
-void HELPER(itlbp)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
+void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 {
     hppa_tlb_entry *ent = hppa_find_tlb(env, addr);
 
@@ -370,8 +367,54 @@ void HELPER(itlbp)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
         qemu_log_mask(LOG_GUEST_ERROR, "ITLBP not following ITLBA\n");
         return;
     }
+    set_access_bits_pa11(env, ent, reg);
+}
 
-    set_access_bits(env, ent, reg);
+void HELPER(itlbt_pa20)(CPUHPPAState *env, target_ureg r1, target_ureg r2)
+{
+    hppa_tlb_entry *ent, *empty = NULL;
+    vaddr va_b, va_e;
+    uint64_t page_size;
+
+    va_b = deposit64(env->cr[CR_IIAOQ], 32, 32, env->cr[CR_IIASQ]);
+    va_b &= TARGET_PAGE_MASK;
+    page_size = TARGET_PAGE_SIZE << (2 * (r1 & 0xf));
+    va_e = va_b + page_size - 1;
+
+    for (int i = 0; i < ARRAY_SIZE(env->tlb); ++i) {
+        ent = &env->tlb[i];
+        if (ent->entry_valid) {
+            if (ent->va_b <= va_e && va_b <= ent->va_e) {
+                hppa_flush_tlb_ent(env, ent, false);
+                empty = ent;
+            }
+        } else {
+            empty = ent;
+        }
+    }
+
+    /* If we didn't see an empty entry, evict one.  */
+    ent = empty ? empty : hppa_alloc_tlb_ent(env);
+
+    ent->va_b = va_b;
+    ent->va_e = va_e;
+    ent->pa = (r1 << 7) & TARGET_PAGE_MASK;
+    ent->t = extract64(r2, 61, 1);
+    ent->d = extract64(r2, 60, 1);
+    ent->b = extract64(r2, 59, 1);
+    ent->ar_type = extract64(r2, 56, 3);
+    ent->ar_pl1 = extract64(r2, 54, 2);
+    ent->ar_pl2 = extract64(r2, 52, 2);
+    ent->u = extract64(r2, 51, 1);
+    /* o = bit 50 */
+    /* p = bit 49 */
+    ent->access_id = extract64(r2, 1, 31);
+    ent->entry_valid = 1;
+
+    trace_hppa_tlb_itlba(env, ent, ent->va_b, ent->va_e, ent->pa);
+    trace_hppa_tlb_itlbp(env, ent, ent->access_id, ent->u,
+                         ent->ar_pl2, ent->ar_pl1, ent->ar_type,
+                         ent->b, ent->d, ent->t);
 }
 
 /* Purge (Insn/Data) TLB.  This is explicitly page-based, and is
@@ -519,7 +562,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
             btlb->va_b = virt_page << TARGET_PAGE_BITS;
             btlb->va_e = btlb->va_b + len * TARGET_PAGE_SIZE - 1;
             btlb->pa = phys_page << TARGET_PAGE_BITS;
-            set_access_bits(env, btlb, env->gr[20]);
+            set_access_bits_pa11(env, btlb, env->gr[20]);
             btlb->t = 0;
             btlb->d = 1;
         } else {
