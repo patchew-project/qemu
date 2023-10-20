@@ -1288,7 +1288,9 @@ bool pc_basic_device_init(struct PCMachineState *pcms,
         }
         object_property_set_link(OBJECT(pcms->pcspk), "pit",
                                  OBJECT(pit), &error_fatal);
-        isa_realize_and_unref(pcms->pcspk, isa_bus, &error_fatal);
+        if (!isa_realize_and_unref(pcms->pcspk, isa_bus, errp)) {
+            return false;
+        }
     }
 
     /* Super I/O */
