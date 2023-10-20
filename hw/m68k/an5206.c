@@ -26,6 +26,8 @@ static void mcf5206_init(MemoryRegion *sysmem, uint32_t base)
     SysBusDevice *s;
 
     dev = qdev_new(TYPE_MCF5206_MBAR);
+    object_property_set_link(OBJECT(dev), "m68k-cpu",
+                             OBJECT(first_cpu), &error_abort);
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
