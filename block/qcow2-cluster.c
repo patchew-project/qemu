@@ -2042,6 +2042,74 @@ discard_in_l2_slice(BlockDriverState *bs, uint64_t offset, uint64_t nb_clusters,
     return nb_clusters;
 }
 
+static int coroutine_fn GRAPH_RDLOCK
+discard_l2_subclusters(BlockDriverState *bs, uint64_t offset,
+                       uint64_t nb_subclusters,
+                       enum qcow2_discard_type type,
+                       bool full_discard,
+                       SubClusterRangeInfo *pscri)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t new_l2_bitmap, l2_bitmap_mask;
+    int ret, sc = offset_to_sc_index(s, offset);
+    SubClusterRangeInfo scri = { 0 };
+
+    if (!pscri) {
+        ret = get_sc_range_info(bs, offset, nb_subclusters, &scri);
+        if (ret < 0) {
+            goto out;
+        }
+    } else {
+        scri = *pscri;
+    }
+
+    l2_bitmap_mask = QCOW_OFLAG_SUB_ALLOC_RANGE(sc, sc + nb_subclusters);
+    new_l2_bitmap = scri.l2_bitmap;
+    new_l2_bitmap &= ~l2_bitmap_mask;
+
+    /*
+     * If there're no allocated subclusters left, we might as well discard
+     * the entire cluster.  That way we'd also update the refcount table.
+     */
+    if (!(new_l2_bitmap & QCOW_L2_BITMAP_ALL_ALLOC)) {
+        return discard_in_l2_slice(bs,
+                                   QEMU_ALIGN_DOWN(offset, s->cluster_size),
+                                   1, type, full_discard);
+    }
+
+    /*
+     * Full discard means we fall through to the backing file, thus we only
+     * need to mark the subclusters as deallocated.
+     *
+     * Non-full discard means subclusters should be explicitly marked as
+     * zeroes.  In this case QCOW2 specification requires the corresponding
+     * allocation status bits to be unset as well.  If the subclusters are
+     * deallocated in the first place and there's no backing, the operation
+     * can be skipped.
+     */
+    if (!full_discard &&
+        (bs->backing || scri.l2_bitmap & l2_bitmap_mask)) {
+        new_l2_bitmap |= QCOW_OFLAG_SUB_ZERO_RANGE(sc, sc + nb_subclusters);
+    }
+
+    if (scri.l2_bitmap != new_l2_bitmap) {
+        set_l2_bitmap(s, scri.l2_slice, scri.l2_index, new_l2_bitmap);
+        qcow2_cache_entry_mark_dirty(s->l2_table_cache, scri.l2_slice);
+    }
+
+    if (s->discard_passthrough[type]) {
+        qcow2_queue_discard(bs, (scri.l2_entry & L2E_OFFSET_MASK) +
+                            offset_into_cluster(s, offset),
+                            nb_subclusters * s->subcluster_size);
+    }
+
+    ret = 0;
+out:
+    qcow2_cache_put(s->l2_table_cache, (void **) &scri.l2_slice);
+
+    return ret;
+}
+
 int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
                           uint64_t bytes, enum qcow2_discard_type type,
                           bool full_discard)
@@ -2049,19 +2117,36 @@ int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
     BDRVQcow2State *s = bs->opaque;
     uint64_t end_offset = offset + bytes;
     uint64_t nb_clusters;
+    unsigned head, tail;
     int64_t cleared;
     int ret;
 
     /* Caller must pass aligned values, except at image end */
-    assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
-    assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||
+    assert(QEMU_IS_ALIGNED(offset, s->subcluster_size));
+    assert(QEMU_IS_ALIGNED(end_offset, s->subcluster_size) ||
            end_offset == bs->total_sectors << BDRV_SECTOR_BITS);
 
-    nb_clusters = size_to_clusters(s, bytes);
+    head = MIN(end_offset, ROUND_UP(offset, s->cluster_size)) - offset;
+    offset += head;
+
+    tail = (end_offset >= bs->total_sectors << BDRV_SECTOR_BITS) ? 0 :
+           end_offset - MAX(offset, start_of_cluster(s, end_offset));
+    end_offset -= tail;
 
     s->cache_discards = true;
 
+    if (head) {
+        ret = discard_l2_subclusters(bs, offset - head,
+                                     size_to_subclusters(s, head), type,
+                                     full_discard, NULL);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
+
     /* Each L2 slice is handled by its own loop iteration */
+    nb_clusters = size_to_clusters(s, end_offset - offset);
+
     while (nb_clusters > 0) {
         cleared = discard_in_l2_slice(bs, offset, nb_clusters, type,
                                       full_discard);
@@ -2072,6 +2157,15 @@ int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
 
         nb_clusters -= cleared;
         offset += (cleared * s->cluster_size);
+    }
+
+    if (tail) {
+        ret = discard_l2_subclusters(bs, end_offset,
+                                     size_to_subclusters(s, tail), type,
+                                     full_discard, NULL);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     ret = 0;

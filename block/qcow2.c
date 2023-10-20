@@ -1966,7 +1966,7 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.request_alignment = qcrypto_block_get_sector_size(s->crypto);
     }
     bs->bl.pwrite_zeroes_alignment = s->subcluster_size;
-    bs->bl.pdiscard_alignment = s->cluster_size;
+    bs->bl.pdiscard_alignment = s->subcluster_size;
 }
 
 static int GRAPH_UNLOCKED
@@ -4102,11 +4102,11 @@ qcow2_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
         return -ENOTSUP;
     }
 
-    if (!QEMU_IS_ALIGNED(offset | bytes, s->cluster_size)) {
-        assert(bytes < s->cluster_size);
+    if (!QEMU_IS_ALIGNED(offset | bytes, bs->bl.pdiscard_alignment)) {
+        assert(bytes < bs->bl.pdiscard_alignment);
         /* Ignore partial clusters, except for the special case of the
          * complete partial cluster at the end of an unaligned file */
-        if (!QEMU_IS_ALIGNED(offset, s->cluster_size) ||
+        if (!QEMU_IS_ALIGNED(offset, bs->bl.pdiscard_alignment) ||
             offset + bytes != bs->total_sectors * BDRV_SECTOR_SIZE) {
             return -ENOTSUP;
         }
