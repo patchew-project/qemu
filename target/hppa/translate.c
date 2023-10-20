@@ -3122,6 +3122,17 @@ static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
     DisasCond cond;
     bool d = false;
 
+    /*
+     * For hppa64, the ADDB conditions change, dropping ZNV, SV, OD
+     * in favor of double-word EQ, LT, LE.
+     */
+    if (ctx->is_pa20) {
+        d = c >= 5;
+        if (d) {
+            c &= 3;
+        }
+    }
+
     in2 = load_gpr(ctx, r);
     dest = tcg_temp_new();
     sv = NULL;
