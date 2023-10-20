@@ -597,6 +597,70 @@ void tcg_gen_rotri_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
     }
 }
 
+static void tcg_gen_deposit_i_i32(TCGv_i32 ret, uint32_t i, TCGv_i32 arg,
+                                  unsigned int ofs, unsigned int len)
+{
+    i = deposit32(i, ofs, len, 0);
+
+    if (ofs + len == 32) {
+        tcg_gen_shli_i32(ret, arg, ofs);
+        goto finish;
+    }
+    if (ofs == 0) {
+        tcg_gen_andi_i32(ret, arg, (1u << len) - 1);
+        goto finish;
+    }
+    if (TCG_TARGET_HAS_deposit_i32
+        && TCG_TARGET_deposit_i32_valid(ofs, len)) {
+        tcg_gen_op5ii_i32(INDEX_op_deposit_i32, ret,
+                          tcg_constant_i32(i), arg, ofs, len);
+        return;
+    }
+
+    /*
+     * To help two-operand hosts we prefer to zero-extend first,
+     * which allows ARG to stay live.
+     */
+    switch (len) {
+    case 16:
+        if (TCG_TARGET_HAS_ext16u_i32) {
+            tcg_gen_ext16u_i32(ret, arg);
+            tcg_gen_shli_i32(ret, ret, ofs);
+            goto finish;
+        }
+        break;
+    case 8:
+        if (TCG_TARGET_HAS_ext8u_i32) {
+            tcg_gen_ext8u_i32(ret, arg);
+            tcg_gen_shli_i32(ret, ret, ofs);
+            goto finish;
+        }
+        break;
+    }
+    /* Otherwise prefer zero-extension over AND for code size.  */
+    switch (ofs + len) {
+    case 16:
+        if (TCG_TARGET_HAS_ext16u_i32) {
+            tcg_gen_shli_i32(ret, arg, ofs);
+            tcg_gen_ext16u_i32(ret, ret);
+            goto finish;
+        }
+        break;
+    case 8:
+        if (TCG_TARGET_HAS_ext8u_i32) {
+            tcg_gen_shli_i32(ret, arg, ofs);
+            tcg_gen_ext8u_i32(ret, ret);
+            goto finish;
+        }
+        break;
+    }
+    tcg_gen_andi_i32(ret, arg, (1u << len) - 1);
+    tcg_gen_shli_i32(ret, ret, ofs);
+
+ finish:
+    tcg_gen_ori_i32(ret, ret, i);
+}
+
 void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2,
                          unsigned int ofs, unsigned int len)
 {
@@ -613,6 +677,14 @@ void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2,
         tcg_gen_mov_i32(ret, arg2);
         return;
     }
+
+    /* Deposit of a value into a constant. */
+    ts = tcgv_i32_temp(arg1);
+    if (ts->kind == TEMP_CONST) {
+        tcg_gen_deposit_i_i32(ret, ts->val, arg2, ofs, len);
+        return;
+    }
+
     if (TCG_TARGET_HAS_deposit_i32 && TCG_TARGET_deposit_i32_valid(ofs, len)) {
         tcg_gen_op5ii_i32(INDEX_op_deposit_i32, ret, arg1, arg2, ofs, len);
         return;
@@ -667,53 +739,7 @@ void tcg_gen_deposit_z_i32(TCGv_i32 ret, TCGv_i32 arg,
     tcg_debug_assert(len <= 32);
     tcg_debug_assert(ofs + len <= 32);
 
-    if (ofs + len == 32) {
-        tcg_gen_shli_i32(ret, arg, ofs);
-    } else if (ofs == 0) {
-        tcg_gen_andi_i32(ret, arg, (1u << len) - 1);
-    } else if (TCG_TARGET_HAS_deposit_i32
-               && TCG_TARGET_deposit_i32_valid(ofs, len)) {
-        TCGv_i32 zero = tcg_constant_i32(0);
-        tcg_gen_op5ii_i32(INDEX_op_deposit_i32, ret, zero, arg, ofs, len);
-    } else {
-        /* To help two-operand hosts we prefer to zero-extend first,
-           which allows ARG to stay live.  */
-        switch (len) {
-        case 16:
-            if (TCG_TARGET_HAS_ext16u_i32) {
-                tcg_gen_ext16u_i32(ret, arg);
-                tcg_gen_shli_i32(ret, ret, ofs);
-                return;
-            }
-            break;
-        case 8:
-            if (TCG_TARGET_HAS_ext8u_i32) {
-                tcg_gen_ext8u_i32(ret, arg);
-                tcg_gen_shli_i32(ret, ret, ofs);
-                return;
-            }
-            break;
-        }
-        /* Otherwise prefer zero-extension over AND for code size.  */
-        switch (ofs + len) {
-        case 16:
-            if (TCG_TARGET_HAS_ext16u_i32) {
-                tcg_gen_shli_i32(ret, arg, ofs);
-                tcg_gen_ext16u_i32(ret, ret);
-                return;
-            }
-            break;
-        case 8:
-            if (TCG_TARGET_HAS_ext8u_i32) {
-                tcg_gen_shli_i32(ret, arg, ofs);
-                tcg_gen_ext8u_i32(ret, ret);
-                return;
-            }
-            break;
-        }
-        tcg_gen_andi_i32(ret, arg, (1u << len) - 1);
-        tcg_gen_shli_i32(ret, ret, ofs);
-    }
+    tcg_gen_deposit_i_i32(ret, 0, arg, ofs, len);
 }
 
 void tcg_gen_extract_i32(TCGv_i32 ret, TCGv_i32 arg,
@@ -2226,6 +2252,98 @@ void tcg_gen_rotri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
     }
 }
 
+static void tcg_gen_deposit_i_i64(TCGv_i64 ret, uint64_t i, TCGv_i64 arg,
+                                  unsigned int ofs, unsigned int len)
+{
+    i = deposit64(i, ofs, len, 0);
+
+    if (ofs + len == 64) {
+        tcg_gen_shli_i64(ret, arg, ofs);
+        goto finish;
+    }
+    if (ofs == 0) {
+        tcg_gen_andi_i64(ret, arg, (1ull << len) - 1);
+        goto finish;
+    }
+    if (TCG_TARGET_HAS_deposit_i64
+        && TCG_TARGET_deposit_i64_valid(ofs, len)) {
+        tcg_gen_op5ii_i64(INDEX_op_deposit_i64, ret,
+                          tcg_constant_i64(i), arg, ofs, len);
+        return;
+    }
+
+    if (TCG_TARGET_REG_BITS == 32) {
+        if (ofs >= 32) {
+            tcg_gen_deposit_i_i32(TCGV_HIGH(ret), i >> 32,
+                                  TCGV_LOW(arg), ofs - 32, len);
+            tcg_gen_movi_i32(TCGV_LOW(ret), i);
+            return;
+        }
+        if (ofs + len <= 32) {
+            tcg_gen_deposit_i_i32(TCGV_LOW(ret), i, TCGV_LOW(arg), ofs, len);
+            tcg_gen_movi_i32(TCGV_HIGH(ret), i >> 32);
+            return;
+        }
+    }
+
+    /*
+     * To help two-operand hosts we prefer to zero-extend first,
+     * which allows ARG to stay live.
+     */
+    switch (len) {
+    case 32:
+        if (TCG_TARGET_HAS_ext32u_i64) {
+            tcg_gen_ext32u_i64(ret, arg);
+            tcg_gen_shli_i64(ret, ret, ofs);
+            goto finish;
+        }
+        break;
+    case 16:
+        if (TCG_TARGET_HAS_ext16u_i64) {
+            tcg_gen_ext16u_i64(ret, arg);
+            tcg_gen_shli_i64(ret, ret, ofs);
+            goto finish;
+        }
+        break;
+    case 8:
+        if (TCG_TARGET_HAS_ext8u_i64) {
+            tcg_gen_ext8u_i64(ret, arg);
+            tcg_gen_shli_i64(ret, ret, ofs);
+            goto finish;
+        }
+        break;
+    }
+    /* Otherwise prefer zero-extension over AND for code size.  */
+    switch (ofs + len) {
+    case 32:
+        if (TCG_TARGET_HAS_ext32u_i64) {
+            tcg_gen_shli_i64(ret, arg, ofs);
+            tcg_gen_ext32u_i64(ret, ret);
+            goto finish;
+        }
+        break;
+    case 16:
+        if (TCG_TARGET_HAS_ext16u_i64) {
+            tcg_gen_shli_i64(ret, arg, ofs);
+            tcg_gen_ext16u_i64(ret, ret);
+            goto finish;
+        }
+        break;
+    case 8:
+        if (TCG_TARGET_HAS_ext8u_i64) {
+            tcg_gen_shli_i64(ret, arg, ofs);
+            tcg_gen_ext8u_i64(ret, ret);
+            goto finish;
+        }
+        break;
+    }
+    tcg_gen_andi_i64(ret, arg, (1ull << len) - 1);
+    tcg_gen_shli_i64(ret, ret, ofs);
+
+ finish:
+    tcg_gen_ori_i64(ret, ret, i);
+}
+
 void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2,
                          unsigned int ofs, unsigned int len)
 {
@@ -2242,6 +2360,14 @@ void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2,
         tcg_gen_mov_i64(ret, arg2);
         return;
     }
+
+    /* Deposit of a value into a constant. */
+    ts = tcgv_i64_temp(arg1);
+    if (ts->kind == TEMP_CONST) {
+        tcg_gen_deposit_i_i64(ret, ts->val, arg2, ofs, len);
+        return;
+    }
+
     if (TCG_TARGET_HAS_deposit_i64 && TCG_TARGET_deposit_i64_valid(ofs, len)) {
         tcg_gen_op5ii_i64(INDEX_op_deposit_i64, ret, arg1, arg2, ofs, len);
         return;
@@ -2311,80 +2437,7 @@ void tcg_gen_deposit_z_i64(TCGv_i64 ret, TCGv_i64 arg,
     tcg_debug_assert(len <= 64);
     tcg_debug_assert(ofs + len <= 64);
 
-    if (ofs + len == 64) {
-        tcg_gen_shli_i64(ret, arg, ofs);
-    } else if (ofs == 0) {
-        tcg_gen_andi_i64(ret, arg, (1ull << len) - 1);
-    } else if (TCG_TARGET_HAS_deposit_i64
-               && TCG_TARGET_deposit_i64_valid(ofs, len)) {
-        TCGv_i64 zero = tcg_constant_i64(0);
-        tcg_gen_op5ii_i64(INDEX_op_deposit_i64, ret, zero, arg, ofs, len);
-    } else {
-        if (TCG_TARGET_REG_BITS == 32) {
-            if (ofs >= 32) {
-                tcg_gen_deposit_z_i32(TCGV_HIGH(ret), TCGV_LOW(arg),
-                                      ofs - 32, len);
-                tcg_gen_movi_i32(TCGV_LOW(ret), 0);
-                return;
-            }
-            if (ofs + len <= 32) {
-                tcg_gen_deposit_z_i32(TCGV_LOW(ret), TCGV_LOW(arg), ofs, len);
-                tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
-                return;
-            }
-        }
-        /* To help two-operand hosts we prefer to zero-extend first,
-           which allows ARG to stay live.  */
-        switch (len) {
-        case 32:
-            if (TCG_TARGET_HAS_ext32u_i64) {
-                tcg_gen_ext32u_i64(ret, arg);
-                tcg_gen_shli_i64(ret, ret, ofs);
-                return;
-            }
-            break;
-        case 16:
-            if (TCG_TARGET_HAS_ext16u_i64) {
-                tcg_gen_ext16u_i64(ret, arg);
-                tcg_gen_shli_i64(ret, ret, ofs);
-                return;
-            }
-            break;
-        case 8:
-            if (TCG_TARGET_HAS_ext8u_i64) {
-                tcg_gen_ext8u_i64(ret, arg);
-                tcg_gen_shli_i64(ret, ret, ofs);
-                return;
-            }
-            break;
-        }
-        /* Otherwise prefer zero-extension over AND for code size.  */
-        switch (ofs + len) {
-        case 32:
-            if (TCG_TARGET_HAS_ext32u_i64) {
-                tcg_gen_shli_i64(ret, arg, ofs);
-                tcg_gen_ext32u_i64(ret, ret);
-                return;
-            }
-            break;
-        case 16:
-            if (TCG_TARGET_HAS_ext16u_i64) {
-                tcg_gen_shli_i64(ret, arg, ofs);
-                tcg_gen_ext16u_i64(ret, ret);
-                return;
-            }
-            break;
-        case 8:
-            if (TCG_TARGET_HAS_ext8u_i64) {
-                tcg_gen_shli_i64(ret, arg, ofs);
-                tcg_gen_ext8u_i64(ret, ret);
-                return;
-            }
-            break;
-        }
-        tcg_gen_andi_i64(ret, arg, (1ull << len) - 1);
-        tcg_gen_shli_i64(ret, ret, ofs);
-    }
+    tcg_gen_deposit_i_i64(ret, 0, arg, ofs, len);
 }
 
 void tcg_gen_extract_i64(TCGv_i64 ret, TCGv_i64 arg,
