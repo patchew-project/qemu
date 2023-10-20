@@ -139,6 +139,9 @@ static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
         HPPACPU *cpu = HPPA_CPU(cs);
         cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                         hppa_cpu_alarm_timer, cpu);
+
+        memset(cpu->env.tlb, 0, sizeof(cpu->env.tlb));
+        cpu->env.tlb_last = HPPA_BTLB_ENTRIES(&cpu->env);
     }
 #endif
 }
