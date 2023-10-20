@@ -1235,7 +1235,9 @@ bool pc_basic_device_init(struct PCMachineState *pcms,
         if (!compat) {
             qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
         }
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(hpet), &error_fatal);
+        if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(hpet), errp)) {
+            return false;
+        }
         sysbus_mmio_map(SYS_BUS_DEVICE(hpet), 0, HPET_BASE);
 
         for (i = 0; i < IOAPIC_NUM_PINS; i++) {
