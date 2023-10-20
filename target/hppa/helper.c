@@ -109,8 +109,8 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
     cb |= ((psw >>  8) & 1) <<  4;
     env->psw_cb = cb;
 
-    /* If PSW_P changes, it affects how we translate addresses.  */
-    if ((psw ^ old_psw) & PSW_P) {
+    /* If P or W changes, it affects how we translate addresses.  */
+    if ((psw ^ old_psw) & (PSW_P | PSW_W)) {
 #ifndef CONFIG_USER_ONLY
         tlb_flush_by_mmuidx(env_cpu(env), HPPA_MMU_FLUSH_MASK);
 #endif
