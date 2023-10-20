@@ -1189,11 +1189,12 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl,
     g_free(a20_line);
 }
 
-void pc_basic_device_init(struct PCMachineState *pcms,
+bool pc_basic_device_init(struct PCMachineState *pcms,
                           ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice *rtc_state,
                           bool create_fdctrl,
-                          uint32_t hpet_irqs)
+                          uint32_t hpet_irqs,
+                          Error **errp)
 {
     int i;
     DeviceState *hpet = NULL;
@@ -1289,6 +1290,8 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     /* Super I/O */
     pc_superio_init(isa_bus, create_fdctrl, pcms->i8042_enabled,
                     pcms->vmport != ON_OFF_AUTO_ON);
+
+    return true;
 }
 
 void pc_nic_init(PCMachineClass *pcmc, ISABus *isa_bus, PCIBus *pci_bus)
