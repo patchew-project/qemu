@@ -32,6 +32,13 @@
 #include "qemu/memalign.h"
 #include "trace.h"
 
+typedef struct SubClusterRangeInfo {
+    uint64_t *l2_slice;
+    int l2_index;
+    uint64_t l2_entry;
+    uint64_t l2_bitmap;
+} SubClusterRangeInfo;
+
 int coroutine_fn qcow2_shrink_l1_table(BlockDriverState *bs,
                                        uint64_t exact_size)
 {
@@ -1892,6 +1899,50 @@ again:
     return 0;
 }
 
+static int get_sc_range_info(BlockDriverState *bs, uint64_t offset,
+                             unsigned nb_subclusters,
+                             SubClusterRangeInfo *scri)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret, sc_cleared = 0, sc_index = offset_to_sc_index(s, offset);
+    QCow2SubclusterType sctype;
+
+    /* Here we only work with the subclusters within single cluster. */
+    assert(nb_subclusters > 0 && nb_subclusters < s->subclusters_per_cluster);
+    assert(sc_index + nb_subclusters <= s->subclusters_per_cluster);
+    assert(offset_into_subcluster(s, offset) == 0);
+
+    ret = get_cluster_table(bs, offset, &scri->l2_slice, &scri->l2_index);
+    if (ret < 0) {
+        return ret;
+    }
+
+    scri->l2_entry = get_l2_entry(s, scri->l2_slice, scri->l2_index);
+    scri->l2_bitmap = get_l2_bitmap(s, scri->l2_slice, scri->l2_index);
+
+    do {
+        qcow2_get_subcluster_range_type(bs, scri->l2_entry, scri->l2_bitmap,
+                                        sc_index, &sctype);
+        if (ret < 0) {
+            return ret;
+        }
+
+        switch (sctype) {
+        case QCOW2_SUBCLUSTER_COMPRESSED:
+            /* We cannot partially zeroize/discard compressed clusters. */
+            return -ENOTSUP;
+        case QCOW2_SUBCLUSTER_INVALID:
+            return -EINVAL;
+        default:
+            break;
+        }
+
+        sc_cleared += ret;
+    } while (sc_cleared < nb_subclusters);
+
+    return 0;
+}
+
 /*
  * This discards as many clusters of nb_clusters as possible at once (i.e.
  * all clusters in the same L2 slice) and returns the number of discarded
@@ -2097,44 +2148,27 @@ zero_l2_subclusters(BlockDriverState *bs, uint64_t offset,
                     unsigned nb_subclusters)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t *l2_slice;
-    uint64_t old_l2_bitmap, l2_bitmap;
-    int l2_index, ret, sc = offset_to_sc_index(s, offset);
+    uint64_t new_l2_bitmap;
+    int ret, sc = offset_to_sc_index(s, offset);
+    SubClusterRangeInfo scri = { 0 };
 
-    /* For full clusters use zero_in_l2_slice() instead */
-    assert(nb_subclusters > 0 && nb_subclusters < s->subclusters_per_cluster);
-    assert(sc + nb_subclusters <= s->subclusters_per_cluster);
-    assert(offset_into_subcluster(s, offset) == 0);
-
-    ret = get_cluster_table(bs, offset, &l2_slice, &l2_index);
+    ret = get_sc_range_info(bs, offset, nb_subclusters, &scri);
     if (ret < 0) {
-        return ret;
-    }
-
-    switch (qcow2_get_cluster_type(bs, get_l2_entry(s, l2_slice, l2_index))) {
-    case QCOW2_CLUSTER_COMPRESSED:
-        ret = -ENOTSUP; /* We cannot partially zeroize compressed clusters */
         goto out;
-    case QCOW2_CLUSTER_NORMAL:
-    case QCOW2_CLUSTER_UNALLOCATED:
-        break;
-    default:
-        g_assert_not_reached();
     }
 
-    old_l2_bitmap = l2_bitmap = get_l2_bitmap(s, l2_slice, l2_index);
+    new_l2_bitmap = scri.l2_bitmap;
+    new_l2_bitmap |=  QCOW_OFLAG_SUB_ZERO_RANGE(sc, sc + nb_subclusters);
+    new_l2_bitmap &= ~QCOW_OFLAG_SUB_ALLOC_RANGE(sc, sc + nb_subclusters);
 
-    l2_bitmap |=  QCOW_OFLAG_SUB_ZERO_RANGE(sc, sc + nb_subclusters);
-    l2_bitmap &= ~QCOW_OFLAG_SUB_ALLOC_RANGE(sc, sc + nb_subclusters);
-
-    if (old_l2_bitmap != l2_bitmap) {
-        set_l2_bitmap(s, l2_slice, l2_index, l2_bitmap);
-        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
+    if (new_l2_bitmap != scri.l2_bitmap) {
+        set_l2_bitmap(s, scri.l2_slice, scri.l2_index, new_l2_bitmap);
+        qcow2_cache_entry_mark_dirty(s->l2_table_cache, scri.l2_slice);
     }
 
     ret = 0;
 out:
-    qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
+    qcow2_cache_put(s->l2_table_cache, (void **) &scri.l2_slice);
 
     return ret;
 }
