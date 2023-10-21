@@ -17,3 +17,5 @@ fsi_opb_write16(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
 fsi_opb_write32(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
 fsi_opb_unimplemented_read(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
 fsi_opb_unimplemented_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size=%d value=0x%"PRIx64
+fsi_aspeed_apb2opb_read(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
+fsi_aspeed_apb2opb_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size=%d value=0x%"PRIx64
