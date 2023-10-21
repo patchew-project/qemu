@@ -754,6 +754,8 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
             qemu_mutex_unlock_iothread();
             cpu->exception_index = -1;
 
+            qemu_plugin_vcpu_interrupt_cb(cpu);
+
             if (unlikely(cpu->singlestep_enabled)) {
                 /*
                  * After processing the exception, ensure an EXCP_DEBUG is
@@ -866,6 +868,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
                 if (need_replay_interrupt(interrupt_request)) {
                     replay_interrupt();
                 }
+                qemu_plugin_vcpu_interrupt_cb(cpu);
                 /*
                  * After processing the interrupt, ensure an EXCP_DEBUG is
                  * raised when single-stepping so that GDB doesn't miss the
