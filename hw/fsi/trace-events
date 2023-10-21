@@ -9,3 +9,11 @@ fsi_slave_read(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
 fsi_slave_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size=%d value=0x%"PRIx64
 fsi_master_read(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
 fsi_master_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size=%d value=0x%"PRIx64
+fsi_opb_read8(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
+fsi_opb_read16(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
+fsi_opb_read32(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
+fsi_opb_write8(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
+fsi_opb_write16(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
+fsi_opb_write32(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
+fsi_opb_unimplemented_read(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size=%d"
+fsi_opb_unimplemented_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size=%d value=0x%"PRIx64
