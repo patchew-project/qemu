@@ -4176,6 +4176,14 @@ static bool trans_NOP_v7(DisasContext *dc, arg_NOP_v7 *a)
     return false;
 }
 
+static bool trans_NOP_v9(DisasContext *dc, arg_NOP_v9 *a)
+{
+    if (avail_64(dc)) {
+        return advance_pc(dc);
+    }
+    return false;
+}
+
 static bool do_arith(DisasContext *dc, arg_r_r_ri_cc *a, int cc_op,
                      void (*func)(TCGv, TCGv, TCGv),
                      void (*funci)(TCGv, TCGv, target_long))
@@ -5609,10 +5617,10 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                 case 0x0b:      /* V9 ldx */
                 case 0x18:      /* V9 ldswa */
                 case 0x1b:      /* V9 ldxa */
+                case 0x2d:      /* V9 prefetch */
+                case 0x3d:      /* V9 prefetcha */
                     goto illegal_insn;  /* in decodetree */
 #ifdef TARGET_SPARC64
-                case 0x2d: /* V9 prefetch, no effect */
-                    goto skip_move;
                 case 0x30: /* V9 ldfa */
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
@@ -5626,8 +5634,6 @@ static void disas_sparc_legacy(DisasContext *dc, unsigned int insn)
                     }
                     gen_ldf_asi(dc, cpu_addr, insn, 8, DFPREG(rd));
                     gen_update_fprs_dirty(dc, DFPREG(rd));
-                    goto skip_move;
-                case 0x3d: /* V9 prefetcha, no effect */
                     goto skip_move;
                 case 0x32: /* V9 ldqfa */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
