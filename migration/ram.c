@@ -3032,6 +3032,32 @@ static void fixed_ram_insert_header(QEMUFile *file, RAMBlock *block)
     qemu_put_buffer(file, (uint8_t *) header, header_size);
 }
 
+static int fixed_ram_read_header(QEMUFile *file, struct FixedRamHeader *header)
+{
+    size_t ret, header_size = sizeof(struct FixedRamHeader);
+
+    ret = qemu_get_buffer(file, (uint8_t *)header, header_size);
+    if (ret != header_size) {
+        return -1;
+    }
+
+    /* migration stream is big-endian */
+    be32_to_cpus(&header->version);
+
+    if (header->version > FIXED_RAM_HDR_VERSION) {
+        error_report("Migration fixed-ram capability version mismatch (expected %d, got %d)",
+                     FIXED_RAM_HDR_VERSION, header->version);
+        return -1;
+    }
+
+    be64_to_cpus(&header->page_size);
+    be64_to_cpus(&header->bitmap_offset);
+    be64_to_cpus(&header->pages_offset);
+
+
+    return 0;
+}
+
 /*
  * Each of ram_save_setup, ram_save_iterate and ram_save_complete has
  * long-running RCU critical section.  When rcu-reclaims in the code
@@ -3932,6 +3958,68 @@ void colo_flush_ram_cache(void)
     trace_colo_flush_ram_cache_end();
 }
 
+static void read_ramblock_fixed_ram(QEMUFile *f, RAMBlock *block,
+                                    long num_pages, unsigned long *bitmap)
+{
+    unsigned long set_bit_idx, clear_bit_idx;
+    unsigned long len;
+    ram_addr_t offset;
+    void *host;
+    size_t read, completed, read_len;
+
+    for (set_bit_idx = find_first_bit(bitmap, num_pages);
+         set_bit_idx < num_pages;
+         set_bit_idx = find_next_bit(bitmap, num_pages, clear_bit_idx + 1)) {
+
+        clear_bit_idx = find_next_zero_bit(bitmap, num_pages, set_bit_idx + 1);
+
+        len = TARGET_PAGE_SIZE * (clear_bit_idx - set_bit_idx);
+        offset = set_bit_idx << TARGET_PAGE_BITS;
+
+        for (read = 0, completed = 0; completed < len; offset += read) {
+            host = host_from_ram_block_offset(block, offset);
+            read_len = MIN(len, TARGET_PAGE_SIZE);
+
+            read = qemu_get_buffer_at(f, host, read_len,
+                                      block->pages_offset + offset);
+            completed += read;
+        }
+    }
+}
+
+static int parse_ramblock_fixed_ram(QEMUFile *f, RAMBlock *block, ram_addr_t length)
+{
+    g_autofree unsigned long *bitmap = NULL;
+    struct FixedRamHeader header;
+    size_t bitmap_size;
+    long num_pages;
+    int ret = 0;
+
+    ret = fixed_ram_read_header(f, &header);
+    if (ret < 0) {
+        error_report("Error reading fixed-ram header");
+        return -EINVAL;
+    }
+
+    block->pages_offset = header.pages_offset;
+    num_pages = length / header.page_size;
+    bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
+
+    bitmap = g_malloc0(bitmap_size);
+    if (qemu_get_buffer_at(f, (uint8_t *)bitmap, bitmap_size,
+                           header.bitmap_offset) != bitmap_size) {
+        error_report("Error parsing dirty bitmap");
+        return -EINVAL;
+    }
+
+    read_ramblock_fixed_ram(f, block, num_pages, bitmap);
+
+    /* Skip pages array */
+    qemu_set_offset(f, block->pages_offset + length, SEEK_SET);
+
+    return ret;
+}
+
 static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
 {
     int ret = 0;
@@ -3939,6 +4027,10 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
     bool postcopy_advised = migration_incoming_postcopy_advised();
 
     assert(block);
+
+    if (migrate_fixed_ram()) {
+        return parse_ramblock_fixed_ram(f, block, length);
+    }
 
     if (!qemu_ram_is_migratable(block)) {
         error_report("block %s should not be migrated !", block->idstr);
@@ -4142,6 +4234,7 @@ static int ram_load_precopy(QEMUFile *f)
                 migrate_multifd_flush_after_each_section()) {
                 multifd_recv_sync_main();
             }
+
             break;
         case RAM_SAVE_FLAG_HOOK:
             ret = rdma_registration_handle(f);
