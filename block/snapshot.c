@@ -629,8 +629,8 @@ int bdrv_all_goto_snapshot(const char *name,
     while (iterbdrvs) {
         BlockDriverState *bs = iterbdrvs->data;
         AioContext *ctx = bdrv_get_aio_context(bs);
-        int ret = 0;
         bool all_snapshots_includes_bs;
+        ret = 0;
 
         aio_context_acquire(ctx);
         bdrv_graph_rdlock_main_loop();
