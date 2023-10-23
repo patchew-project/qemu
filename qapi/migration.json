@@ -527,6 +527,9 @@
 #     VM before migration for an optimal migration performance.
 #     Enabled by default. (since 8.1)
 #
+# @fixed-ram: Migrate using fixed offsets for each RAM page. Requires
+#             a seekable transport such as a file.  (since 8.1)
+#
 # Features:
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
@@ -543,7 +546,7 @@
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
            'zero-copy-send', 'postcopy-preempt', 'switchover-ack',
-           'dirty-limit', 'auto-pause'] }
+           'dirty-limit', 'auto-pause', 'fixed-ram'] }
 
 ##
 # @MigrationCapabilityStatus:

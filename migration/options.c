@@ -202,6 +202,7 @@ Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-dirty-limit", MIGRATION_CAPABILITY_DIRTY_LIMIT),
     DEFINE_PROP_BOOL("x-auto-pause", MigrationState,
                      capabilities[MIGRATION_CAPABILITY_AUTO_PAUSE], true),
+    DEFINE_PROP_MIG_CAP("x-fixed-ram", MIGRATION_CAPABILITY_FIXED_RAM),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -266,6 +267,16 @@ bool migrate_events(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_EVENTS];
+}
+
+bool migrate_fixed_ram(void)
+{
+/*
+    MigrationState *s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_FIXED_RAM];
+*/
+    return false;
 }
 
 bool migrate_ignore_shared(void)
@@ -623,6 +634,32 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         if (!kvm_enabled() || !kvm_dirty_ring_enabled()) {
             error_setg(errp, "dirty-limit requires KVM with accelerator"
                    " property 'dirty-ring-size' set");
+            return false;
+        }
+    }
+
+    if (new_caps[MIGRATION_CAPABILITY_FIXED_RAM]) {
+        if (new_caps[MIGRATION_CAPABILITY_MULTIFD]) {
+            error_setg(errp,
+                       "Fixed-ram migration is incompatible with multifd");
+            return false;
+        }
+
+        if (new_caps[MIGRATION_CAPABILITY_XBZRLE]) {
+            error_setg(errp,
+                       "Fixed-ram migration is incompatible with xbzrle");
+            return false;
+        }
+
+        if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
+            error_setg(errp,
+                       "Fixed-ram migration is incompatible with compression");
+            return false;
+        }
+
+        if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
+            error_setg(errp,
+                       "Fixed-ram migration is incompatible with postcopy ram");
             return false;
         }
     }
