@@ -3840,8 +3840,7 @@ static void gen_mxu_Q16SAT(DisasContext *ctx)
             tcg_gen_movi_tl(t0, 255);
 
             gen_set_label(l_lo);
-            tcg_gen_shli_tl(t1, mxu_gpr[XRb - 1], 16);
-            tcg_gen_sari_tl(t1, t1, 16);
+            tcg_gen_sextract_tl(t1, mxu_gpr[XRb - 1], 0, 16);
             tcg_gen_brcondi_tl(TCG_COND_LT, t1, 0, l_less_lo);
             tcg_gen_brcondi_tl(TCG_COND_GT, t1, 255, l_greater_lo);
             tcg_gen_br(l_done);
@@ -3876,8 +3875,7 @@ static void gen_mxu_Q16SAT(DisasContext *ctx)
             tcg_gen_movi_tl(t0, 255);
 
             gen_set_label(l_lo);
-            tcg_gen_shli_tl(t1, mxu_gpr[XRc - 1], 16);
-            tcg_gen_sari_tl(t1, t1, 16);
+            tcg_gen_sextract_tl(t1, mxu_gpr[XRc - 1], 0, 16);
             tcg_gen_brcondi_tl(TCG_COND_LT, t1, 0, l_less_lo);
             tcg_gen_brcondi_tl(TCG_COND_GT, t1, 255, l_greater_lo);
             tcg_gen_br(l_done);
