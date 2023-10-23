@@ -1507,6 +1507,8 @@ static void pnv_chip_power9_pec_realize(PnvChip *chip, Error **errp)
     }
 }
 
+static int pnv_power9_i2c_ports_per_ctlr[PNV9_CHIP_MAX_I2C] = {2, 13, 2, 2};
+
 static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
@@ -1626,7 +1628,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         Object *obj =  OBJECT(&chip9->i2c[i]);
 
         object_property_set_int(obj, "engine", i + 1, &error_fatal);
-        object_property_set_int(obj, "num-busses", pcc->i2c_num_ports,
+        object_property_set_int(obj, "num-busses",
+                                pnv_power9_i2c_ports_per_ctlr[i],
                                 &error_fatal);
         object_property_set_link(obj, "chip", OBJECT(chip), &error_abort);
         if (!qdev_realize(DEVICE(obj), NULL, errp)) {
@@ -1667,7 +1670,6 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip POWER9";
     k->num_pecs = PNV9_CHIP_MAX_PEC;
     k->i2c_num_engines = PNV9_CHIP_MAX_I2C;
-    k->i2c_num_ports = PNV9_CHIP_MAX_I2C_PORTS;
 
     device_class_set_parent_realize(dc, pnv_chip_power9_realize,
                                     &k->parent_realize);
@@ -1750,6 +1752,8 @@ static void pnv_chip_power10_phb_realize(PnvChip *chip, Error **errp)
         pnv_xscom_add_subregion(chip, pec_pci_base, &pec->pci_regs_mr);
     }
 }
+
+static int pnv_power10_i2c_ports_per_ctlr[PNV10_CHIP_MAX_I2C] = {14, 14, 2, 16};
 
 static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
 {
@@ -1877,7 +1881,8 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
         Object *obj =  OBJECT(&chip10->i2c[i]);
 
         object_property_set_int(obj, "engine", i + 1, &error_fatal);
-        object_property_set_int(obj, "num-busses", pcc->i2c_num_ports,
+        object_property_set_int(obj, "num-busses",
+                                pnv_power10_i2c_ports_per_ctlr[i],
                                 &error_fatal);
         object_property_set_link(obj, "chip", OBJECT(chip), &error_abort);
         if (!qdev_realize(DEVICE(obj), NULL, errp)) {
@@ -1918,7 +1923,6 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip POWER10";
     k->num_pecs = PNV10_CHIP_MAX_PEC;
     k->i2c_num_engines = PNV10_CHIP_MAX_I2C;
-    k->i2c_num_ports = PNV10_CHIP_MAX_I2C_PORTS;
 
     device_class_set_parent_realize(dc, pnv_chip_power10_realize,
                                     &k->parent_realize);
