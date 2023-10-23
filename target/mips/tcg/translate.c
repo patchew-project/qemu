@@ -1269,8 +1269,7 @@ static inline void gen_load_srsgpr(int from, int to)
         TCGv_ptr addr = tcg_temp_new_ptr();
 
         tcg_gen_ld_i32(t2, tcg_env, offsetof(CPUMIPSState, CP0_SRSCtl));
-        tcg_gen_shri_i32(t2, t2, CP0SRSCtl_PSS);
-        tcg_gen_andi_i32(t2, t2, 0xf);
+        tcg_gen_extract_i32(t2, t2, CP0SRSCtl_PSS, 4);
         tcg_gen_muli_i32(t2, t2, sizeof(target_ulong) * 32);
         tcg_gen_ext_i32_ptr(addr, t2);
         tcg_gen_add_ptr(addr, tcg_env, addr);
@@ -1289,8 +1288,7 @@ static inline void gen_store_srsgpr(int from, int to)
 
         gen_load_gpr(t0, from);
         tcg_gen_ld_i32(t2, tcg_env, offsetof(CPUMIPSState, CP0_SRSCtl));
-        tcg_gen_shri_i32(t2, t2, CP0SRSCtl_PSS);
-        tcg_gen_andi_i32(t2, t2, 0xf);
+        tcg_gen_extract_i32(t2, t2, CP0SRSCtl_PSS, 4);
         tcg_gen_muli_i32(t2, t2, sizeof(target_ulong) * 32);
         tcg_gen_ext_i32_ptr(addr, t2);
         tcg_gen_add_ptr(addr, tcg_env, addr);
@@ -8981,13 +8979,11 @@ static void gen_compute_branch1(DisasContext *ctx, uint32_t op,
         tcg_gen_extu_i32_tl(bcond, t0);
         goto likely;
     case OPC_BC1T:
-        tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
-        tcg_gen_andi_i32(t0, t0, 1);
+        tcg_gen_extract_i32(t0, fpu_fcr31, get_fp_bit(cc), 1);
         tcg_gen_extu_i32_tl(bcond, t0);
         goto not_likely;
     case OPC_BC1TL:
-        tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
-        tcg_gen_andi_i32(t0, t0, 1);
+        tcg_gen_extract_i32(t0, fpu_fcr31, get_fp_bit(cc), 1);
         tcg_gen_extu_i32_tl(bcond, t0);
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
