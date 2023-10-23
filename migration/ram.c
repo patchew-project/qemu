@@ -1161,7 +1161,7 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
 
     if (migrate_fixed_ram()) {
         /* zero pages are not transferred with fixed-ram */
-        clear_bit(offset >> TARGET_PAGE_BITS, pss->block->shadow_bmap);
+        clear_bit_atomic(offset >> TARGET_PAGE_BITS, pss->block->shadow_bmap);
         return 1;
     }
 

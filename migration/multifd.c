@@ -260,6 +260,19 @@ static void multifd_pages_clear(MultiFDPages_t *pages)
     g_free(pages);
 }
 
+static void multifd_set_file_bitmap(MultiFDSendParams *p)
+{
+    MultiFDPages_t *pages = p->pages;
+
+    if (!pages->block) {
+        return;
+    }
+
+    for (int i = 0; i < p->normal_num; i++) {
+        ramblock_set_shadow_bmap_atomic(pages->block, pages->offset[i]);
+    }
+}
+
 static void multifd_send_fill_packet(MultiFDSendParams *p)
 {
     MultiFDPacket_t *packet = p->packet;
@@ -606,6 +619,29 @@ int multifd_send_sync_main(QEMUFile *f)
         }
     }
 
+    if (!migrate_multifd_packets()) {
+        /*
+         * There's no sync packet to send. Just make sure the sending
+         * above has finished.
+         */
+        for (i = 0; i < migrate_multifd_channels(); i++) {
+            qemu_sem_wait(&multifd_send_state->channels_ready);
+        }
+
+        /* sanity check and release the channels */
+        for (i = 0; i < migrate_multifd_channels(); i++) {
+            MultiFDSendParams *p = &multifd_send_state->params[i];
+
+            qemu_mutex_lock(&p->mutex);
+            assert(!p->pending_job || p->quit);
+            qemu_mutex_unlock(&p->mutex);
+
+            qemu_sem_post(&p->sem);
+        }
+
+        return 0;
+    }
+
     /*
      * When using zero-copy, it's necessary to flush the pages before any of
      * the pages can be sent again, so we'll make sure the new version of the
@@ -689,6 +725,8 @@ static void *multifd_send_thread(void *opaque)
 
         if (p->pending_job) {
             uint32_t flags;
+            uint64_t write_base;
+
             p->normal_num = 0;
 
             if (!use_packets || use_zero_copy_send) {
@@ -713,6 +751,16 @@ static void *multifd_send_thread(void *opaque)
             if (use_packets) {
                 multifd_send_fill_packet(p);
                 p->num_packets++;
+                write_base = 0;
+            } else {
+                multifd_set_file_bitmap(p);
+
+                /*
+                 * If we subtract the host page now, we don't need to
+                 * pass it into qio_channel_write_full_all() below.
+                 */
+                write_base = p->pages->block->pages_offset -
+                    (uint64_t)p->pages->block->host;
             }
 
             flags = p->flags;
@@ -738,8 +786,9 @@ static void *multifd_send_thread(void *opaque)
                 p->iov[0].iov_base = p->packet;
             }
 
-            ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
-                                              0, p->write_flags, &local_err);
+            ret = qio_channel_write_full_all(p->c, p->iov, p->iovs_num,
+                                             write_base, NULL, 0,
+                                             p->write_flags, &local_err);
             if (ret != 0) {
                 break;
             }
@@ -969,6 +1018,8 @@ int multifd_save_setup(Error **errp)
 
         if (migrate_zero_copy_send()) {
             p->write_flags = QIO_CHANNEL_WRITE_FLAG_ZERO_COPY;
+        } else if (!use_packets) {
+            p->write_flags |= QIO_CHANNEL_WRITE_FLAG_WITH_OFFSET;
         } else {
             p->write_flags = 0;
         }
