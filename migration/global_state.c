@@ -37,9 +37,12 @@ static void global_state_do_store(RunState state)
               state_str, '\0');
 }
 
-void global_state_store(void)
+RunState global_state_store(void)
 {
-    global_state_do_store(runstate_get());
+    RunState r = runstate_get();
+
+    global_state_do_store(r);
+    return r;
 }
 
 void global_state_store_running(void)

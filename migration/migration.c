@@ -2344,8 +2344,7 @@ static int migration_completion_precopy(MigrationState *s,
     s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
 
-    s->vm_old_state = runstate_get();
-    global_state_store();
+    s->vm_old_state = global_state_store();
 
     ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
     trace_migration_completion_vm_stop(ret);
@@ -3201,9 +3200,8 @@ static void *bg_migration_thread(void *opaque)
      * transition in vm_stop_force_state() we need to wakeup it up.
      */
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
-    s->vm_old_state = runstate_get();
+    s->vm_old_state = global_state_store();
 
-    global_state_store();
     /* Forcibly stop VM before saving state of vCPUs and devices */
     if (vm_stop_force_state(RUN_STATE_PAUSED)) {
         goto fail;
