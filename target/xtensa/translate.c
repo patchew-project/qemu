@@ -1595,11 +1595,7 @@ static void translate_entry(DisasContext *dc, const OpcodeArg arg[],
 static void translate_extui(DisasContext *dc, const OpcodeArg arg[],
                             const uint32_t par[])
 {
-    int maskimm = (1 << arg[3].imm) - 1;
-
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_shri_i32(tmp, arg[1].in, arg[2].imm);
-    tcg_gen_andi_i32(arg[0].out, tmp, maskimm);
+    tcg_gen_extract_i32(arg[0].out, arg[1].in, arg[2].imm, arg[3].imm);
 }
 
 static void translate_getex(DisasContext *dc, const OpcodeArg arg[],
