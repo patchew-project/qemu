@@ -2892,13 +2892,7 @@ static void gen_slw(DisasContext *ctx)
 
     t0 = tcg_temp_new();
     /* AND rS with a mask that is 0 when rB >= 0x20 */
-#if defined(TARGET_PPC64)
-    tcg_gen_shli_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3a);
-    tcg_gen_sari_tl(t0, t0, 0x3f);
-#else
-    tcg_gen_shli_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x1a);
-    tcg_gen_sari_tl(t0, t0, 0x1f);
-#endif
+    tcg_gen_sextract_tl(t0, cpu_gpr[rB(ctx->opcode)], 5, 1);
     tcg_gen_andc_tl(t0, cpu_gpr[rS(ctx->opcode)], t0);
     t1 = tcg_temp_new();
     tcg_gen_andi_tl(t1, cpu_gpr[rB(ctx->opcode)], 0x1f);
@@ -2956,13 +2950,7 @@ static void gen_srw(DisasContext *ctx)
 
     t0 = tcg_temp_new();
     /* AND rS with a mask that is 0 when rB >= 0x20 */
-#if defined(TARGET_PPC64)
-    tcg_gen_shli_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3a);
-    tcg_gen_sari_tl(t0, t0, 0x3f);
-#else
-    tcg_gen_shli_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x1a);
-    tcg_gen_sari_tl(t0, t0, 0x1f);
-#endif
+    tcg_gen_sextract_tl(t0, cpu_gpr[rB(ctx->opcode)], 5, 1);
     tcg_gen_andc_tl(t0, cpu_gpr[rS(ctx->opcode)], t0);
     tcg_gen_ext32u_tl(t0, t0);
     t1 = tcg_temp_new();
@@ -2981,8 +2969,7 @@ static void gen_sld(DisasContext *ctx)
 
     t0 = tcg_temp_new();
     /* AND rS with a mask that is 0 when rB >= 0x40 */
-    tcg_gen_shli_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x39);
-    tcg_gen_sari_tl(t0, t0, 0x3f);
+    tcg_gen_sextract_tl(t0, cpu_gpr[rB(ctx->opcode)], 6, 1);
     tcg_gen_andc_tl(t0, cpu_gpr[rS(ctx->opcode)], t0);
     t1 = tcg_temp_new();
     tcg_gen_andi_tl(t1, cpu_gpr[rB(ctx->opcode)], 0x3f);
@@ -3071,8 +3058,7 @@ static void gen_srd(DisasContext *ctx)
 
     t0 = tcg_temp_new();
     /* AND rS with a mask that is 0 when rB >= 0x40 */
-    tcg_gen_shli_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x39);
-    tcg_gen_sari_tl(t0, t0, 0x3f);
+    tcg_gen_sextract_tl(t0, cpu_gpr[rB(ctx->opcode)], 6, 1);
     tcg_gen_andc_tl(t0, cpu_gpr[rS(ctx->opcode)], t0);
     t1 = tcg_temp_new();
     tcg_gen_andi_tl(t1, cpu_gpr[rB(ctx->opcode)], 0x3f);
