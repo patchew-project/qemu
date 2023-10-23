@@ -523,6 +523,10 @@
 #     and can result in more stable read performance.  Requires KVM
 #     with accelerator property "dirty-ring-size" set.  (Since 8.1)
 #
+# @auto-pause: If enabled, allows QEMU to decide whether to pause the
+#     VM before migration for an optimal migration performance.
+#     Enabled by default. (since 8.1)
+#
 # Features:
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
@@ -539,7 +543,7 @@
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
            'zero-copy-send', 'postcopy-preempt', 'switchover-ack',
-           'dirty-limit'] }
+           'dirty-limit', 'auto-pause'] }
 
 ##
 # @MigrationCapabilityStatus:

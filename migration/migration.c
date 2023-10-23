@@ -124,6 +124,20 @@ migration_channels_and_uri_compatible(const char *uri, Error **errp)
     return true;
 }
 
+static bool migration_should_pause(const char *uri)
+{
+    if (!migrate_auto_pause()) {
+        return false;
+    }
+
+    /*
+     * Return true for migration schemes that benefit from a nonlive
+     * migration.
+     */
+
+    return false;
+}
+
 static gint page_request_addr_cmp(gconstpointer ap, gconstpointer bp)
 {
     uintptr_t a = (uintptr_t) ap, b = (uintptr_t) bp;
@@ -1722,6 +1736,11 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
             return;
         }
+    }
+
+    if (migration_should_pause(uri)) {
+        global_state_store();
+        vm_stop_force_state(RUN_STATE_PAUSED);
     }
 
     if (strstart(uri, "tcp:", &p) ||

@@ -200,6 +200,8 @@ Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-switchover-ack",
                         MIGRATION_CAPABILITY_SWITCHOVER_ACK),
     DEFINE_PROP_MIG_CAP("x-dirty-limit", MIGRATION_CAPABILITY_DIRTY_LIMIT),
+    DEFINE_PROP_BOOL("x-auto-pause", MigrationState,
+                     capabilities[MIGRATION_CAPABILITY_AUTO_PAUSE], true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -208,6 +210,13 @@ bool migrate_auto_converge(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
+}
+
+bool migrate_auto_pause(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_AUTO_PAUSE];
 }
 
 bool migrate_background_snapshot(void)
