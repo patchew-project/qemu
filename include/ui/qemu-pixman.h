@@ -12,6 +12,8 @@
 #pragma GCC diagnostic ignored "-Wredundant-decls"
 #include <pixman.h>
 #pragma GCC diagnostic pop
+#else
+#include "pixman-compat.h"
 #endif
 
 /*
