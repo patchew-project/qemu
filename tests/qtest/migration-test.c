@@ -2064,6 +2064,46 @@ static void test_precopy_file_fixed_ram(void)
     test_file_common(&args, false, true);
 }
 
+static void *migrate_multifd_fixed_ram_start(QTestState *from, QTestState *to)
+{
+    migrate_fixed_ram_start(from, to);
+
+    migrate_set_parameter_int(from, "multifd-channels", 4);
+    migrate_set_parameter_int(to, "multifd-channels", 4);
+
+    migrate_set_capability(from, "multifd", true);
+    migrate_set_capability(to, "multifd", true);
+
+    return NULL;
+}
+
+static void test_multifd_file_fixed_ram_live(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
+                                           FILE_TEST_FILENAME);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = migrate_multifd_fixed_ram_start,
+    };
+
+    test_file_common(&args, false, false);
+}
+
+static void test_multifd_file_fixed_ram(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
+                                           FILE_TEST_FILENAME);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = migrate_multifd_fixed_ram_start,
+    };
+
+    test_file_common(&args, false, true);
+}
+
+
 static void test_precopy_tcp_plain(void)
 {
     MigrateCommon args = {
@@ -3136,6 +3176,11 @@ int main(int argc, char **argv)
                    test_precopy_file_fixed_ram);
     qtest_add_func("/migration/precopy/file/fixed-ram/live",
                    test_precopy_file_fixed_ram_live);
+
+    qtest_add_func("/migration/multifd/file/fixed-ram",
+                   test_multifd_file_fixed_ram);
+    qtest_add_func("/migration/multifd/file/fixed-ram/live",
+                   test_multifd_file_fixed_ram_live);
 
 #ifdef CONFIG_GNUTLS
     qtest_add_func("/migration/precopy/unix/tls/psk",
