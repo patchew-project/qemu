@@ -26,6 +26,8 @@ typedef struct QTestState QTestState;
 struct QTestMigrationState {
     bool stop_seen;
     bool resume_seen;
+    bool setup_seen;
+    bool active_seen;
 };
 typedef struct QTestMigrationState QTestMigrationState;
 

@@ -21,6 +21,8 @@ bool migrate_watch_for_events(QTestState *who, const char *name,
 
 void wait_for_stop(QTestState *who);
 void wait_for_resume(QTestState *who);
+void wait_for_setup(QTestState *who);
+void wait_for_active(QTestState *who);
 
 G_GNUC_PRINTF(3, 4)
 void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...);

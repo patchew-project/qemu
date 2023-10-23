@@ -35,6 +35,22 @@ bool migrate_watch_for_events(QTestState *who, const char *name,
     } else if (g_str_equal(name, "RESUME")) {
         state->resume_seen = true;
         return true;
+    } else if (g_str_equal(name, "MIGRATION")) {
+        QDict *data;
+        g_assert(qdict_haskey(event, "data"));
+
+        data = qdict_get_qdict(event, "data");
+        g_assert(qdict_haskey(data, "status"));
+
+        if (g_str_equal(qdict_get_str(data, "status"), "setup")) {
+            state->setup_seen = true;
+        } else if (g_str_equal(qdict_get_str(data, "status"), "active")) {
+            state->active_seen = true;
+        } else {
+            return false;
+        }
+
+        return true;
     }
 
     return false;
@@ -110,10 +126,49 @@ void wait_for_resume(QTestState *who)
     }
 }
 
+static void wait_for_migration_state(QTestState *who, const char* state)
+{
+        QDict *rsp, *data;
+
+        for (;;) {
+            rsp = qtest_qmp_eventwait_ref(who, "MIGRATION");
+            g_assert(qdict_haskey(rsp, "data"));
+
+            data = qdict_get_qdict(rsp, "data");
+            g_assert(qdict_haskey(data, "status"));
+
+            if (g_str_equal(qdict_get_str(data, "status"), state)) {
+                break;
+            }
+            qobject_unref(rsp);
+        }
+
+        qobject_unref(rsp);
+        return;
+}
+
+void wait_for_setup(QTestState *who)
+{
+    QTestMigrationState *state = qtest_migration_state(who);
+
+    if (!state->setup_seen) {
+        wait_for_migration_state(who, "setup");
+    }
+}
+
+void wait_for_active(QTestState *who)
+{
+    QTestMigrationState *state = qtest_migration_state(who);
+
+    if (!state->active_seen) {
+        wait_for_migration_state(who, "active");
+    }
+}
+
 void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
 {
     va_list ap;
-    QDict *args, *rsp, *data;
+    QDict *args, *rsp;
 
     va_start(ap, fmt);
     args = qdict_from_vjsonf_nofail(fmt, ap);
@@ -129,14 +184,7 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 
-    rsp = qtest_qmp_eventwait_ref(to, "MIGRATION");
-    g_assert(qdict_haskey(rsp, "data"));
-
-    data = qdict_get_qdict(rsp, "data");
-    g_assert(qdict_haskey(data, "status"));
-    g_assert_cmpstr(qdict_get_str(data, "status"), ==, "setup");
-
-    qobject_unref(rsp);
+    wait_for_setup(to);
 }
 
 /*
