@@ -17,6 +17,12 @@
 
 #define OFFSET_OPTION ",offset="
 
+static struct FileOutgoingArgs {
+    char *fname;
+    int flags;
+    int mode;
+} outgoing_args;
+
 /* Remove the offset option from @filespec and return it in @offsetp. */
 
 static int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp)
@@ -36,13 +42,62 @@ static int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp)
     return 0;
 }
 
+static void qio_channel_file_connect_worker(QIOTask *task, gpointer opaque)
+{
+    /* noop */
+}
+
+static void file_migration_cancel(Error *errp)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                      MIGRATION_STATUS_FAILED);
+    migration_cancel(errp);
+}
+
+int file_send_channel_destroy(QIOChannel *ioc)
+{
+    if (ioc) {
+        qio_channel_close(ioc, NULL);
+        object_unref(OBJECT(ioc));
+    }
+    g_free(outgoing_args.fname);
+    outgoing_args.fname = NULL;
+
+    return 0;
+}
+
+void file_send_channel_create(QIOTaskFunc f, void *data)
+{
+    QIOChannelFile *ioc;
+    QIOTask *task;
+    Error *errp = NULL;
+
+    ioc = qio_channel_file_new_path(outgoing_args.fname,
+                                    outgoing_args.flags,
+                                    outgoing_args.mode, &errp);
+    if (!ioc) {
+        file_migration_cancel(errp);
+        return;
+    }
+
+    task = qio_task_new(OBJECT(ioc), f, (gpointer)data, NULL);
+    qio_task_run_in_thread(task, qio_channel_file_connect_worker,
+                           (gpointer)data, NULL, NULL);
+}
+
 void file_start_outgoing_migration(MigrationState *s, const char *filespec,
                                    Error **errp)
 {
-    g_autofree char *filename = g_strdup(filespec);
     g_autoptr(QIOChannelFile) fioc = NULL;
+    g_autofree char *filename = g_strdup(filespec);
     uint64_t offset = 0;
     QIOChannel *ioc;
+    int flags = O_CREAT | O_TRUNC | O_WRONLY;
+    mode_t mode = 0660;
 
     trace_migration_file_outgoing(filename);
 
@@ -50,11 +105,14 @@ void file_start_outgoing_migration(MigrationState *s, const char *filespec,
         return;
     }
 
-    fioc = qio_channel_file_new_path(filename, O_CREAT | O_WRONLY | O_TRUNC,
-                                     0600, errp);
+    fioc = qio_channel_file_new_path(filename, flags, mode, errp);
     if (!fioc) {
         return;
     }
+
+    outgoing_args.fname = g_strdup(filename);
+    outgoing_args.flags = flags;
+    outgoing_args.mode = mode;
 
     ioc = QIO_CHANNEL(fioc);
     if (offset && qio_channel_io_seek(ioc, offset, SEEK_SET, errp) < 0) {

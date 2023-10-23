@@ -414,6 +414,13 @@ bool migrate_tls(void)
     return s->parameters.tls_creds && *s->parameters.tls_creds;
 }
 
+bool migrate_to_file(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return qemu_file_is_seekable(s->to_dst_file);
+}
+
 typedef enum WriteTrackingSupport {
     WT_SUPPORT_UNKNOWN = 0,
     WT_SUPPORT_ABSENT,
