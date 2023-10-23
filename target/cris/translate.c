@@ -336,8 +336,7 @@ static void t_gen_cris_mstep(TCGv d, TCGv a, TCGv b, TCGv ccs)
      */
     t = tcg_temp_new();
     tcg_gen_shli_tl(d, a, 1);
-    tcg_gen_shli_tl(t, ccs, 31 - 3);
-    tcg_gen_sari_tl(t, t, 31);
+    tcg_gen_sextract_tl(t, ccs, 3, 1);
     tcg_gen_and_tl(t, t, b);
     tcg_gen_add_tl(d, d, t);
 }
