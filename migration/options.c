@@ -390,6 +390,11 @@ bool migrate_multifd_flush_after_each_section(void)
     return s->multifd_flush_after_each_section;
 }
 
+bool migrate_multifd_packets(void)
+{
+    return !migrate_fixed_ram();
+}
+
 bool migrate_postcopy(void)
 {
     return migrate_postcopy_ram() || migrate_dirty_bitmaps();
