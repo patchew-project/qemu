@@ -271,12 +271,9 @@ bool migrate_events(void)
 
 bool migrate_fixed_ram(void)
 {
-/*
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_FIXED_RAM];
-*/
-    return false;
 }
 
 bool migrate_ignore_shared(void)
