@@ -106,22 +106,40 @@ static bool migration_needs_multiple_sockets(void)
     return migrate_multifd() || migrate_postcopy_preempt();
 }
 
+static bool migration_needs_seekable_channel(void)
+{
+    return migrate_fixed_ram();
+}
+
 static bool uri_supports_multi_channels(const char *uri)
 {
     return strstart(uri, "tcp:", NULL) || strstart(uri, "unix:", NULL) ||
            strstart(uri, "vsock:", NULL);
 }
 
+static bool uri_supports_seeking(const char *uri)
+{
+    return strstart(uri, "file:", NULL);
+}
+
 static bool
 migration_channels_and_uri_compatible(const char *uri, Error **errp)
 {
+    bool compatible = true;
+
+    if (migration_needs_seekable_channel() &&
+        !uri_supports_seeking(uri)) {
+        error_setg(errp, "Migration requires seekable transport (e.g. file)");
+        compatible = false;
+    }
+
     if (migration_needs_multiple_sockets() &&
         !uri_supports_multi_channels(uri)) {
         error_setg(errp, "Migration requires multi-channel URIs (e.g. tcp)");
-        return false;
+        compatible = false;
     }
 
-    return true;
+    return compatible;
 }
 
 static bool migration_should_pause(const char *uri)
