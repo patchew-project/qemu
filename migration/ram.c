@@ -3238,8 +3238,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
         ram_flush_compressed_data(rs);
 
-        int ret = rdma_registration_stop(f, RAM_CONTROL_FINISH);
-        if (ret < 0) {
+        if (rdma_registration_stop(f, RAM_CONTROL_FINISH) < 0) {
             qemu_file_set_error(f, ret);
         }
     }
