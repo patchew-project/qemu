@@ -45,6 +45,19 @@ RunState global_state_store(void)
     return r;
 }
 
+RunState global_state_store_once(void)
+{
+    int r;
+    char *runstate = (char *)global_state.runstate;
+
+    r = qapi_enum_parse(&RunState_lookup, runstate, -1, NULL);
+    if (r < 0) {
+        return global_state_store();
+    }
+
+    return r;
+}
+
 void global_state_store_running(void)
 {
     global_state_do_store(RUN_STATE_RUNNING);
