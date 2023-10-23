@@ -1679,7 +1679,7 @@ finish:
     test_migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
 }
 
-static void test_file_common(MigrateCommon *args, bool stop_src)
+static void test_file_common(MigrateCommon *args, bool stop_src, bool auto_pause)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
@@ -1687,6 +1687,13 @@ static void test_file_common(MigrateCommon *args, bool stop_src)
 
     if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
+    }
+
+    migrate_set_capability(from, "events", true);
+    migrate_set_capability(to, "events", true);
+
+    if (!auto_pause) {
+        migrate_set_capability(from, "auto-pause", false);
     }
 
     /*
@@ -1712,8 +1719,24 @@ static void test_file_common(MigrateCommon *args, bool stop_src)
         migrate_qmp_fail(from, connect_uri, "{}");
         goto finish;
     }
-
     migrate_qmp(from, connect_uri, "{}");
+
+    wait_for_setup(from);
+
+    /* auto-pause stops the VM right after setup */
+    if (auto_pause && !stop_src) {
+        wait_for_stop(from);
+    }
+
+    wait_for_active(from);
+
+    /*
+     * If the VM is not already stop by the test or auto-pause,
+     * migration completion will stop it.
+     */
+    if (!stop_src && !auto_pause) {
+        wait_for_stop(from);
+    }
     wait_for_migration_complete(from);
 
     /*
@@ -1721,9 +1744,15 @@ static void test_file_common(MigrateCommon *args, bool stop_src)
      * destination.
      */
     migrate_incoming_qmp(to, connect_uri, "{}");
+    wait_for_active(to);
     wait_for_migration_complete(to);
 
-    if (stop_src) {
+    if (stop_src || auto_pause) {
+        /*
+         * The VM has been paused on source by either the test or
+         * auto-pause, re-start on destination to make sure it won't
+         * crash.
+         */
         qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
     }
 
@@ -1940,7 +1969,7 @@ static void test_precopy_file(void)
         .listen_uri = "defer",
     };
 
-    test_file_common(&args, true);
+    test_file_common(&args, true, true);
 }
 
 static void file_offset_finish_hook(QTestState *from, QTestState *to,
@@ -1984,7 +2013,7 @@ static void test_precopy_file_offset(void)
         .finish_hook = file_offset_finish_hook,
     };
 
-    test_file_common(&args, false);
+    test_file_common(&args, false, true);
 }
 
 static void test_precopy_file_offset_bad(void)
@@ -1998,7 +2027,7 @@ static void test_precopy_file_offset_bad(void)
         .result = MIG_TEST_QMP_ERROR,
     };
 
-    test_file_common(&args, false);
+    test_file_common(&args, false, false);
 }
 
 static void test_precopy_tcp_plain(void)
