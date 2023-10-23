@@ -387,6 +387,12 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRIu64 " MB/s\n",
             MigrationParameter_str(MIGRATION_PARAMETER_VCPU_DIRTY_LIMIT),
             params->vcpu_dirty_limit);
+
+        if (params->has_direct_io) {
+            monitor_printf(mon, "%s: %s\n",
+                           MigrationParameter_str(MIGRATION_PARAMETER_DIRECT_IO),
+                           params->direct_io ? "on" : "off");
+        }
     }
 
     qapi_free_MigrationParameters(params);
@@ -660,6 +666,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_VCPU_DIRTY_LIMIT:
         p->has_vcpu_dirty_limit = true;
         visit_type_size(v, param, &p->vcpu_dirty_limit, &err);
+        break;
+    case MIGRATION_PARAMETER_DIRECT_IO:
+        p->has_direct_io = true;
+        visit_type_bool(v, param, &p->direct_io, &err);
         break;
     default:
         assert(0);

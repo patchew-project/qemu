@@ -817,6 +817,22 @@ int migrate_decompress_threads(void)
     return s->parameters.decompress_threads;
 }
 
+bool migrate_direct_io(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    /* For now O_DIRECT is only supported with fixed-ram */
+    if (!s->capabilities[MIGRATION_CAPABILITY_FIXED_RAM]) {
+        return false;
+    }
+
+    if (s->parameters.has_direct_io) {
+        return s->parameters.direct_io;
+    }
+
+    return false;
+}
+
 uint64_t migrate_downtime_limit(void)
 {
     MigrationState *s = migrate_get_current();
@@ -1025,6 +1041,11 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->has_vcpu_dirty_limit = true;
     params->vcpu_dirty_limit = s->parameters.vcpu_dirty_limit;
 
+    if (s->parameters.has_direct_io) {
+        params->has_direct_io = true;
+        params->direct_io = s->parameters.direct_io;
+    }
+
     return params;
 }
 
@@ -1059,6 +1080,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_announce_step = true;
     params->has_x_vcpu_dirty_limit_period = true;
     params->has_vcpu_dirty_limit = true;
+    params->has_direct_io = qemu_has_direct_io();
 }
 
 /*
@@ -1356,6 +1378,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_vcpu_dirty_limit) {
         dest->vcpu_dirty_limit = params->vcpu_dirty_limit;
     }
+
+    if (params->has_direct_io) {
+        dest->direct_io = params->direct_io;
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -1485,6 +1511,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_vcpu_dirty_limit) {
         s->parameters.vcpu_dirty_limit = params->vcpu_dirty_limit;
+    }
+
+    if (params->has_direct_io) {
+        s->parameters.direct_io = params->direct_io;
     }
 }
 

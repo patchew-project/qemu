@@ -840,6 +840,9 @@
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
+# @direct-io: Open migration files with O_DIRECT when possible. Not
+#             all migration transports support this. (since 8.1)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
@@ -864,7 +867,7 @@
            'multifd-zlib-level', 'multifd-zstd-level',
            'block-bitmap-mapping',
            { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
-           'vcpu-dirty-limit'] }
+           'vcpu-dirty-limit', 'direct-io'] }
 
 ##
 # @MigrateSetParameters:
@@ -1016,6 +1019,9 @@
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
+# @direct-io: Open migration files with O_DIRECT when possible. Not
+#             all migration transports support this. (since 8.1)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
@@ -1058,7 +1064,8 @@
             '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
                                             'features': [ 'unstable' ] },
-            '*vcpu-dirty-limit': 'uint64'} }
+            '*vcpu-dirty-limit': 'uint64',
+            '*direct-io': 'bool' } }
 
 ##
 # @migrate-set-parameters:
@@ -1230,6 +1237,9 @@
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
+# @direct-io: Open migration files with O_DIRECT when possible. Not
+#             all migration transports support this. (since 8.1)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
@@ -1269,7 +1279,8 @@
             '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
                                             'features': [ 'unstable' ] },
-            '*vcpu-dirty-limit': 'uint64'} }
+            '*vcpu-dirty-limit': 'uint64',
+            '*direct-io': 'bool' } }
 
 ##
 # @query-migrate-parameters:
