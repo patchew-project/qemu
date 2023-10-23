@@ -1666,6 +1666,14 @@
 #                                    "port": "1050" } } ] } }
 # <- { "return": {} }
 #
+# -> { "execute": "migrate",
+#      "arguments": {
+#          "channels": [ { "channel-type": "main",
+#                          "addr": { "transport": "file",
+#                                    "filename": "/tmp/migfile",
+#                                    "offset": "0x1000" } } ] } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate',
   'data': {'*uri': 'str', '*channels': [ 'MigrationChannel' ],
