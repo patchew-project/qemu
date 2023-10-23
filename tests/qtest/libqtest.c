@@ -87,6 +87,7 @@ struct QTestState
     GList *pending_events;
     QTestQMPEventCallback eventCB;
     void *eventData;
+    QTestMigrationState *migration_state;
 };
 
 static GHookList abrt_hooks;
@@ -500,6 +501,8 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
         s->irq_level[i] = false;
     }
 
+    s->migration_state = g_new0(QTestMigrationState, 1);
+
     /*
      * Stopping QEMU for debugging is not supported on Windows.
      *
@@ -601,6 +604,7 @@ void qtest_quit(QTestState *s)
     close(s->fd);
     close(s->qmp_fd);
     g_string_free(s->rx, true);
+    g_free(s->migration_state);
 
     for (GList *it = s->pending_events; it != NULL; it = it->next) {
         qobject_unref((QDict *)it->data);
@@ -852,6 +856,11 @@ void qtest_qmp_set_event_callback(QTestState *s,
 {
     s->eventCB = cb;
     s->eventData = opaque;
+}
+
+void qtest_qmp_set_migration_callback(QTestState *s, QTestQMPEventCallback cb)
+{
+    qtest_qmp_set_event_callback(s, cb, s->migration_state);
 }
 
 QDict *qtest_qmp_event_ref(QTestState *s, const char *event)
@@ -1905,4 +1914,9 @@ bool mkimg(const char *file, const char *fmt, unsigned size_mb)
     free(qemu_img_abs_path);
 
     return ret && !err;
+}
+
+QTestMigrationState *qtest_migration_state(QTestState *s)
+{
+    return s->migration_state;
 }

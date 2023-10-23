@@ -15,12 +15,12 @@
 
 #include "libqtest.h"
 
-typedef struct QTestMigrationState {
-    bool stop_seen, resume_seen;
-} QTestMigrationState;
-
 bool migrate_watch_for_events(QTestState *who, const char *name,
                               QDict *event, void *opaque);
+
+
+void wait_for_stop(QTestState *who);
+void wait_for_resume(QTestState *who);
 
 G_GNUC_PRINTF(3, 4)
 void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...);

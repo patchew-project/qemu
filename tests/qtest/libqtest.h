@@ -23,6 +23,20 @@
 
 typedef struct QTestState QTestState;
 
+struct QTestMigrationState {
+    bool stop_seen;
+    bool resume_seen;
+};
+typedef struct QTestMigrationState QTestMigrationState;
+
+/**
+ * qtest_migration_state:
+ * @s: #QTestState instance to operate on.
+ *
+ * Returns: #QTestMigrationState instance.
+ */
+QTestMigrationState *qtest_migration_state(QTestState *s);
+
 /**
  * qtest_initf:
  * @fmt: Format for creating other arguments to pass to QEMU, formatted
@@ -287,6 +301,15 @@ typedef bool (*QTestQMPEventCallback)(QTestState *s, const char *name,
  */
 void qtest_qmp_set_event_callback(QTestState *s,
                                   QTestQMPEventCallback cb, void *opaque);
+
+/**
+ * qtest_qmp_set_migration_callback:
+ * @s: #QTestSTate instance to operate on
+ * @cb: callback to invoke for events
+ *
+ * Like qtest_qmp_set_event_callback, but includes migration state events
+ */
+void qtest_qmp_set_migration_callback(QTestState *s, QTestQMPEventCallback cb);
 
 /**
  * qtest_qmp_eventwait:

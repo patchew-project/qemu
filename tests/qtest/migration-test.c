@@ -43,8 +43,6 @@
 unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
-static QTestMigrationState src_state;
-static QTestMigrationState dst_state;
 
 /*
  * An initial 3 MB offset is used as that corresponds
@@ -230,13 +228,6 @@ static void wait_for_serial(const char *side)
     } while (true);
 }
 
-static void wait_for_stop(QTestState *who, QTestMigrationState *state)
-{
-    if (!state->stop_seen) {
-        qtest_qmp_eventwait(who, "STOP");
-    }
-}
-
 /*
  * It's tricky to use qemu's migration event capability with qtest,
  * events suddenly appearing confuse the qmp()/hmp() responses.
@@ -290,8 +281,9 @@ static void read_blocktime(QTestState *who)
 static void wait_for_migration_pass(QTestState *who)
 {
     uint64_t pass, prev_pass = 0, changes = 0;
+    QTestMigrationState *state = qtest_migration_state(who);
 
-    while (changes < 2 && !src_state.stop_seen) {
+    while (changes < 2 && !state->stop_seen) {
         usleep(1000);
         pass = get_migration_pass(who);
         changes += (pass != prev_pass);
@@ -622,7 +614,7 @@ static void migrate_postcopy_start(QTestState *from, QTestState *to)
 {
     qtest_qmp_assert_success(from, "{ 'execute': 'migrate-start-postcopy' }");
 
-    wait_for_stop(from, &src_state);
+    wait_for_stop(from);
     qtest_qmp_eventwait(to, "RESUME");
 }
 
@@ -757,9 +749,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         }
     }
 
-    dst_state = (QTestMigrationState) { };
-    src_state = (QTestMigrationState) { };
-
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         memory_size = "150M";
 
@@ -849,9 +838,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  ignore_stderr);
     if (!args->only_target) {
         *from = qtest_init_with_env(QEMU_ENV_SRC, cmd_source);
-        qtest_qmp_set_event_callback(*from,
-                                     migrate_watch_for_events,
-                                     &src_state);
+        qtest_qmp_set_migration_callback(*from, migrate_watch_for_events);
     }
 
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg "
@@ -870,9 +857,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
     *to = qtest_init_with_env(QEMU_ENV_DST, cmd_target);
-    qtest_qmp_set_event_callback(*to,
-                                 migrate_watch_for_events,
-                                 &dst_state);
+    qtest_qmp_set_migration_callback(*to, migrate_watch_for_events);
 
     /*
      * Remove shmem file immediately to avoid memory leak in test failed case.
@@ -1622,7 +1607,7 @@ static void test_precopy_common(MigrateCommon *args)
          */
         if (args->result == MIG_TEST_SUCCEED) {
             qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
-            wait_for_stop(from, &src_state);
+            wait_for_stop(from);
             migrate_ensure_converge(from);
         }
     }
@@ -1668,7 +1653,7 @@ static void test_precopy_common(MigrateCommon *args)
              */
             wait_for_migration_complete(from);
 
-            wait_for_stop(from, &src_state);
+            wait_for_stop(from);
 
         } else {
             wait_for_migration_complete(from);
@@ -1682,10 +1667,7 @@ static void test_precopy_common(MigrateCommon *args)
             qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
         }
 
-        if (!dst_state.resume_seen) {
-            qtest_qmp_eventwait(to, "RESUME");
-        }
-
+        wait_for_resume(to);
         wait_for_serial("dest_serial");
     }
 
@@ -1723,7 +1705,7 @@ static void test_file_common(MigrateCommon *args, bool stop_src)
 
     if (stop_src) {
         qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
-        wait_for_stop(from, &src_state);
+        wait_for_stop(from);
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
@@ -1745,10 +1727,7 @@ static void test_file_common(MigrateCommon *args, bool stop_src)
         qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
     }
 
-    if (!dst_state.resume_seen) {
-        qtest_qmp_eventwait(to, "RESUME");
-    }
-
+    wait_for_resume(to);
     wait_for_serial("dest_serial");
 
 finish:
@@ -1866,7 +1845,7 @@ static void test_ignore_shared(void)
 
     migrate_wait_for_dirty_mem(from, to);
 
-    wait_for_stop(from, &src_state);
+    wait_for_stop(from);
 
     qtest_qmp_eventwait(to, "RESUME");
 
@@ -2376,7 +2355,7 @@ static void test_migrate_auto_converge(void)
             break;
         }
         usleep(20);
-        g_assert_false(src_state.stop_seen);
+        g_assert_false(qtest_migration_state(from)->stop_seen);
     } while (true);
     /* The first percentage of throttling should be at least init_pct */
     g_assert_cmpint(percentage, >=, init_pct);
@@ -2715,7 +2694,7 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_ensure_converge(from);
 
-    wait_for_stop(from, &src_state);
+    wait_for_stop(from);
     qtest_qmp_eventwait(to2, "RESUME");
 
     wait_for_serial("dest_serial");

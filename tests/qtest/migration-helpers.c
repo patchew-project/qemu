@@ -92,6 +92,24 @@ void migrate_set_capability(QTestState *who, const char *capability,
                              capability, value);
 }
 
+void wait_for_stop(QTestState *who)
+{
+    QTestMigrationState *state = qtest_migration_state(who);
+
+    if (!state->stop_seen) {
+        qtest_qmp_eventwait(who, "STOP");
+    }
+}
+
+void wait_for_resume(QTestState *who)
+{
+    QTestMigrationState *state = qtest_migration_state(who);
+
+    if (!state->resume_seen) {
+        qtest_qmp_eventwait(who, "RESUME");
+    }
+}
+
 void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
 {
     va_list ap;
