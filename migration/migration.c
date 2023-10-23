@@ -465,6 +465,13 @@ static bool migrate_uri_parse(const char *uri,
         }
         addr->u.socket.type = saddr->type;
         addr->u.socket.u = saddr->u;
+    } else if (strstart(uri, "file:", NULL)) {
+        addr->transport = MIGRATION_ADDRESS_TYPE_FILE;
+        addr->u.file.filename = g_strdup(uri + strlen("file:"));
+        if (file_parse_offset(addr->u.file.filename, &addr->u.file.offset,
+                              errp)) {
+            return false;
+        }
     } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
         return false;
