@@ -1014,10 +1014,10 @@ static void gen_mxu_d16mul(DisasContext *ctx, bool fractional,
      */
 
     gen_load_mxu_gpr(t1, XRb);
-    tcg_gen_sextract_tl(t0, t1, 0, 16);
+    tcg_gen_ext16s_tl(t0, t1);
     tcg_gen_sextract_tl(t1, t1, 16, 16);
     gen_load_mxu_gpr(t3, XRc);
-    tcg_gen_sextract_tl(t2, t3, 0, 16);
+    tcg_gen_ext16s_tl(t2, t3);
     tcg_gen_sextract_tl(t3, t3, 16, 16);
 
     switch (optn2) {
@@ -1113,11 +1113,11 @@ static void gen_mxu_d16mac(DisasContext *ctx, bool fractional,
     aptn2 = extract32(ctx->opcode, 24, 2);
 
     gen_load_mxu_gpr(t1, XRb);
-    tcg_gen_sextract_tl(t0, t1, 0, 16);
+    tcg_gen_ext16s_tl(t0, t1);
     tcg_gen_sextract_tl(t1, t1, 16, 16);
 
     gen_load_mxu_gpr(t3, XRc);
-    tcg_gen_sextract_tl(t2, t3, 0, 16);
+    tcg_gen_ext16s_tl(t2, t3);
     tcg_gen_sextract_tl(t3, t3, 16, 16);
 
     switch (optn2) {
@@ -1234,11 +1234,11 @@ static void gen_mxu_d16madl(DisasContext *ctx)
     aptn2 = extract32(ctx->opcode, 24, 2);
 
     gen_load_mxu_gpr(t1, XRb);
-    tcg_gen_sextract_tl(t0, t1,  0, 16);
+    tcg_gen_ext16s_tl(t0, t1);
     tcg_gen_sextract_tl(t1, t1, 16, 16);
 
     gen_load_mxu_gpr(t3, XRc);
-    tcg_gen_sextract_tl(t2, t3,  0, 16);
+    tcg_gen_ext16s_tl(t2, t3);
     tcg_gen_sextract_tl(t3, t3, 16, 16);
 
     switch (optn2) {
@@ -1323,15 +1323,15 @@ static void gen_mxu_s16mad(DisasContext *ctx)
         tcg_gen_sextract_tl(t1, t1, 16, 16);
         break;
     case MXU_OPTN2_LW: /* XRB.L*XRC.L */
-        tcg_gen_sextract_tl(t0, t0,  0, 16);
-        tcg_gen_sextract_tl(t1, t1,  0, 16);
+        tcg_gen_ext16s_tl(t0, t0);
+        tcg_gen_ext16s_tl(t1, t1);
         break;
     case MXU_OPTN2_HW: /* XRB.H*XRC.L */
         tcg_gen_sextract_tl(t0, t0, 16, 16);
-        tcg_gen_sextract_tl(t1, t1,  0, 16);
+        tcg_gen_ext16s_tl(t1, t1);
         break;
     case MXU_OPTN2_XW: /* XRB.L*XRC.H */
-        tcg_gen_sextract_tl(t0, t0,  0, 16);
+        tcg_gen_ext16s_tl(t0, t0);
         tcg_gen_sextract_tl(t1, t1, 16, 16);
         break;
     }
@@ -1998,9 +1998,9 @@ static void gen_mxu_q16sxx(DisasContext *ctx, bool right, bool arithmetic)
 
     if (arithmetic) {
         tcg_gen_sextract_tl(t1, t0, 16, 16);
-        tcg_gen_sextract_tl(t0, t0,  0, 16);
+        tcg_gen_ext16s_tl(t0, t0);
         tcg_gen_sextract_tl(t3, t2, 16, 16);
-        tcg_gen_sextract_tl(t2, t2,  0, 16);
+        tcg_gen_ext16s_tl(t2, t2);
     } else {
         tcg_gen_extract_tl(t1, t0, 16, 16);
         tcg_gen_extract_tl(t0, t0,  0, 16);
@@ -2066,9 +2066,9 @@ static void gen_mxu_q16sxxv(DisasContext *ctx, bool right, bool arithmetic)
 
     if (arithmetic) {
         tcg_gen_sextract_tl(t1, t0, 16, 16);
-        tcg_gen_sextract_tl(t0, t0,  0, 16);
+        tcg_gen_ext16s_tl(t0, t0);
         tcg_gen_sextract_tl(t3, t2, 16, 16);
-        tcg_gen_sextract_tl(t2, t2,  0, 16);
+        tcg_gen_ext16s_tl(t2, t2);
     } else {
         tcg_gen_extract_tl(t1, t0, 16, 16);
         tcg_gen_extract_tl(t0, t0,  0, 16);
@@ -2492,8 +2492,8 @@ static void gen_mxu_D16SLT(DisasContext *ctx)
         tcg_gen_sextract_tl(t1, t4, 16, 16);
         tcg_gen_setcond_tl(TCG_COND_LT, t0, t0, t1);
         tcg_gen_shli_tl(t2, t0, 16);
-        tcg_gen_sextract_tl(t0, t3,  0, 16);
-        tcg_gen_sextract_tl(t1, t4,  0, 16);
+        tcg_gen_ext16s_tl(t0, t3);
+        tcg_gen_ext16s_tl(t1, t4);
         tcg_gen_setcond_tl(TCG_COND_LT, t0, t0, t1);
         tcg_gen_or_tl(mxu_gpr[XRa - 1], t2, t0);
     }
@@ -2547,8 +2547,8 @@ static void gen_mxu_d16avg(DisasContext *ctx, bool round45)
         }
         tcg_gen_shli_tl(t2, t0, 15);
         tcg_gen_andi_tl(t2, t2, 0xffff0000);
-        tcg_gen_sextract_tl(t0, t3,  0, 16);
-        tcg_gen_sextract_tl(t1, t4,  0, 16);
+        tcg_gen_ext16s_tl(t0, t3);
+        tcg_gen_ext16s_tl(t1, t4);
         tcg_gen_add_tl(t0, t0, t1);
         if (round45) {
             tcg_gen_addi_tl(t0, t0, 1);
@@ -2844,9 +2844,9 @@ static void gen_mxu_D16CPS(DisasContext *ctx)
         gen_set_label(l_done_hi);
         tcg_gen_shli_i32(t1, t1, 16);
 
-        tcg_gen_sextract_tl(t0, mxu_gpr[XRc - 1],  0, 16);
+        tcg_gen_ext16s_tl(t0, mxu_gpr[XRc - 1]);
         tcg_gen_brcondi_tl(TCG_COND_GE, t0, 0, l_not_less_lo);
-        tcg_gen_sextract_tl(t0, mxu_gpr[XRb - 1],  0, 16);
+        tcg_gen_ext16s_tl(t0, mxu_gpr[XRb - 1]);
         tcg_gen_subfi_tl(t0, 0, t0);
         tcg_gen_br(l_done_lo);
 
@@ -3388,7 +3388,7 @@ static void gen_mxu_d16asum(DisasContext *ctx)
     gen_load_mxu_gpr(t3, XRc);
 
     if (XRa != 0) {
-        tcg_gen_sextract_tl(t0, t2,  0, 16);
+        tcg_gen_ext16s_tl(t0, t2);
         tcg_gen_sextract_tl(t1, t2, 16, 16);
         tcg_gen_add_tl(t0, t0, t1);
         if (aptn2 & 2) {
@@ -3399,7 +3399,7 @@ static void gen_mxu_d16asum(DisasContext *ctx)
     }
 
     if (XRd != 0) {
-        tcg_gen_sextract_tl(t0, t3,  0, 16);
+        tcg_gen_ext16s_tl(t0, t3);
         tcg_gen_sextract_tl(t1, t3, 16, 16);
         tcg_gen_add_tl(t0, t0, t1);
         if (aptn2 & 1) {
@@ -3840,8 +3840,7 @@ static void gen_mxu_Q16SAT(DisasContext *ctx)
             tcg_gen_movi_tl(t0, 255);
 
             gen_set_label(l_lo);
-            tcg_gen_shli_tl(t1, mxu_gpr[XRb - 1], 16);
-            tcg_gen_sari_tl(t1, t1, 16);
+            tcg_gen_ext16s_tl(t1, mxu_gpr[XRb - 1]);
             tcg_gen_brcondi_tl(TCG_COND_LT, t1, 0, l_less_lo);
             tcg_gen_brcondi_tl(TCG_COND_GT, t1, 255, l_greater_lo);
             tcg_gen_br(l_done);
@@ -3876,8 +3875,7 @@ static void gen_mxu_Q16SAT(DisasContext *ctx)
             tcg_gen_movi_tl(t0, 255);
 
             gen_set_label(l_lo);
-            tcg_gen_shli_tl(t1, mxu_gpr[XRc - 1], 16);
-            tcg_gen_sari_tl(t1, t1, 16);
+            tcg_gen_ext16s_tl(t1, mxu_gpr[XRc - 1]);
             tcg_gen_brcondi_tl(TCG_COND_LT, t1, 0, l_less_lo);
             tcg_gen_brcondi_tl(TCG_COND_GT, t1, 255, l_greater_lo);
             tcg_gen_br(l_done);
@@ -3942,7 +3940,7 @@ static void gen_mxu_q16scop(DisasContext *ctx)
     tcg_gen_movi_tl(t3, 0x00010000);
 
     gen_set_label(l_b_lo);
-    tcg_gen_sextract_tl(t2, t0, 0, 16);
+    tcg_gen_ext16s_tl(t2, t0);
     tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, l_c_hi);
     tcg_gen_brcondi_tl(TCG_COND_LT, t2, 0, l_b_lo_lt);
     tcg_gen_ori_tl(t3, t3, 0x00000001);
@@ -3964,7 +3962,7 @@ static void gen_mxu_q16scop(DisasContext *ctx)
     tcg_gen_movi_tl(t4, 0x00010000);
 
     gen_set_label(l_c_lo);
-    tcg_gen_sextract_tl(t2, t1, 0, 16);
+    tcg_gen_ext16s_tl(t2, t1);
     tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, l_done);
     tcg_gen_brcondi_tl(TCG_COND_LT, t2, 0, l_c_lo_lt);
     tcg_gen_ori_tl(t4, t4, 0x00000001);
