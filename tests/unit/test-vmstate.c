@@ -1479,6 +1479,118 @@ static void test_tmp_struct(void)
     g_assert_cmpint(obj.f, ==, 8); /* From the child->parent */
 }
 
+static bool sub_optional_needed = true;
+
+static bool sub_optional_needed_cb(void *opaque)
+{
+    return sub_optional_needed;
+}
+
+static const VMStateDescription vmstate_sub_optional_a = {
+    .name = "sub/optional/a",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sub_optional_needed_cb,
+    .fields = (VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_sub_optional = {
+    .name = "sub/optional",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_sub_optional_a,
+    }
+};
+
+static uint8_t wire_sub_optional[] = {
+    QEMU_VM_SUBSECTION,
+    14,
+    's', 'u', 'b', '/', 'o', 'p', 't', 'i', 'o', 'n', 'a', 'l', '/', 'a',
+    0x0, 0x0, 0x0, 1,
+    QEMU_VM_EOF,
+};
+
+static uint8_t wire_sub_optional_missing[] = {
+    QEMU_VM_EOF,
+};
+
+static void test_sub_optional_needed(void)
+{
+    sub_optional_needed = true;
+    save_vmstate(&vmstate_sub_optional, NULL);
+
+    compare_vmstate(wire_sub_optional, sizeof(wire_sub_optional));
+
+    SUCCESS(load_vmstate_one(&vmstate_sub_optional, NULL,
+                             1, wire_sub_optional,
+                             sizeof(wire_sub_optional)));
+
+    FAILURE(load_vmstate_one(&vmstate_sub_optional, NULL,
+                             1, wire_sub_optional_missing,
+                             sizeof(wire_sub_optional_missing)));
+
+}
+
+static void test_sub_optional_missing(void)
+{
+    sub_optional_needed = false;
+    save_vmstate(&vmstate_sub_optional, NULL);
+
+    compare_vmstate(wire_sub_optional_missing, sizeof(wire_sub_optional_missing));
+
+    SUCCESS(load_vmstate_one(&vmstate_sub_optional, NULL,
+                             1, wire_sub_optional,
+                             sizeof(wire_sub_optional)));
+
+    SUCCESS(load_vmstate_one(&vmstate_sub_optional, NULL,
+                             1, wire_sub_optional_missing,
+                             sizeof(wire_sub_optional_missing)));
+}
+
+static uint8_t wire_sub_dup[] = {
+    QEMU_VM_SUBSECTION,
+    14,
+    's', 'u', 'b', '/', 'o', 'p', 't', 'i', 'o', 'n', 'a', 'l', '/', 'a',
+    0x0, 0x0, 0x0, 1,
+    QEMU_VM_SUBSECTION,
+    14,
+    's', 'u', 'b', '/', 'o', 'p', 't', 'i', 'o', 'n', 'a', 'l', '/', 'a',
+    0x0, 0x0, 0x0, 1,
+    QEMU_VM_EOF,
+};
+
+static void test_sub_optional_dup(void)
+{
+    sub_optional_needed = false;
+
+    FAILURE(load_vmstate_one(&vmstate_sub_optional, NULL,
+                             1, wire_sub_dup,
+                             sizeof(wire_sub_dup)));
+}
+
+static uint8_t wire_sub_unknown[] = {
+    QEMU_VM_SUBSECTION,
+    14,
+    's', 'u', 'b', '/', 'o', 'p', 't', 'i', 'o', 'n', 'a', 'l', '/', 'b',
+    0x0, 0x0, 0x0, 1,
+    QEMU_VM_EOF,
+};
+
+static void test_sub_optional_unknown(void)
+{
+    sub_optional_needed = false;
+
+    FAILURE(load_vmstate_one(&vmstate_sub_optional, NULL,
+                             1, wire_sub_unknown,
+                             sizeof(wire_sub_unknown)));
+}
+
 int main(int argc, char **argv)
 {
     g_autofree char *temp_file = g_strdup_printf("%s/vmst.test.XXXXXX",
@@ -1519,6 +1631,10 @@ int main(int argc, char **argv)
     g_test_add_func("/vmstate/qlist/save/saveqlist", test_save_qlist);
     g_test_add_func("/vmstate/qlist/load/loadqlist", test_load_qlist);
     g_test_add_func("/vmstate/tmp_struct", test_tmp_struct);
+    g_test_add_func("/vmstate/subsection/needed", test_sub_optional_needed);
+    g_test_add_func("/vmstate/subsection/missing", test_sub_optional_missing);
+    g_test_add_func("/vmstate/subsection/dup", test_sub_optional_dup);
+    g_test_add_func("/vmstate/subsection/unknown", test_sub_optional_unknown);
     g_test_run();
 
     close(temp_fd);
