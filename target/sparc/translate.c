@@ -740,14 +740,12 @@ static void gen_op_eval_bvc(TCGv dst, TCGv_i32 src)
 static void gen_mov_reg_FCC0(TCGv reg, TCGv src,
                                     unsigned int fcc_offset)
 {
-    tcg_gen_shri_tl(reg, src, FSR_FCC0_SHIFT + fcc_offset);
-    tcg_gen_andi_tl(reg, reg, 0x1);
+    tcg_gen_extract_tl(reg, src, FSR_FCC0_SHIFT + fcc_offset, 1);
 }
 
 static void gen_mov_reg_FCC1(TCGv reg, TCGv src, unsigned int fcc_offset)
 {
-    tcg_gen_shri_tl(reg, src, FSR_FCC1_SHIFT + fcc_offset);
-    tcg_gen_andi_tl(reg, reg, 0x1);
+    tcg_gen_extract_tl(reg, src, FSR_FCC1_SHIFT + fcc_offset, 1);
 }
 
 // !0: FCC0 | FCC1
