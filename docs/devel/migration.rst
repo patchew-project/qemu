@@ -240,17 +240,16 @@ a newer form of device, or adding that state that you previously
 forgot to migrate.  This is best solved using a subsection.
 
 A subsection is "like" a device vmstate, but with a particularity, it
-has a Boolean function that tells if that values are needed to be sent
-or not.  If this functions returns false, the subsection is not sent.
-Subsections have a unique name, that is looked for on the receiving
-side.
+has a Boolean function that tells if that values are needed or not. If
+this functions returns false, the subsection is not sent. Subsections
+have a unique name, that is looked for on the receiving side.
 
 On the receiving side, if we found a subsection for a device that we
-don't understand, we just fail the migration.  If we understand all
-the subsections, then we load the state with success.  There's no check
-that a subsection is loaded, so a newer QEMU that knows about a subsection
-can (with care) load a stream from an older QEMU that didn't send
-the subsection.
+don't understand, we just fail the migration. If we understand all the
+subsections, then we load the state with success. There's no check
+that an optional subsection is loaded, so a newer QEMU that knows
+about a subsection can (with care) load a stream from an older QEMU
+that didn't send the subsection.
 
 If the new data is only needed in a rare case, then the subsection
 can be made conditional on that case and the migration will still
