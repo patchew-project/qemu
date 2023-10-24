@@ -1193,9 +1193,6 @@ static void memory_region_do_init(MemoryRegion *mr,
                                   uint64_t size)
 {
     mr->size = int128_make64(size);
-    if (size == UINT64_MAX) {
-        mr->size = int128_2_64();
-    }
     mr->name = g_strdup(name);
     mr->owner = owner;
     mr->dev = (DeviceState *) object_dynamic_cast(mr->owner, TYPE_DEVICE);
