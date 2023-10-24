@@ -104,6 +104,96 @@ const MemoryRegionOps pci_ide_data_le_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static const MemoryRegionPortio ide_portio_list[] = {
+    { 0, 8, 1, .read = ide_ioport_read, .write = ide_ioport_write },
+    { 0, 1, 2, .read = ide_data_readw, .write = ide_data_writew },
+    { 0, 1, 4, .read = ide_data_readl, .write = ide_data_writel },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionPortio ide_portio2_list[] = {
+    { 0, 1, 1, .read = ide_status_read, .write = ide_ctrl_write },
+    PORTIO_END_OF_LIST(),
+};
+
+void pci_ide_update_mode(PCIIDEState *s)
+{
+    PCIDevice *d = PCI_DEVICE(s);
+    uint8_t mode = d->config[PCI_CLASS_PROG];
+
+    switch (mode & 0xf) {
+    case 0xa:
+        /* Both channels legacy mode */
+
+        /* Zero BARs */
+        pci_set_long(d->config + PCI_BASE_ADDRESS_0, 0x0);
+        pci_set_long(d->config + PCI_BASE_ADDRESS_1, 0x0);
+        pci_set_long(d->config + PCI_BASE_ADDRESS_2, 0x0);
+        pci_set_long(d->config + PCI_BASE_ADDRESS_3, 0x0);
+
+        /* Clear interrupt pin */
+        pci_config_set_interrupt_pin(d->config, 0);
+
+        /* Add legacy IDE ports */
+        if (!s->bus[0].portio_list.owner) {
+            portio_list_init(&s->bus[0].portio_list, OBJECT(d),
+                             ide_portio_list, &s->bus[0], "ide");
+            portio_list_add(&s->bus[0].portio_list,
+                            pci_address_space_io(d), 0x1f0);
+        }
+
+        if (!s->bus[0].portio2_list.owner) {
+            portio_list_init(&s->bus[0].portio2_list, OBJECT(d),
+                             ide_portio2_list, &s->bus[0], "ide");
+            portio_list_add(&s->bus[0].portio2_list,
+                            pci_address_space_io(d), 0x3f6);
+        }
+
+        if (!s->bus[1].portio_list.owner) {
+            portio_list_init(&s->bus[1].portio_list, OBJECT(d),
+                                ide_portio_list, &s->bus[1], "ide");
+            portio_list_add(&s->bus[1].portio_list,
+                            pci_address_space_io(d), 0x170);
+        }
+
+        if (!s->bus[1].portio2_list.owner) {
+            portio_list_init(&s->bus[1].portio2_list, OBJECT(d),
+                             ide_portio2_list, &s->bus[1], "ide");
+            portio_list_add(&s->bus[1].portio2_list,
+                            pci_address_space_io(d), 0x376);
+        }
+        break;
+
+    case 0xf:
+        /* Both channels native mode */
+
+        /* Set interrupt pin */
+        pci_config_set_interrupt_pin(d->config, 1);
+
+        /* Remove legacy IDE ports */
+        if (s->bus[0].portio_list.owner) {
+            portio_list_del(&s->bus[0].portio_list);
+            portio_list_destroy(&s->bus[0].portio_list);
+        }
+
+        if (s->bus[0].portio2_list.owner) {
+            portio_list_del(&s->bus[0].portio2_list);
+            portio_list_destroy(&s->bus[0].portio2_list);
+        }
+
+        if (s->bus[1].portio_list.owner) {
+            portio_list_del(&s->bus[1].portio_list);
+            portio_list_destroy(&s->bus[1].portio_list);
+        }
+
+        if (s->bus[1].portio2_list.owner) {
+            portio_list_del(&s->bus[1].portio2_list);
+            portio_list_destroy(&s->bus[1].portio2_list);
+        }
+        break;
+    }
+}
+
 static IDEState *bmdma_active_if(BMDMAState *bmdma)
 {
     assert(bmdma->bus->retry_unit != (uint8_t)-1);
