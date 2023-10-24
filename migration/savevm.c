@@ -217,6 +217,7 @@ typedef struct SaveStateEntry {
     void *opaque;
     CompatEntry *compat;
     int is_ram;
+    bool visited;
 } SaveStateEntry;
 
 typedef struct SaveState {
@@ -1739,6 +1740,36 @@ int qemu_save_device_state(QEMUFile *f)
     return qemu_file_get_error(f);
 }
 
+static void savevm_reset_visited(void)
+{
+    SaveStateEntry *se;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        se->visited = false;
+    }
+}
+
+static bool loadvm_check_visited(Error **errp)
+{
+    SaveStateEntry *se;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->ops && se->ops->is_active && !se->ops->is_active(se->opaque)) {
+            continue;
+        }
+        if (se->vmsd && !vmstate_section_needed(se->vmsd, se->opaque)) {
+            continue;
+        }
+        if (!se->visited) {
+            error_setg(errp, "Missing entry '%s' while loading VM", se->idstr);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 static SaveStateEntry *find_se(const char *idstr, uint32_t instance_id)
 {
     SaveStateEntry *se;
@@ -2541,6 +2572,11 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
                      idstr, instance_id);
         return -EINVAL;
     }
+    if (se->visited) {
+        error_report("error while loading state for instance 0x%"PRIx32" of"
+                     " device '%s'", instance_id, idstr);
+        return -EINVAL;
+    }
 
     /* Validate version */
     if (version_id > se->version_id) {
@@ -2566,6 +2602,8 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
     if (!check_section_footer(f, se)) {
         return -EINVAL;
     }
+
+    se->visited = true;
 
     return 0;
 }
@@ -2874,7 +2912,12 @@ int qemu_loadvm_state(QEMUFile *f)
 
     cpu_synchronize_all_pre_loadvm();
 
+    savevm_reset_visited();
     ret = qemu_loadvm_state_main(f, mis);
+    if (!loadvm_check_visited(&local_err)) {
+        error_report_err(local_err);
+        return -EINVAL;
+    }
     qemu_event_set(&mis->main_thread_load_event);
 
     trace_qemu_loadvm_state_post_main(ret);
