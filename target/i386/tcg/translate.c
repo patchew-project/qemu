@@ -1159,8 +1159,7 @@ static void gen_setcc1(DisasContext *s, int b, TCGv reg)
 
     if (cc.cond == TCG_COND_NE && !cc.use_reg2 && cc.imm == 0 &&
         cc.mask != 0 && (cc.mask & (cc.mask - 1)) == 0) {
-        tcg_gen_shri_tl(reg, cc.reg, ctztl(cc.mask));
-        tcg_gen_andi_tl(reg, reg, 1);
+        tcg_gen_extract_tl(reg, cc.reg, ctztl(cc.mask), 1);
         return;
     }
     if (cc.mask != -1) {
@@ -1783,8 +1782,7 @@ static void gen_rot_rm_T1(DisasContext *s, MemOp ot, int op1, int is_right)
        currently dead.  */
     if (is_right) {
         tcg_gen_shri_tl(cpu_cc_src2, s->T0, mask - 1);
-        tcg_gen_shri_tl(cpu_cc_dst, s->T0, mask);
-        tcg_gen_andi_tl(cpu_cc_dst, cpu_cc_dst, 1);
+        tcg_gen_extract_tl(cpu_cc_dst, s->T0, mask, 1);
     } else {
         tcg_gen_shri_tl(cpu_cc_src2, s->T0, mask);
         tcg_gen_andi_tl(cpu_cc_dst, s->T0, 1);
@@ -1873,8 +1871,7 @@ static void gen_rot_rm_im(DisasContext *s, MemOp ot, int op1, int op2,
            currently dead.  */
         if (is_right) {
             tcg_gen_shri_tl(cpu_cc_src2, s->T0, mask - 1);
-            tcg_gen_shri_tl(cpu_cc_dst, s->T0, mask);
-            tcg_gen_andi_tl(cpu_cc_dst, cpu_cc_dst, 1);
+            tcg_gen_extract_tl(cpu_cc_dst, s->T0, mask, 1);
         } else {
             tcg_gen_shri_tl(cpu_cc_src2, s->T0, mask);
             tcg_gen_andi_tl(cpu_cc_dst, s->T0, 1);
