@@ -4802,16 +4802,14 @@ static void gen_mtcrf(DisasContext *ctx)
             TCGv_i32 temp = tcg_temp_new_i32();
             crn = ctz32(crm);
             tcg_gen_trunc_tl_i32(temp, cpu_gpr[rS(ctx->opcode)]);
-            tcg_gen_shri_i32(temp, temp, crn * 4);
-            tcg_gen_andi_i32(cpu_crf[7 - crn], temp, 0xf);
+            tcg_gen_extract_i32(cpu_crf[7 - crn], temp, crn * 4, 4);
         }
     } else {
         TCGv_i32 temp = tcg_temp_new_i32();
         tcg_gen_trunc_tl_i32(temp, cpu_gpr[rS(ctx->opcode)]);
         for (crn = 0 ; crn < 8 ; crn++) {
             if (crm & (1 << crn)) {
-                    tcg_gen_shri_i32(cpu_crf[7 - crn], temp, crn * 4);
-                    tcg_gen_andi_i32(cpu_crf[7 - crn], cpu_crf[7 - crn], 0xf);
+                tcg_gen_extract_i32(cpu_crf[7 - crn], temp, crn * 4, 4);
             }
         }
     }
