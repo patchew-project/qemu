@@ -451,21 +451,50 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 }
 
 static const VMStateDescription *
-vmstate_get_subsection(const VMStateDescription **sub, char *idstr)
+vmstate_get_subsection(const VMStateDescription **sub, char *idstr, bool *visited)
 {
+    size_t i = 0;
+
     while (sub && *sub) {
         if (strcmp(idstr, (*sub)->name) == 0) {
+            if (visited[i]) {
+                return NULL;
+            }
+            visited[i] = true;
             return *sub;
         }
+        i++;
         sub++;
     }
     return NULL;
 }
 
+static size_t
+vmstate_get_n_subsections(const VMStateDescription **sub)
+{
+    size_t n = 0;
+
+    if (!sub) {
+        return 0;
+    }
+
+    while (sub[n]) {
+        n++;
+    }
+
+    return n;
+}
+
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque)
 {
+    size_t i, n;
+    g_autofree bool *visited = NULL;
+
     trace_vmstate_subsection_load(vmsd->name);
+
+    n = vmstate_get_n_subsections(vmsd->subsections);
+    visited = g_new0(bool, n);
 
     while (qemu_peek_byte(f, 0) == QEMU_VM_SUBSECTION) {
         char idstr[256], *idstr_ret;
@@ -492,7 +521,7 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
             /* it doesn't have a valid subsection name */
             return 0;
         }
-        sub_vmsd = vmstate_get_subsection(vmsd->subsections, idstr);
+        sub_vmsd = vmstate_get_subsection(vmsd->subsections, idstr, visited);
         if (sub_vmsd == NULL) {
             trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(lookup)");
             return -ENOENT;
@@ -506,6 +535,13 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         if (ret) {
             trace_vmstate_subsection_load_bad(vmsd->name, idstr, "(child)");
             return ret;
+        }
+    }
+
+    for (i = 0; i < n; i++) {
+        if (!visited[i] && vmstate_section_needed(vmsd->subsections[i], opaque)) {
+            trace_vmstate_subsection_load_bad(vmsd->name, vmsd->subsections[i]->name, "(not visited)");
+            return -ENOENT;
         }
     }
 
