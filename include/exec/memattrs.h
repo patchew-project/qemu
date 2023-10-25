@@ -64,6 +64,9 @@ typedef struct MemTxAttrs {
     unsigned int target_tlb_bit0 : 1;
     unsigned int target_tlb_bit1 : 1;
     unsigned int target_tlb_bit2 : 1;
+
+    /* IOPMP support up to 65535 sources */
+    unsigned int iopmp_sid:16;
 } MemTxAttrs;
 
 /* Bus masters which don't specify any attributes will get this,
