@@ -2122,16 +2122,22 @@ static void run_command(const char *argv[], const char *in_str, Error **errp)
     int in_len, status;
     int datafd[2] = { -1, -1 };
 
-    if (!g_unix_open_pipe(datafd, FD_CLOEXEC, NULL)) {
-        error_setg(errp, "cannot create pipe FDs");
-        goto out;
+    if (in_str) {
+        if (!g_unix_open_pipe(datafd, FD_CLOEXEC, NULL)) {
+            error_setg(errp, "cannot create pipe FDs");
+            goto out;
+        }
     }
 
     pid = fork();
     if (pid == 0) {
-        close(datafd[1]);
         setsid();
-        dup2(datafd[0], 0);
+        if (in_str) {
+            close(datafd[1]);
+            dup2(datafd[0], 0);
+        } else {
+            reopen_fd_to_null(0);
+        }
         reopen_fd_to_null(1);
         reopen_fd_to_null(2);
 
@@ -2141,17 +2147,20 @@ static void run_command(const char *argv[], const char *in_str, Error **errp)
         error_setg_errno(errp, errno, "failed to create child process");
         goto out;
     }
-    close(datafd[0]);
-    datafd[0] = -1;
 
-    in_len = strlen(in_str);
+    if (in_str) {
+        close(datafd[0]);
+        datafd[0] = -1;
 
-    if (qemu_write_full(datafd[1], in_str, in_len) != in_len) {
-        error_setg_errno(errp, errno, "cannot write new account password");
-        goto out;
+        in_len = strlen(in_str);
+        if (qemu_write_full(datafd[1], in_str, in_len) != in_len) {
+            error_setg_errno(errp, errno, "cannot write new account password");
+            goto out;
+        }
+
+        close(datafd[1]);
+        datafd[1] = -1;
     }
-    close(datafd[1]);
-    datafd[1] = -1;
 
     ga_wait_child(pid, &status, &local_err);
     if (local_err) {
