@@ -707,13 +707,17 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
     return GUEST_FSFREEZE_STATUS_THAWED;
 }
 
-int64_t qmp_guest_fsfreeze_freeze(Error **errp)
+int64_t qmp_guest_fsfreeze_freeze(bool has_timeout, int64_t timeout,
+                                  Error **errp)
 {
-    return qmp_guest_fsfreeze_freeze_list(false, NULL, errp);
+    return qmp_guest_fsfreeze_freeze_list(false, NULL, has_timeout, timeout,
+                                          errp);
 }
 
 int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
                                        strList *mountpoints,
+                                       bool has_timeout,
+                                       int64_t timeout,
                                        Error **errp)
 {
     int ret;
@@ -734,8 +738,11 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
         return -1;
     }
 
+    if (!has_timeout || timeout < 0) {
+        timeout = 0;
+    }
     /* cannot risk guest agent blocking itself on a write in this state */
-    ga_set_frozen(ga_state);
+    ga_set_frozen(ga_state, timeout);
 
     ret = qmp_guest_fsfreeze_do_freeze_list(has_mountpoints, mountpoints,
                                             mounts, errp);
@@ -779,6 +786,12 @@ static void guest_fsfreeze_cleanup(void)
             error_free(err);
         }
     }
+}
+
+gboolean ga_frozen_timeout_cb(gpointer data)
+{
+    guest_fsfreeze_cleanup();
+    return G_SOURCE_REMOVE;
 }
 #endif
 
@@ -3119,6 +3132,8 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
 
 int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
                                        strList *mountpoints,
+                                       bool has_timeout,
+                                       int64_t timeout,
                                        Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);

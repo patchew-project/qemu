@@ -1221,13 +1221,16 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
  * Freeze local file systems using Volume Shadow-copy Service.
  * The frozen state is limited for up to 10 seconds by VSS.
  */
-int64_t qmp_guest_fsfreeze_freeze(Error **errp)
+int64_t qmp_guest_fsfreeze_freeze(bool has_timeout, int64_t timeout,
+                                  Error **errp)
 {
     return qmp_guest_fsfreeze_freeze_list(false, NULL, errp);
 }
 
 int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
                                        strList *mountpoints,
+                                       bool has_timeout,
+                                       int64_t timeout,
                                        Error **errp)
 {
     int i;
@@ -1240,8 +1243,11 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
 
     slog("guest-fsfreeze called");
 
+    if (!has_timeout || timeout < 0) {
+        timeout = 0;
+    }
     /* cannot risk guest agent blocking itself on a write in this state */
-    ga_set_frozen(ga_state);
+    ga_set_frozen(ga_state, timeout);
 
     qga_vss_fsfreeze(&i, true, mountpoints, &local_err);
     if (local_err) {
@@ -1297,6 +1303,12 @@ static void guest_fsfreeze_cleanup(void)
     }
 
     vss_deinit(true);
+}
+
+gboolean ga_frozen_timeout_cb(gpointer data)
+{
+    guest_fsfreeze_cleanup();
+    return G_SOURCE_REMOVE;
 }
 
 /*

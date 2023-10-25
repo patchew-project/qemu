@@ -94,6 +94,7 @@ struct GAState {
         const char *pid_filepath;
     } deferred_options;
 #ifdef CONFIG_FSFREEZE
+    guint frozen_timeout_id;
     const char *fsfreeze_hook;
 #endif
     gchar *pstate_filepath;
@@ -478,7 +479,7 @@ bool ga_is_frozen(GAState *s)
     return s->frozen;
 }
 
-void ga_set_frozen(GAState *s)
+void ga_set_frozen(GAState *s, int64_t timeout)
 {
     if (ga_is_frozen(s)) {
         return;
@@ -492,6 +493,15 @@ void ga_set_frozen(GAState *s)
         g_warning("unable to create %s, fsfreeze may not function properly",
                   s->state_filepath_isfrozen);
     }
+#ifdef CONFIG_FSFREEZE
+    if (timeout) {
+        s->frozen_timeout_id = g_timeout_add_seconds(timeout,
+                                                     ga_frozen_timeout_cb,
+                                                     NULL);
+    } else {
+        s->frozen_timeout_id = 0;
+    }
+#endif
 }
 
 void ga_unset_frozen(GAState *s)
@@ -499,6 +509,13 @@ void ga_unset_frozen(GAState *s)
     if (!ga_is_frozen(s)) {
         return;
     }
+
+#ifdef CONFIG_FSFREEZE
+    /* remove timeout callback */
+    if (s->frozen_timeout_id) {
+        g_source_remove(s->frozen_timeout_id);
+    }
+#endif
 
     /* if we delayed creation/opening of pid/log files due to being
      * in a frozen state at start up, do it now

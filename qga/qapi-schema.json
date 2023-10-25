@@ -440,6 +440,9 @@
 # command succeeded, you may call @guest-fsfreeze-thaw later to
 # unfreeze.
 #
+# @timeout: after this period in seconds filesystems will be thawed
+#     (since 8.2)
+#
 # Note: On Windows, the command is implemented with the help of a
 #     Volume Shadow-copy Service DLL helper.  The frozen state is
 #     limited for up to 10 seconds by VSS.
@@ -452,6 +455,7 @@
 # Since: 0.15.0
 ##
 { 'command': 'guest-fsfreeze-freeze',
+  'data':    { '*timeout': 'int' },
   'returns': 'int' }
 
 ##
@@ -464,13 +468,16 @@
 #     If omitted, every mounted filesystem is frozen.  Invalid mount
 #     points are ignored.
 #
+# @timeout: after this period in seconds filesystems will be thawed
+#     (since 8.2)
+#
 # Returns: Number of file systems currently frozen.  On error, all
 #     filesystems will be thawed.
 #
 # Since: 2.2
 ##
 { 'command': 'guest-fsfreeze-freeze-list',
-  'data':    { '*mountpoints': ['str'] },
+  'data':    { '*mountpoints': ['str'], '*timeout': 'int' },
   'returns': 'int' }
 
 ##
