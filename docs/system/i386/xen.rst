@@ -52,9 +52,6 @@ It is necessary to use the pc machine type, as the q35 machine uses AHCI instead
 of legacy IDE, and AHCI disks are not unplugged through the Xen PV unplug
 mechanism.
 
-VirtIO devices can also be used; Linux guests may need to be dissuaded from
-umplugging them by adding 'xen_emul_unplug=never' on their command line.
-
 Properties
 ----------
 

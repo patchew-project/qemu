@@ -28,6 +28,7 @@
 #include "hw/ide/pci.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
+#include "hw/virtio/virtio-bus.h"
 #include "net/net.h"
 #include "trace.h"
 #include "sysemu/xen.h"
@@ -129,10 +130,11 @@ static bool pci_device_is_passthrough(PCIDevice *d)
 
 static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
 {
-    /* We have to ignore passthrough devices */
+    /* We have to ignore passthrough devices  and virtio devices. */
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_NETWORK_ETHERNET
-            && !pci_device_is_passthrough(d)) {
+            && !pci_device_is_passthrough(d)
+            && !qdev_get_child_bus(&d->qdev, TYPE_VIRTIO_BUS)) {
         object_unparent(OBJECT(d));
     }
 }
@@ -208,6 +210,10 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *opaque)
     /* We have to ignore passthrough devices */
     if (pci_device_is_passthrough(d))
         return;
+    /* Ignore virtio devices */
+    if (qdev_get_child_bus(&d->qdev, TYPE_VIRTIO_BUS)) {
+        return;
+    }
 
     switch (pci_get_word(d->config + PCI_CLASS_DEVICE)) {
     case PCI_CLASS_STORAGE_IDE:
