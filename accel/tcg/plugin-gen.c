@@ -796,7 +796,7 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
 {
     bool ret = false;
 
-    if (test_bit(QEMU_PLUGIN_EV_VCPU_TB_TRANS, cpu->plugin_mask)) {
+    if (cpu->plugin_flags & QEMU_PLUGIN_CPU_FLAG_CB_TB_TRANS) {
         struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
         int i;
 

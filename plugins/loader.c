@@ -37,12 +37,6 @@
 
 #include "plugin.h"
 
-/*
- * For convenience we use a bitmap for plugin.mask, but really all we need is a
- * u32, which is what we store in TranslationBlock.
- */
-QEMU_BUILD_BUG_ON(QEMU_PLUGIN_EV_MAX > 32);
-
 struct qemu_plugin_desc {
     char *path;
     char **argv;

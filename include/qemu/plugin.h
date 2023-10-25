@@ -16,6 +16,8 @@
 #include "exec/memopidx.h"
 #include "hw/core/cpu.h"
 
+#define QEMU_PLUGIN_CPU_FLAG_CB_TB_TRANS BIT(0)
+
 /*
  * Option parsing/processing.
  * Note that we can load an arbitrary number of plugins.
