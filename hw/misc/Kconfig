@@ -197,4 +197,7 @@ config DJMEMC
 config IOSB
     bool
 
+config RISCV_IOPMP
+    bool
+
 source macio/Kconfig
