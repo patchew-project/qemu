@@ -17,6 +17,8 @@
 #include "hw/core/cpu.h"
 
 #define QEMU_PLUGIN_CPU_FLAG_CB_TB_TRANS BIT(0)
+#define QEMU_PLUGIN_CPU_FLAG_CB_TB_READ BIT(1)
+#define QEMU_PLUGIN_CPU_FLAG_CB_INSN_READ BIT(2)
 
 /*
  * Option parsing/processing.

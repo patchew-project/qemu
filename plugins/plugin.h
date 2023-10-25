@@ -87,7 +87,7 @@ plugin_register_cb_udata(qemu_plugin_id_t id, enum qemu_plugin_event ev,
 void
 plugin_register_dyn_cb__udata(GArray **arr,
                               qemu_plugin_vcpu_udata_cb_t cb,
-                              enum qemu_plugin_cb_flags flags, void *udata);
+                              unsigned int flags, void *udata);
 
 
 void plugin_register_vcpu_mem_cb(GArray **arr,

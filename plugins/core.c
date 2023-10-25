@@ -302,15 +302,20 @@ void plugin_register_inline_op(GArray **arr,
 
 void plugin_register_dyn_cb__udata(GArray **arr,
                                    qemu_plugin_vcpu_udata_cb_t cb,
-                                   enum qemu_plugin_cb_flags flags,
+                                   unsigned int flags,
                                    void *udata)
 {
     struct qemu_plugin_dyn_cb *dyn_cb = plugin_get_dyn_cb(arr);
 
     dyn_cb->userp = udata;
-    /* Note flags are discarded as unused. */
     dyn_cb->f.vcpu_udata = cb;
     dyn_cb->type = PLUGIN_CB_REGULAR;
+
+    if (flags) {
+        QEMU_LOCK_GUARD(&plugin.lock);
+        plugin.cpu_flags |= flags;
+        g_hash_table_foreach(plugin.cpu_ht, plugin_cpu_update__locked, NULL);
+    }
 }
 
 void plugin_register_vcpu_mem_cb(GArray **arr,
@@ -434,6 +439,7 @@ void qemu_plugin_flush_cb(void)
 {
     qht_iter_remove(&plugin.dyn_cb_arr_ht, free_dyn_cb_arr, NULL);
     qht_reset(&plugin.dyn_cb_arr_ht);
+    plugin.cpu_flags &= ~QEMU_PLUGIN_CPU_FLAG_CB_INSN_READ;
 
     plugin_cb__simple(QEMU_PLUGIN_EV_FLUSH);
 }
