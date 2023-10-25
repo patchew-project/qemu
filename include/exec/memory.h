@@ -397,6 +397,25 @@ struct IOMMUMemoryRegionClass {
     IOMMUTLBEntry (*translate)(IOMMUMemoryRegion *iommu, hwaddr addr,
                                IOMMUAccessFlags flag, int iommu_idx);
     /**
+     * @translate_size:
+     *
+     * Return a TLB entry that contains a given address and size.
+     *
+     * @iommu: the IOMMUMemoryRegion
+     *
+     * @hwaddr: address to be translated within the memory region
+     *
+     * @size: size to indicate the scope of the entire transaction
+     *
+     * @flag: requested access permission
+     *
+     * @iommu_idx: IOMMU index for the translation
+     */
+    IOMMUTLBEntry (*translate_size)(IOMMUMemoryRegion *iommu, hwaddr addr,
+                                    hwaddr size, IOMMUAccessFlags flag,
+                                    int iommu_idx);
+
+    /**
      * @get_min_page_size:
      *
      * Returns minimum supported page size in bytes.
