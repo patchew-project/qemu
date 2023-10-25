@@ -1326,6 +1326,19 @@
                '*input-data': 'str', '*capture-output': 'GuestExecCaptureOutput' },
   'returns': 'GuestExec' }
 
+##
+# @guest-exec-terminate:
+#
+# Terminate process associated with PID retrieved via guest-exec.
+#
+# @pid: pid returned from guest-exec
+#
+# Returns: Nothing on success.
+#
+# Since: 8.2
+##
+{ 'command': 'guest-exec-terminate',
+  'data':    { 'pid': 'int' } }
 
 ##
 # @GuestHostName:

@@ -529,6 +529,40 @@ done:
     return ge;
 }
 
+void qmp_guest_exec_terminate(int64_t pid, Error **errp)
+{
+    GuestExecInfo *gei;
+
+    slog("guest-exec-terminate called, pid: %u", (uint32_t)pid);
+
+    gei = guest_exec_info_find(pid);
+    if (gei == NULL) {
+        error_setg(errp, QERR_INVALID_PARAMETER, "pid");
+        return;
+    }
+
+    if (gei->finished) {
+        return;
+    }
+
+#ifdef G_OS_WIN32
+    char buf[32];
+    int res;
+
+    res = kill_process_tree(pid);
+    if (res != 0) {
+        snprintf(buf, sizeof(buf), "win32 err %d", res);
+        error_setg(errp, QERR_QGA_COMMAND_FAILED, buf);
+    }
+#else
+    if (kill(pid, SIGKILL) < 0) {
+        if (errno != ESRCH) {
+            error_setg(errp, QERR_QGA_COMMAND_FAILED, strerror(errno));
+        }
+    }
+#endif
+}
+
 /* Convert GuestFileWhence (either a raw integer or an enum value) into
  * the guest's SEEK_ constants.  */
 int ga_parse_whence(GuestFileWhence *whence, Error **errp)

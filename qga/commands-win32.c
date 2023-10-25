@@ -27,6 +27,7 @@
 #include <lm.h>
 #include <wtsapi32.h>
 #include <wininet.h>
+#include <tlhelp32.h>
 
 #include "guest-agent-core.h"
 #include "vss-win32.h"
@@ -2521,4 +2522,67 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
+}
+
+int kill_process_tree(int64_t pid)
+{
+    PROCESSENTRY32 proc_entry;
+    HANDLE snapshot, process;
+    GList *pid_entry, *pid_list = NULL;
+    bool added, success;
+    int res = 0;
+
+    snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        return GetLastError();
+    }
+
+    pid_list = g_list_append(pid_list, GUINT_TO_POINTER(pid));
+
+    proc_entry.dwSize = sizeof(PROCESSENTRY32);
+    do {
+        added = false;
+        for (success = Process32First(snapshot, &proc_entry);
+             success; success = Process32Next(snapshot, &proc_entry)) {
+            gpointer ppid_p, pid_p;
+            ppid_p = GUINT_TO_POINTER(proc_entry.th32ParentProcessID);
+            pid_p = GUINT_TO_POINTER(proc_entry.th32ProcessID);
+            if (g_list_find(pid_list, ppid_p) && !g_list_find(pid_list, pid_p)) {
+                pid_list = g_list_append(pid_list, pid_p);
+                added = true;
+            }
+        }
+    } while (added);
+
+    for (success = Process32First(snapshot, &proc_entry);
+         success; success = Process32Next(snapshot, &proc_entry)) {
+        if (g_list_find(pid_list, GUINT_TO_POINTER(proc_entry.th32ProcessID))) {
+            g_debug("killing pid=%u ppid=%u name=%s",
+                (guint)proc_entry.th32ProcessID,
+                (guint)proc_entry.th32ParentProcessID,
+                proc_entry.szExeFile);
+        }
+    }
+
+    CloseHandle(snapshot);
+
+    for (pid_entry = pid_list; pid_entry; pid_entry = pid_entry->next) {
+        pid = GPOINTER_TO_UINT(pid_entry->data);
+        process = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+        if (process == INVALID_HANDLE_VALUE) {
+            if (!res) {
+                res = GetLastError();
+                if (res == ERROR_FILE_NOT_FOUND) {
+                    res = 0;
+                }
+            }
+            continue;
+        }
+        TerminateProcess(process, 255);
+        CloseHandle(process);
+    }
+
+    g_list_free(pid_list);
+
+    return res;
 }

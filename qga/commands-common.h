@@ -80,4 +80,6 @@ GuestFileRead *guest_file_read_unsafe(GuestFileHandle *gfh,
  */
 char *qga_get_host_name(Error **errp);
 
+int kill_process_tree(int64_t pid);
+
 #endif
