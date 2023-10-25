@@ -54,6 +54,8 @@ struct RISCVVirtState {
 
     int fdt_size;
     bool have_aclint;
+    bool have_iopmp;
+    bool have_iopmp_cascade;
     RISCVVirtAIAType aia_type;
     int aia_guests;
     char *oem_id;
@@ -82,12 +84,18 @@ enum {
     VIRT_PCIE_MMIO,
     VIRT_PCIE_PIO,
     VIRT_PLATFORM_BUS,
-    VIRT_PCIE_ECAM
+    VIRT_PCIE_ECAM,
+    VIRT_IOPMP,
+    VIRT_IOPMP2,
+    VIRT_DMAC,
 };
 
 enum {
     UART0_IRQ = 10,
     RTC_IRQ = 11,
+    DMAC_IRQ = 12,
+    IOPMP_IRQ = 13,
+    IOPMP2_IRQ = 14,
     VIRTIO_IRQ = 1, /* 1 to 8 */
     VIRTIO_COUNT = 8,
     PCIE_IRQ = 0x20, /* 32 to 35 */

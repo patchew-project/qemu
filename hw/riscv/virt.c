@@ -53,6 +53,9 @@
 #include "hw/display/ramfb.h"
 #include "hw/acpi/aml-build.h"
 #include "qapi/qapi-visit-common.h"
+#include "hw/misc/riscv_iopmp.h"
+#include "hw/dma/atcdmac300.h"
+
 
 /*
  * The virt machine physical address space used by some of the devices
@@ -97,6 +100,9 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_UART0] =        { 0x10000000,         0x100 },
     [VIRT_VIRTIO] =       { 0x10001000,        0x1000 },
     [VIRT_FW_CFG] =       { 0x10100000,          0x18 },
+    [VIRT_IOPMP] =        { 0x10200000,      0x100000 },
+    [VIRT_IOPMP2] =       { 0x10300000,      0x100000 },
+    [VIRT_DMAC] =         { 0x10400000,      0x100000 },
     [VIRT_FLASH] =        { 0x20000000,     0x4000000 },
     [VIRT_IMSIC_M] =      { 0x24000000, VIRT_IMSIC_MAX_SIZE },
     [VIRT_IMSIC_S] =      { 0x28000000, VIRT_IMSIC_MAX_SIZE },
@@ -1527,12 +1533,31 @@ static void virt_machine_init(MachineState *machine)
 
     create_platform_bus(s, mmio_irqchip);
 
-    serial_mm_init(system_memory, memmap[VIRT_UART0].base,
-        0, qdev_get_gpio_in(mmio_irqchip, UART0_IRQ), 399193,
+    serial_mm_init(system_memory, memmap[VIRT_UART0].base + 0x20,
+        0x2, qdev_get_gpio_in(DEVICE(mmio_irqchip), UART0_IRQ), 38400,
         serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
     sysbus_create_simple("goldfish_rtc", memmap[VIRT_RTC].base,
         qdev_get_gpio_in(mmio_irqchip, RTC_IRQ));
+
+    /* DMAC */
+    DeviceState *dmac_dev = atcdmac300_create("atcdmac300",
+        memmap[VIRT_DMAC].base, memmap[VIRT_DMAC].size,
+        qdev_get_gpio_in(DEVICE(mmio_irqchip), DMAC_IRQ));
+
+    if (s->have_iopmp) {
+        /* IOPMP */
+        DeviceState *iopmp_dev = iopmp_create(memmap[VIRT_IOPMP].base,
+            qdev_get_gpio_in(DEVICE(mmio_irqchip), IOPMP_IRQ));
+        /* DMA with IOPMP */
+        atcdmac300_connect_iopmp_as(dmac_dev, &(IOPMP(iopmp_dev)->iopmp_as), 0);
+        if (s->have_iopmp_cascade) {
+            DeviceState *iopmp_dev2 = iopmp_create(memmap[VIRT_IOPMP2].base,
+                qdev_get_gpio_in(DEVICE(mmio_irqchip), IOPMP2_IRQ));
+            cascade_iopmp(iopmp_dev, iopmp_dev2);
+        }
+    }
+
 
     for (i = 0; i < ARRAY_SIZE(s->flash); i++) {
         /* Map legacy -drive if=pflash to machine properties */
@@ -1627,6 +1652,35 @@ static void virt_set_aclint(Object *obj, bool value, Error **errp)
 
     s->have_aclint = value;
 }
+
+static bool virt_get_iopmp(Object *obj, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    return s->have_iopmp;
+}
+
+static void virt_set_iopmp(Object *obj, bool value, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    s->have_iopmp = value;
+}
+
+static bool virt_get_iopmp_cascade(Object *obj, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    return s->have_iopmp_cascade;
+}
+
+static void virt_set_iopmp_cascade(Object *obj, bool value, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    s->have_iopmp_cascade = value;
+}
+
 
 bool virt_is_acpi_enabled(RISCVVirtState *s)
 {
@@ -1730,6 +1784,20 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, "acpi",
                                           "Enable ACPI");
+
+    object_class_property_add_bool(oc, "iopmp", virt_get_iopmp,
+                                   virt_set_iopmp);
+    object_class_property_set_description(oc, "iopmp",
+                                          "Set on/off to enable/disable "
+                                          "iopmp device");
+
+    object_class_property_add_bool(oc, "iopmp-cascade",
+                                   virt_get_iopmp_cascade,
+                                   virt_set_iopmp_cascade);
+    object_class_property_set_description(oc, "iopmp-cascade",
+                                          "Set on/off to enable/disable "
+                                          "iopmp2 device which is cascaded by "
+                                          "iopmp1 device");
 }
 
 static const TypeInfo virt_machine_typeinfo = {
