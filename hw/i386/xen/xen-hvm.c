@@ -172,6 +172,9 @@ static void xen_ram_init(PCMachineState *pcms,
                                  x86ms->above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
     }
+
+    /* Add grant mappings as a pseudo RAM region. */
+    ram_grants = *xen_init_grant_ram();
 }
 
 static XenPhysmap *get_physmapping(hwaddr start_addr, ram_addr_t size)
