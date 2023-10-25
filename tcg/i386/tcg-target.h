@@ -227,6 +227,8 @@ typedef enum {
 #define TCG_TARGET_HAS_bitsel_vec       have_avx512vl
 #define TCG_TARGET_HAS_cmpsel_vec       -1
 
+#define TCG_TARGET_PREFERS_addi         1
+
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \
     (((ofs) == 0 && ((len) == 8 || (len) == 16)) || \
      (TCG_TARGET_REG_BITS == 32 && (ofs) == 8 && (len) == 8))

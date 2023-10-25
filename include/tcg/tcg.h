@@ -109,6 +109,10 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_sub2_i32         1
 #endif
 
+#ifndef TCG_TARGET_PREFERS_addi
+#define TCG_TARGET_PREFERS_addi         0
+#endif
+
 #ifndef TCG_TARGET_deposit_i32_valid
 #define TCG_TARGET_deposit_i32_valid(ofs, len) 1
 #endif
