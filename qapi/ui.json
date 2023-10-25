@@ -1409,13 +1409,17 @@
 #     codes match their position on non-Mac keyboards and you can use
 #     Meta/Super and Alt where you expect them.  (default: off)
 #
+# @full-screen-scaling: Scale display to fit when full-screen enabled.
+#     Defaults to "off".
+#
 # Since: 7.0
 ##
 { 'struct': 'DisplayCocoa',
   'data': {
       '*left-command-key': 'bool',
       '*full-grab': 'bool',
-      '*swap-opt-cmd': 'bool'
+      '*swap-opt-cmd': 'bool',
+      '*full-screen-scaling': 'bool'
   } }
 
 ##
