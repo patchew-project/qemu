@@ -4,7 +4,7 @@
 ``microvm`` is a machine type inspired by ``Firecracker`` and
 constructed after its machine model.
 
-It's a minimalist machine type without ``PCI`` nor ``ACPI`` support,
+It's a minimalist machine type without ``PCI`` support,
 designed for short-lived guests. microvm also establishes a baseline
 for benchmarking and optimizing both QEMU and guest operating systems,
 since it is optimized for both boot time and footprint.
@@ -50,7 +50,9 @@ It supports the following machine-specific options:
 - microvm.isa-serial=bool (Set off to disable the instantiation an ISA serial port)
 - microvm.pic=OnOffAuto (Enable i8259 PIC)
 - microvm.rtc=OnOffAuto (Enable MC146818 RTC)
-- microvm.auto-kernel-cmdline=bool (Set off to disable adding virtio-mmio devices to the kernel cmdline)
+- microvm.acpi=bool (Set off to disable ACPI)
+- microvm.auto-kernel-cmdline=bool (Set on to enable adding virtio-mmio devices to the kernel cmdline, this requires microvm.acpi=off)
+
 
 
 Boot options
