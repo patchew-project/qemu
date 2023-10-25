@@ -2189,6 +2189,7 @@ out:
 void qmp_guest_set_user_password(const char *username,
                                  const char *password,
                                  bool crypted,
+                                 bool has_create, bool create,
                                  Error **errp)
 {
     char *passwd_path = NULL;
@@ -2225,6 +2226,24 @@ void qmp_guest_set_user_password(const char *username,
     if (!passwd_path) {
         error_setg(errp, "cannot find 'passwd' program in PATH");
         goto out;
+    }
+
+    /* create new user if requested */
+    if (has_create && create) {
+        char *str = g_shell_quote(username);
+        char *cmd = g_strdup_printf(
+                /* we want output only from useradd command */
+                "id -u %s >/dev/null 2>&1 || useradd -m %s",
+                str, str);
+        const char *argv[] = {
+            "/bin/sh", "-c", cmd, NULL
+        };
+        run_command(argv, NULL, errp);
+        g_free(str);
+        g_free(cmd);
+        if (*errp) {
+            goto out;
+        }
     }
 
     const char *argv[] = {

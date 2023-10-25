@@ -1059,6 +1059,8 @@
 # @password: the new password entry string, base64 encoded
 #
 # @crypted: true if password is already crypt()d, false if raw
+# @create: #optinal user will be created if it does not exist yet.
+#     The default value is false. (since 8.2)
 #
 # If the @crypted flag is true, it is the caller's responsibility to
 # ensure the correct crypt() encryption scheme is used.  This command
@@ -1078,7 +1080,8 @@
 # Since: 2.3
 ##
 { 'command': 'guest-set-user-password',
-  'data': { 'username': 'str', 'password': 'str', 'crypted': 'bool' } }
+  'data': { 'username': 'str', 'password': 'str', 'crypted': 'bool',
+  '*create': 'bool' } }
 
 ##
 # @GuestMemoryBlock:

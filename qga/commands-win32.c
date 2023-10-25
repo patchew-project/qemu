@@ -1921,6 +1921,7 @@ get_net_error_message(gint error)
 void qmp_guest_set_user_password(const char *username,
                                  const char *password,
                                  bool crypted,
+                                 bool has_create, bool create,
                                  Error **errp)
 {
     NET_API_STATUS nas;
@@ -1950,6 +1951,27 @@ void qmp_guest_set_user_password(const char *username,
     wpass = g_utf8_to_utf16(rawpasswddata, -1, NULL, NULL, &gerr);
     if (!wpass) {
         goto done;
+    }
+
+    if (has_create && create) {
+        USER_INFO_1 ui = { 0 };
+
+        ui.usri1_name = user;
+        ui.usri1_password = wpass;
+        ui.usri1_priv = USER_PRIV_USER;
+        ui.usri1_flags = UF_SCRIPT | UF_DONT_EXPIRE_PASSWD;
+        nas = NetUserAdd(NULL, 1, (LPBYTE) & ui, NULL);
+
+        if (nas == NERR_Success) {
+            goto done;
+        }
+
+        if (nas != NERR_UserExists) {
+            gchar *msg = get_net_error_message(nas);
+            error_setg(errp, "failed to add user: %s", msg);
+            g_free(msg);
+            goto done;
+        }
     }
 
     pi1003.usri1003_password = wpass;
