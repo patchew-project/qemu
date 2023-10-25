@@ -533,6 +533,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     }
 
     if (wait_status != WAIT_OBJECT_0) {
+        vss_ctx.pAsyncSnapshot->Cancel();
         err_set(errset, E_FAIL,
                 "couldn't receive Frozen event from VSS provider");
         goto out;
