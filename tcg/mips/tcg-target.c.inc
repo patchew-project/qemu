@@ -909,6 +909,16 @@ static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
         tcg_out_opc_reg(s, OPC_SLTU, ret, TCG_REG_ZERO, arg1);
         break;
 
+    case TCG_COND_TSTEQ:
+        tcg_out_opc_reg(s, OPC_AND, ret, arg1, arg2);
+        tcg_out_opc_imm(s, OPC_SLTIU, ret, ret, 1);
+        break;
+
+    case TCG_COND_TSTNE:
+        tcg_out_opc_reg(s, OPC_AND, ret, arg1, arg2);
+        tcg_out_opc_reg(s, OPC_SLTU, ret, TCG_REG_ZERO, ret);
+        break;
+
     case TCG_COND_LT:
     case TCG_COND_GE:
     case TCG_COND_LE:
@@ -989,6 +999,14 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
         arg2 = TCG_REG_ZERO;
         break;
 
+    case TCG_COND_TSTEQ:
+    case TCG_COND_TSTNE:
+        tcg_out_opc_reg(s, OPC_AND, TCG_TMP0, arg1, arg2);
+        arg1 = TCG_TMP0;
+        arg2 = TCG_REG_ZERO;
+        b_opc = cond == TCG_COND_TSTEQ ? OPC_BEQ : OPC_BNE;
+        break;
+
     default:
         g_assert_not_reached();
         break;
@@ -1052,6 +1070,14 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
         tcg_out_setcond(s, cond, ret, tmp1, TCG_REG_ZERO);
         break;
 
+    case TCG_COND_TSTEQ:
+    case TCG_COND_TSTNE:
+        tcg_out_opc_reg(s, OPC_AND, TCG_TMP0, al, bl);
+        tcg_out_opc_reg(s, OPC_AND, TCG_TMP1, ah, bh);
+        tcg_out_opc_reg(s, OPC_OR, ret, TCG_TMP0, TCG_TMP1);
+        tcg_out_setcond(s, tcg_eqne_cond(cond), ret, tmp1, TCG_REG_ZERO);
+        break;
+
     default:
         tcg_out_setcond(s, TCG_COND_EQ, tmp0, ah, bh);
         tcg_out_setcond(s, tcg_unsigned_cond(cond), tmp1, al, bl);
@@ -1076,6 +1102,13 @@ static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
      case TCG_COND_NE:
         b_cond = cond;
         tmp = tcg_out_reduce_eq2(s, TCG_TMP0, TCG_TMP1, al, ah, bl, bh);
+        break;
+
+    case TCG_COND_TSTEQ:
+    case TCG_COND_TSTNE:
+        tcg_out_opc_reg(s, OPC_AND, TCG_TMP0, al, bl);
+        tcg_out_opc_reg(s, OPC_AND, TCG_TMP1, ah, bh);
+        tcg_out_opc_reg(s, OPC_OR, TCG_TMP1, TCG_TMP1, TCG_TMP0);
         break;
 
     default:
@@ -1112,6 +1145,14 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
             tcg_out_opc_reg(s, OPC_XOR, TCG_TMP0, c1, c2);
             c1 = TCG_TMP0;
         }
+        break;
+
+    case TCG_COND_TSTEQ:
+        eqz = true;
+        /* FALLTHRU */
+    case TCG_COND_TSTNE:
+        tcg_out_opc_reg(s, OPC_AND, TCG_TMP0, c1, c2);
+        c1 = TCG_TMP0;
         break;
 
     default:
