@@ -4011,6 +4011,12 @@ static uint32_t operand_vzimm10(rv_inst inst)
     return (inst << 34) >> 54;
 }
 
+static uint32_t operand_vzimm6(rv_inst inst)
+{
+    return ((inst << 37) >> 63) << 5 |
+        ((inst << 44) >> 59);
+}
+
 static uint32_t operand_bs(rv_inst inst)
 {
     return (inst << 32) >> 62;
@@ -4392,6 +4398,11 @@ static void decode_inst_operands(rv_decode *dec, rv_isa isa)
         dec->rs2 = operand_rs2(inst);
         dec->imm = operand_vimm(inst);
         dec->vm = operand_vm(inst);
+        break;
+    case rv_codec_vror_vi:
+        dec->rd = operand_rd(inst);
+        dec->rs2 = operand_rs2(inst);
+        dec->imm = operand_vzimm6(inst);
         break;
     case rv_codec_vsetvli:
         dec->rd = operand_rd(inst);
