@@ -114,15 +114,16 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
     vfio_unmask_single_irqindex(vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 }
 
-static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
+static int vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 {
+    int ret = 0;
 #ifdef CONFIG_KVM
     int irq_fd = event_notifier_get_fd(&vdev->intx.interrupt);
 
     if (vdev->no_kvm_intx || !kvm_irqfds_enabled() ||
         vdev->intx.route.mode != PCI_INTX_ENABLED ||
         !kvm_resamplefds_enabled()) {
-        return;
+        return 0;
     }
 
     /* Get to a known interrupt state */
@@ -132,23 +133,26 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
     pci_irq_deassert(&vdev->pdev);
 
     /* Get an eventfd for resample/unmask */
-    if (event_notifier_init(&vdev->intx.unmask, 0)) {
+    ret = event_notifier_init(&vdev->intx.unmask, 0);
+    if (ret) {
         error_setg(errp, "event_notifier_init failed eoi");
         goto fail;
     }
 
-    if (kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
-                                           &vdev->intx.interrupt,
-                                           &vdev->intx.unmask,
-                                           vdev->intx.route.irq)) {
+    ret = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
+                                             &vdev->intx.interrupt,
+                                             &vdev->intx.unmask,
+                                             vdev->intx.route.irq);
+    if (ret) {
         error_setg_errno(errp, errno, "failed to setup resample irqfd");
         goto fail_irqfd;
     }
 
-    if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
-                               VFIO_IRQ_SET_ACTION_UNMASK,
-                               event_notifier_get_fd(&vdev->intx.unmask),
-                               errp)) {
+    ret = vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
+                                 VFIO_IRQ_SET_ACTION_UNMASK,
+                                 event_notifier_get_fd(&vdev->intx.unmask),
+                                 errp);
+    if (ret) {
         goto fail_vfio;
     }
 
@@ -159,7 +163,7 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 
     trace_vfio_intx_enable_kvm(vdev->vbasedev.name);
 
-    return;
+    return 0;
 
 fail_vfio:
     kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, &vdev->intx.interrupt,
@@ -170,6 +174,7 @@ fail:
     qemu_set_fd_handler(irq_fd, vfio_intx_interrupt, NULL, vdev);
     vfio_unmask_single_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 #endif
+    return ret;
 }
 
 static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
@@ -212,6 +217,7 @@ static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
 static void vfio_intx_update(VFIOPCIDevice *vdev, PCIINTxRoute *route)
 {
     Error *err = NULL;
+    int ret;
 
     trace_vfio_intx_update(vdev->vbasedev.name,
                            vdev->intx.route.irq, route->irq);
@@ -224,9 +230,13 @@ static void vfio_intx_update(VFIOPCIDevice *vdev, PCIINTxRoute *route)
         return;
     }
 
-    vfio_intx_enable_kvm(vdev, &err);
+    ret = vfio_intx_enable_kvm(vdev, &err);
     if (err) {
-        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        if (ret != -ENOTTY) {
+            warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        } else {
+            error_free(err);
+        }
     }
 
     /* Re-enable the interrupt in cased we missed an EOI */
@@ -300,9 +310,13 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
         return -errno;
     }
 
-    vfio_intx_enable_kvm(vdev, &err);
+    ret = vfio_intx_enable_kvm(vdev, &err);
     if (err) {
-        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        if (ret != -ENOTTY) {
+            warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        } else {
+            error_free(err);
+        }
     }
 
     vdev->interrupt = VFIO_INT_INTx;
