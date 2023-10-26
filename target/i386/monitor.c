@@ -29,6 +29,7 @@
 #include "monitor/hmp.h"
 #include "qapi/qmp/qdict.h"
 #include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc-target.h"
 #include "qapi/qapi-commands-misc.h"
@@ -655,6 +656,7 @@ void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
     if (qdict_haskey(qdict, "apic-id")) {
         int id = qdict_get_try_int(qdict, "apic-id", 0);
         cs = cpu_by_arch_id(id);
+        cpu_synchronize_state(cs);
     } else {
         cs = mon_get_cpu(mon);
     }
