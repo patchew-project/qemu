@@ -798,8 +798,14 @@ static const struct {
 static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
                            TCGReg arg2, TCGLabel *l)
 {
-    RISCVInsn op = tcg_brcond_to_riscv[cond].op;
+    RISCVInsn op;
 
+    if (is_tst_cond(cond)) {
+        tcg_out_opc_reg(s, OPC_AND, TCG_REG_TMP0, arg1, arg2);
+        cond = tcg_tst_eqne_cond(cond);
+    }
+
+    op = tcg_brcond_to_riscv[cond].op;
     tcg_debug_assert(op != 0);
 
     if (tcg_brcond_to_riscv[cond].swap) {
@@ -827,6 +833,7 @@ static int tcg_out_setcond_int(TCGContext *s, TCGCond cond, TCGReg ret,
     case TCG_COND_GEU:   /* -> LTU */
     case TCG_COND_GT:    /* -> LE  */
     case TCG_COND_GTU:   /* -> LEU */
+    case TCG_COND_TSTEQ: /* -> TSTNE */
         cond = tcg_invert_cond(cond);
         flags ^= SETCOND_INV;
         break;
@@ -883,6 +890,15 @@ static int tcg_out_setcond_int(TCGContext *s, TCGCond cond, TCGReg ret,
             ret = arg1;
         } else {
             tcg_out_opc_imm(s, OPC_XORI, ret, arg1, arg2);
+        }
+        break;
+
+    case TCG_COND_TSTNE:
+        flags |= SETCOND_NEZ;
+        if (c2) {
+            tcg_out_opc_imm(s, OPC_ANDI, ret, arg1, arg2);
+        } else {
+            tcg_out_opc_reg(s, OPC_AND, ret, arg1, arg2);
         }
         break;
 
@@ -1079,7 +1095,7 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
     int tmpflags;
     TCGReg t;
 
-    if (!have_zicond && (!c_cmp2 || cmp2 == 0)) {
+    if (!have_zicond && (!c_cmp2 || cmp2 == 0) && !is_tst_cond(cond)) {
         tcg_out_movcond_br2(s, cond, ret, cmp1, cmp2,
                             val1, c_val1, val2, c_val2);
         return;
