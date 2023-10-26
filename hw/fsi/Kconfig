@@ -1,3 +1,12 @@
+config FSI_CFAM
+    bool
+    select FSI
+    select FSI_SCRATCHPAD
+    select FSI_LBUS
+
+config FSI
+    bool
+
 config FSI_SCRATCHPAD
     bool
     select FSI_LBUS
