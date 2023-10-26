@@ -1,3 +1,7 @@
+config FSI_APB2OPB_ASPEED
+    bool
+    select FSI_OPB
+
 config FSI_OPB
     bool
     select FSI_CFAM
