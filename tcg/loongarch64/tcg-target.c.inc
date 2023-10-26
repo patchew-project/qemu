@@ -555,6 +555,7 @@ static int tcg_out_setcond_int(TCGContext *s, TCGCond cond, TCGReg ret,
     case TCG_COND_GEU:   /* -> LTU */
     case TCG_COND_GT:    /* -> LE  */
     case TCG_COND_GTU:   /* -> LEU */
+    case TCG_COND_TSTEQ: /* -> TSTNE */
         cond = tcg_invert_cond(cond);
         flags ^= SETCOND_INV;
         break;
@@ -608,6 +609,18 @@ static int tcg_out_setcond_int(TCGContext *s, TCGCond cond, TCGReg ret,
             tcg_out_opc_xori(s, ret, arg1, arg2);
         } else {
             tcg_out_addi(s, TCG_TYPE_REG, ret, arg1, -arg2);
+        }
+        break;
+
+    case TCG_COND_TSTNE:
+        flags |= SETCOND_NEZ;
+        if (!c2) {
+            tcg_out_opc_and(s, ret, arg1, arg2);
+        } else if (arg2 >= 0 && arg2 <= 0xfff) {
+            tcg_out_opc_andi(s, ret, arg1, arg2);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_REG, TCG_REG_TMP0, arg2);
+            tcg_out_opc_and(s, ret, arg1, TCG_REG_TMP0);
         }
         break;
 
@@ -695,29 +708,36 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
  * Branch helpers
  */
 
-static const struct {
-    LoongArchInsn op;
-    bool swap;
-} tcg_brcond_to_loongarch[] = {
-    [TCG_COND_EQ] =  { OPC_BEQ,  false },
-    [TCG_COND_NE] =  { OPC_BNE,  false },
-    [TCG_COND_LT] =  { OPC_BGT,  true  },
-    [TCG_COND_GE] =  { OPC_BLE,  true  },
-    [TCG_COND_LE] =  { OPC_BLE,  false },
-    [TCG_COND_GT] =  { OPC_BGT,  false },
-    [TCG_COND_LTU] = { OPC_BGTU, true  },
-    [TCG_COND_GEU] = { OPC_BLEU, true  },
-    [TCG_COND_LEU] = { OPC_BLEU, false },
-    [TCG_COND_GTU] = { OPC_BGTU, false }
-};
-
 static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
                            TCGReg arg2, TCGLabel *l)
 {
-    LoongArchInsn op = tcg_brcond_to_loongarch[cond].op;
+    static const struct {
+        LoongArchInsn op;
+        bool swap;
+    } tcg_brcond_to_loongarch[16] = {
+        [TCG_COND_EQ] =  { OPC_BEQ,  false },
+        [TCG_COND_NE] =  { OPC_BNE,  false },
+        [TCG_COND_LT] =  { OPC_BGT,  true  },
+        [TCG_COND_GE] =  { OPC_BLE,  true  },
+        [TCG_COND_LE] =  { OPC_BLE,  false },
+        [TCG_COND_GT] =  { OPC_BGT,  false },
+        [TCG_COND_LTU] = { OPC_BGTU, true  },
+        [TCG_COND_GEU] = { OPC_BLEU, true  },
+        [TCG_COND_LEU] = { OPC_BLEU, false },
+        [TCG_COND_GTU] = { OPC_BGTU, false }
+    };
 
+    LoongArchInsn op;
+
+    if (is_tst_cond(cond)) {
+        tcg_out_opc_and(s, TCG_REG_TMP0, arg1, arg2);
+        arg1 = TCG_REG_TMP0;
+        arg2 = TCG_REG_ZERO;
+        cond = tcg_tst_eqne_cond(cond);
+    }
+
+    op = tcg_brcond_to_loongarch[cond].op
     tcg_debug_assert(op != 0);
-
     if (tcg_brcond_to_loongarch[cond].swap) {
         TCGReg t = arg1;
         arg1 = arg2;
