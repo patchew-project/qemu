@@ -1363,44 +1363,44 @@ static bool mask64_operand(uint64_t c, int *mb, int *me)
     return false;
 }
 
-static void tcg_out_andi32(TCGContext *s, TCGReg dst, TCGReg src, uint32_t c)
+static void tcg_out_and_rc(TCGContext *s, TCGType type, TCGReg dst,
+                           TCGReg arg1, TCGArg arg2, bool const_arg2, bool rc)
 {
-    int mb, me;
-
-    if (mask_operand(c, &mb, &me)) {
-        tcg_out_rlw(s, RLWINM, dst, src, 0, mb, me);
-    } else if ((c & 0xffff) == c) {
-        tcg_out32(s, ANDI | SAI(src, dst, c));
+    if (!const_arg2) {
+        tcg_out32(s, AND | SAB(arg1, dst, arg2) | rc);
         return;
-    } else if ((c & 0xffff0000) == c) {
-        tcg_out32(s, ANDIS | SAI(src, dst, c >> 16));
-        return;
-    } else {
-        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R0, c);
-        tcg_out32(s, AND | SAB(src, dst, TCG_REG_R0));
     }
-}
 
-static void tcg_out_andi64(TCGContext *s, TCGReg dst, TCGReg src, uint64_t c)
-{
-    int mb, me;
+    if (!rc) {
+        int mb, me;
 
-    tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
-    if (mask64_operand(c, &mb, &me)) {
-        if (mb == 0) {
-            tcg_out_rld(s, RLDICR, dst, src, 0, me);
+        if (TCG_TARGET_REG_BITS == 32 || type == TCG_TYPE_I32) {
+            if (mask_operand(arg2, &mb, &me)) {
+                tcg_out_rlw(s, RLWINM, dst, arg1, 0, mb, me);
+                return;
+            }
         } else {
-            tcg_out_rld(s, RLDICL, dst, src, 0, mb);
+            if (mask64_operand(arg2, &mb, &me)) {
+                if (mb == 0) {
+                    tcg_out_rld(s, RLDICR, dst, arg1, 0, me);
+                } else {
+                    tcg_out_rld(s, RLDICL, dst, arg1, 0, mb);
+                }
+                return;
+            }
         }
-    } else if ((c & 0xffff) == c) {
-        tcg_out32(s, ANDI | SAI(src, dst, c));
-        return;
-    } else if ((c & 0xffff0000) == c) {
-        tcg_out32(s, ANDIS | SAI(src, dst, c >> 16));
-        return;
+    }
+
+    if (type == TCG_TYPE_I32) {
+        arg2 = (uint32_t)arg2;
+    }
+    if ((arg2 & 0xffff) == arg2) {
+        tcg_out32(s, ANDI | SAI(arg1, dst, arg2));
+    } else if ((arg2 & 0xffff0000u) == arg2) {
+        tcg_out32(s, ANDIS | SAI(arg1, dst, arg2 >> 16));
     } else {
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_R0, c);
-        tcg_out32(s, AND | SAB(src, dst, TCG_REG_R0));
+        tcg_out_movi(s, type, TCG_REG_R0, arg2);
+        tcg_out32(s, AND | SAB(arg1, dst, TCG_REG_R0) | rc);
     }
 }
 
@@ -2892,20 +2892,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_and_i32:
-        a0 = args[0], a1 = args[1], a2 = args[2];
-        if (const_args[2]) {
-            tcg_out_andi32(s, a0, a1, a2);
-        } else {
-            tcg_out32(s, AND | SAB(a1, a0, a2));
-        }
+        tcg_out_and_rc(s, TCG_TYPE_I32, args[0], args[1],
+                       args[2], const_args[2], false);
         break;
     case INDEX_op_and_i64:
-        a0 = args[0], a1 = args[1], a2 = args[2];
-        if (const_args[2]) {
-            tcg_out_andi64(s, a0, a1, a2);
-        } else {
-            tcg_out32(s, AND | SAB(a1, a0, a2));
-        }
+        tcg_out_and_rc(s, TCG_TYPE_I64, args[0], args[1],
+                       args[2], const_args[2], false);
         break;
     case INDEX_op_or_i64:
     case INDEX_op_or_i32:
@@ -2928,7 +2920,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_andc_i32:
         a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
-            tcg_out_andi32(s, a0, a1, ~a2);
+            tcg_out_and_rc(s, TCG_TYPE_I32, a0, a1, ~a2, true, false);
         } else {
             tcg_out32(s, ANDC | SAB(a1, a0, a2));
         }
@@ -2936,7 +2928,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_andc_i64:
         a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
-            tcg_out_andi64(s, a0, a1, ~a2);
+            tcg_out_and_rc(s, TCG_TYPE_I64, a0, a1, ~a2, true, false);
         } else {
             tcg_out32(s, ANDC | SAB(a1, a0, a2));
         }
@@ -3270,7 +3262,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_deposit_i32:
         if (const_args[2]) {
             uint32_t mask = ((2u << (args[4] - 1)) - 1) << args[3];
-            tcg_out_andi32(s, args[0], args[0], ~mask);
+            tcg_out_and_rc(s, TCG_TYPE_I32, args[0], args[0],
+                           ~mask, true, false);
         } else {
             tcg_out_rlw(s, RLWIMI, args[0], args[2], args[3],
                         32 - args[3] - args[4], 31 - args[3]);
@@ -3279,7 +3272,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_deposit_i64:
         if (const_args[2]) {
             uint64_t mask = ((2ull << (args[4] - 1)) - 1) << args[3];
-            tcg_out_andi64(s, args[0], args[0], ~mask);
+            tcg_out_and_rc(s, TCG_TYPE_I64, args[0], args[0],
+                           ~mask, true, false);
         } else {
             tcg_out_rld(s, RLDIMI, args[0], args[2], args[3],
                         64 - args[3] - args[4]);
