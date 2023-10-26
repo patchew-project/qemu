@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
+#include "hw/ptimer.h"
 
 #define TIM_CR1      0x00
 #define TIM_CR2      0x04
@@ -49,9 +50,15 @@
 #define TIM_DMAR     0x4C
 #define TIM_OR       0x50
 
-#define TIM_CR1_CEN   1
+#define TIM_CR1_CEN 0x0001
+#define TIM_CR1_DIR 0x0010
+#define TIM_CR1_CMS 0x0060
+#define TIM_CR1_OPM 0x0008
 
-#define TIM_EGR_UG 1
+#define TIM_SR1_UIF 0x0001
+
+#define TIM_EGR_UG 0x0001
+#define TIM_EGR_TG 0x0040
 
 #define TIM_CCER_CC2E   (1 << 4)
 #define TIM_CCMR1_OC2M2 (1 << 14)
@@ -60,6 +67,7 @@
 #define TIM_CCMR1_OC2PE (1 << 11)
 
 #define TIM_DIER_UIE  1
+
 
 #define TYPE_STM32F2XX_TIMER "stm32f2xx-timer"
 typedef struct STM32F2XXTimerState STM32F2XXTimerState;
@@ -72,12 +80,10 @@ struct STM32F2XXTimerState {
 
     /* <public> */
     MemoryRegion iomem;
-    QEMUTimer *timer;
+    ptimer_state *timer;
     qemu_irq irq;
-
-    int64_t tick_offset;
-    uint64_t hit_time;
     uint64_t freq_hz;
+    int count_mode;
 
     uint32_t tim_cr1;
     uint32_t tim_cr2;
@@ -97,6 +103,11 @@ struct STM32F2XXTimerState {
     uint32_t tim_dcr;
     uint32_t tim_dmar;
     uint32_t tim_or;
+};
+
+enum {
+    TIMER_UP_COUNT     = 0,
+    TIMER_DOWN_COUNT   = 1
 };
 
 #endif /* HW_STM32F2XX_TIMER_H */
