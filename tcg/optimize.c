@@ -1930,7 +1930,7 @@ static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
         sub_opc = INDEX_op_sub_i32;
         xor_opc = INDEX_op_xor_i32;
         shr_opc = INDEX_op_shr_i32;
-        neg_opc = TCG_TARGET_HAS_neg_i32 ? INDEX_op_neg_i32 : 0;
+        neg_opc = INDEX_op_neg_i32;
         uext_opc = TCG_TARGET_HAS_extract_i32 ? INDEX_op_extract_i32 : 0;
         sext_opc = TCG_TARGET_HAS_sextract_i32 ? INDEX_op_sextract_i32 : 0;
         break;
@@ -1939,7 +1939,7 @@ static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
         sub_opc = INDEX_op_sub_i64;
         xor_opc = INDEX_op_xor_i64;
         shr_opc = INDEX_op_shr_i64;
-        neg_opc = TCG_TARGET_HAS_neg_i64 ? INDEX_op_neg_i64 : 0;
+        neg_opc = INDEX_op_neg_i64;
         uext_opc = TCG_TARGET_HAS_extract_i64 ? INDEX_op_extract_i64 : 0;
         sext_opc = TCG_TARGET_HAS_sextract_i64 ? INDEX_op_sextract_i64 : 0;
         break;
@@ -1986,15 +1986,10 @@ static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
         op2->args[0] = ret;
         op2->args[1] = ret;
         op2->args[2] = arg_new_constant(ctx, 1);
-    } else if (neg && neg_opc) {
+    } else if (neg) {
         op2 = tcg_op_insert_after(ctx->tcg, op, neg_opc, 2);
         op2->args[0] = ret;
         op2->args[1] = ret;
-    } else if (neg) {
-        op2 = tcg_op_insert_after(ctx->tcg, op, sub_opc, 3);
-        op2->args[0] = ret;
-        op2->args[1] = arg_new_constant(ctx, 0);
-        op2->args[2] = ret;
     }
 }
 
@@ -2205,11 +2200,11 @@ static bool fold_sub_to_neg(OptContext *ctx, TCGOp *op)
     switch (ctx->type) {
     case TCG_TYPE_I32:
         neg_op = INDEX_op_neg_i32;
-        have_neg = TCG_TARGET_HAS_neg_i32;
+        have_neg = true;
         break;
     case TCG_TYPE_I64:
         neg_op = INDEX_op_neg_i64;
-        have_neg = TCG_TARGET_HAS_neg_i64;
+        have_neg = true;
         break;
     case TCG_TYPE_V64:
     case TCG_TYPE_V128:
