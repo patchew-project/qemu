@@ -4741,6 +4741,15 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
         return ret;
     }
 
+    /*
+     * must be before kvm_put_nested_state so that HF_SMM_MASK is set during
+     * SMM.
+     */
+    ret = kvm_put_vcpu_events(x86_cpu, level);
+    if (ret < 0) {
+        return ret;
+    }
+
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_nested_state(x86_cpu);
         if (ret < 0) {
@@ -4784,10 +4793,6 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
         return ret;
     }
     ret = kvm_put_msrs(x86_cpu, level);
-    if (ret < 0) {
-        return ret;
-    }
-    ret = kvm_put_vcpu_events(x86_cpu, level);
     if (ret < 0) {
         return ret;
     }
