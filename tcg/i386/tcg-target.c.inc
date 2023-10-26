@@ -2544,8 +2544,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         c = ARITH_ADD;
         goto gen_arith;
     OP_32_64(sub):
-        c = ARITH_SUB;
-        goto gen_arith;
+        /*
+         * Should have canonicalized all constants to add.
+         * Keep the constraint allowing any constant so that we catch this
+         * case without register allocation loading the constant first.
+         */
+        tcg_debug_assert(!const_a2);
+        tgen_arithr(s, ARITH_SUB + rexw, a0, a2);
+        break;
     OP_32_64(and):
         c = ARITH_AND;
         goto gen_arith;
@@ -3325,7 +3331,6 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, r, re);
 
     case INDEX_op_sub_i32:
-    case INDEX_op_sub_i64:
     case INDEX_op_mul_i32:
     case INDEX_op_mul_i64:
     case INDEX_op_or_i32:
@@ -3333,6 +3338,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_xor_i32:
     case INDEX_op_xor_i64:
         return C_O1_I2(r, 0, re);
+    case INDEX_op_sub_i64:
+        return C_O1_I2(r, 0, ri);
 
     case INDEX_op_and_i32:
     case INDEX_op_and_i64:

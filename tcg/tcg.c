@@ -3622,23 +3622,40 @@ liveness_pass_1(TCGContext *s)
         do_addsub2:
             nb_iargs = 4;
             nb_oargs = 2;
-            /* Test if the high part of the operation is dead, but not
-               the low part.  The result can be optimized to a simple
-               add or sub.  This happens often for x86_64 guest when the
-               cpu mode is set to 32 bit.  */
-            if (arg_temp(op->args[1])->state == TS_DEAD) {
-                if (arg_temp(op->args[0])->state == TS_DEAD) {
-                    goto do_remove;
-                }
-                /* Replace the opcode and adjust the args in place,
-                   leaving 3 unused args at the end.  */
-                op->opc = opc = opc_new;
-                op->args[1] = op->args[2];
-                op->args[2] = op->args[4];
-                /* Fall through and mark the single-word operation live.  */
-                nb_iargs = 2;
-                nb_oargs = 1;
+            /*
+             * Test if the high part of the operation is dead, but the low
+             * part is still live.  The result can be optimized to a simple
+             * add or sub.
+             */
+            if (arg_temp(op->args[1])->state != TS_DEAD) {
+                goto do_not_remove;
             }
+            if (arg_temp(op->args[0])->state == TS_DEAD) {
+                goto do_remove;
+            }
+            /*
+             * Replace the opcode and adjust the args in place, leaving 3
+             * unused args at the end.  Canonicalize subi to andi.
+             */
+            op->args[1] = op->args[2];
+            {
+                TCGTemp *src2 = arg_temp(op->args[4]);
+                if (src2->kind == TEMP_CONST) {
+                    if (opc_new == INDEX_op_sub_i32) {
+                        src2 = tcg_constant_internal(TCG_TYPE_I32,
+                                                     (int32_t)-src2->val);
+                        opc_new = INDEX_op_add_i32;
+                    } else if (opc_new == INDEX_op_sub_i64) {
+                        src2 = tcg_constant_internal(TCG_TYPE_I64, -src2->val);
+                        opc_new = INDEX_op_add_i64;
+                    }
+                }
+                op->args[2] = temp_arg(src2);
+            }
+            op->opc = opc = opc_new;
+            /* Mark the single-word operation live.  */
+            nb_iargs = 2;
+            nb_oargs = 1;
             goto do_not_remove;
 
         case INDEX_op_mulu2_i32:
