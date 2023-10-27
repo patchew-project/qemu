@@ -102,7 +102,7 @@ void acpi_fetch_table(QTestState *qts, uint8_t **aml, uint32_t *aml_len,
             char *fname = NULL;
             GError *error = NULL;
 
-            fprintf(stderr, "Invalid '%.4s'(%d)\n", *aml, *aml_len);
+            fprintf(stderr, "Invalid '%.4s'(%u)\n", *aml, *aml_len);
             fd = g_file_open_tmp("malformed-XXXXXX.dat", &fname, &error);
             g_assert_no_error(error);
             fprintf(stderr, "Dumping invalid table into '%s'\n", fname);
