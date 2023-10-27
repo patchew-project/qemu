@@ -1465,7 +1465,7 @@ fail:
     return ret;
 }
 
-static int parallels_inactivate(BlockDriverState *bs)
+static int GRAPH_RDLOCK parallels_inactivate(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
     Error *err = NULL;
@@ -1491,9 +1491,12 @@ static int parallels_inactivate(BlockDriverState *bs)
     return ret;
 }
 
-static void parallels_close(BlockDriverState *bs)
+static void GRAPH_UNLOCKED parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
         parallels_inactivate(bs);
