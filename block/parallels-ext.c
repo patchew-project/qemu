@@ -177,10 +177,6 @@ static BdrvDirtyBitmap *parallels_load_bitmap(BlockDriverState *bs,
         return NULL;
     }
 
-    /* We support format extension only for RO parallels images. */
-    assert(!(bs->open_flags & BDRV_O_RDWR));
-    bdrv_dirty_bitmap_set_readonly(bitmap, true);
-
     return bitmap;
 }
 
