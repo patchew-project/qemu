@@ -27,7 +27,6 @@
 #include "hw/timer/i8254.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "migration/vmstate.h"
-#include "hw/isa/apm.h"
 #include "hw/acpi/acpi.h"
 #include "hw/i2c/pm_smbus.h"
 #include "qapi/error.h"
@@ -42,6 +41,16 @@
 #define TYPE_VIA_PM "via-pm"
 OBJECT_DECLARE_SIMPLE_TYPE(ViaPMState, VIA_PM)
 
+#define VIA_PM_IO_GBLEN 0x2a
+#define VIA_PM_IO_GBLEN_SW_SMI_EN (1 << 6)
+
+#define VIA_PM_IO_GBLCTL 0x2c
+#define VIA_PM_IO_GBLCTL_SMI_EN 1
+#define VIA_PM_IO_GBLCTL_SMIIG (1 << 4)
+#define VIA_PM_IO_GBLCTL_INSMI (1 << 8)
+
+#define VIA_PM_IO_SMI_CMD 0x2f
+
 #define VIA_PM_GPE_LEN 4
 
 #define VIA_PM_SCI_SELECT_OFS 0x42
@@ -49,14 +58,19 @@ OBJECT_DECLARE_SIMPLE_TYPE(ViaPMState, VIA_PM)
 
 struct ViaPMState {
     PCIDevice dev;
+
     MemoryRegion io;
     ACPIREGS ar;
-    APMState apm;
+    uint16_t gbl_en;
+    uint16_t gbl_ctl;
+    uint8_t smi_cmd;
+
     PMSMBus smb;
 
     Notifier powerdown_notifier;
 
     qemu_irq sci_irq;
+    qemu_irq smi_irq;
 };
 
 static void pm_io_space_update(ViaPMState *s)
@@ -90,7 +104,7 @@ static int vmstate_acpi_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_acpi = {
     .name = "vt82c686b_pm",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .post_load = vmstate_acpi_post_load,
     .fields = (VMStateField[]) {
@@ -98,9 +112,11 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_UINT16(ar.pm1.evt.sts, ViaPMState),
         VMSTATE_UINT16(ar.pm1.evt.en, ViaPMState),
         VMSTATE_UINT16(ar.pm1.cnt.cnt, ViaPMState),
-        VMSTATE_STRUCT(apm, ViaPMState, 0, vmstate_apm, APMState),
         VMSTATE_TIMER_PTR(ar.tmr.timer, ViaPMState),
         VMSTATE_INT64(ar.tmr.overflow_time, ViaPMState),
+        VMSTATE_UINT16(gbl_en, ViaPMState),
+        VMSTATE_UINT16(gbl_ctl, ViaPMState),
+        VMSTATE_UINT8(smi_cmd, ViaPMState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -128,15 +144,75 @@ static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
     }
 }
 
+static void via_pm_apm_ctrl_changed(ViaPMState *s, uint8_t val)
+{
+    s->smi_cmd = val;
+
+    if (s->gbl_en & VIA_PM_IO_GBLEN_SW_SMI_EN
+        && s->gbl_ctl & VIA_PM_IO_GBLCTL_SMI_EN
+        && !(s->gbl_ctl & VIA_PM_IO_GBLCTL_SMIIG
+             && s->gbl_ctl & VIA_PM_IO_GBLCTL_INSMI)) {
+        s->gbl_ctl |= VIA_PM_IO_GBLCTL_INSMI;
+
+        if (s->smi_irq) {
+            qemu_irq_raise(s->smi_irq);
+        }
+    }
+}
+
 static void pm_io_write(void *op, hwaddr addr, uint64_t data, unsigned size)
 {
+    ViaPMState *s = op;
+
     trace_via_pm_io_write(addr, data, size);
+
+    switch (addr) {
+    case VIA_PM_IO_GBLEN:
+        s->gbl_en = (s->gbl_en & 0xff00) | data;
+        break;
+    case VIA_PM_IO_GBLEN + 1:
+        s->gbl_en = (s->gbl_en & 0x00ff) | (data << 8);
+        break;
+    case VIA_PM_IO_GBLCTL:
+        s->gbl_ctl = (s->gbl_ctl & 0xff00) | data;
+        break;
+    case VIA_PM_IO_GBLCTL + 1:
+        data <<= 8;
+        data &= ~(s->gbl_ctl & VIA_PM_IO_GBLCTL_INSMI);
+        s->gbl_ctl = (s->gbl_ctl & 0x00ff) | data;
+        break;
+    case VIA_PM_IO_SMI_CMD:
+        via_pm_apm_ctrl_changed(s, data);
+        break;
+    }
 }
 
 static uint64_t pm_io_read(void *op, hwaddr addr, unsigned size)
 {
-    trace_via_pm_io_read(addr, 0, size);
-    return 0;
+    ViaPMState *s = op;
+    uint64_t data = 0;
+
+    switch (addr) {
+    case VIA_PM_IO_GBLEN:
+        data = s->gbl_en & 0xff;
+        break;
+    case VIA_PM_IO_GBLEN + 1:
+        data = s->gbl_en >> 8;
+        break;
+    case VIA_PM_IO_GBLCTL:
+        data = s->gbl_ctl & 0xff;
+        break;
+    case VIA_PM_IO_GBLCTL + 1:
+        data = (s->gbl_ctl >> 8) & 0xd;
+        break;
+    case VIA_PM_IO_SMI_CMD:
+        data = s->smi_cmd;
+        break;
+    }
+
+    trace_via_pm_io_read(addr, data, size);
+
+    return data;
 }
 
 static const MemoryRegionOps pm_io_ops = {
@@ -166,6 +242,10 @@ static void via_pm_reset(DeviceState *d)
     /* SMBus IO base */
     pci_set_long(s->dev.config + 0x90, 1);
 
+    s->gbl_en = 0;
+    s->gbl_ctl = VIA_PM_IO_GBLCTL_SMIIG;
+    s->smi_cmd = 0;
+
     acpi_pm1_evt_reset(&s->ar);
     acpi_pm1_cnt_reset(&s->ar);
     acpi_pm_tmr_reset(&s->ar);
@@ -194,8 +274,6 @@ static void via_pm_realize(PCIDevice *dev, Error **errp)
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->smb.io);
     memory_region_set_enabled(&s->smb.io, false);
 
-    apm_init(dev, &s->apm, NULL, s);
-
     memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s, "via-pm", 128);
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->io);
     memory_region_set_enabled(&s->io, false);
@@ -214,6 +292,7 @@ static void via_pm_init(Object *obj)
     ViaPMState *s = VIA_PM(obj);
 
     qdev_init_gpio_out_named(DEVICE(obj), &s->sci_irq, "sci", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->smi_irq, "smi-irq", 1);
 }
 
 typedef struct via_pm_init_info {
