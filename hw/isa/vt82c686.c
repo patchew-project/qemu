@@ -145,26 +145,10 @@ static const MemoryRegionOps pm_io_ops = {
     },
 };
 
-static void pm_update_sci(ViaPMState *s)
-{
-    int sci_level, pmsts;
-
-    pmsts = acpi_pm1_evt_get_sts(&s->ar);
-    sci_level = (((pmsts & s->ar.pm1.evt.en) &
-                  (ACPI_BITMASK_RT_CLOCK_ENABLE |
-                   ACPI_BITMASK_POWER_BUTTON_ENABLE |
-                   ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
-                   ACPI_BITMASK_TIMER_ENABLE)) != 0);
-    qemu_set_irq(s->sci_irq, sci_level);
-    /* schedule a timer interruption if needed */
-    acpi_pm_tmr_update(&s->ar, (s->ar.pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
-                       !(pmsts & ACPI_BITMASK_TIMER_STATUS));
-}
-
 static void pm_tmr_timer(ACPIREGS *ar)
 {
     ViaPMState *s = container_of(ar, ViaPMState, ar);
-    pm_update_sci(s);
+    acpi_update_sci(&s->ar, s->sci_irq);
 }
 
 static void via_pm_reset(DeviceState *d)
@@ -182,7 +166,7 @@ static void via_pm_reset(DeviceState *d)
     acpi_pm1_cnt_reset(&s->ar);
     acpi_pm_tmr_reset(&s->ar);
     acpi_gpe_reset(&s->ar);
-    pm_update_sci(s);
+    acpi_update_sci(&s->ar, s->sci_irq);
 
     pm_io_space_update(s);
     smb_io_space_update(s);
