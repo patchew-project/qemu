@@ -1649,6 +1649,8 @@ static void pnv_chip_power10_instance_init(Object *obj)
     object_initialize_child(obj, "occ",  &chip10->occ, TYPE_PNV10_OCC);
     object_initialize_child(obj, "sbe",  &chip10->sbe, TYPE_PNV10_SBE);
     object_initialize_child(obj, "homer", &chip10->homer, TYPE_PNV10_HOMER);
+    object_initialize_child(obj, "nest1_chiplet", &chip10->nest1_chiplet,
+                            TYPE_PNV_NEST1_CHIPLET);
 
     chip->num_pecs = pcc->num_pecs;
 
@@ -1812,6 +1814,15 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     /* Homer mmio region */
     memory_region_add_subregion(get_system_memory(), PNV10_HOMER_BASE(chip),
                                 &chip10->homer.regs);
+
+    /* nest1 chiplet control regs */
+    object_property_set_link(OBJECT(&chip10->nest1_chiplet), "chip",
+                             OBJECT(chip), &error_abort);
+    if (!qdev_realize(DEVICE(&chip10->nest1_chiplet), NULL, errp)) {
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV10_XSCOM_NEST1_CTRL_CHIPLET_BASE,
+                           &chip10->nest1_chiplet.perv_chiplet.xscom_perv_ctrl_regs);
 
     /* PHBs */
     pnv_chip_power10_phb_realize(chip, &local_err);
