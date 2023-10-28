@@ -18,8 +18,8 @@ events::
 
     $ qemu --trace "memory_region_ops_*" ...
     ...
-    719585@1608130130.441188:memory_region_ops_read cpu 0 mr 0x562fdfbb3820 addr 0x3cc value 0x67 size 1
-    719585@1608130130.441190:memory_region_ops_write cpu 0 mr 0x562fdfbd2f00 addr 0x3d4 value 0x70e size 2
+    719585@1608130130.441188:memory_region_ops_read cpu 0 addr 0x3cc value 0x67 size 1
+    719585@1608130130.441190:memory_region_ops_write cpu 0 addr 0x3d4 value 0x70e size 2
 
 This output comes from the "log" trace backend that is enabled by default when
 ``./configure --enable-trace-backends=BACKENDS`` was not explicitly specified.
