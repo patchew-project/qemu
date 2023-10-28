@@ -132,6 +132,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_CT_CONST_U32 0x200
 #define TCG_CT_CONST_I32 0x400
 #define TCG_CT_CONST_WSZ 0x800
+#define TCG_CT_CONST_TST 0x1000
 
 /* Registers used with L constraint, which are the first argument
    registers on x86_64, and two random call clobbered registers on
@@ -202,7 +203,8 @@ static bool tcg_target_const_match(int64_t val, int ct,
         return 1;
     }
     if (type == TCG_TYPE_I32) {
-        if (ct & (TCG_CT_CONST_S32 | TCG_CT_CONST_U32 | TCG_CT_CONST_I32)) {
+        if (ct & (TCG_CT_CONST_S32 | TCG_CT_CONST_U32 |
+                  TCG_CT_CONST_I32 | TCG_CT_CONST_TST)) {
             return 1;
         }
     } else {
@@ -213,6 +215,17 @@ static bool tcg_target_const_match(int64_t val, int ct,
             return 1;
         }
         if ((ct & TCG_CT_CONST_I32) && ~val == (int32_t)~val) {
+            return 1;
+        }
+        /*
+         * This will be used in combination with TCG_CT_CONST_S32,
+         * so "normal" TESTQ is already matched.  Also accept:
+         *    TESTQ -> TESTL   (uint32_t)
+         *    TESTQ -> BT      (is_power_of_2)
+         */
+        if ((ct & TCG_CT_CONST_TST)
+            && is_tst_cond(cond)
+            && (val == (uint32_t)val || is_power_of_2(val))) {
             return 1;
         }
     }
@@ -395,6 +408,7 @@ static bool tcg_target_const_match(int64_t val, int ct,
 #define OPC_SHLX        (0xf7 | P_EXT38 | P_DATA16)
 #define OPC_SHRX        (0xf7 | P_EXT38 | P_SIMDF2)
 #define OPC_SHRD_Ib     (0xac | P_EXT)
+#define OPC_TESTB	(0x84)
 #define OPC_TESTL	(0x85)
 #define OPC_TZCNT       (0xbc | P_EXT | P_SIMDF3)
 #define OPC_UD2         (0x0b | P_EXT)
@@ -441,6 +455,12 @@ static bool tcg_target_const_match(int64_t val, int ct,
 #define OPC_GRP3_Ev     (0xf7)
 #define OPC_GRP5        (0xff)
 #define OPC_GRP14       (0x73 | P_EXT | P_DATA16)
+#define OPC_GRPBT       (0xba | P_EXT)
+
+#define OPC_GRPBT_BT    4
+#define OPC_GRPBT_BTS   5
+#define OPC_GRPBT_BTR   6
+#define OPC_GRPBT_BTC   7
 
 /* Group 1 opcode extensions for 0x80-0x83.
    These are also used as modifiers for OPC_ARITH.  */
@@ -1433,6 +1453,34 @@ static int tcg_out_cmp(TCGContext *s, TCGCond cond, TCGArg arg1,
         } else if ((arg2 & ~0xff00) == 0 && arg1 < 4) {
             tcg_out_modrm(s, OPC_GRP3_Eb, EXT3_TESTi, arg1 + 4);
             tcg_out8(s, arg2 >> 8);
+        } else if (is_power_of_2(rexw ? arg2 : (uint32_t)arg2)) {
+            int js = (cond == TCG_COND_TSTNE ? JCC_JS : JCC_JNS);
+            int sh = ctz64(arg2);
+
+            switch (sh) {
+            case 7:
+                if (TCG_TARGET_REG_BITS == 64 || arg1 < 4) {
+                    tcg_out_modrm(s, OPC_TESTB | P_REXB_R, arg1, arg1);
+                    return js;
+                }
+                break;
+            case 15:
+                if (arg1 < 4) {
+                    tcg_out_modrm(s, OPC_TESTB, arg1 + 4, arg1 + 4);
+                } else {
+                    tcg_out_modrm(s, OPC_TESTL | P_DATA16, arg1, arg1);
+                }
+                return js;
+            case 31:
+                tcg_out_modrm(s, OPC_TESTL | P_DATA16, arg1, arg1);
+                return js;
+            case 63:
+                tcg_out_modrm(s, OPC_TESTL | P_REXW, arg1, arg1);
+                return js;
+            }
+            rexw = sh >= 32;
+            tcg_out_modrm(s, OPC_GRPBT + rexw, OPC_GRPBT_BT, arg1);
+            tcg_out8(s, sh);
         } else {
             if (rexw) {
                 if (arg2 == (uint32_t)arg2) {
@@ -3357,7 +3405,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
-        return C_O0_I2(r, re);
+        return C_O0_I2(r, reT);
 
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:
@@ -3405,11 +3453,11 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_setcond_i64:
     case INDEX_op_negsetcond_i32:
     case INDEX_op_negsetcond_i64:
-        return C_O1_I2(q, r, re);
+        return C_O1_I2(q, r, reT);
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, re, r, 0);
+        return C_O1_I4(r, r, reT, r, 0);
 
     case INDEX_op_div2_i32:
     case INDEX_op_div2_i64:
