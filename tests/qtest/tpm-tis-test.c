@@ -22,7 +22,7 @@
 #include "tpm-emu.h"
 #include "tpm-tis-util.h"
 
-uint64_t tpm_tis_base_addr = TPM_TIS_ADDR_BASE;
+uint64_t tpm_device_base_addr = TPM_TIS_ADDR_BASE;
 
 int main(int argc, char **argv)
 {

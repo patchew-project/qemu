@@ -20,7 +20,7 @@
 #include "tpm-tis-util.h"
 #include "hw/acpi/tpm.h"
 
-uint64_t tpm_tis_base_addr = TPM_TIS_ADDR_BASE;
+uint64_t tpm_device_base_addr = TPM_TIS_ADDR_BASE;
 
 typedef struct TestState {
     char *src_tpm_path;

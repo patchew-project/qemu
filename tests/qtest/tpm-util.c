@@ -24,18 +24,20 @@ void tpm_util_crb_transfer(QTestState *s,
                            const unsigned char *req, size_t req_size,
                            unsigned char *rsp, size_t rsp_size)
 {
-    uint64_t caddr = qtest_readq(s, TPM_CRB_ADDR_BASE + A_CRB_CTRL_CMD_LADDR);
-    uint64_t raddr = qtest_readq(s, TPM_CRB_ADDR_BASE + A_CRB_CTRL_RSP_LADDR);
+    uint64_t caddr = qtest_readq(s, tpm_device_base_addr +
+                                    A_CRB_CTRL_CMD_LADDR);
+    uint64_t raddr = qtest_readq(s, tpm_device_base_addr +
+                                    A_CRB_CTRL_RSP_LADDR);
 
-    qtest_writeb(s, TPM_CRB_ADDR_BASE + A_CRB_LOC_CTRL, 1);
+    qtest_writeb(s, tpm_device_base_addr + A_CRB_LOC_CTRL, 1);
 
     qtest_memwrite(s, caddr, req, req_size);
 
     uint32_t sts, start = 1;
     uint64_t end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
-    qtest_writel(s, TPM_CRB_ADDR_BASE + A_CRB_CTRL_START, start);
+    qtest_writel(s, tpm_device_base_addr + A_CRB_CTRL_START, start);
     while (true) {
-        start = qtest_readl(s, TPM_CRB_ADDR_BASE + A_CRB_CTRL_START);
+        start = qtest_readl(s, tpm_device_base_addr + A_CRB_CTRL_START);
         if ((start & 1) == 0) {
             break;
         }
@@ -43,9 +45,9 @@ void tpm_util_crb_transfer(QTestState *s,
             break;
         }
     };
-    start = qtest_readl(s, TPM_CRB_ADDR_BASE + A_CRB_CTRL_START);
+    start = qtest_readl(s, tpm_device_base_addr + A_CRB_CTRL_START);
     g_assert_cmpint(start & 1, ==, 0);
-    sts = qtest_readl(s, TPM_CRB_ADDR_BASE + A_CRB_CTRL_STS);
+    sts = qtest_readl(s, tpm_device_base_addr + A_CRB_CTRL_STS);
     g_assert_cmpint(sts & 1, ==, 0);
 
     qtest_memread(s, raddr, rsp, rsp_size);
