@@ -25,6 +25,11 @@ config TPM_CRB
     depends on TPM && PC
     select TPM_BACKEND
 
+config TPM_CRB_SYSBUS
+    bool
+    depends on TPM
+    select TPM_BACKEND
+
 config TPM_SPAPR
     bool
     default y
