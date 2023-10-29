@@ -1345,6 +1345,28 @@ static void test_acpi_piix4_tcg_numamem(void)
 
 uint64_t tpm_tis_base_addr;
 
+static test_data tcg_tpm_test_data(const char *machine)
+{
+    if (g_strcmp0(machine, "virt") == 0) {
+        test_data data = {
+            .machine = "virt",
+            .tcg_only = true,
+            .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
+            .uefi_fl2 = "pc-bios/edk2-arm-vars.fd",
+            .cd =
+               "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",
+            .ram_start = 0x40000000ULL,
+            .scan_len = 128ULL * 1024 * 1024,
+        };
+        return data;
+    } else {
+        test_data data = {
+            .machine = machine,
+        };
+        return data;
+    }
+}
+
 static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
                               uint64_t base, enum TPMVersion tpm_version)
 {
@@ -1352,7 +1374,7 @@ static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
                                           machine, tpm_if);
     char *tmp_path = g_dir_make_tmp(tmp_dir_name, NULL);
     TPMTestState test;
-    test_data data = {};
+    test_data data = tcg_tpm_test_data(machine);
     GThread *thread;
     const char *suffix = tpm_version == TPM_VERSION_2_0 ? "tpm2" : "tpm12";
     char *args, *variant = g_strdup_printf(".%s.%s", tpm_if, suffix);
@@ -1372,13 +1394,14 @@ static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
     thread = g_thread_new(NULL, tpm_emu_ctrl_thread, &test);
     tpm_emu_test_wait_cond(&test);
 
-    data.machine = machine;
     data.variant = variant;
 
     args = g_strdup_printf(
+        " %s"
         " -chardev socket,id=chr,path=%s"
         " -tpmdev emulator,id=dev,chardev=chr"
         " -device tpm-%s,tpmdev=dev",
+        g_strcmp0(machine, "virt") == 0 ? "-cpu cortex-a57" : "",
         test.addr->u.q_unix.path, tpm_if);
 
     test_acpi_one(args, &data);
@@ -1402,6 +1425,16 @@ static void test_acpi_q35_tcg_tpm2_tis(void)
 static void test_acpi_q35_tcg_tpm12_tis(void)
 {
     test_acpi_tcg_tpm("q35", "tis", 0xFED40000, TPM_VERSION_1_2);
+}
+
+static void test_acpi_q35_tcg_tpm2_crb(void)
+{
+    test_acpi_tcg_tpm("q35", "crb", 0xFED40000, TPM_VERSION_2_0);
+}
+
+static void test_acpi_virt_tcg_tpm2_crb(void)
+{
+    test_acpi_tcg_tpm("virt", "crb-device", 0xFED40000, TPM_VERSION_2_0);
 }
 
 static void test_acpi_tcg_dimm_pxm(const char *machine)
@@ -2110,6 +2143,9 @@ int main(int argc, char *argv[])
                 qtest_add_func("acpi/q35/tpm12-tis",
                                test_acpi_q35_tcg_tpm12_tis);
             }
+            if (tpm_model_is_available("-machine q35", "tpm-crb")) {
+                qtest_add_func("acpi/q35/tpm2-crb", test_acpi_q35_tcg_tpm2_crb);
+            }
             qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
             qtest_add_func("acpi/q35/no-acpi-hotplug",
                            test_acpi_q35_tcg_no_acpi_hotplug);
@@ -2190,6 +2226,9 @@ int main(int argc, char *argv[])
             if (qtest_has_device("virtio-iommu-pci")) {
                 qtest_add_func("acpi/virt/viot", test_acpi_virt_viot);
             }
+        }
+        if (tpm_model_is_available("-machine virt", "tpm-crb")) {
+            qtest_add_func("acpi/virt/tpm2-crb", test_acpi_virt_tcg_tpm2_crb);
         }
     }
     ret = g_test_run();
