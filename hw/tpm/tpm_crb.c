@@ -37,6 +37,10 @@ struct CRBState {
     DeviceState parent_obj;
 
     TPMCRBState state;
+
+    /* These states are only for migration */
+    uint32_t saved_regs[TPM_CRB_R_MAX];
+    MemoryRegion saved_cmdmem;
 };
 typedef struct CRBState CRBState;
 
@@ -57,18 +61,36 @@ static enum TPMVersion tpm_crb_none_get_version(TPMIf *ti)
     return tpm_crb_get_version(&s->state);
 }
 
+/**
+ * For migrating to an older version of QEMU
+ */
 static int tpm_crb_none_pre_save(void *opaque)
 {
     CRBState *s = opaque;
+    void *saved_cmdmem = memory_region_get_ram_ptr(&s->saved_cmdmem);
 
+    tpm_crb_mem_save(&s->state, s->saved_regs, saved_cmdmem);
     return tpm_crb_pre_save(&s->state);
+}
+
+/**
+ * For migrating from an older version of QEMU
+ */
+static int tpm_crb_none_post_load(void *opaque, int version_id)
+{
+    CRBState *s = opaque;
+    void *saved_cmdmem = memory_region_get_ram_ptr(&s->saved_cmdmem);
+
+    tpm_crb_mem_load(&s->state, s->saved_regs, saved_cmdmem);
+    return 0;
 }
 
 static const VMStateDescription vmstate_tpm_crb_none = {
     .name = "tpm-crb",
     .pre_save = tpm_crb_none_pre_save,
+    .post_load = tpm_crb_none_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(state.regs, CRBState, TPM_CRB_R_MAX),
+        VMSTATE_UINT32_ARRAY(saved_regs, CRBState, TPM_CRB_R_MAX),
         VMSTATE_END_OF_LIST(),
     }
 };
@@ -101,10 +123,12 @@ static void tpm_crb_none_realize(DeviceState *dev, Error **errp)
 
     tpm_crb_init_memory(OBJECT(s), &s->state, errp);
 
+    /* only used for migration */
+    memory_region_init_ram(&s->saved_cmdmem, OBJECT(s),
+        "tpm-crb-cmd", CRB_CTRL_CMD_SIZE, errp);
+
     memory_region_add_subregion(get_system_memory(),
         TPM_CRB_ADDR_BASE, &s->state.mmio);
-    memory_region_add_subregion(get_system_memory(),
-        TPM_CRB_ADDR_BASE + sizeof(s->state.regs), &s->state.cmdmem);
 
     if (s->state.ppi_enabled) {
         memory_region_add_subregion(get_system_memory(),
