@@ -195,17 +195,14 @@ static void ppce500_spin_class_init(ObjectClass *klass, void *data)
     dc->reset = spin_reset;
 }
 
-static const TypeInfo ppce500_spin_info = {
-    .name          = TYPE_E500_SPIN,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SpinState),
-    .instance_init = ppce500_spin_initfn,
-    .class_init    = ppce500_spin_class_init,
+static const TypeInfo ppce500_spin_types[] = {
+    {
+        .name           = TYPE_E500_SPIN,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(SpinState),
+        .instance_init  = ppce500_spin_initfn,
+        .class_init     = ppce500_spin_class_init,
+    },
 };
 
-static void ppce500_spin_register_types(void)
-{
-    type_register_static(&ppce500_spin_info);
-}
-
-type_init(ppce500_spin_register_types)
+DEFINE_TYPES(ppce500_spin_types)
