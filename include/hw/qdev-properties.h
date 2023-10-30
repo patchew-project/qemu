@@ -1,7 +1,10 @@
 #ifndef QEMU_QDEV_PROPERTIES_H
 #define QEMU_QDEV_PROPERTIES_H
 
+#include <stdalign.h>
+
 #include "hw/qdev-core.h"
+#include "qapi/visitor.h"
 
 /**
  * Property:
@@ -61,7 +64,7 @@ extern const PropertyInfo qdev_prop_size;
 extern const PropertyInfo qdev_prop_string;
 extern const PropertyInfo qdev_prop_on_off_auto;
 extern const PropertyInfo qdev_prop_size32;
-extern const PropertyInfo qdev_prop_arraylen;
+extern const PropertyInfo qdev_prop_array;
 extern const PropertyInfo qdev_prop_link;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type, ...) {  \
@@ -115,8 +118,6 @@ extern const PropertyInfo qdev_prop_link;
                 .bitmask    = (_bitmask),                     \
                 .set_default = false)
 
-#define PROP_ARRAY_LEN_PREFIX "len-"
-
 /**
  * DEFINE_PROP_ARRAY:
  * @_name: name of the array
@@ -127,28 +128,46 @@ extern const PropertyInfo qdev_prop_link;
  * @_arrayprop: PropertyInfo defining what property the array elements have
  * @_arraytype: C type of the array elements
  *
- * Define device properties for a variable-length array _name.  A
- * static property "len-arrayname" is defined. When the device creator
- * sets this property to the desired length of array, further dynamic
- * properties "arrayname[0]", "arrayname[1]", ...  are defined so the
- * device creator can set the array element values. Setting the
- * "len-arrayname" property more than once is an error.
+ * Define device properties for a variable-length array _name.  The array is
+ * represented as a list in the visitor interface.
  *
- * When the array length is set, the @_field member of the device
+ * @_arraytype is required to be movable with memcpy() and to have an alignment
+ * such that it can be stored at GenericList.padding.
+ *
+ * When the array property is set, the @_field member of the device
  * struct is set to the array length, and @_arrayfield is set to point
- * to (zero-initialised) memory allocated for the array.  For a zero
- * length array, @_field will be set to 0 and @_arrayfield to NULL.
+ * to the memory allocated for the array.
+ *
  * It is the responsibility of the device deinit code to free the
  * @_arrayfield memory.
  */
-#define DEFINE_PROP_ARRAY(_name, _state, _field,               \
-                          _arrayfield, _arrayprop, _arraytype) \
-    DEFINE_PROP((PROP_ARRAY_LEN_PREFIX _name),                 \
-                _state, _field, qdev_prop_arraylen, uint32_t,  \
-                .set_default = true,                           \
-                .defval.u = 0,                                 \
-                .arrayinfo = &(_arrayprop),                    \
-                .arrayfieldsize = sizeof(_arraytype),          \
+#define DEFINE_PROP_ARRAY(_name, _state, _field,                        \
+                          _arrayfield, _arrayprop, _arraytype)          \
+    DEFINE_PROP(_name, _state, _field, qdev_prop_array, uint32_t,       \
+                .set_default = true,                                    \
+                .defval.u = 0,                                          \
+                .arrayinfo = &(_arrayprop),                             \
+                /*                                                      \
+                 * set_prop_array() temporarily stores elements at      \
+                 * GenericList.padding. Make sure that this has the     \
+                 * right alignment for @_arraytype.                     \
+                 *                                                      \
+                 * Hack: In this place, neither static assertions work  \
+                 * nor is a statement expression allowed. This          \
+                 * abomination of an expression works because inside    \
+                 * the declaration of a dummy struct, static assertions \
+                 * are possible. Using the comma operator causes        \
+                 * warnings about an unused value and casting to void   \
+                 * makes the expression not constant in gcc, so instead \
+                 * of ignoring the first part, make it evaluate to 0    \
+                 * and add it to the actual result.                     \
+                 */                                                     \
+                .arrayfieldsize = (!sizeof(struct {                     \
+                    QEMU_BUILD_BUG_ON(                                  \
+                        !QEMU_IS_ALIGNED(sizeof(GenericList),           \
+                                         alignof(_arraytype)));         \
+                    int dummy;                                          \
+                }) + sizeof(_arraytype)),                               \
                 .arrayoffset = offsetof(_state, _arrayfield))
 
 #define DEFINE_PROP_LINK(_name, _state, _field, _type, _ptr_type)     \
