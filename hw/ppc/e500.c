@@ -946,6 +946,7 @@ void ppce500_init(MachineState *machine)
             exit(1);
         }
 
+        object_property_add_child(OBJECT(machine), "cpu[*]", OBJECT(cs));
         /*
          * Secondary CPU starts in halted state for now. Needs to change
          * when implementing non-kernel boot.
