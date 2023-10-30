@@ -1082,7 +1082,9 @@ void ppce500_init(MachineState *machine)
     }
 
     /* Register spinning region */
-    sysbus_create_simple("e500-spin", pmc->spin_base, NULL);
+    dev = qdev_new("e500-spin");
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, pmc->spin_base);
 
     if (pmc->has_mpc8xxx_gpio) {
         qemu_irq poweroff_irq;
