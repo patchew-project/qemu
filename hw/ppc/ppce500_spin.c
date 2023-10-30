@@ -30,11 +30,13 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "sysemu/hw_accel.h"
 #include "e500.h"
 #include "qom/object.h"
+#include "hw/qdev-properties.h"
 
 #define MAX_CPUS 32
 
@@ -46,6 +48,10 @@ typedef struct spin_info {
     uint64_t reserved;
 } QEMU_PACKED SpinInfo;
 
+/*
+ * QEMU interface:
+ *  + QOM array property "cpus-qom-path": QOM canonical path of each CPU.
+ */
 #define TYPE_E500_SPIN "e500-spin"
 OBJECT_DECLARE_SIMPLE_TYPE(SpinState, E500_SPIN)
 
@@ -54,6 +60,9 @@ struct SpinState {
 
     MemoryRegion iomem;
     SpinInfo spin[MAX_CPUS];
+    uint32_t cpu_count;
+    char **cpu_canonical_path;
+    CPUState **cpu;
 };
 
 static void spin_reset(DeviceState *dev)
@@ -121,15 +130,9 @@ static void spin_write(void *opaque, hwaddr addr, uint64_t value,
 {
     SpinState *s = opaque;
     int env_idx = addr / sizeof(SpinInfo);
-    CPUState *cpu;
+    CPUState *cpu = s->cpu[env_idx];
     SpinInfo *curspin = &s->spin[env_idx];
     uint8_t *curspin_p = (uint8_t*)curspin;
-
-    cpu = qemu_get_cpu(env_idx);
-    if (cpu == NULL) {
-        /* Unknown CPU */
-        return;
-    }
 
     if (cpu->cpu_index == 0) {
         /* primary CPU doesn't spin */
@@ -188,11 +191,42 @@ static void ppce500_spin_initfn(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
+static void ppce500_spin_realize(DeviceState *dev, Error **errp)
+{
+    SpinState *s = E500_SPIN(dev);
+
+    if (s->cpu_count == 0) {
+        error_setg(errp, "'cpus-qom-path' property array must be set");
+        return;
+    } else if (s->cpu_count > MAX_CPUS) {
+        error_setg(errp, "at most %d CPUs are supported", MAX_CPUS);
+        return;
+    }
+
+    s->cpu = g_new(CPUState *, s->cpu_count);
+    for (unsigned i = 0; i < s->cpu_count; i++) {
+        bool ambiguous;
+        Object *obj;
+
+        obj = object_resolve_path(s->cpu_canonical_path[i], &ambiguous);
+        assert(!ambiguous);
+        s->cpu[i] = CPU(obj);
+    }
+}
+
+static Property ppce500_spin_properties[] = {
+    DEFINE_PROP_ARRAY("cpus-qom-path", SpinState, cpu_count,
+                      cpu_canonical_path, qdev_prop_string, char *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ppce500_spin_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = spin_reset;
+    dc->realize = ppce500_spin_realize;
+    device_class_set_props(dc, ppce500_spin_properties);
 }
 
 static const TypeInfo ppce500_spin_types[] = {

@@ -18,6 +18,7 @@
 #include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qemu/guest-random.h"
+#include "qapi/qmp/qlist.h"
 #include "qapi/error.h"
 #include "e500.h"
 #include "e500-ccsr.h"
@@ -930,11 +931,13 @@ void ppce500_init(MachineState *machine)
     SysBusDevice *s;
     PPCE500CCSRState *ccsr;
     I2CBus *i2c;
+    QList *spin_cpu_list = qlist_new();
 
     irqs = g_new0(IrqLines, smp_cpus);
     for (i = 0; i < smp_cpus; i++) {
         PowerPCCPU *cpu;
         CPUState *cs;
+        g_autofree char *cpu_qompath;
 
         cpu = POWERPC_CPU(object_new(machine->cpu_type));
         env = &cpu->env;
@@ -954,6 +957,8 @@ void ppce500_init(MachineState *machine)
         object_property_set_bool(OBJECT(cs), "start-powered-off", i != 0,
                                  &error_fatal);
         qdev_realize_and_unref(DEVICE(cs), NULL, &error_fatal);
+        cpu_qompath = object_get_canonical_path(OBJECT(cs));
+        qlist_append_str(spin_cpu_list, cpu_qompath);
 
         if (!firstenv) {
             firstenv = env;
@@ -1083,6 +1088,7 @@ void ppce500_init(MachineState *machine)
 
     /* Register spinning region */
     dev = qdev_new("e500-spin");
+    qdev_prop_set_array(dev, "cpus-qom-path", spin_cpu_list);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, pmc->spin_base);
 
