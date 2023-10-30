@@ -32,7 +32,9 @@ config JAZZ
 
 config FULOONG
     bool
+    default y if MIPS
     select PCI_BONITO
+    depends on ATI_VGA
 
 config LOONGSON3V
     bool
