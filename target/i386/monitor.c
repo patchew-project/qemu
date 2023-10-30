@@ -579,7 +579,6 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
 
 void hmp_mce(Monitor *mon, const QDict *qdict)
 {
-    X86CPU *cpu;
     CPUState *cs;
     int cpu_index = qdict_get_int(qdict, "cpu_index");
     int bank = qdict_get_int(qdict, "bank");
@@ -593,11 +592,17 @@ void hmp_mce(Monitor *mon, const QDict *qdict)
         flags |= MCE_INJECT_BROADCAST;
     }
     cs = qemu_get_cpu(cpu_index);
-    if (cs != NULL) {
-        cpu = X86_CPU(cs);
-        cpu_x86_inject_mce(mon, cpu, bank, status, mcg_status, addr, misc,
-                           flags);
+    if (cs == NULL) {
+        monitor_printf(mon, "CPU #%d not found\n", cpu_index);
+        return;
     }
+    if (!object_dynamic_cast(OBJECT(cs), TYPE_X86_CPU)) {
+        monitor_printf(mon, "Can only inject MCE on x86 CPU (CPU #%d is %s)\n",
+                            cpu_index, object_get_typename(OBJECT(cs)));
+        return;
+    }
+    cpu_x86_inject_mce(mon, X86_CPU(cs), bank, status, mcg_status, addr, misc,
+                       flags);
 }
 
 static target_long monitor_get_pc(Monitor *mon, const struct MonitorDef *md,
