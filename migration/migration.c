@@ -2121,7 +2121,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     int ret;
     QIOChannelBuffer *bioc;
     QEMUFile *fb;
-    int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     uint64_t bandwidth = migrate_max_postcopy_bandwidth();
     bool restart_block = false;
     int cur_state = MIGRATION_STATUS_ACTIVE;
@@ -2142,6 +2141,8 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     trace_postcopy_start();
     qemu_mutex_lock_iothread();
     trace_postcopy_start_set_run();
+
+    ms->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
     global_state_store();
@@ -2245,7 +2246,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     ms->postcopy_after_devices = true;
     migration_call_notifiers(ms);
 
-    ms->downtime =  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - time_at_stop;
+    ms->downtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - ms->downtime_start;
 
     qemu_mutex_unlock_iothread();
 
