@@ -4982,6 +4982,21 @@
   'data': [ 'zlib', { 'name': 'zstd', 'if': 'CONFIG_ZSTD' } ] }
 
 ##
+# @Qcow2ZoneModel:
+#
+# Zoned device model used in qcow2 image file
+#
+# @non-zoned: non-zoned model is for regular block devices
+#
+# @host-managed: host-managed model only allows sequential write over the
+#     device zones
+#
+# Since 8.2
+##
+{ 'enum': 'Qcow2ZoneModel',
+  'data': ['non-zoned', 'host-managed'] }
+
+##
 # @BlockdevCreateOptionsQcow2:
 #
 # Driver specific image creation options for qcow2.
@@ -5023,6 +5038,27 @@
 # @compression-type: The image cluster compression method
 #     (default: zlib, since 5.1)
 #
+# @zone-model: @Qcow2ZoneModel.  The zone device model.
+#     (default: non-zoned, since 8.2)
+#
+# @zone-size: Total number of bytes within zones (since 8.2)
+#
+# @zone-capacity: The number of usable logical blocks within zones
+#     in bytes.  A zone capacity is always smaller or equal to the
+#     zone size (since 8.2)
+#
+# @conventional-zones: The number of conventional zones of the
+#     zoned device (since 8.2)
+#
+# @max-open-zones: The maximal number of open zones (since 8.2)
+#
+# @max-active-zones: The maximal number of zones in the implicit
+#     open, explicit open or closed state (since 8.2)
+#
+# @max-append-bytes: The maximal number of bytes of a zone
+#     append request that can be issued to the device.  It must be
+#     512-byte aligned (since 8.2)
+#
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsQcow2',
@@ -5039,7 +5075,14 @@
             '*preallocation':   'PreallocMode',
             '*lazy-refcounts':  'bool',
             '*refcount-bits':   'int',
-            '*compression-type':'Qcow2CompressionType' } }
+            '*compression-type':'Qcow2CompressionType',
+            '*zone-model':         'Qcow2ZoneModel',
+            '*zone-size':          'size',
+            '*zone-capacity':      'size',
+            '*conventional-zones': 'uint32',
+            '*max-open-zones':     'uint32',
+            '*max-active-zones':   'uint32',
+            '*max-append-bytes':   'uint32' } }
 
 ##
 # @BlockdevCreateOptionsQed:
