@@ -1810,7 +1810,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     s->fd = fd;
     if (has_filter && !length) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "length");
+        error_setg(errp, "parameter 'length' expects a non-zero size");
         goto cleanup;
     }
     s->filter_area_begin = begin;
@@ -2070,7 +2070,7 @@ void qmp_dump_guest_memory(bool paging, const char *protocol,
 {
     ERRP_GUARD();
     const char *p;
-    int fd = -1;
+    int fd;
     DumpState *s;
     bool detach_p = false;
 
@@ -2133,18 +2133,14 @@ void qmp_dump_guest_memory(bool paging, const char *protocol,
         if (fd == -1) {
             return;
         }
-    }
-
-    if  (strstart(protocol, "file:", &p)) {
-        fd = qemu_open_old(p, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR);
+    } else if  (strstart(protocol, "file:", &p)) {
+        fd = qemu_create(p, O_WRONLY | O_TRUNC | O_BINARY, S_IRUSR, errp);
         if (fd < 0) {
-            error_setg_file_open(errp, errno, p);
             return;
         }
-    }
-
-    if (fd == -1) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "protocol");
+    } else {
+        error_setg(errp,
+                   "parameter 'protocol' must start with 'file:' or 'fd:'");
         return;
     }
 
