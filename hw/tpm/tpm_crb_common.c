@@ -239,3 +239,22 @@ void tpm_crb_mem_load(TPMCRBState *s, const uint32_t *saved_regs,
     memcpy(regs, saved_regs, TPM_CRB_R_MAX);
     memcpy(&regs[R_CRB_DATA_BUFFER], saved_cmdmem, A_CRB_DATA_BUFFER);
 }
+
+void tpm_crb_build_aml(TPMIf *ti, Aml *scope, uint32_t baseaddr, uint32_t size,
+                       bool build_ppi)
+{
+    Aml *dev, *crs;
+
+    dev = aml_device("TPM");
+    aml_append(dev, aml_name_decl("_HID", aml_string("MSFT0101")));
+    aml_append(dev, aml_name_decl("_STR", aml_string("TPM 2.0 Device")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(1)));
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
+    crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(baseaddr, size, AML_READ_WRITE));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    if (build_ppi) {
+        tpm_build_ppi_acpi(ti, dev);
+    }
+    aml_append(scope, dev);
+}
