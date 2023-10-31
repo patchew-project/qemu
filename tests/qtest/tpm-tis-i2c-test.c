@@ -39,6 +39,9 @@
 #define I2C_SLAVE_ADDR   0x2e
 #define I2C_DEV_BUS_NUM  10
 
+/* unused but needed for tpm-util.c to link */
+uint64_t tpm_device_base_addr;
+
 static const uint8_t TPM_CMD[12] =
     "\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00";
 
