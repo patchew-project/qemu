@@ -2816,6 +2816,14 @@ static void kvm_eat_signals(CPUState *cpu)
     } while (sigismember(&chkset, SIG_IPI));
 }
 
+static void kvm_emit_guest_crash(CPUState *cpu)
+{
+    kvm_cpu_synchronize_state(cpu);
+    qemu_mutex_lock_iothread();
+    qemu_system_guest_panicked(cpu_get_crash_info(cpu));
+    qemu_mutex_unlock_iothread();
+}
+
 int kvm_cpu_exec(CPUState *cpu)
 {
     struct kvm_run *run = cpu->kvm_run;
@@ -2969,21 +2977,24 @@ int kvm_cpu_exec(CPUState *cpu)
                 ret = EXCP_INTERRUPT;
                 break;
             case KVM_SYSTEM_EVENT_CRASH:
-                kvm_cpu_synchronize_state(cpu);
-                qemu_mutex_lock_iothread();
-                qemu_system_guest_panicked(cpu_get_crash_info(cpu));
-                qemu_mutex_unlock_iothread();
+                kvm_emit_guest_crash(cpu);
                 ret = 0;
                 break;
             default:
                 DPRINTF("kvm_arch_handle_exit\n");
                 ret = kvm_arch_handle_exit(cpu, run);
+                if (ret < 0) {
+                    kvm_emit_guest_crash(cpu);
+                }
                 break;
             }
             break;
         default:
             DPRINTF("kvm_arch_handle_exit\n");
             ret = kvm_arch_handle_exit(cpu, run);
+            if (ret < 0) {
+                kvm_emit_guest_crash(cpu);
+            }
             break;
         }
     } while (ret == 0);
