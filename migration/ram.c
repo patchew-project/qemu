@@ -3040,6 +3040,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         ret = rdma_registration_start(f, RAM_CONTROL_ROUND);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
+            qemu_mutex_unlock(&rs->bitmap_mutex);
             goto out;
         }
 
