@@ -198,7 +198,7 @@ def genptr_decl_new(f, tag, regtype, regid, regno):
         if regid in {"t", "u", "v"}:
             f.write(
                 f"    TCGv {regtype}{regid}N = "
-                f"ctx->new_pred_value[insn->regno[{regno}]];\n"
+                f"get_result_pred(ctx, insn->regno[{regno}]);\n"
             )
         else:
             hex_common.bad_register(regtype, regid)
