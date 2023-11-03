@@ -701,6 +701,43 @@ void monitor_cleanup(void)
     }
 }
 
+#ifdef CONFIG_LINUX
+
+static void monitor_abort(int signal, siginfo_t *info, void *c)
+{
+    Monitor *mon = monitor_cur();
+
+    if (!mon || qemu_mutex_trylock(&mon->mon_lock)) {
+        return;
+    }
+
+    if (mon->outbuf && mon->outbuf->len) {
+        fputs("SIGABRT received: ", stderr);
+        fputs(mon->outbuf->str, stderr);
+        if (mon->outbuf->str[mon->outbuf->len - 1] != '\n') {
+            fputc('\n', stderr);
+        }
+    }
+
+    qemu_mutex_unlock(&mon->mon_lock);
+}
+
+static void monitor_add_abort_handler(void)
+{
+    struct sigaction act;
+
+    memset(&act, 0, sizeof(act));
+    act.sa_sigaction = monitor_abort;
+    act.sa_flags = SA_SIGINFO;
+    sigaction(SIGABRT,  &act, NULL);
+}
+
+#else
+
+static void monitor_add_abort_handler(void) {}
+
+#endif
+
 static void monitor_qapi_event_init(void)
 {
     monitor_qapi_event_state = g_hash_table_new(qapi_event_throttle_hash,
@@ -712,6 +749,7 @@ void monitor_init_globals(void)
     monitor_qapi_event_init();
     qemu_mutex_init(&monitor_lock);
     coroutine_mon = g_hash_table_new(NULL, NULL);
+    monitor_add_abort_handler();
 
     /*
      * The dispatcher BH must run in the main loop thread, since we
