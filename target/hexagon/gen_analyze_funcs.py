@@ -52,7 +52,10 @@ def analyze_read(f, tag, regtype, regid, regno):
         if regtype in {"R",  "C"}:
             f.write(f"    ctx_log_reg_read_pair(ctx, {regN});\n")
         elif regtype == "V":
-            f.write(f"    ctx_log_vreg_read_pair(ctx, {regN});\n")
+            f.write(
+                f"    ctx_log_vreg_read_pair(ctx, {regN}, "
+                "insn_has_hvx_helper);\n"
+            )
         else:
             hex_common.bad_register(regtype, regid)
     elif hex_common.is_single(regid):
@@ -62,9 +65,15 @@ def analyze_read(f, tag, regtype, regid, regno):
             elif regtype == "P":
                 f.write(f"    ctx_log_pred_read(ctx, {regN});\n")
             elif regtype in {"V", "O"}:
-                f.write(f"    ctx_log_vreg_read(ctx, {regN});\n")
+                f.write(
+                    f"    ctx_log_vreg_read(ctx, {regN}, "
+                    "insn_has_hvx_helper);\n"
+                )
             elif regtype == "Q":
-                f.write(f"    ctx_log_qreg_read(ctx, {regN});\n")
+                f.write(
+                    f"    ctx_log_qreg_read(ctx, {regN}, "
+                    "insn_has_hvx_helper);\n"
+                )
             else:
                 hex_common.bad_register(regtype, regid)
         elif hex_common.is_new_val(regtype, regid, tag):
@@ -73,7 +82,10 @@ def analyze_read(f, tag, regtype, regid, regno):
             elif regtype == "P":
                 f.write(f"    ctx_log_pred_read_new(ctx, {regN});\n")
             elif regtype == "O":
-                f.write(f"    ctx_log_vreg_read_new(ctx, {regN});\n")
+                f.write(
+                    f"    ctx_log_vreg_read_new(ctx, {regN}, "
+                    "insn_has_hvx_helper);\n"
+                )
             else:
                 hex_common.bad_register(regtype, regid)
         else:
@@ -90,7 +102,8 @@ def analyze_write(f, tag, regtype, regid, regno):
         elif regtype == "V":
             f.write(
                 f"    ctx_log_vreg_write_pair(ctx, {regN}, "
-                f"{vreg_write_type(tag)}, {predicated});\n"
+                f"{vreg_write_type(tag)}, {predicated}, "
+                "insn_has_hvx_helper);\n"
             )
         else:
             hex_common.bad_register(regtype, regid)
@@ -102,10 +115,14 @@ def analyze_write(f, tag, regtype, regid, regno):
         elif regtype == "V":
             f.write(
                 f"    ctx_log_vreg_write(ctx, {regN}, "
-                f"{vreg_write_type(tag)}, {predicated});\n"
+                f"{vreg_write_type(tag)}, {predicated}, "
+                "insn_has_hvx_helper);\n"
             )
         elif regtype == "Q":
-            f.write(f"    ctx_log_qreg_write(ctx, {regN});\n")
+            f.write(
+                f"    ctx_log_qreg_write(ctx, {regN}, "
+                "insn_has_hvx_helper);\n"
+            )
         else:
             hex_common.bad_register(regtype, regid)
     else:
@@ -132,6 +149,17 @@ def gen_analyze_func(f, tag, regs, imms):
     f.write("{\n")
 
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
+    if (hex_common.is_hvx_insn(tag)):
+        if hex_common.has_hvx_helper(tag):
+            f.write(
+                "    const bool G_GNUC_UNUSED insn_has_hvx_helper = true;\n"
+            )
+            f.write("    ctx_start_hvx_insn(ctx);\n")
+        else:
+            f.write(
+                "    const bool G_GNUC_UNUSED insn_has_hvx_helper = false;\n"
+            )
+
 
     ## Declare the operands
     i = 0
@@ -152,15 +180,6 @@ def gen_analyze_func(f, tag, regs, imms):
         if hex_common.is_written(regid):
             analyze_write(f, tag, regtype, regid, i)
         i += 1
-
-    has_generated_helper = not hex_common.skip_qemu_helper(
-        tag
-    ) and not hex_common.is_idef_parser_enabled(tag)
-
-    ## Mark HVX instructions with generated helpers
-    if (has_generated_helper and
-        "A_CVI" in hex_common.attribdict[tag]):
-        f.write("    ctx->has_hvx_helper = true;\n")
 
     f.write("}\n\n")
 
