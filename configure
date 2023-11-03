@@ -1010,12 +1010,6 @@ if test "$targetos" = "bogus"; then
 fi
 
 # test for any invalid configuration combinations
-if test "$targetos" = "windows"; then
-  if test "$plugins" = "yes"; then
-    error_exit "TCG plugins not currently supported on Windows platforms"
-  fi
-  plugins="no"
-fi
 if test "$tcg" = "disabled" ; then
   if test "$plugins" = "yes"; then
     error_exit "Can't enable plugins on non-TCG builds"
