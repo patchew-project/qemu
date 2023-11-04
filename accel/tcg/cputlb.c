@@ -1473,13 +1473,14 @@ int probe_access_full(CPUArchState *env, vaddr addr, int size,
                       bool nonfault, void **phost, CPUTLBEntryFull **pfull,
                       uintptr_t retaddr)
 {
+    int dirtysize = size == 0 ? 1 : size;
     int flags = probe_access_internal(env_cpu(env), addr, size, access_type,
                                       mmu_idx, nonfault, phost, pfull, retaddr,
                                       true);
 
     /* Handle clean RAM pages.  */
     if (unlikely(flags & TLB_NOTDIRTY)) {
-        notdirty_write(env_cpu(env), addr, 1, *pfull, retaddr);
+        notdirty_write(env_cpu(env), addr, dirtysize, *pfull, retaddr);
         flags &= ~TLB_NOTDIRTY;
     }
 
@@ -1492,6 +1493,7 @@ int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
 {
     void *discard_phost;
     CPUTLBEntryFull *discard_tlb;
+    int dirtysize = size == 0 ? 1 : size;
 
     /* privately handle users that don't need full results */
     phost = phost ? phost : &discard_phost;
@@ -1502,7 +1504,7 @@ int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
 
     /* Handle clean RAM pages.  */
     if (unlikely(flags & TLB_NOTDIRTY)) {
-        notdirty_write(env_cpu(env), addr, 1, *pfull, 0);
+        notdirty_write(env_cpu(env), addr, dirtysize, *pfull, 0);
         flags &= ~TLB_NOTDIRTY;
     }
 
@@ -1515,6 +1517,7 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
 {
     CPUTLBEntryFull *full;
     int flags;
+    int dirtysize = size == 0 ? 1 : size;
 
     g_assert(-(addr | TARGET_PAGE_MASK) >= size);
 
@@ -1524,7 +1527,7 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
 
     /* Handle clean RAM pages. */
     if (unlikely(flags & TLB_NOTDIRTY)) {
-        notdirty_write(env_cpu(env), addr, 1, full, retaddr);
+        notdirty_write(env_cpu(env), addr, dirtysize, full, retaddr);
         flags &= ~TLB_NOTDIRTY;
     }
 
@@ -1560,7 +1563,7 @@ void *probe_access(CPUArchState *env, vaddr addr, int size,
 
         /* Handle clean RAM pages.  */
         if (flags & TLB_NOTDIRTY) {
-            notdirty_write(env_cpu(env), addr, 1, full, retaddr);
+            notdirty_write(env_cpu(env), addr, size, full, retaddr);
         }
     }
 
