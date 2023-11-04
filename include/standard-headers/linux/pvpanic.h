@@ -5,5 +5,6 @@
 
 #define PVPANIC_PANICKED	(1 << 0)
 #define PVPANIC_CRASH_LOADED	(1 << 1)
+#define PVPANIC_SHUTDOWN       	(1 << 2)
 
 #endif /* __PVPANIC_H__ */
