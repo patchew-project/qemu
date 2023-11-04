@@ -17,11 +17,13 @@
 
 #include "exec/memory.h"
 #include "qom/object.h"
+#include "standard-headers/linux/pvpanic.h"
 
 #define TYPE_PVPANIC_ISA_DEVICE "pvpanic"
 #define TYPE_PVPANIC_PCI_DEVICE "pvpanic-pci"
 
 #define PVPANIC_IOPORT_PROP "ioport"
+#define PVPANIC_EVENTS (PVPANIC_PANICKED | PVPANIC_CRASH_LOADED)
 
 /*
  * PVPanicState for any device type
