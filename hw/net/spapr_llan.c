@@ -799,7 +799,7 @@ static const VMStateDescription vmstate_rx_buffer_pool = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_vlan_rx_buffer_pools_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_INT32(bufsize, RxBufPool),
         VMSTATE_INT32(count, RxBufPool),
         VMSTATE_UINT64_ARRAY(bds, RxBufPool, RX_POOL_MAX_BDS),
@@ -812,7 +812,7 @@ static const VMStateDescription vmstate_rx_pools = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_vlan_rx_buffer_pools_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(rx_pool, SpaprVioVlan,
                                            RX_MAX_POOLS, 1,
                                            vmstate_rx_buffer_pool, RxBufPool),
@@ -824,7 +824,7 @@ static const VMStateDescription vmstate_spapr_llan = {
     .name = "spapr_llan",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_SPAPR_VIO(sdev, SpaprVioVlan),
         /* LLAN state */
         VMSTATE_BOOL(isopen, SpaprVioVlan),
@@ -836,7 +836,7 @@ static const VMStateDescription vmstate_spapr_llan = {
 
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_rx_pools,
         NULL
     }
