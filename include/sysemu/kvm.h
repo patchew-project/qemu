@@ -549,4 +549,10 @@ uint32_t kvm_dirty_ring_size(void);
  *          false: page not yet poisoned
  */
 bool kvm_hwpoisoned_page(RAMBlock *block, void *ram_addr);
+
+/**
+ * kvm_hwpoisoned_unknown - indicate if a qemu reported memory error
+ * is still unknown to (hasn't been injected into) the VM kernel.
+ */
+bool kvm_hwpoisoned_unknown(void);
 #endif

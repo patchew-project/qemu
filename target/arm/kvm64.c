@@ -1101,7 +1101,6 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
         ram_addr = qemu_ram_addr_from_host(addr);
         if (ram_addr != RAM_ADDR_INVALID &&
             kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
-            kvm_hwpoison_page_add(ram_addr);
             /*
              * If this is a BUS_MCEERR_AR, we know we have been called
              * synchronously from the vCPU thread, so we can easily
@@ -1112,7 +1111,12 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
              * called synchronously from the vCPU thread, or a bit
              * later from the main thread, so doing the injection of
              * the error would be more complicated.
+             * In this case, BUS_MCEERR_AO errors are unknown from the
+             * guest, and we will prevent migration as long as this
+             * poisoned page hasn't generated a BUS_MCEERR_AR error
+             * that the guest takes into account.
              */
+            kvm_hwpoison_page_add(ram_addr, (code == BUS_MCEERR_AR));
             if (code == BUS_MCEERR_AR) {
                 kvm_cpu_synchronize_state(c);
                 if (!acpi_ghes_record_errors(ACPI_HEST_SRC_ID_SEA, paddr)) {

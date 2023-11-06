@@ -1130,8 +1130,17 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
+/*
+ * We track the poisoned pages to be able to:
+ * - replace them on VM reset
+ * - skip them when migrating
+ * - block a migration for a VM where a poisoned page is ignored
+ *   as this VM kernel (not knowing about the error) could
+ *   incorrectly access the page.
+ */
 typedef struct HWPoisonPage {
     ram_addr_t ram_addr;
+    bool       vm_known;
     QLIST_ENTRY(HWPoisonPage) list;
 } HWPoisonPage;
 
@@ -1163,18 +1172,34 @@ bool kvm_hwpoisoned_page(RAMBlock *block, void *offset)
     return false;
 }
 
-void kvm_hwpoison_page_add(ram_addr_t ram_addr)
+void kvm_hwpoison_page_add(ram_addr_t ram_addr, bool known)
 {
     HWPoisonPage *page;
 
     QLIST_FOREACH(page, &hwpoison_page_list, list) {
         if (page->ram_addr == ram_addr) {
+            if (known && !page->vm_known) {
+                page->vm_known = true;
+            }
             return;
         }
     }
     page = g_new(HWPoisonPage, 1);
     page->ram_addr = ram_addr;
+    page->vm_known = known;
     QLIST_INSERT_HEAD(&hwpoison_page_list, page, list);
+}
+
+bool kvm_hwpoisoned_unknown(void)
+{
+    HWPoisonPage *pg;
+
+    QLIST_FOREACH(pg, &hwpoison_page_list, list) {
+        if (!pg->vm_known) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static uint32_t adjust_ioeventfd_endianness(uint32_t val, uint32_t size)

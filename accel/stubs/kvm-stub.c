@@ -129,3 +129,8 @@ bool kvm_hwpoisoned_page(RAMBlock *block, void *ram_addr)
 {
     return false;
 }
+
+bool kvm_hwpoisoned_unknown(void)
+{
+    return false;
+}
