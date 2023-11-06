@@ -34,6 +34,7 @@ config FULOONG
     bool
     default y if MIPS64
     select PCI_BONITO
+    select VT82C686
     depends on ATI_VGA
 
 config LOONGSON3V
