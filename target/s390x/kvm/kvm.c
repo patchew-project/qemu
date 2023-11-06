@@ -1174,7 +1174,7 @@ static void kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
         break;
     case ICPT_PV_INSTR:
         g_assert(s390_is_pv());
-        sclp_service_call_protected(env, sccb, code);
+        sclp_service_call_protected(cpu, sccb, code);
         /* Setting the CC is done by the Ultravisor. */
         break;
     case ICPT_INSTRUCTION:
