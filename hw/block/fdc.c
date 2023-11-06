@@ -1005,6 +1005,11 @@ static bool fdc_phase_needed(void *opaque)
 {
     FDCtrl *fdctrl = opaque;
 
+    /* not needed on load */
+    if (fdctrl->phase == FD_PHASE_RECONSTRUCT) {
+        return false;
+    }
+
     return reconstruct_phase(fdctrl) != fdctrl->phase;
 }
 
