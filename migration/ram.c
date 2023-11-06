@@ -1108,6 +1108,26 @@ void ram_release_page(const char *rbname, uint64_t offset)
 }
 
 /**
+ * migration_buffer_is_zero: indicate if the page at the given
+ * location is entirely filled with zero, or is a poisoned page.
+ *
+ * @block: block that contains the page
+ * @offset: offset inside the block for the page
+ * @len: size to consider
+ */
+bool migration_buffer_is_zero(RAMBlock *block, ram_addr_t offset,
+                                     size_t len)
+{
+    uint8_t *p = block->host + offset;
+
+    if (kvm_enabled() && kvm_hwpoisoned_page(block, (void *)offset)) {
+        return true;
+    }
+
+    return buffer_is_zero(p, len);
+}
+
+/**
  * save_zero_page: send the zero page to the stream
  *
  * Returns the number of pages written.
@@ -1119,11 +1139,10 @@ void ram_release_page(const char *rbname, uint64_t offset)
 static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
                           ram_addr_t offset)
 {
-    uint8_t *p = pss->block->host + offset;
     QEMUFile *file = pss->pss_channel;
     int len = 0;
 
-    if (!buffer_is_zero(p, TARGET_PAGE_SIZE)) {
+    if (!migration_buffer_is_zero(pss->block, offset, TARGET_PAGE_SIZE)) {
         return 0;
     }
 
@@ -1154,6 +1173,7 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
  *        > 0 - number of pages written
  *
  * Return true if the pages has been saved, otherwise false is returned.
+ * TODO: hwpoison pages fail RDMA migration, should be handled.
  */
 static bool control_save_page(PageSearchStatus *pss,
                               ram_addr_t offset, int *pages)
