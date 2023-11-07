@@ -92,7 +92,7 @@ void ati_2d_blt(ATIVGAState *s)
     switch (s->regs.dp_mix & GMC_ROP3_MASK) {
     case ROP3_SRCCOPY:
     {
-        bool fallback = false;
+        bool fallback = true;
         unsigned src_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
                        s->regs.src_x : s->regs.src_x + 1 - s->regs.dst_width);
         unsigned src_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
@@ -119,6 +119,7 @@ void ati_2d_blt(ATIVGAState *s)
 
         src_stride /= sizeof(uint32_t);
         dst_stride /= sizeof(uint32_t);
+#ifdef CONFIG_PIXMAN
         DPRINTF("pixman_blt(%p, %p, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)\n",
                 src_bits, dst_bits, src_stride, dst_stride, bpp, bpp,
                 src_x, src_y, dst_x, dst_y,
@@ -147,9 +148,8 @@ void ati_2d_blt(ATIVGAState *s)
                                        s->regs.dst_width, s->regs.dst_height);
             }
             g_free(tmp);
-        } else {
-            fallback = true;
         }
+#endif
         if (fallback) {
             unsigned int y, i, j, bypp = bpp / 8;
             unsigned int src_pitch = src_stride * sizeof(uint32_t);
@@ -203,12 +203,15 @@ void ati_2d_blt(ATIVGAState *s)
         }
 
         dst_stride /= sizeof(uint32_t);
+#ifdef CONFIG_PIXMAN
         DPRINTF("pixman_fill(%p, %d, %d, %d, %d, %d, %d, %x)\n",
                 dst_bits, dst_stride, bpp, dst_x, dst_y,
                 s->regs.dst_width, s->regs.dst_height, filler);
         if (!(s->use_pixman & BIT(0)) ||
             !pixman_fill((uint32_t *)dst_bits, dst_stride, bpp, dst_x, dst_y,
-                    s->regs.dst_width, s->regs.dst_height, filler)) {
+                    s->regs.dst_width, s->regs.dst_height, filler))
+#endif
+        {
             /* fallback when pixman failed or we don't want to call it */
             unsigned int x, y, i, bypp = bpp / 8;
             unsigned int dst_pitch = dst_stride * sizeof(uint32_t);
