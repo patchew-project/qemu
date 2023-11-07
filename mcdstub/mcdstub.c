@@ -521,6 +521,30 @@ int mcd_handle_packet(const char *line_buf)
             cmd_parser = &reset_cmd_desc;
         }
         break;
+    case TCP_CHAR_READ_REGISTER:
+        {
+            static MCDCmdParseEntry read_reg_cmd_desc = {
+                .handler = handle_read_register,
+            };
+            read_reg_cmd_desc.cmd = (char[2]) { TCP_CHAR_READ_REGISTER, '\0' };
+            strcpy(read_reg_cmd_desc.schema,
+                (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T, '\0' });
+            cmd_parser = &read_reg_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_WRITE_REGISTER:
+        {
+            static MCDCmdParseEntry write_reg_cmd_desc = {
+                .handler = handle_write_register,
+            };
+            write_reg_cmd_desc.cmd =
+                (char[2]) { TCP_CHAR_WRITE_REGISTER, '\0' };
+            strcpy(write_reg_cmd_desc.schema,
+                (char[5]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T,
+                ARG_SCHEMA_INT, ARG_SCHEMA_HEXDATA, '\0' });
+            cmd_parser = &write_reg_cmd_desc;
+        }
+        break;
     default:
         /* command not supported */
         mcd_put_packet("");
@@ -1612,5 +1636,94 @@ void handle_query_state(GArray *params, void *user_ctx)
         mcdserver_state.cpu_state.info_str = "";
         mcdserver_state.cpu_state.bp_type = 0;
         mcdserver_state.cpu_state.bp_address = 0;
+    }
+}
+
+int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUArchState *env = cpu_env(cpu);
+    GDBRegisterState *r;
+
+    if (reg < cc->gdb_num_core_regs) {
+        return cc->gdb_read_register(cpu, buf, reg);
+    }
+
+    for (guint i = 0; i < cpu->gdb_regs->len; i++) {
+        r = &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
+        if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
+            return r->get_reg(env, buf, reg - r->base_reg);
+        }
+    }
+    return 0;
+}
+
+int mcd_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUArchState *env = cpu_env(cpu);
+    GDBRegisterState *r;
+
+    if (reg < cc->gdb_num_core_regs) {
+        return cc->gdb_write_register(cpu, mem_buf, reg);
+    }
+
+    for (guint i = 0; i < cpu->gdb_regs->len; i++) {
+        r = &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
+        if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
+            return r->set_reg(env, mem_buf, reg - r->base_reg);
+        }
+    }
+    return 0;
+}
+
+void mcd_memtohex(GString *buf, const uint8_t *mem, int len)
+{
+    int i, c;
+    for (i = 0; i < len; i++) {
+        c = mem[i];
+        g_string_append_c(buf, tohex(c >> 4));
+        g_string_append_c(buf, tohex(c & 0xf));
+    }
+    g_string_append_c(buf, '\0');
+}
+
+void mcd_hextomem(GByteArray *mem, const char *buf, int len)
+{
+    int i;
+
+    for (i = 0; i < len; i++) {
+        guint8 byte = fromhex(buf[0]) << 4 | fromhex(buf[1]);
+        g_byte_array_append(mem, &byte, 1);
+        buf += 2;
+    }
+}
+
+void handle_read_register(GArray *params, void *user_ctx)
+{
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint64_t reg_num = get_param(params, 1)->data_uint64_t;
+    int reg_size;
+
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    reg_size = mcd_read_register(cpu, mcdserver_state.mem_buf, reg_num);
+    mcd_memtohex(mcdserver_state.str_buf,
+        mcdserver_state.mem_buf->data, reg_size);
+    mcd_put_strbuf();
+}
+
+void handle_write_register(GArray *params, void *user_ctx)
+{
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint64_t reg_num = get_param(params, 1)->data_uint64_t;
+    uint32_t reg_size = get_param(params, 2)->data_uint32_t;
+
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    mcd_hextomem(mcdserver_state.mem_buf,
+        mcdserver_state.str_buf->str, reg_size);
+    if (mcd_write_register(cpu, mcdserver_state.mem_buf->data, reg_num) == 0) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+    } else {
+        mcd_put_packet(TCP_EXECUTION_SUCCESS);
     }
 }

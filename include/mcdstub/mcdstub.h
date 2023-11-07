@@ -690,6 +690,49 @@ void handle_reset(GArray *params, void *user_ctx);
  */
 void handle_query_state(GArray *params, void *user_ctx);
 
+/**
+ * handle_read_register() - Handler for reading a register.
+ *
+ * This function calls :c:func:`mcd_read_register` to read a register. The
+ * register data gets stored in the mem_buf byte array. The data then gets
+ * converted into a hex string with :c:func:`mcd_memtohex` and then send.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_read_register(GArray *params, void *user_ctx);
+
+/**
+ * handle_write_register() - Handler for writing a register.
+ *
+ * This function converts the incoming hex string data into a byte array with
+ * :c:func:`mcd_hextomem`. Then it calls :c:func:`mcd_write_register` to write
+ * to the register.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_write_register(GArray *params, void *user_ctx);
+/**
+ * mcd_read_register() - Reads a registers data and stores it into the buf.
+ *
+ * This function collects the register type and internal ID
+ * (depending on the XML file). Then it calls the architecture specific
+ * read function. For ARM this is :c:func:`arm_mcd_read_register`.
+ * @cpu: CPU to which the register belongs.
+ * @buf: Byte array with register data.
+ * @reg: General ID of the register.
+ */
+int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg);
+
+/**
+ * mcd_write_register() - Writes data from the buf to a register.
+ *
+ * This function collects the register type and internal ID
+ * (depending on the XML file). Then it calls the architecture specific
+ * write function. For ARM this is :c:func:`arm_mcd_write_register`.
+ * @cpu: CPU to which the register belongs.
+ * @mem_buf: Byte array with register data.
+ * @reg: General ID of the register.
+ */
+int mcd_write_register(CPUState *cpu, uint8_t *mem_buf, int reg);
+
 /* helpers */
 
 /**
@@ -699,6 +742,25 @@ void handle_query_state(GArray *params, void *user_ctx);
  * @b: Pointer to integer b.
  */
 int int_cmp(gconstpointer a, gconstpointer b);
+
+/**
+ * mcd_memtohex() - Converts a byte array into a hex string.
+ *
+ * @mem: Pointer to byte array.
+ * @buf: Pointer to hex string.
+ * @len: Number of bytes.
+ */
+void mcd_memtohex(GString *buf, const uint8_t *mem, int len);
+
+/**
+ * mcd_hextomem() - Converts a hex string into a byte array.
+ *
+ * @mem: Pointer to byte array.
+ * @buf: Pointer to hex string.
+ * @len: Number of bytes.
+ */
+void mcd_hextomem(GByteArray *mem, const char *buf, int len);
+
 /**
  * atouint64_t() - Converts a string into a unsigned 64 bit integer.
  *
