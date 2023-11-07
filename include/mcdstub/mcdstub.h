@@ -106,6 +106,11 @@ typedef struct MCDState {
 /* lives in main mcdstub.c */
 extern MCDState mcdserver_state;
 
+typedef struct xml_attrib {
+    char argument[ARGUMENT_STRING_LENGTH];
+    char value[ARGUMENT_STRING_LENGTH];
+} xml_attrib;
+
 typedef struct mcd_reset_st {
     const char *name;
     uint8_t id;
@@ -460,6 +465,18 @@ CPUState *get_first_cpu_in_process(MCDProcess *process);
 CPUState *find_cpu(uint32_t thread_id);
 
 /**
+ * handle_open_core() - Handler for opening a core.
+ *
+ * This function initializes all data for the core with the ID provided in
+ * the first parameter. In has a swtich case for different architectures.
+ * Currently only 32-Bit ARM is supported. The data includes memory spaces,
+ * register groups and registers themselves. They get stored into GLists where
+ * every entry in the list corresponds to one opened core.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_open_core(GArray *params, void *user_ctx);
+
+/**
  * handle_close_server() - Handler for closing the MCD server.
  *
  * This function detaches the debugger (process) and frees up memory.
@@ -467,6 +484,15 @@ CPUState *find_cpu(uint32_t thread_id);
  * @params: GArray with all TCP packet parameters.
  */
 void handle_close_server(GArray *params, void *user_ctx);
+
+/**
+ * handle_close_core() - Handler for closing a core.
+ *
+ * Frees all memory allocated for core specific information. This includes
+ * memory spaces, register groups and registers.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_close_core(GArray *params, void *user_ctx);
 
 /**
  * handle_open_server() - Handler for opening the MCD server.

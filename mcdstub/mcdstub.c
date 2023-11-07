@@ -370,6 +370,17 @@ int mcd_handle_packet(const char *line_buf)
             cmd_parser = &query_cmd_desc;
         }
         break;
+    case TCP_CHAR_OPEN_CORE:
+        {
+            static MCDCmdParseEntry open_core_cmd_desc = {
+                .handler = handle_open_core,
+            };
+            open_core_cmd_desc.cmd = (char[2]) { TCP_CHAR_OPEN_CORE, '\0' };
+            strcpy(open_core_cmd_desc.schema,
+                (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
+            cmd_parser = &open_core_cmd_desc;
+        }
+        break;
     case TCP_CHAR_CLOSE_SERVER:
         {
             static MCDCmdParseEntry close_server_cmd_desc = {
@@ -378,6 +389,17 @@ int mcd_handle_packet(const char *line_buf)
             close_server_cmd_desc.cmd =
                 (char[2]) { TCP_CHAR_CLOSE_SERVER, '\0' };
             cmd_parser = &close_server_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_CLOSE_CORE:
+        {
+            static MCDCmdParseEntry close_core_cmd_desc = {
+                .handler = handle_close_core,
+            };
+            close_core_cmd_desc.cmd = (char[2]) { TCP_CHAR_CLOSE_CORE, '\0' };
+            strcpy(close_core_cmd_desc.schema,
+                (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
+            cmd_parser = &close_core_cmd_desc;
         }
         break;
     default:
@@ -805,6 +827,95 @@ void handle_query_cores(GArray *params, void *user_ctx)
     mcd_put_strbuf();
 }
 
+void handle_open_core(GArray *params, void *user_ctx)
+{
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    mcdserver_state.c_cpu = cpu;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const gchar *arch = cc->gdb_arch_name(cpu);
+    int return_value = 0;
+
+    /* prepare data strucutures */
+    GArray *memspaces = g_array_new(false, true, sizeof(mcd_mem_space_st));
+    GArray *reggroups = g_array_new(false, true, sizeof(mcd_reg_group_st));
+    GArray *registers = g_array_new(false, true, sizeof(mcd_reg_st));
+
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
+        /* TODO: make group and memspace ids dynamic */
+        int current_group_id = 1;
+        /* 1. store mem spaces */
+        return_value = arm_mcd_store_mem_spaces(cpu, memspaces);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+        /* 2. parse core xml */
+        return_value = arm_mcd_parse_core_xml_file(cc, reggroups,
+            registers, &current_group_id);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+        /* 3. parse other xmls */
+        return_value = arm_mcd_parse_general_xml_files(cpu, reggroups,
+            registers, &current_group_id);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+        /* 4. add additional data the the regs from the xmls */
+        return_value = arm_mcd_get_additional_register_info(reggroups,
+            registers, cpu);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+        /* 5. store all found data */
+        if (g_list_nth(mcdserver_state.all_memspaces, cpu_id)) {
+            GList *memspaces_ptr =
+                g_list_nth(mcdserver_state.all_memspaces, cpu_id);
+            memspaces_ptr->data = memspaces;
+        } else {
+            mcdserver_state.all_memspaces =
+                g_list_insert(mcdserver_state.all_memspaces, memspaces, cpu_id);
+        }
+        if (g_list_nth(mcdserver_state.all_reggroups, cpu_id)) {
+            GList *reggroups_ptr =
+                g_list_nth(mcdserver_state.all_reggroups, cpu_id);
+            reggroups_ptr->data = reggroups;
+        } else {
+            mcdserver_state.all_reggroups =
+                g_list_insert(mcdserver_state.all_reggroups, reggroups, cpu_id);
+        }
+        if (g_list_nth(mcdserver_state.all_registers, cpu_id)) {
+            GList *registers_ptr =
+                g_list_nth(mcdserver_state.all_registers, cpu_id);
+            registers_ptr->data = registers;
+        } else {
+            mcdserver_state.all_registers =
+                g_list_insert(mcdserver_state.all_registers, registers, cpu_id);
+        }
+    } else {
+        /* we don't support other architectures */
+        g_assert_not_reached();
+    }
+}
+
+
+void handle_close_core(GArray *params, void *user_ctx)
+{
+    /* free memory for correct core */
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    GArray *memspaces = g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcdserver_state.all_memspaces =
+        g_list_remove(mcdserver_state.all_memspaces, memspaces);
+    g_array_free(memspaces, TRUE);
+    GArray *reggroups = g_list_nth_data(mcdserver_state.all_reggroups, cpu_id);
+    mcdserver_state.all_reggroups =
+        g_list_remove(mcdserver_state.all_reggroups, reggroups);
+    g_array_free(reggroups, TRUE);
+    GArray *registers = g_list_nth_data(mcdserver_state.all_registers, cpu_id);
+    mcdserver_state.all_registers =
+        g_list_remove(mcdserver_state.all_registers, registers);
+    g_array_free(registers, TRUE);
+}
 
 void handle_close_server(GArray *params, void *user_ctx)
 {
