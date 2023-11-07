@@ -117,7 +117,6 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
 
 /* some defines */
 
-#define QEMU_HDA_ID_VENDOR  0x1af4
 #define QEMU_HDA_PCM_FORMATS (AC_SUPPCM_BITS_16 |       \
                               0x1fc /* 16 -> 96 kHz */)
 #define QEMU_HDA_AMP_NONE    (0)
@@ -514,7 +513,7 @@ static void hda_audio_command(HDACodecDevice *hda, uint32_t nid, uint32_t data)
 
     node = hda_codec_find_node(a->desc, nid);
     if (node == NULL) {
-        goto fail;
+        goto alcnode;
     }
     dprint(a, 2, "%s: nid %d (%s), verb 0x%x, payload 0x%x\n",
            __func__, nid, node->name, verb, payload);
@@ -652,6 +651,11 @@ fail:
     dprint(a, 1, "%s: not handled: nid %d (%s), verb 0x%x, payload 0x%x\n",
            __func__, nid, node ? node->name : "?", verb, payload);
     hda_codec_response(hda, true, 0);
+
+alcnode:
+    dprint(a, 1, "%s: not handled: nid %d (%s), verb 0x%x, payload 0x%x\n",
+           __func__, nid, node ? node->name : "?", verb, payload);
+    hda_codec_response(hda, true, 0x0885);
 }
 
 static void hda_audio_stream(HDACodecDevice *hda, uint32_t stnr, bool running, bool output)
