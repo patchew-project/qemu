@@ -3,6 +3,7 @@ arm_ss.add(files(
   'cpu.c',
   'debug_helper.c',
   'gdbstub.c',
+  'mcdstub.c',
   'helper.c',
   'vfp_helper.c',
 ))
