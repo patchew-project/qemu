@@ -1702,6 +1702,9 @@ static void dump_state_prepare(DumpState *s)
 {
     /* zero the struct, setting status to active */
     *s = (DumpState) { .status = DUMP_STATUS_ACTIVE };
+    s->dump_info.arch_sections_add_fn = NULL;
+    s->dump_info.arch_sections_write_hdr_fn = NULL;
+    s->dump_info.arch_sections_write_fn = NULL;
 }
 
 bool qemu_system_dump_in_progress(void)
