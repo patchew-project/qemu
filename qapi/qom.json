@@ -795,6 +795,20 @@
   'data': { 'socket': 'SocketAddress', 'device': 'str' } }
 
 ##
+# @AcpiGenericInitiatorProperties:
+#
+# Properties for acpi-generic-initiator objects.
+#
+# @device: the ID of the device to be associated with the node
+#
+# @nodelist: delimited numa node list
+#
+# Since: 8.2
+##
+{ 'struct': 'AcpiGenericInitiatorProperties',
+  'data': { 'device': 'str', 'nodelist': 'str' } }
+
+##
 # @RngProperties:
 #
 # Properties for objects of classes derived from rng.
@@ -911,6 +925,7 @@
 ##
 { 'enum': 'ObjectType',
   'data': [
+    'acpi-generic-initiator',
     'authz-list',
     'authz-listfile',
     'authz-pam',
@@ -981,6 +996,7 @@
             'id': 'str' },
   'discriminator': 'qom-type',
   'data': {
+      'acpi-generic-initiator':     'AcpiGenericInitiatorProperties',
       'authz-list':                 'AuthZListProperties',
       'authz-listfile':             'AuthZListFileProperties',
       'authz-pam':                  'AuthZPAMProperties',
