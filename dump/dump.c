@@ -96,6 +96,10 @@ uint64_t cpu_to_dump64(DumpState *s, uint64_t val)
 
 static int dump_cleanup(DumpState *s)
 {
+    if (s->dump_info.arch_cleanup_fn) {
+        s->dump_info.arch_cleanup_fn(s);
+    }
+
     guest_phys_blocks_free(&s->guest_phys_blocks);
     memory_mapping_list_free(&s->list);
     close(s->fd);
@@ -1705,6 +1709,7 @@ static void dump_state_prepare(DumpState *s)
     s->dump_info.arch_sections_add_fn = NULL;
     s->dump_info.arch_sections_write_hdr_fn = NULL;
     s->dump_info.arch_sections_write_fn = NULL;
+    s->dump_info.arch_cleanup_fn = NULL;
 }
 
 bool qemu_system_dump_in_progress(void)
