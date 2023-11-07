@@ -340,6 +340,11 @@ int mcd_handle_packet(const char *line_buf)
             cmd_parser = &open_server_cmd_desc;
         }
         break;
+    case TCP_CHAR_KILLQEMU:
+        /* kill qemu completely */
+        error_report("QEMU: Terminated via MCDstub");
+        mcd_exit(0);
+        exit(0);
     case TCP_CHAR_CLOSE_SERVER:
         {
             static MCDCmdParseEntry close_server_cmd_desc = {
@@ -490,6 +495,16 @@ int process_string_cmd(void *user_ctx, const char *data,
     }
 
     return -1;
+}
+
+void mcd_exit(int code)
+{
+    /* terminate qemu */
+    if (!mcdserver_state.init) {
+        return;
+    }
+
+    qemu_chr_fe_deinit(&mcdserver_system_state.chr, true);
 }
 
 void mcd_chr_event(void *opaque, QEMUChrEvent event)

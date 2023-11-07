@@ -357,6 +357,15 @@ int mcd_handle_packet(const char *line_buf);
 void mcd_put_strbuf(void);
 
 /**
+ * mcd_exit() - Terminates QEMU.
+ *
+ * If the mcdserver_state has not been initialized the function exits before
+ * terminating QEMU. Terminting is done with the qemu_chr_fe_deinit function.
+ * @code: An exitcode, which can be used in the future.
+ */
+void mcd_exit(int code);
+
+/**
  * run_cmd_parser() - Prepares the mcdserver_state before executing TCP packet
  * functions.
  *
