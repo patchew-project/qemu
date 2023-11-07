@@ -786,6 +786,52 @@ int mcd_read_write_memory(CPUState *cpu, AddressSpace *address_space,
     bool is_write);
 
 /**
+ * handle_breakpoint_insert() - Handler for inserting a break- or watchpoint.
+ *
+ * This function extracts the CPU, breakpoint type and address from the
+ * parameters and calls :c:func:`mcd_breakpoint_insert` to insert the
+ * breakpoint.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_breakpoint_insert(GArray *params, void *user_ctx);
+
+/**
+ * handle_breakpoint_remove() - Handler for inserting a break- or watchpoint.
+ *
+ * This function extracts the CPU, breakpoint type and address from the
+ * parameters and calls :c:func:`mcd_breakpoint_remove` to insert the
+ * breakpoint.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_breakpoint_remove(GArray *params, void *user_ctx);
+
+/**
+ * mcd_breakpoint_insert() - Inserts a break- or watchpoint.
+ *
+ * This function evaluates the received breakpoint type and translates it
+ * to a known GDB breakpoint type.
+ * Then it calls cpu_breakpoint_insert or cpu_watchpoint_insert depending on
+ * the type.
+ * @cpu: CPU to which the breakpoint should be added.
+ * @addr: Address of the breakpoint.
+ * @type: Breakpoint type.
+ */
+int mcd_breakpoint_insert(CPUState *cpu, int type, vaddr addr);
+
+/**
+ * mcd_breakpoint_remove() - Removes a break- or watchpoint.
+ *
+ * This function evaluates the received breakpoint type and translates it
+ * to a known GDB breakpoint type.
+ * Then it calls cpu_breakpoint_remove or cpu_watchpoint_remove depending on
+ * the type.
+ * @cpu: CPU from which the breakpoint should be removed.
+ * @addr: Address of the breakpoint.
+ * @type: Breakpoint type.
+ */
+int mcd_breakpoint_remove(CPUState *cpu, int type, vaddr addr);
+
+/**
  * mcd_get_address_space() - Returnes the correct QEMU address space name
  * @cpu: CPUState
  * @cpu_id: Correct CPU ID
