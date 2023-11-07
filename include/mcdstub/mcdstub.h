@@ -551,6 +551,63 @@ void handle_close_core(GArray *params, void *user_ctx);
 void handle_query_trigger(GArray *params, void *user_ctx);
 
 /**
+ * handle_query_reg_groups_f() - Handler for the first register group query.
+ *
+ * This function sends the first register group name and ID.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_reg_groups_f(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_reg_groups_c() - Handler for all consecutive register group
+ * queries.
+ *
+ * This function sends all consecutive register group names and IDs. It uses
+ * the query_index parameter to determine which register group is queried next.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_reg_groups_c(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_mem_spaces_f() Handler for the first memory space query.
+ *
+ * This function sends the first memory space name, ID, type and accessing
+ * options.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_mem_spaces_f(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_mem_spaces_c() - Handler for all consecutive memory space
+ * queries.
+ *
+ * This function sends all consecutive memory space names, IDs, types and
+ * accessing options.
+ * It uses the query_index parameter to determine
+ * which memory space is queried next.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_mem_spaces_c(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_regs_f() - Handler for the first register query.
+ *
+ * This function sends the first register with all its information.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_regs_f(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_regs_c() - Handler for all consecutive register queries.
+ *
+ * This function sends all consecutive registers with all their information.
+ * It uses the query_index parameter to determine
+ * which register is queried next.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_regs_c(GArray *params, void *user_ctx);
+
+/**
  * handle_open_server() - Handler for opening the MCD server.
  *
  * This is the first function that gets called from the MCD Shared Library.
