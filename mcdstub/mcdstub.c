@@ -95,6 +95,27 @@ void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table)
     mcd_query_cmds_table[cmd_number] = query_cores;
     cmd_number++;
 
+    MCDCmdParseEntry query_reset_f = {
+        .handler = handle_query_reset_f,
+        .cmd = QUERY_ARG_RESET QUERY_FIRST,
+    };
+    mcd_query_cmds_table[cmd_number] = query_reset_f;
+    cmd_number++;
+
+    MCDCmdParseEntry query_reset_c = {
+        .handler = handle_query_reset_c,
+        .cmd = QUERY_ARG_RESET QUERY_CONSEQUTIVE,
+    };
+    strcpy(query_reset_c.schema, (char[2]) { ARG_SCHEMA_QRYHANDLE, '\0' });
+    mcd_query_cmds_table[cmd_number] = query_reset_c;
+    cmd_number++;
+
+    MCDCmdParseEntry query_trigger = {
+        .handler = handle_query_trigger,
+        .cmd = QUERY_ARG_TRIGGER,
+    };
+    mcd_query_cmds_table[cmd_number] = query_trigger;
+    cmd_number++;
 
     MCDCmdParseEntry query_state = {
         .handler = handle_query_state,
@@ -1001,6 +1022,44 @@ void handle_open_core(GArray *params, void *user_ctx)
     }
 }
 
+void handle_query_reset_f(GArray *params, void *user_ctx)
+{
+    /* 1. check length */
+    int nb_resets = mcdserver_state.resets->len;
+    if (nb_resets == 1) {
+        /* indicates this is the last packet */
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
+    } else {
+        g_string_printf(mcdserver_state.str_buf, "1%s", QUERY_END_INDEX);
+    }
+    /* 2. send data */
+    mcd_reset_st reset = g_array_index(mcdserver_state.resets, mcd_reset_st, 0);
+    g_string_append_printf(mcdserver_state.str_buf, "%s=%s.%s=%u.",
+        TCP_ARGUMENT_NAME, reset.name, TCP_ARGUMENT_ID, reset.id);
+    mcd_put_strbuf();
+}
+
+void handle_query_reset_c(GArray *params, void *user_ctx)
+{
+    /* reset options are the same for every cpu! */
+    uint32_t query_index = get_param(params, 0)->query_handle;
+
+    /* 1. check weather this was the last mem space */
+    int nb_groups = mcdserver_state.resets->len;
+    if (query_index + 1 == nb_groups) {
+        /* indicates this is the last packet */
+        g_string_printf(mcdserver_state.str_buf, "0%s", QUERY_END_INDEX);
+    } else {
+        g_string_printf(mcdserver_state.str_buf, "%u!", query_index + 1);
+    }
+
+    /* 2. send data */
+    mcd_reset_st reset = g_array_index(mcdserver_state.resets,
+        mcd_reset_st, query_index);
+    g_string_append_printf(mcdserver_state.str_buf, "%s=%s.%s=%u.",
+        TCP_ARGUMENT_NAME, reset.name, TCP_ARGUMENT_ID, reset.id);
+    mcd_put_strbuf();
+}
 
 void handle_close_core(GArray *params, void *user_ctx)
 {
@@ -1047,3 +1106,13 @@ void handle_close_server(GArray *params, void *user_ctx)
     }
 }
 
+void handle_query_trigger(GArray *params, void *user_ctx)
+{
+    mcd_trigger_into_st trigger = mcdserver_state.trigger;
+    g_string_printf(mcdserver_state.str_buf, "%s=%u.%s=%s.%s=%s.%s=%s.",
+        TCP_ARGUMENT_AMOUNT_TRIGGER, trigger.nr_trigger,
+        TCP_ARGUMENT_TYPE, trigger.type,
+        TCP_ARGUMENT_OPTION, trigger.option,
+        TCP_ARGUMENT_ACTION, trigger.action);
+    mcd_put_strbuf();
+}

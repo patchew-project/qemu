@@ -508,6 +508,23 @@ CPUState *find_cpu(uint32_t thread_id);
 void handle_open_core(GArray *params, void *user_ctx);
 
 /**
+ * handle_query_reset_f() - Handler for the first reset query.
+ *
+ * This function sends the first reset name and ID.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_reset_f(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_reset_c() - Handler for all consecutive reset queries.
+ *
+ * This functions sends all consecutive reset names and IDs. It uses the
+ * query_index parameter to determine which reset is queried next.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_reset_c(GArray *params, void *user_ctx);
+
+/**
  * handle_close_server() - Handler for closing the MCD server.
  *
  * This function detaches the debugger (process) and frees up memory.
@@ -524,6 +541,14 @@ void handle_close_server(GArray *params, void *user_ctx);
  * @params: GArray with all TCP packet parameters.
  */
 void handle_close_core(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_trigger() - Handler for trigger query.
+ *
+ * Sends data on the different types of trigger and their options and actions.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_trigger(GArray *params, void *user_ctx);
 
 /**
  * handle_open_server() - Handler for opening the MCD server.
