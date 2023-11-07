@@ -440,6 +440,33 @@ int process_string_cmd(void *user_ctx, const char *data,
 int cmd_parse_params(const char *data, const char *schema, GArray *params);
 
 /**
+ * handle_vm_start() - Handler for the VM start TCP packet.
+ *
+ * Evaluates whether all cores or just a perticular core should get started and
+ * calls :c:func:`mcd_vm_start` or :c:func:`mcd_cpu_start` respectively.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_vm_start(GArray *params, void *user_ctx);
+
+/**
+ * handle_vm_step() - Handler for the VM step TCP packet.
+ *
+ * Calls :c:func:`mcd_cpu_sstep` for the CPU which sould be stepped.
+ * Stepping all CPUs is currently not supported.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_vm_step(GArray *params, void *user_ctx);
+
+/**
+ * handle_vm_stop() - Handler for the VM stop TCP packet.
+ *
+ * Always calls :c:func:`mcd_vm_stop` and stops all cores. Stopping individual
+ * cores is currently not supported.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_vm_stop(GArray *params, void *user_ctx);
+
+/**
  * handle_gen_query() - Handler for all TCP query packets.
  *
  * Calls :c:func:`process_string_cmd` with all query functions in the
@@ -549,6 +576,32 @@ void handle_close_core(GArray *params, void *user_ctx);
  * @params: GArray with all TCP packet parameters.
  */
 void handle_query_trigger(GArray *params, void *user_ctx);
+
+/**
+ * mcd_vm_start() - Starts all CPUs with the vm_start function.
+ */
+void mcd_vm_start(void);
+
+/**
+ * mcd_cpu_start() - Starts the selected CPU with the cpu_resume function.
+ *
+ * @cpu: The CPU about to be started.
+ */
+void mcd_cpu_start(CPUState *cpu);
+
+/**
+ * mcd_cpu_sstep() - Performes a step on the selected CPU.
+ *
+ * This function first sets the correct single step flags for the CPU with
+ * cpu_single_step and then starts the CPU with cpu_resume.
+ * @cpu: The CPU about to be stepped.
+ */
+int mcd_cpu_sstep(CPUState *cpu);
+
+/**
+ * mcd_vm_stop() - Brings all CPUs in debug state with the vm_stop function.
+ */
+void mcd_vm_stop(void);
 
 /**
  * handle_query_reg_groups_f() - Handler for the first register group query.
