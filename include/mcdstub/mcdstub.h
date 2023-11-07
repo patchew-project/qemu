@@ -36,6 +36,20 @@
 /* tcp query packet values templates */
 #define DEVICE_NAME_TEMPLATE(s) "qemu-" #s "-device"
 
+/* state strings */
+#define STATE_STR_UNKNOWN(d) "cpu " #d " in unknown state"
+#define STATE_STR_DEBUG(d) "cpu " #d " in debug state"
+#define STATE_STR_RUNNING(d) "cpu " #d " running"
+#define STATE_STR_HALTED(d) "cpu " #d " currently halted"
+#define STATE_STR_INIT_HALTED "vm halted since boot"
+#define STATE_STR_INIT_RUNNING "vm running since boot"
+#define STATE_STR_BREAK_HW "stopped beacuse of HW breakpoint"
+#define STATE_STEP_PERFORMED "stopped beacuse of single step"
+#define STATE_STR_BREAK_READ(d) "stopped beacuse of read access at " #d
+#define STATE_STR_BREAK_WRITE(d) "stopped beacuse of write access at " #d
+#define STATE_STR_BREAK_RW(d) "stopped beacuse of read or write access at " #d
+#define STATE_STR_BREAK_UNKNOWN "stopped for unknown reason"
+
 typedef struct MCDProcess {
     uint32_t pid;
     bool attached;
@@ -67,12 +81,29 @@ enum RSState {
     RS_DATAEND,
 };
 
+typedef struct breakpoint_st {
+    uint32_t type;
+    uint64_t address;
+    uint32_t id;
+} breakpoint_st;
+
 typedef struct mcd_trigger_into_st {
     char type[ARGUMENT_STRING_LENGTH];
     char option[ARGUMENT_STRING_LENGTH];
     char action[ARGUMENT_STRING_LENGTH];
     uint32_t nr_trigger;
 } mcd_trigger_into_st;
+
+typedef struct mcd_cpu_state_st {
+    const char *state;
+    bool memory_changed;
+    bool registers_changed;
+    bool target_was_stopped;
+    uint32_t bp_type;
+    uint64_t bp_address;
+    const char *stop_str;
+    const char *info_str;
+} mcd_cpu_state_st;
 
 typedef struct MCDState {
     bool init;       /* have we been initialised? */
@@ -505,6 +536,16 @@ void handle_close_core(GArray *params, void *user_ctx);
  * @params: GArray with all TCP packet parameters.
  */
 void handle_open_server(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_state() - Handler for the state query.
+ *
+ * This function collects all data stored in the
+ * cpu_state member of the mcdserver_state and formats and sends it to the
+ * library.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_state(GArray *params, void *user_ctx);
 
 /* helpers */
 

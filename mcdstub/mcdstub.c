@@ -95,6 +95,15 @@ void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table)
     mcd_query_cmds_table[cmd_number] = query_cores;
     cmd_number++;
 
+
+    MCDCmdParseEntry query_state = {
+        .handler = handle_query_state,
+        .cmd = QUERY_ARG_STATE,
+    };
+    strcpy(query_state.schema, (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
+    mcd_query_cmds_table[cmd_number] = query_state;
+}
+
 void reset_mcdserver_state(void)
 {
     g_free(mcdserver_state.processes);
@@ -604,6 +613,100 @@ void mcd_sigterm_handler(int signal)
     }
 }
 #endif
+
+void mcd_vm_state_change(void *opaque, bool running, RunState state)
+{
+    CPUState *cpu = mcdserver_state.c_cpu;
+
+    if (mcdserver_state.state == RS_INACTIVE) {
+        return;
+    }
+
+    if (cpu == NULL) {
+        if (running) {
+            /*
+             * this is the case if qemu starts the vm
+             * before a mcd client is connected
+             */
+            const char *mcd_state;
+            mcd_state = CORE_STATE_RUNNING;
+            const char *info_str;
+            info_str = STATE_STR_INIT_RUNNING;
+            mcdserver_state.cpu_state.state = mcd_state;
+            mcdserver_state.cpu_state.info_str = info_str;
+        }
+        return;
+    }
+
+    const char *mcd_state;
+    const char *stop_str;
+    const char *info_str;
+    uint32_t bp_type = 0;
+    uint64_t bp_address = 0;
+    switch (state) {
+    case RUN_STATE_RUNNING:
+        mcd_state = CORE_STATE_RUNNING;
+        info_str = STATE_STR_RUNNING(cpu->cpu_index);
+        stop_str = "";
+        break;
+    case RUN_STATE_DEBUG:
+        mcd_state = CORE_STATE_DEBUG;
+        info_str = STATE_STR_DEBUG(cpu->cpu_index);
+        if (cpu->watchpoint_hit) {
+            switch (cpu->watchpoint_hit->flags & BP_MEM_ACCESS) {
+            case BP_MEM_READ:
+                bp_type = MCD_BREAKPOINT_READ;
+                stop_str = STATE_STR_BREAK_READ(cpu->watchpoint_hit->hitaddr);
+                break;
+            case BP_MEM_WRITE:
+                bp_type = MCD_BREAKPOINT_WRITE;
+                stop_str = STATE_STR_BREAK_WRITE(cpu->watchpoint_hit->hitaddr);
+                break;
+            case BP_MEM_ACCESS:
+                bp_type = MCD_BREAKPOINT_RW;
+                stop_str = STATE_STR_BREAK_RW(cpu->watchpoint_hit->hitaddr);
+                break;
+            default:
+                stop_str = STATE_STR_BREAK_UNKNOWN;
+                break;
+            }
+            bp_address = cpu->watchpoint_hit->hitaddr;
+            cpu->watchpoint_hit = NULL;
+        } else if (cpu->singlestep_enabled) {
+            /* we land here when a single step is performed */
+            stop_str = STATE_STEP_PERFORMED;
+        } else {
+            bp_type = MCD_BREAKPOINT_HW;
+            stop_str = STATE_STR_BREAK_HW;
+            tb_flush(cpu);
+        }
+        /* deactivate single step */
+        cpu_single_step(cpu, 0);
+        break;
+    case RUN_STATE_PAUSED:
+        info_str = STATE_STR_HALTED(cpu->cpu_index);
+        mcd_state = CORE_STATE_HALTED;
+        stop_str = "";
+        break;
+    case RUN_STATE_WATCHDOG:
+        info_str = STATE_STR_UNKNOWN(cpu->cpu_index);
+        mcd_state = CORE_STATE_UNKNOWN;
+        stop_str = "";
+        break;
+    default:
+        info_str = STATE_STR_UNKNOWN(cpu->cpu_index);
+        mcd_state = CORE_STATE_UNKNOWN;
+        stop_str = "";
+        break;
+    }
+
+    /* set state for c_cpu */
+    mcdserver_state.cpu_state.state = mcd_state;
+    mcdserver_state.cpu_state.bp_type = bp_type;
+    mcdserver_state.cpu_state.bp_address = bp_address;
+    mcdserver_state.cpu_state.stop_str = stop_str;
+    mcdserver_state.cpu_state.info_str = info_str;
+}
 
 int mcd_put_packet(const char *buf)
 {
