@@ -709,6 +709,31 @@ void handle_read_register(GArray *params, void *user_ctx);
  * @params: GArray with all TCP packet parameters.
  */
 void handle_write_register(GArray *params, void *user_ctx);
+
+/**
+ * handle_read_memory() - Handler for reading memory.
+ *
+ * First, this function checks whether reading a secure memory space is
+ * requested and changes the access mode with :c:func:`arm_mcd_set_scr`.
+ * Then it calls :c:func:`mcd_read_memory` to read memory. The collected
+ * data gets stored in the mem_buf byte array. The data then gets converted
+ * into a hex string with :c:func:`mcd_memtohex` and then send.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_read_memory(GArray *params, void *user_ctx);
+
+/**
+ * handle_write_memory() - Handler for writing memory.
+ *
+ * First, this function checks whether reading a secure memory space is
+ * requested and changes the access mode with :c:func:`arm_mcd_set_scr`.
+ * Then it converts the incoming hex string data into a byte array with
+ * :c:func:`mcd_hextomem`. Then it calls :c:func:`mcd_write_memory` to write to
+ * the register.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_write_memory(GArray *params, void *user_ctx);
+
 /**
  * mcd_read_register() - Reads a registers data and stores it into the buf.
  *
@@ -732,6 +757,50 @@ int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg);
  * @reg: General ID of the register.
  */
 int mcd_write_register(CPUState *cpu, uint8_t *mem_buf, int reg);
+
+/**
+ * mcd_read_write_physical_memory() - Reades or writes from/to a logical
+ * memory address.
+ * @address_space: Desired QEMU address space (e.g. secure/non-secure)
+ * @attributes: Access attributes
+ * @addr: (physical) memory address
+ * @buf: Buffer for memory data
+ * @len: Length of the memory access
+ * @is_write: True for writing and false for reading
+ */
+int mcd_read_write_physical_memory(AddressSpace *address_space,
+    MemTxAttrs attributes, hwaddr addr, uint8_t *buf, int len, bool is_write);
+
+/**
+ * mcd_read_write_memory() - Reades or writes from/to a logical memory address.
+ * @cpu: CPUState
+ * @address_space: Desired QEMU address space (e.g. secure/non-secure)
+ * @attributes: Access attributes
+ * @addr: (logical) memory address
+ * @buf: Buffer for memory data
+ * @len: Length of the memory access
+ * @is_write: True for writing and false for reading
+ */
+int mcd_read_write_memory(CPUState *cpu, AddressSpace *address_space,
+    MemTxAttrs attributes, vaddr addr, uint8_t *buf, uint64_t len,
+    bool is_write);
+
+/**
+ * mcd_get_address_space() - Returnes the correct QEMU address space name
+ * @cpu: CPUState
+ * @cpu_id: Correct CPU ID
+ * @mem_space: Desired mcd specific memory space.
+ */
+AddressSpace *mcd_get_address_space(CPUState *cpu, uint32_t cpu_id,
+    mcd_mem_space_st mem_space);
+
+/**
+ * mcd_get_memtxattrs() - Returnes the correct QEMU address space access
+ * attributes
+ * @cpu: CPUState
+ * @mem_space: Desired mcd specific memory space.
+ */
+MemTxAttrs mcd_get_memtxattrs(CPUState *cpu, mcd_mem_space_st mem_space);
 
 /* helpers */
 

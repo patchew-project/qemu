@@ -545,6 +545,31 @@ int mcd_handle_packet(const char *line_buf)
             cmd_parser = &write_reg_cmd_desc;
         }
         break;
+    case TCP_CHAR_READ_MEMORY:
+        {
+            static MCDCmdParseEntry read_mem_cmd_desc = {
+                .handler = handle_read_memory,
+            };
+            read_mem_cmd_desc.cmd = (char[2]) { TCP_CHAR_READ_MEMORY, '\0' };
+            strcpy(read_mem_cmd_desc.schema,
+                (char[5]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT,
+                ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &read_mem_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_WRITE_MEMORY:
+        {
+            static MCDCmdParseEntry write_mem_cmd_desc = {
+                .handler = handle_write_memory,
+            };
+            write_mem_cmd_desc.cmd = (char[2]) { TCP_CHAR_WRITE_MEMORY, '\0' };
+            strcpy(write_mem_cmd_desc.schema,
+                (char[6]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT,
+                ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT,
+                ARG_SCHEMA_HEXDATA, '\0' });
+            cmd_parser = &write_mem_cmd_desc;
+        }
+        break;
     default:
         /* command not supported */
         mcd_put_packet("");
@@ -1726,4 +1751,132 @@ void handle_write_register(GArray *params, void *user_ctx)
     } else {
         mcd_put_packet(TCP_EXECUTION_SUCCESS);
     }
+}
+
+int mcd_read_write_physical_memory(AddressSpace *address_space,
+    MemTxAttrs attributes, hwaddr addr, uint8_t *buf, int len, bool is_write)
+{
+    if (is_write) {
+        return address_space_write_rom(address_space, addr, attributes, buf,
+            len);
+    } else {
+        return address_space_read_full(address_space, addr, attributes, buf,
+            len);
+    }
+}
+
+int mcd_read_write_memory(CPUState *cpu, AddressSpace *address_space,
+    MemTxAttrs attributes, vaddr addr, uint8_t *buf, uint64_t len,
+    bool is_write)
+{
+    /* get physical address */
+    if (cpu_memory_get_physical_address(cpu, &addr, &len) != 0) {
+        return -1;
+    }
+    /* read memory */
+    return mcd_read_write_physical_memory(address_space, attributes, addr, buf,
+        len, is_write);
+}
+
+AddressSpace *mcd_get_address_space(CPUState *cpu, uint32_t cpu_id,
+    mcd_mem_space_st mem_space)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const gchar *arch = cc->gdb_arch_name(cpu);
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
+        return arm_mcd_get_address_space(cpu_id, mem_space);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+MemTxAttrs mcd_get_memtxattrs(CPUState *cpu, mcd_mem_space_st mem_space)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const gchar *arch = cc->gdb_arch_name(cpu);
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
+        return arm_mcd_get_memtxattrs(mem_space);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+void handle_read_memory(GArray *params, void *user_ctx)
+{
+    /* read input parameters */
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
+    uint64_t mem_address = get_param(params, 2)->data_uint64_t;
+    uint32_t len = get_param(params, 3)->data_uint32_t;
+    /* check which memory space was requested */
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    GArray *memspaces =
+        g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
+        mem_space_id - 1);
+    /* get data in the QEMU address space and access attributes */
+    AddressSpace *address_space = mcd_get_address_space(cpu, cpu_id, space);
+    MemTxAttrs attributes = mcd_get_memtxattrs(cpu, space);
+    /* read memory data */
+    g_byte_array_set_size(mcdserver_state.mem_buf, len);
+    if (space.is_physical) {
+        /* physical memory */
+        if (mcd_read_write_physical_memory(address_space, attributes,
+            mem_address, mcdserver_state.mem_buf->data,
+            mcdserver_state.mem_buf->len, false) != 0) {
+            mcd_put_packet(TCP_EXECUTION_ERROR);
+            return;
+        }
+    } else {
+        /* user space memory */
+        if (mcd_read_write_memory(cpu, address_space, attributes, mem_address,
+            mcdserver_state.mem_buf->data, mcdserver_state.mem_buf->len,
+            false) != 0) {
+            mcd_put_packet(TCP_EXECUTION_ERROR);
+            return;
+        }
+    }
+    /* send data */
+    mcd_memtohex(mcdserver_state.str_buf, mcdserver_state.mem_buf->data,
+        mcdserver_state.mem_buf->len);
+    mcd_put_strbuf();
+}
+
+void handle_write_memory(GArray *params, void *user_ctx)
+{
+    /* read input parameters */
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
+    uint64_t mem_address = get_param(params, 2)->data_uint64_t;
+    uint32_t len = get_param(params, 3)->data_uint32_t;
+    /* check which memory space was requested */
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    GArray *memspaces =
+        g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
+        mem_space_id - 1);
+    /* get data in the QEMU address space and access attributes */
+    AddressSpace *address_space = mcd_get_address_space(cpu, cpu_id, space);
+    MemTxAttrs attributes = mcd_get_memtxattrs(cpu, space);
+    /* write memory data */
+    mcd_hextomem(mcdserver_state.mem_buf, mcdserver_state.str_buf->str, len);
+    if (space.is_physical) {
+        /* physical memory */
+        if (mcd_read_write_physical_memory(address_space, attributes,
+            mem_address, mcdserver_state.mem_buf->data,
+            mcdserver_state.mem_buf->len, true) != 0) {
+            mcd_put_packet(TCP_EXECUTION_ERROR);
+            return;
+        }
+    } else {
+        /* user space memory */
+        if (mcd_read_write_memory(cpu, address_space, attributes, mem_address,
+            mcdserver_state.mem_buf->data, mcdserver_state.mem_buf->len,
+            true) != 0) {
+            mcd_put_packet(TCP_EXECUTION_ERROR);
+            return;
+        }
+    }
+    /* send acknowledge */
+    mcd_put_packet(TCP_EXECUTION_SUCCESS);
 }

@@ -276,3 +276,29 @@ int arm_mcd_get_additional_register_info(GArray *reggroups, GArray *registers,
     return 0;
 }
 
+AddressSpace *arm_mcd_get_address_space(uint32_t cpu_id,
+    mcd_mem_space_st mem_space)
+{
+    /* get correct address space name */
+    char as_name[ARGUMENT_STRING_LENGTH] = {0};
+    if (mem_space.is_secure) {
+        sprintf(as_name, "cpu-secure-memory-%u", cpu_id);
+    } else {
+        sprintf(as_name, "cpu-memory-%u", cpu_id);
+    }
+    /* return correct address space */
+    AddressSpace *as = mcd_find_address_space(as_name);
+    return as;
+}
+
+MemTxAttrs arm_mcd_get_memtxattrs(mcd_mem_space_st mem_space)
+{
+    MemTxAttrs attributes = {0};
+    if (mem_space.is_secure) {
+        attributes.secure = 1;
+        attributes.space = 2;
+    } else {
+        attributes.space = 1;
+    }
+    return attributes;
+}

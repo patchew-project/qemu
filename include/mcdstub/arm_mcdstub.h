@@ -87,5 +87,21 @@ int arm_mcd_parse_general_xml_files(CPUState *cpu, GArray* reggroups,
  * @cpu: The CPU state.
  */
 int arm_mcd_get_additional_register_info(GArray *reggroups, GArray *registers,
+    CPUState *cpu);
+
+/**
+ * arm_mcd_get_address_space() - Returnes the correct QEMU address space name
+ * @cpu_id: Correct CPU ID
+ * @mem_space: Desired mcd specific memory space.
+ */
+AddressSpace *arm_mcd_get_address_space(uint32_t cpu_id,
+    mcd_mem_space_st mem_space);
+
+/**
+ * arm_mcd_get_memtxattrs() - Returnes the correct QEMU address space access
+ * attributes
+ * @mem_space: Desired mcd specific memory space.
+ */
+MemTxAttrs arm_mcd_get_memtxattrs(mcd_mem_space_st mem_space);
 
 #endif /* ARM_MCDSTUB_H */
