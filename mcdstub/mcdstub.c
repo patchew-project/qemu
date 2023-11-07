@@ -81,6 +81,20 @@ void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table)
     /* initalizes a list of all query commands */
     int cmd_number = 0;
 
+    MCDCmdParseEntry query_system = {
+        .handler = handle_query_system,
+        .cmd = QUERY_ARG_SYSTEM,
+    };
+    mcd_query_cmds_table[cmd_number] = query_system;
+    cmd_number++;
+
+    MCDCmdParseEntry query_cores = {
+        .handler = handle_query_cores,
+        .cmd = QUERY_ARG_CORES,
+    };
+    mcd_query_cmds_table[cmd_number] = query_cores;
+    cmd_number++;
+
 void reset_mcdserver_state(void)
 {
     g_free(mcdserver_state.processes);
@@ -345,6 +359,17 @@ int mcd_handle_packet(const char *line_buf)
         error_report("QEMU: Terminated via MCDstub");
         mcd_exit(0);
         exit(0);
+    case TCP_CHAR_QUERY:
+        {
+            static MCDCmdParseEntry query_cmd_desc = {
+                .handler = handle_gen_query,
+            };
+            query_cmd_desc.cmd = (char[2]) { TCP_CHAR_QUERY, '\0' };
+            strcpy(query_cmd_desc.schema,
+                (char[2]) { ARG_SCHEMA_STRING, '\0' });
+            cmd_parser = &query_cmd_desc;
+        }
+        break;
     case TCP_CHAR_CLOSE_SERVER:
         {
             static MCDCmdParseEntry close_server_cmd_desc = {
@@ -368,6 +393,20 @@ int mcd_handle_packet(const char *line_buf)
 
     return RS_IDLE;
 }
+
+void handle_gen_query(GArray *params, void *user_ctx)
+{
+    if (!params->len) {
+        return;
+    }
+    /* iterate over all possible query functions and execute the right one */
+    if (process_string_cmd(NULL, get_param(params, 0)->data,
+                           mcdserver_state.mcd_query_cmds_table,
+                           ARRAY_SIZE(mcdserver_state.mcd_query_cmds_table))) {
+        mcd_put_packet("");
+    }
+}
+
 void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd)
 {
     if (!data) {
@@ -733,6 +772,37 @@ void handle_open_server(GArray *params, void *user_ctx)
     }
 
     mcd_put_packet(TCP_HANDSHAKE_SUCCESS);
+}
+
+void handle_query_system(GArray *params, void *user_ctx)
+{
+    mcd_put_packet(MCD_SYSTEM_NAME);
+}
+
+void handle_query_cores(GArray *params, void *user_ctx)
+{
+    /* get first cpu */
+    CPUState *cpu = mcd_first_attached_cpu();
+    if (!cpu) {
+        return;
+    }
+
+    ObjectClass *oc = object_get_class(OBJECT(cpu));
+    const char *cpu_model = object_class_get_name(oc);
+
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const gchar *arch = cc->gdb_arch_name(cpu);
+
+    uint32_t nr_cores = cpu->nr_cores;
+    char device_name[ARGUMENT_STRING_LENGTH] = {0};
+    if (arch) {
+        snprintf(device_name, sizeof(device_name), "%s",
+            DEVICE_NAME_TEMPLATE(arch));
+    }
+    g_string_printf(mcdserver_state.str_buf, "%s=%s.%s=%s.%s=%u.",
+        TCP_ARGUMENT_DEVICE, device_name, TCP_ARGUMENT_CORE, cpu_model,
+        TCP_ARGUMENT_AMOUNT_CORE, nr_cores);
+    mcd_put_strbuf();
 }
 
 

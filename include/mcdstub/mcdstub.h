@@ -402,6 +402,18 @@ int process_string_cmd(void *user_ctx, const char *data,
  * @params: GArray with all extracted parameters.
  */
 int cmd_parse_params(const char *data, const char *schema, GArray *params);
+
+/**
+ * handle_gen_query() - Handler for all TCP query packets.
+ *
+ * Calls :c:func:`process_string_cmd` with all query functions in the
+ * mcd_query_cmds_table. :c:func:`process_string_cmd` then selects the correct
+ * one. This function just passes on the TCP packet data string from the
+ * parameters.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_gen_query(GArray *params, void *user_ctx);
+
 /**
  * mcd_get_cpu_index() - Returns the internal CPU index plus one.
  *
@@ -415,6 +427,24 @@ int mcd_get_cpu_index(CPUState *cpu);
  * @cpu_index: Index of the desired CPU.
  */
 CPUState *mcd_get_cpu(uint32_t cpu_index);
+
+/**
+ * handle_query_cores() - Handler for the core query.
+ *
+ * This function sends the type of core and number of cores currently
+ * simulated by QEMU. It also sends a device name for the MCD data structure.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_cores(GArray *params, void *user_ctx);
+
+/**
+ * handle_query_system() - Handler for the system query.
+ *
+ * Sends the system name, which is "qemu-system".
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_query_system(GArray *params, void *user_ctx);
+
 /**
  * get_first_cpu_in_process() - Returns the first CPU in the provided process.
  *
