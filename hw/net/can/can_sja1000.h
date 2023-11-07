@@ -37,6 +37,10 @@
 /* The receive buffer size. */
 #define SJA_RCV_BUF_LEN       64
 
+/* Number of MSI/MSI-X interrupt vectors */
+#define NUM_MSI_IRQ           8
+#define NUM_MSIX_IRQ          NUM_MSI_IRQ
+
 typedef struct CanSJA1000State {
     /* PeliCAN state and registers sorted by address */
     uint8_t         mode;          /* 0  .. Mode register, DS-p26 */
@@ -68,6 +72,11 @@ typedef struct CanSJA1000State {
 
     qemu_irq          irq;
     CanBusClientState bus_client;
+
+    /* PCIe MSI */
+    PCIDevice       *pci_dev;
+    uint8_t         msi_map[NUM_MSI_IRQ];   /* MSI map entry to interrupt */
+    uint8_t         msix_map[NUM_MSIX_IRQ]; /* MSI-X map entry to interrupt */
 } CanSJA1000State;
 
 /* PeliCAN mode */
@@ -136,6 +145,9 @@ int can_sja_connect_to_bus(CanSJA1000State *s, CanBusState *bus);
 void can_sja_disconnect(CanSJA1000State *s);
 
 int can_sja_init(CanSJA1000State *s, qemu_irq irq);
+
+int can_sja_cap_init(CanSJA1000State *s, qemu_irq irq, PCIDevice *pci_dev,
+                     uint8_t *msi_map, uint8_t *msix_map);
 
 bool can_sja_can_receive(CanBusClientState *client);
 

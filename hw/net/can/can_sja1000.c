@@ -29,6 +29,8 @@
 #include "qemu/log.h"
 #include "chardev/char.h"
 #include "hw/irq.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
 #include "migration/vmstate.h"
 #include "net/can_emu.h"
 
@@ -401,10 +403,58 @@ static int frame2buff_bas(const qemu_can_frame *frame, uint8_t *buff)
     return dlen + 2;
 }
 
+static void can_sja_update_pcie_msi(CanSJA1000State *s, uint8_t interrupt_reg)
+{
+    int i;
+
+    if (s->pci_dev == NULL) {
+        return;
+    }
+
+    if (!msi_enabled(s->pci_dev)) {
+        return;
+    }
+
+    /* Trigger MSI vectors associated to interrupts */
+    for (i = 0; i < NUM_MSI_IRQ; ++i) {
+        if (interrupt_reg & (1 << i)) {
+            msi_notify(s->pci_dev, s->msi_map[i]);
+        }
+    }
+}
+
+static void can_sja_update_pcie_msix(CanSJA1000State *s, uint8_t interrupt_reg)
+{
+    int i;
+
+    if (s->pci_dev == NULL) {
+        return;
+    }
+
+    if (!msix_enabled(s->pci_dev)) {
+        return;
+    }
+
+    /* Trigger MSI-X vectors associated to interrupts */
+    for (i = 0; i < NUM_MSIX_IRQ; ++i) {
+        if (interrupt_reg & (1 << i)) {
+            msix_notify(s->pci_dev, s->msix_map[i]);
+        }
+    }
+}
+
 static void can_sja_update_pel_irq(CanSJA1000State *s)
 {
     if (s->interrupt_en & s->interrupt_pel) {
         qemu_irq_raise(s->irq);
+
+        if (s->pci_dev && msi_enabled(s->pci_dev)) {
+            can_sja_update_pcie_msi(s, s->interrupt_pel);
+        }
+
+        if (s->pci_dev && msix_enabled(s->pci_dev)) {
+            can_sja_update_pcie_msix(s, s->interrupt_pel);
+        }
     } else {
         qemu_irq_lower(s->irq);
     }
@@ -414,6 +464,14 @@ static void can_sja_update_bas_irq(CanSJA1000State *s)
 {
     if ((s->control >> 1) & s->interrupt_bas) {
         qemu_irq_raise(s->irq);
+
+        if (msi_enabled(s->pci_dev)) {
+            can_sja_update_pcie_msi(s, s->interrupt_pel);
+        }
+
+        if (msix_enabled(s->pci_dev)) {
+            can_sja_update_pcie_msix(s, s->interrupt_pel);
+        }
     } else {
         qemu_irq_lower(s->irq);
     }
@@ -916,11 +974,44 @@ void can_sja_disconnect(CanSJA1000State *s)
 
 int can_sja_init(CanSJA1000State *s, qemu_irq irq)
 {
+    int i;
     s->irq = irq;
+
+    s->pci_dev = NULL;
+    for (i = 0; i < NUM_MSI_IRQ; i++) {
+        s->msi_map[i] = 0;
+    }
+
+    for (i = 0; i < NUM_MSIX_IRQ; i++) {
+        s->msix_map[i] = 0;
+    }
 
     qemu_irq_lower(s->irq);
 
     can_sja_hardware_reset(s);
+
+    return 0;
+}
+
+int can_sja_cap_init(CanSJA1000State *s, qemu_irq irq, PCIDevice *pci_dev,
+                     uint8_t *msi_map, uint8_t *msix_map)
+{
+    int i;
+    can_sja_init(s, irq); /* Perform base init */
+
+    s->pci_dev = pci_dev;
+
+    if (msi_map) {
+        for (i = 0; i < NUM_MSI_IRQ; i++) {
+            s->msi_map[i] = msi_map[i];
+        }
+    }
+
+    if (msix_map) {
+        for (i = 0; i < NUM_MSIX_IRQ; i++) {
+            s->msix_map[i] = msix_map[i];
+        }
+    }
 
     return 0;
 }
