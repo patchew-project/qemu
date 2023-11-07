@@ -25,6 +25,21 @@ typedef struct MCDProcess {
     char target_xml[1024];
 } MCDProcess;
 
+typedef void (*MCDCmdHandler)(GArray *params, void *user_ctx);
+typedef struct MCDCmdParseEntry {
+    MCDCmdHandler handler;
+    const char *cmd;
+    char schema[CMD_SCHEMA_LENGTH];
+} MCDCmdParseEntry;
+
+typedef union MCDCmdVariant {
+    const char *data;
+    uint32_t data_uint32_t;
+    uint64_t data_uint64_t;
+    uint32_t query_handle;
+    uint32_t cpu_id;
+} MCDCmdVariant;
+
 #define get_param(p, i)    (&g_array_index(p, MCDCmdVariant, i))
 
 enum RSState {
@@ -176,6 +191,35 @@ bool mcd_supports_guest_debug(void);
  * @state: The new (and active) VM run state.
  */
 void mcd_vm_state_change(void *opaque, bool running, RunState state);
+
+/**
+ * mcd_put_packet() - Calls :c:func:`mcd_put_packet_binary` with buf and length
+ * of buf.
+ *
+ * @buf: TCP packet data.
+ */
+int mcd_put_packet(const char *buf);
+
+/**
+ * mcd_put_packet_binary() - Adds footer and header to the TCP packet data in
+ * buf.
+ *
+ * Besides adding header and footer, this function also stores the complete TCP
+ * packet in the last_packet member of the mcdserver_state. Then the packet
+ * gets send with the :c:func:`mcd_put_buffer` function.
+ * @buf: TCP packet data.
+ * @len: TCP packet length.
+ */
+int mcd_put_packet_binary(const char *buf, int len);
+
+/**
+ * mcd_put_buffer() - Sends the buf as TCP packet with qemu_chr_fe_write_all.
+ *
+ * @buf: TCP packet data.
+ * @len: TCP packet length.
+ */
+void mcd_put_buffer(const uint8_t *buf, int len);
+
 /**
  * mcd_get_cpu_process() - Returns the process of the provided CPU.
  *
@@ -219,6 +263,82 @@ CPUState *mcd_first_attached_cpu(void);
 CPUState *mcd_next_attached_cpu(CPUState *cpu);
 
 /**
+ * mcd_read_byte() - Resends the last packet if not acknowledged and extracts
+ * the data from a received TCP packet.
+ *
+ * In case the last sent packet was not acknowledged from the mcdstub,
+ * this function resends it.
+ * If it was acknowledged this function parses the incoming packet
+ * byte by byte.
+ * It extracts the data in the packet and sends an
+ * acknowledging response when finished. Then :c:func:`mcd_handle_packet` gets
+ * called.
+ * @ch: Character of the received TCP packet, which should be parsed.
+ */
+void mcd_read_byte(uint8_t ch);
+
+/**
+ * mcd_handle_packet() - Evaluates the type of received packet and chooses the
+ * correct handler.
+ *
+ * This function takes the first character of the line_buf to determine the
+ * type of packet. Then it selects the correct handler function and parameter
+ * schema. With this info it calls :c:func:`run_cmd_parser`.
+ * @line_buf: TCP packet data.
+ */
+int mcd_handle_packet(const char *line_buf);
+
+/**
+ * mcd_put_strbuf() - Calls :c:func:`mcd_put_packet` with the str_buf of the
+ * mcdserver_state.
+ */
+void mcd_put_strbuf(void);
+
+/**
+ * run_cmd_parser() - Prepares the mcdserver_state before executing TCP packet
+ * functions.
+ *
+ * This function empties the str_buf and mem_buf of the mcdserver_state and
+ * then calls :c:func:`process_string_cmd`. In case this function fails, an
+ * empty TCP packet is sent back the MCD Shared Library.
+ * @data: TCP packet data.
+ * @cmd: Handler function (can be an array of functions).
+ */
+void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd);
+
+/**
+ * process_string_cmd() - Collects all parameters from the data and calls the
+ * correct handler.
+ *
+ * The parameters are extracted with the :c:func:`cmd_parse_params function.
+ * This function selects the command in the cmds array, which fits the start of
+ * the data string. This way the correct commands is selected.
+ * @data: TCP packet data.
+ * @cmds: Array of possible commands.
+ * @num_cmds: Number of commands in the cmds array.
+ */
+int process_string_cmd(void *user_ctx, const char *data,
+    const MCDCmdParseEntry *cmds, int num_cmds);
+
+/**
+ * cmd_parse_params() - Extracts all parameters from a TCP packet.
+ *
+ * This function uses the schema parameter to determine which type of parameter
+ * to expect. It then extracts that parameter from the data and stores it in
+ * the params GArray.
+ * @data: TCP packet data.
+ * @schema: List of expected parameters for the packet.
+ * @params: GArray with all extracted parameters.
+ */
+int cmd_parse_params(const char *data, const char *schema, GArray *params);
+/**
+ * mcd_get_cpu_index() - Returns the internal CPU index plus one.
+ *
+ * @cpu: CPU of interest.
+ */
+int mcd_get_cpu_index(CPUState *cpu);
+
+/**
  * mcd_get_cpu() - Returns the CPU the index i_cpu_index.
  *
  * @cpu_index: Index of the desired CPU.
@@ -237,3 +357,27 @@ CPUState *get_first_cpu_in_process(MCDProcess *process);
  * @thread_id: ID of the desired CPU.
  */
 CPUState *find_cpu(uint32_t thread_id);
+/* helpers */
+
+/**
+ * int_cmp() - Compares a and b and returns zero if they are equal.
+ *
+ * @a: Pointer to integer a.
+ * @b: Pointer to integer b.
+ */
+int int_cmp(gconstpointer a, gconstpointer b);
+/**
+ * atouint64_t() - Converts a string into a unsigned 64 bit integer.
+ *
+ * @in: Pointer to input string.
+ */
+uint64_t atouint64_t(const char *in);
+
+/**
+ * atouint32_t() - Converts a string into a unsigned 32 bit integer.
+ *
+ * @in: Pointer to input string.
+ */
+uint32_t atouint32_t(const char *in);
+
+#endif /* MCDSTUB_INTERNALS_H */

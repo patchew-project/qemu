@@ -80,7 +80,14 @@ void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table)
 {
     /* initalizes a list of all query commands */
     int cmd_number = 0;
+
+void reset_mcdserver_state(void)
+{
+    g_free(mcdserver_state.processes);
+    mcdserver_state.processes = NULL;
+    mcdserver_state.process_num = 0;
 }
+
 void create_processes(MCDState *s)
 {
     object_child_foreach(object_get_root(), find_cpu_clusters, s);
@@ -243,6 +250,228 @@ void mcd_chr_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+void mcd_read_byte(uint8_t ch)
+{
+    uint8_t reply;
+
+    if (mcdserver_state.last_packet->len) {
+        if (ch == TCP_NOT_ACKNOWLEDGED) {
+            /* the previous packet was not akcnowledged */
+            mcd_put_buffer(mcdserver_state.last_packet->data,
+                mcdserver_state.last_packet->len);
+        } else if (ch == TCP_ACKNOWLEDGED) {
+            /* the previous packet was acknowledged */
+        }
+
+        if (ch == TCP_ACKNOWLEDGED || ch == TCP_COMMAND_START) {
+            /*
+             * either acknowledged or a new communication starts
+             * -> discard previous packet
+             */
+            g_byte_array_set_size(mcdserver_state.last_packet, 0);
+        }
+        if (ch != TCP_COMMAND_START) {
+            /* skip to the next char */
+            return;
+        }
+    }
+
+    switch (mcdserver_state.state) {
+    case RS_IDLE:
+        if (ch == TCP_COMMAND_START) {
+            /* start of command packet */
+            mcdserver_state.line_buf_index = 0;
+            mcdserver_state.line_sum = 0;
+            mcdserver_state.state = RS_GETLINE;
+        }
+        break;
+    case RS_GETLINE:
+        if (ch == TCP_COMMAND_END) {
+            /* end of command */
+            mcdserver_state.line_buf[mcdserver_state.line_buf_index++] = 0;
+            mcdserver_state.state = RS_DATAEND;
+        } else if (mcdserver_state.line_buf_index >=
+            sizeof(mcdserver_state.line_buf) - 1) {
+            /* the input string is too long for the linebuffer! */
+            mcdserver_state.state = RS_IDLE;
+        } else {
+            /* copy the content to the line_buf */
+            mcdserver_state.line_buf[mcdserver_state.line_buf_index++] = ch;
+            mcdserver_state.line_sum += ch;
+        }
+        break;
+    case RS_DATAEND:
+        if (ch == TCP_WAS_NOT_LAST) {
+            reply = TCP_ACKNOWLEDGED;
+            mcd_put_buffer(&reply, 1);
+            mcdserver_state.state = mcd_handle_packet(mcdserver_state.line_buf);
+        } else if (ch == TCP_WAS_LAST) {
+            reply = TCP_ACKNOWLEDGED;
+            mcd_put_buffer(&reply, 1);
+            mcdserver_state.state = mcd_handle_packet(mcdserver_state.line_buf);
+        } else {
+            /* not acknowledged! */
+            reply = TCP_NOT_ACKNOWLEDGED;
+            mcd_put_buffer(&reply, 1);
+            /* waiting for package to get resent */
+            mcdserver_state.state = RS_IDLE;
+        }
+        break;
+    default:
+        abort();
+    }
+}
+
+int mcd_handle_packet(const char *line_buf)
+{
+    /*
+     * decides what function (handler) to call depending on
+     * the first character in the line_buf
+     */
+    const MCDCmdParseEntry *cmd_parser = NULL;
+
+    switch (line_buf[0]) {
+    default:
+        /* command not supported */
+        mcd_put_packet("");
+        break;
+    }
+
+    if (cmd_parser) {
+        /* parse commands and run the selected handler function */
+        run_cmd_parser(line_buf, cmd_parser);
+    }
+
+    return RS_IDLE;
+}
+void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd)
+{
+    if (!data) {
+        return;
+    }
+
+    g_string_set_size(mcdserver_state.str_buf, 0);
+    g_byte_array_set_size(mcdserver_state.mem_buf, 0);
+
+    if (process_string_cmd(NULL, data, cmd, 1)) {
+        mcd_put_packet("");
+    }
+}
+
+uint64_t atouint64_t(const char *in)
+{
+    uint64_t res = 0;
+    for (int i = 0; i < strlen(in); ++i) {
+        const char c = in[i];
+        res *= 10;
+        res += c - '0';
+    }
+
+    return res;
+}
+
+uint32_t atouint32_t(const char *in)
+{
+    uint32_t res = 0;
+    for (int i = 0; i < strlen(in); ++i) {
+        const char c = in[i];
+        res *= 10;
+        res += c - '0';
+    }
+
+    return res;
+}
+
+int cmd_parse_params(const char *data, const char *schema, GArray *params)
+{
+
+    char data_buffer[64] = {0};
+    const char *remaining_data = data;
+
+    for (int i = 0; i < strlen(schema); i++) {
+        /* get correct part of data */
+        char *separator = strchr(remaining_data, ARGUMENT_SEPARATOR);
+
+        if (separator) {
+            /* multiple arguments */
+            int seperator_index = (int)(separator - remaining_data);
+            strncpy(data_buffer, remaining_data, seperator_index);
+            data_buffer[seperator_index] = 0;
+            /* update remaining data for the next run */
+            remaining_data = &(remaining_data[seperator_index + 1]);
+        } else {
+            strncpy(data_buffer, remaining_data, strlen(remaining_data));
+            data_buffer[strlen(remaining_data)] = 0;
+        }
+
+        /* store right data */
+        MCDCmdVariant this_param;
+        switch (schema[i]) {
+        case ARG_SCHEMA_STRING:
+            /* this has to be the last argument */
+            this_param.data = remaining_data;
+            g_array_append_val(params, this_param);
+            break;
+        case ARG_SCHEMA_HEXDATA:
+            g_string_printf(mcdserver_state.str_buf, "%s", data_buffer);
+            break;
+        case ARG_SCHEMA_INT:
+            this_param.data_uint32_t = atouint32_t(data_buffer);
+            g_array_append_val(params, this_param);
+            break;
+        case ARG_SCHEMA_UINT64_T:
+            this_param.data_uint64_t = atouint64_t(data_buffer);
+            g_array_append_val(params, this_param);
+            break;
+        case ARG_SCHEMA_QRYHANDLE:
+            this_param.query_handle = atouint32_t(data_buffer);
+            g_array_append_val(params, this_param);
+            break;
+        case ARG_SCHEMA_CORENUM:
+            this_param.cpu_id = atouint32_t(data_buffer);
+            g_array_append_val(params, this_param);
+            break;
+        default:
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int process_string_cmd(void *user_ctx, const char *data,
+    const MCDCmdParseEntry *cmds, int num_cmds)
+{
+    int i;
+    g_autoptr(GArray) params = g_array_new(false, true, sizeof(MCDCmdVariant));
+
+    if (!cmds) {
+        return -1;
+    }
+
+    for (i = 0; i < num_cmds; i++) {
+        const MCDCmdParseEntry *cmd = &cmds[i];
+        g_assert(cmd->handler && cmd->cmd);
+
+        /* continue if data and command are different */
+        if (strncmp(data, cmd->cmd, strlen(cmd->cmd))) {
+            continue;
+        }
+
+        if (strlen(cmd->schema)) {
+            /* extract data for parameters */
+            if (cmd_parse_params(&data[strlen(cmd->cmd)], cmd->schema, params))
+            {
+                return -1;
+            }
+        }
+
+        /* call handler */
+        cmd->handler(params, user_ctx);
+        return 0;
+    }
+
+    return -1;
+}
 
 void mcd_chr_event(void *opaque, QEMUChrEvent event)
 {
@@ -280,6 +509,43 @@ void mcd_sigterm_handler(int signal)
     }
 }
 #endif
+
+int mcd_put_packet(const char *buf)
+{
+    return mcd_put_packet_binary(buf, strlen(buf));
+}
+
+void mcd_put_strbuf(void)
+{
+    mcd_put_packet(mcdserver_state.str_buf->str);
+}
+
+int mcd_put_packet_binary(const char *buf, int len)
+{
+    g_byte_array_set_size(mcdserver_state.last_packet, 0);
+    g_byte_array_append(mcdserver_state.last_packet,
+        (const uint8_t *) (char[2]) { TCP_COMMAND_START, '\0' }, 1);
+    g_byte_array_append(mcdserver_state.last_packet,
+        (const uint8_t *) buf, len);
+    g_byte_array_append(mcdserver_state.last_packet,
+        (const uint8_t *) (char[2]) { TCP_COMMAND_END, '\0' }, 1);
+    g_byte_array_append(mcdserver_state.last_packet,
+        (const uint8_t *) (char[2]) { TCP_WAS_LAST, '\0' }, 1);
+
+    mcd_put_buffer(mcdserver_state.last_packet->data,
+        mcdserver_state.last_packet->len);
+    return 0;
+}
+
+void mcd_put_buffer(const uint8_t *buf, int len)
+{
+    qemu_chr_fe_write_all(&mcdserver_system_state.chr, buf, len);
+}
+
+MCDProcess *mcd_get_cpu_process(CPUState *cpu)
+{
+    return mcd_get_process(mcd_get_cpu_pid(cpu));
+}
 
 uint32_t mcd_get_cpu_pid(CPUState *cpu)
 {
@@ -381,3 +647,14 @@ CPUState *find_cpu(uint32_t thread_id)
     return NULL;
 }
 
+
+int int_cmp(gconstpointer a, gconstpointer b)
+{
+    int int_a = *(int *)a;
+    int int_b = *(int *)b;
+    if (int_a == int_b) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
