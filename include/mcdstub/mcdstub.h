@@ -7,6 +7,24 @@
 #include "mcdstub_common.h"
 
 #define MAX_PACKET_LENGTH 1024
+
+/* trigger defines */
+#define MCD_TRIG_OPT_DATA_IS_CONDITION 0x00000008
+#define MCD_TRIG_ACTION_DBG_DEBUG 0x00000001
+
+/* schema defines */
+#define ARG_SCHEMA_QRYHANDLE 'q'
+#define ARG_SCHEMA_STRING 's'
+#define ARG_SCHEMA_INT 'd'
+#define ARG_SCHEMA_UINT64_T 'l'
+#define ARG_SCHEMA_CORENUM 'c'
+#define ARG_SCHEMA_HEXDATA 'h'
+
+/* resets */
+#define RESET_SYSTEM "full_system_reset"
+#define RESET_GPR "gpr_reset"
+#define RESET_MEMORY "memory_reset"
+
 /* misc */
 #define QUERY_TOTAL_NUMBER 12
 #define CMD_SCHEMA_LENGTH 6
@@ -49,6 +67,13 @@ enum RSState {
     RS_DATAEND,
 };
 
+typedef struct mcd_trigger_into_st {
+    char type[ARGUMENT_STRING_LENGTH];
+    char option[ARGUMENT_STRING_LENGTH];
+    char action[ARGUMENT_STRING_LENGTH];
+    uint32_t nr_trigger;
+} mcd_trigger_into_st;
+
 typedef struct MCDState {
     bool init;       /* have we been initialised? */
     CPUState *c_cpu; /* current CPU for everything */
@@ -81,6 +106,11 @@ typedef struct MCDState {
 /* lives in main mcdstub.c */
 extern MCDState mcdserver_state;
 
+typedef struct mcd_reset_st {
+    const char *name;
+    uint8_t id;
+} mcd_reset_st;
+
 #ifndef _WIN32
 void mcd_sigterm_handler(int signal);
 #endif
@@ -109,6 +139,38 @@ void mcd_init_mcdserver_state(void);
  * @mcd_query_cmds_table: Lookup table with all query commands.
  */
 void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table);
+
+/**
+ * init_resets() - Initializes the resets info.
+ *
+ * This function currently only adds all theoretical possible resets to the
+ * resets GArray. None of the resets work at the moment. The resets are:
+ * "full_system_reset", "gpr_reset" and "memory_reset".
+ * @resets: GArray with possible resets.
+ */
+int init_resets(GArray *resets);
+
+/**
+ * init_trigger() - Initializes the trigger info.
+ *
+ * This function adds the types of trigger, their possible options and actions
+ * to the trigger struct.
+ * @trigger: Struct with all trigger info.
+ */
+int init_trigger(mcd_trigger_into_st *trigger);
+
+/**
+ * mcd_init_debug_class() - initialize mcd-specific DebugClass
+ */
+void mcd_init_debug_class(void);
+
+/**
+ * reset_mcdserver_state() - Resets the mcdserver_state struct.
+ *
+ * This function deletes all processes connected to the mcdserver_state.
+ */
+void reset_mcdserver_state(void);
+
 /**
  * create_processes() - Sorts all processes and calls
  * :c:func:`mcd_create_default_process`.
@@ -357,6 +419,28 @@ CPUState *get_first_cpu_in_process(MCDProcess *process);
  * @thread_id: ID of the desired CPU.
  */
 CPUState *find_cpu(uint32_t thread_id);
+
+/**
+ * handle_close_server() - Handler for closing the MCD server.
+ *
+ * This function detaches the debugger (process) and frees up memory.
+ * Then it start the QEMU VM with :c:func:`mcd_vm_start`.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_close_server(GArray *params, void *user_ctx);
+
+/**
+ * handle_open_server() - Handler for opening the MCD server.
+ *
+ * This is the first function that gets called from the MCD Shared Library.
+ * It initializes core indepent data with the :c:func:`init_resets` and
+ * \reg init_trigger functions. It also send the TCP_HANDSHAKE_SUCCESS
+ * packet back to the library to confirm the mcdstub is ready for further
+ * communication.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_open_server(GArray *params, void *user_ctx);
+
 /* helpers */
 
 /**

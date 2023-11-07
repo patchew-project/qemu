@@ -331,6 +331,25 @@ int mcd_handle_packet(const char *line_buf)
     const MCDCmdParseEntry *cmd_parser = NULL;
 
     switch (line_buf[0]) {
+    case TCP_CHAR_OPEN_SERVER:
+        {
+            static MCDCmdParseEntry open_server_cmd_desc = {
+                .handler = handle_open_server,
+            };
+            open_server_cmd_desc.cmd = (char[2]) { TCP_CHAR_OPEN_SERVER, '\0' };
+            cmd_parser = &open_server_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_CLOSE_SERVER:
+        {
+            static MCDCmdParseEntry close_server_cmd_desc = {
+                .handler = handle_close_server,
+            };
+            close_server_cmd_desc.cmd =
+                (char[2]) { TCP_CHAR_CLOSE_SERVER, '\0' };
+            cmd_parser = &close_server_cmd_desc;
+        }
+        break;
     default:
         /* command not supported */
         mcd_put_packet("");
@@ -658,3 +677,74 @@ int int_cmp(gconstpointer a, gconstpointer b)
         return 1;
     }
 }
+
+int init_resets(GArray *resets)
+{
+    mcd_reset_st system_reset = { .id = 0, .name = RESET_SYSTEM};
+    mcd_reset_st gpr_reset = { .id = 1, .name = RESET_GPR};
+    mcd_reset_st memory_reset = { .id = 2, .name = RESET_MEMORY};
+    g_array_append_vals(resets, (gconstpointer)&system_reset, 1);
+    g_array_append_vals(resets, (gconstpointer)&gpr_reset, 1);
+    g_array_append_vals(resets, (gconstpointer)&memory_reset, 1);
+    return 0;
+}
+
+int init_trigger(mcd_trigger_into_st *trigger)
+{
+    snprintf(trigger->type, sizeof(trigger->type),
+        "%d,%d,%d,%d", MCD_BREAKPOINT_HW, MCD_BREAKPOINT_READ,
+        MCD_BREAKPOINT_WRITE, MCD_BREAKPOINT_RW);
+    snprintf(trigger->option, sizeof(trigger->option),
+        "%s", MCD_TRIG_OPT_VALUE);
+    snprintf(trigger->action, sizeof(trigger->action),
+        "%s", MCD_TRIG_ACT_BREAK);
+    /* there can be 16 breakpoints and 16 watchpoints each */
+    trigger->nr_trigger = 16;
+    return 0;
+}
+
+void handle_open_server(GArray *params, void *user_ctx)
+{
+    /* initialize core-independent data */
+    int return_value = 0;
+    mcdserver_state.resets = g_array_new(false, true, sizeof(mcd_reset_st));
+    return_value = init_resets(mcdserver_state.resets);
+    if (return_value != 0) {
+        g_assert_not_reached();
+    }
+    return_value = init_trigger(&mcdserver_state.trigger);
+    if (return_value != 0) {
+        g_assert_not_reached();
+    }
+
+    mcd_put_packet(TCP_HANDSHAKE_SUCCESS);
+}
+
+
+void handle_close_server(GArray *params, void *user_ctx)
+{
+    uint32_t pid = 1;
+    MCDProcess *process = mcd_get_process(pid);
+
+    /*
+     * 1. free memory
+     * TODO: do this only if there are no processes attached anymore!
+     */
+    g_list_free(mcdserver_state.all_memspaces);
+    g_list_free(mcdserver_state.all_reggroups);
+    g_list_free(mcdserver_state.all_registers);
+    g_array_free(mcdserver_state.resets, TRUE);
+
+    /* 2. detach */
+    process->attached = false;
+
+    /* 3. reset process */
+    if (pid == mcd_get_cpu_pid(mcdserver_state.c_cpu)) {
+        mcdserver_state.c_cpu = mcd_first_attached_cpu();
+    }
+    if (!mcdserver_state.c_cpu) {
+        /* no more processes attached */
+        mcd_vm_start();
+    }
+}
+
