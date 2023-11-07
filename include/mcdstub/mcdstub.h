@@ -673,6 +673,14 @@ void handle_query_regs_c(GArray *params, void *user_ctx);
 void handle_open_server(GArray *params, void *user_ctx);
 
 /**
+ * handle_reset() - Handler for performing resets.
+ *
+ * This function is currently not in use.
+ * @params: GArray with all TCP packet parameters.
+ */
+void handle_reset(GArray *params, void *user_ctx);
+
+/**
  * handle_query_state() - Handler for the state query.
  *
  * This function collects all data stored in the

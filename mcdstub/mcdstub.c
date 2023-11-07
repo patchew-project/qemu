@@ -511,6 +511,16 @@ int mcd_handle_packet(const char *line_buf)
             cmd_parser = &close_core_cmd_desc;
         }
         break;
+    case TCP_CHAR_RESET:
+        {
+            static MCDCmdParseEntry reset_cmd_desc = {
+                .handler = handle_reset,
+            };
+            reset_cmd_desc.cmd = (char[2]) { TCP_CHAR_RESET, '\0' };
+            strcpy(reset_cmd_desc.schema, (char[2]) { ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &reset_cmd_desc;
+        }
+        break;
     default:
         /* command not supported */
         mcd_put_packet("");
@@ -1566,6 +1576,14 @@ void handle_query_regs_c(GArray *params, void *user_ctx)
         TCP_ARGUMENT_THREAD, my_register.mcd_hw_thread_id,
         TCP_ARGUMENT_OPCODE, my_register.opcode);
     mcd_put_strbuf();
+}
+
+void handle_reset(GArray *params, void *user_ctx)
+{
+    /*
+     * int reset_id = get_param(params, 0)->data_int;
+     * TODO: implement resets
+     */
 }
 
 void handle_query_state(GArray *params, void *user_ctx)
