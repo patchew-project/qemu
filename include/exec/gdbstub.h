@@ -15,10 +15,17 @@ typedef struct GDBFeature {
     const char *xml;
 } GDBFeature;
 
-
 /* Get or set a register.  Returns the size of the register.  */
 typedef int (*gdb_get_reg_cb)(CPUArchState *env, GByteArray *buf, int reg);
 typedef int (*gdb_set_reg_cb)(CPUArchState *env, uint8_t *buf, int reg);
+
+typedef struct GDBRegisterState {
+    int base_reg;
+    int num_regs;
+    gdb_get_reg_cb get_reg;
+    gdb_set_reg_cb set_reg;
+    const char *xml;
+} GDBRegisterState;
 
 /**
  * gdb_register_coprocessor() - register a supplemental set of registers
