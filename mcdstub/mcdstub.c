@@ -867,6 +867,127 @@ CPUState *find_cpu(uint32_t thread_id)
 }
 
 
+void parse_reg_xml(const char *xml, int size, GArray *registers,
+    uint8_t reg_type, uint32_t reg_id_offset)
+{
+    /* iterates over the complete xml file */
+    int i, j;
+    uint32_t current_reg_id = reg_id_offset;
+    uint32_t internal_id;
+    int still_to_skip = 0;
+    char argument[64] = {0};
+    char value[64] = {0};
+    bool is_reg = false;
+    bool is_argument = false;
+    bool is_value = false;
+    GArray *reg_data;
+
+    char c;
+    char *c_ptr;
+
+    xml_attrib attribute_j;
+    const char *argument_j;
+    const char *value_j;
+
+    for (i = 0; i < size; i++) {
+        c = xml[i];
+        c_ptr = &c;
+
+        if (still_to_skip > 0) {
+            /* skip unwanted chars */
+            still_to_skip--;
+            continue;
+        }
+
+        if (strncmp(&xml[i], "<reg", 4) == 0) {
+            /* start of a register */
+            still_to_skip = 3;
+            is_reg = true;
+            reg_data = g_array_new(false, true, sizeof(xml_attrib));
+        } else if (is_reg) {
+            if (strncmp(&xml[i], "/>", 2) == 0) {
+                /* end of register info */
+                still_to_skip = 1;
+                is_reg = false;
+
+                /* create empty register */
+                mcd_reg_st my_register = (const struct mcd_reg_st){ 0 };
+
+                /* add found attribtues */
+                for (j = 0; j < reg_data->len; j++) {
+                    attribute_j = g_array_index(reg_data, xml_attrib, j);
+
+                    argument_j = attribute_j.argument;
+                    value_j = attribute_j.value;
+
+                    if (strcmp(argument_j, "name") == 0) {
+                        strcpy(my_register.name, value_j);
+                    } else if (strcmp(argument_j, "regnum") == 0) {
+                        my_register.id = atoi(value_j);
+                    } else if (strcmp(argument_j, "bitsize") == 0) {
+                        my_register.bitsize = atoi(value_j);
+                    } else if (strcmp(argument_j, "type") == 0) {
+                        strcpy(my_register.type, value_j);
+                    } else if (strcmp(argument_j, "group") == 0) {
+                        strcpy(my_register.group, value_j);
+                    }
+                }
+                /* add reg_type, internal_id and id*/
+                my_register.reg_type = reg_type;
+                my_register.internal_id = internal_id;
+                internal_id++;
+                if (!my_register.id) {
+                    my_register.id = current_reg_id;
+                    current_reg_id++;
+                } else {
+                    /* set correct ID for the next register */
+                    current_reg_id = my_register.id + 1;
+                }
+                /* store register */
+                g_array_append_vals(registers, (gconstpointer)&my_register, 1);
+                /* free memory */
+                g_array_free(reg_data, false);
+            } else {
+                /* store info for register */
+                switch (c) {
+                case ' ':
+                    break;
+                case '=':
+                    is_argument = false;
+                    break;
+                case '"':
+                    if (is_value) {
+                        /* end of value reached */
+                        is_value = false;
+                        /* store arg-val combo */
+                        xml_attrib current_attribute;
+                        strcpy(current_attribute.argument, argument);
+                        strcpy(current_attribute.value, value);
+                        g_array_append_vals(reg_data,
+                        (gconstpointer)&current_attribute, 1);
+                        memset(argument, 0, sizeof(argument));
+                        memset(value, 0, sizeof(value));
+                    } else {
+                        /*start of value */
+                        is_value = true;
+                    }
+                    break;
+                default:
+                    if (is_argument) {
+                        strncat(argument, c_ptr, 1);
+                    } else if (is_value) {
+                        strncat(value, c_ptr, 1);
+                    } else {
+                        is_argument = true;
+                        strncat(argument, c_ptr, 1);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
 int int_cmp(gconstpointer a, gconstpointer b)
 {
     int int_a = *(int *)a;
