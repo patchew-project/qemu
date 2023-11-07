@@ -332,8 +332,10 @@ int gdbserver_start(const char *port_or_path)
     }
 
     if (port > 0 && gdb_accept_tcp(gdb_fd)) {
+        gdb_init_debug_class();
         return 0;
     } else if (gdb_accept_socket(gdb_fd)) {
+        gdb_init_debug_class();
         gdbserver_user_state.socket_path = g_strdup(port_or_path);
         return 0;
     }

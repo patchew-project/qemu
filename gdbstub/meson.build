@@ -11,8 +11,8 @@ gdb_user_ss = ss.source_set()
 gdb_system_ss = ss.source_set()
 
 # We build two versions of gdbstub, one for each mode
-gdb_user_ss.add(files('gdbstub.c', 'user.c'))
-gdb_system_ss.add(files('gdbstub.c', 'system.c'))
+gdb_user_ss.add(files('gdbstub.c', 'user.c', '../debug/debug-gdb.c'))
+gdb_system_ss.add(files('gdbstub.c', 'system.c', '../debug/debug-gdb.c'))
 
 gdb_user_ss = gdb_user_ss.apply(config_targetos, strict: false)
 gdb_system_ss = gdb_system_ss.apply(config_targetos, strict: false)
