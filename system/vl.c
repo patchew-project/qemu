@@ -1359,6 +1359,7 @@ static void qemu_setup_display(void)
             dpy.type = DISPLAY_TYPE_NONE;
 #if defined(CONFIG_VNC)
             vnc_parse("localhost:0,to=99,id=default");
+            display_remote++;
 #endif
         }
     }
@@ -1391,7 +1392,8 @@ static void qemu_create_default_devices(void)
         }
     }
 
-    if (nographic || (!vc && !is_daemonized() && isatty(STDOUT_FILENO))) {
+    if (nographic ||
+        ((!display_remote || !vc) && !is_daemonized() && isatty(STDOUT_FILENO))) {
         if (default_parallel) {
             add_device_config(DEV_PARALLEL, "null");
         }
