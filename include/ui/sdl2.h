@@ -21,6 +21,7 @@
 # include <SDL_image.h>
 #endif
 
+#include "ui/clipboard.h"
 #include "ui/kbd-state.h"
 #ifdef CONFIG_OPENGL
 # include "ui/egl-helpers.h"
@@ -51,6 +52,7 @@ struct sdl2_console {
     bool y0_top;
     bool scanout_mode;
 #endif
+    QemuClipboardPeer cbpeer;
 };
 
 void sdl2_window_create(struct sdl2_console *scon);
@@ -69,6 +71,9 @@ void sdl2_2d_refresh(DisplayChangeListener *dcl);
 void sdl2_2d_redraw(struct sdl2_console *scon);
 bool sdl2_2d_check_format(DisplayChangeListener *dcl,
                           pixman_format_code_t format);
+
+void sdl2_clipboard_handle_request(struct sdl2_console *scon);
+void sdl2_clipboard_init(struct sdl2_console *scon);
 
 void sdl2_gl_update(DisplayChangeListener *dcl,
                     int x, int y, int w, int h);

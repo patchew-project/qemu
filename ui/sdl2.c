@@ -710,6 +710,11 @@ void sdl2_poll_events(struct sdl2_console *scon)
         case SDL_WINDOWEVENT:
             handle_windowevent(ev);
             break;
+#if defined(CONFIG_SDL_CLIPBOARD)
+        case SDL_CLIPBOARDUPDATE:
+            sdl2_clipboard_handle_request(scon);
+            break;
+#endif
         default:
             break;
         }
@@ -930,6 +935,9 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
             qemu_console_set_window_id(con, info.info.x11.window);
 #endif
         }
+#endif
+#if defined(CONFIG_SDL_CLIPBOARD)
+        sdl2_clipboard_init(&sdl2_console[i]);
 #endif
     }
 
