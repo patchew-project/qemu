@@ -437,7 +437,7 @@ static uint64_t pnv_i2c_xscom_read(void *opaque, hwaddr addr,
     case I2C_PORT_BUSY_REG: /* compute busy bit for each port  */
         val = 0;
         for (i = 0; i < i2c->num_busses; i++) {
-            val |= i2c_bus_busy(i2c->busses[i]) << i;
+            val |= (uint64_t) i2c_bus_busy(i2c->busses[i]) << i;
         }
         break;
 
