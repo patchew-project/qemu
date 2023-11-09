@@ -60,3 +60,36 @@ void os_set_line_buffering(void)
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
 }
+
+FARPROC WINAPI dll_delaylink_hook(unsigned dliNotify, PDelayLoadInfo pdli) {
+    /* If we just tried, or are about to try to load a DLL ... */
+    if (dliNotify == dliFailLoadLib || dliNotify == dliNotePreLoadLibrary) {
+        /* ... if the failing request was for qemu.exe, ... */
+        if (strcmp(pdli->szDll, "qemu.exe") == 0) {
+            /* ... then pass back a pointer to the top level module. */
+            HMODULE top = GetModuleHandle(NULL);
+            return (FARPROC) top;
+        }
+    }
+    /* Otherwise we can't do anything special. */
+    return 0;
+}
+void set_dll_delaylink_hook(GModule *mod) {
+    /* find the __pfnDliFailureHook2 symbol in the DLL.
+     * if found, set it to our handler.
+     */
+    gpointer sym;
+    PfnDliHook *hook;
+    if (g_module_symbol(mod, "__pfnDliFailureHook2", &sym)) {
+        hook = (PfnDliHook*) sym;
+        if (hook != NULL && *hook == NULL) {
+            *hook = &dll_delaylink_hook;
+        }
+    }
+    if (g_module_symbol(mod, "__pfnDliNotifyHook2", &sym)) {
+        hook = (PfnDliHook*) sym;
+        if (hook != NULL && *hook == NULL) {
+            *hook = &dll_delaylink_hook;
+        }
+    }
+}

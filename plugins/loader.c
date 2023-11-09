@@ -241,6 +241,9 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
     }
     QTAILQ_INSERT_TAIL(&plugin.ctxs, ctx, entry);
     ctx->installing = true;
+    #ifdef CONFIG_WIN32
+        set_dll_delaylink_hook(ctx->handle);
+    #endif
     rc = install(ctx->id, info, desc->argc, desc->argv);
     ctx->installing = false;
     if (rc) {
