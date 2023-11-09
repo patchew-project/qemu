@@ -229,6 +229,8 @@ controls = [
     Allowed1Control(
         name = 'secondary VM-Exit controls',
         bits = {
+            0: 'Save IA32 FRED MSRs',
+            1: 'Load IA32 FRED MSRs',
             },
         cap_msr = MSR_IA32_VMX_EXIT_CTLS2,
         ),
@@ -246,6 +248,7 @@ controls = [
             16: 'Load IA32_BNDCFGS',
             17: 'Conceal VM entries from PT',
             18: 'Load IA32_RTIT_CTL',
+            23: 'Load IA32 FRED MSRs',
             },
         cap_msr = MSR_IA32_VMX_ENTRY_CTLS,
         true_cap_msr = MSR_IA32_VMX_TRUE_ENTRY_CTLS,
