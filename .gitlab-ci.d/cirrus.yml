@@ -94,8 +94,6 @@ aarch64-macos-12-base-build:
     - cirrus-run -v --show-build-log always .gitlab-ci.d/cirrus/$NAME.yml
   variables:
     QEMU_JOB_CIRRUS: 1
-    QEMU_JOB_OPTIONAL: 1
-
 
 x86-netbsd:
   extends: .cirrus_kvm_job
@@ -110,3 +108,4 @@ x86-openbsd:
     NAME: openbsd
     CONFIGURE_ARGS: --target-list=i386-softmmu,riscv64-softmmu,mips64-softmmu
     TEST_TARGETS: check
+    QEMU_JOB_OPTIONAL: 1
