@@ -527,6 +527,9 @@ void multifd_save_cleanup(void)
 
         if (p->running) {
             qemu_thread_join(&p->thread);
+        } else {
+            qemu_sem_post(&p->sem_sync);
+            qemu_sem_post(&multifd_send_state->channels_ready);
         }
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -751,8 +754,6 @@ out:
         assert(local_err);
         trace_multifd_send_error(p->id);
         multifd_send_terminate_threads(local_err);
-        qemu_sem_post(&p->sem_sync);
-        qemu_sem_post(&multifd_send_state->channels_ready);
         error_free(local_err);
     }
 
@@ -780,20 +781,15 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
 
     if (!qio_task_propagate_error(task, &err)) {
         trace_multifd_tls_outgoing_handshake_complete(ioc);
-        if (multifd_channel_connect(p, ioc, &err)) {
-            return;
-        }
+        multifd_channel_connect(p, ioc, NULL);
+    } else {
+        /*
+         * The multifd client could already be waiting to queue data,
+         * so let it know that we didn't even start.
+         */
+        p->quit = true;
+        trace_multifd_tls_outgoing_handshake_error(ioc, error_get_pretty(err));
     }
-
-    trace_multifd_tls_outgoing_handshake_error(ioc, error_get_pretty(err));
-
-    /*
-     * Error happen, mark multifd_send_thread status as 'quit' although it
-     * is not created, and then tell who pay attention to me.
-     */
-    p->quit = true;
-    qemu_sem_post(&multifd_send_state->channels_ready);
-    qemu_sem_post(&p->sem_sync);
 }
 
 static void *multifd_tls_handshake_thread(void *opaque)
@@ -862,9 +858,6 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
                                              QIOChannel *ioc, Error *err)
 {
      migrate_set_error(migrate_get_current(), err);
-     /* Error happen, we need to tell who pay attention to me */
-     qemu_sem_post(&multifd_send_state->channels_ready);
-     qemu_sem_post(&p->sem_sync);
      /*
       * Although multifd_send_thread is not created, but main migration
       * thread need to judge whether it is running, so we need to mark
