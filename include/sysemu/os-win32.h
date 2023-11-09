@@ -30,6 +30,8 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 #include "qemu/typedefs.h"
+#include <delayimp.h>
+#include <gmodule.h>
 
 #ifdef HAVE_AFUNIX_H
 #include <afunix.h>
@@ -264,6 +266,29 @@ win32_close_exception_handler(struct _EXCEPTION_RECORD*, void*,
 
 void *qemu_win32_map_alloc(size_t size, HANDLE *h, Error **errp);
 void qemu_win32_map_free(void *ptr, HANDLE h, Error **errp);
+
+
+/* dll_delaylink_hook:
+ * @dliNotify: Type of event that caused this callback.
+ * @pdli: Extra data about the DLL being loaded
+ *
+ * For more info on the arguments and when this gets invoked see
+ * https://learn.microsoft.com/en-us/cpp/build/reference/understanding-the-helper-function
+ *
+ * This is to be used on windows as the target of a __pfnDliNotifyHook2 or __pfnDliFailureHook2
+ * hook. If the DLL being loaded is 'qemu.exe', it instead passes back a pointer to the main
+ * executable This gets set into plugins to assist with the plugins delay-linking back to the main
+ * executable, if they define an appropriate symbol. */
+FARPROC WINAPI dll_delaylink_hook(unsigned dliNotify, PDelayLoadInfo pdli);
+
+/* set_dll_delaylink_hook:
+ * @mod: pointer to the DLL being loaded
+ *
+ * takes a pointer to a loaded plugin DLL, and tries to find a __pfnDliNotifyHook2 or
+ * __pfnDliFailureHook2 hook. If it finds either one, and its value is null, it sets it to the
+ * address fo dll_delaylink_hook.
+ */
+void set_dll_delaylink_hook(GModule *mod);
 
 #ifdef __cplusplus
 }
