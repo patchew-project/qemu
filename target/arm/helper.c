@@ -2651,6 +2651,16 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         } else {
             /* Next transition is when we hit cval */
             nexttick = gt->cval + offset;
+            if (nexttick < gt->cval) {
+                /*
+                 * If gt->cval value is close to UINT64_MAX then adding
+                 * to it offset can lead to overflow of nexttick variable.
+                 * So, this check tests that arguments sum is less than any
+                 * addend, and in case it is overflowed we have to mod timer
+                 * to INT64_MAX.
+                 */
+                nexttick = UINT64_MAX;
+            }
         }
         /*
          * Note that the desired next expiry time might be beyond the
