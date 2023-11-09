@@ -26,6 +26,8 @@ semdict = {}  # tag -> semantics
 attribdict = {}  # tag -> attributes
 macros = {}  # macro -> macro information...
 attribinfo = {}  # Register information and misc
+registers = {}  # register -> register functions
+new_registers = {}
 tags = []  # list of all tags
 overrides = {}  # tags with helper overrides
 idef_parser_enabled = {}  # tags enabled for idef-parser
@@ -350,3 +352,468 @@ def read_idef_parser_enabled_file(name):
     with open(name, "r") as idef_parser_enabled_file:
         lines = idef_parser_enabled_file.read().strip().split("\n")
         idef_parser_enabled = set(lines)
+
+
+def hvx_newv(tag):
+    if is_new_result(tag):
+        return "EXT_NEW"
+    elif is_tmp_result(tag):
+        return "EXT_TMP"
+    else:
+        return "EXT_DFL"
+
+class Register:
+    def __init__(self, regtype, regid):
+        self.regtype = regtype
+        self.regid = regid
+        self.regN = f"{regtype}{regid}N"
+        self.regV = f"{regtype}{regid}V"
+    def is_scalar_reg(self):
+        return True
+    def is_hvx_reg(self):
+        return False
+    def idef_arg(self, declared):
+        declared.append(self.regV)
+
+class Dest(Register):
+    def is_written(self):
+        return True
+    def is_writeonly(self):
+        return True
+    def is_read(self):
+        return False
+    def is_readwrite(self):
+        return False
+
+class Source(Register):
+    def is_written(self):
+        return False
+    def is_writeonly(self):
+        return False
+    def is_read(self):
+        return True
+    def is_readwrite(self):
+        return False
+
+class ReadWrite(Register):
+    def is_written(self):
+        return True
+    def is_writeonly(self):
+        return False
+    def is_read(self):
+        return True
+    def is_readwrite(self):
+        return True
+
+class GprDest(Dest):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    TCGv {self.regV} = get_result_gpr(ctx, {self.regN});\n")
+    def genptr_dst_write(self, f, tag):
+        f.write(f"    gen_log_reg_write(ctx, {self.regN}, {self.regV});\n")
+
+class GprSource(Source):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    TCGv {self.regV} = hex_gpr[{self.regN}];\n")
+
+class GprNewSource(Source):
+    def genptr_decl(self, f, tag, regno):
+        self.regV = self.regN
+        f.write(
+            f"    TCGv {self.regV} = "
+            f"get_result_gpr(ctx, insn->regno[{regno}]);\n"
+        )
+
+class GprReadWrite(ReadWrite):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    TCGv {self.regV} = get_result_gpr(ctx, {self.regN});\n")
+        ## For read/write registers, we need to get the original value into
+        ## the result TCGv.  For conditional instructions, this is done in
+        ## gen_start_packet.  For unconditional instructions, we do it here.
+        if "A_CONDEXEC" not in attribdict[tag]:
+            f.write(f"    tcg_gen_mov_tl({self.regV}, hex_gpr[{self.regN}]);\n")
+    def genptr_dst_write(self, f, tag):
+        f.write(f"    gen_log_reg_write(ctx, {self.regN}, {self.regV});\n")
+
+class ControlDest(Dest):
+    def genptr_decl(self, f, tag, regno):
+        f.write(
+            f"    const int {self.regN} = "
+            f"insn->regno[{regno}]  + HEX_REG_SA0;\n"
+        )
+        f.write(f"    TCGv {self.regV} = get_result_gpr(ctx, {self.regN});\n")
+    def genptr_dst_write(self, f, tag):
+        f.write(f"    gen_write_ctrl_reg(ctx, {self.regN}, {self.regV});\n")
+
+class ControlSource(Source):
+    def genptr_decl(self, f, tag, regno):
+        f.write(
+            f"    const int {self.regN} = "
+            f"insn->regno[{regno}] + HEX_REG_SA0;\n"
+        )
+        f.write(f"    TCGv {self.regV} = tcg_temp_new();\n")
+        f.write(f"    gen_read_ctrl_reg(ctx, {self.regN}, {self.regV});\n")
+
+class ModifierSource(Source):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    TCGv {self.regV} = hex_gpr[{self.regN} + HEX_REG_M0];\n")
+    def idef_arg(self, declared):
+        declared.append(self.regV)
+        declared.append(self.regN)
+
+class PredDest(Dest):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    TCGv {self.regV} = tcg_temp_new();\n")
+    def genptr_dst_write(self, f, tag):
+        f.write(f"    gen_log_pred_write(ctx, {self.regN}, {self.regV});\n")
+
+class PredSource(Source):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    TCGv {self.regV} = hex_pred[{self.regN}];\n")
+
+class PredNewSource(Source):
+    def genptr_decl(self, f, tag, regno):
+        self.regV = self.regN
+        f.write(
+            f"    TCGv {self.regV} = "
+            f"get_result_pred(ctx, insn->regno[{regno}]);\n"
+        )
+
+class PredReadWrite(ReadWrite):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    TCGv {self.regV} = tcg_temp_new();\n")
+        f.write(f"    tcg_gen_mov_tl({self.regV}, hex_pred[{self.regN}]);\n")
+    def genptr_dst_write(self, f, tag):
+        f.write(f"    gen_log_pred_write(ctx, {self.regN}, {self.regV});\n")
+
+class PairDest(Dest):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(
+            f"    TCGv_i64 {self.regV} = "
+            f"get_result_gpr_pair(ctx, {self.regN});\n"
+        )
+    def genptr_dst_write(self, f, tag):
+        f.write(f"    gen_log_reg_write_pair(ctx, {self.regN}, {self.regV});\n")
+
+class PairSource(Source):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    TCGv_i64 {self.regV} = tcg_temp_new_i64();\n")
+        f.write(f"    tcg_gen_concat_i32_i64({self.regV},\n")
+        f.write(f"        hex_gpr[{self.regN}],\n")
+        f.write(f"        hex_gpr[{self.regN} + 1]);\n")
+
+class PairReadWrite(ReadWrite):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(
+            f"    TCGv_i64 {self.regV} = "
+            f"get_result_gpr_pair(ctx, {self.regN});\n"
+        )
+        f.write(f"    tcg_gen_concat_i32_i64({self.regV},\n")
+        f.write(f"        hex_gpr[{self.regN}],\n")
+        f.write(f"        hex_gpr[{self.regN} + 1]);\n")
+    def genptr_dst_write(self, f, tag):
+        f.write(f"    gen_log_reg_write_pair(ctx, {self.regN}, {self.regV});\n")
+
+class ControlPairDest(Dest):
+    def genptr_decl(self, f, tag, regno):
+        f.write(
+            f"    const int {self.regN} = "
+            f"insn->regno[{regno}] + HEX_REG_SA0;\n"
+        )
+        f.write(
+            f"    TCGv_i64 {self.regV} = "
+            f"get_result_gpr_pair(ctx, {self.regN});\n"
+        )
+    def genptr_dst_write(self, f, tag):
+        f.write(
+            f"    gen_write_ctrl_reg_pair(ctx, {self.regN}, {self.regV});\n"
+        )
+
+class ControlPairSource(Source):
+    def genptr_decl(self, f, tag, regno):
+        f.write(
+            f"    const int {self.regN} = "
+            f"insn->regno[{regno}] + HEX_REG_SA0;\n"
+        )
+        f.write(f"    TCGv_i64 {self.regV} = tcg_temp_new_i64();\n")
+        f.write(f"    gen_read_ctrl_reg_pair(ctx, {self.regN}, {self.regV});\n")
+
+class HvxDest(Dest):
+    def is_scalar_reg(self):
+        return False
+    def is_hvx_reg(self):
+        return True
+
+class HvxSource(Source):
+    def is_scalar_reg(self):
+        return False
+    def is_hvx_reg(self):
+        return True
+
+class HvxReadWrite(ReadWrite):
+    def is_scalar_reg(self):
+        return False
+    def is_hvx_reg(self):
+        return True
+
+class VRegDest(HvxDest):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = " f"insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        if is_tmp_result(tag):
+            f.write(f"        ctx_tmp_vreg_off(ctx, {self.regN}, 1, true);\n")
+        else:
+            f.write(
+                f"        ctx_future_vreg_off(ctx, {self.regN}, 1, true);\n"
+            )
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+    def genptr_dst_write(self, f, tag):
+        pass
+
+class VRegSource(HvxSource):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        f.write(f"        vreg_src_off(ctx, {self.regN});\n")
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+
+class VRegNewSource(HvxSource):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const intptr_t {self.regN}_num = insn->regno[{regno}];\n")
+        if skip_qemu_helper(tag):
+            f.write(f"    const intptr_t {self.regN}_off =\n")
+            f.write(
+                f"         ctx_future_vreg_off(ctx, {self.regN}_num, "
+                f"1, true);\n"
+            )
+        else:
+            f.write(
+                f"    TCGv {self.regN} = tcg_constant_tl({self.regN}_num);\n"
+            )
+
+class VRegReadWrite(HvxReadWrite):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = " f"insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        if is_tmp_result(tag):
+            f.write(f"        ctx_tmp_vreg_off(ctx, {self.regN}, 1, true);\n")
+        else:
+            f.write(
+                f"        ctx_future_vreg_off(ctx, {self.regN}, 1, true);\n"
+            )
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+        f.write(f"    tcg_gen_gvec_mov(MO_64, {self.regV}_off,\n")
+        f.write(f"        vreg_src_off(ctx, {self.regN}),\n")
+        f.write("        sizeof(MMVector), sizeof(MMVector));\n")
+    def genptr_dst_write(self, f, tag):
+        pass
+
+class VRegTmp(HvxReadWrite):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = " f"insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        f.write("        offsetof(CPUHexagonState, vtmp);\n")
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+        f.write(f"    tcg_gen_gvec_mov(MO_64, {self.regV}_off,\n")
+        f.write(f"        vreg_src_off(ctx, {self.regN}),\n")
+        f.write(f"        sizeof(MMVector), sizeof(MMVector));\n")
+    def genptr_dst_write(self, f, tag):
+        f.write(
+            f"    gen_log_vreg_write(ctx, {self.regV}_off, {self.regN}, "
+            f"{hvx_newv(tag)});\n"
+        )
+
+class VRegPairDest(HvxDest):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} =  insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        if is_tmp_result(tag):
+            f.write(
+                f"        ctx_tmp_vreg_off(ctx, {self.regN}, 2, " "true);\n"
+            )
+        else:
+            f.write(
+                f"        ctx_future_vreg_off(ctx, {self.regN}, 2, true);\n"
+            )
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+    def genptr_dst_write(self, f, tag):
+        pass
+
+class VRegPairSource(HvxSource):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        f.write(f"        offsetof(CPUHexagonState, {self.regV});\n")
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+        f.write(f"    tcg_gen_gvec_mov(MO_64, {self.regV}_off,\n")
+        f.write(f"        vreg_src_off(ctx, {self.regN}),\n")
+        f.write("        sizeof(MMVector), sizeof(MMVector));\n")
+        f.write("    tcg_gen_gvec_mov(MO_64,\n")
+        f.write(f"        {self.regV}_off + sizeof(MMVector),\n")
+        f.write(f"        vreg_src_off(ctx, {self.regN} ^ 1),\n")
+        f.write("        sizeof(MMVector), sizeof(MMVector));\n")
+
+class VRegPairReadWrite(HvxReadWrite):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        f.write(f"        offsetof(CPUHexagonState, {self.regV});\n")
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+        f.write(f"    tcg_gen_gvec_mov(MO_64, {self.regV}_off,\n")
+        f.write(f"        vreg_src_off(ctx, {self.regN}),\n")
+        f.write("        sizeof(MMVector), sizeof(MMVector));\n")
+        f.write("    tcg_gen_gvec_mov(MO_64,\n")
+        f.write(f"        {self.regV}_off + sizeof(MMVector),\n")
+        f.write(f"        vreg_src_off(ctx, {self.regN} ^ 1),\n")
+        f.write("        sizeof(MMVector), sizeof(MMVector));\n")
+    def genptr_dst_write(self, f, tag):
+        f.write(
+            f"    gen_log_vreg_write_pair(ctx, {self.regV}_off, {self.regN}, "
+            f"{hvx_newv(tag)});\n"
+        )
+
+class QRegDest(HvxDest):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        f.write(f"        get_result_qreg(ctx, {self.regN});\n")
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+    def genptr_dst_write(self, f, tag):
+        pass
+
+class QRegSource(HvxSource):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        f.write(f"        offsetof(CPUHexagonState, QRegs[{self.regN}]);\n")
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+
+class QRegReadWrite(HvxReadWrite):
+    def genptr_decl(self, f, tag, regno):
+        f.write(f"    const int {self.regN} = insn->regno[{regno}];\n")
+        f.write(f"    const intptr_t {self.regV}_off =\n")
+        f.write(f"        get_result_qreg(ctx, {self.regN});\n")
+        if not skip_qemu_helper(tag):
+            f.write(f"    TCGv_ptr {self.regV} = " "tcg_temp_new_ptr();\n")
+            f.write(
+                f"    tcg_gen_addi_ptr({self.regV}, tcg_env, "
+                f"{self.regV}_off);\n"
+            )
+        f.write(f"    tcg_gen_gvec_mov(MO_64, {self.regV}_off,\n")
+        f.write(f"        offsetof(CPUHexagonState, QRegs[{self.regN}]),\n")
+        f.write("        sizeof(MMQReg), sizeof(MMQReg));\n")
+    def genptr_dst_write(self, f, tag):
+        pass
+
+def init_registers():
+    registers["Rd"] = GprDest("R", "d")
+    registers["Re"] = GprDest("R", "e")
+    registers["Rs"] = GprSource("R", "s")
+    registers["Rt"] = GprSource("R", "t")
+    registers["Ru"] = GprSource("R", "u")
+    registers["Rv"] = GprSource("R", "v")
+    registers["Rx"] = GprReadWrite("R", "x")
+    registers["Ry"] = GprReadWrite("R", "y")
+    registers["Cd"] = ControlDest("C", "d")
+    registers["Cs"] = ControlSource("C", "s")
+    registers["Mu"] = ModifierSource("M", "u")
+    registers["Pd"] = PredDest("P", "d")
+    registers["Pe"] = PredDest("P", "e")
+    registers["Ps"] = PredSource("P", "s")
+    registers["Pt"] = PredSource("P", "t")
+    registers["Pu"] = PredSource("P", "u")
+    registers["Pv"] = PredSource("P", "v")
+    registers["Px"] = PredReadWrite("P", "x")
+    registers["Rdd"] = PairDest("R", "dd")
+    registers["Ree"] = PairDest("R", "ee")
+    registers["Rss"] = PairSource("R", "ss")
+    registers["Rtt"] = PairSource("R", "tt")
+    registers["Rxx"] = PairReadWrite("R", "xx")
+    registers["Ryy"] = PairReadWrite("R", "yy")
+    registers["Cdd"] = ControlPairDest("C", "dd")
+    registers["Css"] = ControlPairSource("C", "ss")
+    registers["Vd"] = VRegDest("V", "d")
+    registers["Vs"] = VRegSource("V", "s")
+    registers["Vu"] = VRegSource("V", "u")
+    registers["Vv"] = VRegSource("V", "v")
+    registers["Vw"] = VRegSource("V", "w")
+    registers["Vx"] = VRegReadWrite("V", "x")
+    registers["Vy"] = VRegTmp("V", "y")
+    registers["Vdd"] = VRegPairDest("V", "dd")
+    registers["Vuu"] = VRegPairSource("V", "uu")
+    registers["Vvv"] = VRegPairSource("V", "vv")
+    registers["Vxx"] = VRegPairReadWrite("V", "xx")
+    registers["Qd"] = QRegDest("Q", "d")
+    registers["Qe"] = QRegDest("Q", "e")
+    registers["Qs"] = QRegSource("Q", "s")
+    registers["Qt"] = QRegSource("Q", "t")
+    registers["Qu"] = QRegSource("Q", "u")
+    registers["Qv"] = QRegSource("Q", "v")
+    registers["Qx"] = QRegReadWrite("Q", "x")
+
+    new_registers["Ns"] = GprNewSource("N", "s")
+    new_registers["Nt"] = GprNewSource("N", "t")
+    new_registers["Pt"] = PredNewSource("P", "t")
+    new_registers["Pu"] = PredNewSource("P", "u")
+    new_registers["Pv"] = PredNewSource("P", "v")
+    new_registers["Os"] = VRegNewSource("O", "s")
+
+def get_register(tag, regtype, regid):
+    if is_old_val(regtype, regid, tag):
+        return registers[f"{regtype}{regid}"]
+    else:
+        return new_registers[f"{regtype}{regid}"]
