@@ -57,6 +57,9 @@ DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
 /* Data Register, UARTDR */
 #define DR_BE   (1 << 10)
 
+/* Receive Status Register/Error Clear Register, UARTRSR/UARTECR */
+#define RSR_OE  (1 << 3)
+
 /* Interrupt status bits in UARTRIS, UARTMIS, UARTIMSC */
 #define INT_OE (1 << 10)
 #define INT_BE (1 << 9)
@@ -156,6 +159,68 @@ static void pl011_reset_tx_fifo(PL011State *s)
     fifo8_reset(&s->xmit_fifo);
 }
 
+static gboolean pl011_drain_tx(PL011State *s)
+{
+    trace_pl011_fifo_tx_drain(fifo8_num_used(&s->xmit_fifo));
+    pl011_reset_tx_fifo(s);
+    s->rsr &= ~RSR_OE;
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean pl011_xmit(void *do_not_use, GIOCondition cond, void *opaque)
+{
+    PL011State *s = opaque;
+    int ret;
+    const uint8_t *buf;
+    uint32_t buflen;
+    uint32_t count;
+    bool tx_enabled;
+
+    tx_enabled = (s->cr & CR_UARTEN) && (s->cr & CR_TXE);
+    if (!tx_enabled) {
+        /*
+         * If TX is disabled, nothing to do.
+         * Keep the potentially used FIFO as is.
+         */
+        return G_SOURCE_REMOVE;
+    }
+
+    if (!qemu_chr_fe_backend_connected(&s->chr)) {
+        /* Instant drain the fifo when there's no back-end */
+        return pl011_drain_tx(s);
+    }
+
+    count = fifo8_num_used(&s->xmit_fifo);
+    if (count < 1) {
+        /* FIFO empty */
+        return G_SOURCE_REMOVE;
+    }
+
+    /* Transmit as much data as we can */
+    buf = fifo8_peek_buf(&s->xmit_fifo, count, &buflen);
+    ret = qemu_chr_fe_write(&s->chr, buf, buflen);
+    if (ret >= 0) {
+        /* Pop the data we could transmit */
+        trace_pl011_fifo_tx_xmit(ret);
+        fifo8_pop_buf(&s->xmit_fifo, ret, NULL);
+        s->int_level |= INT_TX;
+    }
+
+    if (!fifo8_is_empty(&s->xmit_fifo)) {
+        /* Reschedule another transmission if we couldn't transmit all */
+        guint r = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+                                        pl011_xmit, s);
+        if (!r) {
+            /* Error in back-end? */
+            return pl011_drain_tx(s);
+        }
+    }
+
+    pl011_update(s);
+
+    return G_SOURCE_REMOVE;
+}
+
 static void pl011_write_txdata(PL011State *s, uint8_t data)
 {
     if (!(s->cr & CR_UARTEN)) {
@@ -165,11 +230,25 @@ static void pl011_write_txdata(PL011State *s, uint8_t data)
         qemu_log_mask(LOG_GUEST_ERROR, "PL011 data written to disabled TX UART\n");
     }
 
-    /* XXX this blocks entire thread. Rewrite to use
-     * qemu_chr_fe_write and background I/O callbacks */
-    qemu_chr_fe_write_all(&s->chr, &data, 1);
-    s->int_level |= INT_TX;
-    pl011_update(s);
+    if (fifo8_is_full(&s->xmit_fifo)) {
+        /*
+         * The FIFO contents remain valid because no more data is
+         * written when the FIFO is full, only the contents of the
+         * shift register are overwritten. The CPU must now read
+         * the data, to empty the FIFO.
+         */
+        trace_pl011_fifo_tx_overrun();
+        s->rsr |= RSR_OE;
+        return;
+    }
+
+    trace_pl011_fifo_tx_put(data);
+    fifo8_push(&s->xmit_fifo, data);
+    if (fifo8_is_full(&s->xmit_fifo)) {
+        s->flags |= PL011_FLAG_TXFF;
+    }
+
+    pl011_xmit(NULL, G_IO_OUT, s);
 }
 
 static uint32_t pl011_read_rxdata(PL011State *s)
@@ -331,10 +410,21 @@ static void pl011_write(void *opaque, hwaddr offset,
         s->lcr = value;
         pl011_set_read_trigger(s);
         break;
-    case 12: /* UARTCR */
+    case 12: /* UARTCR */ {
+        uint16_t en_bits = s->cr & (CR_UARTEN | CR_TXE | CR_RXE);
+        uint16_t dis_bits = value & (CR_UARTEN | CR_TXE | CR_RXE);
+        if (en_bits ^ dis_bits && !fifo8_is_empty(&s->xmit_fifo)) {
+            /*
+             * If the UART is disabled in the middle of transmission
+             * or reception, it completes the current character before
+             * stopping.
+             */
+            pl011_xmit(NULL, G_IO_OUT, s);
+        }
         /* ??? Need to implement the enable and loopback bits.  */
         s->cr = value;
         break;
+    }
     case 13: /* UARTIFS */
         s->ifl = value;
         pl011_set_read_trigger(s);
@@ -475,6 +565,11 @@ static int pl011_post_load(void *opaque, int version_id)
          */
         s->read_fifo[0] = s->read_fifo[s->read_pos];
         s->read_pos = 0;
+    }
+
+    if (!fifo8_is_empty(&s->xmit_fifo)) {
+        /* Reschedule another transmission */
+        qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP, pl011_xmit, s);
     }
 
     return 0;
