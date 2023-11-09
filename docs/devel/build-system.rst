@@ -122,10 +122,49 @@ functioning.  These are performed using a few more helper functions:
    indicated by $TMPC.
 
 
-Python virtual environments and the QEMU build system
------------------------------------------------------
+Python virtual environments and the build process
+-------------------------------------------------
 
-TBD
+An important part of configure is to create a Python virtual environment
+(venv) during the configuration phase, using the Python interpreter that
+``configure`` identified, or that was requested via the ``--python``
+command line option and the ``$PYTHON`` variable from the environment.
+The venv resides in the ``pyvenv`` directory in the build tree,
+and provides consistency in how the build process runs Python code.
+In particular it avoids a potential mismatch, where Meson and Sphinx
+binaries on the PATH might operate in a different Python environment
+than the one chosen by the user during the build process.
+
+At this stage, ``configure`` also queries the chosen Python interpreter
+about QEMU's build dependencies.  ``configure`` does  *not*
+pick the ``meson``, ``sphinx-build`` or ``avocado`` binaries in the PATH;
+likewise, there are no options such as ``--meson`` or ``sphinx-build``.
+If QEMU does not find a dependency, check that it was installed in the
+right ``site-packages`` directory or with the right ``pip`` program.
+
+If the package is available as a system package for the chosen
+interpreter, ``configure`` prepares a small script that invokes it
+from the venv itself.  If not, ``configure`` can also optionally
+install dependencies in the virtual environment with ``pip``.
+Downloading is triggered only when a ``configure`` option (currently,
+only ``--enable-docs``) is explicitly enabled but the dependencies are
+not present, and can also be disabled with ``--disable-download``.[#pip]_
+
+.. [#pip_] Avocado can also be installed with ``pip`` in the virtual
+           environment when running ``make check-avocado``.  In this
+           case, it is not currently possible to block the downloading.
+
+The required versions of the packages are stored in a configuration file
+``pythondeps.toml``.  The format is custom to QEMU, but it is documented
+at the top of the file itself and it should be easy to understand.  The
+requirements should make it possible to use the version that is packaged
+that is provided by supported distros.
+
+When dependencies are downloaded, instead, ``configure`` uses a "known
+good" version that is also listed in ``pythondeps.toml``.  In this
+scenario, ``pythondeps.toml`` behaves like the "lock file" used by
+``cargo``, ``poetry`` or other dependency management systems.
+
 
 Stage 2: Meson
 ==============
@@ -375,6 +414,15 @@ example::
 This is needed to obey the --python= option passed to the configure
 script, which may point to something other than the first python3
 binary on the path.
+
+By the time Meson runs, Python dependencies are available in the virtual
+environment and should be invoked though the scripts that ``configure``
+places under ``pyvenv``.  One way to do so is as follows, using Meson's
+``find_program`` function::
+
+  sphinx_build = find_program(
+       fs.parent(python.full_path()) / 'sphinx-build',
+       required: get_option('docs'))
 
 
 Stage 3: Make
