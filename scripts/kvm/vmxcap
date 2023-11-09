@@ -24,6 +24,7 @@ MSR_IA32_VMX_TRUE_EXIT_CTLS = 0x48F
 MSR_IA32_VMX_TRUE_ENTRY_CTLS = 0x490
 MSR_IA32_VMX_VMFUNC = 0x491
 MSR_IA32_VMX_PROCBASED_CTLS3 = 0x492
+MSR_IA32_VMX_EXIT_CTLS2 = 0x493
 
 class msr(object):
     def __init__(self):
@@ -219,9 +220,17 @@ controls = [
             23: 'Clear IA32_BNDCFGS',
             24: 'Conceal VM exits from PT',
             25: 'Clear IA32_RTIT_CTL',
+            31: 'Activate secondary VM-exit controls',
             },
         cap_msr = MSR_IA32_VMX_EXIT_CTLS,
         true_cap_msr = MSR_IA32_VMX_TRUE_EXIT_CTLS,
+        ),
+
+    Allowed1Control(
+        name = 'secondary VM-Exit controls',
+        bits = {
+            },
+        cap_msr = MSR_IA32_VMX_EXIT_CTLS2,
         ),
 
     Control(

@@ -551,6 +551,7 @@ typedef enum X86Seg {
 #define MSR_IA32_VMX_TRUE_EXIT_CTLS      0x0000048f
 #define MSR_IA32_VMX_TRUE_ENTRY_CTLS     0x00000490
 #define MSR_IA32_VMX_VMFUNC             0x00000491
+#define MSR_IA32_VMX_EXIT_CTLS2         0x00000493
 
 #define XSTATE_FP_BIT                   0
 #define XSTATE_SSE_BIT                  1
