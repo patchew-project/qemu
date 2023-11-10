@@ -75,6 +75,7 @@ typedef struct {
     char *name;
     /* channel thread id */
     QemuThread thread;
+    QemuThread *tls_thread;
     /* communication channel */
     QIOChannel *c;
     /* is the yank function registered */
