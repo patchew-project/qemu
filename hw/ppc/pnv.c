@@ -1877,6 +1877,13 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
                               qdev_get_gpio_in(DEVICE(&chip10->psi),
                                                PSIHB9_IRQ_SBE_I2C));
     }
+
+    /*
+     * Add a PCA9552 I2C device for PCIe hotplug control
+     * to engine 2, bus 1, address 0x63
+     */
+    i2c_slave_create_simple(chip10->i2c[2].busses[1], "pca9552", 0x63);
+
 }
 
 static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)
