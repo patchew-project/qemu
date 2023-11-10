@@ -213,6 +213,20 @@
 #endif
 
 /*
+ * From GCC documentation:
+ *
+ *   The warn_unused_result attribute causes a warning to be emitted if a
+ *   caller of the function with this attribute does not use its return value.
+ *   This is useful for functions where not checking the result is either a
+ *   security problem or always a bug, such as realloc.
+ */
+#if __has_attribute(warn_unused_result)
+# define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+# define QEMU_WARN_UNUSED_RESULT
+#endif
+
+/*
  * Ugly CPP trick that is like "defined FOO", but also works in C
  * code.  Useful to replace #ifdef with "if" statements; assumes
  * the symbol was defined with Meson's "config.set()", so it is empty
