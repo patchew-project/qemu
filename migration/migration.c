@@ -1293,6 +1293,9 @@ static void migrate_fd_cleanup(MigrationState *s)
         QEMUFile *tmp;
 
         trace_migrate_fd_cleanup();
+
+        multifd_save_cleanup();
+
         qemu_mutex_unlock_iothread();
         if (s->migration_thread_running) {
             qemu_thread_join(&s->thread);
@@ -1300,7 +1303,6 @@ static void migrate_fd_cleanup(MigrationState *s)
         }
         qemu_mutex_lock_iothread();
 
-        multifd_save_cleanup();
         qemu_mutex_lock(&s->qemu_file_lock);
         tmp = s->to_dst_file;
         s->to_dst_file = NULL;
