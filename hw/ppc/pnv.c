@@ -1903,6 +1903,11 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     qdev_connect_gpio_out(DEVICE(hotplug), 4,
                           qdev_get_gpio_in(DEVICE(hotplug), 9));
 
+    /*
+     * Add a PCA9554 I2C device for cable card presence detection
+     * to engine 2, bus 1, address 0x25
+     */
+    i2c_slave_create_simple(chip10->i2c[2].busses[1], "pca9554", 0x25);
 }
 
 static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)
