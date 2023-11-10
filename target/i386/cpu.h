@@ -1988,6 +1988,7 @@ struct ArchCPU {
      * If true present the old cache topology information
      */
     bool legacy_cache;
+    bool legacy_multi_node;
 
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
