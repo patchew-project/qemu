@@ -529,8 +529,8 @@ void multifd_save_cleanup(void)
             qemu_thread_join(p->tls_thread);
         }
 
-        if (p->running) {
-            qemu_thread_join(&p->thread);
+        if (p->thread) {
+            qemu_thread_join(p->thread);
         }
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -558,6 +558,8 @@ void multifd_save_cleanup(void)
         p->normal = NULL;
         g_free(p->tls_thread);
         p->tls_thread = NULL;
+        g_free(p->thread);
+        p->thread = NULL;
         multifd_send_state->ops->send_cleanup(p, &local_err);
         if (local_err) {
             migrate_set_error(migrate_get_current(), local_err);
@@ -762,10 +764,6 @@ out:
         error_free(local_err);
     }
 
-    qemu_mutex_lock(&p->mutex);
-    p->running = false;
-    qemu_mutex_unlock(&p->mutex);
-
     rcu_unregister_thread();
     migration_threads_remove(thread);
     trace_multifd_send_thread_end(p->id, p->num_packets, p->total_normal_pages);
@@ -860,7 +858,9 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
         migration_ioc_register_yank(ioc);
         p->registered_yank = true;
         p->c = ioc;
-        qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
+
+        p->thread = g_new0(QemuThread, 1);
+        qemu_thread_create(p->thread, p->name, multifd_send_thread, p,
                            QEMU_THREAD_JOINABLE);
     }
     return true;
@@ -892,7 +892,6 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
     trace_multifd_new_send_channel_async(p->id);
     if (!qio_task_propagate_error(task, &local_err)) {
         qio_channel_set_delay(ioc, false);
-        p->running = true;
         if (multifd_channel_connect(p, ioc, &local_err)) {
             return;
         }
@@ -1034,15 +1033,15 @@ void multifd_load_cleanup(void)
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
-        if (p->running) {
-            /*
-             * multifd_recv_thread may hung at MULTIFD_FLAG_SYNC handle code,
-             * however try to wakeup it without harm in cleanup phase.
-             */
-            qemu_sem_post(&p->sem_sync);
-        }
+        /*
+         * multifd_recv_thread may hung at MULTIFD_FLAG_SYNC handle code,
+         * however try to wakeup it without harm in cleanup phase.
+         */
+        qemu_sem_post(&p->sem_sync);
 
-        qemu_thread_join(&p->thread);
+        if (p->thread) {
+            qemu_thread_join(p->thread);
+        }
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
@@ -1061,6 +1060,8 @@ void multifd_load_cleanup(void)
         p->iov = NULL;
         g_free(p->normal);
         p->normal = NULL;
+        g_free(p->thread);
+        p->thread = NULL;
         multifd_recv_state->ops->recv_cleanup(p);
     }
     qemu_sem_destroy(&multifd_recv_state->sem_sync);
@@ -1152,9 +1153,6 @@ static void *multifd_recv_thread(void *opaque)
         multifd_recv_terminate_threads(local_err);
         error_free(local_err);
     }
-    qemu_mutex_lock(&p->mutex);
-    p->running = false;
-    qemu_mutex_unlock(&p->mutex);
 
     rcu_unregister_thread();
     trace_multifd_recv_thread_end(p->id, p->num_packets, p->total_normal_pages);
@@ -1198,6 +1196,7 @@ int multifd_load_setup(Error **errp)
         p->normal = g_new0(ram_addr_t, page_count);
         p->page_count = page_count;
         p->page_size = qemu_target_page_size();
+        p->thread = g_new0(QemuThread, 1);
     }
 
     for (i = 0; i < thread_count; i++) {
@@ -1264,8 +1263,8 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     /* initial packet */
     p->num_packets = 1;
 
-    p->running = true;
-    qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
+    p->thread = g_new0(QemuThread, 1);
+    qemu_thread_create(p->thread, p->name, multifd_recv_thread, p,
                        QEMU_THREAD_JOINABLE);
     qatomic_inc(&multifd_recv_state->count);
 }

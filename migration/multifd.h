@@ -74,7 +74,7 @@ typedef struct {
     /* channel thread name */
     char *name;
     /* channel thread id */
-    QemuThread thread;
+    QemuThread *thread;
     QemuThread *tls_thread;
     /* communication channel */
     QIOChannel *c;
@@ -96,8 +96,6 @@ typedef struct {
 
     /* this mutex protects the following parameters */
     QemuMutex mutex;
-    /* is this channel thread running */
-    bool running;
     /* should this thread finish */
     bool quit;
     /* multifd flags for each packet */
@@ -144,7 +142,7 @@ typedef struct {
     /* channel thread name */
     char *name;
     /* channel thread id */
-    QemuThread thread;
+    QemuThread *thread;
     /* communication channel */
     QIOChannel *c;
     /* packet allocated len */
@@ -159,8 +157,6 @@ typedef struct {
 
     /* this mutex protects the following parameters */
     QemuMutex mutex;
-    /* is this channel thread running */
-    bool running;
     /* should this thread finish */
     bool quit;
     /* multifd flags for each packet */
