@@ -1,10 +1,11 @@
 /*
- * STM32L4x5 SoC family
+ * STM32L4x5 EXTI (Extended interrupts and events controller)
  *
- * SPDX-License-Identifier: MIT
- *
+ * Copyright (c) 2014 Alistair Francis <alistair@alistair23.me>
  * Copyright (c) 2023 Arnaud Minier <arnaud.minier@telecom-paris.fr>
  * Copyright (c) 2023 Inès Varhol <ines.varhol@telecom-paris.fr>
+ *
+ * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,42 +26,33 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_ARM_STM32L4x5_SOC_H
-#define HW_ARM_STM32L4x5_SOC_H
+/* stm32l4x5_exti implementation is derived from stm32f4xx_exti */
 
-#include "exec/memory.h"
-#include "qemu/units.h"
-#include "hw/qdev-core.h"
-#include "hw/arm/armv7m.h"
-#include "hw/misc/stm32l4x5_exti.h"
+#ifndef HW_STM32L4X5_EXTI_H
+#define HW_STM32L4X5_EXTI_H
+
+#include "hw/sysbus.h"
 #include "qom/object.h"
 
-#define TYPE_STM32L4X5_SOC "stm32l4x5-soc"
-#define TYPE_STM32L4X5XC_SOC "stm32l4x5xc-soc"
-#define TYPE_STM32L4X5XE_SOC "stm32l4x5xe-soc"
-#define TYPE_STM32L4X5XG_SOC "stm32l4x5xg-soc"
-OBJECT_DECLARE_TYPE(Stm32l4x5SocState, Stm32l4x5SocClass, STM32L4X5_SOC)
+#define TYPE_STM32L4X5_EXTI "stm32l4x5-exti"
+OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4x5ExtiState, STM32L4X5_EXTI)
 
-struct Stm32l4x5SocState {
+#define EXTI_NUM_INTERRUPT_OUT_LINES 40
+#define EXTI_NUM_REGISTER 2
+
+struct Stm32l4x5ExtiState {
     SysBusDevice parent_obj;
 
-    ARMv7MState armv7m;
+    MemoryRegion mmio;
 
-    Stm32l4x5ExtiState exti;
+    uint32_t imr[EXTI_NUM_REGISTER];
+    uint32_t emr[EXTI_NUM_REGISTER];
+    uint32_t rtsr[EXTI_NUM_REGISTER];
+    uint32_t ftsr[EXTI_NUM_REGISTER];
+    uint32_t swier[EXTI_NUM_REGISTER];
+    uint32_t pr[EXTI_NUM_REGISTER];
 
-    MemoryRegion sram1;
-    MemoryRegion sram2;
-    MemoryRegion flash;
-    MemoryRegion flash_alias;
-
-    Clock *sysclk;
-    Clock *refclk;
-};
-
-struct Stm32l4x5SocClass {
-    SysBusDeviceClass parent_class;
-
-    size_t flash_size;
+    qemu_irq irq[EXTI_NUM_INTERRUPT_OUT_LINES];
 };
 
 #endif
