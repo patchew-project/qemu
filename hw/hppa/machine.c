@@ -34,7 +34,7 @@
 #include "net/net.h"
 #include "qemu/log.h"
 
-#define MIN_SEABIOS_HPPA_VERSION 10 /* require at least this fw version */
+#define MIN_SEABIOS_HPPA_VERSION 11 /* require at least this fw version */
 
 #define HPA_POWER_BUTTON (FIRMWARE_END - 0x10)
 
