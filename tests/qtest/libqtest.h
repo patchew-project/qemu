@@ -365,6 +365,15 @@ void qtest_module_load(QTestState *s, const char *prefix, const char *libname);
 bool qtest_get_irq(QTestState *s, int num);
 
 /**
+ * qtest_get_irq_counter:
+ * @s: #QTestState instance to operate on.
+ * @num: Interrupt to observe.
+ *
+ * Returns: The number of times IRQ @num got triggered (raised).
+ */
+uint64_t qtest_get_irq_trigger_counter(QTestState *s, int num);
+
+/**
  * qtest_irq_intercept_in:
  * @s: #QTestState instance to operate on.
  * @string: QOM path of a device.
