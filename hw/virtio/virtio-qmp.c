@@ -718,10 +718,15 @@ VirtIODevice *qmp_find_virtio_device(const char *path)
     return VIRTIO_DEVICE(dev);
 }
 
-VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
+VirtioStatus *qmp_x_query_virtio_status(const char *path,
+                                        bool has_show_bits,
+                                        bool show_bits,
+                                        Error **errp)
 {
     VirtIODevice *vdev;
     VirtioStatus *status;
+    bool display_bits =
+        has_show_bits ? show_bits : false;
 
     vdev = qmp_find_virtio_device(path);
     if (vdev == NULL) {
@@ -733,6 +738,11 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
     status->name = g_strdup(vdev->name);
     status->device_id = vdev->device_id;
     status->vhost_started = vdev->vhost_started;
+    if (display_bits) {
+        status->guest_features_bits = vdev->guest_features;
+        status->host_features_bits = vdev->host_features;
+        status->backend_features_bits = vdev->backend_features;
+    }
     status->guest_features = qmp_decode_features(vdev->device_id,
                                                  vdev->guest_features);
     status->host_features = qmp_decode_features(vdev->device_id,
@@ -753,6 +763,9 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
     }
 
     status->num_vqs = virtio_get_num_queues(vdev);
+    if (display_bits) {
+        status->status_bits = vdev->status;
+    }
     status->status = qmp_decode_status(vdev->status);
     status->isr = vdev->isr;
     status->queue_sel = vdev->queue_sel;
@@ -775,6 +788,12 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
         status->vhost_dev->n_tmp_sections = hdev->n_tmp_sections;
         status->vhost_dev->nvqs = hdev->nvqs;
         status->vhost_dev->vq_index = hdev->vq_index;
+        if (display_bits) {
+            status->vhost_dev->features_bits = hdev->features;
+            status->vhost_dev->acked_features_bits = hdev->acked_features;
+            status->vhost_dev->backend_features_bits = hdev->backend_features;
+            status->vhost_dev->protocol_features_bits = hdev->protocol_features;
+        }
         status->vhost_dev->features =
             qmp_decode_features(vdev->device_id, hdev->features);
         status->vhost_dev->acked_features =

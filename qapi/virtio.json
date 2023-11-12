@@ -79,11 +79,19 @@
 #
 # @vq-index: vhost_dev vq_index
 #
+# @features-bits: vhost_dev features in decimal format
+#
 # @features: vhost_dev features
+#
+# @acked-features-bits: vhost_dev acked_features in decimal format
 #
 # @acked-features: vhost_dev acked_features
 #
+# @backend-features-bits: vhost_dev backend_features in decimal format
+#
 # @backend-features: vhost_dev backend_features
+#
+# @protocol-features-bits: vhost_dev protocol_features in decimal format
 #
 # @protocol-features: vhost_dev protocol_features
 #
@@ -102,9 +110,13 @@
             'n-tmp-sections': 'int',
             'nvqs': 'uint32',
             'vq-index': 'int',
+            'features-bits': 'uint64',
             'features': 'VirtioDeviceFeatures',
+            'acked-features-bits': 'uint64',
             'acked-features': 'VirtioDeviceFeatures',
+            'backend-features-bits': 'uint64',
             'backend-features': 'VirtioDeviceFeatures',
+            'protocol-features-bits': 'uint64',
             'protocol-features': 'VhostDeviceProtocols',
             'max-queues': 'uint64',
             'backend-cap': 'uint64',
@@ -124,9 +136,15 @@
 #
 # @vhost-started: VirtIODevice vhost_started flag
 #
+# @guest-features-bits: VirtIODevice guest_features in decimal format
+#
 # @guest-features: VirtIODevice guest_features
 #
+# @host-features-bits: VirtIODevice host_features in decimal format
+#
 # @host-features: VirtIODevice host_features
+#
+# @backend-features-bits: VirtIODevice backend_features in decimal format
 #
 # @backend-features: VirtIODevice backend_features
 #
@@ -134,6 +152,9 @@
 #
 # @num-vqs: VirtIODevice virtqueue count.  This is the number of
 #     active virtqueues being used by the VirtIODevice.
+#
+# @status-bits: VirtIODevice configuration status in decimal format
+#     (VirtioDeviceStatus)
 #
 # @status: VirtIODevice configuration status (VirtioDeviceStatus)
 #
@@ -170,10 +191,14 @@
             'device-id': 'uint16',
             'vhost-started': 'bool',
             'device-endian': 'str',
+            'guest-features-bits': 'uint64',
             'guest-features': 'VirtioDeviceFeatures',
+            'host-features-bits': 'uint64',
             'host-features': 'VirtioDeviceFeatures',
+            'backend-features-bits': 'uint64',
             'backend-features': 'VirtioDeviceFeatures',
             'num-vqs': 'int',
+            'status-bits': 'uint8',
             'status': 'VirtioDeviceStatus',
             'isr': 'uint8',
             'queue-sel': 'uint16',
@@ -195,6 +220,9 @@
 #
 # @path: Canonical QOM path of the VirtIODevice
 #
+# @show-bits: Whether to display the feature & status bits.
+#     Default is disabled. (Since 8.2)
+#
 # Features:
 #
 # @unstable: This command is meant for debugging.
@@ -208,7 +236,8 @@
 # 1. Poll for the status of virtio-crypto (no vhost-crypto active)
 #
 # -> { "execute": "x-query-virtio-status",
-#      "arguments": { "path": "/machine/peripheral/crypto0/virtio-backend" }
+#      "arguments": { "path": "/machine/peripheral/crypto0/virtio-backend",
+#                     "show-bits": true }
 #    }
 # <- { "return": {
 #          "device-endian": "little",
@@ -216,6 +245,7 @@
 #          "disable-legacy-check": false,
 #          "name": "virtio-crypto",
 #          "started": true,
+#          "guest-features-bits": 5100273664,
 #          "device-id": 20,
 #          "backend-features": {
 #              "transports": [],
@@ -241,6 +271,7 @@
 #                  "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
 #              ]
 #          },
+#          "host-features-bits": 6325010432,
 #          "host-features": {
 #              "unknown-dev-features": 1073741824,
 #              "dev-features": [],
@@ -252,9 +283,11 @@
 #                  "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
 #              ]
 #          },
+#          "backend-features-bits": 0,
 #          "use-guest-notifier-mask": true,
 #          "vm-running": true,
 #          "queue-sel": 1,
+#          "status-bits": 15,
 #          "disabled": false,
 #          "vhost-started": false,
 #          "use-started": true
@@ -264,7 +297,8 @@
 # 2. Poll for the status of virtio-net (vhost-net is active)
 #
 # -> { "execute": "x-query-virtio-status",
-#      "arguments": { "path": "/machine/peripheral-anon/device[1]/virtio-backend" }
+#      "arguments": { "path": "/machine/peripheral-anon/device[1]/virtio-backend",
+#                     "show-bits": true }
 #    }
 # <- { "return": {
 #          "device-endian": "little",
@@ -272,11 +306,13 @@
 #          "disabled-legacy-check": false,
 #          "name": "virtio-net",
 #          "started": true,
+#          "guest-features-bits": 5111807911,
 #          "device-id": 1,
 #          "vhost-dev": {
 #              "n-tmp-sections": 4,
 #              "n-mem-sections": 4,
 #              "max-queues": 1,
+#              "features-bits": 13908344832
 #              "backend-cap": 2,
 #              "log-size": 0,
 #              "backend-features": {
@@ -284,6 +320,8 @@
 #                  "transports": []
 #              },
 #              "nvqs": 2,
+#              "acked-features-bits": 5100306432,
+#              "backend-features-bits": 0,
 #              "protocol-features": {
 #                  "protocols": []
 #              },
@@ -299,6 +337,7 @@
 #                      "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
 #                  ]
 #              },
+#              "protocol-features-bits": 0,
 #              "features": {
 #                  "dev-features": [
 #                      "VHOST_F_LOG_ALL: Logging write descriptors supported",
@@ -387,6 +426,7 @@
 #                  "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
 #             ]
 #          },
+#          "host-features-bits": 6337593319,
 #          "host-features": {
 #              "dev-features": [
 #                  "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotiation supported",
@@ -420,9 +460,11 @@
 #                  "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
 #             ]
 #          },
+#          "backend-features-bits": 6337593319,
 #          "use-guest-notifier-mask": true,
 #          "vm-running": true,
 #          "queue-sel": 2,
+#          "status-bits": 15,
 #          "disabled": false,
 #          "vhost-started": true,
 #          "use-started": true
@@ -430,7 +472,8 @@
 #    }
 ##
 { 'command': 'x-query-virtio-status',
-  'data': { 'path': 'str' },
+  'data': { 'path': 'str',
+            '*show-bits': 'bool'},
   'returns': 'VirtioStatus',
   'features': [ 'unstable' ] }
 

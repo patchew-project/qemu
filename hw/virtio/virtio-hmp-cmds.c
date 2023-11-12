@@ -108,7 +108,7 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
-    VirtioStatus *s = qmp_x_query_virtio_status(path, &err);
+    VirtioStatus *s = qmp_x_query_virtio_status(path, false, false, &err);
 
     if (err != NULL) {
         hmp_handle_error(mon, err);
