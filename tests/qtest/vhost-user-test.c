@@ -13,6 +13,7 @@
 #include "libqtest-single.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
@@ -169,6 +170,7 @@ typedef struct TestServer {
     int test_flags;
     int queues;
     struct vhost_user_ops *vu_ops;
+    uint64_t features;
 } TestServer;
 
 struct vhost_user_ops {
@@ -1020,6 +1022,100 @@ static void test_multiqueue(void *obj, void *arg, QGuestAllocator *alloc)
 }
 
 
+static QDict *query_virtio(QTestState *who)
+{
+    QDict *rsp;
+
+    rsp = qtest_qmp(who, "{ 'execute': 'x-query-virtio'}");
+    g_assert(!qdict_haskey(rsp, "error"));
+    g_assert(qdict_haskey(rsp, "return"));
+
+    return rsp;
+}
+
+static QDict *query_virtio_status(QTestState *who, const char *path)
+{
+    QDict *rsp;
+
+    rsp = qtest_qmp(who, "{ 'execute': 'x-query-virtio-status', "
+        "'arguments': { 'path': %s, 'show-bits': true} }", path);
+
+    g_assert(!qdict_haskey(rsp, "error"));
+    g_assert(qdict_haskey(rsp, "return"));
+
+    return rsp;
+}
+
+static uint64_t get_acked_features(QTestState *who)
+{
+    QDict *rsp_return, *status, *vhost_info, *dev;
+    QList *dev_list;
+    const QListEntry *entry;
+    const char *name;
+    char *path;
+    uint64_t acked_features;
+
+    /* query the virtio devices */
+    rsp_return = query_virtio(who);
+    g_assert(rsp_return);
+
+    dev_list = qdict_get_qlist(rsp_return, "return");
+    g_assert(dev_list && !qlist_empty(dev_list));
+
+    /* fetch the first and the sole device */
+    entry = qlist_first(dev_list);
+    g_assert(entry);
+
+    dev = qobject_to(QDict, qlist_entry_obj(entry));
+    g_assert(dev);
+
+    name = qdict_get_try_str(dev, "name");
+    g_assert_cmpstr(name, ==, "virtio-net");
+
+    path = g_strdup(qdict_get_try_str(dev, "path"));
+    g_assert(path);
+    qobject_unref(rsp_return);
+    rsp_return = NULL;
+
+    /* fetch the status of the virtio-net device by QOM path */
+    rsp_return = query_virtio_status(who, path);
+    g_assert(rsp_return);
+
+    status = qdict_get_qdict(rsp_return, "return");
+    g_assert(status);
+
+    vhost_info = qdict_get_qdict(status, "vhost-dev");
+    g_assert(vhost_info);
+
+    acked_features = qdict_get_try_int(vhost_info, "acked-features-bits", 0);
+
+    qobject_unref(rsp_return);
+    g_free(path);
+
+    return acked_features;
+}
+
+static void acked_features_check(QTestState *qts, TestServer *s)
+{
+    uint64_t acked_features;
+
+    acked_features = get_acked_features(qts);
+    g_assert_cmpint(acked_features, ==, s->features);
+}
+
+static void test_acked_features(void *obj,
+                                     void *arg,
+                                     QGuestAllocator *alloc)
+{
+    TestServer *server = arg;
+
+    if (!wait_for_fds(server)) {
+        return;
+    }
+
+    acked_features_check(global_qtest, server);
+}
+
 static uint64_t vu_net_get_features(TestServer *s)
 {
     uint64_t features = 0x1ULL << VHOST_F_LOG_ALL |
@@ -1040,6 +1136,7 @@ static void vu_net_set_features(TestServer *s, CharBackend *chr,
         qemu_chr_fe_disconnect(chr);
         s->test_flags = TEST_FLAGS_BAD;
     }
+    s->features = msg->payload.u64;
 }
 
 static void vu_net_get_protocol_features(TestServer *s, CharBackend *chr,
@@ -1109,6 +1206,9 @@ static void register_vhost_user_test(void)
     qos_add_test("vhost-user/multiqueue",
                  "virtio-net",
                  test_multiqueue, &opts);
+    qos_add_test("vhost-user/read_acked_features",
+                 "virtio-net",
+                 test_acked_features, &opts);
 }
 libqos_init(register_vhost_user_test);
 
