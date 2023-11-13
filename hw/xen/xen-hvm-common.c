@@ -426,10 +426,7 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
     trace_handle_ioreq(req, req->type, req->dir, req->df, req->data_is_ptr,
                        req->addr, req->data, req->count, req->size);
 
-    if (!req->data_is_ptr && (req->dir == IOREQ_WRITE) &&
-            (req->size < sizeof (target_ulong))) {
-        req->data &= ((target_ulong) 1 << (8 * req->size)) - 1;
-    }
+    xen_arch_align_ioreq_data(req);
 
     if (req->dir == IOREQ_WRITE)
         trace_handle_ioreq_write(req, req->type, req->df, req->data_is_ptr,

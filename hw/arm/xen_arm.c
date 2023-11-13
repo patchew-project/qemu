@@ -128,6 +128,14 @@ static void xen_init_ram(MachineState *machine)
     }
 }
 
+void xen_arch_align_ioreq_data(ioreq_t *req)
+{
+    if (!req->data_is_ptr && (req->dir == IOREQ_WRITE)
+            && (req->size < sizeof(target_ulong))) {
+        req->data &= ((target_ulong) 1 << (8 * req->size)) - 1;
+    }
+}
+
 void xen_arch_handle_ioreq(XenIOState *state, ioreq_t *req)
 {
     hw_error("Invalid ioreq type 0x%x\n", req->type);
