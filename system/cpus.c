@@ -259,9 +259,20 @@ void cpu_interrupt(CPUState *cpu, int mask)
     }
 }
 
-static int do_vm_stop(RunState state, bool send_stop)
+static int do_vm_stop(RunState state, bool send_stop, bool force)
 {
     int ret = 0;
+
+    if (qemu_in_vcpu_thread()) {
+        qemu_system_vmstop_request_prepare();
+        qemu_system_vmstop_request(state);
+        /*
+         * FIXME: should not return to device code in case
+         * vm_stop() has been requested.
+         */
+        cpu_stop_current();
+        return 0;
+    }
 
     if (runstate_is_running()) {
         runstate_set(state);
@@ -271,6 +282,8 @@ static int do_vm_stop(RunState state, bool send_stop)
         if (send_stop) {
             qapi_event_send_stop();
         }
+    } else if (force) {
+        runstate_set(state);
     }
 
     bdrv_drain_all();
@@ -285,7 +298,7 @@ static int do_vm_stop(RunState state, bool send_stop)
  */
 int vm_shutdown(void)
 {
-    return do_vm_stop(RUN_STATE_SHUTDOWN, false);
+    return do_vm_stop(RUN_STATE_SHUTDOWN, false, false);
 }
 
 bool cpu_can_run(CPUState *cpu)
@@ -663,18 +676,7 @@ void cpu_stop_current(void)
 
 int vm_stop(RunState state)
 {
-    if (qemu_in_vcpu_thread()) {
-        qemu_system_vmstop_request_prepare();
-        qemu_system_vmstop_request(state);
-        /*
-         * FIXME: should not return to device code in case
-         * vm_stop() has been requested.
-         */
-        cpu_stop_current();
-        return 0;
-    }
-
-    return do_vm_stop(state, true);
+    return do_vm_stop(state, true, false);
 }
 
 /**
@@ -730,19 +732,7 @@ void vm_start(void)
    current state is forgotten forever */
 int vm_stop_force_state(RunState state)
 {
-    if (runstate_is_running()) {
-        return vm_stop(state);
-    } else {
-        int ret;
-        runstate_set(state);
-
-        bdrv_drain_all();
-        /* Make sure to return an error if the flush in a previous vm_stop()
-         * failed. */
-        ret = bdrv_flush_all();
-        trace_vm_stop_flush_all(ret);
-        return ret;
-    }
+    return do_vm_stop(state, true, true);
 }
 
 void qmp_memsave(int64_t addr, int64_t size, const char *filename,
