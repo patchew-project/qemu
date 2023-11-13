@@ -2163,13 +2163,7 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
 
     dirty_bitmap_mig_before_vm_start();
 
-    if (autostart) {
-        /* Hold onto your hats, starting the CPU */
-        vm_start();
-    } else {
-        /* leave it paused and let management decide when to start the CPU */
-        runstate_set(RUN_STATE_PAUSED);
-    }
+    vm_resume(migrate_new_runstate());
 
     qemu_bh_delete(mis->bh);
 

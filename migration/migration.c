@@ -592,6 +592,7 @@ static void process_incoming_migration_bh(void *opaque)
 {
     Error *local_err = NULL;
     MigrationIncomingState *mis = opaque;
+    RunState state = migrate_new_runstate();
 
     trace_vmstate_downtime_checkpoint("dst-precopy-bh-enter");
 
@@ -602,8 +603,7 @@ static void process_incoming_migration_bh(void *opaque)
      * unless we really are starting the VM.
      */
     if (!migrate_late_block_activate() ||
-         (autostart && (!global_state_received() ||
-            global_state_get_runstate() == RUN_STATE_RUNNING))) {
+        state == RUN_STATE_RUNNING) {
         /* Make sure all file formats throw away their mutable metadata.
          * If we get an error here, just don't restart the VM yet. */
         bdrv_activate_all(&local_err);
@@ -626,19 +626,13 @@ static void process_incoming_migration_bh(void *opaque)
 
     dirty_bitmap_mig_before_vm_start();
 
-    if (!global_state_received() ||
-        global_state_get_runstate() == RUN_STATE_RUNNING) {
-        if (autostart) {
-            vm_start();
-        } else {
-            runstate_set(RUN_STATE_PAUSED);
-        }
-    } else if (migration_incoming_colo_enabled()) {
+    if (migration_incoming_colo_enabled()) {
         migration_incoming_disable_colo();
         vm_start();
     } else {
-        runstate_set(global_state_get_runstate());
+        vm_resume(state);
     }
+
     trace_vmstate_downtime_checkpoint("dst-precopy-bh-vm-started");
     /*
      * This must happen after any state changes since as soon as an external
@@ -1275,6 +1269,16 @@ void migrate_set_state(int *state, int old_state, int new_state)
         trace_migrate_set_state(MigrationStatus_str(new_state));
         migrate_generate_event(new_state);
     }
+}
+
+RunState migrate_new_runstate(void)
+{
+    RunState state = global_state_get_runstate();
+
+    if (!global_state_received() || state == RUN_STATE_RUNNING) {
+        state = autostart ? RUN_STATE_RUNNING : RUN_STATE_PAUSED;
+    }
+    return state;
 }
 
 static void migrate_fd_cleanup(MigrationState *s)
@@ -2415,7 +2419,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 
     migration_downtime_start(ms);
 
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
     global_state_store();
     ret = migration_stop_vm(RUN_STATE_FINISH_MIGRATE);
     if (ret < 0) {
@@ -2614,7 +2617,6 @@ static int migration_completion_precopy(MigrationState *s,
 
     qemu_mutex_lock_iothread();
     migration_downtime_start(s);
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
 
     s->vm_old_state = runstate_get();
     global_state_store();
@@ -3135,9 +3137,10 @@ static void migration_iteration_finish(MigrationState *s)
     case MIGRATION_STATUS_FAILED:
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_CANCELLING:
-        if (s->vm_old_state == RUN_STATE_RUNNING) {
+        if (s->vm_old_state == RUN_STATE_RUNNING ||
+            s->vm_old_state == RUN_STATE_SUSPENDED) {
             if (!runstate_check(RUN_STATE_SHUTDOWN)) {
-                vm_start();
+                vm_resume(s->vm_old_state);
             }
         } else {
             if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {

@@ -473,6 +473,7 @@ struct MigrationState {
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
+RunState migrate_new_runstate(void);
 
 void migration_fd_process_incoming(QEMUFile *f, Error **errp);
 void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp);
