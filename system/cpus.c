@@ -732,6 +732,17 @@ void vm_start(void)
     }
 }
 
+void vm_resume(RunState state)
+{
+    if (state == RUN_STATE_RUNNING) {
+        vm_start();
+    } else if (state == RUN_STATE_SUSPENDED) {
+        vm_prepare_start(false, state);
+    } else {
+        runstate_set(state);
+    }
+}
+
 /* does a state transition even if the VM is already stopped,
    current state is forgotten forever */
 int vm_stop_force_state(RunState state)
