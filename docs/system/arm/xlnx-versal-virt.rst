@@ -194,7 +194,7 @@ To use a different index value, N, from default of 0, add:
 
 .. code-block:: bash
 
-  -global xlnx,bbram-ctrl.drive-index=N
+  -global xlnx.bbram-ctrl.drive-index=N
 
 eFUSE File Backend
 """"""""""""""""""
