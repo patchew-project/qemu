@@ -3040,7 +3040,7 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     QEMUSnapshotInfo sn1, *sn = &sn1;
     int ret = -1, ret2;
     QEMUFile *f;
-    int saved_vm_running;
+    RunState saved_state = runstate_get();
     uint64_t vm_state_size;
     g_autoptr(GDateTime) now = g_date_time_new_now_local();
     AioContext *aio_context;
@@ -3088,10 +3088,8 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     }
     aio_context = bdrv_get_aio_context(bs);
 
-    saved_vm_running = runstate_is_running();
-
     global_state_store();
-    vm_stop(RUN_STATE_SAVE_VM);
+    vm_stop_force_state(RUN_STATE_SAVE_VM);
 
     bdrv_drain_all_begin();
 
@@ -3157,9 +3155,7 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
 
     bdrv_drain_all_end();
 
-    if (saved_vm_running) {
-        vm_start();
-    }
+    vm_resume(saved_state);
     return ret == 0;
 }
 
@@ -3333,6 +3329,20 @@ err_drain:
     return false;
 }
 
+void load_snapshot_resume(RunState state)
+{
+    if (global_state_received() &&
+        global_state_get_runstate() == RUN_STATE_SUSPENDED) {
+
+        vm_resume(RUN_STATE_SUSPENDED);
+        if (state == RUN_STATE_RUNNING) {
+            qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
+        }
+    } else {
+        vm_resume(state);
+    }
+}
+
 bool delete_snapshot(const char *name, bool has_devices,
                      strList *devices, Error **errp)
 {
@@ -3397,16 +3407,15 @@ static void snapshot_load_job_bh(void *opaque)
 {
     Job *job = opaque;
     SnapshotJob *s = container_of(job, SnapshotJob, common);
-    int orig_vm_running;
+    RunState orig_state = runstate_get();
 
     job_progress_set_remaining(&s->common, 1);
 
-    orig_vm_running = runstate_is_running();
-    vm_stop(RUN_STATE_RESTORE_VM);
+    vm_stop_force_state(RUN_STATE_RESTORE_VM);
 
     s->ret = load_snapshot(s->tag, s->vmstate, true, s->devices, s->errp);
-    if (s->ret && orig_vm_running) {
-        vm_start();
+    if (s->ret) {
+        load_snapshot_resume(orig_state);
     }
 
     job_progress_update(&s->common, 1);
