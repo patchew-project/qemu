@@ -1,6 +1,9 @@
 #ifndef QEMU_CONFIG_FILE_H
 #define QEMU_CONFIG_FILE_H
 
+#define MAX_VM_CONFIG_GROUPS    48
+#define MAX_DRIVE_CONFIG_GROUPS 5
+
 typedef void QEMUConfigCB(const char *group, QDict *qdict, void *opaque, Error **errp);
 
 void qemu_load_module_for_opts(const char *group);

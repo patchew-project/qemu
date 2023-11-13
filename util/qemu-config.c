@@ -9,8 +9,8 @@
 #include "qemu/config-file.h"
 #include "hw/boards.h"
 
-static QemuOptsList *vm_config_groups[48];
-static QemuOptsList *drive_config_groups[5];
+static QemuOptsList *vm_config_groups[MAX_VM_CONFIG_GROUPS];
+static QemuOptsList *drive_config_groups[MAX_DRIVE_CONFIG_GROUPS];
 
 static QemuOptsList *find_list(QemuOptsList **lists, const char *group,
                                Error **errp)
@@ -260,11 +260,10 @@ QemuOptsList *qemu_find_opts_err(const char *group, Error **errp)
 
 void qemu_add_drive_opts(QemuOptsList *list)
 {
-    int entries, i;
+    static int i;
+    static int entries = MAX_DRIVE_CONFIG_GROUPS - 1; /* keep list NULL terminated */
 
-    entries = ARRAY_SIZE(drive_config_groups);
-    entries--; /* keep list NULL terminated */
-    for (i = 0; i < entries; i++) {
+    for (; i < entries; i++) {
         if (drive_config_groups[i] == NULL) {
             drive_config_groups[i] = list;
             return;
@@ -276,11 +275,10 @@ void qemu_add_drive_opts(QemuOptsList *list)
 
 void qemu_add_opts(QemuOptsList *list)
 {
-    int entries, i;
+    static int i;
+    static int entries = MAX_VM_CONFIG_GROUPS - 1; /* keep list NULL terminated */
 
-    entries = ARRAY_SIZE(vm_config_groups);
-    entries--; /* keep list NULL terminated */
-    for (i = 0; i < entries; i++) {
+    for (; i < entries; i++) {
         if (vm_config_groups[i] == NULL) {
             vm_config_groups[i] = list;
             return;
