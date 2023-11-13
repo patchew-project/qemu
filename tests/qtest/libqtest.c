@@ -82,6 +82,8 @@ struct QTestState
     int expected_status;
     bool big_endian;
     bool irq_level[MAX_IRQ];
+    uint64_t irq_raised_counter[MAX_IRQ];
+    uint64_t irq_lowered_counter[MAX_IRQ];
     GString *rx;
     QTestTransportOps ops;
     GList *pending_events;
@@ -498,6 +500,8 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
     s->rx = g_string_new("");
     for (i = 0; i < MAX_IRQ; i++) {
         s->irq_level[i] = false;
+        s->irq_raised_counter[i] = 0;
+        s->irq_lowered_counter[i] = 0;
     }
 
     /*
@@ -689,8 +693,10 @@ redo:
         g_assert_cmpint(irq, <, MAX_IRQ);
 
         if (strcmp(words[1], "raise") == 0) {
+            s->irq_raised_counter[irq]++;
             s->irq_level[irq] = true;
         } else {
+            s->irq_lowered_counter[irq]++;
             s->irq_level[irq] = false;
         }
 
@@ -978,6 +984,22 @@ bool qtest_get_irq(QTestState *s, int num)
     qtest_inb(s, 0);
 
     return s->irq_level[num];
+}
+
+uint64_t qtest_get_irq_raised_counter(QTestState *s, int num)
+{
+    /* dummy operation in order to make sure irq is up to date */
+    qtest_inb(s, 0);
+
+    return s->irq_raised_counter[num];
+}
+
+uint64_t qtest_get_irq_lowered_counter(QTestState *s, int num)
+{
+    /* dummy operation in order to make sure irq is up to date */
+    qtest_inb(s, 0);
+
+    return s->irq_lowered_counter[num];
 }
 
 void qtest_module_load(QTestState *s, const char *prefix, const char *libname)
@@ -1799,6 +1821,8 @@ QTestState *qtest_inproc_init(QTestState **s, bool log, const char* arch,
     qts->wstatus = 0;
     for (int i = 0; i < MAX_IRQ; i++) {
         qts->irq_level[i] = false;
+        qts->irq_raised_counter[i] = 0;
+        qts->irq_lowered_counter[i] = 0;
     }
 
     qtest_client_set_rx_handler(qts, qtest_client_inproc_recv_line);

@@ -365,6 +365,34 @@ void qtest_module_load(QTestState *s, const char *prefix, const char *libname);
 bool qtest_get_irq(QTestState *s, int num);
 
 /**
+ * qtest_get_irq_raised_counter:
+ * @s: #QTestState instance to operate on.
+ * @num: Interrupt to observe.
+ *
+ * This function can be used in conjunction with the
+ * qtest_get_irq_lowered_counter() to check if one or more pulses where
+ * generated on the observed interrupt.
+ *
+ * Returns: The number of times IRQ @num was raised, i.e., transitioned from
+ * a low state (false) to a high state (true).
+ */
+uint64_t qtest_get_irq_raised_counter(QTestState *s, int num);
+
+/**
+ * qtest_get_irq_lowered_counter:
+ * @s: #QTestState instance to operate on.
+ * @num: Interrupt to observe.
+ *
+ * This function can be used in conjunction with the
+ * qtest_get_irq_raised_counter() to check if one or more pulses where
+ * generated on the observed interrupt.
+ *
+ * Returns: The number of times IRQ @num was lowered, i.e., transitioned from
+ * a high state (true) to a low state (false).
+ */
+uint64_t qtest_get_irq_lowered_counter(QTestState *s, int num);
+
+/**
  * qtest_irq_intercept_in:
  * @s: #QTestState instance to operate on.
  * @string: QOM path of a device.
