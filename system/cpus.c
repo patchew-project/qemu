@@ -262,6 +262,8 @@ void cpu_interrupt(CPUState *cpu, int mask)
 static int do_vm_stop(RunState state, bool send_stop, bool force)
 {
     int ret = 0;
+    bool running = runstate_is_running();
+    bool suspended = runstate_check(RUN_STATE_SUSPENDED);
 
     if (qemu_in_vcpu_thread()) {
         qemu_system_vmstop_request_prepare();
@@ -274,10 +276,12 @@ static int do_vm_stop(RunState state, bool send_stop, bool force)
         return 0;
     }
 
-    if (runstate_is_running()) {
+    if (running || (suspended && force)) {
         runstate_set(state);
         cpu_disable_ticks();
-        pause_all_vcpus();
+        if (running) {
+            pause_all_vcpus();
+        }
         vm_state_notify(0, state);
         if (send_stop) {
             qapi_event_send_stop();
