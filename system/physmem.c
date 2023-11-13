@@ -35,9 +35,9 @@
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "hw/boards.h"
-#include "hw/xen/xen.h"
 #include "sysemu/kvm.h"
 #include "sysemu/tcg.h"
+#include "sysemu/xen.h"
 #include "sysemu/qtest.h"
 #include "qemu/timer.h"
 #include "qemu/config-file.h"
@@ -51,6 +51,9 @@
 #include "sysemu/hostmem.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/xen-mapcache.h"
+#ifdef CONFIG_XEN
+#include "hw/xen/xen.h"
+#endif
 #include "trace/trace-root.h"
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
