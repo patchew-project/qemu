@@ -66,6 +66,20 @@ void buffer_zero_batch_task_init(struct buffer_zero_batch_task *task,
 void buffer_zero_batch_task_destroy(struct buffer_zero_batch_task *task);
 
 /**
+ * @brief Performs buffer zero comparison on a DSA batch task asynchronously.
+ *
+ * @param batch_task A pointer to the batch task.
+ * @param buf An array of memory buffers.
+ * @param count The number of buffers in the array.
+ * @param len The buffer length.
+ *
+ * @return Zero if successful, otherwise non-zero.
+ */
+int
+buffer_is_zero_dsa_batch_async(struct buffer_zero_batch_task *batch_task,
+                               const void **buf, size_t count, size_t len);
+
+/**
  * @brief Initializes DSA devices.
  *
  * @param dsa_parameter A list of DSA device path from migration parameter.

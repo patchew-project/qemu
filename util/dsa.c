@@ -471,6 +471,41 @@ poll_completion(struct dsa_completion_record *completion,
 }
 
 /**
+ * @brief Use CPU to complete a single zero page checking task.
+ *
+ * @param task A pointer to the task.
+ */
+static void
+task_cpu_fallback(struct buffer_zero_batch_task *task)
+{
+    assert(task->task_type == DSA_TASK);
+
+    struct dsa_completion_record *completion = &task->completions[0];
+    const uint8_t *buf;
+    size_t len;
+
+    if (completion->status == DSA_COMP_SUCCESS) {
+        return;
+    }
+
+    /*
+     * DSA was able to partially complete the operation. Check the
+     * result. If we already know this is not a zero page, we can
+     * return now.
+     */
+    if (completion->bytes_completed != 0 && completion->result != 0) {
+        task->results[0] = false;
+        return;
+    }
+
+    /* Let's fallback to use CPU to complete it. */
+    buf = (const uint8_t *)task->descriptors[0].src_addr;
+    len = task->descriptors[0].xfer_size;
+    task->results[0] = buffer_is_zero(buf + completion->bytes_completed,
+                                      len - completion->bytes_completed);
+}
+
+/**
  * @brief Complete a single DSA task in the batch task.
  *
  * @param task A pointer to the batch task structure.
@@ -545,6 +580,62 @@ poll_batch_task_completion(struct buffer_zero_batch_task *batch_task)
                     "Unexpected completion status = %u.\n", status);
             assert(false);
         }
+    }
+}
+
+/**
+ * @brief Use CPU to complete the zero page checking batch task.
+ *
+ * @param batch_task A pointer to the batch task.
+ */
+static void
+batch_task_cpu_fallback(struct buffer_zero_batch_task *batch_task)
+{
+    assert(batch_task->task_type == DSA_BATCH_TASK);
+
+    struct dsa_completion_record *batch_completion =
+        &batch_task->batch_completion;
+    struct dsa_completion_record *completion;
+    uint8_t status;
+    const uint8_t *buf;
+    size_t len;
+    bool *results = batch_task->results;
+    uint32_t count = batch_task->batch_descriptor.desc_count;
+
+    // DSA is able to complete the entire batch task.
+    if (batch_completion->status == DSA_COMP_SUCCESS) {
+        assert(count == batch_completion->bytes_completed);
+        return;
+    }
+
+    /*
+     * DSA encounters some error and is not able to complete
+     * the entire batch task. Use CPU fallback.
+     */
+    for (int i = 0; i < count; i++) {
+        completion = &batch_task->completions[i];
+        status = completion->status;
+        if (status == DSA_COMP_SUCCESS) {
+            continue;
+        }
+        assert(status == DSA_COMP_PAGE_FAULT_NOBOF);
+
+        /*
+         * DSA was able to partially complete the operation. Check the
+         * result. If we already know this is not a zero page, we can
+         * return now.
+         */
+        if (completion->bytes_completed != 0 && completion->result != 0) {
+            results[i] = false;
+            continue;
+        }
+
+        /* Let's fallback to use CPU to complete it. */
+        buf = (uint8_t *)batch_task->descriptors[i].src_addr;
+        len = batch_task->descriptors[i].xfer_size;
+        results[i] =
+            buffer_is_zero(buf + completion->bytes_completed,
+                           len - completion->bytes_completed);
     }
 }
 
@@ -825,7 +916,6 @@ buffer_zero_batch_task_set(struct buffer_zero_batch_task *batch_task,
  *
  * @return int Zero if successful, otherwise an appropriate error code.
  */
-__attribute__((unused))
 static int
 buffer_zero_dsa_async(struct buffer_zero_batch_task *task,
                       const void *buf, size_t len)
@@ -844,7 +934,6 @@ buffer_zero_dsa_async(struct buffer_zero_batch_task *task,
  * @param count The number of buffers.
  * @param len The buffer length.
  */
-__attribute__((unused))
 static int
 buffer_zero_dsa_batch_async(struct buffer_zero_batch_task *batch_task,
                             const void **buf, size_t count, size_t len)
@@ -876,11 +965,27 @@ buffer_zero_dsa_completion(void *context)
  *
  * @param batch_task A pointer to the buffer zero comparison batch task.
  */
-__attribute__((unused))
 static void
 buffer_zero_dsa_wait(struct buffer_zero_batch_task *batch_task)
 {
     qemu_sem_wait(&batch_task->sem_task_complete);
+}
+
+/**
+ * @brief Use CPU to complete the zero page checking task if DSA
+ *        is not able to complete it.
+ *
+ * @param batch_task A pointer to the batch task.
+ */
+static void
+buffer_zero_cpu_fallback(struct buffer_zero_batch_task *batch_task)
+{
+    if (batch_task->task_type == DSA_TASK) {
+        task_cpu_fallback(batch_task);
+    } else {
+        assert(batch_task->task_type == DSA_BATCH_TASK);
+        batch_task_cpu_fallback(batch_task);
+    }
 }
 
 /**
@@ -956,6 +1061,41 @@ void dsa_cleanup(void)
     dsa_device_group_cleanup(&dsa_group);
 }
 
+/**
+ * @brief Performs buffer zero comparison on a DSA batch task asynchronously.
+ *
+ * @param batch_task A pointer to the batch task.
+ * @param buf An array of memory buffers.
+ * @param count The number of buffers in the array.
+ * @param len The buffer length.
+ *
+ * @return Zero if successful, otherwise non-zero.
+ */
+int
+buffer_is_zero_dsa_batch_async(struct buffer_zero_batch_task *batch_task,
+                               const void **buf, size_t count, size_t len)
+{
+    if (count <= 0 || count > batch_task->batch_size) {
+        return -1;
+    }
+
+    assert(batch_task != NULL);
+    assert(len != 0);
+    assert(buf != NULL);
+
+    if (count == 1) {
+        // DSA doesn't take batch operation with only 1 task.
+        buffer_zero_dsa_async(batch_task, buf[0], len);
+    } else {
+        buffer_zero_dsa_batch_async(batch_task, buf, count, len);
+    }
+
+    buffer_zero_dsa_wait(batch_task);
+    buffer_zero_cpu_fallback(batch_task);
+
+    return 0;
+}
+
 #else
 
 void buffer_zero_batch_task_init(struct buffer_zero_batch_task *task,
@@ -980,6 +1120,13 @@ void dsa_start(void) {}
 void dsa_stop(void) {}
 
 void dsa_cleanup(void) {}
+
+int
+buffer_is_zero_dsa_batch_async(struct buffer_zero_batch_task *batch_task,
+                               const void **buf, size_t count, size_t len)
+{
+    exit(1);
+}
 
 #endif
 
