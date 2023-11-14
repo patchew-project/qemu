@@ -99,8 +99,5 @@ void cpu_ioreq_pio(ioreq_t *req);
 
 void xen_read_physmap(XenIOState *state);
 void xen_arch_handle_ioreq(XenIOState *state, ioreq_t *req);
-void xen_arch_set_memory(XenIOState *state,
-                         MemoryRegionSection *section,
-                         bool add);
 
 #endif /* HW_XEN_HVM_COMMON_H */
