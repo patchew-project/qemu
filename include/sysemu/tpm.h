@@ -12,6 +12,8 @@
 #ifndef QEMU_TPM_H
 #define QEMU_TPM_H
 
+#include "qemu/osdep.h"
+#include "exec/hwaddr.h"
 #include "qapi/qapi-types-tpm.h"
 #include "qom/object.h"
 
@@ -77,6 +79,8 @@ static inline TPMVersion tpm_get_version(TPMIf *ti)
 
     return TPM_IF_GET_CLASS(ti)->get_version(ti);
 }
+
+void tpm_sysbus_plug(TPMIf *tpmif, Object *pbus, hwaddr pbus_base);
 
 #else /* CONFIG_TPM */
 
