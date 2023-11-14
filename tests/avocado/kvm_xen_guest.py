@@ -22,6 +22,7 @@ class KVMXenGuest(QemuSystemTest, LinuxSSHMixIn):
     :avocado: tags=arch:x86_64
     :avocado: tags=machine:q35
     :avocado: tags=accel:kvm
+    :avocado: tags=guest:xen
     :avocado: tags=kvm_xen_guest
     """
 
