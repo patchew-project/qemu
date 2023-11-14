@@ -37,7 +37,10 @@ typedef struct buffer_zero_batch_task {
     enum dsa_task_type task_type;
     enum dsa_task_status status;
     bool *results;
-    int batch_size;
+    uint32_t batch_size;
+    // Set normal page ratio test hook.
+    uint32_t normal_page_index;
+    uint32_t normal_page_counter;
     QSIMPLEQ_ENTRY(buffer_zero_batch_task) entry;
 } buffer_zero_batch_task;
 
@@ -45,6 +48,8 @@ typedef struct buffer_zero_batch_task {
 
 struct buffer_zero_batch_task {
     bool *results;
+    uint32_t normal_page_index;
+    uint32_t normal_page_counter;
 };
 
 #endif

@@ -356,6 +356,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %s\n",
             MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_DSA_ACCEL),
             params->multifd_dsa_accel);
+        monitor_printf(mon, "%s: %u\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_NORMAL_PAGE_RATIO),
+            params->multifd_normal_page_ratio);
 
         if (params->has_block_bitmap_mapping) {
             const BitmapMigrationNodeAliasList *bmnal;
@@ -674,6 +677,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING:
         error_setg(&err, "The block-bitmap-mapping parameter can only be set "
                    "through QMP");
+        break;
+    case MIGRATION_PARAMETER_MULTIFD_NORMAL_PAGE_RATIO:
+        p->has_multifd_normal_page_ratio = true;
+        visit_type_uint8(v, param, &p->multifd_normal_page_ratio, &err);
         break;
     case MIGRATION_PARAMETER_X_VCPU_DIRTY_LIMIT_PERIOD:
         p->has_x_vcpu_dirty_limit_period = true;
