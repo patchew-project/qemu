@@ -18,7 +18,6 @@ struct blkif_common_response {
 };
 
 /* i386 protocol version */
-#pragma pack(push, 4)
 struct blkif_x86_32_request {
     uint8_t        operation;        /* BLKIF_OP_???                         */
     uint8_t        nr_segments;      /* number of segments                   */
@@ -26,7 +25,7 @@ struct blkif_x86_32_request {
     uint64_t       id;               /* private guest value, echoed in resp  */
     blkif_sector_t sector_number;    /* start sector idx on disk (r/w only)  */
     struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-};
+} QEMU_ALIGNED(4);
 struct blkif_x86_32_request_discard {
     uint8_t        operation;        /* BLKIF_OP_DISCARD                     */
     uint8_t        flag;             /* nr_segments in request struct        */
@@ -34,15 +33,14 @@ struct blkif_x86_32_request_discard {
     uint64_t       id;               /* private guest value, echoed in resp  */
     blkif_sector_t sector_number;    /* start sector idx on disk (r/w only)  */
     uint64_t       nr_sectors;       /* # of contiguous sectors to discard   */
-};
+} QEMU_ALIGNED(4);
 struct blkif_x86_32_response {
     uint64_t        id;              /* copied from request */
     uint8_t         operation;       /* copied from request */
     int16_t         status;          /* BLKIF_RSP_???       */
-};
+} QEMU_ALIGNED(4);
 typedef struct blkif_x86_32_request blkif_x86_32_request_t;
 typedef struct blkif_x86_32_response blkif_x86_32_response_t;
-#pragma pack(pop)
 
 /* x86_64 protocol version */
 struct blkif_x86_64_request {
