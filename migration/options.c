@@ -79,6 +79,11 @@
 #define DEFAULT_MIGRATE_ANNOUNCE_ROUNDS    5
 #define DEFAULT_MIGRATE_ANNOUNCE_STEP    100
 
+/*
+ * Parameter for multifd normal page test hook.
+ */
+#define DEFAULT_MIGRATE_MULTIFD_NORMAL_PAGE_RATIO 101
+
 #define DEFINE_PROP_MIG_CAP(name, x)             \
     DEFINE_PROP_BOOL(name, MigrationState, capabilities[x], false)
 
@@ -181,6 +186,9 @@ Property migration_properties[] = {
                       MIG_MODE_NORMAL),
     DEFINE_PROP_STRING("multifd-dsa-accel", MigrationState,
                        parameters.multifd_dsa_accel),
+    DEFINE_PROP_UINT8("multifd-normal-page-ratio", MigrationState,
+                      parameters.multifd_normal_page_ratio,
+                      DEFAULT_MIGRATE_MULTIFD_NORMAL_PAGE_RATIO),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -860,6 +868,12 @@ int migrate_multifd_channels(void)
     return s->parameters.multifd_channels;
 }
 
+uint8_t migrate_multifd_normal_page_ratio(void)
+{
+    MigrationState *s = migrate_get_current();
+    return s->parameters.multifd_normal_page_ratio;
+}
+
 MultiFDCompression migrate_multifd_compression(void)
 {
     MigrationState *s = migrate_get_current();
@@ -1258,6 +1272,14 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
+    if (params->has_multifd_normal_page_ratio &&
+        params->multifd_normal_page_ratio > 100) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "multifd_normal_page_ratio",
+                   "a value between 0 and 100");
+        return false;
+    }
+
     return true;
 }
 
@@ -1377,6 +1399,11 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->multifd_dsa_accel) {
         assert(params->multifd_dsa_accel->type == QTYPE_QSTRING);
         dest->multifd_dsa_accel = params->multifd_dsa_accel->u.s;
+    }
+
+    if (params->has_multifd_normal_page_ratio) {
+        dest->has_multifd_normal_page_ratio = true;
+        dest->multifd_normal_page_ratio = params->multifd_normal_page_ratio;
     }
 }
 
@@ -1527,6 +1554,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         g_free(s->parameters.multifd_dsa_accel);
         assert(params->multifd_dsa_accel->type == QTYPE_QSTRING);
         s->parameters.multifd_dsa_accel = g_strdup(params->multifd_dsa_accel->u.s);
+    }
+
+    if (params->has_multifd_normal_page_ratio) {
+        s->parameters.multifd_normal_page_ratio = params->multifd_normal_page_ratio;
     }
 }
 

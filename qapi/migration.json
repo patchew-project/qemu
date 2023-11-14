@@ -882,6 +882,9 @@
 # @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
 #                     certain memory operations. (since 8.2)
 #
+# @multifd-normal-page-ratio: Test hook setting the normal page ratio.
+#     (Since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -915,7 +918,8 @@
            'block-bitmap-mapping',
            { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
            'vcpu-dirty-limit',
-           'mode'] }
+           'mode',
+           'multifd-normal-page-ratio'] }
 
 ##
 # @MigrateSetParameters:
@@ -1073,6 +1077,9 @@
 # @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
 #                     certain memory operations. (since 8.2)
 #
+# @multifd-normal-page-ratio: Test hook setting the normal page ratio.
+#     (Since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1127,7 +1134,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*multifd-dsa-accel': 'StrOrNull'} }
+            '*multifd-dsa-accel': 'StrOrNull',
+            '*multifd-normal-page-ratio': 'uint8'} }
 
 ##
 # @migrate-set-parameters:
@@ -1305,6 +1313,9 @@
 # @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
 #                     certain memory operations. (since 8.2)
 #
+# @multifd-normal-page-ratio: Test hook setting the normal page ratio.
+#     (Since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1356,7 +1367,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*multifd-dsa-accel': 'str'} }
+            '*multifd-dsa-accel': 'str',
+            '*multifd-normal-page-ratio': 'uint8'} }
 
 ##
 # @query-migrate-parameters:
