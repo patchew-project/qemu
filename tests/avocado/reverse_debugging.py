@@ -11,6 +11,7 @@ import os
 import logging
 
 from avocado import skipIf
+from avocado import skipUnless
 from avocado_qemu import BUILD_DIR
 from avocado.utils import gdb
 from avocado.utils import process
@@ -241,8 +242,8 @@ class ReverseDebugging_ppc64(ReverseDebugging):
 
     REG_PC = 0x40
 
-    # unidentified gitlab timeout problem
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    # Test seems to be broken right now
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test gets stuck')
     def test_ppc64_pseries(self):
         """
         :avocado: tags=arch:ppc64
@@ -254,7 +255,7 @@ class ReverseDebugging_ppc64(ReverseDebugging):
         self.endian_is_le = False
         self.reverse_debugging()
 
-    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test often fails')
     def test_ppc64_powernv(self):
         """
         :avocado: tags=arch:ppc64
