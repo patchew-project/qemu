@@ -50,6 +50,22 @@ struct buffer_zero_batch_task {
 #endif
 
 /**
+ * @brief Initializes a buffer zero batch task.
+ *
+ * @param task A pointer to the batch task to initialize.
+ * @param batch_size The number of DSA tasks in the batch.
+ */
+void buffer_zero_batch_task_init(struct buffer_zero_batch_task *task,
+                                 int batch_size);
+
+/**
+ * @brief Performs the proper cleanup on a DSA batch task.
+ *
+ * @param task A pointer to the batch task to cleanup.
+ */
+void buffer_zero_batch_task_destroy(struct buffer_zero_batch_task *task);
+
+/**
  * @brief Initializes DSA devices.
  *
  * @param dsa_parameter A list of DSA device path from migration parameter.
