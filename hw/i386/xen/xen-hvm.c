@@ -532,6 +532,8 @@ void xen_read_physmap(XenIOState *state)
     char path[80], *value = NULL;
     char **entries = NULL;
 
+    QLIST_INIT(&xen_physmap);
+
     snprintf(path, sizeof(path),
             "/local/domain/0/device-model/%d/physmap", xen_domid);
     entries = xs_directory(state->xenstore, 0, path, &num);
@@ -575,6 +577,7 @@ void xen_read_physmap(XenIOState *state)
 #else
 void xen_read_physmap(XenIOState *state)
 {
+    QLIST_INIT(&xen_physmap);
 }
 #endif
 
@@ -595,7 +598,6 @@ void xen_hvm_init_pc(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     xen_register_ioreq(state, max_cpus, &xen_memory_listener);
 
-    QLIST_INIT(&xen_physmap);
     xen_read_physmap(state);
 
     suspend.notify = xen_suspend_notifier;
