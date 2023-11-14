@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "sysemu/reset.h"
+#include "sysemu/xen.h"
 #include "qapi/error.h"
 #include "hw/core/cpu.h"
 #include "hw/display/vga.h"
@@ -2223,7 +2224,9 @@ bool vga_common_init(VGACommonState *s, Object *obj, Error **errp)
         return false;
     }
     vmstate_register_ram(&s->vram, s->global_vmstate ? NULL : DEVICE(obj));
-    xen_register_framebuffer(&s->vram);
+    if (xen_enabled()) {
+        xen_register_framebuffer(&s->vram);
+    }
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
