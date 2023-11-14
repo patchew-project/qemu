@@ -1343,16 +1343,16 @@ static uint64_t memory_region_ram_device_read(void *opaque,
 
     switch (size) {
     case 1:
-        data = *(uint8_t *)(mr->ram_block->host + addr);
+        memcpy(&data, mr->ram_block->host + addr, sizeof(uint8_t));
         break;
     case 2:
-        data = *(uint16_t *)(mr->ram_block->host + addr);
+        memcpy(&data, mr->ram_block->host + addr, sizeof(uint16_t));
         break;
     case 4:
-        data = *(uint32_t *)(mr->ram_block->host + addr);
+        memcpy(&data, mr->ram_block->host + addr, sizeof(uint32_t));
         break;
     case 8:
-        data = *(uint64_t *)(mr->ram_block->host + addr);
+        memcpy(&data, mr->ram_block->host + addr, sizeof(uint64_t));
         break;
     }
 
@@ -1370,16 +1370,16 @@ static void memory_region_ram_device_write(void *opaque, hwaddr addr,
 
     switch (size) {
     case 1:
-        *(uint8_t *)(mr->ram_block->host + addr) = (uint8_t)data;
+        memcpy(mr->ram_block->host + addr, &data, sizeof(uint8_t));
         break;
     case 2:
-        *(uint16_t *)(mr->ram_block->host + addr) = (uint16_t)data;
+        memcpy(mr->ram_block->host + addr, &data, sizeof(uint16_t));
         break;
     case 4:
-        *(uint32_t *)(mr->ram_block->host + addr) = (uint32_t)data;
+        memcpy(mr->ram_block->host + addr, &data, sizeof(uint32_t));
         break;
     case 8:
-        *(uint64_t *)(mr->ram_block->host + addr) = data;
+        memcpy(mr->ram_block->host + addr, &data, sizeof(uint64_t));
         break;
     }
 }
