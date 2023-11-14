@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/rcu.h"
+#include "qemu/cutils.h"
 #include "exec/target_page.h"
 #include "sysemu/sysemu.h"
 #include "exec/ramblock.h"
@@ -459,7 +460,6 @@ static int multifd_send_pages(QEMUFile *f)
     p->packet_num = multifd_send_state->packet_num++;
     multifd_send_state->pages = p->pages;
     p->pages = pages;
-
     qemu_mutex_unlock(&p->mutex);
     qemu_sem_post(&p->sem);
 
@@ -684,7 +684,7 @@ static void *multifd_send_thread(void *opaque)
     MigrationThread *thread = NULL;
     Error *local_err = NULL;
     /* qemu older than 8.2 don't understand zero page on multifd channel */
-    bool use_zero_page = !migrate_use_main_zero_page();
+    bool use_multifd_zero_page = !migrate_use_main_zero_page();
     int ret = 0;
     bool use_zero_copy_send = migrate_zero_copy_send();
 
@@ -713,6 +713,7 @@ static void *multifd_send_thread(void *opaque)
             RAMBlock *rb = p->pages->block;
             uint64_t packet_num = p->packet_num;
             uint32_t flags;
+
             p->normal_num = 0;
             p->zero_num = 0;
 
@@ -724,7 +725,7 @@ static void *multifd_send_thread(void *opaque)
 
             for (int i = 0; i < p->pages->num; i++) {
                 uint64_t offset = p->pages->offset[i];
-                if (use_zero_page &&
+                if (use_multifd_zero_page &&
                     buffer_is_zero(rb->host + offset, p->page_size)) {
                     p->zero[p->zero_num] = offset;
                     p->zero_num++;

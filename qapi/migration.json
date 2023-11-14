@@ -531,7 +531,6 @@
 #     and can result in more stable read performance.  Requires KVM
 #     with accelerator property "dirty-ring-size" set.  (Since 8.1)
 #
-#
 # @main-zero-page: If enabled, the detection of zero pages will be
 #                  done on the main thread.  Otherwise it is done on
 #                  the multifd threads.
