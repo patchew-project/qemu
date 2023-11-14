@@ -73,5 +73,7 @@ void tpm_crb_init_memory(Object *obj, TPMCRBState *s, Error **errp);
 void tpm_crb_mem_save(TPMCRBState *s, uint32_t *saved_regs, void *saved_cmdmem);
 void tpm_crb_mem_load(TPMCRBState *s, const uint32_t *saved_regs,
                       const void *saved_cmdmem);
+void tpm_crb_build_aml(TPMIf *ti, Aml *scope, uint32_t baseaddr, uint32_t size,
+                       bool build_ppi);
 
 #endif /* TPM_TPM_CRB_H */
