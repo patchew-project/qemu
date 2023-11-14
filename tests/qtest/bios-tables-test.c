@@ -1445,7 +1445,7 @@ static void test_acpi_piix4_tcg_numamem(void)
     free_test_data(&data);
 }
 
-uint64_t tpm_tis_base_addr;
+uint64_t tpm_device_base_addr;
 
 static test_data tcg_tpm_test_data(const char *machine)
 {
@@ -1481,7 +1481,7 @@ static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
     const char *suffix = tpm_version == TPM_VERSION_2_0 ? "tpm2" : "tpm12";
     char *args, *variant = g_strdup_printf(".%s.%s", tpm_if, suffix);
 
-    tpm_tis_base_addr = base;
+    tpm_device_base_addr = base;
 
     module_call_init(MODULE_INIT_QOM);
 

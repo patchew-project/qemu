@@ -19,7 +19,8 @@
 #include "tpm-tests.h"
 #include "hw/acpi/tpm.h"
 
-uint64_t tpm_device_base_addr = TPM_CRB_ADDR_BASE;
+uint64_t tpm_device_base_addr = 0xc000000;
+#define MACHINE_OPTIONS "-machine virt,gic-version=max -accel tcg"
 
 typedef struct TestState {
     char *src_tpm_path;
@@ -32,7 +33,7 @@ static void tpm_crb_swtpm_test(const void *data)
     const TestState *ts = data;
 
     tpm_test_swtpm_test(ts->src_tpm_path, tpm_util_crb_transfer,
-                        "tpm-crb", NULL);
+                        "tpm-crb-device", MACHINE_OPTIONS);
 }
 
 static void tpm_crb_swtpm_migration_test(const void *data)
@@ -40,7 +41,8 @@ static void tpm_crb_swtpm_migration_test(const void *data)
     const TestState *ts = data;
 
     tpm_test_swtpm_migration_test(ts->src_tpm_path, ts->dst_tpm_path, ts->uri,
-                                  tpm_util_crb_transfer, "tpm-crb", NULL);
+                                  tpm_util_crb_transfer, "tpm-crb-device",
+                                  MACHINE_OPTIONS);
 }
 
 int main(int argc, char **argv)
