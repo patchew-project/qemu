@@ -13,7 +13,3 @@ int xen_is_pirq_msi(uint32_t msi_data)
 {
     return 0;
 }
-
-void xen_register_framebuffer(MemoryRegion *mr)
-{
-}
