@@ -525,7 +525,7 @@ static void handle_vmport_ioreq(XenIOState *state, ioreq_t *req)
 }
 
 #ifdef XEN_COMPAT_PHYSMAP
-static void xen_read_physmap(XenIOState *state)
+void xen_read_physmap(XenIOState *state)
 {
     XenPhysmap *physmap = NULL;
     unsigned int len, num, i;
@@ -573,7 +573,7 @@ static void xen_read_physmap(XenIOState *state)
     free(entries);
 }
 #else
-static void xen_read_physmap(XenIOState *state)
+void xen_read_physmap(XenIOState *state)
 {
 }
 #endif
