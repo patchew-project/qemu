@@ -8,36 +8,12 @@
 
 #include "qemu/osdep.h"
 #include "hw/xen/xen.h"
-#include "hw/xen/xen-x86.h"
-
-int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
-{
-    return -1;
-}
-
-void xen_intx_set_irq(void *opaque, int irq_num, int level)
-{
-}
-
-int xen_set_pci_link_route(uint8_t link, uint8_t irq)
-{
-    return -1;
-}
 
 int xen_is_pirq_msi(uint32_t msi_data)
 {
     return 0;
 }
 
-qemu_irq *xen_interrupt_controller_init(void)
-{
-    return NULL;
-}
-
 void xen_register_framebuffer(MemoryRegion *mr)
-{
-}
-
-void xen_hvm_init_pc(PCMachineState *pcms, MemoryRegion **ram_memory)
 {
 }
