@@ -101,6 +101,20 @@ static TypeImpl *type_table_lookup(const char *name)
     return g_hash_table_lookup(type_table_get(), name);
 }
 
+static bool type_name_is_valid(const char *name)
+{
+    const int slen = strlen(name);
+
+    for (int i = 0; i < slen; i++) {
+        if (!g_ascii_isalnum (name[i]) && name[i] != '-' && name[i] != '_' &&
+            name[i] != '.' && name[i] != ':' && name[i] != '+') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static TypeImpl *type_new(const TypeInfo *info)
 {
     TypeImpl *ti = g_malloc0(sizeof(*ti));
@@ -110,6 +124,11 @@ static TypeImpl *type_new(const TypeInfo *info)
 
     if (type_table_lookup(info->name) != NULL) {
         fprintf(stderr, "Registering `%s' which already exists\n", info->name);
+        abort();
+    }
+
+    if (!type_name_is_valid(info->name)) {
+        fprintf(stderr, "Registering `%s' with illegal type name\n", info->name);
         abort();
     }
 
