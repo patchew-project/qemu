@@ -12,6 +12,41 @@
 #include <linux/idxd.h>
 #include "x86intrin.h"
 
+enum dsa_task_type {
+    DSA_TASK = 0,
+    DSA_BATCH_TASK
+};
+
+enum dsa_task_status {
+    DSA_TASK_READY = 0,
+    DSA_TASK_PROCESSING,
+    DSA_TASK_COMPLETION
+};
+
+typedef void (*buffer_zero_dsa_completion_fn)(void *);
+
+typedef struct buffer_zero_batch_task {
+    struct dsa_hw_desc batch_descriptor;
+    struct dsa_hw_desc *descriptors;
+    struct dsa_completion_record batch_completion __attribute__((aligned(32)));
+    struct dsa_completion_record *completions;
+    struct dsa_device_group *group;
+    struct dsa_device *device;
+    buffer_zero_dsa_completion_fn completion_callback;
+    QemuSemaphore sem_task_complete;
+    enum dsa_task_type task_type;
+    enum dsa_task_status status;
+    bool *results;
+    int batch_size;
+    QSIMPLEQ_ENTRY(buffer_zero_batch_task) entry;
+} buffer_zero_batch_task;
+
+#else
+
+struct buffer_zero_batch_task {
+    bool *results;
+};
+
 #endif
 
 /**
