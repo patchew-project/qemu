@@ -1051,7 +1051,7 @@ static void multifd_new_send_channel_create(gpointer opaque)
 int multifd_save_setup(Error **errp)
 {
     int thread_count;
-    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    uint32_t page_count = migrate_multifd_packet_size();
     uint8_t i;
     const char *dsa_parameter = migrate_multifd_dsa_accel();
 
@@ -1329,7 +1329,7 @@ static void *multifd_recv_thread(void *opaque)
 int multifd_load_setup(Error **errp)
 {
     int thread_count;
-    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    uint32_t page_count = migrate_multifd_packet_size();
     uint8_t i;
     const char *dsa_parameter = migrate_multifd_dsa_accel();
 
