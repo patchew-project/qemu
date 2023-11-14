@@ -35,8 +35,6 @@
 #include "qemu/qemu-print.h"
 #include "qemu/host-utils.h"
 
-static struct XtensaConfigList *xtensa_cores;
-
 static void add_translator_to_hash(GHashTable *translator,
                                    const char *name,
                                    const XtensaOpcodeOps *opcode)
@@ -187,17 +185,15 @@ static void xtensa_core_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
 }
 
-void xtensa_register_core(XtensaConfigList *node)
+void xtensa_register_core(XtensaConfig *config)
 {
     TypeInfo type = {
         .parent = TYPE_XTENSA_CPU,
         .class_init = xtensa_core_class_init,
-        .class_data = (void *)node->config,
+        .class_data = (void *)config,
     };
 
-    node->next = xtensa_cores;
-    xtensa_cores = node;
-    type.name = g_strdup_printf(XTENSA_CPU_TYPE_NAME("%s"), node->config->name);
+    type.name = g_strdup_printf(XTENSA_CPU_TYPE_NAME("%s"), config->name);
     type_register(&type);
     g_free((gpointer)type.name);
 }
@@ -231,15 +227,6 @@ void xtensa_breakpoint_handler(CPUState *cs)
             }
             cpu_loop_exit_noexc(cs);
         }
-    }
-}
-
-void xtensa_cpu_list(void)
-{
-    XtensaConfigList *core = xtensa_cores;
-    qemu_printf("Available CPUs:\n");
-    for (; core; core = core->next) {
-        qemu_printf("  %s\n", core->config->name);
     }
 }
 

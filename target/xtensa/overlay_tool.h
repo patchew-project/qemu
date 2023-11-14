@@ -450,13 +450,10 @@
 #endif
 
 #if TARGET_BIG_ENDIAN == (XCHAL_HAVE_BE != 0)
-#define REGISTER_CORE(core) \
+#define REGISTER_CORE(config) \
     static void __attribute__((constructor)) register_core(void) \
     { \
-        static XtensaConfigList node = { \
-            .config = &core, \
-        }; \
-        xtensa_register_core(&node); \
+        xtensa_register_core(&config); \
     }
 #else
 #define REGISTER_CORE(core)
