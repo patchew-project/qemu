@@ -31,6 +31,9 @@
 #include "qemu/cutils.h"
 #include "sysemu/sysemu.h"
 
+#define VHOST_SCSI_WORKER_PER_VQ    -1
+#define VHOST_SCSI_WORKER_DEF        1
+
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {
     VIRTIO_F_NOTIFY_ON_EMPTY,
@@ -165,6 +168,62 @@ static const VMStateDescription vmstate_virtio_vhost_scsi = {
     .pre_save = vhost_scsi_pre_save,
 };
 
+static int vhost_scsi_set_workers(VHostSCSICommon *vsc, int workers_cnt)
+{
+    struct vhost_dev *dev = &vsc->dev;
+    struct vhost_vring_worker vq_worker;
+    struct vhost_worker_state worker;
+    int i, ret;
+
+    /* Use default worker */
+    if (workers_cnt == VHOST_SCSI_WORKER_DEF ||
+        dev->nvqs == VHOST_SCSI_VQ_NUM_FIXED + 1) {
+        return 0;
+    }
+
+    if (workers_cnt != VHOST_SCSI_WORKER_PER_VQ) {
+        return -EINVAL;
+    }
+
+    /*
+     * ctl/evt share the first worker since it will be rare for them
+     * to send cmds while IO is running.
+     */
+    for (i = VHOST_SCSI_VQ_NUM_FIXED + 1; i < dev->nvqs; i++) {
+        memset(&worker, 0, sizeof(worker));
+
+        ret = dev->vhost_ops->vhost_new_worker(dev, &worker);
+        if (ret == -ENOTTY) {
+            /*
+             * worker ioctls are not implemented so just ignore and
+             * and continue device setup.
+             */
+            ret = 0;
+            break;
+        } else if (ret) {
+            break;
+        }
+
+        memset(&vq_worker, 0, sizeof(vq_worker));
+        vq_worker.worker_id = worker.worker_id;
+        vq_worker.index = i;
+
+        ret = dev->vhost_ops->vhost_attach_vring_worker(dev, &vq_worker);
+        if (ret == -ENOTTY) {
+            /*
+             * It's a bug for the kernel to have supported the worker creation
+             * ioctl but not attach.
+             */
+            dev->vhost_ops->vhost_free_worker(dev, &worker);
+            break;
+        } else if (ret) {
+            break;
+        }
+    }
+
+    return ret;
+}
+
 static void vhost_scsi_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
@@ -229,6 +288,13 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
          * vhostfd, don't double close it.
          */
         vhostfd = -1;
+        goto free_vqs;
+    }
+
+    ret = vhost_scsi_set_workers(vsc, vs->conf.virtqueue_workers);
+    if (ret < 0) {
+        error_setg(errp, "vhost-scsi: vhost worker setup failed: %s",
+                   strerror(-ret));
         goto free_vqs;
     }
 
@@ -297,6 +363,8 @@ static Property vhost_scsi_properties[] = {
                                                  VIRTIO_SCSI_F_T10_PI,
                                                  false),
     DEFINE_PROP_BOOL("migratable", VHostSCSICommon, migratable, false),
+    DEFINE_PROP_INT32("virtqueue_workers", VirtIOSCSICommon,
+                      conf.virtqueue_workers, VHOST_SCSI_WORKER_DEF),
     DEFINE_PROP_END_OF_LIST(),
 };
 
