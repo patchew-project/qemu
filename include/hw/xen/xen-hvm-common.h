@@ -18,6 +18,7 @@
 extern MemoryRegion xen_memory;
 extern MemoryListener xen_io_listener;
 extern DeviceListener xen_device_listener;
+extern const MemoryListener xen_memory_listener;
 
 //#define DEBUG_XEN_HVM
 
