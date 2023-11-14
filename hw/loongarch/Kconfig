@@ -6,6 +6,7 @@ config LOONGARCH_VIRT
     imply PCI_DEVICES
     imply NVDIMM
     imply TPM_TIS_SYSBUS
+    imply TPM_CRB_SYSBUS
     select SERIAL
     select VIRTIO_PCI
     select PLATFORM_BUS

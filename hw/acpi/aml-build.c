@@ -31,6 +31,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_bridge.h"
 #include "qemu/cutils.h"
+#include "qom/object.h"
 
 static GArray *build_alloc_array(void)
 {
@@ -2218,7 +2219,7 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
 {
     uint8_t start_method_params[12] = {};
     unsigned log_addr_offset;
-    uint64_t control_area_start_address;
+    uint64_t baseaddr, control_area_start_address;
     TPMIf *tpmif = tpm_find();
     uint32_t start_method;
     AcpiTable table = { .sig = "TPM2", .rev = 4,
@@ -2235,6 +2236,10 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
         start_method = TPM2_START_METHOD_MMIO;
     } else if (TPM_IS_CRB(tpmif)) {
         control_area_start_address = TPM_CRB_ADDR_CTRL;
+        start_method = TPM2_START_METHOD_CRB;
+    } else if (TPM_IS_CRB_SYSBUS(tpmif)) {
+        baseaddr = object_property_get_uint(OBJECT(tpmif), "x-baseaddr", NULL);
+        control_area_start_address = baseaddr + A_CRB_CTRL_REQ;
         start_method = TPM2_START_METHOD_CRB;
     } else {
         g_assert_not_reached();
