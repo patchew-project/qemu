@@ -84,6 +84,12 @@
  */
 #define DEFAULT_MIGRATE_MULTIFD_NORMAL_PAGE_RATIO 101
 
+/*
+ * Parameter for multifd packet size.
+ */
+#define DEFAULT_MIGRATE_MULTIFD_PACKET_SIZE 128
+#define MAX_MIGRATE_MULTIFD_PACKET_SIZE 1024
+
 #define DEFINE_PROP_MIG_CAP(name, x)             \
     DEFINE_PROP_BOOL(name, MigrationState, capabilities[x], false)
 
@@ -189,6 +195,9 @@ Property migration_properties[] = {
     DEFINE_PROP_UINT8("multifd-normal-page-ratio", MigrationState,
                       parameters.multifd_normal_page_ratio,
                       DEFAULT_MIGRATE_MULTIFD_NORMAL_PAGE_RATIO),
+    DEFINE_PROP_SIZE("multifd-packet-size", MigrationState,
+                     parameters.multifd_packet_size,
+                     DEFAULT_MIGRATE_MULTIFD_PACKET_SIZE),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -874,6 +883,13 @@ uint8_t migrate_multifd_normal_page_ratio(void)
     return s->parameters.multifd_normal_page_ratio;
 }
 
+uint64_t migrate_multifd_packet_size(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.multifd_packet_size;
+}
+
 MultiFDCompression migrate_multifd_compression(void)
 {
     MigrationState *s = migrate_get_current();
@@ -1012,6 +1028,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
     params->has_block_incremental = true;
     params->block_incremental = s->parameters.block_incremental;
+    params->has_multifd_packet_size = true;
+    params->multifd_packet_size = s->parameters.multifd_packet_size;
     params->has_multifd_channels = true;
     params->multifd_channels = s->parameters.multifd_channels;
     params->has_multifd_compression = true;
@@ -1072,6 +1090,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_downtime_limit = true;
     params->has_x_checkpoint_delay = true;
     params->has_block_incremental = true;
+    params->has_multifd_packet_size = true;
     params->has_multifd_channels = true;
     params->has_multifd_compression = true;
     params->has_multifd_zlib_level = true;
@@ -1169,6 +1188,15 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     }
 
     /* x_checkpoint_delay is now always positive */
+
+    if (params->has_multifd_packet_size &&
+        ((params->multifd_packet_size < DEFAULT_MIGRATE_MULTIFD_PACKET_SIZE) ||
+            (params->multifd_packet_size >  MAX_MIGRATE_MULTIFD_PACKET_SIZE))) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                    "multifd_packet_size",
+                    "a value between 128 and 1024");
+        return false;
+    }
 
     if (params->has_multifd_channels && (params->multifd_channels < 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
@@ -1351,6 +1379,9 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_block_incremental) {
         dest->block_incremental = params->block_incremental;
     }
+    if (params->has_multifd_packet_size) {
+        dest->multifd_packet_size = params->multifd_packet_size;
+    }
     if (params->has_multifd_channels) {
         dest->multifd_channels = params->multifd_channels;
     }
@@ -1495,6 +1526,9 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         warn_report("block migration is deprecated;"
                     " use blockdev-mirror with NBD instead");
         s->parameters.block_incremental = params->block_incremental;
+    }
+    if (params->has_multifd_packet_size) {
+        s->parameters.multifd_packet_size = params->multifd_packet_size;
     }
     if (params->has_multifd_channels) {
         s->parameters.multifd_channels = params->multifd_channels;
