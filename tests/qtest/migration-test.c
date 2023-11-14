@@ -640,6 +640,12 @@ typedef struct {
 } MigrateStart;
 
 /*
+ * It requires separate steps to configure and enable DSA device.
+ * This test assumes that the configuration is done already.
+ */
+static const char* dsa_dev_path = "/dev/dsa/wq4.0";
+
+/*
  * A hook that runs after the src and dst QEMUs have been
  * created, but before the migration is started. This can
  * be used to set migration parameters and capabilities.
@@ -2775,7 +2781,7 @@ static void test_multifd_tcp_tls_x509_reject_anon_client(void)
  *
  *  And see that it works
  */
-static void test_multifd_tcp_cancel(void)
+static void test_multifd_tcp_cancel_common(bool use_dsa)
 {
     MigrateStart args = {
         .hide_stderr = true,
@@ -2795,6 +2801,10 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_set_capability(from, "multifd", true);
     migrate_set_capability(to, "multifd", true);
+
+    if (use_dsa) {
+        migrate_set_parameter_str(from, "multifd-dsa-accel", dsa_dev_path);
+    }
 
     /* Start incoming migration from the 1st socket */
     migrate_incoming_qmp(to, "tcp:127.0.0.1:0", "{}");
@@ -2851,6 +2861,48 @@ static void test_multifd_tcp_cancel(void)
     wait_for_migration_complete(from);
     test_migrate_end(from, to2, true);
 }
+
+/*
+ * This test does:
+ *  source               target
+ *                       migrate_incoming
+ *     migrate
+ *     migrate_cancel
+ *                       launch another target
+ *     migrate
+ *
+ *  And see that it works
+ */
+static void test_multifd_tcp_cancel(void)
+{
+    test_multifd_tcp_cancel_common(false);
+}
+
+#ifdef CONFIG_DSA_OPT
+
+static void *test_migrate_precopy_tcp_multifd_start_dsa(QTestState *from,
+                                                        QTestState *to)
+{
+    migrate_set_parameter_str(from, "multifd-dsa-accel", dsa_dev_path);
+    return test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+}
+
+static void test_multifd_tcp_none_dsa(void)
+{
+    MigrateCommon args = {
+        .listen_uri = "defer",
+        .start_hook = test_migrate_precopy_tcp_multifd_start_dsa,
+    };
+
+    test_precopy_common(&args);
+}
+
+static void test_multifd_tcp_cancel_dsa(void)
+{
+    test_multifd_tcp_cancel_common(true);
+}
+
+#endif
 
 static void calc_dirty_rate(QTestState *who, uint64_t calc_time)
 {
@@ -3274,6 +3326,19 @@ static bool kvm_dirty_ring_supported(void)
 #endif
 }
 
+#ifdef CONFIG_DSA_OPT
+static int test_dsa_setup(void)
+{
+    int fd;
+    fd = open(dsa_dev_path, O_RDWR);
+    if (fd < 0) {
+        return -1;
+    }
+    close(fd);
+    return 0;
+}
+#endif
+
 int main(int argc, char **argv)
 {
     bool has_kvm, has_tcg;
@@ -3468,6 +3533,16 @@ int main(int argc, char **argv)
     }
     qtest_add_func("/migration/multifd/tcp/plain/none",
                    test_multifd_tcp_none);
+
+#ifdef CONFIG_DSA_OPT
+    if (g_str_equal(arch, "x86_64") && test_dsa_setup() == 0) {
+        qtest_add_func("/migration/multifd/tcp/plain/none/dsa",
+                       test_multifd_tcp_none_dsa);
+        qtest_add_func("/migration/multifd/tcp/plain/cancel/dsa",
+                       test_multifd_tcp_cancel_dsa);
+    }
+#endif
+
     /*
      * This test is flaky and sometimes fails in CI and otherwise:
      * don't run unless user opts in via environment variable.
