@@ -65,6 +65,7 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/irq.h"
+#include "hw/uefi/var-service-api.h"
 #include "kvm_arm.h"
 #include "hw/firmware/smbios.h"
 #include "qapi/visitor.h"
@@ -156,6 +157,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_NVDIMM_ACPI] =        { 0x09090000, NVDIMM_ACPI_IO_LEN},
     [VIRT_PVTIME] =             { 0x090a0000, 0x00010000 },
     [VIRT_SECURE_GPIO] =        { 0x090b0000, 0x00001000 },
+    [VIRT_UEFI_VARS] =          { 0x090c0000, 0x00000010 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -1302,6 +1304,24 @@ static FWCfgState *create_fw_cfg(const VirtMachineState *vms, AddressSpace *as)
     return fw_cfg;
 }
 
+static void create_uefi_vars(const VirtMachineState *vms)
+{
+    hwaddr base = vms->memmap[VIRT_UEFI_VARS].base;
+    hwaddr size = vms->memmap[VIRT_UEFI_VARS].size;
+    MachineState *ms = MACHINE(vms);
+    char *nodename;
+
+    sysbus_create_simple("uefi-vars-sysbus", base, NULL);
+
+    nodename = g_strdup_printf("/%s@%" PRIx64, UEFI_VARS_FDT_NODE, base);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
+                            "compatible", UEFI_VARS_FDT_COMPAT);
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    g_free(nodename);
+}
+
 static void create_pcie_irq_map(const MachineState *ms,
                                 uint32_t gic_phandle,
                                 int first_irq, const char *nodename)
@@ -2312,6 +2332,10 @@ static void machvirt_init(MachineState *machine)
     vms->fw_cfg = create_fw_cfg(vms, &address_space_memory);
     rom_set_fw(vms->fw_cfg);
 
+    if (vms->uefi_vars) {
+        create_uefi_vars(vms);
+    }
+
     create_platform_bus(vms);
 
     if (machine->nvdimms_state->is_enabled) {
@@ -2506,6 +2530,20 @@ static void virt_set_oem_table_id(Object *obj, const char *value,
         return;
     }
     strncpy(vms->oem_table_id, value, 8);
+}
+
+static bool virt_get_uefi_vars(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->uefi_vars;
+}
+
+static void virt_set_uefi_vars(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->uefi_vars = value;
 }
 
 
@@ -3099,6 +3137,9 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
                                           "in ACPI table header."
                                           "The string may be up to 8 bytes in size");
 
+    object_class_property_add_bool(oc, "x-uefi-vars",
+                                   virt_get_uefi_vars,
+                                   virt_set_uefi_vars);
 }
 
 static void virt_instance_init(Object *obj)

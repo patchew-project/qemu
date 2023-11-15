@@ -76,6 +76,7 @@ enum {
     VIRT_ACPI_GED,
     VIRT_NVDIMM_ACPI,
     VIRT_PVTIME,
+    VIRT_UEFI_VARS,
     VIRT_LOWMEMMAP_LAST,
 };
 
@@ -150,6 +151,7 @@ struct VirtMachineState {
     bool ras;
     bool mte;
     bool dtb_randomness;
+    bool uefi_vars;
     OnOffAuto acpi;
     VirtGICType gic_version;
     VirtIOMMUType iommu;
