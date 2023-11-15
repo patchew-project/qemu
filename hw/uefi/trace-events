@@ -1,0 +1,16 @@
+# device
+uefi_reg_read(uint64_t addr, unsigned size) "addr 0x%lx, size %d"
+uefi_reg_write(uint64_t addr, uint64_t val, unsigned size) "addr 0x%lx, val 0x%lx, size %d"
+uefi_hard_reset(void) ""
+
+# generic uefi
+uefi_variable(const char *context, const char *name, uint64_t size, const char *uuid) "context %s, name %s, size %ld, uuid %s"
+uefi_status(const char *context, const char *name) "context %s, status %s"
+uefi_event(const char *name) "event %s"
+
+# variable protocol
+uefi_vars_proto_cmd(const char *cmd) "cmd %s"
+
+# variable policy protocol
+uefi_vars_policy_cmd(const char *cmd) "cmd %s"
+uefi_vars_policy_deny(const char *reason) "reason %s"
