@@ -487,17 +487,28 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
     }
 
     /*
-     * If no inbound iATU windows are configured, HW defaults to
-     * letting inbound TLPs to pass in. We emulate that by explicitly
-     * configuring first inbound window to cover all of target's
-     * address space.
+     * For HW iATU address no match behavior, the TLP should continue with
+     * untranslated address.
      *
-     * NOTE: This will not work correctly for the case when first
-     * configured inbound window is window 0
+     * We emulate this behavior by adding extra MemoryRegions to create a
+     * 1:1 mapping between PCI address space and cpu address space within
+     * the 64-bit range, encompassing both inbound and outbound directions.
+     *
+     * To avoid interfering with the configured iATU regions and potentially
+     * producing incorrect addresses, the two untranslated regions are set
+     * to have the lowest priority.
      */
-    viewport = &root->viewports[DESIGNWARE_PCIE_VIEWPORT_INBOUND][0];
-    viewport->cr[1] = DESIGNWARE_PCIE_ATU_ENABLE;
-    designware_pcie_update_viewport(root, viewport);
+    MemoryRegion *inbound_untranslated = g_new(MemoryRegion, 1);
+
+    memory_region_init_alias(inbound_untranslated, OBJECT(root),
+                             "inbound untranslated pass",
+                             get_system_memory(), dummy_offset, dummy_size);
+    memory_region_add_subregion_overlap(&host->pci.address_space_root,
+                                        dummy_offset, inbound_untranslated,
+                                        INT32_MIN);
+    memory_region_set_size(inbound_untranslated, UINT64_MAX);
+    memory_region_set_address(inbound_untranslated, 0x0ULL);
+    memory_region_set_enabled(inbound_untranslated, true);
 
     memory_region_init_io(&root->msi.iomem, OBJECT(root),
                           &designware_pci_host_msi_ops,
