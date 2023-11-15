@@ -413,6 +413,20 @@ static void ich9_pm_set_acpi_hotplug_bridge(Object *obj, bool value,
     s->pm.acpi_pci_hotplug.use_acpi_hotplug_bridge = value;
 }
 
+static bool ich9_pm_get_acpi_pci_hotplug(Object *obj, Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    return s->pm.acpi_pci_hotplug.use_acpi_root_pci_hotplug;
+}
+
+static void ich9_pm_set_acpi_pci_hotplug(Object *obj, bool value, Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    s->pm.acpi_pci_hotplug.use_acpi_root_pci_hotplug = value;
+}
+
 static bool ich9_pm_get_keep_pci_slot_hpc(Object *obj, Error **errp)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
@@ -464,6 +478,9 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm)
     object_property_add_bool(obj, ACPI_PM_PROP_ACPI_PCIHP_BRIDGE,
                              ich9_pm_get_acpi_hotplug_bridge,
                              ich9_pm_set_acpi_hotplug_bridge);
+    object_property_add_bool(obj, ACPI_PM_PROP_ACPI_PCI_ROOTHP,
+                             ich9_pm_get_acpi_pci_hotplug,
+                             ich9_pm_set_acpi_pci_hotplug);
     object_property_add_bool(obj, "x-keep-pci-slot-hpc",
                              ich9_pm_get_keep_pci_slot_hpc,
                              ich9_pm_set_keep_pci_slot_hpc);
