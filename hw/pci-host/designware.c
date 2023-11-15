@@ -499,6 +499,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
      * to have the lowest priority.
      */
     MemoryRegion *inbound_untranslated = g_new(MemoryRegion, 1);
+    MemoryRegion *outbound_untranslated = g_new(MemoryRegion, 1);
 
     memory_region_init_alias(inbound_untranslated, OBJECT(root),
                              "inbound untranslated pass",
@@ -509,6 +510,16 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
     memory_region_set_size(inbound_untranslated, UINT64_MAX);
     memory_region_set_address(inbound_untranslated, 0x0ULL);
     memory_region_set_enabled(inbound_untranslated, true);
+
+    memory_region_init_alias(outbound_untranslated, OBJECT(root),
+                             "outbound untranslated pass",
+                             &host->pci.memory, dummy_offset, dummy_size);
+    memory_region_add_subregion_overlap(get_system_memory(),
+                                        dummy_offset, outbound_untranslated,
+                                        INT32_MIN);
+    memory_region_set_size(outbound_untranslated, UINT64_MAX);
+    memory_region_set_address(outbound_untranslated, 0x0ULL);
+    memory_region_set_enabled(outbound_untranslated, true);
 
     memory_region_init_io(&root->msi.iomem, OBJECT(root),
                           &designware_pci_host_msi_ops,
