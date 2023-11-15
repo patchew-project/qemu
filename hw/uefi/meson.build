@@ -5,7 +5,8 @@ uefi_vars_ss.add(when: 'CONFIG_UEFI_VARS',
                                 'var-service-vars.c',
                                 'var-service-auth.c',
                                 'var-service-guid.c',
-                                'var-service-policy.c'))
+                                'var-service-policy.c',
+                                'var-service-sysbus.c'))
 
 modules += { 'hw-uefi' : {
     'vars'     : uefi_vars_ss,
