@@ -398,14 +398,15 @@ static void ich9_pm_set_enable_tco(Object *obj, bool value, Error **errp)
     s->pm.enable_tco = value;
 }
 
-static bool ich9_pm_get_acpi_pci_hotplug(Object *obj, Error **errp)
+static bool ich9_pm_get_acpi_hotplug_bridge(Object *obj, Error **errp)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
 
     return s->pm.acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
-static void ich9_pm_set_acpi_pci_hotplug(Object *obj, bool value, Error **errp)
+static void ich9_pm_set_acpi_hotplug_bridge(Object *obj, bool value,
+                                            Error **errp)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
 
@@ -461,8 +462,8 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm)
                              ich9_pm_get_enable_tco,
                              ich9_pm_set_enable_tco);
     object_property_add_bool(obj, ACPI_PM_PROP_ACPI_PCIHP_BRIDGE,
-                             ich9_pm_get_acpi_pci_hotplug,
-                             ich9_pm_set_acpi_pci_hotplug);
+                             ich9_pm_get_acpi_hotplug_bridge,
+                             ich9_pm_set_acpi_hotplug_bridge);
     object_property_add_bool(obj, "x-keep-pci-slot-hpc",
                              ich9_pm_get_keep_pci_slot_hpc,
                              ich9_pm_set_keep_pci_slot_hpc);
