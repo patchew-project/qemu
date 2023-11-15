@@ -450,6 +450,7 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm)
     pm->disable_s4 = 0;
     pm->s4_val = 2;
     pm->acpi_pci_hotplug.use_acpi_hotplug_bridge = true;
+    pm->acpi_pci_hotplug.use_acpi_root_pci_hotplug = true;
     pm->keep_pci_slot_hpc = true;
     pm->enable_tco = true;
 
