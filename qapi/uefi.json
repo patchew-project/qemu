@@ -1,0 +1,40 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+#
+
+##
+# @UefiVariable:
+#
+# UEFI Variable
+#
+# @guid: variable namespace guid
+#
+# @name: variable name (utf-8)
+#
+# @attr: variable attributes
+#
+# @data: variable content (base64)
+#
+# Since: 9.0
+##
+{ 'struct' : 'UefiVariable',
+  'data' : { 'guid'  : 'str',
+             'name'  : 'str',
+             'attr'  : 'int',
+             'data'  : 'str',
+             '*time' : 'str'}}
+
+##
+# @UefiVarStore:
+#
+# UEFI Variable Store
+#
+# @version: 2
+#
+# @variables: list of uefi variables
+#
+# Since: 9.0
+##
+{ 'struct' : 'UefiVarStore',
+  'data' : { 'version'   : 'int',
+             'variables' : [ 'UefiVariable' ] }}
