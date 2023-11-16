@@ -138,9 +138,50 @@ static TypeImpl *type_new(const TypeInfo *info)
     return ti;
 }
 
+static bool type_name_is_valid(const char *name)
+{
+    const int slen = strlen(name);
+
+    g_assert(slen > 1);
+
+    /*
+     * Ideally, the name should start with a letter - however, we've got
+     * too many names starting with a digit already, so allow digits here,
+     * too (except '0' which is not used yet)
+     */
+    if (!g_ascii_isalnum(name[0]) || name[0] == '0') {
+        return false;
+    }
+
+    for (int i = 1; i < slen; i++) {
+        if (name[i] != '-' && name[i] != '_' && name[i] != '.' &&
+            !g_ascii_isalnum(name[i])) {
+            if (name[i] == '+') {
+                if (i == 6 && !strncmp(name, "power", 5)) {
+                    /* It's a legacy name like "power5+" */
+                    continue;
+                }
+                if (i >= 17 && !strncmp(name, "Sun-UltraSparc", 14)) {
+                    /* It's a legacy name like "Sun-UltraSparc-IV+" */
+                    continue;
+                }
+            }
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static TypeImpl *type_register_internal(const TypeInfo *info)
 {
     TypeImpl *ti;
+
+    if (!type_name_is_valid(info->name)) {
+        fprintf(stderr, "Registering '%s' with illegal type name\n", info->name);
+        abort();
+    }
+
     ti = type_new(info);
 
     type_table_add(ti);
