@@ -1979,6 +1979,9 @@ print_insn_hppa (bfd_vma memaddr, disassemble_info *info)
 	  if (opcode->arch == pa20w)
 	    continue;
 #endif
+	  (*info->fprintf_func) (info->stream, " %02x %02x %02x %02x   ",
+                (insn >> 24) & 0xff, (insn >> 16) & 0xff,
+                (insn >>  8) & 0xff, insn & 0xff);
 	  (*info->fprintf_func) (info->stream, "%s", opcode->name);
 
 	  if (!strchr ("cfCY?-+nHNZFIuv{", opcode->args[0]))
