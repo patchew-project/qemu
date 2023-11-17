@@ -2627,6 +2627,7 @@ static void xhci_port_notify(XHCIPort *port, uint32_t bits)
     if (!xhci_running(port->xhci)) {
         return;
     }
+    port->xhci->usbsts |= USBSTS_PCD;
     xhci_event(port->xhci, &ev, 0);
 }
 
