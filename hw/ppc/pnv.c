@@ -1898,8 +1898,24 @@ static void pnv_rainier_i2c_init(PnvMachineState *pnv)
          * Add a PCA9552 I2C device for PCIe hotplug control
          * to engine 2, bus 1, address 0x63
          */
-        i2c_slave_create_simple(chip10->i2c[2].busses[1],
-                                "pca9552", 0x63);
+        I2CSlave *hotplug = i2c_slave_create_simple(chip10->i2c[2].busses[1],
+                                                "pca9552", 0x63);
+
+        /*
+         * Connect PCA9552 GPIO pins 0-4 (SLOTx_EN) outputs to GPIO pins 5-9
+         * (SLOTx_PG) inputs in order to fake the pgood state of PCIe slots
+         * after hypervisor code sets a SLOTx_EN pin high.
+         */
+        qdev_connect_gpio_out(DEVICE(hotplug), 0,
+                              qdev_get_gpio_in(DEVICE(hotplug), 5));
+        qdev_connect_gpio_out(DEVICE(hotplug), 1,
+                              qdev_get_gpio_in(DEVICE(hotplug), 6));
+        qdev_connect_gpio_out(DEVICE(hotplug), 2,
+                              qdev_get_gpio_in(DEVICE(hotplug), 7));
+        qdev_connect_gpio_out(DEVICE(hotplug), 3,
+                              qdev_get_gpio_in(DEVICE(hotplug), 8));
+        qdev_connect_gpio_out(DEVICE(hotplug), 4,
+                              qdev_get_gpio_in(DEVICE(hotplug), 9));
     }
 }
 
