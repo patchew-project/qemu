@@ -1731,10 +1731,10 @@ format_hex (unsigned long number,
    unsigned (== 0).  */
 
 static char *
-format_dec (long number, char *outbuffer, int signedp)
+format_dec(long number, char *outbuffer, size_t outsize, int signedp)
 {
   last_immediate = number;
-  sprintf (outbuffer, signedp ? "%ld" : "%lu", number);
+  snprintf(outbuffer, outsize, signedp ? "%ld" : "%lu", number);
 
   return outbuffer + strlen (outbuffer);
 }
@@ -1898,6 +1898,7 @@ print_with_operands (const struct cris_opcode *opcodep,
      intermediate parts of the insn.  */
   char temp[sizeof (".d [$r13=$r12-2147483648],$r10") * 2];
   char *tp = temp;
+  ptrdiff_t tp_avail;
   static const char mode_char[] = "bwd?";
   const char *s;
   const char *cs;
@@ -2102,12 +2103,13 @@ print_with_operands (const struct cris_opcode *opcodep,
 		number = 42;
 	      }
 
-	    if ((*cs == 'z' && (insn & 0x20))
-		|| (opcodep->match == BDAP_QUICK_OPCODE
-		    && (nbytes <= 2 || buffer[1 + nbytes] == 0)))
-	      tp = format_dec (number, tp, signedp);
-	    else
-	      {
+        if ((*cs == 'z' && (insn & 0x20))
+            || (opcodep->match == BDAP_QUICK_OPCODE
+            && (nbytes <= 2 || buffer[1 + nbytes] == 0))) {
+            tp_avail = temp - tp;
+            assert(tp_avail >= 0);
+            tp = format_dec(number, tp, tp_avail, signedp);
+        } else {
 		unsigned int highbyte = (number >> 24) & 0xff;
 
 		/* Either output this as an address or as a number.  If it's
@@ -2241,7 +2243,9 @@ print_with_operands (const struct cris_opcode *opcodep,
 				       with_reg_prefix);
 		      if (number >= 0)
 			*tp++ = '+';
-		      tp = format_dec (number, tp, 1);
+          tp_avail = temp - tp;
+          assert(tp_avail >= 0);
+          tp = format_dec(number, tp, tp_avail, 1);
 
 		      info->flags |= CRIS_DIS_FLAG_MEM_TARGET_IS_REG;
 		      info->target = (prefix_insn >> 12) & 15;
@@ -2340,7 +2344,9 @@ print_with_operands (const struct cris_opcode *opcodep,
 			  {
 			    if (number >= 0)
 			      *tp++ = '+';
-			    tp = format_dec (number, tp, 1);
+          tp_avail = temp - tp;
+          assert(tp_avail >= 0);
+          tp = format_dec(number, tp, tp_avail, 1);
 			  }
 		      }
 		    else
@@ -2397,7 +2403,9 @@ print_with_operands (const struct cris_opcode *opcodep,
 	break;
 
       case 'I':
-	tp = format_dec (insn & 63, tp, 0);
+          tp_avail = temp - tp;
+          assert(tp_avail >= 0);
+          tp = format_dec(insn & 63, tp, tp_avail, 0);
 	break;
 
       case 'b':
@@ -2426,11 +2434,15 @@ print_with_operands (const struct cris_opcode *opcodep,
       break;
 
     case 'c':
-      tp = format_dec (insn & 31, tp, 0);
+      tp_avail = temp - tp;
+      assert(tp_avail >= 0);
+      tp = format_dec(insn & 31, tp, tp_avail, 0);
       break;
 
     case 'C':
-      tp = format_dec (insn & 15, tp, 0);
+      tp_avail = temp - tp;
+      assert(tp_avail >= 0);
+      tp = format_dec(insn & 15, tp, tp_avail, 0);
       break;
 
     case 'o':
@@ -2463,7 +2475,9 @@ print_with_operands (const struct cris_opcode *opcodep,
 	if (number > 127)
 	  number = number - 256;
 
-	tp = format_dec (number, tp, 1);
+    tp_avail = temp - tp;
+    assert(tp_avail >= 0);
+    tp = format_dec(number, tp, tp_avail, 1);
 	*tp++ = ',';
 	tp = format_reg (disdata, (insn >> 12) & 15, tp, with_reg_prefix);
       }
@@ -2474,7 +2488,10 @@ print_with_operands (const struct cris_opcode *opcodep,
       break;
 
     case 'i':
-      tp = format_dec ((insn & 32) ? (insn & 31) | ~31L : insn & 31, tp, 1);
+      tp_avail = temp - tp;
+      assert(tp_avail >= 0);
+      tp = format_dec((insn & 32) ? (insn & 31) | ~31L : insn & 31,
+                      tp, tp_avail, 1);
       break;
 
     case 'P':
