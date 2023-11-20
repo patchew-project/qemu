@@ -1918,6 +1918,12 @@ static void pnv_rainier_i2c_init(PnvMachineState *pnv)
                               qdev_get_gpio_in(DEVICE(hotplug), 8));
         qdev_connect_gpio_out(DEVICE(hotplug), 4,
                               qdev_get_gpio_in(DEVICE(hotplug), 9));
+
+        /*
+         * Add a PCA9554 I2C device for cable card presence detection
+         * to engine 2, bus 1, address 0x25
+         */
+        i2c_slave_create_simple(chip10->i2c[2].busses[1], "pca9554", 0x25);
     }
 }
 
