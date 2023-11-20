@@ -365,7 +365,9 @@ if get_option('sanitizers')
   # Detect static linking issue with ubsan - https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
   if cc.links('int main(int argc, char **argv) { return argc + 1; }',
               args: [qemu_ldflags, '-fsanitize=undefined'])
-    qemu_cflags = ['-fsanitize=undefined'] + qemu_cflags
+    # 87884 – ubsan causes wrong -Wformat-overflow warning
+    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87884
+    qemu_cflags = ['-fsanitize=undefined', '-Wno-error=format-overflow'] + qemu_cflags
     qemu_ldflags = ['-fsanitize=undefined'] + qemu_ldflags
   endif
 endif
