@@ -909,6 +909,7 @@ static const TypeInfo kvm_arm_gicv3_info = {
     .instance_size = sizeof(GICv3State),
     .class_init = kvm_arm_gicv3_class_init,
     .class_size = sizeof(KVMARMGICv3Class),
+    .can_register = target_aarch64_available,
 };
 
 static void kvm_arm_gicv3_register_types(void)
