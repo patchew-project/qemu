@@ -23,6 +23,7 @@ typedef struct SpaprPendingHpt SpaprPendingHpt;
 
 typedef struct Vof Vof;
 
+#define SPAPR_MAX_CPUS          4096
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 #define SPAPR_ENTRY_POINT       0x100
 
