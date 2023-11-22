@@ -111,6 +111,17 @@ The following machine-specific options are supported:
   having AIA IMSIC (i.e. "aia=aplic-imsic" selected). When not specified,
   the default number of per-HART VS-level AIA IMSIC pages is 0.
 
+- iopmp=[on|off]
+
+  When this option is "on".  An iopmp device and a dma device which is connected
+  to the iopmp are added to machine. This option is assumed to be "off".
+
+- iopmp_cascade=[on|off]
+
+  When this option is "on". Second iopmp device which is cascaded by first iopmp
+  device is added to machine. When iopmp option is "off", this option has no
+  effect. This option is assumed to be "off".
+
 Running Linux kernel
 --------------------
 
