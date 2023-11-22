@@ -28,6 +28,7 @@
 #define SPAPR_IRQ_MSI        (SPAPR_XIRQ_BASE + 0x0300)
 
 #define SPAPR_NR_XIRQS       0x1000
+#define SPAPR_NR_IPIS        0x1000
 
 struct SpaprMachineState;
 
