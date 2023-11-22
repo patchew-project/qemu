@@ -54,7 +54,7 @@ typedef uint64_t qemu_plugin_id_t;
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 1
+#define QEMU_PLUGIN_VERSION 2
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -214,6 +214,16 @@ void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_simple_cb_t cb);
+
+/**
+ * qemu_plugin_register_vcpu_interrupt_cb() - register a vCPU interrupt callback
+ * @id: plugin ID
+ * @cb: callback function
+ *
+ * The @cb function is called every time an interrupt is triggered on given vCPU.
+ */
+void qemu_plugin_register_vcpu_interrupt_cb(qemu_plugin_id_t id,
+                                            qemu_plugin_vcpu_simple_cb_t cb);
 
 /** struct qemu_plugin_tb - Opaque handle for a translation block */
 struct qemu_plugin_tb;

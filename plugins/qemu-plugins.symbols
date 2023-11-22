@@ -30,6 +30,7 @@
   qemu_plugin_register_vcpu_mem_cb;
   qemu_plugin_register_vcpu_mem_inline;
   qemu_plugin_register_vcpu_resume_cb;
+  qemu_plugin_register_vcpu_interrupt_cb;
   qemu_plugin_register_vcpu_syscall_cb;
   qemu_plugin_register_vcpu_syscall_ret_cb;
   qemu_plugin_register_vcpu_tb_exec_cb;

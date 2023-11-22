@@ -750,6 +750,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
         if (replay_exception()) {
             CPUClass *cc = CPU_GET_CLASS(cpu);
             qemu_mutex_lock_iothread();
+            qemu_plugin_vcpu_interrupt_cb(cpu);
             cc->tcg_ops->do_interrupt(cpu);
             qemu_mutex_unlock_iothread();
             cpu->exception_index = -1;
@@ -829,6 +830,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             /* Do nothing */
         } else if (interrupt_request & CPU_INTERRUPT_HALT) {
             replay_interrupt();
+            qemu_plugin_vcpu_interrupt_cb(cpu);
             cpu->interrupt_request &= ~CPU_INTERRUPT_HALT;
             cpu->halted = 1;
             cpu->exception_index = EXCP_HLT;
@@ -840,6 +842,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             X86CPU *x86_cpu = X86_CPU(cpu);
             CPUArchState *env = &x86_cpu->env;
             replay_interrupt();
+            qemu_plugin_vcpu_interrupt_cb(cpu);
             cpu_svm_check_intercept_param(env, SVM_EXIT_INIT, 0, 0);
             do_cpu_init(x86_cpu);
             cpu->exception_index = EXCP_HALTED;
@@ -849,6 +852,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
 #else
         else if (interrupt_request & CPU_INTERRUPT_RESET) {
             replay_interrupt();
+            qemu_plugin_vcpu_interrupt_cb(cpu);
             cpu_reset(cpu);
             qemu_mutex_unlock_iothread();
             return true;
@@ -866,6 +870,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
                 if (need_replay_interrupt(interrupt_request)) {
                     replay_interrupt();
                 }
+                qemu_plugin_vcpu_interrupt_cb(cpu);
                 /*
                  * After processing the interrupt, ensure an EXCP_DEBUG is
                  * raised when single-stepping so that GDB doesn't miss the
