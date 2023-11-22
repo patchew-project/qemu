@@ -54,7 +54,7 @@ typedef uint64_t qemu_plugin_id_t;
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 1
+#define QEMU_PLUGIN_VERSION 2
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -236,6 +236,21 @@ enum qemu_plugin_cb_flags {
     QEMU_PLUGIN_CB_RW_REGS,
 };
 
+/**
+ * enum qemu_plugin_tb_flags - type of translation block
+ *
+ * @QEMU_PLUGIN_TB_MEM_ONLY:
+ *  TB is special block to perform memory I/O operation only.
+ *  Block- and instruction- level callbacks have no effect.
+ * @QEMU_PLUGIN_TB_MEM_OPS:
+ *  TB has at least one instruction that access memory.
+ *  Memory callbacks are applicable to this TB.
+ */
+enum qemu_plugin_tb_flags {
+    QEMU_PLUGIN_TB_MEM_ONLY = 0x01,
+    QEMU_PLUGIN_TB_MEM_OPS = 0x02
+};
+
 enum qemu_plugin_mem_rw {
     QEMU_PLUGIN_MEM_R = 1,
     QEMU_PLUGIN_MEM_W,
@@ -359,6 +374,18 @@ size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);
  */
 QEMU_PLUGIN_API
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb);
+
+/**
+ * qemu_plugin_tb_flags() - returns combination of TB flags
+ * @tb: opaque handle to TB passed to callback
+ *
+ * Returned set of flags can be used to check if TB has a non-typical
+ * behaviour. For example: whether or not instruction execution
+ * callbacks are applicable for the block.
+ *
+ * Returns: 0 or combination of qemu_plugin_tb_flags
+ */
+int qemu_plugin_tb_flags(const struct qemu_plugin_tb *tb);
 
 /**
  * qemu_plugin_tb_get_insn() - retrieve handle for instruction

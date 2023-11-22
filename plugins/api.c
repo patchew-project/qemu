@@ -37,6 +37,7 @@
 #include "qemu/osdep.h"
 #include "qemu/plugin.h"
 #include "qemu/log.h"
+#include "qemu/qemu-plugin.h"
 #include "tcg/tcg.h"
 #include "exec/exec-all.h"
 #include "exec/ram_addr.h"
@@ -191,6 +192,19 @@ size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb)
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb)
 {
     return tb->vaddr;
+}
+
+int qemu_plugin_tb_flags(const struct qemu_plugin_tb *tb)
+{
+    int ret = 0;
+    if (tb->mem_only) {
+        ret |= QEMU_PLUGIN_TB_MEM_ONLY;
+    }
+    if (tb->mem_helper) {
+        ret |= QEMU_PLUGIN_TB_MEM_OPS;
+    }
+
+    return ret;
 }
 
 struct qemu_plugin_insn *

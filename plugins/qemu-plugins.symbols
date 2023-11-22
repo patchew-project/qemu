@@ -40,6 +40,7 @@
   qemu_plugin_tb_get_insn;
   qemu_plugin_tb_n_insns;
   qemu_plugin_tb_vaddr;
+  qemu_plugin_tb_flags;
   qemu_plugin_uninstall;
   qemu_plugin_vcpu_for_each;
 };
