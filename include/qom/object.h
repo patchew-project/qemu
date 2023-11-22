@@ -372,6 +372,8 @@ struct Object
  * struct TypeInfo:
  * @name: The name of the type.
  * @parent: The name of the parent type.
+ * @can_register: This optional function is called before a type is registered.
+ *   If it exists and returns false, the type is not registered.
  * @instance_size: The size of the object (derivative of #Object).  If
  *   @instance_size is 0, then the size of the object will be the size of the
  *   parent object.
@@ -413,6 +415,8 @@ struct TypeInfo
 {
     const char *name;
     const char *parent;
+
+    bool (*can_register)(void);
 
     size_t instance_size;
     size_t instance_align;

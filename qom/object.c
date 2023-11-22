@@ -150,6 +150,9 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
 TypeImpl *type_register(const TypeInfo *info)
 {
     assert(info->parent);
+    if (info->can_register && !info->can_register()) {
+        return NULL;
+    }
     return type_register_internal(info);
 }
 
