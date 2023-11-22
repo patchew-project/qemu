@@ -14,7 +14,7 @@
 
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/intc/bcm2836_control.h"
-#include "target/arm/cpu.h"
+#include "target/arm/cpu-qom.h"
 #include "qom/object.h"
 
 #define TYPE_BCM283X "bcm283x"
@@ -38,7 +38,7 @@ struct BCM283XState {
     uint32_t enabled_cpus;
 
     struct {
-        ARMCPU core;
+        ARMCPU *core;
     } cpu[BCM283X_NCPUS];
     BCM2836ControlState control;
     BCM2835PeripheralState peripherals;
