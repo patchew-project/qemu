@@ -322,21 +322,9 @@ Patch emails must include a ``Signed-off-by:`` line
 
 Your patches **must** include a Signed-off-by: line. This is a hard
 requirement because it's how you say "I'm legally okay to contribute
-this and happy for it to go into QEMU". The process is modelled after
-the `Linux kernel
-<http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/SubmittingPatches?id=f6f94e2ab1b33f0082ac22d71f66385a60d8157f#n297>`__
-policy.
+this and happy for it to go into QEMU". For full guidance, read the
+:ref:`code-provenance` documentation.
 
-If you wrote the patch, make sure your "From:" and "Signed-off-by:"
-lines use the same spelling. It's okay if you subscribe or contribute to
-the list via more than one address, but using multiple addresses in one
-commit just confuses things. If someone else wrote the patch, git will
-include a "From:" line in the body of the email (different from your
-envelope From:) that will give credit to the correct author; but again,
-that author's Signed-off-by: line is mandatory, with the same spelling.
-
-There are various tooling options for automatically adding these tags
-include using ``git commit -s`` or ``git format-patch -s``. For more
 information see `SubmittingPatches 1.12
 <http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/SubmittingPatches?id=f6f94e2ab1b33f0082ac22d71f66385a60d8157f#n297>`__.
 
