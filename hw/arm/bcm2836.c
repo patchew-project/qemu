@@ -120,6 +120,8 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     }
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
+        DeviceState *cpudev = DEVICE(&s->cpu[n].core);
+
         object_property_set_int(OBJECT(&s->cpu[n].core), "mp-affinity",
                                 (bc->clusterid << 8) | n, &error_abort);
 
@@ -128,27 +130,26 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                                 bc->peri_base, &error_abort);
 
         /* start powered off if not enabled */
-        qdev_prop_set_bit(DEVICE(&s->cpu[n].core), "start-powered-off",
-                          n >= s->enabled_cpus);
+        qdev_prop_set_bit(cpudev, "start-powered-off", n >= s->enabled_cpus);
 
-        if (!qdev_realize(DEVICE(&s->cpu[n].core), NULL, errp)) {
+        if (!qdev_realize(cpudev, NULL, errp)) {
             return;
         }
 
         /* Connect irq/fiq outputs from the interrupt controller. */
         qdev_connect_gpio_out_named(DEVICE(&s->control), "irq", n,
-                qdev_get_gpio_in(DEVICE(&s->cpu[n].core), ARM_CPU_IRQ));
+                                    qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         qdev_connect_gpio_out_named(DEVICE(&s->control), "fiq", n,
-                qdev_get_gpio_in(DEVICE(&s->cpu[n].core), ARM_CPU_FIQ));
+                                    qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
 
         /* Connect timers from the CPU to the interrupt controller */
-        qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_PHYS,
+        qdev_connect_gpio_out(cpudev, GTIMER_PHYS,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntpnsirq", n));
-        qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_VIRT,
+        qdev_connect_gpio_out(cpudev, GTIMER_VIRT,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntvirq", n));
-        qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_HYP,
+        qdev_connect_gpio_out(cpudev, GTIMER_HYP,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cnthpirq", n));
-        qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_SEC,
+        qdev_connect_gpio_out(cpudev, GTIMER_SEC,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntpsirq", n));
     }
 
