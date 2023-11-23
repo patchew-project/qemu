@@ -85,4 +85,8 @@ struct PnvQuad {
     MemoryRegion xscom_regs;
     MemoryRegion xscom_qme_regs;
 };
+
+PnvCore *pnv_get_core_by_xscom_base(PnvChip *chip, uint32_t xscom_base);
+PnvCore *pnv_get_core_by_id(PnvChip *chip, uint32_t core_id);
+
 #endif /* PPC_PNV_CORE_H */

@@ -201,6 +201,62 @@ static void pnv_chiptod_xscom_write(void *opaque, hwaddr addr,
         chiptod->pss_mss_ctrl_reg = val & PPC_BITMASK(0, 31);
         break;
 
+    case TOD_TX_TTYPE_CTRL_REG:
+        /*
+         * This register sets the target of the TOD value transfer initiated
+         * by TOD_MOVE_TOD_TO_TB. The TOD is able to send the address to
+         * any target register, though in practice only the PC TOD register
+         * should be used. ChipTOD has a "SCOM addressing" mode which fully
+         * specifies the SCOM address, and a core-ID mode which uses the
+         * core ID to target the PC TOD for a given core.
+         *
+         * skiboot uses SCOM for P10 and ID for P9, possibly due to hardware
+         * weirdness. For this reason, that is all we implement here.
+         */
+        if (val & PPC_BIT(35)) { /* SCOM addressing */
+            uint32_t addr2 = val >> 32;
+            uint32_t reg = addr2 & 0xfff;
+
+            if (reg != PC_TOD) {
+                qemu_log_mask(LOG_GUEST_ERROR, "pnv_chiptod: SCOM addressing: "
+                              "unimplemented slave register 0x%" PRIx32 "\n",
+                              reg);
+                return;
+            }
+
+            /*
+             * This may not deal with P10 big-core addressing at the moment.
+             * The big-core code in skiboot syncs small cores, but it targets
+             * the even PIR (first small-core) when syncing second small-core.
+             */
+            chiptod->slave_pc_target =
+                    pnv_get_core_by_xscom_base(chiptod->chip, addr2 & ~0xfff);
+            if (!chiptod->slave_pc_target) {
+                qemu_log_mask(LOG_GUEST_ERROR, "pnv_chiptod: xscom write reg"
+                              " TOD_TX_TTYPE_CTRL_REG val 0x%" PRIx64
+                              " invalid slave XSCOM address\n", val);
+            }
+
+        } else { /* PIR addressing */
+            uint32_t core_id;
+
+            if (!is_power9) {
+                qemu_log_mask(LOG_GUEST_ERROR, "pnv_chiptod: PIR addressing"
+                              " is only implemented for POWER9\n");
+                return;
+            }
+
+            core_id = GETFIELD(TOD_TX_TTYPE_PIB_SLAVE_ADDR, val) & 0x1f;
+            chiptod->slave_pc_target = pnv_get_core_by_id(chiptod->chip,
+                                                           core_id);
+            if (!chiptod->slave_pc_target) {
+                qemu_log_mask(LOG_GUEST_ERROR, "pnv_chiptod: xscom write reg"
+                              " TOD_TX_TTYPE_CTRL_REG val 0x%" PRIx64
+                              " invalid slave core ID 0x%" PRIx32 "\n",
+                              val, core_id);
+            }
+        }
+        break;
     case TOD_ERROR_REG:
         chiptod->tod_error &= ~val;
         break;
@@ -214,6 +270,42 @@ static void pnv_chiptod_xscom_write(void *opaque, hwaddr addr,
         break;
     case TOD_LOAD_TOD_REG:
         chiptod->tod_state = tod_running;
+        break;
+    case TOD_MOVE_TOD_TO_TB_REG:
+        /*
+         * XXX: it should be a cleaner model to have this drive a SCOM
+         * transaction to the target address, and implement the state machine
+         * in the PnvCore. For now, this hack makes things work.
+         */
+        if (!(val & PPC_BIT(0))) {
+            qemu_log_mask(LOG_GUEST_ERROR, "pnv_chiptod: xscom write reg"
+                          " TOD_MOVE_TOD_TO_TB_REG with bad val 0x%016lx\n",
+                          val);
+        } else if (chiptod->slave_pc_target == NULL) {
+            qemu_log_mask(LOG_GUEST_ERROR, "pnv_chiptod: xscom write reg"
+                          " TOD_MOVE_TOD_TO_TB_REG with no slave target\n");
+        } else {
+            PowerPCCPU *cpu = chiptod->slave_pc_target->threads[0];
+            CPUPPCState *env = &cpu->env;
+
+            /*
+             * Moving TOD to TB will set the TB of all threads in a
+             * core, so skiboot only does this once per thread0, so
+             * that is where we keep the timebase state machine.
+             *
+             * It is likely possible for TBST to be driven from other
+             * threads in the core, but for now we only implement it for
+             * thread 0.
+             */
+
+            if (env->tb_ready_for_tod) {
+                env->tod_sent_to_tb = 1;
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR, "pnv_chiptod: xscom write reg"
+                              " TOD_MOVE_TOD_TO_TB_REG with TB not ready to"
+                              " receive TOD\n");
+            }
+        }
         break;
     case TOD_TX_TTYPE_4_REG:
         if (is_power9) {
