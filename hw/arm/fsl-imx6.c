@@ -127,9 +127,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         }
 
         /* All CPU but CPU 0 start in power off mode */
-        if (i) {
-            qdev_prop_set_bit(DEVICE(&s->cpu[i]), "start-powered-off", true);
-        }
+        qdev_prop_set_bit(DEVICE(&s->cpu[i]), "start-powered-off", i > 0);
 
         if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
             return;

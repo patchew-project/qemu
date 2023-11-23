@@ -187,13 +187,11 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
                                     &error_abort);
         }
 
-        if (i) {
-            /*
-             * Secondary CPUs start in powered-down state (and can be
-             * powered up via the SRC system reset controller)
-             */
-            qdev_prop_set_bit(DEVICE(o), "start-powered-off", true);
-        }
+        /*
+         * Secondary CPUs start in powered-down state (and can be
+         * powered up via the SRC system reset controller)
+         */
+        qdev_prop_set_bit(DEVICE(o), "start-powered-off", i > 0);
 
         qdev_realize(DEVICE(o), NULL, &error_abort);
     }

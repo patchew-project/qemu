@@ -304,8 +304,7 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
          * Disable secondary CPUs. Guest EL3 firmware will start
          * them via CPU reset control registers.
          */
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "start-powered-off",
-                          i > 0);
+        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "start-powered-off", i > 0);
 
         /* All exception levels required */
         qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el3", true);
