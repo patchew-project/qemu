@@ -153,7 +153,7 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu);
  * Add all KVM specific CPU properties to the CPU object. These
  * are the CPU properties with "kvm-" prefixed names.
  */
-void kvm_arm_add_vcpu_properties(Object *obj);
+void kvm_arm_add_vcpu_properties(ARMCPU *cpu);
 
 /**
  * kvm_arm_steal_time_finalize:
@@ -243,7 +243,7 @@ static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
     g_assert_not_reached();
 }
 
-static inline void kvm_arm_add_vcpu_properties(Object *obj)
+static inline void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
 {
     g_assert_not_reached();
 }
