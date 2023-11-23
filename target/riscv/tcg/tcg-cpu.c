@@ -188,6 +188,9 @@ static void riscv_cpu_enable_named_feat(RISCVCPU *cpu, uint32_t feat_offset)
         cpu->cfg.cbop_blocksize = 64;
         cpu->cfg.cboz_blocksize = 64;
         break;
+    case CPU_CFG_OFFSET(svade):
+        cpu->cfg.ext_svadu = false;
+        break;
     default:
         g_assert_not_reached();
     }
@@ -383,8 +386,14 @@ static void riscv_cpu_validate_zic64b(RISCVCPU *cpu)
                       cpu->cfg.cboz_blocksize == 64;
 }
 
+static void riscv_cpu_validate_svade(RISCVCPU *cpu)
+{
+    cpu->cfg.svade = !cpu->cfg.ext_svadu;
+}
+
 static void riscv_cpu_validate_named_features(RISCVCPU *cpu)
 {
+    riscv_cpu_validate_svade(cpu);
     riscv_cpu_validate_zic64b(cpu);
 }
 
