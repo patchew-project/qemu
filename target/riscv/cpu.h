@@ -111,7 +111,7 @@ typedef enum {
 #include "debug.h"
 #endif
 
-#define RV_VLEN_MAX 1024
+#define RV_VLEN_MAX 4096
 #define RV_MAX_MHPMEVENTS 32
 #define RV_MAX_MHPMCOUNTERS 32
 
