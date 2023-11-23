@@ -272,8 +272,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
     }
 
     /* Watchdog */
-    object_property_set_bool(OBJECT(&s->wdt), "pretimeout-support", true,
-                             &error_abort);
+    qdev_prop_set_bit(DEVICE(&s->wdt), "pretimeout-support", true);
     sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt), 0, FSL_IMX25_WDT_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->wdt), 0,

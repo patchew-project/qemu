@@ -203,8 +203,8 @@ static bool vmstate_test_use_cpuhp(void *opaque)
 
 static int vmstate_cpuhp_pre_load(void *opaque)
 {
-    Object *obj = OBJECT(opaque);
-    object_property_set_bool(obj, "cpu-hotplug-legacy", false, &error_abort);
+    DeviceState *dev = DEVICE(opaque);
+    qdev_prop_set_bit(dev, "cpu-hotplug-legacy", false);
     return 0;
 }
 

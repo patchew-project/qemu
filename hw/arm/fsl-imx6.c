@@ -128,8 +128,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
 
         /* All CPU but CPU 0 start in power off mode */
         if (i) {
-            object_property_set_bool(OBJECT(&s->cpu[i]), "start-powered-off",
-                                     true, &error_abort);
+            qdev_prop_set_bit(DEVICE(&s->cpu[i]), "start-powered-off", true);
         }
 
         if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
@@ -288,10 +287,8 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
             },
         };
 
-        object_property_set_bool(OBJECT(&s->gpio[i]), "has-edge-sel", true,
-                                 &error_abort);
-        object_property_set_bool(OBJECT(&s->gpio[i]), "has-upper-pin-irq",
-                                 true, &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->gpio[i]), "has-edge-sel", true);
+        qdev_prop_set_bit(DEVICE(&s->gpio[i]), "has-upper-pin-irq", true);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), errp)) {
             return;
         }
@@ -412,8 +409,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
             FSL_IMX6_WDOG2_IRQ,
         };
 
-        object_property_set_bool(OBJECT(&s->wdt[i]), "pretimeout-support",
-                                 true, &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->wdt[i]), "pretimeout-support", true);
         sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), &error_abort);
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[i]), 0, FSL_IMX6_WDOGn_ADDR[i]);

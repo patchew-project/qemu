@@ -78,8 +78,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         CPUMIPSState *env = &cpu->env;
 
         /* All VPs are halted on reset. Leave powering up to CPC. */
-        object_property_set_bool(OBJECT(cpu), "start-powered-off", true,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", true);
 
         /* All cores use the same clock tree */
         qdev_connect_clock_in(DEVICE(cpu), "clk-in", s->clock);

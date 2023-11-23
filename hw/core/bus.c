@@ -176,7 +176,7 @@ bool qbus_realize(BusState *bus, Error **errp)
 
 void qbus_unrealize(BusState *bus)
 {
-    object_property_set_bool(OBJECT(bus), "realized", false, &error_abort);
+    qdev_prop_set_bit(DEVICE(bus), "realized", false);
 }
 
 static bool bus_get_realized(Object *obj, Error **errp)

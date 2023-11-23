@@ -192,8 +192,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
              * Secondary CPUs start in powered-down state (and can be
              * powered up via the SRC system reset controller)
              */
-            object_property_set_bool(o, "start-powered-off", true,
-                                     &error_abort);
+            qdev_prop_set_bit(DEVICE(o), "start-powered-off", true);
         }
 
         qdev_realize(DEVICE(o), NULL, &error_abort);
@@ -424,8 +423,8 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
      * and we have to set all properties before calling sysbus_realize().
      */
     for (i = 0; i < FSL_IMX7_NUM_ETHS; i++) {
-        object_property_set_bool(OBJECT(&s->eth[i]), "phy-connected",
-                                 s->phy_connected[i], &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->eth[i]), "phy-connected",
+                          s->phy_connected[i]);
         /*
          * If the MDIO bus on this controller is not connected, assume the
          * other controller provides support for it.
@@ -513,8 +512,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
             FSL_IMX7_WDOG4_IRQ,
         };
 
-        object_property_set_bool(OBJECT(&s->wdt[i]), "pretimeout-support",
-                                 true, &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->wdt[i]), "pretimeout-support", true);
         sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), &error_abort);
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[i]), 0, FSL_IMX7_WDOGn_ADDR[i]);

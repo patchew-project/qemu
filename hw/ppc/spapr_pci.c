@@ -2490,8 +2490,7 @@ static int spapr_switch_one_vga(DeviceState *dev, void *opaque)
         || object_dynamic_cast(OBJECT(dev), "secondary-vga")
         || object_dynamic_cast(OBJECT(dev), "bochs-display")
         || object_dynamic_cast(OBJECT(dev), "virtio-vga")) {
-        object_property_set_bool(OBJECT(dev), "big-endian-framebuffer", be,
-                                 &error_abort);
+        qdev_prop_set_bit(dev, "big-endian-framebuffer", be);
     }
     return 0;
 }

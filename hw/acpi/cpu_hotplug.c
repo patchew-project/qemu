@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "qapi/error.h"
+#include "hw/qdev-properties.h"
 #include "hw/core/cpu.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
@@ -41,8 +42,7 @@ static void cpu_status_write(void *opaque, hwaddr addr, uint64_t data,
      */
     if (addr == 0 && data == 0) {
         AcpiCpuHotplug *cpus = opaque;
-        object_property_set_bool(cpus->device, "cpu-hotplug-legacy", false,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(cpus->device), "cpu-hotplug-legacy", false);
     }
 }
 
@@ -66,8 +66,7 @@ static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu)
 
     cpu_id = k->get_arch_id(cpu);
     if ((cpu_id / 8) >= ACPI_GPE_PROC_LEN) {
-        object_property_set_bool(g->device, "cpu-hotplug-legacy", false,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(g->device), "cpu-hotplug-legacy", false);
         return;
     }
 

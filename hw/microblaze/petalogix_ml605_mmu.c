@@ -88,9 +88,8 @@ petalogix_ml605_init(MachineState *machine)
      * root instructions
      */
     object_property_set_int(OBJECT(cpu), "use-fpu", 1, &error_abort);
-    object_property_set_bool(OBJECT(cpu), "dcache-writeback", true,
-                             &error_abort);
-    object_property_set_bool(OBJECT(cpu), "endianness", true, &error_abort);
+    qdev_prop_set_bit(DEVICE(cpu), "dcache-writeback", true);
+    qdev_prop_set_bit(DEVICE(cpu), "endianness", true);
     qdev_realize(DEVICE(cpu), NULL, &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */

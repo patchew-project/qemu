@@ -328,8 +328,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
-    object_property_set_bool(OBJECT(s->cpu), "start-powered-off",
-                             s->start_powered_off, &error_abort);
+    qdev_prop_set_bit(DEVICE(s->cpu), "start-powered-off", s->start_powered_off);
 
     /*
      * Real M-profile hardware can be configured with a different number of

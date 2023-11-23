@@ -1022,8 +1022,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
          * later if necessary.
          */
         if (extract32(info->cpuwait_rst, i, 1)) {
-            object_property_set_bool(cpuobj, "start-powered-off", true,
-                                     &error_abort);
+            qdev_prop_set_bit(cpudev, "start-powered-off", true);
         }
         if (!s->cpu_fpu[i]) {
             if (!object_property_set_bool(cpuobj, "vfp", false, errp)) {

@@ -48,8 +48,7 @@ static void versal_create_apu_cpus(Versal *s)
         obj = OBJECT(&s->fpd.apu.cpu[i]);
         if (i) {
             /* Secondary CPUs start in powered-down state */
-            object_property_set_bool(obj, "start-powered-off", true,
-                                     &error_abort);
+            qdev_prop_set_bit(DEVICE(obj), "start-powered-off", true);
         }
 
         object_property_set_int(obj, "core-count", ARRAY_SIZE(s->fpd.apu.cpu),
@@ -150,8 +149,7 @@ static void versal_create_rpu_cpus(Versal *s)
                                 "rpu-cpu[*]", &s->lpd.rpu.cpu[i],
                                 XLNX_VERSAL_RCPU_TYPE);
         obj = OBJECT(&s->lpd.rpu.cpu[i]);
-        object_property_set_bool(obj, "start-powered-off", true,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(obj), "start-powered-off", true);
 
         object_property_set_int(obj, "mp-affinity", 0x100 | i, &error_abort);
         object_property_set_int(obj, "core-count", ARRAY_SIZE(s->lpd.rpu.cpu),
@@ -536,8 +534,7 @@ static void versal_create_ospi(Versal *s, qemu_irq *pic)
                             &s->pmc.iou.ospi.dma_src,
                             TYPE_XLNX_CSU_DMA);
 
-    object_property_set_bool(OBJECT(&s->pmc.iou.ospi.dma_src), "is-dst",
-                             false, &error_abort);
+    qdev_prop_set_bit(DEVICE(&s->pmc.iou.ospi.dma_src), "is-dst", false);
 
     object_property_set_link(OBJECT(&s->pmc.iou.ospi.dma_src),
                             "dma", OBJECT(mr_dac), &error_abort);

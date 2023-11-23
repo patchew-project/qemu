@@ -21,6 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
+#include "hw/qdev-properties.h"
 #include "hw/loader.h"
 #include "hw/rx/rx62n.h"
 #include "sysemu/qtest.h"
@@ -103,8 +104,7 @@ static void rx_gdbsim_init(MachineState *machine)
                              &error_abort);
     object_property_set_uint(OBJECT(&s->mcu), "xtal-frequency-hz",
                              rxc->xtal_freq_hz, &error_abort);
-    object_property_set_bool(OBJECT(&s->mcu), "load-kernel",
-                             kernel_filename != NULL, &error_abort);
+    qdev_prop_set_bit(DEVICE(&s->mcu), "load-kernel", kernel_filename != NULL);
 
     if (!kernel_filename) {
         if (machine->firmware) {

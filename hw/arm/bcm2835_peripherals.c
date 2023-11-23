@@ -303,8 +303,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     object_property_set_uint(OBJECT(&s->sdhci), "capareg",
                              BCM2835_SDHC_CAPAREG, &error_abort);
-    object_property_set_bool(OBJECT(&s->sdhci), "pending-insert-quirk", true,
-                             &error_abort);
+    qdev_prop_set_bit(DEVICE(&s->sdhci), "pending-insert-quirk", true);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sdhci), errp)) {
         return;
     }

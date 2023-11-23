@@ -12,6 +12,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include <libfdt.h>
+#include "hw/qdev-properties.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/linux-boot-if.h"
 #include "sysemu/kvm.h"
@@ -1287,8 +1288,7 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
              * CPU.
              */
             if (cs != first_cpu) {
-                object_property_set_bool(cpuobj, "start-powered-off", true,
-                                         &error_abort);
+                qdev_prop_set_bit(DEVICE(cpuobj), "start-powered-off", true);
             }
         }
     }

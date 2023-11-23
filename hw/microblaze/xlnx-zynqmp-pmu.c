@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
+#include "hw/qdev-properties.h"
 #include "hw/boards.h"
 #include "cpu.h"
 #include "boot.h"
@@ -79,19 +80,14 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
 
     object_property_set_uint(OBJECT(&s->cpu), "base-vectors",
                              XLNX_ZYNQMP_PMU_ROM_ADDR, &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-stack-protection", true,
-                             &error_abort);
+    qdev_prop_set_bit(DEVICE(&s->cpu), "use-stack-protection", true);
     object_property_set_uint(OBJECT(&s->cpu), "use-fpu", 0, &error_abort);
     object_property_set_uint(OBJECT(&s->cpu), "use-hw-mul", 0, &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-barrel", true,
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-msr-instr", true,
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-pcmp-instr", true,
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-mmu", false, &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "endianness", true,
-                             &error_abort);
+    qdev_prop_set_bit(DEVICE(&s->cpu), "use-barrel", true);
+    qdev_prop_set_bit(DEVICE(&s->cpu), "use-msr-instr", true);
+    qdev_prop_set_bit(DEVICE(&s->cpu), "use-pcmp-instr", true);
+    qdev_prop_set_bit(DEVICE(&s->cpu), "use-mmu", false);
+    qdev_prop_set_bit(DEVICE(&s->cpu), "endianness", true);
     object_property_set_str(OBJECT(&s->cpu), "version", "8.40.b",
                             &error_abort);
     object_property_set_uint(OBJECT(&s->cpu), "pvr", 0, &error_abort);

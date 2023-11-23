@@ -803,8 +803,7 @@ static void cpu_devinit(const char *cpu_type, unsigned int id,
     env = &cpu->env;
 
     qemu_register_reset(sun4m_cpu_reset, cpu);
-    object_property_set_bool(OBJECT(cpu), "start-powered-off", id != 0,
-                             &error_abort);
+    qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", id != 0);
     qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
     cpu_sparc_set_id(env, id);
     *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, cpu, MAX_PILS);

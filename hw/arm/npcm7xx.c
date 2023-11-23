@@ -478,12 +478,10 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
                                 &error_abort);
         object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
                                 NPCM7XX_GIC_CPU_IF_ADDR, &error_abort);
-        object_property_set_bool(OBJECT(&s->cpu[i]), "reset-hivecs", true,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->cpu[i]), "reset-hivecs", true);
 
         /* Disable security extensions. */
-        object_property_set_bool(OBJECT(&s->cpu[i]), "has_el3", false,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->cpu[i]), "has_el3", false);
 
         if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
             return;
@@ -613,8 +611,7 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     }
 
     /* USB Host */
-    object_property_set_bool(OBJECT(&s->ehci), "companion-enable", true,
-                             &error_abort);
+    qdev_prop_set_bit(DEVICE(&s->ehci), "companion-enable", true);
     sysbus_realize(SYS_BUS_DEVICE(&s->ehci), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ehci), 0, NPCM7XX_EHCI_BA);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci), 0,

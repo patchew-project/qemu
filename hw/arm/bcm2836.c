@@ -135,8 +135,8 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                                 bc->peri_base, &error_abort);
 
         /* start powered off if not enabled */
-        object_property_set_bool(OBJECT(&s->cpu[n].core), "start-powered-off",
-                                 n >= s->enabled_cpus, &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->cpu[n].core), "start-powered-off",
+                          n >= s->enabled_cpus);
 
         if (!qdev_realize(DEVICE(&s->cpu[n].core), NULL, errp)) {
             return;

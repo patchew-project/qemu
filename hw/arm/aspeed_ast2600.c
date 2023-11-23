@@ -317,10 +317,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
 
         object_property_set_int(OBJECT(&a->cpu[i]), "cntfrq", 1125000000,
                                 &error_abort);
-        object_property_set_bool(OBJECT(&a->cpu[i]), "neon", false,
-                                &error_abort);
-        object_property_set_bool(OBJECT(&a->cpu[i]), "vfp-d32", false,
-                                &error_abort);
+        qdev_prop_set_bit(DEVICE(&a->cpu[i]), "neon", false);
+        qdev_prop_set_bit(DEVICE(&a->cpu[i]), "vfp-d32", false);
         object_property_set_link(OBJECT(&a->cpu[i]), "memory",
                                  OBJECT(s->memory), &error_abort);
 
@@ -500,8 +498,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
 
     /* Net */
     for (i = 0; i < sc->macs_num; i++) {
-        object_property_set_bool(OBJECT(&s->ftgmac100[i]), "aspeed", true,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->ftgmac100[i]), "aspeed", true);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->ftgmac100[i]), errp)) {
             return;
         }

@@ -303,7 +303,7 @@ bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp)
 
 void qdev_unrealize(DeviceState *dev)
 {
-    object_property_set_bool(OBJECT(dev), "realized", false, &error_abort);
+    qdev_prop_set_bit(dev, "realized", false);
 }
 
 static int qdev_assert_realized_properly_cb(Object *obj, void *opaque)

@@ -420,8 +420,7 @@ static void aspeed_ast2400_soc_realize(DeviceState *dev, Error **errp)
 
     /* Net */
     for (i = 0; i < sc->macs_num; i++) {
-        object_property_set_bool(OBJECT(&s->ftgmac100[i]), "aspeed", true,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->ftgmac100[i]), "aspeed", true);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->ftgmac100[i]), errp)) {
             return;
         }

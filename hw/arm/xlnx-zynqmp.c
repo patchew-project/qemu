@@ -237,14 +237,12 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
             /*
              * Secondary CPUs start in powered-down state.
              */
-            object_property_set_bool(OBJECT(&s->rpu_cpu[i]),
-                                     "start-powered-off", true, &error_abort);
+            qdev_prop_set_bit(DEVICE(&s->rpu_cpu[i]), "start-powered-off", true);
         } else {
             s->boot_cpu_ptr = &s->rpu_cpu[i];
         }
 
-        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), "reset-hivecs", true,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->rpu_cpu[i]), "reset-hivecs", true);
         if (!qdev_realize(DEVICE(&s->rpu_cpu[i]), NULL, errp)) {
             return;
         }
@@ -518,8 +516,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
             /*
              * Secondary CPUs start in powered-down state.
              */
-            object_property_set_bool(OBJECT(&s->apu_cpu[i]),
-                                     "start-powered-off", true, &error_abort);
+            qdev_prop_set_bit(DEVICE(&s->apu_cpu[i]), "start-powered-off", true);
         } else {
             s->boot_cpu_ptr = &s->apu_cpu[i];
         }

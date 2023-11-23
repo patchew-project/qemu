@@ -171,8 +171,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
             { FSL_IMX31_GPIO3_ADDR, FSL_IMX31_GPIO3_IRQ }
         };
 
-        object_property_set_bool(OBJECT(&s->gpio[i]), "has-edge-sel", false,
-                                 &error_abort);
+        qdev_prop_set_bit(DEVICE(&s->gpio[i]), "has-edge-sel", false);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), errp)) {
             return;
         }
