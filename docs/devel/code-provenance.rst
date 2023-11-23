@@ -195,3 +195,43 @@ example::
   Signed-off-by: Some Person <some.person@example.com>
   [Rebased and added support for 'foo']
   Signed-off-by: New Person <new.person@example.com>
+
+Use of "AI" (LLM) code generators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TL;DR:
+
+  **Current QEMU project policy is to DECLINE any contributions
+  which are believed to include or derive from "AI" (LLM)
+  generated code.**
+
+The existence of "AI" (`Large Language Model <https://en.wikipedia.org/wiki/Large_language_model>`__
+/ LLM) code generators raises a number of difficult legal questions, a
+number of which impact on Open Source projects. As noted earlier, the
+QEMU community requires that contributors certify their patch submissions
+are made in accordance with the rules of the :ref:`dco` (DCO). When a
+patch contains "AI" generated code this raises difficulties with code
+provenence and thus DCO compliance.
+
+To satisfy the DCO, the patch contributor has to fully understand
+the origins and license of code they are contributing to QEMU. The
+license terms that should apply to the output of an "AI" code generator
+are ill-defined, given that both training data and operation of the
+"AI" are typically opaque to the user. Even where the training data
+is said to all be open source, it will likely be under a wide variety
+of license terms.
+
+While the vendor's of "AI" code generators may promote the idea that
+code output can be taken under a free choice of license, this is not
+yet considered to be a generally accepted, nor tested, legal opinion.
+
+With this in mind, the QEMU maintainers does not consider it is
+currently possible to comply with DCO terms (b) or (c) for most "AI"
+generated code.
+
+The QEMU maintainers thus require that contributors refrain from using
+"AI" code generators on patches intended to be submitted to the project,
+and will decline any contribution if use of "AI" is known or suspected.
+
+Examples of tools impacted by this policy includes both GitHub CoPilot,
+and ChatGPT, amongst many others which are less well known.
