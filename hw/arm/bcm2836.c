@@ -119,13 +119,6 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->control), 0, bc->ctrl_base);
-
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 0,
-        qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-irq", 0));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 1,
-        qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-fiq", 0));
-
     for (n = 0; n < BCM283X_NCPUS; n++) {
         object_property_set_int(OBJECT(&s->cpu[n].core), "mp-affinity",
                                 (bc->clusterid << 8) | n, &error_abort);
@@ -158,6 +151,13 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_SEC,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntpsirq", n));
     }
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->control), 0, bc->ctrl_base);
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 0,
+                    qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-irq", 0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 1,
+                    qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-fiq", 0));
 }
 
 static void bcm283x_class_init(ObjectClass *oc, void *data)
