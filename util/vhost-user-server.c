@@ -133,7 +133,9 @@ vu_message_read(VuDev *vu_dev, int conn_fd, VhostUserMsg *vmsg)
                     server->in_qio_channel_yield = false;
                 } else {
                     /* Wait until attached to an AioContext again */
+                    server->wake_on_ctx_attach = true;
                     qemu_coroutine_yield();
+                    assert(!server->wake_on_ctx_attach);
                 }
                 continue;
             } else {
@@ -201,8 +203,15 @@ static coroutine_fn void vu_client_trip(void *opaque)
     VuServer *server = opaque;
     VuDev *vu_dev = &server->vu_dev;
 
-    while (!vu_dev->broken && vu_dispatch(vu_dev)) {
-        /* Keep running */
+    while (!vu_dev->broken) {
+        if (server->quiescing) {
+            server->co_trip = NULL;
+            aio_wait_kick();
+            return;
+        }
+        if (!vu_dispatch(vu_dev)) {
+            break;
+        }
     }
 
     if (vhost_user_server_has_in_flight(server)) {
@@ -353,8 +362,7 @@ static void vu_accept(QIONetListener *listener, QIOChannelSocket *sioc,
 
     qio_channel_set_follow_coroutine_ctx(server->ioc, true);
 
-    server->co_trip = qemu_coroutine_create(vu_client_trip, server);
-
+    /* Attaching the AioContext starts the vu_client_trip coroutine */
     aio_context_acquire(server->ctx);
     vhost_user_server_attach_aio_context(server, server->ctx);
     aio_context_release(server->ctx);
@@ -413,8 +421,24 @@ void vhost_user_server_attach_aio_context(VuServer *server, AioContext *ctx)
                            NULL, NULL, vu_fd_watch);
     }
 
-    assert(!server->in_qio_channel_yield);
-    aio_co_schedule(ctx, server->co_trip);
+    if (server->co_trip) {
+        /*
+         * The caller didn't fully shut down co_trip (this can happen on
+         * non-polling drains like in bdrv_graph_wrlock()). This is okay as long
+         * as it no longer tries to shut it down and we're guaranteed to still
+         * be in the same AioContext as before.
+         */
+        assert(!server->quiescing);
+        assert(qemu_coroutine_get_aio_context(server->co_trip) == ctx);
+        if (server->wake_on_ctx_attach) {
+            server->wake_on_ctx_attach = false;
+            aio_co_wake(server->co_trip);
+        }
+    } else {
+        server->co_trip = qemu_coroutine_create(vu_client_trip, server);
+        assert(!server->in_qio_channel_yield);
+        aio_co_schedule(ctx, server->co_trip);
+    }
 }
 
 /* Called with server->ctx acquired */
