@@ -690,7 +690,7 @@ static void get_prop_array(Object *obj, Visitor *v, const char *name,
     uint32_t *alenptr = object_field_prop_ptr(obj, prop);
     void **arrayptr = (void *)obj + prop->arrayoffset;
     char *elem = *arrayptr;
-    GenericList *list;
+    GenericList *list = NULL;
     const size_t list_elem_size = sizeof(*list) + prop->arrayfieldsize;
     int i;
     bool ok;
