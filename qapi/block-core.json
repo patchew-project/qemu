@@ -1810,6 +1810,14 @@
 #     Care should be taken when specifying the string, to specify a
 #     valid filename or protocol.  (Since 2.1)
 #
+# @backing-file-format-no-protocol: If true always use a 'format' driver name
+#     for the 'backing file format' field if updating the image header of the
+#     overlay of 'top'. Otherwise the real name of the driver of the backing
+#     image may be used which may be a protocol driver.
+#
+#     Can be used also when no image header will be updated.
+#     (default: false; since: 8.2)
+#
 # @speed: the maximum speed, in bytes per second
 #
 # @on-error: the action to take on an error.  'ignore' means that the
@@ -1856,7 +1864,8 @@
             '*base': { 'type': 'str', 'features': [ 'deprecated' ] },
             '*top-node': 'str',
             '*top': { 'type': 'str', 'features': [ 'deprecated' ] },
-            '*backing-file': 'str', '*speed': 'int',
+            '*backing-file': 'str', '*backing-file-format-no-protocol': 'bool',
+            '*speed': 'int',
             '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },
