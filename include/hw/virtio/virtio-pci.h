@@ -229,13 +229,13 @@ typedef struct VirtioPCIDeviceTypeInfo {
     /*
      * The transitional device type.  Optional.
      *
-     * Implements both INTERFACE_PCIE_DEVICE and INTERFACE_CONVENTIONAL_PCI_DEVICE.
+     * Implements INTERFACE_CONVENTIONAL_PCI_DEVICE only.
      */
     const char *transitional_name;
     /*
      * The non-transitional device type.  Optional.
      *
-     * Implements INTERFACE_CONVENTIONAL_PCI_DEVICE only.
+     * Implements both INTERFACE_PCIE_DEVICE and INTERFACE_CONVENTIONAL_PCI_DEVICE.
      */
     const char *non_transitional_name;
 
