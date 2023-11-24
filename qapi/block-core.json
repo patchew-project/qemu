@@ -2829,6 +2829,13 @@
 #     Care should be taken when specifying the string, to specify a
 #     valid filename or protocol.  (Since 2.1)
 #
+# @backing-file-format-no-protocol: If true always use a 'format' driver name
+#     for the 'backing file format' field if updating the image header of 'top'.
+#     Otherwise the real name of the driver of the backing
+#     image may be used which may be a protocol driver.
+#
+#     (default: false; since: 8.2)
+#
 # @speed: the maximum speed, in bytes per second
 #
 # @on-error: the action to take on an error (default report). 'stop'
@@ -2867,7 +2874,9 @@
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
-            '*base-node': 'str', '*backing-file': 'str', '*bottom': 'str',
+            '*base-node': 'str', '*backing-file': 'str',
+            '*backing-file-format-no-protocol': 'bool',
+            '*bottom': 'str',
             '*speed': 'int', '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },
