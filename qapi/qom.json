@@ -33,6 +33,10 @@
 #        qdev device type name.  Link properties form the device model
 #        graph.
 #
+# @children: if specified, a list of @ObjectPropertyInfo describing
+#     the child properties. This requires that this property's @type
+#     is of the form 'child<subtype>' (since 9.0)
+#
 # @description: if specified, the description of the property.
 #
 # @default-value: the default value, if any (since 5.0)
@@ -42,6 +46,7 @@
 { 'struct': 'ObjectPropertyInfo',
   'data': { 'name': 'str',
             'type': 'str',
+            '*children' :  [ 'ObjectPropertyInfo' ],
             '*description': 'str',
             '*default-value': 'any' } }
 
@@ -53,6 +58,9 @@
 #
 # @path: the path within the object model.  See @qom-get for a
 #     description of this parameter.
+#
+# @recurse-children: if true, include the child properties recursively
+#     in the return value (default: false) (since 9.0)
 #
 # Returns: a list of @ObjectPropertyInfo that describe the properties
 #     of the object.
@@ -69,7 +77,7 @@
 #                  { "name": "mon0", "type": "child<chardev-stdio>" } ] }
 ##
 { 'command': 'qom-list',
-  'data': { 'path': 'str' },
+  'data': { 'path': 'str', '*recurse-children': 'bool' },
   'returns': [ 'ObjectPropertyInfo' ],
   'allow-preconfig': true }
 

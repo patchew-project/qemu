@@ -28,7 +28,7 @@ void hmp_qom_list(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    list = qmp_qom_list(path, &err);
+    list = qmp_qom_list(path, false, false, &err);
     if (err == NULL) {
         ObjectPropertyInfoList *start = list;
         while (list != NULL) {
@@ -206,7 +206,7 @@ void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
     len = strlen(str);
     readline_set_completion_index(rs, len);
 
-    start = list = qmp_qom_list("/objects", NULL);
+    start = list = qmp_qom_list("/objects", false, false, NULL);
     while (list) {
         ObjectPropertyInfo *info = list->value;
 

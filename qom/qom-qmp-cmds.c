@@ -28,10 +28,15 @@
 #include "qom/object_interfaces.h"
 #include "qom/qom-qobject.h"
 
-ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
+ObjectPropertyInfoList *qmp_qom_list(const char *path,
+                                     bool has_recurse_children,
+                                     bool recurse_children,
+                                     Error **errp)
 {
+    ERRP_GUARD();
     Object *obj;
     bool ambiguous = false;
+    bool recurse = has_recurse_children && recurse_children;
     ObjectPropertyInfoList *props = NULL;
     ObjectProperty *prop;
     ObjectPropertyIterator iter;
@@ -55,8 +60,23 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
         value->name = g_strdup(prop->name);
         value->type = g_strdup(prop->type);
+
+        if (recurse && g_str_has_prefix(prop->type, "child<")) {
+            ObjectPropertyInfoList *children;
+            g_autofree char *childpath = g_strdup_printf("%s/%s", path,
+                                                         prop->name);
+            children = qmp_qom_list(childpath, true, true, errp);
+            if (*errp) {
+                qapi_free_ObjectPropertyInfoList(props);
+                props = NULL;
+                goto out;
+            }
+            value->has_children = true;
+            value->children = children;
+        }
     }
 
+out:
     return props;
 }
 
