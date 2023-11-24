@@ -221,7 +221,13 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
             return;
         }
 
-        bs = bdrv_skip_implicit_filters(blk_bs(blk));
+        bs = blk_bs(blk);
+        if (!bs) {
+            error_report("Device '%s' is invalid", device);
+            return;
+        }
+
+        bs = bdrv_skip_implicit_filters(bs);
         aio_context = bdrv_get_aio_context(bs);
         aio_context_acquire(aio_context);
 
