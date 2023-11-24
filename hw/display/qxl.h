@@ -102,7 +102,6 @@ struct PCIQXLDevice {
     uint16_t           max_outputs;
 
     /* vram pci bar */
-    uint64_t           vram_size;
     MemoryRegion       vram_bar;
     uint64_t           vram32_size;
     MemoryRegion       vram32_bar;

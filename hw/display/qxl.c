@@ -2067,20 +2067,19 @@ static void qxl_init_ramsize(PCIQXLDevice *qxl)
 
     /* vram (surfaces, 64bit, bar 4+5) */
     if (qxl->vram_size_mb != -1) {
-        qxl->vram_size = (uint64_t)qxl->vram_size_mb * MiB;
+        qxl->vga.vram_size = (uint64_t)qxl->vram_size_mb * MiB;
     }
-    if (qxl->vram_size < qxl->vram32_size) {
-        qxl->vram_size = qxl->vram32_size;
+    if (qxl->vga.vram_size < qxl->vram32_size) {
+        qxl->vga.vram_size = qxl->vram32_size;
     }
 
     if (qxl->revision == 1) {
         qxl->vram32_size = 4096;
-        qxl->vram_size = 4096;
+        qxl->vga.vram_size = 4096;
     }
     qxl->vgamem_size = pow2ceil(qxl->vgamem_size);
     qxl->vga.vram_size = pow2ceil(qxl->vga.vram_size);
     qxl->vram32_size = pow2ceil(qxl->vram32_size);
-    qxl->vram_size = pow2ceil(qxl->vram_size);
 }
 
 static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
@@ -2135,7 +2134,7 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
 
     qxl->guest_surfaces.cmds = g_new0(QXLPHYSICAL, qxl->ssd.num_surfaces);
     memory_region_init_ram(&qxl->vram_bar, OBJECT(qxl), "qxl.vram",
-                           qxl->vram_size, &error_fatal);
+                           qxl->vga.vram_size, &error_fatal);
     memory_region_init_alias(&qxl->vram32_bar, OBJECT(qxl), "qxl.vram32",
                              &qxl->vram_bar, 0, qxl->vram32_size);
 
@@ -2159,7 +2158,7 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
     pci_register_bar(&qxl->pci, QXL_VRAM_RANGE_INDEX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vram32_bar);
 
-    if (qxl->vram32_size < qxl->vram_size) {
+    if (qxl->vram32_size < qxl->vga.vram_size) {
         /*
          * Make the 64bit vram bar show up only in case it is
          * configured to be larger than the 32bit vram bar.
@@ -2177,8 +2176,8 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
     dprint(qxl, 1, "vram/32: %" PRIx64 " MB [region 1]\n",
            qxl->vram32_size / MiB);
     dprint(qxl, 1, "vram/64: %" PRIx64 " MB %s\n",
-           qxl->vram_size / MiB,
-           qxl->vram32_size < qxl->vram_size ? "[region 4]" : "[unmapped]");
+           qxl->vga.vram_size / MiB,
+           qxl->vram32_size < qxl->vga.vram_size ? "[region 4]" : "[unmapped]");
 
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
     if (qemu_spice_add_display_interface(&qxl->ssd.qxl, qxl->vga.con) != 0) {
