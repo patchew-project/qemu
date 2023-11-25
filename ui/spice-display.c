@@ -194,10 +194,6 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     int bpp = surface_bytes_per_pixel(ssd->ds);
     uint8_t *guest, *mirror;
 
-    if (qemu_spice_rect_is_empty(&ssd->dirty)) {
-        return;
-    };
-
     dirty_top = g_new(int, blocks);
     for (blk = 0; blk < blocks; blk++) {
         dirty_top[blk] = -1;
@@ -488,7 +484,9 @@ void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
 
     WITH_QEMU_LOCK_GUARD(&ssd->lock) {
         if (QTAILQ_EMPTY(&ssd->updates) && ssd->ds) {
-            qemu_spice_create_update(ssd);
+            if (!qemu_spice_rect_is_empty(&ssd->dirty)) {
+                qemu_spice_create_update(ssd);
+            }
             ssd->notify++;
         }
     }
