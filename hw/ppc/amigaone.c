@@ -105,7 +105,7 @@ static void amigaone_init(MachineState *machine)
             exit(1);
         }
         g_free(filename);
-    } else if (!qtest_enabled()) {
+    } else if (!qtest_enabled() && strcmp(fwname, "none") != 0) {
         error_report("Could not find firmware '%s'", fwname);
         exit(1);
     }
