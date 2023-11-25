@@ -40,6 +40,16 @@
 #define PROM_ADDR 0xfff00000
 #define PROM_SIZE (512 * KiB)
 
+/* AmigaOS calls this routine from ROM, use this if -bios none */
+static const char dummy_fw[] = {
+    0x38, 0x00, 0x00, 0x08, /* li      r0,8 */
+    0x7c, 0x09, 0x03, 0xa6, /* mtctr   r0 */
+    0x54, 0x63, 0xf8, 0x7e, /* srwi    r3,r3,1 */
+    0x42, 0x00, 0xff, 0xfc, /* bdnz    0x8 */
+    0x7c, 0x63, 0x18, 0xf8, /* not     r3,r3 */
+    0x4e, 0x80, 0x00, 0x20, /* blr */
+};
+
 static void amigaone_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -94,17 +104,21 @@ static void amigaone_init(MachineState *machine)
     }
 
     /* allocate and load firmware */
+    rom = g_new(MemoryRegion, 1);
+    memory_region_init_rom(rom, NULL, "rom", PROM_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), PROM_ADDR, rom);
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, fwname);
     if (filename) {
-        rom = g_new(MemoryRegion, 1);
-        memory_region_init_rom(rom, NULL, "rom", PROM_SIZE, &error_fatal);
-        memory_region_add_subregion(get_system_memory(), PROM_ADDR, rom);
         sz = load_image_targphys(filename, PROM_ADDR, PROM_SIZE);
         if (sz <= 0 || sz > PROM_SIZE) {
             error_report("Could not load firmware '%s'", filename);
             exit(1);
         }
         g_free(filename);
+    } else if (!strcmp(fwname, "none")) {
+        address_space_write_rom(&address_space_memory, 0xfff7ff80,
+                                MEMTXATTRS_UNSPECIFIED, dummy_fw,
+                                ARRAY_SIZE(dummy_fw));
     } else if (!qtest_enabled()) {
         error_report("Could not find firmware '%s'", fwname);
         exit(1);
