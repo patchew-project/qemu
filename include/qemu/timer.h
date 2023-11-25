@@ -872,7 +872,7 @@ static inline int64_t cpu_get_host_ticks(void)
     return retval;
 }
 
-#elif defined(__i386__)
+#elif defined(__i386__) && !defined(__i486__)
 
 static inline int64_t cpu_get_host_ticks(void)
 {
