@@ -292,3 +292,42 @@ char *resolve_machine_version(const char *alias, const char *var1,
 
     return find_common_machine_version(machine_name, var1, var2);
 }
+
+#ifdef O_DIRECT
+/*
+ * Probe for O_DIRECT support on the filesystem. Since this is used
+ * for tests, be conservative, if anything fails, assume it's
+ * unsupported.
+ */
+bool probe_o_direct_support(const char *tmpfs)
+{
+    g_autofree char *filename = g_strdup_printf("%s/probe-o-direct", tmpfs);
+    int fd, flags = O_CREAT | O_RDWR | O_DIRECT;
+    void *buf;
+    ssize_t ret, len;
+    uint64_t offset;
+
+    fd = open(filename, flags, 0660);
+    if (fd < 0) {
+        unlink(filename);
+        return false;
+    }
+
+    /*
+     * Assuming 4k should be enough to satisfy O_DIRECT alignment
+     * requirements. The migration code uses 1M to be conservative.
+     */
+    len = 0x100000;
+    offset = 0x100000;
+
+    buf = g_malloc0(len);
+    ret = pwrite(fd, buf, len, offset);
+    unlink(filename);
+
+    if (ret < 0) {
+        return false;
+    }
+
+    return true;
+}
+#endif
