@@ -406,6 +406,19 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
     return fdinfo;
 }
 
+#ifndef _WIN32
+static bool monitor_fdset_flags_match(int flags, int fd_flags)
+{
+    bool match = false;
+
+    if ((flags & O_ACCMODE) == (fd_flags & O_ACCMODE)) {
+        match = true;
+    }
+
+    return match;
+}
+#endif
+
 int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
 {
 #ifdef _WIN32
@@ -431,7 +444,7 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
                 return -1;
             }
 
-            if ((flags & O_ACCMODE) == (mon_fd_flags & O_ACCMODE)) {
+            if (monitor_fdset_flags_match(flags, mon_fd_flags)) {
                 fd = mon_fdset_fd->fd;
                 break;
             }
