@@ -472,6 +472,69 @@ ssize_t qio_channel_pwritev(QIOChannel *ioc, const struct iovec *iov,
     return klass->io_pwritev(ioc, iov, niov, offset, errp);
 }
 
+static int qio_channel_preadv_pwritev_contiguous(QIOChannel *ioc,
+                                                 const struct iovec *iov,
+                                                 size_t niov, off_t offset,
+                                                 bool is_write, Error **errp)
+{
+    ssize_t ret = -1;
+    int i, slice_idx, slice_num;
+    uintptr_t base, next, file_offset;
+    size_t len;
+
+    slice_idx = 0;
+    slice_num = 1;
+
+    /*
+     * If the iov array doesn't have contiguous elements, we need to
+     * split it in slices because we only have one (file) 'offset' for
+     * the whole iov. Do this here so callers don't need to break the
+     * iov array themselves.
+     */
+    for (i = 0; i < niov; i++, slice_num++) {
+        base = (uintptr_t) iov[i].iov_base;
+
+        if (i != niov - 1) {
+            len = iov[i].iov_len;
+            next = (uintptr_t) iov[i + 1].iov_base;
+
+            if (base + len == next) {
+                continue;
+            }
+        }
+
+        /*
+         * Use the offset of the first element of the segment that
+         * we're sending.
+         */
+        file_offset = offset + (uintptr_t) iov[slice_idx].iov_base;
+
+        if (is_write) {
+            ret = qio_channel_pwritev(ioc, &iov[slice_idx], slice_num,
+                                      file_offset, errp);
+        } else {
+            ret = qio_channel_preadv(ioc, &iov[slice_idx], slice_num,
+                                     file_offset, errp);
+        }
+
+        if (ret < 0) {
+            break;
+        }
+
+        slice_idx += slice_num;
+        slice_num = 0;
+    }
+
+    return (ret < 0) ? -1 : 0;
+}
+
+int qio_channel_pwritev_all(QIOChannel *ioc, const struct iovec *iov,
+                            size_t niov, off_t offset, Error **errp)
+{
+    return qio_channel_preadv_pwritev_contiguous(ioc, iov, niov,
+                                                 offset, true, errp);
+}
+
 ssize_t qio_channel_pwrite(QIOChannel *ioc, char *buf, size_t buflen,
                            off_t offset, Error **errp)
 {
@@ -499,6 +562,13 @@ ssize_t qio_channel_preadv(QIOChannel *ioc, const struct iovec *iov,
     }
 
     return klass->io_preadv(ioc, iov, niov, offset, errp);
+}
+
+int qio_channel_preadv_all(QIOChannel *ioc, const struct iovec *iov,
+                           size_t niov, off_t offset, Error **errp)
+{
+    return qio_channel_preadv_pwritev_contiguous(ioc, iov, niov,
+                                                 offset, false, errp);
 }
 
 ssize_t qio_channel_pread(QIOChannel *ioc, char *buf, size_t buflen,

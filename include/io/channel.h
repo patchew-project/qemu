@@ -560,6 +560,19 @@ ssize_t qio_channel_pwritev(QIOChannel *ioc, const struct iovec *iov,
                             size_t niov, off_t offset, Error **errp);
 
 /**
+ * qio_channel_pwritev_all:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to write data from
+ * @niov: the length of the @iov array
+ * @offset: the iovec offset in the file where to write the data
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Returns: 0 if all bytes were written, or -1 on error
+ */
+int qio_channel_pwritev_all(QIOChannel *ioc, const struct iovec *iov,
+                            size_t niov, off_t offset, Error **errp);
+
+/**
  * qio_channel_pwrite
  * @ioc: the channel object
  * @buf: the memory region to write data into
@@ -593,6 +606,19 @@ ssize_t qio_channel_pwrite(QIOChannel *ioc, char *buf, size_t buflen,
  *
  */
 ssize_t qio_channel_preadv(QIOChannel *ioc, const struct iovec *iov,
+                           size_t niov, off_t offset, Error **errp);
+
+/**
+ * qio_channel_preadv_all:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to read data to
+ * @niov: the length of the @iov array
+ * @offset: the iovec offset in the file from where to read the data
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Returns: 0 if all bytes were read, or -1 on error
+ */
+int qio_channel_preadv_all(QIOChannel *ioc, const struct iovec *iov,
                            size_t niov, off_t offset, Error **errp);
 
 /**
