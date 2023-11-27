@@ -1149,7 +1149,7 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
 
     if (migrate_fixed_ram()) {
         /* zero pages are not transferred with fixed-ram */
-        clear_bit(offset >> TARGET_PAGE_BITS, pss->block->shadow_bmap);
+        clear_bit_atomic(offset >> TARGET_PAGE_BITS, pss->block->shadow_bmap);
         return 1;
     }
 
@@ -2443,8 +2443,6 @@ static void ram_save_cleanup(void *opaque)
         block->clear_bmap = NULL;
         g_free(block->bmap);
         block->bmap = NULL;
-        g_free(block->shadow_bmap);
-        block->shadow_bmap = NULL;
     }
 
     xbzrle_cleanup();
@@ -3131,7 +3129,20 @@ static void ram_save_shadow_bmap(QEMUFile *f)
         qemu_put_buffer_at(f, (uint8_t *)block->shadow_bmap, bitmap_size,
                            block->bitmap_offset);
         ram_transferred_add(bitmap_size);
+
+        /*
+         * Free the bitmap here to catch any synchronization issues
+         * with multifd channels. No channels should be sending pages
+         * after we've written the bitmap to file.
+         */
+        g_free(block->shadow_bmap);
+        block->shadow_bmap = NULL;
     }
+}
+
+void ramblock_set_shadow_bmap_atomic(RAMBlock *block, ram_addr_t offset)
+{
+    set_bit_atomic(offset >> TARGET_PAGE_BITS, block->shadow_bmap);
 }
 
 /**

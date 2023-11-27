@@ -278,6 +278,17 @@ static void multifd_pages_clear(MultiFDPages_t *pages)
     g_free(pages);
 }
 
+static void multifd_set_file_bitmap(MultiFDSendParams *p)
+{
+    MultiFDPages_t *pages = p->pages;
+
+    assert(pages->block);
+
+    for (int i = 0; i < p->normal_num; i++) {
+        ramblock_set_shadow_bmap_atomic(pages->block, pages->offset[i]);
+    }
+}
+
 static void multifd_send_fill_packet(MultiFDSendParams *p)
 {
     MultiFDPacket_t *packet = p->packet;
@@ -624,6 +635,34 @@ int multifd_send_sync_main(QEMUFile *f)
         }
     }
 
+    if (!migrate_multifd_packets()) {
+        /*
+         * There's no sync packet to send. Just make sure the sending
+         * above has finished.
+         */
+        for (i = 0; i < migrate_multifd_channels(); i++) {
+            qemu_sem_wait(&multifd_send_state->channels_ready);
+        }
+
+        /* sanity check and release the channels */
+        for (i = 0; i < migrate_multifd_channels(); i++) {
+            MultiFDSendParams *p = &multifd_send_state->params[i];
+
+            qemu_mutex_lock(&p->mutex);
+            if (p->quit) {
+                error_report("%s: channel %d has already quit!", __func__, i);
+                qemu_mutex_unlock(&p->mutex);
+                return -1;
+            }
+            assert(!p->pending_job);
+            qemu_mutex_unlock(&p->mutex);
+
+            qemu_sem_post(&p->sem);
+        }
+
+        return 0;
+    }
+
     /*
      * When using zero-copy, it's necessary to flush the pages before any of
      * the pages can be sent again, so we'll make sure the new version of the
@@ -707,6 +746,8 @@ static void *multifd_send_thread(void *opaque)
 
         if (p->pending_job) {
             uint32_t flags;
+            uintptr_t write_base;
+
             p->normal_num = 0;
 
             if (!use_packets || use_zero_copy_send) {
@@ -731,6 +772,15 @@ static void *multifd_send_thread(void *opaque)
             if (use_packets) {
                 multifd_send_fill_packet(p);
                 p->num_packets++;
+            } else {
+                multifd_set_file_bitmap(p);
+
+                /*
+                 * If we subtract the host page now, we don't need to
+                 * pass it into qio_channel_pwritev_all() below.
+                 */
+                write_base = p->pages->block->pages_offset -
+                    (uintptr_t)p->pages->block->host;
             }
 
             flags = p->flags;
@@ -743,21 +793,28 @@ static void *multifd_send_thread(void *opaque)
             trace_multifd_send(p->id, p->packet_num, p->normal_num, flags,
                                p->next_packet_size);
 
-            if (use_zero_copy_send) {
-                /* Send header first, without zerocopy */
-                ret = qio_channel_write_all(p->c, (void *)p->packet,
-                                            p->packet_len, &local_err);
-                if (ret != 0) {
-                    break;
+            if (use_packets) {
+                if (use_zero_copy_send) {
+                    /* Send header first, without zerocopy */
+                    ret = qio_channel_write_all(p->c, (void *)p->packet,
+                                                p->packet_len, &local_err);
+                    if (ret != 0) {
+                        break;
+                    }
+                } else {
+                    /* Send header using the same writev call */
+                    p->iov[0].iov_len = p->packet_len;
+                    p->iov[0].iov_base = p->packet;
                 }
-            } else if (use_packets) {
-                /* Send header using the same writev call */
-                p->iov[0].iov_len = p->packet_len;
-                p->iov[0].iov_base = p->packet;
+
+                ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num,
+                                                  NULL, 0, p->write_flags,
+                                                  &local_err);
+            } else {
+                ret = qio_channel_pwritev_all(p->c, p->iov, p->iovs_num,
+                                              write_base, &local_err);
             }
 
-            ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
-                                              0, p->write_flags, &local_err);
             if (ret != 0) {
                 break;
             }
