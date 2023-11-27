@@ -135,10 +135,26 @@ static bool transport_supports_multi_channels(SocketAddress *saddr)
            saddr->type == SOCKET_ADDRESS_TYPE_VSOCK;
 }
 
+static bool migration_needs_seekable_channel(void)
+{
+    return migrate_fixed_ram();
+}
+
+static bool transport_supports_seeking(MigrationAddress *addr)
+{
+    return addr->transport == MIGRATION_ADDRESS_TYPE_FILE;
+}
+
 static bool
 migration_channels_and_transport_compatible(MigrationAddress *addr,
                                             Error **errp)
 {
+    if (migration_needs_seekable_channel() &&
+        !transport_supports_seeking(addr)) {
+        error_setg(errp, "Migration requires seekable transport (e.g. file)");
+        return false;
+    }
+
     if (migration_needs_multiple_sockets() &&
         (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) &&
         !transport_supports_multi_channels(&addr->u.socket)) {
