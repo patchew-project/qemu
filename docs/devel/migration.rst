@@ -46,6 +46,24 @@ over any transport.
   application to add its own metadata to the start of the file without
   QEMU interference.
 
+  The file migration also supports using a file that has already been
+  opened. A set of file descriptors is passed to QEMU via an "fdset"
+  (see add-fd QMP command documentation). This method allows a
+  management application to have control over the migration file
+  opening operation. There are, however, strict requirements to this
+  interface:
+
+  On the migration source side:
+    - the fdset must contain two file descriptors that are not
+      duplicates between themselves;
+    - if the direct-io capability is to be used, exactly one of the
+      file descriptors must have the O_DIRECT flag set;
+    - the file must be opened with WRONLY both times.
+
+  On the migration destination side:
+    - the fdset must contain one file descriptor;
+    - the file must be opened with RDONLY.
+
 In addition, support is included for migration using RDMA, which
 transports the page data using ``RDMA``, where the hardware takes care of
 transporting the pages, and the load on the CPU is much lower.  While the
