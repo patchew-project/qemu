@@ -865,8 +865,7 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
     return true;
 }
 
-static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
-                                             QIOChannel *ioc, Error *err)
+static void multifd_new_send_channel_cleanup(MultiFDSendParams *p, Error *err)
 {
      migrate_set_error(migrate_get_current(), err);
      /* Error happen, we need to tell who pay attention to me */
@@ -878,20 +877,20 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
       * its status.
       */
      p->quit = true;
-     object_unref(OBJECT(ioc));
      error_free(err);
 }
 
 static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 {
     MultiFDSendParams *p = opaque;
-    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
+    Object *obj = qio_task_get_source(task);
     Error *local_err = NULL;
 
     trace_multifd_new_send_channel_async(p->id);
     if (!qio_task_propagate_error(task, &local_err)) {
-        p->c = ioc;
-        qio_channel_set_delay(p->c, false);
+        QIOChannel *ioc = QIO_CHANNEL(obj);
+
+        qio_channel_set_delay(ioc, false);
         p->running = true;
         if (multifd_channel_connect(p, ioc, &local_err)) {
             return;
@@ -899,7 +898,8 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
     }
 
     trace_multifd_new_send_channel_async_error(p->id, local_err);
-    multifd_new_send_channel_cleanup(p, ioc, local_err);
+    multifd_new_send_channel_cleanup(p, local_err);
+    object_unref(obj);
 }
 
 static void multifd_new_send_channel_create(gpointer opaque)
