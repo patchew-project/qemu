@@ -2135,6 +2135,14 @@ static void *test_mode_reboot_start(QTestState *from, QTestState *to)
     return NULL;
 }
 
+static void *migrate_fixed_ram_start(QTestState *from, QTestState *to)
+{
+    migrate_set_capability(from, "fixed-ram", true);
+    migrate_set_capability(to, "fixed-ram", true);
+
+    return NULL;
+}
+
 static void test_mode_reboot(void)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
@@ -2144,6 +2152,32 @@ static void test_mode_reboot(void)
         .connect_uri = uri,
         .listen_uri = "defer",
         .start_hook = test_mode_reboot_start
+    };
+
+    test_file_common(&args, true);
+}
+
+static void test_precopy_file_fixed_ram_live(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
+                                           FILE_TEST_FILENAME);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = migrate_fixed_ram_start,
+    };
+
+    test_file_common(&args, false);
+}
+
+static void test_precopy_file_fixed_ram(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
+                                           FILE_TEST_FILENAME);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = migrate_fixed_ram_start,
     };
 
     test_file_common(&args, true);
@@ -3391,6 +3425,11 @@ int main(int argc, char **argv)
     if (getenv("QEMU_TEST_FLAKY_TESTS")) {
         qtest_add_func("/migration/mode/reboot", test_mode_reboot);
     }
+
+    qtest_add_func("/migration/precopy/file/fixed-ram",
+                   test_precopy_file_fixed_ram);
+    qtest_add_func("/migration/precopy/file/fixed-ram/live",
+                   test_precopy_file_fixed_ram_live);
 
 #ifdef CONFIG_GNUTLS
     qtest_add_func("/migration/precopy/unix/tls/psk",
