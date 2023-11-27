@@ -2296,6 +2296,7 @@ void kvm_arch_do_init_vcpu(X86CPU *cpu)
 static int kvm_get_supported_feature_msrs(KVMState *s)
 {
     int ret = 0;
+    int i;
 
     if (kvm_feature_msrs != NULL) {
         return 0;
@@ -2330,6 +2331,19 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
         return ret;
     }
 
+    /*
+     * Compatibility fix:
+     * Older Linux kernels(<5.3) include the MSR_IA32_VMX_PROCBASED_CTLS2
+     * only in feature msr list, but not in regular msr list. This lead to
+     * an issue in older kernel versions where QEMU, through the regular
+     * MSR list check, assumes the kernel doesn't maintain this msr,
+     * resulting in incorrect settings by QEMU for this msr.
+     */
+    for (i = 0; i < kvm_feature_msrs->nmsrs; i++) {
+        if (kvm_feature_msrs->indices[i] == MSR_IA32_VMX_PROCBASED_CTLS2) {
+            has_msr_vmx_procbased_ctls2 = true;
+        }
+    }
     return 0;
 }
 
