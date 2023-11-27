@@ -326,9 +326,10 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
     Error *local_err = NULL;
     void *ptr;
-    uint64_t sz;
 
     if (bc->alloc) {
+        uint64_t sz;
+
         bc->alloc(backend, &local_err);
         if (local_err) {
             goto out;
@@ -336,6 +337,11 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 
         ptr = memory_region_get_ram_ptr(&backend->mr);
         sz = memory_region_size(&backend->mr);
+
+        /* Round up size to be an integer multiple of pagesize, because
+         * madvise() does not really like setting advices on a fraction of a
+         * page. */
+        sz = ROUND_UP(sz, qemu_ram_pagesize(backend->mr.ram_block));
 
         if (backend->merge) {
             qemu_madvise(ptr, sz, QEMU_MADV_MERGEABLE);
