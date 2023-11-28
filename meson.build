@@ -1480,6 +1480,7 @@ endif
 gcrypt = not_found
 nettle = not_found
 hogweed = not_found
+crypto_sm4 = not_found
 xts = 'none'
 
 if get_option('nettle').enabled() and get_option('gcrypt').enabled()
@@ -1512,6 +1513,26 @@ if not gnutls_crypto.found()
                         required: get_option('nettle'))
     if nettle.found() and not cc.has_header('nettle/xts.h', dependencies: nettle)
       xts = 'private'
+    endif
+  endif
+  if get_option('crypto_sm4').enabled()
+    if get_option('gcrypt').enabled()
+      # SM4 ALG is available in libgcrypt >= 1.9
+      crypto_sm4 = dependency('libgcrypt', version: '>=1.9',
+                              method: 'config-tool',
+                              required: get_option('gcrypt'))
+      # SM4 ALG static compilation
+      if crypto_sm4.found() and get_option('prefer_static')
+        crypto_sm4 = declare_dependency(dependencies: [
+          crypto_sm4,
+          cc.find_library('gpg-error', required: true)],
+          version: crypto_sm4.version())
+      endif
+    else
+      # SM4 ALG is available in nettle >= 3.9
+      crypto_sm4 = dependency('nettle', version: '>=3.9',
+                              method: 'pkg-config',
+                              required: get_option('nettle'))
     endif
   endif
 endif
@@ -2199,6 +2220,7 @@ config_host_data.set('CONFIG_GNUTLS_CRYPTO', gnutls_crypto.found())
 config_host_data.set('CONFIG_TASN1', tasn1.found())
 config_host_data.set('CONFIG_GCRYPT', gcrypt.found())
 config_host_data.set('CONFIG_NETTLE', nettle.found())
+config_host_data.set('CONFIG_CRYPTO_SM4', crypto_sm4.found())
 config_host_data.set('CONFIG_HOGWEED', hogweed.found())
 config_host_data.set('CONFIG_QEMU_PRIVATE_XTS', xts == 'private')
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
@@ -4273,6 +4295,7 @@ summary_info += {'nettle':            nettle}
 if nettle.found()
    summary_info += {'  XTS':             xts != 'private'}
 endif
+summary_info += {'SM4 ALG support':   crypto_sm4}
 summary_info += {'AF_ALG support':    have_afalg}
 summary_info += {'rng-none':          get_option('rng_none')}
 summary_info += {'Linux keyring':     have_keyring}
