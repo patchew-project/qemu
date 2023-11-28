@@ -1,2 +1,5 @@
+config FSI
+    bool
+
 config FSI_LBUS
     bool
