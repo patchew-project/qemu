@@ -2004,6 +2004,8 @@ void qmp_migrate(const char *uri, bool has_channels,
                           MIGRATION_STATUS_FAILED);
         block_cleanup_parameters();
     }
+    g_free(channel);
+    qapi_free_MigrationAddress(addr);
 
     if (local_err) {
         if (!resume_requested) {
