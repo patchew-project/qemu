@@ -513,12 +513,12 @@ void qemu_bql_unlock(void)
     qemu_mutex_unlock(&qemu_global_mutex);
 }
 
-void qemu_cond_wait_iothread(QemuCond *cond)
+void qemu_cond_wait_bql(QemuCond *cond)
 {
     qemu_cond_wait(cond, &qemu_global_mutex);
 }
 
-void qemu_cond_timedwait_iothread(QemuCond *cond, int ms)
+void qemu_cond_timedwait_bql(QemuCond *cond, int ms)
 {
     qemu_cond_timedwait(cond, &qemu_global_mutex, ms);
 }
