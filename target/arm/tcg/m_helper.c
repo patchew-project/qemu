@@ -373,7 +373,7 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
     bool ts = is_secure && (env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_TS_MASK);
     bool take_exception;
 
-    /* Take the iothread lock as we are going to touch the NVIC */
+    /* Take the BQL as we are going to touch the NVIC */
     qemu_bql_lock();
 
     /* Check the background context had access to the FPU */
