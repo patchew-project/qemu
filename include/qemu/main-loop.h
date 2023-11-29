@@ -344,13 +344,13 @@ void qemu_bql_lock_impl(const char *file, int line);
 void qemu_bql_unlock(void);
 
 /**
- * QEMU_IOTHREAD_LOCK_GUARD
+ * QEMU_BQL_LOCK_GUARD
  *
- * Wrap a block of code in a conditional qemu_mutex_{lock,unlock}_iothread.
+ * Wrap a block of code in a conditional qemu_bql_{lock,unlock}.
  */
-typedef struct IOThreadLockAuto IOThreadLockAuto;
+typedef struct BQLLockAuto BQLLockAuto;
 
-static inline IOThreadLockAuto *qemu_iothread_auto_lock(const char *file,
+static inline BQLLockAuto *qemu_bql_auto_lock(const char *file,
                                                         int line)
 {
     if (qemu_bql_locked()) {
@@ -358,19 +358,19 @@ static inline IOThreadLockAuto *qemu_iothread_auto_lock(const char *file,
     }
     qemu_bql_lock_impl(file, line);
     /* Anything non-NULL causes the cleanup function to be called */
-    return (IOThreadLockAuto *)(uintptr_t)1;
+    return (BQLLockAuto *)(uintptr_t)1;
 }
 
-static inline void qemu_iothread_auto_unlock(IOThreadLockAuto *l)
+static inline void qemu_bql_auto_unlock(BQLLockAuto *l)
 {
     qemu_bql_unlock();
 }
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(IOThreadLockAuto, qemu_iothread_auto_unlock)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(BQLLockAuto, qemu_bql_auto_unlock)
 
-#define QEMU_IOTHREAD_LOCK_GUARD() \
-    g_autoptr(IOThreadLockAuto) _iothread_lock_auto __attribute__((unused)) \
-        = qemu_iothread_auto_lock(__FILE__, __LINE__)
+#define QEMU_BQL_LOCK_GUARD() \
+    g_autoptr(BQLLockAuto) _bql_lock_auto __attribute__((unused)) \
+        = qemu_bql_auto_lock(__FILE__, __LINE__)
 
 /*
  * qemu_cond_wait_iothread: Wait on condition for the main loop mutex
