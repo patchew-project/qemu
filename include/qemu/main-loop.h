@@ -248,7 +248,7 @@ GSource *iohandler_get_g_source(void);
 AioContext *iohandler_get_aio_context(void);
 
 /**
- * qemu_mutex_iothread_locked: Return lock status of the main loop mutex.
+ * qemu_bql_locked: Return lock status of the main loop mutex.
  *
  * The main loop mutex is the coarsest lock in QEMU, and as such it
  * must always be taken outside other locks.  This function helps
@@ -260,7 +260,7 @@ AioContext *iohandler_get_aio_context(void);
  * have a BQL.
  * Please instead refer to qemu_in_main_thread().
  */
-bool qemu_mutex_iothread_locked(void);
+bool qemu_bql_locked(void);
 
 /**
  * qemu_in_main_thread: return whether it's possible to safely access
@@ -312,7 +312,7 @@ bool qemu_in_main_thread(void);
     } while (0)
 
 /**
- * qemu_mutex_lock_iothread: Lock the main loop mutex.
+ * qemu_bql_lock: Lock the main loop mutex.
  *
  * This function locks the main loop mutex.  The mutex is taken by
  * main() in vl.c and always taken except while waiting on
@@ -321,15 +321,15 @@ bool qemu_in_main_thread(void);
  * qemu_bh_new(), qemu_set_fd_handler() and basically all other
  * functions documented in this file.
  *
- * NOTE: tools currently are single-threaded and qemu_mutex_lock_iothread
+ * NOTE: tools currently are single-threaded and qemu_bql_lock
  * is a no-op there.
  */
-#define qemu_mutex_lock_iothread()                      \
-    qemu_mutex_lock_iothread_impl(__FILE__, __LINE__)
-void qemu_mutex_lock_iothread_impl(const char *file, int line);
+#define qemu_bql_lock()                      \
+    qemu_bql_lock_impl(__FILE__, __LINE__)
+void qemu_bql_lock_impl(const char *file, int line);
 
 /**
- * qemu_mutex_unlock_iothread: Unlock the main loop mutex.
+ * qemu_bql_unlock: Unlock the main loop mutex.
  *
  * This function unlocks the main loop mutex.  The mutex is taken by
  * main() in vl.c and always taken except while waiting on
@@ -338,10 +338,10 @@ void qemu_mutex_lock_iothread_impl(const char *file, int line);
  * because it prevents the main loop from processing callbacks,
  * including timers and bottom halves.
  *
- * NOTE: tools currently are single-threaded and qemu_mutex_unlock_iothread
+ * NOTE: tools currently are single-threaded and qemu_bql_unlock
  * is a no-op there.
  */
-void qemu_mutex_unlock_iothread(void);
+void qemu_bql_unlock(void);
 
 /**
  * QEMU_IOTHREAD_LOCK_GUARD
@@ -353,17 +353,17 @@ typedef struct IOThreadLockAuto IOThreadLockAuto;
 static inline IOThreadLockAuto *qemu_iothread_auto_lock(const char *file,
                                                         int line)
 {
-    if (qemu_mutex_iothread_locked()) {
+    if (qemu_bql_locked()) {
         return NULL;
     }
-    qemu_mutex_lock_iothread_impl(file, line);
+    qemu_bql_lock_impl(file, line);
     /* Anything non-NULL causes the cleanup function to be called */
     return (IOThreadLockAuto *)(uintptr_t)1;
 }
 
 static inline void qemu_iothread_auto_unlock(IOThreadLockAuto *l)
 {
-    qemu_mutex_unlock_iothread();
+    qemu_bql_unlock();
 }
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(IOThreadLockAuto, qemu_iothread_auto_unlock)

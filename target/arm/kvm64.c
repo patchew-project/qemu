@@ -1233,9 +1233,9 @@ bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit)
     env->exception.syndrome = debug_exit->hsr;
     env->exception.vaddress = debug_exit->far;
     env->exception.target_el = 1;
-    qemu_mutex_lock_iothread();
+    qemu_bql_lock();
     arm_cpu_do_interrupt(cs);
-    qemu_mutex_unlock_iothread();
+    qemu_bql_unlock();
 
     return false;
 }

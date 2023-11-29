@@ -481,35 +481,35 @@ bool qemu_in_vcpu_thread(void)
     return current_cpu && qemu_cpu_is_self(current_cpu);
 }
 
-QEMU_DEFINE_STATIC_CO_TLS(bool, iothread_locked)
+QEMU_DEFINE_STATIC_CO_TLS(bool, bql_locked)
 
-bool qemu_mutex_iothread_locked(void)
+bool qemu_bql_locked(void)
 {
-    return get_iothread_locked();
+    return get_bql_locked();
 }
 
 bool qemu_in_main_thread(void)
 {
-    return qemu_mutex_iothread_locked();
+    return qemu_bql_locked();
 }
 
 /*
  * The BQL is taken from so many places that it is worth profiling the
  * callers directly, instead of funneling them all through a single function.
  */
-void qemu_mutex_lock_iothread_impl(const char *file, int line)
+void qemu_bql_lock_impl(const char *file, int line)
 {
     QemuMutexLockFunc bql_lock = qatomic_read(&qemu_bql_mutex_lock_func);
 
-    g_assert(!qemu_mutex_iothread_locked());
+    g_assert(!qemu_bql_locked());
     bql_lock(&qemu_global_mutex, file, line);
-    set_iothread_locked(true);
+    set_bql_locked(true);
 }
 
-void qemu_mutex_unlock_iothread(void)
+void qemu_bql_unlock(void)
 {
-    g_assert(qemu_mutex_iothread_locked());
-    set_iothread_locked(false);
+    g_assert(qemu_bql_locked());
+    set_bql_locked(false);
     qemu_mutex_unlock(&qemu_global_mutex);
 }
 
@@ -577,9 +577,9 @@ void pause_all_vcpus(void)
         }
     }
 
-    qemu_mutex_unlock_iothread();
+    qemu_bql_unlock();
     replay_mutex_lock();
-    qemu_mutex_lock_iothread();
+    qemu_bql_lock();
 }
 
 void cpu_resume(CPUState *cpu)
@@ -608,9 +608,9 @@ void cpu_remove_sync(CPUState *cpu)
     cpu->stop = true;
     cpu->unplug = true;
     qemu_cpu_kick(cpu);
-    qemu_mutex_unlock_iothread();
+    qemu_bql_unlock();
     qemu_thread_join(cpu->thread);
-    qemu_mutex_lock_iothread();
+    qemu_bql_lock();
 }
 
 void cpus_register_accel(const AccelOpsClass *ops)
