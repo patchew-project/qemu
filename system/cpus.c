@@ -65,7 +65,7 @@
 
 #endif /* CONFIG_LINUX */
 
-static QemuMutex qemu_global_mutex;
+static QemuMutex qemu_bql;
 
 /*
  * The chosen accelerator is supposed to register this.
@@ -389,14 +389,14 @@ void qemu_init_cpu_loop(void)
     qemu_init_sigbus();
     qemu_cond_init(&qemu_cpu_cond);
     qemu_cond_init(&qemu_pause_cond);
-    qemu_mutex_init(&qemu_global_mutex);
+    qemu_mutex_init(&qemu_bql);
 
     qemu_thread_get_self(&io_thread);
 }
 
 void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
 {
-    do_run_on_cpu(cpu, func, data, &qemu_global_mutex);
+    do_run_on_cpu(cpu, func, data, &qemu_bql);
 }
 
 static void qemu_cpu_stop(CPUState *cpu, bool exit)
@@ -428,7 +428,7 @@ void qemu_wait_io_event(CPUState *cpu)
             slept = true;
             qemu_plugin_vcpu_idle_cb(cpu);
         }
-        qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
+        qemu_cond_wait(cpu->halt_cond, &qemu_bql);
     }
     if (slept) {
         qemu_plugin_vcpu_resume_cb(cpu);
@@ -502,7 +502,7 @@ void qemu_bql_lock_impl(const char *file, int line)
     QemuMutexLockFunc bql_lock = qatomic_read(&qemu_bql_mutex_lock_func);
 
     g_assert(!qemu_bql_locked());
-    bql_lock(&qemu_global_mutex, file, line);
+    bql_lock(&qemu_bql, file, line);
     set_bql_locked(true);
 }
 
@@ -510,17 +510,17 @@ void qemu_bql_unlock(void)
 {
     g_assert(qemu_bql_locked());
     set_bql_locked(false);
-    qemu_mutex_unlock(&qemu_global_mutex);
+    qemu_mutex_unlock(&qemu_bql);
 }
 
 void qemu_cond_wait_bql(QemuCond *cond)
 {
-    qemu_cond_wait(cond, &qemu_global_mutex);
+    qemu_cond_wait(cond, &qemu_bql);
 }
 
 void qemu_cond_timedwait_bql(QemuCond *cond, int ms)
 {
-    qemu_cond_timedwait(cond, &qemu_global_mutex, ms);
+    qemu_cond_timedwait(cond, &qemu_bql, ms);
 }
 
 /* signal CPU creation */
@@ -571,7 +571,7 @@ void pause_all_vcpus(void)
     replay_mutex_unlock();
 
     while (!all_vcpus_paused()) {
-        qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
+        qemu_cond_wait(&qemu_pause_cond, &qemu_bql);
         CPU_FOREACH(cpu) {
             qemu_cpu_kick(cpu);
         }
@@ -649,7 +649,7 @@ void qemu_init_vcpu(CPUState *cpu)
     cpus_accel->create_vcpu_thread(cpu);
 
     while (!cpu->created) {
-        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+        qemu_cond_wait(&qemu_cpu_cond, &qemu_bql);
     }
 }
 
