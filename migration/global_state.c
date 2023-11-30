@@ -25,6 +25,7 @@ typedef struct {
     uint8_t runstate[100];
     RunState state;
     bool received;
+    bool vm_was_suspended;
 } GlobalState;
 
 static GlobalState global_state;
@@ -35,6 +36,7 @@ static void global_state_do_store(RunState state)
     assert(strlen(state_str) < sizeof(global_state.runstate));
     strpadcpy((char *)global_state.runstate, sizeof(global_state.runstate),
               state_str, '\0');
+    global_state.vm_was_suspended = vm_get_suspended();
 }
 
 void global_state_store(void)
@@ -65,6 +67,12 @@ static bool global_state_needed(void *opaque)
     /* If it is not optional, it is mandatory */
 
     if (migrate_get_current()->store_global_state) {
+        return true;
+    }
+
+    /* If the suspended state must be remembered, it is needed */
+
+    if (vm_get_suspended()) {
         return true;
     }
 
@@ -109,6 +117,7 @@ static int global_state_post_load(void *opaque, int version_id)
         return -EINVAL;
     }
     s->state = r;
+    vm_set_suspended(s->vm_was_suspended || r == RUN_STATE_SUSPENDED);
 
     return 0;
 }
@@ -134,6 +143,7 @@ static const VMStateDescription vmstate_globalstate = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(size, GlobalState),
         VMSTATE_BUFFER(runstate, GlobalState),
+        VMSTATE_BOOL(vm_was_suspended, GlobalState),
         VMSTATE_END_OF_LIST()
     },
 };
