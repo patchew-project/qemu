@@ -124,7 +124,8 @@ static bool ufd_version_check(void)
 #endif
 
 static char *tmpfs;
-static char *bootpath;
+static char *src_bootpath;
+static char *dst_bootpath;
 
 /* The boot file modifies memory area in [start_address, end_address)
  * repeatedly. It outputs a 'B' at a fixed rate while it's still running.
@@ -133,13 +134,13 @@ static char *bootpath;
 #include "tests/migration/aarch64/a-b-kernel.h"
 #include "tests/migration/s390x/a-b-bios.h"
 
-static void bootfile_create(char *dir, bool suspend_me)
+static char *bootfile_create(char *dir, const char *prefix, bool suspend_me)
 {
     const char *arch = qtest_get_arch();
     unsigned char *content;
     size_t len;
+    char *bootpath = g_strdup_printf("%s/%s-bootsect", dir, prefix);
 
-    bootpath = g_strdup_printf("%s/bootsect", dir);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         /* the assembled x86 boot sector should be exactly one sector large */
         g_assert(sizeof(x86_bootsect) == 512);
@@ -153,7 +154,7 @@ static void bootfile_create(char *dir, bool suspend_me)
         /*
          * sane architectures can be programmed at the boot prompt
          */
-        return;
+        return NULL;
     } else if (strcmp(arch, "aarch64") == 0) {
         content = aarch64_kernel;
         len = sizeof(aarch64_kernel);
@@ -166,13 +167,15 @@ static void bootfile_create(char *dir, bool suspend_me)
 
     g_assert_cmpint(fwrite(content, len, 1, bootfile), ==, 1);
     fclose(bootfile);
+    return bootpath;
 }
 
-static void bootfile_delete(void)
+static void bootfile_delete(char *bootpath)
 {
-    unlink(bootpath);
-    g_free(bootpath);
-    bootpath = NULL;
+    if (bootpath) {
+        unlink(bootpath);
+        g_free(bootpath);
+    }
 }
 
 /*
@@ -766,6 +769,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     const gchar *ignore_stderr;
     g_autofree char *shmem_opts = NULL;
     g_autofree char *shmem_path = NULL;
+    const char *arch_boot_fmt = NULL;
     const char *kvm_opts = NULL;
     const char *arch = qtest_get_arch();
     const char *memory_size;
@@ -781,7 +785,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
 
     dst_state = (QTestMigrationState) { };
     src_state = (QTestMigrationState) { };
-    bootfile_create(tmpfs, args->suspend_me);
+    src_bootpath = bootfile_create(tmpfs, "src", args->suspend_me);
+    dst_bootpath = bootfile_create(tmpfs, "dst", args->suspend_me);
     src_state.suspend_me = args->suspend_me;
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
@@ -792,15 +797,14 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         } else {
             machine_alias = "q35";
         }
-        arch_opts = g_strdup_printf(
-            "-drive if=none,id=d0,file=%s,format=raw "
-            "-device ide-hd,drive=d0,secs=1,cyls=1,heads=1", bootpath);
+        arch_boot_fmt = "-drive if=none,id=d0,file=%s,format=raw "
+                        "-device ide-hd,drive=d0,secs=1,cyls=1,heads=1";
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
         memory_size = "128M";
         machine_alias = "s390-ccw-virtio";
-        arch_opts = g_strdup_printf("-bios %s", bootpath);
+        arch_boot_fmt = "-bios %s";
         start_address = S390_TEST_MEM_START;
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
@@ -818,11 +822,16 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         memory_size = "150M";
         machine_alias = "virt";
         machine_opts = "gic-version=max";
-        arch_opts = g_strdup_printf("-cpu max -kernel %s", bootpath);
+        arch_boot_fmt = "-cpu max -kernel %s";
         start_address = ARM_TEST_MEM_START;
         end_address = ARM_TEST_MEM_END;
     } else {
         g_assert_not_reached();
+    }
+
+    if (arch_boot_fmt) {
+        arch_source = g_strdup_printf(arch_boot_fmt, src_bootpath);
+        arch_target = g_strdup_printf(arch_boot_fmt, dst_bootpath);
     }
 
     if (!getenv("QTEST_LOG") && args->hide_stderr) {
@@ -3052,13 +3061,13 @@ static QTestState *dirtylimit_start_vm(void)
     QTestState *vm = NULL;
     g_autofree gchar *cmd = NULL;
 
-    bootfile_create(tmpfs, false);
+    src_bootpath = bootfile_create(tmpfs, "src", false);
     cmd = g_strdup_printf("-accel kvm,dirty-ring-size=4096 "
                           "-name dirtylimit-test,debug-threads=on "
                           "-m 150M -smp 1 "
                           "-serial file:%s/vm_serial "
                           "-drive file=%s,format=raw ",
-                          tmpfs, bootpath);
+                          tmpfs, src_bootpath);
 
     vm = qtest_init(cmd);
     return vm;
@@ -3589,7 +3598,8 @@ int main(int argc, char **argv)
 
     g_assert_cmpint(ret, ==, 0);
 
-    bootfile_delete();
+    bootfile_delete(src_bootpath);
+    bootfile_delete(dst_bootpath);
     ret = rmdir(tmpfs);
     if (ret != 0) {
         g_test_message("unable to rmdir: path (%s): %s",
