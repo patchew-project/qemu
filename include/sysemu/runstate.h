@@ -55,6 +55,14 @@ void vm_start(void);
  */
 int vm_prepare_start(bool step_pending, RunState state);
 
+/**
+ * vm_resume: If @state is a startable state, start the vm and set the state,
+ * else just set the state.
+ *
+ * @state: the state to restore
+ */
+void vm_resume(RunState state);
+
 int vm_stop(RunState state);
 int vm_stop_force_state(RunState state);
 int vm_shutdown(void);
