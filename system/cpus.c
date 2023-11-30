@@ -277,11 +277,15 @@ bool vm_get_suspended(void)
 static int do_vm_stop(RunState state, bool send_stop)
 {
     int ret = 0;
+    RunState oldstate = runstate_get();
 
-    if (runstate_is_running()) {
+    if (runstate_is_started(oldstate)) {
+        vm_was_suspended = (oldstate == RUN_STATE_SUSPENDED);
         runstate_set(state);
         cpu_disable_ticks();
-        pause_all_vcpus();
+        if (oldstate == RUN_STATE_RUNNING) {
+            pause_all_vcpus();
+        }
         vm_state_notify(0, state);
         if (send_stop) {
             qapi_event_send_stop();
@@ -736,8 +740,13 @@ int vm_prepare_start(bool step_pending, RunState state)
 
 void vm_start(void)
 {
-    if (!vm_prepare_start(false, RUN_STATE_RUNNING)) {
-        resume_all_vcpus();
+    RunState state = vm_was_suspended ? RUN_STATE_SUSPENDED : RUN_STATE_RUNNING;
+
+    if (!vm_prepare_start(false, state)) {
+        if (state == RUN_STATE_RUNNING) {
+            resume_all_vcpus();
+        }
+        vm_was_suspended = false;
     }
 }
 
@@ -745,7 +754,7 @@ void vm_start(void)
    current state is forgotten forever */
 int vm_stop_force_state(RunState state)
 {
-    if (runstate_is_running()) {
+    if (runstate_is_started(runstate_get())) {
         return vm_stop(state);
     } else {
         int ret;
