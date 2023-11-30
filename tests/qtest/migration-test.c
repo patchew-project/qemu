@@ -638,6 +638,9 @@ static void migrate_postcopy_start(QTestState *from, QTestState *to)
 {
     qtest_qmp_assert_success(from, "{ 'execute': 'migrate-start-postcopy' }");
 
+    if (src_state.suspend_me) {
+        wait_for_suspend(from, &src_state);
+    }
     wait_for_stop(from, &src_state);
     qtest_qmp_eventwait(to, "RESUME");
 }
@@ -1359,6 +1362,11 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to,
 {
     wait_for_migration_complete(from);
 
+    if (args->start.suspend_me) {
+        /* wakeup succeeds only if guest is suspended */
+        qtest_qmp_assert_success(to, "{'execute': 'system_wakeup'}");
+    }
+
     /* Make sure we get at least one "B" on destination */
     wait_for_serial("dest_serial");
 
@@ -1388,6 +1396,15 @@ static void test_postcopy_common(MigrateCommon *args)
 static void test_postcopy(void)
 {
     MigrateCommon args = { };
+
+    test_postcopy_common(&args);
+}
+
+static void test_postcopy_suspend(void)
+{
+    MigrateCommon args = {
+        .start.suspend_me = true,
+    };
 
     test_postcopy_common(&args);
 }
@@ -3412,7 +3429,10 @@ int main(int argc, char **argv)
         qtest_add_func("/migration/postcopy/recovery/double-failures",
                        test_postcopy_recovery_double_fail);
 #endif /* _WIN32 */
-
+        if (is_x86) {
+            qtest_add_func("/migration/postcopy/suspend",
+                           test_postcopy_suspend);
+        }
     }
 
     qtest_add_func("/migration/bad_dest", test_baddest);
