@@ -121,13 +121,16 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         """
         self.do_test_i6400_framebuffer_logo(8)
 
-class MaltaMachine(QemuSystemTest):
+@skipUnless(os.getenv('YAMON_02_22_ZIP_PATH'),
+            'YAMON_02_22_ZIP_PATH not available')
+class MaltaMachineYamon(QemuSystemTest):
 
     def do_test_yamon(self):
         rom_url = ('http://www.imgtec.com/tools/mips-tools/downloads/'
                    'yamon/yamon-bin-02.22.zip')
         rom_hash = '8da7ecddbc5312704b8b324341ee238189bde480'
-        zip_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
+        zip_path = os.getenv('YAMON_02_22_ZIP_PATH')
+        zip_path = self.fetch_asset(f'file://{zip_path}', asset_hash=rom_hash)
 
         archive.extract(zip_path, self.workdir)
         yamon_path = os.path.join(self.workdir, 'yamon-02.22.bin')
