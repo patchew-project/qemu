@@ -206,6 +206,7 @@ int kvm_has_gsi_routing(void);
  */
 bool kvm_arm_supports_user_irq(void);
 
+bool kvm_supports_guest_debug(void);
 
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
