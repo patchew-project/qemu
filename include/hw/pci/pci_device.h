@@ -29,6 +29,8 @@ DECLARE_CLASS_CHECKERS(PCIFailoverClass, PCI_FAILOVER, TYPE_PCI_FAILOVER)
 struct PCIDeviceClass {
     DeviceClass parent_class;
 
+    bool (*hide)(PCIDeviceClass *pc, const QDict *device_opts, bool from_json,
+                 Error **errp);
     void (*realize)(PCIDevice *dev, Error **errp);
     PCIUnregisterFunc *exit;
     PCIConfigReadFunc *config_read;

@@ -2054,10 +2054,18 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 static bool pci_qdev_hide(DeviceClass *dc, const QDict *device_opts,
                           bool from_json, Error **errp)
 {
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(dc);
     const char *standby_id;
     DeviceState *dev;
     ObjectClass *class;
     ObjectClass *interface;
+
+    if (pc->hide) {
+        bool hide = pc->hide(pc, device_opts, from_json, errp);
+        if (hide || *errp) {
+            return hide;
+        }
+    }
 
     if (!device_opts) {
         return false;
