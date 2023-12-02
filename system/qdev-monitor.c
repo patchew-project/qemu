@@ -619,6 +619,25 @@ const char *qdev_set_id(DeviceState *dev, char *id, Error **errp)
 DeviceState *qdev_device_add_from_qdict(const QDict *opts,
                                         bool from_json, Error **errp)
 {
+    DeviceState *dev;
+    BusState *bus;
+
+    dev = qdev_device_new_from_qdict(opts, from_json, &bus, errp);
+    if (!dev) {
+        return NULL;
+    }
+
+    if (!qdev_realize(dev, bus, errp)) {
+        object_unparent(OBJECT(dev));
+        object_unref(OBJECT(dev));
+    }
+
+    return dev;
+}
+
+DeviceState *qdev_device_new_from_qdict(const QDict *opts, bool from_json,
+                                        BusState **busp, Error **errp)
+{
     ERRP_GUARD();
     DeviceClass *dc;
     const char *driver, *path;
@@ -720,9 +739,7 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
         goto err_del_dev;
     }
 
-    if (!qdev_realize(dev, bus, errp)) {
-        goto err_del_dev;
-    }
+    *busp = bus;
     return dev;
 
 err_del_dev:
