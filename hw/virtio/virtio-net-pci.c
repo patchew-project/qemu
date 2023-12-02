@@ -88,6 +88,7 @@ static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     device_class_set_props(dc, virtio_net_properties);
     vpciklass->realize = virtio_net_pci_realize;
+    vpciklass->sriov_supported = true;
 }
 
 static void virtio_net_pci_instance_init(Object *obj)
