@@ -205,7 +205,7 @@ static inline uint16_t pci_get_bdf(PCIDevice *dev)
     return PCI_BUILD_BDF(pci_bus_num(pci_get_bus(dev)), dev->devfn);
 }
 
-static inline bool pci_rom_bar_explicitly_enabled(PCIDevice *dev)
+static inline bool pci_rom_bar_explicitly_enabled(PCIDevice *d)
 {
     return d->rom_bar && d->rom_bar != -1;
 }
