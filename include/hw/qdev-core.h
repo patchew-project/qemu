@@ -56,16 +56,15 @@
  * Hiding a device
  * ---------------
  *
- * To hide a device, a DeviceListener function hide_device() needs to
- * be registered. It can be used to defer adding a device and
- * therefore hide it from the guest. The handler registering to this
- * DeviceListener can save the QOpts passed to it for re-using it
- * later. It must return if it wants the device to be hidden or
- * visible. When the handler function decides the device shall be
- * visible it will be added with qdev_device_add() and realized as any
- * other device. Otherwise qdev_device_add() will return early without
- * adding the device. The guest will not see a "hidden" device until
- * it was marked visible and qdev_device_add called again.
+ * To hide a device, a DeviceClass function hide() needs to be registered. It
+ * can be used to defer adding a device and therefore hide it from the guest.
+ * The handler can save the QOpts passed to it for re-using it later. It must
+ * return if it wants the device to be hidden or visible. When the handler
+ * function decides the device shall be visible it will be added with
+ * qdev_device_add() and realized as any other device. Otherwise
+ * qdev_device_add() will return early without adding the device. The guest
+ * will not see a "hidden" device until it was marked visible and
+ * qdev_device_add called again.
  *
  */
 
@@ -90,6 +89,8 @@ typedef enum DeviceCategory {
     DEVICE_CATEGORY_MAX
 } DeviceCategory;
 
+typedef bool (*DeviceHide)(DeviceClass *dc, const QDict *device_opts,
+                           bool from_json, Error **errp);
 typedef void (*DeviceRealize)(DeviceState *dev, Error **errp);
 typedef void (*DeviceUnrealize)(DeviceState *dev);
 typedef void (*DeviceReset)(DeviceState *dev);
@@ -151,6 +152,18 @@ struct DeviceClass {
     bool hotpluggable;
 
     /* callbacks */
+    /**
+     * @hide: informs qdev if a device should be visible or hidden.
+     *
+     * This callback is called upon init of the DeviceState.
+     * We can hide a failover device depending for example on the device
+     * opts.
+     *
+     * On errors, it returns false and errp is set. Device creation
+     * should fail in this case.
+     */
+    DeviceHide hide;
+
     /**
      * @reset: deprecated device reset method pointer
      *
