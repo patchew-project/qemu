@@ -306,17 +306,6 @@ struct DeviceState {
 struct DeviceListener {
     void (*realize)(DeviceListener *listener, DeviceState *dev);
     void (*unrealize)(DeviceListener *listener, DeviceState *dev);
-    /*
-     * This callback is called upon init of the DeviceState and
-     * informs qdev if a device should be visible or hidden.  We can
-     * hide a failover device depending for example on the device
-     * opts.
-     *
-     * On errors, it returns false and errp is set. Device creation
-     * should fail in this case.
-     */
-    bool (*hide_device)(DeviceListener *listener, const QDict *device_opts,
-                        bool from_json, Error **errp);
     QTAILQ_ENTRY(DeviceListener) link;
 };
 
@@ -1053,19 +1042,6 @@ static inline void qbus_mark_full(BusState *bus)
 
 void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
-
-/**
- * qdev_should_hide_device() - check if device should be hidden
- *
- * @opts: options QDict
- * @from_json: true if @opts entries are typed, false for all strings
- * @errp: pointer to error object
- *
- * When a device is added via qdev_device_add() this will be called.
- *
- * Return: if the device should be added now or not.
- */
-bool qdev_should_hide_device(const QDict *opts, bool from_json, Error **errp);
 
 typedef enum MachineInitPhase {
     /* current_machine is NULL.  */

@@ -660,15 +660,6 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
         }
     }
 
-    if (qdev_should_hide_device(opts, from_json, errp)) {
-        if (bus && !qbus_is_hotpluggable(bus)) {
-            error_setg(errp, QERR_BUS_NO_HOTPLUG, bus->name);
-        }
-        return NULL;
-    } else if (*errp) {
-        return NULL;
-    }
-
     if (dc->hide) {
         if (dc->hide(dc, opts, from_json, errp)) {
             if (bus && !qbus_is_hotpluggable(bus)) {

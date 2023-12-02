@@ -224,24 +224,6 @@ void device_listener_unregister(DeviceListener *listener)
     QTAILQ_REMOVE(&device_listeners, listener, link);
 }
 
-bool qdev_should_hide_device(const QDict *opts, bool from_json, Error **errp)
-{
-    ERRP_GUARD();
-    DeviceListener *listener;
-
-    QTAILQ_FOREACH(listener, &device_listeners, link) {
-        if (listener->hide_device) {
-            if (listener->hide_device(listener, opts, from_json, errp)) {
-                return true;
-            } else if (*errp) {
-                return false;
-            }
-        }
-    }
-
-    return false;
-}
-
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version)
 {
