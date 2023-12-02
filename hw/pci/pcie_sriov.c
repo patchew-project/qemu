@@ -15,8 +15,11 @@
 #include "hw/pci/pcie.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/qdev-properties.h"
+#include "monitor/qdev.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qobject.h"
 #include "qapi/error.h"
 #include "trace.h"
 
@@ -25,9 +28,10 @@ static PCIDevice *register_vf(PCIDevice *pf, int devfn,
 static void unregister_vfs(PCIDevice *dev);
 
 void pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
-                        const char *vfname, uint16_t vf_dev_id,
-                        uint16_t init_vfs, uint16_t total_vfs,
-                        uint16_t vf_offset, uint16_t vf_stride)
+                        const char *vfname, PCIESriovVFOpts *vfopts,
+                        uint16_t vf_dev_id, uint16_t init_vfs,
+                        uint16_t total_vfs, uint16_t vf_offset,
+                        uint16_t vf_stride)
 {
     uint8_t *cfg = dev->config + offset;
     uint8_t *wmask;
@@ -37,6 +41,7 @@ void pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
     dev->exp.sriov_cap = offset;
     dev->exp.sriov_pf.num_vfs = 0;
     dev->exp.sriov_pf.vfname = g_strdup(vfname);
+    dev->exp.sriov_pf.vfopts = vfopts;
     dev->exp.sriov_pf.vf = NULL;
 
     pci_set_word(cfg + PCI_SRIOV_VF_OFFSET, vf_offset);
@@ -76,6 +81,16 @@ void pcie_sriov_pf_exit(PCIDevice *dev)
     unregister_vfs(dev);
     g_free((char *)dev->exp.sriov_pf.vfname);
     dev->exp.sriov_pf.vfname = NULL;
+
+    if (dev->exp.sriov_pf.vfopts) {
+        uint8_t *cfg = dev->config + dev->exp.sriov_cap;
+
+        for (uint16_t i = 0; i < pci_get_word(cfg + PCI_SRIOV_TOTAL_VF); i++) {
+            qobject_unref(dev->exp.sriov_pf.vfopts[i].device_opts);
+        }
+
+        g_free(dev->exp.sriov_pf.vfopts);
+    }
 }
 
 void pcie_sriov_pf_init_vf_bar(PCIDevice *dev, int region_num,
@@ -144,25 +159,50 @@ void pcie_sriov_vf_register_bar(PCIDevice *dev, int region_num,
 static PCIDevice *register_vf(PCIDevice *pf, int devfn, const char *name,
                               uint16_t vf_num)
 {
-    PCIDevice *dev = pci_new(devfn, name);
-    dev->exp.sriov_vf.pf = pf;
-    dev->exp.sriov_vf.vf_number = vf_num;
-    PCIBus *bus = pci_get_bus(pf);
+    PCIDevice *pci_dev;
+    BusState *bus = qdev_get_parent_bus(DEVICE(pf));
     Error *local_err = NULL;
 
-    qdev_realize(&dev->qdev, &bus->qbus, &local_err);
+    if (pf->exp.sriov_pf.vfopts) {
+        BusState *local_bus;
+        PCIESriovVFOpts *vfopts = pf->exp.sriov_pf.vfopts + vf_num;
+        DeviceState *dev = qdev_device_new_from_qdict(vfopts->device_opts,
+                                                      vfopts->from_json,
+                                                      &local_bus, &local_err);
+        if (!dev) {
+            error_report_err(local_err);
+            return NULL;
+        }
+
+        pci_dev = PCI_DEVICE(dev);
+
+        if (bus != local_bus) {
+            error_report("unexpected SR-IOV VF parent bus");
+            goto fail;
+        }
+    } else {
+        pci_dev = pci_new(devfn, name);
+    }
+
+    pci_dev->exp.sriov_vf.pf = pf;
+    pci_dev->exp.sriov_vf.vf_number = vf_num;
+
+    qdev_realize(&pci_dev->qdev, bus, &local_err);
     if (local_err) {
         error_report_err(local_err);
-        object_unparent(OBJECT(dev));
-        object_unref(dev);
-        return NULL;
+        goto fail;
     }
 
     /* set vid/did according to sr/iov spec - they are not used */
-    pci_config_set_vendor_id(dev->config, 0xffff);
-    pci_config_set_device_id(dev->config, 0xffff);
+    pci_config_set_vendor_id(pci_dev->config, 0xffff);
+    pci_config_set_device_id(pci_dev->config, 0xffff);
 
-    return dev;
+    return pci_dev;
+
+fail:
+    object_unparent(OBJECT(pci_dev));
+    object_unref(pci_dev);
+    return NULL;
 }
 
 static void register_vfs(PCIDevice *dev)
@@ -170,6 +210,8 @@ static void register_vfs(PCIDevice *dev)
     uint16_t num_vfs;
     uint16_t i;
     uint16_t sriov_cap = dev->exp.sriov_cap;
+    uint16_t total_vfs =
+        pci_get_word(dev->config + sriov_cap + PCI_SRIOV_TOTAL_VF);
     uint16_t vf_offset =
         pci_get_word(dev->config + sriov_cap + PCI_SRIOV_VF_OFFSET);
     uint16_t vf_stride =
@@ -178,6 +220,9 @@ static void register_vfs(PCIDevice *dev)
 
     assert(sriov_cap > 0);
     num_vfs = pci_get_word(dev->config + sriov_cap + PCI_SRIOV_NUM_VF);
+    if (num_vfs > total_vfs) {
+        return;
+    }
 
     dev->exp.sriov_pf.vf = g_new(PCIDevice *, num_vfs);
     assert(dev->exp.sriov_pf.vf);

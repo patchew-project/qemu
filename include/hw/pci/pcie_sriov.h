@@ -15,10 +15,16 @@
 
 #include "hw/pci/pci.h"
 
+typedef struct PCIESriovVFOpts {
+    QDict *device_opts;
+    bool from_json;
+} PCIESriovVFOpts;
+
 struct PCIESriovPF {
     uint16_t num_vfs;   /* Number of virtual functions created */
     uint8_t vf_bar_type[PCI_NUM_REGIONS];   /* Store type for each VF bar */
     const char *vfname; /* Reference to the device type used for the VFs */
+    PCIESriovVFOpts *vfopts; /* Poiner to an array of VF options */
     PCIDevice **vf;     /* Pointer to an array of num_vfs VF devices */
 };
 
@@ -28,9 +34,10 @@ struct PCIESriovVF {
 };
 
 void pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
-                        const char *vfname, uint16_t vf_dev_id,
-                        uint16_t init_vfs, uint16_t total_vfs,
-                        uint16_t vf_offset, uint16_t vf_stride);
+                        const char *vfname, PCIESriovVFOpts *vfopts,
+                        uint16_t vf_dev_id, uint16_t init_vfs,
+                        uint16_t total_vfs, uint16_t vf_offset,
+                        uint16_t vf_stride);
 void pcie_sriov_pf_exit(PCIDevice *dev);
 
 /* Set up a VF bar in the SR/IOV bar area */

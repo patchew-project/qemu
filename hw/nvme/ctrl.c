@@ -8040,7 +8040,7 @@ static void nvme_init_sriov(NvmeCtrl *n, PCIDevice *pci_dev, uint16_t offset)
                                       le16_to_cpu(cap->vifrsm),
                                       NULL, NULL);
 
-    pcie_sriov_pf_init(pci_dev, offset, "nvme", vf_dev_id,
+    pcie_sriov_pf_init(pci_dev, offset, "nvme", NULL, vf_dev_id,
                        n->params.sriov_max_vfs, n->params.sriov_max_vfs,
                        NVME_VF_OFFSET, NVME_VF_STRIDE);
 
