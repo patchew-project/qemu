@@ -105,6 +105,7 @@ struct VirtioPCIClass {
     PCIDeviceClass parent_class;
     DeviceRealize parent_dc_realize;
     void (*realize)(VirtIOPCIProxy *vpci_dev, Error **errp);
+    bool sriov_supported;
 };
 
 typedef struct VirtIOPCIRegion {
@@ -159,6 +160,7 @@ struct VirtIOPCIProxy {
     uint32_t gfselect;
     uint32_t guest_features[2];
     VirtIOPCIQueue vqs[VIRTIO_QUEUE_MAX];
+    GArray *sriov_vfs;
 
     VirtIOIRQFD *vector_irqfd;
     int nvqs_with_notifiers;
