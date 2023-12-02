@@ -3536,29 +3536,16 @@ static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
     virtio_net_handle_migration_primary(n, s);
 }
 
-static bool failover_hide_primary_device(DeviceListener *listener,
-                                         const QDict *device_opts,
-                                         bool from_json,
-                                         Error **errp)
+bool virtio_net_set_primary(VirtIONet *n, const QDict *device_opts,
+                            bool from_json, Error **errp)
 {
-    VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
-    const char *standby_id;
-
-    if (!device_opts) {
-        return false;
-    }
-
-    if (!qdict_haskey(device_opts, "failover_pair_id")) {
+    if (!n->failover) {
+        error_setg(errp, "failover pair does not support failover");
         return false;
     }
 
     if (!qdict_haskey(device_opts, "id")) {
         error_setg(errp, "Device with failover_pair_id needs to have id");
-        return false;
-    }
-
-    standby_id = qdict_get_str(device_opts, "failover_pair_id");
-    if (g_strcmp0(standby_id, n->netclient_name) != 0) {
         return false;
     }
 
@@ -3621,9 +3608,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (n->failover) {
-        n->primary_listener.hide_device = failover_hide_primary_device;
         qatomic_set(&n->failover_primary_hidden, true);
-        device_listener_register(&n->primary_listener);
         migration_add_notifier(&n->migration_state,
                                virtio_net_migration_state_notifier);
         n->host_features |= (1ULL << VIRTIO_NET_F_STANDBY);
@@ -3789,7 +3774,6 @@ static void virtio_net_device_unrealize(DeviceState *dev)
 
     if (n->failover) {
         qobject_unref(n->primary_opts);
-        device_listener_unregister(&n->primary_listener);
         migration_remove_notifier(&n->migration_state);
     } else {
         assert(n->primary_opts == NULL);

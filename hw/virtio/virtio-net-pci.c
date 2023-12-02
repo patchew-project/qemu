@@ -64,10 +64,19 @@ static void virtio_net_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
 }
 
+static bool virtio_net_pci_set_primary(DeviceState *dev,
+                                       const QDict *device_opts,
+                                       bool from_json, Error **errp)
+{
+    return virtio_net_set_primary(&VIRTIO_NET_PCI(dev)->vdev, device_opts,
+                                  from_json, errp);
+}
+
 static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    PCIFailoverClass *pfc = PCI_FAILOVER_CLASS(klass);
     VirtioPCIClass *vpciklass = VIRTIO_PCI_CLASS(klass);
 
     k->romfile = "efi-virtio.rom";
@@ -75,6 +84,7 @@ static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIRTIO_NET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    pfc->set_primary = virtio_net_pci_set_primary;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     device_class_set_props(dc, virtio_net_properties);
     vpciklass->realize = virtio_net_pci_realize;
@@ -98,6 +108,10 @@ static const VirtioPCIDeviceTypeInfo virtio_net_pci_info = {
     .instance_size = sizeof(VirtIONetPCI),
     .instance_init = virtio_net_pci_instance_init,
     .class_init    = virtio_net_pci_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_PCI_FAILOVER },
+        { }
+    },
 };
 
 static void virtio_net_pci_register(void)

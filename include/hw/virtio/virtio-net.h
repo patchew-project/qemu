@@ -218,7 +218,6 @@ struct VirtIONet {
     /* primary failover device is hidden*/
     bool failover_primary_hidden;
     bool failover;
-    DeviceListener primary_listener;
     QDict *primary_opts;
     bool primary_opts_from_json;
     Notifier migration_state;
@@ -233,6 +232,8 @@ size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
                                   unsigned out_num);
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
+bool virtio_net_set_primary(VirtIONet *n, const QDict *device_opts,
+                            bool from_json, Error **errp);
 uint64_t virtio_net_supported_guest_offloads(const VirtIONet *n);
 
 #endif
