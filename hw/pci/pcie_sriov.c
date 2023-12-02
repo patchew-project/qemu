@@ -153,6 +153,8 @@ static PCIDevice *register_vf(PCIDevice *pf, int devfn, const char *name,
     qdev_realize(&dev->qdev, &bus->qbus, &local_err);
     if (local_err) {
         error_report_err(local_err);
+        object_unparent(OBJECT(dev));
+        object_unref(dev);
         return NULL;
     }
 
