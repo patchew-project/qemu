@@ -9,6 +9,11 @@ typedef struct PCIDeviceClass PCIDeviceClass;
 DECLARE_OBJ_CHECKERS(PCIDevice, PCIDeviceClass,
                      PCI_DEVICE, TYPE_PCI_DEVICE)
 
+#define TYPE_PCI_FAILOVER "pci-failover"
+typedef struct PCIFailoverClass PCIFailoverClass;
+DECLARE_CLASS_CHECKERS(PCIFailoverClass, PCI_FAILOVER, TYPE_PCI_FAILOVER)
+#define PCI_FAILOVER(obj) INTERFACE_CHECK(PciFailover, (obj), TYPE_PCI_FAILOVER)
+
 /*
  * Implemented by devices that can be plugged on CXL buses. In the spec, this is
  * actually a "CXL Component, but we name it device to match the PCI naming.
@@ -160,6 +165,15 @@ struct PCIDevice {
     /* ID of standby device in net_failover pair */
     char *failover_pair_id;
     uint32_t acpi_index;
+};
+
+struct PCIFailoverClass {
+    /* private */
+    InterfaceClass parent_class;
+
+    /* public */
+    bool (* set_primary)(DeviceState *dev, const QDict *device_opts,
+                         bool from_json, Error **errp);
 };
 
 static inline int pci_intx(PCIDevice *pci_dev)

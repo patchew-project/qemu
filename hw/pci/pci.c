@@ -46,6 +46,7 @@
 #include "hw/pci/msix.h"
 #include "hw/hotplug.h"
 #include "hw/boards.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "pci-internal.h"
@@ -2050,6 +2051,40 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
     return bus->devices[devfn];
 }
 
+static bool pci_qdev_hide(DeviceClass *dc, const QDict *device_opts,
+                          bool from_json, Error **errp)
+{
+    const char *standby_id;
+    DeviceState *dev;
+    ObjectClass *class;
+    ObjectClass *interface;
+
+    if (!device_opts) {
+        return false;
+    }
+
+    if (!qdict_haskey(device_opts, "failover_pair_id")) {
+        return false;
+    }
+
+    standby_id = qdict_get_str(device_opts, "failover_pair_id");
+    dev = qdev_find_recursive(sysbus_get_default(), standby_id);
+    if (!dev) {
+        error_setg(errp, "failover pair not found");
+        return false;
+    }
+
+    class = object_get_class(OBJECT(dev));
+    interface = object_class_dynamic_cast(class, TYPE_PCI_FAILOVER);
+    if (!interface) {
+        error_setg(errp, "failover pair does not support failover");
+        return false;
+    }
+
+    return ((PCIFailoverClass *)interface)->set_primary(dev, device_opts,
+                                                        from_json, errp);
+}
+
 #define ONBOARD_INDEX_MAX (16 * 1024 - 1)
 
 static void pci_qdev_realize(DeviceState *qdev, Error **errp)
@@ -2653,6 +2688,7 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 
+    k->hide = pci_qdev_hide;
     k->realize = pci_qdev_realize;
     k->unrealize = pci_qdev_unrealize;
     k->bus_type = TYPE_PCI_BUS;
@@ -2861,6 +2897,12 @@ static const TypeInfo pci_device_type_info = {
     .class_base_init = pci_device_class_base_init,
 };
 
+static const TypeInfo pci_failover_type_info = {
+    .name = TYPE_PCI_FAILOVER,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(PCIFailoverClass),
+};
+
 static void pci_register_types(void)
 {
     type_register_static(&pci_bus_info);
@@ -2870,6 +2912,7 @@ static void pci_register_types(void)
     type_register_static(&cxl_interface_info);
     type_register_static(&pcie_interface_info);
     type_register_static(&pci_device_type_info);
+    type_register_static(&pci_failover_type_info);
 }
 
 type_init(pci_register_types)
