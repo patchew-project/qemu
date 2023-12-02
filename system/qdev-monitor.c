@@ -927,9 +927,16 @@ void qdev_unplug(DeviceState *dev, Error **errp)
     qdev_hot_removed = true;
 
     hotplug_ctrl = qdev_get_hotplug_handler(dev);
-    /* hotpluggable device MUST have HotplugHandler, if it doesn't
-     * then something is very wrong with it */
-    g_assert(hotplug_ctrl);
+    if (!hotplug_ctrl) {
+        /*
+         * hotpluggable bus MUST have HotplugHandler, if it doesn't
+         * then something is very wrong with it
+         */
+        assert(!dev->parent_bus);
+
+        error_setg(errp, "The machine does not support hotplugging for a device without parent bus");
+        return;
+}
 
     /* If device supports async unplug just request it to be done,
      * otherwise just remove it synchronously */
