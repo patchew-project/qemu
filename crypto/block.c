@@ -27,6 +27,7 @@
 static const QCryptoBlockDriver *qcrypto_block_drivers[] = {
     [Q_CRYPTO_BLOCK_FORMAT_QCOW] = &qcrypto_block_driver_qcow,
     [Q_CRYPTO_BLOCK_FORMAT_LUKS] = &qcrypto_block_driver_luks,
+    [Q_CRYPTO_BLOCK_FORMAT_GLUKS] = &qcrypto_block_driver_luks,
 };
 
 
