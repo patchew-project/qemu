@@ -34,14 +34,6 @@
 #include "qemu/memalign.h"
 #include "crypto.h"
 
-typedef struct BlockCrypto BlockCrypto;
-
-struct BlockCrypto {
-    QCryptoBlock *block;
-    bool updating_keys;
-};
-
-
 static int block_crypto_probe_generic(QCryptoBlockFormat format,
                                       const uint8_t *buf,
                                       int buf_size,
@@ -321,7 +313,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
 }
 
 
-static int coroutine_fn GRAPH_UNLOCKED
+int coroutine_fn GRAPH_UNLOCKED
 block_crypto_co_create_generic(BlockDriverState *bs, int64_t size,
                                QCryptoBlockCreateOptions *opts,
                                PreallocMode prealloc, Error **errp)
@@ -385,7 +377,7 @@ block_crypto_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
     return bdrv_co_truncate(bs->file, offset, exact, prealloc, 0, errp);
 }
 
-static void block_crypto_close(BlockDriverState *bs)
+void block_crypto_close(BlockDriverState *bs)
 {
     BlockCrypto *crypto = bs->opaque;
     qcrypto_block_free(crypto->block);
@@ -404,7 +396,7 @@ static int block_crypto_reopen_prepare(BDRVReopenState *state,
  */
 #define BLOCK_CRYPTO_MAX_IO_SIZE (1024 * 1024)
 
-static int coroutine_fn GRAPH_RDLOCK
+int coroutine_fn GRAPH_RDLOCK
 block_crypto_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                        QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -466,7 +458,7 @@ block_crypto_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
 }
 
 
-static int coroutine_fn GRAPH_RDLOCK
+int coroutine_fn GRAPH_RDLOCK
 block_crypto_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                         QEMUIOVector *qiov, BdrvRequestFlags flags)
 {

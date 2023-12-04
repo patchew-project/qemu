@@ -21,6 +21,8 @@
 #ifndef BLOCK_CRYPTO_H
 #define BLOCK_CRYPTO_H
 
+#include "crypto/block.h"
+
 #define BLOCK_CRYPTO_OPT_DEF_KEY_SECRET(prefix, helpstr)                \
     {                                                                   \
         .name = prefix BLOCK_CRYPTO_OPT_QCOW_KEY_SECRET,                \
@@ -131,4 +133,25 @@ block_crypto_amend_opts_init(QDict *opts, Error **errp);
 QCryptoBlockOpenOptions *
 block_crypto_open_opts_init(QDict *opts, Error **errp);
 
+typedef struct BlockCrypto BlockCrypto;
+
+struct BlockCrypto {
+    QCryptoBlock *block;
+    bool updating_keys;
+};
+
+int coroutine_fn GRAPH_UNLOCKED
+block_crypto_co_create_generic(BlockDriverState *bs, int64_t size,
+                               QCryptoBlockCreateOptions *opts,
+                               PreallocMode prealloc, Error **errp);
+
+int coroutine_fn GRAPH_RDLOCK
+block_crypto_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                       QEMUIOVector *qiov, BdrvRequestFlags flags);
+
+int coroutine_fn GRAPH_RDLOCK
+block_crypto_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                        QEMUIOVector *qiov, BdrvRequestFlags flags);
+
+void block_crypto_close(BlockDriverState *bs);
 #endif /* BLOCK_CRYPTO_H */
