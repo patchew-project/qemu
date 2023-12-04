@@ -120,6 +120,7 @@ static void *mttcg_cpu_thread_fn(void *arg)
 
     tcg_cpus_destroy(cpu);
     qemu_mutex_unlock_iothread();
+    tcg_unregister_thread();
     rcu_remove_force_rcu_notifier(&force_rcu.notifier);
     rcu_unregister_thread();
     return NULL;

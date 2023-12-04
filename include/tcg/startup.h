@@ -46,6 +46,11 @@ void tcg_init(size_t tb_size, int splitwx, unsigned max_cpus);
 void tcg_register_thread(void);
 
 /**
+ * tcg_unregister_thread: Unregister this thread with the TCG runtime
+ */
+void tcg_unregister_thread(void);
+
+/**
  * tcg_prologue_init(): Generate the code for the TCG prologue
  *
  * In softmmu this is done automatically as part of the TCG

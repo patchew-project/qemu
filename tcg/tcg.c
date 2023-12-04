@@ -781,11 +781,18 @@ static void alloc_tcg_plugin_context(TCGContext *s)
  * modes.
  */
 #ifdef CONFIG_USER_ONLY
+
 void tcg_register_thread(void)
 {
     tcg_ctx = &tcg_init_ctx;
 }
+
+void tcg_unregister_thread(void)
+{
+}
+
 #else
+
 void tcg_register_thread(void)
 {
     TCGContext *s = g_malloc(sizeof(*s));
@@ -814,6 +821,16 @@ void tcg_register_thread(void)
 
     tcg_ctx = s;
 }
+
+void tcg_unregister_thread(void)
+{
+    unsigned int n;
+
+    n = qatomic_fetch_dec(&tcg_cur_ctxs);
+    g_free(tcg_ctxs[n]);
+    qatomic_set(&tcg_ctxs[n], NULL);
+}
+
 #endif /* !CONFIG_USER_ONLY */
 
 /* pool based memory allocation */
