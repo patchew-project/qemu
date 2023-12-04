@@ -22,13 +22,7 @@
 #define TYPE_BCM2838_RNG200 "bcm2838-rng200"
 OBJECT_DECLARE_SIMPLE_TYPE(BCM2838Rng200State, BCM2838_RNG200)
 
-typedef struct {
-    uint32_t ctrl;
-    uint32_t int_status;
-    uint32_t fifo_count;
-    uint32_t fifo_count_threshold;
-    uint32_t total_bit_count_threshold;
-} BCM2838_rng_regs_t;
+#define N_BCM2838_RNG200_REGS 9
 
 struct BCM2838Rng200State {
     SysBusDevice busdev;
@@ -45,7 +39,7 @@ struct BCM2838Rng200State {
     Fifo8    fifo;
     qemu_irq irq;
 
-    BCM2838_rng_regs_t regs;
+    uint32_t regs[N_BCM2838_RNG200_REGS];
 };
 
 #endif /* BCM2838_RNG200_H */
