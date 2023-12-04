@@ -145,7 +145,58 @@ static int coroutine_fn GRAPH_UNLOCKED
 gluks_co_create_opts(BlockDriver *drv, const char *filename,
                      QemuOpts *opts, Error **errp)
 {
-    return 0;
+    QCryptoBlockCreateOptions *create_opts = NULL;
+    BlockDriverState *bs = NULL;
+    QDict *cryptoopts;
+    int ret;
+
+    if (qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0) != 0) {
+        info_report("gluks format image need not size parameter, ignore it");
+    }
+
+    cryptoopts = qemu_opts_to_qdict_filtered(opts, NULL,
+                                             &gluks_create_opts_luks,
+                                             true);
+
+    qdict_put_str(cryptoopts, "format",
+        QCryptoBlockFormat_str(Q_CRYPTO_BLOCK_FORMAT_GLUKS));
+
+    create_opts = block_crypto_create_opts_init(cryptoopts, errp);
+    if (!create_opts) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Create protocol layer */
+    ret = bdrv_co_create_file(filename, opts, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    bs = bdrv_co_open(filename, NULL, NULL,
+                      BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    if (!bs) {
+        ret = -EINVAL;
+        goto fail;
+    }
+    /* Create format layer */
+    ret = block_crypto_co_create_generic(bs, 0, create_opts, 0, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    ret = 0;
+fail:
+    /*
+     * If an error occurred, delete 'filename'. Even if the file existed
+     * beforehand, it has been truncated and corrupted in the process.
+     */
+    if (ret) {
+        bdrv_graph_co_rdlock();
+        bdrv_co_delete_file_noerr(bs);
+        bdrv_graph_co_rdunlock();
+    }
+    return ret;
 }
 
 static void

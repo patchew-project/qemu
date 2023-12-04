@@ -7517,6 +7517,11 @@ void bdrv_img_create(const char *filename, const char *fmt,
         goto out;
     }
 
+    if (!strcmp(fmt, "gluks")) {
+        qemu_opt_set(opts, "size", "0M", &local_err);
+        size = 0;
+    }
+
     if (size == -1) {
         error_setg(errp, "Image creation needs a size parameter");
         goto out;
