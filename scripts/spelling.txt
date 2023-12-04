@@ -28,6 +28,7 @@ accelaration||acceleration
 accelearion||acceleration
 acceleratoin||acceleration
 accelleration||acceleration
+acces||access
 accesing||accessing
 accesnt||accent
 accessable||accessible
@@ -50,6 +51,7 @@ acessable||accessible
 acess||access
 acessing||accessing
 achitecture||architecture
+achived||achieved
 acient||ancient
 acitions||actions
 acitve||active
@@ -95,6 +97,7 @@ albumns||albums
 alegorical||allegorical
 algined||aligned
 algorith||algorithm
+algorithim||algorithm
 algorithmical||algorithmically
 algoritm||algorithm
 algoritms||algorithms
@@ -124,6 +127,7 @@ altough||although
 alue||value
 ambigious||ambiguous
 ambigous||ambiguous
+ammend||amend
 amoung||among
 amount of times||number of times
 amout||amount
@@ -248,6 +252,7 @@ beeing||being
 befor||before
 begining||beginning
 beter||better
+betwen||between
 betweeen||between
 bianries||binaries
 bitmast||bitmask
@@ -350,6 +355,7 @@ comsuming||consuming
 comaptible||compatible
 compability||compatibility
 compaibility||compatibility
+comparision||comparison
 comparsion||comparison
 compatability||compatibility
 compatable||compatible
@@ -385,6 +391,7 @@ configred||configured
 configuartion||configuration
 configuation||configuration
 configued||configured
+configuraiton||configuration
 configuratoin||configuration
 configuraton||configuration
 configuretion||configuration
@@ -658,6 +665,7 @@ exteneded||extended
 extensability||extensibility
 extention||extension
 extenstion||extension
+extnesion||extension
 extracter||extractor
 faied||failed
 faield||failed
@@ -796,6 +804,7 @@ implementd||implemented
 implemetation||implementation
 implemntation||implementation
 implentation||implementation
+implment||implement
 implmentation||implementation
 implmenting||implementing
 incative||inactive
@@ -812,11 +821,13 @@ incuding||including
 inculde||include
 indendation||indentation
 indended||intended
+indentification||identification
 independant||independent
 independantly||independently
 independed||independent
 indiate||indicate
 indicat||indicate
+indicies||indices
 inexpect||inexpected
 inferface||interface
 infinit||infinite
@@ -850,6 +861,7 @@ instace||instance
 instal||install
 instanciate||instantiate
 instanciated||instantiated
+instread||instead
 instuments||instruments
 insufficent||insufficient
 inteface||interface
@@ -934,6 +946,7 @@ libary||library
 librairies||libraries
 libraris||libraries
 licenceing||licencing
+limitaion||limitation
 limted||limited
 logaritmic||logarithmic
 loggging||logging
@@ -1331,6 +1344,7 @@ resouce||resource
 resouces||resources
 resoures||resources
 responce||response
+responsability||responsibility
 resrouce||resource
 ressizes||resizes
 ressource||resource
@@ -1554,6 +1568,7 @@ throught||through
 tansition||transition
 trackling||tracking
 troughput||throughput
+truely||truly
 trys||tries
 thses||these
 tiggers||triggers
@@ -1623,6 +1638,7 @@ unknouwn||unknown
 unknow||unknown
 unkown||unknown
 unamed||unnamed
+undocummented||undocumented
 uneeded||unneeded
 unneded||unneeded
 unneccecary||unnecessary
