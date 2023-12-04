@@ -7,10 +7,13 @@
 
 use strict;
 use warnings;
+use File::Basename;
+use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants);
 
 my $P = $0;
 $P =~ s@.*/@@g;
+my $D = dirname(abs_path($0));
 
 our $SrcFile    = qr{\.(?:(h|c)(\.inc)?|cpp|s|S|pl|py|sh)$};
 
@@ -35,6 +38,7 @@ my $summary_file = 0;
 my $root;
 my %debug;
 my $help = 0;
+my $spelling_file = "$D/spelling.txt";
 
 sub help {
 	my ($exitcode) = @_;
@@ -336,6 +340,31 @@ our @typeList = (
 	qr{gintptr},
 	qr{guintptr},
 );
+
+# Load common spelling mistakes and build regular expression list.
+my $misspellings;
+my %spelling_fix;
+
+if (open(my $spelling, '<', $spelling_file)) {
+	while (<$spelling>) {
+		my $line = $_;
+
+		$line =~ s/\s*\n?$//g;
+		$line =~ s/^\s*//g;
+
+		next if ($line =~ m/^\s*#/);
+		next if ($line =~ m/^\s*$/);
+
+		my ($suspect, $fix) = split(/\|\|/, $line);
+
+		$spelling_fix{$suspect} = $fix;
+	}
+	close($spelling);
+} else {
+	warn "No typos will be found - file '$spelling_file': $!\n";
+}
+
+$misspellings = join("|", sort keys %spelling_fix) if keys %spelling_fix;
 
 # This can be modified by sub possible.  Since it can be empty, be careful
 # about regexes that always match, because they can cause infinite loops.
@@ -1583,6 +1612,21 @@ sub process {
 		if ($in_commit_log && $non_utf8_charset && $realfile =~ /^$/ &&
 		    $rawline =~ /$NON_ASCII_UTF8/) {
 			WARN("8-bit UTF-8 used in possible commit log\n" . $herecurr);
+		}
+
+# Check for various typo / spelling mistakes
+		if (defined($misspellings) &&
+		    ($in_commit_log || $line =~ /^(?:\+|Subject:)/i)) {
+			while ($rawline =~ /(?:^|[^\w\-'`])($misspellings)(?:[^\w\-'`]|$)/gi) {
+				my $typo = $1;
+				my $blank = copy_spacing($rawline);
+				my $ptr = substr($blank, 0, $-[1]) . "^" x length($typo);
+				my $hereptr = "$hereline$ptr\n";
+				my $typo_fix = $spelling_fix{lc($typo)};
+				$typo_fix = ucfirst($typo_fix) if ($typo =~ /^[A-Z]/);
+				$typo_fix = uc($typo_fix) if ($typo =~ /^[A-Z]+$/);
+				WARN("'$typo' may be misspelled - perhaps '$typo_fix'?\n" . $hereptr);
+			}
 		}
 
 # ignore non-hunk lines and lines being removed
