@@ -268,14 +268,15 @@ static int do_vm_stop(RunState state, bool send_stop)
         cpu_disable_ticks();
         pause_all_vcpus();
         vm_state_notify(0, state);
-        if (send_stop) {
-            qapi_event_send_stop();
-        }
     }
 
     bdrv_drain_all();
     ret = bdrv_flush_all();
     trace_vm_stop_flush_all(ret);
+
+    if (runstate_is_running() && send_stop) {
+        qapi_event_send_stop();
+    }
 
     return ret;
 }
