@@ -38,7 +38,10 @@ my $summary_file = 0;
 my $root;
 my %debug;
 my $help = 0;
+my $codespell = 0;
 my $spelling_file = "$D/spelling.txt";
+my $codespellfile = "/usr/share/codespell/dictionary.txt";
+my $user_codespellfile = "";
 
 sub help {
 	my ($exitcode) = @_;
@@ -70,6 +73,9 @@ Options:
                              is all off)
   --test-only=WORD           report only warnings/errors containing WORD
                              literally
+  --codespell                Use the codespell dictionary for spelling/typos
+                             (default:$codespellfile)
+  --codespellfile            Use this codespell dictionary
   --color[=WHEN]             Use colors 'always', 'never', or only when output
                              is a terminal ('auto'). Default is 'auto'.
   -h, --help, --version      display this help and exit
@@ -102,14 +108,36 @@ GetOptions(
 	'summary!'	=> \$summary,
 	'mailback!'	=> \$mailback,
 	'summary-file!'	=> \$summary_file,
-
 	'debug=s'	=> \%debug,
 	'test-only=s'	=> \$tst_only,
+	'codespell!'	=> \$codespell,
+	'codespellfile=s'	=> \$user_codespellfile,
 	'color=s'       => \$color,
 	'no-color'      => sub { $color = 'never'; },
 	'h|help'	=> \$help,
 	'version'	=> \$help
 ) or help(1);
+
+if ($user_codespellfile) {
+	# Use the user provided codespell file unconditionally
+	$codespellfile = $user_codespellfile;
+} elsif (!(-f $codespellfile)) {
+	# If /usr/share/codespell/dictionary.txt is not present, try to find it
+	# under codespell's install directory: <codespell_root>/data/dictionary.txt
+	if (($codespell || $help) && which("python3") ne "") {
+		my $python_codespell_dict = << "EOF";
+
+import os.path as op
+import codespell_lib
+codespell_dir = op.dirname(codespell_lib.__file__)
+codespell_file = op.join(codespell_dir, 'data', 'dictionary.txt')
+print(codespell_file, end='')
+EOF
+
+		my $codespell_dict = `python3 -c "$python_codespell_dict" 2> /dev/null`;
+		$codespellfile = $codespell_dict if (-f $codespell_dict);
+	}
+}
 
 help(0) if ($help);
 
@@ -364,6 +392,30 @@ if (open(my $spelling, '<', $spelling_file)) {
 	warn "No typos will be found - file '$spelling_file': $!\n";
 }
 
+if ($codespell) {
+	if (open(my $spelling, '<', $codespellfile)) {
+		while (<$spelling>) {
+			my $line = $_;
+
+			$line =~ s/\s*\n?$//g;
+			$line =~ s/^\s*//g;
+
+			next if ($line =~ m/^\s*#/);
+			next if ($line =~ m/^\s*$/);
+			next if ($line =~ m/, disabled/i);
+
+			$line =~ s/,.*$//;
+
+			my ($suspect, $fix) = split(/->/, $line);
+
+			$spelling_fix{$suspect} = $fix;
+		}
+		close($spelling);
+	} else {
+		warn "No codespell typos will be found - file '$codespellfile': $!\n";
+	}
+}
+
 $misspellings = join("|", sort keys %spelling_fix) if keys %spelling_fix;
 
 # This can be modified by sub possible.  Since it can be empty, be careful
@@ -504,6 +556,18 @@ sub top_of_kernel_tree {
 		}
 	}
 	return 1;
+}
+
+sub which {
+	my ($bin) = @_;
+
+	foreach my $path (split(/:/, $ENV{PATH})) {
+		if (-e "$path/$bin") {
+			return "$path/$bin";
+		}
+	}
+
+	return "";
 }
 
 sub expand_tabs {
