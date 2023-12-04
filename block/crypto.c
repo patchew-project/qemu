@@ -150,7 +150,7 @@ error:
 }
 
 
-static QemuOptsList block_crypto_runtime_opts_luks = {
+QemuOptsList block_crypto_runtime_opts_luks = {
     .name = "crypto",
     .head = QTAILQ_HEAD_INITIALIZER(block_crypto_runtime_opts_luks.head),
     .desc = {
@@ -181,7 +181,7 @@ static QemuOptsList block_crypto_create_opts_luks = {
 };
 
 
-static QemuOptsList block_crypto_amend_opts_luks = {
+QemuOptsList block_crypto_amend_opts_luks = {
     .name = "crypto",
     .head = QTAILQ_HEAD_INITIALIZER(block_crypto_create_opts_luks.head),
     .desc = {

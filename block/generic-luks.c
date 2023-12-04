@@ -35,6 +35,21 @@ typedef struct BDRVGLUKSState {
     uint64_t header_size;   /* In bytes */
 } BDRVGLUKSState;
 
+static QemuOptsList gluks_create_opts_luks = {
+    .name = "crypto",
+    .head = QTAILQ_HEAD_INITIALIZER(gluks_create_opts_luks.head),
+    .desc = {
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME(""),
+        { /* end of list */ }
+    },
+};
+
 static int gluks_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
@@ -71,6 +86,9 @@ static BlockDriver bdrv_generic_luks = {
     .bdrv_co_create_opts    = gluks_co_create_opts,
     .bdrv_child_perm        = gluks_child_perms,
     .bdrv_co_getlength      = gluks_co_getlength,
+
+    .create_opts            = &gluks_create_opts_luks,
+    .amend_opts             = &block_crypto_amend_opts_luks,
 };
 
 static void block_generic_luks_init(void)

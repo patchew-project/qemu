@@ -23,4 +23,7 @@
 #ifndef GENERIC_LUKS_H
 #define GENERIC_LUKS_H
 
+extern QemuOptsList block_crypto_runtime_opts_luks;
+extern QemuOptsList block_crypto_amend_opts_luks;
+
 #endif /* GENERIC_LUKS_H */
