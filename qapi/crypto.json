@@ -154,11 +154,13 @@
 #
 # @luks: LUKS encryption format.  Recommended for new images
 #
+# @gluks: generic LUKS encryption format. (since 9.0)
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoBlockFormat',
 #  'prefix': 'QCRYPTO_BLOCK_FORMAT',
-  'data': ['qcow', 'luks']}
+  'data': ['qcow', 'luks', 'gluks']}
 
 ##
 # @QCryptoBlockOptionsBase:
@@ -246,7 +248,8 @@
   'base': 'QCryptoBlockOptionsBase',
   'discriminator': 'format',
   'data': { 'qcow': 'QCryptoBlockOptionsQCow',
-            'luks': 'QCryptoBlockOptionsLUKS' } }
+            'luks': 'QCryptoBlockOptionsLUKS',
+            'gluks': 'QCryptoBlockOptionsLUKS' } }
 
 ##
 # @QCryptoBlockCreateOptions:
@@ -260,7 +263,8 @@
   'base': 'QCryptoBlockOptionsBase',
   'discriminator': 'format',
   'data': { 'qcow': 'QCryptoBlockOptionsQCow',
-            'luks': 'QCryptoBlockCreateOptionsLUKS' } }
+            'luks': 'QCryptoBlockCreateOptionsLUKS',
+            'gluks': 'QCryptoBlockCreateOptionsLUKS' } }
 
 ##
 # @QCryptoBlockInfoBase:

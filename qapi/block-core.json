@@ -3185,12 +3185,14 @@
 #
 # @snapshot-access: Since 7.0
 #
+# @gluks: Since 9.0
+#
 # Since: 2.9
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'blkdebug', 'blklogwrites', 'blkreplay', 'blkverify', 'bochs',
             'cloop', 'compress', 'copy-before-write', 'copy-on-read', 'dmg',
-            'file', 'snapshot-access', 'ftp', 'ftps', 'gluster',
+            'file', 'snapshot-access', 'ftp', 'ftps', 'gluks', 'gluster',
             {'name': 'host_cdrom', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
             {'name': 'host_device', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
             'http', 'https',
@@ -3958,6 +3960,23 @@
             '*logfile': 'str' } }
 
 ##
+# @BlockdevOptionsGLUKS:
+#
+# Driver specific block device options for GLUKS.
+#
+# @header: reference to the definition of the luks header node.
+#
+# @key-secret: the ID of a QCryptoSecret object providing the
+#     decryption key.
+#
+# Since: 9.0
+##
+{ 'struct': 'BlockdevOptionsGLUKS',
+  'base': 'BlockdevOptionsGenericFormat',
+  'data': { 'header': 'BlockdevRef',
+            'key-secret': 'str' } }
+
+##
 # @BlockdevOptionsIoUring:
 #
 # Driver specific block device options for the io_uring backend.
@@ -4680,6 +4699,7 @@
       'file':       'BlockdevOptionsFile',
       'ftp':        'BlockdevOptionsCurlFtp',
       'ftps':       'BlockdevOptionsCurlFtps',
+      'gluks':      'BlockdevOptionsGLUKS',
       'gluster':    'BlockdevOptionsGluster',
       'host_cdrom':  { 'type': 'BlockdevOptionsFile',
                        'if': 'HAVE_HOST_BLOCK_DEVICE' },
