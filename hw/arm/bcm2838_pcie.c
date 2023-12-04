@@ -239,6 +239,9 @@ static void bcm2838_pcie_root_reg_reset(PCIDevice *dev)
 }
 
 static void bcm2838_pcie_root_realize(PCIDevice *dev, Error **errp) {
+    BCM2838PcieRootClass *brpc = BCM2838_PCIE_ROOT_GET_CLASS(dev);
+
+    brpc->parent_realize(dev, errp);
     bcm2838_pcie_root_reg_reset(dev);
 }
 
