@@ -290,13 +290,6 @@ def need_pkt_has_multi_cof(tag):
 def need_pkt_need_commit(tag):
     return 'A_IMPLICIT_WRITES_USR' in attribdict[tag]
 
-def need_condexec_reg(tag, regs):
-    if "A_CONDEXEC" in attribdict[tag]:
-        for regtype, regid in regs:
-            if is_writeonly(regid) and not is_hvx_reg(regtype):
-                return True
-    return False
-
 
 def skip_qemu_helper(tag):
     return tag in overrides.keys()
@@ -404,10 +397,12 @@ class Scalar:
         return False
 
 class Single(Scalar):
-    pass
+    def helper_proto_type(self):
+        return "s32"
 
 class Pair(Scalar):
-    pass
+    def helper_proto_type(self):
+        return "s64"
 
 class Hvx:
     def is_scalar_reg(self):
@@ -416,6 +411,8 @@ class Hvx:
         return True
     def hvx_off(self):
         return f"{self.reg_tcg()}_off"
+    def helper_proto_type(self):
+        return "ptr"
 
 #
 # Every register is either Dest or OldSource or NewSource or ReadWrite
