@@ -475,6 +475,12 @@ class GprDest(Register, Single, Dest):
         f.write(code_fmt(f"""\
             gen_log_reg_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_reg_write(ctx, {self.reg_num}, {predicated});
+        """))
 
 class GprSource(Register, Single, OldSource):
     def decl_tcg(self, f, tag, regno):
@@ -482,11 +488,21 @@ class GprSource(Register, Single, OldSource):
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = hex_gpr[{self.reg_num}];
         """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_reg_read(ctx, {self.reg_num});
+        """))
 
 class GprNewSource(Register, Single, NewSource):
     def decl_tcg(self, f, tag, regno):
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = get_result_gpr(ctx, insn->regno[{regno}]);
+        """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_reg_read(ctx, {self.reg_num});
         """))
 
 class GprReadWrite(Register, Single, ReadWrite):
@@ -506,6 +522,12 @@ class GprReadWrite(Register, Single, ReadWrite):
         f.write(code_fmt(f"""\
             gen_log_reg_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_reg_write(ctx, {self.reg_num}, {predicated});
+        """))
 
 class ControlDest(Register, Single, Dest):
     def decl_reg_num(self, f, regno):
@@ -521,6 +543,12 @@ class ControlDest(Register, Single, Dest):
         f.write(code_fmt(f"""\
             gen_write_ctrl_reg(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_reg_write(ctx, {self.reg_num}, {predicated});
+        """))
 
 class ControlSource(Register, Single, OldSource):
     def decl_reg_num(self, f, regno):
@@ -532,6 +560,11 @@ class ControlSource(Register, Single, OldSource):
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = tcg_temp_new();
             gen_read_ctrl_reg(ctx, {self.reg_num}, {self.reg_tcg()});
+        """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_reg_read(ctx, {self.reg_num});
         """))
 
 class ModifierSource(Register, Single, OldSource):
@@ -549,6 +582,11 @@ class ModifierSource(Register, Single, OldSource):
     def idef_arg(self, declared):
         declared.append(self.reg_tcg())
         declared.append("CS")
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_reg_read(ctx, {self.reg_num});
+        """))
 
 class PredDest(Register, Single, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -560,6 +598,11 @@ class PredDest(Register, Single, Dest):
         f.write(code_fmt(f"""\
             gen_log_pred_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_pred_write(ctx, {self.reg_num});
+        """))
 
 class PredSource(Register, Single, OldSource):
     def decl_tcg(self, f, tag, regno):
@@ -567,11 +610,21 @@ class PredSource(Register, Single, OldSource):
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = hex_pred[{self.reg_num}];
         """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_pred_read(ctx, {self.reg_num});
+        """))
 
 class PredNewSource(Register, Single, NewSource):
     def decl_tcg(self, f, tag, regno):
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = get_result_pred(ctx, insn->regno[{regno}]);
+        """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_pred_read(ctx, {self.reg_num});
         """))
 
 class PredReadWrite(Register, Single, ReadWrite):
@@ -585,6 +638,11 @@ class PredReadWrite(Register, Single, ReadWrite):
         f.write(code_fmt(f"""\
             gen_log_pred_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_pred_write(ctx, {self.reg_num});
+        """))
 
 class PairDest(Register, Pair, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -597,6 +655,12 @@ class PairDest(Register, Pair, Dest):
         f.write(code_fmt(f"""\
             gen_log_reg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_reg_write_pair(ctx, {self.reg_num}, {predicated});
+        """))
 
 class PairSource(Register, Pair, OldSource):
     def decl_tcg(self, f, tag, regno):
@@ -606,6 +670,11 @@ class PairSource(Register, Pair, OldSource):
             tcg_gen_concat_i32_i64({self.reg_tcg()},
                                     hex_gpr[{self.reg_num}],
                                     hex_gpr[{self.reg_num} + 1]);
+        """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_reg_read_pair(ctx, {self.reg_num});
         """))
 
 class PairReadWrite(Register, Pair, ReadWrite):
@@ -621,6 +690,12 @@ class PairReadWrite(Register, Pair, ReadWrite):
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
             gen_log_reg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
+        """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_reg_write_pair(ctx, {self.reg_num}, {predicated});
         """))
 
 class ControlPairDest(Register, Pair, Dest):
@@ -638,6 +713,12 @@ class ControlPairDest(Register, Pair, Dest):
         f.write(code_fmt(f"""\
             gen_write_ctrl_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_reg_write_pair(ctx, {self.reg_num}, {predicated});
+        """))
 
 class ControlPairSource(Register, Pair, OldSource):
     def decl_reg_num(self, f, regno):
@@ -649,6 +730,11 @@ class ControlPairSource(Register, Pair, OldSource):
         f.write(code_fmt(f"""\
             TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
             gen_read_ctrl_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
+        """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_reg_read_pair(ctx, {self.reg_num});
         """))
 
 class VRegDest(Register, Hvx, Dest):
@@ -669,6 +755,13 @@ class VRegDest(Register, Hvx, Dest):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg()}) */
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        newv = hvx_newv(tag)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
+        """))
 
 class VRegSource(Register, Hvx, OldSource):
     def decl_tcg(self, f, tag, regno):
@@ -685,6 +778,11 @@ class VRegSource(Register, Hvx, OldSource):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg()}) */
         """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_read(ctx, {self.reg_num});
+        """))
 
 class VRegNewSource(Register, Hvx, NewSource):
     def decl_tcg(self, f, tag, regno):
@@ -697,6 +795,11 @@ class VRegNewSource(Register, Hvx, NewSource):
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg()}) */
+        """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_read(ctx, {self.reg_num});
         """))
 
 class VRegReadWrite(Register, Hvx, ReadWrite):
@@ -719,6 +822,13 @@ class VRegReadWrite(Register, Hvx, ReadWrite):
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg()}) */
+        """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        newv = hvx_newv(tag)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
         """))
 
 class VRegTmp(Register, Hvx, ReadWrite):
@@ -744,6 +854,13 @@ class VRegTmp(Register, Hvx, ReadWrite):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg()}) */
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        newv = hvx_newv(tag)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
+        """))
 
 class VRegPairDest(Register, Hvx, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -762,6 +879,13 @@ class VRegPairDest(Register, Hvx, Dest):
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVectorPair *)({self.helper_arg()}) */
+        """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        newv = hvx_newv(tag)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated});
         """))
 
 class VRegPairSource(Register, Hvx, OldSource):
@@ -785,6 +909,11 @@ class VRegPairSource(Register, Hvx, OldSource):
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVectorPair *)({self.helper_arg()}) */
+        """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_read_pair(ctx, {self.reg_num});
         """))
 
 class VRegPairReadWrite(Register, Hvx, ReadWrite):
@@ -814,6 +943,13 @@ class VRegPairReadWrite(Register, Hvx, ReadWrite):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVectorPair *)({self.helper_arg()}) */
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        newv = hvx_newv(tag)
+        predicated = "true" if is_predicated(tag) else "false"
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated});
+        """))
 
 class QRegDest(Register, Hvx, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -833,6 +969,11 @@ class QRegDest(Register, Hvx, Dest):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMQReg *)({self.helper_arg()}) */
         """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_qreg_write(ctx, {self.reg_num});
+        """))
 
 class QRegSource(Register, Hvx, OldSource):
     def decl_tcg(self, f, tag, regno):
@@ -849,6 +990,11 @@ class QRegSource(Register, Hvx, OldSource):
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMQReg *)({self.helper_arg()}) */
+        """))
+    def analyze_read(self, f, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_qreg_read(ctx, {self.reg_num});
         """))
 
 class QRegReadWrite(Register, Hvx, ReadWrite):
@@ -871,6 +1017,11 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMQReg *)({self.helper_arg()}) */
+        """))
+    def analyze_write(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            ctx_log_qreg_write(ctx, {self.reg_num});
         """))
 
 def init_registers():
