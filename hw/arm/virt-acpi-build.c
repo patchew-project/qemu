@@ -42,6 +42,7 @@
 #include "hw/acpi/pci.h"
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/generic_event_device.h"
+#include "hw/acpi/control_method_device.h"
 #include "hw/acpi/tpm.h"
 #include "hw/acpi/hmat.h"
 #include "hw/pci/pcie_host.h"
@@ -816,6 +817,17 @@ static void build_fadt_rev6(GArray *table_data, BIOSLinker *linker,
         .rev = 6,
         .minor_ver = 0,
         .flags = 1 << ACPI_FADT_F_HW_REDUCED_ACPI,
+        /* ACPI 5.0: 4.8.3.7 Sleep Control and Status Registers */
+        .sleep_ctl = {
+            .space_id = AML_AS_SYSTEM_MEMORY,
+            .bit_width = 8,
+            .address = vms->memmap[VIRT_ACPI_GED].base + ACPI_GED_REG_SLEEP_CTL,
+        },
+        .sleep_sts = {
+            .space_id = AML_AS_SYSTEM_MEMORY,
+            .bit_width = 8,
+            .address = vms->memmap[VIRT_ACPI_GED].base + ACPI_GED_REG_SLEEP_STS,
+        },
         .xdsdt_tbl_offset = &dsdt_tbl_offset,
     };
 
@@ -890,6 +902,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     }
 
     acpi_dsdt_add_power_button(scope);
+    acpi_dsdt_add_sleep_button(scope);
 #ifdef CONFIG_TPM
     acpi_dsdt_add_tpm(scope, vms);
 #endif

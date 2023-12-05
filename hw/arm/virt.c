@@ -644,7 +644,7 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
     DeviceState *dev;
     MachineState *ms = MACHINE(vms);
     int irq = vms->irqmap[VIRT_ACPI_GED];
-    uint32_t event = ACPI_GED_PWR_DOWN_EVT;
+    uint32_t event = ACPI_GED_PWR_DOWN_EVT | ACPI_GED_SLEEP_EVT;
 
     if (ms->ram_slots) {
         event |= ACPI_GED_MEM_HOTPLUG_EVT;
@@ -931,6 +931,14 @@ static void create_rtc(const VirtMachineState *vms)
     g_free(nodename);
 }
 
+static void virt_sleep_req(Notifier *n, void *opaque)
+{
+    VirtMachineState *s = container_of(n, VirtMachineState, sleep_notifier);
+
+    if (s->acpi_dev) {
+        acpi_send_event(s->acpi_dev, ACPI_SLEEP_STATUS);
+    }
+}
 static DeviceState *gpio_key_dev;
 static void virt_powerdown_req(Notifier *n, void *opaque)
 {
@@ -2298,6 +2306,9 @@ static void machvirt_init(MachineState *machine)
     if (vms->secure && !vmc->no_secure_gpio) {
         create_gpio_devices(vms, VIRT_SECURE_GPIO, secure_sysmem);
     }
+
+     /* connect sleep request */
+     vms->sleep_notifier.notify = virt_sleep_req;
 
      /* connect powerdown request */
      vms->powerdown_notifier.notify = virt_powerdown_req;
