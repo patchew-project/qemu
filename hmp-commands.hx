@@ -653,6 +653,20 @@ SRST
 ERST
 
     {
+        .name       = "system_sleep",
+        .args_type  = "",
+        .params     = "",
+        .help       = "send ACPI sleep event",
+        .cmd = hmp_system_sleep,
+    },
+
+SRST
+``system_sleep``
+  Push the virtual sleep button; if supported the system will enter
+  an ACPI sleep state.
+ERST
+
+    {
         .name       = "system_reset",
         .args_type  = "",
         .params     = "",

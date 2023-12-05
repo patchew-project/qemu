@@ -257,6 +257,15 @@ void qmp_system_reset(Error **errp)
     qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET);
 }
 
+void qmp_system_sleep(Error **errp)
+{
+    if (!qemu_wakeup_suspend_enabled()) {
+        error_setg(errp,
+                   "suspend from running is not supported by this guest");
+        return;
+    }
+}
+
 void qmp_system_powerdown(Error **errp)
 {
     qemu_system_powerdown_request();
