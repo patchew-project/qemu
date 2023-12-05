@@ -226,6 +226,14 @@ bool replay_has_event(void)
     return res;
 }
 
+G_NORETURN void replay_sync_error(const char *error)
+{
+    error_report("%s (insn total %"PRId64"/%d left, event %u/%u)", error,
+                 replay_state.current_icount, replay_state.instruction_count,
+                 replay_state.current_event, replay_state.data_kind);
+    abort();
+}
+
 static void replay_enable(const char *fname, int mode)
 {
     const char *fmode = NULL;
@@ -258,6 +266,7 @@ static void replay_enable(const char *fname, int mode)
     replay_state.data_kind = -1;
     replay_state.instruction_count = 0;
     replay_state.current_icount = 0;
+    replay_state.current_event = 0;
     replay_state.has_unread_data = false;
 
     /* skip file header for RECORD and check it for PLAY */
