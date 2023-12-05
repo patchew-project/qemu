@@ -3654,6 +3654,7 @@ static int kvm_get_sregs2(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     struct kvm_sregs2 sregs;
+    target_ulong cr0_old;
     int i, ret;
 
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_SREGS2, &sregs);
@@ -3676,12 +3677,18 @@ static int kvm_get_sregs2(X86CPU *cpu)
     env->gdt.limit = sregs.gdt.limit;
     env->gdt.base = sregs.gdt.base;
 
+    cr0_old = env->cr[0];
     env->cr[0] = sregs.cr0;
     env->cr[2] = sregs.cr2;
     env->cr[3] = sregs.cr3;
     env->cr[4] = sregs.cr4;
 
     env->efer = sregs.efer;
+    if (sev_es_enabled() && env->efer & MSR_EFER_LME) {
+        if (!(cr0_old & CR0_PG_MASK) && env->cr[0] & CR0_PG_MASK) {
+            env->efer |= MSR_EFER_LMA;
+        }
+    }
 
     env->pdptrs_valid = sregs.flags & KVM_SREGS2_FLAGS_PDPTRS_VALID;
 
