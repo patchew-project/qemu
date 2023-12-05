@@ -49,6 +49,7 @@ struct VersalVirt {
     struct {
         bool secure;
     } cfg;
+    char *ospi_model;
 };
 
 static void fdt_create(VersalVirt *s)
@@ -637,6 +638,22 @@ static void sd_plugin_card(SDHCIState *sd, DriveInfo *di)
                            &error_fatal);
 }
 
+static char *versal_get_ospi_model(Object *obj, Error **errp)
+{
+    VersalVirt *s = XLNX_VERSAL_VIRT_MACHINE(obj);
+
+    return g_strdup(s->ospi_model);
+}
+
+static void versal_set_ospi_model(Object *obj, const char *value, Error **errp)
+{
+    VersalVirt *s = XLNX_VERSAL_VIRT_MACHINE(obj);
+
+    g_free(s->ospi_model);
+    s->ospi_model = g_strdup(value);
+}
+
+
 static void versal_virt_init(MachineState *machine)
 {
     VersalVirt *s = XLNX_VERSAL_VIRT_MACHINE(machine);
@@ -736,7 +753,7 @@ static void versal_virt_init(MachineState *machine)
 
         spi_bus = qdev_get_child_bus(DEVICE(&s->soc.pmc.iou.ospi), "spi0");
 
-        flash_dev = qdev_new("mt35xu01g");
+        flash_dev = qdev_new(s->ospi_model ? s->ospi_model : "mt35xu01g");
         if (dinfo) {
             qdev_prop_set_drive_err(flash_dev, "drive",
                                     blk_by_legacy_dinfo(dinfo), &error_fatal);
@@ -769,6 +786,13 @@ static void versal_virt_machine_instance_init(Object *obj)
                              0);
 }
 
+static void versal_virt_machine_finalize(Object *obj)
+{
+    VersalVirt *s = XLNX_VERSAL_VIRT_MACHINE(obj);
+
+    g_free(s->ospi_model);
+}
+
 static void versal_virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -780,6 +804,10 @@ static void versal_virt_machine_class_init(ObjectClass *oc, void *data)
     mc->default_cpus = XLNX_VERSAL_NR_ACPUS + XLNX_VERSAL_NR_RCPUS;
     mc->no_cdrom = true;
     mc->default_ram_id = "ddr";
+    object_class_property_add_str(oc, "ospi-flash", versal_get_ospi_model,
+                                   versal_set_ospi_model);
+    object_class_property_set_description(oc, "ospi-flash",
+                                          "Change the OSPI Flash model");
 }
 
 static const TypeInfo versal_virt_machine_init_typeinfo = {
@@ -788,6 +816,7 @@ static const TypeInfo versal_virt_machine_init_typeinfo = {
     .class_init = versal_virt_machine_class_init,
     .instance_init = versal_virt_machine_instance_init,
     .instance_size = sizeof(VersalVirt),
+    .instance_finalize = versal_virt_machine_finalize,
 };
 
 static void versal_virt_machine_init_register_types(void)
