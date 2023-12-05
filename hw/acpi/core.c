@@ -354,6 +354,16 @@ int acpi_get_slic_oem(AcpiSlicOem *oem)
     return -1;
 }
 
+void acpi_send_sleep_wakeup_event(void)
+{
+    Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
+
+    if (obj) {
+        /* Send _GPE.L07 event */
+        acpi_send_event(DEVICE(obj), ACPI_SLEEP_STATUS);
+    }
+}
+
 static void acpi_notify_wakeup(Notifier *notifier, void *data)
 {
     ACPIREGS *ar = container_of(notifier, ACPIREGS, wakeup);
@@ -369,10 +379,9 @@ static void acpi_notify_wakeup(Notifier *notifier, void *data)
             (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_TIMER_STATUS);
         break;
     case QEMU_WAKEUP_REASON_OTHER:
-        /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
-           Pretend that resume was caused by power button */
-        ar->pm1.evt.sts |=
-            (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_POWER_BUTTON_STATUS);
+        /* ACPI_BITMASK_WAKE_STATUS should be set on resume. */
+        ar->pm1.evt.sts |= ACPI_BITMASK_WAKE_STATUS;
+        acpi_send_sleep_wakeup_event();
         break;
     default:
         break;

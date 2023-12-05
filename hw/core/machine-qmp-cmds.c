@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/acpi/vmgenid.h"
+#include "hw/acpi/acpi.h"
 #include "hw/boards.h"
 #include "hw/intc/intc.h"
 #include "hw/mem/memory-device.h"
@@ -264,6 +265,7 @@ void qmp_system_sleep(Error **errp)
                    "suspend from running is not supported by this guest");
         return;
     }
+    acpi_send_sleep_wakeup_event();
 }
 
 void qmp_system_powerdown(Error **errp)
