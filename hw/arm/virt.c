@@ -2309,6 +2309,7 @@ static void machvirt_init(MachineState *machine)
 
      /* connect sleep request */
      vms->sleep_notifier.notify = virt_sleep_req;
+     qemu_register_wakeup_support();
 
      /* connect powerdown request */
      vms->powerdown_notifier.notify = virt_powerdown_req;
