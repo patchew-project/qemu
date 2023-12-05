@@ -115,6 +115,11 @@ def decode_unimp(eid, name, _unused_dumpfile):
     print("%s not handled - will now stop" % (name))
     return False
 
+def decode_plain(eid, name, _unused_dumpfile):
+    "Plain events without additional data"
+    print_event(eid, name, "no data")
+    return True
+
 # Checkpoint decoder
 def swallow_async_qword(eid, name, dumpfile):
     "Swallow a qword of data without looking at it"
@@ -149,6 +154,12 @@ def decode_async(eid, name, dumpfile):
 def decode_instruction(eid, name, dumpfile):
     ins_diff = read_dword(dumpfile)
     print_event(eid, name, "0x%x" % (ins_diff))
+    return True
+
+def decode_char_write(eid, name, dumpfile):
+    res = read_dword(dumpfile)
+    offset = read_dword(dumpfile)
+    print_event(eid, name, "%d -> %d" % (offset, res))
     return True
 
 def decode_audio_out(eid, name, dumpfile):
@@ -193,10 +204,10 @@ def decode_clock(eid, name, dumpfile):
 # pre-MTTCG merge
 v5_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
                   Decoder(1, "EVENT_INTERRUPT", decode_interrupt),
-                  Decoder(2, "EVENT_EXCEPTION", decode_unimp),
+                  Decoder(2, "EVENT_EXCEPTION", decode_plain),
                   Decoder(3, "EVENT_ASYNC", decode_async),
                   Decoder(4, "EVENT_SHUTDOWN", decode_unimp),
-                  Decoder(5, "EVENT_CHAR_WRITE", decode_unimp),
+                  Decoder(5, "EVENT_CHAR_WRITE", decode_char_write),
                   Decoder(6, "EVENT_CHAR_READ_ALL", decode_unimp),
                   Decoder(7, "EVENT_CHAR_READ_ALL_ERROR", decode_unimp),
                   Decoder(8, "EVENT_CLOCK_HOST", decode_clock),
@@ -215,10 +226,10 @@ v5_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
 # post-MTTCG merge, AUDIO support added
 v6_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
                   Decoder(1, "EVENT_INTERRUPT", decode_interrupt),
-                  Decoder(2, "EVENT_EXCEPTION", decode_unimp),
+                  Decoder(2, "EVENT_EXCEPTION", decode_plain),
                   Decoder(3, "EVENT_ASYNC", decode_async),
                   Decoder(4, "EVENT_SHUTDOWN", decode_unimp),
-                  Decoder(5, "EVENT_CHAR_WRITE", decode_unimp),
+                  Decoder(5, "EVENT_CHAR_WRITE", decode_char_write),
                   Decoder(6, "EVENT_CHAR_READ_ALL", decode_unimp),
                   Decoder(7, "EVENT_CHAR_READ_ALL_ERROR", decode_unimp),
                   Decoder(8, "EVENT_AUDIO_OUT", decode_audio_out),
@@ -250,7 +261,7 @@ v7_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
                   Decoder(10, "EVENT_SHUTDOWN_GUEST_RESET", decode_unimp),
                   Decoder(11, "EVENT_SHUTDOWN_GUEST_PANIC", decode_unimp),
                   Decoder(12, "EVENT_SHUTDOWN___MAX", decode_unimp),
-                  Decoder(13, "EVENT_CHAR_WRITE", decode_unimp),
+                  Decoder(13, "EVENT_CHAR_WRITE", decode_char_write),
                   Decoder(14, "EVENT_CHAR_READ_ALL", decode_unimp),
                   Decoder(15, "EVENT_CHAR_READ_ALL_ERROR", decode_unimp),
                   Decoder(16, "EVENT_AUDIO_OUT", decode_audio_out),
@@ -268,6 +279,49 @@ v7_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
                   Decoder(28, "EVENT_CP_RESET", decode_checkpoint),
 ]
 
+# Shutdown cause added
+v12_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
+                  Decoder(1, "EVENT_INTERRUPT", decode_interrupt),
+                  Decoder(2, "EVENT_EXCEPTION", decode_plain),
+                  Decoder(3, "EVENT_ASYNC", decode_async),
+                  Decoder(4, "EVENT_ASYNC", decode_async),
+                  Decoder(5, "EVENT_ASYNC", decode_async),
+                  Decoder(6, "EVENT_ASYNC", decode_async),
+                  Decoder(6, "EVENT_ASYNC", decode_async),
+                  Decoder(8, "EVENT_ASYNC", decode_async),
+                  Decoder(9, "EVENT_ASYNC", decode_async),
+                  Decoder(10, "EVENT_ASYNC", decode_async),
+                  Decoder(11, "EVENT_SHUTDOWN", decode_unimp),
+                  Decoder(12, "EVENT_SHUTDOWN_HOST_ERR", decode_unimp),
+                  Decoder(13, "EVENT_SHUTDOWN_HOST_QMP_QUIT", decode_unimp),
+                  Decoder(14, "EVENT_SHUTDOWN_HOST_QMP_RESET", decode_unimp),
+                  Decoder(14, "EVENT_SHUTDOWN_HOST_SIGNAL", decode_unimp),
+                  Decoder(15, "EVENT_SHUTDOWN_HOST_UI", decode_unimp),
+                  Decoder(16, "EVENT_SHUTDOWN_GUEST_SHUTDOWN", decode_unimp),
+                  Decoder(17, "EVENT_SHUTDOWN_GUEST_RESET", decode_unimp),
+                  Decoder(18, "EVENT_SHUTDOWN_GUEST_PANIC", decode_unimp),
+                  Decoder(19, "EVENT_SHUTDOWN_GUEST_SUBSYSTEM_RESET", decode_unimp),
+                  Decoder(20, "EVENT_SHUTDOWN_GUEST_SNAPSHOT_LOAD", decode_unimp),
+                  Decoder(21, "EVENT_SHUTDOWN___MAX", decode_unimp),
+                  Decoder(22, "EVENT_CHAR_WRITE", decode_char_write),
+                  Decoder(23, "EVENT_CHAR_READ_ALL", decode_unimp),
+                  Decoder(24, "EVENT_CHAR_READ_ALL_ERROR", decode_unimp),
+                  Decoder(25, "EVENT_AUDIO_IN", decode_unimp),
+                  Decoder(26, "EVENT_AUDIO_OUT", decode_audio_out),
+                  Decoder(27, "EVENT_RANDOM", decode_unimp),
+                  Decoder(28, "EVENT_CLOCK_HOST", decode_clock),
+                  Decoder(29, "EVENT_CLOCK_VIRTUAL_RT", decode_clock),
+                  Decoder(30, "EVENT_CP_CLOCK_WARP_START", decode_checkpoint),
+                  Decoder(31, "EVENT_CP_CLOCK_WARP_ACCOUNT", decode_checkpoint),
+                  Decoder(32, "EVENT_CP_RESET_REQUESTED", decode_checkpoint),
+                  Decoder(33, "EVENT_CP_SUSPEND_REQUESTED", decode_checkpoint),
+                  Decoder(34, "EVENT_CP_CLOCK_VIRTUAL", decode_checkpoint),
+                  Decoder(35, "EVENT_CP_CLOCK_HOST", decode_checkpoint),
+                  Decoder(36, "EVENT_CP_CLOCK_VIRTUAL_RT", decode_checkpoint),
+                  Decoder(37, "EVENT_CP_INIT", decode_checkpoint_init),
+                  Decoder(38, "EVENT_CP_RESET", decode_checkpoint),
+]
+
 def parse_arguments():
     "Grab arguments for script"
     parser = argparse.ArgumentParser()
@@ -283,9 +337,13 @@ def decode_file(filename):
     version = read_dword(dumpfile)
     junk = read_qword(dumpfile)
 
+    # see REPLAY_VERSION
     print("HEADER: version 0x%x" % (version))
 
-    if version == 0xe02007:
+    if version == 0xe0200c:
+        event_decode_table = v12_event_table
+        replay_state.checkpoint_start = 30
+    elif version == 0xe02007:
         event_decode_table = v7_event_table
         replay_state.checkpoint_start = 12
     elif version == 0xe02006:
