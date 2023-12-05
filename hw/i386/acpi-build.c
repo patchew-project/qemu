@@ -40,6 +40,7 @@
 #include "hw/acpi/acpi_aml_interface.h"
 #include "hw/input/i8042.h"
 #include "hw/acpi/memory_hotplug.h"
+#include "hw/acpi/control_method_device.h"
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
 #include "hw/acpi/vmgenid.h"
@@ -1535,6 +1536,14 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             aml_append(scope, method);
         }
     }
+    aml_append(dsdt, scope);
+
+    sb_scope = aml_scope("_SB");
+    acpi_dsdt_add_sleep_button(sb_scope);
+    aml_append(dsdt, sb_scope);
+
+    scope =  aml_scope("\\_GPE");
+    acpi_dsdt_add_sleep_gpe_event_handler(scope);
     aml_append(dsdt, scope);
 
     if (pcmc->legacy_cpu_hotplug) {
