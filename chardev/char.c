@@ -171,7 +171,8 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
         return res;
     }
 
-    res = qemu_chr_write_buffer(s, buf, len, &offset, write_all);
+    res = qemu_chr_write_buffer(s, buf, len, &offset,
+                                replay_mode == REPLAY_MODE_RECORD ? true : write_all);
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_write_event_save(res, offset);
