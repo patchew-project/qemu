@@ -262,20 +262,23 @@ void cpu_interrupt(CPUState *cpu, int mask)
 static int do_vm_stop(RunState state, bool send_stop)
 {
     int ret = 0;
+    bool do_send_stop = false;
 
     if (runstate_is_running()) {
         runstate_set(state);
         cpu_disable_ticks();
         pause_all_vcpus();
         vm_state_notify(0, state);
-        if (send_stop) {
-            qapi_event_send_stop();
-        }
+        do_send_stop = send_stop;
     }
 
     bdrv_drain_all();
     ret = bdrv_flush_all();
     trace_vm_stop_flush_all(ret);
+
+    if (do_send_stop) {
+        qapi_event_send_stop();
+    }
 
     return ret;
 }
