@@ -312,4 +312,5 @@ void qcrypto_block_free(QCryptoBlock *block);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoBlock, qcrypto_block_free)
 
+void qcrypto_block_set_payload_offset(QCryptoBlock *block, uint64_t offset);
 #endif /* QCRYPTO_BLOCK_H */

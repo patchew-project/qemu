@@ -319,6 +319,10 @@ QCryptoHashAlgorithm qcrypto_block_get_kdf_hash(QCryptoBlock *block)
     return block->kdfhash;
 }
 
+void qcrypto_block_set_payload_offset(QCryptoBlock *block, uint64_t offset)
+{
+    block->payload_offset = offset;
+}
 
 uint64_t qcrypto_block_get_payload_offset(QCryptoBlock *block)
 {
