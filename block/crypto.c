@@ -40,6 +40,7 @@ struct BlockCrypto {
     QCryptoBlock *block;
     bool updating_keys;
     BdrvChild *header;  /* Reference to the detached LUKS header */
+    bool detached_mode; /* If true, LUKS plays a detached header role */
 };
 
 
@@ -64,12 +65,16 @@ static int block_crypto_read_func(QCryptoBlock *block,
                                   Error **errp)
 {
     BlockDriverState *bs = opaque;
+    BlockCrypto *crypto = bs->opaque;
     ssize_t ret;
 
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    ret = bdrv_pread(bs->file, offset, buflen, buf, 0);
+    if (crypto->detached_mode)
+        ret = bdrv_pread(crypto->header, offset, buflen, buf, 0);
+    else
+        ret = bdrv_pread(bs->file, offset, buflen, buf, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read encryption header");
         return ret;
@@ -269,12 +274,24 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     QCryptoBlockOpenOptions *open_opts = NULL;
     unsigned int cflags = 0;
     QDict *cryptoopts = NULL;
+    const char *header_bdref =
+        qdict_get_try_str(options, "header");
 
     GLOBAL_STATE_CODE();
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
         return ret;
+    }
+
+    if (header_bdref) {
+        crypto->detached_mode = true;
+        crypto->header = bdrv_open_child(NULL, options, "header", bs,
+                                         &child_of_bds, BDRV_CHILD_METADATA,
+                                         false, errp);
+        if (!crypto->header) {
+            return -EINVAL;
+        }
     }
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
@@ -310,6 +327,14 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     if (!crypto->block) {
         ret = -EIO;
         goto cleanup;
+    }
+
+    if (crypto->detached_mode) {
+        /*
+         * Set payload offset to zero as the file bdref has no LUKS
+         * header under detached mode.
+         */
+        qcrypto_block_set_payload_offset(crypto->block, 0);
     }
 
     bs->encrypted = true;
@@ -902,6 +927,17 @@ block_crypto_child_perms(BlockDriverState *bs, BdrvChild *c,
 {
 
     BlockCrypto *crypto = bs->opaque;
+
+    if (role == (role & BDRV_CHILD_METADATA)) {
+        /* Assign read permission only */
+        perm |= BLK_PERM_CONSISTENT_READ;
+        /* Share all permissions */
+        shared |= BLK_PERM_ALL;
+
+        *nperm = perm;
+        *nshared = shared;
+        return;
+    }
 
     bdrv_default_perms(bs, c, role, reopen_queue, perm, shared, nperm, nshared);
 
