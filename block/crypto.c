@@ -667,10 +667,12 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
     BlockDriverState *bs = NULL;
     QCryptoBlockCreateOptions create_opts;
     PreallocMode preallocation = PREALLOC_MODE_OFF;
+    int64_t size;
     int ret;
 
     assert(create_options->driver == BLOCKDEV_DRIVER_LUKS);
     luks_opts = &create_options->u.luks;
+    size = luks_opts->size;
 
     bs = bdrv_co_open_blockdev_ref(luks_opts->file, errp);
     if (bs == NULL) {
@@ -686,7 +688,11 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
         preallocation = luks_opts->preallocation;
     }
 
-    ret = block_crypto_co_create_generic(bs, luks_opts->size, &create_opts,
+    if (luks_opts->detached_mode) {
+        size = 0;
+    }
+
+    ret = block_crypto_co_create_generic(bs, size, &create_opts,
                                          preallocation, errp);
     if (ret < 0) {
         goto fail;

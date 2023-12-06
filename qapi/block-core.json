@@ -4952,13 +4952,16 @@
 # @preallocation: Preallocation mode for the new image (since: 4.2)
 #     (default: off; allowed values: off, metadata, falloc, full)
 #
+# @detached-mode: create a detached LUKS header. (since 9.0)
+#
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsLUKS',
   'base': 'QCryptoBlockCreateOptionsLUKS',
   'data': { 'file':             'BlockdevRef',
             'size':             'size',
-            '*preallocation':   'PreallocMode' } }
+            '*preallocation':   'PreallocMode',
+            '*detached-mode':   'bool'}}
 
 ##
 # @BlockdevCreateOptionsNfs:
