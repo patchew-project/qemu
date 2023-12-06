@@ -147,6 +147,7 @@ struct GtkDisplayState {
     uint32_t cbpending[QEMU_CLIPBOARD_SELECTION__COUNT];
     GtkClipboard *gtkcb[QEMU_CLIPBOARD_SELECTION__COUNT];
     bool cbowner[QEMU_CLIPBOARD_SELECTION__COUNT];
+    uint32_t cb_serial_owner_change;
 
     DisplayOptions *opts;
 };
