@@ -666,6 +666,36 @@ int qemu_strtoi64(const char *nptr, const char **endptr, int base,
 }
 
 /**
+ * Convert string @nptr to an uint32_t.
+ *
+ * Works like qemu_strtoul(), except it stores UINT32_MAX on overflow.
+ * (If you want to prohibit negative numbers that wrap around to
+ * positive, use parse_uint()).
+ */
+int qemu_strtou32(const char *nptr, const char **endptr, int base,
+                  uint32_t *result)
+{
+    char *ep;
+
+    assert((unsigned) base <= 36 && base != 1);
+    if (!nptr) {
+        *result = 0;
+        if (endptr) {
+            *endptr = nptr;
+        }
+        return -EINVAL;
+    }
+
+    errno = 0;
+    *result = strtoul(nptr, &ep, base);
+    /* Windows returns 1 for negative out-of-range values.  */
+    if (errno == ERANGE) {
+        *result = -1;
+    }
+    return check_strtox_error(nptr, ep, endptr, *result == 0, errno);
+}
+
+/**
  * Convert string @nptr to an uint64_t.
  *
  * Works like qemu_strtoul(), except it stores UINT64_MAX on overflow.
