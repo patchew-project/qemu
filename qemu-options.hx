@@ -187,6 +187,7 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                tb-size=n (TCG translation block cache size)\n"
     "                dirty-ring-size=n (KVM dirty ring GFN count, default 0)\n"
     "                eager-split-size=n (KVM Eager Page Split chunk size, default 0, disabled. ARM only)\n"
+    "                pmu-filter={A,D}:start-end[;{A,D}:start-end...] (KVM PMU Event Filter, default no filter. ARM only)\n"
     "                notify-vmexit=run|internal-error|disable,notify-window=n (enable notify VM exit and set notify window, x86 only)\n"
     "                thread=single|multi (enable multi-threaded TCG)\n", QEMU_ARCH_ALL)
 SRST
@@ -258,6 +259,26 @@ SRST
         respectively. Be wary of specifying a higher size as it will have an
         impact on the memory. By default, this feature is disabled
         (eager-split-size=0).
+
+    ``pmu-filter={A,D}:start-end[;{A,D}:start-end...]``
+        KVM implements PMU Event Filtering to prevent a guest from being able to
+        sample certain events. It depends on the KVM_ARM_VCPU_PMU_V3_FILTER
+        attribute supported in KVM. It has the following format:
+
+        pmu-filter="{A,D}:start-end[;{A,D}:start-end...]"
+
+        The A means "allow" and D means "deny", start is the first event of the
+        range and the end is the last one. The first registered range defines
+        the global policy(global ALLOW if the first @action is DENY, global DENY
+        if the first @action is ALLOW). The start and end only support hex
+        format now. For example:
+
+        pmu-filter="A:0x11-0x11;A:0x23-0x3a;D:0x30-0x30"
+
+        Since the first action is allow, we have a global deny policy. It
+        will allow event 0x11 (The cycle counter), events 0x23 to 0x3a is
+        also allowed except the event 0x30 is denied, and all the other events
+        are disallowed.
 
     ``notify-vmexit=run|internal-error|disable,notify-window=n``
         Enables or disables notify VM exit support on x86 host and specify

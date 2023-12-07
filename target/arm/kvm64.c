@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <asm-arm64/kvm.h>
 #include <sys/ioctl.h>
 #include <sys/ptrace.h>
 
@@ -131,6 +132,77 @@ static bool kvm_arm_set_device_attr(CPUState *cs, struct kvm_device_attr *attr,
     return true;
 }
 
+static void kvm_arm_pmu_filter_init(CPUState *cs)
+{
+    KVMState *kvm_state = cs->kvm_state;
+    static bool pmu_filter_init = false;
+    struct kvm_pmu_event_filter filter;
+    struct kvm_device_attr attr = {
+        .group      = KVM_ARM_VCPU_PMU_V3_CTRL,
+        .attr       = KVM_ARM_VCPU_PMU_V3_FILTER,
+        .addr       = (uint64_t)&filter,
+    };
+    char act;
+    int i;
+    gchar **event_filters;
+
+    if (!kvm_state->kvm_pmu_filter)
+        return;
+
+    if (kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr)) {
+        warn_report("The kernel doesn't support the PMU Event Filter!\n");
+        return;
+    }
+
+    /* The filter only needs to be initialized for 1 vcpu. */
+    if (pmu_filter_init) {
+        return;
+    }
+    pmu_filter_init = true;
+
+    event_filters = g_strsplit(kvm_state->kvm_pmu_filter, ";", -1);
+
+    for (i = 0; event_filters[i]; i++) {
+        unsigned short start = 0, end = 0;
+
+        sscanf(event_filters[i], "%c:%hx-%hx", &act, &start, &end);
+        if ((act != 'A' && act != 'D') || (!start && !end)) {
+            warn_report("Skipping invalid PMU filter %s\n", event_filters[i]);
+            continue;
+        }
+
+        filter = (struct kvm_pmu_event_filter) {
+            .base_event     = start,
+            .nevents        = end - start + 1,
+            .action         = act == 'A' ? KVM_PMU_EVENT_ALLOW :
+                                           KVM_PMU_EVENT_DENY,
+        };
+
+        if (!kvm_arm_set_device_attr(cs, &attr, "PMU Event Filter")) {
+            if (errno == EINVAL) {
+                warn_report("Invalid PMU filter range [0x%x-0x%x]. "
+                             "ARMv8.0 support 10 bits event space, "
+                             "ARMv8.1 support 16 bits event space",
+                             start, end);
+            }
+            else if (errno == ENODEV) {
+                warn_report("GIC not initialized");
+            }
+            else if (errno == ENXIO) {
+                warn_report("PMUv3 not properly configured or in-kernel irqchip "
+                            "not configured.");
+            }
+            else if (errno == EBUSY) {
+                warn_report("PMUv3 already initialized or a VCPU has already run");
+            }
+
+            break;
+        }
+    }
+
+    g_strfreev(event_filters);
+}
+
 void kvm_arm_pmu_init(CPUState *cs)
 {
     struct kvm_device_attr attr = {
@@ -141,6 +213,9 @@ void kvm_arm_pmu_init(CPUState *cs)
     if (!ARM_CPU(cs)->has_pmu) {
         return;
     }
+
+    kvm_arm_pmu_filter_init(cs);
+
     if (!kvm_arm_set_device_attr(cs, &attr, "PMU")) {
         error_report("failed to init PMU");
         abort();
