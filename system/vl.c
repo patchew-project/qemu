@@ -2270,7 +2270,11 @@ static void user_register_global_props(void)
 
 static int do_configure_icount(void *opaque, QemuOpts *opts, Error **errp)
 {
-    icount_configure(opts, errp);
+    if (tcg_enabled()) {
+        icount_configure(opts, errp);
+    } else {
+        error_setg(errp, "cannot configure icount, TCG support not available");
+    }
     return 0;
 }
 
