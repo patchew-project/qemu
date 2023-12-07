@@ -47,4 +47,5 @@ char *find_common_machine_version(const char *mtype, const char *var1,
                                   const char *var2);
 char *resolve_machine_version(const char *alias, const char *var1,
                               const char *var2);
+int migration_vercmp(QTestState *who, const char *tgt_version);
 #endif /* MIGRATION_HELPERS_H */
