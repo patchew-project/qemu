@@ -66,6 +66,91 @@ static void mcd_sigterm_handler(int signal)
 #endif
 
 /**
+ * mcd_get_process() - Returns the process of the provided pid.
+ *
+ * @pid: The process ID.
+ */
+static MCDProcess *mcd_get_process(uint32_t pid)
+{
+    int i;
+
+    if (!pid) {
+        /* 0 means any process, we take the first one */
+        return &mcdserver_state.processes[0];
+    }
+
+    for (i = 0; i < mcdserver_state.process_num; i++) {
+        if (mcdserver_state.processes[i].pid == pid) {
+            return &mcdserver_state.processes[i];
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * mcd_get_cpu_pid() - Returns the process ID of the provided CPU.
+ *
+ * @cpu: The CPU state.
+ */
+static uint32_t mcd_get_cpu_pid(CPUState *cpu)
+{
+    if (cpu->cluster_index == UNASSIGNED_CLUSTER_INDEX) {
+        /* Return the default process' PID */
+        int index = mcdserver_state.process_num - 1;
+        return mcdserver_state.processes[index].pid;
+    }
+    return cpu->cluster_index + 1;
+}
+
+/**
+ * mcd_get_cpu_process() - Returns the process of the provided CPU.
+ *
+ * @cpu: The CPU state.
+ */
+static MCDProcess *mcd_get_cpu_process(CPUState *cpu)
+{
+    return mcd_get_process(mcd_get_cpu_pid(cpu));
+}
+
+/**
+ * mcd_next_attached_cpu() - Returns the first CPU with an attached process
+ * starting after the
+ * provided cpu.
+ *
+ * @cpu: The CPU to start from.
+ */
+static CPUState *mcd_next_attached_cpu(CPUState *cpu)
+{
+    cpu = CPU_NEXT(cpu);
+
+    while (cpu) {
+        if (mcd_get_cpu_process(cpu)->attached) {
+            break;
+        }
+
+        cpu = CPU_NEXT(cpu);
+    }
+
+    return cpu;
+}
+
+/**
+ * mcd_first_attached_cpu() - Returns the first CPU with an attached process.
+ */
+static CPUState *mcd_first_attached_cpu(void)
+{
+    CPUState *cpu = first_cpu;
+    MCDProcess *process = mcd_get_cpu_process(cpu);
+
+    if (!process->attached) {
+        return mcd_next_attached_cpu(cpu);
+    }
+
+    return cpu;
+}
+
+/**
  * mcd_vm_state_change() - Handles a state change of the QEMU VM.
  *
  * This function is called when the QEMU VM goes through a state transition.
@@ -285,6 +370,117 @@ static void run_cmd_parser(const char *data, const MCDCmdParseEntry *cmd)
 }
 
 /**
+ * init_resets() - Initializes the resets info.
+ *
+ * This function currently only adds all theoretical possible resets to the
+ * resets GArray. None of the resets work at the moment. The resets are:
+ * "full_system_reset", "gpr_reset" and "memory_reset".
+ * @resets: GArray with possible resets.
+ */
+static int init_resets(GArray *resets)
+{
+    mcd_reset_st system_reset = { .id = 0, .name = RESET_SYSTEM};
+    mcd_reset_st gpr_reset = { .id = 1, .name = RESET_GPR};
+    mcd_reset_st memory_reset = { .id = 2, .name = RESET_MEMORY};
+    g_array_append_vals(resets, (gconstpointer)&system_reset, 1);
+    g_array_append_vals(resets, (gconstpointer)&gpr_reset, 1);
+    g_array_append_vals(resets, (gconstpointer)&memory_reset, 1);
+    return 0;
+}
+
+/**
+ * init_trigger() - Initializes the trigger info.
+ *
+ * This function adds the types of trigger, their possible options and actions
+ * to the trigger struct.
+ * @trigger: Struct with all trigger info.
+ */
+static int init_trigger(mcd_trigger_into_st *trigger)
+{
+    snprintf(trigger->type, sizeof(trigger->type),
+        "%d,%d,%d,%d", MCD_BREAKPOINT_HW, MCD_BREAKPOINT_READ,
+        MCD_BREAKPOINT_WRITE, MCD_BREAKPOINT_RW);
+    snprintf(trigger->option, sizeof(trigger->option),
+        "%s", MCD_TRIG_OPT_VALUE);
+    snprintf(trigger->action, sizeof(trigger->action),
+        "%s", MCD_TRIG_ACT_BREAK);
+    /* there can be 16 breakpoints and 16 watchpoints each */
+    trigger->nr_trigger = 16;
+    return 0;
+}
+
+/**
+ * handle_open_server() - Handler for opening the MCD server.
+ *
+ * This is the first function that gets called from the MCD Shared Library.
+ * It initializes core indepent data with the :c:func:`init_resets` and
+ * \reg init_trigger functions. It also send the TCP_HANDSHAKE_SUCCESS
+ * packet back to the library to confirm the mcdstub is ready for further
+ * communication.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_open_server(GArray *params, void *user_ctx)
+{
+    /* initialize core-independent data */
+    int return_value = 0;
+    mcdserver_state.resets = g_array_new(false, true, sizeof(mcd_reset_st));
+    return_value = init_resets(mcdserver_state.resets);
+    if (return_value != 0) {
+        g_assert_not_reached();
+    }
+    return_value = init_trigger(&mcdserver_state.trigger);
+    if (return_value != 0) {
+        g_assert_not_reached();
+    }
+
+    mcd_put_packet(TCP_HANDSHAKE_SUCCESS);
+}
+
+/**
+ * mcd_vm_start() - Starts all CPUs with the vm_start function.
+ */
+static void mcd_vm_start(void)
+{
+    if (!runstate_needs_reset() && !runstate_is_running()) {
+        vm_start();
+    }
+}
+
+/**
+ * handle_close_server() - Handler for closing the MCD server.
+ *
+ * This function detaches the debugger (process) and frees up memory.
+ * Then it start the QEMU VM with :c:func:`mcd_vm_start`.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_close_server(GArray *params, void *user_ctx)
+{
+    uint32_t pid = 1;
+    MCDProcess *process = mcd_get_process(pid);
+
+    /*
+     * 1. free memory
+     * TODO: do this only if there are no processes attached anymore!
+     */
+    g_list_free(mcdserver_state.all_memspaces);
+    g_list_free(mcdserver_state.all_reggroups);
+    g_list_free(mcdserver_state.all_registers);
+    g_array_free(mcdserver_state.resets, TRUE);
+
+    /* 2. detach */
+    process->attached = false;
+
+    /* 3. reset process */
+    if (pid == mcd_get_cpu_pid(mcdserver_state.c_cpu)) {
+        mcdserver_state.c_cpu = mcd_first_attached_cpu();
+    }
+    if (!mcdserver_state.c_cpu) {
+        /* no more processes attached */
+        mcd_vm_start();
+    }
+}
+
+/**
  * mcd_handle_packet() - Evaluates the type of received packet and chooses the
  * correct handler.
  *
@@ -302,6 +498,25 @@ static int mcd_handle_packet(const char *line_buf)
     const MCDCmdParseEntry *cmd_parser = NULL;
 
     switch (line_buf[0]) {
+    case TCP_CHAR_OPEN_SERVER:
+        {
+            static MCDCmdParseEntry open_server_cmd_desc = {
+                .handler = handle_open_server,
+            };
+            open_server_cmd_desc.cmd = (char[2]) { TCP_CHAR_OPEN_SERVER, '\0' };
+            cmd_parser = &open_server_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_CLOSE_SERVER:
+        {
+            static MCDCmdParseEntry close_server_cmd_desc = {
+                .handler = handle_close_server,
+            };
+            close_server_cmd_desc.cmd =
+                (char[2]) { TCP_CHAR_CLOSE_SERVER, '\0' };
+            cmd_parser = &close_server_cmd_desc;
+        }
+        break;
     default:
         /* command not supported */
         mcd_put_packet("");
@@ -420,91 +635,6 @@ static void mcd_chr_receive(void *opaque, const uint8_t *buf, int size)
             break;
         }
     }
-}
-
-/**
- * mcd_get_process() - Returns the process of the provided pid.
- *
- * @pid: The process ID.
- */
-static MCDProcess *mcd_get_process(uint32_t pid)
-{
-    int i;
-
-    if (!pid) {
-        /* 0 means any process, we take the first one */
-        return &mcdserver_state.processes[0];
-    }
-
-    for (i = 0; i < mcdserver_state.process_num; i++) {
-        if (mcdserver_state.processes[i].pid == pid) {
-            return &mcdserver_state.processes[i];
-        }
-    }
-
-    return NULL;
-}
-
-/**
- * mcd_get_cpu_pid() - Returns the process ID of the provided CPU.
- *
- * @cpu: The CPU state.
- */
-static uint32_t mcd_get_cpu_pid(CPUState *cpu)
-{
-    if (cpu->cluster_index == UNASSIGNED_CLUSTER_INDEX) {
-        /* Return the default process' PID */
-        int index = mcdserver_state.process_num - 1;
-        return mcdserver_state.processes[index].pid;
-    }
-    return cpu->cluster_index + 1;
-}
-
-/**
- * mcd_get_cpu_process() - Returns the process of the provided CPU.
- *
- * @cpu: The CPU state.
- */
-static MCDProcess *mcd_get_cpu_process(CPUState *cpu)
-{
-    return mcd_get_process(mcd_get_cpu_pid(cpu));
-}
-
-/**
- * mcd_next_attached_cpu() - Returns the first CPU with an attached process
- * starting after the
- * provided cpu.
- *
- * @cpu: The CPU to start from.
- */
-static CPUState *mcd_next_attached_cpu(CPUState *cpu)
-{
-    cpu = CPU_NEXT(cpu);
-
-    while (cpu) {
-        if (mcd_get_cpu_process(cpu)->attached) {
-            break;
-        }
-
-        cpu = CPU_NEXT(cpu);
-    }
-
-    return cpu;
-}
-
-/**
- * mcd_first_attached_cpu() - Returns the first CPU with an attached process.
- */
-static CPUState *mcd_first_attached_cpu(void)
-{
-    CPUState *cpu = first_cpu;
-    MCDProcess *process = mcd_get_cpu_process(cpu);
-
-    if (!process->attached) {
-        return mcd_next_attached_cpu(cpu);
-    }
-
-    return cpu;
 }
 
 /**
