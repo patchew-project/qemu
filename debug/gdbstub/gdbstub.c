@@ -45,14 +45,6 @@
 
 #include "internals.h"
 
-typedef struct GDBRegisterState {
-    int base_reg;
-    int num_regs;
-    gdb_get_reg_cb get_reg;
-    gdb_set_reg_cb set_reg;
-    const char *xml;
-} GDBRegisterState;
-
 GDBState gdbserver_state;
 
 void gdb_init_gdbserver_state(void)
