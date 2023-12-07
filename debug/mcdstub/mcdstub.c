@@ -28,6 +28,7 @@
 #include "chardev/char-fe.h"
 #include "hw/cpu/cluster.h"
 #include "hw/boards.h"
+#include "exec/tb-flush.h"
 #include "sysemu/cpus.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/runstate.h"
@@ -182,6 +183,96 @@ static CPUState *mcd_get_cpu(uint32_t cpu_index)
  */
 static void mcd_vm_state_change(void *opaque, bool running, RunState state)
 {
+    CPUState *cpu = mcdserver_state.c_cpu;
+
+    if (mcdserver_state.state == RS_INACTIVE) {
+        return;
+    }
+
+    if (cpu == NULL) {
+        if (running) {
+            /*
+             * this is the case if qemu starts the vm
+             * before a mcd client is connected
+             */
+            const char *mcd_state;
+            mcd_state = CORE_STATE_RUNNING;
+            const char *info_str;
+            info_str = STATE_STR_INIT_RUNNING;
+            mcdserver_state.cpu_state.state = mcd_state;
+            mcdserver_state.cpu_state.info_str = info_str;
+        }
+        return;
+    }
+
+    const char *mcd_state;
+    const char *stop_str;
+    const char *info_str;
+    uint32_t bp_type = 0;
+    uint64_t bp_address = 0;
+    switch (state) {
+    case RUN_STATE_RUNNING:
+        mcd_state = CORE_STATE_RUNNING;
+        info_str = STATE_STR_RUNNING(cpu->cpu_index);
+        stop_str = "";
+        break;
+    case RUN_STATE_DEBUG:
+        mcd_state = CORE_STATE_DEBUG;
+        info_str = STATE_STR_DEBUG(cpu->cpu_index);
+        if (cpu->watchpoint_hit) {
+            switch (cpu->watchpoint_hit->flags & BP_MEM_ACCESS) {
+            case BP_MEM_READ:
+                bp_type = MCD_BREAKPOINT_READ;
+                stop_str = STATE_STR_BREAK_READ(cpu->watchpoint_hit->hitaddr);
+                break;
+            case BP_MEM_WRITE:
+                bp_type = MCD_BREAKPOINT_WRITE;
+                stop_str = STATE_STR_BREAK_WRITE(cpu->watchpoint_hit->hitaddr);
+                break;
+            case BP_MEM_ACCESS:
+                bp_type = MCD_BREAKPOINT_RW;
+                stop_str = STATE_STR_BREAK_RW(cpu->watchpoint_hit->hitaddr);
+                break;
+            default:
+                stop_str = STATE_STR_BREAK_UNKNOWN;
+                break;
+            }
+            bp_address = cpu->watchpoint_hit->hitaddr;
+            cpu->watchpoint_hit = NULL;
+        } else if (cpu->singlestep_enabled) {
+            /* we land here when a single step is performed */
+            stop_str = STATE_STEP_PERFORMED;
+        } else {
+            bp_type = MCD_BREAKPOINT_HW;
+            stop_str = STATE_STR_BREAK_HW;
+            tb_flush(cpu);
+        }
+        /* deactivate single step */
+        cpu_single_step(cpu, 0);
+        break;
+    case RUN_STATE_PAUSED:
+        info_str = STATE_STR_HALTED(cpu->cpu_index);
+        mcd_state = CORE_STATE_HALTED;
+        stop_str = "";
+        break;
+    case RUN_STATE_WATCHDOG:
+        info_str = STATE_STR_UNKNOWN(cpu->cpu_index);
+        mcd_state = CORE_STATE_UNKNOWN;
+        stop_str = "";
+        break;
+    default:
+        info_str = STATE_STR_UNKNOWN(cpu->cpu_index);
+        mcd_state = CORE_STATE_UNKNOWN;
+        stop_str = "";
+        break;
+    }
+
+    /* set state for c_cpu */
+    mcdserver_state.cpu_state.state = mcd_state;
+    mcdserver_state.cpu_state.bp_type = bp_type;
+    mcdserver_state.cpu_state.bp_address = bp_address;
+    mcdserver_state.cpu_state.stop_str = stop_str;
+    mcdserver_state.cpu_state.info_str = info_str;
 }
 
 /**
@@ -638,6 +729,104 @@ static void handle_close_core(GArray *params, void *user_ctx)
 }
 
 /**
+ * mcd_cpu_start() - Starts the selected CPU with the cpu_resume function.
+ *
+ * @cpu: The CPU about to be started.
+ */
+static void mcd_cpu_start(CPUState *cpu)
+{
+    if (!runstate_needs_reset() && !runstate_is_running() &&
+        !vm_prepare_start(false)) {
+        mcdserver_state.c_cpu = cpu;
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+        cpu_resume(cpu);
+    }
+}
+
+/**
+ * mcd_cpu_sstep() - Performes a step on the selected CPU.
+ *
+ * This function first sets the correct single step flags for the CPU with
+ * cpu_single_step and then starts the CPU with cpu_resume.
+ * @cpu: The CPU about to be stepped.
+ */
+static int mcd_cpu_sstep(CPUState *cpu)
+{
+    mcdserver_state.c_cpu = cpu;
+    cpu_single_step(cpu, mcdserver_state.sstep_flags);
+    if (!runstate_needs_reset() && !runstate_is_running() &&
+        !vm_prepare_start(true)) {
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+        cpu_resume(cpu);
+    }
+    return 0;
+}
+
+/**
+ * mcd_vm_stop() - Brings all CPUs in debug state with the vm_stop function.
+ */
+static void mcd_vm_stop(void)
+{
+    if (runstate_is_running()) {
+        vm_stop(RUN_STATE_DEBUG);
+    }
+}
+
+/**
+ * handle_vm_start() - Handler for the VM start TCP packet.
+ *
+ * Evaluates whether all cores or just a perticular core should get started and
+ * calls :c:func:`mcd_vm_start` or :c:func:`mcd_cpu_start` respectively.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_vm_start(GArray *params, void *user_ctx)
+{
+    uint32_t global = get_param(params, 0)->data_uint32_t;
+    if (global == 1) {
+        mcd_vm_start();
+    } else{
+        uint32_t cpu_id = get_param(params, 1)->cpu_id;
+        CPUState *cpu = mcd_get_cpu(cpu_id);
+        mcd_cpu_start(cpu);
+    }
+}
+
+/**
+ * handle_vm_step() - Handler for the VM step TCP packet.
+ *
+ * Calls :c:func:`mcd_cpu_sstep` for the CPU which sould be stepped.
+ * Stepping all CPUs is currently not supported.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_vm_step(GArray *params, void *user_ctx)
+{
+    uint32_t global = get_param(params, 0)->data_uint32_t;
+    if (global == 1) {
+        /* TODO: add multicore support */
+    } else{
+        uint32_t cpu_id = get_param(params, 1)->cpu_id;
+        CPUState *cpu = mcd_get_cpu(cpu_id);
+        int return_value = mcd_cpu_sstep(cpu);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+    }
+}
+
+/**
+ * handle_vm_stop() - Handler for the VM stop TCP packet.
+ *
+ * Always calls :c:func:`mcd_vm_stop` and stops all cores. Stopping individual
+ * cores is currently not supported.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_vm_stop(GArray *params, void *user_ctx)
+{
+    /* TODO: add core dependant break option */
+    mcd_vm_stop();
+}
+
+/**
  * mcd_handle_packet() - Evaluates the type of received packet and chooses the
  * correct handler.
  *
@@ -705,6 +894,37 @@ static int mcd_handle_packet(const char *line_buf)
             strcpy(close_core_cmd_desc.schema,
                 (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
             cmd_parser = &close_core_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_GO:
+        {
+            static MCDCmdParseEntry go_cmd_desc = {
+                .handler = handle_vm_start,
+            };
+            go_cmd_desc.cmd = (char[2]) { TCP_CHAR_GO, '\0' };
+            strcpy(go_cmd_desc.schema,
+                (char[3]) { ARG_SCHEMA_INT, ARG_SCHEMA_CORENUM, '\0' });
+            cmd_parser = &go_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_STEP:
+        {
+            static MCDCmdParseEntry step_cmd_desc = {
+                .handler = handle_vm_step,
+            };
+            step_cmd_desc.cmd = (char[2]) { TCP_CHAR_STEP, '\0' };
+            strcpy(step_cmd_desc.schema,
+                (char[3]) { ARG_SCHEMA_INT, ARG_SCHEMA_CORENUM, '\0' });
+            cmd_parser = &step_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_BREAK:
+        {
+            static MCDCmdParseEntry break_cmd_desc = {
+                .handler = handle_vm_stop,
+            };
+            break_cmd_desc.cmd = (char[2]) { TCP_CHAR_BREAK, '\0' };
+            cmd_parser = &break_cmd_desc;
         }
         break;
     default:
