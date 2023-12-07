@@ -1413,6 +1413,43 @@ static void handle_query_regs_c(GArray *params, void *user_ctx)
 }
 
 /**
+ * handle_query_state() - Handler for the state query.
+ *
+ * This function collects all data stored in the
+ * cpu_state member of the mcdserver_state and formats and sends it to the
+ * library.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_query_state(GArray *params, void *user_ctx)
+{
+    /*
+     * TODO: multicore support
+     * get state info
+     */
+    mcd_cpu_state_st state_info = mcdserver_state.cpu_state;
+    /* TODO: add event information */
+    uint32_t event = 0;
+    /* send data */
+    g_string_printf(mcdserver_state.str_buf,
+        "%s=%s.%s=%u.%s=%u.%s=%u.%s=%lu.%s=%s.%s=%s.",
+        TCP_ARGUMENT_STATE, state_info.state,
+        TCP_ARGUMENT_EVENT, event, TCP_ARGUMENT_THREAD, 0,
+        TCP_ARGUMENT_TYPE, state_info.bp_type,
+        TCP_ARGUMENT_ADDRESS, state_info.bp_address,
+        TCP_ARGUMENT_STOP_STRING, state_info.stop_str,
+        TCP_ARGUMENT_INFO_STRING, state_info.info_str);
+    mcd_put_strbuf();
+
+    /* reset debug info after first query */
+    if (strcmp(state_info.state, CORE_STATE_DEBUG) == 0) {
+        mcdserver_state.cpu_state.stop_str = "";
+        mcdserver_state.cpu_state.info_str = "";
+        mcdserver_state.cpu_state.bp_type = 0;
+        mcdserver_state.cpu_state.bp_address = 0;
+    }
+}
+
+/**
  * init_query_cmds_table() - Initializes all query functions.
  *
  * This function adds all query functions to the mcd_query_cmds_table. This
@@ -1507,6 +1544,13 @@ static void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table)
     strcpy(query_regs_c.schema, (char[2]) { ARG_SCHEMA_QRYHANDLE, '\0' });
     mcd_query_cmds_table[cmd_number] = query_regs_c;
     cmd_number++;
+
+    MCDCmdParseEntry query_state = {
+        .handler = handle_query_state,
+        .cmd = QUERY_ARG_STATE,
+    };
+    strcpy(query_state.schema, (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
+    mcd_query_cmds_table[cmd_number] = query_state;
 }
 
 /**
