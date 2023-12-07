@@ -797,6 +797,15 @@ void qemu_remove_exit_notifier(Notifier *notify)
 
 static void qemu_run_exit_notifiers(void)
 {
+    /*
+     * Some exit notifier callbacks call error_report_err if it fails
+     * to do the cleanup. If this happens on QEMU command line parse
+     * stage, i.e. there is fatal error, the location printed in
+     * error_report_err is totally unrelated to exit notifier itself.
+     * Set location to none to avoid such confusing.
+     */
+    loc_set_none();
+
     notifier_list_notify(&exit_notifiers, NULL);
 }
 
