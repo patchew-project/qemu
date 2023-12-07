@@ -497,7 +497,6 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
                          "-chardev socket,path=%s,id=char0 "
                          "-mon chardev=char0,mode=control "
                          "-display none "
-                         "-audio none "
                          "%s"
                          " -accel qtest",
                          socket_path,
