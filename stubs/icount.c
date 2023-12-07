@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "sysemu/cpu-timers.h"
 
 /* icount - Instruction Counter API */
@@ -9,11 +8,6 @@ ICountMode use_icount = ICOUNT_DISABLED;
 void icount_update(CPUState *cpu)
 {
     abort();
-}
-void icount_configure(QemuOpts *opts, Error **errp)
-{
-    /* signal error */
-    error_setg(errp, "cannot configure icount, TCG support not available");
 }
 int64_t icount_get_raw(void)
 {
