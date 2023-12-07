@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
+#include "qemu/debug.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/syscalls.h"
 #include "exec/hwaddr.h"
@@ -44,6 +45,20 @@ static void reset_gdbserver_state(void)
     gdbserver_state.processes = NULL;
     gdbserver_state.process_num = 0;
     gdbserver_state.allow_stop_reply = false;
+}
+
+/**
+ * gdb_init_debug_class() - initialize gdb-specific DebugClass
+ */
+static void gdb_init_debug_class(void)
+{
+    Object *obj;
+    obj = object_new(TYPE_DEBUG);
+    DebugState *ds = DEBUG(obj);
+    DebugClass *dc = DEBUG_GET_CLASS(ds);
+    dc->set_stop_cpu = gdb_set_stop_cpu;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    ms->debug_state = ds;
 }
 
 /*
@@ -404,6 +419,9 @@ int gdbserver_start(const char *device)
     gdbserver_state.state = chr ? RS_IDLE : RS_INACTIVE;
     gdbserver_system_state.mon_chr = mon_chr;
     gdb_syscall_reset();
+
+    /* create new debug object */
+    gdb_init_debug_class();
 
     return 0;
 }
