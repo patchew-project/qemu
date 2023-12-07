@@ -37,6 +37,7 @@
 #include "qemu/units.h"
 #include "hw/qdev-core.h"
 #include "hw/arm/armv7m.h"
+#include "hw/misc/stm32l4x5_exti.h"
 #include "qom/object.h"
 
 #define TYPE_STM32L4X5_SOC "stm32l4x5-soc"
@@ -49,6 +50,8 @@ struct Stm32l4x5SocState {
     SysBusDevice parent_obj;
 
     ARMv7MState armv7m;
+
+    Stm32l4x5ExtiState exti;
 
     MemoryRegion sram1;
     MemoryRegion sram2;
