@@ -2955,13 +2955,22 @@ M: Alex Bennée <alex.bennee@linaro.org>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: docs/system/gdb.rst
-F: gdbstub/*
+F: debug/gdbstub/*
 F: include/exec/gdbstub.h
 F: include/gdbstub/*
 F: gdb-xml/
 F: tests/tcg/multiarch/gdbstub/*
 F: scripts/feature_to_c.py
 F: scripts/probe-gdb-support.py
+
+MCD stub
+M: Nicolas Eder <nicolas.eder@lauterbach.com>
+R: Alex Bennée <alex.bennee@linaro.org>
+S: Maintained
+F: debug/mcdstub/*
+F: debug/common/*
+F: include/mcdstub/*
+F: include/qemu/debug.h
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>

@@ -3263,7 +3263,7 @@ trace_events_subdirs = [
   'qom',
   'monitor',
   'util',
-  'gdbstub',
+  'debug/gdbstub',
 ]
 if have_linux_user
   trace_events_subdirs += [ 'linux-user' ]
@@ -3389,7 +3389,7 @@ subdir('authz')
 subdir('crypto')
 subdir('ui')
 subdir('hw')
-subdir('gdbstub')
+subdir('debug')
 
 if enable_modules
   libmodulecommon = static_library('module-common', files('module-common.c') + genh, pic: true, c_args: '-DBUILD_DSO')
