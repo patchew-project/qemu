@@ -1178,6 +1178,134 @@ static void handle_write_memory(GArray *params, void *user_ctx)
 }
 
 /**
+ * mcd_breakpoint_insert() - Inserts a break- or watchpoint.
+ *
+ * This function evaluates the received breakpoint type and translates it
+ * to a known GDB breakpoint type.
+ * Then it calls cpu_breakpoint_insert or cpu_watchpoint_insert depending on
+ * the type.
+ * @cpu: CPU to which the breakpoint should be added.
+ * @addr: Address of the breakpoint.
+ * @type: Breakpoint type.
+ */
+static int mcd_breakpoint_insert(CPUState *cpu, int type, vaddr addr)
+{
+    /* translate the type to known gdb types and function call*/
+    int bp_type = 0;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    if (cc->gdb_stop_before_watchpoint) {
+        /* bp_type |= BP_STOP_BEFORE_ACCESS; */
+    }
+    int return_value = 0;
+    switch (type) {
+    case MCD_BREAKPOINT_HW:
+        return_value = cpu_breakpoint_insert(cpu, addr, BP_GDB, NULL);
+        return return_value;
+    case MCD_BREAKPOINT_READ:
+        bp_type |= BP_GDB | BP_MEM_READ;
+        return_value = cpu_watchpoint_insert(cpu, addr, 4, bp_type, NULL);
+        return return_value;
+    case MCD_BREAKPOINT_WRITE:
+        bp_type |= BP_GDB | BP_MEM_WRITE;
+        return_value = cpu_watchpoint_insert(cpu, addr, 4, bp_type, NULL);
+        return return_value;
+    case MCD_BREAKPOINT_RW:
+        bp_type |= BP_GDB | BP_MEM_ACCESS;
+        return_value = cpu_watchpoint_insert(cpu, addr, 4, bp_type, NULL);
+        return return_value;
+    default:
+        return -ENOSYS;
+    }
+}
+
+/**
+ * mcd_breakpoint_remove() - Removes a break- or watchpoint.
+ *
+ * This function evaluates the received breakpoint type and translates it
+ * to a known GDB breakpoint type.
+ * Then it calls cpu_breakpoint_remove or cpu_watchpoint_remove depending on
+ * the type.
+ * @cpu: CPU from which the breakpoint should be removed.
+ * @addr: Address of the breakpoint.
+ * @type: Breakpoint type.
+ */
+static int mcd_breakpoint_remove(CPUState *cpu, int type, vaddr addr)
+{
+    /* translate the type to known gdb types and function call*/
+    int bp_type = 0;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    if (cc->gdb_stop_before_watchpoint) {
+        /* bp_type |= BP_STOP_BEFORE_ACCESS; */
+    }
+    int return_value = 0;
+    switch (type) {
+    case MCD_BREAKPOINT_HW:
+        return_value = cpu_breakpoint_remove(cpu, addr, BP_GDB);
+        return return_value;
+    case MCD_BREAKPOINT_READ:
+        bp_type |= BP_GDB | BP_MEM_READ;
+        return_value = cpu_watchpoint_remove(cpu, addr, 4, bp_type);
+        return return_value;
+    case MCD_BREAKPOINT_WRITE:
+        bp_type |= BP_GDB | BP_MEM_WRITE;
+        return_value = cpu_watchpoint_remove(cpu, addr, 4, bp_type);
+        return return_value;
+    case MCD_BREAKPOINT_RW:
+        bp_type |= BP_GDB | BP_MEM_ACCESS;
+        return_value = cpu_watchpoint_remove(cpu, addr, 4, bp_type);
+        return return_value;
+    default:
+        return -ENOSYS;
+    }
+}
+
+/**
+ * handle_breakpoint_insert() - Handler for inserting a break- or watchpoint.
+ *
+ * This function extracts the CPU, breakpoint type and address from the
+ * parameters and calls :c:func:`mcd_breakpoint_insert` to insert the
+ * breakpoint.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_breakpoint_insert(GArray *params, void *user_ctx)
+{
+    /* 1. get parameter data */
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint32_t type = get_param(params, 1)->data_uint32_t;
+    uint64_t address = get_param(params, 2)->data_uint64_t;
+    /* 2. insert breakpoint and send reply */
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    if (mcd_breakpoint_insert(cpu, type, address) != 0) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+    } else {
+        mcd_put_packet(TCP_EXECUTION_SUCCESS);
+    }
+}
+
+/**
+ * handle_breakpoint_remove() - Handler for inserting a break- or watchpoint.
+ *
+ * This function extracts the CPU, breakpoint type and address from the
+ * parameters and calls :c:func:`mcd_breakpoint_remove` to insert the
+ * breakpoint.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_breakpoint_remove(GArray *params, void *user_ctx)
+{
+    /* 1. get parameter data */
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint32_t type = get_param(params, 1)->data_uint32_t;
+    uint64_t address = get_param(params, 2)->data_uint64_t;
+    /* 2. remove breakpoint and send reply */
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    if (mcd_breakpoint_remove(cpu, type, address) != 0) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+    } else {
+        mcd_put_packet(TCP_EXECUTION_SUCCESS);
+    }
+}
+
+/**
  * mcd_handle_packet() - Evaluates the type of received packet and chooses the
  * correct handler.
  *
@@ -1340,6 +1468,32 @@ static int mcd_handle_packet(const char *line_buf)
                 ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT,
                 ARG_SCHEMA_HEXDATA, '\0' });
             cmd_parser = &write_mem_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_BREAKPOINT_INSERT:
+        {
+            static MCDCmdParseEntry handle_breakpoint_insert_cmd_desc = {
+                .handler = handle_breakpoint_insert,
+            };
+            handle_breakpoint_insert_cmd_desc.cmd =
+                (char[2]) { TCP_CHAR_BREAKPOINT_INSERT, '\0' };
+            strcpy(handle_breakpoint_insert_cmd_desc.schema,
+                (char[4]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT,
+                ARG_SCHEMA_UINT64_T, '\0' });
+            cmd_parser = &handle_breakpoint_insert_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_BREAKPOINT_REMOVE:
+        {
+            static MCDCmdParseEntry handle_breakpoint_remove_cmd_desc = {
+                .handler = handle_breakpoint_remove,
+            };
+            handle_breakpoint_remove_cmd_desc.cmd =
+                (char[2]) { TCP_CHAR_BREAKPOINT_REMOVE, '\0' };
+            strcpy(handle_breakpoint_remove_cmd_desc.schema,
+                (char[4]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT,
+                ARG_SCHEMA_UINT64_T, '\0' });
+            cmd_parser = &handle_breakpoint_remove_cmd_desc;
         }
         break;
     default:
