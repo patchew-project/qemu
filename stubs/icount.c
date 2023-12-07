@@ -5,26 +5,7 @@
 
 int use_icount;
 
-void icount_update(CPUState *cpu)
-{
-    abort();
-}
 int64_t icount_get_raw(void)
-{
-    abort();
-    return 0;
-}
-int64_t icount_get(void)
-{
-    abort();
-    return 0;
-}
-int64_t icount_to_ns(int64_t icount)
-{
-    abort();
-    return 0;
-}
-int64_t icount_round(int64_t count)
 {
     abort();
     return 0;

@@ -24,7 +24,7 @@ void cpu_timers_init(void);
  * 1 = Enabled - Fixed conversion of insn to ns via "shift" option
  * 2 = Enabled - Runtime adaptive algorithm to compute shift
  */
-#ifdef CONFIG_TCG
+#if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
 extern int use_icount;
 #define icount_enabled() (use_icount)
 #else
