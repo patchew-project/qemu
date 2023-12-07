@@ -827,6 +827,37 @@ static void handle_vm_stop(GArray *params, void *user_ctx)
 }
 
 /**
+ * mcd_exit() - Terminates QEMU.
+ *
+ * If the mcdserver_state has not been initialized the function exits before
+ * terminating QEMU. Terminting is done with the qemu_chr_fe_deinit function.
+ * @code: An exitcode, which can be used in the future.
+ */
+static void mcd_exit(int code)
+{
+    /* terminate qemu */
+    if (!mcdserver_state.init) {
+        return;
+    }
+
+    qemu_chr_fe_deinit(&mcdserver_system_state.chr, true);
+}
+
+/**
+ * handle_reset() - Handler for performing resets.
+ *
+ * This function is currently not in use.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_reset(GArray *params, void *user_ctx)
+{
+    /*
+     * int reset_id = get_param(params, 0)->data_int;
+     * TODO: implement resets
+     */
+}
+
+/**
  * mcd_handle_packet() - Evaluates the type of received packet and chooses the
  * correct handler.
  *
@@ -925,6 +956,21 @@ static int mcd_handle_packet(const char *line_buf)
             };
             break_cmd_desc.cmd = (char[2]) { TCP_CHAR_BREAK, '\0' };
             cmd_parser = &break_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_KILLQEMU:
+        /* kill qemu completely */
+        error_report("QEMU: Terminated via MCDstub");
+        mcd_exit(0);
+        exit(0);
+    case TCP_CHAR_RESET:
+        {
+            static MCDCmdParseEntry reset_cmd_desc = {
+                .handler = handle_reset,
+            };
+            reset_cmd_desc.cmd = (char[2]) { TCP_CHAR_RESET, '\0' };
+            strcpy(reset_cmd_desc.schema, (char[2]) { ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &reset_cmd_desc;
         }
         break;
     default:
