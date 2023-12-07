@@ -34,6 +34,7 @@
 
 #include "mcdstub/mcd_shared_defines.h"
 #include "mcdstub/mcdstub.h"
+#include "mcdstub/arm_mcdstub.h"
 
 typedef struct {
     CharBackend chr;
@@ -151,6 +152,25 @@ static CPUState *mcd_first_attached_cpu(void)
 }
 
 /**
+ * mcd_get_cpu() - Returns the CPU the index i_cpu_index.
+ *
+ * @cpu_index: Index of the desired CPU.
+ */
+static CPUState *mcd_get_cpu(uint32_t cpu_index)
+{
+    CPUState *cpu = first_cpu;
+
+    while (cpu) {
+        if (cpu->cpu_index == cpu_index) {
+            return cpu;
+        }
+        cpu = mcd_next_attached_cpu(cpu);
+    }
+
+    return cpu;
+}
+
+/**
  * mcd_vm_state_change() - Handles a state change of the QEMU VM.
  *
  * This function is called when the QEMU VM goes through a state transition.
@@ -219,6 +239,15 @@ static int mcd_put_packet_binary(const char *buf, int len)
 static int mcd_put_packet(const char *buf)
 {
     return mcd_put_packet_binary(buf, strlen(buf));
+}
+
+/**
+ * mcd_put_strbuf() - Calls :c:func:`mcd_put_packet` with the str_buf of the
+ * mcdserver_state.
+ */
+static void mcd_put_strbuf(void)
+{
+    mcd_put_packet(mcdserver_state.str_buf->str);
 }
 
 /**
@@ -481,6 +510,134 @@ static void handle_close_server(GArray *params, void *user_ctx)
 }
 
 /**
+ * handle_gen_query() - Handler for all TCP query packets.
+ *
+ * Calls :c:func:`process_string_cmd` with all query functions in the
+ * mcd_query_cmds_table. :c:func:`process_string_cmd` then selects the correct
+ * one. This function just passes on the TCP packet data string from the
+ * parameters.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_gen_query(GArray *params, void *user_ctx)
+{
+    if (!params->len) {
+        return;
+    }
+    /* iterate over all possible query functions and execute the right one */
+    if (process_string_cmd(NULL, get_param(params, 0)->data,
+                           mcdserver_state.mcd_query_cmds_table,
+                           ARRAY_SIZE(mcdserver_state.mcd_query_cmds_table))) {
+        mcd_put_packet("");
+    }
+}
+
+/**
+ * handle_open_core() - Handler for opening a core.
+ *
+ * This function initializes all data for the core with the ID provided in
+ * the first parameter. In has a swtich case for different architectures.
+ * Currently only 32-Bit ARM is supported. The data includes memory spaces,
+ * register groups and registers themselves. They get stored into GLists where
+ * every entry in the list corresponds to one opened core.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_open_core(GArray *params, void *user_ctx)
+{
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    mcdserver_state.c_cpu = cpu;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const gchar *arch = cc->gdb_arch_name(cpu);
+    int return_value = 0;
+
+    /* prepare data strucutures */
+    GArray *memspaces = g_array_new(false, true, sizeof(mcd_mem_space_st));
+    GArray *reggroups = g_array_new(false, true, sizeof(mcd_reg_group_st));
+    GArray *registers = g_array_new(false, true, sizeof(mcd_reg_st));
+
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
+        /* TODO: make group and memspace ids dynamic */
+        int current_group_id = 1;
+        /* 1. store mem spaces */
+        return_value = arm_mcd_store_mem_spaces(cpu, memspaces);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+        /* 2. parse core xml */
+        return_value = arm_mcd_parse_core_xml_file(cc, reggroups,
+            registers, &current_group_id);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+        /* 3. parse other xmls */
+        return_value = arm_mcd_parse_general_xml_files(cpu, reggroups,
+            registers, &current_group_id);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+        /* 4. add additional data the the regs from the xmls */
+        return_value = arm_mcd_get_additional_register_info(reggroups,
+            registers, cpu);
+        if (return_value != 0) {
+            g_assert_not_reached();
+        }
+        /* 5. store all found data */
+        if (g_list_nth(mcdserver_state.all_memspaces, cpu_id)) {
+            GList *memspaces_ptr =
+                g_list_nth(mcdserver_state.all_memspaces, cpu_id);
+            memspaces_ptr->data = memspaces;
+        } else {
+            mcdserver_state.all_memspaces =
+                g_list_insert(mcdserver_state.all_memspaces, memspaces, cpu_id);
+        }
+        if (g_list_nth(mcdserver_state.all_reggroups, cpu_id)) {
+            GList *reggroups_ptr =
+                g_list_nth(mcdserver_state.all_reggroups, cpu_id);
+            reggroups_ptr->data = reggroups;
+        } else {
+            mcdserver_state.all_reggroups =
+                g_list_insert(mcdserver_state.all_reggroups, reggroups, cpu_id);
+        }
+        if (g_list_nth(mcdserver_state.all_registers, cpu_id)) {
+            GList *registers_ptr =
+                g_list_nth(mcdserver_state.all_registers, cpu_id);
+            registers_ptr->data = registers;
+        } else {
+            mcdserver_state.all_registers =
+                g_list_insert(mcdserver_state.all_registers, registers, cpu_id);
+        }
+    } else {
+        /* we don't support other architectures */
+        g_assert_not_reached();
+    }
+}
+
+/**
+ * handle_close_core() - Handler for closing a core.
+ *
+ * Frees all memory allocated for core specific information. This includes
+ * memory spaces, register groups and registers.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_close_core(GArray *params, void *user_ctx)
+{
+    /* free memory for correct core */
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    GArray *memspaces = g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcdserver_state.all_memspaces =
+        g_list_remove(mcdserver_state.all_memspaces, memspaces);
+    g_array_free(memspaces, TRUE);
+    GArray *reggroups = g_list_nth_data(mcdserver_state.all_reggroups, cpu_id);
+    mcdserver_state.all_reggroups =
+        g_list_remove(mcdserver_state.all_reggroups, reggroups);
+    g_array_free(reggroups, TRUE);
+    GArray *registers = g_list_nth_data(mcdserver_state.all_registers, cpu_id);
+    mcdserver_state.all_registers =
+        g_list_remove(mcdserver_state.all_registers, registers);
+    g_array_free(registers, TRUE);
+}
+
+/**
  * mcd_handle_packet() - Evaluates the type of received packet and chooses the
  * correct handler.
  *
@@ -515,6 +672,39 @@ static int mcd_handle_packet(const char *line_buf)
             close_server_cmd_desc.cmd =
                 (char[2]) { TCP_CHAR_CLOSE_SERVER, '\0' };
             cmd_parser = &close_server_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_QUERY:
+        {
+            static MCDCmdParseEntry query_cmd_desc = {
+                .handler = handle_gen_query,
+            };
+            query_cmd_desc.cmd = (char[2]) { TCP_CHAR_QUERY, '\0' };
+            strcpy(query_cmd_desc.schema,
+                (char[2]) { ARG_SCHEMA_STRING, '\0' });
+            cmd_parser = &query_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_OPEN_CORE:
+        {
+            static MCDCmdParseEntry open_core_cmd_desc = {
+                .handler = handle_open_core,
+            };
+            open_core_cmd_desc.cmd = (char[2]) { TCP_CHAR_OPEN_CORE, '\0' };
+            strcpy(open_core_cmd_desc.schema,
+                (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
+            cmd_parser = &open_core_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_CLOSE_CORE:
+        {
+            static MCDCmdParseEntry close_core_cmd_desc = {
+                .handler = handle_close_core,
+            };
+            close_core_cmd_desc.cmd = (char[2]) { TCP_CHAR_CLOSE_CORE, '\0' };
+            strcpy(close_core_cmd_desc.schema,
+                (char[2]) { ARG_SCHEMA_CORENUM, '\0' });
+            cmd_parser = &close_core_cmd_desc;
         }
         break;
     default:
@@ -665,6 +855,49 @@ static void mcd_chr_event(void *opaque, QEMUChrEvent event)
 }
 
 /**
+ * handle_query_system() - Handler for the system query.
+ *
+ * Sends the system name, which is "qemu-system".
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_query_system(GArray *params, void *user_ctx)
+{
+    mcd_put_packet(MCD_SYSTEM_NAME);
+}
+
+/**
+ * handle_query_cores() - Handler for the core query.
+ *
+ * This function sends the type of core and number of cores currently
+ * simulated by QEMU. It also sends a device name for the MCD data structure.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_query_cores(GArray *params, void *user_ctx)
+{
+    /* get first cpu */
+    CPUState *cpu = mcd_first_attached_cpu();
+    if (!cpu) {
+        return;
+    }
+
+    ObjectClass *oc = object_get_class(OBJECT(cpu));
+    const char *cpu_model = object_class_get_name(oc);
+
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const gchar *arch = cc->gdb_arch_name(cpu);
+
+    uint32_t nr_cores = cpu->nr_cores;
+    char device_name[ARGUMENT_STRING_LENGTH] = {0};
+    if (arch) {
+        snprintf(device_name, sizeof(device_name), "qemu-%s-device", arch);
+    }
+    g_string_printf(mcdserver_state.str_buf, "%s=%s.%s=%s.%s=%u.",
+        TCP_ARGUMENT_DEVICE, device_name, TCP_ARGUMENT_CORE, cpu_model,
+        TCP_ARGUMENT_AMOUNT_CORE, nr_cores);
+    mcd_put_strbuf();
+}
+
+/**
  * init_query_cmds_table() - Initializes all query functions.
  *
  * This function adds all query functions to the mcd_query_cmds_table. This
@@ -672,7 +905,24 @@ static void mcd_chr_event(void *opaque, QEMUChrEvent event)
  * @mcd_query_cmds_table: Lookup table with all query commands.
  */
 static void init_query_cmds_table(MCDCmdParseEntry *mcd_query_cmds_table)
-{}
+{
+    /* initalizes a list of all query commands */
+    int cmd_number = 0;
+
+    MCDCmdParseEntry query_system = {
+        .handler = handle_query_system,
+        .cmd = QUERY_ARG_SYSTEM,
+    };
+    mcd_query_cmds_table[cmd_number] = query_system;
+    cmd_number++;
+
+    MCDCmdParseEntry query_cores = {
+        .handler = handle_query_cores,
+        .cmd = QUERY_ARG_CORES,
+    };
+    mcd_query_cmds_table[cmd_number] = query_cores;
+    cmd_number++;
+}
 
 /**
  * mcd_set_stop_cpu() - Sets c_cpu to the just stopped CPU.
@@ -922,4 +1172,125 @@ int mcdserver_start(const char *device)
     mcdserver_state.state = chr ? RS_IDLE : RS_INACTIVE;
 
     return 0;
+}
+
+void parse_reg_xml(const char *xml, int size, GArray* registers,
+    uint8_t reg_type, uint32_t reg_id_offset)
+{
+    /* iterates over the complete xml file */
+    int i, j;
+    uint32_t current_reg_id = reg_id_offset;
+    uint32_t internal_id;
+    int still_to_skip = 0;
+    char argument[64] = {0};
+    char value[64] = {0};
+    bool is_reg = false;
+    bool is_argument = false;
+    bool is_value = false;
+    GArray *reg_data;
+
+    char c;
+    char *c_ptr;
+
+    xml_attrib attribute_j;
+    const char *argument_j;
+    const char *value_j;
+
+    for (i = 0; i < size; i++) {
+        c = xml[i];
+        c_ptr = &c;
+
+        if (still_to_skip > 0) {
+            /* skip unwanted chars */
+            still_to_skip--;
+            continue;
+        }
+
+        if (strncmp(&xml[i], "<reg", 4) == 0) {
+            /* start of a register */
+            still_to_skip = 3;
+            is_reg = true;
+            reg_data = g_array_new(false, true, sizeof(xml_attrib));
+        } else if (is_reg) {
+            if (strncmp(&xml[i], "/>", 2) == 0) {
+                /* end of register info */
+                still_to_skip = 1;
+                is_reg = false;
+
+                /* create empty register */
+                mcd_reg_st my_register = (const struct mcd_reg_st){ 0 };
+
+                /* add found attribtues */
+                for (j = 0; j < reg_data->len; j++) {
+                    attribute_j = g_array_index(reg_data, xml_attrib, j);
+
+                    argument_j = attribute_j.argument;
+                    value_j = attribute_j.value;
+
+                    if (strcmp(argument_j, "name") == 0) {
+                        strcpy(my_register.name, value_j);
+                    } else if (strcmp(argument_j, "regnum") == 0) {
+                        my_register.id = atoi(value_j);
+                    } else if (strcmp(argument_j, "bitsize") == 0) {
+                        my_register.bitsize = atoi(value_j);
+                    } else if (strcmp(argument_j, "type") == 0) {
+                        strcpy(my_register.type, value_j);
+                    } else if (strcmp(argument_j, "group") == 0) {
+                        strcpy(my_register.group, value_j);
+                    }
+                }
+                /* add reg_type, internal_id and id*/
+                my_register.reg_type = reg_type;
+                my_register.internal_id = internal_id;
+                internal_id++;
+                if (!my_register.id) {
+                    my_register.id = current_reg_id;
+                    current_reg_id++;
+                } else {
+                    /* set correct ID for the next register */
+                    current_reg_id = my_register.id + 1;
+                }
+                /* store register */
+                g_array_append_vals(registers, (gconstpointer)&my_register, 1);
+                /* free memory */
+                g_array_free(reg_data, false);
+            } else {
+                /* store info for register */
+                switch (c) {
+                case ' ':
+                    break;
+                case '=':
+                    is_argument = false;
+                    break;
+                case '"':
+                    if (is_value) {
+                        /* end of value reached */
+                        is_value = false;
+                        /* store arg-val combo */
+                        xml_attrib current_attribute;
+                        strcpy(current_attribute.argument, argument);
+                        strcpy(current_attribute.value, value);
+                        g_array_append_vals(reg_data,
+                        (gconstpointer)&current_attribute, 1);
+                        memset(argument, 0, sizeof(argument));
+                        memset(value, 0, sizeof(value));
+                    } else {
+                        /*start of value */
+                        is_value = true;
+                    }
+                    break;
+                default:
+                    if (is_argument) {
+                        strncat(argument, c_ptr, 1);
+                    } else if (is_value) {
+                        strncat(value, c_ptr, 1);
+                    } else {
+                        is_argument = true;
+                        strncat(argument, c_ptr, 1);
+                    }
+                    break;
+                }
+            }
+        }
+    }
 }
