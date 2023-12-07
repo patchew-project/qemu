@@ -858,6 +858,326 @@ static void handle_reset(GArray *params, void *user_ctx)
 }
 
 /**
+ * mcd_memtohex() - Converts a byte array into a hex string.
+ *
+ * @mem: Pointer to byte array.
+ * @buf: Pointer to hex string.
+ * @len: Number of bytes.
+ */
+static void mcd_memtohex(GString *buf, const uint8_t *mem, int len)
+{
+    int i, c;
+    for (i = 0; i < len; i++) {
+        c = mem[i];
+        g_string_append_c(buf, nibble_to_hexchar(c >> 4));
+        g_string_append_c(buf, nibble_to_hexchar(c & 0xf));
+    }
+    g_string_append_c(buf, '\0');
+}
+
+/**
+ * mcd_hextomem() - Converts a hex string into a byte array.
+ *
+ * @mem: Pointer to byte array.
+ * @buf: Pointer to hex string.
+ * @len: Number of bytes.
+ */
+static void mcd_hextomem(GByteArray *mem, const char *buf, int len)
+{
+    int i;
+
+    for (i = 0; i < len; i++) {
+        guint8 byte = hexchar_to_nibble(buf[0]) << 4 |
+                      hexchar_to_nibble(buf[1]);
+        g_byte_array_append(mem, &byte, 1);
+        buf += 2;
+    }
+}
+
+/**
+ * mcd_read_register() - Reads a registers data and stores it into the buf.
+ *
+ * This function collects the register type and internal ID
+ * (depending on the XML file). Then it calls the architecture specific
+ * read function. For ARM this is :c:func:`arm_mcd_read_register`.
+ * @cpu: CPU to which the register belongs.
+ * @buf: Byte array with register data.
+ * @reg: General ID of the register.
+ */
+static int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUArchState *env = cpu_env(cpu);
+    GDBRegisterState *r;
+
+    if (reg < cc->gdb_num_core_regs) {
+        return cc->gdb_read_register(cpu, buf, reg);
+    }
+
+    for (guint i = 0; i < cpu->gdb_regs->len; i++) {
+        r = &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
+        if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
+            return r->get_reg(env, buf, reg - r->base_reg);
+        }
+    }
+    return 0;
+}
+
+/**
+ * mcd_write_register() - Writes data from the buf to a register.
+ *
+ * This function collects the register type and internal ID
+ * (depending on the XML file). Then it calls the architecture specific
+ * write function. For ARM this is :c:func:`arm_mcd_write_register`.
+ * @cpu: CPU to which the register belongs.
+ * @mem_buf: Byte array with register data.
+ * @reg: General ID of the register.
+ */
+static int mcd_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUArchState *env = cpu_env(cpu);
+    GDBRegisterState *r;
+
+    if (reg < cc->gdb_num_core_regs) {
+        return cc->gdb_write_register(cpu, mem_buf, reg);
+    }
+
+    for (guint i = 0; i < cpu->gdb_regs->len; i++) {
+        r = &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
+        if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
+            return r->set_reg(env, mem_buf, reg - r->base_reg);
+        }
+    }
+    return 0;
+}
+
+/**
+ * handle_read_register() - Handler for reading a register.
+ *
+ * This function calls :c:func:`mcd_read_register` to read a register. The
+ * register data gets stored in the mem_buf byte array. The data then gets
+ * converted into a hex string with :c:func:`mcd_memtohex` and then send.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_read_register(GArray *params, void *user_ctx)
+{
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint64_t reg_num = get_param(params, 1)->data_uint64_t;
+    int reg_size;
+
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    reg_size = mcd_read_register(cpu, mcdserver_state.mem_buf, reg_num);
+    mcd_memtohex(mcdserver_state.str_buf,
+        mcdserver_state.mem_buf->data, reg_size);
+    mcd_put_strbuf();
+}
+
+/**
+ * handle_write_register() - Handler for writing a register.
+ *
+ * This function converts the incoming hex string data into a byte array with
+ * :c:func:`mcd_hextomem`. Then it calls :c:func:`mcd_write_register` to write
+ * to the register.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_write_register(GArray *params, void *user_ctx)
+{
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint64_t reg_num = get_param(params, 1)->data_uint64_t;
+    uint32_t reg_size = get_param(params, 2)->data_uint32_t;
+
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    mcd_hextomem(mcdserver_state.mem_buf,
+        mcdserver_state.str_buf->str, reg_size);
+    if (mcd_write_register(cpu, mcdserver_state.mem_buf->data, reg_num) == 0) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+    } else {
+        mcd_put_packet(TCP_EXECUTION_SUCCESS);
+    }
+}
+
+/**
+ * mcd_read_write_physical_memory() - Reades or writes from/to a logical
+ * memory address.
+ * @address_space: Desired QEMU address space (e.g. secure/non-secure)
+ * @attributes: Access attributes
+ * @addr: (physical) memory address
+ * @buf: Buffer for memory data
+ * @len: Length of the memory access
+ * @is_write: True for writing and false for reading
+ */
+static int mcd_read_write_physical_memory(AddressSpace *address_space,
+    MemTxAttrs attributes, hwaddr addr, uint8_t *buf, int len, bool is_write)
+{
+    if (is_write) {
+        return address_space_write_rom(address_space, addr, attributes, buf,
+            len);
+    } else {
+        return address_space_read_full(address_space, addr, attributes, buf,
+            len);
+    }
+}
+
+/**
+ * mcd_read_write_memory() - Reades or writes from/to a logical memory address.
+ * @cpu: CPUState
+ * @address_space: Desired QEMU address space (e.g. secure/non-secure)
+ * @attributes: Access attributes
+ * @addr: (logical) memory address
+ * @buf: Buffer for memory data
+ * @len: Length of the memory access
+ * @is_write: True for writing and false for reading
+ */
+static int mcd_read_write_memory(CPUState *cpu, AddressSpace *address_space,
+    MemTxAttrs attributes, vaddr addr, uint8_t *buf, uint64_t len,
+    bool is_write)
+{
+    /* get physical address */
+    if (cpu_memory_get_physical_address(cpu, &addr, &len) != 0) {
+        return -1;
+    }
+    /* read memory */
+    return mcd_read_write_physical_memory(address_space, attributes, addr, buf,
+        len, is_write);
+}
+
+/**
+ * mcd_get_address_space() - Returnes the correct QEMU address space name
+ * @cpu: CPUState
+ * @cpu_id: Correct CPU ID
+ * @mem_space: Desired mcd specific memory space.
+ */
+static AddressSpace *mcd_get_address_space(CPUState *cpu, uint32_t cpu_id,
+    mcd_mem_space_st mem_space)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const gchar *arch = cc->gdb_arch_name(cpu);
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
+        return arm_mcd_get_address_space(cpu_id, mem_space);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+/**
+ * mcd_get_memtxattrs() - Returnes the correct QEMU address space access
+ * attributes
+ * @cpu: CPUState
+ * @mem_space: Desired mcd specific memory space.
+ */
+static MemTxAttrs mcd_get_memtxattrs(CPUState *cpu, mcd_mem_space_st mem_space)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const gchar *arch = cc->gdb_arch_name(cpu);
+    if (strcmp(arch, MCDSTUB_ARCH_ARM) == 0) {
+        return arm_mcd_get_memtxattrs(mem_space);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+/**
+ * handle_read_memory() - Handler for reading memory.
+ *
+ * First, this function checks whether reading a secure memory space is
+ * requested and changes the access mode with :c:func:`arm_mcd_set_scr`.
+ * Then it calls :c:func:`mcd_read_memory` to read memory. The collected
+ * data gets stored in the mem_buf byte array. The data then gets converted
+ * into a hex string with :c:func:`mcd_memtohex` and then send.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_read_memory(GArray *params, void *user_ctx)
+{
+    /* read input parameters */
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
+    uint64_t mem_address = get_param(params, 2)->data_uint64_t;
+    uint32_t len = get_param(params, 3)->data_uint32_t;
+    /* check which memory space was requested */
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    GArray *memspaces =
+        g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
+        mem_space_id - 1);
+    /* get data in the QEMU address space and access attributes */
+    AddressSpace *address_space = mcd_get_address_space(cpu, cpu_id, space);
+    MemTxAttrs attributes = mcd_get_memtxattrs(cpu, space);
+    /* read memory data */
+    g_byte_array_set_size(mcdserver_state.mem_buf, len);
+    if (space.is_physical) {
+        /* physical memory */
+        if (mcd_read_write_physical_memory(address_space, attributes,
+            mem_address, mcdserver_state.mem_buf->data,
+            mcdserver_state.mem_buf->len, false) != 0) {
+            mcd_put_packet(TCP_EXECUTION_ERROR);
+            return;
+        }
+    } else {
+        /* user space memory */
+        if (mcd_read_write_memory(cpu, address_space, attributes, mem_address,
+            mcdserver_state.mem_buf->data, mcdserver_state.mem_buf->len,
+            false) != 0) {
+            mcd_put_packet(TCP_EXECUTION_ERROR);
+            return;
+        }
+    }
+    /* send data */
+    mcd_memtohex(mcdserver_state.str_buf, mcdserver_state.mem_buf->data,
+        mcdserver_state.mem_buf->len);
+    mcd_put_strbuf();
+}
+
+/**
+ * handle_write_memory() - Handler for writing memory.
+ *
+ * First, this function checks whether reading a secure memory space is
+ * requested and changes the access mode with :c:func:`arm_mcd_set_scr`.
+ * Then it converts the incoming hex string data into a byte array with
+ * :c:func:`mcd_hextomem`. Then it calls :c:func:`mcd_write_memory` to write to
+ * the register.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_write_memory(GArray *params, void *user_ctx)
+{
+    /* read input parameters */
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint32_t mem_space_id = get_param(params, 1)->data_uint32_t;
+    uint64_t mem_address = get_param(params, 2)->data_uint64_t;
+    uint32_t len = get_param(params, 3)->data_uint32_t;
+    /* check which memory space was requested */
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    GArray *memspaces =
+        g_list_nth_data(mcdserver_state.all_memspaces, cpu_id);
+    mcd_mem_space_st space = g_array_index(memspaces, mcd_mem_space_st,
+        mem_space_id - 1);
+    /* get data in the QEMU address space and access attributes */
+    AddressSpace *address_space = mcd_get_address_space(cpu, cpu_id, space);
+    MemTxAttrs attributes = mcd_get_memtxattrs(cpu, space);
+    /* write memory data */
+    mcd_hextomem(mcdserver_state.mem_buf, mcdserver_state.str_buf->str, len);
+    if (space.is_physical) {
+        /* physical memory */
+        if (mcd_read_write_physical_memory(address_space, attributes,
+            mem_address, mcdserver_state.mem_buf->data,
+            mcdserver_state.mem_buf->len, true) != 0) {
+            mcd_put_packet(TCP_EXECUTION_ERROR);
+            return;
+        }
+    } else {
+        /* user space memory */
+        if (mcd_read_write_memory(cpu, address_space, attributes, mem_address,
+            mcdserver_state.mem_buf->data, mcdserver_state.mem_buf->len,
+            true) != 0) {
+            mcd_put_packet(TCP_EXECUTION_ERROR);
+            return;
+        }
+    }
+    /* send acknowledge */
+    mcd_put_packet(TCP_EXECUTION_SUCCESS);
+}
+
+/**
  * mcd_handle_packet() - Evaluates the type of received packet and chooses the
  * correct handler.
  *
@@ -971,6 +1291,55 @@ static int mcd_handle_packet(const char *line_buf)
             reset_cmd_desc.cmd = (char[2]) { TCP_CHAR_RESET, '\0' };
             strcpy(reset_cmd_desc.schema, (char[2]) { ARG_SCHEMA_INT, '\0' });
             cmd_parser = &reset_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_READ_REGISTER:
+        {
+            static MCDCmdParseEntry read_reg_cmd_desc = {
+                .handler = handle_read_register,
+            };
+            read_reg_cmd_desc.cmd = (char[2]) { TCP_CHAR_READ_REGISTER, '\0' };
+            strcpy(read_reg_cmd_desc.schema,
+                (char[3]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T, '\0' });
+            cmd_parser = &read_reg_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_WRITE_REGISTER:
+        {
+            static MCDCmdParseEntry write_reg_cmd_desc = {
+                .handler = handle_write_register,
+            };
+            write_reg_cmd_desc.cmd =
+                (char[2]) { TCP_CHAR_WRITE_REGISTER, '\0' };
+            strcpy(write_reg_cmd_desc.schema,
+                (char[5]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T,
+                ARG_SCHEMA_INT, ARG_SCHEMA_HEXDATA, '\0' });
+            cmd_parser = &write_reg_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_READ_MEMORY:
+        {
+            static MCDCmdParseEntry read_mem_cmd_desc = {
+                .handler = handle_read_memory,
+            };
+            read_mem_cmd_desc.cmd = (char[2]) { TCP_CHAR_READ_MEMORY, '\0' };
+            strcpy(read_mem_cmd_desc.schema,
+                (char[5]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT,
+                ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT, '\0' });
+            cmd_parser = &read_mem_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_WRITE_MEMORY:
+        {
+            static MCDCmdParseEntry write_mem_cmd_desc = {
+                .handler = handle_write_memory,
+            };
+            write_mem_cmd_desc.cmd = (char[2]) { TCP_CHAR_WRITE_MEMORY, '\0' };
+            strcpy(write_mem_cmd_desc.schema,
+                (char[6]) { ARG_SCHEMA_CORENUM, ARG_SCHEMA_INT,
+                ARG_SCHEMA_UINT64_T, ARG_SCHEMA_INT,
+                ARG_SCHEMA_HEXDATA, '\0' });
+            cmd_parser = &write_mem_cmd_desc;
         }
         break;
     default:

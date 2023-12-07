@@ -100,4 +100,19 @@ int arm_mcd_get_additional_register_info(GArray *reggroups, GArray *registers,
  */
 uint16_t arm_mcd_get_opcode(CPUState *cs, uint32_t n);
 
+/**
+ * arm_mcd_get_address_space() - Returnes the correct QEMU address space name
+ * @cpu_id: Correct CPU ID
+ * @mem_space: Desired mcd specific memory space.
+ */
+AddressSpace *arm_mcd_get_address_space(uint32_t cpu_id,
+    mcd_mem_space_st mem_space);
+
+/**
+ * arm_mcd_get_memtxattrs() - Returnes the correct QEMU address space access
+ * attributes
+ * @mem_space: Desired mcd specific memory space.
+ */
+MemTxAttrs arm_mcd_get_memtxattrs(mcd_mem_space_st mem_space);
+
 #endif /* ARM_MCDSTUB_H */
