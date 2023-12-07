@@ -80,8 +80,8 @@ void gdb_memtohex(GString *buf, const uint8_t *mem, int len)
     int i, c;
     for(i = 0; i < len; i++) {
         c = mem[i];
-        g_string_append_c(buf, tohex(c >> 4));
-        g_string_append_c(buf, tohex(c & 0xf));
+        g_string_append_c(buf, nibble_to_hexchar(c >> 4));
+        g_string_append_c(buf, nibble_to_hexchar(c & 0xf));
     }
     g_string_append_c(buf, '\0');
 }
@@ -91,7 +91,8 @@ void gdb_hextomem(GByteArray *mem, const char *buf, int len)
     int i;
 
     for(i = 0; i < len; i++) {
-        guint8 byte = fromhex(buf[0]) << 4 | fromhex(buf[1]);
+        guint8 byte = hexchar_to_nibble(buf[0]) << 4 |
+                      hexchar_to_nibble(buf[1]);
         g_byte_array_append(mem, &byte, 1);
         buf += 2;
     }
@@ -118,8 +119,8 @@ static void hexdump(const char *buf, int len,
         if (i < len) {
             char value = buf[i];
 
-            line_buffer[hex_col + 0] = tohex((value >> 4) & 0xF);
-            line_buffer[hex_col + 1] = tohex((value >> 0) & 0xF);
+            line_buffer[hex_col + 0] = nibble_to_hexchar((value >> 4) & 0xF);
+            line_buffer[hex_col + 1] = nibble_to_hexchar((value >> 0) & 0xF);
             line_buffer[txt_col + 0] = (value >= ' ' && value < 127)
                     ? value
                     : '.';
@@ -151,8 +152,8 @@ int gdb_put_packet_binary(const char *buf, int len, bool dump)
             csum += buf[i];
         }
         footer[0] = '#';
-        footer[1] = tohex((csum >> 4) & 0xf);
-        footer[2] = tohex((csum) & 0xf);
+        footer[1] = nibble_to_hexchar((csum >> 4) & 0xf);
+        footer[2] = nibble_to_hexchar((csum) & 0xf);
         g_byte_array_append(gdbserver_state.last_packet, footer, 3);
 
         gdb_put_buffer(gdbserver_state.last_packet->data,
@@ -2267,7 +2268,7 @@ void gdb_read_byte(uint8_t ch)
                 break;
             }
             gdbserver_state.line_buf[gdbserver_state.line_buf_index] = '\0';
-            gdbserver_state.line_csum = fromhex(ch) << 4;
+            gdbserver_state.line_csum = hexchar_to_nibble(ch) << 4;
             gdbserver_state.state = RS_CHKSUM2;
             break;
         case RS_CHKSUM2:
@@ -2277,7 +2278,7 @@ void gdb_read_byte(uint8_t ch)
                 gdbserver_state.state = RS_GETLINE;
                 break;
             }
-            gdbserver_state.line_csum |= fromhex(ch);
+            gdbserver_state.line_csum |= hexchar_to_nibble(ch);
 
             if (gdbserver_state.line_csum != (gdbserver_state.line_sum & 0xff)) {
                 trace_gdbstub_err_checksum_incorrect(gdbserver_state.line_sum, gdbserver_state.line_csum);
