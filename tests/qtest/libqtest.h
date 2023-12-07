@@ -1085,4 +1085,14 @@ bool have_qemu_img(void);
  */
 bool mkimg(const char *file, const char *fmt, unsigned size_mb);
 
+/**
+ * qtest_query_version:
+ * @who: QTestState instance to operate on
+ * @major: Pointer to where to store the major version number
+ * @minor: Pointer to where to store the minor version number
+ * @micro: Pointer to where to store the micro version number
+ *
+ */
+void qtest_query_version(QTestState *who, int *major, int *minor, int *micro);
+
 #endif
