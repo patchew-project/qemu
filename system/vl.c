@@ -2270,6 +2270,13 @@ static void user_register_global_props(void)
 
 static int do_configure_icount(void *opaque, QemuOpts *opts, Error **errp)
 {
+    if (!tcg_enabled()) {
+        error_setg(errp, "cannot configure icount, TCG support not available");
+        error_append_hint(errp, "-icount is not allowed with"
+                                " hardware virtualization\n");
+        return 1;
+    }
+
     return !icount_configure(opts, errp);
 }
 
@@ -2339,9 +2346,6 @@ static void configure_accelerators(const char *progname)
 {
     bool init_failed = false;
 
-    qemu_opts_foreach(qemu_find_opts("icount"),
-                      do_configure_icount, NULL, &error_fatal);
-
     if (QTAILQ_EMPTY(&qemu_accel_opts.head)) {
         char **accel_list, **tmp;
 
@@ -2401,10 +2405,8 @@ static void configure_accelerators(const char *progname)
         error_report("falling back to %s", current_accel_name());
     }
 
-    if (icount_enabled() && !tcg_enabled()) {
-        error_report("-icount is not allowed with hardware virtualization");
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("icount"),
+                      do_configure_icount, NULL, &error_fatal);
 }
 
 static void qemu_validate_options(const QDict *machine_opts)
