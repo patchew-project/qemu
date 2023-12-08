@@ -7,6 +7,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
+import shutil
 
 from avocado import skipUnless
 from avocado.utils import archive
@@ -123,13 +124,15 @@ class Aarch64SbsarefMachine(QemuSystemTest):
 
         iso_hash = "5a36304ecf039292082d92b48152a9ec21009d3a62f459de623e19c4bd9dc027"
         iso_path = self.fetch_asset(iso_url, algorithm="sha256", asset_hash=iso_hash)
+        iso_path_rw = os.path.join(self.workdir, os.path.basename(iso_path))
+        shutil.copy(iso_path, iso_path_rw)
 
         self.vm.set_console()
         self.vm.add_args(
             "-cpu",
             cpu,
             "-drive",
-            f"file={iso_path},format=raw",
+            f"file={iso_path_rw},format=raw",
             "-device",
             "virtio-rng-pci,rng=rng0",
             "-object",
@@ -170,13 +173,15 @@ class Aarch64SbsarefMachine(QemuSystemTest):
 
         img_hash = "7fc2c75401d6f01fbfa25f4953f72ad7d7c18650056d30755c44b9c129b707e5"
         img_path = self.fetch_asset(img_url, algorithm="sha256", asset_hash=img_hash)
+        img_path_rw = os.path.join(self.workdir, os.path.basename(img_path))
+        shutil.copy(img_path, img_path_rw)
 
         self.vm.set_console()
         self.vm.add_args(
             "-cpu",
             cpu,
             "-drive",
-            f"file={img_path},format=raw",
+            f"file={img_path_rw},format=raw",
             "-device",
             "virtio-rng-pci,rng=rng0",
             "-object",
