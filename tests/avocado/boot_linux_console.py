@@ -303,6 +303,11 @@ class BootLinuxConsole(LinuxKernelTest):
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
                       'generic_nano32r6el_page4k.xz')
         kernel_hash = '477456aafd2a0f1ddc9482727f20fe9575565dd6'
+
+        # The following line is a no-op that aids the avocado
+        # fetchasset plugin that runs before any portion of the test
+        self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
         self.do_test_mips_malta32el_nanomips(kernel_url, kernel_hash)
 
     def test_mips_malta32el_nanomips_16k_up(self):
@@ -316,6 +321,11 @@ class BootLinuxConsole(LinuxKernelTest):
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
                       'generic_nano32r6el_page16k_up.xz')
         kernel_hash = 'e882868f944c71c816e832e2303b7874d044a7bc'
+
+        # The following line is a no-op that aids the avocado
+        # fetchasset plugin that runs before any portion of the test
+        self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
         self.do_test_mips_malta32el_nanomips(kernel_url, kernel_hash)
 
     def test_mips_malta32el_nanomips_64k_dbg(self):
@@ -329,6 +339,11 @@ class BootLinuxConsole(LinuxKernelTest):
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
                       'generic_nano32r6el_page64k_dbg.xz')
         kernel_hash = '18d1c68f2e23429e266ca39ba5349ccd0aeb7180'
+
+        # The following line is a no-op that aids the avocado
+        # fetchasset plugin that runs before any portion of the test
+        self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
         self.do_test_mips_malta32el_nanomips(kernel_url, kernel_hash)
 
     def test_aarch64_xlnx_versal_virt(self):
