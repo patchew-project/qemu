@@ -27,7 +27,8 @@ class NetDevEthtool(QemuSystemTest):
         url = base_url + name
         # use explicit name rather than failing to neatly parse the
         # URL into a unique one
-        return self.fetch_asset(name=name, locations=(url), asset_hash=sha1)
+        return self.fetch_asset(name=f"qemu-netdev-ethtool-{name}",
+                                locations=(url), asset_hash=sha1)
 
     def common_test_code(self, netdev, extra_args=None):
 

@@ -40,7 +40,8 @@ class KVMXenGuest(QemuSystemTest, LinuxSSHMixIn):
         url = base_url + name
         # use explicit name rather than failing to neatly parse the
         # URL into a unique one
-        return self.fetch_asset(name=name, locations=(url), asset_hash=sha1)
+        return self.fetch_asset(name=f"qemu-kvm-xen-guest-{name}",
+                                locations=(url), asset_hash=sha1)
 
     def common_vm_setup(self):
         # We also catch lack of KVM_XEN support if we fail to launch
