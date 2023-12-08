@@ -11,8 +11,6 @@
 
 #include "hw/arm/bcm2835_peripherals.h"
 
-#define GENET_OFFSET            0x1580000
-
 /* SPI */
 #define GIC_SPI_INTERRUPT_MBOX         33
 #define GIC_SPI_INTERRUPT_MPHI         40

@@ -14,7 +14,7 @@
 #include "hw/arm/bcm2838.h"
 #include "trace.h"
 
-#define GIC400_MAINTAINANCE_IRQ      9
+#define GIC400_MAINTENANCE_IRQ      9
 #define GIC400_TIMER_NS_EL2_IRQ     10
 #define GIC400_TIMER_VIRT_IRQ       11
 #define GIC400_LEGACY_FIQ           12
@@ -163,7 +163,7 @@ static void bcm2838_realize(DeviceState *dev, Error **errp)
 
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), n + 4 * BCM283X_NCPUS,
                            qdev_get_gpio_in(gicdev,
-                                            PPI(n, GIC400_MAINTAINANCE_IRQ)));
+                                            PPI(n, GIC400_MAINTENANCE_IRQ)));
 
         /* Connect timers from the CPU to the interrupt controller */
         qdev_connect_gpio_out(cpudev, GTIMER_PHYS,
