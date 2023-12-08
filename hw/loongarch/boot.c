@@ -16,10 +16,14 @@
 
 enum {
     SLAVE_BOOT,
+    EFI_SYSTAB,
+    EFI_TABLES,
 };
 
 static const MemMapEntry loader_rommap[] = {
     [SLAVE_BOOT] = {0xf100000, 0x10000},
+    [EFI_SYSTAB] = {0xf200000, 0x10000},
+    [EFI_TABLES] = {0xf300000, 0x10000},
 };
 
 static unsigned int slave_boot_code[] = {
@@ -69,6 +73,39 @@ static unsigned int slave_boot_code[] = {
     0x00150181,   /* move       $r1,$r12            */
     0x4c000020,   /* jirl       $r0,$r1,0           */
 };
+
+static void init_systab(struct loongarch_boot_info *info)
+{
+    struct efi_system_table *systab;
+    struct efi_configuration_table *efi_tables;
+    systab = g_malloc0(loader_rommap[EFI_SYSTAB].size);
+    efi_tables = g_malloc0(loader_rommap[EFI_TABLES].size);
+
+    systab->hdr.signature = EFI_SYSTEM_TABLE_SIGNATURE;
+    systab->hdr.revision = EFI_SPECIFICATION_VERSION;
+    systab->hdr.revision = sizeof(struct efi_system_table),
+    systab->fw_revision = FW_VERSION << 16 | FW_PATCHLEVEL << 8;
+    systab->runtime = 0;
+    systab->boottime = 0;
+    systab->nr_tables = 0;
+    systab->tables = efi_tables;
+
+    rom_add_blob_fixed("tables_rom", efi_tables,
+                       loader_rommap[EFI_TABLES].size,
+                       loader_rommap[EFI_TABLES].base);
+
+    systab->tables = (struct efi_configuration_table *)
+                     loader_rommap[EFI_TABLES].base;
+
+    rom_add_blob_fixed("systab_rom", systab,
+                       loader_rommap[EFI_SYSTAB].size,
+                       loader_rommap[EFI_SYSTAB].base);
+
+    info->a2 = loader_rommap[EFI_SYSTAB].base;
+
+    g_free(systab);
+    g_free(efi_tables);
+}
 
 static int init_cmdline(struct loongarch_boot_info *info)
 {
@@ -131,6 +168,7 @@ static int64_t load_kernel_info(struct loongarch_boot_info *info)
     }
 
     init_cmdline(info);
+    init_systab(info);
 
     return kernel_entry;
 }
@@ -145,6 +183,7 @@ static void reset_load_elf(void *opaque)
 	if (cpu == LOONGARCH_CPU(first_cpu)) {
             env->gpr[4] = env->boot_info->a0;
             env->gpr[5] = env->boot_info->a1;
+            env->gpr[6] = env->boot_info->a2;
         }
         cpu_set_pc(CPU(cpu), env->elf_address);
     }
