@@ -14,6 +14,62 @@
 #include "qemu/error-report.h"
 #include "sysemu/reset.h"
 
+enum {
+    SLAVE_BOOT,
+};
+
+static const MemMapEntry loader_rommap[] = {
+    [SLAVE_BOOT] = {0xf100000, 0x10000},
+};
+
+static unsigned int slave_boot_code[] = {
+                  /* Configure reset ebase.         */
+    0x0400302c,   /* csrwr      $r12,0xc            */
+
+                  /* Disable interrupt.             */
+    0x0380100c,   /* ori        $r12,$r0,0x4        */
+    0x04000180,   /* csrxchg    $r0,$r12,0x0        */
+
+                  /* Clear mailbox.                 */
+    0x1400002d,   /* lu12i.w    $r13,1(0x1)         */
+    0x038081ad,   /* ori        $r13,$r13,0x20      */
+    0x06481da0,   /* iocsrwr.d  $r0,$r13            */
+
+                  /* Enable IPI interrupt.          */
+    0x1400002c,   /* lu12i.w    $r12,1(0x1)         */
+    0x0400118c,   /* csrxchg    $r12,$r12,0x4       */
+    0x02fffc0c,   /* addi.d     $r12,$r0,-1(0xfff)  */
+    0x1400002d,   /* lu12i.w    $r13,1(0x1)         */
+    0x038011ad,   /* ori        $r13,$r13,0x4       */
+    0x064819ac,   /* iocsrwr.w  $r12,$r13           */
+    0x1400002d,   /* lu12i.w    $r13,1(0x1)         */
+    0x038081ad,   /* ori        $r13,$r13,0x20      */
+
+                  /* Wait for wakeup  <.L11>:       */
+    0x06488000,   /* idle       0x0                 */
+    0x03400000,   /* andi       $r0,$r0,0x0         */
+    0x064809ac,   /* iocsrrd.w  $r12,$r13           */
+    0x43fff59f,   /* beqz       $r12,-12(0x7ffff4) # 48 <.L11> */
+
+                  /* Read and clear IPI interrupt.  */
+    0x1400002d,   /* lu12i.w    $r13,1(0x1)         */
+    0x064809ac,   /* iocsrrd.w  $r12,$r13           */
+    0x1400002d,   /* lu12i.w    $r13,1(0x1)         */
+    0x038031ad,   /* ori        $r13,$r13,0xc       */
+    0x064819ac,   /* iocsrwr.w  $r12,$r13           */
+
+                  /* Disable  IPI interrupt.        */
+    0x1400002c,   /* lu12i.w    $r12,1(0x1)         */
+    0x04001180,   /* csrxchg    $r0,$r12,0x4        */
+
+                  /* Read mail buf and jump to specified entry */
+    0x1400002d,   /* lu12i.w    $r13,1(0x1)         */
+    0x038081ad,   /* ori        $r13,$r13,0x20      */
+    0x06480dac,   /* iocsrrd.d  $r12,$r13           */
+    0x00150181,   /* move       $r1,$r12            */
+    0x4c000020,   /* jirl       $r0,$r1,0           */
+};
+
 static int init_cmdline(struct loongarch_boot_info *info)
 {
     hwaddr cmdline_addr;
@@ -136,11 +192,19 @@ static void loongarch_direct_kernel_boot(LoongArchMachineState *lams,
     int i;
 
     kernel_addr = load_kernel_info(info);
+
+    rom_add_blob_fixed("slave_boot", slave_boot_code, sizeof(slave_boot_code),
+                       loader_rommap[SLAVE_BOOT].base);
+
     if (!machine->firmware) {
         for (i = 0; i < machine->smp.cpus; i++) {
             lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
             lacpu->env.load_elf = true;
-            lacpu->env.elf_address = kernel_addr;
+            if (i == 0) {
+                lacpu->env.elf_address = kernel_addr;
+            } else {
+                lacpu->env.elf_address = loader_rommap[SLAVE_BOOT].base;
+            }
             lacpu->env.boot_info = info;
         }
     }
