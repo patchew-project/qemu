@@ -1168,7 +1168,6 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
     write_flags = read_flags;
     if (is_ram) {
         iotlb = memory_region_get_ram_addr(section->mr) + xlat;
-        assert(!(iotlb & ~TARGET_PAGE_MASK));
         /*
          * Computing is_clean is expensive; avoid all that unless
          * the page is actually writable.
@@ -1231,9 +1230,8 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
 
     /* refill the tlb */
     /*
-     * When memory region is ram, iotlb contains a TARGET_PAGE_BITS
-     * aligned ram_addr_t of the page base of the target RAM.
-     * Otherwise, iotlb contains
+     * When memory region is ram, iotlb contains ram_addr_t of the page base
+     * of the target RAM. Otherwise, iotlb contains
      *  - a physical section number in the lower TARGET_PAGE_BITS
      *  - the offset within section->mr of the page base (I/O, ROMD) with the
      *    TARGET_PAGE_BITS masked off.
