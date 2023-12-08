@@ -27,6 +27,11 @@
 #define UTP_RESPONSE_UPIU_OFFSET 1024
 #define UTP_PRDT_UPIU_OFFSET 2048
 
+#define ZONE_SIZE (2 * 1024 * 1024)
+#define MAX_OPEN_ZONE 6
+#define NUM_ZONES (TEST_IMAGE_SIZE / ZONE_SIZE)
+#define REPORT_ZONES_DESC_HD_SIZE 64
+
 typedef struct QUfs QUfs;
 
 struct QUfs {
@@ -534,6 +539,160 @@ static void ufstest_read_write(void *obj, void *data, QGuestAllocator *alloc)
     ufs_exit(ufs, alloc);
 }
 
+static void ufstest_zufs_init(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QUfs *ufs = obj;
+    const int test_lun = 2;
+
+    uint8_t buf[4096] = { 0 };
+    const uint8_t request_sense_cdb[UFS_CDB_SIZE] = {
+        REQUEST_SENSE,
+        0x01,
+        0x00,
+        0x00,
+    };
+    /* VPD 0x00 page */
+    const uint8_t inquiry_vpd_00_cdb[UFS_CDB_SIZE] = {
+        INQUIRY,
+        0x01, /* EVPD */
+        0x00, /* page code */
+        0x00, 0x40, /* length */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    /* VPD 0xb6 page */
+    const uint8_t inquiry_vpd_b6_cdb[UFS_CDB_SIZE] = {
+        INQUIRY, 0x01, /* EVPD */
+        0xb6, /* page code */
+        0x00, 0x40, /* length */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    /* Report zones */
+    const uint8_t report_zones_cdb[UFS_CDB_SIZE] = {
+        ZBC_IN, ZI_REPORT_ZONES,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* LBA */
+        0x00, 0x00, 0x02, 0x00, /* length */
+        0x00, 0x00
+    };
+    UtpTransferReqDesc utrd;
+    UtpUpiuRsp rsp_upiu;
+    uint32_t zone_list_len;
+
+    ufs_init(ufs, alloc);
+
+    /* Clear Unit Attention */
+    ufs_send_scsi_command(ufs, 0, test_lun, request_sense_cdb, NULL, 0, buf,
+                          sizeof(buf), &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, CHECK_CONDITION);
+
+    /* Inquiry VPD page: 0x00 */
+    ufs_send_scsi_command(ufs, 0, test_lun, inquiry_vpd_00_cdb, NULL, 0, buf,
+                          sizeof(buf), &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==,
+                     UFS_COMMAND_RESULT_SUCCESS);
+    g_assert_cmpuint(buf[0], ==, TYPE_ZBC);
+    g_assert_cmpuint(buf[7], ==, 0xb6);
+
+    /* Inquiry VPD page: 0xb6 */
+    ufs_send_scsi_command(ufs, 0, test_lun, inquiry_vpd_b6_cdb, NULL, 0, buf,
+                          sizeof(buf), &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==,
+                     UFS_COMMAND_RESULT_SUCCESS);
+    g_assert_cmpuint(buf[0], ==, TYPE_ZBC);
+    /* ZBC device characteristics */
+    g_assert_cmpuint(buf[1], ==, 0xb6);
+    /* Number of max open zones */
+    g_assert_cmpuint(buf[19], ==, MAX_OPEN_ZONE);
+
+    /* Report zones */
+    ufs_send_scsi_command(ufs, 0, test_lun, report_zones_cdb, NULL, 0, buf,
+                          sizeof(buf), &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==,
+                     UFS_COMMAND_RESULT_SUCCESS);
+    zone_list_len = ldl_be_p(&buf[0]);
+    g_assert_cmpuint(zone_list_len, ==, REPORT_ZONES_DESC_HD_SIZE * NUM_ZONES);
+
+    ufs_exit(ufs, alloc);
+}
+
+static void ufstest_zufs_write(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QUfs *ufs = obj;
+    uint8_t read_buf[4096] = { 0 };
+    uint8_t write_buf[4096] = { 0 };
+    const uint8_t read_capacity_cdb[UFS_CDB_SIZE] = {
+        /* allocation length 4096 */
+        SERVICE_ACTION_IN_16,
+        SAI_READ_CAPACITY_16,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x10,
+        0x00,
+        0x00,
+        0x00
+    };
+    const uint8_t request_sense_cdb[UFS_CDB_SIZE] = {
+        REQUEST_SENSE,
+    };
+    const uint8_t write_cdb[UFS_CDB_SIZE] = {
+        /* WRITE(16) to LBA 0, transfer length 1 */
+        WRITE_16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00,     0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00
+    };
+    uint32_t block_size;
+    UtpTransferReqDesc utrd;
+    UtpUpiuRsp rsp_upiu;
+    const int test_lun = 2;
+
+    ufs_init(ufs, alloc);
+
+    /* Clear Unit Attention */
+    ufs_send_scsi_command(ufs, 0, test_lun, request_sense_cdb, NULL, 0,
+                          read_buf, sizeof(read_buf), &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, CHECK_CONDITION);
+
+    /* Read capacity */
+    ufs_send_scsi_command(ufs, 0, test_lun, read_capacity_cdb, NULL, 0,
+                          read_buf, sizeof(read_buf), &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==,
+                     UFS_COMMAND_RESULT_SUCCESS);
+    block_size = ldl_be_p(&read_buf[8]);
+    g_assert_cmpuint(block_size, ==, 4096);
+
+    /* Write data */
+    memset(write_buf, 0xab, block_size);
+    ufs_send_scsi_command(ufs, 0, test_lun, write_cdb, write_buf, block_size,
+                          NULL, 0, &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==,
+                     UFS_COMMAND_RESULT_SUCCESS);
+
+    /* Unaligned write error */
+    ufs_send_scsi_command(ufs, 0, test_lun, write_cdb, write_buf, block_size,
+                          NULL, 0, &utrd, &rsp_upiu);
+    g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, CHECK_CONDITION);
+    /* asc == 0x21 */
+    g_assert_cmpint(rsp_upiu.sr.sense_data[12], ==, 0x21);
+    /* ascq == 0x04 */
+    g_assert_cmpint(rsp_upiu.sr.sense_data[13], ==, 0x04);
+
+    ufs_exit(ufs, alloc);
+}
+
 static void drive_destroy(void *path)
 {
     unlink(path);
@@ -569,6 +728,19 @@ static void *ufs_blk_test_setup(GString *cmd_line, void *arg)
     return arg;
 }
 
+static void *ufs_zufs_test_setup(GString *cmd_line, void *arg)
+{
+    char *tmp_path = drive_create();
+
+    g_string_append_printf(cmd_line,
+                           " -blockdev file,filename=%s,node-name=drv2 "
+                           "-device ufs-lu,bus=ufs0,drive=drv2,lun=2,"
+                           "zoned=on,zoned.max_open=%d,zoned.zone_size=%d",
+                           tmp_path, MAX_OPEN_ZONE, ZONE_SIZE);
+
+    return arg;
+}
+
 static void ufs_register_nodes(void)
 {
     const char *arch;
@@ -580,6 +752,10 @@ static void ufs_register_nodes(void)
 
     QOSGraphTestOptions io_test_opts = {
         .before = ufs_blk_test_setup,
+    };
+
+    QOSGraphTestOptions zufs_io_test_opts = {
+        .before = ufs_zufs_test_setup,
     };
 
     add_qpci_address(&edge_opts, &(QPCIAddress){ .devfn = QPCI_DEVFN(4, 0) });
@@ -601,6 +777,8 @@ static void ufs_register_nodes(void)
     }
     qos_add_test("init", "ufs", ufstest_init, NULL);
     qos_add_test("read-write", "ufs", ufstest_read_write, &io_test_opts);
+    qos_add_test("zufs-init", "ufs", ufstest_zufs_init, &zufs_io_test_opts);
+    qos_add_test("zufs-write", "ufs", ufstest_zufs_write, &zufs_io_test_opts);
 }
 
 libqos_init(ufs_register_nodes);
