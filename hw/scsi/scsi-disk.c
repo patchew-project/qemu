@@ -1083,11 +1083,14 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
                            int page_control)
 {
     static const int mode_sense_valid[0x3f] = {
-        [MODE_PAGE_VENDOR_SPECIFIC]        = (1 << TYPE_DISK) | (1 << TYPE_ROM),
-        [MODE_PAGE_HD_GEOMETRY]            = (1 << TYPE_DISK),
-        [MODE_PAGE_FLEXIBLE_DISK_GEOMETRY] = (1 << TYPE_DISK),
-        [MODE_PAGE_CACHING]                = (1 << TYPE_DISK) | (1 << TYPE_ROM),
-        [MODE_PAGE_R_W_ERROR]              = (1 << TYPE_DISK) | (1 << TYPE_ROM),
+        [MODE_PAGE_VENDOR_SPECIFIC]        = (1 << TYPE_DISK) | (1 << TYPE_ROM)
+                                                              | (1 << TYPE_ZBC),
+        [MODE_PAGE_HD_GEOMETRY]            = (1 << TYPE_DISK) | (1 << TYPE_ZBC),
+        [MODE_PAGE_FLEXIBLE_DISK_GEOMETRY] = (1 << TYPE_DISK) | (1 << TYPE_ZBC),
+        [MODE_PAGE_CACHING]                = (1 << TYPE_DISK) | (1 << TYPE_ROM)
+                                                              | (1 << TYPE_ZBC),
+        [MODE_PAGE_R_W_ERROR]              = (1 << TYPE_DISK) | (1 << TYPE_ROM)
+                                                              | (1 << TYPE_ZBC),
         [MODE_PAGE_AUDIO_CTL]              = (1 << TYPE_ROM),
         [MODE_PAGE_CAPABILITIES]           = (1 << TYPE_ROM),
         [MODE_PAGE_APPLE_VENDOR]           = (1 << TYPE_ROM),
