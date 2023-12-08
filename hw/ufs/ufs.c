@@ -18,7 +18,11 @@
  *      -drive file=<file>,if=none,id=<drive_id>
  *      -device ufs,serial=<serial>,id=<bus_name>, \
  *              nutrs=<N[optional]>,nutmrs=<N[optional]>
- *      -device ufs-lu,drive=<drive_id>,bus=<bus_name>
+ *      -device ufs-lu,drive=<drive_id>,bus=<bus_name>, \
+ *              zoned=<true|false[optional]>,
+ *              zoned.zone_size=<N[optional]>, \
+ *              zoned.zone_capacity=<N[optional]>, \
+ *              zoned.max_open=<N[optional]>
  */
 
 #include "qemu/osdep.h"

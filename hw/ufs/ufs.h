@@ -15,6 +15,26 @@
 #include "hw/scsi/scsi.h"
 #include "block/ufs.h"
 
+typedef struct UfsZoneState {
+    int id;
+    int type;
+    UfsZoneCond cond;
+    uint64_t start;
+    uint64_t size;
+    uint64_t wp;
+} UfsZoneState;
+
+/* For Zoned Ufs */
+typedef struct UfsZoneDescriptor {
+    unsigned int zone_cap;
+    unsigned int zone_size;
+    unsigned int nr_zones;
+    unsigned int nr_open;
+    unsigned int max_open;
+} UfsZoneDescriptor;
+
+#define UFS_DEFAULT_ZONE_SIZE (128 * MiB)
+
 #define UFS_MAX_LUS 32
 #define UFS_BLOCK_SIZE_SHIFT 12
 #define UFS_BLOCK_SIZE (1 << UFS_BLOCK_SIZE_SHIFT)
@@ -62,6 +82,13 @@ typedef struct UfsRequest {
 struct UfsLu;
 typedef UfsReqResult (*UfsScsiOp)(struct UfsLu *, UfsRequest *);
 
+typedef struct UfsLuParams {
+    bool zoned;
+    uint64_t zone_cap;
+    uint64_t zone_size;
+    uint32_t zone_max_open;
+} UfsLuParams;
+
 typedef struct UfsLu {
     DeviceState qdev;
     uint8_t lun;
@@ -70,6 +97,11 @@ typedef struct UfsLu {
     SCSIDevice *scsi_dev;
     BlockConf conf;
     UfsScsiOp scsi_op;
+    /* For Zoned Ufs */
+    UfsLuParams params;
+    bool zone_enabled;
+    UfsZoneDescriptor zone_desc;
+    UfsZoneState *zone_array;
 } UfsLu;
 
 typedef struct UfsParams {

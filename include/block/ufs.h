@@ -547,6 +547,37 @@ enum {
     UFS_MASK_OCS = 0x0F,
 };
 
+/* enumeration names taken from table 26, zbcr05 */
+typedef enum UfsZoneCond {
+    ZBC_NOT_WRITE_POINTER = 0x0,
+    ZONE_COND_EMPTY = 0x1,
+    ZONE_COND_IMPLICIT_OPEN = 0x2,
+    ZONE_COND_EXPLICIT_OPEN = 0x3,
+    ZONE_COND_CLOSED = 0x4,
+    ZONE_COND_READ_ONLY = 0xd,
+    ZONE_COND_FULL = 0xe,
+    ZONE_COND_OFFLINE = 0xf,
+} UfsZoneCond;
+
+/*
+ *  ZBC_IN/OUT codes
+ */
+
+#define ZBC_OUT 0x94
+#define ZBC_IN 0x95
+
+typedef enum ZbcInCodes {
+    ZI_REPORT_ZONES = 0x00,
+    /* Support only ZI_REPORT_ZONES */
+} ZbcInCodes;
+
+typedef enum ZbcOutCodes {
+    ZO_CLOSE_ZONE = 0x01,
+    ZO_FINISH_ZONE = 0x02,
+    ZO_OPEN_ZONE = 0x03,
+    ZO_RESET_WRITE_POINTER = 0x04,
+} ZbcOutCodes;
+
 /*
  * struct UfshcdSgEntry - UFSHCI PRD Entry
  * @addr: Physical address; DW-0 and DW-1.
