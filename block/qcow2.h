@@ -128,6 +128,8 @@
 
 #define DEFAULT_CLUSTER_SIZE 65536
 
+#define DEFAULT_COMPRESSION_LEVEL INT8_MAX
+
 #define QCOW2_OPT_DATA_FILE "data-file"
 #define QCOW2_OPT_LAZY_REFCOUNTS "lazy-refcounts"
 #define QCOW2_OPT_DISCARD_REQUEST "pass-discard-request"
@@ -176,9 +178,10 @@ typedef struct QCowHeader {
 
     /* Additional fields */
     uint8_t compression_type;
+    uint8_t compression_level;
 
     /* header must be a multiple of 8 */
-    uint8_t padding[7];
+    uint8_t padding[6];
 } QEMU_PACKED QCowHeader;
 
 QEMU_BUILD_BUG_ON(!QEMU_IS_ALIGNED(sizeof(QCowHeader), 8));
@@ -422,6 +425,7 @@ typedef struct BDRVQcow2State {
      * is to convert the image with the desired compression type set.
      */
     Qcow2CompressionType compression_type;
+    int compression_level;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
@@ -1060,7 +1064,7 @@ uint64_t qcow2_get_persistent_dirty_bitmap_size(BlockDriverState *bs,
 
 ssize_t coroutine_fn
 qcow2_co_compress(BlockDriverState *bs, void *dest, size_t dest_size,
-                  const void *src, size_t src_size);
+                  const void *src, size_t src_size, int compression_level);
 ssize_t coroutine_fn
 qcow2_co_decompress(BlockDriverState *bs, void *dest, size_t dest_size,
                     const void *src, size_t src_size);

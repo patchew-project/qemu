@@ -5083,20 +5083,21 @@
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsQcow2',
-  'data': { 'file':             'BlockdevRef',
-            '*data-file':       'BlockdevRef',
-            '*data-file-raw':   'bool',
-            '*extended-l2':     'bool',
-            'size':             'size',
-            '*version':         'BlockdevQcow2Version',
-            '*backing-file':    'str',
-            '*backing-fmt':     'BlockdevDriver',
-            '*encrypt':         'QCryptoBlockCreateOptions',
-            '*cluster-size':    'size',
-            '*preallocation':   'PreallocMode',
-            '*lazy-refcounts':  'bool',
-            '*refcount-bits':   'int',
-            '*compression-type':'Qcow2CompressionType' } }
+  'data': { 'file':              'BlockdevRef',
+            '*data-file':        'BlockdevRef',
+            '*data-file-raw':    'bool',
+            '*extended-l2':      'bool',
+            'size':              'size',
+            '*version':          'BlockdevQcow2Version',
+            '*backing-file':     'str',
+            '*backing-fmt':      'BlockdevDriver',
+            '*encrypt':          'QCryptoBlockCreateOptions',
+            '*cluster-size':     'size',
+            '*preallocation':    'PreallocMode',
+            '*lazy-refcounts':   'bool',
+            '*refcount-bits':    'int',
+            '*compression-type': 'Qcow2CompressionType',
+            '*compression-level':'int' } }
 
 ##
 # @BlockdevCreateOptionsQed:

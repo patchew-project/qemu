@@ -1448,6 +1448,12 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    if (header.header_length > offsetof(QCowHeader, compression_level)) {
+        s->compression_level = header.compression_level;
+    } else {
+        s->compression_level = DEFAULT_COMPRESSION_LEVEL;
+    }
+
     if (s->incompatible_features & ~QCOW2_INCOMPAT_MASK) {
         void *feature_table = NULL;
         qcow2_read_extensions(bs, header.header_length, ext_end,
@@ -2958,6 +2964,7 @@ int qcow2_update_header(BlockDriverState *bs)
         .refcount_order         = cpu_to_be32(s->refcount_order),
         .header_length          = cpu_to_be32(header_length),
         .compression_type       = s->compression_type,
+        .compression_level      = s->compression_level,
     };
 
     /* For older versions, write a shorter header */
@@ -3508,6 +3515,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     uint64_t *refcount_table;
     int ret;
     uint8_t compression_type = QCOW2_COMPRESSION_TYPE_ZLIB;
+    uint8_t compression_level = DEFAULT_COMPRESSION_LEVEL;
 
     assert(create_options->driver == BLOCKDEV_DRIVER_QCOW2);
     qcow2_opts = &create_options->u.qcow2;
@@ -3686,6 +3694,10 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         compression_type = qcow2_opts->compression_type;
     }
 
+    if (qcow2_opts->has_compression_level) {
+        compression_level = qcow2_opts->compression_level;
+    }
+
     /* Create BlockBackend to write to the image */
     blk = blk_co_new_with_bs(bs, BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL,
                              errp);
@@ -3710,6 +3722,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         .refcount_order             = cpu_to_be32(refcount_order),
         /* don't deal with endianness since compression_type is 1 byte long */
         .compression_type           = compression_type,
+        .compression_level          = compression_level,
         .header_length              = cpu_to_be32(sizeof(*header)),
     };
 
@@ -3930,6 +3943,7 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
         { BLOCK_OPT_COMPAT_LEVEL,       "version" },
         { BLOCK_OPT_DATA_FILE_RAW,      "data-file-raw" },
         { BLOCK_OPT_COMPRESSION_TYPE,   "compression-type" },
+        { BLOCK_OPT_COMPRESSION_LEVEL,  "compression-level"},
         { NULL, NULL },
     };
 
@@ -4679,7 +4693,7 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
     out_buf = g_malloc(s->cluster_size);
 
     out_len = qcow2_co_compress(bs, out_buf, s->cluster_size - 1,
-                                buf, s->cluster_size);
+                                buf, s->cluster_size, s->compression_level);
     if (out_len == -ENOMEM) {
         /* could not compress: write normal cluster */
         ret = qcow2_co_pwritev_part(bs, offset, bytes, qiov, qiov_offset, 0);
@@ -6097,6 +6111,12 @@ static QemuOptsList qcow2_create_opts = {
             .help = "Compression method used for image cluster "        \
                     "compression",                                      \
             .def_value_str = "zlib"                                     \
+        },
+        {
+            .name = BLOCK_OPT_COMPRESSION_LEVEL,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Compression level used for image cluster "
+                    "compression"
         },
         QCOW_COMMON_OPTIONS,
         { /* end of list */ }

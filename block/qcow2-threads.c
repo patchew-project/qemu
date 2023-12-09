@@ -67,7 +67,27 @@ qcow2_co_process(BlockDriverState *bs, ThreadPoolFunc *func, void *arg)
  */
 
 typedef ssize_t (*Qcow2CompressFunc)(void *dest, size_t dest_size,
+                                     const void *src, size_t src_size,
+                                     int compression_level);
+typedef ssize_t (*Qcow2DecompressFunc)(void *dest, size_t dest_size,
                                      const void *src, size_t src_size);
+
+enum Qcow2CompressFuncType {
+    QCOW2_COMPRESS_FUNC,
+    QCOW2_DECOMPRESS_FUNC,
+};
+
+typedef struct Qcow2CompressFuncUnion {
+    enum Qcow2CompressFuncType type;
+    union {
+        struct {
+            Qcow2CompressFunc f;
+            int compression_level;
+        } cfunc;
+        Qcow2DecompressFunc dfunc;
+    } u;
+} Qcow2CompressFuncUnion;
+
 typedef struct Qcow2CompressData {
     void *dest;
     size_t dest_size;
@@ -75,7 +95,7 @@ typedef struct Qcow2CompressData {
     size_t src_size;
     ssize_t ret;
 
-    Qcow2CompressFunc func;
+    Qcow2CompressFuncUnion func;
 } Qcow2CompressData;
 
 /*
@@ -85,20 +105,26 @@ typedef struct Qcow2CompressData {
  *
  * @dest - destination buffer, @dest_size bytes
  * @src - source buffer, @src_size bytes
+ * @level - compression level
  *
  * Returns: compressed size on success
  *          -ENOMEM destination buffer is not enough to store compressed data
  *          -EIO    on any other error
  */
 static ssize_t qcow2_zlib_compress(void *dest, size_t dest_size,
-                                   const void *src, size_t src_size)
+                                   const void *src, size_t src_size, int level)
 {
     ssize_t ret;
     z_stream strm;
 
+    if (level == DEFAULT_COMPRESSION_LEVEL || 
+        level < Z_BEST_SPEED || level > Z_BEST_COMPRESSION) {
+        level = Z_DEFAULT_COMPRESSION;
+    }
+
     /* best compression, small window, no zlib header */
     memset(&strm, 0, sizeof(strm));
-    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+    ret = deflateInit2(&strm, level, Z_DEFLATED,
                        -12, 9, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK) {
         return -EIO;
@@ -180,13 +206,14 @@ static ssize_t qcow2_zlib_decompress(void *dest, size_t dest_size,
  *
  * @dest - destination buffer, @dest_size bytes
  * @src - source buffer, @src_size bytes
+ * @level - compression level
  *
  * Returns: compressed size on success
  *          -ENOMEM destination buffer is not enough to store compressed data
  *          -EIO    on any other error
  */
 static ssize_t qcow2_zstd_compress(void *dest, size_t dest_size,
-                                   const void *src, size_t src_size)
+                                   const void *src, size_t src_size, int level)
 {
     ssize_t ret;
     size_t zstd_ret;
@@ -200,9 +227,20 @@ static ssize_t qcow2_zstd_compress(void *dest, size_t dest_size,
         .size = src_size,
         .pos = 0
     };
-    ZSTD_CCtx *cctx = ZSTD_createCCtx();
+    ZSTD_CCtx *cctx;
 
+    if (level == DEFAULT_COMPRESSION_LEVEL ||
+        level < ZSTD_minCLevel() || level > ZSTD_maxCLevel()) {
+        level = ZSTD_CLEVEL_DEFAULT;
+    }
+
+    cctx = ZSTD_createCCtx();
     if (!cctx) {
+        return -EIO;
+    }
+
+    zstd_ret = ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, level);
+    if (ZSTD_isError(zstd_ret)) {
         return -EIO;
     }
     /*
@@ -329,15 +367,22 @@ static int qcow2_compress_pool_func(void *opaque)
 {
     Qcow2CompressData *data = opaque;
 
-    data->ret = data->func(data->dest, data->dest_size,
-                           data->src, data->src_size);
+    if (data->func.type == QCOW2_COMPRESS_FUNC) {
+        data->ret = data->func.u.cfunc.f(data->dest, data->dest_size,
+                                         data->src, data->src_size,
+                                         data->func.u.cfunc.compression_level);
+    } else {
+        data->ret = data->func.u.dfunc(data->dest, data->dest_size,
+                                       data->src, data->src_size);
+    }
 
     return 0;
 }
 
 static ssize_t coroutine_fn
 qcow2_co_do_compress(BlockDriverState *bs, void *dest, size_t dest_size,
-                     const void *src, size_t src_size, Qcow2CompressFunc func)
+                     const void *src, size_t src_size,
+                     Qcow2CompressFuncUnion func)
 {
     Qcow2CompressData arg = {
         .dest = dest,
@@ -366,19 +411,22 @@ qcow2_co_do_compress(BlockDriverState *bs, void *dest, size_t dest_size,
  */
 ssize_t coroutine_fn
 qcow2_co_compress(BlockDriverState *bs, void *dest, size_t dest_size,
-                  const void *src, size_t src_size)
+                  const void *src, size_t src_size, int compression_level)
 {
     BDRVQcow2State *s = bs->opaque;
-    Qcow2CompressFunc fn;
+    Qcow2CompressFuncUnion fn;
+
+    fn.type = QCOW2_COMPRESS_FUNC;
+    fn.u.cfunc.compression_level = compression_level;
 
     switch (s->compression_type) {
     case QCOW2_COMPRESSION_TYPE_ZLIB:
-        fn = qcow2_zlib_compress;
+        fn.u.cfunc.f = qcow2_zlib_compress;
         break;
 
 #ifdef CONFIG_ZSTD
     case QCOW2_COMPRESSION_TYPE_ZSTD:
-        fn = qcow2_zstd_compress;
+        fn.u.cfunc.f = qcow2_zstd_compress;
         break;
 #endif
     default:
@@ -406,16 +454,18 @@ qcow2_co_decompress(BlockDriverState *bs, void *dest, size_t dest_size,
                     const void *src, size_t src_size)
 {
     BDRVQcow2State *s = bs->opaque;
-    Qcow2CompressFunc fn;
+    Qcow2CompressFuncUnion fn;
+
+    fn.type = QCOW2_DECOMPRESS_FUNC;
 
     switch (s->compression_type) {
     case QCOW2_COMPRESSION_TYPE_ZLIB:
-        fn = qcow2_zlib_decompress;
+        fn.u.dfunc = qcow2_zlib_decompress;
         break;
 
 #ifdef CONFIG_ZSTD
     case QCOW2_COMPRESSION_TYPE_ZSTD:
-        fn = qcow2_zstd_decompress;
+        fn.u.dfunc = qcow2_zstd_decompress;
         break;
 #endif
     default:
