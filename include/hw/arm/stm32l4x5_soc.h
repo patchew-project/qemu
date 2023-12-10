@@ -37,6 +37,7 @@
 #include "qemu/units.h"
 #include "hw/qdev-core.h"
 #include "hw/arm/armv7m.h"
+#include "hw/misc/stm32l4xx_syscfg.h"
 #include "hw/misc/stm32l4x5_exti.h"
 #include "qom/object.h"
 
@@ -52,6 +53,7 @@ struct Stm32l4x5SocState {
     ARMv7MState armv7m;
 
     Stm32l4x5ExtiState exti;
+    STM32L4xxSyscfgState syscfg;
 
     MemoryRegion sram1;
     MemoryRegion sram2;
