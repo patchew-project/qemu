@@ -364,7 +364,7 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
     }
     d->device_id = v;
 
-    xen_host_pci_get_dec_value(d, "irq", &v, errp);
+    xen_host_pci_get_dec_value(d, "gsi", &v, errp);
     if (*errp) {
         goto error;
     }
