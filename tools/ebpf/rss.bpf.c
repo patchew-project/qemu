@@ -531,7 +531,7 @@ static inline bool calculate_rss_hash(struct __sk_buff *skb,
     return true;
 }
 
-SEC("tun_rss_steering")
+SEC("socket")
 int tun_rss_steering_prog(struct __sk_buff *skb)
 {
 
