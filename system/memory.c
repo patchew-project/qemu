@@ -539,6 +539,9 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     unsigned i;
     MemTxResult r = MEMTX_OK;
     bool reentrancy_guard_applied = false;
+    hwaddr aligned_addr;
+    unsigned corrected_size = size;
+    signed align_diff = 0;
 
     if (!access_size_min) {
         access_size_min = 1;
@@ -560,18 +563,25 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
         reentrancy_guard_applied = true;
     }
 
-    /* FIXME: support unaligned access? */
     access_size = MAX(MIN(size, access_size_max), access_size_min);
     access_mask = MAKE_64BIT_MASK(0, access_size * 8);
+    if (!mr->ops->impl.unaligned) {
+        aligned_addr = addr & ~(access_size - 1);
+        align_diff = addr - aligned_addr;
+        corrected_size = size < access_size ? access_size :
+                            size + (align_diff > 0 ? access_size : 0);
+        addr = aligned_addr;
+    }
     if (memory_region_big_endian(mr)) {
-        for (i = 0; i < size; i += access_size) {
+        for (i = 0; i < corrected_size; i += access_size) {
             r |= access_fn(mr, addr + i, value, access_size,
-                        (size - access_size - i) * 8, access_mask, attrs);
+                        (size - access_size - i + align_diff) * 8,
+                        access_mask, attrs);
         }
     } else {
-        for (i = 0; i < size; i += access_size) {
-            r |= access_fn(mr, addr + i, value, access_size, i * 8,
-                        access_mask, attrs);
+        for (i = 0; i < corrected_size; i += access_size) {
+            r |= access_fn(mr, addr + i, value, access_size,
+                        ((signed)i - align_diff) * 8, access_mask, attrs);
         }
     }
     if (mr->dev && reentrancy_guard_applied) {
