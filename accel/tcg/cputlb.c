@@ -1308,6 +1308,8 @@ static void tlb_fill(CPUState *cpu, vaddr addr, int size,
 {
     bool ok;
 
+    trace_tlb_fill(addr, size, access_type, mmu_idx);
+
     /*
      * This is not a probe, so only valid return is success; failure
      * should result in exception + longjmp to the cpu loop.
