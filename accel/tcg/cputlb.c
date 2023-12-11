@@ -201,6 +201,8 @@ static void tlb_mmu_resize_locked(CPUTLBDesc *desc, CPUTLBDescFast *fast,
         return;
     }
 
+    trace_tlb_resize(old_size, new_size);
+
     g_free(fast->table);
     g_free(desc->fulltlb);
 
