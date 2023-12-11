@@ -209,11 +209,12 @@ bool replay_exception(void)
         return true;
     } else if (replay_mode == REPLAY_MODE_PLAY) {
         g_assert(replay_mutex_locked());
-        bool res = replay_has_exception();
-        if (res) {
+        if (replay_has_exception()) {
             replay_finish_event();
+            return true;
+        } else {
+            replay_sync_error("Exception not in log");
         }
-        return res;
     }
 
     return true;
