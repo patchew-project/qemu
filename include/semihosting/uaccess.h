@@ -15,6 +15,7 @@
 #endif
 
 #include "exec/cpu-defs.h"
+#include "exec/page-prot-common.h"
 
 #define get_user_u64(val, addr)                                         \
     ({ uint64_t val_ = 0;                                               \

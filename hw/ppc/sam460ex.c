@@ -21,6 +21,7 @@
 #include "kvm_ppc.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/block-backend.h"
+#include "exec/page-prot-common.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "exec/memory.h"

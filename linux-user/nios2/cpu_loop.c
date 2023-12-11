@@ -22,6 +22,7 @@
 #include "user-internals.h"
 #include "cpu_loop-common.h"
 #include "signal-common.h"
+#include "exec/page-prot-common.h"
 
 void cpu_loop(CPUNios2State *env)
 {

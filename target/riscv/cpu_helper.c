@@ -24,6 +24,7 @@
 #include "internals.h"
 #include "pmu.h"
 #include "exec/exec-all.h"
+#include "exec/page-prot-common.h"
 #include "instmap.h"
 #include "tcg/tcg-op.h"
 #include "trace.h"
