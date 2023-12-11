@@ -52,6 +52,8 @@ _unsupported_fmt vpc
 _supported_proto file # We create the FUSE export manually
 _supported_os Linux # We need /dev/urandom
 
+_require_no_o_direct
+
 # $1: Export ID
 # $2: Options (beyond the node-name and ID)
 # $3: Expected return value (defaults to 'return')

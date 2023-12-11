@@ -40,6 +40,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # Format-agnostic (we do not use any), but we do test the file protocol
 _supported_proto file
 _require_drivers blkdebug null-co
+_require_no_o_direct
 
 if [ "$IMGOPTSSYNTAX" = "true" ]; then
     # We need `$QEMU_IO -f file` to work; IMGOPTSSYNTAX uses --image-opts,

@@ -857,6 +857,13 @@ _check_o_direct()
     [[ "$out" != *"O_DIRECT"* ]]
 }
 
+_require_no_o_direct()
+{
+    if [ $CACHEMODE == "none" ] || [ $CACHEMODE == "directsync" ]; then
+        _notrun "not suitable for cache mode: $CACHEMODE (implies O_DIRECT)"
+    fi
+}
+
 _require_o_direct()
 {
     if ! _check_o_direct; then

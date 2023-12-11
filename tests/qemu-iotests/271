@@ -44,6 +44,7 @@ _supported_fmt qcow2
 _supported_proto file nfs
 _supported_os Linux
 _unsupported_imgopts extended_l2 compat=0.10 cluster_size data_file refcount_bits=1[^0-9]
+_require_no_o_direct
 
 l2_offset=$((0x40000))
 
