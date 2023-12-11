@@ -41,6 +41,7 @@
 #ifdef CONFIG_PLUGIN
 #include "qemu/plugin-memory.h"
 #endif
+#include "tcg/abi_ptr.h"
 #include "tcg/tcg-ldst.h"
 #include "tcg/oversized-guest.h"
 

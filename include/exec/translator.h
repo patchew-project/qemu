@@ -19,7 +19,10 @@
  */
 
 #include "qemu/bswap.h"
-#include "exec/cpu_ldst.h"	/* for abi_ptr */
+#include "exec/cpu-common.h"
+#include "exec/cpu-defs.h"
+#include "cpu.h"
+#include "tcg/abi_ptr.h"
 
 /**
  * gen_intermediate_code
