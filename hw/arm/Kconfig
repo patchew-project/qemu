@@ -644,6 +644,9 @@ config ZAURUS
     select NAND
     select ECC
 
+config CORTEX_MPCORE
+    bool
+
 config A9MPCORE
     bool
     select A9_GTIMER
