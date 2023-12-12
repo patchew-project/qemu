@@ -66,8 +66,10 @@ static void x86_restore_state_to_opc(CPUState *cs,
 
     if (tb_cflags(tb) & CF_PCREL) {
         env->eip = (env->eip & TARGET_PAGE_MASK) | data[0];
+    } else if (tb->flags & HF_CS64_MASK) {
+        env->eip = data[0];
     } else {
-        env->eip = data[0] - tb->cs_base;
+        env->eip = (uint32_t)(data[0] - tb->cs_base);
     }
     if (cc_op != CC_OP_DYNAMIC) {
         env->cc_op = cc_op;
