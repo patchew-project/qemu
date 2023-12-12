@@ -65,11 +65,14 @@
 #include "exec/memopidx.h"
 #include "exec/abi_ptr.h"
 #include "qemu/int128.h"
-#include "cpu.h"
+#include "exec/cpu-defs.h"
+#include "exec/tlb-common.h"
 
 #if defined(CONFIG_USER_ONLY)
 
+#include "exec/user/abitypes.h"
 #include "exec/user/guest-base.h"
+#include "exec/cpu-all.h"
 
 #ifndef TARGET_TAGGED_ADDRESSES
 static inline abi_ptr cpu_untagged_addr(CPUState *cs, abi_ptr x)
