@@ -29,6 +29,7 @@
 #include "chardev/char.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "target/arm/cpu.h"
 
 #define IMX6_ESDHC_CAPABILITIES     0x057834b4
 
@@ -36,16 +37,9 @@
 
 static void fsl_imx6_init(Object *obj)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
     FslIMX6State *s = FSL_IMX6(obj);
     char name[NAME_SIZE];
     int i;
-
-    for (i = 0; i < MIN(ms->smp.cpus, FSL_IMX6_NUM_CPUS); i++) {
-        snprintf(name, NAME_SIZE, "cpu%d", i);
-        object_initialize_child(obj, name, &s->cpu[i],
-                                ARM_CPU_TYPE_NAME("cortex-a9"));
-    }
 
     object_initialize_child(obj, "a9mpcore", &s->a9mpcore, TYPE_A9MPCORE_PRIV);
 
@@ -119,42 +113,17 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    for (i = 0; i < smp_cpus; i++) {
-
-        /* On uniprocessor, the CBAR is set to 0 */
-        if (smp_cpus > 1) {
-            object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
-                                    FSL_IMX6_A9MPCORE_ADDR, &error_abort);
-        }
-
-        /* All CPU but CPU 0 start in power off mode */
-        if (i) {
-            object_property_set_bool(OBJECT(&s->cpu[i]), "start-powered-off",
-                                     true, &error_abort);
-        }
-
-        if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
-            return;
-        }
-    }
-
-    object_property_set_int(OBJECT(&s->a9mpcore), "num-cores", smp_cpus,
-                            &error_abort);
-
-    object_property_set_int(OBJECT(&s->a9mpcore), "num-irq",
-                            FSL_IMX6_MAX_IRQ + GIC_INTERNAL, &error_abort);
-
+    qdev_prop_set_uint32(DEVICE(&s->a9mpcore), "num-cores", smp_cpus);
+    qdev_prop_set_string(DEVICE(&s->a9mpcore), "cpu-type",
+                         ARM_CPU_TYPE_NAME("cortex-a9"));
+    qdev_prop_set_uint64(DEVICE(&s->a9mpcore), "cpu-reset-cbar",
+                         FSL_IMX6_A9MPCORE_ADDR);
+    qdev_prop_set_uint32(DEVICE(&s->a9mpcore), "gic-spi-num",
+                         FSL_IMX6_MAX_IRQ + GIC_INTERNAL);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->a9mpcore), errp)) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->a9mpcore), 0, FSL_IMX6_A9MPCORE_ADDR);
-
-    for (i = 0; i < smp_cpus; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->a9mpcore), i,
-                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_IRQ));
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->a9mpcore), i + smp_cpus,
-                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_FIQ));
-    }
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccm), errp)) {
         return;
