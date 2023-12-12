@@ -180,46 +180,9 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     SysBusDevice *busdev;
     qemu_irq pic[128];
     int n;
-    unsigned int smp_cpus = machine->smp.cpus;
-    qemu_irq cpu_irq[4];
-    qemu_irq cpu_fiq[4];
-    qemu_irq cpu_virq[4];
-    qemu_irq cpu_vfiq[4];
     MemoryRegion *sysram;
     MemoryRegion *sysmem;
     char *sysboot_filename;
-
-    switch (machine_id) {
-    case CALXEDA_HIGHBANK:
-        machine->cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
-        break;
-    case CALXEDA_MIDWAY:
-        machine->cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
-        break;
-    default:
-        assert(0);
-    }
-
-    for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj;
-        ARMCPU *cpu;
-
-        cpuobj = object_new(machine->cpu_type);
-        cpu = ARM_CPU(cpuobj);
-
-        object_property_set_int(cpuobj, "psci-conduit", QEMU_PSCI_CONDUIT_SMC,
-                                &error_abort);
-
-        if (object_property_find(cpuobj, "reset-cbar")) {
-            object_property_set_int(cpuobj, "reset-cbar", MPCORE_PERIPHBASE,
-                                    &error_abort);
-        }
-        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
-        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
-        cpu_fiq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ);
-        cpu_virq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_VIRQ);
-        cpu_vfiq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_VFIQ);
-    }
 
     sysmem = get_system_memory();
     /* SDRAM at address zero.  */
@@ -251,22 +214,22 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         sysbus_mmio_map(busdev, 0, 0xfff12000);
 
         dev = qdev_new(TYPE_A9MPCORE_PRIV);
+        qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-a9"));
         break;
     case CALXEDA_MIDWAY:
         dev = qdev_new(TYPE_A15MPCORE_PRIV);
+        qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-a15"));
         break;
+    default:
+        g_assert_not_reached();
     }
-    qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
-    qdev_prop_set_uint32(dev, "num-irq", NIRQ_GIC);
+    qdev_prop_set_uint32(dev, "num-cores", machine->smp.cpus);
+    qdev_prop_set_uint32(dev, "cpu-psci-conduit", QEMU_PSCI_CONDUIT_SMC);
+    qdev_prop_set_uint64(dev, "cpu-reset-cbar", MPCORE_PERIPHBASE);
+    qdev_prop_set_uint32(dev, "gic-spi-num", NIRQ_GIC);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
-    for (n = 0; n < smp_cpus; n++) {
-        sysbus_connect_irq(busdev, n, cpu_irq[n]);
-        sysbus_connect_irq(busdev, n + smp_cpus, cpu_fiq[n]);
-        sysbus_connect_irq(busdev, n + 2 * smp_cpus, cpu_virq[n]);
-        sysbus_connect_irq(busdev, n + 3 * smp_cpus, cpu_vfiq[n]);
-    }
 
     for (n = 0; n < 128; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
