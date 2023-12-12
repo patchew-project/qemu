@@ -51,7 +51,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A15MPPrivState *s = A15MPCORE_PRIV(dev);
     DeviceState *gicdev;
-    SysBusDevice *busdev;
+    SysBusDevice *gicsbd;
     int i;
     bool has_el3;
     bool has_el2 = false;
@@ -78,10 +78,10 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
         return;
     }
-    busdev = SYS_BUS_DEVICE(&s->gic);
+    gicsbd = SYS_BUS_DEVICE(&s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(sbd, busdev);
+    sysbus_pass_irq(sbd, gicsbd);
 
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(dev, a15mp_priv_set_irq, s->num_irq - 32);
@@ -126,17 +126,17 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
      *  0x6000-0x7fff -- GIC virtual CPU interface
      */
     memory_region_add_subregion(&s->container, 0x1000,
-                                sysbus_mmio_get_region(busdev, 0));
+                                sysbus_mmio_get_region(gicsbd, 0));
     memory_region_add_subregion(&s->container, 0x2000,
-                                sysbus_mmio_get_region(busdev, 1));
+                                sysbus_mmio_get_region(gicsbd, 1));
     if (has_el2) {
         memory_region_add_subregion(&s->container, 0x4000,
-                                    sysbus_mmio_get_region(busdev, 2));
+                                    sysbus_mmio_get_region(gicsbd, 2));
         memory_region_add_subregion(&s->container, 0x6000,
-                                    sysbus_mmio_get_region(busdev, 3));
+                                    sysbus_mmio_get_region(gicsbd, 3));
         for (i = 0; i < s->num_cpu; i++) {
             hwaddr base = 0x5000 + i * 0x200;
-            MemoryRegion *mr = sysbus_mmio_get_region(busdev,
+            MemoryRegion *mr = sysbus_mmio_get_region(gicsbd,
                                                       4 + s->num_cpu + i);
             memory_region_add_subregion(&s->container, base, mr);
         }
