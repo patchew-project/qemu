@@ -21,6 +21,8 @@ static void cortex_mpcore_priv_instance_init(Object *obj)
     memory_region_init(&s->container, obj,
                        "mpcore-priv-container", k->container_size);
     sysbus_init_mmio(sbd, &s->container);
+
+    s->gic_spi_num = k->gic_spi_default;
 }
 
 static Property cortex_mpcore_priv_properties[] = {
@@ -29,6 +31,9 @@ static Property cortex_mpcore_priv_properties[] = {
 
     DEFINE_PROP_BOOL("cpu-has-el3", CortexMPPrivState, cpu_has_el3, true),
     DEFINE_PROP_BOOL("cpu-has-el2", CortexMPPrivState, cpu_has_el2, false),
+
+    DEFINE_PROP_UINT32("gic-spi-num", CortexMPPrivState, gic_spi_num, 0),
+    DEFINE_PROP_UINT32("num-irq", CortexMPPrivState, gic_spi_num, 0), /* alias */
 
     DEFINE_PROP_END_OF_LIST(),
 };

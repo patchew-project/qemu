@@ -32,6 +32,8 @@
  *    the cluster.
  *  + QOM properties "cpu-has-el3", "cpu-has-el2" which set whether the CPUs
  *    have the exception level features present.
+ *  + QOM property "gic-spi-num" sets the number of GIC Shared Peripheral
+ *    Interrupts.
  */
 #define TYPE_CORTEX_MPCORE_PRIV "cortex_mpcore_priv"
 OBJECT_DECLARE_TYPE(CortexMPPrivState, CortexMPPrivClass, CORTEX_MPCORE_PRIV)
@@ -39,6 +41,8 @@ OBJECT_DECLARE_TYPE(CortexMPPrivState, CortexMPPrivClass, CORTEX_MPCORE_PRIV)
 /**
  * CortexMPPrivClass:
  * @container_size - size of the device's MMIO region
+ * @gic_spi_default - default number of GIC SPIs
+ * @gic_spi_max - maximum number of GIC SPIs
  */
 struct CortexMPPrivClass {
     SysBusDeviceClass parent_class;
@@ -46,6 +50,9 @@ struct CortexMPPrivClass {
     DeviceRealize parent_realize;
 
     uint64_t container_size;
+
+    unsigned gic_spi_default;
+    unsigned gic_spi_max;
 };
 
 struct CortexMPPrivState {
@@ -58,6 +65,8 @@ struct CortexMPPrivState {
 
     bool cpu_has_el3;
     bool cpu_has_el2;
+
+    uint32_t gic_spi_num;
 };
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
@@ -65,8 +74,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(A9MPPrivState, A9MPCORE_PRIV)
 
 struct A9MPPrivState {
     CortexMPPrivState parent_obj;
-
-    uint32_t num_irq;
 
     A9SCUState scu;
     GICState gic;
@@ -80,8 +87,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(A15MPPrivState, A15MPCORE_PRIV)
 
 struct A15MPPrivState {
     CortexMPPrivState parent_obj;
-
-    uint32_t num_irq;
 
     GICState gic;
 };

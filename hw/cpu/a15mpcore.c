@@ -61,7 +61,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
 
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", c->num_cores);
-    qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
+    qdev_prop_set_uint32(gicdev, "num-irq", c->gic_spi_num);
 
     if (!kvm_irqchip_in_kernel()) {
         /* Make the GIC's TZ support match the CPUs. We assume that
@@ -83,14 +83,14 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     sysbus_pass_irq(sbd, gicsbd);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(dev, a15mp_priv_set_irq, s->num_irq - 32);
+    qdev_init_gpio_in(dev, a15mp_priv_set_irq, c->gic_spi_num - 32);
 
     /* Wire the outputs from each CPU's generic timer to the
      * appropriate GIC PPI inputs
      */
     for (i = 0; i < c->num_cores; i++) {
         DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
-        int ppibase = s->num_irq - 32 + i * 32;
+        int ppibase = c->gic_spi_num - 32 + i * 32;
         int irq;
         /* Mapping from the output timer irq lines from the CPU to the
          * GIC PPI inputs used on the A15:
@@ -142,17 +142,6 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property a15mp_priv_properties[] = {
-    /* The Cortex-A15MP may have anything from 0 to 224 external interrupt
-     * IRQ lines (with another 32 internal). We default to 128+32, which
-     * is the number provided by the Cortex-A15MP test chip in the
-     * Versatile Express A15 development board.
-     * Other boards may differ and should set this property appropriately.
-     */
-    DEFINE_PROP_UINT32("num-irq", A15MPPrivState, num_irq, 160),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void a15mp_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -160,9 +149,18 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
 
     cc->container_size = 0x8000;
 
+    /*
+     * The Cortex-A15MP may have anything from 0 to 224 external interrupt
+     * IRQ lines (with another 32 internal). We default to 128+32, which
+     * is the number provided by the Cortex-A15MP test chip in the
+     * Versatile Express A15 development board.
+     * Other boards may differ and should set this property appropriately.
+     */
+    cc->gic_spi_default = 160;
+    cc->gic_spi_max = 224;
+
     device_class_set_parent_realize(dc, a15mp_priv_realize,
                                     &cc->parent_realize);
-    device_class_set_props(dc, a15mp_priv_properties);
     /* We currently have no saveable state */
 }
 

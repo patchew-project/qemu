@@ -78,7 +78,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", c->num_cores);
-    qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
+    qdev_prop_set_uint32(gicdev, "num-irq", c->gic_spi_num);
     qdev_prop_set_uint32(gicdev, "num-priority-bits",
                          A9_GIC_NUM_PRIORITY_BITS);
 
@@ -96,7 +96,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     sysbus_pass_irq(sbd, gicbusdev);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(dev, a9mp_priv_set_irq, s->num_irq - 32);
+    qdev_init_gpio_in(dev, a9mp_priv_set_irq, c->gic_spi_num - 32);
 
     gtimerdev = DEVICE(&s->gtimer);
     qdev_prop_set_uint32(gtimerdev, "num-cpu", c->num_cores);
@@ -150,7 +150,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
      * timer is PPI 29 and the watchdog PPI 30.
      */
     for (unsigned i = 0; i < c->num_cores; i++) {
-        int ppibase = (s->num_irq - 32) + i * 32;
+        int ppibase = (c->gic_spi_num - 32) + i * 32;
         sysbus_connect_irq(gtimerbusdev, i,
                            qdev_get_gpio_in(gicdev, ppibase + 27));
         sysbus_connect_irq(mptimerbusdev, i,
@@ -160,17 +160,6 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property a9mp_priv_properties[] = {
-    /* The Cortex-A9MP may have anything from 0 to 224 external interrupt
-     * IRQ lines (with another 32 internal). We default to 64+32, which
-     * is the number provided by the Cortex-A9MP test chip in the
-     * Realview PBX-A9 and Versatile Express A9 development boards.
-     * Other boards may differ and should set this property appropriately.
-     */
-    DEFINE_PROP_UINT32("num-irq", A9MPPrivState, num_irq, 96),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -178,8 +167,17 @@ static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 
     cc->container_size = 0x2000;
 
+    /*
+     * The Cortex-A9MP may have anything from 0 to 224 external interrupt
+     * IRQ lines (with another 32 internal). We default to 64+32, which
+     * is the number provided by the Cortex-A9MP test chip in the
+     * Realview PBX-A9 and Versatile Express A9 development boards.
+     * Other boards may differ and should set this property appropriately.
+     */
+    cc->gic_spi_default = 96;
+    cc->gic_spi_max = 224;
+
     device_class_set_parent_realize(dc, a9mp_priv_realize, &cc->parent_realize);
-    device_class_set_props(dc, a9mp_priv_properties);
 }
 
 static const TypeInfo a9mp_types[] = {
