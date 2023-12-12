@@ -48,14 +48,22 @@ static void a15mp_priv_initfn(Object *obj)
 
 static void a15mp_priv_realize(DeviceState *dev, Error **errp)
 {
+    CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_GET_CLASS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A15MPPrivState *s = A15MPCORE_PRIV(dev);
     DeviceState *gicdev;
     SysBusDevice *gicsbd;
+    Error *local_err = NULL;
     int i;
     bool has_el3;
     bool has_el2 = false;
     Object *cpuobj;
+
+    cc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
@@ -158,8 +166,10 @@ static Property a15mp_priv_properties[] = {
 static void a15mp_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_CLASS(klass);
 
-    dc->realize = a15mp_priv_realize;
+    device_class_set_parent_realize(dc, a15mp_priv_realize,
+                                    &cc->parent_realize);
     device_class_set_props(dc, a15mp_priv_properties);
     /* We currently have no saveable state */
 }
@@ -167,7 +177,7 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
 static const TypeInfo a15mp_types[] = {
     {
         .name           = TYPE_A15MPCORE_PRIV,
-        .parent         = TYPE_SYS_BUS_DEVICE,
+        .parent         = TYPE_CORTEX_MPCORE_PRIV,
         .instance_size  = sizeof(A15MPPrivState),
         .instance_init  = a15mp_priv_initfn,
         .class_init     = a15mp_priv_class_init,

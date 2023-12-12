@@ -46,11 +46,13 @@ static void a9mp_priv_initfn(Object *obj)
 
 static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 {
+    CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_GET_CLASS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
     DeviceState *scudev, *gicdev, *gtimerdev, *mptimerdev, *wdtdev;
     SysBusDevice *scubusdev, *gicbusdev, *gtimerbusdev, *mptimerbusdev,
                  *wdtbusdev;
+    Error *local_err = NULL;
     int i;
     bool has_el3;
     CPUState *cpu0;
@@ -62,6 +64,12 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
         /* We might allow Cortex-A5 once we model it */
         error_setg(errp,
                    "Cortex-A9MPCore peripheral can only use Cortex-A9 CPU");
+        return;
+    }
+
+    cc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -173,15 +181,16 @@ static Property a9mp_priv_properties[] = {
 static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_CLASS(klass);
 
-    dc->realize = a9mp_priv_realize;
+    device_class_set_parent_realize(dc, a9mp_priv_realize, &cc->parent_realize);
     device_class_set_props(dc, a9mp_priv_properties);
 }
 
 static const TypeInfo a9mp_types[] = {
     {
         .name           = TYPE_A9MPCORE_PRIV,
-        .parent         = TYPE_SYS_BUS_DEVICE,
+        .parent         = TYPE_CORTEX_MPCORE_PRIV,
         .instance_size  =  sizeof(A9MPPrivState),
         .instance_init  = a9mp_priv_initfn,
         .class_init     = a9mp_priv_class_init,

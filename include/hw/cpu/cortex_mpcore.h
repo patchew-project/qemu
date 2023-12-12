@@ -32,6 +32,8 @@ OBJECT_DECLARE_TYPE(CortexMPPrivState, CortexMPPrivClass, CORTEX_MPCORE_PRIV)
 
 struct CortexMPPrivClass {
     SysBusDeviceClass parent_class;
+
+    DeviceRealize parent_realize;
 };
 
 struct CortexMPPrivState {
@@ -42,7 +44,7 @@ struct CortexMPPrivState {
 OBJECT_DECLARE_SIMPLE_TYPE(A9MPPrivState, A9MPCORE_PRIV)
 
 struct A9MPPrivState {
-    SysBusDevice parent_obj;
+    CortexMPPrivState parent_obj;
 
     uint32_t num_cpu;
     MemoryRegion container;
@@ -59,7 +61,7 @@ struct A9MPPrivState {
 OBJECT_DECLARE_SIMPLE_TYPE(A15MPPrivState, A15MPCORE_PRIV)
 
 struct A15MPPrivState {
-    SysBusDevice parent_obj;
+    CortexMPPrivState parent_obj;
 
     uint32_t num_cpu;
     uint32_t num_irq;
