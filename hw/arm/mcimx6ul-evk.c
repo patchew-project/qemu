@@ -18,6 +18,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
+#include "target/arm/cpu.h" /* qom */
 
 static void mcimx6ul_evk_init(MachineState *machine)
 {
@@ -64,7 +65,7 @@ static void mcimx6ul_evk_init(MachineState *machine)
     }
 
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->cpu, machine, &boot_info);
+        arm_load_kernel(s->a7mpcore.cpu[0], machine, &boot_info);
     }
 }
 

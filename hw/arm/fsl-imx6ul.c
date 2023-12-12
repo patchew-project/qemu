@@ -25,6 +25,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "target/arm/cpu.h" /* qom */
 
 #define NAME_SIZE 20
 
@@ -33,9 +34,6 @@ static void fsl_imx6ul_init(Object *obj)
     FslIMX6ULState *s = FSL_IMX6UL(obj);
     char name[NAME_SIZE];
     int i;
-
-    object_initialize_child(obj, "cpu0", &s->cpu,
-                            ARM_CPU_TYPE_NAME("cortex-a7"));
 
     /*
      * A7MPCORE
@@ -158,8 +156,6 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     DeviceState *gic;
     int i;
     char name[NAME_SIZE];
-    SysBusDevice *sbd;
-    DeviceState *d;
 
     if (ms->smp.cpus > 1) {
         error_setg(errp, "%s: Only a single CPU is supported (%d requested)",
@@ -167,25 +163,17 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
-
     /*
      * A7MPCORE
      */
-    object_property_set_int(OBJECT(&s->a7mpcore), "num-cores", 1, &error_abort);
-    object_property_set_int(OBJECT(&s->a7mpcore), "num-irq",
-                            FSL_IMX6UL_MAX_IRQ + GIC_INTERNAL, &error_abort);
+    qdev_prop_set_uint32(DEVICE(&s->a7mpcore), "num-cores", 1);
+    qdev_prop_set_string(DEVICE(&s->a7mpcore), "cpu-type",
+                         ARM_CPU_TYPE_NAME("cortex-a7"));
+    qdev_prop_set_uint32(DEVICE(&s->a7mpcore), "gic-spi-num",
+                         FSL_IMX6UL_MAX_IRQ + GIC_INTERNAL);
     sysbus_realize(SYS_BUS_DEVICE(&s->a7mpcore), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->a7mpcore), 0, FSL_IMX6UL_A7MPCORE_ADDR);
     gic = DEVICE(&s->a7mpcore);
-
-    sbd = SYS_BUS_DEVICE(&s->a7mpcore);
-    d = DEVICE(&s->cpu);
-
-    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(d, ARM_CPU_IRQ));
-    sysbus_connect_irq(sbd, 1, qdev_get_gpio_in(d, ARM_CPU_FIQ));
-    sysbus_connect_irq(sbd, 2, qdev_get_gpio_in(d, ARM_CPU_VIRQ));
-    sysbus_connect_irq(sbd, 3, qdev_get_gpio_in(d, ARM_CPU_VFIQ));
 
     /*
      * A7MPCORE DAP
