@@ -109,7 +109,6 @@ struct Aspeed2600SoCState {
     AspeedSoCState parent;
 
     CortexMPPrivState a7mpcore;
-    ARMCPU cpu[ASPEED_CPUS_NUM]; /* XXX belong to a7mpcore */
 };
 
 #define TYPE_ASPEED2600_SOC "aspeed2600-soc"

@@ -156,10 +156,6 @@ static void aspeed_soc_ast2600_init(Object *obj)
         g_assert_not_reached();
     }
 
-    for (i = 0; i < sc->num_cpus; i++) {
-        object_initialize_child(obj, "cpu[*]", &a->cpu[i], sc->cpu_type);
-    }
-
     snprintf(typename, sizeof(typename), "aspeed.scu-%s", socname);
     object_initialize_child(obj, "scu", &s->scu, typename);
     qdev_prop_set_uint32(DEVICE(&s->scu), "silicon-rev",
@@ -270,11 +266,6 @@ static void aspeed_soc_ast2600_init(Object *obj)
  *
  * https://developer.arm.com/documentation/ddi0388/e/the-system-control-coprocessors/summary-of-system-control-coprocessor-registers/multiprocessor-affinity-register
  */
-static uint64_t aspeed_calc_affinity(int cpu)
-{
-    return (0xf << ARM_AFF1_SHIFT) | cpu;
-}
-
 static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
 {
     int i;
@@ -284,6 +275,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
     qemu_irq irq;
     g_autofree char *sram_name = NULL;
+    DeviceState *mpdev;
+    CortexMPPrivState *mppriv;
 
     /* Default boot region (SPI memory or ROMs) */
     memory_region_init(&s->spi_boot_container, OBJECT(s),
@@ -305,42 +298,26 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                                   "aspeed.emmc-boot-controller",
                                   sc->memmap[ASPEED_DEV_EMMC_BC], 0x1000);
 
-    /* CPU */
-    for (i = 0; i < sc->num_cpus; i++) {
-        if (sc->num_cpus > 1) {
-            object_property_set_int(OBJECT(&a->cpu[i]), "reset-cbar",
-                                    ASPEED_A7MPCORE_ADDR, &error_abort);
-        }
-        object_property_set_int(OBJECT(&a->cpu[i]), "mp-affinity",
-                                aspeed_calc_affinity(i), &error_abort);
-
-        object_property_set_int(OBJECT(&a->cpu[i]), "cntfrq", 1125000000,
-                                &error_abort);
-        object_property_set_bool(OBJECT(&a->cpu[i]), "neon", false,
-                                &error_abort);
-        object_property_set_bool(OBJECT(&a->cpu[i]), "vfp-d32", false,
-                                &error_abort);
-        object_property_set_link(OBJECT(&a->cpu[i]), "memory",
-                                 OBJECT(s->memory), &error_abort);
-
-        if (!qdev_realize(DEVICE(&a->cpu[i]), NULL, errp)) {
-            return;
-        }
-    }
-
     /* A7MPCORE */
-    object_property_set_int(OBJECT(&a->a7mpcore), "num-cores", sc->num_cpus,
-                            &error_abort);
-    object_property_set_int(OBJECT(&a->a7mpcore), "num-irq",
-                            ROUND_UP(AST2600_MAX_IRQ + GIC_INTERNAL, 32),
-                            &error_abort);
-
+    mpdev = DEVICE(&a->a7mpcore);
+    qdev_prop_set_uint32(mpdev, "cluster-id", 0xf);
+    qdev_prop_set_uint32(mpdev, "num-cores", sc->num_cpus);
+    qdev_prop_set_string(mpdev, "cpu-type", sc->cpu_type);
+    qdev_prop_set_uint64(mpdev, "cpu-freq-hz", 1125000000);
+    qdev_prop_set_bit(mpdev, "cpu-has-neon", false);
+    qdev_prop_set_bit(mpdev, "cpu-has-vfp-d32", false);
+    qdev_prop_set_uint64(mpdev, "cpu-reset-cbar", ASPEED_A7MPCORE_ADDR);
+    object_property_set_link(OBJECT(&a->a7mpcore), "cpu-memory",
+                             OBJECT(s->memory), &error_abort);
+    qdev_prop_set_uint32(mpdev, "gic-spi-num",
+                         ROUND_UP(AST2600_MAX_IRQ + GIC_INTERNAL, 32));
     sysbus_realize(SYS_BUS_DEVICE(&a->a7mpcore), &error_abort);
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&a->a7mpcore), 0, ASPEED_A7MPCORE_ADDR);
+    mppriv = CORTEX_MPCORE_PRIV(&a->a7mpcore);
 
     for (i = 0; i < sc->num_cpus; i++) {
         SysBusDevice *sbd = SYS_BUS_DEVICE(&a->a7mpcore);
-        DeviceState  *d   = DEVICE(&a->cpu[i]);
+        DeviceState  *d   = DEVICE(mppriv->cpu[i]);
 
         irq = qdev_get_gpio_in(d, ARM_CPU_IRQ);
         sysbus_connect_irq(sbd, i, irq);
@@ -353,7 +330,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
 
     /* SRAM */
-    sram_name = g_strdup_printf("aspeed.sram.%d", CPU(&a->cpu[0])->cpu_index);
+    sram_name = g_strdup_printf("aspeed.sram.%d",
+                                CPU(mppriv->cpu[0])->cpu_index);
     memory_region_init_ram(&s->sram, OBJECT(s), sram_name, sc->sram_size, &err);
     if (err) {
         error_propagate(errp, err);
