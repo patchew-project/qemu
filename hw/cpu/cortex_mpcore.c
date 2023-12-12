@@ -156,7 +156,6 @@ static void cortex_mpcore_priv_realize(DeviceState *dev, Error **errp)
 static Property cortex_mpcore_priv_properties[] = {
     DEFINE_PROP_UINT8("cluster-id", CortexMPPrivState, cluster_id, 0),
     DEFINE_PROP_UINT32("num-cores", CortexMPPrivState, num_cores, 1),
-    DEFINE_PROP_UINT32("num-cpu", CortexMPPrivState, num_cores, 1), /* alias */
 
     DEFINE_PROP_STRING("cpu-type", CortexMPPrivState, cpu_type),
     DEFINE_PROP_BOOL("cpu-has-el3", CortexMPPrivState, cpu_has_el3, true),
@@ -175,7 +174,6 @@ static Property cortex_mpcore_priv_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 
     DEFINE_PROP_UINT32("gic-spi-num", CortexMPPrivState, gic_spi_num, 0),
-    DEFINE_PROP_UINT32("num-irq", CortexMPPrivState, gic_spi_num, 0), /* alias */
 
     DEFINE_PROP_END_OF_LIST(),
 };
