@@ -51,7 +51,6 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     SysBusDevice *scubusdev, *gicbusdev, *gtimerbusdev, *mptimerbusdev,
                  *wdtbusdev;
     Error *local_err = NULL;
-    int i;
     bool has_el3;
     CPUState *cpu0;
     Object *cpuobj;
@@ -72,14 +71,14 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     }
 
     scudev = DEVICE(&s->scu);
-    qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(scudev, "num-cpu", c->num_cores);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
         return;
     }
     scubusdev = SYS_BUS_DEVICE(&s->scu);
 
     gicdev = DEVICE(&s->gic);
-    qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(gicdev, "num-cpu", c->num_cores);
     qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
     qdev_prop_set_uint32(gicdev, "num-priority-bits",
                          A9_GIC_NUM_PRIORITY_BITS);
@@ -103,21 +102,21 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, a9mp_priv_set_irq, s->num_irq - 32);
 
     gtimerdev = DEVICE(&s->gtimer);
-    qdev_prop_set_uint32(gtimerdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(gtimerdev, "num-cpu", c->num_cores);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gtimer), errp)) {
         return;
     }
     gtimerbusdev = SYS_BUS_DEVICE(&s->gtimer);
 
     mptimerdev = DEVICE(&s->mptimer);
-    qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(mptimerdev, "num-cpu", c->num_cores);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->mptimer), errp)) {
         return;
     }
     mptimerbusdev = SYS_BUS_DEVICE(&s->mptimer);
 
     wdtdev = DEVICE(&s->wdt);
-    qdev_prop_set_uint32(wdtdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(wdtdev, "num-cpu", c->num_cores);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->wdt), errp)) {
         return;
     }
@@ -153,7 +152,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
      * For each core the global timer is PPI 27, the private
      * timer is PPI 29 and the watchdog PPI 30.
      */
-    for (i = 0; i < s->num_cpu; i++) {
+    for (unsigned i = 0; i < c->num_cores; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
         sysbus_connect_irq(gtimerbusdev, i,
                            qdev_get_gpio_in(gicdev, ppibase + 27));
@@ -165,7 +164,6 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 }
 
 static Property a9mp_priv_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", A9MPPrivState, num_cpu, 1),
     /* The Cortex-A9MP may have anything from 0 to 224 external interrupt
      * IRQ lines (with another 32 internal). We default to 64+32, which
      * is the number provided by the Cortex-A9MP test chip in the

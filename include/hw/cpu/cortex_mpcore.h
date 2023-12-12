@@ -26,6 +26,10 @@
  * The A9 MPCore additionally contains:
  *  a System Control Unit
  *  some timers and watchdogs
+ *
+ * QEMU interface:
+ *  + QOM property "num-cores" which set the number of cores present in
+ *    the cluster.
  */
 #define TYPE_CORTEX_MPCORE_PRIV "cortex_mpcore_priv"
 OBJECT_DECLARE_TYPE(CortexMPPrivState, CortexMPPrivClass, CORTEX_MPCORE_PRIV)
@@ -46,6 +50,9 @@ struct CortexMPPrivState {
     SysBusDevice parent_obj;
 
     MemoryRegion container;
+
+    /* Properties */
+    uint32_t num_cores;
 };
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
@@ -54,7 +61,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(A9MPPrivState, A9MPCORE_PRIV)
 struct A9MPPrivState {
     CortexMPPrivState parent_obj;
 
-    uint32_t num_cpu;
     uint32_t num_irq;
 
     A9SCUState scu;
@@ -70,7 +76,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(A15MPPrivState, A15MPCORE_PRIV)
 struct A15MPPrivState {
     CortexMPPrivState parent_obj;
 
-    uint32_t num_cpu;
     uint32_t num_irq;
 
     GICState gic;

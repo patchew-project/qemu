@@ -63,7 +63,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     }
 
     gicdev = DEVICE(&s->gic);
-    qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(gicdev, "num-cpu", c->num_cores);
     qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
 
     if (!kvm_irqchip_in_kernel()) {
@@ -94,7 +94,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     /* Wire the outputs from each CPU's generic timer to the
      * appropriate GIC PPI inputs
      */
-    for (i = 0; i < s->num_cpu; i++) {
+    for (i = 0; i < c->num_cores; i++) {
         DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
         int ppibase = s->num_irq - 32 + i * 32;
         int irq;
@@ -114,7 +114,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
         }
         if (has_el2) {
             /* Connect the GIC maintenance interrupt to PPI ID 25 */
-            sysbus_connect_irq(SYS_BUS_DEVICE(gicdev), i + 4 * s->num_cpu,
+            sysbus_connect_irq(SYS_BUS_DEVICE(gicdev), i + 4 * c->num_cores,
                                qdev_get_gpio_in(gicdev, ppibase + 25));
         }
     }
@@ -139,17 +139,16 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
                                     sysbus_mmio_get_region(gicsbd, 2));
         memory_region_add_subregion(&c->container, 0x6000,
                                     sysbus_mmio_get_region(gicsbd, 3));
-        for (i = 0; i < s->num_cpu; i++) {
+        for (i = 0; i < c->num_cores; i++) {
             hwaddr base = 0x5000 + i * 0x200;
             MemoryRegion *mr = sysbus_mmio_get_region(gicsbd,
-                                                      4 + s->num_cpu + i);
+                                                      4 + c->num_cores + i);
             memory_region_add_subregion(&c->container, base, mr);
         }
     }
 }
 
 static Property a15mp_priv_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", A15MPPrivState, num_cpu, 1),
     /* The Cortex-A15MP may have anything from 0 to 224 external interrupt
      * IRQ lines (with another 32 internal). We default to 128+32, which
      * is the number provided by the Cortex-A15MP test chip in the

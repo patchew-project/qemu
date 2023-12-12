@@ -98,7 +98,8 @@ static void mpcore_rirq_init(Object *obj)
     int i;
 
     object_initialize_child(obj, "a11priv", &s->priv, TYPE_ARM11MPCORE_PRIV);
-    object_property_add_alias(obj, "num-cpu", OBJECT(&s->priv), "num-cpu");
+    object_property_add_alias(obj, "num-cores", OBJECT(&s->priv), "num-cores");
+    object_property_add_alias(obj, "num-cpu", OBJECT(&s->priv), "num-cores");
     privbusdev = SYS_BUS_DEVICE(&s->priv);
     sysbus_init_mmio(sbd, sysbus_mmio_get_region(privbusdev, 0));
 

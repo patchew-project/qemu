@@ -138,7 +138,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    object_property_set_int(OBJECT(&s->a9mpcore), "num-cpu", smp_cpus,
+    object_property_set_int(OBJECT(&s->a9mpcore), "num-cores", smp_cpus,
                             &error_abort);
 
     object_property_set_int(OBJECT(&s->a9mpcore), "num-irq",

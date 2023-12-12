@@ -491,7 +491,7 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     }
 
     /* A9MPCORE peripherals. Can only fail if we pass bad parameters here. */
-    object_property_set_int(OBJECT(&s->a9mpcore), "num-cpu", nc->num_cpus,
+    object_property_set_int(OBJECT(&s->a9mpcore), "num-cores", nc->num_cpus,
                             &error_abort);
     object_property_set_int(OBJECT(&s->a9mpcore), "num-irq", NPCM7XX_NUM_IRQ,
                             &error_abort);

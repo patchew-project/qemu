@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/qdev-properties.h"
 #include "hw/cpu/cortex_mpcore.h"
 
 static void cortex_mpcore_priv_instance_init(Object *obj)
@@ -22,6 +23,21 @@ static void cortex_mpcore_priv_instance_init(Object *obj)
     sysbus_init_mmio(sbd, &s->container);
 }
 
+static Property cortex_mpcore_priv_properties[] = {
+    DEFINE_PROP_UINT32("num-cores", CortexMPPrivState, num_cores, 1),
+    DEFINE_PROP_UINT32("num-cpu", CortexMPPrivState, num_cores, 1), /* alias */
+
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void cortex_mpcore_priv_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    device_class_set_props(dc, cortex_mpcore_priv_properties);
+    /* We currently have no saveable state */
+}
+
 static const TypeInfo cortex_mpcore_types[] = {
     {
         .name           = TYPE_CORTEX_MPCORE_PRIV,
@@ -29,6 +45,7 @@ static const TypeInfo cortex_mpcore_types[] = {
         .instance_size  = sizeof(CortexMPPrivState),
         .instance_init  = cortex_mpcore_priv_instance_init,
         .class_size     = sizeof(CortexMPPrivClass),
+        .class_init     = cortex_mpcore_priv_class_init,
         .abstract       = true,
     },
 };

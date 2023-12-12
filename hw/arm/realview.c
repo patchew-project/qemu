@@ -187,7 +187,7 @@ static void realview_init(MachineState *machine,
 
     if (is_mpcore) {
         dev = qdev_new(is_pb ? TYPE_A9MPCORE_PRIV : "realview_mpcore");
-        qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
+        qdev_prop_set_uint32(dev, "num-cores", smp_cpus);
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, periphbase);
