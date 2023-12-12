@@ -121,12 +121,42 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
     /* We currently have no saveable state */
 }
 
+static void a7mp_priv_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_CLASS(klass);
+
+    cc->container_size = 0x8000;
+
+    cc->gic_class_name = gic_class_name();
+    cc->gic_revision = 2;
+    /*
+     * The Cortex-A7MP may have anything from 0 to 480 external interrupt
+     * IRQ lines (with another 32 internal). We default to 128+32, which
+     * is the number provided by the Cortex-A15MP test chip in the
+     * Versatile Express A15 development board.
+     * Other boards may differ and should set this property appropriately.
+     */
+    cc->gic_spi_default = 160;
+    cc->gic_spi_max = 480;
+
+    device_class_set_parent_realize(dc, a15mp_priv_realize,
+                                    &cc->parent_realize);
+    /* We currently have no saveable state */
+}
+
 static const TypeInfo a15mp_types[] = {
     {
         .name           = TYPE_A15MPCORE_PRIV,
         .parent         = TYPE_CORTEX_MPCORE_PRIV,
         .instance_size  = sizeof(CortexMPPrivState),
         .class_init     = a15mp_priv_class_init,
+    },
+    {
+        .name           = TYPE_A7MPCORE_PRIV,
+        .parent         = TYPE_CORTEX_MPCORE_PRIV,
+        .instance_size  = sizeof(CortexMPPrivState),
+        .class_init     = a7mp_priv_class_init,
     },
 };
 

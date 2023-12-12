@@ -48,8 +48,7 @@ static void fsl_imx7_init(Object *obj)
     /*
      * A7MPCORE
      */
-    object_initialize_child(obj, "a7mpcore", &s->a7mpcore,
-                            TYPE_A15MPCORE_PRIV);
+    object_initialize_child(obj, "a7mpcore", &s->a7mpcore, TYPE_A7MPCORE_PRIV);
 
     /*
      * GPIOs

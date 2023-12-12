@@ -40,8 +40,7 @@ static void fsl_imx6ul_init(Object *obj)
     /*
      * A7MPCORE
      */
-    object_initialize_child(obj, "a7mpcore", &s->a7mpcore,
-                            TYPE_A15MPCORE_PRIV);
+    object_initialize_child(obj, "a7mpcore", &s->a7mpcore, TYPE_A7MPCORE_PRIV);
 
     /*
      * CCM

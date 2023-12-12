@@ -171,8 +171,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
     object_property_add_alias(obj, "hw-prot-key", OBJECT(&s->scu),
                               "hw-prot-key");
 
-    object_initialize_child(obj, "a7mpcore", &a->a7mpcore,
-                            TYPE_A15MPCORE_PRIV);
+    object_initialize_child(obj, "a7mpcore", &a->a7mpcore, TYPE_A7MPCORE_PRIV);
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_ASPEED_RTC);
 

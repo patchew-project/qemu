@@ -118,4 +118,6 @@ struct A9MPPrivState {
 
 #define TYPE_A15MPCORE_PRIV "a15mpcore_priv"
 
+#define TYPE_A7MPCORE_PRIV "a7mpcore_priv"
+
 #endif
