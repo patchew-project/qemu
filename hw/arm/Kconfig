@@ -646,19 +646,18 @@ config ZAURUS
 
 config CORTEX_MPCORE
     bool
+    select ARM_GIC
 
 config A9MPCORE
     bool
     select CORTEX_MPCORE
     select A9_GTIMER
     select A9SCU       # snoop control unit
-    select ARM_GIC
     select ARM_MPTIMER
 
 config A15MPCORE
     bool
     select CORTEX_MPCORE
-    select ARM_GIC
 
 config ARM11MPCORE
     bool

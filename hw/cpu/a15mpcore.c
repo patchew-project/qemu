@@ -22,34 +22,15 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/cpu/cortex_mpcore.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
-#include "sysemu/kvm.h"
-#include "kvm_arm.h"
-
-static void a15mp_priv_set_irq(void *opaque, int irq, int level)
-{
-    A15MPPrivState *s = (A15MPPrivState *)opaque;
-
-    qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
-}
-
-static void a15mp_priv_initfn(Object *obj)
-{
-    A15MPPrivState *s = A15MPCORE_PRIV(obj);
-
-    object_initialize_child(obj, "gic", &s->gic, gic_class_name());
-    qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
-}
+#include "hw/core/cpu.h"
+#include "target/arm/cpu.h"
 
 static void a15mp_priv_realize(DeviceState *dev, Error **errp)
 {
     CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_GET_CLASS(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    A15MPPrivState *s = A15MPCORE_PRIV(dev);
     CortexMPPrivState *c = CORTEX_MPCORE_PRIV(dev);
-    DeviceState *gicdev;
-    SysBusDevice *gicsbd;
+    DeviceState *gicdev = DEVICE(&c->gic);
+    SysBusDevice *gicsbd = SYS_BUS_DEVICE(&c->gic);
     Error *local_err = NULL;
     int i;
 
@@ -58,32 +39,6 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-
-    gicdev = DEVICE(&s->gic);
-    qdev_prop_set_uint32(gicdev, "num-cpu", c->num_cores);
-    qdev_prop_set_uint32(gicdev, "num-irq", c->gic_spi_num);
-
-    if (!kvm_irqchip_in_kernel()) {
-        /* Make the GIC's TZ support match the CPUs. We assume that
-         * either all the CPUs have TZ, or none do.
-         */
-        qdev_prop_set_bit(gicdev, "has-security-extensions",
-                          c->cpu_has_el3);
-        /* Similarly for virtualization support */
-        qdev_prop_set_bit(gicdev, "has-virtualization-extensions",
-                          c->cpu_has_el2);
-    }
-
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
-        return;
-    }
-    gicsbd = SYS_BUS_DEVICE(&s->gic);
-
-    /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(sbd, gicsbd);
-
-    /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(dev, a15mp_priv_set_irq, c->gic_spi_num - 32);
 
     /* Wire the outputs from each CPU's generic timer to the
      * appropriate GIC PPI inputs
@@ -149,6 +104,8 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
 
     cc->container_size = 0x8000;
 
+    cc->gic_class_name = gic_class_name();
+    cc->gic_revision = 2;
     /*
      * The Cortex-A15MP may have anything from 0 to 224 external interrupt
      * IRQ lines (with another 32 internal). We default to 128+32, which
@@ -169,7 +126,6 @@ static const TypeInfo a15mp_types[] = {
         .name           = TYPE_A15MPCORE_PRIV,
         .parent         = TYPE_CORTEX_MPCORE_PRIV,
         .instance_size  = sizeof(A15MPPrivState),
-        .instance_init  = a15mp_priv_initfn,
         .class_init     = a15mp_priv_class_init,
     },
 };

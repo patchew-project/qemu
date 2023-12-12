@@ -12,27 +12,17 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/cpu/cortex_mpcore.h"
-#include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/core/cpu.h"
 #include "cpu.h"
 
 #define A9_GIC_NUM_PRIORITY_BITS    5
 
-static void a9mp_priv_set_irq(void *opaque, int irq, int level)
-{
-    A9MPPrivState *s = (A9MPPrivState *)opaque;
-
-    qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
-}
-
 static void a9mp_priv_initfn(Object *obj)
 {
     A9MPPrivState *s = A9MPCORE_PRIV(obj);
 
     object_initialize_child(obj, "scu", &s->scu, TYPE_A9_SCU);
-
-    object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
 
     object_initialize_child(obj, "gtimer", &s->gtimer, TYPE_A9_GTIMER);
 
@@ -45,11 +35,11 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 {
     CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_GET_CLASS(dev);
     CortexMPPrivState *c = CORTEX_MPCORE_PRIV(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
-    DeviceState *scudev, *gicdev, *gtimerdev, *mptimerdev, *wdtdev;
-    SysBusDevice *scubusdev, *gicbusdev, *gtimerbusdev, *mptimerbusdev,
-                 *wdtbusdev;
+    DeviceState *gicdev = DEVICE(&c->gic);
+    SysBusDevice *gicbusdev = SYS_BUS_DEVICE(&c->gic);
+    DeviceState *scudev, *gtimerdev, *mptimerdev, *wdtdev;
+    SysBusDevice *scubusdev, *gtimerbusdev, *mptimerbusdev, *wdtbusdev;
     Error *local_err = NULL;
     CPUState *cpu0;
     Object *cpuobj;
@@ -75,28 +65,6 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
         return;
     }
     scubusdev = SYS_BUS_DEVICE(&s->scu);
-
-    gicdev = DEVICE(&s->gic);
-    qdev_prop_set_uint32(gicdev, "num-cpu", c->num_cores);
-    qdev_prop_set_uint32(gicdev, "num-irq", c->gic_spi_num);
-    qdev_prop_set_uint32(gicdev, "num-priority-bits",
-                         A9_GIC_NUM_PRIORITY_BITS);
-
-    /* Make the GIC's TZ support match the CPUs. We assume that
-     * either all the CPUs have TZ, or none do.
-     */
-    qdev_prop_set_bit(gicdev, "has-security-extensions", c->cpu_has_el3);
-
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
-        return;
-    }
-    gicbusdev = SYS_BUS_DEVICE(&s->gic);
-
-    /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(sbd, gicbusdev);
-
-    /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(dev, a9mp_priv_set_irq, c->gic_spi_num - 32);
 
     gtimerdev = DEVICE(&s->gtimer);
     qdev_prop_set_uint32(gtimerdev, "num-cpu", c->num_cores);
@@ -167,6 +135,9 @@ static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 
     cc->container_size = 0x2000;
 
+    cc->gic_class_name = TYPE_ARM_GIC;
+    cc->gic_revision = 1;
+    cc->gic_priority_bits = A9_GIC_NUM_PRIORITY_BITS;
     /*
      * The Cortex-A9MP may have anything from 0 to 224 external interrupt
      * IRQ lines (with another 32 internal). We default to 64+32, which
