@@ -19,6 +19,7 @@
 #define PPC_INTERNAL_H
 
 #include "hw/registerfields.h"
+#include "exec/page-prot-common.h"
 
 /* PM instructions */
 typedef enum {

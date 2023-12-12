@@ -25,6 +25,7 @@
 #include "hw/registerfields.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+#include "exec/page-prot-common.h"
 #include "qapi/qapi-types-common.h"
 
 #ifdef TARGET_AARCH64

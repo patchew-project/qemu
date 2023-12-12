@@ -22,6 +22,7 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/page-prot-common.h"
 #include "mmu.h"
 #include "exec/helper-proto.h"
 #include "trace/trace-target_nios2.h"

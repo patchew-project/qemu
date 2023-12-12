@@ -20,6 +20,7 @@
 #include "hw/registerfields.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/page-prot-common.h"
 #include "fpu/softfloat-helpers.h"
 #include "qemu/qemu-print.h"
 

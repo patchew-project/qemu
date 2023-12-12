@@ -20,6 +20,7 @@
 #include <sys/shm.h>
 #include "trace.h"
 #include "exec/log.h"
+#include "exec/page-prot-common.h"
 #include "qemu.h"
 #include "user-internals.h"
 #include "user-mmap.h"
