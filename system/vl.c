@@ -2774,6 +2774,8 @@ void qemu_init(int argc, char **argv)
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
+    os_setup_limits();
+
     qemu_init_arch_modules();
 
     qemu_init_subsystems();
