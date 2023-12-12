@@ -30,6 +30,8 @@
  * QEMU interface:
  *  + QOM property "num-cores" which set the number of cores present in
  *    the cluster.
+ *  + QOM properties "cpu-has-el3", "cpu-has-el2" which set whether the CPUs
+ *    have the exception level features present.
  */
 #define TYPE_CORTEX_MPCORE_PRIV "cortex_mpcore_priv"
 OBJECT_DECLARE_TYPE(CortexMPPrivState, CortexMPPrivClass, CORTEX_MPCORE_PRIV)
@@ -53,6 +55,9 @@ struct CortexMPPrivState {
 
     /* Properties */
     uint32_t num_cores;
+
+    bool cpu_has_el3;
+    bool cpu_has_el2;
 };
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"

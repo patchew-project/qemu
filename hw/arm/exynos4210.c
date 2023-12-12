@@ -548,7 +548,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     Exynos4210State *s = EXYNOS4210_SOC(socdev);
     MemoryRegion *system_mem = get_system_memory();
     SysBusDevice *busdev;
-    DeviceState *dev, *uart[4], *pl330[3];
+    DeviceState *dev, *mpdev, *uart[4], *pl330[3];
     int i, n;
 
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
@@ -582,7 +582,13 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     }
 
     /* Private memory region and Internal GIC */
-    qdev_prop_set_uint32(DEVICE(&s->a9mpcore), "num-cores", EXYNOS4210_NCPUS);
+    mpdev = DEVICE(&s->a9mpcore);
+    qdev_prop_set_uint32(mpdev, "num-cores", EXYNOS4210_NCPUS);
+    /*
+     * By default A9 CPUs have EL3 enabled.  This board does not currently
+     * support EL3 so the CPU EL3 property is disabled before realization.
+     */
+    qdev_prop_set_bit(mpdev, "cpu-has-el3", false);
     busdev = SYS_BUS_DEVICE(&s->a9mpcore);
     sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_SMP_PRIVATE_BASE_ADDR);

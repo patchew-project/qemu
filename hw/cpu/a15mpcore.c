@@ -52,9 +52,6 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     SysBusDevice *gicsbd;
     Error *local_err = NULL;
     int i;
-    bool has_el3;
-    bool has_el2 = false;
-    Object *cpuobj;
 
     cc->parent_realize(dev, &local_err);
     if (local_err) {
@@ -70,14 +67,11 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
         /* Make the GIC's TZ support match the CPUs. We assume that
          * either all the CPUs have TZ, or none do.
          */
-        cpuobj = OBJECT(qemu_get_cpu(0));
-        has_el3 = object_property_find(cpuobj, "has_el3") &&
-            object_property_get_bool(cpuobj, "has_el3", &error_abort);
-        qdev_prop_set_bit(gicdev, "has-security-extensions", has_el3);
+        qdev_prop_set_bit(gicdev, "has-security-extensions",
+                          c->cpu_has_el3);
         /* Similarly for virtualization support */
-        has_el2 = object_property_find(cpuobj, "has_el2") &&
-            object_property_get_bool(cpuobj, "has_el2", &error_abort);
-        qdev_prop_set_bit(gicdev, "has-virtualization-extensions", has_el2);
+        qdev_prop_set_bit(gicdev, "has-virtualization-extensions",
+                          c->cpu_has_el2);
     }
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
@@ -112,7 +106,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
                                   qdev_get_gpio_in(gicdev,
                                                    ppibase + timer_irq[irq]));
         }
-        if (has_el2) {
+        if (c->cpu_has_el2) {
             /* Connect the GIC maintenance interrupt to PPI ID 25 */
             sysbus_connect_irq(SYS_BUS_DEVICE(gicdev), i + 4 * c->num_cores,
                                qdev_get_gpio_in(gicdev, ppibase + 25));
@@ -134,7 +128,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
                                 sysbus_mmio_get_region(gicsbd, 0));
     memory_region_add_subregion(&c->container, 0x2000,
                                 sysbus_mmio_get_region(gicsbd, 1));
-    if (has_el2) {
+    if (c->cpu_has_el2) {
         memory_region_add_subregion(&c->container, 0x4000,
                                     sysbus_mmio_get_region(gicsbd, 2));
         memory_region_add_subregion(&c->container, 0x6000,

@@ -27,6 +27,9 @@ static Property cortex_mpcore_priv_properties[] = {
     DEFINE_PROP_UINT32("num-cores", CortexMPPrivState, num_cores, 1),
     DEFINE_PROP_UINT32("num-cpu", CortexMPPrivState, num_cores, 1), /* alias */
 
+    DEFINE_PROP_BOOL("cpu-has-el3", CortexMPPrivState, cpu_has_el3, true),
+    DEFINE_PROP_BOOL("cpu-has-el2", CortexMPPrivState, cpu_has_el2, false),
+
     DEFINE_PROP_END_OF_LIST(),
 };
 

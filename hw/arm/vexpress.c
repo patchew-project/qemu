@@ -239,6 +239,12 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
      * wires itself up to the CPU's generic_timer gpio out lines.
      */
     dev = qdev_new(privdev);
+    if (!secure) {
+        qdev_prop_set_bit(dev, "cpu-has-el3", false);
+    }
+    if (!virt) {
+        qdev_prop_set_bit(dev, "cpu-has-el2", false);
+    }
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
