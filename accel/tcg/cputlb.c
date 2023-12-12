@@ -34,6 +34,7 @@
 #include "qemu/atomic.h"
 #include "qemu/atomic128.h"
 #include "exec/translate-all.h"
+#include "exec/abi_ptr.h"
 #include "trace.h"
 #include "tb-hash.h"
 #include "internal-common.h"
