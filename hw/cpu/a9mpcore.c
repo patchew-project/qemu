@@ -30,9 +30,6 @@ static void a9mp_priv_initfn(Object *obj)
 {
     A9MPPrivState *s = A9MPCORE_PRIV(obj);
 
-    memory_region_init(&s->container, obj, "a9mp-priv-container", 0x2000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->container);
-
     object_initialize_child(obj, "scu", &s->scu, TYPE_A9_SCU);
 
     object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
@@ -47,6 +44,7 @@ static void a9mp_priv_initfn(Object *obj)
 static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 {
     CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_GET_CLASS(dev);
+    CortexMPPrivState *c = CORTEX_MPCORE_PRIV(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
     DeviceState *scudev, *gicdev, *gtimerdev, *mptimerdev, *wdtdev;
@@ -134,21 +132,21 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
      *  0x0700-0x0fff -- nothing
      *  0x1000-0x1fff -- GIC Distributor
      */
-    memory_region_add_subregion(&s->container, 0,
+    memory_region_add_subregion(&c->container, 0,
                                 sysbus_mmio_get_region(scubusdev, 0));
     /* GIC CPU interface */
-    memory_region_add_subregion(&s->container, 0x100,
+    memory_region_add_subregion(&c->container, 0x100,
                                 sysbus_mmio_get_region(gicbusdev, 1));
-    memory_region_add_subregion(&s->container, 0x200,
+    memory_region_add_subregion(&c->container, 0x200,
                                 sysbus_mmio_get_region(gtimerbusdev, 0));
     /* Note that the A9 exposes only the "timer/watchdog for this core"
      * memory region, not the "timer/watchdog for core X" ones 11MPcore has.
      */
-    memory_region_add_subregion(&s->container, 0x600,
+    memory_region_add_subregion(&c->container, 0x600,
                                 sysbus_mmio_get_region(mptimerbusdev, 0));
-    memory_region_add_subregion(&s->container, 0x620,
+    memory_region_add_subregion(&c->container, 0x620,
                                 sysbus_mmio_get_region(wdtbusdev, 0));
-    memory_region_add_subregion(&s->container, 0x1000,
+    memory_region_add_subregion(&c->container, 0x1000,
                                 sysbus_mmio_get_region(gicbusdev, 0));
 
     /* Wire up the interrupt from each watchdog and timer.
@@ -182,6 +180,8 @@ static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_CLASS(klass);
+
+    cc->container_size = 0x2000;
 
     device_class_set_parent_realize(dc, a9mp_priv_realize, &cc->parent_realize);
     device_class_set_props(dc, a9mp_priv_properties);

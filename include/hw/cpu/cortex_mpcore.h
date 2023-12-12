@@ -30,14 +30,22 @@
 #define TYPE_CORTEX_MPCORE_PRIV "cortex_mpcore_priv"
 OBJECT_DECLARE_TYPE(CortexMPPrivState, CortexMPPrivClass, CORTEX_MPCORE_PRIV)
 
+/**
+ * CortexMPPrivClass:
+ * @container_size - size of the device's MMIO region
+ */
 struct CortexMPPrivClass {
     SysBusDeviceClass parent_class;
 
     DeviceRealize parent_realize;
+
+    uint64_t container_size;
 };
 
 struct CortexMPPrivState {
     SysBusDevice parent_obj;
+
+    MemoryRegion container;
 };
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
@@ -47,7 +55,6 @@ struct A9MPPrivState {
     CortexMPPrivState parent_obj;
 
     uint32_t num_cpu;
-    MemoryRegion container;
     uint32_t num_irq;
 
     A9SCUState scu;
@@ -65,7 +72,6 @@ struct A15MPPrivState {
 
     uint32_t num_cpu;
     uint32_t num_irq;
-    MemoryRegion container;
 
     GICState gic;
 };

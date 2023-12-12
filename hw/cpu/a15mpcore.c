@@ -36,11 +36,7 @@ static void a15mp_priv_set_irq(void *opaque, int irq, int level)
 
 static void a15mp_priv_initfn(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     A15MPPrivState *s = A15MPCORE_PRIV(obj);
-
-    memory_region_init(&s->container, obj, "a15mp-priv-container", 0x8000);
-    sysbus_init_mmio(sbd, &s->container);
 
     object_initialize_child(obj, "gic", &s->gic, gic_class_name());
     qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
@@ -51,6 +47,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_GET_CLASS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A15MPPrivState *s = A15MPCORE_PRIV(dev);
+    CortexMPPrivState *c = CORTEX_MPCORE_PRIV(dev);
     DeviceState *gicdev;
     SysBusDevice *gicsbd;
     Error *local_err = NULL;
@@ -133,20 +130,20 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
      *  0x5600-0x57ff -- GIC virtual interface control for CPU 3
      *  0x6000-0x7fff -- GIC virtual CPU interface
      */
-    memory_region_add_subregion(&s->container, 0x1000,
+    memory_region_add_subregion(&c->container, 0x1000,
                                 sysbus_mmio_get_region(gicsbd, 0));
-    memory_region_add_subregion(&s->container, 0x2000,
+    memory_region_add_subregion(&c->container, 0x2000,
                                 sysbus_mmio_get_region(gicsbd, 1));
     if (has_el2) {
-        memory_region_add_subregion(&s->container, 0x4000,
+        memory_region_add_subregion(&c->container, 0x4000,
                                     sysbus_mmio_get_region(gicsbd, 2));
-        memory_region_add_subregion(&s->container, 0x6000,
+        memory_region_add_subregion(&c->container, 0x6000,
                                     sysbus_mmio_get_region(gicsbd, 3));
         for (i = 0; i < s->num_cpu; i++) {
             hwaddr base = 0x5000 + i * 0x200;
             MemoryRegion *mr = sysbus_mmio_get_region(gicsbd,
                                                       4 + s->num_cpu + i);
-            memory_region_add_subregion(&s->container, base, mr);
+            memory_region_add_subregion(&c->container, base, mr);
         }
     }
 }
@@ -167,6 +164,8 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CortexMPPrivClass *cc = CORTEX_MPCORE_PRIV_CLASS(klass);
+
+    cc->container_size = 0x8000;
 
     device_class_set_parent_realize(dc, a15mp_priv_realize,
                                     &cc->parent_realize);
