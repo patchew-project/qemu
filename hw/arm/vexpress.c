@@ -210,45 +210,19 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
                       qemu_irq *pic, bool secure, bool virt)
 {
     DeviceState *dev;
-    SysBusDevice *busdev;
-    int n;
-    unsigned int smp_cpus = ms->smp.cpus;
 
-    /* Create the actual CPUs */
-    for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj = object_new(cpu_type);
-
-        if (!secure) {
-            object_property_set_bool(cpuobj, "has_el3", false, NULL);
-        }
-        if (!virt) {
-            if (object_property_find(cpuobj, "has_el2")) {
-                object_property_set_bool(cpuobj, "has_el2", false, NULL);
-            }
-        }
-
-        if (object_property_find(cpuobj, "reset-cbar")) {
-            object_property_set_int(cpuobj, "reset-cbar", periphbase,
-                                    &error_abort);
-        }
-        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
-    }
-
-    /* Create the private peripheral devices (including the GIC);
-     * this must happen after the CPUs are created because a15mpcore_priv
-     * wires itself up to the CPU's generic_timer gpio out lines.
-     */
     dev = qdev_new(privdev);
+    qdev_prop_set_uint32(dev, "num-cores", ms->smp.cpus);
+    qdev_prop_set_string(dev, "cpu-type", cpu_type);
     if (!secure) {
         qdev_prop_set_bit(dev, "cpu-has-el3", false);
     }
     if (!virt) {
         qdev_prop_set_bit(dev, "cpu-has-el2", false);
     }
-    qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
-    sysbus_mmio_map(busdev, 0, periphbase);
+    qdev_prop_set_uint64(dev, "cpu-reset-cbar", periphbase);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, periphbase);
 
     /* Interrupts [42:0] are from the motherboard;
      * [47:43] are reserved; [63:48] are daughterboard
@@ -256,21 +230,8 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
      * external interrupts starting from 32 (because there
      * are internal interrupts 0..31).
      */
-    for (n = 0; n < 64; n++) {
+    for (int n = 0; n < 64; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
-    }
-
-    /* Connect the CPUs to the GIC */
-    for (n = 0; n < smp_cpus; n++) {
-        DeviceState *cpudev = DEVICE(qemu_get_cpu(n));
-
-        sysbus_connect_irq(busdev, n, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
-        sysbus_connect_irq(busdev, n + smp_cpus,
-                           qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
-        sysbus_connect_irq(busdev, n + 2 * smp_cpus,
-                           qdev_get_gpio_in(cpudev, ARM_CPU_VIRQ));
-        sysbus_connect_irq(busdev, n + 3 * smp_cpus,
-                           qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
     }
 }
 
