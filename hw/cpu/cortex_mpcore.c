@@ -43,6 +43,13 @@ static void cortex_mpcore_priv_realize(DeviceState *dev, Error **errp)
     CortexMPPrivClass *k = CORTEX_MPCORE_PRIV_GET_CLASS(dev);
     DeviceState *gicdev = DEVICE(&s->gic);
 
+    if (s->gic_spi_num > k->gic_spi_max) {
+        error_setg(errp,
+                   "At most %u GIC SPI are supported (requested %u)",
+                   k->gic_spi_max, s->gic_spi_num);
+        return;
+    }
+
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cores);
     qdev_prop_set_uint32(gicdev, "num-irq", s->gic_spi_num);
     if (k->gic_priority_bits) {
