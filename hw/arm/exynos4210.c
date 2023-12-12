@@ -501,12 +501,6 @@ void exynos4210_write_secondary(ARMCPU *cpu,
                        info->smp_loader_start);
 }
 
-static uint64_t exynos4210_calc_affinity(int cpu)
-{
-    /* Exynos4210 has 0x9 as cluster ID */
-    return (0x9 << ARM_AFF1_SHIFT) | cpu;
-}
-
 static DeviceState *pl330_create(uint32_t base, OrIRQState *orgate,
                                  qemu_irq irq, int nreq, int nevents, int width)
 {
@@ -549,26 +543,25 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     MemoryRegion *system_mem = get_system_memory();
     SysBusDevice *busdev;
     DeviceState *dev, *mpdev, *uart[4], *pl330[3];
+    CortexMPPrivState *mpcore;
     int i, n;
 
-    for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        Object *cpuobj = object_new(ARM_CPU_TYPE_NAME("cortex-a9"));
-
-        /* By default A9 CPUs have EL3 enabled.  This board does not currently
-         * support EL3 so the CPU EL3 property is disabled before realization.
-         */
-        if (object_property_find(cpuobj, "has_el3")) {
-            object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
-        }
-
-        s->cpu[n] = ARM_CPU(cpuobj);
-        object_property_set_int(cpuobj, "mp-affinity",
-                                exynos4210_calc_affinity(n), &error_abort);
-        object_property_set_int(cpuobj, "reset-cbar",
-                                EXYNOS4210_SMP_PRIVATE_BASE_ADDR,
-                                &error_abort);
-        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
-    }
+    /* Private memory region and Internal GIC */
+    mpdev = DEVICE(&s->a9mpcore);
+    mpcore = CORTEX_MPCORE_PRIV(&s->a9mpcore);
+    /* Exynos4210 has 0x9 as cluster ID */
+    qdev_prop_set_uint32(mpdev, "cluster-id", 0x9);
+    qdev_prop_set_uint32(mpdev, "num-cores", EXYNOS4210_NCPUS);
+    /*
+     * By default A9 CPUs have EL3 enabled.  This board does not currently
+     * support EL3 so the CPU EL3 property is disabled before realization.
+     */
+    qdev_prop_set_bit(mpdev, "cpu-has-el3", false);
+    qdev_prop_set_uint64(mpdev, "cpu-reset-cbar",
+                         EXYNOS4210_SMP_PRIVATE_BASE_ADDR);
+    busdev = SYS_BUS_DEVICE(&s->a9mpcore);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_mmio_map(busdev, 0, EXYNOS4210_SMP_PRIVATE_BASE_ADDR);
 
     /* IRQ Gate */
     for (i = 0; i < EXYNOS4210_NCPUS; i++) {
@@ -578,23 +571,10 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                                 &error_abort);
         qdev_realize(orgate, NULL, &error_abort);
         qdev_connect_gpio_out(orgate, 0,
-                              qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
-    }
-
-    /* Private memory region and Internal GIC */
-    mpdev = DEVICE(&s->a9mpcore);
-    qdev_prop_set_uint32(mpdev, "num-cores", EXYNOS4210_NCPUS);
-    /*
-     * By default A9 CPUs have EL3 enabled.  This board does not currently
-     * support EL3 so the CPU EL3 property is disabled before realization.
-     */
-    qdev_prop_set_bit(mpdev, "cpu-has-el3", false);
-    busdev = SYS_BUS_DEVICE(&s->a9mpcore);
-    sysbus_realize(busdev, &error_fatal);
-    sysbus_mmio_map(busdev, 0, EXYNOS4210_SMP_PRIVATE_BASE_ADDR);
-    for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        sysbus_connect_irq(busdev, n,
-                           qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[n]), 0));
+                              qdev_get_gpio_in(DEVICE(mpcore->cpu[i]),
+                                               ARM_CPU_IRQ));
+        sysbus_connect_irq(busdev, i,
+                           qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[i]), 0));
     }
 
     /* Cache controller */

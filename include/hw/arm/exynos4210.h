@@ -83,10 +83,8 @@
 #define EXYNOS4210_NUM_SPLITTERS (EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ + 38)
 
 struct Exynos4210State {
-    /*< private >*/
     SysBusDevice parent_obj;
-    /*< public >*/
-    ARMCPU *cpu[EXYNOS4210_NCPUS];
+
     qemu_irq irq_table[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
 
     MemoryRegion chipid_mem;
