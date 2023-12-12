@@ -24,7 +24,7 @@
 #include "hw/i2c/i2c.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
-#include "hw/cpu/a9mpcore.h"
+#include "hw/cpu/cortex_mpcore.h"
 #include "hw/intc/realview_gic.h"
 #include "hw/irq.h"
 #include "hw/i2c/arm_sbcon_i2c.h"

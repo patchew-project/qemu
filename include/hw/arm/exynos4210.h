@@ -26,7 +26,7 @@
 
 #include "hw/or-irq.h"
 #include "hw/sysbus.h"
-#include "hw/cpu/a9mpcore.h"
+#include "hw/cpu/cortex_mpcore.h"
 #include "hw/intc/exynos4210_gic.h"
 #include "hw/intc/exynos4210_combiner.h"
 #include "hw/core/split-irq.h"

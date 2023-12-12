@@ -1,29 +1,27 @@
 /*
- * Cortex-A9MPCore internal peripheral emulation.
+ * Cortex-MPCore internal peripheral emulation.
  *
  * Copyright (c) 2009 CodeSourcery.
- * Copyright (c) 2011 Linaro Limited.
+ * Copyright (c) 2011, 2012, 2023 Linaro Limited.
  * Written by Paul Brook, Peter Maydell.
  *
- * This code is licensed under the GPL.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#ifndef HW_CPU_A9MPCORE_H
-#define HW_CPU_A9MPCORE_H
+#ifndef HW_CPU_CORTEX_MPCORE_H
+#define HW_CPU_CORTEX_MPCORE_H
 
+#include "qom/object.h"
 #include "hw/sysbus.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/misc/a9scu.h"
-#include "hw/timer/arm_mptimer.h"
 #include "hw/timer/a9gtimer.h"
-#include "qom/object.h"
+#include "hw/timer/arm_mptimer.h"
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
 OBJECT_DECLARE_SIMPLE_TYPE(A9MPPrivState, A9MPCORE_PRIV)
 
 struct A9MPPrivState {
-    /*< private >*/
     SysBusDevice parent_obj;
-    /*< public >*/
 
     uint32_t num_cpu;
     MemoryRegion container;
@@ -34,6 +32,19 @@ struct A9MPPrivState {
     A9GTimerState gtimer;
     ARMMPTimerState mptimer;
     ARMMPTimerState wdt;
+};
+
+#define TYPE_A15MPCORE_PRIV "a15mpcore_priv"
+OBJECT_DECLARE_SIMPLE_TYPE(A15MPPrivState, A15MPCORE_PRIV)
+
+struct A15MPPrivState {
+    SysBusDevice parent_obj;
+
+    uint32_t num_cpu;
+    uint32_t num_irq;
+    MemoryRegion container;
+
+    GICState gic;
 };
 
 #endif

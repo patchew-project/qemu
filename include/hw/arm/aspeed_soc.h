@@ -12,7 +12,7 @@
 #ifndef ASPEED_SOC_H
 #define ASPEED_SOC_H
 
-#include "hw/cpu/a15mpcore.h"
+#include "hw/cpu/cortex_mpcore.h"
 #include "hw/arm/armv7m.h"
 #include "hw/intc/aspeed_vic.h"
 #include "hw/misc/aspeed_scu.h"

@@ -203,7 +203,8 @@ F: tests/tcg/aarch64/
 F: tests/qtest/arm-cpu-features.c
 F: hw/arm/
 F: hw/cpu/a*mpcore.c
-F: include/hw/cpu/a*mpcore.h
+F: include/hw/cpu/arm11mpcore.h
+F: include/hw/cpu/cortex_mpcore.h
 F: docs/system/target-arm.rst
 F: docs/system/arm/cpu-features.rst
 

@@ -19,7 +19,7 @@
 #ifndef FSL_IMX7_H
 #define FSL_IMX7_H
 
-#include "hw/cpu/a15mpcore.h"
+#include "hw/cpu/cortex_mpcore.h"
 #include "hw/intc/imx_gpcv2.h"
 #include "hw/misc/imx7_ccm.h"
 #include "hw/misc/imx7_snvs.h"

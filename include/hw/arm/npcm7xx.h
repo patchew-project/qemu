@@ -19,7 +19,7 @@
 #include "hw/boards.h"
 #include "hw/adc/npcm7xx_adc.h"
 #include "hw/core/split-irq.h"
-#include "hw/cpu/a9mpcore.h"
+#include "hw/cpu/cortex_mpcore.h"
 #include "hw/gpio/npcm7xx_gpio.h"
 #include "hw/i2c/npcm7xx_smbus.h"
 #include "hw/mem/npcm7xx_mc.h"
