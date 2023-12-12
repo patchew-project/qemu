@@ -44,7 +44,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
      * appropriate GIC PPI inputs
      */
     for (i = 0; i < c->num_cores; i++) {
-        DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
+        DeviceState *cpudev = DEVICE(c->cpu[i]);
         int ppibase = c->gic_spi_num - 32 + i * 32;
         int irq;
         /* Mapping from the output timer irq lines from the CPU to the
