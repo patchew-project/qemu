@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <libgen.h>
 #include <linux/vfio.h>
 #include <sys/ioctl.h>
 
