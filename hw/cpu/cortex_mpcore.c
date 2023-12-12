@@ -57,6 +57,11 @@ static void cortex_mpcore_priv_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (!s->cpu_type) {
+        error_setg(errp, "'cpu-type' property is not set");
+        return;
+    }
+
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cores);
     qdev_prop_set_uint32(gicdev, "num-irq", s->gic_spi_num);
     if (k->gic_priority_bits) {
@@ -85,9 +90,6 @@ static void cortex_mpcore_priv_realize(DeviceState *dev, Error **errp)
 
 
     /* CPU */
-    if (!s->cpu_type) {
-        return;
-    }
     for (int i = 0; i < s->num_cores; i++) {
         Object *cpuobj;
 

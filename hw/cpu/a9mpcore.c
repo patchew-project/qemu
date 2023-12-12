@@ -41,12 +41,10 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     DeviceState *scudev, *gtimerdev, *mptimerdev, *wdtdev;
     SysBusDevice *scubusdev, *gtimerbusdev, *mptimerbusdev, *wdtbusdev;
     Error *local_err = NULL;
-    CPUState *cpu0;
-    Object *cpuobj;
 
-    cpu0 = qemu_get_cpu(0);
-    cpuobj = OBJECT(cpu0);
-    if (strcmp(object_get_typename(cpuobj), ARM_CPU_TYPE_NAME("cortex-a9"))) {
+    if (!c->cpu_type) {
+        qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-a9"));
+    } else if (strcmp(c->cpu_type, ARM_CPU_TYPE_NAME("cortex-a9"))) {
         /* We might allow Cortex-A5 once we model it */
         error_setg(errp,
                    "Cortex-A9MPCore peripheral can only use Cortex-A9 CPU");
