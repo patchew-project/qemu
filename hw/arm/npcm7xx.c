@@ -363,9 +363,11 @@ static struct arm_boot_info npcm7xx_binfo = {
 
 void npcm7xx_load_kernel(MachineState *machine, NPCM7xxState *soc)
 {
+    CortexMPPrivState *mp = CORTEX_MPCORE_PRIV(&soc->a9mpcore);
+
     npcm7xx_binfo.ram_size = machine->ram_size;
 
-    arm_load_kernel(&soc->cpu[0], machine, &npcm7xx_binfo);
+    arm_load_kernel(mp->cpu[0], machine, &npcm7xx_binfo);
 }
 
 static void npcm7xx_init_fuses(NPCM7xxState *s)
@@ -399,11 +401,6 @@ static void npcm7xx_init(Object *obj)
 {
     NPCM7xxState *s = NPCM7XX(obj);
     int i;
-
-    for (i = 0; i < NPCM7XX_MAX_NUM_CPUS; i++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpu[i],
-                                ARM_CPU_TYPE_NAME("cortex-a9"));
-    }
 
     object_initialize_child(obj, "a9mpcore", &s->a9mpcore, TYPE_A9MPCORE_PRIV);
     object_initialize_child(obj, "gcr", &s->gcr, TYPE_NPCM7XX_GCR);
@@ -471,39 +468,18 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    /* CPUs */
-    for (i = 0; i < nc->num_cpus; i++) {
-        object_property_set_int(OBJECT(&s->cpu[i]), "mp-affinity",
-                                arm_cpu_mp_affinity(i, NPCM7XX_MAX_NUM_CPUS),
-                                &error_abort);
-        object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
-                                NPCM7XX_GIC_CPU_IF_ADDR, &error_abort);
-        object_property_set_bool(OBJECT(&s->cpu[i]), "reset-hivecs", true,
-                                 &error_abort);
-
-        /* Disable security extensions. */
-        object_property_set_bool(OBJECT(&s->cpu[i]), "has_el3", false,
-                                 &error_abort);
-
-        if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
-            return;
-        }
-    }
-
     /* A9MPCORE peripherals. Can only fail if we pass bad parameters here. */
-    object_property_set_int(OBJECT(&s->a9mpcore), "num-cores", nc->num_cpus,
-                            &error_abort);
-    object_property_set_int(OBJECT(&s->a9mpcore), "num-irq", NPCM7XX_NUM_IRQ,
-                            &error_abort);
+    qdev_prop_set_uint32(DEVICE(&s->a9mpcore), "num-cores", nc->num_cpus);
+    qdev_prop_set_string(DEVICE(&s->a9mpcore), "cpu-type",
+                         ARM_CPU_TYPE_NAME("cortex-a9"));
+    /* Disable security extensions. */
+    qdev_prop_set_bit(DEVICE(&s->a9mpcore), "cpu-has-el3", false);
+    qdev_prop_set_uint64(DEVICE(&s->a9mpcore), "cpu-reset-cbar",
+                         NPCM7XX_GIC_CPU_IF_ADDR);
+    qdev_prop_set_bit(DEVICE(&s->a9mpcore), "cpu-reset-hivecs", true);
+    qdev_prop_set_uint32(DEVICE(&s->a9mpcore), "gic-spi-num", NPCM7XX_NUM_IRQ);
     sysbus_realize(SYS_BUS_DEVICE(&s->a9mpcore), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->a9mpcore), 0, NPCM7XX_CPUP_BA);
-
-    for (i = 0; i < nc->num_cpus; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->a9mpcore), i,
-                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_IRQ));
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->a9mpcore), i + nc->num_cpus,
-                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_FIQ));
-    }
 
     /* L2 cache controller */
     sysbus_create_simple("l2x0", NPCM7XX_L2C_BA, NULL);

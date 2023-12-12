@@ -80,7 +80,6 @@ typedef struct NPCM7xxMachineClass {
 struct NPCM7xxState {
     DeviceState         parent;
 
-    ARMCPU              cpu[NPCM7XX_MAX_NUM_CPUS];
     A9MPPrivState       a9mpcore;
 
     MemoryRegion        sram;
