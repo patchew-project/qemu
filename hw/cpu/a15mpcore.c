@@ -125,7 +125,7 @@ static const TypeInfo a15mp_types[] = {
     {
         .name           = TYPE_A15MPCORE_PRIV,
         .parent         = TYPE_CORTEX_MPCORE_PRIV,
-        .instance_size  = sizeof(A15MPPrivState),
+        .instance_size  = sizeof(CortexMPPrivState),
         .class_init     = a15mp_priv_class_init,
     },
 };

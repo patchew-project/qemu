@@ -117,10 +117,5 @@ struct A9MPPrivState {
 };
 
 #define TYPE_A15MPCORE_PRIV "a15mpcore_priv"
-OBJECT_DECLARE_SIMPLE_TYPE(A15MPPrivState, A15MPCORE_PRIV)
-
-struct A15MPPrivState {
-    CortexMPPrivState parent_obj;
-};
 
 #endif

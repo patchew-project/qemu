@@ -108,7 +108,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(Aspeed2400SoCState, ASPEED2400_SOC)
 struct Aspeed2600SoCState {
     AspeedSoCState parent;
 
-    A15MPPrivState a7mpcore;
+    CortexMPPrivState a7mpcore;
     ARMCPU cpu[ASPEED_CPUS_NUM]; /* XXX belong to a7mpcore */
 };
 

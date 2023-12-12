@@ -68,7 +68,7 @@ struct FslIMX7State {
 
     /*< public >*/
     ARMCPU             cpu[FSL_IMX7_NUM_CPUS];
-    A15MPPrivState     a7mpcore;
+    CortexMPPrivState  a7mpcore;
     IMXGPTState        gpt[FSL_IMX7_NUM_GPTS];
     IMXGPIOState       gpio[FSL_IMX7_NUM_GPIOS];
     IMX7CCMState       ccm;
