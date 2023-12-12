@@ -16,6 +16,7 @@
 #include "hw/misc/a9scu.h"
 #include "hw/timer/a9gtimer.h"
 #include "hw/timer/arm_mptimer.h"
+#include "target/arm/cpu-qom.h"
 
 /*
  * This is a model of the Arm Cortex-A MPCore family of hardware.
@@ -93,13 +94,24 @@ struct CortexMPPrivState {
     SysBusDevice parent_obj;
 
     MemoryRegion container;
+    ARMCPU *cpu[4];
     GICState gic;
 
     /* Properties */
+    uint8_t cluster_id;
     uint32_t num_cores;
 
+    char *cpu_type;
     bool cpu_has_el3;
     bool cpu_has_el2;
+    bool cpu_has_vfp_d32;
+    bool cpu_has_neon;
+    uint64_t cpu_freq_hz;
+    uint64_t cpu_midr;
+    uint32_t cpu_psci_conduit;
+    uint64_t cpu_reset_cbar;
+    bool cpu_reset_hivecs;
+    MemoryRegion *cpu_memory;
 
     uint32_t gic_spi_num;
 };
