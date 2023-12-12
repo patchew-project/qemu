@@ -28,10 +28,17 @@
  *  some timers and watchdogs
  *
  * QEMU interface:
+ *  + QOM property "cluster-id" which set the cluster ID and its affinity.
  *  + QOM property "num-cores" which set the number of cores present in
  *    the cluster.
+ *  + QOM property "cpu-type" is the CPU model typename.
  *  + QOM properties "cpu-has-el3", "cpu-has-el2" which set whether the CPUs
  *    have the exception level features present.
+ *  + QOM properties "cpu-has-vfp-d32", "cpu-has-neon" which set whether the
+ *    CPUs have the FPU features present.
+ *  + QOM property "cpu-freq-hz" is the frequency of each core
+ *  + QOM property "cpu-memory" is a MemoryRegion containing the devices
+ *    provided by the board model.
  *  + QOM property "gic-spi-num" sets the number of GIC Shared Peripheral
  *    Interrupts.
  * QEMU interface forwarded from the GIC:
