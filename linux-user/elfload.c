@@ -7,6 +7,7 @@
 
 #include "qemu.h"
 #include "exec/user/tswap-target.h"
+#include "exec/user/guest-base.h"
 #include "user-internals.h"
 #include "signal-common.h"
 #include "loader.h"
