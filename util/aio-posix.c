@@ -64,8 +64,11 @@ static AioHandler *find_aio_handler(AioContext *ctx, int fd)
     return NULL;
 }
 
-static bool aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
+static void aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
 {
+    bool poll_ready;
+    bool delete_node = false;
+
     /* If the GSource is in the process of being destroyed then
      * g_source_remove_poll() causes an assertion failure.  Skip
      * removal in that case, because glib cleans up its state during
@@ -76,25 +79,40 @@ static bool aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
     }
 
     node->pfd.revents = 0;
+    poll_ready = node->poll_ready;
     node->poll_ready = false;
 
     /* If the fd monitor has already marked it deleted, leave it alone */
-    if (QLIST_IS_INSERTED(node, node_deleted)) {
-        return false;
+    if (!QLIST_IS_INSERTED(node, node_deleted)) {
+        /* If a read is in progress, just mark the node as deleted */
+        if (ctx->walking_handlers > 0) {
+            QLIST_INSERT_HEAD_RCU(&ctx->deleted_aio_handlers, node, node_deleted);
+        } else {
+            /* Otherwise, delete it for real.  We can't just mark it as
+             * deleted because deleted nodes are only cleaned up while
+             * no one is walking the handlers list.
+             */
+            QLIST_SAFE_REMOVE(node, node_poll);
+            QLIST_REMOVE(node, node);
+            delete_node = true;
+        }
     }
 
-    /* If a read is in progress, just mark the node as deleted */
-    if (ctx->walking_handlers > 0) {
-        QLIST_INSERT_HEAD_RCU(&ctx->deleted_aio_handlers, node, node_deleted);
-        return false;
+    /* If polling was started on the node then end it now */
+    if (ctx->poll_started && node->io_poll_end) {
+        node->io_poll_end(node->opaque);
+
+        /* Poll one last time in case ->io_poll_end() raced with the event */
+        if (node->io_poll(node->opaque)) {
+            poll_ready = true;
+        }
     }
-    /* Otherwise, delete it for real.  We can't just mark it as
-     * deleted because deleted nodes are only cleaned up while
-     * no one is walking the handlers list.
-     */
-    QLIST_SAFE_REMOVE(node, node_poll);
-    QLIST_REMOVE(node, node);
-    return true;
+    if (poll_ready) {
+        node->io_poll_ready(node->opaque);
+    }
+    if (delete_node) {
+        g_free(node);
+    }
 }
 
 /* Perform aio_set_fd_handler() in this thread's AioContext */
@@ -109,7 +127,6 @@ static void aio_set_fd_handler_local(AioContext *ctx,
     AioHandler *node;
     AioHandler *new_node = NULL;
     bool is_new = false;
-    bool deleted = false;
     int poll_disable_change;
 
     if (io_poll && !io_poll_ready) {
@@ -166,13 +183,9 @@ static void aio_set_fd_handler_local(AioContext *ctx,
 
     ctx->fdmon_ops->update(ctx, node, new_node);
     if (node) {
-        deleted = aio_remove_fd_handler(ctx, node);
+        aio_remove_fd_handler(ctx, node);
     }
     aio_notify(ctx);
-
-    if (deleted) {
-        g_free(node);
-    }
 }
 
 typedef struct {
