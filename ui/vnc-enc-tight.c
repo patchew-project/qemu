@@ -284,6 +284,9 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
         for (; c < 256; c++) {                                          \
             errors += stats[c] * (c * c);                               \
         }                                                               \
+        if (pixels == stats[0]) {                                       \
+            return 0;                                                   \
+        }                                                               \
         errors /= (pixels - stats[0]);                                  \
                                                                         \
         return errors;                                                  \
