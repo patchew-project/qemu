@@ -85,6 +85,7 @@ typedef struct VFIOContainer {
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
     MemoryListener listener;
     MemoryListener prereg_listener;
+    Notifier cpr_reboot_notifier;
     unsigned iommu_type;
     Error *error;
     bool initialized;
@@ -253,6 +254,9 @@ void vfio_detach_device(VFIODevice *vbasedev);
 
 int vfio_kvm_device_add_fd(int fd, Error **errp);
 int vfio_kvm_device_del_fd(int fd, Error **errp);
+
+int vfio_cpr_register_container(VFIOContainer *container, Error **errp);
+void vfio_cpr_unregister_container(VFIOContainer *container);
 
 extern const MemoryRegionOps vfio_region_ops;
 typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;

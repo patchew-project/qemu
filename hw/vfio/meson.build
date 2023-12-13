@@ -5,6 +5,7 @@ vfio_ss.add(files(
   'container.c',
   'spapr.c',
   'migration.c',
+  'cpr.c',
 ))
 vfio_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
   'display.c',
