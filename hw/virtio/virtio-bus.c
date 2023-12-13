@@ -119,10 +119,8 @@ void virtio_bus_device_unplugged(VirtIODevice *vdev)
 
     DPRINTF("%s: remove device.\n", qbus->name);
 
-    if (vdev != NULL) {
-        if (klass->device_unplugged != NULL) {
-            klass->device_unplugged(qbus->parent);
-        }
+    if (klass->device_unplugged != NULL) {
+        klass->device_unplugged(qbus->parent);
     }
 }
 
