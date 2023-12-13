@@ -71,8 +71,6 @@ typedef struct {
      *            removed
      *
      * Add/remove/modify a monitored file descriptor.
-     *
-     * Called with ctx->list_lock acquired.
      */
     void (*update)(AioContext *ctx, AioHandler *old_node, AioHandler *new_node);
 
@@ -84,7 +82,7 @@ typedef struct {
      *
      * Wait for file descriptors to become ready and place them on ready_list.
      *
-     * Called with ctx->list_lock incremented but not locked.
+     * Called with ctx->walking_handlers incremented.
      *
      * Returns: number of ready file descriptors.
      */
@@ -136,10 +134,10 @@ struct AioContext {
      */
     BdrvGraphRWlock *bdrv_graph;
 
-    /* The list of registered AIO handlers.  Protected by ctx->list_lock. */
+    /* The list of registered AIO handlers. */
     AioHandlerList aio_handlers;
 
-    /* The list of AIO handlers to be deleted.  Protected by ctx->list_lock. */
+    /* The list of AIO handlers to be deleted. */
     AioHandlerList deleted_aio_handlers;
 
     /* Used to avoid unnecessary event_notifier_set calls in aio_notify;
@@ -171,11 +169,8 @@ struct AioContext {
      */
     uint32_t notify_me;
 
-    /* A lock to protect between QEMUBH and AioHandler adders and deleter,
-     * and to ensure that no callbacks are removed while we're walking and
-     * dispatching them.
-     */
-    QemuLockCnt list_lock;
+    /* Re-entrancy counter for iterating over aio_handlers */
+    uint32_t walking_handlers;
 
     /* Bottom Halves pending aio_bh_poll() processing */
     BHList bh_list;
@@ -236,12 +231,7 @@ struct AioContext {
     /* AIO engine parameters */
     int64_t aio_max_batch;  /* maximum number of requests in a batch */
 
-    /*
-     * List of handlers participating in userspace polling.  Protected by
-     * ctx->list_lock.  Iterated and modified mostly by the event loop thread
-     * from aio_poll() with ctx->list_lock incremented.  aio_set_fd_handler()
-     * only touches the list to delete nodes if ctx->list_lock's count is zero.
-     */
+    /* List of handlers participating in userspace polling. */
     AioHandlerList poll_aio_handlers;
 
     /* Are we in polling mode or monitoring file descriptors? */

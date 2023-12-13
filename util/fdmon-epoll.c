@@ -132,15 +132,11 @@ bool fdmon_epoll_try_upgrade(AioContext *ctx, unsigned npfd)
         return false;
     }
 
-    /* The list must not change while we add fds to epoll */
-    if (!qemu_lockcnt_dec_if_lock(&ctx->list_lock)) {
+    if (ctx->walking_handlers > 1) {
         return false;
     }
 
     ok = fdmon_epoll_try_enable(ctx);
-
-    qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
-
     if (!ok) {
         fdmon_epoll_disable(ctx);
     }

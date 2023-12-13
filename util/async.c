@@ -412,7 +412,6 @@ aio_ctx_finalize(GSource     *source)
     aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
     qemu_rec_mutex_destroy(&ctx->lock);
-    qemu_lockcnt_destroy(&ctx->list_lock);
     timerlistgroup_deinit(&ctx->tlg);
     unregister_aiocontext(ctx);
     aio_context_destroy(ctx);
@@ -587,7 +586,6 @@ AioContext *aio_context_new(Error **errp)
         goto fail;
     }
     g_source_set_can_recurse(&ctx->source, true);
-    qemu_lockcnt_init(&ctx->list_lock);
 
     ctx->co_schedule_bh = aio_bh_new(ctx, co_schedule_bh_cb, ctx);
     QSLIST_INIT(&ctx->scheduled_coroutines);

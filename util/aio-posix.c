@@ -84,7 +84,7 @@ static bool aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
     }
 
     /* If a read is in progress, just mark the node as deleted */
-    if (qemu_lockcnt_count(&ctx->list_lock)) {
+    if (ctx->walking_handlers > 0) {
         QLIST_INSERT_HEAD_RCU(&ctx->deleted_aio_handlers, node, node_deleted);
         return false;
     }
@@ -116,14 +116,11 @@ static void aio_set_fd_handler_local(AioContext *ctx,
         io_poll = NULL; /* polling only makes sense if there is a handler */
     }
 
-    qemu_lockcnt_lock(&ctx->list_lock);
-
     node = find_aio_handler(ctx, fd);
 
     /* Are we deleting the fd handler? */
     if (!io_read && !io_write && !io_poll) {
         if (node == NULL) {
-            qemu_lockcnt_unlock(&ctx->list_lock);
             return;
         }
         /* Clean events in order to unregister fd from the ctx epoll. */
@@ -171,7 +168,6 @@ static void aio_set_fd_handler_local(AioContext *ctx,
     if (node) {
         deleted = aio_remove_fd_handler(ctx, node);
     }
-    qemu_lockcnt_unlock(&ctx->list_lock);
     aio_notify(ctx);
 
     if (deleted) {
@@ -317,7 +313,7 @@ static bool poll_set_started(AioContext *ctx, AioHandlerList *ready_list,
 
     ctx->poll_started = started;
 
-    qemu_lockcnt_inc(&ctx->list_lock);
+    ctx->walking_handlers++;
     QLIST_FOREACH(node, &ctx->poll_aio_handlers, node_poll) {
         IOHandler *fn;
 
@@ -341,7 +337,7 @@ static bool poll_set_started(AioContext *ctx, AioHandlerList *ready_list,
             progress = true;
         }
     }
-    qemu_lockcnt_dec(&ctx->list_lock);
+    ctx->walking_handlers--;
 
     return progress;
 }
@@ -363,12 +359,7 @@ bool aio_pending(AioContext *ctx)
     AioHandler *node;
     bool result = false;
 
-    /*
-     * We have to walk very carefully in case aio_set_fd_handler is
-     * called while we're walking.
-     */
-    qemu_lockcnt_inc(&ctx->list_lock);
-
+    ctx->walking_handlers++;
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         int revents;
 
@@ -383,19 +374,17 @@ bool aio_pending(AioContext *ctx)
             break;
         }
     }
-    qemu_lockcnt_dec(&ctx->list_lock);
+    ctx->walking_handlers--;
 
     return result;
 }
 
+/* Caller must not have ctx->walking_handlers incremented */
 static void aio_free_deleted_handlers(AioContext *ctx)
 {
     AioHandler *node;
 
-    if (QLIST_EMPTY_RCU(&ctx->deleted_aio_handlers)) {
-        return;
-    }
-    if (!qemu_lockcnt_dec_if_lock(&ctx->list_lock)) {
+    if (ctx->walking_handlers > 0) {
         return; /* we are nested, let the parent do the freeing */
     }
 
@@ -405,8 +394,6 @@ static void aio_free_deleted_handlers(AioContext *ctx)
         QLIST_SAFE_REMOVE(node, node_poll);
         g_free(node);
     }
-
-    qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
 }
 
 static bool aio_dispatch_handler(AioContext *ctx, AioHandler *node)
@@ -511,11 +498,12 @@ static bool aio_dispatch_handlers(AioContext *ctx)
 
 void aio_dispatch(AioContext *ctx)
 {
-    qemu_lockcnt_inc(&ctx->list_lock);
+    ctx->walking_handlers++;
     aio_bh_poll(ctx);
     aio_dispatch_handlers(ctx);
+    ctx->walking_handlers--;
+
     aio_free_deleted_handlers(ctx);
-    qemu_lockcnt_dec(&ctx->list_lock);
 
     timerlistgroup_run_timers(&ctx->tlg);
 }
@@ -607,7 +595,7 @@ static bool remove_idle_poll_handlers(AioContext *ctx,
  *
  * Polls for a given time.
  *
- * Note that the caller must have incremented ctx->list_lock.
+ * Note that the caller must have incremented ctx->walking_handlers.
  *
  * Returns: true if progress was made, false otherwise
  */
@@ -617,7 +605,7 @@ static bool run_poll_handlers(AioContext *ctx, AioHandlerList *ready_list,
     bool progress;
     int64_t start_time, elapsed_time;
 
-    assert(qemu_lockcnt_count(&ctx->list_lock) > 0);
+    assert(&ctx->walking_handlers > 0);
 
     trace_run_poll_handlers_begin(ctx, max_ns, *timeout);
 
@@ -663,7 +651,7 @@ static bool run_poll_handlers(AioContext *ctx, AioHandlerList *ready_list,
  * @timeout: timeout for blocking wait, computed by the caller and updated if
  *    polling succeeds.
  *
- * Note that the caller must have incremented ctx->list_lock.
+ * Note that the caller must have incremented ctx->walking_handlers.
  *
  * Returns: true if progress was made, false otherwise
  */
@@ -711,7 +699,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     assert(in_aio_context_home_thread(ctx == iohandler_get_aio_context() ?
                                       qemu_get_aio_context() : ctx));
 
-    qemu_lockcnt_inc(&ctx->list_lock);
+    ctx->walking_handlers++;
 
     if (ctx->poll_max_ns) {
         start = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
@@ -814,9 +802,9 @@ bool aio_poll(AioContext *ctx, bool blocking)
     progress |= aio_bh_poll(ctx);
     progress |= aio_dispatch_ready_handlers(ctx, &ready_list);
 
-    aio_free_deleted_handlers(ctx);
+    ctx->walking_handlers--;
 
-    qemu_lockcnt_dec(&ctx->list_lock);
+    aio_free_deleted_handlers(ctx);
 
     progress |= timerlistgroup_run_timers(&ctx->tlg);
 
