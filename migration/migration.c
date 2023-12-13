@@ -1559,6 +1559,11 @@ bool migration_is_active(MigrationState *s)
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
+MigMode migrate_mode_of(MigrationState *s)
+{
+    return s->parameters.mode;
+}
+
 int migrate_init(MigrationState *s, Error **errp)
 {
     int ret;

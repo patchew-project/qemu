@@ -336,6 +336,10 @@ static void vdpa_net_migration_state_notifier(Notifier *notifier, void *data)
     VhostVDPAState *s = container_of(notifier, VhostVDPAState,
                                      migration_state);
 
+    if (migrate_mode_of(migration) != MIG_MODE_NORMAL) {
+        return;
+    }
+
     if (migration_in_setup(migration)) {
         vhost_vdpa_net_log_global_enable(s, true);
     } else if (migration_has_failed(migration)) {

@@ -61,6 +61,7 @@ void migration_object_init(void);
 void migration_shutdown(void);
 bool migration_is_idle(void);
 bool migration_is_active(MigrationState *);
+MigMode migrate_mode_of(MigrationState *);
 void migration_add_notifier(Notifier *notify,
                             void (*func)(Notifier *notifier, void *data));
 void migration_remove_notifier(Notifier *notify);
