@@ -65,7 +65,7 @@ MigMode migrate_mode_of(MigrationState *);
 void migration_add_notifier(Notifier *notify,
                             void (*func)(Notifier *notifier, void *data));
 void migration_remove_notifier(Notifier *notify);
-void migration_call_notifiers(MigrationState *s);
+int migration_call_notifiers(MigrationState *s);
 bool migration_in_setup(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);

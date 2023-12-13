@@ -1280,6 +1280,8 @@ void migrate_set_state(int *state, int old_state, int new_state)
 
 static void migrate_fd_cleanup(MigrationState *s)
 {
+    bool already_failed;
+
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
 
@@ -1327,11 +1329,20 @@ static void migrate_fd_cleanup(MigrationState *s)
                           MIGRATION_STATUS_CANCELLED);
     }
 
+    already_failed = migration_has_failed(s);
+    if (migration_call_notifiers(s)) {
+        if (!already_failed) {
+            migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+            /* Notify again to recover from this late failure. */
+            migration_call_notifiers(s);
+        }
+    }
+
     if (s->error) {
         /* It is used on info migrate.  We can't free it */
         error_report_err(error_copy(s->error));
     }
-    migration_call_notifiers(s);
+
     block_cleanup_parameters();
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
@@ -1450,9 +1461,10 @@ void migration_remove_notifier(Notifier *notify)
     }
 }
 
-void migration_call_notifiers(MigrationState *s)
+int migration_call_notifiers(MigrationState *s)
 {
     notifier_list_notify(&migration_state_notifiers, s);
+    return (s->error != NULL);
 }
 
 bool migration_in_setup(MigrationState *s)
@@ -2521,7 +2533,9 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      * spice needs to trigger a transition now
      */
     ms->postcopy_after_devices = true;
-    migration_call_notifiers(ms);
+    if (migration_call_notifiers(ms)) {
+        goto fail;
+    }
 
     migration_downtime_end(ms);
 
@@ -3596,7 +3610,11 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         rate_limit = migrate_max_bandwidth();
 
         /* Notify before starting migration thread */
-        migration_call_notifiers(s);
+        if (migration_call_notifiers(s)) {
+            migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+            migrate_fd_cleanup(s);
+            return;
+        }
     }
 
     migration_rate_set(rate_limit);
