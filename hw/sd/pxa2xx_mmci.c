@@ -555,6 +555,8 @@ static void pxa2xx_mmci_instance_init(Object *obj)
     qdev_init_gpio_out_named(dev, &s->rx_dma, "rx-dma", 1);
     qdev_init_gpio_out_named(dev, &s->tx_dma, "tx-dma", 1);
 
+    s->iomem.disable_reentrancy_guard = true;
+
     qbus_init(&s->sdbus, sizeof(s->sdbus),
               TYPE_PXA2XX_MMCI_BUS, DEVICE(obj), "sd-bus");
 }
