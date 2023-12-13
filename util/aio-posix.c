@@ -97,13 +97,14 @@ static bool aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
     return true;
 }
 
-void aio_set_fd_handler(AioContext *ctx,
-                        int fd,
-                        IOHandler *io_read,
-                        IOHandler *io_write,
-                        AioPollFn *io_poll,
-                        IOHandler *io_poll_ready,
-                        void *opaque)
+/* Perform aio_set_fd_handler() in this thread's AioContext */
+static void aio_set_fd_handler_local(AioContext *ctx,
+                                     int fd,
+                                     IOHandler *io_read,
+                                     IOHandler *io_write,
+                                     AioPollFn *io_poll,
+                                     IOHandler *io_poll_ready,
+                                     void *opaque)
 {
     AioHandler *node;
     AioHandler *new_node = NULL;
@@ -175,6 +176,97 @@ void aio_set_fd_handler(AioContext *ctx,
 
     if (deleted) {
         g_free(node);
+    }
+}
+
+typedef struct {
+    AioContext *ctx;
+    int fd;
+    IOHandler *io_read;
+    IOHandler *io_write;
+    AioPollFn *io_poll;
+    IOHandler *io_poll_ready;
+    void *opaque;
+    QemuEvent done;
+} AioSetFdHandlerRemote;
+
+static void aio_set_fd_handler_remote_bh(void *opaque)
+{
+    AioSetFdHandlerRemote *data = opaque;
+
+    aio_set_fd_handler_local(data->ctx, data->fd, data->io_read,
+                             data->io_write, data->io_poll,
+                             data->io_poll_ready, data->opaque);
+    qemu_event_set(&data->done);
+}
+
+/* Perform aio_set_fd_handler() in another thread's AioContext */
+static void aio_set_fd_handler_remote(AioContext *ctx,
+                                      int fd,
+                                      IOHandler *io_read,
+                                      IOHandler *io_write,
+                                      AioPollFn *io_poll,
+                                      IOHandler *io_poll_ready,
+                                      void *opaque)
+{
+    AioSetFdHandlerRemote data = {
+        .ctx = ctx,
+        .fd = fd,
+        .io_read = io_read,
+        .io_write = io_write,
+        .io_poll = io_poll,
+        .io_poll_ready = io_poll_ready,
+        .opaque = opaque,
+    };
+
+    /*
+     * Arbitrary threads waiting for each other can deadlock, so only allow
+     * cross-thread aio_set_fd_handler() when the BQL is held.
+     */
+    assert(qemu_in_main_thread());
+
+    qemu_event_init(&data.done, false);
+
+    aio_bh_schedule_oneshot(ctx, aio_set_fd_handler_remote_bh, &data);
+
+    /*
+     * The BQL is not dropped when run from the main loop thread so the
+     * assumption is that this wait is fast.
+     */
+    qemu_event_wait(&data.done);
+
+    qemu_event_destroy(&data.done);
+}
+
+void aio_set_fd_handler(AioContext *ctx,
+                        int fd,
+                        IOHandler *io_read,
+                        IOHandler *io_write,
+                        AioPollFn *io_poll,
+                        IOHandler *io_poll_ready,
+                        void *opaque)
+{
+    /*
+     * Special case for ctx->notifier: it's not possible to rely on
+     * in_aio_context_home_thread() or iohandler_get_aio_context() below when
+     * aio_context_new() calls aio_set_fd_handler() on ctx->notifier.
+     * qemu_set_current_aio_context() and iohandler_ctx haven't been set up yet
+     * at this point. Treat ctx as local when dealing with ctx->notifier.
+     */
+    bool is_ctx_notifier = fd == event_notifier_get_fd(&ctx->notifier);
+
+    /*
+     * iohandler_ctx is special in that it runs in the main thread, but that
+     * thread's context is qemu_aio_context.
+     */
+    if (is_ctx_notifier ||
+        in_aio_context_home_thread(ctx == iohandler_get_aio_context() ?
+                                   qemu_get_aio_context() : ctx)) {
+        aio_set_fd_handler_local(ctx, fd, io_read, io_write, io_poll,
+                                 io_poll_ready, opaque);
+    } else {
+        aio_set_fd_handler_remote(ctx, fd, io_read, io_write, io_poll,
+                                  io_poll_ready, opaque);
     }
 }
 
