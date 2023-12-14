@@ -302,28 +302,29 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
 
     object_property_set_link(OBJECT(s->cpu), "memory", OBJECT(&s->container),
                              &error_abort);
-    if (object_property_find(OBJECT(s->cpu), "idau")) {
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY)) {
         object_property_set_link(OBJECT(s->cpu), "idau", s->idau,
                                  &error_abort);
-    }
-    if (object_property_find(OBJECT(s->cpu), "init-svtor")) {
         if (!object_property_set_uint(OBJECT(s->cpu), "init-svtor",
                                       s->init_svtor, errp)) {
             return;
         }
     }
-    if (object_property_find(OBJECT(s->cpu), "init-nsvtor")) {
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M)) {
         if (!object_property_set_uint(OBJECT(s->cpu), "init-nsvtor",
                                       s->init_nsvtor, errp)) {
             return;
         }
     }
-    if (object_property_find(OBJECT(s->cpu), "vfp")) {
-        if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, errp)) {
-            return;
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_AARCH64)) {
+        if (cpu_isar_feature(aa64_fp_simd, s->cpu)) {
+            if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, errp)) {
+                return;
+            }
         }
     }
-    if (object_property_find(OBJECT(s->cpu), "dsp")) {
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M) &&
+        arm_feature(&s->cpu->env, ARM_FEATURE_THUMB_DSP)) {
         if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, errp)) {
             return;
         }
@@ -342,11 +343,13 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
         return;
     }
     if (s->mpu_ns_regions != UINT_MAX &&
-        object_property_find(OBJECT(s->cpu), "pmsav7-dregion")) {
+        arm_feature(&s->cpu->env, ARM_FEATURE_PMSA)) {
+        if (arm_feature(&s->cpu->env, ARM_FEATURE_V7)) {
         if (!object_property_set_uint(OBJECT(s->cpu), "pmsav7-dregion",
                                       s->mpu_ns_regions, errp)) {
             return;
         }
+    }
     }
 
     /*
