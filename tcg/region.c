@@ -596,10 +596,10 @@ static int alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp)
 
  fail_rx:
     error_setg_errno(errp, errno, "failed to map shared memory for execute");
- fail:
     if (buf_rw) {
         munmap(buf_rw, size);
     }
+ fail:
     if (fd >= 0) {
         close(fd);
     }
