@@ -305,22 +305,6 @@ static void npcm_gmac_write(void *opaque, hwaddr offset,
         break;
 
     case A_NPCM_GMAC_MAC_CONFIG:
-        prev = gmac->regs[offset / sizeof(uint32_t)];
-        gmac->regs[offset / sizeof(uint32_t)] = v;
-
-        /* If transmit is being enabled for first time, update desc addr */
-        if (~(prev & NPCM_GMAC_MAC_CONFIG_TX_EN) &
-             (v & NPCM_GMAC_MAC_CONFIG_TX_EN)) {
-            gmac->regs[R_NPCM_DMA_HOST_TX_DESC] =
-                gmac->regs[R_NPCM_DMA_TX_BASE_ADDR];
-        }
-
-        /* If receive is being enabled for first time, update desc addr */
-        if (~(prev & NPCM_GMAC_MAC_CONFIG_RX_EN) &
-             (v & NPCM_GMAC_MAC_CONFIG_RX_EN)) {
-            gmac->regs[R_NPCM_DMA_HOST_RX_DESC] =
-                gmac->regs[R_NPCM_DMA_RX_BASE_ADDR];
-        }
         break;
 
     case A_NPCM_GMAC_MII_ADDR:
@@ -371,16 +355,6 @@ static void npcm_gmac_write(void *opaque, hwaddr offset,
                           "%s: Write of read-only bits of reg: offset: 0x%04"
                            HWADDR_PRIx ", value: 0x%04" PRIx64 "\n",
                            DEVICE(gmac)->canonical_path, offset, v);
-        } else {
-            /* for W1c bits, implement W1C */
-            gmac->regs[offset / sizeof(uint32_t)] &=
-                ~NPCM_DMA_STATUS_W1C_MASK(v);
-            if (v & NPCM_DMA_STATUS_NIS_BITS) {
-                gmac->regs[offset / sizeof(uint32_t)] &= ~NPCM_DMA_STATUS_NIS;
-            }
-            if (v & NPCM_DMA_STATUS_AIS_BITS) {
-                gmac->regs[offset / sizeof(uint32_t)] &= ~NPCM_DMA_STATUS_AIS;
-            }
         }
         break;
 
