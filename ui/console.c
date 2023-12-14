@@ -1691,23 +1691,3 @@ const char *qemu_display_get_vc(DisplayOptions *opts)
     }
     return vc;
 }
-
-void qemu_display_help(void)
-{
-    int idx;
-
-    printf("Available display backend types:\n");
-    printf("none\n");
-    for (idx = DISPLAY_TYPE_NONE; idx < DISPLAY_TYPE__MAX; idx++) {
-        if (!dpys[idx]) {
-            Error *local_err = NULL;
-            int rv = ui_module_load(DisplayType_str(idx), &local_err);
-            if (rv < 0) {
-                error_report_err(local_err);
-            }
-        }
-        if (dpys[idx]) {
-            printf("%s\n",  DisplayType_str(dpys[idx]->type));
-        }
-    }
-}
