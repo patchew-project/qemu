@@ -27,6 +27,7 @@
 #include "migration/vmstate.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
+#include "user-mmap.h"
 #else
 #include "hw/core/sysemu-cpu-ops.h"
 #include "exec/address-spaces.h"
@@ -368,6 +369,7 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
     vaddr l, page;
     void * p;
     uint8_t *buf = ptr;
+    int prot;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -377,22 +379,42 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
         flags = page_get_flags(page);
         if (!(flags & PAGE_VALID))
             return -1;
+        prot = ((flags & PAGE_READ) ? PROT_READ : 0) |
+               ((flags & PAGE_WRITE) ? PROT_WRITE : 0) |
+               ((flags & PAGE_EXEC) ? PROT_EXEC : 0);
         if (is_write) {
-            if (!(flags & PAGE_WRITE))
-                return -1;
+            if (!(prot & PROT_WRITE)) {
+                if (target_mprotect(page, TARGET_PAGE_SIZE,
+                                    prot | PROT_WRITE)) {
+                    return -1;
+                }
+            }
             /* XXX: this code should not depend on lock_user */
-            if (!(p = lock_user(VERIFY_WRITE, addr, l, 0)))
+            if (!(p = lock_user(VERIFY_NONE, addr, l, 0)))
                 return -1;
             memcpy(p, buf, l);
             unlock_user(p, addr, l);
+            if (!(prot & PROT_WRITE)) {
+                if (target_mprotect(page, TARGET_PAGE_SIZE, prot)) {
+                    return -1;
+                }
+            }
         } else {
-            if (!(flags & PAGE_READ))
-                return -1;
+            if (!(prot & PROT_READ)) {
+                if (target_mprotect(page, TARGET_PAGE_SIZE, prot | PROT_READ)) {
+                    return -1;
+                }
+            }
             /* XXX: this code should not depend on lock_user */
-            if (!(p = lock_user(VERIFY_READ, addr, l, 1)))
+            if (!(p = lock_user(VERIFY_NONE, addr, l, 1)))
                 return -1;
             memcpy(buf, p, l);
             unlock_user(p, addr, 0);
+            if (!(prot & PROT_READ)) {
+                if (target_mprotect(page, TARGET_PAGE_SIZE, prot)) {
+                    return -1;
+                }
+            }
         }
         len -= l;
         buf += l;
