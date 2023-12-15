@@ -34,7 +34,7 @@
 #endif
 
 #include "ui/dbus.h"
-#include "ui/dbus-display1.h"
+#include "dbus-display1.h"
 
 #define AUDIO_CAP "dbus"
 #include "audio.h"
