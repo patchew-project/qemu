@@ -915,16 +915,17 @@ enum {
 
 typedef struct QEMUOption {
     const char *name;
+    const char *help;
     int flags;
     int index;
     uint32_t arch_mask;
 } QEMUOption;
 
 static const QEMUOption qemu_options[] = {
-    { "h", 0, QEMU_OPTION_h, QEMU_ARCH_ALL },
+    { "h", NULL, 0, QEMU_OPTION_h, QEMU_ARCH_ALL },
 
 #define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
-    { option, opt_arg, opt_enum, arch_mask },
+    { option, opt_help, opt_arg, opt_enum, arch_mask },
 #define DEFHEADING(text)
 #define ARCHHEADING(text, arch_mask)
 
@@ -1094,10 +1095,10 @@ DisplayOptions *qmp_query_display_options(Error **errp)
     return QAPI_CLONE(DisplayOptions, &dpy);
 }
 
-static void parse_display(const char *p)
+static void parse_display(const char *p, const char *help)
 {
     if (is_help_option(p)) {
-        qemu_display_help();
+        fputs(help, stdout);
         exit(0);
     }
 
@@ -2880,7 +2881,7 @@ void qemu_init(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_display:
-                parse_display(optarg);
+                parse_display(optarg, popt->help);
                 break;
             case QEMU_OPTION_nographic:
                 qdict_put_str(machine_opts_dict, "graphics", "off");
