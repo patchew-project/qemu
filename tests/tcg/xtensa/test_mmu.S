@@ -43,6 +43,17 @@ test_suite mmu
 #endif
 .endm
 
+test tlb_read_ways
+    movi    a2, 0
+1:
+    ritlb0  a3, a2
+    ritlb1  a3, a2
+    rdtlb0  a3, a2
+    rdtlb1  a3, a2
+    addi    a2, a2, 1
+    bltui   a2, 16, 1b
+test_end
+
 test tlb_group
     movi    a2, 0x04000002 /* PPN */
     movi    a3, BASE + 0x01200004 /* VPN */
