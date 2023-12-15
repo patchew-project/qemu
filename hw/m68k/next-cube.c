@@ -123,6 +123,18 @@ static const uint8_t rtc_ram2[32] = {
 #define SCR2_RTDATA 0x4
 #define SCR2_TOBCD(x) (((x / 10) << 4) + (x % 10))
 
+static void next_scr2_led_update(NeXTPC *s)
+{
+    if (s->scr2 & 0x1) {
+        DPRINTF("fault!\n");
+        s->led++;
+        if (s->led == 10) {
+            DPRINTF("LED flashing, possible fault!\n");
+            s->led = 0;
+        }
+    }
+}
+
 static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 {
     static uint8_t old_scr2;
@@ -133,15 +145,6 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
         scr2_2 = (val >> 8) & 0xFF;
     } else {
         scr2_2 = val & 0xFF;
-    }
-
-    if (val & 0x1) {
-        DPRINTF("fault!\n");
-        s->led++;
-        if (s->led == 10) {
-            DPRINTF("LED flashing, possible fault!\n");
-            s->led = 0;
-        }
     }
 
     if (scr2_2 & 0x1) {
@@ -318,6 +321,7 @@ static void next_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case 0xd000 ... 0xd003:
+        next_scr2_led_update(s);
         nextscr2_write(s, val, size);
         break;
 
