@@ -33,7 +33,6 @@
 #include <gio/gunixfdlist.h>
 #endif
 
-#include "ui/dbus.h"
 #include "dbus-display1.h"
 
 #define AUDIO_CAP "dbus"
