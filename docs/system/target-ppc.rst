@@ -18,6 +18,7 @@ help``.
    :maxdepth: 1
 
    ppc/embedded
+   ppc/amigaone
    ppc/powermac
    ppc/powernv
    ppc/ppce500

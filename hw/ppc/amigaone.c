@@ -27,15 +27,6 @@
 
 #define BUS_FREQ_HZ 100000000
 
-/*
- * Firmware binary available at
- * https://www.hyperion-entertainment.com/index.php/downloads?view=files&parent=28
- * then "tail -c 524288 updater.image >u-boot-amigaone.bin"
- *
- * BIOS emulator in firmware cannot run QEMU vgabios and hangs on it, use
- * -device VGA,romfile=VGABIOS-lgpl-latest.bin
- * from http://www.nongnu.org/vgabios/ instead.
- */
 #define PROM_ADDR 0xfff00000
 #define PROM_SIZE (512 * KiB)
 
