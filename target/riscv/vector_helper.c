@@ -94,6 +94,13 @@ static inline uint32_t vext_max_elems(uint32_t desc, uint32_t log2_esz)
 
 static inline target_ulong adjust_addr(CPURISCVState *env, target_ulong addr)
 {
+    addr = addr << env->pm_pmlen;
+    /* sign/zero extend masked address by N-1 bit */
+    if (env->pm_signext) {
+        addr = (target_long)addr >> env->pm_pmlen;
+    } else {
+        addr = addr >> env->pm_pmlen;
+    }
     return addr;
 }
 
