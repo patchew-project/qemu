@@ -75,7 +75,7 @@ endif
 
 if dbus_display
   dbus_ss = ss.source_set()
-  dbus_ss.add(when: [gio, dbus_display1_dep],
+  dbus_ss.add(when: [gio],
               if_true: [files(
                 'dbus-chardev.c',
                 'dbus-clipboard.c',

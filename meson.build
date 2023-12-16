@@ -2017,6 +2017,7 @@ dbus_display = get_option('dbus_display') \
            error_message: gdbus_codegen_error.format('-display dbus')) \
   .allowed()
 
+dbus_display1_ss = ss.source_set()
 if dbus_display
   env = environment()
   env.set('TARGETOS', targetos)
@@ -2034,8 +2035,8 @@ if dbus_display
                                           '--interface-prefix', 'org.qemu.',
                                           '--c-namespace', 'QemuDBus',
                                           '--generate-c-code', '@BASENAME@'])
-  dbus_display1_lib = static_library('dbus-display1', dbus_display1, dependencies: gio)
-  dbus_display1_dep = declare_dependency(link_with: dbus_display1_lib, include_directories: include_directories('.'))
+  dbus_display1_ss.add(dbus_display1)
+  genh += dbus_display1[0]
 endif
 
 have_virtfs = get_option('virtfs') \
@@ -3437,6 +3438,7 @@ event_loop_base = declare_dependency(link_whole: event_loop_base,
 
 stub_ss = stub_ss.apply(config_all, strict: false)
 
+util_ss.add_all(dbus_display1_ss)
 util_ss.add_all(trace_ss)
 util_ss = util_ss.apply(config_all, strict: false)
 libqemuutil = static_library('qemuutil',
