@@ -390,6 +390,10 @@ struct CPUArchState {
     target_ulong senvcfg;
     uint64_t henvcfg;
 #endif
+    /* current number of masked top bits by pointer masking */
+    target_ulong pm_pmlen;
+    /* if pointer masking should do sign extension */
+    bool pm_signext;
 
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *stimer; /* Internal timer for S-mode interrupt */
@@ -538,14 +542,17 @@ FIELD(TB_FLAGS, VILL, 14, 1)
 FIELD(TB_FLAGS, VSTART_EQ_ZERO, 15, 1)
 /* The combination of MXL/SXL/UXL that applies to the current cpu mode. */
 FIELD(TB_FLAGS, XL, 16, 2)
-FIELD(TB_FLAGS, VTA, 18, 1)
-FIELD(TB_FLAGS, VMA, 19, 1)
+/* If pointer masking should be applied and address sign extended */
+FIELD(TB_FLAGS, PM_ENABLED, 18, 1)
+FIELD(TB_FLAGS, PM_SIGNEXTEND, 19, 1)
+FIELD(TB_FLAGS, VTA, 20, 1)
+FIELD(TB_FLAGS, VMA, 21, 1)
 /* Native debug itrigger */
-FIELD(TB_FLAGS, ITRIGGER, 20, 1)
+FIELD(TB_FLAGS, ITRIGGER, 22, 1)
 /* Virtual mode enabled */
-FIELD(TB_FLAGS, VIRT_ENABLED, 21, 1)
-FIELD(TB_FLAGS, PRIV, 22, 2)
-FIELD(TB_FLAGS, AXL, 24, 2)
+FIELD(TB_FLAGS, VIRT_ENABLED, 23, 1)
+FIELD(TB_FLAGS, PRIV, 24, 2)
+FIELD(TB_FLAGS, AXL, 25, 2)
 
 #ifdef TARGET_RISCV32
 #define riscv_cpu_mxl(env)  ((void)(env), MXL_RV32)
