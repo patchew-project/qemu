@@ -21,7 +21,6 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "hw/char/escc.h" /* ZILOG 8530 Serial Emulation */
-#include "hw/block/fdc.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
