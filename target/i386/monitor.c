@@ -466,83 +466,85 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
     for (l0 = 0; l0 < 512; l0++) {
         cpu_physical_memory_read(pml5_addr + l0 * 8, &pml5e, 8);
         pml5e = le64_to_cpu(pml5e);
-        end = l0 << 48;
-        if (!(pml5e & PG_PRESENT_MASK)) {
-            prot = 0;
-            mem_print(mon, env, &start, &last_prot, end, prot);
-            continue;
-        }
-
-        pml4_addr = pml5e & 0x3fffffffff000ULL;
-        for (l1 = 0; l1 < 512; l1++) {
-            cpu_physical_memory_read(pml4_addr + l1 * 8, &pml4e, 8);
-            pml4e = le64_to_cpu(pml4e);
-            end = (l0 << 48) + (l1 << 39);
-            if (!(pml4e & PG_PRESENT_MASK)) {
-                prot = 0;
-                mem_print(mon, env, &start, &last_prot, end, prot);
-                continue;
-            }
-
-            pdp_addr = pml4e & 0x3fffffffff000ULL;
-            for (l2 = 0; l2 < 512; l2++) {
-                cpu_physical_memory_read(pdp_addr + l2 * 8, &pdpe, 8);
-                pdpe = le64_to_cpu(pdpe);
-                end = (l0 << 48) + (l1 << 39) + (l2 << 30);
-                if (pdpe & PG_PRESENT_MASK) {
-                    prot = 0;
-                    mem_print(mon, env, &start, &last_prot, end, prot);
-                    continue;
-                }
-
-                if (pdpe & PG_PSE_MASK) {
-                    prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
-                            PG_PRESENT_MASK);
-                    prot &= pml5e & pml4e;
-                    mem_print(mon, env, &start, &last_prot, end, prot);
-                    continue;
-                }
-
-                pd_addr = pdpe & 0x3fffffffff000ULL;
-                for (l3 = 0; l3 < 512; l3++) {
-                    cpu_physical_memory_read(pd_addr + l3 * 8, &pde, 8);
-                    pde = le64_to_cpu(pde);
-                    end = (l0 << 48) + (l1 << 39) + (l2 << 30) + (l3 << 21);
-                    if (pde & PG_PRESENT_MASK) {
-                        prot = 0;
-                        mem_print(mon, env, &start, &last_prot, end, prot);
-                        continue;
-                    }
-
-                    if (pde & PG_PSE_MASK) {
-                        prot = pde & (PG_USER_MASK | PG_RW_MASK |
-                                PG_PRESENT_MASK);
-                        prot &= pml5e & pml4e & pdpe;
-                        mem_print(mon, env, &start, &last_prot, end, prot);
-                        continue;
-                    }
-
-                    pt_addr = pde & 0x3fffffffff000ULL;
-                    for (l4 = 0; l4 < 512; l4++) {
-                        cpu_physical_memory_read(pt_addr + l4 * 8, &pte, 8);
-                        pte = le64_to_cpu(pte);
-                        end = (l0 << 48) + (l1 << 39) + (l2 << 30) +
-                            (l3 << 21) + (l4 << 12);
-                        if (pte & PG_PRESENT_MASK) {
-                            prot = pte & (PG_USER_MASK | PG_RW_MASK |
-                                    PG_PRESENT_MASK);
-                            prot &= pml5e & pml4e & pdpe & pde;
+        end = l0 << 47;
+        if (pml5e & PG_PRESENT_MASK) {
+            pml4_addr = pml5e & 0x3fffffffff000ULL;
+            for (l1 = 0; l1 < 512; l1++) {
+                cpu_physical_memory_read(pml4_addr + l1 * 8, &pml4e, 8);
+                pml4e = le64_to_cpu(pml4e);
+                end = (l0 << 47) + (l1 << 39);
+                if (pml4e & PG_PRESENT_MASK) {
+                    pdp_addr = pml4e & 0x3fffffffff000ULL;
+                    for (l2 = 0; l2 < 512; l2++) {
+                        cpu_physical_memory_read(pdp_addr + l2 * 8, &pdpe, 8);
+                        pdpe = le64_to_cpu(pdpe);
+                        end = (l0 << 47) + (l1 << 39) + (l2 << 30);
+                        if (pdpe & PG_PRESENT_MASK) {
+                            if (pdpe & PG_PSE_MASK) {
+                                prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
+                                               PG_PRESENT_MASK);
+                                prot &= pml5e & pml4e;
+                                mem_print(mon, env, &start, &last_prot, end, prot);
+                            } else {
+                                pd_addr = pdpe & 0x3fffffffff000ULL;
+                                for (l3 = 0; l3 < 512; l3++) {
+                                    cpu_physical_memory_read(pd_addr + l3 * 8, &pde, 8);
+                                    pde = le64_to_cpu(pde);
+                                    end = (l0 << 47) + (l1 << 39) +
+                                            (l2 << 30) + (l3 << 21);
+                                    if (pde & PG_PRESENT_MASK) {
+                                        if (pde & PG_PSE_MASK) {
+                                            prot = pde & (PG_USER_MASK | PG_RW_MASK |
+                                                          PG_PRESENT_MASK);
+                                            prot &= pml5e & pml4e & pdpe;
+                                            mem_print(mon, env, &start,
+                                                      &last_prot, end, prot);
+                                        } else {
+                                            pt_addr = pde & 0x3fffffffff000ULL;
+                                            for (l4 = 0; l4 < 512; l4++) {
+                                                cpu_physical_memory_read(pt_addr
+                                                                         + l4 * 8,
+                                                                         &pte, 8);
+                                                pte = le64_to_cpu(pte);
+                                                end = (l0 << 47) + (l1 << 39) +
+                                                    (l2 << 30) +
+                                                    (l3 << 21) + (l4 << 12);
+                                                if (pte & PG_PRESENT_MASK) {
+                                                    prot = pte & (PG_USER_MASK |
+                                                                  PG_RW_MASK |
+                                                                  PG_PRESENT_MASK);
+                                                    prot &= pml5e & pml4e & pdpe & pde;
+                                                } else {
+                                                    prot = 0;
+                                                }
+                                                mem_print(mon, env, &start,
+                                                          &last_prot, end, prot);
+                                            }
+                                        }
+                                    } else {
+                                        prot = 0;
+                                        mem_print(mon, env, &start,
+                                                  &last_prot, end, prot);
+                                    }
+                                }
+                            }
                         } else {
                             prot = 0;
+                            mem_print(mon, env, &start, &last_prot, end, prot);
                         }
-                        mem_print(mon, env, &start, &last_prot, end, prot);
                     }
+                } else {
+                    prot = 0;
+                    mem_print(mon, env, &start, &last_prot, end, prot);
                 }
             }
+        }  else {
+            prot = 0;
+            mem_print(mon, env, &start, &last_prot, end, prot);
         }
     }
     /* Flush last range */
-    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 57, 0);
+    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 58, 0);
 }
 #endif /* TARGET_X86_64 */
 
