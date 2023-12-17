@@ -27,7 +27,7 @@
 #include "hw/i386/pc.h"
 #include "hw/block/fdc.h"
 #include "hw/block/fdc-isa.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-isa.h"
 #include "hw/char/parallel.h"
 #include "hw/hyperv/hv-balloon.h"
 #include "hw/i386/fw_cfg.h"

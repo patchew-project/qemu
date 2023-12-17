@@ -28,22 +28,10 @@
 #include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "hw/acpi/acpi_aml_interface.h"
-#include "hw/char/serial.h"
-#include "hw/isa/isa.h"
+#include "hw/char/serial-isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
-
-OBJECT_DECLARE_SIMPLE_TYPE(ISASerialState, ISA_SERIAL)
-
-struct ISASerialState {
-    ISADevice parent_obj;
-
-    uint32_t index;
-    uint32_t iobase;
-    uint32_t isairq;
-    SerialState state;
-};
 
 static const int isa_serial_io[MAX_ISA_SERIAL_PORTS] = {
     0x3f8, 0x2f8, 0x3e8, 0x2e8
