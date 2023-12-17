@@ -15,6 +15,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/vt82c686.h"
+#include "hw/block/fdc-isa.h"
+#include "hw/char/parallel-isa.h"
+#include "hw/char/serial-isa.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/ide/pci.h"
@@ -343,6 +346,46 @@ static const TypeInfo via_superio_info = {
 
 #define TYPE_VT82C686B_SUPERIO "vt82c686b-superio"
 
+static void vt82c686b_superio_update(ViaSuperIOState *s)
+{
+    FDCtrlISABus *fd = ISA_FDC(s->superio.floppy);
+    ISASerialState *ss1 = ISA_SERIAL(s->superio.serial[0]);
+    ISASerialState *ss2 = ISA_SERIAL(s->superio.serial[1]);
+    ISAParallelState *ps = ISA_PARALLEL(s->superio.parallel[0]);
+
+    portio_list_set_enabled(&ps->state.portio_list, (s->regs[0xe2] & 0x3) != 3);
+    memory_region_set_enabled(&ss1->state.io, s->regs[0xe2] & BIT(2));
+    memory_region_set_enabled(&ss2->state.io, s->regs[0xe2] & BIT(3));
+    portio_list_set_enabled(&fd->state.portio_list, s->regs[0xe2] & BIT(4));
+
+    fd->iobase = (s->regs[0xe3] & 0xfc) << 2;
+    portio_list_set_address(&fd->state.portio_list, fd->iobase);
+
+    ps->iobase = s->regs[0xe6] << 2;
+    portio_list_set_address(&ps->state.portio_list, ps->iobase);
+
+    ss1->iobase = (s->regs[0xe7] & 0xfe) << 2;
+    memory_region_set_address(&ss1->state.io, ss1->iobase);
+
+    ss2->iobase = (s->regs[0xe8] & 0xfe) << 2;
+    memory_region_set_address(&ss2->state.io, ss2->iobase);
+}
+
+static int vmstate_vt82c686b_superio_post_load(void *opaque, int version_id)
+{
+    ViaSuperIOState *s = opaque;
+
+    vt82c686b_superio_update(s);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_vt82c686b_superio = {
+    .name = "vt82c686b_superio",
+    .version_id = 1,
+    .post_load = vmstate_vt82c686b_superio_post_load,
+};
+
 static void vt82c686b_superio_cfg_write(void *opaque, hwaddr addr,
                                         uint64_t data, unsigned size)
 {
@@ -368,7 +411,11 @@ static void vt82c686b_superio_cfg_write(void *opaque, hwaddr addr,
     case 0xfd ... 0xff:
         /* ignore write to read only registers */
         return;
-    /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
+    case 0xe2 ... 0xe3:
+    case 0xe6 ... 0xe8:
+        sc->regs[idx] = data;
+        vt82c686b_superio_update(sc);
+        return;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "via_superio_cfg: unimplemented register 0x%x\n", idx);
@@ -393,25 +440,24 @@ static void vt82c686b_superio_reset(DeviceState *dev)
 
     memset(s->regs, 0, sizeof(s->regs));
     /* Device ID */
-    vt82c686b_superio_cfg_write(s, 0, 0xe0, 1);
-    vt82c686b_superio_cfg_write(s, 1, 0x3c, 1);
-    /* Function select - all disabled */
-    vt82c686b_superio_cfg_write(s, 0, 0xe2, 1);
-    vt82c686b_superio_cfg_write(s, 1, 0x03, 1);
+    s->regs[0xe0] = 0x3c;
+    /*
+     * Function select - only serial enabled
+     * Fuloong 2e's rescue-yl prints to the serial console w/o enabling it. This
+     * suggests that the serial ports are enabled by default, so override the
+     * datasheet.
+     */
+    s->regs[0xe2] = 0x0f;
     /* Floppy ctrl base addr 0x3f0-7 */
-    vt82c686b_superio_cfg_write(s, 0, 0xe3, 1);
-    vt82c686b_superio_cfg_write(s, 1, 0xfc, 1);
+    s->regs[0xe3] = 0xfc;
     /* Parallel port base addr 0x378-f */
-    vt82c686b_superio_cfg_write(s, 0, 0xe6, 1);
-    vt82c686b_superio_cfg_write(s, 1, 0xde, 1);
+    s->regs[0xe6] = 0xde;
     /* Serial port 1 base addr 0x3f8-f */
-    vt82c686b_superio_cfg_write(s, 0, 0xe7, 1);
-    vt82c686b_superio_cfg_write(s, 1, 0xfe, 1);
+    s->regs[0xe7] = 0xfe;
     /* Serial port 2 base addr 0x2f8-f */
-    vt82c686b_superio_cfg_write(s, 0, 0xe8, 1);
-    vt82c686b_superio_cfg_write(s, 1, 0xbe, 1);
+    s->regs[0xe8] = 0xbe;
 
-    vt82c686b_superio_cfg_write(s, 0, 0, 1);
+    vt82c686b_superio_update(s);
 }
 
 static void vt82c686b_superio_init(Object *obj)
@@ -429,6 +475,7 @@ static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
     sc->parallel.count = 1;
     sc->ide.count = 0; /* emulated by via-ide */
     sc->floppy.count = 1;
+    dc->vmsd = &vmstate_vt82c686b_superio;
 }
 
 static const TypeInfo vt82c686b_superio_info = {
@@ -442,6 +489,41 @@ static const TypeInfo vt82c686b_superio_info = {
 
 
 #define TYPE_VT8231_SUPERIO "vt8231-superio"
+
+static void vt8231_superio_update(ViaSuperIOState *s)
+{
+    FDCtrlISABus *fd = ISA_FDC(s->superio.floppy);
+    ISASerialState *ss = ISA_SERIAL(s->superio.serial[0]);
+    ISAParallelState *ps = ISA_PARALLEL(s->superio.parallel[0]);
+
+    portio_list_set_enabled(&ps->state.portio_list, (s->regs[0xf2] & 0x3) != 3);
+    memory_region_set_enabled(&ss->state.io, s->regs[0xf2] & BIT(2));
+    portio_list_set_enabled(&fd->state.portio_list, s->regs[0xf2] & BIT(4));
+
+    ss->iobase = (s->regs[0xf4] & 0xfe) << 2;
+    memory_region_set_address(&ss->state.io, ss->iobase);
+
+    ps->iobase = s->regs[0xf6] << 2;
+    portio_list_set_address(&ps->state.portio_list, ps->iobase);
+
+    fd->iobase = (s->regs[0xf7] & 0xfc) << 2;
+    portio_list_set_address(&fd->state.portio_list, fd->iobase);
+}
+
+static int vmstate_vt8231_superio_post_load(void *opaque, int version_id)
+{
+    ViaSuperIOState *s = opaque;
+
+    vt8231_superio_update(s);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_vt8231_superio = {
+    .name = "vt8231_superio",
+    .version_id = 1,
+    .post_load = vmstate_vt8231_superio_post_load,
+};
 
 static void vt8231_superio_cfg_write(void *opaque, hwaddr addr,
                                      uint64_t data, unsigned size)
@@ -464,6 +546,12 @@ static void vt8231_superio_cfg_write(void *opaque, hwaddr addr,
     case 0xf8:
     case 0xfd:
         /* ignore write to read only registers */
+        return;
+    case 0xf2:
+    case 0xf4:
+    case 0xf6 ... 0xf7:
+        sc->regs[idx] = data;
+        vt8231_superio_update(sc);
         return;
     default:
         qemu_log_mask(LOG_UNIMP,
@@ -493,30 +581,20 @@ static void vt8231_superio_reset(DeviceState *dev)
     /* Device revision */
     s->regs[0xf1] = 0x01;
     /* Function select - all disabled */
-    vt8231_superio_cfg_write(s, 0, 0xf2, 1);
-    vt8231_superio_cfg_write(s, 1, 0x03, 1);
+    s->regs[0xf2] = 0x03;
     /* Serial port base addr */
-    vt8231_superio_cfg_write(s, 0, 0xf4, 1);
-    vt8231_superio_cfg_write(s, 1, 0xfe, 1);
+    s->regs[0xf4] = 0xfe;
     /* Parallel port base addr */
-    vt8231_superio_cfg_write(s, 0, 0xf6, 1);
-    vt8231_superio_cfg_write(s, 1, 0xde, 1);
+    s->regs[0xf6] = 0xde;
     /* Floppy ctrl base addr */
-    vt8231_superio_cfg_write(s, 0, 0xf7, 1);
-    vt8231_superio_cfg_write(s, 1, 0xfc, 1);
+    s->regs[0xf7] = 0xfc;
 
-    vt8231_superio_cfg_write(s, 0, 0, 1);
+    vt8231_superio_update(s);
 }
 
 static void vt8231_superio_init(Object *obj)
 {
     VIA_SUPERIO(obj)->io_ops = &vt8231_superio_cfg_ops;
-}
-
-static uint16_t vt8231_superio_serial_iobase(ISASuperIODevice *sio,
-                                             uint8_t index)
-{
-        return 0x2f8; /* FIXME: This should be settable via registers f2-f4 */
 }
 
 static void vt8231_superio_class_init(ObjectClass *klass, void *data)
@@ -526,10 +604,10 @@ static void vt8231_superio_class_init(ObjectClass *klass, void *data)
 
     dc->reset = vt8231_superio_reset;
     sc->serial.count = 1;
-    sc->serial.get_iobase = vt8231_superio_serial_iobase;
     sc->parallel.count = 1;
     sc->ide.count = 0; /* emulated by via-ide */
     sc->floppy.count = 1;
+    dc->vmsd = &vmstate_vt8231_superio;
 }
 
 static const TypeInfo vt8231_superio_info = {
