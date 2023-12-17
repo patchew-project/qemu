@@ -34,12 +34,10 @@
 #include "qemu/timer.h"
 #include "hw/acpi/acpi_aml_interface.h"
 #include "hw/irq.h"
-#include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "hw/block/block.h"
-#include "hw/block/fdc.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
@@ -48,21 +46,6 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qom/object.h"
-
-OBJECT_DECLARE_SIMPLE_TYPE(FDCtrlISABus, ISA_FDC)
-
-struct FDCtrlISABus {
-    /*< private >*/
-    ISADevice parent_obj;
-    /*< public >*/
-
-    uint32_t iobase;
-    uint32_t irq;
-    uint32_t dma;
-    struct FDCtrl state;
-    int32_t bootindexA;
-    int32_t bootindexB;
-};
 
 static void fdctrl_external_reset_isa(DeviceState *d)
 {
