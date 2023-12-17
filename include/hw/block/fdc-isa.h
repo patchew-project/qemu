@@ -4,9 +4,6 @@
 #include "exec/hwaddr.h"
 #include "qapi/qapi-types-block.h"
 
-/* fdc.c */
-#define MAX_FD 2
-
 #define TYPE_ISA_FDC "isa-fdc"
 
 void isa_fdc_init_drives(ISADevice *fdc, DriveInfo **fds);

@@ -28,8 +28,9 @@
 #include "exec/memory.h"
 #include "exec/ioport.h"
 #include "hw/block/block.h"
-#include "hw/block/fdc-isa.h"
 #include "qapi/qapi-types-block.h"
+
+#define MAX_FD 2
 
 typedef struct FDCtrl FDCtrl;
 

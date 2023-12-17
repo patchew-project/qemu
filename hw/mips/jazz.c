@@ -31,6 +31,7 @@
 #include "hw/char/serial.h"
 #include "hw/char/parallel.h"
 #include "hw/isa/isa.h"
+#include "hw/block/fdc.h"
 #include "hw/block/fdc-isa.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"

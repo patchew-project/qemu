@@ -39,6 +39,7 @@
 #include "hw/rtc/m48t59.h"
 #include "migration/vmstate.h"
 #include "hw/input/i8042.h"
+#include "hw/block/fdc.h"
 #include "hw/block/fdc-isa.h"
 #include "net/net.h"
 #include "qemu/timer.h"

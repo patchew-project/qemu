@@ -17,6 +17,7 @@
 #include "sysemu/blockdev.h"
 #include "chardev/char.h"
 #include "hw/char/parallel.h"
+#include "hw/block/fdc.h"
 #include "hw/block/fdc-isa.h"
 #include "hw/isa/superio.h"
 #include "hw/qdev-properties.h"
