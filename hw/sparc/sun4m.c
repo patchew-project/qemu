@@ -34,7 +34,7 @@
 #include "hw/rtc/m48t59.h"
 #include "migration/vmstate.h"
 #include "hw/sparc/sparc32_dma.h"
-#include "hw/block/fdc.h"
+#include "hw/block/fdc-isa.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"

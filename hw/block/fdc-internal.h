@@ -28,7 +28,7 @@
 #include "exec/memory.h"
 #include "exec/ioport.h"
 #include "hw/block/block.h"
-#include "hw/block/fdc.h"
+#include "hw/block/fdc-isa.h"
 #include "qapi/qapi-types-block.h"
 
 typedef struct FDCtrl FDCtrl;

@@ -1,5 +1,5 @@
-#ifndef HW_FDC_H
-#define HW_FDC_H
+#ifndef HW_FDC_ISA_H
+#define HW_FDC_ISA_H
 
 #include "exec/hwaddr.h"
 #include "qapi/qapi-types-block.h"

@@ -28,7 +28,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/block/fdc.h"
+#include "hw/block/fdc-isa.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
