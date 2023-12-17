@@ -39,6 +39,7 @@
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "hw/block/block.h"
+#include "hw/block/fdc.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
@@ -47,7 +48,6 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qom/object.h"
-#include "fdc-internal.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(FDCtrlISABus, ISA_FDC)
 

@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef HW_BLOCK_FDC_INTERNAL_H
-#define HW_BLOCK_FDC_INTERNAL_H
+#ifndef HW_BLOCK_FDC_H
+#define HW_BLOCK_FDC_H
 
 #include "exec/memory.h"
 #include "exec/ioport.h"

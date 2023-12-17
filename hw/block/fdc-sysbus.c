@@ -28,8 +28,8 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"
 #include "hw/block/fdc-isa.h"
+#include "hw/block/fdc.h"
 #include "migration/vmstate.h"
-#include "fdc-internal.h"
 #include "trace.h"
 
 #define TYPE_SYSBUS_FDC "base-sysbus-fdc"
