@@ -1479,6 +1479,10 @@ Property riscv_cpu_options[] = {
     DEFINE_PROP_UINT16("cbom_blocksize", RISCVCPU, cfg.cbom_blocksize, 64),
     DEFINE_PROP_UINT16("cboz_blocksize", RISCVCPU, cfg.cboz_blocksize, 64),
 
+    /* Optional CSR of debug Sdtrig extension */
+    DEFINE_PROP_BOOL("sdtrig_mcontext", RISCVCPU, cfg.ext_sdtrig_mcontext,
+                     false),
+
     DEFINE_PROP_END_OF_LIST(),
 };
 
