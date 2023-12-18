@@ -285,6 +285,15 @@ static void pegasos2_pci_config_write(Pegasos2MachineState *pm, int bus,
     pegasos2_mv_reg_write(pm, pcicfg + 4, len, val);
 }
 
+static void pegasos2_superio_write(Pegasos2MachineState *pm, uint32_t addr,
+                                   uint32_t val)
+{
+    AddressSpace *as = CPU(pm->cpu)->as;
+
+    stb_phys(as, PCI1_IO_BASE + 0x3f0, addr);
+    stb_phys(as, PCI1_IO_BASE + 0x3f1, val);
+}
+
 static void pegasos2_machine_reset(MachineState *machine, ShutdownCause reason)
 {
     Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
@@ -310,6 +319,12 @@ static void pegasos2_machine_reset(MachineState *machine, ShutdownCause reason)
 
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x9);
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
+                              0x50, 1, 0x6);
+    pegasos2_superio_write(pm, 0xf4, 0xbe);
+    pegasos2_superio_write(pm, 0xf6, 0xef);
+    pegasos2_superio_write(pm, 0xf7, 0xfc);
+    pegasos2_superio_write(pm, 0xf2, 0x14);
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
                               0x50, 1, 0x2);
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
