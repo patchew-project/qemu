@@ -362,6 +362,8 @@ typedef struct CPUArchState {
     uint64_t elf_address;
     /* Store ipistate to access from this struct */
     DeviceState *ipistate;
+
+    struct loongarch_boot_info *boot_info;
 #endif
 } CPULoongArchState;
 

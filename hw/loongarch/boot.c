@@ -14,6 +14,20 @@
 #include "qemu/error-report.h"
 #include "sysemu/reset.h"
 
+static int init_cmdline(struct loongarch_boot_info *info)
+{
+    hwaddr cmdline_addr;
+    cmdline_addr = 0xff00000ULL;
+
+    pstrcpy_targphys("cmdline", 0xff00000ULL,
+                     COMMAND_LINE_SIZE, info->kernel_cmdline);
+
+    info->a0 = 1;
+    info->a1 = cmdline_addr;
+
+    return 0;
+}
+
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
 {
     return addr & MAKE_64BIT_MASK(0, TARGET_PHYS_ADDR_SPACE_BITS);
@@ -63,6 +77,8 @@ static int64_t load_kernel_info(struct loongarch_boot_info *info)
         exit(1);
     }
 
+    init_cmdline(info);
+
     return kernel_entry;
 }
 
@@ -73,6 +89,10 @@ static void reset_load_elf(void *opaque)
 
     cpu_reset(CPU(cpu));
     if (env->load_elf) {
+	if (cpu == LOONGARCH_CPU(first_cpu)) {
+            env->gpr[4] = env->boot_info->a0;
+            env->gpr[5] = env->boot_info->a1;
+        }
         cpu_set_pc(CPU(cpu), env->elf_address);
     }
 }
@@ -129,6 +149,7 @@ static void loongarch_direct_kernel_boot(LoongArchMachineState *lams,
         lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
         lacpu->env.load_elf = true;
         lacpu->env.elf_address = kernel_addr;
+        lacpu->env.boot_info = info;
     }
 }
 
