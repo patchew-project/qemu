@@ -14,11 +14,15 @@
 #include "qemu/error-report.h"
 #include "sysemu/reset.h"
 
+ram_addr_t initrd_offset;
+uint64_t initrd_size;
+
 enum {
     SLAVE_BOOT,
     EFI_SYSTAB,
     EFI_TABLES,
     EFI_MEMMAP,
+    EFI_INITRD,
 };
 
 static const MemMapEntry loader_rommap[] = {
@@ -26,6 +30,7 @@ static const MemMapEntry loader_rommap[] = {
     [EFI_SYSTAB] = {0xf200000, 0x10000},
     [EFI_TABLES] = {0xf300000, 0x10000},
     [EFI_MEMMAP] = {0xf400000, 0x10000},
+    [EFI_INITRD] = {0xf500000, 0x10000},
 };
 
 static unsigned int slave_boot_code[] = {
@@ -117,6 +122,26 @@ static void init_efi_boot_memmap(struct efi_system_table *systab)
     g_free(boot_memmap);
 }
 
+static void init_efi_initrd_table(struct efi_system_table *systab)
+{
+    efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;
+    struct efi_initrd *initrd_table  = g_malloc0(loader_rommap[EFI_INITRD].size);
+
+    initrd_table->base = initrd_offset;
+    initrd_table->size = initrd_size;
+
+    rom_add_blob_fixed("initrd_tbl_rom", initrd_table,
+                       loader_rommap[EFI_INITRD].size,
+                       loader_rommap[EFI_INITRD].base);
+
+    /* efi_configuration_table 2 */
+    guidcpy(&systab->tables[1].guid, &tbl_guid);
+    systab->tables[1].table = (void *)loader_rommap[EFI_INITRD].base;
+    systab->nr_tables = 2;
+
+    g_free(initrd_table);
+}
+
 static void init_systab(struct loongarch_boot_info *info)
 {
     struct efi_system_table *systab;
@@ -134,6 +159,7 @@ static void init_systab(struct loongarch_boot_info *info)
     systab->tables = efi_tables;
 
     init_efi_boot_memmap(systab);
+    init_efi_initrd_table(systab);
 
     rom_add_blob_fixed("tables_rom", efi_tables,
                        loader_rommap[EFI_TABLES].size,
@@ -173,8 +199,7 @@ static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
 
 static int64_t load_kernel_info(struct loongarch_boot_info *info)
 {
-    uint64_t kernel_entry, kernel_low, kernel_high, initrd_size;
-    ram_addr_t initrd_offset;
+    uint64_t kernel_entry, kernel_low, kernel_high;
     ssize_t kernel_size;
 
     kernel_size = load_elf(info->kernel_filename, NULL,
