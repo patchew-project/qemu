@@ -142,6 +142,16 @@ static void init_efi_initrd_table(struct efi_system_table *systab)
     g_free(initrd_table);
 }
 
+static void init_efi_fdt_table(struct efi_system_table *systab)
+{
+    efi_guid_t tbl_guid = DEVICE_TREE_GUID;
+
+    /* efi_configuration_table 3 */
+    guidcpy(&systab->tables[2].guid, &tbl_guid);
+    systab->tables[2].table = (void *)0x100000; /* fdt_base 1MiB */
+    systab->nr_tables = 3;
+}
+
 static void init_systab(struct loongarch_boot_info *info)
 {
     struct efi_system_table *systab;
@@ -160,6 +170,7 @@ static void init_systab(struct loongarch_boot_info *info)
 
     init_efi_boot_memmap(systab);
     init_efi_initrd_table(systab);
+    init_efi_fdt_table(systab);
 
     rom_add_blob_fixed("tables_rom", efi_tables,
                        loader_rommap[EFI_TABLES].size,
