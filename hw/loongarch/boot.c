@@ -18,12 +18,14 @@ enum {
     SLAVE_BOOT,
     EFI_SYSTAB,
     EFI_TABLES,
+    EFI_MEMMAP,
 };
 
 static const MemMapEntry loader_rommap[] = {
     [SLAVE_BOOT] = {0xf100000, 0x10000},
     [EFI_SYSTAB] = {0xf200000, 0x10000},
     [EFI_TABLES] = {0xf300000, 0x10000},
+    [EFI_MEMMAP] = {0xf400000, 0x10000},
 };
 
 static unsigned int slave_boot_code[] = {
@@ -74,6 +76,47 @@ static unsigned int slave_boot_code[] = {
     0x4c000020,   /* jirl       $r0,$r1,0           */
 };
 
+static inline void *guidcpy(void *dst, const void *src)
+{
+    return memcpy(dst, src, sizeof(efi_guid_t));
+}
+
+static void init_efi_boot_memmap(struct efi_system_table *systab)
+{
+    unsigned i;
+    struct efi_boot_memmap *boot_memmap;
+    efi_guid_t tbl_guid = LINUX_EFI_BOOT_MEMMAP_GUID;
+
+    boot_memmap = g_malloc0(sizeof(struct efi_boot_memmap) +
+                            sizeof(efi_memory_desc_t) * 32);
+    if (!boot_memmap) {
+        error_report("init_boot_memmap :can not malloc memory\n");
+        exit(1);
+    }
+    boot_memmap->desc_size = sizeof(efi_memory_desc_t);
+    boot_memmap->desc_ver = 1;
+    boot_memmap->map_size = 0;
+
+    efi_memory_desc_t *map;
+    for (i = 0; i < memmap_entries; i++) {
+        map = (void *)boot_memmap + sizeof(*map);
+        map[i].type = memmap_table[i].type;
+        map[i].phys_addr = memmap_table[i].address;
+        map[i].num_pages = memmap_table[i].length >> 16; /* 64KB align*/
+    }
+
+    rom_add_blob_fixed("memmap_rom", boot_memmap,
+                       loader_rommap[EFI_MEMMAP].size,
+                       loader_rommap[EFI_MEMMAP].base);
+
+    /* efi_configuration_table 1 */
+    guidcpy(&systab->tables[0].guid, &tbl_guid);
+    systab->tables[0].table = (void *)loader_rommap[EFI_MEMMAP].base;
+    systab->nr_tables = 1;
+
+    g_free(boot_memmap);
+}
+
 static void init_systab(struct loongarch_boot_info *info)
 {
     struct efi_system_table *systab;
@@ -89,6 +132,8 @@ static void init_systab(struct loongarch_boot_info *info)
     systab->boottime = 0;
     systab->nr_tables = 0;
     systab->tables = efi_tables;
+
+    init_efi_boot_memmap(systab);
 
     rom_add_blob_fixed("tables_rom", efi_tables,
                        loader_rommap[EFI_TABLES].size,
