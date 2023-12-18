@@ -128,6 +128,11 @@ static inline int os_mlock(void)
     return -ENOSYS;
 }
 
+void os_setup_limits(void)
+{
+    return;
+}
+
 #define fsync _commit
 
 #if !defined(lseek)
