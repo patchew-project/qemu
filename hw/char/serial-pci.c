@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "exec/memory.h"
 #include "hw/char/serial.h"
 #include "hw/irq.h"
 #include "hw/pci/pci_device.h"
@@ -38,6 +39,7 @@
 struct PCISerialState {
     PCIDevice dev;
     SerialState state;
+    MemoryRegion io;
     uint8_t prog_if;
 };
 
@@ -57,8 +59,9 @@ static void serial_pci_realize(PCIDevice *dev, Error **errp)
     pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
     s->irq = pci_allocate_irq(&pci->dev);
 
-    memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s, "serial", 8);
-    pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
+    memory_region_init_io(&pci->io, OBJECT(pci), &serial_io_ops, s, "serial",
+                          8);
+    pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
 }
 
 static void serial_pci_exit(PCIDevice *dev)

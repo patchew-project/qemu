@@ -77,7 +77,6 @@ struct SerialState {
     int poll_msl;
 
     QEMUTimer *modem_status_poll;
-    MemoryRegion io;
 };
 typedef struct SerialState SerialState;
 
@@ -85,6 +84,7 @@ struct SerialMM {
     SysBusDevice parent;
 
     SerialState serial;
+    MemoryRegion io;
 
     uint8_t regshift;
     uint8_t endianness;

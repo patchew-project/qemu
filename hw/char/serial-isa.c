@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "exec/memory.h"
 #include "sysemu/sysemu.h"
 #include "hw/acpi/acpi_aml_interface.h"
 #include "hw/char/serial.h"
@@ -43,6 +44,7 @@ struct ISASerialState {
     uint32_t iobase;
     uint32_t isairq;
     SerialState state;
+    MemoryRegion io;
 };
 
 static const int isa_serial_io[MAX_ISA_SERIAL_PORTS] = {
@@ -79,8 +81,9 @@ static void serial_isa_realizefn(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(s), NULL, errp);
     qdev_set_legacy_instance_id(dev, isa->iobase, 3);
 
-    memory_region_init_io(&s->io, OBJECT(isa), &serial_io_ops, s, "serial", 8);
-    isa_register_ioport(isadev, &s->io, isa->iobase);
+    memory_region_init_io(&isa->io, OBJECT(isa), &serial_io_ops, s, "serial",
+                          8);
+    isa_register_ioport(isadev, &isa->io, isa->iobase);
 }
 
 static void serial_isa_build_aml(AcpiDevAmlIf *adev, Aml *scope)
