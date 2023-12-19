@@ -444,44 +444,36 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     return s;
 }
 
+static void close_fds_except(gpointer data)
+{
+    int open_max = sysconf(_SC_OPEN_MAX), i;
+
+    for (i = 3; i < open_max; i++) {
+        if (i != (intptr_t)data) {
+            close(i);
+        }
+    }
+}
+
 static void launch_script(const char *setup_script, const char *ifname,
                           int fd, Error **errp)
 {
-    int pid, status;
-    char *args[3];
-    char **parg;
+    gint status;
+    gchar *argv[] = { (gchar *)setup_script, (gchar *)ifname, NULL };
+    g_autoptr(GError) error = NULL;
 
     /* try to launch network script */
-    pid = fork();
-    if (pid < 0) {
-        error_setg_errno(errp, errno, "could not launch network script %s",
-                         setup_script);
+    if (!g_spawn_sync(NULL, argv, NULL, G_SPAWN_LEAVE_DESCRIPTORS_OPEN,
+                      close_fds_except, (gpointer)(intptr_t)fd, NULL, NULL,
+                      &status, &error)) {
+        error_setg(errp, "could not launch network script %s: %s",
+                   setup_script, error->message);
         return;
     }
-    if (pid == 0) {
-        int open_max = sysconf(_SC_OPEN_MAX), i;
 
-        for (i = 3; i < open_max; i++) {
-            if (i != fd) {
-                close(i);
-            }
-        }
-        parg = args;
-        *parg++ = (char *)setup_script;
-        *parg++ = (char *)ifname;
-        *parg = NULL;
-        execv(setup_script, args);
-        _exit(1);
-    } else {
-        while (waitpid(pid, &status, 0) != pid) {
-            /* loop */
-        }
-
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            return;
-        }
-        error_setg(errp, "network script %s failed with status %d",
-                   setup_script, status);
+    if (!g_spawn_check_wait_status(status, &error)) {
+        error_setg(errp, "network script %s failed: %s",
+                   setup_script, error->message);
     }
 }
 
