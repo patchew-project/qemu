@@ -1796,6 +1796,7 @@ void memory_region_ref(MemoryRegion *mr)
      * we do not ref/unref them because it slows down DMA sensibly.
      */
     if (mr && mr->owner) {
+        object_ref(OBJECT(mr));
         object_ref(mr->owner);
     }
 }
@@ -1804,6 +1805,7 @@ void memory_region_unref(MemoryRegion *mr)
 {
     if (mr && mr->owner) {
         object_unref(mr->owner);
+        object_unref(OBJECT(mr));
     }
 }
 
