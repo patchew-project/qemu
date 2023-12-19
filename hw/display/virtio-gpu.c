@@ -958,6 +958,37 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
     virtio_gpu_cleanup_mapping(g, res);
 }
 
+void virtio_gpu_resource_assign_uuid(VirtIOGPU *g,
+                                     struct virtio_gpu_ctrl_command *cmd)
+{
+    struct virtio_gpu_simple_resource *res;
+    struct virtio_gpu_resource_assign_uuid assign;
+    struct virtio_gpu_resp_resource_uuid resp;
+    QemuUUID *uuid;
+
+    VIRTIO_GPU_FILL_CMD(assign);
+    virtio_gpu_bswap_32(&assign, sizeof(assign));
+    trace_virtio_gpu_cmd_res_assign_uuid(assign.resource_id);
+
+    res = virtio_gpu_find_check_resource(g, assign.resource_id, false, __func__, &cmd->error);
+    if (!res) {
+        return;
+    }
+
+    memset(&resp, 0, sizeof(resp));
+    resp.hdr.type = VIRTIO_GPU_RESP_OK_RESOURCE_UUID;
+
+    uuid = g_hash_table_lookup(g->resource_uuids, &assign.resource_id);
+    if (!uuid) {
+        uuid = g_new(QemuUUID, 1);
+        qemu_uuid_generate(uuid);
+        g_hash_table_insert(g->resource_uuids, &assign.resource_id, uuid);
+    }
+
+    memcpy(resp.uuid, uuid, sizeof(QemuUUID));
+    virtio_gpu_ctrl_response(g, cmd, &resp.hdr, sizeof(resp));
+}
+
 void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
                                    struct virtio_gpu_ctrl_command *cmd)
 {
@@ -1005,6 +1036,9 @@ void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
         break;
     case VIRTIO_GPU_CMD_RESOURCE_DETACH_BACKING:
         virtio_gpu_resource_detach_backing(g, cmd);
+        break;
+    case VIRTIO_GPU_CMD_RESOURCE_ASSIGN_UUID:
+        virtio_gpu_resource_assign_uuid(g, cmd);
         break;
     default:
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
@@ -1400,6 +1434,57 @@ static int virtio_gpu_blob_load(QEMUFile *f, void *opaque, size_t size,
     return 0;
 }
 
+static int virtio_gpu_resource_uuid_save(QEMUFile *f, void *opaque, size_t size,
+                                         const VMStateField *field,
+                                         JSONWriter *vmdesc)
+{
+    VirtIOGPU *g = opaque;
+    struct virtio_gpu_simple_resource *res;
+    QemuUUID *uuid;
+
+    /* in 2d mode we should never find unprocessed commands here */
+    assert(QTAILQ_EMPTY(&g->cmdq));
+
+    QTAILQ_FOREACH(res, &g->reslist, next) {
+        qemu_put_be32(f, res->resource_id);
+        uuid = g_hash_table_lookup(g->resource_uuids, &res->resource_id);
+        qemu_put_buffer(f, (void *)uuid, sizeof(QemuUUID));
+    }
+    qemu_put_be32(f, 0); /* end of list */
+
+    g_hash_table_destroy(g->resource_uuids);
+
+    return 0;
+}
+
+static int virtio_gpu_resource_uuid_load(QEMUFile *f, void *opaque, size_t size,
+                                         const VMStateField *field)
+{
+    VirtIOGPU *g = opaque;
+    struct virtio_gpu_simple_resource *res;
+    uint32_t resource_id;
+    QemuUUID *uuid = NULL;
+
+    g->resource_uuids = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, g_free);
+    resource_id = qemu_get_be32(f);
+    while (resource_id != 0) {
+        res = virtio_gpu_find_resource(g, resource_id);
+        if (res) {
+            return -EINVAL;
+        }
+
+        res = g_new0(struct virtio_gpu_simple_resource, 1);
+        res->resource_id = resource_id;
+
+        qemu_get_buffer(f, (void *)uuid, sizeof(QemuUUID));
+        g_hash_table_insert(g->resource_uuids, &res->resource_id, uuid);
+
+        resource_id = qemu_get_be32(f);
+    }
+
+    return 0;
+}
+
 static int virtio_gpu_post_load(void *opaque, int version_id)
 {
     VirtIOGPU *g = opaque;
@@ -1475,12 +1560,15 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     QTAILQ_INIT(&g->reslist);
     QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
+
+    g->resource_uuids = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, g_free);
 }
 
 static void virtio_gpu_device_unrealize(DeviceState *qdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(qdev);
 
+    g_hash_table_destroy(g->resource_uuids);
     g_clear_pointer(&g->ctrl_bh, qemu_bh_delete);
     g_clear_pointer(&g->cursor_bh, qemu_bh_delete);
     g_clear_pointer(&g->reset_bh, qemu_bh_delete);
@@ -1534,6 +1622,8 @@ void virtio_gpu_reset(VirtIODevice *vdev)
         g_free(cmd);
     }
 
+    g_hash_table_remove_all(g->resource_uuids);
+
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
 }
 
@@ -1583,6 +1673,32 @@ const VMStateDescription vmstate_virtio_gpu_blob_state = {
     },
 };
 
+static bool virtio_gpu_resource_uuid_state_needed(void *opaque)
+{
+    VirtIOGPU *g = VIRTIO_GPU(opaque);
+
+    return virtio_gpu_resource_uuid_enabled(g->parent_obj.conf);
+}
+
+const VMStateDescription vmstate_virtio_gpu_resource_uuid_state = {
+    .name = "virtio-gpu/resource_uuid",
+    .minimum_version_id = VIRTIO_GPU_VM_VERSION,
+    .version_id = VIRTIO_GPU_VM_VERSION,
+    .needed = virtio_gpu_resource_uuid_state_needed,
+    .fields = (const VMStateField[]){
+        {
+            .name = "virtio-gpu/resource_uuid",
+            .info = &(const VMStateInfo) {
+                .name = "resource_uuid",
+                .get = virtio_gpu_resource_uuid_load,
+                .put = virtio_gpu_resource_uuid_save,
+            },
+            .flags = VMS_SINGLE,
+        } /* device */,
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 /*
  * For historical reasons virtio_gpu does not adhere to virtio migration
  * scheme as described in doc/virtio-migration.txt, in a sense that no
@@ -1610,6 +1726,7 @@ static const VMStateDescription vmstate_virtio_gpu = {
     },
     .subsections = (const VMStateDescription * []) {
         &vmstate_virtio_gpu_blob_state,
+        &vmstate_virtio_gpu_resource_uuid_state,
         NULL
     },
     .post_load = virtio_gpu_post_load,
@@ -1622,6 +1739,8 @@ static Property virtio_gpu_properties[] = {
     DEFINE_PROP_BIT("blob", VirtIOGPU, parent_obj.conf.flags,
                     VIRTIO_GPU_FLAG_BLOB_ENABLED, false),
     DEFINE_PROP_SIZE("hostmem", VirtIOGPU, parent_obj.conf.hostmem, 0),
+    DEFINE_PROP_BIT("resource_uuid", VirtIOGPU, parent_obj.conf.flags,
+                    VIRTIO_GPU_FLAG_RESOURCE_UUID_ENABLED, false),
 #ifdef HAVE_VIRGL_CONTEXT_CREATE_WITH_FLAGS
     DEFINE_PROP_BIT("context_init", VirtIOGPU, parent_obj.conf.flags,
                     VIRTIO_GPU_FLAG_CONTEXT_INIT_ENABLED, true),
