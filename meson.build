@@ -1053,6 +1053,10 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
                          cc.has_member('struct virgl_renderer_resource_info_ext', 'd3d_tex2d',
                                        prefix: '#include <virglrenderer.h>',
                                        dependencies: virgl))
+    config_host_data.set('HAVE_VIRGL_CONTEXT_CREATE_WITH_FLAGS',
+                         cc.has_function('virgl_renderer_context_create_with_flags',
+                                         prefix: '#include <virglrenderer.h>',
+                                         dependencies: virgl))
   endif
 endif
 rutabaga = not_found
