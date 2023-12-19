@@ -17,6 +17,7 @@
 #include "trace.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
+#include "hw/virtio/virtio-gpu-bswap.h"
 
 #include "ui/egl-helpers.h"
 
@@ -24,7 +25,61 @@
 
 struct virgl_gpu_resource {
     struct virtio_gpu_simple_resource res;
+    uint32_t ref;
+    VirtIOGPU *g;
+
+#ifdef HAVE_VIRGL_RESOURCE_BLOB
+    /* only blob resource needs this region to be mapped as guest mmio */
+    MemoryRegion *region;
+#endif
 };
+
+static void vres_get_ref(struct virgl_gpu_resource *vres)
+{
+    uint32_t ref;
+
+    ref = qatomic_fetch_inc(&vres->ref);
+    g_assert(ref < INT_MAX);
+}
+
+static void virgl_resource_destroy(struct virgl_gpu_resource *vres)
+{
+    struct virtio_gpu_simple_resource *res;
+    VirtIOGPU *g;
+
+    if (!vres) {
+        return;
+    }
+
+    g = vres->g;
+    res = &vres->res;
+    QTAILQ_REMOVE(&g->reslist, res, next);
+    virtio_gpu_cleanup_mapping(g, res);
+    g_free(vres);
+}
+
+static void virgl_resource_unref(struct virgl_gpu_resource *vres)
+{
+    struct virtio_gpu_simple_resource *res;
+
+    if (!vres) {
+        return;
+    }
+
+    res = &vres->res;
+    virgl_renderer_resource_detach_iov(res->resource_id, NULL, NULL);
+    virgl_renderer_resource_unref(res->resource_id);
+}
+
+static void vres_put_ref(struct virgl_gpu_resource *vres)
+{
+    g_assert(vres->ref > 0);
+
+    if (qatomic_fetch_dec(&vres->ref) == 1) {
+        virgl_resource_unref(vres);
+        virgl_resource_destroy(vres);
+    }
+}
 
 static struct virgl_gpu_resource *
 virgl_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id)
@@ -59,6 +114,8 @@ static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
                                        c2d.width, c2d.height);
 
     vres = g_new0(struct virgl_gpu_resource, 1);
+    vres_get_ref(vres);
+    vres->g = g;
     vres->res.width = c2d.width;
     vres->res.height = c2d.height;
     vres->res.format = c2d.format;
@@ -91,6 +148,8 @@ static void virgl_cmd_create_resource_3d(VirtIOGPU *g,
                                        c3d.width, c3d.height, c3d.depth);
 
     vres = g_new0(struct virgl_gpu_resource, 1);
+    vres_get_ref(vres);
+    vres->g = g;
     vres->res.width = c3d.width;
     vres->res.height = c3d.height;
     vres->res.format = c3d.format;
@@ -126,12 +185,21 @@ static void virgl_cmd_resource_unref(VirtIOGPU *g,
         return;
     }
 
-    virgl_renderer_resource_detach_iov(unref.resource_id, NULL, NULL);
-    virgl_renderer_resource_unref(unref.resource_id);
+#ifdef HAVE_VIRGL_RESOURCE_BLOB
+    if (vres->region) {
+        VirtIOGPUBase *b = VIRTIO_GPU_BASE(g);
+        MemoryRegion *mr = vres->region;
 
-    QTAILQ_REMOVE(&g->reslist, &vres->res, next);
-    virtio_gpu_cleanup_mapping(g, &vres->res);
-    g_free(vres);
+        warn_report("%s: blob resource %d not unmapped",
+                    __func__, unref.resource_id);
+        vres->region = NULL;
+        memory_region_set_enabled(mr, false);
+        memory_region_del_subregion(&b->hostmem, mr);
+        object_unparent(OBJECT(mr));
+    }
+#endif /* HAVE_VIRGL_RESOURCE_BLOB */
+
+    vres_put_ref(vres);
 }
 
 static void virgl_cmd_context_create(VirtIOGPU *g,
@@ -470,6 +538,191 @@ static void virgl_cmd_get_capset(VirtIOGPU *g,
     g_free(resp);
 }
 
+#ifdef HAVE_VIRGL_RESOURCE_BLOB
+
+static void virgl_resource_unmap(struct virgl_gpu_resource *vres)
+{
+    if (!vres) {
+        return;
+    }
+
+    virgl_renderer_resource_unmap(vres->res.resource_id);
+
+    vres_put_ref(vres);
+}
+
+static void virgl_resource_blob_async_unmap(void *obj)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    struct virgl_gpu_resource *vres = mr->opaque;
+
+    virgl_resource_unmap(vres);
+
+    g_free(obj);
+}
+
+static void virgl_cmd_resource_create_blob(VirtIOGPU *g,
+                                           struct virtio_gpu_ctrl_command *cmd)
+{
+    struct virgl_gpu_resource *vres;
+    struct virtio_gpu_resource_create_blob cblob;
+    struct virgl_renderer_resource_create_blob_args virgl_args = { 0 };
+    int ret;
+
+    VIRTIO_GPU_FILL_CMD(cblob);
+    virtio_gpu_create_blob_bswap(&cblob);
+    trace_virtio_gpu_cmd_res_create_blob(cblob.resource_id, cblob.size);
+
+    if (cblob.resource_id == 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource id 0 is not allowed\n",
+                      __func__);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    vres = virgl_gpu_find_resource(g, cblob.resource_id);
+    if (vres) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource already exists %d\n",
+                      __func__, cblob.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    vres = g_new0(struct virgl_gpu_resource, 1);
+    vres_get_ref(vres);
+    vres->g = g;
+    vres->res.resource_id = cblob.resource_id;
+    vres->res.blob_size = cblob.size;
+
+    if (cblob.blob_mem != VIRTIO_GPU_BLOB_MEM_HOST3D) {
+        ret = virtio_gpu_create_mapping_iov(g, cblob.nr_entries, sizeof(cblob),
+                                            cmd, &vres->res.addrs,
+                                            &vres->res.iov, &vres->res.iov_cnt);
+        if (!ret) {
+            g_free(vres);
+            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+            return;
+        }
+    }
+
+    QTAILQ_INSERT_HEAD(&g->reslist, &vres->res, next);
+
+    virgl_args.res_handle = cblob.resource_id;
+    virgl_args.ctx_id = cblob.hdr.ctx_id;
+    virgl_args.blob_mem = cblob.blob_mem;
+    virgl_args.blob_id = cblob.blob_id;
+    virgl_args.blob_flags = cblob.blob_flags;
+    virgl_args.size = cblob.size;
+    virgl_args.iovecs = vres->res.iov;
+    virgl_args.num_iovs = vres->res.iov_cnt;
+
+    ret = virgl_renderer_resource_create_blob(&virgl_args);
+    if (ret) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: virgl blob create error: %s\n",
+                      __func__, strerror(-ret));
+        cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+    }
+}
+
+static void virgl_cmd_resource_map_blob(VirtIOGPU *g,
+                                        struct virtio_gpu_ctrl_command *cmd)
+{
+    struct virgl_gpu_resource *vres;
+    struct virtio_gpu_resource_map_blob mblob;
+    int ret;
+    void *data;
+    uint64_t size;
+    struct virtio_gpu_resp_map_info resp;
+    VirtIOGPUBase *b = VIRTIO_GPU_BASE(g);
+
+    VIRTIO_GPU_FILL_CMD(mblob);
+    virtio_gpu_map_blob_bswap(&mblob);
+
+    if (mblob.resource_id == 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource id 0 is not allowed\n",
+                      __func__);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    vres = virgl_gpu_find_resource(g, mblob.resource_id);
+    if (!vres) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource does not exist %d\n",
+                      __func__, mblob.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+    if (vres->region) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource already mapped %d\n",
+                      __func__, mblob.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    ret = virgl_renderer_resource_map(vres->res.resource_id, &data, &size);
+    if (ret) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource map error: %s\n",
+                      __func__, strerror(-ret));
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    vres_get_ref(vres);
+    vres->region = g_new0(MemoryRegion, 1);
+    memory_region_init_ram_ptr(vres->region, OBJECT(g), NULL, size, data);
+    vres->region->opaque = vres;
+    OBJECT(vres->region)->free = virgl_resource_blob_async_unmap;
+    memory_region_add_subregion(&b->hostmem, mblob.offset, vres->region);
+    memory_region_set_enabled(vres->region, true);
+
+    memset(&resp, 0, sizeof(resp));
+    resp.hdr.type = VIRTIO_GPU_RESP_OK_MAP_INFO;
+    virgl_renderer_resource_get_map_info(mblob.resource_id, &resp.map_info);
+    virtio_gpu_ctrl_response(g, cmd, &resp.hdr, sizeof(resp));
+}
+
+static void virgl_cmd_resource_unmap_blob(VirtIOGPU *g,
+                                          struct virtio_gpu_ctrl_command *cmd)
+{
+    struct virgl_gpu_resource *vres;
+    struct virtio_gpu_resource_unmap_blob ublob;
+    VirtIOGPUBase *b = VIRTIO_GPU_BASE(g);
+    MemoryRegion *mr;
+
+    VIRTIO_GPU_FILL_CMD(ublob);
+    virtio_gpu_unmap_blob_bswap(&ublob);
+
+    if (ublob.resource_id == 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource id 0 is not allowed\n",
+                      __func__);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    vres = virgl_gpu_find_resource(g, ublob.resource_id);
+    if (!vres) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource does not exist %d\n",
+                      __func__, ublob.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    if (!vres->region) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource already unmapped %d\n",
+                      __func__, ublob.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    mr = vres->region;
+    vres->region = NULL;
+    memory_region_set_enabled(mr, false);
+    memory_region_del_subregion(&b->hostmem, mr);
+    object_unparent(OBJECT(mr));
+}
+
+#endif /* HAVE_VIRGL_RESOURCE_BLOB */
+
 void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
                                       struct virtio_gpu_ctrl_command *cmd)
 {
@@ -536,6 +789,17 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
     case VIRTIO_GPU_CMD_GET_EDID:
         virtio_gpu_get_edid(g, cmd);
         break;
+#ifdef HAVE_VIRGL_RESOURCE_BLOB
+    case VIRTIO_GPU_CMD_RESOURCE_CREATE_BLOB:
+        virgl_cmd_resource_create_blob(g, cmd);
+        break;
+    case VIRTIO_GPU_CMD_RESOURCE_MAP_BLOB:
+        virgl_cmd_resource_map_blob(g, cmd);
+        break;
+    case VIRTIO_GPU_CMD_RESOURCE_UNMAP_BLOB:
+        virgl_cmd_resource_unmap_blob(g, cmd);
+        break;
+#endif /* HAVE_VIRGL_RESOURCE_BLOB */
     default:
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         break;
