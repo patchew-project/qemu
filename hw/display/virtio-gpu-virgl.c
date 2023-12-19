@@ -22,6 +22,23 @@
 
 #include <virglrenderer.h>
 
+struct virgl_gpu_resource {
+    struct virtio_gpu_simple_resource res;
+};
+
+static struct virgl_gpu_resource *
+virgl_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id)
+{
+    struct virtio_gpu_simple_resource *res;
+
+    res = virtio_gpu_find_resource(g, resource_id);
+    if (!res) {
+        return NULL;
+    }
+
+    return container_of(res, struct virgl_gpu_resource, res);
+}
+
 #if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
 static void *
 virgl_get_egl_display(G_GNUC_UNUSED void *cookie)
@@ -35,10 +52,18 @@ static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
 {
     struct virtio_gpu_resource_create_2d c2d;
     struct virgl_renderer_resource_create_args args;
+    struct virgl_gpu_resource *vres;
 
     VIRTIO_GPU_FILL_CMD(c2d);
     trace_virtio_gpu_cmd_res_create_2d(c2d.resource_id, c2d.format,
                                        c2d.width, c2d.height);
+
+    vres = g_new0(struct virgl_gpu_resource, 1);
+    vres->res.width = c2d.width;
+    vres->res.height = c2d.height;
+    vres->res.format = c2d.format;
+    vres->res.resource_id = c2d.resource_id;
+    QTAILQ_INSERT_HEAD(&g->reslist, &vres->res, next);
 
     args.handle = c2d.resource_id;
     args.target = 2;
@@ -59,10 +84,18 @@ static void virgl_cmd_create_resource_3d(VirtIOGPU *g,
 {
     struct virtio_gpu_resource_create_3d c3d;
     struct virgl_renderer_resource_create_args args;
+    struct virgl_gpu_resource *vres;
 
     VIRTIO_GPU_FILL_CMD(c3d);
     trace_virtio_gpu_cmd_res_create_3d(c3d.resource_id, c3d.format,
                                        c3d.width, c3d.height, c3d.depth);
+
+    vres = g_new0(struct virgl_gpu_resource, 1);
+    vres->res.width = c3d.width;
+    vres->res.height = c3d.height;
+    vres->res.format = c3d.format;
+    vres->res.resource_id = c3d.resource_id;
+    QTAILQ_INSERT_HEAD(&g->reslist, &vres->res, next);
 
     args.handle = c3d.resource_id;
     args.target = c3d.target;
@@ -82,19 +115,23 @@ static void virgl_cmd_resource_unref(VirtIOGPU *g,
                                      struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_resource_unref unref;
-    struct iovec *res_iovs = NULL;
-    int num_iovs = 0;
+    struct virgl_gpu_resource *vres;
 
     VIRTIO_GPU_FILL_CMD(unref);
     trace_virtio_gpu_cmd_res_unref(unref.resource_id);
 
-    virgl_renderer_resource_detach_iov(unref.resource_id,
-                                       &res_iovs,
-                                       &num_iovs);
-    if (res_iovs != NULL && num_iovs != 0) {
-        virtio_gpu_cleanup_mapping_iov(g, res_iovs, num_iovs);
+    vres = virgl_gpu_find_resource(g, unref.resource_id);
+    if (!vres) {
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
     }
+
+    virgl_renderer_resource_detach_iov(unref.resource_id, NULL, NULL);
     virgl_renderer_resource_unref(unref.resource_id);
+
+    QTAILQ_REMOVE(&g->reslist, &vres->res, next);
+    virtio_gpu_cleanup_mapping(g, &vres->res);
+    g_free(vres);
 }
 
 static void virgl_cmd_context_create(VirtIOGPU *g,
@@ -310,44 +347,51 @@ static void virgl_resource_attach_backing(VirtIOGPU *g,
                                           struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_resource_attach_backing att_rb;
-    struct iovec *res_iovs;
-    uint32_t res_niov;
+    struct virgl_gpu_resource *vres;
     int ret;
 
     VIRTIO_GPU_FILL_CMD(att_rb);
     trace_virtio_gpu_cmd_res_back_attach(att_rb.resource_id);
 
+    vres = virgl_gpu_find_resource(g, att_rb.resource_id);
+    if (!vres) {
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
     ret = virtio_gpu_create_mapping_iov(g, att_rb.nr_entries, sizeof(att_rb),
-                                        cmd, NULL, &res_iovs, &res_niov);
+                                        cmd, NULL, &vres->res.iov,
+                                        &vres->res.iov_cnt);
     if (ret != 0) {
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
     }
 
     ret = virgl_renderer_resource_attach_iov(att_rb.resource_id,
-                                             res_iovs, res_niov);
+                                             vres->res.iov, vres->res.iov_cnt);
 
-    if (ret != 0)
-        virtio_gpu_cleanup_mapping_iov(g, res_iovs, res_niov);
+    if (ret != 0) {
+        virtio_gpu_cleanup_mapping(g, &vres->res);
+    }
 }
 
 static void virgl_resource_detach_backing(VirtIOGPU *g,
                                           struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_resource_detach_backing detach_rb;
-    struct iovec *res_iovs = NULL;
-    int num_iovs = 0;
+    struct virgl_gpu_resource *vres;
 
     VIRTIO_GPU_FILL_CMD(detach_rb);
     trace_virtio_gpu_cmd_res_back_detach(detach_rb.resource_id);
 
-    virgl_renderer_resource_detach_iov(detach_rb.resource_id,
-                                       &res_iovs,
-                                       &num_iovs);
-    if (res_iovs == NULL || num_iovs == 0) {
+    vres = virgl_gpu_find_resource(g, detach_rb.resource_id);
+    if (!vres) {
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
-    virtio_gpu_cleanup_mapping_iov(g, res_iovs, num_iovs);
+
+    virgl_renderer_resource_detach_iov(detach_rb.resource_id, NULL, NULL);
+    virtio_gpu_cleanup_mapping(g, &vres->res);
 }
 
 
