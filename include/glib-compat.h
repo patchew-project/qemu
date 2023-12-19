@@ -68,6 +68,8 @@
  * without generating warnings.
  */
 
+#define g_spawn_check_wait_status g_spawn_check_exit_status
+
 /*
  * g_memdup2_qemu:
  * @mem: (nullable): the memory to copy.
