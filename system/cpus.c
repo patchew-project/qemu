@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "monitor/monitor.h"
 #include "qemu/coroutine-tls.h"
+#include "qemu/debug.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc.h"
@@ -313,7 +314,13 @@ void cpu_handle_guest_debug(CPUState *cpu)
             cpu_single_step(cpu, 0);
         }
     } else {
-        gdb_set_stop_cpu(cpu);
+        MachineState *ms = MACHINE(qdev_get_machine());
+        DebugState *ds = ms->debug_state;
+        DebugClass *dc = DEBUG_GET_CLASS(ds);
+
+        if (dc->set_stop_cpu) {
+            dc->set_stop_cpu(cpu);
+        }
         qemu_system_debug_request();
         cpu->stopped = true;
     }
