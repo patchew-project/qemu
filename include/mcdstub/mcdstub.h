@@ -151,11 +151,6 @@ typedef struct MCDState {
 /* lives in mcdstub.c */
 extern MCDState mcdserver_state;
 
-typedef struct xml_attrib {
-    char argument[ARGUMENT_STRING_LENGTH];
-    char value[ARGUMENT_STRING_LENGTH];
-} xml_attrib;
-
 typedef struct mcd_reset_st {
     const char *name;
     uint8_t id;

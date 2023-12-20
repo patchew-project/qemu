@@ -61,4 +61,23 @@ typedef struct mcd_reg_group_st {
     uint32_t id;
 } mcd_reg_group_st;
 
+typedef struct xml_attrib {
+    char argument[ARGUMENT_STRING_LENGTH];
+    char value[ARGUMENT_STRING_LENGTH];
+} xml_attrib;
+
+/**
+ * parse_reg_xml() -  Parses a GDB register XML file
+ *
+ * This fuction extracts all registers from the provided xml file and stores
+ * them into the registers GArray. It extracts the register name, bitsize, type
+ * and group if they are set.
+ * @xml: String with contents of the XML file.
+ * @registers: GArray with stored registers.
+ * @reg_type: Register type (depending on file).
+ * @size: Number of characters in the xml string.
+ */
+void parse_reg_xml(const char *xml, int size, GArray* registers,
+    uint8_t reg_type, uint32_t reg_id_offset);
+
 #endif /* MCDSTUB_COMMON_H */
