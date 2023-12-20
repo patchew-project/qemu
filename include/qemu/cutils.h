@@ -158,6 +158,8 @@ int qemu_strtoul(const char *nptr, const char **endptr, int base,
                  unsigned long *result);
 int qemu_strtoi64(const char *nptr, const char **endptr, int base,
                   int64_t *result);
+int qemu_strtou32(const char *nptr, const char **endptr, int base,
+                  uint32_t *result);
 int qemu_strtou64(const char *nptr, const char **endptr, int base,
                   uint64_t *result);
 int qemu_strtod(const char *nptr, const char **endptr, double *result);
