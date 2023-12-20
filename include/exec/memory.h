@@ -3142,6 +3142,15 @@ bool ram_block_discard_is_disabled(void);
  */
 bool ram_block_discard_is_required(void);
 
+/*
+ * mcd_find_address_space() - Find the address spaces with the corresponding
+ * name.
+ *
+ * Currently only used by the mcd debugger.
+ * @as_name: Name to look for.
+ */
+AddressSpace *mcd_find_address_space(const char *as_name);
+
 #endif
 
 #endif

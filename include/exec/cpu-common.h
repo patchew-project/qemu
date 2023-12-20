@@ -182,6 +182,9 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length);
 int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
                         void *ptr, size_t len, bool is_write);
 
+int cpu_memory_get_physical_address(CPUState *cpu, vaddr *addr, size_t *len);
+
+
 /* vl.c */
 void list_cpus(void);
 

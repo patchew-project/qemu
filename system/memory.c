@@ -3562,6 +3562,17 @@ void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
     }
 }
 
+AddressSpace *mcd_find_address_space(const char *as_name)
+{
+    AddressSpace *as;
+    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+        if (strcmp(as->name, as_name) == 0) {
+            return as;
+        }
+    }
+    return NULL;
+}
+
 void memory_region_init_ram(MemoryRegion *mr,
                             Object *owner,
                             const char *name,
