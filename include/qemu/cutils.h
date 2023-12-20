@@ -267,4 +267,34 @@ void qemu_hexdump_line(char *line, unsigned int b, const void *bufptr,
 void qemu_hexdump(FILE *fp, const char *prefix,
                   const void *bufptr, size_t size);
 
+
+/**
+ * hexchar_to_nibble() - Converts hex character to nibble.
+ */
+static inline int hexchar_to_nibble(int v)
+{
+    if (v >= '0' && v <= '9') {
+        return v - '0';
+    } else if (v >= 'A' && v <= 'F') {
+        return v - 'A' + 10;
+    } else if (v >= 'a' && v <= 'f') {
+        return v - 'a' + 10;
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+/**
+ * nibble_to_hexchar() - Converts nibble to hex character.
+ */
+static inline int nibble_to_hexchar(int v)
+{
+    g_assert(v <= 0xf);
+    if (v < 10) {
+        return v + '0';
+    } else {
+        return v - 10 + 'a';
+    }
+}
+
 #endif
