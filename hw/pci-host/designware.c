@@ -340,7 +340,8 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
         break;
 
     case DESIGNWARE_PCIE_ATU_VIEWPORT:
-        root->atu_viewport = val;
+        root->atu_viewport = val < DESIGNWARE_PCIE_NUM_VIEWPORTS ?
+                             val : (DESIGNWARE_PCIE_NUM_VIEWPORTS - 1);
         break;
 
     case DESIGNWARE_PCIE_ATU_LOWER_BASE:
