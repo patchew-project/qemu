@@ -858,6 +858,146 @@ static void handle_reset(GArray *params, void *user_ctx)
 }
 
 /**
+ * mcd_memtohex() - Converts a byte array into a hex string.
+ *
+ * @mem: Pointer to byte array.
+ * @buf: Pointer to hex string.
+ * @len: Number of bytes.
+ */
+static void mcd_memtohex(GString *buf, const uint8_t *mem, int len)
+{
+    int i, c;
+    for (i = 0; i < len; i++) {
+        c = mem[i];
+        g_string_append_c(buf, nibble_to_hexchar(c >> 4));
+        g_string_append_c(buf, nibble_to_hexchar(c & 0xf));
+    }
+    g_string_append_c(buf, '\0');
+}
+
+/**
+ * mcd_hextomem() - Converts a hex string into a byte array.
+ *
+ * @mem: Pointer to byte array.
+ * @buf: Pointer to hex string.
+ * @len: Number of bytes.
+ */
+static void mcd_hextomem(GByteArray *mem, const char *buf, int len)
+{
+    int i;
+
+    for (i = 0; i < len; i++) {
+        guint8 byte = hexchar_to_nibble(buf[0]) << 4 |
+                      hexchar_to_nibble(buf[1]);
+        g_byte_array_append(mem, &byte, 1);
+        buf += 2;
+    }
+}
+
+/**
+ * mcd_read_register() - Reads a registers data and stores it into the buf.
+ *
+ * This function collects the register type and internal ID
+ * (depending on the XML file). Then it calls the architecture specific
+ * read function. For ARM this is :c:func:`arm_mcd_read_register`.
+ * @cpu: CPU to which the register belongs.
+ * @buf: Byte array with register data.
+ * @reg: General ID of the register.
+ */
+static int mcd_read_register(CPUState *cpu, GByteArray *buf, int reg)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUArchState *env = cpu_env(cpu);
+    GDBRegisterState *r;
+
+    if (reg < cc->gdb_num_core_regs) {
+        return cc->gdb_read_register(cpu, buf, reg);
+    }
+
+    for (guint i = 0; i < cpu->gdb_regs->len; i++) {
+        r = &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
+        if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
+            return r->get_reg(env, buf, reg - r->base_reg);
+        }
+    }
+    return 0;
+}
+
+/**
+ * mcd_write_register() - Writes data from the buf to a register.
+ *
+ * This function collects the register type and internal ID
+ * (depending on the XML file). Then it calls the architecture specific
+ * write function. For ARM this is :c:func:`arm_mcd_write_register`.
+ * @cpu: CPU to which the register belongs.
+ * @mem_buf: Byte array with register data.
+ * @reg: General ID of the register.
+ */
+static int mcd_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUArchState *env = cpu_env(cpu);
+    GDBRegisterState *r;
+
+    if (reg < cc->gdb_num_core_regs) {
+        return cc->gdb_write_register(cpu, mem_buf, reg);
+    }
+
+    for (guint i = 0; i < cpu->gdb_regs->len; i++) {
+        r = &g_array_index(cpu->gdb_regs, GDBRegisterState, i);
+        if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
+            return r->set_reg(env, mem_buf, reg - r->base_reg);
+        }
+    }
+    return 0;
+}
+
+/**
+ * handle_read_register() - Handler for reading a register.
+ *
+ * This function calls :c:func:`mcd_read_register` to read a register. The
+ * register data gets stored in the mem_buf byte array. The data then gets
+ * converted into a hex string with :c:func:`mcd_memtohex` and then send.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_read_register(GArray *params, void *user_ctx)
+{
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint64_t reg_num = get_param(params, 1)->data_uint64_t;
+    int reg_size;
+
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    reg_size = mcd_read_register(cpu, mcdserver_state.mem_buf, reg_num);
+    mcd_memtohex(mcdserver_state.str_buf,
+        mcdserver_state.mem_buf->data, reg_size);
+    mcd_put_strbuf();
+}
+
+/**
+ * handle_write_register() - Handler for writing a register.
+ *
+ * This function converts the incoming hex string data into a byte array with
+ * :c:func:`mcd_hextomem`. Then it calls :c:func:`mcd_write_register` to write
+ * to the register.
+ * @params: GArray with all TCP packet parameters.
+ */
+static void handle_write_register(GArray *params, void *user_ctx)
+{
+    uint32_t cpu_id = get_param(params, 0)->cpu_id;
+    uint64_t reg_num = get_param(params, 1)->data_uint64_t;
+    uint32_t reg_size = get_param(params, 2)->data_uint32_t;
+
+    CPUState *cpu = mcd_get_cpu(cpu_id);
+    mcd_hextomem(mcdserver_state.mem_buf,
+        mcdserver_state.str_buf->str, reg_size);
+    if (mcd_write_register(cpu, mcdserver_state.mem_buf->data, reg_num) == 0) {
+        mcd_put_packet(TCP_EXECUTION_ERROR);
+    } else {
+        mcd_put_packet(TCP_EXECUTION_SUCCESS);
+    }
+}
+
+/**
  * mcd_handle_packet() - Evaluates the type of received packet and chooses the
  * correct handler.
  *
@@ -965,6 +1105,27 @@ static int mcd_handle_packet(const char *line_buf)
                 .schema = {ARG_SCHEMA_INT, '\0'},
             };
             cmd_parser = &reset_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_READ_REGISTER:
+        {
+            static MCDCmdParseEntry read_reg_cmd_desc = {
+                .handler = handle_read_register,
+                .cmd = {TCP_CHAR_READ_REGISTER, '\0'},
+                .schema = {ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T, '\0'},
+            };
+            cmd_parser = &read_reg_cmd_desc;
+        }
+        break;
+    case TCP_CHAR_WRITE_REGISTER:
+        {
+            static MCDCmdParseEntry write_reg_cmd_desc = {
+                .handler = handle_write_register,
+                .cmd = {TCP_CHAR_WRITE_REGISTER, '\0'},
+                .schema = {ARG_SCHEMA_CORENUM, ARG_SCHEMA_UINT64_T,
+                           ARG_SCHEMA_INT, ARG_SCHEMA_HEXDATA, '\0'},
+            };
+            cmd_parser = &write_reg_cmd_desc;
         }
         break;
     default:
