@@ -1375,7 +1375,8 @@ static int kvmppc_handle_dcr_write(CPUPPCState *env,
     return 0;
 }
 
-int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
+int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp,
+                                  vaddr len)
 {
     /* Mixed endian case is not handled */
     uint32_t sc = debug_inst_opcode;
@@ -1389,7 +1390,8 @@ int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
     return 0;
 }
 
-int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
+int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp,
+                                  vaddr len)
 {
     uint32_t sc;
 

@@ -1521,3 +1521,82 @@ static const TypeInfo riscv_kvm_cpu_type_infos[] = {
 };
 
 DEFINE_TYPES(riscv_kvm_cpu_type_infos)
+
+static const uint32_t ebreak_insn = 0x00100073;
+static const uint16_t c_ebreak_insn = 0x9002;
+
+int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp,
+                                  vaddr len)
+{
+    if (len != 4 && len != 2) {
+        return -EINVAL;
+    }
+
+    uint8_t * insn = (len == 4) ? (uint8_t *)&ebreak_insn :
+                                  (uint8_t *)&c_ebreak_insn;
+
+    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, len, 0) ||
+        cpu_memory_rw_debug(cs, bp->pc, insn, len, 1)) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp,
+                                  vaddr len)
+{
+    uint8_t length;
+
+    if (len == 4 || len == 2) {
+        length = (uint8_t)len;
+    } else if (len == 0) {
+        /* Need to decide the instruction length in this case. */
+        uint32_t read_4_bytes;
+        uint16_t read_2_bytes;
+
+        if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&read_4_bytes, 4, 0) ||
+            cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&read_2_bytes, 2, 0)) {
+            return -EINVAL;
+        }
+
+        if (read_4_bytes == ebreak_insn) {
+            length = 4;
+        } else if (read_2_bytes == c_ebreak_insn) {
+            length = 2;
+        } else {
+            return -EINVAL;
+        }
+    } else {
+        return -EINVAL;
+    }
+
+    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+                            length, 1)) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)
+{
+    /* TODO; To be implemented later. */
+    return -EINVAL;
+}
+
+int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type)
+{
+    /* TODO; To be implemented later. */
+    return -EINVAL;
+}
+
+void kvm_arch_remove_all_hw_breakpoints(void)
+{
+    /* TODO; To be implemented later. */
+}
+
+void kvm_arch_update_guest_debug(CPUState *cs, struct kvm_guest_debug *dbg)
+{
+    /* TODO; To be implemented later. */
+}

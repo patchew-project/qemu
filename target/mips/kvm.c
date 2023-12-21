@@ -112,13 +112,15 @@ void kvm_mips_reset_vcpu(MIPSCPU *cpu)
     DPRINTF("%s\n", __func__);
 }
 
-int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
+int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp,
+                                  vaddr len)
 {
     DPRINTF("%s\n", __func__);
     return 0;
 }
 
-int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
+int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp,
+                                  vaddr len)
 {
     DPRINTF("%s\n", __func__);
     return 0;

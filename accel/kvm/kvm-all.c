@@ -3231,7 +3231,7 @@ int kvm_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len)
         bp = g_new(struct kvm_sw_breakpoint, 1);
         bp->pc = addr;
         bp->use_count = 1;
-        err = kvm_arch_insert_sw_breakpoint(cpu, bp);
+        err = kvm_arch_insert_sw_breakpoint(cpu, bp, len);
         if (err) {
             g_free(bp);
             return err;
@@ -3270,7 +3270,7 @@ int kvm_remove_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len)
             return 0;
         }
 
-        err = kvm_arch_remove_sw_breakpoint(cpu, bp);
+        err = kvm_arch_remove_sw_breakpoint(cpu, bp, len);
         if (err) {
             return err;
         }
@@ -3300,10 +3300,10 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
     CPUState *tmpcpu;
 
     QTAILQ_FOREACH_SAFE(bp, &s->kvm_sw_breakpoints, entry, next) {
-        if (kvm_arch_remove_sw_breakpoint(cpu, bp) != 0) {
+        if (kvm_arch_remove_sw_breakpoint(cpu, bp, 0) != 0) {
             /* Try harder to find a CPU that currently sees the breakpoint. */
             CPU_FOREACH(tmpcpu) {
-                if (kvm_arch_remove_sw_breakpoint(tmpcpu, bp) == 0) {
+                if (kvm_arch_remove_sw_breakpoint(tmpcpu, bp, 0) == 0) {
                     break;
                 }
             }

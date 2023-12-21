@@ -391,9 +391,11 @@ struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
 int kvm_sw_breakpoints_active(CPUState *cpu);
 
 int kvm_arch_insert_sw_breakpoint(CPUState *cpu,
-                                  struct kvm_sw_breakpoint *bp);
+                                  struct kvm_sw_breakpoint *bp,
+                                  vaddr len);
 int kvm_arch_remove_sw_breakpoint(CPUState *cpu,
-                                  struct kvm_sw_breakpoint *bp);
+                                  struct kvm_sw_breakpoint *bp,
+                                  vaddr len);
 int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type);
 int kvm_arch_remove_hw_breakpoint(vaddr addr, vaddr len, int type);
 void kvm_arch_remove_all_hw_breakpoints(void);
