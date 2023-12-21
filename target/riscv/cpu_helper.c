@@ -143,6 +143,55 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
     *pflags = flags;
 }
 
+void riscv_cpu_update_mask(CPURISCVState *env)
+{
+#ifndef CONFIG_USER_ONLY
+    int priv_mode = cpu_address_mode(env);
+    int pmm = 0;
+    int pmlen = 0;
+    int satp_mode = 0;
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
+        satp_mode = get_field(env->satp, SATP32_MODE);
+    } else {
+        satp_mode = get_field(env->satp, SATP64_MODE);
+    }
+    /* Get current PMM field */
+    switch (priv_mode) {
+    case PRV_M:
+        pmm = riscv_cpu_cfg(env)->ext_smmpm ?
+                  get_field(env->mseccfg, MSECCFG_PMM) : PMM_FIELD_DISABLED;
+        break;
+    case PRV_S:
+        pmm = riscv_cpu_cfg(env)->ext_smnpm ?
+                  get_field(env->menvcfg, MENVCFG_PMM) : PMM_FIELD_DISABLED;
+        break;
+    case PRV_U:
+        pmm = riscv_cpu_cfg(env)->ext_ssnpm ?
+                  get_field(env->senvcfg, SENVCFG_PMM) : PMM_FIELD_DISABLED;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    /* Get pmlen from PMM field */
+    switch (pmm) {
+    case PMM_FIELD_DISABLED:
+        pmlen = 0;
+        break;
+    case PMM_FIELD_PMLEN7:
+        pmlen = 7;
+        break;
+    case PMM_FIELD_PMLEN16:
+        pmlen = 16;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    /* in bare mode address is not sign extended */
+    env->pm_signext = (satp_mode != VM_1_10_MBARE);
+    env->pm_pmlen = pmlen;
+#endif
+}
+
 #ifndef CONFIG_USER_ONLY
 
 /*
