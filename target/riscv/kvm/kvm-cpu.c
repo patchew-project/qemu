@@ -1598,5 +1598,7 @@ void kvm_arch_remove_all_hw_breakpoints(void)
 
 void kvm_arch_update_guest_debug(CPUState *cs, struct kvm_guest_debug *dbg)
 {
-    /* TODO; To be implemented later. */
+    if (kvm_sw_breakpoints_active(cs)) {
+        dbg->control |= KVM_GUESTDBG_ENABLE;
+    }
 }
