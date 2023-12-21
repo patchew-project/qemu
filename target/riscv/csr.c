@@ -1348,6 +1348,7 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
         env->xl = cpu_recompute_xl(env);
     }
 
+    riscv_cpu_update_mask(env);
     return RISCV_EXCP_NONE;
 }
 
@@ -2039,6 +2040,7 @@ static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
     }
     env->menvcfg = (env->menvcfg & ~mask) | (val & mask);
 
+    riscv_cpu_update_mask(env);
     return RISCV_EXCP_NONE;
 }
 
@@ -2093,6 +2095,8 @@ static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
     }
 
     env->senvcfg = (env->senvcfg & ~mask) | (val & mask);
+
+    riscv_cpu_update_mask(env);
     return RISCV_EXCP_NONE;
 }
 
