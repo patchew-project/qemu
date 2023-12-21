@@ -602,53 +602,6 @@ have_vhost_net_vdpa = have_vhost_vdpa and get_option('vhost_net').allowed()
 have_vhost_net_kernel = have_vhost_kernel and get_option('vhost_net').allowed()
 have_vhost_net = have_vhost_net_kernel or have_vhost_net_user or have_vhost_net_vdpa
 
-# Target-specific libraries and flags
-libm = cc.find_library('m', required: false)
-threads = dependency('threads')
-util = cc.find_library('util', required: false)
-winmm = []
-socket = []
-version_res = []
-coref = []
-iokit = []
-emulator_link_args = []
-nvmm =not_found
-hvf = not_found
-midl = not_found
-widl = not_found
-pathcch = not_found
-host_dsosuf = '.so'
-if targetos == 'windows'
-  midl = find_program('midl', required: false)
-  widl = find_program('widl', required: false)
-  pathcch = cc.find_library('pathcch')
-  socket = cc.find_library('ws2_32')
-  winmm = cc.find_library('winmm')
-
-  win = import('windows')
-  version_res = win.compile_resources('version.rc',
-                                      depend_files: files('pc-bios/qemu-nsis.ico'),
-                                      include_directories: include_directories('.'))
-  host_dsosuf = '.dll'
-elif targetos == 'darwin'
-  coref = dependency('appleframeworks', modules: 'CoreFoundation')
-  iokit = dependency('appleframeworks', modules: 'IOKit', required: false)
-  host_dsosuf = '.dylib'
-elif targetos == 'sunos'
-  socket = [cc.find_library('socket'),
-            cc.find_library('nsl'),
-            cc.find_library('resolv')]
-elif targetos == 'haiku'
-  socket = [cc.find_library('posix_error_mapper'),
-            cc.find_library('network'),
-            cc.find_library('bsd')]
-elif targetos == 'openbsd'
-  if get_option('tcg').allowed() and target_dirs.length() > 0
-    # Disable OpenBSD W^X if available
-    emulator_link_args = cc.get_supported_link_arguments('-Wl,-z,wxneeded')
-  endif
-endif
-
 # Target-specific configuration of accelerators
 accelerators = []
 if get_option('kvm').allowed() and targetos == 'linux'
@@ -714,6 +667,56 @@ if 'CONFIG_NVMM' not in accelerators and get_option('nvmm').enabled()
 endif
 if 'CONFIG_WHPX' not in accelerators and get_option('whpx').enabled()
   error('WHPX not available on this platform')
+endif
+
+#####################################
+# Host-specific libraries and flags #
+#####################################
+
+libm = cc.find_library('m', required: false)
+threads = dependency('threads')
+util = cc.find_library('util', required: false)
+winmm = []
+socket = []
+version_res = []
+coref = []
+iokit = []
+emulator_link_args = []
+nvmm =not_found
+hvf = not_found
+midl = not_found
+widl = not_found
+pathcch = not_found
+host_dsosuf = '.so'
+if targetos == 'windows'
+  midl = find_program('midl', required: false)
+  widl = find_program('widl', required: false)
+  pathcch = cc.find_library('pathcch')
+  socket = cc.find_library('ws2_32')
+  winmm = cc.find_library('winmm')
+
+  win = import('windows')
+  version_res = win.compile_resources('version.rc',
+                                      depend_files: files('pc-bios/qemu-nsis.ico'),
+                                      include_directories: include_directories('.'))
+  host_dsosuf = '.dll'
+elif targetos == 'darwin'
+  coref = dependency('appleframeworks', modules: 'CoreFoundation')
+  iokit = dependency('appleframeworks', modules: 'IOKit', required: false)
+  host_dsosuf = '.dylib'
+elif targetos == 'sunos'
+  socket = [cc.find_library('socket'),
+            cc.find_library('nsl'),
+            cc.find_library('resolv')]
+elif targetos == 'haiku'
+  socket = [cc.find_library('posix_error_mapper'),
+            cc.find_library('network'),
+            cc.find_library('bsd')]
+elif targetos == 'openbsd'
+  if get_option('tcg').allowed() and target_dirs.length() > 0
+    # Disable OpenBSD W^X if available
+    emulator_link_args = cc.get_supported_link_arguments('-Wl,-z,wxneeded')
+  endif
 endif
 
 ################
