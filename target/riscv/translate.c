@@ -581,7 +581,15 @@ static TCGv get_address(DisasContext *ctx, int rs1, int imm)
     TCGv src1 = get_gpr(ctx, rs1, EXT_NONE);
 
     tcg_gen_addi_tl(addr, src1, imm);
-    if (get_address_xl(ctx) == MXL_RV32) {
+    if (ctx->pm_enabled) {
+        tcg_gen_shl_tl(addr, addr, pm_pmlen);
+        /* sign extend address by first non-masked bit otherwise zero extend */
+        if (ctx->pm_signext) {
+            tcg_gen_sar_tl(addr, addr, pm_pmlen);
+        } else {
+            tcg_gen_shr_tl(addr, addr, pm_pmlen);
+        }
+    } else if (get_address_xl(ctx) == MXL_RV32) {
         tcg_gen_ext32u_tl(addr, addr);
     }
 
@@ -595,7 +603,16 @@ static TCGv get_address_indexed(DisasContext *ctx, int rs1, TCGv offs)
     TCGv src1 = get_gpr(ctx, rs1, EXT_NONE);
 
     tcg_gen_add_tl(addr, src1, offs);
-    if (get_xl(ctx) == MXL_RV32) {
+    /* sign extend address by first non-masked bit */
+    if (ctx->pm_enabled) {
+        tcg_gen_shl_tl(addr, addr, pm_pmlen);
+        /* sign extend address by first non-masked bit otherwise zero extend */
+        if (ctx->pm_signext) {
+            tcg_gen_sar_tl(addr, addr, pm_pmlen);
+        } else {
+            tcg_gen_shr_tl(addr, addr, pm_pmlen);
+        }
+    } else if (get_xl(ctx) == MXL_RV32) {
         tcg_gen_ext32u_tl(addr, addr);
     }
     return addr;
