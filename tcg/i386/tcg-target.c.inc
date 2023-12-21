@@ -1332,7 +1332,11 @@ static void tgen_arithi(TCGContext *s, int c, int r0,
         return;
     }
 
-    if (c == ARITH_AND) {
+    if ((c == ARITH_ADD || c == ARITH_SUB) && val == 128) {
+        /* Facilitate using an 8-bit immediate.  */
+        c ^= ARITH_ADD ^ ARITH_SUB;
+	val = -128;
+    } else if (c == ARITH_AND) {
         if (TCG_TARGET_REG_BITS == 64) {
             if (val == 0xffffffffu) {
                 tcg_out_ext32u(s, r0, r0);
