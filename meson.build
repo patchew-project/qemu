@@ -4307,6 +4307,12 @@ summary_info += {'curses support':    curses}
 summary_info += {'brlapi support':    brlapi}
 summary(summary_info, bool_yn: true, section: 'User interface')
 
+# Graphics backends
+summary_info = {}
+summary_info += {'VirGL support':     virgl}
+summary_info += {'Rutabaga support':  rutabaga}
+summary(summary_info, bool_yn: true, section: 'Graphics backends')
+
 # Audio backends
 summary_info = {}
 if targetos not in ['darwin', 'haiku', 'windows']
