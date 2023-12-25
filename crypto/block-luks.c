@@ -1561,8 +1561,12 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     block->payload_offset =
         qcrypto_block_luks_payload_offset(luks->header.payload_offset_sector);
 
+    block->detached_header_size =
+        (header_sectors + QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS *
+         split_key_sectors) * block->sector_size;
+
     /* Reserve header space to match payload offset */
-    initfunc(block, block->payload_offset, opaque, &local_err);
+    initfunc(block, block->detached_header_size, opaque, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error;
