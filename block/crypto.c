@@ -64,12 +64,14 @@ static int block_crypto_read_func(QCryptoBlock *block,
                                   Error **errp)
 {
     BlockDriverState *bs = opaque;
+    BlockCrypto *crypto = bs->opaque;
     ssize_t ret;
 
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    ret = bdrv_pread(bs->file, offset, buflen, buf, 0);
+    ret = bdrv_pread(crypto->header ? crypto->header : bs->file,
+                     offset, buflen, buf, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read encryption header");
         return ret;
@@ -269,12 +271,22 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     QCryptoBlockOpenOptions *open_opts = NULL;
     unsigned int cflags = 0;
     QDict *cryptoopts = NULL;
+    const char *hdr_bdref = qdict_get_try_str(options, "header");
 
     GLOBAL_STATE_CODE();
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
         return ret;
+    }
+
+    if (hdr_bdref) {
+        crypto->header = bdrv_open_child(NULL, options, "header", bs,
+                                         &child_of_bds, BDRV_CHILD_METADATA,
+                                         false, errp);
+        if (!crypto->header) {
+            return -EINVAL;
+        }
     }
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
