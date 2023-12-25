@@ -160,6 +160,48 @@ error:
     return ret;
 }
 
+static int coroutine_fn GRAPH_UNLOCKED
+block_crypto_co_format_luks_payload(BlockdevCreateOptionsLUKS *luks_opts,
+                                    Error **errp)
+{
+    BlockDriverState *bs = NULL;
+    BlockBackend *blk = NULL;
+    Error *local_error = NULL;
+    int ret;
+
+    if (luks_opts->size > INT64_MAX) {
+        return -EFBIG;
+    }
+
+    bs = bdrv_co_open_blockdev_ref(luks_opts->file, errp);
+    if (bs == NULL) {
+        return -EIO;
+    }
+
+    blk = blk_co_new_with_bs(bs, BLK_PERM_WRITE | BLK_PERM_RESIZE,
+                             BLK_PERM_ALL, errp);
+    if (!blk) {
+        ret = -EPERM;
+        goto fail;
+    }
+
+    ret = blk_truncate(blk, luks_opts->size, true,
+                       luks_opts->preallocation, 0, &local_error);
+    if (ret < 0) {
+        if (ret == -EFBIG) {
+            /* Replace the error message with a better one */
+            error_free(local_error);
+            error_setg(errp, "The requested file size is too large");
+        }
+        goto fail;
+    }
+
+    ret = 0;
+
+fail:
+    bdrv_co_unref(bs);
+    return ret;
+}
 
 static QemuOptsList block_crypto_runtime_opts_luks = {
     .name = "crypto",
@@ -651,6 +693,7 @@ static int coroutine_fn GRAPH_UNLOCKED
 block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
 {
     BlockdevCreateOptionsLUKS *luks_opts;
+    BlockDriverState *hdr_bs = NULL;
     BlockDriverState *bs = NULL;
     QCryptoBlockCreateOptions create_opts;
     PreallocMode preallocation = PREALLOC_MODE_OFF;
@@ -659,8 +702,22 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
     assert(create_options->driver == BLOCKDEV_DRIVER_LUKS);
     luks_opts = &create_options->u.luks;
 
-    if (luks_opts->file == NULL) {
-        error_setg(errp, "Formatting LUKS disk requires parameter 'file'");
+    if (luks_opts->header == NULL && luks_opts->file == NULL) {
+        error_setg(errp, "Either the parameter 'header' or 'file' should "
+                   "be specified");
+        return -EINVAL;
+    }
+
+    if (luks_opts->detached_header && luks_opts->header == NULL) {
+        error_setg(errp, "Formatting a detached LUKS disk requries "
+                   "'header' to be specified");
+        return -EINVAL;
+    }
+
+    if ((luks_opts->preallocation != PREALLOC_MODE_OFF) &&
+        (luks_opts->file == NULL)) {
+        error_setg(errp, "Parameter 'preallocation' requries 'file' to be "
+                   "specified for formatting LUKS disk");
         return -EINVAL;
     }
 
@@ -673,7 +730,40 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
         preallocation = luks_opts->preallocation;
     }
 
-    if (luks_opts->file) {
+    if (luks_opts->header) {
+        hdr_bs = bdrv_co_open_blockdev_ref(luks_opts->header, errp);
+        if (hdr_bs == NULL) {
+            return -EIO;
+        }
+
+        /*
+         * If blockdev reference of header is specified,
+         * detached_header default to true
+         */
+        create_opts.u.luks.detached_header = true;
+
+        /* Format the LUKS header node */
+        ret = block_crypto_co_create_generic(hdr_bs, 0, &create_opts,
+                                             PREALLOC_MODE_OFF, errp);
+        if (ret < 0) {
+            goto hdr_bs_failed;
+        }
+
+        /* Format the LUKS payload node */
+        if (luks_opts->file) {
+            ret = block_crypto_co_format_luks_payload(luks_opts, errp);
+            if (ret < 0) {
+                goto hdr_bs_failed;
+            }
+        }
+
+        ret = 0;
+
+hdr_bs_failed:
+        bdrv_co_unref(hdr_bs);
+        return ret;
+    } else if (luks_opts->file) {
+        /* None detached LUKS header path */
         bs = bdrv_co_open_blockdev_ref(luks_opts->file, errp);
         if (bs == NULL) {
             return -EIO;
@@ -682,14 +772,15 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
         ret = block_crypto_co_create_generic(bs, luks_opts->size, &create_opts,
                                              preallocation, errp);
         if (ret < 0) {
-            goto fail;
+            goto bs_failed;
         }
-    }
 
-    ret = 0;
-fail:
-    bdrv_co_unref(bs);
-    return ret;
+        ret = 0;
+
+bs_failed:
+        bdrv_co_unref(bs);
+        return ret;
+    }
 }
 
 static int coroutine_fn GRAPH_UNLOCKED

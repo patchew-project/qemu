@@ -102,6 +102,7 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
     }
 
     block->driver = qcrypto_block_drivers[options->format];
+    block->detached_header = options->u.luks.detached_header;
 
     if (block->driver->create(block, options, optprefix, initfunc,
                               writefunc, opaque, errp) < 0) {
