@@ -195,10 +195,13 @@
 #     decryption key.  Mandatory except when probing image for
 #     metadata only.
 #
+# @detached-header: if true, disk has detached LUKS header.
+#
 # Since: 2.6
 ##
 { 'struct': 'QCryptoBlockOptionsLUKS',
-  'data': { '*key-secret': 'str' }}
+  'data': { '*key-secret': 'str',
+            '*detached-header': 'bool' }}
 
 ##
 # @QCryptoBlockCreateOptionsLUKS:

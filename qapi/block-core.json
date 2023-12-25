@@ -4948,6 +4948,8 @@
 # @file: Node to create the image format on, mandatory except when
 #        'preallocation' is not requested
 #
+# @header: Detached LUKS header node to format. (since 9.0)
+#
 # @size: Size of the virtual disk in bytes
 #
 # @preallocation: Preallocation mode for the new image (since: 4.2)
@@ -4958,6 +4960,7 @@
 { 'struct': 'BlockdevCreateOptionsLUKS',
   'base': 'QCryptoBlockCreateOptionsLUKS',
   'data': { '*file':            'BlockdevRef',
+            '*header':          'BlockdevRef',
             'size':             'size',
             '*preallocation':   'PreallocMode' } }
 
