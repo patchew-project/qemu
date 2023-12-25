@@ -34,6 +34,8 @@
 
 #include "qemu/bitmap.h"
 
+#define INVALID_SECTOR_OFFSET UINT32_MAX
+
 /*
  * Reference for the LUKS format implemented here is
  *
@@ -135,6 +137,13 @@ struct QCryptoBlockLUKS {
     char *secret;
 };
 
+
+static inline uint32_t
+qcrypto_block_luks_payload_offset(uint32_t sector)
+{
+    return sector == INVALID_SECTOR_OFFSET ? 0 :
+        sector * QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
+}
 
 static int qcrypto_block_luks_cipher_name_lookup(const char *name,
                                                  QCryptoCipherMode mode,
@@ -1255,8 +1264,8 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     }
 
     block->sector_size = QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
-    block->payload_offset = luks->header.payload_offset_sector *
-        block->sector_size;
+    block->payload_offset =
+        qcrypto_block_luks_payload_offset(luks->header.payload_offset_sector);
 
     return 0;
 
@@ -1529,16 +1538,28 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         slot->stripes = QCRYPTO_BLOCK_LUKS_STRIPES;
     }
 
-    /* The total size of the LUKS headers is the partition header + key
-     * slot headers, rounded up to the nearest sector, combined with
-     * the size of each master key material region, also rounded up
-     * to the nearest sector */
-    luks->header.payload_offset_sector = header_sectors +
-            QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS * split_key_sectors;
+    if (block->detached_header) {
+        /*
+         * Set the payload_offset_sector to a value that is nearly never
+         * reached in order to mark it as invalid and indicate that 0 should
+         * be the offset of the read/write operation on the 'file' protocol
+         * blockdev node. Here the UINT32_MAX is choosed
+         */
+        luks->header.payload_offset_sector = INVALID_SECTOR_OFFSET;
+    } else {
+        /*
+         * The total size of the LUKS headers is the partition header + key
+         * slot headers, rounded up to the nearest sector, combined with
+         * the size of each master key material region, also rounded up
+         * to the nearest sector
+         */
+        luks->header.payload_offset_sector = header_sectors +
+                QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS * split_key_sectors;
+    }
 
     block->sector_size = QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
-    block->payload_offset = luks->header.payload_offset_sector *
-        block->sector_size;
+    block->payload_offset =
+        qcrypto_block_luks_payload_offset(luks->header.payload_offset_sector);
 
     /* Reserve header space to match payload offset */
     initfunc(block, block->payload_offset, opaque, &local_err);
