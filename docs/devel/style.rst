@@ -162,6 +162,55 @@ pre-processor. Another common suffix is ``_impl``; it is used for the
 concrete implementation of a function that will not be called
 directly, but rather through a macro or an inline function.
 
+File Naming Conventions
+-----------------------
+
+Public headers
+~~~~~~~~~~~~~~
+
+Headers expected to be access by multiple subsystems must reside in
+the ``include/`` folder. Headers local to a subsystem should reside in
+the sysbsystem folder, if any (for example ``qobject/qobject-internal.h``
+can only be included by files within the ``qobject/`` folder).
+
+Header file prefix and suffix hints
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When headers relate to common concept, it is useful to use a common
+prefix or suffix.
+
+When headers relate to the same (guest) subsystem, the subsystem name is
+often used as prefix. If headers are already in a folder named as the
+subsystem, prefixing them is optional.
+
+For example, hardware models related to the Aspeed systems are named
+using the ``aspeed_`` prefix.
+
+Headers related to the same (host) concept can also use a common prefix.
+For example OS specific headers use the ``-posix`` and ``-win32`` suffixes.
+
+Registered file suffixes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ``.inc``
+
+  Source files meant to be included by other source files as templates
+  must use the ``.c.inc`` suffix. Similarly, headers meant to be included
+  multiple times as template must use the ``.h.inc`` suffix.
+
+Recommended file prefixes / suffixes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ``target`` and ``common`` suffixes
+
+  Files which are specific to a target should use the ``target`` suffix.
+  Such ``target`` suffixed headers usually *taint* the files including them
+  by making them target specific.
+
+  Files common to all targets should use the ``common`` suffix, to provide
+  a hint that these files can be safely included from common code.
+
+
 Block structure
 ===============
 
