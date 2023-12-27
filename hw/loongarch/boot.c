@@ -15,6 +15,9 @@
 #include "sysemu/reset.h"
 #include <asm-generic/setup.h>
 
+ram_addr_t initrd_offset;
+uint64_t initrd_size;
+
 static unsigned int slave_boot_code[] = {
                   /* Configure reset ebase.         */
     0x0400302c,   /* csrwr      $r12,0xc            */
@@ -97,6 +100,23 @@ static void init_efi_boot_memmap(struct efi_system_table *systab,
                   sizeof(efi_memory_desc_t) * memmap_entries, 64);
 }
 
+static void init_efi_initrd_table(struct efi_system_table *systab,
+                                  void *p, void *start)
+{
+    efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;
+    struct efi_initrd *initrd_table  = p;
+
+    /* efi_configuration_table 2 */
+    guidcpy(&systab->tables[1].guid, &tbl_guid);
+    systab->tables[1].table = (struct efi_configuration_table *)(p - start);
+    systab->nr_tables = 2;
+
+    initrd_table->base = initrd_offset;
+    initrd_table->size = initrd_size;
+
+    p += ROUND_UP(sizeof(struct efi_initrd), 64);
+}
+
 static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
 {
     void *bp_tables_start;
@@ -118,6 +138,7 @@ static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
     bp_tables_start = p;
 
     init_efi_boot_memmap(systab, p, start);
+    init_efi_initrd_table(systab, p, start);
 
     systab->tables = (struct efi_configuration_table *)(bp_tables_start - start);
 }
@@ -139,8 +160,7 @@ static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
 
 static int64_t load_kernel_info(struct loongarch_boot_info *info)
 {
-    uint64_t kernel_entry, kernel_low, kernel_high, initrd_size;
-    ram_addr_t initrd_offset;
+    uint64_t kernel_entry, kernel_low, kernel_high;
     ssize_t kernel_size;
 
     kernel_size = load_elf(info->kernel_filename, NULL,
