@@ -13,6 +13,7 @@
 #include "elf.h"
 #include "qemu/error-report.h"
 #include "sysemu/reset.h"
+#include <asm-generic/setup.h>
 
 static unsigned int slave_boot_code[] = {
                   /* Configure reset ebase.         */
@@ -61,6 +62,16 @@ static unsigned int slave_boot_code[] = {
     0x00150181,   /* move       $r1,$r12            */
     0x4c000020,   /* jirl       $r0,$r1,0           */
 };
+
+static void init_cmdline(struct loongarch_boot_info *info, void *p, void *start)
+{
+    hwaddr cmdline_addr = (hwaddr)p - (hwaddr)start;
+
+    info->a0 = 1;
+    info->a1 = cmdline_addr;
+
+    memcpy(p, info->kernel_cmdline, COMMAND_LINE_SIZE);
+}
 
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
 {
@@ -121,6 +132,10 @@ static void reset_load_elf(void *opaque)
 
     cpu_reset(CPU(cpu));
     if (env->load_elf) {
+	if (cpu == LOONGARCH_CPU(first_cpu)) {
+            env->gpr[4] = env->boot_info->a0;
+            env->gpr[5] = env->boot_info->a1;
+        }
         cpu_set_pc(CPU(cpu), env->elf_address);
     }
 }
@@ -160,8 +175,13 @@ static void loongarch_firmware_boot(LoongArchMachineState *lams,
 
 static void init_boot_rom(struct loongarch_boot_info *info, void *p)
 {
+    void *start = p;
+
     memcpy(p, &slave_boot_code, sizeof(slave_boot_code));
     p += sizeof(slave_boot_code);
+
+    init_cmdline(info, p, start);
+    p += COMMAND_LINE_SIZE;
 }
 
 static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
