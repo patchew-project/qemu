@@ -25,10 +25,6 @@ static void hmp_virtio_dump_protocols(Monitor *mon,
         }
     }
     monitor_printf(mon, "\n");
-    if (pcol->has_unknown_protocols) {
-        monitor_printf(mon, "  unknown-protocols(0x%016"PRIx64")\n",
-                       pcol->unknown_protocols);
-    }
 }
 
 static void hmp_virtio_dump_status(Monitor *mon,
@@ -43,10 +39,6 @@ static void hmp_virtio_dump_status(Monitor *mon,
         }
     }
     monitor_printf(mon, "\n");
-    if (status->has_unknown_statuses) {
-        monitor_printf(mon, "  unknown-statuses(0x%016"PRIx32")\n",
-                       status->unknown_statuses);
-    }
 }
 
 static void hmp_virtio_dump_features(Monitor *mon,
@@ -72,11 +64,6 @@ static void hmp_virtio_dump_features(Monitor *mon,
             }
         }
         monitor_printf(mon, "\n");
-    }
-
-    if (features->has_unknown_dev_features) {
-        monitor_printf(mon, "  unknown-features(0x%016"PRIx64")\n",
-                       features->unknown_dev_features);
     }
 }
 
