@@ -74,7 +74,7 @@ bool vfio_mig_active(void)
         return false;
     }
 
-    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->migration_blocker) {
             return false;
         }
@@ -95,7 +95,7 @@ static bool vfio_multiple_devices_migration_is_supported(void)
     unsigned int device_num = 0;
     bool all_support_p2p = true;
 
-    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->migration) {
             device_num++;
 
@@ -1367,13 +1367,13 @@ void vfio_reset_handler(void *opaque)
 {
     VFIODevice *vbasedev;
 
-    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->dev->realized) {
             vbasedev->ops->vfio_compute_needs_reset(vbasedev);
         }
     }
 
-    QLIST_FOREACH(vbasedev, &vfio_device_list, next) {
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->dev->realized && vbasedev->needs_reset) {
             vbasedev->ops->vfio_hot_reset_multi(vbasedev);
         }
