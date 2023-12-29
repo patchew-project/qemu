@@ -37,6 +37,7 @@
 #define SRAM2_SIZE (32 * KiB)
 
 #define EXTI_ADDR 0x40010400
+#define SYSCFG_ADDR 0x40010000
 
 #define NUM_EXTI_IRQ 40
 /* Match exti line connections with their CPU IRQ number */
@@ -80,6 +81,8 @@ static void stm32l4x5_soc_initfn(Object *obj)
     Stm32l4x5SocState *s = STM32L4X5_SOC(obj);
 
     object_initialize_child(obj, "exti", &s->exti, TYPE_STM32L4X5_EXTI);
+
+    object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32L4X5_SYSCFG);
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
     s->refclk = qdev_init_clock_in(DEVICE(s), "refclk", NULL, NULL, 0);
@@ -158,6 +161,20 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
+    /* System configuration controller */
+    dev = DEVICE(&s->syscfg);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->syscfg), errp)) {
+        return;
+    }
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, SYSCFG_ADDR);
+    /*
+     * TODO: when the GPIO device is implemented, connect it
+     * to SYCFG using `qdev_connect_gpio_out`, NUM_GPIOS and
+     * GPIO_NUM_PINS.
+     */
+
+    /* EXTI device */
     dev = DEVICE(&s->exti);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->exti), errp)) {
         return;
@@ -166,6 +183,11 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     sysbus_mmio_map(busdev, 0, EXTI_ADDR);
     for (i = 0; i < NUM_EXTI_IRQ; i++) {
         sysbus_connect_irq(busdev, i, qdev_get_gpio_in(armv7m, exti_irq[i]));
+    }
+
+    for (i = 0; i < 16; i++) {
+        qdev_connect_gpio_out(DEVICE(&s->syscfg), i,
+                              qdev_get_gpio_in(dev, i));
     }
 
     /* APB1 BUS */
@@ -205,7 +227,6 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     /* RESERVED:    0x40009800, 0x6800 */
 
     /* APB2 BUS */
-    create_unimplemented_device("SYSCFG",    0x40010000, 0x30);
     create_unimplemented_device("VREFBUF",   0x40010030, 0x1D0);
     create_unimplemented_device("COMP",      0x40010200, 0x200);
     /* RESERVED:    0x40010800, 0x1400 */
