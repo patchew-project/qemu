@@ -937,6 +937,8 @@ static void riscv_cpu_add_multiext_prop_array(Object *obj,
  */
 static void riscv_cpu_add_user_properties(Object *obj)
 {
+    bool use_def_vals = riscv_cpu_is_generic(obj);
+
 #ifndef CONFIG_USER_ONLY
     riscv_add_satp_mode_properties(obj);
 #endif
@@ -950,6 +952,8 @@ static void riscv_cpu_add_user_properties(Object *obj)
     riscv_cpu_add_multiext_prop_array(obj, riscv_cpu_deprecated_exts);
 
     for (Property *prop = riscv_cpu_options; prop && prop->name; prop++) {
+        prop->set_default = prop->set_default && use_def_vals;
+
         qdev_property_add_static(DEVICE(obj), prop);
     }
 }
