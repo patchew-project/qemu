@@ -625,11 +625,14 @@
 #
 # @zstd: use zstd compression method.
 #
+# @qatzip: use qatzip compression method.
+#
 # Since: 5.0
 ##
 { 'enum': 'MultiFDCompression',
   'data': [ 'none', 'zlib',
-            { 'name': 'zstd', 'if': 'CONFIG_ZSTD' } ] }
+            { 'name': 'zstd', 'if': 'CONFIG_ZSTD' },
+            { 'name': 'qatzip', 'if': 'CONFIG_QATZIP'} ] }
 
 ##
 # @MigMode:
