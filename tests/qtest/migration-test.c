@@ -35,6 +35,10 @@
 # endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
+#ifdef CONFIG_QATZIP
+#include <qatzip.h>
+#endif /* CONFIG_QATZIP */
+
 /* For dirty ring test; so far only x86_64 is supported */
 #if defined(__linux__) && defined(HOST_X86_64)
 #include "linux/kvm.h"
@@ -2572,6 +2576,15 @@ test_migrate_precopy_tcp_multifd_zstd_start(QTestState *from,
 }
 #endif /* CONFIG_ZSTD */
 
+#ifdef CONFIG_QATZIP
+static void *
+test_migrate_precopy_tcp_multifd_qatzip_start(QTestState *from,
+                                              QTestState *to)
+{
+    return test_migrate_precopy_tcp_multifd_start_common(from, to, "qatzip");
+}
+#endif
+
 static void test_multifd_tcp_none(void)
 {
     MigrateCommon args = {
@@ -2602,6 +2615,17 @@ static void test_multifd_tcp_zstd(void)
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_zstd_start,
+    };
+    test_precopy_common(&args);
+}
+#endif
+
+#ifdef CONFIG_QATZIP
+static void test_multifd_tcp_qatzip(void)
+{
+    MigrateCommon args = {
+        .listen_uri = "defer",
+        .start_hook = test_migrate_precopy_tcp_multifd_qatzip_start,
     };
     test_precopy_common(&args);
 }
@@ -3479,6 +3503,19 @@ int main(int argc, char **argv)
 #ifdef CONFIG_ZSTD
     qtest_add_func("/migration/multifd/tcp/plain/zstd",
                    test_multifd_tcp_zstd);
+#endif
+#ifdef CONFIG_QATZIP
+    /*
+     * Use QATzip's qzInit() function as a runtime hardware check.
+     * Ideally there might be a cleaner way to probe for the presence of QAT.
+     */
+    QzSession_T sess;
+    memset(&sess, 0, sizeof(QzSession_T));
+    if (qzInit(&sess, 0) == QZ_OK) {
+        qzClose(&sess);
+        qtest_add_func("/migration/multifd/tcp/plain/qatzip",
+                    test_multifd_tcp_qatzip);
+    }
 #endif
 #ifdef CONFIG_GNUTLS
     qtest_add_func("/migration/multifd/tcp/tls/psk/match",
