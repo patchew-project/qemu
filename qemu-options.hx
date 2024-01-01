@@ -5211,7 +5211,7 @@ SRST
         (``share=off``). For this use case, we need writable RAM instead
         of ROM, and want to also set ``rom=off``.
 
-    ``-object memory-backend-ram,id=id,merge=on|off,dump=on|off,share=on|off,prealloc=on|off,size=size,host-nodes=host-nodes,policy=default|preferred|bind|interleave``
+    ``-object memory-backend-ram,id=id,merge=on|off,dump=on|off,share=on|off,prealloc=on|off,size=size,host-mem-type=cxlram,host-nodes=host-nodes,policy=default|preferred|bind|interleave``
         Creates a memory backend object, which can be used to back the
         guest RAM. Memory backend objects offer more control than the
         ``-m`` option that is traditionally used to define guest RAM.

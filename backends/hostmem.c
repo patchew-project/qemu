@@ -44,6 +44,133 @@ host_memory_backend_get_name(HostMemoryBackend *backend)
     return object_get_canonical_path(OBJECT(backend));
 }
 
+#define FILE_LINE_LEN 256
+static int
+is_valid_node(const char *path) {
+    FILE *file = fopen(path, "r");
+    if (file == NULL) {
+        return -1;
+    }
+
+    char line[FILE_LINE_LEN];
+    if (fgets(line, sizeof(line), file) != NULL) {
+        int target_node = atoi(line);
+
+        if (target_node >= 0) {
+            fclose(file);
+            return target_node;
+        }
+    }
+
+    fclose(file);
+    return -1;
+}
+
+static int
+is_directory(const char *path) {
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISDIR(path_stat.st_mode);
+}
+
+static int
+is_symlink(const char *path) {
+    struct stat path_stat;
+    if (lstat(path, &path_stat) == -1) {
+        return 0;
+    }
+    return S_ISLNK(path_stat.st_mode);
+}
+
+#define CXL_DEVICE_PATH "/sys/bus/cxl/devices/"
+#define REGION_PATH_LEN 307
+#define DAX_REGION_PATH_LEN 563
+#define DAX_PATH_LEN 819
+#define TARGET_FILE_PATH_LEN 831
+/*
+ * return: the number of valid numa node id found
+ */
+static int
+host_memory_backend_get_cxlram_nodes(int *valid_cxlram_nodes) {
+    DIR *base_dir = NULL, *region_dir = NULL, *dax_region_dir = NULL;
+    const char *base_dir_path = CXL_DEVICE_PATH;
+    struct dirent *entry;
+    int valid_node = 0, ret = 0;
+
+    base_dir = opendir(base_dir_path);
+    if (base_dir == NULL) {
+        return valid_node;
+    }
+
+    while ((entry = readdir(base_dir)) != NULL) {
+        char region_path[REGION_PATH_LEN];
+
+        ret = snprintf(region_path, sizeof(region_path), "%s%s",
+                                            base_dir_path, entry->d_name);
+        if (ret < 0 ||
+            !is_symlink(region_path) ||
+            strncmp(entry->d_name, "region", ARRAY_SIZE("region") - 1)) {
+            continue;
+        }
+
+        region_dir = opendir(region_path);
+        if (region_dir == NULL) {
+            goto region_exit;
+        }
+
+        while ((entry = readdir(region_dir)) != NULL) {
+            char dax_region_path[DAX_REGION_PATH_LEN];
+
+            ret = snprintf(dax_region_path, sizeof(dax_region_path), "%s/%s",
+                                                    region_path, entry->d_name);
+            if (ret < 0 ||
+                !is_directory(dax_region_path) ||
+                strncmp(entry->d_name, "dax_region",
+                            ARRAY_SIZE("dax_region") - 1)) {
+
+                continue;
+            }
+
+            dax_region_dir = opendir(dax_region_path);
+            if (dax_region_dir == NULL) {
+                goto dax_region_exit;
+            }
+
+            while ((entry = readdir(dax_region_dir)) != NULL) {
+                int target_node;
+                char dax_path[DAX_PATH_LEN];
+                char target_file_path[TARGET_FILE_PATH_LEN];
+                ret = snprintf(dax_path, sizeof(dax_path), "%s/%s",
+                                            dax_region_path, entry->d_name);
+                if (ret < 0 ||
+                    !is_directory(dax_path) ||
+                    strncmp(entry->d_name, "dax", ARRAY_SIZE("dax") - 1)) {
+                    continue;
+                }
+
+                ret = snprintf(target_file_path, sizeof(target_file_path),
+                                                    "%s/target_node", dax_path);
+                if (ret < 0) {
+                    continue;
+                }
+
+                target_node = is_valid_node(target_file_path);
+                if (target_node >= 0) {
+                    valid_cxlram_nodes[valid_node] = target_node;
+                    valid_node++;
+                }
+            }
+        }
+    }
+
+    closedir(dax_region_dir);
+dax_region_exit:
+    closedir(region_dir);
+region_exit:
+    closedir(base_dir);
+    return valid_node;
+}
+
 static void
 host_memory_backend_get_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
@@ -117,6 +244,12 @@ host_memory_backend_set_host_nodes(Object *obj, Visitor *v, const char *name,
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint16List *l, *host_nodes = NULL;
 
+    if (backend->host_mem_type == HOST_MEM_TYPE_CXLRAM) {
+        error_setg(errp,
+            "'host-mem-type=' and 'host-nodes='/'policy=' are incompatible");
+        return;
+    }
+
     visit_type_uint16List(v, name, &host_nodes, errp);
 
     for (l = host_nodes; l; l = l->next) {
@@ -150,10 +283,55 @@ host_memory_backend_set_policy(Object *obj, int policy, Error **errp)
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     backend->policy = policy;
 
+    if (backend->host_mem_type == HOST_MEM_TYPE_CXLRAM) {
+        error_setg(errp,
+            "'host-mem-type=' and 'host-nodes='/'policy=' are incompatible");
+    }
+
 #ifndef CONFIG_NUMA
     if (policy != HOST_MEM_POLICY_DEFAULT) {
         error_setg(errp, "NUMA policies are not supported by this QEMU");
     }
+#endif
+}
+
+static int
+host_memory_backend_get_host_mem_type(Object *obj, Error **errp G_GNUC_UNUSED)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    return backend->host_mem_type;
+}
+
+static void
+host_memory_backend_set_host_mem_type(Object *obj, int host_mem_type, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    backend->host_mem_type = host_mem_type;
+
+#ifndef CONFIG_NUMA
+    error_setg(errp, "NUMA node host memory types are not supported by this QEMU");
+#else
+    int i, valid_cxlram_nodes[MAX_NODES];
+
+    if (backend->policy > 0 ||
+        !bitmap_empty(backend->host_nodes, MAX_NODES)) {
+        error_setg(errp,
+            "'host-mem-type=' and 'host-nodes='/'policy=' are incompatible");
+        return;
+    }
+
+    if (host_memory_backend_get_cxlram_nodes(valid_cxlram_nodes) > 0) {
+        for (i = 0; i < MAX_NODES; i++) {
+            if (valid_cxlram_nodes[i] < 0) {
+                break;
+            }
+            bitmap_set(backend->host_nodes, valid_cxlram_nodes[i], 1);
+        }
+    } else {
+        error_setg(errp, "Cannot find CXL RAM on host");
+        return;
+    }
+    backend->policy = HOST_MEM_POLICY_BIND;
 #endif
 }
 
@@ -536,6 +714,12 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         host_memory_backend_get_share, host_memory_backend_set_share);
     object_class_property_set_description(oc, "share",
         "Mark the memory as private to QEMU or shared");
+    object_class_property_add_enum(oc, "host-mem-type", "HostMemType",
+        &HostMemType_lookup,
+        host_memory_backend_get_host_mem_type,
+        host_memory_backend_set_host_mem_type);
+    object_class_property_set_description(oc, "host-mem-type",
+        "Set the backend host memory type");
 #ifdef CONFIG_LINUX
     object_class_property_add_bool(oc, "reserve",
         host_memory_backend_get_reserve, host_memory_backend_set_reserve);

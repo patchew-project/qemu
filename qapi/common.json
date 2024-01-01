@@ -168,6 +168,25 @@
   'data': [ 'default', 'preferred', 'bind', 'interleave' ] }
 
 ##
+# @HostMemType:
+#
+# Automatically find a backend memory type on host.
+# Can be further extened to support other types such as cxlpmem, hbm.
+#
+# @none: do nothing (default).
+#
+# @cxlram: a CXL RAM backend on host.
+#
+# Note: HostMemType and HostMemPolicy/host-nodes cannot be set at the same
+# time. HostMemType is used to automatically bind with one kind of
+# host memory types.
+#
+# Since: 8.3
+##
+{ 'enum': 'HostMemType',
+  'data': [ 'none', 'cxlram' ] }
+
+##
 # @NetFilterDirection:
 #
 # Indicates whether a netfilter is attached to a netdev's transmit

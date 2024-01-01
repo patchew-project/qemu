@@ -626,6 +626,7 @@
             '*host-nodes': ['uint16'],
             '*merge': 'bool',
             '*policy': 'HostMemPolicy',
+            '*host-mem-type': 'HostMemType',
             '*prealloc': 'bool',
             '*prealloc-threads': 'uint32',
             '*prealloc-context': 'str',

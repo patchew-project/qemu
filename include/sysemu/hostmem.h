@@ -70,6 +70,7 @@ struct HostMemoryBackend {
     ThreadContext *prealloc_context;
     DECLARE_BITMAP(host_nodes, MAX_NODES + 1);
     HostMemPolicy policy;
+    HostMemType host_mem_type;
 
     MemoryRegion mr;
 };
