@@ -260,6 +260,16 @@ const PropertyInfo qdev_prop_bool = {
     .set_default_value = set_default_value_bool,
 };
 
+/* --- optional bool --- */
+
+const PropertyInfo qdev_prop_bool_unset = {
+    .name  = "OptionalBool",
+    .enum_table  = &OptionalBool_lookup,
+    .get   = qdev_propinfo_get_enum,
+    .set   = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
+};
+
 /* --- 8bit integer --- */
 
 static void get_uint8(Object *obj, Visitor *v, const char *name, void *opaque,

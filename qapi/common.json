@@ -207,3 +207,19 @@
 ##
 { 'struct': 'HumanReadableText',
   'data': { 'human-readable-text': 'str' } }
+
+##
+# @OptionalBool:
+#
+# An enumeration of three options: true, false, and unset
+#
+# @unset: Unset (default)
+#
+# @false: False
+#
+# @true: True
+#
+# Since: 9.0
+##
+{ 'enum': 'OptionalBool',
+  'data': [ 'false', 'true', 'unset' ] }

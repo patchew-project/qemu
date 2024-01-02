@@ -49,6 +49,7 @@ struct PropertyInfo {
 extern const PropertyInfo qdev_prop_bit;
 extern const PropertyInfo qdev_prop_bit64;
 extern const PropertyInfo qdev_prop_bool;
+extern const PropertyInfo qdev_prop_bool_unset;
 extern const PropertyInfo qdev_prop_enum;
 extern const PropertyInfo qdev_prop_uint8;
 extern const PropertyInfo qdev_prop_uint16;
@@ -104,6 +105,10 @@ extern const PropertyInfo qdev_prop_link;
     DEFINE_PROP(_name, _state, _field, qdev_prop_bool, bool, \
                 .set_default = true,                         \
                 .defval.u    = (bool)_defval)
+
+#define DEFINE_PROP_BOOL_NODEFAULT(_name, _state, _field) \
+    DEFINE_PROP_SIGNED(_name, _state, _field, OPTIONAL_BOOL_UNSET, \
+                        qdev_prop_bool_unset, OptionalBool)
 
 /**
  * The DEFINE_PROP_UINT64_CHECKMASK macro checks a user-supplied value
