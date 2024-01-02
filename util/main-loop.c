@@ -302,13 +302,13 @@ static int os_host_main_loop_wait(int64_t timeout)
 
     glib_pollfds_fill(&timeout);
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
     replay_mutex_unlock();
 
     ret = qemu_poll_ns((GPollFD *)gpollfds->data, gpollfds->len, timeout);
 
     replay_mutex_lock();
-    qemu_mutex_lock_iothread();
+    bql_lock();
 
     glib_pollfds_poll();
 
@@ -517,7 +517,7 @@ static int os_host_main_loop_wait(int64_t timeout)
 
     poll_timeout_ns = qemu_soonest_timeout(poll_timeout_ns, timeout);
 
-    qemu_mutex_unlock_iothread();
+    bql_unlock();
 
     replay_mutex_unlock();
 
@@ -525,7 +525,7 @@ static int os_host_main_loop_wait(int64_t timeout)
 
     replay_mutex_lock();
 
-    qemu_mutex_lock_iothread();
+    bql_lock();
     if (g_poll_ret > 0) {
         for (i = 0; i < w->num; i++) {
             w->revents[i] = poll_fds[n_poll_fds + i].revents;
