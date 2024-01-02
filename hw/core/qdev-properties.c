@@ -994,6 +994,13 @@ void qdev_property_add_static(DeviceState *dev, Property *prop)
     }
 }
 
+void qdev_property_del_static(DeviceState *dev, Property *prop)
+{
+    Object *obj = OBJECT(dev);
+
+    object_property_del(obj, prop->name);
+}
+
 static void qdev_class_add_property(DeviceClass *klass, const char *name,
                                     Property *prop)
 {

@@ -225,6 +225,8 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, Object *obj,
  */
 void qdev_property_add_static(DeviceState *dev, Property *prop);
 
+void qdev_property_del_static(DeviceState *dev, Property *prop);
+
 /**
  * qdev_alias_all_properties: Create aliases on source for all target properties
  * @target: Device which has properties to be aliased
