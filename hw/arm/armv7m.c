@@ -328,6 +328,9 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
         if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, errp)) {
             return;
         }
+    } else if (s->vfp == OPTIONAL_BOOL_TRUE) {
+        error_setg(errp, "'%s' does not support VFP", s->cpu_type);
+        return;
     }
     if (object_property_find(OBJECT(s->cpu), "dsp")) {
         if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, errp)) {
