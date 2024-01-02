@@ -117,6 +117,16 @@ static const int *vhost_net_get_feature_bits(struct vhost_net *net)
 
 uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
 {
+    const int *bit = vhost_net_get_feature_bits(net);
+
+    /*
+     * Consider all feature bits for feature negotiation with vhost backend,
+     * so that all backend device supported features can be negotiated.
+     */
+    while (*bit != VHOST_INVALID_FEATURE_BIT) {
+        features |= (1ULL << *bit);
+        bit++;
+    }
     return vhost_get_features(&net->dev, vhost_net_get_feature_bits(net),
             features);
 }

@@ -57,7 +57,9 @@ typedef struct VhostVDPAState {
  */
 const int vdpa_feature_bits[] = {
     VIRTIO_F_ANY_LAYOUT,
+    VIRTIO_F_IN_ORDER,
     VIRTIO_F_IOMMU_PLATFORM,
+    VIRTIO_F_NOTIFICATION_DATA,
     VIRTIO_F_NOTIFY_ON_EMPTY,
     VIRTIO_F_RING_PACKED,
     VIRTIO_F_RING_RESET,
