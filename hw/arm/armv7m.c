@@ -244,6 +244,9 @@ static const MemoryRegionOps ppb_default_ops = {
     .valid.max_access_size = 8,
 };
 
+static Property optional_arm_cpu_vfp_property =
+    DEFINE_PROP_BOOL_NODEFAULT("vfp", ARMv7MState, vfp);
+
 static void armv7m_instance_init(Object *obj)
 {
     ARMv7MState *s = ARMV7M(obj);
@@ -271,6 +274,9 @@ static void armv7m_instance_init(Object *obj)
 
     s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk", NULL, NULL, 0);
     s->cpuclk = qdev_init_clock_in(DEVICE(obj), "cpuclk", NULL, NULL, 0);
+
+    qdev_property_add_static(DEVICE(obj),
+                             &optional_arm_cpu_vfp_property);
 }
 
 static void armv7m_realize(DeviceState *dev, Error **errp)
@@ -331,6 +337,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     } else if (s->vfp == OPTIONAL_BOOL_TRUE) {
         error_setg(errp, "'%s' does not support VFP", s->cpu_type);
         return;
+    } else {
+        qdev_property_del_static(dev, &optional_arm_cpu_vfp_property);
     }
     if (object_property_find(OBJECT(s->cpu), "dsp")) {
         if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, errp)) {
@@ -551,7 +559,6 @@ static Property armv7m_properties[] = {
     DEFINE_PROP_BOOL("enable-bitband", ARMv7MState, enable_bitband, false),
     DEFINE_PROP_BOOL("start-powered-off", ARMv7MState, start_powered_off,
                      false),
-    DEFINE_PROP_BOOL_NODEFAULT("vfp", ARMv7MState, vfp),
     DEFINE_PROP_BOOL("dsp", ARMv7MState, dsp, true),
     DEFINE_PROP_UINT32("mpu-ns-regions", ARMv7MState, mpu_ns_regions, UINT_MAX),
     DEFINE_PROP_UINT32("mpu-s-regions", ARMv7MState, mpu_s_regions, UINT_MAX),
