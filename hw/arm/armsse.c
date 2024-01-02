@@ -1028,7 +1028,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             }
         }
         if (!s->cpu_fpu[i]) {
-            if (!object_property_set_bool(cpuobj, "vfp", false, errp)) {
+            if (!object_property_set_str(cpuobj, "vfp", "false", errp)) {
                 return;
             }
         }
