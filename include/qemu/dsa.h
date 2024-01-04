@@ -73,6 +73,24 @@ void dsa_cleanup(void);
  */
 bool dsa_is_running(void);
 
+/**
+ * @brief Initializes a buffer zero batch task.
+ *
+ * @param task A pointer to the batch task to initialize.
+ * @param results A pointer to an array of zero page checking results.
+ * @param batch_size The number of DSA tasks in the batch.
+ */
+void
+buffer_zero_batch_task_init(struct dsa_batch_task *task,
+                            bool *results, int batch_size);
+
+/**
+ * @brief Performs the proper cleanup on a DSA batch task.
+ *
+ * @param task A pointer to the batch task to cleanup.
+ */
+void buffer_zero_batch_task_destroy(struct dsa_batch_task *task);
+
 #else
 
 static inline bool dsa_is_running(void)
