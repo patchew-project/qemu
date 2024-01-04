@@ -58,7 +58,7 @@
           - git
           - hostname
           - libaio-dev
-          - libasan5
+          - libasan6
           - libasound2-dev
           - libattr1-dev
           - libbpf-dev
@@ -94,6 +94,7 @@
           - libnuma-dev
           - libpam0g-dev
           - libpcre2-dev
+          - libpipewire-0.3-dev
           - libpixman-1-dev
           - libpmem-dev
           - libpng-dev
@@ -139,6 +140,7 @@
           - python3-pip
           - python3-sphinx
           - python3-sphinx-rtd-theme
+          - python3-tomli
           - python3-venv
           - python3-yaml
           - rpm2cpio
