@@ -77,6 +77,9 @@ typedef struct virtio_snd_ctrl_command virtio_snd_ctrl_command;
 
 typedef struct VirtIOSoundPCMBuffer VirtIOSoundPCMBuffer;
 
+typedef QSIMPLEQ_HEAD(VirtIOSoundPCMBufferSimpleQueue, VirtIOSoundPCMBuffer)
+    VirtIOSoundPCMBufferSimpleQueue;
+
 /*
  * The VirtIO sound spec reuses layouts and values from the High Definition
  * Audio spec (virtio/v1.2: 5.14 Sound Device). This struct handles each I/O
@@ -132,8 +135,7 @@ struct VirtIOSoundPCMStream {
         SWVoiceIn *in;
         SWVoiceOut *out;
     } voice;
-    QSIMPLEQ_HEAD(, VirtIOSoundPCMBuffer) queue;
-    QSIMPLEQ_HEAD(, VirtIOSoundPCMBuffer) invalid;
+    VirtIOSoundPCMBufferSimpleQueue queue;
 };
 
 /*
@@ -197,12 +199,14 @@ struct VirtIOSound {
     VirtIODevice parent_obj;
 
     VirtQueue *queues[VIRTIO_SND_VQ_MAX];
+    VirtIOSoundPCMBufferSimpleQueue *invalidq[VIRTIO_SND_VQ_MAX];
     uint64_t features;
     VirtIOSoundPCMStream *streams;
     QEMUSoundCard card;
     VMChangeStateEntry *vmstate;
     virtio_snd_config snd_conf;
     QTAILQ_HEAD(, virtio_snd_ctrl_command) cmdq;
+    VirtIOSoundPCMBufferSimpleQueue invalidq_tx, invalidq_rx;
 };
 
 struct virtio_snd_ctrl_command {
