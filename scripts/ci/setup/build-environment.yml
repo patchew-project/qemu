@@ -234,10 +234,8 @@
           - nmap-ncat
           - numactl-devel
           - pixman-devel
-          - python38
           - python3-sphinx
           - rdma-core-devel
-          - redhat-rpm-config
           - snappy-devel
           - spice-glib-devel
           - systemd-devel
@@ -247,6 +245,16 @@
         state: present
       when:
         - ansible_facts['distribution_file_variety'] in ['RedHat', 'CentOS']
+        - ansible_facts['distribution_version'] == '8'
+
+    - name: Install packages only available on EL8
+      dnf:
+        name:
+          - python38
+          - redhat-rpm-config
+        state: present
+      when:
+        - ansible_facts['distribution_file_variety'] in ['RedHat']
         - ansible_facts['distribution_version'] == '8'
 
     - name: Install Spice packages
