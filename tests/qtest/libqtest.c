@@ -337,6 +337,30 @@ void qtest_remove_abrt_handler(void *data)
     }
 }
 
+void qtest_query_version(QTestState *qts, int *major, int *minor, int *micro)
+{
+    QDict *rsp, *version;
+
+    rsp = qtest_qmp_assert_success_ref(qts, "{ 'execute': 'query-version' }");
+    g_assert(rsp);
+
+    version = qdict_get_qdict(rsp, "qemu");
+
+    if (major) {
+        *major = qdict_get_int(version, "major");
+    }
+
+    if (minor) {
+        *minor = qdict_get_int(version, "minor");
+    }
+
+    if (micro) {
+        *micro = qdict_get_int(version, "micro");
+    }
+
+    qobject_unref(rsp);
+}
+
 static const char *qtest_qemu_binary(const char *var)
 {
     const char *qemu_bin;
