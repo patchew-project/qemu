@@ -1338,14 +1338,21 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     migrate_ensure_non_converge(from);
 
     migrate_prepare_for_dirty_mem(from);
-    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
-                             "  'arguments': { "
-                             "      'channels': [ { 'channel-type': 'main',"
-                             "      'addr': { 'transport': 'socket',"
-                             "                'type': 'inet',"
-                             "                'host': '127.0.0.1',"
-                             "                'port': '0' } } ] } }");
 
+    /* New syntax was introduced in 8.2 */
+    if (migration_vercmp(to, "8.2") < 0) {
+        qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
+                                 "  'arguments': { "
+                                 "      'uri': 'tcp:127.0.0.1:0' } }");
+    } else {
+        qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
+                                 "  'arguments': { "
+                                 "      'channels': [ { 'channel-type': 'main',"
+                                 "      'addr': { 'transport': 'socket',"
+                                 "                'type': 'inet',"
+                                 "                'host': '127.0.0.1',"
+                                 "                'port': '0' } } ] } }");
+    }
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
@@ -1603,6 +1610,9 @@ static void test_postcopy_recovery_double_fail(void)
 {
     MigrateCommon args = {
         .postcopy_recovery_test_fail = true,
+        .start = {
+            .since = "8.2",
+        },
     };
 
     test_postcopy_recovery_common(&args);
@@ -1665,6 +1675,7 @@ static void test_analyze_script(void)
 {
     MigrateStart args = {
         .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
+        .since = "8.2",
     };
     QTestState *from, *to;
     g_autofree char *uri = NULL;
@@ -2090,6 +2101,9 @@ static void test_precopy_file(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
+        .start = {
+            .since = "8.2"
+        },
     };
 
     test_file_common(&args, true);
@@ -2134,6 +2148,9 @@ static void test_precopy_file_offset(void)
         .connect_uri = uri,
         .listen_uri = "defer",
         .finish_hook = file_offset_finish_hook,
+        .start = {
+            .since = "8.2"
+        },
     };
 
     test_file_common(&args, false);
@@ -2148,6 +2165,9 @@ static void test_precopy_file_offset_bad(void)
         .connect_uri = uri,
         .listen_uri = "defer",
         .result = MIG_TEST_QMP_ERROR,
+        .start = {
+            .since = "8.2"
+        },
     };
 
     test_file_common(&args, false);
