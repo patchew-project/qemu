@@ -112,7 +112,7 @@ void hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     cs->exception_index = EXCP_UNALIGN;
     if (env->psw & PSW_Q) {
         /* ??? Needs tweaking for hppa64.  */
-        env->cr[CR_IOR] = addr;
+        env->cr[CR_IOR] = (uint32_t) addr;
         env->cr[CR_ISR] = addr >> 32;
     }
 
