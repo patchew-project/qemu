@@ -193,7 +193,7 @@
         - ansible_facts['distribution_file_variety'] == 'CentOS'
         - ansible_facts['distribution_major_version'] == '8'
 
-    - name: Install basic packages to build QEMU on EL8
+    - name: Install basic packages to build QEMU on RH family
       dnf:
         name:
           - SDL2-devel
@@ -303,8 +303,7 @@
           - zlib-static
         state: present
       when:
-        - ansible_facts['distribution_file_variety'] in ['RedHat', 'CentOS']
-        - ansible_facts['distribution_version'] == '8'
+        - ansible_facts['os_family'] == 'RedHat'
 
     - name: Install packages only available on EL8
       dnf:
