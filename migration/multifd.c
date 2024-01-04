@@ -560,6 +560,7 @@ void multifd_save_cleanup(void)
             qemu_thread_join(&p->thread);
         }
     }
+    dsa_cleanup();
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
         Error *local_err = NULL;
@@ -699,6 +700,7 @@ static void buffer_is_zero_use_cpu(MultiFDSendParams *p)
 {
     const void **buf = (const void **)p->batch_task->addr;
     assert(!migrate_use_main_zero_page());
+    assert(!dsa_is_running());
 
     for (int i = 0; i < p->pages->num; i++) {
         p->batch_task->results[i] = buffer_is_zero(buf[i], p->page_size);
@@ -707,15 +709,29 @@ static void buffer_is_zero_use_cpu(MultiFDSendParams *p)
 
 static void set_normal_pages(MultiFDSendParams *p)
 {
+    assert(migrate_use_main_zero_page());
+
     for (int i = 0; i < p->pages->num; i++) {
         p->batch_task->results[i] = false;
     }
+}
+
+static void buffer_is_zero_use_dsa(MultiFDSendParams *p)
+{
+    assert(!migrate_use_main_zero_page());
+    assert(dsa_is_running());
+
+    buffer_is_zero_dsa_batch_async(p->batch_task,
+                                   (const void **)p->batch_task->addr,
+                                   p->pages->num,
+                                   p->page_size);
 }
 
 static void multifd_zero_page_check(MultiFDSendParams *p)
 {
     /* older qemu don't understand zero page on multifd channel */
     bool use_multifd_zero_page = !migrate_use_main_zero_page();
+    bool use_multifd_dsa_accel = dsa_is_running();
 
     RAMBlock *rb = p->pages->block;
 
@@ -723,7 +739,9 @@ static void multifd_zero_page_check(MultiFDSendParams *p)
         p->batch_task->addr[i] = (ram_addr_t)(rb->host + p->pages->offset[i]);
     }
 
-    if (use_multifd_zero_page) {
+    if (use_multifd_dsa_accel && use_multifd_zero_page) {
+        buffer_is_zero_use_dsa(p);
+    } else if (use_multifd_zero_page) {
         buffer_is_zero_use_cpu(p);
     } else {
         /* No zero page checking. All pages are normal pages. */
@@ -997,10 +1015,22 @@ int multifd_save_setup(Error **errp)
     int thread_count;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     uint8_t i;
+    const char *dsa_parameter = migrate_multifd_dsa_accel();
+    int ret;
+    Error *local_err = NULL;
 
     if (!migrate_multifd()) {
         return 0;
     }
+
+    ret = dsa_init(dsa_parameter);
+    if (ret != 0) {
+        error_setg(&local_err, "multifd: Sender failed to initialize DSA.");
+        error_propagate(errp, local_err);
+        return ret;
+    }
+
+    dsa_start();
 
     thread_count = migrate_multifd_channels();
     multifd_send_state = g_malloc0(sizeof(*multifd_send_state));
@@ -1046,8 +1076,6 @@ int multifd_save_setup(Error **errp)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
-        Error *local_err = NULL;
-        int ret;
 
         ret = multifd_send_state->ops->send_setup(p, &local_err);
         if (ret) {
@@ -1055,6 +1083,7 @@ int multifd_save_setup(Error **errp)
             return ret;
         }
     }
+
     return 0;
 }
 
@@ -1132,6 +1161,7 @@ void multifd_load_cleanup(void)
 
         qemu_thread_join(&p->thread);
     }
+    dsa_cleanup();
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
@@ -1266,6 +1296,9 @@ int multifd_load_setup(Error **errp)
     int thread_count;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     uint8_t i;
+    const char *dsa_parameter = migrate_multifd_dsa_accel();
+    int ret;
+    Error *local_err = NULL;
 
     /*
      * Return successfully if multiFD recv state is already initialised
@@ -1274,6 +1307,15 @@ int multifd_load_setup(Error **errp)
     if (multifd_recv_state || !migrate_multifd()) {
         return 0;
     }
+
+    ret = dsa_init(dsa_parameter);
+    if (ret != 0) {
+        error_setg(&local_err, "multifd: Receiver failed to initialize DSA.");
+        error_propagate(errp, local_err);
+        return ret;
+    }
+
+    dsa_start();
 
     thread_count = migrate_multifd_channels();
     multifd_recv_state = g_malloc0(sizeof(*multifd_recv_state));
@@ -1302,8 +1344,6 @@ int multifd_load_setup(Error **errp)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
-        Error *local_err = NULL;
-        int ret;
 
         ret = multifd_recv_state->ops->recv_setup(p, &local_err);
         if (ret) {
@@ -1311,6 +1351,7 @@ int multifd_load_setup(Error **errp)
             return ret;
         }
     }
+
     return 0;
 }
 
