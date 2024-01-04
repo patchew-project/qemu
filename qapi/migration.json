@@ -879,6 +879,12 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
+#     certain memory operations. Enable DSA accelerator offloading by
+#     setting this string to a list of DSA device path separated by space
+#     characters. Setting this string to an empty string means disabling
+#     DSA accelerator offloading. Defaults to an empty string. (since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -902,7 +908,7 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
-           'avail-switchover-bandwidth', 'downtime-limit',
+           'avail-switchover-bandwidth', 'downtime-limit', 'multifd-dsa-accel',
            { 'name': 'x-checkpoint-delay', 'features': [ 'unstable' ] },
            { 'name': 'block-incremental', 'features': [ 'deprecated' ] },
            'multifd-channels',
@@ -1067,6 +1073,12 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
+#     certain memory operations. Enable DSA accelerator offloading by
+#     setting this string to a list of DSA device path separated by space
+#     characters. Setting this string to an empty string means disabling
+#     DSA accelerator offloading. Defaults to an empty string. (since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1120,7 +1132,8 @@
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
-            '*mode': 'MigMode'} }
+            '*mode': 'MigMode',
+            '*multifd-dsa-accel': 'StrOrNull'} }
 
 ##
 # @migrate-set-parameters:
@@ -1295,6 +1308,12 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
+#     certain memory operations. Enable DSA accelerator offloading by
+#     setting this string to a list of DSA device path separated by space
+#     characters. Setting this string to an empty string means disabling
+#     DSA accelerator offloading. Defaults to an empty string. (since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1345,7 +1364,8 @@
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
-            '*mode': 'MigMode'} }
+            '*mode': 'MigMode',
+            '*multifd-dsa-accel': 'str'} }
 
 ##
 # @query-migrate-parameters:
