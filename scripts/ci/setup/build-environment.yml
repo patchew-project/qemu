@@ -247,7 +247,6 @@
           - libiscsi-devel
           - libjpeg-devel
           - libnfs-devel
-          - libpmem-devel
           - libpng-devel
           - librbd-devel
           - libseccomp-devel
@@ -317,6 +316,14 @@
       when:
         - ansible_facts['distribution_file_variety'] in ['RedHat']
         - ansible_facts['distribution_version'] == '8'
+
+    - name: Install arch-specific packages (RH family)
+      dnf:
+        name:
+          - libpmem-devel
+      when:
+        - ansible_facts['os_family'] == 'RedHat'
+        - ansible_facts['architecture'] == 'x86_64'
 
     - name: Install Spice packages
       dnf:
