@@ -683,6 +683,37 @@ int multifd_send_sync_main(QEMUFile *f)
     return 0;
 }
 
+static void multifd_normal_page_test_hook(MultiFDSendParams *p)
+{
+    /*
+     * The value is between 0 to 100. If the value is 10, it means at
+     * least 10% of the pages are normal page. A zero page can be made
+     * a normal page but not the other way around.
+     */
+    uint8_t multifd_normal_page_ratio =
+        migrate_multifd_normal_page_ratio();
+    struct batch_task *batch_task = p->batch_task;
+
+    /* Set normal page test hook is disabled. */
+    if (multifd_normal_page_ratio > 100) {
+        return;
+    }
+
+    for (int i = 0; i < p->pages->num; i++) {
+        if (batch_task->normal_page_counter < multifd_normal_page_ratio) {
+            /* Turn a zero page into a normal page. */
+            batch_task->results[i] = false;
+        }
+        batch_task->normal_page_index++;
+        batch_task->normal_page_counter++;
+
+        if (batch_task->normal_page_index >= 100) {
+            batch_task->normal_page_index = 0;
+            batch_task->normal_page_counter = 0;
+        }
+    }
+}
+
 static void set_page(MultiFDSendParams *p, bool zero_page, uint64_t offset)
 {
     RAMBlock *rb = p->pages->block;
@@ -747,6 +778,8 @@ static void multifd_zero_page_check(MultiFDSendParams *p)
         /* No zero page checking. All pages are normal pages. */
         set_normal_pages(p);
     }
+
+    multifd_normal_page_test_hook(p);
 
     for (int i = 0; i < p->pages->num; i++) {
         uint64_t offset = p->pages->offset[i];

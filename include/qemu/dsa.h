@@ -38,7 +38,7 @@ typedef struct dsa_batch_task {
     QemuSemaphore sem_task_complete;
     DsaTaskType task_type;
     DsaTaskStatus status;
-    int batch_size;
+    uint32_t batch_size;
     bool *results;
     QSIMPLEQ_ENTRY(dsa_batch_task) entry;
 } dsa_batch_task;
@@ -50,6 +50,9 @@ struct batch_task {
     ram_addr_t *addr;
     /* Zero page checking results */
     bool *results;
+    /* Set normal page ratio test hook. */
+    uint32_t normal_page_index;
+    uint32_t normal_page_counter;
 #ifdef CONFIG_DSA_OPT
     struct dsa_batch_task *dsa_batch;
 #endif
