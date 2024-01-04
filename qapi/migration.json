@@ -885,6 +885,9 @@
 #     characters. Setting this string to an empty string means disabling
 #     DSA accelerator offloading. Defaults to an empty string. (since 8.2)
 #
+# @multifd-normal-page-ratio: Test hook setting the normal page ratio.
+#     (Since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -918,7 +921,8 @@
            'block-bitmap-mapping',
            { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
            'vcpu-dirty-limit',
-           'mode'] }
+           'mode',
+           'multifd-normal-page-ratio'] }
 
 ##
 # @MigrateSetParameters:
@@ -1079,6 +1083,9 @@
 #     characters. Setting this string to an empty string means disabling
 #     DSA accelerator offloading. Defaults to an empty string. (since 8.2)
 #
+# @multifd-normal-page-ratio: Test hook setting the normal page ratio.
+#     (Since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1133,7 +1140,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*multifd-dsa-accel': 'StrOrNull'} }
+            '*multifd-dsa-accel': 'StrOrNull',
+            '*multifd-normal-page-ratio': 'uint8'} }
 
 ##
 # @migrate-set-parameters:
@@ -1314,6 +1322,9 @@
 #     characters. Setting this string to an empty string means disabling
 #     DSA accelerator offloading. Defaults to an empty string. (since 8.2)
 #
+# @multifd-normal-page-ratio: Test hook setting the normal page ratio.
+#     (Since 8.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1365,7 +1376,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*multifd-dsa-accel': 'str'} }
+            '*multifd-dsa-accel': 'str',
+            '*multifd-normal-page-ratio': 'uint8'} }
 
 ##
 # @query-migrate-parameters:

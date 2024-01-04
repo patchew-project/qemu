@@ -95,6 +95,7 @@ const char *migrate_tls_creds(void);
 const char *migrate_tls_hostname(void);
 uint64_t migrate_xbzrle_cache_size(void);
 const char *migrate_multifd_dsa_accel(void);
+uint8_t migrate_multifd_normal_page_ratio(void);
 
 /* parameters setters */
 
