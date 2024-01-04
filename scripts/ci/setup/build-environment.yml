@@ -249,7 +249,7 @@
         - ansible_facts['distribution_file_variety'] in ['RedHat', 'CentOS']
         - ansible_facts['distribution_version'] == '8'
 
-    - name: Install packages only available on x86 and aarch64
+    - name: Install Spice packages
       dnf:
         # Spice server not available in ppc64le
         name:
@@ -257,9 +257,8 @@
           - spice-server-devel
         state: present
       when:
-        - ansible_facts['distribution_file_variety'] in ['RedHat', 'CentOS']
-        - ansible_facts['distribution_version'] == '8'
-        - ansible_facts['architecture'] == 'aarch64' or ansible_facts['architecture'] == 'x86_64'
+        - ansible_facts['os_family'] == 'RedHat'
+        - ansible_facts['architecture'] != 'ppc64le'
 
     - name: Check whether the Python runtime version is managed by alternatives
       stat:
