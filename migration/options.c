@@ -204,6 +204,8 @@ Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-switchover-ack",
                         MIGRATION_CAPABILITY_SWITCHOVER_ACK),
     DEFINE_PROP_MIG_CAP("x-dirty-limit", MIGRATION_CAPABILITY_DIRTY_LIMIT),
+    DEFINE_PROP_MIG_CAP("main-zero-page",
+            MIGRATION_CAPABILITY_MAIN_ZERO_PAGE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -282,6 +284,19 @@ bool migrate_multifd(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_MULTIFD];
+}
+
+bool migrate_use_main_zero_page(void)
+{
+    /* MigrationState *s; */
+
+    /* s = migrate_get_current(); */
+
+    /*
+     * We will enable this when we add the right code.
+     * return s->enabled_capabilities[MIGRATION_CAPABILITY_MAIN_ZERO_PAGE];
+     */
+    return true;
 }
 
 bool migrate_pause_before_switchover(void)
