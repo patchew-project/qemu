@@ -637,6 +637,12 @@ typedef struct {
     bool use_dirty_ring;
     const char *opts_source;
     const char *opts_target;
+    /*
+     * If a test checks against new functionality that might not be
+     * present in older QEMUs this needs to be set so we can skip
+     * running it when doing compatibility testing.
+     */
+    const char *since;
 } MigrateStart;
 
 /*
@@ -850,6 +856,17 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         qtest_qmp_set_event_callback(*from,
                                      migrate_watch_for_stop,
                                      &got_src_stop);
+
+        if (args->since && migration_vercmp(*from, args->since) < 0) {
+            g_autofree char *msg = NULL;
+
+            msg = g_strdup_printf("Test requires at least QEMU version %s",
+                                  args->since);
+            g_test_skip(msg);
+            qtest_quit(*from);
+
+            return -1;
+        }
     }
 
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg "
@@ -871,6 +888,18 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     qtest_qmp_set_event_callback(*to,
                                  migrate_watch_for_resume,
                                  &got_dst_resume);
+
+    if (args->since && migration_vercmp(*to, args->since) < 0) {
+        g_autofree char *msg = NULL;
+
+        msg = g_strdup_printf("Test requires at least QEMU version %s",
+                              args->since);
+        g_test_skip(msg);
+        qtest_quit(*to);
+        qtest_quit(*from);
+
+        return -1;
+    }
 
     /*
      * Remove shmem file immediately to avoid memory leak in test failed case.

@@ -292,3 +292,14 @@ char *resolve_machine_version(const char *alias, const char *var1,
 
     return find_common_machine_version(machine_name, var1, var2);
 }
+
+int migration_vercmp(QTestState *who, const char *tgt_version)
+{
+    int major, minor, micro;
+    g_autofree char *version = NULL;
+
+    qtest_query_version(who, &major, &minor, &micro);
+    version = g_strdup_printf("%d.%d", major, minor + !!micro);
+
+    return strcmp(version, tgt_version);
+}
