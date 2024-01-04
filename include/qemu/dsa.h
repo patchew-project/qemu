@@ -38,6 +38,7 @@ typedef struct dsa_batch_task {
     DsaTaskType task_type;
     DsaTaskStatus status;
     int batch_size;
+    bool *results;
     QSIMPLEQ_ENTRY(dsa_batch_task) entry;
 } dsa_batch_task;
 
