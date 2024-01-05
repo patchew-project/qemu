@@ -1,7 +1,7 @@
 /*
  * QEMU GRLIB Components
  *
- * Copyright (c) 2010-2019 AdaCore
+ * Copyright (c) 2010-2024 AdaCore
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef GRLIB_H
-#define GRLIB_H
+#ifndef GRLIB_IRQMP_H
+#define GRLIB_IRQMP_H
 
 #include "hw/sysbus.h"
 
@@ -36,10 +36,4 @@
 
 void grlib_irqmp_ack(DeviceState *dev, int intno);
 
-/* GPTimer */
-#define TYPE_GRLIB_GPTIMER "grlib-gptimer"
-
-/* APB UART */
-#define TYPE_GRLIB_APB_UART "grlib-apbuart"
-
-#endif /* GRLIB_H */
+#endif /* GRLIB_IRQMP_H */
