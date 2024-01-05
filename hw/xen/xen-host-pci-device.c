@@ -370,6 +370,13 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
     }
     d->irq = v;
 
+    xen_host_pci_get_dec_value(d, "gsi", &v, errp);
+    if (*errp) {
+        d->gsi = -1;
+    } else {
+        d->gsi = v;
+    }
+
     xen_host_pci_get_hex_value(d, "class", &v, errp);
     if (*errp) {
         goto error;

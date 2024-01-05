@@ -839,7 +839,11 @@ static void xen_pt_realize(PCIDevice *d, Error **errp)
         goto out;
     }
 
-    machine_irq = s->real_device.irq;
+    if (s->real_device.gsi < 0) {
+        machine_irq = s->real_device.irq;
+    } else {
+        machine_irq = s->real_device.gsi;
+    }
     if (machine_irq == 0) {
         XEN_PT_LOG(d, "machine irq is 0\n");
         cmd |= PCI_COMMAND_INTX_DISABLE;
