@@ -1023,7 +1023,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 err:
     sev_guest = NULL;
     ram_block_discard_disable(false);
-    return -1;
+    return ret;
 }
 
 int
