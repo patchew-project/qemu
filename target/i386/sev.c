@@ -923,7 +923,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     ret = ram_block_discard_disable(true);
     if (ret) {
         error_report("%s: cannot disable RAM discard", __func__);
-        return -1;
+        return ret;
     }
 
     sev_guest = sev;
@@ -940,6 +940,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     if (host_cbitpos != sev->cbitpos) {
         error_setg(errp, "%s: cbitpos check failed, host '%d' requested '%d'",
                    __func__, host_cbitpos, sev->cbitpos);
+        ret = -EINVAL;
         goto err;
     }
 
@@ -952,11 +953,12 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         error_setg(errp, "%s: reduced_phys_bits check failed,"
                    " it should be in the range of 1 to 63, requested '%d'",
                    __func__, sev->reduced_phys_bits);
+        ret = -EINVAL;
         goto err;
     }
 
     devname = object_property_get_str(OBJECT(sev), "sev-device", NULL);
-    sev->sev_fd = open(devname, O_RDWR);
+    ret = sev->sev_fd = open(devname, O_RDWR);
     if (sev->sev_fd < 0) {
         error_setg(errp, "%s: Failed to open %s '%s'", __func__,
                    devname, strerror(errno));
@@ -981,6 +983,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         if (!kvm_kernel_irqchip_allowed()) {
             error_report("%s: SEV-ES guests require in-kernel irqchip support",
                          __func__);
+            ret = -EINVAL;
             goto err;
         }
 
@@ -988,6 +991,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
             error_report("%s: guest policy requires SEV-ES, but "
                          "host SEV-ES support unavailable",
                          __func__);
+            ret = -EINVAL;
             goto err;
         }
         cmd = KVM_SEV_ES_INIT;
