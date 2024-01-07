@@ -1346,6 +1346,14 @@ the environment.
 The definition of *large* is a bit arbitrary here, but it usually means an
 asset which occupies at least 1GB of size on disk when uncompressed.
 
+AVOCADO_ALLOW_LONG_RUNTIME
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Tests which have a long runtime will not be run unless that
+``AVOCADO_ALLOW_LONG_RUNTIME=1`` is exported on the environment.
+
+The definition of *long* is a bit arbitrary here, but it usually means a
+test which takes more than 100 seconds to complete.
+
 AVOCADO_ALLOW_UNTRUSTED_CODE
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 There are tests which will boot a kernel image or firmware that can be
