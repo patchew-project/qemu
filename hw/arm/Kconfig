@@ -530,13 +530,16 @@ config FSL_IMX31
 
 config FSL_IMX6
     bool
+    imply PCI_DEVICES
     imply I2C_DEVICES
     select A9MPCORE
+    select PCI
     select IMX
     select IMX_FEC
     select IMX_I2C
     select IMX_USBPHY
     select WDT_IMX2
+    select PCI_EXPRESS_DESIGNWARE
     select SDHCI
 
 config ASPEED_SOC
