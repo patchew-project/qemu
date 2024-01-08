@@ -19,7 +19,7 @@
 #include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-types-migration.h"
 #include "qapi/qapi-visit-virtio.h"
-#include "qapi/qmp/qerror.h"
+#include "qobject/qerror.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/units.h"
