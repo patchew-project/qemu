@@ -207,7 +207,12 @@ int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
-
+NICInfo *qemu_find_nic_info(const char *typename, bool match_default,
+                            const char *alias);
+bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
+                               const char *alias);
+DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
+                                    const char *alias);
 void print_net_client(Monitor *mon, NetClientState *nc);
 void net_socket_rs_init(SocketReadState *rs,
                         SocketReadStateFinalize *finalize,
