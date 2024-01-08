@@ -14,7 +14,7 @@
 #include "sysemu/rng.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
+#include "qobject/qerror.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 

@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/iommufd.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
+#include "qobject/qerror.h"
 #include "qemu/module.h"
 #include "qom/object_interfaces.h"
 #include "qemu/error-report.h"
