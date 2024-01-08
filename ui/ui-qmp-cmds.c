@@ -18,7 +18,7 @@
 #include "io/channel-file.h"
 #include "monitor/qmp-helpers.h"
 #include "qapi/qapi-commands-ui.h"
-#include "qapi/qmp/qerror.h"
+#include "qobject/qerror.h"
 #include "qemu/coroutine.h"
 #include "qemu/cutils.h"
 #include "trace.h"
