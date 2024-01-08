@@ -29,7 +29,7 @@
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-events-run-state.h"
-#include "qapi/qmp/qerror.h"
+#include "qobject/qerror.h"
 #include "exec/gdbstub.h"
 #include "sysemu/hw_accel.h"
 #include "exec/cpu-common.h"
