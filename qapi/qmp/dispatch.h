@@ -1,1 +1,0 @@
-../../include/qapi/qmp-registry.h
