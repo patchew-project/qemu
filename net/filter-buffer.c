@@ -13,7 +13,7 @@
 #include "qemu/timer.h"
 #include "qemu/iov.h"
 #include "qapi/qapi-builtin-visit.h"
-#include "qapi/qmp/qerror.h"
+#include "qobject/qerror.h"
 #include "qom/object.h"
 
 #define TYPE_FILTER_BUFFER "filter-buffer"
