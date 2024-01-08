@@ -353,7 +353,7 @@ target_ulong HELPER(probe)(CPUHPPAState *env, target_ulong addr,
     if (excp >= 0) {
         if (env->psw & PSW_Q) {
             /* ??? Needs tweaking for hppa64.  */
-            env->cr[CR_IOR] = addr;
+            env->cr[CR_IOR] = (uint32_t)addr;
             env->cr[CR_ISR] = addr >> 32;
         }
         if (excp == EXCP_DTLB_MISS) {
