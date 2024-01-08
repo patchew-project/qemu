@@ -36,7 +36,7 @@
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qemu/bswap.h"
