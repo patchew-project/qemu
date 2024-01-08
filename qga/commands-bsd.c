@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qga-qapi-commands.h"
-#include "qapi/qmp/qerror.h"
+#include "qobject/qerror.h"
 #include "qapi/error.h"
 #include "qemu/queue.h"
 #include "commands-common.h"
