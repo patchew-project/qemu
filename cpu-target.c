@@ -406,6 +406,15 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
     vaddr l, page;
     void * p;
     uint8_t *buf = ptr;
+    int ret = -1;
+    int mem_fd;
+
+    /*
+     * Try ptrace first. If /proc is not mounted or if there is a different
+     * problem, fall back to the manual page access. Note that, unlike ptrace,
+     * it will not be able to ignore the protection bits.
+     */
+    mem_fd = open("/proc/self/mem", is_write ? O_WRONLY : O_RDONLY);
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -413,22 +422,33 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
         if (l > len)
             l = len;
         flags = page_get_flags(page);
-        if (!(flags & PAGE_VALID))
-            return -1;
+        if (!(flags & PAGE_VALID)) {
+            goto out_close;
+        }
         if (is_write) {
-            if (!(flags & PAGE_WRITE))
-                return -1;
+            if (mem_fd == -1 ||
+                pwrite(mem_fd, ptr, len, (off_t)g2h_untagged(addr)) != len) {
+                if (!(flags & PAGE_WRITE)) {
+                    goto out_close;
+                }
+                /* XXX: this code should not depend on lock_user */
+                p = lock_user(VERIFY_WRITE, addr, l, 0);
+                if (!p) {
+                    goto out_close;
+                }
+                memcpy(p, buf, l);
+                unlock_user(p, addr, l);
+            }
+        } else if (mem_fd == -1 ||
+                   pread(mem_fd, ptr, len, (off_t)g2h_untagged(addr)) != len) {
+            if (!(flags & PAGE_READ)) {
+                goto out_close;
+            }
             /* XXX: this code should not depend on lock_user */
-            if (!(p = lock_user(VERIFY_WRITE, addr, l, 0)))
-                return -1;
-            memcpy(p, buf, l);
-            unlock_user(p, addr, l);
-        } else {
-            if (!(flags & PAGE_READ))
-                return -1;
-            /* XXX: this code should not depend on lock_user */
-            if (!(p = lock_user(VERIFY_READ, addr, l, 1)))
-                return -1;
+            p = lock_user(VERIFY_READ, addr, l, 1);
+            if (!p) {
+                goto out_close;
+            }
             memcpy(buf, p, l);
             unlock_user(p, addr, 0);
         }
@@ -436,7 +456,12 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
         buf += l;
         addr += l;
     }
-    return 0;
+    ret = 0;
+out_close:
+    if (mem_fd != -1) {
+        close(mem_fd);
+    }
+    return ret;
 }
 #endif
 
