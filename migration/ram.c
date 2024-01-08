@@ -47,7 +47,7 @@
 #include "qapi/qapi-types-migration.h"
 #include "qapi/qapi-events-migration.h"
 #include "qapi/qapi-commands-migration.h"
-#include "qapi/qmp/qerror.h"
+#include "qobject/qerror.h"
 #include "trace.h"
 #include "exec/ram_addr.h"
 #include "exec/target_page.h"
