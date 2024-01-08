@@ -269,10 +269,23 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
 {
     const uint64_t target = viewport->target;
     const uint64_t base   = viewport->base;
-    const uint64_t size   = (uint64_t)viewport->limit - base + 1;
     const bool enabled    = viewport->cr[1] & DESIGNWARE_PCIE_ATU_ENABLE;
+    uint64_t tbase, tlimit, size;
 
     MemoryRegion *current, *other;
+
+    /*
+     * Hanlde wrap around caused by the fact that perior to version 460A
+     * the limit was 32bit quantity.
+     * See Linux kernel code in:
+     * drivers/pci/controllers/dwc/pcie-designware.c
+     * function: __dw_pcie_prog_outbound_atu
+     * Now in a 64bit system the range can be above 4G but as long as
+     * the limit itself is less then 4G the overflow is avoided
+     */
+    tbase = base & 0xffffffff;
+    tlimit = 0x100000000 + (uint64_t)viewport->limit;
+    size = ((tlimit - tbase) & 0xffffffff) + 1;
 
     if (viewport->cr[0] == DESIGNWARE_PCIE_ATU_TYPE_MEM) {
         current = &viewport->mem;
