@@ -520,7 +520,7 @@ bool eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
     return true;
 }
 
-bool eth_pad_short_frame(uint8_t *padded_pkt, size_t *padded_buflen,
+bool eth_pad_short_frame(void *padded_pkt, size_t *padded_buflen,
                          const void *pkt, size_t pkt_size)
 {
     assert(padded_buflen && *padded_buflen >= ETH_ZLEN);
