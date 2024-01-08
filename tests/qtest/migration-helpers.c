@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/ctype.h"
-#include "qapi/qmp/qjson.h"
+#include "qobject/qjson.h"
 
 #include "migration-helpers.h"
 

@@ -14,7 +14,7 @@
 
 #include "libqtest.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
@@ -24,7 +24,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "crypto/tlscredspsk.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 
 #include "migration-helpers.h"
 #include "tests/migration/migration-test.h"
