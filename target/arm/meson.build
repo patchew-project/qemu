@@ -36,3 +36,6 @@ endif
 
 target_arch += {'arm': arm_ss}
 target_system_arch += {'arm': arm_system_ss}
+arm_system_ss.add(when: 'CONFIG_GUNYAH', if_true: files(
+  'gunyah.c',
+))
