@@ -371,6 +371,7 @@ struct CPUWatchpoint {
 
 struct KVMState;
 struct kvm_run;
+struct gh_vcpu_run;
 
 /* work queue */
 

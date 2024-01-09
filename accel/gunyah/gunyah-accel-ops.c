@@ -91,6 +91,11 @@ static void gunyah_set_protected_vm(Object *obj, bool value, Error **errp)
     s->is_protected_vm = value;
 }
 
+static void gunyah_setup_post(MachineState *ms, AccelState *accel)
+{
+    gunyah_start_vm();
+}
+
 static void gunyah_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
@@ -98,6 +103,7 @@ static void gunyah_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "GUNYAH";
     ac->init_machine = gunyah_init;
     ac->allowed = &gunyah_allowed;
+    ac->setup_post = gunyah_setup_post;
 
     object_class_property_add_bool(oc, "protected-vm",
                     gunyah_get_protected_vm, gunyah_set_protected_vm);
@@ -156,6 +162,7 @@ static void gunyah_accel_ops_class_init(ObjectClass *oc, void *data)
     ops->create_vcpu_thread = gunyah_start_vcpu_thread;
     ops->kick_vcpu_thread = gunyah_kick_vcpu_thread;
     ops->cpu_thread_is_idle = gunyah_vcpu_thread_is_idle;
+    ops->synchronize_post_reset = gunyah_cpu_synchronize_post_reset;
 };
 
 static const TypeInfo gunyah_accel_ops_type = {
