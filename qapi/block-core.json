@@ -5559,6 +5559,8 @@
 # Note: If action is "stop", a STOP event will eventually follow the
 #     BLOCK_IO_ERROR event
 #
+# Note: This event is rate-limited.
+#
 # Since: 0.13
 #
 # Example:
