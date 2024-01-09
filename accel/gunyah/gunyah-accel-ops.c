@@ -37,6 +37,60 @@ static void gunyah_accel_instance_init(Object *obj)
     s->vmfd = -1;
 }
 
+static void gunyah_get_preshmem_size(Object *obj, Visitor *v,
+                                    const char *name, void *opaque,
+                                    Error **errp)
+{
+    GUNYAHState *s = GUNYAH_STATE(obj);
+    uint32_t value = s->preshmem_size;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void gunyah_set_preshmem_size(Object *obj, Visitor *v,
+                                    const char *name, void *opaque,
+                                    Error **errp)
+{
+    GUNYAHState *s = GUNYAH_STATE(obj);
+    uint32_t value;
+
+    if (s->fd != -1) {
+        error_setg(errp, "Cannot set properties after VM is created");
+        return;
+    }
+
+    if (!visit_type_uint32(v, name, &value, errp)) {
+        error_setg(errp, "preshmem-size must be an unsigned integer");
+        return;
+    }
+
+    if (value & (value - 1)) {
+        error_setg(errp, "preshmem-size must be a power of two");
+        return;
+    }
+
+    if (!s->is_protected_vm) {
+        error_setg(errp, "preshmem-size is applicable only for protected VMs");
+        return;
+    }
+
+    s->preshmem_size = value;
+}
+
+static bool gunyah_get_protected_vm(Object *obj, Error **errp)
+{
+    GUNYAHState *s = GUNYAH_STATE(obj);
+
+    return s->is_protected_vm;
+}
+
+static void gunyah_set_protected_vm(Object *obj, bool value, Error **errp)
+{
+    GUNYAHState *s = GUNYAH_STATE(obj);
+
+    s->is_protected_vm = value;
+}
+
 static void gunyah_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
@@ -44,6 +98,17 @@ static void gunyah_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "GUNYAH";
     ac->init_machine = gunyah_init;
     ac->allowed = &gunyah_allowed;
+
+    object_class_property_add_bool(oc, "protected-vm",
+                    gunyah_get_protected_vm, gunyah_set_protected_vm);
+    object_class_property_set_description(oc, "protected-vm",
+            "Launch a VM of protected type");
+
+    object_class_property_add(oc, "preshmem-size", "uint32",
+                gunyah_get_preshmem_size, gunyah_set_preshmem_size, NULL, NULL);
+    object_class_property_set_description(oc, "preshmem-size",
+        "This property is applicable for protected VMs and indicates "
+        "the portion of VM's memory that should be shared with its host");
 }
 
 static const TypeInfo gunyah_accel_type = {

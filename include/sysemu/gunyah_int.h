@@ -19,6 +19,8 @@ struct GUNYAHState {
 
     int fd;
     int vmfd;
+    bool is_protected_vm;
+    uint32_t preshmem_size;
 };
 
 int gunyah_create_vm(void);
