@@ -34,6 +34,13 @@ int gunyah_arm_set_dtb(__u64 dtb_start, __u64 dtb_size)
 {
     int ret;
     struct gh_vm_dtb_config dtb;
+    gunyah_slot *slot = gunyah_find_slot_by_addr(dtb_start);
+
+    /*
+     * RM should consider 'totalsize' field to be inclusive of free space. Use
+     * this workaround until RM is fixed.
+     */
+    dtb_size = slot->start + slot->size - dtb_start;
 
     dtb.guest_phys_addr = dtb_start;
     dtb.size = dtb_size;
