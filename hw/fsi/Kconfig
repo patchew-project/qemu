@@ -1,3 +1,11 @@
+config FSI_CFAM
+    bool
+    select FSI
+    select FSI_LBUS
+
+config FSI
+    bool
+
 config FSI
     bool
 
