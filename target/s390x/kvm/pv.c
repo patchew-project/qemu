@@ -29,7 +29,8 @@ static bool info_valid;
 static struct kvm_s390_pv_info_vm info_vm;
 static struct kvm_s390_pv_info_dump info_dump;
 
-static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data)
+static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data,
+                         int *pvrc)
 {
     struct kvm_pv_cmd pv_cmd = {
         .cmd = cmd,
@@ -46,6 +47,9 @@ static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data)
                      "IOCTL rc: %d", cmd, cmdname, pv_cmd.rc, pv_cmd.rrc,
                      rc);
     }
+    if (pvrc) {
+        *pvrc = pv_cmd.rc;
+    }
     return rc;
 }
 
@@ -53,12 +57,13 @@ static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data)
  * This macro lets us pass the command as a string to the function so
  * we can print it on an error.
  */
-#define s390_pv_cmd(cmd, data) __s390_pv_cmd(cmd, #cmd, data)
+#define s390_pv_cmd(cmd, data) __s390_pv_cmd(cmd, #cmd, data, NULL)
+#define s390_pv_cmd_pvrc(cmd, data, pvrc) __s390_pv_cmd(cmd, #cmd, data, pvrc)
 #define s390_pv_cmd_exit(cmd, data)    \
 {                                      \
     int rc;                            \
                                        \
-    rc = __s390_pv_cmd(cmd, #cmd, data);\
+    rc = __s390_pv_cmd(cmd, #cmd, data, NULL); \
     if (rc) {                          \
         exit(1);                       \
     }                                  \
@@ -144,12 +149,19 @@ bool s390_pv_vm_try_disable_async(S390CcwMachineState *ms)
 
 int s390_pv_set_sec_parms(uint64_t origin, uint64_t length)
 {
+    int ret, pvrc;
     struct kvm_s390_pv_sec_parm args = {
         .origin = origin,
         .length = length,
     };
 
-    return s390_pv_cmd(KVM_PV_SET_SEC_PARMS, &args);
+    ret = s390_pv_cmd_pvrc(KVM_PV_SET_SEC_PARMS, &args, &pvrc);
+    if (ret && pvrc == 0x108) {
+        error_report("Can't set secure parameters, please check whether "
+                     "the image is correctly encrypted for this host");
+    }
+
+    return ret;
 }
 
 /*
