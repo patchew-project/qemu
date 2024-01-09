@@ -136,6 +136,28 @@ SharedObjectType virtio_object_type(const QemuUUID *uuid)
     return vso->type;
 }
 
+static bool virtio_dmabuf_resource_is_owned(gpointer key,
+                                            gpointer value,
+                                            gpointer dev)
+{
+    VirtioSharedObject *vso;
+
+    vso = (VirtioSharedObject *) value;
+    return vso->type == TYPE_VHOST_DEV && vso->value == dev;
+}
+
+int virtio_dmabuf_vhost_cleanup(struct vhost_dev *dev)
+{
+    int num_removed;
+
+    g_mutex_lock(&lock);
+    num_removed = g_hash_table_foreach_remove(
+        resource_uuids, (GHRFunc) virtio_dmabuf_resource_is_owned, dev);
+    g_mutex_unlock(&lock);
+
+    return num_removed;
+}
+
 void virtio_free_resources(void)
 {
     g_mutex_lock(&lock);
