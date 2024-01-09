@@ -81,6 +81,7 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "sysemu/gunyah.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -1600,6 +1601,8 @@ static void virt_build_smbios(VirtMachineState *vms)
 
     if (kvm_enabled()) {
         product = "KVM Virtual Machine";
+    } else if (gunyah_enabled()) {
+        product = "Gunyah Virtual Machine";
     }
 
     smbios_set_defaults("QEMU", product,
