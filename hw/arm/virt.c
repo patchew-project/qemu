@@ -2176,7 +2176,7 @@ static void machvirt_init(MachineState *machine)
         numa_cpu_pre_plug(&possible_cpus->cpus[cs->cpu_index], DEVICE(cpuobj),
                           &error_fatal);
 
-        aarch64 &= object_property_get_bool(cpuobj, "aarch64", NULL);
+        aarch64 &= arm_feature(cpu_env(cs), ARM_FEATURE_AARCH64);
 
         if (!vms->secure) {
             object_property_set_bool(cpuobj, "has_el3", false, NULL);
