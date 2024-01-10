@@ -1442,8 +1442,11 @@ static int serial_parse(const char *devname)
     int index = num_serial_hds;
     char label[32];
 
-    if (strcmp(devname, "none") == 0)
+    if (strcmp(devname, "none") == 0) {
+        num_serial_hds++;
         return 0;
+    }
+
     snprintf(label, sizeof(label), "serial%d", index);
     serial_hds = g_renew(Chardev *, serial_hds, index + 1);
 
