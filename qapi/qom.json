@@ -882,6 +882,10 @@
 # @kernel-hashes: if true, add hashes of kernel/initrd/cmdline to a
 #     designated guest firmware page for measured boot with -kernel
 #     (default: false) (since 6.2)
+
+# @pin-memory: if true, sev initialization will pin guest's
+#     memory by registering to kvm, and disable ram block discard.
+#     (default: true)
 #
 # Since: 2.12
 ##
@@ -893,7 +897,8 @@
             '*handle': 'uint32',
             '*cbitpos': 'uint32',
             'reduced-phys-bits': 'uint32',
-            '*kernel-hashes': 'bool' } }
+            '*kernel-hashes': 'bool',
+            '*pin-memory': 'bool' } }
 
 ##
 # @ThreadContextProperties:

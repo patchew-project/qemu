@@ -64,6 +64,7 @@ struct SevGuestState {
     uint32_t cbitpos;
     uint32_t reduced_phys_bits;
     bool kernel_hashes;
+        bool pin_memory;
 
     /* runtime state */
     uint32_t handle;
@@ -226,6 +227,9 @@ static void
 sev_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
                     size_t max_size)
 {
+        if (!sev_guest->pin_memory) {
+                return;
+        }
     int r;
     struct kvm_enc_region range;
     ram_addr_t offset;
@@ -256,6 +260,9 @@ static void
 sev_ram_block_removed(RAMBlockNotifier *n, void *host, size_t size,
                       size_t max_size)
 {
+        if (!sev_guest->pin_memory) {
+                return;
+        }
     int r;
     struct kvm_enc_region range;
     ram_addr_t offset;
@@ -353,6 +360,20 @@ static void sev_guest_set_kernel_hashes(Object *obj, bool value, Error **errp)
     sev->kernel_hashes = value;
 }
 
+static bool sev_guest_get_pin_memory(Object *obj, Error **errp)
+{
+    SevGuestState *sev = SEV_GUEST(obj);
+
+    return sev->pin_memory;
+}
+
+static void sev_guest_set_pin_memory(Object *obj, bool value, Error **errp)
+{
+    SevGuestState *sev = SEV_GUEST(obj);
+
+    sev->pin_memory = value;
+}
+
 static void
 sev_guest_class_init(ObjectClass *oc, void *data)
 {
@@ -376,6 +397,11 @@ sev_guest_class_init(ObjectClass *oc, void *data)
                                    sev_guest_set_kernel_hashes);
     object_class_property_set_description(oc, "kernel-hashes",
             "add kernel hashes to guest firmware for measured Linux boot");
+    object_class_property_add_bool(oc, "pin-memory",
+                                   sev_guest_get_pin_memory,
+                                   sev_guest_set_pin_memory);
+    object_class_property_set_description(oc, "pin-memory",
+            "pin guest memory at initialization");
 }
 
 static void
@@ -383,6 +409,7 @@ sev_guest_instance_init(Object *obj)
 {
     SevGuestState *sev = SEV_GUEST(obj);
 
+        sev->pin_memory = true;
     sev->sev_device = g_strdup(DEFAULT_SEV_DEVICE);
     sev->policy = DEFAULT_GUEST_POLICY;
     object_property_add_uint32_ptr(obj, "policy", &sev->policy,
@@ -920,11 +947,13 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         return 0;
     }
 
-    ret = ram_block_discard_disable(true);
-    if (ret) {
-        error_report("%s: cannot disable RAM discard", __func__);
-        return -1;
-    }
+        if (sev->pin_memory) {
+                ret = ram_block_discard_disable(true);
+                if (ret) {
+                        error_report("%s: cannot disable RAM discard", __func__);
+                        return -1;
+                }
+        }
 
     sev_guest = sev;
     sev->state = SEV_STATE_UNINIT;
