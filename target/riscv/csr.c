@@ -3854,6 +3854,10 @@ static RISCVException write_pmpaddr(CPURISCVState *env, int csrno,
 static RISCVException read_tselect(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
+    if (!riscv_cpu_cfg(env)->ext_sdtrig) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
     *val = tselect_csr_read(env);
     return RISCV_EXCP_NONE;
 }
@@ -3861,6 +3865,10 @@ static RISCVException read_tselect(CPURISCVState *env, int csrno,
 static RISCVException write_tselect(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
+    if (!riscv_cpu_cfg(env)->ext_sdtrig) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
     tselect_csr_write(env, val);
     return RISCV_EXCP_NONE;
 }
@@ -3868,6 +3876,10 @@ static RISCVException write_tselect(CPURISCVState *env, int csrno,
 static RISCVException read_tdata(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
+    if (!riscv_cpu_cfg(env)->ext_sdtrig) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
     /* return 0 in tdata1 to end the trigger enumeration */
     if (env->trigger_cur >= RV_MAX_TRIGGERS && csrno == CSR_TDATA1) {
         *val = 0;
@@ -3885,6 +3897,10 @@ static RISCVException read_tdata(CPURISCVState *env, int csrno,
 static RISCVException write_tdata(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
+    if (!riscv_cpu_cfg(env)->ext_sdtrig) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
     if (!tdata_available(env, csrno - CSR_TDATA1)) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
@@ -3896,6 +3912,10 @@ static RISCVException write_tdata(CPURISCVState *env, int csrno,
 static RISCVException read_tinfo(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
+    if (!riscv_cpu_cfg(env)->ext_sdtrig) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
     *val = tinfo_csr_read(env);
     return RISCV_EXCP_NONE;
 }
