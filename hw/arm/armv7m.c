@@ -300,6 +300,10 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
+    if (!arm_feature(&s->cpu->env, ARM_FEATURE_M)) {
+        error_setg(errp, "armv7m: CPU must be of Cortex-M family");
+        return;
+    }
     cpudev = DEVICE(s->cpu);
 
     object_property_set_link(OBJECT(s->cpu), "memory", OBJECT(&s->container),
