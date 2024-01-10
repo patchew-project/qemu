@@ -74,9 +74,12 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
                                                        &error_abort));
         }
         /* Similarly for virtualization support */
-        has_el2 = object_property_find(cpuobj, "has_el2") &&
-            object_property_get_bool(cpuobj, "has_el2", &error_abort);
-        qdev_prop_set_bit(gicdev, "has-virtualization-extensions", has_el2);
+        has_el2 = arm_feature(cpu_env(cpu), ARM_FEATURE_EL2);
+        if (has_el2) {
+            qdev_prop_set_bit(gicdev, "has-virtualization-extensions",
+                              object_property_get_bool(cpuobj, "has_el2",
+                                                       &error_abort));
+        }
     }
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
