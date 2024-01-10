@@ -2224,7 +2224,7 @@ static void machvirt_init(MachineState *machine)
                  * The property exists only if MemTag is supported.
                  * If it is, we must allocate the ram to back that up.
                  */
-                if (!object_property_find(cpuobj, "tag-memory")) {
+                if (!aarch64 || !cpu_isar_feature(aa64_mte, ARM_CPU(cs))) {
                     error_report("MTE requested, but not supported "
                                  "by the guest CPU");
                     exit(1);
