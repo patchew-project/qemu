@@ -338,8 +338,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
                    "mpu-ns-regions and mpu-s-regions properties must have the same value");
         return;
     }
-    if (s->mpu_ns_regions != UINT_MAX &&
-        object_property_find(OBJECT(s->cpu), "pmsav7-dregion")) {
+    if (s->mpu_ns_regions != UINT_MAX && arm_feature(&s->cpu->env,
+                                                     ARM_FEATURE_V7)) {
         if (!object_property_set_uint(OBJECT(s->cpu), "pmsav7-dregion",
                                       s->mpu_ns_regions, errp)) {
             return;
