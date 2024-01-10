@@ -309,6 +309,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     object_property_set_link(OBJECT(s->cpu), "memory", OBJECT(&s->container),
                              &error_abort);
     qdev_prop_set_bit(cpudev, "start-powered-off", s->start_powered_off);
+    qdev_prop_set_uint32(cpudev, "init-nsvtor", s->init_nsvtor);
+
     if (object_property_find(OBJECT(s->cpu), "idau")) {
         object_property_set_link(OBJECT(s->cpu), "idau", s->idau,
                                  &error_abort);
@@ -316,12 +318,6 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     if (object_property_find(OBJECT(s->cpu), "init-svtor")) {
         if (!object_property_set_uint(OBJECT(s->cpu), "init-svtor",
                                       s->init_svtor, errp)) {
-            return;
-        }
-    }
-    if (object_property_find(OBJECT(s->cpu), "init-nsvtor")) {
-        if (!object_property_set_uint(OBJECT(s->cpu), "init-nsvtor",
-                                      s->init_nsvtor, errp)) {
             return;
         }
     }
