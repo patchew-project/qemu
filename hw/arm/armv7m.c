@@ -311,15 +311,10 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_bit(cpudev, "start-powered-off", s->start_powered_off);
     qdev_prop_set_uint32(cpudev, "init-nsvtor", s->init_nsvtor);
 
-    if (object_property_find(OBJECT(s->cpu), "idau")) {
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY)) {
+        qdev_prop_set_uint32(cpudev, "init-svtor", s->init_svtor);
         object_property_set_link(OBJECT(s->cpu), "idau", s->idau,
                                  &error_abort);
-    }
-    if (object_property_find(OBJECT(s->cpu), "init-svtor")) {
-        if (!object_property_set_uint(OBJECT(s->cpu), "init-svtor",
-                                      s->init_svtor, errp)) {
-            return;
-        }
     }
     if (object_property_find(OBJECT(s->cpu), "vfp")) {
         if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, errp)) {
