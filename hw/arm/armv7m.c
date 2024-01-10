@@ -308,6 +308,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
 
     object_property_set_link(OBJECT(s->cpu), "memory", OBJECT(&s->container),
                              &error_abort);
+    qdev_prop_set_bit(cpudev, "start-powered-off", s->start_powered_off);
     if (object_property_find(OBJECT(s->cpu), "idau")) {
         object_property_set_link(OBJECT(s->cpu), "idau", s->idau,
                                  &error_abort);
@@ -334,7 +335,6 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
-    qdev_prop_set_bit(DEVICE(s->cpu), "start-powered-off", s->start_powered_off);
 
     /*
      * Real M-profile hardware can be configured with a different number of
