@@ -280,13 +280,15 @@ static struct qemu_plugin_dyn_cb *plugin_get_dyn_cb(GArray **arr)
 
 void plugin_register_inline_op(GArray **arr,
                                enum qemu_plugin_mem_rw rw,
-                               enum qemu_plugin_op op, void *ptr,
+                               enum qemu_plugin_op op,
+                               void *ptr, size_t offset,
                                uint64_t imm)
 {
     struct qemu_plugin_dyn_cb *dyn_cb;
 
     dyn_cb = plugin_get_dyn_cb(arr);
     dyn_cb->userp = ptr;
+    dyn_cb->userp_offset = offset;
     dyn_cb->type = PLUGIN_CB_INLINE;
     dyn_cb->rw = rw;
     dyn_cb->inline_insn.op = op;
@@ -431,9 +433,10 @@ void qemu_plugin_flush_cb(void)
     plugin_cb__simple(QEMU_PLUGIN_EV_FLUSH);
 }
 
-void exec_inline_op(struct qemu_plugin_dyn_cb *cb)
+void exec_inline_op(struct qemu_plugin_dyn_cb *cb, int cpu_index)
 {
-    uint64_t *val = cb->userp;
+    const size_t offset = cpu_index * cb->userp_offset;
+    uint64_t *val = (uint64_t *)((char *) cb->userp + offset);
 
     switch (cb->inline_insn.op) {
     case QEMU_PLUGIN_INLINE_ADD_U64:
@@ -466,7 +469,7 @@ void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
                            vaddr, cb->userp);
             break;
         case PLUGIN_CB_INLINE:
-            exec_inline_op(cb);
+            exec_inline_op(cb, cpu->cpu_index);
             break;
         default:
             g_assert_not_reached();
