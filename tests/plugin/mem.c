@@ -16,7 +16,9 @@
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
-static uint64_t inline_mem_count;
+#define MAX_CPUS 8
+
+static uint64_t inline_mem_count[MAX_CPUS];
 static uint64_t cb_mem_count;
 static uint64_t io_count;
 static bool do_inline, do_callback;
@@ -29,7 +31,11 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     g_autoptr(GString) out = g_string_new("");
 
     if (do_inline) {
-        g_string_printf(out, "inline mem accesses: %" PRIu64 "\n", inline_mem_count);
+        uint64_t total = 0;
+        for (int i = 0; i < MAX_CPUS; ++i) {
+            total += inline_mem_count[i];
+        }
+        g_string_printf(out, "inline mem accesses: %" PRIu64 "\n", total);
     }
     if (do_callback) {
         g_string_append_printf(out, "callback mem accesses: %" PRIu64 "\n", cb_mem_count);
@@ -67,9 +73,10 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, i);
 
         if (do_inline) {
-            qemu_plugin_register_vcpu_mem_inline(insn, rw,
-                                                 QEMU_PLUGIN_INLINE_ADD_U64,
-                                                 &inline_mem_count, 1);
+            qemu_plugin_register_vcpu_mem_inline_per_vcpu(
+                insn, rw,
+                QEMU_PLUGIN_INLINE_ADD_U64,
+                inline_mem_count, sizeof(uint64_t), 1);
         }
         if (do_callback) {
             qemu_plugin_register_vcpu_mem_cb(insn, vcpu_mem,
@@ -109,6 +116,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
                 return -1;
             }
+            g_assert(info->system.smp_vcpus <= MAX_CPUS);
         } else if (g_strcmp0(tokens[0], "callback") == 0) {
             if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &do_callback)) {
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
