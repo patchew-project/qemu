@@ -16,6 +16,8 @@
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
+#define MAX_CPUS 8
+
 typedef struct {
     GMutex lock;
     int index;
@@ -23,14 +25,10 @@ typedef struct {
     uint64_t insn_count;
 } CPUCount;
 
-/* Used by the inline & linux-user counts */
 static bool do_inline;
-static CPUCount inline_count;
-
 /* Dump running CPU total on idle? */
 static bool idle_report;
-static GPtrArray *counts;
-static int max_cpus;
+static CPUCount counts[MAX_CPUS];
 
 static void gen_one_cpu_report(CPUCount *count, GString *report)
 {
@@ -46,18 +44,26 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
     g_autoptr(GString) report = g_string_new("");
 
-    if (do_inline || !max_cpus) {
+    if (do_inline) {
+        uint64_t total_bb = 0;
+        uint64_t total_insn = 0;
+        for (int i = 0; i < MAX_CPUS; ++i) {
+            total_bb += counts[i].bb_count;
+            total_insn += counts[i].insn_count;
+        }
         g_string_printf(report, "bb's: %" PRIu64", insns: %" PRIu64 "\n",
-                        inline_count.bb_count, inline_count.insn_count);
+                        total_bb, total_insn);
     } else {
-        g_ptr_array_foreach(counts, (GFunc) gen_one_cpu_report, report);
+        for (int i = 0; i < MAX_CPUS; ++i) {
+            gen_one_cpu_report(&counts[i], report);
+        }
     }
     qemu_plugin_outs(report->str);
 }
 
 static void vcpu_idle(qemu_plugin_id_t id, unsigned int cpu_index)
 {
-    CPUCount *count = g_ptr_array_index(counts, cpu_index);
+    CPUCount *count = &counts[cpu_index];
     g_autoptr(GString) report = g_string_new("");
     gen_one_cpu_report(count, report);
 
@@ -69,8 +75,7 @@ static void vcpu_idle(qemu_plugin_id_t id, unsigned int cpu_index)
 
 static void vcpu_tb_exec(unsigned int cpu_index, void *udata)
 {
-    CPUCount *count = max_cpus ?
-        g_ptr_array_index(counts, cpu_index) : &inline_count;
+    CPUCount *count = &counts[cpu_index];
 
     uintptr_t n_insns = (uintptr_t)udata;
     g_mutex_lock(&count->lock);
@@ -84,11 +89,13 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     size_t n_insns = qemu_plugin_tb_n_insns(tb);
 
     if (do_inline) {
-        qemu_plugin_register_vcpu_tb_exec_inline(tb, QEMU_PLUGIN_INLINE_ADD_U64,
-                                                 &inline_count.bb_count, 1);
-        qemu_plugin_register_vcpu_tb_exec_inline(tb, QEMU_PLUGIN_INLINE_ADD_U64,
-                                                 &inline_count.insn_count,
-                                                 n_insns);
+        CPUCount *first_count = &counts[0];
+        qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
+            tb, QEMU_PLUGIN_INLINE_ADD_U64,
+            &first_count->bb_count, sizeof(CPUCount), 1);
+        qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
+            tb, QEMU_PLUGIN_INLINE_ADD_U64,
+            &first_count->insn_count, sizeof(CPUCount), n_insns);
     } else {
         qemu_plugin_register_vcpu_tb_exec_cb(tb, vcpu_tb_exec,
                                              QEMU_PLUGIN_CB_NO_REGS,
@@ -121,17 +128,10 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         }
     }
 
-    if (info->system_emulation && !do_inline) {
-        max_cpus = info->system.max_vcpus;
-        counts = g_ptr_array_new();
-        for (i = 0; i < max_cpus; i++) {
-            CPUCount *count = g_new0(CPUCount, 1);
-            g_mutex_init(&count->lock);
-            count->index = i;
-            g_ptr_array_add(counts, count);
-        }
-    } else if (!do_inline) {
-        g_mutex_init(&inline_count.lock);
+    g_assert(info->system.smp_vcpus <= MAX_CPUS);
+    for (i = 0; i < MAX_CPUS; i++) {
+        CPUCount *count = &counts[i];
+        count->index = i;
     }
 
     if (idle_report) {
