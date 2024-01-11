@@ -17,6 +17,8 @@
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
+#define MAX_CPUS 8
+
 static bool do_inline;
 
 /* Plugins need to take care of their own locking */
@@ -34,16 +36,25 @@ static guint64 limit = 20;
  */
 typedef struct {
     uint64_t start_addr;
-    uint64_t exec_count;
+    uint64_t exec_count[MAX_CPUS];
     int      trans_count;
     unsigned long insns;
 } ExecCount;
+
+static uint64_t exec_count(ExecCount *e)
+{
+    uint64_t res = 0;
+    for (int i = 0; i < MAX_CPUS; ++i) {
+        res += e->exec_count[i];
+    }
+    return res;
+}
 
 static gint cmp_exec_count(gconstpointer a, gconstpointer b)
 {
     ExecCount *ea = (ExecCount *) a;
     ExecCount *eb = (ExecCount *) b;
-    return ea->exec_count > eb->exec_count ? -1 : 1;
+    return exec_count(ea) > exec_count(eb) ? -1 : 1;
 }
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
@@ -65,7 +76,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
             ExecCount *rec = (ExecCount *) it->data;
             g_string_append_printf(report, "0x%016"PRIx64", %d, %ld, %"PRId64"\n",
                                    rec->start_addr, rec->trans_count,
-                                   rec->insns, rec->exec_count);
+                                   rec->insns, exec_count(rec));
         }
 
         g_list_free(it);
@@ -89,7 +100,7 @@ static void vcpu_tb_exec(unsigned int cpu_index, void *udata)
     cnt = (ExecCount *) g_hash_table_lookup(hotblocks, (gconstpointer) hash);
     /* should always succeed */
     g_assert(cnt);
-    cnt->exec_count++;
+    cnt->exec_count[cpu_index]++;
     g_mutex_unlock(&lock);
 }
 
@@ -120,8 +131,9 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     g_mutex_unlock(&lock);
 
     if (do_inline) {
-        qemu_plugin_register_vcpu_tb_exec_inline(tb, QEMU_PLUGIN_INLINE_ADD_U64,
-                                                 &cnt->exec_count, 1);
+        qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
+            tb, QEMU_PLUGIN_INLINE_ADD_U64,
+            cnt->exec_count, sizeof(uint64_t), 1);
     } else {
         qemu_plugin_register_vcpu_tb_exec_cb(tb, vcpu_tb_exec,
                                              QEMU_PLUGIN_CB_NO_REGS,
@@ -149,6 +161,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     plugin_init();
 
+    g_assert(info->system.smp_vcpus <= MAX_CPUS);
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
     return 0;
