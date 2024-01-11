@@ -23,7 +23,7 @@ typedef struct {
 } InstructionCount;
 
 static InstructionCount counts[MAX_CPUS];
-static uint64_t inline_insn_count;
+static uint64_t inline_insn_count[MAX_CPUS];
 
 static bool do_inline;
 static bool do_size;
@@ -94,8 +94,9 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, i);
 
         if (do_inline) {
-            qemu_plugin_register_vcpu_insn_exec_inline(
-                insn, QEMU_PLUGIN_INLINE_ADD_U64, &inline_insn_count, 1);
+            qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+                insn, QEMU_PLUGIN_INLINE_ADD_U64,
+                inline_insn_count, sizeof(uint64_t), 1);
         } else {
             uint64_t vaddr = qemu_plugin_insn_vaddr(insn);
             qemu_plugin_register_vcpu_insn_exec_cb(
@@ -151,7 +152,11 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
             }
         }
     } else if (do_inline) {
-        g_string_append_printf(out, "insns: %" PRIu64 "\n", inline_insn_count);
+        uint64_t total = 0;
+        for (i = 0; i < MAX_CPUS; ++i) {
+            total += inline_insn_count[i];
+        }
+        g_string_append_printf(out, "insns: %" PRIu64 "\n", total);
     } else {
         uint64_t total_insns = 0;
         for (i = 0; i < MAX_CPUS; i++) {
@@ -195,6 +200,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
                 return -1;
             }
+            g_assert(info->system.smp_vcpus <= MAX_CPUS);
         } else if (g_strcmp0(tokens[0], "sizes") == 0) {
             if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &do_size)) {
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
