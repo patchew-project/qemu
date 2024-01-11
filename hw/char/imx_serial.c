@@ -44,7 +44,11 @@ static const VMStateDescription vmstate_imx_serial = {
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
-        VMSTATE_INT32(readbuff, IMXSerialState),
+        VMSTATE_INT32_ARRAY(rx_fifo, IMXSerialState,
+                            FIFO_SIZE),
+        VMSTATE_UINT8(rx_start, IMXSerialState),
+        VMSTATE_UINT8(rx_end, IMXSerialState),
+        VMSTATE_UINT8(rx_used, IMXSerialState),
         VMSTATE_UINT32(usr1, IMXSerialState),
         VMSTATE_UINT32(usr2, IMXSerialState),
         VMSTATE_UINT32(ucr1, IMXSerialState),
@@ -64,13 +68,16 @@ static void imx_update(IMXSerialState *s)
     uint32_t usr1;
     uint32_t usr2;
     uint32_t mask;
-
     /*
      * Lucky for us TRDY and RRDY has the same offset in both USR1 and
      * UCR1, so we can get away with something as simple as the
      * following:
      */
     usr1 = s->usr1 & s->ucr1 & (USR1_TRDY | USR1_RRDY);
+    /*
+     * Interrupt if AGTIM is set (ageing timer interrupt in RxFIFO)
+     */
+    usr1 |= (s->ucr2 & UCR2_ATEN) ? (s->usr1 & USR1_AGTIM) : 0;
     /*
      * Bits that we want in USR2 are not as conveniently laid out,
      * unfortunately.
@@ -85,11 +92,73 @@ static void imx_update(IMXSerialState *s)
     usr2 = s->usr2 & mask;
 
     qemu_set_irq(s->irq, usr1 || usr2);
+
+}
+
+static void imx_serial_rx_fifo_push(IMXSerialState *s, uint32_t value)
+{
+    uint8_t new_rx_end = (s->rx_end + 1) % FIFO_SIZE;
+    s->rx_used++;
+
+    if (s->rx_used > FIFO_SIZE) {
+        /*
+         * Handle 33rd character in filled RxFIFO
+         */
+        s->rx_start = (s->rx_start + 1) % FIFO_SIZE;
+        s->rx_used--;
+    }
+    s->rx_fifo[s->rx_end] = value;
+    s->rx_end = new_rx_end;
+}
+
+static int32_t imx_serial_rx_fifo_pop(IMXSerialState *s)
+{
+    int32_t front;
+    if (s->rx_used == 0) {
+        /*
+         * FIFO is already empty
+         */
+        return URXD_ERR;
+    }
+    front = s->rx_fifo[s->rx_start];
+
+    s->rx_start = (s->rx_start + 1) % FIFO_SIZE;
+    s->rx_used--;
+
+    return front;
+}
+
+static void imx_serial_rx_fifo_ageing_timer_int(void *opaque)
+{
+    IMXSerialState* s = (IMXSerialState *) opaque;
+    s->usr1 |= USR1_AGTIM;
+
+    imx_update(s);
+}
+
+static void imx_serial_rx_fifo_ageing_timer_restart(void *opaque)
+{
+    /*
+     * Ageing timer starts ticking when
+     * RX FIFO is non empty and below trigger level.
+     * Timer is reset if new character is received or
+     * a FIFO read occurs.
+     * Timer triggers an interrupt when duration of
+     * 8 characters has passed ( assuming 115200 baudrate ).
+     */
+    IMXSerialState* s = (IMXSerialState *) opaque;
+    uint8_t rxtl = s->ufcr & TL_MASK;
+
+    if (s->rx_used > 0 && s->rx_used < rxtl) {
+        timer_mod_ns(&s->ageing_timer,
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + AGE_DURATION_NS);
+    } else {
+        timer_del(&s->ageing_timer);
+    }
 }
 
 static void imx_serial_reset(IMXSerialState *s)
 {
-
     s->usr1 = USR1_TRDY | USR1_RXDS;
     /*
      * Fake attachment of a terminal: assert RTS.
@@ -102,13 +171,20 @@ static void imx_serial_reset(IMXSerialState *s)
     s->ucr3 = 0x700;
     s->ubmr = 0;
     s->ubrc = 4;
-    s->readbuff = URXD_ERR;
+
+
+    memset(s->rx_fifo, 0, sizeof(s->rx_fifo));
+    s->rx_used = 0;
+    s->rx_start = 0;
+    s->rx_end = 0;
+
+    timer_init_ns(&s->ageing_timer, QEMU_CLOCK_VIRTUAL,
+        imx_serial_rx_fifo_ageing_timer_int, s);
 }
 
 static void imx_serial_reset_at_boot(DeviceState *dev)
 {
     IMXSerialState *s = IMX_SERIAL(dev);
-
     imx_serial_reset(s);
 
     /*
@@ -126,19 +202,24 @@ static uint64_t imx_serial_read(void *opaque, hwaddr offset,
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
     uint32_t c;
-
+    uint8_t rxtl = s->ufcr & TL_MASK;
     DPRINTF("read(offset=0x%" HWADDR_PRIx ")\n", offset);
-
     switch (offset >> 2) {
     case 0x0: /* URXD */
-        c = s->readbuff;
+        c = imx_serial_rx_fifo_pop(s);
         if (!(s->uts1 & UTS1_RXEMPTY)) {
             /* Character is valid */
             c |= URXD_CHARRDY;
-            s->usr1 &= ~USR1_RRDY;
-            s->usr2 &= ~USR2_RDR;
-            s->uts1 |= UTS1_RXEMPTY;
+            /* Clear RRDY if below threshold */
+            if (s->rx_used < rxtl) {
+                s->usr1 &= ~USR1_RRDY;
+            }
+            if (s->rx_used == 0) {
+                s->usr2 &= ~USR2_RDR;
+                s->uts1 |= UTS1_RXEMPTY;
+            }
             imx_update(s);
+            imx_serial_rx_fifo_ageing_timer_restart(s);
             qemu_chr_fe_accept_input(&s->chr);
         }
         return c;
@@ -300,19 +381,24 @@ static void imx_serial_write(void *opaque, hwaddr offset,
 static int imx_can_receive(void *opaque)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
-    return !(s->usr1 & USR1_RRDY);
+    return s->ucr1 & UCR1_RRDYEN &&
+        s->ucr2 & UCR2_RXEN && s->rx_used < FIFO_SIZE;
 }
 
 static void imx_put_data(void *opaque, uint32_t value)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
-
+    uint8_t rxtl = s->ufcr & TL_MASK;
     DPRINTF("received char\n");
+    imx_serial_rx_fifo_push(s, value);
+    if (s->rx_used >= rxtl) {
+        s->usr1 |= USR1_RRDY;
+    }
 
-    s->usr1 |= USR1_RRDY;
+    imx_serial_rx_fifo_ageing_timer_restart(s);
+
     s->usr2 |= USR2_RDR;
     s->uts1 &= ~UTS1_RXEMPTY;
-    s->readbuff = value;
     if (value & URXD_BRK) {
         s->usr2 |= USR2_BRCD;
     }
