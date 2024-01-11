@@ -1422,16 +1422,21 @@ static bool is_cpu_type_supported(const MachineState *machine, Error **errp)
         /* The user specified CPU type isn't valid */
         if (!mc->valid_cpu_types[i]) {
             g_autofree char *requested = cpu_model_from_type(machine->cpu_type);
+            assert(requested);
             error_setg(errp, "Invalid CPU model: %s", requested);
             if (!mc->valid_cpu_types[1]) {
                 g_autofree char *model = cpu_model_from_type(
                                                  mc->valid_cpu_types[0]);
+                assert(model);
                 error_append_hint(errp, "The only valid type is: %s\n", model);
             } else {
                 error_append_hint(errp, "The valid models are: ");
                 for (i = 0; mc->valid_cpu_types[i]; i++) {
                     g_autofree char *model = cpu_model_from_type(
                                                  mc->valid_cpu_types[i]);
+                    if (!model) {
+                        continue;
+                    }
                     error_append_hint(errp, "%s%s",
                                       model,
                                       mc->valid_cpu_types[i + 1] ? ", " : "");

@@ -291,6 +291,7 @@ static void cpu_list_entry(gpointer data, gpointer user_data)
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
     g_autofree char *model = cpu_model_from_type(typename);
 
+    assert(model);
     if (cc->deprecation_note) {
         qemu_printf("  %s (deprecated)\n", model);
     } else {
