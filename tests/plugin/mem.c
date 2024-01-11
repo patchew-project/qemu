@@ -22,6 +22,7 @@ static uint64_t io_count;
 static bool do_inline, do_callback;
 static bool do_haddr;
 static enum qemu_plugin_mem_rw rw = QEMU_PLUGIN_MEM_RW;
+static GMutex lock;
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
@@ -42,6 +43,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
                      uint64_t vaddr, void *udata)
 {
+    g_mutex_lock(&lock);
     if (do_haddr) {
         struct qemu_plugin_hwaddr *hwaddr;
         hwaddr = qemu_plugin_get_hwaddr(meminfo, vaddr);
@@ -53,6 +55,7 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
     } else {
         cb_mem_count++;
     }
+    g_mutex_unlock(&lock);
 }
 
 static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
