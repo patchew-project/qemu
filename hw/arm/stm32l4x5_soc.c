@@ -76,12 +76,32 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
     78                      /* LCD wakeup, Direct      */
 };
 
+static const uint32_t gpio_addr[] = {
+    0x48000000,
+    0x48000400,
+    0x48000800,
+    0x48000C00,
+    0x48001000,
+    0x48001400,
+    0x48001800,
+    0x48001C00,
+};
+
 static void stm32l4x5_soc_initfn(Object *obj)
 {
     Stm32l4x5SocState *s = STM32L4X5_SOC(obj);
 
     object_initialize_child(obj, "exti", &s->exti, TYPE_STM32L4X5_EXTI);
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32L4X5_SYSCFG);
+
+    object_initialize_child(obj, "gpioa", &s->gpioa, TYPE_STM32L4X5_GPIO_A);
+    object_initialize_child(obj, "gpiob", &s->gpiob, TYPE_STM32L4X5_GPIO_B);
+    object_initialize_child(obj, "gpioc", &s->gpioc, TYPE_STM32L4X5_GPIO_C);
+    object_initialize_child(obj, "gpiod", &s->gpiod, TYPE_STM32L4X5_GPIO_D);
+    object_initialize_child(obj, "gpioe", &s->gpioe, TYPE_STM32L4X5_GPIO_E);
+    object_initialize_child(obj, "gpiof", &s->gpiof, TYPE_STM32L4X5_GPIO_F);
+    object_initialize_child(obj, "gpiog", &s->gpiog, TYPE_STM32L4X5_GPIO_G);
+    object_initialize_child(obj, "gpioh", &s->gpioh, TYPE_STM32L4X5_GPIO_H);
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
     s->refclk = qdev_init_clock_in(DEVICE(s), "refclk", NULL, NULL, 0);
@@ -95,6 +115,7 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     MemoryRegion *system_memory = get_system_memory();
     DeviceState *armv7m;
     SysBusDevice *busdev;
+    uint32_t pin_index;
 
     /*
      * We use s->refclk internally and only define it with qdev_init_clock_in()
@@ -156,17 +177,40 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
+    /* GPIOs */
+   const Stm32l4x5GpioState *gpios[] = {
+        &s->gpioa,
+        &s->gpiob,
+        &s->gpioc,
+        &s->gpiod,
+        &s->gpioe,
+        &s->gpiof,
+        &s->gpiog,
+        &s->gpioh,
+    };
+    for (unsigned i = 0; i < NUM_GPIOS; i++) {
+        busdev = SYS_BUS_DEVICE(gpios[i]);
+        if (!sysbus_realize(busdev, errp)) {
+            return;
+        }
+        sysbus_mmio_map(busdev, 0, gpio_addr[i]);
+    }
+
     /* System configuration controller */
     busdev = SYS_BUS_DEVICE(&s->syscfg);
     if (!sysbus_realize(busdev, errp)) {
         return;
     }
     sysbus_mmio_map(busdev, 0, SYSCFG_ADDR);
-    /*
-     * TODO: when the GPIO device is implemented, connect it
-     * to SYCFG using `qdev_connect_gpio_out`, NUM_GPIOS and
-     * GPIO_NUM_PINS.
-     */
+
+    for (unsigned i = 0; i < NUM_GPIOS; i++) {
+        for (unsigned j = 0; j < GPIO_NUM_PINS; j++) {
+            pin_index = GPIO_NUM_PINS * i + j;
+            qdev_connect_gpio_out(DEVICE(gpios[i]), j,
+                                  qdev_get_gpio_in(DEVICE(&s->syscfg),
+                                  pin_index));
+        }
+    }
 
     /* EXTI device */
     busdev = SYS_BUS_DEVICE(&s->exti);
@@ -256,14 +300,6 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     /* RESERVED:    0x40024400, 0x7FDBC00 */
 
     /* AHB2 BUS */
-    create_unimplemented_device("GPIOA",     0x48000000, 0x400);
-    create_unimplemented_device("GPIOB",     0x48000400, 0x400);
-    create_unimplemented_device("GPIOC",     0x48000800, 0x400);
-    create_unimplemented_device("GPIOD",     0x48000C00, 0x400);
-    create_unimplemented_device("GPIOE",     0x48001000, 0x400);
-    create_unimplemented_device("GPIOF",     0x48001400, 0x400);
-    create_unimplemented_device("GPIOG",     0x48001800, 0x400);
-    create_unimplemented_device("GPIOH",     0x48001C00, 0x400);
     /* RESERVED:    0x48002000, 0x7FDBC00 */
     create_unimplemented_device("OTG_FS",    0x50000000, 0x40000);
     create_unimplemented_device("ADC",       0x50040000, 0x400);

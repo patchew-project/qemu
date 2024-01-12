@@ -28,6 +28,7 @@
 #include "hw/arm/armv7m.h"
 #include "hw/misc/stm32l4x5_syscfg.h"
 #include "hw/misc/stm32l4x5_exti.h"
+#include "hw/gpio/stm32l4x5_gpio.h"
 #include "qom/object.h"
 
 #define TYPE_STM32L4X5_SOC "stm32l4x5-soc"
@@ -43,6 +44,14 @@ struct Stm32l4x5SocState {
 
     Stm32l4x5ExtiState exti;
     Stm32l4x5SyscfgState syscfg;
+    Stm32l4x5GpioState gpioa;
+    Stm32l4x5GpioState gpiob;
+    Stm32l4x5GpioState gpioc;
+    Stm32l4x5GpioState gpiod;
+    Stm32l4x5GpioState gpioe;
+    Stm32l4x5GpioState gpiof;
+    Stm32l4x5GpioState gpiog;
+    Stm32l4x5GpioState gpioh;
 
     MemoryRegion sram1;
     MemoryRegion sram2;
