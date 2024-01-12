@@ -22,3 +22,17 @@ strList *strList_from_string(const char *str, const char *delim)
 
     return res;
 }
+
+GStrv strv_from_strList(const strList *args)
+{
+    const strList *arg;
+    int i = 0;
+    GStrv argv = g_new(char *, QAPI_LIST_LENGTH(args) + 1);
+
+    for (arg = args; arg != NULL; arg = arg->next) {
+        argv[i++] = g_strdup(arg->value);
+    }
+    argv[i] = NULL;
+
+    return argv;
+}
