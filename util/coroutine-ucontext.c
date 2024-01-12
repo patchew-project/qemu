@@ -124,8 +124,9 @@ void start_switch_fiber_asan(CoroutineAction action, void **fake_stack_save,
 {
 #ifdef CONFIG_ASAN
     __sanitizer_start_switch_fiber(
-            action == COROUTINE_TERMINATE ? NULL : fake_stack_save,
-            bottom, size);
+        !IS_ENABLED(CONFIG_COROUTINE_POOL) && action == COROUTINE_TERMINATE ?
+            NULL : fake_stack_save,
+        bottom, size);
 #endif
 }
 
@@ -269,9 +270,25 @@ static inline void valgrind_stack_deregister(CoroutineUContext *co)
 #endif
 #endif
 
+#if defined(CONFIG_ASAN) && defined(CONFIG_COROUTINE_POOL)
+static void coroutine_fn terminate(void *opaque)
+{
+    CoroutineUContext *to = DO_UPCAST(CoroutineUContext, base, opaque);
+
+    __sanitizer_start_switch_fiber(NULL, to->stack, to->stack_size);
+    siglongjmp(to->env, COROUTINE_ENTER);
+}
+#endif
+
 void qemu_coroutine_delete(Coroutine *co_)
 {
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
+
+#if defined(CONFIG_ASAN) && defined(CONFIG_COROUTINE_POOL)
+    co_->entry_arg = qemu_coroutine_self();
+    co_->entry = terminate;
+    qemu_coroutine_switch(co_->entry_arg, co_, COROUTINE_ENTER);
+#endif
 
 #ifdef CONFIG_VALGRIND_H
     valgrind_stack_deregister(co);
