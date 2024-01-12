@@ -1274,6 +1274,8 @@ void migrate_set_state(int *state, int old_state, int new_state)
 
 static void migrate_fd_cleanup(MigrationState *s)
 {
+    Error *local_err = NULL;
+
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
 
@@ -1321,11 +1323,23 @@ static void migrate_fd_cleanup(MigrationState *s)
                           MIGRATION_STATUS_CANCELLED);
     }
 
+    if (!migration_has_failed(s) &&
+        migration_call_notifiers(s, &local_err)) {
+
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+        migrate_set_error(s, local_err);
+        error_free(local_err);
+    }
+
     if (s->error) {
         /* It is used on info migrate.  We can't free it */
         error_report_err(error_copy(s->error));
     }
-    migration_call_notifiers(s);
+
+    if (migration_has_failed(s)) {
+        migration_call_notifiers(s, NULL);
+    }
+
     block_cleanup_parameters();
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
@@ -1450,13 +1464,14 @@ void migration_remove_notifier(NotifierWithReturn *notify)
     }
 }
 
-void migration_call_notifiers(MigrationState *s)
+int migration_call_notifiers(MigrationState *s, Error **errp)
 {
     MigMode mode = s->parameters.mode;
     MigrationEvent e;
 
     e.state = s->state;
-    notifier_with_return_list_notify(&migration_state_notifiers[mode], &e, 0);
+    return notifier_with_return_list_notify(&migration_state_notifiers[mode],
+                                            &e, errp);
 }
 
 bool migration_in_setup(MigrationState *s)
@@ -2520,7 +2535,9 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      * spice needs to trigger a transition now
      */
     ms->postcopy_after_devices = true;
-    migration_call_notifiers(ms);
+    if (migration_call_notifiers(ms, errp)) {
+        goto fail;
+    }
 
     migration_downtime_end(ms);
 
@@ -2540,11 +2557,10 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 
     ret = qemu_file_get_error(ms->to_dst_file);
     if (ret) {
-        error_setg(errp, "postcopy_start: Migration stream errored");
-        migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                              MIGRATION_STATUS_FAILED);
+        error_setg_errno(errp, -ret, "postcopy_start: Migration stream error");
+        bql_lock();
+        goto fail;
     }
-
     trace_postcopy_preempt_enabled(migrate_postcopy_preempt());
 
     return ret;
@@ -2565,6 +2581,7 @@ fail:
             error_report_err(local_err);
         }
     }
+    migration_call_notifiers(ms, NULL);         /* Notify about failure */
     bql_unlock();
     return -1;
 }
@@ -3590,7 +3607,9 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         rate_limit = migrate_max_bandwidth();
 
         /* Notify before starting migration thread */
-        migration_call_notifiers(s);
+        if (migration_call_notifiers(s, &local_err)) {
+            goto fail;
+        }
     }
 
     migration_rate_set(rate_limit);
