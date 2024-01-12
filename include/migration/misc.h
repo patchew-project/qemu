@@ -65,8 +65,11 @@ typedef struct MigrationEvent {
     MigrationStatus state;
 } MigrationEvent;
 
+typedef int (*MigrationNotifyFunc)(NotifierWithReturn *notify,
+                                  MigrationEvent *e, Error **errp);
+
 void migration_add_notifier(NotifierWithReturn *notify,
-                            NotifierWithReturnFunc func);
+                            MigrationNotifyFunc func);
 void migration_remove_notifier(NotifierWithReturn *notify);
 void migration_call_notifiers(MigrationState *s);
 bool migration_in_setup(MigrationState *);
