@@ -56,7 +56,7 @@ hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
         addr = (int32_t)addr;
     } else {
         /* PDC address space */
-        addr &= MAKE_64BIT_MASK(0, 24);
+        addr = (uint32_t)addr;
         addr |= -1ull << (TARGET_PHYS_ADDR_SPACE_BITS - 4);
     }
     return addr;
