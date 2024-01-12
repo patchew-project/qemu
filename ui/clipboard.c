@@ -129,7 +129,8 @@ void qemu_clipboard_request(QemuClipboardInfo *info,
     if (info->types[type].data ||
         info->types[type].requested ||
         !info->types[type].available ||
-        !info->owner)
+        !info->owner ||
+        !info->owner->request)
         return;
 
     info->types[type].requested = true;
