@@ -325,13 +325,14 @@ static void vhost_vdpa_net_log_global_enable(VhostVDPAState *s, bool enable)
 static int vdpa_net_migration_state_notifier(NotifierWithReturn *notifier,
                                              void *data, Error **errp)
 {
-    MigrationState *migration = data;
+    MigrationEvent *e = data;
     VhostVDPAState *s = container_of(notifier, VhostVDPAState,
                                      migration_state);
 
-    if (migration_in_setup(migration)) {
+    if (e->state == MIGRATION_STATUS_SETUP) {
         vhost_vdpa_net_log_global_enable(s, true);
-    } else if (migration_has_failed(migration)) {
+    } else if (e->state == MIGRATION_STATUS_FAILED ||
+               e->state == MIGRATION_STATUS_CANCELLED) {
         vhost_vdpa_net_log_global_enable(s, false);
     }
     return 0;

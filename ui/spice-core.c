@@ -571,19 +571,20 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
 static int migration_state_notifier(NotifierWithReturn *notifier,
                                     void *data, Error **errp)
 {
-    MigrationState *s = data;
+    MigrationEvent *e = data;
 
     if (!spice_have_target_host) {
         return 0;
     }
 
-    if (migration_in_setup(s)) {
+    if (e->state == MIGRATION_STATUS_SETUP) {
         spice_server_migrate_start(spice_server);
-    } else if (migration_has_finished(s) ||
+    } else if (e->state == MIGRATION_STATUS_COMPLETED ||
                migration_in_postcopy_after_devices()) {
         spice_server_migrate_end(spice_server, true);
         spice_have_target_host = false;
-    } else if (migration_has_failed(s)) {
+    } else if (e->state == MIGRATION_STATUS_FAILED ||
+               e->state == MIGRATION_STATUS_CANCELLED) {
         spice_server_migrate_end(spice_server, false);
         spice_have_target_host = false;
     }

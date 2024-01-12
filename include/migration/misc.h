@@ -60,6 +60,11 @@ void migration_object_init(void);
 void migration_shutdown(void);
 bool migration_is_idle(void);
 bool migration_is_active(MigrationState *);
+
+typedef struct MigrationEvent {
+    MigrationStatus state;
+} MigrationEvent;
+
 void migration_add_notifier(NotifierWithReturn *notify,
                             NotifierWithReturnFunc func);
 void migration_remove_notifier(NotifierWithReturn *notify);

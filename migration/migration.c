@@ -1441,7 +1441,10 @@ void migration_remove_notifier(NotifierWithReturn *notify)
 
 void migration_call_notifiers(MigrationState *s)
 {
-    notifier_with_return_list_notify(&migration_state_notifiers, s, 0);
+    MigrationEvent e;
+
+    e.state = s->state;
+    notifier_with_return_list_notify(&migration_state_notifiers, &e, 0);
 }
 
 bool migration_in_setup(MigrationState *s)
