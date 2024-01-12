@@ -227,10 +227,10 @@ const QLitObject %(c_name)s = %(c_string)s;
 
         # Map the various integer types to plain int
         if typ.json_type() == 'int':
-            typ = self._schema.lookup_type('int')
+            typ = self._schema.resolve_type('int')
         elif (isinstance(typ, QAPISchemaArrayType) and
               typ.element_type.json_type() == 'int'):
-            typ = self._schema.lookup_type('intList')
+            typ = self._schema.resolve_type('intList')
         # Add type to work queue if new
         if typ not in self._used_types:
             self._used_types.append(typ)

@@ -650,8 +650,7 @@ class QAPISchemaVariants:
                     "discriminator '%s' is not a member of %s"
                     % (self._tag_name, base))
             # Here we do:
-            base_type = schema.lookup_type(self.tag_member.defined_in)
-            assert base_type
+            base_type = schema.resolve_type(self.tag_member.defined_in)
             if not base_type.is_implicit():
                 base = "base type '%s'" % self.tag_member.defined_in
             if not isinstance(self.tag_member.type, QAPISchemaEnumType):
