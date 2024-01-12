@@ -1460,10 +1460,8 @@ bool migration_has_failed(MigrationState *s)
             s->state == MIGRATION_STATUS_FAILED);
 }
 
-bool migration_in_postcopy(void)
+static bool migration_state_in_postcopy(MigrationState *s)
 {
-    MigrationState *s = migrate_get_current();
-
     switch (s->state) {
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
@@ -1472,6 +1470,12 @@ bool migration_in_postcopy(void)
     default:
         return false;
     }
+}
+
+bool migration_in_postcopy(void)
+{
+    MigrationState *s = migrate_get_current();
+    return migration_state_in_postcopy(s);
 }
 
 bool migration_postcopy_is_alive(int state)
@@ -1485,9 +1489,10 @@ bool migration_postcopy_is_alive(int state)
     }
 }
 
-bool migration_in_postcopy_after_devices(MigrationState *s)
+bool migration_in_postcopy_after_devices(void)
 {
-    return migration_in_postcopy() && s->postcopy_after_devices;
+    MigrationState *s = migrate_get_current();
+    return migration_state_in_postcopy(s) && s->postcopy_after_devices;
 }
 
 bool migration_in_incoming_postcopy(void)

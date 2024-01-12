@@ -580,7 +580,7 @@ static int migration_state_notifier(NotifierWithReturn *notifier,
     if (migration_in_setup(s)) {
         spice_server_migrate_start(spice_server);
     } else if (migration_has_finished(s) ||
-               migration_in_postcopy_after_devices(s)) {
+               migration_in_postcopy_after_devices()) {
         spice_server_migrate_end(spice_server, true);
         spice_have_target_host = false;
     } else if (migration_has_failed(s)) {
