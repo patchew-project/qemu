@@ -78,6 +78,7 @@ struct VFIOGroup;
 typedef struct VFIOContainer {
     VFIOContainerBase bcontainer;
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
+    NotifierWithReturn cpr_reboot_notifier;
     unsigned iommu_type;
     QLIST_HEAD(, VFIOGroup) group_list;
 } VFIOContainer;

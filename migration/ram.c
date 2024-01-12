@@ -2392,8 +2392,8 @@ static void ram_save_cleanup(void *opaque)
     RAMState **rsp = opaque;
     RAMBlock *block;
 
-    /* We don't use dirty log with background snapshots */
-    if (!migrate_background_snapshot()) {
+    /* We don't use dirty log with background snapshots or cpr */
+    if (!migrate_background_snapshot() && migrate_mode() == MIG_MODE_NORMAL) {
         /* caller have hold BQL or is in a bh, so there is
          * no writing race against the migration bitmap
          */
@@ -2804,8 +2804,9 @@ static void ram_init_bitmaps(RAMState *rs)
 
     WITH_RCU_READ_LOCK_GUARD() {
         ram_list_init_bitmaps();
-        /* We don't use dirty log with background snapshots */
-        if (!migrate_background_snapshot()) {
+        /* We don't use dirty log with background snapshots or cpr */
+        if (!migrate_background_snapshot() &&
+            migrate_mode() == MIG_MODE_NORMAL) {
             memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION);
             migration_bitmap_sync_precopy(rs, false);
         }
