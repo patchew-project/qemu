@@ -482,6 +482,13 @@ Use ``-run-with async-teardown=on`` instead.
 
 Use ``-run-with chroot=dir`` instead.
 
+``-singlestep`` (removed in 9.0)
+''''''''''''''''''''''''''''''''
+
+The ``-singlestep`` option has been turned into an accelerator property,
+and given a name that better reflects what it actually does.
+Use ``-accel tcg,one-insn-per-tb=on`` instead.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
