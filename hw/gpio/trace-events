@@ -31,3 +31,9 @@ sifive_gpio_update_output_irq(int64_t line, int64_t value) "line %" PRIi64 " val
 # aspeed_gpio.c
 aspeed_gpio_read(uint64_t offset, uint64_t value) "offset: 0x%" PRIx64 " value 0x%" PRIx64
 aspeed_gpio_write(uint64_t offset, uint64_t value) "offset: 0x%" PRIx64 " value 0x%" PRIx64
+
+# stm32l4x5_gpio.c
+stm32l4x5_gpio_read(uint64_t addr) "reg read: addr: 0x%" PRIx64 " "
+stm32l4x5_gpio_write(uint64_t addr, uint64_t data) "reg write: addr: 0x%" PRIx64 " val: 0x%" PRIx64 ""
+stm32l4x5_gpio_update_idr(uint32_t old_idr, uint32_t new_idr) "previous idr: 0x%x new idr: 0x%x"
+stm32l4x5_gpio_pins(uint16_t disconnected, uint16_t high) "disconnected pins: 0x%x levels: 0x%x"
