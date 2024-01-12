@@ -325,7 +325,7 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
-    int size, i;
+    Elf64_Half size, i;
     ssize_t total_size;
     elf_word mem_size, file_size, data_offset;
     uint64_t addr, low = (uint64_t)-1, high = 0;
@@ -464,7 +464,7 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
                  * the ROM overlap check in loader.c, so we don't try to
                  * explicitly detect those here.
                  */
-                int j;
+                Elf64_Half j;
                 elf_word zero_start = ph->p_paddr + file_size;
                 elf_word zero_end = ph->p_paddr + mem_size;
 
@@ -500,7 +500,7 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
             }
 
             if (data_swab) {
-                int j;
+                elf_word j;
                 for (j = 0; j < file_size; j += (1 << data_swab)) {
                     uint8_t *dp = data + j;
                     switch (data_swab) {
