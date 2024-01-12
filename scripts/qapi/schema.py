@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 import os
 import re
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from .common import (
     POINTER_SUFFIX,
@@ -457,22 +457,24 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.base = None
         self.local_members = local_members
         self.variants = variants
-        self.members = None
+        self.members: List[QAPISchemaObjectTypeMember] = []
+        self._checking = False
 
     def check(self, schema):
         # This calls another type T's .check() exactly when the C
         # struct emitted by gen_object() contains that T's C struct
         # (pointers don't count).
-        if self.members is not None:
-            # A previous .check() completed: nothing to do
-            return
-        if self._checked:
+        if self._checking:
             # Recursed: C struct contains itself
             raise QAPISemError(self.info,
                                "object %s contains itself" % self.name)
+        if self._checked:
+            # A previous .check() completed: nothing to do
+            return
 
+        self._checking = True
         super().check(schema)
-        assert self._checked and self.members is None
+        assert self._checked and not self.members
 
         seen = OrderedDict()
         if self._base_name:
@@ -489,13 +491,17 @@ class QAPISchemaObjectType(QAPISchemaType):
         for m in self.local_members:
             m.check(schema)
             m.check_clash(self.info, seen)
-        members = seen.values()
+
+        # check_clash is abstract, but local_members is asserted to be
+        # List[QAPISchemaObjectTypeMember]. Cast to the narrower type.
+        members = cast(List[QAPISchemaObjectTypeMember], list(seen.values()))
 
         if self.variants:
             self.variants.check(schema, seen)
             self.variants.check_clash(self.info, seen)
 
-        self.members = members  # mark completed
+        self.members = members
+        self._checking = False  # mark completed
 
     # Check that the members of this type do not cause duplicate JSON members,
     # and update seen to track the members seen so far. Report any errors
