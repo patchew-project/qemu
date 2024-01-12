@@ -1561,15 +1561,6 @@ done_cd:
     return 0;
 }
 
-static int is_hex(char c)
-{
-    if (((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f')) ||
-        ((c >= 'A') && (c <= 'F'))) {
-        return 1;
-    }
-    return 0;
-}
-
 /**
  * uri_string_unescape:
  * @str:  the string to unescape
@@ -1607,7 +1598,7 @@ char *uri_string_unescape(const char *str, int len, char *target)
     in = str;
     out = ret;
     while (len > 0) {
-        if ((len > 2) && (*in == '%') && (is_hex(in[1])) && (is_hex(in[2]))) {
+        if (len > 2 && *in == '%' && g_ascii_isxdigit(in[1]) && g_ascii_isxdigit(in[2])) {
             in++;
             if ((*in >= '0') && (*in <= '9')) {
                 *out = (*in - '0');
