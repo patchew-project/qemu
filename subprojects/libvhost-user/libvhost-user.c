@@ -2307,7 +2307,7 @@ static int
 virtqueue_read_indirect_desc(VuDev *dev, struct vring_desc *desc,
                              uint64_t addr, size_t len)
 {
-    struct vring_desc *ori_desc;
+    uint8_t *src_cursor, *dst_cursor;
     uint64_t read_len;
 
     if (len > (VIRTQUEUE_MAX_SIZE * sizeof(struct vring_desc))) {
@@ -2318,17 +2318,18 @@ virtqueue_read_indirect_desc(VuDev *dev, struct vring_desc *desc,
         return -1;
     }
 
+    dst_cursor = (uint8_t *) desc;
     while (len) {
         read_len = len;
-        ori_desc = vu_gpa_to_va(dev, &read_len, addr);
-        if (!ori_desc) {
+        src_cursor = vu_gpa_to_va(dev, &read_len, addr);
+        if (!src_cursor) {
             return -1;
         }
 
-        memcpy(desc, ori_desc, read_len);
+        memcpy(dst_cursor, src_cursor, read_len);
         len -= read_len;
         addr += read_len;
-        desc += read_len;
+        dst_cursor += read_len;
     }
 
     return 0;
