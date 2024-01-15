@@ -31,6 +31,7 @@
 #endif
 #include "sysemu/sysemu.h"
 #include "hw/vfio/vfio-container-base.h"
+#include "sysemu/iommufd_device.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -126,6 +127,7 @@ typedef struct VFIODevice {
     bool dirty_tracking;
     int devid;
     IOMMUFDBackend *iommufd;
+    IOMMUFDDevice idev;
 } VFIODevice;
 
 struct VFIODeviceOps {
