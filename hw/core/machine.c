@@ -11,11 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/accel.h"
 #include "sysemu/replay.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "qapi/error.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/cpus.h"
