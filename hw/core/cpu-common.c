@@ -20,15 +20,15 @@
 
 #include "qemu/osdep.h"
 
-#include "qapi/error.h"
-#include "hw/core/cpu.h"
-#include "sysemu/hw_accel.h"
 #include "exec/log.h"
-#include "sysemu/tcg.h"
 #include "hw/boards.h"
+#include "hw/core/cpu.h"
 #include "hw/qdev-properties.h"
-#include "trace.h"
+#include "qapi/error.h"
 #include "qemu/plugin.h"
+#include "sysemu/hw_accel.h"
+#include "sysemu/tcg.h"
+#include "trace.h"
 
 CPUState *cpu_by_arch_id(int64_t id)
 {
