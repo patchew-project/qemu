@@ -19,16 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qapi/error.h"
 #include "hw/core/cpu.h"
 #include "sysemu/hw_accel.h"
-#include "qemu/notify.h"
-#include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "exec/log.h"
-#include "exec/cpu-common.h"
-#include "qemu/error-report.h"
-#include "qemu/qemu-print.h"
 #include "sysemu/tcg.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
