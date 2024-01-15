@@ -7,6 +7,8 @@
 /* PCI includes legacy ISA access.  */
 #include "hw/isa/isa.h"
 
+#include "sysemu/iommufd_device.h"
+
 extern bool pci_available;
 
 /* PCI bus */
@@ -384,10 +386,45 @@ typedef struct PCIIOMMUOps {
      *
      * @devfn: device and function number
      */
-   AddressSpace * (*get_address_space)(PCIBus *bus, void *opaque, int devfn);
+    AddressSpace * (*get_address_space)(PCIBus *bus, void *opaque, int devfn);
+    /**
+     * @set_iommu_device: set iommufd device for a PCI device to vIOMMU
+     *
+     * Optional callback, if not implemented in vIOMMU, then vIOMMU can't
+     * utilize iommufd specific features.
+     *
+     * Return true if iommufd device is accepted, or else return false with
+     * errp set.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     *
+     * @idev: the data structure representing iommufd device.
+     *
+     */
+    int (*set_iommu_device)(PCIBus *bus, void *opaque, int32_t devfn,
+                            IOMMUFDDevice *idev, Error **errp);
+    /**
+     * @unset_iommu_device: unset iommufd device for a PCI device from vIOMMU
+     *
+     * Optional callback.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     */
+    void (*unset_iommu_device)(PCIBus *bus, void *opaque, int32_t devfn);
 } PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
+int pci_device_set_iommu_device(PCIDevice *dev, IOMMUFDDevice *idev,
+                                Error **errp);
+void pci_device_unset_iommu_device(PCIDevice *dev);
 
 /**
  * pci_setup_iommu: Initialize specific IOMMU handlers for a PCIBus
