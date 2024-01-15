@@ -24,18 +24,18 @@
 
 #include "qemu/osdep.h"
 
-#include "qemu/units.h"
+#include "hw/boards.h"
+#include "hw/mem/memory-device.h"
 #include "sysemu/numa.h"
-#include "qemu/error-report.h"
+#include "sysemu/qtest.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qapi-visit-machine.h"
-#include "sysemu/qtest.h"
-#include "hw/boards.h"
-#include "hw/mem/memory-device.h"
-#include "qemu/option.h"
+#include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
+#include "qemu/option.h"
+#include "qemu/units.h"
 
 QemuOptsList qemu_numa_opts = {
     .name = "numa",
