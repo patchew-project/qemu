@@ -100,9 +100,14 @@ Int128 HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al, uint64_t b)
 
 uint64_t HELPER(cvd)(int32_t reg)
 {
+    return helper_cvdg(reg);
+}
+
+Int128 HELPER(cvdg)(int64_t reg)
+{
     /* positive 0 */
-    uint64_t dec = 0x0c;
-    int64_t bin = reg;
+    Int128 dec = 0x0c;
+    Int128 bin = reg;
     int shift;
 
     if (bin < 0) {
@@ -110,7 +115,7 @@ uint64_t HELPER(cvd)(int32_t reg)
         dec = 0x0d;
     }
 
-    for (shift = 4; (shift < 64) && bin; shift += 4) {
+    for (shift = 4; (shift < 128) && bin; shift += 4) {
         dec |= (bin % 10) << shift;
         bin /= 10;
     }
