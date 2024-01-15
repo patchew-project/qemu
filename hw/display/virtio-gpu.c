@@ -679,10 +679,6 @@ static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
 
         /* realloc the surface ptr */
         scanout->ds = qemu_create_displaysurface_pixman(rect);
-        if (!scanout->ds) {
-            *error = VIRTIO_GPU_RESP_ERR_UNSPEC;
-            return;
-        }
 #ifdef WIN32
         qemu_displaysurface_win32_set_handle(scanout->ds, res->handle, fb->offset);
 #endif
