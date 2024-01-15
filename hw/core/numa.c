@@ -23,20 +23,14 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/units.h"
-#include "sysemu/hostmem.h"
 #include "sysemu/numa.h"
-#include "exec/cpu-common.h"
-#include "exec/ramlist.h"
-#include "qemu/bitmap.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qapi-visit-machine.h"
 #include "sysemu/qtest.h"
-#include "hw/core/cpu.h"
-#include "hw/mem/pc-dimm.h"
-#include "migration/vmstate.h"
 #include "hw/boards.h"
 #include "hw/mem/memory-device.h"
 #include "qemu/option.h"
