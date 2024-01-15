@@ -538,11 +538,12 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         }
         g_free(filename);
     } else {
-        fdt = binfo->get_dtb(binfo, &size);
+        fdt = binfo->get_dtb(binfo);
         if (!fdt) {
             fprintf(stderr, "Board was unable to create a dtb blob\n");
             goto fail;
         }
+        size = fdt_totalsize(fdt);
     }
 
     if (addr_limit > addr && size > (addr_limit - addr)) {

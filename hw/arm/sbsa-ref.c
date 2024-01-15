@@ -681,12 +681,11 @@ static void create_pcie(SBSAMachineState *sms)
     create_smmu(sms, pci->bus);
 }
 
-static void *sbsa_ref_dtb(const struct arm_boot_info *binfo, int *fdt_size)
+static void *sbsa_ref_dtb(const struct arm_boot_info *binfo)
 {
     const SBSAMachineState *board = container_of(binfo, SBSAMachineState,
                                                  bootinfo);
 
-    *fdt_size = board->fdt_size;
     return board->fdt;
 }
 

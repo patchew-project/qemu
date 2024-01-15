@@ -1577,14 +1577,12 @@ static void create_secure_ram(VirtMachineState *vms,
     g_free(nodename);
 }
 
-static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
+static void *machvirt_dtb(const struct arm_boot_info *binfo)
 {
     const VirtMachineState *board = container_of(binfo, VirtMachineState,
                                                  bootinfo);
     MachineState *ms = MACHINE(board);
 
-
-    *fdt_size = board->fdt_size;
     return ms->fdt;
 }
 
