@@ -3819,6 +3819,47 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
     return vtd_dev_as;
 }
 
+static bool vtd_sync_hw_info(IntelIOMMUState *s, struct iommu_hw_info_vtd *vtd,
+                             Error **errp)
+{
+    uint64_t addr_width;
+
+    addr_width = (vtd->cap_reg >> 16) & 0x3fULL;
+    if (s->aw_bits > addr_width) {
+        error_setg(errp, "User aw-bits: %u > host address width: %lu",
+                   s->aw_bits, addr_width);
+        return false;
+    }
+
+    /* TODO: check and sync host cap/ecap into vIOMMU cap/ecap */
+
+    return true;
+}
+
+/*
+ * virtual VT-d which wants nested needs to check the host IOMMU
+ * nesting cap info behind the assigned devices. Thus that vIOMMU
+ * could bind guest page table to host.
+ */
+static bool vtd_check_idev(IntelIOMMUState *s, IOMMUFDDevice *idev,
+                           Error **errp)
+{
+    struct iommu_hw_info_vtd vtd;
+    enum iommu_hw_info_type type = IOMMU_HW_INFO_TYPE_INTEL_VTD;
+
+    if (iommufd_device_get_info(idev, &type, sizeof(vtd), &vtd)) {
+        error_setg(errp, "Failed to get IOMMU capability!!!");
+        return false;
+    }
+
+    if (type != IOMMU_HW_INFO_TYPE_INTEL_VTD) {
+        error_setg(errp, "IOMMU hardware is not compatible!!!");
+        return false;
+    }
+
+    return vtd_sync_hw_info(s, &vtd, errp);
+}
+
 static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int32_t devfn,
                                     IOMMUFDDevice *idev, Error **errp)
 {
@@ -3835,6 +3876,10 @@ static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int32_t devfn,
     /* None IOMMUFD case */
     if (!idev) {
         return 0;
+    }
+
+    if (!vtd_check_idev(s, idev, errp)) {
+        return -1;
     }
 
     vtd_iommu_lock(s);
@@ -4071,10 +4116,11 @@ static void vtd_init(IntelIOMMUState *s)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
-    memset(s->csr, 0, DMAR_REG_SIZE);
-    memset(s->wmask, 0, DMAR_REG_SIZE);
-    memset(s->w1cmask, 0, DMAR_REG_SIZE);
-    memset(s->womask, 0, DMAR_REG_SIZE);
+    /* CAP/ECAP are initialized in machine create done stage */
+    memset(s->csr + DMAR_GCMD_REG, 0, DMAR_REG_SIZE - DMAR_GCMD_REG);
+    memset(s->wmask + DMAR_GCMD_REG, 0, DMAR_REG_SIZE - DMAR_GCMD_REG);
+    memset(s->w1cmask + DMAR_GCMD_REG, 0, DMAR_REG_SIZE - DMAR_GCMD_REG);
+    memset(s->womask + DMAR_GCMD_REG, 0, DMAR_REG_SIZE - DMAR_GCMD_REG);
 
     s->root = 0;
     s->root_scalable = false;
@@ -4110,13 +4156,16 @@ static void vtd_init(IntelIOMMUState *s)
         vtd_spte_rsvd_large[3] &= ~VTD_SPTE_SNP;
     }
 
-    vtd_cap_init(s);
+    if (!s->cap_finalized) {
+        vtd_cap_init(s);
+        s->host_cap = s->cap;
+        s->host_ecap = s->ecap;
+    }
+
     vtd_reset_caches(s);
 
     /* Define registers with default values and bit semantics */
     vtd_define_long(s, DMAR_VER_REG, 0x10UL, 0, 0);
-    vtd_define_quad(s, DMAR_CAP_REG, s->cap, 0, 0);
-    vtd_define_quad(s, DMAR_ECAP_REG, s->ecap, 0, 0);
     vtd_define_long(s, DMAR_GCMD_REG, 0, 0xff800000UL, 0);
     vtd_define_long_wo(s, DMAR_GCMD_REG, 0xff800000UL);
     vtd_define_long(s, DMAR_GSTS_REG, 0, 0, 0);
@@ -4241,6 +4290,12 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     return true;
 }
 
+static void vtd_setup_capability_reg(IntelIOMMUState *s)
+{
+    vtd_define_quad(s, DMAR_CAP_REG, s->cap, 0, 0);
+    vtd_define_quad(s, DMAR_ECAP_REG, s->ecap, 0, 0);
+}
+
 static int vtd_machine_done_notify_one(Object *child, void *unused)
 {
     IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
@@ -4259,6 +4314,14 @@ static int vtd_machine_done_notify_one(Object *child, void *unused)
 
 static void vtd_machine_done_hook(Notifier *notifier, void *unused)
 {
+    IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
+
+    iommu->cap = iommu->host_cap;
+    iommu->ecap = iommu->host_ecap;
+    iommu->cap_finalized = true;
+
+    vtd_setup_capability_reg(iommu);
+
     object_child_foreach_recursive(object_get_root(),
                                    vtd_machine_done_notify_one, NULL);
 }
@@ -4292,6 +4355,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
 
     QLIST_INIT(&s->vtd_as_with_notifiers);
     qemu_mutex_init(&s->iommu_lock);
+    s->cap_finalized = false;
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
                           "intel_iommu", DMAR_REG_SIZE);
     memory_region_add_subregion(get_system_memory(),
