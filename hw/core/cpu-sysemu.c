@@ -19,9 +19,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
+
 #include "hw/core/cpu.h"
 #include "hw/core/sysemu-cpu-ops.h"
+#include "qapi/error.h"
 
 bool cpu_paging_enabled(const CPUState *cpu)
 {
