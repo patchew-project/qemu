@@ -53,7 +53,7 @@ from avocado_qemu import QemuBaseTest
 
 deps = ["xorriso", "mformat"] # dependent tools needed in the test setup/box.
 supported_platforms = ['x86_64'] # supported test platforms.
-
+BITS_TIMEOUT = 200
 
 def which(tool):
     """ looks up the full path for @tool, returns None if not found
@@ -133,7 +133,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
 
     """
     # in slower systems the test can take as long as 3 minutes to complete.
-    timeout = 200
+    timeout = BITS_TIMEOUT
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -401,6 +401,6 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         # biosbits has been configured to run all the specified test suites
         # in batch mode and then automatically initiate a vm shutdown.
         # Rely on avocado's unit test timeout.
-        self._vm.event_wait('SHUTDOWN')
+        self._vm.event_wait('SHUTDOWN', timeout=BITS_TIMEOUT)
         self._vm.wait(timeout=None)
         self.parse_log()
