@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
 #include "exec/hwaddr.h"
@@ -21,11 +22,25 @@
 #include "trace.h"
 #include "internals.h"
 
+enum GDBCatchSyscallsState {
+    GDB_CATCH_SYSCALLS_NONE,
+    GDB_CATCH_SYSCALLS_ALL,
+    GDB_CATCH_SYSCALLS_SELECTED,
+};
+#define GDB_NR_SYSCALLS 1024
+typedef unsigned long GDBSyscallsMask[BITS_TO_LONGS(GDB_NR_SYSCALLS)];
+
 /* User-mode specific state */
 typedef struct {
     int fd;
     char *socket_path;
     int running_state;
+    /*
+     * Store syscalls mask without memory allocation in order to avoid
+     * implementing synchronization.
+     */
+    enum GDBCatchSyscallsState catch_syscalls_state;
+    GDBSyscallsMask catch_syscalls_mask;
 } GDBUserState;
 
 static GDBUserState gdbserver_user_state;
@@ -121,7 +136,7 @@ void gdb_qemu_exit(int code)
     exit(code);
 }
 
-int gdb_handlesig(CPUState *cpu, int sig)
+int gdb_handlesig_reason(CPUState *cpu, int sig, const char *reason)
 {
     char buf[256];
     int n;
@@ -141,6 +156,9 @@ int gdb_handlesig(CPUState *cpu, int sig)
                             "T%02xthread:", gdb_target_signal_to_gdb(sig));
             gdb_append_thread_id(cpu, gdbserver_state.str_buf);
             g_string_append_c(gdbserver_state.str_buf, ';');
+            if (reason) {
+                g_string_append(gdbserver_state.str_buf, reason);
+            }
             gdb_put_strbuf();
             gdbserver_state.allow_stop_reply = false;
         }
@@ -498,4 +516,88 @@ void gdb_syscall_handling(const char *syscall_packet)
 {
     gdb_put_packet(syscall_packet);
     gdb_handlesig(gdbserver_state.c_cpu, 0);
+}
+
+static bool should_catch_syscall(int num)
+{
+    switch (gdbserver_user_state.catch_syscalls_state) {
+    case GDB_CATCH_SYSCALLS_NONE:
+        return false;
+    case GDB_CATCH_SYSCALLS_ALL:
+        return true;
+    case GDB_CATCH_SYSCALLS_SELECTED:
+        if (num < 0 || num >= GDB_NR_SYSCALLS) {
+            return false;
+        } else {
+            return test_bit(num, gdbserver_user_state.catch_syscalls_mask);
+        }
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void gdb_syscall_entry(CPUState *cs, int num)
+{
+    char reason[32];
+
+    if (should_catch_syscall(num)) {
+        snprintf(reason, sizeof(reason), "syscall_entry:%x;", num);
+        gdb_handlesig_reason(cs, gdb_target_sigtrap(), reason);
+    }
+}
+
+void gdb_syscall_return(CPUState *cs, int num)
+{
+    char reason[32];
+
+    if (should_catch_syscall(num)) {
+        snprintf(reason, sizeof(reason), "syscall_return:%x;", num);
+        gdb_handlesig_reason(cs, gdb_target_sigtrap(), reason);
+    }
+}
+
+void gdb_handle_set_catch_syscalls(GArray *params, void *user_ctx)
+{
+    enum GDBCatchSyscallsState catch_syscalls_state;
+    const char *param = get_param(params, 0)->data;
+    GDBSyscallsMask catch_syscalls_mask;
+    bool catch_syscalls_none;
+    unsigned int num;
+    const char *p;
+
+    catch_syscalls_none = strcmp(param, "0") == 0;
+    if (catch_syscalls_none || strcmp(param, "1") == 0) {
+        gdbserver_user_state.catch_syscalls_state =
+            catch_syscalls_none ? GDB_CATCH_SYSCALLS_NONE :
+                                  GDB_CATCH_SYSCALLS_ALL;
+        gdb_put_packet("OK");
+        return;
+    }
+
+    if (param[0] == '1' && param[1] == ';') {
+        catch_syscalls_state = GDB_CATCH_SYSCALLS_SELECTED;
+        memset(catch_syscalls_mask, 0, sizeof(catch_syscalls_mask));
+        for (p = &param[2];; p++) {
+            if (qemu_strtoui(p, &p, 16, &num) || (*p && *p != ';')) {
+                goto err;
+            }
+            if (num >= GDB_NR_SYSCALLS) {
+                /* Fall back to reporting all syscalls. */
+                catch_syscalls_state = GDB_CATCH_SYSCALLS_ALL;
+            } else {
+                set_bit(num, catch_syscalls_mask);
+            }
+            if (!*p) {
+                break;
+            }
+        }
+        gdbserver_user_state.catch_syscalls_state = catch_syscalls_state;
+        memcpy(gdbserver_user_state.catch_syscalls_mask, catch_syscalls_mask,
+               sizeof(catch_syscalls_mask));
+        gdb_put_packet("OK");
+        return;
+    }
+
+err:
+    gdb_put_packet("E00");
 }
