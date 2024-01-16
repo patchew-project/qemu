@@ -118,6 +118,8 @@ static void subsystem_reset(void)
     DeviceState *dev;
     int i;
 
+    s390_pci_ism_reset();
+
     for (i = 0; i < ARRAY_SIZE(reset_dev_types); i++) {
         dev = DEVICE(object_resolve_path_type("", reset_dev_types[i], NULL));
         if (dev) {
