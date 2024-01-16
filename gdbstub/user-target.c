@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/user.h"
 #include "qemu.h"
 #include "internals.h"
 #ifdef CONFIG_LINUX
@@ -417,4 +418,42 @@ void gdb_handle_query_xfer_exec_file(GArray *params, void *user_ctx)
     g_string_printf(gdbserver_state.str_buf, "l%.*s", length,
                     ts->bprm->filename + offset);
     gdb_put_strbuf();
+}
+
+static bool should_catch_syscall(int num)
+{
+    switch (gdbserver_state.catch_syscalls_state) {
+    case GDB_CATCH_SYSCALLS_NONE:
+        return false;
+    case GDB_CATCH_SYSCALLS_ALL:
+        return true;
+    case GDB_CATCH_SYSCALLS_SELECTED:
+        if (num < 0 || num >= GDB_NR_SYSCALLS) {
+            return false;
+        } else {
+            return test_bit(num, gdbserver_state.catch_syscalls_mask);
+        }
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void gdb_syscall_entry(CPUState *cs, int num)
+{
+    char reason[32];
+
+    if (should_catch_syscall(num)) {
+        snprintf(reason, sizeof(reason), "syscall_entry:%x;", num);
+        gdb_handlesig_reason(cs, TARGET_SIGTRAP, reason);
+    }
+}
+
+void gdb_syscall_return(CPUState *cs, int num)
+{
+    char reason[32];
+
+    if (should_catch_syscall(num)) {
+        snprintf(reason, sizeof(reason), "syscall_return:%x;", num);
+        gdb_handlesig_reason(cs, TARGET_SIGTRAP, reason);
+    }
 }

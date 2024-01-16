@@ -1618,7 +1618,8 @@ static void handle_query_supported(GArray *params, void *user_ctx)
         g_string_append(gdbserver_state.str_buf, ";qXfer:auxv:read+");
     }
 #endif
-    g_string_append(gdbserver_state.str_buf, ";qXfer:exec-file:read+");
+    g_string_append(gdbserver_state.str_buf, ";qXfer:exec-file:read+"
+                                             ";QCatchSyscalls+");
 #endif
 
     if (params->len &&
@@ -1808,6 +1809,14 @@ static const GdbCmdParseEntry gdb_gen_set_table[] = {
         .cmd = "qemu.PhyMemMode:",
         .cmd_startswith = 1,
         .schema = "l0"
+    },
+#endif
+#if defined(CONFIG_USER_ONLY)
+    {
+        .handler = gdb_handle_set_catch_syscalls,
+        .cmd = "CatchSyscalls:",
+        .cmd_startswith = 1,
+        .schema = "s0",
     },
 #endif
 };

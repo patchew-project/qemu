@@ -10,6 +10,7 @@
 #define GDBSTUB_INTERNALS_H
 
 #include "exec/cpu-common.h"
+#include "qemu/bitops.h"
 
 #define MAX_PACKET_LENGTH 4096
 
@@ -46,6 +47,14 @@ enum RSState {
     RS_CHKSUM2,
 };
 
+enum GDBCatchSyscallsState {
+    GDB_CATCH_SYSCALLS_NONE,
+    GDB_CATCH_SYSCALLS_ALL,
+    GDB_CATCH_SYSCALLS_SELECTED,
+};
+#define GDB_NR_SYSCALLS 1024
+typedef unsigned long GDBSyscallsMask[BITS_TO_LONGS(GDB_NR_SYSCALLS)];
+
 typedef struct GDBState {
     bool init;       /* have we been initialised? */
     CPUState *c_cpu; /* current CPU for step/continue ops */
@@ -70,6 +79,12 @@ typedef struct GDBState {
      * Must be set off after sending the stop reply itself.
      */
     bool allow_stop_reply;
+    /*
+     * Store syscalls mask without memory allocation in order to avoid
+     * implementing synchronization.
+     */
+    enum GDBCatchSyscallsState catch_syscalls_state;
+    GDBSyscallsMask catch_syscalls_mask;
 } GDBState;
 
 /* lives in main gdbstub.c */
@@ -194,6 +209,7 @@ void gdb_handle_v_file_close(GArray *params, void *user_ctx); /* user */
 void gdb_handle_v_file_pread(GArray *params, void *user_ctx); /* user */
 void gdb_handle_v_file_readlink(GArray *params, void *user_ctx); /* user */
 void gdb_handle_query_xfer_exec_file(GArray *params, void *user_ctx); /* user */
+void gdb_handle_set_catch_syscalls(GArray *params, void *user_ctx); /* user */
 
 void gdb_handle_query_attached(GArray *params, void *user_ctx); /* both */
 

@@ -44,6 +44,7 @@ static void reset_gdbserver_state(void)
     gdbserver_state.processes = NULL;
     gdbserver_state.process_num = 0;
     gdbserver_state.allow_stop_reply = false;
+    gdbserver_state.catch_syscalls_state = GDB_CATCH_SYSCALLS_NONE;
 }
 
 /*
