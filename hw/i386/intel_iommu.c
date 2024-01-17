@@ -35,6 +35,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/reset.h"
 #include "hw/i386/apic_internal.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
@@ -4086,7 +4087,7 @@ static void vtd_init(IntelIOMMUState *s)
 /* Should not reset address_spaces when reset because devices will still use
  * the address space they got at first (won't ask the bus again).
  */
-static void vtd_reset(DeviceState *dev)
+static void vtd_reset(void *dev)
 {
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
 
@@ -4242,7 +4243,6 @@ static void vtd_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     X86IOMMUClass *x86_class = X86_IOMMU_DEVICE_CLASS(klass);
 
-    dc->reset = vtd_reset;
     dc->vmsd = &vtd_vmstate;
     device_class_set_props(dc, vtd_properties);
     dc->hotpluggable = false;
@@ -4254,10 +4254,60 @@ static void vtd_class_init(ObjectClass *klass, void *data)
     dc->desc = "Intel IOMMU (VT-d) DMA Remapping device";
 }
 
+static void vtd_instance_init(Object *obj)
+{
+    IntelIOMMUState *s = INTEL_IOMMU_DEVICE(obj);
+
+    /*
+     * vIOMMU reset may require proper ordering with other devices.  There
+     * are two complexities so that normal DeviceState.reset() may not
+     * work properly for vIOMMUs:
+     *
+     * (1) Device depth-first reset hierachy doesn't yet work for vIOMMUs
+     *     (reference: resettable_cold_reset_fn())
+     *
+     *     Currently, vIOMMU devices are created as normal '-device'
+     *     cmdlines.  It means in many ways it has the same attributes with
+     *     most of the rest devices, even if the rest devices should
+     *     logically be under control of the vIOMMU unit.
+     *
+     *     One side effect of it is vIOMMU devices will be currently put
+     *     randomly under qdev tree hierarchy, which is the source of
+     *     device reset ordering in current QEMU (depth-first traversal).
+     *     It means vIOMMU now can be reset before some devices.  For fully
+     *     emulated devices that's not a problem, because the traversal
+     *     holds BQL for the whole process.  However it is a problem if DMA
+     *     can happen without BQL, like VFIO, vDPA or remote device process.
+     *
+     *     TODO: one ideal solution can be that we make vIOMMU the parent
+     *     of the whole pci host bridge.  Hence vIOMMU can be reset after
+     *     all the devices are reset and quiesced.
+     *
+     * (2) Some devices register its own reset functions
+     *
+     *     Even if above issue solved, if devices register its own reset
+     *     functions for some reason via QEMU reset hooks, vIOMMU can still
+     *     be reset before the device. One example is vfio_reset_handler()
+     *     where FLR is not supported on the device.
+     *
+     *     TODO: merge relevant reset functions into the device tree reset
+     *     framework.
+     *
+     * Neither of the above TODO may be trivial.  To make it work for now,
+     * leverage reset stages and reset vIOMMU always at latter stage of the
+     * default.  It means it needs to be reset after at least:
+     *
+     *   - resettable_cold_reset_fn(): machine qdev tree reset
+     *   - vfio_reset_handler():       VFIO reset for !FLR
+     */
+    qemu_register_reset_one(vtd_reset, s, false, 1);
+}
+
 static const TypeInfo vtd_info = {
     .name          = TYPE_INTEL_IOMMU_DEVICE,
     .parent        = TYPE_X86_IOMMU_DEVICE,
     .instance_size = sizeof(IntelIOMMUState),
+    .instance_init = vtd_instance_init,
     .class_init    = vtd_class_init,
 };
 
