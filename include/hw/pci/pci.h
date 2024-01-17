@@ -403,6 +403,7 @@ typedef struct PCIIOMMUOps {
 } PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
+PCIBus *pci_device_iommu_bus(PCIDevice *dev);
 
 /**
  * pci_setup_iommu: Initialize specific IOMMU handlers for a PCIBus

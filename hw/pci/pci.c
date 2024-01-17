@@ -2672,6 +2672,22 @@ static void pci_device_class_base_init(ObjectClass *klass, void *data)
     }
 }
 
+PCIBus *pci_device_iommu_bus(PCIDevice *dev)
+{
+    PCIBus *bus = pci_get_bus(dev);
+    PCIBus *iommu_bus = bus;
+
+    while (iommu_bus && !iommu_bus->iommu_ops && iommu_bus->parent_dev) {
+        PCIBus *parent_bus = pci_get_bus(iommu_bus->parent_dev);
+
+        iommu_bus = parent_bus;
+    }
+    if (pci_bus_bypass_iommu(bus)) {
+        return NULL;
+    }
+    return iommu_bus;
+}
+
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 {
     PCIBus *bus = pci_get_bus(dev);
