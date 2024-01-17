@@ -370,7 +370,7 @@ cbw_child_perm(BlockDriverState *bs, BdrvChild *c, BdrvChildRole role,
              * works even if source node does not have any parents before backup
              * start
              */
-            *nperm = *nperm | BLK_PERM_CONSISTENT_READ;
+            *nperm = *nperm | BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
             *nshared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
         }
     }

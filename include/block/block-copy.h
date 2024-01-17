@@ -31,7 +31,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
 
 /* Function should be called prior any actual copy request */
 void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
-                              bool compress);
+                              bool compress, bool discard_source);
 void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm);
 
 void block_copy_state_free(BlockCopyState *s);
