@@ -39,23 +39,26 @@ typedef struct QEMUResetEntry {
 static QTAILQ_HEAD(, QEMUResetEntry) reset_handlers =
     QTAILQ_HEAD_INITIALIZER(reset_handlers);
 
-void qemu_register_reset(QEMUResetHandler *func, void *opaque)
+static void qemu_register_reset_one(QEMUResetHandler *func, void *opaque,
+                                    bool skip_snap)
 {
     QEMUResetEntry *re = g_new0(QEMUResetEntry, 1);
 
     re->func = func;
     re->opaque = opaque;
+    re->skip_on_snapshot_load = skip_snap;
     QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+}
+
+void qemu_register_reset(QEMUResetHandler *func, void *opaque)
+{
+    /* By default, do not skip during load of a snapshot */
+    qemu_register_reset_one(func, opaque, false);
 }
 
 void qemu_register_reset_nosnapshotload(QEMUResetHandler *func, void *opaque)
 {
-    QEMUResetEntry *re = g_new0(QEMUResetEntry, 1);
-
-    re->func = func;
-    re->opaque = opaque;
-    re->skip_on_snapshot_load = true;
-    QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+    qemu_register_reset_one(func, opaque, true);
 }
 
 void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
