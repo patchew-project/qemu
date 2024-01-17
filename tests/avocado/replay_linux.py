@@ -11,8 +11,9 @@
 import os
 import logging
 import time
+import subprocess
 
-from avocado import skipUnless
+from avocado import skipIf, skipUnless
 from avocado_qemu import BUILD_DIR
 from avocado.utils import cloudinit
 from avocado.utils import network
@@ -194,3 +195,76 @@ class ReplayLinuxAarch64(ReplayLinux):
         self.run_rr(shift=3,
                     args=(*self.get_common_args(),
                           "-machine", "virt,gic-version=3"))
+
+# ppc64 pseries test.
+#
+# This machine tends to fail replay and hang very close to the end of the
+# trace, with missing events, which is still an open issue.
+#
+# spapr-scsi IO driven by SLOF/grub is extremely slow in record/replay mode,
+# so jump through some hoops to boot the kernel directly. With this, the test
+# runs in about 5 minutes (modulo hang), which suggests other machines may
+# have similar issues and could benefit from bypassing bootloaders.
+#
+ppc_deps = ["guestfish"] # dependent tools needed in the test setup/box.
+
+def which(tool):
+    """ looks up the full path for @tool, returns None if not found
+        or if @tool does not have executable permissions.
+    """
+    paths=os.getenv('PATH')
+    for p in paths.split(os.path.pathsep):
+        p = os.path.join(p, tool)
+        if os.path.exists(p) and os.access(p, os.X_OK):
+            return p
+    return None
+
+def ppc_missing_deps():
+    """ returns True if any of the test dependent tools are absent.
+    """
+    for dep in ppc_deps:
+        if which(dep) is None:
+            return True
+    return False
+
+@skipIf(ppc_missing_deps(), 'dependencies (%s) not installed' % ','.join(ppc_deps))
+@skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'known failure in trace replay')
+class ReplayLinuxPPC64(ReplayLinux):
+    """
+    :avocado: tags=arch:ppc64
+    :avocado: tags=accel:tcg
+    """
+
+    hdd = 'scsi-hd'
+    cd = 'scsi-cd'
+    bus = None
+
+    def setUp(self):
+        super().setUp()
+
+        # kernel, initramfs, and kernel cmdline are all taken by hand from
+        # the Fedora image.
+        self.kernel="vmlinuz-5.3.7-301.fc31.ppc64le"
+        self.initramfs="initramfs-5.3.7-301.fc31.ppc64le.img"
+        cmd = "guestfish --ro -a %s run "
+              ": mount /dev/sda2 / "
+              ": copy-out /boot/%s %s "
+              ": copy-out /boot/%s %s "
+              % (self.boot_path, self.kernel, self.workdir,
+                 self.initramfs, self.workdir)
+        subprocess.run(cmd.split())
+
+    def test_pseries(self):
+        """
+        :avocado: tags=machine:pseries
+        """
+        kernel=os.path.normpath(os.path.join(self.workdir, self.kernel))
+        initramfs=os.path.normpath(os.path.join(self.workdir, self.initramfs))
+        cmdline="root=UUID=8a409ee6-3cb3-4b06-a266-39e2dae3e5fa ro "
+                "no_timer_check net.ifnames=0 console=tty1 "
+                "console=ttyS0,115200n8"
+        self.run_rr(shift=1, args=("-device", "spapr-vscsi",
+                                   "-machine", "x-vof=on",
+                                   "-kernel", kernel,
+                                   "-initrd", initramfs,
+                                   "-append", cmdline))
