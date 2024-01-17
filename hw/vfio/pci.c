@@ -2485,6 +2485,28 @@ int vfio_pci_get_pci_hot_reset_info(VFIOPCIDevice *vdev,
     return 0;
 }
 
+static int vfio_pci_set_iova_ranges(VFIOPCIDevice *vdev, Error **errp)
+{
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    PCIDevice *pdev = &vdev->pdev;
+    VFIOContainerBase *bcontainer = vbasedev->bcontainer;
+    PCIBus *bus, *iommu_bus;
+
+    if (!bcontainer->iova_ranges) {
+        return 0;
+    }
+
+    bus = pci_get_bus(pdev);
+    iommu_bus = pci_device_iommu_bus(pdev);
+    if (iommu_bus && iommu_bus->iommu_ops &&
+        iommu_bus->iommu_ops->set_host_iova_ranges) {
+        return iommu_bus->iommu_ops->set_host_iova_ranges(
+                   bus, iommu_bus->iommu_opaque,
+                   pdev->devfn, bcontainer->iova_ranges, errp);
+    }
+    return 0;
+}
+
 static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
@@ -3000,6 +3022,11 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     ret = vfio_attach_device(name, vbasedev,
                              pci_device_iommu_address_space(pdev), errp);
     g_free(name);
+    if (ret) {
+        goto error;
+    }
+
+    ret = vfio_pci_set_iova_ranges(vdev, errp);
     if (ret) {
         goto error;
     }
