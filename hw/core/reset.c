@@ -36,55 +36,83 @@ typedef struct QEMUResetEntry {
     bool skip_on_snapshot_load;
 } QEMUResetEntry;
 
-static QTAILQ_HEAD(, QEMUResetEntry) reset_handlers =
-    QTAILQ_HEAD_INITIALIZER(reset_handlers);
+typedef QTAILQ_HEAD(QEMUResetList, QEMUResetEntry) QEMUResetList;
+static QEMUResetList reset_handlers[QEMU_RESET_STAGES_N];
 
-static void qemu_register_reset_one(QEMUResetHandler *func, void *opaque,
-                                    bool skip_snap)
+static void __attribute__((__constructor__)) qemu_reset_handlers_init(void)
+{
+    QEMUResetList *head;
+    int i = 0;
+
+    for (i = 0; i < QEMU_RESET_STAGES_N; i++) {
+        head = &reset_handlers[i];
+        QTAILQ_INIT(head);
+    }
+}
+
+void qemu_register_reset_one(QEMUResetHandler *func, void *opaque,
+                             bool skip_snap, int stage)
 {
     QEMUResetEntry *re = g_new0(QEMUResetEntry, 1);
+    QEMUResetList *head;
+
+    assert(stage >= 0 && stage < QEMU_RESET_STAGES_N);
+    head = &reset_handlers[stage];
 
     re->func = func;
     re->opaque = opaque;
     re->skip_on_snapshot_load = skip_snap;
-    QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+    QTAILQ_INSERT_TAIL(head, re, entry);
 }
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
-    /* By default, do not skip during load of a snapshot */
-    qemu_register_reset_one(func, opaque, false);
+    qemu_register_reset_one(func, opaque, false, 0);
 }
 
 void qemu_register_reset_nosnapshotload(QEMUResetHandler *func, void *opaque)
 {
-    qemu_register_reset_one(func, opaque, true);
+    qemu_register_reset_one(func, opaque, true, 0);
 }
 
-void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
+void qemu_unregister_reset_one(QEMUResetHandler *func, void *opaque, int stage)
 {
+    QEMUResetList *head;
     QEMUResetEntry *re;
 
-    QTAILQ_FOREACH(re, &reset_handlers, entry) {
+    assert(stage >= 0 && stage < QEMU_RESET_STAGES_N);
+    head = &reset_handlers[stage];
+
+    QTAILQ_FOREACH(re, head, entry) {
         if (re->func == func && re->opaque == opaque) {
-            QTAILQ_REMOVE(&reset_handlers, re, entry);
+            QTAILQ_REMOVE(head, re, entry);
             g_free(re);
             return;
         }
     }
 }
 
+void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
+{
+    qemu_unregister_reset_one(func, opaque, 0);
+}
+
 void qemu_devices_reset(ShutdownCause reason)
 {
     QEMUResetEntry *re, *nre;
+    QEMUResetList *head;
+    int stage;
 
     /* reset all devices */
-    QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
-        if (reason == SHUTDOWN_CAUSE_SNAPSHOT_LOAD &&
-            re->skip_on_snapshot_load) {
-            continue;
+    for (stage = 0; stage < QEMU_RESET_STAGES_N; stage++) {
+        head = &reset_handlers[stage];
+        QTAILQ_FOREACH_SAFE(re, head, entry, nre) {
+            if (reason == SHUTDOWN_CAUSE_SNAPSHOT_LOAD &&
+                re->skip_on_snapshot_load) {
+                continue;
+            }
+            re->func(re->opaque);
         }
-        re->func(re->opaque);
     }
 }
 
