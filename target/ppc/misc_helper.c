@@ -209,9 +209,19 @@ void helper_store_dawr0(CPUPPCState *env, target_ulong value)
     ppc_store_dawr0(env, value);
 }
 
+void helper_store_dawr1(CPUPPCState *env, target_ulong value)
+{
+    ppc_store_dawr1(env, value);
+}
+
 void helper_store_dawrx0(CPUPPCState *env, target_ulong value)
 {
     ppc_store_dawrx0(env, value);
+}
+
+void helper_store_dawrx1(CPUPPCState *env, target_ulong value)
+{
+    ppc_store_dawrx1(env, value);
 }
 
 /*

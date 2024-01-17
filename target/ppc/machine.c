@@ -326,6 +326,7 @@ static int cpu_post_load(void *opaque, int version_id)
 #if defined(TARGET_PPC64)
         ppc_update_ciabr(env);
         ppc_update_daw0(env);
+        ppc_update_daw1(env);
 #endif
         /*
          * TCG needs to re-start the decrementer timer and/or raise the

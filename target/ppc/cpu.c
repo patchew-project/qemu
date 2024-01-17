@@ -188,6 +188,57 @@ void ppc_store_dawrx0(CPUPPCState *env, uint32_t val)
     env->spr[SPR_DAWRX0] = val;
     ppc_update_daw0(env);
 }
+
+void ppc_update_daw1(CPUPPCState *env)
+{
+    CPUState *cs = env_cpu(env);
+    target_ulong deaw = env->spr[SPR_DAWR1] & PPC_BITMASK(0, 60);
+    uint32_t dawrx = env->spr[SPR_DAWRX1];
+    int mrd = extract32(dawrx, PPC_BIT_NR(48), 54 - 48);
+    bool dw = extract32(dawrx, PPC_BIT_NR(57), 1);
+    bool dr = extract32(dawrx, PPC_BIT_NR(58), 1);
+    bool hv = extract32(dawrx, PPC_BIT_NR(61), 1);
+    bool sv = extract32(dawrx, PPC_BIT_NR(62), 1);
+    bool pr = extract32(dawrx, PPC_BIT_NR(62), 1);
+    vaddr len;
+    int flags;
+
+    if (env->dawr1_watchpoint) {
+        cpu_watchpoint_remove_by_ref(cs, env->dawr1_watchpoint);
+        env->dawr1_watchpoint = NULL;
+    }
+
+    if (!dr && !dw) {
+        return;
+    }
+
+    if (!hv && !sv && !pr) {
+        return;
+    }
+
+    len = (mrd + 1) * 8;
+    flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
+    if (dr) {
+        flags |= BP_MEM_READ;
+    }
+    if (dw) {
+        flags |= BP_MEM_WRITE;
+    }
+
+    cpu_watchpoint_insert(cs, deaw, len, flags, &env->dawr1_watchpoint);
+}
+
+void ppc_store_dawr1(CPUPPCState *env, target_ulong val)
+{
+    env->spr[SPR_DAWR1] = val;
+    ppc_update_daw1(env);
+}
+
+void ppc_store_dawrx1(CPUPPCState *env, uint32_t val)
+{
+    env->spr[SPR_DAWRX1] = val;
+    ppc_update_daw1(env);
+}
 #endif
 #endif
 

@@ -3314,10 +3314,19 @@ bool ppc_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 {
 #if defined(TARGET_PPC64)
     CPUPPCState *env = cpu_env(cs);
+    bool match = false;
+    uint32_t dawrx;
 
     if (env->insns_flags2 & PPC2_ISA207S) {
         if (wp == env->dawr0_watchpoint) {
-            uint32_t dawrx = env->spr[SPR_DAWRX0];
+            dawrx = env->spr[SPR_DAWRX0];
+            match = true;
+        } else if (wp == env->dawr1_watchpoint) {
+            dawrx = env->spr[SPR_DAWRX1];
+            match = true;
+        }
+
+        if (match == true) {
             bool wt = extract32(dawrx, PPC_BIT_NR(59), 1);
             bool wti = extract32(dawrx, PPC_BIT_NR(60), 1);
             bool hv = extract32(dawrx, PPC_BIT_NR(61), 1);
