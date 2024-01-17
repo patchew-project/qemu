@@ -385,6 +385,21 @@ typedef struct PCIIOMMUOps {
      * @devfn: device and function number
      */
    AddressSpace * (*get_address_space)(PCIBus *bus, void *opaque, int devfn);
+
+    /**
+     * @set_host_iova_ranges: convey the usable iova ranges for a given device
+     *
+     * Optional callback which returns 0 on success or an error value if any
+     * should be called after @get_address_space()
+     *
+     * @bus: the #PCIBus being accessed.
+     * @opaque: the data passed to pci_setup_iommu().
+     * @devfn: device and function number
+     * @iova_ranges: list of IOVA ranges usable by the device
+     * @errp: error handle
+     */
+   int (*set_host_iova_ranges)(PCIBus *bus, void *opaque, int devfn,
+                               GList *iova_ranges, Error **errp);
 } PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
