@@ -14,6 +14,9 @@ from avocado_qemu import LinuxTest, BUILD_DIR
 
 from avocado import skipUnless
 
+# We don't run TCG tests in CI, as booting the current Fedora OS in TCG tests
+# is very heavyweight (~100s per test). There are lighter weight distros which
+# we use in the machine_aarch64_virt.py, tux_baseline.py, etc.
 
 class BootLinuxX8664(LinuxTest):
     """
@@ -21,6 +24,7 @@ class BootLinuxX8664(LinuxTest):
     """
     timeout = 480
 
+    @skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
     def test_pc_i440fx_tcg(self):
         """
         :avocado: tags=machine:pc
@@ -39,6 +43,7 @@ class BootLinuxX8664(LinuxTest):
         self.vm.add_args("-accel", "kvm")
         self.launch_and_wait(set_up_ssh_connection=False)
 
+    @skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
     def test_pc_q35_tcg(self):
         """
         :avocado: tags=machine:q35
@@ -58,9 +63,6 @@ class BootLinuxX8664(LinuxTest):
         self.launch_and_wait(set_up_ssh_connection=False)
 
 
-# For Aarch64 we only boot KVM tests in CI as booting the current
-# Fedora OS in TCG tests is very heavyweight. There are lighter weight
-# distros which we use in the machine_aarch64_virt.py tests.
 class BootLinuxAarch64(LinuxTest):
     """
     :avocado: tags=arch:aarch64
@@ -84,14 +86,11 @@ class BootLinuxAarch64(LinuxTest):
         self.launch_and_wait(set_up_ssh_connection=False)
 
 
-# See the tux_baseline.py tests for almost the same coverage in a lot
-# less time.
 class BootLinuxPPC64(LinuxTest):
     """
     :avocado: tags=arch:ppc64
     """
-
-    timeout = 360
+    timeout = 480
 
     @skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
     def test_pseries_tcg(self):
@@ -108,8 +107,7 @@ class BootLinuxS390X(LinuxTest):
     """
     :avocado: tags=arch:s390x
     """
-
-    timeout = 240
+    timeout = 480
 
     @skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
     def test_s390_ccw_virtio_tcg(self):
