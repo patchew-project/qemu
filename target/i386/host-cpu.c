@@ -12,6 +12,8 @@
 #include "host-cpu.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
+#include "qemu/option.h"
 #include "sysemu/sysemu.h"
 
 /* Note: Only safe for use on x86(-64) hosts */
@@ -51,11 +53,58 @@ static void host_cpu_enable_cpu_pm(X86CPU *cpu)
     env->features[FEAT_1_ECX] |= CPUID_EXT_MONITOR;
 }
 
+static int intel_iommu_check(void *opaque, QemuOpts *opts, Error **errp)
+{
+    g_autofree char *dev_path = NULL, *iommu_path = NULL, *caps = NULL;
+    const char *driver = qemu_opt_get(opts, "driver");
+    const char *device = qemu_opt_get(opts, "host");
+    uint32_t *iommu_phys_bits = opaque;
+    struct stat st;
+    uint64_t iommu_caps;
+
+    /*
+     * Check if the user requested VFIO device assignment. We don't have
+     * to limit phys_bits if there are no valid assigned devices.
+     */
+    if (g_strcmp0(driver, "vfio-pci") || !device) {
+        return 0;
+    }
+
+    dev_path = g_strdup_printf("/sys/bus/pci/devices/%s", device);
+    if (stat(dev_path, &st) < 0) {
+        return 0;
+    }
+
+    iommu_path = g_strdup_printf("%s/iommu/intel-iommu/cap", dev_path);
+    if (stat(iommu_path, &st) < 0) {
+        return 0;
+    }
+
+    if (g_file_get_contents(iommu_path, &caps, NULL, NULL)) {
+        if (sscanf(caps, "%lx", &iommu_caps) != 1) {
+            return 0;
+        }
+        *iommu_phys_bits = ((iommu_caps >> 16) & 0x3f) + 1;
+    }
+
+    return 0;
+}
+
+static uint32_t host_iommu_phys_bits(void)
+{
+    uint32_t iommu_phys_bits = 0;
+
+    qemu_opts_foreach(qemu_find_opts("device"),
+                      intel_iommu_check, &iommu_phys_bits, NULL);
+    return iommu_phys_bits;
+}
+
 static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
 {
     uint32_t host_phys_bits = host_cpu_phys_bits();
+    uint32_t iommu_phys_bits = host_iommu_phys_bits();
     uint32_t phys_bits = cpu->phys_bits;
-    static bool warned;
+    static bool warned, warned2;
 
     /*
      * Print a warning if the user set it to a value that's not the
@@ -75,6 +124,16 @@ static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
         if (cpu->host_phys_bits_limit &&
             phys_bits > cpu->host_phys_bits_limit) {
             phys_bits = cpu->host_phys_bits_limit;
+        }
+    }
+
+    if (iommu_phys_bits && phys_bits > iommu_phys_bits) {
+        phys_bits = iommu_phys_bits;
+        if (!warned2) {
+            warn_report("Using physical bits (%u)"
+                        " to prevent VFIO mapping failures",
+                        iommu_phys_bits);
+            warned2 = true;
         }
     }
 
