@@ -299,6 +299,18 @@ static void spapr_dt_pa_features(SpaprMachineState *spapr,
         pa_features[4 + 2] &= ~0x80;
     }
 
+    if (tcg_enabled()) {
+        /*
+         * TCG does not implement copy/paste instructions. This causes a
+         * migration issue similarly to SAO, but there is no avoiding that
+         * since there is no KVM cap or way to disable the instructions in
+         * hardware. It's also quite an obscure instruction and is not really
+         * used in KVM guests since KVM does not support accelerator pass-
+         * through anyway.
+         */
+        pa_features[38 + 2] &= ~0x80;
+    }
+
     if (ppc_hash64_has(cpu, PPC_HASH64_CI_LARGEPAGE)) {
         /*
          * Note: we keep CI large pages off by default because a 64K capable
