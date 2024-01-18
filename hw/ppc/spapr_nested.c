@@ -13,8 +13,6 @@
 void spapr_nested_init(SpaprMachineState *spapr)
 {
     spapr->nested.api = 0;
-    spapr->nested.capabilities_set = false;
-    spapr_nested_gsb_init();
 }
 
 uint8_t spapr_nested_api(SpaprMachineState *spapr)
