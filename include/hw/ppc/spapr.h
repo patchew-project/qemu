@@ -1012,6 +1012,9 @@ void spapr_init_all_lpcrs(target_ulong value, target_ulong mask);
 hwaddr spapr_get_rtas_addr(void);
 bool spapr_memory_hot_unplug_supported(SpaprMachineState *spapr);
 
+void spapr_mce_inject(CPUState *cs, uint64_t srr1_mask, uint32_t dsisr,
+                      uint64_t dar, bool recovered);
+
 void spapr_vof_reset(SpaprMachineState *spapr, void *fdt, Error **errp);
 void spapr_vof_quiesce(MachineState *ms);
 bool spapr_vof_setprop(MachineState *ms, const char *path, const char *propname,
