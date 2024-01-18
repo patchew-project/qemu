@@ -158,6 +158,11 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
     char *nodename;
     int cpus_offset = get_cpus_node(fdt);
 
+    if (qemu_tcg_mttcg_enabled()) {
+        /* SSO (SAO) ordering is not supported under MTTCG. */
+        pa_features[4 + 2] &= ~0x80;
+    }
+
     nodename = g_strdup_printf("%s@%x", dc->fw_name, pc->pir);
     offset = fdt_add_subnode(fdt, cpus_offset, nodename);
     _FDT(offset);

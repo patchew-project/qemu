@@ -284,6 +284,21 @@ static void spapr_dt_pa_features(SpaprMachineState *spapr,
         return;
     }
 
+    if (qemu_tcg_mttcg_enabled()) {
+        /*
+         * SSO (SAO) ordering is not supported under MTTCG, so disable it.
+         * There is no cap for this, so there is a migration bug here.
+         * However don't disable it entirely, to allow it to be used under
+         * KVM. This is a minor concern because:
+         * - SAO is an obscure an rarely (if ever) used feature.
+         * - SAO is removed from POWER10 / v3.1, so there is already a
+         *   migration problem today.
+         * - Linux does not test this pa-features bit today anyway, so it's
+         *   academic.
+         */
+        pa_features[4 + 2] &= ~0x80;
+    }
+
     if (ppc_hash64_has(cpu, PPC_HASH64_CI_LARGEPAGE)) {
         /*
          * Note: we keep CI large pages off by default because a 64K capable
