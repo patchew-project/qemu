@@ -1025,5 +1025,6 @@ void spapr_vof_client_dt_finalize(SpaprMachineState *spapr, void *fdt);
 
 /* H_WATCHDOG */
 void spapr_watchdog_init(SpaprMachineState *spapr);
+void spapr_register_nested_hv(void);
 
 #endif /* HW_SPAPR_H */

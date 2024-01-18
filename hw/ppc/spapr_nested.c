@@ -375,7 +375,7 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     address_space_unmap(CPU(cpu)->as, regs, len, len, true);
 }
 
-void spapr_register_nested(void)
+void spapr_register_nested_hv(void)
 {
     spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
     spapr_register_hypercall(KVMPPC_H_ENTER_NESTED, h_enter_nested);
@@ -388,7 +388,7 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     g_assert_not_reached();
 }
 
-void spapr_register_nested(void)
+void spapr_register_nested_hv(void)
 {
     /* DO NOTHING */
 }
