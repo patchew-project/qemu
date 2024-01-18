@@ -111,6 +111,16 @@ static void init_efi_initrd_table(struct efi_system_table *systab,
     initrd_table->size = initrd_size;
 }
 
+static void init_efi_fdt_table(struct efi_system_table *systab)
+{
+    efi_guid_t tbl_guid = DEVICE_TREE_GUID;
+
+    /* efi_configuration_table 3 */
+    guidcpy(&systab->tables[2].guid, &tbl_guid);
+    systab->tables[2].table = (void *)0x100000; /* fdt_base 1MiB */
+    systab->nr_tables = 3;
+}
+
 static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
 {
     void *bp_tables_start;
@@ -136,6 +146,7 @@ static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
                   sizeof(efi_memory_desc_t) * memmap_entries, 64);
     init_efi_initrd_table(systab, p, start);
     p += ROUND_UP(sizeof(struct efi_initrd), 64);
+    init_efi_fdt_table(systab);
 
     systab->tables = (struct efi_configuration_table *)(bp_tables_start - start);
 }
