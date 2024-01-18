@@ -31,6 +31,7 @@
 #include "qapi/qapi-commands-machine-target.h"
 #include "cpu-models.h"
 #include "cpu-qom.h"
+#include "hw/nmi.h"
 
 static target_long monitor_get_ccr(Monitor *mon, const struct MonitorDef *md,
                                    int val)
@@ -89,6 +90,15 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
         return;
     }
     dump_mmu(env1);
+}
+
+void hmp_mce(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    mce_monitor_handle(qdict, &err);
+
+    hmp_handle_error(mon, err);
 }
 
 const MonitorDef monitor_defs[] = {

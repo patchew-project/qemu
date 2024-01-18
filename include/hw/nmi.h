@@ -42,4 +42,24 @@ struct NMIClass {
 
 void nmi_monitor_handle(int cpu_index, Error **errp);
 
+
+#define TYPE_MCE "mce"
+
+#define MCE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(MCEClass, (klass), TYPE_MCE)
+#define MCE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(MCEClass, (obj), TYPE_MCE)
+#define MCE(obj) \
+     INTERFACE_CHECK(MCEState, (obj), TYPE_MCE)
+
+typedef struct MCEState MCEState;
+
+typedef struct MCEClass {
+    InterfaceClass parent_class;
+
+    void (*mce_monitor_handler)(MCEState *n, const QDict *qdict, Error **errp);
+} MCEClass;
+
+void mce_monitor_handle(const QDict *qdict, Error **errp);
+
 #endif /* NMI_H */
