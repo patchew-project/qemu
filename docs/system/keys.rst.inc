@@ -1,7 +1,8 @@
 During the graphical emulation, you can use special key combinations to
 change modes. The default key mappings are shown below, but if you use
-``-alt-grab`` then the modifier is Ctrl-Alt-Shift (instead of Ctrl-Alt)
-and if you use ``-ctrl-grab`` then the modifier is the right Ctrl key
+``-display sdl,grab-mod=lshift-lctrl-lalt`` then the modifier is
+Ctrl-Alt-Shift(instead of Ctrl-Alt) and if you use
+``-display sdl,grab-mod=rctrl`` then the modifier is the right Ctrl key
 (instead of Ctrl-Alt):
 
 Ctrl-Alt-f
