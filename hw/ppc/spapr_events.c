@@ -875,8 +875,7 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
 
     if (spapr->fwnmi_machine_check_addr == -1) {
         /* Non-FWNMI case, deliver it like an architected CPU interrupt. */
-        cs->exception_index = POWERPC_EXCP_MCHECK;
-        ppc_cpu_do_interrupt(cs);
+        ppc_cpu_do_machine_check(cs);
         return;
     }
 

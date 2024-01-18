@@ -2565,6 +2565,13 @@ void ppc_cpu_do_system_reset(CPUState *cs)
     powerpc_excp(cpu, POWERPC_EXCP_RESET);
 }
 
+void ppc_cpu_do_machine_check(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+    powerpc_excp(cpu, POWERPC_EXCP_MCHECK);
+}
+
 void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
