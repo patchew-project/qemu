@@ -3949,6 +3949,10 @@ static Property virtio_net_properties[] = {
                       VIRTIO_NET_F_GUEST_USO6, true),
     DEFINE_PROP_BIT64("host_uso", VirtIONet, host_features,
                       VIRTIO_NET_F_HOST_USO, true),
+    DEFINE_PROP_BIT64("in_order", VirtIONet, host_features,
+                      VIRTIO_F_IN_ORDER, true),
+    DEFINE_PROP_BIT64("notification_data", VirtIONet, host_features,
+                      VIRTIO_F_NOTIFICATION_DATA, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
