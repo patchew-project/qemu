@@ -11013,6 +11013,26 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
     }
 
     if (env->exception.target_el == 2) {
+        /* Debug exceptions are reported differently on AARCH32 */
+        switch (syn_get_ec(env->exception.syndrome)) {
+        case EC_BREAKPOINT:
+        case EC_BREAKPOINT_SAME_EL:
+        case EC_AA32_BKPT:
+        case EC_VECTORCATCH:
+            env->exception.syndrome = syn_insn_abort(arm_current_el(env) == 2,
+                                                     0, 0, 0x22);
+            break;
+        case EC_WATCHPOINT:
+        case EC_WATCHPOINT_SAME_EL:
+            /*
+             * ISS is compatible between Watchpoints and Data Aborts. Also
+             * retain the lowest EC bit as it signals the originating EL.
+             */
+            env->exception.syndrome &= (1U << (ARM_EL_EC_SHIFT + 1)) - 1U;
+            env->exception.syndrome |= (EC_DATAABORT << ARM_EL_EC_SHIFT)
+                                       | ARM_EL_ISV;
+            break;
+        }
         arm_cpu_do_interrupt_aarch32_hyp(cs);
         return;
     }
