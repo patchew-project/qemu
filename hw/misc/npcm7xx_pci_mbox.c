@@ -76,22 +76,28 @@ static void npcm7xx_pci_mbox_send_response(NPCM7xxPCIMBoxState *s, uint8_t code)
 
 static void npcm7xx_pci_mbox_handle_read(NPCM7xxPCIMBoxState *s)
 {
+    uint8_t offset_bytes[4];
     MemTxResult r = memory_region_dispatch_read(
         &s->ram, s->offset, &s->data, MO_LE | size_memop(s->size),
         MEMTXATTRS_UNSPECIFIED);
 
-    npcm7xx_pci_mbox_send_response(s, (uint8_t)r);
+    stl_le_p(offset_bytes, r);
+    npcm7xx_pci_mbox_send_response(s, offset_bytes[0]);
 }
 
 static void npcm7xx_pci_mbox_handle_write(NPCM7xxPCIMBoxState *s)
 {
+    uint8_t offset_bytes[4];
     MemTxResult r = memory_region_dispatch_write(
         &s->ram, s->offset, s->data, MO_LE | size_memop(s->size),
         MEMTXATTRS_UNSPECIFIED);
 
-    npcm7xx_pci_mbox_send_response(s, (uint8_t)r);
+    stl_le_p(offset_bytes, r);
+    npcm7xx_pci_mbox_send_response(s, offset_bytes[0]);
 }
 
+// The device is using a Little Endian Protocol.
+// If running into errors, please check what protocol is being expected.
 static void npcm7xx_pci_mbox_receive_char(NPCM7xxPCIMBoxState *s, uint8_t byte)
 {
     switch (s->state) {
