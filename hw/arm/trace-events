@@ -81,3 +81,10 @@ strongarm_ssp_read(uint64_t addr) "Bad register 0x%zu"
 strongarm_ssp_write_wrong_data_size(int v) "Wrong data size: %i bits"
 strongarm_ssp_write_wrong_data_size_invalid(void) "Attempt to use SSP LBM mode"
 strongarm_ssp_write_bad_register(uint64_t addr) "Bad register 0x%zu"
+
+# xen_arm.c
+xen_create_virtio_mmio_devices(int i, int irq, uint64_t base) "Created virtio-mmio device %d: irq %d base 0x%lx"
+xen_init_ram(const char *hi_xor_low, uint64_t base, uint64_t size) "Initialized region xen.ram.%s: base 0x%lx size 0x%lx"
+xen_enable_tpm_not_found(void) "Couldn't find tmp0 backend"
+xen_enable_tpm(uint64_t addr) "Connected tpmdev at address 0x%lx"
+xen_arm_init(const char *msg) "%s"
