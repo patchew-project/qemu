@@ -489,6 +489,9 @@ static QemuOptsList qemu_spice_opts = {
             .name = "streaming-video",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "preferred-codec",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "agent-mouse",
             .type = QEMU_OPT_BOOL,
         },{
@@ -663,6 +666,7 @@ static void qemu_spice_init(void)
     char *x509_key_file = NULL,
         *x509_cert_file = NULL,
         *x509_cacert_file = NULL;
+    const char *preferred_codec = NULL;
     int port, tls_port, addr_flags;
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
@@ -800,6 +804,14 @@ static void qemu_spice_init(void)
         spice_server_set_streaming_video(spice_server, streaming_video);
     } else {
         spice_server_set_streaming_video(spice_server, SPICE_STREAM_VIDEO_OFF);
+    }
+
+    preferred_codec = qemu_opt_get(opts, "preferred-codec");
+    if (preferred_codec) {
+        if (spice_server_set_video_codecs(spice_server, preferred_codec)) {
+            error_report("Preferred codec name is not valid");
+            exit(1);
+        }
     }
 
     spice_server_set_agent_mouse
