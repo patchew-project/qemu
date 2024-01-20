@@ -893,6 +893,7 @@ static void spice_gl_switch(DisplayChangeListener *dcl,
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     EGLint stride, fourcc;
+    GLuint texture = 0;
     int fd;
 
     if (ssd->ds) {
@@ -910,6 +911,38 @@ static void spice_gl_switch(DisplayChangeListener *dcl,
         if (fd < 0) {
             surface_gl_destroy_texture(ssd->gls, ssd->ds);
             return;
+        }
+
+        if (remote_client && surface_format(ssd->ds) != PIXMAN_r5g6b5) {
+            /*
+             * We really want to ensure that the memory layout of the texture
+             * is linear; otherwise, the encoder's output may show corruption.
+             */
+            surface_gl_create_texture_from_fd(ssd->ds, fd, &texture);
+
+            /*
+             * A successful return after glImportMemoryFdEXT() means that
+             * the ownership of fd has been passed to GL. In other words,
+             * the fd we got above should not be used anymore.
+             */
+            if (texture > 0) {
+                fd = egl_get_fd_for_texture(texture,
+                                            &stride, &fourcc,
+                                            NULL);
+                if (fd < 0) {
+                    glDeleteTextures(1, &texture);
+                    fd = egl_get_fd_for_texture(ssd->ds->texture,
+                                                &stride, &fourcc,
+                                                NULL);
+                    if (fd < 0) {
+                        surface_gl_destroy_texture(ssd->gls, ssd->ds);
+                        return;
+                    }
+                } else {
+                    surface_gl_destroy_texture(ssd->gls, ssd->ds);
+                    ssd->ds->texture = texture;
+                }
+            }
         }
 
         trace_qemu_spice_gl_surface(ssd->qxl.id,
