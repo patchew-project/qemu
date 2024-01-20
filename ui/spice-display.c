@@ -900,6 +900,9 @@ static void spice_gl_switch(DisplayChangeListener *dcl,
     }
     ssd->ds = new_surface;
     if (ssd->ds) {
+        if (remote_client && surface_format(ssd->ds) != PIXMAN_r5g6b5) {
+            ssd->ds->target_glformat = GL_RGBA;
+        }
         surface_gl_create_texture(ssd->gls, ssd->ds);
         fd = egl_get_fd_for_texture(ssd->ds->texture,
                                     &stride, &fourcc,
