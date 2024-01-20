@@ -72,6 +72,12 @@ void surface_gl_create_texture(QemuGLShader *gls,
         g_assert_not_reached();
     }
 
+    /* The caller wants to override the glformat in some specific cases */
+    if (surface->target_glformat &&
+        surface->target_glformat != surface->glformat) {
+        surface->glformat = surface->target_glformat;
+    }
+
     glGenTextures(1, &surface->texture);
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, surface->texture);

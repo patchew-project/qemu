@@ -20,6 +20,7 @@ typedef struct DisplaySurface {
     uint8_t flags;
 #ifdef CONFIG_OPENGL
     GLenum glformat;
+    GLenum target_glformat;
     GLenum gltype;
     GLuint texture;
 #endif
