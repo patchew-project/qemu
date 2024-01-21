@@ -269,7 +269,7 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
 {
     const uint64_t target = viewport->target;
     const uint64_t base   = viewport->base;
-    const uint64_t size   = (uint64_t)viewport->limit - base + 1;
+    const uint64_t size   = viewport->limit - base + 1;
     const bool enabled    = viewport->cr[1] & DESIGNWARE_PCIE_ATU_ENABLE;
 
     MemoryRegion *current, *other;
@@ -351,6 +351,14 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
     case DESIGNWARE_PCIE_ATU_UPPER_BASE:
         viewport->base &= 0x00000000FFFFFFFFULL;
         viewport->base |= (uint64_t)val << 32;
+        /* The documentatoin states that the value of this register
+         * "Forms bits [63:32] of the start (and end) address
+         * of the address region to be translated.
+         * Note that from version 406A there is a sperate
+         * register fot the upper end address
+         */
+        viewport->limit &= 0x00000000FFFFFFFFULL;
+        viewport->limit |= (uint64_t)val << 32;
         break;
 
     case DESIGNWARE_PCIE_ATU_LOWER_TARGET:
@@ -364,7 +372,8 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
         break;
 
     case DESIGNWARE_PCIE_ATU_LIMIT:
-        viewport->limit = val;
+        viewport->limit &= 0xFFFFFFFF00000000ULL;
+        viewport->limit |= val;
         break;
 
     case DESIGNWARE_PCIE_ATU_CR1:
@@ -429,7 +438,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         viewport->inbound = true;
         viewport->base    = 0x0000000000000000ULL;
         viewport->target  = 0x0000000000000000ULL;
-        viewport->limit   = UINT32_MAX;
+        viewport->limit   = 0x00000000FFFFFFFFULL;
         viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
 
         source      = &host->pci.address_space_root;
@@ -453,7 +462,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         viewport->inbound = false;
         viewport->base    = 0x0000000000000000ULL;
         viewport->target  = 0x0000000000000000ULL;
-        viewport->limit   = UINT32_MAX;
+        viewport->limit   = 0x00000000FFFFFFFFULL;
         viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
 
         destination = &host->pci.memory;
@@ -560,7 +569,7 @@ static const VMStateDescription vmstate_designware_pcie_viewport = {
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(base, DesignwarePCIEViewport),
         VMSTATE_UINT64(target, DesignwarePCIEViewport),
-        VMSTATE_UINT32(limit, DesignwarePCIEViewport),
+        VMSTATE_UINT64(limit, DesignwarePCIEViewport),
         VMSTATE_UINT32_ARRAY(cr, DesignwarePCIEViewport, 2),
         VMSTATE_END_OF_LIST()
     }
