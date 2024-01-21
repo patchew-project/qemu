@@ -66,8 +66,12 @@ Z13_TESTS+=vcksm
 Z13_TESTS+=vstl
 Z13_TESTS+=vrep
 Z13_TESTS+=precise-smc-user
+Z13_TESTS+=chacha
 $(Z13_TESTS): CFLAGS+=-march=z13 -O2
 TESTS+=$(Z13_TESTS)
+
+chacha: chacha.c chacha-vx.S
+	$(CC) $(LDFLAGS) $(CFLAGS) $(EXTRA_CFLAGS) $^ -o $@
 
 ifneq ($(CROSS_CC_HAS_Z14),)
 Z14_TESTS=vfminmax
