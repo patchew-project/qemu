@@ -253,43 +253,29 @@ static inline TranslationBlock *tb_lookup(CPUState *cpu, vaddr pc,
     hash = tb_jmp_cache_hash_func(pc);
     jc = cpu->tb_jmp_cache;
 
-    if (cflags & CF_PCREL) {
-        /* Use acquire to ensure current load of pc from jc. */
-        tb = qatomic_load_acquire(&jc->array[hash].tb);
-
-        if (likely(tb &&
-                   jc->array[hash].pc == pc &&
-                   tb->cs_base == cs_base &&
-                   tb->flags == flags &&
-                   tb_cflags(tb) == cflags)) {
-            return tb;
-        }
-        tb = tb_htable_lookup(cpu, pc, cs_base, flags, cflags);
-        if (tb == NULL) {
-            return NULL;
-        }
-        jc->array[hash].pc = pc;
-        /* Ensure pc is written first. */
-        qatomic_store_release(&jc->array[hash].tb, tb);
-    } else {
-        /* Use rcu_read to ensure current load of pc from *tb. */
-        tb = qatomic_rcu_read(&jc->array[hash].tb);
-
-        if (likely(tb &&
-                   tb->pc == pc &&
-                   tb->cs_base == cs_base &&
-                   tb->flags == flags &&
-                   tb_cflags(tb) == cflags)) {
-            return tb;
-        }
-        tb = tb_htable_lookup(cpu, pc, cs_base, flags, cflags);
-        if (tb == NULL) {
-            return NULL;
-        }
-        /* Use the pc value already stored in tb->pc. */
-        qatomic_set(&jc->array[hash].tb, tb);
+    tb = qatomic_read(&jc->array[hash].tb);
+    if (likely(tb &&
+               jc->array[hash].pc == pc &&
+               tb->cs_base == cs_base &&
+               tb->flags == flags &&
+               tb_cflags(tb) == cflags)) {
+        goto hit;
     }
 
+    tb = tb_htable_lookup(cpu, pc, cs_base, flags, cflags);
+    if (tb == NULL) {
+        return NULL;
+    }
+
+    jc->array[hash].pc = pc;
+    qatomic_set(&jc->array[hash].tb, tb);
+
+hit:
+    /*
+     * As long as tb is not NULL, the contents are consistent.  Therefore,
+     * the virtual PC has to match for non-CF_PCREL translations.
+     */
+    assert((tb_cflags(tb) & CF_PCREL) || tb->pc == pc);
     return tb;
 }
 
