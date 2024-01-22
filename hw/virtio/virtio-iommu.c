@@ -399,27 +399,27 @@ static AddressSpace *virtio_iommu_find_add_as(PCIBus *bus, void *opaque,
                                               int real_devfn)
 {
     VirtIOIOMMU *s = opaque;
-    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
+    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, real_bus);
     static uint32_t mr_index;
     IOMMUDevice *sdev;
 
     if (!sbus) {
         sbus = g_malloc0(sizeof(IOMMUPciBus) +
                          sizeof(IOMMUDevice *) * PCI_DEVFN_MAX);
-        sbus->bus = bus;
-        g_hash_table_insert(s->as_by_busptr, bus, sbus);
+        sbus->bus = real_bus;
+        g_hash_table_insert(s->as_by_busptr, real_bus, sbus);
     }
 
-    sdev = sbus->pbdev[devfn];
+    sdev = sbus->pbdev[real_devfn];
     if (!sdev) {
         char *name = g_strdup_printf("%s-%d-%d",
                                      TYPE_VIRTIO_IOMMU_MEMORY_REGION,
-                                     mr_index++, devfn);
-        sdev = sbus->pbdev[devfn] = g_new0(IOMMUDevice, 1);
+                                     mr_index++, real_devfn);
+        sdev = sbus->pbdev[real_devfn] = g_new0(IOMMUDevice, 1);
 
         sdev->viommu = s;
-        sdev->bus = bus;
-        sdev->devfn = devfn;
+        sdev->bus = real_bus;
+        sdev->devfn = real_devfn;
 
         trace_virtio_iommu_init_iommu_mr(name);
 
