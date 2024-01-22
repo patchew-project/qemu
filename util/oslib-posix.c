@@ -63,11 +63,15 @@
 
 struct MemsetThread;
 
+static QLIST_HEAD(, MemsetContext) memset_contexts =
+    QLIST_HEAD_INITIALIZER(memset_contexts);
+
 typedef struct MemsetContext {
     bool all_threads_created;
     bool any_thread_failed;
     struct MemsetThread *threads;
     int num_threads;
+    QLIST_ENTRY(MemsetContext) next;
 } MemsetContext;
 
 struct MemsetThread {
@@ -417,13 +421,14 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
                            bool use_madv_populate_write)
 {
     static gsize initialized = 0;
-    MemsetContext context = {
-        .num_threads = get_memset_num_threads(hpagesize, numpages, max_threads),
-    };
+    MemsetContext *context = g_malloc0(sizeof(MemsetContext));
     size_t numpages_per_thread, leftover;
     void *(*touch_fn)(void *);
-    int ret = 0, i = 0;
+    int i = 0;
     char *addr = area;
+
+    context->num_threads =
+        get_memset_num_threads(hpagesize, numpages, max_threads);
 
     if (g_once_init_enter(&initialized)) {
         qemu_mutex_init(&page_mutex);
@@ -433,7 +438,7 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
 
     if (use_madv_populate_write) {
         /* Avoid creating a single thread for MADV_POPULATE_WRITE */
-        if (context.num_threads == 1) {
+        if (context->num_threads == 1) {
             if (qemu_madvise(area, hpagesize * numpages,
                              QEMU_MADV_POPULATE_WRITE)) {
                 return -errno;
@@ -445,49 +450,65 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
         touch_fn = do_touch_pages;
     }
 
-    context.threads = g_new0(MemsetThread, context.num_threads);
-    numpages_per_thread = numpages / context.num_threads;
-    leftover = numpages % context.num_threads;
-    for (i = 0; i < context.num_threads; i++) {
-        context.threads[i].addr = addr;
-        context.threads[i].numpages = numpages_per_thread + (i < leftover);
-        context.threads[i].hpagesize = hpagesize;
-        context.threads[i].context = &context;
+    context->threads = g_new0(MemsetThread, context->num_threads);
+    numpages_per_thread = numpages / context->num_threads;
+    leftover = numpages % context->num_threads;
+    for (i = 0; i < context->num_threads; i++) {
+        context->threads[i].addr = addr;
+        context->threads[i].numpages = numpages_per_thread + (i < leftover);
+        context->threads[i].hpagesize = hpagesize;
+        context->threads[i].context = context;
         if (tc) {
-            thread_context_create_thread(tc, &context.threads[i].pgthread,
+            thread_context_create_thread(tc, &context->threads[i].pgthread,
                                          "touch_pages",
-                                         touch_fn, &context.threads[i],
+                                         touch_fn, &context->threads[i],
                                          QEMU_THREAD_JOINABLE);
         } else {
-            qemu_thread_create(&context.threads[i].pgthread, "touch_pages",
-                               touch_fn, &context.threads[i],
+            qemu_thread_create(&context->threads[i].pgthread, "touch_pages",
+                               touch_fn, &context->threads[i],
                                QEMU_THREAD_JOINABLE);
         }
-        addr += context.threads[i].numpages * hpagesize;
+        addr += context->threads[i].numpages * hpagesize;
     }
 
     if (!use_madv_populate_write) {
-        sigbus_memset_context = &context;
+        sigbus_memset_context = context;
+    }
+
+    QLIST_INSERT_HEAD(&memset_contexts, context, next);
+
+    return 0;
+}
+
+static int wait_mem_prealloc(void)
+{
+    int i, ret = 0;
+    MemsetContext *context, *next_context;
+
+    if (QLIST_EMPTY(&memset_contexts)) {
+        return ret;
     }
 
     qemu_mutex_lock(&page_mutex);
-    context.all_threads_created = true;
+    QLIST_FOREACH(context, &memset_contexts, next) {
+        context->all_threads_created = true;
+    }
     qemu_cond_broadcast(&page_cond);
     qemu_mutex_unlock(&page_mutex);
 
-    for (i = 0; i < context.num_threads; i++) {
-        int tmp = (uintptr_t)qemu_thread_join(&context.threads[i].pgthread);
+    QLIST_FOREACH_SAFE(context, &memset_contexts, next, next_context) {
+        for (i = 0; i < context->num_threads; i++) {
+            int tmp =
+                (uintptr_t)qemu_thread_join(&context->threads[i].pgthread);
 
-        if (tmp) {
-            ret = tmp;
+            if (tmp) {
+                ret = tmp;
+            }
         }
+        QLIST_REMOVE(context, next);
+        g_free(context->threads);
+        g_free(context);
     }
-
-    if (!use_madv_populate_write) {
-        sigbus_memset_context = NULL;
-    }
-    g_free(context.threads);
-
     return ret;
 }
 
@@ -546,8 +567,16 @@ bool qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
         error_setg_errno(errp, -ret,
                          "qemu_prealloc_mem: preallocating memory failed");
         rv = false;
+        goto err;
     }
 
+    ret = wait_mem_prealloc();
+    if (ret) {
+        error_setg_errno(errp, -ret,
+                         "qemu_prealloc_mem: failed waiting for memory prealloc");
+        rv = false;
+    }
+err:
     if (!use_madv_populate_write) {
         ret = sigaction(SIGBUS, &sigbus_oldact, NULL);
         if (ret) {
@@ -556,6 +585,7 @@ bool qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
             exit(1);
         }
         qemu_mutex_unlock(&sigbus_mutex);
+        sigbus_memset_context = NULL;
     }
     return rv;
 }
