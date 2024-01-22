@@ -267,7 +267,7 @@ static int rfc3986_parse_fragment(URI *uri, const char **str)
         if (uri->cleanup & 2) {
             uri->fragment = g_strndup(*str, cur - *str);
         } else {
-            uri->fragment = uri_string_unescape(*str, cur - *str, NULL);
+            uri->fragment = uri_string_unescape(*str, cur - *str);
         }
     }
     *str = cur;
@@ -368,7 +368,7 @@ static int rfc3986_parse_user_info(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->user = g_strndup(*str, cur - *str);
             } else {
-                uri->user = uri_string_unescape(*str, cur - *str, NULL);
+                uri->user = uri_string_unescape(*str, cur - *str);
             }
         }
         *str = cur;
@@ -496,7 +496,7 @@ found:
             if (uri->cleanup & 2) {
                 uri->server = g_strndup(host, cur - host);
             } else {
-                uri->server = uri_string_unescape(host, cur - host, NULL);
+                uri->server = uri_string_unescape(host, cur - host);
             }
         } else {
             uri->server = NULL;
@@ -614,7 +614,7 @@ static int rfc3986_parse_path_ab_empty(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->path = g_strndup(*str, cur - *str);
             } else {
-                uri->path = uri_string_unescape(*str, cur - *str, NULL);
+                uri->path = uri_string_unescape(*str, cur - *str);
             }
         } else {
             uri->path = NULL;
@@ -663,7 +663,7 @@ static int rfc3986_parse_path_absolute(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->path = g_strndup(*str, cur - *str);
             } else {
-                uri->path = uri_string_unescape(*str, cur - *str, NULL);
+                uri->path = uri_string_unescape(*str, cur - *str);
             }
         } else {
             uri->path = NULL;
@@ -709,7 +709,7 @@ static int rfc3986_parse_path_rootless(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->path = g_strndup(*str, cur - *str);
             } else {
-                uri->path = uri_string_unescape(*str, cur - *str, NULL);
+                uri->path = uri_string_unescape(*str, cur - *str);
             }
         } else {
             uri->path = NULL;
@@ -755,7 +755,7 @@ static int rfc3986_parse_path_no_scheme(URI *uri, const char **str)
             if (uri->cleanup & 2) {
                 uri->path = g_strndup(*str, cur - *str);
             } else {
-                uri->path = uri_string_unescape(*str, cur - *str, NULL);
+                uri->path = uri_string_unescape(*str, cur - *str);
             }
         } else {
             uri->path = NULL;
@@ -1574,7 +1574,6 @@ static int is_hex(char c)
  * uri_string_unescape:
  * @str:  the string to unescape
  * @len:   the length in bytes to unescape (or <= 0 to indicate full string)
- * @target:  optional destination buffer
  *
  * Unescaping routine, but does not check that the string is an URI. The
  * output is a direct unsigned char translation of %XX values (no encoding)
@@ -1584,7 +1583,7 @@ static int is_hex(char c)
  * Returns a copy of the string, but unescaped, will return NULL only in case
  * of error
  */
-char *uri_string_unescape(const char *str, int len, char *target)
+char *uri_string_unescape(const char *str, int len)
 {
     char *ret, *out;
     const char *in;
@@ -1599,11 +1598,8 @@ char *uri_string_unescape(const char *str, int len, char *target)
         return NULL;
     }
 
-    if (target == NULL) {
-        ret = g_malloc(len + 1);
-    } else {
-        ret = target;
-    }
+    ret = g_malloc(len + 1);
+
     in = str;
     out = ret;
     while (len > 0) {
@@ -2274,14 +2270,14 @@ struct QueryParams *query_params_parse(const char *query)
          * and consistent with CGI.pm we assume value is "".
          */
         else if (!eq) {
-            name = uri_string_unescape(query, end - query, NULL);
+            name = uri_string_unescape(query, end - query);
             value = NULL;
         }
         /* Or if we have "name=" here (works around annoying
          * problem when calling uri_string_unescape with len = 0).
          */
         else if (eq + 1 == end) {
-            name = uri_string_unescape(query, eq - query, NULL);
+            name = uri_string_unescape(query, eq - query);
             value = g_new0(char, 1);
         }
         /* If the '=' character is at the beginning then we have
@@ -2293,8 +2289,8 @@ struct QueryParams *query_params_parse(const char *query)
 
         /* Otherwise it's "name=value". */
         else {
-            name = uri_string_unescape(query, eq - query, NULL);
-            value = uri_string_unescape(eq + 1, end - (eq + 1), NULL);
+            name = uri_string_unescape(query, eq - query);
+            value = uri_string_unescape(eq + 1, end - (eq + 1));
         }
 
         /* Append to the parameter set. */
