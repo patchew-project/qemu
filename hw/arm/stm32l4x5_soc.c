@@ -78,6 +78,28 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
 #define RCC_BASE_ADDRESS 0x40021000
 #define RCC_IRQ 5
 
+static const uint32_t gpio_addr[] = {
+    0x48000000,
+    0x48000400,
+    0x48000800,
+    0x48000C00,
+    0x48001000,
+    0x48001400,
+    0x48001800,
+    0x48001C00,
+};
+
+static const char *gpio_name[] = {
+    "gpioa",
+    "gpiob",
+    "gpioc",
+    "gpiod",
+    "gpioe",
+    "gpiof",
+    "gpiog",
+    "gpioh",
+};
+
 static void stm32l4x5_soc_initfn(Object *obj)
 {
     Stm32l4x5SocState *s = STM32L4X5_SOC(obj);
@@ -85,6 +107,15 @@ static void stm32l4x5_soc_initfn(Object *obj)
     object_initialize_child(obj, "exti", &s->exti, TYPE_STM32L4X5_EXTI);
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32L4X5_SYSCFG);
     object_initialize_child(obj, "rcc", &s->rcc, TYPE_STM32L4X5_RCC);
+
+    object_initialize_child(obj, "gpioa", &s->gpio[0], TYPE_STM32L4X5_GPIO_A);
+    object_initialize_child(obj, "gpiob", &s->gpio[1], TYPE_STM32L4X5_GPIO_B);
+    object_initialize_child(obj, "gpioc", &s->gpio[2], TYPE_STM32L4X5_GPIO_C);
+    object_initialize_child(obj, "gpiod", &s->gpio[3], TYPE_STM32L4X5_GPIO_D);
+    object_initialize_child(obj, "gpioe", &s->gpio[4], TYPE_STM32L4X5_GPIO_E);
+    object_initialize_child(obj, "gpiof", &s->gpio[5], TYPE_STM32L4X5_GPIO_F);
+    object_initialize_child(obj, "gpiog", &s->gpio[6], TYPE_STM32L4X5_GPIO_G);
+    object_initialize_child(obj, "gpioh", &s->gpio[7], TYPE_STM32L4X5_GPIO_H);
 }
 
 static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -95,6 +126,8 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     MemoryRegion *system_memory = get_system_memory();
     DeviceState *armv7m;
     SysBusDevice *busdev;
+    uint32_t pin_index;
+    char clk_name[10];
 
     if (!memory_region_init_rom(&s->flash, OBJECT(dev_soc), "flash",
                                 sc->flash_size, errp)) {
@@ -134,17 +167,33 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
+    /* GPIOs */
+    for (unsigned i = 0; i < NUM_GPIOS; i++) {
+        busdev = SYS_BUS_DEVICE(&s->gpio[i]);
+        sprintf(clk_name, "%s-out", gpio_name[i]);
+        qdev_connect_clock_in(DEVICE(&s->gpio[i]), "clk",
+            qdev_get_clock_out(DEVICE(&(s->rcc)), clk_name));
+        if (!sysbus_realize(busdev, errp)) {
+            return;
+        }
+        sysbus_mmio_map(busdev, 0, gpio_addr[i]);
+    }
+
     /* System configuration controller */
     busdev = SYS_BUS_DEVICE(&s->syscfg);
     if (!sysbus_realize(busdev, errp)) {
         return;
     }
     sysbus_mmio_map(busdev, 0, SYSCFG_ADDR);
-    /*
-     * TODO: when the GPIO device is implemented, connect it
-     * to SYCFG using `qdev_connect_gpio_out`, NUM_GPIOS and
-     * GPIO_NUM_PINS.
-     */
+
+    for (unsigned i = 0; i < NUM_GPIOS; i++) {
+        for (unsigned j = 0; j < GPIO_NUM_PINS; j++) {
+            pin_index = GPIO_NUM_PINS * i + j;
+            qdev_connect_gpio_out(DEVICE(&s->gpio[i]), j,
+                                  qdev_get_gpio_in(DEVICE(&s->syscfg),
+                                  pin_index));
+        }
+    }
 
     /* EXTI device */
     busdev = SYS_BUS_DEVICE(&s->exti);
@@ -241,14 +290,6 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     /* RESERVED:    0x40024400, 0x7FDBC00 */
 
     /* AHB2 BUS */
-    create_unimplemented_device("GPIOA",     0x48000000, 0x400);
-    create_unimplemented_device("GPIOB",     0x48000400, 0x400);
-    create_unimplemented_device("GPIOC",     0x48000800, 0x400);
-    create_unimplemented_device("GPIOD",     0x48000C00, 0x400);
-    create_unimplemented_device("GPIOE",     0x48001000, 0x400);
-    create_unimplemented_device("GPIOF",     0x48001400, 0x400);
-    create_unimplemented_device("GPIOG",     0x48001800, 0x400);
-    create_unimplemented_device("GPIOH",     0x48001C00, 0x400);
     /* RESERVED:    0x48002000, 0x7FDBC00 */
     create_unimplemented_device("OTG_FS",    0x50000000, 0x40000);
     create_unimplemented_device("ADC",       0x50040000, 0x400);
