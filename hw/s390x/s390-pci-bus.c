@@ -644,7 +644,8 @@ static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
     return iommu;
 }
 
-static AddressSpace *s390_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
+static AddressSpace *s390_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn,
+                                        PCIBus *real_bus, int real_devfn)
 {
     S390pciState *s = opaque;
     S390PCIIOMMU *iommu = s390_pci_get_iommu(s, bus, devfn);

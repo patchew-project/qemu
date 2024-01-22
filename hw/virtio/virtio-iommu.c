@@ -395,7 +395,8 @@ static void add_prop_resv_regions(IOMMUDevice *sdev)
 }
 
 static AddressSpace *virtio_iommu_find_add_as(PCIBus *bus, void *opaque,
-                                              int devfn)
+                                              int devfn, PCIBus *real_bus,
+                                              int real_devfn)
 {
     VirtIOIOMMU *s = opaque;
     IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);

@@ -569,7 +569,8 @@ SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num)
     return NULL;
 }
 
-static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
+static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn,
+                                      PCIBus *real_bus, int real_devfn)
 {
     SMMUState *s = opaque;
     SMMUPciBus *sbus = g_hash_table_lookup(s->smmu_pcibus_by_busptr, bus);

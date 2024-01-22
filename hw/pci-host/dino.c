@@ -347,7 +347,8 @@ static const MemoryRegionOps dino_config_addr_ops = {
 };
 
 static AddressSpace *dino_pcihost_set_iommu(PCIBus *bus, void *opaque,
-                                            int devfn)
+                                            int devfn, PCIBus *real_bus,
+                                            int real_devfn)
 {
     DinoState *s = opaque;
 

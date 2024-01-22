@@ -337,7 +337,8 @@ static IOMMUTLBEntry astro_translate_iommu(IOMMUMemoryRegion *iommu,
 }
 
 static AddressSpace *elroy_pcihost_set_iommu(PCIBus *bus, void *opaque,
-                                            int devfn)
+                                             int devfn,
+                                             PCIBus *real_bus, int real_devfn)
 {
     ElroyState *s = opaque;
     return &s->astro->iommu_as;

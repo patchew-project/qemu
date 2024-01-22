@@ -732,7 +732,8 @@ static IOMMUTLBEntry typhoon_translate_iommu(IOMMUMemoryRegion *iommu,
     return ret;
 }
 
-static AddressSpace *typhoon_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
+static AddressSpace *typhoon_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn,
+                                           PCIBus *real_bus, int real_devfn)
 {
     TyphoonState *s = opaque;
     return &s->pchip.iommu_as;

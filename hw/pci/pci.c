@@ -2719,7 +2719,8 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     }
     if (!pci_bus_bypass_iommu(bus) && iommu_bus->iommu_ops) {
         return iommu_bus->iommu_ops->get_address_space(bus,
-                                 iommu_bus->iommu_opaque, devfn);
+                                 iommu_bus->iommu_opaque, devfn,
+                                 pci_get_bus(dev), dev->devfn);
     }
     return &address_space_memory;
 }

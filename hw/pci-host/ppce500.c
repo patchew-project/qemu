@@ -428,7 +428,8 @@ static void e500_pcihost_bridge_realize(PCIDevice *d, Error **errp)
 }
 
 static AddressSpace *e500_pcihost_set_iommu(PCIBus *bus, void *opaque,
-                                            int devfn)
+                                            int devfn, PCIBus *real_bus,
+                                            int real_devfn)
 {
     PPCE500PCIState *s = opaque;
 

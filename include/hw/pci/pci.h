@@ -378,13 +378,18 @@ typedef struct PCIIOMMUOps {
      *
      * Mandatory callback which returns a pointer to an #AddressSpace
      *
-     * @bus: the #PCIBus being accessed.
+     * @bus: the aliased #PCIBus being accessed.
      *
      * @opaque: the data passed to pci_setup_iommu().
      *
-     * @devfn: device and function number
+     * @devfn: aliased device and function number
+     *
+     * @real_bus: the #PCIBus being accessed.
+     *
+     * @real_devfn: device and function number
      */
-   AddressSpace * (*get_address_space)(PCIBus *bus, void *opaque, int devfn);
+   AddressSpace * (*get_address_space)(PCIBus *bus, void *opaque, int devfn,
+                                       PCIBus *real_bus, int real_devfn);
 } PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);

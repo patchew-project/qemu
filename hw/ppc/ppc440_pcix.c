@@ -442,7 +442,8 @@ static void ppc440_pcix_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(*pci_irq, level);
 }
 
-static AddressSpace *ppc440_pcix_set_iommu(PCIBus *b, void *opaque, int devfn)
+static AddressSpace *ppc440_pcix_set_iommu(PCIBus *b, void *opaque, int devfn,
+                                           PCIBus *real_bus, int real_devfn)
 {
     PPC440PCIXState *s = opaque;
 
