@@ -1,8 +1,139 @@
-Backwards compatibility
+=======================
+Migration compatibility
 =======================
 
-How backwards compatibility works
----------------------------------
+Migration is a hard topic sometimes.  One of the major reason is that it
+has a strict compatibility requirement - a migration (live or not) can
+happen between two different versions of QEMUs, so QEMU needs to make sure
+the migration can work across different versions of QEMU binaries.
+
+This document majorly discusses the compatibility requirement of forward /
+backward migrations that QEMU need to maintain, and what QEMU developers
+should do to achieve such compatibility requirements across different QEMU
+versions.
+
+.. contents::
+
+Types of migrations (forward / backward)
+========================================
+
+Let's firstly define the terms **forward migration** and **backward
+migration**.
+
+.. note::
+
+    To simplify the use case, we always discuss between two consecutive
+    versions of QEMU major releases (between QEMU version *N* and QEMU
+    version *N-1*).  But logically it applies to the case where the two
+    QEMU binaries involved contains more than one major version difference.
+
+.. _forward_migration:
+
+**Forward migration**: can be seen as the use case where a VM cluster can
+upgrade its nodes to a newer version of QEMU (version *N*) from an older
+version of QEMU (version *N-1*).
+
+.. _backward_migration:
+
+**Backward migration**: can be seen as the use case where a VM cluster
+would like to migrate from a newer version of QEMU (version *N*) back to an
+even older version of QEMU (version *N-1*).
+
+A forward migration is more common, where system upgrades are needed.  In
+this case, the upgrade can be done seamlessly by live migrating the old VMs
+to the new VMs with the new binaries.
+
+A backward migration can be less common OTOH, because downgrade is less
+common than upgrade for whatever reasons.  However for a production level
+system setup, this should also be allowed, because a cluster can contain
+different versions of QEMU binary.  It should be always allowed to migrate
+between old and new hosts as long as the machine type is supported across
+all the relevant hosts / nodes.
+
+VMState description data structure (VMSD)
+=========================================
+
+VMSD (or in the complete form, **VMStateDescription**) is the data
+structure that QEMU uses to describe data to be migrated for devices.
+Each device should provide its own VMSD structure to describe what it needs
+to be migrated when a VM live migration is requested.
+
+Device VMSD compatibility
+=========================
+
+Then if the VMSD structures need changing, how does the device maintain
+compatibilty?
+
+Here we only discuss VMSD-based migrations.  If one device is not using
+VMSD to migrate its device data, it's considered part of "advanced users",
+then this document may not apply anymore.  If you're writting a new device,
+please always consider starting with VMSD-based migration model.
+
+Consider the case where a device can start to support a new feature in the
+current release, where it wasn't supported before.  The new feature may
+require some new device states to be migrated (which can be new VMSD fields
+to be added, or new subsections).  The same question needs to be answered
+when one would like to modify an existing VMSD fields / layouts to fix a
+bug, and so on.
+
+Depending on the goal, the solution to this problem may vary.
+
+If one would like to provide a full support of migration between whatever
+versions, one can try to implement it using :ref:`machine_type_compat`
+solution.  If one would like to provide a fundamental upgrade-only
+compatibility, one could consider to use the simpler
+:ref:`vmsd_versioning_compat` solution.
+
+Solutions
+=========
+
+.. _vmsd_versioning_compat:
+
+VMSD versioning (forward migration only)
+----------------------------------------
+
+This is normally the simplest way to support cross-version QEMU live
+migration. The trade-off is backward migration will not be supported. It
+means migrations from new QEMU binaries to old QEMU binaries can fail. It's
+because even if the new QEMU can understand the old version of VMSD by
+proper versioning of the VMSD fields, the old QEMU will not be able to
+understand the new version of VMSD layout.  Then when someone migrates a VM
+using the new VMSD to an older version of QEMU, the old QEMU will not
+accept the new migration stream, reporting that the VSMD version too new.
+
+Please have a look at **include/migration/vmstate.h** for more information
+on how to use VMSD versioning.
+
+Taking an example of adding a new field for migration.  The change will
+need to at least contain two parts:
+
+  - Boost existing VMSD version.
+
+  - Add the new VMSD field with the boosted version, with specific
+    **VMSTATE_\*_V()** macros.  For example, **VMSTATE_UINT8_V()** will
+    define an uint8 typed VMSD field with version specified.
+
+.. _machine_type_compat:
+
+Machine type based (forward+backward migration)
+-----------------------------------------------
+
+QEMU developers can leverage machine type compatibile properties to provide
+a fully migratable device / protocol, so the migration behavior will be
+defined by the machine type, no matter which QEMU binary will be used.  One
+can reference the entries defined in **hw_compat_\*** global properties for
+examples.
+
+Comparing to VMSD versioning approach above, this may require more code
+changes, but provide a higher level of compatibility that is bound to the
+machine type being used.  To be explicit, since the migration behavior is
+bound to machine type, it will support both forward migration and backward
+migration as long as the machine type is supported.
+
+.. note::
+
+   Currently this section is pretty long.  TODO: rewrite this section to
+   make it easier for QEMU developers to understand.
 
 When we do migration, we have two QEMU processes: the source and the
 target.  There are two cases, they are the same version or they are
@@ -216,6 +347,9 @@ machine types to have the right value::
     +    { "virtio-blk-device", "num-queues", "1"},
          ...
      };
+
+Extended readings
+=================
 
 A device with different features on both sides
 ----------------------------------------------
