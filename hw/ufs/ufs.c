@@ -301,6 +301,19 @@ static void ufs_process_uiccmd(UfsHc *u, uint32_t val)
      * are implemented.
      */
     switch (val) {
+    case UFS_UIC_CMD_DME_SET:
+        if (FIELD_EX32(u->reg.ucmdarg1, UCMDARG1, MIBattribute) ==
+            UFS_UNIPRO_PA_PWRMODE) {
+            u->reg.hcs = FIELD_DP32(u->reg.hcs, HCS, UPMCRS, UFS_PWR_LOCAL);
+            u->reg.is = FIELD_DP32(u->reg.is, IS, UPMS, 1);
+        }
+        u->reg.ucmdarg2 = UFS_UIC_CMD_RESULT_SUCCESS;
+        break;
+    case UFS_UIC_CMD_DME_GET:
+    case UFS_UIC_CMD_DME_PEER_GET:
+    case UFS_UIC_CMD_DME_PEER_SET:
+        u->reg.ucmdarg2 = UFS_UIC_CMD_RESULT_SUCCESS;
+        break;
     case UFS_UIC_CMD_DME_LINK_STARTUP:
         u->reg.hcs = FIELD_DP32(u->reg.hcs, HCS, DP, 1);
         u->reg.hcs = FIELD_DP32(u->reg.hcs, HCS, UTRLRDY, 1);
@@ -433,7 +446,6 @@ static const MemoryRegionOps ufs_mmio_ops = {
         .max_access_size = 4,
     },
 };
-
 
 void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
                            uint8_t response, uint8_t scsi_status,
@@ -1237,6 +1249,7 @@ static void ufs_init_hc(UfsHc *u)
     u->geometry_desc.supported_memory_types = cpu_to_be16(0x8001);
 
     memset(&u->attributes, 0, sizeof(u->attributes));
+    u->attributes.current_power_mode = 0x11; /* Active Power Mode */
     u->attributes.max_data_in_size = 0x08;
     u->attributes.max_data_out_size = 0x08;
     u->attributes.ref_clk_freq = 0x01; /* 26 MHz */
