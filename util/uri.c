@@ -1561,15 +1561,6 @@ done_cd:
     return 0;
 }
 
-static int is_hex(char c)
-{
-    if (((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f')) ||
-        ((c >= 'A') && (c <= 'F'))) {
-        return 1;
-    }
-    return 0;
-}
-
 /**
  * uri_string_unescape:
  * @str:  the string to unescape
@@ -1585,8 +1576,7 @@ static int is_hex(char c)
  */
 char *uri_string_unescape(const char *str, int len)
 {
-    char *ret, *out;
-    const char *in;
+    g_autofree char *lstr = NULL;
 
     if (str == NULL) {
         return NULL;
@@ -1594,42 +1584,9 @@ char *uri_string_unescape(const char *str, int len)
     if (len <= 0) {
         len = strlen(str);
     }
-    if (len < 0) {
-        return NULL;
-    }
+    lstr = g_strndup(str, len);
 
-    ret = g_malloc(len + 1);
-
-    in = str;
-    out = ret;
-    while (len > 0) {
-        if ((len > 2) && (*in == '%') && (is_hex(in[1])) && (is_hex(in[2]))) {
-            in++;
-            if ((*in >= '0') && (*in <= '9')) {
-                *out = (*in - '0');
-            } else if ((*in >= 'a') && (*in <= 'f')) {
-                *out = (*in - 'a') + 10;
-            } else if ((*in >= 'A') && (*in <= 'F')) {
-                *out = (*in - 'A') + 10;
-            }
-            in++;
-            if ((*in >= '0') && (*in <= '9')) {
-                *out = *out * 16 + (*in - '0');
-            } else if ((*in >= 'a') && (*in <= 'f')) {
-                *out = *out * 16 + (*in - 'a') + 10;
-            } else if ((*in >= 'A') && (*in <= 'F')) {
-                *out = *out * 16 + (*in - 'A') + 10;
-            }
-            in++;
-            len -= 3;
-            out++;
-        } else {
-            *out++ = *in++;
-            len--;
-        }
-    }
-    *out = 0;
-    return ret;
+    return g_uri_unescape_string(lstr, NULL);
 }
 
 /**
