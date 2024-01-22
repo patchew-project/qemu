@@ -265,7 +265,7 @@ int getpagesize(void)
 }
 
 bool qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
-                       ThreadContext *tc, Error **errp)
+                       ThreadContext *tc, bool async, Error **errp)
 {
     int i;
     size_t pagesize = qemu_real_host_page_size();
@@ -276,6 +276,12 @@ bool qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
     }
 
     return true;
+}
+
+int wait_mem_prealloc(void)
+{
+    /* async prealloc not supported */
+    return 0;
 }
 
 char *qemu_get_pid_name(pid_t pid)

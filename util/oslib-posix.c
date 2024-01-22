@@ -417,7 +417,7 @@ static inline int get_memset_num_threads(size_t hpagesize, size_t numpages,
 }
 
 static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
-                           int max_threads, ThreadContext *tc,
+                           int max_threads, ThreadContext *tc, bool async,
                            bool use_madv_populate_write)
 {
     static gsize initialized = 0;
@@ -438,7 +438,7 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
 
     if (use_madv_populate_write) {
         /* Avoid creating a single thread for MADV_POPULATE_WRITE */
-        if (context->num_threads == 1) {
+        if (context->num_threads == 1 && !async) {
             if (qemu_madvise(area, hpagesize * numpages,
                              QEMU_MADV_POPULATE_WRITE)) {
                 return -errno;
@@ -480,7 +480,7 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     return 0;
 }
 
-static int wait_mem_prealloc(void)
+int wait_mem_prealloc(void)
 {
     int i, ret = 0;
     MemsetContext *context, *next_context;
@@ -519,7 +519,7 @@ static bool madv_populate_write_possible(char *area, size_t pagesize)
 }
 
 bool qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
-                       ThreadContext *tc, Error **errp)
+                       ThreadContext *tc, bool async, Error **errp)
 {
     static gsize initialized;
     int ret;
@@ -561,7 +561,7 @@ bool qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
     }
 
     /* touch pages simultaneously */
-    ret = touch_all_pages(area, hpagesize, numpages, max_threads, tc,
+    ret = touch_all_pages(area, hpagesize, numpages, max_threads, tc, async,
                           use_madv_populate_write);
     if (ret) {
         error_setg_errno(errp, -ret,
@@ -570,12 +570,19 @@ bool qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
         goto err;
     }
 
-    ret = wait_mem_prealloc();
-    if (ret) {
-        error_setg_errno(errp, -ret,
-                         "qemu_prealloc_mem: failed waiting for memory prealloc");
-        rv = false;
+    /*
+     * Async prealloc is only allowed when using MADV_POPULATE_WRITE and
+     * prealloc context (to ensure optimal thread placement).
+     */
+    if (!async || !use_madv_populate_write || !tc) {
+        ret = wait_mem_prealloc();
+        if (ret) {
+            error_setg_errno(errp, -ret,
+                "qemu_prealloc_mem: failed waiting for memory prealloc");
+            rv = false;
+        }
     }
+
 err:
     if (!use_madv_populate_write) {
         ret = sigaction(SIGBUS, &sigbus_oldact, NULL);

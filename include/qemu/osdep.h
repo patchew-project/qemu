@@ -680,17 +680,27 @@ typedef struct ThreadContext ThreadContext;
  * @area: start address of the are to preallocate
  * @sz: the size of the area to preallocate
  * @max_threads: maximum number of threads to use
+ * @tc: prealloc context threads pointer, NULL if not in use
+ * @async: request asynchronous preallocation, requires @tc
  * @errp: returns an error if this function fails
  *
  * Preallocate memory (populate/prefault page tables writable) for the virtual
  * memory area starting at @area with the size of @sz. After a successful call,
  * each page in the area was faulted in writable at least once, for example,
- * after allocating file blocks for mapped files.
+ * after allocating file blocks for mapped files. When using @async,
+ * wait_mem_prealloc() is required to wait for the prealloction threads to
+ * terminate and associated cleanup.
  *
  * Return: true on success, else false setting @errp with error.
  */
 bool qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
-                       ThreadContext *tc, Error **errp);
+                       ThreadContext *tc, bool async, Error **errp);
+
+/**
+ * Wait for any outstanding memory prealloc initialization
+ * to complete.
+ */
+int wait_mem_prealloc(void);
 
 /**
  * qemu_get_pid_name:

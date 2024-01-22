@@ -2009,6 +2009,12 @@ static void qemu_create_late_backends(void)
 
     object_option_foreach_add(object_create_late);
 
+    /* Wait for any outstanding memory prealloc init to complete */
+    if (wait_mem_prealloc()) {
+        perror("memory preallocation failed");
+        exit(1);
+    }
+
     if (tpm_init() < 0) {
         exit(1);
     }
