@@ -269,8 +269,20 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
 {
     const uint64_t target = viewport->target;
     const uint64_t base   = viewport->base;
-    const uint64_t size   = (uint64_t)viewport->limit - base + 1;
+    uint64_t size;
     const bool enabled    = viewport->cr[1] & DESIGNWARE_PCIE_ATU_ENABLE;
+    uint64_t limit;
+
+    /*
+     * Versions 460A and above of this PCI controller have a
+     * 64-bit limit register. We currently model the older type
+     * where the limit register is 32 bits, and the upper 32 bits
+     * of the end address are the same as the upper 32 bits of
+     * the start address.
+     */
+
+    limit = deposit64(viewport->limit, 32, 32, extract64(base, 32, 32));
+    size = limit - base + 1;
 
     MemoryRegion *current, *other;
 
