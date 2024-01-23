@@ -1162,6 +1162,11 @@ static const char * const ast2600_a3_valid_cpu_types[] = {
     NULL
 };
 
+static const char * const ast1030_a1_valid_cpu_types[] = {
+    ARM_CPU_TYPE_NAME("cortex-m4"), /* TODO cortex-m4f */
+    NULL
+};
+
 static void aspeed_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1613,6 +1618,7 @@ static void aspeed_minibmc_machine_ast1030_evb_class_init(ObjectClass *oc,
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
     mc->desc = "Aspeed AST1030 MiniBMC (Cortex-M4)";
+    mc->valid_cpu_types = ast1030_a1_valid_cpu_types;
     amc->soc_name = "ast1030-a1";
     amc->hw_strap1 = 0;
     amc->hw_strap2 = 0;
