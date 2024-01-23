@@ -1021,7 +1021,8 @@ static inline bool starts_with_prefix(const char *dir)
 #pragma GCC diagnostic ignored "-Warray-bounds="
 #endif
     return !memcmp(dir, CONFIG_PREFIX, prefix_len) &&
-        (!dir[prefix_len] || G_IS_DIR_SEPARATOR(dir[prefix_len]));
+        (!dir[prefix_len] || G_IS_DIR_SEPARATOR(dir[prefix_len]) ||
+         !strcmp(CONFIG_PREFIX, "/"));
 #pragma GCC diagnostic pop
 }
 
