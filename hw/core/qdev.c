@@ -879,6 +879,16 @@ Object *qdev_get_machine(void)
     return dev;
 }
 
+char *qdev_get_human_name(DeviceState *dev)
+{
+    if (!dev) {
+        return g_strdup("");
+    }
+
+    return dev->id ?
+           g_strdup(dev->id) : object_get_canonical_path(OBJECT(dev));
+}
+
 static MachineInitPhase machine_phase;
 
 bool phase_check(MachineInitPhase phase)
