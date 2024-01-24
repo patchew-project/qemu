@@ -1070,21 +1070,21 @@ int cpu_exec(CPUState *cpu)
         return EXCP_HALTED;
     }
 
-    rcu_read_lock();
-    cpu_exec_enter(cpu);
+    WITH_RCU_READ_LOCK_GUARD() {
+        cpu_exec_enter(cpu);
 
-    /*
-     * Calculate difference between guest clock and host clock.
-     * This delay includes the delay of the last cycle, so
-     * what we have to do is sleep until it is 0. As for the
-     * advance/delay we gain here, we try to fix it next time.
-     */
-    init_delay_params(&sc, cpu);
+        /*
+         * Calculate difference between guest clock and host clock.
+         * This delay includes the delay of the last cycle, so
+         * what we have to do is sleep until it is 0. As for the
+         * advance/delay we gain here, we try to fix it next time.
+         */
+        init_delay_params(&sc, cpu);
 
-    ret = cpu_exec_setjmp(cpu, &sc);
+        ret = cpu_exec_setjmp(cpu, &sc);
 
-    cpu_exec_exit(cpu);
-    rcu_read_unlock();
+        cpu_exec_exit(cpu);
+    };
 
     return ret;
 }
