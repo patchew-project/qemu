@@ -33,4 +33,6 @@
 #endif
 #define TARGET_PAGE_BITS 12
 
+#define KVM_ARCH_HAVE_MCE_INJECTION 0
+
 #endif
