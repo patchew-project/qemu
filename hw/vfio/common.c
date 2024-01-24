@@ -308,13 +308,13 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
         return;
     }
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
 
     if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
         bool read_only;
 
         if (!vfio_get_xlat_addr(iotlb, &vaddr, NULL, &read_only)) {
-            goto out;
+            return;
         }
         /*
          * vaddr is only valid until rcu_read_unlock(). But after
@@ -343,8 +343,6 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
             vfio_set_migration_error(ret);
         }
     }
-out:
-    rcu_read_unlock();
 }
 
 static void vfio_ram_discard_notify_discard(RamDiscardListener *rdl,
@@ -1223,23 +1221,23 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     if (iotlb->target_as != &address_space_memory) {
         error_report("Wrong target AS \"%s\", only system memory is allowed",
                      iotlb->target_as->name ? iotlb->target_as->name : "none");
-        goto out;
-    }
-
-    rcu_read_lock();
-    if (vfio_get_xlat_addr(iotlb, NULL, &translated_addr, NULL)) {
-        ret = vfio_get_dirty_bitmap(bcontainer, iova, iotlb->addr_mask + 1,
-                                    translated_addr);
-        if (ret) {
-            error_report("vfio_iommu_map_dirty_notify(%p, 0x%"HWADDR_PRIx", "
-                         "0x%"HWADDR_PRIx") = %d (%s)",
-                         bcontainer, iova, iotlb->addr_mask + 1, ret,
-                         strerror(-ret));
+    } else {
+        WITH_RCU_READ_LOCK_GUARD() {
+            if (vfio_get_xlat_addr(iotlb, NULL, &translated_addr, NULL)) {
+                ret = vfio_get_dirty_bitmap(bcontainer, iova,
+                                            iotlb->addr_mask + 1,
+                                            translated_addr);
+                if (ret) {
+                    error_report("vfio_iommu_map_dirty_notify(%p,"
+                                 " 0x%"HWADDR_PRIx
+                                 ", 0x%"HWADDR_PRIx") = %d (%s)",
+                                 bcontainer, iova, iotlb->addr_mask + 1, ret,
+                                 strerror(-ret));
+                }
+            }
         }
     }
-    rcu_read_unlock();
 
-out:
     if (ret) {
         vfio_set_migration_error(ret);
     }
