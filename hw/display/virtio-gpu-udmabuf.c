@@ -42,9 +42,9 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
                      sizeof(struct udmabuf_create_item) * res->iov_cnt);
 
     for (i = 0; i < res->iov_cnt; i++) {
-        rcu_read_lock();
-        rb = qemu_ram_block_from_host(res->iov[i].iov_base, false, &offset);
-        rcu_read_unlock();
+        WITH_RCU_READ_LOCK_GUARD() {
+            rb = qemu_ram_block_from_host(res->iov[i].iov_base, false, &offset);
+        }
 
         if (!rb || rb->fd < 0) {
             g_free(list);
