@@ -241,15 +241,15 @@ static struct dirent *synth_get_dentry(V9fsSynthNode *dir,
     int i = 0;
     V9fsSynthNode *node;
 
-    rcu_read_lock();
-    QLIST_FOREACH(node, &dir->child, sibling) {
-        /* This is the off child of the directory */
-        if (i == off) {
-            break;
+    WITH_RCU_READ_LOCK_GUARD() {
+        QLIST_FOREACH(node, &dir->child, sibling) {
+            /* This is the off child of the directory */
+            if (i == off) {
+                break;
+            }
+            i++;
         }
-        i++;
     }
-    rcu_read_unlock();
     if (!node) {
         /* end of directory */
         return NULL;
@@ -494,13 +494,13 @@ static int synth_name_to_path(FsContext *ctx, V9fsPath *dir_path,
         goto out;
     }
     /* search for the name in the children */
-    rcu_read_lock();
-    QLIST_FOREACH(node, &dir_node->child, sibling) {
-        if (!strcmp(node->name, name)) {
-            break;
+    WITH_RCU_READ_LOCK_GUARD() {
+        QLIST_FOREACH(node, &dir_node->child, sibling) {
+            if (!strcmp(node->name, name)) {
+                break;
+            }
         }
     }
-    rcu_read_unlock();
 
     if (!node) {
         errno = ENOENT;
