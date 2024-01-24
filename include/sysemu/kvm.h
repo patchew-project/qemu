@@ -350,11 +350,11 @@ bool kvm_vcpu_id_is_valid(int vcpu_id);
 /* Returns VCPU ID to be used on KVM_CREATE_VCPU ioctl() */
 unsigned long kvm_arch_vcpu_id(CPUState *cpu);
 
-#if KVM_ARCH_HAVE_MCE_INJECTION
-#define KVM_HAVE_MCE_INJECTION
+#ifndef KVM_ARCH_HAVE_MCE_INJECTION
+#error Missing KVM_ARCH_HAVE_MCE_INJECTION definition in "cpu.h"
 #endif
 
-#ifdef KVM_HAVE_MCE_INJECTION
+#if KVM_ARCH_HAVE_MCE_INJECTION
 void kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 #endif
 

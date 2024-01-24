@@ -2750,7 +2750,7 @@ void kvm_cpu_synchronize_pre_loadvm(CPUState *cpu)
     run_on_cpu(cpu, do_kvm_cpu_synchronize_pre_loadvm, RUN_ON_CPU_NULL);
 }
 
-#ifdef KVM_HAVE_MCE_INJECTION
+#if KVM_ARCH_HAVE_MCE_INJECTION
 static __thread void *pending_sigbus_addr;
 static __thread int pending_sigbus_code;
 static __thread bool have_sigbus_pending;
@@ -2855,7 +2855,7 @@ int kvm_cpu_exec(CPUState *cpu)
 
         attrs = kvm_arch_post_run(cpu, run);
 
-#ifdef KVM_HAVE_MCE_INJECTION
+#if KVM_ARCH_HAVE_MCE_INJECTION
         if (unlikely(have_sigbus_pending)) {
             bql_lock();
             kvm_arch_on_sigbus_vcpu(cpu, pending_sigbus_code,
@@ -3339,7 +3339,7 @@ void kvm_init_cpu_signals(CPUState *cpu)
     sigaction(SIG_IPI, &sigact, NULL);
 
     pthread_sigmask(SIG_BLOCK, NULL, &set);
-#if defined KVM_HAVE_MCE_INJECTION
+#if KVM_ARCH_HAVE_MCE_INJECTION
     sigdelset(&set, SIGBUS);
     pthread_sigmask(SIG_SETMASK, &set, NULL);
 #endif
@@ -3358,7 +3358,7 @@ void kvm_init_cpu_signals(CPUState *cpu)
 /* Called asynchronously in VCPU thread.  */
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
-#ifdef KVM_HAVE_MCE_INJECTION
+#if KVM_ARCH_HAVE_MCE_INJECTION
     if (have_sigbus_pending) {
         return 1;
     }
@@ -3375,7 +3375,7 @@ int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 /* Called synchronously (via signalfd) in main thread.  */
 int kvm_on_sigbus(int code, void *addr)
 {
-#ifdef KVM_HAVE_MCE_INJECTION
+#if KVM_ARCH_HAVE_MCE_INJECTION
     /* Action required MCE kills the process if SIGBUS is blocked.  Because
      * that's what happens in the I/O thread, where we handle MCE via signalfd,
      * we can only get action optional here.
