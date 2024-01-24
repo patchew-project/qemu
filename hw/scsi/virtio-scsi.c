@@ -343,14 +343,14 @@ static void virtio_scsi_do_one_tmf_bh(VirtIOSCSIReq *req)
         target = req->req.tmf.lun[1];
         qatomic_inc(&s->resetting);
 
-        rcu_read_lock();
-        QTAILQ_FOREACH_RCU(kid, &s->bus.qbus.children, sibling) {
-            SCSIDevice *d1 = SCSI_DEVICE(kid->child);
-            if (d1->channel == 0 && d1->id == target) {
-                device_cold_reset(&d1->qdev);
+        WITH_RCU_READ_LOCK_GUARD() {
+            QTAILQ_FOREACH_RCU(kid, &s->bus.qbus.children, sibling) {
+                SCSIDevice *d1 = SCSI_DEVICE(kid->child);
+                if (d1->channel == 0 && d1->id == target) {
+                    device_cold_reset(&d1->qdev);
+                }
             }
         }
-        rcu_read_unlock();
 
         qatomic_dec(&s->resetting);
         break;
