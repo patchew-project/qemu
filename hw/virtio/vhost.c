@@ -186,12 +186,12 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
             hwaddr phys, s, offset;
 
             while (used_size) {
-                rcu_read_lock();
-                iotlb = address_space_get_iotlb_entry(dev->vdev->dma_as,
+                WITH_RCU_READ_LOCK_GUARD() {
+                    iotlb = address_space_get_iotlb_entry(dev->vdev->dma_as,
                                                       used_phys,
                                                       true,
                                                       MEMTXATTRS_UNSPECIFIED);
-                rcu_read_unlock();
+                }
 
                 if (!iotlb.target_as) {
                     qemu_log_mask(LOG_GUEST_ERROR, "translation "
