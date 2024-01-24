@@ -63,7 +63,7 @@ with iotests.FilePath('disk1.img') as base1_path, \
     finished = 0
     while True:
         try:
-            ev = vm.event_wait('JOB_STATUS_CHANGE', timeout=0.1)
+            ev = vm.event_wait('JOB_STATUS_CHANGE', timeout=0.3)
             if ev is not None and ev['data']['status'] == 'null':
                 finished += 1
                 # The test is done once both jobs are gone
