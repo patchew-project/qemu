@@ -505,6 +505,9 @@ static void rv64_thead_c906_cpu_init(Object *obj)
     cpu->cfg.ext_xtheadsync = true;
 
     cpu->cfg.mvendorid = THEAD_VENDOR_ID;
+    cpu->cfg.marchid = ((QEMU_VERSION_MAJOR << 16) |
+                        (QEMU_VERSION_MINOR << 8)  |
+                        (QEMU_VERSION_MICRO));
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_SV39);
 #endif
