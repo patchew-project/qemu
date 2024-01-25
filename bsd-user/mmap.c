@@ -256,6 +256,10 @@ static abi_ulong mmap_find_vma_aligned(abi_ulong start, abi_ulong size,
 
     size = HOST_PAGE_ALIGN(size);
 
+    if (size != (size_t)size) {
+        return (abi_ulong)(-1);
+    }
+
     if (reserved_va) {
         return mmap_find_vma_reserved(start, size,
             (alignment != 0 ? 1 << alignment :

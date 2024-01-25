@@ -389,6 +389,10 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong align)
 
     size = HOST_PAGE_ALIGN(size);
 
+    if (size != (size_t)size) {
+        return (abi_ulong)(-1);
+    }
+
     if (reserved_va) {
         return mmap_find_vma_reserved(start, size, align);
     }
