@@ -182,11 +182,30 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE__MAX, RUN_STATE__MAX },
 };
 
+static const RunStateTransition replay_runstate_transitions_def[] = {
+    { RUN_STATE_SHUTDOWN, RUN_STATE_RUNNING},
+
+    { RUN_STATE__MAX, RUN_STATE__MAX },
+};
+
 static bool runstate_valid_transitions[RUN_STATE__MAX][RUN_STATE__MAX];
 
 bool runstate_check(RunState state)
 {
     return current_run_state == state;
+}
+
+void runstate_replay_enable(void)
+{
+    const RunStateTransition *p;
+
+    assert(replay_mode == REPLAY_MODE_PLAY);
+
+    for (p = &replay_runstate_transitions_def[0]; p->from != RUN_STATE__MAX;
+         p++) {
+        runstate_valid_transitions[p->from][p->to] = true;
+    }
+
 }
 
 static void runstate_init(void)
