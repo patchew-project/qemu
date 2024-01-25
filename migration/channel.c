@@ -69,7 +69,7 @@ void migration_channel_connect(MigrationState *s,
 
     if (!error) {
         if (migrate_channel_requires_tls_upgrade(ioc)) {
-            migration_tls_channel_connect(s, ioc, hostname, &error);
+            migration_tls_channel_connect_main(s, ioc, hostname, &error);
 
             if (!error) {
                 /* tls_channel_connect will call back to this

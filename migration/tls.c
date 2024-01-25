@@ -98,17 +98,18 @@ void migration_tls_channel_process_incoming(MigrationState *s,
 }
 
 
-static void migration_tls_outgoing_handshake(QIOTask *task,
-                                             gpointer opaque)
+static void migration_tls_outgoing_handshake_main(QIOTask *task,
+                                                  gpointer opaque)
 {
     MigrationState *s = opaque;
     QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
-        trace_migration_tls_outgoing_handshake_error(error_get_pretty(err));
+        trace_migration_tls_outgoing_handshake_main_error(
+            error_get_pretty(err));
     } else {
-        trace_migration_tls_outgoing_handshake_complete();
+        trace_migration_tls_outgoing_handshake_main_complete();
     }
     migration_channel_connect(s, ioc, NULL, err);
     object_unref(OBJECT(ioc));
@@ -133,10 +134,8 @@ QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
     return qio_channel_tls_new_client(ioc, creds, hostname, errp);
 }
 
-void migration_tls_channel_connect(MigrationState *s,
-                                   QIOChannel *ioc,
-                                   const char *hostname,
-                                   Error **errp)
+void migration_tls_channel_connect_main(MigrationState *s, QIOChannel *ioc,
+                                        const char *hostname, Error **errp)
 {
     QIOChannelTLS *tioc;
 
@@ -147,13 +146,10 @@ void migration_tls_channel_connect(MigrationState *s,
 
     /* Save hostname into MigrationState for handshake */
     s->hostname = g_strdup(hostname);
-    trace_migration_tls_outgoing_handshake_start(hostname);
+    trace_migration_tls_outgoing_handshake_main_start(hostname);
     qio_channel_set_name(QIO_CHANNEL(tioc), "migration-tls-outgoing");
-    qio_channel_tls_handshake(tioc,
-                              migration_tls_outgoing_handshake,
-                              s,
-                              NULL,
-                              NULL);
+    qio_channel_tls_handshake(tioc, migration_tls_outgoing_handshake_main, s,
+                              NULL, NULL);
 }
 
 bool migrate_channel_requires_tls_upgrade(QIOChannel *ioc)
