@@ -27,6 +27,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <dirent.h>
 #include <termios.h>
 
 #include <glib/gprintf.h>
@@ -104,6 +105,41 @@ int qemu_get_thread_id(void)
 #else
     return getpid();
 #endif
+}
+
+/*
+ * Close all open file descriptors starting with minfd and up.
+ * Not using close_range for increased compatibility with older kernels.
+ */
+void os_close_all_open_fd(int minfd)
+{
+    struct dirent *de;
+    int fd, dfd;
+    DIR *dir;
+
+#ifdef CONFIG_CLOSE_RANGE
+    int r = close_range(minfd, ~0U, 0);
+    if (!r) {
+        /* Success, no need to try other ways. */
+        return;
+    }
+#endif
+
+    dir = opendir("/proc/self/fd");
+    if (!dir) {
+        /* If /proc is not mounted, there is nothing that can be done. */
+        return;
+    }
+    /* Avoid closing the directory. */
+    dfd = dirfd(dir);
+
+    for (de = readdir(dir); de; de = readdir(dir)) {
+        fd = atoi(de->d_name);
+        if (fd >= minfd && fd != dfd) {
+            close(fd);
+        }
+    }
+    closedir(dir);
 }
 
 int qemu_daemon(int nochdir, int noclose)

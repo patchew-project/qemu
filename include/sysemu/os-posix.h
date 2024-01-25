@@ -53,6 +53,7 @@ bool os_set_runas(const char *user_id);
 void os_set_chroot(const char *path);
 void os_setup_post(void);
 int os_mlock(void);
+void os_close_all_open_fd(int minfd);
 
 /**
  * qemu_alloc_stack:
