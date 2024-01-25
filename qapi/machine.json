@@ -136,6 +136,29 @@
 { 'command': 'query-cpus-fast', 'returns': [ 'CpuInfoFast' ] }
 
 ##
+# @CompatProperty:
+#
+# Machine type compatibility property that uses in machine
+# definitions to specify default values.  It's based on representaion
+# of properties in QEMU and created for machine type comparing
+# (see scripts/compare-machine-types.py)
+#
+# @driver: name of the driver which default value of certain property
+#     is changed in the machine type
+#
+# @property: property name
+#
+# @value: property value that will be assigned as default to
+#     the driver by machine type
+#
+# Since: 9.0
+##
+{ 'struct': 'CompatProperty',
+  'data': { 'driver': 'str',
+            'property': 'str',
+            'value': 'str' } }
+
+##
 # @MachineInfo:
 #
 # Information describing a machine.
@@ -166,6 +189,13 @@
 #
 # @acpi: machine type supports ACPI (since 8.0)
 #
+# @compat-props: List of the machine type's compatibility properties.
+#     (since 9.0)
+#
+# Features:
+#
+# @unstable: Member @compat-props is experimental.
+#
 # Since: 1.2
 ##
 { 'struct': 'MachineInfo',
@@ -173,18 +203,48 @@
             '*is-default': 'bool', 'cpu-max': 'int',
             'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
             'deprecated': 'bool', '*default-cpu-type': 'str',
-            '*default-ram-id': 'str', 'acpi': 'bool' } }
+            '*default-ram-id': 'str', 'acpi': 'bool',
+            '*compat-props': { 'type': ['CompatProperty'],
+                               'features': ['unstable'] } } }
 
 ##
 # @query-machines:
 #
 # Return a list of supported machines
 #
+# @compat-props: if true return will contain information about
+#     machine type compatibility properties (since 9.0)
+#
 # Returns: a list of MachineInfo
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "query-machines", "arguments": { "compat-props": true } }
+# <- { "return": [
+#          {
+#              "hotpluggable-cpus": true,
+#              "name": "pc-q35-6.2",
+#              "compat-props": [
+#                  {
+#                      "driver": "virtio-mem",
+#                      "property": "unplugged-inaccessible",
+#                      "value": "off"
+#                   }
+#               ],
+#               "numa-mem-supported": false,
+#               "default-cpu-type": "qemu64-x86_64-cpu",
+#               "cpu-max": 288,
+#               "deprecated": false,
+#               "default-ram-id": "pc.ram"
+#           },
+#           ...
+#    }
 ##
-{ 'command': 'query-machines', 'returns': ['MachineInfo'] }
+{ 'command': 'query-machines',
+  'data': { '*compat-props': 'bool' },
+  'returns': ['MachineInfo'] }
 
 ##
 # @CurrentMachineParams:
