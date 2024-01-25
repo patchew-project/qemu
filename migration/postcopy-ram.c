@@ -34,9 +34,9 @@
 #include "exec/ramblock.h"
 #include "socket.h"
 #include "yank_functions.h"
-#include "tls.h"
 #include "qemu/userfaultfd.h"
 #include "qemu/mmap-alloc.h"
+#include "channel.h"
 #include "options.h"
 
 /* Arbitrary limit on size of each discard command,
@@ -1621,65 +1621,6 @@ void postcopy_preempt_new_channel(MigrationIncomingState *mis, QEMUFile *file)
 }
 
 /*
- * Setup the postcopy preempt channel with the IOC.  If ERROR is specified,
- * setup the error instead.  This helper will free the ERROR if specified.
- */
-static void
-postcopy_preempt_send_channel_done(MigrationState *s,
-                                   QIOChannel *ioc, Error *local_err)
-{
-    if (local_err) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
-    } else {
-        migration_ioc_register_yank(ioc);
-        s->postcopy_qemufile_src = qemu_file_new_output(ioc);
-        trace_postcopy_preempt_new_channel();
-    }
-
-    /*
-     * Kick the waiter in all cases.  The waiter should check upon
-     * postcopy_qemufile_src to know whether it failed or not.
-     */
-    qemu_sem_post(&s->postcopy_qemufile_src_sem);
-}
-
-static void postcopy_preempt_tls_handshake(QIOChannel *ioc, gpointer opaque,
-                                           Error *err)
-{
-    MigrationState *s = opaque;
-
-    postcopy_preempt_send_channel_done(s, ioc, err);
-    object_unref(ioc);
-}
-
-static void
-postcopy_preempt_send_channel_new(QIOTask *task, gpointer opaque)
-{
-    g_autoptr(QIOChannel) ioc = QIO_CHANNEL(qio_task_get_source(task));
-    MigrationState *s = opaque;
-    Error *local_err = NULL;
-
-    if (qio_task_propagate_error(task, &local_err)) {
-        goto out;
-    }
-
-    if (migrate_channel_requires_tls_upgrade(ioc)) {
-        if (!migration_tls_channel_connect(ioc, "preempt", s->hostname,
-                                           postcopy_preempt_tls_handshake, s,
-                                           false, &local_err)) {
-            goto out;
-        }
-        /* Setup the channel until TLS handshake finished */
-        return;
-    }
-
-out:
-    /* This handles both good and error cases */
-    postcopy_preempt_send_channel_done(s, ioc, local_err);
-}
-
-/*
  * This function will kick off an async task to establish the preempt
  * channel, and wait until the connection setup completed.  Returns 0 if
  * channel established, -1 for error.
@@ -1697,7 +1638,9 @@ int postcopy_preempt_establish_channel(MigrationState *s)
      * setup phase of migration (even if racy in an unreliable network).
      */
     if (!s->preempt_pre_7_2) {
-        postcopy_preempt_setup(s);
+        if (postcopy_preempt_setup(s)) {
+            return -1;
+        }
     }
 
     /*
@@ -1709,10 +1652,44 @@ int postcopy_preempt_establish_channel(MigrationState *s)
     return s->postcopy_qemufile_src ? 0 : -1;
 }
 
-void postcopy_preempt_setup(MigrationState *s)
+/*
+ * Setup the postcopy preempt channel with the IOC.  If ERROR is specified,
+ * setup the error instead.  This helper will free the ERROR if specified.
+ */
+static void postcopy_preempt_send_channel_new_callback(QIOChannel *ioc,
+                                                       void *opaque, Error *err)
 {
-    /* Kick an async task to connect */
-    socket_send_channel_create(postcopy_preempt_send_channel_new, s);
+    MigrationState *s = opaque;
+
+    if (err) {
+        migrate_set_error(s, err);
+        error_free(err);
+    } else {
+        migration_ioc_register_yank(ioc);
+        s->postcopy_qemufile_src = qemu_file_new_output(ioc);
+        trace_postcopy_preempt_new_channel();
+    }
+
+    /*
+     * Kick the waiter in all cases.  The waiter should check upon
+     * postcopy_qemufile_src to know whether it failed or not.
+     */
+    qemu_sem_post(&s->postcopy_qemufile_src_sem);
+    object_unref(OBJECT(ioc));
+}
+
+int postcopy_preempt_setup(MigrationState *s)
+{
+    Error *local_err = NULL;
+
+    if (!migration_channel_connect(postcopy_preempt_send_channel_new_callback,
+                                   "preempt", s, false, &local_err)) {
+        migrate_set_error(s, local_err);
+        error_report_err(local_err);
+        return -1;
+    }
+
+    return 0;
 }
 
 static void postcopy_pause_ram_fast_load(MigrationIncomingState *mis)
