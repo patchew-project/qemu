@@ -794,6 +794,9 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
                                     QIOChannel *ioc,
                                     Error **errp);
 
+static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
+                                             QIOChannel *ioc, Error *err);
+
 static void multifd_tls_outgoing_handshake(QIOChannel *ioc, gpointer opaque,
                                            Error *err)
 {
@@ -805,17 +808,7 @@ static void multifd_tls_outgoing_handshake(QIOChannel *ioc, gpointer opaque,
         }
     }
 
-    migrate_set_error(migrate_get_current(), err);
-    /*
-     * Error happen, mark multifd_send_thread status as 'quit' although it
-     * is not created, and then tell who pay attention to me.
-     */
-    p->quit = true;
-    qemu_sem_post(&multifd_send_state->channels_ready);
-    qemu_sem_post(&p->sem_sync);
-    qemu_sem_post(&p->create_sem);
-    error_free(err);
-    object_unref(OBJECT(ioc));
+    multifd_new_send_channel_cleanup(p, ioc, err);
 }
 
 static bool multifd_channel_connect(MultiFDSendParams *p,
