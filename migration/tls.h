@@ -28,10 +28,6 @@ void migration_tls_channel_process_incoming(MigrationState *s,
                                             QIOChannel *ioc,
                                             Error **errp);
 
-QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
-                                           const char *hostname,
-                                           Error **errp);
-
 typedef void (*MigTLSConCallback)(QIOChannel *ioc, void *opaque, Error *err);
 
 /**
