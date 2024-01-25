@@ -823,7 +823,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
     MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
     QEMUFile *f;
-    bool default_channel = true;
+    bool main_channel = true;
     uint32_t channel_magic = 0;
     int ret = 0;
 
@@ -846,16 +846,16 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
             return;
         }
 
-        default_channel = (channel_magic == cpu_to_be32(QEMU_VM_FILE_MAGIC));
+        main_channel = (channel_magic == cpu_to_be32(QEMU_VM_FILE_MAGIC));
     } else {
-        default_channel = !mis->from_src_file;
+        main_channel = !mis->from_src_file;
     }
 
     if (multifd_load_setup(errp) != 0) {
         return;
     }
 
-    if (default_channel) {
+    if (main_channel) {
         f = qemu_file_new_input(ioc);
         migration_incoming_setup(f);
     } else {
@@ -874,7 +874,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
         }
     }
 
-    if (migration_should_start_incoming(default_channel)) {
+    if (migration_should_start_incoming(main_channel)) {
         /* If it's a recovery, we're done */
         if (postcopy_try_recover()) {
             return;
