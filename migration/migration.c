@@ -863,14 +863,14 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
         assert(migration_needs_multiple_sockets());
         if (migrate_multifd()) {
             multifd_recv_new_channel(ioc, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
         } else {
             assert(migrate_postcopy_preempt());
             f = qemu_file_new_input(ioc);
             postcopy_preempt_new_channel(mis, f);
-        }
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
         }
     }
 
