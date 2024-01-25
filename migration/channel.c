@@ -55,22 +55,20 @@ static void migration_channel_tls_handshake_main(QIOChannel *ioc, void *opaque,
 {
     MigrationState *s = opaque;
 
-    migration_channel_connect(s, ioc, NULL, err);
+    migration_channel_connect_main(s, ioc, NULL, err);
     object_unref(OBJECT(ioc));
 }
 
 /**
- * @migration_channel_connect - Create new outgoing migration channel
+ * @migration_channel_connect_main - Create new main outgoing migration channel
  *
  * @s: Current migration state
  * @ioc: Channel to which we are connecting
  * @hostname: Where we want to connect
  * @error: Error indicating failure to connect, free'd here
  */
-void migration_channel_connect(MigrationState *s,
-                               QIOChannel *ioc,
-                               const char *hostname,
-                               Error *error)
+void migration_channel_connect_main(MigrationState *s, QIOChannel *ioc,
+                                    const char *hostname, Error *error)
 {
     trace_migration_set_outgoing_channel(
         ioc, object_get_typename(OBJECT(ioc)), hostname, error);

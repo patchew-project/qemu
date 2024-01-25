@@ -106,7 +106,7 @@ static void socket_outgoing_migration(QIOTask *task,
     }
 
 out:
-    migration_channel_connect(data->s, sioc, data->hostname, err);
+    migration_channel_connect_main(data->s, sioc, data->hostname, err);
     object_unref(OBJECT(sioc));
 }
 
