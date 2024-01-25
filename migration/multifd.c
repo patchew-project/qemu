@@ -794,21 +794,16 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
                                     QIOChannel *ioc,
                                     Error **errp);
 
-static void multifd_tls_outgoing_handshake(QIOTask *task,
-                                           gpointer opaque)
+static void multifd_tls_outgoing_handshake(QIOChannel *ioc, gpointer opaque,
+                                           Error *err)
 {
     MultiFDSendParams *p = opaque;
-    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
-    Error *err = NULL;
 
-    if (!qio_task_propagate_error(task, &err)) {
-        trace_multifd_tls_outgoing_handshake_complete(ioc);
+    if (!err) {
         if (multifd_channel_connect(p, ioc, &err)) {
             return;
         }
     }
-
-    trace_multifd_tls_outgoing_handshake_error(ioc, error_get_pretty(err));
 
     migrate_set_error(migrate_get_current(), err);
     /*
@@ -820,59 +815,30 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
     qemu_sem_post(&p->sem_sync);
     qemu_sem_post(&p->create_sem);
     error_free(err);
-}
-
-static void *multifd_tls_handshake_thread(void *opaque)
-{
-    MultiFDSendParams *p = opaque;
-    QIOChannelTLS *tioc = QIO_CHANNEL_TLS(p->c);
-
-    qio_channel_tls_handshake(tioc,
-                              multifd_tls_outgoing_handshake,
-                              p,
-                              NULL,
-                              NULL);
-    return NULL;
-}
-
-static bool multifd_tls_channel_connect(MultiFDSendParams *p,
-                                        QIOChannel *ioc,
-                                        Error **errp)
-{
-    MigrationState *s = migrate_get_current();
-    const char *hostname = s->hostname;
-    QIOChannelTLS *tioc;
-
-    tioc = migration_tls_client_create(ioc, hostname, errp);
-    if (!tioc) {
-        return false;
-    }
-
     object_unref(OBJECT(ioc));
-    trace_multifd_tls_outgoing_handshake_start(ioc, tioc, hostname);
-    qio_channel_set_name(QIO_CHANNEL(tioc), "multifd-tls-outgoing");
-    p->c = QIO_CHANNEL(tioc);
-    qemu_thread_create(&p->thread, "multifd-tls-handshake-worker",
-                       multifd_tls_handshake_thread, p,
-                       QEMU_THREAD_JOINABLE);
-    return true;
 }
 
 static bool multifd_channel_connect(MultiFDSendParams *p,
                                     QIOChannel *ioc,
                                     Error **errp)
 {
-    trace_multifd_set_outgoing_channel(
-        ioc, object_get_typename(OBJECT(ioc)),
-        migrate_get_current()->hostname);
+    MigrationState *s = migrate_get_current();
+
+    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)),
+                                       s->hostname);
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         /*
-         * tls_channel_connect will call back to this
-         * function after the TLS handshake,
-         * so we mustn't call multifd_send_thread until then
+         * multifd_tls_outgoing_handshake will call back to this function after
+         * the TLS handshake, so we mustn't call multifd_send_thread until then.
          */
-        return multifd_tls_channel_connect(p, ioc, errp);
+        if (migration_tls_channel_connect(ioc, p->name, s->hostname,
+                                          multifd_tls_outgoing_handshake, p,
+                                          true, errp)) {
+            object_unref(OBJECT(ioc));
+            return true;
+        }
+        return false;
     }
 
     qio_channel_set_delay(ioc, false);
