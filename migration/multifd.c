@@ -538,6 +538,7 @@ void multifd_save_cleanup(void)
         multifd_send_channel_destroy(p->c);
         p->c = NULL;
         qemu_mutex_destroy(&p->mutex);
+        qemu_sem_destroy(&p->create_sem);
         qemu_sem_destroy(&p->sem);
         qemu_sem_destroy(&p->sem_sync);
         g_free(p->name);
@@ -766,6 +767,29 @@ out:
     return NULL;
 }
 
+int multifd_send_channels_created(void)
+{
+    int ret = 0;
+
+    if (!migrate_multifd()) {
+        return 0;
+    }
+
+    for (int i = 0; i < migrate_multifd_channels(); i++) {
+        MultiFDSendParams *p = &multifd_send_state->params[i];
+
+        qemu_sem_wait(&p->create_sem);
+        WITH_QEMU_LOCK_GUARD(&p->mutex) {
+            if (p->quit) {
+                error_report("%s: channel %d has already quit", __func__, i);
+                ret = -1;
+            }
+        }
+    }
+
+    return ret;
+}
+
 static bool multifd_channel_connect(MultiFDSendParams *p,
                                     QIOChannel *ioc,
                                     Error **errp);
@@ -794,6 +818,7 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
     p->quit = true;
     qemu_sem_post(&multifd_send_state->channels_ready);
     qemu_sem_post(&p->sem_sync);
+    qemu_sem_post(&p->create_sem);
     error_free(err);
 }
 
@@ -857,6 +882,7 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
     qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
                        QEMU_THREAD_JOINABLE);
     p->running = true;
+    qemu_sem_post(&p->create_sem);
     return true;
 }
 
@@ -864,15 +890,16 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
                                              QIOChannel *ioc, Error *err)
 {
      migrate_set_error(migrate_get_current(), err);
-     /* Error happen, we need to tell who pay attention to me */
-     qemu_sem_post(&multifd_send_state->channels_ready);
-     qemu_sem_post(&p->sem_sync);
      /*
+      * Error happen, we need to tell who pay attention to me.
       * Although multifd_send_thread is not created, but main migration
       * thread need to judge whether it is running, so we need to mark
       * its status.
       */
      p->quit = true;
+     qemu_sem_post(&multifd_send_state->channels_ready);
+     qemu_sem_post(&p->sem_sync);
+     qemu_sem_post(&p->create_sem);
      object_unref(OBJECT(ioc));
      error_free(err);
 }
@@ -921,6 +948,7 @@ int multifd_save_setup(Error **errp)
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
         qemu_mutex_init(&p->mutex);
+        qemu_sem_init(&p->create_sem, 0);
         qemu_sem_init(&p->sem, 0);
         qemu_sem_init(&p->sem_sync, 0);
         p->quit = false;

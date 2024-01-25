@@ -2937,6 +2937,13 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     RAMBlock *block;
     int ret;
 
+    bql_unlock();
+    ret = multifd_send_channels_created();
+    bql_lock();
+    if (ret < 0) {
+        return ret;
+    }
+
     if (compress_threads_save_setup()) {
         return -1;
     }

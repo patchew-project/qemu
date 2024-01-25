@@ -23,6 +23,7 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp);
 void multifd_recv_sync_main(void);
 int multifd_send_sync_main(void);
 int multifd_queue_page(RAMBlock *block, ram_addr_t offset);
+int multifd_send_channels_created(void);
 
 /* Multifd Compression flags */
 #define MULTIFD_FLAG_SYNC (1 << 0)
@@ -86,6 +87,8 @@ typedef struct {
     /* multifd flags for sending ram */
     int write_flags;
 
+    /* Syncs channel creation and migration thread */
+    QemuSemaphore create_sem;
     /* sem where to wait for more work */
     QemuSemaphore sem;
     /* syncs main thread and channels */

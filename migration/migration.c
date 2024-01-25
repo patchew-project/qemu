@@ -3621,6 +3621,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         error_report_err(local_err);
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_FAILED);
+        multifd_send_channels_created();
         migrate_fd_cleanup(s);
         return;
     }
