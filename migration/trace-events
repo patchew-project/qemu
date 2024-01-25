@@ -195,6 +195,9 @@ migration_transferred_bytes(uint64_t qemu_file, uint64_t multifd, uint64_t rdma)
 # channel.c
 migration_set_incoming_channel(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
 migration_set_outgoing_channel(void *ioc, const char *ioctype, const char *hostname, void *err)  "ioc=%p ioctype=%s hostname=%s err=%p"
+migration_channel_connect_start(const char *hostname, const char *name) "hostname=%s, name=%s"
+migration_channel_connect_error(const char *name, const char *err) "name=%s, err=%s"
+migration_channel_connect_complete(const char *name) "name=%s"
 
 # global_state.c
 migrate_state_too_big(void) ""

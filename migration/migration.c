@@ -141,9 +141,8 @@ static bool transport_supports_multi_channels(MigrationAddress *addr)
     return false;
 }
 
-static bool
-migration_channels_and_transport_compatible(MigrationAddress *addr,
-                                            Error **errp)
+bool migration_channels_and_transport_compatible(MigrationAddress *addr,
+                                                 Error **errp)
 {
     if (migration_needs_multiple_sockets() &&
         !transport_supports_multi_channels(addr)) {

@@ -27,4 +27,28 @@ int migration_channel_read_peek(QIOChannel *ioc,
                                 const char *buf,
                                 const size_t buflen,
                                 Error **errp);
+
+typedef void (*MigChannelCallback)(QIOChannel *ioc, void *opaque, Error *err);
+
+/**
+ * migration_channel_connect:
+ * @callback: The callback to invoke when completed
+ * @name: The name of the channel
+ * @opaque: Opaque data to pass to @callback
+ * @tls_in_thread: Whether to run TLS handshake in new thread or not (if TLS is
+ *                 needed).
+ * @errp: Pointer to a NULL-initialized error object pointer
+ *
+ * Establishes a new migration channel and TLS upgrades it if needed. If this
+ * function succeeds, @callback will be invoked upon completion and
+ * success/failure will be reported to it via the Error object.
+ * In case multiple channels are established in parallel, @tls_in_thread should
+ * be set to true so the TLS handshake will be performed in a new thread, to
+ * avoid a potential risk of migration hang.
+ *
+ * Returns: True on successful initiation of channel establishment process, or
+ * false on failure.
+ */
+bool migration_channel_connect(MigChannelCallback callback, const char *name,
+                               void *opaque, bool tls_in_thread, Error **errp);
 #endif

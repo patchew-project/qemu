@@ -21,6 +21,7 @@
 #include "io/channel-socket.h"
 #include "qemu/yank.h"
 #include "yank_functions.h"
+#include "socket.h"
 
 /**
  * @migration_channel_process_incoming - Create new incoming migration channel
@@ -101,6 +102,79 @@ void migration_channel_connect_main(MigrationState *s, QIOChannel *ioc,
     error_free(error);
 }
 
+typedef struct {
+    MigChannelCallback callback;
+    void *opaque;
+    char *name;
+    bool tls_in_thread;
+} MigChannelData;
+
+static void migration_channel_connect_tls_handshake(QIOChannel *ioc,
+                                                    void *opaque, Error *err)
+{
+    MigChannelData *data = opaque;
+
+    data->callback(ioc, data->opaque, err);
+    g_free(data->name);
+    g_free(data);
+}
+
+static void migration_channel_connect_callback(QIOTask *task, void *opaque)
+{
+    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
+    MigChannelData *data = opaque;
+    MigrationState *s = migrate_get_current();
+    Error *err = NULL;
+
+    if (qio_task_propagate_error(task, &err)) {
+        trace_migration_channel_connect_error(data->name,
+                                              error_get_pretty(err));
+        goto out;
+    }
+
+    trace_migration_channel_connect_complete(data->name);
+    if (!migrate_channel_requires_tls_upgrade(ioc)) {
+        goto out;
+    }
+
+    if (migration_tls_channel_connect(ioc, data->name, s->hostname,
+                                      migration_channel_connect_tls_handshake,
+                                      data, data->tls_in_thread, &err)) {
+        object_unref(OBJECT(ioc));
+        /* data->callback will be invoked after handshake */
+        return;
+    }
+
+out:
+    data->callback(ioc, data->opaque, err);
+    g_free(data->name);
+    g_free(data);
+}
+
+bool migration_channel_connect(MigChannelCallback callback, const char *name,
+                               void *opaque, bool tls_in_thread, Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+    MigChannelData *data;
+
+    g_assert(s->address);
+    g_assert(migration_channels_and_transport_compatible(s->address, NULL));
+
+    data = g_new0(MigChannelData, 1);
+    data->callback = callback;
+    data->opaque = opaque;
+    data->name = g_strdup(name);
+    data->tls_in_thread = tls_in_thread;
+
+    trace_migration_channel_connect_start(s->hostname, name);
+    /*
+     * Currently, creating migration channels other than main channel is
+     * supported only with socket transport.
+     */
+    socket_send_channel_create(migration_channel_connect_callback, data);
+
+    return true;
+}
 
 /**
  * @migration_channel_read_peek - Peek at migration channel, without
