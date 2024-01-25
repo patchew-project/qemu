@@ -313,8 +313,7 @@ static int kvm_xen_set_vcpu_callback_vector(CPUState *cs)
 
 static void do_set_vcpu_callback_vector(CPUState *cs, run_on_cpu_data data)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     env->xen_vcpu_callback_vector = data.host_int;
 
@@ -325,8 +324,7 @@ static void do_set_vcpu_callback_vector(CPUState *cs, run_on_cpu_data data)
 
 static int set_vcpu_info(CPUState *cs, uint64_t gpa)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
     MemoryRegionSection mrs = { .mr = NULL };
     void *vcpu_info_hva = NULL;
     int ret;
@@ -362,8 +360,7 @@ static int set_vcpu_info(CPUState *cs, uint64_t gpa)
 
 static void do_set_vcpu_info_default_gpa(CPUState *cs, run_on_cpu_data data)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     env->xen_vcpu_info_default_gpa = data.host_ulong;
 
@@ -375,8 +372,7 @@ static void do_set_vcpu_info_default_gpa(CPUState *cs, run_on_cpu_data data)
 
 static void do_set_vcpu_info_gpa(CPUState *cs, run_on_cpu_data data)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     env->xen_vcpu_info_gpa = data.host_ulong;
 
@@ -479,8 +475,7 @@ void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id, int type)
 /* Must always be called with xen_timers_lock held */
 static int kvm_xen_set_vcpu_timer(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     struct kvm_xen_vcpu_attr va = {
         .type = KVM_XEN_VCPU_ATTR_TYPE_TIMER,
@@ -527,8 +522,7 @@ int kvm_xen_set_vcpu_virq(uint32_t vcpu_id, uint16_t virq, uint16_t port)
 
 static void do_set_vcpu_time_info_gpa(CPUState *cs, run_on_cpu_data data)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     env->xen_vcpu_time_info_gpa = data.host_ulong;
 
@@ -538,8 +532,7 @@ static void do_set_vcpu_time_info_gpa(CPUState *cs, run_on_cpu_data data)
 
 static void do_set_vcpu_runstate_gpa(CPUState *cs, run_on_cpu_data data)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     env->xen_vcpu_runstate_gpa = data.host_ulong;
 
@@ -549,8 +542,7 @@ static void do_set_vcpu_runstate_gpa(CPUState *cs, run_on_cpu_data data)
 
 static void do_vcpu_soft_reset(CPUState *cs, run_on_cpu_data data)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     env->xen_vcpu_info_gpa = INVALID_GPA;
     env->xen_vcpu_info_default_gpa = INVALID_GPA;
@@ -1813,8 +1805,7 @@ uint16_t kvm_xen_get_evtchn_max_pirq(void)
 
 int kvm_put_xen_state(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
     uint64_t gpa;
     int ret;
 
@@ -1887,8 +1878,7 @@ int kvm_put_xen_state(CPUState *cs)
 
 int kvm_get_xen_state(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
     uint64_t gpa;
     int ret;
 

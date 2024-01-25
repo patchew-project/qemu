@@ -142,8 +142,7 @@ static void cris_cpu_set_irq(void *opaque, int irq, int level)
 
 static void cris_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
-    CRISCPU *cc = CRIS_CPU(cpu);
-    CPUCRISState *env = &cc->env;
+    CPUCRISState *env = cpu_env(cpu);
 
     if (env->pregs[PR_VR] != 32) {
         info->mach = bfd_mach_cris_v0_v10;

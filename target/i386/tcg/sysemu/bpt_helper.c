@@ -208,8 +208,7 @@ bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
 
 void breakpoint_handler(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     if (cs->watchpoint_hit) {
         if (cs->watchpoint_hit->flags & BP_CPU) {

@@ -5062,8 +5062,7 @@ static void x86_cpuid_version_get_family(Object *obj, Visitor *v,
                                          const char *name, void *opaque,
                                          Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     int64_t value;
 
     value = (env->cpuid_version >> 8) & 0xf;
@@ -5077,8 +5076,7 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v,
                                          const char *name, void *opaque,
                                          Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     const int64_t min = 0;
     const int64_t max = 0xff + 0xf;
     int64_t value;
@@ -5104,8 +5102,7 @@ static void x86_cpuid_version_get_model(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     int64_t value;
 
     value = (env->cpuid_version >> 4) & 0xf;
@@ -5117,8 +5114,7 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     const int64_t min = 0;
     const int64_t max = 0xff;
     int64_t value;
@@ -5140,8 +5136,7 @@ static void x86_cpuid_version_get_stepping(Object *obj, Visitor *v,
                                            const char *name, void *opaque,
                                            Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     int64_t value;
 
     value = env->cpuid_version & 0xf;
@@ -5152,8 +5147,7 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
                                            const char *name, void *opaque,
                                            Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     const int64_t min = 0;
     const int64_t max = 0xf;
     int64_t value;
@@ -5173,8 +5167,7 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
 
 static char *x86_cpuid_get_vendor(Object *obj, Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     char *value;
 
     value = g_malloc(CPUID_VENDOR_SZ + 1);
@@ -5186,8 +5179,7 @@ static char *x86_cpuid_get_vendor(Object *obj, Error **errp)
 static void x86_cpuid_set_vendor(Object *obj, const char *value,
                                  Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     int i;
 
     if (strlen(value) != CPUID_VENDOR_SZ) {
@@ -5208,8 +5200,7 @@ static void x86_cpuid_set_vendor(Object *obj, const char *value,
 
 static char *x86_cpuid_get_model_id(Object *obj, Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     char *value;
     int i;
 
@@ -5224,8 +5215,7 @@ static char *x86_cpuid_get_model_id(Object *obj, Error **errp)
 static void x86_cpuid_set_model_id(Object *obj, const char *model_id,
                                    Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(obj));
     int c, len, i;
 
     if (model_id == NULL) {
@@ -7673,8 +7663,7 @@ static vaddr x86_cpu_get_pc(CPUState *cs)
 
 int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
 #if !defined(CONFIG_USER_ONLY)
     if (interrupt_request & CPU_INTERRUPT_POLL) {
@@ -7722,8 +7711,7 @@ static bool x86_cpu_has_work(CPUState *cs)
 
 static void x86_disas_set_info(CPUState *cs, disassemble_info *info)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     info->mach = (env->hflags & HF_CS64_MASK ? bfd_mach_x86_64
                   : env->hflags & HF_CS32_MASK ? bfd_mach_i386_i386

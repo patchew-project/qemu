@@ -74,8 +74,7 @@ struct VMMouseState {
 
 static void vmmouse_get_data(uint32_t *data)
 {
-    X86CPU *cpu = X86_CPU(current_cpu);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(current_cpu));
 
     data[0] = env->regs[R_EAX]; data[1] = env->regs[R_EBX];
     data[2] = env->regs[R_ECX]; data[3] = env->regs[R_EDX];
@@ -84,8 +83,7 @@ static void vmmouse_get_data(uint32_t *data)
 
 static void vmmouse_set_data(const uint32_t *data)
 {
-    X86CPU *cpu = X86_CPU(current_cpu);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(CPU(current_cpu));
 
     env->regs[R_EAX] = data[0]; env->regs[R_EBX] = data[1];
     env->regs[R_ECX] = data[2]; env->regs[R_EDX] = data[3];

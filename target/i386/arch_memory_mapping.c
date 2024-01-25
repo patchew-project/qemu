@@ -269,8 +269,7 @@ static void walk_pml5e(MemoryMappingList *list, AddressSpace *as,
 bool x86_cpu_get_memory_mapping(CPUState *cs, MemoryMappingList *list,
                                 Error **errp)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
     int32_t a20_mask;
 
     if (!cpu_paging_enabled(cs)) {

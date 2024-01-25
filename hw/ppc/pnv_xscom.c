@@ -44,8 +44,7 @@ static void xscom_complete(CPUState *cs, uint64_t hmer_bits)
      * passed for the cpu, and no CPU completion is generated.
      */
     if (cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-        CPUPPCState *env = &cpu->env;
+        CPUPPCState *env = cpu_env(cs);
 
         /*
          * TODO: Need a CPU helper to set HMER, also handle generation

@@ -78,8 +78,7 @@ static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
 
 void x86_cpu_do_interrupt(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     /* if user mode only, we simulate a fake exception
        which will be handled outside the cpu execution
