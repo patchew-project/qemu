@@ -50,6 +50,14 @@ void migration_channel_process_incoming(QIOChannel *ioc)
     }
 }
 
+static void migration_channel_tls_handshake_main(QIOChannel *ioc, void *opaque,
+                                                 Error *err)
+{
+    MigrationState *s = opaque;
+
+    migration_channel_connect(s, ioc, NULL, err);
+    object_unref(OBJECT(ioc));
+}
 
 /**
  * @migration_channel_connect - Create new outgoing migration channel
@@ -69,14 +77,16 @@ void migration_channel_connect(MigrationState *s,
 
     if (!error) {
         if (migrate_channel_requires_tls_upgrade(ioc)) {
-            migration_tls_channel_connect_main(s, ioc, hostname, &error);
-
-            if (!error) {
-                /* tls_channel_connect will call back to this
-                 * function after the TLS handshake,
-                 * so we mustn't call migrate_fd_connect until then
+            /* Save hostname into MigrationState for handshake */
+            s->hostname = g_strdup(hostname);
+            if (migration_tls_channel_connect(
+                    ioc, "main", hostname, migration_channel_tls_handshake_main,
+                    s, false, &error)) {
+                /*
+                 * migration_channel_tls_handshake_main will call back to this
+                 * function after the TLS handshake, so we mustn't call
+                 * migrate_fd_connect until then.
                  */
-
                 return;
             }
         } else {
