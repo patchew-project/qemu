@@ -470,6 +470,9 @@ struct MigrationState {
     bool switchover_acked;
     /* Is this a rdma migration */
     bool rdma_migration;
+
+    /* The address used for this migration */
+    MigrationAddress *address;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

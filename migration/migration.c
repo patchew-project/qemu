@@ -1286,6 +1286,8 @@ static void migrate_fd_cleanup(MigrationState *s)
     s->hostname = NULL;
     json_writer_free(s->vmdesc);
     s->vmdesc = NULL;
+    qapi_free_MigrationAddress(s->address);
+    s->address = NULL;
 
     qemu_savevm_state_cleanup();
 
@@ -1974,6 +1976,8 @@ void qmp_migrate(const char *uri, bool has_channels,
         }
     }
 
+    s->address = QAPI_CLONE(MigrationAddress, addr);
+
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
         SocketAddress *saddr = &addr->u.socket;
         if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
@@ -2005,6 +2009,8 @@ void qmp_migrate(const char *uri, bool has_channels,
         }
         migrate_fd_error(s, local_err);
         error_propagate(errp, local_err);
+        qapi_free_MigrationAddress(s->address);
+        s->address = NULL;
         return;
     }
 }
