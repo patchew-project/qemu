@@ -152,6 +152,78 @@ void migration_tls_channel_connect_main(MigrationState *s, QIOChannel *ioc,
                               NULL, NULL);
 }
 
+typedef struct {
+    QIOChannelTLS *tioc;
+    MigTLSConCallback callback;
+    void *opaque;
+    char *name;
+    QemuThread thread;
+} MigTLSConData;
+
+static void migration_tls_outgoing_handshake(QIOTask *task, void *opaque)
+{
+    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
+    MigTLSConData *data = opaque;
+    Error *err = NULL;
+
+    if (qio_task_propagate_error(task, &err)) {
+        trace_migration_tls_outgoing_handshake_error(data->name,
+                                                     error_get_pretty(err));
+    } else {
+        trace_migration_tls_outgoing_handshake_complete(data->name);
+    }
+
+    data->callback(ioc, data->opaque, err);
+    g_free(data->name);
+    g_free(data);
+}
+
+static void *migration_tls_channel_connect_thread(void *opaque)
+{
+    MigTLSConData *data = opaque;
+
+    qio_channel_tls_handshake(data->tioc, migration_tls_outgoing_handshake,
+                              data, NULL, NULL);
+    return NULL;
+}
+
+bool migration_tls_channel_connect(QIOChannel *ioc, const char *name,
+                                   const char *hostname,
+                                   MigTLSConCallback callback, void *opaque,
+                                   bool run_in_thread, Error **errp)
+{
+    QIOChannelTLS *tioc;
+    MigTLSConData *data;
+    g_autofree char *channel_name = NULL;
+    g_autofree char *thread_name = NULL;
+
+    tioc = migration_tls_client_create(ioc, hostname, errp);
+    if (!tioc) {
+        return false;
+    }
+
+    data = g_new0(MigTLSConData, 1);
+    data->tioc = tioc;
+    data->callback = callback;
+    data->opaque = opaque;
+    data->name = g_strdup(name);
+
+    trace_migration_tls_outgoing_handshake_start(hostname, name);
+    channel_name = g_strdup_printf("migration-tls-outgoing-%s", name);
+    qio_channel_set_name(QIO_CHANNEL(tioc), channel_name);
+    if (!run_in_thread) {
+        qio_channel_tls_handshake(tioc, migration_tls_outgoing_handshake, data,
+                                  NULL, NULL);
+        return true;
+    }
+
+    thread_name = g_strdup_printf("migration-tls-outgoing-worker-%s", name);
+    qemu_thread_create(&data->thread, thread_name,
+                       migration_tls_channel_connect_thread, data,
+                       QEMU_THREAD_JOINABLE);
+    return true;
+}
+
 bool migrate_channel_requires_tls_upgrade(QIOChannel *ioc)
 {
     if (!migrate_tls()) {

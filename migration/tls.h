@@ -35,6 +35,33 @@ QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
 void migration_tls_channel_connect_main(MigrationState *s, QIOChannel *ioc,
                                         const char *hostname, Error **errp);
 
+typedef void (*MigTLSConCallback)(QIOChannel *ioc, void *opaque, Error *err);
+
+/**
+ * migration_tls_channel_connect:
+ * @ioc: The underlying channel object
+ * @name: The name of the channel
+ * @hostname: The user specified server hostname
+ * @callback: The callback to invoke when completed
+ * @opaque: Opaque data to pass to @callback
+ * @run_in_thread: Whether to run TLS handshake in new thread or not
+ * @errp: Pointer to a NULL-initialized error object pointer
+ *
+ * Establishes a TLS connection on top of the provided QIOChannel @ioc. If this
+ * function succeeds, @callback will be invoked upon completion and
+ * success/failure will be reported to it via the Error object argument.
+ * In case multiple channels are TLS upgraded in parallel, @run_in_thread
+ * should be set to true so the TLS handshake will be performed in a new
+ * thread, to avoid a potential risk of migration hang.
+ *
+ * Returns: True on successful initiation of TLS upgrade process, or false on
+ * failure.
+ */
+bool migration_tls_channel_connect(QIOChannel *ioc, const char *name,
+                                   const char *hostname,
+                                   MigTLSConCallback callback, void *opaque,
+                                   bool run_in_thread, Error **errp);
+
 /* Whether the QIO channel requires further TLS handshake? */
 bool migrate_channel_requires_tls_upgrade(QIOChannel *ioc);
 
