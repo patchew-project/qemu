@@ -18,10 +18,10 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "ram.h"
+#include "channel.h"
 #include "migration.h"
 #include "migration-stats.h"
 #include "socket.h"
-#include "tls.h"
 #include "qemu-file.h"
 #include "trace.h"
 #include "multifd.h"
@@ -790,61 +790,6 @@ int multifd_send_channels_created(void)
     return ret;
 }
 
-static bool multifd_channel_connect(MultiFDSendParams *p,
-                                    QIOChannel *ioc,
-                                    Error **errp);
-
-static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
-                                             QIOChannel *ioc, Error *err);
-
-static void multifd_tls_outgoing_handshake(QIOChannel *ioc, gpointer opaque,
-                                           Error *err)
-{
-    MultiFDSendParams *p = opaque;
-
-    if (!err) {
-        if (multifd_channel_connect(p, ioc, &err)) {
-            return;
-        }
-    }
-
-    multifd_new_send_channel_cleanup(p, ioc, err);
-}
-
-static bool multifd_channel_connect(MultiFDSendParams *p,
-                                    QIOChannel *ioc,
-                                    Error **errp)
-{
-    MigrationState *s = migrate_get_current();
-
-    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)),
-                                       s->hostname);
-
-    if (migrate_channel_requires_tls_upgrade(ioc)) {
-        /*
-         * multifd_tls_outgoing_handshake will call back to this function after
-         * the TLS handshake, so we mustn't call multifd_send_thread until then.
-         */
-        if (migration_tls_channel_connect(ioc, p->name, s->hostname,
-                                          multifd_tls_outgoing_handshake, p,
-                                          true, errp)) {
-            object_unref(OBJECT(ioc));
-            return true;
-        }
-        return false;
-    }
-
-    qio_channel_set_delay(ioc, false);
-    migration_ioc_register_yank(ioc);
-    p->registered_yank = true;
-    p->c = ioc;
-    qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
-                       QEMU_THREAD_JOINABLE);
-    p->running = true;
-    qemu_sem_post(&p->create_sem);
-    return true;
-}
-
 static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
                                              QIOChannel *ioc, Error *err)
 {
@@ -863,26 +808,34 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
      error_free(err);
 }
 
-static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
+static void multifd_new_send_channel_callback(QIOChannel *ioc, void *opaque,
+                                              Error *err)
 {
     MultiFDSendParams *p = opaque;
-    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
-    Error *local_err = NULL;
 
-    trace_multifd_new_send_channel_async(p->id);
-    if (!qio_task_propagate_error(task, &local_err)) {
-        if (multifd_channel_connect(p, ioc, &local_err)) {
-            return;
-        }
+    if (err) {
+        multifd_new_send_channel_cleanup(p, ioc, err);
+        return;
     }
 
-    trace_multifd_new_send_channel_async_error(p->id, local_err);
-    multifd_new_send_channel_cleanup(p, ioc, local_err);
+    qio_channel_set_delay(ioc, false);
+    migration_ioc_register_yank(ioc);
+    p->registered_yank = true;
+    p->c = ioc;
+    qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
+                       QEMU_THREAD_JOINABLE);
+    p->running = true;
+    qemu_sem_post(&p->create_sem);
 }
 
-static void multifd_new_send_channel_create(gpointer opaque)
+static void multifd_new_send_channel_create(MultiFDSendParams *p)
 {
-    socket_send_channel_create(multifd_new_send_channel_async, opaque);
+    Error *local_err = NULL;
+
+    if (!migration_channel_connect(multifd_new_send_channel_callback, p->name,
+                                   p, true, &local_err)) {
+        multifd_new_send_channel_cleanup(p, NULL, local_err);
+    }
 }
 
 int multifd_save_setup(Error **errp)
