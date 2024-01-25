@@ -6,8 +6,7 @@
  * Authors:
  *  Yuri Benditovich <yuri.benditovich@daynix.com>
  *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
@@ -24,6 +23,12 @@ bool ebpf_rss_is_loaded(struct EBPFRSSContext *ctx)
 }
 
 bool ebpf_rss_load(struct EBPFRSSContext *ctx)
+{
+    return false;
+}
+
+bool ebpf_rss_load_fds(struct EBPFRSSContext *ctx, int program_fd,
+                       int config_fd, int toeplitz_fd, int table_fd)
 {
     return false;
 }
