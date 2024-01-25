@@ -601,6 +601,7 @@ warn_flags = [
   '-Wno-psabi',
   '-Wno-gnu-variable-sized-type-not-at-end',
   '-Wshadow=local',
+  '-Wvla',
 ]
 
 if host_os != 'darwin'
