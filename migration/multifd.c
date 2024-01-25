@@ -850,11 +850,13 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
         return multifd_tls_channel_connect(p, ioc, errp);
     }
 
+    qio_channel_set_delay(ioc, false);
     migration_ioc_register_yank(ioc);
     p->registered_yank = true;
     p->c = ioc;
     qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
                        QEMU_THREAD_JOINABLE);
+    p->running = true;
     return true;
 }
 
@@ -883,8 +885,6 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 
     trace_multifd_new_send_channel_async(p->id);
     if (!qio_task_propagate_error(task, &local_err)) {
-        qio_channel_set_delay(ioc, false);
-        p->running = true;
         if (multifd_channel_connect(p, ioc, &local_err)) {
             return;
         }
