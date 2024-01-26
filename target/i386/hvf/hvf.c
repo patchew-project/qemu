@@ -159,10 +159,7 @@ static bool ept_emulation_fault(hvf_slot *slot, uint64_t gpa, uint64_t ept_qual)
 
 void hvf_arch_vcpu_destroy(CPUState *cpu)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
-
-    g_free(env->hvf_mmio_buf);
+    g_free(cpu_env(cpu)->hvf_mmio_buf);
 }
 
 static void init_tsc_freq(CPUX86State *env)
@@ -313,8 +310,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 
 static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_info)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
+    CPUX86State *env = cpu_env(cpu);
 
     env->exception_nr = -1;
     env->exception_pending = 0;

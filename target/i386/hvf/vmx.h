@@ -175,8 +175,7 @@ static inline void macvm_set_cr4(hv_vcpuid_t vcpu, uint64_t cr4)
 
 static inline void macvm_set_rip(CPUState *cpu, uint64_t rip)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
+    CPUX86State *env = cpu_env(cpu);
     uint64_t val;
 
     /* BUG, should take considering overlap.. */
@@ -196,10 +195,7 @@ static inline void macvm_set_rip(CPUState *cpu, uint64_t rip)
 
 static inline void vmx_clear_nmi_blocking(CPUState *cpu)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
-
-    env->hflags2 &= ~HF2_NMI_MASK;
+    cpu_env(cpu)->hflags2 &= ~HF2_NMI_MASK;
     uint32_t gi = (uint32_t) rvmcs(cpu->accel->fd, VMCS_GUEST_INTERRUPTIBILITY);
     gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
     wvmcs(cpu->accel->fd, VMCS_GUEST_INTERRUPTIBILITY, gi);
@@ -207,10 +203,7 @@ static inline void vmx_clear_nmi_blocking(CPUState *cpu)
 
 static inline void vmx_set_nmi_blocking(CPUState *cpu)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
-
-    env->hflags2 |= HF2_NMI_MASK;
+    cpu_env(cpu)->hflags2 |= HF2_NMI_MASK;
     uint32_t gi = (uint32_t)rvmcs(cpu->accel->fd, VMCS_GUEST_INTERRUPTIBILITY);
     gi |= VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
     wvmcs(cpu->accel->fd, VMCS_GUEST_INTERRUPTIBILITY, gi);
