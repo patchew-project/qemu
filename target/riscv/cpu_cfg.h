@@ -125,6 +125,15 @@ struct RISCVCPUConfig {
     /* Named features  */
     bool ext_svade;
     bool ext_zic64b;
+    bool ext_za64rs;
+    bool ext_ziccif;
+    bool ext_ziccrse;
+    bool ext_ziccamoa;
+    bool ext_zicclsm;
+    bool ext_ssccptr;
+    bool ext_sstvecd;
+    bool ext_sstvala;
+    bool ext_sscounterenw;
 
     /* Vendor-specific custom extensions */
     bool ext_xtheadba;

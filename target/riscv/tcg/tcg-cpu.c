@@ -206,7 +206,8 @@ static void riscv_cpu_enable_named_feat(RISCVCPU *cpu, uint32_t feat_offset)
         cpu->cfg.ext_svadu = false;
         break;
     default:
-        g_assert_not_reached();
+        /* Named feature already enabled in riscv_tcg_cpu_instance_init */
+        return;
     }
 }
 
@@ -1369,6 +1370,20 @@ static bool riscv_cpu_has_max_extensions(Object *cpu_obj)
     return object_dynamic_cast(cpu_obj, TYPE_RISCV_CPU_MAX) != NULL;
 }
 
+/* Named features that TCG always implements */
+static void riscv_tcg_cpu_enable_named_feats(RISCVCPU *cpu)
+{
+    cpu->cfg.ext_za64rs = true;
+    cpu->cfg.ext_ziccif = true;
+    cpu->cfg.ext_ziccrse = true;
+    cpu->cfg.ext_ziccamoa = true;
+    cpu->cfg.ext_zicclsm = true;
+    cpu->cfg.ext_ssccptr = true;
+    cpu->cfg.ext_sstvecd = true;
+    cpu->cfg.ext_sstvala = true;
+    cpu->cfg.ext_sscounterenw = true;
+}
+
 static void riscv_tcg_cpu_instance_init(CPUState *cs)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
@@ -1381,6 +1396,8 @@ static void riscv_tcg_cpu_instance_init(CPUState *cs)
     if (riscv_cpu_has_max_extensions(obj)) {
         riscv_init_max_cpu_extensions(obj);
     }
+
+    riscv_tcg_cpu_enable_named_feats(cpu);
 }
 
 static void riscv_tcg_cpu_init_ops(AccelCPUClass *accel_cpu, CPUClass *cc)
