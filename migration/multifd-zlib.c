@@ -319,7 +319,7 @@ static MultiFDMethods multifd_zlib_ops = {
 
 static void multifd_zlib_register(void)
 {
-    multifd_register_ops(MULTIFD_COMPRESSION_ZLIB, &multifd_zlib_ops);
+    multifd_register_compression(MULTIFD_COMPRESSION_ZLIB, &multifd_zlib_ops);
 }
 
 migration_init(multifd_zlib_register);

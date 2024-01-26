@@ -45,48 +45,17 @@ typedef struct {
     uint64_t unused2[4];    /* Reserved for future use */
 } __attribute__((packed)) MultiFDInit_t;
 
-/* Multifd without compression */
-
-/**
- * nocomp_send_setup: setup send side
- *
- * For no compression this function does nothing.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int nocomp_send_setup(MultiFDSendParams *p, Error **errp)
+static int multifd_socket_send_setup(MultiFDSendParams *p, Error **errp)
 {
     return 0;
 }
 
-/**
- * nocomp_send_cleanup: cleanup send side
- *
- * For no compression this function does nothing.
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static void nocomp_send_cleanup(MultiFDSendParams *p, Error **errp)
+static void multifd_socket_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
     return;
 }
 
-/**
- * nocomp_send_prepare: prepare date to be able to send
- *
- * For no compression we just have to calculate the size of the
- * packet.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int nocomp_send_prepare(MultiFDSendParams *p, Error **errp)
+static int multifd_socket_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     MultiFDPages_t *pages = p->pages;
 
@@ -101,43 +70,16 @@ static int nocomp_send_prepare(MultiFDSendParams *p, Error **errp)
     return 0;
 }
 
-/**
- * nocomp_recv_setup: setup receive side
- *
- * For no compression this function does nothing.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int nocomp_recv_setup(MultiFDRecvParams *p, Error **errp)
+static int multifd_socket_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     return 0;
 }
 
-/**
- * nocomp_recv_cleanup: setup receive side
- *
- * For no compression this function does nothing.
- *
- * @p: Params for the channel that we are using
- */
-static void nocomp_recv_cleanup(MultiFDRecvParams *p)
+static void multifd_socket_recv_cleanup(MultiFDRecvParams *p)
 {
 }
 
-/**
- * nocomp_recv_pages: read the data from the channel into actual pages
- *
- * For no compression we just need to read things into the correct place.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int nocomp_recv_pages(MultiFDRecvParams *p, Error **errp)
+static int multifd_socket_recv_pages(MultiFDRecvParams *p, Error **errp)
 {
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
 
@@ -153,23 +95,34 @@ static int nocomp_recv_pages(MultiFDRecvParams *p, Error **errp)
     return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
 }
 
-static MultiFDMethods multifd_nocomp_ops = {
-    .send_setup = nocomp_send_setup,
-    .send_cleanup = nocomp_send_cleanup,
-    .send_prepare = nocomp_send_prepare,
-    .recv_setup = nocomp_recv_setup,
-    .recv_cleanup = nocomp_recv_cleanup,
-    .recv_pages = nocomp_recv_pages
+static MultiFDMethods multifd_socket_ops = {
+    .send_setup = multifd_socket_send_setup,
+    .send_cleanup = multifd_socket_send_cleanup,
+    .send_prepare = multifd_socket_send_prepare,
+    .recv_setup = multifd_socket_recv_setup,
+    .recv_cleanup = multifd_socket_recv_cleanup,
+    .recv_pages = multifd_socket_recv_pages
 };
 
-static MultiFDMethods *multifd_ops[MULTIFD_COMPRESSION__MAX] = {
-    [MULTIFD_COMPRESSION_NONE] = &multifd_nocomp_ops,
-};
+static MultiFDMethods *multifd_compression_ops[MULTIFD_COMPRESSION__MAX] = {0};
 
-void multifd_register_ops(int method, MultiFDMethods *ops)
+static MultiFDMethods *multifd_get_ops(void)
+{
+    MultiFDCompression comp = migrate_multifd_compression();
+
+    assert(comp < MULTIFD_COMPRESSION__MAX);
+
+    if (comp != MULTIFD_COMPRESSION_NONE) {
+        return multifd_compression_ops[comp];
+    }
+
+    return &multifd_socket_ops;
+}
+
+void multifd_register_compression(int method, MultiFDMethods *ops)
 {
     assert(0 < method && method < MULTIFD_COMPRESSION__MAX);
-    multifd_ops[method] = ops;
+    multifd_compression_ops[method] = ops;
 }
 
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
@@ -915,7 +868,7 @@ int multifd_save_setup(Error **errp)
     multifd_send_state->pages = multifd_pages_init(page_count);
     qemu_sem_init(&multifd_send_state->channels_ready, 0);
     qatomic_set(&multifd_send_state->exiting, 0);
-    multifd_send_state->ops = multifd_ops[migrate_multifd_compression()];
+    multifd_send_state->ops = multifd_get_ops();
 
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
@@ -1171,7 +1124,7 @@ int multifd_load_setup(Error **errp)
     multifd_recv_state->params = g_new0(MultiFDRecvParams, thread_count);
     qatomic_set(&multifd_recv_state->count, 0);
     qemu_sem_init(&multifd_recv_state->sem_sync, 0);
-    multifd_recv_state->ops = multifd_ops[migrate_multifd_compression()];
+    multifd_recv_state->ops = multifd_get_ops();
 
     for (i = 0; i < thread_count; i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];

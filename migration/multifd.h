@@ -204,7 +204,6 @@ typedef struct {
     int (*recv_pages)(MultiFDRecvParams *p, Error **errp);
 } MultiFDMethods;
 
-void multifd_register_ops(int method, MultiFDMethods *ops);
+void multifd_register_compression(int method, MultiFDMethods *ops);
 
 #endif
-

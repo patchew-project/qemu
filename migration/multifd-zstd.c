@@ -310,7 +310,7 @@ static MultiFDMethods multifd_zstd_ops = {
 
 static void multifd_zstd_register(void)
 {
-    multifd_register_ops(MULTIFD_COMPRESSION_ZSTD, &multifd_zstd_ops);
+    multifd_register_compression(MULTIFD_COMPRESSION_ZSTD, &multifd_zstd_ops);
 }
 
 migration_init(multifd_zstd_register);
