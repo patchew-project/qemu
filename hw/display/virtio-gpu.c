@@ -401,8 +401,9 @@ static void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
     scanout->height = 0;
 }
 
-static void virtio_gpu_resource_destroy(VirtIOGPU *g,
-                                        struct virtio_gpu_simple_resource *res)
+static int32_t
+virtio_gpu_resource_destroy(VirtIOGPU *g,
+                            struct virtio_gpu_simple_resource *res)
 {
     int i;
 
@@ -419,6 +420,8 @@ static void virtio_gpu_resource_destroy(VirtIOGPU *g,
     QTAILQ_REMOVE(&g->reslist, res, next);
     g->hostmem -= res->hostmem;
     g_free(res);
+
+    return 0;
 }
 
 static void virtio_gpu_resource_unref(VirtIOGPU *g,
@@ -1488,11 +1491,20 @@ static void virtio_gpu_device_unrealize(DeviceState *qdev)
 static void virtio_gpu_reset_bh(void *opaque)
 {
     VirtIOGPU *g = VIRTIO_GPU(opaque);
+    VirtIOGPUClass *vgc = VIRTIO_GPU_GET_CLASS(g);
     struct virtio_gpu_simple_resource *res, *tmp;
+    int32_t result, resource_id;
     int i = 0;
 
     QTAILQ_FOREACH_SAFE(res, &g->reslist, next, tmp) {
-        virtio_gpu_resource_destroy(g, res);
+        resource_id = res->resource_id;
+        result = vgc->resource_destroy(g, res);
+        if (result) {
+            error_report("%s: %s resource_destroy"
+                         "for resource_id = %d failed with return value = %d;",
+                         __func__, object_get_typename(OBJECT(g)), resource_id,
+                         result);
+        }
     }
 
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
@@ -1632,6 +1644,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     vgc->handle_ctrl = virtio_gpu_handle_ctrl;
     vgc->process_cmd = virtio_gpu_simple_process_cmd;
     vgc->update_cursor_data = virtio_gpu_update_cursor_data;
+    vgc->resource_destroy = virtio_gpu_resource_destroy;
     vgbc->gl_flushed = virtio_gpu_handle_gl_flushed;
 
     vdc->realize = virtio_gpu_device_realize;

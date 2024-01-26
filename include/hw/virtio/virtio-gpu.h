@@ -219,6 +219,8 @@ struct VirtIOGPUClass {
     void (*update_cursor_data)(VirtIOGPU *g,
                                struct virtio_gpu_scanout *s,
                                uint32_t resource_id);
+    int32_t (*resource_destroy)(VirtIOGPU *g,
+                                struct virtio_gpu_simple_resource *res);
 };
 
 struct VirtIOGPUGL {
