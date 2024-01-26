@@ -2371,20 +2371,14 @@ static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
 static int vhost_user_send_device_iotlb_msg(struct vhost_dev *dev,
                                             struct vhost_iotlb_msg *imsg)
 {
-    int ret;
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_IOTLB_MSG,
         .hdr.size = sizeof(msg.payload.iotlb),
-        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .hdr.flags = VHOST_USER_VERSION,
         .payload.iotlb = *imsg,
     };
 
-    ret = vhost_user_write(dev, &msg, NULL, 0);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return process_message_reply(dev, &msg);
+    return vhost_user_write(dev, &msg, NULL, 0);
 }
 
 
