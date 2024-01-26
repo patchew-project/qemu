@@ -817,12 +817,7 @@ int multifd_save_setup(Error **errp)
         p->normal = g_new0(ram_addr_t, page_count);
         p->page_size = qemu_target_page_size();
         p->page_count = page_count;
-
-        if (migrate_zero_copy_send()) {
-            p->write_flags = QIO_CHANNEL_WRITE_FLAG_ZERO_COPY;
-        } else {
-            p->write_flags = 0;
-        }
+        p->write_flags = 0;
 
         multifd_new_send_channel_create(p);
     }

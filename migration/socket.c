@@ -206,6 +206,10 @@ void socket_start_incoming_migration(SocketAddress *saddr,
 
 static int multifd_socket_send_setup(MultiFDSendParams *p, Error **errp)
 {
+    if (migrate_zero_copy_send()) {
+        p->write_flags |= QIO_CHANNEL_WRITE_FLAG_ZERO_COPY;
+    }
+
     return 0;
 }
 
