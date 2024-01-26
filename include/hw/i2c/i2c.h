@@ -64,7 +64,7 @@ struct I2CSlave {
 };
 
 #define TYPE_I2C_BUS "i2c-bus"
-OBJECT_DECLARE_SIMPLE_TYPE(I2CBus, I2C_BUS)
+OBJECT_DECLARE_TYPE(I2CBus, I2CBusClass, I2C_BUS)
 
 typedef struct I2CNode I2CNode;
 
@@ -82,6 +82,10 @@ struct I2CPendingMaster {
 
 typedef QLIST_HEAD(I2CNodeList, I2CNode) I2CNodeList;
 typedef QSIMPLEQ_HEAD(I2CPendingMasters, I2CPendingMaster) I2CPendingMasters;
+
+struct I2CBusClass {
+    DeviceClass parent_class;
+};
 
 struct I2CBus {
     BusState qbus;
