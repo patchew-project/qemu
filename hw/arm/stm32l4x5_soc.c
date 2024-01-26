@@ -26,7 +26,9 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "hw/core/split-irq.h"
 #include "hw/arm/stm32l4x5_soc.h"
+#include "hw/display/dm163.h"
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
 
@@ -78,6 +80,31 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
 #define RCC_BASE_ADDRESS 0x40021000
 #define RCC_IRQ 5
 
+/*
+ * There are actually 14 input pins in the DM163 device.
+ * Here the DM163 input pin EN isn't connected to the STM32L4x5
+ * GPIOs as the IM120417002 colors shield doesn't actually use
+ * this pin to drive the RGB matrix.
+ */
+#define NUM_DM163_INPUTS 13
+
+static const int dm163_input[NUM_DM163_INPUTS] = {
+    1 * 16 + 2,  /* ROW0  PB2       */
+    0 * 16 + 15, /* ROW1  PA15      */
+    0 * 16 + 2,  /* ROW2  PA2       */
+    0 * 16 + 7,  /* ROW3  PA7       */
+    0 * 16 + 6,  /* ROW4  PA6       */
+    0 * 16 + 5,  /* ROW5  PA5       */
+    1 * 16 + 0,  /* ROW6  PB0       */
+    0 * 16 + 3,  /* ROW7  PA3       */
+    0 * 16 + 4,  /* SIN (SDA) PA4   */
+    1 * 16 + 1,  /* DCK (SCK) PB1   */
+    2 * 16 + 3,  /* RST_B (RST) PC3 */
+    2 * 16 + 4,  /* LAT_B (LAT) PC4 */
+    2 * 16 + 5,  /* SELBK (SB)  PC5 */
+};
+
+
 static const uint32_t gpio_addr[] = {
     0x48000000,
     0x48000400,
@@ -116,6 +143,8 @@ static void stm32l4x5_soc_initfn(Object *obj)
         g_autofree char *name = g_strdup_printf("gpio%c", 'a' + i);
         object_initialize_child(obj, name, &s->gpio[i], TYPE_STM32L4X5_GPIO);
     }
+
+    object_initialize_child(obj, "dm163", &s->dm163, TYPE_DM163);
 }
 
 static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -124,9 +153,10 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     Stm32l4x5SocState *s = STM32L4X5_SOC(dev_soc);
     const Stm32l4x5SocClass *sc = STM32L4X5_SOC_GET_CLASS(dev_soc);
     MemoryRegion *system_memory = get_system_memory();
-    DeviceState *armv7m, *dev;
+    DeviceState *armv7m, *dev, *gpio_output_fork;
     SysBusDevice *busdev;
     uint32_t pin_index;
+    int gpio, pin;
 
     if (!memory_region_init_rom(&s->flash, OBJECT(dev_soc), "flash",
                                 sc->flash_size, errp)) {
@@ -166,6 +196,12 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
+    /* DM163 */
+    dev = DEVICE(&s->dm163);
+    if (!qdev_realize(dev, NULL, errp)) {
+        return;
+    }
+
     /* GPIOs */
     for (unsigned i = 0; i < NUM_GPIOS; i++) {
         g_autofree char *name = g_strdup_printf("%c", 'A' + i);
@@ -202,6 +238,23 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
                                   qdev_get_gpio_in(DEVICE(&s->syscfg),
                                   pin_index));
         }
+    }
+
+    for (unsigned i = 0; i < NUM_DM163_INPUTS; i++) {
+        gpio_output_fork = qdev_new(TYPE_SPLIT_IRQ);
+        qdev_prop_set_uint32(gpio_output_fork, "num-lines", 2);
+        qdev_realize_and_unref(gpio_output_fork, NULL, &error_fatal);
+
+        qdev_connect_gpio_out(gpio_output_fork, 0,
+                              qdev_get_gpio_in(DEVICE(&s->syscfg),
+                                               dm163_input[i]));
+        qdev_connect_gpio_out(gpio_output_fork, 1,
+                              qdev_get_gpio_in(DEVICE(&s->dm163),
+                                               i));
+        gpio = dm163_input[i] / 16;
+        pin = dm163_input[i] % 16;
+        qdev_connect_gpio_out(DEVICE(&s->gpio[gpio]), pin,
+                              qdev_get_gpio_in(DEVICE(gpio_output_fork), 0));
     }
 
     /* EXTI device */
