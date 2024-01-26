@@ -16,6 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/iov.h"
 #include "exec/ramblock.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -230,22 +231,24 @@ static int multifd_socket_send_prepare(MultiFDSendParams *p, Error **errp)
 
 static int multifd_socket_send(MultiFDSendParams *p, Error **errp)
 {
+    struct iovec *iov = p->iov;
     int ret;
 
     if (migrate_zero_copy_send()) {
-        /* Send header first, without zerocopy */
-        ret = qio_channel_write_all(p->c, (void *)p->packet, p->packet_len,
-                                    errp);
+        /*
+         * The first iovec element is always the header. Sent it first
+         * without zerocopy.
+         */
+        ret = qio_channel_writev_all(p->c, iov, 1, errp);
         if (ret) {
             return ret;
         }
-    } else {
-        /* Send header using the same writev call */
-        p->iov[0].iov_len = p->packet_len;
-        p->iov[0].iov_base = p->packet;
+
+        /* header sent, discard it */
+        iov_discard_front(&iov, &p->iovs_num, iov[0].iov_len);
     }
 
-    return qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
+    return qio_channel_writev_full_all(p->c, iov, p->iovs_num, NULL,
                                        0, p->write_flags, errp);
 }
 

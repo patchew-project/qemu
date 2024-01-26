@@ -165,9 +165,6 @@ static int zstd_send_prepare(MultiFDSendParams *p, Error **errp)
 
 static int zstd_send(MultiFDSendParams *p, Error **errp)
 {
-    p->iov[0].iov_len = p->packet_len;
-    p->iov[0].iov_base = p->packet;
-
     return qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
                                        0, p->write_flags, errp);
 }
