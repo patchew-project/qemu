@@ -40,6 +40,7 @@ GlobalProperty hw_compat_8_1[] = {
     { "ramfb", "x-migrate", "off" },
     { "vfio-pci-nohotplug", "x-ramfb-migrate", "off" },
     { "igb", "x-pcie-flr-init", "off" },
+    { "virtio-device", "notification_data", "off"},
 };
 const size_t hw_compat_8_1_len = G_N_ELEMENTS(hw_compat_8_1);
 
@@ -65,6 +66,7 @@ GlobalProperty hw_compat_7_1[] = {
     { "virtio-rng-pci", "vectors", "0" },
     { "virtio-rng-pci-transitional", "vectors", "0" },
     { "virtio-rng-pci-non-transitional", "vectors", "0" },
+    { "virtio-device", "in_order", "off"},
 };
 const size_t hw_compat_7_1_len = G_N_ELEMENTS(hw_compat_7_1);
 
