@@ -228,6 +228,27 @@ static int multifd_socket_send_prepare(MultiFDSendParams *p, Error **errp)
     return 0;
 }
 
+static int multifd_socket_send(MultiFDSendParams *p, Error **errp)
+{
+    int ret;
+
+    if (migrate_zero_copy_send()) {
+        /* Send header first, without zerocopy */
+        ret = qio_channel_write_all(p->c, (void *)p->packet, p->packet_len,
+                                    errp);
+        if (ret) {
+            return ret;
+        }
+    } else {
+        /* Send header using the same writev call */
+        p->iov[0].iov_len = p->packet_len;
+        p->iov[0].iov_base = p->packet;
+    }
+
+    return qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
+                                       0, p->write_flags, errp);
+}
+
 static int multifd_socket_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     return 0;
@@ -255,6 +276,7 @@ static int multifd_socket_recv_pages(MultiFDRecvParams *p, Error **errp)
 
 MultiFDMethods multifd_socket_ops = {
     .send_setup = multifd_socket_send_setup,
+    .send = multifd_socket_send,
     .send_cleanup = multifd_socket_send_cleanup,
     .send_prepare = multifd_socket_send_prepare,
     .recv_setup = multifd_socket_recv_setup,

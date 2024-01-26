@@ -174,6 +174,15 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
     return 0;
 }
 
+static int zlib_send(MultiFDSendParams *p, Error **errp)
+{
+    p->iov[0].iov_len = p->packet_len;
+    p->iov[0].iov_base = p->packet;
+
+    return qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
+                                       0, p->write_flags, errp);
+}
+
 /**
  * zlib_recv_setup: setup receive side
  *
@@ -312,6 +321,7 @@ static MultiFDMethods multifd_zlib_ops = {
     .send_setup = zlib_send_setup,
     .send_cleanup = zlib_send_cleanup,
     .send_prepare = zlib_send_prepare,
+    .send = zlib_send,
     .recv_setup = zlib_recv_setup,
     .recv_cleanup = zlib_recv_cleanup,
     .recv_pages = zlib_recv_pages
