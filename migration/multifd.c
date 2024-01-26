@@ -45,65 +45,6 @@ typedef struct {
     uint64_t unused2[4];    /* Reserved for future use */
 } __attribute__((packed)) MultiFDInit_t;
 
-static int multifd_socket_send_setup(MultiFDSendParams *p, Error **errp)
-{
-    return 0;
-}
-
-static void multifd_socket_send_cleanup(MultiFDSendParams *p, Error **errp)
-{
-    return;
-}
-
-static int multifd_socket_send_prepare(MultiFDSendParams *p, Error **errp)
-{
-    MultiFDPages_t *pages = p->pages;
-
-    for (int i = 0; i < p->normal_num; i++) {
-        p->iov[p->iovs_num].iov_base = pages->block->host + p->normal[i];
-        p->iov[p->iovs_num].iov_len = p->page_size;
-        p->iovs_num++;
-    }
-
-    p->next_packet_size = p->normal_num * p->page_size;
-    p->flags |= MULTIFD_FLAG_NOCOMP;
-    return 0;
-}
-
-static int multifd_socket_recv_setup(MultiFDRecvParams *p, Error **errp)
-{
-    return 0;
-}
-
-static void multifd_socket_recv_cleanup(MultiFDRecvParams *p)
-{
-}
-
-static int multifd_socket_recv_pages(MultiFDRecvParams *p, Error **errp)
-{
-    uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
-
-    if (flags != MULTIFD_FLAG_NOCOMP) {
-        error_setg(errp, "multifd %u: flags received %x flags expected %x",
-                   p->id, flags, MULTIFD_FLAG_NOCOMP);
-        return -1;
-    }
-    for (int i = 0; i < p->normal_num; i++) {
-        p->iov[i].iov_base = p->host + p->normal[i];
-        p->iov[i].iov_len = p->page_size;
-    }
-    return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
-}
-
-static MultiFDMethods multifd_socket_ops = {
-    .send_setup = multifd_socket_send_setup,
-    .send_cleanup = multifd_socket_send_cleanup,
-    .send_prepare = multifd_socket_send_prepare,
-    .recv_setup = multifd_socket_recv_setup,
-    .recv_cleanup = multifd_socket_recv_cleanup,
-    .recv_pages = multifd_socket_recv_pages
-};
-
 static MultiFDMethods *multifd_compression_ops[MULTIFD_COMPRESSION__MAX] = {0};
 
 static MultiFDMethods *multifd_get_ops(void)

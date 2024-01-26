@@ -16,12 +16,13 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
-
+#include "exec/ramblock.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "channel.h"
 #include "socket.h"
 #include "migration.h"
+#include "multifd.h"
 #include "qemu-file.h"
 #include "io/channel-socket.h"
 #include "io/net-listener.h"
@@ -202,3 +203,61 @@ void socket_start_incoming_migration(SocketAddress *saddr,
     }
 }
 
+static int multifd_socket_send_setup(MultiFDSendParams *p, Error **errp)
+{
+    return 0;
+}
+
+static void multifd_socket_send_cleanup(MultiFDSendParams *p, Error **errp)
+{
+    return;
+}
+
+static int multifd_socket_send_prepare(MultiFDSendParams *p, Error **errp)
+{
+    MultiFDPages_t *pages = p->pages;
+
+    for (int i = 0; i < p->normal_num; i++) {
+        p->iov[p->iovs_num].iov_base = pages->block->host + p->normal[i];
+        p->iov[p->iovs_num].iov_len = p->page_size;
+        p->iovs_num++;
+    }
+
+    p->next_packet_size = p->normal_num * p->page_size;
+    p->flags |= MULTIFD_FLAG_NOCOMP;
+    return 0;
+}
+
+static int multifd_socket_recv_setup(MultiFDRecvParams *p, Error **errp)
+{
+    return 0;
+}
+
+static void multifd_socket_recv_cleanup(MultiFDRecvParams *p)
+{
+}
+
+static int multifd_socket_recv_pages(MultiFDRecvParams *p, Error **errp)
+{
+    uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
+
+    if (flags != MULTIFD_FLAG_NOCOMP) {
+        error_setg(errp, "multifd %u: flags received %x flags expected %x",
+                   p->id, flags, MULTIFD_FLAG_NOCOMP);
+        return -1;
+    }
+    for (int i = 0; i < p->normal_num; i++) {
+        p->iov[i].iov_base = p->host + p->normal[i];
+        p->iov[i].iov_len = p->page_size;
+    }
+    return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
+}
+
+MultiFDMethods multifd_socket_ops = {
+    .send_setup = multifd_socket_send_setup,
+    .send_cleanup = multifd_socket_send_cleanup,
+    .send_prepare = multifd_socket_send_prepare,
+    .recv_setup = multifd_socket_recv_setup,
+    .recv_cleanup = multifd_socket_recv_cleanup,
+    .recv_pages = multifd_socket_recv_pages
+};
