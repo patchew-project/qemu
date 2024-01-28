@@ -381,37 +381,6 @@ extern const VMStateDescription vmstate_s390_cpu;
 #define MMU_HOME_IDX            2
 #define MMU_REAL_IDX            3
 
-static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
-{
-#ifdef CONFIG_USER_ONLY
-    return MMU_USER_IDX;
-#else
-    if (!(env->psw.mask & PSW_MASK_DAT)) {
-        return MMU_REAL_IDX;
-    }
-
-    if (ifetch) {
-        if ((env->psw.mask & PSW_MASK_ASC) == PSW_ASC_HOME) {
-            return MMU_HOME_IDX;
-        }
-        return MMU_PRIMARY_IDX;
-    }
-
-    switch (env->psw.mask & PSW_MASK_ASC) {
-    case PSW_ASC_PRIMARY:
-        return MMU_PRIMARY_IDX;
-    case PSW_ASC_SECONDARY:
-        return MMU_SECONDARY_IDX;
-    case PSW_ASC_HOME:
-        return MMU_HOME_IDX;
-    case PSW_ASC_ACCREG:
-        /* Fallthrough: access register mode is not yet supported */
-    default:
-        abort();
-    }
-#endif
-}
-
 #ifdef CONFIG_TCG
 
 #include "tcg/tcg_s390x.h"

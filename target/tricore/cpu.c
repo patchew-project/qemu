@@ -24,6 +24,11 @@
 #include "qemu/error-report.h"
 #include "tcg/debug-assert.h"
 
+int cpu_mmu_index(CPUTriCoreState *env, bool ifetch)
+{
+    return 0;
+}
+
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {
     env->features |= 1ULL << feature;

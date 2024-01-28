@@ -25,6 +25,18 @@
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
 
+int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)
+{
+    int ret = MMU_NOMMU_IDX;  /* mmu is disabled */
+
+    if (env->sr & (ifetch ? SR_IME : SR_DME)) {
+        /* The mmu is enabled; test supervisor state.  */
+        ret = env->sr & SR_SM ? MMU_SUPERVISOR_IDX : MMU_USER_IDX;
+    }
+
+    return ret;
+}
+
 static void openrisc_cpu_set_pc(CPUState *cs, vaddr value)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);

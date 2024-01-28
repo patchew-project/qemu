@@ -27,6 +27,11 @@
 #include "tcg/debug-assert.h"
 #include "hw/qdev-properties.h"
 
+int cpu_mmu_index(CPUAVRState *env, bool ifetch)
+{
+    return ifetch ? MMU_CODE_IDX : MMU_DATA_IDX;
+}
+
 static void avr_cpu_set_pc(CPUState *cs, vaddr value)
 {
     AVRCPU *cpu = AVR_CPU(cs);

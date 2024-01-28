@@ -26,6 +26,12 @@
 #include "gdbstub/helpers.h"
 #include "hw/qdev-properties.h"
 
+int cpu_mmu_index(CPUNios2State *env, bool ifetch)
+{
+    return (env->ctrl[CR_STATUS] & CR_STATUS_U) ? MMU_USER_IDX :
+                                                  MMU_SUPERVISOR_IDX;
+}
+
 static void nios2_cpu_set_pc(CPUState *cs, vaddr value)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);

@@ -39,6 +39,10 @@
 #include "exec/memory.h"
 #endif
 
+int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
+{
+    return xtensa_get_cring(env);
+}
 
 static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)
 {

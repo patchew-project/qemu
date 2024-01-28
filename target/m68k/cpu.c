@@ -24,6 +24,11 @@
 #include "migration/vmstate.h"
 #include "fpu/softfloat.h"
 
+int cpu_mmu_index(CPUM68KState *env, bool ifetch)
+{
+    return (env->sr & SR_S) == 0 ? 1 : 0;
+}
+
 static void m68k_cpu_set_pc(CPUState *cs, vaddr value)
 {
     M68kCPU *cpu = M68K_CPU(cs);

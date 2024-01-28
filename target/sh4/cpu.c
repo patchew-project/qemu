@@ -28,6 +28,19 @@
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
 
+int cpu_mmu_index(CPUSH4State *env, bool ifetch)
+{
+    /*
+     * The instruction in a RTE delay slot is fetched in privileged
+     * mode, but executed in user mode.
+     */
+    if (ifetch && (env->flags & TB_FLAG_DELAY_SLOT_RTE)) {
+        return 0;
+    } else {
+        return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
+    }
+}
+
 static void superh_cpu_set_pc(CPUState *cs, vaddr value)
 {
     SuperHCPU *cpu = SUPERH_CPU(cs);

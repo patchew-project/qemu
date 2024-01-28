@@ -35,6 +35,11 @@
 #include "semihosting/semihost.h"
 #include "fpu_helper.h"
 
+int cpu_mmu_index(CPUMIPSState *env, bool ifetch)
+{
+    return hflags_mmu_index(env->hflags);
+}
+
 const char regnames[32][3] = {
     "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
     "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",

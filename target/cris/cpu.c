@@ -27,6 +27,10 @@
 #include "cpu.h"
 #include "mmu.h"
 
+int cpu_mmu_index(CPUCRISState *env, bool ifetch)
+{
+    return !!(env->pregs[PR_CCS] & U_FLAG);
+}
 
 static void cris_cpu_set_pc(CPUState *cs, vaddr value)
 {

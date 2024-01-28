@@ -25,6 +25,14 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 
+int cpu_mmu_index(CPUAlphaState *env, bool ifetch)
+{
+    int ret = env->flags & ENV_FLAG_PS_USER ? MMU_USER_IDX : MMU_KERNEL_IDX;
+    if (env->flags & ENV_FLAG_PAL_MODE) {
+        ret = MMU_KERNEL_IDX;
+    }
+    return ret;
+}
 
 static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
 {

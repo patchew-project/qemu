@@ -26,6 +26,11 @@
 #include "fpu/softfloat.h"
 #include "tcg/debug-assert.h"
 
+int cpu_mmu_index(CPURXState *env, bool ifetch)
+{
+    return 0;
+}
+
 static void rx_cpu_set_pc(CPUState *cs, vaddr value)
 {
     RXCPU *cpu = RX_CPU(cs);

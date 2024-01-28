@@ -27,6 +27,15 @@
 #include "helper_regs.h"
 #include "sysemu/tcg.h"
 
+int cpu_mmu_index(CPUPPCState *env, bool ifetch)
+{
+#ifdef CONFIG_USER_ONLY
+    return MMU_USER_IDX;
+#else
+    return (env->hflags >> (ifetch ? HFLAGS_IMMU_IDX : HFLAGS_DMMU_IDX)) & 7;
+#endif
+}
+
 target_ulong cpu_read_xer(const CPUPPCState *env)
 {
     if (is_isa300(env)) {
