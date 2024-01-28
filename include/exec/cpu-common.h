@@ -44,6 +44,9 @@ unsigned int cpu_list_generation_id_get(void);
  */
 int cpu_mmu_index(CPUArchState *env, bool ifetch);
 
+void cpu_get_tb_cpu_state(CPUArchState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *pflags);
+
 void tcg_iommu_init_notifier_list(CPUState *cpu);
 void tcg_iommu_free_notifier_list(CPUState *cpu);
 

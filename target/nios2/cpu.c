@@ -32,6 +32,18 @@ int cpu_mmu_index(CPUNios2State *env, bool ifetch)
                                                   MMU_SUPERVISOR_IDX;
 }
 
+void cpu_get_tb_cpu_state(CPUNios2State *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags)
+{
+    unsigned crs = FIELD_EX32(env->ctrl[CR_STATUS], CR_STATUS, CRS);
+
+    *pc = env->pc;
+    *cs_base = 0;
+    *flags = (env->ctrl[CR_STATUS] & CR_STATUS_U)
+           | (crs ? 0 : R_TBFLAGS_CRS0_MASK)
+           | (env->regs[0] ? 0 : R_TBFLAGS_R0_0_MASK);
+}
+
 static void nios2_cpu_set_pc(CPUState *cs, vaddr value)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);

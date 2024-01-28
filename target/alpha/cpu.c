@@ -34,6 +34,17 @@ int cpu_mmu_index(CPUAlphaState *env, bool ifetch)
     return ret;
 }
 
+void cpu_get_tb_cpu_state(CPUAlphaState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *pflags)
+{
+    *pc = env->pc;
+    *cs_base = 0;
+    *pflags = env->flags & ENV_FLAG_TB_MASK;
+#ifdef CONFIG_USER_ONLY
+    *pflags |= TB_FLAG_UNALIGN * !env_cpu(env)->prctl_unalign_sigbus;
+#endif
+}
+
 static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
 {
     AlphaCPU *cpu = ALPHA_CPU(cs);
