@@ -79,9 +79,9 @@ static int vu_gpio_start(VirtIODevice *vdev)
      * set needed for the vhost configuration. The backend may also
      * apply backend_features when the feature set is sent.
      */
-    vhost_ack_features(&gpio->vhost_dev, feature_bits, vdev->guest_features);
+    vhost_ack_features(vhost_dev, feature_bits, vdev->guest_features);
 
-    ret = vhost_dev_start(&gpio->vhost_dev, vdev, false);
+    ret = vhost_dev_start(vhost_dev, vdev, false);
     if (ret < 0) {
         error_report("Error starting vhost-user-gpio: %d", ret);
         goto err_guest_notifiers;
@@ -94,7 +94,7 @@ static int vu_gpio_start(VirtIODevice *vdev)
      * enabling/disabling irqfd.
      */
     for (i = 0; i < gpio->vhost_dev.nvqs; i++) {
-        vhost_virtqueue_mask(&gpio->vhost_dev, vdev, i, false);
+        vhost_virtqueue_mask(vhost_dev, vdev, i, false);
     }
 
     /*
@@ -114,7 +114,7 @@ static int vu_gpio_start(VirtIODevice *vdev)
 err_guest_notifiers:
     k->set_guest_notifiers(qbus->parent, gpio->vhost_dev.nvqs, false);
 err_host_notifiers:
-    vhost_dev_disable_notifiers(&gpio->vhost_dev, vdev);
+    vhost_dev_disable_notifiers(vhost_dev, vdev);
 
     return ret;
 }
