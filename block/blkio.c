@@ -794,6 +794,7 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
     const char *blkio_driver = bs->drv->protocol_name;
     BDRVBlkioState *s = bs->opaque;
     int ret;
+    uint64_t val;
 
     ret = blkio_create(blkio_driver, &s->blkio);
     if (ret < 0) {
@@ -854,7 +855,7 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
 
     ret = blkio_get_uint64(s->blkio,
                            "mem-region-alignment",
-                           &s->mem_region_alignment);
+                           &val);
     if (ret < 0) {
         error_setg_errno(errp, -ret,
                          "failed to get mem-region-alignment: %s",
@@ -862,6 +863,15 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         blkio_destroy(&s->blkio);
         return ret;
     }
+#if HOST_LONG_BITS == 32
+    if (val > SIZE_MAX) {
+        error_setg_errno(errp, ERANGE,
+                         "mem-region-alignment too large for size_t");
+        blkio_destroy(&s->blkio);
+        return -ERANGE;
+    }
+#endif
+    s->mem_region_alignment = (size_t)val;
 
     ret = blkio_get_bool(s->blkio,
                          "may-pin-mem-regions",
