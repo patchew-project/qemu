@@ -33,8 +33,7 @@
 // TODO: taskswitch handling
 static void save_state_to_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
+    CPUX86State *env = cpu_env(cpu);
 
     /* CR3 and ldt selector are not saved intentionally */
     tss->eip = (uint32_t)env->eip;
@@ -58,8 +57,7 @@ static void save_state_to_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
 
 static void load_state_from_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
+    CPUX86State *env = cpu_env(cpu);
 
     wvmcs(cpu->accel->fd, VMCS_GUEST_CR3, tss->cr3);
 
@@ -128,9 +126,7 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
     uint32_t desc_limit;
     struct x86_call_gate task_gate_desc;
     struct vmx_segment vmx_seg;
-
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
+    CPUX86State *env = cpu_env(cpu);
 
     x86_read_segment_descriptor(cpu, &next_tss_desc, tss_sel);
     x86_read_segment_descriptor(cpu, &curr_tss_desc, old_tss_sel);

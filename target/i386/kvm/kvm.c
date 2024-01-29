@@ -754,8 +754,7 @@ static inline bool freq_within_bounds(int freq, int target_freq)
 
 static int kvm_arch_set_tsc_khz(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
     int r, cur_freq;
     bool set_ioctl = false;
 
@@ -5369,8 +5368,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     kvm_cpu_synchronize_state(cs);
     return !(env->cr[0] & CR0_PE_MASK) ||

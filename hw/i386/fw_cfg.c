@@ -155,8 +155,7 @@ FWCfgState *fw_cfg_arch_create(MachineState *ms,
 
 void fw_cfg_build_feature_control(MachineState *ms, FWCfgState *fw_cfg)
 {
-    X86CPU *cpu = X86_CPU(ms->possible_cpus->cpus[0].cpu);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(ms->possible_cpus->cpus[0].cpu);
     uint32_t unused, ebx, ecx, edx;
     uint64_t feature_control_bits = 0;
     uint64_t *val;

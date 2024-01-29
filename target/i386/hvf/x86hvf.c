@@ -238,8 +238,7 @@ void hvf_get_msrs(CPUState *cs)
 
 int hvf_put_registers(CPUState *cs)
 {
-    X86CPU *x86cpu = X86_CPU(cs);
-    CPUX86State *env = &x86cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     wreg(cs->accel->fd, HV_X86_RAX, env->regs[R_EAX]);
     wreg(cs->accel->fd, HV_X86_RBX, env->regs[R_EBX]);
@@ -282,8 +281,7 @@ int hvf_put_registers(CPUState *cs)
 
 int hvf_get_registers(CPUState *cs)
 {
-    X86CPU *x86cpu = X86_CPU(cs);
-    CPUX86State *env = &x86cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     env->regs[R_EAX] = rreg(cs->accel->fd, HV_X86_RAX);
     env->regs[R_EBX] = rreg(cs->accel->fd, HV_X86_RBX);
@@ -342,8 +340,7 @@ void vmx_clear_int_window_exiting(CPUState *cs)
 
 bool hvf_inject_interrupts(CPUState *cs)
 {
-    X86CPU *x86cpu = X86_CPU(cs);
-    CPUX86State *env = &x86cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     uint8_t vector;
     uint64_t intr_type;

@@ -487,8 +487,7 @@ static void regs_to_cpu(vmware_regs_t *vmport_regs, ioreq_t *req)
 
 static void regs_from_cpu(vmware_regs_t *vmport_regs)
 {
-    X86CPU *cpu = X86_CPU(current_cpu);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(current_cpu);
 
     vmport_regs->ebx = env->regs[R_EBX];
     vmport_regs->ecx = env->regs[R_ECX];

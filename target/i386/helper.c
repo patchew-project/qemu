@@ -230,8 +230,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 hwaddr x86_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
                                          MemTxAttrs *attrs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
     target_ulong pde_addr, pte_addr;
     uint64_t pte;
     int32_t a20_mask;
@@ -373,8 +372,7 @@ static void emit_guest_memory_failure(MemoryFailureAction action, bool ar,
 static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
 {
     MCEInjectionParams *params = data.host_ptr;
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *cenv = &cpu->env;
+    CPUX86State *cenv = cpu_env(cs);
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
     g_autofree char *msg = NULL;
     bool need_reset = false;
@@ -625,9 +623,7 @@ void cpu_load_efer(CPUX86State *env, uint64_t val)
 
 uint8_t x86_ldub_phys(CPUState *cs, hwaddr addr)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     return address_space_ldub(as, addr, attrs, NULL);
@@ -635,9 +631,7 @@ uint8_t x86_ldub_phys(CPUState *cs, hwaddr addr)
 
 uint32_t x86_lduw_phys(CPUState *cs, hwaddr addr)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     return address_space_lduw(as, addr, attrs, NULL);
@@ -645,9 +639,7 @@ uint32_t x86_lduw_phys(CPUState *cs, hwaddr addr)
 
 uint32_t x86_ldl_phys(CPUState *cs, hwaddr addr)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     return address_space_ldl(as, addr, attrs, NULL);
@@ -655,9 +647,7 @@ uint32_t x86_ldl_phys(CPUState *cs, hwaddr addr)
 
 uint64_t x86_ldq_phys(CPUState *cs, hwaddr addr)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     return address_space_ldq(as, addr, attrs, NULL);
@@ -665,9 +655,7 @@ uint64_t x86_ldq_phys(CPUState *cs, hwaddr addr)
 
 void x86_stb_phys(CPUState *cs, hwaddr addr, uint8_t val)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     address_space_stb(as, addr, val, attrs, NULL);
@@ -675,9 +663,7 @@ void x86_stb_phys(CPUState *cs, hwaddr addr, uint8_t val)
 
 void x86_stl_phys_notdirty(CPUState *cs, hwaddr addr, uint32_t val)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     address_space_stl_notdirty(as, addr, val, attrs, NULL);
@@ -685,9 +671,7 @@ void x86_stl_phys_notdirty(CPUState *cs, hwaddr addr, uint32_t val)
 
 void x86_stw_phys(CPUState *cs, hwaddr addr, uint32_t val)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     address_space_stw(as, addr, val, attrs, NULL);
@@ -695,9 +679,7 @@ void x86_stw_phys(CPUState *cs, hwaddr addr, uint32_t val)
 
 void x86_stl_phys(CPUState *cs, hwaddr addr, uint32_t val)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     address_space_stl(as, addr, val, attrs, NULL);
@@ -705,9 +687,7 @@ void x86_stl_phys(CPUState *cs, hwaddr addr, uint32_t val)
 
 void x86_stq_phys(CPUState *cs, hwaddr addr, uint64_t val)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    MemTxAttrs attrs = cpu_get_mem_attrs(cpu_env(cs));
     AddressSpace *as = cpu_addressspace(cs, attrs);
 
     address_space_stq(as, addr, val, attrs, NULL);

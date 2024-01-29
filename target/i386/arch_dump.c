@@ -203,7 +203,6 @@ int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
 int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                              int cpuid, DumpState *s)
 {
-    X86CPU *cpu = X86_CPU(cs);
     x86_elf_prstatus prstatus;
     Elf32_Nhdr *note;
     char *buf;
@@ -211,7 +210,7 @@ int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
     const char *name = "CORE";
     int ret;
 
-    x86_fill_elf_prstatus(&prstatus, &cpu->env, cpuid);
+    x86_fill_elf_prstatus(&prstatus, cpu_env(cs), cpuid);
     descsz = sizeof(x86_elf_prstatus);
     note_size = ELF_NOTE_SIZE(sizeof(Elf32_Nhdr), name_size, descsz);
     note = g_malloc0(note_size);
@@ -381,17 +380,13 @@ static inline int cpu_write_qemu_note(WriteCoreDumpFunction f,
 int x86_cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cs,
                                  DumpState *s)
 {
-    X86CPU *cpu = X86_CPU(cs);
-
-    return cpu_write_qemu_note(f, &cpu->env, s, 1);
+    return cpu_write_qemu_note(f, cpu_env(cs), s, 1);
 }
 
 int x86_cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cs,
                                  DumpState *s)
 {
-    X86CPU *cpu = X86_CPU(cs);
-
-    return cpu_write_qemu_note(f, &cpu->env, s, 0);
+    return cpu_write_qemu_note(f, cpu_env(cs), s, 0);
 }
 
 int cpu_get_dump_info(ArchDumpInfo *info,

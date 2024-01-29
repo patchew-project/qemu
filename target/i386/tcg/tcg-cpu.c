@@ -29,8 +29,7 @@
 
 static void x86_cpu_exec_enter(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     env->df = 1 - (2 * ((env->eflags >> 10) & 1));
@@ -40,8 +39,7 @@ static void x86_cpu_exec_enter(CPUState *cs)
 
 static void x86_cpu_exec_exit(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
 
     env->eflags = cpu_compute_eflags(env);
 }
@@ -65,8 +63,7 @@ static void x86_restore_state_to_opc(CPUState *cs,
                                      const TranslationBlock *tb,
                                      const uint64_t *data)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
+    CPUX86State *env = cpu_env(cs);
     int cc_op = data[1];
     uint64_t new_pc;
 
@@ -96,11 +93,8 @@ static void x86_restore_state_to_opc(CPUState *cs,
 #ifndef CONFIG_USER_ONLY
 static bool x86_debug_check_breakpoint(CPUState *cs)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-
     /* RF disables all architectural breakpoints. */
-    return !(env->eflags & RF_MASK);
+    return !(cpu_env(cs)->eflags & RF_MASK);
 }
 #endif
 
