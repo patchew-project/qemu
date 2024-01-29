@@ -7107,9 +7107,9 @@ static bool ppc_cpu_has_work(CPUState *cs)
 
 static void ppc_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    PowerPCCPU *cpu = POWERPC_CPU(s);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(obj);
     CPUPPCState *env = &cpu->env;
     target_ulong msr;
     int i;
@@ -7158,8 +7158,8 @@ static void ppc_cpu_reset_hold(Object *obj)
     env->nip = env->hreset_vector | env->excp_prefix;
 
     if (tcg_enabled()) {
-        cpu_breakpoint_remove_all(s, BP_CPU);
-        cpu_watchpoint_remove_all(s, BP_CPU);
+        cpu_breakpoint_remove_all(cs, BP_CPU);
+        cpu_watchpoint_remove_all(cs, BP_CPU);
         if (env->mmu_model != POWERPC_MMU_REAL) {
             ppc_tlb_invalidate_all(env);
         }
@@ -7173,7 +7173,7 @@ static void ppc_cpu_reset_hold(Object *obj)
     env->reserve_addr = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */
     env->pending_interrupts = 0;
-    s->exception_index = POWERPC_EXCP_NONE;
+    cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
     ppc_irq_reset(cpu);
 

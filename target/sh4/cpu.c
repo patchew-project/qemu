@@ -91,9 +91,9 @@ static bool superh_cpu_has_work(CPUState *cs)
 
 static void superh_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    SuperHCPU *cpu = SUPERH_CPU(s);
-    SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(obj);
     CPUSH4State *env = &cpu->env;
 
     if (scc->parent_phases.hold) {

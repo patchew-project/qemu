@@ -67,7 +67,7 @@ static bool rx_cpu_has_work(CPUState *cs)
 static void rx_cpu_reset_hold(Object *obj)
 {
     RXCPU *cpu = RX_CPU(obj);
-    RXCPUClass *rcc = RX_CPU_GET_CLASS(cpu);
+    RXCPUClass *rcc = RX_CPU_GET_CLASS(obj);
     CPURXState *env = &cpu->env;
     uint32_t *resetvec;
 
