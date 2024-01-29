@@ -58,10 +58,9 @@ static bool cris_cpu_has_work(CPUState *cs)
 
 static void cris_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    CRISCPU *cpu = CRIS_CPU(s);
+    CPUState *cs = CPU(obj);
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
-    CPUCRISState *env = &cpu->env;
+    CPUCRISState *env = cpu_env(cs);
     uint32_t vr;
 
     if (ccc->parent_phases.hold) {
@@ -142,10 +141,7 @@ static void cris_cpu_set_irq(void *opaque, int irq, int level)
 
 static void cris_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
-    CRISCPU *cc = CRIS_CPU(cpu);
-    CPUCRISState *env = &cc->env;
-
-    if (env->pregs[PR_VR] != 32) {
+    if (cpu_env(cpu)->pregs[PR_VR] != 32) {
         info->mach = bfd_mach_cris_v0_v10;
         info->print_insn = print_insn_crisv10;
     } else {
