@@ -9326,7 +9326,6 @@ static void arm_post_translate_insn(DisasContext *dc)
 static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUARMState *env = cpu_env(cpu);
     uint32_t pc = dc->base.pc_next;
     unsigned int insn;
 
@@ -9356,7 +9355,7 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     dc->pc_curr = pc;
-    insn = arm_ldl_code(env, &dc->base, pc, dc->sctlr_b);
+    insn = arm_ldl_code(cpu_env(cpu), &dc->base, pc, dc->sctlr_b);
     dc->insn = insn;
     dc->base.pc_next = pc + 4;
     disas_arm_insn(dc, insn);

@@ -102,8 +102,6 @@ void aa32_max_features(ARMCPU *cpu)
 static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
     bool ret = false;
 
     /*
@@ -115,7 +113,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
      * currently active exception).
      */
     if (interrupt_request & CPU_INTERRUPT_HARD
-        && (armv7m_nvic_can_take_pending_exception(env->nvic))) {
+        && (armv7m_nvic_can_take_pending_exception(cpu_env(cs)->nvic))) {
         cs->exception_index = EXCP_IRQ;
         cc->tcg_ops->do_interrupt(cs);
         ret = true;

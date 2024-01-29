@@ -182,8 +182,6 @@ static int hppvi_index(GICv3CPUState *cs)
      * priority than the highest priority list register at every
      * callsite of HighestPriorityVirtualInterrupt; we check it here.)
      */
-    ARMCPU *cpu = ARM_CPU(cs->cpu);
-    CPUARMState *env = &cpu->env;
     int idx = -1;
     int i;
     /* Note that a list register entry with a priority of 0xff will
@@ -230,7 +228,7 @@ static int hppvi_index(GICv3CPUState *cs)
      * fails the priority check here. vLPIs are only considered
      * when we are in Non-Secure state.
      */
-    if (cs->hppvlpi.prio < prio && !arm_is_secure(env)) {
+    if (cs->hppvlpi.prio < prio && !arm_is_secure(cpu_env(cs->cpu))) {
         if (cs->hppvlpi.grp == GICV3_G0) {
             if (cs->ich_vmcr_el2 & ICH_VMCR_EL2_VENG0) {
                 return HPPVI_INDEX_VLPI;
@@ -931,8 +929,7 @@ void gicv3_cpuif_update(GICv3CPUState *cs)
     /* Tell the CPU about its highest priority pending interrupt */
     int irqlevel = 0;
     int fiqlevel = 0;
-    ARMCPU *cpu = ARM_CPU(cs->cpu);
-    CPUARMState *env = &cpu->env;
+    CPUARMState *env = cpu_env(cs->cpu);
 
     g_assert(bql_locked());
 
