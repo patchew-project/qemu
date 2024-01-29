@@ -1994,18 +1994,48 @@ static void build_processor_hierarchy_node(GArray *tbl, uint32_t flags,
     }
 }
 
+/* ACPI spec, Revision 6.3 Cache type structure (Type 1) */
+static void build_cache_structure(GArray *tbl,
+                                  uint32_t next_level,
+                                  CPUCacheInfo *cache_info)
+{
+    /* Cache type structure */
+    build_append_byte(tbl, 1);
+    /* Length */
+    build_append_byte(tbl, 24);
+    /* Reserved */
+    build_append_int_noprefix(tbl, 0, 2);
+    /* Flags */
+    build_append_int_noprefix(tbl, 0x7f, 4);
+    /* Next level cache */
+    build_append_int_noprefix(tbl, next_level, 4);
+    /* Size */
+    build_append_int_noprefix(tbl, cache_info->size, 4);
+    /* Number of sets */
+    build_append_int_noprefix(tbl, cache_info->sets, 4);
+    /* Associativity */
+    build_append_byte(tbl, cache_info->associativity);
+    /* Attributes */
+    build_append_byte(tbl, cache_info->attributes);
+    /* Line size */
+    build_append_int_noprefix(tbl, cache_info->line_size, 2);
+}
+
 /*
  * ACPI spec, Revision 6.3
  * 5.2.29 Processor Properties Topology Table (PPTT)
  */
 void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
-                const char *oem_id, const char *oem_table_id)
+                const char *oem_id, const char *oem_table_id,
+                const CPUCaches *CPUCaches)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     CPUArchIdList *cpus = ms->possible_cpus;
     int64_t socket_id = -1, cluster_id = -1, core_id = -1;
     uint32_t socket_offset = 0, cluster_offset = 0, core_offset = 0;
     uint32_t pptt_start = table_data->len;
+    uint32_t l3_offset = 0, priv_num = 0;
+    uint32_t priv_rsrc[3] = {0};
     int n;
     AcpiTable table = { .sig = "PPTT", .rev = 2,
                         .oem_id = oem_id, .oem_table_id = oem_table_id };
@@ -2024,10 +2054,11 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
             socket_id = cpus->cpus[n].props.socket_id;
             cluster_id = -1;
             core_id = -1;
+            priv_num = 0;
             socket_offset = table_data->len - pptt_start;
             build_processor_hierarchy_node(table_data,
                 (1 << 0), /* Physical package */
-                0, socket_id, NULL, 0);
+                0, socket_id, NULL, priv_num);
         }
 
         if (mc->smp_props.clusters_supported && mc->smp_props.has_clusters) {
@@ -2035,20 +2066,44 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 assert(cpus->cpus[n].props.cluster_id > cluster_id);
                 cluster_id = cpus->cpus[n].props.cluster_id;
                 core_id = -1;
+                priv_num = 0;
+                l3_offset = table_data->len - pptt_start;
+                /* L3 cache type structure */
+                if (CPUCaches && CPUCaches->l3_cache) {
+                    priv_num = 1;
+                    build_cache_structure(table_data, 0, CPUCaches->l3_cache);
+                }
                 cluster_offset = table_data->len - pptt_start;
                 build_processor_hierarchy_node(table_data,
                     (0 << 0), /* Not a physical package */
-                    socket_offset, cluster_id, NULL, 0);
+                    socket_offset, cluster_id, &l3_offset, priv_num);
             }
         } else {
             cluster_offset = socket_offset;
         }
 
+        if (CPUCaches) {
+            /* L2 cache type structure */
+            priv_rsrc[0] = table_data->len - pptt_start;
+            build_cache_structure(table_data, 0, CPUCaches->l2_cache);
+
+            /* L1d cache type structure */
+            priv_rsrc[1] = table_data->len - pptt_start;
+            build_cache_structure(table_data, priv_rsrc[0],
+                                  CPUCaches->l1d_cache);
+
+            /* L1i cache type structure */
+            priv_rsrc[2] = table_data->len - pptt_start;
+            build_cache_structure(table_data, priv_rsrc[0],
+                                  CPUCaches->l1i_cache);
+
+            priv_num = 3;
+        }
         if (ms->smp.threads == 1) {
             build_processor_hierarchy_node(table_data,
                 (1 << 1) | /* ACPI Processor ID valid */
                 (1 << 3),  /* Node is a Leaf */
-                cluster_offset, n, NULL, 0);
+                cluster_offset, n, priv_rsrc, priv_num);
         } else {
             if (cpus->cpus[n].props.core_id != core_id) {
                 assert(cpus->cpus[n].props.core_id > core_id);
@@ -2063,7 +2118,7 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 (1 << 1) | /* ACPI Processor ID valid */
                 (1 << 2) | /* Processor is a Thread */
                 (1 << 3),  /* Node is a Leaf */
-                core_offset, n, NULL, 0);
+                core_offset, n, priv_rsrc, priv_num);
         }
     }
 
