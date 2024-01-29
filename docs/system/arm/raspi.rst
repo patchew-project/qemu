@@ -33,11 +33,10 @@ Implemented devices
  * USB2 host controller (DWC2 and MPHI)
  * MailBox controller (MBOX)
  * VideoCore firmware (property)
-
+ * Peripheral SPI controller (SPI)
 
 Missing devices
 ---------------
 
- * Peripheral SPI controller (SPI)
  * Analog to Digital Converter (ADC)
  * Pulse Width Modulation (PWM)
