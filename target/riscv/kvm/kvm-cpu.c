@@ -171,9 +171,7 @@ static void kvm_cpu_get_misa_ext_cfg(Object *obj, Visitor *v,
 {
     KVMCPUConfig *misa_ext_cfg = opaque;
     target_ulong misa_bit = misa_ext_cfg->offset;
-    RISCVCPU *cpu = RISCV_CPU(obj);
-    CPURISCVState *env = &cpu->env;
-    bool value = env->misa_ext_mask & misa_bit;
+    bool value = cpu_env(CPU(obj))->misa_ext_mask & misa_bit;
 
     visit_type_bool(v, name, &value, errp);
 }
@@ -184,15 +182,13 @@ static void kvm_cpu_set_misa_ext_cfg(Object *obj, Visitor *v,
 {
     KVMCPUConfig *misa_ext_cfg = opaque;
     target_ulong misa_bit = misa_ext_cfg->offset;
-    RISCVCPU *cpu = RISCV_CPU(obj);
-    CPURISCVState *env = &cpu->env;
     bool value, host_bit;
 
     if (!visit_type_bool(v, name, &value, errp)) {
         return;
     }
 
-    host_bit = env->misa_ext_mask & misa_bit;
+    host_bit = cpu_env(CPU(obj))->misa_ext_mask & misa_bit;
 
     if (value == host_bit) {
         return;
@@ -1583,10 +1579,9 @@ static void kvm_cpu_instance_init(CPUState *cs)
  */
 static bool kvm_cpu_realize(CPUState *cs, Error **errp)
 {
-    RISCVCPU *cpu = RISCV_CPU(cs);
     int ret;
 
-    if (riscv_has_ext(&cpu->env, RVV)) {
+    if (riscv_has_ext(cpu_env(cs), RVV)) {
         ret = prctl(PR_RISCV_V_SET_CONTROL, PR_RISCV_V_VSTATE_CTRL_ON);
         if (ret) {
             error_setg(errp, "Error in prctl PR_RISCV_V_SET_CONTROL, code: %s",
