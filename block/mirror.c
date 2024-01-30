@@ -93,6 +93,7 @@ typedef struct MirrorBlockJob {
     int64_t active_write_bytes_in_flight;
     bool prepared;
     bool in_drain;
+    bool base_ro;
 } MirrorBlockJob;
 
 typedef struct MirrorBDSOpaque {
@@ -652,6 +653,32 @@ static void coroutine_fn mirror_wait_for_all_io(MirrorBlockJob *s)
     }
 }
 
+/*
+ * Check recursively if there is a parent BDS referenced more than
+ * min_refcnt times. This argument is needed because at the first
+ * call there is a bds referenced in blockcommit.
+ */
+static bool bdrv_chain_has_significant_parent(BlockDriverState *bs)
+{
+    BdrvChild *parent;
+    BlockDriverState *parent_bs;
+
+    QLIST_FOREACH(parent, &bs->parents, next) {
+        if (!(parent->klass->parent_is_bds)) {
+            continue;
+        }
+        parent_bs = parent->opaque;
+        if (parent_bs->drv && !parent_bs->drv->is_filter) {
+            return true;
+        }
+        if (bdrv_chain_has_significant_parent(parent_bs)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /**
  * mirror_exit_common: handle both abort() and prepare() cases.
  * for .prepare, returns 0 on success and -errno on failure.
@@ -792,6 +819,11 @@ static int mirror_exit_common(Job *job)
 
     bdrv_drained_end(target_bs);
     bdrv_unref(target_bs);
+
+    if (s->base_ro && !bdrv_is_read_only(target_bs) &&
+        (src->refcnt > 1 || bdrv_chain_has_significant_parent(src))) {
+        bdrv_reopen_set_read_only(target_bs, true, NULL);
+    }
 
     bs_opaque->job = NULL;
 
@@ -1715,6 +1747,7 @@ static BlockJob *mirror_start_job(
                              bool is_none_mode, BlockDriverState *base,
                              bool auto_complete, const char *filter_node_name,
                              bool is_mirror, MirrorCopyMode copy_mode,
+                             bool base_ro,
                              Error **errp)
 {
     MirrorBlockJob *s;
@@ -1798,6 +1831,7 @@ static BlockJob *mirror_start_job(
     bdrv_unref(mirror_top_bs);
 
     s->mirror_top_bs = mirror_top_bs;
+    s->base_ro = base_ro;
 
     /* No resize for the target either; while the mirror is still running, a
      * consistent read isn't necessarily possible. We could possibly allow
@@ -2027,7 +2061,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                      speed, granularity, buf_size, backing_mode, zero_target,
                      on_source_error, on_target_error, unmap, NULL, NULL,
                      &mirror_job_driver, is_none_mode, base, false,
-                     filter_node_name, true, copy_mode, errp);
+                     filter_node_name, true, copy_mode, false, errp);
 }
 
 BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
@@ -2056,7 +2090,7 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
                      on_error, on_error, true, cb, opaque,
                      &commit_active_job_driver, false, base, auto_complete,
                      filter_node_name, false, MIRROR_COPY_MODE_BACKGROUND,
-                     errp);
+                     base_read_only, errp);
     if (!job) {
         goto error_restore_flags;
     }
