@@ -1650,6 +1650,20 @@ sub process {
 			$non_utf8_charset = 1;
 		}
 
+# Check if this is a cover letter patch produced by git-format-patch
+# --cover-letter; It is initialized with subject suffix
+# " *** SUBJECT HERE ***" and body prefix " *** BLURB HERE ***"
+		if ($in_header_lines &&
+		    $rawline =~ /^Subject:.+[*]{3} SUBJECT HERE [*]{3}\s*$/) {
+        WARN("Patch appears to be a cover letter with uninitialized subject" .
+             " '*** SUBJECT HERE ***'\n$hereline\n");
+		}
+
+		if ($rawline =~ /^[*]{3} BLURB HERE [*]{3}\s*$/) {
+        WARN("Patch appears to be a cover letter with leftover placeholder " .
+             "text '*** BLURB HERE ***'\n$hereline\n");
+		}
+
 		if ($in_commit_log && $non_utf8_charset && $realfile =~ /^$/ &&
 		    $rawline =~ /$NON_ASCII_UTF8/) {
 			WARN("8-bit UTF-8 used in possible commit log\n" . $herecurr);
