@@ -2485,8 +2485,11 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
     memset(pdev->used + offset, 0xFF, QEMU_ALIGN_UP(size, 4));
     /* Make capability read-only by default */
     memset(pdev->wmask + offset, 0, size);
-    /* Check capability by default */
-    memset(pdev->cmask + offset, 0xFF, size);
+
+    if (cap_id != PCI_CAP_ID_VNDR) {
+        /* Check non-vendor specific capability by default */
+        memset(pdev->cmask + offset, 0xFF, size);
+    }
     return offset;
 }
 
