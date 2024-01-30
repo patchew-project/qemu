@@ -871,6 +871,32 @@ static void riscv_cpu_validate_profiles(RISCVCPU *cpu)
     }
 }
 
+/* This stub just works for making vendors array not empty */
+riscv_csr_operations stub_csr_ops[CSR_TABLE_SIZE];
+static inline bool never_p(const RISCVCPUConfig *cfg)
+{
+    return false;
+}
+
+void riscv_tcg_cpu_register_vendor_csr(RISCVCPU *cpu)
+{
+    static const struct {
+        bool (*guard_func)(const RISCVCPUConfig *);
+        riscv_csr_operations *csr_ops;
+    } vendors[] = {
+        { never_p, stub_csr_ops },
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(vendors); ++i) {
+        if (!vendors[i].guard_func(&cpu->cfg)) {
+            continue;
+        }
+        for (size_t j = 0; j < CSR_TABLE_SIZE &&
+                           vendors[i].csr_ops[j].name; j++) {
+            csr_ops[j] = vendors[i].csr_ops[j];
+        }
+    }
+}
+
 void riscv_tcg_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
 {
     CPURISCVState *env = &cpu->env;
