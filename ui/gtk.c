@@ -1312,15 +1312,20 @@ static void gd_menu_quit(GtkMenuItem *item, void *opaque)
 static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
-    VirtualConsole *vc = gd_vc_find_by_menu(s);
+    VirtualConsole *vc;
     GtkNotebook *nb = GTK_NOTEBOOK(s->notebook);
     gint page;
 
+    vc = gd_vc_find_current(s);
+    vc->gfx.visible = false;
+
+    vc = gd_vc_find_by_menu(s);
     gtk_release_modifiers(s);
     if (vc) {
         page = gtk_notebook_page_num(nb, vc->tab_item);
         gtk_notebook_set_current_page(nb, page);
         gtk_widget_grab_focus(vc->focus);
+        vc->gfx.visible = true;
     }
 }
 
@@ -1350,6 +1355,7 @@ static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
     VirtualConsole *vc = opaque;
     GtkDisplayState *s = vc->s;
 
+    vc->gfx.visible = false;
     gtk_widget_set_sensitive(vc->menu_item, true);
     gd_widget_reparent(vc->window, s->notebook, vc->tab_item);
     gtk_notebook_set_tab_label_text(GTK_NOTEBOOK(s->notebook),
@@ -1423,6 +1429,7 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
         gd_update_geometry_hints(vc);
         gd_update_caption(s);
     }
+    vc->gfx.visible = true;
 }
 
 static void gd_menu_show_menubar(GtkMenuItem *item, void *opaque)
@@ -2471,6 +2478,7 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 #ifdef CONFIG_GTK_CLIPBOARD
     gd_clipboard_init(s);
 #endif /* CONFIG_GTK_CLIPBOARD */
+    vc->gfx.visible = true;
 }
 
 static void early_gtk_display_init(DisplayOptions *opts)

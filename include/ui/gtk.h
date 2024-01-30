@@ -57,6 +57,7 @@ typedef struct VirtualGfxConsole {
     bool y0_top;
     bool scanout_mode;
     bool has_dmabuf;
+    bool visible;
 #endif
 } VirtualGfxConsole;
 
