@@ -1381,6 +1381,37 @@ static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
     return TRUE;
 }
 
+static gboolean gd_window_state_event(GtkWidget *widget, GdkEvent *event,
+                                      void *opaque)
+{
+    VirtualConsole *vc = opaque;
+
+    if (!vc) {
+        return TRUE;
+    }
+
+    if (event->window_state.new_window_state & GDK_WINDOW_STATE_ICONIFIED) {
+        vc->gfx.visible = false;
+        gd_set_ui_size(vc, 0, 0);
+        if (vc->gfx.guest_fb.dmabuf &&
+            vc->gfx.guest_fb.dmabuf->draw_submitted) {
+            vc->gfx.guest_fb.dmabuf->draw_submitted = false;
+            graphic_hw_gl_block(vc->gfx.dcl.con, false);
+        }
+    /* Showing the ui only if window exists except for the current vc as GTK
+     * window for 's' is being used to display the GUI */
+    } else if (vc->window || vc == gd_vc_find_current(vc->s)) {
+        GdkWindow *window;
+        window = gtk_widget_get_window(vc->gfx.drawing_area);
+        gd_set_ui_size(vc, gdk_window_get_width(window),
+                       gdk_window_get_height(window));
+
+        vc->gfx.visible = true;
+    }
+
+    return TRUE;
+}
+
 static gboolean gd_win_grab(void *opaque)
 {
     VirtualConsole *vc = opaque;
@@ -1422,6 +1453,9 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
 
         g_signal_connect(vc->window, "delete-event",
                          G_CALLBACK(gd_tab_window_close), vc);
+        g_signal_connect(vc->window, "window-state-event",
+                         G_CALLBACK(gd_window_state_event), vc);
+
         gtk_widget_show_all(vc->window);
 
         if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
@@ -2470,6 +2504,11 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     }
 
     vc = gd_vc_find_current(s);
+
+    g_signal_connect(s->window, "window-state-event",
+                     G_CALLBACK(gd_window_state_event),
+                     vc);
+
     gtk_widget_set_sensitive(s->view_menu, vc != NULL);
 #ifdef CONFIG_VTE
     gtk_widget_set_sensitive(s->copy_item,
