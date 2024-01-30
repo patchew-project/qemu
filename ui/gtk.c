@@ -1314,10 +1314,12 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
     GtkDisplayState *s = opaque;
     VirtualConsole *vc;
     GtkNotebook *nb = GTK_NOTEBOOK(s->notebook);
+    GdkWindow *window;
     gint page;
 
     vc = gd_vc_find_current(s);
     vc->gfx.visible = false;
+    gd_set_ui_size(vc, 0, 0);
 
     vc = gd_vc_find_by_menu(s);
     gtk_release_modifiers(s);
@@ -1325,6 +1327,9 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
         page = gtk_notebook_page_num(nb, vc->tab_item);
         gtk_notebook_set_current_page(nb, page);
         gtk_widget_grab_focus(vc->focus);
+        window = gtk_widget_get_window(vc->gfx.drawing_area);
+        gd_set_ui_size(vc, gdk_window_get_width(window),
+                       gdk_window_get_height(window));
         vc->gfx.visible = true;
     }
 }
@@ -1356,6 +1361,7 @@ static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
     GtkDisplayState *s = vc->s;
 
     vc->gfx.visible = false;
+    gd_set_ui_size(vc, 0, 0);
     gtk_widget_set_sensitive(vc->menu_item, true);
     gd_widget_reparent(vc->window, s->notebook, vc->tab_item);
     gtk_notebook_set_tab_label_text(GTK_NOTEBOOK(s->notebook),
@@ -1391,6 +1397,7 @@ static gboolean gd_win_grab(void *opaque)
 static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
+    GdkWindow *window;
     VirtualConsole *vc = gd_vc_find_current(s);
 
     if (vc->type == GD_VC_GFX &&
@@ -1429,6 +1436,10 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
         gd_update_geometry_hints(vc);
         gd_update_caption(s);
     }
+
+    window = gtk_widget_get_window(vc->gfx.drawing_area);
+    gd_set_ui_size(vc, gdk_window_get_width(window),
+                   gdk_window_get_height(window));
     vc->gfx.visible = true;
 }
 
@@ -1753,7 +1764,9 @@ static gboolean gd_configure(GtkWidget *widget,
 {
     VirtualConsole *vc = opaque;
 
-    gd_set_ui_size(vc, cfg->width, cfg->height);
+    if (vc->gfx.visible) {
+        gd_set_ui_size(vc, cfg->width, cfg->height);
+    }
     return FALSE;
 }
 
