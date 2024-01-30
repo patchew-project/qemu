@@ -412,6 +412,14 @@ struct CPUArchState {
     target_ulong cur_pmmask;
     target_ulong cur_pmbase;
 
+    union {
+        /* Custom CSR for Xuantie CPU */
+        struct {
+#ifndef CONFIG_USER_ONLY
+            target_ulong th_mxstatus;
+#endif
+        };
+    };
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *stimer; /* Internal timer for S-mode interrupt */
     QEMUTimer *vstimer; /* Internal timer for VS-mode interrupt */
@@ -799,6 +807,7 @@ void riscv_add_satp_mode_properties(Object *obj);
 bool riscv_cpu_accelerator_compatible(RISCVCPU *cpu);
 
 /* CSR function table */
+extern riscv_csr_operations th_csr_ops[CSR_TABLE_SIZE];
 extern riscv_csr_operations csr_ops[CSR_TABLE_SIZE];
 
 extern const bool valid_vm_1_10_32[], valid_vm_1_10_64[];

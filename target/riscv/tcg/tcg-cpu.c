@@ -763,7 +763,6 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         cpu->cfg.pmu_mask = 0;
         cpu->pmu_avail_ctrs = 0;
     }
-
     /*
      * Disable isa extensions based on priv spec after we
      * validated and set everything we need.
@@ -871,11 +870,9 @@ static void riscv_cpu_validate_profiles(RISCVCPU *cpu)
     }
 }
 
-/* This stub just works for making vendors array not empty */
-riscv_csr_operations stub_csr_ops[CSR_TABLE_SIZE];
-static inline bool never_p(const RISCVCPUConfig *cfg)
+static inline bool th_csr_p(const RISCVCPUConfig *cfg)
 {
-    return false;
+    return cfg->ext_xtheadmaee;
 }
 
 void riscv_tcg_cpu_register_vendor_csr(RISCVCPU *cpu)
@@ -884,7 +881,7 @@ void riscv_tcg_cpu_register_vendor_csr(RISCVCPU *cpu)
         bool (*guard_func)(const RISCVCPUConfig *);
         riscv_csr_operations *csr_ops;
     } vendors[] = {
-        { never_p, stub_csr_ops },
+        { th_csr_p, th_csr_ops },
     };
     for (size_t i = 0; i < ARRAY_SIZE(vendors); ++i) {
         if (!vendors[i].guard_func(&cpu->cfg)) {

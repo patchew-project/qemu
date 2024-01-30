@@ -905,4 +905,10 @@ typedef enum RISCVException {
 /* JVT CSR bits */
 #define JVT_MODE                           0x3F
 #define JVT_BASE                           (~0x3F)
+
+/* Xuantie custom CSRs */
+#define CSR_TH_MXSTATUS 0x7c0
+
+#define TH_MXSTATUS_MAEE_SHIFT  21
+#define TH_MXSTATUS_MAEE        (0x1 << TH_MXSTATUS_MAEE_SHIFT)
 #endif

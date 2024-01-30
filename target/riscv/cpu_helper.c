@@ -812,6 +812,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     int napot_bits = 0;
     target_ulong napot_mask;
 
+    bool skip_pte_check = env->th_mxstatus & TH_MXSTATUS_MAEE;
     /*
      * Check if we should use the background registers for the two
      * stage translation. We don't need to check if we actually need
@@ -974,18 +975,19 @@ restart:
         if (riscv_cpu_sxl(env) == MXL_RV32) {
             ppn = pte >> PTE_PPN_SHIFT;
         } else {
-            if (pte & PTE_RESERVED) {
-                return TRANSLATE_FAIL;
-            }
+            if (!skip_pte_check) {
+                if (pte & PTE_RESERVED) {
+                    return TRANSLATE_FAIL;
+                }
 
-            if (!pbmte && (pte & PTE_PBMT)) {
-                return TRANSLATE_FAIL;
-            }
+                if (!pbmte && (pte & PTE_PBMT)) {
+                    return TRANSLATE_FAIL;
+                }
 
-            if (!riscv_cpu_cfg(env)->ext_svnapot && (pte & PTE_N)) {
-                return TRANSLATE_FAIL;
+                if (!riscv_cpu_cfg(env)->ext_svnapot && (pte & PTE_N)) {
+                    return TRANSLATE_FAIL;
+                }
             }
-
             ppn = (pte & (target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT;
         }
 
@@ -998,7 +1000,8 @@ restart:
         }
 
         /* Inner PTE, continue walking */
-        if (pte & (PTE_D | PTE_A | PTE_U | PTE_ATTR)) {
+        if ((pte & (PTE_D | PTE_A | PTE_U)) ||
+            (!skip_pte_check && (pte & PTE_ATTR))) {
             return TRANSLATE_FAIL;
         }
         base = ppn << PGSHIFT;
@@ -1012,7 +1015,7 @@ restart:
         /* Misaligned PPN */
         return TRANSLATE_FAIL;
     }
-    if (!pbmte && (pte & PTE_PBMT)) {
+    if (!skip_pte_check && !pbmte && (pte & PTE_PBMT)) {
         /* Reserved without Svpbmt. */
         return TRANSLATE_FAIL;
     }
