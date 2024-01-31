@@ -20,6 +20,7 @@
 #include "qom/object_interfaces.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/madvise.h"
+#include "hw/qdev-core.h"
 
 #ifdef CONFIG_NUMA
 #include <numaif.h>
@@ -235,9 +236,10 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
         int fd = memory_region_get_fd(&backend->mr);
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
+        bool async = !phase_check(PHASE_MACHINE_INITIALIZED);
 
         if (!qemu_prealloc_mem(fd, ptr, sz, backend->prealloc_threads,
-                               backend->prealloc_context, errp)) {
+                               backend->prealloc_context, async, errp)) {
             return;
         }
         backend->prealloc = true;
@@ -323,6 +325,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
     void *ptr;
     uint64_t sz;
+    bool async = !phase_check(PHASE_MACHINE_INITIALIZED);
 
     if (!bc->alloc) {
         return;
@@ -398,7 +401,8 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     if (backend->prealloc && !qemu_prealloc_mem(memory_region_get_fd(&backend->mr),
                                                 ptr, sz,
                                                 backend->prealloc_threads,
-                                                backend->prealloc_context, errp)) {
+                                                backend->prealloc_context,
+                                                async, errp)) {
         return;
     }
 }
