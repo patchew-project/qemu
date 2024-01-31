@@ -1093,6 +1093,7 @@ else
   xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
                          method: 'pkg-config')
 endif
+xkeyboard_config = dependency('xkeyboard-config')
 
 slirp = not_found
 if not get_option('slirp').auto() or have_system
@@ -3977,7 +3978,7 @@ subdir('qga')
 if xkbcommon.found()
   # used for the update-keymaps target, so include rules even if !have_tools
   qemu_keymap = executable('qemu-keymap', files('qemu-keymap.c', 'ui/input-keymap.c') + genh,
-                           dependencies: [qemuutil, xkbcommon], install: have_tools)
+                           dependencies: [qemuutil, xkbcommon, xkeyboard_config], install: have_tools)
 endif
 
 if have_tools
