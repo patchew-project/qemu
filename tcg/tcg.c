@@ -4808,7 +4808,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         arg_ct = &def->args_ct[i];
         ts = arg_temp(arg);
 
-        if (ts->val_type == TEMP_VAL_CONST
+        if ((ts->val_type == TEMP_VAL_CONST || ts->kind == TEMP_CONST)
             && tcg_target_const_match(ts->val, ts->type, arg_ct->ct, TCGOP_VECE(op))) {
             /* constant is OK for instruction */
             const_args[i] = 1;
