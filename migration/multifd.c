@@ -88,7 +88,17 @@ static void nocomp_send_cleanup(MultiFDSendParams *p, Error **errp)
  */
 static int nocomp_send_prepare(MultiFDSendParams *p, Error **errp)
 {
+    bool use_zero_copy_send = migrate_zero_copy_send();
     MultiFDPages_t *pages = p->pages;
+    int ret;
+
+    if (!use_zero_copy_send) {
+        /*
+         * Only !zero_copy needs the header in IOV; zerocopy will
+         * send it separately.
+         */
+        multifd_send_prepare_header(p);
+    }
 
     for (int i = 0; i < pages->num; i++) {
         p->iov[p->iovs_num].iov_base = pages->block->host + pages->offset[i];
@@ -98,6 +108,18 @@ static int nocomp_send_prepare(MultiFDSendParams *p, Error **errp)
 
     p->next_packet_size = pages->num * p->page_size;
     p->flags |= MULTIFD_FLAG_NOCOMP;
+
+    multifd_send_fill_packet(p);
+
+    if (use_zero_copy_send) {
+        /* Send header first, without zerocopy */
+        ret = qio_channel_write_all(p->c, (void *)p->packet,
+                                    p->packet_len, errp);
+        if (ret != 0) {
+            return -1;
+        }
+    }
+
     return 0;
 }
 
@@ -266,7 +288,7 @@ static void multifd_pages_clear(MultiFDPages_t *pages)
     g_free(pages);
 }
 
-static void multifd_send_fill_packet(MultiFDSendParams *p)
+void multifd_send_fill_packet(MultiFDSendParams *p)
 {
     MultiFDPacket_t *packet = p->packet;
     MultiFDPages_t *pages = p->pages;
@@ -683,7 +705,6 @@ static void *multifd_send_thread(void *opaque)
     MigrationThread *thread = NULL;
     Error *local_err = NULL;
     int ret = 0;
-    bool use_zero_copy_send = migrate_zero_copy_send();
 
     thread = migration_threads_add(p->name, qemu_get_thread_id());
 
@@ -708,32 +729,12 @@ static void *multifd_send_thread(void *opaque)
             MultiFDPages_t *pages = p->pages;
 
             p->iovs_num = 0;
-
-            if (!use_zero_copy_send) {
-                /*
-                 * Only !zero_copy needs the header in IOV; zerocopy will
-                 * send it separately.
-                 */
-                multifd_send_prepare_header(p);
-            }
-
             assert(pages->num);
 
             ret = multifd_send_state->ops->send_prepare(p, &local_err);
             if (ret != 0) {
                 qemu_mutex_unlock(&p->mutex);
                 break;
-            }
-
-            multifd_send_fill_packet(p);
-
-            if (use_zero_copy_send) {
-                /* Send header first, without zerocopy */
-                ret = qio_channel_write_all(p->c, (void *)p->packet,
-                                            p->packet_len, &local_err);
-                if (ret != 0) {
-                    break;
-                }
             }
 
             ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
