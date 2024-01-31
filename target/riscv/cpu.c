@@ -415,6 +415,9 @@ static void riscv_any_cpu_init(Object *obj)
     cpu->cfg.ext_zicsr = true;
     cpu->cfg.mmu = true;
     cpu->cfg.pmp = true;
+
+    cpu->cfg.mvendorid = QEMU_MVENDORID;
+    cpu->cfg.marchid = QEMU_MARCHID;
 }
 
 static void riscv_max_cpu_init(Object *obj)
@@ -432,6 +435,8 @@ static void riscv_max_cpu_init(Object *obj)
     set_satp_mode_max_supported(RISCV_CPU(obj), mlx == MXL_RV32 ?
                                 VM_1_10_SV32 : VM_1_10_SV57);
 #endif
+    cpu->cfg.mvendorid = QEMU_MVENDORID;
+    cpu->cfg.marchid = QEMU_MARCHID;
 }
 
 #if defined(TARGET_RISCV64)
@@ -445,6 +450,8 @@ static void rv64_base_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(RISCV_CPU(obj), VM_1_10_SV57);
 #endif
+    cpu->cfg.mvendorid = QEMU_MVENDORID;
+    cpu->cfg.marchid = QEMU_MARCHID;
 }
 
 static void rv64_sifive_u_cpu_init(Object *obj)
@@ -569,6 +576,8 @@ static void rv128_base_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(RISCV_CPU(obj), VM_1_10_SV57);
 #endif
+    cpu->cfg.mvendorid = QEMU_MVENDORID;
+    cpu->cfg.marchid = QEMU_MARCHID;
 }
 
 static void rv64i_bare_cpu_init(Object *obj)
@@ -591,6 +600,8 @@ static void rv64i_bare_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(RISCV_CPU(obj), VM_1_10_SV64);
 #endif
+    cpu->cfg.mvendorid = QEMU_MVENDORID;
+    cpu->cfg.marchid = QEMU_MARCHID;
 }
 #else
 static void rv32_base_cpu_init(Object *obj)
@@ -603,6 +614,8 @@ static void rv32_base_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(RISCV_CPU(obj), VM_1_10_SV32);
 #endif
+    cpu->cfg.mvendorid = QEMU_MVENDORID;
+    cpu->cfg.marchid = QEMU_MARCHID;
 }
 
 static void rv32_sifive_u_cpu_init(Object *obj)
@@ -672,6 +685,9 @@ static void rv32_imafcu_nommu_cpu_init(Object *obj)
     cpu->cfg.ext_zifencei = true;
     cpu->cfg.ext_zicsr = true;
     cpu->cfg.pmp = true;
+
+    cpu->cfg.mvendorid = QEMU_MVENDORID;
+    cpu->cfg.marchid = QEMU_MARCHID;
 }
 #endif
 

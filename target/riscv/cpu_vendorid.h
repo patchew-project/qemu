@@ -7,4 +7,7 @@
 #define VEYRON_V1_MIMPID        0x111
 #define VEYRON_V1_MVENDORID     0x61f
 
+#define QEMU_VIRT_MVENDORID     0
+#define QEMU_VIRT_MARCHID       42
+
 #endif /*  TARGET_RISCV_CPU_VENDORID_H */
