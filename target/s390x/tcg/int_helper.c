@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 /* #define DEBUG_HELPER */
 #ifdef DEBUG_HELPER
@@ -96,6 +97,45 @@ Int128 HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al, uint64_t b)
     }
     /* divide by zero or overflow */
     tcg_s390_program_interrupt(env, PGM_FIXPT_DIVIDE, GETPC());
+}
+
+uint64_t HELPER(cvb)(CPUS390XState *env, uint64_t src, uint32_t n)
+{
+    int64_t dec, sign = 0, digit, val = 0, pow10 = 0;
+    const uintptr_t ra = GETPC();
+    uint64_t tmpsrc;
+    int i, j;
+
+    for (i = 0; i < n; i++) {
+        tmpsrc = wrap_address(env, src + (n - i - 1) * 8);
+        dec = cpu_ldq_data_ra(env, tmpsrc, ra);
+        for (j = 0; j < 16; j++, dec >>= 4) {
+            if (i == 0 && j == 0) {
+                sign = dec & 0xf;
+                if (sign < 0xa) {
+                    tcg_s390_data_exception(env, 0, ra);
+                }
+                continue;
+            }
+            digit = dec & 0xf;
+            if (digit > 0x9) {
+                tcg_s390_data_exception(env, 0, ra);
+            }
+            if (i == 0 && j == 1) {
+                if (sign == 0xb || sign == 0xd) {
+                    val = -digit;
+                    pow10 = -10;
+                } else {
+                    val = digit;
+                    pow10 = 10;
+                }
+            } else {
+                val += digit * pow10;
+                pow10 *= 10;
+            }
+        }
+    }
+    return val;
 }
 
 uint64_t HELPER(cvd)(int32_t reg)
