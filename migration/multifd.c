@@ -766,9 +766,6 @@ static void *multifd_send_thread(void *opaque)
             p->pending_sync = false;
             qemu_mutex_unlock(&p->mutex);
             qemu_sem_post(&p->sem_sync);
-        } else {
-            qemu_mutex_unlock(&p->mutex);
-            /* sometimes there are spurious wakeups */
         }
     }
 
