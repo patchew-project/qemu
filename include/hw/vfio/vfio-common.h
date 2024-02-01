@@ -31,6 +31,7 @@
 #endif
 #include "sysemu/sysemu.h"
 #include "hw/vfio/vfio-container-base.h"
+#include "sysemu/host_iommu_device.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -96,6 +97,11 @@ typedef struct VFIOIOMMUFDContainer {
     IOMMUFDBackend *be;
     uint32_t ioas_id;
 } VFIOIOMMUFDContainer;
+
+/* Abstraction of host IOMMU legacy device */
+typedef struct IOMMULegacyDevice {
+    HostIOMMUDevice base;
+} IOMMULegacyDevice;
 
 typedef struct VFIODeviceOps VFIODeviceOps;
 
