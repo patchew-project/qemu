@@ -3006,6 +3006,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
+    /* Initialize host iommu device after attachment succeed */
+    host_iommu_device_init(vbasedev);
+
     vfio_populate_device(vdev, &err);
     if (err) {
         error_propagate(errp, err);
