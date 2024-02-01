@@ -1120,6 +1120,12 @@ out_single:
     return ret;
 }
 
+static void vfio_legacy_host_iommu_device_init(VFIODevice *vbasedev)
+{
+    host_iommu_base_device_init(&vbasedev->base_hdev, HID_LEGACY,
+                                sizeof(IOMMULegacyDevice));
+}
+
 static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
@@ -1132,6 +1138,7 @@ static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
     vioc->set_dirty_page_tracking = vfio_legacy_set_dirty_page_tracking;
     vioc->query_dirty_bitmap = vfio_legacy_query_dirty_bitmap;
     vioc->pci_hot_reset = vfio_legacy_pci_hot_reset;
+    vioc->host_iommu_device_init = vfio_legacy_host_iommu_device_init;
 };
 
 static const TypeInfo types[] = {
