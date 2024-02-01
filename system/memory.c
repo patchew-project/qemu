@@ -535,10 +535,17 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
                                       MemTxAttrs attrs)
 {
     uint64_t access_mask;
+    unsigned access_mask_shift;
+    unsigned access_mask_start_offset;
+    unsigned access_mask_end_offset;
     unsigned access_size;
-    unsigned i;
     MemTxResult r = MEMTX_OK;
     bool reentrancy_guard_applied = false;
+    bool is_big_endian = memory_region_big_endian(mr);
+    signed start_diff;
+    signed current_offset;
+    signed access_shift;
+    hwaddr current_addr;
 
     if (!access_size_min) {
         access_size_min = 1;
@@ -560,19 +567,24 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
         reentrancy_guard_applied = true;
     }
 
-    /* FIXME: support unaligned access? */
     access_size = MAX(MIN(size, access_size_max), access_size_min);
-    access_mask = MAKE_64BIT_MASK(0, access_size * 8);
-    if (memory_region_big_endian(mr)) {
-        for (i = 0; i < size; i += access_size) {
-            r |= access_fn(mr, addr + i, value, access_size,
-                        (size - access_size - i) * 8, access_mask, attrs);
-        }
-    } else {
-        for (i = 0; i < size; i += access_size) {
-            r |= access_fn(mr, addr + i, value, access_size, i * 8,
-                        access_mask, attrs);
-        }
+    start_diff = mr->ops->impl.unaligned ? 0 : addr & (access_size - 1);
+    current_addr = addr - start_diff;
+    for (current_offset = -start_diff; current_offset < (signed)size;
+         current_offset += access_size, current_addr += access_size) {
+        access_shift = is_big_endian
+                          ? (signed)size - (signed)access_size - current_offset
+                          : current_offset;
+        access_mask_shift = current_offset > 0 ? 0 : -current_offset;
+        access_mask_start_offset = current_offset > 0 ? current_offset : 0;
+        access_mask_end_offset = current_offset + access_size > size
+                                     ? size
+                                     : current_offset + access_size;
+        access_mask = MAKE_64BIT_MASK(access_mask_shift * 8,
+            (access_mask_end_offset - access_mask_start_offset) * 8);
+
+        r |= access_fn(mr, current_addr, value, access_size, access_shift * 8,
+                       access_mask, attrs);
     }
     if (mr->dev && reentrancy_guard_applied) {
         mr->dev->mem_reentrancy_guard.engaged_in_io = false;
