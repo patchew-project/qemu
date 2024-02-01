@@ -283,6 +283,7 @@ struct IntelIOMMUState {
 
     uint64_t cap;                   /* The value of capability reg */
     uint64_t ecap;                  /* The value of extended capability reg */
+    bool cap_frozen;                /* cap/ecap become read-only after frozen */
 
     uint32_t context_cache_gen;     /* Should be in [1,MAX] */
     GHashTable *iotlb;              /* IOTLB */
