@@ -3385,7 +3385,7 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_OFF_AUTO_PCIBAR("x-msix-relocation", VFIOPCIDevice, msix_relo,
                                 OFF_AUTOPCIBAR_OFF),
 #ifdef CONFIG_IOMMUFD
-    DEFINE_PROP_LINK("iommufd", VFIOPCIDevice, vbasedev.iommufd,
+    DEFINE_PROP_LINK("iommufd", VFIOPCIDevice, vbasedev.iommufd_dev.iommufd,
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
     DEFINE_PROP_END_OF_LIST(),

@@ -198,7 +198,7 @@ static void vfio_ap_unrealize(DeviceState *dev)
 static Property vfio_ap_properties[] = {
     DEFINE_PROP_STRING("sysfsdev", VFIOAPDevice, vdev.sysfsdev),
 #ifdef CONFIG_IOMMUFD
-    DEFINE_PROP_LINK("iommufd", VFIOAPDevice, vdev.iommufd,
+    DEFINE_PROP_LINK("iommufd", VFIOAPDevice, vdev.iommufd_dev.iommufd,
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
     DEFINE_PROP_END_OF_LIST(),

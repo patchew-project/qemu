@@ -65,7 +65,7 @@ static void iommufd_cdev_kvm_device_del(VFIODevice *vbasedev)
 
 static int iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
 {
-    IOMMUFDBackend *iommufd = vbasedev->iommufd;
+    IOMMUFDBackend *iommufd = vbasedev->iommufd_dev.iommufd;
     struct vfio_device_bind_iommufd bind = {
         .argsz = sizeof(bind),
         .flags = 0,
@@ -96,9 +96,10 @@ static int iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
         goto err_bind;
     }
 
-    vbasedev->devid = bind.out_devid;
+    vbasedev->iommufd_dev.devid = bind.out_devid;
     trace_iommufd_cdev_connect_and_bind(bind.iommufd, vbasedev->name,
-                                        vbasedev->fd, vbasedev->devid);
+                                        vbasedev->fd,
+                                        vbasedev->iommufd_dev.devid);
     return ret;
 err_bind:
     iommufd_cdev_kvm_device_del(vbasedev);
@@ -111,7 +112,7 @@ static void iommufd_cdev_unbind_and_disconnect(VFIODevice *vbasedev)
 {
     /* Unbind is automatically conducted when device fd is closed */
     iommufd_cdev_kvm_device_del(vbasedev);
-    iommufd_backend_disconnect(vbasedev->iommufd);
+    iommufd_backend_disconnect(vbasedev->iommufd_dev.iommufd);
 }
 
 static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
@@ -181,7 +182,7 @@ out_free_path:
 static int iommufd_cdev_attach_ioas_hwpt(VFIODevice *vbasedev, uint32_t id,
                                          Error **errp)
 {
-    int ret, iommufd = vbasedev->iommufd->fd;
+    int ret, iommufd = vbasedev->iommufd_dev.iommufd->fd;
     struct vfio_device_attach_iommufd_pt attach_data = {
         .argsz = sizeof(attach_data),
         .flags = 0,
@@ -203,7 +204,7 @@ static int iommufd_cdev_attach_ioas_hwpt(VFIODevice *vbasedev, uint32_t id,
 
 static int iommufd_cdev_detach_ioas_hwpt(VFIODevice *vbasedev, Error **errp)
 {
-    int ret, iommufd = vbasedev->iommufd->fd;
+    int ret, iommufd = vbasedev->iommufd_dev.iommufd->fd;
     struct vfio_device_detach_iommufd_pt detach_data = {
         .argsz = sizeof(detach_data),
         .flags = 0,
@@ -337,7 +338,7 @@ static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     QLIST_FOREACH(bcontainer, &space->containers, next) {
         container = container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
         if (bcontainer->ops != iommufd_vioc ||
-            vbasedev->iommufd != container->be) {
+            vbasedev->iommufd_dev.iommufd != container->be) {
             continue;
         }
         if (iommufd_cdev_attach_container(vbasedev, container, &err)) {
@@ -358,15 +359,16 @@ static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     }
 
     /* Need to allocate a new dedicated container */
-    ret = iommufd_backend_alloc_ioas(vbasedev->iommufd, &ioas_id, errp);
+    ret = iommufd_backend_alloc_ioas(vbasedev->iommufd_dev.iommufd,
+                                     &ioas_id, errp);
     if (ret < 0) {
         goto err_alloc_ioas;
     }
 
-    trace_iommufd_cdev_alloc_ioas(vbasedev->iommufd->fd, ioas_id);
+    trace_iommufd_cdev_alloc_ioas(vbasedev->iommufd_dev.iommufd->fd, ioas_id);
 
     container = g_malloc0(sizeof(*container));
-    container->be = vbasedev->iommufd;
+    container->be = vbasedev->iommufd_dev.iommufd;
     container->ioas_id = ioas_id;
 
     bcontainer = &container->bcontainer;
@@ -479,7 +481,7 @@ static VFIODevice *iommufd_cdev_pci_find_by_devid(__u32 devid)
         if (vbasedev_iter->bcontainer->ops != iommufd_vioc) {
             continue;
         }
-        if (devid == vbasedev_iter->devid) {
+        if (devid == vbasedev_iter->iommufd_dev.devid) {
             return vbasedev_iter;
         }
     }
@@ -492,7 +494,7 @@ iommufd_cdev_dep_get_realized_vpdev(struct vfio_pci_dependent_device *dep_dev,
 {
     VFIODevice *vbasedev_tmp;
 
-    if (dep_dev->devid == reset_dev->devid ||
+    if (dep_dev->devid == reset_dev->iommufd_dev.devid ||
         dep_dev->devid == VFIO_PCI_DEVID_OWNED) {
         return NULL;
     }

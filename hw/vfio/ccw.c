@@ -667,7 +667,7 @@ static Property vfio_ccw_properties[] = {
     DEFINE_PROP_STRING("sysfsdev", VFIOCCWDevice, vdev.sysfsdev),
     DEFINE_PROP_BOOL("force-orb-pfch", VFIOCCWDevice, force_orb_pfch, false),
 #ifdef CONFIG_IOMMUFD
-    DEFINE_PROP_LINK("iommufd", VFIOCCWDevice, vdev.iommufd,
+    DEFINE_PROP_LINK("iommufd", VFIOCCWDevice, vdev.iommufd_dev.iommufd,
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
     DEFINE_PROP_END_OF_LIST(),

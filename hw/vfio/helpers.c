@@ -626,7 +626,7 @@ int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
             vbasedev->name = g_path_get_basename(vbasedev->sysfsdev);
         }
     } else {
-        if (!vbasedev->iommufd) {
+        if (!vbasedev->iommufd_dev.iommufd) {
             error_setg(errp, "Use FD passing only with iommufd backend");
             return -EINVAL;
         }
