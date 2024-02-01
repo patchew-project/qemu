@@ -32,6 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/vfio/vfio-container-base.h"
 #include "sysemu/host_iommu_device.h"
+#include "sysemu/iommufd.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -132,7 +133,17 @@ typedef struct VFIODevice {
     bool dirty_tracking;
     int devid;
     IOMMUFDBackend *iommufd;
+    union {
+        HostIOMMUDevice base_hdev;
+        IOMMULegacyDevice legacy_dev;
+        IOMMUFDDevice iommufd_dev;
+    };
 } VFIODevice;
+
+QEMU_BUILD_BUG_ON(offsetof(VFIODevice, legacy_dev.base) !=
+                  offsetof(VFIODevice, base_hdev));
+QEMU_BUILD_BUG_ON(offsetof(VFIODevice, iommufd_dev.base) !=
+                  offsetof(VFIODevice, base_hdev));
 
 struct VFIODeviceOps {
     void (*vfio_compute_needs_reset)(VFIODevice *vdev);
