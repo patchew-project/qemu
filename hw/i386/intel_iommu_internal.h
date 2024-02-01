@@ -28,6 +28,8 @@
 #ifndef HW_I386_INTEL_IOMMU_INTERNAL_H
 #define HW_I386_INTEL_IOMMU_INTERNAL_H
 #include "hw/i386/intel_iommu.h"
+#include "sysemu/host_iommu_device.h"
+#include "hw/vfio/vfio-common.h"
 
 /*
  * Intel IOMMU register specification
@@ -537,4 +539,16 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_SL_IGN_COM              0xbff0000000000000ULL
 #define VTD_SL_TM                   (1ULL << 62)
 
+
+typedef struct VTDHostIOMMUDevice {
+    IntelIOMMUState *iommu_state;
+    PCIBus *bus;
+    uint8_t devfn;
+    union {
+        HostIOMMUDevice *dev;
+        IOMMULegacyDevice *ldev;
+        IOMMUFDDevice *idev;
+    };
+    QLIST_ENTRY(VTDHostIOMMUDevice) next;
+} VTDHostIOMMUDevice;
 #endif
