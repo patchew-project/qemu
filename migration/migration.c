@@ -100,7 +100,7 @@ static int migration_maybe_pause(MigrationState *s,
                                  int *current_active_state,
                                  int new_state);
 static void migrate_fd_cancel(MigrationState *s);
-static bool close_return_path_on_source(MigrationState *s);
+static bool close_return_path_on_source(MigrationState *s, int eror);
 
 static void migration_downtime_start(MigrationState *s)
 {
@@ -1313,6 +1313,8 @@ void migrate_set_state(int *state, int old_state, int new_state)
 
 static void migrate_fd_cleanup(MigrationState *s)
 {
+    int file_error = 0;
+
     g_free(s->hostname);
     s->hostname = NULL;
     json_writer_free(s->vmdesc);
@@ -1333,6 +1335,7 @@ static void migrate_fd_cleanup(MigrationState *s)
 
         multifd_save_cleanup();
         qemu_mutex_lock(&s->qemu_file_lock);
+        file_error = qemu_file_get_error(s->to_dst_file);
         tmp = s->to_dst_file;
         s->to_dst_file = NULL;
         qemu_mutex_unlock(&s->qemu_file_lock);
@@ -1348,7 +1351,7 @@ static void migrate_fd_cleanup(MigrationState *s)
      * We already cleaned up to_dst_file, so errors from the return
      * path might be due to that, ignore them.
      */
-    close_return_path_on_source(s);
+    close_return_path_on_source(s, file_error);
 
     assert(!migration_is_active(s));
 
@@ -2357,7 +2360,7 @@ static int open_return_path_on_source(MigrationState *ms)
 }
 
 /* Return true if error detected, or false otherwise */
-static bool close_return_path_on_source(MigrationState *ms)
+static bool close_return_path_on_source(MigrationState *ms, int file_error)
 {
     if (!ms->rp_state.rp_thread_created) {
         return false;
@@ -2372,8 +2375,7 @@ static bool close_return_path_on_source(MigrationState *ms)
      * cause it to unblock if it's stuck waiting for the destination.
      */
     WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
-        if (ms->to_dst_file && ms->rp_state.from_dst_file &&
-            qemu_file_get_error(ms->to_dst_file)) {
+        if (file_error && ms->rp_state.from_dst_file) {
             qemu_file_shutdown(ms->rp_state.from_dst_file);
         }
     }
@@ -2707,6 +2709,7 @@ static void migration_completion(MigrationState *s)
 {
     int ret = 0;
     int current_active_state = s->state;
+    int file_error = qemu_file_get_error(s->to_dst_file);
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
         ret = migration_completion_precopy(s, &current_active_state);
@@ -2720,11 +2723,11 @@ static void migration_completion(MigrationState *s)
         goto fail;
     }
 
-    if (close_return_path_on_source(s)) {
+    if (close_return_path_on_source(s, file_error)) {
         goto fail;
     }
 
-    if (qemu_file_get_error(s->to_dst_file)) {
+    if (file_error) {
         trace_migration_completion_file_err();
         goto fail;
     }
@@ -2861,6 +2864,7 @@ static MigThrError postcopy_pause(MigrationState *s)
 
     while (true) {
         QEMUFile *file;
+        int file_error;
 
         /*
          * Current channel is possibly broken. Release it.  Note that this is
@@ -2874,6 +2878,7 @@ static MigThrError postcopy_pause(MigrationState *s)
         assert(s->to_dst_file);
         migration_ioc_unregister_yank_from_file(s->to_dst_file);
         qemu_mutex_lock(&s->qemu_file_lock);
+        file_error = qemu_file_get_error(s->to_dst_file);
         file = s->to_dst_file;
         s->to_dst_file = NULL;
         qemu_mutex_unlock(&s->qemu_file_lock);
@@ -2886,7 +2891,7 @@ static MigThrError postcopy_pause(MigrationState *s)
          * path and just wait for the thread to finish. It will be
          * re-created when we resume.
          */
-        close_return_path_on_source(s);
+        close_return_path_on_source(s, file_error);
 
         migrate_set_state(&s->state, s->state,
                           MIGRATION_STATUS_POSTCOPY_PAUSED);
