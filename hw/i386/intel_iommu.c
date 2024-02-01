@@ -39,6 +39,7 @@
 #include "hw/i386/apic_internal.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
+#include "migration/blocker.h"
 #include "trace.h"
 
 #define S_AW_BITS (VTD_MGAW_FROM_CAP(s->cap) + 1)
@@ -3829,6 +3830,8 @@ static int vtd_check_legacy_hdev(IntelIOMMUState *s,
     return 0;
 }
 
+static Error *vtd_mig_blocker;
+
 static int vtd_check_iommufd_hdev(IntelIOMMUState *s,
                                   IOMMUFDDevice *idev,
                                   Error **errp)
@@ -3860,8 +3863,17 @@ static int vtd_check_iommufd_hdev(IntelIOMMUState *s,
         tmp_cap |= VTD_CAP_MGAW(host_mgaw + 1);
     }
 
-    s->cap = tmp_cap;
-    return 0;
+    if (s->cap != tmp_cap) {
+        if (vtd_mig_blocker == NULL) {
+            error_setg(&vtd_mig_blocker,
+                       "cap/ecap update from host IOMMU block migration");
+            ret = migrate_add_blocker(&vtd_mig_blocker, errp);
+        }
+        if (!ret) {
+            s->cap = tmp_cap;
+        }
+    }
+    return ret;
 }
 
 static int vtd_check_hdev(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hdev,
