@@ -38,6 +38,16 @@ config-cc.mak: Makefile
 
 override LDFLAGS = -nostdlib -Wl,--build-id=none,-T,$(SRC_DIR)/flat.lds
 
+ld-test = $(LD) -v $1 >/dev/null 2>/dev/null
+ld-option = if $(call ld-test, $1); then \
+    echo "$(TARGET_PREFIX)$1 detected" && echo "override LDFLAGS += -Wl,$1" >&3; else \
+    echo "$(TARGET_PREFIX)$1 not detected" $(if $2,&& echo "override LDFLAGS += $2" >&3); fi
+
+config-ld.mak: Makefile
+	$(quiet-@)($(call ld-option,--no-warn-rwx-segments); \
+	    $(call ld-option,--no-warn-execstack)) 3> config-ld.mak
+-include config-ld.mak
+
 pvh.img: pvh.o pvh_main.o
 
 %.o: %.S
@@ -61,7 +71,7 @@ clean:
 	rm -f *.o *.d *.raw *.img *.bin *~
 
 distclean:
-	rm -f config-cc.mak
+	rm -f config-cc.mak config-ld.mak
 
 # suppress auto-removal of intermediate files
 .SECONDARY:
