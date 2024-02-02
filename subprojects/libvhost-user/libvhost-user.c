@@ -43,6 +43,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/vhost.h>
+#include <sys/vfs.h>
+#include <linux/magic.h>
 
 #ifdef __NR_userfaultfd
 #include <linux/userfaultfd.h>
@@ -281,12 +283,36 @@ vu_remove_all_mem_regs(VuDev *dev)
     dev->nregions = 0;
 }
 
+static size_t
+get_fd_pagesize(int fd)
+{
+    static size_t pagesize;
+#if defined(__linux__)
+    struct statfs fs;
+    int ret;
+
+    do {
+        ret = fstatfs(fd, &fs);
+    } while (ret != 0 && errno == EINTR);
+
+    if (!ret && fs.f_type == HUGETLBFS_MAGIC) {
+        return fs.f_bsize;
+    }
+#endif
+
+    if (!pagesize) {
+        pagesize = getpagesize();
+    }
+    return pagesize;
+}
+
 static void
 _vu_add_mem_reg(VuDev *dev, VhostUserMemoryRegion *msg_region, int fd)
 {
     const uint64_t start_gpa = msg_region->guest_phys_addr;
     const uint64_t end_gpa = start_gpa + msg_region->memory_size;
     int prot = PROT_READ | PROT_WRITE;
+    uint64_t mmap_offset, fd_offset;
     VuDevRegion *r;
     void *mmap_addr;
     int low = 0;
@@ -335,11 +361,25 @@ _vu_add_mem_reg(VuDev *dev, VhostUserMemoryRegion *msg_region, int fd)
     idx = low;
 
     /*
-     * We don't use offset argument of mmap() since the mapped address has
-     * to be page aligned, and we use huge pages.
+     * Convert most of msg_region->mmap_offset to fd_offset. In almost all
+     * cases, this will leave us with mmap_offset == 0, mmap()'ing only
+     * what we really need. Only if a memory region would partially cover
+     * hugetlb pages, we'd get mmap_offset != 0, which usually doesn't happen
+     * anymore (i.e., modern QEMU).
+     *
+     * Note that mmap() with hugetlb would fail if the offset into the file
+     * is not aligned to the huge page size.
      */
-    mmap_addr = mmap(0, msg_region->memory_size + msg_region->mmap_offset,
-                     prot, MAP_SHARED | MAP_NORESERVE, fd, 0);
+    fd_offset = ALIGN_DOWN(msg_region->mmap_offset, get_fd_pagesize(fd));
+    mmap_offset = msg_region->mmap_offset - fd_offset;
+
+    DPRINT("    fd_offset:       0x%016"PRIx64"\n",
+           fd_offset);
+    DPRINT("    adj mmap_offset: 0x%016"PRIx64"\n",
+           mmap_offset);
+
+    mmap_addr = mmap(0, msg_region->memory_size + mmap_offset,
+                     prot, MAP_SHARED | MAP_NORESERVE, fd, fd_offset);
     if (mmap_addr == MAP_FAILED) {
         vu_panic(dev, "region mmap error: %s", strerror(errno));
         return;
@@ -354,7 +394,7 @@ _vu_add_mem_reg(VuDev *dev, VhostUserMemoryRegion *msg_region, int fd)
     r->size = msg_region->memory_size;
     r->qva = msg_region->userspace_addr;
     r->mmap_addr = (uint64_t)(uintptr_t)mmap_addr;
-    r->mmap_offset = msg_region->mmap_offset;
+    r->mmap_offset = mmap_offset;
     dev->nregions++;
 
     if (dev->postcopy_listening) {
