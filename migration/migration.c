@@ -311,7 +311,7 @@ void migration_incoming_state_destroy(void)
 {
     struct MigrationIncomingState *mis = migration_incoming_get_current();
 
-    multifd_load_cleanup();
+    multifd_recv_cleanup();
     compress_threads_load_cleanup();
 
     if (mis->to_src_file) {
@@ -662,7 +662,7 @@ static void process_incoming_migration_bh(void *opaque)
 
     trace_vmstate_downtime_checkpoint("dst-precopy-bh-announced");
 
-    multifd_load_shutdown();
+    multifd_recv_shutdown();
 
     dirty_bitmap_mig_before_vm_start();
 
@@ -759,7 +759,7 @@ fail:
                       MIGRATION_STATUS_FAILED);
     qemu_fclose(mis->from_src_file);
 
-    multifd_load_cleanup();
+    multifd_recv_cleanup();
     compress_threads_load_cleanup();
 
     exit(EXIT_FAILURE);
@@ -885,7 +885,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
         default_channel = !mis->from_src_file;
     }
 
-    if (multifd_load_setup(errp) != 0) {
+    if (multifd_recv_setup(errp) != 0) {
         return;
     }
 
@@ -1331,7 +1331,7 @@ static void migrate_fd_cleanup(MigrationState *s)
         }
         bql_lock();
 
-        multifd_save_cleanup();
+        multifd_send_shutdown();
         qemu_mutex_lock(&s->qemu_file_lock);
         tmp = s->to_dst_file;
         s->to_dst_file = NULL;
@@ -3623,7 +3623,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         return;
     }
 
-    if (multifd_save_setup(&local_err) != 0) {
+    if (multifd_send_setup(&local_err) != 0) {
         migrate_set_error(s, local_err);
         error_report_err(local_err);
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
