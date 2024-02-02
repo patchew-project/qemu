@@ -301,45 +301,6 @@
             '*unknown-statuses': 'uint8' } }
 
 ##
-# @VhostDeviceProtocols:
-#
-# A structure defined to list the vhost user protocol features of a
-# Vhost User device
-#
-# @protocols: List of decoded vhost user protocol features of a vhost
-#     user device
-#
-# @unknown-protocols: Vhost user device protocol features bitmap that
-#     have not been decoded
-#
-# Since: 7.2
-##
-{ 'struct': 'VhostDeviceProtocols',
-  'data': { 'protocols': [ 'str' ],
-            '*unknown-protocols': 'uint64' } }
-
-##
-# @VirtioDeviceFeatures:
-#
-# The common fields that apply to most Virtio devices.  Some devices
-# may not have their own device-specific features (e.g. virtio-rng).
-#
-# @transports: List of transport features of the virtio device
-#
-# @dev-features: List of device-specific features (if the device has
-#     unique features)
-#
-# @unknown-dev-features: Virtio device features bitmap that have not
-#     been decoded
-#
-# Since: 7.2
-##
-{ 'struct': 'VirtioDeviceFeatures',
-  'data': { 'transports': [ 'str' ],
-            '*dev-features': [ 'str' ],
-            '*unknown-dev-features': 'uint64' } }
-
-##
 # @VirtQueueStatus:
 #
 # Information of a VirtIODevice VirtQueue, including most members of
