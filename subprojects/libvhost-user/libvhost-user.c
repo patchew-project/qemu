@@ -800,8 +800,8 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
          * Return the address to QEMU so that it can translate the ufd
          * fault addresses back.
          */
-        msg_region->userspace_addr = (uintptr_t)(mmap_addr +
-                                                 dev_region->mmap_offset);
+        msg_region->userspace_addr = dev_region->mmap_addr +
+                                     dev_region->mmap_offset;
 
         /* Send the message back to qemu with the addresses filled in. */
         vmsg->fd_num = 0;
@@ -969,8 +969,8 @@ vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
         /* Return the address to QEMU so that it can translate the ufd
          * fault addresses back.
          */
-        msg_region->userspace_addr = (uintptr_t)(mmap_addr +
-                                                 dev_region->mmap_offset);
+        msg_region->userspace_addr = dev_region->mmap_addr +
+                                     dev_region->mmap_offset;
         close(vmsg->fds[i]);
     }
 
