@@ -1369,3 +1369,6 @@
         gen_helper_raise_exception(tcg_env, excp); \
     } while (0)
 #endif
+
+#define fGEN_TCG_A2_nop(SHORTCODE) do { } while (0)
+#define fGEN_TCG_SA1_setin1(SHORTCODE) tcg_gen_movi_tl(RdV, -1)

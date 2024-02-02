@@ -101,6 +101,7 @@ def calculate_attribs():
     add_qemu_macro_attrib('fLSBNEW1', 'A_IMPLICIT_READS_P1')
     add_qemu_macro_attrib('fLSBNEW1NOT', 'A_IMPLICIT_READS_P1')
     add_qemu_macro_attrib('fREAD_P3', 'A_IMPLICIT_READS_P3')
+    add_qemu_macro_attrib('fREAD_SP', 'A_IMPLICIT_READS_SP')
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())
@@ -195,6 +196,16 @@ def get_tagregs(full=False):
 
 def get_tagimms():
     return dict(zip(tags, list(map(compute_tag_immediates, tags))))
+
+
+def need_env(tag):
+    return ("A_STORE" in attribdict[tag] or
+            "A_LOAD" in attribdict[tag] or
+            "A_CVI_GATHER" in attribdict[tag] or
+            "A_CVI_SCATTER" in attribdict[tag] or
+            "A_IMPLICIT_WRITES_USR" in attribdict[tag] or
+            "A_IMPLICIT_READS_P0" in attribdict[tag] or
+            "A_IMPLICIT_READS_SP" in attribdict[tag])
 
 
 def need_slot(tag):
@@ -1060,11 +1071,12 @@ def helper_args(tag, regs, imms):
     args = []
 
     ## First argument is the CPU state
-    args.append(HelperArg(
-        "env",
-        "tcg_env",
-        "CPUHexagonState *env"
-    ))
+    if need_env(tag):
+        args.append(HelperArg(
+            "env",
+            "tcg_env",
+            "CPUHexagonState *env"
+        ))
 
     ## For predicated instructions, we pass in the destination register
     if is_predicated(tag):
