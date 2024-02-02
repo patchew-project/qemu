@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "virtio-qmp.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "qapi/qapi-commands-virtio.h"
@@ -145,13 +146,17 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "  endianness:              %s\n",
                    s->device_endian);
     monitor_printf(mon, "  status:\n");
-    hmp_virtio_dump_status(mon, s->status);
+    hmp_virtio_dump_status(mon,
+        qmp_decode_status(s->status));
     monitor_printf(mon, "  Guest features:\n");
-    hmp_virtio_dump_features(mon, s->guest_features);
+    hmp_virtio_dump_features(mon,
+        qmp_decode_features(s->device_id, s->guest_features));
     monitor_printf(mon, "  Host features:\n");
-    hmp_virtio_dump_features(mon, s->host_features);
+    hmp_virtio_dump_features(mon,
+        qmp_decode_features(s->device_id, s->host_features));
     monitor_printf(mon, "  Backend features:\n");
-    hmp_virtio_dump_features(mon, s->backend_features);
+    hmp_virtio_dump_features(mon,
+        qmp_decode_features(s->device_id, s->backend_features));
 
     if (s->vhost_dev) {
         monitor_printf(mon, "  VHost:\n");
@@ -172,13 +177,17 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "    log_size:       %"PRId64"\n",
                        s->vhost_dev->log_size);
         monitor_printf(mon, "    Features:\n");
-        hmp_virtio_dump_features(mon, s->vhost_dev->features);
+        hmp_virtio_dump_features(mon,
+            qmp_decode_features(s->device_id, s->vhost_dev->features));
         monitor_printf(mon, "    Acked features:\n");
-        hmp_virtio_dump_features(mon, s->vhost_dev->acked_features);
+        hmp_virtio_dump_features(mon,
+            qmp_decode_features(s->device_id, s->vhost_dev->acked_features));
         monitor_printf(mon, "    Backend features:\n");
-        hmp_virtio_dump_features(mon, s->vhost_dev->backend_features);
+        hmp_virtio_dump_features(mon,
+            qmp_decode_features(s->device_id, s->vhost_dev->backend_features));
         monitor_printf(mon, "    Protocol features:\n");
-        hmp_virtio_dump_protocols(mon, s->vhost_dev->protocol_features);
+        hmp_virtio_dump_protocols(mon,
+            qmp_decode_protocols(s->vhost_dev->protocol_features));
     }
 
     qapi_free_VirtioStatus(s);
