@@ -1117,7 +1117,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, "pts", NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, "hfi",
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -1125,10 +1125,10 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid = { .eax = 6, .reg = R_EAX, },
         .tcg_features = TCG_6_EAX_FEATURES,
         /*
-         * PTS shouldn't be enabled by default since it has
+         * PTS and HFI shouldn't be enabled by default since they have
          * requirement for cpu topology.
          */
-        .no_autoenable_flags = CPUID_6_EAX_PTS,
+        .no_autoenable_flags = CPUID_6_EAX_PTS | CPUID_6_EAX_HFI,
     },
     [FEAT_XSAVE_XCR0_LO] = {
         .type = CPUID_FEATURE_WORD,
@@ -1556,6 +1556,18 @@ static FeatureDep feature_dependencies[] = {
     {
         .from = { FEAT_VMX_SECONDARY_CTLS,  VMX_SECONDARY_EXEC_ENABLE_USER_WAIT_PAUSE },
         .to = { FEAT_7_0_ECX,               CPUID_7_0_ECX_WAITPKG },
+    },
+    {
+        .from = { FEAT_1_EDX,               CPUID_ACPI },
+        .to = { FEAT_6_EAX,                 CPUID_6_EAX_HFI },
+    },
+    {
+        .from = { FEAT_1_EDX,               CPUID_TM },
+        .to = { FEAT_6_EAX,                 CPUID_6_EAX_HFI },
+    },
+    {
+        .from = { FEAT_6_EAX,               CPUID_6_EAX_PTS },
+        .to = { FEAT_6_EAX,                 CPUID_6_EAX_HFI },
     },
 };
 
@@ -6158,6 +6170,25 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
+        /*
+         * KVM only supports HFI virtualization with ITD, so
+         * set the HFI information only if the ITD is enabled.
+         */
+        if (*eax & CPUID_6_EAX_ITD) {
+            if (kvm_enabled()) {
+                *ecx = kvm_arch_get_supported_cpuid(cs->kvm_state, 0x6,
+                                                    count, R_ECX);
+                /*
+                 * No need to adjust the number of pages since the default
+                 * 1 4KB page is enough to hold the HFI entries of max_cpus
+                 * (1024) supported by i386 machine (q35).
+                 */
+                *edx = kvm_arch_get_supported_cpuid(cs->kvm_state, 0x6,
+                                                    count, R_EDX);
+                /* Set HFI table index as CPU index. */
+                *edx |= cs->cpu_index << 16;
+            }
+        }
         break;
     case 7:
         /* Structured Extended Feature Flags Enumeration Leaf */
@@ -7437,11 +7468,19 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (env->features[FEAT_6_EAX] & CPUID_6_EAX_PTS &&
+    if (env->features[FEAT_6_EAX] & CPUID_6_EAX_HFI &&
+        (ms->smp.dies > 1 || ms->smp.sockets > 1)) {
+        error_setg(errp,
+                   "HFI currently only supports die/package, "
+                   "please set by \"-smp ...,sockets=1,dies=1\"");
+        return;
+    }
+
+    if (env->features[FEAT_6_EAX] & (CPUID_6_EAX_PTS | CPUID_6_EAX_HFI) &&
         !(env->features[FEAT_6_EAX] & CPUID_6_EAX_ITD)) {
         error_setg(errp,
                    "In the absence of ITD, Guest does "
-                   "not need PTS");
+                   "not need PTS/HFI");
         return;
     }
 #endif

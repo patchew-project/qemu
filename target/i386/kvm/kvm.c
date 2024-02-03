@@ -140,6 +140,7 @@ static bool has_msr_perf_capabs;
 static bool has_msr_pkrs;
 static bool has_msr_therm;
 static bool has_msr_pkg_therm;
+static bool has_msr_hfi;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -2466,6 +2467,10 @@ static int kvm_get_supported_msrs(KVMState *s)
             case MSR_IA32_PACKAGE_THERM_INTERRUPT:
                 has_msr_pkg_therm = true;
                 break;
+            case MSR_IA32_HW_FEEDBACK_CONFIG:
+            case MSR_IA32_HW_FEEDBACK_PTR:
+                has_msr_hfi = true;
+                break;
             }
         }
     }
@@ -3326,6 +3331,12 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_add(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
                               env->therm_interrupt);
         }
+        if (has_msr_hfi) {
+            kvm_msr_entry_add(cpu, MSR_IA32_HW_FEEDBACK_CONFIG,
+                              env->hfi_config);
+            kvm_msr_entry_add(cpu, MSR_IA32_HW_FEEDBACK_PTR,
+                              env->hfi_ptr);
+        }
     }
 
 #ifdef TARGET_X86_64
@@ -3807,6 +3818,10 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_pkg_therm) {
         kvm_msr_entry_add(cpu, MSR_IA32_PACKAGE_THERM_STATUS, 0);
         kvm_msr_entry_add(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, 0);
+    }
+    if (has_msr_hfi) {
+        kvm_msr_entry_add(cpu, MSR_IA32_HW_FEEDBACK_CONFIG, 0);
+        kvm_msr_entry_add(cpu, MSR_IA32_HW_FEEDBACK_PTR, 0);
     }
 
 #ifdef TARGET_X86_64
@@ -4303,6 +4318,12 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_PACKAGE_THERM_INTERRUPT:
             env->pkg_therm_interrupt = msrs[i].data;
+            break;
+        case MSR_IA32_HW_FEEDBACK_CONFIG:
+            env->hfi_config = msrs[i].data;
+            break;
+        case MSR_IA32_HW_FEEDBACK_PTR:
+            env->hfi_ptr = msrs[i].data;
             break;
         }
     }
