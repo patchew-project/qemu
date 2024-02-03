@@ -1203,6 +1203,24 @@ static void char_serial_test(void)
 }
 #endif
 
+#if defined(HAVE_CHARDEV_PARALLEL) && !defined(WIN32)
+static void char_parallel_test(void)
+{
+    QemuOpts *opts;
+    Chardev *chr;
+
+    opts = qemu_opts_create(qemu_find_opts("chardev"), "parallel-id",
+                            1, &error_abort);
+    qemu_opt_set(opts, "backend", "parallel", &error_abort);
+    qemu_opt_set(opts, "path", "/dev/null", &error_abort);
+
+    chr = qemu_chr_new_from_opts(opts, NULL, NULL);
+    g_assert_null(chr);
+
+    qemu_opts_del(opts);
+}
+#endif
+
 #ifndef _WIN32
 static void char_file_fifo_test(void)
 {
@@ -1544,6 +1562,9 @@ int main(int argc, char **argv)
     g_test_add_func("/char/udp", char_udp_test);
 #if defined(HAVE_CHARDEV_SERIAL) && !defined(WIN32)
     g_test_add_func("/char/serial", char_serial_test);
+#endif
+#if defined(HAVE_CHARDEV_PARALLEL) && !defined(WIN32)
+    g_test_add_func("/char/parallel", char_parallel_test);
 #endif
     g_test_add_func("/char/hotswap", char_hotswap_test);
     g_test_add_func("/char/websocket", char_websock_test);
