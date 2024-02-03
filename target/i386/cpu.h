@@ -2071,6 +2071,9 @@ struct ArchCPU {
     int32_t hv_max_vps;
 
     bool xen_vapic;
+
+    /* Set ITD and related feature bits (PTS, HFI and HRESET) for Guest. */
+    bool enable_itd;
 };
 
 typedef struct X86CPUModel X86CPUModel;

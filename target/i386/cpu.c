@@ -7304,6 +7304,12 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      */
     x86_cpu_hyperv_realize(cpu);
 
+    if (cpu->enable_itd) {
+        env->features[FEAT_6_EAX] |= CPUID_6_EAX_PTS | CPUID_6_EAX_HFI |
+                                     CPUID_6_EAX_ITD;
+        env->features[FEAT_7_1_EAX] |= CPUID_7_1_EAX_HRESET;
+    }
+
     x86_cpu_expand_features(cpu, &local_err);
     if (local_err) {
         goto out;
@@ -7494,22 +7500,25 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (env->features[FEAT_6_EAX] & CPUID_6_EAX_PTS && ms->smp.sockets > 1) {
         error_setg(errp,
-                   "PTS currently only supports 1 package, "
-                   "please set by \"-smp ...,sockets=1\"");
+                   "%s currently only supports 1 package, "
+                   "please set by \"-smp ...,sockets=1\"",
+                   cpu->enable_itd ? "enable-itd" : "PTS");
         return;
     }
 
     if (env->features[FEAT_6_EAX] & (CPUID_6_EAX_HFI | CPUID_6_EAX_ITD) &&
         (ms->smp.dies > 1 || ms->smp.sockets > 1)) {
         error_setg(errp,
-                   "HFI/ITD currently only supports die/package, "
-                   "please set by \"-smp ...,sockets=1,dies=1\"");
+                   "%s currently only supports 1 die/package, "
+                   "please set by \"-smp ...,sockets=1,dies=1\"",
+                   cpu->enable_itd ? "enable-itd" : "HFI/ITD");
         return;
     }
 
     if (env->features[FEAT_6_EAX] & (CPUID_6_EAX_PTS | CPUID_6_EAX_HFI) &&
         !(env->features[FEAT_6_EAX] & CPUID_6_EAX_ITD)) {
-        error_setg(errp,
+        error_setg(errp, "%s", cpu->enable_itd ?
+                   "Host doesn't support ITD" :
                    "In the absence of ITD, Guest does "
                    "not need PTS/HFI");
         return;
@@ -8003,6 +8012,7 @@ static Property x86_cpu_properties[] = {
                      false),
     DEFINE_PROP_BOOL("x-intel-pt-auto-level", X86CPU, intel_pt_auto_level,
                      true),
+    DEFINE_PROP_BOOL("enable-itd", X86CPU, enable_itd, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
