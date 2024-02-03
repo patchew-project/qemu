@@ -1118,17 +1118,18 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, "hfi",
-            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, "itd",
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
         .cpuid = { .eax = 6, .reg = R_EAX, },
         .tcg_features = TCG_6_EAX_FEATURES,
         /*
-         * PTS and HFI shouldn't be enabled by default since they have
+         * PTS, HFI and ITD shouldn't be enabled by default since they have
          * requirement for cpu topology.
          */
-        .no_autoenable_flags = CPUID_6_EAX_PTS | CPUID_6_EAX_HFI,
+        .no_autoenable_flags = CPUID_6_EAX_PTS | CPUID_6_EAX_HFI |
+                               CPUID_6_EAX_ITD,
     },
     [FEAT_XSAVE_XCR0_LO] = {
         .type = CPUID_FEATURE_WORD,
@@ -1568,6 +1569,10 @@ static FeatureDep feature_dependencies[] = {
     {
         .from = { FEAT_6_EAX,               CPUID_6_EAX_PTS },
         .to = { FEAT_6_EAX,                 CPUID_6_EAX_HFI },
+    },
+    {
+        .from = { FEAT_6_EAX,               CPUID_6_EAX_HFI },
+        .to = { FEAT_6_EAX,                 CPUID_6_EAX_ITD },
     },
 };
 
@@ -7468,10 +7473,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (env->features[FEAT_6_EAX] & CPUID_6_EAX_HFI &&
+    if (env->features[FEAT_6_EAX] & (CPUID_6_EAX_HFI | CPUID_6_EAX_ITD) &&
         (ms->smp.dies > 1 || ms->smp.sockets > 1)) {
         error_setg(errp,
-                   "HFI currently only supports die/package, "
+                   "HFI/ITD currently only supports die/package, "
                    "please set by \"-smp ...,sockets=1,dies=1\"");
         return;
     }
