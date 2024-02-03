@@ -526,6 +526,10 @@ typedef enum X86Seg {
 #define MSR_IA32_XSS                    0x00000da0
 #define MSR_IA32_UMWAIT_CONTROL         0xe1
 
+#define MSR_IA32_THERM_CONTROL          0x0000019a
+#define MSR_IA32_THERM_INTERRUPT        0x0000019b
+#define MSR_IA32_THERM_STATUS           0x0000019c
+
 #define MSR_IA32_VMX_BASIC              0x00000480
 #define MSR_IA32_VMX_PINBASED_CTLS      0x00000481
 #define MSR_IA32_VMX_PROCBASED_CTLS     0x00000482
@@ -1757,6 +1761,11 @@ typedef struct CPUArchState {
     uint64_t msr_lbr_ctl;
     uint64_t msr_lbr_depth;
     LBREntry lbr_records[ARCH_LBR_NR_ENTRIES];
+
+    /* Per-VCPU thermal MSRs */
+    uint64_t therm_control;
+    uint64_t therm_interrupt;
+    uint64_t therm_status;
 
     /* exception/interrupt handling */
     int error_code;

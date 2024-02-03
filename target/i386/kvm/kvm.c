@@ -138,6 +138,7 @@ static bool has_msr_ucode_rev;
 static bool has_msr_vmx_procbased_ctls2;
 static bool has_msr_perf_capabs;
 static bool has_msr_pkrs;
+static bool has_msr_therm;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -2455,6 +2456,11 @@ static int kvm_get_supported_msrs(KVMState *s)
             case MSR_IA32_PKRS:
                 has_msr_pkrs = true;
                 break;
+            case MSR_IA32_THERM_CONTROL:
+            case MSR_IA32_THERM_INTERRUPT:
+            case MSR_IA32_THERM_STATUS:
+                has_msr_therm = true;
+                break;
             }
         }
     }
@@ -3302,6 +3308,11 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     if (has_msr_virt_ssbd) {
         kvm_msr_entry_add(cpu, MSR_VIRT_SSBD, env->virt_ssbd);
     }
+    if (has_msr_therm) {
+        kvm_msr_entry_add(cpu, MSR_IA32_THERM_CONTROL, env->therm_control);
+        kvm_msr_entry_add(cpu, MSR_IA32_THERM_INTERRUPT, env->therm_interrupt);
+        kvm_msr_entry_add(cpu, MSR_IA32_THERM_STATUS, env->therm_status);
+    }
 
 #ifdef TARGET_X86_64
     if (lm_capable_kernel) {
@@ -3773,6 +3784,11 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (!env->tsc_valid) {
         kvm_msr_entry_add(cpu, MSR_IA32_TSC, 0);
         env->tsc_valid = !runstate_is_running();
+    }
+    if (has_msr_therm) {
+        kvm_msr_entry_add(cpu, MSR_IA32_THERM_CONTROL, 0);
+        kvm_msr_entry_add(cpu, MSR_IA32_THERM_INTERRUPT, 0);
+        kvm_msr_entry_add(cpu, MSR_IA32_THERM_STATUS, 0);
     }
 
 #ifdef TARGET_X86_64
@@ -4254,6 +4270,15 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_ARCH_LBR_INFO_0 ... MSR_ARCH_LBR_INFO_0 + 31:
             env->lbr_records[index - MSR_ARCH_LBR_INFO_0].info = msrs[i].data;
+            break;
+        case MSR_IA32_THERM_CONTROL:
+            env->therm_control = msrs[i].data;
+            break;
+        case MSR_IA32_THERM_INTERRUPT:
+            env->therm_interrupt = msrs[i].data;
+            break;
+        case MSR_IA32_THERM_STATUS:
+            env->therm_status = msrs[i].data;
             break;
         }
     }
