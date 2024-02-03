@@ -1522,7 +1522,7 @@ static void pci_update_mappings(PCIDevice *d)
             continue;
 
         new_addr = pci_bar_address(d, i, r->type, r->size);
-        if (!d->has_power) {
+        if (!d->is_enabled) {
             new_addr = PCI_BAR_UNMAPPED;
         }
 
@@ -1610,7 +1610,7 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int 
         pci_update_irq_disabled(d, was_irq_disabled);
         memory_region_set_enabled(&d->bus_master_enable_region,
                                   (pci_get_word(d->config + PCI_COMMAND)
-                                   & PCI_COMMAND_MASTER) && d->has_power);
+                                   & PCI_COMMAND_MASTER) && d->is_enabled);
     }
 
     msi_write_config(d, addr, val_in, l);
@@ -2152,7 +2152,9 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         return;
     }
 
-    pci_set_power(pci_dev, true);
+    if (!pci_is_vf(pci_dev)) {
+        pci_set_enabled(pci_dev, true);
+    }
 
     pci_dev->msi_trigger = pci_msi_trigger;
 }
@@ -2808,18 +2810,18 @@ MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)
     return msg;
 }
 
-void pci_set_power(PCIDevice *d, bool state)
+void pci_set_enabled(PCIDevice *d, bool state)
 {
-    if (d->has_power == state) {
+    if (d->is_enabled == state) {
         return;
     }
 
-    d->has_power = state;
+    d->is_enabled = state;
     pci_update_mappings(d);
     memory_region_set_enabled(&d->bus_master_enable_region,
                               (pci_get_word(d->config + PCI_COMMAND)
-                               & PCI_COMMAND_MASTER) && d->has_power);
-    if (!d->has_power) {
+                               & PCI_COMMAND_MASTER) && d->is_enabled);
+    if (!d->is_enabled) {
         pci_device_reset(d);
     }
 }
