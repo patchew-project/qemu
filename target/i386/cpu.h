@@ -535,6 +535,7 @@ typedef enum X86Seg {
 
 #define MSR_IA32_HW_FEEDBACK_CONFIG     0x000017d0
 #define MSR_IA32_HW_FEEDBACK_PTR        0x000017d1
+#define MSR_IA32_HW_HRESET_ENABLE       0x000017da
 
 #define MSR_IA32_VMX_BASIC              0x00000480
 #define MSR_IA32_VMX_PINBASED_CTLS      0x00000481
@@ -933,6 +934,8 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
 #define CPUID_7_1_EAX_FSRC              (1U << 12)
 /* Support Tile Computational Operations on FP16 Numbers */
 #define CPUID_7_1_EAX_AMX_FP16          (1U << 21)
+/* HISTORY RESET */
+#define CPUID_7_1_EAX_HRESET            (1U << 22)
 /* Support for VPMADD52[H,L]UQ */
 #define CPUID_7_1_EAX_AVX_IFMA          (1U << 23)
 
@@ -1785,6 +1788,9 @@ typedef struct CPUArchState {
     uint64_t pkg_therm_status;
     uint64_t hfi_config;
     uint64_t hfi_ptr;
+
+    /* Per-VCPU HRESET MSR */
+    uint64_t hreset_enable;
 
     /* exception/interrupt handling */
     int error_code;

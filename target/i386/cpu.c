@@ -966,7 +966,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, "fzrm", "fsrs",
             "fsrc", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
-            NULL, "amx-fp16", NULL, "avx-ifma",
+            NULL, "amx-fp16", "hreset", "avx-ifma",
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
@@ -976,6 +976,11 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_EAX,
         },
         .tcg_features = TCG_7_1_EAX_FEATURES,
+        /*
+         * Currently HRESET is only used for ITD history reset. ITD is not
+         * autoenable, so also don't enable HRESET by default.
+         */
+        .no_autoenable_flags = CPUID_7_1_EAX_HRESET,
     },
     [FEAT_7_1_EDX] = {
         .type = CPUID_FEATURE_WORD,
@@ -6502,6 +6507,22 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     }
+    case 0x20: {
+        /* Processor History Reset */
+        if (kvm_enabled() &&
+            env->features[FEAT_7_1_EAX] & CPUID_7_1_EAX_HRESET) {
+            *eax = kvm_arch_get_supported_cpuid(cs->kvm_state, 0x20,
+                                                count, R_EAX);
+            *ebx = kvm_arch_get_supported_cpuid(cs->kvm_state, 0x20,
+                                                count, R_EBX);
+        } else {
+            *eax = 0;
+            *ebx = 0;
+        }
+        *ecx = 0;
+        *edx = 0;
+        break;
+    }
     case 0x40000000:
         /*
          * CPUID code in kvm_arch_init_vcpu() ignores stuff
@@ -7146,6 +7167,11 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         /* SGX requires CPUID[0x12] for EPC enumeration */
         if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_SGX) {
             x86_cpu_adjust_level(cpu, &env->cpuid_min_level, 0x12);
+        }
+
+        /* HRESET requires CPUID[0x20] */
+        if (env->features[FEAT_7_1_EAX] & CPUID_7_1_EAX_HRESET) {
+            x86_cpu_adjust_level(cpu, &env->cpuid_min_level, 0x20);
         }
     }
 
