@@ -1114,7 +1114,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
             NULL, NULL, "arat", NULL,
-            NULL, NULL, NULL, NULL,
+            NULL, NULL, "pts", NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -1124,6 +1124,11 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = { .eax = 6, .reg = R_EAX, },
         .tcg_features = TCG_6_EAX_FEATURES,
+        /*
+         * PTS shouldn't be enabled by default since it has
+         * requirement for cpu topology.
+         */
+        .no_autoenable_flags = CPUID_6_EAX_PTS,
     },
     [FEAT_XSAVE_XCR0_LO] = {
         .type = CPUID_FEATURE_WORD,
@@ -7423,6 +7428,21 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         if (local_err != NULL) {
             goto out;
         }
+    }
+
+    if (env->features[FEAT_6_EAX] & CPUID_6_EAX_PTS && ms->smp.sockets > 1) {
+        error_setg(errp,
+                   "PTS currently only supports 1 package, "
+                   "please set by \"-smp ...,sockets=1\"");
+        return;
+    }
+
+    if (env->features[FEAT_6_EAX] & CPUID_6_EAX_PTS &&
+        !(env->features[FEAT_6_EAX] & CPUID_6_EAX_ITD)) {
+        error_setg(errp,
+                   "In the absence of ITD, Guest does "
+                   "not need PTS");
+        return;
     }
 #endif
 

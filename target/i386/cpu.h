@@ -530,6 +530,9 @@ typedef enum X86Seg {
 #define MSR_IA32_THERM_INTERRUPT        0x0000019b
 #define MSR_IA32_THERM_STATUS           0x0000019c
 
+#define MSR_IA32_PACKAGE_THERM_STATUS    0x000001b1
+#define MSR_IA32_PACKAGE_THERM_INTERRUPT 0x000001b2
+
 #define MSR_IA32_VMX_BASIC              0x00000480
 #define MSR_IA32_VMX_PINBASED_CTLS      0x00000481
 #define MSR_IA32_VMX_PROCBASED_CTLS     0x00000482
@@ -982,6 +985,8 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
 #define CPUID_XSAVE_XSAVES     (1U << 3)
 
 #define CPUID_6_EAX_ARAT       (1U << 2)
+#define CPUID_6_EAX_PTS        (1U << 6)
+#define CPUID_6_EAX_ITD        (1U << 23)
 
 /* CPUID[0x80000007].EDX flags: */
 #define CPUID_APM_INVTSC       (1U << 8)
@@ -1766,6 +1771,14 @@ typedef struct CPUArchState {
     uint64_t therm_control;
     uint64_t therm_interrupt;
     uint64_t therm_status;
+
+    /*
+     * Although these are package level MSRs, for the PTS feature, we
+     * temporarily limit it to be enabled for only 1 package, so the value
+     * of each vCPU is same and it's enough to support the save/load.
+     */
+    uint64_t pkg_therm_interrupt;
+    uint64_t pkg_therm_status;
 
     /* exception/interrupt handling */
     int error_code;

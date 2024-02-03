@@ -139,6 +139,7 @@ static bool has_msr_vmx_procbased_ctls2;
 static bool has_msr_perf_capabs;
 static bool has_msr_pkrs;
 static bool has_msr_therm;
+static bool has_msr_pkg_therm;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -2461,6 +2462,10 @@ static int kvm_get_supported_msrs(KVMState *s)
             case MSR_IA32_THERM_STATUS:
                 has_msr_therm = true;
                 break;
+            case MSR_IA32_PACKAGE_THERM_STATUS:
+            case MSR_IA32_PACKAGE_THERM_INTERRUPT:
+                has_msr_pkg_therm = true;
+                break;
             }
         }
     }
@@ -3313,6 +3318,15 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         kvm_msr_entry_add(cpu, MSR_IA32_THERM_INTERRUPT, env->therm_interrupt);
         kvm_msr_entry_add(cpu, MSR_IA32_THERM_STATUS, env->therm_status);
     }
+    /* Only sync package level MSRs to KVM on the first cpu */
+    if (current_cpu == first_cpu) {
+        if (has_msr_pkg_therm) {
+            kvm_msr_entry_add(cpu, MSR_IA32_PACKAGE_THERM_STATUS,
+                              env->therm_control);
+            kvm_msr_entry_add(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
+                              env->therm_interrupt);
+        }
+    }
 
 #ifdef TARGET_X86_64
     if (lm_capable_kernel) {
@@ -3789,6 +3803,10 @@ static int kvm_get_msrs(X86CPU *cpu)
         kvm_msr_entry_add(cpu, MSR_IA32_THERM_CONTROL, 0);
         kvm_msr_entry_add(cpu, MSR_IA32_THERM_INTERRUPT, 0);
         kvm_msr_entry_add(cpu, MSR_IA32_THERM_STATUS, 0);
+    }
+    if (has_msr_pkg_therm) {
+        kvm_msr_entry_add(cpu, MSR_IA32_PACKAGE_THERM_STATUS, 0);
+        kvm_msr_entry_add(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, 0);
     }
 
 #ifdef TARGET_X86_64
@@ -4279,6 +4297,12 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_THERM_STATUS:
             env->therm_status = msrs[i].data;
+            break;
+        case MSR_IA32_PACKAGE_THERM_STATUS:
+            env->pkg_therm_status = msrs[i].data;
+            break;
+        case MSR_IA32_PACKAGE_THERM_INTERRUPT:
+            env->pkg_therm_interrupt = msrs[i].data;
             break;
         }
     }
