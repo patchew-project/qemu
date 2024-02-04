@@ -12,6 +12,7 @@ riscv_ss.add(files(
   'cpu.c',
   'cpu_helper.c',
   'csr.c',
+  'xthead_csr.c',
   'fpu_helper.c',
   'gdbstub.c',
   'op_helper.c',
