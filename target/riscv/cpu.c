@@ -1118,6 +1118,9 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (tcg_enabled()) {
+        riscv_tcg_cpu_register_vendor_csr(cpu);
+    }
     riscv_cpu_register_gdb_regs_for_features(cs);
 
 #ifndef CONFIG_USER_ONLY
