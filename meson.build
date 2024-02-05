@@ -2009,6 +2009,12 @@ if not get_option('libdw').auto() or \
                        required: get_option('libdw'))
 endif
 
+# libinotify-kqueue
+inotify = not_found
+if host_os == 'freebsd'
+  inotify = cc.find_library('inotify')
+endif
+
 #################
 # config-host.h #
 #################
@@ -2403,7 +2409,8 @@ config_host_data.set('CONFIG_GETRANDOM',
 config_host_data.set('CONFIG_INOTIFY',
                      cc.has_header_symbol('sys/inotify.h', 'inotify_init'))
 config_host_data.set('CONFIG_INOTIFY1',
-                     cc.has_header_symbol('sys/inotify.h', 'inotify_init1'))
+                     cc.has_header_symbol('sys/inotify.h', 'inotify_init1') and
+                     (host_os != 'freebsd' or inotify.found()))
 config_host_data.set('CONFIG_PRCTL_PR_SET_TIMERSLACK',
                      cc.has_header_symbol('sys/prctl.h', 'PR_SET_TIMERSLACK'))
 config_host_data.set('CONFIG_RTNETLINK',
@@ -4407,6 +4414,9 @@ summary_info += {'libudev':           libudev}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary_info += {'selinux':           selinux}
 summary_info += {'libdw':             libdw}
+if host_os == 'freebsd'
+  summary_info += {'libinotify-kqueue': inotify}
+endif
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
 if host_arch == 'unknown'
