@@ -5604,6 +5604,13 @@ void sve_cont_ldst_mte_check(SVEContLdSt *info, CPUARMState *env,
                              int msize, uint32_t mtedesc, uintptr_t ra)
 {
     intptr_t mem_off, reg_off, reg_last;
+    int bit55 = extract64(addr, 55, 1);
+
+    /* Perform gross MTE suppression early. */
+    if (!tbi_check(mtedesc, bit55) ||
+        tcma_check(mtedesc, bit55, allocation_tag_from_addr(addr))) {
+        return;
+    }
 
     /* Process the page only if MemAttr == Tagged. */
     if (info->page[0].tagged) {
@@ -5677,14 +5684,9 @@ void sve_ldN_r(CPUARMState *env, uint64_t *vg, const target_ulong addr,
     sve_cont_ldst_watchpoints(&info, env, vg, addr, 1 << esz, N << msz,
                               BP_MEM_READ, retaddr);
 
-    /*
-     * Handle mte checks for all active elements.
-     * Since TBI must be set for MTE, !mtedesc => !mte_active.
-     */
-    if (mtedesc) {
-        sve_cont_ldst_mte_check(&info, env, vg, addr, 1 << esz, N << msz,
-                                mtedesc, retaddr);
-    }
+    /* Handle mte checks for all active elements. */
+    sve_cont_ldst_mte_check(&info, env, vg, addr, 1 << esz, N << msz,
+                            mtedesc, retaddr);
 
     flags = info.page[0].flags | info.page[1].flags;
     if (unlikely(flags != 0)) {
@@ -5794,16 +5796,9 @@ void sve_ldN_r_mte(CPUARMState *env, uint64_t *vg, target_ulong addr,
                    sve_ldst1_tlb_fn *tlb_fn)
 {
     uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-    int bit55 = extract64(addr, 55, 1);
 
     /* Remove mtedesc from the normal sve descriptor. */
     desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    /* Perform gross MTE suppression early. */
-    if (!tbi_check(mtedesc, bit55) ||
-        tcma_check(mtedesc, bit55, allocation_tag_from_addr(addr))) {
-        mtedesc = 0;
-    }
 
     sve_ldN_r(env, vg, addr, desc, ra, esz, msz, N, mtedesc, host_fn, tlb_fn);
 }
@@ -5999,10 +5994,13 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
     flags = info.page[0].flags;
 
     /*
-     * Disable MTE checking if the Tagged bit is not set.  Since TBI must
-     * be set within MTEDESC for MTE, !mtedesc => !mte_active.
+     * Perform gross MTE suppression early.
+     * Since TBI must be set for MTE, !mtedesc => !mte_active.
      */
-    if (!info.page[0].tagged) {
+    int bit55 = extract64(addr, 55, 1);
+    if (!info.page[0].tagged ||
+        !tbi_check(mtedesc, bit55) ||
+        tcma_check(mtedesc, bit55, allocation_tag_from_addr(addr))) {
         mtedesc = 0;
     }
 
@@ -6150,16 +6148,9 @@ void sve_ldnfff1_r_mte(CPUARMState *env, void *vg, target_ulong addr,
                        sve_ldst1_tlb_fn *tlb_fn)
 {
     uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-    int bit55 = extract64(addr, 55, 1);
 
     /* Remove mtedesc from the normal sve descriptor. */
     desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    /* Perform gross MTE suppression early. */
-    if (!tbi_check(mtedesc, bit55) ||
-        tcma_check(mtedesc, bit55, allocation_tag_from_addr(addr))) {
-        mtedesc = 0;
-    }
 
     sve_ldnfff1_r(env, vg, addr, desc, retaddr, mtedesc,
                   esz, msz, fault, host_fn, tlb_fn);
@@ -6295,14 +6286,8 @@ void sve_stN_r(CPUARMState *env, uint64_t *vg, target_ulong addr,
     sve_cont_ldst_watchpoints(&info, env, vg, addr, 1 << esz, N << msz,
                               BP_MEM_WRITE, retaddr);
 
-    /*
-     * Handle mte checks for all active elements.
-     * Since TBI must be set for MTE, !mtedesc => !mte_active.
-     */
-    if (mtedesc) {
-        sve_cont_ldst_mte_check(&info, env, vg, addr, 1 << esz, N << msz,
-                                mtedesc, retaddr);
-    }
+    sve_cont_ldst_mte_check(&info, env, vg, addr, 1 << esz, N << msz,
+                            mtedesc, retaddr);
 
     flags = info.page[0].flags | info.page[1].flags;
     if (unlikely(flags != 0)) {
@@ -6404,16 +6389,9 @@ void sve_stN_r_mte(CPUARMState *env, uint64_t *vg, target_ulong addr,
                    sve_ldst1_tlb_fn *tlb_fn)
 {
     uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-    int bit55 = extract64(addr, 55, 1);
 
     /* Remove mtedesc from the normal sve descriptor. */
     desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    /* Perform gross MTE suppression early. */
-    if (!tbi_check(mtedesc, bit55) ||
-        tcma_check(mtedesc, bit55, allocation_tag_from_addr(addr))) {
-        mtedesc = 0;
-    }
 
     sve_stN_r(env, vg, addr, desc, ra, esz, msz, N, mtedesc, host_fn, tlb_fn);
 }
@@ -6596,12 +6574,6 @@ void sve_ld1_z_mte(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
     /* Remove mtedesc from the normal sve descriptor. */
     desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
 
-    /*
-     * ??? TODO: For the 32-bit offset extractions, base + ofs cannot
-     * offset base entirely over the address space hole to change the
-     * pointer tag, or change the bit55 selector.  So we could here
-     * examine TBI + TCMA like we do for sve_ldN_r_mte().
-     */
     sve_ld1_z(env, vd, vg, vm, base, desc, retaddr, mtedesc,
               esize, msize, off_fn, host_fn, tlb_fn);
 }
@@ -6804,12 +6776,6 @@ void sve_ldff1_z_mte(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
     /* Remove mtedesc from the normal sve descriptor. */
     desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
 
-    /*
-     * ??? TODO: For the 32-bit offset extractions, base + ofs cannot
-     * offset base entirely over the address space hole to change the
-     * pointer tag, or change the bit55 selector.  So we could here
-     * examine TBI + TCMA like we do for sve_ldN_r_mte().
-     */
     sve_ldff1_z(env, vd, vg, vm, base, desc, retaddr, mtedesc,
                 esz, msz, off_fn, host_fn, tlb_fn);
 }
@@ -7006,12 +6972,6 @@ void sve_st1_z_mte(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
     /* Remove mtedesc from the normal sve descriptor. */
     desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
 
-    /*
-     * ??? TODO: For the 32-bit offset extractions, base + ofs cannot
-     * offset base entirely over the address space hole to change the
-     * pointer tag, or change the bit55 selector.  So we could here
-     * examine TBI + TCMA like we do for sve_ldN_r_mte().
-     */
     sve_st1_z(env, vd, vg, vm, base, desc, retaddr, mtedesc,
               esize, msize, off_fn, host_fn, tlb_fn);
 }

@@ -459,14 +459,7 @@ void sme_ld1(CPUARMState *env, void *za, uint64_t *vg,
     sve_cont_ldst_watchpoints(&info, env, vg, addr, esize, esize,
                               BP_MEM_READ, ra);
 
-    /*
-     * Handle mte checks for all active elements.
-     * Since TBI must be set for MTE, !mtedesc => !mte_active.
-     */
-    if (mtedesc) {
-        sve_cont_ldst_mte_check(&info, env, vg, addr, esize, esize,
-                                mtedesc, ra);
-    }
+    sve_cont_ldst_mte_check(&info, env, vg, addr, esize, esize, mtedesc, ra);
 
     flags = info.page[0].flags | info.page[1].flags;
     if (unlikely(flags != 0)) {
@@ -567,16 +560,9 @@ void sme_ld1_mte(CPUARMState *env, void *za, uint64_t *vg,
                  CopyFn *cpy_fn)
 {
     uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-    int bit55 = extract64(addr, 55, 1);
 
     /* Remove mtedesc from the normal sve descriptor. */
     desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    /* Perform gross MTE suppression early. */
-    if (!tbi_check(mtedesc, bit55) ||
-        tcma_check(mtedesc, bit55, allocation_tag_from_addr(addr))) {
-        mtedesc = 0;
-    }
 
     sme_ld1(env, za, vg, addr, desc, ra, esz, mtedesc, vertical,
             host_fn, tlb_fn, clr_fn, cpy_fn);
@@ -655,14 +641,7 @@ void sme_st1(CPUARMState *env, void *za, uint64_t *vg,
     sve_cont_ldst_watchpoints(&info, env, vg, addr, esize, esize,
                               BP_MEM_WRITE, ra);
 
-    /*
-     * Handle mte checks for all active elements.
-     * Since TBI must be set for MTE, !mtedesc => !mte_active.
-     */
-    if (mtedesc) {
-        sve_cont_ldst_mte_check(&info, env, vg, addr, esize, esize,
-                                mtedesc, ra);
-    }
+    sve_cont_ldst_mte_check(&info, env, vg, addr, esize, esize, mtedesc, ra);
 
     flags = info.page[0].flags | info.page[1].flags;
     if (unlikely(flags != 0)) {
@@ -744,16 +723,9 @@ void sme_st1_mte(CPUARMState *env, void *za, uint64_t *vg, target_ulong addr,
                  sve_ldst1_tlb_fn *tlb_fn)
 {
     uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-    int bit55 = extract64(addr, 55, 1);
 
     /* Remove mtedesc from the normal sve descriptor. */
     desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    /* Perform gross MTE suppression early. */
-    if (!tbi_check(mtedesc, bit55) ||
-        tcma_check(mtedesc, bit55, allocation_tag_from_addr(addr))) {
-        mtedesc = 0;
-    }
 
     sme_st1(env, za, vg, addr, desc, ra, esz, mtedesc,
             vertical, host_fn, tlb_fn);
