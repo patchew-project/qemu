@@ -5656,8 +5656,8 @@ void sve_cont_ldst_mte_check(SVEContLdSt *info, CPUARMState *env,
  */
 static inline QEMU_ALWAYS_INLINE
 void sve_ldN_r(CPUARMState *env, uint64_t *vg, const target_ulong addr,
-               uint32_t desc, const uintptr_t retaddr,
-               const int esz, const int msz, const int N, uint32_t mtedesc,
+               uint32_t desc, uint32_t mtedesc, const uintptr_t retaddr,
+               const int esz, const int msz, const int N,
                sve_ldst1_host_fn *host_fn,
                sve_ldst1_tlb_fn *tlb_fn)
 {
@@ -5788,59 +5788,28 @@ void sve_ldN_r(CPUARMState *env, uint64_t *vg, const target_ulong addr,
     }
 }
 
-static inline QEMU_ALWAYS_INLINE
-void sve_ldN_r_mte(CPUARMState *env, uint64_t *vg, target_ulong addr,
-                   uint32_t desc, const uintptr_t ra,
-                   const int esz, const int msz, const int N,
-                   sve_ldst1_host_fn *host_fn,
-                   sve_ldst1_tlb_fn *tlb_fn)
-{
-    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    /* Remove mtedesc from the normal sve descriptor. */
-    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    sve_ldN_r(env, vg, addr, desc, ra, esz, msz, N, mtedesc, host_fn, tlb_fn);
-}
-
 #define DO_LD1_1(NAME, ESZ)                                             \
-void HELPER(sve_##NAME##_r)(CPUARMState *env, void *vg,                 \
-                            target_ulong addr, uint32_t desc)           \
+void HELPER(sve_##NAME##_r)(CPUARMState *env, void *vg, target_ulong addr, \
+                            uint32_t desc, uint32_t mtedesc)            \
 {                                                                       \
-    sve_ldN_r(env, vg, addr, desc, GETPC(), ESZ, MO_8, 1, 0,            \
+    sve_ldN_r(env, vg, addr, desc, mtedesc, GETPC(), ESZ, MO_8, 1,      \
               sve_##NAME##_host, sve_##NAME##_tlb);                     \
-}                                                                       \
-void HELPER(sve_##NAME##_r_mte)(CPUARMState *env, void *vg,             \
-                                target_ulong addr, uint32_t desc)       \
-{                                                                       \
-    sve_ldN_r_mte(env, vg, addr, desc, GETPC(), ESZ, MO_8, 1,           \
-                  sve_##NAME##_host, sve_##NAME##_tlb);                 \
 }
 
 #define DO_LD1_2(NAME, ESZ, MSZ)                                        \
 void HELPER(sve_##NAME##_le_r)(CPUARMState *env, void *vg,              \
-                               target_ulong addr, uint32_t desc)        \
+                               target_ulong addr, uint32_t desc,        \
+                               uint32_t mtedesc)                        \
 {                                                                       \
-    sve_ldN_r(env, vg, addr, desc, GETPC(), ESZ, MSZ, 1, 0,             \
+    sve_ldN_r(env, vg, addr, desc, mtedesc, GETPC(), ESZ, MSZ, 1,       \
               sve_##NAME##_le_host, sve_##NAME##_le_tlb);               \
 }                                                                       \
 void HELPER(sve_##NAME##_be_r)(CPUARMState *env, void *vg,              \
-                               target_ulong addr, uint32_t desc)        \
+                               target_ulong addr, uint32_t desc,        \
+                               uint32_t mtedesc)                        \
 {                                                                       \
-    sve_ldN_r(env, vg, addr, desc, GETPC(), ESZ, MSZ, 1, 0,             \
+    sve_ldN_r(env, vg, addr, desc, mtedesc, GETPC(), ESZ, MSZ, 1,       \
               sve_##NAME##_be_host, sve_##NAME##_be_tlb);               \
-}                                                                       \
-void HELPER(sve_##NAME##_le_r_mte)(CPUARMState *env, void *vg,          \
-                                   target_ulong addr, uint32_t desc)    \
-{                                                                       \
-    sve_ldN_r_mte(env, vg, addr, desc, GETPC(), ESZ, MSZ, 1,            \
-                  sve_##NAME##_le_host, sve_##NAME##_le_tlb);           \
-}                                                                       \
-void HELPER(sve_##NAME##_be_r_mte)(CPUARMState *env, void *vg,          \
-                                   target_ulong addr, uint32_t desc)    \
-{                                                                       \
-    sve_ldN_r_mte(env, vg, addr, desc, GETPC(), ESZ, MSZ, 1,            \
-                  sve_##NAME##_be_host, sve_##NAME##_be_tlb);           \
 }
 
 DO_LD1_1(ld1bb,  MO_8)
@@ -5867,43 +5836,27 @@ DO_LD1_2(ld1dd,  MO_64, MO_64)
 #undef DO_LD1_2
 
 #define DO_LDN_1(N)                                                     \
-void HELPER(sve_ld##N##bb_r)(CPUARMState *env, void *vg,                \
-                             target_ulong addr, uint32_t desc)          \
+void HELPER(sve_ld##N##bb_r)(CPUARMState *env, void *vg, target_ulong addr, \
+                             uint32_t desc, uint32_t mtedesc)           \
 {                                                                       \
-    sve_ldN_r(env, vg, addr, desc, GETPC(), MO_8, MO_8, N, 0,           \
+    sve_ldN_r(env, vg, addr, desc, mtedesc, GETPC(), MO_8, MO_8, N,     \
               sve_ld1bb_host, sve_ld1bb_tlb);                           \
-}                                                                       \
-void HELPER(sve_ld##N##bb_r_mte)(CPUARMState *env, void *vg,            \
-                                 target_ulong addr, uint32_t desc)      \
-{                                                                       \
-    sve_ldN_r_mte(env, vg, addr, desc, GETPC(), MO_8, MO_8, N,          \
-                  sve_ld1bb_host, sve_ld1bb_tlb);                       \
 }
 
 #define DO_LDN_2(N, SUFF, ESZ)                                          \
 void HELPER(sve_ld##N##SUFF##_le_r)(CPUARMState *env, void *vg,         \
-                                    target_ulong addr, uint32_t desc)   \
+                                    target_ulong addr, uint32_t desc,   \
+                                    uint32_t mtedesc)                   \
 {                                                                       \
-    sve_ldN_r(env, vg, addr, desc, GETPC(), ESZ, ESZ, N, 0,             \
+    sve_ldN_r(env, vg, addr, desc, mtedesc, GETPC(), ESZ, ESZ, N,       \
               sve_ld1##SUFF##_le_host, sve_ld1##SUFF##_le_tlb);         \
 }                                                                       \
 void HELPER(sve_ld##N##SUFF##_be_r)(CPUARMState *env, void *vg,         \
-                                    target_ulong addr, uint32_t desc)   \
+                                    target_ulong addr, uint32_t desc,   \
+                                    uint32_t mtedesc)                   \
 {                                                                       \
-    sve_ldN_r(env, vg, addr, desc, GETPC(), ESZ, ESZ, N, 0,             \
+    sve_ldN_r(env, vg, addr, desc, mtedesc, GETPC(), ESZ, ESZ, N,       \
               sve_ld1##SUFF##_be_host, sve_ld1##SUFF##_be_tlb);         \
-}                                                                       \
-void HELPER(sve_ld##N##SUFF##_le_r_mte)(CPUARMState *env, void *vg,     \
-                                        target_ulong addr, uint32_t desc) \
-{                                                                       \
-    sve_ldN_r_mte(env, vg, addr, desc, GETPC(), ESZ, ESZ, N,            \
-                  sve_ld1##SUFF##_le_host, sve_ld1##SUFF##_le_tlb);     \
-}                                                                       \
-void HELPER(sve_ld##N##SUFF##_be_r_mte)(CPUARMState *env, void *vg,     \
-                                        target_ulong addr, uint32_t desc) \
-{                                                                       \
-    sve_ldN_r_mte(env, vg, addr, desc, GETPC(), ESZ, ESZ, N,            \
-                  sve_ld1##SUFF##_be_host, sve_ld1##SUFF##_be_tlb);     \
 }
 
 DO_LDN_1(2)
@@ -5961,7 +5914,7 @@ static void record_fault(CPUARMState *env, uintptr_t i, uintptr_t oprsz)
  */
 static inline QEMU_ALWAYS_INLINE
 void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
-                   uint32_t desc, const uintptr_t retaddr, uint32_t mtedesc,
+                   uint32_t desc, uint32_t mtedesc, const uintptr_t retaddr,
                    const int esz, const int msz, const SVEContFault fault,
                    sve_ldst1_host_fn *host_fn,
                    sve_ldst1_tlb_fn *tlb_fn)
@@ -6140,96 +6093,56 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
     record_fault(env, reg_off, reg_max);
 }
 
-static inline QEMU_ALWAYS_INLINE
-void sve_ldnfff1_r_mte(CPUARMState *env, void *vg, target_ulong addr,
-                       uint32_t desc, const uintptr_t retaddr,
-                       const int esz, const int msz, const SVEContFault fault,
-                       sve_ldst1_host_fn *host_fn,
-                       sve_ldst1_tlb_fn *tlb_fn)
-{
-    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    /* Remove mtedesc from the normal sve descriptor. */
-    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    sve_ldnfff1_r(env, vg, addr, desc, retaddr, mtedesc,
-                  esz, msz, fault, host_fn, tlb_fn);
-}
-
 #define DO_LDFF1_LDNF1_1(PART, ESZ)                                     \
 void HELPER(sve_ldff1##PART##_r)(CPUARMState *env, void *vg,            \
-                                 target_ulong addr, uint32_t desc)      \
+                                 target_ulong addr, uint32_t desc,      \
+                                 uint32_t mtedesc)                      \
 {                                                                       \
-    sve_ldnfff1_r(env, vg, addr, desc, GETPC(), 0, ESZ, MO_8, FAULT_FIRST, \
+    sve_ldnfff1_r(env, vg, addr, desc, mtedesc, GETPC(),                \
+                  ESZ, MO_8, FAULT_FIRST,                               \
                   sve_ld1##PART##_host, sve_ld1##PART##_tlb);           \
 }                                                                       \
 void HELPER(sve_ldnf1##PART##_r)(CPUARMState *env, void *vg,            \
-                                 target_ulong addr, uint32_t desc)      \
+                                 target_ulong addr, uint32_t desc,      \
+                                 uint32_t mtedesc)                      \
 {                                                                       \
-    sve_ldnfff1_r(env, vg, addr, desc, GETPC(), 0, ESZ, MO_8, FAULT_NO, \
-                  sve_ld1##PART##_host, sve_ld1##PART##_tlb);           \
-}                                                                       \
-void HELPER(sve_ldff1##PART##_r_mte)(CPUARMState *env, void *vg,        \
-                                     target_ulong addr, uint32_t desc)  \
-{                                                                       \
-    sve_ldnfff1_r_mte(env, vg, addr, desc, GETPC(), ESZ, MO_8, FAULT_FIRST, \
-                      sve_ld1##PART##_host, sve_ld1##PART##_tlb);       \
-}                                                                       \
-void HELPER(sve_ldnf1##PART##_r_mte)(CPUARMState *env, void *vg,        \
-                                     target_ulong addr, uint32_t desc)  \
-{                                                                       \
-    sve_ldnfff1_r_mte(env, vg, addr, desc, GETPC(), ESZ, MO_8, FAULT_NO, \
+    sve_ldnfff1_r(env, vg, addr, desc, mtedesc, GETPC(),                \
+                  ESZ, MO_8, FAULT_NO,                                  \
                   sve_ld1##PART##_host, sve_ld1##PART##_tlb);           \
 }
 
 #define DO_LDFF1_LDNF1_2(PART, ESZ, MSZ)                                \
 void HELPER(sve_ldff1##PART##_le_r)(CPUARMState *env, void *vg,         \
-                                    target_ulong addr, uint32_t desc)   \
+                                    target_ulong addr, uint32_t desc,   \
+                                    uint32_t mtedesc)                   \
 {                                                                       \
-    sve_ldnfff1_r(env, vg, addr, desc, GETPC(), 0, ESZ, MSZ, FAULT_FIRST, \
+    sve_ldnfff1_r(env, vg, addr, desc, mtedesc, GETPC(),                \
+                  ESZ, MSZ, FAULT_FIRST,                                \
                   sve_ld1##PART##_le_host, sve_ld1##PART##_le_tlb);     \
 }                                                                       \
 void HELPER(sve_ldnf1##PART##_le_r)(CPUARMState *env, void *vg,         \
-                                    target_ulong addr, uint32_t desc)   \
+                                    target_ulong addr, uint32_t desc,   \
+                                    uint32_t mtedesc)                   \
 {                                                                       \
-    sve_ldnfff1_r(env, vg, addr, desc, GETPC(), 0, ESZ, MSZ, FAULT_NO,  \
+    sve_ldnfff1_r(env, vg, addr, desc, mtedesc, GETPC(),                \
+                  ESZ, MSZ, FAULT_NO,                                   \
                   sve_ld1##PART##_le_host, sve_ld1##PART##_le_tlb);     \
 }                                                                       \
 void HELPER(sve_ldff1##PART##_be_r)(CPUARMState *env, void *vg,         \
-                                    target_ulong addr, uint32_t desc)   \
+                                    target_ulong addr, uint32_t desc,   \
+                                    uint32_t mtedesc)                   \
 {                                                                       \
-    sve_ldnfff1_r(env, vg, addr, desc, GETPC(), 0, ESZ, MSZ, FAULT_FIRST, \
+    sve_ldnfff1_r(env, vg, addr, desc, mtedesc, GETPC(),                \
+                  ESZ, MSZ, FAULT_FIRST,                                \
                   sve_ld1##PART##_be_host, sve_ld1##PART##_be_tlb);     \
 }                                                                       \
 void HELPER(sve_ldnf1##PART##_be_r)(CPUARMState *env, void *vg,         \
-                                    target_ulong addr, uint32_t desc)   \
+                                    target_ulong addr, uint32_t desc,   \
+                                    uint32_t mtedesc)                   \
 {                                                                       \
-    sve_ldnfff1_r(env, vg, addr, desc, GETPC(), 0, ESZ, MSZ, FAULT_NO,  \
+    sve_ldnfff1_r(env, vg, addr, desc, mtedesc, GETPC(),                \
+                  ESZ, MSZ, FAULT_NO,                                   \
                   sve_ld1##PART##_be_host, sve_ld1##PART##_be_tlb);     \
-}                                                                       \
-void HELPER(sve_ldff1##PART##_le_r_mte)(CPUARMState *env, void *vg,     \
-                                        target_ulong addr, uint32_t desc) \
-{                                                                       \
-    sve_ldnfff1_r_mte(env, vg, addr, desc, GETPC(), ESZ, MSZ, FAULT_FIRST, \
-                      sve_ld1##PART##_le_host, sve_ld1##PART##_le_tlb); \
-}                                                                       \
-void HELPER(sve_ldnf1##PART##_le_r_mte)(CPUARMState *env, void *vg,     \
-                                        target_ulong addr, uint32_t desc) \
-{                                                                       \
-    sve_ldnfff1_r_mte(env, vg, addr, desc, GETPC(), ESZ, MSZ, FAULT_NO, \
-                      sve_ld1##PART##_le_host, sve_ld1##PART##_le_tlb); \
-}                                                                       \
-void HELPER(sve_ldff1##PART##_be_r_mte)(CPUARMState *env, void *vg,     \
-                                        target_ulong addr, uint32_t desc) \
-{                                                                       \
-    sve_ldnfff1_r_mte(env, vg, addr, desc, GETPC(), ESZ, MSZ, FAULT_FIRST, \
-                      sve_ld1##PART##_be_host, sve_ld1##PART##_be_tlb); \
-}                                                                       \
-void HELPER(sve_ldnf1##PART##_be_r_mte)(CPUARMState *env, void *vg,     \
-                                        target_ulong addr, uint32_t desc) \
-{                                                                       \
-    sve_ldnfff1_r_mte(env, vg, addr, desc, GETPC(), ESZ, MSZ, FAULT_NO, \
-                      sve_ld1##PART##_be_host, sve_ld1##PART##_be_tlb); \
 }
 
 DO_LDFF1_LDNF1_1(bb,  MO_8)
@@ -6261,8 +6174,8 @@ DO_LDFF1_LDNF1_2(dd,  MO_64, MO_64)
 
 static inline QEMU_ALWAYS_INLINE
 void sve_stN_r(CPUARMState *env, uint64_t *vg, target_ulong addr,
-               uint32_t desc, const uintptr_t retaddr,
-               const int esz, const int msz, const int N, uint32_t mtedesc,
+               uint32_t desc, uint32_t mtedesc, const uintptr_t retaddr,
+               const int esz, const int msz, const int N,
                sve_ldst1_host_fn *host_fn,
                sve_ldst1_tlb_fn *tlb_fn)
 {
@@ -6381,59 +6294,29 @@ void sve_stN_r(CPUARMState *env, uint64_t *vg, target_ulong addr,
     }
 }
 
-static inline QEMU_ALWAYS_INLINE
-void sve_stN_r_mte(CPUARMState *env, uint64_t *vg, target_ulong addr,
-                   uint32_t desc, const uintptr_t ra,
-                   const int esz, const int msz, const int N,
-                   sve_ldst1_host_fn *host_fn,
-                   sve_ldst1_tlb_fn *tlb_fn)
-{
-    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    /* Remove mtedesc from the normal sve descriptor. */
-    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    sve_stN_r(env, vg, addr, desc, ra, esz, msz, N, mtedesc, host_fn, tlb_fn);
-}
-
 #define DO_STN_1(N, NAME, ESZ)                                          \
 void HELPER(sve_st##N##NAME##_r)(CPUARMState *env, void *vg,            \
-                                 target_ulong addr, uint32_t desc)      \
+                                 target_ulong addr, uint32_t desc,      \
+                                 uint32_t mtedesc)                      \
 {                                                                       \
-    sve_stN_r(env, vg, addr, desc, GETPC(), ESZ, MO_8, N, 0,            \
+    sve_stN_r(env, vg, addr, desc, mtedesc, GETPC(), ESZ, MO_8, N,      \
               sve_st1##NAME##_host, sve_st1##NAME##_tlb);               \
-}                                                                       \
-void HELPER(sve_st##N##NAME##_r_mte)(CPUARMState *env, void *vg,        \
-                                     target_ulong addr, uint32_t desc)  \
-{                                                                       \
-    sve_stN_r_mte(env, vg, addr, desc, GETPC(), ESZ, MO_8, N,           \
-                  sve_st1##NAME##_host, sve_st1##NAME##_tlb);           \
 }
 
 #define DO_STN_2(N, NAME, ESZ, MSZ)                                     \
 void HELPER(sve_st##N##NAME##_le_r)(CPUARMState *env, void *vg,         \
-                                    target_ulong addr, uint32_t desc)   \
+                                    target_ulong addr, uint32_t desc,   \
+                                    uint32_t mtedesc)                   \
 {                                                                       \
-    sve_stN_r(env, vg, addr, desc, GETPC(), ESZ, MSZ, N, 0,             \
+    sve_stN_r(env, vg, addr, desc, mtedesc, GETPC(), ESZ, MSZ, N,       \
               sve_st1##NAME##_le_host, sve_st1##NAME##_le_tlb);         \
 }                                                                       \
 void HELPER(sve_st##N##NAME##_be_r)(CPUARMState *env, void *vg,         \
-                                    target_ulong addr, uint32_t desc)   \
+                                    target_ulong addr, uint32_t desc,   \
+                                    uint32_t mtedesc)                   \
 {                                                                       \
-    sve_stN_r(env, vg, addr, desc, GETPC(), ESZ, MSZ, N, 0,             \
+    sve_stN_r(env, vg, addr, desc, mtedesc, GETPC(), ESZ, MSZ, N,       \
               sve_st1##NAME##_be_host, sve_st1##NAME##_be_tlb);         \
-}                                                                       \
-void HELPER(sve_st##N##NAME##_le_r_mte)(CPUARMState *env, void *vg,     \
-                                        target_ulong addr, uint32_t desc) \
-{                                                                       \
-    sve_stN_r_mte(env, vg, addr, desc, GETPC(), ESZ, MSZ, N,            \
-                  sve_st1##NAME##_le_host, sve_st1##NAME##_le_tlb);     \
-}                                                                       \
-void HELPER(sve_st##N##NAME##_be_r_mte)(CPUARMState *env, void *vg,     \
-                                        target_ulong addr, uint32_t desc) \
-{                                                                       \
-    sve_stN_r_mte(env, vg, addr, desc, GETPC(), ESZ, MSZ, N,            \
-                  sve_st1##NAME##_be_host, sve_st1##NAME##_be_tlb);     \
 }
 
 DO_STN_1(1, bb, MO_8)
@@ -6501,8 +6384,8 @@ static target_ulong off_zd_d(void *reg, intptr_t reg_ofs)
 
 static inline QEMU_ALWAYS_INLINE
 void sve_ld1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
-               target_ulong base, uint32_t desc, uintptr_t retaddr,
-               uint32_t mtedesc, int esize, int msize,
+               target_ulong base, uint32_t desc, uint32_t mtedesc,
+               uintptr_t retaddr, int esize, int msize,
                zreg_off_fn *off_fn,
                sve_ldst1_host_fn *host_fn,
                sve_ldst1_tlb_fn *tlb_fn)
@@ -6563,48 +6446,23 @@ void sve_ld1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
     memcpy(vd, &scratch, reg_max);
 }
 
-static inline QEMU_ALWAYS_INLINE
-void sve_ld1_z_mte(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
-                   target_ulong base, uint32_t desc, uintptr_t retaddr,
-                   int esize, int msize, zreg_off_fn *off_fn,
-                   sve_ldst1_host_fn *host_fn,
-                   sve_ldst1_tlb_fn *tlb_fn)
-{
-    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-    /* Remove mtedesc from the normal sve descriptor. */
-    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    sve_ld1_z(env, vd, vg, vm, base, desc, retaddr, mtedesc,
-              esize, msize, off_fn, host_fn, tlb_fn);
-}
-
 #define DO_LD1_ZPZ_S(MEM, OFS, MSZ) \
 void HELPER(sve_ld##MEM##_##OFS)(CPUARMState *env, void *vd, void *vg,       \
-                                 void *vm, target_ulong base, uint32_t desc) \
+                                 void *vm, target_ulong base,                \
+                                 uint32_t desc, uint32_t mtedesc)            \
 {                                                                            \
-    sve_ld1_z(env, vd, vg, vm, base, desc, GETPC(), 0, 4, 1 << MSZ,          \
+    sve_ld1_z(env, vd, vg, vm, base, desc, mtedesc, GETPC(), 4, 1 << MSZ,    \
               off_##OFS##_s, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb);       \
-}                                                                            \
-void HELPER(sve_ld##MEM##_##OFS##_mte)(CPUARMState *env, void *vd, void *vg, \
-     void *vm, target_ulong base, uint32_t desc)                             \
-{                                                                            \
-    sve_ld1_z_mte(env, vd, vg, vm, base, desc, GETPC(), 4, 1 << MSZ,         \
-                  off_##OFS##_s, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb);   \
 }
 
 #define DO_LD1_ZPZ_D(MEM, OFS, MSZ) \
 void HELPER(sve_ld##MEM##_##OFS)(CPUARMState *env, void *vd, void *vg,       \
-                                 void *vm, target_ulong base, uint32_t desc) \
+                                 void *vm, target_ulong base,                \
+                                 uint32_t desc, uint32_t mtedesc)            \
 {                                                                            \
-    sve_ld1_z(env, vd, vg, vm, base, desc, GETPC(), 0, 8, 1 << MSZ,          \
+    sve_ld1_z(env, vd, vg, vm, base, desc, mtedesc, GETPC(), 8, 1 << MSZ,    \
               off_##OFS##_d, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb);       \
 }                                                                            \
-void HELPER(sve_ld##MEM##_##OFS##_mte)(CPUARMState *env, void *vd, void *vg, \
-    void *vm, target_ulong base, uint32_t desc)                              \
-{                                                                            \
-    sve_ld1_z_mte(env, vd, vg, vm, base, desc, GETPC(), 8, 1 << MSZ,         \
-                  off_##OFS##_d, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb);   \
-}
 
 DO_LD1_ZPZ_S(bsu, zsu, MO_8)
 DO_LD1_ZPZ_S(bsu, zss, MO_8)
@@ -6681,8 +6539,8 @@ DO_LD1_ZPZ_D(dd_be, zd, MO_64)
 
 static inline QEMU_ALWAYS_INLINE
 void sve_ldff1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
-                 target_ulong base, uint32_t desc, uintptr_t retaddr,
-                 uint32_t mtedesc, const int esz, const int msz,
+                 target_ulong base, uint32_t desc, uint32_t mtedesc,
+                 uintptr_t retaddr, const int esz, const int msz,
                  zreg_off_fn *off_fn,
                  sve_ldst1_host_fn *host_fn,
                  sve_ldst1_tlb_fn *tlb_fn)
@@ -6714,9 +6572,7 @@ void sve_ldff1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
      * Probe the first element, allowing faults.
      */
     addr = base + (off_fn(vm, reg_off) << scale);
-    if (mtedesc) {
-        mte_check(env, mtedesc, addr, retaddr);
-    }
+    mte_check(env, mtedesc, addr, retaddr);
     tlb_fn(env, vd, reg_off, addr, retaddr);
 
     /* After any fault, zero the other elements. */
@@ -6764,52 +6620,22 @@ void sve_ldff1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
     record_fault(env, reg_off, reg_max);
 }
 
-static inline QEMU_ALWAYS_INLINE
-void sve_ldff1_z_mte(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
-                     target_ulong base, uint32_t desc, uintptr_t retaddr,
-                     const int esz, const int msz,
-                     zreg_off_fn *off_fn,
-                     sve_ldst1_host_fn *host_fn,
-                     sve_ldst1_tlb_fn *tlb_fn)
-{
-    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-    /* Remove mtedesc from the normal sve descriptor. */
-    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    sve_ldff1_z(env, vd, vg, vm, base, desc, retaddr, mtedesc,
-                esz, msz, off_fn, host_fn, tlb_fn);
-}
-
 #define DO_LDFF1_ZPZ_S(MEM, OFS, MSZ)                                   \
 void HELPER(sve_ldff##MEM##_##OFS)                                      \
     (CPUARMState *env, void *vd, void *vg,                              \
-     void *vm, target_ulong base, uint32_t desc)                        \
+     void *vm, target_ulong base, uint32_t desc, uint32_t mtedesc)      \
 {                                                                       \
-    sve_ldff1_z(env, vd, vg, vm, base, desc, GETPC(), 0, MO_32, MSZ,    \
+    sve_ldff1_z(env, vd, vg, vm, base, desc, mtedesc, GETPC(), MO_32, MSZ, \
                 off_##OFS##_s, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb); \
-}                                                                       \
-void HELPER(sve_ldff##MEM##_##OFS##_mte)                                \
-    (CPUARMState *env, void *vd, void *vg,                              \
-     void *vm, target_ulong base, uint32_t desc)                        \
-{                                                                       \
-    sve_ldff1_z_mte(env, vd, vg, vm, base, desc, GETPC(), MO_32, MSZ,   \
-                    off_##OFS##_s, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb); \
 }
 
 #define DO_LDFF1_ZPZ_D(MEM, OFS, MSZ)                                   \
 void HELPER(sve_ldff##MEM##_##OFS)                                      \
     (CPUARMState *env, void *vd, void *vg,                              \
-     void *vm, target_ulong base, uint32_t desc)                        \
+     void *vm, target_ulong base, uint32_t desc, uint32_t mtedesc)      \
 {                                                                       \
-    sve_ldff1_z(env, vd, vg, vm, base, desc, GETPC(), 0, MO_64, MSZ,    \
+    sve_ldff1_z(env, vd, vg, vm, base, desc, mtedesc, GETPC(), MO_64, MSZ, \
                 off_##OFS##_d, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb); \
-}                                                                       \
-void HELPER(sve_ldff##MEM##_##OFS##_mte)                                \
-    (CPUARMState *env, void *vd, void *vg,                              \
-     void *vm, target_ulong base, uint32_t desc)                        \
-{                                                                       \
-    sve_ldff1_z_mte(env, vd, vg, vm, base, desc, GETPC(), MO_64, MSZ,   \
-                    off_##OFS##_d, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb); \
 }
 
 DO_LDFF1_ZPZ_S(bsu, zsu, MO_8)
@@ -6880,8 +6706,8 @@ DO_LDFF1_ZPZ_D(dd_be, zd, MO_64)
 
 static inline QEMU_ALWAYS_INLINE
 void sve_st1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
-               target_ulong base, uint32_t desc, uintptr_t retaddr,
-               uint32_t mtedesc, int esize, int msize,
+               target_ulong base, uint32_t desc, uint32_t mtedesc,
+               uintptr_t retaddr, int esize, int msize,
                zreg_off_fn *off_fn,
                sve_ldst1_host_fn *host_fn,
                sve_ldst1_tlb_fn *tlb_fn)
@@ -6961,47 +6787,20 @@ void sve_st1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
     } while (reg_off < reg_max);
 }
 
-static inline QEMU_ALWAYS_INLINE
-void sve_st1_z_mte(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
-                   target_ulong base, uint32_t desc, uintptr_t retaddr,
-                   int esize, int msize, zreg_off_fn *off_fn,
-                   sve_ldst1_host_fn *host_fn,
-                   sve_ldst1_tlb_fn *tlb_fn)
-{
-    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-    /* Remove mtedesc from the normal sve descriptor. */
-    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
-
-    sve_st1_z(env, vd, vg, vm, base, desc, retaddr, mtedesc,
-              esize, msize, off_fn, host_fn, tlb_fn);
-}
-
 #define DO_ST1_ZPZ_S(MEM, OFS, MSZ)                                     \
 void HELPER(sve_st##MEM##_##OFS)(CPUARMState *env, void *vd, void *vg,  \
-                                 void *vm, target_ulong base, uint32_t desc) \
+    void *vm, target_ulong base, uint32_t desc, uint32_t mtedesc)       \
 {                                                                       \
-    sve_st1_z(env, vd, vg, vm, base, desc, GETPC(), 0, 4, 1 << MSZ,     \
+    sve_st1_z(env, vd, vg, vm, base, desc, mtedesc, GETPC(), 4, 1 << MSZ, \
               off_##OFS##_s, sve_st1##MEM##_host, sve_st1##MEM##_tlb);  \
-}                                                                       \
-void HELPER(sve_st##MEM##_##OFS##_mte)(CPUARMState *env, void *vd, void *vg, \
-    void *vm, target_ulong base, uint32_t desc)                         \
-{                                                                       \
-    sve_st1_z_mte(env, vd, vg, vm, base, desc, GETPC(), 4, 1 << MSZ,    \
-                  off_##OFS##_s, sve_st1##MEM##_host, sve_st1##MEM##_tlb); \
 }
 
 #define DO_ST1_ZPZ_D(MEM, OFS, MSZ)                                     \
 void HELPER(sve_st##MEM##_##OFS)(CPUARMState *env, void *vd, void *vg,  \
-                                 void *vm, target_ulong base, uint32_t desc) \
+    void *vm, target_ulong base, uint32_t desc, uint32_t mtedesc)       \
 {                                                                       \
-    sve_st1_z(env, vd, vg, vm, base, desc, GETPC(), 0, 8, 1 << MSZ,     \
+    sve_st1_z(env, vd, vg, vm, base, desc, mtedesc, GETPC(), 8, 1 << MSZ, \
               off_##OFS##_d, sve_st1##MEM##_host, sve_st1##MEM##_tlb);  \
-}                                                                       \
-void HELPER(sve_st##MEM##_##OFS##_mte)(CPUARMState *env, void *vd, void *vg, \
-    void *vm, target_ulong base, uint32_t desc)                         \
-{                                                                       \
-    sve_st1_z_mte(env, vd, vg, vm, base, desc, GETPC(), 8, 1 << MSZ,    \
-                  off_##OFS##_d, sve_st1##MEM##_host, sve_st1##MEM##_tlb); \
 }
 
 DO_ST1_ZPZ_S(bs, zsu, MO_8)

@@ -178,20 +178,20 @@ static bool trans_MOVA(DisasContext *s, arg_MOVA *a)
 
 static bool trans_LDST1(DisasContext *s, arg_LDST1 *a)
 {
-    typedef void GenLdSt1(TCGv_env, TCGv_ptr, TCGv_ptr, TCGv, TCGv_i32);
+    typedef void GenLdSt1(TCGv_env, TCGv_ptr, TCGv_ptr, TCGv,
+                          TCGv_i32, TCGv_i32);
 
     /*
-     * Indexed by [esz][be][v][mte][st], which is (except for load/store)
+     * Indexed by [esz][be][v][st], which is (except for load/store)
      * also the order in which the elements appear in the function names,
      * and so how we must concatenate the pieces.
      */
 
 #define FN_LS(F)     { gen_helper_sme_ld1##F, gen_helper_sme_st1##F }
-#define FN_MTE(F)    { FN_LS(F), FN_LS(F##_mte) }
-#define FN_HV(F)     { FN_MTE(F##_h), FN_MTE(F##_v) }
+#define FN_HV(F)     { FN_LS(F##_h), FN_LS(F##_v) }
 #define FN_END(L, B) { FN_HV(L), FN_HV(B) }
 
-    static GenLdSt1 * const fns[5][2][2][2][2] = {
+    static GenLdSt1 * const fns[5][2][2][2] = {
         FN_END(b, b),
         FN_END(h_le, h_be),
         FN_END(s_le, s_be),
@@ -206,9 +206,8 @@ static bool trans_LDST1(DisasContext *s, arg_LDST1 *a)
 
     TCGv_ptr t_za, t_pg;
     TCGv_i64 addr;
-    int svl, desc = 0;
+    int svl, desc, mtedesc = 0;
     bool be = s->be_data == MO_BE;
-    bool mte = s->mte_active[0];
 
     if (!dc_isar_feature(aa64_sme, s)) {
         return false;
@@ -224,21 +223,21 @@ static bool trans_LDST1(DisasContext *s, arg_LDST1 *a)
     tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), a->esz);
     tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
 
-    if (mte) {
-        desc = FIELD_DP32(desc, MTEDESC, MIDX, get_mem_index(s));
-        desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
-        desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
-        desc = FIELD_DP32(desc, MTEDESC, WRITE, a->st);
-        desc = FIELD_DP32(desc, MTEDESC, SIZEM1, (1 << a->esz) - 1);
-        desc <<= SVE_MTEDESC_SHIFT;
+    if (s->mte_active[0]) {
+        mtedesc = FIELD_DP32(mtedesc, MTEDESC, MIDX, get_mem_index(s));
+        mtedesc = FIELD_DP32(mtedesc, MTEDESC, TBI, s->tbid);
+        mtedesc = FIELD_DP32(mtedesc, MTEDESC, TCMA, s->tcma);
+        mtedesc = FIELD_DP32(mtedesc, MTEDESC, WRITE, a->st);
+        mtedesc = FIELD_DP32(mtedesc, MTEDESC, SIZEM1, (1 << a->esz) - 1);
     } else {
         addr = clean_data_tbi(s, addr);
     }
     svl = streaming_vec_reg_size(s);
-    desc = simd_desc(svl, svl, desc);
+    desc = simd_desc(svl, svl, 0);
 
-    fns[a->esz][be][a->v][mte][a->st](tcg_env, t_za, t_pg, addr,
-                                      tcg_constant_i32(desc));
+    fns[a->esz][be][a->v][a->st](tcg_env, t_za, t_pg, addr,
+                                 tcg_constant_i32(desc),
+                                 tcg_constant_i32(mtedesc));
     return true;
 }
 
