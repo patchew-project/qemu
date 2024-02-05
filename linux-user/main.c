@@ -160,6 +160,7 @@ void fork_end(int child)
             }
         }
         qemu_init_cpu_list();
+        ((TaskState *)thread_cpu->opaque)->ts_tid = qemu_get_thread_id();
         gdbserver_fork(thread_cpu);
     } else {
         cpu_list_unlock();
