@@ -869,30 +869,7 @@ out:
     return NULL;
 }
 
-static bool multifd_channel_connect(MultiFDSendParams *p,
-                                    QIOChannel *ioc,
-                                    Error **errp);
-
-static void multifd_tls_outgoing_handshake(QIOTask *task,
-                                           gpointer opaque)
-{
-    MultiFDSendParams *p = opaque;
-    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
-    Error *err = NULL;
-
-    if (!qio_task_propagate_error(task, &err)) {
-        trace_multifd_tls_outgoing_handshake_complete(ioc);
-        if (multifd_channel_connect(p, ioc, &err)) {
-            return;
-        }
-    }
-
-    trace_multifd_tls_outgoing_handshake_error(ioc, error_get_pretty(err));
-
-    multifd_send_set_error(err);
-    multifd_send_kick_main(p);
-    error_free(err);
-}
+static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque);
 
 static void *multifd_tls_handshake_thread(void *opaque)
 {
@@ -900,7 +877,7 @@ static void *multifd_tls_handshake_thread(void *opaque)
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(p->c);
 
     qio_channel_tls_handshake(tioc,
-                              multifd_tls_outgoing_handshake,
+                              multifd_new_send_channel_async,
                               p,
                               NULL,
                               NULL);
@@ -936,19 +913,6 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
                                     QIOChannel *ioc,
                                     Error **errp)
 {
-    trace_multifd_set_outgoing_channel(
-        ioc, object_get_typename(OBJECT(ioc)),
-        migrate_get_current()->hostname);
-
-    if (migrate_channel_requires_tls_upgrade(ioc)) {
-        /*
-         * tls_channel_connect will call back to this
-         * function after the TLS handshake,
-         * so we mustn't call multifd_send_thread until then
-         */
-        return multifd_tls_channel_connect(p, ioc, errp);
-    }
-
     migration_ioc_register_yank(ioc);
     p->registered_yank = true;
     p->c = ioc;
@@ -959,20 +923,43 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
     return true;
 }
 
+/*
+ * When TLS is enabled this function is called once to establish the
+ * TLS connection and a second time after the TLS handshake to create
+ * the multifd channel. Without TLS it goes straight into the channel
+ * creation.
+ */
 static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 {
     MultiFDSendParams *p = opaque;
     QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *local_err = NULL;
 
+    bool ret;
+
     trace_multifd_new_send_channel_async(p->id);
-    if (!qio_task_propagate_error(task, &local_err)) {
-        qio_channel_set_delay(ioc, false);
-        if (multifd_channel_connect(p, ioc, &local_err)) {
-            return;
-        }
+
+    if (qio_task_propagate_error(task, &local_err)) {
+        ret = false;
+        goto out;
     }
 
+    qio_channel_set_delay(ioc, false);
+
+    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)),
+                                       migrate_get_current()->hostname);
+
+    if (migrate_channel_requires_tls_upgrade(ioc)) {
+        ret = multifd_tls_channel_connect(p, ioc, &local_err);
+    } else {
+        ret = multifd_channel_connect(p, ioc, &local_err);
+    }
+
+    if (ret) {
+        return;
+    }
+
+out:
     trace_multifd_new_send_channel_async_error(p->id, local_err);
     multifd_send_set_error(local_err);
     multifd_send_kick_main(p);
