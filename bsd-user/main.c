@@ -131,10 +131,11 @@ void fork_end(abi_long pid)
          */
         qemu_init_cpu_list();
         ((TaskState *)thread_cpu->opaque)->ts_tid = qemu_get_thread_id();
-        gdbserver_fork(pid);
+        gdbserver_fork_end(pid);
     } else {
         mmap_fork_end(child);
         cpu_list_unlock();
+        gdbserver_fork_end(pid);
         end_exclusive();
     }
 }
