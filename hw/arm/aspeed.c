@@ -342,7 +342,7 @@ static void connect_serial_hds_to_uarts(AspeedMachineState *bmc)
     int uart_chosen = bmc->uart_chosen ? bmc->uart_chosen : amc->uart_default;
 
     aspeed_soc_uart_set_chr(s, uart_chosen, serial_hd(0));
-    for (int i = 1, uart = ASPEED_DEV_UART1; i < sc->uarts_num; i++, uart++) {
+    for (int i = 1, uart = sc->uarts_base; i < sc->uarts_num; i++, uart++) {
         if (uart == uart_chosen) {
             continue;
         }
@@ -1092,9 +1092,11 @@ static char *aspeed_get_bmc_console(Object *obj, Error **errp)
 {
     AspeedMachineState *bmc = ASPEED_MACHINE(obj);
     AspeedMachineClass *amc = ASPEED_MACHINE_GET_CLASS(bmc);
+    AspeedSoCClass *sc = ASPEED_SOC_CLASS(obj);
+
     int uart_chosen = bmc->uart_chosen ? bmc->uart_chosen : amc->uart_default;
 
-    return g_strdup_printf("uart%d", uart_chosen - ASPEED_DEV_UART1 + 1);
+    return g_strdup_printf("uart%d", uart_chosen - sc->uarts_base + 1);
 }
 
 static void aspeed_set_bmc_console(Object *obj, const char *value, Error **errp)
@@ -1114,7 +1116,7 @@ static void aspeed_set_bmc_console(Object *obj, const char *value, Error **errp)
         error_setg(errp, "\"uart\" should be in range [1 - %d]", sc->uarts_num);
         return;
     }
-    bmc->uart_chosen = ASPEED_DEV_UART1 + val - 1;
+    bmc->uart_chosen = sc->uarts_base + val - 1;
 }
 
 static void aspeed_machine_class_props_init(ObjectClass *oc)
