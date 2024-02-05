@@ -382,6 +382,10 @@ void gdbserver_fork_end(pid_t pid)
     disable_gdbstub();
 }
 
+void gdb_handle_query_supported_user(const char *gdb_supported)
+{
+}
+
 /*
  * Execution state helpers
  */
