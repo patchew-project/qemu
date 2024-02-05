@@ -102,7 +102,7 @@ typedef struct {
     int mb_mods_count;
 } MultibootState;
 
-const char *bootloader_name = "qemu";
+static const char *bootloader_name = "qemu";
 
 static uint32_t mb_add_cmdline(MultibootState *s, const char *cmdline)
 {
