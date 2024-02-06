@@ -36,7 +36,7 @@ typedef struct TestData {
     const GMACModule *module;
 } TestData;
 
-/* Values extracted from hw/arm/npcm8xx.c */
+/* Values extracted from hw/arm/npcm7xx.c */
 static const GMACModule gmac_module_list[] = {
     {
         .irq        = 14,
@@ -46,14 +46,6 @@ static const GMACModule gmac_module_list[] = {
         .irq        = 15,
         .base_addr  = 0xf0804000
     },
-    {
-        .irq        = 16,
-        .base_addr  = 0xf0806000
-    },
-    {
-        .irq        = 17,
-        .base_addr  = 0xf0808000
-    }
 };
 
 /* Returns the index of the GMAC module. */
@@ -196,7 +188,7 @@ static void test_init(gconstpointer test_data)
 {
     const TestData *td = test_data;
     const GMACModule *mod = td->module;
-    QTestState *qts = qtest_init("-machine npcm845-evb");
+    QTestState *qts = qtest_init("-machine npcm750-evb");
 
 #define CHECK_REG32(regno, value) \
     do { \
