@@ -874,6 +874,11 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @multifd-zero-page: Multifd zero page checking. If the parameter is true,
+#     zero page checking is done on the multifd sender thread. If the parameter
+#     is false, zero page checking is done on the migration main thread. Default
+#     is set to true. (Since 9.0)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -907,7 +912,8 @@
            'block-bitmap-mapping',
            { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
            'vcpu-dirty-limit',
-           'mode'] }
+           'mode',
+           'multifd-zero-page'] }
 
 ##
 # @MigrateSetParameters:
@@ -1062,6 +1068,11 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @multifd-zero-page: Multifd zero page checking. If the parameter is true,
+#     zero page checking is done on the multifd sender thread. If the parameter
+#     is false, zero page checking is done on the migration main thread. Default
+#     is set to true. (Since 9.0)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1115,7 +1126,8 @@
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
-            '*mode': 'MigMode'} }
+            '*mode': 'MigMode',
+            '*multifd-zero-page': 'bool'} }
 
 ##
 # @migrate-set-parameters:
@@ -1290,6 +1302,11 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @multifd-zero-page: Multifd zero page checking. If the parameter is true,
+#     zero page checking is done on the multifd sender thread. If the parameter
+#     is false, zero page checking is done on the migration main thread. Default
+#     is set to true. (Since 9.0)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1340,7 +1357,8 @@
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
-            '*mode': 'MigMode'} }
+            '*mode': 'MigMode',
+            '*multifd-zero-page': 'bool'} }
 
 ##
 # @query-migrate-parameters:
