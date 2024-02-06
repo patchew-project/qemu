@@ -187,8 +187,34 @@ char *freq_to_str(uint64_t freq_hz);
 /* used to print char* safely */
 #define STR_OR_NULL(str) ((str) ? (str) : "null")
 
-bool buffer_is_zero(const void *buf, size_t len);
+bool buffer_is_zero_len_4_plus(const void *, size_t);
+extern bool (*buffer_is_zero_len_256_plus)(const void *, size_t);
 bool test_buffer_is_zero_next_accel(void);
+
+/*
+ * Check if a buffer is all zeroes.
+ */
+static inline bool buffer_is_zero(const void *vbuf, size_t len)
+{
+    const char *buf = vbuf;
+
+    if (len == 0) {
+        return true;
+    }
+    if (buf[0] || buf[len - 1] || buf[len / 2]) {
+        return false;
+    }
+    /* All bytes are covered for any len <= 3.  */
+    if (len <= 3) {
+        return true;
+    }
+
+    if (len >= 256) {
+        return buffer_is_zero_len_256_plus(vbuf, len);
+    } else {
+        return buffer_is_zero_len_4_plus(vbuf, len);
+    }
+}
 
 /*
  * Implementation of ULEB128 (http://en.wikipedia.org/wiki/LEB128)
