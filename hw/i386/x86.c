@@ -53,6 +53,7 @@
 #include "hw/nmi.h"
 #include "hw/loader.h"
 #include "multiboot.h"
+#include "multiboot2.h"
 #include "elf.h"
 #include "standard-headers/asm-x86/bootparam.h"
 #include CONFIG_DEVICES
@@ -843,6 +844,13 @@ void x86_load_linux(X86MachineState *x86ms,
          */
         if (load_multiboot(x86ms, fw_cfg, f, kernel_filename, initrd_filename,
                            kernel_cmdline, kernel_size, header)) {
+            return;
+        }
+        /*
+         * Check multiboot2 kernel.
+         */
+        if (load_multiboot2(x86ms, fw_cfg, f, kernel_filename, initrd_filename,
+                            kernel_cmdline, kernel_size, header)) {
             return;
         }
         /*

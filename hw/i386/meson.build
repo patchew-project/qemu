@@ -4,6 +4,7 @@ i386_ss.add(files(
   'kvmvapic.c',
   'e820_memory_layout.c',
   'multiboot.c',
+  'multiboot2.c',
   'x86.c',
 ))
 

@@ -33,6 +33,7 @@
 #define FW_CFG_SETUP_ADDR       0x16
 #define FW_CFG_SETUP_SIZE       0x17
 #define FW_CFG_SETUP_DATA       0x18
+#define FW_CFG_KERNEL_64BIT     0x21
 
 #define BIOS_CFG_IOPORT_CFG    0x510
 #define BIOS_CFG_IOPORT_DATA   0x511
