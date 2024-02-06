@@ -29,35 +29,27 @@
 bool
 buffer_is_zero_len_4_plus(const void *buf, size_t len)
 {
-    if (unlikely(len < 8)) {
-        /* For a very small buffer, simply accumulate all the bytes.  */
-        const unsigned char *p = buf;
-        const unsigned char *e = buf + len;
-        unsigned char t = 0;
-
-        do {
-            t |= *p++;
-        } while (p < e);
-
-        return t == 0;
+    if (unlikely(len <= 8)) {
+        /* Our caller ensures len >= 4.  */
+        return (ldl_he_p(buf) | ldl_he_p(buf + len - 4)) == 0;
     } else {
-        /* Otherwise, use the unaligned memory access functions to
-           handle the beginning and end of the buffer, with a couple
+        /* Use unaligned memory access functions to handle
+           the beginning and end of the buffer, with a couple
            of loops handling the middle aligned section.  */
-        uint64_t t = ldq_he_p(buf);
-        const uint64_t *p = (uint64_t *)(((uintptr_t)buf + 8) & -8);
-        const uint64_t *e = (uint64_t *)(((uintptr_t)buf + len) & -8);
+        uint64_t t = ldq_he_p(buf) | ldq_he_p(buf + len - 8);
+        typedef uint64_t uint64_a __attribute__((may_alias));
+        const uint64_a *p = (void *)(((uintptr_t)buf + 8) & -8);
+        const uint64_a *e = (void *)(((uintptr_t)buf + len - 1) & -8);
 
-        for (; p + 8 <= e; p += 8) {
+        if (e - p >= 8) do {
             if (t) {
                 return false;
             }
             t = p[0] | p[1] | p[2] | p[3] | p[4] | p[5] | p[6] | p[7];
-        }
+        } while ((p += 8) <= e - 8);
         while (p < e) {
             t |= *p++;
         }
-        t |= ldq_he_p(buf + len - 8);
 
         return t == 0;
     }
