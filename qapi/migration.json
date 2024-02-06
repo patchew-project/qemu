@@ -63,6 +63,10 @@
 #     between 0 and @dirty-sync-count * @multifd-channels.  (since
 #     7.1)
 #
+# @zero: number of zero pages (since 9.0)
+#
+# @zero-bytes: number of zero bytes sent (since 9.0)
+#
 # Features:
 #
 # @deprecated: Member @skipped is always zero since 1.5.3
@@ -81,7 +85,8 @@
            'multifd-bytes': 'uint64', 'pages-per-second': 'uint64',
            'precopy-bytes': 'uint64', 'downtime-bytes': 'uint64',
            'postcopy-bytes': 'uint64',
-           'dirty-sync-missed-zero-copy': 'uint64' } }
+           'dirty-sync-missed-zero-copy': 'uint64',
+           'zero': 'int', 'zero-bytes': 'int' } }
 
 ##
 # @XBZRLECacheStats:
@@ -332,6 +337,8 @@
 #           "duplicate":123,
 #           "normal":123,
 #           "normal-bytes":123456,
+#           "zero":123,
+#           "zero-bytes":123456,
 #           "dirty-sync-count":15
 #         }
 #      }
@@ -358,6 +365,8 @@
 #             "duplicate":123,
 #             "normal":123,
 #             "normal-bytes":123456,
+#             "zero":123,
+#             "zero-bytes":123456,
 #             "dirty-sync-count":15
 #          }
 #       }
@@ -379,6 +388,8 @@
 #             "duplicate":123,
 #             "normal":123,
 #             "normal-bytes":123456,
+#             "zero":123,
+#             "zero-bytes":123456,
 #             "dirty-sync-count":15
 #          },
 #          "disk":{
@@ -405,6 +416,8 @@
 #             "duplicate":10,
 #             "normal":3333,
 #             "normal-bytes":3412992,
+#             "zero":3333,
+#             "zero-bytes":3412992,
 #             "dirty-sync-count":15
 #          },
 #          "xbzrle-cache":{
