@@ -1,3 +1,5 @@
+# Run feature_word_info.py if you make changes to this file!
+
 - index: FEAT_1_EDX
   cpuid:
     eax: '1'
