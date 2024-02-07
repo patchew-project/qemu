@@ -1342,10 +1342,10 @@ void qemu_savevm_state_setup(QEMUFile *f)
         }
         save_section_header(f, se, QEMU_VM_SECTION_START);
 
-        ret = se->ops->save_setup(f, se->opaque);
+        ret = se->ops->save_setup(f, se->opaque, &local_err);
         save_section_footer(f, se);
         if (ret < 0) {
-            qemu_file_set_error(f, ret);
+            qemu_file_set_error_obj(f, ret, local_err);
             break;
         }
     }
