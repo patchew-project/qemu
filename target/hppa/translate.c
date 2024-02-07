@@ -2163,13 +2163,20 @@ static bool trans_rsm(DisasContext *ctx, arg_rsm *a)
     nullify_over(ctx);
 
     tmp = tcg_temp_new_i64();
-    tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPUHPPAState, psw));
-    tcg_gen_andi_i64(tmp, tmp, ~a->i);
-    gen_helper_swap_system_mask(tmp, tcg_env, tmp);
-    save_gpr(ctx, a->t, tmp);
+    if (a->t != 0) {
+        gen_helper_get_system_mask(tmp, tcg_env);
+        save_gpr(ctx, a->t, tmp);
+    }
 
-    /* Exit the TB to recognize new interrupts, e.g. PSW_M.  */
-    ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
+    if (a->i) {
+        tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPUHPPAState, psw));
+        tcg_gen_andi_i64(tmp, tmp, ~a->i);
+        gen_helper_set_system_mask(tcg_env, tmp);
+
+        /* Exit, check e.g. for new interrupts */
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
+    }
+
     return nullify_end(ctx);
 #endif
 }
@@ -2183,11 +2190,17 @@ static bool trans_ssm(DisasContext *ctx, arg_ssm *a)
     nullify_over(ctx);
 
     tmp = tcg_temp_new_i64();
-    tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPUHPPAState, psw));
-    tcg_gen_ori_i64(tmp, tmp, a->i);
-    gen_helper_swap_system_mask(tmp, tcg_env, tmp);
-    save_gpr(ctx, a->t, tmp);
+    if (a->t != 0) {
+        gen_helper_get_system_mask(tmp, tcg_env);
+        save_gpr(ctx, a->t, tmp);
+    }
 
+    if (a->i) {
+        tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPUHPPAState, psw));
+        tcg_gen_ori_i64(tmp, tmp, a->i);
+        gen_helper_set_system_mask(tcg_env, tmp);
+
+    }
     /* Exit the TB to recognize new interrupts, e.g. PSW_I.  */
     ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
     return nullify_end(ctx);
@@ -2198,12 +2211,11 @@ static bool trans_mtsm(DisasContext *ctx, arg_mtsm *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    TCGv_i64 tmp, reg;
+    TCGv_i64 reg;
     nullify_over(ctx);
 
     reg = load_gpr(ctx, a->r);
-    tmp = tcg_temp_new_i64();
-    gen_helper_swap_system_mask(tmp, tcg_env, reg);
+    gen_helper_mtsm_system_mask(tcg_env, reg);
 
     /* Exit the TB to recognize new interrupts.  */
     ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;

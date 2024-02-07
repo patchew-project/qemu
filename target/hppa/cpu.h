@@ -122,7 +122,9 @@
 #define PSW_T            0x01000000
 #define PSW_S            0x02000000
 #define PSW_E            0x04000000
+#define PSW_E_BIT                37 /* PA2.0 only */
 #define PSW_W            0x08000000 /* PA2.0 only */
+#define PSW_W_BIT                36 /* PA2.0 only */
 #define PSW_Z            0x40000000 /* PA1.x only */
 #define PSW_Y            0x80000000 /* PA1.x only */
 

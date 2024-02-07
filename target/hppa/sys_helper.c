@@ -58,7 +58,27 @@ void HELPER(reset)(CPUHPPAState *env)
     helper_excp(env, EXCP_HLT);
 }
 
-target_ulong HELPER(swap_system_mask)(CPUHPPAState *env, target_ulong nsm)
+target_ulong HELPER(get_system_mask)(CPUHPPAState *env)
+{
+    target_ulong psw = env->psw;
+
+    /* mask out invalid bits */
+    target_ulong psw_new = psw & PSW_SM;
+
+    /* ssm/rsm instructions number PSW_W and PSW_E differently */
+    psw_new &= ~PSW_W;
+    if (psw & PSW_W) {
+        psw_new |= 1ull << (63 - PSW_W_BIT);
+    }
+    psw_new &= ~PSW_E;
+    if (psw & PSW_E) {
+        psw_new |= 1ull << (63 - PSW_E_BIT);
+    }
+
+    return psw_new;
+}
+
+void HELPER(set_system_mask)(CPUHPPAState *env, target_ulong nsm)
 {
     target_ulong psw = env->psw;
     /*
@@ -70,8 +90,28 @@ target_ulong HELPER(swap_system_mask)(CPUHPPAState *env, target_ulong nsm)
      * machines set the Q bit from 0 to 1 without an exception,
      * so let this go without comment.
      */
-    env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
-    return psw & PSW_SM;
+
+    cpu_hppa_put_psw(env, (psw & ~PSW_SM) | (nsm & PSW_SM));
+}
+
+void HELPER(mtsm_system_mask)(CPUHPPAState *env, target_ulong nsm)
+{
+    target_ulong psw_new;
+
+    /* mask out invalid bits */
+    psw_new = nsm & PSW_SM;
+
+    /* set PSW_E and PSW_W */
+    psw_new &= ~PSW_W;
+    if (nsm & (1ull << (63 - PSW_W_BIT))) {
+        psw_new |= PSW_W;
+    }
+    psw_new &= ~PSW_E;
+    if (nsm & (1ull << (63 - PSW_E_BIT))) {
+        psw_new |= PSW_E;
+    }
+
+    helper_set_system_mask(env, psw_new);
 }
 
 void HELPER(rfi)(CPUHPPAState *env)
