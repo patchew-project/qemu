@@ -24,6 +24,8 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #include "qemu/timer.h"
+#include "sysemu/sysemu.h"
+#include "chardev/char-fe.h"
 #include "trace.h"
 
 G_NORETURN void HELPER(excp)(CPUHPPAState *env, int excp)
@@ -483,4 +485,34 @@ uint64_t HELPER(hshradd)(uint64_t r1, uint64_t r2, uint32_t sh)
         ret = deposit64(ret, i, 16, fr);
     }
     return ret;
+}
+
+/*
+ * diag_console_output() is a helper function used during the initial bootup
+ * process of the SeaBIOS-hppa firmware.  During the bootup phase, addresses of
+ * serial ports on e.g. PCI busses are unknown and most other devices haven't
+ * been initialized and configured yet.  With help of a simple "diag" assembler
+ * instruction and an ASCII character code in register %r26 firmware can easily
+ * print debug output without any dependencies to the first serial port and use
+ * that as serial console.
+ */
+void HELPER(diag_console_output)(CPUHPPAState *env)
+{
+    CharBackend *serial_backend;
+    Chardev *serial_port;
+    unsigned char c;
+
+    /* find first serial port */
+    serial_port = serial_hd(0);
+    if (!serial_port)
+        return;
+
+    /* get serial_backend for the serial port */
+    serial_backend = serial_port->be;
+    if (!serial_backend ||
+        !qemu_chr_fe_backend_connected(serial_backend))
+        return;
+
+    c = (unsigned char)env->gr[26];
+    qemu_chr_fe_write(serial_backend, &c, sizeof(c));
 }
