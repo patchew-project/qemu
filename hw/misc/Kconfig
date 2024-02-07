@@ -206,4 +206,8 @@ config IOSB
 config XLNX_VERSAL_TRNG
     bool
 
+config RISCV_IOPMP
+    bool
+    select STREAM
+
 source macio/Kconfig
