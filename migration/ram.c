@@ -2802,19 +2802,17 @@ static void migration_bitmap_clear_discarded_pages(RAMState *rs)
     }
 }
 
-static void ram_init_bitmaps(RAMState *rs)
+static void ram_init_bitmaps(RAMState *rs, Error **errp)
 {
-    Error *local_err = NULL;
-
     qemu_mutex_lock_ramlist();
 
     WITH_RCU_READ_LOCK_GUARD() {
         ram_list_init_bitmaps();
         /* We don't use dirty log with background snapshots */
         if (!migrate_background_snapshot()) {
-            memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION, &local_err);
-            if (local_err) {
-                error_report_err(local_err);
+            memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION, errp);
+            if (*errp) {
+                break;
             }
             migration_bitmap_sync_precopy(rs, false);
         }
@@ -2828,7 +2826,7 @@ static void ram_init_bitmaps(RAMState *rs)
     migration_bitmap_clear_discarded_pages(rs);
 }
 
-static int ram_init_all(RAMState **rsp)
+static int ram_init_all(RAMState **rsp, Error **errp)
 {
     if (ram_state_init(rsp)) {
         return -1;
@@ -2839,7 +2837,10 @@ static int ram_init_all(RAMState **rsp)
         return -1;
     }
 
-    ram_init_bitmaps(*rsp);
+    ram_init_bitmaps(*rsp, errp);
+    if (*errp) {
+        return -1;
+    }
 
     return 0;
 }
@@ -2952,7 +2953,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque, Error **errp)
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
-        if (ram_init_all(rsp) != 0) {
+        if (ram_init_all(rsp, errp) != 0) {
             compress_threads_save_cleanup();
             return -1;
         }
