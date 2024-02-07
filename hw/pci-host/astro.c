@@ -131,15 +131,21 @@ static MemTxResult elroy_chip_read_with_attrs(void *opaque, hwaddr addr,
             if (s->iosapic_reg_select < ARRAY_SIZE(s->iosapic_reg)) {
                 val = s->iosapic_reg[s->iosapic_reg_select];
             } else {
-                val = 0;
-                ret = MEMTX_DECODE_ERROR;
+                goto check_hf;
             }
         }
         trace_iosapic_reg_read(s->iosapic_reg_select, size, val);
         break;
     default:
-        val = 0;
-        ret = MEMTX_DECODE_ERROR;
+    check_hf:
+        if (s->status_control & HF_ENABLE) {
+            val = 0;
+            ret = MEMTX_DECODE_ERROR;
+        } else {
+            /* return -1ULL if HardFail is disabled */
+            val = ~0;
+            ret = MEMTX_OK;
+        }
     }
     trace_elroy_read(addr, size, val);
 
@@ -188,7 +194,7 @@ static MemTxResult elroy_chip_write_with_attrs(void *opaque, hwaddr addr,
         if (s->iosapic_reg_select < ARRAY_SIZE(s->iosapic_reg)) {
             s->iosapic_reg[s->iosapic_reg_select] = val;
         } else {
-            ret = MEMTX_DECODE_ERROR;
+            goto check_hf;
         }
         break;
     case 0x0840:                /* IOSAPIC_REG_EOI */
@@ -201,7 +207,12 @@ static MemTxResult elroy_chip_write_with_attrs(void *opaque, hwaddr addr,
         }
         break;
     default:
-        ret = MEMTX_DECODE_ERROR;
+    check_hf:
+        if (s->status_control & HF_ENABLE) {
+            ret = MEMTX_DECODE_ERROR;
+        } else {
+            ret = MEMTX_OK;
+        }
     }
     return ret;
 }
