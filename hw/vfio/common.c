@@ -1075,7 +1075,8 @@ out:
     return ret;
 }
 
-static void vfio_listener_log_global_start(MemoryListener *listener)
+static void vfio_listener_log_global_start(MemoryListener *listener,
+                                           Error **errp)
 {
     VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
                                                  listener);
@@ -1094,7 +1095,8 @@ static void vfio_listener_log_global_start(MemoryListener *listener)
     }
 }
 
-static void vfio_listener_log_global_stop(MemoryListener *listener)
+static void vfio_listener_log_global_stop(MemoryListener *listener,
+                                          Error **errp)
 {
     VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
                                                  listener);

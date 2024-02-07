@@ -2912,18 +2912,22 @@ void memory_global_after_dirty_log_sync(void)
  */
 static unsigned int postponed_stop_flags;
 static VMChangeStateEntry *vmstate_change;
-static void memory_global_dirty_log_stop_postponed_run(void);
+static void memory_global_dirty_log_stop_postponed_run(Error **errp);
 
-void memory_global_dirty_log_start(unsigned int flags)
+void memory_global_dirty_log_start(unsigned int flags, Error **errp)
 {
     unsigned int old_flags;
+    Error *local_err = NULL;
 
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
 
     if (vmstate_change) {
         /* If there is postponed stop(), operate on it first */
         postponed_stop_flags &= ~flags;
-        memory_global_dirty_log_stop_postponed_run();
+        memory_global_dirty_log_stop_postponed_run(&local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
     }
 
     flags &= ~global_dirty_tracking;
@@ -2936,14 +2940,14 @@ void memory_global_dirty_log_start(unsigned int flags)
     trace_global_dirty_changed(global_dirty_tracking);
 
     if (!old_flags) {
-        MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
+        MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward, errp);
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();
     }
 }
 
-static void memory_global_dirty_log_do_stop(unsigned int flags)
+static void memory_global_dirty_log_do_stop(unsigned int flags, Error **errp)
 {
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
     assert((global_dirty_tracking & flags) == flags);
@@ -2955,7 +2959,7 @@ static void memory_global_dirty_log_do_stop(unsigned int flags)
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();
-        MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
+        MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse, errp);
     }
 }
 
@@ -2963,14 +2967,14 @@ static void memory_global_dirty_log_do_stop(unsigned int flags)
  * Execute the postponed dirty log stop operations if there is, then reset
  * everything (including the flags and the vmstate change hook).
  */
-static void memory_global_dirty_log_stop_postponed_run(void)
+static void memory_global_dirty_log_stop_postponed_run(Error **errp)
 {
     /* This must be called with the vmstate handler registered */
     assert(vmstate_change);
 
     /* Note: postponed_stop_flags can be cleared in log start routine */
     if (postponed_stop_flags) {
-        memory_global_dirty_log_do_stop(postponed_stop_flags);
+        memory_global_dirty_log_do_stop(postponed_stop_flags, errp);
         postponed_stop_flags = 0;
     }
 
@@ -2981,12 +2985,17 @@ static void memory_global_dirty_log_stop_postponed_run(void)
 static void memory_vm_change_state_handler(void *opaque, bool running,
                                            RunState state)
 {
+    Error *local_err = NULL;
+
     if (running) {
-        memory_global_dirty_log_stop_postponed_run();
+        memory_global_dirty_log_stop_postponed_run(&local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
     }
 }
 
-void memory_global_dirty_log_stop(unsigned int flags)
+void memory_global_dirty_log_stop(unsigned int flags, Error **errp)
 {
     if (!runstate_is_running()) {
         /* Postpone the dirty log stop, e.g., to when VM starts again */
@@ -3001,7 +3010,7 @@ void memory_global_dirty_log_stop(unsigned int flags)
         return;
     }
 
-    memory_global_dirty_log_do_stop(flags);
+    memory_global_dirty_log_do_stop(flags, errp);
 }
 
 static void listener_add_address_space(MemoryListener *listener,
@@ -3009,13 +3018,17 @@ static void listener_add_address_space(MemoryListener *listener,
 {
     FlatView *view;
     FlatRange *fr;
+    Error *local_err = NULL;
 
     if (listener->begin) {
         listener->begin(listener);
     }
     if (global_dirty_tracking) {
         if (listener->log_global_start) {
-            listener->log_global_start(listener);
+            listener->log_global_start(listener, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+            }
         }
     }
 

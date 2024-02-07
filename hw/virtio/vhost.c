@@ -1044,7 +1044,7 @@ check_dev_state:
     return r;
 }
 
-static void vhost_log_global_start(MemoryListener *listener)
+static void vhost_log_global_start(MemoryListener *listener, Error **errp)
 {
     int r;
 
@@ -1054,7 +1054,7 @@ static void vhost_log_global_start(MemoryListener *listener)
     }
 }
 
-static void vhost_log_global_stop(MemoryListener *listener)
+static void vhost_log_global_stop(MemoryListener *listener, Error **errp)
 {
     int r;
 

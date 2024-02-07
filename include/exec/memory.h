@@ -998,8 +998,9 @@ struct MemoryListener {
      * active at that time.
      *
      * @listener: The #MemoryListener.
+     * @errp: pointer to Error*, to store an error if it happens.
      */
-    void (*log_global_start)(MemoryListener *listener);
+    void (*log_global_start)(MemoryListener *listener, Error **errp);
 
     /**
      * @log_global_stop:
@@ -1009,8 +1010,9 @@ struct MemoryListener {
      * the address space.
      *
      * @listener: The #MemoryListener.
+     * @errp: pointer to Error*, to store an error if it happens.
      */
-    void (*log_global_stop)(MemoryListener *listener);
+    void (*log_global_stop)(MemoryListener *listener, Error **errp);
 
     /**
      * @log_global_after_sync:
@@ -2567,15 +2569,17 @@ void memory_listener_unregister(MemoryListener *listener);
  * memory_global_dirty_log_start: begin dirty logging for all regions
  *
  * @flags: purpose of starting dirty log, migration or dirty rate
+ * @errp: pointer to Error*, to store an error if it happens.
  */
-void memory_global_dirty_log_start(unsigned int flags);
+void memory_global_dirty_log_start(unsigned int flags, Error **errp);
 
 /**
  * memory_global_dirty_log_stop: end dirty logging for all regions
  *
  * @flags: purpose of stopping dirty log, migration or dirty rate
+ * @errp: pointer to Error*, to store an error if it happens.
  */
-void memory_global_dirty_log_stop(unsigned int flags);
+void memory_global_dirty_log_stop(unsigned int flags, Error **errp);
 
 void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled);
 

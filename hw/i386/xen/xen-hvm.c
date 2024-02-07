@@ -446,14 +446,14 @@ static void xen_log_sync(MemoryListener *listener, MemoryRegionSection *section)
                           int128_get64(section->size));
 }
 
-static void xen_log_global_start(MemoryListener *listener)
+static void xen_log_global_start(MemoryListener *listener, Error **errp)
 {
     if (xen_enabled()) {
         xen_in_migration = true;
     }
 }
 
-static void xen_log_global_stop(MemoryListener *listener)
+static void xen_log_global_stop(MemoryListener *listener, Error **errp)
 {
     xen_in_migration = false;
 }
@@ -653,9 +653,9 @@ void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
 void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
 {
     if (enable) {
-        memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION);
+        memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION, errp);
     } else {
-        memory_global_dirty_log_stop(GLOBAL_DIRTY_MIGRATION);
+        memory_global_dirty_log_stop(GLOBAL_DIRTY_MIGRATION, errp);
     }
 }
 
