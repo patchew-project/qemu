@@ -126,6 +126,17 @@ void unrecognized_option(const char *option)
     error_exit("unrecognized option '%s'", option);
 }
 
+static OutputFormat parse_output_format(const char *arg)
+{
+    if (!strcmp(arg, "json")) {
+        return OFORMAT_JSON;
+    } else if (!strcmp(arg, "human")) {
+        return OFORMAT_HUMAN;
+    } else {
+        error_exit("--output expects 'human' or 'json' not '%s'", arg);
+    }
+}
+
 /* Please keep in synch with docs/tools/qemu-img.rst */
 static G_NORETURN
 void help(void)
@@ -720,7 +731,7 @@ static int img_check(int argc, char **argv)
 {
     int c, ret;
     OutputFormat output_format = OFORMAT_HUMAN;
-    const char *filename, *fmt, *output, *cache;
+    const char *filename, *fmt, *cache;
     BlockBackend *blk;
     BlockDriverState *bs;
     int fix = 0;
@@ -732,7 +743,6 @@ static int img_check(int argc, char **argv)
     bool force_share = false;
 
     fmt = NULL;
-    output = NULL;
     cache = BDRV_DEFAULT_CACHE;
 
     for(;;) {
@@ -778,7 +788,7 @@ static int img_check(int argc, char **argv)
             }
             break;
         case OPTION_OUTPUT:
-            output = optarg;
+            output_format = parse_output_format(optarg);
             break;
         case 'T':
             cache = optarg;
@@ -801,15 +811,6 @@ static int img_check(int argc, char **argv)
         error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
-
-    if (output && !strcmp(output, "json")) {
-        output_format = OFORMAT_JSON;
-    } else if (output && !strcmp(output, "human")) {
-        output_format = OFORMAT_HUMAN;
-    } else if (output) {
-        error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
 
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
@@ -3004,13 +3005,12 @@ static int img_info(int argc, char **argv)
     int c;
     OutputFormat output_format = OFORMAT_HUMAN;
     bool chain = false;
-    const char *filename, *fmt, *output;
+    const char *filename, *fmt;
     BlockGraphInfoList *list;
     bool image_opts = false;
     bool force_share = false;
 
     fmt = NULL;
-    output = NULL;
     for(;;) {
         int option_index = 0;
         static const struct option long_options[] = {
@@ -3045,7 +3045,7 @@ static int img_info(int argc, char **argv)
             force_share = true;
             break;
         case OPTION_OUTPUT:
-            output = optarg;
+            output_format = parse_output_format(optarg);
             break;
         case OPTION_BACKING_CHAIN:
             chain = true;
@@ -3062,15 +3062,6 @@ static int img_info(int argc, char **argv)
         error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
-
-    if (output && !strcmp(output, "json")) {
-        output_format = OFORMAT_JSON;
-    } else if (output && !strcmp(output, "human")) {
-        output_format = OFORMAT_HUMAN;
-    } else if (output) {
-        error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
 
     list = collect_image_info_list(image_opts, filename, fmt, chain,
                                    force_share);
@@ -3230,7 +3221,7 @@ static int img_map(int argc, char **argv)
     OutputFormat output_format = OFORMAT_HUMAN;
     BlockBackend *blk;
     BlockDriverState *bs;
-    const char *filename, *fmt, *output;
+    const char *filename, *fmt;
     int64_t length;
     MapEntry curr = { .length = 0 }, next;
     int ret = 0;
@@ -3240,7 +3231,6 @@ static int img_map(int argc, char **argv)
     int64_t max_length = -1;
 
     fmt = NULL;
-    output = NULL;
     for (;;) {
         int option_index = 0;
         static const struct option long_options[] = {
@@ -3276,7 +3266,7 @@ static int img_map(int argc, char **argv)
             force_share = true;
             break;
         case OPTION_OUTPUT:
-            output = optarg;
+            output_format = parse_output_format(optarg);
             break;
         case 's':
             start_offset = cvtnum("start offset", optarg);
@@ -3302,15 +3292,6 @@ static int img_map(int argc, char **argv)
         error_exit("Expecting one image file name");
     }
     filename = argv[optind];
-
-    if (output && !strcmp(output, "json")) {
-        output_format = OFORMAT_JSON;
-    } else if (output && !strcmp(output, "human")) {
-        output_format = OFORMAT_HUMAN;
-    } else if (output) {
-        error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
 
     blk = img_open(image_opts, filename, fmt, 0, false, false, force_share);
     if (!blk) {
@@ -5411,15 +5392,7 @@ static int img_measure(int argc, char **argv)
             image_opts = true;
             break;
         case OPTION_OUTPUT:
-            if (!strcmp(optarg, "json")) {
-                output_format = OFORMAT_JSON;
-            } else if (!strcmp(optarg, "human")) {
-                output_format = OFORMAT_HUMAN;
-            } else {
-                error_report("--output must be used with human or json "
-                             "as argument.");
-                goto out;
-            }
+            output_format = parse_output_format(optarg);
             break;
         case OPTION_SIZE:
         {
