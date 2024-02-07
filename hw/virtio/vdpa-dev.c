@@ -259,7 +259,11 @@ static int vhost_vdpa_device_start(VirtIODevice *vdev, Error **errp)
         goto err_guest_notifiers;
     }
     for (i = 0; i < s->dev.nvqs; ++i) {
-        vhost_vdpa_set_vring_ready(&s->vdpa, i);
+        ret = vhost_vdpa_set_vring_ready(&s->vdpa, i);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Error starting vring %d", i);
+            goto err_dev_stop;
+        }
     }
     s->started = true;
 
@@ -274,6 +278,8 @@ static int vhost_vdpa_device_start(VirtIODevice *vdev, Error **errp)
 
     return ret;
 
+err_dev_stop:
+    vhost_dev_stop(&s->dev, vdev, false);
 err_guest_notifiers:
     k->set_guest_notifiers(qbus->parent, s->dev.nvqs, false);
 err_host_notifiers:
