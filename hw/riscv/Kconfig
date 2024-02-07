@@ -46,6 +46,7 @@ config RISCV_VIRT
     select PLATFORM_BUS
     select ACPI
     select ACPI_PCI
+    select RISCV_IOPMP
 
 config SHAKTI_C
     bool
