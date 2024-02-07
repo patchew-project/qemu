@@ -1319,6 +1319,8 @@ void migrate_set_state(int *state, int old_state, int new_state)
 
 static void migrate_fd_cleanup(MigrationState *s)
 {
+    QEMUFile *tmp = NULL;
+
     g_free(s->hostname);
     s->hostname = NULL;
     json_writer_free(s->vmdesc);
@@ -1327,8 +1329,6 @@ static void migrate_fd_cleanup(MigrationState *s)
     qemu_savevm_state_cleanup();
 
     if (s->to_dst_file) {
-        QEMUFile *tmp;
-
         trace_migrate_fd_cleanup();
         bql_unlock();
         if (s->migration_thread_running) {
@@ -1347,14 +1347,13 @@ static void migrate_fd_cleanup(MigrationState *s)
          * critical section won't block for long.
          */
         migration_ioc_unregister_yank_from_file(tmp);
-        qemu_fclose(tmp);
     }
 
-    /*
-     * We already cleaned up to_dst_file, so errors from the return
-     * path might be due to that, ignore them.
-     */
     close_return_path_on_source(s);
+
+    if (tmp) {
+        qemu_fclose(tmp);
+    }
 
     assert(!migration_is_active(s));
 
