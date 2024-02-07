@@ -604,7 +604,7 @@ static bool gen_illegal(DisasContext *ctx)
 #else
 #define CHECK_MOST_PRIVILEGED(EXCP) \
     do {                                     \
-        if (ctx->privilege != 0) {           \
+        if (ctx->privilege != 0 && (ctx->tb_flags & PSW_P)) { \
             return gen_excp_iir(ctx, EXCP);  \
         }                                    \
     } while (0)
