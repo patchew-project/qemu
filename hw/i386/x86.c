@@ -902,7 +902,10 @@ void x86_load_linux(X86MachineState *x86ms,
 
             return;
         }
-        protocol = 0;
+
+        fprintf(stderr, "qemu: could not find multiboot magic or "
+                "PVH ELF Note.\n");
+        exit(1);
     }
 
     if (protocol < 0x200 || !(header[0x211] & 0x01)) {
