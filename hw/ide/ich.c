@@ -99,14 +99,14 @@ static void pci_ich9_reset(DeviceState *dev)
 
 static void pci_ich9_ahci_init(Object *obj)
 {
-    struct AHCIPCIState *d = ICH9_AHCI(obj);
+    AHCIPCIState *d = ICH9_AHCI(obj);
 
     ahci_init(&d->ahci, DEVICE(obj));
 }
 
 static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
 {
-    struct AHCIPCIState *d;
+    AHCIPCIState *d;
     int sata_cap_offset;
     uint8_t *sata_cap;
     d = ICH9_AHCI(dev);
@@ -154,7 +154,7 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
 
 static void pci_ich9_uninit(PCIDevice *dev)
 {
-    struct AHCIPCIState *d;
+    AHCIPCIState *d;
     d = ICH9_AHCI(dev);
 
     msi_uninit(dev);
