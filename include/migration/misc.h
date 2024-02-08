@@ -72,8 +72,13 @@ typedef struct MigrationEvent {
     MigrationEventType type;
 } MigrationEvent;
 
+
+/* Return int to allow for different failure modes and recovery actions */
+typedef int (*MigrationNotifyFunc)(NotifierWithReturn *notify,
+                                  MigrationEvent *e, Error **errp);
+
 void migration_add_notifier(NotifierWithReturn *notify,
-                            NotifierWithReturnFunc func);
+                            MigrationNotifyFunc func);
 void migration_remove_notifier(NotifierWithReturn *notify);
 void migration_call_notifiers(MigrationState *s, MigrationEventType type);
 bool migration_in_setup(MigrationState *);
