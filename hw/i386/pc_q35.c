@@ -286,8 +286,8 @@ static void pc_q35_init(MachineState *machine)
         pc_i8259_create(isa_bus, gsi_state->i8259_irq);
     }
 
-    if (pcmc->pci_enabled) {
-        ioapic_init_gsi(gsi_state, "q35");
+    if (phb) {
+        ioapic_init_gsi(gsi_state, OBJECT(phb));
     }
 
     if (tcg_enabled()) {
