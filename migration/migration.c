@@ -1603,6 +1603,11 @@ bool migration_is_active(MigrationState *s)
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
+bool migrate_mode_is_cpr(MigrationState *s)
+{
+    return s->parameters.mode == MIG_MODE_CPR_REBOOT;
+}
+
 int migrate_init(MigrationState *s, Error **errp)
 {
     int ret;
@@ -2651,13 +2656,14 @@ static int migration_completion_precopy(MigrationState *s,
     bql_lock();
     migration_downtime_start(s);
 
-    s->vm_old_state = runstate_get();
-    global_state_store();
-
-    ret = migration_stop_vm(RUN_STATE_FINISH_MIGRATE);
-    trace_migration_completion_vm_stop(ret);
-    if (ret < 0) {
-        goto out_unlock;
+    if (!migrate_mode_is_cpr(s)) {
+        s->vm_old_state = runstate_get();
+        global_state_store();
+        ret = migration_stop_vm(RUN_STATE_FINISH_MIGRATE);
+        trace_migration_completion_vm_stop(ret);
+        if (ret < 0) {
+            goto out_unlock;
+        }
     }
 
     ret = migration_maybe_pause(s, current_active_state,
@@ -3576,6 +3582,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     Error *local_err = NULL;
     uint64_t rate_limit;
     bool resume = s->state == MIGRATION_STATUS_POSTCOPY_PAUSED;
+    int ret;
 
     /*
      * If there's a previous error, free it and prepare for another one.
@@ -3649,6 +3656,17 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
 
     if (multifd_save_setup(&local_err) != 0) {
         goto fail;
+    }
+
+    if (migrate_mode_is_cpr(s)) {
+        s->vm_old_state = runstate_get();
+        global_state_store();
+        ret = migration_stop_vm(RUN_STATE_FINISH_MIGRATE);
+        trace_migration_completion_vm_stop(ret);
+        if (ret < 0) {
+            error_setg(&local_err, "migration_stop_vm failed, error %d", -ret);
+            goto fail;
+        }
     }
 
     if (migrate_background_snapshot()) {
