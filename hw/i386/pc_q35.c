@@ -199,8 +199,6 @@ static void pc_q35_init(MachineState *machine)
         rom_memory = system_memory;
     }
 
-    pc_guest_info_init(pcms);
-
     if (pcmc->smbios_defaults) {
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", mc->desc,
