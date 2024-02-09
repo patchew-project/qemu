@@ -282,6 +282,15 @@ static void sii3112_pci_realize(PCIDevice *dev, Error **errp)
     qdev_init_gpio_in(ds, sii3112_set_irq, 2);
     for (i = 0; i < 2; i++) {
         ide_bus_init(&s->bus[i], sizeof(s->bus[i]), ds, i, 1);
+    }
+}
+
+static void sii3112_pci_wire(DeviceState *dev)
+{
+    PCIIDEState *s = PCI_IDE(dev);
+    DeviceState *ds = DEVICE(dev);
+
+    for (unsigned i = 0; i < 2; i++) {
         ide_bus_init_output_irq(&s->bus[i], qdev_get_gpio_in(ds, i));
 
         bmdma_init(&s->bus[i], &s->bmdma[i], s);
@@ -299,6 +308,7 @@ static void sii3112_pci_class_init(ObjectClass *klass, void *data)
     pd->class_id = PCI_CLASS_STORAGE_RAID;
     pd->revision = 1;
     pd->realize = sii3112_pci_realize;
+    dc->wire = sii3112_pci_wire;
     dc->reset = sii3112_reset;
     dc->desc = "SiI3112A SATA controller";
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
