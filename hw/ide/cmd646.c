@@ -291,9 +291,18 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
     /* TODO: RST# value should be 0 */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; // interrupt on pin 1
 
-    qdev_init_gpio_in(ds, cmd646_set_irq, 2);
     for (i = 0; i < 2; i++) {
         ide_bus_init(&d->bus[i], sizeof(d->bus[i]), ds, i, 2);
+    }
+}
+
+static void pci_cmd646_ide_wire(DeviceState *dev)
+{
+    PCIIDEState *d = PCI_IDE(dev);
+    DeviceState *ds = DEVICE(dev);
+
+    qdev_init_gpio_in(ds, cmd646_set_irq, 2);
+    for (unsigned i = 0; i < 2; i++) {
         ide_bus_init_output_irq(&d->bus[i], qdev_get_gpio_in(ds, i));
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
@@ -324,6 +333,7 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
 
     dc->reset = cmd646_reset;
     dc->vmsd = &vmstate_ide_pci;
+    dc->wire = pci_cmd646_ide_wire;
     k->realize = pci_cmd646_ide_realize;
     k->exit = pci_cmd646_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_CMD;
