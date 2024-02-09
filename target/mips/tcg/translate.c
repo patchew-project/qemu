@@ -15405,6 +15405,7 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
              (env->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F));
     ctx->vp = (env->CP0_Config5 >> CP0C5_VP) & 1;
     ctx->mrp = (env->CP0_Config5 >> CP0C5_MRP) & 1;
+    ctx->saar = (bool) env->saarp;
     ctx->nan2008 = (env->active_fpu.fcr31 >> FCR31_NAN2008) & 1;
     ctx->abs2008 = (env->active_fpu.fcr31 >> FCR31_ABS2008) & 1;
     ctx->mi = (env->CP0_Config5 >> CP0C5_MI) & 1;
