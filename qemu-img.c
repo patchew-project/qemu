@@ -5417,6 +5417,8 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
     const struct option long_options[] = {
         { "help", no_argument, 0, 'h'},
         { "object", required_argument, 0, OPTION_OBJECT},
+        { "format", required_argument, 0, 'f'},
+        { "output-format", required_argument, 0, 'O'},
         { "image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
         { "force-share", no_argument, 0, 'U'},
         { 0, 0, 0, 0 }
@@ -5427,12 +5429,6 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
             break;
         }
         switch (c) {
-        case 'O':
-            out_fmt = optarg;
-            break;
-        case 'f':
-            fmt = optarg;
-            break;
         case ':':
             missing_argument(ccmd, argv[optind - 1]);
             break;
@@ -5440,7 +5436,26 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT|--image-opts] [-O OUTPUT_FMT] [-U]\n"
+" [bs=BLOCK_SIZE] [count=BLOCKS] if=INPUT of=OUTPUT\n"
+,
+" -f|--format FMT - specify format for INPUT explicitly\n"
+" --image-opts - indicates that INPUT is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" -O|--output-format OUTPUT_FMT - format of the OUTPUT (default raw)\n"
+" -U|--force-share - open images in shared mode for concurrent access\n"
+" bs=BLOCK_SIZE - size of I/O block (default 512)\n"
+" count=COUNT - number of blocks to convert (default whole INPUT)\n"
+" if=INPUT - input file name or image specification (with --image-opts)\n"
+" of=OUTPUT - output file name to create\n"
+);
+            break;
+        case 'O':
+            out_fmt = optarg;
+            break;
+        case 'f':
+            fmt = optarg;
             break;
         case 'U':
             force_share = true;
