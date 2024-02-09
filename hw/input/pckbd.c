@@ -707,6 +707,12 @@ static void i8042_mmio_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&ks->ps2mouse), errp)) {
         return;
     }
+}
+
+static void i8042_mmio_wire(DeviceState *dev)
+{
+    MMIOKBDState *s = I8042_MMIO(dev);
+    KBDState *ks = &s->kbd;
 
     qdev_connect_gpio_out(DEVICE(&ks->ps2kbd), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
@@ -756,6 +762,7 @@ static void i8042_mmio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = i8042_mmio_realize;
+    dc->wire = i8042_mmio_wire;
     dc->reset = i8042_mmio_reset;
     dc->vmsd = &vmstate_kbd_mmio;
     device_class_set_props(dc, i8042_mmio_properties);
@@ -878,9 +885,6 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    isa_connect_gpio_out(isadev, I8042_KBD_IRQ, isa_s->kbd_irq);
-    isa_connect_gpio_out(isadev, I8042_MOUSE_IRQ, isa_s->mouse_irq);
-
     isa_register_ioport(isadev, isa_s->io + 0, 0x60);
     isa_register_ioport(isadev, isa_s->io + 1, 0x64);
 
@@ -888,17 +892,9 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    qdev_connect_gpio_out(DEVICE(&s->ps2kbd), PS2_DEVICE_IRQ,
-                          qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
-                                                 0));
-
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ps2mouse), errp)) {
         return;
     }
-
-    qdev_connect_gpio_out(DEVICE(&s->ps2mouse), PS2_DEVICE_IRQ,
-                          qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
-                                                 0));
 
     if (isa_s->kbd_throttle && !isa_s->kbd.extended_state) {
         warn_report(TYPE_I8042 ": can't enable kbd-throttle without"
@@ -907,6 +903,25 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
         s->throttle_timer = timer_new_us(QEMU_CLOCK_VIRTUAL,
                                          kbd_throttle_timeout, s);
     }
+}
+
+static void i8042_wire(DeviceState *dev)
+{
+    ISADevice *isadev = ISA_DEVICE(dev);
+    ISAKBDState *i8042 = I8042(dev);
+    KBDState *s = &i8042->kbd;
+
+    isa_connect_gpio_out(isadev, I8042_KBD_IRQ, i8042->kbd_irq);
+    isa_connect_gpio_out(isadev, I8042_MOUSE_IRQ, i8042->mouse_irq);
+
+
+    qdev_connect_gpio_out(DEVICE(&s->ps2kbd), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
+                                                 0));
+
+    qdev_connect_gpio_out(DEVICE(&s->ps2mouse), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
+                                                 0));
 }
 
 static void i8042_build_aml(AcpiDevAmlIf *adev, Aml *scope)
@@ -954,6 +969,7 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
     device_class_set_props(dc, i8042_properties);
     dc->reset = i8042_reset;
     dc->realize = i8042_realizefn;
+    dc->wire = i8042_wire;
     dc->vmsd = &vmstate_kbd_isa;
     adevc->build_dev_aml = i8042_build_aml;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
