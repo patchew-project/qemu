@@ -1464,9 +1464,17 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"cache", required_argument, 0, 'T'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"a-format", required_argument, 0, 'f'},
+            {"left-format", required_argument, 0, 'f'},
+            {"b-format", required_argument, 0, 'F'},
+            {"right-format", required_argument, 0, 'F'},
             {"force-share", no_argument, 0, 'U'},
+            {"strict", no_argument, 0, 's'},
+            {"progress", no_argument, 0, 'p'},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":hf:F:T:pqsU",
@@ -1482,7 +1490,22 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[--image-opts | [-f FMT] [-F FMT]] [-s]\n"
+"	[-T CACHE] [-U] [--object OBJDEF] FILENAME1 FILENAME2\n"
+,
+" -q|--quiet - quiet operation\n"
+" -p|--progress - show operation progress\n"
+" -f|--a-format FMT - specify FILENAME1 image format explicitly\n"
+" -F|--b-format FMT - specify FILENAME2 image format explicitly\n"
+" --image-opts - indicates that FILENAMEs are complete image specifications\n"
+"  instead of file names (incompatible with --a-format and --b-format)\n"
+" -s|--strict - strict mode, also check if sizes are equal\n"
+" -T|--cache - CACHE_MODE cache mode when opening images (" BDRV_DEFAULT_CACHE ")\n"
+" -U|--force-share - open images in shared mode for concurrent access\n"
+" --object OBJDEF - QEMU user-creatable object (eg encryption key)\n"
+" FILENAME1, FILENAME2 - image files (or specifications) to compare\n"
+);
             break;
         case 'f':
             fmt1 = optarg;
