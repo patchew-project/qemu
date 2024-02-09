@@ -1184,7 +1184,6 @@ typedef struct CPUArchState {
 #if !defined(CONFIG_USER_ONLY)
     CPUMIPSTLBContext *tlb;
     void *irq[8];
-    struct MIPSITUState *itu;
     MemoryRegion *itc_tag; /* ITC Configuration Tags */
 
     /* Loongson IOCSR memory */
