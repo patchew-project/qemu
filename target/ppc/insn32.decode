@@ -187,6 +187,12 @@
 &X_a            ra
 @X_a            ...... ra:3 .. ..... ..... .......... .         &X_a
 
+&XO             rt ra rb oe:bool rc:bool
+@XO             ...... rt:5 ra:5 rb:5 oe:1 ......... rc:1       &XO
+
+&XO_ta          rt ra oe:bool rc:bool
+@XO_ta          ...... rt:5 ra:5 ..... oe:1 ......... rc:1      &XO_ta
+
 %xx_xt          0:1 21:5
 %xx_xb          1:1 11:5
 %xx_xa          2:1 16:5
@@ -238,6 +244,9 @@
 
 &Z23_tab        frt fra frb rmc rc:bool
 @Z23_tab        ...... frt:5 fra:5 frb:5 rmc:2 ........ rc:1    &Z23_tab
+
+&Z23_tab_cy     rt ra rb cy
+@Z23_tab_cy     ...... rt:5 ra:5 rb:5 cy:2 ........ .           &Z23_tab_cy
 
 %z23_frtp       22:4 !function=times_2
 %z23_frap       17:4 !function=times_2
@@ -322,10 +331,27 @@ CMPLI           001010 ... - . ..... ................   @D_bfu
 
 ### Fixed-Point Arithmetic Instructions
 
+ADD             011111 ..... ..... ..... . 100001010 .  @XO
+ADDC            011111 ..... ..... ..... . 000001010 .  @XO
+ADDE            011111 ..... ..... ..... . 010001010 .  @XO
+ADDEX           011111 ..... ..... ..... .. 10101010 -  @Z23_tab_cy
+
 ADDI            001110 ..... ..... ................     @D
 ADDIS           001111 ..... ..... ................     @D
+ADDIC           001100 ..... ..... ................     @D
+ADDIC_          001101 ..... ..... ................     @D
 
 ADDPCIS         010011 ..... ..... .......... 00010 .   @DX
+ADDME           011111 ..... ..... ----- . 011101010 .  @XO_ta
+ADDZE           011111 ..... ..... ----- . 011001010 .  @XO_ta
+
+SUBF            011111 ..... ..... ..... . 000101000 .  @XO
+SUBFIC          001000 ..... ..... ................     @D
+SUBFC           011111 ..... ..... ..... . 000001000 .  @XO
+SUBFE           011111 ..... ..... ..... . 010001000 .  @XO
+
+SUBFME          011111 ..... ..... ----- . 011101000 .  @XO_ta
+SUBFZE          011111 ..... ..... ----- . 011001000 .  @XO_ta
 
 ## Fixed-Point Logical Instructions
 
