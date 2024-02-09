@@ -792,7 +792,9 @@ static int img_check(const img_cmd_t *ccmd, int argc, char **argv)
         int option_index = 0;
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"format", required_argument, 0, 'f'},
+            {"cache", required_argument, 0, 'T'},
             {"repair", required_argument, 0, 'r'},
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"object", required_argument, 0, OPTION_OBJECT},
@@ -813,7 +815,22 @@ static int img_check(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [-T CACHE_MODE] [-r] [-u]\n"
+"	[--output human|json] [--object OBJDEF] FILENAME\n"
+,
+" -q|--quiet - quiet operations\n"
+" -f|--format FMT - specifies format of the image explicitly\n"
+" --image-opts - indicates that FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" -T|--cache CACHE_MODE - cache mode when opening image (" BDRV_DEFAULT_CACHE ")\n"
+" -U|--force-share - open image in shared mode for concurrent access\n"
+" --output human|json - output format\n"
+" -r|--repair leaks|all - repair particular aspect of the image\n"
+"  (image will be open in read-write mode, incompatible with --force-share)\n"
+" --object OBJDEF - QEMU user-creatable object (eg encryption key)\n"
+" FILENAME - the image file (or image specification) to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
