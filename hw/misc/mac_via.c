@@ -1246,7 +1246,6 @@ static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
     v1s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     adb_register_autopoll_callback(adb_bus, adb_via_poll, v1s);
-    v1s->adb_data_ready = qdev_get_gpio_in(dev, VIA1_IRQ_ADB_READY_BIT);
 
     if (v1s->blk) {
         int64_t len = blk_getlength(v1s->blk);
@@ -1268,6 +1267,13 @@ static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
+}
+
+static void mos6522_q800_via1_wire(DeviceState *dev)
+{
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(dev);
+
+    v1s->adb_data_ready = qdev_get_gpio_in(dev, VIA1_IRQ_ADB_READY_BIT);
 }
 
 static void mos6522_q800_via1_init(Object *obj)
@@ -1336,6 +1342,7 @@ static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
     dc->realize = mos6522_q800_via1_realize;
+    dc->wire = mos6522_q800_via1_wire;
     resettable_class_set_parent_phases(rc, NULL, mos6522_q800_via1_reset_hold,
                                        NULL, &mdc->parent_phases);
     dc->vmsd = &vmstate_q800_via1;
