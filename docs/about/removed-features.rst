@@ -727,6 +727,11 @@ x86 ``Icelake-Client`` CPU (removed in 7.1)
 There isn't ever Icelake Client CPU, it is some wrong and imaginary one.
 Use ``Icelake-Server`` instead.
 
+MIPS I6500 CPU (removed in 9.0)
+'''''''''''''''''''''''''''''''
+
+The I6500 support was never fully contributed.
+
 System accelerators
 -------------------
 
