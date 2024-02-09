@@ -71,7 +71,6 @@ enum {
     OPTION_FLUSH_INTERVAL = 261,
     OPTION_NO_DRAIN = 262,
     OPTION_TARGET_IMAGE_OPTS = 263,
-    OPTION_SIZE = 264,
     OPTION_PREALLOCATION = 265,
     OPTION_SHRINK = 266,
     OPTION_SALVAGE = 267,
@@ -5657,15 +5656,6 @@ static void dump_json_block_measure_info(BlockMeasureInfo *info)
 
 static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
 {
-    static const struct option long_options[] = {
-        {"help", no_argument, 0, 'h'},
-        {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-        {"object", required_argument, 0, OPTION_OBJECT},
-        {"output", required_argument, 0, OPTION_OUTPUT},
-        {"size", required_argument, 0, OPTION_SIZE},
-        {"force-share", no_argument, 0, 'U'},
-        {0, 0, 0, 0}
-    };
     OutputFormat output_format = OFORMAT_HUMAN;
     BlockBackend *in_blk = NULL;
     BlockDriver *drv;
@@ -5686,12 +5676,41 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
     int ret = 1;
     int c;
 
+    static const struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"target-format", required_argument, 0, 'O'},
+        {"format", required_argument, 0, 'f'},
+        {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+        {"options", required_argument, 0, 'o'},
+        {"snapshot", required_argument, 0, 'l'},
+        {"object", required_argument, 0, OPTION_OBJECT},
+        {"output", required_argument, 0, OPTION_OUTPUT},
+        {"size", required_argument, 0, 's'},
+        {"force-share", no_argument, 0, 'U'},
+        {0, 0, 0, 0}
+    };
+
     while ((c = getopt_long(argc, argv, "hf:O:o:l:U",
                             long_options, NULL)) != -1) {
         switch (c) {
         case '?':
+            unrecognized_option(ccmd, argv[optind - 1]);
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT|--image-opts] [-o OPTIONS] [-O OUTPUT_FMT]\n"
+"	[--output OFMT] [--object OBJDEF] [-l SNAPSHOT_PARAM]\n"
+"	(--size SIZE | FILENAME)\n"
+,
+" -O|--target-format FMT - desired target/output image format (default raw)\n"
+" -s|--size SIZE - measure file size for given image size\n"
+" FILENAME - measure file size required to convert from FILENAME\n"
+" -f|--format - specify format of FILENAME explicitly\n"
+" --image-opts - indicates that FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" -l|--snapshot SNAPSHOT - use this snapshot in FILENAME as source\n"
+" --output human|json - output format\n"
+" -U|--force-share - open images in shared mode for concurrent access\n"
+);
             break;
         case 'f':
             fmt = optarg;
@@ -5729,7 +5748,7 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_OUTPUT:
             output_format = parse_output_format(ccmd, optarg);
             break;
-        case OPTION_SIZE:
+        case 's':
         {
             int64_t sval;
 
