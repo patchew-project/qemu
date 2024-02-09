@@ -4781,9 +4781,19 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"flush-interval", required_argument, 0, OPTION_FLUSH_INTERVAL},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 't'},
+            {"count", required_argument, 0, 'c'},
+            {"depth", required_argument, 0, 'd'},
+            {"offset", required_argument, 0, 'o'},
+            {"buffer-size", required_argument, 0, 's'},
+            {"step-size", required_argument, 0, 'S'},
+            {"aio", required_argument, 0, 'i'},
+            {"native", no_argument, 0, 'n'},
+            {"write", no_argument, 0, 'w'},
             {"pattern", required_argument, 0, OPTION_PATTERN},
+            {"flush-interval", required_argument, 0, OPTION_FLUSH_INTERVAL},
             {"no-drain", no_argument, 0, OPTION_NO_DRAIN},
             {"force-share", no_argument, 0, 'U'},
             {0, 0, 0, 0}
@@ -4802,7 +4812,29 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [-t CACHE] [-c COUNT] [-d DEPTH]\n"
+"	[-o OFFSET] [-s BUFFER_SIZE] [-S STEP_SIZE] [-i AIO] [-n]\n"
+"	[-w [--pattern PATTERN] [--flush-interval INTERVAL [--no-drain]]]\n"
+,
+" -q|--quiet - quiet operations\n"
+" -f|--format FMT - specify FILENAME format explicitly\n"
+" --image-opts - indicates that FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" -t|--cache CACHE - cache mode for FILENAME (" BDRV_DEFAULT_CACHE ")\n"
+" -c|--count COUNT - number of I/O requests to perform\n"
+" -s|--buffer-size BUFFER_SIZE - size of each I/O request\n"
+" -d|--depth DEPTH - number of requests to perform in parallel\n"
+" -o|--offset OFFSET - start first request at this OFFSET\n"
+" -S|--step-size STEP_SIZE - each next request offset increment\n"
+" -i|--aio AIO - async-io backend (threads, native, io_uring)\n"
+" -n|--native - use native AIO backend if possible\n"
+" -w|--write - perform write test (default is read)\n"
+" --pattern PATTERN - write this pattern instead of zeros\n"
+" --flush-interval FLUSH_INTERVAL - issue flush after this number of requests\n"
+" --no-drain - do not wait when flushing pending requests\n"
+" -U|--force-share - open images in shared mode for concurrent access\n"
+);
             break;
         case 'c':
         {
