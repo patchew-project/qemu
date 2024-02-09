@@ -726,3 +726,23 @@ pages:
       - public
   variables:
     QEMU_JOB_PUBLISH: 1
+
+build-system-any:
+  extends:
+    - .native_build_job_template
+  needs:
+    - job: amd64-alpine-container
+  variables:
+    IMAGE: alpine
+    TARGETS: any-softmmu
+    MAKE_CHECK_ARGS: check-unit
+    CONFIGURE_ARGS:
+      --disable-tools
+      --disable-hvf
+      --disable-kvm
+      --disable-nvmm
+      --disable-tcg
+      --disable-whpx
+      --disable-xen
+      --with-default-devices
+      --enable-qom-cast-debug
