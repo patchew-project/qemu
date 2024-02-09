@@ -333,6 +333,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
+    const char *firmware = machine->firmware;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     DeviceState *dev;
     PCIDevice *pci_dev;
@@ -408,9 +409,13 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
     /* Load firmware.  Given that this is not "real" firmware,
        but one explicitly written for the emulation, we might as
-       well load it directly from an ELF image.  */
-    firmware_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                       machine->firmware ?: "hppa-firmware.img");
+       well load it directly from an ELF image. Load the 64-bit
+       firmware on 64-bit machines by default if not specified
+       on command line. */
+    if (!firmware) {
+        firmware = lasi_dev ? "hppa-firmware.img" : "hppa-firmware64.img";
+    }
+    firmware_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, firmware);
     if (firmware_filename == NULL) {
         error_report("no firmware provided");
         exit(1);
