@@ -3553,9 +3553,15 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"list", no_argument, 0, 'l'},
+            {"apply", no_argument, 0, 'a'},
+            {"create", no_argument, 0, 'c'},
+            {"delete", no_argument, 0, 'd'},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":la:c:d:fhqU",
@@ -3571,8 +3577,24 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
-            return 0;
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [-l | -a|-c|-d SNAPSHOT]\n"
+"	[-U] [--object OBJDEF] FILENAME\n"
+,
+" -q|--quiet - quiet operations\n"
+" -f|--format FMT - specify FILENAME format explicitly\n"
+" --image-opts - indicates that FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" -U|--force-share - open image in shared mode for concurrent access\n"
+" --object OBJDEF - QEMU user-creatable object (eg encryption key)\n"
+" Operation, one of:\n"
+"  -l|--list - list snapshots in FILENAME (the default)\n"
+"  -c|--create SNAPSHOT - create named snapshot\n"
+"  -a|--apply SNAPSHOT - apply named snapshot to the base\n"
+"  -d|--delete SNAPSHOT - delete named snapshot\n"
+" FILENAME - image file name (or specification with --image-opts)\n"
+);
+            break;
         case 'f':
             fmt = optarg;
             break;
