@@ -4271,12 +4271,12 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
 
     /* Remove size from argv manually so that negative numbers are not treated
      * as options by getopt. */
-    if (argc < 3) {
-        error_exit(ccmd, "Not enough arguments");
-        return 1;
+    if (argc > 1 && argv[argc - 1][0] == '-'
+        && argv[argc-1][1] >= '0' && argv[argc-1][1] <= '9') {
+        size = argv[--argc];
+    } else {
+        size = NULL;
     }
-
-    size = argv[--argc];
 
     /* Parse getopt arguments */
     fmt = NULL;
@@ -4329,10 +4329,13 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
             break;
         }
     }
-    if (optind != argc - 1) {
+    if (optind + 1 + (size == NULL) != argc) {
         error_exit(ccmd, "Expecting image file name and size");
     }
     filename = argv[optind++];
+    if (!size) {
+        size = argv[optind++];
+    }
 
     /* Choose grow, shrink, or absolute resize mode */
     switch (size[0]) {
