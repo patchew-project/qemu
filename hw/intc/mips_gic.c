@@ -419,7 +419,6 @@ static void mips_gic_realize(DeviceState *dev, Error **errp)
         return;
     }
     s->vps = g_new(MIPSGICVPState, s->num_vps);
-    s->irq_state = g_new(MIPSGICIRQState, s->num_irq);
     /* Register the env for all VPs with the GIC */
     for (i = 0; i < s->num_vps; i++) {
         if (cs != NULL) {
@@ -433,7 +432,14 @@ static void mips_gic_realize(DeviceState *dev, Error **errp)
     }
     s->gic_timer = mips_gictimer_init(s, s->num_vps, gic_timer_expire_cb);
     qdev_init_gpio_in(dev, gic_set_irq, s->num_irq);
-    for (i = 0; i < s->num_irq; i++) {
+}
+
+static void mips_gic_wire(DeviceState *dev)
+{
+    MIPSGICState *s = MIPS_GIC(dev);
+
+    s->irq_state = g_new(MIPSGICIRQState, s->num_irq);
+    for (unsigned i = 0; i < s->num_irq; i++) {
         s->irq_state[i].irq = qdev_get_gpio_in(dev, i);
     }
 }
@@ -450,6 +456,7 @@ static void mips_gic_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, mips_gic_properties);
     dc->realize = mips_gic_realize;
+    dc->wire = mips_gic_wire;
 }
 
 static const TypeInfo mips_gic_info = {
