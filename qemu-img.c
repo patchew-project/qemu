@@ -3752,10 +3752,18 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
+            {"progress", no_argument, 0, 'p'},
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"format", required_argument, 0, 'f'},
+            {"cache", required_argument, 0, 't'},
             {"compress", no_argument, 0, 'c'},
+            {"backing", required_argument, 0, 'b'},
+            {"backing-format", required_argument, 0, 'F'},
+            {"backing-cache", required_argument, 0, 'T'},
+            {"backing-unsafe", no_argument, 0, 'u'},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":hf:F:b:upt:T:qUc",
@@ -3771,7 +3779,27 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [-t CACHE] [-q] [-U] [-p]\n"
+"	[-b BACKING_FILENAME [-F BACKING_FMT] [-T BACKING_CACHE]] [-u]\n"
+"	[--object OBJDEF] [-c] FILENAME\n"
+"Rebases FILENAME on top of BACKING_FILENAME or no backing file\n"
+,
+" -q|--quiet - quiet operation\n"
+" -p|--progress - show progress indicator\n"
+" -f|--format FMT - specify FILENAME format explicitly\n"
+" --image-opts - indicates that FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" -t|--cache CACHE - cache mode for FILENAME (" BDRV_DEFAULT_CACHE ")\n"
+" -b|--backing BACKING_FILENAME|\"\" - rebase onto this file (or no backing file)\n"
+" -F|--backing-format BACKING_FMT - specify format for BACKING_FILENAME\n"
+" -T|--backing-cache CACHE - cache mode for BACKING_FILENAME (" BDRV_DEFAULT_CACHE ")\n"
+" -u|--backing-unsafe - do not fail if BACKING_FILENAME can not be read\n"
+" -c|--compress - compress image (when image supports this)\n"
+" -U|--force-share - open image in shared mode for concurrent access\n"
+" --object OBJDEF - QEMU user-creatable object (eg encryption key)\n"
+" FILENAME - image file name (or specification with --image-opts)\n"
+);
             return 0;
         case 'f':
             fmt = optarg;
