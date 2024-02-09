@@ -226,6 +226,15 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
     qdev_init_gpio_in(ds, via_ide_set_irq, ARRAY_SIZE(d->bus));
     for (i = 0; i < ARRAY_SIZE(d->bus); i++) {
         ide_bus_init(&d->bus[i], sizeof(d->bus[i]), ds, i, MAX_IDE_DEVS);
+    }
+}
+
+static void via_ide_wire(DeviceState *dev)
+{
+    PCIIDEState *d = PCI_IDE(dev);
+    DeviceState *ds = DEVICE(dev);
+
+    for (unsigned i = 0; i < ARRAY_SIZE(d->bus); i++) {
         ide_bus_init_output_irq(&d->bus[i], qdev_get_gpio_in(ds, i));
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
@@ -249,6 +258,7 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    dc->wire = via_ide_wire;
     dc->reset = via_ide_reset;
     dc->vmsd = &vmstate_ide_pci;
     /* Reason: only works as function of VIA southbridge */
