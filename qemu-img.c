@@ -4283,7 +4283,9 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"preallocation", required_argument, 0, OPTION_PREALLOCATION},
             {"shrink", no_argument, 0, OPTION_SHRINK},
@@ -4302,8 +4304,21 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
-            break;
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [--preallocation PREALLOC] [--shrink]\n"
+"	[--object OBJECTDEF] [-q] FILENAME [+|-]SIZE\n"
+,
+" -q|--quiet - quiet operation\n"
+" -f|--format FMT - specify FILENAME format explicitly\n"
+" --image-opts - indicates that FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" --shrink - allow operation when new size is smaller than original\n"
+" --preallocation PREALLOC - specify preallocation type for the new areas\n"
+" --object OBJDEF - QEMU user-creatable object (eg encryption key)\n"
+" FILENAME - image file (specification) to resize\n"
+" SIZE - new image size or amount by which to shrink/grow\n"
+);
+            return 0;
         case 'f':
             fmt = optarg;
             break;
