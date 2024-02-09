@@ -5103,7 +5103,24 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"( --merge SOURCE | --add | --remove | --clear |\n"
+"		--enable | --disable ).. [-f FMT | --image-opts]\n"
+"	[ -b SRC_FILENAME [-F SOURCE_FMT]] [-g GRANULARITY] [--object OBJDEF]\n"
+"	FILENAME BITMAP\n"
+,
+" -f|--format FMT - specify FILENAME format explicitly\n"
+" --image-opts - indicates that FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" --add - creates BITMAP, enables to record future edits\n"
+"  -g|--granularity GRANULARITY - sets non-default granularity for --add\n"
+" --remove - removes BITMAP\n"
+" --clear - clears BITMAP\n"
+" --enable, --disable - starts and stops recording future edits to BITMAP\n"
+" --merge SRC_FILENAME - merges contents of SRC_FILENAME bitmap into BITMAP\n"
+"  -b|--source-file SRC_FILENAME - select alternative source file for --merge\n"
+"  -F|--source-format SRC_FMT - specify format for SRC_FILENAME explicitly\n"
+);
             break;
         case 'b':
             src_filename = optarg;
