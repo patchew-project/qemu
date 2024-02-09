@@ -303,6 +303,16 @@ bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp)
 
 void qdev_unrealize(DeviceState *dev)
 {
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (dc->unwire) {
+        if (!dc->wire) {
+            error_report("disconnect() without connect() for type '%s'",
+                         object_get_typename(OBJECT(dev)));
+            abort();
+        }
+        dc->unwire(dev);
+    }
     object_property_set_bool(OBJECT(dev), "realized", false, &error_abort);
 }
 
@@ -601,8 +611,17 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         dev->pending_deleted_event = true;
         DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
     }
-
     assert(local_err == NULL);
+
+    if (dc->wire) {
+        if (!dc->unwire) {
+            warn_report_once("wire() without unwire() for type '%s'",
+                             object_get_typename(OBJECT(dev)));
+        }
+        dc->wire(dev);
+    }
+
+    /* At this point the device is "guest visible". */
     return;
 
 child_realize_fail:

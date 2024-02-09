@@ -101,8 +101,12 @@ typedef void (*BusUnrealize)(BusState *bus);
  * @props: Properties accessing state fields.
  * @realize: Callback function invoked when the #DeviceState:realized
  * property is changed to %true.
+ * @wire: Callback function called after @realize to connect IRQs,
+ * clocks and map memories. Can not fail.
+ * @unwire: Callback function to undo @wire. Called before @unrealize.
+ * Can not fail.
  * @unrealize: Callback function invoked when the #DeviceState:realized
- * property is changed to %false.
+ * property is changed to %false. Can not fail.
  * @hotpluggable: indicates if #DeviceClass is hotpluggable, available
  * as readonly "hotpluggable" property of #DeviceState instance
  *
@@ -161,6 +165,8 @@ struct DeviceClass {
      */
     DeviceReset reset;
     DeviceRealize realize;
+    void (*wire)(DeviceState *dev);
+    void (*unwire)(DeviceState *dev);
     DeviceUnrealize unrealize;
 
     /**
