@@ -2374,14 +2374,29 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"source-image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"source-format", required_argument, 0, 'f'},
+            {"source-cache", required_argument, 0, 'T'},
+            {"snapshot", required_argument, 0, 'l'},
+            {"sparse-size", required_argument, 0, 'S'},
+            {"output-format", required_argument, 0, 'O'},
+            {"options", required_argument, 0, 'o'},
+            {"output-cache", required_argument, 0, 't'},
+            {"backing", required_argument, 0, 'B'},
+            {"backing-format", required_argument, 0, 'F'},
             {"force-share", no_argument, 0, 'U'},
             {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
             {"salvage", no_argument, 0, OPTION_SALVAGE},
             {"target-is-zero", no_argument, 0, OPTION_TARGET_IS_ZERO},
             {"bitmaps", no_argument, 0, OPTION_BITMAPS},
             {"skip-broken-bitmaps", no_argument, 0, OPTION_SKIP_BROKEN},
+            {"rate", required_argument, 0, 'r'},
+            {"parallel", required_argument, 0, 'm'},
+            {"oob-writes", no_argument, 0, 'W'},
+            {"copy-range-offloading", no_argument, 0, 'C'},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":hf:O:B:CcF:o:l:S:pt:T:qnm:WUr:",
@@ -2397,7 +2412,42 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f SRC_FMT|--image-opts] [-T SRC_CACHE] [--bitmaps [--skip-broken-bitmaps]]\n"
+"	[-o TGT_OPTS|--target-image-opts] [-t TGT_CACHE] [-n]\n"
+"	[-B BACKING_FILENAME [-F BACKING_FMT]]\n"
+"	SRC_FILENAME [SRC_FILENAME2 [...]] TGT_FILENAME\n"
+,
+" -q|--quiet - quiet operations\n"
+" -p|--progress - show operation progress\n"
+" -f|--source-format SRC_FMT - specify SRC_FILENAME source image format explicitly\n"
+" --source-image-opts - indicates that SRC_FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --source-format)\n"
+" -l|--source-snapshot SNAPSHOT_PARAMS - specify source snapshot parameters\n"
+" -T|--source-cache SRC_CACHE - cache mode when opening source image (" BDRV_DEFAULT_CACHE ")\n"
+" -O|--target-format TGT_FMT - specify TGT_FILENAME image format (default is raw)\n"
+" --target-image-opts - indicates that TGT_FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --output-format)\n"
+" -o|--target-options TGT_OPTS - TARGET_FMT-specific options\n"
+" -c|--compress - create compressed output image (qcow and qcow2 format only)\n"
+" -t|--target-cache TGT_CACHE - cache mode when opening output image (unsafe)\n"
+" -B|--backing BACKING_FILENAME - create output to be a CoW on top of BACKING_FILENAME\n"
+" -F|--backing-format BACKING_FMT - specify BACKING_FILENAME image format explicitly\n"
+" -n|--no-create - omit target volume creation (eg on rbd)\n"
+" --target-is-zero\n"
+" -S|--sparse-size SPARSE_SIZE\n"
+" --bitmaps - also copy any persistent bitmaps present in source\n"
+" --skip-broken-bitmaps - skip (do not error out) any broken bitmaps\n"
+" -U|--force-share - open images in shared mode for concurrent access\n"
+" -r|--rate RATE - I/O rate limit\n"
+" -m|--parallel NUM_COROUTINES - specify parallelism (default 8)\n"
+" -C|--copy-range-offloading - use copy_range offloading\n"
+" --salvage\n"
+" -W|--oob-writes - enable out-of-order writes to improve performance\n"
+" --object OBJDEF - QEMU user-creatable object (eg encryption key)\n"
+" SRC_FILENAME - source image file name (or specification with --image-opts)\n"
+" TGT_FILENAME - target (output) image file name\n"
+);
             break;
         case 'f':
             fmt = optarg;
