@@ -3425,7 +3425,20 @@ static int img_map(const img_cmd_t *ccmd, int argc, char **argv)
             unrecognized_option(ccmd, argv[optind - 1]);
             break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [--object OBJDEF] [--output human|json]\n"
+"	[--start-offset OFFSET] [--max-length LENGTH] [-U] FILENAME\n"
+,
+" -f|--format FMT - specify FILENAME image format explicitly\n"
+" --image-opts - indicates that FILENAME is a complete image specification\n"
+"  instead of a file name (incompatible with --format)\n"
+" --start-offset OFFSET\n"
+" --max-length LENGTH\n"
+" --output human|json - specify output format name (default human)\n"
+" -U|--force-share - open image in shared mode for concurrent access\n"
+" --object OBJDEF - QEMU user-creatable object (eg encryption key)\n"
+" FILENAME - image file name (or specification with --image-opts)\n"
+);
             break;
         case 'f':
             fmt = optarg;
