@@ -18,6 +18,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
+#include "migration/migration.h"
 #include "qemu/sockets.h"
 #include "chardev/char.h"
 #include "qapi/qapi-visit-sockets.h"
@@ -1773,7 +1774,7 @@ static void test_precopy_common(MigrateCommon *args)
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, connect_uri, "{}");
+        migrate_qmp_fail(from, connect_uri, NULL, "{}");
         goto finish;
     }
 
@@ -1869,7 +1870,7 @@ static void test_file_common(MigrateCommon *args, bool stop_src)
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, connect_uri, "{}");
+        migrate_qmp_fail(from, connect_uri, NULL, "{}");
         goto finish;
     }
 
@@ -2506,6 +2507,59 @@ static void test_validate_uuid_dst_not_set(void)
     };
 
     do_test_validate_uuid(&args, false);
+}
+
+static void do_test_validate_uri_channel(MigrateCommon *args, bool should_fail)
+{
+    g_autofree const char *uri = "127.0.0.1:0";
+    g_autofree const char *channels = "{"
+               "   'channels': [ { 'channel-type': 'main',"
+               "                   'addr': { 'transport': 'socket',"
+               "                             'type': 'inet',"
+               "                             'host': '127.0.0.1',"
+               "                             'port': '0' } } ] }";
+    QTestState *from, *to;
+
+    if (test_migrate_start(&from, &to, uri, &args->start)) {
+        return;
+    }
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    /*
+     * 'uri' and 'channels' validation is checked even before the migration
+     * starts.
+     */
+    if (args->result == MIG_TEST_QMP_ERROR) {
+        migrate_qmp_fail(from, uri, channels, "{}");
+        goto finish;
+    }
+
+    migrate_qmp(from, uri, "{}");
+
+    if (should_fail) {
+        qtest_set_expected_status(to, EXIT_FAILURE);
+        wait_for_migration_fail(from, false);
+    } else {
+        wait_for_migration_complete(from);
+    }
+
+finish:
+    test_migrate_end(from, to, args->result == MIG_TEST_QMP_ERROR);
+}
+
+static void
+test_validate_uri_channel_both_set(void)
+{
+    MigrateCommon args = {
+        .start = {
+            .hide_stderr = true,
+        },
+        .result = MIG_TEST_QMP_ERROR,
+    };
+
+    do_test_validate_uri_channel(&args, true);
 }
 
 /*
@@ -3536,6 +3590,8 @@ int main(int argc, char **argv)
                        test_validate_uuid_src_not_set);
     migration_test_add("/migration/validate_uuid_dst_not_set",
                        test_validate_uuid_dst_not_set);
+    migration_test_add("/migration/validate_uri_channel_both_set",
+                       test_validate_uri_channel_both_set);
     /*
      * See explanation why this test is slow on function definition
      */
