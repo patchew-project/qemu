@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "hw/or-irq.h"
 #include "hw/arm/stm32l4x5_soc.h"
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
@@ -48,15 +49,14 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
     8,                      /* GPIO[2]                 */
     9,                      /* GPIO[3]                 */
     10,                     /* GPIO[4]                 */
-    23, 23, 23, 23, 23,     /* GPIO[5..9]              */
-    40, 40, 40, 40, 40, 40, /* GPIO[10..15]            */
-    1,                      /* PVD                     */
+    -1, -1, -1, -1, -1,     /* GPIO[5..9] OR gate 23   */
+    -1, -1, -1, -1, -1, -1, /* GPIO[10..15] OR gate 40 */
+    -1,                     /* PVD OR gate 1           */
     67,                     /* OTG_FS_WKUP, Direct     */
     41,                     /* RTC_ALARM               */
     2,                      /* RTC_TAMP_STAMP2/CSS_LSE */
     3,                      /* RTC wakeup timer        */
-    63,                     /* COMP1                   */
-    63,                     /* COMP2                   */
+    -1, -1,                 /* COMP[1..2] OR gate 63   */
     31,                     /* I2C1 wakeup, Direct     */
     33,                     /* I2C2 wakeup, Direct     */
     72,                     /* I2C3 wakeup, Direct     */
@@ -69,11 +69,27 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
     65,                     /* LPTIM1, Direct          */
     66,                     /* LPTIM2, Direct          */
     76,                     /* SWPMI1 wakeup, Direct   */
-    1,                      /* PVM1 wakeup             */
-    1,                      /* PVM2 wakeup             */
-    1,                      /* PVM3 wakeup             */
-    1,                      /* PVM4 wakeup             */
+    -1, -1, -1, -1,         /* PVM[1..4] OR gate 1     */
     78                      /* LCD wakeup, Direct      */
+};
+
+#define NUM_EXTI_OR_GATES 4
+static const int exti_or_gates_out[NUM_EXTI_OR_GATES] = {
+    23, 40, 63, 1,
+};
+
+#define NUM_EXTI_SIMPLE_FANIN_IRQ 3
+static const int exti_or_gates_num_lines_in[NUM_EXTI_SIMPLE_FANIN_IRQ] = {
+    5, 6, 2,
+};
+
+static const int exti_or_gates_first_line_in[NUM_EXTI_SIMPLE_FANIN_IRQ] = {
+    5, 10, 21,
+};
+
+#define NUM_EXTI_OR_GATE1_NUM_LINES_IN 5
+static const int exti_or_gate1_lines_in[NUM_EXTI_OR_GATE1_NUM_LINES_IN] = {
+    16, 35, 36, 37, 38,
 };
 
 static void stm32l4x5_soc_initfn(Object *obj)
@@ -175,8 +191,41 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
     sysbus_mmio_map(busdev, 0, EXTI_ADDR);
+
+    /* IRQs with fan-in that require an OR gate */
+    for (unsigned i = 0; i < NUM_EXTI_OR_GATES; i++) {
+        Object *orgate = object_new(TYPE_OR_IRQ);
+        object_property_set_int(orgate, "num-lines",
+            exti_or_gates_num_lines_in[i], &error_fatal);
+        /* Should unref be used? */
+        qdev_realize(DEVICE(orgate), NULL, &error_fatal);
+
+        qdev_connect_gpio_out(DEVICE(orgate), 0,
+            qdev_get_gpio_in(armv7m, exti_or_gates_out[i]));
+
+        /* consecutive inputs for OR gates 23, 40, 63 */
+        if (i < NUM_EXTI_SIMPLE_FANIN_IRQ) {
+            for (unsigned j = 0; j < exti_or_gates_num_lines_in[i]; j++) {
+                sysbus_connect_irq(SYS_BUS_DEVICE(&s->exti),
+                    exti_or_gates_first_line_in[i] + j,
+                    qdev_get_gpio_in(DEVICE(orgate), j));
+            }
+        /* non-consecutive inputs for OR gate 1 */
+        } else {
+            for (unsigned j = 0; j < NUM_EXTI_OR_GATE1_NUM_LINES_IN; j++) {
+                sysbus_connect_irq(SYS_BUS_DEVICE(&s->exti),
+                    exti_or_gate1_lines_in[j],
+                    qdev_get_gpio_in(DEVICE(orgate), j));
+            }
+        }
+    }
+
+    /* IRQs that don't require fan-in */
     for (unsigned i = 0; i < NUM_EXTI_IRQ; i++) {
-        sysbus_connect_irq(busdev, i, qdev_get_gpio_in(armv7m, exti_irq[i]));
+        if (exti_irq[i] != -1) {
+            sysbus_connect_irq(busdev, i,
+                               qdev_get_gpio_in(armv7m, exti_irq[i]));
+        }
     }
 
     for (unsigned i = 0; i < 16; i++) {
