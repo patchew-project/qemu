@@ -31,6 +31,11 @@
 
 #define EXTI0_IRQ 6
 #define EXTI1_IRQ 7
+#define EXTI5_IRQ 23
+#define EXTI6_IRQ 23
+#define EXTI7_IRQ 23
+#define EXTI8_IRQ 23
+#define EXTI9_IRQ 23
 #define EXTI35_IRQ 1
 
 static void enable_nvic_irq(unsigned int n)
@@ -499,6 +504,96 @@ static void test_interrupt(void)
     g_assert_false(check_nvic_pending(EXTI1_IRQ));
 }
 
+static void test_orred_interrupts(void)
+{
+    /*
+     * For lines EXTI5..9 (fanned-in to NVIC irq 23),
+     * test that rising the line pends interrupt
+     * 23 in NVIC.
+     */
+    enable_nvic_irq(EXTI5_IRQ);
+    /* Check that there are no interrupts already pending in PR */
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    /* Check that this specific interrupt isn't pending in NVIC */
+    g_assert_false(check_nvic_pending(EXTI5_IRQ));
+
+    /* Enable interrupt lines EXTI[5..9] */
+    exti_writel(EXTI_IMR1, (0x1F << 5));
+
+    /* Configure interrupt on rising edge */
+    exti_writel(EXTI_RTSR1, (0x1F << 5));
+
+    /* Simulate rising edge from GPIO line 7 */
+    exti_set_irq(7, 1);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 1 << 7);
+    g_assert_true(check_nvic_pending(EXTI7_IRQ));
+
+    /* Clear the pending bit in PR */
+    exti_writel(EXTI_PR1, 1 << 7);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_true(check_nvic_pending(EXTI7_IRQ));
+
+    /* Clean NVIC */
+    unpend_nvic_irq(EXTI7_IRQ);
+    g_assert_false(check_nvic_pending(EXTI7_IRQ));
+
+    /* Simulate rising edge from GPIO line 6 */
+    exti_set_irq(6, 1);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 1 << 6);
+    g_assert_true(check_nvic_pending(EXTI6_IRQ));
+
+    /* Clear the pending bit in PR */
+    exti_writel(EXTI_PR1, 1 << 6);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_true(check_nvic_pending(EXTI6_IRQ));
+
+    /* Clean NVIC */
+    unpend_nvic_irq(EXTI6_IRQ);
+    g_assert_false(check_nvic_pending(EXTI6_IRQ));
+
+    /* Simulate rising edge from GPIO line 5 */
+    exti_set_irq(5, 1);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 1 << 5);
+    g_assert_true(check_nvic_pending(EXTI5_IRQ));
+
+    /* Clear the pending bit in PR */
+    exti_writel(EXTI_PR1, 1 << 5);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_true(check_nvic_pending(EXTI5_IRQ));
+
+    /* Clean NVIC */
+    unpend_nvic_irq(EXTI5_IRQ);
+    g_assert_false(check_nvic_pending(EXTI5_IRQ));
+
+    /* Simulate rising edge from GPIO line 8 */
+    exti_set_irq(8, 1);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 1 << 8);
+    g_assert_true(check_nvic_pending(EXTI8_IRQ));
+
+    /* Clear the pending bit in PR */
+    exti_writel(EXTI_PR1, 1 << 8);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_true(check_nvic_pending(EXTI8_IRQ));
+
+    /* Clean NVIC */
+    unpend_nvic_irq(EXTI8_IRQ);
+    g_assert_false(check_nvic_pending(EXTI8_IRQ));
+
+    /* Simulate rising edge from GPIO line 9 */
+    exti_set_irq(9, 1);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 1 << 9);
+    g_assert_true(check_nvic_pending(EXTI9_IRQ));
+
+    /* Clear the pending bit in PR */
+    exti_writel(EXTI_PR1, 1 << 9);
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_true(check_nvic_pending(EXTI9_IRQ));
+
+    /* Clean NVIC */
+    unpend_nvic_irq(EXTI9_IRQ);
+    g_assert_false(check_nvic_pending(EXTI9_IRQ));
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -515,6 +610,8 @@ int main(int argc, char **argv)
     qtest_add_func("stm32l4x5/exti/masked_interrupt", test_masked_interrupt);
     qtest_add_func("stm32l4x5/exti/interrupt", test_interrupt);
     qtest_add_func("stm32l4x5/exti/test_edge_selector", test_edge_selector);
+    qtest_add_func("stm32l4x5/exti/test_orred_interrupts",
+                   test_orred_interrupts);
 
     qtest_start("-machine b-l475e-iot01a");
     ret = g_test_run();
