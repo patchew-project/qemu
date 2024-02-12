@@ -394,7 +394,9 @@ static void pcie_set_power_device(PCIBus *bus, PCIDevice *dev, void *opaque)
 {
     bool *power = opaque;
 
-    pci_set_power(dev, *power);
+    if (!pci_is_vf(dev)) {
+        pci_set_enabled(dev, *power);
+    }
 }
 
 static void pcie_cap_update_power(PCIDevice *hotplug_dev)
