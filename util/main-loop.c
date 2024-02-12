@@ -145,10 +145,16 @@ AioContext *qemu_get_aio_context(void)
 
 void qemu_notify_event(void)
 {
+    GMainContext *context;
+
     if (!qemu_aio_context) {
         return;
     }
-    qemu_bh_schedule(qemu_notify_bh);
+
+    context = g_main_context_default();
+    if (!g_main_context_is_owner(context)) {
+        qemu_bh_schedule(qemu_notify_bh);
+    }
 }
 
 static GArray *gpollfds;
@@ -292,10 +298,7 @@ static void glib_pollfds_poll(void)
 
 static int os_host_main_loop_wait(int64_t timeout)
 {
-    GMainContext *context = g_main_context_default();
     int ret;
-
-    g_main_context_acquire(context);
 
     glib_pollfds_fill(&timeout);
 
@@ -308,8 +311,6 @@ static int os_host_main_loop_wait(int64_t timeout)
     bql_lock();
 
     glib_pollfds_poll();
-
-    g_main_context_release(context);
 
     return ret;
 }
@@ -470,15 +471,12 @@ static int os_host_main_loop_wait(int64_t timeout)
     fd_set rfds, wfds, xfds;
     int nfds;
 
-    g_main_context_acquire(context);
-
     /* XXX: need to suppress polling by better using win32 events */
     ret = 0;
     for (pe = first_polling_entry; pe != NULL; pe = pe->next) {
         ret |= pe->func(pe->opaque);
     }
     if (ret != 0) {
-        g_main_context_release(context);
         return ret;
     }
 
@@ -538,8 +536,6 @@ static int os_host_main_loop_wait(int64_t timeout)
         g_main_context_dispatch(context);
     }
 
-    g_main_context_release(context);
-
     return select_ret || g_poll_ret;
 }
 #endif
@@ -559,6 +555,7 @@ void main_loop_poll_remove_notifier(Notifier *notify)
 
 void main_loop_wait(int nonblocking)
 {
+    GMainContext *context = g_main_context_default();
     MainLoopPoll mlpoll = {
         .state = MAIN_LOOP_POLL_FILL,
         .timeout = UINT32_MAX,
@@ -586,7 +583,10 @@ void main_loop_wait(int nonblocking)
                                       timerlistgroup_deadline_ns(
                                           &main_loop_tlg));
 
+    g_main_context_acquire(context);
+
     ret = os_host_main_loop_wait(timeout_ns);
+
     mlpoll.state = ret < 0 ? MAIN_LOOP_POLL_ERR : MAIN_LOOP_POLL_OK;
     notifier_list_notify(&main_loop_poll_notifiers, &mlpoll);
 
@@ -598,6 +598,8 @@ void main_loop_wait(int nonblocking)
         icount_start_warp_timer();
     }
     qemu_clock_run_all_timers();
+
+    g_main_context_release(context);
 }
 
 /* Functions to operate on the main QEMU AioContext.  */
