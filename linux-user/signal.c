@@ -511,13 +511,14 @@ static int core_dump_signal(int sig)
 
 static void signal_table_init(void)
 {
-    int hsig, tsig, count;
+    int hsig, hsig_count, tsig, tsig_count, tsig_hole, tsig_hole_size, count;
 
     /*
-     * Signals are supported starting from TARGET_SIGRTMIN and going up
-     * until we run out of host realtime signals.  Glibc uses the lower 2
-     * RT signals and (hopefully) nobody uses the upper ones.
-     * This is why SIGRTMIN (34) is generally greater than __SIGRTMIN (32).
+     * Signals are supported starting from TARGET_SIGRTMIN and up to
+     * TARGET_SIGRTMAX, potentially with a hole in the middle of this
+     * range, which, hopefully, nobody uses. Glibc uses the lower 2 RT
+     * signals; this is why SIGRTMIN (34) is generally greater than
+     * __SIGRTMIN (32).
      * To fix this properly we would need to do manual signal delivery
      * multiplexed over a single host signal.
      * Attempts for configure "missing" signals via sigaction will be
@@ -536,9 +537,16 @@ static void signal_table_init(void)
     host_to_target_signal_table[SIGABRT] = 0;
     host_to_target_signal_table[hsig++] = TARGET_SIGABRT;
 
+    hsig_count = SIGRTMAX - hsig + 1;
+    tsig_count = TARGET_NSIG - TARGET_SIGRTMIN + 1;
+    tsig_hole_size = tsig_count - MIN(hsig_count, tsig_count);
+    tsig_hole = TARGET_SIGRTMIN + (tsig_count - tsig_hole_size) / 2;
     for (tsig = TARGET_SIGRTMIN;
          hsig <= SIGRTMAX && tsig <= TARGET_NSIG;
          hsig++, tsig++) {
+        if (tsig == tsig_hole) {
+            tsig += tsig_hole_size;
+        }
         host_to_target_signal_table[hsig] = tsig;
     }
 
