@@ -233,7 +233,9 @@ static void leon3_generic_hw_init(MachineState *machine)
     APBPnp *apb_pnp;
 
     /* Init CPU */
-    cpu = SPARC_CPU(cpu_create(machine->cpu_type));
+    cpu = SPARC_CPU(object_new(machine->cpu_type));
+    qdev_init_gpio_in_named(DEVICE(cpu), leon3_set_pil_in, "pil", 1);
+    qdev_realize(DEVICE(cpu), NULL, &error_fatal);
     env = &cpu->env;
 
     cpu_sparc_set_id(env, 0);
@@ -260,7 +262,6 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     /* Allocate IRQ manager */
     irqmpdev = qdev_new(TYPE_GRLIB_IRQMP);
-    qdev_init_gpio_in_named(DEVICE(cpu), leon3_set_pil_in, "pil", 1);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(irqmpdev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(irqmpdev), 0, LEON3_IRQMP_OFFSET);
     qdev_connect_gpio_out_named(irqmpdev, "grlib-irq", 0,
