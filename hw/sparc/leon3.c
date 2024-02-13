@@ -175,9 +175,10 @@ static void leon3_irq_ack(CPUSPARCState *env, int intno)
  */
 static void leon3_set_pil_in(void *opaque, int n, int level)
 {
-    CPUSPARCState *env = opaque;
+    DeviceState *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    CPUSPARCState *env = cpu_env(cs);
     uint32_t pil_in = level;
-    CPUState *cs;
 
     assert(env != NULL);
 
@@ -193,7 +194,6 @@ static void leon3_set_pil_in(void *opaque, int n, int level)
 
                 env->interrupt_index = TT_EXTINT | i;
                 if (old_interrupt != env->interrupt_index) {
-                    cs = env_cpu(env);
                     trace_leon3_set_irq(i);
                     cpu_interrupt(cs, CPU_INTERRUPT_HARD);
                 }
@@ -201,7 +201,6 @@ static void leon3_set_pil_in(void *opaque, int n, int level)
             }
         }
     } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
-        cs = env_cpu(env);
         trace_leon3_reset_irq(env->interrupt_index & 15);
         env->interrupt_index = 0;
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
@@ -261,8 +260,7 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     /* Allocate IRQ manager */
     irqmpdev = qdev_new(TYPE_GRLIB_IRQMP);
-    qdev_init_gpio_in_named_with_opaque(DEVICE(cpu), leon3_set_pil_in,
-                                        env, "pil", 1);
+    qdev_init_gpio_in_named(DEVICE(cpu), leon3_set_pil_in, "pil", 1);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(irqmpdev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(irqmpdev), 0, LEON3_IRQMP_OFFSET);
     qdev_connect_gpio_out_named(irqmpdev, "grlib-irq", 0,
