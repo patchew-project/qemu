@@ -9,6 +9,7 @@
 #define TARGET_MIPS_TRANSLATE_H
 
 #include "cpu.h"
+
 #include "tcg/tcg-op.h"
 #include "exec/translator.h"
 #include "exec/helper-gen.h"

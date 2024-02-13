@@ -21,6 +21,8 @@
  */
 
 #include "qemu/osdep.h"
+#include CONFIG_DEVICES
+
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
@@ -371,6 +373,7 @@ target_ulong helper_mfc0_count(CPUMIPSState *env)
     return (int32_t)cpu_mips_get_count(env);
 }
 
+#ifdef CONFIG_MIPS_ITU
 target_ulong helper_mfc0_saar(CPUMIPSState *env)
 {
     if ((env->CP0_SAARI & 0x3f) < 2) {
@@ -386,6 +389,7 @@ target_ulong helper_mfhc0_saar(CPUMIPSState *env)
     }
     return 0;
 }
+#endif
 
 target_ulong helper_mftc0_entryhi(CPUMIPSState *env)
 {
@@ -514,6 +518,7 @@ target_ulong helper_dmfc0_watchhi(CPUMIPSState *env, uint32_t sel)
     return env->CP0_WatchHi[sel];
 }
 
+#ifdef CONFIG_MIPS_ITU
 target_ulong helper_dmfc0_saar(CPUMIPSState *env)
 {
     if ((env->CP0_SAARI & 0x3f) < 2) {
@@ -521,6 +526,7 @@ target_ulong helper_dmfc0_saar(CPUMIPSState *env)
     }
     return 0;
 }
+#endif
 #endif /* TARGET_MIPS64 */
 
 void helper_mtc0_index(CPUMIPSState *env, target_ulong arg1)
@@ -1100,6 +1106,7 @@ void helper_mtc0_count(CPUMIPSState *env, target_ulong arg1)
     cpu_mips_store_count(env, arg1);
 }
 
+#ifdef CONFIG_MIPS_ITU
 void helper_mtc0_saari(CPUMIPSState *env, target_ulong arg1)
 {
     uint32_t target = arg1 & 0x3f;
@@ -1139,6 +1146,7 @@ void helper_mthc0_saar(CPUMIPSState *env, target_ulong arg1)
         }
     }
 }
+#endif
 
 void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 {

@@ -49,6 +49,16 @@
 #ifdef CONFIG_USER_ONLY
 STUB_HELPER(cache, TCGv_env env, TCGv val, TCGv_i32 reg)
 #endif
+#if defined CONFIG_SYSTEM_ONLY && !defined CONFIG_MIPS_ITU
+STUB_HELPER(mfc0_saar, TCGv ret, TCGv_env env)
+STUB_HELPER(mfhc0_saar, TCGv ret, TCGv_env env)
+STUB_HELPER(mtc0_saari, TCGv_env env, TCGv val)
+STUB_HELPER(mtc0_saar, TCGv_env env, TCGv val)
+STUB_HELPER(mthc0_saar, TCGv_env env, TCGv val)
+#ifdef TARGET_MIPS64
+STUB_HELPER(dmfc0_saar, TCGv ret, TCGv_env env)
+#endif
+#endif
 
 enum {
     /* indirect opcode tables */
