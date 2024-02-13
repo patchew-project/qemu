@@ -447,8 +447,9 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
 
     if (defaults_enabled() && object_class_by_name("pci-ohci")) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
-        usb_create_simple(usb_bus_find(-1), "usb-kbd");
-        usb_create_simple(usb_bus_find(-1), "usb-tablet");
+        Object *usb_bus = object_resolve_path_type("", TYPE_USB_BUS, NULL);
+        usb_create_simple(USB_BUS(usb_bus), "usb-kbd");
+        usb_create_simple(USB_BUS(usb_bus), "usb-tablet");
     }
 
     pci_init_nic_devices(pci_bus, mc->default_nic);
