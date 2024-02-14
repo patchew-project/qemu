@@ -3415,7 +3415,7 @@ S: Maintained
 F: backends/dbus-vmstate.c
 F: ui/dbus*
 F: audio/dbus*
-F: util/dbus.c
+F: util/dbus*
 F: include/ui/dbus*
 F: include/qemu/dbus.h
 F: docs/interop/dbus*
