@@ -209,7 +209,6 @@ static void unregister_vfs(PCIDevice *dev)
         pci_set_enabled(dev->exp.sriov_pf.vf[i], false);
     }
     dev->exp.sriov_pf.num_vfs = 0;
-    pci_set_word(dev->config + dev->exp.sriov_cap + PCI_SRIOV_NUM_VF, 0);
 }
 
 void pcie_sriov_config_write(PCIDevice *dev, uint32_t address,
