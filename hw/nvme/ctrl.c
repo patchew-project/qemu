@@ -8481,7 +8481,7 @@ static void nvme_sriov_pre_write_ctrl(PCIDevice *dev, uint32_t address,
     NvmeSecCtrlEntry *sctrl;
     uint16_t sriov_cap = dev->exp.sriov_cap;
     uint32_t off = address - sriov_cap;
-    int i, num_vfs;
+    int i;
 
     if (!sriov_cap) {
         return;
@@ -8489,8 +8489,7 @@ static void nvme_sriov_pre_write_ctrl(PCIDevice *dev, uint32_t address,
 
     if (range_covers_byte(off, len, PCI_SRIOV_CTRL)) {
         if (!(val & PCI_SRIOV_CTRL_VFE)) {
-            num_vfs = pci_get_word(dev->config + sriov_cap + PCI_SRIOV_NUM_VF);
-            for (i = 0; i < num_vfs; i++) {
+            for (i = 0; i < dev->exp.sriov_pf.num_vfs; i++) {
                 sctrl = &n->sec_ctrl_list.sec[i];
                 nvme_virt_set_state(n, le16_to_cpu(sctrl->scid), false);
             }
