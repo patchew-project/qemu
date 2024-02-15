@@ -711,8 +711,38 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
     void *host = ptw->out_host;
 
     if (unlikely(!host)) {
-        fi->type = ARMFault_UnsuppAtomicUpdate;
-        return 0;
+        /* Can I do a load and store via the physical address */
+
+        bool locked = bql_locked();
+        if (!locked) {
+            bql_lock();
+        }
+        /* Page table in MMIO Memory Region */
+        if (ptw->out_be) {
+            old_val = cpu_to_be64(old_val);
+            new_val = cpu_to_be64(new_val);
+            cpu_physical_memory_read(ptw->out_phys, &cur_val, 8);
+            if (cur_val == old_val) {
+                cpu_physical_memory_write(ptw->out_phys, &new_val, 8);
+                cur_val = be64_to_cpu(new_val);
+            } else {
+                cur_val = be64_to_cpu(cur_val);
+            }
+        } else {
+            old_val = cpu_to_le64(old_val);
+            new_val = cpu_to_le64(new_val);
+            cpu_physical_memory_read(ptw->out_phys, &cur_val, 8);
+            if (cur_val == old_val) {
+                cpu_physical_memory_write(ptw->out_phys, &new_val, 8);
+                cur_val = le64_to_cpu(new_val);
+            } else {
+                cur_val = le64_to_cpu(cur_val);
+            }
+        }
+        if (!locked) {
+            bql_unlock();
+        }
+        return cur_val;
     }
 
     /*
