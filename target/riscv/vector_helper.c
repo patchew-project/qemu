@@ -149,25 +149,27 @@ static inline void vext_set_elem_mask(void *v0, int index,
 typedef void vext_ldst_elem_fn(CPURISCVState *env, abi_ptr addr,
                                uint32_t idx, void *vd, uintptr_t retaddr);
 
-#define GEN_VEXT_LD_ELEM(NAME, ETYPE, H, LDSUF)            \
-static void NAME(CPURISCVState *env, abi_ptr addr,         \
-                 uint32_t idx, void *vd, uintptr_t retaddr)\
-{                                                          \
-    ETYPE *cur = ((ETYPE *)vd + H(idx));                   \
-    *cur = cpu_##LDSUF##_data_ra(env, addr, retaddr);      \
-}                                                          \
+#define GEN_VEXT_LD_ELEM(NAME, ETYPE, H, LDSUF)         \
+static inline QEMU_ALWAYS_INLINE                        \
+void NAME(CPURISCVState *env, abi_ptr addr,             \
+          uint32_t idx, void *vd, uintptr_t retaddr)    \
+{                                                       \
+    ETYPE *cur = ((ETYPE *)vd + H(idx));                \
+    *cur = cpu_##LDSUF##_data_ra(env, addr, retaddr);   \
+}                                                       \
 
 GEN_VEXT_LD_ELEM(lde_b, int8_t,  H1, ldsb)
 GEN_VEXT_LD_ELEM(lde_h, int16_t, H2, ldsw)
 GEN_VEXT_LD_ELEM(lde_w, int32_t, H4, ldl)
 GEN_VEXT_LD_ELEM(lde_d, int64_t, H8, ldq)
 
-#define GEN_VEXT_ST_ELEM(NAME, ETYPE, H, STSUF)            \
-static void NAME(CPURISCVState *env, abi_ptr addr,         \
-                 uint32_t idx, void *vd, uintptr_t retaddr)\
-{                                                          \
-    ETYPE data = *((ETYPE *)vd + H(idx));                  \
-    cpu_##STSUF##_data_ra(env, addr, data, retaddr);       \
+#define GEN_VEXT_ST_ELEM(NAME, ETYPE, H, STSUF)         \
+static inline QEMU_ALWAYS_INLINE                        \
+void NAME(CPURISCVState *env, abi_ptr addr,             \
+          uint32_t idx, void *vd, uintptr_t retaddr)    \
+{                                                       \
+    ETYPE data = *((ETYPE *)vd + H(idx));               \
+    cpu_##STSUF##_data_ra(env, addr, data, retaddr);    \
 }
 
 GEN_VEXT_ST_ELEM(ste_b, int8_t,  H1, stb)
@@ -289,7 +291,7 @@ GEN_VEXT_ST_STRIDE(vsse64_v, int64_t, ste_d)
  */
 
 /* unmasked unit-stride load and store operation */
-static void
+static inline QEMU_ALWAYS_INLINE void
 vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
              vext_ldst_elem_fn *ldst_elem, uint32_t log2_esz, uint32_t evl,
              uintptr_t ra)
