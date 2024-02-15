@@ -2674,6 +2674,54 @@ static bool flatview_access_allowed(MemoryRegion *mr, MemTxAttrs attrs,
     return false;
 }
 
+static MemTxResult flatview_write_continue_step(hwaddr addr,
+                                                MemTxAttrs attrs,
+                                                const uint8_t *buf,
+                                                hwaddr len, hwaddr addr1,
+                                                hwaddr *l, MemoryRegion *mr)
+{
+    if (!flatview_access_allowed(mr, attrs, addr1, *l)) {
+        return MEMTX_ACCESS_ERROR;
+    }
+
+    if (!memory_access_is_direct(mr, true)) {
+        uint64_t val;
+        MemTxResult result;
+        bool release_lock = prepare_mmio_access(mr);
+
+        *l = memory_access_size(mr, *l, addr1);
+        /* XXX: could force current_cpu to NULL to avoid
+           potential bugs */
+
+        /*
+         * Assure Coverity (and ourselves) that we are not going to OVERRUN
+         * the buffer by following ldn_he_p().
+         */
+#ifdef QEMU_STATIC_ANALYSIS
+        assert((*l == 1 && len >= 1) ||
+               (*l == 2 && len >= 2) ||
+               (*l == 4 && len >= 4) ||
+               (*l == 8 && len >= 8));
+#endif
+        val = ldn_he_p(buf, *l);
+        result = memory_region_dispatch_write(mr, addr1, val,
+                                              size_memop(*l), attrs);
+        if (release_lock) {
+            bql_unlock();
+        }
+
+        return result;
+    } else {
+        /* RAM case */
+        uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, l, false);
+
+        memmove(ram_ptr, buf, *l);
+        invalidate_and_set_dirty(mr, addr1, *l);
+
+        return MEMTX_OK;
+    }
+}
+
 /* Called within RCU critical section.  */
 static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
                                            MemTxAttrs attrs,
@@ -2685,42 +2733,9 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
     const uint8_t *buf = ptr;
 
     for (;;) {
-        if (!flatview_access_allowed(mr, attrs, addr1, l)) {
-            result |= MEMTX_ACCESS_ERROR;
-            /* Keep going. */
-        } else if (!memory_access_is_direct(mr, true)) {
-            uint64_t val;
-            bool release_lock = prepare_mmio_access(mr);
 
-            l = memory_access_size(mr, l, addr1);
-            /* XXX: could force current_cpu to NULL to avoid
-               potential bugs */
-
-            /*
-             * Assure Coverity (and ourselves) that we are not going to OVERRUN
-             * the buffer by following ldn_he_p().
-             */
-#ifdef QEMU_STATIC_ANALYSIS
-            assert((l == 1 && len >= 1) ||
-                   (l == 2 && len >= 2) ||
-                   (l == 4 && len >= 4) ||
-                   (l == 8 && len >= 8));
-#endif
-            val = ldn_he_p(buf, l);
-            result |= memory_region_dispatch_write(mr, addr1, val,
-                                                   size_memop(l), attrs);
-            if (release_lock) {
-                bql_unlock();
-            }
-
-
-        } else {
-            /* RAM case */
-            uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l,
-                                                   false);
-            memmove(ram_ptr, buf, l);
-            invalidate_and_set_dirty(mr, addr1, l);
-        }
+        result |= flatview_write_continue_step(addr, attrs, buf, len, addr1, &l,
+                                               mr);
 
         len -= l;
         buf += l;
@@ -2754,6 +2769,52 @@ static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
                                    addr1, l, mr);
 }
 
+static MemTxResult flatview_read_continue_step(hwaddr addr,
+                                               MemTxAttrs attrs, uint8_t *buf,
+                                               hwaddr len, hwaddr addr1,
+                                               hwaddr *l,
+                                               MemoryRegion *mr)
+{
+    if (!flatview_access_allowed(mr, attrs, addr1, *l)) {
+        return  MEMTX_ACCESS_ERROR;
+    }
+
+    if (!memory_access_is_direct(mr, false)) {
+        /* I/O case */
+        uint64_t val;
+        MemTxResult result;
+        bool release_lock = prepare_mmio_access(mr);
+
+        *l = memory_access_size(mr, *l, addr1);
+        result = memory_region_dispatch_read(mr, addr1, &val,
+                                                  size_memop(*l), attrs);
+
+        /*
+         * Assure Coverity (and ourselves) that we are not going to OVERRUN
+         * the buffer by following stn_he_p().
+         */
+#ifdef QEMU_STATIC_ANALYSIS
+        assert((*l == 1 && len >= 1) ||
+               (*l == 2 && len >= 2) ||
+               (*l == 4 && len >= 4) ||
+               (*l == 8 && len >= 8));
+#endif
+        stn_he_p(buf, *l, val);
+
+        if (release_lock) {
+            bql_unlock();
+        }
+        return result;
+    } else {
+        /* RAM case */
+        uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, l, false);
+
+        memcpy(buf, ram_ptr, *l);
+
+        return MEMTX_OK;
+    }
+}
+
 /* Called within RCU critical section.  */
 MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    MemTxAttrs attrs, void *ptr,
@@ -2765,38 +2826,8 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
 
     fuzz_dma_read_cb(addr, len, mr);
     for (;;) {
-        if (!flatview_access_allowed(mr, attrs, addr1, l)) {
-            result |= MEMTX_ACCESS_ERROR;
-            /* Keep going. */
-        } else if (!memory_access_is_direct(mr, false)) {
-            /* I/O case */
-            uint64_t val;
-            bool release_lock = prepare_mmio_access(mr);
-
-            l = memory_access_size(mr, l, addr1);
-            result |= memory_region_dispatch_read(mr, addr1, &val,
-                                                  size_memop(l), attrs);
-
-            /*
-             * Assure Coverity (and ourselves) that we are not going to OVERRUN
-             * the buffer by following stn_he_p().
-             */
-#ifdef QEMU_STATIC_ANALYSIS
-            assert((l == 1 && len >= 1) ||
-                   (l == 2 && len >= 2) ||
-                   (l == 4 && len >= 4) ||
-                   (l == 8 && len >= 8));
-#endif
-            stn_he_p(buf, l, val);
-            if (release_lock) {
-                bql_unlock();
-            }
-        } else {
-            /* RAM case */
-            uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l,
-                                                   false);
-            memcpy(buf, ram_ptr, l);
-        }
+        result |= flatview_read_continue_step(addr, attrs, buf,
+                                              len, addr1, &l, mr);
 
         len -= l;
         buf += l;
