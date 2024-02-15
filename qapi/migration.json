@@ -1392,6 +1392,7 @@
 # Emitted when a migration event happens
 #
 # @status: @MigrationStatus describing the current migration status.
+# @reason: Optional description of status changing reason.
 #
 # Since: 2.4
 #
@@ -1402,7 +1403,7 @@
 #     "data": {"status": "completed"} }
 ##
 { 'event': 'MIGRATION',
-  'data': {'status': 'MigrationStatus'}}
+  'data': {'status': 'MigrationStatus', '*reason': 'str'}}
 
 ##
 # @MIGRATION_PASS:

@@ -1744,7 +1744,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     } else {
         status = MIGRATION_STATUS_COMPLETED;
     }
-    migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP, status);
+    migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP, status, NULL);
 
     /* f is outer parameter, it should not stay in global migration state after
      * this function finished */
@@ -1999,7 +1999,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
     object_ref(OBJECT(migr));
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                                   MIGRATION_STATUS_POSTCOPY_ACTIVE);
+                      MIGRATION_STATUS_POSTCOPY_ACTIVE, NULL);
     qemu_sem_post(&mis->thread_sync_sem);
     trace_postcopy_ram_listen_thread_start();
 
@@ -2037,7 +2037,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
         } else {
             error_report("%s: loadvm failed: %d", __func__, load_res);
             migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                                           MIGRATION_STATUS_FAILED);
+                              MIGRATION_STATUS_FAILED, NULL);
         }
     }
     if (load_res >= 0) {
@@ -2062,7 +2062,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
     }
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                                   MIGRATION_STATUS_COMPLETED);
+                      MIGRATION_STATUS_COMPLETED, NULL);
     /*
      * If everything has worked fine, then the main thread has waited
      * for us to start, and we're the last use of the mis.
@@ -2257,7 +2257,7 @@ static int loadvm_postcopy_handle_resume(MigrationIncomingState *mis)
      * This means source VM is ready to resume the postcopy migration.
      */
     migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_RECOVER,
-                      MIGRATION_STATUS_POSTCOPY_ACTIVE);
+                      MIGRATION_STATUS_POSTCOPY_ACTIVE, NULL);
 
     trace_loadvm_postcopy_handle_resume();
 
@@ -2818,8 +2818,8 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
     }
 
     /* Current state can be either ACTIVE or RECOVER */
-    migrate_set_state(&mis->state, mis->state,
-                      MIGRATION_STATUS_POSTCOPY_PAUSED);
+    migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+                      MIGRATION_STATUS_POSTCOPY_PAUSED, NULL);
 
     /* Notify the fault thread for the invalidated file handle */
     postcopy_fault_thread_notify(mis);

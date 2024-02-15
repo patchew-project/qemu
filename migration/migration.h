@@ -468,7 +468,10 @@ struct MigrationState {
     bool rdma_migration;
 };
 
-void migrate_set_state(int *state, int old_state, int new_state);
+void migrate_set_state(int *state, int old_state,
+                       int new_state, const char *reason);
+void migrate_set_state_err_reason(int *state, int old_state,
+                                  int new_state, const Error *err);
 
 void migration_fd_process_incoming(QEMUFile *f);
 void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp);

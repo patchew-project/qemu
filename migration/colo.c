@@ -102,7 +102,7 @@ static void secondary_vm_do_failover(void)
     }
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_COLO,
-                      MIGRATION_STATUS_COMPLETED);
+                      MIGRATION_STATUS_COMPLETED, NULL);
 
     replication_stop_all(true, &local_err);
     if (local_err) {
@@ -157,7 +157,7 @@ static void primary_vm_do_failover(void)
     Error *local_err = NULL;
 
     migrate_set_state(&s->state, MIGRATION_STATUS_COLO,
-                      MIGRATION_STATUS_COMPLETED);
+                      MIGRATION_STATUS_COMPLETED, NULL);
     /*
      * kick COLO thread which might wait at
      * qemu_sem_wait(&s->colo_checkpoint_sem).
@@ -823,7 +823,7 @@ static void *colo_process_incoming_thread(void *opaque)
     qemu_sem_init(&mis->colo_incoming_sem, 0);
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                      MIGRATION_STATUS_COLO);
+                      MIGRATION_STATUS_COLO, NULL);
 
     if (get_colo_mode() != COLO_MODE_SECONDARY) {
         error_report("COLO mode must be COLO_MODE_SECONDARY");
