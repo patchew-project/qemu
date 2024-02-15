@@ -3363,6 +3363,72 @@ static inline MemoryRegion *address_space_translate_cached(
     return section.mr;
 }
 
+/* Called within RCU critical section.  */
+static MemTxResult address_space_write_continue_cached(MemoryRegionCache *cache,
+                                                       hwaddr addr,
+                                                       MemTxAttrs attrs,
+                                                       const void *ptr,
+                                                       hwaddr len, hwaddr addr1,
+                                                       hwaddr l,
+                                                       MemoryRegion *mr)
+{
+    MemTxResult result = MEMTX_OK;
+    const uint8_t *buf = ptr;
+
+    for (;;) {
+
+        result |= flatview_write_continue_step(addr, attrs, buf, len, addr1, &l,
+                                               mr);
+
+        len -= l;
+        buf += l;
+        addr += l;
+
+        if (!len) {
+            break;
+        }
+
+        l = len;
+
+        mr = address_space_translate_cached(cache, addr, &addr1, &l, true,
+                                            attrs);
+    }
+
+    return result;
+}
+
+/* Called within RCU critical section.  */
+static MemTxResult address_space_read_continue_cached(MemoryRegionCache *cache,
+                                                      hwaddr addr,
+                                                      MemTxAttrs attrs,
+                                                      void *ptr, hwaddr len,
+                                                      hwaddr addr1, hwaddr l,
+                                                      MemoryRegion *mr)
+{
+    MemTxResult result = MEMTX_OK;
+    uint8_t *buf = ptr;
+
+    fuzz_dma_read_cb(addr, len, mr);
+    for (;;) {
+
+        result |= flatview_read_continue_step(addr, attrs, buf, len, addr1,
+                                              &l, mr);
+        len -= l;
+        buf += l;
+        addr += l;
+
+        if (!len) {
+            break;
+        }
+        l = len;
+
+        mr = address_space_translate_cached(cache, addr, &addr1, &l, false,
+                                            attrs);
+    }
+
+    return result;
+}
+
 /* Called from RCU critical section. address_space_read_cached uses this
  * out of line function when the target is an MMIO or IOMMU region.
  */
@@ -3376,9 +3442,9 @@ address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     l = len;
     mr = address_space_translate_cached(cache, addr, &addr1, &l, false,
                                         MEMTXATTRS_UNSPECIFIED);
-    return flatview_read_continue(cache->fv,
-                                  addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                  addr1, l, mr);
+    return address_space_read_continue_cached(cache, addr,
+                                              MEMTXATTRS_UNSPECIFIED, buf, len,
+                                              addr1, l, mr);
 }
 
 /* Called from RCU critical section. address_space_write_cached uses this
@@ -3394,9 +3460,9 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     l = len;
     mr = address_space_translate_cached(cache, addr, &addr1, &l, true,
                                         MEMTXATTRS_UNSPECIFIED);
-    return flatview_write_continue(cache->fv,
-                                   addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                   addr1, l, mr);
+    return address_space_write_continue_cached(cache, addr,
+                                               MEMTXATTRS_UNSPECIFIED,
+                                               buf, len, addr1, l, mr);
 }
 
 #define ARG1_DECL                MemoryRegionCache *cache
