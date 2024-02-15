@@ -942,8 +942,11 @@ void page_reset_target_data(target_ulong start, target_ulong last) { }
 
 /* The system-mode versions of these helpers are in cputlb.c.  */
 
-static void *cpu_mmu_lookup(CPUState *cpu, vaddr addr,
-                            MemOp mop, uintptr_t ra, MMUAccessType type)
+static inline QEMU_ALWAYS_INLINE void *cpu_mmu_lookup(CPUState *cpu,
+                                                      vaddr addr,
+                                                      MemOp mop,
+                                                      uintptr_t ra,
+                                                      MMUAccessType type)
 {
     int a_bits = get_alignment_bits(mop);
     void *ret;
