@@ -690,6 +690,40 @@ GEN_VEXT_TRANS(vle16_v, MO_16, r2nfvm, ld_us_op, ld_us_check)
 GEN_VEXT_TRANS(vle32_v, MO_32, r2nfvm, ld_us_op, ld_us_check)
 GEN_VEXT_TRANS(vle64_v, MO_64, r2nfvm, ld_us_op, ld_us_check)
 
+static bool ld_us_seg_op(DisasContext *s, arg_r2nfvm *a, uint8_t eew)
+{
+    uint32_t data = 0;
+    gen_helper_ldst_us *fn;
+    static gen_helper_ldst_us * const fns[2][4] = {
+        /* masked unit stride load */
+        { gen_helper_vlsege8_v_mask, gen_helper_vle16_v_mask,
+          gen_helper_vle32_v_mask, gen_helper_vle64_v_mask },
+        /* unmasked unit stride load */
+        { gen_helper_vlsege8_v, gen_helper_vle16_v,
+          gen_helper_vle32_v, gen_helper_vle64_v }
+    };
+
+    fn =  fns[a->vm][eew];
+    if (fn == NULL) {
+        return false;
+    }
+
+    /*
+     * Vector load/store instructions have the EEW encoded
+     * directly in the instructions. The maximum vector size is
+     * calculated with EMUL rather than LMUL.
+     */
+    uint8_t emul = vext_get_emul(s, eew);
+    data = FIELD_DP32(data, VDATA, VM, a->vm);
+    data = FIELD_DP32(data, VDATA, LMUL, emul);
+    data = FIELD_DP32(data, VDATA, NF, a->nf);
+    data = FIELD_DP32(data, VDATA, VTA, s->vta);
+    data = FIELD_DP32(data, VDATA, VMA, s->vma);
+    return ldst_us_trans(a->rd, a->rs1, data, fn, s, false);
+}
+
+GEN_VEXT_TRANS(vlsege8_v,  MO_8,  r2nfvm, ld_us_seg_op, ld_us_check)
+
 static bool st_us_op(DisasContext *s, arg_r2nfvm *a, uint8_t eew)
 {
     uint32_t data = 0;
@@ -726,6 +760,33 @@ GEN_VEXT_TRANS(vse8_v,  MO_8,  r2nfvm, st_us_op, st_us_check)
 GEN_VEXT_TRANS(vse16_v, MO_16, r2nfvm, st_us_op, st_us_check)
 GEN_VEXT_TRANS(vse32_v, MO_32, r2nfvm, st_us_op, st_us_check)
 GEN_VEXT_TRANS(vse64_v, MO_64, r2nfvm, st_us_op, st_us_check)
+
+static bool st_us_seg_op(DisasContext *s, arg_r2nfvm *a, uint8_t eew)
+{
+    uint32_t data = 0;
+    gen_helper_ldst_us *fn;
+    static gen_helper_ldst_us * const fns[2][4] = {
+        /* masked unit stride store */
+        { gen_helper_vssege8_v_mask, gen_helper_vse16_v_mask,
+          gen_helper_vse32_v_mask, gen_helper_vse64_v_mask },
+        /* unmasked unit stride store */
+        { gen_helper_vssege8_v, gen_helper_vse16_v,
+          gen_helper_vse32_v, gen_helper_vse64_v }
+    };
+
+    fn =  fns[a->vm][eew];
+    if (fn == NULL) {
+        return false;
+    }
+
+    uint8_t emul = vext_get_emul(s, eew);
+    data = FIELD_DP32(data, VDATA, VM, a->vm);
+    data = FIELD_DP32(data, VDATA, LMUL, emul);
+    data = FIELD_DP32(data, VDATA, NF, a->nf);
+    return ldst_us_trans(a->rd, a->rs1, data, fn, s, true);
+}
+
+GEN_VEXT_TRANS(vssege8_v,  MO_8,  r2nfvm, st_us_seg_op, st_us_check)
 
 /*
  *** unit stride mask load and store

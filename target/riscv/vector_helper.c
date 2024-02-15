@@ -202,6 +202,32 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
                  vext_ldst_elem_fn *ldst_elem,
                  uint32_t log2_esz, uintptr_t ra)
 {
+    uint32_t i;
+    uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t vma = vext_vma(desc);
+
+    for (i = env->vstart; i < env->vl; i++, env->vstart++) {
+        if (!vm && !vext_elem_mask(v0, i)) {
+            /* set masked-off elements to 1s */
+            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);
+            continue;
+        }
+        target_ulong addr = base + stride * i;
+        ldst_elem(env, adjust_addr(env, addr), i, vd, ra);
+    }
+    env->vstart = 0;
+
+    vext_set_tail_elems_1s(env->vl, vd, desc, 1, esz, max_elems);
+}
+
+static void
+vext_ldst_stride_segment(void *vd, void *v0, target_ulong base,
+                         target_ulong stride, CPURISCVState *env,
+                         uint32_t desc, uint32_t vm,
+                         vext_ldst_elem_fn *ldst_elem,
+                         uint32_t log2_esz, uintptr_t ra)
+{
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
@@ -234,8 +260,8 @@ void HELPER(NAME)(void *vd, void * v0, target_ulong base,               \
                   uint32_t desc)                                        \
 {                                                                       \
     uint32_t vm = vext_vm(desc);                                        \
-    vext_ldst_stride(vd, v0, base, stride, env, desc, vm, LOAD_FN,      \
-                     ctzl(sizeof(ETYPE)), GETPC());                     \
+    vext_ldst_stride_segment(vd, v0, base, stride, env, desc, vm,       \
+                             LOAD_FN, ctzl(sizeof(ETYPE)), GETPC());    \
 }
 
 GEN_VEXT_LD_STRIDE(vlse8_v,  int8_t,  lde_b)
@@ -249,8 +275,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,                \
                   uint32_t desc)                                        \
 {                                                                       \
     uint32_t vm = vext_vm(desc);                                        \
-    vext_ldst_stride(vd, v0, base, stride, env, desc, vm, STORE_FN,     \
-                     ctzl(sizeof(ETYPE)), GETPC());                     \
+    vext_ldst_stride_segment(vd, v0, base, stride, env, desc, vm,       \
+                             STORE_FN, ctzl(sizeof(ETYPE)), GETPC());   \
 }
 
 GEN_VEXT_ST_STRIDE(vsse8_v,  int8_t,  ste_b)
@@ -267,6 +293,26 @@ static void
 vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
              vext_ldst_elem_fn *ldst_elem, uint32_t log2_esz, uint32_t evl,
              uintptr_t ra)
+{
+    uint32_t i;
+    uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+
+    /* load bytes from guest memory */
+    for (i = env->vstart; i < evl; i++, env->vstart++) {
+        target_ulong addr = base + (i << log2_esz);
+        ldst_elem(env, adjust_addr(env, addr), i, vd, ra);
+    }
+    env->vstart = 0;
+
+    vext_set_tail_elems_1s(evl, vd, desc, 1, esz, max_elems);
+}
+
+/* unmasked unit-stride segment load and store operation */
+static void
+vext_ldst_us_segment(void *vd, target_ulong base, CPURISCVState *env,
+                     uint32_t desc, vext_ldst_elem_fn *ldst_elem,
+                     uint32_t log2_esz, uint32_t evl, uintptr_t ra)
 {
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
@@ -308,10 +354,27 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,                \
                  ctzl(sizeof(ETYPE)), env->vl, GETPC());                \
 }
 
+#define GEN_VEXT_LD_US_SEG(NAME, ETYPE, LOAD_FN)                        \
+void HELPER(NAME##_mask)(void *vd, void *v0, target_ulong base,         \
+                         CPURISCVState *env, uint32_t desc)             \
+{                                                                       \
+    uint32_t stride = vext_nf(desc) << ctzl(sizeof(ETYPE));             \
+    vext_ldst_stride_segment(vd, v0, base, stride, env, desc, false,    \
+                             LOAD_FN, ctzl(sizeof(ETYPE)), GETPC());    \
+}                                                                       \
+                                                                        \
+void HELPER(NAME)(void *vd, void *v0, target_ulong base,                \
+                  CPURISCVState *env, uint32_t desc)                    \
+{                                                                       \
+    vext_ldst_us_segment(vd, base, env, desc, LOAD_FN,                  \
+                         ctzl(sizeof(ETYPE)), env->vl, GETPC());        \
+}
+
 GEN_VEXT_LD_US(vle8_v,  int8_t,  lde_b)
-GEN_VEXT_LD_US(vle16_v, int16_t, lde_h)
-GEN_VEXT_LD_US(vle32_v, int32_t, lde_w)
-GEN_VEXT_LD_US(vle64_v, int64_t, lde_d)
+GEN_VEXT_LD_US_SEG(vlsege8_v, int8_t, lde_b)
+GEN_VEXT_LD_US_SEG(vle16_v, int16_t, lde_h)
+GEN_VEXT_LD_US_SEG(vle32_v, int32_t, lde_w)
+GEN_VEXT_LD_US_SEG(vle64_v, int64_t, lde_d)
 
 #define GEN_VEXT_ST_US(NAME, ETYPE, STORE_FN)                            \
 void HELPER(NAME##_mask)(void *vd, void *v0, target_ulong base,          \
@@ -329,10 +392,27 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,                 \
                  ctzl(sizeof(ETYPE)), env->vl, GETPC());                 \
 }
 
+#define GEN_VEXT_ST_US_SEG(NAME, ETYPE, STORE_FN)                        \
+void HELPER(NAME##_mask)(void *vd, void *v0, target_ulong base,          \
+                         CPURISCVState *env, uint32_t desc)              \
+{                                                                        \
+    uint32_t stride = vext_nf(desc) << ctzl(sizeof(ETYPE));              \
+    vext_ldst_stride_segment(vd, v0, base, stride, env, desc, false,     \
+                             STORE_FN, ctzl(sizeof(ETYPE)), GETPC());    \
+}                                                                        \
+                                                                         \
+void HELPER(NAME)(void *vd, void *v0, target_ulong base,                 \
+                  CPURISCVState *env, uint32_t desc)                     \
+{                                                                        \
+    vext_ldst_us_segment(vd, base, env, desc, STORE_FN,                  \
+                         ctzl(sizeof(ETYPE)), env->vl, GETPC());         \
+}
+
 GEN_VEXT_ST_US(vse8_v,  int8_t,  ste_b)
-GEN_VEXT_ST_US(vse16_v, int16_t, ste_h)
-GEN_VEXT_ST_US(vse32_v, int32_t, ste_w)
-GEN_VEXT_ST_US(vse64_v, int64_t, ste_d)
+GEN_VEXT_ST_US_SEG(vssege8_v, int8_t, ste_b)
+GEN_VEXT_ST_US_SEG(vse16_v, int16_t, ste_h)
+GEN_VEXT_ST_US_SEG(vse32_v, int32_t, ste_w)
+GEN_VEXT_ST_US_SEG(vse64_v, int64_t, ste_d)
 
 /*
  * unit stride mask load and store, EEW = 1
