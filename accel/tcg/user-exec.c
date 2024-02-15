@@ -963,8 +963,9 @@ static inline QEMU_ALWAYS_INLINE void *cpu_mmu_lookup(CPUState *cpu,
 
 #include "ldst_atomicity.c.inc"
 
-static uint8_t do_ld1_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
-                          uintptr_t ra, MMUAccessType access_type)
+static inline QEMU_ALWAYS_INLINE uint8_t do_ld1_mmu(CPUState *cpu, vaddr addr,
+                                                    MemOpIdx oi, uintptr_t ra,
+                                                    MMUAccessType access_type)
 {
     void *haddr;
     uint8_t ret;
