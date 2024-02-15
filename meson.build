@@ -2822,6 +2822,18 @@ config_host_data.set('CONFIG_ARM_AES_BUILTIN', cc.compiles('''
     void foo(uint8x16_t *p) { *p = vaesmcq_u8(*p); }
   '''))
 
+config_host_data.set('CONFIG_SVE_OPT', cc.compiles('''
+    #include <arm_sve.h>
+    #ifndef __ARM_FEATURE_SVE
+    __attribute__((target("+sve")))
+    #endif
+    void foo(void *p) {
+        svbool_t t = svptrue_b8();
+        svuint8_t d = svld1_u8(t, p);
+        svptest_any(t, svcmpne_n_u8(t, d, 0));
+    }
+  '''))
+
 have_pvrdma = get_option('pvrdma') \
   .require(rdma.found(), error_message: 'PVRDMA requires OpenFabrics libraries') \
   .require(cc.compiles(gnu_source_prefix + '''
@@ -4232,6 +4244,7 @@ summary_info += {'memory allocator':  get_option('malloc')}
 summary_info += {'avx2 optimization': config_host_data.get('CONFIG_AVX2_OPT')}
 summary_info += {'avx512bw optimization': config_host_data.get('CONFIG_AVX512BW_OPT')}
 summary_info += {'avx512f optimization': config_host_data.get('CONFIG_AVX512F_OPT')}
+summary_info += {'sve optimization': config_host_data.get('CONFIG_SVE_OPT')}
 summary_info += {'gcov':              get_option('b_coverage')}
 summary_info += {'thread sanitizer':  get_option('tsan')}
 summary_info += {'CFI support':       get_option('cfi')}

@@ -270,13 +270,62 @@ static bool buffer_is_zero_simd(const void *buf, size_t len)
     return vaddvq_u32(vceqzq_u32(t0)) == -4;
 }
 
+#ifdef CONFIG_SVE_OPT
+#include <arm_sve.h>
+
+#ifndef __ARM_FEATURE_SVE
+__attribute__((target("+sve")))
+#endif
+static bool buffer_is_zero_sve(const void *buf, size_t len)
+{
+    svbool_t p, t = svptrue_b8();
+    size_t i, n;
+
+    /*
+     * For the first vector, align to 16 -- reading 1 to 256 bytes.
+     * Note this routine is only called with len >= 256, which is the
+     * architectural maximum vector length: the first vector always fits.
+     */
+    i = 0;
+    n = QEMU_ALIGN_PTR_DOWN(buf + svcntb(), 16) - buf;
+    p = svwhilelt_b8(i, n);
+
+    do {
+        svuint8_t d = svld1_u8(p, buf + i);
+
+        p = svcmpne_n_u8(t, d, 0);
+        if (unlikely(svptest_any(t, p))) {
+            return false;
+        }
+        i += n;
+        n = svcntb();
+        p = svwhilelt_b8(i, len);
+    } while (svptest_any(t, p));
+
+    return true;
+}
+#endif /* CONFIG_SVE_OPT */
+
 static biz_accel_fn const accel_table[] = {
     buffer_is_zero_int_ge256,
     buffer_is_zero_simd,
+#ifdef CONFIG_SVE_OPT
+    buffer_is_zero_sve,
+#endif
 };
 
+#ifdef CONFIG_SVE_OPT
+static unsigned accel_index;
+static void __attribute__((constructor)) init_accel(void)
+{
+    accel_index = (cpuinfo & CPUINFO_SVE ? 2 : 1);
+    buffer_is_zero_accel = accel_table[accel_index];
+}
+#define INIT_ACCEL NULL
+#else
 static unsigned accel_index = 1;
 #define INIT_ACCEL buffer_is_zero_simd
+#endif /* CONFIG_SVE_OPT */
 
 bool test_buffer_is_zero_next_accel(void)
 {
