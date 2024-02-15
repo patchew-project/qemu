@@ -594,8 +594,8 @@ static void multifd_send_set_error(Error *err)
             s->state == MIGRATION_STATUS_PRE_SWITCHOVER ||
             s->state == MIGRATION_STATUS_DEVICE ||
             s->state == MIGRATION_STATUS_ACTIVE) {
-            migrate_set_state(&s->state, s->state,
-                              MIGRATION_STATUS_FAILED, NULL);
+            migrate_set_state_err_reason(&s->state, s->state,
+                                         MIGRATION_STATUS_FAILED, err);
         }
     }
 }
@@ -1086,8 +1086,8 @@ static void multifd_recv_terminate_threads(Error *err)
         migrate_set_error(s, err);
         if (s->state == MIGRATION_STATUS_SETUP ||
             s->state == MIGRATION_STATUS_ACTIVE) {
-            migrate_set_state(&s->state, s->state,
-                              MIGRATION_STATUS_FAILED, NULL);
+            migrate_set_state_err_reason(&s->state, s->state,
+                                         MIGRATION_STATUS_FAILED, err);
         }
     }
 

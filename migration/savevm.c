@@ -1700,9 +1700,9 @@ void qemu_savevm_state_cleanup(void)
 
 static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
+    ERRP_GUARD();
     int ret;
     MigrationState *ms = migrate_get_current();
-    MigrationStatus status;
 
     if (migration_is_running(ms->state)) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
@@ -1735,16 +1735,16 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         ret = qemu_file_get_error(f);
     }
     qemu_savevm_state_cleanup();
-    if (ret != 0) {
-        error_setg_errno(errp, -ret, "Error while writing VM state");
-    }
 
     if (ret != 0) {
-        status = MIGRATION_STATUS_FAILED;
+        error_setg_errno(errp, -ret, "Error while writing VM state");
+
+        migrate_set_state_err_reason(&ms->state, MIGRATION_STATUS_SETUP,
+                                     MIGRATION_STATUS_FAILED, *errp);
     } else {
-        status = MIGRATION_STATUS_COMPLETED;
+        migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP,
+                          MIGRATION_STATUS_COMPLETED, NULL);
     }
-    migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP, status, NULL);
 
     /* f is outer parameter, it should not stay in global migration state after
      * this function finished */

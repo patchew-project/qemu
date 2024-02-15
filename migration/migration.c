@@ -702,11 +702,14 @@ process_incoming_migration_co(void *opaque)
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps;
     int ret;
+    g_autofree char *fail_reason = NULL;
 
     assert(mis->from_src_file);
 
     if (compress_threads_load_setup(mis->from_src_file)) {
-        error_report("Failed to setup decompress threads");
+        fail_reason = g_strdup("Failed to setup decompress threads");
+        /* wrap with %s to silence compiler warning of non-literal in format */
+        error_report("%s", fail_reason);
         goto fail;
     }
 
@@ -750,11 +753,15 @@ process_incoming_migration_co(void *opaque)
                 error_report_err(s->error);
             }
         }
-        error_report("load of migration failed: %s", strerror(-ret));
+        fail_reason = g_strdup_printf("load of migration failed: %s",
+                                      strerror(-ret));
+        /* wrap with %s to silence compiler warning of non-literal in format */
+        error_report("%s", fail_reason);
         goto fail;
     }
 
     if (colo_incoming_co() < 0) {
+        fail_reason = g_strdup("colo_incoming failed");
         goto fail;
     }
 
@@ -762,7 +769,7 @@ process_incoming_migration_co(void *opaque)
     return;
 fail:
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                      MIGRATION_STATUS_FAILED, NULL);
+                      MIGRATION_STATUS_FAILED, fail_reason);
     qemu_fclose(mis->from_src_file);
 
     multifd_recv_cleanup();
@@ -1417,8 +1424,8 @@ static void migrate_fd_error(MigrationState *s, const Error *error)
 {
     trace_migrate_fd_error(error_get_pretty(error));
     assert(s->to_dst_file == NULL);
-    migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
-                      MIGRATION_STATUS_FAILED, NULL);
+    migrate_set_state_err_reason(&s->state, MIGRATION_STATUS_SETUP,
+                                 MIGRATION_STATUS_FAILED, error);
     migrate_set_error(s, error);
 }
 
@@ -1968,6 +1975,7 @@ void qmp_migrate(const char *uri, bool has_channels,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp)
 {
+    ERRP_GUARD();
     bool resume_requested;
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
@@ -2037,8 +2045,8 @@ void qmp_migrate(const char *uri, bool has_channels,
     } else {
         error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");
-        migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
-                          MIGRATION_STATUS_FAILED, NULL);
+        migrate_set_state_err_reason(&s->state, MIGRATION_STATUS_SETUP,
+                                     MIGRATION_STATUS_FAILED, *errp);
         block_cleanup_parameters();
     }
 
@@ -2426,6 +2434,7 @@ migration_wait_main_channel(MigrationState *ms)
  */
 static int postcopy_start(MigrationState *ms, Error **errp)
 {
+    ERRP_GUARD();
     int ret;
     QIOChannelBuffer *bioc;
     QEMUFile *fb;
@@ -2436,8 +2445,10 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     if (migrate_postcopy_preempt()) {
         migration_wait_main_channel(ms);
         if (postcopy_preempt_establish_channel(ms)) {
-            migrate_set_state(&ms->state, ms->state,
-                              MIGRATION_STATUS_FAILED, NULL);
+            error_setg(errp,
+                       "postcopy_start: establishing channel failed");
+            migrate_set_state_err_reason(&ms->state, ms->state,
+                                         MIGRATION_STATUS_FAILED, *errp);
             return -1;
         }
     }
@@ -2456,17 +2467,21 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     global_state_store();
     ret = migration_stop_vm(RUN_STATE_FINISH_MIGRATE);
     if (ret < 0) {
+        error_setg(errp, "postcopy_start: vm stop failed");
         goto fail;
     }
 
     ret = migration_maybe_pause(ms, &cur_state,
                                 MIGRATION_STATUS_POSTCOPY_ACTIVE);
     if (ret < 0) {
+        error_setg(errp, "postcopy_start: migratoin pause failed");
         goto fail;
     }
 
     ret = bdrv_inactivate_all();
     if (ret < 0) {
+        error_setg(errp,
+                   "postcopy_start: making block drivers inactive failed");
         goto fail;
     }
     restart_block = true;
@@ -2543,6 +2558,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 
     /* Now send that blob */
     if (qemu_savevm_send_packaged(ms->to_dst_file, bioc->data, bioc->usage)) {
+        error_setg(errp, "postcopy_start: blob sending failed");
         goto fail_closefb;
     }
     qemu_fclose(fb);
@@ -2573,8 +2589,9 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     ret = qemu_file_get_error(ms->to_dst_file);
     if (ret) {
         error_setg(errp, "postcopy_start: Migration stream errored");
-        migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                          MIGRATION_STATUS_FAILED, NULL);
+        migrate_set_state_err_reason(&ms->state,
+                                     MIGRATION_STATUS_POSTCOPY_ACTIVE,
+                                     MIGRATION_STATUS_FAILED, *errp);
     }
 
     trace_postcopy_preempt_enabled(migrate_postcopy_preempt());
@@ -2584,8 +2601,8 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 fail_closefb:
     qemu_fclose(fb);
 fail:
-    migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                      MIGRATION_STATUS_FAILED, NULL);
+    migrate_set_state_err_reason(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+                                 MIGRATION_STATUS_FAILED, *errp);
     if (restart_block) {
         /* A failure happened early enough that we know the destination hasn't
          * accessed block devices, so we're safe to recover.
@@ -2700,7 +2717,8 @@ static void migration_completion_postcopy(MigrationState *s)
 }
 
 static void migration_completion_failed(MigrationState *s,
-                                        int current_active_state)
+                                        int current_active_state,
+                                        const char *fail_reason)
 {
     if (s->block_inactive && (s->state == MIGRATION_STATUS_ACTIVE ||
                               s->state == MIGRATION_STATUS_DEVICE)) {
@@ -2721,7 +2739,7 @@ static void migration_completion_failed(MigrationState *s,
     }
 
     migrate_set_state(&s->state, current_active_state,
-                      MIGRATION_STATUS_FAILED, NULL);
+                      MIGRATION_STATUS_FAILED, fail_reason);
 }
 
 /**
@@ -2733,6 +2751,7 @@ static void migration_completion_failed(MigrationState *s,
 static void migration_completion(MigrationState *s)
 {
     int ret = 0;
+    const char *fail_reason = NULL;
     int current_active_state = s->state;
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
@@ -2740,6 +2759,7 @@ static void migration_completion(MigrationState *s)
     } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
         migration_completion_postcopy(s);
     } else {
+        fail_reason = "migration completion: unexpected migration state";
         ret = -1;
     }
 
@@ -2748,6 +2768,7 @@ static void migration_completion(MigrationState *s)
     }
 
     if (close_return_path_on_source(s)) {
+        fail_reason = "migration completion: return path thread close failed";
         goto fail;
     }
 
@@ -2768,7 +2789,7 @@ static void migration_completion(MigrationState *s)
     return;
 
 fail:
-    migration_completion_failed(s, current_active_state);
+    migration_completion_failed(s, current_active_state, fail_reason);
 }
 
 /**
@@ -2994,7 +3015,8 @@ static MigThrError migration_detect_error(MigrationState *s)
          * For precopy (or postcopy with error outside IO), we fail
          * with no time.
          */
-        migrate_set_state(&s->state, state, MIGRATION_STATUS_FAILED, NULL);
+        migrate_set_state_err_reason(&s->state, state,
+                                     MIGRATION_STATUS_FAILED, s->error);
         trace_migration_thread_file_err();
 
         /* Time to stop the migration, now. */
@@ -3458,6 +3480,7 @@ static void *bg_migration_thread(void *opaque)
     MigThrError thr_error;
     QEMUFile *fb;
     bool early_fail = true;
+    const char *fail_reason = NULL;
 
     rcu_register_thread();
     object_ref(OBJECT(s));
@@ -3509,6 +3532,7 @@ static void *bg_migration_thread(void *opaque)
     global_state_store();
     /* Forcibly stop VM before saving state of vCPUs and devices */
     if (migration_stop_vm(RUN_STATE_PAUSED)) {
+        fail_reason = "stopping vm failed";
         goto fail;
     }
     /*
@@ -3517,6 +3541,7 @@ static void *bg_migration_thread(void *opaque)
      */
     cpu_synchronize_all_states();
     if (qemu_savevm_state_complete_precopy_non_iterable(fb, false, false)) {
+        fail_reason = "savevm state failed";
         goto fail;
     }
     /*
@@ -3527,6 +3552,7 @@ static void *bg_migration_thread(void *opaque)
 
     /* Now initialize UFFD context and start tracking RAM writes */
     if (ram_write_tracking_start()) {
+        fail_reason = "starting UFFD-WP memory tracking failed";
         goto fail;
     }
     early_fail = false;
@@ -3566,7 +3592,7 @@ static void *bg_migration_thread(void *opaque)
 fail:
     if (early_fail) {
         migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
-                          MIGRATION_STATUS_FAILED, NULL);
+                          MIGRATION_STATUS_FAILED, fail_reason);
         bql_unlock();
     }
 
