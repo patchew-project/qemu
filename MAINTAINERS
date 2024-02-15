@@ -490,6 +490,7 @@ L: kvm@vger.kernel.org
 S: Supported
 F: docs/system/i386/amd-memory-encryption.rst
 F: docs/system/i386/sgx.rst
+F: hw/i386/kvm/
 F: target/i386/kvm/
 F: target/i386/sev*
 F: scripts/kvm/vmxcap
