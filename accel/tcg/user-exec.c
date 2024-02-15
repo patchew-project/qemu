@@ -1050,8 +1050,9 @@ static Int128 do_ld16_mmu(CPUState *cpu, abi_ptr addr,
     return ret;
 }
 
-static void do_st1_mmu(CPUState *cpu, vaddr addr, uint8_t val,
-                       MemOpIdx oi, uintptr_t ra)
+static inline QEMU_ALWAYS_INLINE void do_st1_mmu(CPUState *cpu, vaddr addr,
+                                                 uint8_t val, MemOpIdx oi,
+                                                 uintptr_t ra)
 {
     void *haddr;
 
