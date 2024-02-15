@@ -2019,6 +2019,7 @@ static uint64_t do_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
                                int mmu_idx, MMUAccessType type, uintptr_t ra)
 {
     MemoryRegionSection *section;
+    bool locked = bql_locked();
     MemoryRegion *mr;
     hwaddr mr_offset;
     MemTxAttrs attrs;
@@ -2030,10 +2031,14 @@ static uint64_t do_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
     section = io_prepare(&mr_offset, cpu, full->xlat_section, attrs, addr, ra);
     mr = section->mr;
 
-    bql_lock();
+    if (!locked) {
+        bql_lock();
+    }
     ret = int_ld_mmio_beN(cpu, full, ret_be, addr, size, mmu_idx,
                           type, ra, mr, mr_offset);
-    bql_unlock();
+    if (!locked) {
+        bql_unlock();
+    }
 
     return ret;
 }
