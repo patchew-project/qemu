@@ -2681,10 +2681,7 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
                                            hwaddr len, hwaddr addr1,
                                            hwaddr l, MemoryRegion *mr)
 {
-    uint8_t *ram_ptr;
-    uint64_t val;
     MemTxResult result = MEMTX_OK;
-    bool release_lock = false;
     const uint8_t *buf = ptr;
 
     for (;;) {
@@ -2692,7 +2689,9 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
             result |= MEMTX_ACCESS_ERROR;
             /* Keep going. */
         } else if (!memory_access_is_direct(mr, true)) {
-            release_lock |= prepare_mmio_access(mr);
+            uint64_t val;
+            bool release_lock = prepare_mmio_access(mr);
+
             l = memory_access_size(mr, l, addr1);
             /* XXX: could force current_cpu to NULL to avoid
                potential bugs */
@@ -2710,16 +2709,17 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
             val = ldn_he_p(buf, l);
             result |= memory_region_dispatch_write(mr, addr1, val,
                                                    size_memop(l), attrs);
+            if (release_lock) {
+                bql_unlock();
+            }
+
+
         } else {
             /* RAM case */
-            ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
+            uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l,
+                                                   false);
             memmove(ram_ptr, buf, l);
             invalidate_and_set_dirty(mr, addr1, l);
-        }
-
-        if (release_lock) {
-            bql_unlock();
-            release_lock = false;
         }
 
         len -= l;
@@ -2760,10 +2760,7 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    hwaddr len, hwaddr addr1, hwaddr l,
                                    MemoryRegion *mr)
 {
-    uint8_t *ram_ptr;
-    uint64_t val;
     MemTxResult result = MEMTX_OK;
-    bool release_lock = false;
     uint8_t *buf = ptr;
 
     fuzz_dma_read_cb(addr, len, mr);
@@ -2773,7 +2770,9 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
             /* Keep going. */
         } else if (!memory_access_is_direct(mr, false)) {
             /* I/O case */
-            release_lock |= prepare_mmio_access(mr);
+            uint64_t val;
+            bool release_lock = prepare_mmio_access(mr);
+
             l = memory_access_size(mr, l, addr1);
             result |= memory_region_dispatch_read(mr, addr1, &val,
                                                   size_memop(l), attrs);
@@ -2789,15 +2788,14 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                    (l == 8 && len >= 8));
 #endif
             stn_he_p(buf, l, val);
+            if (release_lock) {
+                bql_unlock();
+            }
         } else {
             /* RAM case */
-            ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
+            uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l,
+                                                   false);
             memcpy(buf, ram_ptr, l);
-        }
-
-        if (release_lock) {
-            bql_unlock();
-            release_lock = false;
         }
 
         len -= l;
