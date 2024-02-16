@@ -1616,11 +1616,11 @@ static const VMStateDescription vmstate_amdvi_sysbus = {
     .unmigratable = 1
 };
 
-static void amdvi_sysbus_instance_init(Object *klass)
+static void amdvi_sysbus_instance_init(Object *obj)
 {
-    AMDVIState *s = AMD_IOMMU_DEVICE(klass);
+    AMDVIState *s = AMD_IOMMU_DEVICE(obj);
 
-    object_initialize(&s->pci, sizeof(s->pci), TYPE_AMD_IOMMU_PCI);
+    object_initialize_child(obj, "iommu", &s->pci, TYPE_AMD_IOMMU_PCI);
 }
 
 static void amdvi_sysbus_class_init(ObjectClass *klass, void *data)
