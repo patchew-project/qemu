@@ -374,10 +374,9 @@ static void disable_gdbstub(void)
     }
 }
 
-/* Disable gdb stub for child processes.  */
-void gdbserver_fork(pid_t pid)
+void gdbserver_fork_end(pid_t pid)
 {
-    if (!gdbserver_state.init || gdbserver_user_state.fd < 0) {
+    if (pid != 0 || !gdbserver_state.init || gdbserver_user_state.fd < 0) {
         return;
     }
     disable_gdbstub();

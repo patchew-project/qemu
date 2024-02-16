@@ -164,10 +164,10 @@ void fork_end(abi_long pid)
         }
         qemu_init_cpu_list();
         ((TaskState *)thread_cpu->opaque)->ts_tid = qemu_get_thread_id();
-        gdbserver_fork(pid);
     } else {
         cpu_list_unlock();
     }
+    gdbserver_fork_end(pid);
     /*
      * qemu_init_cpu_list() reinitialized the child exclusive state, but we
      * also need to keep current_cpu consistent, so call end_exclusive() for
