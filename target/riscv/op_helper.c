@@ -347,6 +347,12 @@ target_ulong helper_mret(CPURISCVState *env)
         mstatus = set_field(mstatus, MSTATUS_MPRV, 0);
     }
     env->mstatus = mstatus;
+
+    uint64_t tcontrol = env->tcontrol;
+    tcontrol = set_field(tcontrol, TCONTROL_MTE,
+                         get_field(tcontrol, TCONTROL_MPTE));
+    env->tcontrol = tcontrol;
+
     riscv_cpu_set_mode(env, prev_priv);
 
     if (riscv_has_ext(env, RVH)) {
