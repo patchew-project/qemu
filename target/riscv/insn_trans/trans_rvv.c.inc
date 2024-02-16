@@ -638,10 +638,7 @@ static bool ldst_us_trans(uint32_t vd, uint32_t rs1, uint32_t data,
 
     fn(dest, mask, base, tcg_env, desc);
 
-    if (!is_store) {
-        mark_vs_dirty(s);
-    }
-
+    mark_vs_dirty(s);
     gen_set_label(over);
     return true;
 }
@@ -799,10 +796,7 @@ static bool ldst_stride_trans(uint32_t vd, uint32_t rs1, uint32_t rs2,
 
     fn(dest, mask, base, stride, tcg_env, desc);
 
-    if (!is_store) {
-        mark_vs_dirty(s);
-    }
-
+    mark_vs_dirty(s);
     gen_set_label(over);
     return true;
 }
@@ -906,10 +900,7 @@ static bool ldst_index_trans(uint32_t vd, uint32_t rs1, uint32_t vs2,
 
     fn(dest, mask, base, index, tcg_env, desc);
 
-    if (!is_store) {
-        mark_vs_dirty(s);
-    }
-
+    mark_vs_dirty(s);
     gen_set_label(over);
     return true;
 }
@@ -1104,9 +1095,7 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
 
     fn(dest, base, tcg_env, desc);
 
-    if (!is_store) {
-        mark_vs_dirty(s);
-    }
+    mark_vs_dirty(s);
     gen_set_label(over);
 
     return true;
