@@ -3937,6 +3937,20 @@ static RISCVException read_tinfo(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException read_tcontrol(CPURISCVState *env, int csrno,
+                                    target_ulong *val)
+{
+    *val = env->tcontrol;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_tcontrol(CPURISCVState *env, int csrno,
+                                     target_ulong val)
+{
+    env->tcontrol = val & (TCONTROL_MPTE | TCONTROL_MTE);
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_mcontext(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
@@ -4861,6 +4875,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_TDATA2]    =  { "tdata2",   debug, read_tdata,    write_tdata    },
     [CSR_TDATA3]    =  { "tdata3",   debug, read_tdata,    write_tdata    },
     [CSR_TINFO]     =  { "tinfo",    debug, read_tinfo,    write_ignore   },
+    [CSR_TCONTROL]  =  { "tcontrol", debug, read_tcontrol, write_tcontrol },
     [CSR_MCONTEXT]  =  { "mcontext", debug, read_mcontext, write_mcontext },
 
     /* User Pointer Masking */
