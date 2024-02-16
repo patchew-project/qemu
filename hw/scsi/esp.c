@@ -265,7 +265,7 @@ static void esp_do_nodma(ESPState *s);
 
 static void do_command_phase(ESPState *s)
 {
-    uint32_t cmdlen;
+    uint32_t cmdlen, n;
     int32_t datalen;
     SCSIDevice *current_lun;
     uint8_t buf[ESP_CMDFIFO_SZ];
@@ -275,7 +275,7 @@ static void do_command_phase(ESPState *s)
     if (!cmdlen || !s->current_dev) {
         return;
     }
-    esp_fifo_pop_buf(&s->cmdfifo, buf, cmdlen);
+    memcpy(buf, fifo8_pop_buf(&s->cmdfifo, cmdlen, &n), cmdlen);
 
     current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, s->lun);
     if (!current_lun) {
