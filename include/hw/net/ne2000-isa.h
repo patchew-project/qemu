@@ -22,7 +22,7 @@ static inline ISADevice *isa_ne2000_init(ISABus *bus, int base, int irq,
 {
     ISADevice *d;
 
-    d = isa_try_new(TYPE_ISA_NE2000);
+    d = ISA_DEVICE(qdev_try_new(TYPE_ISA_NE2000));
     if (d) {
         DeviceState *dev = DEVICE(d);
 
