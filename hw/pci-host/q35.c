@@ -165,10 +165,10 @@ static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
 /*
  * NOTE: setting defaults for the mch.* fields in this table
  * doesn't work, because mch is a separate QOM object that is
- * zeroed by the object_initialize(&s->mch, ...) call inside
+ * zeroed by the object_initialize_child(..., &s->mch, ...) call inside
  * q35_host_initfn().  The default values for those
  * properties need to be initialized manually by
- * q35_host_initfn() after the object_initialize() call.
+ * q35_host_initfn() after the object_initialize_child() call.
  */
 static Property q35_host_props[] = {
     DEFINE_PROP_UINT64(PCIE_HOST_MCFG_BASE, Q35PCIHost, parent_obj.base_addr,
@@ -211,7 +211,7 @@ static void q35_host_initfn(Object *obj)
     object_initialize_child(OBJECT(s), "mch", &s->mch, TYPE_MCH_PCI_DEVICE);
     qdev_prop_set_int32(DEVICE(&s->mch), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(&s->mch), "multifunction", false);
-    /* mch's object_initialize resets the default value, set it again */
+    /* mch's object_initialize_child resets the default value, set it again */
     qdev_prop_set_uint64(DEVICE(s), PCI_HOST_PROP_PCI_HOLE64_SIZE,
                          Q35_PCI_HOST_HOLE64_SIZE_DEFAULT);
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
