@@ -26,6 +26,7 @@
 #include "qapi/qobject-output-visitor.h"
 #include "crypto/tlscredspsk.h"
 #include "qapi/qmp/qlist.h"
+#include "qemu/cutils.h"
 
 #include "migration-helpers.h"
 #include "tests/migration/migration-test.h"
@@ -2516,6 +2517,86 @@ static void test_validate_uuid_dst_not_set(void)
     do_test_validate_uuid(&args, false);
 }
 
+static MigrationChannelList *uri_to_channels(const char *uri)
+{
+    MigrationChannelList *channels = g_new0(MigrationChannelList, 1);
+    MigrationChannel *val = g_new0(MigrationChannel, 1);
+    MigrationAddress *addr = g_new0(MigrationAddress, 1);
+    char **saddr;
+
+    addr->transport = MIGRATION_ADDRESS_TYPE_SOCKET;
+
+    saddr = g_strsplit((char *)uri, ":", 3);
+    if (!saddr[0] || saddr[0] != g_strdup("tcp")) {
+        fprintf(stderr, "%s: Invalid URI: %s\n", __func__, uri);
+    }
+    addr->u.socket.type = SOCKET_ADDRESS_TYPE_INET;
+    addr->u.socket.u.inet.host = g_strdup(saddr[1]);
+    addr->u.socket.u.inet.port = g_strdup(saddr[2]);
+    g_strfreev(saddr);
+
+    val->channel_type = MIGRATION_CHANNEL_TYPE_MAIN;
+    val->addr = addr;
+    channels->value = val;
+
+    return channels;
+}
+
+static void do_test_validate_uri_channel(MigrateCommon *args, bool should_fail)
+{
+    QTestState *from, *to;
+
+    if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
+        return;
+    }
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    /*
+     * 'uri' and 'channels' validation is checked even before the migration
+     * starts.
+     */
+    if (args->result == MIG_TEST_QMP_ERROR) {
+        migrate_qmp_fail(from, 
+                args->connect_uri ? args->connect_uri : NULL,
+                args->connect_channels ? args->connect_channels : NULL, "{}");
+        goto finish;
+    }
+
+    migrate_qmp(from,
+                args->connect_uri ? args->connect_uri : NULL,
+                args->connect_channels ? args->connect_channels : NULL, "{}");
+
+    if (should_fail) {
+        qtest_set_expected_status(to, EXIT_FAILURE);
+        wait_for_migration_fail(from, false);
+    } else {
+        wait_for_migration_complete(from);
+    }
+
+finish:
+    test_migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
+}
+
+static void
+test_validate_uri_channels_both_set(void)
+{
+    g_autofree char *uri = g_strdup("tcp:127.0.0.1:0");
+
+    MigrateCommon args = {
+        .start = {
+            .hide_stderr = true,
+        },
+        .connect_uri = uri,
+        .connect_channels = uri_to_channels(uri),
+        .listen_uri = "defer",
+        .result = MIG_TEST_QMP_ERROR,
+    };
+
+    do_test_validate_uri_channel(&args, true);
+}
+
 /*
  * The way auto_converge works, we need to do too many passes to
  * run this test.  Auto_converge logic is only run once every
@@ -3544,6 +3625,8 @@ int main(int argc, char **argv)
                        test_validate_uuid_src_not_set);
     migration_test_add("/migration/validate_uuid_dst_not_set",
                        test_validate_uuid_dst_not_set);
+    migration_test_add("/migration/validate_uri/channels/both_set",
+                       test_validate_uri_channels_both_set);
     /*
      * See explanation why this test is slow on function definition
      */
