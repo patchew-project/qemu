@@ -1806,6 +1806,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             riscv_cpu_set_virt_enabled(env, 0);
         }
 
+        /* Trapping to M-mode. Set tcontrol CSR in debug Sdtrig extension. */
+        s = env->tcontrol;
+        s = set_field(s, TCONTROL_MPTE, get_field(s, TCONTROL_MTE));
+        s = set_field(s, TCONTROL_MTE, 0);
+        env->tcontrol = s;
+
         s = env->mstatus;
         s = set_field(s, MSTATUS_MPIE, get_field(s, MSTATUS_MIE));
         s = set_field(s, MSTATUS_MPP, env->priv);
