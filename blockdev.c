@@ -2852,7 +2852,36 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
+    if ((sync == MIRROR_SYNC_MODE_BITMAP) ||
+        (sync == MIRROR_SYNC_MODE_INCREMENTAL)) {
+        /* done before desugaring 'incremental' to print the right message */
+        if (!bitmap_name) {
+            error_setg(errp, "Must provide a valid bitmap name for "
+                       "'%s' sync mode", MirrorSyncMode_str(sync));
+            return;
+        }
+    }
+
+    if (sync == MIRROR_SYNC_MODE_INCREMENTAL) {
+        if (has_bitmap_mode &&
+            bitmap_mode != BITMAP_SYNC_MODE_ON_SUCCESS) {
+            error_setg(errp, "Bitmap sync mode must be '%s' "
+                       "when using sync mode '%s'",
+                       BitmapSyncMode_str(BITMAP_SYNC_MODE_ON_SUCCESS),
+                       MirrorSyncMode_str(sync));
+            return;
+        }
+        has_bitmap_mode = true;
+        sync = MIRROR_SYNC_MODE_BITMAP;
+        bitmap_mode = BITMAP_SYNC_MODE_ON_SUCCESS;
+    }
+
     if (bitmap_name) {
+        if (sync != MIRROR_SYNC_MODE_BITMAP) {
+            error_setg(errp, "Sync mode '%s' not supported with bitmap.",
+                       MirrorSyncMode_str(sync));
+            return;
+        }
         if (granularity) {
             error_setg(errp, "Granularity and bitmap cannot both be set");
             return;

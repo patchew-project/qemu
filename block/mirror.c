@@ -1755,31 +1755,13 @@ static BlockJob *mirror_start_job(
 
     GLOBAL_STATE_CODE();
 
-    if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
-        error_setg(errp, "Sync mode '%s' not supported",
-                   MirrorSyncMode_str(sync_mode));
-        return NULL;
-    } else if (sync_mode == MIRROR_SYNC_MODE_BITMAP) {
-        if (!bitmap) {
-            error_setg(errp, "Must provide a valid bitmap name for '%s'"
-                       " sync mode",
-                       MirrorSyncMode_str(sync_mode));
-            return NULL;
-        }
-    } else if (bitmap) {
-        error_setg(errp,
-                   "sync mode '%s' is not compatible with bitmaps",
-                   MirrorSyncMode_str(sync_mode));
-        return NULL;
-    }
+    /* QMP interface protects us from these cases */
+    assert(sync_mode != MIRROR_SYNC_MODE_INCREMENTAL);
+    assert((bitmap && sync_mode == MIRROR_SYNC_MODE_BITMAP) ||
+           (!bitmap && sync_mode != MIRROR_SYNC_MODE_BITMAP));
+    assert(!(bitmap && granularity));
 
     if (bitmap) {
-        if (granularity) {
-            error_setg(errp, "granularity (%d)"
-                       "cannot be specified when a bitmap is provided",
-                       granularity);
-            return NULL;
-        }
         granularity = bdrv_dirty_bitmap_granularity(bitmap);
 
         if (bitmap_mode != BITMAP_SYNC_MODE_NEVER) {
