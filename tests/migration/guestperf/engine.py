@@ -92,6 +92,8 @@ class Engine(object):
                 info["ram"].get("skipped", 0),
                 info["ram"].get("normal", 0),
                 info["ram"].get("normal-bytes", 0),
+                info["ram"].get("zero", 0);
+                info["ram"].get("zero-bytes", 0);
                 info["ram"].get("dirty-pages-rate", 0),
                 info["ram"].get("mbps", 0),
                 info["ram"].get("dirty-sync-count", 0)

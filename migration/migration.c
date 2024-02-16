@@ -1112,6 +1112,8 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->skipped = 0;
     info->ram->normal = stat64_get(&mig_stats.normal_pages);
     info->ram->normal_bytes = info->ram->normal * page_size;
+    info->ram->zero = stat64_get(&mig_stats.zero_pages);
+    info->ram->zero_bytes = info->ram->zero * page_size;
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count =
         stat64_get(&mig_stats.dirty_sync_count);
