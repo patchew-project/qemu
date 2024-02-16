@@ -654,6 +654,17 @@
   'data': [ 'normal', 'cpr-reboot' ] }
 
 ##
+# @ZeroPageDetection:
+#
+# @legacy: Perform zero page checking from main migration thread. (since 9.0)
+#
+# @none: Do not perform zero page checking.
+#
+##
+{ 'enum': 'ZeroPageDetection',
+  'data': [ 'legacy', 'none' ] }
+
+##
 # @BitmapMigrationBitmapAliasTransform:
 #
 # @persistent: If present, the bitmap will be made persistent or
@@ -874,6 +885,9 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @zero-page-detection: See description in @ZeroPageDetection.
+#     Default is 'legacy'. (Since 9.0)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -907,7 +921,8 @@
            'block-bitmap-mapping',
            { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
            'vcpu-dirty-limit',
-           'mode'] }
+           'mode',
+           'zero-page-detection'] }
 
 ##
 # @MigrateSetParameters:
@@ -1066,6 +1081,10 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @zero-page-detection: See description in @ZeroPageDetection.
+#     Default is 'legacy'. (Since 9.0)
+#
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1119,7 +1138,8 @@
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
-            '*mode': 'MigMode'} }
+            '*mode': 'MigMode',
+            '*zero-page-detection': 'ZeroPageDetection'} }
 
 ##
 # @migrate-set-parameters:
@@ -1294,6 +1314,9 @@
 # @mode: Migration mode. See description in @MigMode. Default is 'normal'.
 #        (Since 8.2)
 #
+# @zero-page-detection: See description in @ZeroPageDetection.
+#     Default is 'legacy'. (Since 9.0)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1344,7 +1367,8 @@
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
-            '*mode': 'MigMode'} }
+            '*mode': 'MigMode',
+            '*zero-page-detection': 'ZeroPageDetection'} }
 
 ##
 # @query-migrate-parameters:
