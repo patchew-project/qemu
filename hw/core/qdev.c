@@ -171,7 +171,7 @@ DeviceState *qdev_try_new(const char *name)
     if (!module_object_class_by_name(name)) {
         return NULL;
     }
-    return DEVICE(object_new(name));
+    return qdev_new(name);
 }
 
 static QTAILQ_HEAD(, DeviceListener) device_listeners
