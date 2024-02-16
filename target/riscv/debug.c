@@ -941,5 +941,6 @@ void riscv_trigger_reset_hold(CPURISCVState *env)
         timer_del(env->itrigger_timer[i]);
     }
 
+    env->tcontrol = 0;
     env->mcontext = 0;
 }
