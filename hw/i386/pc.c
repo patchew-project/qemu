@@ -1227,6 +1227,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
      */
     if (pcms->hpet_enabled) {
         qemu_irq rtc_irq;
+        uint8_t compat;
 
         hpet = qdev_try_new(TYPE_HPET);
         if (!hpet) {
@@ -1238,8 +1239,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
          * use IRQ16~23, IRQ8 and IRQ2.  If the user has already set
          * the property, use whatever mask they specified.
          */
-        uint8_t compat = object_property_get_uint(OBJECT(hpet),
-                HPET_INTCAP, NULL);
+        compat = object_property_get_uint(OBJECT(hpet), HPET_INTCAP, NULL);
         if (!compat) {
             qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
         }
