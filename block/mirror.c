@@ -689,8 +689,6 @@ static int mirror_exit_common(Job *job)
         bdrv_unfreeze_backing_chain(mirror_top_bs, target_bs);
     }
 
-    bdrv_release_dirty_bitmap(s->dirty_bitmap);
-
     /* Make sure that the source BDS doesn't go away during bdrv_replace_node,
      * before we can call bdrv_drained_end */
     bdrv_ref(src);
@@ -795,6 +793,18 @@ static int mirror_exit_common(Job *job)
 
     bdrv_drained_end(target_bs);
     bdrv_unref(target_bs);
+
+    if (s->sync_bitmap) {
+        if (s->bitmap_mode == BITMAP_SYNC_MODE_ALWAYS ||
+            (s->bitmap_mode == BITMAP_SYNC_MODE_ON_SUCCESS &&
+             job->ret == 0 && ret == 0)) {
+            /* Success; synchronize copy back to sync. */
+            bdrv_clear_dirty_bitmap(s->sync_bitmap, NULL);
+            bdrv_dirty_bitmap_merge_internal(s->sync_bitmap, s->dirty_bitmap,
+                                             NULL, true);
+        }
+    }
+    bdrv_release_dirty_bitmap(s->dirty_bitmap);
 
     bs_opaque->job = NULL;
 
@@ -1755,10 +1765,6 @@ static BlockJob *mirror_start_job(
                        " sync mode",
                        MirrorSyncMode_str(sync_mode));
             return NULL;
-        } else if (bitmap_mode != BITMAP_SYNC_MODE_NEVER) {
-            error_setg(errp,
-                       "Bitmap Sync Mode '%s' is not supported by Mirror",
-                       BitmapSyncMode_str(bitmap_mode));
         }
     } else if (bitmap) {
         error_setg(errp,
@@ -1775,6 +1781,12 @@ static BlockJob *mirror_start_job(
             return NULL;
         }
         granularity = bdrv_dirty_bitmap_granularity(bitmap);
+
+        if (bitmap_mode != BITMAP_SYNC_MODE_NEVER) {
+            if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, errp)) {
+                return NULL;
+            }
+        }
     } else if (granularity == 0) {
         granularity = bdrv_get_default_bitmap_granularity(target);
     }

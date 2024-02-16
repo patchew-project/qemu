@@ -2873,6 +2873,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_ALLOW_RO, errp)) {
             return;
         }
+    } else if (has_bitmap_mode) {
+        error_setg(errp, "Cannot specify bitmap sync mode without a bitmap");
+        return;
     }
 
     if (!replaces) {
