@@ -3405,6 +3405,11 @@ F: tests/migration/
 F: util/userfaultfd.c
 X: migration/rdma*
 
+Migration multifd zero page checking acceleration
+M: Hao Xiang <hao.xiang@bytedance.com>
+S: Maintained
+F: migration/multifd-zero-page.c
+
 RDMA Migration
 R: Li Zhijian <lizhijian@fujitsu.com>
 R: Peter Xu <peterx@redhat.com>
