@@ -259,7 +259,7 @@ static RegisterInfoArray *register_init_block(DeviceState *owner,
         RegisterInfo *r = &ri[index];
 
         /* Init the register, this will zero it. */
-        object_initialize((void *)r, sizeof(*r), TYPE_REGISTER);
+        object_initialize_child(OBJECT(owner), "reg[*]", r, TYPE_REGISTER);
 
         /* Set the properties of the register */
         r->data = data + data_size * index;
