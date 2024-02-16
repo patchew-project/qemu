@@ -60,7 +60,7 @@ DECLARE_INSTANCE_CHECKER(PREPPCIState, RAVEN_PCI_HOST_BRIDGE,
 struct PRePPCIState {
     PCIHostState parent_obj;
 
-    OrIRQState *or_irq;
+    OrIRQState or_irq;
     qemu_irq pci_irqs[PCI_NUM_PINS];
     PCIBus pci_bus;
     AddressSpace pci_io_as;
@@ -250,14 +250,14 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     } else {
         /* According to PReP specification section 6.1.6 "System Interrupt
          * Assignments", all PCI interrupts are routed via IRQ 15 */
-        s->or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
-        object_property_set_int(OBJECT(s->or_irq), "num-lines", PCI_NUM_PINS,
+        object_initialize_child(OBJECT(dev), "or-irq", &s->or_irq, TYPE_OR_IRQ);
+        object_property_set_int(OBJECT(&s->or_irq), "num-lines", PCI_NUM_PINS,
                                 &error_fatal);
-        qdev_realize(DEVICE(s->or_irq), NULL, &error_fatal);
-        sysbus_init_irq(dev, &s->or_irq->out_irq);
+        qdev_realize(DEVICE(&s->or_irq), NULL, &error_fatal);
+        sysbus_init_irq(dev, &s->or_irq.out_irq);
 
         for (i = 0; i < PCI_NUM_PINS; i++) {
-            s->pci_irqs[i] = qdev_get_gpio_in(DEVICE(s->or_irq), i);
+            s->pci_irqs[i] = qdev_get_gpio_in(DEVICE(&s->or_irq), i);
         }
     }
 
