@@ -410,7 +410,8 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
                       PCI_DEVFN(11, 0), TYPE_PCI_BUS);
     h->bus = &s->pci_bus;
 
-    object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_VERSATILE_PCI_HOST);
+    object_initialize_child(OBJECT(dev), "pci-func0",
+                            &s->pci_dev, TYPE_VERSATILE_PCI_HOST);
 
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
