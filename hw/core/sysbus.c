@@ -304,11 +304,6 @@ void sysbus_add_io(SysBusDevice *dev, hwaddr addr,
     memory_region_add_subregion(get_system_io(), addr, mem);
 }
 
-MemoryRegion *sysbus_address_space(SysBusDevice *dev)
-{
-    return get_system_memory();
-}
-
 static void sysbus_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
