@@ -652,9 +652,13 @@ static inline void mark_fs_dirty(DisasContext *ctx) { }
  */
 static void mark_vs_dirty(DisasContext *ctx)
 {
+    TCGLabel *vstart_zero, *done;
     TCGv tmp;
 
     if (ctx->mstatus_vs != EXT_STATUS_DIRTY) {
+        vstart_zero = gen_new_label();
+        done = gen_new_label();
+
         /* Remember the state change for the rest of the TB.  */
         ctx->mstatus_vs = EXT_STATUS_DIRTY;
 
@@ -668,6 +672,24 @@ static void mark_vs_dirty(DisasContext *ctx)
             tcg_gen_ori_tl(tmp, tmp, MSTATUS_VS);
             tcg_gen_st_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
         }
+
+        /*
+         * We can safely make 'vl_eq_vlmax = false' if we marked
+         * VS as dirty with non-zero 'vstart', i.e. there's a fault
+         * to be handled. If 'vstart' is zero then we should retain
+         * the existing 'vl_eq_vlmax' - it'll be recalculated on the
+         * start of the next TB or during vset{i}vl{i} (that forces a
+         * TB end).
+         */
+        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vstart, 0, vstart_zero);
+        ctx->vstart_eq_zero = false;
+        ctx->vl_eq_vlmax = false;
+        tcg_gen_br(done);
+
+        gen_set_label(vstart_zero);
+        ctx->vstart_eq_zero = true;
+
+        gen_set_label(done);
     }
 }
 #else
