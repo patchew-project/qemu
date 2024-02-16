@@ -660,9 +660,11 @@
 #
 # @none: Do not perform zero page checking.
 #
+# @multifd: Perform zero page checking on the multifd sender thread. (since 9.0)
+#
 ##
 { 'enum': 'ZeroPageDetection',
-  'data': [ 'legacy', 'none' ] }
+  'data': [ 'legacy', 'none', 'multifd' ] }
 
 ##
 # @BitmapMigrationBitmapAliasTransform:
