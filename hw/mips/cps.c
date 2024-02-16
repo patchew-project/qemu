@@ -84,6 +84,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         /* All cores use the same clock tree */
         qdev_connect_clock_in(DEVICE(cpu), "clk-in", s->clock);
 
+        object_property_add_child(OBJECT(dev), "cpu[*]", OBJECT(cpu));
         if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
             return;
         }

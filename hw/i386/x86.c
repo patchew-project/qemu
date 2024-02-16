@@ -102,6 +102,7 @@ void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
     if (!object_property_set_uint(cpu, "apic-id", apic_id, errp)) {
         goto out;
     }
+    object_property_add_child(OBJECT(x86ms), "cpu[*]", OBJECT(cpu));
     qdev_realize(DEVICE(cpu), NULL, errp);
 
 out:

@@ -95,6 +95,7 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
     cpu->exception_addr = 0xc8000120;
     cpu->fast_tlb_miss_addr = 0xc0000100;
 
+    object_property_add_child(OBJECT(machine), "cpu", OBJECT(cpu));
     qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
 
     if (nms->vic) {

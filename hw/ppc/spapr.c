@@ -2715,6 +2715,7 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
                                     &error_fatal);
             object_property_set_int(core, CPU_CORE_PROP_CORE_ID, core_id,
                                     &error_fatal);
+            object_property_add_child(OBJECT(spapr), "cpu[*]", OBJECT(core));
             qdev_realize(DEVICE(core), NULL, &error_fatal);
 
             object_unref(core);
