@@ -309,6 +309,8 @@ static void do_command_phase(ESPState *s)
 
 static void do_message_phase(ESPState *s)
 {
+    uint32_t n;
+
     if (s->cmdfifo_cdb_offset) {
         uint8_t message = esp_fifo_pop(&s->cmdfifo);
 
@@ -320,7 +322,10 @@ static void do_message_phase(ESPState *s)
     /* Ignore extended messages for now */
     if (s->cmdfifo_cdb_offset) {
         int len = MIN(s->cmdfifo_cdb_offset, fifo8_num_used(&s->cmdfifo));
-        esp_fifo_pop_buf(&s->cmdfifo, NULL, len);
+
+        if (len) {
+            fifo8_pop_buf(&s->cmdfifo, len, &n);
+        }
         s->cmdfifo_cdb_offset = 0;
     }
 }
