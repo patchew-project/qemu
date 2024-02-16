@@ -704,6 +704,13 @@ typedef struct {
      */
     const char *connect_uri;
 
+    /*
+     * Optional: list of migration stream channels, each connected
+     * to a dst QEMU. It can be used instead of URI to carry out
+     * the same task as listen_uri or connect_uri.
+     */
+    MigrationChannelList *connect_channels;
+
     /* Optional: callback to run at start to set migration parameters */
     TestMigrateStartHook start_hook;
     /* Optional: callback to run at finish to cleanup */
