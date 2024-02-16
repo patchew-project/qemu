@@ -291,7 +291,6 @@ static void raven_pcihost_initfn(Object *obj)
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(obj);
     MemoryRegion *address_space_mem = get_system_memory();
-    DeviceState *pci_dev;
 
     memory_region_init(&s->pci_io, obj, "pci-io", 0x3f800000);
     memory_region_init_io(&s->pci_io_non_contiguous, obj, &raven_io_ops, s,
@@ -329,11 +328,10 @@ static void raven_pcihost_initfn(Object *obj)
 
     h->bus = &s->pci_bus;
 
-    object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_RAVEN_PCI_DEVICE);
-    pci_dev = DEVICE(&s->pci_dev);
+    object_initialize_child(obj, "bridge", &s->pci_dev, TYPE_RAVEN_PCI_DEVICE);
     object_property_set_int(OBJECT(&s->pci_dev), "addr", PCI_DEVFN(0, 0),
                             NULL);
-    qdev_prop_set_bit(pci_dev, "multifunction", false);
+    qdev_prop_set_bit(DEVICE(&s->pci_dev), "multifunction", false);
 }
 
 static void raven_realize(PCIDevice *d, Error **errp)
