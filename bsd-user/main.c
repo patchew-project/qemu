@@ -109,8 +109,10 @@ void fork_start(void)
     gdbserver_fork_start();
 }
 
-void fork_end(int child)
+void fork_end(abi_long pid)
 {
+    int child = pid == 0;
+
     if (child) {
         CPUState *cpu, *next_cpu;
         /*

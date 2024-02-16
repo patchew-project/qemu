@@ -180,7 +180,7 @@ void cpu_loop(CPUArchState *env);
 char *target_strerror(int err);
 int get_osversion(void);
 void fork_start(void);
-void fork_end(int child);
+void fork_end(abi_long pid);
 
 #include "qemu/log.h"
 
