@@ -18,6 +18,7 @@
 #include "target/ppc/cpu.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "sysemu/watchdog.h"
 
 #include "hw/ppc/spapr.h"
 
@@ -114,7 +115,7 @@ static void watchdog_expired(void *pw)
         qemu_system_vmstop_request(RUN_STATE_SHUTDOWN);
         break;
     case PSERIES_WDTF_ACTION_HARD_RESTART:
-        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+        watchdog_perform_action();
         break;
     case PSERIES_WDTF_ACTION_DUMP_RESTART:
         CPU_FOREACH(cs) {
