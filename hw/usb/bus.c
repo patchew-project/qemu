@@ -439,6 +439,7 @@ void usb_claim_port(USBDevice *dev, Error **errp)
             /* Create a new hub and chain it on */
             hub = USB_DEVICE(qdev_try_new("usb-hub"));
             if (hub) {
+                object_property_add_child(OBJECT(dev), "hub", OBJECT(hub));
                 usb_realize_and_unref(hub, bus, NULL);
             }
         }
