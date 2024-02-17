@@ -17,7 +17,9 @@ executable('atomic64-bench',
            dependencies: [qemuutil],
            build_by_default: false)
 
-benchs = {}
+benchs = {
+    'bufferiszero-bench': [],
+}
 
 if have_block
   benchs += {
