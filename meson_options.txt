@@ -58,7 +58,7 @@ option('guest_agent', type : 'feature', value : 'auto',
 option('guest_agent_msi', type : 'feature', value : 'auto',
        description: 'Build MSI package for the QEMU Guest Agent')
 option('tools', type : 'feature', value : 'auto',
-       description: 'build support utilities that come with QEMU')
+       description: 'build utility tool binaries')
 option('qga_vss', type : 'feature', value: 'auto',
        description: 'build QGA VSS support (broken with MinGW)')
 

@@ -128,8 +128,12 @@ Makefile.mtest: build.ninja scripts/mtest2make.py
 .PHONY: update-buildoptions
 all update-buildoptions: $(SRC_PATH)/scripts/meson-buildoptions.sh
 $(SRC_PATH)/scripts/meson-buildoptions.sh: $(SRC_PATH)/meson_options.txt
-	$(MESON) introspect --buildoptions $(SRC_PATH)/meson.build | $(PYTHON) \
-	  scripts/meson-buildoptions.py > $@.tmp && mv $@.tmp $@
+	{ printf '{"buildoptions":'; \
+		$(MESON) introspect --buildoptions $(SRC_PATH)/meson.build 2> >(grep -v "Unable to evaluate subdir(\[\])" >&2) \
+		&& printf ',"ast":' \
+		&& $(MESON) introspect --ast $(SRC_PATH)/meson.build 2> >(grep -v "Unable to evaluate subdir(\[\])" >&2) \
+		&& printf "}" ; } \
+		| $(PYTHON) scripts/meson-buildoptions.py > $@.tmp && mv $@.tmp $@
 endif
 
 # 4. Rules to bridge to other makefiles
