@@ -37,6 +37,7 @@ config PC
     select I8254
     select PCKBD
     select PCSPK
+    select PORT92
     select I8257
     select MC146818RTC
     # For ACPI builder:

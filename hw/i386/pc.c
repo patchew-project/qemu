@@ -32,6 +32,7 @@
 #include "hw/i386/vmport.h"
 #include "sysemu/cpus.h"
 #include "hw/ide/internal.h"
+#include "hw/isa/port92.h"
 #include "hw/timer/hpet.h"
 #include "hw/loader.h"
 #include "hw/rtc/mc146818rtc.h"

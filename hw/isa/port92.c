@@ -9,20 +9,8 @@
 #include "qemu/osdep.h"
 #include "sysemu/runstate.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
-#include "hw/i386/pc.h"
+#include "hw/isa/port92.h"
 #include "trace.h"
-#include "qom/object.h"
-
-OBJECT_DECLARE_SIMPLE_TYPE(Port92State, PORT92)
-
-struct Port92State {
-    ISADevice parent_obj;
-
-    MemoryRegion io;
-    uint8_t outport;
-    qemu_irq a20_out;
-};
 
 static void port92_write(void *opaque, hwaddr addr, uint64_t val,
                          unsigned size)
