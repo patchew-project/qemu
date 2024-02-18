@@ -456,7 +456,6 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
         stream->s = s;
         qemu_mutex_init(&stream->queue_mutex);
         QSIMPLEQ_INIT(&stream->queue);
-        QSIMPLEQ_INIT(&stream->invalid);
 
         /*
          * stream_id >= s->snd_conf.streams was checked before so this is
@@ -609,9 +608,6 @@ static size_t virtio_snd_pcm_get_io_msgs_count(VirtIOSoundPCMStream *stream)
 
     WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
         QSIMPLEQ_FOREACH_SAFE(buffer, &stream->queue, entry, next) {
-            count += 1;
-        }
-        QSIMPLEQ_FOREACH_SAFE(buffer, &stream->invalid, entry, next) {
             count += 1;
         }
     }
@@ -831,47 +827,19 @@ static void virtio_snd_handle_event(VirtIODevice *vdev, VirtQueue *vq)
     trace_virtio_snd_handle_event();
 }
 
-static inline void empty_invalid_queue(VirtIODevice *vdev, VirtQueue *vq)
+static void push_bad_msg_resp(VirtQueue *vq, VirtQueueElement *elem)
 {
-    VirtIOSoundPCMBuffer *buffer = NULL;
-    VirtIOSoundPCMStream *stream = NULL;
     virtio_snd_pcm_status resp = { 0 };
-    VirtIOSound *vsnd = VIRTIO_SND(vdev);
-    bool any = false;
+    size_t msg_sz;
 
-    for (uint32_t i = 0; i < vsnd->snd_conf.streams; i++) {
-        stream = vsnd->pcm->streams[i];
-        if (stream) {
-            any = false;
-            WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
-                while (!QSIMPLEQ_EMPTY(&stream->invalid)) {
-                    buffer = QSIMPLEQ_FIRST(&stream->invalid);
-                    if (buffer->vq != vq) {
-                        break;
-                    }
-                    any = true;
-                    resp.status = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
-                    iov_from_buf(buffer->elem->in_sg,
-                                 buffer->elem->in_num,
-                                 0,
-                                 &resp,
-                                 sizeof(virtio_snd_pcm_status));
-                    virtqueue_push(vq,
-                                   buffer->elem,
-                                   sizeof(virtio_snd_pcm_status));
-                    QSIMPLEQ_REMOVE_HEAD(&stream->invalid, entry);
-                    virtio_snd_pcm_buffer_free(buffer);
-                }
-                if (any) {
-                    /*
-                     * Notify vq about virtio_snd_pcm_status responses.
-                     * Buffer responses must be notified separately later.
-                     */
-                    virtio_notify(vdev, vq);
-                }
-            }
-        }
-    }
+    resp.status = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+    msg_sz = iov_from_buf(elem->in_sg,
+                          elem->in_num,
+                          0,
+                          &resp,
+                          sizeof(virtio_snd_pcm_status));
+    virtqueue_push(vq, elem, msg_sz);
+    g_free(elem);
 }
 
 /*
@@ -890,11 +858,7 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
     size_t msg_sz, size;
     virtio_snd_pcm_xfer hdr;
     uint32_t stream_id;
-    /*
-     * If any of the I/O messages are invalid, put them in stream->invalid and
-     * return them after the for loop.
-     */
-    bool must_empty_invalid_queue = false;
+    bool notify = false;
 
     if (!virtio_queue_ready(vq)) {
         return;
@@ -942,17 +906,16 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
         continue;
 
 tx_err:
-        WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
-            must_empty_invalid_queue = true;
-            buffer = g_malloc0(sizeof(VirtIOSoundPCMBuffer));
-            buffer->elem = elem;
-            buffer->vq = vq;
-            QSIMPLEQ_INSERT_TAIL(&stream->invalid, buffer, entry);
-        }
+        push_bad_msg_resp(vq, elem);
+        notify = true;
     }
 
-    if (must_empty_invalid_queue) {
-        empty_invalid_queue(vdev, vq);
+    if (notify) {
+        /*
+         * Notify vq about virtio_snd_pcm_status responses.
+         * Buffer responses must be notified separately later.
+         */
+         virtio_notify(vdev, vq);
     }
 }
 
@@ -972,11 +935,7 @@ static void virtio_snd_handle_rx_xfer(VirtIODevice *vdev, VirtQueue *vq)
     size_t msg_sz, size;
     virtio_snd_pcm_xfer hdr;
     uint32_t stream_id;
-    /*
-     * if any of the I/O messages are invalid, put them in stream->invalid and
-     * return them after the for loop.
-     */
-    bool must_empty_invalid_queue = false;
+    bool notify = false;
 
     if (!virtio_queue_ready(vq)) {
         return;
@@ -1021,17 +980,16 @@ static void virtio_snd_handle_rx_xfer(VirtIODevice *vdev, VirtQueue *vq)
         continue;
 
 rx_err:
-        WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
-            must_empty_invalid_queue = true;
-            buffer = g_malloc0(sizeof(VirtIOSoundPCMBuffer));
-            buffer->elem = elem;
-            buffer->vq = vq;
-            QSIMPLEQ_INSERT_TAIL(&stream->invalid, buffer, entry);
-        }
+        push_bad_msg_resp(vq, elem);
+        notify = true;
     }
 
-    if (must_empty_invalid_queue) {
-        empty_invalid_queue(vdev, vq);
+    if (notify) {
+        /*
+         * Notify vq about virtio_snd_pcm_status responses.
+         * Buffer responses must be notified separately later.
+         */
+         virtio_notify(vdev, vq);
     }
 }
 
