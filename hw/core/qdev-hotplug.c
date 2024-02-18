@@ -12,6 +12,8 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-core.h"
 #include "hw/boards.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 
 HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
 {
@@ -30,11 +32,42 @@ HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
     return NULL;
 }
 
+static bool qdev_hotplug_unplug_allowed_common(DeviceState *dev, Error **errp)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (!dc->hotpluggable) {
+        error_setg(errp, QERR_DEVICE_NO_HOTPLUG,
+                   object_get_typename(OBJECT(dev)));
+        return false;
+    }
+
+    if (dev->parent_bus) {
+        if (!qbus_is_hotpluggable(dev->parent_bus)) {
+            error_setg(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
+            return false;
+        }
+    } else {
+        if (!qdev_get_machine_hotplug_handler(dev)) {
+            /* No bus, no machine hotplug handler --> device is not hotpluggable */
+            error_setg(errp, "Device '%s' can not be hotplugged on this machine",
+                       object_get_typename(OBJECT(dev)));
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool qdev_hotplug_allowed(DeviceState *dev, Error **errp)
 {
     MachineState *machine;
     MachineClass *mc;
     Object *m_obj = qdev_get_machine();
+
+    if (!qdev_hotplug_unplug_allowed_common(dev, errp)) {
+        return false;
+    }
 
     if (object_dynamic_cast(m_obj, TYPE_MACHINE)) {
         machine = MACHINE(m_obj);
@@ -45,6 +78,12 @@ bool qdev_hotplug_allowed(DeviceState *dev, Error **errp)
     }
 
     return true;
+}
+
+bool qdev_hotunplug_allowed(DeviceState *dev, Error **errp)
+{
+    return !qdev_unplug_blocked(dev, errp) &&
+           qdev_hotplug_unplug_allowed_common(dev, errp);
 }
 
 HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev)
