@@ -66,6 +66,7 @@ config VT82C686
     select I8259
     select IDE_VIA
     select MC146818RTC
+    select PORT92
 
 config SMC37C669
     bool
