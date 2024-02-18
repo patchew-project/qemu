@@ -1318,11 +1318,22 @@ static void virtio_snd_reset(VirtIODevice *vdev)
 {
     VirtIOSound *s = VIRTIO_SND(vdev);
     virtio_snd_ctrl_command *cmd;
+    uint32_t i;
 
     while (!QTAILQ_EMPTY(&s->cmdq)) {
         cmd = QTAILQ_FIRST(&s->cmdq);
         QTAILQ_REMOVE(&s->cmdq, cmd, next);
         virtio_snd_ctrl_cmd_free(cmd);
+    }
+
+    for (i = 0; i < s->snd_conf.streams; i++) {
+        VirtIOSoundPCMStream *stream = &s->streams[i];
+        VirtIOSoundPCMBuffer *buffer;
+
+        while ((buffer = QSIMPLEQ_FIRST(&stream->queue))) {
+            QSIMPLEQ_REMOVE_HEAD(&stream->queue, entry);
+            virtio_snd_pcm_buffer_free(buffer);
+        }
     }
 }
 
