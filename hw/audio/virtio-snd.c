@@ -82,6 +82,7 @@ static const VMStateDescription vmstate_virtio_snd_stream = {
     .name = "virtio-sound-stream",
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(state, VirtIOSoundPCMStream),
+        VMSTATE_UINT32(buf_wpos, VirtIOSoundPCMStream),
         VMSTATE_UINT32(info.hdr.hda_fn_nid, VirtIOSoundPCMStream),
         VMSTATE_UINT32(info.features, VirtIOSoundPCMStream),
         VMSTATE_UINT64(info.formats, VirtIOSoundPCMStream),
@@ -1395,6 +1396,7 @@ static int virtio_snd_post_load(VirtIODevice *vdev)
                 virtio_snd_pcm_set_active(stream, true);
             }
         }
+        stream->buf_wpos = 0;
     }
 
     for (i = 0; i < VIRTIO_SND_VQ_MAX; i++) {

@@ -124,6 +124,8 @@ struct VirtIOSoundPCMStream {
     virtio_snd_pcm_set_params params;
     uint32_t id;
     uint32_t state;
+    /* placeholder: write position in current VirtIOSoundPCMBuffer */
+    uint32_t buf_wpos;
     /* channel position values (VIRTIO_SND_CHMAP_XXX) */
     uint8_t positions[VIRTIO_SND_CHMAP_MAX_SIZE];
     VirtIOSound *s;
