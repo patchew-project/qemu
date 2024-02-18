@@ -346,6 +346,14 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
     irq = object_property_get_uint(OBJECT(&d->rtc), "irq", &error_fatal);
     isa_connect_gpio_out(ISA_DEVICE(&d->rtc), 0, irq);
 
+    /* Port 92 */
+    if (d->has_port92) {
+        object_initialize_child(OBJECT(d), "port92", &d->port92, TYPE_PORT92);
+        if (!qdev_realize(DEVICE(&d->port92), BUS(isa_bus), errp)) {
+            return;
+        }
+    }
+
     /* IDE */
     qdev_prop_set_int32(DEVICE(&d->ide), "addr", dev->devfn + 1);
     if (!qdev_realize(DEVICE(&d->ide), BUS(pci_bus), errp)) {
@@ -413,6 +421,7 @@ static Property pci_piix_props[] = {
     DEFINE_PROP_BOOL("has-acpi", PIIXState, has_acpi, true),
     DEFINE_PROP_BOOL("has-pic", PIIXState, has_pic, true),
     DEFINE_PROP_BOOL("has-pit", PIIXState, has_pit, true),
+    DEFINE_PROP_BOOL("has-port92", PIIXState, has_port92, true),
     DEFINE_PROP_BOOL("has-usb", PIIXState, has_usb, true),
     DEFINE_PROP_BOOL("smm-enabled", PIIXState, smm_enabled, false),
     DEFINE_PROP_END_OF_LIST(),

@@ -749,6 +749,14 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     irq = object_property_get_uint(OBJECT(&lpc->rtc), "irq", &error_fatal);
     isa_connect_gpio_out(ISA_DEVICE(&lpc->rtc), 0, irq);
 
+    if (lpc->has_port92) {
+        object_initialize_child(OBJECT(lpc), "port92", &lpc->port92,
+                                TYPE_PORT92);
+        if (!qdev_realize(DEVICE(&lpc->port92), BUS(isa_bus), errp)) {
+            return;
+        }
+    }
+
     pci_bus_irqs(pci_bus, ich9_lpc_set_irq, d, ICH9_LPC_NB_PIRQS);
     pci_bus_map_irqs(pci_bus, ich9_lpc_map_irq);
     pci_bus_set_route_irq_fn(pci_bus, ich9_route_intx_pin_to_irq);
@@ -821,6 +829,7 @@ static Property ich9_lpc_properties[] = {
     DEFINE_PROP_BOOL("noreboot", ICH9LPCState, pin_strap.spkr_hi, false),
     DEFINE_PROP_BOOL("smm-compat", ICH9LPCState, pm.smm_compat, false),
     DEFINE_PROP_BOOL("smm-enabled", ICH9LPCState, pm.smm_enabled, false),
+    DEFINE_PROP_BOOL("has-port92", ICH9LPCState, has_port92, true),
     DEFINE_PROP_BIT64("x-smi-broadcast", ICH9LPCState, smi_host_features,
                       ICH9_LPC_SMI_F_BROADCAST_BIT, true),
     DEFINE_PROP_BIT64("x-smi-cpu-hotplug", ICH9LPCState, smi_host_features,

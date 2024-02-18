@@ -3,6 +3,7 @@
 
 #include "hw/isa/apm.h"
 #include "hw/acpi/ich9.h"
+#include "hw/isa/port92.h"
 #include "hw/intc/ioapic.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_device.h"
@@ -32,6 +33,7 @@ struct ICH9LPCState {
     uint8_t irr[PCI_SLOT_MAX][PCI_NUM_PINS];
 
     MC146818RtcState rtc;
+    Port92State port92;
     APMState apm;
     ICH9LPCPMRegs pm;
     uint32_t sci_level; /* track sci level */
@@ -53,6 +55,8 @@ struct ICH9LPCState {
      */
     uint8_t rst_cnt;
     MemoryRegion rst_cnt_mem;
+
+    bool has_port92;
 
     /* SMI feature negotiation via fw_cfg */
     uint64_t smi_host_features;       /* guest-invisible, host endian */

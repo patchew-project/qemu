@@ -1160,7 +1160,7 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl,
     int i;
     DriveInfo *fd[MAX_FD];
     qemu_irq *a20_line;
-    ISADevice *fdc, *i8042, *port92, *vmmouse;
+    ISADevice *fdc, *i8042, *vmmouse;
 
     serial_hds_isa_init(isa_bus, 0, MAX_ISA_SERIAL_PORTS);
     parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
@@ -1193,18 +1193,15 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl,
                                  &error_abort);
         isa_realize_and_unref(vmmouse, isa_bus, &error_fatal);
     }
-    port92 = isa_create_simple(isa_bus, TYPE_PORT92);
 
-    a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
+    a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 1);
     i8042_setup_a20_line(i8042, a20_line[0]);
-    qdev_connect_gpio_out_named(DEVICE(port92),
-                                PORT92_A20_LINE, 0, a20_line[1]);
     g_free(a20_line);
 }
 
 void pc_basic_device_init(struct PCMachineState *pcms,
                           ISABus *isa_bus, qemu_irq *gsi,
-                          ISADevice *rtc_state,
+                          ISADevice *rtc_state, ISADevice *port92,
                           bool create_fdctrl,
                           uint32_t hpet_irqs)
 {
@@ -1296,6 +1293,15 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     /* Super I/O */
     pc_superio_init(isa_bus, create_fdctrl, pcms->i8042_enabled,
                     pcms->vmport != ON_OFF_AUTO_ON);
+
+    if (port92) {
+        qemu_irq *a20_line;
+
+        a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 1);
+        qdev_connect_gpio_out_named(DEVICE(port92),
+                                    PORT92_A20_LINE, 0, a20_line[0]);
+        g_free(a20_line);
+    }
 }
 
 void pc_nic_init(PCMachineClass *pcmc, ISABus *isa_bus, PCIBus *pci_bus)

@@ -127,7 +127,7 @@ static void pc_q35_init(MachineState *machine)
     PCIDevice *lpc;
     DeviceState *lpc_dev;
     BusState *idebus[MAX_SATA_PORTS];
-    ISADevice *rtc_state;
+    ISADevice *rtc_state, *port92;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
     MemoryRegion *pci_memory = g_new(MemoryRegion, 1);
@@ -238,6 +238,7 @@ static void pc_q35_init(MachineState *machine)
     lpc = pci_new_multifunction(PCI_DEVFN(ICH9_LPC_DEV, ICH9_LPC_FUNC),
                                 TYPE_ICH9_LPC_DEVICE);
     lpc_dev = DEVICE(lpc);
+    qdev_prop_set_bit(lpc_dev, "has-port92", pcms->i8042_enabled);
     qdev_prop_set_bit(lpc_dev, "smm-enabled",
                       x86_machine_is_smm_enabled(x86ms));
     pci_realize_and_unref(lpc, host_bus, &error_fatal);
@@ -246,6 +247,7 @@ static void pc_q35_init(MachineState *machine)
     }
 
     rtc_state = ISA_DEVICE(object_resolve_path_component(OBJECT(lpc), "rtc"));
+    port92 = ISA_DEVICE(object_resolve_path_component(OBJECT(lpc), "port92"));
 
     object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                              TYPE_HOTPLUG_HANDLER,
@@ -287,8 +289,8 @@ static void pc_q35_init(MachineState *machine)
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(pcms, isa_bus, x86ms->gsi, rtc_state, !mc->no_floppy,
-                         0xff0104);
+    pc_basic_device_init(pcms, isa_bus, x86ms->gsi, rtc_state, port92,
+                         !mc->no_floppy, 0xff0104);
 
     if (pcms->sata_enabled) {
         PCIDevice *pdev;

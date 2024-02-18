@@ -47,6 +47,7 @@ config PIIX
     select IDE_PIIX
     select ISA_BUS
     select MC146818RTC
+    select PORT92
     select USB_UHCI
 
 config PORT92
@@ -78,3 +79,4 @@ config LPC_ICH9
     select ISA_BUS
     select ACPI_ICH9
     select MC146818RTC
+    select PORT92

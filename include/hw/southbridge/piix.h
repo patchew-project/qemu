@@ -15,6 +15,7 @@
 #include "hw/pci/pci_device.h"
 #include "hw/acpi/piix4.h"
 #include "hw/ide/pci.h"
+#include "hw/isa/port92.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/usb/hcd-uhci.h"
 
@@ -56,6 +57,7 @@ struct PIIXState {
     int32_t pci_irq_levels_vmstate[PIIX_NUM_PIRQS];
 
     MC146818RtcState rtc;
+    Port92State port92;
     PCIIDEState ide;
     UHCIState uhci;
     PIIX4PMState pm;
@@ -71,6 +73,7 @@ struct PIIXState {
     bool has_acpi;
     bool has_pic;
     bool has_pit;
+    bool has_port92;
     bool has_usb;
     bool smm_enabled;
 };
