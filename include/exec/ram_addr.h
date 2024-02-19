@@ -443,6 +443,16 @@ uint64_t cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
 }
 #endif /* not _WIN32 */
 
+void tcg_cpu_physical_memory_dirty_bits_cleared(ram_addr_t start,
+                                                ram_addr_t length);
+static inline void cpu_physical_memory_dirty_bits_cleared(ram_addr_t start,
+                                                          ram_addr_t length)
+{
+    if (tcg_enabled()) {
+        tcg_cpu_physical_memory_dirty_bits_cleared(start, length);
+    }
+
+}
 bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
                                               ram_addr_t length,
                                               unsigned client);
@@ -503,6 +513,9 @@ uint64_t cpu_physical_memory_sync_dirty_bitmap(RAMBlock *rb,
                 offset = 0;
                 idx++;
             }
+        }
+        if (num_dirty) {
+            cpu_physical_memory_dirty_bits_cleared(start, length);
         }
 
         if (rb->clear_bmap) {

@@ -839,6 +839,12 @@ static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length)
     }
 }
 
+void tcg_cpu_physical_memory_dirty_bits_cleared(ram_addr_t start,
+                                                ram_addr_t length)
+{
+    tlb_reset_dirty_range_all(start, length);
+}
+
 /* Note: start and end must be within the same ram block.  */
 bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
                                               ram_addr_t length,
@@ -881,8 +887,8 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
         memory_region_clear_dirty_bitmap(ramblock->mr, mr_offset, mr_size);
     }
 
-    if (dirty && tcg_enabled()) {
-        tlb_reset_dirty_range_all(start, length);
+    if (dirty) {
+        cpu_physical_memory_dirty_bits_cleared(start, length);
     }
 
     return dirty;
@@ -929,9 +935,7 @@ DirtyBitmapSnapshot *cpu_physical_memory_snapshot_and_clear_dirty
         }
     }
 
-    if (tcg_enabled()) {
-        tlb_reset_dirty_range_all(start, length);
-    }
+    cpu_physical_memory_dirty_bits_cleared(start, length);
 
     memory_region_clear_dirty_bitmap(mr, offset, length);
 
