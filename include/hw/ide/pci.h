@@ -1,7 +1,8 @@
 #ifndef HW_IDE_PCI_H
 #define HW_IDE_PCI_H
 
-#include "hw/ide/internal.h"
+#include "hw/ide/ide-bus.h"
+#include "hw/ide/ide-dma.h"
 #include "hw/pci/pci_device.h"
 #include "qom/object.h"
 
