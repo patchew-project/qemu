@@ -51,6 +51,11 @@ typedef struct VirtioSharedObject {
 } VirtioSharedObject;
 
 /**
+ * virtio_dmabuf_init() - Initialise virtio dmabuf internal structures.
+ */
+void virtio_dmabuf_init(void);
+
+/**
  * virtio_add_dmabuf() - Add a new dma-buf resource to the lookup table
  * @uuid: new resource's UUID
  * @dmabuf_fd: the dma-buf descriptor that will be stored and shared with

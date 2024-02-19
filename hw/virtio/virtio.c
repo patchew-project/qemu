@@ -29,6 +29,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/virtio/virtio-dmabuf.h"
 #include "sysemu/dma.h"
 #include "sysemu/runstate.h"
 #include "virtio-qmp.h"
@@ -3221,6 +3222,8 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
     int i;
     int nvectors = k->query_nvectors ? k->query_nvectors(qbus->parent) : 0;
 
+    // Ensure virtio dmabuf table is initialised.
+    virtio_dmabuf_init();
     if (nvectors) {
         vdev->vector_queues =
             g_malloc0(sizeof(*vdev->vector_queues) * nvectors);

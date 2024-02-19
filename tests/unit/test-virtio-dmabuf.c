@@ -27,6 +27,7 @@ static void test_add_remove_resources(void)
     QemuUUID uuid;
     int i, dmabuf_fd;
 
+    virtio_dmabuf_init();
     for (i = 0; i < 100; ++i) {
         qemu_uuid_generate(&uuid);
         dmabuf_fd = g_random_int_range(3, 500);
@@ -46,6 +47,7 @@ static void test_add_remove_dev(void)
     struct vhost_dev *dev = g_new0(struct vhost_dev, 1);
     int i;
 
+    virtio_dmabuf_init();
     for (i = 0; i < 100; ++i) {
         qemu_uuid_generate(&uuid);
         virtio_add_vhost_device(&uuid, dev);
@@ -64,6 +66,7 @@ static void test_remove_invalid_resource(void)
     QemuUUID uuid;
     int i;
 
+    virtio_dmabuf_init();
     for (i = 0; i < 20; ++i) {
         qemu_uuid_generate(&uuid);
         g_assert_cmpint(virtio_lookup_dmabuf(&uuid), ==, -1);
@@ -78,6 +81,7 @@ static void test_add_invalid_resource(void)
     struct vhost_dev *dev = NULL;
     int i, dmabuf_fd = -2, alt_dmabuf = 2;
 
+    virtio_dmabuf_init();
     for (i = 0; i < 20; ++i) {
         qemu_uuid_generate(&uuid);
         /* Add a new resource with invalid (negative) resource fd */
@@ -108,6 +112,7 @@ static void test_free_resources(void)
     QemuUUID uuids[20];
     int i, dmabuf_fd;
 
+    virtio_dmabuf_init();
     for (i = 0; i < ARRAY_SIZE(uuids); ++i) {
         qemu_uuid_generate(&uuids[i]);
         dmabuf_fd = g_random_int_range(3, 500);

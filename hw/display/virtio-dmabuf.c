@@ -11,11 +11,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "include/qemu/lockable.h"
 
 #include "hw/virtio/virtio-dmabuf.h"
 
 
-static GMutex lock;
+static QemuMutex lock;
 static GHashTable *resource_uuids;
 
 /*
@@ -27,23 +28,27 @@ static int uuid_equal_func(const void *lhv, const void *rhv)
     return qemu_uuid_is_equal(lhv, rhv);
 }
 
+void virtio_dmabuf_init(void) {
+    qemu_mutex_init(&lock);
+}
+
 static bool virtio_add_resource(QemuUUID *uuid, VirtioSharedObject *value)
 {
     bool result = true;
 
-    g_mutex_lock(&lock);
-    if (resource_uuids == NULL) {
-        resource_uuids = g_hash_table_new_full(qemu_uuid_hash,
-                                               uuid_equal_func,
-                                               NULL,
-                                               g_free);
+    WITH_QEMU_LOCK_GUARD(&lock) {
+        if (resource_uuids == NULL) {
+            resource_uuids = g_hash_table_new_full(qemu_uuid_hash,
+                                                uuid_equal_func,
+                                                NULL,
+                                                g_free);
+        }
+        if (g_hash_table_lookup(resource_uuids, uuid) == NULL) {
+            g_hash_table_insert(resource_uuids, uuid, value);
+        } else {
+            result = false;
+        }
     }
-    if (g_hash_table_lookup(resource_uuids, uuid) == NULL) {
-        g_hash_table_insert(resource_uuids, uuid, value);
-    } else {
-        result = false;
-    }
-    g_mutex_unlock(&lock);
 
     return result;
 }
@@ -87,9 +92,9 @@ bool virtio_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev)
 bool virtio_remove_resource(const QemuUUID *uuid)
 {
     bool result;
-    g_mutex_lock(&lock);
-    result = g_hash_table_remove(resource_uuids, uuid);
-    g_mutex_unlock(&lock);
+    WITH_QEMU_LOCK_GUARD(&lock) {
+        result = g_hash_table_remove(resource_uuids, uuid);
+    }
 
     return result;
 }
@@ -98,11 +103,11 @@ static VirtioSharedObject *get_shared_object(const QemuUUID *uuid)
 {
     gpointer lookup_res = NULL;
 
-    g_mutex_lock(&lock);
-    if (resource_uuids != NULL) {
-        lookup_res = g_hash_table_lookup(resource_uuids, uuid);
+    WITH_QEMU_LOCK_GUARD(&lock) {
+        if (resource_uuids != NULL) {
+            lookup_res = g_hash_table_lookup(resource_uuids, uuid);
+        }
     }
-    g_mutex_unlock(&lock);
 
     return (VirtioSharedObject *) lookup_res;
 }
@@ -138,9 +143,9 @@ SharedObjectType virtio_object_type(const QemuUUID *uuid)
 
 void virtio_free_resources(void)
 {
-    g_mutex_lock(&lock);
-    g_hash_table_destroy(resource_uuids);
-    /* Reference count shall be 0 after the implicit unref on destroy */
-    resource_uuids = NULL;
-    g_mutex_unlock(&lock);
+    WITH_QEMU_LOCK_GUARD(&lock) {
+        g_hash_table_destroy(resource_uuids);
+        /* Reference count shall be 0 after the implicit unref on destroy */
+        resource_uuids = NULL;
+    }
 }
