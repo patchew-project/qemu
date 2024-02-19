@@ -7,7 +7,6 @@
  * non-internal declarations are in hw/ide.h
  */
 
-#include "hw/ide.h"
 #include "hw/ide/ide-bus.h"
 #include "hw/ide/ide-dma.h"
 
