@@ -4499,7 +4499,7 @@ static int write_note(struct memelfnote *men, int fd)
 static void fill_thread_info(struct elf_note_info *info, const CPUArchState *env)
 {
     CPUState *cpu = env_cpu((CPUArchState *)env);
-    TaskState *ts = (TaskState *)cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
     struct elf_thread_status *ets;
 
     ets = g_malloc0(sizeof (*ets));
@@ -4529,7 +4529,7 @@ static int fill_note_info(struct elf_note_info *info,
 {
 #define NUMNOTES 3
     CPUState *cpu = env_cpu((CPUArchState *)env);
-    TaskState *ts = (TaskState *)cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
     int i;
 
     info->notes = g_new0(struct memelfnote, NUMNOTES);
@@ -4653,7 +4653,7 @@ static int write_note_info(struct elf_note_info *info, int fd)
 static int elf_core_dump(int signr, const CPUArchState *env)
 {
     const CPUState *cpu = env_cpu((CPUArchState *)env);
-    const TaskState *ts = (const TaskState *)cpu->opaque;
+    const TaskState *ts = (const TaskState *)get_task_state((CPUState *)cpu);
     struct vm_area_struct *vma = NULL;
     g_autofree char *corefile = NULL;
     struct elf_note_info info;
