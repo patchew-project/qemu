@@ -9,6 +9,7 @@
 
 #include "hw/ide.h"
 #include "hw/ide/ide-bus.h"
+#include "hw/ide/ide-dma.h"
 
 /* debug IDE devices */
 #define USE_DMA_CDROM
@@ -316,13 +317,6 @@
 #define SMART_DISABLE         0xd9
 #define SMART_STATUS          0xda
 
-typedef void DMAStartFunc(const IDEDMA *, IDEState *, BlockCompletionFunc *);
-typedef void DMAVoidFunc(const IDEDMA *);
-typedef int DMAIntFunc(const IDEDMA *, bool);
-typedef int32_t DMAInt32Func(const IDEDMA *, int32_t len);
-typedef void DMAu32Func(const IDEDMA *, uint32_t);
-typedef void DMAStopFunc(const IDEDMA *, bool);
-
 extern const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT];
 
 extern const MemoryRegionPortio ide_portio_list[];
@@ -339,25 +333,6 @@ typedef struct IDEBufferedRequest {
     void *original_opaque;
     bool orphaned;
 } IDEBufferedRequest;
-
-struct IDEDMAOps {
-    DMAStartFunc *start_dma;
-    DMAVoidFunc *pio_transfer;
-    DMAInt32Func *prepare_buf;
-    DMAu32Func *commit_buf;
-    DMAIntFunc *rw_buf;
-    DMAVoidFunc *restart;
-    DMAVoidFunc *restart_dma;
-    DMAStopFunc *set_inactive;
-    DMAVoidFunc *cmd_done;
-    DMAVoidFunc *reset;
-};
-
-struct IDEDMA {
-    const struct IDEDMAOps *ops;
-    QEMUIOVector qiov;
-    BlockAIOCB *aiocb;
-};
 
 /* These are used for the error_status field of IDEBus */
 #define IDE_RETRY_MASK 0xf8
