@@ -21,12 +21,13 @@
 #ifndef HW_ACPI_ICH9_H
 #define HW_ACPI_ICH9_H
 
+#include "qemu/notify.h"
+#include "exec/memory.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/acpi/cpu.h"
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/memory_hotplug.h"
-#include "hw/acpi/acpi_dev_interface.h"
 #include "hw/acpi/ich9_tco.h"
 
 #define ACPI_PCIHP_ADDR_ICH9 0x0cc0
