@@ -107,6 +107,38 @@ static void test_add_invalid_resource(void)
     }
 }
 
+static void test_cleanup_res(void)
+{
+    QemuUUID uuids[20], uuid_alt;
+    struct vhost_dev *dev = g_new0(struct vhost_dev, 1);
+    struct vhost_dev *dev_alt = g_new0(struct vhost_dev, 1);
+    int i, num_removed;
+
+    for (i = 0; i < ARRAY_SIZE(uuids); ++i) {
+        qemu_uuid_generate(&uuids[i]);
+        virtio_add_vhost_device(&uuids[i], dev);
+        /* vhost device is found */
+        g_assert(virtio_lookup_vhost_device(&uuids[i]) != NULL);
+    }
+    qemu_uuid_generate(&uuid_alt);
+    virtio_add_vhost_device(&uuid_alt, dev_alt);
+    /* vhost device is found */
+    g_assert(virtio_lookup_vhost_device(&uuid_alt) != NULL);
+    /* cleanup all dev resources */
+    num_removed = virtio_dmabuf_vhost_cleanup(dev);
+    g_assert_cmpint(num_removed, ==, ARRAY_SIZE(uuids));
+    for (i = 0; i < ARRAY_SIZE(uuids); ++i) {
+        /* None of the dev resources is found after free'd */
+        g_assert_cmpint(virtio_lookup_dmabuf(&uuids[i]), ==, -1);
+    }
+    /* uuid_alt is still in the hash table */
+    g_assert(virtio_lookup_vhost_device(&uuid_alt) != NULL);
+
+    virtio_free_resources();
+    g_free(dev);
+    g_free(dev_alt);
+}
+
 static void test_free_resources(void)
 {
     QemuUUID uuids[20];
@@ -136,6 +168,7 @@ int main(int argc, char **argv)
                     test_remove_invalid_resource);
     g_test_add_func("/virtio-dmabuf/add_invalid_res",
                     test_add_invalid_resource);
+    g_test_add_func("/virtio-dmabuf/cleanup_dev", test_cleanup_res);
     g_test_add_func("/virtio-dmabuf/free_res", test_free_resources);
 
     return g_test_run();

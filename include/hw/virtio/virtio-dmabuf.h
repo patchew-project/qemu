@@ -120,6 +120,16 @@ struct vhost_dev *virtio_lookup_vhost_device(const QemuUUID *uuid);
 SharedObjectType virtio_object_type(const QemuUUID *uuid);
 
 /**
+ * virtio_dmabuf_vhost_cleanup() - Destroys all entries of the shared
+ * resources lookup table that are owned by the vhost backend
+ * @dev: the pointer to the vhost device that owns the entries. Data is owned
+ *       by the called of the function.
+ * 
+ * Return: the number of resource entries removed.
+ */
+int virtio_dmabuf_vhost_cleanup(struct vhost_dev *dev);
+
+/**
  * virtio_free_resources() - Destroys all keys and values of the shared
  * resources lookup table, and frees them
  */
