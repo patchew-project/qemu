@@ -53,7 +53,7 @@ static bool virtio_add_resource(QemuUUID *uuid, VirtioSharedObject *value)
     return result;
 }
 
-bool virtio_add_dmabuf(QemuUUID *uuid, int udmabuf_fd)
+bool virtio_dmabuf_add(QemuUUID *uuid, int udmabuf_fd)
 {
     bool result;
     VirtioSharedObject *vso;
@@ -71,7 +71,7 @@ bool virtio_add_dmabuf(QemuUUID *uuid, int udmabuf_fd)
     return result;
 }
 
-bool virtio_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev)
+bool virtio_dmabuf_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev)
 {
     bool result;
     VirtioSharedObject *vso;
@@ -89,7 +89,7 @@ bool virtio_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev)
     return result;
 }
 
-bool virtio_remove_resource(const QemuUUID *uuid)
+bool virtio_dmabuf_remove_resource(const QemuUUID *uuid)
 {
     bool result;
     WITH_QEMU_LOCK_GUARD(&lock) {
@@ -112,7 +112,7 @@ static VirtioSharedObject *get_shared_object(const QemuUUID *uuid)
     return (VirtioSharedObject *) lookup_res;
 }
 
-int virtio_lookup_dmabuf(const QemuUUID *uuid)
+int virtio_dmabuf_lookup(const QemuUUID *uuid)
 {
     VirtioSharedObject *vso = get_shared_object(uuid);
     if (vso == NULL) {
@@ -122,7 +122,7 @@ int virtio_lookup_dmabuf(const QemuUUID *uuid)
     return vso->value.udma_buf;
 }
 
-struct vhost_dev *virtio_lookup_vhost_device(const QemuUUID *uuid)
+struct vhost_dev *virtio_dmabuf_lookup_vhost_device(const QemuUUID *uuid)
 {
     VirtioSharedObject *vso = get_shared_object(uuid);
     if (vso == NULL) {
@@ -132,7 +132,7 @@ struct vhost_dev *virtio_lookup_vhost_device(const QemuUUID *uuid)
     return (struct vhost_dev *) vso->value.dev;
 }
 
-SharedObjectType virtio_object_type(const QemuUUID *uuid)
+SharedObjectType virtio_dmabuf_object_type(const QemuUUID *uuid)
 {
     VirtioSharedObject *vso = get_shared_object(uuid);
     if (vso == NULL) {
@@ -162,7 +162,7 @@ int virtio_dmabuf_vhost_cleanup(struct vhost_dev *dev)
     return num_removed;
 }
 
-void virtio_free_resources(void)
+void virtio_dmabuf_free_resources(void)
 {
     WITH_QEMU_LOCK_GUARD(&lock) {
         g_hash_table_destroy(resource_uuids);
