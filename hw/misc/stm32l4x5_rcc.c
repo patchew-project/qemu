@@ -346,9 +346,47 @@ static void rcc_update_irq(Stm32l4x5RccState *s)
     }
 }
 
-static void rcc_update_cr_register(Stm32l4x5RccState *s)
+static void rcc_update_msi(Stm32l4x5RccState *s, uint32_t previous_value)
+{
+    uint32_t val;
+
+    static const uint32_t msirange[] = {
+        100000, 200000, 400000, 800000, 1000000, 2000000,
+        4000000, 8000000, 16000000, 24000000, 32000000, 48000000
+    };
+    /* MSIRANGE and MSIRGSEL */
+    val = extract32(s->cr, R_CR_MSIRGSEL_SHIFT, R_CR_MSIRGSEL_LENGTH);
+    if (val) {
+        /* MSIRGSEL is set, use the MSIRANGE field */
+        val = extract32(s->cr, R_CR_MSIRANGE_SHIFT, R_CR_MSIRANGE_LENGTH);
+    } else {
+        /* MSIRGSEL is not set, use the MSISRANGE field */
+        val = extract32(s->csr, R_CSR_MSISRANGE_SHIFT, R_CSR_MSISRANGE_LENGTH);
+    }
+
+    if (val < ARRAY_SIZE(msirange)) {
+        clock_update_hz(s->msi_rc, msirange[val]);
+    } else {
+        /*
+         * There is a hardware write protection if the value is out of bound.
+         * Restore the previous value.
+         */
+        s->cr = (s->cr & ~R_CSR_MSISRANGE_MASK) |
+                (previous_value & R_CSR_MSISRANGE_MASK);
+    }
+}
+
+/*
+ * TODO: Add write-protection for all registers:
+ * DONE: CR
+ */
+
+static void rcc_update_cr_register(Stm32l4x5RccState *s, uint32_t previous_value)
 {
     int val;
+    const RccClockMuxSource current_pll_src =
+        CLOCK_MUX_INIT_INFO[RCC_CLOCK_MUX_PLL_INPUT].src_mapping[
+            s->clock_muxes[RCC_CLOCK_MUX_PLL_INPUT].src];
 
     /* PLLSAI2ON and update PLLSAI2RDY */
     val = extract32(s->cr, R_CR_PLLSAI2ON_SHIFT, R_CR_PLLSAI2ON_LENGTH);
@@ -368,77 +406,101 @@ static void rcc_update_cr_register(Stm32l4x5RccState *s)
         s->cifr |= R_CIFR_PLLSAI1RDYF_MASK;
     }
 
-    /* PLLON and update PLLRDY */
+    /*
+     * PLLON and update PLLRDY
+     * PLLON cannot be reset if the PLL clock is used as the system clock.
+     */
     val = extract32(s->cr, R_CR_PLLON_SHIFT, R_CR_PLLON_LENGTH);
-    pll_set_enable(&s->plls[RCC_PLL_PLL], val);
-    s->cr = (s->cr & ~R_CR_PLLRDY_MASK) |
-            (val << R_CR_PLLRDY_SHIFT);
-    if (s->cier & R_CIER_PLLRDYIE_MASK) {
-        s->cifr |= R_CIFR_PLLRDYF_MASK;
+    if (extract32(s->cfgr, R_CFGR_SWS_SHIFT, R_CFGR_SWS_LENGTH) != 0b11) {
+        pll_set_enable(&s->plls[RCC_PLL_PLL], val);
+        s->cr = (s->cr & ~R_CR_PLLRDY_MASK) |
+                (val << R_CR_PLLRDY_SHIFT);
+        if (s->cier & R_CIER_PLLRDYIE_MASK) {
+            s->cifr |= R_CIFR_PLLRDYF_MASK;
+        }
+    } else {
+        s->cr |= R_CR_PLLON_MASK;
     }
 
     /* CSSON: TODO */
     /* HSEBYP: TODO */
 
-    /* HSEON and update HSERDY */
+    /*
+     * HSEON and update HSERDY.
+     * HSEON cannot be reset if the HSE oscillator is used directly or
+     * indirectly as the system clock.
+     */
     val = extract32(s->cr, R_CR_HSEON_SHIFT, R_CR_HSEON_LENGTH);
-    s->cr = (s->cr & ~R_CR_HSERDY_MASK) |
-            (val << R_CR_HSERDY_SHIFT);
-    if (val) {
-        clock_update_hz(s->hse, s->hse_frequency);
-        if (s->cier & R_CIER_HSERDYIE_MASK) {
-            s->cifr |= R_CIFR_HSERDYF_MASK;
+    if (extract32(s->cfgr, R_CFGR_SWS_SHIFT, R_CFGR_SWS_LENGTH) != 0b10 &&
+        current_pll_src != RCC_CLOCK_MUX_SRC_HSE) {
+        s->cr = (s->cr & ~R_CR_HSERDY_MASK) |
+                (val << R_CR_HSERDY_SHIFT);
+        if (val) {
+            clock_update_hz(s->hse, s->hse_frequency);
+            if (s->cier & R_CIER_HSERDYIE_MASK) {
+                s->cifr |= R_CIFR_HSERDYF_MASK;
+            }
+        } else {
+            clock_update_hz(s->hse, 0);
         }
     } else {
-        clock_update_hz(s->hse, 0);
+        s->cr |= R_CR_HSEON_MASK;
     }
 
     /* HSIAFS: TODO*/
     /* HSIKERON: TODO*/
 
-    /* HSION and update HSIRDY*/
-    val = extract32(s->cr, R_CR_HSION_SHIFT, R_CR_HSION_LENGTH);
-    s->cr = (s->cr & ~R_CR_HSIRDY_MASK) |
-            (val << R_CR_HSIRDY_SHIFT);
-    if (val) {
+    /*
+     * HSION and update HSIRDY
+     * HSION is set by hardware if the HSI16 is used directly
+     * or indirectly as system clock.
+     */
+    if (extract32(s->cfgr, R_CFGR_SWS_SHIFT, R_CFGR_SWS_LENGTH) == 0b01 ||
+        current_pll_src == RCC_CLOCK_MUX_SRC_HSI) {
+        s->cr |= (R_CR_HSION_MASK | R_CR_HSIRDY_MASK);
         clock_update_hz(s->hsi16_rc, HSI_FRQ);
         if (s->cier & R_CIER_HSIRDYIE_MASK) {
             s->cifr |= R_CIFR_HSIRDYF_MASK;
         }
     } else {
-        clock_update_hz(s->hsi16_rc, 0);
+        val = extract32(s->cr, R_CR_HSION_SHIFT, R_CR_HSION_LENGTH);
+        if (val) {
+            clock_update_hz(s->hsi16_rc, HSI_FRQ);
+            s->cr |= R_CR_HSIRDY_MASK;
+            if (s->cier & R_CIER_HSIRDYIE_MASK) {
+                s->cifr |= R_CIFR_HSIRDYF_MASK;
+            }
+        } else {
+            clock_update_hz(s->hsi16_rc, 0);
+            s->cr &= ~R_CR_HSIRDY_MASK;
+        }
     }
 
-    static const uint32_t msirange[] = {
-        100000, 200000, 400000, 800000, 1000000, 2000000,
-        4000000, 8000000, 16000000, 24000000, 32000000, 48000000
-    };
-    /* MSIRANGE and MSIRGSEL */
-    val = extract32(s->cr, R_CR_MSIRGSEL_SHIFT, R_CR_MSIRGSEL_LENGTH);
-    if (val) {
-        /* MSIRGSEL is set, use the MSIRANGE field */
-        val = extract32(s->cr, R_CR_MSIRANGE_SHIFT, R_CR_MSIRANGE_LENGTH);
+    /* MSIPLLEN: TODO */
+
+    /*
+     * MSION and update MSIRDY
+     * Set by hardware when used directly or indirectly as system clock.
+     */
+    if (extract32(s->cfgr, R_CFGR_SWS_SHIFT, R_CFGR_SWS_LENGTH) == 0b00 ||
+        current_pll_src == RCC_CLOCK_MUX_SRC_MSI) {
+            s->cr |= (R_CR_MSION_MASK | R_CR_MSIRDY_MASK);
+            if (!(previous_value & R_CR_MSION_MASK) && (s->cier & R_CIER_MSIRDYIE_MASK)) {
+                s->cifr |= R_CIFR_MSIRDYF_MASK;
+            }
+            rcc_update_msi(s, previous_value);
     } else {
-        /* MSIRGSEL is not set, use the MSISRANGE field */
-        val = extract32(s->csr, R_CSR_MSISRANGE_SHIFT, R_CSR_MSISRANGE_LENGTH);
-    }
-
-    if (val < ARRAY_SIZE(msirange)) {
-        clock_update_hz(s->msi_rc, msirange[val]);
-    } else {
-        clock_update_hz(s->msi_rc, MSI_DEFAULT_FRQ);
-        /* TODO: there is a write protection if the value is out of bound,
-           implement that instead of setting the default */
-    }
-
-    /* MSIPLLEN */
-
-    /* MSION and update MSIRDY */
-    val = extract32(s->cr, R_CR_MSION_SHIFT, R_CR_MSION_LENGTH);
-    s->cr = (s->cr & ~R_CR_MSIRDY_MASK) |
-            (val << R_CR_MSIRDY_SHIFT);
-    if (s->cier & R_CIER_MSIRDYIE_MASK) {
-        s->cifr |= R_CIFR_MSIRDYF_MASK;
+        val = extract32(s->cr, R_CR_MSION_SHIFT, R_CR_MSION_LENGTH);
+        if (val) {
+            s->cr |= R_CR_MSIRDY_MASK;
+            rcc_update_msi(s, previous_value);
+            if (s->cier & R_CIER_MSIRDYIE_MASK) {
+                s->cifr |= R_CIFR_MSIRDYF_MASK;
+            }
+        } else {
+            s->cr &= ~R_CR_MSIRDY_MASK;
+            clock_update_hz(s->msi_rc, 0);
+        }
     }
     rcc_update_irq(s);
 }
@@ -963,15 +1025,17 @@ static void stm32l4x5_rcc_write(void *opaque, hwaddr addr,
                                   uint64_t val64, unsigned int size)
 {
     Stm32l4x5RccState *s = opaque;
+    uint32_t previous_value = 0;
     const uint32_t value = val64;
 
     trace_stm32l4x5_rcc_write(addr, value);
 
     switch (addr) {
     case A_CR:
+        previous_value = s->cr;
         s->cr = (s->cr & CR_READ_SET_MASK) |
                 (value & (CR_READ_SET_MASK | ~CR_READ_ONLY_MASK));
-        rcc_update_cr_register(s);
+        rcc_update_cr_register(s, previous_value);
         break;
     case A_ICSCR:
         s->icscr = value & ~ICSCR_READ_ONLY_MASK;
