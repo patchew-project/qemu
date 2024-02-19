@@ -108,7 +108,7 @@ qtests_i386 = \
    'numa-test'
   ]
 
-if dbus_display
+if dbus_display and config_all_devices.has_key('CONFIG_VGA_PCI')
   qtests_i386 += ['dbus-display-test']
 endif
 
