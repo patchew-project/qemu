@@ -57,7 +57,7 @@ bool virtio_add_dmabuf(QemuUUID *uuid, int udmabuf_fd)
     }
     vso = g_new(VirtioSharedObject, 1);
     vso->type = TYPE_DMABUF;
-    vso->value = GINT_TO_POINTER(udmabuf_fd);
+    vso->value.udma_buf = udmabuf_fd;
     result = virtio_add_resource(uuid, vso);
     if (!result) {
         g_free(vso);
@@ -75,7 +75,7 @@ bool virtio_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev)
     }
     vso = g_new(VirtioSharedObject, 1);
     vso->type = TYPE_VHOST_DEV;
-    vso->value = dev;
+    vso->value.dev = dev;
     result = virtio_add_resource(uuid, vso);
     if (!result) {
         g_free(vso);
@@ -114,7 +114,7 @@ int virtio_lookup_dmabuf(const QemuUUID *uuid)
         return -1;
     }
     assert(vso->type == TYPE_DMABUF);
-    return GPOINTER_TO_INT(vso->value);
+    return vso->value.udma_buf;
 }
 
 struct vhost_dev *virtio_lookup_vhost_device(const QemuUUID *uuid)
@@ -124,7 +124,7 @@ struct vhost_dev *virtio_lookup_vhost_device(const QemuUUID *uuid)
         return NULL;
     }
     assert(vso->type == TYPE_VHOST_DEV);
-    return (struct vhost_dev *) vso->value;
+    return (struct vhost_dev *) vso->value.dev;
 }
 
 SharedObjectType virtio_object_type(const QemuUUID *uuid)

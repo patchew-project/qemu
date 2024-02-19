@@ -16,15 +16,38 @@
 #include "qemu/uuid.h"
 #include "vhost.h"
 
+/**
+ * SharedObjectType:
+ * 
+ * Identifies the type of the underlying type that the current lookup
+ * table entry is holding.
+ * 
+ * TYPE_INVALID: Invalid entry
+ * TYPE_DMABUF: Entry is a dmabuf file descriptor that can be directly
+ *              shared with the requestor
+ * TYPE_VHOST_DEV: Entry is a pointer to a vhost device that is holding
+ *                 the shared object.
+ */
 typedef enum SharedObjectType {
     TYPE_INVALID = 0,
     TYPE_DMABUF,
     TYPE_VHOST_DEV,
 } SharedObjectType;
 
+/**
+ * VirtioSharedObject:
+ * @type: Shared object type identifier
+ * @value: Union containing to the underlying type
+ * 
+ * The VirtioSharedObject object provides a way to distinguish,
+ * store, and handle the different types supported by the lookup table.
+ */
 typedef struct VirtioSharedObject {
     SharedObjectType type;
-    gpointer value;
+    union {
+        struct vhost_dev *dev;  /* TYPE_VHOST_DEV */
+        int udma_buf;           /* TYPE_DMABUF */
+    } value;
 } VirtioSharedObject;
 
 /**
