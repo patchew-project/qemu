@@ -2018,6 +2018,7 @@ static uint64_t do_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
                                uint64_t ret_be, vaddr addr, int size,
                                int mmu_idx, MMUAccessType type, uintptr_t ra)
 {
+    bool need_lock = !bql_locked();
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
@@ -2030,10 +2031,14 @@ static uint64_t do_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
     section = io_prepare(&mr_offset, cpu, full->xlat_section, attrs, addr, ra);
     mr = section->mr;
 
-    bql_lock();
+    if (likely(need_lock)) {
+        bql_lock();
+    }
     ret = int_ld_mmio_beN(cpu, full, ret_be, addr, size, mmu_idx,
                           type, ra, mr, mr_offset);
-    bql_unlock();
+    if (likely(need_lock)) {
+        bql_unlock();
+    }
 
     return ret;
 }
@@ -2042,6 +2047,7 @@ static Int128 do_ld16_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
                                uint64_t ret_be, vaddr addr, int size,
                                int mmu_idx, uintptr_t ra)
 {
+    bool need_lock = !bql_locked();
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
@@ -2054,12 +2060,16 @@ static Int128 do_ld16_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
     section = io_prepare(&mr_offset, cpu, full->xlat_section, attrs, addr, ra);
     mr = section->mr;
 
-    bql_lock();
+    if (likely(need_lock)) {
+        bql_lock();
+    }
     a = int_ld_mmio_beN(cpu, full, ret_be, addr, size - 8, mmu_idx,
                         MMU_DATA_LOAD, ra, mr, mr_offset);
     b = int_ld_mmio_beN(cpu, full, ret_be, addr + size - 8, 8, mmu_idx,
                         MMU_DATA_LOAD, ra, mr, mr_offset + size - 8);
-    bql_unlock();
+    if (likely(need_lock)) {
+        bql_unlock();
+    }
 
     return int128_make128(b, a);
 }
@@ -2565,6 +2575,7 @@ static uint64_t do_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
                                uint64_t val_le, vaddr addr, int size,
                                int mmu_idx, uintptr_t ra)
 {
+    bool need_lock = !bql_locked();
     MemoryRegionSection *section;
     hwaddr mr_offset;
     MemoryRegion *mr;
@@ -2577,10 +2588,14 @@ static uint64_t do_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
     section = io_prepare(&mr_offset, cpu, full->xlat_section, attrs, addr, ra);
     mr = section->mr;
 
-    bql_lock();
+    if (likely(need_lock)) {
+        bql_lock();
+    }
     ret = int_st_mmio_leN(cpu, full, val_le, addr, size, mmu_idx,
                           ra, mr, mr_offset);
-    bql_unlock();
+    if (likely(need_lock)) {
+        bql_unlock();
+    }
 
     return ret;
 }
@@ -2589,6 +2604,7 @@ static uint64_t do_st16_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
                                  Int128 val_le, vaddr addr, int size,
                                  int mmu_idx, uintptr_t ra)
 {
+    bool need_lock = !bql_locked();
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
@@ -2601,12 +2617,16 @@ static uint64_t do_st16_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
     section = io_prepare(&mr_offset, cpu, full->xlat_section, attrs, addr, ra);
     mr = section->mr;
 
-    bql_lock();
+    if (likely(need_lock)) {
+        bql_lock();
+    }
     int_st_mmio_leN(cpu, full, int128_getlo(val_le), addr, 8,
                     mmu_idx, ra, mr, mr_offset);
     ret = int_st_mmio_leN(cpu, full, int128_gethi(val_le), addr + 8,
                           size - 8, mmu_idx, ra, mr, mr_offset + 8);
-    bql_unlock();
+    if (likely(need_lock)) {
+        bql_unlock();
+    }
 
     return ret;
 }
