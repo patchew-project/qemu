@@ -654,12 +654,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
     }
 
     if (new_caps[MIGRATION_CAPABILITY_FIXED_RAM]) {
-        if (new_caps[MIGRATION_CAPABILITY_MULTIFD]) {
-            error_setg(errp,
-                       "Fixed-ram migration is incompatible with multifd");
-            return false;
-        }
-
         if (new_caps[MIGRATION_CAPABILITY_XBZRLE]) {
             error_setg(errp,
                        "Fixed-ram migration is incompatible with xbzrle");
@@ -1251,6 +1245,14 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 #endif
+
+    if (migrate_fixed_ram() &&
+        ((params->has_multifd_compression && params->multifd_compression) ||
+         (params->tls_creds && *params->tls_creds))) {
+        error_setg(errp,
+                   "Fixed-ram only available for non-compressed non-TLS multifd migration");
+        return false;
+    }
 
     if (params->has_x_vcpu_dirty_limit_period &&
         (params->x_vcpu_dirty_limit_period < 1 ||

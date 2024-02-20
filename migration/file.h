@@ -20,4 +20,6 @@ int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp);
 
 bool file_send_channel_create(gpointer opaque, Error **errp);
 int file_send_channel_destroy(QIOChannel *ioc);
+int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
+                            int niov, RAMBlock *block, Error **errp);
 #endif

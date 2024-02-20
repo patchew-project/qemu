@@ -134,12 +134,14 @@ static bool transport_supports_multi_channels(MigrationAddress *addr)
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
         SocketAddress *saddr = &addr->u.socket;
 
-        return saddr->type == SOCKET_ADDRESS_TYPE_INET ||
-               saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
-               saddr->type == SOCKET_ADDRESS_TYPE_VSOCK;
+        return (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
+                saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
+                saddr->type == SOCKET_ADDRESS_TYPE_VSOCK);
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
+        return migrate_fixed_ram();
+    } else {
+        return false;
     }
-
-    return false;
 }
 
 static bool migration_needs_seekable_channel(void)
