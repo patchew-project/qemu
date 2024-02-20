@@ -636,12 +636,13 @@ static bool ldst_us_trans(uint32_t vd, uint32_t rs1, uint32_t data,
     tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
     tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, base, tcg_env, desc);
-
-    if (!is_store) {
+    if (is_store) {
         mark_vs_dirty(s);
     }
 
+    fn(dest, mask, base, tcg_env, desc);
+
+    mark_vs_dirty(s);
     gen_set_label(over);
     return true;
 }
@@ -797,12 +798,13 @@ static bool ldst_stride_trans(uint32_t vd, uint32_t rs1, uint32_t rs2,
     tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
     tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, base, stride, tcg_env, desc);
-
-    if (!is_store) {
+    if (is_store) {
         mark_vs_dirty(s);
     }
 
+    fn(dest, mask, base, stride, tcg_env, desc);
+
+    mark_vs_dirty(s);
     gen_set_label(over);
     return true;
 }
@@ -904,12 +906,13 @@ static bool ldst_index_trans(uint32_t vd, uint32_t rs1, uint32_t vs2,
     tcg_gen_addi_ptr(index, tcg_env, vreg_ofs(s, vs2));
     tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));
 
-    fn(dest, mask, base, index, tcg_env, desc);
-
-    if (!is_store) {
+    if (is_store) {
         mark_vs_dirty(s);
     }
 
+    fn(dest, mask, base, index, tcg_env, desc);
+
+    mark_vs_dirty(s);
     gen_set_label(over);
     return true;
 }
@@ -1102,11 +1105,13 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
     base = get_gpr(s, rs1, EXT_NONE);
     tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vd));
 
-    fn(dest, base, tcg_env, desc);
-
-    if (!is_store) {
+    if (is_store) {
         mark_vs_dirty(s);
     }
+
+    fn(dest, base, tcg_env, desc);
+
+    mark_vs_dirty(s);
     gen_set_label(over);
 
     return true;
