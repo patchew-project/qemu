@@ -815,8 +815,8 @@ static void virt_init(MachineState *machine)
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
     }
 
-    if (ram_size < 1 * GiB) {
-        error_report("ram_size must be greater than 1G.");
+    if (ram_size < 256 * MiB) {
+        error_report("ram_size must be greater than 256M.");
         exit(1);
     }
     create_fdt(vms);
@@ -1144,7 +1144,7 @@ static void virt_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->init = virt_init;
-    mc->default_ram_size = 1 * GiB;
+    mc->default_ram_size = 256 * MiB;
     mc->default_cpu_type = LOONGARCH_CPU_TYPE_NAME("la464");
     mc->default_ram_id = "loongarch.ram";
     mc->max_cpus = LOONGARCH_MAX_CPUS;
