@@ -25,6 +25,31 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 
+#ifndef CONFIG_USER_ONLY
+static void alpha_cpu_tmr_irq(void *opaque, int irq, int level)
+{
+    DeviceState *dev = opaque;
+    CPUState *cs = CPU(dev);
+
+    if (level) {
+        cs->interrupt_request |= CPU_INTERRUPT_TIMER;
+    } else {
+        cs->interrupt_request &= ~CPU_INTERRUPT_TIMER;
+    }
+}
+
+static void alpha_cpu_smp_irq(void *opaque, int irq, int level)
+{
+    DeviceState *dev = opaque;
+    CPUState *cs = CPU(dev);
+
+    if (level) {
+        cs->interrupt_request |= CPU_INTERRUPT_SMP;
+    } else {
+        cs->interrupt_request &= ~CPU_INTERRUPT_SMP;
+    }
+}
+#endif
 
 static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -88,6 +113,11 @@ static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     qemu_init_vcpu(cs);
+
+#ifndef CONFIG_USER_ONLY
+    qdev_init_gpio_in_named(dev, alpha_cpu_tmr_irq, "TMR", 1);
+    qdev_init_gpio_in_named(dev, alpha_cpu_smp_irq, "SMP", 1);
+#endif
 
     acc->parent_realize(dev, errp);
 }
