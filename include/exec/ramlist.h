@@ -8,10 +8,20 @@
 
 typedef struct RAMBlockNotifier RAMBlockNotifier;
 
+/* XXX: hack, need to work out how to do this */
+#ifndef TARGET_HAS_LLSC_PROT
+#define TARGET_HAS_LLSC_PROT
+#endif
+
 #define DIRTY_MEMORY_VGA       0
 #define DIRTY_MEMORY_CODE      1
 #define DIRTY_MEMORY_MIGRATION 2
+#ifdef TARGET_HAS_LLSC_PROT
+#define DIRTY_MEMORY_LLSC_PROT 3
+#define DIRTY_MEMORY_NUM       4        /* num of dirty bits */
+#else
 #define DIRTY_MEMORY_NUM       3        /* num of dirty bits */
+#endif
 
 /* The dirty memory bitmap is split into fixed-size blocks to allow growth
  * under RCU.  The bitmap for a block can be accessed as follows:

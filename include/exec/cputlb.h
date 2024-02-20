@@ -27,4 +27,11 @@
 void tlb_protect_code(ram_addr_t ram_addr);
 void tlb_unprotect_code(ram_addr_t ram_addr);
 #endif
+
+void cpu_set_llsc_prot(CPUState *cpu, ram_addr_t addr);
+bool cpu_resolve_llsc_begin(CPUState *cpu);
+void cpu_resolve_llsc_abort(CPUState *cpu);
+bool cpu_resolve_llsc_check(CPUState *cpu, ram_addr_t addr);
+void cpu_resolve_llsc_success(CPUState *cpu);
+
 #endif

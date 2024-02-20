@@ -489,6 +489,11 @@ struct CPUState {
     uint64_t random_seed;
     sigjmp_buf jmp_env;
 
+    int llsc_prot_block_size;
+    bool llsc_prot_active;
+    bool llsc_resolving;
+    hwaddr llsc_prot_address; /* ram_addr_t physical address of reservation */
+
     QemuMutex work_mutex;
     QSIMPLEQ_HEAD(, qemu_work_item) work_list;
 

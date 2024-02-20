@@ -274,11 +274,18 @@ static inline void tlb_n_used_entries_dec(CPUState *cpu, uintptr_t mmu_idx)
     cpu->neg.tlb.d[mmu_idx].n_used_entries--;
 }
 
+#ifdef TARGET_HAS_LLSC_PROT
+static QemuMutex llsc_prot_mutex;
+#endif
+
 void tlb_init(CPUState *cpu)
 {
     int64_t now = get_clock_realtime();
     int i;
 
+#ifdef TARGET_HAS_LLSC_PROT
+    qemu_mutex_init(&llsc_prot_mutex);
+#endif
     qemu_spin_init(&cpu->neg.tlb.c.lock);
 
     /* All tlbs are initialized flushed. */
@@ -1408,6 +1415,176 @@ static bool victim_tlb_hit(CPUState *cpu, size_t mmu_idx, size_t index,
     return false;
 }
 
+#ifdef TARGET_HAS_LLSC_PROT
+/*
+ * Remove a particular address from being watched by LLSC if it is
+ * no longer actively protected by any CPU.
+ */
+static void cpu_teardown_llsc_prot(ram_addr_t addr)
+{
+    CPUState *cpu;
+
+    addr &= TARGET_PAGE_MASK;
+
+    CPU_FOREACH(cpu) {
+        if ((cpu->llsc_prot_address & TARGET_PAGE_MASK) == addr) {
+            if (cpu->llsc_prot_active) {
+                return;
+            }
+            cpu->llsc_prot_address = -1ULL;
+        }
+    }
+    cpu_physical_memory_set_dirty_flag(addr, DIRTY_MEMORY_LLSC_PROT);
+}
+
+/*
+ * Start protection of an address. cpu_resolve_llsc_begin() and
+ * cpu_resolve_llsc_check() will return true so long as another
+ * actor has not modified the line.
+ */
+void cpu_set_llsc_prot(CPUState *cpu, ram_addr_t addr)
+{
+    ram_addr_t old;
+
+    addr &= ~(cpu->llsc_prot_block_size - 1);
+
+    qemu_mutex_lock(&llsc_prot_mutex);
+    old = cpu->llsc_prot_address;
+    if ((addr & TARGET_PAGE_MASK) == (old & TARGET_PAGE_MASK)) {
+        old = -1ULL;
+        goto out;
+    }
+    cpu_physical_memory_test_and_clear_dirty(addr & TARGET_PAGE_MASK,
+                                             TARGET_PAGE_SIZE,
+                                             DIRTY_MEMORY_LLSC_PROT);
+out:
+    cpu->llsc_prot_address = addr;
+    cpu->llsc_prot_active = true;
+    if (old != -1ULL) {
+        cpu_teardown_llsc_prot(old);
+    }
+
+    qemu_mutex_unlock(&llsc_prot_mutex);
+}
+
+/*
+ * The store for store-conditional must be performed under the llsc_prot_mutex,
+ * but it must not go ahead if protection has been lost. The point of resolving
+ * conflicts happens at TLB probe time, so this can be achieved by taking the
+ * lock here, then checking our protection has not been invalidated and probing
+ * the TLB, then performing the store.
+ *
+ * The TLB probe must be non-faulting (to avoid problems with lock recursion).
+ * If the non-faulting probe fails then cpu_resolve_llsc_abort() must be called
+ * (and either perform a full probe and then retry, or perhaps could just fail
+ * the store-conditional).
+ *
+ * The TLB probe while holding the mutex may have to check and invalidate the
+ * protection on other CPUs and therefore it must hold the lock. If
+ * llsc_resolving is true then the lock is held and not acquired again.
+ */
+bool cpu_resolve_llsc_begin(CPUState *cpu)
+{
+    if (!cpu->llsc_prot_active) {
+        return false;
+    }
+    qemu_mutex_lock(&llsc_prot_mutex);
+    if (!cpu->llsc_prot_active) {
+        qemu_mutex_unlock(&llsc_prot_mutex);
+        return false;
+    }
+
+    g_assert(!cpu->llsc_resolving);
+    cpu->llsc_resolving = true;
+
+    return true;
+}
+
+void cpu_resolve_llsc_abort(CPUState *cpu)
+{
+    cpu->llsc_resolving = false;
+    qemu_mutex_unlock(&llsc_prot_mutex);
+}
+
+bool cpu_resolve_llsc_check(CPUState *cpu, ram_addr_t addr)
+{
+    g_assert(cpu->llsc_resolving);
+    g_assert(cpu->llsc_prot_active);
+
+    addr &= ~(cpu->llsc_prot_block_size - 1);
+    if (cpu->llsc_prot_address != addr) {
+        cpu->llsc_prot_active = false;
+        cpu->llsc_resolving = false;
+        qemu_mutex_unlock(&llsc_prot_mutex);
+        return false;
+    }
+
+    return true;
+}
+
+void cpu_resolve_llsc_success(CPUState *cpu)
+{
+    ram_addr_t addr;
+
+    addr = cpu->llsc_prot_address;
+    g_assert(addr != -1ULL);
+    assert(cpu->llsc_prot_active);
+    cpu->llsc_prot_active = false;
+
+    /* Leave the llsc_prot_address under active watch, for performance */
+//    cpu->llsc_prot_address = -1ULL;
+//    cpu_teardown_llsc_prot(addr);
+    g_assert(cpu->llsc_resolving);
+    cpu->llsc_resolving = false;
+
+    qemu_mutex_unlock(&llsc_prot_mutex);
+}
+
+static void other_cpus_clear_llsc_prot(CPUState *cpu, ram_addr_t addr,
+                                              unsigned size)
+{
+    CPUState *c;
+    ram_addr_t end;
+    bool teardown = false;
+
+    end = (addr + size - 1) & ~(cpu->llsc_prot_block_size - 1);
+    addr &= ~(cpu->llsc_prot_block_size - 1);
+
+    if (!cpu->llsc_resolving) {
+        qemu_mutex_lock(&llsc_prot_mutex);
+    }
+
+    CPU_FOREACH(c) {
+        ram_addr_t a = c->llsc_prot_address;
+
+        if (c == cpu) {
+            continue;
+        }
+        if (a == -1ULL) {
+            assert(!c->llsc_prot_active);
+            continue;
+        }
+	if (a == addr || a == end) {
+            if (c->llsc_prot_active) {
+                c->llsc_prot_active = false;
+            } else {
+                teardown = true;
+            }
+        }
+    }
+    if (teardown) {
+        cpu_teardown_llsc_prot(addr);
+        if (end != addr) {
+            cpu_teardown_llsc_prot(end);
+        }
+    }
+
+    if (!cpu->llsc_resolving) {
+        qemu_mutex_unlock(&llsc_prot_mutex);
+    }
+}
+#endif
+
 static void notdirty_write(CPUState *cpu, vaddr mem_vaddr, unsigned size,
                            CPUTLBEntryFull *full, uintptr_t retaddr)
 {
@@ -1419,11 +1596,18 @@ static void notdirty_write(CPUState *cpu, vaddr mem_vaddr, unsigned size,
         tb_invalidate_phys_range_fast(ram_addr, size, retaddr);
     }
 
+#ifdef TARGET_HAS_LLSC_PROT
+    if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_LLSC_PROT)) {
+        other_cpus_clear_llsc_prot(cpu, ram_addr, size);
+    }
+#endif
+
     /*
      * Set both VGA and migration bits for simplicity and to remove
-     * the notdirty callback faster.
+     * the notdirty callback faster. Code and llsc_prot don't get set
+     * because we always want callbacks for them.
      */
-    cpu_physical_memory_set_dirty_range(ram_addr, size, DIRTY_CLIENTS_NOCODE);
+    cpu_physical_memory_set_dirty_range(ram_addr, size, DIRTY_CLIENTS_ONESHOT);
 
     /* We remove the notdirty callback only if the code has been flushed. */
     if (!cpu_physical_memory_is_clean(ram_addr)) {

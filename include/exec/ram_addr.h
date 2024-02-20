@@ -147,7 +147,13 @@ static inline void qemu_ram_block_writeback(RAMBlock *block)
 }
 
 #define DIRTY_CLIENTS_ALL     ((1 << DIRTY_MEMORY_NUM) - 1)
-#define DIRTY_CLIENTS_NOCODE  (DIRTY_CLIENTS_ALL & ~(1 << DIRTY_MEMORY_CODE))
+
+/*
+ * Migration and VGA just want to see the dirty bit set, hence "oneshot".
+ * As opposed to code and llsc_prot which want to be called on every store.
+ */
+#define DIRTY_CLIENTS_ONESHOT ((1 << DIRTY_MEMORY_VGA) |        \
+                               (1 << DIRTY_MEMORY_MIGRATION))
 
 static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
                                                  ram_addr_t length,
@@ -240,7 +246,13 @@ static inline bool cpu_physical_memory_is_clean(ram_addr_t addr)
     bool code = cpu_physical_memory_get_dirty_flag(addr, DIRTY_MEMORY_CODE);
     bool migration =
         cpu_physical_memory_get_dirty_flag(addr, DIRTY_MEMORY_MIGRATION);
-    return !(vga && code && migration);
+    bool llsc_prot =
+#ifdef TARGET_HAS_LLSC_PROT
+        cpu_physical_memory_get_dirty_flag(addr, DIRTY_MEMORY_LLSC_PROT);
+#else
+        false;
+#endif
+    return !(vga && code && migration && llsc_prot);
 }
 
 static inline uint8_t cpu_physical_memory_range_includes_clean(ram_addr_t start,
@@ -261,6 +273,12 @@ static inline uint8_t cpu_physical_memory_range_includes_clean(ram_addr_t start,
         !cpu_physical_memory_all_dirty(start, length, DIRTY_MEMORY_MIGRATION)) {
         ret |= (1 << DIRTY_MEMORY_MIGRATION);
     }
+#ifdef TARGET_HAS_LLSC_PROT
+    if (mask & (1 << DIRTY_MEMORY_LLSC_PROT) &&
+        !cpu_physical_memory_all_dirty(start, length, DIRTY_MEMORY_LLSC_PROT)) {
+        ret |= (1 << DIRTY_MEMORY_LLSC_PROT);
+    }
+#endif
     return ret;
 }
 
@@ -322,6 +340,12 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
                 bitmap_set_atomic(blocks[DIRTY_MEMORY_CODE]->blocks[idx],
                                   offset, next - page);
             }
+#ifdef TARGET_HAS_LLSC_PROT
+            if (unlikely(mask & (1 << DIRTY_MEMORY_LLSC_PROT))) {
+                bitmap_set_atomic(blocks[DIRTY_MEMORY_LLSC_PROT]->blocks[idx],
+                                  offset, next - page);
+            }
+#endif
 
             page = next;
             idx++;
@@ -354,6 +378,8 @@ uint64_t cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
     unsigned long len = (pages + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
     unsigned long hpratio = qemu_real_host_page_size() / TARGET_PAGE_SIZE;
     unsigned long page = BIT_WORD(start >> TARGET_PAGE_BITS);
+
+    assert(0);
 
     /* start address is aligned at the start of a word? */
     if ((((page * BITS_PER_LONG) << TARGET_PAGE_BITS) == start) &&
@@ -396,6 +422,12 @@ uint64_t cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
                     if (tcg_enabled()) {
                         qatomic_or(&blocks[DIRTY_MEMORY_CODE][idx][offset],
                                    temp);
+#ifdef TARGET_HAS_LLSC_PROT
+			/* XXX? */
+                        qatomic_or(&blocks[DIRTY_MEMORY_LLSC_PROT][idx][offset],
+                                   temp);
+#endif
+			assert(0);
                     }
                 }
 
@@ -408,7 +440,8 @@ uint64_t cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
 
         xen_hvm_modified_memory(start, pages << TARGET_PAGE_BITS);
     } else {
-        uint8_t clients = tcg_enabled() ? DIRTY_CLIENTS_ALL : DIRTY_CLIENTS_NOCODE;
+        uint8_t clients = tcg_enabled() ? DIRTY_CLIENTS_ALL :
+                                          DIRTY_CLIENTS_ONESHOT;
 
         if (!global_dirty_tracking) {
             clients &= ~(1 << DIRTY_MEMORY_MIGRATION);
@@ -460,6 +493,9 @@ static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
     cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_MIGRATION);
     cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_VGA);
     cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_CODE);
+#ifdef TARGET_HAS_LLSC_PROT
+    cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_LLSC_PROT);
+#endif
 }
 
 

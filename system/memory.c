@@ -1863,6 +1863,9 @@ uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
     if (tcg_enabled() && rb) {
         /* TCG only cares about dirty memory logging for RAM, not IOMMU.  */
         mask |= (1 << DIRTY_MEMORY_CODE);
+#ifdef TARGET_HAS_LLSC_PROT
+        mask |= (1 << DIRTY_MEMORY_LLSC_PROT);
+#endif
     }
     return mask;
 }

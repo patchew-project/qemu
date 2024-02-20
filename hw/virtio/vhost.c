@@ -520,6 +520,7 @@ static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
          */
         handled_dirty = (1 << DIRTY_MEMORY_MIGRATION) |
             (1 << DIRTY_MEMORY_CODE);
+        /* XXX: llsc? */
 
         if (dirty_mask & ~handled_dirty) {
             trace_vhost_reject_section(mr->name, 1);

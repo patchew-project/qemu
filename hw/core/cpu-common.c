@@ -250,6 +250,11 @@ static void cpu_common_initfn(Object *obj)
     cpu->nr_cores = 1;
     cpu->nr_threads = 1;
     cpu->cflags_next_tb = -1;
+#ifdef TARGET_HAS_LLSC_PROT
+    cpu->llsc_prot_active = false;
+    cpu->llsc_prot_address = -1ULL;
+    cpu->llsc_resolving = false;
+#endif
 
     qemu_mutex_init(&cpu->work_mutex);
     qemu_lockcnt_init(&cpu->in_ioctl_lock);

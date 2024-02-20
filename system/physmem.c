@@ -2587,6 +2587,13 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
         dirty_log_mask =
             cpu_physical_memory_range_includes_clean(addr, length, dirty_log_mask);
     }
+#ifdef TARGET_HAS_LLSC_PROT
+    if (dirty_log_mask & (1 << DIRTY_MEMORY_LLSC_PROT)) {
+        assert(tcg_enabled());
+        /* XXX should invalidate CPU's llsc_prot protections here? */
+        dirty_log_mask &= ~(1 << DIRTY_MEMORY_LLSC_PROT);
+    }
+#endif
     if (dirty_log_mask & (1 << DIRTY_MEMORY_CODE)) {
         assert(tcg_enabled());
         tb_invalidate_phys_range(addr, addr + length - 1);
