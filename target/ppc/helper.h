@@ -818,4 +818,6 @@ DEF_HELPER_4(DSCLI, void, env, fprp, fprp, i32)
 DEF_HELPER_4(DSCLIQ, void, env, fprp, fprp, i32)
 
 DEF_HELPER_1(tbegin, void, env)
+DEF_HELPER_4(larx, void, env, tl, tl, tl)
+DEF_HELPER_4(stcx, void, env, tl, tl, tl)
 DEF_HELPER_FLAGS_1(fixup_thrm, TCG_CALL_NO_RWG, void, env)

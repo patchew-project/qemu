@@ -6831,6 +6831,10 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
         goto unrealize;
     }
     init_ppc_proc(cpu);
+    if (tcg_enabled()) {
+        cs->llsc_prot_block_size = env->dcache_line_size;
+        printf("Reservation granule size %d\n", cs->llsc_prot_block_size);
+    }
 
     ppc_gdb_init(cs, pcc);
     qemu_init_vcpu(cs);

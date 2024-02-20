@@ -24,10 +24,20 @@
 #include "exec/helper-proto.h"
 #include "helper_regs.h"
 #include "exec/cpu_ldst.h"
+#include "exec/cputlb.h"
 #include "internal.h"
 #include "qemu/atomic128.h"
 
 /* #define DEBUG_OP */
+
+static inline int DEF_MEMOP(const CPUPPCState *env, int op)
+{
+    if (FIELD_EX64(env->msr, MSR, LE)) {
+        return op | MO_LE;
+    } else {
+        return op | MO_BE;
+    }
+}
 
 static inline bool needs_byteswap(const CPUPPCState *env)
 {
@@ -527,4 +537,126 @@ void helper_tbegin(CPUPPCState *env)
                           FIELD_EX64(env->msr, MSR, PR);
     env->spr[SPR_TFHAR] = env->nip + 4;
     env->crf[0] = 0xB; /* 0b1010 = transaction failure */
+}
+
+void helper_larx(CPUPPCState *env, target_ulong addr, target_ulong size,
+                 target_ulong reg)
+{
+    CPUState *cs = env_cpu(env);
+    uintptr_t raddr = GETPC();
+    int mmu_idx = cpu_mmu_index(cs, false);
+    uint64_t val;
+    void *host;
+
+    if (addr & (size - 1)) {
+	ppc_cpu_do_unaligned_access(cs, addr, MMU_DATA_LOAD, mmu_idx, raddr);
+    }
+
+    env->access_type = ACCESS_RES;
+    host = probe_access(env, addr, size, MMU_DATA_LOAD, mmu_idx, raddr);
+    if (host) {
+        cpu_set_llsc_prot(cs, qemu_ram_addr_from_host_nofail(host));
+    } else {
+        /* XXX: fault? */
+        g_assert_not_reached();
+    }
+
+    if (unlikely(size == 16)) {
+        Int128 val16;
+        val16 = cpu_ld16_mmu(env, addr,
+                     make_memop_idx(DEF_MEMOP(env, MO_128 | MO_ALIGN), mmu_idx),
+                     raddr);
+        env->gpr[reg] = int128_gethi(val16);
+        env->gpr[reg + 1] = int128_getlo(val16);
+        return;
+    }
+
+    switch (size) {
+    case 1:
+        val = ldub_p(host);
+        break;
+    case 2:
+        val = FIELD_EX64(env->msr, MSR, LE) ? lduw_le_p(host) : lduw_be_p(host);
+        break;
+    case 4:
+        val = FIELD_EX64(env->msr, MSR, LE) ? ldl_le_p(host) : ldl_be_p(host);
+        break;
+    case 8:
+        val = FIELD_EX64(env->msr, MSR, LE) ? ldq_le_p(host) : ldq_be_p(host);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    env->gpr[reg] = val;
+}
+
+void helper_stcx(CPUPPCState *env, target_ulong addr, target_ulong size,
+                 target_ulong reg)
+{
+    CPUState *cs = env_cpu(env);
+    uintptr_t raddr = GETPC();
+    int mmu_idx = cpu_mmu_index(cs, false);
+    uint64_t val;
+    void *host;
+    CPUTLBEntryFull *full;
+    int flags;
+
+    if (addr & (size - 1)) {
+	ppc_cpu_do_unaligned_access(cs, addr, MMU_DATA_STORE, mmu_idx, raddr);
+    }
+
+    env->access_type = ACCESS_RES;
+
+again:
+    if (!cpu_resolve_llsc_begin(cs)) {
+        goto fail;
+    }
+
+    flags = probe_access_full(env, addr, size, MMU_DATA_STORE,
+                              mmu_idx, true, &host, &full, raddr);
+    if (unlikely(flags & TLB_INVALID_MASK)) {
+        cpu_resolve_llsc_abort(cs);
+        host = probe_access(env, addr, size, MMU_DATA_STORE, mmu_idx, raddr);
+        g_assert(host);
+        goto again;
+    }
+
+    if (!cpu_resolve_llsc_check(cs, qemu_ram_addr_from_host_nofail(host))) {
+        goto fail;
+    }
+
+    if (unlikely(size == 16)) {
+        Int128 val16 = int128_make128(env->gpr[reg + 1], env->gpr[reg]);
+        cpu_st16_mmu(env, addr, val16,
+                    make_memop_idx(DEF_MEMOP(env, MO_128 | MO_ALIGN), mmu_idx),
+                    raddr);
+	goto success;
+    }
+
+    val = env->gpr[reg];
+    switch (size) {
+    case 1:
+        stb_p(host, val);
+        break;
+    case 2:
+        FIELD_EX64(env->msr, MSR, LE) ? stw_le_p(host, val) : stw_be_p(host, val);
+        break;
+    case 4:
+        FIELD_EX64(env->msr, MSR, LE) ? stl_le_p(host, val) : stl_be_p(host, val);
+        break;
+    case 8:
+        FIELD_EX64(env->msr, MSR, LE) ? stq_le_p(host, val) : stq_be_p(host, val);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+success:
+    cpu_resolve_llsc_success(cs);
+
+    env->crf[0] = xer_so | CRF_EQ; /* stcx pass */
+    return;
+
+fail:
+    env->crf[0] = xer_so; /* stcx fail */
 }

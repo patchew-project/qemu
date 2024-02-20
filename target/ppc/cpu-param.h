@@ -8,6 +8,10 @@
 #ifndef PPC_CPU_PARAM_H
 #define PPC_CPU_PARAM_H
 
+#ifndef TARGET_HAS_LLSC_PROT /* XXX: hack */
+#define TARGET_HAS_LLSC_PROT 1
+#endif
+
 #ifdef TARGET_PPC64
 # define TARGET_LONG_BITS 64
 /*
