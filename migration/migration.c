@@ -153,6 +153,16 @@ static bool migration_needs_seekable_channel(void)
     return migrate_fixed_ram();
 }
 
+static bool migration_needs_multiple_fds(void)
+{
+    /*
+     * When doing direct-io, multifd requires two different,
+     * non-duplicated file descriptors so we can use one of them for
+     * unaligned IO.
+     */
+    return migrate_multifd() && migrate_direct_io();
+}
+
 static bool transport_supports_seeking(MigrationAddress *addr)
 {
     if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
@@ -171,6 +181,12 @@ static bool transport_supports_seeking(MigrationAddress *addr)
     return false;
 }
 
+static bool transport_supports_multiple_fds(MigrationAddress *addr)
+{
+    /* file: works because QEMU can open it multiple times */
+    return addr->transport == MIGRATION_ADDRESS_TYPE_FILE;
+}
+
 static bool
 migration_channels_and_transport_compatible(MigrationAddress *addr,
                                             Error **errp)
@@ -184,6 +200,14 @@ migration_channels_and_transport_compatible(MigrationAddress *addr,
     if (migration_needs_multiple_sockets() &&
         !transport_supports_multi_channels(addr)) {
         error_setg(errp, "Migration requires multi-channel URIs (e.g. tcp)");
+        return false;
+    }
+
+    if (migration_needs_multiple_fds() &&
+        !transport_supports_multiple_fds(addr)) {
+        error_setg(errp,
+                   "Migration with direct-io is incompatible with the fd: URI,"
+                   " use file: instead");
         return false;
     }
 
