@@ -12,11 +12,16 @@
 #include "channel.h"
 #include "file.h"
 #include "migration.h"
+#include "multifd.h"
 #include "io/channel-file.h"
 #include "io/channel-util.h"
 #include "trace.h"
 
 #define OFFSET_OPTION ",offset="
+
+static struct FileOutgoingArgs {
+    char *fname;
+} outgoing_args;
 
 /* Remove the offset option from @filespec and return it in @offsetp. */
 
@@ -37,6 +42,34 @@ int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp)
     return 0;
 }
 
+int file_send_channel_destroy(QIOChannel *ioc)
+{
+    if (ioc) {
+        qio_channel_close(ioc, NULL);
+    }
+    g_free(outgoing_args.fname);
+    outgoing_args.fname = NULL;
+
+    return 0;
+}
+
+bool file_send_channel_create(gpointer opaque, Error **errp)
+{
+    QIOChannelFile *ioc;
+    int flags = O_WRONLY;
+
+    ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);
+    if (!ioc) {
+        return false;
+    }
+
+    if (!multifd_channel_connect(opaque, QIO_CHANNEL(ioc), errp)) {
+        return false;
+    }
+
+    return true;
+}
+
 void file_start_outgoing_migration(MigrationState *s,
                                    FileMigrationArgs *file_args, Error **errp)
 {
@@ -44,14 +77,17 @@ void file_start_outgoing_migration(MigrationState *s,
     g_autofree char *filename = g_strdup(file_args->filename);
     uint64_t offset = file_args->offset;
     QIOChannel *ioc;
+    int flags = O_CREAT | O_TRUNC | O_WRONLY;
+    mode_t mode = 0660;
 
     trace_migration_file_outgoing(filename);
 
-    fioc = qio_channel_file_new_path(filename, O_CREAT | O_WRONLY | O_TRUNC,
-                                     0600, errp);
+    fioc = qio_channel_file_new_path(filename, flags, mode, errp);
     if (!fioc) {
         return;
     }
+
+    outgoing_args.fname = g_strdup(filename);
 
     ioc = QIO_CHANNEL(fioc);
     if (offset && qio_channel_io_seek(ioc, offset, SEEK_SET, errp) < 0) {

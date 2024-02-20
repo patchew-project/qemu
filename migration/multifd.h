@@ -228,5 +228,7 @@ static inline void multifd_send_prepare_header(MultiFDSendParams *p)
     p->iovs_num++;
 }
 
+bool multifd_channel_connect(MultiFDSendParams *p, QIOChannel *ioc,
+                             Error **errp);
 
 #endif

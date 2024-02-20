@@ -17,6 +17,7 @@
 #include "exec/ramblock.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "file.h"
 #include "ram.h"
 #include "migration.h"
 #include "migration-stats.h"
@@ -28,6 +29,7 @@
 #include "threadinfo.h"
 #include "options.h"
 #include "qemu/yank.h"
+#include "io/channel-file.h"
 #include "io/channel-socket.h"
 #include "yank_functions.h"
 
@@ -680,6 +682,9 @@ static void multifd_send_terminate_threads(void)
 
 static int multifd_send_channel_destroy(QIOChannel *send)
 {
+    if (!multifd_use_packets()) {
+        return file_send_channel_destroy(send);
+    }
     return socket_send_channel_destroy(send);
 }
 
@@ -959,9 +964,8 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
     return true;
 }
 
-static bool multifd_channel_connect(MultiFDSendParams *p,
-                                    QIOChannel *ioc,
-                                    Error **errp)
+bool multifd_channel_connect(MultiFDSendParams *p, QIOChannel *ioc,
+                             Error **errp)
 {
     qio_channel_set_delay(ioc, false);
 
@@ -1031,9 +1035,14 @@ out:
     error_free(local_err);
 }
 
-static void multifd_new_send_channel_create(gpointer opaque)
+static bool multifd_new_send_channel_create(gpointer opaque, Error **errp)
 {
+    if (!multifd_use_packets()) {
+        return file_send_channel_create(opaque, errp);
+    }
+
     socket_send_channel_create(multifd_new_send_channel_async, opaque);
+    return true;
 }
 
 bool multifd_send_setup(void)
@@ -1082,7 +1091,15 @@ bool multifd_send_setup(void)
         p->page_size = qemu_target_page_size();
         p->page_count = page_count;
         p->write_flags = 0;
-        multifd_new_send_channel_create(p);
+
+        if (!multifd_new_send_channel_create(p, &local_err)) {
+            /*
+             * File channel creation is synchronous, we don't need the
+             * semaphore below, it's safe to return now.
+             */
+            assert(migrate_fixed_ram());
+            return -1;
+        }
     }
 
     if (use_packets) {
