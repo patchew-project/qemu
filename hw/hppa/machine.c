@@ -677,13 +677,15 @@ static void hppa_machine_reset(MachineState *ms, ShutdownCause reason)
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 }
 
-static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool hppa_nmi(NMIState *n, Error **errp)
 {
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         cpu_interrupt(cs, CPU_INTERRUPT_NMI);
     }
+
+    return true;
 }
 
 static void HP_B160L_machine_init_class_init(ObjectClass *oc, void *data)
@@ -709,7 +711,7 @@ static void HP_B160L_machine_init_class_init(ObjectClass *oc, void *data)
     mc->default_ram_id = "ram";
     mc->default_nic = "tulip";
 
-    nc->nmi_monitor_handler = hppa_nmi;
+    nc->nmi_handler = hppa_nmi;
 }
 
 static const TypeInfo HP_B160L_machine_init_typeinfo = {
@@ -745,7 +747,7 @@ static void HP_C3700_machine_init_class_init(ObjectClass *oc, void *data)
     mc->default_ram_id = "ram";
     mc->default_nic = "tulip";
 
-    nc->nmi_monitor_handler = hppa_nmi;
+    nc->nmi_handler = hppa_nmi;
 }
 
 static const TypeInfo HP_C3700_machine_init_typeinfo = {

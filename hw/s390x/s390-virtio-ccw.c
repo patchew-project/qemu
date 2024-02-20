@@ -603,9 +603,11 @@ static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
-static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool s390_nmi(NMIState *n, Error **errp)
 {
     s390_cpu_restart(S390_CPU(first_cpu));
+
+    return true;
 }
 
 static ram_addr_t s390_fixup_ram_size(ram_addr_t sz)
@@ -774,7 +776,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = S390_CPU_TYPE_NAME("qemu");
     hc->plug = s390_machine_device_plug;
     hc->unplug_request = s390_machine_device_unplug_request;
-    nc->nmi_monitor_handler = s390_nmi;
+    nc->nmi_handler = s390_nmi;
     mc->default_ram_id = "s390.ram";
     mc->default_nic = "virtio-net-ccw";
 

@@ -37,7 +37,16 @@ typedef struct NMIState NMIState;
 struct NMIClass {
     InterfaceClass parent_class;
 
-    void (*nmi_monitor_handler)(NMIState *n, int cpu_index, Error **errp);
+    /**
+     * nmi_handler: Callback to handle NMI notifications.
+     *
+     * @n: Class #NMIState state
+     * @errp: pointer to error object
+     *
+     * On success, return %true.
+     * On failure, store an error through @errp and return %false.
+     */
+    bool (*nmi_handler)(NMIState *n, Error **errp);
 };
 
 void nmi_monitor_handle(int cpu_index, Error **errp);

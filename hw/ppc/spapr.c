@@ -3535,13 +3535,15 @@ void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
     }
 }
 
-static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool spapr_nmi(NMIState *n, Error **errp)
 {
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         async_run_on_cpu(cs, spapr_do_system_reset_on_cpu, RUN_ON_CPU_NULL);
     }
+
+    return true;
 }
 
 int spapr_lmb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
@@ -4698,7 +4700,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->nvdimm_supported = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_ENABLED;
     fwc->get_dev_path = spapr_get_fw_dev_path;
-    nc->nmi_monitor_handler = spapr_nmi;
+    nc->nmi_handler = spapr_nmi;
     smc->phb_placement = spapr_phb_placement;
     vhc->cpu_in_nested = spapr_cpu_in_nested;
     vhc->deliver_hv_excp = spapr_exit_nested;

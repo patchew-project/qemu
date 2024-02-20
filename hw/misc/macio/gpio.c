@@ -183,10 +183,12 @@ static void macio_gpio_reset(DeviceState *dev)
     macio_set_gpio(s, 1, true);
 }
 
-static void macio_gpio_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool macio_gpio_nmi(NMIState *n, Error **errp)
 {
     macio_set_gpio(MACIO_GPIO(n), 9, true);
     macio_set_gpio(MACIO_GPIO(n), 9, false);
+
+    return true;
 }
 
 static void macio_gpio_class_init(ObjectClass *oc, void *data)
@@ -196,7 +198,7 @@ static void macio_gpio_class_init(ObjectClass *oc, void *data)
 
     dc->reset = macio_gpio_reset;
     dc->vmsd = &vmstate_macio_gpio;
-    nc->nmi_monitor_handler = macio_gpio_nmi;
+    nc->nmi_handler = macio_gpio_nmi;
 }
 
 static const TypeInfo macio_gpio_init_info = {

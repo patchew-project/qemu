@@ -512,9 +512,8 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
     return ms->possible_cpus;
 }
 
-static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool x86_nmi(NMIState *n, Error **errp)
 {
-    /* cpu index isn't used */
     CPUState *cs;
 
     CPU_FOREACH(cs) {
@@ -526,6 +525,8 @@ static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
             cpu_interrupt(cs, CPU_INTERRUPT_NMI);
         }
     }
+
+    return true;
 }
 
 static long get_file_size(FILE *f)
@@ -1415,7 +1416,7 @@ static void x86_machine_class_init(ObjectClass *oc, void *data)
     mc->possible_cpu_arch_ids = x86_possible_cpu_arch_ids;
     x86mc->save_tsc_khz = true;
     x86mc->fwcfg_dma_enabled = true;
-    nc->nmi_monitor_handler = x86_nmi;
+    nc->nmi_handler = x86_nmi;
 
     object_class_property_add(oc, X86_MACHINE_SMM, "OnOffAuto",
         x86_machine_get_smm, x86_machine_set_smm,
