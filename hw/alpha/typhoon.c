@@ -26,6 +26,8 @@ typedef struct TyphoonCchip {
     uint64_t dim[4];
     uint32_t iic[4];
     AlphaCPU *cpu[4];
+    qemu_irq cpu_tmr[4];
+    qemu_irq cpu_smp[4];
 } TyphoonCchip;
 
 typedef struct TyphoonWindow {
@@ -343,17 +345,16 @@ static MemTxResult cchip_write(void *opaque, hwaddr addr,
             for (i = 0; i < 4; ++i) {
                 AlphaCPU *cpu = s->cchip.cpu[i];
                 if (cpu != NULL) {
-                    CPUState *cs = CPU(cpu);
                     /* IPI can be either cleared or set by the write.  */
                     if (newval & (1 << (i + 8))) {
-                        cpu_interrupt(cs, CPU_INTERRUPT_SMP);
+                        qemu_irq_raise(s->cchip.cpu_smp[i]);
                     } else {
-                        cpu_reset_interrupt(cs, CPU_INTERRUPT_SMP);
+                        qemu_irq_lower(s->cchip.cpu_smp[i]);
                     }
 
                     /* ITI can only be cleared by the write.  */
                     if ((newval & (1 << (i + 4))) == 0) {
-                        cpu_reset_interrupt(cs, CPU_INTERRUPT_TIMER);
+                        qemu_irq_lower(s->cchip.cpu_tmr[i]);
                     }
                 }
             }
@@ -802,7 +803,7 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
                 /* Set the ITI bit for this cpu.  */
                 s->cchip.misc |= 1 << (i + 4);
                 /* And signal the interrupt.  */
-                cpu_interrupt(CPU(cpu), CPU_INTERRUPT_TIMER);
+                qemu_irq_raise(s->cchip.cpu_tmr[i]);
             }
         }
     }
@@ -815,7 +816,7 @@ static void typhoon_alarm_timer(void *opaque)
 
     /* Set the ITI bit for this cpu.  */
     s->cchip.misc |= 1 << (cpu + 4);
-    cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
+    qemu_irq_raise(s->cchip.cpu_tmr[cpu]);
 }
 
 PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
@@ -845,6 +846,8 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
             cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                                  typhoon_alarm_timer,
                                                  (void *)((uintptr_t)s + i));
+            s->cchip.cpu_tmr[i] = qdev_get_gpio_in_named(DEVICE(cpu), "TMR", 0);
+            s->cchip.cpu_smp[i] = qdev_get_gpio_in_named(DEVICE(cpu), "SMP", 0);
         }
     }
 
