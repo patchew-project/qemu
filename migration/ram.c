@@ -1369,8 +1369,11 @@ static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
                 if (ret < 0) {
                     return ret;
                 }
-                qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_FLUSH);
-                qemu_fflush(f);
+
+                if (!migrate_fixed_ram()) {
+                    qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_FLUSH);
+                    qemu_fflush(f);
+                }
             }
             /*
              * If memory migration starts over, we will meet a dirtied page
@@ -3112,7 +3115,8 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         return ret;
     }
 
-    if (migrate_multifd() && !migrate_multifd_flush_after_each_section()) {
+    if (migrate_multifd() && !migrate_multifd_flush_after_each_section()
+        && !migrate_fixed_ram()) {
         qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_FLUSH);
     }
 
@@ -4253,6 +4257,15 @@ static int ram_load_precopy(QEMUFile *f)
             break;
         case RAM_SAVE_FLAG_EOS:
             /* normal exit */
+            if (migrate_fixed_ram()) {
+                /*
+                 * The EOS flag appears multiple times on the
+                 * stream. Fixed-ram needs only one sync at the
+                 * end. It will be done on the flush flag above.
+                 */
+                break;
+            }
+
             if (migrate_multifd() &&
                 migrate_multifd_flush_after_each_section()) {
                 multifd_recv_sync_main();
