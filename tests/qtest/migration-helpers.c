@@ -333,7 +333,7 @@ void migration_test_add(const char *path, void (*fn)(void))
 bool probe_o_direct_support(const char *tmpfs)
 {
     g_autofree char *filename = g_strdup_printf("%s/probe-o-direct", tmpfs);
-    int fd, flags = O_CREAT | O_RDWR | O_DIRECT;
+    int fd, flags = O_CREAT | O_RDWR | O_TRUNC | O_DIRECT;
     void *buf;
     ssize_t ret, len;
     uint64_t offset;
@@ -351,9 +351,12 @@ bool probe_o_direct_support(const char *tmpfs)
     len = 0x100000;
     offset = 0x100000;
 
-    buf = g_malloc0(len);
+    buf = aligned_alloc(len, len);
+    g_assert(buf);
+
     ret = pwrite(fd, buf, len, offset);
     unlink(filename);
+    g_free(buf);
 
     if (ret < 0) {
         return false;

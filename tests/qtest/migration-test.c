@@ -2323,7 +2323,90 @@ static void test_multifd_file_fixed_ram_dio(void)
     test_file_common(&args, true);
 }
 
+static void migrate_multifd_fixed_ram_fdset_dio_end(QTestState *from,
+                                                    QTestState *to,
+                                                    void *opaque)
+{
+    QDict *resp;
+    QList *fdsets;
+
+    /*
+     * Check that we removed the fdsets after migration, otherwise a
+     * second migration would fail due to too many fdsets.
+     */
+
+    resp = qtest_qmp(from, "{'execute': 'query-fdsets', "
+                     "'arguments': {}}");
+    g_assert(qdict_haskey(resp, "return"));
+    fdsets = qdict_get_qlist(resp, "return");
+    g_assert(fdsets && qlist_empty(fdsets));
+}
 #endif /* O_DIRECT */
+
+#ifndef _WIN32
+static void *migrate_multifd_fixed_ram_fdset(QTestState *from, QTestState *to)
+{
+    g_autofree char *file = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
+    int fds[3];
+    int src_flags = O_CREAT | O_WRONLY;
+    int dst_flags = O_CREAT | O_RDONLY;
+
+    /* main outgoing channel: no O_DIRECT */
+    fds[0] = open(file, src_flags, 0660);
+    assert(fds[0] != -1);
+
+#ifdef O_DIRECT
+    src_flags |= O_DIRECT;
+#endif
+
+    /* secondary outgoing channels */
+    fds[1] = open(file, src_flags, 0660);
+    assert(fds[1] != -1);
+
+    qtest_qmp_fds_assert_success(from, &fds[0], 1, "{'execute': 'add-fd', "
+                                 "'arguments': {'fdset-id': 1}}");
+
+    qtest_qmp_fds_assert_success(from, &fds[1], 1, "{'execute': 'add-fd', "
+                                 "'arguments': {'fdset-id': 1}}");
+
+    /* incoming channel */
+    fds[2] = open(file, dst_flags, 0660);
+    assert(fds[2] != -1);
+
+    qtest_qmp_fds_assert_success(to, &fds[2], 1, "{'execute': 'add-fd', "
+                                 "'arguments': {'fdset-id': 1}}");
+
+#ifdef O_DIRECT
+        migrate_multifd_fixed_ram_dio_start(from, to);
+#else
+        migrate_multifd_fixed_ram_start(from, to);
+#endif
+
+    return NULL;
+}
+
+static void test_multifd_file_fixed_ram_fdset(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:/dev/fdset/1,offset=0x100");
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = migrate_multifd_fixed_ram_fdset,
+#ifdef O_DIRECT
+        .finish_hook = migrate_multifd_fixed_ram_fdset_dio_end,
+#endif
+    };
+
+#ifdef O_DIRECT
+    if (!probe_o_direct_support(tmpfs)) {
+        g_test_skip("Filesystem does not support O_DIRECT");
+        return;
+    }
+#endif
+
+    test_file_common(&args, true);
+}
+#endif /* _WIN32 */
 
 static void test_precopy_tcp_plain(void)
 {
@@ -3674,6 +3757,11 @@ int main(int argc, char **argv)
 #ifdef O_DIRECT
     migration_test_add("/migration/multifd/file/fixed-ram/dio",
                        test_multifd_file_fixed_ram_dio);
+#endif
+
+#ifndef _WIN32
+    qtest_add_func("/migration/multifd/file/fixed-ram/fdset",
+                   test_multifd_file_fixed_ram_fdset);
 #endif
 
 #ifdef CONFIG_GNUTLS
