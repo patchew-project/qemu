@@ -229,6 +229,15 @@ typedef struct SpaprMachineStateNestedGuest {
 #define GUEST_STATE_REQUEST_GUEST_WIDE       0x1
 #define GUEST_STATE_REQUEST_SET              0x2
 
+/* As per ISA v3.1B, following bits are reserved:
+ *      0:2
+ *      4:57  (ISA mentions bit 58 as well but it should be used for P10)
+ *      61:63 (hence, haven't included PCR bits for v2.06 and v2.05
+ *             in LOW BITS)
+ */
+#define PCR_LOW_BITS   (PCR_COMPAT_3_10 | PCR_COMPAT_3_00)
+#define HVMASK_PCR     ~PCR_LOW_BITS
+
 #define GUEST_STATE_ELEMENT(i, sz, s, f, ptr, c) { \
     .id = (i),                                     \
     .size = (sz),                                  \

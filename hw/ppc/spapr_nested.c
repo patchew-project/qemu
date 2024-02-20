@@ -740,9 +740,11 @@ static void out_buf_min_size(void *a, void *b, bool set)
 
 static void copy_logical_pvr(void *a, void *b, bool set)
 {
+    SpaprMachineStateNestedGuest *guest;
     uint32_t *buf; /* 1 word */
     uint32_t *pvr_logical_ptr;
     uint32_t pvr_logical;
+    target_ulong pcr = 0;
 
     pvr_logical_ptr = a;
     buf = b;
@@ -755,6 +757,28 @@ static void copy_logical_pvr(void *a, void *b, bool set)
     pvr_logical = be32_to_cpu(buf[0]);
 
     *pvr_logical_ptr = pvr_logical;
+
+    if (*pvr_logical_ptr) {
+        switch (*pvr_logical_ptr) {
+            case CPU_POWERPC_LOGICAL_3_10:
+                pcr = PCR_COMPAT_3_10 | PCR_COMPAT_3_00;
+                break;
+            case CPU_POWERPC_LOGICAL_3_00:
+                pcr = PCR_COMPAT_3_00;
+                break;
+            default:
+                qemu_log_mask(LOG_GUEST_ERROR,
+                    "Could not set PCR for LPVR=0x%08x\n", *pvr_logical_ptr);
+                return;
+        }
+    }
+
+    guest = container_of(pvr_logical_ptr,
+                         struct SpaprMachineStateNestedGuest,
+                         pvr_logical);
+    for (int i = 0; i < guest->vcpus; i++) {
+        guest->vcpu[i].state.pcr = ~pcr | HVMASK_PCR;
+    }
 }
 
 static void copy_tb_offset(void *a, void *b, bool set)
