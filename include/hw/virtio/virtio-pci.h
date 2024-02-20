@@ -43,6 +43,7 @@ enum {
     VIRTIO_PCI_FLAG_INIT_FLR_BIT,
     VIRTIO_PCI_FLAG_AER_BIT,
     VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED_BIT,
+    VIRTIO_PCI_FLAG_PAGE_PER_VDPA_VQ_BIT,
 };
 
 /* Need to activate work-arounds for buggy guests at vmstate load. */
@@ -88,6 +89,10 @@ enum {
 /* Page Aligned Address space Translation Service */
 #define VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED \
   (1 << VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED_BIT)
+
+/* page per vdpa vq flag to be used for vhost vdpa backends */
+#define VIRTIO_PCI_FLAG_PAGE_PER_VDPA_VQ \
+    (1 << VIRTIO_PCI_FLAG_PAGE_PER_VDPA_VQ_BIT)
 
 typedef struct {
     MSIMessage msg;
