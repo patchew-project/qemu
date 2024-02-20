@@ -68,7 +68,6 @@
 #include "kvm/kvm-cpu.h"
 #include "target/i386/cpu.h"
 
-#define MAX_IDE_BUS 2
 #define XEN_IOAPIC_NUM_PIRQS 128ULL
 
 #ifdef CONFIG_IDE_ISA
@@ -114,7 +113,6 @@ static void pc_init1(MachineState *machine,
     Object *piix4_pm = NULL;
     qemu_irq smi_irq;
     GSIState *gsi_state;
-    BusState *idebus[MAX_IDE_BUS];
     ISADevice *rtc_state;
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory = NULL;
@@ -299,8 +297,8 @@ static void pc_init1(MachineState *machine,
         piix4_pm = object_resolve_path_component(OBJECT(pci_dev), "pm");
         dev = DEVICE(object_resolve_path_component(OBJECT(pci_dev), "ide"));
         pci_ide_create_devs(PCI_DEVICE(dev));
-        idebus[0] = qdev_get_child_bus(dev, "ide.0");
-        idebus[1] = qdev_get_child_bus(dev, "ide.1");
+        pcms->idebus[0] = qdev_get_child_bus(dev, "ide.0");
+        pcms->idebus[1] = qdev_get_child_bus(dev, "ide.1");
     } else {
         isa_bus = isa_bus_new(NULL, system_memory, system_io,
                               &error_abort);
@@ -312,8 +310,8 @@ static void pc_init1(MachineState *machine,
 
         i8257_dma_init(OBJECT(machine), isa_bus, 0);
         pcms->hpet_enabled = false;
-        idebus[0] = NULL;
-        idebus[1] = NULL;
+        pcms->idebus[0] = NULL;
+        pcms->idebus[1] = NULL;
     }
 
     if (x86ms->pic == ON_OFF_AUTO_ON || x86ms->pic == ON_OFF_AUTO_AUTO) {
@@ -342,7 +340,7 @@ static void pc_init1(MachineState *machine,
     pc_nic_init(pcmc, isa_bus, pci_bus);
 
     if (pcmc->pci_enabled) {
-        pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);
+        pc_cmos_init(pcms, rtc_state);
     }
 #ifdef CONFIG_IDE_ISA
     else {
@@ -361,9 +359,9 @@ static void pc_init1(MachineState *machine,
              * second one.
              */
             busname[4] = '0' + i;
-            idebus[i] = qdev_get_child_bus(DEVICE(dev), busname);
+            pcms->idebus[i] = qdev_get_child_bus(DEVICE(dev), busname);
         }
-        pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);
+        pc_cmos_init(pcms, rtc_state);
     }
 #endif
 
