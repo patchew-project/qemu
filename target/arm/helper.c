@@ -2022,6 +2022,10 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
         if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
             ret |= CPSR_I;
         }
+
+        if (cs->interrupt_request & CPU_INTERRUPT_NMI) {
+            ret |= ISR_IS;
+        }
     }
 
     if (hcr_el2 & HCR_FMO) {
@@ -2031,6 +2035,10 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     } else {
         if (cs->interrupt_request & CPU_INTERRUPT_FIQ) {
             ret |= CPSR_F;
+        }
+
+        if (cs->interrupt_request & CPU_INTERRUPT_NMI) {
+            ret |= ISR_FS;
         }
     }
 
@@ -4626,6 +4634,11 @@ static void aa64_allint_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
+static uint64_t aa64_allint_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return env->allint & PSTATE_ALLINT;
+}
+
 static CPAccessResult aa64_allint_access(CPUARMState *env,
                                          const ARMCPRegInfo *ri, bool isread)
 {
@@ -5464,7 +5477,8 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .type = ARM_CP_NO_RAW,
       .access = PL1_RW, .accessfn = aa64_allint_access,
       .fieldoffset = offsetof(CPUARMState, allint),
-      .writefn = aa64_allint_write, .resetfn = arm_cp_reset_ignore },
+      .writefn = aa64_allint_write, .readfn = aa64_allint_read,
+      .resetfn = arm_cp_reset_ignore },
     { .name = "FPCR", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 4,
       .access = PL0_RW, .type = ARM_CP_FPU | ARM_CP_SUPPRESS_TB_END,
@@ -10622,6 +10636,7 @@ void arm_log_exception(CPUState *cs)
             [EXCP_DIVBYZERO] = "v7M DIVBYZERO UsageFault",
             [EXCP_VSERR] = "Virtual SERR",
             [EXCP_GPC] = "Granule Protection Check",
+            [EXCP_NMI] = "NMI"
         };
 
         if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
@@ -11514,6 +11529,15 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
             new_mode |= PSTATE_SSBS;
         } else {
             new_mode &= ~PSTATE_SSBS;
+        }
+    }
+
+    if (cpu_isar_feature(aa64_nmi, cpu) &&
+        (env->cp15.sctlr_el[new_el] & SCTLR_NMI)) {
+        if (!(env->cp15.sctlr_el[new_el] & SCTLR_SPINTMASK)) {
+            new_mode |= PSTATE_ALLINT;
+        } else {
+            new_mode &= ~PSTATE_ALLINT;
         }
     }
 
