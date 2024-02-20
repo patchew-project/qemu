@@ -167,7 +167,7 @@ struct xen_machphys_mfn_list {
 
     /*
      * Pointer to buffer to fill with list of extent starts. If there are
-     * any large discontiguities in the machine address space, 2MB gaps in
+     * any large discontinuities in the machine address space, 2MB gaps in
      * the machphys table will be represented by an MFN base of zero.
      */
     XEN_GUEST_HANDLE(xen_pfn_t) extent_start;

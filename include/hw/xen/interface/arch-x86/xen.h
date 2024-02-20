@@ -156,7 +156,7 @@ typedef uint64_t tsc_timestamp_t; /* RDTSC timestamp */
  * information in this structure is updated, the fields read include: fpu_ctxt
  * (if VGCT_I387_VALID is set), flags, user_regs and debugreg[*].
  *
- * Note: VCPUOP_initialise for HVM guests is non-symetric with
+ * Note: VCPUOP_initialise for HVM guests is non-symmetric with
  * DOMCTL_setvcpucontext, and uses struct vcpu_hvm_context from hvm/hvm_vcpu.h
  */
 struct vcpu_guest_context {

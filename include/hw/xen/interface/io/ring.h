@@ -145,7 +145,7 @@ typedef struct __name##_back_ring __name##_back_ring_t
  *
  * N.B. these macros do NO INTERLOCKS OR FLOW CONTROL.
  * This is OK in 1-for-1 request-response situations where the
- * requestor (front end) never has more than RING_SIZE()-1
+ * requester (front end) never has more than RING_SIZE()-1
  * outstanding requests.
  */
 

@@ -72,7 +72,7 @@ union xenfb_out_event
  * just ignore it.  Frontends that use the advice should immediately
  * refresh the framebuffer (and send an update notification event if
  * those have been requested), then use the update frequency to guide
- * their periodical refreshs.
+ * their periodical refresh.
  */
 #define XENFB_TYPE_REFRESH_PERIOD 1
 #define XENFB_NO_REFRESH 0

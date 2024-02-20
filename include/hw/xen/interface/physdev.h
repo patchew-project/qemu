@@ -206,7 +206,7 @@ typedef struct physdev_manage_pci_ext physdev_manage_pci_ext_t;
 DEFINE_XEN_GUEST_HANDLE(physdev_manage_pci_ext_t);
 
 /*
- * Argument to physdev_op_compat() hypercall. Superceded by new physdev_op()
+ * Argument to physdev_op_compat() hypercall. Superseded by new physdev_op()
  * hypercall since 0x00030202.
  */
 struct physdev_op {
@@ -332,7 +332,7 @@ DEFINE_XEN_GUEST_HANDLE(physdev_dbgp_op_t);
 
 #if __XEN_INTERFACE_VERSION__ < 0x00040600
 /*
- * These all-capitals physdev operation names are superceded by the new names
+ * These all-capitals physdev operation names are superseded by the new names
  * (defined above) since interface version 0x00030202. The guard above was
  * added post-4.5 only though and hence shouldn't check for 0x00030202.
  */

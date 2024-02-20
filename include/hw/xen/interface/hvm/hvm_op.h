@@ -337,7 +337,7 @@ struct xen_hvm_altp2m_op {
 #define HVMOP_altp2m_vcpu_disable_notify  13
 /* Get the active vcpu p2m index */
 #define HVMOP_altp2m_get_p2m_idx          14
-/* Set the "Supress #VE" bit for a range of pages */
+/* Set the "Suppress #VE" bit for a range of pages */
 #define HVMOP_altp2m_set_suppress_ve_multi 15
 /* Set visibility for a given altp2m view */
 #define HVMOP_altp2m_set_visibility       16

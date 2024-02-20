@@ -302,7 +302,7 @@ typedef struct evtchn_set_priority evtchn_set_priority_t;
  * ` enum neg_errnoval
  * ` HYPERVISOR_event_channel_op_compat(struct evtchn_op *op)
  * `
- * Superceded by new event_channel_op() hypercall since 0x00030202.
+ * Superseded by new event_channel_op() hypercall since 0x00030202.
  */
 struct evtchn_op {
     uint32_t cmd; /* enum event_channel_op */
