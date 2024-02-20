@@ -75,7 +75,7 @@ struct Ppc4xxMalState {
     uint8_t  rxcnum;
 };
 
-/* Peripheral local bus arbitrer */
+/* Peripheral local bus arbiter */
 #define TYPE_PPC4xx_PLB "ppc4xx-plb"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxPlbState, PPC4xx_PLB);
 struct Ppc4xxPlbState {

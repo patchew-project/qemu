@@ -41,7 +41,7 @@ struct Ppc405PobState {
     uint32_t besr1;
 };
 
-/* OPB arbitrer */
+/* OPB arbiter */
 #define TYPE_PPC405_OPBA "ppc405-opba"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc405OpbaState, PPC405_OPBA);
 struct Ppc405OpbaState {
