@@ -18,7 +18,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "file.h"
-#include "ram.h"
 #include "migration.h"
 #include "migration-stats.h"
 #include "socket.h"
@@ -251,9 +250,9 @@ static int nocomp_recv(MultiFDRecvParams *p, Error **errp)
             p->iov[i].iov_len = p->page_size;
         }
         return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
+    } else {
+        return multifd_file_recv_data(p, errp);
     }
-
-    return 0;
 }
 
 static MultiFDMethods multifd_nocomp_ops = {
@@ -1317,13 +1316,40 @@ void multifd_recv_cleanup(void)
     multifd_recv_cleanup_state();
 }
 
+
+/*
+ * Wait until all channels have finished receiving data. Once this
+ * function returns, cleanup routines are safe to run.
+ */
+static void multifd_file_recv_sync(void)
+{
+    int i;
+
+    for (i = 0; i < migrate_multifd_channels(); i++) {
+        MultiFDRecvParams *p = &multifd_recv_state->params[i];
+
+        trace_multifd_recv_sync_main_wait(p->id);
+
+        qemu_sem_post(&p->sem);
+
+        trace_multifd_recv_sync_main_signal(p->id);
+        qemu_sem_wait(&p->sem_sync);
+    }
+    return;
+}
+
 void multifd_recv_sync_main(void)
 {
     int i;
 
-    if (!migrate_multifd() || !multifd_use_packets()) {
+    if (!migrate_multifd()) {
         return;
     }
+
+    if (!multifd_use_packets()) {
+        return multifd_file_recv_sync();
+    }
+
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 

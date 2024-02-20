@@ -111,6 +111,7 @@
  * pages region in the migration file at a time.
  */
 #define FIXED_RAM_LOAD_BUF_SIZE 0x100000
+#define FIXED_RAM_MULTIFD_LOAD_BUF_SIZE 0x100000
 
 XBZRLECacheStats xbzrle_counters;
 
@@ -3950,6 +3951,27 @@ void colo_flush_ram_cache(void)
     trace_colo_flush_ram_cache_end();
 }
 
+static size_t ram_load_multifd_pages(void *host_addr, size_t size,
+                                     uint64_t offset)
+{
+    MultiFDRecvData *data = multifd_get_recv_data();
+
+    /*
+     * Pointing the opaque directly to the host buffer, no
+     * preprocessing needed.
+     */
+    data->opaque = host_addr;
+
+    data->file_offset = offset;
+    data->size = size;
+
+    if (!multifd_recv()) {
+        return 0;
+    }
+
+    return size;
+}
+
 static bool read_ramblock_fixed_ram(QEMUFile *f, RAMBlock *block,
                                     long num_pages, unsigned long *bitmap,
                                     Error **errp)
@@ -3959,6 +3981,8 @@ static bool read_ramblock_fixed_ram(QEMUFile *f, RAMBlock *block,
     ram_addr_t offset;
     void *host;
     size_t read, unread, size;
+    size_t buf_size = (migrate_multifd() ? FIXED_RAM_MULTIFD_LOAD_BUF_SIZE :
+                       FIXED_RAM_LOAD_BUF_SIZE);
 
     for (set_bit_idx = find_first_bit(bitmap, num_pages);
          set_bit_idx < num_pages;
@@ -3977,10 +4001,16 @@ static bool read_ramblock_fixed_ram(QEMUFile *f, RAMBlock *block,
                 return false;
             }
 
-            size = MIN(unread, FIXED_RAM_LOAD_BUF_SIZE);
+            size = MIN(unread, buf_size);
 
-            read = qemu_get_buffer_at(f, host, size,
-                                      block->pages_offset + offset);
+            if (migrate_multifd()) {
+                read = ram_load_multifd_pages(host, size,
+                                              block->pages_offset + offset);
+            } else {
+                read = qemu_get_buffer_at(f, host, size,
+                                          block->pages_offset + offset);
+            }
+
             if (!read) {
                 goto err;
             }
