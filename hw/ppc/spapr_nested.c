@@ -13,8 +13,6 @@
 void spapr_nested_init(SpaprMachineState *spapr)
 {
     spapr->nested.api = 0;
-    spapr->nested.capabilities_set = false;
-    spapr_nested_gsb_init();
 }
 
 uint8_t spapr_nested_api(SpaprMachineState *spapr)
@@ -1821,6 +1819,18 @@ void spapr_register_nested_papr(void)
     spapr_register_hypercall(H_GUEST_RUN_VCPU        , h_guest_run_vcpu);
 }
 
+void spapr_unregister_nested_papr(void)
+{
+    spapr_unregister_hypercall(H_GUEST_GET_CAPABILITIES);
+    spapr_unregister_hypercall(H_GUEST_SET_CAPABILITIES);
+    spapr_unregister_hypercall(H_GUEST_CREATE);
+    spapr_unregister_hypercall(H_GUEST_DELETE);
+    spapr_unregister_hypercall(H_GUEST_CREATE_VCPU);
+    spapr_unregister_hypercall(H_GUEST_SET_STATE);
+    spapr_unregister_hypercall(H_GUEST_GET_STATE);
+    spapr_unregister_hypercall(H_GUEST_RUN_VCPU);
+}
+
 #else
 void spapr_exit_nested(PowerPCCPU *cpu, int excp)
 {
@@ -1850,6 +1860,11 @@ bool spapr_get_pate_nested_papr(SpaprMachineState *spapr, PowerPCCPU *cpu,
 }
 
 void spapr_register_nested_papr(void)
+{
+    /* DO NOTHING */
+}
+
+void spapr_unregister_nested_papr(void)
 {
     /* DO NOTHING */
 }
