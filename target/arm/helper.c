@@ -2023,7 +2023,7 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
             ret |= CPSR_I;
         }
 
-        if (cs->interrupt_request & CPU_INTERRUPT_NMI) {
+        if ((cs->interrupt_request & CPU_INTERRUPT_NMI) && cs->nmi_irq) {
             ret |= ISR_IS;
         }
     }
@@ -2037,7 +2037,7 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
             ret |= CPSR_F;
         }
 
-        if (cs->interrupt_request & CPU_INTERRUPT_NMI) {
+        if ((cs->interrupt_request & CPU_INTERRUPT_NMI) && !cs->nmi_irq) {
             ret |= ISR_FS;
         }
     }
@@ -11452,6 +11452,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         break;
     case EXCP_IRQ:
     case EXCP_VIRQ:
+    case EXCP_NMI:
         addr += 0x80;
         break;
     case EXCP_FIQ:

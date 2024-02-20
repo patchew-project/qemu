@@ -541,6 +541,7 @@ struct CPUState {
     uint32_t tcg_cflags;
     uint32_t halted;
     int32_t exception_index;
+    bool nmi_irq;
 
     AccelCPUState *accel;
     /* shared by kvm and hvf */

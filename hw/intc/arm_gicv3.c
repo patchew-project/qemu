@@ -21,7 +21,7 @@
 #include "hw/intc/arm_gicv3.h"
 #include "gicv3_internal.h"
 
-static bool irqbetter(GICv3CPUState *cs, int irq, uint8_t prio)
+static bool irqbetter(GICv3CPUState *cs, int irq, uint8_t prio, bool is_nmi)
 {
     /* Return true if this IRQ at this priority should take
      * precedence over the current recorded highest priority
@@ -33,11 +33,21 @@ static bool irqbetter(GICv3CPUState *cs, int irq, uint8_t prio)
     if (prio < cs->hppi.prio) {
         return true;
     }
+
+    /*
+     * Current highest prioirity pending interrupt is not a NMI
+     * and the new IRQ is a NMI with same priority.
+     */
+    if (prio == cs->hppi.prio && !cs->hppi.superprio && is_nmi) {
+        return true;
+    }
+
     /* If multiple pending interrupts have the same priority then it is an
      * IMPDEF choice which of them to signal to the CPU. We choose to
      * signal the one with the lowest interrupt number.
      */
-    if (prio == cs->hppi.prio && irq <= cs->hppi.irq) {
+    if (prio == cs->hppi.prio && !cs->hppi.superprio &&
+        !is_nmi && irq <= cs->hppi.irq) {
         return true;
     }
     return false;
@@ -141,6 +151,8 @@ static void gicv3_redist_update_noirqset(GICv3CPUState *cs)
     uint8_t prio;
     int i;
     uint32_t pend;
+    bool is_nmi = 0;
+    uint32_t superprio = 0;
 
     /* Find out which redistributor interrupts are eligible to be
      * signaled to the CPU interface.
@@ -152,10 +164,26 @@ static void gicv3_redist_update_noirqset(GICv3CPUState *cs)
             if (!(pend & (1 << i))) {
                 continue;
             }
-            prio = cs->gicr_ipriorityr[i];
-            if (irqbetter(cs, i, prio)) {
+            superprio = extract32(cs->gicr_isuperprio, i, 1);
+
+            /* NMI */
+            if (superprio) {
+                is_nmi = 1;
+
+                /* DS = 0 & Non-secure NMI */
+                if ((!(cs->gic->gicd_ctlr & GICD_CTLR_DS)) &&
+                    extract32(cs->gicr_igroupr0, i, 1))
+                    prio = 0x80;
+                else
+                    prio = 0x0;
+            } else {
+               is_nmi = 0;
+               prio = cs->gicr_ipriorityr[i];
+            }
+            if (irqbetter(cs, i, prio, is_nmi)) {
                 cs->hppi.irq = i;
                 cs->hppi.prio = prio;
+                cs->hppi.superprio = is_nmi;
                 seenbetter = true;
             }
         }
@@ -168,7 +196,7 @@ static void gicv3_redist_update_noirqset(GICv3CPUState *cs)
     if ((cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) && cs->gic->lpi_enable &&
         (cs->gic->gicd_ctlr & GICD_CTLR_EN_GRP1NS) &&
         (cs->hpplpi.prio != 0xff)) {
-        if (irqbetter(cs, cs->hpplpi.irq, cs->hpplpi.prio)) {
+        if (irqbetter(cs, cs->hpplpi.irq, cs->hpplpi.prio, false)) {
             cs->hppi.irq = cs->hpplpi.irq;
             cs->hppi.prio = cs->hpplpi.prio;
             cs->hppi.grp = cs->hpplpi.grp;
@@ -212,7 +240,9 @@ static void gicv3_update_noirqset(GICv3State *s, int start, int len)
 {
     int i;
     uint8_t prio;
+    bool is_nmi = 0;
     uint32_t pend = 0;
+    uint32_t superprio = 0;
 
     assert(start >= GIC_INTERNAL);
     assert(len > 0);
@@ -240,10 +270,27 @@ static void gicv3_update_noirqset(GICv3State *s, int start, int len)
              */
             continue;
         }
-        prio = s->gicd_ipriority[i];
-        if (irqbetter(cs, i, prio)) {
+
+        superprio = *gic_bmp_ptr32(s->superprio, i);
+        /* NMI */
+        if (superprio & (1 << (i & 0x1f))) {
+            is_nmi = 1;
+
+            /* DS = 0 & Non-secure NMI */
+            if ((!(s->gicd_ctlr & GICD_CTLR_DS)) &&
+                gicv3_gicd_group_test(s, i))
+                    prio = 0x80;
+            else
+                    prio = 0x0;
+        } else {
+            is_nmi = 0;
+            prio = s->gicd_ipriority[i];
+        }
+
+        if (irqbetter(cs, i, prio, is_nmi)) {
             cs->hppi.irq = i;
             cs->hppi.prio = prio;
+            cs->hppi.superprio = is_nmi;
             cs->seenbetter = true;
         }
     }
