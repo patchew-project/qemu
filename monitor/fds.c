@@ -413,6 +413,12 @@ static bool monitor_fdset_flags_match(int flags, int fd_flags)
 
     if ((flags & O_ACCMODE) == (fd_flags & O_ACCMODE)) {
         match = true;
+
+#ifdef O_DIRECT
+        if ((flags & O_DIRECT) != (fd_flags & O_DIRECT)) {
+            match = false;
+        }
+#endif
     }
 
     return match;
