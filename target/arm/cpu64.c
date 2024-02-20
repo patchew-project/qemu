@@ -295,6 +295,22 @@ static void cpu_arm_set_sve(Object *obj, bool value, Error **errp)
     cpu->isar.id_aa64pfr0 = t;
 }
 
+static bool cpu_arm_get_nmi(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    return cpu_isar_feature(aa64_nmi, cpu);
+}
+
+static void cpu_arm_set_nmi(Object *obj, bool value, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    uint64_t t;
+
+    t = cpu->isar.id_aa64pfr1;
+    t = FIELD_DP64(t, ID_AA64PFR1, NMI, value);
+    cpu->isar.id_aa64pfr1 = t;
+}
+
 void arm_cpu_sme_finalize(ARMCPU *cpu, Error **errp)
 {
     uint32_t vq_map = cpu->sme_vq.map;
@@ -472,6 +488,11 @@ void aarch64_add_sme_properties(Object *obj)
 #endif
 }
 
+void aarch64_add_nmi_properties(Object *obj)
+{
+    object_property_add_bool(obj, "nmi", cpu_arm_get_nmi, cpu_arm_set_nmi);
+}
+
 void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
 {
     ARMPauthFeature features = cpu_isar_feature(pauth_feature, cpu);
@@ -593,9 +614,14 @@ void arm_cpu_lpa2_finalize(ARMCPU *cpu, Error **errp)
 
 static void aarch64_a57_initfn(Object *obj)
 {
+    uint64_t t;
     ARMCPU *cpu = ARM_CPU(obj);
 
     cpu->dtb_compatible = "arm,cortex-a57";
+    t = cpu->isar.id_aa64mmfr1;
+    t = FIELD_DP64(t, ID_AA64MMFR1, HCX, 1);      /* FEAT_HCX */
+    cpu->isar.id_aa64mmfr1 = t;
+    aarch64_add_nmi_properties(obj);
     set_feature(&cpu->env, ARM_FEATURE_V8);
     set_feature(&cpu->env, ARM_FEATURE_NEON);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
@@ -650,9 +676,14 @@ static void aarch64_a57_initfn(Object *obj)
 
 static void aarch64_a53_initfn(Object *obj)
 {
+    uint64_t t;
     ARMCPU *cpu = ARM_CPU(obj);
 
     cpu->dtb_compatible = "arm,cortex-a53";
+    t = cpu->isar.id_aa64mmfr1;
+    t = FIELD_DP64(t, ID_AA64MMFR1, HCX, 1);      /* FEAT_HCX */
+    cpu->isar.id_aa64mmfr1 = t;
+    aarch64_add_nmi_properties(obj);
     set_feature(&cpu->env, ARM_FEATURE_V8);
     set_feature(&cpu->env, ARM_FEATURE_NEON);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);

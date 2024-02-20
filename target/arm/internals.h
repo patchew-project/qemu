@@ -1466,6 +1466,7 @@ void aarch64_max_tcg_initfn(Object *obj);
 void aarch64_add_pauth_properties(Object *obj);
 void aarch64_add_sve_properties(Object *obj);
 void aarch64_add_sme_properties(Object *obj);
+void aarch64_add_nmi_properties(Object *obj);
 #endif
 
 /* Read the CONTROL register as the MRS instruction would. */

@@ -4618,6 +4618,28 @@ static void aa64_daif_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->daif = value & PSTATE_DAIF;
 }
 
+static void aa64_allint_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t value)
+{
+    if (cpu_isar_feature(aa64_nmi, env_archcpu(env))) {
+        env->allint = value & PSTATE_ALLINT;
+    }
+}
+
+static CPAccessResult aa64_allint_access(CPUARMState *env,
+                                         const ARMCPRegInfo *ri, bool isread)
+{
+    if (arm_current_el(env) == 0) {
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
+    }
+
+    if (arm_current_el(env) == 1 && arm_is_el2_enabled(env) &&
+        cpu_isar_feature(aa64_hcx, env_archcpu(env)) &&
+        (env->cp15.hcrx_el2 & HCRX_TALLINT))
+        return CP_ACCESS_TRAP_EL2;
+    return CP_ACCESS_OK;
+}
+
 static uint64_t aa64_pan_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     return env->pstate & PSTATE_PAN;
@@ -5437,6 +5459,12 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .access = PL0_RW, .accessfn = aa64_daif_access,
       .fieldoffset = offsetof(CPUARMState, daif),
       .writefn = aa64_daif_write, .resetfn = arm_cp_reset_ignore },
+    { .name = "ALLINT", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 0, .opc2 = 0, .crn = 4, .crm = 3,
+      .type = ARM_CP_NO_RAW,
+      .access = PL1_RW, .accessfn = aa64_allint_access,
+      .fieldoffset = offsetof(CPUARMState, allint),
+      .writefn = aa64_allint_write, .resetfn = arm_cp_reset_ignore },
     { .name = "FPCR", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 0, .crn = 4, .crm = 4,
       .access = PL0_RW, .type = ARM_CP_FPU | ARM_CP_SUPPRESS_TB_END,
@@ -6054,6 +6082,11 @@ static void hcrx_write(CPUARMState *env, const ARMCPRegInfo *ri,
     /* FEAT_MOPS adds MSCEn and MCE2 */
     if (cpu_isar_feature(aa64_mops, env_archcpu(env))) {
         valid_mask |= HCRX_MSCEN | HCRX_MCE2;
+    }
+
+    /* FEAT_NMI adds TALLINT */
+    if (cpu_isar_feature(aa64_nmi, env_archcpu(env))) {
+        valid_mask |= HCRX_TALLINT;
     }
 
     /* Clear RES0 bits.  */
