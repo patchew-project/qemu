@@ -592,6 +592,7 @@ struct SpaprMachineState {
 #define H_GUEST_CREATE_VCPU      0x474
 #define H_GUEST_GET_STATE        0x478
 #define H_GUEST_SET_STATE        0x47C
+#define H_GUEST_RUN_VCPU         0x480
 #define H_GUEST_DELETE           0x488
 
 #define MAX_HCALL_OPCODE         H_GUEST_DELETE
