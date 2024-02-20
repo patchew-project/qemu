@@ -49,6 +49,17 @@ struct NMIClass {
     bool (*nmi_handler)(NMIState *n, Error **errp);
 };
 
-void nmi_monitor_handle(int cpu_index, Error **errp);
+/**
+ * nmi_trigger: Trigger a NMI.
+ *
+ * @errp: pointer to error object
+ *
+ * Iterate over all objects implementing the TYPE_NMI interface
+ * and deliver NMI to them.
+ *
+ * On success, return %true.
+ * On failure, store an error through @errp and return %false.
+ */
+bool nmi_trigger(Error **errp);
 
 #endif /* NMI_H */
