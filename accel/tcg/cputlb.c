@@ -1001,10 +1001,17 @@ static inline void copy_tlb_helper_locked(CPUTLBEntry *d, const CPUTLBEntry *s)
     *d = *s;
 }
 
-/* This is a cross vCPU call (i.e. another vCPU resetting the flags of
+/*
+ * This is a cross vCPU call (i.e. another vCPU resetting the flags of
  * the target vCPU).
  * We must take tlb_c.lock to avoid racing with another vCPU update. The only
  * thing actually updated is the target TLB entry ->addr_write flags.
+ *
+ * This can race between the physical memory dirty bits becoming all set and
+ * tlb_set_page_full or tlb_try_set_dirty creating dirty entries: it is
+ * harmless to set TLB_NOTDIRTY on a !clean physical page, it might just
+ * cause a notdirty_write() slowpath on the next write which clears out the
+ * spurious TLB_NOTDIRTY.
  */
 void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length)
 {
@@ -1037,9 +1044,11 @@ static inline void tlb_set_dirty1_locked(CPUTLBEntry *tlb_entry,
     }
 }
 
-/* update the TLB corresponding to virtual page vaddr
-   so that it is no longer dirty */
-void tlb_set_dirty(CPUState *cpu, vaddr addr)
+/*
+ * Update the TLB corresponding to virtual page vaddr if it no longer
+ * requires the TLB_NOTDIRTY bit.
+ */
+static void tlb_try_set_dirty(CPUState *cpu, vaddr addr, ram_addr_t ram_addr)
 {
     int mmu_idx;
 
@@ -1047,6 +1056,12 @@ void tlb_set_dirty(CPUState *cpu, vaddr addr)
 
     addr &= TARGET_PAGE_MASK;
     qemu_spin_lock(&cpu->neg.tlb.c.lock);
+    if (cpu_physical_memory_is_clean(ram_addr)) {
+        /* Must be checked under lock, like tlb_set_page_full */
+        qemu_spin_unlock(&cpu->neg.tlb.c.lock);
+        return;
+    }
+
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         tlb_set_dirty1_locked(tlb_entry(cpu, mmu_idx, addr), addr);
     }
@@ -1165,6 +1180,19 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
         addend = 0;
     }
 
+    /*
+     * Hold the TLB lock for the rest of the function. We could acquire/release
+     * the lock several times in the function, but it is faster to amortize the
+     * acquisition cost by acquiring it just once. Note that this leads to
+     * a longer critical section, but this is not a concern since the TLB lock
+     * is unlikely to be contended.
+     *
+     * The TLB lock must be held over checking cpu_physical_memory_is_clean
+     * and inserting the entry into the TLB, so clearing phsyical memory
+     * dirty status can find and set TLB_NOTDIRTY on the entries.
+     */
+    qemu_spin_lock(&tlb->c.lock);
+
     write_flags = read_flags;
     if (is_ram) {
         iotlb = memory_region_get_ram_addr(section->mr) + xlat;
@@ -1199,15 +1227,6 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
 
     index = tlb_index(cpu, mmu_idx, addr_page);
     te = tlb_entry(cpu, mmu_idx, addr_page);
-
-    /*
-     * Hold the TLB lock for the rest of the function. We could acquire/release
-     * the lock several times in the function, but it is faster to amortize the
-     * acquisition cost by acquiring it just once. Note that this leads to
-     * a longer critical section, but this is not a concern since the TLB lock
-     * is unlikely to be contended.
-     */
-    qemu_spin_lock(&tlb->c.lock);
 
     /* Note that the tlb is no longer clean.  */
     tlb->c.dirty |= 1 << mmu_idx;
@@ -1409,7 +1428,7 @@ static void notdirty_write(CPUState *cpu, vaddr mem_vaddr, unsigned size,
     /* We remove the notdirty callback only if the code has been flushed. */
     if (!cpu_physical_memory_is_clean(ram_addr)) {
         trace_memory_notdirty_set_dirty(mem_vaddr);
-        tlb_set_dirty(cpu, mem_vaddr);
+        tlb_try_set_dirty(cpu, mem_vaddr, ram_addr);
     }
 }
 
