@@ -11,6 +11,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "channel.h"
+#include "fd.h"
 #include "file.h"
 #include "migration.h"
 #include "io/channel-file.h"
@@ -58,10 +59,15 @@ bool file_send_channel_create(gpointer opaque, Error **errp)
 {
     QIOChannelFile *ioc;
     int flags = O_WRONLY;
+    int fd = fd_args_get_fd();
 
-    ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);
-    if (!ioc) {
-        return false;
+    if (fd && fd != -1) {
+        ioc = qio_channel_file_new_fd(fd);
+    } else {
+        ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);
+        if (!ioc) {
+            return false;
+        }
     }
 
     if (!multifd_channel_connect(opaque, QIO_CHANNEL(ioc), errp)) {

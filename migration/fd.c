@@ -19,14 +19,28 @@
 #include "fd.h"
 #include "migration.h"
 #include "monitor/monitor.h"
+#include "io/channel-file.h"
 #include "io/channel-util.h"
+#include "options.h"
 #include "trace.h"
 
+
+static struct FdOutgoingArgs {
+    int fd;
+} outgoing_args;
+
+int fd_args_get_fd(void)
+{
+    return outgoing_args.fd;
+}
 
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
 {
     QIOChannel *ioc;
     int fd = monitor_get_fd(monitor_cur(), fdname, errp);
+
+    outgoing_args.fd = -1;
+
     if (fd == -1) {
         return;
     }
@@ -37,6 +51,8 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         close(fd);
         return;
     }
+
+    outgoing_args.fd = fd;
 
     qio_channel_set_name(ioc, "migration-fd-outgoing");
     migration_channel_connect(s, ioc, NULL, NULL);
@@ -73,4 +89,18 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
                                fd_accept_incoming_migration,
                                NULL, NULL,
                                g_main_context_get_thread_default());
+
+    if (migrate_multifd()) {
+        int channels = migrate_multifd_channels();
+
+        while (channels--) {
+            ioc = QIO_CHANNEL(qio_channel_file_new_fd(fd));
+
+            qio_channel_set_name(ioc, "migration-fd-incoming");
+            qio_channel_add_watch_full(ioc, G_IO_IN,
+                                       fd_accept_incoming_migration,
+                                       NULL, NULL,
+                                       g_main_context_get_thread_default());
+        }
+    }
 }
