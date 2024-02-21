@@ -42,7 +42,7 @@ struct KVMARMITSClass {
 };
 
 
-static int kvm_its_send_msi(GICv3ITSState *s, uint32_t value, uint16_t devid)
+static int kvm_its_send_msi(GICv3ITSState *s, uint32_t value, uint32_t devid)
 {
     struct kvm_msi msi;
 
