@@ -2022,6 +2022,10 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
         if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
             ret |= CPSR_I;
         }
+
+        if ((cs->interrupt_request & CPU_INTERRUPT_NMI) && env->nmi_is_irq) {
+            ret |= ISR_IS;
+        }
     }
 
     if (hcr_el2 & HCR_FMO) {
@@ -2031,6 +2035,11 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     } else {
         if (cs->interrupt_request & CPU_INTERRUPT_FIQ) {
             ret |= CPSR_F;
+        }
+
+        if ((cs->interrupt_request & CPU_INTERRUPT_NMI) &&
+            (!env->nmi_is_irq)) {
+            ret |= ISR_FS;
         }
     }
 
