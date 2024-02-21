@@ -61,6 +61,7 @@
 typedef struct img_cmd_t {
     const char *name;
     int (*handler)(const struct img_cmd_t *ccmd, int argc, char **argv);
+    const char *description;
 } img_cmd_t;
 
 enum {
@@ -126,14 +127,14 @@ void cmd_help(const img_cmd_t *ccmd,
               const char *syntax, const char *arguments)
 {
     printf(
-"Usage:\n"
+"%s.  Usage:\n"
 "  %s %s %s"
 "\n"
 "Arguments:\n"
 "  -h, --help\n"
 "     print this help and exit\n"
 "%s\n",
-           "qemu-img", ccmd->name,
+           ccmd->description, "qemu-img", ccmd->name,
            syntax, arguments);
     exit(EXIT_SUCCESS);
 }
@@ -5824,10 +5825,36 @@ out:
 }
 
 static const img_cmd_t img_cmds[] = {
-#define DEF(option, callback, arg_string)        \
-    { option, callback },
-#include "qemu-img-cmds.h"
-#undef DEF
+    { "amend", img_amend,
+      "Update format-specific options of the image" },
+    { "bench", img_bench,
+      "Run simple image benchmark" },
+    { "bitmap", img_bitmap,
+      "Perform modifications of the persistent bitmap in the image" },
+    { "check", img_check,
+      "Check basic image integrity" },
+    { "commit", img_commit,
+      "Commit image to its backing file" },
+    { "compare", img_compare,
+      "Check if two images have the same contents" },
+    { "convert", img_convert,
+      "Copy one image to another with optional format conversion" },
+    { "create", img_create,
+      "Create and format new image file" },
+    { "dd", img_dd,
+      "Copy input to output with optional format conversion" },
+    { "info", img_info,
+      "Display information about image" },
+    { "map", img_map,
+      "Dump image metadata" },
+    { "measure", img_measure,
+      "Calculate file size requred for a new image" },
+    { "rebase", img_rebase,
+      "Change backing file of the image" },
+    { "resize", img_resize,
+      "Resize the image to the new size" },
+    { "snapshot", img_snapshot,
+      "List or manipulate snapshots within image" },
     { NULL, NULL, },
 };
 
@@ -5892,7 +5919,7 @@ QEMU_IMG_VERSION
 "\n"
 "Recognized commands (run qemu-img COMMAND --help for command-specific help):\n\n");
             for (cmd = img_cmds; cmd->name != NULL; cmd++) {
-                printf("  %s\n", cmd->name);
+                printf("  %s - %s\n", cmd->name, cmd->description);
             }
             printf("\nSupported image formats:\n");
             c = 99; /* force a newline */
