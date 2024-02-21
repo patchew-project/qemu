@@ -4557,26 +4557,42 @@ static int img_amend(const img_cmd_t *ccmd, int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
+            {"progress", no_argument, 0, 'p'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
+            {"cache", required_argument, 0, 't'},
+            {"options", required_argument, 0, 'o'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force", no_argument, 0, OPTION_FORCE},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":ho:f:t:pq",
+        c = getopt_long(argc, argv, "ho:f:t:pq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
 
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [t CACHE] [--force] [-p] [-q]\n"
+"        [--object OBJDEF -o OPTIONS FILENAME\n"
+,
+"  -q, --quiet\n"
+"     quiet operation\n"
+"  -p, --progres\n"
+"     show progress\n"
+"  -f, --format FMT\n"
+"     specify FILENAME format explicitly\n"
+"  --image-opts\n"
+"     indicates that FILENAME is a complete image specification\n"
+"   instead of a file name (incompatible with --format)\n"
+"  -t, --cache CACHE\n"
+"     cache mode for FILENAME (" BDRV_DEFAULT_CACHE ")\n"
+"  --force\n"
+"     allow certain unsafe operations\n"
+);
             break;
         case 'o':
             if (accumulate_options(&options, optarg) < 0) {
@@ -4605,6 +4621,8 @@ static int img_amend(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_FORCE:
             force = true;
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
