@@ -404,7 +404,7 @@ static BlockBackend *img_open_file(const char *filename,
     }
     blk = blk_new_open(filename, NULL, options, flags, &local_err);
     if (!blk) {
-        error_reportf_err(local_err, "Could not open '%s': ", filename);
+        error_report_err(local_err);
         return NULL;
     }
     blk_set_enable_write_cache(blk, !writethrough);
@@ -597,7 +597,7 @@ static int img_create(int argc, char **argv)
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
                     options, img_size, flags, quiet, &local_err);
     if (local_err) {
-        error_reportf_err(local_err, "%s: ", filename);
+        error_report_err(local_err);
         goto fail;
     }
 
@@ -5253,9 +5253,7 @@ static int img_dd(int argc, char **argv)
 
     ret = bdrv_create(drv, out.filename, opts, &local_err);
     if (ret < 0) {
-        error_reportf_err(local_err,
-                          "%s: error while creating output image: ",
-                          out.filename);
+        error_report_err(local_err);
         ret = -1;
         goto out;
     }
