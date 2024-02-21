@@ -4323,27 +4323,44 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"preallocation", required_argument, 0, OPTION_PREALLOCATION},
             {"shrink", no_argument, 0, OPTION_SHRINK},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "-:f:hq",
+        c = getopt_long(argc, argv, "-f:hq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            break;
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [--preallocation PREALLOC] [--shrink]\n"
+"        [--object OBJECTDEF] [-q] FILENAME [+|-]SIZE\n"
+,
+"  -q, --quiet\n"
+"     quiet operation\n"
+"  -f, --format FMT\n"
+"     specify FILENAME format explicitly\n"
+"  --image-opts\n"
+"     indicates that FILENAME is a complete image specification\n"
+"   instead of a file name (incompatible with --format)\n"
+"  --shrink\n"
+"     allow operation when new size is smaller than original\n"
+"  --preallocation PREALLOC\n"
+"     specify preallocation type for the new areas\n"
+"  --object OBJDEF\n"
+"     QEMU user-creatable object (eg encryption key)\n"
+"  FILENAME\n"
+"     image file (specification) to resize\n"
+"  SIZE\n"
+"     new image size or amount by which to shrink/grow\n"
+);
+            return 0;
         case 'f':
             fmt = optarg;
             break;
@@ -4385,6 +4402,8 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
                 error_exit(argv[0], "Extra argument(s) in command line");
             }
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
     if (!filename && optind < argc) {
