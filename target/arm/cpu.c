@@ -1104,6 +1104,9 @@ static void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     if (cpu_isar_feature(aa64_bti, cpu)) {
         qemu_fprintf(f, "  BTYPE=%d", (psr & PSTATE_BTYPE) >> 10);
     }
+    if (cpu_isar_feature(aa64_nmi, cpu)) {
+        qemu_fprintf(f, "  ALLINT=%d", (psr & PSTATE_ALLINT) >> 13);
+    }
     qemu_fprintf(f, "%s%s%s",
                  (hcr & HCR_NV) ? " NV" : "",
                  (hcr & HCR_NV1) ? " NV1" : "",
