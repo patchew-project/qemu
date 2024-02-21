@@ -5502,30 +5502,47 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
     const struct option long_options[] = {
         { "help", no_argument, 0, 'h'},
         { "object", required_argument, 0, OPTION_OBJECT},
+        { "format", required_argument, 0, 'f'},
+        { "output-format", required_argument, 0, 'O'},
         { "image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
         { "force-share", no_argument, 0, 'U'},
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, ":hf:O:U", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, "hf:O:U", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
         switch (c) {
+        case 'h':
+            cmd_help(ccmd,
+"[-f FMT|--image-opts] [-O OUTPUT_FMT] [-U]\n"
+"        [bs=BLOCK_SIZE] [count=BLOCKS] if=INPUT of=OUTPUT\n"
+,
+"  -f, --format FMT\n"
+"     specify format for INPUT explicitly\n"
+"  --image-opts\n"
+"     indicates that INPUT is a complete image specification\n"
+"     instead of a file name (incompatible with --format)\n"
+"  -O, --output-format OUTPUT_FMT\n"
+"     format of the OUTPUT (default raw)\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  bs=BLOCK_SIZE[kKMGTP]\n"
+"     size of I/O block (default 512)\n"
+"  count=COUNT\n"
+"     number of blocks to convert (default whole INPUT)\n"
+"  if=INPUT\n"
+"     input file name (or image specification with --image-opts)\n"
+"  of=OUTPUT\n"
+"     output file name to create\n"
+);
+            break;
         case 'O':
             out_fmt = optarg;
             break;
         case 'f':
             fmt = optarg;
-            break;
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
-        case 'h':
-            help();
             break;
         case 'U':
             force_share = true;
@@ -5536,6 +5553,8 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
