@@ -580,15 +580,17 @@ static int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste,
 {
     dma_addr_t addr, strtab_base;
     uint32_t log2size;
+    uint32_t idr1_sidsize;
     int strtab_size_shift;
     int ret;
 
     trace_smmuv3_find_ste(sid, s->features, s->sid_split);
     log2size = FIELD_EX32(s->strtab_base_cfg, STRTAB_BASE_CFG, LOG2SIZE);
+    idr1_sidsize = FIELD_EX32(s->idr[1], IDR1, SIDSIZE);
     /*
      * Check SID range against both guest-configured and implementation limits
      */
-    if (sid >= (1 << MIN(log2size, SMMU_IDR1_SIDSIZE))) {
+    if (sid >= (1 << MIN(log2size, idr1_sidsize))) {
         event->type = SMMU_EVT_C_BAD_STREAMID;
         return -EINVAL;
     }
