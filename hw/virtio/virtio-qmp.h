@@ -16,8 +16,5 @@
 #include "hw/virtio/vhost.h"
 
 VirtIODevice *qmp_find_virtio_device(const char *path);
-VirtioDeviceStatus *qmp_decode_status(uint8_t bitmap);
-VhostDeviceProtocols *qmp_decode_protocols(uint64_t bitmap);
-VirtioDeviceFeatures *qmp_decode_features(uint16_t device_id, uint64_t bitmap);
 
 #endif
