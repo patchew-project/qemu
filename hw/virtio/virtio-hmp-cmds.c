@@ -29,6 +29,22 @@
 
 #include CONFIG_DEVICES
 
+typedef struct VhostDeviceProtocols VhostDeviceProtocols;
+struct VhostDeviceProtocols {
+    strList *protocols;
+    bool has_unknown_protocols;
+    uint64_t unknown_protocols;
+};
+
+typedef struct VirtioDeviceFeatures VirtioDeviceFeatures;
+struct VirtioDeviceFeatures {
+    strList *transports;
+    bool has_dev_features;
+    strList *dev_features;
+    bool has_unknown_dev_features;
+    uint64_t unknown_dev_features;
+};
+
 #define FEATURE_ENTRY(name, desc) (qmp_virtio_feature_map_t) \
     { .virtio_bit = name, .feature_desc = desc }
 
