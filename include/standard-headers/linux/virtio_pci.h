@@ -216,6 +216,13 @@ struct virtio_pci_cfg_cap {
 #define VIRTIO_PCI_COMMON_Q_NDATA	56
 #define VIRTIO_PCI_COMMON_Q_RESET	58
 
+#define LM_LOGGING_CTRL                 0
+#define LM_BASE_ADDR_LOW                4
+#define LM_BASE_ADDR_HIGH               8
+#define LM_END_ADDR_LOW                 12
+#define LM_END_ADDR_HIGH                16
+#define LM_VRING_STATE_OFFSET           0x20
+
 #endif /* VIRTIO_PCI_NO_MODERN */
 
 #endif
