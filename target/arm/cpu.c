@@ -357,6 +357,10 @@ static void arm_cpu_reset_hold(Object *obj)
     }
     env->daif = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F;
 
+    if (cpu_isar_feature(aa64_nmi, cpu)) {
+        env->allint = PSTATE_ALLINT;
+    }
+
     /* AArch32 has a hard highvec setting of 0xFFFF0000.  If we are currently
      * executing as AArch32 then check if highvecs are enabled and
      * adjust the PC accordingly.
