@@ -33,6 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "qemu/timer.h"
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
@@ -641,6 +642,7 @@ static void trng_prop_fault_event_set(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
 {
+    ERRP_GUARD();
     Property *prop = opaque;
     uint32_t *events = object_field_prop_ptr(obj, prop);
 
