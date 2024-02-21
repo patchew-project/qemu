@@ -5168,20 +5168,42 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
             {"source-format", required_argument, 0, 'F'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":b:f:F:g:h", long_options, NULL);
+        c = getopt_long(argc, argv, "b:f:F:g:h",
+                        long_options, NULL);
         if (c == -1) {
             break;
         }
 
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"( --merge SOURCE | --add | --remove | --clear |\n"
+"                --enable | --disable ).. [-f FMT | --image-opts]\n"
+"        [ -b SRC_FILENAME [-F SOURCE_FMT]] [-g GRANULARITY] [--object OBJDEF]\n"
+"        FILENAME BITMAP\n"
+,
+"  -f, --format FMT\n"
+"     specify FILENAME format explicitly\n"
+"  --image-opts\n"
+"     indicates that FILENAME is a complete image specification\n"
+"     instead of a file name (incompatible with --format)\n"
+"  --add\n"
+"     creates BITMAP, enables to record future edits\n"
+"   -g, --granularity GRANULARITY\n"
+"     sets non-default granularity for --add\n"
+"  --remove\n"
+"     removes BITMAP\n"
+"  --clear\n"
+"     clears BITMAP\n"
+"  --enable, --disable\n"
+"     starts and stops recording future edits to BITMAP\n"
+"  --merge SRC_FILENAME\n"
+"     merges contents of SRC_FILENAME bitmap into BITMAP\n"
+"   -b, --source-file SRC_FILENAME\n"
+"     select alternative source file for --merge\n"
+"   -F, --source-format SRC_FMT\n"
+"     specify format for SRC_FILENAME explicitly\n"
+);
             break;
         case 'b':
             src_filename = optarg;
@@ -5237,6 +5259,8 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
