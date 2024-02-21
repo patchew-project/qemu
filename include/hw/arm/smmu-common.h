@@ -131,6 +131,9 @@ typedef struct SMMUIOTLBKey {
     uint8_t level;
 } SMMUIOTLBKey;
 
+#define TYPE_ARM_SMMU "arm-smmu"
+OBJECT_DECLARE_TYPE(SMMUState, SMMUBaseClass, ARM_SMMU)
+
 struct SMMUState {
     /* <private> */
     SysBusDevice  dev;
@@ -147,6 +150,9 @@ struct SMMUState {
     PCIBus *primary_bus;
 };
 
+typedef uint32_t GetSidFunc(SMMUDevice *obj);
+typedef IOMMUMemoryRegion *GetIommuMr(SMMUState *s, uint32_t sid);
+
 struct SMMUBaseClass {
     /* <private> */
     SysBusDeviceClass parent_class;
@@ -154,19 +160,19 @@ struct SMMUBaseClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
+    GetSidFunc *get_sid;
+    GetIommuMr *get_iommu_mr;
 
 };
-
-#define TYPE_ARM_SMMU "arm-smmu"
-OBJECT_DECLARE_TYPE(SMMUState, SMMUBaseClass, ARM_SMMU)
 
 /* Return the SMMUPciBus handle associated to a PCI bus number */
 SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num);
 
 /* Return the stream ID of an SMMU device */
-static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
+static inline uint32_t smmu_get_sid(SMMUDevice *sdev)
 {
-    return PCI_BUILD_BDF(pci_bus_num(sdev->bus), sdev->devfn);
+    SMMUState *s = sdev->smmu;
+    return ARM_SMMU_GET_CLASS(s)->get_sid(sdev);
 }
 
 /**

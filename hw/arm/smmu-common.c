@@ -622,6 +622,11 @@ static const PCIIOMMUOps smmu_ops = {
 
 IOMMUMemoryRegion *smmu_iommu_mr(SMMUState *s, uint32_t sid)
 {
+    return ARM_SMMU_GET_CLASS(s)->get_iommu_mr(s, sid);
+}
+
+static IOMMUMemoryRegion *smmu_base_iommu_mr(SMMUState *s, uint32_t sid)
+{
     uint8_t bus_n, devfn;
     SMMUPciBus *smmu_bus;
     SMMUDevice *smmu;
@@ -657,6 +662,11 @@ void smmu_inv_notifiers_all(SMMUState *s)
     QLIST_FOREACH(sdev, &s->devices_with_notifiers, next) {
         smmu_inv_notifiers_mr(&sdev->iommu);
     }
+}
+
+static uint32_t smmu_base_get_sid(SMMUDevice *sdev)
+{
+    return PCI_BUILD_BDF(pci_bus_num(sdev->bus), sdev->devfn);
 }
 
 static void smmu_base_realize(DeviceState *dev, Error **errp)
@@ -709,6 +719,8 @@ static void smmu_base_class_init(ObjectClass *klass, void *data)
     device_class_set_parent_realize(dc, smmu_base_realize,
                                     &sbc->parent_realize);
     rc->phases.hold = smmu_base_reset_hold;
+    sbc->get_sid = smmu_base_get_sid;
+    sbc->get_iommu_mr = smmu_base_iommu_mr;
 }
 
 static const TypeInfo smmu_base_info = {
