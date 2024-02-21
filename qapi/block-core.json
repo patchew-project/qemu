@@ -4973,7 +4973,25 @@
 ##
 # @BlockdevCreateOptionsLUKS:
 #
-# Driver specific image creation options for LUKS.
+# Driver specific image creation options for LUKS. Note that
+# @file is required if @preallocation is specified and equals
+# PREALLOC_MODE_ON. The following three scenarios determine how
+# creation logic behaves when @preallocation is either equal to
+# PREALLOC_MODE_OFF or is not given:
+#
+#  1) When @file is given only, format the block device referenced
+#     by @file as the LUKS specification and trunk it to the @size.
+#     In this case, the @size should reflect amount of space made
+#     available to the guest, so the trunk size must take account
+#     of that which will be used by the crypto header.
+#
+#  2) When @header is given only, just format the block device
+#     referenced by @header as the LUKS specification.
+#
+#  3) When both @file and @header are given, block device
+#     referenced by @file should be trunked to @size, and block
+#     device referenced by @header should be formatted as the LUKS
+#     specification.
 #
 # @file: Node to create the image format on, mandatory except when
 #        'preallocation' is not requested
