@@ -132,6 +132,31 @@ void unrecognized_option(const char *option)
     error_exit("qemu-img", "unrecognized option '%s'", option);
 }
 
+/*
+ * Print --help output for a command and exit.
+ * syntax and description are multi-line with trailing EOL
+ * (to allow easy extending of the text)
+ * syntax has each subsequent line indented by 8 chars.
+ * desrciption is indented by 2 chars for argument on each own line,
+ * and with 5 chars for argument description (like -h arg below).
+ */
+static G_NORETURN
+void cmd_help(const img_cmd_t *ccmd,
+              const char *syntax, const char *arguments)
+{
+    printf(
+"Usage:\n"
+"  %s %s %s"
+"\n"
+"Arguments:\n"
+"  -h, --help\n"
+"     print this help and exit\n"
+"%s\n",
+           "qemu-img", ccmd->name,
+           syntax, arguments);
+    exit(EXIT_SUCCESS);
+}
+
 /* Please keep in synch with docs/tools/qemu-img.rst */
 static G_NORETURN
 void help(void)
@@ -530,23 +555,48 @@ static int img_create(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
+            {"backing", required_argument, 0, 'b'},
+            {"backing-format", required_argument, 0, 'F'},
+            {"backing-unsafe", no_argument, 0, 'u'},
+            {"options", required_argument, 0, 'o'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":F:b:f:ho:qu",
+        c = getopt_long(argc, argv, "F:b:f:ho:qu",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT] [-o FMT_OPTS] [-b BACKING_FILENAME [-F BACKING_FMT]]\n"
+"        [--object OBJDEF] [-u] FILENAME [SIZE[bkKMGTPE]]\n"
+,
+"  -q, --quiet\n"
+"     quiet operations\n"
+"  -f, --format FMT\n"
+"     specifies format of the new image, default is raw\n"
+"  -o, --options FMT_OPTS\n"
+"     format-specific options ('-o list' for list)\n"
+"  -b, --backing BACKING_FILENAME\n"
+"     stack new image on top of BACKING_FILENAME\n"
+"     (for formats which support stacking)\n"
+"  -F, --backing-format BACKING_FMT\n"
+"     specify format of BACKING_FILENAME\n"
+"  -u, --backing-unsafe\n"
+"     do not fail if BACKING_FMT can not be read\n"
+"  --object OBJDEF\n"
+"     QEMU user-creatable object (eg encryption key)\n"
+"  FILENAME\n"
+"     image file to create.  It will be overridden if exists\n"
+"  SIZE\n"
+"     image size with optional suffix (multiplies in 1024)\n"
+"     SIZE is required unless BACKING_IMG is specified,\n"
+"     in which case it will be the same as size of BACKING_IMG\n"
+);
             break;
         case 'F':
             base_fmt = optarg;
@@ -571,6 +621,8 @@ static int img_create(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
