@@ -11466,6 +11466,13 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
     case EXCP_VFIQ:
         addr += 0x100;
         break;
+    case EXCP_NMI:
+        if (env->nmi_is_irq) {
+            addr += 0x80;
+        } else {
+            addr += 0x100;
+        }
+        break;
     case EXCP_VSERR:
         addr += 0x180;
         /* Construct the SError syndrome from IDS and ISS fields. */
