@@ -603,6 +603,8 @@ typedef struct CPUArchState {
     /* State of our input IRQ/FIQ/VIRQ/VFIQ lines */
     uint32_t irq_line_state;
 
+    bool nmi_is_irq;
+
     /* Thumb-2 EE state.  */
     uint32_t teecr;
     uint32_t teehbr;

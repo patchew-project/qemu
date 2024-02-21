@@ -10575,6 +10575,15 @@ uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
         scr = ((env->cp15.scr_el3 & SCR_FIQ) == SCR_FIQ);
         hcr = hcr_el2 & HCR_FMO;
         break;
+    case EXCP_NMI:
+        if (env->nmi_is_irq) {
+            scr = ((env->cp15.scr_el3 & SCR_IRQ) == SCR_IRQ);
+            hcr = hcr_el2 & HCR_IMO;
+        } else {
+            scr = ((env->cp15.scr_el3 & SCR_FIQ) == SCR_FIQ);
+            hcr = hcr_el2 & HCR_FMO;
+        }
+        break;
     default:
         scr = ((env->cp15.scr_el3 & SCR_EA) == SCR_EA);
         hcr = hcr_el2 & HCR_AMO;
