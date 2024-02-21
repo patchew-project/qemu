@@ -3608,26 +3608,51 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"list", no_argument, 0, SNAPSHOT_LIST},
+            {"apply", no_argument, 0, SNAPSHOT_APPLY},
+            {"create", no_argument, 0, SNAPSHOT_CREATE},
+            {"delete", no_argument, 0, SNAPSHOT_DELETE},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":la:c:d:f:hqU",
+        c = getopt_long(argc, argv, "la:c:d:f:hqU",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            return 0;
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [-l | -a|-c|-d SNAPSHOT]\n"
+"        [-U] [--object OBJDEF] FILENAME\n"
+,
+"  -q, --quiet\n"
+"      quiet operations\n"
+"  -f, --format FMT\n"
+"      specify FILENAME format explicitly\n"
+"  --image-opts\n"
+"      indicates that FILENAME is a complete image specification\n"
+"   instead of a file name (incompatible with --format)\n"
+"  -U, --force-share\n"
+"      open image in shared mode for concurrent access\n"
+"  --object OBJDEF\n"
+"      QEMU user-creatable object (eg encryption key)\n"
+"  Operation, one of:\n"
+"    -l, --list\n"
+"       list snapshots in FILENAME (the default)\n"
+"    -c, --create SNAPSHOT\n"
+"       create named snapshot\n"
+"    -a, --apply SNAPSHOT\n"
+"       apply named snapshot to the base\n"
+"    -d, --delete SNAPSHOT\n"
+"       delete named snapshot\n"
+"  FILENAME - image file name (or specification with --image-opts)\n"
+);
+            break;
         case 'f':
             fmt = optarg;
             break;
@@ -3654,6 +3679,8 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
