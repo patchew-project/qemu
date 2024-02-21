@@ -20,16 +20,6 @@
 #include "qom/object.h"
 #include "qapi/error.h"
 
-typedef struct GICv3ITSClass GICv3ITSClass;
-/* This is reusing the GICv3ITSState typedef from ARM_GICV3_ITS_COMMON */
-DECLARE_OBJ_CHECKERS(GICv3ITSState, GICv3ITSClass,
-                     ARM_GICV3_ITS, TYPE_ARM_GICV3_ITS)
-
-struct GICv3ITSClass {
-    GICv3ITSCommonClass parent_class;
-    ResettablePhases parent_phases;
-};
-
 /*
  * This is an internal enum used to distinguish between LPI triggered
  * via command queue and LPI triggered via gits_translater write.
@@ -1561,7 +1551,8 @@ static MemTxResult gicv3_its_translation_write(void *opaque, hwaddr offset,
     switch (offset) {
     case GITS_TRANSLATER:
         if (s->ctlr & R_GITS_CTLR_ENABLED_MASK) {
-            result = do_process_its_cmd(s, attrs.requester_id, data, NONE);
+            GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
+            result = c->send_msi(s, data, attrs.requester_id);
         }
         break;
     default:
@@ -1994,6 +1985,12 @@ static void gicv3_its_reset_hold(Object *obj)
     }
 }
 
+static int gicv3_its_send_msi(GICv3ITSState *s, uint32_t eventid,
+                              uint32_t devid)
+{
+    return do_process_its_cmd(s, devid, eventid, NONE);
+}
+
 static void gicv3_its_post_load(GICv3ITSState *s)
 {
     if (s->ctlr & R_GITS_CTLR_ENABLED_MASK) {
@@ -2020,6 +2017,7 @@ static void gicv3_its_class_init(ObjectClass *klass, void *data)
     resettable_class_set_parent_phases(rc, NULL, gicv3_its_reset_hold, NULL,
                                        &ic->parent_phases);
     icc->post_load = gicv3_its_post_load;
+    icc->send_msi = gicv3_its_send_msi;
 }
 
 static const TypeInfo gicv3_its_info = {

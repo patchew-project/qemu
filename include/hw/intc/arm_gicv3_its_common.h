@@ -25,8 +25,6 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "qom/object.h"
 
-#define TYPE_ARM_GICV3_ITS "arm-gicv3-its"
-
 #define ITS_CONTROL_SIZE 0x10000
 #define ITS_TRANS_SIZE   0x10000
 #define ITS_SIZE         (ITS_CONTROL_SIZE + ITS_TRANS_SIZE)
@@ -131,5 +129,16 @@ struct GICv3ITSCommonClass {
  * Returns: class name to use or NULL
  */
 const char *its_class_name(void);
+
+#define TYPE_ARM_GICV3_ITS "arm-gicv3-its"
+typedef struct GICv3ITSClass GICv3ITSClass;
+/* This is reusing the GICv3ITSState typedef from ARM_GICV3_ITS_COMMON */
+DECLARE_OBJ_CHECKERS(GICv3ITSState, GICv3ITSClass,
+                     ARM_GICV3_ITS, TYPE_ARM_GICV3_ITS)
+
+struct GICv3ITSClass {
+    GICv3ITSCommonClass parent_class;
+    ResettablePhases parent_phases;
+};
 
 #endif
