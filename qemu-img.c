@@ -1047,24 +1047,50 @@ static int img_commit(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 't'},
+            {"drop", no_argument, 0, 'd'},
+            {"base", required_argument, 0, 'b'},
+            {"progress", no_argument, 0, 'p'},
+            {"rate", required_argument, 0, 'r'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:ht:b:dpqr:",
+        c = getopt_long(argc, argv, "f:ht:b:dpqr:",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[-f FMT | --image-opts] [-t CACHE_MODE] [-b BASE_IMG] [-d]\n"
+"        [-r RATE] [--object OBJDEF] FILENAME\n"
+,
+"  -q, --quiet\n"
+"     quiet operations\n"
+"  -p, --progress\n"
+"     show operation progress\n"
+"  -f, --format FMT\n"
+"     specify FILENAME image format explicitly\n"
+"  --image-opts\n"
+"     indicates that FILENAME is a complete image specification\n"
+"     instead of a file name (incompatible with --format)\n"
+"  -t, --cache CACHE_MODE image cache mode (" BDRV_DEFAULT_CACHE ")\n"
+"  -d, --drop\n"
+"     skip emptying FILENAME on completion\n"
+"  -b, --base BASE_IMG\n"
+"     image in the backing chain to which to commit changes\n"
+"     instead of the previous one (implies --drop)\n"
+"  -r, --rate RATE\n"
+"     I/O rate limit\n"
+"  --object OBJDEF\n"
+"     QEMU user-creatable object (eg encryption key)\n"
+"  FILENAME\n"
+"     name of the image file to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
@@ -1098,6 +1124,8 @@ static int img_commit(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
