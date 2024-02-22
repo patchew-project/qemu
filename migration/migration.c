@@ -3133,7 +3133,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     }
 
     /* Just another iteration step */
-    qemu_savevm_state_iterate(s->to_dst_file, in_postcopy);
+    qemu_savevm_state_iterate(s->to_dst_file, in_postcopy, can_switchover);
     return MIG_ITERATE_RESUME;
 }
 
@@ -3216,7 +3216,7 @@ static MigIterateState bg_migration_iteration_run(MigrationState *s)
 {
     int res;
 
-    res = qemu_savevm_state_iterate(s->to_dst_file, false);
+    res = qemu_savevm_state_iterate(s->to_dst_file, false, true);
     if (res > 0) {
         bg_migration_completion(s);
         return MIG_ITERATE_BREAK;

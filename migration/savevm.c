@@ -1386,7 +1386,7 @@ int qemu_savevm_state_resume_prepare(MigrationState *s)
  *   0 : We haven't finished, caller have to go again
  *   1 : We have finished, we can go to complete phase
  */
-int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
+int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy, bool can_switchover)
 {
     SaveStateEntry *se;
     int ret = 1;
@@ -1430,12 +1430,20 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
                          "%d(%s): %d",
                          se->section_id, se->idstr, ret);
             qemu_file_set_error(f, ret);
+            return ret;
         }
-        if (ret <= 0) {
-            /* Do not proceed to the next vmstate before this one reported
-               completion of the current stage. This serializes the migration
-               and reduces the probability that a faster changing state is
-               synchronized over and over again. */
+
+        if (ret == 0 && can_switchover) {
+            /*
+             * Do not proceed to the next vmstate before this one reported
+             * completion of the current stage. This serializes the migration
+             * and reduces the probability that a faster changing state is
+             * synchronized over and over again.
+             * Do it only if migration can switchover. If migration can't
+             * switchover yet, do proceed to let other devices send their data
+             * too, as this may be required for switchover to be acked and
+             * migration to converge.
+             */
             break;
         }
     }
@@ -1724,7 +1732,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     qemu_savevm_state_setup(f);
 
     while (qemu_file_get_error(f) == 0) {
-        if (qemu_savevm_state_iterate(f, false) > 0) {
+        if (qemu_savevm_state_iterate(f, false, true) > 0) {
             break;
         }
     }
