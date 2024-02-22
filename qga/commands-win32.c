@@ -2152,10 +2152,11 @@ typedef struct _ga_win_10_0_t {
     char const *version_id;
 } ga_win_10_0_t;
 
-static ga_win_10_0_t const WIN_10_0_SERVER_VERSION_MATRIX[4] = {
+static ga_win_10_0_t const WIN_10_0_SERVER_VERSION_MATRIX[5] = {
     {14393, "Microsoft Windows Server 2016",    "2016"},
     {17763, "Microsoft Windows Server 2019",    "2019"},
     {20344, "Microsoft Windows Server 2022",    "2022"},
+    {26040, "MIcrosoft Windows Server 2025",    "2025"},
     {0, 0}
 };
 
