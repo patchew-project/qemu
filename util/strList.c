@@ -22,3 +22,17 @@ strList *str_split(const char *str, const char *delim)
 
     return res;
 }
+
+char **strv_from_strList(const strList *list)
+{
+    const strList *tail;
+    int i = 0;
+    char **argv = g_new(char *, QAPI_LIST_LENGTH(list) + 1);
+
+    for (tail = list; tail != NULL; tail = tail->next) {
+        argv[i++] = g_strdup(tail->value);
+    }
+    argv[i] = NULL;
+
+    return argv;
+}
