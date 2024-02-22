@@ -171,35 +171,49 @@ static const uint8_t nvme_fdp_evf_shifts[FDP_EVT_MAX] = {
     [FDP_EVT_RUH_IMPLICIT_RU_CHANGE]    = 33,
 };
 
+#define NGUID_LEN 16
+
+typedef struct {
+    uint8_t data[NGUID_LEN];
+} NvmeNGUID;
+
+bool nvme_nguid_is_null(const NvmeNGUID *nguid);
+
+extern const PropertyInfo qdev_prop_nguid;
+
+#define DEFINE_PROP_NGUID_NODEFAULT(_name, _state, _field) \
+    DEFINE_PROP(_name, _state, _field, qdev_prop_nguid, NvmeNGUID)
+
 typedef struct NvmeNamespaceParams {
-    bool     detached;
-    bool     shared;
-    uint32_t nsid;
-    QemuUUID uuid;
-    uint64_t eui64;
-    bool     eui64_default;
+    bool      detached;
+    bool      shared;
+    uint32_t  nsid;
+    QemuUUID  uuid;
+    NvmeNGUID nguid;
+    uint64_t  eui64;
+    bool      eui64_default;
 
-    uint16_t ms;
-    uint8_t  mset;
-    uint8_t  pi;
-    uint8_t  pil;
-    uint8_t  pif;
+    uint16_t  ms;
+    uint8_t   mset;
+    uint8_t   pi;
+    uint8_t   pil;
+    uint8_t   pif;
 
-    uint16_t mssrl;
-    uint32_t mcl;
-    uint8_t  msrc;
+    uint16_t  mssrl;
+    uint32_t  mcl;
+    uint8_t   msrc;
 
-    bool     zoned;
-    bool     cross_zone_read;
-    uint64_t zone_size_bs;
-    uint64_t zone_cap_bs;
-    uint32_t max_active_zones;
-    uint32_t max_open_zones;
-    uint32_t zd_extension_size;
+    bool      zoned;
+    bool      cross_zone_read;
+    uint64_t  zone_size_bs;
+    uint64_t  zone_cap_bs;
+    uint32_t  max_active_zones;
+    uint32_t  max_open_zones;
+    uint32_t  zd_extension_size;
 
-    uint32_t numzrwa;
-    uint64_t zrwas;
-    uint64_t zrwafg;
+    uint32_t  numzrwa;
+    uint64_t  zrwas;
+    uint64_t  zrwafg;
 
     struct {
         char *ruhs;
