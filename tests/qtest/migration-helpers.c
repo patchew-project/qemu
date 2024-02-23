@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/ctype.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qlist.h"
 
 #include "migration-helpers.h"
 
@@ -43,7 +44,67 @@ bool migrate_watch_for_events(QTestState *who, const char *name,
     return false;
 }
 
-void migrate_qmp_fail(QTestState *who, const char *uri, const char *fmt, ...)
+static QList *MigrationChannelList_to_QList(MigrationChannelList *channels)
+{
+    MigrationChannel *channel = NULL;
+    MigrationAddress *addr = NULL;
+    SocketAddress *saddr = NULL;
+    QList *channelList = qlist_new();
+    QDict *channelDict = qdict_new();
+    QDict *addrDict = qdict_new();
+
+    channel = channels->value;
+    if (!channel || channel->channel_type == MIGRATION_CHANNEL_TYPE__MAX) {
+        fprintf(stderr, "%s: Channel or its type is NULL\n",
+                __func__);
+    }
+    g_assert(channel);
+    if (channel->channel_type == MIGRATION_CHANNEL_TYPE_MAIN) {
+        qdict_put_str(channelDict, "channel-type", g_strdup("main"));
+    }
+
+    addr = channel->addr;
+    if (!addr || addr->transport == MIGRATION_ADDRESS_TYPE__MAX) {
+        fprintf(stderr, "%s: addr or its transport is NULL\n",
+                __func__);
+    }
+    g_assert(addr);
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
+        qdict_put_str(addrDict, "transport", g_strdup("socket"));
+    }
+
+    saddr = &addr->u.socket;
+    if (!saddr) {
+        fprintf(stderr, "%s: saddr is NULL\n", __func__);
+    }
+    g_assert(saddr);
+    qdict_put_str(addrDict, "type", SocketAddressType_str(saddr->type));
+    qdict_put_str(addrDict, "port", saddr->u.inet.port);
+    qdict_put_str(addrDict, "host", saddr->u.inet.host);
+
+    qdict_put_obj(channelDict, "addr", QOBJECT(addrDict));
+    qlist_append_obj(channelList, QOBJECT(channelDict));
+
+    return channelList;
+}
+
+static void migrate_qmp_attach_ports(QDict *args, const char *uri,
+                         MigrationChannelList *channels)
+{
+    if (uri) {
+        g_assert(!qdict_haskey(args, "uri"));
+        qdict_put_str(args, "uri", uri);
+    }
+
+    if (channels) {
+        g_assert(!qdict_haskey(args, "channels"));
+        QList *channelList = MigrationChannelList_to_QList(channels);
+        qdict_put_obj(args, "channels", QOBJECT(channelList));
+    }
+}
+
+void migrate_qmp_fail(QTestState *who, const char *uri,
+                      MigrationChannelList *channels, const char *fmt, ...)
 {
     va_list ap;
     QDict *args, *err;
@@ -52,8 +113,7 @@ void migrate_qmp_fail(QTestState *who, const char *uri, const char *fmt, ...)
     args = qdict_from_vjsonf_nofail(fmt, ap);
     va_end(ap);
 
-    g_assert(!qdict_haskey(args, "uri"));
-    qdict_put_str(args, "uri", uri);
+    migrate_qmp_attach_ports(args, uri, channels);
 
     err = qtest_qmp_assert_failure_ref(
         who, "{ 'execute': 'migrate', 'arguments': %p}", args);
@@ -68,7 +128,8 @@ void migrate_qmp_fail(QTestState *who, const char *uri, const char *fmt, ...)
  * Arguments are built from @fmt... (formatted like
  * qobject_from_jsonf_nofail()) with "uri": @uri spliced in.
  */
-void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
+void migrate_qmp(QTestState *who, const char *uri,
+                 MigrationChannelList *channels, const char *fmt, ...)
 {
     va_list ap;
     QDict *args;
@@ -77,8 +138,7 @@ void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
     args = qdict_from_vjsonf_nofail(fmt, ap);
     va_end(ap);
 
-    g_assert(!qdict_haskey(args, "uri"));
-    qdict_put_str(args, "uri", uri);
+    migrate_qmp_attach_ports(args, uri, channels);
 
     qtest_qmp_assert_success(who,
                              "{ 'execute': 'migrate', 'arguments': %p}", args);
@@ -95,7 +155,8 @@ void migrate_set_capability(QTestState *who, const char *capability,
                              capability, value);
 }
 
-void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
+void migrate_incoming_qmp(QTestState *to, const char *uri,
+                          MigrationChannelList *channels, const char *fmt, ...)
 {
     va_list ap;
     QDict *args, *rsp, *data;
@@ -104,8 +165,7 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
     args = qdict_from_vjsonf_nofail(fmt, ap);
     va_end(ap);
 
-    g_assert(!qdict_haskey(args, "uri"));
-    qdict_put_str(args, "uri", uri);
+    migrate_qmp_attach_ports(args, uri, channels);
 
     migrate_set_capability(to, "events", true);
 

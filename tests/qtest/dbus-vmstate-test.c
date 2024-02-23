@@ -229,7 +229,7 @@ test_dbus_vmstate(Test *test)
 
     thread = g_thread_new("dbus-vmstate-thread", dbus_vmstate_thread, loop);
 
-    migrate_qmp(src_qemu, uri, "{}");
+    migrate_qmp(src_qemu, uri, NULL, "{}");
     test->src_qemu = src_qemu;
     if (test->migrate_fail) {
         wait_for_migration_fail(src_qemu, true);
