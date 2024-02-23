@@ -1766,6 +1766,7 @@ static void test_precopy_common(MigrateCommon *args)
     QTestState *from, *to;
     void *data_hook = NULL;
     g_autofree char *connect_uri = NULL;
+    g_autofree MigrationChannelList *channels = NULL;
 
     if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
@@ -1804,12 +1805,21 @@ static void test_precopy_common(MigrateCommon *args)
         connect_uri = g_strdup(args->connect_uri);
     }
 
+    if (args->connect_channels) {
+        channels = uri_to_channels(connect_uri);
+    }
+
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, connect_uri, NULL, "{}");
+        migrate_qmp_fail(from, connect_uri, channels, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, connect_uri, NULL, "{}");
+    if (args->connect_channels) {
+        migrate_qmp(from, NULL, channels, "{}");
+    } else {
+        migrate_qmp(from, connect_uri, NULL, "{}");
+    }
+
 
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
@@ -2725,7 +2735,7 @@ test_migrate_precopy_tcp_multifd_zstd_start(QTestState *from,
 }
 #endif /* CONFIG_ZSTD */
 
-static void test_multifd_tcp_none(void)
+static void test_multifd_tcp_none_uri(void)
 {
     MigrateCommon args = {
         .listen_uri = "defer",
@@ -2736,6 +2746,17 @@ static void test_multifd_tcp_none(void)
          * everything will work alright even if guest page is changing.
          */
         .live = true,
+    };
+    test_precopy_common(&args);
+}
+
+static void test_multifd_tcp_none_channels(void)
+{
+    MigrateCommon args = {
+        .listen_uri = "defer",
+        .start_hook = test_migrate_precopy_tcp_multifd_start,
+        .live = true,
+        .connect_channels = true,
     };
     test_precopy_common(&args);
 }
@@ -3640,8 +3661,11 @@ int main(int argc, char **argv)
                                test_migrate_dirty_limit);
         }
     }
-    migration_test_add("/migration/multifd/tcp/plain/none",
-                       test_multifd_tcp_none);
+    migration_test_add("/migration/multifd/tcp/plain/none/uri",
+                       test_multifd_tcp_none_uri);
+    migration_test_add("/migration/multifd/tcp/plain/none/channels",
+                       test_multifd_tcp_none_channels);
+
     migration_test_add("/migration/multifd/tcp/plain/cancel",
                        test_multifd_tcp_cancel);
     migration_test_add("/migration/multifd/tcp/plain/zlib",
