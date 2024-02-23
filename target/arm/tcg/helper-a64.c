@@ -66,6 +66,30 @@ void HELPER(msr_i_spsel)(CPUARMState *env, uint32_t imm)
     update_spsel(env, imm);
 }
 
+static void allint_check(CPUARMState *env, uint32_t op,
+                       uint32_t imm, uintptr_t ra)
+{
+    /* ALLINT update to PSTATE. */
+    if (arm_current_el(env) == 1 && arm_is_el2_enabled(env) &&
+        (arm_hcrx_el2_eff(env) & HCRX_TALLINT)) {
+        raise_exception_ra(env, EXCP_UDEF,
+                           syn_aa64_sysregtrap(0, extract32(op, 0, 3),
+                                               extract32(op, 3, 3), 4,
+                                               imm, 0x1f, 0),
+                           exception_target_el(env), ra);
+    }
+}
+
+void HELPER(msr_i_allint)(CPUARMState *env, uint32_t imm)
+{
+    allint_check(env, 0x8, imm, GETPC());
+    if (imm == 1) {
+        env->allint |= PSTATE_ALLINT;
+    } else {
+        env->allint &= ~PSTATE_ALLINT;
+    }
+}
+
 static void daif_check(CPUARMState *env, uint32_t op,
                        uint32_t imm, uintptr_t ra)
 {
