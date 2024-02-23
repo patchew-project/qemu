@@ -3024,10 +3024,9 @@ static void spapr_machine_init(MachineState *machine)
         }
 
         if (has_vga) {
-            USBBus *usb_bus = usb_bus_find(-1);
-
-            usb_create_simple(usb_bus, "usb-kbd");
-            usb_create_simple(usb_bus, "usb-mouse");
+            Object *usb_bus = object_resolve_type_unambiguous(TYPE_USB_BUS, &error_abort);
+            usb_create_simple(USB_BUS(usb_bus), "usb-kbd");
+            usb_create_simple(USB_BUS(usb_bus), "usb-mouse");
         }
     }
 
