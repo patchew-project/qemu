@@ -224,6 +224,7 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 
     /* Plugin initialization must wait until the cpu start executing code */
     if (tcg_enabled()) {
+        cpu->plugin_state = qemu_plugin_create_vcpu_state();
         async_run_on_cpu(cpu, qemu_plugin_vcpu_init__async, RUN_ON_CPU_NULL);
     }
 
