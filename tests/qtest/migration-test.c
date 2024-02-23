@@ -370,6 +370,30 @@ static void cleanup(const char *filename)
     unlink(path);
 }
 
+static MigrationChannelList *uri_to_channels(const char *uri)
+{
+    MigrationChannelList *channels = g_new0(MigrationChannelList, 1);
+    MigrationChannel *val = g_new0(MigrationChannel, 1);
+    MigrationAddress *addr = g_new0(MigrationAddress, 1);
+    char **saddr;
+
+    addr->transport = MIGRATION_ADDRESS_TYPE_SOCKET;
+
+    saddr = g_strsplit((char *)uri, ":", 3);
+    g_assert(saddr[0] && strcmp(saddr[0], "tcp") == 0);
+
+    addr->u.socket.type = SOCKET_ADDRESS_TYPE_INET;
+    addr->u.socket.u.inet.host = g_strdup(saddr[1]);
+    addr->u.socket.u.inet.port = g_strdup(saddr[2]);
+    g_strfreev(saddr);
+
+    val->channel_type = MIGRATION_CHANNEL_TYPE_MAIN;
+    val->addr = addr;
+    channels->value = val;
+
+    return channels;
+}
+
 static char *SocketAddress_to_str(SocketAddress *addr)
 {
     switch (addr->type) {
@@ -703,6 +727,13 @@ typedef struct {
      * This allows for dynamically picking a free TCP port.
      */
     const char *connect_uri;
+
+    /*
+     * Optional:  bool variable to connect list of migration stream
+     * channels, to a dest QEMU, can be utilized instead of a URI to
+     * accomplish the same task as listen_uri or connect_uri.
+     */
+    bool connect_channels;
 
     /* Optional: callback to run at start to set migration parameters */
     TestMigrateStartHook start_hook;
@@ -2509,6 +2540,62 @@ static void test_validate_uuid_dst_not_set(void)
     do_test_validate_uuid(&args, false);
 }
 
+static void do_test_validate_uri_channel(MigrateCommon *args)
+{
+    QTestState *from, *to;
+    g_autofree char *connect_uri = NULL;
+    g_autofree MigrationChannelList *connect_channels = NULL;
+
+    if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
+        return;
+    }
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    if (strcmp(args->listen_uri, "defer") != 0) {
+        connect_uri = migrate_get_socket_address(to, "socket-address");
+    }
+
+    if (args->connect_channels) {
+        connect_channels = uri_to_channels(connect_uri);
+    }
+    /*
+     * 'uri' and 'channels' validation is checked even before the migration
+     * starts.
+     */
+    migrate_qmp_fail(from, connect_uri, connect_channels, "{}");
+    test_migrate_end(from, to, false);
+}
+
+static void
+test_validate_uri_channels_both_set(void)
+{
+    MigrateCommon args = {
+        .start = {
+            .hide_stderr = true,
+        },
+        .connect_channels = true,
+        .listen_uri = "tcp:127.0.0.1:0",
+    };
+
+    do_test_validate_uri_channel(&args);
+}
+
+static void
+test_validate_uri_channels_none_set(void)
+{
+    MigrateCommon args = {
+        .start = {
+            .hide_stderr = true,
+        },
+        .connect_channels = false,
+        .listen_uri = "defer",
+    };
+
+    do_test_validate_uri_channel(&args);
+}
+
 /*
  * The way auto_converge works, we need to do too many passes to
  * run this test.  Auto_converge logic is only run once every
@@ -3537,6 +3624,10 @@ int main(int argc, char **argv)
                        test_validate_uuid_src_not_set);
     migration_test_add("/migration/validate_uuid_dst_not_set",
                        test_validate_uuid_dst_not_set);
+    migration_test_add("/migration/validate_uri/channels/both_set",
+                       test_validate_uri_channels_both_set);
+    migration_test_add("/migration/validate_uri/channels/none_set",
+                       test_validate_uri_channels_none_set);
     /*
      * See explanation why this test is slow on function definition
      */
