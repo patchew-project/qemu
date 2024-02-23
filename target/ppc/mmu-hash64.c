@@ -944,7 +944,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     CPUPPCState *env = &cpu->env;
     ppc_slb_t vrma_slbe;
     ppc_slb_t *slb;
-    unsigned apshift;
+    unsigned apshift = 0;
     hwaddr ptex;
     ppc_hash_pte64_t pte;
     int exec_prot, pp_prot, amr_prot, prot;
