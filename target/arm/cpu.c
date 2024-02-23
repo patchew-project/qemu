@@ -126,11 +126,20 @@ static bool arm_cpu_has_work(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
 
-    return (cpu->power_state != PSCI_OFF)
-        && cs->interrupt_request &
-        (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
-         | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VSERR
-         | CPU_INTERRUPT_EXITTB);
+    if (cpu_isar_feature(aa64_nmi, cpu)) {
+        return (cpu->power_state != PSCI_OFF)
+            && cs->interrupt_request &
+            (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
+             | CPU_INTERRUPT_NMI | CPU_INTERRUPT_VNMI
+             | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VSERR
+             | CPU_INTERRUPT_EXITTB);
+    } else {
+        return (cpu->power_state != PSCI_OFF)
+            && cs->interrupt_request &
+            (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
+             | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VSERR
+             | CPU_INTERRUPT_EXITTB);
+    }
 }
 
 static int arm_cpu_mmu_index(CPUState *cs, bool ifetch)
@@ -668,6 +677,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     CPUARMState *env = cpu_env(cs);
     bool pstate_unmasked;
     bool unmasked = false;
+    bool nmi_unmasked = true;
 
     /*
      * Don't take exceptions if they target a lower EL.
@@ -678,13 +688,26 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
         return false;
     }
 
+    if (cpu_isar_feature(aa64_nmi, env_archcpu(env))) {
+        nmi_unmasked = (cur_el == target_el) &&
+                       (((env->cp15.sctlr_el[target_el] & SCTLR_NMI) &&
+                        (env->allint & PSTATE_ALLINT)) ||
+                        ((env->cp15.sctlr_el[target_el] & SCTLR_SPINTMASK) &&
+                        (env->pstate & PSTATE_SP)));
+        nmi_unmasked = !nmi_unmasked;
+    }
+
     switch (excp_idx) {
+    case EXCP_NMI:
+        pstate_unmasked = nmi_unmasked;
+        break;
+
     case EXCP_FIQ:
-        pstate_unmasked = !(env->daif & PSTATE_F);
+        pstate_unmasked = (!(env->daif & PSTATE_F)) & nmi_unmasked;
         break;
 
     case EXCP_IRQ:
-        pstate_unmasked = !(env->daif & PSTATE_I);
+        pstate_unmasked = (!(env->daif & PSTATE_I)) & nmi_unmasked;
         break;
 
     case EXCP_VFIQ:
@@ -804,6 +827,16 @@ static bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
     /* The prioritization of interrupts is IMPLEMENTATION DEFINED. */
 
+    if (cpu_isar_feature(aa64_nmi, env_archcpu(env))) {
+        if (interrupt_request & CPU_INTERRUPT_NMI) {
+            excp_idx = EXCP_NMI;
+            target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
+            if (arm_excp_unmasked(cs, excp_idx, target_el,
+                                  cur_el, secure, hcr_el2)) {
+                goto found;
+            }
+        }
+    }
     if (interrupt_request & CPU_INTERRUPT_FIQ) {
         excp_idx = EXCP_FIQ;
         target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
@@ -929,7 +962,9 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         [ARM_CPU_IRQ] = CPU_INTERRUPT_HARD,
         [ARM_CPU_FIQ] = CPU_INTERRUPT_FIQ,
         [ARM_CPU_VIRQ] = CPU_INTERRUPT_VIRQ,
-        [ARM_CPU_VFIQ] = CPU_INTERRUPT_VFIQ
+        [ARM_CPU_VFIQ] = CPU_INTERRUPT_VFIQ,
+        [ARM_CPU_NMI] = CPU_INTERRUPT_NMI,
+        [ARM_CPU_VNMI] = CPU_INTERRUPT_VNMI
     };
 
     if (!arm_feature(env, ARM_FEATURE_EL2) &&
@@ -957,6 +992,7 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         break;
     case ARM_CPU_IRQ:
     case ARM_CPU_FIQ:
+    case ARM_CPU_NMI:
         if (level) {
             cpu_interrupt(cs, mask[irq]);
         } else {
@@ -1355,7 +1391,7 @@ static void arm_cpu_initfn(Object *obj)
          */
         qdev_init_gpio_in(DEVICE(cpu), arm_cpu_kvm_set_irq, 4);
     } else {
-        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 4);
+        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 6);
     }
 
     qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
