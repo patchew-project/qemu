@@ -3428,10 +3428,11 @@ F: migration/dirtyrate.c
 F: migration/dirtyrate.h
 F: include/sysemu/dirtyrate.h
 
-Detached LUKS header
+Detached LUKS header and GM/T 0018-2012 cryptography
 M: Hyman Huang <yong.huang@smartx.com>
 S: Maintained
 F: tests/qemu-iotests/tests/luks-detached-header
+F: crypto/cipher-gmt.c
 
 D-Bus
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
