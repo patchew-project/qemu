@@ -1693,6 +1693,34 @@ if not gnutls_crypto.found()
   endif
 endif
 
+if get_option('crypto_gmt').enabled() and get_option('crypto_afalg').enabled()
+  error('Only one of GM/T 0018-2012 & afalg can be enabled')
+endif
+
+gmt_0018_2012 = not_found
+if (not get_option('crypto_gmt').auto() or have_system)
+  gmt_0018_2012 = cc.find_library('gmt_0018_2012', has_headers: ['gmt-0018-2012.h'],
+                                  required: get_option('crypto_gmt'))
+  if gmt_0018_2012.found() and not cc.links('''
+    #include <stddef.h>
+    #include <gmt-0018-2012.h>
+    int main(void) {
+      unsigned char iv[16] = {0};
+      unsigned char plainData[16] = {0};
+      unsigned char cipherData[16] = {0};
+      unsigned int rlen;
+      SDF_Encrypt(NULL, NULL, SGD_SM4_ECB, iv, plainData, 16, cipherData, &rlen);
+      return 0;
+    }''', dependencies: gmt_0018_2012)
+    gmt_0018_2012 = not_found
+    if get_option('crypto_gmt').enabled()
+      error('could not link gmt_0018_2012')
+    else
+      warning('could not link gmt_0018_2012, disabling')
+    endif
+  endif
+endif
+
 capstone = not_found
 if not get_option('capstone').auto() or have_system or have_user
   capstone = dependency('capstone', version: '>=3.0.5',
@@ -2291,6 +2319,7 @@ config_host_data.set('CONFIG_GNUTLS_CRYPTO', gnutls_crypto.found())
 config_host_data.set('CONFIG_TASN1', tasn1.found())
 config_host_data.set('CONFIG_GCRYPT', gcrypt.found())
 config_host_data.set('CONFIG_NETTLE', nettle.found())
+config_host_data.set('CONFIG_GMT_0018_2012', gmt_0018_2012.found())
 config_host_data.set('CONFIG_CRYPTO_SM4', crypto_sm4.found())
 config_host_data.set('CONFIG_HOGWEED', hogweed.found())
 config_host_data.set('CONFIG_QEMU_PRIVATE_XTS', xts == 'private')
@@ -4333,6 +4362,7 @@ if nettle.found()
 endif
 summary_info += {'SM4 ALG support':   crypto_sm4}
 summary_info += {'AF_ALG support':    have_afalg}
+summary_info += {'GM/T 0018-2012 support': gmt_0018_2012.found()}
 summary_info += {'rng-none':          get_option('rng_none')}
 summary_info += {'Linux keyring':     have_keyring}
 summary_info += {'Linux keyutils':    keyutils}
