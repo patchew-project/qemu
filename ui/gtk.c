@@ -478,6 +478,11 @@ static void gd_cursor_define(DisplayChangeListener *dcl,
         return;
     }
 
+    if(!c->visible) {
+        gdk_window_set_cursor(gtk_widget_get_window(vc->gfx.drawing_area), NULL);
+        return;
+    }
+
     pixbuf = gdk_pixbuf_new_from_data((guchar *)(c->data),
                                       GDK_COLORSPACE_RGB, true, 8,
                                       c->width, c->height, c->width * 4,

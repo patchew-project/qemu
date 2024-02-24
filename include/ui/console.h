@@ -161,6 +161,7 @@ typedef struct QEMUCursor {
     uint16_t            width, height;
     int                 hot_x, hot_y;
     int                 refcount;
+    int                 visible;
     uint32_t            data[];
 } QEMUCursor;
 

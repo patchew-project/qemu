@@ -98,6 +98,7 @@ static void update_cursor(VirtIOGPU *g, struct virtio_gpu_update_cursor *cursor)
 
         s->current_cursor->hot_x = cursor->hot_x;
         s->current_cursor->hot_y = cursor->hot_y;
+        s->current_cursor->visible = cursor->resource_id ? 1 : 0;
 
         if (cursor->resource_id > 0) {
             vgc->update_cursor_data(g, s, cursor->resource_id);
