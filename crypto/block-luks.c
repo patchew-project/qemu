@@ -95,7 +95,7 @@ qcrypto_block_luks_cipher_size_map_twofish[] = {
     { 0, 0 },
 };
 
-#ifdef CONFIG_CRYPTO_SM4
+#if defined CONFIG_CRYPTO_SM4 || defined CONFIG_GMT_0018_2012
 static const QCryptoBlockLUKSCipherSizeMap
 qcrypto_block_luks_cipher_size_map_sm4[] = {
     { 16, QCRYPTO_CIPHER_ALG_SM4},
@@ -109,7 +109,7 @@ qcrypto_block_luks_cipher_name_map[] = {
     { "cast5", qcrypto_block_luks_cipher_size_map_cast5 },
     { "serpent", qcrypto_block_luks_cipher_size_map_serpent },
     { "twofish", qcrypto_block_luks_cipher_size_map_twofish },
-#ifdef CONFIG_CRYPTO_SM4
+#if defined CONFIG_CRYPTO_SM4 || defined CONFIG_GMT_0018_2012
     { "sm4", qcrypto_block_luks_cipher_size_map_sm4},
 #endif
 };
