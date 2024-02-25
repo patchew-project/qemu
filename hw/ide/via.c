@@ -25,7 +25,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/ide/internal.h"
+#include "ide_internal.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"

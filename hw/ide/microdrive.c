@@ -31,7 +31,7 @@
 #include "sysemu/dma.h"
 #include "hw/irq.h"
 
-#include "hw/ide/internal.h"
+#include "ide_internal.h"
 #include "qom/object.h"
 
 #define TYPE_MICRODRIVE "microdrive"

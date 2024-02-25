@@ -25,7 +25,7 @@
 #define HW_IDE_AHCI_INTERNAL_H
 
 #include "hw/ide/ahci.h"
-#include "hw/ide/internal.h"
+#include "ide_internal.h"
 #include "hw/pci/pci_device.h"
 
 #define AHCI_MEM_BAR_SIZE         0x1000

@@ -32,7 +32,7 @@
 #include "sysemu/dma.h"
 
 #include "hw/ide/isa.h"
-#include "hw/ide/internal.h"
+#include "ide_internal.h"
 #include "qom/object.h"
 
 /***********************************************************/

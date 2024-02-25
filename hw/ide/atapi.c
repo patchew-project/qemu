@@ -24,7 +24,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/ide/internal.h"
+#include "ide_internal.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/block-backend.h"
 #include "scsi/constants.h"
