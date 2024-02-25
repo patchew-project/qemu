@@ -73,15 +73,15 @@ void exec_start_outgoing_migration(MigrationState *s, strList *command,
     QIOChannel *ioc;
 
     int length = str_list_length(command);
-    g_auto(GStrv) argv = (char **) g_new0(const char *, length + 1);
+    g_autofree char **argv = g_new0(char *, length + 1);
 
     init_exec_array(command, argv, errp);
-    g_autofree char *new_command = g_strjoinv(" ", (char **)argv);
+    g_autofree char *new_command = g_strjoinv(" ", argv);
 
     trace_migration_exec_outgoing(new_command);
     ioc = QIO_CHANNEL(
         qio_channel_command_new_spawn(
-                            (const char * const *) g_steal_pointer(&argv),
+                            (const char * const *) argv,
                             O_RDWR,
                             errp));
     if (!ioc) {
@@ -107,15 +107,15 @@ void exec_start_incoming_migration(strList *command, Error **errp)
     QIOChannel *ioc;
 
     int length = str_list_length(command);
-    g_auto(GStrv) argv = (char **) g_new0(const char *, length + 1);
+    g_autofree char **argv = g_new0(char *, length + 1);
 
     init_exec_array(command, argv, errp);
-    g_autofree char *new_command = g_strjoinv(" ", (char **)argv);
+    g_autofree char *new_command = g_strjoinv(" ", argv);
 
     trace_migration_exec_incoming(new_command);
     ioc = QIO_CHANNEL(
         qio_channel_command_new_spawn(
-                            (const char * const *) g_steal_pointer(&argv),
+                            (const char * const *) argv,
                             O_RDWR,
                             errp));
     if (!ioc) {
