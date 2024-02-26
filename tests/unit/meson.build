@@ -35,6 +35,7 @@ tests = {
   'test-rcu-simpleq': [],
   'test-rcu-tailq': [],
   'test-rcu-slist': [],
+  'test-strList': [],
   'test-qdist': [],
   'test-qht': [],
   'test-qtree': [],
