@@ -22,4 +22,12 @@
  */
 strList *str_split(const char *str, const char *delim);
 
+/*
+ * Produce and return a NULL-terminated array of strings from @list.
+ * The result is g_malloc'd and all strings are g_strdup'd.  The result
+ * can be freed using g_strfreev, or by declaring a local variable with
+ * g_auto(GStrv).
+ */
+char **strv_from_strList(const strList *list);
+
 #endif
