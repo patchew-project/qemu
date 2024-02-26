@@ -1030,9 +1030,12 @@
 #
 # @type: file system type string
 #
-# @used-bytes: file system used bytes (since 3.0)
+# @total-bytes: total file system size in bytes (since 8.3)
 #
-# @total-bytes: non-root file system total bytes (since 3.0)
+# @free-bytes: amount of free space in file system in bytes (since 8.3)
+#
+# @avail-bytes: amount of free space in file system for unprivileged
+#     users in bytes (since 8.3)
 #
 # @disk: an array of disk hardware information that the volume lies
 #     on, which may be empty if the disk type is not supported
@@ -1041,8 +1044,8 @@
 ##
 { 'struct': 'GuestFilesystemInfo',
   'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
-           '*used-bytes': 'uint64', '*total-bytes': 'uint64',
-           'disk': ['GuestDiskAddress']} }
+           '*total-bytes': 'uint64', '*free-bytes': 'uint64',
+           '*avail-bytes': 'uint64', 'disk': ['GuestDiskAddress']} }
 
 ##
 # @guest-get-fsinfo:

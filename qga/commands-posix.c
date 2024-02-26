@@ -1554,8 +1554,7 @@ static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
                                                Error **errp)
 {
     GuestFilesystemInfo *fs = g_malloc0(sizeof(*fs));
-    struct statvfs buf;
-    unsigned long used, nonroot_total, fr_size;
+    struct statvfs st;
     char *devpath = g_strdup_printf("/sys/dev/block/%u:%u",
                                     mount->devmajor, mount->devminor);
 
@@ -1563,15 +1562,14 @@ static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
     fs->type = g_strdup(mount->devtype);
     build_guest_fsinfo_for_device(devpath, fs, errp);
 
-    if (statvfs(fs->mountpoint, &buf) == 0) {
-        fr_size = buf.f_frsize;
-        used = buf.f_blocks - buf.f_bfree;
-        nonroot_total = used + buf.f_bavail;
-        fs->used_bytes = used * fr_size;
-        fs->total_bytes = nonroot_total * fr_size;
+    if (statvfs(fs->mountpoint, &st) == 0) {
+        fs->total_bytes = st.f_blocks * st.f_frsize;
+        fs->free_bytes = st.f_bfree * st.f_frsize;
+        fs->avail_bytes = st.f_bavail * st.f_frsize;
 
         fs->has_total_bytes = true;
-        fs->has_used_bytes = true;
+        fs->has_free_bytes = true;
+        fs->has_avail_bytes = true;
     }
 
     g_free(devpath);
