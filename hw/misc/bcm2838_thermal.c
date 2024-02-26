@@ -80,7 +80,7 @@ static void bcm2838_thermal_class_init(ObjectClass *klass, void *data)
 
     dc->realize = bcm2838_thermal_realize;
 
-    /* This device has no state: no need for vmstate or reset */
+    /* This device has nothing to save: no need for vmstate or reset */
 }
 
 static const TypeInfo bcm2838_thermal_info = {
