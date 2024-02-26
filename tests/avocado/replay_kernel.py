@@ -13,6 +13,7 @@ import lzma
 import shutil
 import logging
 import time
+import subprocess
 
 from avocado import skip
 from avocado import skipUnless
@@ -21,6 +22,11 @@ from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
 from avocado.utils import process
 from boot_linux_console import LinuxKernelTest
+
+from pathlib import Path
+
+self_dir = Path(__file__).parent
+src_dir = self_dir.parent.parent
 
 class ReplayKernelBase(LinuxKernelTest):
     """
@@ -63,12 +69,22 @@ class ReplayKernelBase(LinuxKernelTest):
             vm.shutdown()
             logger.info('finished the recording with log size %s bytes'
                         % os.path.getsize(replay_path))
+            self.run_replay_dump(replay_path)
+            logger.info('successfully tested replay-dump.py')
         else:
             vm.wait()
             logger.info('successfully finished the replay')
         elapsed = time.time() - start_time
         logger.info('elapsed time %.2f sec' % elapsed)
         return elapsed
+
+    def run_replay_dump(self, replay_path):
+        try:
+            subprocess.check_call(["./scripts/replay-dump.py",
+                                   "-f", replay_path],
+                                  cwd=src_dir, stdout=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            self.fail('replay-dump.py failed')
 
     def run_rr(self, kernel_path, kernel_command_line, console_pattern,
                shift=7, args=None):
