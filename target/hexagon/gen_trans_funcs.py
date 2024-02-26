@@ -85,6 +85,7 @@ def gen_trans_funcs(f):
         """))
 
         new_read_idx = -1
+        dest_idx = -1
         for regno, regstruct in enumerate(regs):
             reg_type, reg_id, _, _ = regstruct
             reg = hex_common.get_register(tag, reg_type, reg_id)
@@ -93,6 +94,8 @@ def gen_trans_funcs(f):
             """))
             if reg.is_read() and reg.is_new():
                 new_read_idx = regno
+            if reg.is_written() and dest_idx == -1:
+                dest_idx = regno
 
         if len(imms) != 0:
             mark_which_imm_extended(f, tag)
@@ -115,6 +118,7 @@ def gen_trans_funcs(f):
 
         f.write(code_fmt(f"""\
             insn->new_read_idx = {new_read_idx};
+            insn->dest_idx = {dest_idx};
         """))
         f.write(textwrap.dedent(f"""\
                 return true;
