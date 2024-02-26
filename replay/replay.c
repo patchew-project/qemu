@@ -383,6 +383,8 @@ static void replay_enable(const char *fname, int mode)
         /* go to the beginning */
         fseek(replay_file, HEADER_SIZE, SEEK_SET);
         replay_fetch_data_kind();
+
+        runstate_replay_enable();
     }
 
     replay_init_events();
