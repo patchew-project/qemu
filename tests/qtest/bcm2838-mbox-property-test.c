@@ -271,6 +271,12 @@ DECLARE_TEST_CASE_SETUP(GET_MIN_CLOCK_RATE, ANY) {
 }
 
 /*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(GET_CLOCKS) {
+    g_assert_cmphex(tag->response.value.root_clock, ==, CLOCK_ID_ROOT);
+    g_assert_cmphex(tag->response.value.arm_clock, ==, CLOCK_ID_ARM);
+}
+
+/*----------------------------------------------------------------------------*/
 DECLARE_TEST_CASE(GET_TEMPERATURE) {
     g_assert_cmphex(tag->response.value.temperature_id, ==, TEMPERATURE_ID_SOC);
     g_assert_cmpint(tag->response.value.temperature, ==, TEMPERATURE_SOC);
@@ -537,6 +543,11 @@ DECLARE_TEST_CASE(GET_COMMAND_LINE) {
 }
 
 /*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(GET_THROTTLED) {
+    g_assert_cmpint(tag->response.value.throttled, ==, 0);
+}
+
+/*----------------------------------------------------------------------------*/
 DECLARE_TEST_CASE(FRAMEBUFFER_GET_NUM_DISPLAYS) {
     g_assert_cmpint(tag->response.value.num_displays, ==, 1);
 }
@@ -547,6 +558,11 @@ DECLARE_TEST_CASE(FRAMEBUFFER_SET_PITCH) {
 }
 DECLARE_TEST_CASE_SETUP(FRAMEBUFFER_SET_PITCH) {
     tag->request.value.pitch = DUMMY_VALUE;
+}
+
+/*----------------------------------------------------------------------------*/
+DECLARE_TEST_CASE(VCHIQ_INIT) {
+    g_assert_cmpint(tag->response.value.zero, ==, 0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -572,6 +588,7 @@ int main(int argc, char **argv)
     QTEST_ADD_TEST_CASE(GET_CLOCK_RATE, ANY);
     QTEST_ADD_TEST_CASE(GET_MAX_CLOCK_RATE, ANY);
     QTEST_ADD_TEST_CASE(GET_MIN_CLOCK_RATE, ANY);
+    QTEST_ADD_TEST_CASE(GET_CLOCKS);
     QTEST_ADD_TEST_CASE(GET_TEMPERATURE);
     QTEST_ADD_TEST_CASE(GET_MAX_TEMPERATURE);
     QTEST_ADD_TEST_CASE(FRAMEBUFFER_ALLOCATE);
@@ -607,6 +624,8 @@ int main(int argc, char **argv)
     QTEST_ADD_TEST_CASE(GET_COMMAND_LINE);
     QTEST_ADD_TEST_CASE(FRAMEBUFFER_GET_NUM_DISPLAYS);
     QTEST_ADD_TEST_CASE(FRAMEBUFFER_SET_PITCH);
+    QTEST_ADD_TEST_CASE(GET_THROTTLED);
+    QTEST_ADD_TEST_CASE(VCHIQ_INIT);
 
     return g_test_run();
 }
