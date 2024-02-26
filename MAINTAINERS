@@ -3196,6 +3196,8 @@ X: qapi/*.json
 F: include/qapi/
 X: include/qapi/qmp/
 F: include/qapi/qmp/dispatch.h
+F: include/qemu/strList.h
+F: util/strList.c
 F: tests/qapi-schema/
 F: tests/unit/test-*-visitor.c
 F: tests/unit/test-qapi-*.c
