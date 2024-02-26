@@ -88,10 +88,11 @@ vm-build-all: $(addprefix vm-build-, $(IMAGES))
 vm-clean-all:
 	rm -f $(IMAGE_FILES)
 
+# Rebuilding the VMs every time this Makefile is tweaked is very
+# expensive for most users. If you tweak the recipe bellow you will
+# need to manually zap $(IMAGES_DIR)/%.img to rebuild.
 $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
-			$(SRC_PATH)/tests/vm/basevm.py \
-			$(SRC_PATH)/tests/vm/Makefile.include \
-			$(VM_VENV)
+			$(SRC_PATH)/tests/vm/basevm.py
 	@mkdir -p $(IMAGES_DIR)
 	$(call quiet-command, \
 		$(VM_PYTHON) $< \
