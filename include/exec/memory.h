@@ -282,6 +282,27 @@ struct MemoryRegionOps {
                                     unsigned size,
                                     MemTxAttrs attrs);
 
+    /*
+     * Dynamically create mapping. @addr is the guest address to map; @plen
+     * is the pointer to the usable length of the buffer.
+     * @mr contents can be changed in case a new memory region is created for
+     * the mapping.
+     * Returns the buffer address for accessing the data.
+     */
+    void *(*map)(MemoryRegion **mr,
+                 hwaddr addr,
+                 hwaddr *plen,
+                 bool is_write,
+                 MemTxAttrs attrs);
+
+    /* Unmap an area obtained via map() before. */
+    void (*unmap)(MemoryRegion *mr,
+                  void *buffer,
+                  ram_addr_t addr,
+                  hwaddr len,
+                  bool is_write,
+                  hwaddr access_len);
+
     enum device_endian endianness;
     /* Guest-visible constraints: */
     struct {
