@@ -2239,13 +2239,16 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
 
     if (xen_enabled()) {
         ram_addr_t ram_addr;
+
         RCU_READ_LOCK_GUARD();
         ram_addr = xen_ram_addr_from_mapcache(ptr);
-        block = qemu_get_ram_block(ram_addr);
-        if (block) {
-            *offset = ram_addr - block->offset;
+        if (ram_addr != RAM_ADDR_INVALID) {
+            block = qemu_get_ram_block(ram_addr);
+            if (block) {
+                *offset = ram_addr - block->offset;
+            }
+            return block;
         }
-        return block;
     }
 
     RCU_READ_LOCK_GUARD();
