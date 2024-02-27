@@ -120,6 +120,7 @@ REG32(RS_AWDT_CTRL, 0x24c)
 REG32(RST_REASON, 0x250)
 
 REG32(REBOOT_STATUS, 0x258)
+    FIELD(REBOOT_STATUS, SLC_RST, 19, 1)
 REG32(BOOT_MODE, 0x25c)
 
 REG32(APU_CTRL, 0x300)
@@ -562,6 +563,7 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
     switch (offset) {
     case R_PSS_RST_CTRL:
         if (FIELD_EX32(val, PSS_RST_CTRL, SOFT_RST)) {
+            s->regs[R_REBOOT_STATUS] |= R_REBOOT_STATUS_SLC_RST_MASK;
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
         break;
