@@ -125,6 +125,9 @@ static void xen_init_ram(MachineState *machine)
                                  GUEST_RAM1_BASE, ram_size[1]);
         memory_region_add_subregion(sysmem, GUEST_RAM1_BASE, &ram_hi);
     }
+
+    DPRINTF("init grant ram mapping for XEN\n");
+    ram_grants = *xen_init_grant_ram();
 }
 
 void arch_handle_ioreq(XenIOState *state, ioreq_t *req)
