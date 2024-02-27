@@ -288,6 +288,7 @@ static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
         .secure = true,
         .space = ARMSS_Root,
         .requester_id = env->requester_id,
+        .user_defined = env->memattr_user_defined,
     };
     ARMCPU *cpu = env_archcpu(env);
     uint64_t gpccr = env->cp15.gpccr_el3;
@@ -640,6 +641,7 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, S1Translate *ptw,
             .space = ptw->out_space,
             .secure = arm_space_is_secure(ptw->out_space),
             .requester_id = env->requester_id,
+            .user_defined = env->memattr_user_defined,
         };
         AddressSpace *as = arm_addressspace(cs, attrs);
         MemTxResult result = MEMTX_OK;
@@ -687,6 +689,7 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, S1Translate *ptw,
             .space = ptw->out_space,
             .secure = arm_space_is_secure(ptw->out_space),
             .requester_id = env->requester_id,
+            .user_defined = env->memattr_user_defined,
         };
         AddressSpace *as = arm_addressspace(cs, attrs);
         MemTxResult result = MEMTX_OK;
@@ -3370,6 +3373,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
     result->f.attrs.secure = arm_space_is_secure(ptw->in_space);
 
     result->f.attrs.requester_id = env->requester_id;
+    result->f.attrs.user_defined = env->memattr_user_defined;
 
     switch (mmu_idx) {
     case ARMMMUIdx_Phys_S:

@@ -2404,6 +2404,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     /* For MemTxAttrs. */
     env->requester_id = cpu->requester_id;
+    env->memattr_user_defined = cpu->memattr_user_defined;
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
@@ -2443,6 +2444,7 @@ static Property arm_cpu_properties[] = {
     DEFINE_PROP_INT32("node-id", ARMCPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_INT32("core-count", ARMCPU, core_count, -1),
     DEFINE_PROP_UINT16("requester-id", ARMCPU, requester_id, 0),
+    DEFINE_PROP_UINT8("memattr-user-defined", ARMCPU, memattr_user_defined, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 

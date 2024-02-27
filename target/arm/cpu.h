@@ -777,6 +777,7 @@ typedef struct CPUArchState {
 
     /* For MemTxAttrs. */
     uint16_t requester_id;
+    uint8_t memattr_user_defined;
 } CPUARMState;
 
 static inline void set_feature(CPUARMState *env, int feature)
@@ -1097,6 +1098,7 @@ struct ArchCPU {
 
     /* Requester ID, used in MemTxAttrs. */
     uint16_t requester_id;
+    uint8_t memattr_user_defined;
 };
 
 typedef struct ARMCPUInfo {
