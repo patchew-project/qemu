@@ -98,7 +98,8 @@ QEMU_OPTS=
 #   15s    original default
 #   60s    with --enable-debug
 #   90s    with --enable-tcg-interpreter
-TIMEOUT=90
+# The 'memory' test in particular is very slow under TCI.
+TIMEOUT=180
 
 ifeq ($(filter %-softmmu, $(TARGET)),)
 # The order we include is important. We include multiarch first and
