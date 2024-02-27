@@ -14,7 +14,9 @@
 
 #include <sys/resource.h>
 
+#include "hw/xen/xen-hvm-common.h"
 #include "hw/xen/xen_native.h"
+#include "hw/xen/xen_pvdev.h"
 #include "qemu/bitmap.h"
 
 #include "sysemu/runstate.h"
@@ -589,4 +591,29 @@ uint8_t *xen_replace_cache_entry(hwaddr old_phys_addr,
     p = xen_replace_cache_entry_unlocked(old_phys_addr, new_phys_addr, size);
     mapcache_unlock();
     return p;
+}
+
+MemoryRegion *xen_init_grant_ram(void)
+{
+    RAMBlock *block;
+
+    memory_region_init(&ram_grants, NULL, "xen.grants",
+                       XEN_MAX_VIRTIO_GRANTS * XC_PAGE_SIZE);
+    block = g_malloc0(sizeof(*block));
+    block->mr = &ram_grants;
+    block->used_length = XEN_MAX_VIRTIO_GRANTS * XC_PAGE_SIZE;
+    block->max_length = XEN_MAX_VIRTIO_GRANTS * XC_PAGE_SIZE;
+    block->fd = -1;
+    block->page_size = XC_PAGE_SIZE;
+    block->host = (void *)XEN_GRANT_ADDR_OFF;
+    block->offset = XEN_GRANT_ADDR_OFF;
+    block->flags = RAM_PREALLOC;
+    ram_grants.ram_block = block;
+    ram_grants.ram = true;
+    ram_grants.terminates = true;
+    ram_block_add_list(block);
+    memory_region_add_subregion(get_system_memory(), XEN_GRANT_ADDR_OFF,
+                                &ram_grants);
+
+    return &ram_grants;
 }

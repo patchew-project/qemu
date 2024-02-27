@@ -80,4 +80,7 @@ int xen_pv_send_notify(struct XenLegacyDevice *xendev);
 void xen_pv_printf(struct XenLegacyDevice *xendev, int msg_level,
                    const char *fmt, ...)  G_GNUC_PRINTF(3, 4);
 
+#define XEN_GRANT_ADDR_OFF    0x8000000000000000ULL
+#define XEN_MAX_VIRTIO_GRANTS 65536
+
 #endif /* QEMU_HW_XEN_PVDEV_H */
