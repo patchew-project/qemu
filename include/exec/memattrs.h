@@ -64,6 +64,8 @@ typedef struct MemTxAttrs {
     unsigned int target_tlb_bit0:1;
     unsigned int target_tlb_bit1:1;
     unsigned int target_tlb_bit2:1;
+    /* User-defined bits represent data that is implementation defined. */
+    unsigned int user_defined:4;
 } MemTxAttrs;
 
 /* Bus masters which don't specify any attributes will get this,
