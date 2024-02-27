@@ -774,6 +774,9 @@ typedef struct CPUArchState {
     /* Linux syscall tagged address support */
     bool tagged_addr_enable;
 #endif
+
+    /* For MemTxAttrs. */
+    uint16_t requester_id;
 } CPUARMState;
 
 static inline void set_feature(CPUARMState *env, int feature)
@@ -1091,6 +1094,9 @@ struct ArchCPU {
 
     /* Generic timer counter frequency, in Hz */
     uint64_t gt_cntfrq_hz;
+
+    /* Requester ID, used in MemTxAttrs. */
+    uint16_t requester_id;
 };
 
 typedef struct ARMCPUInfo {
