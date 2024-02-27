@@ -938,12 +938,14 @@ static void vfio_dirty_tracking_init(VFIOContainerBase *bcontainer,
     memory_listener_unregister(&dirty.listener);
 }
 
-static void vfio_devices_dma_logging_stop(VFIOContainerBase *bcontainer)
+static int vfio_devices_dma_logging_stop(VFIOContainerBase *bcontainer,
+                                          Error **errp)
 {
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature),
                               sizeof(uint64_t))] = {};
     struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
     VFIODevice *vbasedev;
+    int ret = 0;
 
     feature->argsz = sizeof(buf);
     feature->flags = VFIO_DEVICE_FEATURE_SET |
@@ -955,11 +957,17 @@ static void vfio_devices_dma_logging_stop(VFIOContainerBase *bcontainer)
         }
 
         if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
-            warn_report("%s: Failed to stop DMA logging, err %d (%s)",
-                        vbasedev->name, -errno, strerror(errno));
+            /* Keep first error */
+            if (!ret) {
+                ret = -errno;
+                error_setg(errp, "%s: Failed to stop DMA logging, err %d (%s)",
+                           vbasedev->name, -errno, strerror(errno));
+            }
         }
         vbasedev->dirty_tracking = false;
     }
+
+    return ret;
 }
 
 static struct vfio_device_feature *
@@ -1068,7 +1076,8 @@ static int vfio_devices_dma_logging_start(VFIOContainerBase *bcontainer,
 
 out:
     if (ret) {
-        vfio_devices_dma_logging_stop(bcontainer);
+        /* Ignore the potential errors when doing rollback */
+        vfio_devices_dma_logging_stop(bcontainer, NULL);
     }
 
     vfio_device_feature_dma_logging_start_destroy(feature);
@@ -1103,7 +1112,7 @@ static bool vfio_listener_log_global_stop(MemoryListener *listener,
     int ret = 0;
 
     if (vfio_devices_all_device_dirty_tracking(bcontainer)) {
-        vfio_devices_dma_logging_stop(bcontainer);
+        ret = vfio_devices_dma_logging_stop(bcontainer, errp);
     } else {
         ret = vfio_container_set_dirty_page_tracking(bcontainer, false, errp);
     }
