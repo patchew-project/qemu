@@ -148,7 +148,7 @@ typedef struct subpage_t {
 
 static void io_mem_init(void);
 static void memory_map_init(void);
-static void tcg_log_global_after_sync(MemoryListener *listener);
+static bool tcg_log_global_after_sync(MemoryListener *listener, Error **errp);
 static void tcg_commit(MemoryListener *listener);
 
 /**
@@ -2475,7 +2475,7 @@ static void do_nothing(CPUState *cpu, run_on_cpu_data d)
 {
 }
 
-static void tcg_log_global_after_sync(MemoryListener *listener)
+static bool tcg_log_global_after_sync(MemoryListener *listener, Error **errp)
 {
     CPUAddressSpace *cpuas;
 
@@ -2507,6 +2507,7 @@ static void tcg_log_global_after_sync(MemoryListener *listener)
         cpuas = container_of(listener, CPUAddressSpace, tcg_as_listener);
         run_on_cpu(cpuas->cpu, do_nothing, RUN_ON_CPU_NULL);
     }
+    return true;
 }
 
 static void tcg_commit_cpu(CPUState *cpu, run_on_cpu_data data)

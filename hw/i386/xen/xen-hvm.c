@@ -446,16 +446,18 @@ static void xen_log_sync(MemoryListener *listener, MemoryRegionSection *section)
                           int128_get64(section->size));
 }
 
-static void xen_log_global_start(MemoryListener *listener)
+static bool xen_log_global_start(MemoryListener *listener, Error **errp)
 {
     if (xen_enabled()) {
         xen_in_migration = true;
     }
+    return true;
 }
 
-static void xen_log_global_stop(MemoryListener *listener)
+static bool xen_log_global_stop(MemoryListener *listener, Error **errp)
 {
     xen_in_migration = false;
+    return true;
 }
 
 static const MemoryListener xen_memory_listener = {
