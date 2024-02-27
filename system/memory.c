@@ -2949,25 +2949,24 @@ static unsigned int postponed_stop_flags;
 static VMChangeStateEntry *vmstate_change;
 static bool memory_global_dirty_log_stop_postponed_run(Error **errp);
 
-void memory_global_dirty_log_start(unsigned int flags)
+bool memory_global_dirty_log_start(unsigned int flags, Error **errp)
 {
+    ERRP_GUARD();
     unsigned int old_flags;
-    Error *local_err = NULL;
 
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
 
     if (vmstate_change) {
         /* If there is postponed stop(), operate on it first */
         postponed_stop_flags &= ~flags;
-        if (!memory_global_dirty_log_stop_postponed_run(&local_err)) {
-            error_report_err(local_err);
-            return;
+        if (!memory_global_dirty_log_stop_postponed_run(errp)) {
+            return false;
         }
     }
 
     flags &= ~global_dirty_tracking;
     if (!flags) {
-        return;
+        return true;
     }
 
     old_flags = global_dirty_tracking;
@@ -2975,16 +2974,15 @@ void memory_global_dirty_log_start(unsigned int flags)
     trace_global_dirty_changed(global_dirty_tracking);
 
     if (!old_flags) {
-        MEMORY_LISTENER_CALL_LOG_GLOBAL(log_global_start, Forward,
-                                        &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            return;
+        MEMORY_LISTENER_CALL_LOG_GLOBAL(log_global_start, Forward, errp);
+        if (*errp) {
+            return false;
         }
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();
     }
+    return true;
 }
 
 static bool memory_global_dirty_log_do_stop(unsigned int flags, Error **errp)
@@ -3040,10 +3038,8 @@ static void memory_vm_change_state_handler(void *opaque, bool running,
     }
 }
 
-void memory_global_dirty_log_stop(unsigned int flags)
+bool memory_global_dirty_log_stop(unsigned int flags, Error **errp)
 {
-    Error *local_err = NULL;
-
     if (!runstate_is_running()) {
         /* Postpone the dirty log stop, e.g., to when VM starts again */
         if (vmstate_change) {
@@ -3054,12 +3050,10 @@ void memory_global_dirty_log_stop(unsigned int flags)
             vmstate_change = qemu_add_vm_change_state_handler(
                 memory_vm_change_state_handler, NULL);
         }
-        return;
+        return true;
     }
 
-    if (!memory_global_dirty_log_do_stop(flags, &local_err)) {
-        error_report_err(local_err);
-    }
+    return memory_global_dirty_log_do_stop(flags, errp);
 }
 
 static void listener_add_address_space(MemoryListener *listener,
