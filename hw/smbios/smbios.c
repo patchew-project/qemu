@@ -1052,6 +1052,8 @@ void smbios_get_tables(MachineState *ms,
     return;
 err_exit:
     g_free(smbios_tables);
+    smbios_tables = NULL;
+    return;
 }
 
 static void save_opt(const char **dest, QemuOpts *opts, const char *name)
