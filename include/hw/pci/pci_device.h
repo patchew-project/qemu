@@ -84,6 +84,7 @@ struct PCIDevice {
      * conventional PCI root complex, this field is meaningless.
      */
     PCIReqIDCache requester_id_cache;
+    uint8_t memattr_user_defined;
     char name[64];
     PCIIORegion io_regions[PCI_NUM_REGIONS];
     AddressSpace bus_master_as;

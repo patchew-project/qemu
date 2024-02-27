@@ -85,6 +85,8 @@ static Property pci_props[] = {
                     QEMU_PCIE_ERR_UNC_MASK_BITNR, true),
     DEFINE_PROP_BIT("x-pcie-ari-nextfn-1", PCIDevice, cap_present,
                     QEMU_PCIE_ARI_NEXTFN_1_BITNR, false),
+    DEFINE_PROP_UINT8("memattr-user-defined", PCIDevice, memattr_user_defined,
+                      0),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -361,6 +363,7 @@ static void pci_msi_trigger(PCIDevice *dev, MSIMessage msg)
         return;
     }
     attrs.requester_id = pci_requester_id(dev);
+    attrs.user_defined = dev->memattr_user_defined;
     address_space_stl_le(&dev->bus_master_as, msg.address, msg.data,
                          attrs, NULL);
 }
