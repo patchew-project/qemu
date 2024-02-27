@@ -51,6 +51,15 @@ struct ConfidentialGuestSupport {
      * so 'ready' is not set, we'll abort.
      */
     bool ready;
+
+#if defined(CONFIG_IGVM)
+    /*
+     * igvm_filename: Optional filename that specifies a file that contains
+     *                the configuration of the guest in Isolated Guest
+     *                Virtual Machine (IGVM) format.
+     */
+    char *igvm_filename;
+#endif
 };
 
 typedef struct ConfidentialGuestSupportClass {
