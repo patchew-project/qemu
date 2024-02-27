@@ -37,6 +37,7 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "exec/confidential-guest-support.h"
 #include "hw/i386/pc.h"
+#include "hw/i386/e820_memory_layout.h"
 #include "exec/address-spaces.h"
 
 #define TYPE_SEV_GUEST "sev-guest"
@@ -170,6 +171,9 @@ static const char *const sev_fw_errlist[] = {
 
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
 
+static int sev_launch_update_data(SevGuestState *sev_guest, uint8_t *addr,
+                                  uint64_t len);
+
 static int
 sev_ioctl(int fd, int cmd, void *data, int *error)
 {
@@ -302,6 +306,14 @@ static struct RAMBlockNotifier sev_ram_notifier = {
 static void
 sev_guest_finalize(Object *obj)
 {
+}
+
+static int cgs_check_support(ConfidentialGuestPlatformType platform,
+                             uint16_t platform_version, uint8_t highest_vtl,
+                             uint64_t shared_gpa_boundary)
+{
+    return (((platform == CGS_PLATFORM_SEV_ES) && sev_es_enabled()) ||
+            ((platform == CGS_PLATFORM_SEV) && sev_enabled())) ? 1 : 0;
 }
 
 static void sev_apply_cpu_context(CPUState *cpu)
@@ -447,6 +459,65 @@ static int sev_set_cpu_context(uint16_t cpu_index, const void *ctx,
     return 0;
 }
 
+static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
+                               ConfidentialGuestPageType memory_type,
+                               uint16_t cpu_index)
+{
+    SevGuestState *sev = SEV_GUEST(MACHINE(qdev_get_machine())->cgs);
+    int ret = 1;
+
+    if (!sev_enabled()) {
+        error_report("%s: attempt to configure guest memory, but SEV "
+                     "is not enabled",
+                     __func__);
+    } else if (memory_type == CGS_PAGE_TYPE_VMSA) {
+        if (!sev_es_enabled()) {
+            error_report("%s: attempt to configure initial VMSA, but SEV-ES "
+                         "is not supported",
+                         __func__);
+        } else {
+            ret = sev_set_cpu_context(cpu_index, ptr, len, gpa);
+        }
+    } else if ((memory_type != CGS_PAGE_TYPE_REQUIRED_MEMORY) &&
+               (memory_type != CGS_PAGE_TYPE_UNMEASURED)) {
+        ret = sev_launch_update_data(sev, ptr, len);
+    } else {
+        error_report(
+            "%s: attempted to configure guest memory to use memory_type %d, "
+            "but this type is not supported by SEV-ES",
+            __func__, (int)memory_type);
+    }
+    return ret;
+}
+
+static int cgs_get_mem_map_entry(int index,
+                                  ConfidentialGuestMemoryMapEntry *entry)
+{
+    if ((index < 0) || (index >= e820_get_num_entries())) {
+        return 1;
+    }
+    entry->gpa = e820_table[index].address;
+    entry->size = e820_table[index].length;
+    switch (e820_table[index].type) {
+    case E820_RAM:
+        entry->type = CGS_MEM_RAM;
+        break;
+    case E820_RESERVED:
+        entry->type = CGS_MEM_RESERVED;
+        break;
+    case E820_ACPI:
+        entry->type = CGS_MEM_ACPI;
+        break;
+    case E820_NVS:
+        entry->type = CGS_MEM_NVS;
+        break;
+    case E820_UNUSABLE:
+        entry->type = CGS_MEM_UNUSABLE;
+        break;
+    }
+    return 0;
+}
+
 static char *
 sev_guest_get_session_file(Object *obj, Error **errp)
 {
@@ -538,6 +609,7 @@ static void
 sev_guest_instance_init(Object *obj)
 {
     SevGuestState *sev = SEV_GUEST(obj);
+    ConfidentialGuestSupport *cgs = CONFIDENTIAL_GUEST_SUPPORT(obj);
 
     sev->sev_device = g_strdup(DEFAULT_SEV_DEVICE);
     sev->policy = DEFAULT_GUEST_POLICY;
@@ -550,6 +622,11 @@ sev_guest_instance_init(Object *obj)
     object_property_add_uint32_ptr(obj, "reduced-phys-bits",
                                    &sev->reduced_phys_bits,
                                    OBJ_PROP_FLAG_READWRITE);
+
+    cgs->check_support = cgs_check_support;
+    cgs->set_guest_state = cgs_set_guest_state;
+    cgs->get_mem_map_entry = cgs_get_mem_map_entry;
+
     QTAILQ_INIT(&sev->launch_vmsa);
 }
 
