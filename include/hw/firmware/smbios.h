@@ -2,6 +2,7 @@
 #define QEMU_SMBIOS_H
 
 #include "qapi/qapi-types-machine.h"
+#include "qemu/bitmap.h"
 
 /*
  * SMBIOS Support
@@ -16,8 +17,27 @@
  *
  */
 
+extern uint8_t *usr_blobs;
+extern GArray *usr_blobs_sizes;
+
+typedef struct {
+    const char *vendor, *version, *date;
+    bool have_major_minor, uefi;
+    uint8_t major, minor;
+} smbios_type0_t;
+extern smbios_type0_t smbios_type0;
+
+typedef struct {
+    const char *manufacturer, *product, *version, *serial, *sku, *family;
+    /* uuid is in qemu_uuid */
+} smbios_type1_t;
+extern smbios_type1_t smbios_type1;
+
 
 #define SMBIOS_MAX_TYPE 127
+extern DECLARE_BITMAP(smbios_have_binfile_bitmap, SMBIOS_MAX_TYPE + 1);
+extern DECLARE_BITMAP(smbios_have_fields_bitmap, SMBIOS_MAX_TYPE + 1);
+
 #define offsetofend(TYPE, MEMBER) \
        (offsetof(TYPE, MEMBER) + sizeof_field(TYPE, MEMBER))
 
@@ -290,6 +310,8 @@ struct smbios_type_127 {
     struct smbios_structure_header header;
 } QEMU_PACKED;
 
+void smbios_validate_table(void);
+void smbios_add_usr_blob_size(size_t size);
 void smbios_entry_add(QemuOpts *opts, Error **errp);
 void smbios_set_cpuid(uint32_t version, uint32_t features);
 void smbios_set_defaults(const char *manufacturer, const char *product,
