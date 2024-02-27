@@ -15,6 +15,7 @@
 
 #include "exec/confidential-guest-support.h"
 #include "qemu/error-report.h"
+#include "exec/igvm.h"
 
 OBJECT_DEFINE_ABSTRACT_TYPE(ConfidentialGuestSupport,
                             confidential_guest_support,
@@ -33,6 +34,9 @@ static void set_igvm(Object *obj, const char *value, Error **errp)
     ConfidentialGuestSupport *cgs = CONFIDENTIAL_GUEST_SUPPORT(obj);
     g_free(cgs->igvm_filename);
     cgs->igvm_filename = g_strdup(value);
+#if defined(CONFIG_IGVM)
+    igvm_file_init(cgs);
+#endif
 }
 #endif
 
