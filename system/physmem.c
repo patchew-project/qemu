@@ -1804,12 +1804,47 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
     }
 }
 
+static void ram_block_add_list_locked(RAMBlock *new_block)
+ {
+     RAMBlock *block;
+     RAMBlock *last_block = NULL;
+
+    /*
+     * Keep the list sorted from biggest to smallest block.  Unlike QTAILQ,
+     * QLIST (which has an RCU-friendly variant) does not have insertion at
+     * tail, so save the last element in last_block.
+     */
+    RAMBLOCK_FOREACH(block) {
+        last_block = block;
+        if (block->max_length < new_block->max_length) {
+            break;
+        }
+    }
+    if (block) {
+        QLIST_INSERT_BEFORE_RCU(block, new_block, next);
+    } else if (last_block) {
+        QLIST_INSERT_AFTER_RCU(last_block, new_block, next);
+    } else { /* list is empty */
+        QLIST_INSERT_HEAD_RCU(&ram_list.blocks, new_block, next);
+    }
+    ram_list.mru_block = NULL;
+
+    /* Write list before version */
+    smp_wmb();
+    ram_list.version++;
+}
+
+void ram_block_add_list(RAMBlock *new_block)
+{
+    qemu_mutex_lock_ramlist();
+    ram_block_add_list_locked(new_block);
+    qemu_mutex_unlock_ramlist();
+}
+
 static void ram_block_add(RAMBlock *new_block, Error **errp)
 {
     const bool noreserve = qemu_ram_is_noreserve(new_block);
     const bool shared = qemu_ram_is_shared(new_block);
-    RAMBlock *block;
-    RAMBlock *last_block = NULL;
     ram_addr_t old_ram_size, new_ram_size;
     Error *err = NULL;
 
@@ -1847,28 +1882,9 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
     if (new_ram_size > old_ram_size) {
         dirty_memory_extend(old_ram_size, new_ram_size);
     }
-    /* Keep the list sorted from biggest to smallest block.  Unlike QTAILQ,
-     * QLIST (which has an RCU-friendly variant) does not have insertion at
-     * tail, so save the last element in last_block.
-     */
-    RAMBLOCK_FOREACH(block) {
-        last_block = block;
-        if (block->max_length < new_block->max_length) {
-            break;
-        }
-    }
-    if (block) {
-        QLIST_INSERT_BEFORE_RCU(block, new_block, next);
-    } else if (last_block) {
-        QLIST_INSERT_AFTER_RCU(last_block, new_block, next);
-    } else { /* list is empty */
-        QLIST_INSERT_HEAD_RCU(&ram_list.blocks, new_block, next);
-    }
-    ram_list.mru_block = NULL;
 
-    /* Write list before version */
-    smp_wmb();
-    ram_list.version++;
+    ram_block_add_list_locked(new_block);
+
     qemu_mutex_unlock_ramlist();
 
     cpu_physical_memory_set_dirty_range(new_block->offset,
