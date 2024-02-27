@@ -864,8 +864,8 @@ static void virt_init(MachineState *machine)
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
     }
 
-    if (ram_size < 1 * GiB) {
-        error_report("ram_size must be greater than 1G.");
+    if (ram_size < 256 * MiB) {
+        error_report("ram_size must be greater than 256M.");
         exit(1);
     }
     create_fdt(vms);
