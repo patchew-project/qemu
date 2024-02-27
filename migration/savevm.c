@@ -1341,7 +1341,7 @@ int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
         }
         save_section_header(f, se, QEMU_VM_SECTION_START);
 
-        ret = se->ops->save_setup(f, se->opaque);
+        ret = se->ops->save_setup(f, se->opaque, errp);
         save_section_footer(f, se);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
