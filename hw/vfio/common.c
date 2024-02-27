@@ -1085,7 +1085,7 @@ static bool vfio_listener_log_global_start(MemoryListener *listener,
     if (vfio_devices_all_device_dirty_tracking(bcontainer)) {
         ret = vfio_devices_dma_logging_start(bcontainer);
     } else {
-        ret = vfio_container_set_dirty_page_tracking(bcontainer, true);
+        ret = vfio_container_set_dirty_page_tracking(bcontainer, true, NULL);
     }
 
     if (ret) {
@@ -1106,7 +1106,7 @@ static bool vfio_listener_log_global_stop(MemoryListener *listener,
     if (vfio_devices_all_device_dirty_tracking(bcontainer)) {
         vfio_devices_dma_logging_stop(bcontainer);
     } else {
-        ret = vfio_container_set_dirty_page_tracking(bcontainer, false);
+        ret = vfio_container_set_dirty_page_tracking(bcontainer, false, NULL);
     }
 
     if (ret) {
