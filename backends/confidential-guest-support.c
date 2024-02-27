@@ -82,3 +82,21 @@ static void confidential_guest_support_init(Object *obj)
 static void confidential_guest_support_finalize(Object *obj)
 {
 }
+
+bool cgs_is_igvm(ConfidentialGuestSupport *cgs)
+{
+#if defined(CONFIG_IGVM)
+    return cgs && cgs->igvm;
+#else
+    return false;
+#endif
+}
+
+void cgs_process_igvm(ConfidentialGuestSupport *cgs)
+{
+#if defined(CONFIG_IGVM)
+    if (cgs && cgs_is_igvm(cgs)) {
+        igvm_process(cgs);
+    }
+#endif
+}

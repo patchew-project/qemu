@@ -147,6 +147,23 @@ typedef struct ConfidentialGuestSupportClass {
     ObjectClass parent;
 } ConfidentialGuestSupportClass;
 
+/*
+ * Check whether the configuration of the confidential guest is provided
+ * using an IGVM file. IGVM configuration can include the system firmware,
+ * initial CPU state and other configuration that should override standard
+ * system initialization. This function should be used by platforms to
+ * determine which devices and configuration to include during system
+ * initialization.
+ */
+bool cgs_is_igvm(ConfidentialGuestSupport *cgs);
+/*
+ * If IGVM is supported and an IGVM file has been specified then the
+ * configuration described in the file is applied to the guest.
+ * Configuration of a confidential guest includes the layout of the
+ * guest memory, including firmware and initial CPU state.
+ */
+void cgs_process_igvm(ConfidentialGuestSupport *cgs);
+
 #endif /* !CONFIG_USER_ONLY */
 
 #endif /* QEMU_CONFIDENTIAL_GUEST_SUPPORT_H */
