@@ -34,8 +34,14 @@
 #include "standard-headers/linux/virtio_ring.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-bus.h"
-#include "linux-headers/linux/vhost.h"
 
+#if defined(__linux__)
+#include "linux-headers/linux/vhost.h"
+#else
+#ifndef VHOST_FILE_UNBIND
+#define VHOST_FILE_UNBIND -1
+#endif
+#endif
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {
