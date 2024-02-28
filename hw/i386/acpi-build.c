@@ -2149,7 +2149,8 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker, const char *oem_id,
 
     acpi_table_begin(&table, table_data);
     /* Host Address Width */
-    build_append_int_noprefix(table_data, intel_iommu->aw_bits - 1, 1);
+    build_append_int_noprefix(table_data,
+                              VTD_MGAW_FROM_CAP(intel_iommu->cap), 1);
     build_append_int_noprefix(table_data, dmar_flags, 1); /* Flags */
     g_array_append_vals(table_data, rsvd10, sizeof(rsvd10)); /* Reserved */
 

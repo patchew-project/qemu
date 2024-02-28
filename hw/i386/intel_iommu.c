@@ -42,6 +42,8 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 
+#define S_AW_BITS (VTD_MGAW_FROM_CAP(s->cap) + 1)
+
 /* context entry operations */
 #define VTD_CE_GET_RID2PASID(ce) \
     ((ce)->val[1] & VTD_SM_CONTEXT_ENTRY_RID2PASID_MASK)
@@ -1410,13 +1412,13 @@ static int vtd_root_entry_rsvd_bits_check(IntelIOMMUState *s,
 {
     /* Legacy Mode reserved bits check */
     if (!s->root_scalable &&
-        (re->hi || (re->lo & VTD_ROOT_ENTRY_RSVD(s->aw_bits))))
+        (re->hi || (re->lo & VTD_ROOT_ENTRY_RSVD(S_AW_BITS))))
         goto rsvd_err;
 
     /* Scalable Mode reserved bits check */
     if (s->root_scalable &&
-        ((re->lo & VTD_ROOT_ENTRY_RSVD(s->aw_bits)) ||
-         (re->hi & VTD_ROOT_ENTRY_RSVD(s->aw_bits))))
+        ((re->lo & VTD_ROOT_ENTRY_RSVD(S_AW_BITS)) ||
+         (re->hi & VTD_ROOT_ENTRY_RSVD(S_AW_BITS))))
         goto rsvd_err;
 
     return 0;
@@ -1433,7 +1435,7 @@ static inline int vtd_context_entry_rsvd_bits_check(IntelIOMMUState *s,
 {
     if (!s->root_scalable &&
         (ce->hi & VTD_CONTEXT_ENTRY_RSVD_HI ||
-         ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO(s->aw_bits))) {
+         ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO(S_AW_BITS))) {
         error_report_once("%s: invalid context entry: hi=%"PRIx64
                           ", lo=%"PRIx64" (reserved nonzero)",
                           __func__, ce->hi, ce->lo);
@@ -1441,7 +1443,7 @@ static inline int vtd_context_entry_rsvd_bits_check(IntelIOMMUState *s,
     }
 
     if (s->root_scalable &&
-        (ce->val[0] & VTD_SM_CONTEXT_ENTRY_RSVD_VAL0(s->aw_bits) ||
+        (ce->val[0] & VTD_SM_CONTEXT_ENTRY_RSVD_VAL0(S_AW_BITS) ||
          ce->val[1] & VTD_SM_CONTEXT_ENTRY_RSVD_VAL1 ||
          ce->val[2] ||
          ce->val[3])) {
@@ -1572,7 +1574,7 @@ static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
         .hook_fn = vtd_sync_shadow_page_hook,
         .private = (void *)&vtd_as->iommu,
         .notify_unmap = true,
-        .aw = s->aw_bits,
+        .aw = S_AW_BITS,
         .as = vtd_as,
         .domain_id = vtd_get_domain_id(s, ce, vtd_as->pasid),
     };
@@ -1991,7 +1993,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     }
 
     ret_fr = vtd_iova_to_slpte(s, &ce, addr, is_write, &slpte, &level,
-                               &reads, &writes, s->aw_bits, pasid);
+                               &reads, &writes, S_AW_BITS, pasid);
     if (ret_fr) {
         vtd_report_fault(s, -ret_fr, is_fpd_set, source_id,
                          addr, is_write, pasid != PCI_NO_PASID, pasid);
@@ -2005,7 +2007,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
 out:
     vtd_iommu_unlock(s);
     entry->iova = addr & page_mask;
-    entry->translated_addr = vtd_get_slpte_addr(slpte, s->aw_bits) & page_mask;
+    entry->translated_addr = vtd_get_slpte_addr(slpte, S_AW_BITS) & page_mask;
     entry->addr_mask = ~page_mask;
     entry->perm = access_flags;
     return true;
@@ -2022,7 +2024,7 @@ error:
 static void vtd_root_table_setup(IntelIOMMUState *s)
 {
     s->root = vtd_get_quad_raw(s, DMAR_RTADDR_REG);
-    s->root &= VTD_RTADDR_ADDR_MASK(s->aw_bits);
+    s->root &= VTD_RTADDR_ADDR_MASK(S_AW_BITS);
 
     vtd_update_scalable_state(s);
 
@@ -2040,7 +2042,7 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
     uint64_t value = 0;
     value = vtd_get_quad_raw(s, DMAR_IRTA_REG);
     s->intr_size = 1UL << ((value & VTD_IRTA_SIZE_MASK) + 1);
-    s->intr_root = value & VTD_IRTA_ADDR_MASK(s->aw_bits);
+    s->intr_root = value & VTD_IRTA_ADDR_MASK(S_AW_BITS);
     s->intr_eime = value & VTD_IRTA_EIME;
 
     /* Notify global invalidation */
@@ -2323,7 +2325,7 @@ static void vtd_handle_gcmd_qie(IntelIOMMUState *s, bool en)
     trace_vtd_inv_qi_enable(en);
 
     if (en) {
-        s->iq = iqa_val & VTD_IQA_IQA_MASK(s->aw_bits);
+        s->iq = iqa_val & VTD_IQA_IQA_MASK(S_AW_BITS);
         /* 2^(x+8) entries */
         s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8 - (s->iq_dw ? 1 : 0));
         s->qi_enabled = true;
@@ -3966,12 +3968,12 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
      * VT-d spec), otherwise we need to consider overflow of 64 bits.
      */
 
-    if (end > VTD_ADDRESS_SIZE(s->aw_bits) - 1) {
+    if (end > VTD_ADDRESS_SIZE(S_AW_BITS) - 1) {
         /*
          * Don't need to unmap regions that is bigger than the whole
          * VT-d supported address space size
          */
-        end = VTD_ADDRESS_SIZE(s->aw_bits) - 1;
+        end = VTD_ADDRESS_SIZE(S_AW_BITS) - 1;
     }
 
     assert(start <= end);
@@ -3979,7 +3981,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 
     while (remain >= VTD_PAGE_SIZE) {
         IOMMUTLBEvent event;
-        uint64_t mask = dma_aligned_pow2_mask(start, end, s->aw_bits);
+        uint64_t mask = dma_aligned_pow2_mask(start, end, S_AW_BITS);
         uint64_t size = mask + 1;
 
         assert(size);
@@ -4058,7 +4060,7 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
                 .hook_fn = vtd_replay_hook,
                 .private = (void *)n,
                 .notify_unmap = false,
-                .aw = s->aw_bits,
+                .aw = S_AW_BITS,
                 .as = vtd_as,
                 .domain_id = vtd_get_domain_id(s, &ce, vtd_as->pasid),
             };
@@ -4161,15 +4163,15 @@ static void vtd_init(IntelIOMMUState *s)
      * Rsvd field masks for spte
      */
     vtd_spte_rsvd[0] = ~0ULL;
-    vtd_spte_rsvd[1] = VTD_SPTE_PAGE_L1_RSVD_MASK(s->aw_bits,
+    vtd_spte_rsvd[1] = VTD_SPTE_PAGE_L1_RSVD_MASK(S_AW_BITS,
                                                   x86_iommu->dt_supported);
-    vtd_spte_rsvd[2] = VTD_SPTE_PAGE_L2_RSVD_MASK(s->aw_bits);
-    vtd_spte_rsvd[3] = VTD_SPTE_PAGE_L3_RSVD_MASK(s->aw_bits);
-    vtd_spte_rsvd[4] = VTD_SPTE_PAGE_L4_RSVD_MASK(s->aw_bits);
+    vtd_spte_rsvd[2] = VTD_SPTE_PAGE_L2_RSVD_MASK(S_AW_BITS);
+    vtd_spte_rsvd[3] = VTD_SPTE_PAGE_L3_RSVD_MASK(S_AW_BITS);
+    vtd_spte_rsvd[4] = VTD_SPTE_PAGE_L4_RSVD_MASK(S_AW_BITS);
 
-    vtd_spte_rsvd_large[2] = VTD_SPTE_LPAGE_L2_RSVD_MASK(s->aw_bits,
+    vtd_spte_rsvd_large[2] = VTD_SPTE_LPAGE_L2_RSVD_MASK(S_AW_BITS,
                                                     x86_iommu->dt_supported);
-    vtd_spte_rsvd_large[3] = VTD_SPTE_LPAGE_L3_RSVD_MASK(s->aw_bits,
+    vtd_spte_rsvd_large[3] = VTD_SPTE_LPAGE_L3_RSVD_MASK(S_AW_BITS,
                                                     x86_iommu->dt_supported);
 
     if (s->scalable_mode || s->snoop_control) {
