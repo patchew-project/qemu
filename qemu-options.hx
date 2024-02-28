@@ -5079,7 +5079,7 @@ SRST
     they are specified. Note that the 'id' property must be set. These
     objects are placed in the '/objects' path.
 
-    ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,offset=offset,readonly=on|off,rom=on|off|auto``
+    ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,offset=offset,readonly=on|off,rom=on|off|auto,shm=on|off``
         Creates a memory file backend object, which can be used to back
         the guest RAM with huge pages.
 
@@ -5182,6 +5182,14 @@ SRST
         (``readonly=on``) and mark the memory to be private for QEMU
         (``share=off``). For this use case, we need writable RAM instead
         of ROM, and want to also set ``rom=off``.
+
+        The ``shm`` option specifies whether to create/open a POSIX shared
+        memory object identified by ``mem-path``.
+        If set to ``on``, use shm_open(3); if set to ``off`` (default),
+        use open(2); For portable use, a shared memory object should be
+        identified by a name of the form ``/somename``; consisting of an
+        initial slash, followed by one or more characters, none of which
+        are slashes.
 
     ``-object memory-backend-ram,id=id,merge=on|off,dump=on|off,share=on|off,prealloc=on|off,size=size,host-nodes=host-nodes,policy=default|preferred|bind|interleave``
         Creates a memory backend object, which can be used to back the

@@ -682,6 +682,9 @@
 #       writable RAM instead of ROM, and want to set this property to 'off'.
 #       (default: auto, since 8.2)
 #
+# @shm: if true, shm_open(3) is used to create/open POSIX shared memory
+#       object; if false, an open(2) is used. (default: false) (since 9.0)
+#
 # Since: 2.1
 ##
 { 'struct': 'MemoryBackendFileProperties',
@@ -692,6 +695,7 @@
             'mem-path': 'str',
             '*pmem': { 'type': 'bool', 'if': 'CONFIG_LIBPMEM' },
             '*readonly': 'bool',
+            '*shm': 'bool',
             '*rom': 'OnOffAuto' } }
 
 ##

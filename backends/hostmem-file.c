@@ -34,6 +34,7 @@ struct HostMemoryBackendFile {
     bool is_pmem;
     bool readonly;
     OnOffAuto rom;
+    bool shm;
 };
 
 static bool
@@ -86,7 +87,37 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     ram_flags |= fb->rom == ON_OFF_AUTO_ON ? RAM_READONLY : 0;
     ram_flags |= backend->reserve ? 0 : RAM_NORESERVE;
     ram_flags |= fb->is_pmem ? RAM_PMEM : 0;
+    /* TODO: check if this should be enabled if shm is enabled */
     ram_flags |= RAM_NAMED_FILE;
+
+    if (fb->shm) {
+        mode_t mode = S_IRUSR | S_IWUSR;
+        int fd, oflag = 0;
+
+        oflag |= fb->readonly ? O_RDONLY : O_RDWR;
+        oflag |= O_CREAT;
+
+        fd = shm_open(fb->mem_path, oflag, mode);
+        if (fd < 0) {
+            error_setg_errno(errp, errno,
+                             "failed to create POSIX shared memory");
+            return false;
+        }
+
+        if (ftruncate(fd, backend->size) == -1) {
+            error_setg_errno(errp, errno,
+                             "failed to resize POSIX shared memory to %" PRIu64,
+                             backend->size);
+            shm_unlink(fb->mem_path);
+            return false;
+        }
+
+        return memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
+                                              name, backend->size, ram_flags,
+                                              fd, fb->offset, errp);
+
+    }
+
     return memory_region_init_ram_from_file(&backend->mr, OBJECT(backend), name,
                                             backend->size, fb->align, ram_flags,
                                             fb->mem_path, fb->offset, errp);
@@ -254,16 +285,35 @@ static void file_memory_backend_set_rom(Object *obj, Visitor *v,
     visit_type_OnOffAuto(v, name, &fb->rom, errp);
 }
 
+static bool file_memory_backend_get_shm(Object *obj, Error **errp)
+{
+    return MEMORY_BACKEND_FILE(obj)->shm;
+}
+
+static void file_memory_backend_set_shm(Object *obj, bool value,
+                                             Error **errp)
+{
+    MEMORY_BACKEND_FILE(obj)->shm = value;
+}
+
 static void file_backend_unparent(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
 
-    if (host_memory_backend_mr_inited(backend) && fb->discard_data) {
+    if (!host_memory_backend_mr_inited(backend)) {
+        return;
+    }
+
+    if (fb->discard_data) {
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
         qemu_madvise(ptr, sz, QEMU_MADV_REMOVE);
+    }
+
+    if (fb->shm) {
+        shm_unlink(fb->mem_path);
     }
 }
 
@@ -300,6 +350,11 @@ file_backend_class_init(ObjectClass *oc, void *data)
         file_memory_backend_get_rom, file_memory_backend_set_rom, NULL, NULL);
     object_class_property_set_description(oc, "rom",
         "Whether to create Read Only Memory (ROM)");
+    object_class_property_add_bool(oc, "shm",
+        file_memory_backend_get_shm,
+        file_memory_backend_set_shm);
+    object_class_property_set_description(oc, "shm",
+        "Use shm_open(3) to create/open POSIX shared memory objects");
 }
 
 static void file_backend_instance_finalize(Object *o)
