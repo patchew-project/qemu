@@ -130,6 +130,7 @@ typedef struct VFIODevice {
     OnOffAuto pre_copy_dirty_page_tracking;
     bool dirty_pages_supported;
     bool dirty_tracking;
+    HostIOMMUDevice *base_hdev;
     int devid;
     IOMMUFDBackend *iommufd;
 } VFIODevice;
