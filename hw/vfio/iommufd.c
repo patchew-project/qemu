@@ -619,6 +619,15 @@ out_single:
     return ret;
 }
 
+static void vfio_cdev_host_iommu_device_create(VFIODevice *vbasedev)
+{
+    IOMMUFDDevice *idev = g_malloc0(sizeof(IOMMUFDDevice));
+
+    vbasedev->base_hdev = &idev->base;
+
+    iommufd_device_init(idev, vbasedev->iommufd, vbasedev->devid);
+}
+
 static void vfio_iommu_iommufd_class_init(ObjectClass *klass, void *data)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
@@ -628,6 +637,7 @@ static void vfio_iommu_iommufd_class_init(ObjectClass *klass, void *data)
     vioc->attach_device = iommufd_cdev_attach;
     vioc->detach_device = iommufd_cdev_detach;
     vioc->pci_hot_reset = iommufd_cdev_pci_hot_reset;
+    vioc->host_iommu_device_create = vfio_cdev_host_iommu_device_create;
 };
 
 static const TypeInfo types[] = {
