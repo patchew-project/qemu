@@ -3006,6 +3006,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
+    /* Allocate and initialize HostIOMMUDevice after attachment succeed */
+    host_iommu_device_create(vbasedev);
+
     vfio_populate_device(vdev, &err);
     if (err) {
         error_propagate(errp, err);
@@ -3244,6 +3247,7 @@ static void vfio_instance_finalize(Object *obj)
 
     vfio_display_finalize(vdev);
     vfio_bars_finalize(vdev);
+    g_free(vdev->vbasedev.base_hdev);
     g_free(vdev->emulated_config_bits);
     g_free(vdev->rom);
     /*
