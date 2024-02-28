@@ -20,7 +20,6 @@
 #include "monitor/monitor.h"
 #include "trace.h"
 #include <sys/ioctl.h>
-#include <linux/iommufd.h>
 
 static void iommufd_backend_init(Object *obj)
 {
@@ -239,4 +238,26 @@ void iommufd_device_init(IOMMUFDDevice *idev,
                                 sizeof(IOMMUFDDevice));
     idev->iommufd = iommufd;
     idev->devid = devid;
+}
+
+int iommufd_device_get_info(IOMMUFDDevice *idev,
+                            enum iommu_hw_info_type *type,
+                            uint32_t len, void *data, Error **errp)
+{
+    struct iommu_hw_info info = {
+        .size = sizeof(info),
+        .dev_id = idev->devid,
+        .data_len = len,
+        .data_uptr = (uintptr_t)data,
+    };
+    int ret;
+
+    ret = ioctl(idev->iommufd->fd, IOMMU_GET_HW_INFO, &info);
+    if (ret) {
+        error_setg_errno(errp, errno, "Failed to get hardware info");
+    } else {
+        *type = info.out_data_type;
+    }
+
+    return ret;
 }
