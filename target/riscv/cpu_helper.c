@@ -718,8 +718,21 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
 {
     g_assert(newpriv <= PRV_M && newpriv != PRV_RESERVED);
 
-    if (icount_enabled() && newpriv != env->priv) {
-        riscv_itrigger_update_priv(env);
+    /*
+     * Invoke cycle/instret update between priv mode changes or
+     * VS->HS mode transition is SPV bit must be set
+     * HS->VS mode transition where virt_enabled must be set
+     * In both cases, priv will S mode only.
+     */
+    if (newpriv != env->priv ||
+       (env->priv == PRV_S && newpriv == PRV_S &&
+        (env->virt_enabled || get_field(env->hstatus, HSTATUS_SPV)))) {
+        if (icount_enabled()) {
+            riscv_itrigger_update_priv(env);
+            riscv_pmu_icount_update_priv(env, newpriv);
+        } else {
+            riscv_pmu_cycle_update_priv(env, newpriv);
+        }
     }
     /* tlb_flush is unnecessary as mode is contained in mmu_idx */
     env->priv = newpriv;
