@@ -1278,6 +1278,43 @@ static bool fold_add2(OptContext *ctx, TCGOp *op)
     return fold_addsub2(ctx, op, true);
 }
 
+static bool fold_and_to_shifts(OptContext *ctx, uint64_t c, TCGOp *op)
+{
+    TCGOpcode shl_opc = tcg->type == TCG_TYPE_I32 ? INDEX_op_shl_i32 : INDEX_op_shl_i64;
+    TCGOpcode shr_opc = tcg->type == TCG_TYPE_I32 ? INDEX_op_shr_i32 : INDEX_op_shr_i64;
+
+    TCGOpcode first, second;
+    int count;
+    TCGOp *op2;
+
+    unsigned_c = tcg->type == TCG_TYPE_I32 ? (uint32_t) c : c;
+    if (is_power_of_2(-c) &&
+         !tcg_op_imm_match(op->opc, c)) {
+        /* AND with 11...11000, shift right then left.  */
+        count = ctz64(c);
+        first = shr_opc;
+    } else if (is_power_of_2(c + 1) &&
+               !tcg_op_imm_match(INDEX_op_and_i64, c)) {
+        /* AND with 00...00111, shift left then right.  */
+        int bits = tcg->type == TCG_TYPE_I32 ? 32 : 64;
+        count = bits - cto64(c);
+        first = shl_opc;
+    } else {
+        return false;
+    }
+
+
+    op->opc = first;
+    op->args[2] = arg_new_constant(ctx, count);
+
+    second = shl_opc ^ shr_opc ^ first;
+    op2 = tcg_op_insert_after(ctx->tcg, op, second, 3);
+    op2->args[0] = op->args[0];
+    op2->args[1] = op->args[0];
+    op2->args[2] = arg_new_constant(ctx, count);
+    return true;
+}
+
 static bool fold_and(OptContext *ctx, TCGOp *op)
 {
     uint64_t z1, z2;
@@ -1291,6 +1328,18 @@ static bool fold_and(OptContext *ctx, TCGOp *op)
 
     z1 = arg_info(op->args[1])->z_mask;
     z2 = arg_info(op->args[2])->z_mask;
+
+    /*
+     * Known-zeros does not imply known-ones.  Therefore unless
+     * arg2 is constant, we can't infer affected bits from it.
+     */
+    if (arg_is_const(op->args[2])) {
+        if (fold_and_to_shifts(ctx, z2, op)) {
+            return true;
+        }
+        ctx->a_mask = z1 & ~z2;
+    }
+
     ctx->z_mask = z1 & z2;
 
     /*
@@ -1299,14 +1348,6 @@ static bool fold_and(OptContext *ctx, TCGOp *op)
      */
     ctx->s_mask = arg_info(op->args[1])->s_mask
                 & arg_info(op->args[2])->s_mask;
-
-    /*
-     * Known-zeros does not imply known-ones.  Therefore unless
-     * arg2 is constant, we can't infer affected bits from it.
-     */
-    if (arg_is_const(op->args[2])) {
-        ctx->a_mask = z1 & ~z2;
-    }
 
     return fold_masks(ctx, op);
 }
@@ -1330,6 +1371,9 @@ static bool fold_andc(OptContext *ctx, TCGOp *op)
      */
     if (arg_is_const(op->args[2])) {
         uint64_t z2 = ~arg_info(op->args[2])->z_mask;
+        if (fold_and_to_shifts(ctx, z2, op)) {
+            return true;
+        }
         ctx->a_mask = z1 & ~z2;
         z1 &= z2;
     }
