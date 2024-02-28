@@ -3832,6 +3832,34 @@ static int vtd_check_iommufd_hdev(IntelIOMMUState *s,
                                   IOMMUFDDevice *idev,
                                   Error **errp)
 {
+    struct iommu_hw_info_vtd vtd;
+    enum iommu_hw_info_type type = IOMMU_HW_INFO_TYPE_INTEL_VTD;
+    long host_mgaw, viommu_mgaw = VTD_MGAW_FROM_CAP(s->cap);
+    uint64_t tmp_cap = s->cap;
+    int ret;
+
+    ret = iommufd_device_get_info(idev, &type, sizeof(vtd), &vtd, errp);
+    if (ret) {
+        return ret;
+    }
+
+    if (type != IOMMU_HW_INFO_TYPE_INTEL_VTD) {
+        error_setg(errp, "IOMMU hardware is not compatible");
+        return -EINVAL;
+    }
+
+    host_mgaw = VTD_MGAW_FROM_CAP(vtd.cap_reg);
+    if (viommu_mgaw > host_mgaw) {
+        if (s->cap_frozen) {
+            error_setg(errp, "mgaw %" PRId64 " > host mgaw %" PRId64,
+                       viommu_mgaw, host_mgaw);
+            return -EINVAL;
+        }
+        tmp_cap &= ~VTD_CAP_MGAW_MASK;
+        tmp_cap |= VTD_CAP_MGAW(host_mgaw + 1);
+    }
+
+    s->cap = tmp_cap;
     return 0;
 }
 
