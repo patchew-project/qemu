@@ -35,6 +35,8 @@
 #include "sysemu/kvm.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
+#include "hw/vfio/vfio-common.h"
+#include "sysemu/iommufd.h"
 #include "hw/i386/apic_internal.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
@@ -3819,6 +3821,38 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
     return vtd_dev_as;
 }
 
+static int vtd_check_legacy_hdev(IntelIOMMUState *s,
+                                 IOMMULegacyDevice *ldev,
+                                 Error **errp)
+{
+    return 0;
+}
+
+static int vtd_check_iommufd_hdev(IntelIOMMUState *s,
+                                  IOMMUFDDevice *idev,
+                                  Error **errp)
+{
+    return 0;
+}
+
+static int vtd_check_hdev(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hdev,
+                          Error **errp)
+{
+    HostIOMMUDevice *base_dev = vtd_hdev->dev;
+    IOMMUFDDevice *idev;
+
+    if (base_dev->type == HID_LEGACY) {
+        IOMMULegacyDevice *ldev = container_of(base_dev,
+                                               IOMMULegacyDevice, base);
+
+        return vtd_check_legacy_hdev(s, ldev, errp);
+    }
+
+    idev = container_of(base_dev, IOMMUFDDevice, base);
+
+    return vtd_check_iommufd_hdev(s, idev, errp);
+}
+
 static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
                                     HostIOMMUDevice *base_dev, Error **errp)
 {
@@ -3829,6 +3863,7 @@ static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
         .devfn = devfn,
     };
     struct vtd_as_key *new_key;
+    int ret;
 
     assert(base_dev);
 
@@ -3847,6 +3882,13 @@ static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
     vtd_hdev->devfn = (uint8_t)devfn;
     vtd_hdev->iommu_state = s;
     vtd_hdev->dev = base_dev;
+
+    ret = vtd_check_hdev(s, vtd_hdev, errp);
+    if (ret) {
+        g_free(vtd_hdev);
+        vtd_iommu_unlock(s);
+        return ret;
+    }
 
     new_key = g_malloc(sizeof(*new_key));
     new_key->bus = bus;
@@ -4083,7 +4125,9 @@ static void vtd_init(IntelIOMMUState *s)
     s->iq_dw = false;
     s->next_frcd_reg = 0;
 
-    vtd_cap_init(s);
+    if (!s->cap_frozen) {
+        vtd_cap_init(s);
+    }
 
     /*
      * Rsvd field masks for spte
@@ -4250,6 +4294,10 @@ static int vtd_machine_done_notify_one(Object *child, void *unused)
 
 static void vtd_machine_done_hook(Notifier *notifier, void *unused)
 {
+    IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
+
+    iommu->cap_frozen = true;
+
     object_child_foreach_recursive(object_get_root(),
                                    vtd_machine_done_notify_one, NULL);
 }
