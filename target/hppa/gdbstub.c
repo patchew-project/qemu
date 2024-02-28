@@ -21,11 +21,25 @@
 #include "cpu.h"
 #include "gdbstub/helpers.h"
 
+static int hppa_num_regs(CPUHPPAState *env)
+{
+    return hppa_is_pa20(env) ? 96 : 128;
+}
+
+static int hppa_reg_size(CPUHPPAState *env)
+{
+    return hppa_is_pa20(env) ? 8 : 4;
+}
+
 int hppa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
-    target_ureg val;
+    target_ulong val;
+
+    if (n >= hppa_num_regs(env)) {
+        return 0;
+    }
 
     switch (n) {
     case 0:
@@ -128,18 +142,18 @@ int hppa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         val = env->cr[30];
         break;
     case 64 ... 127:
-        val = extract64(env->fr[(n - 64) / 2], (n & 1 ? 0 : 32), 32);
+        if (hppa_is_pa20(env)) {
+            val = env->fr[n - 64];
+        } else {
+            val = extract64(env->fr[(n - 64) / 2], (n & 1 ? 0 : 32), 32);
+        }
         break;
     default:
-        if (n < 128) {
-            val = 0;
-        } else {
-            return 0;
-        }
+        val = 0;
         break;
     }
 
-    if (TARGET_REGISTER_BITS == 64) {
+    if (hppa_is_pa20(env)) {
         return gdb_get_reg64(mem_buf, val);
     } else {
         return gdb_get_reg32(mem_buf, val);
@@ -150,9 +164,13 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
-    target_ureg val;
+    target_ulong val;
 
-    if (TARGET_REGISTER_BITS == 64) {
+    if (n >= hppa_num_regs(env)) {
+        return 0;
+    }
+
+    if (hppa_is_pa20(env)) {
         val = ldq_p(mem_buf);
     } else {
         val = ldl_p(mem_buf);
@@ -267,16 +285,16 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         cpu_hppa_loaded_fr0(env);
         break;
     case 65 ... 127:
-        {
+        if (hppa_is_pa20(env)) {
+            env->fr[n - 64] = val;
+        } else {
             uint64_t *fr = &env->fr[(n - 64) / 2];
             *fr = deposit64(*fr, (n & 1 ? 0 : 32), 32, val);
         }
         break;
     default:
-        if (n >= 128) {
-            return 0;
-        }
         break;
     }
-    return sizeof(target_ureg);
+
+    return hppa_reg_size(env);
 }
