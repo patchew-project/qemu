@@ -223,6 +223,7 @@ typedef struct CPUArchState {
      *    semantics as for AArch32, as described in the comments on each field)
      *  nRW (also known as M[4]) is kept, inverted, in env->aarch64
      *  DAIF (exception masks) are kept in env->daif
+     *  ALLINT (all IRQ or FIQ interrupts masks) are kept in env->pstate
      *  BTYPE is kept in env->btype
      *  SM and ZA are kept in env->svcr
      *  all other bits are stored in their correct places in env->pstate
@@ -1536,6 +1537,7 @@ FIELD(VTCR, SL2, 33, 1)
 #define PSTATE_D (1U << 9)
 #define PSTATE_BTYPE (3U << 10)
 #define PSTATE_SSBS (1U << 12)
+#define PSTATE_ALLINT (1U << 13)
 #define PSTATE_IL (1U << 20)
 #define PSTATE_SS (1U << 21)
 #define PSTATE_PAN (1U << 22)
