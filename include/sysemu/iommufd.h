@@ -4,6 +4,7 @@
 #include "qom/object.h"
 #include "exec/hwaddr.h"
 #include "exec/cpu-common.h"
+#include "sysemu/host_iommu_device.h"
 
 #define TYPE_IOMMUFD_BACKEND "iommufd"
 OBJECT_DECLARE_TYPE(IOMMUFDBackend, IOMMUFDBackendClass, IOMMUFD_BACKEND)
@@ -33,4 +34,18 @@ int iommufd_backend_map_dma(IOMMUFDBackend *be, uint32_t ioas_id, hwaddr iova,
                             ram_addr_t size, void *vaddr, bool readonly);
 int iommufd_backend_unmap_dma(IOMMUFDBackend *be, uint32_t ioas_id,
                               hwaddr iova, ram_addr_t size);
+
+
+/* Abstraction of host IOMMUFD device */
+typedef struct IOMMUFDDevice {
+    /* private: */
+    HostIOMMUDevice base;
+
+    /* public: */
+    IOMMUFDBackend *iommufd;
+    uint32_t devid;
+} IOMMUFDDevice;
+
+void iommufd_device_init(IOMMUFDDevice *idev,
+                         IOMMUFDBackend *iommufd, int devid);
 #endif
