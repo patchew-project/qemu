@@ -304,6 +304,7 @@ struct LSIState {
     uint32_t adder;
 
     uint8_t script_ram[2048 * sizeof(uint32_t)];
+    bool hpux_spin_workaround;
 };
 
 #define TYPE_LSI53C810  "lsi53c810"
@@ -1156,8 +1157,17 @@ again:
             qemu_log_mask(LOG_GUEST_ERROR,
                           "lsi_scsi: inf. loop with UDC masked");
         }
-        lsi_script_scsi_interrupt(s, LSI_SIST0_UDC, 0);
-        lsi_disconnect(s);
+        if (s->hpux_spin_workaround) {
+            /*
+             * Workaround for HP-UX 10.20: Instead of disconnecting, which
+             * causes a long delay, emulate a INTERRUPT 2 instruction.
+             */
+            s->dsps = 2;
+            lsi_script_dma_interrupt(s, LSI_DSTAT_SIR);
+        } else {
+            lsi_script_scsi_interrupt(s, LSI_SIST0_UDC, 0);
+            lsi_disconnect(s);
+        }
         trace_lsi_execute_script_stop();
         reentrancy_level--;
         return;
@@ -2339,6 +2349,11 @@ static void lsi_scsi_exit(PCIDevice *dev)
     address_space_destroy(&s->pci_io_as);
 }
 
+static Property lsi_props[] = {
+    DEFINE_PROP_BOOL("hpux-spin-workaround", LSIState, hpux_spin_workaround,
+                     false),
+};
+
 static void lsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -2353,6 +2368,7 @@ static void lsi_class_init(ObjectClass *klass, void *data)
     dc->reset = lsi_scsi_reset;
     dc->vmsd = &vmstate_lsi_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    device_class_set_props(dc, lsi_props);
 }
 
 static const TypeInfo lsi_info = {
