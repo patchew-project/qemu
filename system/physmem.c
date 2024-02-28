@@ -3151,8 +3151,12 @@ void *address_space_map(AddressSpace *as,
             *plen = 0;
             return NULL;
         }
-        /* Avoid unbounded allocations */
-        l = MIN(l, TARGET_PAGE_SIZE);
+        /*
+         * There is only one bounce buffer. The largest occuring value of
+         * parameter sz of virtqueue_map_desc() must fit into the bounce
+         * buffer.
+         */
+        l = MIN(l, 0x10000);
         bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, l);
         bounce.addr = addr;
         bounce.len = l;
