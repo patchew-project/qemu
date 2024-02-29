@@ -81,7 +81,6 @@ Object *user_creatable_add_type(const char *type, const char *id,
     ERRP_GUARD();
     Object *obj;
     ObjectClass *klass;
-    Error *local_err = NULL;
 
     if (id != NULL && !id_wellformed(id)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
@@ -109,20 +108,20 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
-    object_set_properties_from_qdict(obj, qdict, v, &local_err);
-    if (local_err) {
+    object_set_properties_from_qdict(obj, qdict, v, errp);
+    if (*errp) {
         goto out;
     }
 
     if (id != NULL) {
         object_property_try_add_child(object_get_objects_root(),
-                                      id, obj, &local_err);
-        if (local_err) {
+                                      id, obj, errp);
+        if (*errp) {
             goto out;
         }
     }
 
-    if (!user_creatable_complete(USER_CREATABLE(obj), &local_err)) {
+    if (!user_creatable_complete(USER_CREATABLE(obj), errp)) {
         if (id != NULL) {
             object_property_del(object_get_objects_root(), id);
         }
@@ -130,7 +129,6 @@ Object *user_creatable_add_type(const char *type, const char *id,
     }
     return obj;
 out:
-    error_propagate(errp, local_err);
     object_unref(obj);
     return NULL;
 }
