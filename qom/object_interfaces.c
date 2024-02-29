@@ -128,13 +128,11 @@ Object *user_creatable_add_type(const char *type, const char *id,
         }
         goto out;
     }
-out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-        object_unref(obj);
-        return NULL;
-    }
     return obj;
+out:
+    error_propagate(errp, local_err);
+    object_unref(obj);
+    return NULL;
 }
 
 void user_creatable_add_qapi(ObjectOptions *options, Error **errp)
