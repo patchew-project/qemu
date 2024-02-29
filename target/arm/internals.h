@@ -959,6 +959,16 @@ void arm_cpu_update_virq(ARMCPU *cpu);
 void arm_cpu_update_vfiq(ARMCPU *cpu);
 
 /**
+ * arm_cpu_update_vnmi: Update CPU_INTERRUPT_VNMI bit in cs->interrupt_request
+ *
+ * Update the CPU_INTERRUPT_VNMI bit in cs->interrupt_request, following
+ * a change to either the input VNMI line from the GIC or the HCRX_EL2.VINMI
+ * or the HCRX_EL2.VFNMI.
+ * Must be called with the BQL held.
+ */
+void arm_cpu_update_vnmi(ARMCPU *cpu);
+
+/**
  * arm_cpu_update_vserr: Update CPU_INTERRUPT_VSERR bit
  *
  * Update the CPU_INTERRUPT_VSERR bit in cs->interrupt_request,
