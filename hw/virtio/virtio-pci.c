@@ -320,8 +320,12 @@ static bool virtio_pci_ioeventfd_enabled(DeviceState *d)
 
 static inline int virtio_pci_queue_mem_mult(struct VirtIOPCIProxy *proxy)
 {
-    return (proxy->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ) ?
-        QEMU_VIRTIO_PCI_QUEUE_MEM_MULT : 4;
+    if (proxy->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ)
+        return QEMU_VIRTIO_PCI_QUEUE_MEM_MULT;
+    else if (proxy->flags & VIRTIO_PCI_FLAG_HOST_PAGE_PER_VQ)
+        return qemu_real_host_page_size();
+    else
+        return 4;
 }
 
 static int virtio_pci_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
@@ -2108,6 +2112,14 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
     }
 
+    if ((proxy->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ) &&
+        (proxy->flags & VIRTIO_PCI_FLAG_HOST_PAGE_PER_VQ)) {
+        error_setg(errp, "device cannot work with both page-per-vq and"
+                   " host-page-per-vq at the same time");
+        error_append_hint(errp, "Set either page-per-vq or host-page-per-vq\n");
+        return;
+    }
+
     /*
      * virtio pci bar layout used by default.
      * subclasses can re-arrange things if needed.
@@ -2301,6 +2313,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_INIT_FLR_BIT, true),
     DEFINE_PROP_BIT("aer", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_AER_BIT, false),
+    DEFINE_PROP_BIT("host-page-per-vq", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_HOST_PAGE_PER_VQ_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
