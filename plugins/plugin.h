@@ -70,6 +70,7 @@ struct qemu_plugin_ctx *plugin_id_to_ctx_locked(qemu_plugin_id_t id);
 
 void plugin_register_inline_op_on_entry(GArray **arr,
                                         enum qemu_plugin_mem_rw rw,
+                                        enum plugin_dyn_cb_subtype type,
                                         enum qemu_plugin_op op,
                                         qemu_plugin_u64 entry,
                                         uint64_t imm);
