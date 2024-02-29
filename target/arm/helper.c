@@ -11459,11 +11459,20 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         break;
     case EXCP_IRQ:
     case EXCP_VIRQ:
+    case EXCP_NMI:
         addr += 0x80;
         break;
     case EXCP_FIQ:
     case EXCP_VFIQ:
         addr += 0x100;
+        break;
+    case EXCP_VNMI:
+        if (env->irq_line_state & CPU_INTERRUPT_VNMI ||
+            env->cp15.hcrx_el2 & HCRX_VINMI) {
+            addr += 0x80;
+        } else if (env->cp15.hcrx_el2 & HCRX_VFNMI) {
+            addr += 0x100;
+        }
         break;
     case EXCP_VSERR:
         addr += 0x180;
