@@ -996,7 +996,7 @@ static void riscv_cpu_reset_hold(Object *obj)
     set_default_nan_mode(1, &env->fp_status);
 
 #ifndef CONFIG_USER_ONLY
-    if (cpu->cfg.debug) {
+    if (cpu->cfg.ext_sdtrig) {
         riscv_trigger_reset_hold(env);
     }
 
@@ -1156,7 +1156,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     riscv_cpu_register_gdb_regs_for_features(cs);
 
 #ifndef CONFIG_USER_ONLY
-    if (cpu->cfg.debug) {
+    if (cpu->cfg.ext_sdtrig) {
         riscv_trigger_realize(&cpu->env);
     }
 #endif
@@ -1718,6 +1718,37 @@ static const PropertyInfo prop_mmu = {
     .set = prop_mmu_set,
 };
 
+static void prop_debug_set(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    bool value;
+
+    warn_report("\"debug\" property is being deprecated.");
+
+    visit_type_bool(v, name, &value, errp);
+
+    if (cpu->cfg.ext_sdtrig != value && !riscv_cpu_is_dynamic(obj)) {
+        return;
+    }
+
+    cpu->cfg.ext_sdtrig = value;
+}
+
+static void prop_debug_get(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    bool value = RISCV_CPU(obj)->cfg.ext_sdtrig;
+
+    visit_type_bool(v, name, &value, errp);
+}
+
+static const PropertyInfo prop_debug = {
+    .name = "debug",
+    .get = prop_debug_get,
+    .set = prop_debug_set,
+};
+
 static void prop_pmp_set(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
@@ -2229,7 +2260,7 @@ RISCVCPUProfile *riscv_profiles[] = {
 };
 
 static Property riscv_cpu_properties[] = {
-    DEFINE_PROP_BOOL("debug", RISCVCPU, cfg.debug, true),
+    {.name = "debug", .info = &prop_debug}, /* Deprecated */
 
     {.name = "pmu-mask", .info = &prop_pmu_mask},
     {.name = "pmu-num", .info = &prop_pmu_num}, /* Deprecated */
