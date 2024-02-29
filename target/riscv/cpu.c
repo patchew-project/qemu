@@ -1461,6 +1461,7 @@ const RISCVCPUMultiExtConfig riscv_cpu_extensions[] = {
     MULTI_EXT_CFG_BOOL("zve64d", ext_zve64d, false),
     MULTI_EXT_CFG_BOOL("sstc", ext_sstc, true),
 
+    MULTI_EXT_CFG_BOOL("sdtrig", ext_sdtrig, true),
     MULTI_EXT_CFG_BOOL("smepmp", ext_smepmp, false),
     MULTI_EXT_CFG_BOOL("smstateen", ext_smstateen, false),
     MULTI_EXT_CFG_BOOL("svadu", ext_svadu, true),
@@ -1724,7 +1725,7 @@ static void prop_debug_set(Object *obj, Visitor *v, const char *name,
     RISCVCPU *cpu = RISCV_CPU(obj);
     bool value;
 
-    warn_report("\"debug\" property is being deprecated.");
+    warn_report("\"debug\" property is deprecated; use \"sdtrig\"");
 
     visit_type_bool(v, name, &value, errp);
 
