@@ -109,6 +109,7 @@ static const VMStateDescription vmstate_lasx = {
     },
 };
 
+#ifdef CONFIG_TCG
 /* TLB state */
 const VMStateDescription vmstate_tlb = {
     .name = "cpu/tlb",
@@ -121,6 +122,7 @@ const VMStateDescription vmstate_tlb = {
         VMSTATE_END_OF_LIST()
     }
 };
+#endif
 
 /* LoongArch CPU state */
 const VMStateDescription vmstate_loongarch_cpu = {
@@ -187,9 +189,11 @@ const VMStateDescription vmstate_loongarch_cpu = {
         VMSTATE_UINT64(env.CSR_DBG, LoongArchCPU),
         VMSTATE_UINT64(env.CSR_DERA, LoongArchCPU),
         VMSTATE_UINT64(env.CSR_DSAVE, LoongArchCPU),
+#ifdef CONFIG_TCG
         /* TLB */
         VMSTATE_STRUCT_ARRAY(env.tlb, LoongArchCPU, LOONGARCH_TLB_MAX,
                              0, vmstate_tlb, LoongArchTLB),
+#endif
 
         VMSTATE_END_OF_LIST()
     },
