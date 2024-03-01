@@ -26,6 +26,7 @@
 #include "sysemu/runstate.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-qdev.h"
+#include "qapi/qapi-events-qdev.h"
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
@@ -1205,4 +1206,9 @@ bool qmp_command_available(const QmpCommand *cmd, Error **errp)
         return false;
     }
     return true;
+}
+
+void qdev_virtio_config_read_event(DeviceState *dev)
+{
+    qapi_event_send_virtio_config_read(dev->id, dev->canonical_path);
 }
