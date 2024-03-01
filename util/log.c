@@ -368,18 +368,10 @@ bool qemu_set_log_filename_flags(const char *name, int flags, Error **errp)
  */
 bool qemu_log_in_addr_range(uint64_t addr)
 {
-    GList *p;
-
     if (!debug_regions) {
         return true;
     }
-
-    for (p = g_list_first(debug_regions); p; p = g_list_next(p)) {
-        if (range_contains(p->data, addr)) {
-            return true;
-        }
-    }
-    return false;
+    return range_list_contains(debug_regions, addr);
 }
 
 void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)

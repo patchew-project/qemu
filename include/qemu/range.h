@@ -57,6 +57,18 @@ static inline bool range_contains(const Range *range, uint64_t val)
     return val >= range->lob && val <= range->upb;
 }
 
+static inline bool range_list_contains(GList *ranges, uint64_t val)
+{
+    GList *p;
+
+    for (p = g_list_first(ranges); p; p = g_list_next(p)) {
+        if (range_contains(p->data, val)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* Initialize @range to the empty range */
 static inline void range_make_empty(Range *range)
 {
