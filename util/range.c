@@ -197,3 +197,8 @@ out:
     g_free(range);
     g_strfreev(ranges);
 }
+
+void range_list_free(GList *ranges)
+{
+    g_list_free_full(ranges, g_free);
+}

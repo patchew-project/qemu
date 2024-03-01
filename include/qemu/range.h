@@ -240,4 +240,9 @@ void range_inverse_array(GList *in_ranges,
 void range_list_from_string(GList **out_ranges, const char *filter_spec,
                             Error **errp);
 
+/*
+ * Free a list of ranges.
+ */
+void range_list_free(GList *ranges);
+
 #endif
