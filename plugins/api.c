@@ -472,3 +472,21 @@ void qemu_plugin_error_print(Error *err)
     error_report_err(err);
 }
 
+void qemu_plugin_range_list_from_string(qemu_plugin_range_list **out,
+                                        const char *filter_spec,
+                                        Error **errp)
+{
+    return range_list_from_string(out, filter_spec, errp);
+}
+
+bool qemu_plugin_range_list_contains(qemu_plugin_range_list *ranges,
+                                     uint64_t val)
+{
+    return range_list_contains(ranges, val);
+}
+
+void qemu_plugin_range_list_free(qemu_plugin_range_list *ranges)
+{
+    return range_list_free(ranges);
+}
+

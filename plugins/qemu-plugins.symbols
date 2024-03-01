@@ -21,6 +21,9 @@
   qemu_plugin_num_vcpus;
   qemu_plugin_outs;
   qemu_plugin_path_to_binary;
+  qemu_plugin_range_list_contains;
+  qemu_plugin_range_list_free;
+  qemu_plugin_range_list_from_string;
   qemu_plugin_read_register;
   qemu_plugin_register_atexit_cb;
   qemu_plugin_register_flush_cb;

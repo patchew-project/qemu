@@ -765,4 +765,45 @@ typedef struct Error Error;
 QEMU_PLUGIN_API
 void qemu_plugin_error_print(Error *err);
 
+typedef GList qemu_plugin_range_list;
+
+/**
+ * qemu_plugin_ranges_from_string() - parse a filter range string
+ *
+ * @out_ranges: a pointer to a @qemu_plugin_range_list pointer
+ * @filter_spec: input string
+ * @errp: @Error string on parse failure
+ *
+ * This function parses a filter specification string and stores the
+ * parsed adress ranges found in @out. On parse failure a @Error pointer
+ * is stored in @errp. The function accepts a comma-separated list
+ * of start and end addresses or single addresses.
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_range_list_from_string(qemu_plugin_range_list **out_range,
+                                        const char *filter_spec,
+                                        Error **errp);
+
+/**
+ * qemu_plugin_range_list_contains() - match a value against a list
+ * of ranges
+ *
+ * @ranges: a pointer to a @qemu_plugin_range_list
+ * @val: the value to match
+ *
+ * This function matches @val against the adress range list in @ranges.
+ * On success, true is returned, otherwise false.
+ */
+QEMU_PLUGIN_API
+bool qemu_plugin_range_list_contains(qemu_plugin_range_list *ranges,
+                                     uint64_t val);
+
+/**
+ * qemu_plugin_range_list_free() - free a list of ranges
+ *
+ * @ranges: a pointer to the list to be freed
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_range_list_free(qemu_plugin_range_list *ranges);
+
 #endif /* QEMU_QEMU_PLUGIN_H */
