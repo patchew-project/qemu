@@ -124,6 +124,74 @@ exit:
     *rev = out;
 }
 
+static const char *split_single_range(const char *r, const char **r2)
+{
+    char *range_op;
+
+    range_op = strstr(r, "-");
+    if (range_op) {
+        *r2 = range_op + 1;
+        return range_op;
+    }
+    range_op = strstr(r, "+");
+    if (range_op) {
+        *r2 = range_op + 1;
+        return range_op;
+    }
+    range_op = strstr(r, "..");
+    if (range_op) {
+        *r2 = range_op + 2;
+        return range_op;
+    }
+    return NULL;
+}
+
+static int parse_single_range(const char *r, Error **errp,
+                              uint64_t *lob, uint64_t *upb)
+{
+    const char *range_op, *r2, *e;
+    uint64_t r1val, r2val;
+
+    range_op = split_single_range(r, &r2);
+    if (!range_op) {
+        error_setg(errp, "Bad range specifier");
+        return 1;
+    }
+    if (qemu_strtou64(r, &e, 0, &r1val)
+        || e != range_op) {
+        error_setg(errp, "Invalid number to the left of %.*s",
+                   (int)(r2 - range_op), range_op);
+        return 1;
+    }
+    if (qemu_strtou64(r2, NULL, 0, &r2val)) {
+        error_setg(errp, "Invalid number to the right of %.*s",
+                   (int)(r2 - range_op), range_op);
+        return 1;
+    }
+
+    switch (*range_op) {
+    case '+':
+        *lob = r1val;
+        *upb = r1val + r2val - 1;
+        break;
+    case '-':
+        *upb = r1val;
+        *lob = r1val - (r2val - 1);
+        break;
+    case '.':
+        *lob = r1val;
+        *upb = r2val;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    if (*lob > *upb) {
+        error_setg(errp, "Invalid range");
+        return 1;
+    }
+    return 0;
+}
+
 void range_list_from_string(GList **out_ranges, const char *filter_spec,
                             Error **errp)
 {
@@ -136,60 +204,13 @@ void range_list_from_string(GList **out_ranges, const char *filter_spec,
     }
 
     for (i = 0; ranges[i]; i++) {
-        const char *r = ranges[i];
-        const char *range_op, *r2, *e;
-        uint64_t r1val, r2val, lob, upb;
+        uint64_t lob, upb;
 
-        range_op = strstr(r, "-");
-        r2 = range_op ? range_op + 1 : NULL;
-        if (!range_op) {
-            range_op = strstr(r, "+");
-            r2 = range_op ? range_op + 1 : NULL;
-        }
-        if (!range_op) {
-            range_op = strstr(r, "..");
-            r2 = range_op ? range_op + 2 : NULL;
-        }
-        if (!range_op) {
-            error_setg(errp, "Bad range specifier");
-            goto out;
-        }
-
-        if (qemu_strtou64(r, &e, 0, &r1val)
-            || e != range_op) {
-            error_setg(errp, "Invalid number to the left of %.*s",
-                       (int)(r2 - range_op), range_op);
-            goto out;
-        }
-        if (qemu_strtou64(r2, NULL, 0, &r2val)) {
-            error_setg(errp, "Invalid number to the right of %.*s",
-                       (int)(r2 - range_op), range_op);
-            goto out;
-        }
-
-        switch (*range_op) {
-        case '+':
-            lob = r1val;
-            upb = r1val + r2val - 1;
+        if (parse_single_range(ranges[i], errp, &lob, &upb)) {
             break;
-        case '-':
-            upb = r1val;
-            lob = r1val - (r2val - 1);
-            break;
-        case '.':
-            lob = r1val;
-            upb = r2val;
-            break;
-        default:
-            g_assert_not_reached();
-        }
-        if (lob > upb) {
-            error_setg(errp, "Invalid range");
-            goto out;
         }
         *out_ranges = append_new_range(*out_ranges, lob, upb);
     }
-out:
     g_strfreev(ranges);
 }
 
