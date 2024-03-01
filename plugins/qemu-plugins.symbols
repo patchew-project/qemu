@@ -2,6 +2,7 @@
   qemu_plugin_bool_parse;
   qemu_plugin_end_code;
   qemu_plugin_entry_code;
+  qemu_plugin_error_print;
   qemu_plugin_get_hwaddr;
   qemu_plugin_get_registers;
   qemu_plugin_hwaddr_device_name;

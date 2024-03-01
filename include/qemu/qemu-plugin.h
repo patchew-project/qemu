@@ -752,5 +752,17 @@ QEMU_PLUGIN_API
 int qemu_plugin_read_register(struct qemu_plugin_register *handle,
                               GByteArray *buf);
 
+typedef struct Error Error;
+
+/**
+ * qemu_plugin_error_print() - print and free error
+ *
+ * @err: a @Error handle
+ *
+ * This function shows and and frees the supplied error.
+ */
+
+QEMU_PLUGIN_API
+void qemu_plugin_error_print(Error *err);
 
 #endif /* QEMU_QEMU_PLUGIN_H */

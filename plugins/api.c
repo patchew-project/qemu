@@ -45,6 +45,7 @@
 #include "exec/ram_addr.h"
 #include "disas/disas.h"
 #include "plugin.h"
+#include "qapi/error.h"
 #ifndef CONFIG_USER_ONLY
 #include "qemu/plugin-memory.h"
 #include "hw/boards.h"
@@ -465,3 +466,9 @@ int qemu_plugin_read_register(struct qemu_plugin_register *reg, GByteArray *buf)
 
     return gdb_read_register(current_cpu, buf, GPOINTER_TO_INT(reg));
 }
+
+void qemu_plugin_error_print(Error *err)
+{
+    error_report_err(err);
+}
+
