@@ -189,6 +189,11 @@ bool runstate_check(RunState state)
     return current_run_state == state;
 }
 
+const char *current_run_state_str(void)
+{
+    return RunState_str(current_run_state);
+}
+
 static void runstate_init(void)
 {
     const RunStateTransition *p;

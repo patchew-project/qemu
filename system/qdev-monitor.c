@@ -23,6 +23,7 @@
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
 #include "sysemu/arch_init.h"
+#include "sysemu/runstate.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-qdev.h"
 #include "qapi/qmp/dispatch.h"
@@ -983,7 +984,31 @@ int qdev_sync_config(DeviceState *dev, Error **errp)
 
 void qmp_device_sync_config(const char *id, Error **errp)
 {
-    DeviceState *dev = find_device_state(id, true, errp);
+    MigrationState *s = migrate_get_current();
+    DeviceState *dev;
+
+    /*
+     * During migration there is a race between syncing`config and migrating it,
+     * so let's just not allow it.
+     *
+     * Moreover, let's not rely on setting up interrupts in paused state, which
+     * may be a part of migration process.
+     */
+
+    if (migration_is_running(s->state)) {
+        error_setg(errp, "Config synchronization is not allowed "
+                   "during migration.");
+        return;
+    }
+
+    if (!runstate_is_running()) {
+        error_setg(errp, "Config synchronization allowed only in '%s' state, "
+                   "current state is '%s'", RunState_str(RUN_STATE_RUNNING),
+                   current_run_state_str());
+        return;
+    }
+
+    dev = find_device_state(id, true, errp);
     if (!dev) {
         return;
     }
