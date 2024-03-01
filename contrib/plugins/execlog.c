@@ -35,7 +35,7 @@ static GArray *cpus;
 static GRWLock expand_array_lock;
 
 static GPtrArray *imatches;
-static GArray *amatches;
+static GList *amatches;
 static GPtrArray *rmatches;
 static bool disas_assist;
 static GMutex add_reg_name_lock;
@@ -215,12 +215,8 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         }
 
         if (skip && amatches) {
-            int j;
-            for (j = 0; j < amatches->len && skip; j++) {
-                uint64_t v = g_array_index(amatches, uint64_t, j);
-                if (v == insn_vaddr) {
-                    skip = false;
-                }
+            if (qemu_plugin_range_list_contains(amatches, insn_vaddr)) {
+                skip = false;
             }
         }
 
@@ -398,16 +394,6 @@ static void parse_insn_match(char *match)
     g_ptr_array_add(imatches, g_strdup(match));
 }
 
-static void parse_vaddr_match(char *match)
-{
-    uint64_t v = g_ascii_strtoull(match, NULL, 16);
-
-    if (!amatches) {
-        amatches = g_array_new(false, true, sizeof(uint64_t));
-    }
-    g_array_append_val(amatches, v);
-}
-
 /*
  * We have to wait until vCPUs are started before we can check the
  * patterns find anything.
@@ -440,7 +426,12 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         if (g_strcmp0(tokens[0], "ifilter") == 0) {
             parse_insn_match(tokens[1]);
         } else if (g_strcmp0(tokens[0], "afilter") == 0) {
-            parse_vaddr_match(tokens[1]);
+            Error *err = NULL;
+            qemu_plugin_range_list_from_string(&amatches, tokens[1], &err);
+            if (err) {
+                qemu_plugin_error_print(err);
+                return -1;
+            }
         } else if (g_strcmp0(tokens[0], "reg") == 0) {
             add_regpat(tokens[1]);
         } else if (g_strcmp0(tokens[0], "rdisas") == 0) {
