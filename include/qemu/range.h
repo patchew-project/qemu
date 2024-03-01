@@ -233,4 +233,11 @@ void range_inverse_array(GList *in_ranges,
                          GList **out_ranges,
                          uint64_t low, uint64_t high);
 
+/*
+ * Parse a comma separated list of address ranges into a @GArray
+ * of @Range entries. On error @errp is set.
+ */
+void range_list_from_string(GList **out_ranges, const char *filter_spec,
+                            Error **errp);
+
 #endif
