@@ -154,6 +154,11 @@ static int parse_single_range(const char *r, Error **errp,
 
     range_op = split_single_range(r, &r2);
     if (!range_op) {
+        if (!qemu_strtou64(r, &e, 0, &r1val) && *e == '\0') {
+            *lob = r1val;
+            *upb = r1val;
+            return 0;
+        }
         error_setg(errp, "Bad range specifier");
         return 1;
     }
