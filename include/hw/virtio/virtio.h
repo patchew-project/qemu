@@ -345,6 +345,7 @@ void virtio_queue_reset(VirtIODevice *vdev, uint32_t queue_index);
 void virtio_queue_enable(VirtIODevice *vdev, uint32_t queue_index);
 void virtio_update_irq(VirtIODevice *vdev);
 int virtio_set_features(VirtIODevice *vdev, uint64_t val);
+void virtio_set_notification_data(VirtIODevice *vdev, uint16_t i, uint32_t data);
 
 /* Base devices.  */
 typedef struct VirtIOBlkConf VirtIOBlkConf;

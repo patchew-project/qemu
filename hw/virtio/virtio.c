@@ -2052,6 +2052,19 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
     return 0;
 }
 
+void virtio_set_notification_data(VirtIODevice *vdev, uint16_t i, uint32_t data)
+{
+    VirtQueue *vq = &vdev->vq[i];
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        vq->last_avail_wrap_counter = (data >> 31) & 0x1;
+        vq->last_avail_idx = (data >> 16) & 0x7FFF;
+    } else {
+        vq->last_avail_idx = (data >> 16) & 0xFFFF;
+    }
+    vq->shadow_avail_idx = vq->last_avail_idx;
+}
+
 static enum virtio_device_endian virtio_default_endian(void)
 {
     if (target_words_bigendian()) {
