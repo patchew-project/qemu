@@ -530,14 +530,16 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             if (ret) {
                 break;
             }
-            if (!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+            if (!(status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+                !virtio_vdev_has_feature(vdev, VIRTIO_F_NOTIFICATION_DATA)) {
                 virtio_ccw_stop_ioeventfd(dev);
             }
             if (virtio_set_status(vdev, status) == 0) {
                 if (vdev->status == 0) {
                     virtio_ccw_reset_virtio(dev);
                 }
-                if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
+                if ((status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+                    !virtio_vdev_has_feature(vdev, VIRTIO_F_NOTIFICATION_DATA)) {
                     virtio_ccw_start_ioeventfd(dev);
                 }
                 sch->curr_status.scsw.count = ccw.count - sizeof(status);
