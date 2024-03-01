@@ -1716,6 +1716,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     uint32_t limit, i, j, cpuid_i;
+    uint32_t guest_phys_bits;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
@@ -1750,6 +1751,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     env->apic_bus_freq = KVM_APIC_BUS_FREQUENCY;
+
+    guest_phys_bits = kvm_check_extension(cs->kvm_state, KVM_CAP_VM_GPA_BITS);
+    if (guest_phys_bits &&
+        (cpu->guest_phys_bits == 0 ||
+         cpu->guest_phys_bits > guest_phys_bits)) {
+        cpu->guest_phys_bits = guest_phys_bits;
+    }
 
     /*
      * kvm_hyperv_expand_features() is called here for the second time in case
