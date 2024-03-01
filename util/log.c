@@ -382,15 +382,16 @@ bool qemu_log_in_addr_range(uint64_t addr)
     return false;
 }
 
-void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
+static void range_list_from_string(GList **out_ranges, const char *filter_spec,
+                                   Error **errp)
 {
     gchar **ranges = g_strsplit(filter_spec, ",", 0);
     struct Range *range = NULL;
     int i;
 
-    if (debug_regions) {
-        g_list_free_full(debug_regions, g_free);
-        debug_regions = NULL;
+    if (*out_ranges) {
+        g_list_free_full(*out_ranges, g_free);
+        *out_ranges = NULL;
     }
 
     for (i = 0; ranges[i]; i++) {
@@ -447,12 +448,17 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
             goto out;
         }
         range_set_bounds(range, lob, upb);
-        debug_regions = g_list_append(debug_regions, range);
+       *out_ranges = g_list_append(*out_ranges, range);
         range = NULL;
     }
 out:
     g_free(range);
     g_strfreev(ranges);
+}
+
+void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
+{
+    range_list_from_string(&debug_regions, filter_spec, errp);
 }
 
 const QEMULogItem qemu_log_items[] = {
