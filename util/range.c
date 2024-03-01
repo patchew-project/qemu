@@ -128,7 +128,6 @@ void range_list_from_string(GList **out_ranges, const char *filter_spec,
                             Error **errp)
 {
     gchar **ranges = g_strsplit(filter_spec, ",", 0);
-    struct Range *range = NULL;
     int i;
 
     if (*out_ranges) {
@@ -140,7 +139,6 @@ void range_list_from_string(GList **out_ranges, const char *filter_spec,
         const char *r = ranges[i];
         const char *range_op, *r2, *e;
         uint64_t r1val, r2val, lob, upb;
-        range = g_new0(struct Range, 1);
 
         range_op = strstr(r, "-");
         r2 = range_op ? range_op + 1 : NULL;
@@ -189,12 +187,9 @@ void range_list_from_string(GList **out_ranges, const char *filter_spec,
             error_setg(errp, "Invalid range");
             goto out;
         }
-        range_set_bounds(range, lob, upb);
-        *out_ranges = g_list_append(*out_ranges, range);
-        range = NULL;
+        *out_ranges = append_new_range(*out_ranges, lob, upb);
     }
 out:
-    g_free(range);
     g_strfreev(ranges);
 }
 
