@@ -46,7 +46,7 @@ static __thread Notifier qemu_log_thread_cleanup_notifier;
 
 int qemu_loglevel;
 static bool log_per_thread;
-static GArray *debug_regions;
+static GList *debug_regions;
 
 /* Returns true if qemu_log() will really write somewhere. */
 bool qemu_log_enabled(void)
@@ -368,38 +368,36 @@ bool qemu_set_log_filename_flags(const char *name, int flags, Error **errp)
  */
 bool qemu_log_in_addr_range(uint64_t addr)
 {
-    if (debug_regions) {
-        int i = 0;
-        for (i = 0; i < debug_regions->len; i++) {
-            Range *range = &g_array_index(debug_regions, Range, i);
-            if (range_contains(range, addr)) {
-                return true;
-            }
-        }
-        return false;
-    } else {
+    GList *p;
+
+    if (!debug_regions) {
         return true;
     }
-}
 
+    for (p = g_list_first(debug_regions); p; p = g_list_next(p)) {
+        if (range_contains(p->data, addr)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
 {
     gchar **ranges = g_strsplit(filter_spec, ",", 0);
+    struct Range *range = NULL;
     int i;
 
     if (debug_regions) {
-        g_array_unref(debug_regions);
+        g_list_free_full(debug_regions, g_free);
         debug_regions = NULL;
     }
 
-    debug_regions = g_array_sized_new(FALSE, FALSE,
-                                      sizeof(Range), g_strv_length(ranges));
     for (i = 0; ranges[i]; i++) {
         const char *r = ranges[i];
         const char *range_op, *r2, *e;
         uint64_t r1val, r2val, lob, upb;
-        struct Range range;
+        range = g_new0(struct Range, 1);
 
         range_op = strstr(r, "-");
         r2 = range_op ? range_op + 1 : NULL;
@@ -448,10 +446,12 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
             error_setg(errp, "Invalid range");
             goto out;
         }
-        range_set_bounds(&range, lob, upb);
-        g_array_append_val(debug_regions, range);
+        range_set_bounds(range, lob, upb);
+        debug_regions = g_list_append(debug_regions, range);
+        range = NULL;
     }
 out:
+    g_free(range);
     g_strfreev(ranges);
 }
 
