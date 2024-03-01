@@ -27,6 +27,8 @@ typedef struct CPU {
     GString *last_exec;
     /* Ptr array of Register */
     GPtrArray *registers;
+    /* whether this instruction should be logged */
+    bool log;
 } CPU;
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
@@ -36,6 +38,7 @@ static GRWLock expand_array_lock;
 
 static GPtrArray *imatches;
 static GList *amatches;
+static GList *dmatches;
 static GPtrArray *rmatches;
 static bool disas_assist;
 static GMutex add_reg_name_lock;
@@ -61,6 +64,11 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
     GString *s = c->last_exec;
 
     /* Find vCPU in array */
+
+    if (dmatches && !qemu_plugin_range_list_contains(dmatches, vaddr)) {
+        return;
+    }
+    c->log = true;
 
     /* Indicate type of memory access */
     if (qemu_plugin_mem_is_store(info)) {
@@ -121,15 +129,17 @@ static void vcpu_insn_exec_with_regs(unsigned int cpu_index, void *udata)
         if (cpu->registers) {
             insn_check_regs(cpu);
         }
-
-        qemu_plugin_outs(cpu->last_exec->str);
-        qemu_plugin_outs("\n");
+        if (cpu->log) {
+            qemu_plugin_outs(cpu->last_exec->str);
+            qemu_plugin_outs("\n");
+        }
     }
 
     /* Store new instruction in cache */
     /* vcpu_mem will add memory access information to last_exec */
     g_string_printf(cpu->last_exec, "%u, ", cpu_index);
     g_string_append(cpu->last_exec, (char *)udata);
+    cpu->log = dmatches ? false : true;
 }
 
 /* Log last instruction while checking registers, ignore next */
@@ -157,7 +167,7 @@ static void vcpu_insn_exec(unsigned int cpu_index, void *udata)
     CPU *cpu = get_cpu(cpu_index);
 
     /* Print previous instruction in cache */
-    if (cpu->last_exec->len) {
+    if (cpu->log && cpu->last_exec->len) {
         qemu_plugin_outs(cpu->last_exec->str);
         qemu_plugin_outs("\n");
     }
@@ -166,6 +176,7 @@ static void vcpu_insn_exec(unsigned int cpu_index, void *udata)
     /* vcpu_mem will add memory access information to last_exec */
     g_string_printf(cpu->last_exec, "%u, ", cpu_index);
     g_string_append(cpu->last_exec, (char *)udata);
+    cpu->log = dmatches ? false : true;
 }
 
 /**
@@ -377,7 +388,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     g_rw_lock_reader_lock(&expand_array_lock);
     for (i = 0; i < cpus->len; i++) {
         CPU *c = get_cpu(i);
-        if (c->last_exec && c->last_exec->str) {
+        if (c->log && c->last_exec && c->last_exec->str) {
             qemu_plugin_outs(c->last_exec->str);
             qemu_plugin_outs("\n");
         }
@@ -428,6 +439,13 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         } else if (g_strcmp0(tokens[0], "afilter") == 0) {
             Error *err = NULL;
             qemu_plugin_range_list_from_string(&amatches, tokens[1], &err);
+            if (err) {
+                qemu_plugin_error_print(err);
+                return -1;
+            }
+        } else if (g_strcmp0(tokens[0], "dfilter") == 0) {
+            Error *err = NULL;
+            qemu_plugin_range_list_from_string(&dmatches, tokens[1], &err);
             if (err) {
                 qemu_plugin_error_print(err);
                 return -1;
