@@ -250,11 +250,6 @@ static void gen_store_fpr_D(DisasContext *dc, unsigned int dst, TCGv_i64 v)
     gen_update_fprs_dirty(dc, dst);
 }
 
-static TCGv_i64 gen_dest_fpr_D(DisasContext *dc, unsigned int dst)
-{
-    return cpu_fpr[dst / 2];
-}
-
 static TCGv_i128 gen_load_fpr_Q(DisasContext *dc, unsigned int src)
 {
     TCGv_i128 ret = tcg_temp_new_i128();
@@ -1985,7 +1980,7 @@ static void gen_fmovs(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 static void gen_fmovd(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 {
 #ifdef TARGET_SPARC64
-    TCGv_i64 dst = gen_dest_fpr_D(dc, rd);
+    TCGv_i64 dst = tcg_temp_new_i64();
     tcg_gen_movcond_i64(cmp->cond, dst, cmp->c1, tcg_constant_tl(cmp->c2),
                         gen_load_fpr_D(dc, rs),
                         gen_load_fpr_D(dc, rd));
@@ -4326,7 +4321,7 @@ static bool do_dd(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     src = gen_load_fpr_D(dc, a->rs);
     func(dst, src);
     gen_store_fpr_D(dc, a->rd, dst);
@@ -4348,7 +4343,7 @@ static bool do_env_dd(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     src = gen_load_fpr_D(dc, a->rs);
     func(dst, tcg_env, src);
     gen_store_fpr_D(dc, a->rd, dst);
@@ -4388,7 +4383,7 @@ static bool do_env_df(DisasContext *dc, arg_r_r *a,
         return true;
     }
 
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     src = gen_load_fpr_F(dc, a->rs);
     func(dst, tcg_env, src);
     gen_store_fpr_D(dc, a->rd, dst);
@@ -4479,7 +4474,7 @@ static bool do_env_dq(DisasContext *dc, arg_r_r *a,
     }
 
     src = gen_load_fpr_Q(dc, a->rs);
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     func(dst, tcg_env, src);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
@@ -4594,7 +4589,7 @@ static bool do_dff(DisasContext *dc, arg_r_r_r *a,
         return true;
     }
 
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     func(dst, src1, src2);
@@ -4618,7 +4613,7 @@ static bool do_dfd(DisasContext *dc, arg_r_r_r *a,
         return true;
     }
 
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
     func(dst, src1, src2);
@@ -4637,7 +4632,7 @@ static bool do_ddd(DisasContext *dc, arg_r_r_r *a,
         return true;
     }
 
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
     func(dst, src1, src2);
@@ -4702,7 +4697,7 @@ static bool do_env_ddd(DisasContext *dc, arg_r_r_r *a,
         return true;
     }
 
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
     func(dst, tcg_env, src1, src2);
@@ -4727,7 +4722,7 @@ static bool trans_FsMULd(DisasContext *dc, arg_r_r_r *a)
         return raise_unimpfpop(dc);
     }
 
-    dst = gen_dest_fpr_D(dc, a->rd);
+    dst = tcg_temp_new_i64();
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     gen_helper_fsmuld(dst, tcg_env, src1, src2);
@@ -4744,7 +4739,7 @@ static bool do_dddd(DisasContext *dc, arg_r_r_r *a,
         return true;
     }
 
-    dst  = gen_dest_fpr_D(dc, a->rd);
+    dst  = tcg_temp_new_i64();
     src0 = gen_load_fpr_D(dc, a->rd);
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
