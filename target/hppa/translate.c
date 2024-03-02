@@ -144,6 +144,14 @@ static int assemble_6(DisasContext *ctx, int val)
     return (val ^ 31) + 1;
 }
 
+static int64_t assemble_16(DisasContext *ctx, int64_t i, int64_t s)
+{
+    if (ctx->tb_flags & PSW_W) {
+        i ^= s << 13;
+    }
+    return i;
+}
+
 /* Translate CMPI doubleword conditions to standard. */
 static int cmpbid_c(DisasContext *ctx, int val)
 {
@@ -3052,6 +3060,11 @@ static bool trans_ld(DisasContext *ctx, arg_ldst *a)
     } else if (a->size > MO_32) {
         return gen_illegal(ctx);
     }
+    if (a->w16) {
+        a->disp = assemble_16(ctx, a->disp, a->sp);
+        a->sp = 0;
+    }
+
     return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
                    a->disp, a->sp, a->m, a->size | MO_TE);
 }
@@ -3062,6 +3075,11 @@ static bool trans_st(DisasContext *ctx, arg_ldst *a)
     if (!ctx->is_pa20 && a->size > MO_32) {
         return gen_illegal(ctx);
     }
+    if (a->w16) {
+        a->disp = assemble_16(ctx, a->disp, a->sp);
+        a->sp = 0;
+    }
+
     return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size | MO_TE);
 }
 
@@ -3219,6 +3237,10 @@ static bool trans_addil(DisasContext *ctx, arg_addil *a)
 static bool trans_ldo(DisasContext *ctx, arg_ldo *a)
 {
     TCGv_i64 tcg_rt = dest_gpr(ctx, a->t);
+
+    if (a->w16) {
+        a->i = assemble_16(ctx, a->i, a->s);
+    }
 
     /* Special case rb == 0, for the LDI pseudo-op.
        The COPY pseudo-op is handled for free within tcg_gen_addi_i64.  */

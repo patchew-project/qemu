@@ -62,7 +62,7 @@
 ####
 
 # All insns that need to form a virtual address should use this set.
-&ldst           t b x disp sp m scale size
+&ldst           t b x disp sp m scale size w16
 
 &rr_cf_d        t r cf d
 &rrr            t r1 r2
@@ -138,7 +138,7 @@ getshadowregs   1111 1111 1111 1101 1110 1010 1101 0010
 ####
 
 @addrx          ...... b:5 x:5 .. ........ m:1 .....    \
-                &ldst disp=0 scale=0 t=0 sp=0 size=0
+                &ldst disp=0 scale=0 t=0 sp=0 size=0 w16=0
 
 nop             000001 ----- ----- -- 11001010 0 -----         # fdc, disp
 nop_addrx       000001 ..... ..... -- 01001010 . -----  @addrx # fdc, index
@@ -163,24 +163,24 @@ ixtlbt          000001 r2:5 r1:5 000 data:1 100000 0 00000    # idtlbt
 
 # pdtlb, pitlb
 pxtlb           000001 b:5 x:5 sp:2 01001000 m:1 ----- \
-                &ldst disp=0 scale=0 size=0 t=0
+                &ldst disp=0 scale=0 size=0 t=0 w16=0
 pxtlb           000001 b:5 x:5 ...   0001000 m:1 ----- \
-                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x
+                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x w16=0
 
 # ... pa20 local
 pxtlb_l         000001 b:5 x:5 sp:2 01011000 m:1 ----- \
-                &ldst disp=0 scale=0 size=0 t=0
+                &ldst disp=0 scale=0 size=0 t=0 w16=0
 pxtlb_l         000001 b:5 x:5 ...   0011000 m:1 ----- \
-                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x
+                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x w16=0
 
 # pdtlbe, pitlbe
 pxtlbe          000001 b:5 x:5 sp:2 01001001 m:1 ----- \
-                &ldst disp=0 scale=0 size=0 t=0
+                &ldst disp=0 scale=0 size=0 t=0 w16=0
 pxtlbe          000001 b:5 x:5 ...   0001001 m:1 ----- \
-                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x
+                &ldst disp=0 scale=0 size=0 t=0 sp=%assemble_sr3x w16=0
 
 lpa             000001 b:5 x:5 sp:2 01001101 m:1 t:5    \
-                &ldst disp=0 scale=0 size=0
+                &ldst disp=0 scale=0 size=0 w16=0
 
 lci             000001 ----- ----- -- 01001100 0 t:5
 
@@ -221,7 +221,7 @@ sub_b_tsv       000010 ..... ..... .... 110100 . .....  @rrr_cf_d
 
 ldil            001000 t:5 .....................        i=%assemble_21
 addil           001010 r:5 .....................        i=%assemble_21
-ldo             001101 b:5 t:5 -- ..............        i=%lowsign_14
+ldo             001101 b:5 t:5 s:2 ..............        i=%lowsign_14 w16=1
 
 addi            101101 ..... ..... .... 0 ...........   @rri_cf
 addi_tsv        101101 ..... ..... .... 1 ...........   @rri_cf
@@ -264,19 +264,19 @@ permh           111110 r1:5  r2:5  0 c0:2 0 c1:2 c2:2 c3:2 0 t:5
 @stim5          ...... b:5 t:5 sp:2 ......... .....     \
                 &ldst disp=%im5_0 x=0 scale=0 m=%ma_to_m
 
-ld              000011 ..... ..... .. . 1 -- 00 size:2 ......   @ldim5
-ld              000011 ..... ..... .. . 0 -- 00 size:2 ......   @ldstx
-st              000011 ..... ..... .. . 1 -- 10 size:2 ......   @stim5
-ldc             000011 ..... ..... .. . 1 -- 0111      ......   @ldim5 size=2
-ldc             000011 ..... ..... .. . 0 -- 0111      ......   @ldstx size=2
-ldc             000011 ..... ..... .. . 1 -- 0101      ......   @ldim5 size=3
-ldc             000011 ..... ..... .. . 0 -- 0101      ......   @ldstx size=3
-lda             000011 ..... ..... .. . 1 -- 0110      ......   @ldim5 size=2
-lda             000011 ..... ..... .. . 0 -- 0110      ......   @ldstx size=2
-lda             000011 ..... ..... .. . 1 -- 0100      ......   @ldim5 size=3
-lda             000011 ..... ..... .. . 0 -- 0100      ......   @ldstx size=3
-sta             000011 ..... ..... .. . 1 -- 1110      ......   @stim5 size=2
-sta             000011 ..... ..... .. . 1 -- 1111      ......   @stim5 size=3
+ld              000011 ..... ..... .. . 1 -- 00 size:2 ......   @ldim5 w16=0
+ld              000011 ..... ..... .. . 0 -- 00 size:2 ......   @ldstx w16=0
+st              000011 ..... ..... .. . 1 -- 10 size:2 ......   @stim5 w16=0
+ldc             000011 ..... ..... .. . 1 -- 0111      ......   @ldim5 size=2 w16=0
+ldc             000011 ..... ..... .. . 0 -- 0111      ......   @ldstx size=2 w16=0
+ldc             000011 ..... ..... .. . 1 -- 0101      ......   @ldim5 size=3 w16=0
+ldc             000011 ..... ..... .. . 0 -- 0101      ......   @ldstx size=3 w16=0
+lda             000011 ..... ..... .. . 1 -- 0110      ......   @ldim5 size=2 w16=0
+lda             000011 ..... ..... .. . 0 -- 0110      ......   @ldstx size=2 w16=0
+lda             000011 ..... ..... .. . 1 -- 0100      ......   @ldim5 size=3 w16=0
+lda             000011 ..... ..... .. . 0 -- 0100      ......   @ldstx size=3 w16=0
+sta             000011 ..... ..... .. . 1 -- 1110      ......   @stim5 size=2 w16=0
+sta             000011 ..... ..... .. . 1 -- 1111      ......   @stim5 size=3 w16=0
 stby            000011 b:5 r:5 sp:2 a:1 1 -- 1100 m:1   .....   disp=%im5_0
 stdby           000011 b:5 r:5 sp:2 a:1 1 -- 1101 m:1   .....   disp=%im5_0
 
@@ -285,20 +285,20 @@ stdby           000011 b:5 r:5 sp:2 a:1 1 -- 1101 m:1   .....   disp=%im5_0
 @fldstwi        ...... b:5 ..... sp:2 .       ....... .   ..... \
                 &ldst t=%rt64 disp=%im5_16 m=%ma_to_m x=0 scale=0 size=2
 
-fldw            001001 ..... ..... .. . 0 -- 000 . . .....      @fldstwx
-fldw            001001 ..... ..... .. . 1 -- 000 . . .....      @fldstwi
-fstw            001001 ..... ..... .. . 0 -- 100 . . .....      @fldstwx
-fstw            001001 ..... ..... .. . 1 -- 100 . . .....      @fldstwi
+fldw            001001 ..... ..... .. . 0 -- 000 . . .....      @fldstwx w16=0
+fldw            001001 ..... ..... .. . 1 -- 000 . . .....      @fldstwi w16=0
+fstw            001001 ..... ..... .. . 0 -- 100 . . .....      @fldstwx w16=0
+fstw            001001 ..... ..... .. . 1 -- 100 . . .....      @fldstwi w16=0
 
 @fldstdx        ...... b:5 x:5   sp:2 scale:1 ....... m:1 t:5 \
                 &ldst disp=0 size=3
 @fldstdi        ...... b:5 ..... sp:2 .       ....... .   t:5 \
                 &ldst disp=%im5_16 m=%ma_to_m x=0 scale=0 size=3
 
-fldd            001011 ..... ..... .. . 0 -- 000 0 . .....      @fldstdx
-fldd            001011 ..... ..... .. . 1 -- 000 0 . .....      @fldstdi
-fstd            001011 ..... ..... .. . 0 -- 100 0 . .....      @fldstdx
-fstd            001011 ..... ..... .. . 1 -- 100 0 . .....      @fldstdi
+fldd            001011 ..... ..... .. . 0 -- 000 0 . .....      @fldstdx w16=0
+fldd            001011 ..... ..... .. . 1 -- 000 0 . .....      @fldstdi w16=0
+fstd            001011 ..... ..... .. . 0 -- 100 0 . .....      @fldstdx w16=0
+fstd            001011 ..... ..... .. . 1 -- 100 0 . .....      @fldstdi w16=0
 
 ####
 # Offset Mem
@@ -314,34 +314,35 @@ fstd            001011 ..... ..... .. . 1 -- 100 0 . .....      @fldstdi
                 &ldst disp=%assemble_12a x=0 scale=0 m=%pos_to_m
 
 # LDB, LDH, LDW, LDWM
-ld              010000 ..... ..... .. ..............    @ldstim14  size=0
-ld              010001 ..... ..... .. ..............    @ldstim14  size=1
-ld              010010 ..... ..... .. ..............    @ldstim14  size=2
-ld              010011 ..... ..... .. ..............    @ldstim14m size=2
-ld              010111 ..... ..... .. ...........10.    @ldstim12m size=2
+ld              010000 ..... ..... .. ..............    @ldstim14  size=0 w16=1
+ld              010001 ..... ..... .. ..............    @ldstim14  size=1 w16=1
+ld              010010 ..... ..... .. ..............    @ldstim14  size=2 w16=1
+ld              010011 ..... ..... .. ..............    @ldstim14m size=2 w16=1
+ld              010111 ..... ..... .. ...........10.    @ldstim12m size=2 w16=1
 
 # STB, STH, STW, STWM
-st              011000 ..... ..... .. ..............    @ldstim14  size=0
-st              011001 ..... ..... .. ..............    @ldstim14  size=1
-st              011010 ..... ..... .. ..............    @ldstim14  size=2
-st              011011 ..... ..... .. ..............    @ldstim14m size=2
-st              011111 ..... ..... .. ...........10.    @ldstim12m size=2
+st              011000 ..... ..... .. ..............    @ldstim14  size=0 w16=1
+st              011001 ..... ..... .. ..............    @ldstim14  size=1 w16=1
+st              011010 ..... ..... .. ..............    @ldstim14  size=2 w16=1
+st              011011 ..... ..... .. ..............    @ldstim14m size=2 w16=1
+st              011111 ..... ..... .. ...........10.    @ldstim12m size=2 w16=1
+
 
 fldw            010110 b:5 ..... sp:2 ..............    \
-                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2
+                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2 w16=1
 fldw            010111 b:5 ..... sp:2 ...........0..    \
-                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
+                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2 w16=1
 
 fstw            011110 b:5 ..... sp:2 ..............    \
-                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2
+                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2 w16=1
 fstw            011111 b:5 ..... sp:2 ...........0..    \
-                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
+                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2 w16=1
 
-ld              010100 ..... ..... .. ............0.    @ldstim11
-fldd            010100 ..... ..... .. ............1.    @ldstim11
+ld              010100 ..... ..... .. ............0.    @ldstim11 w16=1
+fldd            010100 ..... ..... .. ............1.    @ldstim11 w16=1
 
-st              011100 ..... ..... .. ............0.    @ldstim11
-fstd            011100 ..... ..... .. ............1.    @ldstim11
+st              011100 ..... ..... .. ............0.    @ldstim11 w16=1
+fstd            011100 ..... ..... .. ............1.    @ldstim11 w16=1
 
 ####
 # Floating-point Multiply Add
