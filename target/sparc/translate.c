@@ -4776,6 +4776,7 @@ TRANS(FADDs, ALL, do_env_fff, a, gen_helper_fadds)
 TRANS(FSUBs, ALL, do_env_fff, a, gen_helper_fsubs)
 TRANS(FMULs, ALL, do_env_fff, a, gen_helper_fmuls)
 TRANS(FDIVs, ALL, do_env_fff, a, gen_helper_fdivs)
+TRANS(FNMULs, VIS3, do_env_fff, a, gen_helper_fnmuls)
 
 static bool do_dff(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv_i64, TCGv_i32, TCGv_i32))
@@ -4923,6 +4924,7 @@ TRANS(FADDd, ALL, do_env_ddd, a, gen_helper_faddd)
 TRANS(FSUBd, ALL, do_env_ddd, a, gen_helper_fsubd)
 TRANS(FMULd, ALL, do_env_ddd, a, gen_helper_fmuld)
 TRANS(FDIVd, ALL, do_env_ddd, a, gen_helper_fdivd)
+TRANS(FNMULd, VIS3, do_env_ddd, a, gen_helper_fnmuld)
 
 static bool trans_FsMULd(DisasContext *dc, arg_r_r_r *a)
 {
@@ -4940,6 +4942,25 @@ static bool trans_FsMULd(DisasContext *dc, arg_r_r_r *a)
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
     gen_helper_fsmuld(dst, tcg_env, src1, src2);
+    gen_store_fpr_D(dc, a->rd, dst);
+    return advance_pc(dc);
+}
+
+static bool trans_FNsMULd(DisasContext *dc, arg_r_r_r *a)
+{
+    TCGv_i64 dst;
+    TCGv_i32 src1, src2;
+
+    if (!avail_VIS3(dc)) {
+        return false;
+    }
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+    dst = tcg_temp_new_i64();
+    src1 = gen_load_fpr_F(dc, a->rs1);
+    src2 = gen_load_fpr_F(dc, a->rs2);
+    gen_helper_fnsmuld(dst, tcg_env, src1, src2);
     gen_store_fpr_D(dc, a->rd, dst);
     return advance_pc(dc);
 }
