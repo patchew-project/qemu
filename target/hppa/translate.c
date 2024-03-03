@@ -144,6 +144,27 @@ static int assemble_6(DisasContext *ctx, int val)
     return (val ^ 31) + 1;
 }
 
+/* Expander for assemble_16(s,im14). */
+static int expand_16(DisasContext *ctx, int val)
+{
+    /*
+     * @val is bits [0:15], containing both im14 and s.
+     * Swizzle thing around depending on PSW.W.
+     */
+    int i = (-(val & 1) << 13) | extract32(val, 1, 13);
+
+    if (ctx->tb_flags & PSW_W) {
+        i ^= val & (3 << 13);
+    }
+    return i;
+}
+
+/* The sp field is only present with !PSW_W. */
+static int sp0_if_wide(DisasContext *ctx, int sp)
+{
+    return ctx->tb_flags & PSW_W ? 0 : sp;
+}
+
 /* Translate CMPI doubleword conditions to standard. */
 static int cmpbid_c(DisasContext *ctx, int val)
 {
