@@ -553,7 +553,7 @@ int main(int argc, char *argv[])
     if (fix_dtb(&vs, &qemu_elf)) {
         eprintf("Failed to find paging base\n");
         err = 1;
-        goto out_elf;
+        goto out_ps;
     }
 
     printf("CPU #0 IDT is at 0x%016"PRIx64"\n", state->idt.base);
