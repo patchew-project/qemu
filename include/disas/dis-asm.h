@@ -396,6 +396,13 @@ typedef struct disassemble_info {
   /* Command line options specific to the target disassembler.  */
   char * disassembler_options;
 
+  /*
+   * When true instruct the disassembler to not preface opcodes with
+   * raw bytes. This is mainly for the benefit of the plugin
+   * interface.
+   */
+  bool no_raw_bytes;
+
   /* Field intended to be used by targets in any way they deem suitable.  */
   void *target_info;
 

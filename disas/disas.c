@@ -273,6 +273,7 @@ char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
     s.info.buffer_vma = addr;
     s.info.buffer_length = size;
     s.info.print_address_func = plugin_print_address;
+    s.info.no_raw_bytes = true;
 
     if (s.info.cap_arch >= 0 && cap_disas_plugin(&s.info, addr, size)) {
         ; /* done */
