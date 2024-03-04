@@ -1205,11 +1205,15 @@ static void rvsp_ref_machine_class_init(ObjectClass *oc, void *data)
 {
     char str[128];
     MachineClass *mc = MACHINE_CLASS(oc);
+    static const char * const valid_cpu_types[] = {
+        TYPE_RISCV_CPU_RVSP_REF,
+    };
 
     mc->desc = "RISC-V Server SoC Reference board";
     mc->init = rvsp_ref_machine_init;
     mc->max_cpus = RVSP_CPUS_MAX;
-    mc->default_cpu_type = TYPE_RISCV_CPU_BASE;
+    mc->default_cpu_type = TYPE_RISCV_CPU_RVSP_REF;
+    mc->valid_cpu_types = valid_cpu_types;
     mc->pci_allow_0_address = true;
     mc->default_nic = "e1000e";
     mc->possible_cpu_arch_ids = riscv_numa_possible_cpu_arch_ids;
