@@ -199,6 +199,8 @@ typedef struct {
     void (*recv_cleanup)(MultiFDRecvParams *p);
     /* Read all pages */
     int (*recv_pages)(MultiFDRecvParams *p, Error **errp);
+    /* Get the count of required IOVs */
+    uint32_t (*get_iov_count)(uint32_t page_count);
 } MultiFDMethods;
 
 void multifd_register_ops(int method, MultiFDMethods *ops);

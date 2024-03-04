@@ -313,13 +313,29 @@ static int zlib_recv_pages(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
+/**
+ * zlib_get_iov_count: get the count of IOVs
+ *
+ * For zlib streaming compression, all pages will be compressed into a data
+ * block, and an IOV is requested for sending this block.
+ *
+ * Returns the count of the IOVs
+ *
+ * @page_count: Indicate the maximum count of pages processed by multifd
+ */
+static uint32_t zlib_get_iov_count(uint32_t page_count)
+{
+    return 1;
+}
+
 static MultiFDMethods multifd_zlib_ops = {
     .send_setup = zlib_send_setup,
     .send_cleanup = zlib_send_cleanup,
     .send_prepare = zlib_send_prepare,
     .recv_setup = zlib_recv_setup,
     .recv_cleanup = zlib_recv_cleanup,
-    .recv_pages = zlib_recv_pages
+    .recv_pages = zlib_recv_pages,
+    .get_iov_count = zlib_get_iov_count
 };
 
 static void multifd_zlib_register(void)

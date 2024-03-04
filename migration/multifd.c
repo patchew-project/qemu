@@ -222,13 +222,29 @@ static int nocomp_recv_pages(MultiFDRecvParams *p, Error **errp)
     return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
 }
 
+/**
+ * nocomp_get_iov_count: get the count of IOVs
+ *
+ * For no compression, the count of IOVs required is the same as the count of
+ * pages
+ *
+ * Returns the count of the IOVs
+ *
+ * @page_count: Indicate the maximum count of pages processed by multifd
+ */
+static uint32_t nocomp_get_iov_count(uint32_t page_count)
+{
+    return page_count;
+}
+
 static MultiFDMethods multifd_nocomp_ops = {
     .send_setup = nocomp_send_setup,
     .send_cleanup = nocomp_send_cleanup,
     .send_prepare = nocomp_send_prepare,
     .recv_setup = nocomp_recv_setup,
     .recv_cleanup = nocomp_recv_cleanup,
-    .recv_pages = nocomp_recv_pages
+    .recv_pages = nocomp_recv_pages,
+    .get_iov_count = nocomp_get_iov_count
 };
 
 static MultiFDMethods *multifd_ops[MULTIFD_COMPRESSION__MAX] = {
@@ -1018,6 +1034,8 @@ bool multifd_send_setup(void)
     Error *local_err = NULL;
     int thread_count, ret = 0;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    /* We need one extra place for the packet header */
+    uint32_t iov_count = 1;
     uint8_t i;
 
     if (!migrate_multifd()) {
@@ -1032,6 +1050,7 @@ bool multifd_send_setup(void)
     qemu_sem_init(&multifd_send_state->channels_ready, 0);
     qatomic_set(&multifd_send_state->exiting, 0);
     multifd_send_state->ops = multifd_ops[migrate_multifd_compression()];
+    iov_count += multifd_send_state->ops->get_iov_count(page_count);
 
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
@@ -1046,8 +1065,7 @@ bool multifd_send_setup(void)
         p->packet->magic = cpu_to_be32(MULTIFD_MAGIC);
         p->packet->version = cpu_to_be32(MULTIFD_VERSION);
         p->name = g_strdup_printf("multifdsend_%d", i);
-        /* We need one extra place for the packet header */
-        p->iov = g_new0(struct iovec, page_count + 1);
+        p->iov = g_new0(struct iovec, iov_count);
         p->page_size = qemu_target_page_size();
         p->page_count = page_count;
         p->write_flags = 0;
