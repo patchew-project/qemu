@@ -1740,10 +1740,10 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         qemu_savevm_state_complete_precopy(f, false, false);
         ret = qemu_file_get_error(f);
     }
-    qemu_savevm_state_cleanup();
     if (ret != 0) {
         error_setg_errno(errp, -ret, "Error while writing VM state");
     }
+    qemu_savevm_state_cleanup();
 
     if (ret != 0) {
         status = MIGRATION_STATUS_FAILED;
