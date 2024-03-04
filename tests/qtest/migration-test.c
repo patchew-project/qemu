@@ -2660,10 +2660,24 @@ test_migrate_precopy_tcp_multifd_start(QTestState *from,
     return test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
 }
 
+static void
+test_and_set_multifd_compression_level(QTestState *who, const char *param)
+{
+    /* The default compression level is 1, test a level other than 1 */
+    int level = 2;
+
+    migrate_set_parameter_int(who, param, level);
+    migrate_check_parameter_int(who, param, level);
+    /* only test compression level 1 during migration */
+    migrate_set_parameter_int(who, param, 1);
+}
+
 static void *
 test_migrate_precopy_tcp_multifd_zlib_start(QTestState *from,
                                             QTestState *to)
 {
+    /* the compression level is used only on the source side. */
+    test_and_set_multifd_compression_level(from, "multifd-zlib-level");
     return test_migrate_precopy_tcp_multifd_start_common(from, to, "zlib");
 }
 
@@ -2672,6 +2686,8 @@ static void *
 test_migrate_precopy_tcp_multifd_zstd_start(QTestState *from,
                                             QTestState *to)
 {
+    /* the compression level is used only on the source side. */
+    test_and_set_multifd_compression_level(from, "multifd-zstd-level");
     return test_migrate_precopy_tcp_multifd_start_common(from, to, "zstd");
 }
 #endif /* CONFIG_ZSTD */
