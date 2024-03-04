@@ -62,6 +62,8 @@ struct QEMUFile {
  */
 int qemu_file_shutdown(QEMUFile *f)
 {
+    Error *err = NULL;
+
     /*
      * We must set qemufile error before the real shutdown(), otherwise
      * there can be a race window where we thought IO all went though
@@ -90,7 +92,8 @@ int qemu_file_shutdown(QEMUFile *f)
         return -ENOSYS;
     }
 
-    if (qio_channel_shutdown(f->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL) < 0) {
+    if (qio_channel_shutdown(f->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, &err) < 0) {
+        error_report_err(err);
         return -EIO;
     }
 
