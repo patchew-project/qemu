@@ -998,8 +998,11 @@ struct MemoryListener {
      * active at that time.
      *
      * @listener: The #MemoryListener.
+     * @errp: pointer to Error*, to store an error if it happens.
+     *
+     * Return: true on success, else false setting @errp with error.
      */
-    void (*log_global_start)(MemoryListener *listener);
+    bool (*log_global_start)(MemoryListener *listener, Error **errp);
 
     /**
      * @log_global_stop:
@@ -1009,8 +1012,11 @@ struct MemoryListener {
      * the address space.
      *
      * @listener: The #MemoryListener.
+     * @errp: pointer to Error*, to store an error if it happens.
+     *
+     * Return: true on success, else false setting @errp with error.
      */
-    void (*log_global_stop)(MemoryListener *listener);
+    bool (*log_global_stop)(MemoryListener *listener, Error **errp);
 
     /**
      * @log_global_after_sync:
@@ -1019,8 +1025,11 @@ struct MemoryListener {
      * for any #MemoryRegionSection.
      *
      * @listener: The #MemoryListener.
+     * @errp: pointer to Error*, to store an error if it happens.
+     *
+     * Return: true on success, else false setting @errp with error.
      */
-    void (*log_global_after_sync)(MemoryListener *listener);
+    bool (*log_global_after_sync)(MemoryListener *listener, Error **errp);
 
     /**
      * @eventfd_add:
