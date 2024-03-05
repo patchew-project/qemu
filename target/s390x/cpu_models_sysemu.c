@@ -98,7 +98,7 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 }
 
 static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
-                                Error **errp)
+                                const char *info_arg_name, Error **errp)
 {
     Error *err = NULL;
     const QDict *qdict;
@@ -128,8 +128,11 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
     }
 
     if (info->props) {
+        g_autofree const char *props_name = g_strdup_printf("%s.props",
+                                                            info_arg_name);
+
         visitor = qobject_input_visitor_new(info->props);
-        if (!visit_start_struct(visitor, "props", NULL, 0, errp)) {
+        if (!visit_start_struct(visitor, props_name, NULL, 0, errp)) {
             visit_free(visitor);
             object_unref(obj);
             return;
@@ -216,7 +219,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     bool delta_changes = false;
 
     /* convert it to our internal representation */
-    cpu_model_from_info(&s390_model, model, &err);
+    cpu_model_from_info(&s390_model, model, "model", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
@@ -254,12 +257,12 @@ CpuModelCompareInfo *qmp_query_cpu_model_comparison(CpuModelInfo *infoa,
     S390CPUModel modela, modelb;
 
     /* convert both models to our internal representation */
-    cpu_model_from_info(&modela, infoa, &err);
+    cpu_model_from_info(&modela, infoa, "modela", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
     }
-    cpu_model_from_info(&modelb, infob, &err);
+    cpu_model_from_info(&modelb, infob, "modelb", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
@@ -331,13 +334,13 @@ CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *infoa,
     uint8_t max_gen;
 
     /* convert both models to our internal representation */
-    cpu_model_from_info(&modela, infoa, &err);
+    cpu_model_from_info(&modela, infoa, "modela", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
     }
 
-    cpu_model_from_info(&modelb, infob, &err);
+    cpu_model_from_info(&modelb, infob, "modelb", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
