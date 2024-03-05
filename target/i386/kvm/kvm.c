@@ -276,6 +276,20 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
             exit(1);
         }
     }
+
+    {
+        int i;
+
+        for (i = 0; i < cpuid->nent; i++) {
+            fprintf(stderr, "cpuid: %8x/%d - %8x %8x %8x %8x\n",
+                    cpuid->entries[i].function,
+                    cpuid->entries[i].index,
+                    cpuid->entries[i].eax,
+                    cpuid->entries[i].ebx,
+                    cpuid->entries[i].ecx,
+                    cpuid->entries[i].edx);
+        }
+    }
     return cpuid;
 }
 
