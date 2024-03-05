@@ -3051,7 +3051,9 @@ foreach target : target_dirs
     if default_targets
       continue
     endif
-    error('No accelerator available for target @0@'.format(target))
+    if 'any-softmmu' not in target_dirs
+      error('No accelerator available for target @0@'.format(target))
+    endif
   endif
 
   actual_target_dirs += target
@@ -3909,16 +3911,21 @@ foreach target : target_dirs
                  name_suffix: 'fa')
 
   if target.endswith('-softmmu')
+    if target_name == 'any'
+      qemu_system_name = 'x-qemu-system-🚧'
+    else
+      qemu_system_name = 'qemu-system-' + target_name
+    endif
     execs = [{
-      'name': 'qemu-system-' + target_name,
+      'name': qemu_system_name,
       'win_subsystem': 'console',
       'sources': files('system/main.c'),
       'dependencies': [],
-      'install': true
+      'install': target_name != 'any'
     }]
     if host_os == 'windows' and (sdl.found() or gtk.found())
       execs += [{
-        'name': 'qemu-system-' + target_name + 'w',
+        'name': qemu_system_name + 'w',
         'win_subsystem': 'windows',
         'sources': files('system/main.c'),
         'dependencies': [],

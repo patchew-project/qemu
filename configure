@@ -194,6 +194,7 @@ EXTRA_LDFLAGS=""
 # Distributions want to ensure that several features are compiled in, and it
 # is impossible without a --enable-foo that exits if a feature is not found.
 default_feature=""
+target_system_any=""
 
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
@@ -693,6 +694,8 @@ for opt do
   ;;
   --without-default-features) # processed above
   ;;
+  --enable-experimental-system-binary-that-may-break-dont-do-this-distros) target_system_any="yes"
+  ;;
   --static) static="yes"
   ;;
   --host=*|--build=*|\
@@ -834,6 +837,9 @@ fi
 
 for config in $mak_wilds; do
     target="$(basename "$config" .mak)"
+    if [ "$target" = any-softmmu ] && [ "$target_system_any" != yes ]; then
+        continue
+    fi
     if echo "$target_list_exclude" | grep -vq "$target"; then
         default_target_list="${default_target_list} $target"
     fi

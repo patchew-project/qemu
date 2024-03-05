@@ -4,6 +4,7 @@
 
 enum {
     QEMU_ARCH_ALL = -1,
+    QEMU_ARCH_ANY = -1,
     QEMU_ARCH_ALPHA = (1 << 0),
     QEMU_ARCH_ARM = (1 << 1),
     QEMU_ARCH_CRIS = (1 << 2),

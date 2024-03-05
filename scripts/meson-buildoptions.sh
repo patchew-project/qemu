@@ -32,6 +32,9 @@ meson_options_help() {
   printf "%s\n" '  --enable-debug-stack-usage'
   printf "%s\n" '                           measure coroutine stack usage'
   printf "%s\n" '  --enable-debug-tcg       TCG debugging'
+  printf "%s\n" '  --enable-experimental-system-binary-that-may-break-dont-do-this-distros'
+  printf "%s\n" '                           build experimental qemu-system-any binary with no'
+  printf "%s\n" '                           particular target architecture'
   printf "%s\n" '  --enable-fdt[=CHOICE]    Whether and how to find the libfdt library'
   printf "%s\n" '                           (choices: auto/disabled/enabled/internal/system)'
   printf "%s\n" '  --enable-fuzzing         build fuzzing targets'
@@ -306,6 +309,8 @@ _meson_option_parse() {
     --disable-docs) printf "%s" -Ddocs=disabled ;;
     --enable-dsound) printf "%s" -Ddsound=enabled ;;
     --disable-dsound) printf "%s" -Ddsound=disabled ;;
+    --enable-experimental-system-binary-that-may-break-dont-do-this-distros) printf "%s" -Dexperimental-system-binary-that-may-break-dont-do-this-distros=true ;;
+    --disable-experimental-system-binary-that-may-break-dont-do-this-distros) printf "%s" -Dexperimental-system-binary-that-may-break-dont-do-this-distros=false ;;
     --enable-fdt) printf "%s" -Dfdt=enabled ;;
     --disable-fdt) printf "%s" -Dfdt=disabled ;;
     --enable-fdt=*) quote_sh "-Dfdt=$2" ;;
