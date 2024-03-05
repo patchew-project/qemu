@@ -238,6 +238,15 @@ static int kvm_get_tsc(CPUState *cs)
     return 0;
 }
 
+/* return cpuid fn 8000_0008 eax[23:16] aka GuestPhysBits */
+static int kvm_get_guest_phys_bits(KVMState *s)
+{
+    uint32_t eax;
+
+    eax = kvm_arch_get_supported_cpuid(s, 0x80000008, 0, R_EAX);
+    return (eax >> 16) & 0xff;
+}
+
 static inline void do_kvm_synchronize_tsc(CPUState *cpu, run_on_cpu_data arg)
 {
     kvm_get_tsc(cpu);
@@ -1730,6 +1739,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     uint32_t limit, i, j, cpuid_i;
+    uint32_t guest_phys_bits;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
@@ -1764,6 +1774,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     env->apic_bus_freq = KVM_APIC_BUS_FREQUENCY;
+
+    guest_phys_bits = kvm_get_guest_phys_bits(cs->kvm_state);
+    if (guest_phys_bits &&
+        (cpu->guest_phys_bits == 0 ||
+         cpu->guest_phys_bits > guest_phys_bits)) {
+        cpu->guest_phys_bits = guest_phys_bits;
+    }
 
     /*
      * kvm_hyperv_expand_features() is called here for the second time in case
