@@ -2075,6 +2075,12 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         pci_register_bar(&proxy->pci_dev, proxy->legacy_io_bar_idx,
                          PCI_BASE_ADDRESS_SPACE_IO, &proxy->bar);
     }
+
+    if (pcie_sriov_pf_init_from_user_created_vfs(&proxy->pci_dev,
+                                                 PCI_CONFIG_SPACE_SIZE,
+                                                 errp)) {
+        virtio_add_feature(&vdev->host_features, VIRTIO_F_SR_IOV);
+    }
 }
 
 static void virtio_pci_device_unplugged(DeviceState *d)
@@ -2083,6 +2089,7 @@ static void virtio_pci_device_unplugged(DeviceState *d)
     bool modern = virtio_pci_modern(proxy);
     bool modern_pio = proxy->flags & VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY;
 
+    pcie_sriov_pf_exit(&proxy->pci_dev);
     virtio_pci_stop_ioeventfd(proxy);
 
     if (modern) {
