@@ -38,6 +38,7 @@ static void raise_mmu_exception(CPULoongArchState *env, target_ulong address,
             cs->exception_index = EXCCODE_PIF;
         }
         env->CSR_TLBRERA = FIELD_DP64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 1);
+        env->lddir_ps = 0;
         break;
     case TLBRET_INVALID:
         /* TLB match with no valid bit */
@@ -488,13 +489,6 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     uint64_t dir_base, dir_width;
     bool huge = (base >> LOONGARCH_PAGE_HUGE_SHIFT) & 0x1;
 
-    badvaddr = env->CSR_TLBRBADV;
-    base = base & TARGET_PHYS_MASK;
-
-    /* 0:64bit, 1:128bit, 2:192bit, 3:256bit */
-    shift = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTEWIDTH);
-    shift = (shift + 1) * 3;
-
     if (huge) {
         return base;
     }
@@ -519,9 +513,18 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
         do_raise_exception(env, EXCCODE_INE, GETPC());
         return 0;
     }
+
+    /* 0:64bit, 1:128bit, 2:192bit, 3:256bit */
+    shift = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTEWIDTH);
+    shift = (shift + 1) * 3;
+    badvaddr = env->CSR_TLBRBADV;
+    base = base & TARGET_PHYS_MASK;
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << shift;
     ret = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
+    if (ret & BIT_ULL(LOONGARCH_PAGE_HUGE_SHIFT)) {
+        env->lddir_ps = dir_base;
+    }
     return ret;
 }
 
@@ -538,13 +541,13 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     base = base & TARGET_PHYS_MASK;
 
     if (huge) {
-        /* Huge Page. base is paddr */
         tmp0 = base ^ (1 << LOONGARCH_PAGE_HUGE_SHIFT);
         /* Move Global bit */
         tmp0 = ((tmp0 & (1 << LOONGARCH_HGLOBAL_SHIFT))  >>
                 LOONGARCH_HGLOBAL_SHIFT) << R_TLBENTRY_G_SHIFT |
                 (tmp0 & (~(1 << LOONGARCH_HGLOBAL_SHIFT)));
-        ps = ptbase + ptwidth - 1;
+
+        ps = env->lddir_ps - 1;
         if (odd) {
             tmp0 += MAKE_64BIT_MASK(ps, 1);
         }

@@ -292,6 +292,7 @@ typedef struct CPUArchState {
     uint32_t fcsr0_mask;
 
     uint32_t cpucfg[21];
+    uint32_t lddir_ps;
 
     uint64_t lladdr; /* LL virtual address compared against SC */
     uint64_t llval;
