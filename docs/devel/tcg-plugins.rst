@@ -151,6 +151,21 @@ Unsuccessful operations (i.e. faults) will not be visible to memory
 instrumentation although the execution side effects can be observed
 (e.g. entering a exception handler).
 
+Register Values
++++++++++++++++
+
+Callbacks registered with the ``QEMU_PLUGIN_CB_R_REGS`` flags can read
+the current register values of the system. The plugin need to request
+the list of available registers after a vcpu has initialised by
+calling ``qemu_plugin_get_registers`` and using the supplied handle to
+query the values when executing the callback.
+
+.. Note:: the program counter (PC) is not available through this
+          interface but can be queried at translation time by using
+          the ``qemu_plugin_insn_vaddr`` and
+          ``qemu_plugin_insn_haddr`` on the instruction handle.
+
+
 System Idle and Resume States
 +++++++++++++++++++++++++++++
 

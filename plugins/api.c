@@ -441,6 +441,11 @@ static GArray *create_register_handles(GArray *gdbstub_regs)
             continue;
         }
 
+        /* skip the program counter */
+        if (g_ascii_strncasecmp(grd->name, "pc", 2) == 0) {
+            continue;
+        }
+
         /* Create a record for the plugin */
         desc.handle = GINT_TO_POINTER(grd->gdb_reg);
         desc.name = g_intern_string(grd->name);
