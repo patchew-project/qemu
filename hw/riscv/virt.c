@@ -1235,7 +1235,7 @@ static void virt_build_smbios(RISCVVirtState *s)
         product = "KVM Virtual Machine";
     }
 
-    smbios_set_defaults("QEMU", product, mc->name, false,
+    smbios_set_defaults("QEMU", product, mc->name,
                         true, SMBIOS_ENTRY_POINT_TYPE_64);
 
     if (riscv_is_32bit(&s->soc[0])) {
