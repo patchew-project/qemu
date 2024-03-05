@@ -11460,6 +11460,8 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         break;
     case EXCP_IRQ:
     case EXCP_VIRQ:
+    case EXCP_NMI:
+    case EXCP_VNMI:
         addr += 0x80;
         break;
     case EXCP_FIQ:
