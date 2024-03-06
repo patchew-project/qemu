@@ -73,19 +73,6 @@ void vext_set_elems_1s(void *vd, uint32_t is_agnostic, uint32_t esz,
 }
 #endif
 
-void vext_set_elems_1s_le(void *base, uint32_t is_agnostic, uint32_t cnt,
-                       uint32_t tot)
-{
-    if (is_agnostic == 0) {
-        /* policy undisturbed */
-        return;
-    }
-    if (tot - cnt == 0) {
-        return ;
-    }
-    memset(base + cnt, -1, tot - cnt);
-}
-
 void do_vext_vv(void *vd, void *v0, void *vs1, void *vs2,
                 CPURISCVState *env, uint32_t desc,
                 opivv2_fn *fn, uint32_t esz)
