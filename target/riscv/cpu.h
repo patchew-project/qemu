@@ -30,6 +30,7 @@
 #include "qemu/int128.h"
 #include "cpu_bits.h"
 #include "cpu_cfg.h"
+#include "cpu_decoder.h"
 #include "qapi/qapi-types-common.h"
 #include "cpu-qom.h"
 
@@ -433,6 +434,7 @@ struct CPUArchState {
     uint64_t kvm_timer_state;
     uint64_t kvm_timer_frequency;
 #endif /* CONFIG_KVM */
+    const decode_fn *decoder;
 };
 
 /*

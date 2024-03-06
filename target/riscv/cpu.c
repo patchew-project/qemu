@@ -38,6 +38,7 @@
 #include "kvm/kvm_riscv.h"
 #include "tcg/tcg-cpu.h"
 #include "tcg/tcg.h"
+#include "cpu_decoder.h"
 
 /* RISC-V CPU definitions */
 static const char riscv_single_letter_exts[] = "IEMAFDQCBPVH";
@@ -1102,6 +1103,23 @@ static void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp)
 }
 #endif
 
+static void riscv_cpu_finalize_dynamic_decoder(RISCVCPU *cpu)
+{
+    CPURISCVState *env = &cpu->env;
+    decode_fn *dynamic_decoder;
+    dynamic_decoder = g_new0(decode_fn, decoder_table_size);
+    int j = 0;
+    for (size_t i = 0; i < decoder_table_size; ++i) {
+        if (decoder_table[i].guard_func &&
+            decoder_table[i].guard_func(&cpu->cfg)) {
+            dynamic_decoder[j] = decoder_table[i].decode_fn;
+            j++;
+        }
+    }
+
+    env->decoder = dynamic_decoder;
+}
+
 void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
 {
     Error *local_err = NULL;
@@ -1127,6 +1145,8 @@ void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
             return;
         }
     }
+
+    riscv_cpu_finalize_dynamic_decoder(cpu);
 }
 
 static void riscv_cpu_realize(DeviceState *dev, Error **errp)
