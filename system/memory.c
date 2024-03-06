@@ -2931,10 +2931,9 @@ static void memory_global_dirty_log_rollback(MemoryListener *listener,
     }
 }
 
-void memory_global_dirty_log_start(unsigned int flags)
+bool memory_global_dirty_log_start(unsigned int flags, Error **errp)
 {
     unsigned int old_flags;
-    Error *local_err = NULL;
 
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
 
@@ -2946,7 +2945,7 @@ void memory_global_dirty_log_start(unsigned int flags)
 
     flags &= ~global_dirty_tracking;
     if (!flags) {
-        return;
+        return true;
     }
 
     old_flags = global_dirty_tracking;
@@ -2959,7 +2958,7 @@ void memory_global_dirty_log_start(unsigned int flags)
 
         QTAILQ_FOREACH(listener, &memory_listeners, link) {
             if (listener->log_global_start) {
-                ret = listener->log_global_start(listener, &local_err);
+                ret = listener->log_global_start(listener, errp);
                 if (!ret) {
                     break;
                 }
@@ -2969,14 +2968,14 @@ void memory_global_dirty_log_start(unsigned int flags)
         if (!ret) {
             memory_global_dirty_log_rollback(QTAILQ_PREV(listener, link),
                                              flags);
-            error_report_err(local_err);
-            return;
+            return false;
         }
 
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();
     }
+    return true;
 }
 
 static void memory_global_dirty_log_do_stop(unsigned int flags)
