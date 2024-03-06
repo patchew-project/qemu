@@ -20,6 +20,59 @@
 #include "vector_internals.h"
 
 /* set agnostic elements to 1s */
+#if HOST_BIG_ENDIAN
+void vext_set_elems_1s(void *vd, uint32_t is_agnostic, uint32_t esz,
+                       uint32_t idx, uint32_t tot)
+{
+    if (is_agnostic == 0) {
+        /* policy undisturbed */
+        return;
+    }
+    void *base = NULL;
+    switch (esz) {
+    case 1:
+        base = ((int8_t *)vd + H1(idx));
+    break;
+    case 2:
+        base = ((int16_t *)vd + H2(idx));
+    break;
+    case 4:
+        base = ((int32_t *)vd + H4(idx));
+    break;
+    case 8:
+        base = ((int64_t *)vd + H8(idx));
+    break;
+    default:
+        g_assert_not_reached();
+    break;
+    }
+    /*
+     * spilt the elements into 2 parts
+     * part_begin: the memory need to be set in the first uint64_t unit
+     * part_allign: the memory need to be set begins from next uint64_t
+     *              unit and alligned to 8
+     */
+    uint32_t cnt = idx * esz;
+    int part_begin, part_allign;
+    part_begin = MIN(tot - cnt, 8 - (cnt % 8));
+    part_allign = ((tot - cnt - part_begin) / 8) * 8;
+
+    memset(base - part_begin + 1, -1, part_begin);
+    memset(QEMU_ALIGN_PTR_UP(base, 8), -1, part_allign);
+}
+#else
+void vext_set_elems_1s(void *vd, uint32_t is_agnostic, uint32_t esz,
+                       uint32_t idx, uint32_t tot)
+{
+    if (is_agnostic == 0) {
+        /* policy undisturbed */
+        return;
+    }
+    uint32_t cnt = idx * esz;
+    memset(vd + cnt, -1, tot - cnt);
+}
+#endif
+
 void vext_set_elems_1s_le(void *base, uint32_t is_agnostic, uint32_t cnt,
                        uint32_t tot)
 {
