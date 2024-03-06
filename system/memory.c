@@ -2914,9 +2914,27 @@ static unsigned int postponed_stop_flags;
 static VMChangeStateEntry *vmstate_change;
 static void memory_global_dirty_log_stop_postponed_run(void);
 
+/*
+ * Stop dirty logging on all listeners where it was previously enabled.
+ */
+static void memory_global_dirty_log_rollback(MemoryListener *listener,
+                                             unsigned int flags)
+{
+    global_dirty_tracking &= ~flags;
+    trace_global_dirty_changed(global_dirty_tracking);
+
+    while (listener) {
+        if (listener->log_global_stop) {
+            listener->log_global_stop(listener);
+        }
+        listener = QTAILQ_PREV(listener, link);
+    }
+}
+
 void memory_global_dirty_log_start(unsigned int flags)
 {
     unsigned int old_flags;
+    Error *local_err = NULL;
 
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
 
@@ -2936,7 +2954,25 @@ void memory_global_dirty_log_start(unsigned int flags)
     trace_global_dirty_changed(global_dirty_tracking);
 
     if (!old_flags) {
-        MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
+        MemoryListener *listener;
+        bool ret = true;
+
+        QTAILQ_FOREACH(listener, &memory_listeners, link) {
+            if (listener->log_global_start) {
+                ret = listener->log_global_start(listener, &local_err);
+                if (!ret) {
+                    break;
+                }
+            }
+        }
+
+        if (!ret) {
+            memory_global_dirty_log_rollback(QTAILQ_PREV(listener, link),
+                                             flags);
+            error_report_err(local_err);
+            return;
+        }
+
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();
@@ -3009,13 +3045,16 @@ static void listener_add_address_space(MemoryListener *listener,
 {
     FlatView *view;
     FlatRange *fr;
+    Error *local_err = NULL;
 
     if (listener->begin) {
         listener->begin(listener);
     }
     if (global_dirty_tracking) {
         if (listener->log_global_start) {
-            listener->log_global_start(listener);
+            if (!listener->log_global_start(listener, &local_err)) {
+                error_report_err(local_err);
+            }
         }
     }
 
