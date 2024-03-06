@@ -156,7 +156,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     for (i = env->vstart; i < vl; i++) {               \
         if (!vm && !vext_elem_mask(v0, i)) {           \
             /* set masked-off elements to 1s */        \
-            vext_set_elems_1s_le(vd, vma, i * ESZ,        \
+            vext_set_elems_1s(vd, vma, ESZ, i,         \
                               (i + 1) * ESZ);          \
             continue;                                  \
         }                                              \
@@ -164,7 +164,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     }                                                  \
     env->vstart = 0;                                   \
     /* set tail elements to 1s */                      \
-    vext_set_elems_1s_le(vd, vta, vl * ESZ,               \
+    vext_set_elems_1s(vd, vta, ESZ, vl,                \
                       total_elems * ESZ);              \
 }
 
