@@ -17,6 +17,8 @@
 #include "qapi/qapi-visit-sockets.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qlist.h"
+
 
 #include "migration-helpers.h"
 
@@ -71,6 +73,29 @@ migrate_get_socket_address(QTestState *who, const char *parameter)
     qapi_free_SocketAddressList(addrs);
     qobject_unref(rsp);
     return result;
+}
+
+static void migrate_set_ports(QTestState *to, QList *channelList)
+{
+    g_autofree char *addr = NULL;
+    g_autofree char *addr_port = NULL;
+    QListEntry *entry;
+
+    addr = migrate_get_socket_address(to, "socket-address");
+    addr_port = g_strsplit(addr, ":", 3)[2];
+
+    QLIST_FOREACH_ENTRY(channelList, entry) {
+        QDict *channel = qobject_to(QDict, qlist_entry_obj(entry));
+        QObject *addr_obj = qdict_get(channel, "addr");
+
+        if (qobject_type(addr_obj) == QTYPE_QDICT) {
+            QDict *addrdict = qobject_to(QDict, addr_obj);
+            if (qdict_haskey(addrdict, "port") &&
+            (strcmp(qdict_get_str(addrdict, "port"), "0") == 0)) {
+                qdict_put_str(addrdict, "port", addr_port);
+            }
+        }
+    }
 }
 
 bool migrate_watch_for_events(QTestState *who, const char *name,
@@ -143,6 +168,7 @@ void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
     if (!uri) {
         connect_uri = migrate_get_socket_address(to, "socket-address");
     }
+    migrate_set_ports(to, NULL);
     qdict_put_str(args, "uri", uri ? uri : connect_uri);
 
     qtest_qmp_assert_success(who,
