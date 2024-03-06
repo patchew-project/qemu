@@ -114,7 +114,7 @@ static inline uint32_t vext_get_total_elems(CPURISCVState *env, uint32_t desc,
 }
 
 /* set agnostic elements to 1s */
-void vext_set_elems_1s(void *base, uint32_t is_agnostic, uint32_t cnt,
+void vext_set_elems_1s_le(void *base, uint32_t is_agnostic, uint32_t cnt,
                        uint32_t tot);
 
 /* expand macro args before macro */
@@ -154,7 +154,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     for (i = env->vstart; i < vl; i++) {               \
         if (!vm && !vext_elem_mask(v0, i)) {           \
             /* set masked-off elements to 1s */        \
-            vext_set_elems_1s(vd, vma, i * ESZ,        \
+            vext_set_elems_1s_le(vd, vma, i * ESZ,        \
                               (i + 1) * ESZ);          \
             continue;                                  \
         }                                              \
@@ -162,7 +162,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     }                                                  \
     env->vstart = 0;                                   \
     /* set tail elements to 1s */                      \
-    vext_set_elems_1s(vd, vta, vl * ESZ,               \
+    vext_set_elems_1s_le(vd, vta, vl * ESZ,               \
                       total_elems * ESZ);              \
 }
 

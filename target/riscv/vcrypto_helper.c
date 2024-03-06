@@ -235,7 +235,7 @@ static inline void xor_round_key(AESState *round_state, AESState *round_key)
         }                                                                 \
         env->vstart = 0;                                                  \
         /* set tail elements to 1s */                                     \
-        vext_set_elems_1s(vd, vta, vl * 4, total_elems * 4);              \
+        vext_set_elems_1s_le(vd, vta, vl * 4, total_elems * 4);              \
     }
 
 #define GEN_ZVKNED_HELPER_VS(NAME, ...)                                   \
@@ -259,7 +259,7 @@ static inline void xor_round_key(AESState *round_state, AESState *round_key)
         }                                                                 \
         env->vstart = 0;                                                  \
         /* set tail elements to 1s */                                     \
-        vext_set_elems_1s(vd, vta, vl * 4, total_elems * 4);              \
+        vext_set_elems_1s_le(vd, vta, vl * 4, total_elems * 4);              \
     }
 
 GEN_ZVKNED_HELPER_VV(vaesef_vv, aesenc_SB_SR_AK(&round_state,
@@ -339,7 +339,7 @@ void HELPER(vaeskf1_vi)(void *vd_vptr, void *vs2_vptr, uint32_t uimm,
     }
     env->vstart = 0;
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vta, vl * 4, total_elems * 4);
+    vext_set_elems_1s_le(vd, vta, vl * 4, total_elems * 4);
 }
 
 void HELPER(vaeskf2_vi)(void *vd_vptr, void *vs2_vptr, uint32_t uimm,
@@ -396,7 +396,7 @@ void HELPER(vaeskf2_vi)(void *vd_vptr, void *vs2_vptr, uint32_t uimm,
     }
     env->vstart = 0;
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vta, vl * 4, total_elems * 4);
+    vext_set_elems_1s_le(vd, vta, vl * 4, total_elems * 4);
 }
 
 static inline uint32_t sig0_sha256(uint32_t x)
@@ -469,7 +469,7 @@ void HELPER(vsha2ms_vv)(void *vd, void *vs1, void *vs2, CPURISCVState *env,
     }
     /* set tail elements to 1s */
     total_elems = vext_get_total_elems(env, desc, esz);
-    vext_set_elems_1s(vd, vta, env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vta, env->vl * esz, total_elems * esz);
     env->vstart = 0;
 }
 
@@ -579,7 +579,7 @@ void HELPER(vsha2ch32_vv)(void *vd, void *vs1, void *vs2, CPURISCVState *env,
 
     /* set tail elements to 1s */
     total_elems = vext_get_total_elems(env, desc, esz);
-    vext_set_elems_1s(vd, vta, env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vta, env->vl * esz, total_elems * esz);
     env->vstart = 0;
 }
 
@@ -597,7 +597,7 @@ void HELPER(vsha2ch64_vv)(void *vd, void *vs1, void *vs2, CPURISCVState *env,
 
     /* set tail elements to 1s */
     total_elems = vext_get_total_elems(env, desc, esz);
-    vext_set_elems_1s(vd, vta, env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vta, env->vl * esz, total_elems * esz);
     env->vstart = 0;
 }
 
@@ -615,7 +615,7 @@ void HELPER(vsha2cl32_vv)(void *vd, void *vs1, void *vs2, CPURISCVState *env,
 
     /* set tail elements to 1s */
     total_elems = vext_get_total_elems(env, desc, esz);
-    vext_set_elems_1s(vd, vta, env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vta, env->vl * esz, total_elems * esz);
     env->vstart = 0;
 }
 
@@ -633,7 +633,7 @@ void HELPER(vsha2cl64_vv)(void *vd, void *vs1, void *vs2, CPURISCVState *env,
 
     /* set tail elements to 1s */
     total_elems = vext_get_total_elems(env, desc, esz);
-    vext_set_elems_1s(vd, vta, env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vta, env->vl * esz, total_elems * esz);
     env->vstart = 0;
 }
 
@@ -672,7 +672,7 @@ void HELPER(vsm3me_vv)(void *vd_vptr, void *vs1_vptr, void *vs2_vptr,
             vd[(i * 8) + j] = bswap32(w[H4(j + 16)]);
         }
     }
-    vext_set_elems_1s(vd_vptr, vta, env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd_vptr, vta, env->vl * esz, total_elems * esz);
     env->vstart = 0;
 }
 
@@ -767,7 +767,7 @@ void HELPER(vsm3c_vi)(void *vd_vptr, void *vs2_vptr, uint32_t uimm,
             vd[i * 8 + k] = bswap32(v1[H4(k)]);
         }
     }
-    vext_set_elems_1s(vd_vptr, vta, env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd_vptr, vta, env->vl * esz, total_elems * esz);
     env->vstart = 0;
 }
 
@@ -805,7 +805,7 @@ void HELPER(vghsh_vv)(void *vd_vptr, void *vs1_vptr, void *vs2_vptr,
         vd[i * 2 + 1] = brev8(Z[1]);
     }
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vta, env->vl * 4, total_elems * 4);
+    vext_set_elems_1s_le(vd, vta, env->vl * 4, total_elems * 4);
     env->vstart = 0;
 }
 
@@ -839,7 +839,7 @@ void HELPER(vgmul_vv)(void *vd_vptr, void *vs2_vptr, CPURISCVState *env,
         vd[i * 2 + 1] = brev8(Z[1]);
     }
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vta, env->vl * 4, total_elems * 4);
+    vext_set_elems_1s_le(vd, vta, env->vl * 4, total_elems * 4);
     env->vstart = 0;
 }
 
@@ -883,7 +883,7 @@ void HELPER(vsm4k_vi)(void *vd, void *vs2, uint32_t uimm5, CPURISCVState *env,
 
     env->vstart = 0;
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vext_vta(desc), env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vext_vta(desc), env->vl * esz, total_elems * esz);
 }
 
 static void do_sm4_round(uint32_t *rk, uint32_t *buf)
@@ -932,7 +932,7 @@ void HELPER(vsm4r_vv)(void *vd, void *vs2, CPURISCVState *env, uint32_t desc)
 
     env->vstart = 0;
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vext_vta(desc), env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vext_vta(desc), env->vl * esz, total_elems * esz);
 }
 
 void HELPER(vsm4r_vs)(void *vd, void *vs2, CPURISCVState *env, uint32_t desc)
@@ -966,5 +966,5 @@ void HELPER(vsm4r_vs)(void *vd, void *vs2, CPURISCVState *env, uint32_t desc)
 
     env->vstart = 0;
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vext_vta(desc), env->vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vext_vta(desc), env->vl * esz, total_elems * esz);
 }

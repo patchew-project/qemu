@@ -186,7 +186,7 @@ static void vext_set_tail_elems_1s(target_ulong vl, void *vd,
     }
 
     for (k = 0; k < nf; ++k) {
-        vext_set_elems_1s(vd, vta, (k * max_elems + vl) * esz,
+        vext_set_elems_1s_le(vd, vta, (k * max_elems + vl) * esz,
                           (k * max_elems + max_elems) * esz);
     }
 }
@@ -212,7 +212,7 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
         while (k < nf) {
             if (!vm && !vext_elem_mask(v0, i)) {
                 /* set masked-off elements to 1s */
-                vext_set_elems_1s(vd, vma, (i + k * max_elems) * esz,
+                vext_set_elems_1s_le(vd, vma, (i + k * max_elems) * esz,
                                   (i + k * max_elems + 1) * esz);
                 k++;
                 continue;
@@ -392,7 +392,7 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
         while (k < nf) {
             if (!vm && !vext_elem_mask(v0, i)) {
                 /* set masked-off elements to 1s */
-                vext_set_elems_1s(vd, vma, (i + k * max_elems) * esz,
+                vext_set_elems_1s_le(vd, vma, (i + k * max_elems) * esz,
                                   (i + k * max_elems + 1) * esz);
                 k++;
                 continue;
@@ -522,7 +522,7 @@ ProbeSuccess:
         while (k < nf) {
             if (!vm && !vext_elem_mask(v0, i)) {
                 /* set masked-off elements to 1s */
-                vext_set_elems_1s(vd, vma, (i + k * max_elems) * esz,
+                vext_set_elems_1s_le(vd, vma, (i + k * max_elems) * esz,
                                   (i + k * max_elems + 1) * esz);
                 k++;
                 continue;
@@ -886,7 +886,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
     }                                                         \
     env->vstart = 0;                                          \
     /* set tail elements to 1s */                             \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);  \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);  \
 }
 
 GEN_VEXT_VADC_VVM(vadc_vvm_b, uint8_t,  H1, DO_VADC)
@@ -917,7 +917,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,        \
     }                                                                    \
     env->vstart = 0;                                                     \
     /* set tail elements to 1s */                                        \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);             \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);             \
 }
 
 GEN_VEXT_VADC_VXM(vadc_vxm_b, uint8_t,  H1, DO_VADC)
@@ -1081,7 +1081,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,                          \
     for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             /* set masked-off elements to 1s */                           \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);           \
             continue;                                                     \
         }                                                                 \
         TS1 s1 = *((TS1 *)vs1 + HS1(i));                                  \
@@ -1090,7 +1090,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,                          \
     }                                                                     \
     env->vstart = 0;                                                      \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);              \
 }
 
 GEN_VEXT_SHIFT_VV(vsll_vv_b, uint8_t,  uint8_t, H1, H1, DO_SLL, 0x7)
@@ -1128,7 +1128,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,      \
     for (i = env->vstart; i < vl; i++) {                    \
         if (!vm && !vext_elem_mask(v0, i)) {                \
             /* set masked-off elements to 1s */             \
-            vext_set_elems_1s(vd, vma, i * esz,             \
+            vext_set_elems_1s_le(vd, vma, i * esz,             \
                               (i + 1) * esz);               \
             continue;                                       \
         }                                                   \
@@ -1137,7 +1137,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,      \
     }                                                       \
     env->vstart = 0;                                        \
     /* set tail elements to 1s */                           \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);\
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);\
 }
 
 GEN_VEXT_SHIFT_VX(vsll_vx_b, uint8_t, int8_t, H1, H1, DO_SLL, 0x7)
@@ -1805,7 +1805,7 @@ void HELPER(NAME)(void *vd, void *vs1, CPURISCVState *env,           \
     }                                                                \
     env->vstart = 0;                                                 \
     /* set tail elements to 1s */                                    \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);         \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);         \
 }
 
 GEN_VEXT_VMV_VV(vmv_v_v_b, int8_t,  H1)
@@ -1828,7 +1828,7 @@ void HELPER(NAME)(void *vd, uint64_t s1, CPURISCVState *env,         \
     }                                                                \
     env->vstart = 0;                                                 \
     /* set tail elements to 1s */                                    \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);         \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);         \
 }
 
 GEN_VEXT_VMV_VX(vmv_v_x_b, int8_t,  H1)
@@ -1852,7 +1852,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,          \
     }                                                                \
     env->vstart = 0;                                                 \
     /* set tail elements to 1s */                                    \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);         \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);         \
 }
 
 GEN_VEXT_VMERGE_VV(vmerge_vvm_b, int8_t,  H1)
@@ -1878,7 +1878,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,               \
     }                                                                \
     env->vstart = 0;                                                 \
     /* set tail elements to 1s */                                    \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);         \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);         \
 }
 
 GEN_VEXT_VMERGE_VX(vmerge_vxm_b, int8_t,  H1)
@@ -1918,7 +1918,7 @@ vext_vv_rm_1(void *vd, void *v0, void *vs1, void *vs2,
     for (uint32_t i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             /* set masked-off elements to 1s */
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);
             continue;
         }
         fn(vd, vs1, vs2, i, env, vxrm);
@@ -1957,7 +1957,7 @@ vext_vv_rm_2(void *vd, void *v0, void *vs1, void *vs2,
         break;
     }
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);
 }
 
 /* generate helpers for fixed point instructions with OPIVV format */
@@ -2043,7 +2043,7 @@ vext_vx_rm_1(void *vd, void *v0, target_long s1, void *vs2,
     for (uint32_t i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             /* set masked-off elements to 1s */
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);
             continue;
         }
         fn(vd, s1, vs2, i, env, vxrm);
@@ -2082,7 +2082,7 @@ vext_vx_rm_2(void *vd, void *v0, target_long s1, void *vs2,
         break;
     }
     /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);
 }
 
 /* generate helpers for fixed point instructions with OPIVX format */
@@ -2840,7 +2840,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     for (i = env->vstart; i < vl; i++) {                  \
         if (!vm && !vext_elem_mask(v0, i)) {              \
             /* set masked-off elements to 1s */           \
-            vext_set_elems_1s(vd, vma, i * ESZ,           \
+            vext_set_elems_1s_le(vd, vma, i * ESZ,           \
                               (i + 1) * ESZ);             \
             continue;                                     \
         }                                                 \
@@ -2848,7 +2848,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     }                                                     \
     env->vstart = 0;                                      \
     /* set tail elements to 1s */                         \
-    vext_set_elems_1s(vd, vta, vl * ESZ,                  \
+    vext_set_elems_1s_le(vd, vta, vl * ESZ,                  \
                       total_elems * ESZ);                 \
 }
 
@@ -2883,7 +2883,7 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1,        \
     for (i = env->vstart; i < vl; i++) {                  \
         if (!vm && !vext_elem_mask(v0, i)) {              \
             /* set masked-off elements to 1s */           \
-            vext_set_elems_1s(vd, vma, i * ESZ,           \
+            vext_set_elems_1s_le(vd, vma, i * ESZ,           \
                               (i + 1) * ESZ);             \
             continue;                                     \
         }                                                 \
@@ -2891,7 +2891,7 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1,        \
     }                                                     \
     env->vstart = 0;                                      \
     /* set tail elements to 1s */                         \
-    vext_set_elems_1s(vd, vta, vl * ESZ,                  \
+    vext_set_elems_1s_le(vd, vta, vl * ESZ,                  \
                       total_elems * ESZ);                 \
 }
 
@@ -3472,14 +3472,14 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     for (i = env->vstart; i < vl; i++) {               \
         if (!vm && !vext_elem_mask(v0, i)) {           \
             /* set masked-off elements to 1s */        \
-            vext_set_elems_1s(vd, vma, i * ESZ,        \
+            vext_set_elems_1s_le(vd, vma, i * ESZ,        \
                               (i + 1) * ESZ);          \
             continue;                                  \
         }                                              \
         do_##NAME(vd, vs2, i, env);                    \
     }                                                  \
     env->vstart = 0;                                   \
-    vext_set_elems_1s(vd, vta, vl * ESZ,               \
+    vext_set_elems_1s_le(vd, vta, vl * ESZ,               \
                       total_elems * ESZ);              \
 }
 
@@ -4227,7 +4227,7 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2, \
     }                                                         \
     env->vstart = 0;                                          \
     /* set tail elements to 1s */                             \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);  \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);  \
 }
 
 GEN_VFMERGE_VF(vfmerge_vfm_h, int16_t, H2)
@@ -4396,7 +4396,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     *((TD *)vd + HD(0)) = s1;                             \
     env->vstart = 0;                                      \
     /* set tail elements to 1s */                         \
-    vext_set_elems_1s(vd, vta, esz, vlenb);               \
+    vext_set_elems_1s_le(vd, vta, esz, vlenb);               \
 }
 
 /* vd[0] = sum(vs1[0], vs2[*]) */
@@ -4482,7 +4482,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,           \
     *((TD *)vd + HD(0)) = s1;                              \
     env->vstart = 0;                                       \
     /* set tail elements to 1s */                          \
-    vext_set_elems_1s(vd, vta, esz, vlenb);                \
+    vext_set_elems_1s_le(vd, vta, esz, vlenb);                \
 }
 
 /* Unordered sum */
@@ -4707,7 +4707,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2, CPURISCVState *env,      \
     for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             /* set masked-off elements to 1s */                           \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);           \
             continue;                                                     \
         }                                                                 \
         *((ETYPE *)vd + H(i)) = sum;                                      \
@@ -4717,7 +4717,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2, CPURISCVState *env,      \
     }                                                                     \
     env->vstart = 0;                                                      \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);              \
 }
 
 GEN_VEXT_VIOTA_M(viota_m_b, uint8_t,  H1)
@@ -4740,14 +4740,14 @@ void HELPER(NAME)(void *vd, void *v0, CPURISCVState *env, uint32_t desc)  \
     for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             /* set masked-off elements to 1s */                           \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);           \
             continue;                                                     \
         }                                                                 \
         *((ETYPE *)vd + H(i)) = i;                                        \
     }                                                                     \
     env->vstart = 0;                                                      \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);              \
 }
 
 GEN_VEXT_VID_V(vid_v_b, uint8_t,  H1)
@@ -4776,13 +4776,13 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     for (i = i_min; i < vl; i++) {                                        \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             /* set masked-off elements to 1s */                           \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);           \
             continue;                                                     \
         }                                                                 \
         *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i - offset));          \
     }                                                                     \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);              \
 }
 
 /* vslideup.vx vd, vs2, rs1, vm # vd[i+rs1] = vs2[i] */
@@ -4809,7 +4809,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     for (i = env->vstart; i < i_max; ++i) {                               \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             /* set masked-off elements to 1s */                           \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);           \
             continue;                                                     \
         }                                                                 \
         *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i + s1));              \
@@ -4823,7 +4823,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
                                                                           \
     env->vstart = 0;                                                      \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);              \
 }
 
 /* vslidedown.vx vd, vs2, rs1, vm # vd[i] = vs2[i+rs1] */
@@ -4849,7 +4849,7 @@ static void vslide1up_##BITWIDTH(void *vd, void *v0, uint64_t s1,           \
     for (i = env->vstart; i < vl; i++) {                                    \
         if (!vm && !vext_elem_mask(v0, i)) {                                \
             /* set masked-off elements to 1s */                             \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);             \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);             \
             continue;                                                       \
         }                                                                   \
         if (i == 0) {                                                       \
@@ -4860,7 +4860,7 @@ static void vslide1up_##BITWIDTH(void *vd, void *v0, uint64_t s1,           \
     }                                                                       \
     env->vstart = 0;                                                        \
     /* set tail elements to 1s */                                           \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);                \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);                \
 }
 
 GEN_VEXT_VSLIE1UP(8,  H1)
@@ -4898,7 +4898,7 @@ static void vslide1down_##BITWIDTH(void *vd, void *v0, uint64_t s1,           \
     for (i = env->vstart; i < vl; i++) {                                      \
         if (!vm && !vext_elem_mask(v0, i)) {                                  \
             /* set masked-off elements to 1s */                               \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);               \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);            \
             continue;                                                         \
         }                                                                     \
         if (i == vl - 1) {                                                    \
@@ -4909,7 +4909,7 @@ static void vslide1down_##BITWIDTH(void *vd, void *v0, uint64_t s1,           \
     }                                                                         \
     env->vstart = 0;                                                          \
     /* set tail elements to 1s */                                             \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);                  \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);               \
 }
 
 GEN_VEXT_VSLIDE1DOWN(8,  H1)
@@ -4973,7 +4973,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
     for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             /* set masked-off elements to 1s */                           \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);           \
             continue;                                                     \
         }                                                                 \
         index = *((TS1 *)vs1 + HS1(i));                                   \
@@ -4985,7 +4985,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
     }                                                                     \
     env->vstart = 0;                                                      \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);              \
 }
 
 /* vd[i] = (vs1[i] >= VLMAX) ? 0 : vs2[vs1[i]]; */
@@ -5016,7 +5016,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             /* set masked-off elements to 1s */                           \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);           \
             continue;                                                     \
         }                                                                 \
         if (index >= vlmax) {                                             \
@@ -5027,7 +5027,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     }                                                                     \
     env->vstart = 0;                                                      \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);              \
 }
 
 /* vd[i] = (x[rs1] >= VLMAX) ? 0 : vs2[rs1] */
@@ -5056,7 +5056,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
     }                                                                     \
     env->vstart = 0;                                                      \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);              \
 }
 
 /* Compress into vd elements of vs2 where vs1 is enabled */
@@ -5097,14 +5097,14 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,                 \
     for (i = env->vstart; i < vl; i++) {                         \
         if (!vm && !vext_elem_mask(v0, i)) {                     \
             /* set masked-off elements to 1s */                  \
-            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);  \
+            vext_set_elems_1s_le(vd, vma, i * esz, (i + 1) * esz);  \
             continue;                                            \
         }                                                        \
         *((ETYPE *)vd + HD(i)) = *((DTYPE *)vs2 + HS1(i));       \
     }                                                            \
     env->vstart = 0;                                             \
     /* set tail elements to 1s */                                \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);     \
+    vext_set_elems_1s_le(vd, vta, vl * esz, total_elems * esz);     \
 }
 
 GEN_VEXT_INT_EXT(vzext_vf2_h, uint16_t, uint8_t,  H2, H1)
