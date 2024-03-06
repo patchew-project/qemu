@@ -1422,16 +1422,23 @@ static int virtio_gpu_post_load(void *opaque, int version_id)
         if (!res) {
             return -EINVAL;
         }
-        scanout->ds = qemu_create_displaysurface_pixman(res->image);
-        if (!scanout->ds) {
-            return -EINVAL;
-        }
-#ifdef WIN32
-        qemu_displaysurface_win32_set_handle(scanout->ds, res->handle, 0);
-#endif
 
-        dpy_gfx_replace_surface(scanout->con, scanout->ds);
-        dpy_gfx_update_full(scanout->con);
+        if (res->blob_size) {
+            assert(g->dmabuf.primary[i] != NULL);
+            g->dmabuf.primary[i]->buf.fd = res->dmabuf_fd;
+            dpy_gl_scanout_dmabuf(scanout->con, &g->dmabuf.primary[i]->buf);
+        } else {
+            scanout->ds = qemu_create_displaysurface_pixman(res->image);
+            if (!scanout->ds) {
+                return -EINVAL;
+            }
+#ifdef WIN32
+            qemu_displaysurface_win32_set_handle(scanout->ds, res->handle, 0);
+#endif
+            dpy_gfx_replace_surface(scanout->con, scanout->ds);
+            dpy_gfx_update_full(scanout->con);
+        }
+
         if (scanout->cursor.resource_id) {
             update_cursor(g, &scanout->cursor);
         }
