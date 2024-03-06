@@ -367,7 +367,7 @@ static void unset_dirty_tracking(void)
     }
 }
 
-static int init_blk_migration(QEMUFile *f)
+static int init_blk_migration(QEMUFile *f, Error **errp)
 {
     BlockDriverState *bs;
     BlkMigDevState *bmds;
@@ -378,7 +378,6 @@ static int init_blk_migration(QEMUFile *f)
         BlkMigDevState *bmds;
         BlockDriverState *bs;
     } *bmds_bs;
-    Error *local_err = NULL;
     int ret;
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
@@ -404,6 +403,10 @@ static int init_blk_migration(QEMUFile *f)
         sectors = bdrv_nb_sectors(bs);
         if (sectors <= 0) {
             ret = sectors;
+            if (ret < 0) {
+                error_setg(errp, "Error getting length of block device %s",
+                           bdrv_get_device_name(bs));
+            }
             bdrv_next_cleanup(&it);
             goto out;
         }
@@ -439,9 +442,8 @@ static int init_blk_migration(QEMUFile *f)
         bs = bmds_bs[i].bs;
 
         if (bmds) {
-            ret = blk_insert_bs(bmds->blk, bs, &local_err);
+            ret = blk_insert_bs(bmds->blk, bs, errp);
             if (ret < 0) {
-                error_report_err(local_err);
                 goto out;
             }
 
@@ -711,6 +713,7 @@ static void block_migration_cleanup(void *opaque)
 static int block_save_setup(QEMUFile *f, void *opaque)
 {
     int ret;
+    Error *local_err = NULL;
 
     trace_migration_block_save("setup", block_mig_state.submitted,
                                block_mig_state.transferred);
@@ -718,18 +721,27 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     warn_report("block migration is deprecated;"
                 " use blockdev-mirror with NBD instead");
 
-    ret = init_blk_migration(f);
+    ret = init_blk_migration(f, &local_err);
     if (ret < 0) {
+        error_report_err(local_err);
         return ret;
     }
 
     /* start track dirty blocks */
     ret = set_dirty_tracking();
     if (ret) {
+        error_setg_errno(&local_err, -ret,
+                         "Failed to start block dirty tracking");
+        error_report_err(local_err);
         return ret;
     }
 
     ret = flush_blks(f);
+    if (ret) {
+        error_setg_errno(&local_err, -ret, "Flushing block failed");
+        error_report_err(local_err);
+        return ret;
+    }
     blk_mig_reset_dirty_cursor();
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
