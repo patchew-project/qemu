@@ -2600,6 +2600,11 @@ static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
         return luring_co_submit(bs, s->fd, 0, NULL, QEMU_AIO_FLUSH);
     }
 #endif
+#ifdef CONFIG_LINUX_AIO
+    if (raw_check_linux_aio(s)) {
+        return laio_co_submit(s->fd, 0, NULL, QEMU_AIO_FLUSH, 0);
+    }
+#endif
     return raw_thread_pool_submit(handle_aiocb_flush, &acb);
 }
 
