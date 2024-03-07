@@ -85,6 +85,8 @@ static Property pci_props[] = {
                     QEMU_PCIE_ERR_UNC_MASK_BITNR, true),
     DEFINE_PROP_BIT("x-pcie-ari-nextfn-1", PCIDevice, cap_present,
                     QEMU_PCIE_ARI_NEXTFN_1_BITNR, false),
+    DEFINE_PROP_BIT("x-pci-disintx", PCIDevice, cap_present,
+                    QEMU_PCI_DISINTX_BITNR, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -861,13 +863,17 @@ static void pci_init_cmask(PCIDevice *dev)
 static void pci_init_wmask(PCIDevice *dev)
 {
     int config_size = pci_config_size(dev);
+    uint16_t cmd_wmask = PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
+                         PCI_COMMAND_MASTER | PCI_COMMAND_SERR;
 
     dev->wmask[PCI_CACHE_LINE_SIZE] = 0xff;
     dev->wmask[PCI_INTERRUPT_LINE] = 0xff;
-    pci_set_word(dev->wmask + PCI_COMMAND,
-                 PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
-                 PCI_COMMAND_INTX_DISABLE);
-    pci_word_test_and_set_mask(dev->wmask + PCI_COMMAND, PCI_COMMAND_SERR);
+
+    if (dev->cap_present & QEMU_PCI_DISINTX) {
+        cmd_wmask |= PCI_COMMAND_INTX_DISABLE;
+    }
+
+    pci_set_word(dev->wmask + PCI_COMMAND, cmd_wmask);
 
     memset(dev->wmask + PCI_CONFIG_HEADER_SIZE, 0xff,
            config_size - PCI_CONFIG_HEADER_SIZE);
