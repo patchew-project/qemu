@@ -26,6 +26,7 @@
 #include "qemu/units.h"
 #include "hw/pci/pci.h"
 #include "hw/hw.h"
+#include "hw/qdev-properties.h"
 #include "hw/pci/msi.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
@@ -53,6 +54,8 @@ struct EduState {
     QemuCond thr_cond;
     bool stopping;
 
+    bool enable_pasid;
+
     uint32_t addr4;
     uint32_t fact;
 #define EDU_STATUS_COMPUTING    0x01
@@ -66,6 +69,9 @@ struct EduState {
 # define EDU_DMA_FROM_PCI       0
 # define EDU_DMA_TO_PCI         1
 #define EDU_DMA_IRQ             0x4
+#define EDU_DMA_PV              0x8
+#define EDU_DMA_PASID(cmd)      (((cmd) >> 8) & ((1U << 20) - 1))
+
     struct dma_state {
         dma_addr_t src;
         dma_addr_t dst;
@@ -126,12 +132,7 @@ static void edu_check_range(uint64_t addr, uint64_t size1, uint64_t start,
 
 static dma_addr_t edu_clamp_addr(const EduState *edu, dma_addr_t addr)
 {
-    dma_addr_t res = addr & edu->dma_mask;
-
-    if (addr != res) {
-        printf("EDU: clamping DMA %#.16"PRIx64" to %#.16"PRIx64"!\n", addr, res);
-    }
-
+    dma_addr_t res = addr;
     return res;
 }
 
@@ -139,23 +140,33 @@ static void edu_dma_timer(void *opaque)
 {
     EduState *edu = opaque;
     bool raise_irq = false;
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
 
     if (!(edu->dma.cmd & EDU_DMA_RUN)) {
         return;
+    }
+
+    if (edu->enable_pasid && (edu->dma.cmd & EDU_DMA_PV)) {
+        attrs.unspecified = 0;
+        attrs.pasid = EDU_DMA_PASID(edu->dma.cmd);
+        attrs.requester_id = pci_requester_id(&edu->pdev);
+        attrs.secure = 0;
     }
 
     if (EDU_DMA_DIR(edu->dma.cmd) == EDU_DMA_FROM_PCI) {
         uint64_t dst = edu->dma.dst;
         edu_check_range(dst, edu->dma.cnt, DMA_START, DMA_SIZE);
         dst -= DMA_START;
-        pci_dma_read(&edu->pdev, edu_clamp_addr(edu, edu->dma.src),
-                edu->dma_buf + dst, edu->dma.cnt);
+        pci_dma_rw(&edu->pdev, edu_clamp_addr(edu, edu->dma.src),
+                edu->dma_buf + dst, edu->dma.cnt,
+                DMA_DIRECTION_TO_DEVICE, attrs);
     } else {
         uint64_t src = edu->dma.src;
         edu_check_range(src, edu->dma.cnt, DMA_START, DMA_SIZE);
         src -= DMA_START;
-        pci_dma_write(&edu->pdev, edu_clamp_addr(edu, edu->dma.dst),
-                edu->dma_buf + src, edu->dma.cnt);
+        pci_dma_rw(&edu->pdev, edu_clamp_addr(edu, edu->dma.dst),
+                edu->dma_buf + src, edu->dma.cnt,
+                DMA_DIRECTION_FROM_DEVICE, attrs);
     }
 
     edu->dma.cmd &= ~EDU_DMA_RUN;
@@ -255,7 +266,8 @@ static void edu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         if (qatomic_read(&edu->status) & EDU_STATUS_COMPUTING) {
             break;
         }
-        /* EDU_STATUS_COMPUTING cannot go 0->1 concurrently, because it is only
+        /*
+         * EDU_STATUS_COMPUTING cannot go 0->1 concurrently, because it is only
          * set in this function and it is under the iothread mutex.
          */
         qemu_mutex_lock(&edu->thr_mutex);
@@ -368,8 +380,20 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
 {
     EduState *edu = EDU(pdev);
     uint8_t *pci_conf = pdev->config;
+    int pos;
 
     pci_config_set_interrupt_pin(pci_conf, 1);
+
+    pcie_endpoint_cap_init(pdev, 0);
+
+    /* PCIe extended capability for PASID */
+    pos = PCI_CONFIG_SPACE_SIZE;
+    if (edu->enable_pasid) {
+        /* PCIe Spec 7.8.9 PASID Extended Capability Structure */
+        pcie_add_capability(pdev, 0x1b, 1, pos, 8);
+        pci_set_long(pdev->config + pos + 4, 0x00001400);
+        pci_set_long(pdev->wmask + pos + 4,  0xfff0ffff);
+    }
 
     if (msi_init(pdev, 0, 1, true, false, errp)) {
         return;
@@ -404,20 +428,27 @@ static void pci_edu_uninit(PCIDevice *pdev)
     msi_uninit(pdev);
 }
 
+
 static void edu_instance_init(Object *obj)
 {
     EduState *edu = EDU(obj);
 
-    edu->dma_mask = (1UL << 28) - 1;
+    edu->dma_mask = ~0ULL;
     object_property_add_uint64_ptr(obj, "dma_mask",
                                    &edu->dma_mask, OBJ_PROP_FLAG_READWRITE);
 }
+
+static Property edu_properties[] = {
+    DEFINE_PROP_BOOL("pasid", EduState, enable_pasid, TRUE),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void edu_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(class);
 
+    device_class_set_props(dc, edu_properties);
     k->realize = pci_edu_realize;
     k->exit = pci_edu_uninit;
     k->vendor_id = PCI_VENDOR_ID_QEMU;
@@ -430,7 +461,7 @@ static void edu_class_init(ObjectClass *class, void *data)
 static void pci_edu_register_types(void)
 {
     static InterfaceInfo interfaces[] = {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { INTERFACE_PCIE_DEVICE },
         { },
     };
     static const TypeInfo edu_info = {
