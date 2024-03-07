@@ -778,9 +778,48 @@ bool memory_get_xlat_addr(IOMMUTLBEntry *iotlb, void **vaddr,
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
 typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 
-/** MemoryRegion:
- *
- * A struct representing a memory region.
+/**
+ * struct MemoryRegion - represents a memory region
+ * @parent_obj: parent QOM object for the region
+ * @romd_mode: if true ROM devices accessed directly rather than with @ops
+ * @ram: true if a RAM-type device with a @ram_block
+ * @subpage: true if region covers a subpage
+ * @readonly: true for RAM-type devices that are readonly
+ * @nonvolatile: true for nonvolatile RAM-type devices (e.g. NVDIMM)
+ * @rom_device: true for a ROM device, see also @romd_mode
+ * @flush_coalesced_mmio: true to flush any queued coalesced MMIO
+ * operations before access
+ * @unmergeable: this section should not get merged with adjacent
+ * sections
+ * @dirty_log_mask: dirty events region cares about (see DIRTY_ flags)
+ * @is_iommu: true if part of an IOMMU device
+ * @ram_block: backing @RamBlock if @ram is true
+ * @owner: base QOM object that owns this region
+ * @dev: base Device that owns this region
+ * @ops: access operations for MMIO or @romd_mode devices
+ * @opaque: @dev specific data, passed with @ops
+ * @container: parent `MemoryRegion`
+ * @mapped_via_alias: number of times mapped via @alias, container
+ * might be NULL
+ * @size: size of @MemoryRegion
+ * @addr: physical hwaddr of @MemoryRegion
+ * @destructor: cleanup function when @MemoryRegion finalized
+ * @align: alignment requirements for any physical backing store
+ * @terminates: true if this @MemoryRegion is a leaf node
+ * @ram_device: true if @ram device should use @ops to access
+ * @enabled: true once initialised, false once finalized
+ * @vga_logging_count: count of memory logging clients
+ * @alias: link to aliased @MemoryRegion
+ * @alias_offset: offset into aliased region
+ * @priority: priority when resolving overlapping regions
+ * @subregions: list of subregions in this region
+ * @subregions_link: next subregion in the chain
+ * @coalesced: list of coalesced memory ranges
+ * @name: name of memory region
+ * @ioeventfd_nb: count of @ioeventfds for region
+ * @ioeventfds: ioevent notifiers for region
+ * @rdm: if exists see #RamDiscardManager
+ * @disable_reentrancy_guard: if true don't error if device accesses itself
  */
 struct MemoryRegion {
     Object parent_obj;
@@ -806,7 +845,7 @@ struct MemoryRegion {
     const MemoryRegionOps *ops;
     void *opaque;
     MemoryRegion *container;
-    int mapped_via_alias; /* Mapped via an alias, container might be NULL */
+    int mapped_via_alias;
     Int128 size;
     hwaddr addr;
     void (*destructor)(MemoryRegion *mr);
