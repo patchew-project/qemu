@@ -14,8 +14,8 @@
 # = Firmware
 ##
 
-{ 'include' : 'machine.json' }
-{ 'include' : 'block-core.json' }
+{ 'include' : '../../qapi/machine.json' }
+{ 'include' : '../../qapi/block-core.json' }
 
 ##
 # @FirmwareOSInterface:
