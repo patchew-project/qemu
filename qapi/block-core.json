@@ -1304,10 +1304,10 @@
   'data': ['report', 'ignore', 'enospc', 'stop', 'auto'] }
 
 ##
-# @MirrorSyncMode:
+# @BackupSyncMode:
 #
-# An enumeration of possible behaviors for the initial synchronization
-# phase of storage mirroring.
+# An enumeration of possible behaviors for image synchronization used
+# by backup jobs.
 #
 # @top: copies data in the topmost image to the destination
 #
@@ -1323,7 +1323,7 @@
 #
 # Since: 1.3
 ##
-{ 'enum': 'MirrorSyncMode',
+{ 'enum': 'BackupSyncMode',
   'data': ['top', 'full', 'none', 'incremental', 'bitmap'] }
 
 ##
@@ -1346,6 +1346,23 @@
 ##
 { 'enum': 'BitmapSyncMode',
   'data': ['on-success', 'never', 'always'] }
+
+##
+# @MirrorSyncMode:
+#
+# An enumeration of possible behaviors for the initial synchronization
+# phase of storage mirroring.
+#
+# @top: copies data in the topmost image to the destination
+#
+# @full: copies data from all images to the destination
+#
+# @none: only copy data written from now on
+#
+# Since: 1.3
+##
+{ 'enum': 'MirrorSyncMode',
+  'data': ['top', 'full', 'none'] }
 
 ##
 # @MirrorCopyMode:
@@ -1624,7 +1641,7 @@
 ##
 { 'struct': 'BackupCommon',
   'data': { '*job-id': 'str', 'device': 'str',
-            'sync': 'MirrorSyncMode', '*speed': 'int',
+            'sync': 'BackupSyncMode', '*speed': 'int',
             '*bitmap': 'str', '*bitmap-mode': 'BitmapSyncMode',
             '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',

@@ -37,7 +37,7 @@ typedef struct BackupBlockJob {
 
     BdrvDirtyBitmap *sync_bitmap;
 
-    MirrorSyncMode sync_mode;
+    BackupSyncMode sync_mode;
     BitmapSyncMode bitmap_mode;
     BlockdevOnError on_source_error;
     BlockdevOnError on_target_error;
@@ -111,7 +111,7 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
 
     assert(block_job_driver(job) == &backup_job_driver);
 
-    if (backup_job->sync_mode != MIRROR_SYNC_MODE_NONE) {
+    if (backup_job->sync_mode != BACKUP_SYNC_MODE_NONE) {
         error_setg(errp, "The backup job only supports block checkpoint in"
                    " sync=none mode");
         return;
@@ -231,11 +231,11 @@ static void backup_init_bcs_bitmap(BackupBlockJob *job)
     uint64_t estimate;
     BdrvDirtyBitmap *bcs_bitmap = block_copy_dirty_bitmap(job->bcs);
 
-    if (job->sync_mode == MIRROR_SYNC_MODE_BITMAP) {
+    if (job->sync_mode == BACKUP_SYNC_MODE_BITMAP) {
         bdrv_clear_dirty_bitmap(bcs_bitmap, NULL);
         bdrv_dirty_bitmap_merge_internal(bcs_bitmap, job->sync_bitmap, NULL,
                                          true);
-    } else if (job->sync_mode == MIRROR_SYNC_MODE_TOP) {
+    } else if (job->sync_mode == BACKUP_SYNC_MODE_TOP) {
         /*
          * We can't hog the coroutine to initialize this thoroughly.
          * Set a flag and resume work when we are able to yield safely.
@@ -254,7 +254,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
 
     backup_init_bcs_bitmap(s);
 
-    if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
+    if (s->sync_mode == BACKUP_SYNC_MODE_TOP) {
         int64_t offset = 0;
         int64_t count;
 
@@ -282,7 +282,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
         block_copy_set_skip_unallocated(s->bcs, false);
     }
 
-    if (s->sync_mode == MIRROR_SYNC_MODE_NONE) {
+    if (s->sync_mode == BACKUP_SYNC_MODE_NONE) {
         /*
          * All bits are set in bcs bitmap to allow any cluster to be copied.
          * This does not actually require them to be copied.
@@ -354,7 +354,7 @@ static const BlockJobDriver backup_job_driver = {
 
 BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, int64_t speed,
-                  MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
+                  BackupSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
                   BitmapSyncMode bitmap_mode,
                   bool compress,
                   const char *filter_node_name,
@@ -376,8 +376,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     GLOBAL_STATE_CODE();
 
     /* QMP interface protects us from these cases */
-    assert(sync_mode != MIRROR_SYNC_MODE_INCREMENTAL);
-    assert(sync_bitmap || sync_mode != MIRROR_SYNC_MODE_BITMAP);
+    assert(sync_mode != BACKUP_SYNC_MODE_INCREMENTAL);
+    assert(sync_bitmap || sync_mode != BACKUP_SYNC_MODE_BITMAP);
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");

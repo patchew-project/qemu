@@ -1643,7 +1643,7 @@ static void drive_backup_action(DriveBackup *backup,
      * See if we have a backing HD we can use to create our new image
      * on top of.
      */
-    if (backup->sync == MIRROR_SYNC_MODE_TOP) {
+    if (backup->sync == BACKUP_SYNC_MODE_TOP) {
         /*
          * Backup will not replace the source by the target, so none
          * of the filters skipped here will be removed (in contrast to
@@ -1652,10 +1652,10 @@ static void drive_backup_action(DriveBackup *backup,
          */
         source = bdrv_cow_bs(bdrv_skip_filters(bs));
         if (!source) {
-            backup->sync = MIRROR_SYNC_MODE_FULL;
+            backup->sync = BACKUP_SYNC_MODE_FULL;
         }
     }
-    if (backup->sync == MIRROR_SYNC_MODE_NONE) {
+    if (backup->sync == BACKUP_SYNC_MODE_NONE) {
         source = bs;
         flags |= BDRV_O_NO_BACKING;
         set_backing_hd = true;
@@ -2655,27 +2655,27 @@ static BlockJob *do_backup_common(BackupCommon *backup,
         }
     }
 
-    if ((backup->sync == MIRROR_SYNC_MODE_BITMAP) ||
-        (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL)) {
+    if ((backup->sync == BACKUP_SYNC_MODE_BITMAP) ||
+        (backup->sync == BACKUP_SYNC_MODE_INCREMENTAL)) {
         /* done before desugaring 'incremental' to print the right message */
         if (!backup->bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "
-                       "'%s' sync mode", MirrorSyncMode_str(backup->sync));
+                       "'%s' sync mode", BackupSyncMode_str(backup->sync));
             return NULL;
         }
     }
 
-    if (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL) {
+    if (backup->sync == BACKUP_SYNC_MODE_INCREMENTAL) {
         if (backup->has_bitmap_mode &&
             backup->bitmap_mode != BITMAP_SYNC_MODE_ON_SUCCESS) {
             error_setg(errp, "Bitmap sync mode must be '%s' "
                        "when using sync mode '%s'",
                        BitmapSyncMode_str(BITMAP_SYNC_MODE_ON_SUCCESS),
-                       MirrorSyncMode_str(backup->sync));
+                       BackupSyncMode_str(backup->sync));
             return NULL;
         }
         backup->has_bitmap_mode = true;
-        backup->sync = MIRROR_SYNC_MODE_BITMAP;
+        backup->sync = BACKUP_SYNC_MODE_BITMAP;
         backup->bitmap_mode = BITMAP_SYNC_MODE_ON_SUCCESS;
     }
 
@@ -2695,19 +2695,19 @@ static BlockJob *do_backup_common(BackupCommon *backup,
         }
 
         /* This does not produce a useful bitmap artifact: */
-        if (backup->sync == MIRROR_SYNC_MODE_NONE) {
+        if (backup->sync == BACKUP_SYNC_MODE_NONE) {
             error_setg(errp, "sync mode '%s' does not produce meaningful bitmap"
-                       " outputs", MirrorSyncMode_str(backup->sync));
+                       " outputs", BackupSyncMode_str(backup->sync));
             return NULL;
         }
 
         /* If the bitmap isn't used for input or output, this is useless: */
         if (backup->bitmap_mode == BITMAP_SYNC_MODE_NEVER &&
-            backup->sync != MIRROR_SYNC_MODE_BITMAP) {
+            backup->sync != BACKUP_SYNC_MODE_BITMAP) {
             error_setg(errp, "Bitmap sync mode '%s' has no meaningful effect"
                        " when combined with sync mode '%s'",
                        BitmapSyncMode_str(backup->bitmap_mode),
-                       MirrorSyncMode_str(backup->sync));
+                       BackupSyncMode_str(backup->sync));
             return NULL;
         }
     }

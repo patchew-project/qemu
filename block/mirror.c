@@ -2013,13 +2013,6 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
 
     GLOBAL_STATE_CODE();
 
-    if ((mode == MIRROR_SYNC_MODE_INCREMENTAL) ||
-        (mode == MIRROR_SYNC_MODE_BITMAP)) {
-        error_setg(errp, "Sync mode '%s' not supported",
-                   MirrorSyncMode_str(mode));
-        return;
-    }
-
     bdrv_graph_rdlock_main_loop();
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? bdrv_backing_chain_next(bs) : NULL;

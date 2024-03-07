@@ -266,7 +266,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
         .device = (char *)device,
         .target = (char *)filename,
         .format = (char *)format,
-        .sync = full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
+        .sync = full ? BACKUP_SYNC_MODE_FULL : BACKUP_SYNC_MODE_TOP,
         .has_mode = true,
         .mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS,
         .has_compress = !!compress,
