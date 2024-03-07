@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -397,10 +397,18 @@ class Source:
 class OldSource(Source):
     def reg_tcg(self):
         return f"{self.regtype}{self.regid}V"
+    def is_old(self):
+        return True
+    def is_new(self):
+        return False
 
 class NewSource(Source):
     def reg_tcg(self):
         return f"{self.regtype}{self.regid}N"
+    def is_old(self):
+        return False
+    def is_new(self):
+        return True
 
 class ReadWrite:
     def reg_tcg(self):
@@ -413,6 +421,10 @@ class ReadWrite:
         return True
     def is_readwrite(self):
         return True
+    def is_old(self):
+        return True
+    def is_new(self):
+        return False
 
 class GprDest(Register, Single, Dest):
     def decl_tcg(self, f, tag, regno):
