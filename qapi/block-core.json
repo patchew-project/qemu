@@ -2191,6 +2191,18 @@
 #     destination (all the disk, only the sectors allocated in the
 #     topmost image, or only new I/O).
 #
+# @bitmap: The name of a bitmap to use as a working bitmap for
+#     sync=full mode.  This argument must be not be present for other
+#     sync modes and not at the same time as @granularity.  The
+#     bitmap's granularity is used as the job's granularity.  When
+#     the target is a diff image, i.e. one that should only contain
+#     the delta and was not synced to previously, the target's
+#     cluster size must not be larger than the bitmap's granularity.
+#     For a diff image target, using copy-mode=write-blocking should
+#     not be used, because unaligned writes will lead to allocated
+#     clusters with partial data in the target image!  The bitmap
+#     will be enabled after the job finishes.  (Since 9.0)
+#
 # @granularity: granularity of the dirty bitmap, default is 64K if the
 #     image format doesn't have clusters, 4K if the clusters are
 #     smaller than that, else the cluster size.  Must be a power of 2
@@ -2228,12 +2240,18 @@
 #     disappear from the query list without user intervention.
 #     Defaults to true.  (Since 3.1)
 #
+# Features:
+#
+# @unstable: Member @bitmap is experimental.
+#
 # Since: 1.3
 ##
 { 'struct': 'DriveMirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*format': 'str', '*node-name': 'str', '*replaces': 'str',
-            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
+            'sync': 'MirrorSyncMode',
+            '*bitmap': { 'type': 'str', 'features': [ 'unstable' ] },
+            '*mode': 'NewImageMode',
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
@@ -2513,6 +2531,18 @@
 #     destination (all the disk, only the sectors allocated in the
 #     topmost image, or only new I/O).
 #
+# @bitmap: The name of a bitmap to use as a working bitmap for
+#     sync=full mode.  This argument must be not be present for other
+#     sync modes and not at the same time as @granularity.  The
+#     bitmap's granularity is used as the job's granularity.  When
+#     the target is a diff image, i.e. one that should only contain
+#     the delta and was not synced to previously, the target's
+#     cluster size must not be larger than the bitmap's granularity.
+#     For a diff image target, using copy-mode=write-blocking should
+#     not be used, because unaligned writes will lead to allocated
+#     clusters with partial data in the target image!  The bitmap
+#     will be enabled after the job finishes.  (Since 9.0)
+#
 # @granularity: granularity of the dirty bitmap, default is 64K if the
 #     image format doesn't have clusters, 4K if the clusters are
 #     smaller than that, else the cluster size.  Must be a power of 2
@@ -2548,6 +2578,10 @@
 #     disappear from the query list without user intervention.
 #     Defaults to true.  (Since 3.1)
 #
+# Features:
+#
+# @unstable: Member @bitmap is experimental.
+#
 # Since: 2.6
 #
 # Example:
@@ -2562,6 +2596,7 @@
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*replaces': 'str',
             'sync': 'MirrorSyncMode',
+            '*bitmap': { 'type': 'str', 'features': [ 'unstable' ] },
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
