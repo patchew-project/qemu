@@ -543,6 +543,7 @@ static MemTxResult riscv_iommu_msi_write(RISCVIOMMUState *s,
     if (res != MEMTX_OK) {
         return res;
     }
+    trace_riscv_iommu_mrif_notification(s->parent_obj.id, n190, addr);
 
     return MEMTX_OK;
 }
