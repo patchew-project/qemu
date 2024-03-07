@@ -17,6 +17,9 @@
 #include "exec/log.h"
 #include "cpu-csr.h"
 
+static int get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
+                              uint64_t *dir_width, target_ulong level);
+
 static void raise_mmu_exception(CPULoongArchState *env, target_ulong address,
                                 MMUAccessType access_type, int tlb_error)
 {
@@ -487,6 +490,16 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     int shift;
     uint64_t dir_base, dir_width;
     bool huge = (base >> LOONGARCH_PAGE_HUGE_SHIFT) & 0x1;
+    uint64_t huge_page_level = base & HUGE_PAGE_LEVEL_MASK;
+
+    if (huge) {
+        if (huge_page_level) {
+            return base;
+        } else {
+            huge_page_level = (level & 0x3) << HUGE_PAGE_LEVEL_SHIFT;
+            return base | huge_page_level;
+        }
+    }
 
     badvaddr = env->CSR_TLBRBADV;
     base = base & TARGET_PHYS_MASK;
@@ -495,30 +508,10 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     shift = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTEWIDTH);
     shift = (shift + 1) * 3;
 
-    if (huge) {
-        return base;
-    }
-    switch (level) {
-    case 1:
-        dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_BASE);
-        dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_WIDTH);
-        break;
-    case 2:
-        dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_BASE);
-        dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_WIDTH);
-        break;
-    case 3:
-        dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_BASE);
-        dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_WIDTH);
-        break;
-    case 4:
-        dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_BASE);
-        dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_WIDTH);
-        break;
-    default:
-        do_raise_exception(env, EXCCODE_INE, GETPC());
+    if (get_dir_base_width(env, &dir_base, &dir_width, level) != 0) {
         return 0;
     }
+
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << shift;
     ret = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
@@ -534,17 +527,38 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     bool huge = (base >> LOONGARCH_PAGE_HUGE_SHIFT) & 0x1;
     uint64_t ptbase = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
     uint64_t ptwidth = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
+    uint64_t dir_base, dir_width;
+    uint64_t huge_page_level;
 
     base = base & TARGET_PHYS_MASK;
 
     if (huge) {
-        /* Huge Page. base is paddr */
+        /*
+         * Gets the huge page level
+         * Clears the huge page level information in the address
+         * Clears huge page bit
+         * Gets huge page size
+         */
+        huge_page_level = (base & HUGE_PAGE_LEVEL_MASK) >>
+                          HUGE_PAGE_LEVEL_SHIFT;
+
+        base &= ~HUGE_PAGE_LEVEL_MASK;
+
         tmp0 = base ^ (1 << LOONGARCH_PAGE_HUGE_SHIFT);
         /* Move Global bit */
         tmp0 = ((tmp0 & (1 << LOONGARCH_HGLOBAL_SHIFT))  >>
                 LOONGARCH_HGLOBAL_SHIFT) << R_TLBENTRY_G_SHIFT |
                 (tmp0 & (~(1 << LOONGARCH_HGLOBAL_SHIFT)));
-        ps = ptbase + ptwidth - 1;
+
+        huge_page_level++;
+        get_dir_base_width(env, &dir_base, &dir_width, huge_page_level);
+
+        /*
+         * Huge pages are evenly split into parity pages
+         * when loaded into the tlb,
+         * so the tlb page size needs to be divided by 2.
+         */
+        ps = dir_base - 1;
         if (odd) {
             tmp0 += MAKE_64BIT_MASK(ps, 1);
         }
@@ -570,4 +584,34 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
         env->CSR_TLBRELO0 = tmp0;
     }
     env->CSR_TLBREHI = FIELD_DP64(env->CSR_TLBREHI, CSR_TLBREHI, PS, ps);
+}
+
+static int get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
+                              uint64_t *dir_width, target_ulong level)
+{
+    int ret = 0;
+
+    switch (level) {
+    case 1:
+        *dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_BASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_WIDTH);
+        break;
+    case 2:
+        *dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_BASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_WIDTH);
+        break;
+    case 3:
+        *dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_BASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_WIDTH);
+        break;
+    case 4:
+        *dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_BASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_WIDTH);
+        break;
+    default:
+        do_raise_exception(env, EXCCODE_INE, GETPC());
+        ret = -1;
+    }
+
+    return ret;
 }

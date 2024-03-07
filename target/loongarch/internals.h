@@ -16,6 +16,14 @@
 #define TARGET_PHYS_MASK MAKE_64BIT_MASK(0, TARGET_PHYS_ADDR_SPACE_BITS)
 #define TARGET_VIRT_MASK MAKE_64BIT_MASK(0, TARGET_VIRT_ADDR_SPACE_BITS)
 
+/*
+ * The [13..14]bits of the entry base address of the lddir/ldpte
+ * directive are used to represent the level of the large page
+ * when processing the huge page entry
+ */
+#define HUGE_PAGE_LEVEL_SHIFT   13
+#define HUGE_PAGE_LEVEL_MASK MAKE_64BIT_MASK(HUGE_PAGE_LEVEL_SHIFT, 2)
+
 /* Global bit used for lddir/ldpte */
 #define LOONGARCH_PAGE_HUGE_SHIFT   6
 /* Global bit for huge page */
