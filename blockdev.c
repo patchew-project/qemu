@@ -2847,6 +2847,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
 
     if (bitmap_name) {
+        BlockDriverInfo bdi;
+        uint32_t bitmap_granularity;
+
         if (sync != MIRROR_SYNC_MODE_FULL) {
             error_setg(errp, "Sync mode '%s' not supported with bitmap.",
                        MirrorSyncMode_str(sync));
@@ -2861,6 +2864,22 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         if (!bitmap) {
             error_setg(errp, "Dirty bitmap '%s' not found", bitmap_name);
             return;
+        }
+
+        bitmap_granularity = bdrv_dirty_bitmap_granularity(bitmap);
+        /*
+         * Ignore if unable to get the info, e.g. when target is NBD. It's only
+         * relevant for syncing to a diff image and the documentation already
+         * states that the target's cluster size needs to small enough then.
+         */
+        if (bdrv_get_info(target, &bdi) >= 0) {
+            if (bitmap_granularity < bdi.cluster_size ||
+                bitmap_granularity % bdi.cluster_size != 0) {
+                error_setg(errp, "Bitmap granularity %u is not a multiple of "
+                           "the target image's cluster size %u",
+                           bitmap_granularity, bdi.cluster_size);
+                return;
+            }
         }
 
         if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_ALLOW_RO, errp)) {

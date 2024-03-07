@@ -552,6 +552,12 @@ def test_mirror_api():
                                 bitmap=bitmap)
                 log('')
 
+        log("-- Test bitmap with too small granularity --\n".format(sync_mode))
+        vm.qmp_log("block-dirty-bitmap-add", node=drive0.node,
+                   name="bitmap-small", granularity=(GRANULARITY // 2))
+        blockdev_mirror(drive0.vm, drive0.node, "mirror_target", "full",
+                        job_id='api_job', bitmap="bitmap-small")
+        log('')
 
 def main():
     for bsync_mode in ("never", "on-success", "always"):
