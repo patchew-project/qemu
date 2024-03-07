@@ -45,6 +45,14 @@ DECLARE_INSTANCE_CHECKER(EduState, EDU,
 #define DMA_START       0x40000
 #define DMA_SIZE        4096
 
+/*
+ * Number of tries before giving up on page request group response.
+ * Given the timer callback is scheduled to be run again after 100ms,
+ * 10 tries give roughly a second for the PRGR notification to be
+ * received.
+ */
+#define NUM_TRIES       10
+
 struct EduState {
     PCIDevice pdev;
     MemoryRegion mmio;
@@ -55,6 +63,7 @@ struct EduState {
     bool stopping;
 
     bool enable_pasid;
+    uint32_t try;
 
     uint32_t addr4;
     uint32_t fact;
@@ -81,6 +90,20 @@ struct EduState {
     QEMUTimer dma_timer;
     char dma_buf[DMA_SIZE];
     uint64_t dma_mask;
+
+    MemoryListener iommu_listener;
+    QLIST_HEAD(, edu_iommu) iommu_list;
+
+    bool prgr_rcvd;
+    bool prgr_success;
+};
+
+struct edu_iommu {
+    EduState *edu;
+    IOMMUMemoryRegion *iommu_mr;
+    hwaddr iommu_offset;
+    IOMMUNotifier n;
+    QLIST_ENTRY(edu_iommu) iommu_next;
 };
 
 static bool edu_msi_enabled(EduState *edu)
@@ -136,11 +159,65 @@ static dma_addr_t edu_clamp_addr(const EduState *edu, dma_addr_t addr)
     return res;
 }
 
+static bool __find_iommu_mr_cb(Int128 start, Int128 len, const MemoryRegion *mr,
+    hwaddr offset_in_region, void *opaque)
+{
+    IOMMUMemoryRegion **iommu_mr = opaque;
+    *iommu_mr = memory_region_get_iommu((MemoryRegion *)mr);
+    return *iommu_mr != NULL;
+}
+
+static int pci_dma_perm(PCIDevice *pdev, dma_addr_t iova, MemTxAttrs attrs)
+{
+    IOMMUMemoryRegion *iommu_mr = NULL;
+    IOMMUMemoryRegionClass *imrc;
+    int iommu_idx;
+    FlatView *fv;
+    EduState *edu = EDU(pdev);
+    struct edu_iommu *iommu;
+
+    RCU_READ_LOCK_GUARD();
+
+    fv = address_space_to_flatview(pci_get_address_space(pdev));
+
+    /* Find first IOMMUMemoryRegion */
+    flatview_for_each_range(fv, __find_iommu_mr_cb, &iommu_mr);
+
+    if (iommu_mr) {
+        imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
+
+        /* IOMMU Index is mapping to memory attributes (PASID, etc) */
+        iommu_idx = imrc->attrs_to_index ?
+                    imrc->attrs_to_index(iommu_mr, attrs) : 0;
+
+        /* Update IOMMU notifiers with proper index */
+        QLIST_FOREACH(iommu, &edu->iommu_list, iommu_next) {
+            if (iommu->iommu_mr == iommu_mr &&
+                iommu->n.iommu_idx != iommu_idx) {
+                memory_region_unregister_iommu_notifier(
+                    MEMORY_REGION(iommu->iommu_mr), &iommu->n);
+                iommu->n.iommu_idx = iommu_idx;
+                memory_region_register_iommu_notifier(
+                    MEMORY_REGION(iommu->iommu_mr), &iommu->n, NULL);
+            }
+        }
+
+        /* Translate request with IOMMU_NONE is an ATS request */
+        IOMMUTLBEntry iotlb = imrc->translate(iommu_mr, iova, IOMMU_NONE,
+                                              iommu_idx);
+
+        return iotlb.perm;
+    }
+
+    return IOMMU_NONE;
+}
+
 static void edu_dma_timer(void *opaque)
 {
     EduState *edu = opaque;
     bool raise_irq = false;
     MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    MemTxResult res;
 
     if (!(edu->dma.cmd & EDU_DMA_RUN)) {
         return;
@@ -155,18 +232,70 @@ static void edu_dma_timer(void *opaque)
 
     if (EDU_DMA_DIR(edu->dma.cmd) == EDU_DMA_FROM_PCI) {
         uint64_t dst = edu->dma.dst;
+        uint64_t src = edu_clamp_addr(edu, edu->dma.src);
         edu_check_range(dst, edu->dma.cnt, DMA_START, DMA_SIZE);
         dst -= DMA_START;
-        pci_dma_rw(&edu->pdev, edu_clamp_addr(edu, edu->dma.src),
-                edu->dma_buf + dst, edu->dma.cnt,
-                DMA_DIRECTION_TO_DEVICE, attrs);
+        if (edu->try-- == NUM_TRIES) {
+            edu->prgr_rcvd = false;
+            if (!(pci_dma_perm(&edu->pdev, src, attrs) & IOMMU_RO)) {
+                timer_mod(&edu->dma_timer,
+                          qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
+                return;
+            }
+        } else if (edu->try) {
+            if (!edu->prgr_rcvd) {
+                timer_mod(&edu->dma_timer,
+                          qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
+                return;
+            }
+            if (!edu->prgr_success) {
+                /* PRGR failure, fail DMA. */
+                edu->dma.cmd &= ~EDU_DMA_RUN;
+                return;
+            }
+        } else {
+            /* timeout, fail DMA. */
+            edu->dma.cmd &= ~EDU_DMA_RUN;
+            return;
+        }
+        res = pci_dma_rw(&edu->pdev, src, edu->dma_buf + dst, edu->dma.cnt,
+            DMA_DIRECTION_TO_DEVICE, attrs);
+        if (res != MEMTX_OK) {
+            hw_error("EDU: DMA transfer TO 0x%"PRIx64" failed.\n", dst);
+        }
     } else {
         uint64_t src = edu->dma.src;
+        uint64_t dst = edu_clamp_addr(edu, edu->dma.dst);
         edu_check_range(src, edu->dma.cnt, DMA_START, DMA_SIZE);
         src -= DMA_START;
-        pci_dma_rw(&edu->pdev, edu_clamp_addr(edu, edu->dma.dst),
-                edu->dma_buf + src, edu->dma.cnt,
-                DMA_DIRECTION_FROM_DEVICE, attrs);
+        if (edu->try-- == NUM_TRIES) {
+            edu->prgr_rcvd = false;
+            if (!(pci_dma_perm(&edu->pdev, dst, attrs) & IOMMU_WO)) {
+                timer_mod(&edu->dma_timer,
+                          qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
+                return;
+            }
+        } else if (edu->try) {
+            if (!edu->prgr_rcvd) {
+                timer_mod(&edu->dma_timer,
+                          qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
+                return;
+            }
+            if (!edu->prgr_success) {
+                /* PRGR failure, fail DMA. */
+                edu->dma.cmd &= ~EDU_DMA_RUN;
+                return;
+            }
+        } else {
+            /* timeout, fail DMA. */
+            edu->dma.cmd &= ~EDU_DMA_RUN;
+            return;
+        }
+        res = pci_dma_rw(&edu->pdev, dst, edu->dma_buf + src, edu->dma.cnt,
+            DMA_DIRECTION_FROM_DEVICE, attrs);
+        if (res != MEMTX_OK) {
+            hw_error("EDU: DMA transfer FROM 0x%"PRIx64" failed.\n", src);
+        }
     }
 
     edu->dma.cmd &= ~EDU_DMA_RUN;
@@ -193,6 +322,7 @@ static void dma_rw(EduState *edu, bool write, dma_addr_t *val, dma_addr_t *dma,
     }
 
     if (timer) {
+        edu->try = NUM_TRIES;
         timer_mod(&edu->dma_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
     }
 }
@@ -376,9 +506,92 @@ static void *edu_fact_thread(void *opaque)
     return NULL;
 }
 
+static void edu_iommu_ats_prgr_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
+{
+    struct edu_iommu *iommu = container_of(n, struct edu_iommu, n);
+    EduState *edu = iommu->edu;
+    edu->prgr_success = (iotlb->perm != IOMMU_NONE);
+    barrier();
+    edu->prgr_rcvd = true;
+}
+
+static void edu_iommu_ats_inval_notify(IOMMUNotifier *n,
+                                       IOMMUTLBEntry *iotlb)
+{
+
+}
+
+static void edu_iommu_region_add(MemoryListener *listener,
+                                   MemoryRegionSection *section)
+{
+    EduState *edu = container_of(listener, EduState, iommu_listener);
+    struct edu_iommu *iommu;
+    Int128 end;
+    int iommu_idx;
+    IOMMUMemoryRegion *iommu_mr;
+
+    if (!memory_region_is_iommu(section->mr)) {
+        return;
+    }
+
+    iommu_mr = IOMMU_MEMORY_REGION(section->mr);
+
+    /* Register ATS.INVAL notifier */
+    iommu = g_malloc0(sizeof(*iommu));
+    iommu->iommu_mr = iommu_mr;
+    iommu->iommu_offset = section->offset_within_address_space -
+                          section->offset_within_region;
+    iommu->edu = edu;
+    end = int128_add(int128_make64(section->offset_within_region),
+                     section->size);
+    end = int128_sub(end, int128_one());
+    iommu_idx = memory_region_iommu_attrs_to_index(iommu_mr,
+                                                   MEMTXATTRS_UNSPECIFIED);
+    iommu_notifier_init(&iommu->n, edu_iommu_ats_inval_notify,
+                        IOMMU_NOTIFIER_DEVIOTLB_UNMAP,
+                        section->offset_within_region,
+                        int128_get64(end),
+                        iommu_idx);
+    memory_region_register_iommu_notifier(section->mr, &iommu->n, NULL);
+    QLIST_INSERT_HEAD(&edu->iommu_list, iommu, iommu_next);
+
+    /* Register ATS.PRGR notifier */
+    iommu = g_memdup2(iommu, sizeof(*iommu));
+    iommu_notifier_init(&iommu->n, edu_iommu_ats_prgr_notify,
+                        IOMMU_NOTIFIER_MAP,
+                        section->offset_within_region,
+                        int128_get64(end),
+                        iommu_idx);
+    memory_region_register_iommu_notifier(section->mr, &iommu->n, NULL);
+    QLIST_INSERT_HEAD(&edu->iommu_list, iommu, iommu_next);
+}
+
+static void edu_iommu_region_del(MemoryListener *listener,
+                                   MemoryRegionSection *section)
+{
+    EduState *edu = container_of(listener, EduState, iommu_listener);
+    struct edu_iommu *iommu;
+
+    if (!memory_region_is_iommu(section->mr)) {
+        return;
+    }
+
+    QLIST_FOREACH(iommu, &edu->iommu_list, iommu_next) {
+        if (MEMORY_REGION(iommu->iommu_mr) == section->mr &&
+            iommu->n.start == section->offset_within_region) {
+            memory_region_unregister_iommu_notifier(section->mr,
+                                                    &iommu->n);
+            QLIST_REMOVE(iommu, iommu_next);
+            g_free(iommu);
+            break;
+        }
+    }
+}
+
 static void pci_edu_realize(PCIDevice *pdev, Error **errp)
 {
     EduState *edu = EDU(pdev);
+    AddressSpace *dma_as = NULL;
     uint8_t *pci_conf = pdev->config;
     int pos;
 
@@ -390,9 +603,28 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
     pos = PCI_CONFIG_SPACE_SIZE;
     if (edu->enable_pasid) {
         /* PCIe Spec 7.8.9 PASID Extended Capability Structure */
-        pcie_add_capability(pdev, 0x1b, 1, pos, 8);
+        pcie_add_capability(pdev, PCI_EXT_CAP_ID_PASID, 1, pos, 8);
         pci_set_long(pdev->config + pos + 4, 0x00001400);
         pci_set_long(pdev->wmask + pos + 4,  0xfff0ffff);
+        pos += 8;
+
+        /* ATS Capability */
+        pcie_ats_init(pdev, pos, true);
+        pos += PCI_EXT_CAP_ATS_SIZEOF;
+
+        /* PRI Capability */
+        pcie_add_capability(pdev, PCI_EXT_CAP_ID_PRI, 1, pos, 16);
+        /* PRI STOPPED */
+        pci_set_long(pdev->config + pos +  4, 0x01000000);
+        /* PRI ENABLE bit writable */
+        pci_set_long(pdev->wmask  + pos +  4, 0x00000001);
+        /* PRI Capacity Supported */
+        pci_set_long(pdev->config + pos +  8, 0x00000080);
+        /* PRI Allocations Allowed, 32 */
+        pci_set_long(pdev->config + pos + 12, 0x00000040);
+        pci_set_long(pdev->wmask  + pos + 12, 0x0000007f);
+
+        pos += 8;
     }
 
     if (msi_init(pdev, 0, 1, true, false, errp)) {
@@ -409,11 +641,23 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
     memory_region_init_io(&edu->mmio, OBJECT(edu), &edu_mmio_ops, edu,
                     "edu-mmio", 1 * MiB);
     pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &edu->mmio);
+
+    /* Register IOMMU listener */
+    edu->iommu_listener = (MemoryListener) {
+        .name = "edu-iommu",
+        .region_add = edu_iommu_region_add,
+        .region_del = edu_iommu_region_del,
+    };
+
+    dma_as = pci_device_iommu_address_space(pdev);
+    memory_listener_register(&edu->iommu_listener, dma_as);
 }
 
 static void pci_edu_uninit(PCIDevice *pdev)
 {
     EduState *edu = EDU(pdev);
+
+    memory_listener_unregister(&edu->iommu_listener);
 
     qemu_mutex_lock(&edu->thr_mutex);
     edu->stopping = true;
