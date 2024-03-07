@@ -16,11 +16,11 @@ The memory model provides support for
 - setting up coalesced memory for kvm
 - setting up ioeventfd regions for kvm
 
-Memory is modelled as an acyclic graph of MemoryRegion objects.  Sinks
+Memory is modelled as an acyclic graph of `MemoryRegion` objects.  Sinks
 (leaves) are RAM and MMIO regions, while other nodes represent
 buses, memory controllers, and memory regions that have been rerouted.
 
-In addition to MemoryRegion objects, the memory API provides AddressSpace
+In addition to `MemoryRegion` objects, the memory API provides `AddressSpace`
 objects for every root and possibly for intermediate MemoryRegions too.
 These represent memory as seen from the CPU or a device's viewpoint.
 
@@ -28,17 +28,17 @@ Types of regions
 ----------------
 
 There are multiple types of memory regions (all represented by a single C type
-MemoryRegion):
+`MemoryRegion`):
 
 - RAM: a RAM region is simply a range of host memory that can be made available
   to the guest.
-  You typically initialize these with memory_region_init_ram().  Some special
-  purposes require the variants memory_region_init_resizeable_ram(),
-  memory_region_init_ram_from_file(), or memory_region_init_ram_ptr().
+  You typically initialize these with `memory_region_init_ram()`.  Some special
+  purposes require the variants `memory_region_init_resizeable_ram()`,
+  `memory_region_init_ram_from_file()`, or `memory_region_init_ram_ptr()`.
 
 - MMIO: a range of guest memory that is implemented by host callbacks;
   each read or write causes a callback to be called on the host.
-  You initialize these with memory_region_init_io(), passing it a
+  You initialize these with `memory_region_init_io()`, passing it a
   MemoryRegionOps structure describing the callbacks.
 
 - ROM: a ROM memory region works like RAM for reads (directly accessing
@@ -53,7 +53,7 @@ MemoryRegion):
 - IOMMU region: an IOMMU region translates addresses of accesses made to it
   and forwards them to some other target memory region.  As the name suggests,
   these are only needed for modelling an IOMMU, not for simple devices.
-  You initialize these with memory_region_init_iommu().
+  You initialize these with `memory_region_init_iommu()`.
 
 - container: a container simply includes other memory regions, each at
   a different offset.  Containers are useful for grouping several regions
@@ -65,7 +65,7 @@ MemoryRegion):
   can overlay a subregion of RAM with MMIO or ROM, or a PCI controller
   that does not prevent card from claiming overlapping BARs.
 
-  You initialize a pure container with memory_region_init().
+  You initialize a pure container with `memory_region_init()`.
 
 - alias: a subsection of another region. Aliases allow a region to be
   split apart into discontiguous regions. Examples of uses are memory
@@ -83,7 +83,7 @@ MemoryRegion):
   It claims I/O space that is not supposed to be handled by QEMU itself.
   The typical use is to track parts of the address space which will be
   handled by the host kernel when KVM is enabled.  You initialize these
-  by passing a NULL callback parameter to memory_region_init_io().
+  by passing a NULL callback parameter to `memory_region_init_io()`.
 
 It is valid to add subregions to a region which is not a pure container
 (that is, to an MMIO, RAM or ROM region). This means that the region
@@ -104,28 +104,28 @@ copied to the destination on migration. These APIs which allocate
 the host memory for you will also register the memory so it is
 migrated:
 
-- memory_region_init_ram()
-- memory_region_init_rom()
-- memory_region_init_rom_device()
+- `memory_region_init_ram()`
+- `memory_region_init_rom()`
+- `memory_region_init_rom_device()`
 
 For most devices and boards this is the correct thing. If you
 have a special case where you need to manage the migration of
 the backing memory yourself, you can call the functions:
 
-- memory_region_init_ram_nomigrate()
-- memory_region_init_rom_nomigrate()
-- memory_region_init_rom_device_nomigrate()
+- `memory_region_init_ram_nomigrate()`
+- `memory_region_init_rom_nomigrate()`
+- `memory_region_init_rom_device_nomigrate()`
 
 which only initialize the MemoryRegion and leave handling
 migration to the caller.
 
 The functions:
 
-- memory_region_init_resizeable_ram()
-- memory_region_init_ram_from_file()
-- memory_region_init_ram_from_fd()
-- memory_region_init_ram_ptr()
-- memory_region_init_ram_device_ptr()
+- `memory_region_init_resizeable_ram()`
+- `memory_region_init_ram_from_file()`
+- `memory_region_init_ram_from_fd()`
+- `memory_region_init_ram_ptr()`
+- `memory_region_init_ram_device_ptr()`
 
 are for special cases only, and so they do not automatically
 register the backing memory for migration; the caller must
@@ -150,8 +150,8 @@ device.  For example, the owner object will not die between an
 address_space_map operation and the corresponding address_space_unmap.
 
 After creation, a region can be added to an address space or a
-container with memory_region_add_subregion(), and removed using
-memory_region_del_subregion().
+container with `memory_region_add_subregion()`, and removed using
+`memory_region_del_subregion()`.
 
 Various region attributes (read-only, dirty logging, coalesced mmio,
 ioeventfd) can be changed during the region lifecycle.  They take effect
@@ -213,7 +213,7 @@ allows the region to overlap any other region in the same container, and
 specifies a priority that allows the core to decide which of two regions at
 the same address are visible (highest wins).
 Priority values are signed, and the default value is zero. This means that
-you can use memory_region_add_subregion_overlap() both to specify a region
+you can use `memory_region_add_subregion_overlap()` both to specify a region
 that must sit 'above' any others (with a positive priority) and also a
 background region that sits 'below' others (with a negative priority).
 
