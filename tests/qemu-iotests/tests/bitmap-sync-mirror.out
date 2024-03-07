@@ -2937,3 +2937,10 @@ qemu_img compare "TEST_DIR/PID-img" "TEST_DIR/PID-fmirror3" ==> Identical, OK!
 {"execute": "blockdev-mirror", "arguments": {"bitmap": "bitmap0", "device": "drive0", "filter-node-name": "mirror-top", "job-id": "api_job", "sync": "none", "target": "mirror_target"}}
 {"error": {"class": "GenericError", "desc": "Sync mode 'none' not supported with bitmap."}}
 
+-- Test bitmap with too small granularity --
+
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 32768, "name": "bitmap-small", "node": "drive0"}}
+{"return": {}}
+{"execute": "blockdev-mirror", "arguments": {"bitmap": "bitmap-small", "device": "drive0", "filter-node-name": "mirror-top", "job-id": "api_job", "sync": "full", "target": "mirror_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap granularity 32768 is not a multiple of the target image's cluster size 65536"}}
+
