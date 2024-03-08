@@ -174,19 +174,27 @@ GEN_VEXT_ST_ELEM(ste_h, int16_t, H2, stw)
 GEN_VEXT_ST_ELEM(ste_w, int32_t, H4, stl)
 GEN_VEXT_ST_ELEM(ste_d, int64_t, H8, stq)
 
-static void vext_set_tail_elems_1s(target_ulong vl, void *vd,
-                                   uint32_t desc, uint32_t nf,
-                                   uint32_t esz, uint32_t max_elems)
+static void vext_set_tail_elems_1s(CPURISCVState *env, void *vd,
+                                   uint32_t desc, uint32_t esz,
+                                   uint32_t max_elems)
 {
     uint32_t vta = vext_vta(desc);
+    uint32_t nf = vext_nf(desc);
     int k;
 
-    if (vta == 0) {
+    /*
+     * Section 5.4 of the RVV spec mentions:
+     * "When vstart ≥ vl, there are no body elements, and no
+     *  elements are updated in any destination vector register
+     *  group, including that no tail elements are updated
+     *  with agnostic values."
+     */
+    if (vta == 0 || env->vstart >= env->vl) {
         return;
     }
 
     for (k = 0; k < nf; ++k) {
-        vext_set_elems_1s(vd, vta, (k * max_elems + vl) * esz,
+        vext_set_elems_1s(vd, vta, (k * max_elems + env->vl) * esz,
                           (k * max_elems + max_elems) * esz);
     }
 }
@@ -222,9 +230,8 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
             k++;
         }
     }
+    vext_set_tail_elems_1s(env, vd, desc, esz, max_elems);
     env->vstart = 0;
-
-    vext_set_tail_elems_1s(env->vl, vd, desc, nf, esz, max_elems);
 }
 
 #define GEN_VEXT_LD_STRIDE(NAME, ETYPE, LOAD_FN)                        \
@@ -281,9 +288,8 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
             k++;
         }
     }
+    vext_set_tail_elems_1s(env, vd, desc, esz, max_elems);
     env->vstart = 0;
-
-    vext_set_tail_elems_1s(evl, vd, desc, nf, esz, max_elems);
 }
 
 /*
@@ -402,9 +408,8 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
             k++;
         }
     }
+    vext_set_tail_elems_1s(env, vd, desc, esz, max_elems);
     env->vstart = 0;
-
-    vext_set_tail_elems_1s(env->vl, vd, desc, nf, esz, max_elems);
 }
 
 #define GEN_VEXT_LD_INDEX(NAME, ETYPE, INDEX_FN, LOAD_FN)                  \
@@ -532,9 +537,8 @@ ProbeSuccess:
             k++;
         }
     }
+    vext_set_tail_elems_1s(env, vd, desc, esz, max_elems);
     env->vstart = 0;
-
-    vext_set_tail_elems_1s(env->vl, vd, desc, nf, esz, max_elems);
 }
 
 #define GEN_VEXT_LDFF(NAME, ETYPE, LOAD_FN)               \
