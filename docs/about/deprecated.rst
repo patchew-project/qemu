@@ -247,6 +247,14 @@ to correct issues, mostly regarding migration compatibility. These are
 no longer maintained and removing them will make the code easier to
 read and maintain. Use versions 2.12 and above as a replacement.
 
+``mainstone``, ``tosa`` and ``z2`` PXA2xx arm machines (since 9.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Support for these boards has been removed from the Linux kernel
+in version 6.3 in 2023, so there are likely no users left for these
+boards, thus they will be removed without replacement.
+
+
 Backend options
 ---------------
 
