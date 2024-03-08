@@ -22,7 +22,10 @@
 #endif
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/intc/armv7m_nvic.h"
+#include CONFIG_DEVICES
 #endif
+
+#if defined(CONFIG_USER_ONLY) || defined(CONFIG_ARM_V7M)
 
 static void v7m_msr_xpsr(CPUARMState *env, uint32_t mask,
                          uint32_t reg, uint32_t val)
@@ -58,6 +61,8 @@ static uint32_t v7m_mrs_xpsr(CPUARMState *env, uint32_t reg, unsigned el)
     return xpsr_read(env) & mask;
 }
 
+#endif
+
 uint32_t arm_v7m_mrs_control(CPUARMState *env, uint32_t secure)
 {
     uint32_t value = env->v7m.control[secure];
@@ -68,6 +73,40 @@ uint32_t arm_v7m_mrs_control(CPUARMState *env, uint32_t secure)
     }
     return value;
 }
+
+#if defined(CONFIG_USER_ONLY) || !defined(CONFIG_ARM_V7M)
+
+void HELPER(v7m_bxns)(CPUARMState *env, uint32_t dest)
+{
+    /* translate.c should never generate calls here in user-only mode */
+    g_assert_not_reached();
+}
+
+void HELPER(v7m_blxns)(CPUARMState *env, uint32_t dest)
+{
+    /* translate.c should never generate calls here in user-only mode */
+    g_assert_not_reached();
+}
+
+void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
+{
+    /* translate.c should never generate calls here in user-only mode */
+    g_assert_not_reached();
+}
+
+void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
+{
+    /* translate.c should never generate calls here in user-only mode */
+    g_assert_not_reached();
+}
+
+void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
+{
+    /* translate.c should never generate calls here in user-only mode */
+    g_assert_not_reached();
+}
+
+#endif
 
 #ifdef CONFIG_USER_ONLY
 
@@ -101,37 +140,6 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         return 0;
     }
 }
-
-void HELPER(v7m_bxns)(CPUARMState *env, uint32_t dest)
-{
-    /* translate.c should never generate calls here in user-only mode */
-    g_assert_not_reached();
-}
-
-void HELPER(v7m_blxns)(CPUARMState *env, uint32_t dest)
-{
-    /* translate.c should never generate calls here in user-only mode */
-    g_assert_not_reached();
-}
-
-void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
-{
-    /* translate.c should never generate calls here in user-only mode */
-    g_assert_not_reached();
-}
-
-void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
-{
-    /* translate.c should never generate calls here in user-only mode */
-    g_assert_not_reached();
-}
-
-void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
-{
-    /* translate.c should never generate calls here in user-only mode */
-    g_assert_not_reached();
-}
-
 uint32_t HELPER(v7m_tt)(CPUARMState *env, uint32_t addr, uint32_t op)
 {
     /*
@@ -160,7 +168,28 @@ ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
     return ARMMMUIdx_MUser;
 }
 
-#else /* !CONFIG_USER_ONLY */
+#elif !defined(CONFIG_ARM_V7M)
+
+void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
+{
+    g_assert_not_reached();
+}
+
+uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
+{
+    g_assert_not_reached();
+}
+uint32_t HELPER(v7m_tt)(CPUARMState *env, uint32_t addr, uint32_t op)
+{
+    g_assert_not_reached();
+}
+
+ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
+{
+     g_assert_not_reached();
+}
+
+#else
 
 static ARMMMUIdx arm_v7m_mmu_idx_all(CPUARMState *env,
                                      bool secstate, bool priv, bool negpri)
