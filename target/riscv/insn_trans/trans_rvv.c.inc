@@ -3356,6 +3356,13 @@ static void vec_element_storei(DisasContext *s, int vreg,
     store_element(val, tcg_env, endian_ofs(s, vreg, idx), s->sew);
 }
 
+static void vec_set_vstart_zero(void)
+{
+    TCGv_i32 t_zero = tcg_constant_i32(0);
+
+    tcg_gen_st_i32(t_zero, tcg_env, offsetof(CPURISCVState, vstart));
+}
+
 /* vmv.x.s rd, vs2 # x[rd] = vs2[0] */
 static bool trans_vmv_x_s(DisasContext *s, arg_vmv_x_s *a)
 {
@@ -3373,6 +3380,8 @@ static bool trans_vmv_x_s(DisasContext *s, arg_vmv_x_s *a)
         vec_element_loadi(s, t1, a->rs2, 0, true);
         tcg_gen_trunc_i64_tl(dest, t1);
         gen_set_gpr(s, a->rd, dest);
+        vec_set_vstart_zero();
+        mark_vs_dirty(s);
         return true;
     }
     return false;
@@ -3399,8 +3408,9 @@ static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
         s1 = get_gpr(s, a->rs1, EXT_NONE);
         tcg_gen_ext_tl_i64(t1, s1);
         vec_element_storei(s, a->rd, 0, t1);
-        mark_vs_dirty(s);
         gen_set_label(over);
+        vec_set_vstart_zero();
+        mark_vs_dirty(s);
         return true;
     }
     return false;
@@ -3427,6 +3437,8 @@ static bool trans_vfmv_f_s(DisasContext *s, arg_vfmv_f_s *a)
         }
 
         mark_fs_dirty(s);
+        vec_set_vstart_zero();
+        mark_vs_dirty(s);
         return true;
     }
     return false;
@@ -3452,8 +3464,9 @@ static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
         do_nanbox(s, t1, cpu_fpr[a->rs1]);
 
         vec_element_storei(s, a->rd, 0, t1);
-        mark_vs_dirty(s);
         gen_set_label(over);
+        vec_set_vstart_zero();
+        mark_vs_dirty(s);
         return true;
     }
     return false;
