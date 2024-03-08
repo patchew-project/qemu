@@ -33,6 +33,34 @@ void vext_set_elems_1s(void *base, uint32_t is_agnostic, uint32_t cnt,
     memset(base + cnt, -1, tot - cnt);
 }
 
+/*
+ * This function is sensitive to env->vstart. Do not change
+ * vstart before updating the tail elements.
+ */
+void vext_set_tail_elems_1s(CPURISCVState *env, void *vd, uint32_t desc,
+                            uint32_t esz, uint32_t max_elems)
+{
+    uint32_t vta = vext_vta(desc);
+    uint32_t nf = vext_nf(desc);
+    int k;
+
+    /*
+     * Section 5.4 of the RVV spec mentions:
+     * "When vstart ≥ vl, there are no body elements, and no
+     *  elements are updated in any destination vector register
+     *  group, including that no tail elements are updated
+     *  with agnostic values."
+     */
+    if (vta == 0 || env->vstart >= env->vl) {
+        return;
+    }
+
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s(vd, vta, (k * max_elems + env->vl) * esz,
+                          (k * max_elems + max_elems) * esz);
+    }
+}
+
 void do_vext_vv(void *vd, void *v0, void *vs1, void *vs2,
                 CPURISCVState *env, uint32_t desc,
                 opivv2_fn *fn, uint32_t esz)
