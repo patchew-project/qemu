@@ -411,7 +411,7 @@ else
   # Using uname is really broken, but it is just a fallback for architectures
   # that are going to use TCI anyway
   cpu=$(uname -m)
-  echo "WARNING: unrecognized host CPU, proceeding with 'uname -m' output '$cpu'"
+  echo "WARNING: could not determine host CPU, proceeding with 'uname -m' output '$cpu'"
 fi
 
 # Normalise host CPU name to the values used by Meson cross files and in source
@@ -1000,10 +1000,12 @@ if test -z "$ninja"; then
 fi
 
 if test "$host_os" = "bogus"; then
-    # Now that we know that we're not printing the help and that
-    # the compiler works (so the results of the check_defines we used
-    # to identify the OS are reliable), if we didn't recognize the
-    # host OS we should stop now.
+    # Now that we know that we're not printing the help, we should stop now
+    # if we didn't recognize the host OS (or the C compiler is not working).
+    write_c_skeleton;
+    if ! compile_object ; then
+        error_exit "C compiler \"$cc\" is not usable"
+    fi
     error_exit "Unrecognized host OS (uname -s reports '$(uname -s)')"
 fi
 
