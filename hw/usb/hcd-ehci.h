@@ -305,6 +305,8 @@ struct EHCIState {
     EHCIQueueHead aqueues;
     EHCIQueueHead pqueues;
 
+    void (*intr_update)(EHCIState *s, bool enable);
+
     /* which address to look at next */
     uint32_t a_fetch_addr;
     uint32_t p_fetch_addr;

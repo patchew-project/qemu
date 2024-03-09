@@ -38,6 +38,11 @@ static Property ehci_sysbus_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void usb_ehci_sysbus_intr_update(EHCIState *ehci, bool level)
+{
+    qemu_set_irq(s->irq, level);
+}
+
 static void usb_ehci_sysbus_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(dev);
@@ -69,6 +74,8 @@ static void ehci_sysbus_init(Object *obj)
     s->portscbase = sec->portscbase;
     s->portnr = sec->portnr;
     s->as = &address_space_memory;
+
+    s->intr_update = usb_ehci_sysbus_intr_update;
 
     usb_ehci_init(s, DEVICE(obj));
     sysbus_init_mmio(d, &s->mem);
