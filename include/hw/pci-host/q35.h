@@ -35,6 +35,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(Q35PCIHost, Q35_HOST_DEVICE)
 #define TYPE_MCH_PCI_DEVICE "mch"
 OBJECT_DECLARE_SIMPLE_TYPE(MCHPCIState, MCH_PCI_DEVICE)
 
+#define MCH_HOST_PAM_REGIONS_COUNT 13
+
 struct MCHPCIState {
     /*< private >*/
     PCIDevice parent_obj;
@@ -44,7 +46,7 @@ struct MCHPCIState {
     MemoryRegion *pci_address_space;
     MemoryRegion *system_memory;
     MemoryRegion *address_space_io;
-    PAMMemoryRegion pam_regions[PAM_REGIONS_COUNT];
+    PAMMemoryRegion pam_regions[MCH_HOST_PAM_REGIONS_COUNT];
     MemoryRegion smram_region, open_high_smram;
     MemoryRegion smram, low_smram, high_smram;
     MemoryRegion tseg_blackhole, tseg_window;

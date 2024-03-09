@@ -329,7 +329,7 @@ static void mch_update_pam(MCHPCIState *mch)
     int i;
 
     memory_region_transaction_begin();
-    for (i = 0; i < 13; i++) {
+    for (i = 0; i < ARRAY_SIZE(mch->pam_regions); i++) {
         uint8_t reg = pd->config[MCH_HOST_BRIDGE_PAM0 + DIV_ROUND_UP(i, 2)];
         pam_update(&mch->pam_regions[i],
                    (reg >> ((!(i & 1)) * 4)) & MCH_HOST_BRIDGE_PAM_MASK);

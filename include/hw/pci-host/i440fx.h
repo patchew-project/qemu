@@ -22,12 +22,14 @@
 
 OBJECT_DECLARE_SIMPLE_TYPE(PCII440FXState, I440FX_PCI_DEVICE)
 
+#define I440FX_HOST_PAM_REGIONS_COUNT 13
+
 struct PCII440FXState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
 
-    PAMMemoryRegion pam_regions[PAM_REGIONS_COUNT];
+    PAMMemoryRegion pam_regions[I440FX_HOST_PAM_REGIONS_COUNT];
     MemoryRegion smram_region;
     MemoryRegion smram, low_smram;
 };
