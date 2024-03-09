@@ -51,20 +51,20 @@ void init_pam(PAMMemoryRegion *mem, Object *owner, MemoryRegion *ram_memory,
                              start, size);
 
     memory_region_transaction_begin();
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < ARRAY_SIZE(mem->alias); ++i) {
         memory_region_set_enabled(&mem->alias[i], false);
         memory_region_add_subregion_overlap(system_memory, start,
                                             &mem->alias[i], 1);
     }
     memory_region_transaction_commit();
-    mem->current = 0;
+    mem->mode = 0;
 }
 
-void pam_update(PAMMemoryRegion *pam, int idx, uint8_t val)
+void pam_update(PAMMemoryRegion *pam, uint8_t mode)
 {
-    assert(0 <= idx && idx < PAM_REGIONS_COUNT);
+    g_assert(mode < ARRAY_SIZE(pam->alias));
 
-    memory_region_set_enabled(&pam->alias[pam->current], false);
-    pam->current = (val >> ((!(idx & 1)) * 4)) & PAM_ATTR_MASK;
-    memory_region_set_enabled(&pam->alias[pam->current], true);
+    memory_region_set_enabled(&pam->alias[pam->mode], false);
+    pam->mode = mode;
+    memory_region_set_enabled(&pam->alias[pam->mode], true);
 }

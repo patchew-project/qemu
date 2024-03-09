@@ -64,6 +64,8 @@ struct I440FXState {
 #define I440FX_PAM_SIZE 7
 #define I440FX_SMRAM    0x72
 
+#define I440FX_PAM_ATTR_MASK ((uint8_t)3)
+
 /* Keep it 2G to comply with older win32 guests */
 #define I440FX_PCI_HOST_HOLE64_SIZE_DEFAULT (1ULL << 31)
 
@@ -88,8 +90,9 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
 
     memory_region_transaction_begin();
     for (i = 0; i < ARRAY_SIZE(d->pam_regions); i++) {
-        pam_update(&d->pam_regions[i], i,
-                   pd->config[I440FX_PAM + DIV_ROUND_UP(i, 2)]);
+        uint8_t reg = pd->config[I440FX_PAM + DIV_ROUND_UP(i, 2)];
+        pam_update(&d->pam_regions[i],
+                   (reg >> ((!(i & 1)) * 4)) & I440FX_PAM_ATTR_MASK);
     }
     memory_region_set_enabled(&d->smram_region,
                               !(pd->config[I440FX_SMRAM] & SMRAM_D_OPEN));
