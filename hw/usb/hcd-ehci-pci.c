@@ -21,6 +21,8 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
+#include "hw/pci/msi.h"
+#include "qapi/error.h"
 
 typedef struct EHCIPCIInfo {
     const char *name;
@@ -30,11 +32,27 @@ typedef struct EHCIPCIInfo {
     bool companion;
 } EHCIPCIInfo;
 
+static void ehci_pci_intr_update(EHCIState *ehci, bool enable)
+{
+    EHCIPCIState *s = container_of(ehci, EHCIPCIState, ehci);
+    PCIDevice *pci_dev = PCI_DEVICE(s);
+
+    if (msi_enabled(pci_dev)) {
+        if (enable) {
+            msi_notify(pci_dev, 0);
+        }
+    } else {
+        pci_set_irq(pci_dev, enable);
+    }
+}
+
 static void usb_ehci_pci_realize(PCIDevice *dev, Error **errp)
 {
     EHCIPCIState *i = PCI_EHCI(dev);
     EHCIState *s = &i->ehci;
     uint8_t *pci_conf = dev->config;
+    Error *err = NULL;
+    int ret;
 
     pci_set_byte(&pci_conf[PCI_CLASS_PROG], 0x20);
 
@@ -68,8 +86,17 @@ static void usb_ehci_pci_realize(PCIDevice *dev, Error **errp)
     s->irq = pci_allocate_irq(dev);
     s->as = pci_get_address_space(dev);
 
+    s->intr_update = ehci_pci_intr_update;
+
     usb_ehci_realize(s, DEVICE(dev), NULL);
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
+
+    ret = msi_init(dev, 0x70, 1, true, false, &err);
+    if (ret) {
+        error_propagate(errp, err);
+    } else {
+        error_free(err);
+    }
 }
 
 static void usb_ehci_pci_init(Object *obj)
