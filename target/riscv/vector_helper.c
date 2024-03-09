@@ -1962,7 +1962,6 @@ vext_vv_rm_1(void *vd, void *v0, void *vs1, void *vs2,
         }
         fn(vd, vs1, vs2, i, env, vxrm);
     }
-    env->vstart = 0;
 }
 
 static inline void
@@ -1997,6 +1996,7 @@ vext_vv_rm_2(void *vd, void *v0, void *vs1, void *vs2,
     }
     /* set tail elements to 1s */
     vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);
+    env->vstart = 0;
 }
 
 /* generate helpers for fixed point instructions with OPIVV format */
@@ -2087,7 +2087,6 @@ vext_vx_rm_1(void *vd, void *v0, target_long s1, void *vs2,
         }
         fn(vd, s1, vs2, i, env, vxrm);
     }
-    env->vstart = 0;
 }
 
 static inline void
@@ -2122,6 +2121,7 @@ vext_vx_rm_2(void *vd, void *v0, target_long s1, void *vs2,
     }
     /* set tail elements to 1s */
     vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);
+    env->vstart = 0;
 }
 
 /* generate helpers for fixed point instructions with OPIVX format */
