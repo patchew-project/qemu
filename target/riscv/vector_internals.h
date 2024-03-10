@@ -117,6 +117,10 @@ static inline uint32_t vext_get_total_elems(CPURISCVState *env, uint32_t desc,
 void vext_set_elems_1s(void *base, uint32_t is_agnostic, uint32_t cnt,
                        uint32_t tot);
 
+void vext_set_tail_elems_1s(CPURISCVState *env, void *vd,
+                            uint32_t desc, uint32_t esz,
+                            uint32_t max_elems);
+
 /* expand macro args before macro */
 #define RVVCALL(macro, ...)  macro(__VA_ARGS__)
 
