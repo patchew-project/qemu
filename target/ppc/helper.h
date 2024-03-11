@@ -819,3 +819,7 @@ DEF_HELPER_4(DSCLIQ, void, env, fprp, fprp, i32)
 
 DEF_HELPER_1(tbegin, void, env)
 DEF_HELPER_FLAGS_1(fixup_thrm, TCG_CALL_NO_RWG, void, env)
+
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+DEF_HELPER_1(attn, noreturn, env)
+#endif
