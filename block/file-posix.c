@@ -2670,6 +2670,33 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
         int64_t cur_length = raw_getlength(bs);
 
+        /*
+         * Check if the device is an LVM logical volume and try to resize
+         * it using LVM tools.
+         */
+        if (S_ISBLK(st.st_mode) && offset > 0) {
+            char cmd[PATH_MAX + 32];
+
+            snprintf(cmd, sizeof(cmd), "lvdisplay %s > /dev/null",
+                     bs->filename);
+            ret = system(cmd);
+            if (ret != 0) {
+                error_setg(errp, "lvdisplay returned %d error for '%s'",
+                           ret, bs->filename);
+                return ret;
+            }
+
+            snprintf(cmd, sizeof(cmd), "lvresize -f -L %ldB %s > /dev/null",
+                     offset, bs->filename);
+            ret = system(cmd);
+            if (ret != 0) {
+                error_setg(errp, "lvresize returned %d error for '%s'",
+                           ret, bs->filename);
+            }
+
+            return ret;
+        }
+
         if (offset != cur_length && exact) {
             error_setg(errp, "Cannot resize device files");
             return -ENOTSUP;
