@@ -122,7 +122,7 @@ finish:
  */
 static BdrvDirtyBitmap * GRAPH_RDLOCK
 parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
-                      Error **errp)
+                      int64_t ext_off, Error **errp)
 {
     int ret;
     ParallelsDirtyBitmapFeature bf;
@@ -130,6 +130,7 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
     BdrvDirtyBitmap *bitmap;
     QemuUUID uuid;
     char uuidstr[UUID_STR_LEN];
+    int64_t l1_off;
     int i;
 
     if (data_size < sizeof(bf)) {
@@ -171,16 +172,29 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
 
     ret = parallels_load_bitmap_data(bs, l1_table, bf.l1_size, bitmap, errp);
     if (ret < 0) {
-        bdrv_release_dirty_bitmap(bitmap);
-        return NULL;
+        goto err;
+    }
+
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        return bitmap;
+    }
+
+    l1_off = ext_off + sizeof(ParallelsDirtyBitmapFeature);
+    ret = bdrv_pwrite_zeroes(bs->file, l1_off,
+                             bf.l1_size * sizeof(uint64_t), 0);
+    if (ret < 0) {
+        goto err;
     }
 
     return bitmap;
+err:
+    bdrv_release_dirty_bitmap(bitmap);
+    return NULL;
 }
 
 static int GRAPH_RDLOCK
-parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
-                                 Error **errp)
+parallels_parse_format_extension(BlockDriverState *bs, int64_t ext_off,
+                                 uint8_t *ext_cluster, Error **errp)
 {
     BDRVParallelsState *s = bs->opaque;
     int ret;
@@ -259,7 +273,8 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
                  */
                 break;
             }
-            bitmap = parallels_load_bitmap(bs, pos, fh.data_size, errp);
+            bitmap = parallels_load_bitmap(bs, pos, fh.data_size,
+                                           ext_off + pos - ext_cluster, errp);
             if (!bitmap) {
                 goto fail;
             }
@@ -298,7 +313,11 @@ int parallels_read_format_extension(BlockDriverState *bs,
         goto out;
     }
 
-    ret = parallels_parse_format_extension(bs, ext_cluster, errp);
+    ret = parallels_parse_format_extension(bs, ext_off, ext_cluster, errp);
+    if (ret == 0) {
+        ret = parallels_mark_used(bs, s->used_bmap, s->used_bmap_size,
+                                  ext_off, 1);
+    }
 
 out:
     qemu_vfree(ext_cluster);
@@ -429,8 +448,6 @@ parallels_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     size_t hash_len = 0;
     int ret;
 
-    s->header->ext_off = 0;
-
     if (!bdrv_has_named_bitmaps(bs)) {
         return 0;
     }
@@ -447,11 +464,15 @@ parallels_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         parallels_save_bitmap(bs, bitmap, &pos, &remaining);
     }
 
-    header_off = parallels_allocate_host_clusters(bs, &alloc_size);
-    if (header_off < 0) {
-        error_report("Can't save dirty bitmap: cluster allocation error");
-        ret = header_off;
-        goto end;
+    if (s->header->ext_off) {
+        header_off = le64_to_cpu(s->header->ext_off) << BDRV_SECTOR_BITS;
+    } else {
+        header_off = parallels_allocate_host_clusters(bs, &alloc_size);
+        if (header_off < 0) {
+            error_report("Can't save dirty bitmap: cluster allocation error");
+            ret = header_off;
+            goto end;
+        }
     }
 
     ret = qcrypto_hash_bytes(QCRYPTO_HASH_ALG_MD5,
