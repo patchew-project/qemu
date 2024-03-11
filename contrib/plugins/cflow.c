@@ -1,0 +1,344 @@
+/*
+ * Control Flow plugin
+ *
+ * This plugin will track changes to control flow and detect where
+ * instructions fault.
+ *
+ * Copyright (c) 2024 Linaro Ltd
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#include <glib.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <qemu-plugin.h>
+
+QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
+
+/* Temp hack, works for Aarch64 */
+#define INSN_WIDTH 4
+
+typedef enum {
+    SORT_HOTDEST,  /* hottest branch */
+    SORT_EARLY,    /* most early exits */
+    SORT_POPDEST,  /* most destinations */
+} ReportType;
+
+ReportType report = SORT_HOTDEST;
+int topn = 10;
+
+typedef struct {
+    uint64_t daddr;
+    uint64_t dcount;
+} DestData;
+
+/* A node is an address where we can go to multiple places */
+typedef struct {
+    GMutex lock;
+    /* address of the branch point */
+    uint64_t addr;
+    /* array of DestData */
+    GArray *dests;
+    /* early exit count */
+    uint64_t early_exit;
+    /* jump destination count */
+    uint64_t dest_count;
+    /* instruction data */
+    char *insn_disas;
+    /* times translated as last in block? */
+    int last_count;
+    /* times translated in the middle of block? */
+    int mid_count;
+} NodeData;
+
+/* We use this to track the current execution state */
+typedef struct {
+    /* address of start of block */
+    uint64_t block_start;
+    /* address of end of block */
+    uint64_t block_end;
+    /* address of last executed PC */
+    uint64_t last_pc;
+} VCPUScoreBoard;
+
+static GMutex node_lock;
+static GHashTable *nodes;
+struct qemu_plugin_scoreboard *state;
+
+/* SORT_HOTDEST */
+static gint hottest(gconstpointer a, gconstpointer b)
+{
+    NodeData *na = (NodeData *) a;
+    NodeData *nb = (NodeData *) b;
+
+    return na->dest_count > nb->dest_count ? -1 :
+        na->dest_count == nb->dest_count ? 0 : 1;
+}
+
+static gint early(gconstpointer a, gconstpointer b)
+{
+    NodeData *na = (NodeData *) a;
+    NodeData *nb = (NodeData *) b;
+
+    return na->early_exit > nb->early_exit ? -1 :
+        na->early_exit == nb->early_exit ? 0 : 1;
+}
+
+static gint popular(gconstpointer a, gconstpointer b)
+{
+    NodeData *na = (NodeData *) a;
+    NodeData *nb = (NodeData *) b;
+
+    return na->dests->len > nb->dests->len ? -1 :
+        na->dests->len == nb->dests->len ? 0 : 1;
+}
+
+static void plugin_exit(qemu_plugin_id_t id, void *p)
+{
+    g_autoptr(GString) result = g_string_new("collected ");
+    GList *data;
+    GCompareFunc sort = &hottest;
+    int n = 0;
+
+    g_mutex_lock(&node_lock);
+    g_string_append_printf(result, "%d destination nodes in the hash table\n",
+                           g_hash_table_size(nodes));
+
+    data = g_hash_table_get_values(nodes);
+
+    switch (report) {
+    case SORT_HOTDEST:
+        sort = &hottest;
+        break;
+    case SORT_EARLY:
+        sort = &early;
+        break;
+    case SORT_POPDEST:
+        sort = &popular;
+        break;
+    }
+
+    data = g_list_sort(data, sort);
+
+    for (GList *l = data;
+         l != NULL && n < topn;
+         l = l->next, n++) {
+        NodeData *n = l->data;
+        g_string_append_printf(result, "  addr: 0x%"PRIx64 " %s\n",
+                               n->addr, n->insn_disas);
+        if (n->early_exit) {
+            g_string_append_printf(result, "    early exits %"PRId64"\n",
+                                   n->early_exit);
+        }
+        g_string_append_printf(result, "    branches %"PRId64"\n",
+                               n->dest_count);
+        for (int j = 0; j < n->dests->len; j++ ) {
+            DestData *dd = &g_array_index(n->dests, DestData, j);
+            g_string_append_printf(result, "      to 0x%"PRIx64" (%"PRId64")\n",
+                                   dd->daddr, dd->dcount);
+        }
+    }
+
+    qemu_plugin_outs(result->str);
+
+    g_mutex_unlock(&node_lock);
+}
+
+static void plugin_init(void)
+{
+    g_mutex_init(&node_lock);
+    nodes = g_hash_table_new(NULL, g_direct_equal);
+    state = qemu_plugin_scoreboard_new(sizeof(VCPUScoreBoard));
+}
+
+static NodeData *create_node(uint64_t addr)
+{
+    NodeData *node = g_new0(NodeData, 1);
+    g_mutex_init(&node->lock);
+    node->addr = addr;
+    node->dests = g_array_new(true, true, sizeof(DestData));
+    return node;
+}
+
+static NodeData *fetch_node(uint64_t addr, bool create_if_not_found)
+{
+    NodeData *node = NULL;
+
+    g_mutex_lock(&node_lock);
+    node = (NodeData *) g_hash_table_lookup(nodes, (gconstpointer) addr);
+    if (!node && create_if_not_found) {
+        node = create_node(addr);
+        g_hash_table_insert(nodes, (gpointer) addr, (gpointer) node);
+    }
+    g_mutex_unlock(&node_lock);
+    return node;
+}
+
+/* Called when we detect an early exit from a block */
+static void vcpu_tb_early_exit_exec(unsigned int cpu_index, void *udata)
+{
+    qemu_plugin_u64 last_pc_entry = qemu_plugin_scoreboard_u64_in_struct(state, VCPUScoreBoard, last_pc);
+    uint64_t last_pc = qemu_plugin_u64_get(last_pc_entry, cpu_index);
+    NodeData *node = fetch_node(last_pc, true);
+    g_mutex_lock(&node->lock);
+    node->early_exit++;
+    if (!node->mid_count) {
+        /* count now as we've only just allocated */
+        node->mid_count++;
+    }
+    g_mutex_unlock(&node->lock);
+}
+
+/* Called when we detect a non-linear execution */
+static void vcpu_tb_branched_exec(unsigned int cpu_index, void *udata)
+{
+    qemu_plugin_u64 last_pc_entry = qemu_plugin_scoreboard_u64_in_struct(state, VCPUScoreBoard, last_pc);
+    uint64_t last_pc = qemu_plugin_u64_get(last_pc_entry, cpu_index);
+
+    /* return early for address 0 */
+    if (!last_pc) {
+        return;
+    }
+
+    uint64_t current_pc = GPOINTER_TO_UINT(udata);
+    NodeData *node = fetch_node(last_pc, true);
+    DestData *data = NULL;
+    GArray *dests;
+
+    /* BUG? */
+    fprintf(stderr, "%s: %p\n", __func__, udata);
+
+    g_mutex_lock(&node->lock);
+    dests = node->dests;
+    for (int i = 0; i < dests->len; i++) {
+        if (g_array_index(dests, DestData, i).daddr == current_pc) {
+            data = &g_array_index(dests, DestData, i);
+        }
+    }
+
+    /* we've never seen this before, allocate a new entry */
+    if (!data) {
+        DestData new_entry = { .daddr = current_pc };
+        g_array_append_val(dests, new_entry);
+        data = &g_array_index(dests, DestData, dests->len);
+    }
+
+    data->dcount++;
+    node->dest_count++;
+
+    g_mutex_unlock(&node->lock);
+}
+
+/*
+ * At the start of each block we need to resolve two things:
+ *
+ *  - is last_pc == block_end, if not we had an early exit
+ *  - is start of block last_pc + insn width, if not we jumped
+ *
+ * Once those are dealt with we can instrument the rest of the
+ * instructions for their execution.
+ *
+ */
+static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
+{
+    uint64_t pc = qemu_plugin_tb_vaddr(tb);
+    size_t insns = qemu_plugin_tb_n_insns(tb);
+
+    /* score board declarations */
+    qemu_plugin_u64 start_block = qemu_plugin_scoreboard_u64_in_struct(state, VCPUScoreBoard, block_start);
+    qemu_plugin_u64 end_block = qemu_plugin_scoreboard_u64_in_struct(state, VCPUScoreBoard, block_end);
+    qemu_plugin_u64 last_pc = qemu_plugin_scoreboard_u64_in_struct(state, VCPUScoreBoard, last_pc);
+
+    /*
+     * check for last_pc != block_end
+     */
+    /* qemu_plugin_register_vcpu_tb_exec_cond_cb( */
+    /*     tb, vcpu_tb_early_exit_exec, QEMU_PLUGIN_CB_NO_REGS, */
+    /*     QEMU_PLUGIN_COND_NEQ, last_pc, /\* block_end *\/, GUINT_TO_POINTER(pc)); */
+
+    /*
+     * check for pc == last_pc + insn_width
+     */
+    uint64_t pc_minus = pc - INSN_WIDTH;
+    gpointer udata = GUINT_TO_POINTER(pc);
+    /* BUG? udata getting corrupted */
+    fprintf(stderr, "%s: %p\n", __func__, udata);
+    qemu_plugin_register_vcpu_tb_exec_cond_cb(
+        tb, vcpu_tb_branched_exec, QEMU_PLUGIN_CB_NO_REGS,
+        QEMU_PLUGIN_COND_NE, last_pc, pc_minus, udata);
+
+    /*
+     * Now we can set start/end for this block so the next block can
+     * check where we are at.
+     */
+    qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(tb,
+                                                      QEMU_PLUGIN_INLINE_STORE_U64,
+                                                      start_block, pc);
+    qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(tb,
+                                                      QEMU_PLUGIN_INLINE_STORE_U64,
+                                                      end_block, pc + (INSN_WIDTH * insns));
+
+    for (int idx = 0; idx < qemu_plugin_tb_n_insns(tb); ++idx) {
+        struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, idx);
+        uint64_t ipc = qemu_plugin_insn_vaddr(insn);
+        bool last_insn = idx == (insns - 1);
+        /*
+         * If this is a potential branch point check if we could grab
+         * the disassembly for it. If it is the last instruction
+         * always create an entry.
+         */
+        NodeData *node = fetch_node(ipc, last_insn);
+        if (node) {
+            g_mutex_lock(&node->lock);
+            if (!node->insn_disas) {
+                node->insn_disas = qemu_plugin_insn_disas(insn);
+            }
+            if (last_insn) {
+                node->last_count++;
+            } else {
+                node->mid_count++;
+            }
+            g_mutex_unlock(&node->lock);
+        }
+
+        /* Store the PC of what we are about to execute */
+        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(insn,
+                                                            QEMU_PLUGIN_INLINE_STORE_U64,
+                                                            last_pc, ipc);
+    }
+}
+
+QEMU_PLUGIN_EXPORT
+int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
+                        int argc, char **argv)
+{
+    for (int i = 0; i < argc; i++) {
+        char *opt = argv[i];
+        g_auto(GStrv) tokens = g_strsplit(opt, "=", 2);
+        if (g_strcmp0(tokens[0], "sort") == 0) {
+            if (g_strcmp0(tokens[1], "hottest") == 0) {
+                report = SORT_HOTDEST;
+            } else if (g_strcmp0(tokens[1], "early") == 0) {
+                report = SORT_EARLY;
+            } else if (g_strcmp0(tokens[1], "popular") == 0) {
+                report = SORT_POPDEST;
+            } else {
+                fprintf(stderr, "failed to parse: %s\n", tokens[1]);
+                return -1;
+            }
+        } else {
+            fprintf(stderr, "option parsing failed: %s\n", opt);
+            return -1;
+        }
+    }
+
+    plugin_init();
+
+    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
+    qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
+    return 0;
+}
