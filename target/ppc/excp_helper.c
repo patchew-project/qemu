@@ -429,6 +429,7 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong vector,
 static void powerpc_mcheck_checkstop(CPUPPCState *env)
 {
     CPUState *cs = env_cpu(env);
+    FILE *f;
 
     if (FIELD_EX64(env->msr, MSR, ME)) {
         return;
@@ -440,12 +441,13 @@ static void powerpc_mcheck_checkstop(CPUPPCState *env)
      * it is often a guest error).
      */
 
-    /* Machine check exception is not enabled. Enter checkstop state. */
-    fprintf(stderr, "Machine check while not allowed. "
-            "Entering checkstop state\n");
-    if (qemu_log_separate()) {
-        qemu_log("Machine check while not allowed. "
-                 "Entering checkstop state\n");
+    f = qemu_log_trylock();
+    if (f) {
+        fprintf(f, "Entering checkstop state: "
+                   "machine check with MSR[ME]=0\n");
+        cpu_dump_state(cs, f, CPU_DUMP_FPU | CPU_DUMP_CCOP);
+        qemu_log_unlock(f);
+    }
 
     qemu_system_guest_panicked(NULL);
 
