@@ -278,6 +278,7 @@ parallels_parse_format_extension(BlockDriverState *bs, int64_t ext_off,
             if (!bitmap) {
                 goto fail;
             }
+            bdrv_dirty_bitmap_set_persistence(bitmap, true);
             bitmaps = g_slist_append(bitmaps, bitmap);
             break;
 
