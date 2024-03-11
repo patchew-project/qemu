@@ -187,7 +187,7 @@ static void qemu_announce_self_once(void *opaque)
 
 void qemu_announce_self(AnnounceTimer *timer, AnnounceParameters *params)
 {
-    qemu_announce_timer_reset(timer, params, QEMU_CLOCK_REALTIME,
+    qemu_announce_timer_reset(timer, params, QEMU_CLOCK_VIRTUAL,
                               qemu_announce_self_once, timer);
     if (params->rounds) {
         qemu_announce_self_once(timer);
