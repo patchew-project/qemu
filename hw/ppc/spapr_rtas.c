@@ -216,6 +216,7 @@ static void rtas_stop_self(PowerPCCPU *cpu, SpaprMachineState *spapr,
      */
     env->spr[SPR_PSSCR] |= PSSCR_EC;
     cs->halted = 1;
+    vpa_dispatch(cs, spapr_cpu_state(cpu), false);
     ppc_store_lpcr(cpu, env->spr[SPR_LPCR] & ~pcc->lpcr_pm);
     kvmppc_set_reg_ppc_online(cpu, 0);
     qemu_cpu_kick(cs);
