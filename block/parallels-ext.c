@@ -255,6 +255,14 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
             return 0;
 
         case PARALLELS_DIRTY_BITMAP_FEATURE_MAGIC:
+            if (s->header_unclean) {
+                /*
+                 * The image was not closed correctly and thus dirty bitmap
+                 * data inside the image is considered as incorrect and thus
+                 * it should be dropper, exactly like we do for QCOW2.
+                 */
+                break;
+            }
             bitmap = parallels_load_bitmap(bs, pos, fh.data_size, errp);
             if (!bitmap) {
                 goto fail;
