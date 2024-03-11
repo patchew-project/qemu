@@ -152,19 +152,20 @@ class ReverseDebugging(LinuxKernelTest):
             if x86_workaround and i == 0 and self.vm_get_icount(vm) == 0:
                 logger.warn('failed to take first step, stepping again')
                 self.gdb_step(g)
-        if self.vm_get_icount(vm) != self.STEPS:
+        self.gdb_step(g)
+        if self.vm_get_icount(vm) != self.STEPS + 1:
             self.fail('icount (%d) does not match number of instructions stepped' % self.vm_get_icount(vm))
 
         logger.info('continue running')
         self.gdb_cont_nowait(g)
 
-        while self.vm_get_icount(vm) <= self.STEPS:
-            pass
+        logger.info('stopping to read final icount')
+        vm.qmp('stop')
         last_icount = self.vm_get_icount(vm)
         logger.info('shutdown...')
         vm.shutdown()
 
-        logger.info("recorded log with %s+ steps" % last_icount)
+        logger.info("recorded log with %s steps" % last_icount)
 
         # replay and run debug commands
         vm = self.run_vm(False, shift, args, replay_path, image_path, port)
