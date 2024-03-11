@@ -15,7 +15,11 @@
 ##
 
 { 'include' : 'machine.json' }
-{ 'include' : 'block-core.json' }
+
+{ 'pragma': {
+    'documentation-exceptions': [
+        'FirmwareFormat'
+    ] } }
 
 ##
 # @FirmwareOSInterface:
@@ -201,6 +205,16 @@
              'verbose-dynamic', 'verbose-static' ] }
 
 ##
+# @FirmwareFormat:
+#
+# Formats that are supported for firmware images.
+#
+# Since: 8.3
+##
+{ 'enum': 'FirmwareFormat',
+  'data': [ 'raw', 'qcow2' ] }
+
+##
 # @FirmwareFlashFile:
 #
 # Defines common properties that are necessary for loading a firmware
@@ -219,7 +233,7 @@
 ##
 { 'struct' : 'FirmwareFlashFile',
   'data'   : { 'filename' : 'str',
-               'format'   : 'BlockdevDriver' } }
+               'format'   : 'FirmwareFormat' } }
 
 
 ##
