@@ -32,9 +32,11 @@ class ReverseDebugging(LinuxKernelTest):
     that the execution is stopped at the last of them.
     """
 
-    timeout = 20
+    timeout = 30
     STEPS = 10
     endian_is_le = True
+    # x86-64 and aarch64 hang with autosnapshot so turn it off by default
+    autosnapshot = False
 
     def run_vm(self, record, shift, args, replay_path, image_path, port):
         logger = logging.getLogger('replay')
@@ -47,9 +49,14 @@ class ReverseDebugging(LinuxKernelTest):
             logger.info('replaying the execution...')
             mode = 'replay'
         vm.add_args('-gdb', 'tcp::%d' % port, '-S')
-        vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init' %
-                    (shift, mode, replay_path),
-                    '-net', 'none')
+        if self.autosnapshot:
+            vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init'
+                                   ',rrsnapmode=periodic,rrsnapcount=10,'
+                                   'rrsnaptime=1' % (shift, mode, replay_path))
+        else:
+            vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init'
+                                   % (shift, mode, replay_path))
+        vm.add_args('-net', 'none')
         vm.add_args('-drive', 'file=%s,if=none,id=disk0' % image_path)
         if args:
             vm.add_args(*args)
@@ -184,8 +191,12 @@ class ReverseDebugging(LinuxKernelTest):
         logger.info('continue running')
         self.gdb_cont_nowait(g)
 
-        logger.info('running for 1s...')
-        time.sleep(1)
+        if self.autosnapshot:
+            logger.info('running for 5s...')
+            time.sleep(5)
+        else:
+            logger.info('running for 1s...')
+            time.sleep(1)
         logger.info('stopping to read final icount')
         vm.qmp('stop')
         self.gdb_break(g)
@@ -365,6 +376,7 @@ class ReverseDebugging_ppc64(ReverseDebugging):
         # to take the 'hit a breakpoint again' path. That's not a problem,
         # just slightly different than the other machines.
         self.endian_is_le = False
+        self.autosnapshot = True
         self.reverse_debugging()
 
     # See https://gitlab.com/qemu-project/qemu/-/issues/1992
