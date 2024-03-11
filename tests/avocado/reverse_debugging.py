@@ -50,7 +50,7 @@ class ReverseDebugging(LinuxKernelTest):
         vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init' %
                     (shift, mode, replay_path),
                     '-net', 'none')
-        vm.add_args('-drive', 'file=%s,if=none' % image_path)
+        vm.add_args('-drive', 'file=%s,if=none,id=disk0' % image_path)
         if args:
             vm.add_args(*args)
         vm.launch()
@@ -124,6 +124,14 @@ class ReverseDebugging(LinuxKernelTest):
     def vm_get_icount(vm):
         return vm.qmp('query-replay')['return']['icount']
 
+    @staticmethod
+    def vm_snapshot(vm):
+        return vm.qmp('snapshot-save',
+                      {'job-id': 'snapshot-job',
+                       'tag': 'manual',
+                       'vmstate': 'disk0',
+                       'devices': []})
+
     def reverse_debugging(self, shift=7, args=None, x86_workaround=False):
         logger = logging.getLogger('replay')
 
@@ -162,6 +170,9 @@ class ReverseDebugging(LinuxKernelTest):
             pc = self.get_pc(g)
             logger.info('saving position %x' % pc)
             steps.append(pc)
+            if i == self.STEPS//2:
+                logger.info('saving VM snapshot at step %x...' % i)
+                self.vm_snapshot(vm)
             self.gdb_step(g)
             if x86_workaround and i == 0 and self.vm_get_icount(vm) == 0:
                 logger.warn('failed to take first step, stepping again')
@@ -208,7 +219,9 @@ class ReverseDebugging(LinuxKernelTest):
             self.gdb_step(g)
             logger.info('found position %x' % addr)
 
-        # Try reverse stepping
+        # Try reverse stepping. The manual snapshot taken in the record
+        # phase should be used for reverse-stepping until the machine
+        # reverses to an icount older than the snapshot.
         logger.info('stepping backward')
         for addr in steps[::-1]:
             self.gdb_bstep(g)
@@ -232,6 +245,8 @@ class ReverseDebugging(LinuxKernelTest):
             self.check_pc(g, last_pc)
             logger.info('found position %x' % last_pc)
 
+        # This should load the last snapshot taken. Could that be verified
+        # with QMP?
         logger.info('stepping backward')
         self.gdb_bstep(g)
 
