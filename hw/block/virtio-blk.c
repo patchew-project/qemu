@@ -1957,6 +1957,35 @@ static void virtio_blk_stop_ioeventfd(VirtIODevice *vdev)
     s->ioeventfd_stopping = false;
 }
 
+/* Increase the coroutine pool size to include our I/O requests */
+static void virtio_blk_inc_coroutine_pool_size(VirtIOBlock *s)
+{
+    VirtIOBlkConf *conf = &s->conf;
+    unsigned max_requests = 0;
+
+    /* Tracks the total number of requests for AioContext */
+    g_autoptr(GHashTable) counters = g_hash_table_new(NULL, NULL);
+
+    /* Call this function after setting up vq_aio_context[] */
+    assert(s->vq_aio_context);
+
+    for (unsigned i = 0; i < conf->num_queues; i++) {
+        AioContext *ctx = s->vq_aio_context[i];
+        unsigned n = GPOINTER_TO_UINT(g_hash_table_lookup(counters, ctx));
+
+        n += conf->queue_size / 2; /* this is a heuristic */
+
+        g_hash_table_insert(counters, ctx, GUINT_TO_POINTER(n));
+
+        if (n > max_requests) {
+            max_requests = n;
+        }
+    }
+
+    qemu_coroutine_inc_pool_size(max_requests);
+    s->coroutine_pool_size = max_requests; /* stash it for ->unrealize() */
+}
+
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -2048,7 +2077,6 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < conf->num_queues; i++) {
         virtio_add_queue(vdev, conf->queue_size, virtio_blk_handle_output);
     }
-    qemu_coroutine_inc_pool_size(conf->num_queues * conf->queue_size / 2);
 
     /* Don't start ioeventfd if transport does not support notifiers. */
     if (!virtio_device_ioeventfd_enabled(vdev)) {
@@ -2064,6 +2092,8 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         virtio_cleanup(vdev);
         return;
     }
+
+    virtio_blk_inc_coroutine_pool_size(s);
 
     /*
      * This must be after virtio_init() so virtio_blk_dma_restart_cb() gets
@@ -2096,7 +2126,7 @@ static void virtio_blk_device_unrealize(DeviceState *dev)
     for (i = 0; i < conf->num_queues; i++) {
         virtio_del_queue(vdev, i);
     }
-    qemu_coroutine_dec_pool_size(conf->num_queues * conf->queue_size / 2);
+    qemu_coroutine_dec_pool_size(s->coroutine_pool_size);
     qemu_mutex_destroy(&s->rq_lock);
     blk_ram_registrar_destroy(&s->blk_ram_registrar);
     qemu_del_vm_change_state_handler(s->change);
