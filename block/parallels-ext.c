@@ -383,7 +383,7 @@ static void GRAPH_RDLOCK parallels_save_bitmap(BlockDriverState *bs,
     offset = 0;
     while ((offset = bdrv_dirty_bitmap_next_dirty(bitmap, offset, bm_size)) >= 0) {
         idx = offset / bits_per_cluster;
-        int64_t cluster_off, end, write_size;
+        int64_t cluster_off, end, write_size, first_zero;
 
         offset = QEMU_ALIGN_DOWN(offset, bits_per_cluster);
         end = MIN(bm_size, offset + bits_per_cluster);
@@ -397,6 +397,16 @@ static void GRAPH_RDLOCK parallels_save_bitmap(BlockDriverState *bs,
         }
 
         l1_table[idx] = 0;
+
+        first_zero = bdrv_dirty_bitmap_next_zero(bitmap, offset, bm_size);
+        if (first_zero < 0) {
+            goto clean_allocated_clusters;
+        }
+        if (first_zero - offset >= s->cluster_size) {
+            l1_table[idx] = 1;
+            offset = end;
+            continue;
+        }
 
         cluster_off = parallels_allocate_host_clusters(bs, &alloc_size);
         if (cluster_off <= 0) {
