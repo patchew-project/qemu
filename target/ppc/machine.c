@@ -215,6 +215,8 @@ static int cpu_pre_save(void *opaque)
          * it here.
          */
         env->spr[SPR_DECR] = cpu_ppc_load_decr(env);
+        printf("cpu_ppc_pre_save  TB:0x%016lx\n", cpu_ppc_load_tbl(env));
+        printf("cpu_ppc_pre_save DEC:0x%016lx\n", cpu_ppc_load_decr(env));
     }
 
     return 0;
@@ -333,6 +335,8 @@ static int cpu_post_load(void *opaque, int version_id)
          * triggered types (including HDEC) would need to carry more state.
          */
         cpu_ppc_store_decr(env, env->spr[SPR_DECR]);
+        printf("cpu_ppc_post_ld   TB:0x%016lx\n", cpu_ppc_load_tbl(env));
+        printf("cpu_ppc_post_ld  DEC:0x%016lx\n", cpu_ppc_load_decr(env));
         pmu_mmcr01_updated(env);
     }
 
