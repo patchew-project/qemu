@@ -45,7 +45,7 @@ class ReverseDebugging(LinuxKernelTest):
         else:
             logger.info('replaying the execution...')
             mode = 'replay'
-            vm.add_args('-gdb', 'tcp::%d' % port, '-S')
+        vm.add_args('-gdb', 'tcp::%d' % port, '-S')
         vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init' %
                     (shift, mode, replay_path),
                     '-net', 'none')
@@ -88,6 +88,17 @@ class ReverseDebugging(LinuxKernelTest):
             self.fail('Invalid PC (read %x instead of %x)' % (pc, addr))
 
     @staticmethod
+    def gdb_cont(g):
+        g.cmd(b'c')
+
+    @staticmethod
+    def gdb_cont_nowait(g):
+        # The avocado GDBRemote does not have a good way to disconnect or
+        # continue without waiting for a reply, so open-code our own here.
+        data = g.encode(b'c')
+        g._socket.send(data)
+
+    @staticmethod
     def gdb_step(g):
         g.cmd(b's', b'T05thread:01;')
 
@@ -99,7 +110,7 @@ class ReverseDebugging(LinuxKernelTest):
     def vm_get_icount(vm):
         return vm.qmp('query-replay')['return']['icount']
 
-    def reverse_debugging(self, shift=7, args=None):
+    def reverse_debugging(self, shift=7, args=None, x86_workaround=False):
         logger = logging.getLogger('replay')
 
         # create qcow2 for snapshots
@@ -117,11 +128,40 @@ class ReverseDebugging(LinuxKernelTest):
         replay_path = os.path.join(self.workdir, 'replay.bin')
         port = find_free_port()
 
+        steps = []
+
         # record the log
         vm = self.run_vm(True, shift, args, replay_path, image_path, port)
+        logger.info('connecting to gdbstub')
+        g = gdb.GDBRemote('127.0.0.1', port, False, False)
+        g.connect()
+        r = g.cmd(b'qSupported')
+        if b'qXfer:features:read+' in r:
+            g.cmd(b'qXfer:features:read:target.xml:0,ffb')
+
+        if self.vm_get_icount(vm) != 0:
+            self.fail('icount does not start at zero')
+
+        # save the addresses of the first STEPS instructions executed
+        logger.info('stepping forward')
+        for i in range(self.STEPS):
+            pc = self.get_pc(g)
+            logger.info('saving position %x' % pc)
+            steps.append(pc)
+            self.gdb_step(g)
+            if x86_workaround and i == 0 and self.vm_get_icount(vm) == 0:
+                logger.warn('failed to take first step, stepping again')
+                self.gdb_step(g)
+        if self.vm_get_icount(vm) != self.STEPS:
+            self.fail('icount (%d) does not match number of instructions stepped' % self.vm_get_icount(vm))
+
+        logger.info('continue running')
+        self.gdb_cont_nowait(g)
+
         while self.vm_get_icount(vm) <= self.STEPS:
             pass
         last_icount = self.vm_get_icount(vm)
+        logger.info('shutdown...')
         vm.shutdown()
 
         logger.info("recorded log with %s+ steps" % last_icount)
@@ -139,23 +179,23 @@ class ReverseDebugging(LinuxKernelTest):
         if b'ReverseContinue+' not in r:
             self.fail('Reverse continue is not supported by QEMU')
 
+        # Try single stepping
         logger.info('stepping forward')
-        steps = []
-        # record first instruction addresses
-        for _ in range(self.STEPS):
-            pc = self.get_pc(g)
-            logger.info('saving position %x' % pc)
-            steps.append(pc)
+        for addr in steps:
+            # verify addresses match what initial execution saw
+            self.check_pc(g, addr)
             self.gdb_step(g)
+            logger.info('found position %x' % addr)
 
-        # visit the recorded instruction in reverse order
+        # Try reverse stepping
         logger.info('stepping backward')
         for addr in steps[::-1]:
             self.gdb_bstep(g)
+            # verify addresses match what initial execution saw
             self.check_pc(g, addr)
             logger.info('found position %x' % addr)
 
-        # visit the recorded instruction in forward order
+        # Step forward again
         logger.info('stepping forward')
         for addr in steps:
             self.check_pc(g, addr)
@@ -175,7 +215,7 @@ class ReverseDebugging(LinuxKernelTest):
         # continue - will return after pausing
         # This could stop at the end and get a T02 return, or by
         # re-executing one of the breakpoints and get a T05 return.
-        g.cmd(b'c')
+        self.gdb_cont(g)
         if self.vm_get_icount(vm) == last_icount - 1:
             logger.info('reached the end (icount %s)' % (last_icount - 1))
         else:
@@ -213,7 +253,7 @@ class ReverseDebugging_X86_64(ReverseDebugging):
         :avocado: tags=machine:pc
         """
         # start with BIOS only
-        self.reverse_debugging()
+        self.reverse_debugging(x86_workaround=True)
 
     def test_x86_64_q35(self):
         """
@@ -221,7 +261,7 @@ class ReverseDebugging_X86_64(ReverseDebugging):
         :avocado: tags=machine:q35
         """
         # start with BIOS only
-        self.reverse_debugging()
+        self.reverse_debugging(x86_workaround=True)
 
 class ReverseDebugging_AArch64(ReverseDebugging):
     """
