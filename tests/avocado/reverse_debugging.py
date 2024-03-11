@@ -9,6 +9,7 @@
 # later.  See the COPYING file in the top-level directory.
 import os
 import logging
+import time
 
 from avocado import skipUnless
 from avocado_qemu import BUILD_DIR
@@ -31,7 +32,7 @@ class ReverseDebugging(LinuxKernelTest):
     that the execution is stopped at the last of them.
     """
 
-    timeout = 10
+    timeout = 20
     STEPS = 10
     endian_is_le = True
 
@@ -86,6 +87,19 @@ class ReverseDebugging(LinuxKernelTest):
         pc = self.get_pc(g)
         if pc != addr:
             self.fail('Invalid PC (read %x instead of %x)' % (pc, addr))
+
+    @staticmethod
+    def gdb_break(g):
+        # The avocado GDBRemote does not have a good way to send this break
+        # packet, which is different from others.
+        g._socket.send(b'\x03')
+        transmission_result = g._socket.recv(1)
+        if transmission_result == '-':
+            raise Exception("Bad ack")
+        result = g._socket.recv(1024)
+        response_payload = g.decode(result)
+        if response_payload != b'T02thread:01;':
+            raise Exception("Unexpected response" + response_payload.decode())
 
     @staticmethod
     def gdb_cont(g):
@@ -159,8 +173,14 @@ class ReverseDebugging(LinuxKernelTest):
         logger.info('continue running')
         self.gdb_cont_nowait(g)
 
+        logger.info('running for 1s...')
+        time.sleep(1)
         logger.info('stopping to read final icount')
         vm.qmp('stop')
+        self.gdb_break(g)
+        last_pc = self.get_pc(g)
+        logger.info('saving position %x' % last_pc)
+        self.gdb_step(g)
         last_icount = self.vm_get_icount(vm)
         logger.info('shutdown...')
         vm.shutdown()
@@ -195,6 +215,34 @@ class ReverseDebugging(LinuxKernelTest):
             # verify addresses match what initial execution saw
             self.check_pc(g, addr)
             logger.info('found position %x' % addr)
+
+        # Run to the end of the trace, reverse-step, and then reverse-continue
+        # back to the start, with no breakpoints. This allows us to get to the
+        # end of the trace and reverse step from there, without possibly
+        # hitting a breakpoint that prevents reaching the end, as can happen
+        # with the later breakpoint tests.
+        logger.info('running to the end of the trace')
+        vm.qmp('replay-break', icount=last_icount - 1)
+        # This should stop at the end and get a T02 return.
+        self.gdb_cont(g)
+        if self.vm_get_icount(vm) != last_icount - 1:
+            self.fail('failed to reach the end (icount %s, reached %s)' % ((last_icount - 1), self.vm_get_icount(vm)))
+        logger.info('reached end of trace')
+        if not x86_workaround:
+            self.check_pc(g, last_pc)
+            logger.info('found position %x' % last_pc)
+
+        logger.info('stepping backward')
+        self.gdb_bstep(g)
+
+        logger.info('stepping forward')
+        self.gdb_step(g)
+        if not x86_workaround:
+            self.check_pc(g, last_pc)
+            logger.info('found position %x' % last_pc)
+
+        logger.info('reversing to the start of the trace')
+        g.cmd(b'bc', b'T05thread:01;')
 
         # Step forward again
         logger.info('stepping forward')
