@@ -118,7 +118,7 @@ class ReplayLinux(LinuxTest):
         except subprocess.CalledProcessError:
             self.fail('replay-dump.py failed')
 
-@skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
+@skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
 class ReplayLinuxX8664(ReplayLinux):
     """
     :avocado: tags=arch:x86_64
@@ -127,19 +127,21 @@ class ReplayLinuxX8664(ReplayLinux):
 
     chksum = 'e3c1b309d9203604922d6e255c2c5d098a309c2d46215d8fc026954f3c5c27a0'
 
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable')
     def test_pc_i440fx(self):
         """
         :avocado: tags=machine:pc
         """
         self.run_rr(shift=1)
 
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable')
     def test_pc_q35(self):
         """
         :avocado: tags=machine:q35
         """
         self.run_rr(shift=3)
 
-@skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
+@skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
 class ReplayLinuxX8664Virtio(ReplayLinux):
     """
     :avocado: tags=arch:x86_64
@@ -153,6 +155,7 @@ class ReplayLinuxX8664Virtio(ReplayLinux):
 
     chksum = 'e3c1b309d9203604922d6e255c2c5d098a309c2d46215d8fc026954f3c5c27a0'
 
+    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable')
     def test_pc_i440fx(self):
         """
         :avocado: tags=machine:pc
@@ -165,7 +168,7 @@ class ReplayLinuxX8664Virtio(ReplayLinux):
         """
         self.run_rr(shift=3)
 
-@skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
+@skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
 class ReplayLinuxAarch64(ReplayLinux):
     """
     :avocado: tags=accel:tcg
