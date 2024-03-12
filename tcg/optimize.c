@@ -1632,51 +1632,234 @@ static bool fold_ctpop(OptContext *ctx, TCGOp *op)
 
 static bool fold_deposit(OptContext *ctx, TCGOp *op)
 {
-    TCGOpcode and_opc;
+    TCGOpcode and_opc, or_opc, ex2_opc, shl_opc, rotl_opc;
+    TCGOp *op2;
+    TCGArg ret = op->args[0];
+    TCGArg arg1 = op->args[1];
+    TCGArg arg2 = op->args[2];
+    int ofs = op->args[3];
+    int len = op->args[4];
+    int width;
+    uint64_t type_mask;
+    bool valid;
 
-    if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
-        uint64_t t1 = arg_info(op->args[1])->val;
-        uint64_t t2 = arg_info(op->args[2])->val;
+    if (arg_is_const(arg1) && arg_is_const(arg2)) {
+        uint64_t t1 = arg_info(arg1)->val;
+        uint64_t t2 = arg_info(arg2)->val;
 
-        t1 = deposit64(t1, op->args[3], op->args[4], t2);
-        return tcg_opt_gen_movi(ctx, op, op->args[0], t1);
+        t1 = deposit64(t1, ofs, len, t2);
+        return tcg_opt_gen_movi(ctx, op, ret, t1);
     }
 
     switch (ctx->type) {
     case TCG_TYPE_I32:
         and_opc = INDEX_op_and_i32;
+        or_opc = INDEX_op_or_i32;
+        shl_opc = INDEX_op_shl_i32;
+        ex2_opc = TCG_TARGET_HAS_extract2_i32 ? INDEX_op_extract2_i32 : 0;
+        rotl_opc = TCG_TARGET_HAS_rot_i32 ? INDEX_op_rotl_i32 : 0;
+        valid = (TCG_TARGET_HAS_deposit_i32 &&
+                 TCG_TARGET_deposit_i32_valid(ofs, len));
+        width = 32;
+        type_mask = UINT32_MAX;
         break;
     case TCG_TYPE_I64:
         and_opc = INDEX_op_and_i64;
+        or_opc = INDEX_op_or_i64;
+        shl_opc = INDEX_op_shl_i64;
+        ex2_opc = TCG_TARGET_HAS_extract2_i64 ? INDEX_op_extract2_i64 : 0;
+        rotl_opc = TCG_TARGET_HAS_rot_i64 ? INDEX_op_rotl_i64 : 0;
+        valid = (TCG_TARGET_HAS_deposit_i64 &&
+                 TCG_TARGET_deposit_i64_valid(ofs, len));
+        width = 64;
+        type_mask = UINT64_MAX;
         break;
     default:
         g_assert_not_reached();
     }
 
-    /* Inserting a value into zero at offset 0. */
-    if (arg_is_const_val(op->args[1], 0) && op->args[3] == 0) {
-        uint64_t mask = MAKE_64BIT_MASK(0, op->args[4]);
+    if (arg_is_const(arg2)) {
+        uint64_t val = arg_info(arg2)->val;
+        uint64_t mask = MAKE_64BIT_MASK(0, len);
 
-        op->opc = and_opc;
-        op->args[1] = op->args[2];
-        op->args[2] = arg_new_constant(ctx, mask);
-        ctx->z_mask = mask & arg_info(op->args[1])->z_mask;
-        return false;
+        /* Inserting all-zero into a value. */
+        if ((val & mask) == 0) {
+            op->opc = and_opc;
+            op->args[2] = arg_new_constant(ctx, ~(mask << ofs));
+            return fold_and(ctx, op);
+        }
+
+        /* Inserting all-one into a value. */
+        if ((val & mask) == mask) {
+            op->opc = or_opc;
+            op->args[2] = arg_new_constant(ctx, mask << ofs);
+            goto done;
+        }
+
+        /* Lower invalid deposit of constant as AND + OR. */
+        if (!valid) {
+            op2 = tcg_op_insert_before(ctx->tcg, op, and_opc, 3);
+            op2->args[0] = ret;
+            op2->args[1] = arg1;
+            op2->args[2] = arg_new_constant(ctx, ~(mask << ofs));
+            fold_and(ctx, op2); /* fold to ext*u */
+
+            op->opc = or_opc;
+            op->args[1] = ret;
+            op->args[2] = arg_new_constant(ctx, (val & mask) << ofs);
+            goto done;
+        }
     }
 
-    /* Inserting zero into a value. */
-    if (arg_is_const_val(op->args[2], 0)) {
-        uint64_t mask = deposit64(-1, op->args[3], op->args[4], 0);
+    /* Inserting a value into zero. */
+    if (arg_is_const_val(arg1, 0)) {
+        uint64_t mask = MAKE_64BIT_MASK(0, len);
+        uint64_t need_mask = arg_info(arg2)->z_mask & ~mask & type_mask;
 
-        op->opc = and_opc;
-        op->args[2] = arg_new_constant(ctx, mask);
-        ctx->z_mask = mask & arg_info(op->args[1])->z_mask;
-        return false;
+        /* Always lower deposit into zero at 0 as AND. */
+        if (ofs == 0) {
+            if (!need_mask) {
+                return tcg_opt_gen_mov(ctx, op, ret, arg2);
+            }
+            op->opc = and_opc;
+            op->args[1] = arg2;
+            op->args[2] = arg_new_constant(ctx, mask);
+            return fold_and(ctx, op);
+        }
+
+        /* If no mask required, fold as SHL. */
+        if (!((need_mask << ofs) & type_mask)) {
+            op->opc = shl_opc;
+            op->args[1] = arg2;
+            op->args[2] = arg_new_constant(ctx, ofs);
+            goto done;
+        }
+
+        /* Lower invalid deposit into zero as AND + SHL. */
+        if (!valid) {
+            /*
+             * ret = arg2 & mask
+             * ret = ret << ofs
+             */
+            TCGOpcode ext_second_opc = 0;
+
+            switch (ofs + len) {
+            case 8:
+                ext_second_opc =
+                    (ctx->type == TCG_TYPE_I32
+                     ? (TCG_TARGET_HAS_ext8u_i32 ? INDEX_op_ext8u_i32 : 0)
+                     : (TCG_TARGET_HAS_ext8u_i64 ? INDEX_op_ext8u_i64 : 0));
+                break;
+            case 16:
+                ext_second_opc =
+                    (ctx->type == TCG_TYPE_I32
+                     ? (TCG_TARGET_HAS_ext16u_i32 ? INDEX_op_ext16u_i32 : 0)
+                     : (TCG_TARGET_HAS_ext16u_i64 ? INDEX_op_ext16u_i64 : 0));
+                break;
+            case 32:
+                ext_second_opc =
+                    TCG_TARGET_HAS_ext32u_i64 ? INDEX_op_ext32u_i64 : 0;
+                break;
+            }
+
+            if (ext_second_opc) {
+                op2 = tcg_op_insert_before(ctx->tcg, op, shl_opc, 3);
+                op2->args[0] = ret;
+                op2->args[1] = arg2;
+                op2->args[2] = arg_new_constant(ctx, ofs);
+
+                op->opc = ext_second_opc;
+                op->args[1] = ret;
+            } else {
+                op2 = tcg_op_insert_before(ctx->tcg, op, and_opc, 3);
+                op2->args[0] = ret;
+                op2->args[1] = arg2;
+                op2->args[2] = arg_new_constant(ctx, mask);
+                fold_and(ctx, op2);
+
+                op->opc = shl_opc;
+                op->args[1] = ret;
+                op->args[2] = arg_new_constant(ctx, ofs);
+            }
+            goto done;
+        }
     }
 
-    ctx->z_mask = deposit64(arg_info(op->args[1])->z_mask,
-                            op->args[3], op->args[4],
-                            arg_info(op->args[2])->z_mask);
+    /* After special cases, lower invalid deposit. */
+    if (!valid) {
+        uint64_t mask = MAKE_64BIT_MASK(0, len);
+        TCGArg tmp;
+
+        /*
+         * ret = arg2:arg1 >> len
+         * ret = rotl(ret, len)
+         */
+        if (ex2_opc && rotl_opc && ofs == 0) {
+            op2 = tcg_op_insert_before(ctx->tcg, op, ex2_opc, 4);
+            op2->args[0] = ret;
+            op2->args[1] = arg1;
+            op2->args[2] = arg2;
+            op2->args[3] = len;
+
+            op->opc = rotl_opc;
+            op->args[1] = ret;
+            op->args[2] = arg_new_constant(ctx, len);
+            goto done;
+        }
+
+        /*
+         * tmp = arg1 << len
+         * ret = arg2:tmp >> len
+         */
+        if (ex2_opc && ofs + len == width) {
+            tmp = ret == arg2 ? arg_new_temp(ctx) : ret;
+
+            op2 = tcg_op_insert_before(ctx->tcg, op, shl_opc, 4);
+            op2->args[0] = tmp;
+            op2->args[1] = arg1;
+            op2->args[2] = arg_new_constant(ctx, len);
+
+            op->opc = ex2_opc;
+            op->args[0] = ret;
+            op->args[1] = tmp;
+            op->args[2] = arg2;
+            op->args[3] = len;
+            goto done;
+        }
+
+        /*
+         * tmp = arg2 & mask
+         * ret = arg1 & ~(mask << ofs)
+         * tmp = tmp << ofs
+         * ret = ret | tmp
+         */
+        tmp = arg_new_temp(ctx);
+
+        op2 = tcg_op_insert_before(ctx->tcg, op, and_opc, 3);
+        op2->args[0] = tmp;
+        op2->args[1] = arg2;
+        op2->args[2] = arg_new_constant(ctx, mask);
+        fold_and(ctx, op2);
+
+        op2 = tcg_op_insert_before(ctx->tcg, op, shl_opc, 3);
+        op2->args[0] = tmp;
+        op2->args[1] = tmp;
+        op2->args[2] = arg_new_constant(ctx, ofs);
+
+        op2 = tcg_op_insert_before(ctx->tcg, op, and_opc, 3);
+        op2->args[0] = ret;
+        op2->args[1] = arg1;
+        op2->args[2] = arg_new_constant(ctx, ~(mask << ofs));
+        fold_and(ctx, op2);
+
+        op->opc = or_opc;
+        op->args[1] = ret;
+        op->args[2] = tmp;
+    }
+
+ done:
+    ctx->z_mask = deposit64(arg_info(arg1)->z_mask, ofs, len,
+                            arg_info(arg2)->z_mask);
     return false;
 }
 
