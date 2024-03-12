@@ -1300,11 +1300,46 @@ static bool fold_and(OptContext *ctx, TCGOp *op)
     ctx->s_mask = arg_info(op->args[1])->s_mask
                 & arg_info(op->args[2])->s_mask;
 
-    /*
-     * Known-zeros does not imply known-ones.  Therefore unless
-     * arg2 is constant, we can't infer affected bits from it.
-     */
     if (arg_is_const(op->args[2])) {
+        TCGOpcode ext8 = 0, ext16 = 0, ext32 = 0;
+
+        /* Canonicalize as zero-extend, if supported. */
+        switch (ctx->type) {
+        case TCG_TYPE_I32:
+            ext8 = TCG_TARGET_HAS_ext8u_i32 ? INDEX_op_ext8u_i32 : 0;
+            ext16 = TCG_TARGET_HAS_ext16u_i32 ? INDEX_op_ext16u_i32 : 0;
+            break;
+        case TCG_TYPE_I64:
+            ext8 = TCG_TARGET_HAS_ext8u_i64 ? INDEX_op_ext8u_i64 : 0;
+            ext16 = TCG_TARGET_HAS_ext16u_i64 ? INDEX_op_ext16u_i64 : 0;
+            ext32 = TCG_TARGET_HAS_ext32u_i64 ? INDEX_op_ext32u_i64 : 0;
+            break;
+        default:
+            break;
+        }
+
+        switch (arg_info(op->args[2])->val) {
+        case 0xff:
+            if (ext8) {
+                op->opc = ext8;
+            }
+            break;
+        case 0xffff:
+            if (ext16) {
+                op->opc = ext16;
+            }
+            break;
+        case UINT32_MAX:
+            if (ext32) {
+                op->opc = ext32;
+            }
+            break;
+        }
+
+        /*
+         * Known-zeros does not imply known-ones.  Therefore unless
+         * arg2 is constant, we can't infer affected bits from it.
+         */
         ctx->a_mask = z1 & ~z2;
     }
 
