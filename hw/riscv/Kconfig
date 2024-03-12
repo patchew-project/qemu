@@ -48,6 +48,18 @@ config RISCV_VIRT
     select ACPI
     select ACPI_PCI
 
+config SERVER_PLATFORM_REF
+    bool
+    select RISCV_NUMA
+    select GOLDFISH_RTC
+    select PCI
+    select PCI_EXPRESS_GENERIC_BRIDGE
+    select PFLASH_CFI01
+    select SERIAL
+    select RISCV_ACLINT
+    select RISCV_APLIC
+    select RISCV_IMSIC
+
 config SHAKTI_C
     bool
     select RISCV_ACLINT
