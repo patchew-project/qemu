@@ -1869,8 +1869,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                         args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_andc_i32:
-        tcg_out_dat_rIK(s, COND_AL, ARITH_BIC, ARITH_AND,
-                        args[0], args[1], args[2], const_args[2]);
+        tcg_out_dat_reg(s, COND_AL, ARITH_BIC, args[0], args[1],
+                        args[2], SHIFT_IMM_LSL(0));
         break;
     case INDEX_op_or_i32:
         c = ARITH_ORR;
@@ -2152,11 +2152,11 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, r, rIN);
 
     case INDEX_op_and_i32:
-    case INDEX_op_andc_i32:
     case INDEX_op_clz_i32:
     case INDEX_op_ctz_i32:
         return C_O1_I2(r, r, rIK);
 
+    case INDEX_op_andc_i32:
     case INDEX_op_mul_i32:
     case INDEX_op_div_i32:
     case INDEX_op_divu_i32:
