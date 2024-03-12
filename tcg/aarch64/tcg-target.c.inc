@@ -2216,17 +2216,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
-    case INDEX_op_andc_i32:
-        a2 = (int32_t)a2;
-        /* FALLTHRU */
-    case INDEX_op_andc_i64:
-        if (c2) {
-            tcg_out_logicali(s, I3404_ANDI, ext, a0, a1, ~a2);
-        } else {
-            tcg_out_insn(s, 3510, BIC, ext, a0, a1, a2);
-        }
-        break;
-
     case INDEX_op_or_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
@@ -2235,17 +2224,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_logicali(s, I3404_ORRI, ext, a0, a1, a2);
         } else {
             tcg_out_insn(s, 3510, ORR, ext, a0, a1, a2);
-        }
-        break;
-
-    case INDEX_op_orc_i32:
-        a2 = (int32_t)a2;
-        /* FALLTHRU */
-    case INDEX_op_orc_i64:
-        if (c2) {
-            tcg_out_logicali(s, I3404_ORRI, ext, a0, a1, ~a2);
-        } else {
-            tcg_out_insn(s, 3510, ORN, ext, a0, a1, a2);
         }
         break;
 
@@ -2260,15 +2238,17 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_andc_i32:
+    case INDEX_op_andc_i64:
+        tcg_out_insn(s, 3510, BIC, ext, a0, a1, a2);
+        break;
+    case INDEX_op_orc_i32:
+    case INDEX_op_orc_i64:
+        tcg_out_insn(s, 3510, ORN, ext, a0, a1, a2);
+        break;
     case INDEX_op_eqv_i32:
-        a2 = (int32_t)a2;
-        /* FALLTHRU */
     case INDEX_op_eqv_i64:
-        if (c2) {
-            tcg_out_logicali(s, I3404_EORI, ext, a0, a1, ~a2);
-        } else {
-            tcg_out_insn(s, 3510, EON, ext, a0, a1, a2);
-        }
+        tcg_out_insn(s, 3510, EON, ext, a0, a1, a2);
         break;
 
     case INDEX_op_not_i64:
@@ -2995,6 +2975,12 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_negsetcond_i64:
         return C_O1_I2(r, r, rC);
 
+    case INDEX_op_andc_i32:
+    case INDEX_op_andc_i64:
+    case INDEX_op_orc_i32:
+    case INDEX_op_orc_i64:
+    case INDEX_op_eqv_i32:
+    case INDEX_op_eqv_i64:
     case INDEX_op_mul_i32:
     case INDEX_op_mul_i64:
     case INDEX_op_div_i32:
@@ -3015,12 +3001,6 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_or_i64:
     case INDEX_op_xor_i32:
     case INDEX_op_xor_i64:
-    case INDEX_op_andc_i32:
-    case INDEX_op_andc_i64:
-    case INDEX_op_orc_i32:
-    case INDEX_op_orc_i64:
-    case INDEX_op_eqv_i32:
-    case INDEX_op_eqv_i64:
         return C_O1_I2(r, r, rL);
 
     case INDEX_op_shl_i32:
