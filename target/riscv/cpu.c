@@ -2312,6 +2312,66 @@ static void rva22s64_profile_cpu_init(Object *obj)
 
     RVA22S64.enabled = true;
 }
+
+static void rv64_rvsp_ref_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
+    riscv_cpu_set_misa_ext(env, RVG | RVC | RVS | RVU | RVH | RVV);
+
+    /* FIXME: change to 1.13 */
+    env->priv_ver = PRIV_VERSION_1_12_0;
+
+    /* RVA22S64 */
+    cpu->cfg.mmu = true;
+    cpu->cfg.ext_zifencei = true;
+    cpu->cfg.ext_zicsr = true;
+    cpu->cfg.ext_zicntr = true;
+    cpu->cfg.ext_zihpm = true;
+    cpu->cfg.ext_zihintpause = true;
+    cpu->cfg.ext_zba = true;
+    cpu->cfg.ext_zbb = true;
+    cpu->cfg.ext_zbs = true;
+    cpu->cfg.ext_zic64b = true;
+    cpu->cfg.ext_zicbom = true;
+    cpu->cfg.ext_zicbop = true;
+    cpu->cfg.ext_zicboz = true;
+    cpu->cfg.cbom_blocksize = 64;
+    cpu->cfg.cbop_blocksize = 64;
+    cpu->cfg.cboz_blocksize = 64;
+    cpu->cfg.ext_zfhmin = true;
+    cpu->cfg.ext_zkt = true;
+    cpu->cfg.ext_svade = true;
+    cpu->cfg.ext_svpbmt = true;
+    cpu->cfg.ext_svinval = true;
+
+    /* RVA23U64 */
+    cpu->cfg.ext_zvfhmin = true;
+    cpu->cfg.ext_zvbb = true;
+    cpu->cfg.ext_zvkt = true;
+    cpu->cfg.ext_zihintntl = true;
+    cpu->cfg.ext_zicond = true;
+    cpu->cfg.ext_zcb = true;
+    cpu->cfg.ext_zfa = true;
+    cpu->cfg.ext_zawrs = true;
+
+    /* RVA23S64 */
+    cpu->cfg.ext_svnapot = true;
+    cpu->cfg.ext_sstc = true;
+    cpu->cfg.ext_sscofpmf = true;
+    cpu->cfg.ext_smstateen = true;
+
+    cpu->cfg.ext_smaia = true;
+    cpu->cfg.ext_ssaia = true;
+
+    /* Server Platform */
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_SV48);
+#endif
+    cpu->cfg.ext_svadu = true;
+    cpu->cfg.ext_zkr = true;
+}
 #endif
 
 static const gchar *riscv_gdb_arch_name(CPUState *cs)
@@ -2577,6 +2637,7 @@ static const TypeInfo riscv_cpu_type_infos[] = {
     DEFINE_BARE_CPU(TYPE_RISCV_CPU_RV64E,        MXL_RV64,  rv64e_bare_cpu_init),
     DEFINE_PROFILE_CPU(TYPE_RISCV_CPU_RVA22U64,  MXL_RV64,  rva22u64_profile_cpu_init),
     DEFINE_PROFILE_CPU(TYPE_RISCV_CPU_RVA22S64,  MXL_RV64,  rva22s64_profile_cpu_init),
+    DEFINE_VENDOR_CPU(TYPE_RISCV_CPU_RVSP_REF,   MXL_RV64,  rv64_rvsp_ref_cpu_init),
 #endif
 };
 
