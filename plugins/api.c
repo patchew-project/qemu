@@ -55,6 +55,16 @@
 #endif
 #endif
 
+static enum plugin_dyn_cb_subtype op_to_cb_subtype(enum qemu_plugin_op op)
+{
+    switch (op) {
+    case QEMU_PLUGIN_INLINE_ADD_U64:
+        return PLUGIN_CB_INLINE_ADD_U64;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /* Uninstall and Reset handlers */
 
 void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb)
@@ -108,8 +118,9 @@ void qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
     uint64_t imm)
 {
     if (!tb->mem_only) {
-        plugin_register_inline_op_on_entry(
-            &tb->cbs[PLUGIN_CB_INLINE], 0, op, entry, imm);
+        enum plugin_dyn_cb_subtype type = op_to_cb_subtype(op);
+        plugin_register_inline_op_on_entry(&tb->cbs[type],
+                                           0, type, op, entry, imm);
     }
 }
 
@@ -135,8 +146,9 @@ void qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
     uint64_t imm)
 {
     if (!insn->mem_only) {
-        plugin_register_inline_op_on_entry(
-            &insn->cbs[PLUGIN_CB_INSN][PLUGIN_CB_INLINE], 0, op, entry, imm);
+        enum plugin_dyn_cb_subtype type = op_to_cb_subtype(op);
+        plugin_register_inline_op_on_entry(&insn->cbs[PLUGIN_CB_INSN][type],
+                                           0, type, op, entry, imm);
     }
 }
 
@@ -162,8 +174,9 @@ void qemu_plugin_register_vcpu_mem_inline_per_vcpu(
     qemu_plugin_u64 entry,
     uint64_t imm)
 {
+    enum plugin_dyn_cb_subtype type = op_to_cb_subtype(op);
     plugin_register_inline_op_on_entry(
-        &insn->cbs[PLUGIN_CB_MEM][PLUGIN_CB_INLINE], rw, op, entry, imm);
+        &insn->cbs[PLUGIN_CB_MEM][type], rw, type, op, entry, imm);
 }
 
 void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id,
