@@ -2065,6 +2065,15 @@ static bool fold_orc(OptContext *ctx, TCGOp *op)
         return true;
     }
 
+    /* Fold orc r,x,i to or r,x,~i. */
+    if (arg_is_const(op->args[2])) {
+        uint64_t val = ~arg_info(op->args[2])->val;
+
+        op->opc = (ctx->type == TCG_TYPE_I32
+                   ? INDEX_op_or_i32 : INDEX_op_or_i64);
+        op->args[2] = arg_new_constant(ctx, val);
+    }
+
     ctx->s_mask = arg_info(op->args[1])->s_mask
                 & arg_info(op->args[2])->s_mask;
     return false;
