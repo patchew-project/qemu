@@ -127,6 +127,17 @@ static bool resp_get_feature(QDict *resp, const char *feature)
     return qdict_get_bool(props, feature);
 }
 
+static const char *resp_get_feature_str(QDict *resp, const char *feature)
+{
+    QDict *props;
+
+    g_assert(resp);
+    g_assert(resp_has_props(resp));
+    props = resp_get_props(resp);
+    g_assert(qdict_get(props, feature));
+    return qdict_get_str(props, feature);
+}
+
 #define assert_has_feature(qts, cpu_type, feature)                     \
 ({                                                                     \
     QDict *_resp = do_query_no_props(qts, cpu_type);                   \
@@ -156,6 +167,18 @@ static bool resp_get_feature(QDict *resp, const char *feature)
     g_assert(qdict_get_bool(_props, feature) == (expected_value));     \
 })
 
+#define resp_assert_feature_str(resp, feature, expected_value)         \
+({                                                                     \
+    QDict *_props;                                                     \
+                                                                       \
+    g_assert(_resp);                                                   \
+    g_assert(resp_has_props(_resp));                                   \
+    _props = resp_get_props(_resp);                                    \
+    g_assert(qdict_get(_props, feature));                              \
+    g_assert_cmpstr(qdict_get_str(_props, feature),                    \
+                    ==, (expected_value));                             \
+})
+
 #define assert_feature(qts, cpu_type, feature, expected_value)         \
 ({                                                                     \
     QDict *_resp;                                                      \
@@ -174,6 +197,17 @@ static bool resp_get_feature(QDict *resp, const char *feature)
     _resp = do_query(qts, cpu_type, _fmt, feature);                    \
     g_assert(_resp);                                                   \
     resp_assert_feature(_resp, feature, value);                        \
+    qobject_unref(_resp);                                              \
+})
+
+#define assert_set_feature_str(qts, cpu_type, feature, value)          \
+({                                                                     \
+    const char *_fmt = "{ %s: %s }";                                   \
+    QDict *_resp;                                                      \
+                                                                       \
+    _resp = do_query(qts, cpu_type, _fmt, feature, value);             \
+    g_assert(_resp);                                                   \
+    resp_assert_feature_str(_resp, feature, value);                    \
     qobject_unref(_resp);                                              \
 })
 
@@ -461,6 +495,7 @@ static void test_query_cpu_model_expansion(const void *data)
 
     assert_has_not_feature(qts, "max", "kvm-no-adjvtime");
     assert_has_not_feature(qts, "max", "kvm-steal-time");
+    assert_has_not_feature(qts, "max", "kvm-pmu-filter");
 
     if (g_str_equal(qtest_get_arch(), "aarch64")) {
         assert_has_feature_enabled(qts, "max", "aarch64");
@@ -508,6 +543,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
     assert_set_feature(qts, "host", "kvm-no-adjvtime", false);
 
     if (g_str_equal(qtest_get_arch(), "aarch64")) {
+        const char *kvm_supports_pmu_filter;
         bool kvm_supports_steal_time;
         bool kvm_supports_sve;
         char max_name[8], name[8];
@@ -546,14 +582,28 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
          * because this instance of KVM doesn't support them. Test that the
          * features are present, and, when enabled, issue further tests.
          */
+        assert_has_feature(qts, "host", "kvm-pmu-filter");
         assert_has_feature(qts, "host", "kvm-steal-time");
         assert_has_feature(qts, "host", "sve");
 
         resp = do_query_no_props(qts, "host");
+        kvm_supports_pmu_filter = resp_get_feature_str(resp, "kvm-pmu-filter");
         kvm_supports_steal_time = resp_get_feature(resp, "kvm-steal-time");
         kvm_supports_sve = resp_get_feature(resp, "sve");
         vls = resp_get_sve_vls(resp);
         qobject_unref(resp);
+
+        if (kvm_supports_pmu_filter) {
+            assert_set_feature_str(qts, "host", "kvm-pmu-filter", "");
+            assert_set_feature_str(qts, "host", "kvm-pmu-filter",
+                                   "A:0x11-0x11");
+            assert_set_feature_str(qts, "host", "kvm-pmu-filter",
+                                   "D:0x11-0x11");
+            assert_set_feature_str(qts, "host", "kvm-pmu-filter",
+                                   "A:0x11-0x11;A:0x12-0x20");
+            assert_set_feature_str(qts, "host", "kvm-pmu-filter",
+                                   "D:0x11-0x11;A:0x12-0x20;D:0x12-0x15");
+        }
 
         if (kvm_supports_steal_time) {
             /* If we have steal-time then we should be able to toggle it. */
@@ -622,6 +672,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
         assert_has_not_feature(qts, "host", "pmu");
         assert_has_not_feature(qts, "host", "sve");
         assert_has_not_feature(qts, "host", "kvm-steal-time");
+        assert_has_not_feature(qts, "host", "kvm-pmu-filter");
     }
 
     qtest_quit(qts);
