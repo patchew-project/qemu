@@ -502,6 +502,7 @@ void gdbserver_fork_end(CPUState *cpu, pid_t pid)
         switch (gdbserver_user_state.fork_state) {
         case GDB_FORK_ENABLED:
             if (gdbserver_user_state.running_state) {
+                close(fd);
                 return;
             }
             QEMU_FALLTHROUGH;
@@ -527,7 +528,6 @@ void gdbserver_fork_end(CPUState *cpu, pid_t pid)
                 gdbserver_user_state.fork_state = GDB_FORK_ACTIVE;
                 break;
             case GDB_FORK_ENABLE:
-                close(fd);
                 gdbserver_user_state.fork_state = GDB_FORK_ENABLED;
                 break;
             case GDB_FORK_DISABLE:
@@ -542,7 +542,6 @@ void gdbserver_fork_end(CPUState *cpu, pid_t pid)
             if (write(fd, &b, 1) != 1) {
                 goto fail;
             }
-            close(fd);
             gdbserver_user_state.fork_state = GDB_FORK_ENABLED;
             break;
         case GDB_FORK_DISABLING:
