@@ -74,6 +74,8 @@ struct VirtIOBlock {
     uint64_t host_features;
     size_t config_size;
     BlockRAMRegistrar blk_ram_registrar;
+
+    unsigned coroutine_pool_size;
 };
 
 typedef struct VirtIOBlockReq {
