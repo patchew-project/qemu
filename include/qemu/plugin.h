@@ -74,6 +74,8 @@ enum plugin_dyn_cb_type {
 enum plugin_dyn_cb_subtype {
     PLUGIN_CB_REGULAR,
     PLUGIN_CB_REGULAR_R,
+    PLUGIN_CB_COND,
+    PLUGIN_CB_COND_R,
     PLUGIN_CB_INLINE_ADD_U64,
     PLUGIN_CB_INLINE_STORE_U64,
     PLUGIN_N_CB_SUBTYPES,
@@ -97,6 +99,11 @@ struct qemu_plugin_dyn_cb {
             enum qemu_plugin_op op;
             uint64_t imm;
         } inline_insn;
+        struct {
+            qemu_plugin_u64 entry;
+            enum qemu_plugin_cond cond;
+            uint64_t imm;
+        } cond_cb;
     };
 };
 
