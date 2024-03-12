@@ -130,9 +130,8 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 /* Constants we accept.  */
 #define TCG_CT_CONST_S32 0x100
 #define TCG_CT_CONST_U32 0x200
-#define TCG_CT_CONST_I32 0x400
-#define TCG_CT_CONST_WSZ 0x800
-#define TCG_CT_CONST_TST 0x1000
+#define TCG_CT_CONST_WSZ 0x400
+#define TCG_CT_CONST_TST 0x800
 
 /* Registers used with L constraint, which are the first argument
    registers on x86_64, and two random call clobbered registers on
@@ -203,8 +202,7 @@ static bool tcg_target_const_match(int64_t val, int ct,
         return 1;
     }
     if (type == TCG_TYPE_I32) {
-        if (ct & (TCG_CT_CONST_S32 | TCG_CT_CONST_U32 |
-                  TCG_CT_CONST_I32 | TCG_CT_CONST_TST)) {
+        if (ct & (TCG_CT_CONST_S32 | TCG_CT_CONST_U32 | TCG_CT_CONST_TST)) {
             return 1;
         }
     } else {
@@ -212,9 +210,6 @@ static bool tcg_target_const_match(int64_t val, int ct,
             return 1;
         }
         if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
-            return 1;
-        }
-        if ((ct & TCG_CT_CONST_I32) && ~val == (int32_t)~val) {
             return 1;
         }
         /*
@@ -2666,12 +2661,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     OP_32_64(andc):
-        if (const_a2) {
-            tcg_out_mov(s, rexw ? TCG_TYPE_I64 : TCG_TYPE_I32, a0, a1);
-            tgen_arithi(s, ARITH_AND + rexw, a0, ~a2, 0);
-        } else {
-            tcg_out_vex_modrm(s, OPC_ANDN + rexw, a0, a2, a1);
-        }
+        tcg_out_vex_modrm(s, OPC_ANDN + rexw, a0, a2, a1);
         break;
 
     OP_32_64(mul):
@@ -3442,7 +3432,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_andc_i32:
     case INDEX_op_andc_i64:
-        return C_O1_I2(r, r, rI);
+        return C_O1_I2(r, r, r);
 
     case INDEX_op_shl_i32:
     case INDEX_op_shl_i64:
