@@ -1324,17 +1324,23 @@ static bool fold_andc(OptContext *ctx, TCGOp *op)
 
     z1 = arg_info(op->args[1])->z_mask;
 
-    /*
-     * Known-zeros does not imply known-ones.  Therefore unless
-     * arg2 is constant, we can't infer anything from it.
-     */
     if (arg_is_const(op->args[2])) {
-        uint64_t z2 = ~arg_info(op->args[2])->z_mask;
-        ctx->a_mask = z1 & ~z2;
-        z1 &= z2;
-    }
-    ctx->z_mask = z1;
+        uint64_t val = ~arg_info(op->args[2])->val;
 
+        /* Fold andc r,x,i to and r,x,~i. */
+        op->opc = (ctx->type == TCG_TYPE_I32
+                   ? INDEX_op_and_i32 : INDEX_op_and_i64);
+        op->args[2] = arg_new_constant(ctx, val);
+
+        /*
+         * Known-zeros does not imply known-ones.  Therefore unless
+         * arg2 is constant, we can't infer anything from it.
+         */
+        ctx->a_mask = z1 & ~val;
+        z1 &= val;
+    }
+
+    ctx->z_mask = z1;
     ctx->s_mask = arg_info(op->args[1])->s_mask
                 & arg_info(op->args[2])->s_mask;
     return fold_masks(ctx, op);
