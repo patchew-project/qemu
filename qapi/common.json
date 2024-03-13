@@ -20,6 +20,22 @@
   'data': [ 'read', 'write' ] }
 
 ##
+# @IoStatus:
+#
+# An enumeration of block device I/O status.
+#
+# @ok: The last I/O operation has succeeded
+#
+# @failed: The last I/O operation has failed
+#
+# @nospace: The last I/O operation has failed due to a no-space
+#     condition
+#
+# Since: 1.0
+##
+{ 'enum': 'IoStatus', 'data': [ 'ok', 'failed', 'nospace' ] }
+
+##
 # @OnOffAuto:
 #
 # An enumeration of three options: on, off, and auto
