@@ -246,6 +246,11 @@ static bool stream_change(Job *job, JobChangeOptions *opts, Error **errp)
     return block_job_change(bjob, &opts->u.stream, errp);
 }
 
+static void stream_query(Job *job, JobInfo *info)
+{
+    block_job_query(job, &info->u.stream);
+}
+
 static const BlockJobDriver stream_job_driver = {
     .job_driver = {
         .instance_size = sizeof(StreamBlockJob),
@@ -256,6 +261,7 @@ static const BlockJobDriver stream_job_driver = {
         .clean         = stream_clean,
         .user_resume   = block_job_user_resume,
         .change        = stream_change,
+        .query         = stream_query,
     },
 };
 

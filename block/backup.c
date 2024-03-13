@@ -343,6 +343,11 @@ static bool backup_change(Job *job, JobChangeOptions *opts, Error **errp)
     return block_job_change(bjob, &opts->u.backup, errp);
 }
 
+static void backup_query(Job *job, JobInfo *info)
+{
+    block_job_query(job, &info->u.backup);
+}
+
 static const BlockJobDriver backup_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(BackupBlockJob),
@@ -356,6 +361,7 @@ static const BlockJobDriver backup_job_driver = {
         .pause                  = backup_pause,
         .cancel                 = backup_cancel,
         .change                 = backup_change,
+        .query                  = backup_query,
     },
     .set_speed = backup_set_speed,
 };

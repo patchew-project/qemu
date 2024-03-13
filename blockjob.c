@@ -306,6 +306,16 @@ bool block_job_set_speed_locked(BlockJob *job, int64_t speed, Error **errp)
     return true;
 }
 
+void block_job_query(Job *job, JobInfoBlockJob *info)
+{
+    BlockJob *bjob = container_of(job, BlockJob, job);
+
+    JOB_LOCK_GUARD();
+
+    info->speed = bjob->speed;
+    info->io_status = bjob->iostatus;
+}
+
 static bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     JOB_LOCK_GUARD();

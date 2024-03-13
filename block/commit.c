@@ -211,6 +211,11 @@ static bool commit_change(Job *job, JobChangeOptions *opts, Error **errp)
     return block_job_change(bjob, &opts->u.commit, errp);
 }
 
+static void commit_query(Job *job, JobInfo *info)
+{
+    block_job_query(job, &info->u.commit);
+}
+
 static const BlockJobDriver commit_job_driver = {
     .job_driver = {
         .instance_size = sizeof(CommitBlockJob),
@@ -222,6 +227,7 @@ static const BlockJobDriver commit_job_driver = {
         .abort         = commit_abort,
         .clean         = commit_clean,
         .change        = commit_change,
+        .query         = commit_query,
     },
 };
 

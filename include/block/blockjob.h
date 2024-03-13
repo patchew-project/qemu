@@ -231,4 +231,10 @@ const BlockJobDriver *block_job_driver(BlockJob *job);
 bool block_job_change(BlockJob *job, JobChangeOptionsBlockJob *opts,
                       Error **errp);
 
+/**
+ * Common part of .query handler for block-jobs.
+ * Adds block-job specific information to @info.
+ */
+void block_job_query(Job *job, JobInfoBlockJob *info);
+
 #endif

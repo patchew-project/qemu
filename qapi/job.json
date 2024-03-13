@@ -4,6 +4,7 @@
 ##
 # = Background jobs
 ##
+{ 'include': 'common.json' }
 
 ##
 # @JobType:
@@ -252,6 +253,20 @@
 { 'command': 'job-finalize', 'data': { 'id': 'str' } }
 
 ##
+# @JobInfoBlockJob:
+#
+# Information specific to block jobs like mirror and backup.
+#
+# @io-status: the io status of the job
+#
+# @speed: the rate limit, bytes per second
+#
+# Since: 9.1
+##
+{ 'struct': 'JobInfoBlockJob',
+  'data': { 'io-status': 'IoStatus', 'speed': 'uint64' } }
+
+##
 # @JobInfoMirror:
 #
 # Information specific to mirror block jobs.
@@ -263,6 +278,7 @@
 # Since: 9.1
 ##
 { 'struct': 'JobInfoMirror',
+  'base': 'JobInfoBlockJob',
   'data': { 'actively-synced': 'bool' } }
 
 ##
@@ -300,7 +316,10 @@
             'current-progress': 'int', 'total-progress': 'int',
             '*error': 'str' },
   'discriminator': 'type',
-  'data': { 'mirror': 'JobInfoMirror' } }
+  'data': { 'mirror': 'JobInfoMirror',
+            'backup': 'JobInfoBlockJob',
+            'stream': 'JobInfoBlockJob',
+            'commit': 'JobInfoBlockJob' } }
 
 ##
 # @query-jobs:

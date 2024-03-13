@@ -1310,6 +1310,8 @@ static void mirror_query(Job *job, JobInfo *info)
     info->u.mirror = (JobInfoMirror) {
         .actively_synced = qatomic_read(&s->actively_synced),
     };
+
+    block_job_query(job, qapi_JobInfoMirror_base(&info->u.mirror));
 }
 
 static const BlockJobDriver mirror_job_driver = {
@@ -1338,6 +1340,11 @@ static bool commit_active_change(Job *job, JobChangeOptions *opts, Error **errp)
     return block_job_change(bjob, &opts->u.commit, errp);
 }
 
+static void commit_active_query(Job *job, JobInfo *info)
+{
+    block_job_query(job, &info->u.commit);
+}
+
 static const BlockJobDriver commit_active_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
@@ -1351,6 +1358,7 @@ static const BlockJobDriver commit_active_job_driver = {
         .complete               = mirror_complete,
         .cancel                 = commit_active_cancel,
         .change                 = commit_active_change,
+        .query                  = commit_active_query,
     },
     .drained_poll           = mirror_drained_poll,
 };
