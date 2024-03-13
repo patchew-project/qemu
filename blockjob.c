@@ -394,9 +394,9 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
 /* Called with job lock held */
 static void block_job_iostatus_set_err_locked(BlockJob *job, int error)
 {
-    if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
-        job->iostatus = error == ENOSPC ? BLOCK_DEVICE_IO_STATUS_NOSPACE :
-                                          BLOCK_DEVICE_IO_STATUS_FAILED;
+    if (job->iostatus == IO_STATUS_OK) {
+        job->iostatus = error == ENOSPC ? IO_STATUS_NOSPACE :
+                                          IO_STATUS_FAILED;
     }
 }
 
@@ -550,11 +550,11 @@ fail:
 void block_job_iostatus_reset_locked(BlockJob *job)
 {
     GLOBAL_STATE_CODE();
-    if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
+    if (job->iostatus == IO_STATUS_OK) {
         return;
     }
     assert(job->job.user_paused && job->job.pause_count > 0);
-    job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+    job->iostatus = IO_STATUS_OK;
 }
 
 static void block_job_iostatus_reset(BlockJob *job)

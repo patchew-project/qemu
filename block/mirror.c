@@ -923,7 +923,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     MirrorBDSOpaque *mirror_top_opaque = s->mirror_top_bs->opaque;
     BlockDriverState *target_bs = blk_bs(s->target);
     bool need_drain = true;
-    BlockDeviceIoStatus iostatus;
+    IoStatus iostatus;
     int64_t length;
     int64_t target_length;
     BlockDriverInfo bdi;
@@ -1060,7 +1060,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
             iostatus = s->common.iostatus;
         }
         if (delta < BLOCK_JOB_SLICE_TIME &&
-            iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
+            iostatus == IO_STATUS_OK) {
             if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
                 trace_mirror_yield(s, cnt, s->buf_free_count, s->in_flight);

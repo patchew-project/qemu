@@ -571,7 +571,7 @@
             'write_threshold': 'int', '*dirty-bitmaps': ['BlockDirtyInfo'] } }
 
 ##
-# @BlockDeviceIoStatus:
+# @IoStatus:
 #
 # An enumeration of block device I/O status.
 #
@@ -584,7 +584,7 @@
 #
 # Since: 1.0
 ##
-{ 'enum': 'BlockDeviceIoStatus', 'data': [ 'ok', 'failed', 'nospace' ] }
+{ 'enum': 'IoStatus', 'data': [ 'ok', 'failed', 'nospace' ] }
 
 ##
 # @BlockDirtyInfo:
@@ -705,7 +705,7 @@
 # @tray_open: True if the device's tray is open (only present if it
 #     has a tray)
 #
-# @io-status: @BlockDeviceIoStatus.  Only present if the device
+# @io-status: @IoStatus.  Only present if the device
 #     supports it and the VM is configured to stop on errors
 #     (supported device models: virtio-blk, IDE, SCSI except
 #     scsi-generic)
@@ -718,7 +718,7 @@
 { 'struct': 'BlockInfo',
   'data': {'device': 'str', '*qdev': 'str', 'type': 'str', 'removable': 'bool',
            'locked': 'bool', '*inserted': 'BlockDeviceInfo',
-           '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus' } }
+           '*tray_open': 'bool', '*io-status': 'IoStatus' } }
 
 ##
 # @BlockMeasureInfo:
@@ -1424,7 +1424,7 @@
 { 'union': 'BlockJobInfo',
   'base': {'type': 'JobType', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
-           'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
+           'io-status': 'IoStatus', 'ready': 'bool',
            'status': 'JobStatus',
            'auto-finalize': 'bool', 'auto-dismiss': 'bool',
            '*error': 'str' },

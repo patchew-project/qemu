@@ -66,7 +66,7 @@ int GRAPH_UNLOCKED blk_set_perm(BlockBackend *blk, uint64_t perm,
 void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm);
 
 void blk_iostatus_enable(BlockBackend *blk);
-BlockDeviceIoStatus blk_iostatus(const BlockBackend *blk);
+IoStatus blk_iostatus(const BlockBackend *blk);
 void blk_iostatus_disable(BlockBackend *blk);
 void blk_iostatus_reset(BlockBackend *blk);
 int blk_attach_dev(BlockBackend *blk, DeviceState *dev);

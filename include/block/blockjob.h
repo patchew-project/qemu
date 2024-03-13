@@ -50,7 +50,7 @@ typedef struct BlockJob {
      * Status that is published by the query-block-jobs QMP API.
      * Protected by job mutex.
      */
-    BlockDeviceIoStatus iostatus;
+    IoStatus iostatus;
 
     /**
      * Speed that was set with @block_job_set_speed.

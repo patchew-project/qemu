@@ -65,7 +65,7 @@ struct BlockBackend {
 
     BlockdevOnError on_read_error, on_write_error;
     bool iostatus_enabled;
-    BlockDeviceIoStatus iostatus;
+    IoStatus iostatus;
 
     uint64_t perm;
     uint64_t shared_perm;
@@ -1198,7 +1198,7 @@ void blk_iostatus_enable(BlockBackend *blk)
 {
     GLOBAL_STATE_CODE();
     blk->iostatus_enabled = true;
-    blk->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+    blk->iostatus = IO_STATUS_OK;
 }
 
 /* The I/O status is only enabled if the drive explicitly
@@ -1212,7 +1212,7 @@ bool blk_iostatus_is_enabled(const BlockBackend *blk)
             blk->on_read_error == BLOCKDEV_ON_ERROR_STOP));
 }
 
-BlockDeviceIoStatus blk_iostatus(const BlockBackend *blk)
+IoStatus blk_iostatus(const BlockBackend *blk)
 {
     GLOBAL_STATE_CODE();
     return blk->iostatus;
@@ -1228,7 +1228,7 @@ void blk_iostatus_reset(BlockBackend *blk)
 {
     GLOBAL_STATE_CODE();
     if (blk_iostatus_is_enabled(blk)) {
-        blk->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+        blk->iostatus = IO_STATUS_OK;
     }
 }
 
@@ -1236,9 +1236,9 @@ void blk_iostatus_set_err(BlockBackend *blk, int error)
 {
     IO_CODE();
     assert(blk_iostatus_is_enabled(blk));
-    if (blk->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
-        blk->iostatus = error == ENOSPC ? BLOCK_DEVICE_IO_STATUS_NOSPACE :
-                                          BLOCK_DEVICE_IO_STATUS_FAILED;
+    if (blk->iostatus == IO_STATUS_OK) {
+        blk->iostatus = error == ENOSPC ? IO_STATUS_NOSPACE :
+                                          IO_STATUS_FAILED;
     }
 }
 

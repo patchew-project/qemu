@@ -642,9 +642,9 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
         if (info->qdev) {
             monitor_printf(mon, "    Attached to:      %s\n", info->qdev);
         }
-        if (info->has_io_status && info->io_status != BLOCK_DEVICE_IO_STATUS_OK) {
+        if (info->has_io_status && info->io_status != IO_STATUS_OK) {
             monitor_printf(mon, "    I/O status:       %s\n",
-                           BlockDeviceIoStatus_str(info->io_status));
+                           IoStatus_str(info->io_status));
         }
 
         if (info->removable) {
