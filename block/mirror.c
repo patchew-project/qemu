@@ -1265,6 +1265,11 @@ static void mirror_change(BlockJob *job, JobChangeOptions *opts,
 
     GLOBAL_STATE_CODE();
 
+    if (!change_opts->has_copy_mode) {
+        /* Nothing to do */
+        return;
+    }
+
     if (qatomic_read(&s->copy_mode) == change_opts->copy_mode) {
         return;
     }

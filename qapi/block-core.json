@@ -3071,7 +3071,7 @@
 # Since: 8.2
 ##
 { 'struct': 'JobChangeOptionsMirror',
-  'data': { 'copy-mode' : 'MirrorCopyMode' } }
+  'data': { '*copy-mode' : 'MirrorCopyMode' } }
 
 ##
 # @JobChangeOptions:
