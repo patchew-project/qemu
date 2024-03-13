@@ -116,7 +116,7 @@ static int tcg_init_machine(MachineState *ms)
     tb_htable_init();
     tcg_init(s->tb_size * MiB, s->splitwx_enabled, max_cpus);
 
-#if defined(CONFIG_SOFTMMU)
+#if !defined(CONFIG_USER_ONLY)
     /*
      * There's no guest base to take into account, so go ahead and
      * initialize the prologue now.

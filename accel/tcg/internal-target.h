@@ -24,7 +24,7 @@
 #define assert_memory_lock()
 #endif
 
-#if defined(CONFIG_SOFTMMU) && defined(CONFIG_DEBUG_TCG)
+#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_DEBUG_TCG)
 void assert_no_pages_locked(void);
 #else
 static inline void assert_no_pages_locked(void) { }
@@ -62,12 +62,12 @@ void tb_unlock_page1(tb_page_addr_t, tb_page_addr_t);
 void tb_unlock_pages(TranslationBlock *);
 #endif
 
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
 void tb_invalidate_phys_range_fast(ram_addr_t ram_addr,
                                    unsigned size,
                                    uintptr_t retaddr);
 G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
-#endif /* CONFIG_SOFTMMU */
+#endif /* !CONFIG_USER_ONLY */
 
 TranslationBlock *tb_gen_code(CPUState *cpu, vaddr pc,
                               uint64_t cs_base, uint32_t flags,
