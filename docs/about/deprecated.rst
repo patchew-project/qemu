@@ -128,6 +128,75 @@ options are removed in favor of using explicit ``blockdev-create`` and
 ``blockdev-add`` calls. See :doc:`/interop/live-block-operations` for
 details.
 
+``block-job-pause`` (since 9.1)
+'''''''''''''''''''''''''''''''
+
+Use ``job-pause`` instead. The only difference is that ``job-pause``
+always reports GenericError on failure when ``block-job-pause`` reports
+DeviceNotActive when block-job is not found.
+
+``block-job-resume`` (since 9.1)
+''''''''''''''''''''''''''''''''
+
+Use ``job-resume`` instead. The only difference is that ``job-resume``
+always reports GenericError on failure when ``block-job-resume`` reports
+DeviceNotActive when block-job is not found.
+
+``block-job-complete`` (since 9.1)
+''''''''''''''''''''''''''''''''''
+
+Use ``job-complete`` instead. The only difference is that ``job-complete``
+always reports GenericError on failure when ``block-job-complete`` reports
+DeviceNotActive when block-job is not found.
+
+``block-job-dismiss`` (since 9.1)
+'''''''''''''''''''''''''''''''''
+
+Use ``job-dismiss`` instead.
+
+``block-job-finalize`` (since 9.1)
+''''''''''''''''''''''''''''''''''
+
+Use ``job-finalize`` instead.
+
+``block-job-set-speed`` (since 9.1)
+'''''''''''''''''''''''''''''''''''
+
+Use ``job-change`` instead.
+
+``block-job-change`` (since 9.1)
+''''''''''''''''''''''''''''''''
+
+Use ``job-change`` instead.
+
+``block-job-cancel`` (since 9.1)
+''''''''''''''''''''''''''''''''
+
+Use ``job-cancel`` instead which correspond to
+``block-job-cancel`` (``force`` = true ).  For special case of
+soft-cancelling mirror in ready state, use ``job-complete``
+(``no-block-replace`` = true ).
+
+``query-block-jobs`` (since 9.1)
+
+Use ``query-jobs`` instead. Per-field recommendations:
+
+``query-block-jobs`` ``device`` field: use ``query-jobs`` ``id`` field.
+
+``query-block-jobs`` ``len`` and ``offset`` fields: use ``query-jobs``
+``current-progress`` and ``total-progress`` fields.
+
+``query-block-jobs`` ``paused``, ``ready``:
+use ``qeury-jobs`` ``status``.
+
+``auto-finalize``, ``auto-dismiss``: these are parameters set by user
+on job creation and never changed. So, no reason to query them. No
+support in ``query-jobs``.
+
+``busy``: it actually means nothing for user, it's a mistake to rely on
+it. No support in ``query-jobs``.
+
+
 Incorrectly typed ``device_add`` arguments (since 6.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -143,8 +212,8 @@ all arguments passed to ``device_add`` are consistent with the documented
 property types.
 
 
-``block-job-change`` and ``job-change``  argument ``type`` (since 9.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``job-change`` argument ``type`` (since 9.1)
+''''''''''''''''''''''''''''''''''''''''''''
 
 QEMU can get job type from the job itself (by @id), @type field is redundant.
 
