@@ -143,8 +143,8 @@ all arguments passed to ``device_add`` are consistent with the documented
 property types.
 
 
-``block-job-change`` argument ``type`` (since 9.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''
+``block-job-change`` and ``job-change``  argument ``type`` (since 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 QEMU can get job type from the job itself (by @id), @type field is redundant.
 
