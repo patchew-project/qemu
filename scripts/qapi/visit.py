@@ -60,6 +60,13 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
                  c_name=c_name(name))
 
 
+def gen_visit_members_tag_mapper_decl(name: str, tag_type: str) -> str:
+    return mcgen('''
+
+bool %(c_name)s_mapper(%(c_name)s *obj, %(tag_type)s *tag, Error **errp);
+                 ''', c_name=c_name(name), tag_type=c_name(tag_type))
+
+
 def gen_visit_object_members(name: str,
                              base: Optional[QAPISchemaObjectType],
                              members: List[QAPISchemaObjectTypeMember],
@@ -82,6 +89,12 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
             sep = '\n'
             ret += memb.ifcond.gen_endif()
     ret += sep
+
+    if variants:
+        ret += mcgen('''
+    %(c_name)s tag;
+''',
+                     c_name=c_name(variants.tag_type.name))
 
     if base:
         ret += mcgen('''
@@ -132,17 +145,29 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
         ret += memb.ifcond.gen_endif()
 
     if variants:
-        tag_member = variants.tag_member
-        assert isinstance(tag_member.type, QAPISchemaEnumType)
+        tag_type = variants.tag_type
+        assert isinstance(tag_type, QAPISchemaEnumType)
+
+        if variants.tag_member:
+            ret += mcgen('''
+    tag = obj->%(c_name)s;
+''',
+                         c_name=c_name(variants.tag_member.name))
+        else:
+            ret += mcgen('''
+    if (!%(c_name)s_mapper(obj, &tag, errp)) {
+        return false;
+    }
+''',
+                         c_name=c_name(name))
 
         ret += mcgen('''
-    switch (obj->%(c_name)s) {
-''',
-                     c_name=c_name(tag_member.name))
+    switch (tag) {
+''')
 
         for var in variants.variants:
-            case_str = c_enum_const(tag_member.type.name, var.name,
-                                    tag_member.type.prefix)
+            case_str = c_enum_const(tag_type.name, var.name,
+                                    tag_type.prefix)
             ret += var.ifcond.gen_if()
             if var.type.name == 'q_empty':
                 # valid variant and nothing to do
@@ -400,6 +425,10 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
             return
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_visit_members_decl(name))
+            if variants and variants.tag_type:
+                self._genh.add(
+                    gen_visit_members_tag_mapper_decl(name,
+                                                      variants.tag_type.name))
             self._genc.add(gen_visit_object_members(name, base,
                                                     members, variants))
             # TODO Worth changing the visitor signature, so we could

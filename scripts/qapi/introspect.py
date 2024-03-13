@@ -336,7 +336,10 @@ const QLitObject %(c_name)s = %(c_string)s;
             'members': [self._gen_object_member(m) for m in members]
         }
         if variants:
-            obj['tag'] = variants.tag_member.name
+            if variants.tag_member:
+                obj['tag'] = variants.tag_member.name
+            else:
+                obj['discriminator-type'] = variants.tag_type.name
             obj['variants'] = [self._gen_variant(v) for v in variants.variants]
         self._gen_tree(name, 'object', obj, ifcond, features)
 

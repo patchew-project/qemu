@@ -230,7 +230,8 @@ def gen_variants(variants: QAPISchemaVariants) -> str:
     ret = mcgen('''
     union { /* union tag is @%(c_name)s */
 ''',
-                c_name=c_name(variants.tag_member.name))
+                c_name=c_name(variants.tag_member.name if variants.tag_member
+                              else variants.tag_type.name))
 
     for var in variants.variants:
         if var.type.name == 'q_empty':
