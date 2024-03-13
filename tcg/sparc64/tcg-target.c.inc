@@ -78,7 +78,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #define TCG_REG_T2  TCG_REG_G2
 #define TCG_REG_T3  TCG_REG_O7
 
-#ifndef CONFIG_SOFTMMU
+#ifdef CONFIG_USER_ONLY
 # define TCG_GUEST_BASE_REG TCG_REG_I5
 #endif
 
@@ -961,7 +961,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
               INSN_IMM13(-frame_size));
 
-#ifndef CONFIG_SOFTMMU
+#ifdef CONFIG_USER_ONLY
     if (guest_base != 0) {
         tcg_out_movi_int(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG,
                          guest_base, true, TCG_REG_T1);
@@ -1075,7 +1075,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     h->aa.align = MAX(h->aa.align, s_bits);
     a_mask = (1u << h->aa.align) - 1;
 
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
     int mem_index = get_mmuidx(oi);
     int fast_off = tlb_mask_table_ofs(s, mem_index);
     int mask_off = fast_off + offsetof(CPUTLBDescFast, mask);
@@ -1147,7 +1147,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         tcg_out_bpcc0(s, COND_NE, BPCC_PN | BPCC_ICC, 0);
     }
     h->base = guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0;
-#endif
+#endif /* CONFIG_USER_ONLY */
 
     /* If the guest address must be zero-extended, do in the delay slot.  */
     if (addr_type == TCG_TYPE_I32) {
