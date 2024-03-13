@@ -431,7 +431,7 @@ static int esp_cdb_length(ESPState *s)
     int cmdlen, len;
 
     cmdlen = fifo8_num_used(&s->cmdfifo);
-    if (cmdlen < s->cmdfifo_cdb_offset) {
+    if (cmdlen == 0 || cmdlen < s->cmdfifo_cdb_offset) {
         return 0;
     }
 
