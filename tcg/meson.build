@@ -42,7 +42,6 @@ user_ss.add(tcg_user)
 libtcg_system = static_library('tcg_system',
                                 tcg_ss.sources() + genh,
                                 name_suffix: 'fa',
-                                c_args: '-DCONFIG_SOFTMMU',
                                 build_by_default: false)
 
 tcg_system = declare_dependency(link_with: libtcg_system,
