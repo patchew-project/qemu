@@ -294,14 +294,14 @@ bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info)
  * Virtual Memory queries
  */
 
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
 static __thread struct qemu_plugin_hwaddr hwaddr_info;
 #endif
 
 struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
                                                   uint64_t vaddr)
 {
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
     CPUState *cpu = current_cpu;
     unsigned int mmu_idx = get_mmuidx(info);
     enum qemu_plugin_mem_rw rw = get_plugin_meminfo_rw(info);
@@ -323,7 +323,7 @@ struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
 
 bool qemu_plugin_hwaddr_is_io(const struct qemu_plugin_hwaddr *haddr)
 {
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
     return haddr->is_io;
 #else
     return false;
@@ -332,7 +332,7 @@ bool qemu_plugin_hwaddr_is_io(const struct qemu_plugin_hwaddr *haddr)
 
 uint64_t qemu_plugin_hwaddr_phys_addr(const struct qemu_plugin_hwaddr *haddr)
 {
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
     if (haddr) {
         return haddr->phys_addr;
     }
@@ -342,7 +342,7 @@ uint64_t qemu_plugin_hwaddr_phys_addr(const struct qemu_plugin_hwaddr *haddr)
 
 const char *qemu_plugin_hwaddr_device_name(const struct qemu_plugin_hwaddr *h)
 {
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
     if (h && h->is_io) {
         MemoryRegion *mr = h->mr;
         if (!mr->name) {
