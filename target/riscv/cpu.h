@@ -30,6 +30,7 @@
 #include "qemu/int128.h"
 #include "cpu_bits.h"
 #include "cpu_cfg.h"
+#include "cpu_decoder.h"
 #include "qapi/qapi-types-common.h"
 #include "cpu-qom.h"
 
@@ -457,6 +458,7 @@ struct ArchCPU {
     uint32_t pmu_avail_ctrs;
     /* Mapping of events to counters */
     GHashTable *pmu_event_ctr_map;
+    const GPtrArray *decoders;
 };
 
 /**
