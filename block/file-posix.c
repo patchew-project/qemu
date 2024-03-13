@@ -2453,6 +2453,8 @@ static inline bool raw_check_linux_io_uring(BDRVRawState *s)
 #endif
 
 #ifdef CONFIG_LINUX_AIO
+extern bool laio_has_fdsync(int);
+
 static inline bool raw_check_linux_aio(BDRVRawState *s)
 {
     Error *local_err = NULL;
@@ -2598,6 +2600,11 @@ static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
 #ifdef CONFIG_LINUX_IO_URING
     if (raw_check_linux_io_uring(s)) {
         return luring_co_submit(bs, s->fd, 0, NULL, QEMU_AIO_FLUSH);
+    }
+#endif
+#ifdef CONFIG_LINUX_AIO
+    if (raw_check_linux_aio(s) && laio_has_fdsync(s->fd)) {
+        return laio_co_submit(s->fd, 0, NULL, QEMU_AIO_FLUSH, 0);
     }
 #endif
     return raw_thread_pool_submit(handle_aiocb_flush, &acb);
