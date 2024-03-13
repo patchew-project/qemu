@@ -315,6 +315,11 @@ struct JobDriver {
      */
     bool (*change)(Job *job, JobChangeOptions *opts, Error **errp);
 
+    /*
+     * Query information specific to this kind of block job.
+     */
+    void (*query)(Job *job, JobInfo *info);
+
     /**
      * Called when the job is freed.
      */

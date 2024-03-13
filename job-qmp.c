@@ -177,6 +177,12 @@ static JobInfo *job_query_single_locked(Job *job, Error **errp)
                               g_strdup(error_get_pretty(job->err)) : NULL,
     };
 
+    if (job->driver->query) {
+        job_unlock();
+        job->driver->query(job, info);
+        job_lock();
+    }
+
     return info;
 }
 

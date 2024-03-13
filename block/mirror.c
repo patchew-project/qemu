@@ -1294,11 +1294,20 @@ static bool mirror_change(Job *job, JobChangeOptions *opts, Error **errp)
     return true;
 }
 
-static void mirror_query(BlockJob *job, BlockJobInfo *info)
+static void mirror_query_old(BlockJob *job, BlockJobInfo *info)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
 
     info->u.mirror = (BlockJobInfoMirror) {
+        .actively_synced = qatomic_read(&s->actively_synced),
+    };
+}
+
+static void mirror_query(Job *job, JobInfo *info)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
+
+    info->u.mirror = (JobInfoMirror) {
         .actively_synced = qatomic_read(&s->actively_synced),
     };
 }
@@ -1316,9 +1325,10 @@ static const BlockJobDriver mirror_job_driver = {
         .complete               = mirror_complete,
         .cancel                 = mirror_cancel,
         .change                 = mirror_change,
+        .query                  = mirror_query,
     },
     .drained_poll           = mirror_drained_poll,
-    .query                  = mirror_query,
+    .query                  = mirror_query_old,
 };
 
 static bool commit_active_change(Job *job, JobChangeOptions *opts, Error **errp)
