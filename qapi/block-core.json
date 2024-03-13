@@ -3063,6 +3063,17 @@
   'allow-preconfig': true }
 
 ##
+# @JobChangeOptionsBlockJob:
+#
+# @speed: Change job speed (in bytes per second).  Supported for
+#     for backup, mirror, commit and stream jobs.
+#
+# Since: 9.1
+##
+{ 'struct': 'JobChangeOptionsBlockJob',
+  'data': { '*speed' : 'uint64' } }
+
+##
 # @JobChangeOptionsMirror:
 #
 # @copy-mode: Switch to this copy mode.  Currently, only the switch
@@ -3071,12 +3082,17 @@
 # Since: 8.2
 ##
 { 'struct': 'JobChangeOptionsMirror',
+  'base': 'JobChangeOptionsBlockJob',
   'data': { '*copy-mode' : 'MirrorCopyMode' } }
+
 
 ##
 # @JobChangeOptions:
 #
-# Block job options that can be changed after job creation.
+# Job options that can be changed after job creation. When option is
+# not specified the corresponding job parameter remains unchanged.
+# The change is transactional: on success all changes are applied
+# successfully, on failure nothing is changed.
 #
 # @id: The job identifier
 #
@@ -3093,7 +3109,10 @@
   'base': { 'id': 'str',
             '*type': { 'type': 'JobType', 'features': ['deprecated'] } },
   'discriminator': 'JobType',
-  'data': { 'mirror': 'JobChangeOptionsMirror' } }
+  'data': { 'mirror': 'JobChangeOptionsMirror',
+            'backup': 'JobChangeOptionsBlockJob',
+            'stream': 'JobChangeOptionsBlockJob',
+            'commit': 'JobChangeOptionsBlockJob' } }
 
 ##
 # @block-job-change:

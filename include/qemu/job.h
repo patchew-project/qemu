@@ -313,7 +313,7 @@ struct JobDriver {
      *
      * Note that this can already be called before the job coroutine is running.
      */
-    void (*change)(Job *job, JobChangeOptions *opts, Error **errp);
+    bool (*change)(Job *job, JobChangeOptions *opts, Error **errp);
 
     /**
      * Called when the job is freed.

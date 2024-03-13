@@ -239,6 +239,13 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
     return error;
 }
 
+static bool stream_change(Job *job, JobChangeOptions *opts, Error **errp)
+{
+    BlockJob *bjob = container_of(job, BlockJob, job);
+
+    return block_job_change(bjob, &opts->u.stream, errp);
+}
+
 static const BlockJobDriver stream_job_driver = {
     .job_driver = {
         .instance_size = sizeof(StreamBlockJob),
@@ -248,6 +255,7 @@ static const BlockJobDriver stream_job_driver = {
         .prepare       = stream_prepare,
         .clean         = stream_clean,
         .user_resume   = block_job_user_resume,
+        .change        = stream_change,
     },
 };
 

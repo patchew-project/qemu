@@ -312,6 +312,19 @@ static bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     return block_job_set_speed_locked(job, speed, errp);
 }
 
+bool block_job_change(BlockJob *job, JobChangeOptionsBlockJob *opts,
+                      Error **errp)
+{
+    GLOBAL_STATE_CODE();
+
+    if (!opts->has_speed) {
+        /* Nothing to do */
+        return true;
+    }
+
+    return block_job_set_speed(job, opts->speed, errp);
+}
+
 void block_job_ratelimit_processed_bytes(BlockJob *job, uint64_t n)
 {
     IO_CODE();

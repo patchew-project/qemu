@@ -1251,41 +1251,45 @@ static bool commit_active_cancel(Job *job, bool force)
     return force || !job_is_ready(job);
 }
 
-static void mirror_change(Job *job, JobChangeOptions *opts, Error **errp)
+static bool mirror_change(Job *job, JobChangeOptions *opts, Error **errp)
 {
+    BlockJob *bjob = container_of(job, BlockJob, job);
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     JobChangeOptionsMirror *change_opts = &opts->u.mirror;
-    MirrorCopyMode current;
-
-    /*
-     * The implementation relies on the fact that copy_mode is only written
-     * under the BQL. Otherwise, further synchronization would be required.
-     */
+    MirrorCopyMode old_mode;
 
     GLOBAL_STATE_CODE();
 
-    if (!change_opts->has_copy_mode) {
-        /* Nothing to do */
-        return;
+    if (change_opts->has_copy_mode) {
+        old_mode = qatomic_read(&s->copy_mode);
+
+        if (old_mode != change_opts->copy_mode) {
+            if (change_opts->copy_mode != MIRROR_COPY_MODE_WRITE_BLOCKING) {
+                error_setg(errp, "Change to copy mode '%s' is not implemented",
+                           MirrorCopyMode_str(change_opts->copy_mode));
+                return false;
+            }
+
+            if (old_mode != MIRROR_COPY_MODE_BACKGROUND) {
+                error_setg(errp, "Expected current copy mode '%s', got '%s'",
+                           MirrorCopyMode_str(MIRROR_COPY_MODE_BACKGROUND),
+                           MirrorCopyMode_str(old_mode));
+                return false;
+            }
+        }
     }
 
-    if (qatomic_read(&s->copy_mode) == change_opts->copy_mode) {
-        return;
+    if (!block_job_change(bjob, qapi_JobChangeOptionsMirror_base(change_opts),
+                          errp))
+    {
+        return false;
     }
 
-    if (change_opts->copy_mode != MIRROR_COPY_MODE_WRITE_BLOCKING) {
-        error_setg(errp, "Change to copy mode '%s' is not implemented",
-                   MirrorCopyMode_str(change_opts->copy_mode));
-        return;
-    }
+    old_mode = qatomic_cmpxchg(&s->copy_mode, MIRROR_COPY_MODE_BACKGROUND,
+                               change_opts->copy_mode);
+    assert(old_mode == MIRROR_COPY_MODE_BACKGROUND);
 
-    current = qatomic_cmpxchg(&s->copy_mode, MIRROR_COPY_MODE_BACKGROUND,
-                              change_opts->copy_mode);
-    if (current != MIRROR_COPY_MODE_BACKGROUND) {
-        error_setg(errp, "Expected current copy mode '%s', got '%s'",
-                   MirrorCopyMode_str(MIRROR_COPY_MODE_BACKGROUND),
-                   MirrorCopyMode_str(current));
-    }
+    return true;
 }
 
 static void mirror_query(BlockJob *job, BlockJobInfo *info)
@@ -1315,6 +1319,13 @@ static const BlockJobDriver mirror_job_driver = {
     .query                  = mirror_query,
 };
 
+static bool commit_active_change(Job *job, JobChangeOptions *opts, Error **errp)
+{
+    BlockJob *bjob = container_of(job, BlockJob, job);
+
+    return block_job_change(bjob, &opts->u.commit, errp);
+}
+
 static const BlockJobDriver commit_active_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
@@ -1327,6 +1338,7 @@ static const BlockJobDriver commit_active_job_driver = {
         .pause                  = mirror_pause,
         .complete               = mirror_complete,
         .cancel                 = commit_active_cancel,
+        .change                 = commit_active_change,
     },
     .drained_poll           = mirror_drained_poll,
 };

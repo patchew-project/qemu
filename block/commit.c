@@ -204,6 +204,13 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     return 0;
 }
 
+static bool commit_change(Job *job, JobChangeOptions *opts, Error **errp)
+{
+    BlockJob *bjob = container_of(job, BlockJob, job);
+
+    return block_job_change(bjob, &opts->u.commit, errp);
+}
+
 static const BlockJobDriver commit_job_driver = {
     .job_driver = {
         .instance_size = sizeof(CommitBlockJob),
@@ -213,7 +220,8 @@ static const BlockJobDriver commit_job_driver = {
         .run           = commit_run,
         .prepare       = commit_prepare,
         .abort         = commit_abort,
-        .clean         = commit_clean
+        .clean         = commit_clean,
+        .change        = commit_change,
     },
 };
 

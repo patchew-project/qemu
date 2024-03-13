@@ -224,4 +224,11 @@ bool block_job_is_internal(BlockJob *job);
  */
 const BlockJobDriver *block_job_driver(BlockJob *job);
 
+/**
+ * Common part of .change handler for block-jobs.
+ * Applies changes described in opts to the job.
+ */
+bool block_job_change(BlockJob *job, JobChangeOptionsBlockJob *opts,
+                      Error **errp);
+
 #endif
