@@ -2255,6 +2255,24 @@ void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
     }
 }
 
+void virtio_queue_set_shadow_avail_data(VirtIODevice *vdev, uint32_t data)
+{
+    /* Lower 16 bits is the virtqueue index */
+    uint16_t i = data;
+    VirtQueue *vq = &vdev->vq[i];
+
+    if (!vq->vring.desc) {
+        return;
+    }
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        vq->shadow_avail_wrap_counter = (data >> 31) & 0x1;
+        vq->shadow_avail_idx = (data >> 16) & 0x7FFF;
+    } else {
+        vq->shadow_avail_idx = (data >> 16);
+    }
+}
+
 static void virtio_queue_notify_vq(VirtQueue *vq)
 {
     if (vq->vring.desc && vq->handle_output) {
