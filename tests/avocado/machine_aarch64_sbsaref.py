@@ -159,14 +159,14 @@ class Aarch64SbsarefMachine(QemuSystemTest):
     # This tests the whole boot chain from EFI to Userspace
     # We only boot a whole OS for the current top level CPU and GIC
     # Other test profiles should use more minimal boots
-    def boot_openbsd73(self, cpu):
+    def boot_openbsd(self, cpu):
         self.fetch_firmware()
 
         img_url = (
-            "https://cdn.openbsd.org/pub/OpenBSD/7.3/arm64/miniroot73.img"
+            "https://cdn.openbsd.org/pub/OpenBSD/7.4/arm64/miniroot74.img"
         )
 
-        img_hash = "7fc2c75401d6f01fbfa25f4953f72ad7d7c18650056d30755c44b9c129b707e5"
+        img_hash = "7b08b2ce081cff6408d183f7152ddcfd2779912104866e4fdf6ae2d864b51142"
         img_path = self.fetch_asset(img_url, algorithm="sha256", asset_hash=img_hash)
 
         self.vm.set_console()
@@ -180,23 +180,23 @@ class Aarch64SbsarefMachine(QemuSystemTest):
         self.vm.launch()
         wait_for_console_pattern(self,
                                  "Welcome to the OpenBSD/arm64"
-                                 " 7.3 installation program.")
+                                 " 7.4 installation program.")
 
-    def test_sbsaref_openbsd73_cortex_a57(self):
+    def test_sbsaref_openbsd_cortex_a57(self):
         """
-        :avocado: tags=cpu:cortex-a57
+        :avocado: tags=cpu:cortex-a57,os:openbsd
         """
-        self.boot_openbsd73("cortex-a57")
+        self.boot_openbsd("cortex-a57")
 
-    def test_sbsaref_openbsd73_neoverse_n1(self):
+    def test_sbsaref_openbsd_neoverse_n1(self):
         """
-        :avocado: tags=cpu:neoverse-n1
+        :avocado: tags=cpu:neoverse-n1,os:openbsd
         """
-        self.boot_openbsd73("neoverse-n1")
+        self.boot_openbsd("neoverse-n1")
 
-    def test_sbsaref_openbsd73_max(self):
+    def test_sbsaref_openbsd_max(self):
         """
-        :avocado: tags=cpu:max
+        :avocado: tags=cpu:max,os:openbsd
         """
-        self.boot_openbsd73("max")
+        self.boot_openbsd("max")
 
