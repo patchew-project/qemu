@@ -93,19 +93,19 @@ void qmp_job_resume(const char *id, Error **errp)
     job_user_resume_locked(job, errp);
 }
 
-void qmp_job_complete(const char *id, Error **errp)
+void qmp_job_complete(JobComplete *opts, Error **errp)
 {
     Job *job;
 
     JOB_LOCK_GUARD();
-    job = find_job_locked(id, errp);
+    job = find_job_locked(opts->id, errp);
 
     if (!job) {
         return;
     }
 
     trace_qmp_job_complete(job);
-    job_complete_locked(job, errp);
+    job_complete_opts_locked(job, opts, errp);
 }
 
 void qmp_job_finalize(const char *id, Error **errp)
@@ -204,17 +204,27 @@ JobInfoList *qmp_query_jobs(Error **errp)
     return head;
 }
 
-bool JobChangeOptions_mapper(JobChangeOptions *opts, JobType *out, Error **errp)
+static bool job_mapper(const char *id, JobType *out, Error **errp)
 {
     Job *job;
 
     JOB_LOCK_GUARD();
 
-    job = find_job_locked(opts->id, errp);
+    job = find_job_locked(id, errp);
     if (!job) {
         return false;
     }
 
     *out = job_type(job);
     return true;
+}
+
+bool JobChangeOptions_mapper(JobChangeOptions *opts, JobType *out, Error **errp)
+{
+    return job_mapper(opts->id, out, errp);
+}
+
+bool JobComplete_mapper(JobComplete *opts, JobType *out, Error **errp)
+{
+    return job_mapper(opts->id, out, errp);
 }

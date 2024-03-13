@@ -69,6 +69,7 @@ typedef struct MirrorBlockJob {
      */
     bool actively_synced;
     bool should_complete;
+    bool no_block_replace;
     int64_t granularity;
     size_t buf_size;
     int64_t bdev_length;
@@ -740,7 +741,7 @@ static int mirror_exit_common(Job *job)
     }
     bdrv_graph_rdunlock_main_loop();
 
-    if (s->should_complete && !abort) {
+    if (s->should_complete && !abort && !s->no_block_replace) {
         BlockDriverState *to_replace = s->to_replace ?: src;
         bool ro = bdrv_is_read_only(to_replace);
 
@@ -1167,7 +1168,7 @@ immediate_exit:
     return ret;
 }
 
-static void mirror_complete(Job *job, Error **errp)
+static void mirror_complete(Job *job, JobComplete *opts, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
 
@@ -1178,7 +1179,7 @@ static void mirror_complete(Job *job, Error **errp)
     }
 
     /* block all operations on to_replace bs */
-    if (s->replaces) {
+    if (s->replaces && !opts->u.mirror.no_block_replace) {
         s->to_replace = bdrv_find_node(s->replaces);
         if (!s->to_replace) {
             error_setg(errp, "Node name '%s' not found", s->replaces);
@@ -1193,6 +1194,7 @@ static void mirror_complete(Job *job, Error **errp)
     }
 
     s->should_complete = true;
+    s->no_block_replace = opts->u.mirror.no_block_replace;
 
     /* If the job is paused, it will be re-entered when it is resumed */
     WITH_JOB_LOCK_GUARD() {

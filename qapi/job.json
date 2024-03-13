@@ -182,15 +182,37 @@
 { 'command': 'job-cancel', 'data': { 'id': 'str' } }
 
 ##
-# @job-complete:
+# @JobCompleteMirror:
 #
-# Manually trigger completion of an active job in the READY state.
+# @no-block-replace: Supported only for mirror job. If true, alter
+#     the mirror job completion behavior so that final switch to
+#     target block node is not done. Since 9.1
+#
+# Since: 9.1
+##
+{ 'struct': 'JobCompleteMirror',
+  'data': { '*no-block-replace': 'bool' } }
+
+##
+# @JobComplete:
 #
 # @id: The job identifier.
 #
 # Since: 3.0
 ##
-{ 'command': 'job-complete', 'data': { 'id': 'str' } }
+{ 'union': 'JobComplete',
+  'base': { 'id': 'str' },
+  'discriminator': 'JobType',
+  'data': { 'mirror': 'JobCompleteMirror' } }
+
+##
+# @job-complete:
+#
+# Manually trigger completion of an active job in the READY state.
+#
+# Since: 3.0
+##
+{ 'command': 'job-complete', 'data': 'JobComplete', 'boxed': true }
 
 ##
 # @job-dismiss:

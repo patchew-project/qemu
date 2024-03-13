@@ -165,7 +165,7 @@ typedef struct CancelJob {
     bool should_complete;
 } CancelJob;
 
-static void cancel_job_complete(Job *job, Error **errp)
+static void cancel_job_complete(Job *job, JobComplete *opts, Error **errp)
 {
     CancelJob *s = container_of(job, CancelJob, common.job);
     s->should_complete = true;

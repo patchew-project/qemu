@@ -1214,11 +1214,14 @@ int job_complete_sync_locked(Job *job, Error **errp)
     return job_finish_sync_locked(job, job_complete_locked, errp);
 }
 
-void job_complete_locked(Job *job, Error **errp)
+void job_complete_opts_locked(Job *job, JobComplete *opts, Error **errp)
 {
+    JobComplete local_opts = {};
+
     /* Should not be reachable via external interface for internal jobs */
     assert(job->id);
     GLOBAL_STATE_CODE();
+
     if (job_apply_verb_locked(job, JOB_VERB_COMPLETE, errp)) {
         return;
     }
@@ -1229,8 +1232,13 @@ void job_complete_locked(Job *job, Error **errp)
     }
 
     job_unlock();
-    job->driver->complete(job, errp);
+    job->driver->complete(job, opts ?: &local_opts, errp);
     job_lock();
+}
+
+void job_complete_locked(Job *job, Error **errp)
+{
+    job_complete_opts_locked(job, NULL, errp);
 }
 
 int job_finish_sync_locked(Job *job,

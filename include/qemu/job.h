@@ -254,7 +254,7 @@ struct JobDriver {
      * Optional callback for job types whose completion must be triggered
      * manually.
      */
-    void (*complete)(Job *job, Error **errp);
+    void (*complete)(Job *job, JobComplete *opts, Error **errp);
 
     /**
      * If the callback is not NULL, prepare will be invoked when all the jobs
@@ -633,6 +633,12 @@ void job_early_fail(Job *job);
  * Called with job_mutex *not* held.
  */
 void job_transition_to_ready(Job *job);
+
+/**
+ * Asynchronously complete the specified @job.
+ * Called with job lock held, but might release it temporarily.
+ */
+void job_complete_opts_locked(Job *job, JobComplete *opts, Error **errp);
 
 /**
  * Asynchronously complete the specified @job.

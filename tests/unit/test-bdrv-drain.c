@@ -682,7 +682,7 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
     return s->run_ret;
 }
 
-static void test_job_complete(Job *job, Error **errp)
+static void test_job_complete(Job *job, JobComplete *opts, Error **errp)
 {
     TestBlockJob *s = container_of(job, TestBlockJob, common.job);
     s->should_complete = true;
