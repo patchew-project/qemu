@@ -163,6 +163,7 @@ static JobInfo *job_query_single_locked(Job *job, Error **errp)
     uint64_t progress_total;
 
     assert(!job_is_internal(job));
+    assert(!job->err == !job->ret);
     progress_get_snapshot(&job->progress, &progress_current,
                           &progress_total);
 
