@@ -147,7 +147,8 @@ static PageForEachNext foreach_tb_next(PageForEachNext tb,
     return NULL;
 }
 
-#else
+#else /* !CONFIG_USER_ONLY */
+
 /*
  * In system mode we want L1_MAP to be based on ram offsets.
  */
@@ -1088,7 +1089,7 @@ bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc)
     }
     return false;
 }
-#else
+#else /* !CONFIG_USER_ONLY */
 /*
  * @p must be non-NULL.
  * Call with all @pages locked.
@@ -1226,4 +1227,4 @@ void tb_invalidate_phys_range_fast(ram_addr_t ram_addr,
     page_collection_unlock(pages);
 }
 
-#endif /* CONFIG_USER_ONLY */
+#endif /* !CONFIG_USER_ONLY */
