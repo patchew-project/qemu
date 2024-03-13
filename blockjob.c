@@ -312,7 +312,7 @@ static bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     return block_job_set_speed_locked(job, speed, errp);
 }
 
-void block_job_change_locked(BlockJob *job, BlockJobChangeOptions *opts,
+void block_job_change_locked(BlockJob *job, JobChangeOptions *opts,
                              Error **errp)
 {
     const BlockJobDriver *drv = block_job_driver(job);
