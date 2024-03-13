@@ -152,9 +152,8 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
 
     if (sscanf(contents, "%d:%d", &major, &minor) != 2) {
         error_setg(errp, "failed to get major:minor for \"%s\"", vfio_dev_path);
-        goto out_free_dev_path;
+        goto out_free_contents;
     }
-    g_free(contents);
     vfio_devt = makedev(major, minor);
 
     vfio_path = g_strdup_printf("/dev/vfio/devices/%s", dent->d_name);
@@ -166,6 +165,8 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
     trace_iommufd_cdev_getfd(vfio_path, ret);
     g_free(vfio_path);
 
+out_free_contents:
+    g_free(contents);
 out_free_dev_path:
     g_free(vfio_dev_path);
 out_close_dir:
