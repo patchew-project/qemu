@@ -26,6 +26,8 @@
 #include "qemu/osdep.h"
 #include "qemu/job.h"
 #include "qapi/qapi-commands-job.h"
+#include "qapi/qapi-types-block-core.h"
+#include "qapi/qapi-visit-block-core.h"
 #include "qapi/error.h"
 #include "trace/trace-root.h"
 
@@ -185,4 +187,19 @@ JobInfoList *qmp_query_jobs(Error **errp)
     }
 
     return head;
+}
+
+bool JobChangeOptions_mapper(JobChangeOptions *opts, JobType *out, Error **errp)
+{
+    Job *job;
+
+    JOB_LOCK_GUARD();
+
+    job = find_job_locked(opts->id, errp);
+    if (!job) {
+        return false;
+    }
+
+    *out = job_type(job);
+    return true;
 }

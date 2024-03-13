@@ -3082,11 +3082,17 @@
 #
 # @type: The job type
 #
+# Features:
+#
+# @deprecated: Members @type is deprecated. Qemu can get type from
+#     the job itself, @type is redundant.
+#
 # Since: 8.2
 ##
 { 'union': 'JobChangeOptions',
-  'base': { 'id': 'str', 'type': 'JobType' },
-  'discriminator': 'type',
+  'base': { 'id': 'str',
+            '*type': { 'type': 'JobType', 'features': ['deprecated'] } },
+  'discriminator': 'JobType',
   'data': { 'mirror': 'JobChangeOptionsMirror' } }
 
 ##
