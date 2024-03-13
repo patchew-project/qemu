@@ -28,6 +28,7 @@
 #include "qapi/qapi-commands-job.h"
 #include "qapi/qapi-types-block-core.h"
 #include "qapi/qapi-visit-block-core.h"
+#include "qapi/qapi-commands-block-core.h"
 #include "qapi/error.h"
 #include "trace/trace-root.h"
 

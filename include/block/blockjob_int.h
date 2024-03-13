@@ -69,13 +69,6 @@ struct BlockJobDriver {
     void (*set_speed)(BlockJob *job, int64_t speed);
 
     /*
-     * Change the @job's options according to @opts.
-     *
-     * Note that this can already be called before the job coroutine is running.
-     */
-    void (*change)(BlockJob *job, JobChangeOptions *opts, Error **errp);
-
-    /*
      * Query information specific to this kind of block job.
      */
     void (*query)(BlockJob *job, BlockJobInfo *info);
