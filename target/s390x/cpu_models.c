@@ -508,14 +508,14 @@ static void check_compatibility(const S390CPUModel *max_model,
 
     if (model->def->gen > max_model->def->gen) {
         error_setg(errp, "Selected CPU generation is too new. Maximum "
-                   "supported model in the configuration: \'%s\'",
-                   max_model->def->name);
+                   "supported model in the accelerator \'%s\' configuration: \'%s\'",
+                   current_accel_name(), max_model->def->name);
         return;
     } else if (model->def->gen == max_model->def->gen &&
                model->def->ec_ga > max_model->def->ec_ga) {
         error_setg(errp, "Selected CPU GA level is too new. Maximum "
-                   "supported model in the configuration: \'%s\'",
-                   max_model->def->name);
+                   "supported model in the accelerator \'%s\' configuration: \'%s\'",
+                   current_accel_name(), max_model->def->name);
         return;
     }
 
@@ -537,7 +537,8 @@ static void check_compatibility(const S390CPUModel *max_model,
     error_setg(errp, " ");
     s390_feat_bitmap_to_ascii(missing, errp, error_prepend_missing_feat);
     error_prepend(errp, "Some features requested in the CPU model are not "
-                  "available in the configuration: ");
+                  "available in the accelerator \'%s\' configuration: ",
+                  current_accel_name());
 }
 
 S390CPUModel *get_max_cpu_model(Error **errp)
