@@ -938,7 +938,10 @@ void riscv_trigger_reset_hold(CPURISCVState *env)
         env->tdata3[i] = 0;
         env->cpu_breakpoint[i] = NULL;
         env->cpu_watchpoint[i] = NULL;
-        timer_del(env->itrigger_timer[i]);
+        if (env->itrigger_timer[i]) {
+            timer_del(env->itrigger_timer[i]);
+            env->itrigger_timer[i] = NULL;
+        }
     }
 
     env->mcontext = 0;
