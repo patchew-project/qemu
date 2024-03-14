@@ -1008,6 +1008,11 @@ static void riscv_cpu_reset_hold(Object *obj)
     set_default_nan_mode(1, &env->fp_status);
 
 #ifndef CONFIG_USER_ONLY
+    if (!cpu->cfg.debug && cpu->cfg.ext_sdtrig) {
+        warn_report("Enabling 'debug' since 'sdtrig' is enabled.");
+        cpu->cfg.debug = true;
+    }
+
     if (cpu->cfg.debug) {
         riscv_trigger_reset_hold(env);
     }
