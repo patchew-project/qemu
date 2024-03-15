@@ -1025,8 +1025,18 @@
 # @type: file system type string
 #
 # @used-bytes: file system used bytes (since 3.0)
+#     * POSIX: (f_blocks - f_bfree) * f_frsize, as returned by statvfs(3)
+#     * Windows: (TotalNumberOfBytes - TotalNumberOfFreeBytes), as returned
+#       by GetDiskFreeSpaceEx()
 #
 # @total-bytes: non-root file system total bytes (since 3.0)
+#     * POSIX: (f_blocks - f_bfree + f_bavail) * f_frsize, as returned by
+#       statvfs(3)
+#     * Windows: TotalNumberOfBytes, as returned by GetDiskFreeSpaceEx()
+#
+# @total-bytes-root: total file system size in bytes (as visible for a
+#     priviledged user) (since 8.3)
+#     * POSIX only: (f_blocks * f_frsize), returned by statvfs(3)
 #
 # @disk: an array of disk hardware information that the volume lies
 #     on, which may be empty if the disk type is not supported
@@ -1036,7 +1046,7 @@
 { 'struct': 'GuestFilesystemInfo',
   'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
            '*used-bytes': 'uint64', '*total-bytes': 'uint64',
-           'disk': ['GuestDiskAddress']} }
+           '*total-bytes-root': 'uint64', 'disk': ['GuestDiskAddress']} }
 
 ##
 # @guest-get-fsinfo:
