@@ -1,5 +1,5 @@
 /*
- * QEMU x86 CPU
+ * QEMU x86 CPU QOM header (target agnostic)
  *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
@@ -22,13 +22,17 @@
 
 #include "hw/core/cpu.h"
 
-#ifdef TARGET_X86_64
-#define TYPE_X86_CPU "x86_64-cpu"
-#else
-#define TYPE_X86_CPU "i386-cpu"
-#endif
+#define TYPE_X86_CPU    "x86-cpu"
+#define TYPE_I386_CPU   "i386-cpu"
+#define TYPE_X86_64_CPU "x86_64-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(X86CPU, X86CPUClass, X86_CPU)
+
+OBJECT_DECLARE_CPU_TYPE(I386CPU, X86CPUClass, I386_CPU)
+OBJECT_DECLARE_CPU_TYPE(X86_64CPU, X86CPUClass, X86_64_CPU)
+
+#define X86_CPU_TYPE_SUFFIX "-" TYPE_X86_CPU
+#define X86_CPU_TYPE_NAME(name) (name X86_CPU_TYPE_SUFFIX)
 
 #define X86_CPU_TYPE_SUFFIX "-" TYPE_X86_CPU
 #define X86_CPU_TYPE_NAME(name) (name X86_CPU_TYPE_SUFFIX)

@@ -90,7 +90,7 @@ static void add_pc_test_case(const char *mname)
     data->machine = g_strdup(mname);
     data->cpu_model = "Haswell"; /* 1.3+ theoretically */
     data->device_model = g_strdup_printf("%s-%s-cpu", data->cpu_model,
-                                         qtest_get_arch());
+                                         qtest_get_base_arch());
     data->sockets = 1;
     data->cores = 3;
     data->threads = 2;

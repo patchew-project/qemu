@@ -8057,12 +8057,28 @@ static const TypeInfo x86_cpu_types[] = {
         .class_size     = sizeof(X86CPUClass),
         .class_init     = x86_cpu_common_class_init,
     }, {
-        .name           = X86_CPU_TYPE_NAME("base"),
+        .name           = TYPE_I386_CPU,
         .parent         = TYPE_X86_CPU,
+        .abstract       = true,
+    }, {
+        .name           = TYPE_X86_64_CPU,
+        .parent         = TYPE_X86_CPU,
+        .abstract       = true,
+    }, {
+        .name           = X86_CPU_TYPE_NAME("base"),
+#ifdef TARGET_X86_64
+        .parent         = TYPE_X86_64_CPU,
+#else
+        .parent         = TYPE_I386_CPU,
+#endif
         .class_init     = x86_cpu_base_class_init,
     }, {
         .name           = X86_CPU_TYPE_NAME("max"),
-        .parent         = TYPE_X86_CPU,
+#ifdef TARGET_X86_64
+        .parent         = TYPE_X86_64_CPU,
+#else
+        .parent         = TYPE_I386_CPU,
+#endif
         .instance_init  = max_x86_cpu_initfn,
         .class_init     = max_x86_cpu_class_init,
     }
