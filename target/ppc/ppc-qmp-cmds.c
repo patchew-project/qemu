@@ -29,6 +29,7 @@
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 #include "qapi/qapi-commands-machine-target.h"
+#include "qapi/commands-target-compat.h"
 #include "cpu-models.h"
 #include "cpu-qom.h"
 
@@ -175,20 +176,6 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
     return -EINVAL;
 }
 
-static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
-{
-    ObjectClass *oc = data;
-    CpuDefinitionInfoList **first = user_data;
-    const char *typename;
-    CpuDefinitionInfo *info;
-
-    typename = object_class_get_name(oc);
-    info = g_malloc0(sizeof(*info));
-    info->name = cpu_model_from_type(typename);
-
-    QAPI_LIST_PREPEND(*first, info);
-}
-
 void ppc_add_alias_definitions(CpuDefinitionInfoList **cpu_list)
 {
     for (unsigned i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
@@ -211,14 +198,5 @@ void ppc_add_alias_definitions(CpuDefinitionInfoList **cpu_list)
 
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 {
-    CpuDefinitionInfoList *cpu_list = NULL;
-    GSList *list;
-
-    list = object_class_get_list(TYPE_POWERPC_CPU, false);
-    g_slist_foreach(list, ppc_cpu_defs_entry, &cpu_list);
-    g_slist_free(list);
-
-    ppc_add_alias_definitions(&cpu_list);
-
-    return cpu_list;
+    return generic_query_cpu_definitions(errp);
 }
