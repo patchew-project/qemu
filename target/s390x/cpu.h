@@ -29,7 +29,7 @@
 #include "cpu_models.h"
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
-#include "qapi/qapi-types-machine-common.h"
+#include "qapi/qapi-types-machine.h"
 
 #define ELF_MACHINE_UNAME "S390X"
 

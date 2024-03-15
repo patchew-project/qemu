@@ -9,7 +9,6 @@
 ##
 
 { 'include': 'common.json' }
-{ 'include': 'machine-common.json' }
 
 ##
 # @SysEmuTarget:
@@ -49,6 +48,18 @@
 { 'enum': 'CpuS390State',
   'prefix': 'S390_CPU_STATE',
   'data': [ 'uninitialized', 'stopped', 'check-stop', 'operating', 'load' ] }
+
+##
+# @CpuS390Entitlement:
+#
+# An enumeration of CPU entitlements that can be assumed by a virtual
+# S390 CPU
+#
+# Since: 8.2
+##
+{ 'enum': 'CpuS390Entitlement',
+  'prefix': 'S390_CPU_ENTITLEMENT',
+  'data': [ 'auto', 'low', 'medium', 'high' ] }
 
 ##
 # @CpuInfoS390:
