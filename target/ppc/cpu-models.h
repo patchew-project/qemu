@@ -21,6 +21,8 @@
 #ifndef TARGET_PPC_CPU_MODELS_H
 #define TARGET_PPC_CPU_MODELS_H
 
+#include "qapi/qapi-types-machine.h"
+
 /**
  * PowerPCCPUAlias:
  * @alias: The alias name.
@@ -479,5 +481,7 @@ enum {
     POWERPC_SVR_8641               = 0x80900021,
     POWERPC_SVR_8641D              = 0x80900121,
 };
+
+void ppc_add_alias_definitions(CpuDefinitionInfoList **cpu_list);
 
 #endif
