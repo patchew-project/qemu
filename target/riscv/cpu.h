@@ -824,4 +824,6 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
 uint8_t satp_mode_max_from_map(uint32_t map);
 const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 
+void riscv_cpu_add_definition(gpointer data, gpointer user_data);
+
 #endif /* RISCV_CPU_H */
