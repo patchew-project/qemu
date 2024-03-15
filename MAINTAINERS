@@ -148,6 +148,7 @@ M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: system/cpus.c
+F: system/cpu-qom-helpers.c
 F: system/watchpoint.c
 F: cpu-common.c
 F: cpu-target.c

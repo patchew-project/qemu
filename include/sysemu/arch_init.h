@@ -27,6 +27,8 @@ typedef enum QemuArchBit {
     QEMU_ARCH_BIT_LAST          = QEMU_ARCH_BIT_LOONGARCH
 } QemuArchBit;
 
+const char *cpu_typename_by_arch_bit(QemuArchBit arch_bit);
+
 enum QemuArchMask {
     QEMU_ARCH_ALL = -1,
     QEMU_ARCH_ALPHA             = (1 << QEMU_ARCH_BIT_ALPHA),
