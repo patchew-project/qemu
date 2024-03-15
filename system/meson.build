@@ -10,6 +10,7 @@ system_ss.add(files(
   'balloon.c',
   'bootdevice.c',
   'cpus.c',
+  'cpu-qmp-cmds.c',
   'cpu-qom-helpers.c',
   'cpu-throttle.c',
   'cpu-timers.c',

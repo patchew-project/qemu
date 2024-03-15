@@ -11,6 +11,7 @@
 #define SYSEMU_CPU_OPS_H
 
 #include "hw/core/cpu.h"
+#include "qapi/qapi-types-machine.h"
 
 /*
  * struct SysemuCPUOps: System operations specific to a CPU class
@@ -81,6 +82,19 @@ typedef struct SysemuCPUOps {
      */
     bool (*virtio_is_big_endian)(CPUState *cpu);
 
+    /**
+     * @cpu_list_compare: Sort alphabetically by type name,
+     *                    respecting CPUClass::ordering.
+     */
+    gint (*cpu_list_compare)(gconstpointer cpu_class_a, gconstpointer cpu_class_b);
+    /**
+     * @add_definition: Add the @cpu_class definition to @cpu_list.
+     */
+    void (*add_definition)(gpointer cpu_class, gpointer cpu_list);
+    /**
+     * @add_alias_definitions: Add CPU alias definitions to @cpu_list.
+     */
+    void (*add_alias_definitions)(CpuDefinitionInfoList **cpu_list);
     /**
      * @legacy_vmsd: Legacy state for migration.
      *               Do not use in new targets, use #DeviceClass::vmsd instead.
