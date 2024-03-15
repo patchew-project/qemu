@@ -258,6 +258,7 @@ static void *translator_access(CPUArchState *env, DisasContextBase *db,
             if (unlikely(new_page1 == -1)) {
                 tb_unlock_pages(tb);
                 tb_set_page_addr0(tb, -1);
+                set_can_do_io(db, true);
                 return NULL;
             }
 
