@@ -2642,6 +2642,38 @@ raw_regular_truncate(BlockDriverState *bs, int fd, int64_t offset,
     return raw_thread_pool_submit(handle_aiocb_truncate, &acb);
 }
 
+static bool device_is_dm(struct stat *st)
+{
+    unsigned int maj, maj2;
+    char line[32], devname[16];
+    bool ret = false;
+    FILE *f;
+
+    if (!S_ISBLK(st->st_mode)) {
+        return false;
+    }
+
+    f = fopen("/proc/devices", "r");
+    if (!f) {
+        return false;
+    }
+
+    maj = major(st->st_rdev);
+
+    while (fgets(line, sizeof(line), f)) {
+        if (sscanf(line, "%u %15s", &maj2, devname) != 2) {
+            continue;
+        }
+        if (strcmp(devname, "device-mapper") == 0) {
+            ret = (maj == maj2);
+            break;
+        }
+    }
+
+    fclose(f);
+    return ret;
+}
+
 static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
                                         bool exact, PreallocMode prealloc,
                                         BdrvRequestFlags flags, Error **errp)
@@ -2669,6 +2701,35 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
 
     if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
         int64_t cur_length = raw_getlength(bs);
+
+        /*
+         * Try to resize an LVM device using LVM tools.
+         */
+        if (device_is_dm(&st) && offset > 0) {
+            int spawn_flags = G_SPAWN_SEARCH_PATH | G_SPAWN_STDOUT_TO_DEV_NULL;
+            int status;
+            bool success;
+            char *err;
+            GError *gerr = NULL, *gerr_exit = NULL;
+            g_autofree char *size_str = g_strdup_printf("%" PRId64 "B", offset);
+            const char *cmd[] = {"lvresize", "-f", "-L",
+                                 size_str, bs->filename, NULL};
+
+            success = g_spawn_sync(NULL, (gchar **)cmd, NULL, spawn_flags,
+                                   NULL, NULL, NULL, &err, &status, &gerr);
+
+            if (success && g_spawn_check_exit_status(status, &gerr_exit)) {
+                return 0;
+            }
+
+            if (success) {
+                error_setg(errp, "%s: %s", gerr_exit->message, err);
+            } else {
+                error_setg(errp, "lvresize execution error: %s", gerr->message);
+            }
+
+            return -EINVAL;
+        }
 
         if (offset != cur_length && exact) {
             error_setg(errp, "Cannot resize device files");
