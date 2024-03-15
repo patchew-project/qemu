@@ -7,7 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "qom/object.h"
-#include "qapi/commands-target-compat.h"
+#include "qapi/qapi-commands-machine.h"
 #include "sysemu/arch_init.h"
 #include "hw/core/cpu.h"
 #include "hw/core/sysemu-cpu-ops.h"
@@ -53,7 +53,7 @@ static void arch_add_cpu_definitions(CpuDefinitionInfoList **cpu_list,
     }
 }
 
-CpuDefinitionInfoList *generic_query_cpu_definitions(Error **errp)
+CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
 

@@ -9,16 +9,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine-target.h"
-#include "qapi/commands-target-compat.h"
 #include "cpu.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qom/qom-qobject.h"
-
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
-{
-    return generic_query_cpu_definitions(errp);
-}
 
 static const char *cpu_model_advertised_features[] = {
     "lsx", "lasx", NULL

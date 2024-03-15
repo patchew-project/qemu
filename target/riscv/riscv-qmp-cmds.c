@@ -26,7 +26,6 @@
 
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine-target.h"
-#include "qapi/commands-target-compat.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-input-visitor.h"
@@ -52,11 +51,6 @@ void riscv_cpu_add_definition(gpointer data, gpointer user_data)
     info->q_static = dyn_class == NULL;
 
     QAPI_LIST_PREPEND(*cpu_list, info);
-}
-
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
-{
-    return generic_query_cpu_definitions(errp);
 }
 
 static void riscv_check_if_cpu_available(RISCVCPU *cpu, Error **errp)

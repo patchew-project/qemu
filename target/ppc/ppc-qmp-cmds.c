@@ -28,8 +28,6 @@
 #include "qemu/ctype.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
-#include "qapi/qapi-commands-machine-target.h"
-#include "qapi/commands-target-compat.h"
 #include "cpu-models.h"
 #include "cpu-qom.h"
 
@@ -194,9 +192,4 @@ void ppc_add_alias_definitions(CpuDefinitionInfoList **cpu_list)
 
         QAPI_LIST_PREPEND(*cpu_list, info);
     }
-}
-
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
-{
-    return generic_query_cpu_definitions(errp);
 }
