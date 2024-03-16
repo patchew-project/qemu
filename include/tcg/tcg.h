@@ -552,6 +552,7 @@ struct TCGContext {
 
     QTAILQ_HEAD(, TCGOp) ops, free_ops;
     QSIMPLEQ_HEAD(, TCGLabel) labels;
+    TCGOp *emit_before_op;
 
     /* Tells which temporary holds a given register.
        It does not take into account fixed registers */
