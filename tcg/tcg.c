@@ -761,6 +761,18 @@ QEMU_BUILD_BUG_ON((int)(offsetof(CPUNegativeOffsetState, tlb.f[0]) -
                   < MIN_TLB_MASK_TABLE_OFS);
 #endif
 
+#ifdef CONFIG_PLUGIN
+/*
+ * We don't expect to cleanup many of these structures.
+ * They are reused for each fresh translation.
+ */
+static void qemu_plugin_insn_cleanup_fn(gpointer data)
+{
+    struct qemu_plugin_insn *insn = (struct qemu_plugin_insn *) data;
+    g_byte_array_free(insn->data, true);
+}
+#endif
+
 static void alloc_tcg_plugin_context(TCGContext *s)
 {
 #ifdef CONFIG_PLUGIN
