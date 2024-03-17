@@ -154,6 +154,71 @@ REG32(RDR, 0x24)
 REG32(TDR, 0x28)
     FIELD(TDR, TDR, 0, 8)
 
+static int stm32l4x5_usart_base_can_receive(void *opaque)
+{
+    Stm32l4x5UsartBaseState *s = opaque;
+
+    if (!(s->isr & R_ISR_RXNE_MASK)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static void stm32l4x5_update_irq(Stm32l4x5UsartBaseState *s)
+{
+    if (((s->isr & R_ISR_WUF_MASK) && (s->cr3 & R_CR3_WUFIE_MASK))        ||
+        ((s->isr & R_ISR_CMF_MASK) && (s->cr1 & R_CR1_CMIE_MASK))         ||
+        ((s->isr & R_ISR_ABRF_MASK) && (s->cr1 & R_CR1_RXNEIE_MASK))      ||
+        ((s->isr & R_ISR_EOBF_MASK) && (s->cr1 & R_CR1_EOBIE_MASK))       ||
+        ((s->isr & R_ISR_RTOF_MASK) && (s->cr1 & R_CR1_RTOIE_MASK))       ||
+        ((s->isr & R_ISR_CTSIF_MASK) && (s->cr3 & R_CR3_CTSIE_MASK))      ||
+        ((s->isr & R_ISR_LBDF_MASK) && (s->cr2 & R_CR2_LBDIE_MASK))       ||
+        ((s->isr & R_ISR_TXE_MASK) && (s->cr1 & R_CR1_TXEIE_MASK))        ||
+        ((s->isr & R_ISR_TC_MASK) && (s->cr1 & R_CR1_TCIE_MASK))          ||
+        ((s->isr & R_ISR_RXNE_MASK) && (s->cr1 & R_CR1_RXNEIE_MASK))      ||
+        ((s->isr & R_ISR_IDLE_MASK) && (s->cr1 & R_CR1_IDLEIE_MASK))      ||
+        ((s->isr & R_ISR_ORE_MASK) &&
+            ((s->cr1 & R_CR1_RXNEIE_MASK) || (s->cr3 & R_CR3_EIE_MASK)))  ||
+        /* TODO: Handle NF ? */
+        ((s->isr & R_ISR_FE_MASK) && (s->cr3 & R_CR3_EIE_MASK))           ||
+        ((s->isr & R_ISR_PE_MASK) && (s->cr1 & R_CR1_PEIE_MASK))) {
+        qemu_irq_raise(s->irq);
+        trace_stm32l4x5_usart_irq_raised(s->isr);
+    } else {
+        qemu_irq_lower(s->irq);
+        trace_stm32l4x5_usart_irq_lowered();
+    }
+}
+
+static void stm32l4x5_usart_base_receive(void *opaque, const uint8_t *buf, int size)
+{
+    Stm32l4x5UsartBaseState *s = opaque;
+
+    if (!((s->cr1 & R_CR1_UE_MASK) && (s->cr1 & R_CR1_RE_MASK))) {
+        /* USART not enabled - drop the chars */
+        trace_stm32l4x5_usart_error("Dropping the chars\n");
+        return;
+    }
+
+    /* Check if overrun detection is enabled and if there is an overrun */
+    if (!(s->cr3 & R_CR3_OVRDIS_MASK) && (s->isr & R_ISR_RXNE_MASK)) {
+        /*
+         * A character has been received while
+         * the previous has not been read = Overrun.
+         */
+        s->isr |= R_ISR_ORE_MASK;
+        trace_stm32l4x5_usart_overrun_detected(s->rdr, *buf);
+    } else {
+        /* No overrun */
+        s->rdr = *buf;
+        s->isr |= R_ISR_RXNE_MASK;
+        trace_stm32l4x5_usart_rx(s->rdr);
+    }
+
+    stm32l4x5_update_irq(s);
+}
+
 static void stm32l4x5_usart_base_reset_hold(Object *obj)
 {
     Stm32l4x5UsartBaseState *s = STM32L4X5_USART_BASE(obj);
@@ -168,6 +233,21 @@ static void stm32l4x5_usart_base_reset_hold(Object *obj)
     s->isr = 0x020000C0 | R_ISR_TXE_MASK;
     s->rdr = 0x00000000;
     s->tdr = 0x00000000;
+
+    stm32l4x5_update_irq(s);
+}
+
+static void usart_update_rqr(Stm32l4x5UsartBaseState *s, uint32_t value)
+{
+    /* TXFRQ */
+    /* Reset RXNE flag */
+    if (value & R_RQR_RXFRQ_MASK) {
+        s->isr &= ~R_ISR_RXNE_MASK;
+    }
+    /* MMRQ */
+    /* SBKRQ */
+    /* ABRRQ */
+    stm32l4x5_update_irq(s);
 }
 
 static uint64_t stm32l4x5_usart_base_read(void *opaque, hwaddr addr,
@@ -209,7 +289,8 @@ static uint64_t stm32l4x5_usart_base_read(void *opaque, hwaddr addr,
     case A_RDR:
         retvalue = FIELD_EX32(s->rdr, RDR, RDR);
         /* Reset RXNE flag */
-        s->isr &= ~USART_ISR_RXNE;
+        s->isr &= ~R_ISR_RXNE_MASK;
+        stm32l4x5_update_irq(s);
         break;
     case A_TDR:
         retvalue = FIELD_EX32(s->tdr, TDR, TDR);
@@ -237,6 +318,7 @@ static void stm32l4x5_usart_base_write(void *opaque, hwaddr addr,
     switch (addr) {
     case A_CR1:
         s->cr1 = value;
+        stm32l4x5_update_irq(s);
         return;
     case A_CR2:
         s->cr2 = value;
@@ -254,6 +336,7 @@ static void stm32l4x5_usart_base_write(void *opaque, hwaddr addr,
         s->rtor = value;
         return;
     case A_RQR:
+        usart_update_rqr(s, value);
         return;
     case A_ISR:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -262,6 +345,7 @@ static void stm32l4x5_usart_base_write(void *opaque, hwaddr addr,
     case A_ICR:
         /* Clear the status flags */
         s->isr &= ~value;
+        stm32l4x5_update_irq(s);
         return;
     case A_RDR:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -269,6 +353,21 @@ static void stm32l4x5_usart_base_write(void *opaque, hwaddr addr,
         return;
     case A_TDR:
         s->tdr = value;
+        ch = value & R_TDR_TDR_MASK;
+        /*
+         * XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks
+         */
+        qemu_chr_fe_write_all(&s->chr, &ch, 1);
+        /*
+         * XXX I/O are currently synchronous, making it impossible for
+         * software to observe transient states where TXE or TC aren't
+         * set. Unlike TXE however, which is read-only, software may
+         * clear TC by writing 0 to the ISR register, so set it again
+         * on each write.
+         */
+        s->isr |= R_ISR_TC_MASK;
+        stm32l4x5_update_irq(s);
         return;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -338,6 +437,10 @@ static void stm32l4x5_usart_base_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "USART clock must be wired up by SoC code");
         return;
     }
+
+    qemu_chr_fe_set_handlers(&s->chr, stm32l4x5_usart_base_can_receive,
+                             stm32l4x5_usart_base_receive, NULL, NULL,
+                             s, NULL, true);
 }
 
 static void stm32l4x5_usart_base_class_init(ObjectClass *klass, void *data)

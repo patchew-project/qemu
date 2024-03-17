@@ -114,6 +114,7 @@ stm32l4x5_usart_rx(uint8_t c) "USART: got character 0x%x from backend"
 stm32l4x5_usart_tx(uint8_t c) "USART: character 0x%x sent to backend"
 stm32l4x5_usart_irq_raised(uint32_t reg) "USART: IRQ raised: 0x%08"PRIx32
 stm32l4x5_usart_irq_lowered(void) "USART: IRQ lowered"
+stm32l4x5_usart_overrun_detected(uint8_t current, uint8_t received) "USART: Overrun detected, RDR='0x%x', received 0x%x"
 stm32l4x5_usart_error(const char* error) "USART Error: %s"
 
 # xen_console.c
