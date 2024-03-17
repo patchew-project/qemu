@@ -21,6 +21,12 @@
  * https://www.st.com/en/microcontrollers-microprocessors/stm32l4x5/documentation.html
  */
 
+/*
+ * The STM32L4X5 is heavily inspired by the stm32f405 by Alistair Francis.
+ * The reference used is the STMicroElectronics RM0351 Reference manual
+ * for STM32L4x5 and STM32L4x6 advanced Arm ® -based 32-bit MCUs.
+ */
+
 #ifndef HW_ARM_STM32L4x5_SOC_H
 #define HW_ARM_STM32L4x5_SOC_H
 
@@ -31,6 +37,7 @@
 #include "hw/misc/stm32l4x5_exti.h"
 #include "hw/misc/stm32l4x5_rcc.h"
 #include "hw/gpio/stm32l4x5_gpio.h"
+#include "hw/char/stm32l4x5_usart.h"
 #include "qom/object.h"
 
 #define TYPE_STM32L4X5_SOC "stm32l4x5-soc"
@@ -40,6 +47,9 @@
 OBJECT_DECLARE_TYPE(Stm32l4x5SocState, Stm32l4x5SocClass, STM32L4X5_SOC)
 
 #define NUM_EXTI_OR_GATES 4
+
+#define STM_NUM_USARTS 3
+#define STM_NUM_UARTS 2
 
 struct Stm32l4x5SocState {
     SysBusDevice parent_obj;
@@ -51,6 +61,9 @@ struct Stm32l4x5SocState {
     Stm32l4x5SyscfgState syscfg;
     Stm32l4x5RccState rcc;
     Stm32l4x5GpioState gpio[NUM_GPIOS];
+    Stm32l4x5UsartBaseState usart[STM_NUM_USARTS];
+    Stm32l4x5UsartBaseState uart[STM_NUM_UARTS];
+    Stm32l4x5UsartBaseState lpuart;
 
     MemoryRegion sram1;
     MemoryRegion sram2;
