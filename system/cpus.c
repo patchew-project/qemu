@@ -571,12 +571,14 @@ static bool all_vcpus_paused(void)
     return true;
 }
 
-void pause_all_vcpus(void)
+static void request_pause_all_vcpus(void)
 {
     CPUState *cpu;
 
-    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
     CPU_FOREACH(cpu) {
+        if (cpu->stopped) {
+            continue;
+        }
         if (qemu_cpu_is_self(cpu)) {
             qemu_cpu_stop(cpu, true);
         } else {
@@ -584,6 +586,14 @@ void pause_all_vcpus(void)
             qemu_cpu_kick(cpu);
         }
     }
+}
+
+void pause_all_vcpus(void)
+{
+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
+
+retry:
+    request_pause_all_vcpus();
 
     /* We need to drop the replay_lock so any vCPU threads woken up
      * can finish their replay tasks
@@ -592,14 +602,23 @@ void pause_all_vcpus(void)
 
     while (!all_vcpus_paused()) {
         qemu_cond_wait(&qemu_pause_cond, &bql);
-        CPU_FOREACH(cpu) {
-            qemu_cpu_kick(cpu);
-        }
+        /* During we waited on qemu_pause_cond the bql was unlocked,
+         * the vcpu's state may has been changed by other thread, so
+         * we must request the pause state on all vcpus again.
+         */
+        request_pause_all_vcpus();
     }
 
     bql_unlock();
     replay_mutex_lock();
     bql_lock();
+
+    /* During the bql was unlocked, the vcpu's state may has been
+     * changed by other thread, so we must retry.
+     */
+    if (!all_vcpus_paused()) {
+        goto retry;
+    }
 }
 
 void cpu_resume(CPUState *cpu)
