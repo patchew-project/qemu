@@ -154,9 +154,9 @@ REG32(RDR, 0x24)
 REG32(TDR, 0x28)
     FIELD(TDR, TDR, 0, 8)
 
-static void stm32l4x5_usart_reset_hold(Object *obj)
+static void stm32l4x5_usart_base_reset_hold(Object *obj)
 {
-    STM32L4X5UsartState *s = STM32L4X5_USART(obj);
+    Stm32l4x5UsartBaseState *s = STM32L4X5_USART_BASE(obj);
 
     s->cr1 = 0x00000000;
     s->cr2 = 0x00000000;
@@ -170,10 +170,10 @@ static void stm32l4x5_usart_reset_hold(Object *obj)
     s->tdr = 0x00000000;
 }
 
-static uint64_t stm32l4x5_usart_read(void *opaque, hwaddr addr,
-                                       unsigned int size)
+static uint64_t stm32l4x5_usart_base_read(void *opaque, hwaddr addr,
+                                     unsigned int size)
 {
-    STM32L4X5UsartState *s = opaque;
+    Stm32l4x5UsartBaseState *s = opaque;
     uint64_t retvalue = 0;
 
     switch (addr) {
@@ -225,10 +225,10 @@ static uint64_t stm32l4x5_usart_read(void *opaque, hwaddr addr,
     return retvalue;
 }
 
-static void stm32l4x5_usart_write(void *opaque, hwaddr addr,
+static void stm32l4x5_usart_base_write(void *opaque, hwaddr addr,
                                   uint64_t val64, unsigned int size)
 {
-    STM32L4X5UsartState *s = opaque;
+    Stm32l4x5UsartBaseState *s = opaque;
     const uint32_t value = val64;
     uint8_t ch;
 
@@ -276,9 +276,9 @@ static void stm32l4x5_usart_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps stm32l4x5_usart_ops = {
-    .read = stm32l4x5_usart_read,
-    .write = stm32l4x5_usart_write,
+static const MemoryRegionOps stm32l4x5_usart_base_ops = {
+    .read = stm32l4x5_usart_base_read,
+    .write = stm32l4x5_usart_base_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .max_access_size = 4,
@@ -292,72 +292,105 @@ static const MemoryRegionOps stm32l4x5_usart_ops = {
     },
 };
 
-static Property stm32l4x5_usart_properties[] = {
-    DEFINE_PROP_CHR("chardev", STM32L4X5UsartState, chr),
+static Property stm32l4x5_usart_base_properties[] = {
+    DEFINE_PROP_CHR("chardev", Stm32l4x5UsartBaseState, chr),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void stm32l4x5_usart_init(Object *obj)
+static void stm32l4x5_usart_base_init(Object *obj)
 {
-    STM32L4X5UsartState *s = STM32L4X5_USART(obj);
+    Stm32l4x5UsartBaseState *s = STM32L4X5_USART_BASE(obj);
 
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
 
-    memory_region_init_io(&s->mmio, obj, &stm32l4x5_usart_ops, s,
-                          TYPE_STM32L4X5_USART, 0x400);
+    memory_region_init_io(&s->mmio, obj, &stm32l4x5_usart_base_ops, s,
+                          TYPE_STM32L4X5_USART_BASE, 0x400);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 
     s->clk = qdev_init_clock_in(DEVICE(s), "clk", NULL, s, 0);
 }
 
-static const VMStateDescription vmstate_stm32l4x5_usart = {
-    .name = TYPE_STM32L4X5_USART,
+static const VMStateDescription vmstate_stm32l4x5_usart_base = {
+    .name = TYPE_STM32L4X5_USART_BASE,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(cr1, STM32L4X5UsartState),
-        VMSTATE_UINT32(cr2, STM32L4X5UsartState),
-        VMSTATE_UINT32(cr3, STM32L4X5UsartState),
-        VMSTATE_UINT32(brr, STM32L4X5UsartState),
-        VMSTATE_UINT32(gtpr, STM32L4X5UsartState),
-        VMSTATE_UINT32(rtor, STM32L4X5UsartState),
-        VMSTATE_UINT32(isr, STM32L4X5UsartState),
-        VMSTATE_UINT32(rdr, STM32L4X5UsartState),
-        VMSTATE_UINT32(tdr, STM32L4X5UsartState),
-        VMSTATE_CLOCK(clk, STM32L4X5UsartState),
+        VMSTATE_UINT32(cr1, Stm32l4x5UsartBaseState),
+        VMSTATE_UINT32(cr2, Stm32l4x5UsartBaseState),
+        VMSTATE_UINT32(cr3, Stm32l4x5UsartBaseState),
+        VMSTATE_UINT32(brr, Stm32l4x5UsartBaseState),
+        VMSTATE_UINT32(gtpr, Stm32l4x5UsartBaseState),
+        VMSTATE_UINT32(rtor, Stm32l4x5UsartBaseState),
+        VMSTATE_UINT32(isr, Stm32l4x5UsartBaseState),
+        VMSTATE_UINT32(rdr, Stm32l4x5UsartBaseState),
+        VMSTATE_UINT32(tdr, Stm32l4x5UsartBaseState),
+        VMSTATE_CLOCK(clk, Stm32l4x5UsartBaseState),
         VMSTATE_END_OF_LIST()
     }
 };
 
 
-static void stm32l4x5_usart_realize(DeviceState *dev, Error **errp)
+static void stm32l4x5_usart_base_realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
-    STM32L4X5UsartState *s = STM32L4X5_USART(dev);
+    Stm32l4x5UsartBaseState *s = STM32L4X5_USART_BASE(dev);
     if (!clock_has_source(s->clk)) {
         error_setg(errp, "USART clock must be wired up by SoC code");
         return;
     }
 }
 
-static void stm32l4x5_usart_class_init(ObjectClass *klass, void *data)
+static void stm32l4x5_usart_base_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    rc->phases.hold = stm32l4x5_usart_reset_hold;
-    device_class_set_props(dc, stm32l4x5_usart_properties);
-    dc->realize = stm32l4x5_usart_realize;
-    dc->vmsd = &vmstate_stm32l4x5_usart;
+    rc->phases.hold = stm32l4x5_usart_base_reset_hold;
+    device_class_set_props(dc, stm32l4x5_usart_base_properties);
+    dc->realize = stm32l4x5_usart_base_realize;
+    dc->vmsd = &vmstate_stm32l4x5_usart_base;
+}
+
+static void stm32l4x5_usart_class_init(ObjectClass *oc, void *data)
+{
+    Stm32l4x5UsartBaseClass *subc = STM32L4X5_USART_BASE_CLASS(oc);
+
+    subc->type = STM32L4x5_USART;
+}
+
+static void stm32l4x5_uart_class_init(ObjectClass *oc, void *data)
+{
+    Stm32l4x5UsartBaseClass *subc = STM32L4X5_USART_BASE_CLASS(oc);
+
+    subc->type = STM32L4x5_UART;
+}
+
+static void stm32l4x5_lpuart_class_init(ObjectClass *oc, void *data)
+{
+    Stm32l4x5UsartBaseClass *subc = STM32L4X5_USART_BASE_CLASS(oc);
+
+    subc->type = STM32L4x5_LPUART;
 }
 
 static const TypeInfo stm32l4x5_usart_types[] = {
     {
-        .name          = TYPE_STM32L4X5_USART,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(STM32L4X5UsartState),
-        .instance_init = stm32l4x5_usart_init,
-        .class_init    = stm32l4x5_usart_class_init,
+        .name           = TYPE_STM32L4X5_USART_BASE,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(Stm32l4x5UsartBaseState),
+        .instance_init  = stm32l4x5_usart_base_init,
+        .class_init     = stm32l4x5_usart_base_class_init,
+    }, {
+        .name           = TYPE_STM32L4X5_USART,
+        .parent         = TYPE_STM32L4X5_USART_BASE,
+        .class_init     = stm32l4x5_usart_class_init,
+    }, {
+        .name           = TYPE_STM32L4X5_UART,
+        .parent         = TYPE_STM32L4X5_USART_BASE,
+        .class_init     = stm32l4x5_uart_class_init,
+    }, {
+        .name           = TYPE_STM32L4X5_LPUART,
+        .parent         = TYPE_STM32L4X5_USART_BASE,
+        .class_init     = stm32l4x5_lpuart_class_init,
     }
 };
 

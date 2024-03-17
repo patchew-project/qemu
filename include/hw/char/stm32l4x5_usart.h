@@ -22,10 +22,20 @@
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 
+#define TYPE_STM32L4X5_USART_BASE "stm32l4x5-usart-base"
 #define TYPE_STM32L4X5_USART "stm32l4x5-usart"
-OBJECT_DECLARE_SIMPLE_TYPE(STM32L4X5UsartState, STM32L4X5_USART)
+#define TYPE_STM32L4X5_UART "stm32l4x5-uart"
+#define TYPE_STM32L4X5_LPUART "stm32l4x5-lpuart"
+OBJECT_DECLARE_TYPE(Stm32l4x5UsartBaseState, Stm32l4x5UsartBaseClass,
+                    STM32L4X5_USART_BASE)
 
-struct STM32L4X5UsartState {
+typedef enum {
+    STM32L4x5_USART,
+    STM32L4x5_UART,
+    STM32L4x5_LPUART,
+} Stm32l4x5UsartType;
+
+struct Stm32l4x5UsartBaseState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -46,4 +56,11 @@ struct STM32L4X5UsartState {
     CharBackend chr;
     qemu_irq irq;
 };
+
+struct Stm32l4x5UsartBaseClass {
+    SysBusDeviceClass parent_class;
+
+    Stm32l4x5UsartType type;
+};
+
 #endif /* HW_STM32L4X5_USART_H */
