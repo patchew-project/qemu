@@ -152,6 +152,59 @@ static HPPATLBEntry *hppa_alloc_tlb_ent(CPUHPPAState *env)
     return ent;
 }
 
+static uint32_t get_pid(CPUHPPAState *env, int num)
+{
+    const struct pid_map {
+        int reg;
+        bool shift;
+    } *pid;
+
+    const struct pid_map pids64[] = {
+        { .reg = 8,  .shift = true  },
+        { .reg = 8,  .shift = false },
+        { .reg = 9,  .shift = true  },
+        { .reg = 9,  .shift = false },
+        { .reg = 12, .shift = true  },
+        { .reg = 12, .shift = false },
+        { .reg = 13, .shift = true  },
+        { .reg = 13, .shift = false }
+    };
+
+    const struct pid_map pids32[] = {
+        { .reg = 8,  .shift = false  },
+        { .reg = 9,  .shift = false  },
+        { .reg = 12, .shift = false  },
+        { .reg = 13, .shift = false  },
+    };
+
+    if (hppa_is_pa20(env)) {
+        pid = pids64 + num;
+    } else {
+        pid = pids32 + num;
+    }
+    uint64_t cr = env->cr[pid->reg];
+    if (pid->shift) {
+        cr >>= 32;
+    } else {
+        cr &= 0xffffffff;
+    }
+    return cr;
+}
+
+#define ACCESS_ID_MASK 0xffff
+
+static bool match_prot_id(CPUHPPAState *env, uint32_t access_id, uint32_t *_pid)
+{
+    for (int i = 0; i < 8; i++) {
+        uint32_t pid = get_pid(env, i);
+        if ((access_id & ACCESS_ID_MASK) == ((pid >> 1) & ACCESS_ID_MASK)) {
+            *_pid = pid;
+            return true;
+        }
+    }
+    return false;
+}
+
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot,
                               HPPATLBEntry **tlb_entry)
@@ -227,15 +280,13 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     /* access_id == 0 means public page and no check is performed */
     if (ent->access_id && MMU_IDX_TO_P(mmu_idx)) {
         /* If bits [31:1] match, and bit 0 is set, suppress write.  */
-        int match = ent->access_id * 2 + 1;
-
-        if (match == env->cr[CR_PID1] || match == env->cr[CR_PID2] ||
-            match == env->cr[CR_PID3] || match == env->cr[CR_PID4]) {
-            prot &= PAGE_READ | PAGE_EXEC;
-            if (type == PAGE_WRITE) {
-                ret = EXCP_DMPI;
-                goto egress;
+        uint32_t pid;
+        if (match_prot_id(env, ent->access_id, &pid)) {
+            if ((pid & 1) && (prot & PROT_WRITE)) {
+                prot &= ~PROT_WRITE;
             }
+        } else {
+            prot = 0;
         }
     }
 
