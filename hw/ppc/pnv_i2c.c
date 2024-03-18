@@ -559,6 +559,7 @@ static void pnv_i2c_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PowerNV I2C";
     dc->realize = pnv_i2c_realize;
+    dc->user_creatable = false;
     device_class_set_props(dc, pnv_i2c_properties);
 }
 
