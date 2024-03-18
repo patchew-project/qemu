@@ -98,4 +98,26 @@ if build_docs
   alias_target('sphinxdocs', sphinxdocs)
   alias_target('html', sphinxdocs)
   alias_target('man', sphinxmans)
+
+  # Add a target to build and install a Texinfo version of the QEMU
+  # manual, if 'makeinfo' is available.
+  makeinfo = find_program(['texi2any', 'makeinfo'])
+  if makeinfo.found()
+    sphinxtexi = custom_target(
+      'qemu.texi',
+      output: ['qemu.texi', 'sphinxtexi.stamp'],
+      depfile: 'sphinxtexi.d',
+      command: [SPHINX_ARGS, '-Ddepfile=@DEPFILE@',
+               '-Ddepfile_stamp=@OUTPUT1@', '-b', 'texinfo',
+               '-d', private_dir, input_dir, meson.current_build_dir()])
+    sphinxinfo = custom_target(
+      'qemu.info',
+      input: sphinxtexi,
+      output: 'qemu.info',
+      install: true,
+      install_dir: get_option('infodir'),
+      command: [makeinfo, '--no-split', '--output=@OUTPUT@', '@INPUT0@'])
+    alias_target('texi', sphinxtexi)
+    alias_target('info', sphinxinfo)
+  endif
 endif
