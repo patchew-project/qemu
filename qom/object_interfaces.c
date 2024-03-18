@@ -43,22 +43,25 @@ bool user_creatable_can_be_deleted(UserCreatable *uc)
     }
 }
 
-static void object_set_properties_from_qdict(Object *obj, const QDict *qdict,
+static bool object_set_properties_from_qdict(Object *obj, const QDict *qdict,
                                              Visitor *v, Error **errp)
 {
     const QDictEntry *e;
+    bool ret;
 
     if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
-        return;
+        return false;
     }
     for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-        if (!object_property_set(obj, e->key, v, errp)) {
+        ret = object_property_set(obj, e->key, v, errp);
+        if (!ret) {
             goto out;
         }
     }
-    visit_check_struct(v, errp);
+    ret = visit_check_struct(v, errp);
 out:
     visit_end_struct(v, NULL);
+    return ret;
 }
 
 void object_set_properties_from_keyval(Object *obj, const QDict *qdict,
@@ -109,17 +112,13 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
-    object_set_properties_from_qdict(obj, qdict, v, &local_err);
-    if (local_err) {
+    if (!object_set_properties_from_qdict(obj, qdict, v, &local_err)) {
         goto err;
     }
 
-    if (id != NULL) {
-        object_property_try_add_child(object_get_objects_root(),
-                                      id, obj, &local_err);
-        if (local_err) {
+    if (id != NULL && !object_property_try_add_child(object_get_objects_root(),
+                                                     id, obj, &local_err)) {
             goto err;
-        }
     }
 
     if (!user_creatable_complete(USER_CREATABLE(obj), &local_err)) {
