@@ -41,6 +41,9 @@ class ReverseDebugging(LinuxKernelTest):
     # first 10 instructions are stepped.
     verify_end = True
 
+    # Enable the autosnapshot test, requires long_trace = True.
+    autosnapshot = True
+
     # If first_step_workaround is true, check whether the first step moved
     # icount, and if not then step again.
     first_step_workaround = False
@@ -56,9 +59,14 @@ class ReverseDebugging(LinuxKernelTest):
             logger.info('replaying the execution...')
             mode = 'replay'
         vm.add_args('-gdb', 'tcp::%d' % port, '-S')
-        vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init' %
-                    (shift, mode, replay_path),
-                    '-net', 'none')
+        if self.autosnapshot:
+            vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init'
+                                   ',rrsnapmode=periodic,rrsnapcount=10,'
+                                   'rrsnaptime=1' % (shift, mode, replay_path))
+        else:
+            vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init'
+                                   % (shift, mode, replay_path))
+        vm.add_args('-net', 'none')
         vm.add_args('-drive', 'file=%s,if=none,id=disk0' % image_path)
         if args:
             vm.add_args(*args)
@@ -192,8 +200,12 @@ class ReverseDebugging(LinuxKernelTest):
 
         logger.info('continue running')
         self.gdb_cont_nowait(g)
-        logger.info('running for 1s...')
-        time.sleep(1)
+        if self.autosnapshot:
+            logger.info('running for 5s...')
+            time.sleep(5)
+        else:
+            logger.info('running for 1s...')
+            time.sleep(1)
         logger.info('stopping to read final icount')
         vm.qmp('stop')
         self.gdb_break(g)
@@ -322,6 +334,9 @@ class ReverseDebugging_X86_64(ReverseDebugging):
     # the trace precisely on x86.
     verify_end = False
 
+    # x86 doesn't like autosnapshot
+    autosnapshot = False
+
     def get_pc(self, g):
         return self.get_reg_le(g, self.REG_PC) \
             + self.get_reg_le(g, self.REG_CS) * 0x10
@@ -354,6 +369,9 @@ class ReverseDebugging_AArch64(ReverseDebugging):
     # Reverse stepping from a long-running trace does not reliably replay
     # the trace precisely on aarch64.
     verify_end = False
+
+    # aarch64 doesn't like autosnapshot
+    autosnapshot = False
 
     def test_aarch64_virt(self):
         """
