@@ -37,7 +37,6 @@
 #include "trace.h"
 #include "exec/memory.h"
 #include "qom/object.h"
-#include "sysemu/sysemu.h"
 
 #include "console-priv.h"
 
@@ -210,17 +209,17 @@ void qemu_console_set_window_id(QemuConsole *con, int window_id)
 
 void qemu_console_set_rotate(QemuConsole *con, unsigned arcdegree)
 {
-    graphic_rotate = arcdegree;
+    con->rotate_arcdegree = arcdegree;
 }
 
 bool qemu_console_is_rotated(QemuConsole *con)
 {
-    return graphic_rotate != 0;
+    return con->rotate_arcdegree != 0;
 }
 
 unsigned qemu_console_get_rotate_arcdegree(QemuConsole *con)
 {
-    return graphic_rotate;
+    return con->rotate_arcdegree;
 }
 
 void graphic_hw_invalidate(QemuConsole *con)

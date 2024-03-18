@@ -31,6 +31,7 @@ struct QemuConsole {
     const GraphicHwOps *hw_ops;
     void *hw;
     CoQueue dump_queue;
+    unsigned rotate_arcdegree;
 
     QTAILQ_ENTRY(QemuConsole) next;
 };
