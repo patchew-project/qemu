@@ -1378,6 +1378,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
     [[cocoaView window] setStyleMask:styleMask];
     [sender setState:styleMask & NSWindowStyleMaskResizable ? NSControlStateValueOn : NSControlStateValueOff];
+    [cocoaView resizeWindow];
 }
 
 - (void)toggleZoomInterpolation:(id) sender
