@@ -37,7 +37,6 @@
 #include "trace.h"
 #include "exec/memory.h"
 #include "qom/object.h"
-#include "sysemu/sysemu.h"
 
 #include "console-priv.h"
 
@@ -51,6 +50,8 @@ typedef struct QemuGraphicConsole {
 
     QEMUCursor *cursor;
     int cursor_x, cursor_y, cursor_on;
+
+    unsigned rotate_arcdegree;
 } QemuGraphicConsole;
 
 typedef QemuConsoleClass QemuGraphicConsoleClass;
@@ -210,17 +211,23 @@ void qemu_console_set_window_id(QemuConsole *con, int window_id)
 
 void qemu_console_set_rotate(QemuConsole *con, unsigned arcdegree)
 {
-    graphic_rotate = arcdegree;
+    QemuGraphicConsole *gc = QEMU_GRAPHIC_CONSOLE(con);
+
+    gc->rotate_arcdegree = arcdegree;
 }
 
 bool qemu_console_is_rotated(QemuConsole *con)
 {
-    return graphic_rotate != 0;
+    QemuGraphicConsole *gc = QEMU_GRAPHIC_CONSOLE(con);
+
+    return gc->rotate_arcdegree != 0;
 }
 
 unsigned qemu_console_get_rotate_arcdegree(QemuConsole *con)
 {
-    return graphic_rotate;
+    QemuGraphicConsole *gc = QEMU_GRAPHIC_CONSOLE(con);
+
+    return gc->rotate_arcdegree;
 }
 
 void graphic_hw_invalidate(QemuConsole *con)
