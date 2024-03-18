@@ -111,14 +111,14 @@ Object *user_creatable_add_type(const char *type, const char *id,
     obj = object_new(type);
     object_set_properties_from_qdict(obj, qdict, v, &local_err);
     if (local_err) {
-        goto out;
+        goto err;
     }
 
     if (id != NULL) {
         object_property_try_add_child(object_get_objects_root(),
                                       id, obj, &local_err);
         if (local_err) {
-            goto out;
+            goto err;
         }
     }
 
@@ -126,15 +126,13 @@ Object *user_creatable_add_type(const char *type, const char *id,
         if (id != NULL) {
             object_property_del(object_get_objects_root(), id);
         }
-        goto out;
-    }
-out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-        object_unref(obj);
-        return NULL;
+        goto err;
     }
     return obj;
+err:
+    error_propagate(errp, local_err);
+    object_unref(obj);
+    return NULL;
 }
 
 void user_creatable_add_qapi(ObjectOptions *options, Error **errp)
