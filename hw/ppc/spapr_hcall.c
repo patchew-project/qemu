@@ -487,6 +487,36 @@ static target_ulong h_register_vpa(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return ret;
 }
 
+void vpa_dispatch(CPUState *cs, SpaprCpuState *spapr_cpu, bool dispatch)
+{
+    uint32_t counter;
+
+    if (!dispatch) {
+        assert(spapr_cpu->dispatched);
+    } else {
+        assert(!spapr_cpu->dispatched);
+    }
+    spapr_cpu->dispatched = dispatch;
+
+    return;
+
+    if (!spapr_cpu->vpa_addr) {
+        return;
+    }
+
+    /* These are only called by TCG, KVM maintains dispatch state */
+    counter = ldl_be_phys(cs->as, spapr_cpu->vpa_addr + VPA_DISPATCH_COUNTER);
+    counter++;
+    if ((counter & 1) != dispatch) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "VPA: incorrect dispatch counter value for "
+                      "%s partition %u, correcting.\n",
+                      dispatch ? "preempted" : "running", counter);
+        counter++;
+    }
+    stl_be_phys(cs->as, spapr_cpu->vpa_addr + VPA_DISPATCH_COUNTER, counter);
+}
+
 static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
@@ -505,6 +535,7 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     if (!cpu_has_work(cs)) {
         cs->halted = 1;
+        vpa_dispatch(cs, spapr_cpu, false);
         cs->exception_index = EXCP_HLT;
         cs->exit_request = 1;
         ppc_maybe_interrupt(env);
@@ -530,6 +561,8 @@ static target_ulong h_confer_self(PowerPCCPU *cpu)
     cs->exception_index = EXCP_HALTED;
     cs->exit_request = 1;
     ppc_maybe_interrupt(&cpu->env);
+
+    vpa_dispatch(cs, spapr_cpu, false);
 
     return H_SUCCESS;
 }
