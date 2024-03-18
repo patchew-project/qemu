@@ -24,6 +24,7 @@
 #include "socket.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/replay.h"
 #include "sysemu/cpu-throttle.h"
 #include "rdma.h"
 #include "ram.h"
@@ -2533,6 +2534,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     }
 
     trace_postcopy_start();
+    replay_mutex_lock();
     bql_lock();
     trace_postcopy_start_set_run();
 
@@ -2638,6 +2640,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     migration_downtime_end(ms);
 
     bql_unlock();
+    replay_mutex_unlock();
 
     if (migrate_postcopy_ram()) {
         /*
@@ -2679,6 +2682,7 @@ fail:
     }
     migration_call_notifiers(ms, MIG_EVENT_PRECOPY_FAILED, NULL);
     bql_unlock();
+    replay_mutex_unlock();
     return -1;
 }
 
@@ -2730,6 +2734,7 @@ static int migration_completion_precopy(MigrationState *s,
 {
     int ret;
 
+    replay_mutex_lock();
     bql_lock();
 
     if (!migrate_mode_is_cpr(s)) {
@@ -2755,6 +2760,7 @@ static int migration_completion_precopy(MigrationState *s,
                                              s->block_inactive);
 out_unlock:
     bql_unlock();
+    replay_mutex_unlock();
     return ret;
 }
 
@@ -3592,6 +3598,7 @@ static void *bg_migration_thread(void *opaque)
 
     trace_migration_thread_setup_complete();
 
+    replay_mutex_lock();
     bql_lock();
 
     if (migration_stop_vm(s, RUN_STATE_PAUSED)) {
@@ -3625,6 +3632,7 @@ static void *bg_migration_thread(void *opaque)
      */
     migration_bh_schedule(bg_migration_vm_start_bh, s);
     bql_unlock();
+    replay_mutex_unlock();
 
     while (migration_is_active()) {
         MigIterateState iter_state = bg_migration_iteration_run(s);
@@ -3654,6 +3662,7 @@ fail:
         migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                 MIGRATION_STATUS_FAILED);
         bql_unlock();
+        replay_mutex_unlock();
     }
 
     bg_migration_iteration_finish(s);
