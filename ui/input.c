@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
 #include "trace.h"
@@ -179,10 +178,10 @@ static int qemu_input_transform_invert_abs_value(int value)
   return (int64_t)INPUT_EVENT_ABS_MAX - value + INPUT_EVENT_ABS_MIN;
 }
 
-static void qemu_input_transform_abs_rotate(InputEvent *evt)
+static void qemu_input_transform_abs_rotate(QemuConsole *src, InputEvent *evt)
 {
     InputMoveEvent *move = evt->u.abs.data;
-    switch (graphic_rotate) {
+    switch (qemu_console_get_rotate_arcdegree(src)) {
     case 90:
         if (move->axis == INPUT_AXIS_X) {
             move->axis = INPUT_AXIS_Y;
@@ -341,8 +340,8 @@ void qemu_input_event_send_impl(QemuConsole *src, InputEvent *evt)
     qemu_input_event_trace(src, evt);
 
     /* pre processing */
-    if (graphic_rotate && (evt->type == INPUT_EVENT_KIND_ABS)) {
-            qemu_input_transform_abs_rotate(evt);
+    if (qemu_console_is_rotated(src) && (evt->type == INPUT_EVENT_KIND_ABS)) {
+        qemu_input_transform_abs_rotate(src, evt);
     }
 
     /* send event */
