@@ -544,4 +544,6 @@ uint32_t kvm_dirty_ring_size(void);
  * reported for the VM.
  */
 bool kvm_hwpoisoned_mem(void);
+
+bool kvm_is_rapl_feat_enable(CPUState *cs);
 #endif

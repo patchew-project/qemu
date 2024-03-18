@@ -50,6 +50,13 @@ static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
                                                    MSR_IA32_UCODE_REV);
         }
     }
+    if (kvm_is_rapl_feat_enable(cs)) {
+        if (IS_INTEL_CPU(env)) {
+            error_setg(errp, "RAPL feature is enable and CPU is not INTEL CPU");
+            return false;
+        };
+    };
+
     return host_cpu_realizefn(cs, errp);
 }
 
