@@ -1439,6 +1439,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->con = graphic_console_init(NULL, 0, &pxa2xx_ops, s);
+    qemu_console_set_rotate(s->con, graphic_rotate);
 
     vmstate_register(NULL, 0, &vmstate_pxa2xx_lcdc, s);
 
