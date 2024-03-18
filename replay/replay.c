@@ -29,6 +29,10 @@
 ReplayMode replay_mode = REPLAY_MODE_NONE;
 char *replay_snapshot;
 
+ReplaySnapshotMode replay_snapshot_mode;
+uint64_t replay_snapshot_periodic_delay;
+int replay_snapshot_periodic_nr_keep;
+
 /* Name of replay file  */
 static char *replay_filename;
 ReplayState replay_state;
@@ -424,6 +428,27 @@ void replay_configure(QemuOpts *opts)
     }
 
     replay_snapshot = g_strdup(qemu_opt_get(opts, "rrsnapshot"));
+    if (replay_snapshot && mode == REPLAY_MODE_RECORD) {
+        const char *snapmode;
+
+        snapmode = qemu_opt_get(opts, "rrsnapmode");
+        if (!snapmode || !strcmp(snapmode, "initial")) {
+            replay_snapshot_mode = REPLAY_SNAPSHOT_MODE_INITIAL;
+        } else if (!strcmp(snapmode, "periodic")) {
+            replay_snapshot_mode = REPLAY_SNAPSHOT_MODE_PERIODIC;
+        } else {
+            error_report("Invalid rrsnapmode option: %s", snapmode);
+            exit(1);
+        }
+
+        /* Default 10 host seconds of machine runtime per snapshot. */
+        replay_snapshot_periodic_delay =
+                           qemu_opt_get_number(opts, "rrsnaptime", 10) * 1000;
+
+        /* Default 2, to cover at least the last 10 host seconds of runtime. */
+        replay_snapshot_periodic_nr_keep =
+                           qemu_opt_get_number(opts, "rrsnapcount", 2);
+    }
     replay_vmstate_register();
     replay_enable(fname, mode);
 
@@ -445,8 +470,6 @@ void replay_start(void)
         error_report("Please enable icount to use record/replay");
         exit(1);
     }
-
-    /* Timer for snapshotting will be set up here. */
 
     replay_enable_events();
 }

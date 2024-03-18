@@ -156,6 +156,11 @@ for storing VM snapshots. Here is the example of the command line for this:
 ``empty.qcow2`` drive does not connected to any virtual block device and used
 for VM snapshots only.
 
+``rrsnapmode`` can be used to select just an initial snapshot or periodic
+snapshots, with ``rrsnapcount`` specifying the number of periodic snapshots
+to maintain, and ``rrsnaptime`` the amount of run time in seconds between
+periodic snapshots.
+
 .. _network-label:
 
 Network devices
