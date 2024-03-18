@@ -10793,6 +10793,8 @@ void arm_log_exception(CPUState *cs)
             [EXCP_DIVBYZERO] = "v7M DIVBYZERO UsageFault",
             [EXCP_VSERR] = "Virtual SERR",
             [EXCP_GPC] = "Granule Protection Check",
+            [EXCP_NMI] = "NMI",
+            [EXCP_VNMI] = "Virtual NMI"
         };
 
         if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
