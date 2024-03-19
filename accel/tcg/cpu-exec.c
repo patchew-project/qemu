@@ -1072,6 +1072,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
         const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
         assert(tcg_ops->restore_state_to_opc);
+        assert(tcg_ops->get_cpu_state);
         tcg_ops->initialize();
         tcg_target_initialized = true;
     }

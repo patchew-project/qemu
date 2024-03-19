@@ -221,7 +221,6 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     cpu->cc->tcg_ops->restore_state_to_opc(cpu, tb, data);
 }
 
-#ifndef TARGET_HAS_CPU_GET_TB_CPU_STATE
 void cpu_get_tb_cpu_state(CPUArchState *env, vaddr *pc,
                           uint64_t *cs_base, uint32_t *flags)
 {
@@ -229,7 +228,6 @@ void cpu_get_tb_cpu_state(CPUArchState *env, vaddr *pc,
 
     cpu->cc->tcg_ops->get_cpu_state(env, pc, cs_base, flags);
 }
-#endif
 
 bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc)
 {
