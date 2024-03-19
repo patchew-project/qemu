@@ -58,6 +58,18 @@ static void tricore_restore_state_to_opc(CPUState *cs,
     cpu_env(cs)->PC = data[0];
 }
 
+static void tricore_get_cpu_state(CPUTriCoreState *env, vaddr *pc,
+                                  uint64_t *cs_base, uint32_t *flags)
+{
+    uint32_t new_flags = 0;
+    *pc = env->PC;
+    *cs_base = 0;
+
+    new_flags |= FIELD_DP32(new_flags, TB_FLAGS, PRIV,
+                            extract32(env->PSW, 10, 2));
+    *flags = new_flags;
+}
+
 static void tricore_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -168,6 +180,7 @@ static const TCGCPUOps tricore_tcg_ops = {
     .initialize = tricore_tcg_init,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
     .restore_state_to_opc = tricore_restore_state_to_opc,
+    .get_cpu_state = tricore_get_cpu_state,
     .tlb_fill = tricore_cpu_tlb_fill,
 };
 
