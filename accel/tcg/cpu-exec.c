@@ -1069,7 +1069,10 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
     static bool tcg_target_initialized;
 
     if (!tcg_target_initialized) {
-        cpu->cc->tcg_ops->initialize();
+        const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+
+        assert(tcg_ops->restore_state_to_opc);
+        tcg_ops->initialize();
         tcg_target_initialized = true;
     }
 
