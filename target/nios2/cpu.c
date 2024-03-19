@@ -43,6 +43,18 @@ static void nios2_restore_state_to_opc(CPUState *cs,
     cpu_env(cs)->pc = data[0];
 }
 
+static void nios2_get_cpu_state(CPUNios2State *env, vaddr *pc,
+                                uint64_t *cs_base, uint32_t *flags)
+{
+    unsigned crs = FIELD_EX32(env->ctrl[CR_STATUS], CR_STATUS, CRS);
+
+    *pc = env->pc;
+    *cs_base = 0;
+    *flags = (env->ctrl[CR_STATUS] & CR_STATUS_U)
+             | (crs ? 0 : R_TBFLAGS_CRS0_MASK)
+             | (env->regs[0] ? 0 : R_TBFLAGS_R0_0_MASK);
+}
+
 static bool nios2_cpu_has_work(CPUState *cs)
 {
     return cs->interrupt_request & CPU_INTERRUPT_HARD;
@@ -354,6 +366,7 @@ static const struct SysemuCPUOps nios2_sysemu_ops = {
 static const TCGCPUOps nios2_tcg_ops = {
     .initialize = nios2_tcg_init,
     .restore_state_to_opc = nios2_restore_state_to_opc,
+    .get_cpu_state = nios2_get_cpu_state,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = nios2_cpu_tlb_fill,
