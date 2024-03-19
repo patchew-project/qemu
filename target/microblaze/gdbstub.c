@@ -63,7 +63,7 @@ int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         val = mb_cpu_read_msr(env);
         break;
     case GDB_EAR:
-        val = env->ear;
+        val = (uint32_t)env->ear;
         break;
     case GDB_ESR:
         val = env->esr;
