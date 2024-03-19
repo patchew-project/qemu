@@ -149,6 +149,8 @@ void rx_cpu_unpack_psw(CPURXState *env, uint32_t psw, int rte);
 #define RX_CPU_IRQ 0
 #define RX_CPU_FIR 1
 
+#define TARGET_HAS_CPU_GET_TB_CPU_STATE
+
 static inline void cpu_get_tb_cpu_state(CPURXState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {

@@ -3151,6 +3151,8 @@ static inline bool arm_cpu_bswap_data(CPUARMState *env)
 }
 #endif
 
+#define TARGET_HAS_CPU_GET_TB_CPU_STATE
+
 void cpu_get_tb_cpu_state(CPUARMState *env, vaddr *pc,
                           uint64_t *cs_base, uint32_t *flags);
 

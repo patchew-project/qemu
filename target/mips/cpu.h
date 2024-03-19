@@ -1362,6 +1362,8 @@ void cpu_mips_clock_init(MIPSCPU *cpu);
 /* helper.c */
 target_ulong exception_resume_pc(CPUMIPSState *env);
 
+#define TARGET_HAS_CPU_GET_TB_CPU_STATE
+
 static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {

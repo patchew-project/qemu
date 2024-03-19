@@ -193,6 +193,8 @@ enum {
     TB_FLAGS_SKIP = 2,
 };
 
+#define TARGET_HAS_CPU_GET_TB_CPU_STATE
+
 static inline void cpu_get_tb_cpu_state(CPUAVRState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *pflags)
 {

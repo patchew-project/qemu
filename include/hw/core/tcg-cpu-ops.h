@@ -49,6 +49,9 @@ struct TCGCPUOps {
     /** @debug_excp_handler: Callback for handling debug exceptions */
     void (*debug_excp_handler)(CPUState *cpu);
 
+    void (*get_cpu_state)(CPUArchState *cpu, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags);
+
 #ifdef NEED_CPU_H
 #ifdef CONFIG_USER_ONLY
     /**

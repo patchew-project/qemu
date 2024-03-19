@@ -351,6 +351,8 @@ static inline void cpu_set_gpr(CPUOpenRISCState *env, int i, uint32_t val)
     env->shadow_gpr[0][i] = val;
 }
 
+#define TARGET_HAS_CPU_GET_TB_CPU_STATE
+
 static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {
