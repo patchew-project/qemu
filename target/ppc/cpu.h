@@ -2716,19 +2716,9 @@ void cpu_write_xer(CPUPPCState *env, target_ulong xer);
  */
 #define is_book3s_arch2x(ctx) (!!((ctx)->insns_flags & PPC_SEGMENT_64B))
 
-#define TARGET_HAS_CPU_GET_TB_CPU_STATE
-
-#ifdef CONFIG_DEBUG_TCG
-void cpu_get_tb_cpu_state(CPUPPCState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *flags);
-#else
-static inline void cpu_get_tb_cpu_state(CPUPPCState *env, vaddr *pc,
-                                        uint64_t *cs_base, uint32_t *flags)
-{
-    *pc = env->nip;
-    *cs_base = 0;
-    *flags = env->hflags;
-}
+#ifdef CONFIG_TCG
+void ppc_get_cpu_state(CPUPPCState *env, vaddr *pc,
+                       uint64_t *cs_base, uint32_t *flags);
 #endif
 
 G_NORETURN void raise_exception(CPUPPCState *env, uint32_t exception);

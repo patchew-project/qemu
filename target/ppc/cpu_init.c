@@ -7362,6 +7362,7 @@ static const struct SysemuCPUOps ppc_sysemu_ops = {
 static const TCGCPUOps ppc_tcg_ops = {
     .initialize = ppc_translate_init,
     .restore_state_to_opc = ppc_restore_state_to_opc,
+    .get_cpu_state = ppc_get_cpu_state,
 
 #ifdef CONFIG_USER_ONLY
     .record_sigsegv = ppc_cpu_record_sigsegv,
