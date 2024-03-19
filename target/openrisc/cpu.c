@@ -62,6 +62,16 @@ static void openrisc_restore_state_to_opc(CPUState *cs,
     }
 }
 
+static void openrisc_get_cpu_state(CPUOpenRISCState *env, vaddr *pc,
+                                   uint64_t *cs_base, uint32_t *flags)
+{
+    *pc = env->pc;
+    *cs_base = 0;
+    *flags = (env->dflag ? TB_FLAGS_DFLAG : 0)
+             | (cpu_get_gpr(env, 0) ? 0 : TB_FLAGS_R0_0)
+             | (env->sr & (SR_SM | SR_DME | SR_IME | SR_OVE));
+}
+
 static bool openrisc_cpu_has_work(CPUState *cs)
 {
     return cs->interrupt_request & (CPU_INTERRUPT_HARD |
@@ -229,6 +239,7 @@ static const TCGCPUOps openrisc_tcg_ops = {
     .initialize = openrisc_translate_init,
     .synchronize_from_tb = openrisc_cpu_synchronize_from_tb,
     .restore_state_to_opc = openrisc_restore_state_to_opc,
+    .get_cpu_state = openrisc_get_cpu_state,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = openrisc_cpu_tlb_fill,
