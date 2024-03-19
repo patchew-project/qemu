@@ -1872,7 +1872,9 @@ void mb_tcg_init(void)
         SP(iflags),
         SP(bvalue),
         SP(btarget),
+#if !defined(CONFIG_USER_ONLY)
         SP(res_val),
+#endif
     };
 
 #undef R
@@ -1883,6 +1885,9 @@ void mb_tcg_init(void)
           tcg_global_mem_new_i32(tcg_env, i32s[i].ofs, i32s[i].name);
     }
 
-    cpu_res_addr =
-        tcg_global_mem_new(tcg_env, offsetof(CPUMBState, res_addr), "res_addr");
+#if !defined(CONFIG_USER_ONLY)
+    cpu_res_addr = tcg_global_mem_new_i64(tcg_env,
+                                          offsetof(CPUMBState, res_addr),
+                                          "res_addr");
+#endif
 }

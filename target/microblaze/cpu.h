@@ -260,11 +260,6 @@ struct CPUArchState {
     /* Stack protectors. Yes, it's a hw feature.  */
     uint32_t slr, shr;
 
-    /* lwx/swx reserved address */
-#define RES_ADDR_NONE 0xffffffff /* Use 0xffffffff to indicate no reservation */
-    target_ulong res_addr;
-    uint32_t res_val;
-
     /* Internal flags.  */
 #define IMM_FLAG        (1 << 0)
 #define BIMM_FLAG       (1 << 1)
@@ -286,6 +281,11 @@ struct CPUArchState {
     uint32_t iflags;
 
 #if !defined(CONFIG_USER_ONLY)
+    /* lwx/swx reserved address */
+#define RES_ADDR_NONE 0xffffffff /* Use 0xffffffff to indicate no reservation */
+    uint64_t res_addr;
+    uint32_t res_val;
+
     /* Unified MMU.  */
     MicroBlazeMMU mmu;
 #endif

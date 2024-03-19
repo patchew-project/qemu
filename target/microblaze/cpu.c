@@ -193,7 +193,9 @@ static void mb_cpu_reset_hold(Object *obj)
     }
 
     memset(env, 0, offsetof(CPUMBState, end_reset_fields));
+#ifndef CONFIG_USER_ONLY
     env->res_addr = RES_ADDR_NONE;
+#endif
 
     /* Disable stack protector.  */
     env->shr = ~0;
