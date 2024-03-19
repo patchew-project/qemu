@@ -1178,9 +1178,11 @@ bool multifd_send_setup(void)
             p->packet = g_malloc0(p->packet_len);
             p->packet->magic = cpu_to_be32(MULTIFD_MAGIC);
             p->packet->version = cpu_to_be32(MULTIFD_VERSION);
-
-            /* We need one extra place for the packet header */
-            p->iov = g_new0(struct iovec, page_count + 1);
+            /* IOVs are initialized in send_setup of compression method */
+            if (!migrate_multifd_compression()) {
+                /* We need one extra place for the packet header */
+                p->iov = g_new0(struct iovec, page_count + 1);
+            }
         } else {
             p->iov = g_new0(struct iovec, page_count);
         }

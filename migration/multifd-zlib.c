@@ -70,6 +70,10 @@ static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
         goto err_free_zbuff;
     }
     p->compress_data = z;
+
+    assert(p->iov == NULL);
+    /* For packet header and zlib streaming compression block */
+    p->iov = g_new0(struct iovec, 2);
     return 0;
 
 err_free_zbuff:
