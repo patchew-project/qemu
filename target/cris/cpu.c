@@ -51,6 +51,15 @@ static void cris_restore_state_to_opc(CPUState *cs,
     cpu->env.pc = data[0];
 }
 
+static void cris_get_cpu_state(CPUCRISState *env, vaddr *pc,
+                               uint64_t *cs_base, uint32_t *flags)
+{
+    *pc = env->pc;
+    *cs_base = 0;
+    *flags = env->dslot |
+        (env->pregs[PR_CCS] & (S_FLAG | P_FLAG | U_FLAG | X_FLAG | PFIX_FLAG));
+}
+
 static bool cris_cpu_has_work(CPUState *cs)
 {
     return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
@@ -182,6 +191,7 @@ static const struct SysemuCPUOps cris_sysemu_ops = {
 static const TCGCPUOps crisv10_tcg_ops = {
     .initialize = cris_initialize_crisv10_tcg,
     .restore_state_to_opc = cris_restore_state_to_opc,
+    .get_cpu_state = cris_get_cpu_state,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = cris_cpu_tlb_fill,
@@ -193,6 +203,7 @@ static const TCGCPUOps crisv10_tcg_ops = {
 static const TCGCPUOps crisv32_tcg_ops = {
     .initialize = cris_initialize_tcg,
     .restore_state_to_opc = cris_restore_state_to_opc,
+    .get_cpu_state = cris_get_cpu_state,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = cris_cpu_tlb_fill,
