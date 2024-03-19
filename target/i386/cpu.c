@@ -7679,7 +7679,7 @@ static vaddr x86_cpu_get_pc(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
 
-    /* Match cpu_get_tb_cpu_state. */
+    /* Match x86_get_cpu_state. */
     return cpu->env.eip + cpu->env.segs[R_CS].base;
 }
 
