@@ -44,6 +44,7 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/atomic128.h"
+#include "tcg_s390x.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -6568,4 +6569,26 @@ void s390x_restore_state_to_opc(CPUState *cs,
 
     /* Record ILEN.  */
     env->int_pgm_ilen = data[2];
+}
+
+void s390x_get_cpu_state(CPUS390XState *env, vaddr *pc,
+                         uint64_t *cs_base, uint32_t *flags)
+{
+    if (env->psw.addr & 1) {
+        /*
+         * Instructions must be at even addresses.
+         * This needs to be checked before address translation.
+         */
+        env->int_pgm_ilen = 2; /* see s390_cpu_tlb_fill() */
+        tcg_s390_program_interrupt(env, PGM_SPECIFICATION, 0);
+    }
+    *pc = env->psw.addr;
+    *cs_base = env->ex_value;
+    *flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
+    if (env->cregs[0] & CR0_AFP) {
+        *flags |= FLAG_MASK_AFP;
+    }
+    if (env->cregs[0] & CR0_VECTOR) {
+        *flags |= FLAG_MASK_VECTOR;
+    }
 }

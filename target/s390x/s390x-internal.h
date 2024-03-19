@@ -403,6 +403,8 @@ void s390x_translate_init(void);
 void s390x_restore_state_to_opc(CPUState *cs,
                                 const TranslationBlock *tb,
                                 const uint64_t *data);
+void s390x_get_cpu_state(CPUS390XState *env, vaddr *pc,
+                         uint64_t *cs_base, uint32_t *flags);
 #endif /* CONFIG_TCG */
 
 /* sigp.c */

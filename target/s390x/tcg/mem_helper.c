@@ -2391,7 +2391,7 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t r1, uint64_t addr)
    it does not change the program counter.
 
    Perform this by recording the modified instruction in env->ex_value.
-   This will be noticed by cpu_get_tb_cpu_state and thus tb translation.
+   This will be noticed by s390x_get_cpu_state and thus tb translation.
 */
 void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
 {

@@ -327,6 +327,7 @@ static void s390_cpu_reset_full(DeviceState *dev)
 static const TCGCPUOps s390_tcg_ops = {
     .initialize = s390x_translate_init,
     .restore_state_to_opc = s390x_restore_state_to_opc,
+    .get_cpu_state = s390x_get_cpu_state,
 
 #ifdef CONFIG_USER_ONLY
     .record_sigsegv = s390_cpu_record_sigsegv,
