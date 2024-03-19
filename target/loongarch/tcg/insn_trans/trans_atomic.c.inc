@@ -7,7 +7,13 @@ static bool gen_ll(DisasContext *ctx, arg_rr_i *a, MemOp mop)
 {
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
-    TCGv t0 = make_address_i(ctx, src1, a->imm);
+    TCGv t0 = tcg_temp_new();
+
+    if (a->imm) {
+        t0 = make_address_i(ctx, src1, a->imm);
+    } else {
+        tcg_gen_mov_tl(t0, src1);
+    }
 
     tcg_gen_qemu_ld_i64(dest, t0, ctx->mem_idx, mop);
     tcg_gen_st_tl(t0, tcg_env, offsetof(CPULoongArchState, lladdr));
