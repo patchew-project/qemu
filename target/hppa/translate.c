@@ -2293,6 +2293,17 @@ static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
     return true;
 }
 
+static bool trans_fic(DisasContext *ctx, arg_fic *a)
+{
+    arg_ldst b;
+
+    b.b = a->b;
+    b.x = a->x;
+    b.m = a->m;
+    ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+    return trans_nop_addrx(ctx, &b);
+}
+
 static bool trans_probe(DisasContext *ctx, arg_probe *a)
 {
     TCGv_i64 dest, ofs;
