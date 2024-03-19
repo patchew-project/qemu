@@ -1,5 +1,5 @@
 /*
- *  MicroBlaze helper routines.
+ *  MicroBlaze system helper routines.
  *
  *  Copyright (c) 2009 Edgar E. Iglesias <edgar.iglesias@gmail.com>
  *  Copyright (c) 2009-2012 PetaLogix Qld Pty Ltd.
@@ -24,7 +24,6 @@
 #include "qemu/host-utils.h"
 #include "exec/log.h"
 
-#ifndef CONFIG_USER_ONLY
 static bool mb_cpu_access_is_secure(MicroBlazeCPU *cpu,
                                     MMUAccessType access_type)
 {
@@ -265,8 +264,6 @@ bool mb_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     }
     return false;
 }
-
-#endif /* !CONFIG_USER_ONLY */
 
 void mb_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                 MMUAccessType access_type,
