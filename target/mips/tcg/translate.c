@@ -15581,3 +15581,12 @@ void mips_restore_state_to_opc(CPUState *cs,
         break;
     }
 }
+
+void mips_get_cpu_state(CPUMIPSState *env, vaddr *pc,
+                        uint64_t *cs_base, uint32_t *flags)
+{
+    *pc = env->active_tc.PC;
+    *cs_base = 0;
+    *flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK |
+                            MIPS_HFLAG_HWRENA_ULR);
+}

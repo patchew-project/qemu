@@ -24,6 +24,8 @@ G_NORETURN void mips_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 void mips_restore_state_to_opc(CPUState *cs,
                                const TranslationBlock *tb,
                                const uint64_t *data);
+void mips_get_cpu_state(CPUMIPSState *env, vaddr *pc,
+                        uint64_t *cs_base, uint32_t *flags);
 
 const char *mips_exception_name(int32_t exception);
 
