@@ -7360,22 +7360,22 @@ static const struct SysemuCPUOps ppc_sysemu_ops = {
 #include "hw/core/tcg-cpu-ops.h"
 
 static const TCGCPUOps ppc_tcg_ops = {
-  .initialize = ppc_translate_init,
-  .restore_state_to_opc = ppc_restore_state_to_opc,
+    .initialize = ppc_translate_init,
+    .restore_state_to_opc = ppc_restore_state_to_opc,
 
 #ifdef CONFIG_USER_ONLY
-  .record_sigsegv = ppc_cpu_record_sigsegv,
+    .record_sigsegv = ppc_cpu_record_sigsegv,
 #else
-  .tlb_fill = ppc_cpu_tlb_fill,
-  .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
-  .do_interrupt = ppc_cpu_do_interrupt,
-  .cpu_exec_enter = ppc_cpu_exec_enter,
-  .cpu_exec_exit = ppc_cpu_exec_exit,
-  .do_unaligned_access = ppc_cpu_do_unaligned_access,
-  .do_transaction_failed = ppc_cpu_do_transaction_failed,
-  .debug_excp_handler = ppc_cpu_debug_excp_handler,
-  .debug_check_breakpoint = ppc_cpu_debug_check_breakpoint,
-  .debug_check_watchpoint = ppc_cpu_debug_check_watchpoint,
+    .tlb_fill = ppc_cpu_tlb_fill,
+    .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
+    .do_interrupt = ppc_cpu_do_interrupt,
+    .cpu_exec_enter = ppc_cpu_exec_enter,
+    .cpu_exec_exit = ppc_cpu_exec_exit,
+    .do_unaligned_access = ppc_cpu_do_unaligned_access,
+    .do_transaction_failed = ppc_cpu_do_transaction_failed,
+    .debug_excp_handler = ppc_cpu_debug_excp_handler,
+    .debug_check_breakpoint = ppc_cpu_debug_check_breakpoint,
+    .debug_check_watchpoint = ppc_cpu_debug_check_watchpoint,
 #endif /* !CONFIG_USER_ONLY */
 };
 #endif /* CONFIG_TCG */
