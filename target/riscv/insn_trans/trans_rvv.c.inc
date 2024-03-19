@@ -578,7 +578,7 @@ static bool vext_check_slide(DisasContext *s, int vd, int vs2,
 }
 
 /*
- * In cpu_get_tb_cpu_state(), set VILL if RVV was not present.
+ * In riscv_get_cpu_state(), set VILL if RVV was not present.
  * So RVV is also be checked in this function.
  */
 static bool vext_check_isa_ill(DisasContext *s)

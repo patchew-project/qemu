@@ -889,7 +889,7 @@ static vaddr riscv_cpu_get_pc(CPUState *cs)
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
 
-    /* Match cpu_get_tb_cpu_state. */
+    /* Match riscv_get_cpu_state. */
     if (env->xl == MXL_RV32) {
         return env->pc & UINT32_MAX;
     }
