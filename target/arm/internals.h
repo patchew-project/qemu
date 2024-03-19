@@ -353,6 +353,8 @@ void arm_translate_init(void);
 void arm_restore_state_to_opc(CPUState *cs,
                               const TranslationBlock *tb,
                               const uint64_t *data);
+void arm_get_cpu_state(CPUARMState *env, vaddr *pc,
+                       uint64_t *cs_base, uint32_t *flags);
 void arm_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb);
 #endif /* CONFIG_TCG */
 
