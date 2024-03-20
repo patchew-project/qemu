@@ -1132,6 +1132,60 @@ void dpy_gl_cursor_position(QemuConsole *con,
     }
 }
 
+QemuDmaBuf *dpy_gl_create_dmabuf(uint32_t width, uint32_t height,
+                                 uint32_t stride, uint32_t x,
+                                 uint32_t y, uint32_t backing_width,
+                                 uint32_t backing_height, uint32_t fourcc,
+                                 uint32_t modifier, uint32_t dmabuf_fd,
+                                 bool allow_fences)
+{
+    QemuDmaBuf *dmabuf;
+
+    dmabuf = g_new0(QemuDmaBuf, 1);
+
+    dmabuf->width = width;
+    dmabuf->height = height;
+    dmabuf->stride = stride;
+    dmabuf->x = x;
+    dmabuf->y = y;
+    dmabuf->backing_width = backing_width;
+    dmabuf->backing_height = backing_height;
+    dmabuf->fourcc = fourcc;
+    dmabuf->modifier = modifier;
+    dmabuf->fd = dmabuf_fd;
+    dmabuf->allow_fences = allow_fences;
+    dmabuf->fence_fd = -1;
+
+    return dmabuf;
+}
+
+uint32_t dpy_gl_dmabuf_get_width(QemuDmaBuf *dmabuf)
+{
+    if (dmabuf) {
+        return dmabuf->width;
+    }
+
+    return 0;
+}
+
+uint32_t dpy_gl_dmabuf_get_height(QemuDmaBuf *dmabuf)
+{
+    if (dmabuf) {
+        return dmabuf->height;
+    }
+
+    return 0;
+}
+
+int32_t dpy_gl_dmabuf_get_fd(QemuDmaBuf *dmabuf)
+{
+    if (dmabuf) {
+        return dmabuf->fd;
+    }
+
+    return -1;
+}
+
 void dpy_gl_release_dmabuf(QemuConsole *con,
                           QemuDmaBuf *dmabuf)
 {
@@ -1145,6 +1199,7 @@ void dpy_gl_release_dmabuf(QemuConsole *con,
         if (dcl->ops->dpy_gl_release_dmabuf) {
             dcl->ops->dpy_gl_release_dmabuf(dcl, dmabuf);
         }
+        g_free(dmabuf);
     }
 }
 
