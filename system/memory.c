@@ -2914,9 +2914,33 @@ static unsigned int postponed_stop_flags;
 static VMChangeStateEntry *vmstate_change;
 static void memory_global_dirty_log_stop_postponed_run(void);
 
+static bool memory_global_dirty_log_do_start(Error **errp)
+{
+    MemoryListener *listener;
+
+    QTAILQ_FOREACH(listener, &memory_listeners, link) {
+        if (listener->log_global_start) {
+            if (!listener->log_global_start(listener, errp)) {
+                goto err;
+            }
+        }
+    }
+    return true;
+
+err:
+    while ((listener = QTAILQ_PREV(listener, link)) != NULL) {
+        if (listener->log_global_stop) {
+            listener->log_global_stop(listener);
+        }
+    }
+
+    return false;
+}
+
 void memory_global_dirty_log_start(unsigned int flags)
 {
     unsigned int old_flags;
+    Error *local_err = NULL;
 
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
 
@@ -2936,7 +2960,13 @@ void memory_global_dirty_log_start(unsigned int flags)
     trace_global_dirty_changed(global_dirty_tracking);
 
     if (!old_flags) {
-        MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
+        if (!memory_global_dirty_log_do_start(&local_err)) {
+            global_dirty_tracking &= ~flags;
+            trace_global_dirty_changed(global_dirty_tracking);
+            error_report_err(local_err);
+            return;
+        }
+
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();
@@ -3014,8 +3044,11 @@ static void listener_add_address_space(MemoryListener *listener,
         listener->begin(listener);
     }
     if (global_dirty_tracking) {
+        /*
+         * Migration has already started. Assert on any error.
+         */
         if (listener->log_global_start) {
-            listener->log_global_start(listener);
+            listener->log_global_start(listener, &error_abort);
         }
     }
 
