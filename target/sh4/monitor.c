@@ -39,7 +39,7 @@ static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
                    tlb->d, tlb->wt);
 }
 
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+void hmp_info_tlb_deprecated(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
     int i;

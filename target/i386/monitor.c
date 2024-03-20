@@ -217,7 +217,7 @@ static void tlb_info_la57(Monitor *mon, CPUArchState *env)
 }
 #endif /* TARGET_X86_64 */
 
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+void hmp_info_tlb_deprecated(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
@@ -545,7 +545,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
 }
 #endif /* TARGET_X86_64 */
 
-void hmp_info_mem(Monitor *mon, const QDict *qdict)
+void hmp_info_mem_deprecated(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 

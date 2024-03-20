@@ -208,7 +208,7 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
               last_paddr + last_size - pbase, last_attr);
 }
 
-void hmp_info_mem(Monitor *mon, const QDict *qdict)
+void hmp_info_mem_deprecated(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 

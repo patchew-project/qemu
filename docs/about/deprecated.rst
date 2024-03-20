@@ -158,6 +158,16 @@ points was removed in 7.0. However QMP still exposed the vcpu
 parameter. This argument has now been deprecated and the remaining
 remaining trace points that used it are selected just by name.
 
+Human Monitor Protocol (HMP) commands
+-------------------------------------
+
+``info tlb`` and ``info mem`` (since 9.0)
+'''''''''''''''''''''''''''''''''''''''''
+
+The ``info tlb`` and ``info mem`` commands have been replaced by
+the ``info mmu`` command, which has the same behaviour but a less
+misleading name.
+
 Host Architectures
 ------------------
 

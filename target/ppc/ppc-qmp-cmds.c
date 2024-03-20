@@ -80,7 +80,7 @@ static target_long monitor_get_tbl(Monitor *mon, const struct MonitorDef *md,
     return cpu_ppc_load_tbl(env);
 }
 
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+void hmp_info_tlb_deprecated(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env1 = mon_get_cpu_env(mon);
 

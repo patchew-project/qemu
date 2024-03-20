@@ -382,17 +382,29 @@ void hmp_gpa2hpa(Monitor *mon, const QDict *qdict)
 #endif
 
 __attribute__((weak))
-void hmp_info_mem(Monitor *mon, const QDict *qdict)
+void hmp_info_mem_deprecated(Monitor *mon, const QDict *qdict)
 {
     monitor_puts(mon,
                  "No per-CPU mapping information available on this target\n");
 }
 
 __attribute__((weak))
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+void hmp_info_tlb_deprecated(Monitor *mon, const QDict *qdict)
 {
     monitor_puts(mon,
                  "No per-CPU TLB information available on this target\n");
+}
+
+void hmp_info_mem(Monitor *mon, const QDict *qdict)
+{
+    monitor_puts(mon, "This command is deprecated, please use 'info mmu -m'\n");
+    hmp_info_mem_deprecated(mon, qdict);
+}
+
+void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+{
+    monitor_puts(mon, "This command is deprecated, please use 'info mmu -t'\n");
+    hmp_info_tlb_deprecated(mon, qdict);
 }
 
 void hmp_info_mmu(Monitor *mon, const QDict *qdict)
@@ -410,9 +422,9 @@ void hmp_info_mmu(Monitor *mon, const QDict *qdict)
     }
 
     if (mem) {
-        hmp_info_mem(mon, qdict);
+        hmp_info_mem_deprecated(mon, qdict);
     }
     if (tlb) {
-        hmp_info_tlb(mon, qdict);
+        hmp_info_tlb_deprecated(mon, qdict);
     }
 }

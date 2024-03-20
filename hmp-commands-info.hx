@@ -228,14 +228,14 @@ ERST
         .name       = "tlb",
         .args_type  = "",
         .params     = "",
-        .help       = "show virtual to physical memory mappings",
+        .help       = "deprecated synonym for 'info mmu -t'",
         .cmd        = hmp_info_tlb,
     },
 #endif
 
 SRST
   ``info tlb``
-    Show virtual to physical memory mappings.
+    This is a deprecated synonym for the mmu command.
 ERST
 
 #if defined(TARGET_I386) || defined(TARGET_RISCV)
@@ -243,14 +243,14 @@ ERST
         .name       = "mem",
         .args_type  = "",
         .params     = "",
-        .help       = "show the active virtual memory mappings",
+        .help       = "deprecated synonym for 'info mmu -m'",
         .cmd        = hmp_info_mem,
     },
 #endif
 
 SRST
   ``info mem``
-    Show the active virtual memory mappings.
+    This is a deprecated synonym for the mmu command.
 ERST
 
     {
