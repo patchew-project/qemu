@@ -310,6 +310,12 @@ config STM32VLDISCOVERY
     depends on TCG && ARM
     select STM32F100_SOC
 
+config NUCLEO_G071RB
+    bool
+    default y
+    depends on TCG && ARM
+    select STM32G000_SOC
+
 config STRONGARM
     bool
     select PXA2XX
