@@ -1116,6 +1116,12 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/netduinoplus2.c
 
+Nucleo G071RB
+M: Felipe Balbi <balbi@kernel.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/nucleo-g071rb.c
+
 Olimex STM32 H405
 M: Felipe Balbi <balbi@kernel.org>
 L: qemu-arm@nongnu.org
