@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "sysemu/hw_accel.h"
+#include "sysemu/tcg.h"
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
 int monitor_set_cpu(Monitor *mon, int cpu_index)
@@ -379,3 +380,39 @@ void hmp_gpa2hpa(Monitor *mon, const QDict *qdict)
     memory_region_unref(mr);
 }
 #endif
+
+__attribute__((weak))
+void hmp_info_mem(Monitor *mon, const QDict *qdict)
+{
+    monitor_puts(mon,
+                 "No per-CPU mapping information available on this target\n");
+}
+
+__attribute__((weak))
+void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+{
+    monitor_puts(mon,
+                 "No per-CPU TLB information available on this target\n");
+}
+
+void hmp_info_mmu(Monitor *mon, const QDict *qdict)
+{
+    bool tlb = qdict_get_try_bool(qdict, "tlb", false);
+    bool mem = qdict_get_try_bool(qdict, "mem", false);
+
+    if (!tcg_enabled()) {
+        monitor_puts(mon, "This command is specific to TCG accelerator\n");
+        return;
+    }
+
+    if (!tlb && !mem) {
+        tlb = mem = true;
+    }
+
+    if (mem) {
+        hmp_info_mem(mon, qdict);
+    }
+    if (tlb) {
+        hmp_info_tlb(mon, qdict);
+    }
+}
