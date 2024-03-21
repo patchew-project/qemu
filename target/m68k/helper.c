@@ -578,8 +578,9 @@ static void dump_address_map(Monitor *mon, CPUM68KState *env,
         break; \
     }
 
-static void dump_ttr(Monitor *mon, uint32_t ttr)
+static void dump_ttr(Monitor *mon, const char *desc, uint32_t ttr)
 {
+    monitor_printf(mon, "%s: ", desc);
     if ((ttr & M68K_TTR_ENABLED) == 0) {
         monitor_puts(mon, "disabled\n");
         return;
@@ -663,14 +664,10 @@ void dump_mmu(Monitor *mon, CPUM68KState *env)
         monitor_puts(mon, "\n");
     }
 
-    monitor_puts(mon, "ITTR0: ");
-    dump_ttr(mon, env->mmu.ttr[M68K_ITTR0]);
-    monitor_puts(mon, "ITTR1: ");
-    dump_ttr(mon, env->mmu.ttr[M68K_ITTR1]);
-    monitor_puts(mon, "DTTR0: ");
-    dump_ttr(mon, env->mmu.ttr[M68K_DTTR0]);
-    monitor_puts(mon, "DTTR1: ");
-    dump_ttr(mon, env->mmu.ttr[M68K_DTTR1]);
+    dump_ttr(mon, "ITTR0", env->mmu.ttr[M68K_ITTR0]);
+    dump_ttr(mon, "ITTR1", env->mmu.ttr[M68K_ITTR1]);
+    dump_ttr(mon, "DTTR0", env->mmu.ttr[M68K_DTTR0]);
+    dump_ttr(mon, "DTTR1", env->mmu.ttr[M68K_DTTR1]);
 
     monitor_printf(mon, "SRP: 0x%08x\n", env->mmu.srp);
     dump_address_map(mon, env, env->mmu.srp);
