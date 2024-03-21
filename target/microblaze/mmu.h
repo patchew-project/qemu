@@ -85,10 +85,10 @@ typedef struct {
     } err;
 } MicroBlazeMMULookup;
 
-unsigned int mmu_translate(MicroBlazeCPU *cpu, MicroBlazeMMULookup *lu,
-                           target_ulong vaddr, MMUAccessType rw, int mmu_idx);
-uint32_t mmu_read(CPUMBState *env, bool ea, uint32_t rn);
-void mmu_write(CPUMBState *env, bool ea, uint32_t rn, uint32_t v);
-void mmu_init(MicroBlazeMMU *mmu);
+unsigned int mb_mmu_translate(MicroBlazeCPU *cpu, MicroBlazeMMULookup *lu,
+                              target_ulong vaddr, MMUAccessType rw, int mmu_idx);
+uint32_t mb_mmu_read(CPUMBState *env, bool ea, uint32_t rn);
+void mb_mmu_write(CPUMBState *env, bool ea, uint32_t rn, uint32_t v);
+void mb_mmu_init(MicroBlazeMMU *mmu);
 
 #endif

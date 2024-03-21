@@ -205,7 +205,7 @@ static void mb_cpu_reset_hold(Object *obj)
     mb_cpu_write_msr(env, MSR_EE | MSR_IE | MSR_VM | MSR_UM);
 #else
     mb_cpu_write_msr(env, 0);
-    mmu_init(&env->mmu);
+    mb_mmu_init(&env->mmu);
 #endif
 }
 

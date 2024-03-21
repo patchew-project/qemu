@@ -386,12 +386,12 @@ void helper_stackprot(CPUMBState *env, target_ulong addr)
 /* Writes/reads to the MMU's special regs end up here.  */
 uint32_t helper_mmu_read(CPUMBState *env, uint32_t ext, uint32_t rn)
 {
-    return mmu_read(env, ext, rn);
+    return mb_mmu_read(env, ext, rn);
 }
 
 void helper_mmu_write(CPUMBState *env, uint32_t ext, uint32_t rn, uint32_t v)
 {
-    mmu_write(env, ext, rn, v);
+    mb_mmu_write(env, ext, rn, v);
 }
 
 void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
