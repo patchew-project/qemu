@@ -36,7 +36,12 @@ static uint64_t pnv_phb4_xscom_addr(uint32_t reg)
    - bit[51:61]: Indirect Address(00:10)
  * Read/write 'SCOM - HV Indirect Data Register' to get/set the value.
  */
-
+static void pnv_phb4_xscom_write(QTestState *qts, uint32_t reg, uint64_t val)
+{
+    qtest_writeq(qts, pnv_phb4_xscom_addr(PHB_SCOM_HV_IND_ADDR),
+            PPC_BIT(0) | reg);
+    qtest_writeq(qts, pnv_phb4_xscom_addr(PHB_SCOM_HV_IND_DATA), val);
+}
 static uint64_t pnv_phb4_xscom_read(QTestState *qts, uint32_t reg)
 {
     qtest_writeq(qts, pnv_phb4_xscom_addr(PHB_SCOM_HV_IND_ADDR),
@@ -61,6 +66,26 @@ static void phb4_reset_test(QTestState *qts)
                      ==, 0xC009000000000000);
 }
 
+/* Check sticky-reset */
+static void phb4_sticky_rst_test(QTestState *qts)
+{
+    uint64_t val;
+
+    /*
+     * Sticky reset test of PHB_PBL_ERR_STATUS.
+     *
+     * Write all 1's to reg PHB_PBL_ERR_INJECT.
+     * Updated value will be copied to reg PHB_PBL_ERR_STATUS.
+     *
+     * Reset PBL core by setting PHB_PCIE_CRESET_PBL in reg PHB_PCIE_CRESET.
+     * Verify the sticky bits are still set.
+     */
+    pnv_phb4_xscom_write(qts, PHB_PBL_ERR_INJECT, PPC_BITMASK(0, 63));
+    pnv_phb4_xscom_write(qts, PHB_PCIE_CRESET, PHB_PCIE_CRESET_PBL); /*Reset*/
+    val = pnv_phb4_xscom_read(qts, PHB_PBL_ERR_STATUS);
+    g_assert_cmpuint(val, ==, (PPC_BITMASK(0, 9) | PPC_BITMASK(12, 63)));
+}
+
 static void test_phb4(void)
 {
     QTestState *qts = NULL;
@@ -72,6 +97,9 @@ static void test_phb4(void)
 
     /* Check reset value of a register */
     phb4_reset_test(qts);
+
+    /* Check sticky reset of a register */
+    phb4_sticky_rst_test(qts);
 
     qtest_quit(qts);
 }
