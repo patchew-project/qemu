@@ -94,6 +94,13 @@ struct PnvPHB4 {
     uint64_t regs[PNV_PHB4_NUM_REGS];
     MemoryRegion mr_regs;
 
+    /*
+     * Read-only bitmask for registers
+     * Bit value: 1 => RO bit
+     *            0 => RW bit
+     */
+    uint64_t ro_mask[PNV_PHB4_NUM_REGS];
+
     /* Extra SCOM-only register */
     uint64_t scom_hv_ind_addr_reg;
 
