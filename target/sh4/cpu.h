@@ -395,4 +395,6 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, vaddr *pc,
 #endif
 }
 
+void sh4_dump_mmu(Monitor *mon, CPUSH4State *env);
+
 #endif /* SH4_CPU_H */
