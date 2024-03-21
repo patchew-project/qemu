@@ -1504,6 +1504,15 @@ int qemu_console_get_height(QemuConsole *con, int fallback)
     }
 }
 
+int32_t dpy_gl_dmabuf_get_fd(QemuDmaBuf *dmabuf)
+{
+    if (dmabuf) {
+        return dmabuf->fd;
+    }
+
+    return -1;
+}
+
 int qemu_invalidate_text_consoles(void)
 {
     QemuConsole *s;
