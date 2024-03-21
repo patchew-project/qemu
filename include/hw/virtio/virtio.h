@@ -275,6 +275,14 @@ void virtio_del_queue(VirtIODevice *vdev, int n);
 
 void virtio_delete_queue(VirtQueue *vq);
 
+void *virtqueue_alloc_in_order_element(const VirtQueueElement *elem,
+                                       unsigned int len, unsigned int idx,
+                                       unsigned int count);
+
+void virtqueue_order_element(VirtQueue *vq, const VirtQueueElement *elem,
+                             unsigned int len, unsigned int idx,
+                             unsigned int count);
+
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len);
 void virtqueue_flush(VirtQueue *vq, unsigned int count);

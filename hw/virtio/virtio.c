@@ -992,12 +992,56 @@ void virtqueue_flush(VirtQueue *vq, unsigned int count)
     }
 }
 
+void virtqueue_order_element(VirtQueue *vq, const VirtQueueElement *elem,
+                             unsigned int len, unsigned int idx,
+                             unsigned int count)
+{
+    InOrderVQElement *in_order_elem;
+
+    if (elem->order_key == vq->current_order_idx) {
+        /* Element is in-order, push to used ring */
+        virtqueue_fill(vq, elem, len, idx);
+
+        /* Batching? Don't flush */
+        if (count) {
+            virtqueue_flush(vq, count);
+        }
+
+        /* Increment next expected order, search for more in-order elements */
+        while ((in_order_elem = g_hash_table_lookup(vq->in_order_ht,
+                        GUINT_TO_POINTER(++vq->current_order_idx))) != NULL) {
+            /* Found in-order element, push to used ring */
+            virtqueue_fill(vq, in_order_elem->elem, in_order_elem->len,
+                           in_order_elem->idx);
+
+            /* Batching? Don't flush */
+            if (count) {
+                virtqueue_flush(vq, in_order_elem->count);
+            }
+
+            /* Remove key-value pair from hash table */
+            g_hash_table_remove(vq->in_order_ht,
+                                GUINT_TO_POINTER(vq->current_order_idx));
+        }
+    } else {
+        /* Element is out-of-order, stash in hash table */
+        in_order_elem = virtqueue_alloc_in_order_element(elem, len, idx,
+                                                         count);
+        g_hash_table_insert(vq->in_order_ht, GUINT_TO_POINTER(elem->order_key),
+                            in_order_elem);
+    }
+}
+
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len)
 {
     RCU_READ_LOCK_GUARD();
-    virtqueue_fill(vq, elem, len, 0);
-    virtqueue_flush(vq, 1);
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_IN_ORDER)) {
+        virtqueue_order_element(vq, elem, len, 0, 1);
+    } else {
+        virtqueue_fill(vq, elem, len, 0);
+        virtqueue_flush(vq, 1);
+    }
 }
 
 /* Called within rcu_read_lock().  */
@@ -1478,6 +1522,18 @@ void virtqueue_map(VirtIODevice *vdev, VirtQueueElement *elem)
                                                                         false);
 }
 
+void *virtqueue_alloc_in_order_element(const VirtQueueElement *elem,
+                                       unsigned int len, unsigned int idx,
+                                       unsigned int count)
+{
+    InOrderVQElement *in_order_elem = g_malloc(sizeof(InOrderVQElement));
+    in_order_elem->elem = elem;
+    in_order_elem->len = len;
+    in_order_elem->idx = idx;
+    in_order_elem->count = count;
+    return in_order_elem;
+}
+
 static void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
 {
     VirtQueueElement *elem;
@@ -1626,6 +1682,11 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
         elem->in_sg[i] = iov[out_num + i];
     }
 
+    /* Assign key for in-order processing */
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_IN_ORDER)) {
+        elem->order_key = vq->current_order_key++;
+    }
+
     vq->inuse++;
 
     trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
@@ -1760,6 +1821,11 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
     if (vq->last_avail_idx >= vq->vring.num) {
         vq->last_avail_idx -= vq->vring.num;
         vq->last_avail_wrap_counter ^= 1;
+    }
+
+    /* Assign key for in-order processing */
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_IN_ORDER)) {
+        elem->order_key = vq->current_order_key++;
     }
 
     vq->shadow_avail_idx = vq->last_avail_idx;
