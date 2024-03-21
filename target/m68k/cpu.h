@@ -590,6 +590,7 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                  unsigned size, MMUAccessType access_type,
                                  int mmu_idx, MemTxAttrs attrs,
                                  MemTxResult response, uintptr_t retaddr);
+void m68k_dump_mmu(Monitor *mon, CPUM68KState *env);
 #endif
 
 #include "exec/cpu-all.h"
@@ -620,7 +621,5 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, vaddr *pc,
         *flags |= TB_FLAGS_TRACE;
     }
 }
-
-void dump_mmu(Monitor *mon, CPUM68KState *env);
 
 #endif
