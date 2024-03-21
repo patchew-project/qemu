@@ -493,11 +493,20 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                 qemu_log_mask(LOG_GUEST_ERROR,
                          "More than %u used buffers obtained in a %u size SVQ",
                          i, svq->vring.num);
-                virtqueue_fill(vq, elem, len, i);
-                virtqueue_flush(vq, i);
+                if (virtio_vdev_has_feature(svq->vdev, VIRTIO_F_IN_ORDER)) {
+                    virtqueue_order_element(vq, elem, len, i, i);
+                } else {
+                    virtqueue_fill(vq, elem, len, i);
+                    virtqueue_flush(vq, i);
+                }
                 return;
             }
-            virtqueue_fill(vq, elem, len, i++);
+
+            if (virtio_vdev_has_feature(svq->vdev, VIRTIO_F_IN_ORDER)) {
+                virtqueue_order_element(vq, elem, len, i++, 0);
+            } else {
+                virtqueue_fill(vq, elem, len, i++);
+            }
         }
 
         virtqueue_flush(vq, i);
