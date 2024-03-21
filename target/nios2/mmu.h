@@ -42,11 +42,10 @@ typedef struct Nios2MMULookup {
     int prot;
 } Nios2MMULookup;
 
-void mmu_flip_um(CPUNios2State *env, unsigned int um);
-unsigned int mmu_translate(CPUNios2State *env,
-                           Nios2MMULookup *lu,
-                           target_ulong vaddr, int rw, int mmu_idx);
-void mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v);
-void mmu_init(CPUNios2State *env);
+void nios2_mmu_flip_um(CPUNios2State *env, unsigned int um);
+unsigned int nios2_mmu_translate(CPUNios2State *env, Nios2MMULookup *lu,
+                                 target_ulong vaddr, int rw, int mmu_idx);
+void nios2_mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v);
+void nios2_mmu_init(CPUNios2State *env);
 
 #endif /* NIOS2_MMU_H */
