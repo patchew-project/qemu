@@ -25,7 +25,7 @@
 #include "exec/helper-proto.h"
 #include "gdbstub/helpers.h"
 #include "fpu/softfloat.h"
-#include "qemu/qemu-print.h"
+#include "monitor/monitor.h"
 
 #define SIGNBIT (1u << 31)
 
@@ -455,28 +455,30 @@ void m68k_switch_sp(CPUM68KState *env)
 #if !defined(CONFIG_USER_ONLY)
 /* MMU: 68040 only */
 
-static void print_address_zone(uint32_t logical, uint32_t physical,
+static void print_address_zone(Monitor *mon,
+                               uint32_t logical, uint32_t physical,
                                uint32_t size, int attr)
 {
-    qemu_printf("%08x - %08x -> %08x - %08x %c ",
-                logical, logical + size - 1,
-                physical, physical + size - 1,
-                attr & 4 ? 'W' : '-');
+    monitor_printf(mon, "%08x - %08x -> %08x - %08x %c ",
+                   logical, logical + size - 1,
+                   physical, physical + size - 1,
+                   attr & 4 ? 'W' : '-');
     size >>= 10;
     if (size < 1024) {
-        qemu_printf("(%d KiB)\n", size);
+        monitor_printf(mon, "(%d KiB)\n", size);
     } else {
         size >>= 10;
         if (size < 1024) {
-            qemu_printf("(%d MiB)\n", size);
+            monitor_printf(mon, "(%d MiB)\n", size);
         } else {
             size >>= 10;
-            qemu_printf("(%d GiB)\n", size);
+            monitor_printf(mon, "(%d GiB)\n", size);
         }
     }
 }
 
-static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
+static void dump_address_map(Monitor *mon, CPUM68KState *env,
+                             uint32_t root_pointer)
 {
     int i, j, k;
     int tic_size, tic_shift;
@@ -545,7 +547,7 @@ static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
                     if (first_logical != 0xffffffff) {
                         size = last_logical + (1 << tic_shift) -
                                first_logical;
-                        print_address_zone(first_logical,
+                        print_address_zone(mon, first_logical,
                                            first_physical, size, last_attr);
                     }
                     first_logical = logical;
@@ -556,125 +558,125 @@ static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
     }
     if (first_logical != logical || (attr & 4) != (last_attr & 4)) {
         size = logical + (1 << tic_shift) - first_logical;
-        print_address_zone(first_logical, first_physical, size, last_attr);
+        print_address_zone(mon, first_logical, first_physical, size, last_attr);
     }
 }
 
 #define DUMP_CACHEFLAGS(a) \
     switch (a & M68K_DESC_CACHEMODE) { \
     case M68K_DESC_CM_WRTHRU: /* cacheable, write-through */ \
-        qemu_printf("T"); \
+        monitor_puts(mon, "T"); \
         break; \
     case M68K_DESC_CM_COPYBK: /* cacheable, copyback */ \
-        qemu_printf("C"); \
+        monitor_puts(mon, "C"); \
         break; \
     case M68K_DESC_CM_SERIAL: /* noncachable, serialized */ \
-        qemu_printf("S"); \
+        monitor_puts(mon, "S"); \
         break; \
     case M68K_DESC_CM_NCACHE: /* noncachable */ \
-        qemu_printf("N"); \
+        monitor_puts(mon, "N"); \
         break; \
     }
 
-static void dump_ttr(uint32_t ttr)
+static void dump_ttr(Monitor *mon, uint32_t ttr)
 {
     if ((ttr & M68K_TTR_ENABLED) == 0) {
-        qemu_printf("disabled\n");
+        monitor_puts(mon, "disabled\n");
         return;
     }
-    qemu_printf("Base: 0x%08x Mask: 0x%08x Control: ",
-                ttr & M68K_TTR_ADDR_BASE,
-                (ttr & M68K_TTR_ADDR_MASK) << M68K_TTR_ADDR_MASK_SHIFT);
+    monitor_printf(mon, "Base: 0x%08x Mask: 0x%08x Control: ",
+                   ttr & M68K_TTR_ADDR_BASE,
+                   (ttr & M68K_TTR_ADDR_MASK) << M68K_TTR_ADDR_MASK_SHIFT);
     switch (ttr & M68K_TTR_SFIELD) {
     case M68K_TTR_SFIELD_USER:
-        qemu_printf("U");
+        monitor_puts(mon, "U");
         break;
     case M68K_TTR_SFIELD_SUPER:
-        qemu_printf("S");
+        monitor_puts(mon, "S");
         break;
     default:
-        qemu_printf("*");
+        monitor_puts(mon, "*");
         break;
     }
     DUMP_CACHEFLAGS(ttr);
     if (ttr & M68K_DESC_WRITEPROT) {
-        qemu_printf("R");
+        monitor_puts(mon, "R");
     } else {
-        qemu_printf("W");
+        monitor_puts(mon, "W");
     }
-    qemu_printf(" U: %d\n", (ttr & M68K_DESC_USERATTR) >>
+    monitor_printf(mon, " U: %d\n", (ttr & M68K_DESC_USERATTR) >>
                                M68K_DESC_USERATTR_SHIFT);
 }
 
-void dump_mmu(CPUM68KState *env)
+void dump_mmu(Monitor *mon, CPUM68KState *env)
 {
     if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
-        qemu_printf("Translation disabled\n");
+        monitor_puts(mon, "Translation disabled\n");
         return;
     }
-    qemu_printf("Page Size: ");
+    monitor_puts(mon, "Page Size: ");
     if (env->mmu.tcr & M68K_TCR_PAGE_8K) {
-        qemu_printf("8kB\n");
+        monitor_puts(mon, "8kB\n");
     } else {
-        qemu_printf("4kB\n");
+        monitor_puts(mon, "4kB\n");
     }
 
-    qemu_printf("MMUSR: ");
+    monitor_puts(mon, "MMUSR: ");
     if (env->mmu.mmusr & M68K_MMU_B_040) {
-        qemu_printf("BUS ERROR\n");
+        monitor_puts(mon, "BUS ERROR\n");
     } else {
-        qemu_printf("Phy=%08x Flags: ", env->mmu.mmusr & 0xfffff000);
+        monitor_printf(mon, "Phy=%08x Flags: ", env->mmu.mmusr & 0xfffff000);
         /* flags found on the page descriptor */
         if (env->mmu.mmusr & M68K_MMU_G_040) {
-            qemu_printf("G"); /* Global */
+            monitor_puts(mon, "G"); /* Global */
         } else {
-            qemu_printf(".");
+            monitor_puts(mon, ".");
         }
         if (env->mmu.mmusr & M68K_MMU_S_040) {
-            qemu_printf("S"); /* Supervisor */
+            monitor_puts(mon, "S"); /* Supervisor */
         } else {
-            qemu_printf(".");
+            monitor_puts(mon, ".");
         }
         if (env->mmu.mmusr & M68K_MMU_M_040) {
-            qemu_printf("M"); /* Modified */
+            monitor_puts(mon, "M"); /* Modified */
         } else {
-            qemu_printf(".");
+            monitor_puts(mon, ".");
         }
         if (env->mmu.mmusr & M68K_MMU_WP_040) {
-            qemu_printf("W"); /* Write protect */
+            monitor_puts(mon, "W"); /* Write protect */
         } else {
-            qemu_printf(".");
+            monitor_puts(mon, ".");
         }
         if (env->mmu.mmusr & M68K_MMU_T_040) {
-            qemu_printf("T"); /* Transparent */
+            monitor_puts(mon, "T"); /* Transparent */
         } else {
-            qemu_printf(".");
+            monitor_puts(mon, ".");
         }
         if (env->mmu.mmusr & M68K_MMU_R_040) {
-            qemu_printf("R"); /* Resident */
+            monitor_puts(mon, "R"); /* Resident */
         } else {
-            qemu_printf(".");
+            monitor_puts(mon, ".");
         }
-        qemu_printf(" Cache: ");
+        monitor_puts(mon, " Cache: ");
         DUMP_CACHEFLAGS(env->mmu.mmusr);
-        qemu_printf(" U: %d\n", (env->mmu.mmusr >> 8) & 3);
-        qemu_printf("\n");
+        monitor_printf(mon, " U: %d\n", (env->mmu.mmusr >> 8) & 3);
+        monitor_puts(mon, "\n");
     }
 
-    qemu_printf("ITTR0: ");
-    dump_ttr(env->mmu.ttr[M68K_ITTR0]);
-    qemu_printf("ITTR1: ");
-    dump_ttr(env->mmu.ttr[M68K_ITTR1]);
-    qemu_printf("DTTR0: ");
-    dump_ttr(env->mmu.ttr[M68K_DTTR0]);
-    qemu_printf("DTTR1: ");
-    dump_ttr(env->mmu.ttr[M68K_DTTR1]);
+    monitor_puts(mon, "ITTR0: ");
+    dump_ttr(mon, env->mmu.ttr[M68K_ITTR0]);
+    monitor_puts(mon, "ITTR1: ");
+    dump_ttr(mon, env->mmu.ttr[M68K_ITTR1]);
+    monitor_puts(mon, "DTTR0: ");
+    dump_ttr(mon, env->mmu.ttr[M68K_DTTR0]);
+    monitor_puts(mon, "DTTR1: ");
+    dump_ttr(mon, env->mmu.ttr[M68K_DTTR1]);
 
-    qemu_printf("SRP: 0x%08x\n", env->mmu.srp);
-    dump_address_map(env, env->mmu.srp);
+    monitor_printf(mon, "SRP: 0x%08x\n", env->mmu.srp);
+    dump_address_map(mon, env, env->mmu.srp);
 
-    qemu_printf("URP: 0x%08x\n", env->mmu.urp);
-    dump_address_map(env, env->mmu.urp);
+    monitor_printf(mon, "URP: 0x%08x\n", env->mmu.urp);
+    dump_address_map(mon, env, env->mmu.urp);
 }
 
 static int check_TTR(uint32_t ttr, int *prot, target_ulong addr,
