@@ -152,6 +152,9 @@ struct VirtQueue
     EventNotifier host_notifier;
     bool host_notifier_enabled;
     QLIST_ENTRY(VirtQueue) node;
+
+    /* In-Order */
+    GHashTable *in_order_ht;
 };
 
 const char *virtio_device_names[] = {
@@ -2070,6 +2073,16 @@ static enum virtio_device_endian virtio_current_cpu_endian(void)
     }
 }
 
+/* 
+ * Called when an element is removed from the hash table
+ * or when the hash table is destroyed.
+ */
+static void free_in_order_vq_element(gpointer data)
+{
+    InOrderVQElement *elem = (InOrderVQElement *)data;
+    g_free(elem);
+}
+
 static void __virtio_queue_reset(VirtIODevice *vdev, uint32_t i)
 {
     vdev->vq[i].vring.desc = 0;
@@ -2087,6 +2100,9 @@ static void __virtio_queue_reset(VirtIODevice *vdev, uint32_t i)
     vdev->vq[i].notification = true;
     vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
     vdev->vq[i].inuse = 0;
+    if (vdev->vq[i].in_order_ht != NULL) {
+        g_hash_table_remove_all(vdev->vq[i].in_order_ht);
+    }
     virtio_virtqueue_reset_region_cache(&vdev->vq[i]);
 }
 
@@ -2334,6 +2350,13 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     vdev->vq[i].vring.align = VIRTIO_PCI_VRING_ALIGN;
     vdev->vq[i].handle_output = handle_output;
     vdev->vq[i].used_elems = g_new0(VirtQueueElement, queue_size);
+    vdev->vq[i].in_order_ht = NULL;
+
+    if (virtio_host_has_feature(vdev, VIRTIO_F_IN_ORDER)) {
+        vdev->vq[i].in_order_ht =
+            g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
+                                  free_in_order_vq_element);
+    }
 
     return &vdev->vq[i];
 }
@@ -2345,6 +2368,10 @@ void virtio_delete_queue(VirtQueue *vq)
     vq->handle_output = NULL;
     g_free(vq->used_elems);
     vq->used_elems = NULL;
+    if (virtio_host_has_feature(vq->vdev, VIRTIO_F_IN_ORDER)) {
+        g_hash_table_destroy(vq->in_order_ht);
+        vq->in_order_ht = NULL;
+    }
     virtio_virtqueue_reset_region_cache(vq);
 }
 
