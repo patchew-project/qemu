@@ -90,6 +90,6 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
                              unsigned *access);
 
 void xtensa_reset_mmu(CPUXtensaState *env);
-void xtensa_dump_mmu(CPUXtensaState *env);
+void xtensa_dump_mmu(Monitor *mon, CPUXtensaState *env);
 
 #endif
