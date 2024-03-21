@@ -155,6 +155,8 @@ struct VirtQueue
 
     /* In-Order */
     GHashTable *in_order_ht;
+    uint16_t current_order_idx;
+    uint16_t current_order_key;
 };
 
 const char *virtio_device_names[] = {
@@ -2103,6 +2105,8 @@ static void __virtio_queue_reset(VirtIODevice *vdev, uint32_t i)
     if (vdev->vq[i].in_order_ht != NULL) {
         g_hash_table_remove_all(vdev->vq[i].in_order_ht);
     }
+    vdev->vq[i].current_order_idx = 0;
+    vdev->vq[i].current_order_key = 0;
     virtio_virtqueue_reset_region_cache(&vdev->vq[i]);
 }
 
@@ -2357,6 +2361,8 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
             g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
                                   free_in_order_vq_element);
     }
+    vdev->vq[i].current_order_idx = 0;
+    vdev->vq[i].current_order_key = 0;
 
     return &vdev->vq[i];
 }

@@ -75,6 +75,7 @@ typedef struct VirtQueueElement
     hwaddr *out_addr;
     struct iovec *in_sg;
     struct iovec *out_sg;
+    uint16_t order_key;
 } VirtQueueElement;
 
 typedef struct InOrderVQElement {
