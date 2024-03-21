@@ -34,6 +34,10 @@
 #include "hw/clock.h"
 #include "xtensa-isa.h"
 
+typedef struct CPUArchState CPUXtensaState;
+
+#include "mmu.h"
+
 /* Xtensa processors have a weak memory model */
 #define TCG_GUEST_DEFAULT_MO      (0)
 
@@ -308,28 +312,6 @@ typedef enum {
     INTTYPE_GS_ERR,
     INTTYPE_MAX
 } interrupt_type;
-
-typedef struct CPUArchState CPUXtensaState;
-
-typedef struct xtensa_tlb_entry {
-    uint32_t vaddr;
-    uint32_t paddr;
-    uint8_t asid;
-    uint8_t attr;
-    bool variable;
-} xtensa_tlb_entry;
-
-typedef struct xtensa_tlb {
-    unsigned nways;
-    const unsigned way_size[10];
-    bool varway56;
-    unsigned nrefillentries;
-} xtensa_tlb;
-
-typedef struct xtensa_mpu_entry {
-    uint32_t vaddr;
-    uint32_t attr;
-} xtensa_mpu_entry;
 
 typedef struct XtensaGdbReg {
     int targno;
@@ -689,12 +671,6 @@ static inline int xtensa_get_cring(const CPUXtensaState *env)
 }
 
 #ifndef CONFIG_USER_ONLY
-int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
-        uint32_t vaddr, int is_write, int mmu_idx,
-        uint32_t *paddr, uint32_t *page_size, unsigned *access);
-void xtensa_reset_mmu(CPUXtensaState *env);
-void xtensa_dump_mmu(CPUXtensaState *env);
-
 static inline MemoryRegion *xtensa_get_er_region(CPUXtensaState *env)
 {
     return env->system_er;
