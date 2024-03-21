@@ -130,7 +130,7 @@ static void xtensa_cpu_reset_hold(Object *obj)
     env->exclusive_addr = -1;
 
 #ifndef CONFIG_USER_ONLY
-    reset_mmu(env);
+    xtensa_reset_mmu(env);
     cs->halted = env->runstall;
 #endif
     set_no_signaling_nans(!dfpu, &env->fp_status);

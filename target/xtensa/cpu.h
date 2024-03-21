@@ -692,8 +692,8 @@ static inline int xtensa_get_cring(const CPUXtensaState *env)
 int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
         uint32_t vaddr, int is_write, int mmu_idx,
         uint32_t *paddr, uint32_t *page_size, unsigned *access);
-void reset_mmu(CPUXtensaState *env);
-void dump_mmu(CPUXtensaState *env);
+void xtensa_reset_mmu(CPUXtensaState *env);
+void xtensa_dump_mmu(CPUXtensaState *env);
 
 static inline MemoryRegion *xtensa_get_er_region(CPUXtensaState *env)
 {
