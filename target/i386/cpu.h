@@ -2350,6 +2350,13 @@ static inline int cpu_mmu_index_kernel(CPUX86State *env)
     return mmu_index_base + mmu_index_32;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+void x86_dump_mmu(Monitor *mon, CPUX86State *env);
+
+/* Perform linear address sign extension */
+hwaddr addr_canonical(CPUArchState *env, hwaddr addr);
+#endif
+
 #define CC_DST  (env->cc_dst)
 #define CC_SRC  (env->cc_src)
 #define CC_SRC2 (env->cc_src2)
