@@ -296,11 +296,73 @@ static inline void gen_update_nip(DisasContext *ctx, target_ulong nip)
     tcg_gen_movi_tl(cpu_nip, nip);
 }
 
+#if defined(TARGET_PPC64)
+static void pmu_count_insns(DisasContext *ctx)
+{
+    /*
+     * Do not bother calling the helper if the PMU isn't counting
+     * instructions.
+     */
+    if (!ctx->pmu_insn_cnt) {
+        return;
+    }
+
+ #if !defined(CONFIG_USER_ONLY)
+    TCGLabel *l;
+    TCGv t0;
+
+    /*
+     * The PMU insns_inc() helper stops the internal PMU timer if a
+     * counter overflows happens. In that case, if the guest is
+     * running with icount and we do not handle it beforehand,
+     * the helper can trigger a 'bad icount read'.
+     */
+    translator_io_start(&ctx->base);
+
+    /* Avoid helper calls when only PMC5-6 are enabled. */
+    if (!ctx->pmc_other) {
+        l = gen_new_label();
+        t0 = tcg_temp_new();
+
+        gen_load_spr(t0, SPR_POWER_PMC5);
+        tcg_gen_addi_tl(t0, t0, ctx->base.num_insns);
+        gen_store_spr(SPR_POWER_PMC5, t0);
+        /* Check for overflow, if it's enabled */
+        if (ctx->mmcr0_pmcjce) {
+            tcg_gen_brcondi_tl(TCG_COND_LT, t0, PMC_COUNTER_NEGATIVE_VAL, l);
+            gen_helper_handle_pmc5_overflow(tcg_env);
+        }
+
+        gen_set_label(l);
+    } else {
+        gen_helper_insns_inc(tcg_env, tcg_constant_i32(ctx->base.num_insns));
+    }
+  #else
+    /*
+     * User mode can read (but not write) PMC5 and start/stop
+     * the PMU via MMCR0_FC. In this case just increment
+     * PMC5 with base.num_insns.
+     */
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_spr(t0, SPR_POWER_PMC5);
+    tcg_gen_addi_tl(t0, t0, ctx->base.num_insns);
+    gen_store_spr(SPR_POWER_PMC5, t0);
+  #endif /* #if !defined(CONFIG_USER_ONLY) */
+}
+#else
+static void pmu_count_insns(DisasContext *ctx)
+{
+    return;
+}
+#endif /* #if defined(TARGET_PPC64) */
+
 static void gen_exception_err_nip(DisasContext *ctx, uint32_t excp,
                                   uint32_t error, target_ulong nip)
 {
     TCGv_i32 t0, t1;
 
+    pmu_count_insns(ctx);
     gen_update_nip(ctx, nip);
     t0 = tcg_constant_i32(excp);
     t1 = tcg_constant_i32(error);
@@ -323,6 +385,7 @@ static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
 {
     TCGv_i32 t0;
 
+    pmu_count_insns(ctx);
     gen_update_nip(ctx, nip);
     t0 = tcg_constant_i32(excp);
     gen_helper_raise_exception(tcg_env, t0);
@@ -4082,67 +4145,6 @@ static inline void gen_update_cfar(DisasContext *ctx, target_ulong nip)
 #endif
 }
 
-#if defined(TARGET_PPC64)
-static void pmu_count_insns(DisasContext *ctx)
-{
-    /*
-     * Do not bother calling the helper if the PMU isn't counting
-     * instructions.
-     */
-    if (!ctx->pmu_insn_cnt) {
-        return;
-    }
-
- #if !defined(CONFIG_USER_ONLY)
-    TCGLabel *l;
-    TCGv t0;
-
-    /*
-     * The PMU insns_inc() helper stops the internal PMU timer if a
-     * counter overflows happens. In that case, if the guest is
-     * running with icount and we do not handle it beforehand,
-     * the helper can trigger a 'bad icount read'.
-     */
-    translator_io_start(&ctx->base);
-
-    /* Avoid helper calls when only PMC5-6 are enabled. */
-    if (!ctx->pmc_other) {
-        l = gen_new_label();
-        t0 = tcg_temp_new();
-
-        gen_load_spr(t0, SPR_POWER_PMC5);
-        tcg_gen_addi_tl(t0, t0, ctx->base.num_insns);
-        gen_store_spr(SPR_POWER_PMC5, t0);
-        /* Check for overflow, if it's enabled */
-        if (ctx->mmcr0_pmcjce) {
-            tcg_gen_brcondi_tl(TCG_COND_LT, t0, PMC_COUNTER_NEGATIVE_VAL, l);
-            gen_helper_handle_pmc5_overflow(tcg_env);
-        }
-
-        gen_set_label(l);
-    } else {
-        gen_helper_insns_inc(tcg_env, tcg_constant_i32(ctx->base.num_insns));
-    }
-  #else
-    /*
-     * User mode can read (but not write) PMC5 and start/stop
-     * the PMU via MMCR0_FC. In this case just increment
-     * PMC5 with base.num_insns.
-     */
-    TCGv t0 = tcg_temp_new();
-
-    gen_load_spr(t0, SPR_POWER_PMC5);
-    tcg_gen_addi_tl(t0, t0, ctx->base.num_insns);
-    gen_store_spr(SPR_POWER_PMC5, t0);
-  #endif /* #if !defined(CONFIG_USER_ONLY) */
-}
-#else
-static void pmu_count_insns(DisasContext *ctx)
-{
-    return;
-}
-#endif /* #if defined(TARGET_PPC64) */
-
 static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
     if (unlikely(ctx->singlestep_enabled)) {
@@ -4153,17 +4155,10 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 
 static void gen_lookup_and_goto_ptr(DisasContext *ctx)
 {
+    pmu_count_insns(ctx);
     if (unlikely(ctx->singlestep_enabled)) {
         gen_debug_exception(ctx, false);
     } else {
-        /*
-         * tcg_gen_lookup_and_goto_ptr will exit the TB if
-         * CF_NO_GOTO_PTR is set. Count insns now.
-         */
-        if (ctx->base.tb->flags & CF_NO_GOTO_PTR) {
-            pmu_count_insns(ctx);
-        }
-
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -4497,6 +4492,7 @@ static void gen_scv(DisasContext *ctx)
     uint32_t lev = (ctx->opcode >> 5) & 0x7F;
 
     /* Set the PC back to the faulting instruction. */
+    pmu_count_insns(ctx);
     gen_update_nip(ctx, ctx->cia);
     gen_helper_scv(tcg_env, tcg_constant_i32(lev));
 
@@ -7339,6 +7335,8 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         return;
     }
 
+    pmu_count_insns(ctx);
+
     /* Honor single stepping. */
     if (unlikely(ctx->singlestep_enabled & CPU_SINGLE_STEP)) {
         bool rfi_type = false;
@@ -7370,7 +7368,6 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     switch (is_jmp) {
     case DISAS_TOO_MANY:
         if (use_goto_tb(ctx, nip)) {
-            pmu_count_insns(ctx);
             tcg_gen_goto_tb(0);
             gen_update_nip(ctx, nip);
             tcg_gen_exit_tb(ctx->base.tb, 0);
@@ -7381,14 +7378,6 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         gen_update_nip(ctx, nip);
         /* fall through */
     case DISAS_CHAIN:
-        /*
-         * tcg_gen_lookup_and_goto_ptr will exit the TB if
-         * CF_NO_GOTO_PTR is set. Count insns now.
-         */
-        if (ctx->base.tb->flags & CF_NO_GOTO_PTR) {
-            pmu_count_insns(ctx);
-        }
-
         tcg_gen_lookup_and_goto_ptr();
         break;
 
@@ -7396,7 +7385,6 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         gen_update_nip(ctx, nip);
         /* fall through */
     case DISAS_EXIT:
-        pmu_count_insns(ctx);
         tcg_gen_exit_tb(NULL, 0);
         break;
 
