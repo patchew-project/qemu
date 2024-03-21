@@ -621,6 +621,6 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, vaddr *pc,
     }
 }
 
-void dump_mmu(CPUM68KState *env);
+void dump_mmu(Monitor *mon, CPUM68KState *env);
 
 #endif
