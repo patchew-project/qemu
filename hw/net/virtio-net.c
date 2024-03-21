@@ -2069,7 +2069,11 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
 
     for (j = 0; j < i; j++) {
         /* signal other side */
-        virtqueue_fill(q->rx_vq, elems[j], lens[j], j);
+        if (virtio_vdev_has_feature(vdev, VIRTIO_F_IN_ORDER)) {
+            virtqueue_order_element(q->rx_vq, elems[j], lens[j], j, 0);
+        } else {
+            virtqueue_fill(q->rx_vq, elems[j], lens[j], j);
+        }
         g_free(elems[j]);
     }
 
