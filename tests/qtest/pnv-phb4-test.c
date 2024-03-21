@@ -54,6 +54,13 @@ static void phb4_version_test(QTestState *qts)
     g_assert_cmpuint(ver, ==, 0xA5);
 }
 
+/* Assert that 'PHB PBL Control' register has correct reset value */
+static void phb4_reset_test(QTestState *qts)
+{
+    g_assert_cmpuint(pnv_phb4_xscom_read(qts, PHB_PBL_CONTROL),
+                     ==, 0xC009000000000000);
+}
+
 static void test_phb4(void)
 {
     QTestState *qts = NULL;
@@ -62,6 +69,9 @@ static void test_phb4(void)
 
     /* Make sure test is running on PHB */
     phb4_version_test(qts);
+
+    /* Check reset value of a register */
+    phb4_reset_test(qts);
 
     qtest_quit(qts);
 }

@@ -1,7 +1,7 @@
 /*
- * QEMU PowerPC PowerNV (POWER9) PHB4 model
+ * QEMU PowerPC PowerNV (POWER10) PHB4 model
  *
- * Copyright (c) 2018-2020, IBM Corporation.
+ * Copyright (c) 2018-2024, IBM Corporation.
  *
  * This code is licensed under the GPL version 2 or later. See the
  * COPYING file in the top-level directory.
@@ -22,6 +22,7 @@
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
 #include "trace.h"
+#include "sysemu/reset.h"
 
 #define phb_error(phb, fmt, ...)                                        \
     qemu_log_mask(LOG_GUEST_ERROR, "phb4[%d:%d]: " fmt "\n",            \
@@ -499,6 +500,86 @@ static void pnv_phb4_update_xsrc(PnvPHB4 *phb)
     }
 }
 
+/*
+ * Get the PCI-E capability offset from the root-port
+ */
+static uint32_t get_exp_offset(PnvPHB4 *phb)
+{
+    PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
+    PCIDevice *pdev;
+    pdev = pci_find_device(pci->bus, 0, 0);
+    if (!pdev) {
+        phb_error(phb, "PCI device not found");
+        return ~0;
+    }
+    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(pdev);
+    return rpc->exp_offset;
+}
+
+#define RC_CONFIG_WRITE(a, v) pnv_phb4_rc_config_write(phb, a, 4, v);
+
+static void pnv_phb4_cfg_core_reset(PnvPHB4 *phb)
+{
+    /* Zero all registers initially */
+    int i;
+    for (i = PCI_COMMAND ; i < PHB_RC_CONFIG_SIZE ; i += 4) {
+            RC_CONFIG_WRITE(i, 0)
+    }
+
+    RC_CONFIG_WRITE(PCI_COMMAND,          0x100100);
+    RC_CONFIG_WRITE(PCI_CLASS_REVISION,   0x6040000);
+    RC_CONFIG_WRITE(PCI_CACHE_LINE_SIZE,  0x10000);
+    RC_CONFIG_WRITE(PCI_MEMORY_BASE,      0x10);
+    RC_CONFIG_WRITE(PCI_PREF_MEMORY_BASE, 0x10011);
+    RC_CONFIG_WRITE(PCI_CAPABILITY_LIST,  0x40);
+    RC_CONFIG_WRITE(PCI_INTERRUPT_LINE,   0x20000);
+    /* PM Capabilities Register */
+    RC_CONFIG_WRITE(PCI_BRIDGE_CONTROL + PCI_PM_PMC, 0xC8034801);
+
+    uint32_t exp_offset = get_exp_offset(phb);
+    RC_CONFIG_WRITE(exp_offset, 0x420010);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_DEVCAP,  0x8022);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_DEVCTL,  0x140);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_LNKCAP,  0x300105);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_LNKCTL,  0x2010008);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_SLTCTL,  0x2000);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_DEVCAP2, 0x1003F);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_DEVCTL2, 0x20);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_LNKCAP2, 0x80003E);
+    RC_CONFIG_WRITE(exp_offset + PCI_EXP_LNKCTL2, 0x5);
+
+    RC_CONFIG_WRITE(PHB_AER_ECAP,    0x14810001);
+    RC_CONFIG_WRITE(PHB_AER_CAPCTRL, 0xA0);
+    RC_CONFIG_WRITE(PHB_SEC_ECAP,    0x1A010019);
+
+    RC_CONFIG_WRITE(PHB_LMR_ECAP, 0x1E810027);
+    /* LMR - Margining Lane Control / Status Register # 2 to 16 */
+    for (i = PHB_LMR_CTLSTA_2 ; i <= PHB_LMR_CTLSTA_16 ; i += 4) {
+        RC_CONFIG_WRITE(i, 0x9C38);
+    }
+
+    RC_CONFIG_WRITE(PHB_DLF_ECAP, 0x1F410025);
+    RC_CONFIG_WRITE(PHB_DLF_CAP,  0x80000001);
+    RC_CONFIG_WRITE(P16_ECAP,     0x22410026);
+    RC_CONFIG_WRITE(P32_ECAP,     0x1002A);
+    RC_CONFIG_WRITE(P32_CAP,      0x103);
+}
+
+static void pnv_phb4_pbl_core_reset(PnvPHB4 *phb)
+{
+    /* Zero all registers initially */
+    int i;
+    for (i = PHB_PBL_CONTROL ; i <= PHB_PBL_ERR1_STATUS_MASK ; i += 8) {
+        phb->regs[i >> 3] = 0x0;
+    }
+
+    /* Set specific register values */
+    phb->regs[PHB_PBL_CONTROL       >> 3] = 0xC009000000000000;
+    phb->regs[PHB_PBL_TIMEOUT_CTRL  >> 3] = 0x2020000000000000;
+    phb->regs[PHB_PBL_NPTAG_ENABLE  >> 3] = 0xFFFFFFFF00000000;
+    phb->regs[PHB_PBL_SYS_LINK_INIT >> 3] = 0x80088B4642473000;
+}
+
 static void pnv_phb4_reg_write(void *opaque, hwaddr off, uint64_t val,
                                unsigned size)
 {
@@ -610,6 +691,16 @@ static void pnv_phb4_reg_write(void *opaque, hwaddr off, uint64_t val,
     case PHB_CTRLR:
     case PHB_LSI_SOURCE_ID:
         pnv_phb4_update_xsrc(phb);
+        break;
+
+    /* Reset core blocks */
+    case PHB_PCIE_CRESET:
+        if (val & PHB_PCIE_CRESET_CFG_CORE) {
+            pnv_phb4_cfg_core_reset(phb);
+        }
+        if (val & PHB_PCIE_CRESET_PBL) {
+            pnv_phb4_pbl_core_reset(phb);
+        }
         break;
 
     /* Silent simple writes */
@@ -1531,6 +1622,13 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
 static PCIIOMMUOps pnv_phb4_iommu_ops = {
     .get_address_space = pnv_phb4_dma_iommu,
 };
+static void pnv_phb4_reset(void *dev)
+{
+    PnvPHB4 *phb = PNV_PHB4(dev);
+    pnv_phb4_cfg_core_reset(phb);
+    pnv_phb4_pbl_core_reset(phb);
+    phb->regs[PHB_PCIE_CRESET >> 3] = 0xE000000000000000;
+}
 
 static void pnv_phb4_instance_init(Object *obj)
 {
@@ -1608,6 +1706,8 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     phb->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
 
     pnv_phb4_xscom_realize(phb);
+
+    qemu_register_reset(pnv_phb4_reset, dev);
 }
 
 /*
