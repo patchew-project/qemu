@@ -98,8 +98,8 @@ void gd_egl_draw(VirtualConsole *vc)
         glFlush();
 #ifdef CONFIG_GBM
         if (dmabuf) {
-            egl_dmabuf_create_fence(dmabuf);
-            if (dmabuf->fence_fd > 0) {
+            egl_dmabuf_create_sync(dmabuf);
+            if (dmabuf->fence_fd > -1) {
                 qemu_set_fd_handler(dmabuf->fence_fd, gd_hw_gl_flushed, NULL, vc);
                 return;
             }
@@ -347,12 +347,6 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
     } else {
         egl_fb_blit(&vc->gfx.win_fb, &vc->gfx.guest_fb, !vc->gfx.y0_top);
     }
-
-#ifdef CONFIG_GBM
-    if (vc->gfx.guest_fb.dmabuf) {
-        egl_dmabuf_create_sync(vc->gfx.guest_fb.dmabuf);
-    }
-#endif
 
     eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
 }
