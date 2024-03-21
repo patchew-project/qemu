@@ -1150,6 +1150,15 @@ uint32_t dpy_gl_dmabuf_get_height(QemuDmaBuf *dmabuf)
     return 0;
 }
 
+int32_t dpy_gl_dmabuf_get_fd(QemuDmaBuf *dmabuf)
+{
+    if (dmabuf) {
+        return dmabuf->fd;
+    }
+
+    return -1;
+}
+
 void dpy_gl_release_dmabuf(QemuConsole *con,
                           QemuDmaBuf *dmabuf)
 {
