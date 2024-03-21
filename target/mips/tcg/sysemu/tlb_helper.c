@@ -464,7 +464,7 @@ static void r4k_mmu_init(CPUMIPSState *env, const mips_def_t *def)
     env->tlb->helper_tlbinvf = r4k_helper_tlbinvf;
 }
 
-void mmu_init(CPUMIPSState *env, const mips_def_t *def)
+void mips_mmu_init(CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb = g_malloc0(sizeof(CPUMIPSTLBContext));
 
