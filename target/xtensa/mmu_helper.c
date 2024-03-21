@@ -203,6 +203,7 @@ static void dump_tlb(CPUXtensaState *env, bool dtlb)
         xtensa_option_enabled(env->config, XTENSA_OPTION_MMU) ?
         mmu_attr_to_access : region_attr_to_access;
 
+    qemu_printf("%s:\n", dtlb ? "DTLB" : "IBLB");
     for (wi = 0; wi < conf->nways; ++wi) {
         uint32_t sz = ~xtensa_tlb_get_addr_mask(env, dtlb, wi) + 1;
         const char *sz_text;
@@ -252,11 +253,12 @@ static void dump_tlb(CPUXtensaState *env, bool dtlb)
     }
 }
 
-static void dump_mpu(CPUXtensaState *env,
+static void dump_mpu(CPUXtensaState *env, const char *map_desc,
                      const xtensa_mpu_entry *entry, unsigned n)
 {
     unsigned i;
 
+    qemu_printf("%s map:\n", map_desc);
     qemu_printf("\t%s  Vaddr       Attr        Ring0  Ring1  System Type    CPU cache\n"
                 "\t%s  ----------  ----------  -----  -----  -------------  ---------\n",
                 env ? "En" : "  ",
@@ -316,15 +318,15 @@ void xtensa_dump_mmu(CPUXtensaState *env)
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_MMU))) {
 
-        qemu_printf("ITLB:\n");
         dump_tlb(env, false);
-        qemu_printf("\nDTLB:\n");
+        qemu_printf("\n");
         dump_tlb(env, true);
     } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_MPU)) {
-        qemu_printf("Foreground map:\n");
-        dump_mpu(env, env->mpu_fg, env->config->n_mpu_fg_segments);
-        qemu_printf("\nBackground map:\n");
-        dump_mpu(NULL, env->config->mpu_bg, env->config->n_mpu_bg_segments);
+        dump_mpu(env, "Foreground",
+                 env->mpu_fg, env->config->n_mpu_fg_segments);
+        qemu_printf("\n");
+        dump_mpu(NULL, "Background",
+                 env->config->mpu_bg, env->config->n_mpu_bg_segments);
     } else {
         qemu_printf("No TLB for this CPU core\n");
     }
