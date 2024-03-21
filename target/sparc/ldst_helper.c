@@ -242,8 +242,8 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
                 if (new_vaddr == vaddr
                     || (new_vaddr < vaddr + size
                         && vaddr < new_vaddr + new_size)) {
-                    DPRINTF_MMU("auto demap entry [%d] %lx->%lx\n", i, vaddr,
-                                new_vaddr);
+                    DPRINTF_MMU("auto demap entry [%d] %"PRIx64"->%"PRIx64"\n",
+                                i, vaddr, new_vaddr);
                     replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
                     return;
                 }
@@ -1758,7 +1758,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 
             if (oldreg != env->immu.mmuregs[reg]) {
                 DPRINTF_MMU("immu change reg[%d]: 0x%016" PRIx64 " -> 0x%016"
-                            PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
+                            PRIx64 "\n", reg, oldreg, env->immu.mmuregs[reg]);
             }
 #ifdef DEBUG_MMU
             dump_mmu(env);
@@ -1842,7 +1842,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 
             if (oldreg != env->dmmu.mmuregs[reg]) {
                 DPRINTF_MMU("dmmu change reg[%d]: 0x%016" PRIx64 " -> 0x%016"
-                            PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
+                            PRIx64 "\n", reg, oldreg, env->dmmu.mmuregs[reg]);
             }
 #ifdef DEBUG_MMU
             dump_mmu(env);
