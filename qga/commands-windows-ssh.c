@@ -16,6 +16,7 @@
 #include <aclapi.h>
 #include <qga-qapi-types.h>
 
+#include "commands-ssh-core.h"
 #include "commands-windows-ssh.h"
 #include "guest-agent-core.h"
 #include "limits.h"
@@ -34,71 +35,6 @@
 #define LOCAL_SYSTEM_SID "S-1-5-18"
 #define ADMIN_SID "S-1-5-32-544"
 #define WORLD_SID "S-1-1-0"
-
-/*
- * Reads the authorized_keys file and returns an array of strings for each entry
- *
- * parameters:
- * path -> Path to the authorized_keys file
- * errp -> Error structure that will contain errors upon failure.
- * returns: Array of strings, where each entry is an authorized key.
- */
-static GStrv read_authkeys(const char *path, Error **errp)
-{
-  g_autoptr(GError) err = NULL;
-  g_autofree char *contents = NULL;
-
-  if (!g_file_get_contents(path, &contents, NULL, &err)) {
-    error_setg(errp, "failed to read '%s': %s", path, err->message);
-    return NULL;
-  }
-
-  return g_strsplit(contents, "\n", -1);
-}
-
-/*
- * Checks if a OpenSSH key is valid
- * parameters:
- * key* Key to check for validity
- * errp -> Error structure that will contain errors upon failure.
- * returns: true if key is valid, false otherwise
- */
-static bool check_openssh_pub_key(const char *key, Error **errp)
-{
-  /* simple sanity-check, we may want more? */
-  if (!key || key[0] == '#' || strchr(key, '\n')) {
-    error_setg(errp, "invalid OpenSSH public key: '%s'", key);
-    return false;
-  }
-
-  return true;
-}
-
-/*
- * Checks if all openssh keys in the array are valid
- *
- * parameters:
- * keys -> Array of keys to check
- * errp -> Error structure that will contain errors upon failure.
- * returns: true if all keys are valid, false otherwise
- */
-static bool check_openssh_pub_keys(strList *keys, size_t *nkeys, Error **errp)
-{
-  size_t n = 0;
-  strList *k;
-
-  for (k = keys; k != NULL; k = k->next) {
-    if (!check_openssh_pub_key(k->value, errp)) {
-      return false;
-    }
-    n++;
-  }
-
-  if (nkeys) {
-    *nkeys = n;
-  }
-  return true;
-}
 
 /*
  * Frees userInfo structure. This implements the g_auto cleanup
