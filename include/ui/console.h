@@ -279,6 +279,7 @@ typedef struct DisplayChangeListenerOps {
     /* optional */
     void (*dpy_gl_cursor_position)(DisplayChangeListener *dcl,
                                    uint32_t pos_x, uint32_t pos_y);
+
     /* optional */
     void (*dpy_gl_release_dmabuf)(DisplayChangeListener *dcl,
                                   QemuDmaBuf *dmabuf);
@@ -358,6 +359,12 @@ void dpy_gl_cursor_dmabuf(QemuConsole *con, QemuDmaBuf *dmabuf,
                           bool have_hot, uint32_t hot_x, uint32_t hot_y);
 void dpy_gl_cursor_position(QemuConsole *con,
                             uint32_t pos_x, uint32_t pos_y);
+QemuDmaBuf *dpy_gl_create_dmabuf(uint32_t width, uint32_t height,
+                                 uint32_t stride, uint32_t x,
+                                 uint32_t y, uint32_t backing_width,
+                                 uint32_t backing_height, uint32_t fourcc,
+                                 uint32_t modifier, uint32_t dmabuf_fd,
+                                 bool allow_fences);
 uint32_t dpy_gl_dmabuf_get_width(QemuDmaBuf *dmabuf);
 uint32_t dpy_gl_dmabuf_get_height(QemuDmaBuf *dmabuf);
 int32_t dpy_gl_dmabuf_get_fd(QemuDmaBuf *dmabuf);
