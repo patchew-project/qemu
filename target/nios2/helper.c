@@ -268,7 +268,7 @@ hwaddr nios2_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     unsigned int hit;
 
     if (cpu->mmu_present && (addr < 0xC0000000)) {
-        hit = mmu_translate(env, &lu, addr, 0, 0);
+        hit = nios2_mmu_translate(env, &lu, addr, 0, 0);
         if (hit) {
             vaddr = addr & TARGET_PAGE_MASK;
             paddr = lu.paddr + vaddr - lu.vaddr;
@@ -335,7 +335,7 @@ bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     }
 
     /* Virtual page.  */
-    hit = mmu_translate(env, &lu, address, access_type, mmu_idx);
+    hit = nios2_mmu_translate(env, &lu, address, access_type, mmu_idx);
     if (hit) {
         vaddr = address & TARGET_PAGE_MASK;
         paddr = lu.paddr + vaddr - lu.vaddr;

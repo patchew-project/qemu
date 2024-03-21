@@ -28,9 +28,8 @@
 
 
 /* rw - 0 = read, 1 = write, 2 = fetch.  */
-unsigned int mmu_translate(CPUNios2State *env,
-                           Nios2MMULookup *lu,
-                           target_ulong vaddr, int rw, int mmu_idx)
+unsigned int nios2_mmu_translate(CPUNios2State *env, Nios2MMULookup *lu,
+                                 target_ulong vaddr, int rw, int mmu_idx)
 {
     Nios2CPU *cpu = env_archcpu(env);
     int pid = FIELD_EX32(env->mmu.tlbmisc_wr, CR_TLBMISC, PID);
@@ -180,7 +179,7 @@ void helper_mmu_write_pteaddr(CPUNios2State *env, uint32_t v)
     env->mmu.pteaddr_wr = v;
 }
 
-void mmu_init(CPUNios2State *env)
+void nios2_mmu_init(CPUNios2State *env)
 {
     Nios2CPU *cpu = env_archcpu(env);
     Nios2MMU *mmu = &env->mmu;

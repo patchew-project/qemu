@@ -113,7 +113,7 @@ static void nios2_cpu_initfn(Object *obj)
 #if !defined(CONFIG_USER_ONLY)
     Nios2CPU *cpu = NIOS2_CPU(obj);
 
-    mmu_init(&cpu->env);
+    nios2_mmu_init(&cpu->env);
 #endif
 }
 
