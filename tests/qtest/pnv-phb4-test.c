@@ -139,6 +139,12 @@ static void phb4_writeonly_read_test(QTestState *qts)
     g_assert_cmpuint(val, ==, 0x0);
 }
 
+/* Check that reading an unimplemented address 0x0 returns -1 */
+static void phb4_unimplemented_read_test(QTestState *qts)
+{
+    g_assert_cmpint(pnv_phb4_xscom_read(qts, 0x0), ==, -1);
+}
+
 static void test_phb4(void)
 {
     QTestState *qts = NULL;
@@ -156,6 +162,9 @@ static void test_phb4(void)
 
     /* Check write-only logic */
     phb4_writeonly_read_test(qts);
+
+    /* Check unimplemented register read */
+    phb4_unimplemented_read_test(qts);
 
     qtest_quit(qts);
 }
