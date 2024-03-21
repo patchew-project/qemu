@@ -694,6 +694,9 @@
 #define  PCI_EXP_LNKCTL2_ENTER_COMP	0x0010 /* Enter Compliance */
 #define  PCI_EXP_LNKCTL2_TX_MARGIN	0x0380 /* Transmit Margin */
 #define  PCI_EXP_LNKCTL2_HASD		0x0020 /* HW Autonomous Speed Disable */
+#define  PCI_EXP_LNKCTL2_MOD_COMP	0x0400 /* Enter Modified Compliance */
+#define  PCI_EXP_LNKCTL2_COMP_SOS	0x0800 /* Compliance SOS */
+#define  PCI_EXP_LNKCTL2_COMP_P_DE	0xF000 /* Compliance Preset/De-emphasis */
 #define PCI_EXP_LNKSTA2		0x32	/* Link Status 2 */
 #define  PCI_EXP_LNKSTA2_FLIT		0x0400 /* Flit Mode Status */
 #define PCI_CAP_EXP_ENDPOINT_SIZEOF_V2	0x32	/* end of v2 EPs w/ link */
