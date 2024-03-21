@@ -39,20 +39,28 @@ static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
                    tlb->d, tlb->wt);
 }
 
+void sh4_dump_mmu(Monitor *mon, CPUSH4State *env)
+{
+    int i;
+
+    monitor_puts(mon, "ITLB:\n");
+    for (i = 0 ; i < ITLB_SIZE ; i++) {
+        print_tlb (mon, i, &env->itlb[i]);
+    }
+    monitor_puts(mon, "UTLB:\n");
+    for (i = 0 ; i < UTLB_SIZE ; i++) {
+        print_tlb (mon, i, &env->utlb[i]);
+    }
+}
+
 void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
-    int i;
 
     if (!env) {
         monitor_printf(mon, "No CPU available\n");
         return;
     }
 
-    monitor_printf (mon, "ITLB:\n");
-    for (i = 0 ; i < ITLB_SIZE ; i++)
-        print_tlb (mon, i, &env->itlb[i]);
-    monitor_printf (mon, "UTLB:\n");
-    for (i = 0 ; i < UTLB_SIZE ; i++)
-        print_tlb (mon, i, &env->utlb[i]);
+    sh4_dump_mmu(mon, env);
 }
