@@ -77,6 +77,13 @@ typedef struct VirtQueueElement
     struct iovec *out_sg;
 } VirtQueueElement;
 
+typedef struct InOrderVQElement {
+    const VirtQueueElement *elem;
+    unsigned int len;
+    unsigned int idx;
+    unsigned int count;
+} InOrderVQElement;
+
 #define VIRTIO_QUEUE_MAX 1024
 
 #define VIRTIO_NO_VECTOR 0xffff
