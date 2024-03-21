@@ -57,7 +57,7 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         return true;
     }
 
-    hit = mmu_translate(cpu, &lu, address, access_type, mmu_idx);
+    hit = mb_mmu_translate(cpu, &lu, address, access_type, mmu_idx);
     if (likely(hit)) {
         uint32_t vaddr = address & TARGET_PAGE_MASK;
         uint32_t paddr = lu.paddr + vaddr - lu.vaddr;
@@ -238,7 +238,7 @@ hwaddr mb_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
     attrs->secure = mb_cpu_access_is_secure(cpu, MMU_DATA_LOAD);
 
     if (mmu_idx != MMU_NOMMU_IDX) {
-        hit = mmu_translate(cpu, &lu, addr, 0, 0);
+        hit = mb_mmu_translate(cpu, &lu, addr, 0, 0);
         if (hit) {
             vaddr = addr & TARGET_PAGE_MASK;
             paddr = lu.paddr + vaddr - lu.vaddr;

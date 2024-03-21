@@ -74,8 +74,8 @@ static void mmu_change_pid(CPUMBState *env, unsigned int newpid)
 }
 
 /* rw - 0 = read, 1 = write, 2 = fetch.  */
-unsigned int mmu_translate(MicroBlazeCPU *cpu, MicroBlazeMMULookup *lu,
-                           target_ulong vaddr, MMUAccessType rw, int mmu_idx)
+unsigned int mb_mmu_translate(MicroBlazeCPU *cpu, MicroBlazeMMULookup *lu,
+                              target_ulong vaddr, MMUAccessType rw, int mmu_idx)
 {
     MicroBlazeMMU *mmu = &cpu->env.mmu;
     unsigned int i, hit = 0;
@@ -175,7 +175,7 @@ done:
 }
 
 /* Writes/reads to the MMU's special regs end up here.  */
-uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
+uint32_t mb_mmu_read(CPUMBState *env, bool ext, uint32_t rn)
 {
     MicroBlazeCPU *cpu = env_archcpu(env);
     unsigned int i;
@@ -228,7 +228,7 @@ uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
     return r;
 }
 
-void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
+void mb_mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
 {
     MicroBlazeCPU *cpu = env_archcpu(env);
     uint64_t tmp64;
@@ -304,8 +304,8 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
                 return;
             }
 
-            hit = mmu_translate(cpu, &lu, v & TLB_EPN_MASK,
-                                0, cpu_mmu_index(env_cpu(env), false));
+            hit = mb_mmu_translate(cpu, &lu, v & TLB_EPN_MASK,
+                                   0, cpu_mmu_index(env_cpu(env), false));
             if (hit) {
                 env->mmu.regs[MMU_R_TLBX] = lu.idx;
             } else {
@@ -319,7 +319,7 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
    }
 }
 
-void mmu_init(MicroBlazeMMU *mmu)
+void mb_mmu_init(MicroBlazeMMU *mmu)
 {
     int i;
     for (i = 0; i < ARRAY_SIZE(mmu->regs); i++) {
