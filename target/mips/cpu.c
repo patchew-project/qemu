@@ -485,7 +485,7 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
     env->exception_base = (int32_t)0xBFC00000;
 
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
-    mmu_init(env, env->cpu_model);
+    mips_mmu_init(env, env->cpu_model);
 #endif
     fpu_init(env, env->cpu_model);
     mvp_init(env);
