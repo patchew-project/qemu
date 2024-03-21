@@ -195,7 +195,7 @@ static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
             replace_tlb_entry(&tlb[i], 0, 0, env1);
 #ifdef DEBUG_MMU
             DPRINTF_MMU("%s demap invalidated entry [%02u]\n", strmmu, i);
-            dump_mmu(env1);
+            sparc_dump_mmu(env1);
 #endif
         }
     }
@@ -257,7 +257,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
             replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
 #ifdef DEBUG_MMU
             DPRINTF_MMU("%s lru replaced invalid entry [%i]\n", strmmu, i);
-            dump_mmu(env1);
+            sparc_dump_mmu(env1);
 #endif
             return;
         }
@@ -276,7 +276,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 #ifdef DEBUG_MMU
                 DPRINTF_MMU("%s lru replaced unlocked %s entry [%i]\n",
                             strmmu, (replace_used ? "used" : "unused"), i);
-                dump_mmu(env1);
+                sparc_dump_mmu(env1);
 #endif
                 return;
             }
@@ -995,7 +995,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
                 break;
             }
 #ifdef DEBUG_MMU
-            dump_mmu(env);
+            sparc_dump_mmu(env);
 #endif
         }
         break;
@@ -1050,7 +1050,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
                             reg, oldreg, env->mmuregs[reg]);
             }
 #ifdef DEBUG_MMU
-            dump_mmu(env);
+            sparc_dump_mmu(env);
 #endif
         }
         break;
@@ -1736,7 +1736,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                             PRIx64 "\n", reg, oldreg, env->immu.mmuregs[reg]);
             }
 #ifdef DEBUG_MMU
-            dump_mmu(env);
+            sparc_dump_mmu(env);
 #endif
             return;
         }
@@ -1760,7 +1760,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             }
 #ifdef DEBUG_MMU
             DPRINTF_MMU("immu data access replaced entry [%i]\n", i);
-            dump_mmu(env);
+            sparc_dump_mmu(env);
 #endif
             return;
         }
@@ -1820,7 +1820,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                             PRIx64 "\n", reg, oldreg, env->dmmu.mmuregs[reg]);
             }
 #ifdef DEBUG_MMU
-            dump_mmu(env);
+            sparc_dump_mmu(env);
 #endif
             return;
         }
@@ -1842,7 +1842,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             }
 #ifdef DEBUG_MMU
             DPRINTF_MMU("dmmu data access replaced entry [%i]\n", i);
-            dump_mmu(env);
+            sparc_dump_mmu(env);
 #endif
             return;
         }
