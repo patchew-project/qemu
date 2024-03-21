@@ -22,14 +22,40 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 
+void nios2_info_mmu(Monitor *mon, CPUNios2State *env)
+{
+    Nios2CPU *cpu = env_archcpu(env);
+
+    qemu_printf("MMU: ways %d, entries %d, pid bits %d\n",
+                cpu->tlb_num_ways, cpu->tlb_num_entries,
+                cpu->pid_num_bits);
+
+    for (int i = 0; i < cpu->tlb_num_entries; i++) {
+        Nios2TLBEntry *entry = &env->mmu.tlb[i];
+        qemu_printf("TLB[%d] = %08X %08X %c VPN %05X "
+                    "PID %02X %c PFN %05X %c%c%c%c\n",
+                    i, entry->tag, entry->data,
+                    (entry->tag & (1 << 10)) ? 'V' : '-',
+                    entry->tag >> 12,
+                    entry->tag & ((1 << cpu->pid_num_bits) - 1),
+                    (entry->tag & (1 << 11)) ? 'G' : '-',
+                    FIELD_EX32(entry->data, CR_TLBACC, PFN),
+                    (entry->data & CR_TLBACC_C) ? 'C' : '-',
+                    (entry->data & CR_TLBACC_R) ? 'R' : '-',
+                    (entry->data & CR_TLBACC_W) ? 'W' : '-',
+                    (entry->data & CR_TLBACC_X) ? 'X' : '-');
+    }
+}
+
 void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env1 = mon_get_cpu_env(mon);
 
-    dump_mmu(env1);
+    nios2_info_mmu(mon, env1);
 }
