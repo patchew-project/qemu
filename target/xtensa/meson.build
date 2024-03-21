@@ -18,6 +18,7 @@ xtensa_ss.add(files(
 xtensa_system_ss = ss.source_set()
 xtensa_system_ss.add(files(
   'dbg_helper.c',
+  'mmu.c',
   'mmu_helper.c',
   'monitor.c',
   'xtensa-semi.c',
