@@ -310,6 +310,14 @@ static void handleAnyDeviceErrors(Error * err)
     NSTrackingArea *trackingArea;
     QEMUScreen screen;
     pixman_image_t *pixman_image;
+    /* The state surrounding mouse grabbing is potentially confusing.
+     * isAbsoluteEnabled tracks qemu_input_is_absolute() [ie "is the emulated
+     *   pointing device an absolute-position one?"], but is only updated on
+     *   next refresh.
+     * isMouseGrabbed tracks whether GUI events are directed to the guest;
+     *   it controls whether special keys like Cmd get sent to the guest,
+     *   and whether we capture the mouse when in non-absolute mode.
+     */
     BOOL isMouseGrabbed;
     BOOL isAbsoluteEnabled;
     CFMachPortRef eventsTap;
@@ -321,17 +329,8 @@ static void handleAnyDeviceErrors(Error * err)
 - (void) handleMonitorInput:(NSEvent *)event;
 - (bool) handleEvent:(NSEvent *)event;
 - (bool) handleEventLocked:(NSEvent *)event;
-- (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled;
-/* The state surrounding mouse grabbing is potentially confusing.
- * isAbsoluteEnabled tracks qemu_input_is_absolute() [ie "is the emulated
- *   pointing device an absolute-position one?"], but is only updated on
- *   next refresh.
- * isMouseGrabbed tracks whether GUI events are directed to the guest;
- *   it controls whether special keys like Cmd get sent to the guest,
- *   and whether we capture the mouse when in non-absolute mode.
- */
+- (void) notifyMouseModeChange;
 - (BOOL) isMouseGrabbed;
-- (BOOL) isAbsoluteEnabled;
 - (QEMUScreen) gscreen;
 - (void) raiseAllKeys;
 @end
@@ -437,6 +436,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     qkbd_state_switch_console(kbd, con);
     dcl.con = con;
     register_displaychangelistener(&dcl);
+    [self notifyMouseModeChange];
     [self updateUIInfo];
 }
 
@@ -1103,14 +1103,26 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     [self raiseAllButtons];
 }
 
-- (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled {
+- (void) notifyMouseModeChange {
+    bool tIsAbsoluteEnabled = bool_with_bql(^{
+        return qemu_input_is_absolute(dcl.con);
+    });
+
+    if (tIsAbsoluteEnabled == isAbsoluteEnabled) {
+        return;
+    }
+
     isAbsoluteEnabled = tIsAbsoluteEnabled;
+
     if (isMouseGrabbed) {
-        CGAssociateMouseAndMouseCursorPosition(isAbsoluteEnabled);
+        if (isAbsoluteEnabled) {
+            [self ungrabMouse];
+        } else {
+            CGAssociateMouseAndMouseCursorPosition(isAbsoluteEnabled);
+        }
     }
 }
 - (BOOL) isMouseGrabbed {return isMouseGrabbed;}
-- (BOOL) isAbsoluteEnabled {return isAbsoluteEnabled;}
 - (QEMUScreen) gscreen {return screen;}
 
 /*
@@ -1784,6 +1796,17 @@ static void addRemovableDevicesMenuItems(void)
     qapi_free_BlockInfoList(pointerToFree);
 }
 
+static void cocoa_mouse_mode_change_notify(Notifier *notifier, void *data)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [cocoaView notifyMouseModeChange];
+    });
+}
+
+static Notifier mouse_mode_change_notifier = {
+    .notify = cocoa_mouse_mode_change_notify
+};
+
 @interface QemuCocoaPasteboardTypeOwner : NSObject<NSPasteboardTypeOwner>
 @end
 
@@ -1968,17 +1991,6 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
     graphic_hw_update(dcl->con);
 
-    if (qemu_input_is_absolute(dcl->con)) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (![cocoaView isAbsoluteEnabled]) {
-                if ([cocoaView isMouseGrabbed]) {
-                    [cocoaView ungrabMouse];
-                }
-            }
-            [cocoaView setAbsoluteEnabled:YES];
-        });
-    }
-
     if (cbchangecount != [[NSPasteboard generalPasteboard] changeCount]) {
         qemu_clipboard_info_unref(cbinfo);
         cbinfo = qemu_clipboard_info_new(&cbpeer, QEMU_CLIPBOARD_SELECTION_CLIPBOARD);
@@ -2055,6 +2067,8 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 
     // register vga output callbacks
     register_displaychangelistener(&dcl);
+    qemu_add_mouse_mode_change_notifier(&mouse_mode_change_notifier);
+    [cocoaView notifyMouseModeChange];
     [cocoaView updateUIInfo];
 
     qemu_event_init(&cbevent, false);
