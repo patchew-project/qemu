@@ -38,6 +38,13 @@
 #define LM_DISABLE      0x00
 #define LM_ENABLE       0x01
 
+#define LM_LOGGING_CTRL                 0
+#define LM_BASE_ADDR_LOW                4
+#define LM_BASE_ADDR_HIGH               8
+#define LM_END_ADDR_LOW                 12
+#define LM_END_ADDR_HIGH                16
+#define LM_VRING_STATE_OFFSET           0x20
+
 struct VirtQueue;
 
 static inline hwaddr vring_align(hwaddr addr,
