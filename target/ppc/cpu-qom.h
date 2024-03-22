@@ -23,11 +23,7 @@
 #include "exec/gdbstub.h"
 #include "hw/core/cpu.h"
 
-#ifdef TARGET_PPC64
-#define TYPE_POWERPC_CPU "powerpc64-cpu"
-#else
 #define TYPE_POWERPC_CPU "powerpc-cpu"
-#endif
 
 OBJECT_DECLARE_CPU_TYPE(PowerPCCPU, PowerPCCPUClass, POWERPC_CPU)
 
