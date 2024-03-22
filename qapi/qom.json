@@ -508,13 +508,25 @@
 # @grab-toggle: the key or key combination that toggles device grab
 #     (default: ctrl-ctrl)
 #
+# @grab-on-startup: if true, grab the device immediately upon starting
+#     the guest.  Otherwise, don't grab the device until the
+#     combination is entered.  This does not influence other devices
+#     even if grab_all is true, i.e. in the unlikely scenario where
+#     device1 has grab_all=true + grab-on-startup=true and device2 has
+#     grab-on-startup=false, only device1 is grabbed on startup, then,
+#     once the grab combination is entered, grabbing is toggled off
+#     for both devices (because device1 enforces the grab_all
+#     property) until the combination is entered again at which point
+#     both devices will be grabbed.  (default: true).
+#
 # Since: 2.6
 ##
 { 'struct': 'InputLinuxProperties',
   'data': { 'evdev': 'str',
             '*grab_all': 'bool',
             '*repeat': 'bool',
-            '*grab-toggle': 'GrabToggleKeys' } }
+            '*grab-toggle': 'GrabToggleKeys',
+            '*grab-on-startup': 'bool'} }
 
 ##
 # @EventLoopBaseProperties:
