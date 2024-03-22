@@ -272,6 +272,32 @@ vi_bits_config(VuInput *vi, int type, int count)
     g_array_append_val(vi->config, bits);
 }
 
+static void
+vi_input_abs_config(VuInput *vi, int axis)
+{
+    virtio_input_config config;
+    struct input_absinfo absinfo;
+    int rc;
+
+    rc = ioctl(vi->evdevfd, EVIOCGABS(axis), &absinfo);
+    if (rc < 0) {
+        return;
+    }
+
+    memset(&config, 0, sizeof(config));
+    config.select = VIRTIO_INPUT_CFG_ABS_INFO;
+    config.subsel = axis;
+    config.size   = sizeof(struct input_absinfo);
+
+    config.u.abs.min  = cpu_to_le32(absinfo.minimum);
+    config.u.abs.max  = cpu_to_le32(absinfo.maximum);
+    config.u.abs.fuzz = cpu_to_le32(absinfo.fuzz);
+    config.u.abs.flat = cpu_to_le32(absinfo.flat);
+    config.u.abs.res  = cpu_to_le32(absinfo.resolution);
+
+    g_array_append_val(vi->config, config);
+}
+
 static char *opt_evdev;
 static int opt_fdnum = -1;
 static char *opt_socket_path;
@@ -297,11 +323,12 @@ main(int argc, char *argv[])
 {
     GMainLoop *loop = NULL;
     VuInput vi = { 0, };
-    int rc, ver, fd;
-    virtio_input_config id;
+    int rc, ver, fd, i, axis;
+    virtio_input_config id, *abs;
     struct input_id ids;
     GError *error = NULL;
     GOptionContext *context;
+    uint8_t byte;
 
     context = g_option_context_new(NULL);
     g_option_context_add_main_entries(context, entries, NULL);
@@ -375,6 +402,21 @@ main(int argc, char *argv[])
     vi_bits_config(&vi, EV_ABS, ABS_CNT);
     vi_bits_config(&vi, EV_MSC, MSC_CNT);
     vi_bits_config(&vi, EV_SW,  SW_CNT);
+
+    abs = vi_find_config(&vi, VIRTIO_INPUT_CFG_EV_BITS, EV_ABS);
+    if (abs) {
+        for (i = 0; i < abs->size; i++) {
+            byte = abs->u.bitmap[i];
+            axis = 8 * i;
+            while (byte) {
+                if (byte & 1) {
+                    vi_input_abs_config(&vi, axis);
+                }
+                axis++;
+                byte >>= 1;
+            }
+        }
+    }
     g_debug("config length: %u", vi.config->len);
 
     if (opt_socket_path) {
