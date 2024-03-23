@@ -20,6 +20,11 @@
 
 #include "standard-headers/linux/pvpanic.h"
 
+#ifdef PVPANIC_SHUTDOWN
+#error PVPANIC_SHUTDOWN is already defined
+#endif
+#define PVPANIC_SHUTDOWN	(1 << 2)
+
 #define PVPANIC_EVENTS (PVPANIC_PANICKED | PVPANIC_CRASH_LOADED)
 
 #define TYPE_PVPANIC_ISA_DEVICE "pvpanic"
