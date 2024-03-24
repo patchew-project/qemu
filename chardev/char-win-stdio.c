@@ -220,6 +220,7 @@ err1:
 static void char_win_stdio_finalize(Object *obj)
 {
     WinStdioChardev *stdio = WIN_STDIO_CHARDEV(obj);
+    DWORD dwMode;
 
     if (stdio->hInputReadyEvent != INVALID_HANDLE_VALUE) {
         CloseHandle(stdio->hInputReadyEvent);
@@ -230,6 +231,10 @@ static void char_win_stdio_finalize(Object *obj)
     if (stdio->hInputThread != INVALID_HANDLE_VALUE) {
         TerminateThread(stdio->hInputThread, 0);
     }
+
+    GetConsoleMode(stdio->hStdIn, &dwMode);
+    dwMode &= ~ENABLE_VIRTUAL_TERMINAL_INPUT;
+    SetConsoleMode(stdio->hStdIn, dwMode);
 }
 
 static int win_stdio_write(Chardev *chr, const uint8_t *buf, int len)
