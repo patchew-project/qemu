@@ -523,12 +523,15 @@ void HELPER(itlbp_pa11)(CPUHPPAState *env, target_ulong addr, target_ulong reg)
 }
 
 static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
-                       target_ulong r2, vaddr va_b)
+                       target_ulong r2, uint64_t spc, uint64_t off)
 {
     HPPATLBEntry *ent;
-    vaddr va_e;
+    vaddr va_b, va_e;
     uint64_t va_size;
     int mask_shift;
+
+    va_b = off & gva_offset_mask(env->psw);
+    va_b |= spc << 32;
 
     mask_shift = 2 * (r1 & 0xf);
     va_size = (uint64_t)TARGET_PAGE_SIZE << mask_shift;
@@ -569,14 +572,12 @@ static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
 
 void HELPER(idtlbt_pa20)(CPUHPPAState *env, target_ulong r1, target_ulong r2)
 {
-    vaddr va_b = deposit64(env->cr[CR_IOR], 32, 32, env->cr[CR_ISR]);
-    itlbt_pa20(env, r1, r2, va_b);
+    itlbt_pa20(env, r1, r2, env->cr[CR_ISR], env->cr[CR_IOR]);
 }
 
 void HELPER(iitlbt_pa20)(CPUHPPAState *env, target_ulong r1, target_ulong r2)
 {
-    vaddr va_b = deposit64(env->cr[CR_IIAOQ], 32, 32, env->cr[CR_IIASQ]);
-    itlbt_pa20(env, r1, r2, va_b);
+    itlbt_pa20(env, r1, r2, env->cr[CR_IIASQ], env->cr[CR_IIAOQ]);
 }
 
 /* Purge (Insn/Data) TLB. */
