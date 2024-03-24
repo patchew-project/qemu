@@ -283,12 +283,13 @@ static inline int HPPA_BTLB_ENTRIES(CPUHPPAState *env)
 
 void hppa_translate_init(void);
 
+#define HPPA_GVA_OFFSET_MASK64 0x301fffffffffffff
 #define CPU_RESOLVING_TYPE TYPE_HPPA_CPU
 
 static inline uint64_t gva_offset_mask(target_ulong psw)
 {
     return (psw & PSW_W
-            ? MAKE_64BIT_MASK(0, 62)
+            ? HPPA_GVA_OFFSET_MASK64
             : MAKE_64BIT_MASK(0, 32));
 }
 
