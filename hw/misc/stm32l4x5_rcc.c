@@ -59,7 +59,12 @@ static void clock_mux_update(RccClockMuxState *mux, bool bypass_source)
         freq_multiplier = mux->divider;
     }
 
-    clock_set_mul_div(mux->out, freq_multiplier, mux->multiplier);
+    if ((mux->out->multiplier != freq_multiplier) ||
+        mux->out->divider != mux->multiplier) {
+        clock_set_mul_div(mux->out, freq_multiplier, mux->multiplier);
+        clock_propagate(mux->out);
+    }
+
     clock_update(mux->out, clock_get(current_source));
 
     src_freq = clock_get_hz(current_source);
