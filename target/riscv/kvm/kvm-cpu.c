@@ -1404,7 +1404,7 @@ static int kvm_riscv_handle_sbi(CPUState *cs, struct kvm_run *run)
         if (ret == sizeof(ch)) {
             run->riscv_sbi.ret[0] = ch;
         } else {
-            run->riscv_sbi.ret[0] = -1;
+            run->riscv_sbi.ret[0] = SBI_ERR_FAILURE;
         }
         ret = 0;
         break;
@@ -1412,7 +1412,8 @@ static int kvm_riscv_handle_sbi(CPUState *cs, struct kvm_run *run)
         qemu_log_mask(LOG_UNIMP,
                       "%s: un-handled SBI EXIT, specific reasons is %lu\n",
                       __func__, run->riscv_sbi.extension_id);
-        ret = -1;
+        run->riscv_sbi.ret[0] = SBI_ERR_NOT_SUPPORTED;
+        ret = 0;
         break;
     }
     return ret;
