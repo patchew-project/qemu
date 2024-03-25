@@ -795,6 +795,13 @@ static uint64_t icv_iar_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return intid;
 }
 
+static uint64_t icv_nmiar1_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* todo */
+    uint64_t intid = INTID_SPURIOUS;
+    return intid;
+}
+
 static uint32_t icc_fullprio_mask(GICv3CPUState *cs)
 {
     /*
@@ -825,11 +832,15 @@ static inline int icc_num_aprs(GICv3CPUState *cs)
     return aprmax;
 }
 
-static int icc_highest_active_prio(GICv3CPUState *cs)
+static uint64_t icc_highest_active_prio(GICv3CPUState *cs)
 {
     /* Calculate the current running priority based on the set bits
      * in the Active Priority Registers.
      */
+    ARMCPU *cpu = ARM_CPU(cs->cpu);
+    CPUARMState *env = &cpu->env;
+
+    uint64_t prio;
     int i;
 
     for (i = 0; i < icc_num_aprs(cs); i++) {
@@ -839,7 +850,32 @@ static int icc_highest_active_prio(GICv3CPUState *cs)
         if (!apr) {
             continue;
         }
-        return (i * 32 + ctz32(apr)) << (icc_min_bpr(cs) + 1);
+        prio = (i * 32 + ctz32(apr)) << (icc_min_bpr(cs) + 1);
+
+        if (cs->gic->nmi_support) {
+            if (cs->gic->gicd_ctlr & GICD_CTLR_DS) {
+                if ((cs->icc_apr[GICV3_G0][i] & ICC_AP1R_EL1_NMI) ||
+                    (cs->icc_apr[GICV3_G1][i] & ICC_AP1R_EL1_NMI) ||
+                    (cs->icc_apr[GICV3_G1NS][i] & ICC_AP1R_EL1_NMI)) {
+                    prio |= ICC_RPR_EL1_NMI;
+                }
+            } else if (!arm_is_secure(env)) {
+                if (cs->icc_apr[GICV3_G1NS][i] & ICC_AP1R_EL1_NMI) {
+                    prio |= ICC_RPR_EL1_NMI;
+                }
+            } else {
+                if (cs->icc_apr[GICV3_G1][i] & ICC_AP1R_EL1_NMI) {
+                    prio |= ICC_RPR_EL1_NMI;
+                }
+            }
+
+            if (arm_feature(env, ARM_FEATURE_EL3) &&
+                cs->icc_apr[GICV3_G1NS][i] & ICC_AP1R_EL1_NMI) {
+                prio |= ICC_RPR_EL1_NSNMI;
+            }
+        }
+
+        return prio;
     }
     /* No current active interrupts: return idle priority */
     return 0xff;
@@ -896,7 +932,7 @@ static bool icc_hppi_can_preempt(GICv3CPUState *cs)
     /* Return true if we have a pending interrupt of sufficient
      * priority to preempt.
      */
-    int rprio;
+    uint64_t rprio;
     uint32_t mask;
 
     if (icc_no_enabled_hppi(cs)) {
@@ -1034,7 +1070,7 @@ static void icc_pmr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     gicv3_cpuif_update(cs);
 }
 
-static void icc_activate_irq(GICv3CPUState *cs, int irq)
+static void icc_activate_irq(GICv3CPUState *cs, int irq, bool nmi)
 {
     /* Move the interrupt from the Pending state to Active, and update
      * the Active Priority Registers
@@ -1046,6 +1082,10 @@ static void icc_activate_irq(GICv3CPUState *cs, int irq)
     int regbit = aprbit % 32;
 
     cs->icc_apr[cs->hppi.grp][regno] |= (1 << regbit);
+
+    if (cs->gic->nmi_support) {
+        cs->icc_apr[cs->hppi.grp][regno] |= (nmi ? ICC_AP1R_EL1_NMI : 0);
+    }
 
     if (irq < GIC_INTERNAL) {
         cs->gicr_iactiver0 = deposit32(cs->gicr_iactiver0, irq, 1, 1);
@@ -1097,7 +1137,8 @@ static uint64_t icc_hppir0_value(GICv3CPUState *cs, CPUARMState *env)
     return cs->hppi.irq;
 }
 
-static uint64_t icc_hppir1_value(GICv3CPUState *cs, CPUARMState *env)
+static uint64_t icc_hppir1_value(GICv3CPUState *cs, CPUARMState *env, bool hppi,
+                                 bool nmi)
 {
     /* Return the highest priority pending interrupt register value
      * for group 1.
@@ -1106,6 +1147,18 @@ static uint64_t icc_hppir1_value(GICv3CPUState *cs, CPUARMState *env)
 
     if (cs->hppi.prio == 0xff) {
         return INTID_SPURIOUS;
+    }
+
+    if (!hppi) {
+        int el = arm_current_el(env);
+
+        if (nmi && (!cs->hppi.nmi)) {
+            return INTID_SPURIOUS;
+        }
+
+        if (!nmi && cs->hppi.nmi && env->cp15.sctlr_el[el] & SCTLR_NMI) {
+            return INTID_NMI;
+        }
     }
 
     /* Check whether we can return the interrupt or if we should return
@@ -1149,7 +1202,7 @@ static uint64_t icc_iar0_read(CPUARMState *env, const ARMCPRegInfo *ri)
     }
 
     if (!gicv3_intid_is_special(intid)) {
-        icc_activate_irq(cs, intid);
+        icc_activate_irq(cs, intid, false);
     }
 
     trace_gicv3_icc_iar0_read(gicv3_redist_affid(cs), intid);
@@ -1168,14 +1221,33 @@ static uint64_t icc_iar1_read(CPUARMState *env, const ARMCPRegInfo *ri)
     if (!icc_hppi_can_preempt(cs)) {
         intid = INTID_SPURIOUS;
     } else {
-        intid = icc_hppir1_value(cs, env);
+        intid = icc_hppir1_value(cs, env, false, false);
     }
 
     if (!gicv3_intid_is_special(intid)) {
-        icc_activate_irq(cs, intid);
+        icc_activate_irq(cs, intid, false);
     }
 
     trace_gicv3_icc_iar1_read(gicv3_redist_affid(cs), intid);
+    return intid;
+}
+
+static uint64_t icc_nmiar1_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    uint64_t intid;
+
+    if (icv_access(env, HCR_IMO)) {
+        return icv_nmiar1_read(env, ri);
+    }
+
+    intid = icc_hppir1_value(cs, env, false, true);
+
+    if (!gicv3_intid_is_special(intid)) {
+        icc_activate_irq(cs, intid, true);
+    }
+
+    trace_gicv3_icc_nmiar1_read(gicv3_redist_affid(cs), intid);
     return intid;
 }
 
@@ -1207,6 +1279,10 @@ static void icc_drop_prio(GICv3CPUState *cs, int grp)
         }
         /* Clear the lowest set bit */
         *papr &= *papr - 1;
+
+        if (cs->gic->nmi_support && (*papr & ICC_AP1R_EL1_NMI)) {
+            *papr &= (~ICC_AP1R_EL1_NMI);
+        }
         break;
     }
 
@@ -1555,7 +1631,7 @@ static uint64_t icc_hppir1_read(CPUARMState *env, const ARMCPRegInfo *ri)
         return icv_hppir_read(env, ri);
     }
 
-    value = icc_hppir1_value(cs, env);
+    value = icc_hppir1_value(cs, env, true, false);
     trace_gicv3_icc_hppir1_read(gicv3_redist_affid(cs), value);
     return value;
 }
@@ -1693,7 +1769,11 @@ static void icc_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
         return;
     }
 
-    cs->icc_apr[grp][regno] = value & 0xFFFFFFFFU;
+    if (cs->gic->nmi_support) {
+        cs->icc_apr[grp][regno] = value & (0xFFFFFFFFU | ICC_AP1R_EL1_NMI);
+    } else {
+        cs->icc_apr[grp][regno] = value & 0xFFFFFFFFU;
+    }
     gicv3_cpuif_update(cs);
 }
 
@@ -1783,7 +1863,7 @@ static void icc_dir_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static uint64_t icc_rpr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
-    int prio;
+    uint64_t prio;
 
     if (icv_access(env, HCR_FMO | HCR_IMO)) {
         return icv_rpr_read(env, ri);
@@ -2482,6 +2562,15 @@ static const ARMCPRegInfo gicv3_cpuif_icc_apxr23_reginfo[] = {
     },
 };
 
+static const ARMCPRegInfo gicv3_cpuif_gicv3_nmi_reginfo[] = {
+    { .name = "ICC_NMIAR1_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 5,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_R, .accessfn = gicv3_irq_access,
+      .readfn = icc_nmiar1_read,
+    },
+};
+
 static uint64_t ich_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
@@ -2837,6 +2926,10 @@ void gicv3_init_cpuif(GICv3State *s)
          * These CP regs callbacks can be called from either TCG or HVF code.
          */
         define_arm_cp_regs(cpu, gicv3_cpuif_reginfo);
+
+        if (s->nmi_support) {
+            define_arm_cp_regs(cpu, gicv3_cpuif_gicv3_nmi_reginfo);
+        }
 
         /*
          * The CPU implementation specifies the number of supported
