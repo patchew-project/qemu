@@ -70,6 +70,7 @@ void fw_cfg_build_smbios(PCMachineState *pcms, FWCfgState *fw_cfg,
     /* tell smbios about cpuid version and features */
     smbios_set_cpuid(cpu->env.cpuid_version, cpu->env.features[FEAT_1_EDX]);
 
+#ifdef CONFIG_SMBIOS_LEGACY
     if (pcmc->smbios_legacy_mode) {
         smbios_tables = smbios_get_table_legacy(&smbios_tables_len,
                                                 &error_fatal);
@@ -77,6 +78,7 @@ void fw_cfg_build_smbios(PCMachineState *pcms, FWCfgState *fw_cfg,
                          smbios_tables, smbios_tables_len);
         return;
     }
+#endif
 
     /* build the array of physical mem area from e820 table */
     mem_array = g_malloc0(sizeof(*mem_array) * e820_get_num_entries());
