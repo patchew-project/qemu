@@ -93,7 +93,7 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
      */
 
     /* The refclk always runs at frequency HCLK / 8 */
-    clock_set_mul_div(s->refclk, 8, 1);
+    clock_set_mul_div(s->refclk, 8, 1, NULL);
     clock_set_source(s->refclk, s->sysclk);
 
     /*

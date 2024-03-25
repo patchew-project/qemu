@@ -111,7 +111,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
      * implement the divisor as a fixed /32, which matches the reset value
      * of SYSTICK_CR.
      */
-    clock_set_mul_div(s->refclk, 32, 1);
+    clock_set_mul_div(s->refclk, 32, 1, NULL);
     clock_set_source(s->refclk, s->m3clk);
 
     memory_region_init_rom(&s->nvm, OBJECT(dev_soc), "MSF2.eNVM", s->envm_size,

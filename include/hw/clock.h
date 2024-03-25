@@ -376,6 +376,7 @@ char *clock_display_freq(Clock *clk);
  * Note that this function does not call clock_propagate(); the
  * caller should do that if necessary.
  */
-void clock_set_mul_div(Clock *clk, uint32_t multiplier, uint32_t divider);
+void clock_set_mul_div(Clock *clk, uint32_t multiplier, uint32_t divider,
+                       bool *changed);
 
 #endif /* QEMU_HW_CLOCK_H */

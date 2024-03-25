@@ -145,7 +145,8 @@ char *clock_display_freq(Clock *clk)
     return freq_to_str(clock_get_hz(clk));
 }
 
-void clock_set_mul_div(Clock *clk, uint32_t multiplier, uint32_t divider)
+void clock_set_mul_div(Clock *clk, uint32_t multiplier, uint32_t divider,
+                       bool *changed)
 {
     assert(divider != 0);
 
@@ -157,6 +158,10 @@ void clock_set_mul_div(Clock *clk, uint32_t multiplier, uint32_t divider)
                             clk->divider, divider);
     clk->multiplier = multiplier;
     clk->divider = divider;
+
+    if (changed) {
+        *changed = true;
+    }
 }
 
 static void clock_initfn(Object *obj)
