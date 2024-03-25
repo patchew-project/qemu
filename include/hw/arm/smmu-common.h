@@ -39,6 +39,21 @@
 
 #define SMMU_STAGE_TO_TLB_TAG(stage)        (((stage) == SMMU_NESTED) ? \
                                              SMMU_STAGE_1 : (stage))
+
+#define CACHED_ENTRY_TO_ADDR(ent, addr)      (ent)->entry.translated_addr + \
+                                             ((addr) & (ent)->entry.addr_mask);
+
+/*
+ * From nested context, some functions might need to translate IPA addresses.
+ * As cfg has SMMU_NESTED, this won't work, this macro calls a function with
+ * making it a stage-2 cfg and then restore it after.
+ */
+#define CALL_FUNC_CFG_S2(cfg, ret, fn, ...)  ({ \
+                                                   cfg->stage = SMMU_STAGE_2; \
+                                                   ret = fn(__VA_ARGS__); \
+                                                   cfg->stage = SMMU_NESTED; \
+                                              })
+
 /*
  * Page table walk error types
  */
