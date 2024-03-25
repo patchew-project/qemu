@@ -119,7 +119,7 @@ void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new)
     *key = smmu_get_iotlb_key(cfg->asid, cfg->s2cfg.vmid, new->entry.iova,
                               tg, new->level, stage_tag);
     trace_smmu_iotlb_insert(cfg->asid, cfg->s2cfg.vmid, new->entry.iova,
-                            tg, new->level, stage_tag);
+                            tg, new->level, new->entry.addr_mask, stage_tag);
     g_hash_table_insert(bs->iotlb, key, new);
 }
 
@@ -305,6 +305,27 @@ SMMUTransTableInfo *select_tt(SMMUTransCfg *cfg, dma_addr_t iova)
     return NULL;
 }
 
+/* Return the correct table address based on configuration. */
+static inline int translate_table_s1(dma_addr_t *table_addr, SMMUTransCfg *cfg,
+                                     SMMUPTWEventInfo *info, SMMUState *bs)
+{
+    dma_addr_t addr = *table_addr;
+    SMMUTLBEntry *cached_entry;
+
+    if (cfg->stage != SMMU_NESTED) {
+        return 0;
+    }
+
+    CALL_FUNC_CFG_S2(cfg, cached_entry, smmu_translate,
+                     bs, cfg, addr, IOMMU_RO, info);
+
+    if (cached_entry) {
+        *table_addr = CACHED_ENTRY_TO_ADDR(cached_entry, addr);
+        return 0;
+    }
+    return -EINVAL;
+}
+
 /**
  * smmu_ptw_64_s1 - VMSAv8-64 Walk of the page tables for a given IOVA
  * @cfg: translation config
@@ -320,7 +341,8 @@ SMMUTransTableInfo *select_tt(SMMUTransCfg *cfg, dma_addr_t iova)
  */
 static int smmu_ptw_64_s1(SMMUTransCfg *cfg,
                           dma_addr_t iova, IOMMUAccessFlags perm,
-                          SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info)
+                          SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info,
+                          SMMUState *bs)
 {
     dma_addr_t baseaddr, indexmask;
     SMMUStage stage = cfg->stage;
@@ -368,6 +390,10 @@ static int smmu_ptw_64_s1(SMMUTransCfg *cfg,
                 goto error;
             }
             baseaddr = get_table_pte_address(pte, granule_sz);
+            /* In case of failure, retain stage-2 fault. */
+            if (translate_table_s1(&baseaddr, cfg, info, bs)) {
+                goto error_no_stage;
+            }
             level++;
             continue;
         } else if (is_page_pte(pte, level)) {
@@ -403,7 +429,7 @@ static int smmu_ptw_64_s1(SMMUTransCfg *cfg,
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = iova & ~mask;
         tlbe->entry.addr_mask = mask;
-        tlbe->entry.perm = PTE_AP_TO_PERM(ap);
+        tlbe->parent_perm = tlbe->entry.perm = PTE_AP_TO_PERM(ap);
         tlbe->level = level;
         tlbe->granule = granule_sz;
         return 0;
@@ -412,6 +438,7 @@ static int smmu_ptw_64_s1(SMMUTransCfg *cfg,
 
 error:
     info->stage = SMMU_STAGE_1;
+error_no_stage:
     tlbe->entry.perm = IOMMU_NONE;
     return -EINVAL;
 }
@@ -524,7 +551,7 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = ipa & ~mask;
         tlbe->entry.addr_mask = mask;
-        tlbe->entry.perm = s2ap;
+        tlbe->parent_perm = tlbe->entry.perm = s2ap;
         tlbe->level = level;
         tlbe->granule = granule_sz;
         return 0;
@@ -535,6 +562,35 @@ error:
     info->stage = SMMU_STAGE_2;
     tlbe->entry.perm = IOMMU_NONE;
     return -EINVAL;
+}
+
+/* Combine 2 TLB enteries and return in tlbe. */
+static void combine_tlb(SMMUTLBEntry *tlbe, SMMUTLBEntry *tlbe_s2,
+                        dma_addr_t iova, SMMUTransCfg *cfg)
+{
+        if (cfg->stage == SMMU_NESTED) {
+
+            /*
+             * tg and level are used from stage-1, while the addr mask can be
+             * smaller in case stage-2 size(based on granule and level) was
+             * smaller than stage-1.
+             * That should have no impact on:
+             * - lookup: as iova is properly aligned with the stage-1 level and
+             *   granule.
+             * - Invalidation: as it uses the entry mask.
+             */
+            tlbe->entry.addr_mask = MIN(tlbe->entry.addr_mask,
+                                        tlbe_s2->entry.addr_mask);
+            tlbe->entry.translated_addr = CACHED_ENTRY_TO_ADDR(tlbe_s2,
+                                          tlbe->entry.translated_addr);
+
+            /* parent_perm has s2 perm while perm has s1 perm. */
+            tlbe->parent_perm = tlbe_s2->entry.perm;
+            return;
+        }
+
+        /* That was not nested, use the s2. */
+        memcpy(tlbe, tlbe_s2, sizeof(*tlbe));
 }
 
 /**
@@ -549,28 +605,59 @@ error:
  * return 0 on success
  */
 int smmu_ptw(SMMUTransCfg *cfg, dma_addr_t iova, IOMMUAccessFlags perm,
-             SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info)
+             SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info, SMMUState *bs)
 {
-    if (cfg->stage == SMMU_STAGE_1) {
-        return smmu_ptw_64_s1(cfg, iova, perm, tlbe, info);
-    } else if (cfg->stage == SMMU_STAGE_2) {
-        /*
-         * If bypassing stage 1(or unimplemented), the input address is passed
-         * directly to stage 2 as IPA. If the input address of a transaction
-         * exceeds the size of the IAS, a stage 1 Address Size fault occurs.
-         * For AA64, IAS = OAS according to (IHI 0070.E.a) "3.4 Address sizes"
-         */
-        if (iova >= (1ULL << cfg->oas)) {
-            info->type = SMMU_PTW_ERR_ADDR_SIZE;
-            info->stage = SMMU_STAGE_1;
-            tlbe->entry.perm = IOMMU_NONE;
-            return -EINVAL;
-        }
+    int ret = 0;
+    SMMUTLBEntry tlbe_s2;
+    dma_addr_t ipa = iova;
 
-        return smmu_ptw_64_s2(cfg, iova, perm, tlbe, info);
+    if (cfg->stage & SMMU_STAGE_1) {
+        ret = smmu_ptw_64_s1(cfg, iova, perm, tlbe, info, bs);
+        if (ret) {
+            return ret;
+        }
+        /* This is the IPA for next stage.*/
+        ipa = CACHED_ENTRY_TO_ADDR(tlbe, iova);
     }
 
-    g_assert_not_reached();
+    /*
+     * The address output from the translation causes a stage 1 Address Size
+     * fault if it exceeds the range of the effective IPA size for the given CD.
+     * If bypassing stage 1(or unimplemented), the input address is passed
+     * directly to stage 2 as IPA. If the input address of a transaction
+     * exceeds the size of the IAS, a stage 1 Address Size fault occurs.
+     * For AA64, IAS = OAS according to (IHI 0070.E.a) "3.4 Address sizes"
+     */
+    if (ipa >= (1ULL << cfg->oas)) {
+        info->type = SMMU_PTW_ERR_ADDR_SIZE;
+        info->stage = SMMU_STAGE_1;
+        tlbe->entry.perm = IOMMU_NONE;
+        return -EINVAL;
+    }
+
+    if (cfg->stage & SMMU_STAGE_2) {
+        ret = smmu_ptw_64_s2(cfg, ipa, perm, &tlbe_s2, info);
+        if (ret) {
+            return ret;
+        }
+        combine_tlb(tlbe, &tlbe_s2, iova, cfg);
+    }
+
+    return ret;
+}
+
+static int validate_tlb_entry(SMMUTLBEntry *cached_entry, IOMMUAccessFlags flag,
+                              SMMUPTWEventInfo *info)
+{
+        if ((flag & IOMMU_WO) && !(cached_entry->entry.perm &
+            cached_entry->parent_perm & IOMMU_WO)) {
+            info->type = SMMU_PTW_ERR_PERMISSION;
+            info->stage = !(cached_entry->entry.perm & IOMMU_WO) ?
+                          SMMU_STAGE_1 :
+                          SMMU_STAGE_2;
+            return -EINVAL;
+        }
+        return 0;
 }
 
 SMMUTLBEntry *smmu_translate(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t addr,
@@ -614,16 +701,14 @@ SMMUTLBEntry *smmu_translate(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t addr,
 
     cached_entry = smmu_iotlb_lookup(bs, cfg, &tt_combined, aligned_addr);
     if (cached_entry) {
-        if ((flag & IOMMU_WO) && !(cached_entry->entry.perm & IOMMU_WO)) {
-            info->type = SMMU_PTW_ERR_PERMISSION;
-            info->stage = SMMU_STAGE_TO_TLB_TAG(cfg->stage);
+        if (validate_tlb_entry(cached_entry, flag, info)) {
             return NULL;
         }
         return cached_entry;
     }
 
     cached_entry = g_new0(SMMUTLBEntry, 1);
-    status = smmu_ptw(cfg, aligned_addr, flag, cached_entry, info);
+    status = smmu_ptw(cfg, aligned_addr, flag, cached_entry, info, bs);
     if (status) {
             g_free(cached_entry);
             return NULL;
