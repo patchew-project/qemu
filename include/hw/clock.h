@@ -180,21 +180,28 @@ static inline bool clock_has_source(const Clock *clk)
  * clock_set:
  * @clk: the clock to initialize.
  * @value: the clock's value, 0 means unclocked
+ * @changed: set to true if the clock is changed, ignored if set to NULL.
  *
  * Set the local cached period value of @clk to @value.
- *
- * @return: true if the clock is changed.
  */
-bool clock_set(Clock *clk, uint64_t value);
+void clock_set(Clock *clk, uint64_t period, bool *changed);
 
 static inline bool clock_set_hz(Clock *clk, unsigned hz)
 {
-    return clock_set(clk, CLOCK_PERIOD_FROM_HZ(hz));
+    bool changed = false;
+
+    clock_set(clk, CLOCK_PERIOD_FROM_HZ(hz), &changed);
+
+    return changed;
 }
 
 static inline bool clock_set_ns(Clock *clk, unsigned ns)
 {
-    return clock_set(clk, CLOCK_PERIOD_FROM_NS(ns));
+    bool changed = false;
+
+    clock_set(clk, CLOCK_PERIOD_FROM_NS(ns), &changed);
+
+    return changed;
 }
 
 /**
@@ -220,7 +227,10 @@ void clock_propagate(Clock *clk);
  */
 static inline void clock_update(Clock *clk, uint64_t value)
 {
-    if (clock_set(clk, value)) {
+    bool changed = false;
+
+    clock_set(clk, value, &changed);
+    if (changed) {
         clock_propagate(clk);
     }
 }

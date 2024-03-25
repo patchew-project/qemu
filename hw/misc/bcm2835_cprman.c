@@ -680,7 +680,7 @@ static void cprman_init(Object *obj)
     s->xosc = clock_new(obj, "xosc");
     s->gnd = clock_new(obj, "gnd");
 
-    clock_set(s->gnd, 0);
+    clock_set(s->gnd, 0, NULL);
 
     memory_region_init_io(&s->iomem, obj, &cprman_ops,
                           s, "bcm2835-cprman", 0x2000);

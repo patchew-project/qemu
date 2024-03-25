@@ -52,16 +52,18 @@ void clock_clear_callback(Clock *clk)
     clock_set_callback(clk, NULL, NULL, 0);
 }
 
-bool clock_set(Clock *clk, uint64_t period)
+void clock_set(Clock *clk, uint64_t period, bool *changed)
 {
     if (clk->period == period) {
-        return false;
+        return;
     }
     trace_clock_set(CLOCK_PATH(clk), CLOCK_PERIOD_TO_HZ(clk->period),
                     CLOCK_PERIOD_TO_HZ(period));
     clk->period = period;
 
-    return true;
+    if (changed) {
+        *changed = true;
+    }
 }
 
 static uint64_t clock_get_child_period(Clock *clk)
