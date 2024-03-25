@@ -44,7 +44,7 @@ static void stm32vldiscovery_init(MachineState *machine)
 
     /* This clock doesn't need migration because it is fixed-frequency */
     sysclk = clock_new(OBJECT(machine), "SYSCLK");
-    clock_set_hz(sysclk, SYSCLK_FRQ);
+    clock_set_hz(sysclk, SYSCLK_FRQ, NULL);
 
     dev = qdev_new(TYPE_STM32F100_SOC);
     object_property_add_child(OBJECT(machine), "soc", OBJECT(dev));

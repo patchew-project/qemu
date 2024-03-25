@@ -360,7 +360,7 @@ static void mps3r_common_init(MachineState *machine)
     QList *oscclk;
 
     mms->clk = clock_new(OBJECT(machine), "CLK");
-    clock_set_hz(mms->clk, CLK_FRQ);
+    clock_set_hz(mms->clk, CLK_FRQ, NULL);
 
     for (const RAMInfo *ri = mmc->raminfo; ri->name; ri++) {
         MemoryRegion *mr = mr_for_raminfo(mms, ri);

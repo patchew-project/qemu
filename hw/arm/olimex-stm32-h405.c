@@ -44,7 +44,7 @@ static void olimex_stm32_h405_init(MachineState *machine)
 
     /* This clock doesn't need migration because it is fixed-frequency */
     sysclk = clock_new(OBJECT(machine), "SYSCLK");
-    clock_set_hz(sysclk, SYSCLK_FRQ);
+    clock_set_hz(sysclk, SYSCLK_FRQ, NULL);
 
     dev = qdev_new(TYPE_STM32F405_SOC);
     object_property_add_child(OBJECT(machine), "soc", OBJECT(dev));

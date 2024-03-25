@@ -366,9 +366,9 @@ static void musca_init(MachineState *machine)
     assert(mmc->num_mpcs <= MUSCA_MPC_MAX);
 
     mms->sysclk = clock_new(OBJECT(machine), "SYSCLK");
-    clock_set_hz(mms->sysclk, SYSCLK_FRQ);
+    clock_set_hz(mms->sysclk, SYSCLK_FRQ, NULL);
     mms->s32kclk = clock_new(OBJECT(machine), "S32KCLK");
-    clock_set_hz(mms->s32kclk, S32KCLK_FRQ);
+    clock_set_hz(mms->s32kclk, S32KCLK_FRQ, NULL);
 
     object_initialize_child(OBJECT(machine), "sse-200", &mms->sse,
                             TYPE_SSE200);

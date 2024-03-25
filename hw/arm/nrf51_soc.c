@@ -75,7 +75,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
     /* This clock doesn't need migration because it is fixed-frequency */
-    clock_set_hz(s->sysclk, HCLK_FRQ);
+    clock_set_hz(s->sysclk, HCLK_FRQ, NULL);
     qdev_connect_clock_in(DEVICE(&s->cpu), "cpuclk", s->sysclk);
     /*
      * This SoC has no systick device, so don't connect refclk.

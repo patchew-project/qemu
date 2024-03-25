@@ -228,7 +228,7 @@ static void zynq_init(MachineState *machine)
     object_property_add_child(OBJECT(zynq_machine), "ps_clk",
                               OBJECT(zynq_machine->ps_clk));
     object_unref(OBJECT(zynq_machine->ps_clk));
-    clock_set_hz(zynq_machine->ps_clk, PS_CLK_FREQUENCY);
+    clock_set_hz(zynq_machine->ps_clk, PS_CLK_FREQUENCY, NULL);
 
     /* Create slcr, keep a pointer to connect clocks */
     slcr = qdev_new("xilinx-zynq_slcr");

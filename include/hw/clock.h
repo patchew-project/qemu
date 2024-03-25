@@ -186,13 +186,9 @@ static inline bool clock_has_source(const Clock *clk)
  */
 void clock_set(Clock *clk, uint64_t period, bool *changed);
 
-static inline bool clock_set_hz(Clock *clk, unsigned hz)
+static inline void clock_set_hz(Clock *clk, unsigned hz, bool *changed)
 {
-    bool changed = false;
-
-    clock_set(clk, CLOCK_PERIOD_FROM_HZ(hz), &changed);
-
-    return changed;
+    clock_set(clk, CLOCK_PERIOD_FROM_HZ(hz), changed);
 }
 
 static inline void clock_set_ns(Clock *clk, unsigned ns, bool *changed)

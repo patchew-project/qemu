@@ -71,7 +71,7 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
      */
     /* This clock doesn't need migration because it is fixed-frequency */
     m3clk = clock_new(OBJECT(machine), "m3clk");
-    clock_set_hz(m3clk, 142 * 1000000);
+    clock_set_hz(m3clk, 142 * 1000000, NULL);
     qdev_connect_clock_in(dev, "m3clk", m3clk);
     qdev_prop_set_uint32(dev, "apb0div", 2);
     qdev_prop_set_uint32(dev, "apb1div", 2);

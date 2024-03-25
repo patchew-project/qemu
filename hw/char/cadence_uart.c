@@ -566,7 +566,7 @@ static void cadence_uart_init(Object *obj)
     s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk",
                                    cadence_uart_refclk_update, s, ClockUpdate);
     /* initialize the frequency in case the clock remains unconnected */
-    clock_set_hz(s->refclk, UART_DEFAULT_REF_CLK);
+    clock_set_hz(s->refclk, UART_DEFAULT_REF_CLK, NULL);
 
     s->char_tx_time = (NANOSECONDS_PER_SECOND / 9600) * 10;
 }
@@ -576,7 +576,7 @@ static int cadence_uart_pre_load(void *opaque)
     CadenceUARTState *s = opaque;
 
     /* the frequency will be overridden if the refclk field is present */
-    clock_set_hz(s->refclk, UART_DEFAULT_REF_CLK);
+    clock_set_hz(s->refclk, UART_DEFAULT_REF_CLK, NULL);
     return 0;
 }
 

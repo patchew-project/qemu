@@ -1521,7 +1521,7 @@ static void aspeed_minibmc_machine_init(MachineState *machine)
     Clock *sysclk;
 
     sysclk = clock_new(OBJECT(machine), "SYSCLK");
-    clock_set_hz(sysclk, SYSCLK_FRQ);
+    clock_set_hz(sysclk, SYSCLK_FRQ, NULL);
 
     bmc->soc = ASPEED_SOC(object_new(amc->soc_name));
     object_property_add_child(OBJECT(machine), "soc", OBJECT(bmc->soc));

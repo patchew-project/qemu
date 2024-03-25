@@ -818,9 +818,9 @@ static void mps2tz_common_init(MachineState *machine)
 
     /* These clocks don't need migration because they are fixed-frequency */
     mms->sysclk = clock_new(OBJECT(machine), "SYSCLK");
-    clock_set_hz(mms->sysclk, mmc->sysclk_frq);
+    clock_set_hz(mms->sysclk, mmc->sysclk_frq, NULL);
     mms->s32kclk = clock_new(OBJECT(machine), "S32KCLK");
-    clock_set_hz(mms->s32kclk, S32KCLK_FRQ);
+    clock_set_hz(mms->s32kclk, S32KCLK_FRQ, NULL);
 
     object_initialize_child(OBJECT(machine), TYPE_IOTKIT, &mms->iotkit,
                             mmc->armsse_type);

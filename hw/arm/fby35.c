@@ -119,7 +119,7 @@ static void fby35_bic_init(Fby35State *s)
     AspeedSoCState *soc;
 
     s->bic_sysclk = clock_new(OBJECT(s), "SYSCLK");
-    clock_set_hz(s->bic_sysclk, 200000000ULL);
+    clock_set_hz(s->bic_sysclk, 200000000ULL, NULL);
 
     object_initialize_child(OBJECT(s), "bic", &s->bic, "ast1030-a1");
     soc = ASPEED_SOC(&s->bic);
