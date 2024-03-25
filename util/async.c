@@ -705,7 +705,18 @@ void aio_co_enter(AioContext *ctx, Coroutine *co)
     if (qemu_in_coroutine()) {
         Coroutine *self = qemu_coroutine_self();
         assert(self != co);
-        QSIMPLEQ_INSERT_TAIL(&self->co_queue_wakeup, co, co_queue_next);
+        /*
+         * If the Coroutine *co is already in the co_queue_wakeup, this
+         * repeated insertion will causes the loss of other queue element
+         * or infinite loop.
+         * For examplex:
+         * Head->a->b->c->NULL, after insert_tail(head, b) => Head->a->b->NULL
+         * Head->a-b>->NULL, after insert_tail(head, b) => Head->a->b->b...
+         */
+        if (!co->co_queue_next.sqe_next &&
+            self->co_queue_wakeup.sqh_last != &co->co_queue_next.sqe_next) {
+            QSIMPLEQ_INSERT_TAIL(&self->co_queue_wakeup, co, co_queue_next);
+        }
     } else {
         qemu_aio_coroutine_enter(ctx, co);
     }
