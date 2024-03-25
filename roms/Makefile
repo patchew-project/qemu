@@ -51,6 +51,8 @@ SEABIOS_EXTRAVERSION="-prebuilt.qemu.org"
 # efi ia32, efi x64) into a single rom binary.
 #
 EDK2_EFIROM = edk2/BaseTools/Source/C/bin/EfiRom
+EDK2_STABLE = $(shell cd edk2; git describe --tags --match 'edk2-stable*')
+EDK2_DATE = $(shell cd edk2; git show --pretty='format:%cd' --date='format:%m/%d/%Y'| head -1)
 
 default help:
 	@echo "nothing is build by default"
@@ -149,8 +151,9 @@ skiboot:
 
 efi:
 	$(PYTHON) edk2-build.py --config edk2-build.config \
-		--version-override "edk2-stable202302-for-qemu" \
-		--release-date "03/01/2023"
+		--version-override "$(EDK2_STABLE)-for-qemu" \
+		--release-date "$(EDK2_DATE)" \
+		--silent --no-logs
 	rm -f ../pc-bios/edk2-*.fd.bz2
 	bzip2 --verbose ../pc-bios/edk2-*.fd
 
