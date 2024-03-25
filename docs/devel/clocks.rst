@@ -298,7 +298,7 @@ object during device instance init. For example:
     clk = qdev_init_clock_in(DEVICE(dev), "clk-in", clk_in_callback,
                              dev, ClockUpdate);
     /* set initial value to 10ns / 100MHz */
-    clock_set_ns(clk, 10);
+    clock_set_ns(clk, 10, NULL);
 
 To enforce that the clock is wired up by the board code, you can
 call ``clock_has_source()`` in your device's realize method:

@@ -195,13 +195,9 @@ static inline bool clock_set_hz(Clock *clk, unsigned hz)
     return changed;
 }
 
-static inline bool clock_set_ns(Clock *clk, unsigned ns)
+static inline void clock_set_ns(Clock *clk, unsigned ns, bool *changed)
 {
-    bool changed = false;
-
-    clock_set(clk, CLOCK_PERIOD_FROM_NS(ns), &changed);
-
-    return changed;
+    clock_set(clk, CLOCK_PERIOD_FROM_NS(ns), changed);
 }
 
 /**

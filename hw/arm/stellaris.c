@@ -279,7 +279,7 @@ static void ssys_calculate_system_clock(ssys_state *s, bool propagate_clock)
     } else {
         period_ns = 5 * (((s->rcc >> 23) & 0xf) + 1);
     }
-    clock_set_ns(s->sysclk, period_ns);
+    clock_set_ns(s->sysclk, period_ns, NULL);
     if (propagate_clock) {
         clock_propagate(s->sysclk);
     }
