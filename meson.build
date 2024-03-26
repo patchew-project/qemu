@@ -591,6 +591,7 @@ warn_flags = [
   '-Wold-style-definition',
   '-Wredundant-decls',
   '-Wshadow=local',
+  '-Wstatic-in-inline',
   '-Wstrict-prototypes',
   '-Wtype-limits',
   '-Wundef',
