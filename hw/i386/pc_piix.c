@@ -921,6 +921,7 @@ static void isapc_machine_options(MachineClass *m)
     m->default_nic = "ne2k_isa";
     m->default_cpu_type = X86_CPU_TYPE_NAME("486");
     m->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
+    m->deprecation_reason = "old and unattended - use a newer version instead";
 }
 
 DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
