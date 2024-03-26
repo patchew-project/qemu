@@ -66,7 +66,11 @@ static void vmsg_unblock_fds(VhostUserMsg *vmsg)
 {
     int i;
     for (i = 0; i < vmsg->fd_num; i++) {
-        qemu_socket_set_nonblock(vmsg->fds[i]);
+        int ret = qemu_socket_try_set_nonblock(vmsg->fds[i]);
+        if (ret) {
+            warn_report("Failed to set fd %d nonblock for request %d: %s",
+                        vmsg->fds[i], vmsg->request, strerror(-ret));
+        }
     }
 }
 
