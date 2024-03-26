@@ -190,8 +190,9 @@ static bool ebpf_rss_set_indirections_table(struct EBPFRSSContext *ctx,
         return false;
     }
 
-    memcpy(ctx->mmap_indirections_table, indirections_table,
-            sizeof(*indirections_table) * len);
+    for (size_t i = 0; i < len; i++) {
+        ctx->mmap_indirections_table[i] = indirections_table[i];
+    }
     return true;
 }
 

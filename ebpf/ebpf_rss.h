@@ -26,7 +26,7 @@ struct EBPFRSSContext {
     /* mapped eBPF maps for direct access to omit bpf_map_update_elem() */
     void *mmap_configuration;
     void *mmap_toeplitz_key;
-    void *mmap_indirections_table;
+    uint64_t *mmap_indirections_table;
 };
 
 struct EBPFRSSConfig {
