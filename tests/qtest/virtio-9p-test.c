@@ -600,39 +600,13 @@ static void fs_create_unlinkat_symlink(void *obj, void *data,
     g_assert(stat(new_dir, &st) != 0);
 }
 
-static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
+static void fs_create_unlinkat_hardlink(void *obj, void *data,
+                                        QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
-    struct stat st_real, st_link;
-    g_autofree char *real_file = virtio_9p_test_path("07/real_file");
-    g_autofree char *hardlink_file = virtio_9p_test_path("07/hardlink_file");
-
-    tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "07" });
-    tlcreate({ .client = v9p, .atPath = "07", .name = "real_file" });
-    g_assert(stat(real_file, &st_real) == 0);
-    g_assert((st_real.st_mode & S_IFMT) == S_IFREG);
-
-    tlink({
-        .client = v9p, .atPath = "07", .name = "hardlink_file",
-        .toPath = "07/real_file"
-    });
-
-    /* check if link exists now ... */
-    g_assert(stat(hardlink_file, &st_link) == 0);
-    /* ... and it's a hard link, right? */
-    g_assert((st_link.st_mode & S_IFMT) == S_IFREG);
-    g_assert(st_link.st_dev == st_real.st_dev);
-    g_assert(st_link.st_ino == st_real.st_ino);
-}
-
-static void fs_unlinkat_hardlink(void *obj, void *data,
-                                 QGuestAllocator *t_alloc)
-{
-    QVirtio9P *v9p = obj;
-    v9fs_set_allocator(t_alloc);
-    struct stat st_real, st_link;
+    struct stat st_real, st_link, st;
+    g_autofree char *new_dir = virtio_9p_test_path("08");
     g_autofree char *real_file = virtio_9p_test_path("08/real_file");
     g_autofree char *hardlink_file = virtio_9p_test_path("08/hardlink_file");
 
@@ -646,13 +620,29 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
         .client = v9p, .atPath = "08", .name = "hardlink_file",
         .toPath = "08/real_file"
     });
+
+    /* check if link exists now ... */
     g_assert(stat(hardlink_file, &st_link) == 0);
+    /* ... and it's a hard link, right? */
+    g_assert((st_link.st_mode & S_IFMT) == S_IFREG);
+    g_assert(st_link.st_dev == st_real.st_dev);
+    g_assert(st_link.st_ino == st_real.st_ino);
 
     tunlinkat({ .client = v9p, .atPath = "08", .name = "hardlink_file" });
     /* symlink should be gone now */
     g_assert(stat(hardlink_file, &st_link) != 0);
     /* and old file should still exist */
     g_assert(stat(real_file, &st_real) == 0);
+
+    /* cleanup: remove old file and dir */
+    tunlinkat({ .client = v9p, .atPath = "08", .name = "real_file" });
+    g_assert(stat(real_file, &st_real) != 0);
+
+    tunlinkat({
+        .client = v9p, .atPath = "/", .name = "08",
+        .flags = P9_DOTL_AT_REMOVEDIR
+    });
+    g_assert(stat(new_dir, &st) != 0);
 }
 
 static void *assign_9p_local_driver(GString *cmd_line, void *arg)
@@ -714,9 +704,8 @@ static void register_virtio_9p_test(void)
                  fs_create_unlinkat_file, &opts);
     qos_add_test("local/create_unlinkat_symlink", "virtio-9p",
                  fs_create_unlinkat_symlink, &opts);
-    qos_add_test("local/hardlink_file", "virtio-9p", fs_hardlink_file, &opts);
-    qos_add_test("local/unlinkat_hardlink", "virtio-9p", fs_unlinkat_hardlink,
-                 &opts);
+    qos_add_test("local/create_unlinkat_hardlink", "virtio-9p",
+                 fs_create_unlinkat_hardlink, &opts);
 }
 
 libqos_init(register_virtio_9p_test);
