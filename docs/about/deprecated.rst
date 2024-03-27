@@ -208,6 +208,13 @@ is no longer packaged in any distro making it harder to run the
 ``check-tcg`` tests. Unless we can improve the testing situation there
 is a chance the code will bitrot without anyone noticing.
 
+64-bit (x86_64) CPUs on the ``isapc`` machine (since 9.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``isapc`` machine aims to emulate old PC machine without PCI was
+generalized, so hardware available around 1995, before 64-bit intel
+CPUs were produced.
+
 System emulator machines
 ------------------------
 

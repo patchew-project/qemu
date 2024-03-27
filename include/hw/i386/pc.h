@@ -96,6 +96,7 @@ struct PCMachineClass {
     const char *default_south_bridge;
 
     /* Compat options: */
+    bool deprecate_64bit_cpu; /* Specific to the 'isapc' machine */
 
     /* Default CPU model version.  See x86_cpu_set_default_version(). */
     int default_cpu_version;

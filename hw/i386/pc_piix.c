@@ -182,7 +182,20 @@ static void pc_init1(MachineState *machine, const char *pci_type)
     }
 
     pc_machine_init_sgx_epc(pcms);
+
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
+    if (pcmc->deprecate_64bit_cpu) {
+        X86CPU *cpu = X86_CPU(first_cpu);
+
+        if (cpu->env.features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
+            const char *cpu_type = object_get_typename(OBJECT(first_cpu));
+            int cpu_len = strlen(cpu_type) - strlen(X86_CPU_TYPE_SUFFIX);
+
+            warn_report("Use of 64-bit CPU '%.*s' is deprecated"
+                        " on the ISA-only PC machine",
+                        cpu_len, cpu_type);
+        }
+    }
 
     if (kvm_enabled()) {
         kvmclock_create(pcmc->kvmclock_create_always);
@@ -918,6 +931,7 @@ static void isapc_machine_options(MachineClass *m)
     pcmc->gigabyte_align = false;
     pcmc->smbios_legacy_mode = true;
     pcmc->has_reserved_memory = false;
+    pcmc->deprecate_64bit_cpu = true;
     m->default_nic = "ne2k_isa";
     m->default_cpu_type = X86_CPU_TYPE_NAME("486");
     m->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
