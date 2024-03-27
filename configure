@@ -262,6 +262,7 @@ unset target_list_exclude
 # The following Meson options are handled manually (still they
 # are included in the automatically generated help message)
 # because they automatically enable/disable other options
+sanitizers=no
 tcg="auto"
 cfi="false"
 
@@ -712,6 +713,10 @@ for opt do
       meson_option_parse --enable-debug-mutex ""
       meson_option_add -Doptimization=0
       default_cflags='-O0 -g'
+  ;;
+  --disable-sanitizers) sanitizers=no
+  ;;
+  --enable-sanitizers) sanitizers=yes
   ;;
   --disable-tcg) tcg="disabled"
   ;;
@@ -1706,9 +1711,15 @@ if test "$skip_meson" = no; then
   echo "cpp_link_args = [$(meson_quote $CXXFLAGS $LDFLAGS $EXTRA_CXXFLAGS $EXTRA_LDFLAGS)]" >> $cross
 
   # Only enable by default for git builds and on select OSes
+  # Also don't enable if sanitizers are enabled. The GCC documentation says:
+  # > Note that sanitizers tend to increase the rate of false positive warnings,
+  # > most notably those around -Wmaybe-uninitialized. We recommend against
+  # > combining -Werror and [the use of] sanitizers.
+  # https://gcc.gnu.org/onlinedocs/gcc-13.2.0/gcc/Instrumentation-Options.html
   echo "# environment defaults, can still be overridden on " >> $cross
   echo "# the command line" >> $cross
   if test -e "$source_path/.git" && \
+      test "$sanitizers" == no && \
       { test "$host_os" = linux || test "$host_os" = "windows"; }; then
       echo 'werror = true' >> $cross
   fi
@@ -1789,6 +1800,7 @@ if test "$skip_meson" = no; then
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$plugins" = yes && meson_option_add "-Dplugins=true"
   test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
+  test "$sanitizers" = yes && meson_option_add -Dsanitizers=true
   run_meson() {
     NINJA=$ninja $meson setup "$@" "$PWD" "$source_path"
   }
