@@ -699,6 +699,11 @@ The RISC-V ISA privilege specification version 1.09.1 has been removed.
 QEMU supports both the newer version 1.10.0 and the ratified version 1.11.0, these
 should be used instead of the 1.09.1 version.
 
+Nios II architecture (removed in 9.1)
+'''''''''''''''''''''''''''''''''''''
+
+The Nios II architecture was orphan.
+
 System emulator CPUS
 --------------------
 
@@ -841,6 +846,11 @@ ppc ``taihu`` machine (removed in 7.2)
 This machine was removed because it was partially emulated and 405
 machines are very similar. Use the ``ref405ep`` machine instead.
 
+Nios II ``10m50-ghrd`` and ``nios2-generic-nommu`` machines (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The Nios II architecture was orphan.
+
 linux-user mode CPUs
 --------------------
 
@@ -860,6 +870,10 @@ The ``ppc64abi32`` architecture has a number of issues which regularly
 tripped up the CI testing and was suspected to be quite broken. For that
 reason the maintainers strongly suspected no one actually used it.
 
+``nios2`` CPU (removed in 9.1)
+''''''''''''''''''''''''''''''
+
+The Nios II architecture was orphan.
 
 TCG introspection features
 --------------------------
