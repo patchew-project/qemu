@@ -506,32 +506,13 @@ static void fs_readdir_split_512(void *obj, void *data,
 
 /* tests using the 9pfs 'local' fs driver */
 
-static void fs_create_dir(void *obj, void *data, QGuestAllocator *t_alloc)
+static void fs_create_unlinkat_dir(void *obj, void *data,
+                                   QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
     const char *new_dir = "01";
-    g_autofree char *root_path = virtio_9p_test_path("");
-    g_autofree char *new_dir_path = virtio_9p_test_path(new_dir);
-
-    g_assert(root_path != NULL);
-
-    tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
-
-    /* check if created directory really exists now ... */
-    g_assert(stat(new_dir_path, &st) == 0);
-    /* ... and is actually a directory */
-    g_assert((st.st_mode & S_IFMT) == S_IFDIR);
-}
-
-static void fs_unlinkat_dir(void *obj, void *data, QGuestAllocator *t_alloc)
-{
-    QVirtio9P *v9p = obj;
-    v9fs_set_allocator(t_alloc);
-    struct stat st;
-    const char *new_dir = "02";
     g_autofree char *root_path = virtio_9p_test_path("");
     g_autofree char *new_dir_path = virtio_9p_test_path(new_dir);
 
@@ -558,7 +539,7 @@ static void fs_create_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
-    const char *new_dir = "03";
+    const char *new_dir = "02";
     g_autofree char *new_file = g_strdup_printf("%s/%s", new_dir, "1st_file");
     g_autofree char *new_file_path = virtio_9p_test_path(new_file);
 
@@ -577,7 +558,7 @@ static void fs_unlinkat_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
-    const char *new_dir = "04";
+    const char *new_dir = "03";
     g_autofree char *new_file = g_strdup_printf("%s/%s", new_dir, "doa_file");
     g_autofree char *new_file_path = virtio_9p_test_path(new_file);
 
@@ -600,7 +581,7 @@ static void fs_symlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
-    const char *new_dir = "05";
+    const char *new_dir = "04";
     g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
     g_autofree char *symlink_file = NULL;
@@ -633,7 +614,7 @@ static void fs_unlinkat_symlink(void *obj, void *data,
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
-    const char *new_dir = "06";
+    const char *new_dir = "05";
     g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
     g_autofree char *symlink_file = NULL;
@@ -667,7 +648,7 @@ static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st_real, st_link;
-    const char *new_dir = "07";
+    const char *new_dir = "06";
     g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
     g_autofree char *hardlink_file = NULL;
@@ -704,7 +685,7 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st_real, st_link;
-    const char *new_dir = "08";
+    const char *new_dir = "07";
     g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
     g_autofree char *hardlink_file = NULL;
@@ -788,8 +769,8 @@ static void register_virtio_9p_test(void)
 
     opts.before = assign_9p_local_driver;
     qos_add_test("local/config", "virtio-9p", pci_config,  &opts);
-    qos_add_test("local/create_dir", "virtio-9p", fs_create_dir, &opts);
-    qos_add_test("local/unlinkat_dir", "virtio-9p", fs_unlinkat_dir, &opts);
+    qos_add_test("local/create_unlinkat_dir", "virtio-9p",
+                 fs_create_unlinkat_dir, &opts);
     qos_add_test("local/create_file", "virtio-9p", fs_create_file, &opts);
     qos_add_test("local/unlinkat_file", "virtio-9p", fs_unlinkat_file, &opts);
     qos_add_test("local/symlink_file", "virtio-9p", fs_symlink_file, &opts);
