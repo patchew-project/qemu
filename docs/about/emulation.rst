@@ -180,9 +180,6 @@ for that architecture.
   * - MIPS
     - System
     - Unified Hosting Interface (MD01069)
-  * - Nios II
-    - System
-    - https://sourceware.org/git/gitweb.cgi?p=newlib-cygwin.git;a=blob;f=libgloss/nios2/nios2-semi.txt;hb=HEAD
   * - RISC-V
     - System and User-mode
     - https://github.com/riscv/riscv-semihosting-spec/blob/main/riscv-semihosting-spec.adoc

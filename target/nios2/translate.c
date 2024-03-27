@@ -50,6 +50,8 @@
         INSTRUCTION_FLG(gen_excp, EXCP_UNIMPL)
 #define INSTRUCTION_ILLEGAL()              \
         INSTRUCTION_FLG(gen_excp, EXCP_ILLEGAL)
+#define INSTRUCTION_SUPERVISOR()              \
+        INSTRUCTION_FLG(gen_excp, EXCP_SUPERI)
 
 /* Special R-Type instruction opcode */
 #define INSN_R_TYPE 0x3A
@@ -133,14 +135,10 @@ typedef struct DisasContext {
     uint32_t          tb_flags;
     TCGv              sink;
     const ControlRegState *cr_state;
-    bool              eic_present;
 } DisasContext;
 
 static TCGv cpu_R[NUM_GP_REGS];
 static TCGv cpu_pc;
-#ifndef CONFIG_USER_ONLY
-static TCGv cpu_crs_R[NUM_GP_REGS];
-#endif
 
 typedef struct Nios2Instruction {
     void     (*handler)(DisasContext *dc, uint32_t code, uint32_t flags);
@@ -174,11 +172,7 @@ static TCGv load_gpr(DisasContext *dc, unsigned reg)
     if (FIELD_EX32(dc->tb_flags, TBFLAGS, CRS0)) {
         return cpu_R[reg];
     }
-#ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
-#else
-    return cpu_crs_R[reg];
-#endif
 }
 
 static TCGv dest_gpr(DisasContext *dc, unsigned reg)
@@ -198,11 +192,7 @@ static TCGv dest_gpr(DisasContext *dc, unsigned reg)
     if (FIELD_EX32(dc->tb_flags, TBFLAGS, CRS0)) {
         return cpu_R[reg];
     }
-#ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
-#else
-    return cpu_crs_R[reg];
-#endif
 }
 
 static void t_gen_helper_raise_exception(DisasContext *dc, uint32_t index)
@@ -301,11 +291,7 @@ static void gen_ldx(DisasContext *dc, uint32_t code, uint32_t flags)
     TCGv data = dest_gpr(dc, instr.b);
 
     tcg_gen_addi_tl(addr, load_gpr(dc, instr.a), instr.imm16.s);
-#ifdef CONFIG_USER_ONLY
     flags |= MO_UNALN;
-#else
-    flags |= MO_ALIGN;
-#endif
     tcg_gen_qemu_ld_tl(data, addr, dc->mem_idx, flags);
 }
 
@@ -317,11 +303,7 @@ static void gen_stx(DisasContext *dc, uint32_t code, uint32_t flags)
 
     TCGv addr = tcg_temp_new();
     tcg_gen_addi_tl(addr, load_gpr(dc, instr.a), instr.imm16.s);
-#ifdef CONFIG_USER_ONLY
     flags |= MO_UNALN;
-#else
-    flags |= MO_ALIGN;
-#endif
     tcg_gen_qemu_st_tl(val, addr, dc->mem_idx, flags);
 }
 
@@ -398,27 +380,6 @@ gen_i_math_logic(andhi, andi, 0, imm_shifted)
 gen_i_math_logic(orhi , ori,  1, imm_shifted)
 gen_i_math_logic(xorhi, xori, 1, imm_shifted)
 
-/* rB <- prs.rA + sigma(IMM16) */
-static void rdprs(DisasContext *dc, uint32_t code, uint32_t flags)
-{
-    if (!dc->eic_present) {
-        t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
-        return;
-    }
-    if (!gen_check_supervisor(dc)) {
-        return;
-    }
-
-#ifdef CONFIG_USER_ONLY
-    g_assert_not_reached();
-#else
-    I_TYPE(instr, code);
-    TCGv dest = dest_gpr(dc, instr.b);
-    gen_helper_rdprs(dest, tcg_env, tcg_constant_i32(instr.a));
-    tcg_gen_addi_tl(dest, dest, instr.imm16.s);
-#endif
-}
-
 /* Prototype only, defined below */
 static void handle_r_type_instr(DisasContext *dc, uint32_t code,
                                 uint32_t flags);
@@ -480,7 +441,7 @@ static const Nios2Instruction i_type_instructions[] = {
     INSTRUCTION_FLG(gen_stx, MO_TESL),                /* stwio */
     INSTRUCTION_FLG(gen_bxx, TCG_COND_LTU),           /* bltu */
     INSTRUCTION_FLG(gen_ldx, MO_TEUL),                /* ldwio */
-    INSTRUCTION(rdprs),                               /* rdprs */
+    INSTRUCTION_SUPERVISOR(),                         /* rdprs */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_FLG(handle_r_type_instr, 0),          /* R-Type */
     INSTRUCTION_NOP(),                                /* flushd */
@@ -493,29 +454,6 @@ static const Nios2Instruction i_type_instructions[] = {
 /*
  * R-Type instructions
  */
-/*
- * status <- estatus
- * PC <- ea
- */
-static void eret(DisasContext *dc, uint32_t code, uint32_t flags)
-{
-    if (!gen_check_supervisor(dc)) {
-        return;
-    }
-
-#ifdef CONFIG_USER_ONLY
-    g_assert_not_reached();
-#else
-    if (FIELD_EX32(dc->tb_flags, TBFLAGS, CRS0)) {
-        TCGv tmp = tcg_temp_new();
-        tcg_gen_ld_tl(tmp, tcg_env, offsetof(CPUNios2State, ctrl[CR_ESTATUS]));
-        gen_helper_eret(tcg_env, tmp, load_gpr(dc, R_EA));
-    } else {
-        gen_helper_eret(tcg_env, load_gpr(dc, R_SSTATUS), load_gpr(dc, R_EA));
-    }
-    dc->base.is_jmp = DISAS_NORETURN;
-#endif
-}
 
 /* PC <- ra */
 static void ret(DisasContext *dc, uint32_t code, uint32_t flags)
@@ -533,15 +471,7 @@ static void bret(DisasContext *dc, uint32_t code, uint32_t flags)
         return;
     }
 
-#ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
-#else
-    TCGv tmp = tcg_temp_new();
-    tcg_gen_ld_tl(tmp, tcg_env, offsetof(CPUNios2State, ctrl[CR_BSTATUS]));
-    gen_helper_eret(tcg_env, tmp, load_gpr(dc, R_BA));
-
-    dc->base.is_jmp = DISAS_NORETURN;
-#endif
 }
 
 /* PC <- rA */
@@ -578,40 +508,7 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
         return;
     }
 
-#ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
-#else
-    R_TYPE(instr, code);
-    TCGv t1, t2, dest = dest_gpr(dc, instr.c);
-
-    /* Reserved registers read as zero. */
-    if (nios2_cr_reserved(&dc->cr_state[instr.imm5])) {
-        tcg_gen_movi_tl(dest, 0);
-        return;
-    }
-
-    switch (instr.imm5) {
-    case CR_IPENDING:
-        /*
-         * The value of the ipending register is synthetic.
-         * In hw, this is the AND of a set of hardware irq lines
-         * with the ienable register.  In qemu, we re-use the space
-         * of CR_IPENDING to store the set of irq lines, and so we
-         * must perform the AND here, and anywhere else we need the
-         * guest value of ipending.
-         */
-        t1 = tcg_temp_new();
-        t2 = tcg_temp_new();
-        tcg_gen_ld_tl(t1, tcg_env, offsetof(CPUNios2State, ctrl[CR_IPENDING]));
-        tcg_gen_ld_tl(t2, tcg_env, offsetof(CPUNios2State, ctrl[CR_IENABLE]));
-        tcg_gen_and_tl(dest, t1, t2);
-        break;
-    default:
-        tcg_gen_ld_tl(dest, tcg_env,
-                      offsetof(CPUNios2State, ctrl[instr.imm5]));
-        break;
-    }
-#endif
 }
 
 /* ctlN <- rA */
@@ -621,90 +518,7 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
         return;
     }
 
-#ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
-#else
-    R_TYPE(instr, code);
-    TCGv v = load_gpr(dc, instr.a);
-    uint32_t ofs = offsetof(CPUNios2State, ctrl[instr.imm5]);
-    uint32_t wr = dc->cr_state[instr.imm5].writable;
-    uint32_t ro = dc->cr_state[instr.imm5].readonly;
-
-    /* Skip reserved or readonly registers. */
-    if (wr == 0) {
-        return;
-    }
-
-    switch (instr.imm5) {
-    case CR_PTEADDR:
-        gen_helper_mmu_write_pteaddr(tcg_env, v);
-        break;
-    case CR_TLBACC:
-        gen_helper_mmu_write_tlbacc(tcg_env, v);
-        break;
-    case CR_TLBMISC:
-        gen_helper_mmu_write_tlbmisc(tcg_env, v);
-        break;
-    case CR_STATUS:
-    case CR_IENABLE:
-        /* If interrupts were enabled using WRCTL, trigger them. */
-        dc->base.is_jmp = DISAS_UPDATE;
-        /* fall through */
-    default:
-        if (wr == -1) {
-            /* The register is entirely writable. */
-            tcg_gen_st_tl(v, tcg_env, ofs);
-        } else {
-            /*
-             * The register is partially read-only or reserved:
-             * merge the value.
-             */
-            TCGv n = tcg_temp_new();
-
-            tcg_gen_andi_tl(n, v, wr);
-
-            if (ro != 0) {
-                TCGv o = tcg_temp_new();
-                tcg_gen_ld_tl(o, tcg_env, ofs);
-                tcg_gen_andi_tl(o, o, ro);
-                tcg_gen_or_tl(n, n, o);
-            }
-
-            tcg_gen_st_tl(n, tcg_env, ofs);
-        }
-        break;
-    }
-#endif
-}
-
-/* prs.rC <- rA */
-static void wrprs(DisasContext *dc, uint32_t code, uint32_t flags)
-{
-    if (!dc->eic_present) {
-        t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
-        return;
-    }
-    if (!gen_check_supervisor(dc)) {
-        return;
-    }
-
-#ifdef CONFIG_USER_ONLY
-    g_assert_not_reached();
-#else
-    R_TYPE(instr, code);
-    gen_helper_wrprs(tcg_env, tcg_constant_i32(instr.c),
-                     load_gpr(dc, instr.a));
-    /*
-     * The expected write to PRS[r0] is 0, from CRS[r0].
-     * If not, and CRS == PRS (which we cannot tell from here),
-     * we may now have a non-zero value in our current r0.
-     * By ending the TB, we re-evaluate tb_flags and find out.
-     */
-    if (instr.c == 0
-        && (instr.a != 0 || !FIELD_EX32(dc->tb_flags, TBFLAGS, R0_0))) {
-        dc->base.is_jmp = DISAS_UPDATE;
-    }
-#endif
 }
 
 /* Comparison instructions */
@@ -802,7 +616,6 @@ static void divu(DisasContext *dc, uint32_t code, uint32_t flags)
 
 static void trap(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-#ifdef CONFIG_USER_ONLY
     /*
      * The imm5 field is not stored anywhere on real hw; the kernel
      * has to load the insn and extract the field.  But we can make
@@ -811,28 +624,17 @@ static void trap(DisasContext *dc, uint32_t code, uint32_t flags)
     R_TYPE(instr, code);
     tcg_gen_st_i32(tcg_constant_i32(instr.imm5), tcg_env,
                    offsetof(CPUNios2State, error_code));
-#endif
     t_gen_helper_raise_exception(dc, EXCP_TRAP);
 }
 
 static void gen_break(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-#ifndef CONFIG_USER_ONLY
-    /* The semihosting instruction is "break 1".  */
-    bool is_user = FIELD_EX32(dc->tb_flags, TBFLAGS, U);
-    R_TYPE(instr, code);
-    if (semihosting_enabled(is_user) && instr.imm5 == 1) {
-        t_gen_helper_raise_exception(dc, EXCP_SEMIHOST);
-        return;
-    }
-#endif
-
     t_gen_helper_raise_exception(dc, EXCP_BREAK);
 }
 
 static const Nios2Instruction r_type_instructions[] = {
     INSTRUCTION_ILLEGAL(),
-    INSTRUCTION(eret),                                /* eret */
+    INSTRUCTION_SUPERVISOR(),                         /* eret */
     INSTRUCTION(roli),                                /* roli */
     INSTRUCTION(rol),                                 /* rol */
     INSTRUCTION_NOP(),                                /* flushp */
@@ -851,7 +653,7 @@ static const Nios2Instruction r_type_instructions[] = {
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION(slli),                                /* slli */
     INSTRUCTION(sll),                                 /* sll */
-    INSTRUCTION(wrprs),                               /* wrprs */
+    INSTRUCTION_ILLEGAL(),                            /* wrprs */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION(or),                                  /* or */
     INSTRUCTION(mulxsu),                              /* mulxsu */
@@ -927,19 +729,6 @@ static const char * const gr_regnames[NUM_GP_REGS] = {
     "fp",         "ea",         "ba",         "ra",
 };
 
-#ifndef CONFIG_USER_ONLY
-static const char * const cr_regnames[NUM_CR_REGS] = {
-    "status",     "estatus",    "bstatus",    "ienable",
-    "ipending",   "cpuid",      "res6",       "exception",
-    "pteaddr",    "tlbacc",     "tlbmisc",    "reserved1",
-    "badaddr",    "config",     "mpubase",    "mpuacc",
-    "res16",      "res17",      "res18",      "res19",
-    "res20",      "res21",      "res22",      "res23",
-    "res24",      "res25",      "res26",      "res27",
-    "res28",      "res29",      "res30",      "res31",
-};
-#endif
-
 /* generate intermediate code for basic block 'tb'.  */
 static void nios2_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
@@ -951,7 +740,6 @@ static void nios2_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->mem_idx = cpu_mmu_index(cs, false);
     dc->cr_state = cpu->cr_state;
     dc->tb_flags = dc->base.tb->flags;
-    dc->eic_present = cpu->eic_present;
 
     /* Bound the number of insns to execute to those left on the page.  */
     page_insns = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
@@ -1056,44 +844,12 @@ void nios2_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         }
     }
 
-#if !defined(CONFIG_USER_ONLY)
-    int j;
-
-    for (i = j = 0; i < NUM_CR_REGS; i++) {
-        if (!nios2_cr_reserved(&cpu->cr_state[i])) {
-            qemu_fprintf(f, "%9s=%8.8x ", cr_regnames[i], env->ctrl[i]);
-            if (++j % 4 == 0) {
-                qemu_fprintf(f, "\n");
-            }
-        }
-    }
-    if (j % 4 != 0) {
-        qemu_fprintf(f, "\n");
-    }
-    if (cpu->mmu_present) {
-        qemu_fprintf(f, " mmu write: VPN=%05X PID %02X TLBACC %08X\n",
-                     env->mmu.pteaddr_wr & R_CR_PTEADDR_VPN_MASK,
-                     FIELD_EX32(env->mmu.tlbmisc_wr, CR_TLBMISC, PID),
-                     env->mmu.tlbacc_wr);
-    }
-#endif
     qemu_fprintf(f, "\n\n");
 }
 
 void nios2_tcg_init(void)
 {
-#ifndef CONFIG_USER_ONLY
-    TCGv_ptr crs = tcg_global_mem_new_ptr(tcg_env,
-                                          offsetof(CPUNios2State, regs), "crs");
-
-    for (int i = 0; i < NUM_GP_REGS; i++) {
-        cpu_crs_R[i] = tcg_global_mem_new(crs, 4 * i, gr_regnames[i]);
-    }
-
-#define offsetof_regs0(N)  offsetof(CPUNios2State, shadow_regs[0][N])
-#else
 #define offsetof_regs0(N)  offsetof(CPUNios2State, regs[N])
-#endif
 
     for (int i = 0; i < NUM_GP_REGS; i++) {
         cpu_R[i] = tcg_global_mem_new(tcg_env, offsetof_regs0(i),

@@ -226,11 +226,6 @@ These old machine types are quite neglected nowadays and thus might have
 various pitfalls with regards to live migration. Use a newer machine type
 instead.
 
-Nios II ``10m50-ghrd`` and ``nios2-generic-nommu`` machines (since 8.2)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The Nios II architecture is orphan.
-
 ``shix`` (since 9.0)
 ''''''''''''''''''''
 

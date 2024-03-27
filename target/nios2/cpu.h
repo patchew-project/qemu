@@ -26,9 +26,6 @@
 #include "hw/registerfields.h"
 
 typedef struct CPUArchState CPUNios2State;
-#if !defined(CONFIG_USER_ONLY)
-#include "mmu.h"
-#endif
 
 /**
  * Nios2CPUClass:
@@ -179,19 +176,10 @@ FIELD(CR_TLBMISC, EE, 24, 1)
 #define EXCP_MPUD     17
 
 struct CPUArchState {
-#ifdef CONFIG_USER_ONLY
     uint32_t regs[NUM_GP_REGS];
-#else
-    uint32_t shadow_regs[NUM_REG_SETS][NUM_GP_REGS];
-    /* Pointer into shadow_regs for the current register set. */
-    uint32_t *regs;
-#endif
     uint32_t ctrl[NUM_CR_REGS];
     uint32_t pc;
 
-#if !defined(CONFIG_USER_ONLY)
-    Nios2MMU mmu;
-#endif
     int error_code;
 };
 
@@ -212,17 +200,9 @@ struct ArchCPU {
     CPUNios2State env;
 
     bool diverr_present;
-    bool mmu_present;
-    bool eic_present;
-
-    uint32_t pid_num_bits;
-    uint32_t tlb_num_ways;
-    uint32_t tlb_num_entries;
 
     /* Addresses that are hard-coded in the FPGA build settings */
     uint32_t reset_addr;
-    uint32_t exception_addr;
-    uint32_t fast_tlb_miss_addr;
 
     /* Bits within each control register which are reserved or readonly. */
     ControlRegState cr_state[NUM_CR_REGS];
@@ -240,25 +220,10 @@ static inline bool nios2_cr_reserved(const ControlRegState *s)
     return (s->writable | s->readonly) == 0;
 }
 
-static inline void nios2_update_crs(CPUNios2State *env)
-{
-#ifndef CONFIG_USER_ONLY
-    unsigned crs = FIELD_EX32(env->ctrl[CR_STATUS], CR_STATUS, CRS);
-    env->regs = env->shadow_regs[crs];
-#endif
-}
-
 void nios2_tcg_init(void);
-void nios2_cpu_do_interrupt(CPUState *cs);
-void dump_mmu(CPUNios2State *env);
 void nios2_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-G_NORETURN void nios2_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
-                                              MMUAccessType access_type, int mmu_idx,
-                                              uintptr_t retaddr);
 G_NORETURN void nios2_cpu_loop_exit_advance(CPUNios2State *env,
                                             uintptr_t retaddr);
-
-void do_nios2_semihosting(CPUNios2State *env);
 
 #define CPU_RESOLVING_TYPE TYPE_NIOS2_CPU
 
@@ -269,13 +234,6 @@ void do_nios2_semihosting(CPUNios2State *env);
 /* MMU modes definitions */
 #define MMU_SUPERVISOR_IDX  0
 #define MMU_USER_IDX        1
-
-#ifndef CONFIG_USER_ONLY
-hwaddr nios2_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
-bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
-                        MMUAccessType access_type, int mmu_idx,
-                        bool probe, uintptr_t retaddr);
-#endif
 
 typedef CPUNios2State CPUArchState;
 typedef Nios2CPU ArchCPU;

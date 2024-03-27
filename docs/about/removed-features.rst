@@ -841,6 +841,11 @@ ppc ``taihu`` machine (removed in 7.2)
 This machine was removed because it was partially emulated and 405
 machines are very similar. Use the ``ref405ep`` machine instead.
 
+Nios II ``10m50-ghrd`` and ``nios2-generic-nommu`` machines (removed 9.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The Nios II architecture is orphan.
+
 linux-user mode CPUs
 --------------------
 
