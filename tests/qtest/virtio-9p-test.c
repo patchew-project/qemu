@@ -566,12 +566,14 @@ static void fs_create_unlinkat_file(void *obj, void *data,
     g_assert(stat(new_dir_path, &st) != 0);
 }
 
-static void fs_symlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
+static void fs_create_unlinkat_symlink(void *obj, void *data,
+                                       QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
     const char *new_dir = "03";
+    g_autofree char *new_dir_path = virtio_9p_test_path(new_dir);
     g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
     g_autofree char *symlink_file = NULL;
@@ -596,41 +598,20 @@ static void fs_symlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
 
     /* check if created link exists now */
     g_assert(stat(symlink_file_path, &st) == 0);
-}
-
-static void fs_unlinkat_symlink(void *obj, void *data,
-                                QGuestAllocator *t_alloc)
-{
-    QVirtio9P *v9p = obj;
-    v9fs_set_allocator(t_alloc);
-    struct stat st;
-    const char *new_dir = "04";
-    g_autofree char *real_file = NULL;
-    g_autofree char *real_file_path = NULL;
-    g_autofree char *symlink_file = NULL;
-    g_autofree char *symlink_file_path = NULL;
-
-    real_file = g_strdup_printf("%s/%s", new_dir, "real_file");
-    real_file_path = virtio_9p_test_path(real_file);
-
-    symlink_file = g_strdup_printf("%s/%s", new_dir, "symlink_file");
-    symlink_file_path = virtio_9p_test_path(symlink_file);
-
-    tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
-    tlcreate({ .client = v9p, .atPath = new_dir, .name = "real_file" });
-    g_assert(stat(real_file_path, &st) == 0);
-    g_assert((st.st_mode & S_IFMT) == S_IFREG);
-
-    tsymlink({
-        .client = v9p, .atPath = new_dir, .name = "symlink_file",
-        .symtgt = "real_file"
-    });
-    g_assert(stat(symlink_file_path, &st) == 0);
 
     tunlinkat({ .client = v9p, .atPath = new_dir, .name = "symlink_file" });
     /* symlink should be gone now */
     g_assert(stat(symlink_file_path, &st) != 0);
+
+    /* cleanup: remove created file and dir */
+    tunlinkat({ .client = v9p, .atPath = new_dir, .name = "real_file" });
+    g_assert(stat(real_file_path, &st) != 0);
+
+    tunlinkat({
+        .client = v9p, .atPath = "/", .name = new_dir,
+        .flags = P9_DOTL_AT_REMOVEDIR
+    });
+    g_assert(stat(new_dir_path, &st) != 0);
 }
 
 static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -638,7 +619,7 @@ static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st_real, st_link;
-    const char *new_dir = "05";
+    const char *new_dir = "04";
     g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
     g_autofree char *hardlink_file = NULL;
@@ -675,7 +656,7 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st_real, st_link;
-    const char *new_dir = "06";
+    const char *new_dir = "05";
     g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
     g_autofree char *hardlink_file = NULL;
@@ -763,9 +744,8 @@ static void register_virtio_9p_test(void)
                  fs_create_unlinkat_dir, &opts);
     qos_add_test("local/create_unlinkat_file", "virtio-9p",
                  fs_create_unlinkat_file, &opts);
-    qos_add_test("local/symlink_file", "virtio-9p", fs_symlink_file, &opts);
-    qos_add_test("local/unlinkat_symlink", "virtio-9p", fs_unlinkat_symlink,
-                 &opts);
+    qos_add_test("local/create_unlinkat_symlink", "virtio-9p",
+                 fs_create_unlinkat_symlink, &opts);
     qos_add_test("local/hardlink_file", "virtio-9p", fs_hardlink_file, &opts);
     qos_add_test("local/unlinkat_hardlink", "virtio-9p", fs_unlinkat_hardlink,
                  &opts);
