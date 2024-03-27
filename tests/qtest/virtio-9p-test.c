@@ -511,13 +511,14 @@ static void fs_create_dir(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
+    const char *new_dir = "01";
     g_autofree char *root_path = virtio_9p_test_path("");
-    g_autofree char *new_dir_path = virtio_9p_test_path("01");
+    g_autofree char *new_dir_path = virtio_9p_test_path(new_dir);
 
     g_assert(root_path != NULL);
 
     tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "01" });
+    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
 
     /* check if created directory really exists now ... */
     g_assert(stat(new_dir_path, &st) == 0);
@@ -530,13 +531,14 @@ static void fs_unlinkat_dir(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
+    const char *new_dir = "02";
     g_autofree char *root_path = virtio_9p_test_path("");
-    g_autofree char *new_dir_path = virtio_9p_test_path("02");
+    g_autofree char *new_dir_path = virtio_9p_test_path(new_dir);
 
     g_assert(root_path != NULL);
 
     tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "02" });
+    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
 
     /* check if created directory really exists now ... */
     g_assert(stat(new_dir_path, &st) == 0);
@@ -544,7 +546,7 @@ static void fs_unlinkat_dir(void *obj, void *data, QGuestAllocator *t_alloc)
     g_assert((st.st_mode & S_IFMT) == S_IFDIR);
 
     tunlinkat({
-        .client = v9p, .atPath = "/", .name = "02",
+        .client = v9p, .atPath = "/", .name = new_dir,
         .flags = P9_DOTL_AT_REMOVEDIR
     });
     /* directory should be gone now */
@@ -556,11 +558,13 @@ static void fs_create_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
-    g_autofree char *new_file_path = virtio_9p_test_path("03/1st_file");
+    const char *new_dir = "03";
+    g_autofree char *new_file = g_strdup_printf("%s/%s", new_dir, "1st_file");
+    g_autofree char *new_file_path = virtio_9p_test_path(new_file);
 
     tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "03" });
-    tlcreate({ .client = v9p, .atPath = "03", .name = "1st_file" });
+    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
+    tlcreate({ .client = v9p, .atPath = new_dir, .name = "1st_file" });
 
     /* check if created file exists now ... */
     g_assert(stat(new_file_path, &st) == 0);
@@ -573,18 +577,20 @@ static void fs_unlinkat_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
-    g_autofree char *new_file_path = virtio_9p_test_path("04/doa_file");
+    const char *new_dir = "04";
+    g_autofree char *new_file = g_strdup_printf("%s/%s", new_dir, "doa_file");
+    g_autofree char *new_file_path = virtio_9p_test_path(new_file);
 
     tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "04" });
-    tlcreate({ .client = v9p, .atPath = "04", .name = "doa_file" });
+    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
+    tlcreate({ .client = v9p, .atPath = new_dir, .name = "doa_file" });
 
     /* check if created file exists now ... */
     g_assert(stat(new_file_path, &st) == 0);
     /* ... and is a regular file */
     g_assert((st.st_mode & S_IFMT) == S_IFREG);
 
-    tunlinkat({ .client = v9p, .atPath = "04", .name = "doa_file" });
+    tunlinkat({ .client = v9p, .atPath = new_dir, .name = "doa_file" });
     /* file should be gone now */
     g_assert(stat(new_file_path, &st) != 0);
 }
@@ -594,17 +600,26 @@ static void fs_symlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
-    g_autofree char *real_file_path = virtio_9p_test_path("05/real_file");
-    g_autofree char *symlink_file_path = virtio_9p_test_path("05/symlink_file");
+    const char *new_dir = "05";
+    g_autofree char *real_file = NULL;
+    g_autofree char *real_file_path = NULL;
+    g_autofree char *symlink_file = NULL;
+    g_autofree char *symlink_file_path = NULL;
+
+    real_file = g_strdup_printf("%s/%s", new_dir, "real_file");
+    real_file_path = virtio_9p_test_path(real_file);
+
+    symlink_file = g_strdup_printf("%s/%s", new_dir, "symlink_file");
+    symlink_file_path = virtio_9p_test_path(symlink_file);
 
     tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "05" });
-    tlcreate({ .client = v9p, .atPath = "05", .name = "real_file" });
+    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
+    tlcreate({ .client = v9p, .atPath = new_dir, .name = "real_file" });
     g_assert(stat(real_file_path, &st) == 0);
     g_assert((st.st_mode & S_IFMT) == S_IFREG);
 
     tsymlink({
-        .client = v9p, .atPath = "05", .name = "symlink_file",
+        .client = v9p, .atPath = new_dir, .name = "symlink_file",
         .symtgt = "real_file"
     });
 
@@ -618,22 +633,31 @@ static void fs_unlinkat_symlink(void *obj, void *data,
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st;
-    g_autofree char *real_file_path = virtio_9p_test_path("06/real_file");
-    g_autofree char *symlink_file_path = virtio_9p_test_path("06/symlink_file");
+    const char *new_dir = "06";
+    g_autofree char *real_file = NULL;
+    g_autofree char *real_file_path = NULL;
+    g_autofree char *symlink_file = NULL;
+    g_autofree char *symlink_file_path = NULL;
+
+    real_file = g_strdup_printf("%s/%s", new_dir, "real_file");
+    real_file_path = virtio_9p_test_path(real_file);
+
+    symlink_file = g_strdup_printf("%s/%s", new_dir, "symlink_file");
+    symlink_file_path = virtio_9p_test_path(symlink_file);
 
     tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "06" });
-    tlcreate({ .client = v9p, .atPath = "06", .name = "real_file" });
+    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
+    tlcreate({ .client = v9p, .atPath = new_dir, .name = "real_file" });
     g_assert(stat(real_file_path, &st) == 0);
     g_assert((st.st_mode & S_IFMT) == S_IFREG);
 
     tsymlink({
-        .client = v9p, .atPath = "06", .name = "symlink_file",
+        .client = v9p, .atPath = new_dir, .name = "symlink_file",
         .symtgt = "real_file"
     });
     g_assert(stat(symlink_file_path, &st) == 0);
 
-    tunlinkat({ .client = v9p, .atPath = "06", .name = "symlink_file" });
+    tunlinkat({ .client = v9p, .atPath = new_dir, .name = "symlink_file" });
     /* symlink should be gone now */
     g_assert(stat(symlink_file_path, &st) != 0);
 }
@@ -643,21 +667,27 @@ static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st_real, st_link;
+    const char *new_dir = "07";
+    g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
+    g_autofree char *hardlink_file = NULL;
     g_autofree char *hardlink_file_path = NULL;
 
-    real_file_path = virtio_9p_test_path("07/real_file");
-    hardlink_file_path = virtio_9p_test_path("07/hardlink_file");
+    real_file = g_strdup_printf("%s/%s", new_dir, "real_file");
+    real_file_path = virtio_9p_test_path(real_file);
+
+    hardlink_file = g_strdup_printf("%s/%s", new_dir, "hardlink_file");
+    hardlink_file_path = virtio_9p_test_path(hardlink_file);
 
     tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "07" });
-    tlcreate({ .client = v9p, .atPath = "07", .name = "real_file" });
+    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
+    tlcreate({ .client = v9p, .atPath = new_dir, .name = "real_file" });
     g_assert(stat(real_file_path, &st_real) == 0);
     g_assert((st_real.st_mode & S_IFMT) == S_IFREG);
 
     tlink({
-        .client = v9p, .atPath = "07", .name = "hardlink_file",
-        .toPath = "07/real_file"
+        .client = v9p, .atPath = new_dir, .name = "hardlink_file",
+        .toPath = real_file
     });
 
     /* check if link exists now ... */
@@ -674,25 +704,31 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     struct stat st_real, st_link;
+    const char *new_dir = "08";
+    g_autofree char *real_file = NULL;
     g_autofree char *real_file_path = NULL;
+    g_autofree char *hardlink_file = NULL;
     g_autofree char *hardlink_file_path = NULL;
 
-    real_file_path = virtio_9p_test_path("08/real_file");
-    hardlink_file_path = virtio_9p_test_path("08/hardlink_file");
+    real_file = g_strdup_printf("%s/%s", new_dir, "real_file");
+    real_file_path = virtio_9p_test_path(real_file);
+
+    hardlink_file = g_strdup_printf("%s/%s", new_dir, "hardlink_file");
+    hardlink_file_path = virtio_9p_test_path(hardlink_file);
 
     tattach({ .client = v9p });
-    tmkdir({ .client = v9p, .atPath = "/", .name = "08" });
-    tlcreate({ .client = v9p, .atPath = "08", .name = "real_file" });
+    tmkdir({ .client = v9p, .atPath = "/", .name = new_dir });
+    tlcreate({ .client = v9p, .atPath = new_dir, .name = "real_file" });
     g_assert(stat(real_file_path, &st_real) == 0);
     g_assert((st_real.st_mode & S_IFMT) == S_IFREG);
 
     tlink({
-        .client = v9p, .atPath = "08", .name = "hardlink_file",
-        .toPath = "08/real_file"
+        .client = v9p, .atPath = new_dir, .name = "hardlink_file",
+        .toPath = real_file
     });
     g_assert(stat(hardlink_file_path, &st_link) == 0);
 
-    tunlinkat({ .client = v9p, .atPath = "08", .name = "hardlink_file" });
+    tunlinkat({ .client = v9p, .atPath = new_dir, .name = "hardlink_file" });
     /* symlink should be gone now */
     g_assert(stat(hardlink_file_path, &st_link) != 0);
     /* and old file should still exist */
