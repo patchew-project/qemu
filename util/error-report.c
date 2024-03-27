@@ -213,6 +213,7 @@ static void vreport(report_type type, const char *fmt, va_list ap)
 
     switch (type) {
     case REPORT_TYPE_ERROR:
+        error_printf("error: ");
         break;
     case REPORT_TYPE_WARNING:
         error_printf("warning: ");
