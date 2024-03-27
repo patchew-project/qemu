@@ -221,8 +221,8 @@
 #
 # @setup-time: amount of setup time in milliseconds *before* the
 #     iterations begin but *after* the QMP command is issued.  This is
-#     designed to provide an accounting of any activities (such as
-#     RDMA pinning) which may be expensive, but do not actually occur
+#     designed to provide an accounting of any activities which may be
+#     expensive, but do not actually occur
 #     during the iterative migration rounds themselves.  (since 1.6)
 #
 # @cpu-throttle-percentage: percentage of time guest cpus are being
@@ -430,10 +430,6 @@
 #     for certain work loads, by sending compressed difference of the
 #     pages
 #
-# @rdma-pin-all: Controls whether or not the entire VM memory
-#     footprint is mlock()'d on demand or all at once.  Refer to
-#     docs/rdma.txt for usage.  Disabled by default.  (since 2.0)
-#
 # @zero-blocks: During storage migration encode blocks of zeroes
 #     efficiently.  This essentially saves 1MB of zeroes per block on
 #     the wire.  Enabling requires source and target VM to support
@@ -547,7 +543,7 @@
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
-  'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
+  'data': ['xbzrle', 'auto-converge', 'zero-blocks',
            { 'name': 'compress', 'features': [ 'deprecated' ] },
            'events', 'postcopy-ram',
            { 'name': 'x-colo', 'features': [ 'unstable' ] },
@@ -606,7 +602,6 @@
 #     -> { "execute": "query-migrate-capabilities" }
 #     <- { "return": [
 #           {"state": false, "capability": "xbzrle"},
-#           {"state": false, "capability": "rdma-pin-all"},
 #           {"state": false, "capability": "auto-converge"},
 #           {"state": false, "capability": "zero-blocks"},
 #           {"state": false, "capability": "compress"},
@@ -1654,14 +1649,12 @@
 #
 # @exec: Direct the migration stream to another process.
 #
-# @rdma: Migrate via RDMA.
-#
 # @file: Direct the migration stream to a file.
 #
 # Since: 8.2
 ##
 { 'enum': 'MigrationAddressType',
-  'data': [ 'socket', 'exec', 'rdma', 'file' ] }
+  'data': [ 'socket', 'exec', 'file' ] }
 
 ##
 # @FileMigrationArgs:
@@ -1701,7 +1694,6 @@
   'data': {
     'socket': 'SocketAddress',
     'exec': 'MigrationExecCommand',
-    'rdma': 'InetSocketAddress',
     'file': 'FileMigrationArgs' } }
 
 ##
@@ -1804,14 +1796,6 @@
 #     -> { "execute": "migrate",
 #          "arguments": {
 #              "channels": [ { "channel-type": "main",
-#                              "addr": { "transport": "rdma",
-#                                        "host": "10.12.34.9",
-#                                        "port": "1050" } } ] } }
-#     <- { "return": {} }
-#
-#     -> { "execute": "migrate",
-#          "arguments": {
-#              "channels": [ { "channel-type": "main",
 #                              "addr": { "transport": "file",
 #                                        "filename": "/tmp/migfile",
 #                                        "offset": "0x1000" } } ] } }
@@ -1879,13 +1863,6 @@
 #                                                  "/some/sock" ] } } ] } }
 #     <- { "return": {} }
 #
-#     -> { "execute": "migrate-incoming",
-#          "arguments": {
-#              "channels": [ { "channel-type": "main",
-#                              "addr": { "transport": "rdma",
-#                                        "host": "10.12.34.9",
-#                                        "port": "1050" } } ] } }
-#     <- { "return": {} }
 ##
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',

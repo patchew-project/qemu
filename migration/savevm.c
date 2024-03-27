@@ -2970,7 +2970,7 @@ int qemu_loadvm_state(QEMUFile *f)
 
     /* We've got to be careful; if we don't read the data and just shut the fd
      * then the sender can error if we close while it's still sending.
-     * We also mustn't read data that isn't there; some transports (RDMA)
+     * We also mustn't read data that isn't there; some transports
      * will stall waiting for that data when the source has already closed.
      */
     if (ret == 0 && should_send_vmdesc()) {

@@ -185,7 +185,6 @@ Property migration_properties[] = {
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
-    DEFINE_PROP_MIG_CAP("x-rdma-pin-all", MIGRATION_CAPABILITY_RDMA_PIN_ALL),
     DEFINE_PROP_MIG_CAP("x-auto-converge", MIGRATION_CAPABILITY_AUTO_CONVERGE),
     DEFINE_PROP_MIG_CAP("x-zero-blocks", MIGRATION_CAPABILITY_ZERO_BLOCKS),
     DEFINE_PROP_MIG_CAP("x-compress", MIGRATION_CAPABILITY_COMPRESS),
@@ -323,13 +322,6 @@ bool migrate_postcopy_ram(void)
     return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
 }
 
-bool migrate_rdma_pin_all(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL];
-}
-
 bool migrate_release_ram(void)
 {
     MigrationState *s = migrate_get_current();
@@ -393,13 +385,6 @@ bool migrate_postcopy(void)
     return migrate_postcopy_ram() || migrate_dirty_bitmaps();
 }
 
-bool migrate_rdma(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->rdma_migration;
-}
-
 bool migrate_tls(void)
 {
     MigrationState *s = migrate_get_current();
@@ -458,7 +443,6 @@ INITIALIZE_MIGRATE_CAPS_SET(check_caps_background_snapshot,
     MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER,
     MIGRATION_CAPABILITY_AUTO_CONVERGE,
     MIGRATION_CAPABILITY_RELEASE_RAM,
-    MIGRATION_CAPABILITY_RDMA_PIN_ALL,
     MIGRATION_CAPABILITY_COMPRESS,
     MIGRATION_CAPABILITY_XBZRLE,
     MIGRATION_CAPABILITY_X_COLO,

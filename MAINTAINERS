@@ -3426,13 +3426,6 @@ F: docs/devel/migration.rst
 F: qapi/migration.json
 F: tests/migration/
 F: util/userfaultfd.c
-X: migration/rdma*
-
-RDMA Migration
-R: Li Zhijian <lizhijian@fujitsu.com>
-R: Peter Xu <peterx@redhat.com>
-S: Odd Fixes
-F: migration/rdma*
 
 Migration dirty limit and dirty page rate
 M: Hyman Huang <yong.huang@smartx.com>
@@ -4059,16 +4052,6 @@ F: replication*
 F: block/replication.c
 F: tests/unit/test-replication.c
 F: docs/block-replication.txt
-
-PVRDMA
-M: Yuval Shaia <yuval.shaia.ml@gmail.com>
-M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
-S: Odd Fixes
-F: hw/rdma/*
-F: hw/rdma/vmw/*
-F: docs/pvrdma.txt
-F: contrib/rdmacm-mux/*
-F: qapi/rdma.json
 
 Semihosting
 M: Alex Bennée <alex.bennee@linaro.org>
