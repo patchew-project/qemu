@@ -856,16 +856,38 @@ static void virtqueue_split_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
     VRingUsedElem uelem;
+    uint16_t uelem_idx;
 
     if (unlikely(!vq->vring.used)) {
         return;
     }
 
-    idx = (idx + vq->used_idx) % vq->vring.num;
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_IN_ORDER)) {
+        /* Write element(s) to used ring if they're in-order */
+        while (true) {
+            uelem_idx = vq->used_seq_idx % vq->vring.num;
 
-    uelem.id = elem->index;
-    uelem.len = len;
-    vring_used_write(vq, &uelem, idx);
+            /* Stop if element has been used */
+            if (vq->used_elems[uelem_idx].in_num +
+                vq->used_elems[uelem_idx].out_num <= 0) {
+                break;
+            }
+            uelem.id = vq->used_elems[uelem_idx].index;
+            uelem.len = vq->used_elems[uelem_idx].len;
+            vring_used_write(vq, &uelem, uelem_idx);
+
+            /* Mark this element as used */
+            vq->used_elems[uelem_idx].in_num = 0;
+            vq->used_elems[uelem_idx].out_num = 0;
+            vq->used_seq_idx++;
+        }
+    } else {
+        idx = (idx + vq->used_idx) % vq->vring.num;
+
+        uelem.id = elem->index;
+        uelem.len = len;
+        vring_used_write(vq, &uelem, idx);
+    }
 }
 
 static void virtqueue_packed_fill(VirtQueue *vq, const VirtQueueElement *elem,
@@ -918,12 +940,24 @@ static void virtqueue_packed_fill_desc(VirtQueue *vq,
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
+    uint16_t seq_idx;
+
     trace_virtqueue_fill(vq, elem, len, idx);
 
     virtqueue_unmap_sg(vq, elem, len);
 
     if (virtio_device_disabled(vq->vdev)) {
         return;
+    }
+
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_IN_ORDER)) {
+        seq_idx = elem->seq_idx % vq->vring.num;
+
+        vq->used_elems[seq_idx].index = elem->index;
+        vq->used_elems[seq_idx].len = elem->len;
+        vq->used_elems[seq_idx].ndescs = elem->ndescs;
+        vq->used_elems[seq_idx].in_num = elem->in_num;
+        vq->used_elems[seq_idx].out_num = elem->out_num;
     }
 
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
@@ -944,6 +978,14 @@ static void virtqueue_split_flush(VirtQueue *vq, unsigned int count)
 
     /* Make sure buffer is written before we update index. */
     smp_wmb();
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_IN_ORDER)) {
+        count = (vq->used_seq_idx - vq->used_idx) % vq->vring.num;
+
+        /* No in-order elements were written, nothing to update */
+        if (!count) {
+            return;
+        }
+    }
     trace_virtqueue_flush(vq, count);
     old = vq->used_idx;
     new = old + count;
