@@ -877,7 +877,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     uint8_t *buf;
     int64_t total_sectors = 0;
     int nr_sectors;
-    int ret;
+    int ret = -EINVAL;
     BlockDriverInfo bdi;
     int cluster_size = BLK_MIG_BLOCK_SIZE;
 
