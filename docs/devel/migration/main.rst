@@ -47,12 +47,6 @@ over any transport.
   QEMU interference. Note that QEMU does not flush cached file
   data/metadata at the end of migration.
 
-In addition, support is included for migration using RDMA, which
-transports the page data using ``RDMA``, where the hardware takes care of
-transporting the pages, and the load on the CPU is much lower.  While the
-internals of RDMA migration are a bit different, this isn't really visible
-outside the RAM migration code.
-
 All these migration protocols use the same infrastructure to
 save/restore state devices.  This infrastructure is shared with the
 savevm/loadvm functionality.

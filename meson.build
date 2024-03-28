@@ -1854,21 +1854,6 @@ if numa.found() and not cc.links('''
   endif
 endif
 
-rdma = not_found
-if not get_option('rdma').auto() or have_system
-  libumad = cc.find_library('ibumad', required: get_option('rdma'))
-  rdma_libs = [cc.find_library('rdmacm', has_headers: ['rdma/rdma_cma.h'],
-                               required: get_option('rdma')),
-               cc.find_library('ibverbs', required: get_option('rdma')),
-               libumad]
-  rdma = declare_dependency(dependencies: rdma_libs)
-  foreach lib: rdma_libs
-    if not lib.found()
-      rdma = not_found
-    endif
-  endforeach
-endif
-
 cacard = not_found
 if not get_option('smartcard').auto() or have_system
   cacard = dependency('libcacard', required: get_option('smartcard'),
@@ -2246,7 +2231,6 @@ endif
 config_host_data.set('CONFIG_OPENGL', opengl.found())
 config_host_data.set('CONFIG_PLUGIN', get_option('plugins'))
 config_host_data.set('CONFIG_RBD', rbd.found())
-config_host_data.set('CONFIG_RDMA', rdma.found())
 config_host_data.set('CONFIG_RELOCATABLE', get_option('relocatable'))
 config_host_data.set('CONFIG_SAFESTACK', get_option('safe_stack'))
 config_host_data.set('CONFIG_SDL', sdl.found())
@@ -2398,12 +2382,6 @@ if rbd.found()
                        cc.has_function('rbd_namespace_exists',
                                        dependencies: rbd,
                                        prefix: '#include <rbd/librbd.h>'))
-endif
-if rdma.found()
-  config_host_data.set('HAVE_IBV_ADVISE_MR',
-                       cc.has_function('ibv_advise_mr',
-                                       dependencies: rdma,
-                                       prefix: '#include <infiniband/verbs.h>'))
 endif
 
 have_asan_fiber = false
@@ -4398,7 +4376,6 @@ summary_info += {'Multipath support': mpathpersist}
 summary_info += {'Linux AIO support': libaio}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}
-summary_info += {'RDMA support':      rdma}
 summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
 summary_info += {'libcap-ng support': libcap_ng}
 summary_info += {'bpf support':       libbpf}

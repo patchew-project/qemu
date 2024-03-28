@@ -68,7 +68,6 @@
           - pixman-devel
           - python38
           - python3-sphinx
-          - rdma-core-devel
           - redhat-rpm-config
           - snappy-devel
           - spice-glib-devel

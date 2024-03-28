@@ -162,13 +162,6 @@ struct MigrationIncomingState {
 
     int state;
 
-    /*
-     * The incoming migration coroutine, non-NULL during qemu_loadvm_state().
-     * Used to wake the migration incoming coroutine from rdma code. How much is
-     * it safe - it's a question.
-     */
-    Coroutine *loadvm_co;
-
     /* The coroutine we should enter (back) after failover */
     Coroutine *colo_incoming_co;
     QemuSemaphore colo_incoming_sem;
@@ -463,8 +456,6 @@ struct MigrationState {
      * switchover has been received.
      */
     bool switchover_acked;
-    /* Is this a rdma migration */
-    bool rdma_migration;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

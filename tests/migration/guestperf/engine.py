@@ -41,7 +41,7 @@ class Engine(object):
         self._dst_host = dst_host # Hostname of target host
         self._kernel = kernel # Path to kernel image
         self._initrd = initrd # Path to stress initrd
-        self._transport = transport # 'unix' or 'tcp' or 'rdma'
+        self._transport = transport # 'unix' or 'tcp'
         self._sleep = sleep
         self._verbose = verbose
         self._debug = debug
@@ -427,8 +427,6 @@ class Engine(object):
 
         if self._transport == "tcp":
             uri = "tcp:%s:9000" % self._dst_host
-        elif self._transport == "rdma":
-            uri = "rdma:%s:9000" % self._dst_host
         elif self._transport == "unix":
             if self._dst_host != "localhost":
                 raise Exception("Running use unix migration transport for non-local host")

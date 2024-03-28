@@ -94,10 +94,6 @@ typedef struct {
      */
     Stat64 rate_limit_max;
     /*
-     * Number of bytes sent through RDMA.
-     */
-    Stat64 rdma_bytes;
-    /*
      * Number of pages transferred that were full of zeros.
      */
     Stat64 zero_pages;
@@ -133,7 +129,7 @@ void migration_rate_set(uint64_t new_rate);
  *
  * Returns how many bytes have we transferred since the beginning of
  * the migration.  It accounts for bytes sent through any migration
- * channel, multifd, qemu_file, rdma, ....
+ * channel, multifd, qemu_file, ....
  */
 uint64_t migration_transferred_bytes(void);
 #endif
