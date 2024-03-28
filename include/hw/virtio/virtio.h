@@ -75,6 +75,7 @@ typedef struct VirtQueueElement
     hwaddr *out_addr;
     struct iovec *in_sg;
     struct iovec *out_sg;
+    uint16_t seq_idx;
 } VirtQueueElement;
 
 #define VIRTIO_QUEUE_MAX 1024

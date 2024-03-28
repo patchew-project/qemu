@@ -132,6 +132,10 @@ struct VirtQueue
     uint16_t used_idx;
     bool used_wrap_counter;
 
+    /* In-Order sequence indices */
+    uint16_t used_seq_idx;
+    uint16_t current_seq_idx;
+
     /* Last used index value we have signalled on */
     uint16_t signalled_used;
 
@@ -1621,6 +1625,11 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
         elem->in_sg[i] = iov[out_num + i];
     }
 
+    /* Assign sequence index for in-order processing */
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_IN_ORDER)) {
+        elem->seq_idx = vq->current_seq_idx++;
+    }
+
     vq->inuse++;
 
     trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
@@ -1759,6 +1768,11 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
 
     vq->shadow_avail_idx = vq->last_avail_idx;
     vq->shadow_avail_wrap_counter = vq->last_avail_wrap_counter;
+
+    /* Assign sequence index for in-order processing */
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_IN_ORDER)) {
+        elem->seq_idx = vq->current_seq_idx++;
+    }
 
     trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
 done:
@@ -2087,6 +2101,8 @@ static void __virtio_queue_reset(VirtIODevice *vdev, uint32_t i)
     vdev->vq[i].notification = true;
     vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
     vdev->vq[i].inuse = 0;
+    vdev->vq[i].used_seq_idx = 0;
+    vdev->vq[i].current_seq_idx = 0;
     virtio_virtqueue_reset_region_cache(&vdev->vq[i]);
 }
 
@@ -2334,6 +2350,8 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     vdev->vq[i].vring.align = VIRTIO_PCI_VRING_ALIGN;
     vdev->vq[i].handle_output = handle_output;
     vdev->vq[i].used_elems = g_new0(VirtQueueElement, queue_size);
+    vdev->vq[i].used_seq_idx = 0;
+    vdev->vq[i].current_seq_idx = 0;
 
     return &vdev->vq[i];
 }
