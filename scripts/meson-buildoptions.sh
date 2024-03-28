@@ -167,7 +167,6 @@ meson_options_help() {
   printf "%s\n" '  qed             qed image format support'
   printf "%s\n" '  qga-vss         build QGA VSS support (broken with MinGW)'
   printf "%s\n" '  rbd             Ceph block device driver'
-  printf "%s\n" '  rdma            Enable RDMA-based migration'
   printf "%s\n" '  replication     replication support'
   printf "%s\n" '  rutabaga-gfx    rutabaga_gfx support'
   printf "%s\n" '  sdl             SDL user interface'
@@ -442,8 +441,6 @@ _meson_option_parse() {
     --disable-qom-cast-debug) printf "%s" -Dqom_cast_debug=false ;;
     --enable-rbd) printf "%s" -Drbd=enabled ;;
     --disable-rbd) printf "%s" -Drbd=disabled ;;
-    --enable-rdma) printf "%s" -Drdma=enabled ;;
-    --disable-rdma) printf "%s" -Drdma=disabled ;;
     --enable-relocatable) printf "%s" -Drelocatable=true ;;
     --disable-relocatable) printf "%s" -Drelocatable=false ;;
     --enable-replication) printf "%s" -Dreplication=enabled ;;

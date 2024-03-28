@@ -39,7 +39,7 @@ can be accessed by following steps.
 
 .. code-block:: bash
 
-  ./configure --disable-rdma --prefix=/usr \
+  ./configure --prefix=/usr \
               --target-list="loongarch64-softmmu" \
               --disable-libiscsi --disable-libnfs --disable-libpmem \
               --disable-glusterfs --enable-libusb --enable-usb-redir \

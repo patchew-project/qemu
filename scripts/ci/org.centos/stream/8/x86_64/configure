@@ -103,7 +103,6 @@
 --disable-qed \
 --disable-qom-cast-debug \
 --disable-rbd \
---disable-rdma \
 --disable-replication \
 --disable-rng-none \
 --disable-safe-stack \
@@ -175,7 +174,6 @@
 --enable-opengl \
 --enable-pie \
 --enable-rbd \
---enable-rdma \
 --enable-seccomp \
 --enable-snappy \
 --enable-smartcard \

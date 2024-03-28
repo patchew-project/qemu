@@ -32,7 +32,6 @@
 #include "trace.h"
 #include "options.h"
 #include "qapi/error.h"
-#include "rdma.h"
 #include "io/channel-file.h"
 
 #define IO_BUF_SIZE 32768

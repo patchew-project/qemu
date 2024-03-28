@@ -48,8 +48,6 @@ packages:
  - libfdt
  - libffi
  - libgcrypt
- - libibumad
- - libibverbs
  - libiscsi
  - libjemalloc
  - libjpeg
@@ -58,7 +56,6 @@ packages:
  - libpmem
  - libpng
  - librbd
- - librdmacm
  - libseccomp
  - libselinux
  - libslirp

@@ -25,7 +25,6 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpu-throttle.h"
-#include "rdma.h"
 #include "ram.h"
 #include "ram-compress.h"
 #include "migration/global_state.h"
@@ -545,7 +544,6 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
 {
     g_autoptr(MigrationChannel) val = g_new0(MigrationChannel, 1);
     g_autoptr(MigrationAddress) addr = g_new0(MigrationAddress, 1);
-    InetSocketAddress *isock = &addr->u.rdma;
     strList **tail = &addr->u.exec.args;
 
     if (strstart(uri, "exec:", NULL)) {
@@ -558,12 +556,6 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
         QAPI_LIST_APPEND(tail, g_strdup("-c"));
 #endif
         QAPI_LIST_APPEND(tail, g_strdup(uri + strlen("exec:")));
-    } else if (strstart(uri, "rdma:", NULL)) {
-        if (inet_parse(isock, uri + strlen("rdma:"), errp)) {
-            qapi_free_InetSocketAddress(isock);
-            return false;
-        }
-        addr->transport = MIGRATION_ADDRESS_TYPE_RDMA;
     } else if (strstart(uri, "tcp:", NULL) ||
                 strstart(uri, "unix:", NULL) ||
                 strstart(uri, "vsock:", NULL) ||
@@ -645,22 +637,6 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
         } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
             fd_start_incoming_migration(saddr->u.fd.str, errp);
         }
-#ifdef CONFIG_RDMA
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
-        if (migrate_compress()) {
-            error_setg(errp, "RDMA and compression can't be used together");
-            return;
-        }
-        if (migrate_xbzrle()) {
-            error_setg(errp, "RDMA and XBZRLE can't be used together");
-            return;
-        }
-        if (migrate_multifd()) {
-            error_setg(errp, "RDMA and multifd can't be used together");
-            return;
-        }
-        rdma_start_incoming_migration(&addr->u.rdma, errp);
-#endif
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
         exec_start_incoming_migration(addr->u.exec.args, errp);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
@@ -751,9 +727,7 @@ process_incoming_migration_co(void *opaque)
     migrate_set_state(&mis->state, MIGRATION_STATUS_SETUP,
                       MIGRATION_STATUS_ACTIVE);
 
-    mis->loadvm_co = qemu_coroutine_self();
     ret = qemu_loadvm_state(mis->from_src_file);
-    mis->loadvm_co = NULL;
 
     trace_vmstate_downtime_checkpoint("dst-precopy-loadvm-completed");
 
@@ -1679,7 +1653,6 @@ int migrate_init(MigrationState *s, Error **errp)
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
     s->switchover_acked = false;
-    s->rdma_migration = false;
     /*
      * set mig_stats memory to zero for a new migration
      */
@@ -2100,10 +2073,6 @@ void qmp_migrate(const char *uri, bool has_channels,
         } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
             fd_start_outgoing_migration(s, saddr->u.fd.str, &local_err);
         }
-#ifdef CONFIG_RDMA
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
-        rdma_start_outgoing_migration(s, &addr->u.rdma, &local_err);
-#endif
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
         exec_start_outgoing_migration(s, addr->u.exec.args, &local_err);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
