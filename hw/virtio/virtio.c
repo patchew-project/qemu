@@ -960,7 +960,8 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
         vq->used_elems[seq_idx].out_num = elem->out_num;
     }
 
-    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED) &&
+        !virtio_vdev_has_feature(vq->vdev, VIRTIO_F_IN_ORDER)) {
         virtqueue_packed_fill(vq, elem, len, idx);
     } else {
         virtqueue_split_fill(vq, elem, len, idx);
@@ -997,18 +998,53 @@ static void virtqueue_split_flush(VirtQueue *vq, unsigned int count)
 
 static void virtqueue_packed_flush(VirtQueue *vq, unsigned int count)
 {
-    unsigned int i, ndescs = 0;
+    unsigned int i, j, uelem_idx, ndescs = 0;
 
     if (unlikely(!vq->vring.desc)) {
         return;
     }
 
-    for (i = 1; i < count; i++) {
-        virtqueue_packed_fill_desc(vq, &vq->used_elems[i], i, false);
-        ndescs += vq->used_elems[i].ndescs;
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_IN_ORDER)) {
+        /* First expected element is used, nothing to do */
+        if (vq->used_elems[vq->used_idx].in_num +
+            vq->used_elems[vq->used_idx].out_num <= 0) {
+            return;
+        }
+
+        j = vq->used_idx;
+
+        for (i = j + 1; ; i++) {
+            uelem_idx = i % vq->vring.num;
+
+            /* Stop if element has been used */
+            if (vq->used_elems[uelem_idx].in_num +
+                vq->used_elems[uelem_idx].out_num <= 0) {
+                break;
+            }
+
+            virtqueue_packed_fill_desc(vq, &vq->used_elems[uelem_idx],
+                                       uelem_idx, false);
+            ndescs += vq->used_elems[uelem_idx].ndescs;
+
+            /* Mark this element as used */
+            vq->used_elems[uelem_idx].in_num = 0;
+            vq->used_elems[uelem_idx].out_num = 0;
+        }
+
+        /* Mark first expected element as used */
+        vq->used_elems[vq->used_idx].in_num = 0;
+        vq->used_elems[vq->used_idx].out_num = 0;
+    } else {
+        j = 0;
+
+        for (i = 1; i < count; i++) {
+            virtqueue_packed_fill_desc(vq, &vq->used_elems[i], i, false);
+            ndescs += vq->used_elems[i].ndescs;
+        }
     }
-    virtqueue_packed_fill_desc(vq, &vq->used_elems[0], 0, true);
-    ndescs += vq->used_elems[0].ndescs;
+
+    virtqueue_packed_fill_desc(vq, &vq->used_elems[j], j, true);
+    ndescs += vq->used_elems[j].ndescs;
 
     vq->inuse -= ndescs;
     vq->used_idx += ndescs;
