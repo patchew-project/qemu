@@ -2247,7 +2247,7 @@ static bool migrate_handle_rp_resume_ack(MigrationState *s,
  */
 static void migration_release_dst_files(MigrationState *ms)
 {
-    QEMUFile *file;
+    QEMUFile *file = NULL;
 
     WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
         /*
