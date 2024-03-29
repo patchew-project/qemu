@@ -182,3 +182,36 @@
 { 'command': 'device-sync-config',
   'features': [ 'unstable' ],
   'data': {'id': 'str'} }
+
+##
+# @VIRTIO_CONFIG_READ:
+#
+# Emitted whenever guest reads virtio device configuration after
+# configuration change.
+#
+# The event may be used in pair with device-sync-config. It shows
+# that guest has re-read updated configuration. It doesn't
+# guarantee that guest successfully handled it and updated the
+# view of the device for the user, but still it's a kind of
+# success indicator.
+#
+# @device: device name
+#
+# @path: device path
+#
+# Features:
+#
+# @unstable: The event is experimental.
+#
+# Since: 9.1
+#
+# Example:
+#
+#     <- { "event": "VIRTIO_CONFIG_READ",
+#          "data": { "device": "virtio-net-pci-0",
+#                    "path": "/machine/peripheral/virtio-net-pci-0" },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+##
+{ 'event': 'VIRTIO_CONFIG_READ',
+  'features': [ 'unstable' ],
+  'data': { '*device': 'str', 'path': 'str' } }

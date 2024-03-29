@@ -23,6 +23,7 @@
 #include "hw/boards.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
+#include "monitor/qdev.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/qdev-properties.h"
@@ -529,6 +530,10 @@ static uint64_t virtio_pci_config_read(void *opaque, hwaddr addr,
         return virtio_ioport_read(proxy, addr);
     }
     addr -= config;
+
+    if (vdev->generation > 0) {
+        qdev_virtio_config_read_event(DEVICE(proxy));
+    }
 
     switch (size) {
     case 1:
@@ -1882,6 +1887,10 @@ static uint64_t virtio_pci_device_read(void *opaque, hwaddr addr,
 
     if (vdev == NULL) {
         return UINT64_MAX;
+    }
+
+    if (vdev->generation > 0) {
+        qdev_virtio_config_read_event(DEVICE(proxy));
     }
 
     switch (size) {
