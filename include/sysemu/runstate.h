@@ -5,6 +5,7 @@
 #include "qemu/notify.h"
 
 bool runstate_check(RunState state);
+const char *current_run_state_str(void);
 void runstate_set(RunState new_state);
 RunState runstate_get(void);
 bool runstate_is_running(void);
