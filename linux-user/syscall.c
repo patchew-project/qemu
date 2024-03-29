@@ -3758,12 +3758,13 @@ static inline abi_long target_to_host_ipc_perm(struct ipc_perm *host_ip,
     host_ip->gid = tswap32(target_ip->gid);
     host_ip->cuid = tswap32(target_ip->cuid);
     host_ip->cgid = tswap32(target_ip->cgid);
-#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC)
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC) || \
+    defined(TARGET_XTENSA)
     host_ip->mode = tswap32(target_ip->mode);
 #else
     host_ip->mode = tswap16(target_ip->mode);
 #endif
-#if defined(TARGET_PPC)
+#if defined(TARGET_PPC) || defined(TARGET_XTENSA)
     host_ip->__seq = tswap32(target_ip->__seq);
 #else
     host_ip->__seq = tswap16(target_ip->__seq);
@@ -3786,12 +3787,13 @@ static inline abi_long host_to_target_ipc_perm(abi_ulong target_addr,
     target_ip->gid = tswap32(host_ip->gid);
     target_ip->cuid = tswap32(host_ip->cuid);
     target_ip->cgid = tswap32(host_ip->cgid);
-#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC)
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC) || \
+    defined(TARGET_XTENSA)
     target_ip->mode = tswap32(host_ip->mode);
 #else
     target_ip->mode = tswap16(host_ip->mode);
 #endif
-#if defined(TARGET_PPC)
+#if defined(TARGET_PPC) || defined(TARGET_XTENSA)
     target_ip->__seq = tswap32(host_ip->__seq);
 #else
     target_ip->__seq = tswap16(host_ip->__seq);
@@ -4111,6 +4113,14 @@ static inline abi_long do_semtimedop(int semid,
 struct target_msqid_ds
 {
     struct target_ipc_perm msg_perm;
+#if defined(TARGET_XTENSA) && TARGET_BIG_ENDIAN
+    abi_ulong __unused1;
+    abi_ulong msg_stime;
+    abi_ulong __unused2;
+    abi_ulong msg_rtime;
+    abi_ulong __unused3;
+    abi_ulong msg_ctime;
+#else
     abi_ulong msg_stime;
 #if TARGET_ABI_BITS == 32
     abi_ulong __unused1;
@@ -4122,6 +4132,7 @@ struct target_msqid_ds
     abi_ulong msg_ctime;
 #if TARGET_ABI_BITS == 32
     abi_ulong __unused3;
+#endif
 #endif
     abi_ulong __msg_cbytes;
     abi_ulong msg_qnum;
