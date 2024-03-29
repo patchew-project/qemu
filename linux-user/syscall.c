@@ -3758,12 +3758,13 @@ static inline abi_long target_to_host_ipc_perm(struct ipc_perm *host_ip,
     host_ip->gid = tswap32(target_ip->gid);
     host_ip->cuid = tswap32(target_ip->cuid);
     host_ip->cgid = tswap32(target_ip->cgid);
-#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC)
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC) || \
+    defined(TARGET_XTENSA)
     host_ip->mode = tswap32(target_ip->mode);
 #else
     host_ip->mode = tswap16(target_ip->mode);
 #endif
-#if defined(TARGET_PPC)
+#if defined(TARGET_PPC) || defined(TARGET_XTENSA)
     host_ip->__seq = tswap32(target_ip->__seq);
 #else
     host_ip->__seq = tswap16(target_ip->__seq);
@@ -3786,12 +3787,13 @@ static inline abi_long host_to_target_ipc_perm(abi_ulong target_addr,
     target_ip->gid = tswap32(host_ip->gid);
     target_ip->cuid = tswap32(host_ip->cuid);
     target_ip->cgid = tswap32(host_ip->cgid);
-#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC)
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC) || \
+    defined(TARGET_XTENSA)
     target_ip->mode = tswap32(host_ip->mode);
 #else
     target_ip->mode = tswap16(host_ip->mode);
 #endif
-#if defined(TARGET_PPC)
+#if defined(TARGET_PPC) || defined(TARGET_XTENSA)
     target_ip->__seq = tswap32(host_ip->__seq);
 #else
     target_ip->__seq = tswap16(host_ip->__seq);
