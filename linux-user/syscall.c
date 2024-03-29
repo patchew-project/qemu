@@ -4111,17 +4111,27 @@ static inline abi_long do_semtimedop(int semid,
 struct target_msqid_ds
 {
     struct target_ipc_perm msg_perm;
-    abi_ulong msg_stime;
 #if TARGET_ABI_BITS == 32
+#if defined(TARGET_PPC) || defined(TARGET_SPARC) || \
+    (TARGET_BIG_ENDIAN && (defined(TARGET_MIPS) || defined(TARGET_XTENSA)))
     abi_ulong __unused1;
-#endif
-    abi_ulong msg_rtime;
-#if TARGET_ABI_BITS == 32
+    abi_ulong msg_stime;
     abi_ulong __unused2;
-#endif
-    abi_ulong msg_ctime;
-#if TARGET_ABI_BITS == 32
+    abi_ulong msg_rtime;
     abi_ulong __unused3;
+    abi_ulong msg_ctime;
+#else
+    abi_ulong msg_stime;
+    abi_ulong __unused1;
+    abi_ulong msg_rtime;
+    abi_ulong __unused2;
+    abi_ulong msg_ctime;
+    abi_ulong __unused3;
+#endif
+#else
+    abi_ulong msg_stime;
+    abi_ulong msg_rtime;
+    abi_ulong msg_ctime;
 #endif
     abi_ulong __msg_cbytes;
     abi_ulong msg_qnum;
