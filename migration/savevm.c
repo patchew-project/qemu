@@ -2488,6 +2488,11 @@ static int loadvm_process_command(QEMUFile *f)
         return loadvm_postcopy_handle_advise(mis, len);
 
     case MIG_CMD_POSTCOPY_LISTEN:
+        if (migrate_postcopy_preempt() && qemu_in_coroutine()) {
+            aio_co_schedule(qemu_get_current_aio_context(),
+                            qemu_coroutine_self());
+            qemu_coroutine_yield();
+        }
         return loadvm_postcopy_handle_listen(mis);
 
     case MIG_CMD_POSTCOPY_RUN:
