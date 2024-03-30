@@ -795,6 +795,13 @@ static uint64_t icv_iar_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return intid;
 }
 
+static uint64_t icv_nmiar1_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* todo */
+    uint64_t intid = INTID_SPURIOUS;
+    return intid;
+}
+
 static uint32_t icc_fullprio_mask(GICv3CPUState *cs)
 {
     /*
@@ -831,6 +838,23 @@ static int icc_highest_active_prio(GICv3CPUState *cs)
      * in the Active Priority Registers.
      */
     int i;
+
+    if (cs->gic->nmi_support) {
+        /*
+         * If an NMI is active this takes precedence over anything else
+         * for priority purposes; the NMI bit is only in the AP1R0 bit.
+         * We return here the effective priority of the NMI, which is
+         * either 0x0 or 0x80. Callers will need to check NMI again for
+         * purposes of either setting the RPR register bits or for
+         * prioritization of NMI vs non-NMI.
+         */
+        if (cs->icc_apr[GICV3_G1][0] & ICC_AP1R_EL1_NMI) {
+            return 0;
+        }
+        if (cs->icc_apr[GICV3_G1NS][0] & ICC_AP1R_EL1_NMI) {
+            return (cs->gic->gicd_ctlr & GICD_CTLR_DS) ? 0 : 0x80;
+        }
+    }
 
     for (i = 0; i < icc_num_aprs(cs); i++) {
         uint32_t apr = cs->icc_apr[GICV3_G0][i] |
@@ -898,12 +922,24 @@ static bool icc_hppi_can_preempt(GICv3CPUState *cs)
      */
     int rprio;
     uint32_t mask;
+    ARMCPU *cpu = ARM_CPU(cs->cpu);
+    CPUARMState *env = &cpu->env;
 
     if (icc_no_enabled_hppi(cs)) {
         return false;
     }
 
-    if (cs->hppi.prio >= cs->icc_pmr_el1) {
+    if (cs->gic->nmi_support && cs->hppi.nmi) {
+        if (!(cs->gic->gicd_ctlr & GICD_CTLR_DS) &&
+            cs->hppi.grp == GICV3_G1NS) {
+            if (cs->icc_pmr_el1 < 0x80) {
+                return false;
+            }
+            if (arm_is_secure(env) && cs->icc_pmr_el1 == 0x80) {
+                return false;
+            }
+        }
+    } else if (cs->hppi.prio >= cs->icc_pmr_el1) {
         /* Priority mask masks this interrupt */
         return false;
     }
@@ -921,6 +957,18 @@ static bool icc_hppi_can_preempt(GICv3CPUState *cs)
      */
     if ((cs->hppi.prio & mask) < (rprio & mask)) {
         return true;
+    }
+
+    if (cs->gic->nmi_support && cs->hppi.nmi &&
+        (cs->hppi.prio & mask) == (rprio & mask)) {
+        if ((cs->hppi.grp == GICV3_G1NS) &&
+            !(cs->icc_apr[GICV3_G1NS][0] & ICC_AP1R_EL1_NMI)) {
+            return true;
+        }
+        if ((cs->hppi.grp == GICV3_G1) &&
+            !(cs->icc_apr[GICV3_G1][0] & ICC_AP1R_EL1_NMI)) {
+            return true;
+        }
     }
 
     return false;
@@ -1044,8 +1092,13 @@ static void icc_activate_irq(GICv3CPUState *cs, int irq)
     int aprbit = prio >> (8 - cs->prebits);
     int regno = aprbit / 32;
     int regbit = aprbit % 32;
+    bool nmi = cs->hppi.nmi;
 
-    cs->icc_apr[cs->hppi.grp][regno] |= (1 << regbit);
+    if (cs->gic->nmi_support && nmi) {
+        cs->icc_apr[cs->hppi.grp][regno] |= ICC_AP1R_EL1_NMI;
+    } else {
+        cs->icc_apr[cs->hppi.grp][regno] |= (1 << regbit);
+    }
 
     if (irq < GIC_INTERNAL) {
         cs->gicr_iactiver0 = deposit32(cs->gicr_iactiver0, irq, 1, 1);
@@ -1159,13 +1212,16 @@ static uint64_t icc_iar0_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static uint64_t icc_iar1_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
+    int el = arm_current_el(env);
     uint64_t intid;
 
     if (icv_access(env, HCR_IMO)) {
         return icv_iar_read(env, ri);
     }
 
-    if (!icc_hppi_can_preempt(cs)) {
+    if (cs->hppi.nmi && env->cp15.sctlr_el[el] & SCTLR_NMI) {
+        intid = INTID_NMI;
+    } else if (!icc_hppi_can_preempt(cs)) {
         intid = INTID_SPURIOUS;
     } else {
         intid = icc_hppir1_value(cs, env);
@@ -1176,6 +1232,29 @@ static uint64_t icc_iar1_read(CPUARMState *env, const ARMCPRegInfo *ri)
     }
 
     trace_gicv3_icc_iar1_read(gicv3_redist_affid(cs), intid);
+    return intid;
+}
+
+static uint64_t icc_nmiar1_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    GICv3CPUState *cs = icc_cs_from_env(env);
+    uint64_t intid;
+
+    if (icv_access(env, HCR_IMO)) {
+        return icv_nmiar1_read(env, ri);
+    }
+
+    if (!cs->hppi.nmi || !icc_hppi_can_preempt(cs)) {
+        intid = INTID_SPURIOUS;
+    } else {
+        intid = icc_hppir1_value(cs, env);
+    }
+
+    if (!gicv3_intid_is_special(intid)) {
+        icc_activate_irq(cs, intid);
+    }
+
+    trace_gicv3_icc_nmiar1_read(gicv3_redist_affid(cs), intid);
     return intid;
 }
 
@@ -1205,6 +1284,12 @@ static void icc_drop_prio(GICv3CPUState *cs, int grp)
         if (!*papr) {
             continue;
         }
+
+        if (i == 0 && cs->gic->nmi_support && (*papr & ICC_AP1R_EL1_NMI)) {
+            *papr &= (~ICC_AP1R_EL1_NMI);
+            break;
+        }
+
         /* Clear the lowest set bit */
         *papr &= *papr - 1;
         break;
@@ -1238,6 +1323,15 @@ static int icc_highest_active_group(GICv3CPUState *cs)
      * we're in UNPREDICTABLE territory.)
      */
     int i;
+
+    if (cs->gic->nmi_support) {
+        if (cs->icc_apr[GICV3_G1][0] & ICC_AP1R_EL1_NMI) {
+            return GICV3_G1;
+        }
+        if (cs->icc_apr[GICV3_G1NS][0] & ICC_AP1R_EL1_NMI) {
+            return GICV3_G1NS;
+        }
+    }
 
     for (i = 0; i < ARRAY_SIZE(cs->icc_apr[0]); i++) {
         int g0ctz = ctz32(cs->icc_apr[GICV3_G0][i]);
@@ -1693,7 +1787,11 @@ static void icc_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
         return;
     }
 
-    cs->icc_apr[grp][regno] = value & 0xFFFFFFFFU;
+    if (cs->gic->nmi_support) {
+        cs->icc_apr[grp][regno] = value & (0xFFFFFFFFU | ICC_AP1R_EL1_NMI);
+    } else {
+        cs->icc_apr[grp][regno] = value & 0xFFFFFFFFU;
+    }
     gicv3_cpuif_update(cs);
 }
 
@@ -1783,7 +1881,7 @@ static void icc_dir_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static uint64_t icc_rpr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
-    int prio;
+    uint64_t prio;
 
     if (icv_access(env, HCR_FMO | HCR_IMO)) {
         return icv_rpr_read(env, ri);
@@ -1800,6 +1898,22 @@ static uint64_t icc_rpr_read(CPUARMState *env, const ARMCPRegInfo *ri)
         } else if (prio != 0xff) {
             /* Non-idle priority: show the Non-secure view of it */
             prio = (prio << 1) & 0xff;
+        }
+    }
+
+    if (cs->gic->nmi_support) {
+        /* NMI info is reported in the high bits of RPR */
+        if (arm_feature(env, ARM_FEATURE_EL3) && !arm_is_secure(env)) {
+            if (cs->icc_apr[GICV3_G1NS][0] & ICC_AP1R_EL1_NMI) {
+                prio |= ICC_RPR_EL1_NSNMI;
+            }
+        } else {
+            if (cs->icc_apr[GICV3_G1NS][0] & ICC_AP1R_EL1_NMI) {
+                prio |= ICC_RPR_EL1_NSNMI;
+            }
+            if (cs->icc_apr[GICV3_G1][0] & ICC_AP1R_EL1_NMI) {
+                prio |= ICC_RPR_EL1_NMI;
+            }
         }
     }
 
@@ -2482,6 +2596,15 @@ static const ARMCPRegInfo gicv3_cpuif_icc_apxr23_reginfo[] = {
     },
 };
 
+static const ARMCPRegInfo gicv3_cpuif_gicv3_nmi_reginfo[] = {
+    { .name = "ICC_NMIAR1_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 5,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_R, .accessfn = gicv3_irq_access,
+      .readfn = icc_nmiar1_read,
+    },
+};
+
 static uint64_t ich_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
@@ -2837,6 +2960,10 @@ void gicv3_init_cpuif(GICv3State *s)
          * These CP regs callbacks can be called from either TCG or HVF code.
          */
         define_arm_cp_regs(cpu, gicv3_cpuif_reginfo);
+
+        if (s->nmi_support) {
+            define_arm_cp_regs(cpu, gicv3_cpuif_gicv3_nmi_reginfo);
+        }
 
         /*
          * The CPU implementation specifies the number of supported
