@@ -74,13 +74,13 @@ static inline int nbd_write(QIOChannel *ioc, const void *buffer, size_t size,
 
 struct NBDTLSHandshakeData {
     GMainLoop *loop;
+    Coroutine *co;
     bool complete;
     Error *error;
 };
 
-
-void nbd_tls_handshake(QIOTask *task,
-                       void *opaque);
+void nbd_server_tls_handshake(QIOTask *task, void *opaque);
+void nbd_client_tls_handshake(QIOTask *task, void *opaque);
 
 int nbd_drop(QIOChannel *ioc, size_t size, Error **errp);
 

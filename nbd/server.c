@@ -777,17 +777,17 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
 
     qio_channel_set_name(QIO_CHANNEL(tioc), "nbd-server-tls");
     trace_nbd_negotiate_handle_starttls_handshake();
-    data.loop = g_main_loop_new(g_main_context_default(), FALSE);
+    data.co = qemu_coroutine_self();
     qio_channel_tls_handshake(tioc,
-                              nbd_tls_handshake,
+                              nbd_server_tls_handshake,
                               &data,
                               NULL,
                               NULL);
 
-    if (!data.complete) {
-        g_main_loop_run(data.loop);
+    while (!data.complete) {
+        qemu_coroutine_yield();
     }
-    g_main_loop_unref(data.loop);
+
     if (data.error) {
         object_unref(OBJECT(tioc));
         error_propagate(errp, data.error);
