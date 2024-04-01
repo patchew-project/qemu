@@ -529,3 +529,18 @@ Compression method fails too much.  Too many races.  We are going to
 remove it if nobody fixes it.  For starters, migration-test
 compression tests are disabled because they fail randomly.  If you need
 compression, use multifd compression methods.
+
+RDMA migration (since 9.1)
+''''''''''''''''''''''''''''''''''
+
+The QEMU project intends to remove the whole RDMA subsystem from the
+code base in a future release without replacement unless somebody steps
+up and improves the situation. So far, except for RDMA migration, other
+parts of the RDMA subsystem have been removed since 9.1.
+
+Due to the lack of unit tests and CI tests for RDMA migration, in the past
+developing cycles, a few fatal errors were introduced and broke the RDMA
+migration, and these issues were not fixed until some time later.
+
+Modern network cards (TCP/IP) can also provide high bandwidth (similar to RDMA)
+to handle the large amount of data generated during migration.

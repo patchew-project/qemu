@@ -563,6 +563,7 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
             qapi_free_InetSocketAddress(isock);
             return false;
         }
+        warn_report("RDMA migration is deprecated and will be removed in a future release");
         addr->transport = MIGRATION_ADDRESS_TYPE_RDMA;
     } else if (strstart(uri, "tcp:", NULL) ||
                 strstart(uri, "unix:", NULL) ||
