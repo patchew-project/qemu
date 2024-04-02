@@ -1205,6 +1205,15 @@ again:
             break;
         }
         s->dbc = insn & 0xffffff;
+        if (!s->dbc) {
+            /*
+             * If the instruction is a Block Move and a value of 0x000000 is
+             * loaded into the DBC register, an illegal instruction interrupt
+             * occurs if the LSI53C895A is not in target mode, Command phase.
+             */
+            lsi_script_dma_interrupt(s, LSI_DSTAT_IID);
+            break;
+        }
         s->rbc = s->dbc;
         /* ??? Set ESA.  */
         s->ia = s->dsp - 8;
