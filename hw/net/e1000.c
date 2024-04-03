@@ -44,26 +44,6 @@
 #include "trace.h"
 #include "qom/object.h"
 
-/* #define E1000_DEBUG */
-
-#ifdef E1000_DEBUG
-enum {
-    DEBUG_GENERAL,      DEBUG_IO,       DEBUG_MMIO,     DEBUG_INTERRUPT,
-    DEBUG_RX,           DEBUG_TX,       DEBUG_MDIC,     DEBUG_EEPROM,
-    DEBUG_UNKNOWN,      DEBUG_TXSUM,    DEBUG_TXERR,    DEBUG_RXERR,
-    DEBUG_RXFILTER,     DEBUG_PHY,      DEBUG_NOTYET,
-};
-#define DBGBIT(x)    (1<<DEBUG_##x)
-static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
-
-#define DBGOUT(what, fmt, ...) do { \
-    if (debugflags & DBGBIT(what)) \
-        fprintf(stderr, "e1000: " fmt, ## __VA_ARGS__); \
-    } while (0)
-#else
-#define DBGOUT(what, fmt, ...) do {} while (0)
-#endif
-
 #define IOPORT_SIZE       0x40
 #define PNPMMIO_SIZE      0x20000
 
@@ -351,8 +331,7 @@ e1000_mit_timer(void *opaque)
 static void
 set_ics(E1000State *s, int index, uint32_t val)
 {
-    DBGOUT(INTERRUPT, "set_ics %x, ICR %x, IMR %x\n", val, s->mac_reg[ICR],
-        s->mac_reg[IMS]);
+    trace_e1000_set_ics(val, s->mac_reg[ICR], s->mac_reg[IMS]);
     set_interrupt_cause(s, 0, val | s->mac_reg[ICR]);
 }
 
@@ -425,8 +404,7 @@ set_rx_control(E1000State *s, int index, uint32_t val)
     s->mac_reg[RCTL] = val;
     s->rxbuf_size = e1000x_rxbufsize(val);
     s->rxbuf_min_shift = ((val / E1000_RCTL_RDMTS_QUAT) & 3) + 1;
-    DBGOUT(RX, "RCTL: %d, mac_reg[RCTL] = 0x%x\n", s->mac_reg[RDT],
-           s->mac_reg[RCTL]);
+    trace_e1000_set_rx_control(s->mac_reg[RDT], s->mac_reg[RCTL]);
     timer_mod(s->flush_queue_timer,
               qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1000);
 }
@@ -440,16 +418,16 @@ set_mdic(E1000State *s, int index, uint32_t val)
     if ((val & E1000_MDIC_PHY_MASK) >> E1000_MDIC_PHY_SHIFT != 1) // phy #
         val = s->mac_reg[MDIC] | E1000_MDIC_ERROR;
     else if (val & E1000_MDIC_OP_READ) {
-        DBGOUT(MDIC, "MDIC read reg 0x%x\n", addr);
+        trace_e1000_mdic_read_register(addr);
         if (!(phy_regcap[addr] & PHY_R)) {
-            DBGOUT(MDIC, "MDIC read reg %x unhandled\n", addr);
+            trace_e1000_mdic_read_register_unhandled(addr);
             val |= E1000_MDIC_ERROR;
         } else
             val = (val ^ data) | s->phy_reg[addr];
     } else if (val & E1000_MDIC_OP_WRITE) {
-        DBGOUT(MDIC, "MDIC write reg 0x%x, value 0x%x\n", addr, data);
+        trace_e1000_mdic_write_register(addr, data);
         if (!(phy_regcap[addr] & PHY_W)) {
-            DBGOUT(MDIC, "MDIC write reg %x unhandled\n", addr);
+            trace_e1000_mdic_write_register_unhandled(addr);
             val |= E1000_MDIC_ERROR;
         } else {
             if (addr < NPHYWRITEOPS && phyreg_writeops[addr]) {
@@ -471,8 +449,8 @@ get_eecd(E1000State *s, int index)
 {
     uint32_t ret = E1000_EECD_PRES|E1000_EECD_GNT | s->eecd_state.old_eecd;
 
-    DBGOUT(EEPROM, "reading eeprom bit %d (reading %d)\n",
-           s->eecd_state.bitnum_out, s->eecd_state.reading);
+    trace_e1000_get_eecd(s->eecd_state.bitnum_out, s->eecd_state.reading);
+
     if (!s->eecd_state.reading ||
         ((s->eeprom_data[(s->eecd_state.bitnum_out >> 4) & 0x3f] >>
           ((s->eecd_state.bitnum_out & 0xf) ^ 0xf))) & 1)
@@ -511,9 +489,8 @@ set_eecd(E1000State *s, int index, uint32_t val)
         s->eecd_state.reading = (((s->eecd_state.val_in >> 6) & 7) ==
             EEPROM_READ_OPCODE_MICROWIRE);
     }
-    DBGOUT(EEPROM, "eeprom bitnum in %d out %d, reading %d\n",
-           s->eecd_state.bitnum_in, s->eecd_state.bitnum_out,
-           s->eecd_state.reading);
+    trace_e1000_set_eecd(s->eecd_state.bitnum_in, s->eecd_state.bitnum_out,
+                         s->eecd_state.reading);
 }
 
 static uint32_t
@@ -580,8 +557,7 @@ xmit_seg(E1000State *s)
 
     if (tp->cptse) {
         css = props->ipcss;
-        DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
-               frames, tp->size, css);
+        trace_e1000_xmit_seg1(frames, tp->size, css);
         if (props->ip) {    /* IPv4 */
             stw_be_p(tp->data+css+2, tp->size - css);
             stw_be_p(tp->data+css+4,
@@ -591,7 +567,7 @@ xmit_seg(E1000State *s)
         }
         css = props->tucss;
         len = tp->size - css;
-        DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", props->tcp, css, len);
+        trace_e1000_xmit_seg2(props->tcp, css, len);
         if (props->tcp) {
             sofar = frames * props->mss;
             stl_be_p(tp->data+css+4, ldl_be_p(tp->data+css+4)+sofar); /* seq */
@@ -759,7 +735,7 @@ start_xmit(E1000State *s)
     uint32_t tdh_start = s->mac_reg[TDH], cause = E1000_ICS_TXQE;
 
     if (!(s->mac_reg[TCTL] & E1000_TCTL_EN)) {
-        DBGOUT(TX, "tx disabled\n");
+        trace_e1000_start_xmit_fail1();
         return;
     }
 
@@ -773,9 +749,9 @@ start_xmit(E1000State *s)
                sizeof(struct e1000_tx_desc) * s->mac_reg[TDH];
         pci_dma_read(d, base, &desc, sizeof(desc));
 
-        DBGOUT(TX, "index %d: %p : %x %x\n", s->mac_reg[TDH],
-               (void *)(intptr_t)desc.buffer_addr, desc.lower.data,
-               desc.upper.data);
+        trace_e1000_transmit(s->mac_reg[TDH],
+                             (void *)(intptr_t)desc.buffer_addr,
+                             desc.lower.data, desc.upper.data);
 
         process_tx_desc(s, &desc);
         cause |= txdesc_writeback(s, base, &desc);
@@ -789,8 +765,8 @@ start_xmit(E1000State *s)
          */
         if (s->mac_reg[TDH] == tdh_start ||
             tdh_start >= s->mac_reg[TDLEN] / sizeof(desc)) {
-            DBGOUT(TXERR, "TDH wraparound @%x, TDT %x, TDLEN %x\n",
-                   tdh_start, s->mac_reg[TDT], s->mac_reg[TDLEN]);
+            trace_e1000_start_xmit_fail2(tdh_start, s->mac_reg[TDT],
+                                         s->mac_reg[TDLEN]);
             break;
         }
     }
@@ -978,7 +954,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
                 desc.status &= ~E1000_RXD_STAT_EOP;
             }
         } else { // as per intel docs; skip descriptors with null buf addr
-            DBGOUT(RX, "Null RX descriptor!!\n");
+            trace_e1000_null_rx();
         }
         pci_dma_write(d, base, &desc, sizeof(desc));
         desc.status |= (vlan_status | E1000_RXD_STAT_DD);
@@ -990,8 +966,8 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         /* see comment in start_xmit; same here */
         if (s->mac_reg[RDH] == rdh_start ||
             rdh_start >= s->mac_reg[RDLEN] / sizeof(desc)) {
-            DBGOUT(RXERR, "RDH wraparound @%x, RDT %x, RDLEN %x\n",
-                   rdh_start, s->mac_reg[RDT], s->mac_reg[RDLEN]);
+            trace_e1000_rdh_wraparound(rdh_start, s->mac_reg[RDT],
+                                       s->mac_reg[RDLEN]);
             e1000_receiver_overrun(s, total_size);
             return -1;
         }
@@ -1033,7 +1009,7 @@ mac_icr_read(E1000State *s, int index)
 {
     uint32_t ret = s->mac_reg[ICR];
 
-    DBGOUT(INTERRUPT, "ICR read: %x\n", ret);
+    trace_e1000_mac_icr_read(ret);
     set_interrupt_cause(s, 0, 0);
     return ret;
 }
@@ -1109,7 +1085,7 @@ set_tctl(E1000State *s, int index, uint32_t val)
 static void
 set_icr(E1000State *s, int index, uint32_t val)
 {
-    DBGOUT(INTERRUPT, "set_icr %x\n", val);
+    trace_e1000_set_icr(val);
     set_interrupt_cause(s, 0, s->mac_reg[ICR] & ~val);
 }
 
@@ -1271,20 +1247,16 @@ e1000_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         if (!(mac_reg_access[index] & MAC_ACCESS_FLAG_NEEDED)
             || (s->compat_flags & (mac_reg_access[index] >> 2))) {
             if (mac_reg_access[index] & MAC_ACCESS_PARTIAL) {
-                DBGOUT(GENERAL, "Writing to register at offset: 0x%08x. "
-                       "It is not fully implemented.\n", index<<2);
+                trace_e1000_mmio_write_fail1(index << 2);
             }
             macreg_writeops[index](s, index, val);
         } else {    /* "flag needed" bit is set, but the flag is not active */
-            DBGOUT(MMIO, "MMIO write attempt to disabled reg. addr=0x%08x\n",
-                   index<<2);
+            trace_e1000_mmio_write_fail2(index << 2);
         }
     } else if (index < NREADOPS && macreg_readops[index]) {
-        DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04"PRIx64"\n",
-               index<<2, val);
+        trace_e1000_mmio_write_fail3(index << 2, val);
     } else {
-        DBGOUT(UNKNOWN, "MMIO unknown write addr=0x%08x,val=0x%08"PRIx64"\n",
-               index<<2, val);
+        trace_e1000_mmio_write_fail4(index << 2, val);
     }
 }
 
@@ -1298,16 +1270,14 @@ e1000_mmio_read(void *opaque, hwaddr addr, unsigned size)
         if (!(mac_reg_access[index] & MAC_ACCESS_FLAG_NEEDED)
             || (s->compat_flags & (mac_reg_access[index] >> 2))) {
             if (mac_reg_access[index] & MAC_ACCESS_PARTIAL) {
-                DBGOUT(GENERAL, "Reading register at offset: 0x%08x. "
-                       "It is not fully implemented.\n", index<<2);
+                trace_e1000_mmio_read_fail1(index << 2);
             }
             return macreg_readops[index](s, index);
         } else {    /* "flag needed" bit is set, but the flag is not active */
-            DBGOUT(MMIO, "MMIO read attempt of disabled reg. addr=0x%08x\n",
-                   index<<2);
+            trace_e1000_mmio_read_fail2(index << 2);
         }
     } else {
-        DBGOUT(UNKNOWN, "MMIO unknown read addr=0x%08x\n", index<<2);
+        trace_e1000_mmio_read_fail3(index << 2);
     }
     return 0;
 }
