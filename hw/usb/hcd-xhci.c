@@ -710,12 +710,12 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
         le32_to_cpus(&trb->status);
         le32_to_cpus(&trb->control);
 
-        trace_usb_xhci_fetch_trb(ring->dequeue, trb_name(trb),
-                                 trb->parameter, trb->status, trb->control);
-
         if ((trb->control & TRB_C) != ring->ccs) {
             return 0;
         }
+
+        trace_usb_xhci_fetch_trb(ring->dequeue, trb_name(trb),
+                                 trb->parameter, trb->status, trb->control);
 
         type = TRB_TYPE(*trb);
 
