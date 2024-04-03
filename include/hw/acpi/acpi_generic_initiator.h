@@ -30,6 +30,12 @@ typedef struct AcpiGenericInitiator {
     AcpiGenericNode parent;
 } AcpiGenericInitiator;
 
+#define TYPE_ACPI_GENERIC_PORT "acpi-generic-port"
+
+typedef struct AcpiGenericPort {
+    AcpiGenericInitiator parent;
+} AcpiGenericPort;
+
 /*
  * ACPI 6.3:
  * Table 5-81 Flags – Generic Initiator Affinity Structure
@@ -49,8 +55,16 @@ typedef enum {
  * Table 5-80 Device Handle - PCI
  */
 typedef struct PCIDeviceHandle {
-    uint16_t segment;
-    uint16_t bdf;
+    union {
+        struct {
+            uint16_t segment;
+            uint16_t bdf;
+        };
+        struct {
+            uint64_t hid;
+            uint32_t uid;
+        };
+    };
 } PCIDeviceHandle;
 
 void build_srat_generic_pci_initiator(GArray *table_data);
