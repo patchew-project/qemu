@@ -596,6 +596,18 @@ static int nbd_request_simple_option(QIOChannel *ioc, int opt, bool strict,
     return 1;
 }
 
+/* Callback to learn when QIO TLS upgrade is complete */
+static void nbd_client_tls_handshake(QIOTask *task, void *opaque)
+{
+    struct NBDTLSHandshakeData *data = opaque;
+
+    qio_task_propagate_error(task, &data->error);
+    data->complete = true;
+    if (data->u.loop) {
+        g_main_loop_quit(data->u.loop);
+    }
+}
+
 static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
                                         QCryptoTLSCreds *tlscreds,
                                         const char *hostname, Error **errp)
@@ -619,18 +631,19 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
         return NULL;
     }
     qio_channel_set_name(QIO_CHANNEL(tioc), "nbd-client-tls");
-    data.loop = g_main_loop_new(g_main_context_default(), FALSE);
     trace_nbd_receive_starttls_tls_handshake();
     qio_channel_tls_handshake(tioc,
-                              nbd_tls_handshake,
+                              nbd_client_tls_handshake,
                               &data,
                               NULL,
                               NULL);
 
     if (!data.complete) {
-        g_main_loop_run(data.loop);
+        data.u.loop = g_main_loop_new(g_main_context_default(), FALSE);
+        g_main_loop_run(data.u.loop);
+        g_main_loop_unref(data.u.loop);
     }
-    g_main_loop_unref(data.loop);
+
     if (data.error) {
         error_propagate(errp, data.error);
         object_unref(OBJECT(tioc));

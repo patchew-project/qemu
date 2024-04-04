@@ -63,6 +63,16 @@
 #define NBD_SET_TIMEOUT             _IO(0xab, 9)
 #define NBD_SET_FLAGS               _IO(0xab, 10)
 
+/* Used in NBD_OPT_STARTTLS handling */
+struct NBDTLSHandshakeData {
+    bool complete;
+    Error *error;
+    union {
+        GMainLoop *loop;
+        Coroutine *co;
+    } u;
+};
+
 /* nbd_write
  * Writes @size bytes to @ioc. Returns 0 on success.
  */
@@ -71,16 +81,6 @@ static inline int nbd_write(QIOChannel *ioc, const void *buffer, size_t size,
 {
     return qio_channel_write_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
 }
-
-struct NBDTLSHandshakeData {
-    GMainLoop *loop;
-    bool complete;
-    Error *error;
-};
-
-
-void nbd_tls_handshake(QIOTask *task,
-                       void *opaque);
 
 int nbd_drop(QIOChannel *ioc, size_t size, Error **errp);
 
