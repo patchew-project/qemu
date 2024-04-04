@@ -770,8 +770,8 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
             return;
         }
 
-        if (iov_size(elem->in_sg, elem->in_num) < sizeof(tail) ||
-            iov_size(elem->out_sg, elem->out_num) < sizeof(head)) {
+        if (iov_size(elem->in_sg, elem->in_num) != sizeof(tail) ||
+            iov_size(elem->out_sg, elem->out_num) != sizeof(head)) {
             virtio_error(vdev, "virtio-iommu bad head/tail size");
             virtqueue_detach_element(vq, elem, 0);
             g_free(elem);
@@ -818,8 +818,6 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
 out:
         sz = iov_from_buf(elem->in_sg, elem->in_num, 0,
                           buf ? buf : &tail, output_size);
-        assert(sz == output_size);
-
         virtqueue_push(vq, elem, sz);
         virtio_notify(vdev, vq);
         g_free(elem);
@@ -852,7 +850,7 @@ static void virtio_iommu_report_fault(VirtIOIOMMU *viommu, uint8_t reason,
         return;
     }
 
-    if (iov_size(elem->in_sg, elem->in_num) < sizeof(fault)) {
+    if (iov_size(elem->in_sg, elem->in_num) != sizeof(fault)) {
         virtio_error(vdev, "error buffer of wrong size");
         virtqueue_detach_element(vq, elem, 0);
         g_free(elem);
@@ -861,8 +859,6 @@ static void virtio_iommu_report_fault(VirtIOIOMMU *viommu, uint8_t reason,
 
     sz = iov_from_buf(elem->in_sg, elem->in_num, 0,
                       &fault, sizeof(fault));
-    assert(sz == sizeof(fault));
-
     trace_virtio_iommu_report_fault(reason, flags, endpoint, address);
     virtqueue_push(vq, elem, sz);
     virtio_notify(vdev, vq);
