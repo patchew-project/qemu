@@ -160,18 +160,29 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
 
 void helper_macl(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
-    int64_t res;
-
-    res = ((uint64_t) env->mach << 32) | env->macl;
-    res += (int64_t) (int32_t) arg0 *(int64_t) (int32_t) arg1;
-    env->mach = (res >> 32) & 0xffffffff;
-    env->macl = res & 0xffffffff;
+    int32_t value0 = (int32_t)arg0;
+    int32_t value1 = (int32_t)arg1;
+    int64_t mul = ((int64_t)value0) * ((int64_t)value1);
+    int64_t mac = (((uint64_t)env->mach) << 32) | env->macl;
+    int64_t result;
+    bool overflow = sadd64_overflow(mac, mul, &result);
+    /* Perform 48-bit saturation arithmetic if the S flag is set */
     if (env->sr & (1u << SR_S)) {
-        if (res < 0)
-            env->mach |= 0xffff0000;
-        else
-            env->mach &= 0x00007fff;
+        /*
+         * The sign bit of `mac + mul` may overflow. The MAC unit on
+         * real SH-4 hardware has equivalent carry/saturation logic:
+         */
+        const int64_t upper_bound =  ((1ull << 47) - 1);
+        const int64_t lower_bound = -((1ull << 47) - 0);
+
+        if (overflow) {
+            result = (mac < 0) ? lower_bound : upper_bound;
+        } else {
+            result = MIN(MAX(result, lower_bound), upper_bound);
+        }
     }
+    env->macl = result;
+    env->mach = result >> 32;
 }
 
 void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
