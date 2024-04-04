@@ -552,7 +552,7 @@ static void sdhci_write_block_to_card(SDHCIState *s)
  * register */
 static void sdhci_write_dataport(SDHCIState *s, uint32_t value, unsigned size)
 {
-    unsigned i;
+    unsigned i, available;
 
     /* Check that there is free space left in a buffer */
     if (!(s->prnsts & SDHC_SPACE_AVAILABLE)) {
@@ -560,6 +560,14 @@ static void sdhci_write_dataport(SDHCIState *s, uint32_t value, unsigned size)
         return;
     }
 
+    available = s->buf_maxsz - s->data_count;
+    if (size > available) {
+        qemu_log_mask(LOG_GUEST_ERROR, "SDHC buffer data full (size: %"PRIu32")"
+                                       " discarding %u byte%s\n",
+                                       s->buf_maxsz, size - available,
+                                       size - available > 1 ? "s" : "");
+        size = available; /* Excess data of the last write is ignored. */
+    }
     for (i = 0; i < size; i++) {
         s->fifo_buffer[s->data_count] = value & 0xFF;
         s->data_count++;
