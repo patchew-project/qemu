@@ -75,6 +75,7 @@ if have_system
   if host_os == 'linux'
     util_ss.add(files('userfaultfd.c'))
   endif
+  util_ss.add(files('qemu-config-qmp.c'))
   util_ss.add(files('yank.c'))
 endif
 
