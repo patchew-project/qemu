@@ -160,18 +160,43 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
 
 void helper_macl(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
-    int64_t res;
-
-    res = ((uint64_t) env->mach << 32) | env->macl;
-    res += (int64_t) (int32_t) arg0 *(int64_t) (int32_t) arg1;
-    env->mach = (res >> 32) & 0xffffffff;
-    env->macl = res & 0xffffffff;
+    int32_t value0 = (int32_t)arg0;
+    int32_t value1 = (int32_t)arg1;
+    int64_t mul = ((int64_t)value0) * ((int64_t)value1);
+    int64_t mac = (((uint64_t)env->mach) << 32) | env->macl;
+    int64_t result = mac + mul;
+    /* Perform 48-bit saturation arithmetic if the S flag is set */
     if (env->sr & (1u << SR_S)) {
-        if (res < 0)
-            env->mach |= 0xffff0000;
-        else
-            env->mach &= 0x00007fff;
+        /*
+         * The following xor/and expression is necessary to detect an
+         * overflow in MSB of res; this is logic necessary because the
+         * sign bit of `mac + mul` may overflow. The MAC unit on real
+         * SH-4 hardware has carry/saturation logic that is equivalent
+         * to the following:
+         */
+        const int64_t upper_bound =  ((1ull << 47) - 1);
+        const int64_t lower_bound = -((1ull << 47) - 0);
+
+        if (((((result ^ mac) & (result ^ mul)) >> 63) & 1) == 1) {
+            /* An overflow occured during 64-bit addition */
+            if (((mac >> 63) & 1) == 0) {
+                result = upper_bound;
+            } else {
+                result = lower_bound;
+            }
+        } else {
+            /* An overflow did not occur during 64-bit addition */
+            if (result > upper_bound) {
+                result = upper_bound;
+            } else if (result < lower_bound) {
+                result = lower_bound;
+            } else {
+                /* leave result unchanged */
+            }
+        }
     }
+    env->macl = result;
+    env->mach = result >> 32;
 }
 
 void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
