@@ -3,7 +3,6 @@ hwcore_ss.add(files(
   'bus.c',
   'qdev-properties.c',
   'qdev.c',
-  'reset.c',
   'resetcontainer.c',
   'resettable.c',
   'vmstate-if.c',
@@ -16,6 +15,7 @@ if have_system
   hwcore_ss.add(files(
     'hotplug.c',
     'qdev-hotplug.c',
+    'reset.c',
   ))
 else
   hwcore_ss.add(files(
