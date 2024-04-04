@@ -24,7 +24,9 @@
  */
 
 #include "qemu/osdep.h"
+#ifndef CONFIG_USER_ONLY
 #include "sysemu/reset.h"
+#endif
 #include "hw/resettable.h"
 #include "hw/core/resetcontainer.h"
 
@@ -43,6 +45,7 @@ static ResettableContainer *get_root_reset_container(void)
     return root_reset_container;
 }
 
+#ifndef CONFIG_USER_ONLY
 /*
  * Reason why the currently in-progress qemu_devices_reset() was called.
  * If we made at least SHUTDOWN_CAUSE_SNAPSHOT_LOAD have a corresponding
@@ -185,3 +188,4 @@ void qemu_devices_reset(ShutdownCause reason)
     /* Reset the simulation */
     resettable_reset(OBJECT(get_root_reset_container()), RESET_TYPE_COLD);
 }
+#endif
