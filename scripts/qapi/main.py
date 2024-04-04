@@ -33,7 +33,8 @@ def generate(schema_file: str,
              prefix: str,
              unmask: bool = False,
              builtins: bool = False,
-             gen_tracing: bool = False) -> None:
+             gen_tracing: bool = False,
+             gen_types_only: bool = False) -> None:
     """
     Generate C code for the given schema into the target directory.
 
@@ -50,9 +51,10 @@ def generate(schema_file: str,
     schema = QAPISchema(schema_file)
     gen_types(schema, output_dir, prefix, builtins)
     gen_visit(schema, output_dir, prefix, builtins)
-    gen_commands(schema, output_dir, prefix, gen_tracing)
-    gen_events(schema, output_dir, prefix)
-    gen_introspect(schema, output_dir, prefix, unmask)
+    if not gen_types_only:
+        gen_commands(schema, output_dir, prefix, gen_tracing)
+        gen_events(schema, output_dir, prefix)
+        gen_introspect(schema, output_dir, prefix, unmask)
 
 
 def main() -> int:
@@ -75,6 +77,9 @@ def main() -> int:
     parser.add_argument('-u', '--unmask-non-abi-names', action='store_true',
                         dest='unmask',
                         help="expose non-ABI names in introspection")
+    parser.add_argument('-t', '--types-only', action='store_true',
+                        dest='gen_types_only',
+                        help="Only generate QAPI types")
 
     # Option --suppress-tracing exists so we can avoid solving build system
     # problems.  TODO Drop it when we no longer need it.
@@ -96,7 +101,8 @@ def main() -> int:
                  prefix=args.prefix,
                  unmask=args.unmask,
                  builtins=args.builtins,
-                 gen_tracing=not args.suppress_tracing)
+                 gen_tracing=not args.suppress_tracing,
+                 gen_types_only=args.gen_types_only)
     except QAPIError as err:
         print(err, file=sys.stderr)
         return 1
