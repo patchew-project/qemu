@@ -176,20 +176,45 @@ void helper_macl(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 
 void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
-    int64_t res;
+    int16_t value0 = (int16_t)arg0;
+    int16_t value1 = (int16_t)arg1;
+    int32_t mul = ((int32_t)value0) * ((int32_t)value1);
 
-    res = ((uint64_t) env->mach << 32) | env->macl;
-    res += (int64_t) (int16_t) arg0 *(int64_t) (int16_t) arg1;
-    env->mach = (res >> 32) & 0xffffffff;
-    env->macl = res & 0xffffffff;
+    /* Perform 32-bit saturation arithmetic if the S flag is set */
     if (env->sr & (1u << SR_S)) {
-        if (res < -0x80000000) {
+        const int32_t upper_bound =  ((1u << 31) - 1);
+        const int32_t lower_bound = -((1u << 31) - 0);
+
+        /*
+         * In saturation arithmetic mode, the accumulator is 32-bit
+         * with carry. MACH is not considered during the addition
+         * operation nor the 32-bit saturation logic.
+         */
+        int32_t mac = env->macl;
+        int32_t result;
+        bool overflow = sadd32_overflow(mac, mul, &result);
+        if (overflow) {
+            result = (mac < 0) ? lower_bound : upper_bound;
+            /* MACH is set to 1 to denote overflow */
+            env->macl = result;
             env->mach = 1;
-            env->macl = 0x80000000;
-        } else if (res > 0x000000007fffffff) {
-            env->mach = 1;
-            env->macl = 0x7fffffff;
+        } else {
+            /*
+             * If there is no overflow, the result is already inside
+             * the saturation bounds.
+             *
+             * If there was no overflow, MACH is unchanged.
+             */
+            env->macl = result;
         }
+    } else {
+        /* In non-saturation arithmetic mode, the accumulator is 64-bit */
+        int64_t mac = (((uint64_t)env->mach) << 32) | env->macl;
+
+        /* The carry bit of the 64-bit addition is discarded */
+        int64_t result = mac + (int64_t)mul;
+        env->macl = result;
+        env->mach = result >> 32;
     }
 }
 
