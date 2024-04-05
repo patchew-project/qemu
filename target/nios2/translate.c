@@ -32,6 +32,7 @@
 #include "exec/translator.h"
 #include "qemu/qemu-print.h"
 #include "semihosting/semihost.h"
+#include "exec/cpu_ldst.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
