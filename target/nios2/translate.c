@@ -25,7 +25,6 @@
 #include "cpu.h"
 #include "tcg/tcg-op.h"
 #include "exec/exec-all.h"
-#include "disas/disas.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "exec/log.h"
@@ -1019,20 +1018,12 @@ static void nios2_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static void nios2_tr_disas_log(const DisasContextBase *dcbase,
-                               CPUState *cpu, FILE *logfile)
-{
-    fprintf(logfile, "IN: %s\n", lookup_symbol(dcbase->pc_first));
-    target_disas(logfile, cpu, dcbase->pc_first, dcbase->tb->size);
-}
-
 static const TranslatorOps nios2_tr_ops = {
     .init_disas_context = nios2_tr_init_disas_context,
     .tb_start           = nios2_tr_tb_start,
     .insn_start         = nios2_tr_insn_start,
     .translate_insn     = nios2_tr_translate_insn,
     .tb_stop            = nios2_tr_tb_stop,
-    .disas_log          = nios2_tr_disas_log,
 };
 
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
