@@ -101,7 +101,31 @@ net_rx_pkt_rss_hash(size_t rss_length, uint32_t rss_hash) "RSS hash for %zu byte
 net_rx_pkt_rss_add_chunk(void* ptr, size_t size, size_t input_offset) "Add RSS chunk %p, %zu bytes, RSS input offset %zu bytes"
 
 # e1000.c
+e1000_set_ics(uint32_t val, uint32_t ICR, uint32_t IMR) "set_ics 0x%x, ICR 0x%x, IMR 0x%x"
+e1000_set_rx_control(uint32_t RDT, uint32_t RCTL) "RCTL: %d, mac_reg[RCTL] = 0x%x"
+e1000_mdic_read_register(uint32_t addr) "MDIC read reg 0x%x"
+e1000_mdic_read_register_unhandled(uint32_t addr) "MDIC read reg 0x%x unhandled"
+e1000_mdic_write_register(uint32_t addr, uint32_t val) "MDIC write reg 0x%x, value 0x%x"
+e1000_mdic_write_register_unhandled(uint32_t addr) "MDIC write reg 0x%x unhandled"
+e1000_transmit(uint32_t tdh, void *addr, uint32_t data_low, uint32_t data_high) "index %d: %p : 0x%x 0x%x"
+e1000_get_eecd(uint16_t bitnum_out, uint16_t reading) "reading eeprom bit %d (reading %d)"
+e1000_set_eecd(uint16_t bitnum_in, uint16_t bitnum_out, uint16_t reading) "eeprom bitnum in %d out %d, reading %d"
+e1000_xmit_seg1(unsigned int frames, uint16_t size, unsigned int css) "frames %d size %d ipcss %d"
+e1000_xmit_seg2(int8_t tcp, uint16_t css, unsigned int len) "tcp %d tucss %d len %d"
+e1000_start_xmit_fail1(void) "tx disabled"
+e1000_start_xmit_fail2(uint32_t tdh_start, uint32_t TDT, uint32_t TDLEN) "TDH wraparound @0x%x, TDT 0x%x, TDLEN 0x%x"
 e1000_receiver_overrun(size_t s, uint32_t rdh, uint32_t rdt) "Receiver overrun: dropped packet of %zu bytes, RDH=%u, RDT=%u"
+e1000_null_rx(void) "Null RX descriptor!!"
+e1000_rdh_wraparound(uint32_t rdh_start, uint32_t RDT, uint32_t RDLEN) "RDH wraparound @0x%x, RDT 0x%x, RDLEN 0x%x"
+e1000_mac_icr_read(uint32_t ret) "ICR read: 0x%x"
+e1000_set_icr(uint32_t val) "set_icr 0x%x"
+e1000_mmio_write_fail1(unsigned int index) "Writing to register at offset: 0x%08x. It is not fully implemented."
+e1000_mmio_write_fail2(unsigned int index) "MMIO write attempt to disabled reg. addr=0x%08x"
+e1000_mmio_write_fail3(unsigned int index, uint64_t val) "e1000_mmio_writel RO 0x%x: 0x%04"PRIx64""
+e1000_mmio_write_fail4(unsigned int index, uint64_t val) "MMIO unknown write addr=0x%08x,val=0x%08"PRIx64""
+e1000_mmio_read_fail1(unsigned int index) "Reading register at offset: 0x%08x. It is not fully implemented."
+e1000_mmio_read_fail2(unsigned int index) "MMIO read attempt of disabled reg. addr=0x%08x"
+e1000_mmio_read_fail3(unsigned int index) "MMIO unknown read addr=0x%08x"
 
 # e1000x_common.c
 e1000x_rx_can_recv_disabled(bool link_up, bool rx_enabled, bool pci_master) "link_up: %d, rx_enabled %d, pci_master %d"
@@ -146,7 +170,6 @@ e1000e_wrn_no_snap_support(void) "WARNING: Guest requested TX SNAP header update
 e1000e_wrn_iscsi_filtering_not_supported(void) "WARNING: Guest requested iSCSI filtering  which is not supported"
 e1000e_wrn_nfsw_filtering_not_supported(void) "WARNING: Guest requested NFS write filtering  which is not supported"
 e1000e_wrn_nfsr_filtering_not_supported(void) "WARNING: Guest requested NFS read filtering  which is not supported"
-
 e1000e_tx_disabled(void) "TX Disabled"
 e1000e_tx_descr(void *addr, uint32_t lower, uint32_t upper) "%p : %x %x"
 
