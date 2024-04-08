@@ -3846,6 +3846,29 @@ static int vtd_check_iommufd_hdev(IntelIOMMUState *s,
                                   HostIOMMUDevice *hiod,
                                   Error **errp)
 {
+    HostIOMMUDeviceClass *hiodc = HOST_IOMMU_DEVICE_GET_CLASS(hiod);
+    struct iommu_hw_info_vtd *vtd;
+    HIOD_IOMMUFD_INFO info;
+    int host_aw_bits, ret;
+
+    ret = hiodc->get_host_iommu_info(hiod, &info, sizeof(info), errp);
+    if (ret) {
+        return ret;
+    }
+
+    if (info.type != IOMMU_HW_INFO_TYPE_INTEL_VTD) {
+        error_setg(errp, "IOMMU hardware is not compatible");
+        return -EINVAL;
+    }
+
+    vtd = &info.data.vtd;
+    host_aw_bits = VTD_MGAW_FROM_CAP(vtd->cap_reg) + 1;
+    if (s->aw_bits > host_aw_bits) {
+        error_setg(errp, "aw-bits %d > host aw-bits %d",
+                   s->aw_bits, host_aw_bits);
+        return -EINVAL;
+    }
+
     return 0;
 }
 
