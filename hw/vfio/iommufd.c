@@ -634,12 +634,21 @@ static void vfio_iommu_iommufd_class_init(ObjectClass *klass, void *data)
     vioc->pci_hot_reset = iommufd_cdev_pci_hot_reset;
 };
 
+static void hiod_iommufd_vfio_class_init(ObjectClass *oc, void *data)
+{
+};
+
 static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU_IOMMUFD,
         .parent = TYPE_VFIO_IOMMU,
         .class_init = vfio_iommu_iommufd_class_init,
-    },
+    }, {
+        .name = TYPE_HIOD_IOMMUFD_VFIO,
+        .parent = TYPE_HIOD_IOMMUFD,
+        .instance_size = sizeof(HIODIOMMUFDVFIO),
+        .class_init = hiod_iommufd_vfio_class_init,
+    }
 };
 
 DEFINE_TYPES(types)
