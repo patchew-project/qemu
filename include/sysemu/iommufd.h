@@ -39,6 +39,13 @@ int iommufd_backend_get_device_info(IOMMUFDBackend *be, uint32_t devid,
                                     enum iommu_hw_info_type *type,
                                     void *data, uint32_t len, Error **errp);
 
+typedef struct HIOD_IOMMUFD_INFO {
+    enum iommu_hw_info_type type;
+    union {
+        struct iommu_hw_info_vtd vtd;
+    } data;
+} HIOD_IOMMUFD_INFO;
+
 #define TYPE_HIOD_IOMMUFD TYPE_HOST_IOMMU_DEVICE "-iommufd"
 OBJECT_DECLARE_TYPE(HIODIOMMUFD, HIODIOMMUFDClass, HIOD_IOMMUFD)
 

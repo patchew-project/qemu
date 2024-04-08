@@ -240,8 +240,25 @@ void hiod_iommufd_init(HIODIOMMUFD *idev, IOMMUFDBackend *iommufd,
     idev->devid = devid;
 }
 
+static int hiod_iommufd_get_host_iommu_info(HostIOMMUDevice *hiod,
+                                            void *data, uint32_t len,
+                                            Error **errp)
+{
+    HIODIOMMUFD *idev = HIOD_IOMMUFD(hiod);
+    HIOD_IOMMUFD_INFO *info = data;
+
+    assert(sizeof(HIOD_IOMMUFD_INFO) <= len);
+
+    return iommufd_backend_get_device_info(idev->iommufd, idev->devid,
+                                           &info->type, &info->data,
+                                           sizeof(info->data), errp);
+}
+
 static void hiod_iommufd_class_init(ObjectClass *oc, void *data)
 {
+    HostIOMMUDeviceClass *hiodc = HOST_IOMMU_DEVICE_CLASS(oc);
+
+    hiodc->get_host_iommu_info = hiod_iommufd_get_host_iommu_info;
 }
 
 static const TypeInfo types[] = {
