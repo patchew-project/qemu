@@ -243,9 +243,25 @@ static inline void nand_pushio_byte(NANDFlashState *s, uint8_t value)
     }
 }
 
+/*
+ * nand_load_block: Load block containing (s->addr + @offset).
+ * Returns length of data available at @offset in this block.
+ */
+static int nand_load_block(NANDFlashState *s, int offset)
+{
+    int iolen;
+
+    s->blk_load(s, s->addr, offset);
+
+    iolen = (1 << s->page_shift) - offset;
+    if (s->gnd) {
+        iolen += 1 << s->oob_shift;
+    }
+    return iolen;
+}
+
 static void nand_command(NANDFlashState *s)
 {
-    unsigned int offset;
     switch (s->cmd) {
     case NAND_CMD_READ0:
         s->iolen = 0;
@@ -271,12 +287,7 @@ static void nand_command(NANDFlashState *s)
     case NAND_CMD_NOSERIALREAD2:
         if (!(nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP))
             break;
-        offset = s->addr & ((1 << s->addr_shift) - 1);
-        s->blk_load(s, s->addr, offset);
-        if (s->gnd)
-            s->iolen = (1 << s->page_shift) - offset;
-        else
-            s->iolen = (1 << s->page_shift) + (1 << s->oob_shift) - offset;
+        s->iolen = nand_load_block(s, s->addr & ((1 << s->addr_shift) - 1));
         break;
 
     case NAND_CMD_RESET:
@@ -597,12 +608,7 @@ uint32_t nand_getio(DeviceState *dev)
     if (!s->iolen && s->cmd == NAND_CMD_READ0) {
         offset = (int) (s->addr & ((1 << s->addr_shift) - 1)) + s->offset;
         s->offset = 0;
-
-        s->blk_load(s, s->addr, offset);
-        if (s->gnd)
-            s->iolen = (1 << s->page_shift) - offset;
-        else
-            s->iolen = (1 << s->page_shift) + (1 << s->oob_shift) - offset;
+        s->iolen = nand_load_block(s, offset);
     }
 
     if (s->ce || s->iolen <= 0) {
