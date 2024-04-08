@@ -3824,6 +3824,21 @@ static int vtd_check_legacy_hdev(IntelIOMMUState *s,
                                  HostIOMMUDevice *hiod,
                                  Error **errp)
 {
+    HostIOMMUDeviceClass *hiodc = HOST_IOMMU_DEVICE_GET_CLASS(hiod);
+    HIOD_LEGACY_INFO info;
+    int ret;
+
+    ret = hiodc->get_host_iommu_info(hiod, &info, sizeof(info), errp);
+    if (ret) {
+        return ret;
+    }
+
+    if (s->aw_bits > info.aw_bits) {
+        error_setg(errp, "aw-bits %d > host aw-bits %d",
+                   s->aw_bits, info.aw_bits);
+        return -EINVAL;
+    }
+
     return 0;
 }
 
