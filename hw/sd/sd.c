@@ -1875,6 +1875,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
                             sd->current_cmd, value);
     switch (sd->current_cmd) {
     case 24:  /* CMD24:  WRITE_SINGLE_BLOCK */
+        assert(sd->data_offset < sizeof(sd->data));
         sd->data[sd->data_offset ++] = value;
         if (sd->data_offset >= sd->blk_len) {
             /* TODO: Check CRC before committing */
@@ -1901,6 +1902,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
                 }
             }
         }
+        assert(sd->data_offset < sizeof(sd->data));
         sd->data[sd->data_offset++] = value;
         if (sd->data_offset >= sd->blk_len) {
             /* TODO: Check CRC before committing */
@@ -1925,6 +1927,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 26:  /* CMD26:  PROGRAM_CID */
+        assert(sd->data_offset < sizeof(sd->data));
         sd->data[sd->data_offset ++] = value;
         if (sd->data_offset >= sizeof(sd->cid)) {
             /* TODO: Check CRC before committing */
@@ -1944,6 +1947,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 27:  /* CMD27:  PROGRAM_CSD */
+        assert(sd->data_offset < sizeof(sd->data));
         sd->data[sd->data_offset ++] = value;
         if (sd->data_offset >= sizeof(sd->csd)) {
             /* TODO: Check CRC before committing */
@@ -1968,6 +1972,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 42:  /* CMD42:  LOCK_UNLOCK */
+        assert(sd->data_offset < sizeof(sd->data));
         sd->data[sd->data_offset ++] = value;
         if (sd->data_offset >= sd->blk_len) {
             /* TODO: Check CRC before committing */
@@ -1979,6 +1984,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 56:  /* CMD56:  GEN_CMD */
+        assert(sd->data_offset < sizeof(sd->data));
         sd->data[sd->data_offset ++] = value;
         if (sd->data_offset >= sd->blk_len) {
             APP_WRITE_BLOCK(sd->data_start, sd->data_offset);
@@ -2046,6 +2052,7 @@ uint8_t sd_read_byte(SDState *sd)
         break;
 
     case 13:  /* ACMD13: SD_STATUS */
+        assert(sd->data_offset < sizeof(sd->sd_status));
         ret = sd->sd_status[sd->data_offset ++];
 
         if (sd->data_offset >= sizeof(sd->sd_status))
@@ -2055,6 +2062,7 @@ uint8_t sd_read_byte(SDState *sd)
     case 17:  /* CMD17:  READ_SINGLE_BLOCK */
         if (sd->data_offset == 0)
             BLK_READ_BLOCK(sd->data_start, io_len);
+        assert(sd->data_offset < sizeof(sd->data));
         ret = sd->data[sd->data_offset ++];
 
         if (sd->data_offset >= io_len)
@@ -2069,6 +2077,7 @@ uint8_t sd_read_byte(SDState *sd)
             }
             BLK_READ_BLOCK(sd->data_start, io_len);
         }
+        assert(sd->data_offset < sizeof(sd->data));
         ret = sd->data[sd->data_offset ++];
 
         if (sd->data_offset >= io_len) {
@@ -2089,10 +2098,12 @@ uint8_t sd_read_byte(SDState *sd)
         if (sd->data_offset >= SD_TUNING_BLOCK_SIZE - 1) {
             sd->state = sd_transfer_state;
         }
+        assert(sd->data_offset < sizeof(sd_tuning_block_pattern));
         ret = sd_tuning_block_pattern[sd->data_offset++];
         break;
 
     case 22:  /* ACMD22: SEND_NUM_WR_BLOCKS */
+        assert(sd->data_offset < sizeof(sd->sd_status));
         ret = sd->data[sd->data_offset ++];
 
         if (sd->data_offset >= 4)
@@ -2100,6 +2111,7 @@ uint8_t sd_read_byte(SDState *sd)
         break;
 
     case 30:  /* CMD30:  SEND_WRITE_PROT */
+        assert(sd->data_offset < sizeof(sd->data));
         ret = sd->data[sd->data_offset ++];
 
         if (sd->data_offset >= 4)
@@ -2107,6 +2119,7 @@ uint8_t sd_read_byte(SDState *sd)
         break;
 
     case 51:  /* ACMD51: SEND_SCR */
+        assert(sd->data_offset < sizeof(sd->scr));
         ret = sd->scr[sd->data_offset ++];
 
         if (sd->data_offset >= sizeof(sd->scr))
@@ -2116,6 +2129,7 @@ uint8_t sd_read_byte(SDState *sd)
     case 56:  /* CMD56:  GEN_CMD */
         if (sd->data_offset == 0)
             APP_READ_BLOCK(sd->data_start, sd->blk_len);
+        assert(sd->data_offset < sizeof(sd->data));
         ret = sd->data[sd->data_offset ++];
 
         if (sd->data_offset >= sd->blk_len)
