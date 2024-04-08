@@ -4,10 +4,12 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
-/* The QEMU I2C implementation only supports simple transfers that complete
-   immediately.  It does not support slave devices that need to be able to
-   defer their response (eg. CPU slave interfaces where the data is supplied
-   by the device driver in response to an interrupt).  */
+/*
+ * The QEMU I2C implementation only supports simple transfers that complete
+ * immediately.  It does not support slave devices that need to be able to
+ * defer their response (eg. CPU slave interfaces where the data is supplied
+ * by the device driver in response to an interrupt).
+ */
 
 enum i2c_event {
     I2C_START_RECV,
