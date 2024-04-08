@@ -308,6 +308,7 @@ static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     VFIOIOMMUFDContainer *container;
     VFIOAddressSpace *space;
     struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
+    HIODIOMMUFDVFIO *hiod_vfio;
     int ret, devfd;
     uint32_t ioas_id;
     Error *err = NULL;
@@ -431,6 +432,12 @@ found_container:
     QLIST_INSERT_HEAD(&bcontainer->device_list, vbasedev, container_next);
     QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
 
+    hiod_vfio = HIOD_IOMMUFD_VFIO(object_new(TYPE_HIOD_IOMMUFD_VFIO));
+    hiod_iommufd_init(HIOD_IOMMUFD(hiod_vfio), vbasedev->iommufd,
+                      vbasedev->devid);
+    hiod_vfio->vdev = vbasedev;
+    vbasedev->hiod = HOST_IOMMU_DEVICE(hiod_vfio);
+
     trace_iommufd_cdev_device_info(vbasedev->name, devfd, vbasedev->num_irqs,
                                    vbasedev->num_regions, vbasedev->flags);
     return 0;
@@ -468,6 +475,7 @@ static void iommufd_cdev_detach(VFIODevice *vbasedev)
     iommufd_cdev_detach_container(vbasedev, container);
     iommufd_cdev_container_destroy(container);
     vfio_put_address_space(space);
+    object_unref(vbasedev->hiod);
 
     iommufd_cdev_unbind_and_disconnect(vbasedev);
     close(vbasedev->fd);

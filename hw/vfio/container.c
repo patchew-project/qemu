@@ -915,6 +915,7 @@ static int vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
     VFIOContainerBase *bcontainer;
+    HIODLegacyVFIO *hiod_vfio;
     int ret;
 
     if (groupid < 0) {
@@ -945,6 +946,9 @@ static int vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     vbasedev->bcontainer = bcontainer;
     QLIST_INSERT_HEAD(&bcontainer->device_list, vbasedev, container_next);
     QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
+    hiod_vfio = HIOD_LEGACY_VFIO(object_new(TYPE_HIOD_LEGACY_VFIO));
+    hiod_vfio->vdev = vbasedev;
+    vbasedev->hiod = HOST_IOMMU_DEVICE(hiod_vfio);
 
     return ret;
 }
@@ -959,6 +963,7 @@ static void vfio_legacy_detach_device(VFIODevice *vbasedev)
     trace_vfio_detach_device(vbasedev->name, group->groupid);
     vfio_put_base_device(vbasedev);
     vfio_put_group(group);
+    object_unref(vbasedev->hiod);
 }
 
 static int vfio_legacy_pci_hot_reset(VFIODevice *vbasedev, bool single)
