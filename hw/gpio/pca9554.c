@@ -22,7 +22,7 @@
 
 struct PCA9554Class {
     /*< private >*/
-    I2CSlaveClass parent_class;
+    I2CTargetClass parent_class;
     /*< public >*/
 };
 typedef struct PCA9554Class PCA9554Class;
@@ -115,7 +115,7 @@ static void pca9554_write(PCA9554State *s, uint8_t reg, uint8_t data)
     }
 }
 
-static uint8_t pca9554_recv(I2CSlave *i2c)
+static uint8_t pca9554_recv(I2CTarget *i2c)
 {
     PCA9554State *s = PCA9554(i2c);
     uint8_t ret;
@@ -125,7 +125,7 @@ static uint8_t pca9554_recv(I2CSlave *i2c)
     return ret;
 }
 
-static int pca9554_send(I2CSlave *i2c, uint8_t data)
+static int pca9554_send(I2CTarget *i2c, uint8_t data)
 {
     PCA9554State *s = PCA9554(i2c);
 
@@ -140,7 +140,7 @@ static int pca9554_send(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int pca9554_event(I2CSlave *i2c, enum i2c_event event)
+static int pca9554_event(I2CTarget *i2c, enum i2c_event event)
 {
     PCA9554State *s = PCA9554(i2c);
 
@@ -227,7 +227,7 @@ static const VMStateDescription pca9554_vmstate = {
         VMSTATE_UINT8(pointer, PCA9554State),
         VMSTATE_UINT8_ARRAY(regs, PCA9554State, PCA9554_NR_REGS),
         VMSTATE_UINT8_ARRAY(ext_state, PCA9554State, PCA9554_PIN_COUNT),
-        VMSTATE_I2C_SLAVE(i2c, PCA9554State),
+        VMSTATE_I2C_TARGET(i2c, PCA9554State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -299,7 +299,7 @@ static Property pca9554_properties[] = {
 static void pca9554_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     k->event = pca9554_event;
     k->recv = pca9554_recv;
@@ -312,7 +312,7 @@ static void pca9554_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pca9554_info = {
     .name          = TYPE_PCA9554,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_init = pca9554_initfn,
     .instance_size = sizeof(PCA9554State),
     .class_init    = pca9554_class_init,

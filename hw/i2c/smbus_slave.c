@@ -64,7 +64,7 @@ static void smbus_do_write(SMBusDevice *dev)
     }
 }
 
-static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
+static int smbus_i2c_event(I2CTarget *s, enum i2c_event event)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
 
@@ -156,7 +156,7 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
     return 0;
 }
 
-static uint8_t smbus_i2c_recv(I2CSlave *s)
+static uint8_t smbus_i2c_recv(I2CTarget *s)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
@@ -179,7 +179,7 @@ static uint8_t smbus_i2c_recv(I2CSlave *s)
     return ret;
 }
 
-static int smbus_i2c_send(I2CSlave *s, uint8_t data)
+static int smbus_i2c_send(I2CTarget *s, uint8_t data)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
 
@@ -203,7 +203,7 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
 
 static void smbus_device_class_init(ObjectClass *klass, void *data)
 {
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *sc = I2C_TARGET_CLASS(klass);
 
     sc->event = smbus_i2c_event;
     sc->recv = smbus_i2c_recv;
@@ -220,7 +220,7 @@ const VMStateDescription vmstate_smbus_device = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_I2C_SLAVE(i2c, SMBusDevice),
+        VMSTATE_I2C_TARGET(i2c, SMBusDevice),
         VMSTATE_INT32(mode, SMBusDevice),
         VMSTATE_INT32(data_len, SMBusDevice),
         VMSTATE_UINT8_ARRAY(data_buf, SMBusDevice, SMBUS_DATA_MAX_LEN),
@@ -230,7 +230,7 @@ const VMStateDescription vmstate_smbus_device = {
 
 static const TypeInfo smbus_device_type_info = {
     .name = TYPE_SMBUS_DEVICE,
-    .parent = TYPE_I2C_SLAVE,
+    .parent = TYPE_I2C_TARGET,
     .instance_size = sizeof(SMBusDevice),
     .abstract = true,
     .class_size = sizeof(SMBusDeviceClass),

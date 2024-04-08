@@ -2056,7 +2056,7 @@ static void pnv_rainier_i2c_init(PnvMachineState *pnv)
          * Add a PCA9552 I2C device for PCIe hotplug control
          * to engine 2, bus 1, address 0x63
          */
-        I2CSlave *dev = i2c_slave_create_simple(chip10->i2c[2].busses[1],
+        I2CTarget *dev = i2c_target_create_simple(chip10->i2c[2].busses[1],
                                                 "pca9552", 0x63);
 
         /*
@@ -2074,7 +2074,7 @@ static void pnv_rainier_i2c_init(PnvMachineState *pnv)
          * Add a PCA9554 I2C device for cable card presence detection
          * to engine 2, bus 1, address 0x25
          */
-        i2c_slave_create_simple(chip10->i2c[2].busses[1], "pca9554", 0x25);
+        i2c_target_create_simple(chip10->i2c[2].busses[1], "pca9554", 0x25);
     }
 }
 

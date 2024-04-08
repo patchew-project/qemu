@@ -31,7 +31,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(LM823KbdState, LM8323)
 
 struct LM823KbdState {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     uint8_t i2c_dir;
     uint8_t i2c_cycle;
@@ -388,7 +388,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
     }
 }
 
-static int lm_i2c_event(I2CSlave *i2c, enum i2c_event event)
+static int lm_i2c_event(I2CTarget *i2c, enum i2c_event event)
 {
     LM823KbdState *s = LM8323(i2c);
 
@@ -406,14 +406,14 @@ static int lm_i2c_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static uint8_t lm_i2c_rx(I2CSlave *i2c)
+static uint8_t lm_i2c_rx(I2CTarget *i2c)
 {
     LM823KbdState *s = LM8323(i2c);
 
     return lm_kbd_read(s, s->reg, s->i2c_cycle ++);
 }
 
-static int lm_i2c_tx(I2CSlave *i2c, uint8_t data)
+static int lm_i2c_tx(I2CTarget *i2c, uint8_t data)
 {
     LM823KbdState *s = LM8323(i2c);
 
@@ -442,7 +442,7 @@ static const VMStateDescription vmstate_lm_kbd = {
     .minimum_version_id = 0,
     .post_load = lm_kbd_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_I2C_SLAVE(parent_obj, LM823KbdState),
+        VMSTATE_I2C_TARGET(parent_obj, LM823KbdState),
         VMSTATE_UINT8(i2c_dir, LM823KbdState),
         VMSTATE_UINT8(i2c_cycle, LM823KbdState),
         VMSTATE_UINT8(reg, LM823KbdState),
@@ -503,7 +503,7 @@ void lm832x_key_event(DeviceState *dev, int key, int state)
 static void lm8323_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     dc->reset = lm_kbd_reset;
     dc->realize = lm8323_realize;
@@ -515,7 +515,7 @@ static void lm8323_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo lm8323_info = {
     .name          = TYPE_LM8323,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(LM823KbdState),
     .class_init    = lm8323_class_init,
 };

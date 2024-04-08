@@ -236,7 +236,7 @@ struct AspeedI2CBus {
     struct AspeedI2CState *controller;
 
     /* slave mode */
-    I2CSlave *slave;
+    I2CTarget *slave;
 
     MemoryRegion mr;
 
@@ -267,7 +267,7 @@ struct AspeedI2CState {
 #define TYPE_ASPEED_I2C_BUS_SLAVE "aspeed.i2c.slave"
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedI2CBusSlave, ASPEED_I2C_BUS_SLAVE)
 struct AspeedI2CBusSlave {
-    I2CSlave i2c;
+    I2CTarget i2c;
 };
 
 struct AspeedI2CClass {

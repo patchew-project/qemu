@@ -19,7 +19,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(MAX7310State, MAX7310)
 
 struct MAX7310State {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     int i2c_command_byte;
     int len;
@@ -44,7 +44,7 @@ static void max7310_reset(DeviceState *dev)
     s->command = 0x00;
 }
 
-static uint8_t max7310_rx(I2CSlave *i2c)
+static uint8_t max7310_rx(I2CTarget *i2c)
 {
     MAX7310State *s = MAX7310(i2c);
 
@@ -75,7 +75,7 @@ static uint8_t max7310_rx(I2CSlave *i2c)
     return 0xff;
 }
 
-static int max7310_tx(I2CSlave *i2c, uint8_t data)
+static int max7310_tx(I2CTarget *i2c, uint8_t data)
 {
     MAX7310State *s = MAX7310(i2c);
     uint8_t diff;
@@ -129,7 +129,7 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int max7310_event(I2CSlave *i2c, enum i2c_event event)
+static int max7310_event(I2CTarget *i2c, enum i2c_event event)
 {
     MAX7310State *s = MAX7310(i2c);
     s->len = 0;
@@ -163,7 +163,7 @@ static const VMStateDescription vmstate_max7310 = {
         VMSTATE_UINT8(polarity, MAX7310State),
         VMSTATE_UINT8(status, MAX7310State),
         VMSTATE_UINT8(command, MAX7310State),
-        VMSTATE_I2C_SLAVE(parent_obj, MAX7310State),
+        VMSTATE_I2C_TARGET(parent_obj, MAX7310State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -192,7 +192,7 @@ static void max7310_realize(DeviceState *dev, Error **errp)
 static void max7310_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     dc->realize = max7310_realize;
     k->event = max7310_event;
@@ -204,7 +204,7 @@ static void max7310_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo max7310_info = {
     .name          = TYPE_MAX7310,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(MAX7310State),
     .class_init    = max7310_class_init,
 };

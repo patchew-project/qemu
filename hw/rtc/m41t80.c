@@ -20,7 +20,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(M41t80State, M41T80)
 
 struct M41t80State {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
     int8_t addr;
 };
 
@@ -31,7 +31,7 @@ static void m41t80_realize(DeviceState *dev, Error **errp)
     s->addr = -1;
 }
 
-static int m41t80_send(I2CSlave *i2c, uint8_t data)
+static int m41t80_send(I2CTarget *i2c, uint8_t data)
 {
     M41t80State *s = M41T80(i2c);
 
@@ -43,7 +43,7 @@ static int m41t80_send(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static uint8_t m41t80_recv(I2CSlave *i2c)
+static uint8_t m41t80_recv(I2CTarget *i2c)
 {
     M41t80State *s = M41T80(i2c);
     struct tm now;
@@ -84,7 +84,7 @@ static uint8_t m41t80_recv(I2CSlave *i2c)
     }
 }
 
-static int m41t80_event(I2CSlave *i2c, enum i2c_event event)
+static int m41t80_event(I2CTarget *i2c, enum i2c_event event)
 {
     M41t80State *s = M41T80(i2c);
 
@@ -97,7 +97,7 @@ static int m41t80_event(I2CSlave *i2c, enum i2c_event event)
 static void m41t80_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *sc = I2C_TARGET_CLASS(klass);
 
     dc->realize = m41t80_realize;
     sc->send = m41t80_send;
@@ -107,7 +107,7 @@ static void m41t80_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo m41t80_info = {
     .name          = TYPE_M41T80,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(M41t80State),
     .class_init    = m41t80_class_init,
 };

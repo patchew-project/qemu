@@ -19,7 +19,7 @@
 #define I2C_BROADCAST 0x00
 
 static Property i2c_props[] = {
-    DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
+    DEFINE_PROP_UINT8("address", struct I2CTarget, address, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -63,12 +63,12 @@ I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
 
     bus = I2C_BUS(qbus_new(TYPE_I2C_BUS, parent, name));
     QLIST_INIT(&bus->current_devs);
-    QSIMPLEQ_INIT(&bus->pending_masters);
+    QSIMPLEQ_INIT(&bus->pending_controllers);
     vmstate_register_any(NULL, &vmstate_i2c_bus, bus);
     return bus;
 }
 
-void i2c_slave_set_address(I2CSlave *dev, uint8_t address)
+void i2c_target_set_address(I2CTarget *dev, uint8_t address)
 {
     dev->address = address;
 }
@@ -86,8 +86,8 @@ bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
 
     QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
         DeviceState *qdev = kid->child;
-        I2CSlave *candidate = I2C_SLAVE(qdev);
-        I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(candidate);
+        I2CTarget *candidate = I2C_SLAVE(qdev);
+        I2CTargetClass *sc = I2C_TARGET_GET_CLASS(candidate);
 
         if (sc->match_and_add(candidate, address, broadcast, current_devs)) {
             if (!broadcast) {
@@ -122,7 +122,7 @@ bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
 static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
                                  enum i2c_event event)
 {
-    I2CSlaveClass *sc;
+    I2CTargetClass *sc;
     I2CNode *node;
     bool bus_scanned = false;
 
@@ -153,10 +153,10 @@ static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
     }
 
     QLIST_FOREACH(node, &bus->current_devs, next) {
-        I2CSlave *s = node->elt;
+        I2CTarget *s = node->elt;
         int rv;
 
-        sc = I2C_SLAVE_GET_CLASS(s);
+        sc = I2C_TARGET_GET_CLASS(s);
         /* If the bus is already busy, assume this is a repeated
            start condition.  */
 
@@ -183,31 +183,31 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
                                                : I2C_START_SEND);
 }
 
-void i2c_bus_master(I2CBus *bus, QEMUBH *bh)
+void i2c_bus_controller(I2CBus *bus, QEMUBH *bh)
 {
-    I2CPendingMaster *node = g_new(struct I2CPendingMaster, 1);
+    I2CPendingController *node = g_new(struct I2CPendingController, 1);
     node->bh = bh;
 
-    QSIMPLEQ_INSERT_TAIL(&bus->pending_masters, node, entry);
+    QSIMPLEQ_INSERT_TAIL(&bus->pending_controllers, node, entry);
 }
 
-void i2c_schedule_pending_master(I2CBus *bus)
+void i2c_schedule_pending_controller(I2CBus *bus)
 {
-    I2CPendingMaster *node;
+    I2CPendingController *node;
 
     if (i2c_bus_busy(bus)) {
         /* someone is already controlling the bus; wait for it to release it */
         return;
     }
 
-    if (QSIMPLEQ_EMPTY(&bus->pending_masters)) {
+    if (QSIMPLEQ_EMPTY(&bus->pending_controllers)) {
         return;
     }
 
-    node = QSIMPLEQ_FIRST(&bus->pending_masters);
+    node = QSIMPLEQ_FIRST(&bus->pending_controllers);
     bus->bh = node->bh;
 
-    QSIMPLEQ_REMOVE_HEAD(&bus->pending_masters, entry);
+    QSIMPLEQ_REMOVE_HEAD(&bus->pending_controllers, entry);
     g_free(node);
 
     qemu_bh_schedule(bus->bh);
@@ -217,7 +217,7 @@ void i2c_bus_release(I2CBus *bus)
 {
     bus->bh = NULL;
 
-    i2c_schedule_pending_master(bus);
+    i2c_schedule_pending_controller(bus);
 }
 
 int i2c_start_recv(I2CBus *bus, uint8_t address)
@@ -237,12 +237,12 @@ int i2c_start_send_async(I2CBus *bus, uint8_t address)
 
 void i2c_end_transfer(I2CBus *bus)
 {
-    I2CSlaveClass *sc;
+    I2CTargetClass *sc;
     I2CNode *node, *next;
 
     QLIST_FOREACH_SAFE(node, &bus->current_devs, next, next) {
-        I2CSlave *s = node->elt;
-        sc = I2C_SLAVE_GET_CLASS(s);
+        I2CTarget *s = node->elt;
+        sc = I2C_TARGET_GET_CLASS(s);
         if (sc->event) {
             trace_i2c_event("finish", s->address);
             sc->event(s, I2C_FINISH);
@@ -255,14 +255,14 @@ void i2c_end_transfer(I2CBus *bus)
 
 int i2c_send(I2CBus *bus, uint8_t data)
 {
-    I2CSlaveClass *sc;
-    I2CSlave *s;
+    I2CTargetClass *sc;
+    I2CTarget *s;
     I2CNode *node;
     int ret = 0;
 
     QLIST_FOREACH(node, &bus->current_devs, next) {
         s = node->elt;
-        sc = I2C_SLAVE_GET_CLASS(s);
+        sc = I2C_TARGET_GET_CLASS(s);
         if (sc->send) {
             trace_i2c_send(s->address, data);
             ret = ret || sc->send(s, data);
@@ -277,8 +277,8 @@ int i2c_send(I2CBus *bus, uint8_t data)
 int i2c_send_async(I2CBus *bus, uint8_t data)
 {
     I2CNode *node = QLIST_FIRST(&bus->current_devs);
-    I2CSlave *slave = node->elt;
-    I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(slave);
+    I2CTarget *slave = node->elt;
+    I2CTargetClass *sc = I2C_TARGET_GET_CLASS(slave);
 
     if (!sc->send_async) {
         return -1;
@@ -294,11 +294,11 @@ int i2c_send_async(I2CBus *bus, uint8_t data)
 uint8_t i2c_recv(I2CBus *bus)
 {
     uint8_t data = 0xff;
-    I2CSlaveClass *sc;
-    I2CSlave *s;
+    I2CTargetClass *sc;
+    I2CTarget *s;
 
     if (!QLIST_EMPTY(&bus->current_devs) && !bus->broadcast) {
-        sc = I2C_SLAVE_GET_CLASS(QLIST_FIRST(&bus->current_devs)->elt);
+        sc = I2C_TARGET_GET_CLASS(QLIST_FIRST(&bus->current_devs)->elt);
         if (sc->recv) {
             s = QLIST_FIRST(&bus->current_devs)->elt;
             data = sc->recv(s);
@@ -311,7 +311,7 @@ uint8_t i2c_recv(I2CBus *bus)
 
 void i2c_nack(I2CBus *bus)
 {
-    I2CSlaveClass *sc;
+    I2CTargetClass *sc;
     I2CNode *node;
 
     if (QLIST_EMPTY(&bus->current_devs)) {
@@ -319,7 +319,7 @@ void i2c_nack(I2CBus *bus)
     }
 
     QLIST_FOREACH(node, &bus->current_devs, next) {
-        sc = I2C_SLAVE_GET_CLASS(node->elt);
+        sc = I2C_TARGET_GET_CLASS(node->elt);
         if (sc->event) {
             trace_i2c_event("nack", node->elt->address);
             sc->event(node->elt, I2C_NACK);
@@ -340,7 +340,7 @@ void i2c_ack(I2CBus *bus)
 
 static int i2c_slave_post_load(void *opaque, int version_id)
 {
-    I2CSlave *dev = opaque;
+    I2CTarget *dev = opaque;
     I2CBus *bus;
     I2CNode *node;
 
@@ -354,18 +354,18 @@ static int i2c_slave_post_load(void *opaque, int version_id)
     return 0;
 }
 
-const VMStateDescription vmstate_i2c_slave = {
-    .name = "I2CSlave",
+const VMStateDescription vmstate_i2c_target = {
+    .name = "I2CTarget",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = i2c_slave_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(address, I2CSlave),
+        VMSTATE_UINT8(address, I2CTarget),
         VMSTATE_END_OF_LIST()
     }
 };
 
-I2CSlave *i2c_slave_new(const char *name, uint8_t addr)
+I2CTarget *i2c_target_new(const char *name, uint8_t addr)
 {
     DeviceState *dev;
 
@@ -374,21 +374,21 @@ I2CSlave *i2c_slave_new(const char *name, uint8_t addr)
     return I2C_SLAVE(dev);
 }
 
-bool i2c_slave_realize_and_unref(I2CSlave *dev, I2CBus *bus, Error **errp)
+bool i2c_target_realize_and_unref(I2CTarget *dev, I2CBus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
 }
 
-I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr)
+I2CTarget *i2c_target_create_simple(I2CBus *bus, const char *name, uint8_t addr)
 {
-    I2CSlave *dev = i2c_slave_new(name, addr);
+    I2CTarget *dev = i2c_target_new(name, addr);
 
-    i2c_slave_realize_and_unref(dev, bus, &error_abort);
+    i2c_target_realize_and_unref(dev, bus, &error_abort);
 
     return dev;
 }
 
-static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
+static bool i2c_slave_match(I2CTarget *candidate, uint8_t address,
                             bool broadcast, I2CNodeList *current_devs)
 {
     if ((candidate->address == address) || (broadcast)) {
@@ -405,7 +405,7 @@ static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
 static void i2c_slave_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *sc = I2C_TARGET_CLASS(klass);
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
     k->bus_type = TYPE_I2C_BUS;
     device_class_set_props(k, i2c_props);
@@ -413,11 +413,11 @@ static void i2c_slave_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo i2c_slave_type_info = {
-    .name = TYPE_I2C_SLAVE,
+    .name = TYPE_I2C_TARGET,
     .parent = TYPE_DEVICE,
-    .instance_size = sizeof(I2CSlave),
+    .instance_size = sizeof(I2CTarget),
     .abstract = true,
-    .class_size = sizeof(I2CSlaveClass),
+    .class_size = sizeof(I2CTargetClass),
     .class_init = i2c_slave_class_init,
 };
 

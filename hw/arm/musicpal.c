@@ -1203,7 +1203,7 @@ static void musicpal_init(MachineState *machine)
     DeviceState *i2c_dev;
     DeviceState *lcd_dev;
     DeviceState *key_dev;
-    I2CSlave *wm8750_dev;
+    I2CTarget *wm8750_dev;
     SysBusDevice *s;
     I2CBus *i2c;
     int i;
@@ -1316,11 +1316,11 @@ static void musicpal_init(MachineState *machine)
         qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i + 15));
     }
 
-    wm8750_dev = i2c_slave_new(TYPE_WM8750, MP_WM_ADDR);
+    wm8750_dev = i2c_target_new(TYPE_WM8750, MP_WM_ADDR);
     if (machine->audiodev) {
         qdev_prop_set_string(DEVICE(wm8750_dev), "audiodev", machine->audiodev);
     }
-    i2c_slave_realize_and_unref(wm8750_dev, i2c, &error_abort);
+    i2c_target_realize_and_unref(wm8750_dev, i2c, &error_abort);
 
     dev = qdev_new(TYPE_MV88W8618_AUDIO);
     s = SYS_BUS_DEVICE(dev);

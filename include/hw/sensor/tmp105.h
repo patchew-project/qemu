@@ -30,7 +30,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(TMP105State, TMP105)
  */
 struct TMP105State {
     /*< private >*/
-    I2CSlave i2c;
+    I2CTarget i2c;
     /*< public >*/
 
     uint8_t len;

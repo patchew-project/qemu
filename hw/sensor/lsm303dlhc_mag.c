@@ -49,7 +49,7 @@ enum LSM303DLHCMagReg {
 };
 
 typedef struct LSM303DLHCMagState {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
     uint8_t cra;
     uint8_t crb;
     uint8_t mr;
@@ -299,7 +299,7 @@ static void lsm303dlhc_mag_write(LSM303DLHCMagState *s)
 /*
  * Low-level master-to-slave transaction handler.
  */
-static int lsm303dlhc_mag_send(I2CSlave *i2c, uint8_t data)
+static int lsm303dlhc_mag_send(I2CTarget *i2c, uint8_t data)
 {
     LSM303DLHCMagState *s = LSM303DLHC_MAG(i2c);
 
@@ -321,7 +321,7 @@ static int lsm303dlhc_mag_send(I2CSlave *i2c, uint8_t data)
 /*
  * Low-level slave-to-master transaction handler (read attempts).
  */
-static uint8_t lsm303dlhc_mag_recv(I2CSlave *i2c)
+static uint8_t lsm303dlhc_mag_recv(I2CTarget *i2c)
 {
     LSM303DLHCMagState *s = LSM303DLHC_MAG(i2c);
     uint8_t resp;
@@ -412,7 +412,7 @@ static uint8_t lsm303dlhc_mag_recv(I2CSlave *i2c)
 /*
  * Bus state change handler.
  */
-static int lsm303dlhc_mag_event(I2CSlave *i2c, enum i2c_event event)
+static int lsm303dlhc_mag_event(I2CTarget *i2c, enum i2c_event event)
 {
     LSM303DLHCMagState *s = LSM303DLHC_MAG(i2c);
 
@@ -444,7 +444,7 @@ static const VMStateDescription vmstate_lsm303dlhc_mag = {
     .minimum_version_id = 0,
     .fields = (const VMStateField[]) {
 
-        VMSTATE_I2C_SLAVE(parent_obj, LSM303DLHCMagState),
+        VMSTATE_I2C_TARGET(parent_obj, LSM303DLHCMagState),
         VMSTATE_UINT8(len, LSM303DLHCMagState),
         VMSTATE_UINT8(buf, LSM303DLHCMagState),
         VMSTATE_UINT8(pointer, LSM303DLHCMagState),
@@ -498,7 +498,7 @@ static void lsm303dlhc_mag_default_cfg(LSM303DLHCMagState *s)
  */
 static void lsm303dlhc_mag_reset(DeviceState *dev)
 {
-    I2CSlave *i2c = I2C_SLAVE(dev);
+    I2CTarget *i2c = I2C_SLAVE(dev);
     LSM303DLHCMagState *s = LSM303DLHC_MAG(i2c);
 
     /* Set the device into its default reset state. */
@@ -533,7 +533,7 @@ static void lsm303dlhc_mag_initfn(Object *obj)
 static void lsm303dlhc_mag_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     dc->reset = lsm303dlhc_mag_reset;
     dc->vmsd = &vmstate_lsm303dlhc_mag;
@@ -544,7 +544,7 @@ static void lsm303dlhc_mag_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo lsm303dlhc_mag_info = {
     .name = TYPE_LSM303DLHC_MAG,
-    .parent = TYPE_I2C_SLAVE,
+    .parent = TYPE_I2C_TARGET,
     .instance_size = sizeof(LSM303DLHCMagState),
     .instance_init = lsm303dlhc_mag_initfn,
     .class_init = lsm303dlhc_mag_class_init,

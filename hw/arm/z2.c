@@ -192,13 +192,13 @@ static const TypeInfo zipit_lcd_info = {
 OBJECT_DECLARE_SIMPLE_TYPE(AER915State, AER915)
 
 struct AER915State {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     int len;
     uint8_t buf[3];
 };
 
-static int aer915_send(I2CSlave *i2c, uint8_t data)
+static int aer915_send(I2CTarget *i2c, uint8_t data)
 {
     AER915State *s = AER915(i2c);
 
@@ -215,7 +215,7 @@ static int aer915_send(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int aer915_event(I2CSlave *i2c, enum i2c_event event)
+static int aer915_event(I2CTarget *i2c, enum i2c_event event)
 {
     AER915State *s = AER915(i2c);
 
@@ -235,7 +235,7 @@ static int aer915_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static uint8_t aer915_recv(I2CSlave *slave)
+static uint8_t aer915_recv(I2CTarget *slave)
 {
     AER915State *s = AER915(slave);
     int retval = 0x00;
@@ -272,7 +272,7 @@ static const VMStateDescription vmstate_aer915_state = {
 static void aer915_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     k->event = aer915_event;
     k->recv = aer915_recv;
@@ -282,7 +282,7 @@ static void aer915_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo aer915_info = {
     .name          = TYPE_AER915,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(AER915State),
     .class_init    = aer915_class_init,
 };
@@ -296,7 +296,7 @@ static void z2_init(MachineState *machine)
     void *z2_lcd;
     I2CBus *bus;
     DeviceState *wm;
-    I2CSlave *i2c_dev;
+    I2CTarget *i2c_dev;
 
     /* Setup CPU & memory */
     mpu = pxa270_init(z2_binfo.ram_size, machine->cpu_type);
@@ -319,15 +319,15 @@ static void z2_init(MachineState *machine)
     z2_lcd = ssi_create_peripheral(mpu->ssp[1], TYPE_ZIPIT_LCD);
     bus = pxa2xx_i2c_bus(mpu->i2c[0]);
 
-    i2c_slave_create_simple(bus, TYPE_AER915, 0x55);
+    i2c_target_create_simple(bus, TYPE_AER915, 0x55);
 
-    i2c_dev = i2c_slave_new(TYPE_WM8750, 0x1b);
+    i2c_dev = i2c_target_new(TYPE_WM8750, 0x1b);
     wm = DEVICE(i2c_dev);
 
     if (machine->audiodev) {
         qdev_prop_set_string(wm, "audiodev", machine->audiodev);
     }
-    i2c_slave_realize_and_unref(i2c_dev, bus, &error_abort);
+    i2c_target_realize_and_unref(i2c_dev, bus, &error_abort);
 
     mpu->i2s->opaque = wm;
     mpu->i2s->codec_out = wm8750_dac_dat;

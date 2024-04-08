@@ -170,7 +170,7 @@ static void tmp105_write(TMP105State *s)
     }
 }
 
-static uint8_t tmp105_rx(I2CSlave *i2c)
+static uint8_t tmp105_rx(I2CTarget *i2c)
 {
     TMP105State *s = TMP105(i2c);
 
@@ -181,7 +181,7 @@ static uint8_t tmp105_rx(I2CSlave *i2c)
     }
 }
 
-static int tmp105_tx(I2CSlave *i2c, uint8_t data)
+static int tmp105_tx(I2CTarget *i2c, uint8_t data)
 {
     TMP105State *s = TMP105(i2c);
 
@@ -199,7 +199,7 @@ static int tmp105_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int tmp105_event(I2CSlave *i2c, enum i2c_event event)
+static int tmp105_event(I2CTarget *i2c, enum i2c_event event)
 {
     TMP105State *s = TMP105(i2c);
 
@@ -257,7 +257,7 @@ static const VMStateDescription vmstate_tmp105 = {
         VMSTATE_INT16(temperature, TMP105State),
         VMSTATE_INT16_ARRAY(limit, TMP105State, 2),
         VMSTATE_UINT8(alarm, TMP105State),
-        VMSTATE_I2C_SLAVE(i2c, TMP105State),
+        VMSTATE_I2C_TARGET(i2c, TMP105State),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
@@ -266,7 +266,7 @@ static const VMStateDescription vmstate_tmp105 = {
     }
 };
 
-static void tmp105_reset(I2CSlave *i2c)
+static void tmp105_reset(I2CTarget *i2c)
 {
     TMP105State *s = TMP105(i2c);
 
@@ -285,7 +285,7 @@ static void tmp105_reset(I2CSlave *i2c)
 
 static void tmp105_realize(DeviceState *dev, Error **errp)
 {
-    I2CSlave *i2c = I2C_SLAVE(dev);
+    I2CTarget *i2c = I2C_SLAVE(dev);
     TMP105State *s = TMP105(i2c);
 
     qdev_init_gpio_out(&i2c->qdev, &s->pin, 1);
@@ -303,7 +303,7 @@ static void tmp105_initfn(Object *obj)
 static void tmp105_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     dc->realize = tmp105_realize;
     k->event = tmp105_event;
@@ -314,7 +314,7 @@ static void tmp105_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo tmp105_info = {
     .name          = TYPE_TMP105,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(TMP105State),
     .instance_init = tmp105_initfn,
     .class_init    = tmp105_class_init,

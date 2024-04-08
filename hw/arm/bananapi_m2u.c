@@ -113,7 +113,7 @@ static void bpim2u_init(MachineState *machine)
 
     /* Connect AXP221 */
     i2c = I2C_BUS(qdev_get_child_bus(DEVICE(&r40->i2c0), "i2c"));
-    i2c_slave_create_simple(i2c, "axp221_pmu", 0x34);
+    i2c_target_create_simple(i2c, "axp221_pmu", 0x34);
 
     /* SDRAM */
     memory_region_add_subregion(get_system_memory(),

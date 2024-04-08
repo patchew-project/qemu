@@ -1176,7 +1176,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
                                    qdev_get_gpio_in(nvic, 8));
         i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
-            i2c_slave_create_simple(i2c, "ssd0303", 0x3d);
+            i2c_target_create_simple(i2c, "ssd0303", 0x3d);
         }
     }
 

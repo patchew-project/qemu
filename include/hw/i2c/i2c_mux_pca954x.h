@@ -14,6 +14,6 @@
  *
  * Returns: a pointer to the associated i2c bus.
  */
-I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel);
+I2CBus *pca954x_i2c_get_bus(I2CTarget *mux, uint8_t channel);
 
 #endif

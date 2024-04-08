@@ -767,11 +767,11 @@ static void spitz_microdrive_attach(PXA2xxState *cpu, int slot)
 
 static void spitz_wm8750_addr(void *opaque, int line, int level)
 {
-    I2CSlave *wm = (I2CSlave *) opaque;
+    I2CTarget *wm = (I2CTarget *) opaque;
     if (level)
-        i2c_slave_set_address(wm, SPITZ_WM_ADDRH);
+        i2c_target_set_address(wm, SPITZ_WM_ADDRH);
     else
-        i2c_slave_set_address(wm, SPITZ_WM_ADDRL);
+        i2c_target_set_address(wm, SPITZ_WM_ADDRL);
 }
 
 static void spitz_i2c_setup(MachineState *machine, PXA2xxState *cpu)
@@ -780,13 +780,13 @@ static void spitz_i2c_setup(MachineState *machine, PXA2xxState *cpu)
     I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
 
     /* Attach a WM8750 to the bus */
-    I2CSlave *i2c_dev = i2c_slave_new(TYPE_WM8750, 0);
+    I2CTarget *i2c_dev = i2c_target_new(TYPE_WM8750, 0);
     DeviceState *wm = DEVICE(i2c_dev);
 
     if (machine->audiodev) {
         qdev_prop_set_string(wm, "audiodev", machine->audiodev);
     }
-    i2c_slave_realize_and_unref(i2c_dev, bus, &error_abort);
+    i2c_target_realize_and_unref(i2c_dev, bus, &error_abort);
 
     spitz_wm8750_addr(wm, 0, 0);
     qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_WM,
@@ -801,7 +801,7 @@ static void spitz_i2c_setup(MachineState *machine, PXA2xxState *cpu)
 static void spitz_akita_i2c_setup(PXA2xxState *cpu)
 {
     /* Attach a Max7310 to Akita I2C bus.  */
-    i2c_slave_create_simple(pxa2xx_i2c_bus(cpu->i2c[0]), "max7310",
+    i2c_target_create_simple(pxa2xx_i2c_bus(cpu->i2c[0]), "max7310",
                      AKITA_MAX_ADDR);
 }
 

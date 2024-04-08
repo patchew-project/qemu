@@ -23,7 +23,7 @@ DECLARE_INSTANCE_CHECKER(PCA955xState, PCA955X,
 
 struct PCA955xState {
     /*< private >*/
-    I2CSlave i2c;
+    I2CTarget i2c;
     /*< public >*/
 
     uint8_t len;

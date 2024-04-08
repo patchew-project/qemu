@@ -30,7 +30,7 @@
 #define SENSORS_COUNT_MAX    4
 
 struct EMC141XState {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
     struct {
         uint8_t raw_temp_min;
         uint8_t raw_temp_current;
@@ -42,7 +42,7 @@ struct EMC141XState {
 };
 
 struct EMC141XClass {
-    I2CSlaveClass parent_class;
+    I2CTargetClass parent_class;
     uint8_t model;
     unsigned sensors_count;
 };
@@ -184,7 +184,7 @@ static void emc141x_write(EMC141XState *s)
     }
 }
 
-static uint8_t emc141x_rx(I2CSlave *i2c)
+static uint8_t emc141x_rx(I2CTarget *i2c)
 {
     EMC141XState *s = EMC141X(i2c);
 
@@ -196,7 +196,7 @@ static uint8_t emc141x_rx(I2CSlave *i2c)
     }
 }
 
-static int emc141x_tx(I2CSlave *i2c, uint8_t data)
+static int emc141x_tx(I2CTarget *i2c, uint8_t data)
 {
     EMC141XState *s = EMC141X(i2c);
 
@@ -212,7 +212,7 @@ static int emc141x_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int emc141x_event(I2CSlave *i2c, enum i2c_event event)
+static int emc141x_event(I2CTarget *i2c, enum i2c_event event)
 {
     EMC141XState *s = EMC141X(i2c);
 
@@ -232,7 +232,7 @@ static const VMStateDescription vmstate_emc141x = {
         VMSTATE_UINT8(len, EMC141XState),
         VMSTATE_UINT8(data, EMC141XState),
         VMSTATE_UINT8(pointer, EMC141XState),
-        VMSTATE_I2C_SLAVE(parent_obj, EMC141XState),
+        VMSTATE_I2C_TARGET(parent_obj, EMC141XState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -268,7 +268,7 @@ static void emc141x_initfn(Object *obj)
 static void emc141x_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     dc->reset = emc141x_reset;
     k->event = emc141x_event;
@@ -297,7 +297,7 @@ static void emc1414_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo emc141x_info = {
     .name          = TYPE_EMC141X,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(EMC141XState),
     .class_size    = sizeof(EMC141XClass),
     .instance_init = emc141x_initfn,

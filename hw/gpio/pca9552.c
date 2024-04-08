@@ -26,7 +26,7 @@
 
 struct PCA955xClass {
     /*< private >*/
-    I2CSlaveClass parent_class;
+    I2CTargetClass parent_class;
     /*< public >*/
 
     uint8_t pin_count;
@@ -217,7 +217,7 @@ static void pca955x_autoinc(PCA955xState *s)
     }
 }
 
-static uint8_t pca955x_recv(I2CSlave *i2c)
+static uint8_t pca955x_recv(I2CTarget *i2c)
 {
     PCA955xState *s = PCA955X(i2c);
     uint8_t ret;
@@ -245,7 +245,7 @@ static uint8_t pca955x_recv(I2CSlave *i2c)
     return ret;
 }
 
-static int pca955x_send(I2CSlave *i2c, uint8_t data)
+static int pca955x_send(I2CTarget *i2c, uint8_t data)
 {
     PCA955xState *s = PCA955X(i2c);
 
@@ -262,7 +262,7 @@ static int pca955x_send(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int pca955x_event(I2CSlave *i2c, enum i2c_event event)
+static int pca955x_event(I2CTarget *i2c, enum i2c_event event)
 {
     PCA955xState *s = PCA955X(i2c);
 
@@ -354,7 +354,7 @@ static const VMStateDescription pca9552_vmstate = {
         VMSTATE_UINT8(pointer, PCA955xState),
         VMSTATE_UINT8_ARRAY(regs, PCA955xState, PCA955X_NR_REGS),
         VMSTATE_UINT8_ARRAY(ext_state, PCA955xState, PCA955X_PIN_COUNT_MAX),
-        VMSTATE_I2C_SLAVE(i2c, PCA955xState),
+        VMSTATE_I2C_TARGET(i2c, PCA955xState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -436,7 +436,7 @@ static Property pca955x_properties[] = {
 static void pca955x_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     k->event = pca955x_event;
     k->recv = pca955x_recv;
@@ -447,7 +447,7 @@ static void pca955x_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pca955x_info = {
     .name          = TYPE_PCA955X,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_init = pca955x_initfn,
     .instance_size = sizeof(PCA955xState),
     .class_init    = pca955x_class_init,

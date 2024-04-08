@@ -26,7 +26,7 @@
 /* A simple I2C slave which just returns the contents of its EDID blob. */
 struct I2CDDCState {
     /*< private >*/
-    I2CSlave i2c;
+    I2CTarget i2c;
     /*< public >*/
     bool firstbyte;
     uint8_t reg;

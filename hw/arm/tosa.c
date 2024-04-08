@@ -163,13 +163,13 @@ static void tosa_ssp_realize(SSIPeripheral *dev, Error **errp)
 OBJECT_DECLARE_SIMPLE_TYPE(TosaDACState, TOSA_DAC)
 
 struct TosaDACState {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     int len;
     char buf[3];
 };
 
-static int tosa_dac_send(I2CSlave *i2c, uint8_t data)
+static int tosa_dac_send(I2CTarget *i2c, uint8_t data)
 {
     TosaDACState *s = TOSA_DAC(i2c);
 
@@ -189,7 +189,7 @@ static int tosa_dac_send(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int tosa_dac_event(I2CSlave *i2c, enum i2c_event event)
+static int tosa_dac_event(I2CTarget *i2c, enum i2c_event event)
 {
     TosaDACState *s = TOSA_DAC(i2c);
 
@@ -215,7 +215,7 @@ static int tosa_dac_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static uint8_t tosa_dac_recv(I2CSlave *s)
+static uint8_t tosa_dac_recv(I2CTarget *s)
 {
     printf("%s: recv not supported!!!\n", __func__);
     return 0xff;
@@ -224,7 +224,7 @@ static uint8_t tosa_dac_recv(I2CSlave *s)
 static void tosa_tg_init(PXA2xxState *cpu)
 {
     I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
-    i2c_slave_create_simple(bus, TYPE_TOSA_DAC, DAC_BASE);
+    i2c_target_create_simple(bus, TYPE_TOSA_DAC, DAC_BASE);
     ssi_create_peripheral(cpu->ssp[1], "tosa-ssp");
 }
 
@@ -277,7 +277,7 @@ DEFINE_MACHINE("tosa", tosapda_machine_init)
 
 static void tosa_dac_class_init(ObjectClass *klass, void *data)
 {
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     k->event = tosa_dac_event;
     k->recv = tosa_dac_recv;
@@ -286,7 +286,7 @@ static void tosa_dac_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo tosa_dac_info = {
     .name          = TYPE_TOSA_DAC,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(TosaDACState),
     .class_init    = tosa_dac_class_init,
 };

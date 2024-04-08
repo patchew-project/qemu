@@ -64,7 +64,7 @@ OBJECT_DECLARE_TYPE(Pca954xState, Pca954xClass, PCA954X)
 /*
  * For each channel, if it's enabled, recursively call match on those children.
  */
-static bool pca954x_match(I2CSlave *candidate, uint8_t address,
+static bool pca954x_match(I2CTarget *candidate, uint8_t address,
                           bool broadcast,
                           I2CNodeList *current_devs)
 {
@@ -163,7 +163,7 @@ static void pca954x_enter_reset(Object *obj, ResetType type)
     pca954x_write(s, 0);
 }
 
-I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel)
+I2CBus *pca954x_i2c_get_bus(I2CTarget *mux, uint8_t channel)
 {
     Pca954xClass *pc = PCA954X_GET_CLASS(mux);
     Pca954xState *pca954x = PCA954X(mux);
@@ -218,7 +218,7 @@ static Property pca954x_props[] = {
 
 static void pca954x_class_init(ObjectClass *klass, void *data)
 {
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *sc = I2C_TARGET_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     SMBusDeviceClass *k = SMBUS_DEVICE_CLASS(klass);

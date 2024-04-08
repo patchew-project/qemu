@@ -39,7 +39,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(sii9022_state, SII9022)
 
 struct sii9022_state {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
     uint8_t ptr;
     bool addr_byte;
     bool ddc_req;
@@ -52,7 +52,7 @@ static const VMStateDescription vmstate_sii9022 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_I2C_SLAVE(parent_obj, sii9022_state),
+        VMSTATE_I2C_TARGET(parent_obj, sii9022_state),
         VMSTATE_UINT8(ptr, sii9022_state),
         VMSTATE_BOOL(addr_byte, sii9022_state),
         VMSTATE_BOOL(ddc_req, sii9022_state),
@@ -62,7 +62,7 @@ static const VMStateDescription vmstate_sii9022 = {
     }
 };
 
-static int sii9022_event(I2CSlave *i2c, enum i2c_event event)
+static int sii9022_event(I2CTarget *i2c, enum i2c_event event)
 {
     sii9022_state *s = SII9022(i2c);
 
@@ -83,7 +83,7 @@ static int sii9022_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static uint8_t sii9022_rx(I2CSlave *i2c)
+static uint8_t sii9022_rx(I2CTarget *i2c)
 {
     sii9022_state *s = SII9022(i2c);
     uint8_t res = 0x00;
@@ -112,7 +112,7 @@ static uint8_t sii9022_rx(I2CSlave *i2c)
     return res;
 }
 
-static int sii9022_tx(I2CSlave *i2c, uint8_t data)
+static int sii9022_tx(I2CTarget *i2c, uint8_t data)
 {
     sii9022_state *s = SII9022(i2c);
 
@@ -164,13 +164,13 @@ static void sii9022_realize(DeviceState *dev, Error **errp)
     I2CBus *bus;
 
     bus = I2C_BUS(qdev_get_parent_bus(dev));
-    i2c_slave_create_simple(bus, TYPE_I2CDDC, 0x50);
+    i2c_target_create_simple(bus, TYPE_I2CDDC, 0x50);
 }
 
 static void sii9022_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     k->event = sii9022_event;
     k->recv = sii9022_rx;
@@ -182,7 +182,7 @@ static void sii9022_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo sii9022_info = {
     .name          = TYPE_SII9022,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(sii9022_state),
     .class_init    = sii9022_class_init,
 };

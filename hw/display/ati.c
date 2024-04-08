@@ -1000,8 +1000,8 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     /* ddc, edid */
     I2CBus *i2cbus = i2c_init_bus(DEVICE(s), "ati-vga.ddc");
     bitbang_i2c_init(&s->bbi2c, i2cbus);
-    I2CSlave *i2cddc = I2C_SLAVE(qdev_new(TYPE_I2CDDC));
-    i2c_slave_set_address(i2cddc, 0x50);
+    I2CTarget *i2cddc = I2C_SLAVE(qdev_new(TYPE_I2CDDC));
+    i2c_target_set_address(i2cddc, 0x50);
     qdev_realize_and_unref(DEVICE(i2cddc), BUS(i2cbus), &error_abort);
 
     /* mmio register space */

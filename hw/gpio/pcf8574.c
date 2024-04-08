@@ -39,7 +39,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PCF8574State, PCF8574)
 #define PORTS_COUNT (8)
 
 struct PCF8574State {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
     uint8_t  lastrq;     /* Last requested state. If changed - assert irq */
     uint8_t  input;      /* external electrical line state */
     uint8_t  output;     /* Pull-up (1) or drive low (0) on bit */
@@ -61,7 +61,7 @@ static inline uint8_t pcf8574_line_state(PCF8574State *s)
     return s->input & s->output;
 }
 
-static uint8_t pcf8574_rx(I2CSlave *i2c)
+static uint8_t pcf8574_rx(I2CTarget *i2c)
 {
     PCF8574State *s = PCF8574(i2c);
     uint8_t linestate = pcf8574_line_state(s);
@@ -74,7 +74,7 @@ static uint8_t pcf8574_rx(I2CSlave *i2c)
     return linestate;
 }
 
-static int pcf8574_tx(I2CSlave *i2c, uint8_t data)
+static int pcf8574_tx(I2CTarget *i2c, uint8_t data)
 {
     PCF8574State *s = PCF8574(i2c);
     uint8_t prev;
@@ -105,7 +105,7 @@ static const VMStateDescription vmstate_pcf8574 = {
     .version_id         = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_I2C_SLAVE(parent_obj, PCF8574State),
+        VMSTATE_I2C_TARGET(parent_obj, PCF8574State),
         VMSTATE_UINT8(lastrq, PCF8574State),
         VMSTATE_UINT8(input,  PCF8574State),
         VMSTATE_UINT8(output, PCF8574State),
@@ -141,7 +141,7 @@ static void pcf8574_realize(DeviceState *dev, Error **errp)
 static void pcf8574_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass   *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k  = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k  = I2C_TARGET_CLASS(klass);
 
     k->recv     = pcf8574_rx;
     k->send     = pcf8574_tx;
@@ -153,7 +153,7 @@ static void pcf8574_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pcf8574_infos[] = {
     {
         .name          = TYPE_PCF8574,
-        .parent        = TYPE_I2C_SLAVE,
+        .parent        = TYPE_I2C_TARGET,
         .instance_size = sizeof(PCF8574State),
         .class_init    = pcf8574_class_init,
     }

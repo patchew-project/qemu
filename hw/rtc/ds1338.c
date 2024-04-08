@@ -33,7 +33,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(DS1338State, DS1338)
 
 struct DS1338State {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     int64_t offset;
     uint8_t wday_offset;
@@ -47,7 +47,7 @@ static const VMStateDescription vmstate_ds1338 = {
     .version_id = 2,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_I2C_SLAVE(parent_obj, DS1338State),
+        VMSTATE_I2C_TARGET(parent_obj, DS1338State),
         VMSTATE_INT64(offset, DS1338State),
         VMSTATE_UINT8_V(wday_offset, DS1338State, 2),
         VMSTATE_UINT8_ARRAY(nvram, DS1338State, NVRAM_SIZE),
@@ -97,7 +97,7 @@ static void inc_regptr(DS1338State *s)
     }
 }
 
-static int ds1338_event(I2CSlave *i2c, enum i2c_event event)
+static int ds1338_event(I2CTarget *i2c, enum i2c_event event)
 {
     DS1338State *s = DS1338(i2c);
 
@@ -120,7 +120,7 @@ static int ds1338_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static uint8_t ds1338_recv(I2CSlave *i2c)
+static uint8_t ds1338_recv(I2CTarget *i2c)
 {
     DS1338State *s = DS1338(i2c);
     uint8_t res;
@@ -130,7 +130,7 @@ static uint8_t ds1338_recv(I2CSlave *i2c)
     return res;
 }
 
-static int ds1338_send(I2CSlave *i2c, uint8_t data)
+static int ds1338_send(I2CTarget *i2c, uint8_t data)
 {
     DS1338State *s = DS1338(i2c);
 
@@ -218,7 +218,7 @@ static void ds1338_reset(DeviceState *dev)
 static void ds1338_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     k->event = ds1338_event;
     k->recv = ds1338_recv;
@@ -229,7 +229,7 @@ static void ds1338_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ds1338_info = {
     .name          = TYPE_DS1338,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(DS1338State),
     .class_init    = ds1338_class_init,
 };

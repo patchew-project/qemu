@@ -37,7 +37,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(MenelausState, TWL92230)
 
 struct MenelausState {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     int firstbyte;
     uint8_t reg;
@@ -134,7 +134,7 @@ static void menelaus_rtc_hz(void *opaque)
     menelaus_update(s);
 }
 
-static void menelaus_reset(I2CSlave *i2c)
+static void menelaus_reset(I2CTarget *i2c)
 {
     MenelausState *s = TWL92230(i2c);
 
@@ -701,7 +701,7 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
     }
 }
 
-static int menelaus_event(I2CSlave *i2c, enum i2c_event event)
+static int menelaus_event(I2CTarget *i2c, enum i2c_event event)
 {
     MenelausState *s = TWL92230(i2c);
 
@@ -711,7 +711,7 @@ static int menelaus_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static int menelaus_tx(I2CSlave *i2c, uint8_t data)
+static int menelaus_tx(I2CTarget *i2c, uint8_t data)
 {
     MenelausState *s = TWL92230(i2c);
 
@@ -725,7 +725,7 @@ static int menelaus_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static uint8_t menelaus_rx(I2CSlave *i2c)
+static uint8_t menelaus_rx(I2CTarget *i2c)
 {
     MenelausState *s = TWL92230(i2c);
 
@@ -836,7 +836,7 @@ static const VMStateDescription vmstate_menelaus = {
         VMSTATE_STRUCT(rtc.alm, MenelausState, 0, vmstate_menelaus_tm,
                        struct tm),
         VMSTATE_UINT8(pwrbtn_state, MenelausState),
-        VMSTATE_I2C_SLAVE(parent_obj, MenelausState),
+        VMSTATE_I2C_TARGET(parent_obj, MenelausState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -858,7 +858,7 @@ static void twl92230_realize(DeviceState *dev, Error **errp)
 static void twl92230_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *sc = I2C_TARGET_CLASS(klass);
 
     dc->realize = twl92230_realize;
     sc->event = menelaus_event;
@@ -869,7 +869,7 @@ static void twl92230_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo twl92230_info = {
     .name          = TYPE_TWL92230,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(MenelausState),
     .class_init    = twl92230_class_init,
 };

@@ -18,7 +18,7 @@
 
 typedef struct DPS310State {
     /*< private >*/
-    I2CSlave i2c;
+    I2CTarget i2c;
 
     /*< public >*/
     uint8_t regs[NUM_REGISTERS];
@@ -133,7 +133,7 @@ static void dps310_write(DPS310State *s, uint8_t reg, uint8_t data)
     }
 }
 
-static uint8_t dps310_rx(I2CSlave *i2c)
+static uint8_t dps310_rx(I2CTarget *i2c)
 {
     DPS310State *s = DPS310(i2c);
 
@@ -144,7 +144,7 @@ static uint8_t dps310_rx(I2CSlave *i2c)
     }
 }
 
-static int dps310_tx(I2CSlave *i2c, uint8_t data)
+static int dps310_tx(I2CTarget *i2c, uint8_t data)
 {
     DPS310State *s = DPS310(i2c);
 
@@ -162,7 +162,7 @@ static int dps310_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int dps310_event(I2CSlave *i2c, enum i2c_event event)
+static int dps310_event(I2CTarget *i2c, enum i2c_event event)
 {
     DPS310State *s = DPS310(i2c);
 
@@ -192,7 +192,7 @@ static const VMStateDescription vmstate_dps310 = {
         VMSTATE_UINT8(len, DPS310State),
         VMSTATE_UINT8_ARRAY(regs, DPS310State, NUM_REGISTERS),
         VMSTATE_UINT8(pointer, DPS310State),
-        VMSTATE_I2C_SLAVE(i2c, DPS310State),
+        VMSTATE_I2C_TARGET(i2c, DPS310State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -200,7 +200,7 @@ static const VMStateDescription vmstate_dps310 = {
 static void dps310_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     k->event = dps310_event;
     k->recv = dps310_rx;
@@ -211,7 +211,7 @@ static void dps310_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo dps310_info = {
     .name          = TYPE_DPS310,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(DPS310State),
     .class_init    = dps310_class_init,
 };

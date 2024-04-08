@@ -45,7 +45,7 @@ OBJECT_DECLARE_TYPE(AXP2xxI2CState, AXP2xxClass, AXP2XX)
 /* A simple I2C slave which returns values of ID or CNT register. */
 typedef struct AXP2xxI2CState {
     /*< private >*/
-    I2CSlave i2c;
+    I2CTarget i2c;
     /*< public >*/
     uint8_t regs[NR_REGS];  /* peripheral registers */
     uint8_t ptr;            /* current register index */
@@ -54,7 +54,7 @@ typedef struct AXP2xxI2CState {
 
 typedef struct AXP2xxClass {
     /*< private >*/
-    I2CSlaveClass parent_class;
+    I2CTargetClass parent_class;
     /*< public >*/
     void (*reset_enter)(AXP2xxI2CState *s, ResetType type);
 } AXP2xxClass;
@@ -169,7 +169,7 @@ static void axp2xx_reset_enter(Object *obj, ResetType type)
 }
 
 /* Handle events from master. */
-static int axp2xx_event(I2CSlave *i2c, enum i2c_event event)
+static int axp2xx_event(I2CTarget *i2c, enum i2c_event event)
 {
     AXP2xxI2CState *s = AXP2XX(i2c);
 
@@ -179,7 +179,7 @@ static int axp2xx_event(I2CSlave *i2c, enum i2c_event event)
 }
 
 /* Called when master requests read */
-static uint8_t axp2xx_rx(I2CSlave *i2c)
+static uint8_t axp2xx_rx(I2CTarget *i2c)
 {
     AXP2xxI2CState *s = AXP2XX(i2c);
     uint8_t ret = 0xff;
@@ -197,7 +197,7 @@ static uint8_t axp2xx_rx(I2CSlave *i2c)
  * Called when master sends write.
  * Update ptr with byte 0, then perform write with second byte.
  */
-static int axp2xx_tx(I2CSlave *i2c, uint8_t data)
+static int axp2xx_tx(I2CTarget *i2c, uint8_t data)
 {
     AXP2xxI2CState *s = AXP2XX(i2c);
 
@@ -228,7 +228,7 @@ static const VMStateDescription vmstate_axp2xx = {
 static void axp2xx_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    I2CSlaveClass *isc = I2C_SLAVE_CLASS(oc);
+    I2CTargetClass *isc = I2C_TARGET_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 
     rc->phases.enter = axp2xx_reset_enter;
@@ -240,7 +240,7 @@ static void axp2xx_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo axp2xx_info = {
     .name = TYPE_AXP2XX,
-    .parent = TYPE_I2C_SLAVE,
+    .parent = TYPE_I2C_TARGET,
     .instance_size = sizeof(AXP2xxI2CState),
     .class_size = sizeof(AXP2xxClass),
     .class_init = axp2xx_class_init,

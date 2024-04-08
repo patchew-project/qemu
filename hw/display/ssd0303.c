@@ -50,7 +50,7 @@ enum ssd0303_cmd {
 OBJECT_DECLARE_SIMPLE_TYPE(ssd0303_state, SSD0303)
 
 struct ssd0303_state {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     QemuConsole *con;
     int row;
@@ -66,13 +66,13 @@ struct ssd0303_state {
     uint8_t framebuffer[132*8];
 };
 
-static uint8_t ssd0303_recv(I2CSlave *i2c)
+static uint8_t ssd0303_recv(I2CTarget *i2c)
 {
     BADF("Reads not implemented\n");
     return 0xff;
 }
 
-static int ssd0303_send(I2CSlave *i2c, uint8_t data)
+static int ssd0303_send(I2CTarget *i2c, uint8_t data)
 {
     ssd0303_state *s = SSD0303(i2c);
     enum ssd0303_cmd old_cmd_state;
@@ -183,7 +183,7 @@ static int ssd0303_send(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int ssd0303_event(I2CSlave *i2c, enum i2c_event event)
+static int ssd0303_event(I2CTarget *i2c, enum i2c_event event)
 {
     ssd0303_state *s = SSD0303(i2c);
 
@@ -293,7 +293,7 @@ static const VMStateDescription vmstate_ssd0303 = {
         VMSTATE_UINT32(mode, ssd0303_state),
         VMSTATE_UINT32(cmd_state, ssd0303_state),
         VMSTATE_BUFFER(framebuffer, ssd0303_state),
-        VMSTATE_I2C_SLAVE(parent_obj, ssd0303_state),
+        VMSTATE_I2C_TARGET(parent_obj, ssd0303_state),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -314,7 +314,7 @@ static void ssd0303_realize(DeviceState *dev, Error **errp)
 static void ssd0303_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     dc->realize = ssd0303_realize;
     k->event = ssd0303_event;
@@ -325,7 +325,7 @@ static void ssd0303_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ssd0303_info = {
     .name          = TYPE_SSD0303,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(ssd0303_state),
     .class_init    = ssd0303_class_init,
 };

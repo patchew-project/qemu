@@ -24,7 +24,7 @@ enum i2c_echo_state {
 };
 
 typedef struct I2CEchoState {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     I2CBus *bus;
 
@@ -72,7 +72,7 @@ release_bus:
     state->state = I2C_ECHO_STATE_IDLE;
 }
 
-static int i2c_echo_event(I2CSlave *s, enum i2c_event event)
+static int i2c_echo_event(I2CTarget *s, enum i2c_event event)
 {
     I2CEchoState *state = I2C_ECHO(s);
 
@@ -90,7 +90,7 @@ static int i2c_echo_event(I2CSlave *s, enum i2c_event event)
     case I2C_FINISH:
         state->pos = 0;
         state->state = I2C_ECHO_STATE_START_SEND;
-        i2c_bus_master(state->bus, state->bh);
+        i2c_bus_controller(state->bus, state->bh);
 
         break;
 
@@ -104,7 +104,7 @@ static int i2c_echo_event(I2CSlave *s, enum i2c_event event)
     return 0;
 }
 
-static uint8_t i2c_echo_recv(I2CSlave *s)
+static uint8_t i2c_echo_recv(I2CTarget *s)
 {
     I2CEchoState *state = I2C_ECHO(s);
 
@@ -115,7 +115,7 @@ static uint8_t i2c_echo_recv(I2CSlave *s)
     return state->data[state->pos++];
 }
 
-static int i2c_echo_send(I2CSlave *s, uint8_t data)
+static int i2c_echo_send(I2CTarget *s, uint8_t data)
 {
     I2CEchoState *state = I2C_ECHO(s);
 
@@ -141,7 +141,7 @@ static void i2c_echo_realize(DeviceState *dev, Error **errp)
 
 static void i2c_echo_class_init(ObjectClass *oc, void *data)
 {
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(oc);
+    I2CTargetClass *sc = I2C_TARGET_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = i2c_echo_realize;
@@ -153,7 +153,7 @@ static void i2c_echo_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo i2c_echo = {
     .name = TYPE_I2C_ECHO,
-    .parent = TYPE_I2C_SLAVE,
+    .parent = TYPE_I2C_TARGET,
     .instance_size = sizeof(I2CEchoState),
     .class_init = i2c_echo_class_init,
 };

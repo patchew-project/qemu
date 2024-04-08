@@ -21,34 +21,34 @@ enum i2c_event {
 
 typedef struct I2CNodeList I2CNodeList;
 
-#define TYPE_I2C_SLAVE "i2c-slave"
-OBJECT_DECLARE_TYPE(I2CSlave, I2CSlaveClass,
-                    I2C_SLAVE)
+#define TYPE_I2C_TARGET "i2c-slave"
+OBJECT_DECLARE_TYPE(I2CTarget, I2CTargetClass,
+                    I2C_TARGET)
 
-struct I2CSlaveClass {
+struct I2CTargetClass {
     DeviceClass parent_class;
 
     /* Master to slave. Returns non-zero for a NAK, 0 for success. */
-    int (*send)(I2CSlave *s, uint8_t data);
+    int (*send)(I2CTarget *s, uint8_t data);
 
     /*
      * Master to slave (asynchronous).
      * Receiving slave must call i2c_ack().
      */
-    void (*send_async)(I2CSlave *s, uint8_t data);
+    void (*send_async)(I2CTarget *s, uint8_t data);
 
     /*
      * Slave to master.  This cannot fail, the device should always
      * return something here.
      */
-    uint8_t (*recv)(I2CSlave *s);
+    uint8_t (*recv)(I2CTarget *s);
 
     /*
      * Notify the slave of a bus state change.  For start event,
      * returns non-zero to NAK an operation.  For other events the
      * return code is not used and should be zero.
      */
-    int (*event)(I2CSlave *s, enum i2c_event event);
+    int (*event)(I2CTarget *s, enum i2c_event event);
 
     /*
      * Check if this device matches the address provided.  Returns bool of
@@ -57,11 +57,11 @@ struct I2CSlaveClass {
      *
      * If broadcast is true, match should add the device and return true.
      */
-    bool (*match_and_add)(I2CSlave *candidate, uint8_t address, bool broadcast,
+    bool (*match_and_add)(I2CTarget *candidate, uint8_t address, bool broadcast,
                           I2CNodeList *current_devs);
 };
 
-struct I2CSlave {
+struct I2CTarget {
     DeviceState qdev;
 
     /* Remaining fields for internal use by the I2C code.  */
@@ -74,25 +74,25 @@ OBJECT_DECLARE_SIMPLE_TYPE(I2CBus, I2C_BUS)
 typedef struct I2CNode I2CNode;
 
 struct I2CNode {
-    I2CSlave *elt;
+    I2CTarget *elt;
     QLIST_ENTRY(I2CNode) next;
 };
 
-typedef struct I2CPendingMaster I2CPendingMaster;
+typedef struct I2CPendingController I2CPendingController;
 
-struct I2CPendingMaster {
+struct I2CPendingController {
     QEMUBH *bh;
-    QSIMPLEQ_ENTRY(I2CPendingMaster) entry;
+    QSIMPLEQ_ENTRY(I2CPendingController) entry;
 };
 
 typedef QLIST_HEAD(I2CNodeList, I2CNode) I2CNodeList;
-typedef QSIMPLEQ_HEAD(I2CPendingMasters, I2CPendingMaster)
-            I2CPendingMasters;
+typedef QSIMPLEQ_HEAD(I2CPendingControllers, I2CPendingController)
+            I2CPendingControllers;
 
 struct I2CBus {
     BusState qbus;
     I2CNodeList current_devs;
-    I2CPendingMasters pending_masters;
+    I2CPendingControllers pending_controllers;
     uint8_t saved_address;
     bool broadcast;
 
@@ -147,12 +147,12 @@ int i2c_start_send(I2CBus *bus, uint8_t address);
  */
 int i2c_start_send_async(I2CBus *bus, uint8_t address);
 
-void i2c_schedule_pending_master(I2CBus *bus);
+void i2c_schedule_pending_controller(I2CBus *bus);
 
 void i2c_end_transfer(I2CBus *bus);
 void i2c_nack(I2CBus *bus);
 void i2c_ack(I2CBus *bus);
-void i2c_bus_master(I2CBus *bus, QEMUBH *bh);
+void i2c_bus_controller(I2CBus *bus, QEMUBH *bh);
 void i2c_bus_release(I2CBus *bus);
 int i2c_send(I2CBus *bus, uint8_t data);
 int i2c_send_async(I2CBus *bus, uint8_t data);
@@ -169,7 +169,7 @@ bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
  * properties to be set. Type @name must exist. The device still
  * needs to be realized. See qdev-core.h.
  */
-I2CSlave *i2c_slave_new(const char *name, uint8_t addr);
+I2CTarget *i2c_target_new(const char *name, uint8_t addr);
 
 /**
  * Create and realize an I2C slave device on the heap.
@@ -180,8 +180,8 @@ I2CSlave *i2c_slave_new(const char *name, uint8_t addr);
  * Create the device state structure, initialize it, put it on the
  * specified @bus, and drop the reference to it (the device is realized).
  */
-I2CSlave *i2c_slave_create_simple(I2CBus *bus,
-                                  const char *name, uint8_t addr);
+I2CTarget *i2c_target_create_simple(I2CBus *bus,
+                                    const char *name, uint8_t addr);
 
 /**
  * Realize and drop a reference an I2C slave device
@@ -196,10 +196,10 @@ I2CSlave *i2c_slave_create_simple(I2CBus *bus,
  * reference to it.
  *
  * This function is useful if you have created @dev via qdev_new(),
- * i2c_slave_new() or i2c_slave_try_new() (which take a reference to
+ * i2c_target_new() or i2c_slave_try_new() (which take a reference to
  * the device it returns to you), so that you can set properties on it
  * before realizing it. If you don't need to set properties then
- * i2c_slave_create_simple() is probably better (as it does the create,
+ * i2c_target_create_simple() is probably better (as it does the create,
  * init and realize in one step).
  *
  * If you are embedding the I2C slave into another QOM device and
@@ -211,23 +211,23 @@ I2CSlave *i2c_slave_create_simple(I2CBus *bus,
  * which doesn't currently exist but would be trivial to create if we
  * had any code that wanted it.)
  */
-bool i2c_slave_realize_and_unref(I2CSlave *dev, I2CBus *bus, Error **errp);
+bool i2c_target_realize_and_unref(I2CTarget *dev, I2CBus *bus, Error **errp);
 
 /**
  * Set the I2C bus address of a slave device
  * @dev: I2C slave device
  * @address: I2C address of the slave when put on a bus
  */
-void i2c_slave_set_address(I2CSlave *dev, uint8_t address);
+void i2c_target_set_address(I2CTarget *dev, uint8_t address);
 
-extern const VMStateDescription vmstate_i2c_slave;
+extern const VMStateDescription vmstate_i2c_target;
 
-#define VMSTATE_I2C_SLAVE(_field, _state) {                          \
-    .name       = (stringify(_field)),                               \
-    .size       = sizeof(I2CSlave),                                  \
-    .vmsd       = &vmstate_i2c_slave,                                \
-    .flags      = VMS_STRUCT,                                        \
-    .offset     = vmstate_offset_value(_state, _field, I2CSlave),    \
+#define VMSTATE_I2C_TARGET(_field, _state) {                          \
+    .name       = (stringify(_field)),                                \
+    .size       = sizeof(I2CTarget),                                  \
+    .vmsd       = &vmstate_i2c_target,                                \
+    .flags      = VMS_STRUCT,                                         \
+    .offset     = vmstate_offset_value(_state, _field, I2CTarget),    \
 }
 
 #endif

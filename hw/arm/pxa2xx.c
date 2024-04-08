@@ -1243,10 +1243,10 @@ static const TypeInfo pxa2xx_rtc_sysbus_info = {
 /* I2C Interface */
 
 #define TYPE_PXA2XX_I2C_SLAVE "pxa2xx-i2c-slave"
-OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxI2CSlaveState, PXA2XX_I2C_SLAVE)
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxI2CTargetState, PXA2XX_I2C_SLAVE)
 
-struct PXA2xxI2CSlaveState {
-    I2CSlave parent_obj;
+struct PXA2xxI2CTargetState {
+    I2CTarget parent_obj;
 
     PXA2xxI2CState *host;
 };
@@ -1257,7 +1257,7 @@ struct PXA2xxI2CState {
     /*< public >*/
 
     MemoryRegion iomem;
-    PXA2xxI2CSlaveState *slave;
+    PXA2xxI2CTargetState *slave;
     I2CBus *bus;
     qemu_irq irq;
     uint32_t offset;
@@ -1286,9 +1286,9 @@ static void pxa2xx_i2c_update(PXA2xxI2CState *s)
 }
 
 /* These are only stubs now.  */
-static int pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
+static int pxa2xx_i2c_event(I2CTarget *i2c, enum i2c_event event)
 {
-    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
+    PXA2xxI2CTargetState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
 
     switch (event) {
@@ -1314,9 +1314,9 @@ static int pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static uint8_t pxa2xx_i2c_rx(I2CSlave *i2c)
+static uint8_t pxa2xx_i2c_rx(I2CTarget *i2c)
 {
-    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
+    PXA2xxI2CTargetState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
 
     if ((s->control & (1 << 14)) || !(s->control & (1 << 6))) {
@@ -1331,9 +1331,9 @@ static uint8_t pxa2xx_i2c_rx(I2CSlave *i2c)
     return s->data;
 }
 
-static int pxa2xx_i2c_tx(I2CSlave *i2c, uint8_t data)
+static int pxa2xx_i2c_tx(I2CTarget *i2c, uint8_t data)
 {
-    PXA2xxI2CSlaveState *slave = PXA2XX_I2C_SLAVE(i2c);
+    PXA2xxI2CTargetState *slave = PXA2XX_I2C_SLAVE(i2c);
     PXA2xxI2CState *s = slave->host;
 
     if ((s->control & (1 << 14)) || !(s->control & (1 << 6))) {
@@ -1353,7 +1353,7 @@ static uint64_t pxa2xx_i2c_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
-    I2CSlave *slave;
+    I2CTarget *slave;
 
     addr -= s->offset;
     switch (addr) {
@@ -1440,7 +1440,7 @@ static void pxa2xx_i2c_write(void *opaque, hwaddr addr,
         break;
 
     case ISAR:
-        i2c_slave_set_address(I2C_SLAVE(s->slave), value & 0x7f);
+        i2c_target_set_address(I2C_SLAVE(s->slave), value & 0x7f);
         break;
 
     case IDBR:
@@ -1465,7 +1465,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c_slave = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_I2C_SLAVE(parent_obj, PXA2xxI2CSlaveState),
+        VMSTATE_I2C_TARGET(parent_obj, PXA2xxI2CTargetState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1480,14 +1480,14 @@ static const VMStateDescription vmstate_pxa2xx_i2c = {
         VMSTATE_UINT8(ibmr, PXA2xxI2CState),
         VMSTATE_UINT8(data, PXA2xxI2CState),
         VMSTATE_STRUCT_POINTER(slave, PXA2xxI2CState,
-                               vmstate_pxa2xx_i2c_slave, PXA2xxI2CSlaveState),
+                               vmstate_pxa2xx_i2c_slave, PXA2xxI2CTargetState),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static void pxa2xx_i2c_slave_class_init(ObjectClass *klass, void *data)
 {
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     k->event = pxa2xx_i2c_event;
     k->recv = pxa2xx_i2c_rx;
@@ -1496,8 +1496,8 @@ static void pxa2xx_i2c_slave_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pxa2xx_i2c_slave_info = {
     .name          = TYPE_PXA2XX_I2C_SLAVE,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(PXA2xxI2CSlaveState),
+    .parent        = TYPE_I2C_TARGET,
+    .instance_size = sizeof(PXA2xxI2CTargetState),
     .class_init    = pxa2xx_i2c_slave_class_init,
 };
 
@@ -1522,7 +1522,7 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     sysbus_connect_irq(i2c_dev, 0, irq);
 
     s = PXA2XX_I2C(i2c_dev);
-    s->slave = PXA2XX_I2C_SLAVE(i2c_slave_create_simple(i2cbus,
+    s->slave = PXA2XX_I2C_SLAVE(i2c_target_create_simple(i2cbus,
                                                         TYPE_PXA2XX_I2C_SLAVE,
                                                         0));
     s->slave->host = s;

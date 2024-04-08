@@ -34,7 +34,7 @@ OBJECT_DECLARE_TYPE(SMBusDevice, SMBusDeviceClass,
 
 
 struct SMBusDeviceClass {
-    I2CSlaveClass parent_class;
+    I2CTargetClass parent_class;
 
     /*
      * An operation with no data, special in SMBus.
@@ -68,7 +68,7 @@ struct SMBusDeviceClass {
 
 struct SMBusDevice {
     /* The SMBus protocol is implemented on top of I2C.  */
-    I2CSlave i2c;
+    I2CTarget i2c;
 
     /* Remaining fields for internal use only.  */
     int32_t mode;

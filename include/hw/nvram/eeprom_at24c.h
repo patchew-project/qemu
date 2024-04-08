@@ -18,7 +18,7 @@
  * Create the device state structure, initialize it, put it on the specified
  * @bus, and drop the reference to it (the device is realized).
  */
-I2CSlave *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size);
+I2CTarget *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size);
 
 
 /*
@@ -33,7 +33,7 @@ I2CSlave *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size);
  * @bus, and drop the reference to it (the device is realized). Copies the data
  * from @init_rom to the beginning of the EEPROM memory buffer.
  */
-I2CSlave *at24c_eeprom_init_rom(I2CBus *bus,
+I2CTarget *at24c_eeprom_init_rom(I2CBus *bus,
                                 uint8_t address, uint32_t rom_size,
                                 const uint8_t *init_rom,
                                 uint32_t init_rom_size);

@@ -536,7 +536,7 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
         SHARED_ARRAY_FIELD_DP32(bus->regs, reg_cmd, M_STOP_CMD, 0);
         aspeed_i2c_set_state(bus, I2CD_IDLE);
 
-        i2c_schedule_pending_master(bus->bus);
+        i2c_schedule_pending_controller(bus->bus);
     }
 
     if (aspeed_i2c_bus_pkt_mode_en(bus)) {
@@ -693,7 +693,7 @@ static void aspeed_i2c_bus_new_write(AspeedI2CBus *bus, hwaddr offset,
         } else {
             bus->regs[R_I2CS_CMD] = value;
         }
-        i2c_slave_set_address(bus->slave, bus->regs[R_I2CS_DEV_ADDR]);
+        i2c_target_set_address(bus->slave, bus->regs[R_I2CS_DEV_ADDR]);
         break;
     case A_I2CS_INTR_CTRL:
         bus->regs[R_I2CS_INTR_CTRL] = value;
@@ -738,7 +738,7 @@ static void aspeed_i2c_bus_old_write(AspeedI2CBus *bus, hwaddr offset,
     switch (offset) {
     case A_I2CD_FUN_CTRL:
         if (SHARED_FIELD_EX32(value, SLAVE_EN)) {
-            i2c_slave_set_address(bus->slave, bus->regs[R_I2CD_DEV_ADDR]);
+            i2c_target_set_address(bus->slave, bus->regs[R_I2CD_DEV_ADDR]);
         }
         bus->regs[R_I2CD_FUN_CTRL] = value & 0x0071C3FF;
         break;
@@ -1112,7 +1112,7 @@ static int aspeed_i2c_bus_new_slave_event(AspeedI2CBus *bus,
     return 0;
 }
 
-static int aspeed_i2c_bus_slave_event(I2CSlave *slave, enum i2c_event event)
+static int aspeed_i2c_bus_slave_event(I2CTarget *slave, enum i2c_event event)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(slave));
     AspeedI2CBus *bus = ASPEED_I2C_BUS(qbus->parent);
@@ -1167,7 +1167,7 @@ static void aspeed_i2c_bus_new_slave_send_async(AspeedI2CBus *bus, uint8_t data)
     i2c_ack(bus->bus);
 }
 
-static void aspeed_i2c_bus_slave_send_async(I2CSlave *slave, uint8_t data)
+static void aspeed_i2c_bus_slave_send_async(I2CTarget *slave, uint8_t data)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(slave));
     AspeedI2CBus *bus = ASPEED_I2C_BUS(qbus->parent);
@@ -1187,7 +1187,7 @@ static void aspeed_i2c_bus_slave_send_async(I2CSlave *slave, uint8_t data)
 static void aspeed_i2c_bus_slave_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *sc = I2C_TARGET_CLASS(klass);
 
     dc->desc = "Aspeed I2C Bus Slave";
 
@@ -1197,7 +1197,7 @@ static void aspeed_i2c_bus_slave_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo aspeed_i2c_bus_slave_info = {
     .name           = TYPE_ASPEED_I2C_BUS_SLAVE,
-    .parent         = TYPE_I2C_SLAVE,
+    .parent         = TYPE_I2C_TARGET,
     .instance_size  = sizeof(AspeedI2CBusSlave),
     .class_init     = aspeed_i2c_bus_slave_class_init,
 };
@@ -1226,7 +1226,7 @@ static void aspeed_i2c_bus_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 
     s->bus = i2c_init_bus(dev, name);
-    s->slave = i2c_slave_create_simple(s->bus, TYPE_ASPEED_I2C_BUS_SLAVE,
+    s->slave = i2c_target_create_simple(s->bus, TYPE_ASPEED_I2C_BUS_SLAVE,
                                        0xff);
 
     memory_region_init_io(&s->mr, OBJECT(s), &aspeed_i2c_bus_ops,

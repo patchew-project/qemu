@@ -35,7 +35,7 @@ DECLARE_INSTANCE_CHECKER(EEPROMState, AT24C_EE,
                          TYPE_AT24C_EE)
 
 struct EEPROMState {
-    I2CSlave parent_obj;
+    I2CTarget parent_obj;
 
     /* address counter */
     uint16_t cur;
@@ -63,7 +63,7 @@ struct EEPROMState {
 };
 
 static
-int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
+int at24c_eeprom_event(I2CTarget *s, enum i2c_event event)
 {
     EEPROMState *ee = AT24C_EE(s);
 
@@ -93,7 +93,7 @@ int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
 }
 
 static
-uint8_t at24c_eeprom_recv(I2CSlave *s)
+uint8_t at24c_eeprom_recv(I2CTarget *s)
 {
     EEPROMState *ee = AT24C_EE(s);
     uint8_t ret;
@@ -115,7 +115,7 @@ uint8_t at24c_eeprom_recv(I2CSlave *s)
 }
 
 static
-int at24c_eeprom_send(I2CSlave *s, uint8_t data)
+int at24c_eeprom_send(I2CTarget *s, uint8_t data)
 {
     EEPROMState *ee = AT24C_EE(s);
 
@@ -143,19 +143,19 @@ int at24c_eeprom_send(I2CSlave *s, uint8_t data)
     return 0;
 }
 
-I2CSlave *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size)
+I2CTarget *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size)
 {
     return at24c_eeprom_init_rom(bus, address, rom_size, NULL, 0);
 }
 
-I2CSlave *at24c_eeprom_init_rom(I2CBus *bus,
+I2CTarget *at24c_eeprom_init_rom(I2CBus *bus,
                                 uint8_t address, uint32_t rom_size,
                                 const uint8_t *init_rom,
                                 uint32_t init_rom_size)
 {
     EEPROMState *s;
 
-    s = AT24C_EE(i2c_slave_new(TYPE_AT24C_EE, address));
+    s = AT24C_EE(i2c_target_new(TYPE_AT24C_EE, address));
 
     qdev_prop_set_uint32(DEVICE(s), "rom-size", rom_size);
 
@@ -163,7 +163,7 @@ I2CSlave *at24c_eeprom_init_rom(I2CBus *bus,
     s->init_rom = init_rom;
     s->init_rom_size = init_rom_size;
 
-    i2c_slave_realize_and_unref(I2C_SLAVE(s), bus, &error_abort);
+    i2c_target_realize_and_unref(I2C_SLAVE(s), bus, &error_abort);
 
     return I2C_SLAVE(s);
 }
@@ -248,7 +248,7 @@ static
 void at24c_eeprom_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
 
     dc->realize = &at24c_eeprom_realize;
     k->event = &at24c_eeprom_event;
@@ -262,9 +262,9 @@ void at24c_eeprom_class_init(ObjectClass *klass, void *data)
 static
 const TypeInfo at24c_eeprom_type = {
     .name = TYPE_AT24C_EE,
-    .parent = TYPE_I2C_SLAVE,
+    .parent = TYPE_I2C_TARGET,
     .instance_size = sizeof(EEPROMState),
-    .class_size = sizeof(I2CSlaveClass),
+    .class_size = sizeof(I2CTargetClass),
     .class_init = at24c_eeprom_class_init,
 };
 

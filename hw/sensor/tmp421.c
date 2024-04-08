@@ -51,7 +51,7 @@ static const DeviceInfo devices[] = {
 
 struct TMP421State {
     /*< private >*/
-    I2CSlave i2c;
+    I2CTarget i2c;
     /*< public >*/
 
     int16_t temperature[4];
@@ -67,7 +67,7 @@ struct TMP421State {
 };
 
 struct TMP421Class {
-    I2CSlaveClass parent_class;
+    I2CTargetClass parent_class;
     DeviceInfo *dev;
 };
 
@@ -224,7 +224,7 @@ static void tmp421_read(TMP421State *s)
     }
 }
 
-static void tmp421_reset(I2CSlave *i2c);
+static void tmp421_reset(I2CTarget *i2c);
 
 static void tmp421_write(TMP421State *s)
 {
@@ -244,7 +244,7 @@ static void tmp421_write(TMP421State *s)
     }
 }
 
-static uint8_t tmp421_rx(I2CSlave *i2c)
+static uint8_t tmp421_rx(I2CTarget *i2c)
 {
     TMP421State *s = TMP421(i2c);
 
@@ -255,7 +255,7 @@ static uint8_t tmp421_rx(I2CSlave *i2c)
     }
 }
 
-static int tmp421_tx(I2CSlave *i2c, uint8_t data)
+static int tmp421_tx(I2CTarget *i2c, uint8_t data)
 {
     TMP421State *s = TMP421(i2c);
 
@@ -274,7 +274,7 @@ static int tmp421_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int tmp421_event(I2CSlave *i2c, enum i2c_event event)
+static int tmp421_event(I2CTarget *i2c, enum i2c_event event)
 {
     TMP421State *s = TMP421(i2c);
 
@@ -298,12 +298,12 @@ static const VMStateDescription vmstate_tmp421 = {
         VMSTATE_UINT8(status, TMP421State),
         VMSTATE_UINT8(rate, TMP421State),
         VMSTATE_INT16_ARRAY(temperature, TMP421State, 4),
-        VMSTATE_I2C_SLAVE(i2c, TMP421State),
+        VMSTATE_I2C_TARGET(i2c, TMP421State),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static void tmp421_reset(I2CSlave *i2c)
+static void tmp421_reset(I2CTarget *i2c)
 {
     TMP421State *s = TMP421(i2c);
     TMP421Class *sc = TMP421_GET_CLASS(s);
@@ -340,7 +340,7 @@ static void tmp421_realize(DeviceState *dev, Error **errp)
 static void tmp421_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
 
     dc->realize = tmp421_realize;
@@ -366,7 +366,7 @@ static void tmp421_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo tmp421_info = {
     .name          = TYPE_TMP421,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(TMP421State),
     .class_size    = sizeof(TMP421Class),
     .abstract      = true,

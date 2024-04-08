@@ -42,7 +42,7 @@ static void i2c_ddc_reset(DeviceState *ds)
     s->reg = 0;
 }
 
-static int i2c_ddc_event(I2CSlave *i2c, enum i2c_event event)
+static int i2c_ddc_event(I2CTarget *i2c, enum i2c_event event)
 {
     I2CDDCState *s = I2CDDC(i2c);
 
@@ -53,7 +53,7 @@ static int i2c_ddc_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static uint8_t i2c_ddc_rx(I2CSlave *i2c)
+static uint8_t i2c_ddc_rx(I2CTarget *i2c)
 {
     I2CDDCState *s = I2CDDC(i2c);
 
@@ -63,7 +63,7 @@ static uint8_t i2c_ddc_rx(I2CSlave *i2c)
     return value;
 }
 
-static int i2c_ddc_tx(I2CSlave *i2c, uint8_t data)
+static int i2c_ddc_tx(I2CTarget *i2c, uint8_t data)
 {
     I2CDDCState *s = I2CDDC(i2c);
     if (s->firstbyte) {
@@ -103,7 +103,7 @@ static Property i2c_ddc_properties[] = {
 static void i2c_ddc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    I2CSlaveClass *isc = I2C_SLAVE_CLASS(oc);
+    I2CTargetClass *isc = I2C_TARGET_CLASS(oc);
 
     dc->reset = i2c_ddc_reset;
     dc->vmsd = &vmstate_i2c_ddc;
@@ -115,7 +115,7 @@ static void i2c_ddc_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo i2c_ddc_info = {
     .name = TYPE_I2CDDC,
-    .parent = TYPE_I2C_SLAVE,
+    .parent = TYPE_I2C_TARGET,
     .instance_size = sizeof(I2CDDCState),
     .instance_init = i2c_ddc_init,
     .class_init = i2c_ddc_class_init

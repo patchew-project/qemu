@@ -80,7 +80,7 @@ static void cubieboard_init(MachineState *machine)
 
     /* Connect AXP 209 */
     i2c = I2C_BUS(qdev_get_child_bus(DEVICE(&a10->i2c0), "i2c"));
-    i2c_slave_create_simple(i2c, "axp209_pmu", 0x34);
+    i2c_target_create_simple(i2c, "axp209_pmu", 0x34);
 
     /* Retrieve SD bus */
     di = drive_get(IF_SD, 0, 0);

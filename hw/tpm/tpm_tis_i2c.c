@@ -36,7 +36,7 @@
 
 typedef struct TPMStateI2C {
     /*< private >*/
-    I2CSlave    parent_obj;
+    I2CTarget    parent_obj;
 
     uint8_t     offset;       /* offset into data[] */
     uint8_t     operation;    /* OP_SEND & OP_RECV */
@@ -303,7 +303,7 @@ static enum TPMVersion tpm_tis_i2c_get_tpm_version(TPMIf *ti)
     return tpm_tis_get_tpm_version(s);
 }
 
-static int tpm_tis_i2c_event(I2CSlave *i2c, enum i2c_event event)
+static int tpm_tis_i2c_event(I2CTarget *i2c, enum i2c_event event)
 {
     TPMStateI2C *i2cst = TPM_TIS_I2C(i2c);
     int ret = 0;
@@ -336,7 +336,7 @@ static int tpm_tis_i2c_event(I2CSlave *i2c, enum i2c_event event)
  * otherwise it will be handled using single call to common code and
  * cached in the local buffer.
  */
-static uint8_t tpm_tis_i2c_recv(I2CSlave *i2c)
+static uint8_t tpm_tis_i2c_recv(I2CTarget *i2c)
 {
     int          ret = 0;
     uint32_t     data_read;
@@ -439,7 +439,7 @@ static uint8_t tpm_tis_i2c_recv(I2CSlave *i2c)
  * Send function only remembers data in the buffer and then calls
  * TPM TIS common code during FINISH event.
  */
-static int tpm_tis_i2c_send(I2CSlave *i2c, uint8_t data)
+static int tpm_tis_i2c_send(I2CTarget *i2c, uint8_t data)
 {
     TPMStateI2C *i2cst = TPM_TIS_I2C(i2c);
 
@@ -534,7 +534,7 @@ static void tpm_tis_i2c_reset(DeviceState *dev)
 static void tpm_tis_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CTargetClass *k = I2C_TARGET_CLASS(klass);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
     dc->realize = tpm_tis_i2c_realizefn;
@@ -554,7 +554,7 @@ static void tpm_tis_i2c_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo tpm_tis_i2c_info = {
     .name          = TYPE_TPM_TIS_I2C,
-    .parent        = TYPE_I2C_SLAVE,
+    .parent        = TYPE_I2C_TARGET,
     .instance_size = sizeof(TPMStateI2C),
     .class_init    = tpm_tis_i2c_class_init,
         .interfaces = (InterfaceInfo[]) {
