@@ -160,6 +160,16 @@ static void scsi_disk_save_request(QEMUFile *f, SCSIRequest *req)
     }
 }
 
+static void scsi_disk_emulate_save_request(QEMUFile *f, SCSIRequest *req)
+{
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    if (s->migrate_emulate_scsi_request) {
+        scsi_disk_save_request(f, req);
+    }
+}
+
 static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
@@ -181,6 +191,16 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
     }
 
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
+}
+
+static void scsi_disk_emulate_load_request(QEMUFile *f, SCSIRequest *req)
+{
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    if (s->migrate_emulate_scsi_request) {
+        scsi_disk_load_request(f, req);
+    }
 }
 
 /*
@@ -2593,6 +2613,8 @@ static const SCSIReqOps scsi_disk_emulate_reqops = {
     .read_data    = scsi_disk_emulate_read_data,
     .write_data   = scsi_disk_emulate_write_data,
     .get_buf      = scsi_get_buf,
+    .load_request = scsi_disk_emulate_load_request,
+    .save_request = scsi_disk_emulate_save_request,
 };
 
 static const SCSIReqOps scsi_disk_dma_reqops = {
@@ -3137,7 +3159,7 @@ static Property scsi_hd_properties[] = {
 static int scsi_disk_pre_save(void *opaque)
 {
     SCSIDiskState *dev = opaque;
-    dev->migrate_emulate_scsi_request = false;
+    dev->migrate_emulate_scsi_request = true;
 
     return 0;
 }
