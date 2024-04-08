@@ -31,6 +31,7 @@
 #endif
 #include "sysemu/sysemu.h"
 #include "hw/vfio/vfio-container-base.h"
+#include "sysemu/host_iommu_device.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -146,6 +147,16 @@ typedef struct VFIOGroup {
     QLIST_ENTRY(VFIOGroup) container_next;
     bool ram_block_discard_allowed;
 } VFIOGroup;
+
+#define TYPE_HIOD_LEGACY_VFIO TYPE_HOST_IOMMU_DEVICE "-legacy-vfio"
+OBJECT_DECLARE_SIMPLE_TYPE(HIODLegacyVFIO, HIOD_LEGACY_VFIO)
+
+/* Abstraction of VFIO legacy host IOMMU device */
+struct HIODLegacyVFIO {
+    /*< private >*/
+    HostIOMMUDevice parent;
+    VFIODevice *vdev;
+};
 
 typedef struct VFIODMABuf {
     QemuDmaBuf buf;

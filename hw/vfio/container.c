@@ -1143,12 +1143,21 @@ static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
     vioc->pci_hot_reset = vfio_legacy_pci_hot_reset;
 };
 
+static void hiod_legacy_vfio_class_init(ObjectClass *oc, void *data)
+{
+};
+
 static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU_LEGACY,
         .parent = TYPE_VFIO_IOMMU,
         .class_init = vfio_iommu_legacy_class_init,
-    },
+    }, {
+        .name = TYPE_HIOD_LEGACY_VFIO,
+        .parent = TYPE_HOST_IOMMU_DEVICE,
+        .instance_size = sizeof(HIODLegacyVFIO),
+        .class_init = hiod_legacy_vfio_class_init,
+    }
 };
 
 DEFINE_TYPES(types)
