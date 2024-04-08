@@ -103,7 +103,7 @@ bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
     return broadcast;
 }
 
-/* TODO: Make this handle multiple masters.  */
+/* TODO: Make this handle multiple controllers.  */
 /*
  * Start or continue an i2c transaction.  When this is called for the
  * first time or after an i2c_end_transfer(), if it returns an error
