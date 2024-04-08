@@ -35,6 +35,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/iommufd.h"
 #include "hw/i386/apic_internal.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
@@ -3819,6 +3820,32 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
     return vtd_dev_as;
 }
 
+static int vtd_check_legacy_hdev(IntelIOMMUState *s,
+                                 HostIOMMUDevice *hiod,
+                                 Error **errp)
+{
+    return 0;
+}
+
+static int vtd_check_iommufd_hdev(IntelIOMMUState *s,
+                                  HostIOMMUDevice *hiod,
+                                  Error **errp)
+{
+    return 0;
+}
+
+static int vtd_check_hdev(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hdev,
+                          Error **errp)
+{
+    HostIOMMUDevice *hiod = vtd_hdev->dev;
+
+    if (object_dynamic_cast(OBJECT(hiod), TYPE_HIOD_IOMMUFD)) {
+        return vtd_check_iommufd_hdev(s, hiod, errp);
+    }
+
+    return vtd_check_legacy_hdev(s, hiod, errp);
+}
+
 static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
                                     HostIOMMUDevice *hiod, Error **errp)
 {
@@ -3829,6 +3856,7 @@ static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
         .devfn = devfn,
     };
     struct vtd_as_key *new_key;
+    int ret;
 
     assert(hiod);
 
@@ -3847,6 +3875,13 @@ static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
     vtd_hdev->devfn = (uint8_t)devfn;
     vtd_hdev->iommu_state = s;
     vtd_hdev->dev = hiod;
+
+    ret = vtd_check_hdev(s, vtd_hdev, errp);
+    if (ret) {
+        g_free(vtd_hdev);
+        vtd_iommu_unlock(s);
+        return ret;
+    }
 
     new_key = g_malloc(sizeof(*new_key));
     new_key->bus = bus;
