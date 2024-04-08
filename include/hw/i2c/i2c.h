@@ -31,7 +31,10 @@ struct I2CSlaveClass {
     /* Master to slave. Returns non-zero for a NAK, 0 for success. */
     int (*send)(I2CSlave *s, uint8_t data);
 
-    /* Master to slave (asynchronous). Receiving slave must call i2c_ack(). */
+    /*
+     * Master to slave (asynchronous).
+     * Receiving slave must call i2c_ack().
+     */
     void (*send_async)(I2CSlave *s, uint8_t data);
 
     /*
@@ -83,7 +86,8 @@ struct I2CPendingMaster {
 };
 
 typedef QLIST_HEAD(I2CNodeList, I2CNode) I2CNodeList;
-typedef QSIMPLEQ_HEAD(I2CPendingMasters, I2CPendingMaster) I2CPendingMasters;
+typedef QSIMPLEQ_HEAD(I2CPendingMasters, I2CPendingMaster)
+            I2CPendingMasters;
 
 struct I2CBus {
     BusState qbus;
@@ -176,7 +180,8 @@ I2CSlave *i2c_slave_new(const char *name, uint8_t addr);
  * Create the device state structure, initialize it, put it on the
  * specified @bus, and drop the reference to it (the device is realized).
  */
-I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr);
+I2CSlave *i2c_slave_create_simple(I2CBus *bus,
+                                  const char *name, uint8_t addr);
 
 /**
  * Realize and drop a reference an I2C slave device
