@@ -16,4 +16,14 @@ struct HostIOMMUDeviceClass {
     int (*get_host_iommu_info)(HostIOMMUDevice *hiod, void *data, uint32_t len,
                                Error **errp);
 };
+
+/*
+ * Define the format of host IOMMU related info that current VFIO
+ * or VDPA can privode to vIOMMU.
+ *
+ * @aw_bits: Host IOMMU address width. 0xff if no limitation.
+ */
+typedef struct HIOD_LEGACY_INFO {
+    uint8_t aw_bits;
+} HIOD_LEGACY_INFO;
 #endif
