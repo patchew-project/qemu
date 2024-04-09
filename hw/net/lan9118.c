@@ -438,7 +438,6 @@ static void lan9118_reset(DeviceState *d)
     s->hw_cfg = s->mode_16bit ? 0x00050000 : 0x00050004;
     s->pmt_ctrl &= 0x45;
     s->gpio_cfg = 0;
-    s->txp->fifo_used = 0;
     s->txp->state = TX_IDLE;
     s->txp->cmd_a = 0xffffffffu;
     s->txp->cmd_b = 0xffffffffu;
