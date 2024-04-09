@@ -262,7 +262,7 @@ struct lan9118_state {
     int32_t rx_status_fifo_size;
     int32_t rx_status_fifo_used;
     int32_t rx_status_fifo_head;
-    uint32_t rx_status_fifo[896];
+    uint32_t rx_status_fifo[RX_STATUS_FIFO_BYTES / 4];
     int32_t rx_fifo_size;
     int32_t rx_fifo_used;
     int32_t rx_fifo_head;
@@ -332,7 +332,9 @@ static const VMStateDescription vmstate_lan9118 = {
         VMSTATE_INT32(rx_status_fifo_size, lan9118_state),
         VMSTATE_INT32(rx_status_fifo_used, lan9118_state),
         VMSTATE_INT32(rx_status_fifo_head, lan9118_state),
-        VMSTATE_UINT32_ARRAY(rx_status_fifo, lan9118_state, 896),
+        VMSTATE_UINT32_ARRAY(rx_status_fifo, lan9118_state,
+                             RX_STATUS_FIFO_BYTES / 4),
+        VMSTATE_UNUSED(896 * 4 - RX_STATUS_FIFO_BYTES),
         VMSTATE_INT32(rx_fifo_size, lan9118_state),
         VMSTATE_INT32(rx_fifo_used, lan9118_state),
         VMSTATE_INT32(rx_fifo_head, lan9118_state),
@@ -458,10 +460,9 @@ static void lan9118_reset(DeviceState *d)
     s->txp->fifo_used = 0;
     s->tx_fifo_bytes = TX_DATA_FIFO_BYTES;
     s->tx_status_fifo_used = 0;
-    s->rx_status_fifo_size = 704;
     s->rx_fifo_size = 2640;
     s->rx_fifo_used = 0;
-    s->rx_status_fifo_size = 176;
+    s->rx_status_fifo_size = RX_STATUS_FIFO_BYTES / 4;
     s->rx_status_fifo_used = 0;
     s->rxp_offset = 0;
     s->rxp_size = 0;
