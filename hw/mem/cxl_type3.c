@@ -30,6 +30,7 @@
 #include "hw/pci/msix.h"
 
 #define DWORD_BYTE 4
+#define CT3D_CAP_SN_OFFSET PCI_CONFIG_SPACE_SIZE
 
 /* Default CDAT entries for a memory region */
 enum {
@@ -284,6 +285,10 @@ static void build_dvsecs(CXLType3Dev *ct3d)
              range2_size_hi = 0, range2_size_lo = 0,
              range2_base_hi = 0, range2_base_lo = 0;
 
+    cxl_cstate->dvsec_offset = CT3D_CAP_SN_OFFSET;
+    if (ct3d->sn != UI64_NULL) {
+        cxl_cstate->dvsec_offset += PCI_EXT_CAP_DSN_SIZEOF;
+    }
     /*
      * Volatile memory is mapped as (0x0)
      * Persistent memory is mapped at (volatile->size)
@@ -664,10 +669,7 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
 
     pcie_endpoint_cap_init(pci_dev, 0x80);
     if (ct3d->sn != UI64_NULL) {
-        pcie_dev_ser_num_init(pci_dev, 0x100, ct3d->sn);
-        cxl_cstate->dvsec_offset = 0x100 + 0x0c;
-    } else {
-        cxl_cstate->dvsec_offset = 0x100;
+        pcie_dev_ser_num_init(pci_dev, CT3D_CAP_SN_OFFSET, ct3d->sn);
     }
 
     ct3d->cxl_cstate.pdev = pci_dev;
@@ -907,6 +909,7 @@ static void ct3d_reset(DeviceState *dev)
 
     cxl_component_register_init_common(reg_state, write_msk, CXL2_TYPE3_DEVICE);
     cxl_device_register_init_t3(ct3d);
+    build_dvsecs(ct3d);
 
     /*
      * Bring up an endpoint to target with MCTP over VDM.
