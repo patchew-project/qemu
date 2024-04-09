@@ -266,7 +266,7 @@ struct lan9118_state {
     int32_t rx_fifo_size;
     int32_t rx_fifo_used;
     int32_t rx_fifo_head;
-    uint32_t rx_fifo[3360];
+    uint32_t rx_fifo[RX_DATA_FIFO_BYTES / 4];
     int32_t rx_packet_size_head;
     int32_t rx_packet_size_tail;
     int32_t rx_packet_size[1024];
@@ -338,7 +338,9 @@ static const VMStateDescription vmstate_lan9118 = {
         VMSTATE_INT32(rx_fifo_size, lan9118_state),
         VMSTATE_INT32(rx_fifo_used, lan9118_state),
         VMSTATE_INT32(rx_fifo_head, lan9118_state),
-        VMSTATE_UINT32_ARRAY(rx_fifo, lan9118_state, 3360),
+        VMSTATE_UINT32_ARRAY(rx_fifo, lan9118_state,
+                             RX_DATA_FIFO_BYTES / 4),
+        VMSTATE_UNUSED(3360 * 4 - RX_DATA_FIFO_BYTES),
         VMSTATE_INT32(rx_packet_size_head, lan9118_state),
         VMSTATE_INT32(rx_packet_size_tail, lan9118_state),
         VMSTATE_INT32_ARRAY(rx_packet_size, lan9118_state, 1024),
@@ -460,7 +462,7 @@ static void lan9118_reset(DeviceState *d)
     s->txp->fifo_used = 0;
     s->tx_fifo_bytes = TX_DATA_FIFO_BYTES;
     s->tx_status_fifo_used = 0;
-    s->rx_fifo_size = 2640;
+    s->rx_fifo_size = RX_DATA_FIFO_BYTES / 4;
     s->rx_fifo_used = 0;
     s->rx_status_fifo_wordcount = RX_STATUS_FIFO_BYTES / 4;
     s->rx_status_fifo_used = 0;
