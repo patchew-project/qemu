@@ -427,6 +427,11 @@ void setup_frame(int sig, struct target_sigaction *ka,
     env->regs[R_ESP] = frame_addr;
     env->eip = ka->_sa_handler;
 
+    /* Make -mregparm=3 work */
+    env->regs[R_EAX] = sig;
+    env->regs[R_EDX] = 0;
+    env->regs[R_ECX] = 0;
+
     cpu_x86_load_seg(env, R_DS, __USER_DS);
     cpu_x86_load_seg(env, R_ES, __USER_DS);
     cpu_x86_load_seg(env, R_SS, __USER_DS);
@@ -448,9 +453,6 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                     target_sigset_t *set, CPUX86State *env)
 {
     abi_ulong frame_addr;
-#ifndef TARGET_X86_64
-    abi_ulong addr;
-#endif
     struct rt_sigframe *frame;
     int i;
 
@@ -460,14 +462,6 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
         goto give_sigsegv;
 
-    /* These fields are only in rt_sigframe on 32 bit */
-#ifndef TARGET_X86_64
-    __put_user(sig, &frame->sig);
-    addr = frame_addr + offsetof(struct rt_sigframe, info);
-    __put_user(addr, &frame->pinfo);
-    addr = frame_addr + offsetof(struct rt_sigframe, uc);
-    __put_user(addr, &frame->puc);
-#endif
     if (ka->sa_flags & TARGET_SA_SIGINFO) {
         frame->info = *info;
     }
@@ -507,9 +501,13 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->eip = ka->_sa_handler;
 
 #ifndef TARGET_X86_64
+    /* Store arguments for both -mregparm=3 and standard. */
     env->regs[R_EAX] = sig;
+    __put_user(sig, &frame->sig);
     env->regs[R_EDX] = frame_addr + offsetof(struct rt_sigframe, info);
+    __put_user(env->regs[R_EDX], &frame->pinfo);
     env->regs[R_ECX] = frame_addr + offsetof(struct rt_sigframe, uc);
+    __put_user(env->regs[R_ECX], &frame->puc);
 #else
     env->regs[R_EAX] = 0;
     env->regs[R_EDI] = sig;
