@@ -259,7 +259,7 @@ struct lan9118_state {
     int32_t tx_status_fifo_head;
     uint32_t tx_status_fifo[512];
 
-    int32_t rx_status_fifo_size;
+    int32_t rx_status_fifo_wordcount;
     int32_t rx_status_fifo_used;
     int32_t rx_status_fifo_head;
     uint32_t rx_status_fifo[RX_STATUS_FIFO_BYTES / 4];
@@ -329,7 +329,7 @@ static const VMStateDescription vmstate_lan9118 = {
         VMSTATE_INT32(tx_status_fifo_used, lan9118_state),
         VMSTATE_INT32(tx_status_fifo_head, lan9118_state),
         VMSTATE_UINT32_ARRAY(tx_status_fifo, lan9118_state, 512),
-        VMSTATE_INT32(rx_status_fifo_size, lan9118_state),
+        VMSTATE_INT32(rx_status_fifo_wordcount, lan9118_state),
         VMSTATE_INT32(rx_status_fifo_used, lan9118_state),
         VMSTATE_INT32(rx_status_fifo_head, lan9118_state),
         VMSTATE_UINT32_ARRAY(rx_status_fifo, lan9118_state,
@@ -462,7 +462,7 @@ static void lan9118_reset(DeviceState *d)
     s->tx_status_fifo_used = 0;
     s->rx_fifo_size = 2640;
     s->rx_fifo_used = 0;
-    s->rx_status_fifo_size = RX_STATUS_FIFO_BYTES / 4;
+    s->rx_status_fifo_wordcount = RX_STATUS_FIFO_BYTES / 4;
     s->rx_status_fifo_used = 0;
     s->rxp_offset = 0;
     s->rxp_size = 0;
@@ -568,7 +568,7 @@ static ssize_t lan9118_receive(NetClientState *nc, const uint8_t *buf,
     }
 
     /* TODO: Implement FIFO overflow notification.  */
-    if (s->rx_status_fifo_used == s->rx_status_fifo_size) {
+    if (s->rx_status_fifo_used == s->rx_status_fifo_wordcount) {
         return -1;
     }
 
@@ -609,8 +609,8 @@ static ssize_t lan9118_receive(NetClientState *nc, const uint8_t *buf,
         rx_fifo_push(s, crc);
     }
     n = s->rx_status_fifo_head + s->rx_status_fifo_used;
-    if (n >= s->rx_status_fifo_size) {
-        n -= s->rx_status_fifo_size;
+    if (n >= s->rx_status_fifo_wordcount) {
+        n -= s->rx_status_fifo_wordcount;
     }
     s->rx_packet_size[s->rx_packet_size_tail] = fifo_len;
     s->rx_packet_size_tail = (s->rx_packet_size_tail + 1023) & 1023;
@@ -732,8 +732,8 @@ static uint32_t rx_status_fifo_pop(lan9118_state *s)
     if (s->rx_status_fifo_used != 0) {
         s->rx_status_fifo_used--;
         s->rx_status_fifo_head++;
-        if (s->rx_status_fifo_head >= s->rx_status_fifo_size) {
-            s->rx_status_fifo_head -= s->rx_status_fifo_size;
+        if (s->rx_status_fifo_head >= s->rx_status_fifo_wordcount) {
+            s->rx_status_fifo_head -= s->rx_status_fifo_wordcount;
         }
         /* ??? What value should be returned when the FIFO is empty?  */
         DPRINTF("RX status pop 0x%08x\n", val);
