@@ -456,7 +456,7 @@ static void lan9118_reset(DeviceState *d)
     s->txp->cmd_b = 0xffffffffu;
     s->txp->len = 0;
     s->txp->fifo_used = 0;
-    s->tx_fifo_size = 4608;
+    s->tx_fifo_size = TX_DATA_FIFO_BYTES;
     s->tx_status_fifo_used = 0;
     s->rx_status_fifo_size = 704;
     s->rx_fifo_size = 2640;
