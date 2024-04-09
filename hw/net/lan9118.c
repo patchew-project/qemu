@@ -71,6 +71,8 @@ do { printf("lan9118: " fmt , ## __VA_ARGS__); } while (0)
 #define CSR_E2P_CMD     0xb0
 #define CSR_E2P_DATA    0xb4
 
+#define TX_FIF_SZ_RESET 5
+
 #define E2P_CMD_MAC_ADDR_LOADED 0x100
 
 /* IRQ_CFG */
@@ -435,7 +437,7 @@ static void lan9118_reset(DeviceState *d)
     s->fifo_int = 0x48000000;
     s->rx_cfg = 0;
     s->tx_cfg = 0;
-    s->hw_cfg = s->mode_16bit ? 0x00050000 : 0x00050004;
+    s->hw_cfg = (TX_FIF_SZ_RESET << 16) | (s->mode_16bit << 2);
     s->pmt_ctrl &= 0x45;
     s->gpio_cfg = 0;
     s->txp->state = TX_IDLE;
