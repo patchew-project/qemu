@@ -105,6 +105,12 @@ typedef uint64_t TCGRegSet;
 /* Turn some undef macros into true macros.  */
 #define TCG_TARGET_HAS_add2_i32         1
 #define TCG_TARGET_HAS_sub2_i32         1
+/* Define parameterized _tl macros.  */
+#define TCG_TARGET_deposit_tl_valid     TCG_TARGET_deposit_i32_valid
+#define TCG_TARGET_extract_tl_valid     TCG_TARGET_extract_i32_valid
+#else
+#define TCG_TARGET_deposit_tl_valid     TCG_TARGET_deposit_i64_valid
+#define TCG_TARGET_extract_tl_valid     TCG_TARGET_extract_i64_valid
 #endif
 
 #ifndef TCG_TARGET_deposit_i32_valid

@@ -48,6 +48,7 @@ typedef enum X86OpType {
 
     /* Custom */
     X86_TYPE_WM, /* modrm byte selects an XMM/YMM memory operand */
+    X86_TYPE_I_unsigned, /* Immediate, zero-extended */
     X86_TYPE_2op, /* 2-operand RMW instruction */
     X86_TYPE_LoBits, /* encoded in bits 0-2 of the operand + REX.B */
     X86_TYPE_0, /* Hard-coded GPRs (RAX..RDI) */
@@ -88,6 +89,7 @@ typedef enum X86OpSize {
     X86_SIZE_x,  /* 128/256-bit, based on operand size */
     X86_SIZE_y,  /* 32/64-bit, based on operand size */
     X86_SIZE_z,  /* 16-bit for 16-bit operand size, else 32-bit */
+    X86_SIZE_z_f64,  /* 32-bit for 32-bit operand size or 64-bit mode, else 16-bit */
 
     /* Custom */
     X86_SIZE_d64,
