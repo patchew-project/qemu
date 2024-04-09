@@ -496,6 +496,68 @@ static void kvm_steal_time_set(Object *obj, bool value, Error **errp)
     ARM_CPU(obj)->kvm_steal_time = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
 }
 
+static char *kvm_pmu_filter_get(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    g_autoptr(GString) pmu_filter = g_string_new(NULL);
+    struct kvm_pmu_event_filter *filter;
+    char action;
+    int i;
+
+    if (!cpu->kvm_pmu_filter) {
+        return NULL;
+    }
+
+    for (i = 0; i < cpu->kvm_pmu_filter->len; i++) {
+        filter = &g_array_index(cpu->kvm_pmu_filter,
+                                struct kvm_pmu_event_filter, i);
+        if (i) {
+            g_string_append_c(pmu_filter, ';');
+        }
+        action = filter->action == KVM_PMU_EVENT_ALLOW ? 'A' : 'D';
+        g_string_append_printf(pmu_filter, "%c:0x%hx-0x%hx", action,
+                               filter->base_event,
+                               filter->base_event + filter->nevents - 1);
+    }
+
+    return g_strdup(pmu_filter->str);
+}
+
+static void kvm_pmu_filter_set(Object *obj, const char *pmu_filter,
+                               Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    struct kvm_pmu_event_filter filter;
+    g_auto(GStrv) event_filters;
+    int i;
+
+    if (cpu->kvm_pmu_filter) {
+        g_array_free(cpu->kvm_pmu_filter, true);
+    }
+
+    cpu->kvm_pmu_filter = g_array_new(false, false,
+                                      sizeof(struct kvm_pmu_event_filter));
+
+    event_filters = g_strsplit(pmu_filter, ";", -1);
+    for (i = 0; event_filters[i]; i++) {
+        unsigned short start = 0, end = 0;
+        char act;
+
+        if (sscanf(event_filters[i], "%c:%hx-%hx", &act, &start, &end) != 3 ||
+            (act != 'A' && act != 'D') || start > end) {
+            error_setg(errp, "Invalid PMU filter %s", event_filters[i]);
+            return;
+        }
+
+        filter.base_event = start;
+        filter.nevents = end - start + 1;
+        filter.action = (act == 'A') ? KVM_PMU_EVENT_ALLOW :
+                                       KVM_PMU_EVENT_DENY;
+
+        g_array_append_vals(cpu->kvm_pmu_filter, &filter, 1);
+    }
+}
+
 /* KVM VCPU properties should be prefixed with "kvm-". */
 void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
 {
@@ -517,6 +579,12 @@ void kvm_arm_add_vcpu_properties(ARMCPU *cpu)
                              kvm_steal_time_set);
     object_property_set_description(obj, "kvm-steal-time",
                                     "Set off to disable KVM steal time.");
+
+    object_property_add_str(obj, "kvm-pmu-filter", kvm_pmu_filter_get,
+                            kvm_pmu_filter_set);
+    object_property_set_description(obj, "kvm-pmu-filter",
+                                    "PMU Event Filtering description for "
+                                    "guest PMU. (default: NULL, disabled)");
 }
 
 bool kvm_arm_pmu_supported(void)
@@ -1706,6 +1774,48 @@ static bool kvm_arm_set_device_attr(ARMCPU *cpu, struct kvm_device_attr *attr,
     return true;
 }
 
+static void kvm_arm_pmu_filter_init(ARMCPU *cpu)
+{
+    static bool pmu_filter_init;
+    struct kvm_device_attr attr = {
+        .group      = KVM_ARM_VCPU_PMU_V3_CTRL,
+        .attr       = KVM_ARM_VCPU_PMU_V3_FILTER,
+    };
+    int i;
+
+    /*
+     * The filter only needs to be initialized through one vcpu ioctl and it
+     * will affect all other vcpu in the vm.
+     * It can be referred from kernel commit d7eec2360e3 ("KVM: arm64: Add PMU
+     * event filtering infrastructure"):
+     * Although the ioctl is per-vcpu,  the map of allowed events is global to
+     * the VM (and can be setup from any vcpu until the vcpu PMU is
+     * initialized).
+     */
+    if (pmu_filter_init) {
+        return;
+    } else {
+        pmu_filter_init = true;
+    }
+
+    if (!cpu->kvm_pmu_filter) {
+        return;
+    }
+    if (kvm_vcpu_ioctl(CPU(cpu), KVM_HAS_DEVICE_ATTR, &attr)) {
+        error_report("KVM doesn't support the PMU Event Filter!");
+        return;
+    }
+
+    for (i = 0; i < cpu->kvm_pmu_filter->len; i++) {
+        attr.addr = (uint64_t)&g_array_index(cpu->kvm_pmu_filter,
+                                             struct kvm_pmu_event_filter, i);
+        if (!kvm_arm_set_device_attr(cpu, &attr, "PMU_V3_FILTER")) {
+            error_report("KVM set the PMU Event Filter failed!");
+            break;
+        }
+    }
+}
+
 void kvm_arm_pmu_init(ARMCPU *cpu)
 {
     struct kvm_device_attr attr = {
@@ -1716,6 +1826,8 @@ void kvm_arm_pmu_init(ARMCPU *cpu)
     if (!cpu->has_pmu) {
         return;
     }
+
+    kvm_arm_pmu_filter_init(cpu);
     if (!kvm_arm_set_device_attr(cpu, &attr, "PMU")) {
         error_report("failed to init PMU");
         abort();
