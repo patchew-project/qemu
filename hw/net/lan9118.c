@@ -158,6 +158,17 @@ do { printf("lan9118: " fmt , ## __VA_ARGS__); } while (0)
  */
 #define MIL_TXFIFO_SIZE         2048
 
+/*
+ * TX and RX FIFO space is configurable through the TX FIFO Size (TX_FIF_SZ)
+ * field in the hardware configuration (CSR HW_CFG) register. These are the
+ * default configuration settings for TX_FIF_SZ = 5
+ * (see TABLE 5-3: VALID TX/RX FIFO ALLOCATIONS).
+ */
+#define TX_DATA_FIFO_BYTES      4608    /* 1152 words */
+#define TX_STATUS_FIFO_BYTES    512     /* 128 words */
+#define RX_DATA_FIFO_BYTES      10560   /* 2640 words */
+#define RX_STATUS_FIFO_BYTES    704     /* 176 words */
+
 enum tx_state {
     TX_IDLE,
     TX_B,
