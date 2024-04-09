@@ -251,7 +251,7 @@ struct lan9118_state {
     int32_t eeprom_writable;
     uint8_t eeprom[128];
 
-    int32_t tx_fifo_size;
+    int32_t tx_fifo_bytes;
     LAN9118Packet *txp;
     LAN9118Packet tx_packet;
 
@@ -322,7 +322,7 @@ static const VMStateDescription vmstate_lan9118 = {
         VMSTATE_UINT32(phy_int_mask, lan9118_state),
         VMSTATE_INT32(eeprom_writable, lan9118_state),
         VMSTATE_UINT8_ARRAY(eeprom, lan9118_state, 128),
-        VMSTATE_INT32(tx_fifo_size, lan9118_state),
+        VMSTATE_INT32(tx_fifo_bytes, lan9118_state),
         /* txp always points at tx_packet so need not be saved */
         VMSTATE_STRUCT(tx_packet, lan9118_state, 0,
                        vmstate_lan9118_packet, LAN9118Packet),
@@ -456,7 +456,7 @@ static void lan9118_reset(DeviceState *d)
     s->txp->cmd_b = 0xffffffffu;
     s->txp->len = 0;
     s->txp->fifo_used = 0;
-    s->tx_fifo_size = TX_DATA_FIFO_BYTES;
+    s->tx_fifo_bytes = TX_DATA_FIFO_BYTES;
     s->tx_status_fifo_used = 0;
     s->rx_status_fifo_size = 704;
     s->rx_fifo_size = 2640;
@@ -757,7 +757,7 @@ static void tx_fifo_push(lan9118_state *s, uint32_t val)
 {
     int n;
 
-    if (s->txp->fifo_used == s->tx_fifo_size) {
+    if (s->txp->fifo_used == s->tx_fifo_bytes) {
         s->int_sts |= TDFO_INT;
         return;
     }
@@ -1285,7 +1285,7 @@ static uint64_t lan9118_readl(void *opaque, hwaddr offset,
         return (s->rx_status_fifo_used << 16) | (s->rx_fifo_used << 2);
     case CSR_TX_FIFO_INF:
         return (s->tx_status_fifo_used << 16)
-               | (s->tx_fifo_size - s->txp->fifo_used);
+               | (s->tx_fifo_bytes - s->txp->fifo_used);
     case CSR_PMT_CTRL:
         return s->pmt_ctrl;
     case CSR_GPIO_CFG:
