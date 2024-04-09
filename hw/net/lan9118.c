@@ -263,7 +263,7 @@ struct lan9118_state {
     int32_t rx_status_fifo_used;
     int32_t rx_status_fifo_head;
     uint32_t rx_status_fifo[RX_STATUS_FIFO_BYTES / 4];
-    int32_t rx_fifo_size;
+    int32_t rx_fifo_wordcount;
     int32_t rx_fifo_used;
     int32_t rx_fifo_head;
     uint32_t rx_fifo[RX_DATA_FIFO_BYTES / 4];
@@ -335,7 +335,7 @@ static const VMStateDescription vmstate_lan9118 = {
         VMSTATE_UINT32_ARRAY(rx_status_fifo, lan9118_state,
                              RX_STATUS_FIFO_BYTES / 4),
         VMSTATE_UNUSED(896 * 4 - RX_STATUS_FIFO_BYTES),
-        VMSTATE_INT32(rx_fifo_size, lan9118_state),
+        VMSTATE_INT32(rx_fifo_wordcount, lan9118_state),
         VMSTATE_INT32(rx_fifo_used, lan9118_state),
         VMSTATE_INT32(rx_fifo_head, lan9118_state),
         VMSTATE_UINT32_ARRAY(rx_fifo, lan9118_state,
@@ -462,7 +462,7 @@ static void lan9118_reset(DeviceState *d)
     s->txp->fifo_used = 0;
     s->tx_fifo_bytes = TX_DATA_FIFO_BYTES;
     s->tx_status_fifo_used = 0;
-    s->rx_fifo_size = RX_DATA_FIFO_BYTES / 4;
+    s->rx_fifo_wordcount = RX_DATA_FIFO_BYTES / 4;
     s->rx_fifo_used = 0;
     s->rx_status_fifo_wordcount = RX_STATUS_FIFO_BYTES / 4;
     s->rx_status_fifo_used = 0;
@@ -504,8 +504,9 @@ static void rx_fifo_push(lan9118_state *s, uint32_t val)
 {
     int fifo_pos;
     fifo_pos = s->rx_fifo_head + s->rx_fifo_used;
-    if (fifo_pos >= s->rx_fifo_size)
-      fifo_pos -= s->rx_fifo_size;
+    if (fifo_pos >= s->rx_fifo_wordcount) {
+      fifo_pos -= s->rx_fifo_wordcount;
+    }
     s->rx_fifo[fifo_pos] = val;
     s->rx_fifo_used++;
 }
@@ -584,7 +585,7 @@ static ssize_t lan9118_receive(NetClientState *nc, const uint8_t *buf,
     fifo_len = (size + n + 3) >> 2;
     /* Add a word for the CRC.  */
     fifo_len++;
-    if (s->rx_fifo_size - s->rx_fifo_used < fifo_len) {
+    if (s->rx_fifo_wordcount - s->rx_fifo_used < fifo_len) {
         return -1;
     }
 
@@ -672,8 +673,8 @@ static uint32_t rx_fifo_pop(lan9118_state *s)
     } else if (s->rxp_size > 0) {
         s->rxp_size--;
         val = s->rx_fifo[s->rx_fifo_head++];
-        if (s->rx_fifo_head >= s->rx_fifo_size) {
-            s->rx_fifo_head -= s->rx_fifo_size;
+        if (s->rx_fifo_head >= s->rx_fifo_wordcount) {
+            s->rx_fifo_head -= s->rx_fifo_wordcount;
         }
         s->rx_fifo_used--;
     } else if (s->rxp_pad > 0) {
@@ -1135,8 +1136,8 @@ static void lan9118_writel(void *opaque, hwaddr offset,
                 s->rxp_offset = 0;
             }
             s->rx_fifo_head += s->rxp_size;
-            if (s->rx_fifo_head >= s->rx_fifo_size) {
-                s->rx_fifo_head -= s->rx_fifo_size;
+            if (s->rx_fifo_head >= s->rx_fifo_wordcount) {
+                s->rx_fifo_head -= s->rx_fifo_wordcount;
             }
         }
         break;
