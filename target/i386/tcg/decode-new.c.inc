@@ -43,6 +43,12 @@
  * Operand types
  * -------------
  *
+ * For memory-only operands, if the emitter functions wants to rely on
+ * generic load and writeback, the decoder needs to know the type of the
+ * operand.  Therefore, M is often replaced by the more specific EM and WM
+ * (respectively selecting an ALU operand, like the operand type E, or a
+ * vector operand like the operand type W).
+ *
  * Immediates are almost always signed or masked away in helpers.  Two
  * common exceptions are IN/OUT and absolute jumps.  For these, there is
  * an additional custom operand type "I_unsigned".  Alternatively, the
@@ -1047,6 +1053,9 @@ static const X86OpEntry opcodes_0F[256] = {
     [0x96] = X86_OP_ENTRYw(SETcc, E,b),
     [0x97] = X86_OP_ENTRYw(SETcc, E,b),
 
+    [0xa0] = X86_OP_ENTRYr(PUSH, FS, w),
+    [0xa1] = X86_OP_ENTRYw(POP, FS, w),
+
     [0x28] = X86_OP_ENTRY3(MOVDQ,      V,x,  None,None, W,x, vex1 p_00_66), /* MOVAPS */
     [0x29] = X86_OP_ENTRY3(MOVDQ,      W,x,  None,None, V,x, vex1 p_00_66), /* MOVAPS */
     [0x2A] = X86_OP_GROUP0(0F2A),
@@ -1111,9 +1120,22 @@ static const X86OpEntry opcodes_0F[256] = {
     [0x9e] = X86_OP_ENTRYw(SETcc, E,b),
     [0x9f] = X86_OP_ENTRYw(SETcc, E,b),
 
+    [0xa8] = X86_OP_ENTRYr(PUSH, GS, w),
+    [0xa9] = X86_OP_ENTRYw(POP, GS, w),
     [0xae] = X86_OP_GROUP0(group15),
+    [0xaf] = X86_OP_ENTRY2(IMUL3,      G,v, E,v),
+
+    [0xb2] = X86_OP_ENTRY3(LSS, G,v, M,p, None, None),
+    [0xb4] = X86_OP_ENTRY3(LFS, G,v, M,p, None, None),
+    [0xb5] = X86_OP_ENTRY3(LGS, G,v, M,p, None, None),
+    [0xb6] = X86_OP_ENTRY3(MOV, G,v, E,b, None, None, zextT0), /* MOVZX */
+    [0xb7] = X86_OP_ENTRY3(MOV, G,v, E,w, None, None, zextT0), /* MOVZX */
+
+    [0xbe] = X86_OP_ENTRY3(MOV, G,v, E,b, None, None, sextT0), /* MOVSX */
+    [0xbf] = X86_OP_ENTRY3(MOV, G,v, E,w, None, None, sextT0), /* MOVSX */
 
     [0xc2] = X86_OP_ENTRY4(VCMP,       V,x, H,x, W,x,       vex2_rep3 p_00_66_f3_f2),
+    [0xc3] = X86_OP_ENTRY3(MOV,        EM,y,G,y, None,None, cpuid(SSE2)), /* MOVNTI */
     [0xc4] = X86_OP_ENTRY4(PINSRW,     V,dq,H,dq,E,w,       vex5 mmx p_00_66),
     [0xc5] = X86_OP_ENTRY3(PEXTRW,     G,d, U,dq,I,b,       vex5 mmx p_00_66),
     [0xc6] = X86_OP_ENTRY4(VSHUF,      V,x, H,x, W,x,       vex4 p_00_66),
@@ -1814,8 +1836,13 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 
     case X86_TYPE_WM:  /* modrm byte selects an XMM/YMM memory operand */
         op->unit = X86_OP_SSE;
+        goto get_modrm_mem;
+
+    case X86_TYPE_EM:  /* modrm byte selects an ALU memory operand */
+        op->unit = X86_OP_INT;
         /* fall through */
     case X86_TYPE_M:  /* modrm byte selects a memory operand */
+    get_modrm_mem:
         modrm = get_modrm(s, env);
         if ((modrm >> 6) == 3) {
             return false;
