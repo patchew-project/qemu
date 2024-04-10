@@ -1570,7 +1570,22 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         } else {
             val = VIRTIO_NO_VECTOR;
         }
+        vector = vdev->config_vector;
         vdev->config_vector = val;
+        /*
+         * If the value was changed after DRIVER_OK was set, it means that
+         * we need to release the old vector and set up the new vector.
+         */
+        if ((vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+            /*check if use the irqfd*/
+            (msix_enabled(&proxy->pci_dev) && kvm_msi_via_irqfd_enabled())) {
+            if (val != VIRTIO_NO_VECTOR) {
+                kvm_virtio_pci_vector_use_one(proxy, VIRTIO_CONFIG_IRQ_IDX);
+            }
+            if (vector != VIRTIO_NO_VECTOR) {
+                kvm_virtio_pci_vector_release_one(proxy, VIRTIO_CONFIG_IRQ_IDX);
+            }
+        }
         break;
     case VIRTIO_PCI_COMMON_STATUS:
         if (!(val & VIRTIO_CONFIG_S_DRIVER_OK)) {
@@ -1611,6 +1626,21 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
             val = VIRTIO_NO_VECTOR;
         }
         virtio_queue_set_vector(vdev, vdev->queue_sel, val);
+
+        /*
+         * If the value was changed after DRIVER_OK was set, it means that
+         * we need to release the old vector and set up the new vector.
+         */
+        if ((vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+            /*check if use the irqfd*/
+            (msix_enabled(&proxy->pci_dev) && kvm_msi_via_irqfd_enabled())) {
+            if (val != VIRTIO_NO_VECTOR) {
+                kvm_virtio_pci_vector_use_one(proxy, vdev->queue_sel);
+            }
+            if (vector != VIRTIO_NO_VECTOR) {
+                kvm_virtio_pci_vector_release_one(proxy, vdev->queue_sel);
+            }
+        }
         break;
     case VIRTIO_PCI_COMMON_Q_ENABLE:
         if (val == 1) {
