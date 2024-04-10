@@ -97,7 +97,8 @@ static gboolean iova_tree_find_address_iterator(gpointer key, gpointer value,
 
     needle = args->needle;
     if (map->translated_addr + map->size < needle->translated_addr ||
-        needle->translated_addr + needle->size < map->translated_addr) {
+        needle->translated_addr + needle->size < map->translated_addr ||
+        needle->id != map->id) {
         return false;
     }
 

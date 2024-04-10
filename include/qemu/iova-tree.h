@@ -36,6 +36,7 @@ typedef struct DMAMap {
     hwaddr iova;
     hwaddr translated_addr;
     hwaddr size;                /* Inclusive */
+    uint64_t id;
     IOMMUAccessFlags perm;
 } QEMU_PACKED DMAMap;
 typedef gboolean (*iova_tree_iterator)(DMAMap *map);
@@ -100,8 +101,8 @@ const DMAMap *iova_tree_find(const IOVATree *tree, const DMAMap *map);
  * @map: the mapping to search
  *
  * Search for a mapping in the iova tree that translated_addr overlaps with the
- * mapping range specified.  Only the first found mapping will be
- * returned.
+ * mapping range specified and map->id is equal.  Only the first found
+ * mapping will be returned.
  *
  * Return: DMAMap pointer if found, or NULL if not found.  Note that
  * the returned DMAMap pointer is maintained internally.  User should
