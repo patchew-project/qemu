@@ -361,6 +361,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
         mem_region.translated_addr = (hwaddr)(uintptr_t)vaddr,
         mem_region.size = int128_get64(llsize) - 1,
         mem_region.perm = IOMMU_ACCESS_FLAG(true, section->readonly),
+        mem_region.id = iova;
 
         r = vhost_iova_tree_map_alloc(s->iova_tree, &mem_region);
         if (unlikely(r != IOVA_OK)) {
@@ -443,6 +444,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
         DMAMap mem_region = {
             .translated_addr = (hwaddr)(uintptr_t)vaddr,
             .size = int128_get64(llsize) - 1,
+            .id = iova,
         };
 
         result = vhost_iova_tree_find_iova(s->iova_tree, &mem_region);
