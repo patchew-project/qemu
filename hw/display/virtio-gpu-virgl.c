@@ -113,6 +113,7 @@ static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
     res->format = c2d.format;
     res->resource_id = c2d.resource_id;
     res->dmabuf_fd = -1;
+    qemu_uuid_generate(&res->uuid);
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 
     args.handle = c2d.resource_id;
@@ -161,6 +162,7 @@ static void virgl_cmd_create_resource_3d(VirtIOGPU *g,
     res->format = c3d.format;
     res->resource_id = c3d.resource_id;
     res->dmabuf_fd = -1;
+    qemu_uuid_generate(&res->uuid);
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 
     args.handle = c3d.resource_id;
@@ -584,6 +586,7 @@ static void virgl_cmd_resource_create_blob(VirtIOGPU *g,
     res->resource_id = cblob.resource_id;
     res->blob_size = cblob.size;
     res->dmabuf_fd = -1;
+    qemu_uuid_generate(&res->uuid);
 
     if (cblob.blob_mem != VIRTIO_GPU_BLOB_MEM_HOST3D) {
         ret = virtio_gpu_create_mapping_iov(g, cblob.nr_entries, sizeof(cblob),
@@ -781,6 +784,31 @@ static void virgl_cmd_set_scanout_blob(VirtIOGPU *g,
 }
 #endif /* HAVE_VIRGL_RESOURCE_BLOB */
 
+static void virgl_cmd_assign_uuid(VirtIOGPU *g,
+                                  struct virtio_gpu_ctrl_command *cmd)
+{
+    struct virtio_gpu_resource_assign_uuid assign;
+    struct virtio_gpu_resp_resource_uuid resp;
+    struct virtio_gpu_simple_resource *res;
+
+    VIRTIO_GPU_FILL_CMD(assign);
+    virtio_gpu_bswap_32(&assign, sizeof(assign));
+    trace_virtio_gpu_cmd_res_assign_uuid(assign.resource_id);
+
+    res = virtio_gpu_find_resource(g, assign.resource_id);
+    if (!res) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource does not exist %d\n",
+                      __func__, assign.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    memset(&resp, 0, sizeof(resp));
+    resp.hdr.type = VIRTIO_GPU_RESP_OK_RESOURCE_UUID;
+    memcpy(resp.uuid, res->uuid.data, sizeof(resp.uuid));
+    virtio_gpu_ctrl_response(g, cmd, &resp.hdr, sizeof(resp));
+}
+
 void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
                                       struct virtio_gpu_ctrl_command *cmd)
 {
@@ -834,6 +862,9 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
     case VIRTIO_GPU_CMD_CTX_DETACH_RESOURCE:
         /* TODO add security */
         virgl_cmd_ctx_detach_resource(g, cmd);
+        break;
+    case VIRTIO_GPU_CMD_RESOURCE_ASSIGN_UUID:
+        virgl_cmd_assign_uuid(g, cmd);
         break;
     case VIRTIO_GPU_CMD_GET_CAPSET_INFO:
         virgl_cmd_get_capset_info(g, cmd);
