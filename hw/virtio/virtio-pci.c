@@ -1423,6 +1423,24 @@ static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
 
     return offset;
 }
+static void virtio_pci_vector_change(VirtIODevice *vdev, VirtIOPCIProxy *proxy,
+                                     int queue_no, uint16_t old_vector,
+                                     uint16_t new_vector)
+{
+    /*
+     * If the device uses irqfd and the vector changes after DRIVER_OK is
+     * set, we need to release the old vector and set up the new one.
+     */
+    if ((vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        (msix_enabled(&proxy->pci_dev) && kvm_msi_via_irqfd_enabled())) {
+        if (old_vector != VIRTIO_NO_VECTOR) {
+            kvm_virtio_pci_vector_release_one(proxy, queue_no);
+        }
+        if (new_vector != VIRTIO_NO_VECTOR) {
+            kvm_virtio_pci_vector_use_one(proxy, queue_no);
+        }
+    }
+}
 
 int virtio_pci_add_shm_cap(VirtIOPCIProxy *proxy,
                            uint8_t bar, uint64_t offset, uint64_t length,
@@ -1570,7 +1588,13 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         } else {
             val = VIRTIO_NO_VECTOR;
         }
+        vector = vdev->config_vector;
         vdev->config_vector = val;
+        /*check if need to change the vector*/
+        if (val != vector) {
+            virtio_pci_vector_change(vdev, proxy, VIRTIO_CONFIG_IRQ_IDX, vector,
+                                     val);
+        }
         break;
     case VIRTIO_PCI_COMMON_STATUS:
         if (!(val & VIRTIO_CONFIG_S_DRIVER_OK)) {
@@ -1611,6 +1635,11 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
             val = VIRTIO_NO_VECTOR;
         }
         virtio_queue_set_vector(vdev, vdev->queue_sel, val);
+        /*check if need to change the vector*/
+        if (val != vector) {
+            virtio_pci_vector_change(vdev, proxy, vdev->queue_sel, vector, val);
+        }
+
         break;
     case VIRTIO_PCI_COMMON_Q_ENABLE:
         if (val == 1) {
