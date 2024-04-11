@@ -62,6 +62,7 @@ cp_portable() {
                                      -e 'linux/kernel' \
                                      -e 'linux/sysinfo' \
                                      -e 'asm-generic/kvm_para' \
+                                     -e 'asm/setup_data.h' \
                                      > /dev/null
     then
         echo "Unexpected #include in input file $f".
@@ -145,6 +146,7 @@ for arch in $ARCHLIST; do
         cp "$tmpdir/include/asm/sve_context.h" "$output/linux-headers/asm-arm64/"
     fi
     if [ $arch = x86 ]; then
+        cp "$tmpdir/include/asm/setup_data.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_32.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"
@@ -165,7 +167,7 @@ rm -rf "$output/linux-headers/linux"
 mkdir -p "$output/linux-headers/linux"
 for header in const.h stddef.h kvm.h vfio.h vfio_ccw.h vfio_zdev.h vhost.h \
               psci.h psp-sev.h userfaultfd.h memfd.h mman.h nvme_ioctl.h \
-              vduse.h iommufd.h; do
+              vduse.h iommufd.h bits.h; do
     cp "$tmpdir/include/linux/$header" "$output/linux-headers/linux"
 done
 
