@@ -1764,7 +1764,7 @@ struct vfio_eeh_pe_op {
  *
  * Registers user space memory where DMA is allowed. It pins
  * user pages and does the locked memory accounting so
- * subsequent VFIO_IOMMU_MAP_DMA/VFIO_IOMMU_UNMAP_DMA calls
+ * subsequent VFIO_IOMMU_SPAPR_TCE_CREATE/VFIO_IOMMU_SPAPR_TCE_REMOVE calls
  * get faster.
  */
 struct vfio_iommu_spapr_register_memory {
