@@ -3,6 +3,7 @@
 
    Copyright (C) 2003 Thomas M. Ogrisegg <tom@fnord.at>
    Copyright (C) 2003-2005 Fabrice Bellard
+   Copyright (C) 2024 M Bazz <bazz@bazz1.com>
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -1159,6 +1160,7 @@ static DisasASI resolve_asi(DisasContext *dc, int asi, MemOp memop)
                || (asi == ASI_USERDATA
                    && (dc->def->features & CPU_FEATURE_CASA))) {
         switch (asi) {
+        case ASI_USERTXT:    /* User text access */
         case ASI_USERDATA:   /* User data access */
             mem_idx = MMU_USER_IDX;
             type = GET_ASI_DIRECT;
