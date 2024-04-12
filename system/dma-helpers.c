@@ -174,8 +174,7 @@ static void dma_blk_cb(void *opaque, int ret)
     }
 
     if (!QEMU_IS_ALIGNED(dbs->iov.size, dbs->align)) {
-        qemu_iovec_discard_back(&dbs->iov,
-                                QEMU_ALIGN_DOWN(dbs->iov.size, dbs->align));
+        qemu_iovec_discard_back(&dbs->iov, dbs->iov.size % dbs->align);
     }
 
     dbs->acb = dbs->io_func(dbs->offset, &dbs->iov,
