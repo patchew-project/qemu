@@ -54,7 +54,7 @@ static int nios2_cpu_mmu_index(CPUState *cs, bool ifetch)
             ? MMU_USER_IDX : MMU_SUPERVISOR_IDX);
 }
 
-static void nios2_cpu_reset_hold(Object *obj)
+static void nios2_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     Nios2CPU *cpu = NIOS2_CPU(cs);
@@ -62,7 +62,7 @@ static void nios2_cpu_reset_hold(Object *obj)
     CPUNios2State *env = &cpu->env;
 
     if (ncc->parent_phases.hold) {
-        ncc->parent_phases.hold(obj);
+        ncc->parent_phases.hold(obj, type);
     }
 
     memset(env->ctrl, 0, sizeof(env->ctrl));
