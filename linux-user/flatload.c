@@ -692,7 +692,7 @@ static int load_flat_shared_library(int id, struct lib_info *libs)
 	char buf[16];
 
 	/* Create the file name */
-	sprintf(buf, "/lib/lib%d.so", id);
+        snprintf(buf, sizeof(buf), "/lib/lib%d.so", id);
 
 	/* Open the file up */
 	bprm.filename = buf;
