@@ -1239,30 +1239,11 @@ cris_cc_strings[] =
 enum cris_disass_family
  { cris_dis_v0_v10, cris_dis_common_v10_v32, cris_dis_v32 };
 
-/* Stored in the disasm_info->private_data member.  */
-struct cris_disasm_data
-{
-  /* Whether this code is flagged as crisv32.  FIXME: Should be an enum
-     that includes "compatible".  */
-  enum cris_disass_family distype;
-};
-
-static int cris_constraint
-  (const char *, unsigned, unsigned, struct cris_disasm_data *);
-
-/* Parse disassembler options and store state in info.  FIXME: For the
-   time being, we abuse static variables.  */
-
-static void
-cris_parse_disassembler_options (struct cris_disasm_data *disdata,
-                                 char *disassembler_options,
-                                 enum cris_disass_family distype)
-{
-  disdata->distype = distype;
-}
+static int cris_constraint(const char *, unsigned, unsigned,
+                           enum cris_disass_family);
 
 static const struct cris_spec_reg *
-spec_reg_info (unsigned int sreg, enum cris_disass_family distype)
+spec_reg_info(unsigned int sreg, enum cris_disass_family distype)
 {
   int i;
 
@@ -1309,9 +1290,9 @@ number_of_bits (unsigned int val)
 /* Get an entry in the opcode-table.  */
 
 static const struct cris_opcode *
-get_opcode_entry (unsigned int insn,
-                  unsigned int prefix_insn,
-                  struct cris_disasm_data *disdata)
+get_opcode_entry(unsigned int insn,
+                 unsigned int prefix_insn,
+                 enum cris_disass_family distype)
 {
   /* For non-prefixed insns, we keep a table of pointers, indexed by the
      insn code.  Each entry is initialized when found to be NULL.  */
@@ -1349,7 +1330,7 @@ get_opcode_entry (unsigned int insn,
       const struct cris_opcode *popcodep
         = (opc_table[prefix_insn] != NULL
            ? opc_table[prefix_insn]
-           : get_opcode_entry (prefix_insn, NO_CRIS_PREFIX, disdata));
+           : get_opcode_entry(prefix_insn, NO_CRIS_PREFIX, distype));
 
       if (popcodep == NULL)
         return NULL;
@@ -1406,7 +1387,7 @@ get_opcode_entry (unsigned int insn,
         {
           int level_of_match;
 
-          if (disdata->distype == cris_dis_v32)
+          if (distype == cris_dis_v32)
             {
               switch (opcodep->applicable_version)
                 {
@@ -1469,10 +1450,8 @@ get_opcode_entry (unsigned int insn,
           if ((opcodep->match & insn) == opcodep->match
               && (opcodep->lose & insn) == 0
               && ((level_of_match
-                   = cris_constraint (opcodep->args,
-                                      insn,
-                                      prefix_insn,
-                                      disdata))
+                   = cris_constraint(opcodep->args, insn,
+                                     prefix_insn, distype))
                   >= 0)
               && ((level_of_match
                    += 2 * number_of_bits (opcodep->match
@@ -1509,10 +1488,10 @@ get_opcode_entry (unsigned int insn,
    indicating the confidence in the match (higher is better).  */
 
 static int
-cris_constraint (const char *cs,
-                 unsigned int insn,
-                 unsigned int prefix_insn,
-                 struct cris_disasm_data *disdata)
+cris_constraint(const char *cs,
+                unsigned int insn,
+                unsigned int prefix_insn,
+                enum cris_disass_family distype)
 {
   int retval = 0;
   int tmp;
@@ -1526,7 +1505,7 @@ cris_constraint (const char *cs,
         /* Do not recognize "pop" if there's a prefix and then only for
            v0..v10.  */
         if (prefix_insn != NO_CRIS_PREFIX
-            || disdata->distype != cris_dis_v0_v10)
+            || distype != cris_dis_v0_v10)
           return -1;
         break;
 
@@ -1569,7 +1548,7 @@ cris_constraint (const char *cs,
             if (insn & 0x400)
               {
                 const struct cris_opcode *prefix_opcodep
-                  = get_opcode_entry (prefix_insn, NO_CRIS_PREFIX, disdata);
+                  = get_opcode_entry(prefix_insn, NO_CRIS_PREFIX, distype);
 
                 if (prefix_opcodep->match == DIP_OPCODE)
                   return -1;
@@ -1589,7 +1568,7 @@ cris_constraint (const char *cs,
           {
             /* Match the prefix insn to BDAPQ.  */
             const struct cris_opcode *prefix_opcodep
-              = get_opcode_entry (prefix_insn, NO_CRIS_PREFIX, disdata);
+              = get_opcode_entry(prefix_insn, NO_CRIS_PREFIX, distype);
 
             if (prefix_opcodep->match == BDAP_QUICK_OPCODE)
               {
@@ -1602,7 +1581,7 @@ cris_constraint (const char *cs,
                   {
                     unsigned int spec_reg = (insn >> 12) & 15;
                     const struct cris_spec_reg *sregp
-                      = spec_reg_info (spec_reg, disdata->distype);
+                      = spec_reg_info(spec_reg, distype);
 
                     /* For a special-register, the "prefix size" must
                        match the size of the register.  */
@@ -1631,7 +1610,7 @@ cris_constraint (const char *cs,
       case 'P':
         {
           const struct cris_spec_reg *sregp
-            = spec_reg_info ((insn >> 12) & 15, disdata->distype);
+            = spec_reg_info((insn >> 12) & 15, distype);
 
           /* Since we match four bits, we will give a value of 4-1 = 3
              in a match.  If there is a corresponding exact match of a
@@ -1688,7 +1667,7 @@ format_dec(long number, GString *str, int signedp)
 /* Format the name of the general register regno into outbuffer.  */
 
 static void
-format_reg(struct cris_disasm_data *disdata, int regno, GString *str)
+format_reg(enum cris_disass_family distype, int regno, GString *str)
 {
   g_string_append_c(str, REGISTER_PREFIX_CHAR);
 
@@ -1696,7 +1675,7 @@ format_reg(struct cris_disasm_data *disdata, int regno, GString *str)
     {
     case 15:
       /* For v32, there is no context in which we output PC.  */
-      if (disdata->distype == cris_dis_v32)
+      if (distype == cris_dis_v32)
         g_string_append(str, "acr");
       else
         g_string_append(str, "pc");
@@ -1736,10 +1715,10 @@ format_sup_reg(unsigned int regno, GString *str)
 /* Return the length of an instruction.  */
 
 static unsigned
-bytes_to_skip (unsigned int insn,
-               const struct cris_opcode *matchedp,
-               enum cris_disass_family distype,
-               const struct cris_opcode *prefix_matchedp)
+bytes_to_skip(unsigned int insn,
+              const struct cris_opcode *matchedp,
+              enum cris_disass_family distype,
+              const struct cris_opcode *prefix_matchedp)
 {
   /* Each insn is a word plus "immediate" operands.  */
   unsigned to_skip = 2;
@@ -1760,7 +1739,7 @@ bytes_to_skip (unsigned int insn,
         else if (matchedp->imm_oprnd_size == SIZE_SPEC_REG)
           {
             const struct cris_spec_reg *sregp
-              = spec_reg_info ((insn >> 12) & 15, distype);
+              = spec_reg_info((insn >> 12) & 15, distype);
 
             /* FIXME: Improve error handling; should have been caught
                earlier.  */
@@ -1787,7 +1766,7 @@ bytes_to_skip (unsigned int insn,
 /* Print condition code flags.  */
 
 static void
-print_flags(struct cris_disasm_data *disdata, unsigned int insn, GString *str)
+print_flags(enum cris_disass_family distype, unsigned int insn, GString *str)
 {
   /* Use the v8 (Etrax 100) flag definitions for disassembly.
      The differences with v0 (Etrax 1..4) vs. Svinto are:
@@ -1796,8 +1775,7 @@ print_flags(struct cris_disasm_data *disdata, unsigned int insn, GString *str)
      FIXME: Emit v0..v3 flag names somehow.  */
   static const char v8_fnames[] = "cvznxibm";
   static const char v32_fnames[] = "cvznxiup";
-  const char *fnames
-    = disdata->distype == cris_dis_v32 ? v32_fnames : v8_fnames;
+  const char *fnames = distype == cris_dis_v32 ? v32_fnames : v8_fnames;
 
   unsigned char flagbits = (((insn >> 8) & 0xf0) | (insn & 15));
   int i;
@@ -1812,24 +1790,25 @@ print_flags(struct cris_disasm_data *disdata, unsigned int insn, GString *str)
    supposed to be output as an address mode.  */
 
 static void
-print_with_operands (const struct cris_opcode *opcodep,
-                     unsigned int insn,
-                     unsigned char *buffer,
-                     bfd_vma addr,
-                     disassemble_info *info,
-                     /* If a prefix insn was before this insn (and is supposed
-                        to be output as an address), here is a description of
-                        it.  */
-                     const struct cris_opcode *prefix_opcodep,
-                     unsigned int prefix_insn,
-                     unsigned char *prefix_buffer)
+print_with_operands(const struct cris_opcode *opcodep,
+                    unsigned int insn,
+                    unsigned char *buffer,
+                    bfd_vma addr,
+                    disassemble_info *info,
+                    /*
+                     * If a prefix insn was before this insn
+                     * (and is supposed to be output as an address),
+                     * here is a description of it.
+                     */
+                    const struct cris_opcode *prefix_opcodep,
+                    unsigned int prefix_insn,
+                    unsigned char *prefix_buffer,
+                    enum cris_disass_family distype)
 {
   g_autoptr(GString) str = g_string_new(opcodep->name);
   static const char mode_char[] = "bwd?";
   const char *s;
   const char *cs;
-  struct cris_disasm_data *disdata
-    = (struct cris_disasm_data *) info->private_data;
 
   cs = opcodep->args;
   s = cs;
@@ -1912,11 +1891,11 @@ print_with_operands (const struct cris_opcode *opcodep,
 
       case 'D':
       case 'r':
-        format_reg(disdata, insn & 15, str);
+        format_reg(distype, insn & 15, str);
         break;
 
       case 'R':
-        format_reg(disdata, (insn >> 12) & 15, str);
+        format_reg(distype, (insn >> 12) & 15, str);
         break;
 
       case 'n':
@@ -1960,7 +1939,7 @@ print_with_operands (const struct cris_opcode *opcodep,
             else if (opcodep->imm_oprnd_size == SIZE_SPEC_REG)
               {
                 const struct cris_spec_reg *sregp
-                  = spec_reg_info ((insn >> 12) & 15, disdata->distype);
+                  = spec_reg_info((insn >> 12) & 15, distype);
 
                 /* A NULL return should have been as a non-match earlier,
                    so catch it as an internal error in the error-case
@@ -1972,7 +1951,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                   /* PC is always incremented by a multiple of two.
                      For CRISv32, immediates are always 4 bytes for
                      special registers.  */
-                  nbytes = disdata->distype == cris_dis_v32
+                  nbytes = distype == cris_dis_v32
                     ? 4 : (sregp->reg_size + 1) & ~1;
               }
             else
@@ -2035,7 +2014,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                 else if (opcodep->imm_oprnd_size == SIZE_SPEC_REG)
                   {
                     const struct cris_spec_reg *sregp
-                      = spec_reg_info ((insn >> 12) & 15, disdata->distype);
+                      = spec_reg_info((insn >> 12) & 15, distype);
 
                     /* FIXME: Improve error handling; should have been caught
                        earlier.  */
@@ -2060,7 +2039,7 @@ print_with_operands (const struct cris_opcode *opcodep,
               {
                 if (insn & 0x400)
                   {
-                    format_reg(disdata, insn & 15, str);
+                    format_reg(distype, insn & 15, str);
                     g_string_append_c(str, '=');
                   }
 
@@ -2093,7 +2072,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                         info->target2 = prefix_insn & 15;
 
                         g_string_append_c(str, '[');
-                        format_reg(disdata, prefix_insn & 15, str);
+                        format_reg(distype, prefix_insn & 15, str);
                         if (prefix_insn & 0x400)
                           g_string_append_c(str, '+');
                         g_string_append_c(str, ']');
@@ -2109,7 +2088,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                         number -= 256;
 
                       /* Output "reg+num" or, if num < 0, "reg-num".  */
-                      format_reg(disdata, (prefix_insn >> 12) & 15, str);
+                      format_reg(distype, (prefix_insn >> 12) & 15, str);
                       if (number >= 0)
                         g_string_append_c(str, '+');
                       format_dec(number, str, 1);
@@ -2122,9 +2101,9 @@ print_with_operands (const struct cris_opcode *opcodep,
 
                   case BIAP_OPCODE:
                     /* Output "r+R.m".  */
-                    format_reg(disdata, prefix_insn & 15, str);
+                    format_reg(distype, prefix_insn & 15, str);
                     g_string_append_c(str, '+');
-                    format_reg(disdata, (prefix_insn >> 12) & 15, str);
+                    format_reg(distype, (prefix_insn >> 12) & 15, str);
                     g_string_append_c(str, '.');
                     g_string_append_c(str, mode_char[(prefix_insn >> 4) & 3]);
 
@@ -2139,7 +2118,7 @@ print_with_operands (const struct cris_opcode *opcodep,
 
                   case BDAP_INDIR_OPCODE:
                     /* Output "r+s.m", or, if "s" is [pc+], "r+s" or "r-s". */
-                    format_reg(disdata, (prefix_insn >> 12) & 15, str);
+                    format_reg(distype, (prefix_insn >> 12) & 15, str);
 
                     if ((prefix_insn & 0x400) && (prefix_insn & 15) == 15)
                       {
@@ -2202,7 +2181,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                         /* Output "r+[R].m" or "r+[R+].m".  */
                         g_string_append_c(str, '+');
                         g_string_append_c(str, '[');
-                        format_reg(disdata, prefix_insn & 15, str);
+                        format_reg(distype, prefix_insn & 15, str);
                         if (prefix_insn & 0x400)
                           g_string_append_c(str, '+');
                         g_string_append_c(str, ']');
@@ -2230,7 +2209,7 @@ print_with_operands (const struct cris_opcode *opcodep,
               }
             else
               {
-                format_reg(disdata, insn & 15, str);
+                format_reg(distype, insn & 15, str);
 
                 info->flags |= CRIS_DIS_FLAG_MEM_TARGET_IS_REG;
                 info->target = insn & 15;
@@ -2243,7 +2222,7 @@ print_with_operands (const struct cris_opcode *opcodep,
         break;
 
       case 'x':
-        format_reg(disdata, (insn >> 12) & 15, str);
+        format_reg(distype, (insn >> 12) & 15, str);
         g_string_append_c(str, '.');
         g_string_append_c(str, mode_char[(insn >> 4) & 3]);
         break;
@@ -2259,7 +2238,7 @@ print_with_operands (const struct cris_opcode *opcodep,
           if (where > 32767)
             where -= 65536;
 
-          where += addr + ((disdata->distype == cris_dis_v32) ? 0 : 4);
+          where += addr + ((distype == cris_dis_v32) ? 0 : 4);
 
           if (insn == BA_PC_INCR_OPCODE)
             info->insn_type = dis_branch;
@@ -2294,7 +2273,7 @@ print_with_operands (const struct cris_opcode *opcodep,
         else
           info->insn_type = dis_condbranch;
 
-        target = addr + ((disdata->distype == cris_dis_v32) ? 0 : 2) + offset;
+        target = addr + (distype == cris_dis_v32 ? 0 : 2) + offset;
         info->target = target;
         format_hex(target, str);
       }
@@ -2310,12 +2289,12 @@ print_with_operands (const struct cris_opcode *opcodep,
 
         format_dec(number, str, 1);
         g_string_append_c(str, ',');
-        format_reg(disdata, (insn >> 12) & 15, str);
+        format_reg(distype, (insn >> 12) & 15, str);
       }
       break;
 
     case 'f':
-      print_flags(disdata, insn, str);
+      print_flags(distype, insn, str);
       break;
 
     case 'i':
@@ -2325,7 +2304,7 @@ print_with_operands (const struct cris_opcode *opcodep,
     case 'P':
       {
         const struct cris_spec_reg *sregp
-          = spec_reg_info ((insn >> 12) & 15, disdata->distype);
+          = spec_reg_info((insn >> 12) & 15, distype);
 
         if (sregp == NULL || sregp->name == NULL)
           /* Should have been caught as a non-match earlier.  */
@@ -2356,15 +2335,14 @@ print_with_operands (const struct cris_opcode *opcodep,
    WITH_REG_PREFIX.  */
 
 static int
-print_insn_cris_generic (bfd_vma memaddr,
-                         disassemble_info *info)
+print_insn_cris_generic(bfd_vma memaddr,
+                        disassemble_info *info,
+                        enum cris_disass_family distype)
 {
   int nbytes;
   unsigned int insn;
   const struct cris_opcode *matchedp;
   int advance = 0;
-  struct cris_disasm_data *disdata
-    = (struct cris_disasm_data *) info->private_data;
 
   /* No instruction will be disassembled as longer than this number of
      bytes; stacked prefixes will not be expanded.  */
@@ -2416,7 +2394,7 @@ print_insn_cris_generic (bfd_vma memaddr,
              of a nuiscance that we will just output "bcc .+2" for it
              and signal it as a noninsn.  */
           (*info->fprintf_func) (info->stream,
-                                 disdata->distype == cris_dis_v32
+                                 distype == cris_dis_v32
                                  ? "bcc ." : "bcc .+2");
           info->insn_type = dis_noninsn;
           advance += 2;
@@ -2428,7 +2406,7 @@ print_insn_cris_generic (bfd_vma memaddr,
           unsigned int prefix_insn = insn;
           int prefix_size = 0;
 
-          matchedp = get_opcode_entry (insn, NO_CRIS_PREFIX, disdata);
+          matchedp = get_opcode_entry(insn, NO_CRIS_PREFIX, distype);
 
           /* Check if we're supposed to write out prefixes as address
              modes and if this was a prefix.  */
@@ -2436,12 +2414,11 @@ print_insn_cris_generic (bfd_vma memaddr,
             {
               /* If it's a prefix, put it into the prefix vars and get the
                  main insn.  */
-              prefix_size = bytes_to_skip (prefix_insn, matchedp,
-                                           disdata->distype, NULL);
+              prefix_size = bytes_to_skip(prefix_insn, matchedp, distype, NULL);
               prefix_opcodep = matchedp;
 
               insn = bufp[prefix_size] + bufp[prefix_size + 1] * 256;
-              matchedp = get_opcode_entry (insn, prefix_insn, disdata);
+              matchedp = get_opcode_entry(insn, prefix_insn, distype);
 
               if (matchedp != NULL)
                 {
@@ -2469,15 +2446,13 @@ print_insn_cris_generic (bfd_vma memaddr,
             }
           else
             {
-              advance
-                += bytes_to_skip (insn, matchedp, disdata->distype,
-                                  prefix_opcodep);
+              advance += bytes_to_skip(insn, matchedp, distype, prefix_opcodep);
 
               /* The info_type and assorted fields will be set according
                  to the operands.   */
-              print_with_operands (matchedp, insn, bufp, addr, info,
-                                   prefix_opcodep, prefix_insn,
-                                   prefix_buffer);
+              print_with_operands(matchedp, insn, bufp, addr, info,
+                                  prefix_opcodep, prefix_insn,
+                                  prefix_buffer, distype);
             }
         }
     }
@@ -2513,23 +2488,13 @@ print_insn_cris_generic (bfd_vma memaddr,
 }
 
 int
-print_insn_crisv10 (bfd_vma vma,
-                    disassemble_info *info)
+print_insn_crisv10(bfd_vma vma, disassemble_info *info)
 {
-  struct cris_disasm_data disdata;
-  info->private_data = &disdata;
-  cris_parse_disassembler_options (&disdata, info->disassembler_options,
-                                   cris_dis_v0_v10);
-  return print_insn_cris_generic (vma, info);
+  return print_insn_cris_generic(vma, info, cris_dis_v0_v10);
 }
 
 int
-print_insn_crisv32 (bfd_vma vma,
-                    disassemble_info *info)
+print_insn_crisv32(bfd_vma vma, disassemble_info *info)
 {
-  struct cris_disasm_data disdata;
-  info->private_data = &disdata;
-  cris_parse_disassembler_options (&disdata, info->disassembler_options,
-                                   cris_dis_v32);
-  return print_insn_cris_generic (vma, info);
+  return print_insn_cris_generic(vma, info, cris_dis_v32);
 }
