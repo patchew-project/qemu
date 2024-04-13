@@ -1236,57 +1236,16 @@ cris_cc_strings[] =
 /* Sometimes we prefix all registers with this character.  */
 #define REGISTER_PREFIX_CHAR '$'
 
-/* Whether or not to trace the following sequence:
-   sub* X,r%d
-   bound* Y,r%d
-   adds.w [pc+r%d.w],pc
-
-   This is the assembly form of a switch-statement in C.
-   The "sub is optional.  If there is none, then X will be zero.
-   X is the value of the first case,
-   Y is the number of cases (including default).
-
-   This results in case offsets printed on the form:
-    case N: -> case_address
-   where N is an estimation on the corresponding 'case' operand in C,
-   and case_address is where execution of that case continues after the
-   sequence presented above.
-
-   The old style of output was to print the offsets as instructions,
-   which made it hard to follow "case"-constructs in the disassembly,
-   and caused a lot of annoying warnings about undefined instructions.
-
-   FIXME: Make this optional later.  */
-#ifndef TRACE_CASE
-#define TRACE_CASE (disdata->trace_case)
-#endif
-
 enum cris_disass_family
  { cris_dis_v0_v10, cris_dis_common_v10_v32, cris_dis_v32 };
 
 /* Stored in the disasm_info->private_data member.  */
 struct cris_disasm_data
 {
-  /* Whether to print something less confusing if we find something
-     matching a switch-construct.  */
-  bfd_boolean trace_case;
-
   /* Whether this code is flagged as crisv32.  FIXME: Should be an enum
      that includes "compatible".  */
   enum cris_disass_family distype;
 };
-
-/* Value of first element in switch.  */
-static long case_offset = 0;
-
-/* How many more case-offsets to print.  */
-static long case_offset_counter = 0;
-
-/* Number of case offsets.  */
-static long no_of_case_offsets = 0;
-
-/* Candidate for next case_offset.  */
-static long last_immediate = 0;
 
 static int cris_constraint
   (const char *, unsigned, unsigned, struct cris_disasm_data *);
@@ -1299,11 +1258,6 @@ cris_parse_disassembler_options (struct cris_disasm_data *disdata,
                                  char *disassembler_options,
                                  enum cris_disass_family distype)
 {
-  /* Default true.  */
-  disdata->trace_case
-    = (disassembler_options == NULL
-       || (strcmp (disassembler_options, "nocase") != 0));
-
   disdata->distype = distype;
 }
 
@@ -1711,17 +1665,12 @@ cris_constraint (const char *cs,
 
 static char *
 format_hex (unsigned long number,
-            char *outbuffer,
-            struct cris_disasm_data *disdata)
+            char *outbuffer)
 {
   /* Truncate negative numbers on >32-bit hosts.  */
   number &= 0xffffffff;
 
   sprintf (outbuffer, "0x%lx", number);
-
-  /* Save this value for the "case" support.  */
-  if (TRACE_CASE)
-    last_immediate = number;
 
   return outbuffer + strlen (outbuffer);
 }
@@ -1733,7 +1682,6 @@ format_hex (unsigned long number,
 static char *
 format_dec (long number, char *outbuffer, size_t outsize, int signedp)
 {
-  last_immediate = number;
   snprintf (outbuffer, outsize, signedp ? "%ld" : "%lu", number);
 
   return outbuffer + strlen (outbuffer);
@@ -2138,7 +2086,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                     info->target = number;
                   }
                 else
-                  tp = format_hex (number, tp, disdata);
+                  tp = format_hex (number, tp);
               }
           }
         else
@@ -2273,11 +2221,6 @@ print_with_operands (const struct cris_opcode *opcodep,
                              ? CRIS_DIS_FLAG_MEM_TARGET2_MULT4
                              : ((prefix_insn & 0x8000)
                                 ? CRIS_DIS_FLAG_MEM_TARGET2_MULT2 : 0)));
-
-                    /* Is it the casejump?  It's a "adds.w [pc+r%d.w],pc".  */
-                    if (insn == 0xf83f && (prefix_insn & ~0xf000) == 0x55f)
-                      /* Then start interpreting data as offsets.  */
-                      case_offset_counter = no_of_case_offsets;
                     break;
 
                   case BDAP_INDIR_OPCODE:
@@ -2514,31 +2457,6 @@ print_with_operands (const struct cris_opcode *opcodep,
                            prefix_opcodep->name, prefix_opcodep->args);
 
   (*info->fprintf_func) (info->stream, "%s", temp);
-
-  /* Get info for matching case-tables, if we don't have any active.
-     We assume that the last constant seen is used; either in the insn
-     itself or in a "move.d const,rN, sub.d rN,rM"-like sequence.  */
-  if (TRACE_CASE && case_offset_counter == 0)
-    {
-      if (CONST_STRNEQ (opcodep->name, "sub"))
-        case_offset = last_immediate;
-
-      /* It could also be an "add", if there are negative case-values.  */
-      else if (CONST_STRNEQ (opcodep->name, "add"))
-        /* The first case is the negated operand to the add.  */
-        case_offset = -last_immediate;
-
-      /* A bound insn will tell us the number of cases.  */
-      else if (CONST_STRNEQ (opcodep->name, "bound"))
-        no_of_case_offsets = last_immediate + 1;
-
-      /* A jump or jsr or branch breaks the chain of insns for a
-         case-table, so assume default first-case again.  */
-      else if (info->insn_type == dis_jsr
-               || info->insn_type == dis_branch
-               || info->insn_type == dis_condbranch)
-        case_offset = 0;
-    }
 }
 
 
@@ -2601,33 +2519,7 @@ print_insn_cris_generic (bfd_vma memaddr,
 
       insn = bufp[0] + bufp[1] * 256;
 
-      /* If we're in a case-table, don't disassemble the offsets.  */
-      if (TRACE_CASE && case_offset_counter != 0)
-        {
-          info->insn_type = dis_noninsn;
-          advance += 2;
-
-          /* If to print data as offsets, then shortcut here.  */
-          (*info->fprintf_func) (info->stream, "case %ld%s: -> ",
-                                 case_offset + no_of_case_offsets
-                                 - case_offset_counter,
-                                 case_offset_counter == 1 ? "/default" :
-                                 "");
-
-          (*info->print_address_func) ((bfd_vma)
-                                       ((short) (insn)
-                                        + (long) (addr
-                                                  - (no_of_case_offsets
-                                                     - case_offset_counter)
-                                                  * 2)), info);
-          case_offset_counter--;
-
-          /* The default case start (without a "sub" or "add") must be
-             zero.  */
-          if (case_offset_counter == 0)
-            case_offset = 0;
-        }
-      else if (insn == 0)
+      if (insn == 0)
         {
           /* We're often called to disassemble zeroes.  While this is a
              valid "bcc .+2" insn, it is also useless enough and enough
