@@ -1234,6 +1234,7 @@ cris_cc_strings[] =
 #endif
 
 /* Sometimes we prefix all registers with this character.  */
+#define REGISTER_PREFIX      "$"
 #define REGISTER_PREFIX_CHAR '$'
 
 enum cris_disass_family
@@ -1669,26 +1670,31 @@ format_dec(long number, GString *str, int signedp)
 static void
 format_reg(enum cris_disass_family distype, int regno, GString *str)
 {
-  g_string_append_c(str, REGISTER_PREFIX_CHAR);
+  static const char reg_names[16][5] = {
+    REGISTER_PREFIX "r0",
+    REGISTER_PREFIX "r1",
+    REGISTER_PREFIX "r2",
+    REGISTER_PREFIX "r3",
+    REGISTER_PREFIX "r4",
+    REGISTER_PREFIX "r5",
+    REGISTER_PREFIX "r6",
+    REGISTER_PREFIX "r7",
+    REGISTER_PREFIX "r8",
+    REGISTER_PREFIX "r9",
+    REGISTER_PREFIX "r10",
+    REGISTER_PREFIX "r11",
+    REGISTER_PREFIX "r12",
+    REGISTER_PREFIX "r13",
+    REGISTER_PREFIX "sp",
+    REGISTER_PREFIX "pc",
+  };
+  const char *name = reg_names[regno];
 
-  switch (regno)
-    {
-    case 15:
-      /* For v32, there is no context in which we output PC.  */
-      if (distype == cris_dis_v32)
-        g_string_append(str, "acr");
-      else
-        g_string_append(str, "pc");
-      break;
+  /* For v32, there is no context in which we output PC.  */
+  if (regno == 15 && distype == cris_dis_v32)
+    name = REGISTER_PREFIX "acr";
 
-    case 14:
-      g_string_append(str, "sp");
-      break;
-
-    default:
-      g_string_append_printf(str, "r%d", regno);
-      break;
-    }
+  g_string_append(str, name);
 }
 
 /* Format the name of a support register into outbuffer.  */
@@ -1861,8 +1867,7 @@ print_with_operands(const struct cris_opcode *opcodep,
         break;
 
       case 'A':
-        g_string_append_c(str, REGISTER_PREFIX_CHAR);
-        g_string_append(str, "acr");
+        g_string_append(str, REGISTER_PREFIX "acr");
         break;
 
       case '[':
