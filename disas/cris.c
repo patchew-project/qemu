@@ -1692,13 +1692,11 @@ format_dec (long number, char *outbuffer, size_t outsize, int signedp)
 static char *
 format_reg (struct cris_disasm_data *disdata,
             int regno,
-            char *outbuffer_start,
-            bfd_boolean with_reg_prefix)
+            char *outbuffer_start)
 {
   char *outbuffer = outbuffer_start;
 
-  if (with_reg_prefix)
-    *outbuffer++ = REGISTER_PREFIX_CHAR;
+  *outbuffer++ = REGISTER_PREFIX_CHAR;
 
   switch (regno)
     {
@@ -1726,14 +1724,12 @@ format_reg (struct cris_disasm_data *disdata,
 
 static char *
 format_sup_reg (unsigned int regno,
-                char *outbuffer_start,
-                bfd_boolean with_reg_prefix)
+                char *outbuffer_start)
 {
   char *outbuffer = outbuffer_start;
   int i;
 
-  if (with_reg_prefix)
-    *outbuffer++ = REGISTER_PREFIX_CHAR;
+  *outbuffer++ = REGISTER_PREFIX_CHAR;
 
   for (i = 0; cris_support_regs[i].name != NULL; i++)
     if (cris_support_regs[i].number == regno)
@@ -1845,8 +1841,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                         it.  */
                      const struct cris_opcode *prefix_opcodep,
                      unsigned int prefix_insn,
-                     unsigned char *prefix_buffer,
-                     bfd_boolean with_reg_prefix)
+                     unsigned char *prefix_buffer)
 {
   /* Get a buffer of somewhat reasonable size where we store
      intermediate parts of the insn.  */
@@ -1908,12 +1903,11 @@ print_with_operands (const struct cris_opcode *opcodep,
     switch (*s)
       {
       case 'T':
-        tp = format_sup_reg ((insn >> 12) & 15, tp, with_reg_prefix);
+        tp = format_sup_reg ((insn >> 12) & 15, tp);
         break;
 
       case 'A':
-        if (with_reg_prefix)
-          *tp++ = REGISTER_PREFIX_CHAR;
+        *tp++ = REGISTER_PREFIX_CHAR;
         *tp++ = 'a';
         *tp++ = 'c';
         *tp++ = 'r';
@@ -1945,11 +1939,11 @@ print_with_operands (const struct cris_opcode *opcodep,
 
       case 'D':
       case 'r':
-        tp = format_reg (disdata, insn & 15, tp, with_reg_prefix);
+        tp = format_reg (disdata, insn & 15, tp);
         break;
 
       case 'R':
-        tp = format_reg (disdata, (insn >> 12) & 15, tp, with_reg_prefix);
+        tp = format_reg (disdata, (insn >> 12) & 15, tp);
         break;
 
       case 'n':
@@ -2132,7 +2126,7 @@ print_with_operands (const struct cris_opcode *opcodep,
               {
                 if (insn & 0x400)
                   {
-                    tp = format_reg (disdata, insn & 15, tp, with_reg_prefix);
+                    tp = format_reg (disdata, insn & 15, tp);
                     *tp++ = '=';
                   }
 
@@ -2174,8 +2168,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                         info->target2 = prefix_insn & 15;
 
                         *tp++ = '[';
-                        tp = format_reg (disdata, prefix_insn & 15, tp,
-                                         with_reg_prefix);
+                        tp = format_reg (disdata, prefix_insn & 15, tp);
                         if (prefix_insn & 0x400)
                           *tp++ = '+';
                         *tp++ = ']';
@@ -2191,8 +2184,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                         number -= 256;
 
                       /* Output "reg+num" or, if num < 0, "reg-num".  */
-                      tp = format_reg (disdata, (prefix_insn >> 12) & 15, tp,
-                                       with_reg_prefix);
+                      tp = format_reg (disdata, (prefix_insn >> 12) & 15, tp);
                       if (number >= 0)
                         *tp++ = '+';
                       tp = FORMAT_DEC (number, tp, 1);
@@ -2205,11 +2197,9 @@ print_with_operands (const struct cris_opcode *opcodep,
 
                   case BIAP_OPCODE:
                     /* Output "r+R.m".  */
-                    tp = format_reg (disdata, prefix_insn & 15, tp,
-                                     with_reg_prefix);
+                    tp = format_reg (disdata, prefix_insn & 15, tp);
                     *tp++ = '+';
-                    tp = format_reg (disdata, (prefix_insn >> 12) & 15, tp,
-                                     with_reg_prefix);
+                    tp = format_reg (disdata, (prefix_insn >> 12) & 15, tp);
                     *tp++ = '.';
                     *tp++ = mode_char[(prefix_insn >> 4) & 3];
 
@@ -2226,8 +2216,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                   case BDAP_INDIR_OPCODE:
                     /* Output "r+s.m", or, if "s" is [pc+], "r+s" or
                        "r-s".  */
-                    tp = format_reg (disdata, (prefix_insn >> 12) & 15, tp,
-                                     with_reg_prefix);
+                    tp = format_reg (disdata, (prefix_insn >> 12) & 15, tp);
 
                     if ((prefix_insn & 0x400) && (prefix_insn & 15) == 15)
                       {
@@ -2297,8 +2286,7 @@ print_with_operands (const struct cris_opcode *opcodep,
                         /* Output "r+[R].m" or "r+[R+].m".  */
                         *tp++ = '+';
                         *tp++ = '[';
-                        tp = format_reg (disdata, prefix_insn & 15, tp,
-                                         with_reg_prefix);
+                        tp = format_reg (disdata, prefix_insn & 15, tp);
                         if (prefix_insn & 0x400)
                           *tp++ = '+';
                         *tp++ = ']';
@@ -2327,7 +2315,7 @@ print_with_operands (const struct cris_opcode *opcodep,
               }
             else
               {
-                tp = format_reg (disdata, insn & 15, tp, with_reg_prefix);
+                tp = format_reg (disdata, insn & 15, tp);
 
                 info->flags |= CRIS_DIS_FLAG_MEM_TARGET_IS_REG;
                 info->target = insn & 15;
@@ -2340,7 +2328,7 @@ print_with_operands (const struct cris_opcode *opcodep,
         break;
 
       case 'x':
-        tp = format_reg (disdata, (insn >> 12) & 15, tp, with_reg_prefix);
+        tp = format_reg (disdata, (insn >> 12) & 15, tp);
         *tp++ = '.';
         *tp++ = mode_char[(insn >> 4) & 3];
         break;
@@ -2414,7 +2402,7 @@ print_with_operands (const struct cris_opcode *opcodep,
 
         tp = FORMAT_DEC (number, tp, 1);
         *tp++ = ',';
-        tp = format_reg (disdata, (insn >> 12) & 15, tp, with_reg_prefix);
+        tp = format_reg (disdata, (insn >> 12) & 15, tp);
       }
       break;
 
@@ -2436,8 +2424,7 @@ print_with_operands (const struct cris_opcode *opcodep,
           *tp++ = '?';
         else
           {
-            if (with_reg_prefix)
-              *tp++ = REGISTER_PREFIX_CHAR;
+            *tp++ = REGISTER_PREFIX_CHAR;
             strcpy (tp, sregp->name);
             tp += strlen (tp);
           }
@@ -2466,8 +2453,7 @@ print_with_operands (const struct cris_opcode *opcodep,
 
 static int
 print_insn_cris_generic (bfd_vma memaddr,
-                         disassemble_info *info,
-                         bfd_boolean with_reg_prefix)
+                         disassemble_info *info)
 {
   int nbytes;
   unsigned int insn;
@@ -2587,7 +2573,7 @@ print_insn_cris_generic (bfd_vma memaddr,
                  to the operands.   */
               print_with_operands (matchedp, insn, bufp, addr, info,
                                    prefix_opcodep, prefix_insn,
-                                   prefix_buffer, with_reg_prefix);
+                                   prefix_buffer);
             }
         }
     }
@@ -2622,134 +2608,24 @@ print_insn_cris_generic (bfd_vma memaddr,
   return advance;
 }
 
-/* Disassemble, prefixing register names with `$'.  CRIS v0..v10.  */
-static int
-print_insn_cris_with_register_prefix (bfd_vma vma,
-                                      disassemble_info *info)
-{
-  struct cris_disasm_data disdata;
-  info->private_data = &disdata;
-  cris_parse_disassembler_options (&disdata, info->disassembler_options,
-                                   cris_dis_v0_v10);
-  return print_insn_cris_generic (vma, info, true);
-}
-/* Disassemble, prefixing register names with `$'.  CRIS v32.  */
-
-static int
-print_insn_crisv32_with_register_prefix (bfd_vma vma,
-                                         disassemble_info *info)
-{
-  struct cris_disasm_data disdata;
-  info->private_data = &disdata;
-  cris_parse_disassembler_options (&disdata, info->disassembler_options,
-                                   cris_dis_v32);
-  return print_insn_cris_generic (vma, info, true);
-}
-
-#if 0
-/* Disassemble, prefixing register names with `$'.
-   Common v10 and v32 subset.  */
-
-static int
-print_insn_crisv10_v32_with_register_prefix (bfd_vma vma,
-                                             disassemble_info *info)
-{
-  struct cris_disasm_data disdata;
-  info->private_data = &disdata;
-  cris_parse_disassembler_options (&disdata, info->disassembler_options,
-                                   cris_dis_common_v10_v32);
-  return print_insn_cris_generic (vma, info, true);
-}
-
-/* Disassemble, no prefixes on register names.  CRIS v0..v10.  */
-
-static int
-print_insn_cris_without_register_prefix (bfd_vma vma,
-                                         disassemble_info *info)
-{
-  struct cris_disasm_data disdata;
-  info->private_data = &disdata;
-  cris_parse_disassembler_options (&disdata, info->disassembler_options,
-                                   cris_dis_v0_v10);
-  return print_insn_cris_generic (vma, info, false);
-}
-
-/* Disassemble, no prefixes on register names.  CRIS v32.  */
-
-static int
-print_insn_crisv32_without_register_prefix (bfd_vma vma,
-                                            disassemble_info *info)
-{
-  struct cris_disasm_data disdata;
-  info->private_data = &disdata;
-  cris_parse_disassembler_options (&disdata, info->disassembler_options,
-                                   cris_dis_v32);
-  return print_insn_cris_generic (vma, info, false);
-}
-
-/* Disassemble, no prefixes on register names.
-   Common v10 and v32 subset.  */
-
-static int
-print_insn_crisv10_v32_without_register_prefix (bfd_vma vma,
-                                                disassemble_info *info)
-{
-  struct cris_disasm_data disdata;
-  info->private_data = &disdata;
-  cris_parse_disassembler_options (&disdata, info->disassembler_options,
-                                   cris_dis_common_v10_v32);
-  return print_insn_cris_generic (vma, info, false);
-}
-#endif
-
 int
 print_insn_crisv10 (bfd_vma vma,
                     disassemble_info *info)
 {
-  return print_insn_cris_with_register_prefix(vma, info);
+  struct cris_disasm_data disdata;
+  info->private_data = &disdata;
+  cris_parse_disassembler_options (&disdata, info->disassembler_options,
+                                   cris_dis_v0_v10);
+  return print_insn_cris_generic (vma, info);
 }
 
 int
 print_insn_crisv32 (bfd_vma vma,
                     disassemble_info *info)
 {
-  return print_insn_crisv32_with_register_prefix(vma, info);
+  struct cris_disasm_data disdata;
+  info->private_data = &disdata;
+  cris_parse_disassembler_options (&disdata, info->disassembler_options,
+                                   cris_dis_v32);
+  return print_insn_cris_generic (vma, info);
 }
-
-/* Return a disassembler-function that prints registers with a `$' prefix,
-   or one that prints registers without a prefix.
-   FIXME: We should improve the solution to avoid the multitude of
-   functions seen above.  */
-#if 0
-disassembler_ftype
-cris_get_disassembler (bfd *abfd)
-{
-  /* If there's no bfd in sight, we return what is valid as input in all
-     contexts if fed back to the assembler: disassembly *with* register
-     prefix.  Unfortunately this will be totally wrong for v32.  */
-  if (abfd == NULL)
-    return print_insn_cris_with_register_prefix;
-
-  if (bfd_get_symbol_leading_char (abfd) == 0)
-    {
-      if (bfd_get_mach (abfd) == bfd_mach_cris_v32)
-        return print_insn_crisv32_with_register_prefix;
-      if (bfd_get_mach (abfd) == bfd_mach_cris_v10_v32)
-        return print_insn_crisv10_v32_with_register_prefix;
-
-      /* We default to v10.  This may be specifically specified in the
-         bfd mach, but is also the default setting.  */
-      return print_insn_cris_with_register_prefix;
-    }
-
-  if (bfd_get_mach (abfd) == bfd_mach_cris_v32)
-    return print_insn_crisv32_without_register_prefix;
-  if (bfd_get_mach (abfd) == bfd_mach_cris_v10_v32)
-    return print_insn_crisv10_v32_without_register_prefix;
-  return print_insn_cris_without_register_prefix;
-}
-#endif
-/* Local variables:
-   eval: (c-set-style "gnu")
-   indent-tabs-mode: t
-   End:  */
