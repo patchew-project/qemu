@@ -375,6 +375,11 @@ void *dpy_gl_qemu_dmabuf_get_sync(QemuDmaBuf *dmabuf);
 int32_t dpy_gl_qemu_dmabuf_get_fence_fd(QemuDmaBuf *dmabuf);
 bool dpy_gl_qemu_dmabuf_get_allow_fences(QemuDmaBuf *dmabuf);
 bool dpy_gl_qemu_dmabuf_get_draw_submitted(QemuDmaBuf *dmabuf);
+void dpy_gl_qemu_dmabuf_set_texture(QemuDmaBuf *dmabuf, uint32_t texture);
+void dpy_gl_qemu_dmabuf_set_fence_fd(QemuDmaBuf *dmabuf, int32_t fence_fd);
+void dpy_gl_qemu_dmabuf_set_sync(QemuDmaBuf *dmabuf, void *sync);
+void dpy_gl_qemu_dmabuf_set_draw_submitted(QemuDmaBuf *dmabuf, bool draw_submitted);
+void dpy_gl_qemu_dmabuf_set_fd(QemuDmaBuf *dmabuf, int32_t fd);
 void dpy_gl_release_dmabuf(QemuConsole *con,
                            QemuDmaBuf *dmabuf);
 void dpy_gl_update(QemuConsole *con,
