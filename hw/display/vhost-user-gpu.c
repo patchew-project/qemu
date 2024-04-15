@@ -273,8 +273,8 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         }
         *dmabuf = (QemuDmaBuf) {
             .fd = fd,
-            .width = m->fd_width,
-            .height = m->fd_height,
+            .backing_width = m->fd_width,
+            .backing_height = m->fd_height,
             .stride = m->fd_stride,
             .fourcc = m->fd_drm_fourcc,
             .y0_top = m->fd_flags & VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP,
