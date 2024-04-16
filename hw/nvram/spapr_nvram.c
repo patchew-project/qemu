@@ -79,7 +79,7 @@ static void rtas_nvram_fetch(PowerPCCPU *cpu, SpaprMachineState *spapr,
     buffer = rtas_ld(args, 1);
     len = rtas_ld(args, 2);
 
-    if (((offset + len) < offset)
+    if (((offset + len) <= offset)
         || ((offset + len) > nvram->size)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         rtas_st(rets, 1, 0);
@@ -120,7 +120,7 @@ static void rtas_nvram_store(PowerPCCPU *cpu, SpaprMachineState *spapr,
     buffer = rtas_ld(args, 1);
     len = rtas_ld(args, 2);
 
-    if (((offset + len) < offset)
+    if (((offset + len) <= offset)
         || ((offset + len) > nvram->size)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
