@@ -127,6 +127,7 @@ struct Aspeed27x0SoCState {
 
     ARMCPU cpu[ASPEED_CPUS_NUM];
     AspeedINTCState intc;
+    MemoryRegion dram_empty;
 };
 
 #define TYPE_ASPEED27X0_SOC "aspeed27x0-soc"
