@@ -132,6 +132,9 @@
 #define   FMC_WDT2_CTRL_BOOT_SOURCE      BIT(4) /* O: primary 1: alternate */
 #define   FMC_WDT2_CTRL_EN               BIT(0)
 
+/* DMA DRAM Side Address High Part (AST2700) */
+#define R_DMA_DRAM_ADDR_HIGH   (0x7c / 4)
+
 /* DMA Control/Status Register */
 #define R_DMA_CTRL        (0x80 / 4)
 #define   DMA_CTRL_REQUEST      (1 << 31)
@@ -187,6 +190,7 @@
  *   0x1FFFFFF: 32M bytes
  */
 #define DMA_DRAM_ADDR(asc, val)   ((val) & (asc)->dma_dram_mask)
+#define DMA_DRAM_ADDR_HIGH(val)   ((val) & 0xf)
 #define DMA_FLASH_ADDR(asc, val)  ((val) & (asc)->dma_flash_mask)
 #define DMA_LENGTH(val)         ((val) & 0x01FFFFFF)
 
@@ -207,6 +211,7 @@ static const AspeedSegments aspeed_2500_spi2_segments[];
 #define ASPEED_SMC_FEATURE_DMA       0x1
 #define ASPEED_SMC_FEATURE_DMA_GRANT 0x2
 #define ASPEED_SMC_FEATURE_WDT_CONTROL 0x4
+#define ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH 0x08
 
 static inline bool aspeed_smc_has_dma(const AspeedSMCClass *asc)
 {
@@ -216,6 +221,11 @@ static inline bool aspeed_smc_has_dma(const AspeedSMCClass *asc)
 static inline bool aspeed_smc_has_wdt_control(const AspeedSMCClass *asc)
 {
     return !!(asc->features & ASPEED_SMC_FEATURE_WDT_CONTROL);
+}
+
+static inline bool aspeed_smc_has_dma_dram_addr_high(const AspeedSMCClass *asc)
+{
+    return !!(asc->features & ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH);
 }
 
 #define aspeed_smc_error(fmt, ...)                                      \
@@ -747,6 +757,9 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         (aspeed_smc_has_dma(asc) && addr == R_DMA_CTRL) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_FLASH_ADDR) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_DRAM_ADDR) ||
+        (aspeed_smc_has_dma(asc) &&
+         aspeed_smc_has_dma_dram_addr_high(asc) &&
+         addr == R_DMA_DRAM_ADDR_HIGH) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_LEN) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_CHECKSUM) ||
         (addr >= R_SEG_ADDR0 &&
@@ -847,6 +860,23 @@ static bool aspeed_smc_inject_read_failure(AspeedSMCState *s)
     }
 }
 
+static uint64_t aspeed_smc_dma_dram_addr(AspeedSMCState *s)
+{
+    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
+    uint64_t dram_addr_high;
+    uint64_t dma_dram_addr;
+
+    if (aspeed_smc_has_dma_dram_addr_high(asc)) {
+        dram_addr_high = s->regs[R_DMA_DRAM_ADDR_HIGH];
+        dram_addr_high <<= 32;
+        dma_dram_addr = dram_addr_high | s->regs[R_DMA_DRAM_ADDR];
+    } else {
+        dma_dram_addr = s->regs[R_DMA_DRAM_ADDR];
+    }
+
+    return dma_dram_addr;
+}
+
 static uint32_t aspeed_smc_dma_len(AspeedSMCState *s)
 {
     AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
@@ -914,24 +944,34 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
 
 static void aspeed_smc_dma_rw(AspeedSMCState *s)
 {
+    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
+    uint64_t dram_addr_high;
+    uint64_t dma_dram_addr;
+    uint64_t dram_addr;
     MemTxResult result;
     uint32_t dma_len;
     uint32_t data;
 
     dma_len = aspeed_smc_dma_len(s);
+    dma_dram_addr = aspeed_smc_dma_dram_addr(s);
+
+    if (aspeed_smc_has_dma_dram_addr_high(asc)) {
+        dram_addr = dma_dram_addr - s->dram_mr->container->addr;
+    } else {
+        dram_addr = dma_dram_addr;
+    }
 
     trace_aspeed_smc_dma_rw(s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE ?
                             "write" : "read",
                             s->regs[R_DMA_FLASH_ADDR],
-                            s->regs[R_DMA_DRAM_ADDR],
+                            dram_addr,
                             dma_len);
     while (dma_len) {
         if (s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE) {
-            data = address_space_ldl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],
+            data = address_space_ldl_le(&s->dram_as, dram_addr,
                                         MEMTXATTRS_UNSPECIFIED, &result);
             if (result != MEMTX_OK) {
-                aspeed_smc_error("DRAM read failed @%08x",
-                                 s->regs[R_DMA_DRAM_ADDR]);
+                aspeed_smc_error("DRAM read failed @%" PRIx64, dram_addr);
                 return;
             }
 
@@ -951,11 +991,10 @@ static void aspeed_smc_dma_rw(AspeedSMCState *s)
                 return;
             }
 
-            address_space_stl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],
+            address_space_stl_le(&s->dram_as, dram_addr,
                                  data, MEMTXATTRS_UNSPECIFIED, &result);
             if (result != MEMTX_OK) {
-                aspeed_smc_error("DRAM write failed @%08x",
-                                 s->regs[R_DMA_DRAM_ADDR]);
+                aspeed_smc_error("DRAM write failed @%" PRIx64, dram_addr);
                 return;
             }
         }
@@ -964,8 +1003,15 @@ static void aspeed_smc_dma_rw(AspeedSMCState *s)
          * When the DMA is on-going, the DMA registers are updated
          * with the current working addresses and length.
          */
+        dram_addr += 4;
+        dma_dram_addr += 4;
+        if (aspeed_smc_has_dma_dram_addr_high(asc)) {
+            dram_addr_high = dma_dram_addr >> 32;
+            s->regs[R_DMA_DRAM_ADDR_HIGH] = dram_addr_high;
+        }
+
+        s->regs[R_DMA_DRAM_ADDR] = dma_dram_addr & 0xffffffff;
         s->regs[R_DMA_FLASH_ADDR] += 4;
-        s->regs[R_DMA_DRAM_ADDR] += 4;
         dma_len -= 4;
         s->regs[R_DMA_LEN] = dma_len;
         s->regs[R_DMA_CHECKSUM] += data;
@@ -1118,6 +1164,10 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     } else if (aspeed_smc_has_dma(asc) && addr == R_DMA_LEN &&
                aspeed_smc_dma_granted(s)) {
         s->regs[addr] = DMA_LENGTH(value);
+    } else if (aspeed_smc_has_dma(asc) &&
+               aspeed_smc_has_dma_dram_addr_high(asc) &&
+               addr == R_DMA_DRAM_ADDR_HIGH) {
+        s->regs[addr] = DMA_DRAM_ADDR_HIGH(value);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
