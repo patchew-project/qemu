@@ -62,6 +62,10 @@ static bool trans_ebreak(DisasContext *ctx, arg_ebreak *a)
     if (pre == 0x01f01013 && ebreak == 0x00100073 && post == 0x40705013) {
         generate_exception(ctx, RISCV_EXCP_SEMIHOST);
     } else {
+        TCGv temp = tcg_temp_new();
+        tcg_gen_movi_tl(temp, ebreak_addr);
+        tcg_gen_st_tl(temp, tcg_env, offsetof(CPURISCVState, badaddr));
+
         generate_exception(ctx, RISCV_EXCP_BREAKPOINT);
     }
     return true;
