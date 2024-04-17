@@ -1670,7 +1670,7 @@ static void test_baddest(void)
         return;
     }
     migrate_qmp(from, "tcp:127.0.0.1:0", "{}");
-    wait_for_migration_fail(from, false);
+    wait_for_migration_fail(from, false, false);
     test_migrate_end(from, to, false);
 }
 
@@ -1781,10 +1781,10 @@ static void test_precopy_common(MigrateCommon *args)
 
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
-        wait_for_migration_fail(from, allow_active);
+        wait_for_migration_fail(from, allow_active, false);
 
         if (args->result == MIG_TEST_FAIL_DEST_QUIT_ERR) {
-            qtest_set_expected_status(to, EXIT_FAILURE);
+            wait_for_migration_fail(to, true, true);
         }
     } else {
         if (args->live) {
@@ -2571,8 +2571,8 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     migrate_qmp(from, uri, "{}");
 
     if (should_fail) {
-        qtest_set_expected_status(to, EXIT_FAILURE);
-        wait_for_migration_fail(from, true);
+        wait_for_migration_fail(to, true, true);
+        wait_for_migration_fail(from, true, false);
     } else {
         wait_for_migration_complete(from);
     }
@@ -3047,8 +3047,8 @@ static void test_multifd_tcp_cancel(void)
     migrate_cancel(from);
 
     /* Make sure QEMU process "to" exited */
-    qtest_set_expected_status(to, EXIT_FAILURE);
-    qtest_wait_qemu(to);
+    wait_for_migration_fail(to, true, true);
+    qtest_quit(to);
 
     args = (MigrateStart){
         .only_target = true,

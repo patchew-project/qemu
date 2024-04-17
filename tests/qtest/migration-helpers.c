@@ -211,7 +211,8 @@ void wait_for_migration_complete(QTestState *who)
     wait_for_migration_status(who, "completed", NULL);
 }
 
-void wait_for_migration_fail(QTestState *from, bool allow_active)
+void wait_for_migration_fail(QTestState *from, bool allow_active,
+                             bool is_incoming)
 {
     g_test_timer_start();
     QDict *rsp_return;
@@ -236,8 +237,14 @@ void wait_for_migration_fail(QTestState *from, bool allow_active)
     /* Is the machine currently running? */
     rsp_return = qtest_qmp_assert_success_ref(from,
                                               "{ 'execute': 'query-status' }");
-    g_assert(qdict_haskey(rsp_return, "running"));
-    g_assert(qdict_get_bool(rsp_return, "running"));
+    if (is_incoming) {
+        if (qdict_haskey(rsp_return, "running")) {
+            g_assert(!qdict_get_bool(rsp_return, "running"));
+        }
+    } else {
+        g_assert(qdict_haskey(rsp_return, "running"));
+        g_assert(qdict_get_bool(rsp_return, "running"));
+    }
     qobject_unref(rsp_return);
 }
 
