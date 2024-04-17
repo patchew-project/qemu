@@ -601,7 +601,7 @@ void gd_hw_gl_flushed(void *vcon)
     fence_fd = dpy_gl_qemu_dmabuf_get_fence_fd(dmabuf);
     qemu_set_fd_handler(fence_fd, NULL, NULL, NULL);
     close(fence_fd);
-    dmabuf->fence_fd = -1;
+    dpy_gl_qemu_dmabuf_set_fence_fd(dmabuf, -1);
     graphic_hw_gl_block(vc->gfx.dcl.con, false);
 }
 
