@@ -249,6 +249,7 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
     case VHOST_USER_GPU_DMABUF_SCANOUT: {
         VhostUserGpuDMABUFScanout *m = &msg->payload.dmabuf_scanout;
         int fd = qemu_chr_fe_get_msgfd(&g->vhost_chr);
+        int old_fd;
         QemuDmaBuf *dmabuf;
 
         if (m->scanout_id >= g->parent_obj.conf.max_outputs) {
@@ -262,8 +263,9 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         g->parent_obj.enable = 1;
         con = g->parent_obj.scanout[m->scanout_id].con;
         dmabuf = &g->dmabuf[m->scanout_id];
-        if (dmabuf->fd >= 0) {
-            close(dmabuf->fd);
+        old_fd = dpy_gl_qemu_dmabuf_get_fd(dmabuf);
+        if (old_fd >= 0) {
+            close(old_fd);
             dmabuf->fd = -1;
         }
         dpy_gl_release_dmabuf(con, dmabuf);

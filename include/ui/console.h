@@ -358,6 +358,23 @@ void dpy_gl_cursor_dmabuf(QemuConsole *con, QemuDmaBuf *dmabuf,
                           bool have_hot, uint32_t hot_x, uint32_t hot_y);
 void dpy_gl_cursor_position(QemuConsole *con,
                             uint32_t pos_x, uint32_t pos_y);
+
+int32_t dpy_gl_qemu_dmabuf_get_fd(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_width(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_height(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_stride(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_fourcc(QemuDmaBuf *dmabuf);
+uint64_t dpy_gl_qemu_dmabuf_get_modifier(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_texture(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_x(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_y(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_backing_width(QemuDmaBuf *dmabuf);
+uint32_t dpy_gl_qemu_dmabuf_get_backing_height(QemuDmaBuf *dmabuf);
+bool dpy_gl_qemu_dmabuf_get_y0_top(QemuDmaBuf *dmabuf);
+void *dpy_gl_qemu_dmabuf_get_sync(QemuDmaBuf *dmabuf);
+int32_t dpy_gl_qemu_dmabuf_get_fence_fd(QemuDmaBuf *dmabuf);
+bool dpy_gl_qemu_dmabuf_get_allow_fences(QemuDmaBuf *dmabuf);
+bool dpy_gl_qemu_dmabuf_get_draw_submitted(QemuDmaBuf *dmabuf);
 void dpy_gl_release_dmabuf(QemuConsole *con,
                            QemuDmaBuf *dmabuf);
 void dpy_gl_update(QemuConsole *con,
