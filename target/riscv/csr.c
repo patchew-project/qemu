@@ -260,7 +260,7 @@ static RISCVException aia_any32(CPURISCVState *env, int csrno)
     return any32(env, csrno);
 }
 
-static RISCVException smode(CPURISCVState *env, int csrno)
+RISCVException smode(CPURISCVState *env, int csrno)
 {
     if (riscv_has_ext(env, RVS)) {
         return RISCV_EXCP_NONE;
