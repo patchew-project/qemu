@@ -21,8 +21,14 @@
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_adu.h"
 #include "hw/ppc/pnv_chip.h"
+#include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "trace.h"
+
+#define ADU_LPC_BASE_REG     0x40
+#define ADU_LPC_CMD_REG      0x41
+#define ADU_LPC_DATA_REG     0x42
+#define ADU_LPC_STATUS_REG   0x43
 
 static uint64_t pnv_adu_xscom_read(void *opaque, hwaddr addr, unsigned width)
 {
@@ -35,6 +41,24 @@ static uint64_t pnv_adu_xscom_read(void *opaque, hwaddr addr, unsigned width)
     case 0x12:     /* log register */
     case 0x13:     /* error register */
         break;
+    case ADU_LPC_BASE_REG:
+        /*
+         * LPC Address Map in Pervasive ADU Workbook
+         *
+         * return PNV10_LPCM_BASE(chip) & PPC_BITMASK(8, 31);
+         * XXX: implement as class property, or get from LPC?
+         */
+        qemu_log_mask(LOG_UNIMP, "ADU: LPC_BASE_REG is not implemented\n");
+        break;
+    case ADU_LPC_CMD_REG:
+        val = adu->lpc_cmd_reg;
+        break;
+    case ADU_LPC_DATA_REG:
+        val = adu->lpc_data_reg;
+        break;
+    case ADU_LPC_STATUS_REG:
+        val = PPC_BIT(0); /* ack / done */
+        break;
 
     default:
         qemu_log_mask(LOG_UNIMP, "ADU Unimplemented read register: Ox%08x\n",
@@ -44,6 +68,26 @@ static uint64_t pnv_adu_xscom_read(void *opaque, hwaddr addr, unsigned width)
     trace_pnv_adu_xscom_read(addr, val);
 
     return val;
+}
+
+static bool lpc_cmd_read(PnvADU *adu)
+{
+    return !!(adu->lpc_cmd_reg & PPC_BIT(0));
+}
+
+static bool lpc_cmd_write(PnvADU *adu)
+{
+    return !lpc_cmd_read(adu);
+}
+
+static uint32_t lpc_cmd_addr(PnvADU *adu)
+{
+    return (adu->lpc_cmd_reg & PPC_BITMASK(32, 63)) >> PPC_BIT_NR(63);
+}
+
+static uint32_t lpc_cmd_size(PnvADU *adu)
+{
+    return (adu->lpc_cmd_reg & PPC_BITMASK(5, 11)) >> PPC_BIT_NR(11);
 }
 
 static void pnv_adu_xscom_write(void *opaque, hwaddr addr, uint64_t val,
@@ -58,6 +102,47 @@ static void pnv_adu_xscom_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x18:     /* Receive status reg */
     case 0x12:     /* log register */
     case 0x13:     /* error register */
+        break;
+
+    case ADU_LPC_BASE_REG:
+        qemu_log_mask(LOG_UNIMP,
+                      "ADU: Changing LPC_BASE_REG is not implemented\n");
+        break;
+
+    case ADU_LPC_CMD_REG:
+        adu->lpc_cmd_reg = val;
+        if (lpc_cmd_read(adu)) {
+            uint32_t lpc_addr = lpc_cmd_addr(adu);
+            uint32_t lpc_size = lpc_cmd_size(adu);
+            uint64_t data = 0;
+
+            pnv_opb_lpc_read(adu->lpc, lpc_addr, (void *)&data, lpc_size);
+
+            /*
+             * ADU access is performed within 8-byte aligned sectors. Smaller
+             * access sizes don't get formatted to the least significant byte,
+             * but rather appear in the data reg at the same offset as the
+             * address in memory. This shifts them into that position.
+             */
+            adu->lpc_data_reg = be64_to_cpu(data) >> ((lpc_addr & 7) * 8);
+        }
+        break;
+
+    case ADU_LPC_DATA_REG:
+        adu->lpc_data_reg = val;
+        if (lpc_cmd_write(adu)) {
+            uint32_t lpc_addr = lpc_cmd_addr(adu);
+            uint32_t lpc_size = lpc_cmd_size(adu);
+            uint64_t data;
+
+            data = cpu_to_be64(val) >> ((lpc_addr & 7) * 8); /* See above */
+            pnv_opb_lpc_write(adu->lpc, lpc_addr, (void *)&data, lpc_size);
+        }
+        break;
+
+    case ADU_LPC_STATUS_REG:
+        qemu_log_mask(LOG_UNIMP,
+                      "ADU: Changing LPC_STATUS_REG is not implemented\n");
         break;
 
     default:
@@ -86,12 +171,18 @@ static void pnv_adu_realize(DeviceState *dev, Error **errp)
                           PNV9_XSCOM_ADU_SIZE);
 }
 
+static Property pnv_adu_properties[] = {
+    DEFINE_PROP_LINK("lpc", PnvADU, lpc, TYPE_PNV_LPC, PnvLpcController *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pnv_adu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pnv_adu_realize;
     dc->desc = "PowerNV ADU";
+    device_class_set_props(dc, pnv_adu_properties);
     dc->user_creatable = false;
 }
 
