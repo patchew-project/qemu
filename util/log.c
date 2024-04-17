@@ -85,6 +85,15 @@ static void qemu_log_thread_cleanup(Notifier *n, void *unused)
     }
 }
 
+static void __attribute__((__destructor__)) cleanup(void)
+{
+    g_free(global_filename);
+    if (global_file && global_file != stderr) {
+        fclose(global_file);
+        global_file = NULL;
+    }
+}
+
 /* Lock/unlock output. */
 
 static FILE *qemu_log_trylock_with_err(Error **errp)
