@@ -558,19 +558,12 @@ static void virgl_cmd_get_capset_info(VirtIOGPU *g,
     VIRTIO_GPU_FILL_CMD(info);
 
     memset(&resp, 0, sizeof(resp));
-    if (info.capset_index == 0) {
-        resp.capset_id = VIRTIO_GPU_CAPSET_VIRGL;
+
+    if (info.capset_index < g->num_capsets) {
+        resp.capset_id = g->capset_ids[info.capset_index];
         virgl_renderer_get_cap_set(resp.capset_id,
                                    &resp.capset_max_version,
                                    &resp.capset_max_size);
-    } else if (info.capset_index == 1) {
-        resp.capset_id = VIRTIO_GPU_CAPSET_VIRGL2;
-        virgl_renderer_get_cap_set(resp.capset_id,
-                                   &resp.capset_max_version,
-                                   &resp.capset_max_size);
-    } else {
-        resp.capset_max_version = 0;
-        resp.capset_max_size = 0;
     }
     resp.hdr.type = VIRTIO_GPU_RESP_OK_CAPSET_INFO;
     virtio_gpu_ctrl_response(g, cmd, &resp.hdr, sizeof(resp));
@@ -1120,12 +1113,30 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     return 0;
 }
 
+static void virtio_gpu_virgl_add_capset(VirtIOGPU *g, uint32_t capset_id)
+{
+    g->capset_ids = g_realloc_n(g->capset_ids, g->num_capsets + 1,
+                                sizeof(*g->capset_ids));
+    g->capset_ids[g->num_capsets++] = capset_id;
+}
+
 int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
 {
     uint32_t capset2_max_ver, capset2_max_size;
-    virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
-                              &capset2_max_ver,
-                              &capset2_max_size);
 
-    return capset2_max_ver ? 2 : 1;
+    if (g->num_capsets) {
+        return g->num_capsets;
+    }
+
+    /* VIRGL is always supported. */
+    virtio_gpu_virgl_add_capset(g, VIRTIO_GPU_CAPSET_VIRGL);
+
+    virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
+                               &capset2_max_ver,
+                               &capset2_max_size);
+    if (capset2_max_ver) {
+        virtio_gpu_virgl_add_capset(g, VIRTIO_GPU_CAPSET_VIRGL2);
+    }
+
+    return g->num_capsets;
 }
