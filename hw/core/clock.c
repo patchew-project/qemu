@@ -101,8 +101,9 @@ static void clock_propagate_period(Clock *clk, bool call_callbacks)
             if (call_callbacks) {
                 clock_call_callback(child, ClockUpdate);
             }
-            clock_propagate_period(child, call_callbacks);
         }
+
+        clock_propagate_period(child, call_callbacks);
     }
 }
 
