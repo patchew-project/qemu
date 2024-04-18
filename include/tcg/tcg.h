@@ -629,7 +629,7 @@ static inline size_t temp_idx(TCGTemp *ts)
  */
 static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 {
-    return (void *)tcg_ctx + (uintptr_t)v;
+    return (void *)tcg_ctx->temps + (uintptr_t)v;
 }
 #endif
 
@@ -681,7 +681,7 @@ static inline TCGArg tcgv_vec_arg(TCGv_vec v)
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
 {
     (void)temp_idx(t); /* trigger embedded assert */
-    return (TCGv_i32)((void *)t - (void *)tcg_ctx);
+    return (TCGv_i32)((void *)t - (void *)tcg_ctx->temps);
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
