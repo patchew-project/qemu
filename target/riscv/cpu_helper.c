@@ -1862,6 +1862,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         s = set_field(s, MSTATUS_MPIE, get_field(s, MSTATUS_MIE));
         s = set_field(s, MSTATUS_MPP, env->priv);
         s = set_field(s, MSTATUS_MIE, 0);
+        if (riscv_cpu_cfg(env)->ext_smdbltrp) {
+            if (env->mstatus & MSTATUS_MDT)
+                cpu_abort(CPU(cpu), "M-mode double trap\n");
+
+            s = set_field(s, MSTATUS_MDT, 1);
+        }
         env->mstatus = s;
         env->mcause = cause | ~(((target_ulong)-1) >> async);
         if (smode_double_trap) {
