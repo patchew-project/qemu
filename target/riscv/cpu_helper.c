@@ -62,6 +62,15 @@ int riscv_env_mmu_index(CPURISCVState *env, bool ifetch)
 #endif
 }
 
+bool riscv_env_smode_dbltrp_enabled(CPURISCVState *env)
+{
+    if (env->virt_enabled) {
+        return (env->henvcfg & HENVCFG_DTE) != 0;
+    } else {
+        return (env->menvcfg & MENVCFG_DTE) != 0;
+    }
+}
+
 void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
                           uint64_t *cs_base, uint32_t *pflags)
 {
@@ -544,7 +553,12 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
         mstatus_mask |= MSTATUS_FS;
     }
     bool current_virt = env->virt_enabled;
+    uint64_t dte = current_virt ? env->menvcfg & MENVCFG_DTE :
+                                  env->henvcfg & HENVCFG_DTE;
 
+    if (riscv_cpu_cfg(env)->ext_ssdbltrp && dte) {
+                mstatus_mask |= MSTATUS_SDT;
+    }
     g_assert(riscv_has_ext(env, RVH));
 
     if (current_virt) {
@@ -1648,7 +1662,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
+    const RISCVCPUConfig *cfg = riscv_cpu_cfg(env);
     bool write_gva = false;
+    bool smode_exception;
+    bool vsmode_exception;
     uint64_t s;
 
     /*
@@ -1662,6 +1679,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         !(env->mip & (1 << cause));
     bool vs_injected = env->hvip & (1 << cause) & env->hvien &&
         !(env->mip & (1 << cause));
+    bool smode_double_trap = false;
+    uint64_t hdeleg = async ? env->hideleg : env->hedeleg;
     target_ulong tval = 0;
     target_ulong tinst = 0;
     target_ulong htval = 0;
@@ -1750,14 +1769,33 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                   __func__, env->mhartid, async, cause, env->pc, tval,
                   riscv_cpu_get_trap_name(cause, async));
 
-    if (env->priv <= PRV_S && cause < 64 &&
-        (((deleg >> cause) & 1) || s_injected || vs_injected)) {
+    smode_exception = env->priv <= PRV_S && cause < 64 &&
+                      (((deleg >> cause) & 1) || s_injected || vs_injected);
+    vsmode_exception = env->virt_enabled &&
+                       (((hdeleg >> cause) & 1) || vs_injected);
+    /* Check S-mode double trap condition */
+    if (cfg->ext_ssdbltrp && smode_exception) {
+        uint64_t dte = env->menvcfg & MENVCFG_DTE;
+        if (riscv_has_ext(env, RVH)) {
+            if (vsmode_exception) {
+                /* Trap to VS mode, use henvcfg instead of menvcfg*/
+                dte = env->henvcfg & HENVCFG_DTE;
+            } else if (env->virt_enabled) {
+                /* Trap into HS mode, from virt
+                 * We can not have a double trap when switching from one mode to
+                 * another since sret clears the SDT flag, so when trapping in
+                 * S-mode, SDT is cleared
+                 * */
+                dte = 0;
+            }
+        }
+        smode_double_trap = dte && (env->mstatus & MSTATUS_SDT);
+    }
+
+    if (smode_exception && !smode_double_trap) {
         /* handle the trap in S-mode */
         if (riscv_has_ext(env, RVH)) {
-            uint64_t hdeleg = async ? env->hideleg : env->hedeleg;
-
-            if (env->virt_enabled &&
-                (((hdeleg >> cause) & 1) || vs_injected)) {
+            if (vsmode_exception) {
                 /* Trap to VS mode */
                 /*
                  * See if we need to adjust cause. Yes if its VS mode interrupt
@@ -1790,6 +1828,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         s = set_field(s, MSTATUS_SPIE, get_field(s, MSTATUS_SIE));
         s = set_field(s, MSTATUS_SPP, env->priv);
         s = set_field(s, MSTATUS_SIE, 0);
+        if (riscv_env_smode_dbltrp_enabled(env)) {
+            s = set_field(s, MSTATUS_SDT, 1);
+        }
         env->mstatus = s;
         env->scause = cause | ((target_ulong)async << (TARGET_LONG_BITS - 1));
         env->sepc = env->pc;
@@ -1823,9 +1864,14 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         s = set_field(s, MSTATUS_MIE, 0);
         env->mstatus = s;
         env->mcause = cause | ~(((target_ulong)-1) >> async);
+        if (smode_double_trap) {
+            env->mtval2 = env->mcause;
+            env->mcause = RISCV_EXCP_DOUBLE_TRAP;
+        } else {
+            env->mtval2 = mtval2;
+        }
         env->mepc = env->pc;
         env->mtval = tval;
-        env->mtval2 = mtval2;
         env->mtinst = tinst;
         env->pc = (env->mtvec >> 2 << 2) +
                   ((async && (env->mtvec & 3) == 1) ? cause * 4 : 0);

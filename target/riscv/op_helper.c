@@ -289,6 +289,17 @@ target_ulong helper_sret(CPURISCVState *env)
                         get_field(mstatus, MSTATUS_SPIE));
     mstatus = set_field(mstatus, MSTATUS_SPIE, 1);
     mstatus = set_field(mstatus, MSTATUS_SPP, PRV_U);
+    if (riscv_cpu_cfg(env)->ext_ssdbltrp) {
+        if (env->virt_enabled) {
+            if (get_field(env->henvcfg, HENVCFG_DTE)) {
+                mstatus = set_field(mstatus, MSTATUS_SDT, 0);
+            }
+        } else {
+            if (get_field(env->menvcfg, MENVCFG_DTE)) {
+                mstatus = set_field(mstatus, MSTATUS_SDT, 0);
+            }
+        }
+    }
     if (env->priv_ver >= PRIV_VERSION_1_12_0) {
         mstatus = set_field(mstatus, MSTATUS_MPRV, 0);
     }
