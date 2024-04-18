@@ -61,6 +61,10 @@ struct virtio_gpu_simple_resource {
     int dmabuf_fd;
     uint8_t *remapped;
 
+    MemoryRegion *mr;
+    bool async_unmap_completed;
+    bool async_unmap_in_progress;
+
     QTAILQ_ENTRY(virtio_gpu_simple_resource) next;
 };
 
