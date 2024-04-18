@@ -132,6 +132,7 @@ struct virtio_gpu_ctrl_command {
     struct virtio_gpu_ctrl_hdr cmd_hdr;
     uint32_t error;
     bool finished;
+    bool suspended;
     QTAILQ_ENTRY(virtio_gpu_ctrl_command) next;
 };
 

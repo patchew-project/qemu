@@ -670,6 +670,9 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         break;
     }
 
+    if (cmd->suspended) {
+        return;
+    }
     if (cmd->finished) {
         return;
     }
