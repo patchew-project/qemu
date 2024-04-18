@@ -1095,6 +1095,11 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
         flags |= VIRGL_RENDERER_D3D11_SHARE_TEXTURE;
     }
 #endif
+#ifdef VIRGL_RENDERER_VENUS
+    if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
+        flags |= VIRGL_RENDERER_VENUS | VIRGL_RENDERER_RENDER_SERVER;
+    }
+#endif
 
     ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
     if (ret != 0) {
@@ -1136,6 +1141,15 @@ int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
                                &capset2_max_size);
     if (capset2_max_ver) {
         virtio_gpu_virgl_add_capset(g, VIRTIO_GPU_CAPSET_VIRGL2);
+    }
+
+    if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
+        virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VENUS,
+                                   &capset2_max_ver,
+                                   &capset2_max_size);
+        if (capset2_max_size) {
+            virtio_gpu_virgl_add_capset(g, VIRTIO_GPU_CAPSET_VENUS);
+        }
     }
 
     return g->num_capsets;
