@@ -16,7 +16,7 @@
 # that patches adding downstream specific devices are not available.
 #
 ../configure \
---python=/usr/bin/python3.8 \
+--python=/usr/bin/python3.9 \
 --prefix="/usr" \
 --libdir="/usr/lib64" \
 --datadir="/usr/share" \
@@ -157,7 +157,6 @@
 --enable-docs \
 --enable-fdt \
 --enable-gcrypt \
---enable-glusterfs \
 --enable-gnutls \
 --enable-guest-agent \
 --enable-iconv \
@@ -180,7 +179,6 @@
 --enable-seccomp \
 --enable-snappy \
 --enable-smartcard \
---enable-spice \
 --enable-system \
 --enable-tcg \
 --enable-tools \
