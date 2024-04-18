@@ -19,6 +19,7 @@
 #include "ui/console.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/log.h"
+#include "qemu/uuid.h"
 #include "sysemu/vhost-user-backend.h"
 
 #include "standard-headers/linux/virtio_gpu.h"
@@ -64,6 +65,8 @@ struct virtio_gpu_simple_resource {
     MemoryRegion *mr;
     bool async_unmap_completed;
     bool async_unmap_in_progress;
+
+    QemuUUID uuid;
 
     QTAILQ_ENTRY(virtio_gpu_simple_resource) next;
 };

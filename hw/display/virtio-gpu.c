@@ -1236,6 +1236,7 @@ static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
         }
         qemu_put_buffer(f, (void *)pixman_image_get_data(res->image),
                         pixman_image_get_stride(res->image) * res->height);
+        qemu_put_buffer(f, res->uuid.data, sizeof(res->uuid.data));
     }
     qemu_put_be32(f, 0); /* end of list */
 
@@ -1333,6 +1334,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
         }
         qemu_get_buffer(f, (void *)pixman_image_get_data(res->image),
                         pixman_image_get_stride(res->image) * res->height);
+        qemu_get_buffer(f, res->uuid.data, sizeof(res->uuid.data));
 
         if (!virtio_gpu_load_restore_mapping(g, res)) {
             pixman_image_unref(res->image);
@@ -1371,6 +1373,7 @@ static int virtio_gpu_blob_save(QEMUFile *f, void *opaque, size_t size,
             qemu_put_be64(f, res->addrs[i]);
             qemu_put_be32(f, res->iov[i].iov_len);
         }
+        qemu_put_buffer(f, res->uuid.data, sizeof(res->uuid.data));
     }
     qemu_put_be32(f, 0); /* end of list */
 
@@ -1404,6 +1407,8 @@ static int virtio_gpu_blob_load(QEMUFile *f, void *opaque, size_t size,
             res->addrs[i] = qemu_get_be64(f);
             res->iov[i].iov_len = qemu_get_be32(f);
         }
+
+        qemu_get_buffer(f, res->uuid.data, sizeof(res->uuid.data));
 
         if (!virtio_gpu_load_restore_mapping(g, res)) {
             g_free(res);
