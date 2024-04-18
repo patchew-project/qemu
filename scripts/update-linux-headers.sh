@@ -62,6 +62,7 @@ cp_portable() {
                                      -e 'linux/kernel' \
                                      -e 'linux/sysinfo' \
                                      -e 'asm-generic/kvm_para' \
+                                     -e 'asm-x86/setup_data.h' \
                                      > /dev/null
     then
         echo "Unexpected #include in input file $f".
@@ -149,9 +150,11 @@ for arch in $ARCHLIST; do
         cp "$tmpdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"
         cp_portable "$tmpdir/include/asm/kvm_para.h" "$output/include/standard-headers/asm-$arch"
+        cp_portable "$tmpdir/include/asm/setup_data.h" "$output/include/standard-headers/asm-$arch"
         # Remove everything except the macros from bootparam.h avoiding the
         # unnecessary import of several video/ist/etc headers
         sed -e '/__ASSEMBLY__/,/__ASSEMBLY__/d' \
+            -e 's/<asm\/\([^>]*\)>/"standard-headers\/asm-x86\/\1"/' \
                "$tmpdir/include/asm/bootparam.h" > "$tmpdir/bootparam.h"
         cp_portable "$tmpdir/bootparam.h" \
                     "$output/include/standard-headers/asm-$arch"
@@ -165,7 +168,7 @@ rm -rf "$output/linux-headers/linux"
 mkdir -p "$output/linux-headers/linux"
 for header in const.h stddef.h kvm.h vfio.h vfio_ccw.h vfio_zdev.h vhost.h \
               psci.h psp-sev.h userfaultfd.h memfd.h mman.h nvme_ioctl.h \
-              vduse.h iommufd.h; do
+              vduse.h iommufd.h bits.h; do
     cp "$tmpdir/include/linux/$header" "$output/linux-headers/linux"
 done
 
