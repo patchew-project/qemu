@@ -51,3 +51,37 @@ the actual output of that directive was suppressed. Here's a link to
 Explicit cross-referencing syntax for QAPI modules is available with
 ``:qapi:mod:`foo```, here's a link to :qapi:mod:`bar-module` and one to
 :qapi:mod:`block-core`.
+
+
+.. qapi:command:: example-command
+
+   This directive creates a QAPI command named `example-command` that
+   appears in both the `genindex` and the `qapi-index`. As of this
+   commit, there aren't any special arguments or options you can give to
+   this directive, it merely parses its content block and handles the
+   TOC/index/xref book-keeping.
+
+   Unlike the QAPI module directive, this directive *does* add a TOC
+   entry by default.
+
+   This object can be referenced in *quite a few ways*:
+
+   * ```example-command``` => `example-command`
+   * ```block-core.example-command``` => `block-core.example-command`
+   * ``:qapi:cmd:`example-command``` => :qapi:cmd:`example-command`
+   * ``:qapi:cmd:`block-core.example-command``` => :qapi:cmd:`block-core.example-command`
+   * ``:qapi:cmd:`~example-command``` => :qapi:cmd:`~example-command`
+   * ``:qapi:cmd:`~block-core.example-command``` => :qapi:cmd:`~block-core.example-command`
+   * ``:qapi:obj:`example-command``` => :qapi:obj:`example-command`
+   * ``:qapi:obj:`block-core.example-command``` => :qapi:obj:`block-core.example-command`
+   * ``:qapi:obj:`~example-command``` => :qapi:obj:`~example-command`
+   * ``:qapi:obj:`~block-core.example-command``` => :qapi:obj:`~block-core.example-command`
+
+   As of Sphinx v7.2.6, there are a few sphinx-standard options this
+   directive has:
+
+   * ``:no-index:`` or ``:noindex:`` Don't add to the `genindex` nor
+     the `qapi-index`; do not register for cross-references.
+   * ``:no-index-entry:`` or ``:noindexentry:``
+   * ``:no-contents-entry:`` or ``:nocontentsentry:``
+   * ``:no-typesetting:``

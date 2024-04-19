@@ -21,7 +21,8 @@ from docutils import nodes
 from docutils.parsers.rst import directives
 
 from sphinx import addnodes
-from sphinx.addnodes import pending_xref
+from sphinx.addnodes import desc_signature, pending_xref
+from sphinx.directives import ObjectDescription
 from sphinx.domains import (
     Domain,
     Index,
@@ -106,6 +107,132 @@ def _nested_parse(directive: SphinxDirective, content_node: Element) -> None:
         # No content_offset argument. Fall back to SSI method.
         with switch_source_input(directive.state, directive.content):
             nested_parse_with_titles(directive.state, directive.content, content_node)
+
+
+# Alias for the return of handle_signature(), which is used in several places.
+# (In the Python domain, this is Tuple[str, str] instead.)
+Signature = str
+
+
+class QAPIObject(ObjectDescription[Signature]):
+    """
+    Description of a generic QAPI object.
+
+    It's not used directly, but is instead subclassed by specific directives.
+    """
+
+    # Inherit some standard options from Sphinx's ObjectDescription
+    option_spec: OptionSpec = ObjectDescription.option_spec.copy()  # type:ignore[misc]
+    option_spec.update(
+        {
+            # Borrowed from the Python domain:
+            "module": directives.unchanged,  # Override contextual module name
+        }
+    )
+
+    def get_signature_prefix(self, sig: str) -> List[nodes.Node]:
+        """Returns a prefix to put before the object name in the signature."""
+        assert self.objtype
+        return [
+            addnodes.desc_sig_keyword("", self.objtype.title()),
+            addnodes.desc_sig_space(),
+        ]
+
+    def get_signature_suffix(self, sig: str) -> list[nodes.Node]:
+        """Returns a suffix to put after the object name in the signature."""
+        return []
+
+    def handle_signature(self, sig: str, signode: desc_signature) -> Signature:
+        """
+        Transform a QAPI definition name into RST nodes.
+
+        This method was originally intended for handling function
+        signatures. In the QAPI domain, however, we only pass the
+        command name as the directive argument and handle everything
+        else in the content body with field lists.
+
+        As such, the only argument here is "sig", which is just the QAPI
+        definition name.
+        """
+        modname = self.options.get("module", self.env.ref_context.get("qapi:module"))
+
+        signode["fullname"] = sig
+        signode["module"] = modname
+        sig_prefix = self.get_signature_prefix(sig)
+        if sig_prefix:
+            signode += addnodes.desc_annotation(str(sig_prefix), "", *sig_prefix)
+        signode += addnodes.desc_name(sig, sig)
+        signode += self.get_signature_suffix(sig)
+
+        return sig
+
+    def _object_hierarchy_parts(self, sig_node: desc_signature) -> Tuple[str, ...]:
+        if "fullname" not in sig_node:
+            return ()
+        modname = sig_node.get("module")
+        fullname = sig_node["fullname"]
+
+        if modname:
+            return (modname, *fullname.split("."))
+        else:
+            return tuple(fullname.split("."))
+
+    def get_index_text(self, modname: str, name: Signature) -> str:
+        """Return the text for the index entry of the object."""
+        # NB this is used for the global index, not the QAPI index.
+        return f"{name} (QMP {self.objtype})"
+
+    def add_target_and_index(
+        self, name: Signature, sig: str, signode: desc_signature
+    ) -> None:
+        # Called by ObjectDescription.run with the result of
+        # handle_signature; name is the return value of handle_signature
+        # where sig is the original argument to handle_signature. In our
+        # case, they're the same for now.
+        assert self.objtype
+
+        modname = self.options.get("module", self.env.ref_context.get("qapi:module"))
+        # Here, sphinx decides to prepend the module name. OK.
+        fullname = (modname + "." if modname else "") + name
+        node_id = make_id(self.env, self.state.document, "", fullname)
+        signode["ids"].append(node_id)
+        self.state.document.note_explicit_target(signode)
+
+        domain = cast(QAPIDomain, self.env.get_domain("qapi"))
+        domain.note_object(fullname, self.objtype, node_id, location=signode)
+
+        if "no-index-entry" not in self.options:
+            indextext = self.get_index_text(modname, name)
+            assert self.indexnode is not None
+            if indextext:
+                self.indexnode["entries"].append(
+                    ("single", indextext, node_id, "", None)
+                )
+
+    def _toc_entry_name(self, sig_node: desc_signature) -> str:
+        # This controls the name in the TOC and on the sidebar.
+
+        # This is the return type of _object_hierarchy_parts().
+        toc_parts = cast(Tuple[str, ...], sig_node.get("_toc_parts", ()))
+        if not toc_parts:
+            return ""
+
+        config = self.env.app.config
+        *parents, name = toc_parts
+        if config.toc_object_entries_show_parents == "domain":
+            return sig_node.get("fullname", name)
+        if config.toc_object_entries_show_parents == "hide":
+            return name
+        if config.toc_object_entries_show_parents == "all":
+            return ".".join(parents + [name])
+        return ""
+
+
+class QAPICommand(QAPIObject):
+    """Description of a QAPI Command."""
+
+    # Nothing unique for now! Changed in later commits O:-)
+    pass
 
 
 class QAPIModule(SphinxDirective):
@@ -255,12 +382,14 @@ class QAPIDomain(Domain):
     # for each object type.
     object_types: Dict[str, ObjType] = {
         "module": ObjType(_("module"), "mod", "obj"),
+        "command": ObjType(_("command"), "cmd", "obj"),
     }
 
     # Each of these provides a ReST directive,
     # e.g. .. qapi:module:: block-core
     directives = {
         "module": QAPIModule,
+        "command": QAPICommand,
     }
 
     # These are all cross-reference roles; e.g.
@@ -268,6 +397,7 @@ class QAPIDomain(Domain):
     # the object_types table values above.
     roles = {
         "mod": QAPIXRefRole(),
+        "cmd": QAPIXRefRole(),
         "obj": QAPIXRefRole(),  # reference *any* type of QAPI object.
     }
 
