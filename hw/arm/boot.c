@@ -26,6 +26,7 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
+#include "kvm_arm.h"
 
 /* Kernel boot protocol is specified in the kernel docs
  * Documentation/arm/Booting and Documentation/arm64/booting.txt
@@ -850,6 +851,7 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
 {
     hwaddr kernel_load_offset = KERNEL64_LOAD_ADDR;
     uint64_t kernel_size = 0;
+    uint64_t page_size;
     uint8_t *buffer;
     int size;
 
@@ -915,6 +917,15 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
 
     *entry = mem_base + kernel_load_offset;
     rom_add_blob_fixed_as(filename, buffer, size, *entry, as);
+
+    /*
+     * Register the kernel BSS as realm resource, so the kernel can use it right
+     * away. Align up to skip the last page, which still contains kernel
+     * data.
+     */
+    page_size = qemu_real_host_page_size();
+    kvm_arm_rme_init_guest_ram(QEMU_ALIGN_UP(*entry + size, page_size),
+                               QEMU_ALIGN_DOWN(kernel_size - size, page_size));
 
     g_free(buffer);
 

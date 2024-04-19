@@ -218,6 +218,7 @@ int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
 int kvm_arm_rme_init(MachineState *ms);
 int kvm_arm_rme_vm_type(MachineState *ms);
+void kvm_arm_rme_init_guest_ram(hwaddr base, size_t size);
 
 bool kvm_arm_rme_enabled(void);
 int kvm_arm_rme_vcpu_init(CPUState *cs);
@@ -241,6 +242,10 @@ static inline bool kvm_arm_pmu_supported(void)
 static inline bool kvm_arm_sve_supported(void)
 {
     return false;
+}
+
+static inline void kvm_arm_rme_init_guest_ram(hwaddr base, size_t size)
+{
 }
 
 /*
