@@ -356,6 +356,21 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict);
 ssize_t rom_add_vga(const char *file);
 ssize_t rom_add_option(const char *file, int32_t bootindex);
 
+typedef struct RomLoaderNotify {
+    /* Parameters passed to rom_add_blob() */
+    hwaddr addr;
+    size_t len;
+    size_t max_len;
+} RomLoaderNotify;
+
+/**
+ * rom_add_load_notifier - Add a notifier for loaded images
+ *
+ * Add a notifier that will be invoked with a RomLoaderNotify structure for each
+ * blob loaded into guest memory, after the blob is loaded.
+ */
+void rom_add_load_notifier(Notifier *notifier);
+
 /* This is the usual maximum in uboot, so if a uImage overflows this, it would
  * overflow on real hardware too. */
 #define UBOOT_MAX_GUNZIP_BYTES (64 << 20)
