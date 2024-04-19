@@ -273,6 +273,12 @@ class QAPICommand(QAPIObject):
                 names=("arg",),
                 can_collapse=True,
             ),
+            GroupedField(
+                "error",
+                label=_("Errors"),
+                names=("error",),
+                can_collapse=True,
+            ),
         ]
     )
 

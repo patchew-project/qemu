@@ -98,6 +98,10 @@ Explicit cross-referencing syntax for QAPI modules is available with
    :feat unstable: More than unstable, this command doesn't even exist!
    :arg no-descr:
    :feat hallucination: This command is a figment of your imagination.
+   :error CommandNotFound: When you try to use this command, because it
+      isn't real.
+   :error GenericError: If the system decides it doesn't like the
+      argument values. It's very temperamental.
 
    Field lists can appear anywhere in the directive block, but any field
    list entries in the same list block that are recognized as special
