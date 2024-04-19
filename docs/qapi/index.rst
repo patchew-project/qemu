@@ -40,3 +40,10 @@ QAPI Domain Test
 
    Modules will also be reported in the `qapi-index`, under the Modules
    category and in the alphabetical categories that follow.
+
+
+QAPI modules can now be cross-referenced using the ```any```
+cross-referencing syntax. Here's a link to `bar-module`, even though
+the actual output of that directive was suppressed. Here's a link to
+`block-core`. A link to ```foo-module``` won't resolve because of the
+``:no-index:`` option we used for that directive.
