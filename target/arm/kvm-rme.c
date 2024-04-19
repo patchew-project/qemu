@@ -23,13 +23,14 @@ OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
 #define RME_PAGE_SIZE qemu_real_host_page_size()
 
-#define RME_MAX_CFG         1
+#define RME_MAX_CFG         2
 
 struct RmeGuest {
     ConfidentialGuestSupport parent_obj;
     Notifier rom_load_notifier;
     GSList *ram_regions;
     uint8_t *personalization_value;
+    RmeGuestMeasurementAlgo measurement_algo;
 };
 
 typedef struct {
@@ -72,6 +73,19 @@ static int rme_configure_one(RmeGuest *guest, uint32_t cfg, Error **errp)
         }
         memcpy(args.rpv, guest->personalization_value, KVM_CAP_ARM_RME_RPV_SIZE);
         cfg_str = "personalization value";
+        break;
+    case KVM_CAP_ARM_RME_CFG_HASH_ALGO:
+        switch (guest->measurement_algo) {
+        case RME_GUEST_MEASUREMENT_ALGO_SHA256:
+            args.hash_algo = KVM_CAP_ARM_RME_MEASUREMENT_ALGO_SHA256;
+            break;
+        case RME_GUEST_MEASUREMENT_ALGO_SHA512:
+            args.hash_algo = KVM_CAP_ARM_RME_MEASUREMENT_ALGO_SHA512;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        cfg_str = "hash algorithm";
         break;
     default:
         g_assert_not_reached();
@@ -338,12 +352,34 @@ static void rme_set_rpv(Object *obj, const char *value, Error **errp)
     }
 }
 
+static int rme_get_measurement_algo(Object *obj, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+
+    return guest->measurement_algo;
+}
+
+static void rme_set_measurement_algo(Object *obj, int algo, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+
+    guest->measurement_algo = algo;
+}
+
 static void rme_guest_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_str(oc, "personalization-value", rme_get_rpv,
                                   rme_set_rpv);
     object_class_property_set_description(oc, "personalization-value",
             "Realm personalization value (512-bit hexadecimal number)");
+
+    object_class_property_add_enum(oc, "measurement-algo",
+                                   "RmeGuestMeasurementAlgo",
+                                   &RmeGuestMeasurementAlgo_lookup,
+                                   rme_get_measurement_algo,
+                                   rme_set_measurement_algo);
+    object_class_property_set_description(oc, "measurement-algo",
+            "Realm measurement algorithm ('sha256', 'sha512')");
 }
 
 static void rme_guest_instance_init(Object *obj)
@@ -353,6 +389,7 @@ static void rme_guest_instance_init(Object *obj)
         exit(1);
     }
     rme_guest = RME_GUEST(obj);
+    rme_guest->measurement_algo = RME_GUEST_MEASUREMENT_ALGO_SHA512;
 }
 
 static const TypeInfo rme_guest_info = {

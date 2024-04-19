@@ -932,9 +932,24 @@
             '*node-affinity': ['uint16'] } }
 
 ##
+# @RmeGuestMeasurementAlgo:
+#
+# @sha256: Use the SHA256 algorithm
+# @sha512: Use the SHA512 algorithm
+#
+# Algorithm to use for realm measurements
+#
+# Since: FIXME
+##
+{ 'enum': 'RmeGuestMeasurementAlgo',
+  'data': ['sha256', 'sha512'] }
+
+##
 # @RmeGuestProperties:
 #
 # Properties for rme-guest objects.
+#
+# @measurement-algo: Realm measurement algorithm (default: sha512)
 #
 # @personalization-value: Realm personalization value, as a 64-byte hex string
 #     (default: 0)
@@ -942,7 +957,8 @@
 # Since: FIXME
 ##
 { 'struct': 'RmeGuestProperties',
-  'data': { '*personalization-value': 'str' } }
+  'data': { '*personalization-value': 'str',
+            '*measurement-algo': 'RmeGuestMeasurementAlgo' } }
 
 ##
 # @ObjectType:
