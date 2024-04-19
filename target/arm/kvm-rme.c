@@ -263,6 +263,7 @@ int kvm_arm_rme_init(MachineState *ms)
     rme_guest->rom_load_notifier.notify = rme_rom_load_notify;
     rom_add_load_notifier(&rme_guest->rom_load_notifier);
 
+    ms->require_guest_memfd = true;
     cgs->ready = true;
     return 0;
 }
