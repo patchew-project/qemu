@@ -21,7 +21,9 @@ from typing import (
 
 from docutils import nodes
 from docutils.parsers.rst import directives
+from docutils.statemachine import StringList
 
+import sphinx
 from sphinx import addnodes
 from sphinx.addnodes import desc_signature, pending_xref
 from sphinx.directives import ObjectDescription
@@ -470,7 +472,27 @@ class QAPIObject(ObjectDescription[Signature]):
             )
             logger.warning(msg, location=field)
 
+    def before_content(self) -> None:
+        # Work around a sphinx bug and parse the content ourselves.
+        self._temp_content = self.content
+        self._temp_offset = self.content_offset
+        self._temp_node = None
+
+        if sphinx.version_info[:3] >= (5, 3, 0) and sphinx.version_info[:3] < (6, 2, 0):
+            self._temp_node = addnodes.desc_content()
+            self.state.nested_parse(self.content, self.content_offset, self._temp_node)
+            # Sphinx will try to parse the content block itself,
+            # Give it nothingness to parse instead.
+            self.content = StringList()
+            self.content_offset = 0
+
     def transform_content(self, contentnode: addnodes.desc_content) -> None:
+        # Sphinx workaround: Inject our parsed content and restore state.
+        if self._temp_node:
+            contentnode += self._temp_node.children
+            self.content = self._temp_content
+            self.content_offset = self._temp_offset
+
         self._add_infopips(contentnode)
         self._merge_adjoining_field_lists(contentnode)
 
