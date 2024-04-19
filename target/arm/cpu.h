@@ -945,6 +945,9 @@ struct ArchCPU {
     OnOffAuto kvm_steal_time;
 #endif /* CONFIG_KVM */
 
+    /* Realm Management Extension */
+    bool kvm_rme;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 
