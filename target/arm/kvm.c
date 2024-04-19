@@ -2056,7 +2056,7 @@ static int kvm_arch_put_sve(CPUState *cs)
     return 0;
 }
 
-int kvm_arch_put_registers(CPUState *cs, int level)
+static int kvm_arm_put_core_regs(CPUState *cs, int level)
 {
     uint64_t val;
     uint32_t fpr;
@@ -2159,6 +2159,19 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
+    return 0;
+}
+
+int kvm_arch_put_registers(CPUState *cs, int level)
+{
+    int ret;
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    ret = kvm_arm_put_core_regs(cs, level);
+    if (ret) {
+        return ret;
+    }
+
     write_cpustate_to_list(cpu, true);
 
     if (!write_list_to_kvmstate(cpu, level)) {
@@ -2240,7 +2253,7 @@ static int kvm_arch_get_sve(CPUState *cs)
     return 0;
 }
 
-int kvm_arch_get_registers(CPUState *cs)
+static int kvm_arm_get_core_regs(CPUState *cs)
 {
     uint64_t val;
     unsigned int el;
@@ -2342,6 +2355,19 @@ int kvm_arch_get_registers(CPUState *cs)
         return ret;
     }
     vfp_set_fpcr(env, fpr);
+
+    return 0;
+}
+
+int kvm_arch_get_registers(CPUState *cs)
+{
+    int ret;
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    ret = kvm_arm_get_core_regs(cs);
+    if (ret) {
+        return ret;
+    }
 
     ret = kvm_get_vcpu_events(cpu);
     if (ret) {
