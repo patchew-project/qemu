@@ -582,7 +582,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     if (s->kvm_eager_split_size) {
         uint32_t sizes;
 
-        sizes = kvm_vm_check_extension(s, KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES);
+        sizes = kvm_check_extension(s, KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES);
         if (!sizes) {
             s->kvm_eager_split_size = 0;
             warn_report("Eager Page Split support not available");
