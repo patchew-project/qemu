@@ -133,6 +133,33 @@ Explicit cross-referencing syntax for QAPI modules is available with
    :memb: this is malformed and unrecognized.
    :choice type name: This is unrecognized.
    :errors FooError: Also malformed.
+   :example: This isn't a "semantic" field, but it's been added to the
+      allowed field names list. you can use whatever field names you'd
+      like; but to prevent accidental typos, there is an allow list of
+      "arbitrary" section names.
+
+      You can nestle code-blocks in here, too, by using the ``::``
+      syntax::
+
+         -> { [ "bidirectional QMP example" ] }
+         <- { [ "hello world!"] }
+
+      Or use explicit ``.. code-block:: QMP`` syntax, but it must start
+      on its own line with a blank line both before and after the
+      directive to render correctly:
+
+      .. code-block:: QMP
+
+         -> "Hello friend!"
+
+      Note that the QMP highlighter is merely garden-variety JSON, but
+      with the addition of ``->``, ``<-`` and ``...`` symbols to help
+      denote bidirectionality and elided segments. Eduardo Habkost and I
+      wrote this lexer many moons ago to support the
+      :doc:`/interop/bitmaps` documentation.
+   :see also: This is also not a "semantic" field. The only limit is
+      your imagination and what you can convince others to let you check
+      into conf.py.
 
    Field lists can appear anywhere in the directive block, but any field
    list entries in the same list block that are recognized as special
