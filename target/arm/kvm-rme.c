@@ -23,10 +23,13 @@ OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
 #define RME_PAGE_SIZE qemu_real_host_page_size()
 
+#define RME_MAX_CFG         1
+
 struct RmeGuest {
     ConfidentialGuestSupport parent_obj;
     Notifier rom_load_notifier;
     GSList *ram_regions;
+    uint8_t *personalization_value;
 };
 
 typedef struct {
@@ -52,6 +55,48 @@ static int rme_create_rd(Error **errp)
         error_setg_errno(errp, -ret, "RME: failed to create Realm Descriptor");
     }
     return ret;
+}
+
+static int rme_configure_one(RmeGuest *guest, uint32_t cfg, Error **errp)
+{
+    int ret;
+    const char *cfg_str;
+    struct kvm_cap_arm_rme_config_item args = {
+        .cfg = cfg,
+    };
+
+    switch (cfg) {
+    case KVM_CAP_ARM_RME_CFG_RPV:
+        if (!guest->personalization_value) {
+            return 0;
+        }
+        memcpy(args.rpv, guest->personalization_value, KVM_CAP_ARM_RME_RPV_SIZE);
+        cfg_str = "personalization value";
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_ARM_RME, 0,
+                            KVM_CAP_ARM_RME_CONFIG_REALM, (intptr_t)&args);
+    if (ret) {
+        error_setg_errno(errp, -ret, "RME: failed to configure %s", cfg_str);
+    }
+    return ret;
+}
+
+static int rme_configure(void)
+{
+    int ret;
+    int cfg;
+
+    for (cfg = 0; cfg < RME_MAX_CFG; cfg++) {
+        ret = rme_configure_one(rme_guest, cfg, &error_abort);
+        if (ret) {
+            return ret;
+        }
+    }
+    return 0;
 }
 
 static void rme_populate_realm(gpointer data, gpointer unused)
@@ -95,6 +140,11 @@ static void rme_vm_state_change(void *opaque, bool running, RunState state)
     CPUState *cs;
 
     if (!running) {
+        return;
+    }
+
+    ret = rme_configure();
+    if (ret) {
         return;
     }
 
@@ -231,8 +281,69 @@ int kvm_arm_rme_vm_type(MachineState *ms)
     return 0;
 }
 
+static char *rme_get_rpv(Object *obj, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+    GString *s;
+    int i;
+
+    if (!guest->personalization_value) {
+        return NULL;
+    }
+
+    s = g_string_sized_new(KVM_CAP_ARM_RME_RPV_SIZE * 2 + 1);
+
+    for (i = 0; i < KVM_CAP_ARM_RME_RPV_SIZE; i++) {
+        g_string_append_printf(s, "%02x", guest->personalization_value[i]);
+    }
+
+    return g_string_free(s, /* free_segment */ false);
+}
+
+static void rme_set_rpv(Object *obj, const char *value, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+    size_t len = strlen(value);
+    uint8_t *out;
+    int i = 1;
+    int ret;
+
+    g_free(guest->personalization_value);
+    guest->personalization_value = out = g_malloc0(KVM_CAP_ARM_RME_RPV_SIZE);
+
+    /* Two chars per byte */
+    if (len > KVM_CAP_ARM_RME_RPV_SIZE * 2) {
+        error_setg(errp, "Realm Personalization Value is too large");
+        return;
+    }
+
+    /* First byte may have a single char */
+    if (len % 2) {
+        ret = sscanf(value, "%1hhx", out++);
+    } else {
+        ret = sscanf(value, "%2hhx", out++);
+        i++;
+    }
+    if (ret != 1) {
+        error_setg(errp, "Invalid Realm Personalization Value");
+        return;
+    }
+
+    for (; i < len; i += 2) {
+        ret = sscanf(value + i, "%2hhx", out++);
+        if (ret != 1) {
+            error_setg(errp, "Invalid Realm Personalization Value");
+            return;
+        }
+    }
+}
+
 static void rme_guest_class_init(ObjectClass *oc, void *data)
 {
+    object_class_property_add_str(oc, "personalization-value", rme_get_rpv,
+                                  rme_set_rpv);
+    object_class_property_set_description(oc, "personalization-value",
+            "Realm personalization value (512-bit hexadecimal number)");
 }
 
 static void rme_guest_instance_init(Object *obj)
