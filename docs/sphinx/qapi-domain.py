@@ -29,6 +29,7 @@ from sphinx.domains import (
     ObjType,
 )
 from sphinx.locale import _, __
+from sphinx.roles import XRefRole
 from sphinx.util import logging
 from sphinx.util.docutils import SphinxDirective, switch_source_input
 from sphinx.util.nodes import (
@@ -54,6 +55,34 @@ class ObjectEntry(NamedTuple):
     node_id: str
     objtype: str
     aliased: bool
+
+
+class QAPIXRefRole(XRefRole):
+    def process_link(
+        self,
+        env: BuildEnvironment,
+        refnode: Element,
+        has_explicit_title: bool,
+        title: str,
+        target: str,
+    ) -> tuple[str, str]:
+        refnode["qapi:module"] = env.ref_context.get("qapi:module")
+        if not has_explicit_title:
+            title = title.lstrip(".")  # only has a meaning for the target
+            target = target.lstrip("~")  # only has a meaning for the title
+            # if the first character is a tilde, don't display the module
+            # parts of the contents
+            if title[0:1] == "~":
+                title = title[1:]
+                dot = title.rfind(".")
+                if dot != -1:
+                    title = title[dot + 1 :]
+        # if the first character is a dot, search more specific namespaces first
+        # else search builtins first
+        if target[0:1] == ".":
+            target = target[1:]
+            refnode["refspecific"] = True
+        return title, target
 
 
 def _nested_parse(directive: SphinxDirective, content_node: Element) -> None:
@@ -234,7 +263,13 @@ class QAPIDomain(Domain):
         "module": QAPIModule,
     }
 
-    roles = {}
+    # These are all cross-reference roles; e.g.
+    # :qapi:cmd:`query-block`. The keys correlate to the names used in
+    # the object_types table values above.
+    roles = {
+        "mod": QAPIXRefRole(),
+        "obj": QAPIXRefRole(),  # reference *any* type of QAPI object.
+    }
 
     # Moved into the data property at runtime;
     # this is the internal index of reference-able objects.
@@ -362,6 +397,36 @@ class QAPIDomain(Domain):
         if len(matches) > 1:
             matches = [m for m in matches if not m[1].aliased]
         return matches
+
+    def resolve_xref(
+        self,
+        env: BuildEnvironment,
+        fromdocname: str,
+        builder: Builder,
+        type: str,
+        target: str,
+        node: pending_xref,
+        contnode: Element,
+    ) -> Element | None:
+        modname = node.get("qapi:module")
+        matches = self.find_obj(modname, target, type)
+        multiple_matches = len(matches) > 1
+
+        if not matches:
+            return None
+        elif multiple_matches:
+            logger.warning(
+                __("more than one target found for cross-reference %r: %s"),
+                target,
+                ", ".join(match[0] for match in matches),
+                type="ref",
+                subtype="qapi",
+                location=node,
+            )
+        name, obj = matches[0]
+        return make_refnode(
+            builder, fromdocname, obj.docname, obj.node_id, contnode, name
+        )
 
     def resolve_any_xref(
         self,

@@ -47,3 +47,7 @@ cross-referencing syntax. Here's a link to `bar-module`, even though
 the actual output of that directive was suppressed. Here's a link to
 `block-core`. A link to ```foo-module``` won't resolve because of the
 ``:no-index:`` option we used for that directive.
+
+Explicit cross-referencing syntax for QAPI modules is available with
+``:qapi:mod:`foo```, here's a link to :qapi:mod:`bar-module` and one to
+:qapi:mod:`block-core`.
