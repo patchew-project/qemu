@@ -343,6 +343,12 @@ class QAPIEvent(QAPIObjectWithMembers):
     pass
 
 
+class QAPIStruct(QAPIObjectWithMembers):
+    """Description of a QAPI Struct."""
+
+    pass
+
+
 class QAPIModule(SphinxDirective):
     """
     Directive to mark description of a new module.
@@ -497,6 +503,7 @@ class QAPIDomain(Domain):
         "command": ObjType(_("command"), "cmd", "obj"),
         "event": ObjType(_("event"), "event", "obj"),
         "enum": ObjType(_("enum"), "enum", "obj", "type"),
+        "struct": ObjType(_("struct"), "struct", "obj", "type"),
         "alternate": ObjType(_("alternate"), "alt", "obj", "type"),
     }
 
@@ -507,6 +514,7 @@ class QAPIDomain(Domain):
         "command": QAPICommand,
         "event": QAPIEvent,
         "enum": QAPIEnum,
+        "struct": QAPIStruct,
         "alternate": QAPIAlternate,
     }
 
@@ -518,6 +526,7 @@ class QAPIDomain(Domain):
         "cmd": QAPIXRefRole(),
         "event": QAPIXRefRole(),
         "enum": QAPIXRefRole(),
+        "struct": QAPIXRefRole(),
         "alt": QAPIXRefRole(),
         "type": QAPIXRefRole(),  # reference any data type (excludes modules, commands, events)
         "obj": QAPIXRefRole(),  # reference *any* type of QAPI object.

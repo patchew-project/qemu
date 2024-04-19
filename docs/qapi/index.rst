@@ -174,3 +174,19 @@ Explicit cross-referencing syntax for QAPI modules is available with
          "microseconds": 959568
        }
      }
+
+.. qapi:struct:: BackupPerf
+   :since: 6.0
+
+   Optional parameters for backup.  These parameters don't affect
+   functionality, but may significantly affect performance.
+
+   :memb bool? use-copy-range: Use copy offloading.  Default false.
+   :memb int? max-workers: Maximum number of parallel requests for the
+      sustained background copying process.  Doesn't influence
+      copy-before-write operations.  Default 64.
+   :memb int64? max-chunk: Maximum request length for the sustained
+     background copying process.  Doesn't influence copy-before-write
+     operations.  0 means unlimited.  If max-chunk is non-zero then it
+     should not be less than job cluster size which is calculated as
+     maximum of target image cluster size and 64k.  Default 0.
