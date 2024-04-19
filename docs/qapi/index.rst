@@ -102,6 +102,8 @@ Explicit cross-referencing syntax for QAPI modules is available with
       isn't real.
    :error GenericError: If the system decides it doesn't like the
       argument values. It's very temperamental.
+   :return SomeTypeName: An esoteric collection of mystical nonsense to
+      both confound and delight.
 
    Field lists can appear anywhere in the directive block, but any field
    list entries in the same list block that are recognized as special

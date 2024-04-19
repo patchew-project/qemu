@@ -279,6 +279,12 @@ class QAPICommand(QAPIObject):
                 names=("error",),
                 can_collapse=True,
             ),
+            GroupedField(
+                "returnvalue",
+                label=_("Returns"),
+                names=("return", "returns"),
+                can_collapse=True,
+            ),
         ]
     )
 
