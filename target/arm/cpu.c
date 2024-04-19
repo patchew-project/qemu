@@ -1388,6 +1388,11 @@ static void arm_cpu_initfn(Object *obj)
 static Property arm_cpu_gt_cntfrq_property =
             DEFINE_PROP_UINT64("cntfrq", ARMCPU, gt_cntfrq_hz, 0);
 
+/* True to default to the backwards-compatibility old CNTFRQ rather than 1Ghz */
+static Property arm_cpu_backcompat_cntfrq_property =
+            DEFINE_PROP_BOOL("backcompat-cntfrq", ARMCPU,
+                             backcompat_cntfrq, false);
+
 static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
@@ -1709,6 +1714,8 @@ void arm_cpu_post_init(Object *obj)
         qdev_property_add_static(DEVICE(cpu), &arm_cpu_gt_cntfrq_property);
     }
 
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_backcompat_cntfrq_property);
+
     if (kvm_enabled()) {
         kvm_arm_add_vcpu_properties(cpu);
     }
@@ -1834,13 +1841,22 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
     if (!cpu->gt_cntfrq_hz) {
         /*
-         * 0 means "the board didn't set a value, use the default".
-         * The default value of the generic timer frequency (as seen in
-         * CNTFRQ_EL0) is 62.5MHz, which corresponds to a period of 16ns.
-         * This is what you get (a) for a CONFIG_USER_ONLY CPU (b) if the
-         * board doesn't set it.
+         * 0 means "the board didn't set a value, use the default". (We also
+         * get here for the CONFIG_USER_ONLY case.)
+         * ARMv8.6 and later CPUs architecturally must use a 1GHz timer; before
+         * that it was an IMPDEF choice, and QEMU initially picked 62.5MHz,
+         * which gives a 16ns tick period.
+         *
+         * We will use the back-compat value:
+         *  - for QEMU CPU types added before we standardized on 1GHz
+         *  - for versioned machine types with a version of 9.0 or earlier
          */
-        cpu->gt_cntfrq_hz = GTIMER_DEFAULT_HZ;
+        if (arm_feature(env, ARM_FEATURE_BACKCOMPAT_CNTFRQ) ||
+            cpu->backcompat_cntfrq) {
+            cpu->gt_cntfrq_hz = GTIMER_BACKCOMPAT_HZ;
+        } else {
+            cpu->gt_cntfrq_hz = GTIMER_DEFAULT_HZ;
+        }
     }
 
 #ifndef CONFIG_USER_ONLY
