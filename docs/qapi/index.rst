@@ -129,6 +129,10 @@ Explicit cross-referencing syntax for QAPI modules is available with
       argument values. It's very temperamental.
    :return SomeTypeName: An esoteric collection of mystical nonsense to
       both confound and delight.
+   :arg: this is malformed.
+   :memb: this is malformed and unrecognized.
+   :choice type name: This is unrecognized.
+   :errors FooError: Also malformed.
 
    Field lists can appear anywhere in the directive block, but any field
    list entries in the same list block that are recognized as special
