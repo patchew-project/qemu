@@ -127,3 +127,10 @@ Explicit cross-referencing syntax for QAPI modules is available with
       is treated solely as a read-only manifest of blocks to copy.
    :value always: The bitmap is always synchronized with the operation,
       regardless of whether or not the operation was successful.
+
+.. qapi:alternate:: BlockDirtyBitmapOrStr
+   :since: 4.1
+
+   :choice str local: name of the bitmap, attached to the same node as
+      target bitmap.
+   :choice BlockDirtyBitmap external: bitmap with specified node

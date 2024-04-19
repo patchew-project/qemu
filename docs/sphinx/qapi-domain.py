@@ -305,6 +305,22 @@ class QAPIEnum(QAPIObject):
     )
 
 
+class QAPIAlternate(QAPIObject):
+    """Description of a QAPI Alternate."""
+
+    doc_field_types = QAPIObject.doc_field_types.copy()
+    doc_field_types.extend(
+        [
+            TypedField(
+                "choice",
+                label=_("Choices"),
+                names=("choice",),
+                can_collapse=True,
+            ),
+        ]
+    )
+
+
 class QAPIModule(SphinxDirective):
     """
     Directive to mark description of a new module.
@@ -458,6 +474,7 @@ class QAPIDomain(Domain):
         "module": ObjType(_("module"), "mod", "obj"),
         "command": ObjType(_("command"), "cmd", "obj"),
         "enum": ObjType(_("enum"), "enum", "obj", "type"),
+        "alternate": ObjType(_("alternate"), "alt", "obj", "type"),
     }
 
     # Each of these provides a ReST directive,
@@ -466,6 +483,7 @@ class QAPIDomain(Domain):
         "module": QAPIModule,
         "command": QAPICommand,
         "enum": QAPIEnum,
+        "alternate": QAPIAlternate,
     }
 
     # These are all cross-reference roles; e.g.
@@ -475,6 +493,7 @@ class QAPIDomain(Domain):
         "mod": QAPIXRefRole(),
         "cmd": QAPIXRefRole(),
         "enum": QAPIXRefRole(),
+        "alt": QAPIXRefRole(),
         "type": QAPIXRefRole(),  # reference any data type (excludes modules, commands, events)
         "obj": QAPIXRefRole(),  # reference *any* type of QAPI object.
     }
