@@ -103,6 +103,18 @@ Explicit cross-referencing syntax for QAPI modules is available with
    :arg baz: Missing a type.
    :feat unstable: More than unstable, this command doesn't even exist!
    :arg no-descr:
+   :arg BitmapSyncMode discrim: How about branches in commands?
+
+   .. qapi:branch:: discrim on-success
+
+      :arg str foobar: This is an argument that belongs to a tagged union branch.
+      :arg int? foobaz: This is another argument belonging to the same branch.
+
+   .. qapi:branch:: discrim never
+
+      :arg str barfoo: This is an argument that belongs to a *different* tagged union branch.
+      :arg int64 zzxyz: And this is another argument belonging to that same branch.
+
    :feat hallucination: This command is a figment of your imagination.
    :error CommandNotFound: When you try to use this command, because it
       isn't real.
@@ -190,3 +202,28 @@ Explicit cross-referencing syntax for QAPI modules is available with
      operations.  0 means unlimited.  If max-chunk is non-zero then it
      should not be less than job cluster size which is calculated as
      maximum of target image cluster size and 64k.  Default 0.
+
+.. qapi:union:: RbdEncryptionOptions
+   :since: 6.1
+
+   :memb RbdImageEncryptionFormat format: Encryption format.
+   :memb RbdEncryptionOptions? parent: Parent image encryption options
+      (for cloned images).  Can be left unspecified if this cloned image
+      is encrypted using the same format and secret as its parent image
+      (i.e. not explicitly formatted) or if its parent image is not
+      encrypted.  (Since 8.0)
+
+   .. qapi:branch:: format luks
+
+      :memb str key-secret: ID of a QCryptoSecret object providing a
+         passphrase for unlocking the encryption
+
+   .. qapi:branch:: format luks2
+
+      :memb str key-secret: ID of a QCryptoSecret object providing a
+         passphrase for unlocking the encryption
+
+   .. qapi:branch:: format luks-any
+
+      :memb str key-secret: ID of a QCryptoSecret object providing a
+         passphrase for unlocking the encryption

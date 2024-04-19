@@ -33,7 +33,12 @@ from sphinx.domains import (
 from sphinx.locale import _, __
 from sphinx.roles import XRefRole
 from sphinx.util import logging
-from sphinx.util.docfields import GroupedField, TypedField
+from sphinx.util.docfields import (
+    DocFieldTransformer,
+    Field,
+    GroupedField,
+    TypedField,
+)
 from sphinx.util.docutils import SphinxDirective, switch_source_input
 from sphinx.util.nodes import (
     make_id,
@@ -51,6 +56,8 @@ if TYPE_CHECKING:
     from sphinx.util.typing import OptionSpec
 
 logger = logging.getLogger(__name__)
+
+quack = cast  # O:-)
 
 
 class ObjectEntry(NamedTuple):
@@ -242,6 +249,30 @@ class QAPIObject(ObjectDescription[Signature]):
                     ("single", indextext, node_id, "", None)
                 )
 
+    def _merge_adjoining_field_lists(self, contentnode: addnodes.desc_content) -> None:
+        # Take any adjacent field lists and glue them together into
+        # one list for further processing by Sphinx. This is done so
+        # that field lists declared in nested directives can be
+        # flattened into non-nested field lists.
+
+        first_list = None
+        delete_queue: List[nodes.field_list] = []
+        for child in contentnode:
+            if isinstance(child, nodes.field_list):
+                if not first_list:
+                    first_list = child
+                else:
+                    first_list += child.children
+                    delete_queue.append(child)
+            else:
+                first_list = None
+
+        for child in delete_queue:
+            contentnode.remove(child)
+
+    def transform_content(self, contentnode: addnodes.desc_content) -> None:
+        self._merge_adjoining_field_lists(contentnode)
+
     def _toc_entry_name(self, sig_node: desc_signature) -> str:
         # This controls the name in the TOC and on the sidebar.
 
@@ -349,6 +380,12 @@ class QAPIStruct(QAPIObjectWithMembers):
     pass
 
 
+class QAPIUnion(QAPIObjectWithMembers):
+    """Description of a QAPI Union."""
+
+    pass
+
+
 class QAPIModule(SphinxDirective):
     """
     Directive to mark description of a new module.
@@ -439,6 +476,59 @@ class QAPIModule(SphinxDirective):
         return ret
 
 
+class Branch(SphinxDirective):
+    """
+    Nested directive which only serves to introduce temporary
+    metadata but return its parsed content nodes unaltered otherwise.
+
+    Technically, you can put whatever you want in here, but doing so may
+    prevent proper merging of adjacent field lists.
+    """
+
+    doc_field_types: List[Field] = []
+    has_content = True
+    required_arguments = 2
+    optional_arguments = 0
+    domain = "qapi"
+
+    def get_field_type_map(self) -> Dict[str, Tuple[Field, bool]]:
+        ret = {}
+        for field in self.doc_field_types:
+            for name in field.names:
+                ret[name] = (field, False)
+
+            if field.is_typed:
+                typed_field = cast(TypedField, field)
+                for name in typed_field.typenames:
+                    ret[name] = (field, True)
+        return ret
+
+    def run(self) -> list[Node]:
+        discrim = self.arguments[0].strip()
+        value = self.arguments[1].strip()
+
+        # The label name is dynamically generated per-instance instead
+        # of per-class to incorporate the branch conditions as a label
+        # name.
+        self.doc_field_types = [
+            TypedField(
+                "branch-arg-or-memb",
+                label=f"[{discrim} = {value}]",
+                # In a branch, we don't actually use the name of the
+                # field name to generate the label; so allow either-or.
+                names=("arg", "memb"),
+            ),
+        ]
+
+        content_node: addnodes.desc_content = addnodes.desc_content()
+        _nested_parse(self, content_node)
+        # DocFieldTransformer usually expects ObjectDescription, but... quack!
+        transformer = DocFieldTransformer(quack(ObjectDescription, self))
+        transformer.transform_all(content_node)
+
+        return content_node.children
+
+
 class QAPIIndex(Index):
     """
     Index subclass to provide the QAPI definition index.
@@ -505,6 +595,7 @@ class QAPIDomain(Domain):
         "enum": ObjType(_("enum"), "enum", "obj", "type"),
         "struct": ObjType(_("struct"), "struct", "obj", "type"),
         "alternate": ObjType(_("alternate"), "alt", "obj", "type"),
+        "union": ObjType(_("union"), "union", "obj", "type"),
     }
 
     # Each of these provides a ReST directive,
@@ -516,6 +607,10 @@ class QAPIDomain(Domain):
         "enum": QAPIEnum,
         "struct": QAPIStruct,
         "alternate": QAPIAlternate,
+        "union": QAPIUnion,
+        # This is not an object in its own right;
+        # It's a directive for documenting branch members of Union types.
+        "branch": Branch,
     }
 
     # These are all cross-reference roles; e.g.
@@ -528,6 +623,7 @@ class QAPIDomain(Domain):
         "enum": QAPIXRefRole(),
         "struct": QAPIXRefRole(),
         "alt": QAPIXRefRole(),
+        "union": QAPIXRefRole(),
         "type": QAPIXRefRole(),  # reference any data type (excludes modules, commands, events)
         "obj": QAPIXRefRole(),  # reference *any* type of QAPI object.
     }
