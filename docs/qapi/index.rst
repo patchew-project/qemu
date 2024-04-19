@@ -97,6 +97,7 @@ Explicit cross-referencing syntax for QAPI modules is available with
    :since: 13.37
    :deprecated:
    :unstable:
+   :ifcond: CONFIG_LINUX
 
    This is a fake command, it's not real. It can't hurt you.
 

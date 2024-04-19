@@ -15,6 +15,7 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
+    Union,
     cast,
 )
 
@@ -150,6 +151,7 @@ class QAPIObject(ObjectDescription[Signature]):
             "module": directives.unchanged,  # Override contextual module name
             # These are QAPI originals:
             "since": since_validator,
+            "ifcond": directives.unchanged,
             "deprecated": directives.flag,
             "unstable": directives.flag,
         }
@@ -175,6 +177,20 @@ class QAPIObject(ObjectDescription[Signature]):
     def get_signature_suffix(self, sig: str) -> List[nodes.Node]:
         """Returns a suffix to put after the object name in the signature."""
         ret: List[nodes.Node] = []
+
+        if "ifcond" in self.options:
+            ret += [
+                addnodes.desc_sig_space(),
+                nodes.inline(
+                    self.options["ifcond"],
+                    "",
+                    nodes.Text("["),
+                    nodes.literal("", "#if"),
+                    addnodes.desc_sig_space(),
+                    nodes.literal(self.options["ifcond"], self.options["ifcond"]),
+                    nodes.Text("]"),
+                ),
+            ]
 
         if "since" in self.options:
             ret += [
@@ -257,9 +273,14 @@ class QAPIObject(ObjectDescription[Signature]):
         infopips = nodes.container()
         infopips.attributes["classes"].append("qapi-infopips")
 
-        def _add_pip(source: str, content: str, classname: str) -> None:
+        def _add_pip(
+            source: str, content: Union[str, List[nodes.Node]], classname: str
+        ) -> None:
             node = nodes.container(source)
-            node.append(nodes.Text(content))
+            if isinstance(content, str):
+                node.append(nodes.Text(content))
+            else:
+                node.extend(content)
             node.attributes["classes"].extend(["qapi-infopip", classname])
             infopips.append(node)
 
@@ -275,6 +296,18 @@ class QAPIObject(ObjectDescription[Signature]):
                 ":unstable:",
                 f"This {self.objtype} is unstable/experimental.",
                 "qapi-unstable",
+            )
+
+        if self.options.get("ifcond", ""):
+            ifcond = self.options["ifcond"]
+            _add_pip(
+                f":ifcond: {ifcond}",
+                [
+                    nodes.emphasis("", "Availability"),
+                    nodes.Text(": "),
+                    nodes.literal(ifcond, ifcond),
+                ],
+                "qapi-ifcond",
             )
 
         if infopips.children:
