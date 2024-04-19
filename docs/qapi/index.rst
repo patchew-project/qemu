@@ -129,10 +129,6 @@ Explicit cross-referencing syntax for QAPI modules is available with
       argument values. It's very temperamental.
    :return SomeTypeName: An esoteric collection of mystical nonsense to
       both confound and delight.
-   :arg: this is malformed.
-   :memb: this is malformed and unrecognized.
-   :choice type name: This is unrecognized.
-   :errors FooError: Also malformed.
    :example: This isn't a "semantic" field, but it's been added to the
       allowed field names list. you can use whatever field names you'd
       like; but to prevent accidental typos, there is an allow list of
