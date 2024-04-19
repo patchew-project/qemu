@@ -9,7 +9,8 @@ QAPI Domain Test
    doesn't create a cross-reference target and it isn't added to the
    index.
 
-   Check out the `genindex` for proof that foo-module is not present.
+   Check out the `genindex` or the `qapi-index` for proof that
+   foo-module is not present.
 
 .. qapi:module:: bar-module
    :no-typesetting:
@@ -36,3 +37,6 @@ QAPI Domain Test
 
    The ``block-core`` module will have two entries in the `genindex`,
    under both "block-core" and "QAPI module".
+
+   Modules will also be reported in the `qapi-index`, under the Modules
+   category and in the alphabetical categories that follow.
