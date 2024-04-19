@@ -4676,6 +4676,10 @@ static uint64_t mpidr_read_val(CPUARMState *env)
             mpidr |= (1u << 30);
         }
     }
+
+    if (cpu->has_smt) {
+        mpidr |= (1U << 24);
+    }
     return mpidr;
 }
 

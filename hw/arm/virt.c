@@ -1703,7 +1703,7 @@ void virt_machine_done(Notifier *notifier, void *data)
     virt_build_smbios(vms);
 }
 
-static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
+static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, ARMCPU *cpu, int idx)
 {
     uint8_t clustersz = ARM_DEFAULT_CPUS_PER_CLUSTER;
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
@@ -1723,7 +1723,7 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
             clustersz = GICV3_TARGETLIST_BITS;
         }
     }
-    return arm_build_mp_affinity(idx, clustersz);
+    return arm_build_mp_affinity(cpu, idx, clustersz);
 }
 
 static inline bool *virt_get_high_memmap_enabled(VirtMachineState *vms,
@@ -2683,6 +2683,8 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
     unsigned int max_cpus = ms->smp.max_cpus;
     VirtMachineState *vms = VIRT_MACHINE(ms);
     MachineClass *mc = MACHINE_GET_CLASS(vms);
+    Object *cpuobj;
+    ARMCPU *armcpu;
 
     if (ms->possible_cpus) {
         assert(ms->possible_cpus->len == max_cpus);
@@ -2692,10 +2694,18 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
     ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
                                   sizeof(CPUArchId) * max_cpus);
     ms->possible_cpus->len = max_cpus;
+
+    /*
+     * Instantiate a temporary CPU object to build mp_affinity
+     * of the possible CPUs.
+     */
+    cpuobj = object_new(ms->cpu_type);
+    armcpu = ARM_CPU(cpuobj);
+
     for (n = 0; n < ms->possible_cpus->len; n++) {
         ms->possible_cpus->cpus[n].type = ms->cpu_type;
         ms->possible_cpus->cpus[n].arch_id =
-            virt_cpu_mp_affinity(vms, n);
+            virt_cpu_mp_affinity(vms, armcpu, n);
 
         assert(!mc->smp_props.dies_supported);
         ms->possible_cpus->cpus[n].props.has_socket_id = true;
@@ -2711,6 +2721,8 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
         ms->possible_cpus->cpus[n].props.thread_id =
             n % ms->smp.threads;
     }
+
+    object_unref(cpuobj);
     return ms->possible_cpus;
 }
 

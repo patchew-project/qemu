@@ -289,6 +289,8 @@ static void aarch64_a55_initfn(Object *obj)
 
     /* From D5.4 AArch64 PMU register summary */
     cpu->isar.reset_pmcr_el0 = 0x410b3000;
+
+    cpu->has_smt = true;
 }
 
 static void aarch64_a72_initfn(Object *obj)
@@ -413,6 +415,8 @@ static void aarch64_a76_initfn(Object *obj)
 
     /* From D5.1 AArch64 PMU register summary */
     cpu->isar.reset_pmcr_el0 = 0x410b3000;
+
+    cpu->has_smt = true;
 }
 
 static void aarch64_a64fx_initfn(Object *obj)
@@ -652,6 +656,8 @@ static void aarch64_neoverse_n1_initfn(Object *obj)
     /* From D5.1 AArch64 PMU register summary */
     cpu->isar.reset_pmcr_el0 = 0x410c3000;
 
+    cpu->has_smt = true;
+
     define_neoverse_n1_cp_reginfo(cpu);
 }
 
@@ -739,6 +745,8 @@ static void aarch64_neoverse_v1_initfn(Object *obj)
 
     /* From 5.5.1 AArch64 PMU register summary */
     cpu->isar.reset_pmcr_el0 = 0x41213000;
+
+    cpu->has_smt = true;
 
     define_neoverse_v1_cp_reginfo(cpu);
 
@@ -958,6 +966,8 @@ static void aarch64_a710_initfn(Object *obj)
     /* FIXME: Not documented -- copied from neoverse-v1 */
     cpu->reset_sctlr = 0x30c50838;
 
+    cpu->has_smt = true;
+
     define_arm_cp_regs(cpu, cortex_a710_cp_reginfo);
 
     aarch64_add_pauth_properties(obj);
@@ -1054,6 +1064,8 @@ static void aarch64_neoverse_n2_initfn(Object *obj)
 
     /* FIXME: Not documented -- copied from neoverse-v1 */
     cpu->reset_sctlr = 0x30c50838;
+
+    cpu->has_smt = true;
 
     /*
      * The Neoverse N2 has all of the Cortex-A710 IMPDEF registers,

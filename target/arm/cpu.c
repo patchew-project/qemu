@@ -1314,8 +1314,18 @@ static void arm_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 }
 
-uint64_t arm_build_mp_affinity(int idx, uint8_t clustersz)
+uint64_t arm_build_mp_affinity(ARMCPU *cpu, int idx, uint8_t clustersz)
 {
+    if (cpu->has_smt) {
+        /*
+         * Right now, the ARM CPUs with SMT supported by QEMU only have
+         * one thread per core. So Aff0 is always 0.
+         */
+        uint32_t Aff2 = idx / clustersz;
+        uint32_t Aff1 = idx % clustersz;
+        uint32_t Aff0 = 0;
+        return (Aff2 << ARM_AFF2_SHIFT) | (Aff1 << ARM_AFF1_SHIFT) | Aff0;
+    }
     uint32_t Aff1 = idx / clustersz;
     uint32_t Aff0 = idx % clustersz;
     return (Aff1 << ARM_AFF1_SHIFT) | Aff0;
@@ -2136,7 +2146,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
      * so these bits always RAZ.
      */
     if (cpu->mp_affinity == ARM64_AFFINITY_INVALID) {
-        cpu->mp_affinity = arm_build_mp_affinity(cs->cpu_index,
+        cpu->mp_affinity = arm_build_mp_affinity(cpu, cs->cpu_index,
                                                  ARM_DEFAULT_CPUS_PER_CLUSTER);
     }
 

@@ -147,10 +147,10 @@ static const int sbsa_ref_irqmap[] = {
     [SBSA_GWDT_WS0] = 16,
 };
 
-static uint64_t sbsa_ref_cpu_mp_affinity(SBSAMachineState *sms, int idx)
+static uint64_t sbsa_ref_cpu_mp_affinity(ARMCPU *cpu, int idx)
 {
     uint8_t clustersz = ARM_DEFAULT_CPUS_PER_CLUSTER;
-    return arm_build_mp_affinity(idx, clustersz);
+    return arm_build_mp_affinity(cpu, idx, clustersz);
 }
 
 static void sbsa_fdt_add_gic_node(SBSAMachineState *sms)
@@ -254,7 +254,7 @@ static void create_fdt(SBSAMachineState *sms)
         char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
         CPUState *cs = CPU(armcpu);
-        uint64_t mpidr = sbsa_ref_cpu_mp_affinity(sms, cpu);
+        uint64_t mpidr = sbsa_ref_cpu_mp_affinity(armcpu, cpu);
 
         qemu_fdt_add_subnode(sms->fdt, nodename);
         qemu_fdt_setprop_u64(sms->fdt, nodename, "reg", mpidr);
@@ -816,8 +816,9 @@ static void sbsa_ref_init(MachineState *machine)
 static const CPUArchIdList *sbsa_ref_possible_cpu_arch_ids(MachineState *ms)
 {
     unsigned int max_cpus = ms->smp.max_cpus;
-    SBSAMachineState *sms = SBSA_MACHINE(ms);
     int n;
+    Object *cpuobj;
+    ARMCPU *armcpu;
 
     if (ms->possible_cpus) {
         assert(ms->possible_cpus->len == max_cpus);
@@ -827,13 +828,23 @@ static const CPUArchIdList *sbsa_ref_possible_cpu_arch_ids(MachineState *ms)
     ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
                                   sizeof(CPUArchId) * max_cpus);
     ms->possible_cpus->len = max_cpus;
+
+    /*
+     * Instantiate a temporary CPU object to build mp_affinity
+     * of the possible CPUs.
+     */
+    cpuobj = object_new(ms->cpu_type);
+    armcpu = ARM_CPU(cpuobj);
+
     for (n = 0; n < ms->possible_cpus->len; n++) {
         ms->possible_cpus->cpus[n].type = ms->cpu_type;
         ms->possible_cpus->cpus[n].arch_id =
-            sbsa_ref_cpu_mp_affinity(sms, n);
+            sbsa_ref_cpu_mp_affinity(armcpu, n);
         ms->possible_cpus->cpus[n].props.has_thread_id = true;
         ms->possible_cpus->cpus[n].props.thread_id = n;
     }
+
+    object_unref(cpuobj);
     return ms->possible_cpus;
 }
 
