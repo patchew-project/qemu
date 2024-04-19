@@ -86,3 +86,18 @@ Explicit cross-referencing syntax for QAPI modules is available with
    * ``:no-index-entry:`` or ``:noindexentry:``
    * ``:no-contents-entry:`` or ``:nocontentsentry:``
    * ``:no-typesetting:``
+
+.. qapi:command:: fake-command
+   :since: 13.37
+
+   This is a fake command, it's not real. It can't hurt you.
+
+   :arg int foo: normal parameter documentation.
+   :arg str bar: Another normal parameter description.
+   :arg baz: Missing a type.
+   :arg no-descr:
+
+   Field lists can appear anywhere in the directive block, but any field
+   list entries in the same list block that are recognized as special
+   ("arg") will be reformatted and grouped accordingly for rendered
+   output.
