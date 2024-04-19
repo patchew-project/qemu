@@ -95,6 +95,7 @@ Explicit cross-referencing syntax for QAPI modules is available with
 
 .. qapi:command:: fake-command
    :since: 13.37
+   :deprecated:
 
    This is a fake command, it's not real. It can't hurt you.
 
@@ -116,6 +117,9 @@ Explicit cross-referencing syntax for QAPI modules is available with
       :arg int64 zzxyz: And this is another argument belonging to that same branch.
 
    :feat hallucination: This command is a figment of your imagination.
+   :feat deprecated: Although this command is fake, you should know that
+      it's also deprecated. That's great news! Maybe it will go away and
+      stop haunting you someday.
    :error CommandNotFound: When you try to use this command, because it
       isn't real.
    :error GenericError: If the system decides it doesn't like the

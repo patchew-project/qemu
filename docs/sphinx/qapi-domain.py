@@ -150,6 +150,7 @@ class QAPIObject(ObjectDescription[Signature]):
             "module": directives.unchanged,  # Override contextual module name
             # These are QAPI originals:
             "since": since_validator,
+            "deprecated": directives.flag,
         }
     )
 
@@ -249,6 +250,28 @@ class QAPIObject(ObjectDescription[Signature]):
                     ("single", indextext, node_id, "", None)
                 )
 
+    def _add_infopips(self, contentnode: addnodes.desc_content) -> None:
+        # Add various eye-catches and things that go below the signature
+        # bar, but precede the user-defined content.
+        infopips = nodes.container()
+        infopips.attributes["classes"].append("qapi-infopips")
+
+        def _add_pip(source: str, content: str, classname: str) -> None:
+            node = nodes.container(source)
+            node.append(nodes.Text(content))
+            node.attributes["classes"].extend(["qapi-infopip", classname])
+            infopips.append(node)
+
+        if "deprecated" in self.options:
+            _add_pip(
+                ":deprecated:",
+                f"This {self.objtype} is deprecated.",
+                "qapi-deprecated",
+            )
+
+        if infopips.children:
+            contentnode.insert(0, infopips)
+
     def _merge_adjoining_field_lists(self, contentnode: addnodes.desc_content) -> None:
         # Take any adjacent field lists and glue them together into
         # one list for further processing by Sphinx. This is done so
@@ -271,6 +294,7 @@ class QAPIObject(ObjectDescription[Signature]):
             contentnode.remove(child)
 
     def transform_content(self, contentnode: addnodes.desc_content) -> None:
+        self._add_infopips(contentnode)
         self._merge_adjoining_field_lists(contentnode)
 
     def _toc_entry_name(self, sig_node: desc_signature) -> str:
