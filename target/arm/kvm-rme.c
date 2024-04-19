@@ -9,9 +9,11 @@
 #include "exec/confidential-guest-support.h"
 #include "hw/boards.h"
 #include "hw/core/cpu.h"
+#include "hw/loader.h"
 #include "kvm_arm.h"
 #include "migration/blocker.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
@@ -19,9 +21,20 @@
 #define TYPE_RME_GUEST "rme-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
+#define RME_PAGE_SIZE qemu_real_host_page_size()
+
 struct RmeGuest {
     ConfidentialGuestSupport parent_obj;
+    Notifier rom_load_notifier;
+    GSList *ram_regions;
 };
+
+typedef struct {
+    hwaddr base;
+    hwaddr len;
+    /* Populate guest RAM with data, or only initialize the IPA range */
+    bool populate;
+} RmeRamRegion;
 
 static RmeGuest *rme_guest;
 
@@ -41,6 +54,41 @@ static int rme_create_rd(Error **errp)
     return ret;
 }
 
+static void rme_populate_realm(gpointer data, gpointer unused)
+{
+    int ret;
+    const RmeRamRegion *region = data;
+
+    if (region->populate) {
+        struct kvm_cap_arm_rme_populate_realm_args populate_args = {
+            .populate_ipa_base = region->base,
+            .populate_ipa_size = region->len,
+            .flags = KVM_ARM_RME_POPULATE_FLAGS_MEASURE,
+        };
+        ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_ARM_RME, 0,
+                                KVM_CAP_ARM_RME_POPULATE_REALM,
+                                (intptr_t)&populate_args);
+        if (ret) {
+            error_report("RME: failed to populate realm (0x%"HWADDR_PRIx", 0x%"HWADDR_PRIx"): %s",
+                         region->base, region->len, strerror(-ret));
+            exit(1);
+        }
+    } else {
+        struct kvm_cap_arm_rme_init_ipa_args init_args = {
+            .init_ipa_base = region->base,
+            .init_ipa_size = region->len,
+        };
+        ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_ARM_RME, 0,
+                                KVM_CAP_ARM_RME_INIT_IPA_REALM,
+                                (intptr_t)&init_args);
+        if (ret) {
+            error_report("RME: failed to initialize GPA range (0x%"HWADDR_PRIx", 0x%"HWADDR_PRIx"): %s",
+                         region->base, region->len, strerror(-ret));
+            exit(1);
+        }
+    }
+}
+
 static void rme_vm_state_change(void *opaque, bool running, RunState state)
 {
     int ret;
@@ -54,6 +102,9 @@ static void rme_vm_state_change(void *opaque, bool running, RunState state)
     if (ret) {
         return;
     }
+
+    g_slist_foreach(rme_guest->ram_regions, rme_populate_realm, NULL);
+    g_slist_free_full(g_steal_pointer(&rme_guest->ram_regions), g_free);
 
     /*
      * Now that do_cpu_reset() initialized the boot PC and
@@ -73,6 +124,49 @@ static void rme_vm_state_change(void *opaque, bool running, RunState state)
         error_report("RME: failed to activate realm: %s", strerror(-ret));
         exit(1);
     }
+}
+
+static gint rme_compare_ram_regions(gconstpointer a, gconstpointer b)
+{
+        const RmeRamRegion *ra = a;
+        const RmeRamRegion *rb = b;
+
+        g_assert(ra->base != rb->base);
+        return ra->base < rb->base ? -1 : 1;
+}
+
+static void rme_add_ram_region(hwaddr base, hwaddr len, bool populate)
+{
+    RmeRamRegion *region;
+
+    region = g_new0(RmeRamRegion, 1);
+    region->base = QEMU_ALIGN_DOWN(base, RME_PAGE_SIZE);
+    region->len = QEMU_ALIGN_UP(len, RME_PAGE_SIZE);
+    region->populate = populate;
+
+    /*
+     * The Realm Initial Measurement (RIM) depends on the order in which we
+     * initialize and populate the RAM regions. To help a verifier
+     * independently calculate the RIM, sort regions by GPA.
+     */
+    rme_guest->ram_regions = g_slist_insert_sorted(rme_guest->ram_regions,
+                                                   region,
+                                                   rme_compare_ram_regions);
+}
+
+static void rme_rom_load_notify(Notifier *notifier, void *data)
+{
+    RomLoaderNotify *rom = data;
+
+    if (rom->addr == -1) {
+        /*
+         * These blobs (ACPI tables) are not loaded into guest RAM at reset.
+         * Instead the firmware will load them via fw_cfg and measure them
+         * itself.
+         */
+        return;
+    }
+    rme_add_ram_region(rom->addr, rom->max_len, /* populate */ true);
 }
 
 int kvm_arm_rme_init(MachineState *ms)
@@ -101,6 +195,9 @@ int kvm_arm_rme_init(MachineState *ms)
      * have been loaded and all vcpus finalized.
      */
     qemu_add_vm_change_state_handler(rme_vm_state_change, NULL);
+
+    rme_guest->rom_load_notifier.notify = rme_rom_load_notify;
+    rom_add_load_notifier(&rme_guest->rom_load_notifier);
 
     cgs->ready = true;
     return 0;
