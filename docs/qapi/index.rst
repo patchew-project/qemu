@@ -54,6 +54,7 @@ Explicit cross-referencing syntax for QAPI modules is available with
 
 
 .. qapi:command:: example-command
+   :since: 42.0
 
    This directive creates a QAPI command named `example-command` that
    appears in both the `genindex` and the `qapi-index`. As of this
