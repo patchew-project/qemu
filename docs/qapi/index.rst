@@ -113,3 +113,17 @@ Explicit cross-referencing syntax for QAPI modules is available with
    At the moment, the order of grouped sections is based on the order in
    which each group was encountered. This example will render Arguments
    first, and then Features; but the order can be any that you choose.
+
+.. qapi:enum:: BitmapSyncMode
+   :since: 4.2
+
+   An enumeration of possible behaviors for the synchronization of a
+   bitmap when used for data copy operations.
+
+   :value on-success: The bitmap is only synced when the operation is
+      successful. This is the behavior always used for
+      ``INCREMENTAL`` backups.
+   :value never: The bitmap is never synchronized with the operation, and
+      is treated solely as a read-only manifest of blocks to copy.
+   :value always: The bitmap is always synchronized with the operation,
+      regardless of whether or not the operation was successful.
