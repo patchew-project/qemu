@@ -2,6 +2,12 @@
 QAPI Domain Test
 ----------------
 
+.. this sets the code-highlighting language to QMP for this *document*.
+   I wonder if I can set a domain default...?
+
+.. highlight:: QMP
+
+
 .. qapi:module:: foo-module
    :no-index:
 
@@ -134,3 +140,37 @@ Explicit cross-referencing syntax for QAPI modules is available with
    :choice str local: name of the bitmap, attached to the same node as
       target bitmap.
    :choice BlockDirtyBitmap external: bitmap with specified node
+
+.. qapi:event:: BLOCK_JOB_COMPLETED
+   :since: 1.1
+
+   Emitted when a block job has completed.
+
+   :memb JobType type: job type
+   :memb str device: The job identifier. Originally the device name but
+      other values are allowed since QEMU 2.7
+   :memb int len: maximum progress value
+   :memb int offset: current progress value. On success this is equal to
+      len. On failure this is less than len
+   :memb int speed: rate limit, bytes per second
+   :memb str? error: error message. Only present on failure. This field
+      contains a human-readable error message. There are no semantics
+      other than that streaming has failed and clients should not try to
+      interpret the error string
+
+   Example::
+
+     <- {
+       "event": "BLOCK_JOB_COMPLETED",
+       "data": {
+         "type": "stream",
+         "device": "virtio-disk0",
+         "len": 10737418240,
+         "offset": 10737418240,
+         "speed": 0
+       },
+       "timestamp": {
+         "seconds": 1267061043,
+         "microseconds": 959568
+       }
+     }
