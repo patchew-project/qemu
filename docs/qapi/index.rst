@@ -95,9 +95,15 @@ Explicit cross-referencing syntax for QAPI modules is available with
    :arg int foo: normal parameter documentation.
    :arg str bar: Another normal parameter description.
    :arg baz: Missing a type.
+   :feat unstable: More than unstable, this command doesn't even exist!
    :arg no-descr:
+   :feat hallucination: This command is a figment of your imagination.
 
    Field lists can appear anywhere in the directive block, but any field
    list entries in the same list block that are recognized as special
    ("arg") will be reformatted and grouped accordingly for rendered
    output.
+
+   At the moment, the order of grouped sections is based on the order in
+   which each group was encountered. This example will render Arguments
+   first, and then Features; but the order can be any that you choose.
