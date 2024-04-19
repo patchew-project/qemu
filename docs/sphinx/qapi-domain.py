@@ -151,6 +151,7 @@ class QAPIObject(ObjectDescription[Signature]):
             # These are QAPI originals:
             "since": since_validator,
             "deprecated": directives.flag,
+            "unstable": directives.flag,
         }
     )
 
@@ -267,6 +268,13 @@ class QAPIObject(ObjectDescription[Signature]):
                 ":deprecated:",
                 f"This {self.objtype} is deprecated.",
                 "qapi-deprecated",
+            )
+
+        if "unstable" in self.options:
+            _add_pip(
+                ":unstable:",
+                f"This {self.objtype} is unstable/experimental.",
+                "qapi-unstable",
             )
 
         if infopips.children:

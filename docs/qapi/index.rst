@@ -96,13 +96,13 @@ Explicit cross-referencing syntax for QAPI modules is available with
 .. qapi:command:: fake-command
    :since: 13.37
    :deprecated:
+   :unstable:
 
    This is a fake command, it's not real. It can't hurt you.
 
    :arg int foo: normal parameter documentation.
    :arg str bar: Another normal parameter description.
    :arg baz: Missing a type.
-   :feat unstable: More than unstable, this command doesn't even exist!
    :arg no-descr:
    :arg BitmapSyncMode discrim: How about branches in commands?
 
@@ -120,6 +120,8 @@ Explicit cross-referencing syntax for QAPI modules is available with
    :feat deprecated: Although this command is fake, you should know that
       it's also deprecated. That's great news! Maybe it will go away and
       stop haunting you someday.
+   :feat unstable: This command, as a figment of your imagination, is
+      highly unstable and should not be relied upon.
    :error CommandNotFound: When you try to use this command, because it
       isn't real.
    :error GenericError: If the system decides it doesn't like the
