@@ -61,7 +61,8 @@ needs_sphinx = '1.6'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['kerneldoc', 'qmp_lexer', 'hxtool', 'depfile', 'qapidoc']
+extensions = ['kerneldoc', 'hxtool', 'depfile',
+              'qapidoc', 'qapi-domain', 'qmp_lexer']
 
 if sphinx.version_info[:3] > (4, 0, 0):
     tags.add('sphinx4')
