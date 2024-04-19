@@ -203,6 +203,8 @@ int kvm_arm_vgic_probe(void);
 void kvm_arm_pmu_init(ARMCPU *cpu);
 void kvm_arm_pmu_set_irq(ARMCPU *cpu, int irq);
 
+int kvm_arm_vcpu_finalize(ARMCPU *cpu, int feature);
+
 /**
  * kvm_arm_pvtime_init:
  * @cpu: ARMCPU
@@ -213,6 +215,11 @@ void kvm_arm_pmu_set_irq(ARMCPU *cpu, int irq);
 void kvm_arm_pvtime_init(ARMCPU *cpu, uint64_t ipa);
 
 int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
+
+int kvm_arm_rme_init(MachineState *ms);
+int kvm_arm_rme_vm_type(MachineState *ms);
+
+bool kvm_arm_rme_enabled(void);
 
 #else
 
@@ -283,6 +290,15 @@ static inline uint32_t kvm_arm_sve_get_vls(ARMCPU *cpu)
     g_assert_not_reached();
 }
 
+static inline int kvm_arm_rme_init(MachineState *ms)
+{
+    g_assert_not_reached();
+}
+
+static inline int kvm_arm_rme_vm_type(MachineState *ms)
+{
+    g_assert_not_reached();
+}
 #endif
 
 #endif
