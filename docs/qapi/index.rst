@@ -105,6 +105,11 @@ Explicit cross-referencing syntax for QAPI modules is available with
    :arg str bar: Another normal parameter description.
    :arg baz: Missing a type.
    :arg no-descr:
+   :arg int? oof: Testing optional argument parsing.
+   :arg [XDbgBlockGraphNode] rab: Testing array argument parsing.
+   :arg [BitmapSyncMode]? zab: Testing optional array argument parsing,
+      even though Markus said this should never happen. I believe him,
+      but I didn't *forbid* the syntax either.
    :arg BitmapSyncMode discrim: How about branches in commands?
 
    .. qapi:branch:: discrim on-success
@@ -261,3 +266,32 @@ Explicit cross-referencing syntax for QAPI modules is available with
 
       :memb str key-secret: ID of a QCryptoSecret object providing a
          passphrase for unlocking the encryption
+
+.. qapi:command:: x-debug-query-block-graph
+   :since: 4.0
+   :unstable:
+
+   Get the block graph.
+
+   :feat unstable: This command is meant for debugging.
+   :return XDbgBlockGraph: lorem ipsum ...
+
+.. qapi:struct:: XDbgBlockGraph
+   :since: 4.0
+
+   Block Graph - list of nodes and list of edges.
+
+   :memb [XDbgBlockGraphNode] nodes:
+   :memb [XDbgBlockGraphEdge] edges:
+
+.. qapi:struct:: XDbgBlockGraphNode
+   :since: 4.0
+
+   :memb uint64 id: Block graph node identifier.  This @id is generated only for
+      x-debug-query-block-graph and does not relate to any other
+      identifiers in Qemu.
+   :memb XDbgBlockGraphNodeType type: Type of graph node.  Can be one of
+      block-backend, block-job or block-driver-state.
+   :memb str name: Human readable name of the node.  Corresponds to
+      node-name for block-driver-state nodes; is not guaranteed to be
+      unique in the whole graph (with block-jobs and block-backends).
