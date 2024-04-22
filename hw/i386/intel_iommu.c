@@ -713,6 +713,21 @@ static uint64_t vtd_get_pte(dma_addr_t base_addr, uint32_t index)
     return pte;
 }
 
+static MemTxResult vtd_set_flag_in_pte(dma_addr_t base_addr, uint32_t index,
+                                       uint64_t pte, uint64_t flag)
+{
+    assert(index < VTD_PT_ENTRY_NR);
+    if (pte & flag) {
+        return MEMTX_OK;
+    }
+    pte |= flag;
+    pte = cpu_to_le64(pte);
+    return dma_memory_write(&address_space_memory,
+                            base_addr + index * sizeof(pte),
+                            &pte, sizeof(pte),
+                            MEMTXATTRS_UNSPECIFIED);
+}
+
 /* Given an iova and the level of paging structure, return the offset
  * of current level.
  */
@@ -730,11 +745,17 @@ static inline bool vtd_is_level_supported(IntelIOMMUState *s, uint32_t level)
 }
 
 /* Return true if check passed, otherwise false */
-static inline bool vtd_pe_type_check(X86IOMMUState *x86_iommu,
+static inline bool vtd_pe_type_check(IntelIOMMUState *s,
                                      VTDPASIDEntry *pe)
 {
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
+
     switch (VTD_PE_GET_TYPE(pe)) {
     case VTD_SM_PASID_ENTRY_FLT:
+        if (!(s->ecap & VTD_ECAP_FLTS)) {
+            return false;
+        }
+        break;
     case VTD_SM_PASID_ENTRY_SLT:
     case VTD_SM_PASID_ENTRY_NESTED:
         break;
@@ -784,6 +805,11 @@ static inline bool vtd_pe_present(VTDPASIDEntry *pe)
     return pe->val[0] & VTD_PASID_ENTRY_P;
 }
 
+static inline bool vtd_fl_pte_present(uint64_t pte)
+{
+    return pte & VTD_FL_PTE_P;
+}
+
 static int vtd_get_pe_in_pasid_leaf_table(IntelIOMMUState *s,
                                           uint32_t pasid,
                                           dma_addr_t addr,
@@ -791,7 +817,6 @@ static int vtd_get_pe_in_pasid_leaf_table(IntelIOMMUState *s,
 {
     uint32_t index;
     dma_addr_t entry_size;
-    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
     index = VTD_PASID_TABLE_INDEX(pasid);
     entry_size = VTD_PASID_ENTRY_SIZE;
@@ -805,7 +830,7 @@ static int vtd_get_pe_in_pasid_leaf_table(IntelIOMMUState *s,
     }
 
     /* Do translation type check */
-    if (!vtd_pe_type_check(x86_iommu, pe)) {
+    if (!vtd_pe_type_check(s, pe)) {
         return -VTD_FR_PASID_TABLE_INV;
     }
 
@@ -1027,6 +1052,34 @@ static inline bool vtd_iova_sl_range_check(IntelIOMMUState *s,
     return !(iova & ~(vtd_iova_limit(s, ce, aw, pasid) - 1));
 }
 
+/* Return true if IOVA is canonical, otherwise false. */
+static bool vtd_iova_fl_check_canonical(IntelIOMMUState *s,
+                                        uint64_t iova, VTDContextEntry *ce,
+                                        uint8_t aw, uint32_t pasid)
+{
+    uint64_t iova_limit = vtd_iova_limit(s, ce, aw, pasid);
+    uint64_t upper_bits_mask = ~(iova_limit - 1);
+    uint64_t upper_bits = iova & upper_bits_mask;
+    bool msb = ((iova & (iova_limit >> 1)) != 0);
+    return !(
+             (!msb && (upper_bits != 0)) ||
+             (msb && (upper_bits != upper_bits_mask))
+            );
+}
+
+/* Return the page table base address corresponding to the translation type. */
+static dma_addr_t vtd_pe_get_pgtbl_base(VTDPASIDEntry *pe)
+{
+    uint16_t pgtt = VTD_PE_GET_TYPE(pe);
+    if (pgtt == VTD_SM_PASID_ENTRY_FLT) {
+        return pe->val[2] & VTD_SM_PASID_ENTRY_PTPTR;
+    } else if (pgtt == VTD_SM_PASID_ENTRY_SLT) {
+        return pe->val[0] & VTD_SM_PASID_ENTRY_PTPTR;
+    }
+
+    return 0; /* Not supported */
+}
+
 static dma_addr_t vtd_get_iova_pgtbl_base(IntelIOMMUState *s,
                                           VTDContextEntry *ce,
                                           uint32_t pasid)
@@ -1035,7 +1088,7 @@ static dma_addr_t vtd_get_iova_pgtbl_base(IntelIOMMUState *s,
 
     if (s->root_scalable) {
         vtd_ce_get_rid2pasid_entry(s, ce, &pe, pasid);
-        return pe.val[0] & VTD_SM_PASID_ENTRY_SLPTPTR;
+        return vtd_pe_get_pgtbl_base(&pe);
     }
 
     return vtd_ce_get_slpt_base(ce);
@@ -1052,6 +1105,10 @@ static dma_addr_t vtd_get_iova_pgtbl_base(IntelIOMMUState *s,
 #define VTD_SPTE_RSVD_LEN 5
 static uint64_t vtd_spte_rsvd[VTD_SPTE_RSVD_LEN];
 static uint64_t vtd_spte_rsvd_large[VTD_SPTE_RSVD_LEN];
+
+#define VTD_FPTE_RSVD_LEN 5
+static uint64_t vtd_fpte_rsvd[VTD_FPTE_RSVD_LEN];
+static uint64_t vtd_fpte_rsvd_large[VTD_FPTE_RSVD_LEN];
 
 static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
 {
@@ -1079,21 +1136,140 @@ static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
     return slpte & rsvd_mask;
 }
 
-/* Given the @iova, get relevant @slptep. @slpte_level will be the last level
- * of the translation, can be used for deciding the size of large page.
- */
-static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
-                             uint64_t iova, bool is_write,
-                             uint64_t *slptep, uint32_t *slpte_level,
-                             bool *reads, bool *writes, uint8_t aw_bits,
-                             uint32_t pasid)
+static bool vtd_flpte_nonzero_rsvd(uint64_t flpte, uint32_t level)
 {
-    dma_addr_t addr = vtd_get_iova_pgtbl_base(s, ce, pasid);
-    uint32_t level = vtd_get_iova_level(s, ce, pasid);
+    uint64_t rsvd_mask;
+    assert(level < VTD_FPTE_RSVD_LEN);
+    assert(level);
+
+    if ((level == VTD_FL_PD_LEVEL || level == VTD_FL_PDP_LEVEL) &&
+        (flpte & VTD_PT_PAGE_SIZE_MASK)) {
+        /* large page */
+        rsvd_mask = vtd_fpte_rsvd_large[level];
+    } else {
+        rsvd_mask = vtd_fpte_rsvd[level];
+    }
+
+    return flpte & rsvd_mask;
+}
+
+static int vtd_iova_to_pte_check_read_error(IntelIOMMUState *s,
+                                            VTDContextEntry *ce, uint64_t iova,
+                                            uint64_t pte, uint32_t pasid,
+                                            uint32_t level, uint16_t pgtt)
+{
+    if (pte == (uint64_t)-1) {
+        error_report_once("%s: detected read error on DMAR pte "
+                            "(iova=0x%" PRIx64 ", pasid=0x%" PRIx32 ")",
+                            __func__, iova, pasid);
+        if (level == vtd_get_iova_level(s, ce, pasid)) {
+            /* Invalid programming of context-entry */
+            if (s->root_scalable) {
+                return pgtt == VTD_SM_PASID_ENTRY_FLT ?
+                                    -VTD_FR_FIRST_FSPE_ACCESS :
+                                    -VTD_FR_FIRST_SSPE_ACCESS;
+            } else {
+                return -VTD_FR_CONTEXT_ENTRY_INV;
+            }
+        } else {
+            if (s->root_scalable) {
+                return pgtt == VTD_SM_PASID_ENTRY_FLT ?
+                                    -VTD_FR_FSPE_ACCESS :
+                                    -VTD_FR_SSPE_ACCESS;
+            } else {
+                return -VTD_FR_PAGING_ENTRY_INV;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static inline bool vtd_addr_in_interrup_range(hwaddr addr, uint64_t size)
+{
+    return !((addr > VTD_INTERRUPT_ADDR_LAST) ||
+             (addr + size - 1 < VTD_INTERRUPT_ADDR_FIRST));
+}
+
+static int vtd_iova_to_pte_fl(IntelIOMMUState *s,  VTDContextEntry *ce,
+                              uint64_t iova, bool is_write, uint64_t *ptep,
+                              uint32_t *pte_level, bool *reads, bool *writes,
+                              uint8_t aw_bits, uint32_t pasid, dma_addr_t addr)
+{
+    uint32_t offset;
+    uint64_t pte;
+    uint64_t access_right_check = is_write ? VTD_FL_W : 0;
+    int ret;
+
+    if (!vtd_iova_fl_check_canonical(s, iova, ce, aw_bits, pasid)) {
+        error_report_once("%s: detected non canonical IOVA (iova=0x%" PRIx64 ","
+                          "pasid=0x%" PRIx32 ")", __func__, iova, pasid);
+        return -VTD_FR_FS_NON_CANONICAL;
+    }
+
+    while (true) {
+        offset = vtd_iova_level_offset(iova, *pte_level);
+        pte = vtd_get_pte(addr, offset);
+
+        ret = vtd_iova_to_pte_check_read_error(s, ce, iova, pte,
+                                               pasid, *pte_level,
+                                               VTD_SM_PASID_ENTRY_FLT);
+        if (ret != 0) {
+            return ret;
+        }
+
+        if (!vtd_fl_pte_present(pte)) {
+            return -VTD_FR_FSPE_NOT_PRESENT;
+        }
+
+        *reads = true;
+        *writes = (*writes) && (pte & VTD_FL_W);
+
+        if (vtd_set_flag_in_pte(addr, offset, pte, VTD_FL_PTE_A) != MEMTX_OK) {
+            return -VTD_FR_FS_BIT_UPDATE_FAILED;
+        }
+
+        if ((pte & access_right_check) != access_right_check) {
+            error_report_once("%s: detected pte permission error "
+                              "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
+                              "pte=0x%" PRIx64 ", write=%d, pasid=0x%"
+                              PRIx32 ")", __func__, iova, *pte_level,
+                              pte, is_write, pasid);
+            return is_write ? -VTD_FR_SM_WRITE : -VTD_FR_SM_READ;
+        }
+        if (vtd_flpte_nonzero_rsvd(pte, *pte_level)) {
+            error_report_once("%s: detected flpte reserved non-zero "
+                              "iova=0x%" PRIx64 ", level=0x%" PRIx32
+                              "pte=0x%" PRIx64 ", pasid=0x%" PRIX32 ")",
+                              __func__, iova, *pte_level, pte, pasid);
+            return -VTD_FR_PAGING_ENTRY_RSVD;
+        }
+
+        if (vtd_is_last_pte(pte, *pte_level)) {
+            *ptep = pte;
+            break;
+        }
+        addr = vtd_get_pte_addr(pte, aw_bits);
+        (*pte_level)--;
+    }
+
+    if (is_write &&
+        (vtd_set_flag_in_pte(addr, offset, pte, VTD_FL_PTE_D) != MEMTX_OK)) {
+            return -VTD_FR_FS_BIT_UPDATE_FAILED;
+    }
+
+    return 0;
+}
+
+static int vtd_iova_to_pte_sl(IntelIOMMUState *s,  VTDContextEntry *ce,
+                              uint64_t iova, bool is_write, uint64_t *slptep,
+                              uint32_t *pte_level, bool *reads, bool *writes,
+                              uint8_t aw_bits, uint32_t pasid, dma_addr_t addr)
+{
     uint32_t offset;
     uint64_t slpte;
-    uint64_t access_right_check;
-    uint64_t xlat, size;
+    uint64_t access_right_check = is_write ? VTD_SL_W : VTD_SL_R;
+    int ret;
 
     if (!vtd_iova_sl_range_check(s, iova, ce, aw_bits, pasid)) {
         error_report_once("%s: detected IOVA overflow (iova=0x%" PRIx64 ","
@@ -1101,72 +1277,128 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
 
-    /* FIXME: what is the Atomics request here? */
-    access_right_check = is_write ? VTD_SL_W : VTD_SL_R;
-
     while (true) {
-        offset = vtd_iova_level_offset(iova, level);
+        offset = vtd_iova_level_offset(iova, *pte_level);
         slpte = vtd_get_pte(addr, offset);
 
-        if (slpte == (uint64_t)-1) {
-            error_report_once("%s: detected read error on DMAR slpte "
-                              "(iova=0x%" PRIx64 ", pasid=0x%" PRIx32 ")",
-                              __func__, iova, pasid);
-            if (level == vtd_get_iova_level(s, ce, pasid)) {
-                /* Invalid programming of context-entry */
-                return -VTD_FR_CONTEXT_ENTRY_INV;
-            } else {
-                return -VTD_FR_PAGING_ENTRY_INV;
-            }
+        ret = vtd_iova_to_pte_check_read_error(s, ce, iova, slpte,
+                                               pasid, *pte_level,
+                                               VTD_SM_PASID_ENTRY_SLT);
+        if (ret != 0) {
+            return ret;
         }
         *reads = (*reads) && (slpte & VTD_SL_R);
         *writes = (*writes) && (slpte & VTD_SL_W);
-        if (!(slpte & access_right_check)) {
+        if ((slpte & access_right_check) != access_right_check) {
             error_report_once("%s: detected slpte permission error "
                               "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
                               "slpte=0x%" PRIx64 ", write=%d, pasid=0x%"
-                              PRIx32 ")", __func__, iova, level,
+                              PRIx32 ")", __func__, iova, *pte_level,
                               slpte, is_write, pasid);
-            return is_write ? -VTD_FR_WRITE : -VTD_FR_READ;
+            if (s->root_scalable) {
+                return is_write ? -VTD_FR_SM_WRITE : -VTD_FR_SM_READ;
+            } else {
+                return is_write ? -VTD_FR_WRITE : -VTD_FR_READ;
+            }
         }
-        if (vtd_slpte_nonzero_rsvd(slpte, level)) {
+        if (vtd_slpte_nonzero_rsvd(slpte, *pte_level)) {
             error_report_once("%s: detected splte reserve non-zero "
                               "iova=0x%" PRIx64 ", level=0x%" PRIx32
                               "slpte=0x%" PRIx64 ", pasid=0x%" PRIX32 ")",
-                              __func__, iova, level, slpte, pasid);
+                              __func__, iova, *pte_level, slpte, pasid);
             return -VTD_FR_PAGING_ENTRY_RSVD;
         }
 
-        if (vtd_is_last_pte(slpte, level)) {
+        if (vtd_is_last_pte(slpte, *pte_level)) {
             *slptep = slpte;
-            *slpte_level = level;
             break;
         }
         addr = vtd_get_pte_addr(slpte, aw_bits);
-        level--;
+        (*pte_level)--;
     }
 
-    xlat = vtd_get_pte_addr(*slptep, aw_bits);
-    size = ~vtd_pt_level_page_mask(level) + 1;
+    return 0;
+}
+
+/*
+ * Given the @iova, get relevant @ptep. @pte_level will be the last level
+ * of the translation, can be used for deciding the size of large page.
+ */
+static int vtd_iova_to_pte(IntelIOMMUState *s, VTDContextEntry *ce,
+                             uint64_t iova, bool is_write,
+                             uint64_t *ptep, uint32_t *pte_level,
+                             bool *reads, bool *writes, uint8_t aw_bits,
+                             uint32_t pasid)
+{
+    dma_addr_t addr;
+    uint16_t pgtt;
+    uint64_t xlat, size;
+    VTDPASIDEntry pe;
+    int ret;
+
+    /* FIXME: what is the Atomics request in access rights? */
+
+    if (s->root_scalable) {
+        vtd_ce_get_rid2pasid_entry(s, ce, &pe, pasid);
+        pgtt = VTD_PE_GET_TYPE(&pe);
+        *pte_level = VTD_PE_GET_LEVEL(&pe);
+        addr = vtd_pe_get_pgtbl_base(&pe);
+        switch (pgtt) {
+        case VTD_SM_PASID_ENTRY_FLT:
+            if (s->ecap & VTD_ECAP_FLTS) {
+                ret = vtd_iova_to_pte_fl(s, ce, iova, is_write, ptep, pte_level,
+                                         reads, writes, aw_bits, pasid, addr);
+            } else {
+                error_report_once("First-stage translation not supported : %d",
+                                  pgtt);
+                return -VTD_FR_INVALID_PGTT;
+            }
+            break;
+        case VTD_SM_PASID_ENTRY_SLT:
+            if (s->ecap & VTD_ECAP_SLTS) {
+                ret = vtd_iova_to_pte_sl(s, ce, iova, is_write, ptep, pte_level,
+                                         reads, writes, aw_bits, pasid, addr);
+            } else {
+                error_report_once("Second-stage translation not supported : %d",
+                                  pgtt);
+                return -VTD_FR_INVALID_PGTT;
+            }
+            break;
+        default:
+            error_report_once("Unsupported PGTT : %d", pgtt);
+            ret = -VTD_FR_INVALID_PGTT;
+            break;
+        }
+    } else {
+        *pte_level = vtd_ce_get_level(ce);
+        addr = vtd_ce_get_slpt_base(ce);
+        ret = vtd_iova_to_pte_sl(s, ce, iova, is_write, ptep, pte_level,
+                                 reads, writes, aw_bits, pasid, addr);
+    }
+
+    if (ret != 0) {
+        return ret;
+    }
+
+    xlat = vtd_get_pte_addr(*ptep, aw_bits);
+    size = ~vtd_pt_level_page_mask(*pte_level) + 1;
 
     /*
      * From VT-d spec 3.14: Untranslated requests and translation
      * requests that result in an address in the interrupt range will be
      * blocked with condition code LGN.4 or SGN.8.
      */
-    if ((xlat > VTD_INTERRUPT_ADDR_LAST ||
-         xlat + size - 1 < VTD_INTERRUPT_ADDR_FIRST)) {
+    if (!vtd_addr_in_interrup_range(xlat, size)) {
         return 0;
     } else {
         error_report_once("%s: xlat address is in interrupt range "
                           "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
-                          "slpte=0x%" PRIx64 ", write=%d, "
+                          "pte=0x%" PRIx64 ", write=%d, "
                           "xlat=0x%" PRIx64 ", size=0x%" PRIx64 ", "
                           "pasid=0x%" PRIx32 ")",
-                          __func__, iova, level, slpte, is_write,
+                          __func__, iova, *pte_level, *ptep, is_write,
                           xlat, size, pasid);
-        return s->scalable_mode ? -VTD_FR_SM_INTERRUPT_ADDR :
-                                  -VTD_FR_INTERRUPT_ADDR;
+        return -VTD_INTERRUPT_RANGE_ERROR(s);
     }
 }
 
@@ -1772,6 +2004,16 @@ static const bool vtd_qualified_faults[] = {
     [VTD_FR_CONTEXT_ENTRY_TT] = true,
     [VTD_FR_PASID_TABLE_INV] = false,
     [VTD_FR_SM_INTERRUPT_ADDR] = true,
+    [VTD_FR_INVALID_PGTT] = true,
+    [VTD_FR_FSPE_ACCESS] = true,
+    [VTD_FR_FSPE_NOT_PRESENT] = true,
+    [VTD_FR_FIRST_FSPE_ACCESS] = true,
+    [VTD_FR_SSPE_ACCESS] = true,
+    [VTD_FR_FIRST_SSPE_ACCESS] = true,
+    [VTD_FR_FS_NON_CANONICAL] = true,
+    [VTD_FR_SM_WRITE] = true,
+    [VTD_FR_SM_READ] = true,
+    [VTD_FR_FS_BIT_UPDATE_FAILED] = true,
     [VTD_FR_MAX] = false,
 };
 
@@ -1870,7 +2112,8 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     uint8_t bus_num = pci_bus_num(bus);
     VTDContextCacheEntry *cc_entry;
     uint64_t pte, page_mask;
-    uint32_t level, pasid = vtd_as->pasid;
+    uint32_t level = UINT32_MAX;
+    uint32_t pasid = vtd_as->pasid;
     uint16_t source_id = PCI_BUILD_BDF(bus_num, devfn);
     int ret_fr;
     bool is_fpd_set = false;
@@ -1981,7 +2224,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         }
     }
 
-    ret_fr = vtd_iova_to_slpte(s, &ce, addr, is_write, &pte, &level,
+    ret_fr = vtd_iova_to_pte(s, &ce, addr, is_write, &pte, &level,
                                &reads, &writes, s->aw_bits, pasid);
     if (ret_fr) {
         vtd_report_fault(s, -ret_fr, is_fpd_set, source_id,
@@ -1990,6 +2233,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     }
 
     page_mask = vtd_pt_level_page_mask(level);
+    /* Exe is always set to 0 in the spec */
     access_flags = IOMMU_ACCESS_FLAG(reads, writes);
     vtd_update_iotlb(s, source_id, vtd_get_domain_id(s, &ce, pasid),
                      addr, pte, access_flags, level, pasid);
@@ -2005,7 +2249,12 @@ error:
     vtd_iommu_unlock(s);
     entry->iova = 0;
     entry->translated_addr = 0;
-    entry->addr_mask = 0;
+    /*
+     * Set the mask for ATS (the range must be present even when the
+     * translation fails : PCIe rev 5 10.2.3.5)
+     */
+    entry->addr_mask = (level != UINT32_MAX) ?
+                        (~vtd_pt_level_page_mask(level)) : (~VTD_PAGE_MASK_4K);
     entry->perm = IOMMU_NONE;
     return false;
 }
@@ -3187,6 +3436,8 @@ static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     };
     bool success;
 
+    /* IOMMUAccessFlags : IOMMU_EXEC and IOMMU_PRIV not supported */
+
     if (likely(s->dmar_enabled)) {
         success = vtd_do_iommu_translate(vtd_as, vtd_as->bus, vtd_as->devfn,
                                          addr, flag & IOMMU_WO, &iotlb);
@@ -3988,6 +4239,21 @@ static void vtd_init(IntelIOMMUState *s)
                                                          x86_iommu->dt_supported);
     vtd_spte_rsvd_large[3] = VTD_SPTE_LPAGE_L3_RSVD_MASK(s->aw_bits,
                                                          x86_iommu->dt_supported);
+
+    /*
+     * Rsvd field masks for fpte
+     */
+    vtd_fpte_rsvd[0] = ~0ULL;
+    vtd_fpte_rsvd[1] = VTD_FPTE_PAGE_L1_RSVD_MASK(s->aw_bits);
+    vtd_fpte_rsvd[2] = VTD_FPTE_PAGE_L2_RSVD_MASK(s->aw_bits);
+    vtd_fpte_rsvd[3] = VTD_FPTE_PAGE_L3_RSVD_MASK(s->aw_bits);
+    vtd_fpte_rsvd[4] = VTD_FPTE_PAGE_L4_RSVD_MASK(s->aw_bits);
+
+    vtd_fpte_rsvd_large[0] = ~0ULL;
+    vtd_fpte_rsvd_large[1] = ~0ULL;
+    vtd_fpte_rsvd_large[2] = VTD_FPTE_PAGE_L2_FS2MP_RSVD_MASK(s->aw_bits);
+    vtd_fpte_rsvd_large[3] = VTD_FPTE_PAGE_L3_FS1GP_RSVD_MASK(s->aw_bits);
+    vtd_fpte_rsvd_large[4] = ~0ULL;
 
     if (s->scalable_mode || s->snoop_control) {
         vtd_spte_rsvd[1] &= ~VTD_SPTE_SNP;
