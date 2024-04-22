@@ -1045,6 +1045,34 @@ virtio_snd_vm_state_change(void *opaque, bool running,
     }
 }
 
+static bool
+virtio_snd_is_config_valid(virtio_snd_config snd_conf, Error **errp)
+{
+    if (snd_conf.jacks > 8) {
+        error_setg(errp,
+                   "Invalid number of jacks: %"PRIu32
+                   ": maximum value is 8", snd_conf.jacks);
+        return false;
+    }
+    if (snd_conf.streams < 1 || snd_conf.streams > 64) {
+        error_setg(errp,
+                   "Invalid number of streams: %"PRIu32
+                   ": minimum value is 1, maximum value is 64",
+                   snd_conf.streams);
+        return false;
+    }
+
+    if (snd_conf.chmaps > VIRTIO_SND_CHMAP_MAX_SIZE) {
+        error_setg(errp,
+                  "Invalid number of channel maps: %"PRIu32
+                  ": VIRTIO v1.2 sets the maximum value at %"PRIu32,
+                  snd_conf.chmaps, VIRTIO_SND_CHMAP_MAX_SIZE);
+        return false;
+    }
+
+    return true;
+}
+
 static void virtio_snd_realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
@@ -1055,24 +1083,7 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
 
     trace_virtio_snd_realize(vsnd);
 
-    /* check number of jacks and streams */
-    if (vsnd->snd_conf.jacks > 8) {
-        error_setg(errp,
-                   "Invalid number of jacks: %"PRIu32,
-                   vsnd->snd_conf.jacks);
-        return;
-    }
-    if (vsnd->snd_conf.streams < 1 || vsnd->snd_conf.streams > 10) {
-        error_setg(errp,
-                   "Invalid number of streams: %"PRIu32,
-                    vsnd->snd_conf.streams);
-        return;
-    }
-
-    if (vsnd->snd_conf.chmaps > VIRTIO_SND_CHMAP_MAX_SIZE) {
-        error_setg(errp,
-                   "Invalid number of channel maps: %"PRIu32,
-                   vsnd->snd_conf.chmaps);
+    if (!virtio_snd_is_config_valid(vsnd->snd_conf, errp)) {
         return;
     }
 
