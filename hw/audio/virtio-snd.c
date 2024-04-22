@@ -24,7 +24,6 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "hw/audio/virtio-snd.h"
-#include "hw/core/cpu.h"
 
 #define VIRTIO_SOUND_VM_VERSION 1
 #define VIRTIO_SOUND_JACK_DEFAULT 0
@@ -395,13 +394,15 @@ static uint32_t virtio_snd_get_qemu_freq(uint32_t rate)
  * Get QEMU Audiosystem compatible audsettings from virtio based pcm stream
  * params.
  */
-static void virtio_snd_get_qemu_audsettings(audsettings *as,
+static void virtio_snd_get_qemu_audsettings(VirtIOSound *s, audsettings *as,
                                             virtio_snd_pcm_set_params *params)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
     as->nchannels = MIN(AUDIO_MAX_CHANNELS, params->channels);
     as->fmt = virtio_snd_get_qemu_format(params->format);
     as->freq = virtio_snd_get_qemu_freq(params->rate);
-    as->endianness = target_words_bigendian() ? 1 : 0;
+    as->endianness = virtio_is_big_endian(vdev) ? 1 : 0;
 }
 
 /*
@@ -464,7 +465,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
         s->pcm->streams[stream_id] = stream;
     }
 
-    virtio_snd_get_qemu_audsettings(&as, params);
+    virtio_snd_get_qemu_audsettings(s, &as, params);
     stream->info.direction = stream_id < s->snd_conf.streams / 2 +
         (s->snd_conf.streams & 1) ? VIRTIO_SND_D_OUTPUT : VIRTIO_SND_D_INPUT;
     stream->info.hdr.hda_fn_nid = VIRTIO_SOUND_HDA_FN_NID;
