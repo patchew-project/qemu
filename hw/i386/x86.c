@@ -1128,13 +1128,28 @@ void x86_load_linux(X86MachineState *x86ms,
     nb_option_roms++;
 }
 
+void x86_isa_bios_init(MemoryRegion *rom_memory, MemoryRegion *bios,
+                       bool isapc_ram_fw)
+{
+    int bios_size = memory_region_size(bios);
+    int isa_bios_size = MIN(bios_size, 128 * KiB);
+    MemoryRegion *isa_bios;
+
+    isa_bios = g_malloc(sizeof(*isa_bios));
+    memory_region_init_alias(isa_bios, NULL, "isa-bios", bios,
+                             bios_size - isa_bios_size, isa_bios_size);
+    memory_region_add_subregion_overlap(rom_memory, 1 * MiB - isa_bios_size,
+                                        isa_bios, 1);
+    memory_region_set_readonly(isa_bios, !isapc_ram_fw);
+}
+
 void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
                        MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
     const char *bios_name;
     char *filename;
-    MemoryRegion *bios, *isa_bios;
-    int bios_size, isa_bios_size;
+    MemoryRegion *bios;
+    int bios_size;
     ssize_t ret;
 
     /* BIOS load */
@@ -1172,15 +1187,7 @@ void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
     g_free(filename);
 
     /* map the last 128KB of the BIOS in ISA space */
-    isa_bios_size = MIN(bios_size, 128 * KiB);
-    isa_bios = g_malloc(sizeof(*isa_bios));
-    memory_region_init_alias(isa_bios, NULL, "isa-bios", bios,
-                             bios_size - isa_bios_size, isa_bios_size);
-    memory_region_add_subregion_overlap(rom_memory,
-                                        0x100000 - isa_bios_size,
-                                        isa_bios,
-                                        1);
-    memory_region_set_readonly(isa_bios, !isapc_ram_fw);
+    x86_isa_bios_init(rom_memory, bios, isapc_ram_fw);
 
     /* map all the bios at the top of memory */
     memory_region_add_subregion(rom_memory,

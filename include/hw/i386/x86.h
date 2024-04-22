@@ -116,6 +116,8 @@ void x86_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
 void x86_cpu_unplug_cb(HotplugHandler *hotplug_dev,
                        DeviceState *dev, Error **errp);
 
+void x86_isa_bios_init(MemoryRegion *rom_memory, MemoryRegion *bios,
+                       bool isapc_ram_fw);
 void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
                        MemoryRegion *rom_memory, bool isapc_ram_fw);
 
