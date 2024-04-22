@@ -3704,6 +3704,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_BOOL("x-scalable-mode", IntelIOMMUState, scalable_mode, FALSE),
     DEFINE_PROP_BOOL("snoop-control", IntelIOMMUState, snoop_control, false),
     DEFINE_PROP_BOOL("x-pasid-mode", IntelIOMMUState, pasid, false),
+    DEFINE_PROP_BOOL("flts", IntelIOMMUState, flts, false),
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_BOOL("dma-translation", IntelIOMMUState, dma_translation, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -4411,6 +4412,11 @@ static void vtd_init(IntelIOMMUState *s)
 
     if (s->pasid) {
         s->ecap |= VTD_ECAP_PASID;
+    }
+
+    if (s->flts) {
+        s->ecap |= VTD_ECAP_FLTS;
+        s->cap |= VTD_CAP_FS1GP;
     }
 
     vtd_reset_caches(s);
