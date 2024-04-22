@@ -277,9 +277,22 @@ static gboolean vtd_hash_remove_by_page(gpointer key, gpointer value,
     VTDIOTLBPageInvInfo *info = (VTDIOTLBPageInvInfo *)user_data;
     uint64_t gfn = (info->addr >> VTD_PAGE_SHIFT_4K) & info->mask;
     uint64_t gfn_tlb = (info->addr & entry->mask) >> VTD_PAGE_SHIFT_4K;
-    return (entry->domain_id == info->domain_id) &&
-            (((entry->gfn & info->mask) == gfn) ||
-             (entry->gfn == gfn_tlb));
+    return (
+            (entry->domain_id == info->domain_id) &&
+            (info->pasid == entry->pasid)
+        ) && (
+            ((entry->gfn & info->mask) == gfn) ||
+            (entry->gfn == gfn_tlb)
+        );
+}
+
+static gboolean vtd_hash_remove_by_pasid(gpointer key, gpointer value,
+                                        gpointer user_data)
+{
+    VTDIOTLBEntry *entry = (VTDIOTLBEntry *)value;
+    VTDIOTLBPasidEntryInvInfo *info = (VTDIOTLBPasidEntryInvInfo *)user_data;
+    return ((entry->domain_id == info->domain_id) &&
+            (info->pasid == entry->pasid));
 }
 
 /* Reset all the gen of VTDAddressSpace to zero and set the gen of
@@ -1287,8 +1300,10 @@ static int vtd_iova_to_pte_sl(IntelIOMMUState *s,  VTDContextEntry *ce,
         if (ret != 0) {
             return ret;
         }
+
         *reads = (*reads) && (slpte & VTD_SL_R);
         *writes = (*writes) && (slpte & VTD_SL_W);
+
         if ((slpte & access_right_check) != access_right_check) {
             error_report_once("%s: detected slpte permission error "
                               "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
@@ -2484,21 +2499,59 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
     }
 }
 
+static VTDIOTLBPageInvInfo vtd_build_tlb_page_inv_info(uint16_t domain_id,
+                                                       hwaddr addr, uint8_t am,
+                                                       uint32_t pasid)
+{
+    assert(am <= VTD_MAMV);
+    VTDIOTLBPageInvInfo info = {
+        .domain_id = domain_id,
+        .addr = addr,
+        .mask = ~((1ULL << am) - 1),
+        .pasid = pasid
+    };
+    return info;
+}
+
 static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
                                       hwaddr addr, uint8_t am)
 {
-    VTDIOTLBPageInvInfo info;
+    VTDIOTLBPageInvInfo info = vtd_build_tlb_page_inv_info(domain_id, addr,
+                                                           am, PCI_NO_PASID);
 
     trace_vtd_inv_desc_iotlb_pages(domain_id, addr, am);
 
-    assert(am <= VTD_MAMV);
-    info.domain_id = domain_id;
-    info.addr = addr;
-    info.mask = ~((1 << am) - 1);
     vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
     vtd_iommu_unlock(s);
+
     vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am, PCI_NO_PASID);
+}
+
+static void vtd_pasid_based_iotlb_page_invalidate(IntelIOMMUState *s,
+                                                  uint16_t domain_id,
+                                                  hwaddr addr,
+                                                  uint8_t am, uint32_t pasid)
+{
+    VTDIOTLBPageInvInfo info = vtd_build_tlb_page_inv_info(domain_id, addr,
+                                                           am, pasid);
+    vtd_iommu_lock(s);
+    g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
+    vtd_iommu_unlock(s);
+}
+
+static void vtd_pasid_based_iotlb_invalidate(IntelIOMMUState *s,
+                                             uint16_t domain_id,
+                                             uint32_t pasid)
+{
+    assert(pasid != PCI_NO_PASID);
+    VTDIOTLBPasidEntryInvInfo info = {
+        .domain_id = domain_id,
+        .pasid = pasid
+    };
+    vtd_iommu_lock(s);
+    g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_pasid, &info);
+    vtd_iommu_unlock(s);
 }
 
 /* Flush IOTLB
@@ -2759,7 +2812,7 @@ static bool vtd_get_inv_desc(IntelIOMMUState *s,
 static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 {
     if ((inv_desc->hi & VTD_INV_DESC_WAIT_RSVD_HI) ||
-        (inv_desc->lo & VTD_INV_DESC_WAIT_RSVD_LO)) {
+        (inv_desc->lo & VTD_INV_DESC_WAIT_RSVD_LO(s->ecap))) {
         error_report_once("%s: invalid wait desc: hi=%"PRIx64", lo=%"PRIx64
                           " (reserved nonzero)", __func__, inv_desc->hi,
                           inv_desc->lo);
@@ -2785,6 +2838,11 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
     } else if (inv_desc->lo & VTD_INV_DESC_WAIT_IF) {
         /* Interrupt flag */
         vtd_generate_completion_event(s);
+    } else if (inv_desc->lo & VTD_INV_DESC_WAIT_FN) {
+        /*
+         * SW = 0, IF = 0, FN = 1
+         * Nothing to do as we process the events sequentially
+         */
     } else {
         error_report_once("%s: invalid wait desc: hi=%"PRIx64", lo=%"PRIx64
                           " (unknown type)", __func__, inv_desc->hi,
@@ -2957,6 +3015,54 @@ done:
     return true;
 }
 
+static bool vtd_process_piotlb_desc(IntelIOMMUState *s,
+                                    VTDInvDesc *inv_desc)
+{
+    uint32_t pasid;
+    uint16_t domain_id;
+    hwaddr addr;
+    uint8_t am;
+
+    if ((inv_desc->lo & VTD_INV_DESC_IOTLB_PASID_RSVD_LO) ||
+        (inv_desc->hi & VTD_INV_DESC_IOTLB_PASID_RSVD_HI)) {
+        error_report_once("%s: invalid piotlb inv desc: hi=0x%"PRIx64
+                          ", lo=0x%"PRIx64" (reserved bits unzero)",
+                          __func__, inv_desc->hi, inv_desc->lo);
+        return false;
+    }
+
+    domain_id = VTD_INV_DESC_IOTLB_DID(inv_desc->lo);
+    pasid = VTD_INV_DESC_IOTLB_PASID(inv_desc->lo);
+    addr = VTD_INV_DESC_IOTLB_ADDR(inv_desc->hi);
+    am = VTD_INV_DESC_IOTLB_AM(inv_desc->hi);
+
+    switch (inv_desc->lo & VTD_INV_DESC_IOTLB_G) {
+    case VTD_INV_DESC_IOTLB_PASID_PASID:
+        vtd_pasid_based_iotlb_invalidate(s, domain_id, pasid);
+        break;
+
+    case VTD_INV_DESC_IOTLB_PASID_PAGE:
+        if (am > VTD_MAMV) {
+            error_report_once("%s: invalid piotlb inv desc: hi=0x%"PRIx64
+                              ", lo=0x%"PRIx64" (am=%u > VTD_MAMV=%u)",
+                              __func__, inv_desc->hi, inv_desc->lo,
+                              am, (unsigned)VTD_MAMV);
+            return false;
+        }
+        vtd_pasid_based_iotlb_page_invalidate(s, domain_id, addr, am, pasid);
+        break;
+
+    default:
+        error_report_once("%s: invalid piotlb inv desc: hi=0x%"PRIx64
+                          ", lo=0x%"PRIx64" (type mismatch: 0x%llx)",
+                          __func__, inv_desc->hi, inv_desc->lo,
+                          inv_desc->lo & VTD_INV_DESC_IOTLB_G);
+        return false;
+    }
+
+    return true;
+}
+
 static bool vtd_process_inv_desc(IntelIOMMUState *s)
 {
     VTDInvDesc inv_desc;
@@ -2988,7 +3094,7 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
         break;
 
     /*
-     * TODO: the entity of below two cases will be implemented in future series.
+     * TODO: the entity of below case will be implemented in future series.
      * To make guest (which integrates scalable mode support patch set in
      * iommu driver) work, just return true is enough so far.
      */
@@ -2996,6 +3102,10 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
         break;
 
     case VTD_INV_DESC_PIOTLB:
+        trace_vtd_inv_desc("piotlb", inv_desc.hi, inv_desc.lo);
+        if (!vtd_process_piotlb_desc(s, &inv_desc)) {
+            return false;
+        }
         break;
 
     case VTD_INV_DESC_WAIT:

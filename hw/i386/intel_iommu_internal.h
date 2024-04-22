@@ -193,6 +193,7 @@
 #define VTD_ECAP_MHMV               (15ULL << 20)
 #define VTD_ECAP_SRS                (1ULL << 31)
 #define VTD_ECAP_PASID              (1ULL << 40)
+#define VTD_ECAP_PDS                (1ULL << 42)
 #define VTD_ECAP_SMTS               (1ULL << 43)
 #define VTD_ECAP_SLTS               (1ULL << 46)
 #define VTD_ECAP_FLTS               (1ULL << 47)
@@ -386,12 +387,13 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_NONE               0   /* Not an Invalidate Descriptor */
 
 /* Masks for Invalidation Wait Descriptor*/
-#define VTD_INV_DESC_WAIT_SW            (1ULL << 5)
-#define VTD_INV_DESC_WAIT_IF            (1ULL << 4)
-#define VTD_INV_DESC_WAIT_FN            (1ULL << 6)
-#define VTD_INV_DESC_WAIT_DATA_SHIFT    32
-#define VTD_INV_DESC_WAIT_RSVD_LO       0Xffffff80ULL
-#define VTD_INV_DESC_WAIT_RSVD_HI       3ULL
+#define VTD_INV_DESC_WAIT_SW             (1ULL << 5)
+#define VTD_INV_DESC_WAIT_IF             (1ULL << 4)
+#define VTD_INV_DESC_WAIT_FN             (1ULL << 6)
+#define VTD_INV_DESC_WAIT_DATA_SHIFT     32
+#define VTD_INV_DESC_WAIT_RSVD_LO(ecap)  (0xffffff00ULL | \
+                                         ((ecap & VTD_ECAP_PDS) ? 0 : (1 << 7)))
+#define VTD_INV_DESC_WAIT_RSVD_HI        3ULL
 
 /* Masks for Context-cache Invalidation Descriptor */
 #define VTD_INV_DESC_CC_G               (3ULL << 4)
@@ -404,20 +406,20 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_CC_RSVD            0xfffc00000000ffc0ULL
 
 /* Masks for IOTLB Invalidate Descriptor */
-#define VTD_INV_DESC_IOTLB_G            (3ULL << 4)
-#define VTD_INV_DESC_IOTLB_GLOBAL       (1ULL << 4)
-#define VTD_INV_DESC_IOTLB_DOMAIN       (2ULL << 4)
-#define VTD_INV_DESC_IOTLB_PAGE         (3ULL << 4)
-#define VTD_INV_DESC_IOTLB_DID(val)     (((val) >> 16) & VTD_DOMAIN_ID_MASK)
-#define VTD_INV_DESC_IOTLB_ADDR(val)    ((val) & ~0xfffULL)
-#define VTD_INV_DESC_IOTLB_AM(val)      ((val) & 0x3fULL)
-#define VTD_INV_DESC_IOTLB_RSVD_LO      0xffffffff0000ff00ULL
-#define VTD_INV_DESC_IOTLB_RSVD_HI      0xf80ULL
-#define VTD_INV_DESC_IOTLB_PASID_PASID  (2ULL << 4)
-#define VTD_INV_DESC_IOTLB_PASID_PAGE   (3ULL << 4)
-#define VTD_INV_DESC_IOTLB_PASID(val)   (((val) >> 32) & VTD_PASID_ID_MASK)
-#define VTD_INV_DESC_IOTLB_PASID_RSVD_LO      0xfff00000000001c0ULL
-#define VTD_INV_DESC_IOTLB_PASID_RSVD_HI      0xf80ULL
+#define VTD_INV_DESC_IOTLB_G                (3ULL << 4)
+#define VTD_INV_DESC_IOTLB_GLOBAL           (1ULL << 4)
+#define VTD_INV_DESC_IOTLB_DOMAIN           (2ULL << 4)
+#define VTD_INV_DESC_IOTLB_PAGE             (3ULL << 4)
+#define VTD_INV_DESC_IOTLB_DID(val)         (((val) >> 16) & VTD_DOMAIN_ID_MASK)
+#define VTD_INV_DESC_IOTLB_ADDR(val)        ((val) & ~0xfffULL)
+#define VTD_INV_DESC_IOTLB_AM(val)          ((val) & 0x3fULL)
+#define VTD_INV_DESC_IOTLB_RSVD_LO          0xffffffff0000ff00ULL
+#define VTD_INV_DESC_IOTLB_RSVD_HI          0xf80ULL
+#define VTD_INV_DESC_IOTLB_PASID_PASID      (2ULL << 4)
+#define VTD_INV_DESC_IOTLB_PASID_PAGE       (3ULL << 4)
+#define VTD_INV_DESC_IOTLB_PASID(val)       (((val) >> 32) & VTD_PASID_ID_MASK)
+#define VTD_INV_DESC_IOTLB_PASID_RSVD_LO    0xfff000000000ffc0ULL
+#define VTD_INV_DESC_IOTLB_PASID_RSVD_HI    0xf80ULL
 
 /* Mask for Device IOTLB Invalidate Descriptor */
 #define VTD_INV_DESC_DEVICE_IOTLB_ADDR(val) ((val) & 0xfffffffffffff000ULL)
@@ -471,9 +473,16 @@ struct VTDIOTLBPageInvInfo {
     uint16_t domain_id;
     uint32_t pasid;
     uint64_t addr;
-    uint8_t mask;
+    uint64_t mask;
 };
 typedef struct VTDIOTLBPageInvInfo VTDIOTLBPageInvInfo;
+
+/* Information about PASID-selective IOTLB invalidate */
+struct VTDIOTLBPasidEntryInvInfo {
+    uint16_t domain_id;
+    uint32_t pasid;
+};
+typedef struct VTDIOTLBPasidEntryInvInfo VTDIOTLBPasidEntryInvInfo;
 
 /* Pagesize of VTD paging structures, including root and context tables */
 #define VTD_PAGE_SHIFT              12
