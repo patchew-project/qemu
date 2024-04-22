@@ -1740,6 +1740,11 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
             goto err_undo_map;
         }
 
+        if (desc_cache != &indirect_desc_cache) {
+            /* Buffer ID is included in the last descriptor in the list. */
+            id = desc.id;
+        }
+
         rc = virtqueue_packed_read_next_desc(vq, &desc, desc_cache, max, &i,
                                              desc_cache ==
                                              &indirect_desc_cache);
