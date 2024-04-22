@@ -1343,14 +1343,10 @@ static inline void virtio_snd_pcm_flush(VirtIOSoundPCMStream *stream)
     }
 }
 
-static void virtio_snd_unrealize(DeviceState *dev)
+/* Remove audio card and cleanup streams. */
+static void virtio_snd_unsetup(VirtIOSound *vsnd)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOSound *vsnd = VIRTIO_SND(dev);
     VirtIOSoundPCMStream *stream;
-
-    qemu_del_vm_change_state_handler(vsnd->vmstate);
-    trace_virtio_snd_unrealize(vsnd);
 
     if (vsnd->pcm) {
         if (vsnd->pcm->streams) {
@@ -1370,6 +1366,18 @@ static void virtio_snd_unrealize(DeviceState *dev)
         vsnd->pcm = NULL;
     }
     AUD_remove_card(&vsnd->card);
+}
+
+static void virtio_snd_unrealize(DeviceState *dev)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOSound *vsnd = VIRTIO_SND(dev);
+
+    qemu_del_vm_change_state_handler(vsnd->vmstate);
+    trace_virtio_snd_unrealize(vsnd);
+
+    virtio_snd_unsetup(vsnd);
+
     qemu_mutex_destroy(&vsnd->cmdq_mutex);
     virtio_delete_queue(vsnd->queues[VIRTIO_SND_VQ_CONTROL]);
     virtio_delete_queue(vsnd->queues[VIRTIO_SND_VQ_EVENT]);
