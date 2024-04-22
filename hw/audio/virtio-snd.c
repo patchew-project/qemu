@@ -36,7 +36,11 @@ static void virtio_snd_pcm_out_cb(void *data, int available);
 static void virtio_snd_process_cmdq(VirtIOSound *s);
 static void virtio_snd_pcm_flush(VirtIOSoundPCMStream *stream);
 static void virtio_snd_pcm_in_cb(void *data, int available);
+static bool virtio_snd_setup(VirtIOSound *vsnd, Error **errp);
+static void virtio_snd_unsetup(VirtIOSound *vsnd);
 static void virtio_snd_unrealize(DeviceState *dev);
+static bool virtio_snd_is_config_valid(virtio_snd_config snd_conf,
+                                       Error **errp);
 
 static uint32_t supported_formats = BIT(VIRTIO_SND_PCM_FMT_S8)
                                   | BIT(VIRTIO_SND_PCM_FMT_U8)
@@ -111,23 +115,26 @@ static void
 virtio_snd_set_config(VirtIODevice *vdev, const uint8_t *config)
 {
     VirtIOSound *s = VIRTIO_SND(vdev);
-    const virtio_snd_config *sndconfig =
-        (const virtio_snd_config *)config;
+    virtio_snd_config new_value =
+        *(const virtio_snd_config *)config;
 
+    le32_to_cpus(&new_value.jacks);
+    le32_to_cpus(&new_value.streams);
+    le32_to_cpus(&new_value.chmaps);
 
-   trace_virtio_snd_set_config(vdev,
-                               s->snd_conf.jacks,
-                               sndconfig->jacks,
-                               s->snd_conf.streams,
-                               sndconfig->streams,
-                               s->snd_conf.chmaps,
-                               sndconfig->chmaps);
+    trace_virtio_snd_set_config(vdev,
+                                s->snd_conf.jacks,
+                                new_value.jacks,
+                                s->snd_conf.streams,
+                                new_value.streams,
+                                s->snd_conf.chmaps,
+                                new_value.chmaps);
 
-    memcpy(&s->snd_conf, sndconfig, sizeof(virtio_snd_config));
-    le32_to_cpus(&s->snd_conf.jacks);
-    le32_to_cpus(&s->snd_conf.streams);
-    le32_to_cpus(&s->snd_conf.chmaps);
-
+    if (virtio_snd_is_config_valid(new_value, &error_warn)) {
+        virtio_snd_unsetup(s);
+        s->snd_conf = new_value;
+        virtio_snd_setup(s, &error_fatal);
+    }
 }
 
 static void
