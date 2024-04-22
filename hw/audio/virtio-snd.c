@@ -1073,26 +1073,20 @@ virtio_snd_is_config_valid(virtio_snd_config snd_conf, Error **errp)
     return true;
 }
 
-static void virtio_snd_realize(DeviceState *dev, Error **errp)
+/* Registers card and sets up streams according to configuration. */
+static bool virtio_snd_setup(VirtIOSound *vsnd, Error **errp)
 {
     ERRP_GUARD();
-    VirtIOSound *vsnd = VIRTIO_SND(dev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     virtio_snd_pcm_set_params default_params = { 0 };
     uint32_t status;
 
-    trace_virtio_snd_realize(vsnd);
-
     if (!virtio_snd_is_config_valid(vsnd->snd_conf, errp)) {
-        return;
+        return false;
     }
 
     if (!AUD_register_card("virtio-sound", &vsnd->card, errp)) {
-        return;
+        return false;
     }
-
-    vsnd->vmstate =
-        qemu_add_vm_change_state_handler(virtio_snd_vm_state_change, vsnd);
 
     vsnd->pcm = g_new0(VirtIOSoundPCM, 1);
     vsnd->pcm->snd = vsnd;
@@ -1101,9 +1095,6 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
     vsnd->pcm->pcm_params =
         g_new0(virtio_snd_pcm_set_params, vsnd->snd_conf.streams);
 
-    virtio_init(vdev, VIRTIO_ID_SOUND, sizeof(virtio_snd_config));
-    virtio_add_feature(&vsnd->features, VIRTIO_F_VERSION_1);
-
     /* set default params for all streams */
     default_params.features = 0;
     default_params.buffer_bytes = cpu_to_le32(8192);
@@ -1111,6 +1102,41 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
     default_params.channels = 2;
     default_params.format = VIRTIO_SND_PCM_FMT_S16;
     default_params.rate = VIRTIO_SND_PCM_RATE_48000;
+
+    for (uint32_t i = 0; i < vsnd->snd_conf.streams; i++) {
+        status = virtio_snd_set_pcm_params(vsnd, i, &default_params);
+        if (status != cpu_to_le32(VIRTIO_SND_S_OK)) {
+            error_setg(errp,
+                       "Can't initialize stream params, device responded with %s.",
+                       print_code(status));
+            return false;
+        }
+        status = virtio_snd_pcm_prepare(vsnd, i);
+        if (status != cpu_to_le32(VIRTIO_SND_S_OK)) {
+            error_setg(errp,
+                       "Can't prepare streams, device responded with %s.",
+                       print_code(status));
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static void virtio_snd_realize(DeviceState *dev, Error **errp)
+{
+    ERRP_GUARD();
+    VirtIOSound *vsnd = VIRTIO_SND(dev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+
+    trace_virtio_snd_realize(vsnd);
+
+    vsnd->vmstate =
+        qemu_add_vm_change_state_handler(virtio_snd_vm_state_change, vsnd);
+
+    virtio_init(vdev, VIRTIO_ID_SOUND, sizeof(virtio_snd_config));
+    virtio_add_feature(&vsnd->features, VIRTIO_F_VERSION_1);
+
     vsnd->queues[VIRTIO_SND_VQ_CONTROL] =
         virtio_add_queue(vdev, 64, virtio_snd_handle_ctrl);
     vsnd->queues[VIRTIO_SND_VQ_EVENT] =
@@ -1123,26 +1149,10 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
     QTAILQ_INIT(&vsnd->cmdq);
     QSIMPLEQ_INIT(&vsnd->invalid);
 
-    for (uint32_t i = 0; i < vsnd->snd_conf.streams; i++) {
-        status = virtio_snd_set_pcm_params(vsnd, i, &default_params);
-        if (status != cpu_to_le32(VIRTIO_SND_S_OK)) {
-            error_setg(errp,
-                       "Can't initialize stream params, device responded with %s.",
-                       print_code(status));
-            goto error_cleanup;
-        }
-        status = virtio_snd_pcm_prepare(vsnd, i);
-        if (status != cpu_to_le32(VIRTIO_SND_S_OK)) {
-            error_setg(errp,
-                       "Can't prepare streams, device responded with %s.",
-                       print_code(status));
-            goto error_cleanup;
-        }
+    if (virtio_snd_setup(vsnd, errp)) {
+        return;
     }
 
-    return;
-
-error_cleanup:
     virtio_snd_unrealize(dev);
 }
 
