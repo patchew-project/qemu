@@ -799,6 +799,13 @@ void qmp_calc_dirty_rate(int64_t calc_time,
      * dirty ring mode only works when kvm dirty ring is enabled.
      * on the contrary, dirty bitmap mode is not.
      */
+    if (!kvm_enabled() &&
+        (mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING ||
+         mode == DIRTY_RATE_MEASURE_MODE_DIRTY_BITMAP)) {
+        error_setg(errp, "mode %s requires kvm to be enabled.",
+                         DirtyRateMeasureMode_str(mode));
+        return;
+    }
     if (((mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING) &&
         !kvm_dirty_ring_enabled()) ||
         ((mode == DIRTY_RATE_MEASURE_MODE_DIRTY_BITMAP) &&
