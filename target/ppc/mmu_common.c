@@ -288,8 +288,8 @@ static inline void bat_size_prot(CPUPPCState *env, target_ulong *blp,
     *protp = prot;
 }
 
-static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
-                           target_ulong virtual, MMUAccessType access_type)
+static int ppc6xx_tlb_get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
+                              target_ulong virtual, MMUAccessType access_type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
@@ -371,7 +371,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
     /* First try to find a BAT entry if there are any */
     if (env->nb_BATs != 0) {
-        ret = get_bat_6xx_tlb(env, ctx, eaddr, access_type);
+        ret = ppc6xx_tlb_get_bat(env, ctx, eaddr, access_type);
     }
     if (ret >= 0) {
         return ret;
