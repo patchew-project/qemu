@@ -800,6 +800,8 @@ void qmp_calc_dirty_rate(int64_t calc_time,
      * on the contrary, dirty bitmap mode is not.
      */
     if (((mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING) &&
+        !kvm_enabled()) ||
+        ((mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING) &&
         !kvm_dirty_ring_enabled()) ||
         ((mode == DIRTY_RATE_MEASURE_MODE_DIRTY_BITMAP) &&
          kvm_dirty_ring_enabled())) {
