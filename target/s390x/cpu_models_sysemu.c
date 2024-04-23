@@ -171,7 +171,8 @@ static void qdict_add_enabled_feat(const char *name, void *opaque)
 
 /* convert S390CPUDef into a static CpuModelInfo */
 static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
-                                bool delta_changes)
+                                bool delta_changes,
+                                bool disable_deprecated_feats)
 {
     QDict *qdict = qdict_new();
     S390FeatBitmap bitmap;
@@ -201,6 +202,13 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
         s390_feat_bitmap_to_ascii(bitmap, qdict, qdict_add_disabled_feat);
     }
 
+    /* features flagged as deprecated */
+    if (disable_deprecated_feats) {
+        bitmap_zero(bitmap, S390_FEAT_MAX);
+        s390_get_deprecated_features(bitmap);
+        s390_feat_bitmap_to_ascii(bitmap, qdict, qdict_add_disabled_feat);
+    }
+
     if (!qdict_size(qdict)) {
         qobject_unref(qdict);
     } else {
@@ -219,11 +227,6 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     S390CPUModel s390_model;
     bool delta_changes = false;
 
-    if (has_disable_deprecated_feats) {
-        error_setg(&err, "Unsupported option 'disable-deprecated-feats'");
-        return NULL;
-    }
-
     /* convert it to our internal representation */
     cpu_model_from_info(&s390_model, model, "model", &err);
     if (err) {
@@ -241,7 +244,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     /* convert it back to a static representation */
     expansion_info = g_new0(CpuModelExpansionInfo, 1);
     expansion_info->model = g_malloc0(sizeof(*expansion_info->model));
-    cpu_info_from_model(expansion_info->model, &s390_model, delta_changes);
+    cpu_info_from_model(expansion_info->model, &s390_model,
+                        delta_changes, disable_deprecated_feats);
     return expansion_info;
 }
 
@@ -390,7 +394,7 @@ CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *infoa,
 
     baseline_info = g_new0(CpuModelBaselineInfo, 1);
     baseline_info->model = g_malloc0(sizeof(*baseline_info->model));
-    cpu_info_from_model(baseline_info->model, &model, true);
+    cpu_info_from_model(baseline_info->model, &model, true, false);
     return baseline_info;
 }
 
