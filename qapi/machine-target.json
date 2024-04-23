@@ -285,6 +285,10 @@
 #
 # @type: expansion type, specifying how to expand the CPU model
 #
+# @disable-deprecated-feats: include CPU model features that are
+#     flagged as deprecated. If supported, these features will appear
+#     in the properties list paired with false.
+#
 # Returns: a CpuModelExpansionInfo describing the expanded CPU model
 #
 # Errors:
@@ -298,7 +302,8 @@
 ##
 { 'command': 'query-cpu-model-expansion',
   'data': { 'type': 'CpuModelExpansionType',
-            'model': 'CpuModelInfo' },
+            'model': 'CpuModelInfo',
+            '*disable-deprecated-feats': 'bool' },
   'returns': 'CpuModelExpansionInfo',
   'if': { 'any': [ 'TARGET_S390X',
                    'TARGET_I386',

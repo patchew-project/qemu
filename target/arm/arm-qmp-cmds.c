@@ -100,6 +100,8 @@ static const char *cpu_model_advertised_features[] = {
 
 CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                      CpuModelInfo *model,
+                                                     bool has_disable_deprecated_feats,
+                                                     bool disable_deprecated_feats,
                                                      Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
@@ -109,6 +111,11 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     Object *obj;
     const char *name;
     int i;
+
+    if (has_disable_deprecated_feats) {
+        error_setg(&err, "Unsupported option 'disable-deprecated-feats'");
+        return NULL;
+    }
 
     if (type != CPU_MODEL_EXPANSION_TYPE_FULL) {
         error_setg(errp, "The requested expansion type is not supported");

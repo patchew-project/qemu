@@ -196,6 +196,8 @@ out:
 CpuModelExpansionInfo *
 qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                       CpuModelInfo *model,
+                                                      bool has_disable_deprecated_feats,
+                                                      bool disable_deprecated_feats,
                                                       Error **errp)
 {
     X86CPU *xc = NULL;
@@ -203,6 +205,11 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     CpuModelExpansionInfo *ret = g_new0(CpuModelExpansionInfo, 1);
     QDict *props = NULL;
     const char *base_name;
+
+    if (has_disable_deprecated_feats) {
+        error_setg(&err, "Unsupported option 'disable-deprecated-feats'");
+        goto out;
+    }
 
     xc = x86_cpu_from_model(model->name, model->props, "model.props", &err);
     if (err) {

@@ -210,12 +210,19 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
 
 CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                       CpuModelInfo *model,
+                                                      bool has_disable_deprecated_feats,
+                                                      bool disable_deprecated_feats,
                                                       Error **errp)
 {
     Error *err = NULL;
     CpuModelExpansionInfo *expansion_info = NULL;
     S390CPUModel s390_model;
     bool delta_changes = false;
+
+    if (has_disable_deprecated_feats) {
+        error_setg(&err, "Unsupported option 'disable-deprecated-feats'");
+        return NULL;
+    }
 
     /* convert it to our internal representation */
     cpu_model_from_info(&s390_model, model, "model", &err);
