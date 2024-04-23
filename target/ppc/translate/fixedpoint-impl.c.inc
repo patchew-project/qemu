@@ -468,7 +468,7 @@ static bool do_divw(DisasContext *ctx, arg_XO *a, int sign)
     return true;
 }
 
-static bool do_divwe(DisasContext *ctx, arg_XO *a,
+static bool do_dive(DisasContext *ctx, arg_XO *a,
                      void (*helper)(TCGv, TCGv_ptr, TCGv, TCGv, TCGv_i32))
 {
     REQUIRE_INSNS_FLAGS2(ctx, DIVE_ISA206);
@@ -482,8 +482,8 @@ static bool do_divwe(DisasContext *ctx, arg_XO *a,
 
 TRANS(DIVW, do_divw, 1);
 TRANS(DIVWU, do_divw, 0);
-TRANS(DIVWE, do_divwe, gen_helper_DIVWE);
-TRANS(DIVWEU, do_divwe, gen_helper_DIVWEU);
+TRANS(DIVWE, do_dive, gen_helper_DIVWE);
+TRANS(DIVWEU, do_dive, gen_helper_DIVWEU);
 
 static bool do_modw(DisasContext *ctx, arg_X *a, bool sign)
 {
@@ -613,6 +613,29 @@ static bool trans_MADDHDU(DisasContext *ctx, arg_MADDHDU *a)
                      tcg_constant_i64(0));
     return true;
 }
+
+static bool do_divd(DisasContext *ctx, arg_XO *a, bool sign)
+{
+    gen_op_arith_divd(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb],
+                      sign, a->oe, a->rc);
+    return true;
+}
+
+static bool do_modd(DisasContext *ctx, arg_X *a, bool sign)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    gen_op_arith_modd(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb],
+                      sign);
+    return true;
+}
+
+TRANS64(DIVD, do_divd, true);
+TRANS64(DIVDU, do_divd, false);
+TRANS64(DIVDE, do_dive, gen_helper_DIVDE);
+TRANS64(DIVDEU, do_dive, gen_helper_DIVDEU);
+
+TRANS64(MODSD, do_modd, true);
+TRANS64(MODUD, do_modd, false);
 
 static bool trans_INVALID(DisasContext *ctx, arg_INVALID *a)
 {
