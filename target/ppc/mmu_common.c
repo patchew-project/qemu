@@ -915,6 +915,156 @@ found_tlb:
     return ret;
 }
 
+static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
+                                         MMUAccessType access_type, int mmu_idx)
+{
+    uint32_t epid;
+    bool as, pr;
+    uint32_t missed_tid = 0;
+    bool use_epid = mmubooke206_get_as(env, mmu_idx, &epid, &as, &pr);
+
+    if (access_type == MMU_INST_FETCH) {
+        as = FIELD_EX64(env->msr, MSR, IR);
+    }
+    env->spr[SPR_BOOKE_MAS0] = env->spr[SPR_BOOKE_MAS4] & MAS4_TLBSELD_MASK;
+    env->spr[SPR_BOOKE_MAS1] = env->spr[SPR_BOOKE_MAS4] & MAS4_TSIZED_MASK;
+    env->spr[SPR_BOOKE_MAS2] = env->spr[SPR_BOOKE_MAS4] & MAS4_WIMGED_MASK;
+    env->spr[SPR_BOOKE_MAS3] = 0;
+    env->spr[SPR_BOOKE_MAS6] = 0;
+    env->spr[SPR_BOOKE_MAS7] = 0;
+
+    /* AS */
+    if (as) {
+        env->spr[SPR_BOOKE_MAS1] |= MAS1_TS;
+        env->spr[SPR_BOOKE_MAS6] |= MAS6_SAS;
+    }
+
+    env->spr[SPR_BOOKE_MAS1] |= MAS1_VALID;
+    env->spr[SPR_BOOKE_MAS2] |= address & MAS2_EPN_MASK;
+
+    if (!use_epid) {
+        switch (env->spr[SPR_BOOKE_MAS4] & MAS4_TIDSELD_PIDZ) {
+        case MAS4_TIDSELD_PID0:
+            missed_tid = env->spr[SPR_BOOKE_PID];
+            break;
+        case MAS4_TIDSELD_PID1:
+            missed_tid = env->spr[SPR_BOOKE_PID1];
+            break;
+        case MAS4_TIDSELD_PID2:
+            missed_tid = env->spr[SPR_BOOKE_PID2];
+            break;
+        }
+        env->spr[SPR_BOOKE_MAS6] |= env->spr[SPR_BOOKE_PID] << 16;
+    } else {
+        missed_tid = epid;
+        env->spr[SPR_BOOKE_MAS6] |= missed_tid << 16;
+    }
+    env->spr[SPR_BOOKE_MAS1] |= (missed_tid << MAS1_TID_SHIFT);
+
+
+    /* next victim logic */
+    env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_ESEL_SHIFT;
+    env->last_way++;
+    env->last_way &= booke206_tlb_ways(env, 0) - 1;
+    env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_NV_SHIFT;
+}
+
+static bool ppc_booke_xlate(PowerPCCPU *cpu, vaddr eaddr,
+                            MMUAccessType access_type,
+                            hwaddr *raddrp, int *psizep, int *protp,
+                            int mmu_idx, bool guest_visible)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    mmu_ctx_t ctx;
+    int ret;
+
+    if (env->mmu_model == POWERPC_MMU_BOOKE206) {
+        ret = mmubooke206_get_physical_address(env, &ctx, eaddr, access_type,
+                                               mmu_idx);
+    } else {
+        ret = mmubooke_get_physical_address(env, &ctx, eaddr, access_type);
+    }
+    if (ret == 0) {
+        *raddrp = ctx.raddr;
+        *protp = ctx.prot;
+        *psizep = TARGET_PAGE_BITS;
+        return true;
+    } else if (!guest_visible) {
+        return false;
+    }
+
+    log_cpu_state_mask(CPU_LOG_MMU, cs, 0);
+    env->error_code = 0;
+    if (env->mmu_model == POWERPC_MMU_BOOKE206 && ret == -1) {
+        booke206_update_mas_tlb_miss(env, eaddr, access_type, mmu_idx);
+    }
+    if (access_type == MMU_INST_FETCH) {
+        if (ret == -1) {
+            /* No matches in page tables or TLB */
+            cs->exception_index = POWERPC_EXCP_ITLB;
+            env->spr[SPR_BOOKE_DEAR] = eaddr;
+            env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
+        } else {
+            cs->exception_index = POWERPC_EXCP_ISI;
+            if (ret == -3) {
+                /* No execute protection violation */
+                env->spr[SPR_BOOKE_ESR] = 0;
+            }
+        }
+        return false;
+    }
+
+    switch (ret) {
+    case -1:
+        /* No matches in page tables or TLB */
+        cs->exception_index = POWERPC_EXCP_DTLB;
+        env->spr[SPR_BOOKE_DEAR] = eaddr;
+        env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
+        break;
+    case -2:
+        /* Access rights violation */
+        cs->exception_index = POWERPC_EXCP_DSI;
+        env->spr[SPR_BOOKE_DEAR] = eaddr;
+        env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
+        break;
+    case -4:
+        /* Direct store exception */
+        env->spr[SPR_DAR] = eaddr;
+        switch (env->access_type) {
+        case ACCESS_FLOAT:
+            /* Floating point load/store */
+            cs->exception_index = POWERPC_EXCP_ALIGN;
+            env->error_code = POWERPC_EXCP_ALIGN_FP;
+            break;
+        case ACCESS_RES:
+            /* lwarx, ldarx or stwcx. */
+            cs->exception_index = POWERPC_EXCP_DSI;
+            if (access_type == MMU_DATA_STORE) {
+                env->spr[SPR_DSISR] = 0x06000000;
+            } else {
+                env->spr[SPR_DSISR] = 0x04000000;
+            }
+            break;
+        case ACCESS_EXT:
+            /* eciwx or ecowx */
+            cs->exception_index = POWERPC_EXCP_DSI;
+            if (access_type == MMU_DATA_STORE) {
+                env->spr[SPR_DSISR] = 0x06100000;
+            } else {
+                env->spr[SPR_DSISR] = 0x04100000;
+            }
+            break;
+        default:
+            printf("DSI: invalid exception (%d)\n", ret);
+            cs->exception_index = POWERPC_EXCP_PROGRAM;
+            env->error_code = POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL;
+            break;
+        }
+    }
+    return false;
+}
+
 static const char *book3e_tsize_to_str[32] = {
     "1K", "2K", "4K", "8K", "16K", "32K", "64K", "128K", "256K", "512K",
     "1M", "2M", "4M", "8M", "16M", "32M", "64M", "128M", "256M", "512M",
@@ -1184,156 +1334,6 @@ static int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
     default:
         cpu_abort(env_cpu(env), "Unknown or invalid MMU model\n");
     }
-}
-
-static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
-                                         MMUAccessType access_type, int mmu_idx)
-{
-    uint32_t epid;
-    bool as, pr;
-    uint32_t missed_tid = 0;
-    bool use_epid = mmubooke206_get_as(env, mmu_idx, &epid, &as, &pr);
-
-    if (access_type == MMU_INST_FETCH) {
-        as = FIELD_EX64(env->msr, MSR, IR);
-    }
-    env->spr[SPR_BOOKE_MAS0] = env->spr[SPR_BOOKE_MAS4] & MAS4_TLBSELD_MASK;
-    env->spr[SPR_BOOKE_MAS1] = env->spr[SPR_BOOKE_MAS4] & MAS4_TSIZED_MASK;
-    env->spr[SPR_BOOKE_MAS2] = env->spr[SPR_BOOKE_MAS4] & MAS4_WIMGED_MASK;
-    env->spr[SPR_BOOKE_MAS3] = 0;
-    env->spr[SPR_BOOKE_MAS6] = 0;
-    env->spr[SPR_BOOKE_MAS7] = 0;
-
-    /* AS */
-    if (as) {
-        env->spr[SPR_BOOKE_MAS1] |= MAS1_TS;
-        env->spr[SPR_BOOKE_MAS6] |= MAS6_SAS;
-    }
-
-    env->spr[SPR_BOOKE_MAS1] |= MAS1_VALID;
-    env->spr[SPR_BOOKE_MAS2] |= address & MAS2_EPN_MASK;
-
-    if (!use_epid) {
-        switch (env->spr[SPR_BOOKE_MAS4] & MAS4_TIDSELD_PIDZ) {
-        case MAS4_TIDSELD_PID0:
-            missed_tid = env->spr[SPR_BOOKE_PID];
-            break;
-        case MAS4_TIDSELD_PID1:
-            missed_tid = env->spr[SPR_BOOKE_PID1];
-            break;
-        case MAS4_TIDSELD_PID2:
-            missed_tid = env->spr[SPR_BOOKE_PID2];
-            break;
-        }
-        env->spr[SPR_BOOKE_MAS6] |= env->spr[SPR_BOOKE_PID] << 16;
-    } else {
-        missed_tid = epid;
-        env->spr[SPR_BOOKE_MAS6] |= missed_tid << 16;
-    }
-    env->spr[SPR_BOOKE_MAS1] |= (missed_tid << MAS1_TID_SHIFT);
-
-
-    /* next victim logic */
-    env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_ESEL_SHIFT;
-    env->last_way++;
-    env->last_way &= booke206_tlb_ways(env, 0) - 1;
-    env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_NV_SHIFT;
-}
-
-static bool ppc_booke_xlate(PowerPCCPU *cpu, vaddr eaddr,
-                            MMUAccessType access_type,
-                            hwaddr *raddrp, int *psizep, int *protp,
-                            int mmu_idx, bool guest_visible)
-{
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-    mmu_ctx_t ctx;
-    int ret;
-
-    if (env->mmu_model == POWERPC_MMU_BOOKE206) {
-        ret = mmubooke206_get_physical_address(env, &ctx, eaddr, access_type,
-                                               mmu_idx);
-    } else {
-        ret = mmubooke_get_physical_address(env, &ctx, eaddr, access_type);
-    }
-    if (ret == 0) {
-        *raddrp = ctx.raddr;
-        *protp = ctx.prot;
-        *psizep = TARGET_PAGE_BITS;
-        return true;
-    } else if (!guest_visible) {
-        return false;
-    }
-
-    log_cpu_state_mask(CPU_LOG_MMU, cs, 0);
-    env->error_code = 0;
-    if (env->mmu_model == POWERPC_MMU_BOOKE206 && ret == -1) {
-        booke206_update_mas_tlb_miss(env, eaddr, access_type, mmu_idx);
-    }
-    if (access_type == MMU_INST_FETCH) {
-        if (ret == -1) {
-            /* No matches in page tables or TLB */
-            cs->exception_index = POWERPC_EXCP_ITLB;
-            env->spr[SPR_BOOKE_DEAR] = eaddr;
-            env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
-        } else {
-            cs->exception_index = POWERPC_EXCP_ISI;
-            if (ret == -3) {
-                /* No execute protection violation */
-                env->spr[SPR_BOOKE_ESR] = 0;
-            }
-        }
-        return false;
-    }
-
-    switch (ret) {
-    case -1:
-        /* No matches in page tables or TLB */
-        cs->exception_index = POWERPC_EXCP_DTLB;
-        env->spr[SPR_BOOKE_DEAR] = eaddr;
-        env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
-        break;
-    case -2:
-        /* Access rights violation */
-        cs->exception_index = POWERPC_EXCP_DSI;
-        env->spr[SPR_BOOKE_DEAR] = eaddr;
-        env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
-        break;
-    case -4:
-        /* Direct store exception */
-        env->spr[SPR_DAR] = eaddr;
-        switch (env->access_type) {
-        case ACCESS_FLOAT:
-            /* Floating point load/store */
-            cs->exception_index = POWERPC_EXCP_ALIGN;
-            env->error_code = POWERPC_EXCP_ALIGN_FP;
-            break;
-        case ACCESS_RES:
-            /* lwarx, ldarx or stwcx. */
-            cs->exception_index = POWERPC_EXCP_DSI;
-            if (access_type == MMU_DATA_STORE) {
-                env->spr[SPR_DSISR] = 0x06000000;
-            } else {
-                env->spr[SPR_DSISR] = 0x04000000;
-            }
-            break;
-        case ACCESS_EXT:
-            /* eciwx or ecowx */
-            cs->exception_index = POWERPC_EXCP_DSI;
-            if (access_type == MMU_DATA_STORE) {
-                env->spr[SPR_DSISR] = 0x06100000;
-            } else {
-                env->spr[SPR_DSISR] = 0x04100000;
-            }
-            break;
-        default:
-            printf("DSI: invalid exception (%d)\n", ret);
-            cs->exception_index = POWERPC_EXCP_PROGRAM;
-            env->error_code = POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL;
-            break;
-        }
-    }
-    return false;
 }
 
 /* Perform address translation */
