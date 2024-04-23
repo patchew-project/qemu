@@ -8,6 +8,8 @@ config IBEX
 
 config MICROCHIP_PFSOC
     bool
+    default y
+    depends on RISCV64
     select CADENCE_SDHCI
     select MCHP_PFSOC_DMC
     select MCHP_PFSOC_IOSCB
@@ -20,12 +22,16 @@ config MICROCHIP_PFSOC
 
 config OPENTITAN
     bool
+    default y
+    depends on RISCV32
     select IBEX
     select SIFIVE_PLIC
     select UNIMP
 
 config RISCV_VIRT
     bool
+    default y
+    depends on RISCV32 || RISCV64
     imply PCI_DEVICES
     imply VIRTIO_VGA
     imply TEST_DEVICES
@@ -50,6 +56,8 @@ config RISCV_VIRT
 
 config SHAKTI_C
     bool
+    default y
+    depends on RISCV64
     select RISCV_ACLINT
     select SHAKTI_UART
     select SIFIVE_PLIC
@@ -57,6 +65,8 @@ config SHAKTI_C
 
 config SIFIVE_E
     bool
+    default y
+    depends on RISCV32 || RISCV64
     select RISCV_ACLINT
     select SIFIVE_GPIO
     select SIFIVE_PLIC
@@ -67,6 +77,8 @@ config SIFIVE_E
 
 config SIFIVE_U
     bool
+    default y
+    depends on RISCV32 || RISCV64
     select CADENCE
     select RISCV_ACLINT
     select SIFIVE_GPIO
@@ -83,6 +95,8 @@ config SIFIVE_U
 
 config SPIKE
     bool
+    default y
+    depends on RISCV32 || RISCV64
     select RISCV_NUMA
     select HTIF
     select RISCV_ACLINT
