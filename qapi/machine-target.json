@@ -20,11 +20,14 @@
 #
 # @props: a dictionary of QOM properties to be applied
 #
+# @deprecated-props: a list of QOM properties that are flagged as deprecated
+#
 # Since: 2.8
 ##
 { 'struct': 'CpuModelInfo',
   'data': { 'name': 'str',
-            '*props': 'any' } }
+            '*props': 'any',
+            '*deprecated-props': ['str'] } }
 
 ##
 # @CpuModelExpansionType:
