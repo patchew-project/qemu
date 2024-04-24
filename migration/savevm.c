@@ -1103,14 +1103,12 @@ void qemu_savevm_send_open_return_path(QEMUFile *f)
 int qemu_savevm_send_packaged(QEMUFile *f, const uint8_t *buf, size_t len)
 {
     uint32_t tmp;
-    MigrationState *ms = migrate_get_current();
     Error *local_err = NULL;
 
     if (len > MAX_VM_CMD_PACKAGED_SIZE) {
         error_setg(&local_err, "%s: Unreasonably large packaged state: %zu",
                      __func__, len);
-        migrate_set_error(ms, local_err);
-        error_report_err(local_err);
+        migrate_report_err(local_err);
         return -1;
     }
 
@@ -1325,7 +1323,7 @@ int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
         if (se->vmsd && se->vmsd->early_setup) {
             ret = vmstate_save(f, se, ms->vmdesc, errp);
             if (ret) {
-                migrate_set_error(ms, *errp);
+                migrate_report_err(error_copy(*errp));
                 qemu_file_set_error(f, ret);
                 break;
             }
@@ -1553,8 +1551,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 
         ret = vmstate_save(f, se, vmdesc, &local_err);
         if (ret) {
-            migrate_set_error(ms, local_err);
-            error_report_err(local_err);
+            migrate_report_err(local_err);
             qemu_file_set_error(f, ret);
             return ret;
         }
@@ -1571,8 +1568,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         if (ret) {
             error_setg(&local_err, "%s: bdrv_inactivate_all() failed (%d)",
                        __func__, ret);
-            migrate_set_error(ms, local_err);
-            error_report_err(local_err);
+            migrate_report_err(local_err);
             qemu_file_set_error(f, ret);
             return ret;
         }
@@ -1768,7 +1764,6 @@ void qemu_savevm_live_state(QEMUFile *f)
 
 int qemu_save_device_state(QEMUFile *f)
 {
-    MigrationState *ms = migrate_get_current();
     Error *local_err = NULL;
     SaveStateEntry *se;
 
@@ -1786,8 +1781,7 @@ int qemu_save_device_state(QEMUFile *f)
         }
         ret = vmstate_save(f, se, NULL, &local_err);
         if (ret) {
-            migrate_set_error(ms, local_err);
-            error_report_err(local_err);
+            migrate_report_err(local_err);
             return ret;
         }
     }

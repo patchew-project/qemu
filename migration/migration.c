@@ -285,7 +285,7 @@ void migration_bh_schedule(QEMUBHFunc *cb, void *opaque)
 void migration_cancel(const Error *error)
 {
     if (error) {
-        migrate_set_error(current_migration, error);
+        migrate_report_err(error_copy(error));
     }
     if (migrate_dirty_limit()) {
         qmp_cancel_vcpu_dirty_limit(false, -1, NULL);
@@ -779,13 +779,6 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
-        MigrationState *s = migrate_get_current();
-
-        if (migrate_has_error(s)) {
-            WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-                error_report_err(s->error);
-            }
-        }
         error_report("load of migration failed: %s", strerror(-ret));
         goto fail;
     }
@@ -1402,10 +1395,6 @@ static void migrate_fd_cleanup(MigrationState *s)
                           MIGRATION_STATUS_CANCELLED);
     }
 
-    if (s->error) {
-        /* It is used on info migrate.  We can't free it */
-        error_report_err(error_copy(s->error));
-    }
     type = migration_has_failed(s) ? MIG_EVENT_PRECOPY_FAILED :
                                      MIG_EVENT_PRECOPY_DONE;
     migration_call_notifiers(s, type, NULL);
@@ -1418,12 +1407,14 @@ static void migrate_fd_cleanup_bh(void *opaque)
     migrate_fd_cleanup(opaque);
 }
 
-void migrate_set_error(MigrationState *s, const Error *error)
+void migrate_report_err(Error *error)
 {
+    MigrationState *s = migrate_get_current();
     QEMU_LOCK_GUARD(&s->error_mutex);
     if (!s->error) {
         s->error = error_copy(error);
     }
+    error_report_err(error);
 }
 
 bool migrate_has_error(MigrationState *s)
@@ -1448,7 +1439,7 @@ static void migrate_fd_error(MigrationState *s, const Error *error)
     assert(s->to_dst_file == NULL);
     migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                       MIGRATION_STATUS_FAILED);
-    migrate_set_error(s, error);
+    migrate_report_err(error_copy(error));
 }
 
 static void migrate_fd_cancel(MigrationState *s)
@@ -1863,8 +1854,7 @@ void qmp_migrate_pause(Error **errp)
 
         /* Tell the core migration that we're pausing */
         error_setg(&error, "Postcopy migration is paused by the user");
-        migrate_set_error(ms, error);
-        error_free(error);
+        migrate_report_err(error);
 
         qemu_mutex_lock(&ms->qemu_file_lock);
         if (ms->to_dst_file) {
@@ -2413,8 +2403,7 @@ static void *source_return_path_thread(void *opaque)
 
 out:
     if (err) {
-        migrate_set_error(ms, err);
-        error_free(err);
+        migrate_report_err(err);
         trace_source_return_path_thread_bad_end();
     }
 
@@ -2842,12 +2831,10 @@ static void migration_completion(MigrationState *s)
 
 fail:
     if (qemu_file_get_error_obj(s->to_dst_file, &local_err)) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_report_err(local_err);
     } else if (ret) {
         error_setg_errno(&local_err, -ret, "Error in migration completion");
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_report_err(local_err);
     }
 
     migration_completion_failed(s, current_active_state);
@@ -3070,8 +3057,7 @@ static MigThrError migration_detect_error(MigrationState *s)
     }
 
     if (local_error) {
-        migrate_set_error(s, local_error);
-        error_free(local_error);
+        migrate_report_err(local_error);
     }
 
     if (state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret) {
@@ -3242,8 +3228,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     if (!in_postcopy && must_precopy <= s->threshold_size && can_switchover &&
         qatomic_read(&s->start_postcopy)) {
         if (postcopy_start(s, &local_err)) {
-            migrate_set_error(s, local_err);
-            error_report_err(local_err);
+            migrate_report_err(local_err);
         }
         return MIG_ITERATE_SKIP;
     }
@@ -3487,8 +3472,7 @@ static void *migration_thread(void *opaque)
      * devices to unplug. This to preserve migration state transitions.
      */
     if (ret) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_report_err(local_err);
         migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                           MIGRATION_STATUS_FAILED);
         goto out;
@@ -3613,8 +3597,7 @@ static void *bg_migration_thread(void *opaque)
      * devices to unplug. This to preserve migration state transitions.
      */
     if (ret) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_report_err(local_err);
         migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                           MIGRATION_STATUS_FAILED);
         goto fail_setup;
@@ -3723,8 +3706,6 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
              * It's normally done in migrate_fd_cleanup(), but call it here
              * explicitly.
              */
-            error_report_err(error_copy(s->error));
-        } else {
             migrate_fd_cleanup(s);
         }
         return;
@@ -3794,9 +3775,8 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     return;
 
 fail:
-    migrate_set_error(s, local_err);
+    migrate_report_err(local_err);
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
-    error_report_err(local_err);
     migrate_fd_cleanup(s);
 }
 

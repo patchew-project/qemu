@@ -1626,8 +1626,7 @@ postcopy_preempt_send_channel_done(MigrationState *s,
                                    QIOChannel *ioc, Error *local_err)
 {
     if (local_err) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_report_err(local_err);
     } else {
         migration_ioc_register_yank(ioc);
         s->postcopy_qemufile_src = qemu_file_new_output(ioc);

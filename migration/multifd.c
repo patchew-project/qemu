@@ -678,7 +678,7 @@ retry:
 }
 
 /* Multifd send side hit an error; remember it and prepare to quit */
-static void multifd_send_set_error(Error *err)
+static void multifd_report_err(Error *err)
 {
     /*
      * We don't want to exit each threads twice.  Depending on where
@@ -692,7 +692,7 @@ static void multifd_send_set_error(Error *err)
 
     if (err) {
         MigrationState *s = migrate_get_current();
-        migrate_set_error(s, err);
+        migrate_report_err(err);
         if (s->state == MIGRATION_STATUS_SETUP ||
             s->state == MIGRATION_STATUS_PRE_SWITCHOVER ||
             s->state == MIGRATION_STATUS_DEVICE ||
@@ -819,8 +819,7 @@ void multifd_send_shutdown(void)
         Error *local_err = NULL;
 
         if (!multifd_send_cleanup_channel(p, &local_err)) {
-            migrate_set_error(migrate_get_current(), local_err);
-            error_free(local_err);
+            migrate_report_err(local_err);
         }
     }
 
@@ -998,9 +997,8 @@ out:
     if (ret) {
         assert(local_err);
         trace_multifd_send_error(p->id);
-        multifd_send_set_error(local_err);
+        multifd_report_err(local_err);
         multifd_send_kick_main(p);
-        error_free(local_err);
     }
 
     rcu_unregister_thread();
@@ -1123,14 +1121,13 @@ out:
     }
 
     trace_multifd_new_send_channel_async_error(p->id, local_err);
-    multifd_send_set_error(local_err);
+    multifd_report_err(local_err);
     /*
      * For error cases (TLS or non-TLS), IO channel is always freed here
      * rather than when cleanup multifd: since p->c is not set, multifd
      * cleanup code doesn't even know its existence.
      */
     object_unref(OBJECT(ioc));
-    error_free(local_err);
 }
 
 static bool multifd_new_send_channel_create(gpointer opaque, Error **errp)
@@ -1214,8 +1211,7 @@ bool multifd_send_setup(void)
     }
 
     if (ret) {
-        migrate_set_error(s, local_err);
-        error_report_err(local_err);
+        migrate_report_err(local_err);
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_FAILED);
         return false;
@@ -1287,7 +1283,7 @@ static void multifd_recv_terminate_threads(Error *err)
 
     if (err) {
         MigrationState *s = migrate_get_current();
-        migrate_set_error(s, err);
+        migrate_report_err(error_copy(err));
         if (s->state == MIGRATION_STATUS_SETUP ||
             s->state == MIGRATION_STATUS_ACTIVE) {
             migrate_set_state(&s->state, s->state,
