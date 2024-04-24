@@ -2,32 +2,32 @@
 - name: Installation of extra packages to build QEMU
   hosts: all
   tasks:
-    - name: Extra check for CentOS Stream 8
+    - name: Extra check for CentOS Stream 9
       lineinfile:
         path: /etc/redhat-release
-        line: CentOS Stream release 8
+        line: CentOS Stream release 9
         state: present
       check_mode: yes
-      register: centos_stream_8
+      register: centos_stream_9
 
-    - name: Enable EPEL repo on CentOS Stream 8
+    - name: Enable EPEL repo on CentOS Stream 9
       dnf:
         name:
           - epel-release
         state: present
       when:
-        - centos_stream_8
+        - centos_stream_9
 
-    - name: Enable PowerTools repo on CentOS Stream 8
+    - name: Enable CRB repo on CentOS Stream 9
       ini_file:
-        path: /etc/yum.repos.d/CentOS-Stream-PowerTools.repo
-        section: powertools
+        path: /etc/yum.repos.d/centos.repo
+        section: crb
         option: enabled
         value: "1"
       when:
-        - centos_stream_8
+        - centos_stream_9
 
-    - name: Install basic packages to build QEMU on CentOS Stream 8
+    - name: Install basic packages to build QEMU on CentOS Stream 9
       dnf:
         name:
           - bzip2
@@ -42,7 +42,6 @@
           - gettext
           - git
           - glib2-devel
-          - glusterfs-api-devel
           - gnutls-devel
           - libaio-devel
           - libcap-ng-devel
@@ -61,22 +60,24 @@
           - lzo-devel
           - make
           - mesa-libEGL-devel
+          - meson
           - nettle-devel
           - ninja-build
           - nmap-ncat
           - numactl-devel
           - pixman-devel
-          - python38
+          - python3
+          - python3-pip
           - python3-sphinx
+          - python3-sphinx_rtd_theme
+          - python3-tomli
           - rdma-core-devel
           - redhat-rpm-config
           - snappy-devel
-          - spice-glib-devel
-          - spice-server-devel
           - systemd-devel
           - systemtap-sdt-devel
           - tar
           - zlib-devel
         state: present
       when:
-        - centos_stream_8
+        - centos_stream_9
