@@ -13,6 +13,7 @@
 #include "exec/exec-all.h"
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
+#include "exec/cpu_ldst.h"
 #include "tcg/tcg-op-common.h"
 #include "internal-target.h"
 
@@ -293,11 +294,11 @@ static void *translator_access(CPUArchState *env, DisasContextBase *db,
     return host + (pc - base);
 }
 
-static void plugin_insn_append(abi_ptr pc, const void *from, size_t size)
+static void plugin_insn_append(vaddr pc, const void *from, size_t size)
 {
 #ifdef CONFIG_PLUGIN
     struct qemu_plugin_insn *insn = tcg_ctx->plugin_insn;
-    abi_ptr off;
+    size_t off;
 
     if (insn == NULL) {
         return;
@@ -314,7 +315,7 @@ static void plugin_insn_append(abi_ptr pc, const void *from, size_t size)
 #endif
 }
 
-uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, abi_ptr pc)
+uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
     uint8_t ret;
     void *p = translator_access(env, db, pc, sizeof(ret));
@@ -328,7 +329,7 @@ uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, abi_ptr pc)
     return ret;
 }
 
-uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, abi_ptr pc)
+uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
     uint16_t ret, plug;
     void *p = translator_access(env, db, pc, sizeof(ret));
@@ -343,7 +344,7 @@ uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, abi_ptr pc)
     return ret;
 }
 
-uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, abi_ptr pc)
+uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
     uint32_t ret, plug;
     void *p = translator_access(env, db, pc, sizeof(ret));
@@ -358,7 +359,7 @@ uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, abi_ptr pc)
     return ret;
 }
 
-uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, abi_ptr pc)
+uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
     uint64_t ret, plug;
     void *p = translator_access(env, db, pc, sizeof(ret));
@@ -373,7 +374,7 @@ uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, abi_ptr pc)
     return ret;
 }
 
-void translator_fake_ldb(uint8_t insn8, abi_ptr pc)
+void translator_fake_ldb(uint8_t insn8, vaddr pc)
 {
     plugin_insn_append(pc, &insn8, sizeof(insn8));
 }

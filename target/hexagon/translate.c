@@ -24,6 +24,7 @@
 #include "exec/helper-proto.h"
 #include "exec/translation-block.h"
 #include "exec/log.h"
+#include "exec/cpu_ldst.h"
 #include "internal.h"
 #include "attribs.h"
 #include "insn.h"
