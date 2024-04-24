@@ -3056,6 +3056,10 @@ sub process {
 		}
 	}
 
+	if ($line =~ /\bstrerrorname_np\(/) {
+		ERROR("use strerror() instead of strerrorname_np()\n" . $herecurr);
+	}
+
 # check for non-portable libc calls that have portable alternatives in QEMU
 		if ($line =~ /\bffs\(/) {
 			ERROR("use ctz32() instead of ffs()\n" . $herecurr);
