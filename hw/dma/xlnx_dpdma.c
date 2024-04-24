@@ -175,24 +175,24 @@ static uint64_t xlnx_dpdma_desc_get_source_address(DPDMADescriptor *desc,
 
     switch (frag) {
     case 0:
-        addr = desc->source_address
-            + (extract32(desc->address_extension, 16, 12) << 20);
+        addr = (uint64_t)desc->source_address
+            + (extract64(desc->address_extension, 16, 16) << 32);
         break;
     case 1:
-        addr = desc->source_address2
-            + (extract32(desc->address_extension_23, 0, 12) << 8);
+        addr = (uint64_t)desc->source_address2
+            + (extract64(desc->address_extension_23, 0, 16) << 32);
         break;
     case 2:
-        addr = desc->source_address3
-            + (extract32(desc->address_extension_23, 16, 12) << 20);
+        addr = (uint64_t)desc->source_address3
+            + (extract64(desc->address_extension_23, 16, 16) << 32);
         break;
     case 3:
-        addr = desc->source_address4
-            + (extract32(desc->address_extension_45, 0, 12) << 8);
+        addr = (uint64_t)desc->source_address4
+            + (extract64(desc->address_extension_45, 0, 16) << 32);
         break;
     case 4:
-        addr = desc->source_address5
-            + (extract32(desc->address_extension_45, 16, 12) << 20);
+        addr = (uint64_t)desc->source_address5
+            + (extract64(desc->address_extension_45, 16, 16) << 32);
         break;
     default:
         addr = 0;
@@ -659,6 +659,24 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
             DPRINTF("Can't get the descriptor.\n");
             break;
         }
+
+        /* Convert from LE into host endianness.  */
+        desc.control = le32_to_cpu(desc.control);
+        desc.descriptor_id = le32_to_cpu(desc.descriptor_id);
+        desc.xfer_size = le32_to_cpu(desc.xfer_size);
+        desc.line_size_stride = le32_to_cpu(desc.line_size_stride);
+        desc.timestamp_lsb = le32_to_cpu(desc.timestamp_lsb);
+        desc.timestamp_msb = le32_to_cpu(desc.timestamp_msb);
+        desc.address_extension = le32_to_cpu(desc.address_extension);
+        desc.next_descriptor = le32_to_cpu(desc.next_descriptor);
+        desc.source_address = le32_to_cpu(desc.source_address);
+        desc.address_extension_23 = le32_to_cpu(desc.address_extension_23);
+        desc.address_extension_45 = le32_to_cpu(desc.address_extension_45);
+        desc.source_address2 = le32_to_cpu(desc.source_address2);
+        desc.source_address3 = le32_to_cpu(desc.source_address3);
+        desc.source_address4 = le32_to_cpu(desc.source_address4);
+        desc.source_address5 = le32_to_cpu(desc.source_address5);
+        desc.crc = le32_to_cpu(desc.crc);
 
         xlnx_dpdma_update_desc_info(s, channel, &desc);
 
