@@ -425,60 +425,45 @@ static DisasJumpType gen_store_conditional(DisasContext *ctx, int ra, int rb,
     return DISAS_NEXT;
 }
 
-static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
+static void gen_goto_tb(DisasContext *ctx, int idx, int32_t disp)
 {
-    return translator_use_goto_tb(&ctx->base, dest);
+    uint64_t dest = ctx->base.pc_next + disp;
+
+    if (translator_use_goto_tb(&ctx->base, dest)) {
+        tcg_gen_goto_tb(idx);
+        tcg_gen_movi_i64(cpu_pc, dest);
+        tcg_gen_exit_tb(ctx->base.tb, idx);
+    } else {
+        tcg_gen_movi_i64(cpu_pc, dest);
+        tcg_gen_lookup_and_goto_ptr();
+    }
 }
 
 static DisasJumpType gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
 {
-    uint64_t dest = ctx->base.pc_next + disp;
-
     if (ra != 31) {
         tcg_gen_movi_i64(ctx->ir[ra], ctx->base.pc_next);
     }
 
     /* Notice branch-to-next; used to initialize RA with the PC.  */
     if (disp == 0) {
-        return 0;
-    } else if (use_goto_tb(ctx, dest)) {
-        tcg_gen_goto_tb(0);
-        tcg_gen_movi_i64(cpu_pc, dest);
-        tcg_gen_exit_tb(ctx->base.tb, 0);
-        return DISAS_NORETURN;
-    } else {
-        tcg_gen_movi_i64(cpu_pc, dest);
-        return DISAS_PC_UPDATED;
+        return DISAS_NEXT;
     }
+    gen_goto_tb(ctx, 0, disp);
+    return DISAS_NORETURN;
 }
 
 static DisasJumpType gen_bcond_internal(DisasContext *ctx, TCGCond cond,
                                         TCGv cmp, uint64_t imm, int32_t disp)
 {
-    uint64_t dest = ctx->base.pc_next + disp;
     TCGLabel *lab_true = gen_new_label();
 
-    if (use_goto_tb(ctx, dest)) {
-        tcg_gen_brcondi_i64(cond, cmp, imm, lab_true);
+    tcg_gen_brcondi_i64(cond, cmp, imm, lab_true);
+    gen_goto_tb(ctx, 0, 0);
+    gen_set_label(lab_true);
+    gen_goto_tb(ctx, 1, disp);
 
-        tcg_gen_goto_tb(0);
-        tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
-        tcg_gen_exit_tb(ctx->base.tb, 0);
-
-        gen_set_label(lab_true);
-        tcg_gen_goto_tb(1);
-        tcg_gen_movi_i64(cpu_pc, dest);
-        tcg_gen_exit_tb(ctx->base.tb, 1);
-
-        return DISAS_NORETURN;
-    } else {
-        TCGv_i64 i = tcg_constant_i64(imm);
-        TCGv_i64 d = tcg_constant_i64(dest);
-        TCGv_i64 p = tcg_constant_i64(ctx->base.pc_next);
-
-        tcg_gen_movcond_i64(cond, cpu_pc, cmp, i, d, p);
-        return DISAS_PC_UPDATED;
-    }
+    return DISAS_NORETURN;
 }
 
 static DisasJumpType gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
@@ -2920,12 +2905,8 @@ static void alpha_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
-        if (use_goto_tb(ctx, ctx->base.pc_next)) {
-            tcg_gen_goto_tb(0);
-            tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
-            tcg_gen_exit_tb(ctx->base.tb, 0);
-        }
-        /* FALLTHRU */
+        gen_goto_tb(ctx, 0, 0);
+        break;
     case DISAS_PC_STALE:
         tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
         /* FALLTHRU */
