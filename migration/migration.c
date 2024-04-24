@@ -234,6 +234,8 @@ void migration_object_init(void)
     qemu_cond_init(&current_incoming->page_request_cond);
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
 
+    current_incoming->exit_on_error = true;
+
     migration_object_check(current_migration, &error_fatal);
 
     blk_mig_init();
@@ -597,11 +599,14 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
 
 static void qemu_start_incoming_migration(const char *uri, bool has_channels,
                                           MigrationChannelList *channels,
+                                          bool exit_on_error,
                                           Error **errp)
 {
     g_autoptr(MigrationChannel) channel = NULL;
     MigrationAddress *addr = NULL;
     MigrationIncomingState *mis = migration_incoming_get_current();
+
+    mis->exit_on_error = exit_on_error;
 
     /*
      * Having preliminary checks for uri and channel
@@ -738,11 +743,12 @@ process_incoming_migration_co(void *opaque)
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps;
     int ret;
+    Error *local_err = NULL;
 
     assert(mis->from_src_file);
 
     if (compress_threads_load_setup(mis->from_src_file)) {
-        error_report("Failed to setup decompress threads");
+        error_setg(&local_err, "Failed to setup decompress threads");
         goto fail;
     }
 
@@ -779,25 +785,26 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
-        error_report("load of migration failed: %s", strerror(-ret));
+        error_setg(&local_err, "load of migration failed: %s", strerror(-ret));
         goto fail;
     }
 
     if (colo_incoming_co() < 0) {
+        error_setg(&local_err, "colo incoming failed");
         goto fail;
     }
 
     migration_bh_schedule(process_incoming_migration_bh, mis);
     return;
 fail:
+    migrate_report_err(local_err);
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_FAILED);
-    qemu_fclose(mis->from_src_file);
+    migration_incoming_state_destroy();
 
-    multifd_recv_cleanup();
-    compress_threads_load_cleanup();
-
-    exit(EXIT_FAILURE);
+    if (mis->exit_on_error) {
+        exit(EXIT_FAILURE);
+    }
 }
 
 /**
@@ -1785,7 +1792,9 @@ void migrate_del_blocker(Error **reasonp)
 }
 
 void qmp_migrate_incoming(const char *uri, bool has_channels,
-                          MigrationChannelList *channels, Error **errp)
+                          MigrationChannelList *channels,
+                          bool has_exit_on_error, bool exit_on_error,
+                          Error **errp)
 {
     Error *local_err = NULL;
     static bool once = true;
@@ -1803,7 +1812,9 @@ void qmp_migrate_incoming(const char *uri, bool has_channels,
         return;
     }
 
-    qemu_start_incoming_migration(uri, has_channels, channels, &local_err);
+    qemu_start_incoming_migration(uri, has_channels, channels,
+                                  has_exit_on_error ? exit_on_error : true,
+                                  &local_err);
 
     if (local_err) {
         yank_unregister_instance(MIGRATION_YANK_INSTANCE);
@@ -1839,7 +1850,7 @@ void qmp_migrate_recover(const char *uri, Error **errp)
      * only re-setup the migration stream and poke existing migration
      * to continue using that newly established channel.
      */
-    qemu_start_incoming_migration(uri, false, NULL, errp);
+    qemu_start_incoming_migration(uri, false, NULL, mis->exit_on_error, errp);
 }
 
 void qmp_migrate_pause(Error **errp)
