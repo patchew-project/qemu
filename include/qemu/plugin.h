@@ -98,7 +98,6 @@ struct qemu_plugin_dyn_cb {
 /* Internal context for instrumenting an instruction */
 struct qemu_plugin_insn {
     uint64_t vaddr;
-    void *haddr;
     GArray *insn_cbs;
     GArray *mem_cbs;
     uint8_t len;
@@ -119,9 +118,6 @@ struct qemu_plugin_tb {
     GPtrArray *insns;
     size_t n;
     uint64_t vaddr;
-    uint64_t vaddr2;
-    void *haddr1;
-    void *haddr2;
 
     /* if set, the TB calls helpers that might access guest memory */
     bool mem_helper;
