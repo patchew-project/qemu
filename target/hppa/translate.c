@@ -55,6 +55,7 @@ typedef struct DisasDelayException {
     TCGLabel *lab;
     uint32_t insn;
     bool set_iir;
+    bool set_b;
     int8_t set_n;
     uint8_t excp;
     /* Saved state at parent insn. */
@@ -744,6 +745,7 @@ static DisasDelayException *delay_excp(DisasContext *ctx, uint8_t excp)
     e->insn = ctx->insn;
     e->set_iir = true;
     e->set_n = ctx->psw_n_nonzero ? 0 : -1;
+    e->set_b = false;
     e->excp = excp;
     e->iaq_f = ctx->iaq_f;
     e->iaq_b = ctx->iaq_b;
@@ -1872,6 +1874,54 @@ static bool do_fop_dedd(DisasContext *ctx, unsigned rt,
     return nullify_end(ctx);
 }
 
+/*
+ * Since B,GATE can only increase priv, and other indirect branches can
+ * only decrease priv, we only need to test in one direction.
+ * If maybe_priv == 0, no priv is possible with the current insn;
+ * if maybe_priv < 0, priv might increase, otherwise priv might decrease.
+ */
+static void do_priv_branch_trap(DisasContext *ctx, int maybe_priv,
+                                DisasIAQE *next, bool n)
+{
+    DisasDelayException *e;
+    uint32_t psw_bit, excp;
+    TCGv_i64 new_priv;
+    TCGCond cond;
+
+    if (likely(maybe_priv == 0)) {
+        return;
+    }
+    if (maybe_priv < 0) {
+        psw_bit = PSW_H;
+        excp = EXCP_HPT;
+        cond = TCG_COND_LTU;
+    } else {
+        psw_bit = PSW_L;
+        excp = EXCP_LPT;
+        cond = TCG_COND_GTU;
+    }
+    if (likely(!(ctx->tb_flags & psw_bit))) {
+        return;
+    }
+
+    e = tcg_malloc(sizeof(DisasDelayException));
+    memset(e, 0, sizeof(*e));
+    e->next = ctx->delay_excp_list;
+    ctx->delay_excp_list = e;
+
+    e->lab = gen_new_label();
+    e->set_n = n ? 1 : ctx->psw_n_nonzero ? 0 : -1;
+    e->set_b = ctx->psw_xb != PSW_B;
+    e->excp = excp;
+    e->iaq_f = ctx->iaq_b;
+    e->iaq_b = *next;
+
+    new_priv = tcg_temp_new_i64();
+    copy_iaoq_entry(ctx, new_priv, next);
+    tcg_gen_andi_i64(new_priv, new_priv, 3);
+    tcg_gen_brcondi_i64(cond, new_priv, ctx->privilege, e->lab);
+}
+
 static bool do_taken_branch_trap(DisasContext *ctx, DisasIAQE *next, bool n)
 {
     if (unlikely(ctx->tb_flags & PSW_T)) {
@@ -2009,10 +2059,12 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
  * This handles nullification of the branch itself.
  */
 static bool do_ibranch(DisasContext *ctx, unsigned link,
-                       bool with_sr0, bool is_n)
+                       bool with_sr0, bool is_n, int maybe_priv)
 {
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
         install_link(ctx, link, with_sr0);
+
+        do_priv_branch_trap(ctx, maybe_priv, &ctx->iaq_j, is_n);
         if (do_taken_branch_trap(ctx, &ctx->iaq_j, is_n)) {
             return true;
         }
@@ -2033,6 +2085,7 @@ static bool do_ibranch(DisasContext *ctx, unsigned link,
     nullify_over(ctx);
     install_link(ctx, link, with_sr0);
 
+    do_priv_branch_trap(ctx, maybe_priv, &ctx->iaq_j, is_n);
     if (!do_taken_branch_trap(ctx, &ctx->iaq_j, is_n)) {
         if (is_n && use_nullify_skip(ctx)) {
             install_iaq_entries(ctx, &ctx->iaq_j, NULL);
@@ -3993,7 +4046,7 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
     tcg_gen_addi_i64(ctx->iaq_j.base, load_gpr(ctx, a->b), a->disp);
     ctx->iaq_j.base = do_ibranch_priv(ctx, ctx->iaq_j.base);
 
-    return do_ibranch(ctx, a->l, true, a->n);
+    return do_ibranch(ctx, a->l, true, a->n, ctx->privilege == 3 ? 0 : 1);
 }
 
 static bool trans_bl(DisasContext *ctx, arg_bl *a)
@@ -4042,7 +4095,7 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
     }
 
     if (indirect) {
-        return do_ibranch(ctx, 0, false, a->n);
+        return do_ibranch(ctx, 0, false, a->n, -1);
     }
     return do_dbranch(ctx, disp, 0, a->n);
 }
@@ -4060,7 +4113,7 @@ static bool trans_blr(DisasContext *ctx, arg_blr *a)
         tcg_gen_add_i64(t0, t0, t1);
 
         ctx->iaq_j = iaqe_next_absv(ctx, t0);
-        return do_ibranch(ctx, a->l, false, a->n);
+        return do_ibranch(ctx, a->l, false, a->n, 0);
     } else {
         /* BLR R0,RX is a good way to load PC+8 into RX.  */
         return do_dbranch(ctx, 0, a->l, a->n);
@@ -4081,7 +4134,7 @@ static bool trans_bv(DisasContext *ctx, arg_bv *a)
     dest = do_ibranch_priv(ctx, dest);
     ctx->iaq_j = iaqe_next_absv(ctx, dest);
 
-    return do_ibranch(ctx, 0, false, a->n);
+    return do_ibranch(ctx, 0, false, a->n, ctx->privilege == 3 ? 0 : 1);
 }
 
 static bool trans_bve(DisasContext *ctx, arg_bve *a)
@@ -4094,7 +4147,7 @@ static bool trans_bve(DisasContext *ctx, arg_bve *a)
     ctx->iaq_j.base = do_ibranch_priv(ctx, b);
     ctx->iaq_j.disp = 0;
 
-    return do_ibranch(ctx, a->l, false, a->n);
+    return do_ibranch(ctx, a->l, false, a->n, ctx->privilege == 3 ? 0 : 1);
 }
 
 static bool trans_nopbts(DisasContext *ctx, arg_nopbts *a)
@@ -4851,6 +4904,9 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         gen_set_label(e->lab);
         if (e->set_n >= 0) {
             tcg_gen_movi_i64(cpu_psw_n, e->set_n);
+        }
+        if (e->set_b) {
+            tcg_gen_movi_i32(cpu_psw_xb, PSW_B);
         }
         if (e->set_iir) {
             tcg_gen_st_i64(tcg_constant_i64(e->insn), tcg_env,

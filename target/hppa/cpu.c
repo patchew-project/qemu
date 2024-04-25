@@ -76,10 +76,10 @@ void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
         cs_base |= env->iaoq_b & ~TARGET_PAGE_MASK;
     }
 
-    /* ??? E, H, L bits need to be here, when implemented.  */
+    /* ??? E bits need to be here, when implemented.  */
     flags |= env->psw_n * PSW_N;
     flags |= env->psw_xb;
-    flags |= env->psw & (PSW_W | PSW_C | PSW_D | PSW_P | PSW_T);
+    flags |= env->psw & (PSW_W | PSW_C | PSW_D | PSW_H | PSW_L | PSW_P | PSW_T);
 
 #ifdef CONFIG_USER_ONLY
     flags |= TB_FLAG_UNALIGN * !env_cpu(env)->prctl_unalign_sigbus;
