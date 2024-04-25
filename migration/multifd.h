@@ -135,6 +135,8 @@ typedef struct {
      * pending_job != 0 -> multifd_channel can use it.
      */
     MultiFDPages_t *pages;
+    /* Zero page checking batch task */
+    struct batch_task *batch_task;
 
     /* thread local variables. No locking required */
 

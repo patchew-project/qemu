@@ -2,6 +2,7 @@
 #define QEMU_DSA_H
 
 #include "qemu/error-report.h"
+#include "exec/cpu-common.h"
 #include "qemu/thread.h"
 #include "qemu/queue.h"
 
@@ -42,6 +43,21 @@ typedef struct dsa_batch_task {
     QSIMPLEQ_ENTRY(dsa_batch_task) entry;
 } dsa_batch_task;
 
+#endif
+
+struct batch_task {
+#ifdef CONFIG_DSA_OPT
+    /* Address of each pages in pages */
+    ram_addr_t *addr;
+    /* Zero page checking results */
+    bool *results;
+    /* Batch task DSA specific implementation */
+    struct dsa_batch_task *dsa_batch;
+#endif
+};
+
+#ifdef CONFIG_DSA_OPT
+
 /**
  * @brief Initializes DSA devices.
  *
@@ -74,7 +90,7 @@ void dsa_cleanup(void);
 bool dsa_is_running(void);
 
 /**
- * @brief Initializes a buffer zero batch task.
+ * @brief Initializes a buffer zero DSA batch task.
  *
  * @param task A pointer to the batch task to initialize.
  * @param results A pointer to an array of zero page checking results.
@@ -102,8 +118,25 @@ void buffer_zero_batch_task_destroy(struct dsa_batch_task *task);
  * @return Zero if successful, otherwise non-zero.
  */
 int
-buffer_is_zero_dsa_batch_async(struct dsa_batch_task *batch_task,
+buffer_is_zero_dsa_batch_async(struct batch_task *batch_task,
                                const void **buf, size_t count, size_t len);
+
+/**
+ * @brief Initializes a general buffer zero batch task.
+ *
+ * @param batch_size The number of zero page checking tasks in the batch.
+ * @return A pointer to the general batch task initialized.
+ */
+struct batch_task *
+batch_task_init(int batch_size);
+
+/**
+ * @brief Destroys a general buffer zero batch task.
+ *
+ * @param task A pointer to the general batch task to destroy.
+ */
+void
+batch_task_destroy(struct batch_task *task);
 
 #else
 
@@ -127,6 +160,20 @@ static inline void dsa_start(void) {}
 static inline void dsa_stop(void) {}
 
 static inline void dsa_cleanup(void) {}
+
+static inline int
+buffer_is_zero_dsa_batch_async(struct batch_task *batch_task,
+                               const void **buf, size_t count, size_t len)
+{
+    exit(1);
+}
+
+static inline struct batch_task *batch_task_init(int batch_size)
+{
+    return NULL;
+}
+
+static inline void batch_task_destroy(struct batch_task *task) {}
 
 #endif
 

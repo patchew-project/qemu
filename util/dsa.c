@@ -802,7 +802,7 @@ buffer_zero_task_init_int(struct dsa_hw_desc *descriptor,
 }
 
 /**
- * @brief Initializes a buffer zero batch task.
+ * @brief Initializes a buffer zero DSA batch task.
  *
  * @param task A pointer to the batch task to initialize.
  * @param results A pointer to an array of zero page checking results.
@@ -1107,28 +1107,63 @@ void dsa_cleanup(void)
  * @return Zero if successful, otherwise non-zero.
  */
 int
-buffer_is_zero_dsa_batch_async(struct dsa_batch_task *batch_task,
+buffer_is_zero_dsa_batch_async(struct batch_task *batch_task,
                                const void **buf, size_t count, size_t len)
 {
-    if (count <= 0 || count > batch_task->batch_size) {
+    struct dsa_batch_task *dsa_batch = batch_task->dsa_batch;
+
+    if (count <= 0 || count > dsa_batch->batch_size) {
         return -1;
     }
 
-    assert(batch_task != NULL);
+    assert(dsa_batch != NULL);
     assert(len != 0);
     assert(buf != NULL);
 
     if (count == 1) {
         /* DSA doesn't take batch operation with only 1 task. */
-        buffer_zero_dsa_async(batch_task, buf[0], len);
+        buffer_zero_dsa_async(dsa_batch, buf[0], len);
     } else {
-        buffer_zero_dsa_batch_async(batch_task, buf, count, len);
+        buffer_zero_dsa_batch_async(dsa_batch, buf, count, len);
     }
 
-    buffer_zero_dsa_wait(batch_task);
-    buffer_zero_cpu_fallback(batch_task);
+    buffer_zero_dsa_wait(dsa_batch);
+    buffer_zero_cpu_fallback(dsa_batch);
 
     return 0;
+}
+
+/**
+ * @brief Initializes a general buffer zero batch task.
+ *
+ * @param batch_size The number of zero page checking tasks in the batch.
+ * @return A pointer to the general batch task initialized.
+ */
+struct batch_task *
+batch_task_init(int batch_size)
+{
+    struct batch_task *task = g_malloc0(sizeof(struct batch_task));
+    task->addr = g_new0(ram_addr_t, batch_size);
+    task->results = g_new0(bool, batch_size);
+    task->dsa_batch = qemu_memalign(64, sizeof(struct dsa_batch_task));
+    buffer_zero_batch_task_init(task->dsa_batch, task->results, batch_size);
+
+    return task;
+}
+
+/**
+ * @brief Destroys a general buffer zero batch task.
+ *
+ * @param task A pointer to the general batch task to destroy.
+ */
+void
+batch_task_destroy(struct batch_task *task)
+{
+    g_free(task->addr);
+    g_free(task->results);
+    buffer_zero_batch_task_destroy(task->dsa_batch);
+    qemu_vfree(task->dsa_batch);
+    g_free(task);
 }
 
 #endif
