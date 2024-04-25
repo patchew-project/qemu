@@ -182,6 +182,8 @@ Property migration_properties[] = {
     DEFINE_PROP_ZERO_PAGE_DETECTION("zero-page-detection", MigrationState,
                        parameters.zero_page_detection,
                        ZERO_PAGE_DETECTION_MULTIFD),
+    DEFINE_PROP_STRING("multifd-dsa-accel", MigrationState,
+                       parameters.multifd_dsa_accel),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -920,6 +922,13 @@ const char *migrate_tls_creds(void)
     return s->parameters.tls_creds;
 }
 
+const char *migrate_multifd_dsa_accel(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.multifd_dsa_accel;
+}
+
 const char *migrate_tls_hostname(void)
 {
     MigrationState *s = migrate_get_current();
@@ -1060,6 +1069,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->mode = s->parameters.mode;
     params->has_zero_page_detection = true;
     params->zero_page_detection = s->parameters.zero_page_detection;
+    params->multifd_dsa_accel = g_strdup(s->parameters.multifd_dsa_accel ?
+                                         s->parameters.multifd_dsa_accel : "");
 
     return params;
 }
@@ -1068,6 +1079,7 @@ void migrate_params_init(MigrationParameters *params)
 {
     params->tls_hostname = g_strdup("");
     params->tls_creds = g_strdup("");
+    params->multifd_dsa_accel = g_strdup("");
 
     /* Set has_* up only for parameter checks */
     params->has_compress_level = true;
@@ -1416,6 +1428,11 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_zero_page_detection) {
         dest->zero_page_detection = params->zero_page_detection;
     }
+
+    if (params->multifd_dsa_accel) {
+        assert(params->multifd_dsa_accel->type == QTYPE_QSTRING);
+        dest->multifd_dsa_accel = params->multifd_dsa_accel->u.s;
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -1570,6 +1587,13 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     if (params->has_zero_page_detection) {
         s->parameters.zero_page_detection = params->zero_page_detection;
     }
+
+    if (params->multifd_dsa_accel) {
+        g_free(s->parameters.multifd_dsa_accel);
+        assert(params->multifd_dsa_accel->type == QTYPE_QSTRING);
+        s->parameters.multifd_dsa_accel =
+            g_strdup(params->multifd_dsa_accel->u.s);
+    }
 }
 
 void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
@@ -1594,6 +1618,12 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
         qobject_unref(params->tls_authz->u.n);
         params->tls_authz->type = QTYPE_QSTRING;
         params->tls_authz->u.s = strdup("");
+    }
+    if (params->multifd_dsa_accel
+        && params->multifd_dsa_accel->type == QTYPE_QNULL) {
+        qobject_unref(params->multifd_dsa_accel->u.n);
+        params->multifd_dsa_accel->type = QTYPE_QSTRING;
+        params->multifd_dsa_accel->u.s = strdup("");
     }
 
     migrate_params_test_apply(params, &tmp);

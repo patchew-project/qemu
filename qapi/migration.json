@@ -914,6 +914,12 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
+#     certain memory operations. Enable DSA accelerator offloading by
+#     setting this string to a list of DSA device path separated by space
+#     characters. Setting this string to an empty string means disabling
+#     DSA accelerator offloading. Defaults to an empty string. (since 9.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -937,7 +943,7 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
-           'avail-switchover-bandwidth', 'downtime-limit',
+           'avail-switchover-bandwidth', 'downtime-limit', 'multifd-dsa-accel',
            { 'name': 'x-checkpoint-delay', 'features': [ 'unstable' ] },
            { 'name': 'block-incremental', 'features': [ 'deprecated' ] },
            'multifd-channels',
@@ -1122,6 +1128,12 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
+#     certain memory operations. Enable DSA accelerator offloading by
+#     setting this string to a list of DSA device path separated by space
+#     characters. Setting this string to an empty string means disabling
+#     DSA accelerator offloading. Defaults to an empty string. (since 9.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1176,7 +1188,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*zero-page-detection': 'ZeroPageDetection'} }
+            '*zero-page-detection': 'ZeroPageDetection',
+            '*multifd-dsa-accel': 'StrOrNull'} }
 
 ##
 # @migrate-set-parameters:
@@ -1354,6 +1367,12 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @multifd-dsa-accel: If enabled, use DSA accelerator offloading for
+#     certain memory operations. Enable DSA accelerator offloading by
+#     setting this string to a list of DSA device path separated by space
+#     characters. Setting this string to an empty string means disabling
+#     DSA accelerator offloading. Defaults to an empty string. (since 9.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1405,7 +1424,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*zero-page-detection': 'ZeroPageDetection'} }
+            '*zero-page-detection': 'ZeroPageDetection',
+            '*multifd-dsa-accel': 'str'} }
 
 ##
 # @query-migrate-parameters:
