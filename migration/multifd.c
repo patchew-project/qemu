@@ -1154,7 +1154,8 @@ bool multifd_send_setup(void)
     MigrationState *s = migrate_get_current();
     Error *local_err = NULL;
     int thread_count, ret = 0;
-    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    uint32_t page_count =
+        migrate_multifd_packet_size() / qemu_target_page_size();
     bool use_packets = multifd_use_packets();
     uint8_t i;
     const char *dsa_parameter = migrate_multifd_dsa_accel();
@@ -1577,7 +1578,8 @@ static void *multifd_recv_thread(void *opaque)
 int multifd_recv_setup(Error **errp)
 {
     int thread_count;
-    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    uint32_t page_count =
+        migrate_multifd_packet_size() / qemu_target_page_size();
     bool use_packets = multifd_use_packets();
     uint8_t i;
     const char *dsa_parameter = migrate_multifd_dsa_accel();
