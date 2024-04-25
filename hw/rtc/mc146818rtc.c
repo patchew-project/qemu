@@ -116,6 +116,21 @@ void qmp_rtc_reset_reinjection(Error **errp)
     }
 }
 
+void qmp_rtc_notify(Error **errp)
+{
+    MC146818RtcState *s;
+
+    /*
+     * See:
+     * https://www.kernel.org/doc/Documentation/virtual/kvm/timekeeping.txt
+     */
+    QLIST_FOREACH(s, &rtc_devices, link) {
+        s->cmos_data[RTC_REG_B] |= REG_B_UIE;
+        s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_UF;
+        qemu_irq_raise(s->irq);
+    }
+}
+
 static bool rtc_policy_slew_deliver_irq(MC146818RtcState *s)
 {
     kvm_reset_irq_delivered();

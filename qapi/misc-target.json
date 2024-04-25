@@ -20,6 +20,22 @@
   'if': 'TARGET_I386' }
 
 ##
+# @rtc-notify:
+#
+# Generate an RTC interrupt.
+#
+# Since: 9.1
+#
+# Example:
+#
+#     -> { "execute": "rtc-notify" }
+#     <- { "return": {} }
+#
+##
+{ 'command': 'rtc-notify',
+  'if': 'TARGET_I386' }
+
+##
 # @SevState:
 #
 # An enumeration of SEV state information used during @query-sev.
