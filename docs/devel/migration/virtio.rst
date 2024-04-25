@@ -113,3 +113,10 @@ virtio_load() returned (like e.g. code depending on features).
 Any extension of the state being migrated should be done in subsections
 added to the core for compatibility reasons. If transport or device specific
 state is added, core needs to invoke a callback from the new subsection.
+
+VirtIO-GPU migration
+====================
+VirtIO-GPU doesn't adhere to a common virtio migration scheme. It doesn't
+support save/loading of virtio device state, instead it uses generic device
+migration management on top of the virtio core to save/load GPU state.
+Migration of virgl and rutabaga states not supported.
