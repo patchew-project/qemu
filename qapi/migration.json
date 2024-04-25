@@ -920,6 +920,10 @@
 #     characters. Setting this string to an empty string means disabling
 #     DSA accelerator offloading. Defaults to an empty string. (since 9.2)
 #
+# @multifd-packet-size: Packet size in bytes used to migrate data.
+#     The value needs to be a multiple of guest VM's page size.
+#     The default value is 524288 and max value is 4190208. (Since 9.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -954,7 +958,8 @@
            { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
            'vcpu-dirty-limit',
            'mode',
-           'zero-page-detection'] }
+           'zero-page-detection',
+           'multifd-packet-size'] }
 
 ##
 # @MigrateSetParameters:
@@ -1134,6 +1139,10 @@
 #     characters. Setting this string to an empty string means disabling
 #     DSA accelerator offloading. Defaults to an empty string. (since 9.2)
 #
+# @multifd-packet-size: Packet size in bytes used to migrate data.
+#     The value needs to be a multiple of guest VM's page size.
+#     The default value is 524288 and max value is 4190208. (Since 9.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1189,7 +1198,8 @@
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
-            '*multifd-dsa-accel': 'StrOrNull'} }
+            '*multifd-dsa-accel': 'StrOrNull',
+            '*multifd-packet-size' : 'uint64'} }
 
 ##
 # @migrate-set-parameters:
@@ -1373,6 +1383,10 @@
 #     characters. Setting this string to an empty string means disabling
 #     DSA accelerator offloading. Defaults to an empty string. (since 9.2)
 #
+# @multifd-packet-size: Packet size in bytes used to migrate data.
+#     The value needs to be a multiple of guest VM's page size.
+#     The default value is 524288 and max value is 4190208. (Since 9.2)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1425,7 +1439,8 @@
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
-            '*multifd-dsa-accel': 'str'} }
+            '*multifd-dsa-accel': 'str',
+            '*multifd-packet-size': 'uint64'} }
 
 ##
 # @query-migrate-parameters:
