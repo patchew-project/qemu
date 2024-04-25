@@ -14,6 +14,7 @@
 #define QEMU_MIGRATION_MULTIFD_H
 
 #include "ram.h"
+#include "qemu/dsa.h"
 
 typedef struct MultiFDRecvData MultiFDRecvData;
 

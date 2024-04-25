@@ -818,6 +818,8 @@ void multifd_send_shutdown(void)
 
     multifd_send_terminate_threads();
 
+    dsa_cleanup();
+
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
         Error *local_err = NULL;
@@ -1155,10 +1157,19 @@ bool multifd_send_setup(void)
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     bool use_packets = multifd_use_packets();
     uint8_t i;
+    const char *dsa_parameter = migrate_multifd_dsa_accel();
 
     if (!migrate_multifd()) {
         return true;
     }
+
+    if (dsa_init(dsa_parameter)) {
+        error_setg(&local_err, "multifd: Sender failed to initialize DSA.");
+        error_report_err(local_err);
+        return false;
+    }
+
+    dsa_start();
 
     thread_count = migrate_multifd_channels();
     multifd_send_state = g_malloc0(sizeof(*multifd_send_state));
@@ -1393,6 +1404,7 @@ void multifd_recv_cleanup(void)
             qemu_thread_join(&p->thread);
         }
     }
+    dsa_cleanup();
     for (i = 0; i < migrate_multifd_channels(); i++) {
         multifd_recv_cleanup_channel(&multifd_recv_state->params[i]);
     }
@@ -1568,6 +1580,9 @@ int multifd_recv_setup(Error **errp)
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     bool use_packets = multifd_use_packets();
     uint8_t i;
+    const char *dsa_parameter = migrate_multifd_dsa_accel();
+    int ret;
+    Error *local_err = NULL;
 
     /*
      * Return successfully if multiFD recv state is already initialised
@@ -1576,6 +1591,15 @@ int multifd_recv_setup(Error **errp)
     if (multifd_recv_state || !migrate_multifd()) {
         return 0;
     }
+
+    ret = dsa_init(dsa_parameter);
+    if (ret != 0) {
+        error_setg(&local_err, "multifd: Receiver failed to initialize DSA.");
+        error_propagate(errp, local_err);
+        return ret;
+    }
+
+    dsa_start();
 
     thread_count = migrate_multifd_channels();
     multifd_recv_state = g_malloc0(sizeof(*multifd_recv_state));
@@ -1616,13 +1640,12 @@ int multifd_recv_setup(Error **errp)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
-        int ret;
-
         ret = multifd_recv_state->ops->recv_setup(p, errp);
         if (ret) {
             return ret;
         }
     }
+
     return 0;
 }
 
