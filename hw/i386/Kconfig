@@ -70,7 +70,6 @@ config I440FX
     imply VMPORT
     imply VMMOUSE
     select ACPI_PIIX4
-    select FDC_ISA
     select PC_PCI
     select PC_ACPI
     select PCI_I440FX
@@ -84,7 +83,6 @@ config ISAPC
     bool
     imply VGA_ISA
     select ISA_BUS
-    select FDC_ISA
     select PC
     select IDE_ISA
     # FIXME: it is in the same file as i440fx, and does not compile
