@@ -2295,6 +2295,43 @@ static void test_multifd_file_mapped_ram(void)
     test_file_common(&args, true);
 }
 
+#ifdef O_DIRECT
+static void *migrate_mapped_ram_dio_start(QTestState *from,
+                                                 QTestState *to)
+{
+    migrate_mapped_ram_start(from, to);
+    migrate_set_parameter_bool(from, "direct-io", true);
+    migrate_set_parameter_bool(to, "direct-io", true);
+
+    return NULL;
+}
+
+static void *migrate_multifd_mapped_ram_dio_start(QTestState *from,
+                                                 QTestState *to)
+{
+    migrate_multifd_mapped_ram_start(from, to);
+    return migrate_mapped_ram_dio_start(from, to);
+}
+
+static void test_multifd_file_mapped_ram_dio(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
+                                           FILE_TEST_FILENAME);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = migrate_multifd_mapped_ram_dio_start,
+    };
+
+    if (!probe_o_direct_support(tmpfs)) {
+        g_test_skip("Filesystem does not support O_DIRECT");
+        return;
+    }
+
+    test_file_common(&args, true);
+}
+
+#endif /* O_DIRECT */
 
 static void test_precopy_tcp_plain(void)
 {
@@ -3718,6 +3755,11 @@ int main(int argc, char **argv)
                        test_multifd_file_mapped_ram);
     migration_test_add("/migration/multifd/file/mapped-ram/live",
                        test_multifd_file_mapped_ram_live);
+
+#ifdef O_DIRECT
+    migration_test_add("/migration/multifd/file/mapped-ram/dio",
+                       test_multifd_file_mapped_ram_dio);
+#endif
 
 #ifdef CONFIG_GNUTLS
     migration_test_add("/migration/precopy/unix/tls/psk",
