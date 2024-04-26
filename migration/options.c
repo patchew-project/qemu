@@ -486,8 +486,7 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 
 #ifndef CONFIG_LIVE_BLOCK_MIGRATION
     if (new_caps[MIGRATION_CAPABILITY_BLOCK]) {
-        error_setg(errp, "QEMU compiled without old-style (blk/-b) "
-                   "block migration");
+        error_setg(errp, "QEMU compiled without old-style block migration");
         error_append_hint(errp, "Use blockdev-mirror with NBD instead.\n");
         return false;
     }
