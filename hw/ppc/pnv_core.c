@@ -402,7 +402,16 @@ static const TypeInfo pnv_core_infos[] = {
     DEFINE_PNV_CORE_TYPE(power8, "power8_v2.0"),
     DEFINE_PNV_CORE_TYPE(power8, "power8nvl_v1.0"),
     DEFINE_PNV_CORE_TYPE(power9, "power9_v2.2"),
-    DEFINE_PNV_CORE_TYPE(power10, "power10_v2.0"),
+    {
+        .parent = TYPE_PNV_CORE,
+        .name = PNV_CORE_TYPE_NAME("power10_v2.0"),
+        .class_init = pnv_core_power10_class_init,
+        .class_base_init = pnv_core_power10_class_init,
+    },
+    {
+        .parent = PNV_CORE_TYPE_NAME("power10_v2.0"),
+        .name = PNV_CORE_TYPE_NAME("power11"),
+    }
 };
 
 DEFINE_TYPES(pnv_core_infos)
@@ -633,6 +642,11 @@ static const TypeInfo pnv_quad_infos[] = {
         .parent = TYPE_PNV_QUAD,
         .name = PNV_QUAD_TYPE_NAME("power10"),
         .class_init = pnv_quad_power10_class_init,
+        .class_base_init = pnv_quad_power10_class_init,
+    },
+    {
+        .parent = PNV_QUAD_TYPE_NAME("power10"),
+        .name = PNV_QUAD_TYPE_NAME("power11"),
     },
 };
 
