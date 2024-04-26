@@ -17,6 +17,7 @@
 #include "io/channel-file.h"
 #include "io/channel-socket.h"
 #include "io/channel-util.h"
+#include "monitor/monitor.h"
 #include "options.h"
 #include "trace.h"
 
@@ -54,10 +55,18 @@ static void file_remove_fdset(void)
     }
 }
 
+/*
+ * With multifd, due to the behavior of the dup() system call, we need
+ * the fdset to have two non-duplicate fds so we can enable direct IO
+ * in the secondary channels without affecting the main channel.
+ */
 static bool file_parse_fdset(const char *filename, int64_t *fdset_id,
                              Error **errp)
 {
+    FdsetInfoList *fds_info;
+    FdsetFdInfoList *fd_info;
     const char *fdset_id_str;
+    int nfds = 0;
 
     *fdset_id = -1;
 
@@ -68,6 +77,32 @@ static bool file_parse_fdset(const char *filename, int64_t *fdset_id,
     *fdset_id = qemu_parse_fd(fdset_id_str);
     if (*fdset_id == -1) {
         error_setg_errno(errp, EINVAL, "Could not parse fdset %s", fdset_id_str);
+        return false;
+    }
+
+    if (!migrate_multifd() || !migrate_direct_io()) {
+        return true;
+    }
+
+    for (fds_info = qmp_query_fdsets(NULL); fds_info;
+         fds_info = fds_info->next) {
+
+        if (*fdset_id != fds_info->value->fdset_id) {
+            continue;
+        }
+
+        for (fd_info = fds_info->value->fds; fd_info; fd_info = fd_info->next) {
+            if (nfds++ > 2) {
+                break;
+            }
+        }
+    }
+
+    if (nfds != 2) {
+        error_setg(errp, "Outgoing migration needs two fds in the fdset, "
+                   "got %d", nfds);
+        qmp_remove_fd(*fdset_id, false, -1, NULL);
+        *fdset_id = -1;
         return false;
     }
 
@@ -209,10 +244,11 @@ void file_start_incoming_migration(FileMigrationArgs *file_args, Error **errp)
     g_autofree char *filename = g_strdup(file_args->filename);
     QIOChannelFile *fioc = NULL;
     uint64_t offset = file_args->offset;
+    int flags = O_RDONLY;
 
     trace_migration_file_incoming(filename);
 
-    fioc = qio_channel_file_new_path(filename, O_RDONLY, 0, errp);
+    fioc = qio_channel_file_new_path(filename, flags, 0, errp);
     if (!fioc) {
         return;
     }
