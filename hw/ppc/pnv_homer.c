@@ -394,6 +394,13 @@ static const TypeInfo pnv_homer_power10_type_info = {
     .parent        = TYPE_PNV_HOMER,
     .instance_size = sizeof(PnvHomer),
     .class_init    = pnv_homer_power10_class_init,
+    .class_base_init = pnv_homer_power10_class_init,
+};
+
+static const TypeInfo pnv_homer_power11_type_info = {
+    .name          = TYPE_PNV11_HOMER,
+    .parent        = TYPE_PNV10_HOMER,
+    .instance_size = sizeof(PnvHomer),
 };
 
 static void pnv_homer_realize(DeviceState *dev, Error **errp)
@@ -442,6 +449,7 @@ static void pnv_homer_register_types(void)
     type_register_static(&pnv_homer_power8_type_info);
     type_register_static(&pnv_homer_power9_type_info);
     type_register_static(&pnv_homer_power10_type_info);
+    type_register_static(&pnv_homer_power11_type_info);
 }
 
 type_init(pnv_homer_register_types);
