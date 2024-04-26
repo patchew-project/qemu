@@ -1457,6 +1457,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
+    k->chip_type = PNV_TYPE_POWER8E;
     k->cores_mask = POWER8E_CORE_MASK;
     k->num_phbs = 3;
     k->chip_pir = pnv_chip_pir_p8;
@@ -1481,6 +1482,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
+    k->chip_type = PNV_TYPE_POWER8;
     k->cores_mask = POWER8_CORE_MASK;
     k->num_phbs = 3;
     k->chip_pir = pnv_chip_pir_p8;
@@ -1505,6 +1507,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
+    k->chip_type = PNV_TYPE_POWER8NVL;
     k->cores_mask = POWER8_CORE_MASK;
     k->num_phbs = 4;
     k->chip_pir = pnv_chip_pir_p8;
@@ -1779,6 +1782,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     static const int i2c_ports_per_engine[PNV9_CHIP_MAX_I2C] = {2, 13, 2, 2};
 
     k->chip_cfam_id = 0x220d104900008000ull; /* P9 Nimbus DD2.0 */
+    k->chip_type = PNV_TYPE_POWER9;
     k->cores_mask = POWER9_CORE_MASK;
     k->chip_pir = pnv_chip_pir_p9;
     k->intc_create = pnv_chip_power9_intc_create;
@@ -2091,6 +2095,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
     static const int i2c_ports_per_engine[PNV10_CHIP_MAX_I2C] = {14, 14, 2, 16};
 
     k->chip_cfam_id = 0x120da04900008000ull; /* P10 DD1.0 (with NX) */
+    k->chip_type = PNV_TYPE_POWER10;
     k->cores_mask = POWER10_CORE_MASK;
     k->chip_pir = pnv_chip_pir_p10;
     k->intc_create = pnv_chip_power10_intc_create;

@@ -17,12 +17,21 @@
 OBJECT_DECLARE_TYPE(PnvChip, PnvChipClass,
                     PNV_CHIP)
 
+typedef enum PnvChipType {
+    PNV_TYPE_POWER8E,     /* AKA Murano (default) */
+    PNV_TYPE_POWER8,      /* AKA Venice */
+    PNV_TYPE_POWER8NVL,   /* AKA Naples */
+    PNV_TYPE_POWER9,      /* AKA Nimbus */
+    PNV_TYPE_POWER10,
+} PnvChipType;
+
 struct PnvChip {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
     uint32_t     chip_id;
+
     uint64_t     ram_start;
     uint64_t     ram_size;
 
@@ -137,6 +146,7 @@ struct PnvChipClass {
     SysBusDeviceClass parent_class;
 
     /*< public >*/
+    PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
     uint32_t     num_pecs;
