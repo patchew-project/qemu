@@ -2531,8 +2531,6 @@ static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power10_v2.0");
     compat_props_add(mc->compat_props, phb_compat, G_N_ELEMENTS(phb_compat));
 
-    mc->alias = "powernv";
-
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
     pmc->dt_power_mgt = pnv_dt_power_mgt;
@@ -2568,6 +2566,8 @@ static void pnv_machine_power11_class_init(ObjectClass *oc, void *data)
 
     /* do power10_class_init as p11 core is same as p10 */
     pnv_machine_p10_common_class_init(oc, data);
+
+    mc->alias = "powernv";
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER11";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power11");
