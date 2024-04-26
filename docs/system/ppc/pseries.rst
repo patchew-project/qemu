@@ -15,9 +15,9 @@ Supported devices
 =================
 
  * Multi processor support for many Power processors generations: POWER7,
-   POWER7+, POWER8, POWER8NVL, POWER9, and Power10. Support for POWER5+ exists,
-   but its state is unknown.
- * Interrupt Controller, XICS (POWER8) and XIVE (POWER9 and Power10)
+   POWER7+, POWER8, POWER8NVL, POWER9, Power10 and Power11. Support for POWER5+
+   exists, but its state is unknown.
+ * Interrupt Controller, XICS (POWER8) and XIVE (POWER9, Power10, Power11)
  * vPHB PCIe Host bridge.
  * vscsi and vnet devices, compatible with the same devices available on a
    PowerVM hypervisor with VIOS managing LPARs.
