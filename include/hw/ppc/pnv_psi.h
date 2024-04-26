@@ -70,6 +70,8 @@ struct Pnv9Psi {
 
 #define TYPE_PNV10_PSI TYPE_PNV_PSI "-POWER10"
 
+#define TYPE_PNV11_PSI TYPE_PNV_PSI "-POWER11"
+
 
 struct PnvPsiClass {
     SysBusDeviceClass parent_class;
