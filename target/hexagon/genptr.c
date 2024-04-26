@@ -473,6 +473,7 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
                                   TCGCond cond, TCGv pred)
 {
     TCGLabel *pred_false = NULL;
+    TCGLabel *branch_taken = NULL;
     if (cond != TCG_COND_ALWAYS) {
         pred_false = gen_new_label();
         tcg_gen_brcondi_tl(cond, pred, 0, pred_false);
@@ -480,12 +481,22 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
 
     if (ctx->pkt->pkt_has_multi_cof) {
         /* If there are multiple branches in a packet, ignore the second one */
-        tcg_gen_movcond_tl(TCG_COND_NE, hex_gpr[HEX_REG_PC],
-                           ctx->branch_taken, tcg_constant_tl(0),
-                           hex_gpr[HEX_REG_PC], addr);
+        branch_taken = gen_new_label();
+        tcg_gen_brcondi_tl(TCG_COND_NE, ctx->branch_taken, 0, branch_taken);
         tcg_gen_movi_tl(ctx->branch_taken, 1);
-    } else {
-        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], addr);
+    }
+
+    TCGLabel *pc_aligned = gen_new_label();
+    TCGv pc_remainder = tcg_temp_new();
+    tcg_gen_andi_tl(pc_remainder, addr, PCALIGN_MASK);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, pc_remainder, 0, pc_aligned);
+    gen_exception_end_tb(ctx, HEX_EXCP_PC_NOT_ALIGNED);
+    gen_set_label(pc_aligned);
+
+    tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], addr);
+
+    if (ctx->pkt->pkt_has_multi_cof) {
+        gen_set_label(branch_taken);
     }
 
     if (cond != TCG_COND_ALWAYS) {

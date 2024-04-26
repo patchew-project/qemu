@@ -75,6 +75,8 @@ typedef struct DisasContext {
     TCGv dczero_addr;
 } DisasContext;
 
+void gen_exception_end_tb(DisasContext *ctx, int excp);
+
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 {
     if (!test_bit(pnum, ctx->pregs_written)) {
