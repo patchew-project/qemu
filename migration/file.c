@@ -83,17 +83,33 @@ void file_cleanup_outgoing_migration(void)
 
 bool file_send_channel_create(gpointer opaque, Error **errp)
 {
-    QIOChannelFile *ioc;
+    QIOChannelFile *ioc = NULL;
     int flags = O_WRONLY;
-    bool ret = true;
+    bool ret = false;
+
+    if (migrate_direct_io()) {
+#ifdef O_DIRECT
+        /*
+         * Enable O_DIRECT for the secondary channels. These are used
+         * for sending ram pages and writes should be guaranteed to be
+         * aligned to at least page size.
+         */
+        flags |= O_DIRECT;
+#else
+        error_setg(errp, "System does not support O_DIRECT");
+        error_append_hint(errp,
+                          "Try disabling direct-io migration capability\n");
+        goto out;
+#endif
+    }
 
     ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);
     if (!ioc) {
-        ret = false;
         goto out;
     }
 
     multifd_channel_connect(opaque, QIO_CHANNEL(ioc));
+    ret = true;
 
 out:
     /*
