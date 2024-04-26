@@ -10,6 +10,7 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
 #include "channel.h"
 #include "file.h"
 #include "migration.h"
@@ -23,6 +24,7 @@
 
 static struct FileOutgoingArgs {
     char *fname;
+    int64_t fdset_id;
 } outgoing_args;
 
 /* Remove the offset option from @filespec and return it in @offsetp. */
@@ -44,10 +46,39 @@ int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp)
     return 0;
 }
 
+static void file_remove_fdset(void)
+{
+    if (outgoing_args.fdset_id != -1) {
+        qmp_remove_fd(outgoing_args.fdset_id, false, -1, NULL);
+        outgoing_args.fdset_id = -1;
+    }
+}
+
+static bool file_parse_fdset(const char *filename, int64_t *fdset_id,
+                             Error **errp)
+{
+    const char *fdset_id_str;
+
+    *fdset_id = -1;
+
+    if (!strstart(filename, "/dev/fdset/", &fdset_id_str)) {
+        return true;
+    }
+
+    *fdset_id = qemu_parse_fd(fdset_id_str);
+    if (*fdset_id == -1) {
+        error_setg_errno(errp, EINVAL, "Could not parse fdset %s", fdset_id_str);
+        return false;
+    }
+
+    return true;
+}
+
 void file_cleanup_outgoing_migration(void)
 {
     g_free(outgoing_args.fname);
     outgoing_args.fname = NULL;
+    file_remove_fdset();
 }
 
 bool file_send_channel_create(gpointer opaque, Error **errp)
@@ -81,11 +112,24 @@ void file_start_outgoing_migration(MigrationState *s,
     g_autofree char *filename = g_strdup(file_args->filename);
     uint64_t offset = file_args->offset;
     QIOChannel *ioc;
+    int flags = O_CREAT | O_WRONLY;
 
     trace_migration_file_outgoing(filename);
 
-    fioc = qio_channel_file_new_path(filename, O_CREAT | O_WRONLY | O_TRUNC,
-                                     0600, errp);
+    if (!file_parse_fdset(filename, &outgoing_args.fdset_id, errp)) {
+        return;
+    }
+
+    /*
+     * Only truncate if it's QEMU opening the file. If an fd has been
+     * passed in the file will already contain data written by the
+     * management layer.
+     */
+    if (outgoing_args.fdset_id == -1) {
+        flags |= O_TRUNC;
+    }
+
+    fioc = qio_channel_file_new_path(filename, flags, 0600, errp);
     if (!fioc) {
         return;
     }
