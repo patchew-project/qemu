@@ -2081,6 +2081,63 @@ static void test_precopy_file(void)
     test_file_common(&args, true);
 }
 
+#ifndef _WIN32
+static void file_dirty_offset_region(void)
+{
+#if defined(__linux__)
+    g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
+    size_t size = FILE_TEST_OFFSET;
+    uintptr_t *addr, *p;
+    int fd;
+
+    fd = open(path, O_CREAT | O_RDWR, 0660);
+    g_assert(fd != -1);
+
+    g_assert(!ftruncate(fd, size));
+
+    addr = mmap(NULL, size, PROT_WRITE, MAP_SHARED, fd, 0);
+    g_assert(addr != MAP_FAILED);
+
+    /* ensure the skipped offset contains some data */
+    p = addr;
+    while (p < addr + FILE_TEST_OFFSET / sizeof(uintptr_t)) {
+        *p = (unsigned long) FILE_TEST_FILENAME;
+        p++;
+    }
+
+    munmap(addr, size);
+    fsync(fd);
+    close(fd);
+#endif
+}
+
+static void *file_offset_start_hook(QTestState *from, QTestState *to)
+{
+    g_autofree char *file = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
+    int src_flags = O_WRONLY;
+    int dst_flags = O_RDONLY;
+    int fds[2];
+
+    file_dirty_offset_region();
+
+    fds[0] = open(file, src_flags, 0660);
+    assert(fds[0] != -1);
+
+    fds[1] = open(file, dst_flags, 0660);
+    assert(fds[1] != -1);
+
+    qtest_qmp_fds_assert_success(from, &fds[0], 1, "{'execute': 'add-fd', "
+                                 "'arguments': {'fdset-id': 1}}");
+
+    qtest_qmp_fds_assert_success(to, &fds[1], 1, "{'execute': 'add-fd', "
+                                 "'arguments': {'fdset-id': 1}}");
+
+    close(fds[0]);
+    close(fds[1]);
+
+    return NULL;
+}
+
 static void file_offset_finish_hook(QTestState *from, QTestState *to,
                                     void *opaque)
 {
@@ -2096,12 +2153,12 @@ static void file_offset_finish_hook(QTestState *from, QTestState *to,
     g_assert(addr != MAP_FAILED);
 
     /*
-     * Ensure the skipped offset contains zeros and the migration
-     * stream starts at the right place.
+     * Ensure the skipped offset region's data has not been touched
+     * and the migration stream starts at the right place.
      */
     p = addr;
     while (p < addr + FILE_TEST_OFFSET / sizeof(uintptr_t)) {
-        g_assert(*p == 0);
+        g_assert_cmpstr((char *) *p, ==, FILE_TEST_FILENAME);
         p++;
     }
     g_assert_cmpint(cpu_to_be64(*p) >> 32, ==, QEMU_VM_FILE_MAGIC);
@@ -2113,17 +2170,18 @@ static void file_offset_finish_hook(QTestState *from, QTestState *to,
 
 static void test_precopy_file_offset(void)
 {
-    g_autofree char *uri = g_strdup_printf("file:%s/%s,offset=%d", tmpfs,
-                                           FILE_TEST_FILENAME,
+    g_autofree char *uri = g_strdup_printf("file:/dev/fdset/1,offset=%d",
                                            FILE_TEST_OFFSET);
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
+        .start_hook = file_offset_start_hook,
         .finish_hook = file_offset_finish_hook,
     };
 
     test_file_common(&args, false);
 }
+#endif
 
 static void test_precopy_file_offset_bad(void)
 {
@@ -3636,8 +3694,10 @@ int main(int argc, char **argv)
 
     migration_test_add("/migration/precopy/file",
                        test_precopy_file);
+#ifndef _WIN32
     migration_test_add("/migration/precopy/file/offset",
                        test_precopy_file_offset);
+#endif
     migration_test_add("/migration/precopy/file/offset/bad",
                        test_precopy_file_offset_bad);
 
