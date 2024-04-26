@@ -914,6 +914,9 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @direct-io: Open migration files with O_DIRECT when possible. This
+#     requires that the @mapped-ram capability is enabled. (since 9.1)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -948,7 +951,8 @@
            { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
            'vcpu-dirty-limit',
            'mode',
-           'zero-page-detection'] }
+           'zero-page-detection',
+           'direct-io'] }
 
 ##
 # @MigrateSetParameters:
@@ -1122,6 +1126,9 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @direct-io: Open migration files with O_DIRECT when possible. This
+#     requires that the @mapped-ram capability is enabled. (since 9.1)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1176,7 +1183,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*zero-page-detection': 'ZeroPageDetection'} }
+            '*zero-page-detection': 'ZeroPageDetection',
+            '*direct-io': 'bool' } }
 
 ##
 # @migrate-set-parameters:
@@ -1354,6 +1362,9 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @direct-io: Open migration files with O_DIRECT when possible. This
+#     requires that the @mapped-ram capability is enabled. (since 9.1)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1405,7 +1416,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*zero-page-detection': 'ZeroPageDetection'} }
+            '*zero-page-detection': 'ZeroPageDetection',
+            '*direct-io': 'bool' } }
 
 ##
 # @query-migrate-parameters:
