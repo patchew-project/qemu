@@ -817,6 +817,10 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
 
     if (!get_vhost_net(nc->peer)) {
         if (!ebpf_rss_is_loaded(&n->ebpf_rss)) {
+            if (on_off_auto_features.on_bits & VIRTIO_NET_F_RSS) {
+                warn_report("Can't load eBPF RSS - fallback to software RSS");
+            }
+
             virtio_clear_feature(&on_off_auto_features.auto_bits,
                                  VIRTIO_NET_F_RSS);
         }
@@ -1327,16 +1331,10 @@ static void virtio_net_detach_epbf_rss(VirtIONet *n)
 static void virtio_net_commit_rss_config(VirtIONet *n)
 {
     if (n->rss_data.enabled) {
-        n->rss_data.enabled_software_rss = n->rss_data.populate_hash;
+        n->rss_data.enabled_software_rss = n->rss_data.populate_hash ||
+                                           !virtio_net_attach_epbf_rss(n);
         if (n->rss_data.populate_hash) {
             virtio_net_detach_epbf_rss(n);
-        } else if (!virtio_net_attach_epbf_rss(n)) {
-            if (get_vhost_net(qemu_get_queue(n->nic)->peer)) {
-                warn_report("Can't load eBPF RSS for vhost");
-            } else {
-                warn_report("Can't load eBPF RSS - fallback to software RSS");
-                n->rss_data.enabled_software_rss = true;
-            }
         }
 
         trace_virtio_net_rss_enable(n->rss_data.hash_types,
