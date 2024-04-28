@@ -36,7 +36,6 @@ size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
             offset -= iov[i].iov_len;
         }
     }
-    assert(offset == 0);
     return done;
 }
 
@@ -55,7 +54,6 @@ size_t iov_to_buf_full(const struct iovec *iov, const unsigned int iov_cnt,
             offset -= iov[i].iov_len;
         }
     }
-    assert(offset == 0);
     return done;
 }
 
@@ -74,7 +72,6 @@ size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
             offset -= iov[i].iov_len;
         }
     }
-    assert(offset == 0);
     return done;
 }
 
@@ -266,7 +263,6 @@ unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,
         bytes -= len;
         offset = 0;
     }
-    assert(offset == 0);
     return j;
 }
 
@@ -337,7 +333,6 @@ size_t qemu_iovec_concat_iov(QEMUIOVector *dst,
             soffset -= src_iov[i].iov_len;
         }
     }
-    assert(soffset == 0); /* offset beyond end of src */
 
     return done;
 }
