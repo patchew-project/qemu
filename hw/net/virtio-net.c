@@ -750,58 +750,96 @@ static void virtio_net_set_queue_pairs(VirtIONet *n)
 
 static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue);
 
+static bool virtio_net_clear_features(OnOffAutoBit64 *features,
+                                      uint64_t clear_bits,
+                                      const char *reason, Error **errp)
+{
+    if (features->on_bits & clear_bits) {
+        error_setg(errp, "%s", reason);
+        return false;
+    }
+
+    features->auto_bits &= ~clear_bits;
+
+    return true;
+}
+
 static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
                                         Error **errp)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc = qemu_get_queue(n->nic);
+    OnOffAutoBit64 on_off_auto_features = n->host_features;
 
-    /* Firstly sync all virtio-net possible supported features */
-    features |= n->host_features;
+    on_off_auto_features.on_bits |= features;
+    virtio_add_feature(&on_off_auto_features.auto_bits, VIRTIO_NET_F_MAC);
 
-    virtio_add_feature(&features, VIRTIO_NET_F_MAC);
-
-    if (!peer_has_vnet_hdr(n)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_CSUM);
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO4);
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO6);
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_ECN);
-
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_CSUM);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_TSO4);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_TSO6);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_ECN);
-
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_USO);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO4);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO6);
-
-        virtio_clear_feature(&features, VIRTIO_NET_F_HASH_REPORT);
-    }
-
-    if (!peer_has_vnet_hdr(n) || !peer_has_ufo(n)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_UFO);
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_UFO);
-    }
-
-    if (!peer_has_uso(n)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_USO);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO4);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO6);
+    if (!((peer_has_vnet_hdr(n) ||
+           virtio_net_clear_features(&on_off_auto_features,
+                                     BIT_ULL(VIRTIO_NET_F_CSUM) |
+                                     BIT_ULL(VIRTIO_NET_F_HOST_TSO4) |
+                                     BIT_ULL(VIRTIO_NET_F_HOST_TSO6) |
+                                     BIT_ULL(VIRTIO_NET_F_HOST_ECN) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_UFO) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_CSUM) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_TSO4) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_TSO6) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_ECN) |
+                                     BIT_ULL(VIRTIO_NET_F_HOST_UFO) |
+                                     BIT_ULL(VIRTIO_NET_F_HOST_USO) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_USO4) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_USO6) |
+                                     BIT_ULL(VIRTIO_NET_F_HASH_REPORT),
+                                     "A requested feature requires the peer to support virtio-net headers.",
+                                     errp)) &&
+          (peer_has_ufo(n) ||
+           virtio_net_clear_features(&on_off_auto_features,
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_UFO) |
+                                     BIT_ULL(VIRTIO_NET_F_HOST_UFO),
+                                     "UFO is on but the peer does not support it.",
+                                     errp)) &&
+          (peer_has_uso(n) ||
+           virtio_net_clear_features(&on_off_auto_features,
+                                     BIT_ULL(VIRTIO_NET_F_HOST_USO) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_USO4) |
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_USO6),
+                                     "USO is on but the peer does not support it.",
+                                     errp)) &&
+          (virtio_has_feature(on_off_auto_features.on_bits |
+                              on_off_auto_features.auto_bits,
+                              VIRTIO_NET_F_CTRL_VQ) ||
+           virtio_net_clear_features(&on_off_auto_features,
+                                     BIT_ULL(VIRTIO_NET_F_GUEST_ANNOUNCE),
+                                     "guest_announce is on but ctrl_vq is off.",
+                                     errp)))) {
+        return 0;
     }
 
     if (!get_vhost_net(nc->peer)) {
-        return features;
+        if (!ebpf_rss_is_loaded(&n->ebpf_rss)) {
+            virtio_clear_feature(&on_off_auto_features.auto_bits,
+                                 VIRTIO_NET_F_RSS);
+        }
+
+        return on_off_auto_features.on_bits | on_off_auto_features.auto_bits;
     }
 
-    if (!ebpf_rss_is_loaded(&n->ebpf_rss)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_RSS);
+    if (!ebpf_rss_is_loaded(&n->ebpf_rss) &&
+        !virtio_net_clear_features(&on_off_auto_features,
+                                   BIT_ULL(VIRTIO_NET_F_RSS),
+                                   "Both RSS and vhost are on but eBPF is unavailable; fix eBPF or disable RSS.",
+                                   errp)) {
+        return 0;
     }
-    features = vhost_net_get_features(get_vhost_net(nc->peer), features);
+    features = vhost_net_get_features(get_vhost_net(nc->peer),
+                                      on_off_auto_features.on_bits |
+                                      on_off_auto_features.auto_bits);
     vdev->backend_features = features;
 
     if (n->mtu_bypass_backend &&
-            (n->host_features & 1ULL << VIRTIO_NET_F_MTU)) {
+        virtio_has_feature(on_off_auto_features.on_bits |
+                           on_off_auto_features.auto_bits,
+                           VIRTIO_NET_F_MTU)) {
         features |= (1ULL << VIRTIO_NET_F_MTU);
     }
 
@@ -818,6 +856,12 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
      */
     if (!virtio_has_feature(vdev->backend_features, VIRTIO_NET_F_CTRL_VQ)) {
         virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_ANNOUNCE);
+    }
+
+    if ((features & on_off_auto_features.on_bits) !=
+        on_off_auto_features.on_bits) {
+        error_setg(errp, "A requested feature is incompatible with vhost.");
+        return 0;
     }
 
     return features;
@@ -3582,7 +3626,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     int i;
 
     if (n->net_conf.mtu) {
-        n->host_features |= (1ULL << VIRTIO_NET_F_MTU);
+        n->host_features.on_bits |= (1ULL << VIRTIO_NET_F_MTU);
     }
 
     if (n->net_conf.duplex_str) {
@@ -3594,7 +3638,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "'duplex' must be 'half' or 'full'");
             return;
         }
-        n->host_features |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
+        n->host_features.on_bits |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
     } else {
         n->net_conf.duplex = DUPLEX_UNKNOWN;
     }
@@ -3604,7 +3648,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         return;
     }
     if (n->net_conf.speed >= 0) {
-        n->host_features |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
+        n->host_features.on_bits |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
     }
 
     if (n->failover) {
@@ -3613,10 +3657,12 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         device_listener_register(&n->primary_listener);
         migration_add_notifier(&n->migration_state,
                                virtio_net_migration_state_notifier);
-        n->host_features |= (1ULL << VIRTIO_NET_F_STANDBY);
+        n->host_features.on_bits |= (1ULL << VIRTIO_NET_F_STANDBY);
     }
 
-    virtio_net_set_config_size(n, n->host_features);
+    virtio_net_set_config_size(n,
+                               n->host_features.on_bits |
+                               n->host_features.auto_bits);
     virtio_init(vdev, VIRTIO_ID_NET, n->config_size);
 
     /*
@@ -3743,7 +3789,9 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     net_rx_pkt_init(&n->rx_pkt);
 
-    if (virtio_has_feature(n->host_features, VIRTIO_NET_F_RSS)) {
+    if (virtio_has_feature(n->host_features.on_bits |
+                           n->host_features.auto_bits,
+                           VIRTIO_NET_F_RSS)) {
         virtio_net_load_ebpf(n);
     }
 }
@@ -3754,7 +3802,9 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     VirtIONet *n = VIRTIO_NET(dev);
     int i, max_queue_pairs;
 
-    if (virtio_has_feature(n->host_features, VIRTIO_NET_F_RSS)) {
+    if (virtio_has_feature(n->host_features.on_bits |
+                           n->host_features.auto_bits,
+                           VIRTIO_NET_F_RSS)) {
         virtio_net_unload_ebpf(n);
     }
 
@@ -3898,53 +3948,58 @@ static const VMStateDescription vmstate_virtio_net = {
 };
 
 static Property virtio_net_properties[] = {
-    DEFINE_PROP_BIT64("csum", VirtIONet, host_features,
-                    VIRTIO_NET_F_CSUM, true),
-    DEFINE_PROP_BIT64("guest_csum", VirtIONet, host_features,
-                    VIRTIO_NET_F_GUEST_CSUM, true),
-    DEFINE_PROP_BIT64("gso", VirtIONet, host_features, VIRTIO_NET_F_GSO, true),
-    DEFINE_PROP_BIT64("guest_tso4", VirtIONet, host_features,
-                    VIRTIO_NET_F_GUEST_TSO4, true),
-    DEFINE_PROP_BIT64("guest_tso6", VirtIONet, host_features,
-                    VIRTIO_NET_F_GUEST_TSO6, true),
-    DEFINE_PROP_BIT64("guest_ecn", VirtIONet, host_features,
-                    VIRTIO_NET_F_GUEST_ECN, true),
-    DEFINE_PROP_BIT64("guest_ufo", VirtIONet, host_features,
-                    VIRTIO_NET_F_GUEST_UFO, true),
-    DEFINE_PROP_BIT64("guest_announce", VirtIONet, host_features,
-                    VIRTIO_NET_F_GUEST_ANNOUNCE, true),
-    DEFINE_PROP_BIT64("host_tso4", VirtIONet, host_features,
-                    VIRTIO_NET_F_HOST_TSO4, true),
-    DEFINE_PROP_BIT64("host_tso6", VirtIONet, host_features,
-                    VIRTIO_NET_F_HOST_TSO6, true),
-    DEFINE_PROP_BIT64("host_ecn", VirtIONet, host_features,
-                    VIRTIO_NET_F_HOST_ECN, true),
-    DEFINE_PROP_BIT64("host_ufo", VirtIONet, host_features,
-                    VIRTIO_NET_F_HOST_UFO, true),
-    DEFINE_PROP_BIT64("mrg_rxbuf", VirtIONet, host_features,
-                    VIRTIO_NET_F_MRG_RXBUF, true),
-    DEFINE_PROP_BIT64("status", VirtIONet, host_features,
-                    VIRTIO_NET_F_STATUS, true),
-    DEFINE_PROP_BIT64("ctrl_vq", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_VQ, true),
-    DEFINE_PROP_BIT64("ctrl_rx", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_RX, true),
-    DEFINE_PROP_BIT64("ctrl_vlan", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_VLAN, true),
-    DEFINE_PROP_BIT64("ctrl_rx_extra", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_RX_EXTRA, true),
-    DEFINE_PROP_BIT64("ctrl_mac_addr", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_MAC_ADDR, true),
-    DEFINE_PROP_BIT64("ctrl_guest_offloads", VirtIONet, host_features,
-                    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, true),
-    DEFINE_PROP_BIT64("mq", VirtIONet, host_features, VIRTIO_NET_F_MQ, false),
-    DEFINE_PROP_BIT64("rss", VirtIONet, host_features,
-                    VIRTIO_NET_F_RSS, false),
-    DEFINE_PROP_BIT64("hash", VirtIONet, host_features,
-                    VIRTIO_NET_F_HASH_REPORT, false),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("csum", VirtIONet, host_features,
+                                  VIRTIO_NET_F_CSUM, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("guest_csum", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GUEST_CSUM, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("gso", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GSO, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("guest_tso4", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GUEST_TSO4, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("guest_tso6", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GUEST_TSO6, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("guest_ecn", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GUEST_ECN, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("guest_ufo", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GUEST_UFO, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("guest_announce", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GUEST_ANNOUNCE,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("host_tso4", VirtIONet, host_features,
+                                  VIRTIO_NET_F_HOST_TSO4, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("host_tso6", VirtIONet, host_features,
+                                  VIRTIO_NET_F_HOST_TSO6, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("host_ecn", VirtIONet, host_features,
+                                  VIRTIO_NET_F_HOST_ECN, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("host_ufo", VirtIONet, host_features,
+                                  VIRTIO_NET_F_HOST_UFO, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("mrg_rxbuf", VirtIONet, host_features,
+                                  VIRTIO_NET_F_MRG_RXBUF, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("status", VirtIONet, host_features,
+                                  VIRTIO_NET_F_STATUS, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("ctrl_vq", VirtIONet, host_features,
+                                  VIRTIO_NET_F_CTRL_VQ, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("ctrl_rx", VirtIONet, host_features,
+                                  VIRTIO_NET_F_CTRL_RX, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("ctrl_vlan", VirtIONet, host_features,
+                                  VIRTIO_NET_F_CTRL_VLAN, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("ctrl_rx_extra", VirtIONet, host_features,
+                                  VIRTIO_NET_F_CTRL_RX_EXTRA, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("ctrl_mac_addr", VirtIONet, host_features,
+                                  VIRTIO_NET_F_CTRL_MAC_ADDR, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("ctrl_guest_offloads", VirtIONet,
+                                  host_features,
+                                  VIRTIO_NET_F_CTRL_GUEST_OFFLOADS,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("mq", VirtIONet, host_features,
+                                  VIRTIO_NET_F_MQ, ON_OFF_AUTO_OFF),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("rss", VirtIONet, host_features,
+                                  VIRTIO_NET_F_RSS, ON_OFF_AUTO_OFF),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash", VirtIONet, host_features,
+                                  VIRTIO_NET_F_HASH_REPORT, ON_OFF_AUTO_OFF),
     DEFINE_PROP_ARRAY("ebpf-rss-fds", VirtIONet, nr_ebpf_rss_fds,
                       ebpf_rss_fds, qdev_prop_string, char*),
-    DEFINE_PROP_BIT64("guest_rsc_ext", VirtIONet, host_features,
+    DEFINE_PROP_BIT64("guest_rsc_ext", VirtIONet, host_features.on_bits,
                     VIRTIO_NET_F_RSC_EXT, false),
     DEFINE_PROP_UINT32("rsc_interval", VirtIONet, rsc_timeout,
                        VIRTIO_NET_RSC_DEFAULT_INTERVAL),
@@ -3963,12 +4018,12 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
     DEFINE_PROP_BOOL("failover", VirtIONet, failover, false),
-    DEFINE_PROP_BIT64("guest_uso4", VirtIONet, host_features,
-                      VIRTIO_NET_F_GUEST_USO4, true),
-    DEFINE_PROP_BIT64("guest_uso6", VirtIONet, host_features,
-                      VIRTIO_NET_F_GUEST_USO6, true),
-    DEFINE_PROP_BIT64("host_uso", VirtIONet, host_features,
-                      VIRTIO_NET_F_HOST_USO, true),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("guest_uso4", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GUEST_USO4, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("guest_uso6", VirtIONet, host_features,
+                                  VIRTIO_NET_F_GUEST_USO6, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("host_uso", VirtIONet, host_features,
+                                  VIRTIO_NET_F_HOST_USO, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_END_OF_LIST(),
 };
 
