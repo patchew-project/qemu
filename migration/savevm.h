@@ -70,4 +70,7 @@ int qemu_loadvm_approve_switchover(void);
 int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         bool in_postcopy, bool inactivate_disks);
 
+int qemu_savevm_precreate_save(QEMUFile *f, Error **errp);
+int qemu_savevm_precreate_load(QEMUFile *f, Error **errp);
+
 #endif

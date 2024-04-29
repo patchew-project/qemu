@@ -239,6 +239,7 @@ static SaveState savevm_state = {
 
 #define SAVEVM_FOREACH(se, entry)                                    \
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry)                \
+        if (!se->vmsd || !se->vmsd->precreate)
 
 #define SAVEVM_FOREACH_ALL(se, entry)                                \
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry)
@@ -1006,13 +1007,19 @@ static void save_section_header(QEMUFile *f, SaveStateEntry *se,
     }
 }
 
+static bool send_section_footer(SaveStateEntry *se)
+{
+    return (se->vmsd && se->vmsd->precreate) ||
+           migrate_get_current()->send_section_footer;
+}
+
 /*
  * Write a footer onto device sections that catches cases misformatted device
  * sections.
  */
 static void save_section_footer(QEMUFile *f, SaveStateEntry *se)
 {
-    if (migrate_get_current()->send_section_footer) {
+    if (send_section_footer(se)) {
         qemu_put_byte(f, QEMU_VM_SECTION_FOOTER);
         qemu_put_be32(f, se->section_id);
     }
@@ -1317,6 +1324,52 @@ int qemu_savevm_state_prepare(Error **errp)
     }
 
     return 0;
+}
+
+int qemu_savevm_precreate_save(QEMUFile *f, Error **errp)
+{
+    int ret;
+    SaveStateEntry *se;
+
+    qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
+    qemu_put_be32(f, QEMU_VM_FILE_VERSION);
+
+    SAVEVM_FOREACH_ALL(se, entry) {
+        if (se->vmsd && se->vmsd->precreate) {
+            ret = vmstate_save(f, se, NULL, errp);
+            if (ret) {
+                qemu_file_set_error(f, ret);
+                return ret;
+            }
+        }
+    }
+    qemu_fflush(f);
+    return 0;
+}
+
+int qemu_savevm_precreate_load(QEMUFile *f, Error **errp)
+{
+    unsigned int v;
+    int ret;
+
+    v = qemu_get_be32(f);
+    if (v != QEMU_VM_FILE_MAGIC) {
+        error_setg(errp, "Not a migration stream");
+        return -EINVAL;
+    }
+
+    v = qemu_get_be32(f);
+    if (v != QEMU_VM_FILE_VERSION) {
+        error_setg(errp, "Unsupported migration stream version");
+        return -ENOTSUP;
+    }
+
+    ret = qemu_loadvm_state_main(f, NULL);
+    if (ret) {
+        error_setg_errno(errp, -ret, "qemu_savevm_precreate_load");
+    }
+
+    return ret;
 }
 
 int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
@@ -2559,7 +2612,7 @@ static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
     uint8_t read_mark;
     uint32_t read_section_id;
 
-    if (!migrate_get_current()->send_section_footer) {
+    if (!send_section_footer(se)) {
         /* No footer to check */
         return true;
     }
@@ -2895,9 +2948,12 @@ retry:
     while (true) {
         section_type = qemu_get_byte(f);
 
-        ret = qemu_file_get_error_obj_any(f, mis->postcopy_qemufile_dst, NULL);
-        if (ret) {
-            break;
+        if (mis) {
+            ret = qemu_file_get_error_obj_any(f, mis->postcopy_qemufile_dst,
+                                              NULL);
+            if (ret) {
+                break;
+            }
         }
 
         trace_qemu_loadvm_state_section(section_type);
@@ -2936,6 +2992,9 @@ retry:
 out:
     if (ret < 0) {
         qemu_file_set_error(f, ret);
+        if (!mis) {
+            return ret;
+        }
 
         /* Cancel bitmaps incoming regardless of recovery */
         dirty_bitmap_mig_cancel_incoming();

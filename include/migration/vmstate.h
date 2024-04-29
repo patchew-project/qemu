@@ -198,6 +198,12 @@ struct VMStateDescription {
      * a QEMU_VM_SECTION_START section.
      */
     bool early_setup;
+
+    /*
+     * Send/receive this object in the precreate migration stream.
+     */
+    bool precreate;
+
     int version_id;
     int minimum_version_id;
     MigrationPriority priority;
