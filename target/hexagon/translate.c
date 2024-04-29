@@ -346,8 +346,9 @@ static void mark_implicit_pred_writes(DisasContext *ctx)
 static bool pkt_raises_exception(Packet *pkt)
 {
     if (check_for_attrib(pkt, A_LOAD) ||
-        check_for_attrib(pkt, A_STORE)) {
-        return true;
+        check_for_attrib(pkt, A_STORE) ||
+        check_for_attrib(pkt, A_COF)) {
+            return true;
     }
     return false;
 }
