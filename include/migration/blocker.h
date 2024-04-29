@@ -94,4 +94,11 @@ int migrate_add_blocker_normal(Error **reasonp, Error **errp);
  */
 int migrate_add_blocker_modes(Error **reasonp, Error **errp, MigMode mode, ...);
 
+/**
+ * @migrate_add_blocker_mode - prevent a mode of migration from proceeding
+ *
+ * Like migrate_add_blocker_modes, but for a single mode.
+ */
+int migrate_add_blocker_mode(Error **reasonp, MigMode mode, Error **errp);
+
 #endif
