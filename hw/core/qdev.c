@@ -535,6 +535,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
                                                qdev_get_vmsd(dev), dev,
                                                dev->instance_id_alias,
                                                dev->alias_required_for_version,
+                                               NULL,
                                                &local_err) < 0) {
                 goto post_realize_fail;
             }

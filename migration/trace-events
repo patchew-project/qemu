@@ -53,6 +53,7 @@ vmstate_downtime_checkpoint(const char *checkpoint) "%s"
 postcopy_pause_incoming(void) ""
 postcopy_pause_incoming_continued(void) ""
 postcopy_page_req_sync(void *host_addr) "sync page req %p"
+vmstate_register(const char *idstr, int id, void *vmsd, void *opaque) "%s, %d, vmsd %p, opaque %p"
 
 # vmstate.c
 vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"

@@ -1234,6 +1234,7 @@ int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
                                    const VMStateDescription *vmsd,
                                    void *base, int alias_id,
                                    int required_for_version,
+                                   const char *instance_name,
                                    Error **errp);
 
 /**
@@ -1250,7 +1251,7 @@ static inline int vmstate_register(VMStateIf *obj, int instance_id,
                                    void *opaque)
 {
     return vmstate_register_with_alias_id(obj, instance_id, vmsd,
-                                          opaque, -1, 0, NULL);
+                                          opaque, -1, 0, NULL, NULL);
 }
 
 /**
@@ -1278,7 +1279,21 @@ static inline int vmstate_register_any(VMStateIf *obj,
                                        void *opaque)
 {
     return vmstate_register_with_alias_id(obj, VMSTATE_INSTANCE_ID_ANY, vmsd,
-                                          opaque, -1, 0, NULL);
+                                          opaque, -1, 0, NULL, NULL);
+}
+
+/**
+ * vmstate_register_named() - pass an instance_name explicitly instead of
+ * implicitly via VMStateIf get_id().  Needed to register a instance-specific
+ * VMSD for objects that are not Objects.
+ */
+static inline int vmstate_register_named(const char *instance_name,
+                                         int instance_id,
+                                         const VMStateDescription *vmsd,
+                                         void *opaque)
+{
+    return vmstate_register_with_alias_id(NULL, instance_id, vmsd, opaque,
+                                          -1, 0, instance_name, NULL);
 }
 
 void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,

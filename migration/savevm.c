@@ -889,10 +889,20 @@ int vmstate_replace_hack_for_ppc(VMStateIf *obj, int instance_id,
     return vmstate_register(obj, instance_id, vmsd, opaque);
 }
 
+static bool make_new_idstr(VMStateId idstr, const char *id, Error **errp)
+{
+    if (snprintf(idstr, sizeof(VMStateId), "%s/", id) >= sizeof(VMStateId)) {
+        error_setg(errp, "Path too long for VMState (%s)", id);
+        return false;
+    }
+    return true;
+}
+
 int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
                                    const VMStateDescription *vmsd,
                                    void *opaque, int alias_id,
                                    int required_for_version,
+                                   const char *instance_name,
                                    Error **errp)
 {
     SaveStateEntry *se;
@@ -907,19 +917,17 @@ int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
     se->vmsd = vmsd;
     se->alias_id = alias_id;
 
-    if (obj) {
-        char *id = vmstate_if_get_id(obj);
+    if (instance_name) {
+        if (!make_new_idstr(se->idstr, instance_name, errp)) {
+            goto err;
+        }
+
+    } else if (obj) {
+        g_autofree char *id = vmstate_if_get_id(obj);
         if (id) {
-            if (snprintf(se->idstr, sizeof(se->idstr), "%s/", id) >=
-                sizeof(se->idstr)) {
-                error_setg(errp, "Path too long for VMState (%s)", id);
-                g_free(id);
-                g_free(se);
-
-                return -1;
+            if (!make_new_idstr(se->idstr, id, errp)) {
+                goto err;
             }
-            g_free(id);
-
             se->compat = g_new0(CompatEntry, 1);
             pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), vmsd->name);
             se->compat->instance_id = instance_id == VMSTATE_INSTANCE_ID_ANY ?
@@ -941,7 +949,12 @@ int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
     }
     assert(!se->compat || se->instance_id == 0);
     savevm_state_handler_insert(se);
+    trace_vmstate_register(se->idstr, se->instance_id, (void *)vmsd, opaque);
     return 0;
+
+err:
+    g_free(se);
+    return -1;
 }
 
 void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,

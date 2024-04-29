@@ -298,7 +298,7 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
         instance_id = VMSTATE_INSTANCE_ID_ANY;
     }
     vmstate_register_with_alias_id(NULL, instance_id, &vmstate_apic_common,
-                                   s, -1, 0, NULL);
+                                   s, -1, 0, NULL, NULL);
 
     /* APIC LDR in x2APIC mode */
     s->extended_log_dest = ((s->initial_apic_id >> 4) << 16) |

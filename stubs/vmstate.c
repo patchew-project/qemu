@@ -6,6 +6,7 @@ int vmstate_register_with_alias_id(VMStateIf *obj,
                                    const VMStateDescription *vmsd,
                                    void *base, int alias_id,
                                    int required_for_version,
+                                   const char *instance_name,
                                    Error **errp)
 {
     return 0;
