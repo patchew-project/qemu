@@ -72,6 +72,8 @@
 #define NOTIFIER_ELEM_INIT(array, elem)    \
     [elem] = NOTIFIER_WITH_RETURN_LIST_INITIALIZER((array)[elem])
 
+#define INMIGRATE_DEFAULT_EXIT_ON_ERROR true
+
 static NotifierWithReturnList migration_state_notifiers[] = {
     NOTIFIER_ELEM_INIT(migration_state_notifiers, MIG_MODE_NORMAL),
     NOTIFIER_ELEM_INIT(migration_state_notifiers, MIG_MODE_CPR_REBOOT),
@@ -233,6 +235,8 @@ void migration_object_init(void)
     qemu_mutex_init(&current_incoming->page_request_mutex);
     qemu_cond_init(&current_incoming->page_request_cond);
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
+
+    current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
     migration_object_check(current_migration, &error_fatal);
 
@@ -806,14 +810,19 @@ fail:
                       MIGRATION_STATUS_FAILED);
     migration_incoming_state_destroy();
 
-    if (migrate_has_error(s)) {
-        WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-            error_report_err(error_copy(s->error));
+    if (mis->exit_on_error) {
+        if (migrate_has_error(s)) {
+            WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
+                error_report_err(error_copy(s->error));
+            }
         }
+        error_report_err(local_err);
+        migrate_error_free(s);
+        exit(EXIT_FAILURE);
+    } else {
+        migrate_set_error(s, local_err);
+        error_free(local_err);
     }
-    error_report_err(local_err);
-    migrate_error_free(s);
-    exit(EXIT_FAILURE);
 }
 
 /**
@@ -1322,6 +1331,15 @@ static void fill_destination_migration_info(MigrationInfo *info)
         break;
     }
     info->status = mis->state;
+
+    if (!info->error_desc) {
+        MigrationState *s = migrate_get_current();
+        QEMU_LOCK_GUARD(&s->error_mutex);
+
+        if (s->error) {
+            info->error_desc = g_strdup(error_get_pretty(s->error));
+        }
+    }
 }
 
 MigrationInfo *qmp_query_migrate(Error **errp)
@@ -1796,10 +1814,13 @@ void migrate_del_blocker(Error **reasonp)
 }
 
 void qmp_migrate_incoming(const char *uri, bool has_channels,
-                          MigrationChannelList *channels, Error **errp)
+                          MigrationChannelList *channels,
+                          bool has_exit_on_error, bool exit_on_error,
+                          Error **errp)
 {
     Error *local_err = NULL;
     static bool once = true;
+    MigrationIncomingState *mis = migration_incoming_get_current();
 
     if (!once) {
         error_setg(errp, "The incoming migration has already been started");
@@ -1813,6 +1834,9 @@ void qmp_migrate_incoming(const char *uri, bool has_channels,
     if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
         return;
     }
+
+    mis->exit_on_error =
+        has_exit_on_error ? exit_on_error : INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
     qemu_start_incoming_migration(uri, has_channels, channels, &local_err);
 
