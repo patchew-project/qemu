@@ -1827,43 +1827,39 @@ static void ram_block_destroy_guest_memfd(RAMBlock *rb)
     }
 }
 
-static void ram_block_add(RAMBlock *new_block, Error **errp)
+static void *ram_block_alloc_host(RAMBlock *rb, Error **errp)
 {
-    const bool noreserve = qemu_ram_is_noreserve(new_block);
-    const bool shared = qemu_ram_is_shared(new_block);
+    struct MemoryRegion *mr = rb->mr;
+    uint8_t *host = NULL;
+
+    if (xen_enabled()) {
+        xen_ram_alloc(rb->offset, rb->max_length, mr, errp);
+
+    } else {
+        host = qemu_anon_ram_alloc(rb->max_length, &mr->align,
+                                   qemu_ram_is_shared(rb),
+                                   qemu_ram_is_noreserve(rb));
+        if (!host) {
+            error_setg_errno(errp, errno, "cannot set up guest memory '%s'",
+                             rb->idstr);
+        }
+    }
+
+    if (host) {
+        memory_try_enable_merging(host, rb->max_length);
+    }
+    return host;
+}
+
+static void ram_block_add(RAMBlock *new_block)
+{
     RAMBlock *block;
     RAMBlock *last_block = NULL;
     ram_addr_t old_ram_size, new_ram_size;
-    Error *err = NULL;
-
     old_ram_size = last_ram_page();
 
     qemu_mutex_lock_ramlist();
     new_block->offset = find_ram_offset(new_block->max_length);
-
-    if (!new_block->host) {
-        if (xen_enabled()) {
-            xen_ram_alloc(new_block->offset, new_block->max_length,
-                          new_block->mr, &err);
-            if (err) {
-                error_propagate(errp, err);
-                qemu_mutex_unlock_ramlist();
-                return;
-            }
-        } else {
-            new_block->host = qemu_anon_ram_alloc(new_block->max_length,
-                                                  &new_block->mr->align,
-                                                  shared, noreserve);
-            if (!new_block->host) {
-                error_setg_errno(errp, errno,
-                                 "cannot set up guest memory '%s'",
-                                 memory_region_name(new_block->mr));
-                qemu_mutex_unlock_ramlist();
-                return;
-            }
-            memory_try_enable_merging(new_block->host, new_block->max_length);
-        }
-    }
 
     new_ram_size = MAX(old_ram_size,
               (new_block->offset + new_block->max_length) >> TARGET_PAGE_BITS);
@@ -1950,7 +1946,6 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 {
     void *host;
     RAMBlock *new_block;
-    Error *local_err = NULL;
     int64_t file_size, file_align;
 
     /* Just support these ram flags by now. */
@@ -2001,12 +1996,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     }
 
     new_block->host = host;
-    ram_block_add(new_block, &local_err);
-    if (local_err) {
-        g_free(new_block);
-        error_propagate(errp, local_err);
-        return NULL;
-    }
+    ram_block_add(new_block);
     return new_block;
 }
 
@@ -2068,7 +2058,6 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
                                   MemoryRegion *mr, Error **errp)
 {
     RAMBlock *new_block;
-    Error *local_err = NULL;
     int align;
 
     assert((ram_flags & ~(RAM_SHARED | RAM_RESIZEABLE | RAM_PREALLOC |
@@ -2086,14 +2075,17 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     }
     new_block->resized = resized;
 
-    new_block->host = host;
-    ram_block_add(new_block, &local_err);
-    if (local_err) {
-        ram_block_destroy_guest_memfd(new_block);
-        g_free(new_block);
-        error_propagate(errp, local_err);
-        return NULL;
+    if (!host) {
+        host = ram_block_alloc_host(new_block, errp);
+        if (!host) {
+            ram_block_destroy_guest_memfd(new_block);
+            g_free(new_block);
+            return NULL;
+        }
     }
+
+    new_block->host = host;
+    ram_block_add(new_block);
     return new_block;
 }
 
