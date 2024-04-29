@@ -1060,6 +1060,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->mode = s->parameters.mode;
     params->has_zero_page_detection = true;
     params->zero_page_detection = s->parameters.zero_page_detection;
+    params->has_cpr_exec_args = true;
+    params->cpr_exec_args = QAPI_CLONE(strList, s->parameters.cpr_exec_args);
 
     return params;
 }
@@ -1097,6 +1099,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_vcpu_dirty_limit = true;
     params->has_mode = true;
     params->has_zero_page_detection = true;
+    params->has_cpr_exec_args = true;
 }
 
 /*
@@ -1416,6 +1419,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_zero_page_detection) {
         dest->zero_page_detection = params->zero_page_detection;
     }
+
+    if (params->has_cpr_exec_args) {
+        dest->cpr_exec_args = params->cpr_exec_args;
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -1569,6 +1576,12 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_zero_page_detection) {
         s->parameters.zero_page_detection = params->zero_page_detection;
+    }
+
+    if (params->has_cpr_exec_args) {
+        qapi_free_strList(s->parameters.cpr_exec_args);
+        s->parameters.cpr_exec_args =
+            QAPI_CLONE(strList, params->cpr_exec_args);
     }
 }
 

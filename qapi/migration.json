@@ -914,6 +914,9 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @cpr-exec-args: Arguments passed to new QEMU for @cpr-exec mode.
+#    See @cpr-exec for details.  (Since 9.1)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -948,7 +951,8 @@
            { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
            'vcpu-dirty-limit',
            'mode',
-           'zero-page-detection'] }
+           'zero-page-detection',
+           'cpr-exec-args'] }
 
 ##
 # @MigrateSetParameters:
@@ -1122,6 +1126,9 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @cpr-exec-args: Arguments passed to new QEMU for @cpr-exec mode.
+#    See @cpr-exec for details.  (Since 9.1)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1176,7 +1183,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*zero-page-detection': 'ZeroPageDetection'} }
+            '*zero-page-detection': 'ZeroPageDetection',
+            '*cpr-exec-args': [ 'str' ]} }
 
 ##
 # @migrate-set-parameters:
@@ -1354,6 +1362,9 @@
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
+# @cpr-exec-args: Arguments passed to new QEMU for @cpr-exec mode.
+#    See @cpr-exec for details.  (Since 9.1)
+#
 # Features:
 #
 # @deprecated: Member @block-incremental is deprecated.  Use
@@ -1405,7 +1416,8 @@
                                             'features': [ 'unstable' ] },
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
-            '*zero-page-detection': 'ZeroPageDetection'} }
+            '*zero-page-detection': 'ZeroPageDetection',
+            '*cpr-exec-args': [ 'str' ]} }
 
 ##
 # @query-migrate-parameters:
