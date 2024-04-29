@@ -15,6 +15,7 @@
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
 #include "sysemu/hostmem.h"
+#include "migration/blocker.h"
 #include "hw/i386/hostmem-epc.h"
 
 static bool
@@ -23,6 +24,7 @@ sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     g_autofree char *name = NULL;
     uint32_t ram_flags;
     int fd;
+    Error *blocker = NULL;
 
     if (!backend->size) {
         error_setg(errp, "can't create backend with size 0");
@@ -38,8 +40,14 @@ sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 
     name = object_get_canonical_path(OBJECT(backend));
     ram_flags = (backend->share ? RAM_SHARED : 0) | RAM_PROTECTED;
-    return memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend), name,
-                                          backend->size, ram_flags, fd, 0, errp);
+    if (!memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
+                                        name, backend->size, ram_flags,
+                                        fd, 0, errp)) {
+        return false;
+    }
+    error_setg(&blocker, "memory-backend-epc does not support cpr exec");
+    migrate_add_blocker_mode(&blocker, MIG_MODE_CPR_EXEC, &error_fatal);
+    return true;
 }
 
 static void sgx_epc_backend_instance_init(Object *obj)

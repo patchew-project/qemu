@@ -78,6 +78,7 @@ static void xen_setup_post(MachineState *ms, AccelState *accel)
 static int xen_init(MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+    Error *blocker = NULL;
 
     xen_xc = xc_interface_open(0, 0, 0);
     if (xen_xc == NULL) {
@@ -112,6 +113,10 @@ static int xen_init(MachineState *ms)
     mc->default_ram_id = NULL;
 
     xen_mode = XEN_ATTACH;
+
+    error_setg(&blocker, "xen does not support cpr exec");
+    migrate_add_blocker_mode(&blocker, MIG_MODE_CPR_EXEC, &error_fatal);
+
     return 0;
 }
 

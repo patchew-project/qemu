@@ -898,7 +898,8 @@ static int vfio_block_migration(VFIODevice *vbasedev, Error *err, Error **errp)
     vbasedev->migration_blocker = error_copy(err);
     error_free(err);
 
-    return migrate_add_blocker_normal(&vbasedev->migration_blocker, errp);
+    return migrate_add_blocker_modes(&vbasedev->migration_blocker, errp,
+                                     MIG_MODE_NORMAL, MIG_MODE_CPR_EXEC, -1);
 }
 
 /* ---------------------------------------------------------------------- */
