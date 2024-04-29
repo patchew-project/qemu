@@ -1552,8 +1552,9 @@ bool memory_region_init_ram_nomigrate(MemoryRegion *mr,
                                       uint64_t size,
                                       Error **errp)
 {
+    uint32_t flags = current_machine->memfd_alloc ? RAM_SHARED : 0;
     return memory_region_init_ram_flags_nomigrate(mr, owner, name,
-                                                  size, 0, errp);
+                                                  size, flags, errp);
 }
 
 bool memory_region_init_ram_flags_nomigrate(MemoryRegion *mr,
@@ -1713,8 +1714,9 @@ bool memory_region_init_rom_nomigrate(MemoryRegion *mr,
                                       uint64_t size,
                                       Error **errp)
 {
+    uint32_t flags = current_machine->memfd_alloc ? RAM_SHARED : 0;
     if (!memory_region_init_ram_flags_nomigrate(mr, owner, name,
-                                                size, 0, errp)) {
+                                                size, flags, errp)) {
          return false;
     }
     mr->readonly = true;
@@ -1731,6 +1733,7 @@ bool memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
                                              Error **errp)
 {
     Error *err = NULL;
+    uint32_t flags = current_machine->memfd_alloc ? RAM_SHARED : 0;
     assert(ops);
     memory_region_init(mr, owner, name, size);
     mr->ops = ops;
@@ -1738,7 +1741,7 @@ bool memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
     mr->terminates = true;
     mr->rom_device = true;
     mr->destructor = memory_region_destructor_ram;
-    mr->ram_block = qemu_ram_alloc(size, 0, mr, &err);
+    mr->ram_block = qemu_ram_alloc(size, flags, mr, &err);
     if (err) {
         mr->size = int128_zero();
         object_unparent(OBJECT(mr));

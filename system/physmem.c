@@ -47,6 +47,7 @@
 #include "qemu/qemu-print.h"
 #include "qemu/log.h"
 #include "qemu/memalign.h"
+#include "qemu/memfd.h"
 #include "exec/memory.h"
 #include "exec/ioport.h"
 #include "sysemu/dma.h"
@@ -1827,6 +1828,19 @@ static void *ram_block_alloc_host(RAMBlock *rb, Error **errp)
     if (xen_enabled()) {
         xen_ram_alloc(rb->offset, rb->max_length, mr, errp);
 
+    } else if (rb->flags & RAM_SHARED) {
+        if (rb->fd == -1) {
+            mr->align = QEMU_VMALLOC_ALIGN;
+            rb->fd = qemu_memfd_create(rb->idstr, rb->max_length + mr->align,
+                                       0, 0, 0, errp);
+        }
+        if (rb->fd >= 0) {
+            int mfd = rb->fd;
+            qemu_set_cloexec(mfd);
+            host = file_ram_alloc(rb, rb->max_length, mfd, false, 0, errp);
+            trace_qemu_anon_memfd_alloc(rb->idstr, rb->max_length, mfd, host);
+        }
+
     } else {
         host = qemu_anon_ram_alloc(rb->max_length, &mr->align,
                                    qemu_ram_is_shared(rb),
@@ -2108,8 +2122,10 @@ RAMBlock *qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t maxsz,
                                                      void *host),
                                      MemoryRegion *mr, Error **errp)
 {
+    uint32_t flags = current_machine->memfd_alloc ? RAM_SHARED : 0;
+    flags |= RAM_RESIZEABLE;
     return qemu_ram_alloc_internal(size, maxsz, resized, NULL,
-                                   RAM_RESIZEABLE, mr, errp);
+                                   flags, mr, errp);
 }
 
 static void reclaim_ramblock(RAMBlock *block)

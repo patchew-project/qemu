@@ -376,6 +376,7 @@ struct MachineState {
     bool dump_guest_core;
     bool mem_merge;
     bool require_guest_memfd;
+    bool memfd_alloc;
     bool usb;
     bool usb_disabled;
     char *firmware;

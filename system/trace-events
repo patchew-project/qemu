@@ -41,3 +41,4 @@ dirtylimit_vcpu_execute(int cpu_index, int64_t sleep_time_us) "CPU[%d] sleep %"P
 
 # physmem.c
 ram_block_create(const char *name, uint32_t flags, int fd, size_t used_length, size_t max_length, size_t align) "%s, flags %u, fd %d, len %lu, maxlen %lu, align %lu"
+qemu_anon_memfd_alloc(const char *name, size_t size, int fd, void *ptr) "%s size %zu fd %d -> %p"
