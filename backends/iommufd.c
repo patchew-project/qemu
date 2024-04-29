@@ -233,6 +233,23 @@ int iommufd_backend_get_device_info(IOMMUFDBackend *be, uint32_t devid,
     return ret;
 }
 
+static int hiod_iommufd_check_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
+{
+    switch (cap) {
+    case HOST_IOMMU_DEVICE_CAP_IOMMUFD:
+        return 1;
+    default:
+        return host_iommu_device_check_cap_common(hiod, cap, errp);
+    }
+}
+
+static void hiod_iommufd_class_init(ObjectClass *oc, void *data)
+{
+    HostIOMMUDeviceClass *hioc = HOST_IOMMU_DEVICE_CLASS(oc);
+
+    hioc->check_cap = hiod_iommufd_check_cap;
+};
+
 static const TypeInfo types[] = {
     {
         .name = TYPE_IOMMUFD_BACKEND,
@@ -251,6 +268,7 @@ static const TypeInfo types[] = {
         .parent = TYPE_HOST_IOMMU_DEVICE,
         .instance_size = sizeof(HostIOMMUDeviceIOMMUFD),
         .class_size = sizeof(HostIOMMUDeviceIOMMUFDClass),
+        .class_init = hiod_iommufd_class_init,
         .abstract = true,
     }
 };
