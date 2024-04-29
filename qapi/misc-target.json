@@ -20,6 +20,24 @@
   'if': 'TARGET_I386' }
 
 ##
+# @rtc-inject-irq:
+#
+# Inject an RTC interrupt. This command forces the guest to synchornize
+# the time with RTC. This is useful after a long stop-cont pause, which
+# is common for serverless-type workload.
+#
+# Since: 9.1
+#
+# Example:
+#
+#     -> { "execute": "rtc-inject-irq" }
+#     <- { "return": {} }
+#
+##
+{ 'command': 'rtc-inject-irq',
+  'if': 'TARGET_I386' }
+
+##
 # @SevState:
 #
 # An enumeration of SEV state information used during @query-sev.
