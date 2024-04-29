@@ -1805,13 +1805,34 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
     }
 }
 
+static int ram_block_create_guest_memfd(RAMBlock *rb, Error **errp)
+{
+    assert(kvm_enabled());
+
+    if (ram_block_discard_require(true) < 0) {
+        error_setg_errno(errp, errno,
+            "cannot set up private guest memory: discard currently blocked");
+        error_append_hint(errp, "Are you using assigned devices?\n");
+        return -1;
+    }
+
+    return kvm_create_guest_memfd(rb->max_length, 0, errp);
+}
+
+static void ram_block_destroy_guest_memfd(RAMBlock *rb)
+{
+    if (rb->guest_memfd >= 0) {
+        close(rb->guest_memfd);
+        ram_block_discard_require(false);
+    }
+}
+
 static void ram_block_add(RAMBlock *new_block, Error **errp)
 {
     const bool noreserve = qemu_ram_is_noreserve(new_block);
     const bool shared = qemu_ram_is_shared(new_block);
     RAMBlock *block;
     RAMBlock *last_block = NULL;
-    bool free_on_error = false;
     ram_addr_t old_ram_size, new_ram_size;
     Error *err = NULL;
 
@@ -1841,26 +1862,6 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
                 return;
             }
             memory_try_enable_merging(new_block->host, new_block->max_length);
-            free_on_error = true;
-        }
-    }
-
-    if (new_block->flags & RAM_GUEST_MEMFD) {
-        assert(kvm_enabled());
-        assert(new_block->guest_memfd < 0);
-
-        if (ram_block_discard_require(true) < 0) {
-            error_setg_errno(errp, errno,
-                             "cannot set up private guest memory: discard currently blocked");
-            error_append_hint(errp, "Are you using assigned devices?\n");
-            goto out_free;
-        }
-
-        new_block->guest_memfd = kvm_create_guest_memfd(new_block->max_length,
-                                                        0, errp);
-        if (new_block->guest_memfd < 0) {
-            qemu_mutex_unlock_ramlist();
-            goto out_free;
         }
     }
 
@@ -1912,17 +1913,11 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
         ram_block_notify_add(new_block->host, new_block->used_length,
                              new_block->max_length);
     }
-    return;
-
-out_free:
-    if (free_on_error) {
-        qemu_anon_ram_free(new_block->host, new_block->max_length);
-        new_block->host = NULL;
-    }
 }
 
 static RAMBlock *ram_block_create(MemoryRegion *mr, ram_addr_t size,
-                                  ram_addr_t max_size, uint32_t ram_flags)
+                                  ram_addr_t max_size, uint32_t ram_flags,
+                                  Error **errp)
 {
     RAMBlock *rb = g_malloc0(sizeof(*rb));
 
@@ -1932,7 +1927,17 @@ static RAMBlock *ram_block_create(MemoryRegion *mr, ram_addr_t size,
     rb->flags = ram_flags;
     rb->page_size = qemu_real_host_page_size();
     rb->mr = mr;
-    rb->guest_memfd = -1;
+
+    if (ram_flags & RAM_GUEST_MEMFD) {
+        rb->guest_memfd = ram_block_create_guest_memfd(rb, errp);
+        if (rb->guest_memfd < 0) {
+            g_free(rb);
+            return NULL;
+        }
+    } else {
+        rb->guest_memfd = -1;
+    }
+
     trace_ram_block_create(rb->idstr, rb->flags, rb->fd, rb->used_length,
                            rb->max_length, mr->align);
     return rb;
@@ -1983,9 +1988,14 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
-    new_block = ram_block_create(mr, size, size, ram_flags);
+    new_block = ram_block_create(mr, size, size, ram_flags, errp);
+    if (!new_block) {
+        return NULL;
+    }
+
     host = file_ram_alloc(new_block, size, fd, !file_size, offset, errp);
     if (!host) {
+        ram_block_destroy_guest_memfd(new_block);
         g_free(new_block);
         return NULL;
     }
@@ -2070,11 +2080,16 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     size = ROUND_UP(size, align);
     max_size = ROUND_UP(max_size, align);
     assert(max_size >= size);
-    new_block = ram_block_create(mr, size, max_size, ram_flags);
+    new_block = ram_block_create(mr, size, max_size, ram_flags, errp);
+    if (!new_block) {
+        return NULL;
+    }
     new_block->resized = resized;
 
+    new_block->host = host;
     ram_block_add(new_block, &local_err);
     if (local_err) {
+        ram_block_destroy_guest_memfd(new_block);
         g_free(new_block);
         error_propagate(errp, local_err);
         return NULL;
@@ -2121,11 +2136,7 @@ static void reclaim_ramblock(RAMBlock *block)
         qemu_anon_ram_free(block->host, block->max_length);
     }
 
-    if (block->guest_memfd >= 0) {
-        close(block->guest_memfd);
-        ram_block_discard_require(false);
-    }
-
+    ram_block_destroy_guest_memfd(block);
     g_free(block);
 }
 
