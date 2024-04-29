@@ -32,6 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/vfio/vfio-container-base.h"
 #include "sysemu/host_iommu_device.h"
+#include "sysemu/iommufd.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -155,6 +156,18 @@ OBJECT_DECLARE_SIMPLE_TYPE(HostIOMMUDeviceLegacyVFIO,
 /* Abstract of host IOMMU device with VFIO legacy container backend */
 struct HostIOMMUDeviceLegacyVFIO {
     HostIOMMUDevice parent_obj;
+
+    VFIODevice *vdev;
+};
+
+#define TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO \
+            TYPE_HOST_IOMMU_DEVICE_IOMMUFD "-vfio"
+OBJECT_DECLARE_SIMPLE_TYPE(HostIOMMUDeviceIOMMUFDVFIO,
+                           HOST_IOMMU_DEVICE_IOMMUFD_VFIO)
+
+/* Abstraction of host IOMMU device with VFIO IOMMUFD backend */
+struct HostIOMMUDeviceIOMMUFDVFIO {
+    HostIOMMUDeviceIOMMUFD parent;
 
     VFIODevice *vdev;
 };
