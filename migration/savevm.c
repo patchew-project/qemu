@@ -957,6 +957,38 @@ err:
     return -1;
 }
 
+typedef struct VMStateInit {
+    VMStateIf *obj;
+    int instance_id;
+    const VMStateDescription *vmsd;
+    void *opaque;
+    QLIST_ENTRY(VMStateInit) next;
+} VMStateInit;
+
+static QLIST_HEAD(, VMStateInit) vmstate_inits;
+
+void vmstate_register_init_add(VMStateIf *obj, int instance_id,
+                               const VMStateDescription *vmsd, void *opaque)
+{
+    VMStateInit *v = g_new0(VMStateInit, 1);
+
+    v->obj = obj;
+    v->instance_id = instance_id;
+    v->vmsd = vmsd;
+    v->opaque = opaque;
+    QLIST_INSERT_HEAD(&vmstate_inits, v, next);
+}
+
+void vmstate_register_init_all(void)
+{
+    VMStateInit *v, *tmp;
+
+    QLIST_FOREACH_SAFE(v, &vmstate_inits, next, tmp) {
+        vmstate_register(v->obj, v->instance_id, v->vmsd, v->opaque);
+        QLIST_REMOVE(v, next);
+    }
+}
+
 void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,
                         void *opaque)
 {

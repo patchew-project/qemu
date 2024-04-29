@@ -1255,6 +1255,24 @@ static inline int vmstate_register(VMStateIf *obj, int instance_id,
 }
 
 /**
+ * vmstate_register_init() - statically declare a VMSD to be registered when
+ * QEMU calls vmstate_register_init_all.  This is useful for registering
+ * objects that are not Objects (and hence cannot use the DeviceClass vmsd
+ * hook).
+ */
+#define vmstate_register_init(_obj, _id, _vmsd, _opaque)                    \
+static void __attribute__((constructor)) vmstate_register_ ## _vmsd(void)   \
+{                                                                           \
+    vmstate_register_init_add(_obj, _id, &_vmsd, _opaque);                  \
+}
+
+void vmstate_register_init_add(VMStateIf *obj, int instance_id,
+                               const VMStateDescription *vmsd, void *opaque);
+
+void vmstate_register_init_all(void);
+
+
+/**
  * vmstate_replace_hack_for_ppc() - ppc used to abuse vmstate_register
  *
  * Don't even think about using this function in new code.
