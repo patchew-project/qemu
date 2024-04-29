@@ -314,6 +314,30 @@ const VMStateInfo vmstate_info_uint64 = {
     .put  = put_uint64,
 };
 
+/* 64 bit pointer */
+
+static int get_void_ptr(QEMUFile *f, void *pv, size_t size,
+                        const VMStateField *field)
+{
+    void **v = pv;
+    qemu_get_be64s(f, (uint64_t *)v);
+    return 0;
+}
+
+static int put_void_ptr(QEMUFile *f, void *pv, size_t size,
+                        const VMStateField *field, JSONWriter *vmdesc)
+{
+    void **v = pv;
+    qemu_put_be64s(f, (uint64_t *)v);
+    return 0;
+}
+
+const VMStateInfo vmstate_info_void_ptr = {
+    .name = "void_ptr",
+    .get  = get_void_ptr,
+    .put  = put_void_ptr,
+};
+
 static int get_nullptr(QEMUFile *f, void *pv, size_t size,
                        const VMStateField *field)
 

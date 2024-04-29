@@ -236,6 +236,7 @@ extern const VMStateInfo vmstate_info_uint8;
 extern const VMStateInfo vmstate_info_uint16;
 extern const VMStateInfo vmstate_info_uint32;
 extern const VMStateInfo vmstate_info_uint64;
+extern const VMStateInfo vmstate_info_void_ptr;
 
 /** Put this in the stream when migrating a null pointer.*/
 #define VMS_NULLPTR_MARKER (0x30U) /* '0' */
@@ -324,6 +325,17 @@ extern const VMStateInfo vmstate_info_qlist;
     .info         = &(_info),                                        \
     .flags        = VMS_SINGLE,                                      \
     .offset       = vmstate_offset_value(_state, _field, _type),     \
+}
+
+#define VMSTATE_SINGLE_TEST_NO_CHECK(_field, _state, _test,          \
+                                     _version, _info, _type) {       \
+    .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
+    .size         = sizeof(_type),                                   \
+    .info         = &(_info),                                        \
+    .flags        = VMS_SINGLE,                                      \
+    .offset       = offsetof(_state, _field)                         \
 }
 
 #define VMSTATE_SINGLE_FULL(_field, _state, _test, _version, _info,  \
@@ -951,6 +963,9 @@ extern const VMStateInfo vmstate_info_qlist;
     VMSTATE_UINT32_V(_f, _s, 0)
 #define VMSTATE_UINT64(_f, _s)                                        \
     VMSTATE_UINT64_V(_f, _s, 0)
+
+#define VMSTATE_VOID_PTR(_f, _s)                                      \
+    VMSTATE_SINGLE_TEST_NO_CHECK(_f, _s, NULL, 0, vmstate_info_void_ptr, void *)
 
 #ifdef CONFIG_LINUX
 
