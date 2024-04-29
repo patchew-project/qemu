@@ -54,6 +54,7 @@
 #include "sysemu/hw_accel.h"
 #include "sysemu/xen-mapcache.h"
 #include "trace/trace-root.h"
+#include "trace.h"
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
 #include <linux/falloc.h>
@@ -1920,11 +1921,29 @@ out_free:
     }
 }
 
+static RAMBlock *ram_block_create(MemoryRegion *mr, ram_addr_t size,
+                                  ram_addr_t max_size, uint32_t ram_flags)
+{
+    RAMBlock *rb = g_malloc0(sizeof(*rb));
+
+    rb->used_length = size;
+    rb->max_length = max_size;
+    rb->fd = -1;
+    rb->flags = ram_flags;
+    rb->page_size = qemu_real_host_page_size();
+    rb->mr = mr;
+    rb->guest_memfd = -1;
+    trace_ram_block_create(rb->idstr, rb->flags, rb->fd, rb->used_length,
+                           rb->max_length, mr->align);
+    return rb;
+}
+
 #ifdef CONFIG_POSIX
 RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
                                  uint32_t ram_flags, int fd, off_t offset,
                                  Error **errp)
 {
+    void *host;
     RAMBlock *new_block;
     Error *local_err = NULL;
     int64_t file_size, file_align;
@@ -1964,19 +1983,14 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
-    new_block = g_malloc0(sizeof(*new_block));
-    new_block->mr = mr;
-    new_block->used_length = size;
-    new_block->max_length = size;
-    new_block->flags = ram_flags;
-    new_block->guest_memfd = -1;
-    new_block->host = file_ram_alloc(new_block, size, fd, !file_size, offset,
-                                     errp);
-    if (!new_block->host) {
+    new_block = ram_block_create(mr, size, size, ram_flags);
+    host = file_ram_alloc(new_block, size, fd, !file_size, offset, errp);
+    if (!host) {
         g_free(new_block);
         return NULL;
     }
 
+    new_block->host = host;
     ram_block_add(new_block, &local_err);
     if (local_err) {
         g_free(new_block);
@@ -1984,7 +1998,6 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
     return new_block;
-
 }
 
 
@@ -2056,18 +2069,10 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     align = MAX(align, TARGET_PAGE_SIZE);
     size = ROUND_UP(size, align);
     max_size = ROUND_UP(max_size, align);
-
-    new_block = g_malloc0(sizeof(*new_block));
-    new_block->mr = mr;
-    new_block->resized = resized;
-    new_block->used_length = size;
-    new_block->max_length = max_size;
     assert(max_size >= size);
-    new_block->fd = -1;
-    new_block->guest_memfd = -1;
-    new_block->page_size = qemu_real_host_page_size();
-    new_block->host = host;
-    new_block->flags = ram_flags;
+    new_block = ram_block_create(mr, size, max_size, ram_flags);
+    new_block->resized = resized;
+
     ram_block_add(new_block, &local_err);
     if (local_err) {
         g_free(new_block);
