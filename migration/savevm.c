@@ -1407,7 +1407,8 @@ int qemu_savevm_precreate_save(QEMUFile *f, Error **errp)
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
 
     SAVEVM_FOREACH_ALL(se, entry) {
-        if (se->vmsd && se->vmsd->precreate) {
+        if (se->vmsd && se->vmsd->precreate &&
+            se->instance_id != VMSTATE_INSTANCE_ID_FACTORY) {
             ret = vmstate_save(f, se, NULL, errp);
             if (ret) {
                 qemu_file_set_error(f, ret);
@@ -1949,6 +1950,45 @@ static SaveStateEntry *find_se(const char *idstr, uint32_t instance_id)
         }
     }
     return NULL;
+}
+
+int vmstate_walk_factory_outgoing(const char *factory_name,
+                                  vmstate_walk_factory_cb cb, void *cb_data)
+{
+    SaveStateEntry *se, *new_se;
+    int ret, instance_len;
+    FactoryObject obj;
+    VMStateId idstr;
+    char *se_factory_name;
+
+    SAVEVM_FOREACH_SAFE_ALL(se, entry, new_se) {
+        if (!se->vmsd || !se->vmsd->factory) {
+            continue;
+        }
+        if (se->instance_id == VMSTATE_INSTANCE_ID_FACTORY) {
+            /* This is the factory itself, not a generated instance */
+            continue;
+        }
+
+        se_factory_name = strrchr(se->idstr, '/');
+        if (factory_name && strcmp(se_factory_name + 1, factory_name)) {
+            continue;
+        }
+
+        strcpy(idstr, se->idstr);
+        instance_len = se_factory_name - se->idstr;
+        idstr[instance_len] = 0;
+        obj.factory_name = idstr + instance_len + 1;
+        obj.instance_name = idstr;
+        obj.instance_id = se->instance_id;
+        obj.opaque = se->opaque;
+
+        ret = cb(&obj, cb_data);
+        if (ret) {
+            return ret;
+        }
+    }
+    return 0;
 }
 
 enum LoadVMExitCodes {
@@ -2721,8 +2761,9 @@ qemu_loadvm_section_start_full(QEMUFile *f, uint8_t type)
     bool trace_downtime = (type == QEMU_VM_SECTION_FULL);
     uint32_t instance_id, version_id, section_id;
     int64_t start_ts, end_ts;
-    SaveStateEntry *se;
-    VMStateId idstr;
+    SaveStateEntry *se, new_se;
+    VMStateId idstr, instance_name;
+    char *factory_name = NULL;
     int ret;
 
     /* Read section start */
@@ -2744,8 +2785,22 @@ qemu_loadvm_section_start_full(QEMUFile *f, uint8_t type)
 
     trace_qemu_loadvm_state_section_startfull(section_id, idstr,
             instance_id, version_id);
+
     /* Find savevm section */
     se = find_se(idstr, instance_id);
+
+    if (se == NULL) {
+        pstrcpy(instance_name, sizeof(idstr), idstr);
+        factory_name = strrchr(instance_name, '/');
+        if (factory_name) {
+            *factory_name++ = 0;
+            se = find_se(factory_name, VMSTATE_INSTANCE_ID_FACTORY);
+            new_se = *se;
+            new_se.opaque = g_malloc((long)se->opaque);
+            se = &new_se;
+        }
+    }
+
     if (se == NULL) {
         error_report("Unknown savevm section or instance '%s' %"PRIu32". "
                      "Make sure that your current VM setup matches your "
@@ -2778,6 +2833,11 @@ qemu_loadvm_section_start_full(QEMUFile *f, uint8_t type)
         error_report("error while loading state for instance 0x%"PRIx32" of"
                      " device '%s'", instance_id, idstr);
         return ret;
+    }
+
+    if (factory_name) {
+        vmstate_add_factory_object(factory_name, instance_name, instance_id,
+                                   se->opaque);
     }
 
     if (trace_downtime) {

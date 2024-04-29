@@ -24,6 +24,12 @@ void vmstate_unregister_named(const char *vmsd_name,
 {
 }
 
+int vmstate_walk_factory_outgoing(const char *factory_name,
+                                  vmstate_walk_factory_cb cb, void *cb_data)
+{
+    return 1;
+}
+
 bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
 {
     return true;

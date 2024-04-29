@@ -204,6 +204,11 @@ struct VMStateDescription {
      */
     bool precreate;
 
+    /*
+     * This VMSD is a factory or a factory object.
+     */
+    bool factory;
+
     int version_id;
     int minimum_version_id;
     MigrationPriority priority;
@@ -1228,6 +1233,17 @@ bool vmstate_section_needed(const VMStateDescription *vmsd, void *opaque);
 typedef char (VMStateId)[256];
 
 #define  VMSTATE_INSTANCE_ID_ANY  -1
+#define VMSTATE_INSTANCE_ID_FACTORY -2
+
+#include "qemu/queue.h"
+
+typedef struct FactoryObject {
+    char *factory_name;
+    char *instance_name;
+    int instance_id;
+    void *opaque;
+    QLIST_ENTRY(FactoryObject) next;
+} FactoryObject;
 
 /* Returns: 0 on success, -1 on failure */
 int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
@@ -1266,6 +1282,10 @@ static void __attribute__((constructor)) vmstate_register_ ## _vmsd(void)   \
     vmstate_register_init_add(_obj, _id, &_vmsd, _opaque);                  \
 }
 
+#define vmstate_register_init_factory(_vmsd, _type)                         \
+    vmstate_register_init(NULL, VMSTATE_INSTANCE_ID_FACTORY,                \
+                          _vmsd, (void *)sizeof(_type))
+
 void vmstate_register_init_add(VMStateIf *obj, int instance_id,
                                const VMStateDescription *vmsd, void *opaque);
 
@@ -1301,8 +1321,20 @@ static inline int vmstate_register_any(VMStateIf *obj,
 }
 
 /**
+ * vmstate_register_factory() - register a factory name and size, needed to
+ * recognize incoming factory objects.
+ */
+static inline int vmstate_register_factory(const VMStateDescription *vmsd,
+                                           long size)
+{
+    return vmstate_register_with_alias_id(NULL, VMSTATE_INSTANCE_ID_FACTORY,
+                                          vmsd, (void *)size, -1, 0, NULL,
+                                          NULL);
+}
+
+/**
  * vmstate_register_named() - pass an instance_name explicitly instead of
- * implicitly via VMStateIf get_id().  Needed to register a instance-specific
+ * implicitly via VMStateIf get_id().  Needed to register an instance-specific
  * VMSD for objects that are not Objects.
  */
 static inline int vmstate_register_named(const char *instance_name,
@@ -1331,5 +1363,37 @@ void vmstate_unregister_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_register_ram_global(struct MemoryRegion *memory);
 
 bool vmstate_check_only_migratable(const VMStateDescription *vmsd);
+
+/*
+ * Add to the factory object list, called during loadvm.
+ */
+void vmstate_add_factory_object(const char *factory_name,
+                                const char *instance_name,
+                                int instance_id,
+                                void *opaque);
+
+/*
+ * Search for and return a factory object.
+ */
+void *vmstate_find_factory_object(const char *factory_name,
+                                  const char *instance_name,
+                                  int instance_id);
+
+/*
+ * Search for and return a factory object, removing it from the list.
+ */
+void *vmstate_claim_factory_object(const char *factory_name,
+                                   const char *instance_name,
+                                   int instance_id);
+
+typedef int (*vmstate_walk_factory_cb)(FactoryObject *obj, void *opaque);
+
+/*
+ * Search for registered factory objects (ie, outgoing)
+ * and call cb passing opaque.
+ */
+int vmstate_walk_factory_outgoing(const char *factory_name,
+                                  vmstate_walk_factory_cb cb,
+                                  void *opaque);
 
 #endif
