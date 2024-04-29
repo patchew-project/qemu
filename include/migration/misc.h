@@ -122,4 +122,7 @@ bool migration_in_bg_snapshot(void);
 /* migration/block-dirty-bitmap.c */
 void dirty_bitmap_mig_init(void);
 
+/* migration/cpr.c */
+void cpr_exec(char **argv);
+
 #endif

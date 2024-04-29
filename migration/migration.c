@@ -239,6 +239,7 @@ void migration_object_init(void)
     blk_mig_init();
     ram_mig_init();
     dirty_bitmap_mig_init();
+    cpr_mig_init();
 }
 
 typedef struct {
@@ -1395,6 +1396,15 @@ static void migrate_fd_cleanup(MigrationState *s)
         qemu_fclose(tmp);
     }
 
+    if (migrate_mode() == MIG_MODE_CPR_EXEC) {
+        Error *err = NULL;
+        if (migration_precreate_save(&err)) {
+            migrate_set_error(s, err);
+            error_report_err(err);
+            migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+        }
+    }
+
     assert(!migration_is_active());
 
     if (s->state == MIGRATION_STATUS_CANCELLING) {
@@ -1410,6 +1420,11 @@ static void migrate_fd_cleanup(MigrationState *s)
                                      MIG_EVENT_PRECOPY_DONE;
     migration_call_notifiers(s, type, NULL);
     block_cleanup_parameters();
+
+    if (migrate_mode() == MIG_MODE_CPR_EXEC && !migration_has_failed(s)) {
+        assert(s->state == MIGRATION_STATUS_COMPLETED);
+        qemu_system_exec_request(cpr_exec, s->parameters.cpr_exec_args);
+    }
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
 
@@ -1974,6 +1989,12 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     if (kvm_hwpoisoned_mem()) {
         error_setg(errp, "Can't migrate this vm with hardware poisoned memory, "
                    "please reboot the vm and try again");
+        return false;
+    }
+
+    if (migrate_mode() == MIG_MODE_CPR_EXEC &&
+        !s->parameters.has_cpr_exec_args) {
+        error_setg(errp, "cpr-exec mode requires setting cpr-exec-args");
         return false;
     }
 

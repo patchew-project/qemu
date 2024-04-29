@@ -76,6 +76,7 @@
 #include "hw/block/block.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
+#include "migration/cpr.h"
 #include "migration/misc.h"
 #include "migration/snapshot.h"
 #include "migration/vmstate.h"
@@ -3668,6 +3669,9 @@ void qemu_init(int argc, char **argv)
     qemu_create_machine(machine_opts_dict);
 
     vmstate_register_init_all();
+    migration_precreate_load(&error_fatal);
+    /* Set cloexec to prevent fd leaks from fork until the next cpr-exec */
+    cpr_unpreserve_fds();
 
     suspend_mux_open();
 

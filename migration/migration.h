@@ -490,7 +490,6 @@ bool migration_in_postcopy(void);
 bool migration_postcopy_is_alive(int state);
 MigrationState *migrate_get_current(void);
 bool migration_has_failed(MigrationState *);
-bool migrate_mode_is_cpr(MigrationState *);
 
 uint64_t ram_get_total_transferred_pages(void);
 
@@ -543,5 +542,9 @@ int migration_rp_wait(MigrationState *s);
  * to remember the target is always the migration thread.
  */
 void migration_rp_kick(MigrationState *s);
+
+/* CPR */
+bool migrate_mode_is_cpr(MigrationState *);
+void cpr_mig_init(void);
 
 #endif

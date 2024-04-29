@@ -71,6 +71,7 @@
 
 #include "qemu/pmem.h"
 
+#include "migration/cpr.h"
 #include "migration/vmstate.h"
 
 #include "qemu/range.h"
@@ -2071,6 +2072,7 @@ const VMStateDescription vmstate_ram_block = {
     .minimum_version_id = 1,
     .precreate = true,
     .factory = true,
+    .needed = cpr_needed_for_exec,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(align, RAMBlock),
         VMSTATE_VOID_PTR(host, RAMBlock),
