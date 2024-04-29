@@ -8,7 +8,6 @@
 
 /* vl.c */
 
-extern int only_migratable;
 extern const char *qemu_name;
 extern QemuUUID qemu_uuid;
 extern bool qemu_uuid_set;

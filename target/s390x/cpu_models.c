@@ -16,6 +16,7 @@
 #include "kvm/kvm_s390x.h"
 #include "sysemu/kvm.h"
 #include "sysemu/tcg.h"
+#include "migration/misc.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
@@ -527,7 +528,8 @@ static bool check_compatibility(const S390CPUModel *max_model,
     }
 
 #ifndef CONFIG_USER_ONLY
-    if (only_migratable && test_bit(S390_FEAT_UNPACK, model->features)) {
+    if (migration_mode_required(MIG_MODE_NORMAL) &&
+        test_bit(S390_FEAT_UNPACK, model->features)) {
         error_setg(errp, "The unpack facility is not compatible with "
                    "the --only-migratable option. You must remove either "
                    "the 'unpack' facility or the --only-migratable option");

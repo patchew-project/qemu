@@ -119,6 +119,9 @@ bool migration_incoming_postcopy_advised(void);
 /* True if background snapshot is active */
 bool migration_in_bg_snapshot(void);
 
+void migration_set_required_mode(MigMode mode);
+bool migration_mode_required(MigMode mode);
+
 /* migration/block-dirty-bitmap.c */
 void dirty_bitmap_mig_init(void);
 

@@ -1719,17 +1719,29 @@ static bool is_busy(Error **reasonp, Error **errp)
     return false;
 }
 
-static bool is_only_migratable(Error **reasonp, Error **errp, int modes)
+static int migration_modes_required;
+
+void migration_set_required_mode(MigMode mode)
+{
+    migration_modes_required |= BIT(mode);
+}
+
+bool migration_mode_required(MigMode mode)
+{
+    return !!(migration_modes_required & BIT(mode));
+}
+
+static bool modes_are_required(Error **reasonp, Error **errp, int modes)
 {
     ERRP_GUARD();
 
-    if (only_migratable && (modes & BIT(MIG_MODE_NORMAL))) {
+    if (migration_modes_required & modes) {
         error_propagate_prepend(errp, *reasonp,
-                                "disallowing migration blocker "
-                                "(--only-migratable) for: ");
+                                "-only-migratable{-modes}  specified, but: ");
         *reasonp = NULL;
         return true;
     }
+
     return false;
 }
 
@@ -1783,7 +1795,7 @@ int migrate_add_blocker_modes(Error **reasonp, Error **errp, MigMode mode, ...)
     modes = get_modes(mode, ap);
     va_end(ap);
 
-    if (is_only_migratable(reasonp, errp, modes)) {
+    if (modes_are_required(reasonp, errp, modes)) {
         return -EACCES;
     } else if (is_busy(reasonp, errp)) {
         return -EBUSY;

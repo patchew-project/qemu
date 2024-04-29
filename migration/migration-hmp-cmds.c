@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "block/qapi.h"
 #include "migration/snapshot.h"
+#include "migration/misc.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
@@ -33,6 +34,28 @@
 #include "options.h"
 #include "migration.h"
 
+static void migration_dump_modes(Monitor *mon)
+{
+    int mode, n = 0;
+
+    monitor_printf(mon, "only-migratable-modes: ");
+
+    for (mode = 0; mode < MIG_MODE__MAX; mode++) {
+        if (migration_mode_required(mode)) {
+            if (n++) {
+                monitor_printf(mon, ",");
+            }
+            monitor_printf(mon, "%s", MigMode_str(mode));
+        }
+    }
+
+    if (!n) {
+        monitor_printf(mon, "none\n");
+    } else {
+        monitor_printf(mon, "\n");
+    }
+}
+
 static void migration_global_dump(Monitor *mon)
 {
     MigrationState *ms = migrate_get_current();
@@ -41,7 +64,7 @@ static void migration_global_dump(Monitor *mon)
     monitor_printf(mon, "store-global-state: %s\n",
                    ms->store_global_state ? "on" : "off");
     monitor_printf(mon, "only-migratable: %s\n",
-                   only_migratable ? "on" : "off");
+                   migration_mode_required(MIG_MODE_NORMAL) ? "on" : "off");
     monitor_printf(mon, "send-configuration: %s\n",
                    ms->send_configuration ? "on" : "off");
     monitor_printf(mon, "send-section-footer: %s\n",
@@ -50,6 +73,7 @@ static void migration_global_dump(Monitor *mon)
                    ms->decompress_error_check ? "on" : "off");
     monitor_printf(mon, "clear-bitmap-shift: %u\n",
                    ms->clear_bitmap_shift);
+    migration_dump_modes(mon);
 }
 
 void hmp_info_migrate(Monitor *mon, const QDict *qdict)

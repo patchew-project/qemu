@@ -4807,8 +4807,20 @@ DEF("only-migratable", 0, QEMU_OPTION_only_migratable, \
     "-only-migratable     allow only migratable devices\n", QEMU_ARCH_ALL)
 SRST
 ``-only-migratable``
-    Only allow migratable devices. Devices will not be allowed to enter
-    an unmigratable state.
+    Only allow devices that can migrate using normal mode. Devices will not
+    be allowed to enter an unmigratable state.
+ERST
+
+DEF("only-migratable-modes", HAS_ARG, QEMU_OPTION_only_migratable_modes, \
+    "-only-migratable-modes mode1[,...]\n"
+    "                allow only devices that are migratable using mode(s)\n",
+    QEMU_ARCH_ALL)
+SRST
+``-only-migratable-modes mode1[,...]``
+    Only allow devices which are migratable using all modes in the list,
+    which guarantees that migration will not fail due to a blocker.
+    If both only-migratable-modes and only-migratable are specified,
+    or are specified multiple times, then the required modes accumulate.
 ERST
 
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \

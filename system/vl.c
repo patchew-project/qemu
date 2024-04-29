@@ -3461,7 +3461,18 @@ void qemu_init(int argc, char **argv)
                 incoming = optarg;
                 break;
             case QEMU_OPTION_only_migratable:
-                only_migratable = 1;
+                migration_set_required_mode(MIG_MODE_NORMAL);
+                break;
+            case QEMU_OPTION_only_migratable_modes:
+                {
+                    int i, mode;
+                    g_autofree char **words = g_strsplit(optarg, ",", -1);
+                    for (i = 0; words[i]; i++) {
+                        mode = qapi_enum_parse(&MigMode_lookup, words[i], -1,
+                                               &error_fatal);
+                        migration_set_required_mode(mode);
+                    }
+                }
                 break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;
