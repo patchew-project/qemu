@@ -28,3 +28,32 @@ static void host_iommu_device_init(Object *obj)
 static void host_iommu_device_finalize(Object *obj)
 {
 }
+
+/* Wrapper of HostIOMMUDeviceClass:check_cap */
+int host_iommu_device_check_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
+{
+    HostIOMMUDeviceClass *hiodc = HOST_IOMMU_DEVICE_GET_CLASS(hiod);
+    if (!hiodc->check_cap) {
+        error_setg(errp, ".check_cap() not implemented");
+        return -EINVAL;
+    }
+
+    return hiodc->check_cap(hiod, cap, errp);
+}
+
+/* Implement check on common IOMMU capabilities */
+int host_iommu_device_check_cap_common(HostIOMMUDevice *hiod, int cap,
+                                       Error **errp)
+{
+    HostIOMMUDeviceCaps *caps = &hiod->caps;
+
+    switch (cap) {
+    case HOST_IOMMU_DEVICE_CAP_IOMMU_TYPE:
+        return caps->type;
+    case HOST_IOMMU_DEVICE_CAP_AW_BITS:
+        return caps->aw_bits;
+    default:
+        error_setg(errp, "Not support query cap %x", cap);
+        return -EINVAL;
+    }
+}
