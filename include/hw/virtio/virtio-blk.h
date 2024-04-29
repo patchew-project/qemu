@@ -50,6 +50,20 @@ struct VirtIOBlkConf
     bool x_enable_wce_if_config_wce;
 };
 
+typedef struct vhost_blk {
+    struct vhost_dev dev;
+    /* vhost-blk only use ONE virtqueue now */
+    struct vhost_virtqueue vqs[1];
+    /* fd for chardev /dev/vhost-blk */
+    int vhostfd;
+} vhost_blk;
+
+/* Attach virtio blk ring to an ocfs2 file with modified dio framework.
+ * Pass fd -1 to unbind from the file and the backend. This can be used
+ * to stop the ring (e.g. for migration). */
+#define VHOST_BLK_SET_BACKEND _IOW(VHOST_VIRTIO, 0x50, struct vhost_vring_file)
+
+
 struct VirtIOBlockReq;
 struct VirtIOBlock {
     VirtIODevice parent_obj;
@@ -70,6 +84,12 @@ struct VirtIOBlock {
      * first element as its AioContext.
      */
     AioContext **vq_aio_context;
+
+    int blkfd;
+    bool vhost_enabled;
+    bool vhost_started;
+    bool vhost_acked;
+    vhost_blk vhblk[VIRTIO_QUEUE_MAX];
 
     uint64_t host_features;
     size_t config_size;
