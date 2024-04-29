@@ -71,6 +71,7 @@
 
 #include "qemu/pmem.h"
 
+#include "migration/blocker.h"
 #include "migration/cpr.h"
 #include "migration/vmstate.h"
 
@@ -2132,7 +2133,14 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
             g_free(new_block);
             return NULL;
         }
-        if (!(ram_flags & RAM_GUEST_MEMFD)) {
+        if (ram_flags & RAM_GUEST_MEMFD) {
+            error_setg(&new_block->cpr_blocker,
+                       "Memory region %s uses guest_memfd, "
+                       "which is not supported with CPR.",
+                       memory_region_name(mr));
+            migrate_add_blocker_mode(&new_block->cpr_blocker, MIG_MODE_CPR_EXEC,
+                                     errp);
+        } else {
             vmstate_register_named(new_block->idstr, 0, &vmstate_ram_block,
                                    new_block);
         }
@@ -3951,4 +3959,46 @@ bool ram_block_discard_is_required(void)
 {
     return qatomic_read(&ram_block_discard_required_cnt) ||
            qatomic_read(&ram_block_coordinated_discard_required_cnt);
+}
+
+/*
+ * Return true if ram contents would be lost during cpr for MIG_MODE_CPR_EXEC.
+ * Return false for ram_device because it is remapped after exec.  Do not
+ * exclude rom, even though it is readonly, because the rom file could change
+ * in the new qemu.  Return false for non-migratable blocks.  They are either
+ * re-created after exec, or are handled specially, or are covered by a
+ * device-level cpr blocker.  Return false for an fd, because it is visible and
+ * can be remapped in the new process.
+ */
+static bool ram_is_volatile(RAMBlock *rb)
+{
+    MemoryRegion *mr = rb->mr;
+
+    return mr &&
+        memory_region_is_ram(mr) &&
+        !memory_region_is_ram_device(mr) &&
+        (!qemu_ram_is_shared(rb) || !qemu_ram_is_named_file(rb)) &&
+        qemu_ram_is_migratable(rb) &&
+        rb->fd < 0;
+}
+
+/*
+ * Add a MIG_MODE_CPR_EXEC blocker for each volatile ram block.
+ */
+void ram_block_add_cpr_blocker(RAMBlock *rb, Error **errp)
+{
+    if (!ram_is_volatile(rb)) {
+        return;
+    }
+
+    error_setg(&rb->cpr_blocker,
+               "Memory region %s is volatile. A memory-backend-memfd or "
+               "memory-backend-file with share=on is required.",
+               memory_region_name(rb->mr));
+    migrate_add_blocker_mode(&rb->cpr_blocker, MIG_MODE_CPR_EXEC, errp);
+}
+
+void ram_block_del_cpr_blocker(RAMBlock *rb)
+{
+    migrate_del_blocker(&rb->cpr_blocker);
 }
