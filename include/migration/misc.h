@@ -56,6 +56,11 @@ AnnounceParameters *migrate_announce_params(void);
 
 void dump_vmstate_json_to_file(FILE *out_fp);
 
+/* migration/precreate.c */
+int migration_precreate_save(Error **errp);
+void migration_precreate_unsave(void);
+int migration_precreate_load(Error **errp);
+
 /* migration/migration.c */
 void migration_object_init(void);
 void migration_shutdown(void);

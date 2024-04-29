@@ -26,6 +26,7 @@ system_ss.add(files(
   'ram-compress.c',
   'options.c',
   'postcopy-ram.c',
+  'precreate.c',
   'savevm.c',
   'socket.c',
   'tls.c',
