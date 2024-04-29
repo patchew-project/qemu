@@ -111,7 +111,8 @@ REG32(IDR5,                0x14)
      FIELD(IDR5, VAX,        10, 2);
      FIELD(IDR5, STALL_MAX,  16, 16);
 
-#define SMMU_IDR5_OAS 4
+#define SMMU_IDR5_OAS_DEF 4 /* 44 bits. */
+#define SMMU_IDR5_OAS_MAX 5 /* 48 bits. */
 
 REG32(IIDR,                0x18)
 REG32(AIDR,                0x1c)
