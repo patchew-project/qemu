@@ -3819,6 +3819,26 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
     return vtd_dev_as;
 }
 
+static int vtd_check_hdev(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hdev,
+                          Error **errp)
+{
+    HostIOMMUDevice *hiod = vtd_hdev->dev;
+    int ret;
+
+    /* Common checks */
+    ret = host_iommu_device_check_cap(hiod, HOST_IOMMU_DEVICE_CAP_AW_BITS,
+                                      errp);
+    if (ret < 0) {
+        return ret;
+    }
+    if (s->aw_bits > ret) {
+        error_setg(errp, "aw-bits %d > host aw-bits %d", s->aw_bits, ret);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
                                     HostIOMMUDevice *hiod, Error **errp)
 {
@@ -3829,6 +3849,7 @@ static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
         .devfn = devfn,
     };
     struct vtd_as_key *new_key;
+    int ret;
 
     assert(hiod);
 
@@ -3847,6 +3868,13 @@ static int vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
     vtd_hdev->devfn = (uint8_t)devfn;
     vtd_hdev->iommu_state = s;
     vtd_hdev->dev = hiod;
+
+    ret = vtd_check_hdev(s, vtd_hdev, errp);
+    if (ret) {
+        g_free(vtd_hdev);
+        vtd_iommu_unlock(s);
+        return ret;
+    }
 
     new_key = g_malloc(sizeof(*new_key));
     new_key->bus = bus;
