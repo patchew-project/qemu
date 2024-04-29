@@ -1164,11 +1164,23 @@ static bool hiod_legacy_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
     return true;
 }
 
+static int hiod_legacy_vfio_check_cap(HostIOMMUDevice *hiod, int cap,
+                                      Error **errp)
+{
+    switch (cap) {
+    case HOST_IOMMU_DEVICE_CAP_IOMMUFD:
+        return 0;
+    default:
+        return host_iommu_device_check_cap_common(hiod, cap, errp);
+    }
+}
+
 static void hiod_legacy_vfio_class_init(ObjectClass *oc, void *data)
 {
     HostIOMMUDeviceClass *hioc = HOST_IOMMU_DEVICE_CLASS(oc);
 
     hioc->realize = hiod_legacy_vfio_realize;
+    hioc->check_cap = hiod_legacy_vfio_check_cap;
 };
 
 static const TypeInfo types[] = {
