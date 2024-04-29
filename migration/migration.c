@@ -732,9 +732,19 @@ static void process_incoming_migration_bh(void *opaque)
     migration_incoming_state_destroy();
 }
 
+static void migrate_error_free(MigrationState *s)
+{
+    QEMU_LOCK_GUARD(&s->error_mutex);
+    if (s->error) {
+        error_free(s->error);
+        s->error = NULL;
+    }
+}
+
 static void coroutine_fn
 process_incoming_migration_co(void *opaque)
 {
+    MigrationState *s = migrate_get_current();
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps;
     int ret;
@@ -779,11 +789,9 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
-        MigrationState *s = migrate_get_current();
-
         if (migrate_has_error(s)) {
             WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-                error_report_err(s->error);
+                error_report_err(error_copy(s->error));
             }
         }
         error_report("load of migration failed: %s", strerror(-ret));
@@ -801,6 +809,7 @@ fail:
                       MIGRATION_STATUS_FAILED);
     migration_incoming_state_destroy();
 
+    migrate_error_free(s);
     exit(EXIT_FAILURE);
 }
 
@@ -1431,15 +1440,6 @@ bool migrate_has_error(MigrationState *s)
     /* The lock is not helpful here, but still follow the rule */
     QEMU_LOCK_GUARD(&s->error_mutex);
     return qatomic_read(&s->error);
-}
-
-static void migrate_error_free(MigrationState *s)
-{
-    QEMU_LOCK_GUARD(&s->error_mutex);
-    if (s->error) {
-        error_free(s->error);
-        s->error = NULL;
-    }
 }
 
 static void migrate_fd_error(MigrationState *s, const Error *error)
