@@ -23,6 +23,7 @@
 #include "cpu-common.h"
 #include "qemu/rcu.h"
 #include "exec/ramlist.h"
+#include "migration/vmstate.h"
 
 struct RAMBlock {
     struct rcu_head rcu;
@@ -35,7 +36,7 @@ struct RAMBlock {
     void (*resized)(const char*, uint64_t length, void *host);
     uint32_t flags;
     /* Protected by the BQL.  */
-    char idstr[256];
+    VMStateId idstr;
     /* RCU-enabled, writes protected by the ramlist lock */
     QLIST_ENTRY(RAMBlock) next;
     QLIST_HEAD(, RAMBlockNotifier) ramblock_notifiers;

@@ -197,13 +197,13 @@ const VMStateInfo vmstate_info_timer = {
 
 
 typedef struct CompatEntry {
-    char idstr[256];
+    VMStateId idstr;
     int instance_id;
 } CompatEntry;
 
 typedef struct SaveStateEntry {
     QTAILQ_ENTRY(SaveStateEntry) entry;
-    char idstr[256];
+    VMStateId idstr;
     uint32_t instance_id;
     int alias_id;
     int version_id;
@@ -814,7 +814,7 @@ int register_savevm_live(const char *idstr,
 void unregister_savevm(VMStateIf *obj, const char *idstr, void *opaque)
 {
     SaveStateEntry *se, *new_se;
-    char id[256] = "";
+    VMStateId id = "";
 
     if (obj) {
         char *oid = vmstate_if_get_id(obj);
@@ -2650,7 +2650,7 @@ qemu_loadvm_section_start_full(QEMUFile *f, uint8_t type)
     uint32_t instance_id, version_id, section_id;
     int64_t start_ts, end_ts;
     SaveStateEntry *se;
-    char idstr[256];
+    VMStateId idstr;
     int ret;
 
     /* Read section start */

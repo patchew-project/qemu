@@ -1210,6 +1210,8 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
 bool vmstate_section_needed(const VMStateDescription *vmsd, void *opaque);
 
+typedef char (VMStateId)[256];
+
 #define  VMSTATE_INSTANCE_ID_ANY  -1
 
 /* Returns: 0 on success, -1 on failure */

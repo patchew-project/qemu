@@ -471,7 +471,8 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
     trace_vmstate_subsection_load(vmsd->name);
 
     while (qemu_peek_byte(f, 0) == QEMU_VM_SUBSECTION) {
-        char idstr[256], *idstr_ret;
+        VMStateId idstr;
+        char *idstr_ret;
         int ret;
         uint8_t version_id, len, size;
         const VMStateDescription *sub_vmsd;
