@@ -22,5 +22,6 @@
 #define QEMU_SECCOMP_SET_RESOURCECTL (1 << 4)
 
 int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp);
+uint32_t qemu_seccomp_get_opts(void);
 
 #endif

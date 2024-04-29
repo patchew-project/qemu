@@ -359,12 +359,18 @@ static int seccomp_start(uint32_t seccomp_opts, Error **errp)
     return rc < 0 ? -1 : 0;
 }
 
+static uint32_t seccomp_opts;
+
+uint32_t qemu_seccomp_get_opts(void)
+{
+    return seccomp_opts;
+}
+
 int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
 {
     if (qemu_opt_get_bool(opts, "enable", false)) {
-        uint32_t seccomp_opts = QEMU_SECCOMP_SET_DEFAULT
-                | QEMU_SECCOMP_SET_OBSOLETE;
         const char *value = NULL;
+        seccomp_opts = QEMU_SECCOMP_SET_DEFAULT | QEMU_SECCOMP_SET_OBSOLETE;
 
         value = qemu_opt_get(opts, "obsolete");
         if (value) {

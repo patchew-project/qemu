@@ -76,6 +76,7 @@
 #include "hw/block/block.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
+#include "migration/blocker.h"
 #include "migration/cpr.h"
 #include "migration/misc.h"
 #include "migration/snapshot.h"
@@ -2496,6 +2497,11 @@ static void qemu_process_early_options(void)
     QemuOptsList *olist = qemu_find_opts_err("sandbox", NULL);
     if (olist) {
         qemu_opts_foreach(olist, parse_sandbox, NULL, &error_fatal);
+        if (qemu_seccomp_get_opts() & QEMU_SECCOMP_SET_SPAWN) {
+            Error *blocker = NULL;
+            error_setg(&blocker, "-sandbox denies exec for cpr-exec");
+            migrate_add_blocker_mode(&blocker, MIG_MODE_CPR_EXEC, &error_fatal);
+        }
     }
 #endif
 
