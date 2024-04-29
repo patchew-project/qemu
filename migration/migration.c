@@ -748,11 +748,12 @@ process_incoming_migration_co(void *opaque)
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps;
     int ret;
+    Error *local_err = NULL;
 
     assert(mis->from_src_file);
 
     if (compress_threads_load_setup(mis->from_src_file)) {
-        error_report("Failed to setup decompress threads");
+        error_setg(&local_err, "Failed to setup decompress threads");
         goto fail;
     }
 
@@ -789,16 +790,12 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
-        if (migrate_has_error(s)) {
-            WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-                error_report_err(error_copy(s->error));
-            }
-        }
-        error_report("load of migration failed: %s", strerror(-ret));
+        error_setg(&local_err, "load of migration failed: %s", strerror(-ret));
         goto fail;
     }
 
     if (colo_incoming_co() < 0) {
+        error_setg(&local_err, "colo incoming failed");
         goto fail;
     }
 
@@ -809,6 +806,12 @@ fail:
                       MIGRATION_STATUS_FAILED);
     migration_incoming_state_destroy();
 
+    if (migrate_has_error(s)) {
+        WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
+            error_report_err(error_copy(s->error));
+        }
+    }
+    error_report_err(local_err);
     migrate_error_free(s);
     exit(EXIT_FAILURE);
 }
