@@ -18,6 +18,12 @@ void vmstate_unregister(VMStateIf *obj,
 {
 }
 
+void vmstate_unregister_named(const char *vmsd_name,
+                              const char *instance_name,
+                              int instance_id)
+{
+}
+
 bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
 {
     return true;

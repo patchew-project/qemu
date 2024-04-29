@@ -964,9 +964,36 @@ void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,
 
     SAVEVM_FOREACH_SAFE_ALL(se, entry, new_se) {
         if (se->vmsd == vmsd && se->opaque == opaque) {
+            trace_vmstate_unregister(se->idstr, se->instance_id, (void *)vmsd,
+                                     opaque);
             savevm_state_handler_remove(se);
             g_free(se->compat);
             g_free(se);
+        }
+    }
+}
+
+void vmstate_unregister_named(const char *vmsd_name,
+                              const char *instance_name,
+                              int instance_id)
+{
+    SaveStateEntry *se, *new_se;
+    VMStateId idstr;
+
+    snprintf(idstr, sizeof(idstr), "%s/%s", vmsd_name, instance_name);
+
+    SAVEVM_FOREACH_SAFE_ALL(se, entry, new_se) {
+        if (!strcmp(se->idstr, idstr) &&
+            (instance_id == VMSTATE_INSTANCE_ID_ANY ||
+             se->instance_id == instance_id)) {
+            trace_vmstate_unregister(idstr, se->instance_id, (void *)se->vmsd,
+                                     se->opaque);
+            savevm_state_handler_remove(se);
+            g_free(se->compat);
+            g_free(se);
+            if (instance_id != VMSTATE_INSTANCE_ID_ANY) {
+                return;
+            }
         }
     }
 }

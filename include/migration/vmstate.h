@@ -1299,6 +1299,15 @@ static inline int vmstate_register_named(const char *instance_name,
 void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,
                         void *opaque);
 
+/**
+ * Delete the VMSD handler for the object with name "vmsd_name/instance_name"
+ * and matching instance_id.  If instance_id is VMSTATE_INSTANCE_ID_ANY,
+ * delete all instances matching name.
+ */
+void vmstate_unregister_named(const char *vmsd_name,
+                              const char *instance_name,
+                              int instance_id);
+
 void vmstate_register_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_unregister_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_register_ram_global(struct MemoryRegion *memory);
