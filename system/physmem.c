@@ -1599,35 +1599,20 @@ int qemu_ram_get_fd(RAMBlock *rb)
 }
 
 /* Called with the BQL held.  */
-void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
+static void qemu_ram_set_idstr(char *idstr, MemoryRegion *mr, DeviceState *dev)
 {
-    RAMBlock *block;
+    const char *name = memory_region_name(mr);
+    g_autofree char *id = dev ? qdev_get_dev_path(dev) : NULL;
 
-    assert(new_block);
-    assert(!new_block->idstr[0]);
-
-    if (dev) {
-        char *id = qdev_get_dev_path(dev);
-        if (id) {
-            snprintf(new_block->idstr, sizeof(new_block->idstr), "%s/", id);
-            g_free(id);
-        }
-    }
-    pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
-
-    RCU_READ_LOCK_GUARD();
-    RAMBLOCK_FOREACH(block) {
-        if (block != new_block &&
-            !strcmp(block->idstr, new_block->idstr)) {
-            fprintf(stderr, "RAMBlock \"%s\" already registered, abort!\n",
-                    new_block->idstr);
-            abort();
-        }
+    if (id) {
+        snprintf(idstr, sizeof(VMStateId), "%s/%s", id, name);
+    } else {
+        pstrcpy(idstr, sizeof(VMStateId), name);
     }
 }
 
 /* Called with the BQL held.  */
-void qemu_ram_unset_idstr(RAMBlock *block)
+static void qemu_ram_unset_idstr(RAMBlock *block)
 {
     /* FIXME: arch_init.c assumes that this is not called throughout
      * migration.  Ignore the problem since hot-unplug during migration
@@ -1636,6 +1621,13 @@ void qemu_ram_unset_idstr(RAMBlock *block)
     if (block) {
         memset(block->idstr, 0, sizeof(block->idstr));
     }
+}
+
+void qemu_ram_verify_idstr(RAMBlock *new_block, DeviceState *dev)
+{
+    VMStateId idstr;
+    qemu_ram_set_idstr(idstr, new_block->mr, dev);
+    assert(!strcmp(new_block->idstr, idstr));
 }
 
 size_t qemu_ram_pagesize(RAMBlock *rb)
@@ -1871,6 +1863,12 @@ static void ram_block_add(RAMBlock *new_block)
      * tail, so save the last element in last_block.
      */
     RAMBLOCK_FOREACH(block) {
+        if (!strcmp(block->idstr, new_block->idstr)) {
+            fprintf(stderr, "RAMBlock \"%s\" already added, abort!\n",
+                    new_block->idstr);
+            abort();
+        }
+
         last_block = block;
         if (block->max_length < new_block->max_length) {
             break;
@@ -1917,6 +1915,7 @@ static RAMBlock *ram_block_create(MemoryRegion *mr, ram_addr_t size,
 {
     RAMBlock *rb = g_malloc0(sizeof(*rb));
 
+    qemu_ram_set_idstr(rb->idstr, mr, mr->dev);
     rb->used_length = size;
     rb->max_length = max_size;
     rb->fd = -1;
@@ -2144,6 +2143,7 @@ void qemu_ram_free(RAMBlock *block)
     }
 
     qemu_mutex_lock_ramlist();
+    qemu_ram_unset_idstr(block);
     QLIST_REMOVE_RCU(block, next);
     ram_list.mru_block = NULL;
     /* Write list before version */

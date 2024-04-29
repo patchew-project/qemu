@@ -3566,14 +3566,12 @@ bool delete_snapshot(const char *name, bool has_devices,
 
 void vmstate_register_ram(MemoryRegion *mr, DeviceState *dev)
 {
-    qemu_ram_set_idstr(mr->ram_block,
-                       memory_region_name(mr), dev);
+    qemu_ram_verify_idstr(mr->ram_block, dev);
     qemu_ram_set_migratable(mr->ram_block);
 }
 
 void vmstate_unregister_ram(MemoryRegion *mr, DeviceState *dev)
 {
-    qemu_ram_unset_idstr(mr->ram_block);
     qemu_ram_unset_migratable(mr->ram_block);
 }
 
