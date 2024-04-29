@@ -44,6 +44,7 @@ struct RAMBlock {
     uint64_t fd_offset;
     int guest_memfd;
     size_t page_size;
+    uint64_t align;
     /* dirty bitmap used during migration */
     unsigned long *bmap;
 
@@ -91,5 +92,10 @@ struct RAMBlock {
      */
     ram_addr_t postcopy_length;
 };
+
+#define RAM_BLOCK "RAMBlock"
+
+extern const VMStateDescription vmstate_ram_block;
+
 #endif
 #endif

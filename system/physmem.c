@@ -1400,6 +1400,7 @@ static void *file_ram_alloc(RAMBlock *block,
         block->mr->align = MAX(block->mr->align, QEMU_VMALLOC_ALIGN);
     }
 #endif
+    block->align = block->mr->align;
 
     if (memory < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
@@ -1850,6 +1851,7 @@ static void *ram_block_alloc_host(RAMBlock *rb, Error **errp)
                              rb->idstr);
         }
     }
+    rb->align = mr->align;
 
     if (host) {
         memory_try_enable_merging(host, rb->max_length);
@@ -1936,6 +1938,7 @@ static RAMBlock *ram_block_create(MemoryRegion *mr, ram_addr_t size,
     rb->flags = ram_flags;
     rb->page_size = qemu_real_host_page_size();
     rb->mr = mr;
+    rb->align = mr->align;
 
     if (ram_flags & RAM_GUEST_MEMFD) {
         rb->guest_memfd = ram_block_create_guest_memfd(rb, errp);
@@ -2062,6 +2065,26 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
 }
 #endif
 
+const VMStateDescription vmstate_ram_block = {
+    .name = RAM_BLOCK,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .precreate = true,
+    .factory = true,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(align, RAMBlock),
+        VMSTATE_VOID_PTR(host, RAMBlock),
+        VMSTATE_INT32(fd, RAMBlock),
+        VMSTATE_INT32(guest_memfd, RAMBlock),
+        VMSTATE_UINT32(flags, RAMBlock),
+        VMSTATE_UINT64(used_length, RAMBlock),
+        VMSTATE_UINT64(max_length, RAMBlock),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+vmstate_register_init_factory(vmstate_ram_block, RAMBlock);
+
 static
 RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
                                   void (*resized)(const char*,
@@ -2072,6 +2095,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
 {
     RAMBlock *new_block;
     int align;
+    g_autofree RAMBlock *preserved = NULL;
 
     assert((ram_flags & ~(RAM_SHARED | RAM_RESIZEABLE | RAM_PREALLOC |
                           RAM_NORESERVE | RAM_GUEST_MEMFD)) == 0);
@@ -2088,12 +2112,27 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     }
     new_block->resized = resized;
 
+    preserved = vmstate_claim_factory_object(RAM_BLOCK, new_block->idstr, 0);
+    if (preserved) {
+        assert(mr->align <= preserved->align);
+        mr->align = mr->align ?: preserved->align;
+        new_block->align = preserved->align;
+        new_block->fd = preserved->fd;
+        new_block->flags = preserved->flags;
+        new_block->used_length = preserved->used_length;
+        new_block->max_length = preserved->max_length;
+    }
+
     if (!host) {
         host = ram_block_alloc_host(new_block, errp);
         if (!host) {
             ram_block_destroy_guest_memfd(new_block);
             g_free(new_block);
             return NULL;
+        }
+        if (!(ram_flags & RAM_GUEST_MEMFD)) {
+            vmstate_register_named(new_block->idstr, 0, &vmstate_ram_block,
+                                   new_block);
         }
     }
 
@@ -2159,6 +2198,7 @@ void qemu_ram_free(RAMBlock *block)
     }
 
     qemu_mutex_lock_ramlist();
+    vmstate_unregister_named(RAM_BLOCK, block->idstr, 0);
     qemu_ram_unset_idstr(block);
     QLIST_REMOVE_RCU(block, next);
     ram_list.mru_block = NULL;
