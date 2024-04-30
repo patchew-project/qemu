@@ -1,0 +1,61 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+#
+
+##
+# = VFIO devices
+##
+
+##
+# @VFIODeviceMigState:
+#
+# An enumeration of the VFIO device migration states.
+#
+# @stop: The device is stopped.
+#
+# @running: The device is running.
+#
+# @stop-copy: The device is stopped and its internal state is available
+#     for reading.
+#
+# @resuming: The device is stopped and its internal state is available
+#     for writing.
+#
+# @running-p2p: The device is running in the P2P quiescent state.
+#
+# @pre-copy: The device is running, tracking its internal state and its
+#     internal state is available for reading.
+#
+# @pre-copy-p2p: The device is running in the P2P quiescent state,
+#     tracking its internal state and its internal state is available
+#     for reading.
+#
+# Since: 9.1
+##
+{ 'enum': 'VFIODeviceMigState',
+  'data': [ 'stop', 'running', 'stop-copy', 'resuming', 'running-p2p',
+            'pre-copy', 'pre-copy-p2p' ],
+  'prefix': 'QAPI_VFIO_DEVICE_MIG_STATE' }
+
+##
+# @VFIO_DEVICE_MIG_STATE_CHANGED:
+#
+# This event is emitted when a VFIO device migration state is changed.
+#
+# @device-id: The id of the VFIO device (final component of QOM path).
+#
+# @device-state: The new changed device migration state.
+#
+# Since: 9.1
+#
+# Example:
+#
+#     <- {"timestamp": {"seconds": 1713771323, "microseconds": 212268},
+#         "event": "VFIO_DEVICE_MIG_STATE_CHANGED",
+#         "data": {"device-id": "vfio_dev1", "device-state": "stop"} }
+##
+{ 'event': 'VFIO_DEVICE_MIG_STATE_CHANGED',
+  'data': {
+      'device-id': 'str',
+      'device-state': 'VFIODeviceMigState'
+  } }
