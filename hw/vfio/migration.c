@@ -591,14 +591,17 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
 static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
 {
     VFIODevice *vbasedev = opaque;
+    VFIOMigration *migration = vbasedev->migration;
     ssize_t data_size;
     int ret;
 
     /* We reach here with device state STOP or STOP_COPY only */
-    ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_STOP_COPY,
-                                   VFIO_DEVICE_STATE_STOP);
-    if (ret) {
-        return ret;
+    if (migration->device_state == VFIO_DEVICE_STATE_STOP) {
+        ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_STOP_COPY,
+                                       VFIO_DEVICE_STATE_STOP);
+        if (ret) {
+            return ret;
+        }
     }
 
     do {
