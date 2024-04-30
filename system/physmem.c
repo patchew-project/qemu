@@ -2228,13 +2228,13 @@ static void *qemu_ram_ptr_length(RAMBlock *block, ram_addr_t addr,
          * In that case just map the requested area.
          */
         if (xen_mr_is_memory(block->mr)) {
-            return xen_map_cache(block->mr, addr, len, lock, lock,
-                                 is_write);
+            return xen_map_cache(block->mr, addr, len, block->offset,
+                                 lock, lock, is_write);
         }
 
         block->host = xen_map_cache(block->mr, block->offset,
-                                    block->max_length, 1,
-                                    lock, is_write);
+                                    block->max_length, 0,
+                                    1, lock, is_write);
     }
 
     return ramblock_ptr(block, addr);
