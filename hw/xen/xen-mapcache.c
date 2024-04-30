@@ -556,7 +556,8 @@ void xen_invalidate_map_cache(void)
     mapcache_unlock(mapcache);
 }
 
-static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
+static uint8_t *xen_replace_cache_entry_unlocked(MapCache *mc,
+                                                 hwaddr old_phys_addr,
                                                  hwaddr new_phys_addr,
                                                  hwaddr size)
 {
@@ -578,7 +579,7 @@ static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
         cache_size += MCACHE_BUCKET_SIZE - (cache_size % MCACHE_BUCKET_SIZE);
     }
 
-    entry = &mapcache->entry[address_index % mapcache->nr_buckets];
+    entry = &mc->entry[address_index % mc->nr_buckets];
     while (entry && !(entry->paddr_index == address_index &&
                       entry->size == cache_size)) {
         entry = entry->next;
@@ -614,7 +615,8 @@ uint8_t *xen_replace_cache_entry(hwaddr old_phys_addr,
     uint8_t *p;
 
     mapcache_lock(mapcache);
-    p = xen_replace_cache_entry_unlocked(old_phys_addr, new_phys_addr, size);
+    p = xen_replace_cache_entry_unlocked(mapcache, old_phys_addr,
+                                         new_phys_addr, size);
     mapcache_unlock(mapcache);
     return p;
 }
