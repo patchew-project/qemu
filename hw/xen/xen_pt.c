@@ -256,6 +256,7 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     uint32_t find_addr = addr;
     XenPTRegInfo *reg = NULL;
     bool wp_flag = false;
+    uint32_t emul_mask = 0, write_val;
 
     if (xen_pt_pci_config_access_check(d, addr, len)) {
         return;
@@ -311,7 +312,6 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     }
 
     memory_region_transaction_begin();
-    pci_default_write_config(d, addr, val, len);
 
     /* adjust the read and write value to appropriate CFC-CFF window */
     read_val <<= (addr & 3) << 3;
@@ -371,6 +371,9 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
                 return;
             }
 
+            emul_mask |= ((1L << (reg->size * 8)) - 1)
+                         << ((find_addr & 3) * 8);
+
             /* calculate next address to find */
             emul_len -= reg->size;
             if (emul_len > 0) {
@@ -396,6 +399,25 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
 
     /* need to shift back before passing them to xen_host_pci_set_block. */
     val >>= (addr & 3) << 3;
+
+    /* store emulated registers after calling their handlers */
+    write_val = val;
+    for (index = 0; index < len; index += emul_len) {
+        emul_len = 0;
+        while (emul_mask & 0xff) {
+            emul_len++;
+            emul_mask >>= 8;
+        }
+        if (emul_len) {
+            uint32_t mask = ((1L << (emul_len * 8)) - 1);
+            pci_default_write_config(d, addr + index, write_val & mask,
+                                     emul_len);
+        } else {
+            emul_mask >>= 8;
+            emul_len = 1;
+        }
+        write_val >>= emul_len * 8;
+    }
 
     memory_region_transaction_commit();
 
