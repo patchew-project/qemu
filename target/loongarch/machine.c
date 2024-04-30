@@ -191,6 +191,8 @@ const VMStateDescription vmstate_loongarch_cpu = {
         VMSTATE_STRUCT_ARRAY(env.tlb, LoongArchCPU, LOONGARCH_TLB_MAX,
                              0, vmstate_tlb, LoongArchTLB),
 
+        VMSTATE_UINT64(kvm_state_counter, LoongArchCPU),
+
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
