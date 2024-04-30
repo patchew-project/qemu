@@ -237,11 +237,13 @@ static void s390_create_virtio_net(BusState *bus, const char *name)
     }
 }
 
-static void s390_create_sclpconsole(const char *type, Chardev *chardev)
+static void s390_create_sclpconsole(Object *sclp, const char *type,
+                                    Chardev *chardev)
 {
     DeviceState *dev;
 
     dev = qdev_new(type);
+    object_property_add_child(sclp, type, OBJECT(dev));
     qdev_prop_set_chr(dev, "chardev", chardev);
     qdev_realize_and_unref(dev, sclp_get_event_facility_bus(), &error_fatal);
 }
@@ -252,8 +254,9 @@ static void ccw_init(MachineState *machine)
     int ret;
     VirtualCssBus *css_bus;
     DeviceState *dev;
+    Object *sclp;
 
-    s390_sclp_init();
+    sclp = s390_sclp_init();
     /* init memory + setup max page size. Required for the CPU model */
     s390_memory_init(machine->ram);
 
@@ -302,10 +305,10 @@ static void ccw_init(MachineState *machine)
 
     /* init consoles */
     if (serial_hd(0)) {
-        s390_create_sclpconsole("sclpconsole", serial_hd(0));
+        s390_create_sclpconsole(sclp, "sclpconsole", serial_hd(0));
     }
     if (serial_hd(1)) {
-        s390_create_sclpconsole("sclplmconsole", serial_hd(1));
+        s390_create_sclpconsole(sclp, "sclplmconsole", serial_hd(1));
     }
 
     /* init the TOD clock */

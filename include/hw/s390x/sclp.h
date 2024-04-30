@@ -222,7 +222,7 @@ static inline int sccb_data_len(SCCB *sccb)
 }
 
 
-void s390_sclp_init(void);
+Object *s390_sclp_init(void);
 void sclp_service_interrupt(uint32_t sccb);
 void raise_irq_cpu_hotplug(void);
 int sclp_service_call(S390CPU *cpu, uint64_t sccb, uint32_t code);
