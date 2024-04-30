@@ -24,6 +24,7 @@
 #include "migration/register.h"
 #include "migration/blocker.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-vfio.h"
 #include "exec/ramlist.h"
 #include "exec/ram_addr.h"
 #include "pci.h"
@@ -80,6 +81,46 @@ static const char *mig_state_to_str(enum vfio_device_mig_state state)
     }
 }
 
+static VFIODeviceMigState
+mig_state_to_qapi_state(enum vfio_device_mig_state state)
+{
+    switch (state) {
+    case VFIO_DEVICE_STATE_STOP:
+        return QAPI_VFIO_DEVICE_MIG_STATE_STOP;
+    case VFIO_DEVICE_STATE_RUNNING:
+        return QAPI_VFIO_DEVICE_MIG_STATE_RUNNING;
+    case VFIO_DEVICE_STATE_STOP_COPY:
+        return QAPI_VFIO_DEVICE_MIG_STATE_STOP_COPY;
+    case VFIO_DEVICE_STATE_RESUMING:
+        return QAPI_VFIO_DEVICE_MIG_STATE_RESUMING;
+    case VFIO_DEVICE_STATE_RUNNING_P2P:
+        return QAPI_VFIO_DEVICE_MIG_STATE_RUNNING_P2P;
+    case VFIO_DEVICE_STATE_PRE_COPY:
+        return QAPI_VFIO_DEVICE_MIG_STATE_PRE_COPY;
+    case VFIO_DEVICE_STATE_PRE_COPY_P2P:
+        return QAPI_VFIO_DEVICE_MIG_STATE_PRE_COPY_P2P;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void vfio_migration_send_state_change_event(VFIODevice *vbasedev)
+{
+    VFIOMigration *migration = vbasedev->migration;
+    const char *id;
+    Object *obj;
+
+    if (!vbasedev->migration_events) {
+        return;
+    }
+
+    obj = vbasedev->ops->vfio_get_object(vbasedev);
+    id = object_get_canonical_path_component(obj);
+
+    qapi_event_send_vfio_device_mig_state_changed(
+        id, mig_state_to_qapi_state(migration->device_state));
+}
+
 static int vfio_migration_set_state(VFIODevice *vbasedev,
                                     enum vfio_device_mig_state new_state,
                                     enum vfio_device_mig_state recover_state)
@@ -126,11 +167,13 @@ static int vfio_migration_set_state(VFIODevice *vbasedev,
         }
 
         migration->device_state = recover_state;
+        vfio_migration_send_state_change_event(vbasedev);
 
         return ret;
     }
 
     migration->device_state = new_state;
+    vfio_migration_send_state_change_event(vbasedev);
     if (mig_state->data_fd != -1) {
         if (migration->data_fd != -1) {
             /*
@@ -157,6 +200,7 @@ reset_device:
     }
 
     migration->device_state = VFIO_DEVICE_STATE_RUNNING;
+    vfio_migration_send_state_change_event(vbasedev);
 
     return ret;
 }
