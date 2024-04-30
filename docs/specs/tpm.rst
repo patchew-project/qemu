@@ -276,6 +276,42 @@ available as a module (assuming a TPM 2 is passed through):
   /sys/devices/LNXSYSTEM:00/LNXSYBUS:00/MSFT0101:00/tpm/tpm0/pcr-sha256/9
   ...
 
+The QEMU TPM Microsoft Simulator Device
+---------------------------------------
+
+The Microsoft Simulator (mssim) is the reference emulation platform
+for the TCG TPM 2.0 specification.  It provides a reference
+implementation for the TPM 2.0 written by Microsoft (See
+`ms-tpm-20-ref`_ on github).  The reference implementation starts a
+network server and listens for TPM commands on port 2321 and TPM
+Platform control commands on port 2322, although these can be altered.
+The QEMU mssim TPM backend talks to this implementation.  By default
+it connects to the default ports on localhost:
+
+.. code-block:: console
+
+  qemu-system-x86_64 <qemu-options> \
+    -tpmdev mssim,id=tpm0 \
+    -device tpm-crb,tpmdev=tpm0
+
+
+Although it can also communicate with a remote host, which must be
+specified as a SocketAddress via json or dotted keys on the command
+line for each of the command and control ports:
+
+.. code-block:: console
+
+  qemu-system-x86_64 <qemu-options> \
+    -tpmdev "{'type':'mssim','id':'tpm0','command':{'type':'inet','host':'remote','port':'2321'},'control':{'type':'inet','host':'remote','port':'2322'}}" \
+    -device tpm-crb,tpmdev=tpm0
+
+
+The mssim backend supports snapshotting and migration by not resetting
+the TPM on start up and not powering it down on halt if the VM is in
+migration, but the state of the Microsoft Simulator server must be
+preserved (or the server kept running) outside of QEMU for restore to
+be successful.
+
 The QEMU TPM emulator device
 ----------------------------
 
@@ -549,3 +585,6 @@ the following:
 
 .. _SWTPM protocol:
    https://github.com/stefanberger/swtpm/blob/master/man/man3/swtpm_ioctls.pod
+
+.. _ms-tpm-20-ref:
+   https://github.com/microsoft/ms-tpm-20-ref
