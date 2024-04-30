@@ -205,6 +205,17 @@ is a chance the code will bitrot without anyone noticing.
 System emulator machines
 ------------------------
 
+Versioned machine types older than 6 years
+''''''''''''''''''''''''''''''''''''''''''
+
+Starting with the release of QEMU 10.0, versioned machine types older than
+6 years will automatically be considered as deprecated and might be due to
+removal without furthor notice. For example, this affects machine types like
+pc-i440fx-X.Y, pc-q35-X.Y, pseries-X.Y, s390-ccw-virtio-X.Y or virt-X.Y where
+X is the major number and Y is the minor number of the old QEMU version.
+If you are still using machine types from QEMU versions older than 6 years,
+please update your setting to use a newer versioned machine type instead.
+
 Arm ``virt`` machine ``dtb-kaslr-seed`` property (since 7.1)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
