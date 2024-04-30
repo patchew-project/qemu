@@ -52,6 +52,7 @@ struct X86MachineState {
     DeviceState *ioapic2;
     GMappedFile *initrd_mapped_file;
     HotplugHandler *acpi_dev;
+    MemoryRegion bios;
     MemoryRegion isa_bios;
 
     /* RAM information (sizes, addresses, configuration): */
