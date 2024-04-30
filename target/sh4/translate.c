@@ -937,7 +937,7 @@ static void _decode_opc(DisasContext * ctx)
             t2 = tcg_temp_new();
             tcg_gen_xor_i32(t2, REG(B11_8), REG(B7_4));
             tcg_gen_and_i32(t1, t1, t2);
-            tcg_gen_shri_i32(cpu_sr_t, t1, 31);
+            tcg_gen_setcondi_i32(TCG_COND_GE, cpu_sr_t, t1, 0);
             tcg_gen_mov_i32(REG(B11_8), t0);
         }
         return;
