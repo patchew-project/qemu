@@ -76,22 +76,23 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
 /*****************************************************************************/
 /* PowerPC MMU emulation */
 
-static int pp_check(int key, int pp, int nx)
+int ppc_pte_prot(int key, int pp, int nx)
 {
     int access;
 
     /* Compute access rights */
-    access = 0;
     if (key == 0) {
         switch (pp) {
         case 0x0:
         case 0x1:
         case 0x2:
-            access |= PAGE_WRITE;
-            /* fall through */
-        case 0x3:
-            access |= PAGE_READ;
+            access = PAGE_READ | PAGE_WRITE;
             break;
+        case 0x3:
+            access = PAGE_READ;
+            break;
+        default:
+            g_assert_not_reached();
         }
     } else {
         switch (pp) {
@@ -105,6 +106,8 @@ static int pp_check(int key, int pp, int nx)
         case 0x2:
             access = PAGE_READ | PAGE_WRITE;
             break;
+        default:
+            g_assert_not_reached();
         }
     }
     if (nx == 0) {
@@ -141,7 +144,7 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
                                 MMUAccessType access_type)
 {
     target_ulong ptem, mmask;
-    int access, ret, pteh, ptev, pp;
+    int ret, pteh, ptev, pp;
 
     ret = -1;
     /* Check validity and table match */
@@ -160,11 +163,9 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
                     return -3;
                 }
             }
-            /* Compute access rights */
-            access = pp_check(ctx->key, pp, ctx->nx);
             /* Keep the matching PTE information */
             ctx->raddr = pte1;
-            ctx->prot = access;
+            ctx->prot = ppc_pte_prot(ctx->key, pp, ctx->nx);
             ret = check_prot(ctx->prot, access_type);
             if (ret == 0) {
                 /* Access granted */
