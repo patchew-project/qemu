@@ -237,6 +237,9 @@ int main(int argc, char *argv[])
     xkb_state_unref(state);
     state = NULL;
 
+    xkb_keymap_unref(map);
+    xkb_context_unref(ctx);
+
     /* add quirks */
     fprintf(outfile,
             "\n"
