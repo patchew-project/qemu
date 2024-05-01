@@ -667,6 +667,7 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     hwaddr raddr = (hwaddr)-1ULL;
     int i, ret = -1;
 
+    ctx->prot = 0;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb.tlbe[i];
         ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address,
@@ -874,6 +875,7 @@ static int mmubooke206_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     hwaddr raddr = (hwaddr)-1ULL;
     int i, j, ways, ret = -1;
 
+    ctx->prot = 0;
     for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
         ways = booke206_tlb_ways(env, i);
         for (j = 0; j < ways; j++) {
@@ -1145,7 +1147,7 @@ void dump_mmu(CPUPPCState *env)
     }
 }
 
-int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
+static int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
                                      target_ulong eaddr,
                                      MMUAccessType access_type, int type,
                                      int mmu_idx)
@@ -1164,6 +1166,7 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
     if (real_mode && (env->mmu_model == POWERPC_MMU_SOFT_6xx ||
                       env->mmu_model == POWERPC_MMU_SOFT_4xx ||
                       env->mmu_model == POWERPC_MMU_REAL)) {
+        memset(ctx, 0, sizeof(*ctx));
         ctx->raddr = eaddr;
         ctx->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return 0;
