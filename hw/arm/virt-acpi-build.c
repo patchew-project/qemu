@@ -429,11 +429,12 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
 /*
  * Serial Port Console Redirection Table (SPCR)
- * Rev: 1.07
+ * Rev: 1.10
  */
 static void
 spcr_setup(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
+    const char name[] = ".";
     AcpiSpcrData serial = {
         .interface_type = 3,       /* ARM PL011 UART */
         .base_addr.id = AML_AS_SYSTEM_MEMORY,
@@ -457,9 +458,14 @@ spcr_setup(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         .pci_function = 0,
         .pci_flags = 0,
         .pci_segment = 0,
+        .uart_clk_freq = 0,
+        .precise_baudrate = 0,
+        .namespace_string_length = sizeof(name),
+        .namespace_string_offset = 88,
     };
 
-    build_spcr(table_data, linker, &serial, 2, vms->oem_id, vms->oem_table_id);
+    build_spcr(table_data, linker, &serial, 4, vms->oem_id, vms->oem_table_id,
+               name);
 }
 
 /*
