@@ -918,8 +918,13 @@ ERST
 
 
 SRST
-``migrate [-d]`` *uri*
-  Migrate to *uri* (using -d to not wait for completion).
+``migrate [-d] [-r]`` *uri*
+  Migrate the current VM to *uri*.
+
+  ``-d``
+    Run this command asynchronously, so that the command doesn't wait for completion.
+  ``-r``
+    Resume a paused postcopy migration.
 ERST
 
     {
