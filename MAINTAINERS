@@ -3413,7 +3413,10 @@ F: util/userfaultfd.c
 X: migration/rdma*
 
 RDMA Migration
+R: Yu Zhang <yu.zhang@ionos.com>
+R: Jack Wang <jinpu.wang@ionos.com>
 R: Li Zhijian <lizhijian@fujitsu.com>
+R: Michael Galaxy <mgalaxy@akamai.com>
 R: Peter Xu <peterx@redhat.com>
 S: Odd Fixes
 F: migration/rdma*
