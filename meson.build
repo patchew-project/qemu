@@ -1926,6 +1926,7 @@ endif
 tasn1 = not_found
 if gnutls.found()
   tasn1 = dependency('libtasn1',
+                     required: false,
                      method: 'pkg-config')
 endif
 keyutils = not_found
