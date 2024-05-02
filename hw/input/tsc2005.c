@@ -406,6 +406,7 @@ uint32_t tsc2005_txrx(void *opaque, uint32_t value, int len)
 static void tsc2005_timer_tick(void *opaque)
 {
     TSC2005State *s = opaque;
+    unsigned func_idx;
 
     /* Timer ticked -- a set of conversions has been finished.  */
 
@@ -413,7 +414,9 @@ static void tsc2005_timer_tick(void *opaque)
         return;
 
     s->busy = false;
-    s->dav |= mode_regs[s->function];
+    assert(s->function >= 0);
+    func_idx = s->function;
+    s->dav |= mode_regs[func_idx];
     s->function = -1;
     tsc2005_pin_update(s);
 }
