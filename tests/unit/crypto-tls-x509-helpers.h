@@ -23,7 +23,6 @@
 
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
-#include <libtasn1.h>
 
 
 #define QCRYPTO_TLS_TEST_CLIENT_NAME "ACME QEMU Client"
@@ -171,6 +170,9 @@ void test_tls_cleanup(const char *keyfile);
     };                                                                  \
     test_tls_generate_cert(&varname, cavarname.crt)
 
+#ifdef CONFIG_TASN1
+#include <libtasn1.h>
 extern const asn1_static_node pkix_asn1_tab[];
+#endif
 
 #endif
