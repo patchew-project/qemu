@@ -1127,9 +1127,14 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
     return 0;
 }
 
+#ifndef HAVE_IBV_ACCESS_ON_DEMAND
+#define IBV_ACCESS_ON_DEMAND 0
+#endif
+
 /* Check whether On-Demand Paging is supported by RDAM device */
 static bool rdma_support_odp(struct ibv_context *dev)
 {
+#ifdef HAVE_IBV_ACCESS_ON_DEMAND
     struct ibv_device_attr_ex attr = {0};
 
     if (ibv_query_device_ex(dev, NULL, &attr)) {
@@ -1139,6 +1144,7 @@ static bool rdma_support_odp(struct ibv_context *dev)
     if (attr.odp_caps.general_caps & IBV_ODP_SUPPORT) {
         return true;
     }
+#endif
 
     return false;
 }

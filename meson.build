@@ -2409,6 +2409,9 @@ if rdma.found()
                        cc.has_function('ibv_advise_mr',
                                        dependencies: rdma,
                                        prefix: '#include <infiniband/verbs.h>'))
+  config_host_data.set('HAVE_IBV_ACCESS_ON_DEMAND',
+                       cc.has_header_symbol('infiniband/verbs.h',
+                                            'IBV_ACCESS_ON_DEMAND'))
 endif
 
 have_asan_fiber = false
