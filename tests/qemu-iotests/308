@@ -47,7 +47,7 @@ if [ "$IMGOPTSSYNTAX" = "true" ]; then
 fi
 # We need the image to have exactly the specified size, and VPC does
 # not allow that by default
-_unsupported_fmt vpc
+_unsupported_fmt vpc vvfat
 
 _supported_proto file # We create the FUSE export manually
 _supported_os Linux # We need /dev/urandom

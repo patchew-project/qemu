@@ -75,5 +75,5 @@ class TestExportIncomingIothread(iotests.QMPTestCase):
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['generic'],
-                 unsupported_fmts=['luks'], # Would need a secret
+                 unsupported_fmts=['luks', 'vvfat'], # Would need a secret
                  supported_protocols=['file'])

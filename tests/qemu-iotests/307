@@ -27,7 +27,7 @@ import os
 # luks which requires special command lines)
 iotests.script_initialize(
     supported_fmts=['generic'],
-    unsupported_fmts=['luks', 'vpc'],
+    unsupported_fmts=['luks', 'vpc', 'vvfat'],
     supported_platforms=['linux'],
 )
 
