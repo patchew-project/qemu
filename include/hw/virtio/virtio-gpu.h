@@ -211,6 +211,8 @@ struct VirtIOGPU {
         QTAILQ_HEAD(, VGPUDMABuf) bufs;
         VGPUDMABuf *primary[VIRTIO_GPU_MAX_SCANOUTS];
     } dmabuf;
+
+    QEMUBH *cmdq_resume_bh;
 };
 
 struct VirtIOGPUClass {
