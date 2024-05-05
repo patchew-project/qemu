@@ -26,6 +26,7 @@
 #include "hw/clock.h"
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
+#include "qapi/visitor.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/registerfields.h"
@@ -523,6 +524,14 @@ static Property stm32l4x5_usart_base_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void clock_freq_get(Object *obj, Visitor *v,
+    const char *name, void *opaque, Error **errp)
+{
+    Stm32l4x5UsartBaseState *s = STM32L4X5_USART_BASE(obj);
+    uint32_t clock_freq_hz = clock_get_hz(s->clk);
+    visit_type_uint32(v, name, &clock_freq_hz, errp);
+}
+
 static void stm32l4x5_usart_base_init(Object *obj)
 {
     Stm32l4x5UsartBaseState *s = STM32L4X5_USART_BASE(obj);
@@ -534,6 +543,9 @@ static void stm32l4x5_usart_base_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 
     s->clk = qdev_init_clock_in(DEVICE(s), "clk", NULL, s, 0);
+
+    object_property_add(obj, "clock-freq-hz", "uint32",
+                        clock_freq_get, NULL, NULL, NULL);
 }
 
 static int stm32l4x5_usart_base_post_load(void *opaque, int version_id)
