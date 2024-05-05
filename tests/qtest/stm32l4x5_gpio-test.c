@@ -25,6 +25,14 @@
 #define GPIO_G 0x48001800
 #define GPIO_H 0x48001C00
 
+/*
+ * MSI (4 MHz) is used as system clock source after startup
+ * from Reset.
+ * AHB prescaler is set to 1 at reset.
+ */
+#define SYSCLK_FREQ_HZ 4000000
+#define RCC_AHB2ENR 0x4002104C
+
 #define MODER 0x00
 #define OTYPER 0x04
 #define PUPDR 0x0C
@@ -166,6 +174,21 @@ static uint32_t reset(uint32_t gpio, unsigned int offset)
         return idr_reset[get_gpio_id(gpio)];
     }
     return 0x0;
+}
+
+static uint32_t get_clock_freq_hz(unsigned int gpio)
+{
+    g_autofree char *path = g_strdup_printf("/machine/soc/gpio%c",
+                                            get_gpio_id(gpio) + 'a');
+    uint32_t clock_freq_hz = 0;
+    QDict *r;
+
+    r = qtest_qmp(global_qtest, "{ 'execute': 'qom-get', 'arguments':"
+        " { 'path': %s, 'property': 'clock-freq-hz'} }", path);
+    g_assert_false(qdict_haskey(r, "error"));
+    clock_freq_hz = qdict_get_int(r, "return");
+    qobject_unref(r);
+    return clock_freq_hz;
 }
 
 static void system_reset(void)
@@ -505,6 +528,20 @@ static void test_bsrr_brr(const void *data)
     gpio_writel(gpio, ODR, reset(gpio, ODR));
 }
 
+static void test_clock_enable(void)
+{
+    /*
+     * For each GPIO, enable its clock in RCC
+     * and check that its clock frequency changes to SYSCLK_FREQ_HZ
+     */
+    for (uint32_t gpio = GPIO_A; gpio <= GPIO_H; gpio += GPIO_B - GPIO_A) {
+        g_assert_cmpuint(get_clock_freq_hz(gpio), ==, 0);
+        /* Enable the gpio clock */
+        writel(RCC_AHB2ENR, readl(RCC_AHB2ENR) | (0x1 << get_gpio_id(gpio)));
+        g_assert_cmpuint(get_clock_freq_hz(gpio), ==, SYSCLK_FREQ_HZ);
+    }
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -556,6 +593,8 @@ int main(int argc, char **argv)
     qtest_add_data_func("stm32l4x5/gpio/test_bsrr_brr2",
                         test_data(GPIO_D, 0),
                         test_bsrr_brr);
+    qtest_add_func("stm32l4x5/gpio/test_clock_enable",
+                   test_clock_enable);
 
     qtest_start("-machine b-l475e-iot01a");
     ret = g_test_run();

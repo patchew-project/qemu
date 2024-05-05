@@ -26,8 +26,17 @@
 #define INVALID_ADDR 0x2C
 
 /* SoC forwards GPIOs to SysCfg */
-#define SYSCFG "/machine/soc"
+#define SOC "/machine/soc"
+#define SYSCFG "/machine/soc/syscfg"
 #define EXTI "/machine/soc/exti"
+
+/*
+ * MSI (4 MHz) is used as system clock source after startup
+ * from Reset.
+ * AHB and APB2 prescalers are set to 1 at reset.
+ */
+#define SYSCLK_FREQ_HZ 4000000
+#define RCC_APB2ENR 0x40021060
 
 static void syscfg_writel(unsigned int offset, uint32_t value)
 {
@@ -41,7 +50,7 @@ static uint32_t syscfg_readl(unsigned int offset)
 
 static void syscfg_set_irq(int num, int level)
 {
-   qtest_set_irq_in(global_qtest, SYSCFG, NULL, num, level);
+   qtest_set_irq_in(global_qtest, SOC, NULL, num, level);
 }
 
 static void system_reset(void)
@@ -50,6 +59,19 @@ static void system_reset(void)
     response = qtest_qmp(global_qtest, "{'execute': 'system_reset'}");
     g_assert(qdict_haskey(response, "return"));
     qobject_unref(response);
+}
+
+static uint32_t get_clock_freq_hz()
+{
+    uint32_t clock_freq_hz = 0;
+    QDict *r;
+
+    r = qtest_qmp(global_qtest, "{ 'execute': 'qom-get', 'arguments':"
+        " { 'path': %s, 'property': 'clock-freq-hz'} }", SYSCFG);
+    g_assert_false(qdict_haskey(r, "error"));
+    clock_freq_hz = qdict_get_int(r, "return");
+    qobject_unref(r);
+    return clock_freq_hz;
 }
 
 static void test_reset(void)
@@ -301,6 +323,16 @@ static void test_irq_gpio_multiplexer(void)
     syscfg_writel(SYSCFG_EXTICR1, 0x00000000);
 }
 
+static void test_clock_enable(void)
+{
+    g_assert_cmpuint(get_clock_freq_hz(), ==, 0);
+
+    /* Enable SYSCFG clock */
+    writel(RCC_APB2ENR, readl(RCC_APB2ENR) | (0x1 << 0));
+
+    g_assert_cmpuint(get_clock_freq_hz(), ==, SYSCLK_FREQ_HZ);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -325,6 +357,8 @@ int main(int argc, char **argv)
                    test_irq_pin_multiplexer);
     qtest_add_func("stm32l4x5/syscfg/test_irq_gpio_multiplexer",
                    test_irq_gpio_multiplexer);
+    qtest_add_func("stm32l4x5/syscfg/test_clock_enable",
+                   test_clock_enable);
 
     qtest_start("-machine b-l475e-iot01a");
     ret = g_test_run();
