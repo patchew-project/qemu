@@ -34,16 +34,6 @@ struct target_fpreg {
     uint16_t exponent;
 };
 
-struct target_fpxreg {
-    uint16_t significand[4];
-    uint16_t exponent;
-    uint16_t padding[3];
-};
-
-struct target_xmmreg {
-    uint32_t element[4];
-};
-
 struct target_fpx_sw_bytes {
     uint32_t magic1;
     uint32_t extended_size;
