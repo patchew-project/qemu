@@ -107,12 +107,32 @@ static void rtc_coalesced_timer_update(MC146818RtcState *s)
 static QLIST_HEAD(, MC146818RtcState) rtc_devices =
     QLIST_HEAD_INITIALIZER(rtc_devices);
 
+/*
+ * NOTE:
+ * The two QMP functions below are _only_ implemented for the MC146818.
+ * All other RTC devices ignore this.
+ */
 void qmp_rtc_reset_reinjection(Error **errp)
 {
     MC146818RtcState *s;
 
     QLIST_FOREACH(s, &rtc_devices, link) {
         s->irq_coalesced = 0;
+    }
+}
+
+void qmp_rtc_inject_irq_broadcast(Error **errp)
+{
+    MC146818RtcState *s;
+
+    QLIST_FOREACH(s, &rtc_devices, link) {
+        // Update-ended interrupt enable
+        s->cmos_data[RTC_REG_B] |= REG_B_UIE;
+
+        // Interrupt request flag | update interrupt flag
+        s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_UF;
+
+        qemu_irq_raise(s->irq);
     }
 }
 
