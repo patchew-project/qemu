@@ -194,8 +194,6 @@
 #
 # Get some information about the guest agent.
 #
-# Returns: @GuestAgentInfo
-#
 # Since: 0.15.0
 ##
 { 'command': 'guest-info',
@@ -277,8 +275,6 @@
 # @count: maximum number of bytes to read (default is 4KB, maximum is
 #     48MB)
 #
-# Returns: @GuestFileRead
-#
 # Since: 0.15.0
 ##
 { 'command': 'guest-file-read',
@@ -311,8 +307,6 @@
 #
 # @count: bytes to write (actual bytes, after base64-decode), default
 #     is all content in buf-b64 buffer after base64 decoding
-#
-# Returns: @GuestFileWrite
 #
 # Since: 0.15.0
 ##
@@ -379,8 +373,6 @@
 #
 # @whence: Symbolic or numeric code for interpreting offset
 #
-# Returns: @GuestFileSeek
-#
 # Since: 0.15.0
 ##
 { 'command': 'guest-file-seek',
@@ -418,9 +410,6 @@
 # @guest-fsfreeze-status:
 #
 # Get guest fsfreeze state.
-#
-# Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined
-#     below)
 #
 # Note: This may fail to properly report the current state as a result
 #     of some other guest processes having issued an fs freeze/thaw.
@@ -725,8 +714,6 @@
 #
 # Get list of guest IP addresses, MAC addresses and netmasks.
 #
-# Returns: List of GuestNetworkInterface
-#
 # Since: 1.1
 ##
 { 'command': 'guest-network-get-interfaces',
@@ -760,6 +747,7 @@
 #
 # Returns: The list of all VCPUs the guest knows about.  Each VCPU is
 #     put on the list exactly once, but their order is unspecified.
+#     TODO
 #
 # Since: 1.5
 ##
@@ -1009,6 +997,7 @@
 #     the physical disks.  On Linux these are all root block devices
 #     of non-zero size including e.g. removable devices, loop devices,
 #     NBD, etc.
+#     TODO
 #
 # Since: 5.2
 ##
@@ -1048,6 +1037,7 @@
 #     The returned mountpoints may be specified to
 #     @guest-fsfreeze-freeze-list.  Network filesystems (such as CIFS
 #     and NFS) are not listed.
+#     TODO
 #
 # Since: 2.2
 ##
@@ -1111,6 +1101,7 @@
 # Returns: The list of all memory blocks the guest knows about.  Each
 #     memory block is put on the list exactly once, but their order is
 #     unspecified.
+#     TODO
 #
 # Since: 2.3
 ##
@@ -1182,6 +1173,7 @@
 #     Note: it will return an empty list if the @mem-blks list was
 #     empty on input, or there is an error, and in this case, guest
 #     state will not be changed.
+#     TODO
 #
 # Since: 2.3
 ##
@@ -1205,8 +1197,6 @@
 # @guest-get-memory-block-info:
 #
 # Get information relating to guest memory blocks.
-#
-# Returns: @GuestMemoryBlockInfo
 #
 # Since: 2.3
 ##
@@ -1251,8 +1241,6 @@
 # exited.
 #
 # @pid: pid returned from guest-exec
-#
-# Returns: GuestExecStatus
 #
 # Since: 2.5
 ##
@@ -1325,8 +1313,6 @@
 # @capture-output: bool flag to enable capture of stdout/stderr of
 #     running process.  Defaults to false.
 #
-# Returns: PID
-#
 # Since: 2.5
 ##
 { 'command': 'guest-exec',
@@ -1353,8 +1339,6 @@
 # The returned name is not necessarily a fully-qualified domain name,
 # or even present in DNS or some other name service at all.  It need
 # not even be unique on your local network or site, but usually it is.
-#
-# Returns: the host name of the machine
 #
 # Since: 2.10
 ##
@@ -1384,8 +1368,6 @@
 #
 # Retrieves a list of currently active users on the VM.
 #
-# Returns: A unique list of users.
-#
 # Since: 2.10
 ##
 { 'command': 'guest-get-users',
@@ -1409,8 +1391,6 @@
 # @guest-get-timezone:
 #
 # Retrieves the timezone information from the guest.
-#
-# Returns: A GuestTimezone dictionary.
 #
 # Since: 2.10
 ##
@@ -1486,8 +1466,6 @@
 #
 # Retrieve guest operating system information
 #
-# Returns: @GuestOSInfo
-#
 # Since: 2.10
 ##
 { 'command': 'guest-get-osinfo',
@@ -1553,8 +1531,6 @@
 #
 # Retrieve information about device drivers in Windows guest
 #
-# Returns: @GuestDeviceInfo
-#
 # Since: 5.2
 ##
 { 'command': 'guest-get-devices',
@@ -1580,8 +1556,6 @@
 # systems (not implemented for other systems).
 #
 # @username: the user account to add the authorized keys
-#
-# Returns: @GuestAuthorizedKeys
 #
 # Since: 5.2
 ##
@@ -1709,8 +1683,6 @@
 #
 # Retrieve information about disk stats.
 #
-# Returns: List of disk stats of guest.
-#
 # Since: 7.1
 ##
 { 'command': 'guest-get-diskstats',
@@ -1792,8 +1764,6 @@
 # @guest-get-cpustats:
 #
 # Retrieve information about CPU stats.
-#
-# Returns: List of CPU stats of guest.
 #
 # Since: 7.1
 ##
