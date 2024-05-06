@@ -251,9 +251,14 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         return [section]
 
     def _nodes_for_returns(self, doc, ret_type):
-        if doc.returns:
+        assert not doc.returns or ret_type
+        if ret_type:
             section = self._make_section('Returns')
-            self._parse_text_into_node(doc.returns.text, section)
+            if doc.returns:
+                self._parse_text_into_node(doc.returns.text, section)
+            else:
+                section += nodes.paragraph(
+                    '', '', nodes.Text(ret_type.doc_type()))
             return [section]
         return []
 
