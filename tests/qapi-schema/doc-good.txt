@@ -235,11 +235,7 @@ Examples
    - *verbatim*
    - {braces}
 
-
-Since
-~~~~~
-
-2.10
+Since: 2.10
 
 
 "cmd-boxed" (Command)

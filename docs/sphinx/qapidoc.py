@@ -252,9 +252,9 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
 
     def _nodes_for_since(self, doc):
         if doc.since:
-            section = self._make_section('Since')
-            self._parse_text_into_node(doc.since.text, section)
-            return [section]
+            # TODO emphasis
+            return [nodes.paragraph(
+                '', '', nodes.Text('Since: ' + doc.since.text))]
         return []
 
     def _nodes_for_example(self, exampletext):
