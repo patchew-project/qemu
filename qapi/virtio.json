@@ -30,8 +30,6 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: List of gathered VirtIODevices
-#
 # Since: 7.2
 #
 # Example:
@@ -198,8 +196,6 @@
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: VirtioStatus of the virtio device
 #
 # Since: 7.2
 #
@@ -557,8 +553,6 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: VirtQueueStatus of the VirtQueue
-#
 # Notes: last_avail_idx will not be displayed in the case where the
 #     selected VirtIODevice has a running vhost device and the
 #     VirtIODevice VirtQueue index (queue) does not exist for the
@@ -685,8 +679,6 @@
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: VirtVhostQueueStatus of the vhost_virtqueue
 #
 # Since: 7.2
 #
@@ -834,8 +826,6 @@
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: VirtioQueueElement information
 #
 # Since: 7.2
 #

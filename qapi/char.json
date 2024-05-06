@@ -36,8 +36,6 @@
 #
 # Returns information about current character devices.
 #
-# Returns: a list of @ChardevInfo
-#
 # Since: 0.14
 #
 # Example:
@@ -81,8 +79,6 @@
 # @query-chardev-backends:
 #
 # Returns information about character device backends.
-#
-# Returns: a list of @ChardevBackendInfo
 #
 # Since: 2.0
 #
@@ -173,7 +169,7 @@
 #     - The return value is always Unicode regardless of format, like
 #       any other string.
 #
-# Returns: data read from the device
+# Returns: data read from the device (string)
 #
 # Since: 1.4
 #
@@ -695,8 +691,6 @@
 #
 # @backend: backend type and parameters
 #
-# Returns: ChardevReturn.
-#
 # Since: 1.4
 #
 # Examples:
@@ -730,8 +724,6 @@
 # @id: the chardev's ID, must exist
 #
 # @backend: new backend type and parameters
-#
-# Returns: ChardevReturn.
 #
 # Since: 2.10
 #

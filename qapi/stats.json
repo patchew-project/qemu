@@ -187,7 +187,7 @@
 # to return statistics about.
 #
 # Returns: a list of StatsResult, one for each provider and object
-#     (e.g., for each vCPU).
+#     (e.g., for each vCPU).  TODO check
 #
 # Since: 7.1
 ##

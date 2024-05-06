@@ -86,9 +86,6 @@
 # Returns a list of information about each persistent reservation
 # manager.
 #
-# Returns: a list of @PRManagerInfo for each persistent reservation
-#     manager
-#
 # Since: 3.0
 ##
 { 'command': 'query-pr-managers', 'returns': ['PRManagerInfo'],

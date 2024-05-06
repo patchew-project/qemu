@@ -178,7 +178,7 @@
 # Returns: a list of @PciInfo for each PCI bus.  Each bus is
 #     represented by a json-object, which has a key with a json-array
 #     of all PCI devices attached to it.  Each device is represented
-#     by a json-object.
+#     by a json-object.  TODO check
 #
 # Since: 0.14
 #

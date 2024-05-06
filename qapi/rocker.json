@@ -26,8 +26,6 @@
 #
 # Return rocker switch information.
 #
-# Returns: @Rocker information
-#
 # Since: 2.4
 #
 # Example:
@@ -93,8 +91,6 @@
 # @query-rocker-ports:
 #
 # Return rocker switch port information.
-#
-# Returns: a list of @RockerPort information
 #
 # Since: 2.4
 #
@@ -236,8 +232,6 @@
 # @tbl-id: flow table ID.  If tbl-id is not specified, returns flow
 #     information for all tables.
 #
-# Returns: rocker OF-DPA flow information
-#
 # Since: 2.4
 #
 # Example:
@@ -310,8 +304,6 @@
 #
 # @type: group type.  If type is not specified, returns group
 #     information for all group types.
-#
-# Returns: rocker OF-DPA group information
 #
 # Since: 2.4
 #

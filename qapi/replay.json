@@ -50,8 +50,6 @@
 # instruction count which may be used for @replay-break and
 # @replay-seek commands.
 #
-# Returns: record/replay information.
-#
 # Since: 5.2
 #
 # Example:

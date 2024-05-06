@@ -102,8 +102,6 @@
 #
 # Query yank instances.  See @YankInstance for more information.
 #
-# Returns: list of @YankInstance
-#
 # Example:
 #
 #     -> { "execute": "query-yank" }

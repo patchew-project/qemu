@@ -100,8 +100,6 @@
 #
 # Returns information about all virtual CPUs.
 #
-# Returns: list of @CpuInfoFast
-#
 # Since: 2.12
 #
 # Example:
@@ -217,8 +215,6 @@
 #
 # @unstable: Argument @compat-props is experimental.
 #
-# Returns: a list of MachineInfo
-#
 # Since: 1.2
 #
 # Example:
@@ -267,8 +263,6 @@
 #
 # Return information on the current virtual machine.
 #
-# Returns: CurrentMachineParams
-#
 # Since: 4.0
 ##
 { 'command': 'query-current-machine', 'returns': 'CurrentMachineParams' }
@@ -289,8 +283,6 @@
 # @query-target:
 #
 # Return information about the target for this QEMU
-#
-# Returns: TargetInfo
 #
 # Since: 1.2
 ##
@@ -314,8 +306,6 @@
 # @query-uuid:
 #
 # Query the guest UUID information.
-#
-# Returns: The @UuidInfo for the guest
 #
 # Since: 0.14
 #
@@ -467,8 +457,6 @@
 # @query-kvm:
 #
 # Returns information about KVM acceleration
-#
-# Returns: @KvmInfo
 #
 # Since: 0.14
 #
@@ -924,8 +912,6 @@
 #
 # Returns information for all memory backends.
 #
-# Returns: a list of @Memdev.
-#
 # Since: 2.1
 #
 # Example:
@@ -1042,8 +1028,6 @@
 #
 # TODO: Better documentation; currently there is none.
 #
-# Returns: a list of HotpluggableCPU objects.
-#
 # Since: 2.7
 #
 # Examples:
@@ -1155,9 +1139,6 @@
 #
 # Return information about the balloon device.
 #
-# Returns:
-#     @BalloonInfo
-#
 # Errors:
 #     - If the balloon driver is enabled but not functional because
 #       the KVM kernel module cannot support it, KVMMissingCap
@@ -1220,9 +1201,6 @@
 #
 # Returns the hv-balloon driver data contained in the last received
 # "STATUS" message from the guest.
-#
-# Returns:
-#     @HvBalloonInfo
 #
 # Errors:
 #     - If no hv-balloon device is present, guest memory status
@@ -1729,8 +1707,6 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: interrupt statistics
-#
 # Since: 6.2
 ##
 { 'command': 'x-query-irq',
@@ -1745,8 +1721,6 @@
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: TCG compiler statistics
 #
 # Since: 6.2
 ##
@@ -1764,8 +1738,6 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: topology information
-#
 # Since: 6.2
 ##
 { 'command': 'x-query-numa',
@@ -1780,8 +1752,6 @@
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: TCG opcode counters
 #
 # Since: 6.2
 ##
@@ -1799,8 +1769,6 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: system ramblock information
-#
 # Since: 6.2
 ##
 { 'command': 'x-query-ramblock',
@@ -1816,8 +1784,6 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: registered ROMs
-#
 # Since: 6.2
 ##
 { 'command': 'x-query-roms',
@@ -1832,8 +1798,6 @@
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: USB device information
 #
 # Since: 6.2
 ##

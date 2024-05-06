@@ -85,8 +85,6 @@
 #
 # Returns information about SEV
 #
-# Returns: @SevInfo
-#
 # Since: 2.12
 #
 # Example:
@@ -115,8 +113,6 @@
 # @query-sev-launch-measure:
 #
 # Query the SEV guest launch information.
-#
-# Returns: The @SevLaunchMeasureInfo for the guest
 #
 # Since: 2.12
 #
@@ -160,8 +156,6 @@
 #
 # This command is used to get the SEV capabilities, and is supported
 # on AMD X86 platforms only.
-#
-# Returns: SevCapability objects.
 #
 # Since: 2.12
 #
@@ -214,8 +208,6 @@
 #
 # @mnonce: a random 16 bytes value encoded in base64 (it will be
 #     included in report)
-#
-# Returns: SevAttestationReport objects.
 #
 # Since: 6.1
 #
@@ -280,8 +272,6 @@
 # This command is ARM-only.  It will return a list of GICCapability
 # objects that describe its capability bits.
 #
-# Returns: a list of GICCapability objects.
-#
 # Since: 2.6
 #
 # Example:
@@ -338,8 +328,6 @@
 #
 # Returns information about SGX
 #
-# Returns: @SGXInfo
-#
 # Since: 6.2
 #
 # Example:
@@ -356,8 +344,6 @@
 # @query-sgx-capabilities:
 #
 # Returns information from host SGX capabilities
-#
-# Returns: @SGXInfo
 #
 # Since: 6.2
 #
@@ -431,8 +417,6 @@
 # @xen-event-list:
 #
 # Query the Xen event channels opened by the guest.
-#
-# Returns: list of open event channel ports.
 #
 # Since: 8.0
 #

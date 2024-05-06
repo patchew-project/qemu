@@ -327,8 +327,6 @@
 #
 # Returns information about the current SPICE server
 #
-# Returns: @SpiceInfo
-#
 # Since: 0.14
 #
 # Example:
@@ -658,8 +656,6 @@
 #
 # Returns information about the current VNC server
 #
-# Returns: @VncInfo
-#
 # Since: 0.14
 #
 # Example:
@@ -688,8 +684,6 @@
 # @query-vnc-servers:
 #
 # Returns a list of vnc servers.  The list can be empty.
-#
-# Returns: a list of @VncInfo2
 #
 # Since: 2.3
 ##
@@ -823,8 +817,6 @@
 # @query-mice:
 #
 # Returns information about each active mouse device
-#
-# Returns: a list of @MouseInfo for each device
 #
 # Since: 0.14
 #
@@ -1563,8 +1555,6 @@
 # @query-display-options:
 #
 # Returns information about display configuration
-#
-# Returns: @DisplayOptions
 #
 # Since: 3.1
 ##

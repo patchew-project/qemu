@@ -305,8 +305,6 @@
 # status and if block migration is active another one with block
 # migration status.
 #
-# Returns: @MigrationInfo
-#
 # Since: 0.14
 #
 # Examples:
@@ -596,8 +594,6 @@
 # @query-migrate-capabilities:
 #
 # Returns information about the current migration capabilities status
-#
-# Returns: @MigrationCapabilityStatus
 #
 # Since: 1.2
 #
@@ -1412,8 +1408,6 @@
 #
 # Returns information about the current migration parameters
 #
-# Returns: @MigrationParameters
-#
 # Since: 2.4
 #
 # Example:
@@ -1997,8 +1991,6 @@
 #
 # Query replication status while the vm is running.
 #
-# Returns: A @ReplicationStatus object showing the status.
-#
 # Example:
 #
 #     -> { "execute": "query-xen-replication-status" }
@@ -2050,8 +2042,6 @@
 # @query-colo-status:
 #
 # Query COLO status while the vm is running.
-#
-# Returns: A @COLOStatus object showing the status.
 #
 # Example:
 #
@@ -2418,8 +2408,6 @@
 # @query-migrationthreads:
 #
 # Returns information of migration threads
-#
-# Returns: @MigrationThreadInfo
 #
 # Since: 7.2
 ##

@@ -56,8 +56,6 @@
 #
 # Return the name information of a guest.
 #
-# Returns: @NameInfo of the guest
-#
 # Since: 0.14
 #
 # Example:
@@ -101,13 +99,11 @@
 ##
 # @query-iothreads:
 #
-# Returns a list of information about each iothread.
+# Returns information about each iothread.
 #
 # Note: this list excludes the QEMU main loop thread, which is not
 #     declared using the -object iothread command-line option.  It is
 #     always the main thread of the process.
-#
-# Returns: a list of @IOThreadInfo for each iothread
 #
 # Since: 2.0
 #
@@ -331,9 +327,6 @@
 #
 # @opaque: A free-form string that can be used to describe the fd.
 #
-# Returns:
-#     @AddfdInfo
-#
 # Errors:
 #     - If file descriptor was not received, GenericError
 #     - If @fdset-id is a negative value, GenericError
@@ -414,8 +407,6 @@
 # @query-fdsets:
 #
 # Return information describing all fd sets.
-#
-# Returns: A list of @FdsetInfo
 #
 # Since: 1.2
 #
@@ -514,10 +505,7 @@
 #
 # Query command line option schema.
 #
-# @option: option name
-#
-# Returns: list of @CommandLineOptionInfo for all options (or for the
-#     given @option).
+# @option: limit query to just @option
 #
 # Errors:
 #     - if the given @option doesn't exist
