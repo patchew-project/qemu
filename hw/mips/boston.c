@@ -542,7 +542,10 @@ static const void *create_fdt(BostonState *s,
     qemu_fdt_setprop_cell(fdt, "/cpus", "#size-cells", 0x0);
     qemu_fdt_setprop_cell(fdt, "/cpus", "#address-cells", 0x1);
 
+    qemu_fdt_add_subnode(fdt, "/cpus/cpu-map");
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
+        char *map_path;
+
         name = g_strdup_printf("/cpus/cpu@%d", cpu);
         qemu_fdt_add_subnode(fdt, name);
         qemu_fdt_setprop_string(fdt, name, "compatible", "img,mips");
@@ -550,6 +553,27 @@ static const void *create_fdt(BostonState *s,
         qemu_fdt_setprop_cell(fdt, name, "reg", cpu);
         qemu_fdt_setprop_string(fdt, name, "device_type", "cpu");
         qemu_fdt_setprop_cells(fdt, name, "clocks", clk_ph, FDT_BOSTON_CLK_CPU);
+        qemu_fdt_setprop_cell(fdt, name, "phandle", qemu_fdt_alloc_phandle(fdt));
+
+        if (ms->smp.threads > 1) {
+            map_path = g_strdup_printf(
+                "/cpus/cpu-map/socket%d/cluster%d/core%d/thread%d",
+                cpu / (ms->smp.clusters * ms->smp.cores * ms->smp.threads),
+                (cpu / (ms->smp.cores * ms->smp.threads)) % ms->smp.clusters,
+                (cpu / ms->smp.threads) % ms->smp.cores,
+                cpu % ms->smp.threads);
+        } else {
+            map_path = g_strdup_printf(
+                "/cpus/cpu-map/socket%d/cluster%d/core%d",
+                cpu / (ms->smp.clusters * ms->smp.cores),
+                (cpu / ms->smp.cores) % ms->smp.clusters,
+                cpu % ms->smp.cores);
+        }
+
+        qemu_fdt_add_path(fdt, map_path);
+        qemu_fdt_setprop_phandle(fdt, map_path, "cpu", name);
+
+        g_free(map_path);
         g_free(name);
     }
 
@@ -590,6 +614,15 @@ static const void *create_fdt(BostonState *s,
     qemu_fdt_setprop_cells(fdt, name, "clocks", clk_ph, FDT_BOSTON_CLK_CPU);
     g_free(name);
     g_free(gic_name);
+
+    /* CM node */
+    name = g_strdup_printf("/soc/cm@%" HWADDR_PRIx, memmap[BOSTON_CM].base);
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "mti,mips-cm");
+    qemu_fdt_setprop_cells(fdt, name, "reg", memmap[BOSTON_CM].base,
+                            memmap[BOSTON_CM].size);
+    g_free(name);
+
 
     /* CDMM node */
     name = g_strdup_printf("/soc/cdmm@%" HWADDR_PRIx, memmap[BOSTON_CDMM].base);
@@ -703,7 +736,9 @@ static void boston_mach_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), "cps", &s->cps, TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), "cpu-type", machine->cpu_type,
                             &error_fatal);
-    object_property_set_uint(OBJECT(&s->cps), "num-vp", machine->smp.cpus,
+    object_property_set_uint(OBJECT(&s->cps), "num-pcore", machine->smp.cores,
+                            &error_fatal);
+    object_property_set_uint(OBJECT(&s->cps), "num-vp", machine->smp.threads,
                             &error_fatal);
     qdev_connect_clock_in(DEVICE(&s->cps), "clk-in",
                           qdev_get_clock_out(dev, "cpu-refclk"));
