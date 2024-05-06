@@ -4387,7 +4387,7 @@ static uint16_t nvme_io_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeCmd *cmd = &req->cmd;
     uint32_t cdw10 = le32_to_cpu(cmd->cdw10);
-    uint8_t mo = (cdw10 & 0xff);
+    uint8_t mo = cdw10 & 0xf;
 
     switch (mo) {
     case NVME_IOMS_MO_NOP:
