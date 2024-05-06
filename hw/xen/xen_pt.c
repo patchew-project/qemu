@@ -311,7 +311,6 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     }
 
     memory_region_transaction_begin();
-    pci_default_write_config(d, addr, val, len);
 
     /* adjust the read and write value to appropriate CFC-CFF window */
     read_val <<= (addr & 3) << 3;
@@ -396,6 +395,12 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
 
     /* need to shift back before passing them to xen_host_pci_set_block. */
     val >>= (addr & 3) << 3;
+
+    /* Call default handler for its side effects only, with value already
+     * written by specific handlers. */
+    pci_default_write_config(d, addr,
+                             pci_default_read_config(d, addr, len),
+                             len);
 
     memory_region_transaction_commit();
 
