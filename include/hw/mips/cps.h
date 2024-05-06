@@ -35,6 +35,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(MIPSCPSState, MIPS_CPS)
 struct MIPSCPSState {
     SysBusDevice parent_obj;
 
+    uint32_t num_pcore;
     uint32_t num_vp;
     uint32_t num_irq;
     char *cpu_type;
