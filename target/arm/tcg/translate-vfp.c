@@ -1763,7 +1763,7 @@ static void gen_VMLS_hp(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm, TCGv_ptr fpst)
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     gen_helper_vfp_mulh(tmp, vn, vm, fpst);
-    gen_helper_vfp_negh(tmp, tmp);
+    gen_vfp_negh(tmp, tmp);
     gen_helper_vfp_addh(vd, vd, tmp, fpst);
 }
 
@@ -1781,7 +1781,7 @@ static void gen_VMLS_sp(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm, TCGv_ptr fpst)
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     gen_helper_vfp_muls(tmp, vn, vm, fpst);
-    gen_helper_vfp_negs(tmp, tmp);
+    gen_vfp_negs(tmp, tmp);
     gen_helper_vfp_adds(vd, vd, tmp, fpst);
 }
 
@@ -1799,7 +1799,7 @@ static void gen_VMLS_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     TCGv_i64 tmp = tcg_temp_new_i64();
 
     gen_helper_vfp_muld(tmp, vn, vm, fpst);
-    gen_helper_vfp_negd(tmp, tmp);
+    gen_vfp_negd(tmp, tmp);
     gen_helper_vfp_addd(vd, vd, tmp, fpst);
 }
 
@@ -1819,7 +1819,7 @@ static void gen_VNMLS_hp(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm, TCGv_ptr fpst)
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     gen_helper_vfp_mulh(tmp, vn, vm, fpst);
-    gen_helper_vfp_negh(vd, vd);
+    gen_vfp_negh(vd, vd);
     gen_helper_vfp_addh(vd, vd, tmp, fpst);
 }
 
@@ -1839,7 +1839,7 @@ static void gen_VNMLS_sp(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm, TCGv_ptr fpst)
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     gen_helper_vfp_muls(tmp, vn, vm, fpst);
-    gen_helper_vfp_negs(vd, vd);
+    gen_vfp_negs(vd, vd);
     gen_helper_vfp_adds(vd, vd, tmp, fpst);
 }
 
@@ -1859,7 +1859,7 @@ static void gen_VNMLS_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     TCGv_i64 tmp = tcg_temp_new_i64();
 
     gen_helper_vfp_muld(tmp, vn, vm, fpst);
-    gen_helper_vfp_negd(vd, vd);
+    gen_vfp_negd(vd, vd);
     gen_helper_vfp_addd(vd, vd, tmp, fpst);
 }
 
@@ -1874,8 +1874,8 @@ static void gen_VNMLA_hp(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm, TCGv_ptr fpst)
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     gen_helper_vfp_mulh(tmp, vn, vm, fpst);
-    gen_helper_vfp_negh(tmp, tmp);
-    gen_helper_vfp_negh(vd, vd);
+    gen_vfp_negh(tmp, tmp);
+    gen_vfp_negh(vd, vd);
     gen_helper_vfp_addh(vd, vd, tmp, fpst);
 }
 
@@ -1890,8 +1890,8 @@ static void gen_VNMLA_sp(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm, TCGv_ptr fpst)
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     gen_helper_vfp_muls(tmp, vn, vm, fpst);
-    gen_helper_vfp_negs(tmp, tmp);
-    gen_helper_vfp_negs(vd, vd);
+    gen_vfp_negs(tmp, tmp);
+    gen_vfp_negs(vd, vd);
     gen_helper_vfp_adds(vd, vd, tmp, fpst);
 }
 
@@ -1906,8 +1906,8 @@ static void gen_VNMLA_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     TCGv_i64 tmp = tcg_temp_new_i64();
 
     gen_helper_vfp_muld(tmp, vn, vm, fpst);
-    gen_helper_vfp_negd(tmp, tmp);
-    gen_helper_vfp_negd(vd, vd);
+    gen_vfp_negd(tmp, tmp);
+    gen_vfp_negd(vd, vd);
     gen_helper_vfp_addd(vd, vd, tmp, fpst);
 }
 
@@ -1935,7 +1935,7 @@ static void gen_VNMUL_hp(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm, TCGv_ptr fpst)
 {
     /* VNMUL: -(fn * fm) */
     gen_helper_vfp_mulh(vd, vn, vm, fpst);
-    gen_helper_vfp_negh(vd, vd);
+    gen_vfp_negh(vd, vd);
 }
 
 static bool trans_VNMUL_hp(DisasContext *s, arg_VNMUL_sp *a)
@@ -1947,7 +1947,7 @@ static void gen_VNMUL_sp(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm, TCGv_ptr fpst)
 {
     /* VNMUL: -(fn * fm) */
     gen_helper_vfp_muls(vd, vn, vm, fpst);
-    gen_helper_vfp_negs(vd, vd);
+    gen_vfp_negs(vd, vd);
 }
 
 static bool trans_VNMUL_sp(DisasContext *s, arg_VNMUL_sp *a)
@@ -1959,7 +1959,7 @@ static void gen_VNMUL_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
 {
     /* VNMUL: -(fn * fm) */
     gen_helper_vfp_muld(vd, vn, vm, fpst);
-    gen_helper_vfp_negd(vd, vd);
+    gen_vfp_negd(vd, vd);
 }
 
 static bool trans_VNMUL_dp(DisasContext *s, arg_VNMUL_dp *a)
@@ -2110,12 +2110,12 @@ static bool do_vfm_hp(DisasContext *s, arg_VFMA_sp *a, bool neg_n, bool neg_d)
     vfp_load_reg32(vm, a->vm);
     if (neg_n) {
         /* VFNMS, VFMS */
-        gen_helper_vfp_negh(vn, vn);
+        gen_vfp_negh(vn, vn);
     }
     vfp_load_reg32(vd, a->vd);
     if (neg_d) {
         /* VFNMA, VFNMS */
-        gen_helper_vfp_negh(vd, vd);
+        gen_vfp_negh(vd, vd);
     }
     fpst = fpstatus_ptr(FPST_FPCR_F16);
     gen_helper_vfp_muladdh(vd, vn, vm, vd, fpst);
@@ -2169,12 +2169,12 @@ static bool do_vfm_sp(DisasContext *s, arg_VFMA_sp *a, bool neg_n, bool neg_d)
     vfp_load_reg32(vm, a->vm);
     if (neg_n) {
         /* VFNMS, VFMS */
-        gen_helper_vfp_negs(vn, vn);
+        gen_vfp_negs(vn, vn);
     }
     vfp_load_reg32(vd, a->vd);
     if (neg_d) {
         /* VFNMA, VFNMS */
-        gen_helper_vfp_negs(vd, vd);
+        gen_vfp_negs(vd, vd);
     }
     fpst = fpstatus_ptr(FPST_FPCR);
     gen_helper_vfp_muladds(vd, vn, vm, vd, fpst);
@@ -2234,12 +2234,12 @@ static bool do_vfm_dp(DisasContext *s, arg_VFMA_dp *a, bool neg_n, bool neg_d)
     vfp_load_reg64(vm, a->vm);
     if (neg_n) {
         /* VFNMS, VFMS */
-        gen_helper_vfp_negd(vn, vn);
+        gen_vfp_negd(vn, vn);
     }
     vfp_load_reg64(vd, a->vd);
     if (neg_d) {
         /* VFNMA, VFNMS */
-        gen_helper_vfp_negd(vd, vd);
+        gen_vfp_negd(vd, vd);
     }
     fpst = fpstatus_ptr(FPST_FPCR);
     gen_helper_vfp_muladdd(vd, vn, vm, vd, fpst);
@@ -2409,13 +2409,13 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
 DO_VFP_VMOV(VMOV_reg, sp, tcg_gen_mov_i32)
 DO_VFP_VMOV(VMOV_reg, dp, tcg_gen_mov_i64)
 
-DO_VFP_2OP(VABS, hp, gen_helper_vfp_absh, aa32_fp16_arith)
-DO_VFP_2OP(VABS, sp, gen_helper_vfp_abss, aa32_fpsp_v2)
-DO_VFP_2OP(VABS, dp, gen_helper_vfp_absd, aa32_fpdp_v2)
+DO_VFP_2OP(VABS, hp, gen_vfp_absh, aa32_fp16_arith)
+DO_VFP_2OP(VABS, sp, gen_vfp_abss, aa32_fpsp_v2)
+DO_VFP_2OP(VABS, dp, gen_vfp_absd, aa32_fpdp_v2)
 
-DO_VFP_2OP(VNEG, hp, gen_helper_vfp_negh, aa32_fp16_arith)
-DO_VFP_2OP(VNEG, sp, gen_helper_vfp_negs, aa32_fpsp_v2)
-DO_VFP_2OP(VNEG, dp, gen_helper_vfp_negd, aa32_fpdp_v2)
+DO_VFP_2OP(VNEG, hp, gen_vfp_negh, aa32_fp16_arith)
+DO_VFP_2OP(VNEG, sp, gen_vfp_negs, aa32_fpsp_v2)
+DO_VFP_2OP(VNEG, dp, gen_vfp_negd, aa32_fpdp_v2)
 
 static void gen_VSQRT_hp(TCGv_i32 vd, TCGv_i32 vm)
 {
