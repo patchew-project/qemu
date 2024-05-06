@@ -2427,6 +2427,7 @@
 #
 # @devices: list of block device node names to save a snapshot to
 #
+# @@@ untagged
 # Applications should not assume that the snapshot save is complete
 # when this command returns.  The job commands / events must be used
 # to determine completion and to fetch details of any errors that
@@ -2499,6 +2500,7 @@
 #
 # @devices: list of block device node names to load a snapshot from
 #
+# @@@ untagged
 # Applications should not assume that the snapshot load is complete
 # when this command returns.  The job commands / events must be used
 # to determine completion and to fetch details of any errors that
@@ -2567,6 +2569,7 @@
 #
 # @devices: list of block device node names to delete a snapshot from
 #
+# @@@ untagged
 # Applications should not assume that the snapshot delete is complete
 # when this command returns.  The job commands / events must be used
 # to determine completion and to fetch details of any errors that

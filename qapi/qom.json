@@ -547,6 +547,7 @@
 #     algorithm detects it is spending too long polling without
 #     encountering events.  0 selects a default behaviour (default: 0)
 #
+# @@@ untagged
 # The @aio-max-batch option is available since 6.1.
 #
 # Since: 2.0

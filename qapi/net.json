@@ -650,6 +650,7 @@
 #     attempt a reconnect after the given number of seconds.  Setting
 #     this to zero disables this function.  (default: 0) (since 8.0)
 #
+# @@@ untagged
 # Only SocketAddress types 'unix', 'inet' and 'fd' are supported.
 #
 # Since: 7.2
@@ -669,6 +670,7 @@
 #
 # @local: local address
 #
+# @@@ untagged
 # Only SocketAddress types 'unix', 'inet' and 'fd' are supported.
 #
 # If remote address is present and it's a multicast address, local

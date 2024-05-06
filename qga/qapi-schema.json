@@ -207,6 +207,7 @@
 #
 # @mode: "halt", "powerdown" (default), or "reboot"
 #
+# @@@ untagged
 # This command does NOT return a response on success.  Success
 # condition is indicated by the VM exiting with a zero exit status or,
 # when running with --no-shutdown, by issuing the query-status QMP
@@ -1053,6 +1054,7 @@
 #
 # @crypted: true if password is already crypt()d, false if raw
 #
+# @@@ untagged
 # If the @crypted flag is true, it is the caller's responsibility to
 # ensure the correct crypt() encryption scheme is used.  This command
 # does not attempt to interpret or report on the encryption scheme.

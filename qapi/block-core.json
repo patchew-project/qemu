@@ -3289,6 +3289,7 @@
 #
 # @namespace: namespace number of the device, starting from 1.
 #
+# @@@ untagged
 # Note that the PCI @device must have been unbound from any host
 # kernel driver before instructing QEMU to add the blockdev.
 #

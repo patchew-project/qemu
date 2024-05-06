@@ -665,6 +665,7 @@ class QAPIDoc:
         section = self.Section(info)
         self.sections.append(section)
         self.all_sections.append(section)
+        section.append_line(f'### untagged {info.loc()}')
 
     def new_tagged_section(self, info: QAPISourceInfo, tag: str) -> None:
         section = self.Section(info, tag)

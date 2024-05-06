@@ -112,6 +112,7 @@ Also _one_ {and only}
     feature=enum-member-feat
 a member feature
     section=None
+### untagged /work/armbru/qemu/bld/../tests/qapi-schema/doc-good.json:67
 @two is undocumented
 doc symbol=Base
     body=

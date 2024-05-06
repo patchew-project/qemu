@@ -149,6 +149,7 @@
 #
 # @deprecated: Member @values is deprecated.  Use @members instead.
 #
+# @@@ untagged
 # Values of this type are JSON string on the wire.
 #
 # Since: 2.5
@@ -180,6 +181,7 @@
 #
 # @element-type: the array type's element type.
 #
+# @@@ untagged
 # Values of this type are JSON array on the wire.
 #
 # Since: 2.5
@@ -203,6 +205,7 @@
 #     The variants are in no particular order, and may even differ
 #     from the order of the values of the enum type of the @tag.
 #
+# @@@ untagged
 # Values of this type are JSON object on the wire.
 #
 # Since: 2.5
@@ -261,6 +264,7 @@
 #     members' wire encoding is distinct, see
 #     :doc:`/devel/qapi-code-gen` section Alternate types.
 #
+# @@@ untagged
 # On the wire, this can be any of the members.
 #
 # Since: 2.5

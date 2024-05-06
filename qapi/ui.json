@@ -934,6 +934,7 @@
 #
 # @f24: since 8.0
 #
+# @@@ untagged
 # 'sysrq' was mistakenly added to hack around the fact that the ps2
 # driver was not generating correct scancodes sequences when
 # 'alt+print' was pressed.  This flaw is now fixed and the 'sysrq' key

@@ -107,6 +107,7 @@
 # @responsible-properties: List of properties that led to the
 #     comparison result not being identical.
 #
+# @@@ untagged
 # @responsible-properties is a list of QOM property names that led to
 # both CPUs not being detected as identical.  For identical models,
 # this list is empty.  If a QOM property is read-only, that means
@@ -342,6 +343,7 @@
 #     removed in in some future version of QEMU according to the QEMU
 #     deprecation policy.  (since 5.2)
 #
+# @@@ untagged
 # @unavailable-features is a list of QOM property names that represent
 # CPU model attributes that prevent the CPU from running.  If the QOM
 # property is read-only, that means there's no known way to make the
