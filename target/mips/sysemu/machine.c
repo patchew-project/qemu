@@ -218,8 +218,8 @@ static const VMStateDescription vmstate_tlb = {
 
 const VMStateDescription vmstate_mips_cpu = {
     .name = "cpu",
-    .version_id = 21,
-    .minimum_version_id = 21,
+    .version_id = 22,
+    .minimum_version_id = 22,
     .post_load = cpu_post_load,
     .fields = (const VMStateField[]) {
         /* Active TC */
@@ -257,7 +257,6 @@ const VMStateDescription vmstate_mips_cpu = {
         VMSTATE_INT32(env.CP0_VPEOpt, MIPSCPU),
         VMSTATE_UINT64(env.CP0_EntryLo0, MIPSCPU),
         VMSTATE_UINT64(env.CP0_EntryLo1, MIPSCPU),
-        VMSTATE_INT32(env.CP0_GlobalNumber, MIPSCPU),
         VMSTATE_UINTTL(env.CP0_Context, MIPSCPU),
         VMSTATE_INT32(env.CP0_MemoryMapID, MIPSCPU),
         VMSTATE_INT32(env.CP0_PageMask, MIPSCPU),

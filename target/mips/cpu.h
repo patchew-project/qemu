@@ -612,8 +612,13 @@ typedef struct CPUArchState {
 # define CP0EnLo_RI 31
 # define CP0EnLo_XI 30
 #endif
-    int32_t CP0_GlobalNumber;
+    /* CP0_GlobalNumber is preserved across CPU reset. */
 #define CP0GN_VPId 0
+#define CP0GN_VPId_MASK (0xFFUL << CP0GN_VPId)
+#define CP0GN_CoreNum 8
+#define CP0GN_CoreNum_MASK (0xFUL << CP0GN_CoreNum)
+#define CP0GN_ClusterNum 16
+#define CP0GN_ClusterNum_MASK (0xFUL << CP0GN_ClusterNum)
 /*
  * CP0 Register 4
  */
@@ -1175,6 +1180,9 @@ typedef struct CPUArchState {
     struct {} end_reset_fields;
 
     /* Fields from here on are preserved across CPU reset. */
+#if !defined(CONFIG_USER_ONLY)
+    int32_t CP0_GlobalNumber;
+#endif
     CPUMIPSMVPContext *mvp;
 #if !defined(CONFIG_USER_ONLY)
     CPUMIPSTLBContext *tlb;

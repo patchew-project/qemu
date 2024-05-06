@@ -296,7 +296,6 @@ static void mips_cpu_reset_hold(Object *obj, ResetType type)
     env->CP0_Random = env->tlb->nb_tlb - 1;
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
     env->CP0_Wired = 0;
-    env->CP0_GlobalNumber = (cs->cpu_index & 0xFF) << CP0GN_VPId;
     env->CP0_EBase = KSEG0_BASE | (cs->cpu_index & 0x3FF);
     if (env->CP0_Config3 & (1 << CP0C3_CMGCR)) {
         env->CP0_CMGCRBase = 0x1fbf8000 >> 4;
@@ -484,6 +483,12 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 
     env->exception_base = (int32_t)0xBFC00000;
 
+#if !defined(CONFIG_USER_ONLY)
+    if (env->CP0_GlobalNumber == -1) {
+        env->CP0_GlobalNumber = (cs->cpu_index & 0xFF) << CP0GN_VPId;
+    }
+#endif
+
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
     mmu_init(env, env->cpu_model);
 #endif
@@ -563,6 +568,13 @@ static const TCGCPUOps mips_tcg_ops = {
 };
 #endif /* CONFIG_TCG */
 
+static Property mips_cpu_properties[] = {
+#if !defined(CONFIG_USER_ONLY)
+    DEFINE_PROP_INT32("globalnumber", MIPSCPU, env.CP0_GlobalNumber, -1),
+#endif
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void mips_cpu_class_init(ObjectClass *c, void *data)
 {
     MIPSCPUClass *mcc = MIPS_CPU_CLASS(c);
@@ -592,6 +604,8 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 #ifdef CONFIG_TCG
     cc->tcg_ops = &mips_tcg_ops;
 #endif /* CONFIG_TCG */
+
+    device_class_set_props(dc, mips_cpu_properties);
 }
 
 static const TypeInfo mips_cpu_type_info = {
