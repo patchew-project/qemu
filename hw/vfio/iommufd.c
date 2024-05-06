@@ -301,8 +301,8 @@ error:
     return ret;
 }
 
-static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
-                               AddressSpace *as, Error **errp)
+static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
+                                AddressSpace *as, Error **errp)
 {
     VFIOContainerBase *bcontainer;
     VFIOIOMMUFDContainer *container;
@@ -317,7 +317,7 @@ static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     if (vbasedev->fd < 0) {
         devfd = iommufd_cdev_getfd(vbasedev->sysfsdev, errp);
         if (devfd < 0) {
-            return devfd;
+            return false;
         }
         vbasedev->fd = devfd;
     } else {
@@ -394,7 +394,6 @@ static int iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     memory_listener_register(&bcontainer->listener, bcontainer->space->as);
 
     if (bcontainer->error) {
-        ret = -1;
         error_propagate_prepend(errp, bcontainer->error,
                                 "memory listener initialization failed: ");
         goto err_listener_register;
@@ -433,7 +432,7 @@ found_container:
 
     trace_iommufd_cdev_device_info(vbasedev->name, devfd, vbasedev->num_irqs,
                                    vbasedev->num_regions, vbasedev->flags);
-    return 0;
+    return true;
 
 err_listener_register:
     iommufd_cdev_ram_block_discard_disable(false);
@@ -446,7 +445,7 @@ err_alloc_ioas:
     iommufd_cdev_unbind_and_disconnect(vbasedev);
 err_connect_bind:
     close(vbasedev->fd);
-    return ret;
+    return false;
 }
 
 static void iommufd_cdev_detach(VFIODevice *vbasedev)
