@@ -585,7 +585,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
         return;
     }
 
-    if (vfio_container_add_section_window(bcontainer, section, &err)) {
+    if (!vfio_container_add_section_window(bcontainer, section, &err)) {
         goto fail;
     }
 
