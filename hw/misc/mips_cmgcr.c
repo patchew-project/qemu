@@ -73,14 +73,19 @@ static inline void update_gic_base(MIPSGCRState *gcr, uint64_t val)
 static uint64_t gcr_read(void *opaque, hwaddr addr, unsigned size)
 {
     MIPSGCRState *gcr = (MIPSGCRState *) opaque;
-    MIPSGCRVPState *current_vps = &gcr->vps[current_cpu->cpu_index];
-    MIPSGCRVPState *other_vps = &gcr->vps[current_vps->other];
+    int redirect_corenum = mips_gcr_get_redirect_corenum(gcr);
+    int redirect_vpid = mips_gcr_get_redirect_vpid(gcr);
+    int current_corenum = mips_gcr_get_current_corenum(gcr);
+    int current_vpid = mips_gcr_get_current_vpid(gcr);
+    MIPSGCRPCoreState *current_pcore = &gcr->pcs[current_corenum];
+    MIPSGCRVPState *current_vps = &current_pcore->vps[current_vpid];
+    MIPSGCRPCoreState *other_pcore = &gcr->pcs[redirect_corenum];
+    MIPSGCRVPState *other_vps = &other_pcore->vps[redirect_vpid];
 
     switch (addr) {
     /* Global Control Block Register */
     case GCR_CONFIG_OFS:
-        /* Set PCORES to 0 */
-        return 0;
+        return gcr->num_pcores - 1;
     case GCR_BASE_OFS:
         return gcr->gcr_base;
     case GCR_REV_OFS:
@@ -96,7 +101,19 @@ static uint64_t gcr_read(void *opaque, hwaddr addr, unsigned size)
     case GCR_L2_CONFIG_OFS:
         /* L2 BYPASS */
         return GCR_L2_CONFIG_BYPASS_MSK;
+    case GCR_SYS_CONFIG2_OFS:
+        return gcr->num_vps << GCR_SYS_CONFIG2_MAXVP_SHF;
+    case GCR_SCRATCH0_OFS:
+        return gcr->scratch[0];
+    case GCR_SCRATCH1_OFS:
+        return gcr->scratch[1];
+    case GCR_SEM_OFS:
+        return gcr->sem;
         /* Core-Local and Core-Other Control Blocks */
+    case MIPS_CLCB_OFS + GCR_CL_COH_EN_OFS:
+        return current_pcore->coh_en;
+    case MIPS_COCB_OFS + GCR_CL_COH_EN_OFS:
+        return other_pcore->coh_en;
     case MIPS_CLCB_OFS + GCR_CL_CONFIG_OFS:
     case MIPS_COCB_OFS + GCR_CL_CONFIG_OFS:
         /* Set PVP to # of VPs - 1 */
@@ -105,10 +122,18 @@ static uint64_t gcr_read(void *opaque, hwaddr addr, unsigned size)
         return current_vps->reset_base;
     case MIPS_COCB_OFS + GCR_CL_RESETBASE_OFS:
         return other_vps->reset_base;
-    case MIPS_CLCB_OFS + GCR_CL_OTHER_OFS:
-        return current_vps->other;
-    case MIPS_COCB_OFS + GCR_CL_OTHER_OFS:
-        return other_vps->other;
+    case MIPS_CLCB_OFS + GCR_CL_REDIRECT_OFS:
+        return current_vps->redirect;
+    case MIPS_COCB_OFS + GCR_CL_REDIRECT_OFS:
+        return other_vps->redirect;
+    case MIPS_CLCB_OFS + GCR_CL_ID_OFS:
+        return current_corenum;
+    case MIPS_COCB_OFS + GCR_CL_ID_OFS:
+        return redirect_corenum;
+    case MIPS_CLCB_OFS + GCR_CL_SCRATCH_OFS:
+        return current_vps->scratch;
+    case MIPS_COCB_OFS + GCR_CL_SCRATCH_OFS:
+        return other_vps->scratch;
     default:
         qemu_log_mask(LOG_UNIMP, "Read %d bytes at GCR offset 0x%" HWADDR_PRIx
                       "\n", size, addr);
@@ -123,12 +148,36 @@ static inline target_ulong get_exception_base(MIPSGCRVPState *vps)
     return (int32_t)(vps->reset_base & GCR_CL_RESET_BASE_RESETBASE_MSK);
 }
 
+static inline void set_redirect(MIPSGCRState *gcr,
+                                MIPSGCRVPState *vps, target_ulong data)
+{
+    int new_vpid = data & GCR_CL_REDIRECT_VP_MSK;
+    int new_coreid = (data & GCR_CL_REDIRECT_CORE_MSK) >> GCR_CL_REDIRECT_CORE_SHF;
+
+    if (new_vpid >= gcr->num_vps) {
+        return;
+    }
+
+    if (new_coreid >= gcr->num_pcores) {
+        return;
+    }
+
+    vps->redirect = data & (GCR_CL_REDIRECT_VP_MSK | GCR_CL_REDIRECT_CORE_MSK);
+}
+
 /* Write GCR registers */
 static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    MIPSGCRState *gcr = (MIPSGCRState *)opaque;
-    MIPSGCRVPState *current_vps = &gcr->vps[current_cpu->cpu_index];
-    MIPSGCRVPState *other_vps = &gcr->vps[current_vps->other];
+    MIPSGCRState *gcr = (MIPSGCRState *) opaque;
+    int redirect_corenum = mips_gcr_get_redirect_corenum(gcr);
+    int redirect_vpid = mips_gcr_get_redirect_vpid(gcr);
+    int redirect_vpnum = mips_gcr_get_redirect_vpnum(gcr);
+    int current_corenum = mips_gcr_get_current_corenum(gcr);
+    int current_vpid = mips_gcr_get_current_vpid(gcr);
+    MIPSGCRPCoreState *current_pcore = &gcr->pcs[current_corenum];
+    MIPSGCRVPState *current_vps = &current_pcore->vps[current_vpid];
+    MIPSGCRPCoreState *other_pcore = &gcr->pcs[redirect_corenum];
+    MIPSGCRVPState *other_vps = &other_pcore->vps[redirect_vpid];
 
     switch (addr) {
     case GCR_BASE_OFS:
@@ -140,6 +189,25 @@ static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
     case GCR_CPC_BASE_OFS:
         update_cpc_base(gcr, data);
         break;
+    case GCR_SCRATCH0_OFS:
+        gcr->scratch[0] = data;
+        break;
+    case GCR_SCRATCH1_OFS:
+        gcr->scratch[1] = data;
+        break;
+    case GCR_SEM_OFS:
+        /* Write is inhibited if the SEM_LOCK bit is already 1 */
+        if ((data & GCR_SEM_LOCK_MASK) && (gcr->sem & GCR_SEM_LOCK_MASK)) {
+            break;
+        }
+        gcr->sem = data;
+        break;
+    case MIPS_CLCB_OFS + GCR_CL_COH_EN_OFS:
+        current_pcore->coh_en = data & 1;
+        break;
+    case MIPS_COCB_OFS + GCR_CL_COH_EN_OFS:
+        other_pcore->coh_en = data & 1;
+        break;
     case MIPS_CLCB_OFS + GCR_CL_RESETBASE_OFS:
         current_vps->reset_base = data & GCR_CL_RESET_BASE_MSK;
         cpu_set_exception_base(current_cpu->cpu_index,
@@ -147,18 +215,17 @@ static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
         break;
     case MIPS_COCB_OFS + GCR_CL_RESETBASE_OFS:
         other_vps->reset_base = data & GCR_CL_RESET_BASE_MSK;
-        cpu_set_exception_base(current_vps->other,
+        cpu_set_exception_base(redirect_vpnum,
                                get_exception_base(other_vps));
         break;
-    case MIPS_CLCB_OFS + GCR_CL_OTHER_OFS:
-        if ((data & GCR_CL_OTHER_MSK) < gcr->num_vps) {
-            current_vps->other = data & GCR_CL_OTHER_MSK;
-        }
+    case MIPS_CLCB_OFS + GCR_CL_REDIRECT_OFS:
+        set_redirect(gcr, current_vps, data);
         break;
-    case MIPS_COCB_OFS + GCR_CL_OTHER_OFS:
-        if ((data & GCR_CL_OTHER_MSK) < gcr->num_vps) {
-            other_vps->other = data & GCR_CL_OTHER_MSK;
-        }
+    case MIPS_COCB_OFS + GCR_CL_SCRATCH_OFS:
+        other_vps->scratch = data;
+        break;
+    case MIPS_COCB_OFS + GCR_CL_REDIRECT_OFS:
+        set_redirect(gcr, other_vps, data);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "Write %d bytes at GCR offset 0x%" HWADDR_PRIx
@@ -189,30 +256,67 @@ static void mips_gcr_init(Object *obj)
 static void mips_gcr_reset(DeviceState *dev)
 {
     MIPSGCRState *s = MIPS_GCR(dev);
-    int i;
+    int pc, vp;
 
+    update_gcr_base(s, s->gcr_base);
     update_gic_base(s, 0);
     update_cpc_base(s, 0);
 
-    for (i = 0; i < s->num_vps; i++) {
-        s->vps[i].other = 0;
-        s->vps[i].reset_base = 0xBFC00000 & GCR_CL_RESET_BASE_MSK;
-        cpu_set_exception_base(i, get_exception_base(&s->vps[i]));
+    for (pc = 0; pc < s->num_pcores; pc++) {
+        s->pcs[pc].coh_en = 1;
+        for (vp = 0; vp < s->num_vps; vp++) {
+            int vpnum = pc * s->num_vps + vp;
+
+            s->pcs[pc].vps[vp].redirect = 0;
+            s->pcs[pc].vps[vp].reset_base = 0xBFC00000 & GCR_CL_RESET_BASE_MSK;
+            cpu_set_exception_base(vpnum, get_exception_base(&s->pcs[pc].vps[vp]));
+        }
     }
 }
 
-static const VMStateDescription vmstate_mips_gcr = {
-    .name = "mips-gcr",
+static const VMStateDescription vmstate_mips_gcr_vps = {
+    .name = "mips-gcr/vps",
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(redirect, MIPSGCRVPState),
+        VMSTATE_UINT64(reset_base, MIPSGCRVPState),
+        VMSTATE_UINT64(scratch, MIPSGCRVPState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_mips_gcr_pcs = {
+    .name = "mips-gcr/pcs",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT32(num_vps, MIPSGCRPCoreState),
+        VMSTATE_UINT32(coh_en, MIPSGCRPCoreState),
+        VMSTATE_STRUCT_VARRAY_ALLOC(vps, MIPSGCRPCoreState, num_vps, 0,
+                            vmstate_mips_gcr_vps, MIPSGCRVPState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_mips_gcr = {
+    .name = "mips-gcr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(scratch, MIPSGCRState, 2),
+        VMSTATE_UINT32(sem, MIPSGCRState),
         VMSTATE_UINT64(cpc_base, MIPSGCRState),
+        VMSTATE_UINT64(gic_base, MIPSGCRState),
+        VMSTATE_STRUCT_VARRAY_ALLOC(pcs, MIPSGCRState, num_pcores, 0,
+                            vmstate_mips_gcr_pcs, MIPSGCRPCoreState),
         VMSTATE_END_OF_LIST()
     },
 };
 
 static Property mips_gcr_properties[] = {
-    DEFINE_PROP_UINT32("num-vp", MIPSGCRState, num_vps, 1),
+    DEFINE_PROP_INT32("num-pcores", MIPSGCRState, num_pcores, 1),
+    DEFINE_PROP_INT32("num-vp", MIPSGCRState, num_vps, 1),
     DEFINE_PROP_INT32("gcr-rev", MIPSGCRState, gcr_rev, 0x800),
     DEFINE_PROP_UINT64("gcr-base", MIPSGCRState, gcr_base, GCR_BASE_ADDR),
     DEFINE_PROP_LINK("gic", MIPSGCRState, gic_mr, TYPE_MEMORY_REGION,
@@ -226,8 +330,12 @@ static void mips_gcr_realize(DeviceState *dev, Error **errp)
 {
     MIPSGCRState *s = MIPS_GCR(dev);
 
-    /* Create local set of registers for each VP */
-    s->vps = g_new(MIPSGCRVPState, s->num_vps);
+    /* Create local set of registers for each VP and each pcore */
+    s->pcs = g_new(MIPSGCRPCoreState, s->num_pcores);
+    for (int i = 0; i < s->num_pcores; i++) {
+        s->pcs[i].num_vps = s->num_vps;
+        s->pcs[i].vps = g_new(MIPSGCRVPState, s->num_vps);
+    }
 }
 
 static void mips_gcr_class_init(ObjectClass *klass, void *data)
