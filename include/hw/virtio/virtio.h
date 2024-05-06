@@ -69,6 +69,7 @@ typedef struct VirtQueueElement
     unsigned int ndescs;
     unsigned int out_num;
     unsigned int in_num;
+    bool filled;
     hwaddr *in_addr;
     hwaddr *out_addr;
     struct iovec *in_sg;
