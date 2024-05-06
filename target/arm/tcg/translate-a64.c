@@ -4888,6 +4888,34 @@ static bool do_fp3_scalar(DisasContext *s, arg_rrr_e *a, const FPScalar *f)
     return true;
 }
 
+static const FPScalar f_scalar_fadd = {
+    gen_helper_vfp_addh,
+    gen_helper_vfp_adds,
+    gen_helper_vfp_addd,
+};
+TRANS(FADD_s, do_fp3_scalar, a, &f_scalar_fadd)
+
+static const FPScalar f_scalar_fsub = {
+    gen_helper_vfp_subh,
+    gen_helper_vfp_subs,
+    gen_helper_vfp_subd,
+};
+TRANS(FSUB_s, do_fp3_scalar, a, &f_scalar_fsub)
+
+static const FPScalar f_scalar_fdiv = {
+    gen_helper_vfp_divh,
+    gen_helper_vfp_divs,
+    gen_helper_vfp_divd,
+};
+TRANS(FDIV_s, do_fp3_scalar, a, &f_scalar_fdiv)
+
+static const FPScalar f_scalar_fmul = {
+    gen_helper_vfp_mulh,
+    gen_helper_vfp_muls,
+    gen_helper_vfp_muld,
+};
+TRANS(FMUL_s, do_fp3_scalar, a, &f_scalar_fmul)
+
 static const FPScalar f_scalar_fmulx = {
     gen_helper_advsimd_mulxh,
     gen_helper_vfp_mulxs,
@@ -4922,6 +4950,34 @@ static bool do_fp3_vector(DisasContext *s, arg_qrrr_e *a,
     }
     return true;
 }
+
+static gen_helper_gvec_3_ptr * const f_vector_fadd[3] = {
+    gen_helper_gvec_fadd_h,
+    gen_helper_gvec_fadd_s,
+    gen_helper_gvec_fadd_d,
+};
+TRANS(FADD_v, do_fp3_vector, a, f_vector_fadd)
+
+static gen_helper_gvec_3_ptr * const f_vector_fsub[3] = {
+    gen_helper_gvec_fsub_h,
+    gen_helper_gvec_fsub_s,
+    gen_helper_gvec_fsub_d,
+};
+TRANS(FSUB_v, do_fp3_vector, a, f_vector_fsub)
+
+static gen_helper_gvec_3_ptr * const f_vector_fdiv[3] = {
+    gen_helper_gvec_fdiv_h,
+    gen_helper_gvec_fdiv_s,
+    gen_helper_gvec_fdiv_d,
+};
+TRANS(FDIV_v, do_fp3_vector, a, f_vector_fdiv)
+
+static gen_helper_gvec_3_ptr * const f_vector_fmul[3] = {
+    gen_helper_gvec_fmul_h,
+    gen_helper_gvec_fmul_s,
+    gen_helper_gvec_fmul_d,
+};
+TRANS(FMUL_v, do_fp3_vector, a, f_vector_fmul)
 
 static gen_helper_gvec_3_ptr * const f_vector_fmulx[3] = {
     gen_helper_gvec_fmulx_h,
@@ -4976,6 +5032,7 @@ static bool do_fp3_scalar_idx(DisasContext *s, arg_rrx_e *a, const FPScalar *f)
     return true;
 }
 
+TRANS(FMUL_si, do_fp3_scalar_idx, a, &f_scalar_fmul)
 TRANS(FMULX_si, do_fp3_scalar_idx, a, &f_scalar_fmulx)
 
 static bool do_fp3_vector_idx(DisasContext *s, arg_qrrx_e *a,
@@ -5005,6 +5062,13 @@ static bool do_fp3_vector_idx(DisasContext *s, arg_qrrx_e *a,
     }
     return true;
 }
+
+static gen_helper_gvec_3_ptr * const f_vector_idx_fmul[3] = {
+    gen_helper_gvec_fmul_idx_h,
+    gen_helper_gvec_fmul_idx_s,
+    gen_helper_gvec_fmul_idx_d,
+};
+TRANS(FMUL_vi, do_fp3_vector_idx, a, f_vector_idx_fmul)
 
 static gen_helper_gvec_3_ptr * const f_vector_idx_fmulx[3] = {
     gen_helper_gvec_fmulx_idx_h,
@@ -6828,18 +6892,6 @@ static void handle_fp_2src_single(DisasContext *s, int opcode,
     tcg_op2 = read_fp_sreg(s, rm);
 
     switch (opcode) {
-    case 0x0: /* FMUL */
-        gen_helper_vfp_muls(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x1: /* FDIV */
-        gen_helper_vfp_divs(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x2: /* FADD */
-        gen_helper_vfp_adds(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x3: /* FSUB */
-        gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
     case 0x4: /* FMAX */
         gen_helper_vfp_maxs(tcg_res, tcg_op1, tcg_op2, fpst);
         break;
@@ -6856,6 +6908,12 @@ static void handle_fp_2src_single(DisasContext *s, int opcode,
         gen_helper_vfp_muls(tcg_res, tcg_op1, tcg_op2, fpst);
         gen_helper_vfp_negs(tcg_res, tcg_res);
         break;
+    default:
+    case 0x0: /* FMUL */
+    case 0x1: /* FDIV */
+    case 0x2: /* FADD */
+    case 0x3: /* FSUB */
+        g_assert_not_reached();
     }
 
     write_fp_sreg(s, rd, tcg_res);
@@ -6876,18 +6934,6 @@ static void handle_fp_2src_double(DisasContext *s, int opcode,
     tcg_op2 = read_fp_dreg(s, rm);
 
     switch (opcode) {
-    case 0x0: /* FMUL */
-        gen_helper_vfp_muld(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x1: /* FDIV */
-        gen_helper_vfp_divd(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x2: /* FADD */
-        gen_helper_vfp_addd(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x3: /* FSUB */
-        gen_helper_vfp_subd(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
     case 0x4: /* FMAX */
         gen_helper_vfp_maxd(tcg_res, tcg_op1, tcg_op2, fpst);
         break;
@@ -6904,6 +6950,12 @@ static void handle_fp_2src_double(DisasContext *s, int opcode,
         gen_helper_vfp_muld(tcg_res, tcg_op1, tcg_op2, fpst);
         gen_helper_vfp_negd(tcg_res, tcg_res);
         break;
+    default:
+    case 0x0: /* FMUL */
+    case 0x1: /* FDIV */
+    case 0x2: /* FADD */
+    case 0x3: /* FSUB */
+        g_assert_not_reached();
     }
 
     write_fp_dreg(s, rd, tcg_res);
@@ -6924,18 +6976,6 @@ static void handle_fp_2src_half(DisasContext *s, int opcode,
     tcg_op2 = read_fp_hreg(s, rm);
 
     switch (opcode) {
-    case 0x0: /* FMUL */
-        gen_helper_advsimd_mulh(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x1: /* FDIV */
-        gen_helper_advsimd_divh(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x2: /* FADD */
-        gen_helper_advsimd_addh(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x3: /* FSUB */
-        gen_helper_advsimd_subh(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
     case 0x4: /* FMAX */
         gen_helper_advsimd_maxh(tcg_res, tcg_op1, tcg_op2, fpst);
         break;
@@ -6953,6 +6993,10 @@ static void handle_fp_2src_half(DisasContext *s, int opcode,
         tcg_gen_xori_i32(tcg_res, tcg_res, 0x8000);
         break;
     default:
+    case 0x0: /* FMUL */
+    case 0x1: /* FDIV */
+    case 0x2: /* FADD */
+    case 0x3: /* FSUB */
         g_assert_not_reached();
     }
 
@@ -9174,9 +9218,6 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             case 0x18: /* FMAXNM */
                 gen_helper_vfp_maxnumd(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x1a: /* FADD */
-                gen_helper_vfp_addd(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x1c: /* FCMEQ */
                 gen_helper_neon_ceq_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
@@ -9189,26 +9230,17 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             case 0x38: /* FMINNM */
                 gen_helper_vfp_minnumd(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x3a: /* FSUB */
-                gen_helper_vfp_subd(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x3e: /* FMIN */
                 gen_helper_vfp_mind(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x3f: /* FRSQRTS */
                 gen_helper_rsqrtsf_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x5b: /* FMUL */
-                gen_helper_vfp_muld(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x5c: /* FCMGE */
                 gen_helper_neon_cge_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x5d: /* FACGE */
                 gen_helper_neon_acge_f64(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x5f: /* FDIV */
-                gen_helper_vfp_divd(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x7a: /* FABD */
                 gen_helper_vfp_subd(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -9221,7 +9253,11 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 gen_helper_neon_acgt_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             default:
+            case 0x1a: /* FADD */
             case 0x1b: /* FMULX */
+            case 0x3a: /* FSUB */
+            case 0x5b: /* FMUL */
+            case 0x5f: /* FDIV */
                 g_assert_not_reached();
             }
 
@@ -9245,9 +9281,6 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 gen_helper_vfp_muladds(tcg_res, tcg_op1, tcg_op2,
                                        tcg_res, fpst);
                 break;
-            case 0x1a: /* FADD */
-                gen_helper_vfp_adds(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x1c: /* FCMEQ */
                 gen_helper_neon_ceq_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
@@ -9263,26 +9296,17 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             case 0x38: /* FMINNM */
                 gen_helper_vfp_minnums(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x3a: /* FSUB */
-                gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x3e: /* FMIN */
                 gen_helper_vfp_mins(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x3f: /* FRSQRTS */
                 gen_helper_rsqrtsf_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x5b: /* FMUL */
-                gen_helper_vfp_muls(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x5c: /* FCMGE */
                 gen_helper_neon_cge_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x5d: /* FACGE */
                 gen_helper_neon_acge_f32(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x5f: /* FDIV */
-                gen_helper_vfp_divs(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x7a: /* FABD */
                 gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -9295,7 +9319,11 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 gen_helper_neon_acgt_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             default:
+            case 0x1a: /* FADD */
             case 0x1b: /* FMULX */
+            case 0x3a: /* FSUB */
+            case 0x5b: /* FMUL */
+            case 0x5f: /* FDIV */
                 g_assert_not_reached();
             }
 
@@ -11218,15 +11246,11 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
     case 0x19: /* FMLA */
     case 0x39: /* FMLS */
     case 0x18: /* FMAXNM */
-    case 0x1a: /* FADD */
     case 0x1c: /* FCMEQ */
     case 0x1e: /* FMAX */
     case 0x38: /* FMINNM */
-    case 0x3a: /* FSUB */
     case 0x3e: /* FMIN */
-    case 0x5b: /* FMUL */
     case 0x5c: /* FCMGE */
-    case 0x5f: /* FDIV */
     case 0x7a: /* FABD */
     case 0x7c: /* FCMGT */
         if (!fp_access_check(s)) {
@@ -11256,7 +11280,11 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
         return;
 
     default:
+    case 0x1a: /* FADD */
     case 0x1b: /* FMULX */
+    case 0x3a: /* FSUB */
+    case 0x5b: /* FMUL */
+    case 0x5f: /* FDIV */
         unallocated_encoding(s);
         return;
     }
@@ -11600,19 +11628,15 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
     switch (fpopcode) {
     case 0x0: /* FMAXNM */
     case 0x1: /* FMLA */
-    case 0x2: /* FADD */
     case 0x4: /* FCMEQ */
     case 0x6: /* FMAX */
     case 0x7: /* FRECPS */
     case 0x8: /* FMINNM */
     case 0x9: /* FMLS */
-    case 0xa: /* FSUB */
     case 0xe: /* FMIN */
     case 0xf: /* FRSQRTS */
-    case 0x13: /* FMUL */
     case 0x14: /* FCMGE */
     case 0x15: /* FACGE */
-    case 0x17: /* FDIV */
     case 0x1a: /* FABD */
     case 0x1c: /* FCMGT */
     case 0x1d: /* FACGT */
@@ -11626,7 +11650,11 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
         pairwise = true;
         break;
     default:
+    case 0x2: /* FADD */
     case 0x3: /* FMULX */
+    case 0xa: /* FSUB */
+    case 0x13: /* FMUL */
+    case 0x17: /* FDIV */
         unallocated_encoding(s);
         return;
     }
@@ -11700,9 +11728,6 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
                 gen_helper_advsimd_muladdh(tcg_res, tcg_op1, tcg_op2, tcg_res,
                                            fpst);
                 break;
-            case 0x2: /* FADD */
-                gen_helper_advsimd_addh(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x4: /* FCMEQ */
                 gen_helper_advsimd_ceq_f16(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
@@ -11722,26 +11747,17 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
                 gen_helper_advsimd_muladdh(tcg_res, tcg_op1, tcg_op2, tcg_res,
                                            fpst);
                 break;
-            case 0xa: /* FSUB */
-                gen_helper_advsimd_subh(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0xe: /* FMIN */
                 gen_helper_advsimd_minh(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0xf: /* FRSQRTS */
                 gen_helper_rsqrtsf_f16(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x13: /* FMUL */
-                gen_helper_advsimd_mulh(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x14: /* FCMGE */
                 gen_helper_advsimd_cge_f16(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x15: /* FACGE */
                 gen_helper_advsimd_acge_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x17: /* FDIV */
-                gen_helper_advsimd_divh(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x1a: /* FABD */
                 gen_helper_advsimd_subh(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -11754,7 +11770,11 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
                 gen_helper_advsimd_acgt_f16(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             default:
+            case 0x2: /* FADD */
             case 0x3: /* FMULX */
+            case 0xa: /* FSUB */
+            case 0x13: /* FMUL */
+            case 0x17: /* FDIV */
                 g_assert_not_reached();
             }
 
@@ -12973,7 +12993,6 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         break;
     case 0x01: /* FMLA */
     case 0x05: /* FMLS */
-    case 0x09: /* FMUL */
         is_fp = 1;
         break;
     case 0x1d: /* SQRDMLAH */
@@ -13042,6 +13061,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         /* is_fp, but we pass tcg_env not fp_status.  */
         break;
     default:
+    case 0x09: /* FMUL */
     case 0x19: /* FMULX */
         unallocated_encoding(s);
         return;
@@ -13263,10 +13283,8 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                 read_vec_element(s, tcg_res, rd, pass, MO_64);
                 gen_helper_vfp_muladdd(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
                 break;
-            case 0x09: /* FMUL */
-                gen_helper_vfp_muld(tcg_res, tcg_op, tcg_idx, fpst);
-                break;
             default:
+            case 0x09: /* FMUL */
             case 0x19: /* FMULX */
                 g_assert_not_reached();
             }
@@ -13362,24 +13380,6 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                     g_assert_not_reached();
                 }
                 break;
-            case 0x09: /* FMUL */
-                switch (size) {
-                case 1:
-                    if (is_scalar) {
-                        gen_helper_advsimd_mulh(tcg_res, tcg_op,
-                                                tcg_idx, fpst);
-                    } else {
-                        gen_helper_advsimd_mul2h(tcg_res, tcg_op,
-                                                 tcg_idx, fpst);
-                    }
-                    break;
-                case 2:
-                    gen_helper_vfp_muls(tcg_res, tcg_op, tcg_idx, fpst);
-                    break;
-                default:
-                    g_assert_not_reached();
-                }
-                break;
             case 0x0c: /* SQDMULH */
                 if (size == 1) {
                     gen_helper_neon_qdmulh_s16(tcg_res, tcg_env,
@@ -13421,6 +13421,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                 }
                 break;
             default:
+            case 0x09: /* FMUL */
             case 0x19: /* FMULX */
                 g_assert_not_reached();
             }
