@@ -131,6 +131,8 @@ def test_frontend(fname):
             print('    feature=%s\n%s' % (feat, section.text))
         for section in doc.sections:
             print('    section=%s\n%s' % (section.tag, section.text))
+        if doc.since:
+            print('    section=%s\n%s' % (doc.since.tag, doc.since.text))
 
 
 def open_test_result(dir_name, file_name, update):

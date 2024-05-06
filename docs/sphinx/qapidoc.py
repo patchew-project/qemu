@@ -250,6 +250,13 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         section += dlnode
         return [section]
 
+    def _nodes_for_since(self, doc):
+        if doc.since:
+            section = self._make_section('Since')
+            self._parse_text_into_node(doc.since.text, section)
+            return [section]
+        return []
+
     def _nodes_for_example(self, exampletext):
         """Return list of doctree nodes for a code example snippet"""
         return [nodes.literal_block(exampletext, exampletext)]
@@ -305,7 +312,8 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                       self._nodes_for_enum_values(doc)
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
+                      + self._nodes_for_if_section(ifcond)
+                      + self._nodes_for_since(doc))
 
     def visit_object_type(self, name, info, ifcond, features,
                           base, members, variants):
@@ -316,7 +324,8 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                       self._nodes_for_members(doc, 'Members', base, variants)
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
+                      + self._nodes_for_if_section(ifcond)
+                      + self._nodes_for_since(doc))
 
     def visit_alternate_type(self, name, info, ifcond, features, variants):
         doc = self._cur_doc
@@ -324,7 +333,8 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                       self._nodes_for_members(doc, 'Members')
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
+                      + self._nodes_for_if_section(ifcond)
+                      + self._nodes_for_since(doc))
 
     def visit_command(self, name, info, ifcond, features, arg_type,
                       ret_type, gen, success_response, boxed, allow_oob,
@@ -335,7 +345,8 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                                                 arg_type if boxed else None)
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
+                      + self._nodes_for_if_section(ifcond)
+                      + self._nodes_for_since(doc))
 
     def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         doc = self._cur_doc
@@ -344,7 +355,8 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                                                 arg_type if boxed else None)
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
+                      + self._nodes_for_if_section(ifcond)
+                      + self._nodes_for_since(doc))
 
     def symbol(self, doc, entity):
         """Add documentation for one symbol to the document tree
