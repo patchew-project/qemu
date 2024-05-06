@@ -150,7 +150,7 @@ bool vfio_viommu_preset(VFIODevice *vbasedev)
 static void vfio_set_migration_error(int err)
 {
     if (migration_is_setup_or_active()) {
-        migration_file_set_error(err);
+        migration_file_set_error(err, NULL);
     }
 }
 
