@@ -30,6 +30,10 @@
 #define CPC_CO_BASE_OFS     0x4000
 
 /* CPC register offsets relative to block offsets */
+#define CPC_CL_CMD_OFS      0x00
+#define CPC_CL_STAT_CONF_OFS    0x08
+#define CPC_CL_STAT_CONF_SEQ_STATE_SHF  19
+#define CPC_CL_STAT_CONF_SEQ_STATE_U6   7
 #define CPC_VP_STOP_OFS     0x20
 #define CPC_VP_RUN_OFS      0x28
 #define CPC_VP_RUNNING_OFS  0x30
@@ -37,14 +41,21 @@
 #define TYPE_MIPS_CPC "mips-cpc"
 OBJECT_DECLARE_SIMPLE_TYPE(MIPSCPCState, MIPS_CPC)
 
+typedef struct MIPSCPCPCoreState MIPSCPCPCoreState;
+struct MIPSCPCPCoreState {
+    uint64_t vp_running;
+};
+
 struct MIPSCPCState {
     SysBusDevice parent_obj;
 
-    uint32_t num_vp;
+    int32_t num_pcores;
+    int32_t num_vp;
     uint64_t vp_start_running; /* VPs running from restart */
+    MIPSGCRState *gcr;
 
     MemoryRegion mr;
-    uint64_t vp_running; /* Indicates which VPs are in the run state */
+    MIPSCPCPCoreState *pcs;
 };
 
 #endif /* MIPS_CPC_H */

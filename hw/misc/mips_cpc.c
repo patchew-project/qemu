@@ -25,8 +25,24 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 
+#include "hw/misc/mips_cmgcr.h"
 #include "hw/misc/mips_cpc.h"
 #include "hw/qdev-properties.h"
+
+static inline int cpc_vpnum_to_corenum(MIPSCPCState *cpc, int vpnum)
+{
+    return vpnum / cpc->num_vp;
+}
+
+static inline int cpc_vpnum_to_vpid(MIPSCPCState *cpc, int vpnum)
+{
+    return vpnum % cpc->num_vp;
+}
+
+static inline MIPSCPCPCoreState *cpc_vpnum_to_pcs(MIPSCPCState *cpc, int vpnum)
+{
+    return &cpc->pcs[cpc_vpnum_to_corenum(cpc, vpnum)];
+}
 
 static inline uint64_t cpc_vp_run_mask(MIPSCPCState *cpc)
 {
@@ -39,36 +55,41 @@ static void mips_cpu_reset_async_work(CPUState *cs, run_on_cpu_data data)
 
     cpu_reset(cs);
     cs->halted = 0;
-    cpc->vp_running |= 1ULL << cs->cpu_index;
+    cpc_vpnum_to_pcs(cpc, cs->cpu_index)->vp_running |=
+            1 << cpc_vpnum_to_vpid(cpc, cs->cpu_index);
 }
 
-static void cpc_run_vp(MIPSCPCState *cpc, uint64_t vp_run)
+static void cpc_run_vp(MIPSCPCState *cpc, int pcore, uint64_t vp_run)
 {
-    CPUState *cs = first_cpu;
+    MIPSCPCPCoreState *pcs = &cpc->pcs[pcore];
 
-    CPU_FOREACH(cs) {
-        uint64_t i = 1ULL << cs->cpu_index;
-        if (i & vp_run & ~cpc->vp_running) {
+    for (int vpid = 0; vpid < cpc->num_vp; vpid++) {
+        if ((1 << vpid) & vp_run & ~pcs->vp_running) {
+            int vpnum = pcore * cpc->num_vp + vpid;
             /*
              * To avoid racing with a CPU we are just kicking off.
              * We do the final bit of preparation for the work in
              * the target CPUs context.
              */
-            async_safe_run_on_cpu(cs, mips_cpu_reset_async_work,
-                                  RUN_ON_CPU_HOST_PTR(cpc));
+            async_safe_run_on_cpu(qemu_get_cpu(vpnum),
+                                    mips_cpu_reset_async_work,
+                                    RUN_ON_CPU_HOST_PTR(cpc));
+            pcs->vp_running |= 1 << vpid;
         }
     }
 }
 
-static void cpc_stop_vp(MIPSCPCState *cpc, uint64_t vp_stop)
+static void cpc_stop_vp(MIPSCPCState *cpc, int pcore, uint64_t vp_stop)
 {
-    CPUState *cs = first_cpu;
+    MIPSCPCPCoreState *pcs = &cpc->pcs[pcore];
 
-    CPU_FOREACH(cs) {
-        uint64_t i = 1ULL << cs->cpu_index;
-        if (i & vp_stop & cpc->vp_running) {
+    for (int vpid = 0; vpid < cpc->num_vp; vpid++) {
+        if ((1 << vpid) & vp_stop & pcs->vp_running) {
+            int vpnum = pcore * cpc->num_vp + vpid;
+            CPUState *cs = qemu_get_cpu(vpnum);
+
             cpu_interrupt(cs, CPU_INTERRUPT_HALT);
-            cpc->vp_running &= ~i;
+            pcs->vp_running &= ~(1 << vpid);
         }
     }
 }
@@ -77,15 +98,20 @@ static void cpc_write(void *opaque, hwaddr offset, uint64_t data,
                       unsigned size)
 {
     MIPSCPCState *s = opaque;
+    int current_corenum = cpc_vpnum_to_corenum(s, current_cpu->cpu_index);
 
     switch (offset) {
     case CPC_CL_BASE_OFS + CPC_VP_RUN_OFS:
+        cpc_run_vp(s, current_corenum, data);
+        break;
     case CPC_CO_BASE_OFS + CPC_VP_RUN_OFS:
-        cpc_run_vp(s, data & cpc_vp_run_mask(s));
+        cpc_run_vp(s, mips_gcr_get_redirect_corenum(s->gcr), data);
         break;
     case CPC_CL_BASE_OFS + CPC_VP_STOP_OFS:
+        cpc_stop_vp(s, current_corenum, data);
+        break;
     case CPC_CO_BASE_OFS + CPC_VP_STOP_OFS:
-        cpc_stop_vp(s, data & cpc_vp_run_mask(s));
+        cpc_stop_vp(s, mips_gcr_get_redirect_corenum(s->gcr), data);
         break;
     default:
         qemu_log_mask(LOG_UNIMP,
@@ -101,9 +127,13 @@ static uint64_t cpc_read(void *opaque, hwaddr offset, unsigned size)
     MIPSCPCState *s = opaque;
 
     switch (offset) {
+    case CPC_CL_BASE_OFS + CPC_CL_STAT_CONF_OFS:
+    case CPC_CO_BASE_OFS + CPC_CL_STAT_CONF_OFS:
+        return CPC_CL_STAT_CONF_SEQ_STATE_U6 << CPC_CL_STAT_CONF_SEQ_STATE_SHF;
     case CPC_CL_BASE_OFS + CPC_VP_RUNNING_OFS:
+        return cpc_vpnum_to_pcs(s, current_cpu->cpu_index)->vp_running;
     case CPC_CO_BASE_OFS + CPC_VP_RUNNING_OFS:
-        return s->vp_running;
+        return s->pcs[mips_gcr_get_redirect_corenum(s->gcr)].vp_running;
     default:
         qemu_log_mask(LOG_UNIMP,
                       "%s: Bad offset 0x%x\n",  __func__, (int)offset);
@@ -137,9 +167,11 @@ static void mips_cpc_realize(DeviceState *dev, Error **errp)
     if (s->vp_start_running > cpc_vp_run_mask(s)) {
         error_setg(errp,
                    "incorrect vp_start_running 0x%" PRIx64 " for num_vp = %d",
-                   s->vp_running, s->num_vp);
+                   s->vp_start_running, s->num_vp);
         return;
     }
+
+    s->pcs = g_new(MIPSCPCPCoreState, s->num_pcores);
 }
 
 static void mips_cpc_reset(DeviceState *dev)
@@ -147,25 +179,40 @@ static void mips_cpc_reset(DeviceState *dev)
     MIPSCPCState *s = MIPS_CPC(dev);
 
     /* Reflect the fact that all VPs are halted on reset */
-    s->vp_running = 0;
+    for (int i = 0; i < s->num_pcores; i++) {
+        s->pcs[i].vp_running = 0;
+    }
 
-    /* Put selected VPs into run state */
-    cpc_run_vp(s, s->vp_start_running);
+    /* Put selected VPs on core 0 into run state */
+    cpc_run_vp(s, 0, s->vp_start_running);
 }
 
-static const VMStateDescription vmstate_mips_cpc = {
-    .name = "mips-cpc",
+static const VMStateDescription vmstate_mips_cpc_pcs = {
+    .name = "mips-cpc/pcs",
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(vp_running, MIPSCPCState),
+        VMSTATE_UINT64(vp_running, MIPSCPCPCoreState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_mips_cpc = {
+    .name = "mips-cpc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_STRUCT_VARRAY_ALLOC(pcs, MIPSCPCState, num_pcores, 0,
+                                    vmstate_mips_cpc_pcs, MIPSCPCPCoreState),
         VMSTATE_END_OF_LIST()
     },
 };
 
 static Property mips_cpc_properties[] = {
-    DEFINE_PROP_UINT32("num-vp", MIPSCPCState, num_vp, 0x1),
+    DEFINE_PROP_INT32("num-vp", MIPSCPCState, num_vp, 0x1),
+    DEFINE_PROP_INT32("num-pcore", MIPSCPCState, num_pcores, 0x1),
     DEFINE_PROP_UINT64("vp-start-running", MIPSCPCState, vp_start_running, 0x1),
+    DEFINE_PROP_LINK("gcr", MIPSCPCState, gcr, TYPE_MIPS_GCR, MIPSGCRState *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
