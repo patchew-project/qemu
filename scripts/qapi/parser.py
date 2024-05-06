@@ -646,7 +646,7 @@ class QAPIDoc:
         self.errors: Optional[QAPIDoc.Section] = None
         # "Since" section
         self.since: Optional[QAPIDoc.Section] = None
-        # sections other than .body, .args, .features, .since
+        # sections other than .body, .args, .features, .returns, .since
         self.sections: List[QAPIDoc.Section] = []
 
     def end(self) -> None:
@@ -683,7 +683,7 @@ class QAPIDoc:
                 raise QAPISemError(
                     info, "duplicated '%s' section" % tag)
             self.since = section
-        if tag != 'Since':
+        if tag not in ('Returns', 'Since'):
             self.sections.append(section)
         self.all_sections.append(section)
 

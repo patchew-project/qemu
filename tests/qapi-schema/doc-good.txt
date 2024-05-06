@@ -184,6 +184,12 @@ Arguments
    Not documented
 
 
+Returns
+~~~~~~~
+
+"Object"
+
+
 Features
 ~~~~~~~~
 
@@ -198,12 +204,6 @@ Note
 ~~~~
 
 "arg3" is undocumented
-
-
-Returns
-~~~~~~~
-
-"Object"
 
 
 Errors

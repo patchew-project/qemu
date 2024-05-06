@@ -165,14 +165,14 @@ description starts on the same line
 remainder indented differently
     arg=arg3
 
+    section=Returns
+@Object
     feature=cmd-feat1
 a feature
     feature=cmd-feat2
 another feature
     section=Note
 @arg3 is undocumented
-    section=Returns
-@Object
     section=Errors
 some
     section=TODO

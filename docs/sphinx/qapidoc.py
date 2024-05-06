@@ -250,6 +250,13 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         section += dlnode
         return [section]
 
+    def _nodes_for_returns(self, doc, ret_type):
+        if doc.returns:
+            section = self._make_section('Returns')
+            self._parse_text_into_node(doc.returns.text, section)
+            return [section]
+        return []
+
     def _nodes_for_since(self, doc):
         if doc.since:
             # TODO emphasis
@@ -344,6 +351,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         self._add_doc('Command',
                       self._nodes_for_arguments(doc,
                                                 arg_type if boxed else None)
+                      + self._nodes_for_returns(doc, ret_type)
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
                       + self._nodes_for_if_section(ifcond)
