@@ -580,7 +580,6 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(cdev);
     VFIODevice *vbasedev = &vcdev->vdev;
     Error *err = NULL;
-    int ret;
 
     /* Call the class init function for subchannel. */
     if (cdc->realize) {
@@ -594,9 +593,8 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    ret = vfio_attach_device(cdev->mdevid, vbasedev,
-                             &address_space_memory, errp);
-    if (ret) {
+    if (!vfio_attach_device(cdev->mdevid, vbasedev,
+                            &address_space_memory, errp)) {
         goto out_attach_dev_err;
     }
 
