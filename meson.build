@@ -3051,13 +3051,19 @@ foreach target : target_dirs
     error('No accelerator available for target @0@'.format(target))
   endif
 
-  actual_target_dirs += target
   config_target += keyval.load('configs/targets' / target + '.mak')
   config_target += { 'TARGET_' + config_target['TARGET_ARCH'].to_upper(): 'y' }
 
-  if 'TARGET_NEED_FDT' in config_target
-    fdt_required += target
+  if 'TARGET_NEED_FDT' in config_target and not fdt.found()
+    if default_targets
+      warning('Disabling ' + target + 'due to missing libfdt')
+    else
+      fdt_required += target
+    endif
+    continue
   endif
+
+  actual_target_dirs += target
 
   # Add default keys
   if 'TARGET_BASE_ARCH' not in config_target
@@ -3146,7 +3152,7 @@ genh += custom_target('config-poison.h',
                       command: [find_program('scripts/make-config-poison.sh'),
                                 target_configs_h])
 
-if fdt_required.length() > 0 and not fdt.found()
+if fdt_required.length() > 0
   error('fdt disabled but required by targets ' + ', '.join(fdt_required))
 endif
 
