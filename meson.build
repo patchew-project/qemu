@@ -1858,6 +1858,30 @@ if numa.found() and not cc.links('''
   endif
 endif
 
+fdt = not_found
+if get_option('fdt').disable_auto_if(not have_system).allowed()
+  fdt = cc.find_library('fdt', required: false)
+  if fdt.found()
+    if not cc.links('''
+      #include <libfdt.h>
+      #include <libfdt_env.h>
+      int main(void) { fdt_find_max_phandle(NULL, NULL); return 0; }''',
+        dependencies: fdt)
+      libfdt_proj = subproject('dtc', required: get_option('fdt'),
+                               default_options: ['tools=false',  'yaml=disabled',
+                                                 'python=disabled', 'default_library=static'])
+      fdt = libfdt_proj.get_variable('libfdt_dep')
+    endif
+    if not fdt.found()
+      if get_option('fdt').enabled()
+        error('libfdt found but too old (1.5.1 or newer required)')
+      else
+        warning('libfdt found but too old (1.5.1 or newer required)')
+      endif
+    endif
+  endif
+endif
+
 rdma = not_found
 if not get_option('rdma').auto() or have_system
   libumad = cc.find_library('ibumad', required: get_option('rdma'))
@@ -2199,6 +2223,7 @@ config_host_data.set('CONFIG_BSD', host_os in bsd_oses)
 config_host_data.set('CONFIG_CAPSTONE', capstone.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_DARWIN', host_os == 'darwin')
+config_host_data.set('CONFIG_FDT', fdt.found())
 config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
 config_host_data.set('CONFIG_GCOV', get_option('b_coverage'))
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
@@ -3120,6 +3145,10 @@ genh += custom_target('config-poison.h',
                       command: [find_program('scripts/make-config-poison.sh'),
                                 target_configs_h])
 
+if fdt_required.length() > 0 and not fdt.found()
+  error('fdt disabled but required by targets ' + ', '.join(fdt_required))
+endif
+
 ###############
 # Subprojects #
 ###############
@@ -3129,44 +3158,6 @@ if have_system and vfio_user_server_allowed
   libvfio_user_proj = subproject('libvfio-user', required: true)
   libvfio_user_dep = libvfio_user_proj.get_variable('libvfio_user_dep')
 endif
-
-fdt = not_found
-fdt_opt = get_option('fdt')
-if fdt_required.length() > 0 or fdt_opt == 'enabled'
-  if fdt_opt == 'disabled'
-    error('fdt disabled but required by targets ' + ', '.join(fdt_required))
-  endif
-
-  if fdt_opt in ['enabled', 'auto', 'system']
-    if get_option('wrap_mode') == 'nodownload'
-      fdt_opt = 'system'
-    endif
-    fdt = cc.find_library('fdt', required: fdt_opt == 'system')
-    if fdt.found() and cc.links('''
-       #include <libfdt.h>
-       #include <libfdt_env.h>
-       int main(void) { fdt_find_max_phandle(NULL, NULL); return 0; }''',
-         dependencies: fdt)
-      fdt_opt = 'system'
-    elif fdt_opt == 'system'
-       error('system libfdt requested, but it is too old (1.5.1 or newer required)')
-    else
-      fdt_opt = 'internal'
-      fdt = not_found
-    endif
-  endif
-  if not fdt.found()
-    assert(fdt_opt == 'internal')
-    libfdt_proj = subproject('dtc', required: true,
-                             default_options: ['tools=false',  'yaml=disabled',
-                                               'python=disabled', 'default_library=static'])
-    fdt = libfdt_proj.get_variable('libfdt_dep')
-  endif
-else
-  fdt_opt = 'disabled'
-endif
-
-config_host_data.set('CONFIG_FDT', fdt.found())
 
 vhost_user = not_found
 if host_os == 'linux' and have_vhost_user
@@ -4411,7 +4402,7 @@ summary_info += {'Linux AIO support': libaio}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}
 summary_info += {'RDMA support':      rdma}
-summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
+summary_info += {'fdt support':       fdt}
 summary_info += {'libcap-ng support': libcap_ng}
 summary_info += {'bpf support':       libbpf}
 summary_info += {'rbd support':       rbd}
