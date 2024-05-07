@@ -32,7 +32,7 @@ if have_tpm
 endif
 
 system_ss.add(when: seccomp, if_true: files('qemu-seccomp.c'))
-system_ss.add(when: fdt, if_true: files('device_tree.c'))
+system_ss.add(when: 'CONFIG_DEVICE_TREE', if_true: [fdt, files('device_tree.c')])
 if host_os == 'linux'
   system_ss.add(files('async-teardown.c'))
 endif
