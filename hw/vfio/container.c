@@ -505,7 +505,7 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
     }
 }
 
-static int vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
+static bool vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
 {
     VFIOContainer *container = container_of(bcontainer, VFIOContainer,
                                             bcontainer);
@@ -515,7 +515,7 @@ static int vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
     ret = vfio_get_iommu_info(container, &info);
     if (ret) {
         error_setg_errno(errp, -ret, "Failed to get VFIO IOMMU info");
-        return ret;
+        return false;
     }
 
     if (info->flags & VFIO_IOMMU_INFO_PGSIZES) {
@@ -531,7 +531,7 @@ static int vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
     vfio_get_info_iova_range(info, bcontainer);
 
     vfio_get_iommu_info_migration(container, info);
-    return 0;
+    return true;
 }
 
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
@@ -633,8 +633,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 
     assert(bcontainer->ops->setup);
 
-    ret = bcontainer->ops->setup(bcontainer, errp);
-    if (ret) {
+    if (!bcontainer->ops->setup(bcontainer, errp)) {
+        ret = -EINVAL;
         goto enable_discards_exit;
     }
 
