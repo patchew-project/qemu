@@ -7377,6 +7377,10 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, ppc_cpu_reset_hold, NULL,
                                        &pcc->parent_phases);
 
+    /* CHECK_PROT_ACCESS relies on this MMU access and PAGE bits relation */
+    assert(MMU_DATA_LOAD == 0 && MMU_DATA_STORE == 1 && MMU_INST_FETCH == 2 &&
+           PAGE_READ == 1 && PAGE_WRITE == 2 && PAGE_EXEC == 4);
+
     cc->class_by_name = ppc_cpu_class_by_name;
     cc->has_work = ppc_cpu_has_work;
     cc->mmu_index = ppc_cpu_mmu_index;
