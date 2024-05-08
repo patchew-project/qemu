@@ -1260,7 +1260,6 @@ struct CPUArchState {
     int tlb_per_way; /* Speed-up helper: used to avoid divisions at run time */
     int nb_ways;     /* Number of ways in the TLB set */
     int last_way;    /* Last used way used to allocate TLB in a LRU way */
-    int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
     int nb_pids;     /* Number of available PID registers */
     int tlb_type;    /* Type of TLB we're dealing with */
     ppc_tlb_t tlb;   /* TLB is optional. Allocate them only if needed */
