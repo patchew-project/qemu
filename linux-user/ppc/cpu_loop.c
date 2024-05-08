@@ -332,12 +332,10 @@ void cpu_loop(CPUPPCState *env)
              * in syscalls.
              */
             env->crf[0] &= ~0x1;
-            env->nip += 4;
             ret = do_syscall(env, env->gpr[0], env->gpr[3], env->gpr[4],
                              env->gpr[5], env->gpr[6], env->gpr[7],
                              env->gpr[8], 0, 0);
             if (ret == -QEMU_ERESTARTSYS) {
-                env->nip -= 4;
                 break;
             }
             if (ret == (target_ulong)(-QEMU_ESIGRETURN)) {
