@@ -343,6 +343,17 @@ if __name__ == '__main__':
         def catchall(self, *rec_args, event, timestamp_ns, pid, event_id):
             if self.last_timestamp_ns is None:
                 self.last_timestamp_ns = timestamp_ns
+
+            if timestamp_ns < self.last_timestamp_ns:
+                fields = [
+                    f'{name}={r}' if is_string(type) else f'{name}=0x{r:x}'
+                    for r, (type, name) in zip(rec_args, event.args)
+                ]
+                print(f'WARN: skip unstable timestamp: {event.name} '
+                      f'cur({timestamp_ns})-pre({self.last_timestamp_ns}) {pid=} ' +
+                      f' '.join(fields))
+                return
+
             delta_ns = timestamp_ns - self.last_timestamp_ns
             self.last_timestamp_ns = timestamp_ns
 
