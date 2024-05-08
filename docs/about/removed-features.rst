@@ -505,6 +505,14 @@ configurations (e.g. -smp 8,sockets=0) is removed since 9.0, users have
 to ensure that all the topology members described with -smp are greater
 than zero.
 
+``-device virtio-blk,scsi=on|off`` (since 9.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The virtio-blk SCSI passthrough feature is a legacy VIRTIO feature.  VIRTIO 1.0
+and later do not support it because the virtio-scsi device was introduced for
+full SCSI support.  Use virtio-scsi instead when SCSI passthrough is required.
+
+
 User-mode emulator command line arguments
 -----------------------------------------
 
