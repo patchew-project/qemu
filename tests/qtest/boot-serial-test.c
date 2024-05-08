@@ -129,6 +129,14 @@ static const uint8_t kernel_stm32vldiscovery[] = {
     0x04, 0x38, 0x01, 0x40                  /* 0x40013804 = USART1 TXD */
 };
 
+static const uint8_t bios_loongarch64[] = {
+    0x0c, 0xc0, 0x3f, 0x14,                 /* lu12i.w $t0, 0x1fe00    */
+    0x8c, 0x81, 0x87, 0x03,                 /* ori     $t0, $t0, 0x1e0 */
+    0x0d, 0x50, 0x81, 0x03,                 /* li.w    $t1, 'T'        */
+    0x8d, 0x01, 0x00, 0x29,                 /* st.b    $t1, $t0, 0     */
+    0xff, 0xf3, 0xff, 0x53,                 /*  b      -16  # loop     */
+};
+
 typedef struct testdef {
     const char *arch;       /* Target architecture */
     const char *machine;    /* Name of the machine */
@@ -181,6 +189,8 @@ static const testdef_t tests[] = {
     { "arm", "microbit", "", "T", sizeof(kernel_nrf51), kernel_nrf51 },
     { "arm", "stm32vldiscovery", "", "T",
       sizeof(kernel_stm32vldiscovery), kernel_stm32vldiscovery },
+    { "loongarch64", "virt", "-cpu max", "TT", sizeof(bios_loongarch64),
+      NULL, bios_loongarch64 },
 
     { NULL }
 };
