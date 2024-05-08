@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qapi/visitor.h"
 #include "hw/clock.h"
 #include "trace.h"
 
@@ -158,6 +159,14 @@ bool clock_set_mul_div(Clock *clk, uint32_t multiplier, uint32_t divider)
     return true;
 }
 
+static void clock_prop_freq_get(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    Clock *clk = CLOCK(obj);
+    uint64_t freq_hz = clock_get_hz(clk);
+    visit_type_uint64(v, name, &freq_hz, errp);
+}
+
 static void clock_initfn(Object *obj)
 {
     Clock *clk = CLOCK(obj);
@@ -166,6 +175,9 @@ static void clock_initfn(Object *obj)
     clk->divider = 1;
 
     QLIST_INIT(&clk->children);
+
+    object_property_add(obj, "freq-hz", "uint64",
+                        clock_prop_freq_get, NULL, NULL, NULL);
 }
 
 static void clock_finalizefn(Object *obj)
