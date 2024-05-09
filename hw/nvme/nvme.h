@@ -537,6 +537,11 @@ typedef struct NvmeParams {
     uint8_t  sriov_max_vq_per_vf;
     uint8_t  sriov_max_vi_per_vf;
     bool     msix_exclusive_bar;
+    uint16_t id_vendor;
+    uint16_t id_device;
+    uint16_t id_subsys_vendor;
+    uint16_t id_subsys;
+    uint32_t ieee_oui;
 } NvmeParams;
 
 typedef struct NvmeCtrl {
