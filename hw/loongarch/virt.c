@@ -951,6 +951,7 @@ static void virt_init(MachineState *machine)
         fdt_add_memory_node(machine, phyAddr, numa_info[i].node_mem, i);
         offset += numa_info[i].node_mem;
         phyAddr += numa_info[i].node_mem;
+        g_free(ramName);
     }
 
     /* initialize device memory address space */
