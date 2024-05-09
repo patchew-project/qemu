@@ -720,8 +720,6 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
         ret = mmu6xx_get_physical_address(env, &ctx, eaddr, access_type, type);
         break;
     case POWERPC_MMU_SOFT_4xx:
-        /* avoid maybe used uninitialized warnings for unused fields in ctx */
-        memset(&ctx, 0, sizeof(ctx));
         ret = mmu40x_get_physical_address(env, &ctx.raddr, &ctx.prot, eaddr,
                                           access_type);
         break;
