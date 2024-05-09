@@ -143,6 +143,10 @@ static int vfio_migration_set_state(VFIODevice *vbasedev,
         (struct vfio_device_feature_mig_state *)feature->data;
     int ret;
 
+    if (new_state == migration->device_state) {
+        return 0;
+    }
+
     feature->argsz = sizeof(buf);
     feature->flags =
         VFIO_DEVICE_FEATURE_SET | VFIO_DEVICE_FEATURE_MIG_DEVICE_STATE;
