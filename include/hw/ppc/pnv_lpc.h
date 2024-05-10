@@ -84,8 +84,18 @@ struct PnvLpcController {
     /* XSCOM registers */
     MemoryRegion xscom_regs;
 
+    /*
+     * In P8, ISA irqs are combined with internal sources to drive the
+     * LPCHC interrupt output. P9 ISA irqs raise one of 4 lines that
+     * drive PSI SERIRQ irqs, routing according to OPB routing registers.
+     */
+    bool psi_serirq;
+
     /* PSI to generate interrupts */
-    qemu_irq psi_irq;
+    qemu_irq psi_irq_lpchc;
+
+    /* P9 introduced a serirq mode */
+    qemu_irq psi_irq_serirq[4];
 };
 
 struct PnvLpcClass {
