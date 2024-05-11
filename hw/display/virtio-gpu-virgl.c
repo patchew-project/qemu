@@ -665,3 +665,12 @@ int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
 
     return capset2_max_ver ? 2 : 1;
 }
+
+void virtio_gpu_virgl_deinit(VirtIOGPU *g)
+{
+    if (g->fence_poll) {
+        timer_free(g->fence_poll);
+    }
+
+    virgl_renderer_cleanup(NULL);
+}
