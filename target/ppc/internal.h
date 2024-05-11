@@ -256,6 +256,41 @@ static inline int prot_for_access_type(MMUAccessType access_type)
 #ifndef CONFIG_USER_ONLY
 
 /* PowerPC MMU emulation */
+static inline int ppc_hash32_pp_prot(int key, int pp, int nx)
+{
+    int prot;
+
+    if (key == 0) {
+        switch (pp) {
+        case 0x0:
+        case 0x1:
+        case 0x2:
+            prot = PAGE_READ | PAGE_WRITE;
+            break;
+        case 0x3:
+            prot = PAGE_READ;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        switch (pp) {
+        case 0x0:
+            prot = 0;
+            break;
+        case 0x1:
+        case 0x3:
+            prot = PAGE_READ;
+            break;
+        case 0x2:
+            prot = PAGE_READ | PAGE_WRITE;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    return nx ? prot : prot | PAGE_EXEC;
+}
 
 typedef struct mmu_ctx_t mmu_ctx_t;
 
