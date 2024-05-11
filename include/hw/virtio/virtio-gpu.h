@@ -212,6 +212,8 @@ struct VirtIOGPU {
     } dmabuf;
 
     QEMUBH *cmdq_resume_bh;
+
+    GArray *capset_ids;
 };
 
 struct VirtIOGPUClass {
@@ -346,6 +348,6 @@ void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g);
 void virtio_gpu_virgl_reset(VirtIOGPU *g);
 int virtio_gpu_virgl_init(VirtIOGPU *g);
 void virtio_gpu_virgl_deinit(VirtIOGPU *g);
-int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g);
+GArray *virtio_gpu_virgl_get_capsets(VirtIOGPU *g);
 
 #endif
