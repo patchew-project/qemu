@@ -1077,23 +1077,12 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
                                      MMUAccessType access_type, int type,
                                      int mmu_idx)
 {
-    bool real_mode = (type == ACCESS_CODE) ? !FIELD_EX64(env->msr, MSR, IR)
-                                           : !FIELD_EX64(env->msr, MSR, DR);
-    if (real_mode) {
-        ctx->raddr = eaddr;
-        ctx->prot = PAGE_RWX;
-        return 0;
-    }
-
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
         return mmu6xx_get_physical_address(env, ctx, eaddr, access_type, type);
     case POWERPC_MMU_SOFT_4xx:
         return mmu40x_get_physical_address(env, &ctx->raddr, &ctx->prot, eaddr,
                                            access_type);
-    case POWERPC_MMU_REAL:
-        cpu_abort(env_cpu(env),
-                  "PowerPC in real mode do not do any translation\n");
     default:
         cpu_abort(env_cpu(env), "Unknown or invalid MMU model\n");
     }
@@ -1211,6 +1200,24 @@ static bool ppc_booke_xlate(PowerPCCPU *cpu, vaddr eaddr,
     return false;
 }
 
+static bool ppc_real_mode_xlate(PowerPCCPU *cpu, vaddr eaddr,
+                                MMUAccessType access_type,
+                                hwaddr *raddrp, int *psizep, int *protp)
+{
+    CPUPPCState *env = &cpu->env;
+
+    if (access_type == MMU_INST_FETCH ? !FIELD_EX64(env->msr, MSR, IR)
+                                      : !FIELD_EX64(env->msr, MSR, DR)) {
+        *raddrp = eaddr;
+        *protp = PAGE_RWX;
+        *psizep = TARGET_PAGE_BITS;
+        return true;
+    } else if (env->mmu_model == POWERPC_MMU_REAL) {
+        cpu_abort(CPU(cpu), "PowerPC in real mode shold not do translation\n");
+    }
+    return false;
+}
+
 /* Perform address translation */
 /* TODO: Split this by mmu_model. */
 static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
@@ -1223,6 +1230,10 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
     mmu_ctx_t ctx;
     int type;
     int ret;
+
+    if (ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep, protp)) {
+        return true;
+    }
 
     if (access_type == MMU_INST_FETCH) {
         /* code access */
@@ -1263,11 +1274,8 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                 env->spr[SPR_40x_DEAR] = eaddr;
                 env->spr[SPR_40x_ESR] = 0x00000000;
                 break;
-            case POWERPC_MMU_REAL:
-                cpu_abort(cs, "PowerPC in real mode should never raise "
-                              "any MMU exceptions\n");
             default:
-                cpu_abort(cs, "Unknown or invalid MMU model\n");
+                g_assert_not_reached();
             }
             break;
         case -2:
@@ -1319,11 +1327,8 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                     env->spr[SPR_40x_ESR] = 0x00000000;
                 }
                 break;
-            case POWERPC_MMU_REAL:
-                cpu_abort(cs, "PowerPC in real mode should never raise "
-                              "any MMU exceptions\n");
             default:
-                cpu_abort(cs, "Unknown or invalid MMU model\n");
+                g_assert_not_reached();
             }
             break;
         case -2:
@@ -1417,6 +1422,9 @@ bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     case POWERPC_MMU_BOOKE206:
         return ppc_booke_xlate(cpu, eaddr, access_type, raddrp,
                                psizep, protp, mmu_idx, guest_visible);
+    case POWERPC_MMU_REAL:
+        return ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep,
+                                   protp);
     case POWERPC_MMU_MPC8xx:
         cpu_abort(env_cpu(&cpu->env), "MPC8xx MMU model is not implemented\n");
     default:
