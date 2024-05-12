@@ -263,7 +263,6 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, hwaddr *raddr,
                                        hwaddr *hashp, bool *keyp,
                                        MMUAccessType access_type, int type)
 {
-    PowerPCCPU *cpu = env_archcpu(env);
     hwaddr hash;
     target_ulong vsid, sr, pgidx, ptem;
     bool key, ds, nx;
@@ -305,7 +304,8 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, hwaddr *raddr,
         /* Page address translation */
         qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx " htab_mask "
                       HWADDR_FMT_plx " hash " HWADDR_FMT_plx "\n",
-                      ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
+                      ppc_hash32_hpt_base(env_archcpu(env)),
+                      ppc_hash32_hpt_mask(env_archcpu(env)), hash);
         *hashp = hash;
 
         /* Software TLB search */
