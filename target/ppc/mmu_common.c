@@ -114,11 +114,6 @@ static int pp_check(int key, int pp, int nx)
     return access;
 }
 
-static int check_prot(int prot, MMUAccessType access_type)
-{
-    return prot & prot_for_access_type(access_type) ? 0 : -2;
-}
-
 int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
                                     int way, int is_code)
 {
@@ -165,13 +160,14 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
             /* Keep the matching PTE information */
             ctx->raddr = pte1;
             ctx->prot = access;
-            ret = check_prot(ctx->prot, access_type);
-            if (ret == 0) {
+            if (check_prot_access_type(ctx->prot, access_type)) {
                 /* Access granted */
                 qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
+                ret = 0;
             } else {
                 /* Access right violation */
                 qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
+                ret = -2;
             }
         }
     }
@@ -339,12 +335,14 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                     (virtual & 0x0001F000);
                 /* Compute access rights */
                 ctx->prot = prot;
-                ret = check_prot(ctx->prot, access_type);
-                if (ret == 0) {
+                if (check_prot_access_type(ctx->prot, access_type)) {
                     qemu_log_mask(CPU_LOG_MMU, "BAT %d match: r " HWADDR_FMT_plx
                                   " prot=%c%c\n", i, ctx->raddr,
                                   ctx->prot & PAGE_READ ? 'R' : '-',
                                   ctx->prot & PAGE_WRITE ? 'W' : '-');
+                    ret = 0;
+                } else {
+                    ret = -2;
                 }
                 break;
             }
@@ -561,9 +559,11 @@ static int mmu40x_get_physical_address(CPUPPCState *env, hwaddr *raddr,
 check_perms:
             /* Check from TLB entry */
             *prot = tlb->prot;
-            ret = check_prot(*prot, access_type);
-            if (ret == -2) {
+            if (check_prot_access_type(*prot, access_type)) {
+                ret = 0;
+            } else {
                 env->spr[SPR_40x_ESR] = 0;
+                ret = -2;
             }
             break;
         }
@@ -621,7 +621,7 @@ static int mmubooke_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
     } else {
         *prot = (tlb->prot >> 4) & 0xF;
     }
-    if (*prot & prot_for_access_type(access_type)) {
+    if (check_prot_access_type(*prot, access_type)) {
         qemu_log_mask(CPU_LOG_MMU, "%s: good TLB!\n", __func__);
         return 0;
     }
@@ -823,7 +823,7 @@ found_tlb:
             *prot |= PAGE_EXEC;
         }
     }
-    if (*prot & prot_for_access_type(access_type)) {
+    if (check_prot_access_type(*prot, access_type)) {
         qemu_log_mask(CPU_LOG_MMU, "%s: good TLB!\n", __func__);
         return 0;
     }
