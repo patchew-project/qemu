@@ -106,6 +106,27 @@ static void stm32l4x5_exti_set_irq(void *opaque, int irq, int level)
         return;
     }
 
+    /* In case of a direct line interrupt */
+    if (extract32(exti_romask[bank], irq, 1)) {
+        if (level) {
+            qemu_irq_raise(s->irq[oirq]);
+        } else {
+            qemu_irq_lower(s->irq[oirq]);
+        }
+        return;
+    }
+
+    /*
+     * In case of a configurable interrupt
+     *
+     * Note that while the real EXTI uses edge detection to tell
+     * apart a line rising (the level changes from 0 to 1) and a line
+     * staying high (the level was 1 and is set to 1), the current
+     * implementation relies on the fact that this handler will only
+     * be called when there's a level change. That means that the
+     * devices creating a configurable interrupt (like STM32L4x5 GPIO)
+     * have to set their IRQs only on a change.
+     */
     if (((1 << irq) & s->rtsr[bank]) && level) {
         /* Rising Edge */
         s->pr[bank] |= 1 << irq;
@@ -116,7 +137,7 @@ static void stm32l4x5_exti_set_irq(void *opaque, int irq, int level)
         qemu_irq_pulse(s->irq[oirq]);
     }
     /*
-     * In the following situations :
+     * In the following situations (for configurable interrupts) :
      * - falling edge but rising trigger selected
      * - rising edge but falling trigger selected
      * - no trigger selected
