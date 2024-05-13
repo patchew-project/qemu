@@ -518,7 +518,7 @@ done
 ############################################################
 ############################################################
 
-# Test qcow2_cluster_discard() with full and normal discards
+# Test qcow2_subcluster_discard() with full and normal discards
 for use_backing_file in yes no; do
     echo
     echo "### Discarding clusters with non-zero bitmaps (backing file: $use_backing_file) ###"
