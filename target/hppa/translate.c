@@ -1873,6 +1873,23 @@ static bool do_fop_dedd(DisasContext *ctx, unsigned rt,
     return nullify_end(ctx);
 }
 
+static bool do_taken_branch_trap(DisasContext *ctx, DisasIAQE *next, bool n)
+{
+    if (unlikely(ctx->tb_flags & PSW_T)) {
+        /*
+         * The X, B and N bits are updated, and the instruction queue
+         * is advanced before the trap is recognized.
+         */
+        nullify_set(ctx, n);
+        store_psw_xb(ctx, PSW_B);
+        install_iaq_entries(ctx, &ctx->iaq_b, next);
+        gen_excp_1(EXCP_TB);
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return true;
+    }
+    return false;
+}
+
 /* Emit an unconditional branch to a direct target, which may or may not
    have already had nullification handled.  */
 static bool do_dbranch(DisasContext *ctx, int64_t disp,
@@ -1882,6 +1899,9 @@ static bool do_dbranch(DisasContext *ctx, int64_t disp,
 
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
         install_link(ctx, link, false);
+        if (do_taken_branch_trap(ctx, &ctx->iaq_j, is_n)) {
+            return true;
+        }
         if (is_n) {
             if (use_nullify_skip(ctx)) {
                 nullify_set(ctx, 0);
@@ -1898,7 +1918,9 @@ static bool do_dbranch(DisasContext *ctx, int64_t disp,
         nullify_over(ctx);
 
         install_link(ctx, link, false);
-        if (is_n && use_nullify_skip(ctx)) {
+        if (do_taken_branch_trap(ctx, &ctx->iaq_j, is_n)) {
+            /* done */
+        } else if (is_n && use_nullify_skip(ctx)) {
             nullify_set(ctx, 0);
             store_psw_xb(ctx, 0);
             gen_goto_tb(ctx, 0, &ctx->iaq_j, NULL);
@@ -1960,7 +1982,9 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
     n = is_n && disp >= 0;
 
     next = iaqe_branchi(ctx, disp);
-    if (n && use_nullify_skip(ctx)) {
+    if (do_taken_branch_trap(ctx, &next, is_n)) {
+        /* done */
+    } else if (n && use_nullify_skip(ctx)) {
         nullify_set(ctx, 0);
         store_psw_xb(ctx, 0);
         gen_goto_tb(ctx, 1, &next, NULL);
@@ -1990,6 +2014,9 @@ static bool do_ibranch(DisasContext *ctx, unsigned link,
 {
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
         install_link(ctx, link, with_sr0);
+        if (do_taken_branch_trap(ctx, &ctx->iaq_j, is_n)) {
+            return true;
+        }
         if (is_n) {
             if (use_nullify_skip(ctx)) {
                 install_iaq_entries(ctx, &ctx->iaq_j, NULL);
@@ -2005,20 +2032,22 @@ static bool do_ibranch(DisasContext *ctx, unsigned link,
     }
 
     nullify_over(ctx);
-
     install_link(ctx, link, with_sr0);
-    if (is_n && use_nullify_skip(ctx)) {
-        install_iaq_entries(ctx, &ctx->iaq_j, NULL);
-        nullify_set(ctx, 0);
-        store_psw_xb(ctx, 0);
-    } else {
-        install_iaq_entries(ctx, &ctx->iaq_b, &ctx->iaq_j);
-        nullify_set(ctx, is_n);
-        store_psw_xb(ctx, PSW_B);
+
+    if (!do_taken_branch_trap(ctx, &ctx->iaq_j, is_n)) {
+        if (is_n && use_nullify_skip(ctx)) {
+            install_iaq_entries(ctx, &ctx->iaq_j, NULL);
+            nullify_set(ctx, 0);
+            store_psw_xb(ctx, 0);
+        } else {
+            install_iaq_entries(ctx, &ctx->iaq_b, &ctx->iaq_j);
+            nullify_set(ctx, is_n);
+            store_psw_xb(ctx, PSW_B);
+        }
+        tcg_gen_lookup_and_goto_ptr();
+        ctx->base.is_jmp = DISAS_NORETURN;
     }
 
-    tcg_gen_lookup_and_goto_ptr();
-    ctx->base.is_jmp = DISAS_NORETURN;
     return nullify_end(ctx);
 }
 
