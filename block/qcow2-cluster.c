@@ -1916,6 +1916,103 @@ discard_no_unref_any_file(BlockDriverState *bs, uint64_t offset,
 }
 
 /*
+ * Structure containing info about the subclusters range within one cluster.
+ *
+ * Since @l2_slice is a strong reference to the l2 table slice containing
+ * the corresponding l2 entry, it must be explicitly released by
+ * qcow2_cache_put().  Thus the user must either declare it with g_auto()
+ * (in which case sc_range_info_cleanup() is called automatically) or do
+ * the cleanup themselves.
+ */
+typedef struct SubClusterRangeInfo {
+    uint64_t *l2_slice;
+    int l2_index;
+    uint64_t l2_entry;
+    uint64_t l2_bitmap;
+    QCow2ClusterType ctype;
+    Qcow2Cache *l2_table_cache;
+} SubClusterRangeInfo;
+
+static void sc_range_info_cleanup(SubClusterRangeInfo *scri)
+{
+    if (scri->l2_table_cache && scri->l2_slice) {
+        qcow2_cache_put(scri->l2_table_cache, (void **) &scri->l2_slice);
+    }
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(SubClusterRangeInfo, sc_range_info_cleanup);
+
+/*
+ * For a given @offset and @nb_subclusters, fill out the SubClusterRangeInfo
+ * structure describing the subclusters range and referred to by @scri.
+ * Only the subclusters which can be independently discarded/zeroized
+ * (i.e. not compressed or invalid) are considered to be valid here.
+ *
+ * The subclusters range is denoted by @offset and @nb_subclusters and must
+ * not cross the cluster boundary.  @offset must be aligned to the subcluster
+ * size.
+ *
+ * Return: 0 if the SubClusterRangeInfo is successfully filled out and the
+ * subclusters within the given range might be discarded/zeroized;
+ * -EINVAL if any of the subclusters within the range is invalid;
+ * -ENOTSUP if the range is contained within a compressed cluster.
+ */
+static int GRAPH_RDLOCK
+get_sc_range_info(BlockDriverState *bs, uint64_t offset,
+                  unsigned nb_subclusters, SubClusterRangeInfo *scri)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret, sc_cleared, sc_index = offset_to_sc_index(s, offset);
+    QCow2SubclusterType sctype;
+
+    /* Here we only work with the subclusters within single cluster. */
+    assert(nb_subclusters > 0 && nb_subclusters < s->subclusters_per_cluster);
+    assert(sc_index + nb_subclusters <= s->subclusters_per_cluster);
+    assert(offset_into_subcluster(s, offset) == 0);
+
+    scri->l2_table_cache = s->l2_table_cache;
+
+    ret = get_cluster_table(bs, offset, &scri->l2_slice, &scri->l2_index);
+    if (ret < 0) {
+        goto cleanup;
+    }
+
+    scri->l2_entry = get_l2_entry(s, scri->l2_slice, scri->l2_index);
+    scri->l2_bitmap = get_l2_bitmap(s, scri->l2_slice, scri->l2_index);
+    scri->ctype = qcow2_get_cluster_type(bs, scri->l2_entry);
+
+    sc_cleared = 0;
+    do {
+        ret = qcow2_get_subcluster_range_type(
+            bs, scri->l2_entry, scri->l2_bitmap, sc_index + sc_cleared,
+            &sctype);
+        if (ret < 0) {
+            goto cleanup;
+        }
+
+        switch (sctype) {
+        case QCOW2_SUBCLUSTER_COMPRESSED:
+            /* We cannot partially zeroize/discard compressed clusters. */
+            ret = -ENOTSUP;
+            goto cleanup;
+        case QCOW2_SUBCLUSTER_INVALID:
+            ret = -EINVAL;
+            goto cleanup;
+        default:
+            break;
+        }
+
+        sc_cleared += ret;
+    } while (sc_cleared < nb_subclusters);
+
+    return 0;
+
+cleanup:
+    sc_range_info_cleanup(scri);
+    return ret;
+}
+
+/*
  * This discards as many clusters of nb_clusters as possible at once (i.e.
  * all clusters in the same L2 slice) and returns the number of discarded
  * clusters.
@@ -2127,46 +2224,25 @@ zero_l2_subclusters(BlockDriverState *bs, uint64_t offset,
                     unsigned nb_subclusters)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t *l2_slice;
-    uint64_t old_l2_bitmap, l2_bitmap;
-    int l2_index, ret, sc = offset_to_sc_index(s, offset);
+    uint64_t new_l2_bitmap;
+    int ret, sc = offset_to_sc_index(s, offset);
+    g_auto(SubClusterRangeInfo) scri = { 0 };
 
-    /* For full clusters use zero_in_l2_slice() instead */
-    assert(nb_subclusters > 0 && nb_subclusters < s->subclusters_per_cluster);
-    assert(sc + nb_subclusters <= s->subclusters_per_cluster);
-    assert(offset_into_subcluster(s, offset) == 0);
-
-    ret = get_cluster_table(bs, offset, &l2_slice, &l2_index);
+    ret = get_sc_range_info(bs, offset, nb_subclusters, &scri);
     if (ret < 0) {
         return ret;
     }
 
-    switch (qcow2_get_cluster_type(bs, get_l2_entry(s, l2_slice, l2_index))) {
-    case QCOW2_CLUSTER_COMPRESSED:
-        ret = -ENOTSUP; /* We cannot partially zeroize compressed clusters */
-        goto out;
-    case QCOW2_CLUSTER_NORMAL:
-    case QCOW2_CLUSTER_UNALLOCATED:
-        break;
-    default:
-        g_assert_not_reached();
+    new_l2_bitmap = scri.l2_bitmap;
+    new_l2_bitmap |=  QCOW_OFLAG_SUB_ZERO_RANGE(sc, sc + nb_subclusters);
+    new_l2_bitmap &= ~QCOW_OFLAG_SUB_ALLOC_RANGE(sc, sc + nb_subclusters);
+
+    if (new_l2_bitmap != scri.l2_bitmap) {
+        set_l2_bitmap(s, scri.l2_slice, scri.l2_index, new_l2_bitmap);
+        qcow2_cache_entry_mark_dirty(s->l2_table_cache, scri.l2_slice);
     }
 
-    old_l2_bitmap = l2_bitmap = get_l2_bitmap(s, l2_slice, l2_index);
-
-    l2_bitmap |=  QCOW_OFLAG_SUB_ZERO_RANGE(sc, sc + nb_subclusters);
-    l2_bitmap &= ~QCOW_OFLAG_SUB_ALLOC_RANGE(sc, sc + nb_subclusters);
-
-    if (old_l2_bitmap != l2_bitmap) {
-        set_l2_bitmap(s, l2_slice, l2_index, l2_bitmap);
-        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
-    }
-
-    ret = 0;
-out:
-    qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
-
-    return ret;
+    return 0;
 }
 
 int coroutine_fn qcow2_subcluster_zeroize(BlockDriverState *bs, uint64_t offset,
