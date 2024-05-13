@@ -2107,14 +2107,15 @@ discard_in_l2_slice(BlockDriverState *bs, uint64_t offset, uint64_t nb_clusters,
 
 static int coroutine_fn GRAPH_RDLOCK
 discard_l2_subclusters(BlockDriverState *bs, uint64_t offset,
-                       uint64_t nb_subclusters,
-                       enum qcow2_discard_type type,
-                       bool full_discard)
+                       uint64_t nb_subclusters, enum qcow2_discard_type type,
+                       bool full_discard, bool uncond_zeroize)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t new_l2_bitmap, bitmap_alloc_mask, bitmap_zero_mask;
     int ret, sc = offset_to_sc_index(s, offset);
     g_auto(SubClusterRangeInfo) scri = { 0 };
+
+    assert(!(full_discard && uncond_zeroize));
 
     ret = get_sc_range_info(bs, offset, nb_subclusters, &scri);
     if (ret < 0) {
@@ -2140,7 +2141,8 @@ discard_l2_subclusters(BlockDriverState *bs, uint64_t offset,
      */
     if (full_discard) {
         new_l2_bitmap &= ~bitmap_zero_mask;
-    } else if (bs->backing || scri.l2_bitmap & bitmap_alloc_mask) {
+    } else if (uncond_zeroize || bs->backing ||
+               scri.l2_bitmap & bitmap_alloc_mask) {
         new_l2_bitmap |= bitmap_zero_mask;
     }
 
@@ -2197,7 +2199,7 @@ int qcow2_subcluster_discard(BlockDriverState *bs, uint64_t offset,
     if (head) {
         ret = discard_l2_subclusters(bs, offset - head,
                                      size_to_subclusters(s, head), type,
-                                     full_discard);
+                                     full_discard, false);
         if (ret < 0) {
             goto fail;
         }
@@ -2221,7 +2223,7 @@ int qcow2_subcluster_discard(BlockDriverState *bs, uint64_t offset,
     if (tail) {
         ret = discard_l2_subclusters(bs, end_offset,
                                      size_to_subclusters(s, tail), type,
-                                     full_discard);
+                                     full_discard, false);
         if (ret < 0) {
             goto fail;
         }
@@ -2317,6 +2319,18 @@ zero_l2_subclusters(BlockDriverState *bs, uint64_t offset,
     uint64_t new_l2_bitmap;
     int ret, sc = offset_to_sc_index(s, offset);
     g_auto(SubClusterRangeInfo) scri = { 0 };
+
+    /*
+     * If the request allows discarding subclusters we go down the discard
+     * path regardless of their allocation status.  After the discard
+     * operation with full_discard=false subclusters are going to be read as
+     * zeroes anyway.  But we make sure that subclusters are explicitly
+     * zeroed anyway with uncond_zeroize=true.
+     */
+    if (flags & BDRV_REQ_MAY_UNMAP) {
+        return discard_l2_subclusters(bs, offset, nb_subclusters,
+                                      QCOW2_DISCARD_REQUEST, false, true);
+    }
 
     ret = get_sc_range_info(bs, offset, nb_subclusters, &scri);
     if (ret < 0) {
