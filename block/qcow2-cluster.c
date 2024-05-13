@@ -1946,23 +1946,19 @@ discard_in_l2_slice(BlockDriverState *bs, uint64_t offset, uint64_t nb_clusters,
             new_l2_entry = new_l2_bitmap = 0;
         } else if (bs->backing || qcow2_cluster_is_allocated(cluster_type)) {
             if (has_subclusters(s)) {
-                if (keep_reference) {
-                    new_l2_entry = old_l2_entry;
-                } else {
-                    new_l2_entry = 0;
-                }
+                new_l2_entry = 0;
                 new_l2_bitmap = QCOW_L2_BITMAP_ALL_ZEROES;
             } else {
-                if (s->qcow_version >= 3) {
-                    if (keep_reference) {
-                        new_l2_entry |= QCOW_OFLAG_ZERO;
-                    } else {
-                        new_l2_entry = QCOW_OFLAG_ZERO;
-                    }
-                } else {
-                    new_l2_entry = 0;
-                }
+                new_l2_entry = s->qcow_version >= 3 ? QCOW_OFLAG_ZERO : 0;
             }
+        }
+
+        /*
+         * No need to check for the QCOW version since discard-no-unref is
+         * only allowed since version 3.
+         */
+        if (keep_reference) {
+            new_l2_entry |= old_l2_entry;
         }
 
         if (old_l2_entry == new_l2_entry && old_l2_bitmap == new_l2_bitmap) {
@@ -2064,17 +2060,17 @@ zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
             ((flags & BDRV_REQ_MAY_UNMAP) && qcow2_cluster_is_allocated(type));
         bool keep_reference =
             (s->discard_no_unref && type != QCOW2_CLUSTER_COMPRESSED);
-        uint64_t new_l2_entry = old_l2_entry;
+        uint64_t new_l2_entry = unmap ? 0 : old_l2_entry;
         uint64_t new_l2_bitmap = old_l2_bitmap;
-
-        if (unmap && !keep_reference) {
-            new_l2_entry = 0;
-        }
 
         if (has_subclusters(s)) {
             new_l2_bitmap = QCOW_L2_BITMAP_ALL_ZEROES;
         } else {
             new_l2_entry |= QCOW_OFLAG_ZERO;
+        }
+
+        if (keep_reference) {
+            new_l2_entry |= old_l2_entry;
         }
 
         if (old_l2_entry == new_l2_entry && old_l2_bitmap == new_l2_bitmap) {
