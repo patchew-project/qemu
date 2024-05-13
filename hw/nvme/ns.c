@@ -20,6 +20,7 @@
 #include "qemu/bitops.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
+#include "block/block_int.h"
 
 #include "nvme.h"
 #include "trace.h"
@@ -55,6 +56,12 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     }
 
     id_ns->npda = id_ns->npdg = npdg - 1;
+
+    /* The persistent reservation capacities of block
+     * and nvme are currently defined the same.
+     * If there are subsequent changes, this part needs to be changed.
+     */
+    id_ns->rescap = blk_bs(ns->blkconf.blk)->file->bs->bl.pr_cap;
 }
 
 static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
