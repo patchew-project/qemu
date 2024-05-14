@@ -503,6 +503,10 @@ class QAPISchemaParser:
             self.accept(False)
             line = self.get_doc_line()
             no_more_args = False
+            # Paragraphs before members/features/tagged are "intro" paragraphs.
+            # Any appearing subsequently are "outro" paragraphs.
+            # This is only semantic metadata for the doc generator.
+            intro = True
 
             while line is not None:
                 # Blank lines
@@ -532,6 +536,7 @@ class QAPISchemaParser:
                         raise QAPIParseError(
                             self, 'feature descriptions expected')
                     no_more_args = True
+                    intro = False
                 elif match := self._match_at_name_colon(line):
                     # description
                     if no_more_args:
@@ -547,6 +552,7 @@ class QAPISchemaParser:
                             doc.append_line(text)
                         line = self.get_doc_indented(doc)
                     no_more_args = True
+                    intro = False
                 elif match := re.match(
                         r'(Returns|Errors|Since|Notes?|Examples?|TODO): *',
                         line):
@@ -557,13 +563,14 @@ class QAPISchemaParser:
                         doc.append_line(text)
                     line = self.get_doc_indented(doc)
                     no_more_args = True
+                    intro = False
                 elif line.startswith('='):
                     raise QAPIParseError(
                         self,
                         "unexpected '=' markup in definition documentation")
                 else:
                     # tag-less paragraph
-                    doc.ensure_untagged_section(self.info)
+                    doc.ensure_untagged_section(self.info, intro)
                     doc.append_line(line)
                     line = self.get_doc_paragraph(doc)
         else:
@@ -617,7 +624,7 @@ class QAPIDoc:
             self,
             info: QAPISourceInfo,
             tag: Optional[str] = None,
-            kind: str = 'paragraph',
+            kind: str = 'intro-paragraph',
         ):
             # section source info, i.e. where it begins
             self.info = info
@@ -625,7 +632,7 @@ class QAPIDoc:
             self.tag = tag
             # section text without tag
             self.text = ''
-            # section type - {paragraph, feature, member, tagged}
+            # section type - {<intro|outro>-paragraph, feature, member, tagged}
             self.kind = kind
 
         def append_line(self, line: str) -> None:
@@ -666,7 +673,11 @@ class QAPIDoc:
                 raise QAPISemError(
                     section.info, "text required after '%s:'" % section.tag)
 
-    def ensure_untagged_section(self, info: QAPISourceInfo) -> None:
+    def ensure_untagged_section(
+        self,
+        info: QAPISourceInfo,
+        intro: bool = True,
+    ) -> None:
         if self.all_sections and not self.all_sections[-1].tag:
             section = self.all_sections[-1]
             # Section is empty so far; update info to start *here*.
@@ -677,7 +688,8 @@ class QAPIDoc:
                 self.all_sections[-1].text += '\n'
             return
         # start new section
-        section = self.Section(info)
+        kind = ("intro" if intro else "outro") + "-paragraph"
+        section = self.Section(info, kind=kind)
         self.sections.append(section)
         self.all_sections.append(section)
 
