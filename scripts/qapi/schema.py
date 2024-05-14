@@ -26,6 +26,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     Optional,
     Union,
@@ -669,7 +670,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         # so we have to check for potential name collisions ourselves.
         seen: Dict[str, QAPISchemaMember] = {}
         types_seen: Dict[str, str] = {}
-        for v in self.alternatives.variants:
+        for v in self.alternatives:
             v.check_clash(self.info, seen)
             qtype = v.type.alternate_qtype()
             if not qtype:
@@ -700,7 +701,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
     def connect_doc(self, doc: Optional[QAPIDoc] = None) -> None:
         super().connect_doc(doc)
         doc = doc or self.doc
-        for v in self.alternatives.variants:
+        for v in self.alternatives:
             v.connect_doc(doc)
 
     def c_type(self) -> str:
@@ -725,6 +726,9 @@ class QAPISchemaVariants:
         self.info = info
         self.tag_member: QAPISchemaObjectTypeMember
         self.variants = variants
+
+    def __iter__(self) -> Iterator[QAPISchemaVariant]:
+        return iter(self.variants)
 
     def set_defined_in(self, name: str) -> None:
         for v in self.variants:

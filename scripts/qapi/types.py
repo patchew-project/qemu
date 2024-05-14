@@ -166,7 +166,7 @@ def gen_object(name: str, ifcond: QAPISchemaIfCond,
     objects_seen.add(name)
 
     ret = ''
-    for var in variants.variants if variants else ():
+    for var in variants or ():
         obj = var.type
         if not isinstance(obj, QAPISchemaObjectType):
             continue
@@ -234,7 +234,7 @@ def gen_variants(variants: QAPISchemaVariants) -> str:
 ''',
                 c_name=c_name(variants.tag_member.name))
 
-    for var in variants.variants:
+    for var in variants:
         if var.type.name == 'q_empty':
             continue
         ret += var.ifcond.gen_if()

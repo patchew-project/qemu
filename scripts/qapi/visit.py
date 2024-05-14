@@ -141,7 +141,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''',
                      c_name=c_name(tag_member.name))
 
-        for var in branches.variants:
+        for var in branches:
             case_str = c_enum_const(tag_member.type.name, var.name,
                                     tag_member.type.prefix)
             ret += var.ifcond.gen_if()
@@ -246,7 +246,7 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name,
 ''',
                 c_name=c_name(name))
 
-    for var in alternatives.variants:
+    for var in alternatives:
         ret += var.ifcond.gen_if()
         ret += mcgen('''
     case %(case)s:

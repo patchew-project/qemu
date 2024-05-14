@@ -204,7 +204,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                                         None)
 
         if branches:
-            for v in branches.variants:
+            for v in branches:
                 if v.type.name == 'q_empty':
                     continue
                 assert not v.type.is_implicit()

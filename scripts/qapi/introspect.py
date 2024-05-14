@@ -342,7 +342,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         }
         if branches:
             obj['tag'] = branches.tag_member.name
-            obj['variants'] = [self._gen_variant(v) for v in branches.variants]
+            obj['variants'] = [self._gen_variant(v) for v in branches]
         self._gen_tree(name, 'object', obj, ifcond, features)
 
     def visit_alternate_type(self, name: str, info: Optional[QAPISourceInfo],
@@ -353,7 +353,7 @@ const QLitObject %(c_name)s = %(c_string)s;
             name, 'alternate',
             {'members': [Annotated({'type': self._use_type(m.type)},
                                    m.ifcond)
-                         for m in alternatives.variants]},
+                         for m in alternatives]},
             ifcond, features
         )
 
