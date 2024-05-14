@@ -28,28 +28,30 @@ import os
 import re
 
 from docutils import nodes
+from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import ViewList
-from docutils.parsers.rst import directives, Directive
+from qapi.error import QAPIError, QAPISemError
+from qapi.gen import QAPISchemaVisitor
+from qapi.schema import QAPISchema
+
+import sphinx
 from sphinx.errors import ExtensionError
 from sphinx.util.nodes import nested_parse_with_titles
-import sphinx
-from qapi.gen import QAPISchemaVisitor
-from qapi.error import QAPIError, QAPISemError
-from qapi.schema import QAPISchema
 
 
 # Sphinx up to 1.6 uses AutodocReporter; 1.7 and later
 # use switch_source_input. Check borrowed from kerneldoc.py.
-Use_SSI = sphinx.__version__[:3] >= '1.7'
+Use_SSI = sphinx.__version__[:3] >= "1.7"
 if Use_SSI:
     from sphinx.util.docutils import switch_source_input
 else:
     from sphinx.ext.autodoc import AutodocReporter
 
 
-__version__ = '1.0'
+__version__ = "1.0"
 
 
+# fmt: off
 # Function borrowed from pydash, which is under the MIT license
 def intersperse(iterable, separator):
     """Yield the members of *iterable* interspersed with *separator*."""
