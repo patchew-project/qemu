@@ -557,6 +557,15 @@ class QAPISchemaParser:
                         r'(Returns|Errors|Since|Notes?|Examples?|TODO): *',
                         line):
                     # tagged section
+
+                    if 'Note' in match.group(1):
+                        emsg = (
+                            f"The '{match.group(1)}' section is deprecated."
+                            " Please use rST's '.. note::' directive or "
+                            "another suitable admonition instead."
+                        )
+                        raise QAPIParseError(self, emsg)
+
                     doc.new_tagged_section(self.info, match.group(1))
                     text = line[match.end():]
                     if text:
