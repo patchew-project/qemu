@@ -112,10 +112,6 @@
 ##
 # @StatsFilter:
 #
-# The arguments to the query-stats command; specifies a target for
-# which to request statistics and optionally the required subset of
-# information for that target.
-#
 # @target: the kind of objects to query.  Note that each possible
 #          target may enable additional filtering options
 #
@@ -183,8 +179,8 @@
 # Return runtime-collected statistics for objects such as the VM or
 # its vCPUs.
 #
-# The arguments are a StatsFilter and specify the provider and objects
-# to return statistics about.
+# The arguments specify a target for which to request statistics and
+# optionally the required subset of information for that target.
 #
 # Returns: a list of StatsResult, one for each provider and object
 #     (e.g., for each vCPU).
