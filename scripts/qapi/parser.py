@@ -448,7 +448,10 @@ class QAPISchemaParser:
         indent = must_match(r'\s*', line).end()
         if not indent:
             return line
-        doc.append_line(line[indent:])
+
+        # Preserve the indent, it's needed for rST formatting.
+        doc.append_line(line)
+
         prev_line_blank = False
         while True:
             self.accept(False)
@@ -465,7 +468,8 @@ class QAPISchemaParser:
                     self,
                     "unexpected de-indent (expected at least %d spaces)" %
                     indent)
-            doc.append_line(line[indent:])
+            # Again, preserve the indent for ReST.
+            doc.append_line(line)
             prev_line_blank = True
 
     def get_doc_paragraph(self, doc: 'QAPIDoc') -> Optional[str]:
