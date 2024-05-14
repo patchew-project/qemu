@@ -342,9 +342,6 @@
 ##
 # @BlockExportOptions:
 #
-# Describes a block export, i.e. how single node should be exported on
-# an external interface.
-#
 # @type: Block export type
 #
 # @id: A unique identifier for the block export (across all export
@@ -395,6 +392,9 @@
 # @block-export-add:
 #
 # Creates a new block export.
+#
+# Arguments describe a block export, i.e. how single node should be
+# exported on an external interface.
 #
 # Since: 5.2
 ##
