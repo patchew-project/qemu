@@ -131,6 +131,7 @@ class QAPISchemaDefinition(QAPISchemaEntity):
         self.doc = doc
         self._ifcond = ifcond or QAPISchemaIfCond()
         self.features = features or []
+        self.doc_visible = False
 
     def __repr__(self) -> str:
         return "<%s:%s at 0x%x>" % (type(self).__name__, self.name,
@@ -145,6 +146,10 @@ class QAPISchemaDefinition(QAPISchemaEntity):
         seen: Dict[str, QAPISchemaMember] = {}
         for f in self.features:
             f.check_clash(self.info, seen)
+
+    def mark_visible(self, mark_self: bool = True) -> None:
+        if mark_self:
+            self.doc_visible = True
 
     def connect_doc(self, doc: Optional[QAPIDoc] = None) -> None:
         super().connect_doc(doc)
@@ -483,6 +488,10 @@ class QAPISchemaArrayType(QAPISchemaType):
             self.info.defn_meta if self.info else None)
         assert not isinstance(self.element_type, QAPISchemaArrayType)
 
+    def mark_visible(self, mark_self: bool = True) -> None:
+        super().mark_visible(mark_self)
+        self.element_type.mark_visible()
+
     def set_module(self, schema: QAPISchema) -> None:
         self._set_module(schema, self.element_type.info)
 
@@ -607,6 +616,17 @@ class QAPISchemaObjectType(QAPISchemaType):
         for m in self.local_members:
             m.connect_doc(doc)
 
+    def mark_visible(self, mark_self: bool = True) -> None:
+        # Mark this object and its members as visible in the user-facing docs.
+        if self.doc_visible:
+            return
+
+        super().mark_visible(mark_self)
+        for m in self.members:
+            m.type.mark_visible()
+        for var in self.branches or []:
+            var.type.mark_visible(False)
+
     def is_implicit(self) -> bool:
         # See QAPISchema._make_implicit_object_type(), as well as
         # _def_predefineds()
@@ -697,6 +717,11 @@ class QAPISchemaAlternateType(QAPISchemaType):
                         "%s can't be distinguished from '%s'"
                         % (v.describe(self.info), types_seen[qt]))
                 types_seen[qt] = v.name
+
+    def mark_visible(self, mark_self: bool = True) -> None:
+        super().mark_visible(mark_self)
+        for var in self.alternatives:
+            var.type.mark_visible()
 
     def connect_doc(self, doc: Optional[QAPIDoc] = None) -> None:
         super().connect_doc(doc)
@@ -1056,6 +1081,13 @@ class QAPISchemaCommand(QAPISchemaDefinition):
                         "command's 'returns' cannot take %s"
                         % self.ret_type.describe())
 
+    def mark_visible(self, mark_self: bool = True) -> None:
+        super().mark_visible(mark_self)
+        if self.arg_type:
+            self.arg_type.mark_visible(False)
+        if self.ret_type:
+            self.ret_type.mark_visible()
+
     def connect_doc(self, doc: Optional[QAPIDoc] = None) -> None:
         super().connect_doc(doc)
         doc = doc or self.doc
@@ -1111,6 +1143,11 @@ class QAPISchemaEvent(QAPISchemaDefinition):
                 raise QAPISemError(
                     self.info,
                     "conditional event arguments require 'boxed': true")
+
+    def mark_visible(self, mark_self: bool = True) -> None:
+        super().mark_visible(mark_self)
+        if self.arg_type:
+            self.arg_type.mark_visible(False)
 
     def connect_doc(self, doc: Optional[QAPIDoc] = None) -> None:
         super().connect_doc(doc)
@@ -1488,6 +1525,9 @@ class QAPISchema:
             ent.set_module(self)
         for doc in self.docs:
             doc.check()
+        for ent in self._entity_list:
+            if isinstance(ent, (QAPISchemaCommand, QAPISchemaEvent)):
+                ent.mark_visible()
 
     def visit(self, visitor: QAPISchemaVisitor) -> None:
         visitor.visit_begin(self)
