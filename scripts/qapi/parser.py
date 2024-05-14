@@ -613,21 +613,27 @@ class QAPIDoc:
 
     class Section:
         # pylint: disable=too-few-public-methods
-        def __init__(self, info: QAPISourceInfo,
-                     tag: Optional[str] = None):
+        def __init__(
+            self,
+            info: QAPISourceInfo,
+            tag: Optional[str] = None,
+            kind: str = 'paragraph',
+        ):
             # section source info, i.e. where it begins
             self.info = info
             # section tag, if any ('Returns', '@name', ...)
             self.tag = tag
             # section text without tag
             self.text = ''
+            # section type - {paragraph, feature, member, tagged}
+            self.kind = kind
 
         def append_line(self, line: str) -> None:
             self.text += line + '\n'
 
     class ArgSection(Section):
-        def __init__(self, info: QAPISourceInfo, tag: str):
-            super().__init__(info, tag)
+        def __init__(self, info: QAPISourceInfo, tag: str, kind: str):
+            super().__init__(info, tag, kind)
             self.member: Optional['QAPISchemaMember'] = None
 
         def connect(self, member: 'QAPISchemaMember') -> None:
@@ -676,7 +682,7 @@ class QAPIDoc:
         self.all_sections.append(section)
 
     def new_tagged_section(self, info: QAPISourceInfo, tag: str) -> None:
-        section = self.Section(info, tag)
+        section = self.Section(info, tag, "tagged")
         if tag == 'Returns':
             if self.returns:
                 raise QAPISemError(
@@ -696,20 +702,21 @@ class QAPIDoc:
         self.all_sections.append(section)
 
     def _new_description(self, info: QAPISourceInfo, name: str,
+                         kind: str,
                          desc: Dict[str, ArgSection]) -> None:
         if not name:
             raise QAPISemError(info, "invalid parameter name")
         if name in desc:
             raise QAPISemError(info, "'%s' parameter name duplicated" % name)
-        section = self.ArgSection(info, '@' + name)
+        section = self.ArgSection(info, '@' + name, kind)
         self.all_sections.append(section)
         desc[name] = section
 
     def new_argument(self, info: QAPISourceInfo, name: str) -> None:
-        self._new_description(info, name, self.args)
+        self._new_description(info, name, 'member', self.args)
 
     def new_feature(self, info: QAPISourceInfo, name: str) -> None:
-        self._new_description(info, name, self.features)
+        self._new_description(info, name, 'feature', self.features)
 
     def append_line(self, line: str) -> None:
         self.all_sections[-1].append_line(line)
@@ -722,7 +729,7 @@ class QAPIDoc:
                                    "%s '%s' lacks documentation"
                                    % (member.role, member.name))
             self.args[member.name] = QAPIDoc.ArgSection(
-                self.info, '@' + member.name)
+                self.info, '@' + member.name, 'member')
         self.args[member.name].connect(member)
 
     def connect_feature(self, feature: 'QAPISchemaFeature') -> None:
