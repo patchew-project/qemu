@@ -740,8 +740,24 @@ class QAPIDoc:
                 raise QAPISemError(member.info,
                                    "%s '%s' lacks documentation"
                                    % (member.role, member.name))
-            self.args[member.name] = QAPIDoc.ArgSection(
-                self.info, '@' + member.name, 'member')
+
+            # Insert stub documentation section for missing member docs.
+            section = QAPIDoc.ArgSection(
+                self.info, f"@{member.name}", "member")
+            self.args[member.name] = section
+
+            # Determine where to insert stub doc.
+            index = 0
+            for i, sect in enumerate(self.all_sections):
+                # insert after these:
+                if sect.kind in ('intro-paragraph', 'member'):
+                    index = i + 1
+                # but before these:
+                elif sect.kind in ('tagged', 'feature', 'outro-paragraph'):
+                    index = i
+                    break
+            self.all_sections.insert(index, section)
+
         self.args[member.name].connect(member)
 
     def connect_feature(self, feature: 'QAPISchemaFeature') -> None:
