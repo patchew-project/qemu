@@ -46,11 +46,12 @@
 #
 # Duis aute irure dolor
 #
-# Example:
+# .. code-block:: QMP
 #
 # -> in
 # <- out
-# Examples:
+# .. code-block::
+#
 # - *verbatim*
 # - {braces}
 ##
@@ -170,12 +171,13 @@
 #
 #  Duis aute irure dolor
 #
-# Example:
+# .. code-block::
 #
 #  -> in
 #  <- out
 #
-# Examples:
+# .. code-block::
+#
 #  - *verbatim*
 #  - {braces}
 #
@@ -194,7 +196,7 @@
 # @cmd-feat1: a feature
 # @cmd-feat2: another feature
 #
-# Example:
+# .. code-block::
 #
 #  -> in
 #

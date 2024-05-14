@@ -244,7 +244,8 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "transaction",
 #          "arguments": { "actions": [

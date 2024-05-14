@@ -123,7 +123,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-status" }
 #     <- { "return": { "running": true,
@@ -152,7 +153,8 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "SHUTDOWN",
 #          "data": { "guest": true, "reason": "guest-shutdown" },
@@ -168,7 +170,8 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "POWERDOWN",
 #          "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
@@ -189,7 +192,8 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "RESET",
 #          "data": { "guest": false, "reason": "guest-reset" },
@@ -204,7 +208,8 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "STOP",
 #          "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
@@ -218,7 +223,8 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "RESUME",
 #          "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
@@ -233,7 +239,8 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "SUSPEND",
 #          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
@@ -252,7 +259,8 @@
 #
 # Since: 1.2
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "SUSPEND_DISK",
 #          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
@@ -267,7 +275,8 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "WAKEUP",
 #          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
@@ -289,7 +298,8 @@
 #
 # Since: 0.13
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "WATCHDOG",
 #          "data": { "action": "reset" },
@@ -382,7 +392,8 @@
 #
 # Since: 2.11
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "watchdog-set-action",
 #          "arguments": { "action": "inject-nmi" } }
@@ -406,7 +417,8 @@
 #
 # Since: 6.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "set-action",
 #          "arguments": { "reboot": "shutdown",
@@ -433,7 +445,8 @@
 #
 # Since: 1.5
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "GUEST_PANICKED",
 #          "data": { "action": "pause" },
@@ -453,7 +466,8 @@
 #
 # Since: 5.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "GUEST_CRASHLOADED",
 #          "data": { "action": "run" },
@@ -597,7 +611,8 @@
 #
 # Since: 5.2
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "MEMORY_FAILURE",
 #          "data": { "recipient": "hypervisor",

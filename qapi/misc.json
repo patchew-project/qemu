@@ -30,7 +30,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "add_client", "arguments": { "protocol": "vnc",
 #                                                  "fdname": "myclient" } }
@@ -60,7 +61,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-name" }
 #     <- { "return": { "name": "qemu-name" } }
@@ -111,7 +113,8 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-iothreads" }
 #     <- { "return": [
@@ -144,7 +147,8 @@
 #    In the "suspended" state, it will completely stop the VM and cause
 #    a transition to the "paused" state.  (Since 9.0)
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "stop" }
 #     <- { "return": {} }
@@ -168,7 +172,8 @@
 #    this command will transition back to the "suspended" state.  (Since
 #    9.0)
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "cont" }
 #     <- { "return": {} }
@@ -192,7 +197,8 @@
 #
 # Since: 3.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "x-exit-preconfig" }
 #     <- { "return": {} }
@@ -232,7 +238,8 @@
 #
 #    * Commands that prompt the user for data don't currently work.
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "human-monitor-command",
 #          "arguments": { "command-line": "info kvm" } }
@@ -258,7 +265,8 @@
 #    The 'closefd' command can be used to explicitly close the file
 #    descriptor when it is no longer needed.
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
 #     <- { "return": {} }
@@ -285,7 +293,8 @@
 #    The 'closefd' command can be used to explicitly close the file
 #    descriptor when it is no longer needed.
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "get-win32-socket",
 #          "arguments": { "info": "abcd123..", "fdname": "skclient" } }
@@ -302,7 +311,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
 #     <- { "return": {} }
@@ -345,7 +355,8 @@
 #
 # Since: 1.2
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
 #     <- { "return": { "fdset-id": 1, "fd": 3 } }
@@ -374,7 +385,8 @@
 # .. note:: If @fd is not specified, all file descriptors in @fdset-id
 #    will be removed.
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
 #     <- { "return": {} }
@@ -420,7 +432,8 @@
 #
 # .. note:: The list of fd sets is shared by all monitor connections.
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-fdsets" }
 #     <- { "return": [
@@ -523,7 +536,8 @@
 #
 # Since: 1.5
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-command-line-options",
 #          "arguments": { "option": "option-rom" } }
@@ -565,7 +579,8 @@
 #
 # Since: 0.13
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "RTC_CHANGE",
 #          "data": { "offset": 78 },
@@ -592,7 +607,8 @@
 #
 # Since: 7.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "VFU_CLIENT_HANGUP",
 #          "data": { "vfu-id": "vfu1",

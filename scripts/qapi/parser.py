@@ -554,15 +554,26 @@ class QAPISchemaParser:
                     no_more_args = True
                     intro = False
                 elif match := re.match(
-                        r'(Returns|Errors|Since|Notes?|Examples?|TODO): *',
+                        r'(Returns|Errors|Since|Notes?|Examples?(?!::)|TODO)'
+                        r': *',
                         line):
-                    # tagged section
+                    # tagged section.
+                    # Examples sections followed by two colons are excluded;
+                    # those are raw rST syntax!
 
                     if 'Note' in match.group(1):
                         emsg = (
                             f"The '{match.group(1)}' section is deprecated."
                             " Please use rST's '.. note::' directive or "
                             "another suitable admonition instead."
+                        )
+                        raise QAPIParseError(self, emsg)
+
+                    if match.group(1).startswith("Example"):
+                        emsg = (
+                            f"The '{match.group(1)}' section is deprecated. "
+                            "Please use rST's '.. code-block:: QMP' directive,"
+                            " 'Example::', or other suitable markup instead."
                         )
                         raise QAPIParseError(self, emsg)
 

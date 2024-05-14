@@ -33,9 +33,10 @@ Returns: the King Since: the first age Notes:
 
 Duis aute irure dolor
 
-Example:
+-> in <- out .. code-block:
 
--> in <- out Examples: - *verbatim* - {braces}
+   - *verbatim*
+   - {braces}
 
 
 "Enum" (Enum)
@@ -219,16 +220,8 @@ Notes:
 
 Duis aute irure dolor
 
-
-Example
-~~~~~~~
-
    -> in
    <- out
-
-
-Examples
-~~~~~~~~
 
    - *verbatim*
    - {braces}
@@ -259,10 +252,6 @@ Features
 
 "cmd-feat2"
    another feature
-
-
-Example
-~~~~~~~
 
    -> in
 

@@ -30,7 +30,8 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
 #     <- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
@@ -98,7 +99,8 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
 #     <- { "return": [ {"duplex": "full", "enabled": true, "name": "sw1.1",
@@ -240,7 +242,8 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-rocker-of-dpa-flows",
 #          "arguments": { "name": "sw1" } }
@@ -315,7 +318,8 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-rocker-of-dpa-groups",
 #          "arguments": { "name": "sw1" } }
