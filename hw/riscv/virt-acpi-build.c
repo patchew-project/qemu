@@ -610,6 +610,13 @@ build_srat(GArray *table_data, BIOSLinker *linker, RISCVVirtState *vms)
         }
     }
 
+    if (ms->device_memory) {
+        build_srat_memory(table_data, ms->device_memory->base,
+                          memory_region_size(&ms->device_memory->mr),
+                          ms->numa_state->num_nodes - 1,
+                          MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
+    }
+
     acpi_table_end(linker, &table);
 }
 
