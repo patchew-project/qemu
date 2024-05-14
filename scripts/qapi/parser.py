@@ -587,7 +587,7 @@ class QAPISchemaParser:
                 line = self.get_doc_line()
                 first = False
 
-        self.accept(False)
+        self.accept()
         doc.end()
         return doc
 
