@@ -267,10 +267,9 @@
       'file': 'ImageInfoSpecificFileWrapper'
   } }
 
+# Information about a QEMU image file
 ##
 # @BlockNodeInfo:
-#
-# Information about a QEMU image file
 #
 # @filename: name of the image file
 #
@@ -1494,8 +1493,6 @@
 ##
 # @BlockdevSnapshotSync:
 #
-# Either @device or @node-name must be set but not both.
-#
 # @device: the name of the device to take a snapshot of.
 #
 # @node-name: graph node name to generate the snapshot from (Since
@@ -1512,6 +1509,9 @@
 #
 # @mode: whether and how QEMU should create a new image, default is
 #     'absolute-paths'.
+#
+# Note: Either @device or @node-name must be set but not both.
+#
 ##
 { 'struct': 'BlockdevSnapshotSync',
   'data': { '*device': 'str', '*node-name': 'str',
@@ -2139,10 +2139,9 @@
   'data': 'DriveMirror',
   'allow-preconfig': true }
 
+# A set of parameters describing drive mirror setup.
 ##
 # @DriveMirror:
-#
-# A set of parameters describing drive mirror setup.
 #
 # @job-id: identifier for the newly-created block job.  If omitted,
 #     the device name will be used.  (Since 2.7)
@@ -2553,10 +2552,9 @@
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },
   'allow-preconfig': true }
 
+# A set of parameters describing block throttling.
 ##
 # @BlockIOThrottle:
-#
-# A set of parameters describing block throttling.
 #
 # @device: Block device name
 #
@@ -3073,10 +3071,9 @@
 { 'struct': 'BlockJobChangeOptionsMirror',
   'data': { 'copy-mode' : 'MirrorCopyMode' } }
 
+# Block job options that can be changed after job creation.
 ##
 # @BlockJobChangeOptions:
-#
-# Block job options that can be changed after job creation.
 #
 # @id: The job identifier
 #
@@ -3332,11 +3329,10 @@
   'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
             '*label': 'str', '*rw': 'bool' } }
 
-##
-# @BlockdevOptionsGenericFormat:
-#
 # Driver specific block device options for image format that have no
 # option besides their data source.
+##
+# @BlockdevOptionsGenericFormat:
 #
 # @file: reference to or definition of the data source block device
 #
@@ -3363,11 +3359,10 @@
   'data': { '*key-secret': 'str',
             '*header': 'BlockdevRef'} }
 
-##
-# @BlockdevOptionsGenericCOWFormat:
-#
 # Driver specific block device options for image format that have no
 # option besides their data source and an optional backing file.
+##
+# @BlockdevOptionsGenericCOWFormat:
 #
 # @backing: reference to or definition of the backing file block
 #     device, null disables the backing file entirely.  Defaults to
@@ -4385,11 +4380,10 @@
             '*page-cache-size': 'int',
             '*debug': 'int' } }
 
-##
-# @BlockdevOptionsCurlBase:
-#
 # Driver specific block device options shared by all protocols
 # supported by the curl backend.
+##
+# @BlockdevOptionsCurlBase:
 #
 # @url: URL of the image file
 #
@@ -4645,11 +4639,10 @@
   'data': { 'target': 'BlockdevRef', '*bitmap': 'BlockDirtyBitmap',
             '*on-cbw-error': 'OnCbwError', '*cbw-timeout': 'uint32' } }
 
+# Options for creating a block device.  Many options are available for
+# all block devices, independent of the block driver.
 ##
 # @BlockdevOptions:
-#
-# Options for creating a block device.  Many options are available for
-# all block devices, independent of the block driver:
 #
 # @driver: block driver name
 #

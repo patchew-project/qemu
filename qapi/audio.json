@@ -10,11 +10,10 @@
 # = Audio
 ##
 
-##
-# @AudiodevPerDirectionOptions:
-#
 # General audio backend options that are used for both playback and
 # recording.
+##
+# @AudiodevPerDirectionOptions:
 #
 # @mixing-engine: use QEMU's mixing engine to mix all streams inside
 #     QEMU and convert audio formats when not supported by the

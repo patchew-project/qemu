@@ -497,10 +497,9 @@
 { 'enum': 'NumaOptionsType',
   'data': [ 'node', 'dist', 'cpu', 'hmat-lb', 'hmat-cache' ] }
 
+# A discriminated record of NUMA options.  (for OptsVisitor)
 ##
 # @NumaOptions:
-#
-# A discriminated record of NUMA options.  (for OptsVisitor)
 #
 # @type: NUMA option type
 #
@@ -1198,10 +1197,9 @@
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
 
+# hv-balloon guest-provided memory status information.
 ##
 # @HvBalloonInfo:
-#
-# hv-balloon guest-provided memory status information.
 #
 # @committed: the amount of memory in use inside the guest plus the
 #     amount of the memory unusable inside the guest (ballooned out,

@@ -77,11 +77,10 @@
             '*max-connections': 'uint32' },
   'allow-preconfig': true }
 
-##
-# @BlockExportOptionsNbdBase:
-#
 # An NBD block export (common options shared between nbd-server-add
 # and the NBD branch of block-export-add).
+##
+# @BlockExportOptionsNbdBase:
 #
 # @name: Export name.  If unspecified, the @device parameter is used
 #     as the export name.  (Since 2.12)
@@ -213,10 +212,9 @@
             '*logical-block-size': 'size',
             '*serial': 'str' } }
 
+# An NBD block export, per legacy nbd-server-add command.
 ##
 # @NbdServerAddOptions:
-#
-# An NBD block export, per legacy nbd-server-add command.
 #
 # @device: The device name or node name of the node to be exported
 #

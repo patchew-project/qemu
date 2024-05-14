@@ -163,10 +163,9 @@
 #  'prefix': 'QCRYPTO_BLOCK_FORMAT',
   'data': ['qcow', 'luks']}
 
+# The common options that apply to all full disk encryption formats
 ##
 # @QCryptoBlockOptionsBase:
-#
-# The common options that apply to all full disk encryption formats
 #
 # @format: the encryption format
 #
@@ -175,10 +174,9 @@
 { 'struct': 'QCryptoBlockOptionsBase',
   'data': { 'format': 'QCryptoBlockFormat' }}
 
+# The options that apply to QCow/QCow2 AES-CBC encryption format
 ##
 # @QCryptoBlockOptionsQCow:
-#
-# The options that apply to QCow/QCow2 AES-CBC encryption format
 #
 # @key-secret: the ID of a QCryptoSecret object providing the
 #     decryption key.  Mandatory except when probing image for
@@ -189,10 +187,9 @@
 { 'struct': 'QCryptoBlockOptionsQCow',
   'data': { '*key-secret': 'str' }}
 
+# The options that apply to LUKS encryption format:
 ##
 # @QCryptoBlockOptionsLUKS:
-#
-# The options that apply to LUKS encryption format
 #
 # @key-secret: the ID of a QCryptoSecret object providing the
 #     decryption key.  Mandatory except when probing image for
@@ -203,10 +200,9 @@
 { 'struct': 'QCryptoBlockOptionsLUKS',
   'data': { '*key-secret': 'str' }}
 
+# The options that apply to LUKS encryption format initialization
 ##
 # @QCryptoBlockCreateOptionsLUKS:
-#
-# The options that apply to LUKS encryption format initialization
 #
 # @cipher-alg: the cipher algorithm for data encryption Currently
 #     defaults to 'aes-256'.
@@ -268,11 +264,10 @@
   'data': { 'qcow': 'QCryptoBlockOptionsQCow',
             'luks': 'QCryptoBlockCreateOptionsLUKS' } }
 
-##
-# @QCryptoBlockInfoBase:
-#
 # The common information that applies to all full disk encryption
 # formats
+##
+# @QCryptoBlockInfoBase:
 #
 # @format: the encryption format
 #
@@ -424,10 +419,9 @@
   'data': {
           'luks': 'QCryptoBlockAmendOptionsLUKS' } }
 
+# Properties for objects of classes derived from secret-common.
 ##
 # @SecretCommonProperties:
-#
-# Properties for objects of classes derived from secret-common.
 #
 # @loaded: if true, the secret is loaded immediately when applying
 #     this option and will probably fail when processing the next
@@ -490,10 +484,9 @@
   'base': 'SecretCommonProperties',
   'data': { 'serial': 'int32' } }
 
+# Properties for objects of classes derived from tls-creds.
 ##
 # @TlsCredsProperties:
-#
-# Properties for objects of classes derived from tls-creds.
 #
 # @verify-peer: if true the peer credentials will be verified once the
 #     handshake is completed.  This is a no-op for anonymous

@@ -272,11 +272,10 @@
             '*max_queue_size': 'uint32',
             '*vnet_hdr_support': 'bool' } }
 
-##
-# @CryptodevBackendProperties:
-#
 # Properties for cryptodev-backend and cryptodev-backend-builtin
 # objects.
+##
+# @CryptodevBackendProperties:
 #
 # @queues: the number of queues for the cryptodev backend.  Ignored
 #     for cryptodev-backend and must be 1 for
@@ -338,10 +337,9 @@
 { 'enum': 'NetfilterInsert',
   'data': [ 'before', 'behind' ] }
 
+# Properties for objects of classes derived from netfilter.
 ##
 # @NetfilterProperties:
-#
-# Properties for objects of classes derived from netfilter.
 #
 # @netdev: id of the network device backend to filter
 #
@@ -516,10 +514,9 @@
             '*repeat': 'bool',
             '*grab-toggle': 'GrabToggleKeys' } }
 
+# Common properties for event loops
 ##
 # @EventLoopBaseProperties:
-#
-# Common properties for event loops
 #
 # @aio-max-batch: maximum number of requests in a batch for the AIO
 #     engine, 0 means that the engine will use its default.
@@ -576,10 +573,9 @@
   'base': 'EventLoopBaseProperties',
   'data': {} }
 
+# Properties for objects of classes derived from memory-backend.
 ##
 # @MemoryBackendProperties:
-#
-# Properties for objects of classes derived from memory-backend.
 #
 # @merge: if true, mark the memory as mergeable (default depends on
 #     the machine type)
@@ -826,10 +822,9 @@
   'data': { 'pci-dev': 'str',
             'node': 'uint32' } }
 
+# Properties for objects of classes derived from rng.
 ##
 # @RngProperties:
-#
-# Properties for objects of classes derived from rng.
 #
 # @opened: if true, the device is opened immediately when applying
 #     this option and will probably fail when processing the next
@@ -1008,10 +1003,9 @@
     { 'name': 'x-vfio-user-server', 'features': [ 'unstable' ] }
   ] }
 
+# Describes the options of a user creatable QOM object.
 ##
 # @ObjectOptions:
-#
-# Describes the options of a user creatable QOM object.
 #
 # @qom-type: the class name for the object to be created
 #

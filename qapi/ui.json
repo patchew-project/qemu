@@ -39,8 +39,6 @@
 ##
 # @SetPasswordOptions:
 #
-# Options for set_password.
-#
 # @protocol:
 #     - 'vnc' to modify the VNC server password
 #     - 'spice' to modify the Spice server password
@@ -93,8 +91,6 @@
 
 ##
 # @ExpirePasswordOptions:
-#
-# General options for expire_password.
 #
 # @protocol:
 #     - 'vnc' to modify the VNC server expiration
@@ -205,8 +201,6 @@
 
 ##
 # @SpiceBasicInfo:
-#
-# The basic information for SPICE network connection
 #
 # @host: IP address
 #
@@ -468,8 +462,6 @@
 
 ##
 # @VncBasicInfo:
-#
-# The basic information for vnc network connection
 #
 # @host: IP address
 #
@@ -1598,8 +1590,6 @@
 ##
 # @DisplayReloadOptions:
 #
-# Options of the display configuration reload.
-#
 # @type: Specify the display type.
 #
 # Since: 6.0
@@ -1641,8 +1631,6 @@
 ##
 # @DisplayUpdateOptionsVNC:
 #
-# Specify the VNC reload options.
-#
 # @addresses: If specified, change set of addresses to listen for
 #     connections.  Addresses configured for websockets are not
 #     touched.
@@ -1654,8 +1642,6 @@
 
 ##
 # @DisplayUpdateOptions:
-#
-# Options of the display configuration reload.
 #
 # @type: Specify the display type.
 #

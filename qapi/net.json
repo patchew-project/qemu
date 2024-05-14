@@ -722,10 +722,9 @@
             { 'name': 'vmnet-shared', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-bridged', 'if': 'CONFIG_VMNET' }] }
 
+# Captures the configuration of a network device.
 ##
 # @Netdev:
-#
-# Captures the configuration of a network device.
 #
 # @id: identifier for monitor commands.
 #
@@ -893,8 +892,6 @@
 
 ##
 # @AnnounceParameters:
-#
-# Parameters for self-announce timers
 #
 # @initial: Initial delay (in ms) before sending the first GARP/RARP
 #     announcement

@@ -189,10 +189,9 @@
   'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
   'returns': 'str' }
 
+# Configuration shared across all chardev backends
 ##
 # @ChardevCommon:
-#
-# Configuration shared across all chardev backends
 #
 # @logfile: The name of a logfile to save output
 #
