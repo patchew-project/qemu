@@ -70,7 +70,6 @@ void gd_egl_draw(VirtualConsole *vc)
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
 #endif
     int ww, wh, ws;
-    int fence_fd;
 
     if (!vc->gfx.gls) {
         return;
