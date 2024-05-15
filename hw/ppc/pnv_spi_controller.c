@@ -1067,8 +1067,16 @@ static void operation_sequencer(PnvSpiController *s)
 static void do_reset(DeviceState *dev)
 {
     PnvSpiController *s = PNV_SPICONTROLLER(dev);
+    DeviceState *ssi_dev;
 
     trace_pnv_spi_reset();
+
+    /* Connect cs irq */
+    ssi_dev = ssi_get_cs(s->ssi_bus, 0);
+    if (ssi_dev) {
+        qemu_irq cs_line = qdev_get_gpio_in_named(ssi_dev, SSI_GPIO_CS, 0);
+        qdev_connect_gpio_out_named(DEVICE(s), "cs", 0, cs_line);
+    }
 
     /* Reset all N1 and N2 counters, and other constants */
     s->N2_bits = 0;
