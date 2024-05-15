@@ -110,6 +110,12 @@ pnv_sbe_cmd_timer_stop(void) ""
 pnv_sbe_cmd_timer_expired(void) ""
 pnv_sbe_msg_recv(uint16_t cmd, uint16_t seq, uint16_t ctrl_flags) "cmd 0x%" PRIx16 " seq %"PRIu16 " ctrl_flags 0x%" PRIx16
 
+#pnv_spi_controller.c
+pnv_spi_read(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
+pnv_spi_write(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
+pnv_spi_read_RDR(uint64_t val) "data extracted = 0x%" PRIx64
+pnv_spi_write_TDR(uint64_t val) "being written, data written = 0x%" PRIx64
+
 # ppc.c
 ppc_tb_adjust(uint64_t offs1, uint64_t offs2, int64_t diff, int64_t seconds) "adjusted from 0x%"PRIx64" to 0x%"PRIx64", diff %"PRId64" (%"PRId64"s)"
 ppc_tb_load(uint64_t tb) "tb 0x%016" PRIx64
