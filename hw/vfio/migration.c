@@ -129,6 +129,9 @@ static void vfio_migration_set_device_state(VFIODevice *vbasedev,
 {
     VFIOMigration *migration = vbasedev->migration;
 
+    trace_vfio_migration_set_device_state(vbasedev->name,
+                                          mig_state_to_str(state));
+
     migration->device_state = state;
     vfio_migration_send_event(vbasedev);
 }
@@ -145,6 +148,9 @@ static int vfio_migration_set_state(VFIODevice *vbasedev,
     struct vfio_device_feature_mig_state *mig_state =
         (struct vfio_device_feature_mig_state *)feature->data;
     int ret;
+
+    trace_vfio_migration_set_state(vbasedev->name, mig_state_to_str(new_state),
+                                   mig_state_to_str(recover_state));
 
     if (new_state == migration->device_state) {
         return 0;
@@ -202,8 +208,6 @@ static int vfio_migration_set_state(VFIODevice *vbasedev,
 
         migration->data_fd = mig_state->data_fd;
     }
-
-    trace_vfio_migration_set_state(vbasedev->name, mig_state_to_str(new_state));
 
     return 0;
 
