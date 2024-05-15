@@ -421,6 +421,14 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG5, CC_DIV, 1);
     env->cpucfg[5] = data;
 
+    if (kvm_enabled()) {
+        data = 0;
+        data = FIELD_DP32(data, CPUCFG6, PMP, 1);
+        data = FIELD_DP32(data, CPUCFG6, PMNUM, 3);
+        data = FIELD_DP32(data, CPUCFG6, PMBITS, 63);
+        env->cpucfg[6] = data;
+    }
+
     data = 0;
     data = FIELD_DP32(data, CPUCFG16, L1_IUPRE, 1);
     data = FIELD_DP32(data, CPUCFG16, L1_DPRE, 1);
@@ -643,6 +651,20 @@ static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
     }
 }
 
+static bool loongarch_get_pmu(Object *obj, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    return  !!(FIELD_EX32(cpu->env.cpucfg[6], CPUCFG6, PMP));
+}
+
+static void loongarch_set_pmu(Object *obj, bool value,  Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->env.cpucfg[6] = FIELD_DP32(cpu->env.cpucfg[6], CPUCFG6, PMP, value);
+}
+
 void loongarch_cpu_post_init(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
@@ -654,6 +676,11 @@ void loongarch_cpu_post_init(Object *obj)
     if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LASX)) {
         object_property_add_bool(obj, "lasx", loongarch_get_lasx,
                                  loongarch_set_lasx);
+    }
+
+    if (kvm_enabled()) {
+        object_property_add_bool(obj, "pmu", loongarch_get_pmu,
+                                 loongarch_set_pmu);
     }
 }
 
