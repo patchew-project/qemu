@@ -18,6 +18,7 @@
 #include "gdbstub/syscalls.h"
 #include "trace.h"
 #include "internals.h"
+#include "exec/gdbstub.h"
 
 /* Syscall specific state */
 typedef struct {

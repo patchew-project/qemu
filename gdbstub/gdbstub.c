@@ -920,43 +920,6 @@ static int cmd_parse_params(const char *data, const char *schema,
     return 0;
 }
 
-typedef void (*GdbCmdHandler)(GArray *params, void *user_ctx);
-
-/*
- * cmd_startswith -> cmd is compared using startswith
- *
- * allow_stop_reply -> true iff the gdbstub can respond to this command with a
- *   "stop reply" packet. The list of commands that accept such response is
- *   defined at the GDB Remote Serial Protocol documentation. see:
- *   https://sourceware.org/gdb/onlinedocs/gdb/Stop-Reply-Packets.html#Stop-Reply-Packets.
- *
- * schema definitions:
- * Each schema parameter entry consists of 2 chars,
- * the first char represents the parameter type handling
- * the second char represents the delimiter for the next parameter
- *
- * Currently supported schema types:
- * 'l' -> unsigned long (stored in .val_ul)
- * 'L' -> unsigned long long (stored in .val_ull)
- * 's' -> string (stored in .data)
- * 'o' -> single char (stored in .opcode)
- * 't' -> thread id (stored in .thread_id)
- * '?' -> skip according to delimiter
- *
- * Currently supported delimiters:
- * '?' -> Stop at any delimiter (",;:=\0")
- * '0' -> Stop at "\0"
- * '.' -> Skip 1 char unless reached "\0"
- * Any other value is treated as the delimiter value itself
- */
-typedef struct GdbCmdParseEntry {
-    GdbCmdHandler handler;
-    const char *cmd;
-    bool cmd_startswith;
-    const char *schema;
-    bool allow_stop_reply;
-} GdbCmdParseEntry;
-
 static inline int startswith(const char *string, const char *pattern)
 {
   return !strncmp(string, pattern, strlen(pattern));
@@ -1645,6 +1608,13 @@ static void handle_query_thread_extra(GArray *params, void *user_ctx)
     gdb_put_strbuf();
 }
 
+/* Arch-specific qSupported */
+char *query_supported_arch = NULL;
+void set_query_supported_arch(char *query_supported)
+{
+    query_supported_arch = query_supported;
+}
+
 static void handle_query_supported(GArray *params, void *user_ctx)
 {
     CPUClass *cc;
@@ -1684,6 +1654,11 @@ static void handle_query_supported(GArray *params, void *user_ctx)
     }
 
     g_string_append(gdbserver_state.str_buf, ";vContSupported+;multiprocess+");
+
+    if (query_supported_arch) {
+        g_string_append(gdbserver_state.str_buf, query_supported_arch);
+    }
+
     gdb_put_strbuf();
 }
 
@@ -1764,6 +1739,16 @@ static const GdbCmdParseEntry gdb_gen_query_set_common_table[] = {
         .schema = "l0"
     },
 };
+
+
+/* Arch-specific query table */
+static GdbCmdParseEntry *gdb_gen_query_table_arch = NULL ;
+static int gdb_gen_query_table_arch_size = 0;
+void set_gdb_gen_query_table_arch(GdbCmdParseEntry  *table, int size)
+{
+    gdb_gen_query_table_arch = table;
+    gdb_gen_query_table_arch_size = size;
+}
 
 static const GdbCmdParseEntry gdb_gen_query_table[] = {
     {
@@ -1857,6 +1842,15 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
 #endif
 };
 
+/* Arch-specific set table */
+static GdbCmdParseEntry *gdb_gen_set_table_arch = NULL;
+static int gdb_gen_set_table_arch_size = 0;
+void set_gdb_gen_set_table_arch(GdbCmdParseEntry *table, int size)
+{
+    gdb_gen_set_table_arch = table;
+    gdb_gen_set_table_arch_size = size;
+}
+
 static const GdbCmdParseEntry gdb_gen_set_table[] = {
     /* Order is important if has same prefix */
     {
@@ -1889,17 +1883,27 @@ static void handle_gen_query(GArray *params, void *user_ctx)
         return;
     }
 
-    if (!process_string_cmd(get_param(params, 0)->data,
-                            gdb_gen_query_set_common_table,
-                            ARRAY_SIZE(gdb_gen_query_set_common_table))) {
+    if (process_string_cmd(get_param(params, 0)->data,
+                           gdb_gen_query_set_common_table,
+                           ARRAY_SIZE(gdb_gen_query_set_common_table)) == 0) {
         return;
     }
 
     if (process_string_cmd(get_param(params, 0)->data,
                            gdb_gen_query_table,
-                           ARRAY_SIZE(gdb_gen_query_table))) {
-        gdb_put_packet("");
+                           ARRAY_SIZE(gdb_gen_query_table)) == 0) {
+        return;
     }
+
+    if (gdb_gen_query_table_arch &&
+        process_string_cmd(get_param(params, 0)->data,
+                           gdb_gen_query_table_arch,
+                           gdb_gen_query_table_arch_size) == 0) {
+        return;
+    }
+
+    /* Can't handle query, return Empty response. */
+    gdb_put_packet("");
 }
 
 static void handle_gen_set(GArray *params, void *user_ctx)
@@ -1908,17 +1912,27 @@ static void handle_gen_set(GArray *params, void *user_ctx)
         return;
     }
 
-    if (!process_string_cmd(get_param(params, 0)->data,
-                            gdb_gen_query_set_common_table,
-                            ARRAY_SIZE(gdb_gen_query_set_common_table))) {
+    if (process_string_cmd(get_param(params, 0)->data,
+                           gdb_gen_query_set_common_table,
+                           ARRAY_SIZE(gdb_gen_query_set_common_table)) == 0) {
         return;
     }
 
     if (process_string_cmd(get_param(params, 0)->data,
                            gdb_gen_set_table,
-                           ARRAY_SIZE(gdb_gen_set_table))) {
-        gdb_put_packet("");
+                           ARRAY_SIZE(gdb_gen_set_table)) == 0) {
+        return;
     }
+
+    if (gdb_gen_set_table_arch &&
+        process_string_cmd(get_param(params, 0)->data,
+                           gdb_gen_set_table_arch,
+                           gdb_gen_set_table_arch_size) == 0) {
+        return;
+    }
+
+    /* Can't handle set, return Empty response. */
+    gdb_put_packet("");
 }
 
 static void handle_target_halt(GArray *params, void *user_ctx)
