@@ -10,6 +10,7 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "xen-host-pci-device.h"
+#include "hw/xen/xen_native.h"
 
 #define XEN_HOST_PCI_MAX_EXT_CAP \
     ((PCIE_CONFIG_SPACE_SIZE - PCI_CONFIG_SPACE_SIZE) / (PCI_CAP_SIZEOF + 4))
@@ -329,12 +330,17 @@ int xen_host_pci_find_ext_cap_offset(XenHostPCIDevice *d, uint32_t cap)
     return -1;
 }
 
+#define PCI_SBDF(seg, bus, dev, func) \
+            ((((uint32_t)(seg)) << 16) | \
+            (PCI_BUILD_BDF(bus, PCI_DEVFN(dev, func))))
+
 void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
                              uint8_t bus, uint8_t dev, uint8_t func,
                              Error **errp)
 {
     ERRP_GUARD();
     unsigned int v;
+    uint32_t sdbf;
 
     d->config_fd = -1;
     d->domain = domain;
@@ -364,11 +370,16 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
     }
     d->device_id = v;
 
-    xen_host_pci_get_dec_value(d, "irq", &v, errp);
-    if (*errp) {
-        goto error;
+    sdbf = PCI_SBDF(domain, bus, dev, func);
+    d->irq = xc_physdev_gsi_from_dev(xen_xc, sdbf);
+    /* fail to get gsi, fallback to irq */
+    if (d->irq == -1) {
+        xen_host_pci_get_dec_value(d, "irq", &v, errp);
+        if (*errp) {
+            goto error;
+        }
+        d->irq = v;
     }
-    d->irq = v;
 
     xen_host_pci_get_hex_value(d, "class", &v, errp);
     if (*errp) {
