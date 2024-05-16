@@ -20,6 +20,12 @@
 typedef struct AccelOpsClass AccelOpsClass;
 DECLARE_CLASS_CHECKERS(AccelOpsClass, ACCEL_OPS, TYPE_ACCEL_OPS)
 
+typedef enum {
+    CONFIDENTIAL_GUEST_SUPPORTED,
+    /* A confidential guest can share its private memory with host at runtime */
+    CONFIDENTIAL_GUEST_CAN_SHARE_MEM_WITH_HOST,
+} AccelCap;
+
 /* cpus.c operations interface */
 struct AccelOpsClass {
     /*< private >*/
@@ -46,6 +52,8 @@ struct AccelOpsClass {
 
     int64_t (*get_virtual_clock)(void);
     int64_t (*get_elapsed_ticks)(void);
+
+    bool (*check_capability)(AccelCap capability);
 
     /* gdbstub hooks */
     bool (*supports_guest_debug)(void);
