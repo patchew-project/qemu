@@ -532,6 +532,7 @@ F: include/sysemu/gunyah.h
 F: include/sysemu/gunyah_int.h
 F: target/arm/arm_gicv3_gunyah.c
 F: hw/intc/arm_gicv3_gunyah.c
+F: docs/system/arm/gunyah.rst
 
 WHPX CPUs
 M: Sunil Muthuswamy <sunilmut@microsoft.com>
