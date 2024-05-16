@@ -25,6 +25,9 @@ arm_system_ss.add(files(
   'machine.c',
   'ptw.c',
 ))
+arm_system_ss.add(when: 'CONFIG_GUNYAH', if_true: files(
+  'gunyah.c',
+))
 
 arm_user_ss = ss.source_set()
 

@@ -29,4 +29,6 @@ typedef struct GUNYAHState GUNYAHState;
 DECLARE_INSTANCE_CHECKER(GUNYAHState, GUNYAH_STATE,
                          TYPE_GUNYAH_ACCEL)
 
+int gunyah_arm_set_dtb(uint64_t dtb_start, uint64_t dtb_size);
+
 #endif  /* QEMU_GUNYAH_H */
