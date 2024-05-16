@@ -48,6 +48,8 @@
 #include "qemu/mmap-alloc.h"
 #include "elf.h"
 #include "sysemu/kvm_int.h"
+#include "sysemu/kvm.h"
+#include "hw/core/accel-cpu.h"
 
 #include CONFIG_DEVICES
 
@@ -2348,6 +2350,26 @@ static void alter_insns(uint64_t *word, uint64_t flags, bool on)
     }
 }
 
+static bool kvmppc_cpu_realize(CPUState *cs, Error **errp)
+{
+    int ret;
+
+    cs->cpu_index = cpu_get_free_index();
+
+    POWERPC_CPU(cs)->vcpu_id = cs->cpu_index;
+
+    if (cs->parent_obj.hotplugged) {
+        /* create and park to fail gracefully in case vcpu hotplug fails */
+        ret = kvm_create_and_park_vcpu(cs);
+        if (ret) {
+            error_setg(errp, "%s: vcpu hotplug failed with %d",
+                             __func__, ret);
+            return false;
+        }
+    }
+    return true;
+}
+
 static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
@@ -2967,4 +2989,6 @@ void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset)
 
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
+    AccelClass *ac = ACCEL_CLASS(oc);
+    ac->cpu_common_realize = kvmppc_cpu_realize;
 }
