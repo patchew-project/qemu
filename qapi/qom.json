@@ -875,6 +875,18 @@
   'data': { '*filename': 'str' } }
 
 ##
+# @ArmConfidentialGuestProperties:
+#
+# Properties for arm-confidential-guest objects.
+#
+# @swiotlb-size: swiotlb size
+#
+# Since: 2.12
+##
+{ 'struct': 'ArmConfidentialGuestProperties',
+  'data': { 'swiotlb-size' : 'uint64' } }
+
+##
 # @SevGuestProperties:
 #
 # Properties for sev-guest objects.
@@ -997,6 +1009,7 @@
     { 'name': 'secret_keyring',
       'if': 'CONFIG_SECRET_KEYRING' },
     'sev-guest',
+    'arm-confidential-guest',
     'thread-context',
     's390-pv-guest',
     'throttle-group',
@@ -1067,6 +1080,7 @@
       'secret_keyring':             { 'type': 'SecretKeyringProperties',
                                       'if': 'CONFIG_SECRET_KEYRING' },
       'sev-guest':                  'SevGuestProperties',
+      'arm-confidential-guest':     'ArmConfidentialGuestProperties',
       'thread-context':             'ThreadContextProperties',
       'throttle-group':             'ThrottleGroupProperties',
       'tls-creds-anon':             'TlsCredsAnonProperties',

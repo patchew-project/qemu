@@ -84,6 +84,9 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "sysemu/cpus.h"
+#include "exec/confidential-guest-support.h"
+#include "qom/object_interfaces.h"
 
 static GlobalProperty arm_virt_compat[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -1545,6 +1548,11 @@ static void create_pcie(VirtMachineState *vms)
                            nr_pcie_buses - 1);
     qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
 
+    if (vms->restricted_dma_phandle) {
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "memory-region",
+                                vms->restricted_dma_phandle);
+    }
+
     if (vms->msi_phandle) {
         qemu_fdt_setprop_cells(ms->fdt, nodename, "msi-map",
                                0, vms->msi_phandle, 0, 0x10000);
@@ -2065,6 +2073,129 @@ static void virt_cpu_post_init(VirtMachineState *vms, MemoryRegion *sysmem)
     }
 }
 
+#define TYPE_ARM_CONFIDENTIAL_GUEST "arm-confidential-guest"
+OBJECT_DECLARE_SIMPLE_TYPE(ArmConfidentialGuestState, ARM_CONFIDENTIAL_GUEST)
+
+struct ArmConfidentialGuestState {
+    ConfidentialGuestSupport parent_obj;
+
+    hwaddr swiotlb_size;
+};
+
+static ArmConfidentialGuestState *acg;
+
+static void
+arm_confidential_guest_instance_init(Object *obj)
+{
+    ArmConfidentialGuestState *acg = ARM_CONFIDENTIAL_GUEST(obj);
+
+    object_property_add_uint64_ptr(obj, "swiotlb-size", &acg->swiotlb_size,
+                                   OBJ_PROP_FLAG_READWRITE);
+}
+
+static const TypeInfo confidential_guest_info = {
+    .parent = TYPE_CONFIDENTIAL_GUEST_SUPPORT,
+    .name = TYPE_ARM_CONFIDENTIAL_GUEST,
+    .instance_size = sizeof(ArmConfidentialGuestState),
+    .instance_init = arm_confidential_guest_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_USER_CREATABLE },
+        { }
+    }
+};
+
+static void
+confidential_guest_register_types(void)
+{
+    type_register_static(&confidential_guest_info);
+}
+type_init(confidential_guest_register_types);
+
+static int confidential_guest_init(MachineState *ms)
+{
+    ConfidentialGuestSupport *cgs = ms->cgs;
+    ArmConfidentialGuestState *obj = (ArmConfidentialGuestState *)
+        object_dynamic_cast(OBJECT(cgs), TYPE_ARM_CONFIDENTIAL_GUEST);
+    const AccelOpsClass *ops = cpus_get_accel();
+
+    if (!obj) {
+        return 0;
+    }
+
+    if (!ops->check_capability ||
+            !ops->check_capability(CONFIDENTIAL_GUEST_SUPPORTED)) {
+        error_report("confidential guests are not supported");
+        return -1;
+    }
+
+    if (obj->swiotlb_size > ms->ram_size) {
+        error_report("swiotlb_size exceeds RAM size");
+        return -1;
+    }
+
+    acg = obj;
+    cgs->ready = true;
+
+    return 0;
+}
+
+static void fdt_add_reserved_memory(VirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+    hwaddr membase = vms->memmap[VIRT_MEM].base;
+    hwaddr memsize = ms->ram_size;
+    hwaddr resv_start;
+    const char compat[] = "restricted-dma-pool";
+    const AccelOpsClass *ops = cpus_get_accel();
+    char *nodename;
+
+    if (!acg || !acg->swiotlb_size) {
+        return;
+    }
+
+    nodename = g_strdup_printf("/reserved-memory");
+
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#size-cells", 2);
+    qemu_fdt_setprop(ms->fdt, nodename, "ranges", NULL, 0);
+    g_free(nodename);
+
+    resv_start = membase + memsize - acg->swiotlb_size;
+    if (ops->check_capability &&
+            ops->check_capability(CONFIDENTIAL_GUEST_CAN_SHARE_MEM_WITH_HOST)) {
+        /*
+         * Indicate only the size of swiotlb buffer needed. Guest will
+         * determine where in its private memory the buffer will be placed and
+         * will use appropriate (hypervisor) APIs to share that with host.
+         */
+        nodename = g_strdup_printf("/reserved-memory/restricted_dma_reserved");
+        qemu_fdt_add_subnode(ms->fdt, nodename);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "size", acg->swiotlb_size);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "alignment", 4096);
+    } else {
+        /*
+         * On hypervisors that don't support APIs for guest to share
+         * its (private) memory with host, indicate to the guest where in its
+         * address space shared memory can be found. Host should make arrangents
+         * with hypervisor to assign some memory to guest at the indicated range
+         * and mark it as shared.
+         */
+        nodename = g_strdup_printf("/reserved-memory/restricted_dma_reserved@%"
+                PRIx64, resv_start);
+        qemu_fdt_add_subnode(ms->fdt, nodename);
+        qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                         2, resv_start,
+                                         2, acg->swiotlb_size);
+    }
+
+    vms->restricted_dma_phandle = qemu_fdt_alloc_phandle(ms->fdt);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle",
+            vms->restricted_dma_phandle);
+    qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
+    g_free(nodename);
+}
+
 static void machvirt_init(MachineState *machine)
 {
     VirtMachineState *vms = VIRT_MACHINE(machine);
@@ -2075,7 +2206,7 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *secure_sysmem = NULL;
     MemoryRegion *tag_sysmem = NULL;
     MemoryRegion *secure_tag_sysmem = NULL;
-    int n, virt_max_cpus;
+    int n, virt_max_cpus, ret;
     bool firmware_loaded;
     bool aarch64 = true;
     bool has_ged = !vmc->no_ged;
@@ -2083,6 +2214,12 @@ static void machvirt_init(MachineState *machine)
     unsigned int max_cpus = machine->smp.max_cpus;
 
     possible_cpus = mc->possible_cpu_arch_ids(machine);
+
+    ret = confidential_guest_init(machine);
+    if (ret != 0) {
+        error_report("Failed to initialize confidential guest");
+        exit(1);
+    }
 
     /*
      * In accelerated mode, the memory map is computed earlier in kvm_type()
@@ -2194,6 +2331,8 @@ static void machvirt_init(MachineState *machine)
     }
 
     create_fdt(vms);
+
+    fdt_add_reserved_memory(vms);
 
     assert(possible_cpus->len == max_cpus);
     for (n = 0; n < possible_cpus->len; n++) {
