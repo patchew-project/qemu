@@ -37,6 +37,11 @@ static void gunyah_accel_instance_init(Object *obj)
     s->vmfd = -1;
 }
 
+static void gunyah_setup_post(MachineState *ms, AccelState *accel)
+{
+    gunyah_start_vm();
+}
+
 static void gunyah_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
@@ -44,6 +49,7 @@ static void gunyah_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "GUNYAH";
     ac->init_machine = gunyah_init;
     ac->allowed = &gunyah_allowed;
+    ac->setup_post = gunyah_setup_post;
 }
 
 static const TypeInfo gunyah_accel_type = {
@@ -104,6 +110,7 @@ static void gunyah_accel_ops_class_init(ObjectClass *oc, void *data)
     ops->kick_vcpu_thread = gunyah_kick_vcpu_thread;
     ops->cpu_thread_is_idle = gunyah_vcpu_thread_is_idle;
     ops->check_capability = gunyah_check_capability;
+    ops->synchronize_post_reset = gunyah_cpu_synchronize_post_reset;
 };
 
 static const TypeInfo gunyah_accel_ops_type = {

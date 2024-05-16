@@ -122,3 +122,21 @@ void gunyah_arm_fdt_customize(void *fdt, uint64_t mem_base,
         g_free(nodename);
     }
 }
+
+int gunyah_arch_put_registers(CPUState *cs, int level)
+{
+    /*
+     * No support (yet) to set/get vCPU registers.
+     *
+     * We specify device-tree location via GH_VM_SET_DTB_CONFIG, which is
+     * passed on to RM. RM will inspect the device-tree before VM begins
+     * execution and makes arrangement (with hypervisor) for VM to receive a
+     * pointer to device-tree via X0 register at boot time.
+     *
+     * Image entry point is assumed to be the beginning of slot containing
+     * device-tree, which seems to be true currently. In future, Gunyah could
+     * add API to set boot CPU's register context.
+     */
+
+    return 0;
+}
