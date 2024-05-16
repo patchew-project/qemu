@@ -413,7 +413,8 @@ static int fdt_add_memory_node(void *fdt, uint32_t acells, hwaddr mem_base,
     char *nodename;
     int ret;
 
-    nodename = g_strdup_printf("/memory@%" PRIx64, mem_base);
+    /* Workaround until RM can parse memory nodes of type memory@XYZ. */
+    nodename = g_strdup_printf("/memory");
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
     ret = qemu_fdt_setprop_sized_cells(fdt, nodename, "reg", acells, mem_base,
@@ -660,6 +661,20 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     if (binfo->modify_dtb) {
         binfo->modify_dtb(binfo, fdt);
     }
+
+    /*
+     * Gunyah RM inspects and modifies device-tree (to provide additional
+     * information that VM may need). It depends on knowing total size reserved
+     * for device-tree (i.e FDT_MAX_SIZE) and current size (via @totalsize). At
+     * this point however, @totalsize = FDT_MAX_SIZE, making RM think that there
+     * is no room for modification and fail to start VM.
+     *
+     * RM should ideally pack device-tree so that @totalsize reflects the actual
+     * size before it attempts modification. Until RM is fixed, pack
+     * device-tree so that @toalsize reflects the actual size.
+     */
+
+    fdt_pack(fdt);
 
     qemu_fdt_dumpdtb(fdt, size);
 
