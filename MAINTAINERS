@@ -1913,8 +1913,7 @@ F: include/hw/xtensa/mx_pic.h
 Devices
 -------
 Overall Audio frontends
-M: Gerd Hoffmann <kraxel@redhat.com>
-S: Odd Fixes
+S: Orphan
 F: hw/audio/
 F: include/hw/audio/
 F: tests/qtest/ac97-test.c
@@ -2389,7 +2388,6 @@ F: hw/virtio/virtio-mem-pci.c
 F: include/hw/virtio/virtio-mem.h
 
 virtio-snd
-M: Gerd Hoffmann <kraxel@redhat.com>
 R: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 S: Supported
 F: hw/audio/virtio-snd.c
@@ -2768,7 +2766,6 @@ F: include/hw/hyperv/hv-balloon.h
 Subsystems
 ----------
 Overall Audio backends
-M: Gerd Hoffmann <kraxel@redhat.com>
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Odd Fixes
 F: audio/
@@ -2784,13 +2781,11 @@ X: audio/spiceaudio.c
 F: qapi/audio.json
 
 ALSA Audio backend
-M: Gerd Hoffmann <kraxel@redhat.com>
 R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 S: Odd Fixes
 F: audio/alsaaudio.c
 
 Core Audio framework backend
-M: Gerd Hoffmann <kraxel@redhat.com>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 R: Akihiko Odaki <akihiko.odaki@daynix.com>
@@ -2798,34 +2793,28 @@ S: Odd Fixes
 F: audio/coreaudio.c
 
 DSound Audio backend
-M: Gerd Hoffmann <kraxel@redhat.com>
-S: Odd Fixes
+S: Orphan
 F: audio/dsound*
 
 JACK Audio Connection Kit backend
-M: Gerd Hoffmann <kraxel@redhat.com>
 R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 S: Odd Fixes
 F: audio/jackaudio.c
 
 Open Sound System (OSS) Audio backend
-M: Gerd Hoffmann <kraxel@redhat.com>
-S: Odd Fixes
+S: Orphan
 F: audio/ossaudio.c
 
 PulseAudio backend
-M: Gerd Hoffmann <kraxel@redhat.com>
-S: Odd Fixes
+S: Orphan
 F: audio/paaudio.c
 
 SDL Audio backend
-M: Gerd Hoffmann <kraxel@redhat.com>
 R: Thomas Huth <huth@tuxfamily.org>
 S: Odd Fixes
 F: audio/sdlaudio.c
 
 Sndio Audio backend
-M: Gerd Hoffmann <kraxel@redhat.com>
 R: Alexandre Ratchov <alex@caoua.org>
 S: Odd Fixes
 F: audio/sndioaudio.c
