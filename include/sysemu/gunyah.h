@@ -20,6 +20,8 @@
 
 extern bool gunyah_allowed;
 
+void gunyah_set_swiotlb_size(uint64_t size);
+
 #define gunyah_enabled() (gunyah_allowed)
 
 #define TYPE_GUNYAH_ACCEL ACCEL_CLASS_NAME("gunyah")

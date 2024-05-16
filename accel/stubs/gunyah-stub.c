@@ -11,3 +11,8 @@
 #include "sysemu/gunyah.h"
 
 bool gunyah_allowed;
+
+void gunyah_set_swiotlb_size(uint64_t size)
+{
+    return;
+}

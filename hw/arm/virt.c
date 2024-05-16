@@ -2136,6 +2136,10 @@ static int confidential_guest_init(MachineState *ms)
         return -1;
     }
 
+    if (gunyah_enabled()) {
+        gunyah_set_swiotlb_size(obj->swiotlb_size);
+    }
+
     acg = obj;
     cgs->ready = true;
 
