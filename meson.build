@@ -248,7 +248,8 @@ accelerator_targets += { 'CONFIG_XEN': xen_targets }
 
 if cpu in ['aarch64']
   accelerator_targets += {
-    'CONFIG_HVF': ['aarch64-softmmu']
+    'CONFIG_HVF': ['aarch64-softmmu'],
+    'CONFIG_GUNYAH': ['aarch64-softmmu']
   }
 endif
 
@@ -736,6 +737,11 @@ if get_option('hvf').allowed()
   endif
 endif
 
+gunyah = not_found
+if get_option('gunyah').allowed() and host_os == 'linux'
+    accelerators += 'CONFIG_GUNYAH'
+endif
+
 nvmm = not_found
 if host_os == 'netbsd'
   nvmm = cc.find_library('nvmm', required: get_option('nvmm'))
@@ -881,6 +887,9 @@ elif get_option('plugins')
                        method: 'pkg-config')
 else
   gmodule = not_found
+endif
+if 'CONFIG_GUNYAH' not in accelerators and get_option('gunyah').enabled()
+  error('Gunyah not available on this platform')
 endif
 
 # This workaround is required due to a bug in pkg-config file for glib as it
@@ -4265,6 +4274,7 @@ if have_system
     summary_info += {'xen ctrl version':  xen.version()}
   endif
   summary_info += {'Xen emulation':     config_all_devices.has_key('CONFIG_XEN_EMU')}
+  summary_info += {'Gunyah support':    config_all_accel.has_key('CONFIG_GUNYAH')}
 endif
 summary_info += {'TCG support':       config_all_accel.has_key('CONFIG_TCG')}
 if config_all_accel.has_key('CONFIG_TCG')

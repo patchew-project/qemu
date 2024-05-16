@@ -523,6 +523,13 @@ F: accel/hvf/
 F: include/sysemu/hvf.h
 F: include/sysemu/hvf_int.h
 
+GUNYAH
+M: Srivatsa Vaddagiri <quic_svaddagi@quicinc.com>
+S: Maintained
+F: accel/gunyah
+F: include/sysemu/gunyah.h
+F: include/sysemu/gunyah_int.h
+
 WHPX CPUs
 M: Sunil Muthuswamy <sunilmut@microsoft.com>
 S: Supported

@@ -87,6 +87,7 @@
 #include "sysemu/cpus.h"
 #include "exec/confidential-guest-support.h"
 #include "qom/object_interfaces.h"
+#include "sysemu/gunyah.h"
 
 static GlobalProperty arm_virt_compat[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -1682,6 +1683,8 @@ static void virt_build_smbios(VirtMachineState *vms)
 
     if (kvm_enabled()) {
         product = "KVM Virtual Machine";
+    } else if (gunyah_enabled()) {
+        product = "Gunyah Virtual Machine";
     }
 
     smbios_set_defaults("QEMU", product,
