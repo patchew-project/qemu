@@ -413,6 +413,11 @@ static void gunyah_mem_ioeventfd_del(MemoryListener *listener,
     }
 }
 
+GUNYAHState *get_gunyah_state(void)
+{
+    return GUNYAH_STATE(current_accel());
+}
+
 void *gunyah_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;

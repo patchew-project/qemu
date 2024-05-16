@@ -694,6 +694,9 @@ static void create_its(VirtMachineState *vms)
         if (!vms->tcg_its) {
             itsclass = NULL;
         }
+    } else if (!strcmp(itsclass, "arm-its-gunyah")) {
+        /* ITS is not yet supported */
+        itsclass = NULL;
     }
 
     if (!itsclass) {
@@ -1996,6 +1999,8 @@ static void finalize_gic_version(VirtMachineState *vms)
                 gics_supported |= VIRT_GIC_VERSION_4_MASK;
             }
         }
+    } else if (gunyah_enabled()) {
+        gics_supported |= VIRT_GIC_VERSION_3_MASK;
     } else {
         error_report("Unsupported accelerator, can not determine GIC support");
         exit(1);
