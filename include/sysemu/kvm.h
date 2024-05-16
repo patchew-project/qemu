@@ -450,6 +450,14 @@ int kvm_create_vcpu(CPUState *cpu);
  */
 void kvm_park_vcpu(CPUState *cpu);
 
+/**
+ * kvm_create_and_park_vcpu - Create and park a KVM vCPU
+ * @cpu: QOM CPUState object for which KVM vCPU has to be created and parked.
+ *
+ * @returns: 0 when success, errno (<0) when failed.
+ */
+int kvm_create_and_park_vcpu(CPUState *cpu);
+
 #endif /* COMPILING_PER_TARGET */
 
 void kvm_cpu_synchronize_state(CPUState *cpu);
