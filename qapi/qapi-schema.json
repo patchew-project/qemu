@@ -77,6 +77,8 @@
 #
 # All their dependencies are listed in the section 1.
 
+# include common.json, crypto.json, job.json, sockets.json
+{ 'include': 'block-core.json' }
 # include sockets.json
 { 'include': 'char.json' }
 # include machine-common.json
@@ -96,19 +98,17 @@
 
 # Section 3. Files with 2-level dependencies.
 #
-# Their dependencies are either listed in the previous sections, or are
-# not listed but include files from the previous section. At least one
-# dependency is a 1-level dependency file.
+# All their dependencies are listed in the previous sections. At least one
+# dependency is from section 2.
 
-# include sockets.json (section 1), block-core.json (not listed, 1-level
-# dependencies)
+# include sockets.json (section 1), block-core.json (section 2)
 { 'include': 'block-export.json' }
-# include block-core.json (not listed, 1-level dependencies)
+# include block-core.json (section 2)
 { 'include': 'block.json' }
 # include authz.json (section 1), common.json (section 1), crypto.json
-# (section 1), block-core.json (not listed, 1-level dependencies)
+# (section 1), block-core.json (section 2)
 { 'include': 'qom.json' }
-# include block-core.json (not listed, 1-level dependencies)
+# include block-core.json (section 2)
 { 'include': 'transaction.json' }
 
 # Section 4. Files with 3-level dependencies.
