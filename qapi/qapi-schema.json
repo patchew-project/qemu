@@ -38,45 +38,83 @@
 
 # Documentation generated with qapi-gen.py is in source order, with
 # included sub-schemas inserted at the first include directive
-# (subsequent include directives have no effect).  To get a sane and
-# stable order, it's best to include each sub-schema just once, or
-# include it first right here.
+# (subsequent include directives have no effect). Please place the
+# file correctly in the following sections according to the
+# dependencies.
+#
+# To get a sane and stable order, it's best to include each sub-schema
+# just once, or include it first right here.
 
-{ 'include': 'error.json' }
-{ 'include': 'common.json' }
-{ 'include': 'sockets.json' }
-{ 'include': 'run-state.json' }
-{ 'include': 'crypto.json' }
-{ 'include': 'job.json' }
-{ 'include': 'block.json' }
-{ 'include': 'block-export.json' }
-{ 'include': 'char.json' }
-{ 'include': 'dump.json' }
-{ 'include': 'net.json' }
-{ 'include': 'ebpf.json' }
-{ 'include': 'rocker.json' }
-{ 'include': 'tpm.json' }
-{ 'include': 'ui.json' }
+# Section 1. Files without dependencies.
+
+{ 'include': 'acpi.json' }
+{ 'include': 'audio.json' }
 { 'include': 'authz.json' }
-{ 'include': 'migration.json' }
-{ 'include': 'transaction.json' }
-{ 'include': 'trace.json' }
+{ 'include': 'common.json' }
 { 'include': 'compat.json' }
 { 'include': 'control.json' }
-{ 'include': 'introspect.json' }
-{ 'include': 'qom.json' }
-{ 'include': 'qdev.json' }
-{ 'include': 'machine-common.json' }
-{ 'include': 'machine.json' }
-{ 'include': 'machine-target.json' }
-{ 'include': 'replay.json' }
-{ 'include': 'yank.json' }
-{ 'include': 'misc.json' }
-{ 'include': 'misc-target.json' }
-{ 'include': 'audio.json' }
-{ 'include': 'acpi.json' }
-{ 'include': 'pci.json' }
-{ 'include': 'stats.json' }
-{ 'include': 'virtio.json' }
+{ 'include': 'crypto.json' }
 { 'include': 'cryptodev.json' }
 { 'include': 'cxl.json' }
+{ 'include': 'dump.json' }
+{ 'include': 'ebpf.json' }
+{ 'include': 'error.json' }
+{ 'include': 'introspect.json' }
+{ 'include': 'job.json' }
+{ 'include': 'machine-common.json' }
+{ 'include': 'misc-target.json' }
+{ 'include': 'pci.json' }
+{ 'include': 'rocker.json' }
+{ 'include': 'run-state.json' }
+{ 'include': 'sockets.json' }
+{ 'include': 'stats.json' }
+{ 'include': 'tpm.json' }
+{ 'include': 'trace.json' }
+{ 'include': 'virtio.json' }
+{ 'include': 'yank.json' }
+
+# Section 2. Files with 1-level dependencies.
+#
+# All their dependencies are listed in the section 1.
+
+# include sockets.json
+{ 'include': 'char.json' }
+# include machine-common.json
+{ 'include': 'machine-target.json' }
+# include common.json, machine-common.json
+{ 'include': 'machine.json' }
+# include common.json, sockets.json
+{ 'include': 'migration.json' }
+# include common.json
+{ 'include': 'misc.json' }
+# include sockets.json
+{ 'include': 'net.json' }
+# include common.json
+{ 'include': 'replay.json' }
+# include common.json, sockets.json
+{ 'include': 'ui.json' }
+
+# Section 3. Files with 2-level dependencies.
+#
+# Their dependencies are either listed in the previous sections, or are
+# not listed but include files from the previous section. At least one
+# dependency is a 1-level dependency file.
+
+# include sockets.json (section 1), block-core.json (not listed, 1-level
+# dependencies)
+{ 'include': 'block-export.json' }
+# include block-core.json (not listed, 1-level dependencies)
+{ 'include': 'block.json' }
+# include authz.json (section 1), common.json (section 1), crypto.json
+# (section 1), block-core.json (not listed, 1-level dependencies)
+{ 'include': 'qom.json' }
+# include block-core.json (not listed, 1-level dependencies)
+{ 'include': 'transaction.json' }
+
+# Section 4. Files with 3-level dependencies.
+#
+# All their dependencies are listed in the previous sections. At least one
+# dependency is from section 3.
+
+# include qom.json (section 3)
+{ 'include': 'qdev.json' }
