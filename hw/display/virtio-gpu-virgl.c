@@ -668,6 +668,9 @@ int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
 
 void virtio_gpu_virgl_deinit(VirtIOGPU *g)
 {
+    if (virtio_gpu_stats_enabled(g->parent_obj.conf)) {
+        timer_free(g->print_stats);
+    }
     timer_free(g->fence_poll);
     virgl_renderer_cleanup(NULL);
 }

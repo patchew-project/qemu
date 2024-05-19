@@ -29,8 +29,13 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
                                              struct virtio_gpu_scanout *s,
                                              uint32_t resource_id)
 {
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
     uint32_t width, height;
     uint32_t pixels, *data;
+
+    if (!gl->renderer_inited) {
+        return;
+    }
 
     data = virgl_renderer_get_cursor_data(resource_id, &width, &height);
     if (!data) {
@@ -60,13 +65,18 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(vdev);
     struct virtio_gpu_ctrl_command *cmd;
+    int ret;
 
-    if (!virtio_queue_ready(vq)) {
+    if (!virtio_queue_ready(vq) || gl->renderer_init_failed) {
         return;
     }
 
     if (!gl->renderer_inited) {
-        virtio_gpu_virgl_init(g);
+        ret = virtio_gpu_virgl_init(g);
+        if (ret) {
+            gl->renderer_init_failed = true;
+            return;
+        }
         gl->renderer_inited = true;
     }
     if (gl->renderer_reset) {
@@ -101,6 +111,7 @@ static void virtio_gpu_gl_reset(VirtIODevice *vdev)
     if (gl->renderer_inited && !gl->renderer_reset) {
         virtio_gpu_virgl_reset_scanout(g);
         gl->renderer_reset = true;
+        gl->renderer_init_failed = false;
     }
 }
 

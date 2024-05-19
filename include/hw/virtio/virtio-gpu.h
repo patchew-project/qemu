@@ -231,6 +231,7 @@ struct VirtIOGPUGL {
 
     bool renderer_inited;
     bool renderer_reset;
+    bool renderer_init_failed;
 };
 
 struct VhostUserGPU {
