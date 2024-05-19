@@ -232,6 +232,8 @@ struct VirtIOGPUGL {
     bool renderer_inited;
     bool renderer_reset;
     bool renderer_init_failed;
+
+    QEMUBH *cmdq_resume_bh;
 };
 
 struct VhostUserGPU {
