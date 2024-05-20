@@ -34,6 +34,7 @@
 #include "hw/char/escc.h"
 #include "hw/misc/macio/macio.h"
 #include "hw/intc/heathrow_pic.h"
+#include "hw/misc/unimp.h"
 #include "trace.h"
 
 #define ESCC_CLOCK 3686400
@@ -94,6 +95,14 @@ static bool macio_common_realize(PCIDevice *d, Error **errp)
 {
     MacIOState *s = MACIO(d);
     SysBusDevice *sbd;
+    DeviceState *dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
+
+    qdev_prop_set_string(dev, "name", "macio-unimp");
+    qdev_prop_set_uint64(dev, "size", memory_region_size(&s->bar));
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    memory_region_add_subregion_overlap(&s->bar, 0,
+                                        sysbus_mmio_get_region(sbd, 0), -1000);
 
     if (!qdev_realize(DEVICE(&s->dbdma), BUS(&s->macio_bus), errp)) {
         return false;
