@@ -53,6 +53,8 @@
 #include "hw/pci-host/gpex.h"
 #include "hw/display/ramfb.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/mem/memory-device.h"
+#include "hw/virtio/virtio-mem-pci.h"
 #include "qapi/qapi-visit-common.h"
 #include "hw/virtio/virtio-iommu.h"
 
@@ -1407,6 +1409,7 @@ static void virt_machine_init(MachineState *machine)
     DeviceState *mmio_irqchip, *virtio_irqchip, *pcie_irqchip;
     int i, base_hartid, hart_count;
     int socket_count = riscv_socket_count(machine);
+    hwaddr device_memory_base, device_memory_size;
 
     /* Check socket count limit */
     if (VIRT_SOCKETS_MAX < socket_count) {
@@ -1418,6 +1421,12 @@ static void virt_machine_init(MachineState *machine)
     if (!virt_aclint_allowed() && s->have_aclint) {
         error_report("'aclint' is only available with TCG acceleration");
         exit(1);
+    }
+
+    if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
+        error_report("unsupported amount of memory slots: %"PRIu64,
+                     machine->ram_slots);
+        exit(EXIT_FAILURE);
     }
 
     /* Initialize sockets */
@@ -1552,6 +1561,37 @@ static void virt_machine_init(MachineState *machine)
                            memmap[VIRT_MROM].size, &error_fatal);
     memory_region_add_subregion(system_memory, memmap[VIRT_MROM].base,
                                 mask_rom);
+
+    /* device memory */
+    device_memory_base = ROUND_UP(s->memmap[VIRT_DRAM].base + machine->ram_size,
+                                  GiB);
+    device_memory_size = machine->maxram_size - machine->ram_size;
+    if (device_memory_size > 0) {
+        /*
+         * Each DIMM is aligned based on the backend's alignment value.
+         * Assume max 1G hugepage alignment per slot.
+         */
+        device_memory_size += machine->ram_slots * GiB;
+
+        if (riscv_is_32bit(&s->soc[0])) {
+            hwaddr memtop = device_memory_base + ROUND_UP(device_memory_size,
+                                                          GiB);
+
+            if (memtop > UINT32_MAX) {
+                error_report("memory exceeds 32-bit limit by %lu bytes",
+                             memtop - UINT32_MAX);
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        if (device_memory_base + device_memory_size < device_memory_size) {
+            error_report("unsupported amount of device memory");
+            exit(EXIT_FAILURE);
+        }
+
+        machine_memory_devices_init(machine, device_memory_base,
+                                    device_memory_size);
+    }
 
     /*
      * Init fw_cfg. Must be done before riscv_load_fdt, otherwise the
@@ -1712,10 +1752,19 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (device_is_dynamic_sysbus(mc, dev) ||
-        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_IOMMU_PCI)) {
+        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_IOMMU_PCI) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
         return HOTPLUG_HANDLER(machine);
     }
     return NULL;
+}
+
+static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+                                            DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
+        virtio_md_pci_pre_plug(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev), errp);
+    }
 }
 
 static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
@@ -1734,6 +1783,35 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_IOMMU_PCI)) {
         create_fdt_virtio_iommu(s, pci_get_bdf(PCI_DEVICE(dev)));
+    }
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
+        virtio_md_pci_plug(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev), errp);
+    }
+}
+
+static void virt_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                                  DeviceState *dev,
+                                                  Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
+        virtio_md_pci_unplug_request(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev),
+                                     errp);
+    } else {
+        error_setg(errp,
+                   "device unplug request for unsupported device type: %s",
+                   object_get_typename(OBJECT(dev)));
+    }
+}
+
+static void virt_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
+                                          DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
+        virtio_md_pci_unplug(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev), errp);
+    } else {
+        error_setg(errp, "virt: device unplug for unsupported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
     }
 }
 
@@ -1757,7 +1835,10 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
 
+    hc->pre_plug = virt_machine_device_pre_plug_cb;
     hc->plug = virt_machine_device_plug_cb;
+    hc->unplug_request = virt_machine_device_unplug_request_cb;
+    hc->unplug = virt_machine_device_unplug_cb;
 
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
 #ifdef CONFIG_TPM

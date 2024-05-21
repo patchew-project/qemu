@@ -56,6 +56,8 @@ config RISCV_VIRT
     select PLATFORM_BUS
     select ACPI
     select ACPI_PCI
+    select VIRTIO_MEM_SUPPORTED
+    select VIRTIO_PMEM_SUPPORTED
 
 config SHAKTI_C
     bool
