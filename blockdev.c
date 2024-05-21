@@ -2769,6 +2769,59 @@ void qmp_blockdev_backup(BlockdevBackup *backup, Error **errp)
     blockdev_do_action(&action, errp);
 }
 
+static int blockdev_mirror_check_bitmap_granularity(BlockDriverState *target,
+                                                    BdrvDirtyBitmap *bitmap,
+                                                    Error **errp)
+{
+    int ret;
+    BlockDriverInfo bdi;
+    uint32_t bitmap_granularity;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    if (bdrv_backing_chain_next(target)) {
+        /*
+         * No need to worry about creating clusters with partial data when the
+         * target does COW.
+         */
+        return 0;
+    }
+
+    /*
+     * If there is no backing file on the target, we cannot rely on COW if our
+     * backup cluster size is smaller than the target cluster size. Even for
+     * targets with a backing file, try to avoid COW if possible.
+     */
+    ret = bdrv_get_info(target, &bdi);
+    if (ret == -ENOTSUP) {
+        /*
+         * Ignore if unable to get the info, e.g. when target is NBD. It's only
+         * relevant for syncing to a diff image and the documentation already
+         * states that the target's cluster size needs to small enough then.
+         */
+        return 0;
+    } else if (ret < 0) {
+        error_setg_errno(errp, -ret,
+            "Couldn't determine the cluster size of the target image, "
+            "which has no backing file");
+        return ret;
+    }
+
+    bitmap_granularity = bdrv_dirty_bitmap_granularity(bitmap);
+    if (bitmap_granularity < bdi.cluster_size ||
+        bitmap_granularity % bdi.cluster_size != 0) {
+        error_setg(errp, "Bitmap granularity %u is not a multiple of the "
+                   "target image's cluster size %u and the target image has "
+                   "no backing file",
+                   bitmap_granularity, bdi.cluster_size);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+
 /* Parameter check and block job starting for drive mirroring.
  * Caller should hold @device and @target's aio context (must be the same).
  **/
@@ -2860,6 +2913,10 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         bitmap = bdrv_find_dirty_bitmap(bs, bitmap_name);
         if (!bitmap) {
             error_setg(errp, "Dirty bitmap '%s' not found", bitmap_name);
+            return;
+        }
+
+        if (blockdev_mirror_check_bitmap_granularity(target, bitmap, errp)) {
             return;
         }
 
