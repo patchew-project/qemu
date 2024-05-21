@@ -2036,6 +2036,9 @@ struct ArchCPU {
      */
     uint32_t guest_phys_bits;
 
+    /* Number of logical processors that shares L3 cache */
+    uint32_t amd_ccx_size;
+
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct DeviceState *apic_state;
