@@ -190,7 +190,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  */
 BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                             BlockDriverState *target, int64_t speed,
-                            MirrorSyncMode sync_mode,
+                            BackupSyncMode sync_mode,
                             BdrvDirtyBitmap *sync_bitmap,
                             BitmapSyncMode bitmap_mode,
                             bool compress,
