@@ -56,6 +56,9 @@ config RISCV_VIRT
     select PLATFORM_BUS
     select ACPI
     select ACPI_PCI
+    select MEM_DEVICE
+    select DIMM
+    select ACPI_HW_REDUCED
     select VIRTIO_MEM_SUPPORTED
     select VIRTIO_PMEM_SUPPORTED
 
