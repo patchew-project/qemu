@@ -412,6 +412,9 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG2, LLFTP_VER, 1);
     data = FIELD_DP32(data, CPUCFG2, LSPW, 1);
     data = FIELD_DP32(data, CPUCFG2, LAM, 1);
+    if (kvm_enabled()) {
+        data = FIELD_DP32(data, CPUCFG2, LBT_ALL, 7);
+    }
     env->cpucfg[2] = data;
 
     env->cpucfg[4] = 100 * 1000 * 1000; /* Crystal frequency */
@@ -643,12 +646,41 @@ static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
     }
 }
 
+static bool loongarch_get_lbt(Object *obj, Error **errp)
+ {
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    bool ret;
+
+    ret = false;
+    /* lbt is enabled only in kvm mode, not supported in tcg mode */
+    if (kvm_enabled() &&
+        (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LBT_ALL) == 7)) {
+        ret = true;
+     }
+    return ret;
+}
+
+static void loongarch_set_lbt(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    int lbt;
+
+    lbt = 0;
+    if (kvm_enabled() && value) {
+        /* Enable binary translation for all architectures */
+        lbt = 7;
+    }
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LBT_ALL, lbt);
+}
+
 void loongarch_cpu_post_init(Object *obj)
 {
     object_property_add_bool(obj, "lsx", loongarch_get_lsx,
                              loongarch_set_lsx);
     object_property_add_bool(obj, "lasx", loongarch_get_lasx,
                              loongarch_set_lasx);
+    object_property_add_bool(obj, "lbt", loongarch_get_lbt,
+                             loongarch_set_lbt);
 }
 
 static void loongarch_cpu_init(Object *obj)
