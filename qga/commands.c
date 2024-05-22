@@ -20,6 +20,11 @@
 #include "qemu/cutils.h"
 #include "commands-common.h"
 
+#ifdef CONFIG_LINUX
+#include <sys/ioctl.h>
+#include <linux/vm_sockets.h>
+#endif
+
 /* Maximum captured guest-exec out_data/err_data - 16MB */
 #define GUEST_EXEC_MAX_OUTPUT (16 * 1024 * 1024)
 /* Allocation and I/O buffer for reading guest-exec out_data/err_data - 4KB */
@@ -92,6 +97,27 @@ struct GuestExecIOData {
 };
 typedef struct GuestExecIOData GuestExecIOData;
 
+#define GE_INT_IO_SIZE (256 * 1024)
+#define GE_INT_STREAM_MASK 0x80000000
+
+struct GEIntPacket {
+    uint32_t header;
+    gchar buf[GE_INT_IO_SIZE];
+} __attribute__((aligned(1)));
+typedef struct GEIntPacket GEIntPacket;
+
+struct GEIntData {
+    unsigned int cid;
+    unsigned int port;
+    GIOChannel *ch_srv;
+    GIOChannel *ch_clt;
+    GIOChannel *ch_in;
+    GIOChannel *ch_out;
+    GIOChannel *ch_err;
+    GEIntPacket packet;
+};
+typedef struct GEIntData GEIntData;
+
 struct GuestExecInfo {
     GPid pid;
     int64_t pid_numeric;
@@ -101,6 +127,7 @@ struct GuestExecInfo {
     GuestExecIOData in;
     GuestExecIOData out;
     GuestExecIOData err;
+    GEIntData *int_data;
     QTAILQ_ENTRY(GuestExecInfo) next;
 };
 typedef struct GuestExecInfo GuestExecInfo;
@@ -256,6 +283,194 @@ static char **guest_exec_get_args(const strList *entry, bool log)
 
     return args;
 }
+
+#ifdef CONFIG_LINUX
+static void guest_exec_close_channel(GIOChannel *ch)
+{
+    g_io_channel_shutdown(ch, true, NULL);
+    g_io_channel_unref(ch);
+}
+
+static void guest_exec_interactive_cleanup(GuestExecInfo *gei)
+{
+    GEIntData *data = gei->int_data;
+
+    guest_exec_close_channel(data->ch_clt);
+    guest_exec_close_channel(data->ch_srv);
+    guest_exec_close_channel(data->ch_in);
+    guest_exec_close_channel(data->ch_out);
+    guest_exec_close_channel(data->ch_err);
+
+    g_free(data);
+    gei->int_data = NULL;
+}
+
+static gboolean guest_exec_interactive_watch(GIOChannel *ch, GIOCondition cond,
+                                             gpointer data_)
+{
+    GuestExecInfo *gei = (GuestExecInfo *)data_;
+    GEIntData *data = gei->int_data;
+    gsize size, bytes_written;
+    GIOStatus gstatus;
+    GError *gerr = NULL;
+    GIOChannel *dst_ch;
+    gchar *p;
+
+    if (data == NULL) {
+        return false;
+    }
+
+    if (cond == G_IO_HUP || cond == G_IO_ERR) {
+        goto close;
+    }
+
+    gstatus = g_io_channel_read_chars(ch, data->packet.buf,
+                                      sizeof(data->packet.buf), &size, NULL);
+
+    if (gstatus == G_IO_STATUS_EOF || gstatus == G_IO_STATUS_ERROR) {
+        if (gerr) {
+            g_warning("qga: i/o error reading from a channel: %s",
+                      gerr->message);
+            g_error_free(gerr);
+        }
+        goto close;
+    }
+
+    if (ch == data->ch_clt) {
+        dst_ch = data->ch_in;
+        p = data->packet.buf;
+    } else {
+        assert(size < GE_INT_STREAM_MASK);
+
+        dst_ch = data->ch_clt;
+        p = (gchar *)&(data->packet);
+        data->packet.header = htonl(size);
+        if (ch == data->ch_err) {
+            data->packet.header |= htonl(GE_INT_STREAM_MASK);
+        }
+        size += sizeof(data->packet.header);
+    }
+
+    do {
+        gstatus = g_io_channel_write_chars(dst_ch, p, size,
+                                           &bytes_written, &gerr);
+
+        if (gstatus == G_IO_STATUS_EOF || gstatus == G_IO_STATUS_ERROR) {
+            if (gerr) {
+                g_warning("qga: i/o error writing to a channel: %s",
+                          gerr->message);
+                g_error_free(gerr);
+            }
+            goto close;
+        }
+        size -= bytes_written;
+        p += bytes_written;
+    } while (size > 0);
+
+    return true;
+
+close:
+    guest_exec_interactive_cleanup(gei);
+    return false;
+}
+
+static gboolean
+guest_exec_interactive_accept_watch(GIOChannel *ch, GIOCondition cond,
+                                    gpointer data_)
+{
+    GuestExecInfo *gei = (GuestExecInfo *)data_;
+    GEIntData *data = gei->int_data;
+    int fd;
+
+    if (cond == G_IO_HUP || cond == G_IO_ERR) {
+        goto close;
+    }
+
+    fd = accept(g_io_channel_unix_get_fd(ch), NULL, NULL);
+    if (fd < 0) {
+        goto close;
+    }
+
+    data->ch_clt = g_io_channel_unix_new(fd);
+    g_io_channel_set_encoding(data->ch_clt, NULL, NULL);
+    g_io_channel_set_buffered(data->ch_clt, false);
+    g_io_channel_set_close_on_unref(data->ch_clt, true);
+
+    g_io_add_watch(data->ch_clt, G_IO_IN | G_IO_HUP,
+                   guest_exec_interactive_watch, gei);
+    g_io_add_watch(data->ch_out, G_IO_IN | G_IO_HUP,
+                   guest_exec_interactive_watch, gei);
+    g_io_add_watch(data->ch_err, G_IO_IN | G_IO_HUP,
+                   guest_exec_interactive_watch, gei);
+    return false;
+
+close:
+    guest_exec_interactive_cleanup(gei);
+    return false;
+}
+
+static int get_cid(unsigned int *cid)
+{
+    int fd, ret;
+    fd = open("/dev/vsock", O_RDONLY);
+    if (fd == -1) {
+        return errno;
+    }
+    ret = ioctl(fd, IOCTL_VM_SOCKETS_GET_LOCAL_CID, cid);
+    close(fd);
+    return ret;
+}
+
+static int guest_exec_interactive_listen(GuestExecInfo *gei)
+{
+    struct sockaddr_vm server_addr;
+    socklen_t len;
+    int fd, res;
+    GEIntData *data = (GEIntData *)gei->int_data;
+
+    if (get_cid(&data->cid) != 0) {
+        slog("Can't get CID: %s", strerror(errno));
+        return -1;
+    }
+
+    fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+    if (fd == -1) {
+        slog("Socket creation error: %s", strerror(errno));
+        return -1;
+    }
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.svm_family = AF_VSOCK;
+    server_addr.svm_port = VMADDR_PORT_ANY;
+    server_addr.svm_cid = VMADDR_CID_ANY;
+
+    if (bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        slog("Bind error: %s", strerror(errno));
+        goto err;
+    }
+
+    len = sizeof(struct sockaddr_vm);
+    res = getsockname(fd, (struct sockaddr *)&server_addr, &len);
+    if (res == -1) {
+        slog("Can't get port: %s", strerror(errno));
+        goto err;
+    }
+
+    if (listen(fd, 1) == -1) {
+        slog("Can't listen port %d: %s", server_addr.svm_port, strerror(errno));
+        goto err;
+    }
+
+    data->port = server_addr.svm_port;
+    data->ch_srv = g_io_channel_unix_new(fd);
+    g_io_add_watch(data->ch_srv, G_IO_IN | G_IO_HUP,
+                   guest_exec_interactive_accept_watch, gei);
+    return 0;
+err:
+    close(fd);
+    return -1;
+}
+#endif
 
 static void guest_exec_child_watch(GPid pid, gint status, gpointer data)
 {
@@ -424,6 +639,8 @@ GuestExec *qmp_guest_exec(const char *path,
     GSpawnFlags flags;
     bool has_output = false;
     bool has_merge = false;
+    bool interactive = false;
+
     GuestExecCaptureOutputMode output_mode;
     g_autofree uint8_t *input = NULL;
     size_t ninput = 0;
@@ -466,14 +683,21 @@ GuestExec *qmp_guest_exec(const char *path,
         has_merge = true;
         break;
 #endif
+#ifdef CONFIG_LINUX
+    case GUEST_EXEC_CAPTURE_OUTPUT_MODE_INTERACTIVE:
+        interactive = true;
+        break;
+#endif
     case GUEST_EXEC_CAPTURE_OUTPUT_MODE__MAX:
         /* Silence warning; impossible branch */
         break;
     }
 
     ret = g_spawn_async_with_pipes(NULL, argv, envp, flags,
-            guest_exec_task_setup, &has_merge, &pid, input_data ? &in_fd : NULL,
-            has_output ? &out_fd : NULL, has_output ? &err_fd : NULL, &gerr);
+            guest_exec_task_setup, &has_merge, &pid,
+            (input_data || interactive) ? &in_fd : NULL,
+            (has_output || interactive) ? &out_fd : NULL,
+            (has_output || interactive) ? &err_fd : NULL, &gerr);
     if (!ret) {
         error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
         g_error_free(gerr);
@@ -485,9 +709,14 @@ GuestExec *qmp_guest_exec(const char *path,
 
     gei = guest_exec_info_add(pid);
     gei->has_output = has_output;
+
     g_child_watch_add(pid, guest_exec_child_watch, gei);
 
-    if (input_data) {
+    if (interactive) {
+        gei->int_data = g_malloc0(sizeof(GEIntData));
+    }
+
+    if (input_data || interactive) {
         gei->in.data = g_steal_pointer(&input);
         gei->in.size = ninput;
 #ifdef G_OS_WIN32
@@ -499,10 +728,14 @@ GuestExec *qmp_guest_exec(const char *path,
         g_io_channel_set_buffered(in_ch, false);
         g_io_channel_set_flags(in_ch, G_IO_FLAG_NONBLOCK, NULL);
         g_io_channel_set_close_on_unref(in_ch, true);
-        g_io_add_watch(in_ch, G_IO_OUT, guest_exec_input_watch, &gei->in);
+        if (interactive) {
+            gei->int_data->ch_in = in_ch;
+        } else {
+            g_io_add_watch(in_ch, G_IO_OUT, guest_exec_input_watch, &gei->in);
+        }
     }
 
-    if (has_output) {
+    if (has_output || interactive) {
 #ifdef G_OS_WIN32
         out_ch = g_io_channel_win32_new_fd(out_fd);
         err_ch = g_io_channel_win32_new_fd(err_fd);
@@ -516,11 +749,32 @@ GuestExec *qmp_guest_exec(const char *path,
         g_io_channel_set_buffered(err_ch, false);
         g_io_channel_set_close_on_unref(out_ch, true);
         g_io_channel_set_close_on_unref(err_ch, true);
-        g_io_add_watch(out_ch, G_IO_IN | G_IO_HUP,
-                guest_exec_output_watch, &gei->out);
-        g_io_add_watch(err_ch, G_IO_IN | G_IO_HUP,
-                guest_exec_output_watch, &gei->err);
+
+        if (interactive) {
+            gei->int_data->ch_out = out_ch;
+            gei->int_data->ch_err = err_ch;
+        } else {
+            g_io_add_watch(out_ch, G_IO_IN | G_IO_HUP,
+                           guest_exec_output_watch, &gei->out);
+            g_io_add_watch(err_ch, G_IO_IN | G_IO_HUP,
+                           guest_exec_output_watch, &gei->err);
+        }
     }
+
+#ifdef CONFIG_LINUX
+    if (interactive) {
+        if (guest_exec_interactive_listen(gei) != 0) {
+            QTAILQ_REMOVE(&guest_exec_state.processes, gei, next);
+            g_free(gei->int_data);
+            g_free(gei);
+            goto done;
+        }
+        ge->has_cid = true;
+        ge->cid = gei->int_data->cid;
+        ge->has_port = true;
+        ge->port = gei->int_data->port;
+    }
+#endif
 
 done:
     g_free(argv);

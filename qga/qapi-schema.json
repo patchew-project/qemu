@@ -1265,10 +1265,16 @@
 #
 # @pid: pid of child process in guest OS
 #
+# @cid: context identifier for interactive mode
+#
+# @port: port number for interactive mode
+#
 # Since: 2.5
 ##
 { 'struct': 'GuestExec',
-  'data': { 'pid': 'int'} }
+  'data': { 'pid': 'int',
+            '*cid': 'int',
+            '*port': 'int' } }
 
 ##
 # @GuestExecCaptureOutputMode:
@@ -1287,10 +1293,13 @@
 # @merged: capture both stdout and stderr, but merge together into
 #     out-data.  Not effective on windows guests.
 #
+# @interactive: stdin, stdout and stderr are transmitted via Vsock
+#
 # Since: 8.0
 ##
  { 'enum': 'GuestExecCaptureOutputMode',
    'data': [ 'none', 'stdout', 'stderr', 'separated',
+             { 'name': 'interactive', 'if': 'CONFIG_LINUX' },
              { 'name': 'merged', 'if': { 'not': 'CONFIG_WIN32' } } ] }
 
 ##
