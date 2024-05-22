@@ -87,6 +87,7 @@ static void stm32l4x5_exti_reset_hold(Object *obj, ResetType type)
         s->ftsr[bank] = 0x00000000;
         s->swier[bank] = 0x00000000;
         s->pr[bank] = 0x00000000;
+        s->irq_levels[bank] = 0x00000000;
     }
 }
 
@@ -106,17 +107,30 @@ static void stm32l4x5_exti_set_irq(void *opaque, int irq, int level)
         return;
     }
 
+    /* In case of a direct line interrupt */
+    if (extract32(exti_romask[bank], irq, 1)) {
+        qemu_set_irq(s->irq[oirq], level);
+        return;
+    }
+
+    /* In case of a configurable interrupt */
     if (((1 << irq) & s->rtsr[bank]) && level) {
         /* Rising Edge */
-        s->pr[bank] |= 1 << irq;
-        qemu_irq_pulse(s->irq[oirq]);
+        if (!extract32(s->irq_levels[bank], irq, 1)) {
+            s->pr[bank] |= 1 << irq;
+            qemu_irq_pulse(s->irq[oirq]);
+        }
+        s->irq_levels[bank] |= 1 << irq;
     } else if (((1 << irq) & s->ftsr[bank]) && !level) {
         /* Falling Edge */
-        s->pr[bank] |= 1 << irq;
-        qemu_irq_pulse(s->irq[oirq]);
+        if (extract32(s->irq_levels[bank], irq, 1)) {
+            s->pr[bank] |= 1 << irq;
+            qemu_irq_pulse(s->irq[oirq]);
+        }
+        s->irq_levels[bank] &= ~(1 << irq);
     }
     /*
-     * In the following situations :
+     * In the following situations (for configurable interrupts) :
      * - falling edge but rising trigger selected
      * - rising edge but falling trigger selected
      * - no trigger selected
@@ -262,6 +276,7 @@ static const VMStateDescription vmstate_stm32l4x5_exti = {
         VMSTATE_UINT32_ARRAY(ftsr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
         VMSTATE_UINT32_ARRAY(swier, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
         VMSTATE_UINT32_ARRAY(pr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+        VMSTATE_UINT32_ARRAY(irq_levels, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
         VMSTATE_END_OF_LIST()
     }
 };
