@@ -298,6 +298,8 @@ static inline void gen_update_nip(DisasContext *ctx, target_ulong nip)
 #if defined(TARGET_PPC64)
 static void pmu_count_insns(DisasContext *ctx)
 {
+    bool pmc_other, pmc_check_overflow;
+
     /*
      * Do not bother calling the helper if the PMU isn't counting
      * instructions.
@@ -306,48 +308,47 @@ static void pmu_count_insns(DisasContext *ctx)
         return;
     }
 
- #if !defined(CONFIG_USER_ONLY)
-    TCGLabel *l;
-    TCGv t0;
-
     /*
-     * The PMU insns_inc() helper stops the internal PMU timer if a
-     * counter overflows happens. In that case, if the guest is
-     * running with icount and we do not handle it beforehand,
-     * the helper can trigger a 'bad icount read'.
+     * The PMU insns_inc() and handle_pmc5_overflow() helpers stop the internal
+     * PMU timer if a counter overflow happens. In that case, if the guest is
+     * running with icount and we do not handle it beforehand, the helper can
+     * trigger a 'bad icount read'. So call translator_io_start() for cases
+     * where that might trigger.
      */
-    translator_io_start(&ctx->base);
 
-    /* Avoid helper calls when only PMC5-6 are enabled. */
-    if (!ctx->pmc_other) {
-        l = gen_new_label();
-        t0 = tcg_temp_new();
-
-        gen_load_spr(t0, SPR_POWER_PMC5);
-        tcg_gen_addi_tl(t0, t0, ctx->base.num_insns);
-        gen_store_spr(SPR_POWER_PMC5, t0);
-        /* Check for overflow, if it's enabled */
-        if (ctx->mmcr0_pmcjce) {
-            tcg_gen_brcondi_tl(TCG_COND_LT, t0, PMC_COUNTER_NEGATIVE_VAL, l);
-            gen_helper_handle_pmc5_overflow(tcg_env);
-        }
-
-        gen_set_label(l);
-    } else {
-        gen_helper_insns_inc(tcg_env, tcg_constant_i32(ctx->base.num_insns));
-    }
-  #else
+ #if defined(CONFIG_USER_ONLY)
     /*
      * User mode can read (but not write) PMC5 and start/stop
      * the PMU via MMCR0_FC. In this case just increment
      * PMC5 with base.num_insns.
      */
-    TCGv t0 = tcg_temp_new();
+    pmc_other = false;
+    pmc_check_overflow = false;
+ #else
+    pmc_other = ctx->pmc_other;
+    pmc_check_overflow = ctx->mmcr0_pmcjce;
+ #endif
 
-    gen_load_spr(t0, SPR_POWER_PMC5);
-    tcg_gen_addi_tl(t0, t0, ctx->base.num_insns);
-    gen_store_spr(SPR_POWER_PMC5, t0);
-  #endif /* #if !defined(CONFIG_USER_ONLY) */
+    /* Avoid helper calls when only PMC5-6 are enabled. */
+    if (!pmc_other) {
+        TCGv t0 = tcg_temp_new();
+
+        gen_load_spr(t0, SPR_POWER_PMC5);
+        tcg_gen_addi_tl(t0, t0, ctx->base.num_insns);
+        gen_store_spr(SPR_POWER_PMC5, t0);
+
+        if (pmc_check_overflow) {
+            TCGLabel *l = gen_new_label();
+
+            translator_io_start(&ctx->base);
+            tcg_gen_brcondi_tl(TCG_COND_LT, t0, PMC_COUNTER_NEGATIVE_VAL, l);
+            gen_helper_handle_pmc5_overflow(tcg_env);
+            gen_set_label(l);
+        }
+    } else {
+        translator_io_start(&ctx->base);
+        gen_helper_insns_inc(tcg_env, tcg_constant_i32(ctx->base.num_insns));
+    }
 }
 #else
 static void pmu_count_insns(DisasContext *ctx)
