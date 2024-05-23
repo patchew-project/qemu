@@ -107,4 +107,12 @@ qio_channel_file_new_path(const char *path,
                           mode_t mode,
                           Error **errp);
 
+/**
+ * qio_channel_file_set_direct_io:
+ * @ioc: the QIOChannel object
+ * @enabled: the desired state of the O_DIRECT flag
+ * @errp: pointer to initialized error object
+ */
+void qio_channel_file_set_direct_io(QIOChannel *ioc, bool enabled,
+                                    Error **errp);
 #endif /* QIO_CHANNEL_FILE_H */

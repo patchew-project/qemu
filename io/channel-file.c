@@ -231,6 +231,31 @@ static int qio_channel_file_set_blocking(QIOChannel *ioc,
 #endif
 }
 
+void qio_channel_file_set_direct_io(QIOChannel *ioc, bool enabled, Error **errp)
+{
+#ifdef O_DIRECT
+    QIOChannelFile *fioc = QIO_CHANNEL_FILE(ioc);
+    int flags = fcntl(fioc->fd, F_GETFL);
+
+    if (flags == -1) {
+        error_setg_errno(errp, errno, "Unable to read file descriptor flags");
+        return;
+    }
+
+    if (enabled) {
+        flags |= O_DIRECT;
+    } else {
+        flags &= ~O_DIRECT;
+    }
+
+    if (fcntl(fioc->fd, F_SETFL, flags) == -1) {
+        error_setg_errno(errp, errno, "Unable to set file descriptor flags");
+        return;
+    }
+#else
+    error_setg(errp, "System does not support O_DIRECT");
+#endif
+}
 
 static off_t qio_channel_file_seek(QIOChannel *ioc,
                                    off_t offset,
