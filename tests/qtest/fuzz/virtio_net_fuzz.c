@@ -81,6 +81,9 @@ static void virtio_net_fuzz_multi(QTestState *s,
         /* Run the main loop */
         qtest_clock_step(s, 100);
         flush_events(s);
+        if (!qtest_probe_child(s)) {
+            return;
+        }
 
         /* Wait on used descriptors */
         if (check_used && !vqa.rx) {
