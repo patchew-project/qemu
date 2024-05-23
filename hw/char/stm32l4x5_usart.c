@@ -546,8 +546,8 @@ static int stm32l4x5_usart_base_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_stm32l4x5_usart_base = {
     .name = TYPE_STM32L4X5_USART_BASE,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .post_load = stm32l4x5_usart_base_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(cr1, Stm32l4x5UsartBaseState),
