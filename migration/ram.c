@@ -3131,6 +3131,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int i;
     int64_t t0;
     int done = 0;
+    Error **errp = NULL;
 
     /*
      * We'll take this lock a little bit long, but it's okay for two reasons.
@@ -3152,6 +3153,10 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
             if (ret < 0) {
                 qemu_file_set_error(f, ret);
                 goto out;
+            }
+
+            if (!migration_direct_io_start(f, errp)) {
+                return -errno;
             }
 
             t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
@@ -3193,6 +3198,9 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
                     }
                 }
                 i++;
+            }
+            if (!migration_direct_io_finish(f, errp)) {
+                return -errno;
             }
         }
     }
@@ -3242,7 +3250,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 {
     RAMState **temp = opaque;
     RAMState *rs = *temp;
-    int ret = 0;
+    int ret = 0, pages;
+    Error **errp = NULL;
 
     rs->last_stage = !migration_in_colo_state();
 
@@ -3257,24 +3266,29 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             return ret;
         }
 
+        if (!migration_direct_io_start(f, errp)) {
+            return -errno;
+        }
+
         /* try transferring iterative blocks of memory */
 
         /* flush all remaining blocks regardless of rate limiting */
         qemu_mutex_lock(&rs->bitmap_mutex);
         while (true) {
-            int pages;
-
             pages = ram_find_and_save_block(rs);
-            /* no more blocks to sent */
-            if (pages == 0) {
+            if (pages <= 0) {
                 break;
-            }
-            if (pages < 0) {
-                qemu_mutex_unlock(&rs->bitmap_mutex);
-                return pages;
             }
         }
         qemu_mutex_unlock(&rs->bitmap_mutex);
+
+        if (!migration_direct_io_finish(f, errp)) {
+            return -errno;
+        }
+
+        if (pages < 0) {
+            return pages;
+        }
 
         ret = rdma_registration_stop(f, RAM_CONTROL_FINISH);
         if (ret < 0) {
@@ -3920,6 +3934,10 @@ static bool read_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
     void *host;
     size_t read, unread, size;
 
+    if (!migration_direct_io_start(f, errp)) {
+        return false;
+    }
+
     for (set_bit_idx = find_first_bit(bitmap, num_pages);
          set_bit_idx < num_pages;
          set_bit_idx = find_next_bit(bitmap, num_pages, clear_bit_idx + 1)) {
@@ -3953,6 +3971,10 @@ static bool read_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
             offset += read;
             unread -= read;
         }
+    }
+
+    if (!migration_direct_io_finish(f, errp)) {
+        return false;
     }
 
     return true;
