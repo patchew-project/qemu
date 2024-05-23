@@ -702,6 +702,18 @@ bool migrate_cpu_throttle_tailslow(void)
     return s->parameters.cpu_throttle_tailslow;
 }
 
+bool migrate_direct_io(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    /* For now O_DIRECT is only supported with mapped-ram */
+    if (!s->capabilities[MIGRATION_CAPABILITY_MAPPED_RAM]) {
+        return false;
+    }
+
+    return s->parameters.direct_io;
+}
+
 uint64_t migrate_downtime_limit(void)
 {
     MigrationState *s = migrate_get_current();
@@ -905,6 +917,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->mode = s->parameters.mode;
     params->has_zero_page_detection = true;
     params->zero_page_detection = s->parameters.zero_page_detection;
+    params->has_direct_io = true;
+    params->direct_io = s->parameters.direct_io;
 
     return params;
 }
@@ -937,6 +951,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_vcpu_dirty_limit = true;
     params->has_mode = true;
     params->has_zero_page_detection = true;
+    params->has_direct_io = true;
 }
 
 /*
@@ -1110,6 +1125,11 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
+    if (params->has_direct_io && params->direct_io && !qemu_has_direct_io()) {
+        error_setg(errp, "No build-time support for direct-io");
+        return false;
+    }
+
     return true;
 }
 
@@ -1215,6 +1235,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
 
     if (params->has_zero_page_detection) {
         dest->zero_page_detection = params->zero_page_detection;
+    }
+
+    if (params->has_direct_io) {
+        dest->direct_io = params->direct_io;
     }
 }
 
@@ -1340,6 +1364,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_zero_page_detection) {
         s->parameters.zero_page_detection = params->zero_page_detection;
+    }
+
+    if (params->has_direct_io) {
+        s->parameters.direct_io = params->direct_io;
     }
 }
 
