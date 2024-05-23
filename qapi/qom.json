@@ -600,7 +600,7 @@
 #     preallocation threads (default: none) (since 7.2)
 #
 # @share: if false, the memory is private to QEMU; if true, it is
-#     shared (default: false)
+#     shared (default depends on the backend type)
 #
 # @reserve: if true, reserve swap space (or huge pages) if applicable
 #     (default: true) (since 6.1)
@@ -638,6 +638,8 @@
 # @MemoryBackendFileProperties:
 #
 # Properties for memory-backend-file objects.
+#
+# The @share boolean option is false by default with file.
 #
 # @align: the base address alignment when QEMU mmap(2)s @mem-path.
 #     Some backend stores specified by @mem-path require an alignment
