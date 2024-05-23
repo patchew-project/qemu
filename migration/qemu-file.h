@@ -79,5 +79,5 @@ size_t qemu_get_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
                           off_t pos);
 
 QIOChannel *qemu_file_get_ioc(QEMUFile *file);
-
+bool qemu_file_set_direct_io(QEMUFile *f, bool enabled);
 #endif

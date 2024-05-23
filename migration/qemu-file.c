@@ -51,6 +51,11 @@ struct QEMUFile {
 
     int last_error;
     Error *last_error_obj;
+    /*
+     * Whether O_DIRECT is in effect. Used to catch code attempting
+     * unaligned IO.
+     */
+    bool dio;
 };
 
 /*
@@ -280,6 +285,9 @@ int qemu_fflush(QEMUFile *f)
     }
     if (f->iovcnt > 0) {
         Error *local_error = NULL;
+
+        assert(!f->dio);
+
         if (qio_channel_writev_all(f->ioc,
                                    f->iov, f->iovcnt,
                                    &local_error) < 0) {
@@ -428,6 +436,8 @@ void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size,
         return;
     }
 
+    assert(!f->dio);
+
     add_to_iovec(f, buf, size, may_free);
 }
 
@@ -438,6 +448,8 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
     if (f->last_error) {
         return;
     }
+
+    assert(!f->dio);
 
     while (size > 0) {
         l = IO_BUF_SIZE - f->buf_index;
@@ -557,6 +569,8 @@ off_t qemu_get_offset(QEMUFile *f)
 
 void qemu_put_byte(QEMUFile *f, int v)
 {
+    assert(!f->dio);
+
     if (f->last_error) {
         return;
     }
@@ -863,4 +877,19 @@ int qemu_file_get_to_fd(QEMUFile *f, int fd, size_t size)
     }
 
     return 0;
+}
+
+bool qemu_file_set_direct_io(QEMUFile *f, bool enabled)
+{
+    Error *local_err = NULL;
+
+    qio_channel_file_set_direct_io(f->ioc, enabled, &local_err);
+    if (local_err) {
+        qemu_file_set_error_obj(f, -EINVAL, local_err);
+        return false;
+    }
+
+    f->dio = enabled;
+
+    return true;
 }

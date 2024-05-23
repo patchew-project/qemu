@@ -536,4 +536,6 @@ int migration_rp_wait(MigrationState *s);
  */
 void migration_rp_kick(MigrationState *s);
 
+bool migration_direct_io_start(QEMUFile *file, Error **errp);
+bool migration_direct_io_finish(QEMUFile *file, Error **errp);
 #endif

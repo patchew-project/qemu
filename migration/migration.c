@@ -420,6 +420,37 @@ static void migrate_generate_event(int new_state)
     }
 }
 
+bool migration_direct_io_start(QEMUFile *file, Error **errp)
+{
+    if (!migrate_direct_io() || migrate_multifd()) {
+        return true;
+    }
+
+    /* flush any potentially unaligned IO before setting O_DIRECT */
+    qemu_fflush(file);
+
+    if (!qemu_file_set_direct_io(file, true)) {
+        error_setg(errp, "Failed to enable direct-io");
+        return false;
+    }
+
+    return true;
+}
+
+bool migration_direct_io_finish(QEMUFile *file, Error **errp)
+{
+    if (!migrate_direct_io() || migrate_multifd()) {
+        return true;
+    }
+
+    if (!qemu_file_set_direct_io(file, false)) {
+        error_setg(errp, "Failed to disable direct-io");
+        return false;
+    }
+
+    return true;
+}
+
 /*
  * Send a message on the return channel back to the source
  * of the migration.
