@@ -1760,7 +1760,7 @@ static void vmcoreinfo_update_phys_base(DumpState *s)
         }
 
         if (prefix && g_str_has_prefix(lines[i], prefix)) {
-            if (qemu_strtou64(lines[i] + strlen(prefix), NULL, 16,
+            if (qemu_strtou64(lines[i] + strlen(prefix), NULL, 10,
                               &phys_base) < 0) {
                 warn_report("Failed to read %s", prefix);
             } else {
