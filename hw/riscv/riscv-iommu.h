@@ -68,6 +68,8 @@ struct RISCVIOMMUState {
     MemoryRegion trap_mr;
 
     GHashTable *ctx_cache;          /* Device translation Context Cache */
+    GHashTable *iot_cache;          /* IO Translated Address Cache */
+    unsigned iot_limit;             /* IO Translation Cache size limit */
 
     /* MMIO Hardware Interface */
     MemoryRegion regs_mr;
