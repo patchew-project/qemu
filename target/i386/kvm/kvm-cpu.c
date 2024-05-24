@@ -50,7 +50,6 @@ static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
      * nothing else has been set by the user (or by accelerators) in
      * cpu->ucode_rev and cpu->phys_bits, and updates the CPUID results in
      * mwait.ecx.
-     * This accel realization code also assumes cpu features are already expanded.
      *
      * realize order:
      *
