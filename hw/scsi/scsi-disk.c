@@ -111,6 +111,7 @@ struct SCSIDiskState {
      * 0xffff        - reserved
      */
     uint16_t rotation_rate;
+    bool migrate_emulate_scsi_request;
 };
 
 static void scsi_free_request(SCSIRequest *req)
@@ -3133,11 +3134,21 @@ static Property scsi_hd_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int scsi_disk_pre_save(void *opaque)
+{
+    SCSIDiskState *dev = opaque;
+    dev->migrate_emulate_scsi_request = false;
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_scsi_disk_state = {
     .name = "scsi-disk",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
+    .pre_save = scsi_disk_pre_save,
     .fields = (const VMStateField[]) {
+        VMSTATE_BOOL_V(migrate_emulate_scsi_request, SCSIDiskState, 2),
         VMSTATE_SCSI_DEVICE(qdev, SCSIDiskState),
         VMSTATE_BOOL(media_changed, SCSIDiskState),
         VMSTATE_BOOL(media_event, SCSIDiskState),
