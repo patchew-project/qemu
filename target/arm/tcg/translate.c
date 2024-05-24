@@ -8775,6 +8775,63 @@ static bool trans_PLI(DisasContext *s, arg_PLI *a)
     return ENABLE_ARCH_7;
 }
 
+static bool prefetch_check_m(DisasContext *s, int rm)
+{
+    switch (rm) {
+    case 13:
+        /* SP allowed in v8 or with A1 encoding; rejected with T1. */
+        return ENABLE_ARCH_8 || !s->thumb;
+    case 15:
+        /* PC always rejected. */
+        return false;
+    default:
+        return true;
+    }
+}
+
+static bool trans_PLD_rr(DisasContext *s, arg_PLD_rr *a)
+{
+    if (!ENABLE_ARCH_5TE) {
+        return false;
+    }
+    /* We cannot return false, because that leads to LDRB for thumb. */
+    if (!prefetch_check_m(s, a->rm)) {
+        unallocated_encoding(s);
+    }
+    return true;
+}
+
+static bool trans_PLDW_rr(DisasContext *s, arg_PLDW_rr *a)
+{
+    if (!arm_dc_feature(s, ARM_FEATURE_V7MP)) {
+        return false;
+    }
+    /*
+     * For A1, rn == 15 is UNPREDICTABLE.
+     * For T1, rn == 15 is PLD (literal).
+     */
+    if (a->rn == 15) {
+        return false;
+    }
+    /* We cannot return false, because that leads to LDRH for thumb. */
+    if (!prefetch_check_m(s, a->rm)) {
+        unallocated_encoding(s);
+    }
+    return true;
+}
+
+static bool trans_PLI_rr(DisasContext *s, arg_PLI_rr *a)
+{
+    if (!ENABLE_ARCH_7) {
+        return false;
+    }
+    /* We cannot return false, because that leads to LDRSB for thumb. */
+    if (!prefetch_check_m(s, a->rm)) {
+        unallocated_encoding(s);
+    }
+    return true;
+}
+
 /*
  * If-then
  */
