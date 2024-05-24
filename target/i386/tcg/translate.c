@@ -1406,7 +1406,7 @@ static void gen_exception(DisasContext *s, int trapno)
     gen_update_cc_op(s);
     gen_update_eip_cur(s);
     gen_helper_raise_exception(tcg_env, tcg_constant_i32(trapno));
-    s->base.is_jmp = DISAS_NORETURN;
+    s->base.is_jmp = DISAS_EOB_ONLY;
 }
 
 /* Generate #UD for the current instruction.  The assumption here is that
@@ -2191,7 +2191,7 @@ static void gen_interrupt(DisasContext *s, uint8_t intno)
     gen_update_eip_cur(s);
     gen_helper_raise_interrupt(tcg_env, tcg_constant_i32(intno),
                                cur_insn_len_i32(s));
-    s->base.is_jmp = DISAS_NORETURN;
+    s->base.is_jmp = DISAS_EOB_ONLY;
 }
 
 static void gen_set_hflag(DisasContext *s, uint32_t mask)
@@ -2354,7 +2354,7 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
             tcg_gen_movi_tl(cpu_eip, new_eip);
         }
         tcg_gen_exit_tb(s->base.tb, tb_num);
-        s->base.is_jmp = DISAS_NORETURN;
+        s->base.is_jmp = DISAS_EOB_ONLY;
     } else {
         if (!(tb_cflags(s->base.tb) & CF_PCREL)) {
             tcg_gen_movi_tl(cpu_eip, new_eip);
@@ -3520,7 +3520,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         gen_update_cc_op(s);
         gen_update_eip_cur(s);
         gen_helper_rdpmc(tcg_env);
-        s->base.is_jmp = DISAS_NORETURN;
+        s->base.is_jmp = DISAS_EOB_ONLY;
         break;
     case 0x134: /* sysenter */
         /* For AMD SYSENTER is not valid in long mode */
@@ -3690,7 +3690,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
             gen_helper_mwait(tcg_env, cur_insn_len_i32(s));
-            s->base.is_jmp = DISAS_NORETURN;
+            s->base.is_jmp = DISAS_EOB_ONLY;
             break;
 
         case 0xca: /* clac */
@@ -3769,7 +3769,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             gen_helper_vmrun(tcg_env, tcg_constant_i32(s->aflag - 1),
                              cur_insn_len_i32(s));
             tcg_gen_exit_tb(NULL, 0);
-            s->base.is_jmp = DISAS_NORETURN;
+            s->base.is_jmp = DISAS_EOB_ONLY;
             break;
 
         case 0xd9: /* VMMCALL */
@@ -4770,6 +4770,11 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
 
     switch (dc->base.is_jmp) {
     case DISAS_NORETURN:
+	/*
+	 * Nothing to do, gen_eob*() was already called.  DISAS_NORETURN is
+	 * never set explicitly except in gen_eob_worker(), because that is
+	 * where HF_INHIBIT_IRQ_MASK, HF_RF_MASK and HF_TF_MASK are handled.
+	 */
         break;
     case DISAS_TOO_MANY:
         gen_update_cc_op(dc);
@@ -4793,6 +4798,7 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     default:
         g_assert_not_reached();
     }
+    assert(dc->base.is_jmp == DISAS_NORETURN);
 }
 
 static const TranslatorOps i386_tr_ops = {

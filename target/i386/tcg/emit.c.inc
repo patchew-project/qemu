@@ -1642,7 +1642,7 @@ static void gen_HLT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     gen_update_cc_op(s);
     gen_update_eip_cur(s);
     gen_helper_hlt(tcg_env, cur_insn_len_i32(s));
-    s->base.is_jmp = DISAS_NORETURN;
+    s->base.is_jmp = DISAS_EOB_ONLY;
 #endif
 }
 
@@ -4022,7 +4022,7 @@ static void gen_XCHG(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
             gen_helper_pause(tcg_env, cur_insn_len_i32(s));
-            s->base.is_jmp = DISAS_NORETURN;
+            s->base.is_jmp = DISAS_EOB_ONLY;
         }
         /* No writeback.  */
         decode->op[0].unit = X86_OP_SKIP;
