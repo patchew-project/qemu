@@ -2124,6 +2124,12 @@ struct X86CPUClass {
     ResettablePhases parent_phases;
 };
 
+/* Intended to become a generic PTE type */
+typedef union PTE {
+    uint64_t pte64_t;
+    uint32_t pte32_t;
+} PTE_t;
+
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_x86_cpu;
 #endif
@@ -2138,6 +2144,16 @@ int x86_cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                                  DumpState *s);
 int x86_cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                                  DumpState *s);
+
+bool mmu_pte_leaf(CPUState *cs, int height, PTE_t *pte);
+target_ulong mmu_pte_leaf_page_size(CPUState *cs, int height);
+hwaddr mmu_pte_child(CPUState *cs, PTE_t *pte, int height);
+int mmu_page_table_entries_per_node(CPUState *cs, int height);
+bool for_each_pte(CPUState *cs,
+                  int (*fn)(CPUState *cs, void *data, PTE_t *pte,
+                            target_ulong vaddr, int height, int offset),
+                  void *data, bool visit_interior_nodes,
+                  bool visit_not_present);
 
 bool x86_cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                                 Error **errp);
