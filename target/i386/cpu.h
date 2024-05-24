@@ -2124,6 +2124,42 @@ struct X86CPUClass {
     ResettablePhases parent_phases;
 };
 
+typedef struct X86TranslateParams {
+    target_ulong addr;
+    target_ulong cr3;
+    int pg_mode;
+    int mmu_idx;
+    int ptw_idx;
+    MMUAccessType access_type;
+} X86TranslateParams;
+
+typedef struct X86TranslateResult {
+    hwaddr paddr;
+    int prot;
+    int page_size;
+} X86TranslateResult;
+
+typedef enum X86TranslateFaultStage2 {
+    S2_NONE,
+    S2_GPA,
+    S2_GPT,
+} X86TranslateFaultStage2;
+
+typedef struct X86TranslateFault {
+    int exception_index;
+    int error_code;
+    target_ulong cr2;
+    X86TranslateFaultStage2 stage2;
+} X86TranslateFault;
+
+typedef struct X86PTETranslate {
+    CPUX86State *env;
+    X86TranslateFault *err;
+    int ptw_idx;
+    void *haddr;
+    hwaddr gaddr;
+} X86PTETranslate;
+
 /* Intended to become a generic PTE type */
 typedef union PTE {
     uint64_t pte64_t;
@@ -2167,6 +2203,11 @@ void x86_cpu_list(void);
 int cpu_x86_support_mca_broadcast(CPUX86State *env);
 
 #ifndef CONFIG_USER_ONLY
+bool x86_cpu_get_physical_address(CPUX86State *env, vaddr addr,
+                                  MMUAccessType access_type, int mmu_idx,
+                                  X86TranslateResult *out,
+                                  X86TranslateFault *err, uint64_t ra);
+
 hwaddr x86_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                          MemTxAttrs *attrs);
 int cpu_get_pic_interrupt(CPUX86State *s);
