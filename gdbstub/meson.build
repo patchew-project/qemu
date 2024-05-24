@@ -26,9 +26,9 @@ libgdb_system = static_library('gdb_system',
                                 gdb_system_ss.sources() + genh,
                                 build_by_default: false)
 
-gdb_user = declare_dependency(link_whole: libgdb_user)
+gdb_user = declare_dependency(objects: libgdb_user.extract_all_objects(recursive: false))
 user_ss.add(gdb_user)
-gdb_system = declare_dependency(link_whole: libgdb_system)
+gdb_system = declare_dependency(objects: libgdb_system.extract_all_objects(recursive: false))
 system_ss.add(gdb_system)
 
 common_ss.add(files('syscalls.c'))

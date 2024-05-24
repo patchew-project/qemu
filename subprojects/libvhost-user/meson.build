@@ -17,7 +17,7 @@ vhost_user = static_library('vhost-user',
                             c_args: '-D_GNU_SOURCE')
 
 executable('link-test', files('link-test.c'),
-           link_whole: vhost_user)
+           objects: vhost_user.extract_all_objects(recursive: false))
 
 vhost_user_glib = static_library('vhost-user-glib',
                                  files('libvhost-user-glib.c'),

@@ -238,7 +238,7 @@ Subsystem sourcesets:
     libchardev = static_library('chardev', chardev_ss.sources(),
                                 build_by_default: false)
 
-    chardev = declare_dependency(link_whole: libchardev)
+    chardev = declare_dependency(objects: libchardev.extract_all_objects(recursive: false))
 
 Target-independent emulator sourcesets:
   Various general purpose helper code is compiled only once and
