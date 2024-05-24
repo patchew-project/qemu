@@ -2181,15 +2181,23 @@ int x86_cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
 int x86_cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                                  DumpState *s);
 
+hwaddr mmu_page_table_root(CPUState *cs, int *height);
+bool mmu_pte_check_bits(CPUState *cs, PTE_t *pte, int64_t mask);
+bool mmu_pte_present(CPUState *cs, PTE_t *pte);
 bool mmu_pte_leaf(CPUState *cs, int height, PTE_t *pte);
 target_ulong mmu_pte_leaf_page_size(CPUState *cs, int height);
 hwaddr mmu_pte_child(CPUState *cs, PTE_t *pte, int height);
 int mmu_page_table_entries_per_node(CPUState *cs, int height);
+int mmu_virtual_to_pte_index(CPUState *cs, target_ulong vaddr, int height);
 bool for_each_pte(CPUState *cs,
                   int (*fn)(CPUState *cs, void *data, PTE_t *pte,
                             target_ulong vaddr, int height, int offset),
                   void *data, bool visit_interior_nodes,
                   bool visit_not_present);
+void get_pte(CPUState *cs, hwaddr node, int i, int height, PTE_t *pt_entry,
+             target_ulong vaddr_parent, target_ulong *vaddr_pte,
+             hwaddr *pte_paddr);
+
 
 bool x86_cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                                 Error **errp);
@@ -2206,7 +2214,8 @@ int cpu_x86_support_mca_broadcast(CPUX86State *env);
 bool x86_cpu_get_physical_address(CPUX86State *env, vaddr addr,
                                   MMUAccessType access_type, int mmu_idx,
                                   X86TranslateResult *out,
-                                  X86TranslateFault *err, uint64_t ra);
+                                  X86TranslateFault *err, uint64_t ra,
+                                  bool read_only);
 
 hwaddr x86_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                          MemTxAttrs *attrs);

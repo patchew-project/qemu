@@ -33,7 +33,7 @@
  * Returns a hardware address on success.  Should not fail (i.e., caller is
  * responsible to ensure that a page table is actually present).
  */
-static hwaddr mmu_page_table_root(CPUState *cs, int *height)
+hwaddr mmu_page_table_root(CPUState *cs, int *height)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -229,6 +229,35 @@ static void _mmu_decode_va_parameters(CPUState *cs, int height,
 }
 
 /**
+ * mmu_virtual_to_pte_index - Given a virtual address and height in the
+ *       page table radix tree, return the index that should be used
+ *       to look up the next page table entry (pte) in translating an
+ *       address.
+ *
+ * @cs - CPU state
+ * @vaddr - The virtual address to translate
+ * @height - height of node within the tree (leaves are 1, not 0).
+ *
+ * Example: In 32-bit x86 page tables, the virtual address is split
+ * into 10 bits at height 2, 10 bits at height 1, and 12 offset bits.
+ * So a call with VA and height 2 would return the first 10 bits of va,
+ * right shifted by 22.
+ */
+
+int mmu_virtual_to_pte_index(CPUState *cs, target_ulong vaddr, int height)
+{
+    int shift = 0;
+    int width = 0;
+    int mask = 0;
+
+    _mmu_decode_va_parameters(cs, height, &shift, &width);
+
+    mask = (1 << width) - 1;
+
+    return (vaddr >> shift) & mask;
+}
+
+/**
  * get_pte - Copy the contents of the page table entry at node[i] into pt_entry.
  *           Optionally, add the relevant bits to the virtual address in
  *           vaddr_pte.
@@ -247,7 +276,7 @@ static void _mmu_decode_va_parameters(CPUState *cs, int height,
  *              Optional parameter.
  */
 
-static void
+void
 get_pte(CPUState *cs, hwaddr node, int i, int height,
         PTE_t *pt_entry, target_ulong vaddr_parent, target_ulong *vaddr_pte,
         hwaddr *pte_paddr)
@@ -284,7 +313,7 @@ get_pte(CPUState *cs, hwaddr node, int i, int height,
 }
 
 
-static bool
+bool
 mmu_pte_check_bits(CPUState *cs, PTE_t *pte, int64_t mask)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -300,7 +329,7 @@ mmu_pte_check_bits(CPUState *cs, PTE_t *pte, int64_t mask)
  * mmu_pte_presetn - Return true if the pte is
  *                   marked 'present'
  */
-static bool
+bool
 mmu_pte_present(CPUState *cs, PTE_t *pte)
 {
     return mmu_pte_check_bits(cs, pte, PG_PRESENT_MASK);
