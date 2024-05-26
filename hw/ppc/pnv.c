@@ -144,7 +144,7 @@ static int pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
     PnvChipClass *pnv_cc = PNV_CHIP_GET_CLASS(chip);
     g_autofree uint32_t *servers_prop = g_new(uint32_t, smt_threads);
     int i;
-    uint32_t pir;
+    uint32_t pir, tir;
     uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                        0xffffffff, 0xffffffff};
     uint32_t tbfreq = PNV_TIMEBASE_FREQ;
@@ -155,7 +155,7 @@ static int pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
     char *nodename;
     int cpus_offset = get_cpus_node(fdt);
 
-    pir = pnv_cc->chip_pir(chip, pc->hwid, 0);
+    pnv_cc->processor_id(chip, pc->hwid, 0, &pir, &tir);
 
     nodename = g_strdup_printf("%s@%x", dc->fw_name, pir);
     offset = fdt_add_subnode(fdt, cpus_offset, nodename);
@@ -237,7 +237,8 @@ static int pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
 
     /* Build interrupt servers properties */
     for (i = 0; i < smt_threads; i++) {
-        servers_prop[i] = cpu_to_be32(pnv_cc->chip_pir(chip, pc->hwid, i));
+        pnv_cc->processor_id(chip, pc->hwid, i, &pir, &tir);
+        servers_prop[i] = cpu_to_be32(pir);
     }
     _FDT((fdt_setprop(fdt, offset, "ibm,ppc-interrupt-server#s",
                        servers_prop, sizeof(*servers_prop) * smt_threads)));
@@ -249,13 +250,16 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t hwid,
                        uint32_t nr_threads)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    uint32_t pir = pcc->chip_pir(chip, hwid, 0);
-    uint64_t addr = PNV_ICP_BASE(chip) | (pir << 12);
+    uint32_t pir, tir;
+    uint64_t addr;
     char *name;
     const char compat[] = "IBM,power8-icp\0IBM,ppc-xicp";
     uint32_t irange[2], i, rsize;
     uint64_t *reg;
     int offset;
+
+    pcc->processor_id(chip, hwid, 0, &pir, &tir);
+    addr = PNV_ICP_BASE(chip) | (pir << 12);
 
     irange[0] = cpu_to_be32(pir);
     irange[1] = cpu_to_be32(nr_threads);
@@ -1104,10 +1108,12 @@ static void pnv_power10_init(MachineState *machine)
  *   25:28  Core number
  *   29:31  Thread ID
  */
-static uint32_t pnv_chip_pir_p8(PnvChip *chip, uint32_t core_id,
-                                uint32_t thread_id)
+static void pnv_processor_id_p8(PnvChip *chip,
+                                uint32_t core_id, uint32_t thread_id,
+                                uint32_t *pir, uint32_t *tir)
 {
-    return (chip->chip_id << 7) | (core_id << 3) | thread_id;
+    *pir = (chip->chip_id << 7) | (core_id << 3) | thread_id;
+    *tir = thread_id;
 }
 
 static void pnv_chip_power8_intc_create(PnvChip *chip, PowerPCCPU *cpu,
@@ -1159,15 +1165,17 @@ static void pnv_chip_power8_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
  *
  * We only care about the lower bits. uint32_t is fine for the moment.
  */
-static uint32_t pnv_chip_pir_p9(PnvChip *chip, uint32_t core_id,
-                                uint32_t thread_id)
+static void pnv_processor_id_p9(PnvChip *chip,
+                                uint32_t core_id, uint32_t thread_id,
+                                uint32_t *pir, uint32_t *tir)
 {
     if (chip->nr_threads == 8) {
-        return (chip->chip_id << 8) | ((thread_id & 1) << 2) | (core_id << 3) |
+        *pir = (chip->chip_id << 8) | ((thread_id & 1) << 2) | (core_id << 3) |
                (thread_id >> 1);
     } else {
-        return (chip->chip_id << 8) | (core_id << 2) | thread_id;
+        *pir = (chip->chip_id << 8) | (core_id << 2) | thread_id;
     }
+    *tir = thread_id;
 }
 
 /*
@@ -1181,15 +1189,17 @@ static uint32_t pnv_chip_pir_p9(PnvChip *chip, uint32_t core_id,
  *
  * We only care about the lower bits. uint32_t is fine for the moment.
  */
-static uint32_t pnv_chip_pir_p10(PnvChip *chip, uint32_t core_id,
-                                 uint32_t thread_id)
+static void pnv_processor_id_p10(PnvChip *chip,
+                                uint32_t core_id, uint32_t thread_id,
+                                uint32_t *pir, uint32_t *tir)
 {
     if (chip->nr_threads == 8) {
-        return (chip->chip_id << 8) | ((core_id / 4) << 4) |
-               ((core_id % 2) << 3) | thread_id;
+        *pir = (chip->chip_id << 8) | ((core_id / 4) << 4) |
+                ((core_id % 2) << 3) | thread_id;
     } else {
-        return (chip->chip_id << 8) | (core_id << 2) | thread_id;
+        *pir = (chip->chip_id << 8) | (core_id << 2) | thread_id;
     }
+    *tir = thread_id;
 }
 
 static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
@@ -1368,8 +1378,11 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
         int core_hwid = CPU_CORE(pnv_core)->core_id;
 
         for (j = 0; j < CPU_CORE(pnv_core)->nr_threads; j++) {
-            uint32_t pir = pcc->chip_pir(chip, core_hwid, j);
-            PnvICPState *icp = PNV_ICP(xics_icp_get(chip8->xics, pir));
+            uint32_t pir, tir;
+            PnvICPState *icp;
+
+            pcc->processor_id(chip, core_hwid, j, &pir, &tir);
+            icp = PNV_ICP(xics_icp_get(chip8->xics, pir));
 
             memory_region_add_subregion(&chip8->icp_mmio, pir << 12,
                                         &icp->mmio);
@@ -1481,7 +1494,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
     k->num_phbs = 3;
-    k->chip_pir = pnv_chip_pir_p8;
+    k->processor_id = pnv_processor_id_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
@@ -1505,7 +1518,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->num_phbs = 3;
-    k->chip_pir = pnv_chip_pir_p8;
+    k->processor_id = pnv_processor_id_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
@@ -1529,7 +1542,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->num_phbs = 4;
-    k->chip_pir = pnv_chip_pir_p8;
+    k->processor_id = pnv_processor_id_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
@@ -1802,7 +1815,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 
     k->chip_cfam_id = 0x220d104900008000ull; /* P9 Nimbus DD2.0 */
     k->cores_mask = POWER9_CORE_MASK;
-    k->chip_pir = pnv_chip_pir_p9;
+    k->processor_id = pnv_processor_id_p9;
     k->intc_create = pnv_chip_power9_intc_create;
     k->intc_reset = pnv_chip_power9_intc_reset;
     k->intc_destroy = pnv_chip_power9_intc_destroy;
@@ -2114,7 +2127,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
 
     k->chip_cfam_id = 0x120da04900008000ull; /* P10 DD1.0 (with NX) */
     k->cores_mask = POWER10_CORE_MASK;
-    k->chip_pir = pnv_chip_pir_p10;
+    k->processor_id = pnv_processor_id_p10;
     k->intc_create = pnv_chip_power10_intc_create;
     k->intc_reset = pnv_chip_power10_intc_reset;
     k->intc_destroy = pnv_chip_power10_intc_destroy;
