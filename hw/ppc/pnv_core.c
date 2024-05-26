@@ -207,6 +207,9 @@ static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
                 val |= PPC_BIT(56 + i);
             }
         }
+        if (pc->lpar_per_core) {
+            val |= PPC_BIT(62);
+        }
         break;
     case PNV10_XSCOM_EC_CORE_THREAD_INFO:
         break;
@@ -320,6 +323,11 @@ static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp,
         env->core_index = core_hwid >> 1;
     } else {
         env->core_index = core_hwid;
+    }
+
+    if (pnv->lpar_per_core) {
+        pc->lpar_per_core = true;
+        cpu_ppc_set_1lpar(cpu);
     }
 
     /* Set time-base frequency to 512 MHz */

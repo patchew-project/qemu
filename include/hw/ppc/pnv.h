@@ -103,6 +103,7 @@ struct PnvMachineState {
 
     bool         big_core;
     bool         big_core_tbst_quirk;
+    bool         lpar_per_core;
 };
 
 PnvChip *pnv_get_chip(PnvMachineState *pnv, uint32_t chip_id);
