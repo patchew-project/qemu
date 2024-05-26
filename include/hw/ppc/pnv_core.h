@@ -53,6 +53,7 @@ struct PnvCore {
     uint32_t hwid;
     uint64_t hrmor;
 
+    target_ulong scratch[8]; /* SCRATCH registers */
     struct pnv_tod_tbst pnv_tod_tbst;
 
     PnvChip *chip;
