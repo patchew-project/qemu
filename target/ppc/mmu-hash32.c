@@ -279,11 +279,11 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
     return pte_addr;
 }
 
-bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+bool ppc_hash32_xlate(CPUState *cs, vaddr eaddr, MMUAccessType access_type,
                       hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
                       bool guest_visible)
 {
-    CPUState *cs = CPU(cpu);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
     target_ulong sr;
     hwaddr pte_addr, raddr;
