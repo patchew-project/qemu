@@ -109,15 +109,12 @@ static hwaddr ppc_hash32_bat_lookup(CPUPPCState *env, target_ulong ea,
     return -1;
 }
 
-static bool ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
-                                    target_ulong eaddr,
+static bool ppc_hash32_direct_store(CPUState *cs, CPUPPCState *env,
+                                    target_ulong sr, target_ulong eaddr,
                                     MMUAccessType access_type,
                                     hwaddr *raddr, int *prot, int mmu_idx,
                                     bool guest_visible)
 {
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-
     qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
 
     if (access_type == MMU_INST_FETCH) {
@@ -336,7 +333,7 @@ bool ppc_hash32_xlate(CPUState *cs, vaddr eaddr, MMUAccessType access_type,
 
     /* 4. Handle direct store segments */
     if (sr & SR32_T) {
-        return ppc_hash32_direct_store(cpu, sr, eaddr, access_type,
+        return ppc_hash32_direct_store(cs, env, sr, eaddr, access_type,
                                        raddrp, protp, mmu_idx, guest_visible);
     }
 
