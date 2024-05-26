@@ -976,11 +976,6 @@ static void pnv_init(MachineState *machine)
     pnv->num_chips =
         machine->smp.max_cpus / (machine->smp.cores * machine->smp.threads);
 
-    if (machine->smp.threads > 8) {
-        error_report("Cannot support more than 8 threads/core "
-                     "on a powernv machine");
-        exit(1);
-    }
     if (!is_power_of_2(machine->smp.threads)) {
         error_report("Cannot support %d threads/core on a powernv"
                      "machine because it must be a power of 2",
@@ -1074,6 +1069,33 @@ static void pnv_init(MachineState *machine)
     if (pmc->i2c_init) {
         pmc->i2c_init(pnv);
     }
+}
+
+static void pnv_power8_init(MachineState *machine)
+{
+    if (machine->smp.threads > 8) {
+        error_report("Cannot support more than 8 threads/core "
+                     "on a powernv POWER8 machine");
+        exit(1);
+    }
+
+    pnv_init(machine);
+}
+
+static void pnv_power9_init(MachineState *machine)
+{
+    if (machine->smp.threads > 8) {
+        error_report("Cannot support more than 8 threads/core "
+                     "on a powernv9/10 machine");
+        exit(1);
+    }
+
+    pnv_init(machine);
+}
+
+static void pnv_power10_init(MachineState *machine)
+{
+    pnv_power9_init(machine);
 }
 
 /*
@@ -2423,6 +2445,7 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
     };
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER8";
+    mc->init = pnv_power8_init;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
     compat_props_add(mc->compat_props, phb_compat, G_N_ELEMENTS(phb_compat));
 
@@ -2449,6 +2472,7 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
     };
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER9";
+    mc->init = pnv_power9_init;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.2");
     compat_props_add(mc->compat_props, phb_compat, G_N_ELEMENTS(phb_compat));
 
@@ -2473,6 +2497,7 @@ static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
         { TYPE_PNV_PHB_ROOT_PORT, "version", "5" },
     };
 
+    mc->init = pnv_power10_init;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power10_v2.0");
     compat_props_add(mc->compat_props, phb_compat, G_N_ELEMENTS(phb_compat));
 
