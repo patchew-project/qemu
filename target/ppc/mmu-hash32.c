@@ -48,11 +48,10 @@ static target_ulong hash32_bat_size(int mmu_idx,
     return BATU32_BEPI & ~((batu & BATU32_BL) << 15);
 }
 
-static hwaddr ppc_hash32_bat_lookup(PowerPCCPU *cpu, target_ulong ea,
+static hwaddr ppc_hash32_bat_lookup(CPUPPCState *env, target_ulong ea,
                                     MMUAccessType access_type, int *prot,
                                     int mmu_idx)
 {
-    CPUPPCState *env = &cpu->env;
     target_ulong *BATlt, *BATut;
     bool ifetch = access_type == MMU_INST_FETCH;
     int i;
@@ -316,7 +315,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 
     /* 2. Check Block Address Translation entries (BATs) */
     if (env->nb_BATs != 0) {
-        raddr = ppc_hash32_bat_lookup(cpu, eaddr, access_type, protp, mmu_idx);
+        raddr = ppc_hash32_bat_lookup(env, eaddr, access_type, protp, mmu_idx);
         if (raddr != -1) {
             if (!check_prot_access_type(*protp, access_type)) {
                 if (guest_visible) {
