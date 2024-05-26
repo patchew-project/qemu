@@ -16,9 +16,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from typing import List
+import string
 
 SECTOR_SIZE = 512
 DIRENTRY_SIZE = 32
+ALLOWED_FILE_CHARS = set("!#$%&'()-@^_`{}~" + string.digits + string.ascii_uppercase)
 
 
 class MBR:
@@ -265,7 +267,7 @@ class Fat16:
             + self.fats[fat_offset + 2 :]
         )
         self.fats_dirty_sectors.add(fat_offset // SECTOR_SIZE)
-    
+
     def flush_fats(self):
         """
         Write the FATs back to the disk.
@@ -293,7 +295,7 @@ class Fat16:
             raise Exception("Invalid FAT entry")
         else:
             return fat_entry
-    
+
     def next_free_cluster(self) -> int:
         """
         Find the next free cluster.
@@ -337,6 +339,67 @@ class Fat16:
             )
             cluster = self.next_cluster(cluster)
         return entries
+
+    def add_direntry(self, cluster: int | None, name: str, ext: str, attributes: int):
+        """
+        Add a new directory entry to the given cluster.
+        If the cluster is `None`, then it will be added to the root directory.
+        """
+
+        def find_free_entry(data: bytes):
+            for i in range(0, len(data), DIRENTRY_SIZE):
+                entry = data[i : i + DIRENTRY_SIZE]
+                if entry[0] == 0 or entry[0] == 0xE5:
+                    return i
+            return None
+
+        assert len(name) <= 8, "Name must be 8 characters or less"
+        assert len(ext) <= 3, "Ext must be 3 characters or less"
+        assert attributes % 0x15 != 0x15, "Invalid attributes"
+
+        # initial dummy data
+        new_entry = FatDirectoryEntry(b"\0" * 32, 0, 0)
+        new_entry.name = name.ljust(8, " ")
+        new_entry.ext = ext.ljust(3, " ")
+        new_entry.attributes = attributes
+        new_entry.reserved = 0
+        new_entry.create_time_tenth = 0
+        new_entry.create_time = 0
+        new_entry.create_date = 0
+        new_entry.last_access_date = 0
+        new_entry.last_mod_time = 0
+        new_entry.last_mod_date = 0
+        new_entry.cluster = self.next_free_cluster()
+        new_entry.size_bytes = 0
+
+        # mark as EOF
+        self.write_fat_entry(new_entry.cluster, 0xFFFF)
+
+        if cluster is None:
+            for i in range(self.boot_sector.root_dir_size()):
+                sector_data = self.read_sectors(
+                    self.boot_sector.root_dir_start() + i, 1
+                )
+                offset = find_free_entry(sector_data)
+                if offset is not None:
+                    new_entry.sector = self.boot_sector.root_dir_start() + i
+                    new_entry.offset = offset
+                    self.update_direntry(new_entry)
+                    return new_entry
+        else:
+            while cluster is not None:
+                data = self.read_cluster(cluster)
+                offset = find_free_entry(data)
+                if offset is not None:
+                    new_entry.sector = self.boot_sector.first_sector_of_cluster(
+                        cluster
+                    ) + (offset // SECTOR_SIZE)
+                    new_entry.offset = offset % SECTOR_SIZE
+                    self.update_direntry(new_entry)
+                    return new_entry
+                cluster = self.next_cluster(cluster)
+
+        raise Exception("No free directory entries")
 
     def update_direntry(self, entry: FatDirectoryEntry):
         """
@@ -406,9 +469,10 @@ class Fat16:
             raise Exception(f"{entry.whole_name()} is a directory")
 
         def clusters_from_size(size: int):
-            return (size + self.boot_sector.cluster_bytes() - 1) // self.boot_sector.cluster_bytes()
+            return (
+                size + self.boot_sector.cluster_bytes() - 1
+            ) // self.boot_sector.cluster_bytes()
 
-        
         # First, allocate new FATs if we need to
         required_clusters = clusters_from_size(new_size)
         current_clusters = clusters_from_size(entry.size_bytes)
@@ -438,7 +502,7 @@ class Fat16:
                 self.write_fat_entry(cluster, new_cluster)
                 self.write_fat_entry(new_cluster, 0xFFFF)
                 cluster = new_cluster
-            
+
         elif required_clusters < current_clusters:
             # Truncate the file
             cluster = entry.cluster
@@ -464,7 +528,9 @@ class Fat16:
             count += 1
             affected_clusters.add(cluster)
             cluster = self.next_cluster(cluster)
-        assert count == required_clusters, f"Expected {required_clusters} clusters, got {count}"
+        assert (
+            count == required_clusters
+        ), f"Expected {required_clusters} clusters, got {count}"
 
         # update the size
         entry.size_bytes = new_size
@@ -505,3 +571,49 @@ class Fat16:
             cluster = self.next_cluster(cluster)
 
         assert len(data) == 0, "Data was not written completely, clusters missing"
+
+    def create_file(self, path: str):
+        """
+        Create a new file at the given path.
+        """
+        assert path[0] == "/", "Path must start with /"
+
+        path = path[1:]  # remove the leading /
+
+        parts = path.split("/")
+
+        directory_cluster = None
+        directory = self.read_root_directory()
+
+        parts, filename = parts[:-1], parts[-1]
+
+        for i, part in enumerate(parts):
+            current_entry = None
+            for entry in directory:
+                if entry.whole_name() == part:
+                    current_entry = entry
+                    break
+            if current_entry is None:
+                return None
+
+            if current_entry.attributes & 0x10 == 0:
+                raise Exception(f"{current_entry.whole_name()} is not a directory")
+            else:
+                directory = self.read_directory(current_entry.cluster)
+                directory_cluster = current_entry.cluster
+
+        # add new entry to the directory
+
+        filename, ext = filename.split(".")
+
+        if len(ext) > 3:
+            raise Exception("Ext must be 3 characters or less")
+        if len(filename) > 8:
+            raise Exception("Name must be 8 characters or less")
+
+        for c in filename + ext:
+
+            if c not in ALLOWED_FILE_CHARS:
+                raise Exception("Invalid character in filename")
+
+        return self.add_direntry(directory_cluster, filename, ext, 0)

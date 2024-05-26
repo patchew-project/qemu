@@ -323,7 +323,7 @@ class TestVVFatDriver(QMPTestCase):
 
         with open(os.path.join(filesystem, "file0.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
-    
+
     def test_write_large_file(self):
         """
         Test writing a large file
@@ -342,7 +342,7 @@ class TestVVFatDriver(QMPTestCase):
 
         with open(os.path.join(filesystem, "large1.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
-    
+
     def test_truncate_file_change_clusters_less(self):
         """
         Test truncating a file by reducing the number of clusters
@@ -359,7 +359,6 @@ class TestVVFatDriver(QMPTestCase):
         with open(os.path.join(filesystem, "large1.txt"), "rb") as f:
             self.assertEqual(f.read(), b"A")
 
-    
     def test_write_file_change_clusters_less(self):
         """
         Test truncating a file by reducing the number of clusters
@@ -376,7 +375,7 @@ class TestVVFatDriver(QMPTestCase):
 
         with open(os.path.join(filesystem, "large2.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
-    
+
     def test_write_file_change_clusters_more(self):
         """
         Test truncating a file by increasing the number of clusters
@@ -392,7 +391,27 @@ class TestVVFatDriver(QMPTestCase):
 
         with open(os.path.join(filesystem, "large2.txt"), "rb") as f:
             self.assertEqual(f.read(), new_content)
-    
+
+    def test_create_file(self):
+        """
+        Test creating a new file
+        """
+        fat16 = self.init_fat16()
+
+        new_file = fat16.create_file("/NEWFILE.TXT")
+
+        self.assertIsNotNone(new_file)
+        self.assertEqual(new_file.size_bytes, 0)
+
+        new_content = b"Hello, world! New file\n"
+        fat16.write_file(new_file, new_content)
+
+        self.assertEqual(fat16.read_file(new_file), new_content)
+
+        with open(os.path.join(filesystem, "newfile.txt"), "rb") as f:
+            self.assertEqual(f.read(), new_content)
+
+    # TODO: support deleting files
 
 
 if __name__ == "__main__":
