@@ -1406,6 +1406,13 @@ struct CPUArchState {
     uint64_t pmu_base_time;
 };
 
+#define PPC_CPU_HAS_CORE_SIBLINGS(cs)                           \
+    (cs->nr_threads > 1)
+
+#define PPC_CPU_HAS_LPAR_SIBLINGS(cs)                           \
+    ((POWERPC_CPU(cs)->env.flags & POWERPC_FLAG_SMT_1LPAR) &&   \
+     PPC_CPU_HAS_CORE_SIBLINGS(cs))
+
 #define _CORE_ID(cs)                                            \
     (POWERPC_CPU(cs)->env.core_index)
 

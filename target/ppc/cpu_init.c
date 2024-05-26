@@ -6975,7 +6975,7 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
 
     pcc->parent_realize(dev, errp);
 
-    if (env_cpu(env)->nr_threads > 1) {
+    if (PPC_CPU_HAS_CORE_SIBLINGS(cs)) {
         env->flags |= POWERPC_FLAG_SMT;
     }
 

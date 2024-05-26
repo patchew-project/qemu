@@ -3029,7 +3029,7 @@ void helper_book3s_msgsnd(CPUPPCState *env, target_ulong rb)
         brdcast = true;
     }
 
-    if (cs->nr_threads == 1 || !brdcast) {
+    if (!PPC_CPU_HAS_CORE_SIBLINGS(cs) || !brdcast) {
         ppc_set_irq(cpu, PPC_INTERRUPT_HDOORBELL, 1);
         return;
     }
@@ -3067,21 +3067,19 @@ void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
     CPUState *cs = env_cpu(env);
     PowerPCCPU *cpu = env_archcpu(env);
     CPUState *ccs;
-    uint32_t nr_threads = cs->nr_threads;
     int ttir = rb & PPC_BITMASK(57, 63);
 
     helper_hfscr_facility_check(env, HFSCR_MSGP, "msgsndp", HFSCR_IC_MSGP);
 
-    if (!(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
-        nr_threads = 1; /* msgsndp behaves as 1-thread in LPAR-per-thread mode*/
-    }
-
-    if (!dbell_type_server(rb) || ttir >= nr_threads) {
+    if (!dbell_type_server(rb)) {
         return;
     }
 
-    if (nr_threads == 1) {
-        ppc_set_irq(cpu, PPC_INTERRUPT_DOORBELL, 1);
+    /* msgsndp behaves as 1-thread in LPAR-per-thread mode*/
+    if (!PPC_CPU_HAS_LPAR_SIBLINGS(cs)) {
+        if (ttir == 0) {
+            ppc_set_irq(cpu, PPC_INTERRUPT_DOORBELL, 1);
+        }
         return;
     }
 
