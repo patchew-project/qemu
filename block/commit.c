@@ -12,9 +12,13 @@
  *
  */
 
+#include "bits/time.h"
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "time.h"
 #include "trace.h"
+#include "block/block-common.h"
+#include "block/coroutines.h"
 #include "block/block_int.h"
 #include "block/blockjob_int.h"
 #include "qapi/error.h"
@@ -126,6 +130,12 @@ static void commit_clean(Job *job)
     blk_unref(s->top);
 }
 
+typedef enum CommitMethod {
+    COMMIT_METHOD_COPY,
+    COMMIT_METHOD_ZERO,
+    COMMIT_METHOD_IGNORE,
+} CommitMethod;
+
 static int coroutine_fn commit_run(Job *job, Error **errp)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
@@ -156,8 +166,9 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
     for (offset = 0; offset < len; offset += n) {
-        bool copy;
         bool error_in_source = true;
+        CommitMethod commit_method = COMMIT_METHOD_COPY;
+
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -167,21 +178,54 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
             break;
         }
         /* Copy if allocated above the base */
-        ret = blk_co_is_allocated_above(s->top, s->base_overlay, true,
-                                        offset, COMMIT_BUFFER_SIZE, &n);
-        copy = (ret > 0);
-        trace_commit_one_iteration(s, offset, n, ret);
-        if (copy) {
-            assert(n < SIZE_MAX);
+        WITH_GRAPH_RDLOCK_GUARD() {
+            ret = bdrv_co_common_block_status_above(blk_bs(s->top),
+                s->base_overlay, true, true, offset, COMMIT_BUFFER_SIZE,
+                &n, NULL, NULL, NULL);
+        }
 
-            ret = blk_co_pread(s->top, offset, n, buf, 0);
-            if (ret >= 0) {
-                ret = blk_co_pwrite(s->base, offset, n, buf, 0);
-                if (ret < 0) {
-                    error_in_source = false;
-                }
+        trace_commit_one_iteration(s, offset, n, ret);
+
+        if (ret >= 0 && !(ret & BDRV_BLOCK_ALLOCATED)) {
+            commit_method = COMMIT_METHOD_IGNORE;
+        } else if (ret >= 0 && ret & BDRV_BLOCK_ZERO) {
+            int64_t target_offset;
+            int64_t target_bytes;
+            WITH_GRAPH_RDLOCK_GUARD() {
+                bdrv_round_to_subclusters(s->base_bs, offset, n,
+                                       &target_offset, &target_bytes);
+            }
+
+            if (target_offset == offset &&
+                target_bytes == n) {
+                commit_method = COMMIT_METHOD_ZERO;
             }
         }
+
+        if (ret >= 0) {
+            switch (commit_method) {
+            case COMMIT_METHOD_COPY:
+                assert(n < SIZE_MAX);
+                ret = blk_co_pread(s->top, offset, n, buf, 0);
+                if (ret >= 0) {
+                    ret = blk_co_pwrite(s->base, offset, n, buf, 0);
+                    if (ret < 0) {
+                        error_in_source = false;
+                    }
+                }
+                break;
+            case COMMIT_METHOD_ZERO:
+                ret = blk_co_pwrite_zeroes(s->base, offset, n,
+                    BDRV_REQ_MAY_UNMAP);
+                error_in_source = false;
+                break;
+            case COMMIT_METHOD_IGNORE:
+                break;
+            default:
+                abort();
+            }
+        }
+
         if (ret < 0) {
             BlockErrorAction action =
                 block_job_error_action(&s->common, s->on_error,
@@ -193,10 +237,11 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
                 continue;
             }
         }
+
         /* Publish progress */
         job_progress_update(&s->common.job, n);
 
-        if (copy) {
+        if (commit_method == COMMIT_METHOD_COPY) {
             block_job_ratelimit_processed_bytes(&s->common, n);
         }
     }
