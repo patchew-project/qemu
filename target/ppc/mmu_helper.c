@@ -1361,12 +1361,11 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr eaddr, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
     hwaddr raddr;
     int page_size, prot;
 
-    if (ppc_xlate(cpu, eaddr, access_type, &raddr,
-                  &page_size, &prot, mmu_idx, !probe)) {
+    if (ppc_xlate(cs, eaddr, access_type, &raddr, &page_size, &prot,
+                  mmu_idx, !probe)) {
         tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                      prot, mmu_idx, 1UL << page_size);
         return true;
@@ -1374,6 +1373,6 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr eaddr, int size,
     if (probe) {
         return false;
     }
-    raise_exception_err_ra(&cpu->env, cs->exception_index,
-                           cpu->env.error_code, retaddr);
+    raise_exception_err_ra(cpu_env(cs), cs->exception_index,
+                           cpu_env(cs)->error_code, retaddr);
 }

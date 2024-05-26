@@ -251,7 +251,7 @@ static inline int check_prot_access_type(int prot, MMUAccessType access_type)
 
 /* PowerPC MMU emulation */
 
-bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+bool ppc_xlate(CPUState *cs, vaddr eaddr, MMUAccessType access_type,
                       hwaddr *raddrp, int *psizep, int *protp,
                       int mmu_idx, bool guest_visible);
 

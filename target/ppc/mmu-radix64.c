@@ -675,11 +675,12 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
  *              | = On        | Process Scoped |    Scoped     |
  *              +-------------+----------------+---------------+
  */
-static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
+static bool ppc_radix64_xlate_impl(CPUState *cs, vaddr eaddr,
                                    MMUAccessType access_type, hwaddr *raddr,
                                    int *psizep, int *protp, int mmu_idx,
                                    bool guest_visible)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
     uint64_t lpid, pid;
     ppc_v3_pate_t pate;
@@ -805,11 +806,11 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
     return true;
 }
 
-bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+bool ppc_radix64_xlate(CPUState *cs, vaddr eaddr, MMUAccessType access_type,
                        hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
                        bool guest_visible)
 {
-    bool ret = ppc_radix64_xlate_impl(cpu, eaddr, access_type, raddrp,
+    bool ret = ppc_radix64_xlate_impl(cs, eaddr, access_type, raddrp,
                                       psizep, protp, mmu_idx, guest_visible);
 
     qemu_log_mask(CPU_LOG_MMU, "%s for %s @0x%"VADDR_PRIx

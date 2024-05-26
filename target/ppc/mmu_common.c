@@ -579,11 +579,11 @@ void dump_mmu(CPUPPCState *env)
 }
 
 
-static bool ppc_real_mode_xlate(PowerPCCPU *cpu, vaddr eaddr,
+static bool ppc_real_mode_xlate(CPUState *cs, vaddr eaddr,
                                 MMUAccessType access_type,
                                 hwaddr *raddrp, int *psizep, int *protp)
 {
-    CPUPPCState *env = &cpu->env;
+    CPUPPCState *env = cpu_env(cs);
 
     if (access_type == MMU_INST_FETCH ? !FIELD_EX64(env->msr, MSR, IR)
                                       : !FIELD_EX64(env->msr, MSR, DR)) {
@@ -592,21 +592,20 @@ static bool ppc_real_mode_xlate(PowerPCCPU *cpu, vaddr eaddr,
         *psizep = TARGET_PAGE_BITS;
         return true;
     } else if (env->mmu_model == POWERPC_MMU_REAL) {
-        cpu_abort(CPU(cpu), "PowerPC in real mode shold not do translation\n");
+        cpu_abort(cs, "PowerPC in real mode shold not do translation\n");
     }
     return false;
 }
 
-static bool ppc_40x_xlate(PowerPCCPU *cpu, vaddr eaddr,
+static bool ppc_40x_xlate(CPUState *cs, vaddr eaddr,
                           MMUAccessType access_type,
                           hwaddr *raddrp, int *psizep, int *protp,
                           int mmu_idx, bool guest_visible)
 {
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
+    CPUPPCState *env = cpu_env(cs);
     int ret;
 
-    if (ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep, protp)) {
+    if (ppc_real_mode_xlate(cs, eaddr, access_type, raddrp, psizep, protp)) {
         return true;
     }
 
@@ -665,18 +664,17 @@ static bool ppc_40x_xlate(PowerPCCPU *cpu, vaddr eaddr,
     return false;
 }
 
-static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
+static bool ppc_6xx_xlate(CPUState *cs, vaddr eaddr,
                           MMUAccessType access_type,
                           hwaddr *raddrp, int *psizep, int *protp,
                           int mmu_idx, bool guest_visible)
 {
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
+    CPUPPCState *env = cpu_env(cs);
     hwaddr hash = 0; /* init to 0 to avoid used uninit warning */
     bool key;
     int type, ret;
 
-    if (ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep, protp)) {
+    if (ppc_real_mode_xlate(cs, eaddr, access_type, raddrp, psizep, protp)) {
         return true;
     }
 
@@ -803,15 +801,15 @@ tlb_miss:
 
 /*****************************************************************************/
 
-bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+bool ppc_xlate(CPUState *cs, vaddr eaddr, MMUAccessType access_type,
                       hwaddr *raddrp, int *psizep, int *protp,
                       int mmu_idx, bool guest_visible)
 {
-    switch (cpu->env.mmu_model) {
+    switch (cpu_env(cs)->mmu_model) {
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_3_00:
-        if (ppc64_v3_radix(&cpu->env)) {
-            return ppc_radix64_xlate(cpu, eaddr, access_type, raddrp,
+        if (ppc64_v3_radix(cpu_env(cs))) {
+            return ppc_radix64_xlate(cs, eaddr, access_type, raddrp,
                                      psizep, protp, mmu_idx, guest_visible);
         }
         /* fall through */
@@ -819,36 +817,36 @@ bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     case POWERPC_MMU_2_03:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_07:
-        return ppc_hash64_xlate(cpu, eaddr, access_type,
+        return ppc_hash64_xlate(cs, eaddr, access_type,
                                 raddrp, psizep, protp, mmu_idx, guest_visible);
 #endif
 
     case POWERPC_MMU_32B:
-        return ppc_hash32_xlate(cpu, eaddr, access_type, raddrp,
+        return ppc_hash32_xlate(cs, eaddr, access_type, raddrp,
                                psizep, protp, mmu_idx, guest_visible);
     case POWERPC_MMU_BOOKE:
     case POWERPC_MMU_BOOKE206:
-        return ppc_booke_xlate(cpu, eaddr, access_type, raddrp,
+        return ppc_booke_xlate(cs, eaddr, access_type, raddrp,
                                psizep, protp, mmu_idx, guest_visible);
     case POWERPC_MMU_SOFT_4xx:
-        return ppc_40x_xlate(cpu, eaddr, access_type, raddrp,
+        return ppc_40x_xlate(cs, eaddr, access_type, raddrp,
                              psizep, protp, mmu_idx, guest_visible);
     case POWERPC_MMU_SOFT_6xx:
-        return ppc_6xx_xlate(cpu, eaddr, access_type, raddrp,
+        return ppc_6xx_xlate(cs, eaddr, access_type, raddrp,
                              psizep, protp, mmu_idx, guest_visible);
     case POWERPC_MMU_REAL:
-        return ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep,
+        return ppc_real_mode_xlate(cs, eaddr, access_type, raddrp, psizep,
                                    protp);
     case POWERPC_MMU_MPC8xx:
-        cpu_abort(env_cpu(&cpu->env), "MPC8xx MMU model is not implemented\n");
+        cpu_abort(cs, "MPC8xx MMU model is not implemented\n");
     default:
-        cpu_abort(CPU(cpu), "Unknown or invalid MMU model\n");
+        cpu_abort(cs, "Unknown or invalid MMU model\n");
     }
 }
 
 hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = cpu_env(cs);
     hwaddr raddr;
     int s, p;
 
@@ -857,10 +855,10 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
      * try an MMU_DATA_LOAD, we may not be able to read instructions
      * mapped by code TLBs, so we also try a MMU_INST_FETCH.
      */
-    if (ppc_xlate(cpu, addr, MMU_DATA_LOAD, &raddr, &s, &p,
-                  ppc_env_mmu_index(&cpu->env, false), false) ||
-        ppc_xlate(cpu, addr, MMU_INST_FETCH, &raddr, &s, &p,
-                  ppc_env_mmu_index(&cpu->env, true), false)) {
+    if (ppc_xlate(cs, addr, MMU_DATA_LOAD, &raddr, &s, &p,
+                  ppc_env_mmu_index(env, false), false) ||
+        ppc_xlate(cs, addr, MMU_INST_FETCH, &raddr, &s, &p,
+                  ppc_env_mmu_index(env, true), false)) {
         return raddr & TARGET_PAGE_MASK;
     }
     return -1;
