@@ -177,7 +177,7 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, SpaprMachineState *spapr,
          * New cpus are expected to start in the same radix/hash mode
          * as the existing CPUs
          */
-        if (ppc64_v3_radix(callcpu)) {
+        if (ppc64_v3_radix(&callcpu->env)) {
             lpcr |= LPCR_UPRT | LPCR_GTSE | LPCR_HR;
         } else {
             lpcr &= ~(LPCR_UPRT | LPCR_GTSE | LPCR_HR);

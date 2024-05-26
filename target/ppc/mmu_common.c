@@ -565,7 +565,7 @@ void dump_mmu(CPUPPCState *env)
         dump_slb(env_archcpu(env));
         break;
     case POWERPC_MMU_3_00:
-        if (ppc64_v3_radix(env_archcpu(env))) {
+        if (ppc64_v3_radix(env)) {
             qemu_log_mask(LOG_UNIMP, "%s: the PPC64 MMU is unsupported\n",
                           __func__);
         } else {
@@ -810,7 +810,7 @@ bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     switch (cpu->env.mmu_model) {
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_3_00:
-        if (ppc64_v3_radix(cpu)) {
+        if (ppc64_v3_radix(&cpu->env)) {
             return ppc_radix64_xlate(cpu, eaddr, access_type, raddrp,
                                      psizep, protp, mmu_idx, guest_visible);
         }

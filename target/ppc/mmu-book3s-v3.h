@@ -75,9 +75,9 @@ bool ppc64_v3_get_pate(PowerPCCPU *cpu, target_ulong lpid,
  * dig out the partition table in the fast path. This is
  * also how the HW uses it.
  */
-static inline bool ppc64_v3_radix(PowerPCCPU *cpu)
+static inline bool ppc64_v3_radix(CPUPPCState *env)
 {
-    return !!(cpu->env.spr[SPR_LPCR] & LPCR_HR);
+    return !!(env->spr[SPR_LPCR] & LPCR_HR);
 }
 
 #endif /* TARGET_PPC64 */
