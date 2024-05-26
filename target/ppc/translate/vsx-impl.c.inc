@@ -2819,7 +2819,7 @@ static bool trans_XXSETACCZ(DisasContext *ctx, arg_X_a *a)
 static bool do_ger(DisasContext *ctx, arg_MMIRR_XX3 *a,
     void (*helper)(TCGv_env, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32))
 {
-    uint32_t mask;
+    uint32_t mask = 0;
     TCGv_ptr xt, xa, xb;
     REQUIRE_INSNS_FLAGS2(ctx, ISA310);
     REQUIRE_VSX(ctx);
@@ -2832,7 +2832,9 @@ static bool do_ger(DisasContext *ctx, arg_MMIRR_XX3 *a,
     xa = gen_vsr_ptr(a->xa);
     xb = gen_vsr_ptr(a->xb);
 
-    mask = ger_pack_masks(a->pmsk, a->ymsk, a->xmsk);
+    mask = FIELD_DP32(mask, GER_MSK, XMSK, a->xmsk);
+    mask = FIELD_DP32(mask, GER_MSK, YMSK, a->ymsk);
+    mask = FIELD_DP32(mask, GER_MSK, PMSK, a->pmsk);
     helper(tcg_env, xa, xb, xt, tcg_constant_i32(mask));
     return true;
 }
