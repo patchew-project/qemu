@@ -200,11 +200,10 @@ static bool ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
     return false;
 }
 
-static hwaddr ppc_hash32_pteg_search(PowerPCCPU *cpu, hwaddr pteg_off,
+static hwaddr ppc_hash32_pteg_search(PowerPCCPU *cpu, hwaddr pte_addr,
                                      bool secondary, target_ulong ptem,
                                      ppc_hash_pte32_t *pte)
 {
-    hwaddr pte_addr = ppc_hash32_hpt_base(cpu) + pteg_off;
     target_ulong pte0, pte1;
     int i;
 
@@ -245,37 +244,35 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
                                      target_ulong sr, target_ulong eaddr,
                                      ppc_hash_pte32_t *pte)
 {
-    hwaddr pteg_off, pte_addr;
-    hwaddr hash;
+    hwaddr hpt_base, pteg_off, pte_addr, hash;
     uint32_t vsid, pgidx, ptem;
 
+    hpt_base = ppc_hash32_hpt_base(cpu);
     vsid = sr & SR32_VSID;
     pgidx = (eaddr & ~SEGMENT_MASK_256M) >> TARGET_PAGE_BITS;
     hash = vsid ^ pgidx;
     ptem = (vsid << 7) | (pgidx >> 10);
 
     /* Page address translation */
-    qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx
-            " htab_mask " HWADDR_FMT_plx
-            " hash " HWADDR_FMT_plx "\n",
-            ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
+    qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx " htab_mask "
+                  HWADDR_FMT_plx " hash " HWADDR_FMT_plx "\n",
+                  hpt_base, ppc_hash32_hpt_mask(cpu), hash);
 
     /* Primary PTEG lookup */
     qemu_log_mask(CPU_LOG_MMU, "0 htab=" HWADDR_FMT_plx "/" HWADDR_FMT_plx
-            " vsid=%" PRIx32 " ptem=%" PRIx32
-            " hash=" HWADDR_FMT_plx "\n",
-            ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu),
-            vsid, ptem, hash);
+                  " vsid=%" PRIx32 " ptem=%" PRIx32 " hash=" HWADDR_FMT_plx
+                  "\n", hpt_base, ppc_hash32_hpt_mask(cpu), vsid, ptem, hash);
     pteg_off = get_pteg_offset32(cpu, hash);
-    pte_addr = ppc_hash32_pteg_search(cpu, pteg_off, 0, ptem, pte);
+    pte_addr = ppc_hash32_pteg_search(cpu, hpt_base + pteg_off, 0, ptem, pte);
     if (pte_addr == -1) {
         /* Secondary PTEG lookup */
         qemu_log_mask(CPU_LOG_MMU, "1 htab=" HWADDR_FMT_plx "/" HWADDR_FMT_plx
-                " vsid=%" PRIx32 " api=%" PRIx32
-                " hash=" HWADDR_FMT_plx "\n", ppc_hash32_hpt_base(cpu),
-                ppc_hash32_hpt_mask(cpu), vsid, ptem, ~hash);
+                      " vsid=%" PRIx32 " api=%" PRIx32 " hash=" HWADDR_FMT_plx
+                      "\n", hpt_base, ppc_hash32_hpt_mask(cpu), vsid, ptem,
+                      ~hash);
         pteg_off = get_pteg_offset32(cpu, ~hash);
-        pte_addr = ppc_hash32_pteg_search(cpu, pteg_off, 1, ptem, pte);
+        pte_addr = ppc_hash32_pteg_search(cpu, hpt_base + pteg_off, 1, ptem,
+                                          pte);
     }
 
     return pte_addr;
