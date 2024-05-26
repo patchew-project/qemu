@@ -204,58 +204,48 @@ static hwaddr ppc_hash32_pteg_search(PowerPCCPU *cpu, hwaddr pteg_off,
                                      bool secondary, target_ulong ptem,
                                      ppc_hash_pte32_t *pte)
 {
-    hwaddr pte_offset = pteg_off;
+    hwaddr pte_addr = ppc_hash32_hpt_base(cpu) + pteg_off;
     target_ulong pte0, pte1;
-    hwaddr base = ppc_hash32_hpt_base(cpu);
     int i;
 
-    for (i = 0; i < HPTES_PER_GROUP; i++) {
-        pte0 = ldl_phys(CPU(cpu)->as, base + pte_offset);
+    for (i = 0; i < HPTES_PER_GROUP; i++, pte_addr += HASH_PTE_SIZE_32) {
+        pte0 = ldl_phys(CPU(cpu)->as, pte_addr);
         /*
          * pte0 contains the valid bit and must be read before pte1,
          * otherwise we might see an old pte1 with a new valid bit and
          * thus an inconsistent hpte value
          */
         smp_rmb();
-        pte1 = ldl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2);
+        pte1 = ldl_phys(CPU(cpu)->as, pte_addr + HASH_PTE_SIZE_32 / 2);
 
         if ((pte0 & HPTE32_V_VALID)
             && (secondary == !!(pte0 & HPTE32_V_SECONDARY))
             && HPTE32_V_COMPARE(pte0, ptem)) {
             pte->pte0 = pte0;
             pte->pte1 = pte1;
-            return pte_offset;
+            return pte_addr;
         }
-
-        pte_offset += HASH_PTE_SIZE_32;
     }
-
     return -1;
 }
 
-static void ppc_hash32_set_r(PowerPCCPU *cpu, hwaddr pte_offset, uint32_t pte1)
+static void ppc_hash32_set_r(PowerPCCPU *cpu, hwaddr pte_addr, uint32_t pte1)
 {
-    target_ulong base = ppc_hash32_hpt_base(cpu);
-    hwaddr offset = pte_offset + 6;
-
     /* The HW performs a non-atomic byte update */
-    stb_phys(CPU(cpu)->as, base + offset, ((pte1 >> 8) & 0xff) | 0x01);
+    stb_phys(CPU(cpu)->as, pte_addr + 6, ((pte1 >> 8) & 0xff) | 0x01);
 }
 
-static void ppc_hash32_set_c(PowerPCCPU *cpu, hwaddr pte_offset, uint64_t pte1)
+static void ppc_hash32_set_c(PowerPCCPU *cpu, hwaddr pte_addr, uint64_t pte1)
 {
-    target_ulong base = ppc_hash32_hpt_base(cpu);
-    hwaddr offset = pte_offset + 7;
-
     /* The HW performs a non-atomic byte update */
-    stb_phys(CPU(cpu)->as, base + offset, (pte1 & 0xff) | 0x80);
+    stb_phys(CPU(cpu)->as, pte_addr + 7, (pte1 & 0xff) | 0x80);
 }
 
 static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
                                      target_ulong sr, target_ulong eaddr,
                                      ppc_hash_pte32_t *pte)
 {
-    hwaddr pteg_off, pte_offset;
+    hwaddr pteg_off, pte_addr;
     hwaddr hash;
     uint32_t vsid, pgidx, ptem;
 
@@ -277,18 +267,18 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
             ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu),
             vsid, ptem, hash);
     pteg_off = get_pteg_offset32(cpu, hash);
-    pte_offset = ppc_hash32_pteg_search(cpu, pteg_off, 0, ptem, pte);
-    if (pte_offset == -1) {
+    pte_addr = ppc_hash32_pteg_search(cpu, pteg_off, 0, ptem, pte);
+    if (pte_addr == -1) {
         /* Secondary PTEG lookup */
         qemu_log_mask(CPU_LOG_MMU, "1 htab=" HWADDR_FMT_plx "/" HWADDR_FMT_plx
                 " vsid=%" PRIx32 " api=%" PRIx32
                 " hash=" HWADDR_FMT_plx "\n", ppc_hash32_hpt_base(cpu),
                 ppc_hash32_hpt_mask(cpu), vsid, ptem, ~hash);
         pteg_off = get_pteg_offset32(cpu, ~hash);
-        pte_offset = ppc_hash32_pteg_search(cpu, pteg_off, 1, ptem, pte);
+        pte_addr = ppc_hash32_pteg_search(cpu, pteg_off, 1, ptem, pte);
     }
 
-    return pte_offset;
+    return pte_addr;
 }
 
 bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
@@ -298,7 +288,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     target_ulong sr;
-    hwaddr pte_offset, raddr;
+    hwaddr pte_addr, raddr;
     ppc_hash_pte32_t pte;
     bool key;
     int prot;
@@ -360,8 +350,8 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     }
 
     /* 6. Locate the PTE in the hash table */
-    pte_offset = ppc_hash32_htab_lookup(cpu, sr, eaddr, &pte);
-    if (pte_offset == -1) {
+    pte_addr = ppc_hash32_htab_lookup(cpu, sr, eaddr, &pte);
+    if (pte_addr == -1) {
         if (guest_visible) {
             if (access_type == MMU_INST_FETCH) {
                 cs->exception_index = POWERPC_EXCP_ISI;
@@ -380,7 +370,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
         return false;
     }
     qemu_log_mask(CPU_LOG_MMU,
-                "found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
+                  "found PTE at address %08" HWADDR_PRIx "\n", pte_addr);
 
     /* 7. Check access permissions */
     key = ppc_hash32_key(mmuidx_pr(mmu_idx), sr);
@@ -410,13 +400,12 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
 
     /* 8. Update PTE referenced and changed bits if necessary */
-
     if (!(pte.pte1 & HPTE32_R_R)) {
-        ppc_hash32_set_r(cpu, pte_offset, pte.pte1);
+        ppc_hash32_set_r(cpu, pte_addr, pte.pte1);
     }
     if (!(pte.pte1 & HPTE32_R_C)) {
         if (access_type == MMU_DATA_STORE) {
-            ppc_hash32_set_c(cpu, pte_offset, pte.pte1);
+            ppc_hash32_set_c(cpu, pte_addr, pte.pte1);
         } else {
             /*
              * Treat the page as read-only for now, so that a later write
