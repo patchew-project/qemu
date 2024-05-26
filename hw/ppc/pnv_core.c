@@ -225,12 +225,15 @@ static const MemoryRegionOps pnv_core_power10_xscom_ops = {
 static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp,
                                  int thread_index)
 {
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
     CPUPPCState *env = &cpu->env;
     int core_hwid;
     ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
     ppc_spr_t *tir = &env->spr_cb[SPR_TIR];
     Error *local_err = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(pc->chip);
+
+    pnv_cpu->core = pc;
 
     if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
         return;
