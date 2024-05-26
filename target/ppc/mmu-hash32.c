@@ -228,16 +228,18 @@ static hwaddr ppc_hash32_pteg_search(PowerPCCPU *cpu, hwaddr pte_addr,
     return -1;
 }
 
-static void ppc_hash32_set_r(PowerPCCPU *cpu, hwaddr pte_addr, uint32_t pte1)
+static void ppc_hash32_set_r(AddressSpace *cpu_as, hwaddr pte_addr,
+                             uint32_t pte1)
 {
     /* The HW performs a non-atomic byte update */
-    stb_phys(CPU(cpu)->as, pte_addr + 6, ((pte1 >> 8) & 0xff) | 0x01);
+    stb_phys(cpu_as, pte_addr + 6, ((pte1 >> 8) & 0xff) | 0x01);
 }
 
-static void ppc_hash32_set_c(PowerPCCPU *cpu, hwaddr pte_addr, uint64_t pte1)
+static void ppc_hash32_set_c(AddressSpace *cpu_as, hwaddr pte_addr,
+                             uint64_t pte1)
 {
     /* The HW performs a non-atomic byte update */
-    stb_phys(CPU(cpu)->as, pte_addr + 7, (pte1 & 0xff) | 0x80);
+    stb_phys(cpu_as, pte_addr + 7, (pte1 & 0xff) | 0x80);
 }
 
 static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
@@ -399,11 +401,11 @@ bool ppc_hash32_xlate(CPUState *cs, vaddr eaddr, MMUAccessType access_type,
 
     /* 8. Update PTE referenced and changed bits if necessary */
     if (!(pte.pte1 & HPTE32_R_R)) {
-        ppc_hash32_set_r(cpu, pte_addr, pte.pte1);
+        ppc_hash32_set_r(cs->as, pte_addr, pte.pte1);
     }
     if (!(pte.pte1 & HPTE32_R_C)) {
         if (access_type == MMU_DATA_STORE) {
-            ppc_hash32_set_c(cpu, pte_addr, pte.pte1);
+            ppc_hash32_set_c(cs->as, pte_addr, pte.pte1);
         } else {
             /*
              * Treat the page as read-only for now, so that a later write
