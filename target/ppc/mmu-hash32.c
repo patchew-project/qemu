@@ -244,10 +244,11 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
                                      target_ulong sr, target_ulong eaddr,
                                      ppc_hash_pte32_t *pte)
 {
+    CPUPPCState *env = &cpu->env;
     hwaddr hpt_base, pteg_off, pte_addr, hash;
     uint32_t vsid, pgidx, ptem;
 
-    hpt_base = ppc_hash32_hpt_base(cpu);
+    hpt_base = ppc_hash32_hpt_base(env);
     vsid = sr & SR32_VSID;
     pgidx = (eaddr & ~SEGMENT_MASK_256M) >> TARGET_PAGE_BITS;
     hash = vsid ^ pgidx;
@@ -256,21 +257,21 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
     /* Page address translation */
     qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx " htab_mask "
                   HWADDR_FMT_plx " hash " HWADDR_FMT_plx "\n",
-                  hpt_base, ppc_hash32_hpt_mask(cpu), hash);
+                  hpt_base, ppc_hash32_hpt_mask(env), hash);
 
     /* Primary PTEG lookup */
     qemu_log_mask(CPU_LOG_MMU, "0 htab=" HWADDR_FMT_plx "/" HWADDR_FMT_plx
                   " vsid=%" PRIx32 " ptem=%" PRIx32 " hash=" HWADDR_FMT_plx
-                  "\n", hpt_base, ppc_hash32_hpt_mask(cpu), vsid, ptem, hash);
-    pteg_off = get_pteg_offset32(cpu, hash);
+                  "\n", hpt_base, ppc_hash32_hpt_mask(env), vsid, ptem, hash);
+    pteg_off = get_pteg_offset32(env, hash);
     pte_addr = ppc_hash32_pteg_search(cpu, hpt_base + pteg_off, 0, ptem, pte);
     if (pte_addr == -1) {
         /* Secondary PTEG lookup */
         qemu_log_mask(CPU_LOG_MMU, "1 htab=" HWADDR_FMT_plx "/" HWADDR_FMT_plx
                       " vsid=%" PRIx32 " api=%" PRIx32 " hash=" HWADDR_FMT_plx
-                      "\n", hpt_base, ppc_hash32_hpt_mask(cpu), vsid, ptem,
+                      "\n", hpt_base, ppc_hash32_hpt_mask(env), vsid, ptem,
                       ~hash);
-        pteg_off = get_pteg_offset32(cpu, ~hash);
+        pteg_off = get_pteg_offset32(env, ~hash);
         pte_addr = ppc_hash32_pteg_search(cpu, hpt_base + pteg_off, 1, ptem,
                                           pte);
     }

@@ -166,8 +166,8 @@ static int ppc6xx_tlb_check(CPUPPCState *env, hwaddr *raddr, int *prot,
 #if defined(DUMP_PAGE_TABLES)
     if (qemu_loglevel_mask(CPU_LOG_MMU)) {
         CPUState *cs = env_cpu(env);
-        hwaddr base = ppc_hash32_hpt_base(env_archcpu(env));
-        hwaddr len = ppc_hash32_hpt_mask(env_archcpu(env)) + 0x80;
+        hwaddr base = ppc_hash32_hpt_base(env);
+        hwaddr len = ppc_hash32_hpt_mask(env) + 0x80;
         uint32_t a0, a1, a2, a3;
 
         qemu_log("Page table: " HWADDR_FMT_plx " len " HWADDR_FMT_plx "\n",
@@ -263,7 +263,6 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, hwaddr *raddr,
                                        hwaddr *hashp, bool *keyp,
                                        MMUAccessType access_type, int type)
 {
-    PowerPCCPU *cpu = env_archcpu(env);
     hwaddr hash;
     target_ulong vsid, sr, pgidx, ptem;
     bool key, ds, nx;
@@ -305,7 +304,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, hwaddr *raddr,
         /* Page address translation */
         qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx " htab_mask "
                       HWADDR_FMT_plx " hash " HWADDR_FMT_plx "\n",
-                      ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
+                      ppc_hash32_hpt_base(env), ppc_hash32_hpt_mask(env), hash);
         *hashp = hash;
 
         /* Software TLB search */
@@ -499,13 +498,12 @@ static void mmu6xx_dump_BATs(CPUPPCState *env, int type)
 
 static void mmu6xx_dump_mmu(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = env_archcpu(env);
     ppc6xx_tlb_t *tlb;
     target_ulong sr;
     int type, way, entry, i;
 
-    qemu_printf("HTAB base = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_base(cpu));
-    qemu_printf("HTAB mask = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_mask(cpu));
+    qemu_printf("HTAB base = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_base(env));
+    qemu_printf("HTAB mask = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_mask(env));
 
     qemu_printf("\nSegment registers:\n");
     for (i = 0; i < 32; i++) {
@@ -743,10 +741,10 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
             env->spr[SPR_DCMP] |= 0x80000000;
 tlb_miss:
             env->error_code |= key << 19;
-            env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
-                                  get_pteg_offset32(cpu, hash);
-            env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
-                                  get_pteg_offset32(cpu, ~hash);
+            env->spr[SPR_HASH1] = ppc_hash32_hpt_base(env) +
+                                  get_pteg_offset32(env, hash);
+            env->spr[SPR_HASH2] = ppc_hash32_hpt_base(env) +
+                                  get_pteg_offset32(env, ~hash);
             break;
         case -2:
             /* Access rights violation */
