@@ -312,10 +312,14 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
      * and the rest are explicitly started up by the guest using an RTAS call.
      */
     qdev_prop_set_bit(DEVICE(obj), "start-powered-off", true);
-    env->core_index = cc->core_id;
     cs->cpu_index = cc->core_id + i;
     if (!spapr_set_vcpu_id(cpu, cs->cpu_index, errp)) {
         return NULL;
+    }
+
+    env->core_index = cc->core_id;
+    if (cs->nr_threads > 1) {
+        env->has_smt_siblings = true;
     }
 
     cpu->node_id = sc->node_id;

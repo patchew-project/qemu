@@ -1248,6 +1248,7 @@ struct CPUArchState {
     int access_type;
 
     /* For SMT processors */
+    int has_smt_siblings;
     int core_index;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1276,7 +1277,6 @@ struct CPUArchState {
     uint32_t tlb_need_flush; /* Delayed flush needed */
 #define TLB_NEED_LOCAL_FLUSH   0x1
 #define TLB_NEED_GLOBAL_FLUSH  0x2
-
 #endif
 
     /* Other registers */
@@ -1407,7 +1407,7 @@ struct CPUArchState {
 };
 
 #define PPC_CPU_HAS_CORE_SIBLINGS(cs)                           \
-    (cs->nr_threads > 1)
+    (POWERPC_CPU(cs)->env.has_smt_siblings)
 
 #define PPC_CPU_HAS_LPAR_SIBLINGS(cs)                           \
     ((POWERPC_CPU(cs)->env.flags & POWERPC_FLAG_SMT_1LPAR) &&   \

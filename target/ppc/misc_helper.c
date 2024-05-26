@@ -323,7 +323,11 @@ target_ulong helper_load_sprd(CPUPPCState *env)
              * prefer to get unimplemented message on POWER10 if it were
              * used.
              */
-            return 0;
+            if (pc->big_core) {
+                return PPC_BIT(63);
+            } else {
+                return 0;
+            }
         }
         /* fallthru */
     default:
