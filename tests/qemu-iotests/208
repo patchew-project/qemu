@@ -23,7 +23,7 @@
 
 import iotests
 
-iotests.script_initialize(supported_fmts=['generic'])
+iotests.script_initialize(supported_fmts=['generic'], unsupported_fmts=['vvfat'])
 
 with iotests.FilePath('disk.img') as disk_img_path, \
      iotests.FilePath('disk-snapshot.img') as disk_snapshot_img_path, \

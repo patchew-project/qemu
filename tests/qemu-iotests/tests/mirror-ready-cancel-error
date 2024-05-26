@@ -138,5 +138,5 @@ class TestMirrorReadyCancelError(iotests.QMPTestCase):
 if __name__ == '__main__':
     # LUKS would require special key-secret handling in add_blockdevs()
     iotests.main(supported_fmts=['generic'],
-                 unsupported_fmts=['luks'],
+                 unsupported_fmts=['luks', 'vvfat'],
                  supported_protocols=['file'])

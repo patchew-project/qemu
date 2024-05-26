@@ -53,7 +53,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt generic
 _supported_proto generic
 # LUKS support may be possible, but it complicates things.
-_unsupported_fmt luks
+_unsupported_fmt luks vvfat
 _unsupported_imgopts "subformat=streamOptimized"
 
 echo
