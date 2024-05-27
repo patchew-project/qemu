@@ -8,23 +8,25 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
 mod trace;
 
 use std::collections::HashMap;
 use std::env;
+use std::fmt;
 use std::fs::File;
+use std::io::stdout;
 use std::io::Error as IOError;
 use std::io::ErrorKind;
 use std::io::Read;
+use std::io::Write;
 use std::mem::size_of;
 
 use backtrace::Backtrace;
 use clap::Arg;
 use clap::Command;
 use thiserror::Error;
+use trace::read_events;
+use trace::Error as TraceError;
 use trace::Event;
 
 const DROPPED_EVENT_ID: u64 = 0xfffffffffffffffe;
@@ -45,8 +47,12 @@ pub enum Error
     InvalidHeaderId(u64, u64),
     #[error("Not a valid trace file, header magic {0} != {1}")]
     InvalidHeaderMagic(u64, u64),
+    #[error("Failed to open file: {0}")]
+    OpenFile(IOError),
     #[error("Failed to read file: {0}")]
     ReadFile(IOError),
+    #[error("Failed to read trace: {0}")]
+    ReadTrace(TraceError),
     #[error(
         "event {0} is logged but is not declared in the trace events \
         file, try using trace-events-all instead."
@@ -58,6 +64,8 @@ pub enum Error
     UnknownVersion(u64),
     #[error("Log format {0} not supported with this QEMU release!")]
     UnsupportedVersion(u64),
+    #[error("Failed to write trace: {0}")]
+    WriteTrace(IOError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -251,6 +259,30 @@ impl EventArgPayload
         );
         *offset += 8;
         Ok(EventArgPayload::new(Some(raw_val), None))
+    }
+}
+
+impl fmt::Display for EventArgPayload
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result
+    {
+        if let Some(s) = &self.raw_str {
+            write!(fmt, "{}", s)
+        } else {
+            write!(fmt, "")
+        }
+    }
+}
+
+impl fmt::LowerHex for EventArgPayload
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result
+    {
+        if let Some(v) = self.raw_val {
+            write!(fmt, "{:x}", v)
+        } else {
+            write!(fmt, "")
+        }
     }
 }
 
@@ -485,10 +517,35 @@ impl Analyzer for Formatter
         event: &Event,
         timestamp_ns: u64,
         pid: u32,
-        event_id: u64,
+        _event_id: u64,
     ) -> Result<String>
     {
-        let fmt_str = String::new();
+        if self.last_timestamp_ns.is_none() {
+            self.last_timestamp_ns = Some(timestamp_ns);
+        }
+
+        let fields: Vec<String> = rec_args
+            .iter()
+            .zip(event.args.props.iter())
+            .map(|(arg, prop)| {
+                if prop.is_string() {
+                    format!("{}={}", prop.name, arg)
+                } else {
+                    format!("{}=0x{:x}", prop.name, arg)
+                }
+            })
+            .collect();
+
+        let delta_ns =
+            timestamp_ns as f64 - self.last_timestamp_ns.unwrap() as f64;
+        self.last_timestamp_ns = Some(timestamp_ns);
+        let fmt_str = format!(
+            "{} {:.3} pid={} {}\n",
+            event.name,
+            delta_ns / 1000.0,
+            pid,
+            fields.join(" "),
+        );
 
         Ok(fmt_str)
     }
@@ -501,7 +558,20 @@ fn process(
     read_header: bool,
 ) -> Result<()>
 {
+    let events = read_events(event_path).map_err(Error::ReadTrace)?;
+    let trace_fobj = File::open(trace_path).map_err(Error::OpenFile)?;
+    if read_header {
+        read_trace_header(&trace_fobj)?;
+    }
+
     analyzer.begin();
+
+    let rec_strs =
+        read_trace_records(&events, &trace_fobj, analyzer, read_header)?;
+    let mut lock = stdout().lock();
+    lock.write_all(rec_strs.join("").as_ref())
+        .map_err(Error::WriteTrace)?;
+
     analyzer.end();
 
     Ok(())
