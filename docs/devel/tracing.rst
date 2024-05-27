@@ -273,6 +273,41 @@ You must ensure that the same "trace-events-all" file was used to build QEMU,
 otherwise trace event declarations may have changed and output will not be
 consistent.
 
+Simpletrace-rust
+----------------
+
+Simpletrace-rust (scripts/Simpletrace-rust) is a Rust implementation of
+simpletrace.py, with the same command line arguments as the Python script.
+
+Simpletrace-rust has faster trace parsing compared to the Python version.
+
+The script is compiled by::
+
+    cargo build --manifest-path ./scripts/simpletrace-rust/Cargo.toml --release
+
+Or under scripts/simpletrace-rust, just use::
+
+    cargo build --release
+
+The script also takes the "trace-events-all" file and the binary trace::
+
+    ./scripts/simpletrace-rust/target/release/simpletrace-rust trace-events-all \
+                                                               trace-12345
+
+Any contribution to Simpletrace-rust needs to do the following checks:
+
+Compilation check::
+
+    cargo build
+
+Clippy check::
+
+    cargo clippy
+
+Code style check::
+
+    cargo +nightly fmt --check
+
 Ftrace
 ------
 
