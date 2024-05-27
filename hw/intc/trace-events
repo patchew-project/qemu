@@ -79,6 +79,12 @@ aspeed_vic_update_fiq(int flags) "Raising FIQ: %d"
 aspeed_vic_update_irq(int flags) "Raising IRQ: %d"
 aspeed_vic_read(uint64_t offset, unsigned size, uint32_t value) "From 0x%" PRIx64 " of size %u: 0x%" PRIx32
 aspeed_vic_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
+# aspeed_intc.c
+aspeed_intc_read(uint64_t offset, unsigned size, uint32_t value) "From 0x%" PRIx64 " of size %u: 0x%" PRIx32
+aspeed_intc_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
+aspeed_intc_set_irq(int irq, int level) "Set IRQ %d: %d"
+aspeed_intc_update_irq(int irq, int level) "Update IRQ: %d: %d"
+aspeed_intc_debug(const char *str, uint32_t value) "%s: 0x%x"
 
 # arm_gic.c
 gic_enable_irq(int irq) "irq %d enabled"
