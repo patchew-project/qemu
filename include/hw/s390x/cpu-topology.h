@@ -63,17 +63,17 @@ static inline void s390_topology_reset(void)
 
 extern S390Topology s390_topology;
 
-static inline int s390_std_socket(int n, CpuTopology *smp)
+static inline int s390_std_socket(int n, CPUTopology *smp)
 {
     return (n / smp->cores) % smp->sockets;
 }
 
-static inline int s390_std_book(int n, CpuTopology *smp)
+static inline int s390_std_book(int n, CPUTopology *smp)
 {
     return (n / (smp->cores * smp->sockets)) % smp->books;
 }
 
-static inline int s390_std_drawer(int n, CpuTopology *smp)
+static inline int s390_std_drawer(int n, CPUTopology *smp)
 {
     return (n / (smp->cores * smp->sockets * smp->books)) % smp->drawers;
 }

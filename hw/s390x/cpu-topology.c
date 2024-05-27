@@ -86,7 +86,7 @@ bool s390_has_topology(void)
  */
 static void s390_topology_init(MachineState *ms)
 {
-    CpuTopology *smp = &ms->smp;
+    CPUTopology *smp = &ms->smp;
 
     s390_topology.cores_per_socket = g_new0(uint8_t, smp->sockets *
                                             smp->books * smp->drawers);
@@ -181,7 +181,7 @@ void s390_topology_reset(void)
  */
 static bool s390_topology_cpu_default(S390CPU *cpu, Error **errp)
 {
-    CpuTopology *smp = &current_machine->smp;
+    CPUTopology *smp = &current_machine->smp;
     CPUS390XState *env = &cpu->env;
 
     /* All geometry topology attributes must be set or all unset */
@@ -234,7 +234,7 @@ static bool s390_topology_check(uint16_t socket_id, uint16_t book_id,
                                 uint16_t drawer_id, uint16_t entitlement,
                                 bool dedicated, Error **errp)
 {
-    CpuTopology *smp = &current_machine->smp;
+    CPUTopology *smp = &current_machine->smp;
 
     if (socket_id >= smp->sockets) {
         error_setg(errp, "Unavailable socket: %d", socket_id);

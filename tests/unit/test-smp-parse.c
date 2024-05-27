@@ -123,8 +123,8 @@
  */
 typedef struct SMPTestData {
     SMPConfiguration config;
-    CpuTopology expect_prefer_sockets;
-    CpuTopology expect_prefer_cores;
+    CPUTopology expect_prefer_sockets;
+    CPUTopology expect_prefer_cores;
     const char *expect_error;
 } SMPTestData;
 
@@ -729,7 +729,7 @@ static char *smp_config_to_string(const SMPConfiguration *config)
 }
 
 /* Use the different calculation than machine_topo_get_threads_per_socket(). */
-static unsigned int cpu_topology_get_threads_per_socket(const CpuTopology *topo)
+static unsigned int cpu_topology_get_threads_per_socket(const CPUTopology *topo)
 {
     /* Check the divisor to avoid invalid topology examples causing SIGFPE. */
     if (!topo->drawers || !topo->books || !topo->sockets) {
@@ -740,7 +740,7 @@ static unsigned int cpu_topology_get_threads_per_socket(const CpuTopology *topo)
 }
 
 /* Use the different calculation than machine_topo_get_cores_per_socket(). */
-static unsigned int cpu_topology_get_cores_per_socket(const CpuTopology *topo)
+static unsigned int cpu_topology_get_cores_per_socket(const CPUTopology *topo)
 {
     /* Check the divisor to avoid invalid topology examples causing SIGFPE. */
     if (!topo->threads) {
@@ -750,13 +750,13 @@ static unsigned int cpu_topology_get_cores_per_socket(const CpuTopology *topo)
     }
 }
 
-static char *cpu_topology_to_string(const CpuTopology *topo,
+static char *cpu_topology_to_string(const CPUTopology *topo,
                                     unsigned int threads_per_socket,
                                     unsigned int cores_per_socket,
                                     bool has_clusters)
 {
     return g_strdup_printf(
-        "(CpuTopology) {\n"
+        "(CPUTopology) {\n"
         "    .cpus               = %u,\n"
         "    .drawers            = %u,\n"
         "    .books              = %u,\n"
@@ -779,7 +779,7 @@ static char *cpu_topology_to_string(const CpuTopology *topo,
 }
 
 static void check_parse(MachineState *ms, const SMPConfiguration *config,
-                        const CpuTopology *expect_topo, const char *expect_err,
+                        const CPUTopology *expect_topo, const char *expect_err,
                         bool is_valid)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);

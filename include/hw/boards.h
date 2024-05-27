@@ -334,7 +334,7 @@ typedef struct DeviceMemoryState {
 } DeviceMemoryState;
 
 /**
- * CpuTopology:
+ * CPUTopology:
  * @cpus: the number of present logical processors on the machine
  * @drawers: the number of drawers on the machine
  * @books: the number of books in one drawer
@@ -346,7 +346,7 @@ typedef struct DeviceMemoryState {
  * @threads: the number of threads in one core
  * @max_cpus: the maximum number of logical processors on the machine
  */
-typedef struct CpuTopology {
+typedef struct CPUTopology {
     unsigned int cpus;
     unsigned int drawers;
     unsigned int books;
@@ -357,7 +357,7 @@ typedef struct CpuTopology {
     unsigned int cores;
     unsigned int threads;
     unsigned int max_cpus;
-} CpuTopology;
+} CPUTopology;
 
 /**
  * MachineState:
@@ -408,7 +408,7 @@ struct MachineState {
     const char *cpu_type;
     AccelState *accelerator;
     CPUArchIdList *possible_cpus;
-    CpuTopology smp;
+    CPUTopology smp;
     struct NVDIMMState *nvdimms_state;
     struct NumaState *numa_state;
 };
