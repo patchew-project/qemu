@@ -2484,9 +2484,14 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_S8);
     tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_S9);
 
-    if (cpuinfo & CPUINFO_LSX) {
-        tcg_target_available_regs[TCG_TYPE_V64] = ALL_VECTOR_REGS;
-        tcg_target_available_regs[TCG_TYPE_V128] = ALL_VECTOR_REGS;
+    if (cpuinfo & (CPUINFO_LSX | CPUINFO_LASX)) {
+        if (cpuinfo & CPUINFO_LSX) {
+            tcg_target_available_regs[TCG_TYPE_V64] = ALL_VECTOR_REGS;
+            tcg_target_available_regs[TCG_TYPE_V128] = ALL_VECTOR_REGS;
+        }
+        if (cpuinfo & CPUINFO_LASX) {
+            tcg_target_available_regs[TCG_TYPE_V256] = ALL_VECTOR_REGS;
+        }
         tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V24);
         tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V25);
         tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V26);
