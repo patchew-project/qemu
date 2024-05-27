@@ -44,4 +44,5 @@ config M68K_VIRT
     select GOLDFISH_PIC
     select GOLDFISH_TTY
     select GOLDFISH_RTC
+    select USB_XHCI_SYSBUS
     select VIRTIO_MMIO

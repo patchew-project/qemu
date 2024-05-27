@@ -33,13 +33,16 @@
 #include "hw/char/goldfish_tty.h"
 #include "hw/rtc/goldfish_rtc.h"
 #include "hw/intc/goldfish_pic.h"
+#include "hw/usb/hcd-xhci-sysbus.h"
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/virtio/virtio-blk.h"
 
 /*
  * 6 goldfish-pic for CPU IRQ #1 to IRQ #6
  * CPU IRQ #1 -> PIC #1
- *               IRQ #1 to IRQ #31 -> unused
+ *               IRQ #1 -> virt-ctrl
+ *               IRQ #2 -> xhci
+ *               IRQ #3 to IRQ #31 -> unused
  *               IRQ #32 -> goldfish-tty
  * CPU IRQ #2 -> PIC #2
  *               IRQ #1 to IRQ #32 -> virtio-mmio from 1 to 32
@@ -85,6 +88,9 @@
  */
 #define VIRT_VIRTIO_MMIO_BASE 0xff010000     /* MMIO: 0xff010000 - 0xff01ffff */
 #define VIRT_VIRTIO_IRQ_BASE  PIC_IRQ(2, 1)  /* PIC: 2, 3, 4, 5, IRQ: ALL */
+
+#define VIRT_XHCI_MMIO_BASE 0xff020000    /* MMIO: 0xff020000 - 0xff023fff */
+#define VIRT_XHCI_IRQ_BASE  PIC_IRQ(1, 2) /* PIC: #1, IRQ: #2 */
 
 typedef struct {
     M68kCPU *cpu;
@@ -216,6 +222,16 @@ static void virt_init(MachineState *machine)
         io_base += 0x200;
     }
 
+    /* xhci */
+    if (machine_usb(machine)) {
+        dev = qdev_new(TYPE_XHCI_SYSBUS);
+        qdev_prop_set_uint32(dev, "intrs", 1);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, VIRT_XHCI_MMIO_BASE);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                        PIC_GPIO(VIRT_XHCI_IRQ_BASE));
+    }
+
     if (kernel_filename) {
         CPUState *cs = CPU(cpu);
         uint64_t high;
@@ -268,6 +284,10 @@ static void virt_init(MachineState *machine)
                   VIRT_CTRL_MMIO_BASE, VIRT_CTRL_IRQ_BASE);
         BOOTINFO2(param_ptr, BI_VIRT_VIRTIO_BASE,
                   VIRT_VIRTIO_MMIO_BASE, VIRT_VIRTIO_IRQ_BASE);
+        if (machine_usb(machine)) {
+            BOOTINFO2(param_ptr, BI_VIRT_XHCI_BASE,
+                    VIRT_XHCI_MMIO_BASE, VIRT_XHCI_IRQ_BASE);
+        }
 
         if (kernel_cmdline) {
             BOOTINFOSTR(param_ptr, BI_COMMAND_LINE,
