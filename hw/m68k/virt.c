@@ -138,13 +138,16 @@ static void virt_init(MachineState *machine)
     M68kCPU *cpu = NULL;
     int32_t kernel_size;
     uint64_t elf_entry;
-    ram_addr_t initrd_base;
-    int32_t initrd_size;
+    ram_addr_t initrd_base = 0;
+    int32_t initrd_size = 0;
+    int32_t bootinfo_size;
+    bool bios_loaded = false;
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
-    hwaddr parameters_base;
+    void *param_blob, *param_ptr, *param_rng_seed = NULL;
+    hwaddr parameters_base = 1 * KiB;
     DriveInfo *dinfo;
     DeviceState *dev;
     DeviceState *irqc_dev;
@@ -264,6 +267,9 @@ static void virt_init(MachineState *machine)
 
     /* pflash */
     dinfo = drive_get(IF_PFLASH, 0, 0);
+    if (dinfo) {
+        bios_loaded = true;
+    }
     pflash_cfi01_register(VIRT_PFLASH_MMIO_BASE,
                           "virt.pflash0",
                            VIRT_PFLASH_SIZE,
@@ -293,18 +299,12 @@ static void virt_init(MachineState *machine)
             error_report("Could not load ROM image '%s'", machine->firmware);
             exit(1);
         }
+
+        bios_loaded = true;
     }
 
-    if (kernel_filename) {
-        CPUState *cs = CPU(cpu);
+    if (kernel_filename && !bios_loaded) {
         uint64_t high;
-        void *param_blob, *param_ptr, *param_rng_seed;
-
-        if (kernel_cmdline) {
-            param_blob = g_malloc(strlen(kernel_cmdline) + 1024);
-        } else {
-            param_blob = g_malloc(1024);
-        }
 
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
                                &elf_entry, NULL, &high, NULL, 1,
@@ -315,57 +315,6 @@ static void virt_init(MachineState *machine)
         }
         reset_info->initial_pc = elf_entry;
         parameters_base = (high + 1) & ~1;
-        param_ptr = param_blob;
-
-        BOOTINFO1(param_ptr, BI_MACHTYPE, MACH_VIRT);
-        if (m68k_feature(&cpu->env, M68K_FEATURE_M68020)) {
-            BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68020);
-        } else if (m68k_feature(&cpu->env, M68K_FEATURE_M68030)) {
-            BOOTINFO1(param_ptr, BI_MMUTYPE, MMU_68030);
-            BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68030);
-        } else if (m68k_feature(&cpu->env, M68K_FEATURE_M68040)) {
-            BOOTINFO1(param_ptr, BI_FPUTYPE, FPU_68040);
-            BOOTINFO1(param_ptr, BI_MMUTYPE, MMU_68040);
-            BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68040);
-        } else if (m68k_feature(&cpu->env, M68K_FEATURE_M68060)) {
-            BOOTINFO1(param_ptr, BI_FPUTYPE, FPU_68060);
-            BOOTINFO1(param_ptr, BI_MMUTYPE, MMU_68060);
-            BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68060);
-        }
-        BOOTINFO2(param_ptr, BI_MEMCHUNK, 0, ram_size);
-
-        BOOTINFO1(param_ptr, BI_VIRT_QEMU_VERSION,
-                  ((QEMU_VERSION_MAJOR << 24) | (QEMU_VERSION_MINOR << 16) |
-                   (QEMU_VERSION_MICRO << 8)));
-        BOOTINFO2(param_ptr, BI_VIRT_GF_PIC_BASE,
-                  VIRT_GF_PIC_MMIO_BASE, VIRT_GF_PIC_IRQ_BASE);
-        BOOTINFO2(param_ptr, BI_VIRT_GF_RTC_BASE,
-                  VIRT_GF_RTC_MMIO_BASE, VIRT_GF_RTC_IRQ_BASE);
-        BOOTINFO2(param_ptr, BI_VIRT_GF_TTY_BASE,
-                  VIRT_GF_TTY_MMIO_BASE, VIRT_GF_TTY_IRQ_BASE);
-        BOOTINFO2(param_ptr, BI_VIRT_CTRL_BASE,
-                  VIRT_CTRL_MMIO_BASE, VIRT_CTRL_IRQ_BASE);
-        BOOTINFO2(param_ptr, BI_VIRT_VIRTIO_BASE,
-                  VIRT_VIRTIO_MMIO_BASE, VIRT_VIRTIO_IRQ_BASE);
-        if (machine_usb(machine)) {
-            BOOTINFO2(param_ptr, BI_VIRT_XHCI_BASE,
-                    VIRT_XHCI_MMIO_BASE, VIRT_XHCI_IRQ_BASE);
-        }
-        BOOTINFO2(param_ptr, BI_VIRT_FW_CFG_BASE,
-                  VIRT_FW_CFG_MMIO_BASE, VIRT_FW_CFG_IRQ_BASE);
-        BOOTINFO2(param_ptr, BI_VIRT_PFLASH_BASE,
-                    VIRT_PFLASH_MMIO_BASE, 0);
-
-        if (kernel_cmdline) {
-            BOOTINFOSTR(param_ptr, BI_COMMAND_LINE,
-                        kernel_cmdline);
-        }
-
-        /* Pass seed to RNG. */
-        param_rng_seed = param_ptr;
-        qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
-        BOOTINFODATA(param_ptr, BI_RNG_SEED,
-                     rng_seed, sizeof(rng_seed));
 
         /* load initrd */
         if (initrd_filename) {
@@ -379,21 +328,92 @@ static void virt_init(MachineState *machine)
             initrd_base = (ram_size - initrd_size) & TARGET_PAGE_MASK;
             load_image_targphys(initrd_filename, initrd_base,
                                 ram_size - initrd_base);
-            BOOTINFO2(param_ptr, BI_RAMDISK, initrd_base,
-                      initrd_size);
         } else {
             initrd_base = 0;
             initrd_size = 0;
         }
-        BOOTINFO0(param_ptr, BI_LAST);
-        rom_add_blob_fixed_as("bootinfo", param_blob, param_ptr - param_blob,
-                              parameters_base, cs->as);
+    }
+
+    /* BIOS is going to retrive cmdline from fw_cfg */
+    if (kernel_cmdline && !bios_loaded) {
+        param_blob = g_malloc(strlen(kernel_cmdline) + 1024);
+    } else {
+        param_blob = g_malloc(1024);
+    }
+
+    param_ptr = param_blob;
+    BOOTINFO1(param_ptr, BI_MACHTYPE, MACH_VIRT);
+    if (m68k_feature(&cpu->env, M68K_FEATURE_M68020)) {
+        BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68020);
+    } else if (m68k_feature(&cpu->env, M68K_FEATURE_M68030)) {
+        BOOTINFO1(param_ptr, BI_MMUTYPE, MMU_68030);
+        BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68030);
+    } else if (m68k_feature(&cpu->env, M68K_FEATURE_M68040)) {
+        BOOTINFO1(param_ptr, BI_FPUTYPE, FPU_68040);
+        BOOTINFO1(param_ptr, BI_MMUTYPE, MMU_68040);
+        BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68040);
+    } else if (m68k_feature(&cpu->env, M68K_FEATURE_M68060)) {
+        BOOTINFO1(param_ptr, BI_FPUTYPE, FPU_68060);
+        BOOTINFO1(param_ptr, BI_MMUTYPE, MMU_68060);
+        BOOTINFO1(param_ptr, BI_CPUTYPE, CPU_68060);
+    }
+    BOOTINFO2(param_ptr, BI_MEMCHUNK, 0, ram_size);
+
+    BOOTINFO1(param_ptr, BI_VIRT_QEMU_VERSION,
+                ((QEMU_VERSION_MAJOR << 24) | (QEMU_VERSION_MINOR << 16) |
+                (QEMU_VERSION_MICRO << 8)));
+    BOOTINFO2(param_ptr, BI_VIRT_GF_PIC_BASE,
+                VIRT_GF_PIC_MMIO_BASE, VIRT_GF_PIC_IRQ_BASE);
+    BOOTINFO2(param_ptr, BI_VIRT_GF_RTC_BASE,
+                VIRT_GF_RTC_MMIO_BASE, VIRT_GF_RTC_IRQ_BASE);
+    BOOTINFO2(param_ptr, BI_VIRT_GF_TTY_BASE,
+                VIRT_GF_TTY_MMIO_BASE, VIRT_GF_TTY_IRQ_BASE);
+    BOOTINFO2(param_ptr, BI_VIRT_CTRL_BASE,
+                VIRT_CTRL_MMIO_BASE, VIRT_CTRL_IRQ_BASE);
+    BOOTINFO2(param_ptr, BI_VIRT_VIRTIO_BASE,
+                VIRT_VIRTIO_MMIO_BASE, VIRT_VIRTIO_IRQ_BASE);
+    if (machine_usb(machine)) {
+        BOOTINFO2(param_ptr, BI_VIRT_XHCI_BASE,
+                VIRT_XHCI_MMIO_BASE, VIRT_XHCI_IRQ_BASE);
+    }
+    BOOTINFO2(param_ptr, BI_VIRT_FW_CFG_BASE,
+                VIRT_FW_CFG_MMIO_BASE, VIRT_FW_CFG_IRQ_BASE);
+    BOOTINFO2(param_ptr, BI_VIRT_PFLASH_BASE,
+                VIRT_PFLASH_MMIO_BASE, 0);
+
+    /* Boot related */
+    if (!bios_loaded) {
+        if (kernel_cmdline) {
+            BOOTINFOSTR(param_ptr, BI_COMMAND_LINE,
+                        kernel_cmdline);
+        }
+        if (initrd_size) {
+            BOOTINFO2(param_ptr, BI_RAMDISK, initrd_base,
+                      initrd_size);
+        }
+
+        /* Pass seed to RNG. */
+        param_rng_seed = param_ptr;
+        qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
+        BOOTINFODATA(param_ptr, BI_RNG_SEED,
+                     rng_seed, sizeof(rng_seed));
+    }
+
+    BOOTINFO0(param_ptr, BI_LAST);
+    bootinfo_size = param_ptr - param_blob;
+    rom_add_blob_fixed_as("bootinfo", param_blob, bootinfo_size,
+                          parameters_base, &address_space_memory);
+    if (param_rng_seed) {
         qemu_register_reset_nosnapshotload(rerandomize_rng_seed,
-                            rom_ptr_for_as(cs->as, parameters_base,
+                            rom_ptr_for_as(&address_space_memory,
+                                           parameters_base,
                                            param_ptr - param_blob) +
                             (param_rng_seed - param_blob));
-        g_free(param_blob);
     }
+
+    fw_cfg_add_file(fw_cfg, "etc/bootinfo",
+                    g_memdup2(param_blob, bootinfo_size), bootinfo_size);
+    g_free(param_blob);
 }
 
 static void virt_machine_class_init(ObjectClass *oc, void *data)
