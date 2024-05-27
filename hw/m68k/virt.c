@@ -42,7 +42,8 @@
  * CPU IRQ #1 -> PIC #1
  *               IRQ #1 -> virt-ctrl
  *               IRQ #2 -> xhci
- *               IRQ #3 to IRQ #31 -> unused
+ *               IRQ #3 -> fw_cfg
+ *               IRQ #4 to IRQ #31 -> unused
  *               IRQ #32 -> goldfish-tty
  * CPU IRQ #2 -> PIC #2
  *               IRQ #1 to IRQ #32 -> virtio-mmio from 1 to 32
@@ -80,6 +81,10 @@
 #define VIRT_CTRL_MMIO_BASE 0xff009000    /* MMIO: 0xff009000 - 0xff009fff */
 #define VIRT_CTRL_IRQ_BASE  PIC_IRQ(1, 1) /* PIC: #1, IRQ: #1 */
 
+/* 1 fw_cfg */
+#define VIRT_FW_CFG_MMIO_BASE 0xff00a000    /* MMIO: 0xff00a000 - 0xff00afff */
+#define VIRT_FW_CFG_IRQ_BASE  PIC_IRQ(1, 3) /* PIC: #1, IRQ: #3 */
+
 /*
  * virtio-mmio size is 0x200 bytes
  * we use 4 goldfish-pic to attach them,
@@ -116,6 +121,12 @@ static void rerandomize_rng_seed(void *opaque)
                                 be16_to_cpu(*(uint16_t *)rng_seed->data));
 }
 
+static void fw_cfg_boot_set(void *opaque, const char *boot_device,
+                            Error **errp)
+{
+    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+}
+
 static void virt_init(MachineState *machine)
 {
     M68kCPU *cpu = NULL;
@@ -134,6 +145,7 @@ static void virt_init(MachineState *machine)
     SysBusDevice *sysbus;
     hwaddr io_base;
     int i;
+    FWCfgState *fw_cfg;
     ResetInfo *reset_info;
     uint8_t rng_seed[32];
 
@@ -209,6 +221,15 @@ static void virt_init(MachineState *machine)
     /* virt controller */
     dev = sysbus_create_simple(TYPE_VIRT_CTRL, VIRT_CTRL_MMIO_BASE,
                                PIC_GPIO(VIRT_CTRL_IRQ_BASE));
+
+    /* fw_cfg */
+    fw_cfg = fw_cfg_init_mem_wide(VIRT_FW_CFG_MMIO_BASE + 8,
+                                  VIRT_FW_CFG_MMIO_BASE, 8,
+                                  VIRT_FW_CFG_MMIO_BASE + 16,
+                                  &address_space_memory);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
+    rom_set_fw(fw_cfg);
 
     /* virtio-mmio */
     io_base = VIRT_VIRTIO_MMIO_BASE;
@@ -288,6 +309,8 @@ static void virt_init(MachineState *machine)
             BOOTINFO2(param_ptr, BI_VIRT_XHCI_BASE,
                     VIRT_XHCI_MMIO_BASE, VIRT_XHCI_IRQ_BASE);
         }
+        BOOTINFO2(param_ptr, BI_VIRT_FW_CFG_BASE,
+                  VIRT_FW_CFG_MMIO_BASE, VIRT_FW_CFG_IRQ_BASE);
 
         if (kernel_cmdline) {
             BOOTINFOSTR(param_ptr, BI_COMMAND_LINE,

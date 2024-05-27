@@ -40,6 +40,7 @@ config M68K_VIRT
     default y
     depends on M68K
     select M68K_IRQC
+    select FW_CFG_DMA
     select VIRT_CTRL
     select GOLDFISH_PIC
     select GOLDFISH_TTY
