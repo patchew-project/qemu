@@ -1,0 +1,11 @@
+[package]
+name = "simpletrace-rust"
+description = "Pretty-printer for simple trace backend binary trace files (Rust version)"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zhao Liu <zhao1.liu@intel.com>"]
+license = "GPL-2.0-or-later"
+
+[dependencies]
+clap = "4.5.4"
+thiserror = "1.0.20"
