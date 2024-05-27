@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qemu/guest-random.h"
 #include "sysemu/sysemu.h"
@@ -28,6 +29,7 @@
 #include "sysemu/runstate.h"
 #include "sysemu/reset.h"
 
+#include "hw/block/flash.h"
 #include "hw/intc/m68k_irqc.h"
 #include "hw/misc/virt_ctrl.h"
 #include "hw/char/goldfish_tty.h"
@@ -97,6 +99,10 @@
 #define VIRT_XHCI_MMIO_BASE 0xff020000    /* MMIO: 0xff020000 - 0xff023fff */
 #define VIRT_XHCI_IRQ_BASE  PIC_IRQ(1, 2) /* PIC: #1, IRQ: #2 */
 
+#define VIRT_PFLASH_MMIO_BASE 0xff800000      /* MMIO: 0xff800000 - 0xffffffff */
+#define VIRT_PFLASH_SIZE      0x800000        /* 8 MiB */
+#define VIRT_PFLASH_SECTOR_SIZE (128 * KiB)   /* 64 KiB */
+
 typedef struct {
     M68kCPU *cpu;
     hwaddr initial_pc;
@@ -139,6 +145,7 @@ static void virt_init(MachineState *machine)
     const char *initrd_filename = machine->initrd_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     hwaddr parameters_base;
+    DriveInfo *dinfo;
     DeviceState *dev;
     DeviceState *irqc_dev;
     DeviceState *pic_dev[VIRT_GF_PIC_NB];
@@ -165,6 +172,8 @@ static void virt_init(MachineState *machine)
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
 
     reset_info->cpu = cpu;
+    reset_info->initial_pc = VIRT_PFLASH_MMIO_BASE;
+    reset_info->initial_stack = ram_size;
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* RAM */
@@ -253,6 +262,39 @@ static void virt_init(MachineState *machine)
                         PIC_GPIO(VIRT_XHCI_IRQ_BASE));
     }
 
+    /* pflash */
+    dinfo = drive_get(IF_PFLASH, 0, 0);
+    pflash_cfi01_register(VIRT_PFLASH_MMIO_BASE,
+                          "virt.pflash0",
+                           VIRT_PFLASH_SIZE,
+                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                           VIRT_PFLASH_SECTOR_SIZE, 4,
+                           0x89, 0x18, 0, 0, 1);
+
+    if (machine->firmware) {
+        char *fn;
+        int image_size;
+
+        if (drive_get(IF_PFLASH, 0, 0)) {
+            error_report("The contents of the first flash device may be "
+                         "specified with -bios or with -drive if=pflash... "
+                         "but you cannot use both options at once");
+            exit(1);
+        }
+        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
+        if (!fn) {
+            error_report("Could not find ROM image '%s'", machine->firmware);
+            exit(1);
+        }
+        image_size = load_image_targphys(fn, VIRT_PFLASH_MMIO_BASE,
+                                         VIRT_PFLASH_SIZE);
+        g_free(fn);
+        if (image_size < 0) {
+            error_report("Could not load ROM image '%s'", machine->firmware);
+            exit(1);
+        }
+    }
+
     if (kernel_filename) {
         CPUState *cs = CPU(cpu);
         uint64_t high;
@@ -311,6 +353,8 @@ static void virt_init(MachineState *machine)
         }
         BOOTINFO2(param_ptr, BI_VIRT_FW_CFG_BASE,
                   VIRT_FW_CFG_MMIO_BASE, VIRT_FW_CFG_IRQ_BASE);
+        BOOTINFO2(param_ptr, BI_VIRT_PFLASH_BASE,
+                    VIRT_PFLASH_MMIO_BASE, 0);
 
         if (kernel_cmdline) {
             BOOTINFOSTR(param_ptr, BI_COMMAND_LINE,

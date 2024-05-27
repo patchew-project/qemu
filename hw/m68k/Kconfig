@@ -42,6 +42,7 @@ config M68K_VIRT
     select M68K_IRQC
     select FW_CFG_DMA
     select VIRT_CTRL
+    select PFLASH_CFI01
     select GOLDFISH_PIC
     select GOLDFISH_TTY
     select GOLDFISH_RTC
