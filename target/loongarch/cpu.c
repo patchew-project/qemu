@@ -380,6 +380,8 @@ static void loongarch_la464_initfn(Object *obj)
     CPULoongArchState *env = &cpu->env;
     int i;
 
+    env->default_features = 0;
+    env->forced_features  = 0;
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }
@@ -413,6 +415,7 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG2, LSPW, 1);
     data = FIELD_DP32(data, CPUCFG2, LAM, 1);
     env->cpucfg[2] = data;
+    env->default_features |= BIT_ULL(LOONGARCH_FEATURE_LBT);
 
     env->cpucfg[4] = 100 * 1000 * 1000; /* Crystal frequency */
 
@@ -571,6 +574,35 @@ static void loongarch_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     info->print_insn = print_insn_loongarch;
 }
 
+static void loongarch_cpu_check_lbt(CPUState *cs, Error **errp)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    enum loongarch_features feature;
+    bool kvm_supported;
+
+    feature = LOONGARCH_FEATURE_LBT;
+    kvm_supported = kvm_feature_supported(cs, feature);
+    if (env->forced_features & BIT_ULL(feature)) {
+        if (kvm_supported) {
+            env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LBT_ALL, 7);
+        } else {
+            error_setg(errp, "'lbt' feature not supported by KVM on this host");
+            return;
+        }
+    } else if (env->default_features & BIT_ULL(feature)) {
+        if (kvm_supported) {
+            env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LBT_ALL, 7);
+        }
+    }
+}
+
+static void loongarch_cpu_feature_realize(CPUState *cs, Error **errp)
+{
+    if (kvm_enabled()) {
+        loongarch_cpu_check_lbt(cs, errp);
+    }
+}
+
 static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -584,6 +616,11 @@ static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     loongarch_cpu_register_gdb_regs_for_features(cs);
+    loongarch_cpu_feature_realize(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     cpu_reset(cs);
     qemu_init_vcpu(cs);
@@ -643,12 +680,44 @@ static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
     }
 }
 
+static bool loongarch_get_lbt(Object *obj, Error **errp)
+ {
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    bool ret;
+
+    ret = false;
+    /* lbt is enabled only in kvm mode, not supported in tcg mode */
+    if (cpu->env.forced_features & BIT_ULL(LOONGARCH_FEATURE_LBT)) {
+        ret = true;
+     }
+    return ret;
+}
+
+static void loongarch_set_lbt(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    if (!kvm_enabled()) {
+        return;
+    }
+
+    if (value) {
+        /* Enable binary translation for all architectures */
+        cpu->env.forced_features |= BIT_ULL(LOONGARCH_FEATURE_LBT);
+    } else {
+        /* Disable default features also */
+        cpu->env.default_features &= ~BIT_ULL(LOONGARCH_FEATURE_LBT);
+    }
+}
+
 void loongarch_cpu_post_init(Object *obj)
 {
     object_property_add_bool(obj, "lsx", loongarch_get_lsx,
                              loongarch_set_lsx);
     object_property_add_bool(obj, "lasx", loongarch_get_lasx,
                              loongarch_set_lasx);
+    object_property_add_bool(obj, "lbt", loongarch_get_lbt,
+                             loongarch_set_lbt);
 }
 
 static void loongarch_cpu_init(Object *obj)

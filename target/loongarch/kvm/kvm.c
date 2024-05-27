@@ -780,6 +780,32 @@ int kvm_loongarch_set_interrupt(LoongArchCPU *cpu, int irq, int level)
     return kvm_vcpu_ioctl(cs, KVM_INTERRUPT, &intr);
 }
 
+bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
+{
+    int ret;
+    struct kvm_device_attr attr;
+
+    switch (feature) {
+    case LOONGARCH_FEATURE_LBT:
+        /*
+         * Return all if all the LBT features are supported such as:
+         *  KVM_LOONGARCH_VM_FEAT_X86BT
+         *  KVM_LOONGARCH_VM_FEAT_ARMBT
+         *  KVM_LOONGARCH_VM_FEAT_MIPSBT
+         */
+        attr.group = KVM_LOONGARCH_VM_FEAT_CTRL;
+        attr.attr = KVM_LOONGARCH_VM_FEAT_X86BT;
+        ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        attr.attr = KVM_LOONGARCH_VM_FEAT_ARMBT;
+        ret |= kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        attr.attr = KVM_LOONGARCH_VM_FEAT_MIPSBT;
+        ret |= kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        return (ret == 0);
+    default:
+        return false;
+    }
+}
+
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
 }
