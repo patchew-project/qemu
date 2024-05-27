@@ -14,20 +14,171 @@
 mod trace;
 
 use std::env;
+use std::fs::File;
+use std::io::Error as IOError;
+use std::io::ErrorKind;
+use std::io::Read;
 
 use clap::Arg;
 use clap::Command;
 use thiserror::Error;
 use trace::Event;
 
+const RECORD_TYPE_MAPPING: u64 = 0;
+const RECORD_TYPE_EVENT: u64 = 1;
+
 #[derive(Error, Debug)]
 pub enum Error
 {
     #[error("usage: {0} [--no-header] <trace-events> <trace-file>")]
     CliOptionUnmatch(String),
+    #[error("Failed to read file: {0}")]
+    ReadFile(IOError),
+    #[error("Unknown record type ({0})")]
+    UnknownRecType(u64),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+enum RecordType
+{
+    Empty,
+    Mapping,
+    Event,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct RecordRawType
+{
+    rtype: u64,
+}
+
+impl RecordType
+{
+    fn read_type(mut fobj: &File) -> Result<RecordType>
+    {
+        let mut tbuf = [0u8; 8];
+        if let Err(e) = fobj.read_exact(&mut tbuf) {
+            if e.kind() == ErrorKind::UnexpectedEof {
+                return Ok(RecordType::Empty);
+            } else {
+                return Err(Error::ReadFile(e));
+            }
+        }
+
+        /*
+         * Safe because the layout of the trace record requires us to parse
+         * the type first, and then there is a check on the validity of the
+         * record type.
+         */
+        let raw_t =
+            unsafe { std::mem::transmute::<[u8; 8], RecordRawType>(tbuf) };
+        match raw_t.rtype {
+            RECORD_TYPE_MAPPING => Ok(RecordType::Mapping),
+            RECORD_TYPE_EVENT => Ok(RecordType::Event),
+            _ => Err(Error::UnknownRecType(raw_t.rtype)),
+        }
+    }
+}
+
+trait ReadHeader
+{
+    fn read_header(fobj: &File) -> Result<Self>
+    where
+        Self: Sized;
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct LogHeader
+{
+    event_id: u64,
+    magic: u64,
+    version: u64,
+}
+
+impl ReadHeader for LogHeader
+{
+    fn read_header(mut fobj: &File) -> Result<Self>
+    {
+        let mut raw_hdr = [0u8; 24];
+        fobj.read_exact(&mut raw_hdr).map_err(Error::ReadFile)?;
+
+        /*
+         * Safe because the size of log header (struct LogHeader)
+         * is 24 bytes, which is ensured by simple trace backend.
+         */
+        let hdr =
+            unsafe { std::mem::transmute::<[u8; 24], LogHeader>(raw_hdr) };
+        Ok(hdr)
+    }
+}
+
+#[derive(Default)]
+struct RecordInfo
+{
+    event_id: u64,
+    timestamp_ns: u64,
+    record_pid: u32,
+    args_payload: Vec<u8>,
+}
+
+impl RecordInfo
+{
+    fn new() -> Self
+    {
+        Default::default()
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct RecordHeader
+{
+    event_id: u64,
+    timestamp_ns: u64,
+    record_length: u32,
+    record_pid: u32,
+}
+
+impl RecordHeader
+{
+    fn extract_record(&self, mut fobj: &File) -> Result<RecordInfo>
+    {
+        let mut info = RecordInfo::new();
+
+        info.event_id = self.event_id;
+        info.timestamp_ns = self.timestamp_ns;
+        info.record_pid = self.record_pid;
+        info.args_payload = vec![
+            0u8;
+            self.record_length as usize
+                - std::mem::size_of::<RecordHeader>()
+        ];
+        fobj.read_exact(&mut info.args_payload)
+            .map_err(Error::ReadFile)?;
+
+        Ok(info)
+    }
+}
+
+impl ReadHeader for RecordHeader
+{
+    fn read_header(mut fobj: &File) -> Result<Self>
+    {
+        let mut raw_hdr = [0u8; 24];
+        fobj.read_exact(&mut raw_hdr).map_err(Error::ReadFile)?;
+
+        /*
+         * Safe because the size of record header (struct RecordHeader)
+         * is 24 bytes, which is ensured by simple trace backend.
+         */
+        let hdr: RecordHeader =
+            unsafe { std::mem::transmute::<[u8; 24], RecordHeader>(raw_hdr) };
+        Ok(hdr)
+    }
+}
 
 pub struct EventArgPayload {}
 
