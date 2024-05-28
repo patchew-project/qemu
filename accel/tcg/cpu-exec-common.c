@@ -57,19 +57,12 @@ void cpu_loop_exit_atomic(CPUState *cpu, uintptr_t pc)
     cpu_loop_exit_restore(cpu, pc);
 }
 
-#ifdef CONFIG_PLUGIN
-static void qemu_plugin_vcpu_init__async(CPUState *cpu, run_on_cpu_data unused)
-{
-    qemu_plugin_vcpu_init_hook(cpu);
-}
-#endif
-
 bool tcg_exec_realize_assigned(CPUState *cpu, Error **errp)
 {
 #ifdef CONFIG_PLUGIN
     cpu->plugin_state = qemu_plugin_create_vcpu_state();
-    /* Plugin initialization must wait until the cpu start executing code */
-    async_run_on_cpu(cpu, qemu_plugin_vcpu_init__async, RUN_ON_CPU_NULL);
+
+    qemu_plugin_vcpu_init_hook(cpu);
 #endif
 
     return true;
