@@ -706,6 +706,14 @@ static int test_migrate_start(QTestState **from, QTestState **to,
             g_test_skip("/dev/shm is not supported");
             return -1;
         }
+        if (getenv("GITLAB_CI")) {
+            /*
+             * Gitlab runners are limited to 64MB shm size. See:
+             * https://lore.kernel.org/all/87ttq5fvh7.fsf@suse.de/
+             */
+            g_test_skip("/dev/shm is not supported in Gitlab CI environment");
+            return -1;
+        }
     }
 
     dst_state = (QTestMigrationState) { };
@@ -3506,15 +3514,7 @@ int main(int argc, char **argv)
                        test_precopy_file_offset);
     migration_test_add("/migration/precopy/file/offset/bad",
                        test_precopy_file_offset_bad);
-
-    /*
-     * Our CI system has problems with shared memory.
-     * Don't run this test until we find a workaround.
-     */
-    if (getenv("QEMU_TEST_FLAKY_TESTS")) {
-        migration_test_add("/migration/mode/reboot", test_mode_reboot);
-    }
-
+    migration_test_add("/migration/mode/reboot", test_mode_reboot);
     migration_test_add("/migration/precopy/file/mapped-ram",
                        test_precopy_file_mapped_ram);
     migration_test_add("/migration/precopy/file/mapped-ram/live",
