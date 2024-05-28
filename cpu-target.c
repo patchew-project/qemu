@@ -143,6 +143,10 @@ bool cpu_exec_realizefn(CPUState *cpu, Error **errp)
     /* Wait until cpu initialization complete before exposing cpu. */
     cpu_list_add(cpu);
 
+    if (!accel_cpu_common_realize_assigned(cpu, errp)) {
+        return false;
+    }
+
 #ifdef CONFIG_USER_ONLY
     assert(qdev_get_vmsd(DEVICE(cpu)) == NULL ||
            qdev_get_vmsd(DEVICE(cpu))->unmigratable);
@@ -170,6 +174,8 @@ void cpu_exec_unrealizefn(CPUState *cpu)
         vmstate_unregister(NULL, &vmstate_cpu_common, cpu);
     }
 #endif
+
+    accel_cpu_common_unrealize_assigned(cpu);
 
     cpu_list_remove(cpu);
     /*

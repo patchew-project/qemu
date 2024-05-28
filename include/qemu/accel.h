@@ -44,6 +44,8 @@ typedef struct AccelClass {
                        hwaddr start_addr, hwaddr size);
 #endif
     bool (*cpu_common_realize_unassigned)(CPUState *cpu, Error **errp);
+    bool (*cpu_common_realize_assigned)(CPUState *cpu, Error **errp);
+    void (*cpu_common_unrealize_assigned)(CPUState *cpu);
     void (*cpu_common_unrealize_unassigned)(CPUState *cpu);
 
     /* gdbstub related hooks */
@@ -99,6 +101,24 @@ void accel_cpu_instance_init(CPUState *cpu);
  * The @cpu index is not yet assigned.
  */
 bool accel_cpu_common_realize_unassigned(CPUState *cpu, Error **errp);
+
+/**
+ * accel_cpu_common_realize_assigned:
+ * @cpu: The CPU that needs to call accel-specific cpu realization.
+ * @errp: currently unused.
+ *
+ * The @cpu index is assigned, @cpu is added to the global #cpus_queue.
+ */
+bool accel_cpu_common_realize_assigned(CPUState *cpu, Error **errp);
+
+/**
+ * accel_cpu_common_unrealize_unassigned:
+ * @cpu: The CPU that needs to call accel-specific cpu unrealization.
+ *
+ * The @cpu index is still assigned, @cpu is still part of the global
+ * #cpus_queue.
+ */
+void accel_cpu_common_unrealize_assigned(CPUState *cpu);
 
 /**
  * accel_cpu_common_unrealize_unassigned:

@@ -140,6 +140,29 @@ bool accel_cpu_common_realize_unassigned(CPUState *cpu, Error **errp)
     return true;
 }
 
+bool accel_cpu_common_realize_assigned(CPUState *cpu, Error **errp)
+{
+    AccelState *accel = current_accel();
+    AccelClass *acc = ACCEL_GET_CLASS(accel);
+
+    if (acc->cpu_common_realize_assigned
+            && !acc->cpu_common_realize_assigned(cpu, errp)) {
+        return false;
+    }
+
+    return true;
+}
+
+void accel_cpu_common_unrealize_assigned(CPUState *cpu)
+{
+    AccelState *accel = current_accel();
+    AccelClass *acc = ACCEL_GET_CLASS(accel);
+
+    if (acc->cpu_common_unrealize_assigned) {
+        acc->cpu_common_unrealize_assigned(cpu);
+    }
+}
+
 void accel_cpu_common_unrealize_unassigned(CPUState *cpu)
 {
     AccelState *accel = current_accel();
