@@ -28,6 +28,7 @@
 &rrr_rot         !extern rd rn rm rot
 &rrr             !extern rd rn rm
 &rr              !extern rd rm
+&nm              !extern rn rm
 &ri              !extern rd imm
 &r               !extern rm
 &i               !extern imm
@@ -472,7 +473,7 @@ STR_ri           1111 1000 1100 .... .... ............        @ldst_ri_pos
   }
   LDRBT_ri       1111 1000 0001 .... .... 1110 ........       @ldst_ri_unp
   {
-    PLD          1111 1000 0001 ---- 1111 000000 -- ----      # (register)
+    PLD_rr       1111 1000 0001 ---- 1111 000000 -- rm:4      &r
     LDRB_rr      1111 1000 0001 .... .... 000000 .. ....      @ldst_rr
   }
 }
@@ -492,7 +493,7 @@ STR_ri           1111 1000 1100 .... .... ............        @ldst_ri_pos
   }
   LDRHT_ri       1111 1000 0011 .... .... 1110 ........       @ldst_ri_unp
   {
-    PLDW         1111 1000 0011 ---- 1111 000000 -- ----      # (register)
+    PLDW_rr      1111 1000 0011 rn:4 1111 000000 -- rm:4      &nm
     LDRH_rr      1111 1000 0011 .... .... 000000 .. ....      @ldst_rr
   }
 }
@@ -520,7 +521,7 @@ STR_ri           1111 1000 1100 .... .... ............        @ldst_ri_pos
   }
   LDRSBT_ri      1111 1001 0001 .... .... 1110 ........       @ldst_ri_unp
   {
-    PLI          1111 1001 0001 ---- 1111 000000 -- ----      # (register)
+    PLI_rr       1111 1001 0001 ---- 1111 000000 -- rm:4      &r
     LDRSB_rr     1111 1001 0001 .... .... 000000 .. ....      @ldst_rr
   }
 }

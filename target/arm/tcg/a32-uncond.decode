@@ -24,7 +24,9 @@
 
 &empty           !extern
 &i               !extern imm
+&r               !extern rm
 &setend          E
+&nm              rn rm
 
 # Branch with Link and Exchange
 
@@ -61,9 +63,9 @@ PLD              1111 0101 -101 ---- 1111 ---- ---- ----    # (imm, lit) 5te
 PLDW             1111 0101 -001 ---- 1111 ---- ---- ----    # (imm, lit) 7mp
 PLI              1111 0100 -101 ---- 1111 ---- ---- ----    # (imm, lit) 7
 
-PLD              1111 0111 -101 ---- 1111 ----- -- 0 ----   # (register) 5te
-PLDW             1111 0111 -001 ---- 1111 ----- -- 0 ----   # (register) 7mp
-PLI              1111 0110 -101 ---- 1111 ----- -- 0 ----   # (register) 7
+PLD_rr           1111 0111 -101 ---- 1111 ----- -- 0 rm:4   &r
+PLDW_rr          1111 0111 -001 rn:4 1111 ----- -- 0 rm:4   &nm
+PLI_rr           1111 0110 -101 ---- 1111 ----- -- 0 rm:4   &r
 
 # Unallocated memory hints
 #
