@@ -76,6 +76,7 @@ struct PnvQuadClass {
 
 #define PNV_QUAD_TYPE_SUFFIX "-" TYPE_PNV_QUAD
 #define PNV_QUAD_TYPE_NAME(cpu_model) cpu_model PNV_QUAD_TYPE_SUFFIX
+#define PNV_QUAD_TYPE_NAME_DYN(cpu) g_strconcat(cpu, PNV_QUAD_TYPE_SUFFIX, NULL)
 
 OBJECT_DECLARE_TYPE(PnvQuad, PnvQuadClass, PNV_QUAD)
 
