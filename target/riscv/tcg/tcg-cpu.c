@@ -658,6 +658,10 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         cpu_cfg_ext_auto_update(cpu, CPU_CFG_OFFSET(ext_zvbc), true);
     }
 
+    if (cpu->cfg.ext_zvbb) {
+        cpu_cfg_ext_auto_update(cpu, CPU_CFG_OFFSET(ext_zvkb), true);
+    }
+
     /*
      * In principle Zve*x would also suffice here, were they supported
      * in qemu
