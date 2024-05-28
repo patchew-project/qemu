@@ -53,7 +53,7 @@ TranslationBlock *tb_link_page(TranslationBlock *tb);
 void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                uintptr_t host_pc);
 
-bool tcg_exec_realizefn(CPUState *cpu, Error **errp);
-void tcg_exec_unrealizefn(CPUState *cpu);
+bool tcg_exec_realize_unassigned(CPUState *cpu, Error **errp);
+void tcg_exec_unrealize_unassigned(CPUState *cpu);
 
 #endif

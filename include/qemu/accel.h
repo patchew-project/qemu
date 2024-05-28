@@ -43,8 +43,8 @@ typedef struct AccelClass {
     bool (*has_memory)(MachineState *ms, AddressSpace *as,
                        hwaddr start_addr, hwaddr size);
 #endif
-    bool (*cpu_common_realize)(CPUState *cpu, Error **errp);
-    void (*cpu_common_unrealize)(CPUState *cpu);
+    bool (*cpu_common_realize_unassigned)(CPUState *cpu, Error **errp);
+    void (*cpu_common_unrealize_unassigned)(CPUState *cpu);
 
     /* gdbstub related hooks */
     int (*gdbstub_supported_sstep_flags)(void);
@@ -92,17 +92,22 @@ void accel_setup_post(MachineState *ms);
 void accel_cpu_instance_init(CPUState *cpu);
 
 /**
- * accel_cpu_common_realize:
+ * accel_cpu_common_realize_unassigned:
  * @cpu: The CPU that needs to call accel-specific cpu realization.
  * @errp: currently unused.
+ *
+ * The @cpu index is not yet assigned.
  */
-bool accel_cpu_common_realize(CPUState *cpu, Error **errp);
+bool accel_cpu_common_realize_unassigned(CPUState *cpu, Error **errp);
 
 /**
- * accel_cpu_common_unrealize:
+ * accel_cpu_common_unrealize_unassigned:
  * @cpu: The CPU that needs to call accel-specific cpu unrealization.
+ *
+ * The @cpu index is no more assigned, @cpu has been removed from the global
+ * #cpus_queue.
  */
-void accel_cpu_common_unrealize(CPUState *cpu);
+void accel_cpu_common_unrealize_unassigned(CPUState *cpu);
 
 /**
  * accel_supported_gdbstub_sstep_flags:

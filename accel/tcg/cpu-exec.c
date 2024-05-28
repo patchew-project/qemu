@@ -1074,7 +1074,7 @@ int cpu_exec(CPUState *cpu)
     return ret;
 }
 
-bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
+bool tcg_exec_realize_unassigned(CPUState *cpu, Error **errp)
 {
     static bool tcg_target_initialized;
 
@@ -1094,7 +1094,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
 }
 
 /* undo the initializations in reverse order */
-void tcg_exec_unrealizefn(CPUState *cpu)
+void tcg_exec_unrealize_unassigned(CPUState *cpu)
 {
 #ifndef CONFIG_USER_ONLY
     tcg_iommu_free_notifier_list(cpu);

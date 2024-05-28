@@ -119,7 +119,7 @@ void accel_cpu_instance_init(CPUState *cpu)
     }
 }
 
-bool accel_cpu_common_realize(CPUState *cpu, Error **errp)
+bool accel_cpu_common_realize_unassigned(CPUState *cpu, Error **errp)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     AccelState *accel = current_accel();
@@ -132,21 +132,22 @@ bool accel_cpu_common_realize(CPUState *cpu, Error **errp)
     }
 
     /* generic realization */
-    if (acc->cpu_common_realize && !acc->cpu_common_realize(cpu, errp)) {
+    if (acc->cpu_common_realize_unassigned
+            && !acc->cpu_common_realize_unassigned(cpu, errp)) {
         return false;
     }
 
     return true;
 }
 
-void accel_cpu_common_unrealize(CPUState *cpu)
+void accel_cpu_common_unrealize_unassigned(CPUState *cpu)
 {
     AccelState *accel = current_accel();
     AccelClass *acc = ACCEL_GET_CLASS(accel);
 
     /* generic unrealization */
-    if (acc->cpu_common_unrealize) {
-        acc->cpu_common_unrealize(cpu);
+    if (acc->cpu_common_unrealize_unassigned) {
+        acc->cpu_common_unrealize_unassigned(cpu);
     }
 }
 
