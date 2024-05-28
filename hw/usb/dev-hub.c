@@ -686,6 +686,7 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "hub";
     dc->vmsd = &vmstate_usb_hub;
+    klass->deprecation_note = "use more root ports or additional hostadapters instead";
     device_class_set_props(dc, usb_hub_properties);
 }
 
