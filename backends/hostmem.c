@@ -14,6 +14,7 @@
 #include "sysemu/hostmem.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/visitor.h"
 #include "qemu/config-file.h"
@@ -178,8 +179,11 @@ static void host_memory_backend_set_merge(Object *obj, bool value, Error **errp)
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
-        qemu_madvise(ptr, sz,
-                     value ? QEMU_MADV_MERGEABLE : QEMU_MADV_UNMERGEABLE);
+        if (qemu_madvise(ptr, sz,
+                         value ? QEMU_MADV_MERGEABLE : QEMU_MADV_UNMERGEABLE)) {
+            warn_report("Couldn't change property 'merge' on '%s': %s",
+                        object_get_typename(obj), strerror(errno));
+        }
         backend->merge = value;
     }
 }
@@ -204,8 +208,11 @@ static void host_memory_backend_set_dump(Object *obj, bool value, Error **errp)
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
-        qemu_madvise(ptr, sz,
-                     value ? QEMU_MADV_DODUMP : QEMU_MADV_DONTDUMP);
+        if (qemu_madvise(ptr, sz,
+                         value ? QEMU_MADV_DODUMP : QEMU_MADV_DONTDUMP)) {
+            warn_report("Couldn't change property 'dump' on '%s': %s",
+                        object_get_typename(obj), strerror(errno));
+        }
         backend->dump = value;
     }
 }
@@ -337,11 +344,15 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     ptr = memory_region_get_ram_ptr(&backend->mr);
     sz = memory_region_size(&backend->mr);
 
-    if (backend->merge) {
-        qemu_madvise(ptr, sz, QEMU_MADV_MERGEABLE);
+    if (backend->merge &&
+        qemu_madvise(ptr, sz, QEMU_MADV_MERGEABLE)) {
+        warn_report("Couldn't set property 'merge' on '%s': %s",
+                    object_get_typename(OBJECT(uc)), strerror(errno));
     }
-    if (!backend->dump) {
-        qemu_madvise(ptr, sz, QEMU_MADV_DONTDUMP);
+    if (!backend->dump &&
+        qemu_madvise(ptr, sz, QEMU_MADV_DONTDUMP)) {
+        warn_report("Couldn't set property 'dump' on '%s': %s",
+                    object_get_typename(OBJECT(uc)), strerror(errno));
     }
 #ifdef CONFIG_NUMA
     unsigned long lastbit = find_last_bit(backend->host_nodes, MAX_NODES);
