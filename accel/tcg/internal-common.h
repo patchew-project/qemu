@@ -54,6 +54,8 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                uintptr_t host_pc);
 
 bool tcg_exec_realize_unassigned(CPUState *cpu, Error **errp);
+bool tcg_exec_realize_assigned(CPUState *cpu, Error **errp);
+void tcg_exec_unrealize_assigned(CPUState *cpu);
 void tcg_exec_unrealize_unassigned(CPUState *cpu);
 
 #endif

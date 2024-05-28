@@ -228,6 +228,8 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "tcg";
     ac->init_machine = tcg_init_machine;
     ac->cpu_common_realize_unassigned = tcg_exec_realize_unassigned;
+    ac->cpu_common_realize_assigned = tcg_exec_realize_assigned;
+    ac->cpu_common_unrealize_assigned = tcg_exec_unrealize_assigned;
     ac->cpu_common_unrealize_unassigned = tcg_exec_unrealize_unassigned;
     ac->allowed = &tcg_allowed;
     ac->gdbstub_supported_sstep_flags = tcg_gdbstub_supported_sstep_flags;

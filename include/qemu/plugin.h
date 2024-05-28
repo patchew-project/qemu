@@ -221,12 +221,6 @@ static inline int qemu_plugin_load_list(QemuPluginList *head, Error **errp)
     return 0;
 }
 
-static inline void qemu_plugin_vcpu_init_hook(CPUState *cpu)
-{ }
-
-static inline void qemu_plugin_vcpu_exit_hook(CPUState *cpu)
-{ }
-
 static inline void qemu_plugin_tb_trans_cb(CPUState *cpu,
                                            struct qemu_plugin_tb *tb)
 { }

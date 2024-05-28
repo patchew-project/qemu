@@ -30,9 +30,6 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
-#ifdef CONFIG_PLUGIN
-#include "qemu/plugin.h"
-#endif
 
 CPUState *cpu_by_arch_id(int64_t id)
 {
@@ -192,13 +189,6 @@ static void cpu_common_parse_features(const char *typename, char *features,
     }
 }
 
-#ifdef CONFIG_PLUGIN
-static void qemu_plugin_vcpu_init__async(CPUState *cpu, run_on_cpu_data unused)
-{
-    qemu_plugin_vcpu_init_hook(cpu);
-}
-#endif
-
 static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cpu = CPU(dev);
@@ -222,27 +212,12 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
         cpu_resume(cpu);
     }
 
-    /* Plugin initialization must wait until the cpu start executing code */
-#ifdef CONFIG_PLUGIN
-    if (tcg_enabled()) {
-        cpu->plugin_state = qemu_plugin_create_vcpu_state();
-        async_run_on_cpu(cpu, qemu_plugin_vcpu_init__async, RUN_ON_CPU_NULL);
-    }
-#endif
-
     /* NOTE: latest generic point where the cpu is fully realized */
 }
 
 static void cpu_common_unrealizefn(DeviceState *dev)
 {
     CPUState *cpu = CPU(dev);
-
-    /* Call the plugin hook before clearing the cpu is fully unrealized */
-#ifdef CONFIG_PLUGIN
-    if (tcg_enabled()) {
-        qemu_plugin_vcpu_exit_hook(cpu);
-    }
-#endif
 
     /* NOTE: latest generic point before the cpu is fully unrealized */
     cpu_exec_unrealizefn(cpu);
