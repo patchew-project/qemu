@@ -17,7 +17,6 @@ config USB_OHCI_SYSBUS
 
 config USB_OHCI_PCI
     bool
-    default y if PCI_DEVICES
     depends on PCI
     select USB_OHCI
 

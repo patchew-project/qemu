@@ -143,6 +143,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
     dc->hotpluggable = false;
     dc->vmsd = &vmstate_ohci;
     dc->reset = usb_ohci_reset_pci;
+    klass->deprecation_note = "use qemu-xhci instead";
 }
 
 static const TypeInfo ohci_pci_info = {
