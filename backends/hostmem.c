@@ -179,6 +179,8 @@ static void host_memory_backend_set_merge(Object *obj, bool value, Error **errp)
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
+        sz = ROUND_UP(sz, qemu_ram_pagesize(backend->mr.ram_block));
+
         if (qemu_madvise(ptr, sz,
                          value ? QEMU_MADV_MERGEABLE : QEMU_MADV_UNMERGEABLE)) {
             warn_report("Couldn't change property 'merge' on '%s': %s",
@@ -207,6 +209,8 @@ static void host_memory_backend_set_dump(Object *obj, bool value, Error **errp)
     if (value != backend->dump) {
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
+
+        sz = ROUND_UP(sz, qemu_ram_pagesize(backend->mr.ram_block));
 
         if (qemu_madvise(ptr, sz,
                          value ? QEMU_MADV_DODUMP : QEMU_MADV_DONTDUMP)) {
@@ -343,6 +347,13 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 
     ptr = memory_region_get_ram_ptr(&backend->mr);
     sz = memory_region_size(&backend->mr);
+
+    /*
+     * Round up size to be an integer multiple of pagesize, because
+     * both madvise() and mbind() does not really like setting
+     * advice/policy to just a fraction of a page.
+     */
+    sz = ROUND_UP(sz, qemu_ram_pagesize(backend->mr.ram_block));
 
     if (backend->merge &&
         qemu_madvise(ptr, sz, QEMU_MADV_MERGEABLE)) {
