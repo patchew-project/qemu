@@ -72,6 +72,9 @@ static void xio3130_downstream_realize(PCIDevice *d, Error **errp)
     pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
 
+    s->speed = QEMU_PCI_EXP_LNK_2_5GT;
+    s->width = QEMU_PCI_EXP_LNK_X1;
+
     rc = msi_init(d, XIO3130_MSI_OFFSET, XIO3130_MSI_NR_VECTOR,
                   XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
                   XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT,
