@@ -144,7 +144,10 @@ static block_number_t load_eckd_segments(block_number_t blk, bool ldipl,
     bool more_data;
 
     memset(_bprs, FREE_SPACE_FILLER, sizeof(_bprs));
-    read_block(blk, bprs, "BPRS read failed");
+    if (!read_block_nonfatal(blk, bprs)) {
+        IPL_assert(ldipl, "BPRS read failed");
+        return -1;
+    }
 
     do {
         more_data = false;
@@ -188,7 +191,10 @@ static block_number_t load_eckd_segments(block_number_t blk, bool ldipl,
                  * I.e. the next ptr must point to the unused memory area
                  */
                 memset(_bprs, FREE_SPACE_FILLER, sizeof(_bprs));
-                read_block(block_nr, bprs, "BPRS continuation read failed");
+                if (!read_block_nonfatal(block_nr, bprs)) {
+                    IPL_assert(ldipl, "BPRS continuation read failed");
+                    break;
+                }
                 more_data = true;
                 break;
             }
@@ -197,7 +203,10 @@ static block_number_t load_eckd_segments(block_number_t blk, bool ldipl,
              * to memory (address).
              */
             rc = virtio_read_many(block_nr, (void *)(*address), count + 1);
-            IPL_assert(rc == 0, "code chunk read failed");
+            if (rc != 0) {
+                IPL_assert(ldipl, "code chunk read failed");
+                break;
+            }
 
             *address += (count + 1) * virtio_get_block_size();
         }
@@ -295,13 +304,22 @@ static void run_eckd_boot_script(block_number_t bmt_block_nr,
                " maximum number of boot entries allowed");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
-    read_block(bmt_block_nr, sec, "Cannot read Boot Map Table");
+    if (!read_block_nonfatal(bmt_block_nr, sec)) {
+        IPL_assert(ldipl, "Cannot read Boot Map Table");
+        return;
+    }
 
     block_nr = gen_eckd_block_num(&bmt->entry[loadparm].xeckd, ldipl);
-    IPL_assert(block_nr != -1, "Cannot find Boot Map Table Entry");
+    if (block_nr == -1) {
+        IPL_assert(ldipl, "Cannot find Boot Map Table Entry");
+        return;
+    }
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
-    read_block(block_nr, sec, "Cannot read Boot Map Script");
+    if (!read_block_nonfatal(block_nr, sec)) {
+        IPL_assert(ldipl, "Cannot read Boot Map Script");
+        return;
+    }
 
     for (i = 0; bms->entry[i].type == BOOT_SCRIPT_LOAD ||
                 bms->entry[i].type == BOOT_SCRIPT_SIGNATURE; i++) {
@@ -319,13 +337,10 @@ static void run_eckd_boot_script(block_number_t bmt_block_nr,
         } while (block_nr != -1);
     }
 
-    if (ldipl && bms->entry[i].type != BOOT_SCRIPT_EXEC) {
-        /* Abort LD-IPL and retry as CCW-IPL */
+    if (bms->entry[i].type != BOOT_SCRIPT_EXEC) {
+        IPL_assert(ldipl, "Unknown script entry type");
         return;
     }
-
-    IPL_assert(bms->entry[i].type == BOOT_SCRIPT_EXEC,
-               "Unknown script entry type");
     write_reset_psw(bms->entry[i].address.load_address); /* no return */
     jump_to_IPL_code(0); /* no return */
 }
@@ -492,7 +507,7 @@ static void ipl_eckd(void)
             /* LD-IPL does not use the S1B bock, just make it NULL */
             run_eckd_boot_script(ldipl_bmt, NULL_BLOCK_NR);
             /* Only return in error, retry as CCW-IPL */
-            sclp_print("Retrying IPL ");
+            sclp_print("LD-IPL failed, retrying device\n");
             print_eckd_msg();
         }
         memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -944,5 +959,5 @@ void zipl_load(void)
         panic("\n! Unknown IPL device type !\n");
     }
 
-    sclp_print("zIPL load failed.\n");
+    panic("zIPL load failed.\n");
 }

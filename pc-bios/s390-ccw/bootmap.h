@@ -366,6 +366,11 @@ static inline void read_block(block_number_t blockno,
     IPL_assert(virtio_read(blockno, buffer) == 0, errmsg);
 }
 
+static inline bool read_block_nonfatal(block_number_t blockno, void *buffer)
+{
+    return (virtio_read(blockno, buffer) == 0);
+}
+
 static inline bool block_size_ok(uint32_t block_size)
 {
     return block_size == virtio_get_block_size();

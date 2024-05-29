@@ -53,6 +53,12 @@ unsigned int get_loadparm_index(void)
     return atoui(loadparm_str);
 }
 
+static void copy_qipl(void)
+{
+    QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
+    memcpy(&qipl, early_qipl, sizeof(QemuIplParameters));
+}
+
 static int is_dev_possibly_bootable(int dev_no, int sch_no)
 {
     bool is_virtio;
@@ -194,7 +200,7 @@ static void boot_setup(void)
 static void find_boot_device(void)
 {
     VDev *vdev = virtio_get_device();
-    bool found;
+    bool found = false;
 
     switch (iplb.pbt) {
     case S390_IPL_TYPE_CCW:
@@ -221,10 +227,7 @@ static void find_boot_device(void)
 static int virtio_setup(void)
 {
     VDev *vdev = virtio_get_device();
-    QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
     int ret;
-
-    memcpy(&qipl, early_qipl, sizeof(QemuIplParameters));
 
     if (have_iplb) {
         menu_setup();
@@ -242,7 +245,8 @@ static int virtio_setup(void)
         ret = virtio_scsi_setup_device(blk_schid);
         break;
     default:
-        panic("\n! No IPL device available !\n");
+        ret = 1;
+        panic("Unrecognized virtio device type!\n");
     }
 
     if (!ret) {
@@ -296,6 +300,7 @@ static void probe_boot_device(void)
 
 void main(void)
 {
+    copy_qipl();
     sclp_setup();
     css_setup();
     boot_setup();

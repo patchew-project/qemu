@@ -49,4 +49,28 @@ static inline bool set_iplb(IplParameterBlock *iplb)
     return manage_iplb(iplb, false);
 }
 
+/*
+ * The IPL started on the device, but failed in some way.  If the IPLB chain
+ * still has more devices left to try, use the next device in order. Set the
+ * next IPLB and save the current qipl parameters state.
+ */
+static inline bool load_next_iplb(void)
+{
+    IplParameterBlock *next_iplb;
+
+    if (qipl.num_iplbs < 1) {
+        return false;
+    }
+
+    next_iplb = (IplParameterBlock *) qipl.next_iplb;
+    memcpy(&iplb, next_iplb, sizeof(IplParameterBlock));
+    set_iplb(&iplb);
+
+    qipl.num_iplbs--;
+    qipl.next_iplb = qipl.next_iplb + sizeof(IplParameterBlock);
+    memcpy((QemuIplParameters *)QIPL_ADDRESS, &qipl, sizeof(QemuIplParameters));
+
+    return true;
+}
+
 #endif /* IPLB_H */

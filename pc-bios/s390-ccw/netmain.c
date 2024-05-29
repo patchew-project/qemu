@@ -36,6 +36,7 @@
 #include "cio.h"
 #include "virtio.h"
 #include "s390-time.h"
+#include "iplb.h"
 
 #define DEFAULT_BOOT_RETRIES 10
 #define DEFAULT_TFTP_RETRIES 20
@@ -51,6 +52,7 @@ void write_iplb_location(void) {}
 #define STSI322_VMDB_UUID_OFFSET ((8 + 12) * 4)
 
 IplParameterBlock iplb __attribute__((aligned(PAGE_SIZE)));
+QemuIplParameters qipl;
 static char cfgbuf[2048];
 
 static SubChannelId net_schid = { .one = 1 };
@@ -513,6 +515,8 @@ void main(void)
 {
     filename_ip_t fn_ip;
     int rc, fnlen;
+    QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
+    memcpy(&qipl, early_qipl, sizeof(QemuIplParameters));
 
     sclp_setup();
     sclp_print("Network boot starting...\n");
