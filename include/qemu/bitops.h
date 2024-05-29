@@ -149,6 +149,39 @@ static inline int test_bit(long nr, const unsigned long *addr)
 }
 
 /**
+ * find_bits_changed - Returns a mask of bits changed.
+ * @ref_bits: the reference bits against which the test is made.
+ * @chk_bits: the bits to be checked.
+ */
+static inline unsigned long find_bits_changed(unsigned long ref_bits,
+                                              unsigned long chk_bits)
+{
+    return ref_bits ^ chk_bits;
+}
+
+/**
+ * find_bits_to_1 - Returns a mask of bits changed from 0 to 1.
+ * @ref_bits: the reference bits against which the test is made.
+ * @chk_bits: the bits to be checked.
+ */
+static inline unsigned long find_bits_to_1(unsigned long ref_bits,
+                                           unsigned long chk_bits)
+{
+    return find_bits_changed(ref_bits, chk_bits) & chk_bits;
+}
+
+/**
+ * find_bits_to_0 - Returns a mask of bits changed from 1 to 0.
+ * @ref_bits: the reference bits against which the test is made.
+ * @chk_bits: the bits to be checked.
+ */
+static inline unsigned long find_bits_to_0(unsigned long ref_bits,
+                                           unsigned long chk_bits)
+{
+    return find_bits_to_1(chk_bits, ref_bits);
+}
+
+/**
  * find_last_bit - find the last set bit in a memory region
  * @addr: The address to start the search at
  * @size: The maximum size to search
