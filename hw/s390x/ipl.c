@@ -706,9 +706,14 @@ int s390_ipl_prepare_pv_header(Error **errp)
 {
     IplParameterBlock *ipib = s390_ipl_get_iplb_pv();
     IPLBlockPV *ipib_pv = &ipib->pv;
-    void *hdr = g_malloc(ipib_pv->pv_header_len);
+    void *hdr;
     int rc;
 
+    if (!ipib_pv) {
+        return -1;
+    }
+
+    hdr = g_malloc(ipib_pv->pv_header_len);
     cpu_physical_memory_read(ipib_pv->pv_header_addr, hdr,
                              ipib_pv->pv_header_len);
     rc = s390_pv_set_sec_parms((uintptr_t)hdr, ipib_pv->pv_header_len, errp);
@@ -721,6 +726,10 @@ int s390_ipl_pv_unpack(void)
     IplParameterBlock *ipib = s390_ipl_get_iplb_pv();
     IPLBlockPV *ipib_pv = &ipib->pv;
     int i, rc = 0;
+
+    if (!ipib_pv) {
+        return -1;
+    }
 
     for (i = 0; i < ipib_pv->num_comp; i++) {
         rc = s390_pv_unpack(ipib_pv->components[i].addr,
