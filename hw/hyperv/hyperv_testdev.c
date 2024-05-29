@@ -190,9 +190,10 @@ static void msg_conn_destroy(HypervTestDev *dev, uint8_t conn_id)
     assert(false);
 }
 
-static void evt_conn_handler(EventNotifier *notifier)
+static void evt_conn_handler(void *notifier)
 {
-    TestEvtConn *conn = container_of(notifier, TestEvtConn, notifier);
+    TestEvtConn *conn = container_of((EventNotifier *)notifier, TestEvtConn,
+                                     notifier);
 
     event_notifier_test_and_clear(notifier);
 

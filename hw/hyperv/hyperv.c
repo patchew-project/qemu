@@ -329,10 +329,10 @@ int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *src_msg)
     return 0;
 }
 
-static void sint_ack_handler(EventNotifier *notifier)
+static void sint_ack_handler(void *notifier)
 {
-    HvSintRoute *sint_route = container_of(notifier, HvSintRoute,
-                                           sint_ack_notifier);
+    HvSintRoute *sint_route = container_of((EventNotifier *)notifier,
+                                           HvSintRoute, sint_ack_notifier);
     event_notifier_test_and_clear(notifier);
 
     /*

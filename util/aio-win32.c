@@ -28,7 +28,7 @@ struct AioHandler {
     EventNotifier *e;
     IOHandler *io_read;
     IOHandler *io_write;
-    EventNotifierHandler *io_notify;
+    IOHandler *io_notify;
     GPollFD pfd;
     int deleted;
     void *opaque;
@@ -132,9 +132,9 @@ void aio_set_fd_handler(AioContext *ctx,
 
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *e,
-                            EventNotifierHandler *io_notify,
+                            IOHandler *io_notify,
                             AioPollFn *io_poll,
-                            EventNotifierHandler *io_poll_ready)
+                            IOHandler *io_poll_ready)
 {
     AioHandler *node;
 
@@ -171,8 +171,8 @@ void aio_set_event_notifier(AioContext *ctx,
 
 void aio_set_event_notifier_poll(AioContext *ctx,
                                  EventNotifier *notifier,
-                                 EventNotifierHandler *io_poll_begin,
-                                 EventNotifierHandler *io_poll_end)
+                                 IOHandler *io_poll_begin,
+                                 IOHandler *io_poll_end)
 {
     /* Not implemented */
 }

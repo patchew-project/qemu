@@ -351,9 +351,10 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
  *
  * @n: guest kick event notifier, the one that guest set to notify svq.
  */
-static void vhost_handle_guest_kick_notifier(EventNotifier *n)
+static void vhost_handle_guest_kick_notifier(void *n)
 {
-    VhostShadowVirtqueue *svq = container_of(n, VhostShadowVirtqueue, svq_kick);
+    VhostShadowVirtqueue *svq = container_of((EventNotifier *)n,
+                                             VhostShadowVirtqueue, svq_kick);
     event_notifier_test_and_clear(n);
     vhost_handle_guest_kick(svq);
 }
@@ -556,10 +557,10 @@ size_t vhost_svq_poll(VhostShadowVirtqueue *svq, size_t num)
  * Note that we are not making any buffers available in the loop, there is no
  * way that it runs more than virtqueue size times.
  */
-static void vhost_svq_handle_call(EventNotifier *n)
+static void vhost_svq_handle_call(void *n)
 {
-    VhostShadowVirtqueue *svq = container_of(n, VhostShadowVirtqueue,
-                                             hdev_call);
+    VhostShadowVirtqueue *svq = container_of((EventNotifier *)n,
+                                             VhostShadowVirtqueue, hdev_call);
     event_notifier_test_and_clear(n);
     vhost_svq_flush(svq, true);
 }

@@ -1273,9 +1273,9 @@ void vmbus_free_req(void *req)
     g_free(req);
 }
 
-static void channel_event_cb(EventNotifier *e)
+static void channel_event_cb(void *e)
 {
-    VMBusChannel *chan = container_of(e, VMBusChannel, notifier);
+    VMBusChannel *chan = container_of((EventNotifier *)e, VMBusChannel, notifier);
     if (event_notifier_test_and_clear(e)) {
         /*
          * All receives are supposed to happen within the device worker, so
@@ -2225,10 +2225,10 @@ static void vmbus_resched(VMBus *vmbus)
     aio_bh_schedule_oneshot(qemu_get_aio_context(), vmbus_run, vmbus);
 }
 
-static void vmbus_signal_event(EventNotifier *e)
+static void vmbus_signal_event(void *e)
 {
     VMBusChannel *chan;
-    VMBus *vmbus = container_of(e, VMBus, notifier);
+    VMBus *vmbus = container_of((EventNotifier *)e, VMBus, notifier);
     unsigned long *int_map;
     hwaddr addr, len;
     bool is_dirty = false;

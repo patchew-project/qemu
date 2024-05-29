@@ -28,7 +28,7 @@ typedef struct {
     bool nested;
 } TestData;
 
-static void io_read(EventNotifier *notifier)
+static void io_read(void *notifier)
 {
     event_notifier_test_and_clear(notifier);
 }
@@ -43,9 +43,9 @@ static bool io_poll_false(void *opaque)
     return false;
 }
 
-static void io_poll_ready(EventNotifier *notifier)
+static void io_poll_ready(void *notifier)
 {
-    TestData *td = container_of(notifier, TestData, poll_notifier);
+    TestData *td = container_of((EventNotifier *)notifier, TestData, poll_notifier);
 
     g_assert(!td->nested);
     td->nested = true;
@@ -60,7 +60,7 @@ static void io_poll_ready(EventNotifier *notifier)
 }
 
 /* dummy_notifier never triggers */
-static void io_poll_never_ready(EventNotifier *notifier)
+static void io_poll_never_ready(void *notifier)
 {
     g_assert_not_reached();
 }

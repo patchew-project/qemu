@@ -92,9 +92,9 @@ static void win32_aio_process_completion(QEMUWin32AIOState *s,
     qemu_aio_unref(waiocb);
 }
 
-static void win32_aio_completion_cb(EventNotifier *e)
+static void win32_aio_completion_cb(void *e)
 {
-    QEMUWin32AIOState *s = container_of(e, QEMUWin32AIOState, e);
+    QEMUWin32AIOState *s = container_of((EventNotifier *)e, QEMUWin32AIOState, e);
     DWORD count;
     ULONG_PTR key;
     OVERLAPPED *ov;

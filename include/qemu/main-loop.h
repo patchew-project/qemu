@@ -241,8 +241,7 @@ void qemu_set_fd_handler(int fd,
  * @handler: A level-triggered callback that is fired when @e
  * has been set.  @e is passed to it as a parameter.
  */
-void event_notifier_set_handler(EventNotifier *e,
-                                EventNotifierHandler *handler);
+void event_notifier_set_handler(EventNotifier *e, IOHandler *handler);
 
 GSource *iohandler_get_g_source(void);
 AioContext *iohandler_get_aio_context(void);

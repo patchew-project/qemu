@@ -1363,9 +1363,10 @@ static int vhost_virtqueue_set_busyloop_timeout(struct vhost_dev *dev,
     return 0;
 }
 
-static void vhost_virtqueue_error_notifier(EventNotifier *n)
+static void vhost_virtqueue_error_notifier(void *n)
 {
-    struct vhost_virtqueue *vq = container_of(n, struct vhost_virtqueue,
+    struct vhost_virtqueue *vq = container_of((EventNotifier *)n,
+                                              struct vhost_virtqueue,
                                               error_notifier);
     struct vhost_dev *dev = vq->dev;
     int index = vq - dev->vqs;

@@ -70,7 +70,7 @@ static void timer_test_cb(void *opaque)
     }
 }
 
-static void dummy_io_handler_read(EventNotifier *e)
+static void dummy_io_handler_read(void *e)
 {
 }
 
@@ -85,9 +85,10 @@ static void bh_delete_cb(void *opaque)
     }
 }
 
-static void event_ready_cb(EventNotifier *e)
+static void event_ready_cb(void *e)
 {
-    EventNotifierTestData *data = container_of(e, EventNotifierTestData, e);
+    EventNotifierTestData *data = container_of((EventNotifier *)e,
+                                               EventNotifierTestData, e);
     g_assert(event_notifier_test_and_clear(e));
     data->n++;
     if (data->active > 0) {
@@ -101,7 +102,7 @@ static void event_ready_cb(EventNotifier *e)
 /* Tests using aio_*.  */
 
 static void set_event_notifier(AioContext *nctx, EventNotifier *notifier,
-                               EventNotifierHandler *handler)
+                               IOHandler *handler)
 {
     aio_set_event_notifier(nctx, notifier, handler, NULL, NULL);
 }

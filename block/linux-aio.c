@@ -253,9 +253,9 @@ static void qemu_laio_completion_bh(void *opaque)
     qemu_laio_process_completions_and_submit(s);
 }
 
-static void qemu_laio_completion_cb(EventNotifier *e)
+static void qemu_laio_completion_cb(void *e)
 {
-    LinuxAioState *s = container_of(e, LinuxAioState, e);
+    LinuxAioState *s = container_of((EventNotifier *)e, LinuxAioState, e);
 
     if (event_notifier_test_and_clear(&s->e)) {
         qemu_laio_process_completions_and_submit(s);
@@ -271,7 +271,7 @@ static bool qemu_laio_poll_cb(void *opaque)
     return io_getevents_peek(s->ctx, &events);
 }
 
-static void qemu_laio_poll_ready(EventNotifier *opaque)
+static void qemu_laio_poll_ready(void *opaque)
 {
     EventNotifier *e = opaque;
     LinuxAioState *s = container_of(e, LinuxAioState, e);

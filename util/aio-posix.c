@@ -194,23 +194,21 @@ static void aio_set_fd_poll(AioContext *ctx, int fd,
 
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
-                            EventNotifierHandler *io_read,
+                            IOHandler *io_read,
                             AioPollFn *io_poll,
-                            EventNotifierHandler *io_poll_ready)
+                            IOHandler *io_poll_ready)
 {
     aio_set_fd_handler(ctx, event_notifier_get_fd(notifier),
-                       (IOHandler *)io_read, NULL, io_poll,
-                       (IOHandler *)io_poll_ready, notifier);
+                       io_read, NULL, io_poll, io_poll_ready, notifier);
 }
 
 void aio_set_event_notifier_poll(AioContext *ctx,
                                  EventNotifier *notifier,
-                                 EventNotifierHandler *io_poll_begin,
-                                 EventNotifierHandler *io_poll_end)
+                                 IOHandler *io_poll_begin,
+                                 IOHandler *io_poll_end)
 {
     aio_set_fd_poll(ctx, event_notifier_get_fd(notifier),
-                    (IOHandler *)io_poll_begin,
-                    (IOHandler *)io_poll_end);
+                    io_poll_begin, io_poll_end);
 }
 
 static bool poll_set_started(AioContext *ctx, AioHandlerList *ready_list,

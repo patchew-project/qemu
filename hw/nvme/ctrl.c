@@ -4486,9 +4486,9 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
     return NVME_INVALID_OPCODE | NVME_DNR;
 }
 
-static void nvme_cq_notifier(EventNotifier *e)
+static void nvme_cq_notifier(void *e)
 {
-    NvmeCQueue *cq = container_of(e, NvmeCQueue, notifier);
+    NvmeCQueue *cq = container_of((EventNotifier *)e, NvmeCQueue, notifier);
     NvmeCtrl *n = cq->ctrl;
 
     if (!event_notifier_test_and_clear(e)) {
@@ -4526,9 +4526,9 @@ static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
     return 0;
 }
 
-static void nvme_sq_notifier(EventNotifier *e)
+static void nvme_sq_notifier(void *e)
 {
-    NvmeSQueue *sq = container_of(e, NvmeSQueue, notifier);
+    NvmeSQueue *sq = container_of((EventNotifier *)e, NvmeSQueue, notifier);
 
     if (!event_notifier_test_and_clear(e)) {
         return;

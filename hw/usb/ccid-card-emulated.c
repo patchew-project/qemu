@@ -360,9 +360,10 @@ static void *event_thread(void *arg)
     return NULL;
 }
 
-static void card_event_handler(EventNotifier *notifier)
+static void card_event_handler(void *notifier)
 {
-    EmulatedState *card = container_of(notifier, EmulatedState, notifier);
+    EmulatedState *card = container_of((EventNotifier *)notifier,
+                                       EmulatedState, notifier);
     EmulEvent *event, *next;
 
     event_notifier_test_and_clear(&card->notifier);

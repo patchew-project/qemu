@@ -656,9 +656,9 @@ static void nvme_poll_queues(BDRVNVMeState *s)
     }
 }
 
-static void nvme_handle_event(EventNotifier *n)
+static void nvme_handle_event(void *n)
 {
-    BDRVNVMeState *s = container_of(n, BDRVNVMeState,
+    BDRVNVMeState *s = container_of((EventNotifier *)n, BDRVNVMeState,
                                     irq_notifier[MSIX_SHARED_IRQ_IDX]);
 
     trace_nvme_handle_event(s);
@@ -732,9 +732,9 @@ static bool nvme_poll_cb(void *opaque)
     return false;
 }
 
-static void nvme_poll_ready(EventNotifier *e)
+static void nvme_poll_ready(void *e)
 {
-    BDRVNVMeState *s = container_of(e, BDRVNVMeState,
+    BDRVNVMeState *s = container_of((EventNotifier *)e, BDRVNVMeState,
                                     irq_notifier[MSIX_SHARED_IRQ_IDX]);
 
     nvme_poll_queues(s);

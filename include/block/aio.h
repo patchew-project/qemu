@@ -476,9 +476,9 @@ void aio_set_fd_handler(AioContext *ctx,
  */
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
-                            EventNotifierHandler *io_read,
+                            IOHandler *io_read,
                             AioPollFn *io_poll,
-                            EventNotifierHandler *io_poll_ready);
+                            IOHandler *io_poll_ready);
 
 /*
  * Set polling begin/end callbacks for an event notifier that has already been
@@ -491,8 +491,8 @@ void aio_set_event_notifier(AioContext *ctx,
  */
 void aio_set_event_notifier_poll(AioContext *ctx,
                                  EventNotifier *notifier,
-                                 EventNotifierHandler *io_poll_begin,
-                                 EventNotifierHandler *io_poll_end);
+                                 IOHandler *io_poll_begin,
+                                 IOHandler *io_poll_end);
 
 /* Return a GSource that lets the main loop poll the file descriptors attached
  * to this AioContext.

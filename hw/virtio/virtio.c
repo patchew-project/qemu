@@ -3480,16 +3480,17 @@ uint16_t virtio_get_queue_index(VirtQueue *vq)
     return vq->queue_index;
 }
 
-static void virtio_queue_guest_notifier_read(EventNotifier *n)
+static void virtio_queue_guest_notifier_read(void *n)
 {
-    VirtQueue *vq = container_of(n, VirtQueue, guest_notifier);
+    VirtQueue *vq = container_of((EventNotifier *)n, VirtQueue, guest_notifier);
     if (event_notifier_test_and_clear(n)) {
         virtio_irq(vq);
     }
 }
-static void virtio_config_guest_notifier_read(EventNotifier *n)
+static void virtio_config_guest_notifier_read(void *n)
 {
-    VirtIODevice *vdev = container_of(n, VirtIODevice, config_notifier);
+    VirtIODevice *vdev = container_of((EventNotifier *)n, VirtIODevice,
+                                      config_notifier);
 
     if (event_notifier_test_and_clear(n)) {
         virtio_notify_config(vdev);
@@ -3533,9 +3534,10 @@ EventNotifier *virtio_queue_get_guest_notifier(VirtQueue *vq)
     return &vq->guest_notifier;
 }
 
-static void virtio_queue_host_notifier_aio_poll_begin(EventNotifier *n)
+static void virtio_queue_host_notifier_aio_poll_begin(void *n)
 {
-    VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
+    VirtQueue *vq = container_of((EventNotifier *)n, VirtQueue,
+                                 host_notifier);
 
     virtio_queue_set_notification(vq, 0);
 }
@@ -3548,16 +3550,16 @@ static bool virtio_queue_host_notifier_aio_poll(void *opaque)
     return vq->vring.desc && !virtio_queue_empty(vq);
 }
 
-static void virtio_queue_host_notifier_aio_poll_ready(EventNotifier *n)
+static void virtio_queue_host_notifier_aio_poll_ready(void *n)
 {
-    VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
+    VirtQueue *vq = container_of((EventNotifier *)n, VirtQueue, host_notifier);
 
     virtio_queue_notify_vq(vq);
 }
 
-static void virtio_queue_host_notifier_aio_poll_end(EventNotifier *n)
+static void virtio_queue_host_notifier_aio_poll_end(void *n)
 {
-    VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
+    VirtQueue *vq = container_of((EventNotifier *)n, VirtQueue, host_notifier);
 
     /* Caller polls once more after this to catch requests that race with us */
     virtio_queue_set_notification(vq, 1);
@@ -3634,9 +3636,9 @@ void virtio_queue_aio_detach_host_notifier(VirtQueue *vq, AioContext *ctx)
      */
 }
 
-void virtio_queue_host_notifier_read(EventNotifier *n)
+void virtio_queue_host_notifier_read(void *n)
 {
-    VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
+    VirtQueue *vq = container_of((EventNotifier *)n, VirtQueue, host_notifier);
     if (event_notifier_test_and_clear(n)) {
         virtio_queue_notify_vq(vq);
     }

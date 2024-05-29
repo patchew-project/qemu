@@ -520,9 +520,9 @@ static void aio_timerlist_notify(void *opaque, QEMUClockType type)
     aio_notify(opaque);
 }
 
-static void aio_context_notifier_cb(EventNotifier *e)
+static void aio_context_notifier_cb(void *e)
 {
-    AioContext *ctx = container_of(e, AioContext, notifier);
+    AioContext *ctx = container_of((EventNotifier *)e, AioContext, notifier);
 
     event_notifier_test_and_clear(&ctx->notifier);
 }
@@ -541,7 +541,7 @@ static bool aio_context_notifier_poll(void *opaque)
     return qatomic_read(&ctx->notified);
 }
 
-static void aio_context_notifier_poll_ready(EventNotifier *e)
+static void aio_context_notifier_poll_ready(void *e)
 {
     /* Do nothing, we just wanted to kick the event loop */
 }
