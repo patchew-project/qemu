@@ -43,6 +43,7 @@ typedef unsigned long long u64;
 #include "iplb.h"
 
 /* start.s */
+extern char _start[];
 void disabled_wait(void) __attribute__ ((__noreturn__));
 void consume_sclp_int(void);
 void consume_io_int(void);
@@ -88,6 +89,11 @@ __attribute__ ((__noreturn__))
 static inline void panic(const char *string)
 {
     sclp_print(string);
+    if (load_next_iplb()) {
+        sclp_print("\nTrying next boot device...");
+        jump_to_IPL_code((long)_start);
+    }
+
     disabled_wait();
 }
 
