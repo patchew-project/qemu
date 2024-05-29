@@ -770,6 +770,10 @@ static target_ulong h_change_logical_lan_mac(PowerPCCPU *cpu,
     SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
     int i;
 
+    if (!dev) {
+        return H_PARAMETER;
+    }
+
     for (i = 0; i < ETH_ALEN; i++) {
         dev->nicconf.macaddr.a[ETH_ALEN - i - 1] = macaddr & 0xff;
         macaddr >>= 8;
