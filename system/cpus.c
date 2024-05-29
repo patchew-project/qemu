@@ -477,11 +477,13 @@ void cpus_kick_thread(CPUState *cpu)
 
 void qemu_cpu_kick(CPUState *cpu)
 {
-    qemu_cond_broadcast(cpu->halt_cond);
-    if (cpus_accel->kick_vcpu_thread) {
-        cpus_accel->kick_vcpu_thread(cpu);
-    } else { /* default */
-        cpus_kick_thread(cpu);
+    if (cpu->halt_cond) {
+        qemu_cond_broadcast(cpu->halt_cond);
+        if (cpus_accel->kick_vcpu_thread) {
+            cpus_accel->kick_vcpu_thread(cpu);
+        } else { /* default */
+            cpus_kick_thread(cpu);
+        }
     }
 }
 
@@ -663,7 +665,10 @@ void qemu_init_vcpu(CPUState *cpu)
         cpu->num_ases = 1;
         cpu_address_space_init(cpu, 0, "cpu-memory", cpu->memory);
     }
+}
 
+void qemu_start_vcpu(CPUState *cpu)
+{
     /* accelerators all implement the AccelOpsClass */
     g_assert(cpus_accel != NULL && cpus_accel->create_vcpu_thread != NULL);
     cpus_accel->create_vcpu_thread(cpu);

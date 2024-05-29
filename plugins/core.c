@@ -65,6 +65,11 @@ static void plugin_cpu_update__locked(gpointer k, gpointer v, gpointer udata)
     CPUState *cpu = container_of(k, CPUState, cpu_index);
     run_on_cpu_data mask = RUN_ON_CPU_HOST_ULONG(*plugin.mask);
 
+    /*
+     * There is a race condition between the starting of the vCPU
+     * thread at the end of cpu_common_realizefn and when realized is
+     * finally set.
+     */
     if (DEVICE(cpu)->realized) {
         async_run_on_cpu(cpu, plugin_cpu_update__async, mask);
     } else {

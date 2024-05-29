@@ -18,6 +18,11 @@ void cpu_exec_reset_hold(CPUState *cpu)
 {
 }
 
+void qemu_start_vcpu(CPUState *cpu)
+{
+    /* NOP for user-mode, we already have a thread */
+}
+
 /* User mode emulation does not support record/replay yet.  */
 
 bool replay_exception(void)

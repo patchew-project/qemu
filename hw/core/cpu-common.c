@@ -230,7 +230,12 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    /* NOTE: latest generic point where the cpu is fully realized */
+    /*
+     * With everything set up we can finally start the vCPU thread.
+     * This is a NOP for linux-user.
+     * NOTE: latest generic point where the cpu is fully realized
+     */
+    qemu_start_vcpu(cpu);
 }
 
 static void cpu_common_unrealizefn(DeviceState *dev)

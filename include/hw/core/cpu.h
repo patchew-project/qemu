@@ -1041,6 +1041,14 @@ void end_exclusive(void);
  */
 void qemu_init_vcpu(CPUState *cpu);
 
+/**
+ * qemu_start_vcpu:
+ * @cpu: The vCPU to start.
+ *
+ * Create the vCPU thread and start it running.
+ */
+void qemu_start_vcpu(CPUState *cpu);
+
 #define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
 #define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
 #define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
