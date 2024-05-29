@@ -193,6 +193,10 @@ static void qio_channel_socket_connect_worker(QIOTask *task,
     qio_task_set_error(task, err);
 }
 
+static void qio_qapi_free_SocketAddress(gpointer sa)
+{
+    qapi_free_SocketAddress(sa);
+}
 
 void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
                                       SocketAddress *addr,
@@ -213,7 +217,7 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
     qio_task_run_in_thread(task,
                            qio_channel_socket_connect_worker,
                            addrCopy,
-                           (GDestroyNotify)qapi_free_SocketAddress,
+                           qio_qapi_free_SocketAddress,
                            context);
 }
 
