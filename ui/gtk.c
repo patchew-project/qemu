@@ -600,9 +600,12 @@ void gd_hw_gl_flushed(void *vcon)
 
     fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
     if (fence_fd >= 0) {
+        void *sync = qemu_dmabuf_get_sync(dmabuf);
         qemu_set_fd_handler(fence_fd, NULL, NULL, NULL);
         close(fence_fd);
         qemu_dmabuf_set_fence_fd(dmabuf, -1);
+        eglDestroySyncKHR(qemu_egl_display, sync);
+        qemu_dmabuf_set_sync(dmabuf, NULL);
         graphic_hw_gl_block(vc->gfx.dcl.con, false);
     }
 }
@@ -682,6 +685,22 @@ static const DisplayGLCtxOps egl_ctx_ops = {
 static void gd_change_runstate(void *opaque, bool running, RunState state)
 {
     GtkDisplayState *s = opaque;
+    QemuDmaBuf *dmabuf;
+    int i;
+
+    if (state == RUN_STATE_SAVE_VM) {
+        for (i = 0; i < s->nb_vcs; i++) {
+            VirtualConsole *vc = &s->vc[i];
+            dmabuf = vc->gfx.guest_fb.dmabuf;
+            if (dmabuf && qemu_dmabuf_get_fence_fd(dmabuf) >= 0) {
+                /* wait for the rendering to be completed */
+                eglClientWaitSync(qemu_egl_display,
+                                  qemu_dmabuf_get_sync(dmabuf),
+                                  EGL_SYNC_FLUSH_COMMANDS_BIT_KHR,
+                                  1000000000);
+            }
+        }
+    }
 
     gd_update_caption(s);
 }
