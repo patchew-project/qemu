@@ -101,6 +101,10 @@ static void qom_list_types_tramp(ObjectClass *klass, void *data)
     if (parent) {
         info->parent = g_strdup(object_class_get_name(parent));
     }
+    if (klass->deprecation_note) {
+        info->has_deprecated = true;
+        info->deprecated = true;
+    }
 
     QAPI_LIST_PREPEND(*pret, info);
 }

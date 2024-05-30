@@ -136,6 +136,7 @@ struct ObjectClass
     ObjectUnparent *unparent;
 
     GHashTable *properties;
+    const char *deprecation_note;
 };
 
 /**
