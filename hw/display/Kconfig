@@ -11,7 +11,6 @@ config FW_CFG_DMA
 
 config VGA_CIRRUS
     bool
-    default y if PCI_DEVICES
     depends on PCI
     select VGA
 
