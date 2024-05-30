@@ -38,7 +38,7 @@ class LoongArchMachine(QemuSystemTest):
 
         bios_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
                     'releases/download/binary-files/QEMU_EFI.fd')
-        bios_hash = ('dfc1bfba4853cd763b9d392d0031827e8addbca8')
+        bios_hash = ('f4d0966b5117d4cd82327c050dd668741046be69')
         bios_path = self.fetch_asset(bios_url, asset_hash=bios_hash)
 
         self.vm.set_console()
