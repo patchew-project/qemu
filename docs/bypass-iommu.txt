@@ -68,6 +68,12 @@ devices might send malicious dma request to virtual machine if there is no
 iommu isolation. So it would be necessary to only bypass iommu for trusted
 device.
 
+When Intel IOMMU is virtualized, if irq remapping is enabled, PCI and PCIe
+devices that bypassed vIOMMU will have their MSI/MSI-x functionality disabled
+and fall back to IOAPIC under Linux x86_64 guest. If this is not desired,
+disable irq remapping with:
+qemu -device intel-iommu,intremap=off
+
 Implementation
 ==============
 The bypass iommu feature includes:
