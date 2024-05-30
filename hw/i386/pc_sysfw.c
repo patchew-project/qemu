@@ -125,21 +125,10 @@ void pc_system_flash_cleanup_unused(PCMachineState *pcms)
     }
 }
 
-/*
- * Map the pcms->flash[] from 4GiB downward, and realize.
- * Map them in descending order, i.e. pcms->flash[0] at the top,
- * without gaps.
- * Stop at the first pcms->flash[0] lacking a block backend.
- * Set each flash's size from its block backend.  Fatal error if the
- * size isn't a non-zero multiple of 4KiB, or the total size exceeds
- * pcms->max_fw_size.
- *
- * If pcms->flash[0] has a block backend, its memory is passed to
- * pc_isa_bios_init().  Merging several flash devices for isa-bios is
- * not supported.
- */
-static void pc_system_flash_map(PCMachineState *pcms,
-                                MemoryRegion *rom_memory)
+static void pc_system_flash_map_partial(PCMachineState *pcms,
+                                        MemoryRegion *rom_memory,
+                                        hwaddr offset,
+                                        bool storage_only)
 {
     X86MachineState *x86ms = X86_MACHINE(pcms);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
@@ -153,6 +142,8 @@ static void pc_system_flash_map(PCMachineState *pcms,
     int flash_size;
 
     assert(PC_MACHINE_GET_CLASS(pcms)->pci_enabled);
+
+    total_size = offset;
 
     for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
         hwaddr gpa;
@@ -192,7 +183,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
         sysbus_realize_and_unref(SYS_BUS_DEVICE(system_flash), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(system_flash), 0, gpa);
 
-        if (i == 0) {
+        if (i == 0 && !storage_only) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
             if (pcmc->isa_bios_alias) {
                 x86_isa_bios_init(&x86ms->isa_bios, rom_memory, flash_mem,
@@ -209,6 +200,25 @@ static void pc_system_flash_map(PCMachineState *pcms,
             }
         }
     }
+}
+
+/*
+ * Map the pcms->flash[] from 4GiB downward, and realize.
+ * Map them in descending order, i.e. pcms->flash[0] at the top,
+ * without gaps.
+ * Stop at the first pcms->flash[0] lacking a block backend.
+ * Set each flash's size from its block backend.  Fatal error if the
+ * size isn't a non-zero multiple of 4KiB, or the total size exceeds
+ * pcms->max_fw_size.
+ *
+ * If pcms->flash[0] has a block backend, its memory is passed to
+ * pc_isa_bios_init().  Merging several flash devices for isa-bios is
+ * not supported.
+ */
+static void pc_system_flash_map(PCMachineState *pcms,
+                                MemoryRegion *rom_memory)
+{
+    pc_system_flash_map_partial(pcms, rom_memory, 0, false);
 }
 
 void pc_system_firmware_init(PCMachineState *pcms,
@@ -238,9 +248,12 @@ void pc_system_firmware_init(PCMachineState *pcms,
         }
     }
 
-    if (!pflash_blk[0]) {
+    if (!pflash_blk[0] || sev_snp_enabled()) {
         /* Machine property pflash0 not set, use ROM mode */
         x86_bios_rom_init(X86_MACHINE(pcms), "bios.bin", rom_memory, false);
+        if (sev_snp_enabled()) {
+            pc_system_flash_map_partial(pcms, rom_memory, 3653632, true);
+        }
     } else {
         if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
             /*
