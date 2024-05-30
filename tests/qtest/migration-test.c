@@ -3502,15 +3502,7 @@ int main(int argc, char **argv)
                        test_precopy_file_offset);
     migration_test_add("/migration/precopy/file/offset/bad",
                        test_precopy_file_offset_bad);
-
-    /*
-     * Our CI system has problems with shared memory.
-     * Don't run this test until we find a workaround.
-     */
-    if (getenv("QEMU_TEST_FLAKY_TESTS")) {
-        migration_test_add("/migration/mode/reboot", test_mode_reboot);
-    }
-
+    migration_test_add("/migration/mode/reboot", test_mode_reboot);
     migration_test_add("/migration/precopy/file/mapped-ram",
                        test_precopy_file_mapped_ram);
     migration_test_add("/migration/precopy/file/mapped-ram/live",
