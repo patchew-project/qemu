@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 
 #include "libqtest.h"
 #include "qapi/qmp/qdict.h"
@@ -574,6 +575,7 @@ typedef struct {
      */
     bool hide_stderr;
     bool use_memfile;
+    bool use_shm_memfile;
     /* only launch the target process */
     bool only_target;
     /* Use dirty ring if true; dirty logging otherwise */
@@ -762,7 +764,62 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         ignore_stderr = "";
     }
 
-    if (args->use_memfile) {
+    if (!qtest_has_machine(machine_alias)) {
+        g_autofree char *msg = g_strdup_printf("machine %s not supported",
+                                               machine_alias);
+        g_test_skip(msg);
+        return -1;
+    }
+
+    if (args->use_shm_memfile) {
+#if defined(__NR_userfaultfd) && defined(__linux__)
+        int fd;
+        uint64_t size;
+
+        if (getenv("GITLAB_CI")) {
+            /*
+             * Gitlab runners are limited to 64MB shm size and despite
+             * pre-allocation there is concern that concurrent tests
+             * could result in nondeterministic failures. Until all shm
+             * usage in all CI tests is found to fail gracefully on
+             * ENOSPC, it is safer to avoid large allocations for now.
+             *
+             * https://lore.kernel.org/qemu-devel/875xuwg4mx.fsf@suse.de/
+             */
+            g_test_skip("shm tests are not supported in Gitlab CI environment");
+            return -1;
+        }
+
+        if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
+            g_test_skip("/dev/shm does not exist or is not a directory");
+            return -1;
+        }
+
+        /*
+         * Pre-create and allocate the file here, because /dev/shm/
+         * is known to be limited in size in some places (e.g., Gitlab CI).
+         */
+        memfile_path = g_strdup_printf("/dev/shm/qemu-%d", getpid());
+        fd = open(memfile_path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+        if (fd == -1) {
+            g_test_skip("/dev/shm file could not be created");
+            return -1;
+        }
+
+        g_assert(qemu_strtosz(memory_size, NULL, &size) == 0);
+        size += 64*1024; /* QEMU may map a bit more memory for a guard page */
+
+        if (fallocate(fd, 0, 0, size) == -1) {
+            unlink(memfile_path);
+            perror("could not alloc"); exit(1);
+            g_test_skip("Could not allocate machine memory in /dev/shm");
+            return -1;
+        }
+        close(fd);
+#else
+        g_test_skip("userfaultfd is not supported");
+#endif
+    } else if (args->use_memfile) {
         memfile_path = g_strdup_printf("/%s/qemu-%d", tmpfs, getpid());
         memfile_opts = g_strdup_printf(
             "-object memory-backend-file,id=mem0,size=%s"
@@ -772,12 +829,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
 
     if (args->use_dirty_ring) {
         kvm_opts = ",dirty-ring-size=4096";
-    }
-
-    if (!qtest_has_machine(machine_alias)) {
-        g_autofree char *msg = g_strdup_printf("machine %s not supported", machine_alias);
-        g_test_skip(msg);
-        return -1;
     }
 
     machine = resolve_machine_version(machine_alias, QEMU_ENV_SRC,
@@ -830,7 +881,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
      * Remove shmem file immediately to avoid memory leak in test failed case.
      * It's valid because QEMU has already opened this file
      */
-    if (args->use_memfile) {
+    if (args->use_memfile || args->use_shm_memfile) {
         unlink(memfile_path);
     }
 
@@ -1294,6 +1345,15 @@ static void test_postcopy_common(MigrateCommon *args)
 static void test_postcopy(void)
 {
     MigrateCommon args = { };
+
+    test_postcopy_common(&args);
+}
+
+static void test_postcopy_memfile(void)
+{
+    MigrateCommon args = {
+        .start.use_shm_memfile = true,
+    };
 
     test_postcopy_common(&args);
 }
@@ -3474,6 +3534,7 @@ int main(int argc, char **argv)
 
     if (has_uffd) {
         migration_test_add("/migration/postcopy/plain", test_postcopy);
+        migration_test_add("/migration/postcopy/memfile", test_postcopy_memfile);
         migration_test_add("/migration/postcopy/recovery/plain",
                            test_postcopy_recovery);
         migration_test_add("/migration/postcopy/preempt/plain",
