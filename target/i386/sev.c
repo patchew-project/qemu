@@ -893,12 +893,12 @@ out:
 
 static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
-    SevCommonState *sev_common = SEV_COMMON(cgs);
     char *devname;
     int ret, fw_error, cmd;
     uint32_t ebx;
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
+    SevCommonState *sev_common = SEV_COMMON(cgs);
     SevCommonStateClass *klass = SEV_COMMON_GET_CLASS(cgs);
 
     sev_common->state = SEV_STATE_UNINIT;
@@ -1034,6 +1034,23 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
      * the notifier for SNP in favor of using guest attestation instead.
      */
     qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
+
+    return 0;
+}
+
+static int sev_snp_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    X86MachineState *x86ms = X86_MACHINE(ms);
+
+    if (x86ms->smm == ON_OFF_AUTO_AUTO) {
+        x86ms->smm = ON_OFF_AUTO_OFF;
+    } else if (x86ms->smm == ON_OFF_AUTO_ON) {
+        error_setg(errp, "SEV-SNP does not support SMM.");
+        ram_block_discard_disable(false);
+        return -1;
+    }
+    ms->require_guest_memfd = true;
 
     return 0;
 }
@@ -1761,6 +1778,10 @@ sev_snp_guest_set_host_data(Object *obj, const char *value, Error **errp)
 static void
 sev_snp_guest_class_init(ObjectClass *oc, void *data)
 {
+    SevCommonStateClass *klass = SEV_COMMON_CLASS(oc);
+
+    klass->kvm_init = sev_snp_kvm_init;
+
     object_class_property_add(oc, "policy", "uint64",
                               sev_snp_guest_get_policy,
                               sev_snp_guest_set_policy, NULL, NULL);
