@@ -1109,6 +1109,14 @@ snp_launch_update_data(uint64_t gpa, void *hva,
 }
 
 static int
+sev_snp_launch_update_data(hwaddr gpa, uint8_t *ptr, uint64_t len)
+{
+       int ret = snp_launch_update_data(gpa, ptr, len,
+                                         KVM_SEV_SNP_PAGE_TYPE_NORMAL);
+       return ret;
+}
+
+static int
 sev_snp_cpuid_info_fill(SnpCpuidInfo *snp_cpuid_info,
                         const KvmCpuidInfo *kvm_cpuid_info)
 {
@@ -2282,6 +2290,7 @@ sev_snp_guest_class_init(ObjectClass *oc, void *data)
 
     klass->launch_start = sev_snp_launch_start;
     klass->launch_finish = sev_snp_launch_finish;
+    klass->launch_update_data = sev_snp_launch_update_data;
     klass->kvm_init = sev_snp_kvm_init;
     x86_klass->kvm_type = sev_snp_kvm_type;
 
