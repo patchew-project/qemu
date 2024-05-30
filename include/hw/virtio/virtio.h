@@ -165,6 +165,9 @@ struct VirtIODevice
      */
     EventNotifier config_notifier;
     bool device_iotlb_enabled;
+    /* Shared memory region for vhost-user mappings. */
+    MemoryRegion *shmem_list;
+    int n_shmem_regions;
 };
 
 struct VirtioDeviceClass {
