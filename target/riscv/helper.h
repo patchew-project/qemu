@@ -1,6 +1,10 @@
 /* Exceptions */
 DEF_HELPER_2(raise_exception, noreturn, env, i32)
 
+/* Probe page */
+DEF_HELPER_FLAGS_3(check_probe_read, TCG_CALL_NO_WG, void, env, tl, tl)
+DEF_HELPER_FLAGS_3(check_probe_write, TCG_CALL_NO_WG, void, env, tl, tl)
+
 /* Floating Point - rounding mode */
 DEF_HELPER_FLAGS_2(set_rounding_mode, TCG_CALL_NO_WG, void, env, i32)
 DEF_HELPER_FLAGS_2(set_rounding_mode_chkfrm, TCG_CALL_NO_WG, void, env, i32)

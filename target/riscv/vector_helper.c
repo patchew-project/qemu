@@ -136,6 +136,18 @@ static void probe_pages(CPURISCVState *env, target_ulong addr,
     }
 }
 
+void HELPER(check_probe_read)(CPURISCVState *env, target_ulong addr,
+                              target_ulong len)
+{
+    probe_pages(env, addr, len, GETPC(), MMU_DATA_LOAD);
+}
+
+void HELPER(check_probe_write)(CPURISCVState *env, target_ulong addr,
+                               target_ulong len)
+{
+    probe_pages(env, addr, len, GETPC(), MMU_DATA_STORE);
+}
+
 static inline void vext_set_elem_mask(void *v0, int index,
                                       uint8_t value)
 {
