@@ -57,7 +57,19 @@ int qemu_madvise(void *addr, size_t len, int advice)
 #if defined(CONFIG_MADVISE)
     return madvise(addr, len, advice);
 #elif defined(CONFIG_POSIX_MADVISE)
-    return posix_madvise(addr, len, advice);
+    /*
+     * On Darwin posix_madvise() has the same return semantics as
+     * plain madvise, i.e. errno is set and -1 is returned. Otherwise,
+     * a positive error number is returned.
+     */
+    int rc = posix_madvise(addr, len, advice);
+    if (rc) {
+        if (rc > 0) {
+            errno = rc;
+        }
+        return -1;
+    }
+    return 0;
 #else
     errno = EINVAL;
     return -1;
