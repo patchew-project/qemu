@@ -509,7 +509,7 @@
 ##
 # @ChardevHostdevWrapper:
 #
-# @data: Configuration info for device and pipe chardevs
+# @data: Configuration info for device, pty and pipe chardevs
 #
 # Since: 1.4
 ##
@@ -650,7 +650,7 @@
             'pipe': 'ChardevHostdevWrapper',
             'socket': 'ChardevSocketWrapper',
             'udp': 'ChardevUdpWrapper',
-            'pty': 'ChardevCommonWrapper',
+            'pty': 'ChardevHostdevWrapper',
             'null': 'ChardevCommonWrapper',
             'mux': 'ChardevMuxWrapper',
             'msmouse': 'ChardevCommonWrapper',
