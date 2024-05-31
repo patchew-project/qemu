@@ -700,7 +700,105 @@ static bool ld_us_check(DisasContext *s, arg_r2nfvm* a, uint8_t eew)
            vext_check_load(s, a->rd, a->nf, a->vm, eew);
 }
 
-GEN_VEXT_TRANS(vle8_v,  MO_8,  r2nfvm, ld_us_op, ld_us_check)
+static bool trans_vle8_v(DisasContext *s, arg_r2nfvm * a)
+{
+
+    if (ld_us_check(s, a, MO_8)) {
+        if (!HOST_BIG_ENDIAN && s->vstart_eq_zero && s->vta == 0 && a->vm) {
+            uint32_t vofs = vreg_ofs(s, a->rd);
+            uint32_t midx = s->mem_idx;
+
+            TCGv_i64 t0, t1;
+            TCGv_i128 t16;
+            TCGv_ptr tp;
+            TCGv_ptr i = tcg_temp_new_ptr();
+            TCGv len_remain = tcg_temp_new();
+            TCGv rs1 = get_gpr(s, a->rs1, EXT_NONE);
+            TCGv addr = tcg_temp_new();
+
+            TCGLabel *loop_128 = gen_new_label();
+            TCGLabel *remain_64 = gen_new_label();
+            TCGLabel *remain_32 = gen_new_label();
+            TCGLabel *remain_16 = gen_new_label();
+            TCGLabel *remain_8 = gen_new_label();
+            TCGLabel *over = gen_new_label();
+
+            tcg_gen_mov_tl(addr, rs1);
+            tcg_gen_mov_tl(len_remain, cpu_vl);
+            tcg_gen_muli_tl(len_remain, len_remain, a->nf);
+            tcg_gen_movi_ptr(i, 0);
+
+            tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
+            gen_helper_check_probe_read(tcg_env, addr, len_remain);
+
+            tcg_gen_brcondi_tl(TCG_COND_LTU, len_remain, 16, remain_64);
+
+            gen_set_label(loop_128);
+
+            t16 = tcg_temp_new_i128();
+            tcg_gen_qemu_ld_i128(t16, addr, midx,
+                                 MO_LE | MO_128 | MO_ATOM_NONE);
+            tcg_gen_addi_tl(addr, addr, 16);
+
+            tp = tcg_temp_new_ptr();
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_addi_ptr(i, i, 16);
+
+            t0 = tcg_temp_new_i64();
+            t1 = tcg_temp_new_i64();
+            tcg_gen_extr_i128_i64(t0, t1, t16);
+
+            tcg_gen_st_i64(t0, tp, vofs);
+            tcg_gen_st_i64(t1, tp, vofs + 8);
+            tcg_gen_subi_tl(len_remain, len_remain, 16);
+
+            tcg_gen_brcondi_tl(TCG_COND_GEU, len_remain, 16, loop_128);
+
+            gen_set_label(remain_64);
+            tcg_gen_brcondi_tl(TCG_COND_LTU, len_remain, 8, remain_32);
+            tcg_gen_qemu_ld_i64(t0, addr, midx, MO_LEUQ | MO_ATOM_NONE);
+            tcg_gen_addi_tl(addr, addr, 8);
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_addi_ptr(i, i, 8);
+            tcg_gen_st_i64(t0, tp, vofs);
+            tcg_gen_subi_tl(len_remain, len_remain, 8);
+
+            gen_set_label(remain_32);
+            tcg_gen_brcondi_tl(TCG_COND_LTU, len_remain, 4, remain_16);
+            tcg_gen_qemu_ld_i64(t0, addr, midx, MO_LEUL | MO_ATOM_NONE);
+            tcg_gen_addi_tl(addr, addr, 4);
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_addi_ptr(i, i, 4);
+            tcg_gen_st32_i64(t0, tp, vofs);
+            tcg_gen_subi_tl(len_remain, len_remain, 4);
+
+            gen_set_label(remain_16);
+            tcg_gen_brcondi_tl(TCG_COND_LTU, len_remain, 2, remain_8);
+            tcg_gen_qemu_ld_i64(t0, addr, midx, MO_LEUW | MO_ATOM_NONE);
+            tcg_gen_addi_tl(addr, addr, 2);
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_addi_ptr(i, i, 2);
+            tcg_gen_st16_i64(t0, tp, vofs);
+            tcg_gen_subi_tl(len_remain, len_remain, 2);
+
+            gen_set_label(remain_8);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, len_remain, 0, over);
+            tcg_gen_qemu_ld_i64(t0, addr, midx,
+                                MO_LE | MO_8 | MO_ATOM_NONE);
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_st8_i64(t0, tp, vofs);
+
+            gen_set_label(over);
+
+            finalize_rvv_inst(s);
+        } else {
+            return ld_us_op(s, a, MO_8);
+        }
+        return true;
+    }
+    return false;
+}
+
 GEN_VEXT_TRANS(vle16_v, MO_16, r2nfvm, ld_us_op, ld_us_check)
 GEN_VEXT_TRANS(vle32_v, MO_32, r2nfvm, ld_us_op, ld_us_check)
 GEN_VEXT_TRANS(vle64_v, MO_64, r2nfvm, ld_us_op, ld_us_check)
@@ -771,7 +869,102 @@ static bool st_us_check(DisasContext *s, arg_r2nfvm* a, uint8_t eew)
            vext_check_store(s, a->rd, a->nf, eew);
 }
 
-GEN_VEXT_TRANS(vse8_v,  MO_8,  r2nfvm, st_us_op, st_us_check)
+static bool trans_vse8_v(DisasContext *s, arg_r2nfvm * a)
+{
+    if (st_us_check(s, a, MO_8)) {
+        if (!HOST_BIG_ENDIAN && s->vstart_eq_zero && s->vta == 0 && a->vm) {
+            uint32_t vofs = vreg_ofs(s, a->rd);
+            uint32_t midx = s->mem_idx;
+
+            TCGv_i64 t0, t1;
+            TCGv_i128 t16;
+            TCGv_ptr tp;
+            TCGv_ptr i = tcg_temp_new_ptr();
+            TCGv len_remain = tcg_temp_new();
+            TCGv rs1 = get_gpr(s, a->rs1, EXT_NONE);
+            TCGv addr = tcg_temp_new();
+
+            TCGLabel *loop_128 = gen_new_label();
+            TCGLabel *remain_64 = gen_new_label();
+            TCGLabel *remain_32 = gen_new_label();
+            TCGLabel *remain_16 = gen_new_label();
+            TCGLabel *remain_8 = gen_new_label();
+            TCGLabel *over = gen_new_label();
+
+            tcg_gen_mov_tl(addr, rs1);
+            tcg_gen_mov_tl(len_remain, cpu_vl);
+            tcg_gen_muli_tl(len_remain, len_remain, a->nf);
+            tcg_gen_movi_ptr(i, 0);
+
+            tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
+            gen_helper_check_probe_write(tcg_env, addr, len_remain);
+
+            tcg_gen_brcondi_tl(TCG_COND_LTU, len_remain, 16, remain_64);
+
+            gen_set_label(loop_128);
+
+            t0 = tcg_temp_new_i64();
+            t1 = tcg_temp_new_i64();
+            tp = tcg_temp_new_ptr();
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_ld_i64(t0, tp, vofs);
+            tcg_gen_ld_i64(t1, tp, vofs + 8);
+            tcg_gen_addi_ptr(i, i, 16);
+
+            t16 = tcg_temp_new_i128();
+            tcg_gen_concat_i64_i128(t16, t0, t1);
+
+            tcg_gen_qemu_st_i128(t16, addr, midx,
+                                 MO_LE | MO_128 | MO_ATOM_NONE);
+            tcg_gen_addi_tl(addr, addr, 16);
+            tcg_gen_subi_tl(len_remain, len_remain, 16);
+
+            tcg_gen_brcondi_tl(TCG_COND_GEU, len_remain, 16, loop_128);
+
+            gen_set_label(remain_64);
+            tcg_gen_brcondi_tl(TCG_COND_LTU, len_remain, 8, remain_32);
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_ld_i64(t0, tp, vofs);
+            tcg_gen_addi_ptr(i, i, 8);
+            tcg_gen_qemu_st_i64(t0, addr, midx, MO_LEUQ | MO_ATOM_NONE);
+            tcg_gen_addi_tl(addr, addr, 8);
+            tcg_gen_subi_tl(len_remain, len_remain, 8);
+
+            gen_set_label(remain_32);
+            tcg_gen_brcondi_tl(TCG_COND_LTU, len_remain, 4, remain_16);
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_ld_i64(t0, tp, vofs);
+            tcg_gen_addi_ptr(i, i, 4);
+            tcg_gen_qemu_st_i64(t0, addr, midx, MO_LEUL | MO_ATOM_NONE);
+            tcg_gen_addi_tl(addr, addr, 4);
+            tcg_gen_subi_tl(len_remain, len_remain, 4);
+
+            gen_set_label(remain_16);
+            tcg_gen_brcondi_tl(TCG_COND_LTU, len_remain, 2, remain_8);
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_ld_i64(t0, tp, vofs);
+            tcg_gen_addi_ptr(i, i, 2);
+            tcg_gen_qemu_st_i64(t0, addr, midx, MO_LEUW | MO_ATOM_NONE);
+            tcg_gen_addi_tl(addr, addr, 2);
+            tcg_gen_subi_tl(len_remain, len_remain, 2);
+
+            gen_set_label(remain_8);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, len_remain, 0, over);
+            tcg_gen_add_ptr(tp, tcg_env, i);
+            tcg_gen_ld_i64(t0, tp, vofs);
+            tcg_gen_qemu_st_i64(t0, addr, midx, MO_LE | MO_8 | MO_ATOM_NONE);
+
+            gen_set_label(over);
+
+            finalize_rvv_inst(s);
+        } else {
+            return st_us_op(s, a, MO_8);
+        }
+        return true;
+    }
+    return false;
+}
+
 GEN_VEXT_TRANS(vse16_v, MO_16, r2nfvm, st_us_op, st_us_check)
 GEN_VEXT_TRANS(vse32_v, MO_32, r2nfvm, st_us_op, st_us_check)
 GEN_VEXT_TRANS(vse64_v, MO_64, r2nfvm, st_us_op, st_us_check)
