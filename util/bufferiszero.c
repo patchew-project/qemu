@@ -195,7 +195,7 @@ static unsigned best_accel(void)
         return 2;
     }
 #endif
-    return info & CPUINFO_SSE2 ? 1 : 0;
+    return 1;
 }
 
 #elif defined(__aarch64__) && defined(__ARM_NEON)
