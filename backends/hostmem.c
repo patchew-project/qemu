@@ -337,6 +337,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
     void *ptr;
     uint64_t sz;
+    size_t pagesize;
     bool async = !phase_check(PHASE_LATE_BACKENDS_CREATED);
 
     if (!bc->alloc) {
@@ -348,6 +349,13 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 
     ptr = memory_region_get_ram_ptr(&backend->mr);
     sz = memory_region_size(&backend->mr);
+    pagesize = qemu_ram_pagesize(backend->mr.ram_block);
+
+    if (!QEMU_IS_ALIGNED(sz, pagesize)) {
+        error_setg(errp, "backend memory size must be multiple of 0x%"
+                   PRIx64, pagesize);
+        return;
+    }
 
     if (backend->merge &&
         qemu_madvise(ptr, sz, QEMU_MADV_MERGEABLE)) {
