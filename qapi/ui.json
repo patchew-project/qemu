@@ -1335,13 +1335,36 @@
 # @show-menubar: Display the main window menubar.  Defaults to "on".
 #     (Since 8.0)
 #
+# @connectors: A list of physical monitor/connector names where the
+#     GTK windows containing the respective GFX VCs (virtual consoles)
+#     are to be placed. The connector names should be provided as
+#     a string, with each name separated by a colon
+#     (e.g., DP-1:DP-2:HDMI-1:HDMI-2). Each connector name in the
+#     string will be used as a label for each VC in order.
+#     VCs can be skipped by leaving an empty spot between colons
+#     (e.g., DP-1::HDMI-2). If a connector name is not provided for
+#     a VC, that VC will not be placed on any physical display and
+#     the guest will see it as disconnected. If a valid connector name
+#     is provided for a VC but its display cable is not plugged in
+#     when the guest is launched, the VC will not be displayed initially.
+#     It will appear on the display when the cable is plugged in
+#     (hot-plug). If the cable is disconnected, the VC will be hidden
+#     and the guest will see its virtual display as disconnected.
+#     Multiple VCs can share the same connector name. In this case,
+#     all VCs with that name will be displayed on the same physical
+#     monitor. However, a single VC cannot have multiple connector
+#     names.
+#
+#     (Since 9.1)
+#
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
                 '*zoom-to-fit'   : 'bool',
                 '*show-tabs'     : 'bool',
-                '*show-menubar'  : 'bool'  } }
+                '*show-menubar'  : 'bool',
+                '*connectors'    : 'str' } }
 
 ##
 # @DisplayEGLHeadless:

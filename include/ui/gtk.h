@@ -83,6 +83,7 @@ typedef struct VirtualConsole {
     GtkWidget *menu_item;
     GtkWidget *tab_item;
     GtkWidget *focus;
+    GdkMonitor *monitor;
     VirtualConsoleType type;
     union {
         VirtualGfxConsole gfx;
