@@ -335,7 +335,6 @@ static void machine_set_cfmw(Object *obj, Visitor *v, const char *name,
     for (it = cfmw_list; it; it = it->next) {
         cxl_fixed_memory_window_config(state, it->value, errp);
     }
-    state->cfmw_list = cfmw_list;
 }
 
 void cxl_machine_init(Object *obj, CXLState *state)
