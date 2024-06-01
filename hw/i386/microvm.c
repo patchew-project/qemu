@@ -30,6 +30,7 @@
 #include "acpi-microvm.h"
 #include "microvm-dt.h"
 
+#include "hw/core/eif.h"
 #include "hw/loader.h"
 #include "hw/irq.h"
 #include "hw/i386/kvm/clock.h"
@@ -281,6 +282,127 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     x86_bios_rom_init(x86ms, default_firmware, get_system_memory(), true);
 }
 
+/* Expects file to have offset 0 before this function is called */
+static long get_file_size(FILE *f, Error **errp)
+{
+    long size;
+
+    if (fseek(f, 0, SEEK_END) != 0) {
+        error_setg_errno(errp, errno, "Failed to seek to the end of file");
+        return -1;
+    }
+
+    size = ftell(f);
+    if (size == -1) {
+        error_setg_errno(errp, errno, "Failed to get offset");
+        return -1;
+    }
+
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        error_setg_errno(errp, errno, "Failed to seek back to the start");
+        return -1;
+    }
+
+    return size;
+}
+
+static void load_eif(MicrovmMachineState *mms, FWCfgState *fw_cfg)
+{
+    Error *err;
+    char *eif_kernel, *eif_initrd, *eif_cmdline;
+    MachineState *machine = MACHINE(mms);
+    X86MachineState *x86ms = X86_MACHINE(mms);
+
+    if (!read_eif_file(machine->kernel_filename, &eif_kernel, &eif_initrd,
+                       &eif_cmdline, &err)) {
+        error_report_err(err);
+        exit(1);
+    }
+
+    g_free(machine->kernel_filename);
+    machine->kernel_filename = eif_kernel;
+
+    /*
+     * If an initrd argument was provided, let's concatenate it to the
+     * extracted EIF initrd temporary file.
+     */
+    if (machine->initrd_filename) {
+        long size;
+        size_t got;
+        uint8_t *buf;
+        FILE *initrd_f, *eif_initrd_f;
+
+        initrd_f = fopen(machine->initrd_filename, "rb");
+        if (initrd_f == NULL) {
+            error_setg_errno(&err, errno, "Failed to open initrd file %s",
+                             machine->initrd_filename);
+            goto cleanup;
+        }
+
+        size = get_file_size(initrd_f, &err);
+        if (size == -1) {
+            goto cleanup;
+        }
+
+        buf = g_malloc(size);
+        got = fread(buf, 1, size, initrd_f);
+        if ((uint64_t) got != (uint64_t) size) {
+            error_setg(&err, "Failed to read initrd file %s",
+                       machine->initrd_filename);
+            goto cleanup;
+        }
+
+        eif_initrd_f = fopen(eif_initrd, "ab");
+        if (eif_initrd_f == NULL) {
+            error_setg_errno(&err, errno, "Failed to open EIF initrd file %s",
+                             eif_initrd);
+            goto cleanup;
+        }
+        got = fwrite(buf, 1, size, eif_initrd_f);
+        if ((uint64_t) got != (uint64_t) size) {
+            error_setg(&err, "Failed to append initrd %s to %s",
+                       machine->initrd_filename, eif_initrd);
+            goto cleanup;
+        }
+
+        fclose(initrd_f);
+        fclose(eif_initrd_f);
+
+        g_free(buf);
+        g_free(machine->initrd_filename);
+
+        machine->initrd_filename = eif_initrd;
+    } else {
+        machine->initrd_filename = eif_initrd;
+    }
+
+    /*
+     * If kernel cmdline argument was provided, let's concatenate it to the
+     * extracted EIF kernel cmdline.
+     */
+    if (machine->kernel_cmdline != NULL) {
+        char *cmd = g_strdup_printf("%s %s", eif_cmdline,
+                                    machine->kernel_cmdline);
+        g_free(eif_cmdline);
+        g_free(machine->kernel_cmdline);
+        machine->kernel_cmdline = cmd;
+    } else {
+        machine->kernel_cmdline = eif_cmdline;
+    }
+
+    x86_load_linux(x86ms, fw_cfg, 0, true);
+
+    unlink(machine->kernel_filename);
+    unlink(machine->initrd_filename);
+    return;
+
+ cleanup:
+    error_report_err(err);
+    unlink(eif_kernel);
+    unlink(eif_initrd);
+    exit(1);
+}
+
 static void microvm_memory_init(MicrovmMachineState *mms)
 {
     MachineState *machine = MACHINE(mms);
@@ -330,7 +452,17 @@ static void microvm_memory_init(MicrovmMachineState *mms)
     rom_set_fw(fw_cfg);
 
     if (machine->kernel_filename != NULL) {
-        x86_load_linux(x86ms, fw_cfg, 0, true);
+        Error *err;
+        bool is_eif = false;
+        if (!check_if_eif_file(machine->kernel_filename, &is_eif, &err)) {
+            error_report_err(err);
+            exit(1);
+        }
+        if (is_eif) {
+            load_eif(mms, fw_cfg);
+        } else {
+            x86_load_linux(x86ms, fw_cfg, 0, true);
+        }
     }
 
     if (mms->option_roms) {
