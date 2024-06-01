@@ -129,6 +129,10 @@ config MICROVM
     select USB_XHCI_SYSBUS
     select I8254
 
+config NITRO_ENCLAVE
+    default y
+    depends on MICROVM
+
 config X86_IOMMU
     bool
     depends on PC

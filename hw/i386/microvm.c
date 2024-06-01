@@ -35,6 +35,7 @@
 #include "hw/irq.h"
 #include "hw/i386/kvm/clock.h"
 #include "hw/i386/microvm.h"
+#include "hw/i386/nitro_enclave.h"
 #include "hw/i386/x86.h"
 #include "target/i386/cpu.h"
 #include "hw/intc/i8259.h"
@@ -452,13 +453,19 @@ static void microvm_memory_init(MicrovmMachineState *mms)
     rom_set_fw(fw_cfg);
 
     if (machine->kernel_filename != NULL) {
-        Error *err;
-        bool is_eif = false;
-        if (!check_if_eif_file(machine->kernel_filename, &is_eif, &err)) {
-            error_report_err(err);
-            exit(1);
-        }
-        if (is_eif) {
+        if (object_dynamic_cast(OBJECT(machine), TYPE_NITRO_ENCLAVE_MACHINE)) {
+            Error *err;
+            bool is_eif = false;
+            if (!check_if_eif_file(machine->kernel_filename, &is_eif, &err)) {
+                error_report_err(err);
+                exit(1);
+            }
+            if (!is_eif) {
+                error_report("%s is not a valid EIF file.",
+                             machine->kernel_filename);
+                exit(1);
+            }
+
             load_eif(mms, fw_cfg);
         } else {
             x86_load_linux(x86ms, fw_cfg, 0, true);
