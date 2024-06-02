@@ -202,6 +202,7 @@
 #define avx_movx .special = X86_SPECIAL_AVXExtMov,
 #define sextT0 .special = X86_SPECIAL_SExtT0,
 #define zextT0 .special = X86_SPECIAL_ZExtT0,
+#define movseg .special = X86_SPECIAL_MovSeg,
 
 #define vex1 .vex_class = 1,
 #define vex1_rep3 .vex_class = 1, .vex_special = X86_VEX_REPScalar,
@@ -1576,9 +1577,9 @@ static const X86OpEntry opcodes_root[256] = {
     [0x89] = X86_OP_ENTRY3(MOV, E,v, G,v, None, None),
     [0x8A] = X86_OP_ENTRY3(MOV, G,b, E,b, None, None),
     [0x8B] = X86_OP_ENTRY3(MOV, G,v, E,v, None, None),
-    [0x8C] = X86_OP_ENTRY3(MOV, E,v, S,w, None, None),
+    [0x8C] = X86_OP_ENTRY3(MOV, E,v, S,w, None, None, movseg),
     [0x8D] = X86_OP_ENTRY3(LEA, G,v, M,v, None, None, noseg),
-    [0x8E] = X86_OP_ENTRY3(MOV, S,w, E,v, None, None),
+    [0x8E] = X86_OP_ENTRY3(MOV, S,w, E,v, None, None, movseg),
     [0x8F] = X86_OP_GROUPw(group1A, E,v),
 
     [0x98] = X86_OP_ENTRY1(CBW,    0,v), /* rAX */
@@ -2513,6 +2514,13 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         decode.mem.def_seg = -1;
         s->override = -1;
         break;
+
+    case X86_SPECIAL_MovSeg:
+        if (decode.op[0].unit == X86_OP_INT && decode.op[0].has_ea) {
+            decode.op[0].ot = MO_16;
+        } else if (decode.op[1].unit == X86_OP_INT && decode.op[1].has_ea) {
+            decode.op[1].ot = MO_16;
+        }
 
     default:
         break;

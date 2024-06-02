@@ -203,6 +203,8 @@ typedef enum X86InsnSpecial {
     /* When loaded into s->T0, register operand 1 is zero/sign extended.  */
     X86_SPECIAL_SExtT0,
     X86_SPECIAL_ZExtT0,
+    /* Memory operand size of Mov to/from Seg is MO_16 */
+    X86_SPECIAL_MovSeg,
 } X86InsnSpecial;
 
 /*
