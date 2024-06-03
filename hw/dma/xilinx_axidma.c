@@ -36,6 +36,7 @@
 #include "sysemu/dma.h"
 #include "hw/stream.h"
 #include "qom/object.h"
+#include "trace.h"
 
 #define D(x)
 
@@ -200,6 +201,8 @@ static MemTxResult stream_desc_load(struct Stream *s, hwaddr addr)
                                             addr, MEMTXATTRS_UNSPECIFIED,
                                             d, sizeof *d);
     if (result != MEMTX_OK) {
+        trace_xilinx_axidma_loading_desc_fail(result);
+
         s->regs[R_DMACR] &= ~DMACR_RUNSTOP;
         s->regs[R_DMASR] |= DMASR_HALTED;
         s->regs[R_DMASR] |= DMASR_SLVERR;
