@@ -1136,6 +1136,31 @@ static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
     vioc->pci_hot_reset = vfio_legacy_pci_hot_reset;
 };
 
+static bool hiod_legacy_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
+                                     Error **errp)
+{
+    VFIODevice *vdev = opaque;
+    /* iova_ranges is a sorted list */
+    GList *l = g_list_last(vdev->bcontainer->iova_ranges);
+
+    /* Only support query HOST_IOMMU_DEVICE_CAP_AW_BITS with legacy backend */
+    if (l) {
+        Range *range = l->data;
+        hiod->caps.aw_bits = range_get_last_bit(range) + 1;
+    } else {
+        hiod->caps.aw_bits = 0xff;
+    }
+
+    return true;
+}
+
+static void hiod_legacy_vfio_class_init(ObjectClass *oc, void *data)
+{
+    HostIOMMUDeviceClass *hioc = HOST_IOMMU_DEVICE_CLASS(oc);
+
+    hioc->realize = hiod_legacy_vfio_realize;
+};
+
 static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU_LEGACY,
@@ -1144,6 +1169,7 @@ static const TypeInfo types[] = {
     }, {
         .name = TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO,
         .parent = TYPE_HOST_IOMMU_DEVICE,
+        .class_init = hiod_legacy_vfio_class_init,
     }
 };
 
