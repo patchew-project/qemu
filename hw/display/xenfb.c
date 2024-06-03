@@ -637,7 +637,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
     int linesize = surface_stride(surface);
     uint8_t *data = surface_data(surface);
 
-    if (!is_buffer_shared(surface)) {
+    if (!surface_is_borrowed(surface)) {
         switch (xenfb->depth) {
         case 8:
             if (bpp == 16) {
@@ -755,7 +755,7 @@ static void xenfb_update(void *opaque)
         xen_pv_printf(&xenfb->c.xendev, 1,
                       "update: resizing: %dx%d @ %d bpp%s\n",
                       xenfb->width, xenfb->height, xenfb->depth,
-                      is_buffer_shared(surface) ? " (shared)" : "");
+                      surface_is_borrowed(surface) ? " (borrowed)" : "");
         xenfb->up_fullscreen = 1;
     }
 
