@@ -1136,7 +1136,13 @@ error:
 
 #endif /* HAVE_GETIFADDRS */
 
-/* add unsupported commands to the list of blocked RPCs */
+/*
+ * Add commands that cannot be supported based on the results of
+ * dynamic check of the running OS installation.
+ *
+ * Commands that cannot be supported at all on a given platform
+ * should be disabled with a condition in the QAPI schema.
+ */
 GList *ga_command_init_blockedrpcs(GList *blockedrpcs)
 {
     return blockedrpcs;
