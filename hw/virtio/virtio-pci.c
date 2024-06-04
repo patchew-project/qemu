@@ -1431,6 +1431,7 @@ static void virtio_pci_set_vector(VirtIODevice *vdev,
 {
     bool kvm_irqfd = (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
         msix_enabled(&proxy->pci_dev) && kvm_msi_via_irqfd_enabled();
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     if (new_vector == old_vector) {
         return;
@@ -1441,7 +1442,8 @@ static void virtio_pci_set_vector(VirtIODevice *vdev,
      * set, we need to release the old vector and set up the new one.
      * Otherwise just need to set the new vector on the device.
      */
-    if (kvm_irqfd && old_vector != VIRTIO_NO_VECTOR) {
+    if (kvm_irqfd && old_vector != VIRTIO_NO_VECTOR &&
+        vdev->use_guest_notifier_mask && k->guest_notifier_mask) {
         kvm_virtio_pci_vector_release_one(proxy, queue_no);
     }
     /* Set the new vector on the device. */
@@ -1451,7 +1453,8 @@ static void virtio_pci_set_vector(VirtIODevice *vdev,
         virtio_queue_set_vector(vdev, queue_no, new_vector);
     }
     /* If the new vector changed need to set it up. */
-    if (kvm_irqfd && new_vector != VIRTIO_NO_VECTOR) {
+    if (kvm_irqfd && new_vector != VIRTIO_NO_VECTOR &&
+        vdev->use_guest_notifier_mask && k->guest_notifier_mask) {
         kvm_virtio_pci_vector_use_one(proxy, queue_no);
     }
 }
