@@ -25,6 +25,7 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpu-throttle.h"
+#include "rdma.h"
 #include "ram.h"
 #include "migration/global_state.h"
 #include "migration/misc.h"
@@ -145,7 +146,7 @@ static bool transport_supports_multi_channels(MigrationAddress *addr)
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
         return migrate_mapped_ram();
     } else {
-        return false;
+        return addr->transport == MIGRATION_ADDRESS_TYPE_RDMA;
     }
 }
 
@@ -644,6 +645,10 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
         } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
             fd_start_incoming_migration(saddr->u.fd.str, errp);
         }
+#ifdef CONFIG_RDMA
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
+        rdma_start_incoming_migration(&addr->u.rdma, errp);
+#endif
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
         exec_start_incoming_migration(addr->u.exec.args, errp);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
@@ -2046,6 +2051,10 @@ void qmp_migrate(const char *uri, bool has_channels,
         } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
             fd_start_outgoing_migration(s, saddr->u.fd.str, &local_err);
         }
+#ifdef CONFIG_RDMA
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
+        rdma_start_outgoing_migration(s, &addr->u.rdma, &local_err);
+#endif
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
         exec_start_outgoing_migration(s, addr->u.exec.args, &local_err);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {

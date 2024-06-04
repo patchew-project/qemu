@@ -42,3 +42,5 @@ system_ss.add(when: zstd, if_true: files('multifd-zstd.c'))
 specific_ss.add(when: 'CONFIG_SYSTEM_ONLY',
                 if_true: files('ram.c',
                                'target.c'))
+
+system_ss.add(when: rdma, if_true: files('rdma.c'))
