@@ -67,3 +67,17 @@ qio_channel_command_new_pid(void *ioc, int writefd, int readfd, int pid) "Comman
 qio_channel_command_new_spawn(void *ioc, const char *binary, int flags) "Command new spawn ioc=%p binary=%s flags=%d"
 qio_channel_command_abort(void *ioc, int pid) "Command abort ioc=%p pid=%d"
 qio_channel_command_wait(void *ioc, int pid, int ret, int status) "Command abort ioc=%p pid=%d ret=%d status=%d"
+
+# channel-rdma.c
+qio_channel_rdma_new(void *ioc) "RDMA rsocket new ioc=%p"
+qio_channel_rdma_connect_sync(void *ioc, void *addr) "RDMA rsocket connect sync ioc=%p addr=%p"
+qio_channel_rdma_connect_async(void *ioc, void *addr) "RDMA rsocket connect async ioc=%p addr=%p"
+qio_channel_rdma_connect_fail(void *ioc) "RDMA rsocket connect fail ioc=%p"
+qio_channel_rdma_connect_complete(void *ioc, int fd) "RDMA rsocket connect complete ioc=%p fd=%d"
+qio_channel_rdma_listen_sync(void *ioc, void *addr, int num) "RDMA rsocket listen sync ioc=%p addr=%p num=%d"
+qio_channel_rdma_listen_fail(void *ioc) "RDMA rsocket listen fail ioc=%p"
+qio_channel_rdma_listen_async(void *ioc, void *addr, int num) "RDMA rsocket listen async ioc=%p addr=%p num=%d"
+qio_channel_rdma_listen_complete(void *ioc, int fd) "RDMA rsocket listen complete ioc=%p fd=%d"
+qio_channel_rdma_accept(void *ioc) "Socket accept start ioc=%p"
+qio_channel_rdma_accept_fail(void *ioc) "RDMA rsocket accept fail ioc=%p"
+qio_channel_rdma_accept_complete(void *ioc, void *cioc, int fd) "RDMA rsocket accept complete ioc=%p cioc=%p fd=%d"

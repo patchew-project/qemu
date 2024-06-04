@@ -14,3 +14,4 @@ io_ss.add(files(
   'net-listener.c',
   'task.c',
 ), gnutls)
+io_ss.add(when: rdma, if_true: files('channel-rdma.c'))
