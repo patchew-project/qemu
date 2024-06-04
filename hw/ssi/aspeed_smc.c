@@ -1315,7 +1315,7 @@ static void aspeed_smc_flash_realize(DeviceState *dev, Error **errp)
      * Use the default segment value to size the memory region. This
      * can be changed by FW at runtime.
      */
-    memory_region_init_io(&s->mmio, OBJECT(s), &aspeed_smc_flash_ops,
+    memory_region_init_io(&s->mmio, OBJECT(s), s->asc->reg_ops,
                           s, name, s->asc->segments[s->cs].size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
 }
@@ -1390,6 +1390,7 @@ static void aspeed_2400_smc_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2400_smc_info = {
@@ -1440,6 +1441,7 @@ static void aspeed_2400_fmc_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2400_fmc_info = {
@@ -1479,6 +1481,7 @@ static void aspeed_2400_spi1_class_init(ObjectClass *klass, void *data)
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
     asc->addr_width        = aspeed_2400_spi1_addr_width;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2400_spi1_info = {
@@ -1524,6 +1527,7 @@ static void aspeed_2500_fmc_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2500_fmc_info = {
@@ -1559,6 +1563,7 @@ static void aspeed_2500_spi1_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2500_spi1_info = {
@@ -1594,6 +1599,7 @@ static void aspeed_2500_spi2_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2500_spi2_info = {
@@ -1681,6 +1687,7 @@ static void aspeed_2600_fmc_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2600_fmc_info = {
@@ -1720,6 +1727,7 @@ static void aspeed_2600_spi1_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2600_spi1_info = {
@@ -1760,6 +1768,7 @@ static void aspeed_2600_spi2_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2600_spi2_info = {
@@ -1842,6 +1851,7 @@ static void aspeed_1030_fmc_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_1030_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_1030_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_1030_fmc_info = {
@@ -1880,6 +1890,7 @@ static void aspeed_1030_spi1_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_1030_spi1_info = {
@@ -1917,6 +1928,7 @@ static void aspeed_1030_spi2_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_1030_spi2_info = {
