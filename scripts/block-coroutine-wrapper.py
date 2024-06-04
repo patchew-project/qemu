@@ -54,6 +54,11 @@ class ParamDecl:
                           r')')
 
     def __init__(self, param_decl: str) -> None:
+        if param_decl.strip() == 'void':
+            self.decl = 'void'
+            self.type = 'void'
+            self.name = None
+            return
         m = self.param_re.match(param_decl.strip())
         if m is None:
             raise ValueError(f'Wrong parameter declaration: "{param_decl}"')
@@ -114,10 +119,14 @@ class FuncDecl:
         else:
             return 'qemu_get_aio_context()'
 
-    def gen_list(self, format: str) -> str:
+    def gen_list(self, format: str, void_value='') -> str:
+        if len(self.args) == 1 and self.args[0].type == 'void':
+            return void_value
         return ', '.join(format.format_map(arg.__dict__) for arg in self.args)
 
     def gen_block(self, format: str) -> str:
+        if len(self.args) == 1 and self.args[0].type == 'void':
+            return ''
         return '\n'.join(format.format_map(arg.__dict__) for arg in self.args)
 
 
@@ -158,7 +167,7 @@ def create_mixed_wrapper(func: FuncDecl) -> str:
     graph_assume_lock = 'assume_graph_lock();' if func.graph_rdlock else ''
 
     return f"""\
-{func.return_type} {func.name}({ func.gen_list('{decl}') })
+{func.return_type} {func.name}({ func.gen_list('{decl}', 'void') })
 {{
     if (qemu_in_coroutine()) {{
         {graph_assume_lock}
@@ -186,7 +195,7 @@ def create_co_wrapper(func: FuncDecl) -> str:
     name = func.target_name
     struct_name = func.struct_name
     return f"""\
-{func.return_type} {func.name}({ func.gen_list('{decl}') })
+{func.return_type} {func.name}({ func.gen_list('{decl}', 'void') })
 {{
     {struct_name} s = {{
         .poll_state.ctx = qemu_get_current_aio_context(),
@@ -284,7 +293,7 @@ static void {name}_bh(void *opaque)
     aio_co_wake(s->co);
 }}
 
-{func.return_type} coroutine_fn {func.name}({ func.gen_list('{decl}') })
+{func.return_type} coroutine_fn {func.name}({ func.gen_list('{decl}', 'void') })
 {{
     {struct_name} s = {{
         .co = qemu_coroutine_self(),
