@@ -2425,12 +2425,6 @@ if rbd.found()
                                        dependencies: rbd,
                                        prefix: '#include <rbd/librbd.h>'))
 endif
-if rdma.found()
-  config_host_data.set('HAVE_IBV_ADVISE_MR',
-                       cc.has_function('ibv_advise_mr',
-                                       dependencies: rdma,
-                                       prefix: '#include <infiniband/verbs.h>'))
-endif
 
 have_asan_fiber = false
 if get_option('sanitizers') and \

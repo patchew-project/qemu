@@ -57,7 +57,6 @@
 #include "qemu/iov.h"
 #include "multifd.h"
 #include "sysemu/runstate.h"
-#include "rdma.h"
 #include "options.h"
 #include "sysemu/dirtylimit.h"
 #include "sysemu/kvm.h"
@@ -88,7 +87,6 @@
 #define RAM_SAVE_FLAG_EOS      0x10
 #define RAM_SAVE_FLAG_CONTINUE 0x20
 #define RAM_SAVE_FLAG_XBZRLE   0x40
-/* 0x80 is reserved in rdma.h for RAM_SAVE_FLAG_HOOK */
 #define RAM_SAVE_FLAG_MULTIFD_FLUSH    0x200
 /* We can't use any flag that is bigger than 0x200 */
 
@@ -1169,32 +1167,6 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
 }
 
 /*
- * @pages: the number of pages written by the control path,
- *        < 0 - error
- *        > 0 - number of pages written
- *
- * Return true if the pages has been saved, otherwise false is returned.
- */
-static bool control_save_page(PageSearchStatus *pss,
-                              ram_addr_t offset, int *pages)
-{
-    int ret;
-
-    ret = rdma_control_save_page(pss->pss_channel, pss->block->offset, offset,
-                                 TARGET_PAGE_SIZE);
-    if (ret == RAM_SAVE_CONTROL_NOT_SUPP) {
-        return false;
-    }
-
-    if (ret == RAM_SAVE_CONTROL_DELAYED) {
-        *pages = 1;
-        return true;
-    }
-    *pages = ret;
-    return true;
-}
-
-/*
  * directly send the page to the stream
  *
  * Returns the number of pages written.
@@ -1997,11 +1969,6 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
 static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
 {
     ram_addr_t offset = ((ram_addr_t)pss->page) << TARGET_PAGE_BITS;
-    int res;
-
-    if (control_save_page(pss, offset, &res)) {
-        return res;
-    }
 
     if (save_zero_page(rs, pss, offset)) {
         return 1;
@@ -3041,20 +3008,6 @@ static int ram_save_setup(QEMUFile *f, void *opaque, Error **errp)
         }
     }
 
-    ret = rdma_registration_start(f, RAM_CONTROL_SETUP);
-    if (ret < 0) {
-        error_setg(errp, "%s: failed to start RDMA registration", __func__);
-        qemu_file_set_error(f, ret);
-        return ret;
-    }
-
-    ret = rdma_registration_stop(f, RAM_CONTROL_SETUP);
-    if (ret < 0) {
-        error_setg(errp, "%s: failed to stop RDMA registration", __func__);
-        qemu_file_set_error(f, ret);
-        return ret;
-    }
-
     migration_ops = g_malloc0(sizeof(MigrationOps));
 
     if (migrate_multifd()) {
@@ -3148,12 +3101,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
             /* Read version before ram_list.blocks */
             smp_rmb();
 
-            ret = rdma_registration_start(f, RAM_CONTROL_ROUND);
-            if (ret < 0) {
-                qemu_file_set_error(f, ret);
-                goto out;
-            }
-
             t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
             i = 0;
             while ((ret = migration_rate_exceeded(f)) == 0 ||
@@ -3197,16 +3144,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         }
     }
 
-    /*
-     * Must occur before EOS (or any QEMUFile operation)
-     * because of RDMA protocol.
-     */
-    ret = rdma_registration_stop(f, RAM_CONTROL_ROUND);
-    if (ret < 0) {
-        qemu_file_set_error(f, ret);
-    }
-
-out:
     if (ret >= 0
         && migration_is_setup_or_active()) {
         if (migrate_multifd() && migrate_multifd_flush_after_each_section() &&
@@ -3251,12 +3188,6 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             migration_bitmap_sync_precopy(rs, true);
         }
 
-        ret = rdma_registration_start(f, RAM_CONTROL_FINISH);
-        if (ret < 0) {
-            qemu_file_set_error(f, ret);
-            return ret;
-        }
-
         /* try transferring iterative blocks of memory */
 
         /* flush all remaining blocks regardless of rate limiting */
@@ -3275,12 +3206,6 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             }
         }
         qemu_mutex_unlock(&rs->bitmap_mutex);
-
-        ret = rdma_registration_stop(f, RAM_CONTROL_FINISH);
-        if (ret < 0) {
-            qemu_file_set_error(f, ret);
-            return ret;
-        }
     }
 
     ret = multifd_send_sync_main();
@@ -3493,8 +3418,7 @@ static inline void *colo_cache_from_block_offset(RAMBlock *block,
 /**
  * ram_handle_zero: handle the zero page case
  *
- * If a page (or a whole RDMA chunk) has been
- * determined to be zero, then zap it.
+ * If a page has been determined to be zero, then zap it.
  *
  * @host: host address for the zero page
  * @ch: what the page is filled from.  We only support zero
@@ -4071,10 +3995,6 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
             return -EINVAL;
         }
     }
-    ret = rdma_block_notification_handle(f, block->idstr);
-    if (ret < 0) {
-        qemu_file_set_error(f, ret);
-    }
 
     return ret;
 }
@@ -4124,7 +4044,7 @@ static int ram_load_precopy(QEMUFile *f)
     int flags = 0, ret = 0, invalid_flags = 0, i = 0;
 
     if (migrate_mapped_ram()) {
-        invalid_flags |= (RAM_SAVE_FLAG_HOOK | RAM_SAVE_FLAG_MULTIFD_FLUSH |
+        invalid_flags |= (RAM_SAVE_FLAG_MULTIFD_FLUSH |
                           RAM_SAVE_FLAG_PAGE | RAM_SAVE_FLAG_XBZRLE |
                           RAM_SAVE_FLAG_ZERO);
     }
@@ -4253,12 +4173,6 @@ static int ram_load_precopy(QEMUFile *f)
                  */
                 !migrate_mapped_ram()) {
                 multifd_recv_sync_main();
-            }
-            break;
-        case RAM_SAVE_FLAG_HOOK:
-            ret = rdma_registration_handle(f);
-            if (ret < 0) {
-                qemu_file_set_error(f, ret);
             }
             break;
         default:

@@ -110,7 +110,6 @@ class RamSection(object):
     RAM_SAVE_FLAG_EOS      = 0x10
     RAM_SAVE_FLAG_CONTINUE = 0x20
     RAM_SAVE_FLAG_XBZRLE   = 0x40
-    RAM_SAVE_FLAG_HOOK     = 0x80
     RAM_SAVE_FLAG_COMPRESS_PAGE = 0x100
     RAM_SAVE_FLAG_MULTIFD_FLUSH = 0x200
 
@@ -203,8 +202,6 @@ class RamSection(object):
                 flags &= ~self.RAM_SAVE_FLAG_PAGE
             elif flags & self.RAM_SAVE_FLAG_XBZRLE:
                 raise Exception("XBZRLE RAM compression is not supported yet")
-            elif flags & self.RAM_SAVE_FLAG_HOOK:
-                raise Exception("RAM hooks don't make sense with files")
             if flags & self.RAM_SAVE_FLAG_MULTIFD_FLUSH:
                 continue
 

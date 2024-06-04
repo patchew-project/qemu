@@ -37,7 +37,6 @@ else
   system_ss.add(files('colo-stubs.c'))
 endif
 
-system_ss.add(when: rdma, if_true: files('rdma.c'))
 system_ss.add(when: zstd, if_true: files('multifd-zstd.c'))
 
 specific_ss.add(when: 'CONFIG_SYSTEM_ONLY',
