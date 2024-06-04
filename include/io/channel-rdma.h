@@ -47,6 +47,18 @@ struct QIOChannelRDMA {
     socklen_t localAddrLen;
     struct sockaddr_storage remoteAddr;
     socklen_t remoteAddrLen;
+
+    /* private */
+
+    /* qemu g_poll/ppoll() POLLIN event on it */
+    int pollin_eventfd;
+    /* qemu g_poll/ppoll() POLLOUT event on it */
+    int pollout_eventfd;
+
+    /* the index in the rpoller's fds array */
+    int index;
+    /* rpoller will rpoll() rpoll_events on the rsocket fd */
+    short int rpoll_events;
 };
 
 /**
@@ -147,6 +159,7 @@ void qio_channel_rdma_listen_async(QIOChannelRDMA *ioc, InetSocketAddress *addr,
  *
  * Returns: the new client channel, or NULL on error
  */
-QIOChannelRDMA *qio_channel_rdma_accept(QIOChannelRDMA *ioc, Error **errp);
+QIOChannelRDMA *coroutine_mixed_fn qio_channel_rdma_accept(QIOChannelRDMA *ioc,
+                                                           Error **errp);
 
 #endif /* QIO_CHANNEL_RDMA_H */
