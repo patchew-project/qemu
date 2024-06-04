@@ -85,6 +85,7 @@ if have_block
     'test-authz-listfile': [authz],
     'test-io-task': [testblock],
     'test-io-channel-socket': ['socket-helpers.c', 'io-channel-helpers.c', io],
+    'test-io-channel-rdma': ['io-channel-helpers.c', io],
     'test-io-channel-file': ['io-channel-helpers.c', io],
     'test-io-channel-command': ['io-channel-helpers.c', io],
     'test-io-channel-buffer': ['io-channel-helpers.c', io],
