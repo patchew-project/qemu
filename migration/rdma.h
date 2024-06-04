@@ -16,6 +16,12 @@
 
 #include "qemu/sockets.h"
 
+#include <stdbool.h>
+
+bool rdma_send_channel_create(QIOTaskFunc f, void *data);
+
+void rdma_cleanup_outgoing_migration(void);
+
 void rdma_start_outgoing_migration(MigrationState *s, InetSocketAddress *addr,
                                    Error **errp);
 

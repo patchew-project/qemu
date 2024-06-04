@@ -32,6 +32,7 @@
 #include "io/channel-file.h"
 #include "io/channel-socket.h"
 #include "yank_functions.h"
+#include "rdma.h"
 
 /* Multiple fd's */
 
@@ -793,6 +794,9 @@ static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
 static void multifd_send_cleanup_state(void)
 {
     file_cleanup_outgoing_migration();
+#ifdef CONFIG_RDMA
+    rdma_cleanup_outgoing_migration();
+#endif
     socket_cleanup_outgoing_migration();
     qemu_sem_destroy(&multifd_send_state->channels_created);
     qemu_sem_destroy(&multifd_send_state->channels_ready);
@@ -1138,6 +1142,12 @@ static bool multifd_new_send_channel_create(gpointer opaque, Error **errp)
     if (!multifd_use_packets()) {
         return file_send_channel_create(opaque, errp);
     }
+
+#ifdef CONFIG_RDMA
+    if (rdma_send_channel_create(multifd_new_send_channel_async, opaque)) {
+        return true;
+    }
+#endif
 
     socket_send_channel_create(multifd_new_send_channel_async, opaque);
     return true;

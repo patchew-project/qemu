@@ -19,6 +19,7 @@
 #include "qapi/qapi-visit-sockets.h"
 #include "channel.h"
 #include "migration.h"
+#include "options.h"
 #include "rdma.h"
 #include "trace.h"
 #include <stdio.h>
@@ -26,6 +27,28 @@
 static struct RDMAOutgoingArgs {
     InetSocketAddress *addr;
 } outgoing_args;
+
+bool rdma_send_channel_create(QIOTaskFunc f, void *data)
+{
+    QIOChannelRDMA *rioc;
+
+    if (!outgoing_args.addr) {
+        return false;
+    }
+
+    rioc = qio_channel_rdma_new();
+    qio_channel_rdma_connect_async(rioc, outgoing_args.addr, f, data, NULL,
+                                   NULL);
+    return true;
+}
+
+void rdma_cleanup_outgoing_migration(void)
+{
+    if (outgoing_args.addr) {
+        qapi_free_InetSocketAddress(outgoing_args.addr);
+        outgoing_args.addr = NULL;
+    }
+}
 
 static void rdma_outgoing_migration(QIOTask *task, gpointer opaque)
 {
@@ -73,6 +96,10 @@ void rdma_start_incoming_migration(InetSocketAddress *addr, Error **errp)
     int num = 1;
 
     qio_channel_set_name(QIO_CHANNEL(rioc), "migration-rdma-listener");
+
+    if (migrate_multifd()) {
+        num = migrate_multifd_channels();
+    }
 
     if (qio_channel_rdma_listen_sync(rioc, addr, num, errp) < 0) {
         object_unref(OBJECT(rioc));
