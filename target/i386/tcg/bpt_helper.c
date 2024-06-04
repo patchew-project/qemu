@@ -37,3 +37,9 @@ void helper_rechecking_single_step(CPUX86State *env)
         helper_single_step(env);
     }
 }
+
+void do_end_instruction(CPUX86State *env)
+{
+    env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
+    env->eflags &= ~HF_RF_MASK;
+}

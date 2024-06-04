@@ -112,6 +112,9 @@ int exception_has_error_code(int intno);
 void do_smm_enter(X86CPU *cpu);
 
 /* bpt_helper.c */
+void do_end_instruction(CPUX86State *env);
+
+/* sysemu/bpt_helper.c */
 bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update);
 
 #endif /* I386_HELPER_TCG_H */
