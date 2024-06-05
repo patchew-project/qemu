@@ -3459,7 +3459,7 @@ static int coroutine_fn snapshot_save_job_run(Job *job, Error **errp)
     SnapshotJob *s = container_of(job, SnapshotJob, common);
     s->errp = errp;
     s->co = qemu_coroutine_self();
-    aio_bh_schedule_oneshot(qemu_get_aio_context(),
+    aio_bh_schedule_oneshot(iohandler_get_aio_context(),
                             snapshot_save_job_bh, job);
     qemu_coroutine_yield();
     return s->ret ? 0 : -1;
