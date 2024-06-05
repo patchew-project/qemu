@@ -139,6 +139,7 @@ struct DisasFields {
 struct DisasContext {
     DisasContextBase base;
     const DisasInsn *insn;
+    target_ulong pc_save;
     DisasFields fields;
     uint64_t ex_value;
     uint32_t ilen;
@@ -160,28 +161,6 @@ typedef struct {
 static uint64_t inline_branch_hit[CC_OP_MAX];
 static uint64_t inline_branch_miss[CC_OP_MAX];
 #endif
-
-static void gen_psw_addr_disp(DisasContext *s, TCGv_i64 dest, int64_t disp)
-{
-    tcg_gen_movi_i64(dest, s->base.pc_next + disp);
-}
-
-static void pc_to_link_info(TCGv_i64 out, DisasContext *s)
-{
-    TCGv_i64 tmp;
-
-    if (s->base.tb->flags & FLAG_MASK_64) {
-        gen_psw_addr_disp(s, out, s->ilen);
-        return;
-    }
-
-    tmp = tcg_temp_new_i64();
-    gen_psw_addr_disp(s, tmp, s->ilen);
-    if (s->base.tb->flags & FLAG_MASK_32) {
-        tcg_gen_ori_i64(tmp, tmp, 0x80000000);
-    }
-    tcg_gen_deposit_i64(out, out, tmp, 0, 32);
-}
 
 static TCGv_i64 psw_addr;
 static TCGv_i64 psw_mask;
@@ -336,6 +315,34 @@ static void store_reg32h_i64(int reg, TCGv_i64 v)
 static void store_freg32_i64(int reg, TCGv_i64 v)
 {
     tcg_gen_st32_i64(v, tcg_env, freg32_offset(reg));
+}
+
+static void gen_psw_addr_disp(DisasContext *s, TCGv_i64 dest, int64_t disp)
+{
+    assert(s->pc_save != -1);
+    if (tb_cflags(s->base.tb) & CF_PCREL) {
+        disp += s->base.pc_next - s->pc_save;
+        tcg_gen_addi_i64(dest, psw_addr, disp);
+    } else {
+        tcg_gen_movi_i64(dest, s->base.pc_next + disp);
+    }
+}
+
+static void pc_to_link_info(TCGv_i64 out, DisasContext *s)
+{
+    TCGv_i64 tmp;
+
+    if (s->base.tb->flags & FLAG_MASK_64) {
+        gen_psw_addr_disp(s, out, s->ilen);
+        return;
+    }
+
+    tmp = tcg_temp_new_i64();
+    gen_psw_addr_disp(s, tmp, s->ilen);
+    if (s->base.tb->flags & FLAG_MASK_32) {
+        tcg_gen_ori_i64(tmp, tmp, 0x80000000);
+    }
+    tcg_gen_deposit_i64(out, out, tmp, 0, 32);
 }
 
 static void per_branch(DisasContext *s, TCGv_i64 dest)
@@ -1081,13 +1088,13 @@ static DisasJumpType help_goto_direct(DisasContext *s, int64_t disp)
     if (disp == s->ilen) {
         return DISAS_NEXT;
     }
+    gen_psw_addr_disp(s, psw_addr, disp);
     if (use_goto_tb(s, dest)) {
         tcg_gen_goto_tb(0);
-        gen_psw_addr_disp(s, psw_addr, disp);
         tcg_gen_exit_tb(s->base.tb, 0);
         return DISAS_NORETURN;
     } else {
-        gen_psw_addr_disp(s, psw_addr, disp);
+        s->pc_save = dest;
         return DISAS_PC_CC_UPDATED;
     }
 }
@@ -1097,6 +1104,7 @@ static DisasJumpType help_goto_indirect(DisasContext *s, TCGv_i64 dest)
     update_cc_op(s);
     per_breaking_event(s);
     tcg_gen_mov_i64(psw_addr, dest);
+    s->pc_save = -1;
     per_branch(s, psw_addr);
     return DISAS_PC_CC_UPDATED;
 }
@@ -1173,6 +1181,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
         tcg_gen_exit_tb(s->base.tb, 1);
         return DISAS_NORETURN;
     }
+    s->pc_save = s->base.pc_next + s->ilen;
     return DISAS_PC_CC_UPDATED;
 }
 
@@ -2351,6 +2360,7 @@ static DisasJumpType op_ex(DisasContext *s, DisasOps *o)
     }
 
     gen_psw_addr_disp(s, psw_addr, 0);
+    s->pc_save = s->base.pc_next;
     update_cc_op(s);
 
     if (r1 == 0) {
@@ -6411,6 +6421,7 @@ static void s390x_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     /* Note cpu_get_tb_cpu_state asserts PC is masked for the mode. */
 
+    dc->pc_save = dc->base.pc_first;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->ex_value = dc->base.tb->cs_base;
     dc->exit_to_mainloop = dc->ex_value;
@@ -6423,9 +6434,13 @@ static void s390x_tr_tb_start(DisasContextBase *db, CPUState *cs)
 static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    target_ulong pc_arg = dc->base.pc_next;
 
+    if (tb_cflags(dc->base.tb) & CF_PCREL) {
+        pc_arg &= ~TARGET_PAGE_MASK;
+    }
     /* Delay the set of ilen until we've read the insn. */
-    tcg_gen_insn_start(dc->base.pc_next, dc->cc_op, 0);
+    tcg_gen_insn_start(pc_arg, dc->cc_op, 0);
 }
 
 static target_ulong get_next_pc(CPUS390XState *env, DisasContext *s,
@@ -6517,7 +6532,11 @@ void s390x_restore_state_to_opc(CPUState *cs,
     CPUS390XState *env = cpu_env(cs);
     int cc_op = data[1];
 
-    env->psw.addr = data[0];
+    if (tb_cflags(tb) & CF_PCREL) {
+        env->psw.addr = (env->psw.addr & TARGET_PAGE_MASK) | data[0];
+    } else {
+        env->psw.addr = data[0];
+    }
 
     /* Update the CC opcode if it is not already up-to-date.  */
     if ((cc_op != CC_OP_DYNAMIC) && (cc_op != CC_OP_STATIC)) {
