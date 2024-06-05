@@ -1073,13 +1073,15 @@ struct DisasInsn {
 /* ====================================================================== */
 /* Miscellaneous helpers, used by several operations.  */
 
-static DisasJumpType help_goto_direct(DisasContext *s, uint64_t dest)
+static DisasJumpType help_goto_direct(DisasContext *s, int64_t disp)
 {
+    uint64_t dest = s->base.pc_next + disp;
+
     update_cc_op(s);
     per_breaking_event(s);
     per_branch(s, tcg_constant_i64(dest));
 
-    if (dest == s->pc_tmp) {
+    if (disp == s->ilen) {
         return DISAS_NEXT;
     }
     if (use_goto_tb(s, dest)) {
@@ -1105,7 +1107,8 @@ static DisasJumpType help_goto_indirect(DisasContext *s, TCGv_i64 dest)
 static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
                                  bool is_imm, int imm, TCGv_i64 cdest)
 {
-    uint64_t dest = s->base.pc_next + (int64_t)imm * 2;
+    int64_t disp = (int64_t)imm * 2;
+    uint64_t dest = s->base.pc_next + disp;
     TCGLabel *lab;
 
     /* Take care of the special cases first.  */
@@ -1120,7 +1123,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
         if (c->cond == TCG_COND_ALWAYS
             || (dest == s->pc_tmp &&
                 !(s->base.tb->flags & FLAG_MASK_PER_BRANCH))) {
-            return help_goto_direct(s, dest);
+            return help_goto_direct(s, disp);
         }
     } else {
         if (!cdest) {
