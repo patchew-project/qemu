@@ -167,6 +167,11 @@ static uint64_t inline_branch_hit[CC_OP_MAX];
 static uint64_t inline_branch_miss[CC_OP_MAX];
 #endif
 
+static void gen_psw_addr_disp(DisasContext *s, TCGv_i64 dest, int64_t disp)
+{
+    tcg_gen_movi_i64(dest, s->base.pc_next + disp);
+}
+
 static void pc_to_link_info(TCGv_i64 out, DisasContext *s, uint64_t pc)
 {
     if (s->base.tb->flags & FLAG_MASK_32) {
@@ -337,8 +342,7 @@ static void store_freg32_i64(int reg, TCGv_i64 v)
 
 static void update_psw_addr(DisasContext *s)
 {
-    /* psw.addr */
-    tcg_gen_movi_i64(psw_addr, s->base.pc_next);
+    gen_psw_addr_disp(s, psw_addr, 0);
 }
 
 static void per_branch(DisasContext *s, TCGv_i64 dest)
@@ -352,7 +356,7 @@ static void per_branch(DisasContext *s, TCGv_i64 dest)
 
 static void per_breaking_event(DisasContext *s)
 {
-    tcg_gen_movi_i64(gbea, s->base.pc_next);
+    gen_psw_addr_disp(s, gbea, 0);
 }
 
 static void update_cc_op(DisasContext *s)
@@ -1086,11 +1090,11 @@ static DisasJumpType help_goto_direct(DisasContext *s, int64_t disp)
     }
     if (use_goto_tb(s, dest)) {
         tcg_gen_goto_tb(0);
-        tcg_gen_movi_i64(psw_addr, dest);
+        gen_psw_addr_disp(s, psw_addr, disp);
         tcg_gen_exit_tb(s->base.tb, 0);
         return DISAS_NORETURN;
     } else {
-        tcg_gen_movi_i64(psw_addr, dest);
+        gen_psw_addr_disp(s, psw_addr, disp);
         return DISAS_PC_CC_UPDATED;
     }
 }
@@ -1121,7 +1125,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
          * still need a conditional call to helper_per_branch.
          */
         if (c->cond == TCG_COND_ALWAYS
-            || (dest == s->pc_tmp &&
+            || (disp == s->ilen &&
                 !(s->base.tb->flags & FLAG_MASK_PER_BRANCH))) {
             return help_goto_direct(s, disp);
         }
@@ -1154,7 +1158,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
     /* Branch taken.  */
     per_breaking_event(s);
     if (is_imm) {
-        tcg_gen_movi_i64(psw_addr, dest);
+        gen_psw_addr_disp(s, psw_addr, disp);
     } else {
         tcg_gen_mov_i64(psw_addr, cdest);
     }
@@ -1170,7 +1174,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
     gen_set_label(lab);
 
     /* Branch not taken.  */
-    tcg_gen_movi_i64(psw_addr, s->pc_tmp);
+    gen_psw_addr_disp(s, psw_addr, s->ilen);
     if (use_goto_tb(s, s->pc_tmp)) {
         tcg_gen_goto_tb(1);
         tcg_gen_exit_tb(s->base.tb, 1);
@@ -5758,7 +5762,8 @@ static TCGv gen_ri2(DisasContext *s)
 
     disas_jdest(s, i2, is_imm, imm, ri2);
     if (is_imm) {
-        ri2 = tcg_constant_i64(s->base.pc_next + (int64_t)imm * 2);
+        ri2 = tcg_temp_new_i64();
+        gen_psw_addr_disp(s, ri2, (int64_t)imm * 2);
     }
 
     return ri2;
@@ -6367,7 +6372,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
             s->base.is_jmp = DISAS_PC_CC_UPDATED;
             /* fall through */
         case DISAS_NEXT:
-            tcg_gen_movi_i64(psw_addr, s->pc_tmp);
+            gen_psw_addr_disp(s, psw_addr, s->ilen);
             break;
         default:
             break;
