@@ -141,12 +141,6 @@ struct DisasContext {
     const DisasInsn *insn;
     DisasFields fields;
     uint64_t ex_value;
-    /*
-     * During translate_one(), pc_tmp is used to determine the instruction
-     * to be executed after base.pc_next - e.g. next sequential instruction
-     * or a branch target.
-     */
-    uint64_t pc_tmp;
     uint32_t ilen;
     enum cc_op cc_op;
     bool exit_to_mainloop;
@@ -344,11 +338,6 @@ static void store_freg32_i64(int reg, TCGv_i64 v)
     tcg_gen_st32_i64(v, tcg_env, freg32_offset(reg));
 }
 
-static void update_psw_addr(DisasContext *s)
-{
-    gen_psw_addr_disp(s, psw_addr, 0);
-}
-
 static void per_branch(DisasContext *s, TCGv_i64 dest)
 {
 #ifndef CONFIG_USER_ONLY
@@ -420,7 +409,7 @@ static void gen_program_exception(DisasContext *s, int code)
                    offsetof(CPUS390XState, int_pgm_ilen));
 
     /* update the psw */
-    update_psw_addr(s);
+    gen_psw_addr_disp(s, psw_addr, 0);
 
     /* Save off cc.  */
     update_cc_op(s);
@@ -1179,7 +1168,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
 
     /* Branch not taken.  */
     gen_psw_addr_disp(s, psw_addr, s->ilen);
-    if (use_goto_tb(s, s->pc_tmp)) {
+    if (use_goto_tb(s, s->base.pc_next + s->ilen)) {
         tcg_gen_goto_tb(1);
         tcg_gen_exit_tb(s->base.tb, 1);
         return DISAS_NORETURN;
@@ -2361,7 +2350,7 @@ static DisasJumpType op_ex(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    update_psw_addr(s);
+    gen_psw_addr_disp(s, psw_addr, 0);
     update_cc_op(s);
 
     if (r1 == 0) {
@@ -3085,7 +3074,7 @@ static DisasJumpType op_lpd(DisasContext *s, DisasOps *o)
 
     /* In a parallel context, stop the world and single step.  */
     if (tb_cflags(s->base.tb) & CF_PARALLEL) {
-        update_psw_addr(s);
+        gen_psw_addr_disp(s, psw_addr, 0);
         update_cc_op(s);
         gen_exception(EXCP_ATOMIC);
         return DISAS_NORETURN;
@@ -4379,7 +4368,7 @@ static DisasJumpType op_stura(DisasContext *s, DisasOps *o)
 
     if (s->base.tb->flags & FLAG_MASK_PER_STORE_REAL) {
         update_cc_op(s);
-        update_psw_addr(s);
+        gen_psw_addr_disp(s, psw_addr, 0);
         gen_helper_per_store_real(tcg_env, tcg_constant_i32(s->ilen));
         return DISAS_NORETURN;
     }
@@ -4611,7 +4600,7 @@ static DisasJumpType op_svc(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 t;
 
-    update_psw_addr(s);
+    gen_psw_addr_disp(s, psw_addr, 0);
     update_cc_op(s);
 
     t = tcg_constant_i32(get_field(s, i1) & 0xff);
@@ -6193,7 +6182,6 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
             g_assert_not_reached();
         }
     }
-    s->pc_tmp = s->base.pc_next + ilen;
     s->ilen = ilen;
 
     /* We can't actually determine the insn format until we've looked up
@@ -6413,7 +6401,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
 out:
     /* Advance to the next instruction.  */
-    s->base.pc_next = s->pc_tmp;
+    s->base.pc_next += s->ilen;
     return ret;
 }
 
@@ -6475,7 +6463,7 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
-        update_psw_addr(dc);
+        gen_psw_addr_disp(dc, psw_addr, 0);
         /* FALLTHRU */
     case DISAS_PC_UPDATED:
         /* Next TB starts off with CC_OP_DYNAMIC, so make sure the
