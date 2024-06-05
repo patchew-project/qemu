@@ -53,6 +53,7 @@ virtio_gpu_rutabaga_update_cursor(VirtIOGPU *g, struct virtio_gpu_scanout *s,
     transfer.z = 0;
     transfer.w = res->width;
     transfer.h = res->height;
+    transfer.stride = res->width * 4;
     transfer.d = 1;
 
     transfer_iovec.iov_base = s->current_cursor->data;
@@ -273,6 +274,7 @@ rutabaga_cmd_resource_flush(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd)
     transfer.z = 0;
     transfer.w = res->width;
     transfer.h = res->height;
+    transfer.stride = pixman_image_get_stride(res->image);
     transfer.d = 1;
 
     transfer_iovec.iov_base = pixman_image_get_data(res->image);
@@ -382,6 +384,7 @@ rutabaga_cmd_transfer_to_host_2d(VirtIOGPU *g,
     transfer.z = 0;
     transfer.w = t2d.r.width;
     transfer.h = t2d.r.height;
+    transfer.stride = t2d.r.width * 4;
     transfer.d = 1;
 
     result = rutabaga_resource_transfer_write(vr->rutabaga, 0, t2d.resource_id,
