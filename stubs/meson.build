@@ -45,17 +45,10 @@ if have_block or have_ga
   stub_ss.add(files('qmp-quit.c'))
 endif
 
-if have_ga
-  stub_ss.add(files('error-printf.c'))
-endif
-
 if have_block or have_user
   stub_ss.add(files('qtest.c'))
   stub_ss.add(files('vm-stop.c'))
   stub_ss.add(files('vmstate.c'))
-
-  # more symbols provided by the monitor
-  stub_ss.add(files('error-printf.c'))
 endif
 
 if have_user
@@ -76,6 +69,9 @@ if have_system
   stub_ss.add(files('target-monitor-defs.c'))
   stub_ss.add(files('win32-kbd-hook.c'))
   stub_ss.add(files('xen-hw-stub.c'))
+else
+  # more symbols provided by the monitor
+  stub_ss.add(files('error-printf.c'))
 endif
 
 if have_system or have_user
