@@ -1418,24 +1418,32 @@ static DisasJumpType op_bas(DisasContext *s, DisasOps *o)
 
 static void save_link_info(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 t;
+    TCGv_i64 t1, t2;
 
     if (s->base.tb->flags & (FLAG_MASK_32 | FLAG_MASK_64)) {
         pc_to_link_info(o->out, s);
         return;
     }
+
     gen_op_calc_cc(s);
-    t = tcg_temp_new_i64();
-    tcg_gen_andi_i64(o->out, o->out, 0xffffffff00000000ull);
-    gen_psw_addr_disp(s, t, s->ilen);
-    tcg_gen_or_i64(o->out, o->out, t);
-    tcg_gen_ori_i64(o->out, o->out, (s->ilen / 2) << 30);
-    tcg_gen_shri_i64(t, psw_mask, 16);
-    tcg_gen_andi_i64(t, t, 0x0f000000);
-    tcg_gen_or_i64(o->out, o->out, t);
-    tcg_gen_extu_i32_i64(t, cc_op);
-    tcg_gen_shli_i64(t, t, 28);
-    tcg_gen_or_i64(o->out, o->out, t);
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+
+    /* Shift program mask into place, garbage outside of [27:24]. */
+    tcg_gen_shri_i64(t1, psw_mask, 16);
+    /* Deposit pc to replace garbage bits below program mask. */
+    gen_psw_addr_disp(s, t2, s->ilen);
+    tcg_gen_deposit_i64(t1, t1, t2, 0, 24);
+    /*
+     * Deposit cc to replace garbage bits above program mask.
+     * Note that cc is in [0-3], thus [63:30] are set to zero.
+     */
+    tcg_gen_extu_i32_i64(t2, cc_op);
+    tcg_gen_deposit_i64(t1, t1, t2, 28, 64 - 28);
+    /* Install ilen. */
+    tcg_gen_ori_i64(t1, t1, (s->ilen / 2) << 30);
+
+    tcg_gen_deposit_i64(o->out, o->out, t1, 0, 32);
 }
 
 static DisasJumpType op_bal(DisasContext *s, DisasOps *o)
