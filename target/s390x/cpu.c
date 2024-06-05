@@ -358,6 +358,12 @@ void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
         flags |= FLAG_MASK_VECTOR;
     }
     *pflags = flags;
+
+    if (!(flags & FLAG_MASK_32)) {
+        tcg_debug_assert(*pc <= 0x00ffffff);
+    } else if (!(flags & FLAG_MASK_64)) {
+        tcg_debug_assert(*pc <= 0x7fffffff);
+    }
 }
 
 static const TCGCPUOps s390_tcg_ops = {
