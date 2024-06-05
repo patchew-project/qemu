@@ -209,99 +209,135 @@ static void test_plus_minus(void)
 
 int main(int argc, char **argv)
 {
+    bool has_486, has_athlon, has_conroe;
+    bool has_core2duo, has_penryn, has_pentium, has_phenom;
+
     g_test_init(&argc, &argv, NULL);
 
-    g_test_add_func("/x86/cpuid/parsing-plus-minus/subprocess",
-                    test_plus_minus_subprocess);
-    g_test_add_func("/x86/cpuid/parsing-plus-minus", test_plus_minus);
+    has_486 = qtest_has_cpu("486");
+    has_athlon = qtest_has_cpu("athlon");
+    has_conroe = qtest_has_cpu("Conroe");
+    has_core2duo = qtest_has_cpu("core2duo");
+    has_penryn = qtest_has_cpu("Penryn");
+    has_pentium = qtest_has_cpu("pentium");
+    has_phenom = qtest_has_cpu("phenom");
+
+    if (has_pentium) {
+        g_test_add_func("/x86/cpuid/parsing-plus-minus/subprocess",
+                        test_plus_minus_subprocess);
+        g_test_add_func("/x86/cpuid/parsing-plus-minus", test_plus_minus);
+    }
 
     /* Original level values for CPU models: */
-    add_cpuid_test("x86/cpuid/phenom/level",
-                   "-cpu phenom", "level", 5);
-    add_cpuid_test("x86/cpuid/Conroe/level",
-                   "-cpu Conroe", "level", 10);
+    if (has_486) {
+        add_cpuid_test("x86/cpuid/486/xlevel",
+                       "-cpu 486", "xlevel", 0);
+    }
+    if (has_phenom) {
+        add_cpuid_test("x86/cpuid/phenom/level",
+                       "-cpu phenom", "level", 5);
+        add_cpuid_test("x86/cpuid/phenom/xlevel",
+                       "-cpu phenom", "xlevel", 0x8000001A);
+    }
+    if (has_athlon) {
+        add_cpuid_test("x86/cpuid/athlon/xlevel",
+                       "-cpu athlon", "xlevel", 0x80000008);
+    }
+    if (has_core2duo) {
+        add_cpuid_test("x86/cpuid/core2duo/xlevel",
+                       "-cpu core2duo", "xlevel", 0x80000008);
+    }
+    if (has_conroe) {
+        add_cpuid_test("x86/cpuid/Conroe/level",
+                       "-cpu Conroe", "level", 10);
+    }
     add_cpuid_test("x86/cpuid/SandyBridge/level",
                    "-cpu SandyBridge", "level", 0xd);
-    add_cpuid_test("x86/cpuid/486/xlevel",
-                   "-cpu 486", "xlevel", 0);
-    add_cpuid_test("x86/cpuid/core2duo/xlevel",
-                   "-cpu core2duo", "xlevel", 0x80000008);
-    add_cpuid_test("x86/cpuid/phenom/xlevel",
-                   "-cpu phenom", "xlevel", 0x8000001A);
-    add_cpuid_test("x86/cpuid/athlon/xlevel",
-                   "-cpu athlon", "xlevel", 0x80000008);
 
     /* If level is not large enough, it should increase automatically: */
-    /* CPUID[6].EAX: */
-    add_cpuid_test("x86/cpuid/auto-level/phenom/arat",
-                   "-cpu 486,arat=on", "level", 6);
-    /* CPUID[EAX=7,ECX=0].EBX: */
-    add_cpuid_test("x86/cpuid/auto-level/phenom/fsgsbase",
-                   "-cpu phenom,fsgsbase=on", "level", 7);
-    /* CPUID[EAX=7,ECX=0].ECX: */
-    add_cpuid_test("x86/cpuid/auto-level/phenom/avx512vbmi",
-                   "-cpu phenom,avx512vbmi=on", "level", 7);
-    /* CPUID[EAX=0xd,ECX=1].EAX: */
-    add_cpuid_test("x86/cpuid/auto-level/phenom/xsaveopt",
-                   "-cpu phenom,xsaveopt=on", "level", 0xd);
-    /* CPUID[8000_0001].EDX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/3dnow",
-                   "-cpu 486,3dnow=on", "xlevel", 0x80000001);
-    /* CPUID[8000_0001].ECX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/sse4a",
-                   "-cpu 486,sse4a=on", "xlevel", 0x80000001);
-    /* CPUID[8000_0007].EDX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/invtsc",
-                   "-cpu 486,invtsc=on", "xlevel", 0x80000007);
-    /* CPUID[8000_000A].EDX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/npt",
-                   "-cpu 486,svm=on,npt=on", "xlevel", 0x8000000A);
-    /* CPUID[C000_0001].EDX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel2/phenom/xstore",
-                   "-cpu phenom,xstore=on", "xlevel2", 0xC0000001);
-    /* SVM needs CPUID[0x8000000A] */
-    add_cpuid_test("x86/cpuid/auto-xlevel/athlon/svm",
-                   "-cpu athlon,svm=on", "xlevel", 0x8000000A);
-
+    if (has_486) {
+        /* CPUID[6].EAX: */
+        add_cpuid_test("x86/cpuid/auto-level/486/arat",
+                       "-cpu 486,arat=on", "level", 6);
+        /* CPUID[8000_0001].EDX: */
+        add_cpuid_test("x86/cpuid/auto-xlevel/486/3dnow",
+                       "-cpu 486,3dnow=on", "xlevel", 0x80000001);
+        /* CPUID[8000_0001].ECX: */
+        add_cpuid_test("x86/cpuid/auto-xlevel/486/sse4a",
+                       "-cpu 486,sse4a=on", "xlevel", 0x80000001);
+        /* CPUID[8000_0007].EDX: */
+        add_cpuid_test("x86/cpuid/auto-xlevel/486/invtsc",
+                       "-cpu 486,invtsc=on", "xlevel", 0x80000007);
+        /* CPUID[8000_000A].EDX: */
+        add_cpuid_test("x86/cpuid/auto-xlevel/486/npt",
+                       "-cpu 486,svm=on,npt=on", "xlevel", 0x8000000A);
+    }
+    if (has_phenom) {
+        /* CPUID[EAX=7,ECX=0].EBX: */
+        add_cpuid_test("x86/cpuid/auto-level/phenom/fsgsbase",
+                       "-cpu phenom,fsgsbase=on", "level", 7);
+        /* CPUID[EAX=7,ECX=0].ECX: */
+        add_cpuid_test("x86/cpuid/auto-level/phenom/avx512vbmi",
+                       "-cpu phenom,avx512vbmi=on", "level", 7);
+        /* CPUID[EAX=0xd,ECX=1].EAX: */
+        add_cpuid_test("x86/cpuid/auto-level/phenom/xsaveopt",
+                       "-cpu phenom,xsaveopt=on", "level", 0xd);
+        /* CPUID[C000_0001].EDX: */
+        add_cpuid_test("x86/cpuid/auto-xlevel2/phenom/xstore",
+                       "-cpu phenom,xstore=on", "xlevel2", 0xC0000001);
+    }
+    if (has_athlon) {
+        /* SVM needs CPUID[0x8000000A] */
+        add_cpuid_test("x86/cpuid/auto-xlevel/athlon/svm",
+                       "-cpu athlon,svm=on", "xlevel", 0x8000000A);
+    }
 
     /* If level is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-level/SandyBridge/multiple",
                    "-cpu SandyBridge,arat=on,fsgsbase=on,avx512vbmi=on",
                    "level", 0xd);
     /* If level is explicitly set, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-level/486/fixed/0xF",
-                   "-cpu 486,level=0xF,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
-                   "level", 0xF);
-    add_cpuid_test("x86/cpuid/auto-level/486/fixed/2",
-                   "-cpu 486,level=2,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
-                   "level", 2);
-    add_cpuid_test("x86/cpuid/auto-level/486/fixed/0",
-                   "-cpu 486,level=0,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
-                   "level", 0);
+    if (has_486) {
+        add_cpuid_test("x86/cpuid/auto-level/486/fixed/0xF",
+                       "-cpu 486,level=0xF,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
+                       "level", 0xF);
+        add_cpuid_test("x86/cpuid/auto-level/486/fixed/2",
+                       "-cpu 486,level=2,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
+                       "level", 2);
+        add_cpuid_test("x86/cpuid/auto-level/486/fixed/0",
+                       "-cpu 486,level=0,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
+                       "level", 0);
+    }
 
     /* if xlevel is already large enough, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/phenom/3dnow",
-                   "-cpu phenom,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   "xlevel", 0x8000001A);
-    /* If xlevel is explicitly set, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/80000002",
-                   "-cpu 486,xlevel=0x80000002,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   "xlevel", 0x80000002);
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/8000001A",
-                   "-cpu 486,xlevel=0x8000001A,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   "xlevel", 0x8000001A);
-    add_cpuid_test("x86/cpuid/auto-xlevel/phenom/fixed/0",
-                   "-cpu 486,xlevel=0,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   "xlevel", 0);
+    if (has_phenom) {
+        add_cpuid_test("x86/cpuid/auto-xlevel/phenom/3dnow",
+                       "-cpu phenom,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+                       "xlevel", 0x8000001A);
+    }
 
-    /* if xlevel2 is already large enough, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-xlevel2/486/fixed",
-                   "-cpu 486,xlevel2=0xC0000002,xstore=on",
-                   "xlevel2", 0xC0000002);
+    /* If xlevel is explicitly set, it shouldn't change: */
+    if (has_486) {
+        add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/80000002",
+                       "-cpu 486,xlevel=0x80000002,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+                       "xlevel", 0x80000002);
+        add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/8000001A",
+                       "-cpu 486,xlevel=0x8000001A,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+                       "xlevel", 0x8000001A);
+        add_cpuid_test("x86/cpuid/auto-xlevel/phenom/fixed/0",
+                       "-cpu 486,xlevel=0,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+                       "xlevel", 0);
+
+        /* if xlevel2 is already large enough, it shouldn't change: */
+        add_cpuid_test("x86/cpuid/auto-xlevel2/486/fixed",
+                       "-cpu 486,xlevel2=0xC0000002,xstore=on",
+                       "xlevel2", 0xC0000002);
+    }
+
 
     /* Check compatibility of old machine-types that didn't
      * auto-increase level/xlevel/xlevel2: */
-    if (qtest_has_machine("pc-i440fx-2.7")) {
+    if (qtest_has_machine("pc-i440fx-2.7") && has_486) {
         add_cpuid_test("x86/cpuid/auto-level/pc-2.7",
                        "-machine pc-i440fx-2.7 -cpu 486,arat=on,avx512vbmi=on,xsaveopt=on",
                        "level", 1);
@@ -317,7 +353,7 @@ int main(int argc, char **argv)
      * and the compat code that sets default level shouldn't
      * disable the auto-level=7 code:
      */
-    if (qtest_has_machine("pc-i440fx-2.3")) {
+    if (qtest_has_machine("pc-i440fx-2.3") && has_penryn) {
         add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/off",
                        "-machine pc-i440fx-2.3 -cpu Penryn",
                        "level", 4);
@@ -325,7 +361,7 @@ int main(int argc, char **argv)
                        "-machine pc-i440fx-2.3 -cpu Penryn,erms=on",
                        "level", 7);
     }
-    if (qtest_has_machine("pc-i440fx-2.9")) {
+    if (qtest_has_machine("pc-i440fx-2.9") && has_conroe) {
         add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/off",
                        "-machine pc-i440fx-2.9 -cpu Conroe",
                        "level", 10);
@@ -354,18 +390,22 @@ int main(int argc, char **argv)
     }
 
     /* Test feature parsing */
-    add_feature_test("x86/cpuid/features/plus",
-                     "-cpu 486,+arat",
-                     6, 0, "EAX", 2, true);
-    add_feature_test("x86/cpuid/features/minus",
-                     "-cpu pentium,-mmx",
-                     1, 0, "EDX", 23, false);
-    add_feature_test("x86/cpuid/features/on",
-                     "-cpu 486,arat=on",
-                     6, 0, "EAX", 2, true);
-    add_feature_test("x86/cpuid/features/off",
-                     "-cpu pentium,mmx=off",
-                     1, 0, "EDX", 23, false);
+    if (has_486) {
+        add_feature_test("x86/cpuid/features/plus",
+                         "-cpu 486,+arat",
+                         6, 0, "EAX", 2, true);
+        add_feature_test("x86/cpuid/features/on",
+                         "-cpu 486,arat=on",
+                         6, 0, "EAX", 2, true);
+    }
+    if (has_pentium) {
+        add_feature_test("x86/cpuid/features/minus",
+                         "-cpu pentium,-mmx",
+                         1, 0, "EDX", 23, false);
+        add_feature_test("x86/cpuid/features/off",
+                         "-cpu pentium,mmx=off",
+                         1, 0, "EDX", 23, false);
+    }
     add_feature_test("x86/cpuid/features/max-plus-invtsc",
                      "-cpu max,+invtsc",
                      0x80000007, 0, "EDX", 8, true);
