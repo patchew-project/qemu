@@ -265,6 +265,109 @@ static biz_accel_fn const accel_table[] = {
     buffer_is_zero_int_ge256,
     buffer_is_zero_simd,
 };
+#elif defined(__loongarch__)
+#ifdef CONFIG_LSX_OPT
+#include "lsxintrin.h"
+static bool buffer_zero_lsx(const void *buf, size_t len)
+{
+    /* Unaligned loads at head/tail.  */
+    __m128i v = *(__m128i *)(buf);
+    __m128i w = *(__m128i *)(buf + len - 16);
+    /* Align head/tail to 16-byte boundaries.  */
+    const __m128i *p = QEMU_ALIGN_PTR_DOWN(buf + 16, 16);
+    const __m128i *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 16);
+
+    /* Collect a partial block at tail end.  */
+    v |= e[-1]; w |= e[-2];
+    v |= e[-3]; w |= e[-4];
+    v |= e[-5]; w |= e[-6];
+    v |= e[-7]; v |= w;
+
+    /*
+     * Loop over complete 128-byte blocks.
+     * With the head and tail removed, e - p >= 14, so the loop
+     * must iterate at least once.
+     */
+    do {
+        if (!__lsx_bz_v(v)) {
+            return false;
+        }
+        v = p[0];  w = p[1];
+        v |= p[2]; w |= p[3];
+        v |= p[4]; w |= p[5];
+        v |= p[6]; w |= p[7];
+        v |= w;
+        p += 8;
+    } while (p < e - 7);
+
+    return __lsx_bz_v(v);
+}
+#endif
+
+#ifdef CONFIG_LASX_OPT
+#include "lasxintrin.h"
+static bool buffer_zero_lasx(const void *buf, size_t len)
+{
+    /* Unaligned loads at head/tail.  */
+    __m256i v = *(__m256i *)(buf);
+    __m256i w = *(__m256i *)(buf + len - 32);
+    /* Align head/tail to 32-byte boundaries.  */
+    const __m256i *p = QEMU_ALIGN_PTR_DOWN(buf + 32, 32);
+    const __m256i *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 32);
+
+    /* Collect a partial block at tail end.  */
+    v |= e[-1]; w |= e[-2];
+    v |= e[-3]; w |= e[-4];
+    v |= e[-5]; w |= e[-6];
+    v |= e[-7]; v |= w;
+
+    /* Loop over complete 256-byte blocks.  */
+    for (; p < e - 7; p += 8) {
+        /* PTEST is not profitable here.  */
+        if (!__lasx_xbz_v(v)) {
+            return false;
+        }
+
+        v = p[0];  w = p[1];
+        v |= p[2]; w |= p[3];
+        v |= p[4]; w |= p[5];
+        v |= p[6]; w |= p[7];
+        v |= w;
+    }
+
+    return __lasx_xbz_v(v);
+}
+#endif
+
+static biz_accel_fn const accel_table[] = {
+    buffer_is_zero_int_ge256,
+#ifdef CONFIG_LSX_OPT
+    buffer_zero_lsx,
+#endif
+#ifdef CONFIG_LASX_OPT
+    buffer_zero_lasx,
+#endif
+};
+
+static unsigned best_accel(void)
+{
+    unsigned info = cpuinfo_init();
+
+    /* CONFIG_LSX_OPT must be enabled if CONFIG_LASX_OPT is enabled */
+#ifdef CONFIG_LASX_OPT
+    if (info & CPUINFO_LASX) {
+        return 2;
+    }
+#endif
+
+#ifdef CONFIG_LSX_OPT
+    if (info & CPUINFO_LSX) {
+        return 1;
+    }
+#endif
+
+    return 0;
+}
 #else
 #define best_accel() 0
 static biz_accel_fn const accel_table[1] = {

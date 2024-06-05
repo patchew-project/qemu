@@ -2855,6 +2855,17 @@ config_host_data.set('CONFIG_ARM_AES_BUILTIN', cc.compiles('''
     void foo(uint8x16_t *p) { *p = vaesmcq_u8(*p); }
   '''))
 
+# For Loongarch64, detect if LSX/LASX are available.
+ config_host_data.set('CONFIG_LSX_OPT', cc.compiles('''
+    #include "lsxintrin.h"
+    int foo(__m128i v) { return __lsx_bz_v(v); }
+  '''))
+
+config_host_data.set('CONFIG_LASX_OPT', cc.compiles('''
+    #include "lasxintrin.h"
+    int foo(__m256i v) { return __lasx_xbz_v(v); }
+  '''))
+
 if get_option('membarrier').disabled()
   have_membarrier = false
 elif host_os == 'windows'
