@@ -899,6 +899,93 @@ virtio_gpu_rutabaga_aio_cb(void *opaque)
     g_free(data);
 }
 
+
+static void
+virtio_gpu_fence_poll(void *opaque)
+{
+    VirtIOGPU *g = opaque;
+    VirtIOGPURutabaga *vr = VIRTIO_GPU_RUTABAGA(g);
+
+    rutabaga_poll(vr->rutabaga);
+}
+
+typedef void (*vu_watch_cb) (VirtIOGPURutabaga *dev, int condition, void *data);
+
+static void
+event_poll_cb(VirtIOGPURutabaga *dev, int condition, void *data)
+{
+    virtio_gpu_fence_poll(data);
+}
+
+typedef struct VrSrc {
+    GSource parent;
+    VirtIOGPURutabaga *dev;
+    GPollFD gfd;
+} VrSrc;
+
+static gboolean
+vr_src_prepare(GSource *gsrc, gint *timeout)
+{
+    g_assert(timeout);
+
+    *timeout = -1;
+    return FALSE;
+}
+
+static gboolean
+vr_src_check(GSource *gsrc)
+{
+    VrSrc *src = (VrSrc *)gsrc;
+
+    g_assert(src);
+
+    return src->gfd.revents & src->gfd.events;
+}
+
+static gboolean
+vr_src_dispatch(GSource *gsrc, GSourceFunc cb, gpointer data)
+{
+    VrSrc *src = (VrSrc *)gsrc;
+
+    g_assert(src);
+
+    ((vu_watch_cb)cb)(src->dev, src->gfd.revents, data);
+
+    return G_SOURCE_CONTINUE;
+}
+
+static GSourceFuncs vug_src_funcs = {
+    vr_src_prepare,
+    vr_src_check,
+    vr_src_dispatch,
+    NULL
+};
+
+static GSource *
+vr_source_new(VirtIOGPURutabaga *dev, int fd, GIOCondition cond,
+              vu_watch_cb vu_cb, gpointer data)
+{
+    GSource *gsrc;
+    VrSrc *src;
+    guint id;
+
+    g_assert(fd >= 0);
+    g_assert(vu_cb);
+
+    gsrc = g_source_new(&vug_src_funcs, sizeof(VrSrc));
+    g_source_set_callback(gsrc, (GSourceFunc)vu_cb, data, NULL);
+    src = (VrSrc *)gsrc;
+    src->dev = dev;
+    src->gfd.fd = fd;
+    src->gfd.events = cond;
+
+    g_source_add_poll(gsrc, &src->gfd);
+    id = g_source_attach(gsrc, g_main_context_get_thread_default());
+    g_assert(id);
+
+    return gsrc;
+}
+
 static void
 virtio_gpu_rutabaga_fence_cb(uint64_t user_data,
                              const struct rutabaga_fence *fence)
@@ -954,6 +1041,7 @@ virtio_gpu_rutabaga_debug_cb(uint64_t user_data,
 static bool virtio_gpu_rutabaga_init(VirtIOGPU *g, Error **errp)
 {
     int result;
+    int poll_descriptor;
     struct rutabaga_builder builder = { 0 };
     struct rutabaga_channel channel = { 0 };
     struct rutabaga_channels channels = { 0 };
@@ -1031,7 +1119,14 @@ static bool virtio_gpu_rutabaga_init(VirtIOGPU *g, Error **errp)
         error_setg_errno(errp, -result, "Failed to init rutabaga");
         return false;
     }
-
+    result = rutabaga_poll_descriptor(vr->rutabaga, &poll_descriptor);
+    if (result) {
+        error_setg_errno(errp, -result, "Failed to get rutabaga poll descriptor");
+        return false;
+    }
+    if (poll_descriptor >= 0)
+        vr->poll_event_source = vr_source_new(vr, poll_descriptor, G_IO_IN,
+                                              event_poll_cb, g);
     return true;
 }
 
