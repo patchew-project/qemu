@@ -4689,6 +4689,13 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
     }
 }
 
+static void tcg_reg_alloc_plugin_pc(TCGContext *s, const TCGOp *op)
+{
+    tcg_reg_alloc_do_movi(s, arg_temp(op->args[0]),
+                          (uintptr_t)tcg_splitwx_to_rx(s->code_ptr),
+                          op->life, output_pref(op, 0));
+}
+
 /*
  * Specialized code generation for INDEX_op_dup_vec.
  */
@@ -6195,6 +6202,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
         case INDEX_op_mov_i64:
         case INDEX_op_mov_vec:
             tcg_reg_alloc_mov(s, op);
+            break;
+        case INDEX_op_plugin_pc:
+            tcg_reg_alloc_plugin_pc(s, op);
             break;
         case INDEX_op_dup_vec:
             tcg_reg_alloc_dup(s, op);

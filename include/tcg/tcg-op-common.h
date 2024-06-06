@@ -76,6 +76,7 @@ void tcg_gen_lookup_and_goto_ptr(void);
 
 void tcg_gen_plugin_cb(unsigned from);
 void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);
+void tcg_gen_plugin_pc(TCGv_ptr);
 
 /* 32 bit ops */
 
