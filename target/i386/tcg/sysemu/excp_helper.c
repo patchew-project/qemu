@@ -56,7 +56,7 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
     X86TranslateFault err;
 
     if (x86_cpu_get_physical_address(env, addr, access_type, mmu_idx, &out,
-                                     &err, retaddr)) {
+                                     &err, retaddr, false)) {
         /*
          * Even if 4MB pages, we map only one 4KB page in the cache to
          * avoid filling it too fast.

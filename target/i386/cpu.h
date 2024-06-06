@@ -2198,6 +2198,8 @@ bool x86_pte_present(CPUState *cs, PTE_t *pte);
 bool x86_pte_leaf(CPUState *cs, int height, PTE_t *pte);
 hwaddr x86_pte_child(CPUState *cs, PTE_t *pte, int height);
 uint64_t x86_pte_flags(uint64_t pte);
+bool x86_pte_check_bits(CPUState *cs, PTE_t *pte, int64_t mask);
+int x86_virtual_to_pte_index(CPUState *cs, target_ulong vaddr, int height);
 bool x86_cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                                 Error **errp);
 bool x86_mon_init_page_table_iterator(Monitor *mon,
@@ -2220,7 +2222,8 @@ int cpu_x86_support_mca_broadcast(CPUX86State *env);
 bool x86_cpu_get_physical_address(CPUX86State *env, vaddr addr,
                                   MMUAccessType access_type, int mmu_idx,
                                   X86TranslateResult *out,
-                                  X86TranslateFault *err, uint64_t ra);
+                                  X86TranslateFault *err, uint64_t ra,
+                                  bool read_only);
 
 hwaddr x86_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                          MemTxAttrs *attrs);
