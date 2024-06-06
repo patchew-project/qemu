@@ -521,13 +521,15 @@ static inline target_ulong get_memio_eip(CPUX86State *env)
 #ifdef CONFIG_TCG
     uint64_t data[TARGET_INSN_START_WORDS];
     CPUState *cs = env_cpu(env);
+    const TranslationBlock *tb;
 
-    if (!cpu_unwind_state_data(cs, cs->mem_io_pc, data)) {
+    tb = cpu_unwind_state_data(cs, cs->mem_io_pc, data);
+    if (!tb) {
         return env->eip;
     }
 
     /* Per x86_restore_state_to_opc. */
-    if (tcg_cflags_has(cs, CF_PCREL)) {
+    if (tb->cflags & CF_PCREL) {
         return (env->eip & TARGET_PAGE_MASK) | data[0];
     } else {
         return data[0] - env->segs[R_CS].base;

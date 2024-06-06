@@ -243,15 +243,16 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc)
     return false;
 }
 
-bool cpu_unwind_state_data(CPUState *cpu, uintptr_t host_pc, uint64_t *data)
+const TranslationBlock *
+cpu_unwind_state_data(CPUState *cpu, uintptr_t host_pc, uint64_t *data)
 {
     if (in_code_gen_buffer((const void *)(host_pc - tcg_splitwx_diff))) {
         TranslationBlock *tb = tcg_tb_lookup(host_pc);
-        if (tb) {
-            return cpu_unwind_data_from_tb(tb, host_pc, data) >= 0;
+        if (tb && cpu_unwind_data_from_tb(tb, host_pc, data) >= 0) {
+            return tb;
         }
     }
-    return false;
+    return NULL;
 }
 
 void page_init(void)
