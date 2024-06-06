@@ -318,6 +318,7 @@ void hmp_info_pg(Monitor *mon, const QDict *qdict)
     /* Print last entry, if one present */
     cc->sysemu_ops->mon_flush_page_print_state(cs, &state);
 }
+
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
                         hwaddr addr, int is_physical)
 {

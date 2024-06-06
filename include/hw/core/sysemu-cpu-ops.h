@@ -243,6 +243,13 @@ typedef struct SysemuCPUOps {
     bool (*mon_flush_page_print_state)(CPUState *cs,
                                        struct mem_print_state *state);
 
+    /**
+     * @mon_print_pte: Hook called by the monitor to print a page
+     * table entry at address addr, with contents pte.
+     */
+    void (*mon_print_pte) (Monitor *mon, CPUArchState *env, hwaddr addr,
+                           hwaddr pte);
+
 } SysemuCPUOps;
 
 #endif /* SYSEMU_CPU_OPS_H */
