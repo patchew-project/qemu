@@ -22,8 +22,10 @@
 #include "helper-tcg.h"
 #include "qemu/accel.h"
 #include "hw/core/accel-cpu.h"
-
+#include "gdbstub/helpers.h"
+#include "gdb-internal.h"
 #include "tcg-cpu.h"
+
 
 /* Frob eflags into and out of the CPU temporary format.  */
 
@@ -61,35 +63,71 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs,
     }
 }
 
-static void x86_restore_state_to_opc(CPUState *cs,
-                                     const TranslationBlock *tb,
-                                     const uint64_t *data)
+static uint64_t eip_from_unwind(CPUX86State *env, const TranslationBlock *tb,
+                                uint64_t data0)
 {
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    int cc_op = data[1];
     uint64_t new_pc;
 
     if (tb_cflags(tb) & CF_PCREL) {
         /*
-         * data[0] in PC-relative TBs is also a linear address, i.e. an address with
-         * the CS base added, because it is not guaranteed that EIP bits 12 and higher
-         * stay the same across the translation block.  Add the CS base back before
-         * replacing the low bits, and subtract it below just like for !CF_PCREL.
+         * data[0] in PC-relative TBs is also a linear address,
+         * i.e. an address with the CS base added, because it is
+         * not guaranteed that EIP bits 12 and higher stay the
+         * same across the translation block.  Add the CS base
+         * back before replacing the low bits, and subtract it
+         * below just like for !CF_PCREL.
          */
         uint64_t pc = env->eip + tb->cs_base;
-        new_pc = (pc & TARGET_PAGE_MASK) | data[0];
+        new_pc = (pc & TARGET_PAGE_MASK) | data0;
     } else {
-        new_pc = data[0];
+        new_pc = data0;
     }
     if (tb->flags & HF_CS64_MASK) {
-        env->eip = new_pc;
-    } else {
-        env->eip = (uint32_t)(new_pc - tb->cs_base);
+        return new_pc;
     }
+    return (uint32_t)(new_pc - tb->cs_base);
+}
 
+static void x86_restore_state_to_opc(CPUState *cs,
+                                     const TranslationBlock *tb,
+                                     const uint64_t *data)
+{
+    CPUX86State *env = cpu_env(cs);
+    CCOp cc_op;
+
+    env->eip = eip_from_unwind(env, tb, data[0]);
+
+    cc_op = data[1];
     if (cc_op != CC_OP_DYNAMIC) {
         env->cc_op = cc_op;
+    }
+}
+
+static bool x86_plugin_need_unwind_for_reg(CPUState *cs, int reg)
+{
+    return reg == IDX_IP_REG || reg == IDX_FLAGS_REG;
+}
+
+static int x86_plugin_unwind_read_reg(CPUState *cs, GByteArray *buf, int reg,
+                                      const TranslationBlock *tb,
+                                      const uint64_t *data)
+{
+    CPUX86State *env = cpu_env(cs);
+    CCOp cc_op;
+
+    switch (reg) {
+    case IDX_IP_REG:
+        return gdb_get_regl(buf, eip_from_unwind(env, tb, data[0]));
+
+    case IDX_FLAGS_REG:
+        cc_op = data[1];
+        if (cc_op == CC_OP_DYNAMIC) {
+            cc_op = env->cc_op;
+        }
+        return gdb_get_reg32(buf, cpu_compute_eflags_ccop(env, cc_op));
+
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -110,6 +148,8 @@ static const TCGCPUOps x86_tcg_ops = {
     .initialize = tcg_x86_init,
     .synchronize_from_tb = x86_cpu_synchronize_from_tb,
     .restore_state_to_opc = x86_restore_state_to_opc,
+    .plugin_need_unwind_for_reg = x86_plugin_need_unwind_for_reg,
+    .plugin_unwind_read_reg = x86_plugin_unwind_read_reg,
     .cpu_exec_enter = x86_cpu_exec_enter,
     .cpu_exec_exit = x86_cpu_exec_exit,
 #ifdef CONFIG_USER_ONLY
