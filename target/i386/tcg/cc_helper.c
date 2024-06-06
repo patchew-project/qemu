@@ -225,6 +225,16 @@ uint32_t cpu_cc_compute_all(CPUX86State *env)
     return helper_cc_compute_all(CC_DST, CC_SRC, CC_SRC2, CC_OP);
 }
 
+uint32_t cpu_compute_eflags_ccop(CPUX86State *env, CCOp op)
+{
+    uint32_t eflags;
+
+    eflags = helper_cc_compute_all(CC_DST, CC_SRC, CC_SRC2, op);
+    eflags |= env->df & DF_MASK;
+    eflags |= env->eflags & ~(VM_MASK | RF_MASK);
+    return eflags;
+}
+
 target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
                                  target_ulong src2, int op)
 {

@@ -2431,6 +2431,8 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
 
 uint32_t cpu_cc_compute_all(CPUX86State *env1);
 
+uint32_t cpu_compute_eflags_ccop(CPUX86State *env, CCOp op);
+
 static inline uint32_t cpu_compute_eflags(CPUX86State *env)
 {
     uint32_t eflags = env->eflags;
