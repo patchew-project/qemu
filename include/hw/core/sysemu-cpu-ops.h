@@ -250,6 +250,12 @@ typedef struct SysemuCPUOps {
     void (*mon_print_pte) (Monitor *mon, CPUArchState *env, hwaddr addr,
                            hwaddr pte);
 
+    /**
+     * @mon_print_mem: Hook called by the monitor to print a range
+     * of memory mappings in 'info mem'
+     */
+    bool (*mon_print_mem)(CPUState *cs, struct mem_print_state *state);
+
 } SysemuCPUOps;
 
 #endif /* SYSEMU_CPU_OPS_H */

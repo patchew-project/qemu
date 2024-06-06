@@ -122,9 +122,8 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
 }
 
 /* Assume only called on present entries */
-static
-int compressing_iterator(CPUState *cs, void *data, PTE_t *pte,
-                         vaddr vaddr_in, int height, int offset)
+int compressing_iterator(CPUState *cs, void *data, PTE_t *pte, vaddr vaddr_in,
+                         int height, int offset)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
     struct mem_print_state *state = (struct mem_print_state *) data;

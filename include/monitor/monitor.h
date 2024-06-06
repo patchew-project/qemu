@@ -5,6 +5,7 @@
 #include "qapi/qapi-types-misc.h"
 #include "qemu/readline.h"
 #include "exec/hwaddr.h"
+#include "hw/core/cpu.h"
 
 typedef struct MonitorHMP MonitorHMP;
 typedef struct MonitorOptions MonitorOptions;
@@ -62,5 +63,8 @@ void monitor_register_hmp_info_hrt(const char *name,
 
 int error_vprintf_unless_qmp(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 int error_printf_unless_qmp(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
+
+int compressing_iterator(CPUState *cs, void *data, PTE_t *pte, vaddr vaddr_in,
+                         int height, int offset);
 
 #endif /* MONITOR_H */

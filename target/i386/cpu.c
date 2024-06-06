@@ -8316,6 +8316,7 @@ static const struct SysemuCPUOps i386_sysemu_ops = {
     .mon_init_page_table_iterator = &x86_mon_init_page_table_iterator,
     .mon_info_pg_print_header = &x86_mon_info_pg_print_header,
     .mon_flush_page_print_state = &x86_mon_flush_print_pg_state,
+    .mon_print_mem = &x86_mon_print_mem,
 };
 #endif
 
