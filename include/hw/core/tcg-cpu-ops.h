@@ -53,6 +53,20 @@ struct TCGCPUOps {
     /** @debug_excp_handler: Callback for handling debug exceptions */
     void (*debug_excp_handler)(CPUState *cpu);
 
+    /**
+     * @plugin_need_unwind_for_reg:
+     * True if unwind info needed for reading reg.
+     */
+    bool (*plugin_need_unwind_for_reg)(CPUState *cpu, int reg);
+    /**
+     * @plugin_unwind_read_reg:
+     * Like CPUClass.gdb_read_register, but for registers that require
+     * regeneration using unwind info, like in @restore_state_to_opc.
+     */
+    int (*plugin_unwind_read_reg)(CPUState *cpu, GByteArray *buf, int reg,
+                                  const TranslationBlock *tb,
+                                  const uint64_t *data);
+
 #ifdef CONFIG_USER_ONLY
     /**
      * @fake_user_interrupt: Callback for 'fake exception' handling.

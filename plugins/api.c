@@ -40,10 +40,12 @@
 #include "qemu/plugin.h"
 #include "qemu/log.h"
 #include "tcg/tcg.h"
+#include "tcg/insn-start-words.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
 #include "exec/translator.h"
 #include "disas/disas.h"
+#include "hw/core/tcg-cpu-ops.h"
 #include "plugin.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/ram_addr.h"
@@ -526,9 +528,39 @@ GArray *qemu_plugin_get_registers(void)
 
 int qemu_plugin_read_register(struct qemu_plugin_register *reg, GByteArray *buf)
 {
-    g_assert(current_cpu);
+    CPUState *cs;
+    uintptr_t ra;
+    int regno;
 
-    return gdb_read_register(current_cpu, buf, GPOINTER_TO_INT(reg));
+    assert(current_cpu);
+    cs = current_cpu;
+    ra = cs->neg.plugin_ra;
+    regno = GPOINTER_TO_INT(reg);
+
+    /*
+     * When plugin_ra is 0, we have no unwind info.  This will be true for
+     * TB callbacks that happen before any insns of the TB have started.
+     */
+    if (ra) {
+        const TCGCPUOps *tcg_ops = cs->cc->tcg_ops;
+
+        /*
+         * For plugins in the middle of the TB, we may need to locate
+         * and use unwind data to reconstruct a register value.
+         * Usually this required for the PC, but there may be others.
+         */
+        if (tcg_ops->plugin_need_unwind_for_reg &&
+            tcg_ops->plugin_need_unwind_for_reg(cs, regno)) {
+            uint64_t data[TARGET_INSN_START_WORDS];
+            const TranslationBlock *tb;
+
+            tb = cpu_unwind_state_data(cs, ra, data);
+            assert(tb);
+            return tcg_ops->plugin_unwind_read_reg(cs, buf, regno, tb, data);
+        }
+    }
+
+    return gdb_read_register(cs, buf, regno);
 }
 
 struct qemu_plugin_scoreboard *qemu_plugin_scoreboard_new(size_t element_size)
