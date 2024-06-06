@@ -43,6 +43,15 @@
 static bool qdev_hot_added = false;
 bool qdev_hot_removed = false;
 
+enum qdev_policy {
+    QDEV_ALLOW = 0,
+    QDEV_WARN  = 1,
+    QDEV_DENY  = 2,
+};
+
+static enum qdev_policy qdev_deprecated_policy;
+static enum qdev_policy qdev_not_secure_policy;
+
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
@@ -144,6 +153,43 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp)
     return true;
 }
 
+static bool qdev_class_check(const char *name, ObjectClass *oc)
+{
+    bool allow = true;
+
+    if (oc->deprecated) {
+        switch (qdev_deprecated_policy) {
+        case QDEV_WARN:
+            warn_report("device \"%s\" is deprecated", name);
+            break;
+        case QDEV_DENY:
+            error_report("device \"%s\" is deprecated", name);
+            allow = false;
+            break;
+        default:
+            /* nothing */
+            break;
+        }
+    }
+
+    if (oc->not_secure) {
+        switch (qdev_not_secure_policy) {
+        case QDEV_WARN:
+            warn_report("device \"%s\" is not secure", name);
+            break;
+        case QDEV_DENY:
+            error_report("device \"%s\" is not secure", name);
+            allow = false;
+            break;
+        default:
+            /* nothing */
+            break;
+        }
+    }
+
+    return allow;
+}
+
 DeviceState *qdev_new(const char *name)
 {
     ObjectClass *oc = object_class_by_name(name);
@@ -162,14 +208,26 @@ DeviceState *qdev_new(const char *name)
         error_report("unknown type '%s'", name);
         abort();
     }
+
+    if (!qdev_class_check(name, oc)) {
+        exit(1);
+    }
+
     return DEVICE(object_new(name));
 }
 
 DeviceState *qdev_try_new(const char *name)
 {
-    if (!module_object_class_by_name(name)) {
+    ObjectClass *oc = module_object_class_by_name(name);
+
+    if (!oc) {
         return NULL;
     }
+
+    if (!qdev_class_check(name, oc)) {
+        return NULL;
+    }
+
     return DEVICE(object_new(name));
 }
 
