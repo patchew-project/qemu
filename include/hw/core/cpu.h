@@ -671,8 +671,40 @@ int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
  * Caller is responsible for freeing the data.
  */
 GuestPanicInformation *cpu_get_crash_info(CPUState *cpu);
-
 #endif /* !CONFIG_USER_ONLY */
+
+/* Intended to become a generic PTE type */
+typedef union PTE {
+    uint64_t pte64_t;
+    uint32_t pte32_t;
+} PTE_t;
+
+/**
+ * for_each_pte - iterate over a page table, and
+ *                call fn on each entry
+ *
+ * @cs - CPU state
+ * @fn(cs, data, pte, vaddr, height) - User-provided function to call on each
+ *                                     pte.
+ *   * @cs - pass through cs
+ *   * @data - user-provided, opaque pointer
+ *   * @pte - current pte
+ *   * @vaddr - virtual address translated by pte
+ *   * @height - height in the tree of pte
+ * @data - opaque pointer; passed through to fn
+ * @visit_interior_nodes - if true, call fn() on interior entries in
+ *                         page table; if false, visit only leaf entries.
+ * @visit_not_present - if true, call fn() on entries that are not present.
+ *                         if false, visit only present entries.
+ *
+ * Returns true on success, false on error.
+ *
+ */
+bool for_each_pte(CPUState *cs,
+                  int (*fn)(CPUState *cs, void *data, PTE_t *pte, vaddr vaddr,
+                            int height, int offset), void *data,
+                  bool visit_interior_nodes, bool visit_not_present);
+
 
 /**
  * CPUDumpFlags:

@@ -21,6 +21,7 @@
 #define I386_CPU_H
 
 #include "sysemu/tcg.h"
+#include "hw/core/sysemu-cpu-ops.h"
 #include "cpu-qom.h"
 #include "kvm/hyperv-proto.h"
 #include "exec/cpu-defs.h"
@@ -2150,8 +2151,22 @@ int x86_cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
 int x86_cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                                  DumpState *s);
 
+hwaddr x86_page_table_root(CPUState *cs, int *height);
+int x86_page_table_entries_per_node(CPUState *cs, int height);
+uint64_t x86_pte_leaf_page_size(CPUState *cs, int height);
+void x86_get_pte(CPUState *cs, hwaddr node, int i, int height,
+                 PTE_t *pt_entry, vaddr vaddr_parent, vaddr *vaddr_pte,
+                 hwaddr *pte_paddr);
+bool x86_pte_present(CPUState *cs, PTE_t *pte);
+bool x86_pte_leaf(CPUState *cs, int height, PTE_t *pte);
+hwaddr x86_pte_child(CPUState *cs, PTE_t *pte, int height);
+uint64_t x86_pte_flags(uint64_t pte);
 bool x86_cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                                 Error **errp);
+bool x86_mon_init_page_table_iterator(Monitor *mon,
+                                      struct mem_print_state *state);
+void x86_mon_info_pg_print_header(Monitor *mon, struct mem_print_state *state);
+bool x86_mon_flush_print_pg_state(CPUState *cs, struct mem_print_state *state);
 
 void x86_cpu_dump_state(CPUState *cs, FILE *f, int flags);
 

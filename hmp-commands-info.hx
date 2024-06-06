@@ -242,6 +242,19 @@ SRST
     Show memory tree.
 ERST
 
+    {
+        .name       = "pg",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the page table",
+        .cmd        = hmp_info_pg,
+    },
+
+SRST
+  ``info pg``
+    Show the active page table.
+ERST
+
 #if defined(CONFIG_TCG)
     {
         .name       = "jit",

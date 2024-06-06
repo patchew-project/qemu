@@ -142,3 +142,143 @@ GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)
     }
     return res;
 }
+
+/**
+ * _for_each_pte - recursive helper function
+ *
+ * @cs - CPU state
+ * @fn(cs, data, pte, vaddr, height) - User-provided function to call on each
+ *                                     pte.
+ *   * @cs - pass through cs
+ *   * @data - user-provided, opaque pointer
+ *   * @pte - current pte
+ *   * @vaddr_in - virtual address translated by pte
+ *   * @height - height in the tree of pte
+ * @data - user-provided, opaque pointer, passed to fn()
+ * @visit_interior_nodes - if true, call fn() on page table entries in
+ *                         interior nodes.  If false, only call fn() on page
+ *                         table entries in leaves.
+ * @visit_not_present - if true, call fn() on entries that are not present.
+ *                         if false, visit only present entries.
+ * @node - The physical address of the current page table radix tree node
+ * @vaddr_in - The virtual address bits translated in walking the page
+ *          table to node
+ * @height - The height of node in the radix tree
+ *
+ * height starts at the max and counts down.
+ * In a 4 level x86 page table, pml4e is level 4, pdpe is level 3,
+ *  pde is level 2, and pte is level 1
+ *
+ * Returns true on success, false on error.
+ */
+static bool
+_for_each_pte(CPUState *cs,
+              int (*fn)(CPUState *cs, void *data, PTE_t *pte,
+                        vaddr vaddr_in, int height, int offset),
+              void *data, bool visit_interior_nodes,
+              bool visit_not_present, hwaddr node,
+              vaddr vaddr_in, int height)
+{
+    int ptes_per_node;
+    int i;
+
+    assert(height > 0);
+
+    CPUClass *cc = CPU_GET_CLASS(cs);
+
+    if ((!cc->sysemu_ops->page_table_entries_per_node)
+        || (!cc->sysemu_ops->get_pte)
+        || (!cc->sysemu_ops->pte_present)
+        || (!cc->sysemu_ops->pte_leaf)
+        || (!cc->sysemu_ops->pte_child)) {
+        return false;
+    }
+
+    ptes_per_node = cc->sysemu_ops->page_table_entries_per_node(cs, height);
+
+    for (i = 0; i < ptes_per_node; i++) {
+        PTE_t pt_entry;
+        vaddr vaddr_i;
+        bool pte_present;
+
+        cc->sysemu_ops->get_pte(cs, node, i, height, &pt_entry, vaddr_in,
+                                &vaddr_i, NULL);
+        pte_present = cc->sysemu_ops->pte_present(cs, &pt_entry);
+
+        if (pte_present || visit_not_present) {
+            if ((!pte_present) || cc->sysemu_ops->pte_leaf(cs, height,
+                                                           &pt_entry)) {
+                if (fn(cs, data, &pt_entry, vaddr_i, height, i)) {
+                    /* Error */
+                    return false;
+                }
+            } else { /* Non-leaf */
+                if (visit_interior_nodes) {
+                    if (fn(cs, data, &pt_entry, vaddr_i, height, i)) {
+                        /* Error */
+                        return false;
+                    }
+                }
+                hwaddr child = cc->sysemu_ops->pte_child(cs, &pt_entry, height);
+                assert(height > 1);
+                if (!_for_each_pte(cs, fn, data, visit_interior_nodes,
+                                   visit_not_present, child, vaddr_i,
+                                   height - 1)) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+/**
+ * for_each_pte - iterate over a page table, and
+ *                call fn on each entry
+ *
+ * @cs - CPU state
+ * @fn(cs, data, pte, vaddr, height) - User-provided function to call on each
+ *                                     pte.
+ *   * @cs - pass through cs
+ *   * @data - user-provided, opaque pointer
+ *   * @pte - current pte
+ *   * @vaddr - virtual address translated by pte
+ *   * @height - height in the tree of pte
+ * @data - opaque pointer; passed through to fn
+ * @visit_interior_nodes - if true, call fn() on interior entries in
+ *                         page table; if false, visit only leaf entries.
+ * @visit_not_present - if true, call fn() on entries that are not present.
+ *                         if false, visit only present entries.
+ *
+ * Returns true on success, false on error.
+ *
+ */
+bool for_each_pte(CPUState *cs,
+                  int (*fn)(CPUState *cs, void *data, PTE_t *pte,
+                            vaddr vaddr, int height, int offset),
+                  void *data, bool visit_interior_nodes,
+                  bool visit_not_present)
+{
+    int height;
+    vaddr vaddr = 0;
+    hwaddr root;
+    CPUClass *cc = CPU_GET_CLASS(cs);
+
+    if (!cpu_paging_enabled(cs)) {
+        /* paging is disabled */
+        return true;
+    }
+
+    if (!cc->sysemu_ops->page_table_root) {
+        return false;
+    }
+
+    root = cc->sysemu_ops->page_table_root(cs, &height);
+
+    assert(height > 1);
+
+    /* Recursively call a helper to walk the page table */
+    return _for_each_pte(cs, fn, data, visit_interior_nodes, visit_not_present,
+                         root, vaddr, height);
+}

@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "sysemu/hw_accel.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
 int monitor_set_cpu(Monitor *mon, int cpu_index)
@@ -120,6 +121,203 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
     }
 }
 
+/* Assume only called on present entries */
+static
+int compressing_iterator(CPUState *cs, void *data, PTE_t *pte,
+                         vaddr vaddr_in, int height, int offset)
+{
+    CPUClass *cc = CPU_GET_CLASS(cs);
+    struct mem_print_state *state = (struct mem_print_state *) data;
+    hwaddr paddr = cc->sysemu_ops->pte_child(cs, pte, height);
+    target_ulong size = cc->sysemu_ops->pte_leaf_page_size(cs, height);
+    bool start_new_run = false, flush = false;
+    bool is_leaf = cc->sysemu_ops->pte_leaf(cs, height, pte);
+
+    int entries_per_node = cc->sysemu_ops->page_table_entries_per_node(cs,
+                                                                       height);
+
+    /* Prot of current pte */
+    int prot = cc->sysemu_ops->pte_flags(pte->pte64_t);
+
+    /* If there is a prior run, first try to extend it. */
+    if (state->start_height != 0) {
+
+        /*
+         * If we aren't flushing interior nodes, raise the start height.
+         * We don't need to detect non-compressible interior nodes.
+         */
+        if ((!state->flush_interior) && state->start_height < height) {
+            state->start_height = height;
+            state->vstart[height] = vaddr_in;
+            state->vend[height] = vaddr_in;
+            state->ent[height] = pte->pte64_t;
+            if (offset == 0) {
+                state->last_offset[height] = entries_per_node - 1;
+            } else {
+                state->last_offset[height] = offset - 1;
+            }
+        }
+
+        /* Detect when we are walking down the "left edge" of a range */
+        if (state->vstart[height] == -1
+            && (height + 1) <= state->start_height
+            && state->vstart[height + 1] == vaddr_in) {
+
+            state->vstart[height] = vaddr_in;
+            state->vend[height] = vaddr_in;
+            state->ent[height] = pte->pte64_t;
+            state->offset[height] = offset;
+            state->last_offset[height] = offset;
+
+            if (is_leaf) {
+                state->pstart = paddr;
+                state->pend = paddr;
+            }
+
+            /* Detect contiguous entries at same level */
+        } else if ((state->vstart[height] != -1)
+                   && (state->start_height >= height)
+                   && cc->sysemu_ops->pte_flags(state->ent[height]) == prot
+                   && (((state->last_offset[height] + 1) % entries_per_node)
+                       == offset)
+                   && ((!is_leaf)
+                       || (!state->require_physical_contiguity)
+                       || (state->pend + size == paddr))) {
+
+
+            /*
+             * If there are entries at the levels below, make sure we
+             * completed them.  We only compress interior nodes
+             * without holes in the mappings.
+             */
+            if (height != 1) {
+                for (int i = height - 1; i >= 1; i--) {
+                    int entries = cc->sysemu_ops->page_table_entries_per_node(
+                        cs, i);
+
+                    /* Stop if we hit large pages before level 1 */
+                    if (state->vstart[i] == -1) {
+                        break;
+                    }
+
+                    if ((state->last_offset[i] + 1) != entries) {
+                        flush = true;
+                        start_new_run = true;
+                        break;
+                    }
+                }
+            }
+
+
+            if (!flush) {
+
+                /* We can compress these entries */
+                state->ent[height] = pte->pte64_t;
+                state->vend[height] = vaddr_in;
+                state->last_offset[height] = offset;
+
+                /* Only update the physical range on leaves */
+                if (is_leaf) {
+                    state->pend = paddr;
+                }
+            }
+            /* Let PTEs accumulate... */
+        } else {
+            flush = true;
+        }
+
+        if (flush) {
+            /*
+             * We hit dicontiguous permissions or pages.
+             * Print the old entries, then start accumulating again
+             *
+             * Some clients only want the flusher called on a leaf.
+             * Check that too.
+             *
+             * We can infer whether the accumulated range includes a
+             * leaf based on whether pstart is -1.
+             */
+            if (state->flush_interior || (state->pstart != -1)) {
+                if (state->flusher(cs, state)) {
+                    start_new_run = true;
+                }
+            } else {
+                start_new_run = true;
+            }
+        }
+    } else {
+        start_new_run = true;
+    }
+
+    if (start_new_run) {
+        /* start a new run with this PTE */
+        for (int i = state->start_height; i > 0; i--) {
+            if (state->vstart[i] != -1) {
+                state->ent[i] = 0;
+                state->last_offset[i] = 0;
+                state->vstart[i] = -1;
+            }
+        }
+        state->pstart = -1;
+        state->vstart[height] = vaddr_in;
+        state->vend[height] = vaddr_in;
+        state->ent[height] = pte->pte64_t;
+        state->offset[height] = offset;
+        state->last_offset[height] = offset;
+        if (is_leaf) {
+            state->pstart = paddr;
+            state->pend = paddr;
+        }
+        state->start_height = height;
+    }
+
+    return 0;
+}
+
+void hmp_info_pg(Monitor *mon, const QDict *qdict)
+{
+    struct mem_print_state state;
+
+    CPUState *cs = mon_get_cpu(mon);
+    if (!cs) {
+        monitor_printf(mon, "Unable to get CPUState.  Internal error\n");
+        return;
+    }
+
+    CPUClass *cc = CPU_GET_CLASS(cs);
+
+    if ((!cc->sysemu_ops->pte_child)
+        || (!cc->sysemu_ops->pte_leaf)
+        || (!cc->sysemu_ops->pte_leaf_page_size)
+        || (!cc->sysemu_ops->page_table_entries_per_node)
+        || (!cc->sysemu_ops->pte_flags)
+        || (!cc->sysemu_ops->mon_init_page_table_iterator)
+        || (!cc->sysemu_ops->mon_info_pg_print_header)
+        || (!cc->sysemu_ops->mon_flush_page_print_state)) {
+        monitor_printf(mon, "Info pg unsupported on this ISA\n");
+        return;
+    }
+
+    if (!cc->sysemu_ops->mon_init_page_table_iterator(mon, &state)) {
+        monitor_printf(mon, "Unable to initialize page table iterator\n");
+        return;
+    }
+
+    state.flush_interior = true;
+    state.require_physical_contiguity = true;
+    state.flusher = cc->sysemu_ops->mon_flush_page_print_state;
+
+    cc->sysemu_ops->mon_info_pg_print_header(mon, &state);
+
+    /*
+     * We must visit interior entries to get the hierarchy, but
+     * can skip not present mappings
+     */
+    for_each_pte(cs, &compressing_iterator, &state, true, false);
+
+    /* Print last entry, if one present */
+    cc->sysemu_ops->mon_flush_page_print_state(cs, &state);
+}
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
                         hwaddr addr, int is_physical)
 {

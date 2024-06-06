@@ -8305,6 +8305,17 @@ static const struct SysemuCPUOps i386_sysemu_ops = {
     .write_elf32_qemunote = x86_cpu_write_elf32_qemunote,
     .write_elf64_qemunote = x86_cpu_write_elf64_qemunote,
     .legacy_vmsd = &vmstate_x86_cpu,
+    .page_table_root = &x86_page_table_root,
+    .page_table_entries_per_node = &x86_page_table_entries_per_node,
+    .get_pte = &x86_get_pte,
+    .pte_present = &x86_pte_present,
+    .pte_leaf = &x86_pte_leaf,
+    .pte_child = &x86_pte_child,
+    .pte_leaf_page_size = &x86_pte_leaf_page_size,
+    .pte_flags = &x86_pte_flags,
+    .mon_init_page_table_iterator = &x86_mon_init_page_table_iterator,
+    .mon_info_pg_print_header = &x86_mon_info_pg_print_header,
+    .mon_flush_page_print_state = &x86_mon_flush_print_pg_state,
 };
 #endif
 
