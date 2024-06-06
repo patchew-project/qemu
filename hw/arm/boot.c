@@ -509,6 +509,7 @@ static void fdt_add_psci_node(void *fdt)
     qemu_fdt_setprop_cell(fdt, "/psci", "cpu_off", cpu_off_fn);
     qemu_fdt_setprop_cell(fdt, "/psci", "cpu_on", cpu_on_fn);
     qemu_fdt_setprop_cell(fdt, "/psci", "migrate", migrate_fn);
+    qemu_fdt_setprop(fdt, "/psci", "dma-coherent", NULL, 0);
 }
 
 int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,

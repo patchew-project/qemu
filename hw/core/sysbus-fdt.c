@@ -554,6 +554,7 @@ void platform_bus_add_all_fdt_nodes(void *fdt, const char *intc, hwaddr addr,
     qemu_fdt_setprop_cells(fdt, node, "ranges", 0, addr >> 32, addr, bus_size);
 
     qemu_fdt_setprop_phandle(fdt, node, "interrupt-parent", intc);
+    qemu_fdt_setprop(fdt, node, "dma-coherent", NULL, 0);
 
     dev = qdev_find_recursive(sysbus_get_default(), TYPE_PLATFORM_BUS_DEVICE);
     pbus = PLATFORM_BUS_DEVICE(dev);
