@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "gdbstub/helpers.h"
+#include "gdb-internal.h"
 
 #ifdef TARGET_X86_64
 static const int gpr_map[16] = {
