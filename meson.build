@@ -3226,7 +3226,6 @@ tracetool_depends = files(
   'scripts/tracetool/format/log_stap.py',
   'scripts/tracetool/format/stap.py',
   'scripts/tracetool/__init__.py',
-  'scripts/tracetool/vcpu.py'
 )
 
 qemu_version_cmd = [find_program('scripts/qemu-version.sh'),
