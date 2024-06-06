@@ -354,9 +354,7 @@ typedef union IcountDecr {
 typedef struct CPUNegativeOffsetState {
     CPUTLB tlb;
 #ifdef CONFIG_PLUGIN
-    /*
-     * The callback pointer are accessed via TCG (see gen_empty_mem_helper).
-     */
+    uintptr_t plugin_ra;
     GArray *plugin_mem_cbs;
 #endif
     IcountDecr icount_decr;

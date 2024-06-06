@@ -37,6 +37,12 @@ enum plugin_gen_from {
     PLUGIN_GEN_AFTER_TB,
 };
 
+enum plugin_gen_ra {
+    GEN_RA_DONE,
+    GEN_RA_FROM_TB,
+    GEN_RA_FROM_INSN,
+};
+
 /* called before finishing a TB with exit_tb, goto_tb or goto_ptr */
 void plugin_gen_disable_mem_helpers(void)
 {
@@ -213,11 +219,37 @@ static void gen_mem_cb(struct qemu_plugin_regular_cb *cb,
     tcg_temp_free_i32(cpu_index);
 }
 
-static void inject_cb(struct qemu_plugin_dyn_cb *cb)
+static void inject_ra(enum plugin_gen_ra *gen_ra)
+{
+    TCGv_ptr ra;
 
+    switch (*gen_ra) {
+    case GEN_RA_DONE:
+        return;
+    case GEN_RA_FROM_TB:
+        ra = tcg_constant_ptr(NULL);
+        break;
+    case GEN_RA_FROM_INSN:
+        ra = tcg_temp_ebb_new_ptr();
+        tcg_gen_plugin_pc(ra);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    tcg_gen_st_ptr(ra, tcg_env,
+                   offsetof(CPUState, neg.plugin_ra) -
+                   offsetof(ArchCPU, env));
+    tcg_temp_free_ptr(ra);
+    *gen_ra = GEN_RA_DONE;
+}
+
+static void inject_cb(struct qemu_plugin_dyn_cb *cb,
+                      enum plugin_gen_ra *gen_ra)
 {
     switch (cb->type) {
     case PLUGIN_CB_REGULAR:
+        inject_ra(gen_ra);
         gen_udata_cb(&cb->regular);
         break;
     case PLUGIN_CB_COND:
@@ -235,19 +267,21 @@ static void inject_cb(struct qemu_plugin_dyn_cb *cb)
 }
 
 static void inject_mem_cb(struct qemu_plugin_dyn_cb *cb,
+                          enum plugin_gen_ra *gen_ra,
                           enum qemu_plugin_mem_rw rw,
                           qemu_plugin_meminfo_t meminfo, TCGv_i64 addr)
 {
     switch (cb->type) {
     case PLUGIN_CB_MEM_REGULAR:
         if (rw && cb->regular.rw) {
+            inject_ra(gen_ra);
             gen_mem_cb(&cb->regular, meminfo, addr);
         }
         break;
     case PLUGIN_CB_INLINE_ADD_U64:
     case PLUGIN_CB_INLINE_STORE_U64:
         if (rw && cb->inline_insn.rw) {
-            inject_cb(cb);
+            inject_cb(cb, gen_ra);
         }
         break;
     default:
@@ -260,6 +294,7 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 {
     TCGOp *op, *next;
     int insn_idx = -1;
+    enum plugin_gen_ra gen_ra;
 
     if (unlikely(qemu_loglevel_mask(LOG_TB_OP_PLUGIN)
                  && qemu_log_in_addr_range(tcg_ctx->plugin_db->pc_first))) {
@@ -279,10 +314,12 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
      */
     memset(tcg_ctx->free_temps, 0, sizeof(tcg_ctx->free_temps));
 
+    gen_ra = GEN_RA_FROM_TB;
     QTAILQ_FOREACH_SAFE(op, &tcg_ctx->ops, link, next) {
         switch (op->opc) {
         case INDEX_op_insn_start:
             insn_idx++;
+            gen_ra = GEN_RA_FROM_INSN;
             break;
 
         case INDEX_op_plugin_cb:
@@ -318,7 +355,8 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
                 cbs = plugin_tb->cbs;
                 for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
                     inject_cb(
-                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i));
+                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i),
+                        &gen_ra);
                 }
                 break;
 
@@ -330,7 +368,8 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
                 cbs = insn->insn_cbs;
                 for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
                     inject_cb(
-                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i));
+                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i),
+                        &gen_ra);
                 }
                 break;
 
@@ -362,7 +401,7 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
             cbs = insn->mem_cbs;
             for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
                 inject_mem_cb(&g_array_index(cbs, struct qemu_plugin_dyn_cb, i),
-                              rw, meminfo, addr);
+                              &gen_ra, rw, meminfo, addr);
             }
 
             tcg_ctx->emit_before_op = NULL;
