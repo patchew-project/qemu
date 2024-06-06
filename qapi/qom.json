@@ -163,10 +163,16 @@
 #
 # @parent: Name of parent type, if any (since 2.10)
 #
+# @deprecated: the type is deprecated (since 9.1)
+#
+# @not-secure: the type (typically a device) is not considered
+#     a security boundary (since 9.1)
+#
 # Since: 1.1
 ##
 { 'struct': 'ObjectTypeInfo',
-  'data': { 'name': 'str', '*abstract': 'bool', '*parent': 'str' } }
+  'data': { 'name': 'str', '*abstract': 'bool', '*parent': 'str',
+            '*deprecated': 'bool', '*not-secure': 'bool' } }
 
 ##
 # @qom-list-types:

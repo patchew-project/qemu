@@ -144,6 +144,8 @@ static bool qdev_class_has_alias(DeviceClass *dc)
 
 static void qdev_print_devinfo(DeviceClass *dc)
 {
+    ObjectClass *klass = OBJECT_CLASS(dc);
+
     qemu_printf("name \"%s\"", object_class_get_name(OBJECT_CLASS(dc)));
     if (dc->bus_type) {
         qemu_printf(", bus %s", dc->bus_type);
@@ -156,6 +158,12 @@ static void qdev_print_devinfo(DeviceClass *dc)
     }
     if (!dc->user_creatable) {
         qemu_printf(", no-user");
+    }
+    if (klass->deprecated) {
+        qemu_printf(", deprecated");
+    }
+    if (klass->not_secure) {
+        qemu_printf(", not-secure");
     }
     qemu_printf("\n");
 }

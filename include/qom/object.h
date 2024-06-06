@@ -136,6 +136,9 @@ struct ObjectClass
     ObjectUnparent *unparent;
 
     GHashTable *properties;
+
+    bool deprecated;
+    bool not_secure;
 };
 
 /**
