@@ -169,6 +169,14 @@ static void host_memory_backend_set_merge(Object *obj, bool value, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
 
+    if (QEMU_MADV_MERGEABLE == QEMU_MADV_INVALID) {
+        if (value) {
+            error_setg(errp, "Memory merging is not supported on this host\n");
+        }
+        assert(!backend->merge);
+        return;
+    }
+
     if (!host_memory_backend_mr_inited(backend)) {
         backend->merge = value;
         return;
@@ -194,6 +202,14 @@ static bool host_memory_backend_get_dump(Object *obj, Error **errp)
 static void host_memory_backend_set_dump(Object *obj, bool value, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    if (QEMU_MADV_DONTDUMP == QEMU_MADV_INVALID) {
+        if (!value) {
+            error_setg(errp, "Dumping guest memory cannot be disabled on this host\n");
+        }
+        assert(backend->dump);
+        return;
+    }
 
     if (!host_memory_backend_mr_inited(backend)) {
         backend->dump = value;

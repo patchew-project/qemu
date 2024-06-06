@@ -17,6 +17,7 @@
 #include "hw/loader.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-machine.h"
+#include "qemu/madvise.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
@@ -427,6 +428,10 @@ static void machine_set_dump_guest_core(Object *obj, bool value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    if (!value && QEMU_MADV_DONTDUMP == QEMU_MADV_INVALID) {
+        error_setg(errp, "Dumping guest memory cannot be disabled on this host\n");
+        return;
+    }
     ms->dump_guest_core = value;
 }
 
@@ -441,6 +446,10 @@ static void machine_set_mem_merge(Object *obj, bool value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    if (value && QEMU_MADV_MERGEABLE == QEMU_MADV_INVALID) {
+        error_setg(errp, "Memory merging is not supported on this host\n");
+        return;
+    }
     ms->mem_merge = value;
 }
 
