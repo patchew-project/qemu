@@ -358,11 +358,14 @@ void init_cpreg_list(ARMCPU *cpu);
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
 void arm_translate_init(void);
 
+#ifdef CONFIG_TCG
 void arm_restore_state_to_opc(CPUState *cs,
                               const TranslationBlock *tb,
                               const uint64_t *data);
-
-#ifdef CONFIG_TCG
+bool arm_plugin_need_unwind_for_reg(CPUState *cs, int reg);
+int arm_plugin_unwind_read_reg(CPUState *cs, GByteArray *buf, int reg,
+                               const TranslationBlock *tb,
+                               const uint64_t *data);
 void arm_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb);
 bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request);
 #endif /* CONFIG_TCG */

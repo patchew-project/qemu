@@ -29,6 +29,7 @@
 #include "cpu.h"
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
+#include "gdbstub/helpers.h"
 #endif /* CONFIG_TCG */
 #include "internals.h"
 #include "cpu-features.h"
@@ -119,6 +120,41 @@ void arm_restore_state_to_opc(CPUState *cs,
         env->condexec_bits = data[1];
         env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
     }
+}
+
+bool arm_plugin_need_unwind_for_reg(CPUState *cs, int reg)
+{
+    return reg == 15 || reg == 25; /* pc (r15) or cpsr */
+}
+
+int arm_plugin_unwind_read_reg(CPUState *cs, GByteArray *buf, int reg,
+                               const TranslationBlock *tb,
+                               const uint64_t *data)
+{
+    CPUARMState *env = cpu_env(cs);
+    uint32_t val, condexec;
+
+    switch (reg) {
+    case 15: /* PC */
+        val = data[0];
+        if (tb_cflags(tb) & CF_PCREL) {
+            val |= env->regs[15] & TARGET_PAGE_MASK;
+        }
+        break;
+    case 25: /* CPSR, or XPSR for M-profile */
+        if (arm_feature(env, ARM_FEATURE_M)) {
+            val = xpsr_read(env);
+        } else {
+            val = cpsr_read(env);
+        }
+        condexec = data[1] & 0xff;
+        val = (val & ~(3 << 25)) | ((condexec & 3) << 25);
+        val = (val & ~(0xfc << 8)) | ((condexec & 0xfc) << 8);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return gdb_get_reg32(buf, val);
 }
 #endif /* CONFIG_TCG */
 
@@ -2657,6 +2693,8 @@ static const TCGCPUOps arm_tcg_ops = {
     .synchronize_from_tb = arm_cpu_synchronize_from_tb,
     .debug_excp_handler = arm_debug_excp_handler,
     .restore_state_to_opc = arm_restore_state_to_opc,
+    .plugin_need_unwind_for_reg = arm_plugin_need_unwind_for_reg,
+    .plugin_unwind_read_reg = arm_plugin_unwind_read_reg,
 
 #ifdef CONFIG_USER_ONLY
     .record_sigsegv = arm_cpu_record_sigsegv,

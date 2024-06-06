@@ -33,6 +33,8 @@
 #include "hw/qdev-properties.h"
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
+#include "exec/translation-block.h"
+#include "gdbstub/helpers.h"
 #endif
 #include "internals.h"
 #include "cpu-features.h"
@@ -797,11 +799,34 @@ static const gchar *aarch64_gdb_arch_name(CPUState *cs)
 }
 
 #ifdef CONFIG_TCG
+static bool aarch64_plugin_need_unwind_for_reg(CPUState *cs, int reg)
+{
+    return reg == 32; /* pc */
+}
+
+static int aarch64_plugin_unwind_read_reg(CPUState *cs, GByteArray *buf,
+                                          int reg, const TranslationBlock *tb,
+                                          const uint64_t *data)
+{
+    CPUARMState *env = cpu_env(cs);
+    uint64_t val;
+
+    assert(reg == 32);
+
+    val = data[0];
+    if (tb_cflags(tb) & CF_PCREL) {
+        val |= env->pc & TARGET_PAGE_MASK;
+    }
+    return gdb_get_reg64(buf, val);
+}
+
 static const TCGCPUOps aarch64_tcg_ops = {
     .initialize = arm_translate_init,
     .synchronize_from_tb = arm_cpu_synchronize_from_tb,
     .debug_excp_handler = arm_debug_excp_handler,
     .restore_state_to_opc = arm_restore_state_to_opc,
+    .plugin_need_unwind_for_reg = aarch64_plugin_need_unwind_for_reg,
+    .plugin_unwind_read_reg = aarch64_plugin_unwind_read_reg,
 
 #ifdef CONFIG_USER_ONLY
     .record_sigsegv = arm_cpu_record_sigsegv,
