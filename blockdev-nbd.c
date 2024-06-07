@@ -52,6 +52,9 @@ int nbd_server_max_connections(void)
 static void nbd_blockdev_client_closed(NBDClient *client, bool ignored)
 {
     nbd_client_put(client);
+    if (nbd_server == NULL) {
+        return;
+    }
     assert(nbd_server->connections > 0);
     nbd_server->connections--;
     nbd_update_server_watch(nbd_server);
