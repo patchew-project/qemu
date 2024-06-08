@@ -49,6 +49,7 @@
 #include "qemu/error-report.h"
 #include <Carbon/Carbon.h>
 #include "hw/core/cpu.h"
+#include "trace.h"
 
 #ifndef MAC_OS_VERSION_14_0
 #define MAC_OS_VERSION_14_0 140000
@@ -80,11 +81,17 @@ static void cocoa_switch(DisplayChangeListener *dcl,
 
 static void cocoa_refresh(DisplayChangeListener *dcl);
 
+static void cocoa_cursor_define(DisplayChangeListener *dcl, QEMUCursor *cursor);
+
+static void cocoa_mouse_set(DisplayChangeListener *dcl, int x, int y, int on);
+
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name          = "cocoa",
     .dpy_gfx_update = cocoa_update,
     .dpy_gfx_switch = cocoa_switch,
     .dpy_refresh = cocoa_refresh,
+    .dpy_cursor_define = cocoa_cursor_define,
+    .dpy_mouse_set = cocoa_mouse_set,
 };
 static DisplayChangeListener dcl = {
     .ops = &dcl_ops,
@@ -299,6 +306,11 @@ static void handleAnyDeviceErrors(Error * err)
     BOOL isMouseGrabbed;
     BOOL isAbsoluteEnabled;
     CFMachPortRef eventsTap;
+    NSCursor *current_cursor;
+    int cursor_hot_x;
+    int cursor_hot_y;
+    int offset_delta_x;
+    int offset_delta_y;
 }
 - (void) switchSurface:(pixman_image_t *)image;
 - (void) grabMouse;
@@ -320,6 +332,9 @@ static void handleAnyDeviceErrors(Error * err)
 - (BOOL) isAbsoluteEnabled;
 - (QEMUScreen) gscreen;
 - (void) raiseAllKeys;
+- (void) setCursor:(NSCursor*)newCursor hotspotX:(int)hotX y:(int)hotY;
+- (void) setMouseX:(int)x y:(int)y showCursor:(BOOL)showCursor;
+
 @end
 
 QemuCocoaView *cocoaView;
@@ -376,6 +391,9 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
         pixman_image_unref(pixman_image);
     }
 
+    [self->current_cursor release];
+    self->current_cursor = nil;
+
     if (eventsTap) {
         CFRelease(eventsTap);
     }
@@ -405,6 +423,68 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     dcl.con = con;
     register_displaychangelistener(&dcl);
     [self updateUIInfo];
+}
+
+- (void) setCursor:(NSCursor*)newCursor hotspotX:(int)hotX y:(int)hotY
+{
+    [self->current_cursor release];
+    [newCursor retain];
+    self->current_cursor = newCursor;
+
+    cocoaView->cursor_hot_x = hotX;
+    cocoaView->cursor_hot_y = hotY;
+
+    [self.window invalidateCursorRectsForView:self];
+}
+
+- (void) resetCursorRects
+{
+    if (self->current_cursor == nil) {
+        [super resetCursorRects];
+    } else {
+        [self addCursorRect:NSMakeRect(0.0, 0.0, self->screen.width, self->screen.height) cursor:self->current_cursor];
+    }
+}
+
+- (void) setMouseX:(int)x y:(int)y showCursor:(BOOL)showCursor
+{
+    if (isAbsoluteEnabled) {
+        offset_delta_x = 0;
+        offset_delta_y = 0;
+        return;
+    } else if (!isMouseGrabbed) {
+        return;
+    }
+
+    NSWindow* window = [self window];
+
+    /* Coordinates seem to come in already offset by hotspot; undo that. Also
+     * avoid out-of-window coordinates. */
+    x += cursor_hot_x;
+    y += cursor_hot_y;
+    x = int_clamp(x, 0, screen.width);
+    y = int_clamp(y, 0, screen.height);
+    /* Flip coordinates so origin is bottom left (Cocoa), not top left (Qemu),
+     * before translating into window and then desktop coordinate systems. */
+    y = screen.height - y;
+
+    NSPoint new_pos_window = [self convertPoint:NSMakePoint(x, y) toView:nil];
+    NSPoint prev_pos_window = window.mouseLocationOutsideOfEventStream;
+
+    CGPoint screen_pos = [window convertPointToScreen:new_pos_window];
+
+    /* Translate from Cocoa (origin: main screen bottom left, +y up)
+     * to Quartz (origin: top left, +y down) coordinate system. */
+    screen_pos.y = NSScreen.mainScreen.frame.size.height - screen_pos.y;
+
+    /* Warp moves the host cursor to the new position. This doesn't generate a
+     * spurious move event, but it does offset the delta for next genuine event,
+     * which we need to take into account when that event comes in. */
+    CGWarpMouseCursorPosition(screen_pos);
+
+    offset_delta_x += (prev_pos_window.x - new_pos_window.x);
+    /* -ve due to Cocoa -> Qemu/Quartz Y axis conversion: */
+    offset_delta_y -= (prev_pos_window.y - new_pos_window.y);
 }
 
 - (void) hideCursor
@@ -1005,9 +1085,21 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
             /* Note that the origin for Cocoa mouse coords is bottom left, not top left. */
             qemu_input_queue_abs(dcl.con, INPUT_AXIS_X, p.x * d, 0, screen.width);
             qemu_input_queue_abs(dcl.con, INPUT_AXIS_Y, screen.height - p.y * d, 0, screen.height);
+            trace_cocoa_handle_mouse_event_absolute(p.x, p.y, screen.width, screen.height, p.x * d, screen.height - p.y * d);
         } else {
-            qemu_input_queue_rel(dcl.con, INPUT_AXIS_X, [event deltaX]);
-            qemu_input_queue_rel(dcl.con, INPUT_AXIS_Y, [event deltaY]);
+            /* Programmatically moving the Cocoa mouse cursor also offsets the
+             * next mouse event, so we offset by the amount we moved the cursor
+             * to avoid a feedback loop. */
+            int delta_x = [event deltaX] + offset_delta_x;
+            int delta_y = [event deltaY] + offset_delta_y;
+            trace_cocoa_handle_mouse_event_relative(
+                [event deltaX], [event deltaY],
+                offset_delta_x, offset_delta_y,
+                delta_x, delta_y);
+            qemu_input_queue_rel(dcl.con, INPUT_AXIS_X, /*[event deltaX]/*/delta_x/**/);
+            qemu_input_queue_rel(dcl.con, INPUT_AXIS_Y, /*[event deltaY]/*/delta_y/**/);
+            offset_delta_x = 0;
+            offset_delta_y = 0;
         }
 
         qemu_input_event_sync();
@@ -1084,19 +1176,26 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
 - (void) grabMouse
 {
+    trace_cocoa_grab_mouse();
     COCOA_DEBUG("QemuCocoaView: grabMouse\n");
 
     if (qemu_name)
         [[self window] setTitle:[NSString stringWithFormat:@"QEMU %s - (Press  " UC_CTRL_KEY " " UC_ALT_KEY " G  to release Mouse)", qemu_name]];
     else
         [[self window] setTitle:@"QEMU - (Press  " UC_CTRL_KEY " " UC_ALT_KEY " G  to release Mouse)"];
-    [self hideCursor];
+
+    if (current_cursor == nil) {
+        [self hideCursor];
+    }
     CGAssociateMouseAndMouseCursorPosition(isAbsoluteEnabled);
     isMouseGrabbed = TRUE; // while isMouseGrabbed = TRUE, QemuCocoaApp sends all events to [cocoaView handleEvent:]
+    offset_delta_x = 0;
+    offset_delta_y = 0;
 }
 
 - (void) ungrabMouse
 {
+    trace_cocoa_ungrab_mouse();
     COCOA_DEBUG("QemuCocoaView: ungrabMouse\n");
 
     if (qemu_name)
@@ -1104,6 +1203,11 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     else
         [[self window] setTitle:@"QEMU"];
     [self unhideCursor];
+
+    if (current_cursor == nil) {
+        [self unhideCursor];
+    }
+
     CGAssociateMouseAndMouseCursorPosition(TRUE);
     isMouseGrabbed = FALSE;
     [self raiseAllButtons];
@@ -1998,6 +2102,63 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
     }
 
     [pool release];
+}
+
+static NSImage *cocoa_create_image_argb32(size_t width, size_t height, const void *pixel_data)
+{
+    size_t buffer_size = width * height * 4lu;
+    CGDataProviderRef provider = CGDataProviderCreateWithData(
+        NULL, pixel_data, buffer_size, NULL);
+    size_t bpc = 8;
+    size_t bpp = 32;
+    size_t bytes_per_row = 4u * width;
+    CGColorSpaceRef color_space = CGColorSpaceCreateDeviceRGB();
+    CGBitmapInfo bitmap_info =
+        kCGBitmapByteOrder32Little | kCGImageAlphaFirst;
+    CGColorRenderingIntent intent = kCGRenderingIntentDefault;
+
+    CGImageRef cg_image = CGImageCreate(
+        width,
+        height,
+        bpc,
+        bpp,
+        bytes_per_row,
+        color_space,
+        bitmap_info,
+        provider,
+        NULL,       // decode
+        YES,        // should interpolate
+        intent);
+
+    NSImage *image = [[NSImage alloc] initWithCGImage:cg_image size:NSMakeSize(width, height)];
+    CGImageRelease(cg_image);
+    CGColorSpaceRelease(color_space);
+    CGDataProviderRelease(provider);
+    return image;
+}
+
+static void cocoa_cursor_define(DisplayChangeListener *dcl, QEMUCursor *cursor)
+{
+    NSImage *cursor_image = nil;
+    NSPoint hotspot = { cursor->hot_x, cursor->hot_y };
+    trace_cocoa_cursor_define(cursor->hot_x, cursor->hot_y,
+                              cursor->width, cursor->height);
+    if (cursor == NULL || cursor->width <= 0 || cursor->height <= 0) {
+        cursor_image = [[NSImage alloc] initWithSize:NSMakeSize(1.0, 1.0)];
+    } else {
+        cursor_image = cocoa_create_image_argb32(cursor->width, cursor->height,
+                                                 cursor->data);
+    }
+    NSCursor *cocoa_cursor =
+        [[NSCursor alloc] initWithImage:cursor_image hotSpot:hotspot];
+    [cursor_image release];
+    [cocoaView setCursor:cocoa_cursor hotspotX:cursor->hot_x y:cursor->hot_y];
+    [cocoa_cursor release];
+}
+
+static void cocoa_mouse_set(DisplayChangeListener *dcl, int x, int y, int on)
+{
+    [cocoaView setMouseX:x y:y showCursor:(on != 0)];
 }
 
 static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)

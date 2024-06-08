@@ -166,3 +166,10 @@ dbus_filter(unsigned int serial, unsigned int filter) "serial=%u (<= %u)"
 
 # egl-helpers.c
 egl_init_d3d11_device(void *p) "d3d device: %p"
+
+# cocoa.m
+cocoa_cursor_define(int hot_x, int hot_y, uint16_t width, uint16_t height) "Cursor hotspot: (%d, %d), size: %" PRIu16 "x%" PRIu16
+cocoa_grab_mouse(void) ""
+cocoa_ungrab_mouse(void) ""
+cocoa_handle_mouse_event_relative(int raw_dx, int raw_dy, int offset_dx, int offset_dy, int net_dx, int net_dy) "raw delta: %d, %d; offset for delta: %d, %d; net delta: %d, %d"
+cocoa_handle_mouse_event_absolute(int event_x, int event_y, int screen_width, int screen_height, int window_x, int window_y) "event: %d, %d; screen: %d x %d; position: %d, %d"
