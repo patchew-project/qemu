@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
+#include "qemu/cutils.h"
 #include "hw/input/hid.h"
 #include "migration/vmstate.h"
 #include "trace.h"
@@ -333,17 +334,6 @@ static void hid_keyboard_process_keycode(HIDState *hs)
         } else {
             return;
         }
-    }
-}
-
-static inline int int_clamp(int val, int vmin, int vmax)
-{
-    if (val < vmin) {
-        return vmin;
-    } else if (val > vmax) {
-        return vmax;
-    } else {
-        return val;
     }
 }
 

@@ -277,6 +277,17 @@ static inline const char *yes_no(bool b)
      return b ? "yes" : "no";
 }
 
+static inline int int_clamp(int val, int vmin, int vmax)
+{
+    if (val < vmin) {
+        return vmin;
+    } else if (val > vmax) {
+        return vmax;
+    } else {
+        return val;
+    }
+}
+
 /*
  * helper to parse debug environment variables
  */

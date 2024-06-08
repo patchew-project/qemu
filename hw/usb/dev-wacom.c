@@ -32,6 +32,7 @@
 #include "hw/usb/hid.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "qemu/cutils.h"
 #include "desc.h"
 #include "qom/object.h"
 
@@ -213,16 +214,6 @@ static void usb_wacom_event(void *opaque,
     s->buttons_state = buttons_state;
     s->changed = 1;
     usb_wakeup(s->intr, 0);
-}
-
-static inline int int_clamp(int val, int vmin, int vmax)
-{
-    if (val < vmin)
-        return vmin;
-    else if (val > vmax)
-        return vmax;
-    else
-        return val;
 }
 
 static int usb_mouse_poll(USBWacomState *s, uint8_t *buf, int len)
