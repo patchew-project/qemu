@@ -11,7 +11,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "sysemu/sysemu.h"
-#include "monitor/monitor.h"
 #include "hw/usb.h"
 
 USBDevice *usbdevice_create(const char *driver)
@@ -22,6 +21,12 @@ USBDevice *usbdevice_create(const char *driver)
 }
 
 HumanReadableText *qmp_x_query_usb(Error **errp)
+{
+    error_setg(errp, "Support for USB devices not built-in");
+    return NULL;
+}
+
+HumanReadableText *qmp_x_query_usbhost(Error **errp)
 {
     error_setg(errp, "Support for USB devices not built-in");
     return NULL;

@@ -49,6 +49,9 @@ static int query_error_class(const char *cmd)
         { "query-vm-generation-id", ERROR_CLASS_GENERIC_ERROR },
         /* Only valid with a USB bus added */
         { "x-query-usb", ERROR_CLASS_GENERIC_ERROR },
+#ifdef CONFIG_USB_LIBUSB
+        { "x-query-usbhost", ERROR_CLASS_GENERIC_ERROR },
+#endif
         /* Only valid with accel=tcg */
         { "x-query-jit", ERROR_CLASS_GENERIC_ERROR },
         { "x-query-opcount", ERROR_CLASS_GENERIC_ERROR },

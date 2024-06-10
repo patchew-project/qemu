@@ -1814,6 +1814,24 @@
   'features': [ 'unstable' ] }
 
 ##
+# @x-query-usbhost:
+#
+# Query information on host USB devices
+#
+# Features:
+#
+# @unstable: This command is meant for debugging.
+#
+# Returns: Host USB device information
+#
+# Since: 9.1
+##
+{ 'command': 'x-query-usbhost',
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ],
+  'if': 'CONFIG_USB_LIBUSB' }
+
+##
 # @SmbiosEntryPointType:
 #
 # @32: SMBIOS version 2.1 (32-bit) Entry Point

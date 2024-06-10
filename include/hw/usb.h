@@ -465,9 +465,6 @@ void usb_device_reset(USBDevice *dev);
 void usb_wakeup(USBEndpoint *ep, unsigned int stream);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 
-/* usb-linux.c */
-void hmp_info_usbhost(Monitor *mon, const QDict *qdict);
-
 /* usb ports of the VM */
 
 #define VM_USB_HUB_SIZE 8

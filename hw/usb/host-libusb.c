@@ -46,6 +46,8 @@
 #endif
 
 #include "qapi/error.h"
+#include "qapi/qapi-commands-machine.h"
+#include "qapi/type-helpers.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
@@ -1816,7 +1818,7 @@ module_kconfig(USB);
 static void usb_host_register_types(void)
 {
     type_register_static(&usb_host_dev_info);
-    monitor_register_hmp("usbhost", true, hmp_info_usbhost);
+    monitor_register_hmp_info_hrt("usbhost", qmp_x_query_usbhost);
 }
 
 type_init(usb_host_register_types)
@@ -1921,18 +1923,25 @@ static void usb_host_auto_check(void *unused)
     timer_mod(usb_auto_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 2000);
 }
 
-void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
+HumanReadableText *qmp_x_query_usbhost(Error **errp)
 {
+    g_autoptr(GString) buf = g_string_new("");
     libusb_device **devs = NULL;
     struct libusb_device_descriptor ddesc;
     char port[16];
     int i, n;
 
     if (usb_host_init() != 0) {
-        return;
+        error_setg(errp, "Failed to init libusb");
+        return NULL;
     }
 
     n = libusb_get_device_list(ctx, &devs);
+    if (!n) {
+        error_setg(errp, "No host USB device");
+        return NULL;
+    }
+
     for (i = 0; i < n; i++) {
         if (libusb_get_device_descriptor(devs[i], &ddesc) != 0) {
             continue;
@@ -1941,14 +1950,15 @@ void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
             continue;
         }
         usb_host_get_port(devs[i], port, sizeof(port));
-        monitor_printf(mon, "  Bus %d, Addr %d, Port %s, Speed %s Mb/s\n",
-                       libusb_get_bus_number(devs[i]),
-                       libusb_get_device_address(devs[i]),
-                       port,
-                       speed_name[libusb_get_device_speed(devs[i])]);
-        monitor_printf(mon, "    Class %02x:", ddesc.bDeviceClass);
-        monitor_printf(mon, " USB device %04x:%04x",
-                       ddesc.idVendor, ddesc.idProduct);
+        g_string_append_printf(buf,
+                               "  Bus %d, Addr %d, Port %s, Speed %s Mb/s\n",
+                               libusb_get_bus_number(devs[i]),
+                               libusb_get_device_address(devs[i]),
+                               port,
+                               speed_name[libusb_get_device_speed(devs[i])]);
+        g_string_append_printf(buf, "    Class %02x:", ddesc.bDeviceClass);
+        g_string_append_printf(buf, " USB device %04x:%04x",
+                               ddesc.idVendor, ddesc.idProduct);
         if (ddesc.iProduct) {
             libusb_device_handle *handle;
             if (libusb_open(devs[i], &handle) == 0) {
@@ -1957,10 +1967,12 @@ void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
                                                    ddesc.iProduct,
                                                    name, sizeof(name));
                 libusb_close(handle);
-                monitor_printf(mon, ", %s", name);
+                g_string_append_printf(buf, ", %s", name);
             }
         }
-        monitor_printf(mon, "\n");
+        g_string_append_c(buf, '\n');
     }
     libusb_free_device_list(devs, 1);
+
+    return human_readable_text_from_str(buf);
 }
