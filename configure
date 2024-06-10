@@ -302,6 +302,9 @@ else
   objcc="${objcc-${cross_prefix}clang}"
 fi
 
+with_rust="auto"
+with_rust_target_triple=""
+
 ar="${AR-${cross_prefix}ar}"
 as="${AS-${cross_prefix}as}"
 ccas="${CCAS-$cc}"
@@ -756,6 +759,12 @@ for opt do
   --container-engine=*) container_engine="$optarg"
   ;;
   --gdb=*) gdb_bin="$optarg"
+  ;;
+  --enable-rust) with_rust=enabled
+  ;;
+  --disable-rust) with_rust=disabled
+  ;;
+  --rust-target-triple=*) with_rust_target_triple="$optarg"
   ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
@@ -1789,6 +1798,9 @@ if test "$skip_meson" = no; then
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$plugins" = yes && meson_option_add "-Dplugins=true"
   test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
+  test "$with_rust" != enabled && meson_option_add "-Dwith_rust=$with_rust"
+  test "$with_rust" != enabled && meson_option_add "-Dwith_rust=$with_rust"
+  test "$with_rust_target_triple" != "" && meson_option_add "-Dwith_rust_target_triple=$with_rust_target_triple"
   run_meson() {
     NINJA=$ninja $meson setup "$@" "$PWD" "$source_path"
   }
