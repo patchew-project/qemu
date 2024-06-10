@@ -1,0 +1,26 @@
+[package]
+name = "pl011"
+version = "0.1.0"
+edition = "2021"
+authors = ["Manos Pitsidianakis <manos.pitsidianakis@linaro.org>"]
+license = "GPL-2.0 OR GPL-3.0-or-later"
+readme = "README.md"
+homepage = "https://meli-email.org"
+description = "pl011 device model for QEMU"
+repository = "https://gitlab.com/epilys/rust-for-qemu"
+resolver = "2"
+#keywords = []
+#categories = []
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+arbitrary-int = "*"
+bilge = "0.2.0"
+
+# bilge deps included here to include them with docs
+bilge-impl = "0.2.0"
+
+# Do not include in global workspace
+[workspace]

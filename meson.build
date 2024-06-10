@@ -296,6 +296,10 @@ if get_option('with_rust').allowed()
 endif
 with_rust = cargo.found()
 
+if with_rust
+  subdir('rust')
+endif
+
 # default flags for all hosts
 # We use -fwrapv to tell the compiler that we require a C dialect where
 # left shift of signed integers is well defined and has the expected
@@ -3667,6 +3671,20 @@ if enable_modules
 
       arch = config_target['TARGET_NAME'] == 'sparc64' ? 'sparc64' : config_target['TARGET_BASE_ARCH']
       hw_arch[arch].add(modinfo_dep)
+    endif
+  endforeach
+endif
+
+if with_rust
+  foreach target : target_dirs
+    if target.endswith('-softmmu')
+      config_target = config_target_mak[target]
+      arch = config_target['TARGET_NAME'] == 'sparc64' ? 'sparc64' : config_target['TARGET_BASE_ARCH']
+      if rust_targets.has_key(target)
+        foreach t: rust_targets[target]
+          hw_arch[arch].add(t)
+        endforeach
+      endif
     endif
   endforeach
 endif
