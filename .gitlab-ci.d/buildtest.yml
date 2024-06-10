@@ -745,11 +745,20 @@ build-tools-and-docs-debian:
 pages:
   image: rust:latest
   script:
-    - cd ./rust/pl011/
+    - rustup component add rustfmt
+    - DEBIAN_FRONTEND=noninteractive apt-get update -y
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv meson libgcrypt20-dev zlib1g-dev autoconf automake libtool bison flex git libglib2.0-dev libfdt-dev libpixman-1-dev ninja-build make libclang-14-dev
+    - cargo install bindgen-cli
+    - mkdir ./build/
+    - cd ./build/
+    - ../configure --enable-system --disable-kvm --target-list=aarch64-softmmu --enable-with-rust
+    - ninja "generated.rs"
+    - cp ./generated.rs ../rust/pl011/src/generated.rs.inc
+    - cd ../rust/pl011/
     - cargo tree --depth 1 -e normal --prefix none | cut -d' ' -f1  | xargs
       printf -- '-p %s\n'  | xargs cargo doc --no-deps --document-private-items --target x86_64-unknown-linux-gnu
     - cd ./../..
-    - mv ./rust/pl011/target/doc ./public
+    - mv ./rust/pl011/target/x86_64-unknown-linux-gnu/doc ./public
   artifacts:
     when: on_success
     paths:
