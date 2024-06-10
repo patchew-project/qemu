@@ -1,8 +1,9 @@
 rust_targets = {}
 
 cargo_wrapper = [
-  find_program(meson.source_root() / 'scripts/cargo_wrapper.py'),
+  find_program(meson.global_source_root() / 'scripts/cargo_wrapper.py'),
   '--config-headers', meson.project_build_root() / 'config-host.h',
+  '--meson-build-root', meson.project_build_root(),
   '--meson-build-dir', meson.current_build_dir(),
   '--meson-source-dir', meson.current_source_dir(),
 ]
@@ -11,17 +12,51 @@ if get_option('b_colorout') != 'never'
   cargo_wrapper += ['--color', 'always']
 endif
 
-if with_rust
-  rust_target_triple = get_option('with_rust_target_triple')
-  if meson.is_cross_build()
-    # more default target mappings may be added over time
-    if rust_target_triple == '' and targetos == 'windows'
-      rust_target_triple = host_machine.cpu() + '-pc-windows-gnu'
-    endif
-    if rust_target_triple == ''
-      error('cross-compiling, but no Rust target-triple defined.')
-    endif
+rust_supported_oses = {'linux': '-unknown-linux-gnu', 'darwin': '-apple-darwin', 'windows': '-pc-windows-gnu'}
+rust_supported_cpus = ['x86_64', 'aarch64']
+
+# Future-proof the above definitions against any change in the root meson.build file:
+foreach rust_os: rust_supported_oses.keys()
+  if not supported_oses.contains(rust_os)
+    message()
+    warning('UNSUPPORTED OS VALUES IN ' + meson.current_source_dir() + '/meson.build')
+    message()
+    message('This meson.build file claims OS `+' + rust_os + '` is supported but')
+    message('it is not included in the global supported OSes list in')
+    message(meson.source_root() + '/meson.build.')
   endif
+endforeach
+foreach rust_cpu: rust_supported_cpus
+  if not supported_cpus.contains(rust_cpu)
+    message()
+    warning('UNSUPPORTED CPU VALUES IN ' + meson.current_source_dir() + '/meson.build')
+    message()
+    message('This meson.build file claims CPU `+' + rust_cpu + '` is supported but')
+    message('it is not included in the global supported CPUs list in')
+    message(meson.source_root() + '/meson.build.')
+  endif
+endforeach
+
+if meson.is_cross_build()
+  message()
+  error('QEMU does not support cross compiling with Rust enabled.')
+endif
+
+rust_target_triple = get_option('with_rust_target_triple')
+
+# TODO: verify rust_target_triple if given as an option
+if rust_target_triple == ''
+  if not supported_oses.contains(host_os)
+    message()
+    error('QEMU does not support `' + host_os +'` as a Rust platform.')
+  elif not supported_cpus.contains(host_arch)
+    message()
+    error('QEMU does not support `' + host_arch +'` as a Rust architecture.')
+  endif
+  rust_target_triple = host_arch + rust_supported_oses[host_os]
+  if host_os == 'windows' and host_arch == 'aarch64'
+    rust_target_triple += 'llvm'
+  endif 
 endif
 
 if get_option('optimization') in ['0', '1', 'g']
@@ -30,36 +65,29 @@ else
   rs_build_type = 'release'
 endif
 
-_host_target_list = [['x86_64-unknown-linux-gnu', 'aarch64-softmmu']]
+rust_hw_target_list = {}
 
-foreach targets: _host_target_list
-  host_target = targets[0]
-  target = targets[1]
-  output = meson.current_build_dir() / host_target / rs_build_type / 'libpl011.a'
-  if rust_target_triple == ''
-    rust_target_triple = host_target
-  endif
-  rust_pl011_cargo = custom_target('rust_pl011_cargo',
-                               output: ['libpl011.a'],
-                               build_always_stale: true,
-                               depends: [],
-                               command: [cargo_wrapper,
-                                         '--crate-dir',
-                                         meson.current_source_dir() / 'pl011',
-                                         '--profile',
-                                         rs_build_type,
-                                         '--target-triple',
-                                         rust_target_triple,
-                                         '--outdir',
-                                         '@OUTDIR@',
-                                         'build-lib'
-                                         ]
-                               )
-  rust_pl011 = declare_dependency(link_args : [
-                                  '-Wl,--whole-archive',
-                                  output,
-                                  '-Wl,--no-whole-archive'
-                                  ],
-                                  sources: [rust_pl011_cargo])
-  rust_targets += { target: [rust_pl011] }
+subdir('pl011')
+
+foreach rust_hw_target, rust_hws: rust_hw_target_list
+  foreach rust_hw_dev: rust_hws
+    output = meson.current_build_dir() / rust_target_triple / rs_build_type / rust_hw_dev['output']
+    crate_metadata = {
+      'name': rust_hw_dev['name'],
+      'output': [rust_hw_dev['output']],
+      'output-path': output,
+      'command': [cargo_wrapper,
+        '--crate-dir',
+        meson.current_source_dir() / rust_hw_dev['dirname'],
+        '--profile',
+        rs_build_type,
+        '--target-triple',
+        rust_target_triple,
+        '--outdir',
+        '@OUTDIR@',
+        'build-lib'
+        ]
+      }
+    rust_targets += { rust_hw_target: [crate_metadata] }
+  endforeach
 endforeach

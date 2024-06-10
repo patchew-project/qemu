@@ -3675,20 +3675,6 @@ if enable_modules
   endforeach
 endif
 
-if with_rust
-  foreach target : target_dirs
-    if target.endswith('-softmmu')
-      config_target = config_target_mak[target]
-      arch = config_target['TARGET_NAME'] == 'sparc64' ? 'sparc64' : config_target['TARGET_BASE_ARCH']
-      if rust_targets.has_key(target)
-        foreach t: rust_targets[target]
-          hw_arch[arch].add(t)
-        endforeach
-      endif
-    endif
-  endforeach
-endif
-
 nm = find_program('nm')
 undefsym = find_program('scripts/undefsym.py')
 block_syms = custom_target('block.syms', output: 'block.syms',
@@ -3910,6 +3896,90 @@ foreach target : target_dirs
   foreach dep : arch_deps
     lib_deps += dep.partial_dependency(compile_args: true, includes: true)
   endforeach
+
+  if with_rust and target_type == 'system'
+      rust_bindgen = import('unstable-rust')
+      rust_bindgen_dep = declare_dependency(
+        dependencies: arch_deps + lib_deps,
+        include_directories : target_inc,
+        sources: arch_srcs + genh)
+
+      generated_rs = rust_bindgen.bindgen(
+        input : files('rust/wrapper.h'),
+        dependencies: arch_deps + rust_bindgen_dep,
+        output : 'generated.rs',
+        include_directories : target_inc + include_directories('.') + include_directories('include'),
+        args : [
+          '--formatter',
+          'rustfmt',
+          '--no-doc-comments',
+          '--merge-extern-blocks',
+          '--generate-block',
+          '--generate-cstr',
+          '--impl-debug',
+          '--with-derive-default',
+          '--use-core',
+          '--ctypes-prefix',
+          'core::ffi',
+          '--blocklist-var',
+          'IPPORT_RESERVED',
+          '--blocklist-type',
+          '^.+_.*autoptr$',
+          '--blocklist-type',
+          'max_align_t',
+          '--blocklist-function',
+          'str*',
+          '--blocklist-function',
+          'ato*',
+          '--blocklist-function',
+          'p?select',
+          '--blocklist-file',
+          '.+inttypes.h$',
+          '--blocklist-file',
+          '.+limits.h$',
+          '--blocklist-file',
+          '.+ctype.h$',
+          '--blocklist-file',
+          '.+errno.h$',
+          '--blocklist-file',
+          '.+fcntl.h$',
+          '--blocklist-file',
+          '.+getopt.h$',
+          '--blocklist-file',
+          '.+assert.h$',
+          '--blocklist-file',
+          '.+stdbool.h$',
+          '--blocklist-file',
+          '.+stdio.h$',
+          '--blocklist-file',
+          '.+stdint.h$',
+          '--blocklist-file',
+          '.+stdalign.h$',
+        ],
+        c_args : c_args,
+      )
+
+      if target in rust_targets
+        rust_hw = ss.source_set()
+        foreach t: rust_targets[target]
+          rust_device_cargo = custom_target(t['name'],
+                                       output: t['output'],
+                                       depends: [generated_rs],
+                                       build_always_stale: true,
+                                       command: t['command'])
+          rust_dep = declare_dependency(link_args : [
+                                          '-Wl,--whole-archive',
+                                          t['output-path'],
+                                          '-Wl,--no-whole-archive'
+                                          ],
+                                          sources: [rust_device_cargo])
+          rust_hw.add(rust_dep)
+        endforeach
+        rust_hw_config = rust_hw.apply(config_target, strict: false)
+        arch_srcs += rust_hw_config.sources()
+        arch_deps += rust_hw_config.dependencies()
+      endif
+  endif
 
   lib = static_library('qemu-' + target,
                  sources: arch_srcs + genh,

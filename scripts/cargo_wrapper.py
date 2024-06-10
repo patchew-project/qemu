@@ -94,6 +94,8 @@ def get_cargo_rustc(args: argparse.Namespace) -> tuple[Dict[str, Any], List[str]
 
     env = os.environ
     env["CARGO_ENCODED_RUSTFLAGS"] = cfg
+    env["MESON_BUILD_DIR"] = str(target_dir)
+    env["MESON_BUILD_ROOT"] = str(args.meson_build_root)
 
     return (env, cargo_cmd)
 
@@ -161,6 +163,14 @@ def main() -> None:
         help="meson.current_build_dir()",
         type=pathlib.Path,
         dest="meson_build_dir",
+        required=True,
+    )
+    parser.add_argument(
+        "--meson-build-root",
+        metavar="BUILD_ROOT",
+        help="meson.project_build_root()",
+        type=pathlib.Path,
+        dest="meson_build_root",
         required=True,
     )
     parser.add_argument(
