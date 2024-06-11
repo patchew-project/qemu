@@ -843,20 +843,35 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 
 #ifdef TARGET_X86_64
 
-#define PUSHQ_RA(sp, val, ra)                   \
-    {                                           \
-        sp -= 8;                                \
-        cpu_stq_kernel_ra(env, sp, (val), ra);  \
-    }
+#define PUSHQ_RA(sp, val, ra, cpl, dpl) \
+  FUNC_PUSHQ_RA(env, &sp, val, ra, cpl, dpl)
 
-#define POPQ_RA(sp, val, ra)                    \
-    {                                           \
-        val = cpu_ldq_kernel_ra(env, sp, ra);   \
-        sp += 8;                                \
-    }
+static inline void FUNC_PUSHQ_RA(
+    CPUX86State *env, target_ulong *sp,
+    target_ulong val, target_ulong ra, int cpl, int dpl) {
+  *sp -= 8;
+  if (dpl == 0) {
+    cpu_stq_kernel_ra(env, *sp, val, ra);
+  } else {
+    cpu_stq_data_ra(env, *sp, val, ra);
+  } 
+}
 
-#define PUSHQ(sp, val) PUSHQ_RA(sp, val, 0)
-#define POPQ(sp, val) POPQ_RA(sp, val, 0)
+#define POPQ_RA(sp, val, ra, cpl, dpl) \
+  val = FUNC_POPQ_RA(env, &sp, ra, cpl, dpl)
+
+static inline target_ulong FUNC_POPQ_RA(
+    CPUX86State *env, target_ulong *sp,
+    target_ulong ra, int cpl, int dpl) {
+  target_ulong val;
+  if (cpl == 0) {  /* TODO perhaps both arms reduce to cpu_ldq_data_ra? */
+    val = cpu_ldq_kernel_ra(env, *sp, ra);
+  } else {
+    val = cpu_ldq_data_ra(env, *sp, ra);
+  }
+  *sp += 8;
+  return val;
+}
 
 static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 {
@@ -901,6 +916,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     uint32_t e1, e2, e3, ss, eflags;
     target_ulong old_eip, esp, offset;
     bool set_rf;
+    const target_ulong retaddr = 0;
 
     has_error_code = 0;
     if (!is_int && !is_hw) {
@@ -989,13 +1005,13 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         eflags |= RF_MASK;
     }
 
-    PUSHQ(esp, env->segs[R_SS].selector);
-    PUSHQ(esp, env->regs[R_ESP]);
-    PUSHQ(esp, eflags);
-    PUSHQ(esp, env->segs[R_CS].selector);
-    PUSHQ(esp, old_eip);
+    PUSHQ_RA(esp, env->segs[R_SS].selector, retaddr, cpl, dpl);
+    PUSHQ_RA(esp, env->regs[R_ESP],         retaddr, cpl, dpl);
+    PUSHQ_RA(esp, eflags,                   retaddr, cpl, dpl);
+    PUSHQ_RA(esp, env->segs[R_CS].selector, retaddr, cpl, dpl);
+    PUSHQ_RA(esp, old_eip,                  retaddr, cpl, dpl);
     if (has_error_code) {
-        PUSHQ(esp, error_code);
+        PUSHQ_RA(esp, error_code, retaddr, cpl, dpl);
     }
 
     /* interrupt gate clear IF mask */
@@ -1621,8 +1637,8 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 
             /* 64 bit case */
             rsp = env->regs[R_ESP];
-            PUSHQ_RA(rsp, env->segs[R_CS].selector, GETPC());
-            PUSHQ_RA(rsp, next_eip, GETPC());
+            PUSHQ_RA(rsp, env->segs[R_CS].selector, GETPC(), cpl, dpl);
+            PUSHQ_RA(rsp, next_eip, GETPC(), cpl, dpl);
             /* from this point, not restartable */
             env->regs[R_ESP] = rsp;
             cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
@@ -1792,8 +1808,8 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 #ifdef TARGET_X86_64
             if (shift == 2) {
                 /* XXX: verify if new stack address is canonical */
-                PUSHQ_RA(sp, env->segs[R_SS].selector, GETPC());
-                PUSHQ_RA(sp, env->regs[R_ESP], GETPC());
+                PUSHQ_RA(sp, env->segs[R_SS].selector, GETPC(), cpl, dpl);
+                PUSHQ_RA(sp, env->regs[R_ESP], GETPC(), cpl, dpl);
                 /* parameters aren't supported for 64-bit call gates */
             } else
 #endif
@@ -1828,8 +1844,8 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 
 #ifdef TARGET_X86_64
         if (shift == 2) {
-            PUSHQ_RA(sp, env->segs[R_CS].selector, GETPC());
-            PUSHQ_RA(sp, next_eip, GETPC());
+            PUSHQ_RA(sp, env->segs[R_CS].selector, GETPC(), cpl, dpl);
+            PUSHQ_RA(sp, next_eip, GETPC(), cpl, dpl);
         } else
 #endif
         if (shift == 1) {
@@ -1944,6 +1960,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
     int cpl, dpl, rpl, eflags_mask, iopl;
     target_ulong ssp, sp, new_eip, new_esp, sp_mask;
 
+    cpl = env->hflags & HF_CPL_MASK;
 #ifdef TARGET_X86_64
     if (shift == 2) {
         sp_mask = -1;
@@ -1957,11 +1974,11 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
     new_eflags = 0; /* avoid warning */
 #ifdef TARGET_X86_64
     if (shift == 2) {
-        POPQ_RA(sp, new_eip, retaddr);
-        POPQ_RA(sp, new_cs, retaddr);
+        POPQ_RA(sp, new_eip, retaddr, cpl, dpl);
+        POPQ_RA(sp, new_cs, retaddr, cpl, dpl);
         new_cs &= 0xffff;
         if (is_iret) {
-            POPQ_RA(sp, new_eflags, retaddr);
+            POPQ_RA(sp, new_eflags, retaddr, cpl, dpl);
         }
     } else
 #endif
@@ -1999,7 +2016,6 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
         !(e2 & DESC_CS_MASK)) {
         raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, retaddr);
     }
-    cpl = env->hflags & HF_CPL_MASK;
     rpl = new_cs & 3;
     if (rpl < cpl) {
         raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, retaddr);
@@ -2030,8 +2046,8 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
         /* return to different privilege level */
 #ifdef TARGET_X86_64
         if (shift == 2) {
-            POPQ_RA(sp, new_esp, retaddr);
-            POPQ_RA(sp, new_ss, retaddr);
+            POPQ_RA(sp, new_esp, retaddr, cpl, dpl);
+            POPQ_RA(sp, new_ss, retaddr, cpl, dpl);
             new_ss &= 0xffff;
         } else
 #endif
