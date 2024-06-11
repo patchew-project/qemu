@@ -270,6 +270,7 @@ static void create_fdt(VirtMachineState *vms)
     qemu_fdt_setprop_cell(fdt, "/", "#address-cells", 0x2);
     qemu_fdt_setprop_cell(fdt, "/", "#size-cells", 0x2);
     qemu_fdt_setprop_string(fdt, "/", "model", "linux,dummy-virt");
+    qemu_fdt_setprop(fdt, "/", "dma-coherent", NULL, 0);
 
     /* /chosen must exist for load_dtb to fill in necessary properties later */
     qemu_fdt_add_subnode(fdt, "/chosen");
