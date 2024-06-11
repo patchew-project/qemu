@@ -67,6 +67,8 @@ endif
 
 rust_hw_target_list = {}
 
+subdir('pl011')
+
 foreach rust_hw_target, rust_hws: rust_hw_target_list
   foreach rust_hw_dev: rust_hws
     output = meson.current_build_dir() / rust_target_triple / rs_build_type / rust_hw_dev['output']

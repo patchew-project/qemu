@@ -1,0 +1,2 @@
+[build]
+rustflags = ["-Crelocation-model=pic", "-Ctarget-feature=+crt-static"]
