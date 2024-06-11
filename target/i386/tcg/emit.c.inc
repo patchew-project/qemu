@@ -2874,16 +2874,16 @@ static void gen_PUSHF(DisasContext *s, X86DecodedInsn *decode)
 }
 
 static MemOp gen_shift_count(DisasContext *s, X86DecodedInsn *decode,
-                             bool *can_be_zero, TCGv *count)
+                             bool *can_be_zero, TCGv *count, int unit)
 {
     MemOp ot = decode->op[0].ot;
     int mask = (ot <= MO_32 ? 0x1f : 0x3f);
 
     *can_be_zero = false;
-    switch (decode->op[2].unit) {
+    switch (unit) {
     case X86_OP_INT:
         *count = tcg_temp_new();
-        tcg_gen_andi_tl(*count, s->T1, mask);
+        tcg_gen_andi_tl(*count, cpu_regs[R_ECX], mask);
         *can_be_zero = true;
         break;
 
@@ -3068,7 +3068,7 @@ static void gen_RCL(DisasContext *s, X86DecodedInsn *decode)
     bool have_1bit_cin, can_be_zero;
     TCGv count;
     TCGLabel *zero_label = NULL;
-    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count);
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, decode->op[2].unit);
     TCGv low, high, low_count;
 
     if (!count) {
@@ -3120,7 +3120,7 @@ static void gen_RCR(DisasContext *s, X86DecodedInsn *decode)
     bool have_1bit_cin, can_be_zero;
     TCGv count;
     TCGLabel *zero_label = NULL;
-    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count);
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, decode->op[2].unit);
     TCGv low, high, high_count;
 
     if (!count) {
@@ -3298,7 +3298,7 @@ static void gen_ROL(DisasContext *s, X86DecodedInsn *decode)
 {
     bool can_be_zero;
     TCGv count;
-    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count);
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, decode->op[2].unit);
     TCGv_i32 temp32, count32;
     TCGv old = tcg_temp_new();
 
@@ -3326,7 +3326,7 @@ static void gen_ROR(DisasContext *s, X86DecodedInsn *decode)
 {
     bool can_be_zero;
     TCGv count;
-    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count);
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, decode->op[2].unit);
     TCGv_i32 temp32, count32;
     TCGv old = tcg_temp_new();
 
@@ -3438,7 +3438,7 @@ static void gen_SAR(DisasContext *s, X86DecodedInsn *decode)
 {
     bool can_be_zero;
     TCGv count;
-    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count);
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, decode->op[2].unit);
 
     if (!count) {
         return;
@@ -3566,7 +3566,7 @@ static void gen_SHL(DisasContext *s, X86DecodedInsn *decode)
 {
     bool can_be_zero;
     TCGv count;
-    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count);
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, decode->op[2].unit);
 
     if (!count) {
         return;
@@ -3598,7 +3598,7 @@ static void gen_SHR(DisasContext *s, X86DecodedInsn *decode)
 {
     bool can_be_zero;
     TCGv count;
-    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count);
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, decode->op[2].unit);
 
     if (!count) {
         return;
