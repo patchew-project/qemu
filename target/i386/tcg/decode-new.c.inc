@@ -151,6 +151,8 @@
     X86_OP_GROUP3(op, op0, s0, 2op, s0, op1, s1, ## __VA_ARGS__)
 #define X86_OP_GROUPw(op, op0, s0, ...)                           \
     X86_OP_GROUP3(op, op0, s0, None, None, None, None, ## __VA_ARGS__)
+#define X86_OP_GROUPwr(op, op0, s0, op1, s1, ...)                 \
+    X86_OP_GROUP3(op, op0, s0, op1, s1, None, None, ## __VA_ARGS__)
 #define X86_OP_GROUP0(op, ...)                                    \
     X86_OP_GROUP3(op, None, None, None, None, None, None, ## __VA_ARGS__)
 
@@ -985,6 +987,24 @@ static void decode_0FE6(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
     *entry = *decode_by_prefix(s, opcodes_0FE6);
 }
 
+/* These are a bit weird, so group all the pre-decode tweaks here.  */
+static void decode_MOV_CR_DR(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    /* No 16-bit mode.  */
+    s->dflag = MO_32;
+
+    /*
+     * Ignore the mod bits (assume (modrm&0xc0)==0xc0).
+     * AMD documentation (24594.pdf) and testing of Intel 386 and 486
+     * processors all show that the mod bits are assumed to be 1's,
+     * regardless of actual values.
+     */
+    get_modrm(s, env);
+    s->modrm |= 0xC0;
+
+    entry->gen = gen_MOV;
+}
+
 static const X86OpEntry opcodes_0F[256] = {
     [0x0E] = X86_OP_ENTRY0(EMMS,                              cpuid(3DNOW)), /* femms */
     /*
@@ -1003,6 +1023,11 @@ static const X86OpEntry opcodes_0F[256] = {
     [0x16] = X86_OP_GROUP0(0F16),
     /* Incorrectly listed as Mq,Vq in the manual */
     [0x17] = X86_OP_ENTRY3(VMOVHPx_st,  M,q, None,None, V,dq, vex5 p_00_66),
+
+    [0x20] = X86_OP_GROUPwr(MOV_CR_DR,   R,y, C,y, chk(cpl0) svm(READ_CR0)),
+    [0x21] = X86_OP_GROUPwr(MOV_CR_DR,   R,y, D,y, chk(cpl0) svm(READ_DR0)),
+    [0x22] = X86_OP_GROUPwr(MOV_CR_DR,   C,y, R,y, zextT0 chk(cpl0) svm(WRITE_CR0)),
+    [0x23] = X86_OP_GROUPwr(MOV_CR_DR,   D,y, R,y, zextT0 chk(cpl0) svm(WRITE_DR0)),
 
     [0x40] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
     [0x41] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
@@ -1802,11 +1827,34 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 
     case X86_TYPE_C:  /* REG in the modrm byte selects a control register */
         op->unit = X86_OP_CR;
-        goto get_reg;
+        op->n = ((get_modrm(s, env) >> 3) & 7) | REX_R(s);
+        if (op->n == 0 && (s->prefix & PREFIX_LOCK) &&
+            (s->cpuid_ext3_features & CPUID_EXT3_CR8LEG)) {
+            op->n = 8;
+            s->prefix &= ~PREFIX_LOCK;
+        }
+        if (op->n != 0 && op->n != 2 && op->n != 3 && op->n != 4 && op->n != 8) {
+            return false;
+        }
+        if (decode->e.intercept) {
+            decode->e.intercept += op->n;
+        }
+        break;
 
     case X86_TYPE_D:  /* REG in the modrm byte selects a debug register */
         op->unit = X86_OP_DR;
-        goto get_reg;
+        op->n = ((get_modrm(s, env) >> 3) & 7) | REX_R(s);
+        if (op->n >= 8) {
+            /*
+             * illegal opcode.  The DR4 and DR5 case is checked in the generated
+             * code instead, to save on hflags bits.
+             */
+            return false;
+        }
+        if (decode->e.intercept) {
+            decode->e.intercept += op->n;
+        }
+        break;
 
     case X86_TYPE_G:  /* REG in the modrm byte selects a GPR */
         op->unit = X86_OP_INT;
@@ -2431,7 +2479,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
             case 0x00 ... 0x03: /* mostly privileged instructions */
             case 0x05 ... 0x09:
             case 0x1a ... 0x1b: /* MPX */
-            case 0x20 ... 0x23: /* mov from/to CR and DR */
             case 0x30 ... 0x35: /* more privileged instructions */
             case 0xa2 ... 0xa5: /* CPUID, BT, SHLD */
             case 0xaa ... 0xae: /* RSM, SHRD, grp15 */
