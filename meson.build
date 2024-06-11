@@ -290,6 +290,12 @@ foreach lang : all_languages
   endif
 endforeach
 
+cargo = not_found
+if get_option('with_rust').allowed()
+  cargo = find_program('cargo', required: get_option('with_rust'))
+endif
+with_rust = cargo.found()
+
 # default flags for all hosts
 # We use -fwrapv to tell the compiler that we require a C dialect where
 # left shift of signed integers is well defined and has the expected
@@ -2077,6 +2083,7 @@ endif
 
 config_host_data = configuration_data()
 
+config_host_data.set('CONFIG_WITH_RUST', with_rust)
 audio_drivers_selected = []
 if have_system
   audio_drivers_available = {
@@ -4206,6 +4213,10 @@ if 'objc' in all_languages
   summary_info += {'Objective-C compiler': ' '.join(meson.get_compiler('objc').cmd_array())}
 else
   summary_info += {'Objective-C compiler': false}
+endif
+summary_info += {'Rust support':      with_rust}
+if with_rust and get_option('with_rust_target_triple') != ''
+  summary_info += {'Rust target':     get_option('with_rust_target_triple')}
 endif
 option_cflags = (get_option('debug') ? ['-g'] : [])
 if get_option('optimization') != 'plain'
