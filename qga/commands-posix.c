@@ -2708,6 +2708,81 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
     return head;
 }
 
+static char *hexToIPAddress(unsigned int hexValue)
+{
+    unsigned int byte1 = (hexValue >> 24) & 0xFF;
+    unsigned int byte2 = (hexValue >> 16) & 0xFF;
+    unsigned int byte3 = (hexValue >> 8) & 0xFF;
+    unsigned int byte4 = hexValue & 0xFF;
+
+    return g_strdup_printf("%u.%u.%u.%u", byte4, byte3, byte2, byte1);
+}
+
+GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
+{
+    GuestNetworkRouteList *head = NULL, **tail = &head;
+    const char *routeFile = "/proc/net/route";
+    FILE *fp;
+    size_t n;
+    char *line = NULL;
+    int firstLine = 1;
+
+    fp = fopen(routeFile, "r");
+    if (fp == NULL) {
+        error_setg_errno(errp, errno, "open(\"%s\")", routeFile);
+        free(line);
+        return NULL;
+    }
+
+    while (getline(&line, &n, fp) != -1) {
+        if (firstLine) {
+            firstLine = 0;
+            continue;
+        }
+        GuestNetworkRoute *route = NULL;
+        GuestNetworkRoute *networkroute;
+        int i;
+            char Iface[IFNAMSIZ];
+        unsigned int Destination, Gateway, Mask, Flags;
+        int RefCnt, Use, Metric, MTU, Window, IRTT;
+
+        /* Parse the line and extract the values */
+        i = (sscanf(line, "%s %X %X %x %d %d %d %X %d %d %d",
+                    Iface, &Destination, &Gateway, &Flags, &RefCnt,
+                    &Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11);
+        if (i == EOF) {
+            continue;
+        }
+
+        route = g_new0(GuestNetworkRoute, 1);
+
+        networkroute = route;
+        networkroute->iface = g_strdup(Iface);
+        networkroute->destination = hexToIPAddress(Destination);
+        networkroute->gateway = hexToIPAddress(Gateway);
+        networkroute->mask = hexToIPAddress(Mask);
+        networkroute->metric = Metric;
+        networkroute->has_flags = true;
+        networkroute->flags = Flags;
+        networkroute->has_refcnt = true;
+        networkroute->refcnt = RefCnt;
+        networkroute->has_use = true;
+        networkroute->use = Use;
+        networkroute->has_mtu = true;
+        networkroute->mtu = MTU;
+        networkroute->has_window = true;
+        networkroute->window = Window;
+        networkroute->has_irtt = true;
+        networkroute->irtt = IRTT;
+
+        QAPI_LIST_APPEND(tail, route);
+    }
+
+    free(line);
+    fclose(fp);
+    return head;
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **errp)
@@ -3074,6 +3149,12 @@ GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
 }
 
 GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
