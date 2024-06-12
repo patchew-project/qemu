@@ -2291,6 +2291,8 @@ static Property riscv_cpu_properties[] = {
      * it with -x and default to 'false'.
      */
     DEFINE_PROP_BOOL("x-misa-w", RISCVCPU, cfg.misa_w, false),
+    DEFINE_PROP_UINT32("mwid", RISCVCPU, cfg.mwid, UINT32_MAX),
+    DEFINE_PROP_UINT32("mwidlist", RISCVCPU, cfg.mwidlist, UINT32_MAX),
     DEFINE_PROP_END_OF_LIST(),
 };
 
