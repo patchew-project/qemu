@@ -274,6 +274,13 @@ struct MemoryRegionOps {
                   uint64_t data,
                   unsigned size);
 
+    /* Fetch to the memory region. @addr is relative to @mr; @size is
+     * in bytes. */
+    uint64_t (*fetch)(void *opaque,
+                      hwaddr addr,
+                      unsigned size);
+
+
     MemTxResult (*read_with_attrs)(void *opaque,
                                    hwaddr addr,
                                    uint64_t *data,
@@ -284,6 +291,12 @@ struct MemoryRegionOps {
                                     uint64_t data,
                                     unsigned size,
                                     MemTxAttrs attrs);
+    MemTxResult (*fetch_with_attrs)(void *opaque,
+                                    hwaddr addr,
+                                    uint64_t *data,
+                                    unsigned size,
+                                    MemTxAttrs attrs);
+
 
     enum device_endian endianness;
     /* Guest-visible constraints: */
@@ -2669,6 +2682,23 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
 MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          hwaddr addr,
                                          uint64_t data,
+                                         MemOp op,
+                                         MemTxAttrs attrs);
+
+
+/**
+ * memory_region_dispatch_fetch: perform a fetch directly to the specified
+ * MemoryRegion.
+ *
+ * @mr: #MemoryRegion to access
+ * @addr: address within that region
+ * @pval: pointer to uint64_t which the data is written to
+ * @op: size, sign, and endianness of the memory operation
+ * @attrs: memory transaction attributes to use for the access
+ */
+MemTxResult memory_region_dispatch_fetch(MemoryRegion *mr,
+                                         hwaddr addr,
+                                         uint64_t *pval,
                                          MemOp op,
                                          MemTxAttrs attrs);
 
