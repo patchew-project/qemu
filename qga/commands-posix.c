@@ -2708,6 +2708,73 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
     return head;
 }
 
+char *hexToIPAddress(unsigned int hexValue, char ipAddress[16]);
+char *hexToIPAddress(unsigned int hexValue, char ipAddress[16])
+{
+    unsigned int byte1 = (hexValue >> 24) & 0xFF;
+    unsigned int byte2 = (hexValue >> 16) & 0xFF;
+    unsigned int byte3 = (hexValue >> 8) & 0xFF;
+    unsigned int byte4 = hexValue & 0xFF;
+
+    snprintf(ipAddress, 16, "%u.%u.%u.%u", byte4, byte3, byte2, byte1);
+
+    return ipAddress;
+}
+
+GuestNetworkRouteStatList *qmp_guest_network_get_route(Error **errp)
+{
+    GuestNetworkRouteStatList *head = NULL, **tail = &head;
+    const char *routeFile = "/proc/net/route";
+    FILE *fp;
+    size_t n;
+    char *line = NULL;
+
+    fp = fopen(routeFile, "r");
+    if (fp == NULL) {
+        error_setg_errno(errp, errno, "open(\"%s\")", routeFile);
+        return NULL;
+    }
+
+    while (getline(&line, &n, fp) != -1) {
+        GuestNetworkRouteStat *networkroute;
+        int i;
+        char Iface[16];
+        unsigned int Destination, Gateway, Mask, Flags;
+        int RefCnt, Use, Metric, MTU, Window, IRTT;
+
+        i = (sscanf(line, "%s %X %X %x %d %d %d %X %d %d %d",
+                    Iface, &Destination, &Gateway, &Flags, &RefCnt,
+                    &Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11);
+        if (i == EOF) {
+            continue;
+        }
+
+        networkroute = g_new0(GuestNetworkRouteStat, 1);
+
+        char DestAddress[16];
+        char GateAddress[16];
+        char MaskAddress[16];
+
+        networkroute->iface = g_strdup(Iface);
+        networkroute->destination = g_strdup(hexToIPAddress(Destination, DestAddress));
+        networkroute->gateway = g_strdup(hexToIPAddress(Gateway, GateAddress));
+        networkroute->mask = g_strdup(hexToIPAddress(Mask, MaskAddress));
+        networkroute->metric = Metric;
+        networkroute->flags = Flags;
+        networkroute->refcnt = RefCnt;
+        networkroute->use = Use;
+        networkroute->mtu = MTU;
+        networkroute->window = Window;
+        networkroute->irtt = IRTT;
+
+        QAPI_LIST_APPEND(tail, networkroute);
+    }
+
+    free(line);
+    fclose(fp);
+    return head;
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **errp)
@@ -3074,6 +3141,12 @@ GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
 }
 
 GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
