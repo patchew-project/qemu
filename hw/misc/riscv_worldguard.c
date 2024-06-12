@@ -38,6 +38,9 @@
  */
 struct RISCVWorldGuardState *worldguard_config = NULL;
 
+/* perm field bitmask of wgChecker slot, it's depends on NWorld. */
+uint64_t wgc_slot_perm_mask = 0;
+
 static Property riscv_worldguard_properties[] = {
     DEFINE_PROP_UINT32("nworlds", RISCVWorldGuardState, nworlds, 0),
 
