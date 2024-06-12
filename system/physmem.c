@@ -702,6 +702,10 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
         iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE, iommu_idx);
         addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
                 | (addr & iotlb.addr_mask));
+        /* Update size */
+        if (iotlb.addr_mask != -1 && *plen > iotlb.addr_mask + 1) {
+            *plen = iotlb.addr_mask + 1;
+        }
         /* Update the caller's prot bits to remove permissions the IOMMU
          * is giving us a failure response for. If we get down to no
          * permissions left at all we can give up now.
