@@ -361,7 +361,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         res.f.extra.arm.pte_attrs = res.cacheattrs.attrs;
         res.f.extra.arm.shareability = res.cacheattrs.shareability;
 
-        tlb_set_page_full(cs, mmu_idx, address, &res.f);
+        tlb_set_page_full(cs, mmu_idx, address, access_type, &res.f);
         return true;
     } else if (probe) {
         return false;

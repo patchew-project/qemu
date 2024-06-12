@@ -205,7 +205,7 @@ void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
  * used by tlb_flush_page.
  */
 void tlb_set_page_full(CPUState *cpu, int mmu_idx, vaddr addr,
-                       CPUTLBEntryFull *full);
+                       MMUAccessType access_type, CPUTLBEntryFull *full);
 
 /**
  * tlb_set_page_with_attrs:
@@ -231,7 +231,8 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx, vaddr addr,
  */
 void tlb_set_page_with_attrs(CPUState *cpu, vaddr addr,
                              hwaddr paddr, MemTxAttrs attrs,
-                             int prot, int mmu_idx, vaddr size);
+                             int prot, MMUAccessType access_type, int mmu_idx,
+                             vaddr size);
 /* tlb_set_page:
  *
  * This function is equivalent to calling tlb_set_page_with_attrs()
@@ -240,7 +241,8 @@ void tlb_set_page_with_attrs(CPUState *cpu, vaddr addr,
  */
 void tlb_set_page(CPUState *cpu, vaddr addr,
                   hwaddr paddr, int prot,
-                  int mmu_idx, vaddr size);
+                  MMUAccessType access_type, int mmu_idx,
+                  vaddr size);
 #else
 static inline void tlb_init(CPUState *cpu)
 {
@@ -591,7 +593,8 @@ void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length);
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
                                   hwaddr *xlat, hwaddr *plen,
-                                  MemTxAttrs attrs, int *prot);
+                                  MemTxAttrs attrs, int *prot,
+                                  MMUAccessType access_type);
 hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        MemoryRegionSection *section);
 #endif

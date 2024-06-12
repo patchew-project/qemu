@@ -68,7 +68,7 @@ bool cris_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         phy = res.phy & ~0x80000000;
         prot = res.prot;
         tlb_set_page(cs, address & TARGET_PAGE_MASK, phy,
-                     prot, mmu_idx, TARGET_PAGE_SIZE);
+                     prot, access_type, mmu_idx, TARGET_PAGE_SIZE);
         return true;
     }
 

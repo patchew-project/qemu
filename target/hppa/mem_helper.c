@@ -461,7 +461,7 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
      * because we record the large page here in the hppa tlb.
      */
     tlb_set_page(cs, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
-                 prot, mmu_idx, TARGET_PAGE_SIZE);
+                 prot, type, mmu_idx, TARGET_PAGE_SIZE);
     return true;
 }
 
