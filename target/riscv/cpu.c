@@ -1149,6 +1149,16 @@ void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
     }
 }
 
+static void riscv_cpu_register_csr_qtest_callback(void)
+{
+    static gsize reinit_done;
+    if (g_once_init_enter(&reinit_done)) {
+        qtest_set_command_cb(csr_qtest_callback);
+
+        g_once_init_leave(&reinit_done, 1);
+    }
+}
+
 static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -1174,6 +1184,9 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     riscv_cpu_register_gdb_regs_for_features(cs);
+
+    /* register callback for csr qtests */
+    riscv_cpu_register_csr_qtest_callback();
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->cfg.debug) {
