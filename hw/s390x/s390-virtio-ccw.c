@@ -47,6 +47,7 @@
 #include "migration/blocker.h"
 #include "qapi/visitor.h"
 #include "hw/s390x/cpu-topology.h"
+#include CONFIG_DEVICES
 
 static Error *pv_mig_blocker;
 
@@ -603,6 +604,8 @@ static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
     s390_cpu_restart(S390_CPU(cs));
 }
 
+#ifdef CONFIG_S390X_LEGACY_CPUS
+
 static ram_addr_t s390_fixup_ram_size(ram_addr_t sz)
 {
     /* same logic as in sclp.c */
@@ -622,6 +625,8 @@ static ram_addr_t s390_fixup_ram_size(ram_addr_t sz)
     }
     return newsz;
 }
+
+#endif
 
 static inline bool machine_get_aes_key_wrap(Object *obj, Error **errp)
 {
@@ -989,6 +994,8 @@ static void ccw_machine_6_1_class_options(MachineClass *mc)
 }
 DEFINE_CCW_MACHINE(6_1, "6.1", false);
 
+#ifdef CONFIG_S390X_LEGACY_CPUS
+
 static void ccw_machine_6_0_instance_options(MachineState *machine)
 {
     static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V6_0 };
@@ -1271,6 +1278,8 @@ static void ccw_machine_2_4_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_CCW_MACHINE(2_4, "2.4", false);
+
+#endif
 
 static void ccw_machine_register_types(void)
 {
