@@ -615,6 +615,9 @@ static DeviceState *create_acpi_ged(DeviceState *pch_pic,
     }
     dev = qdev_new(TYPE_ACPI_GED);
     qdev_prop_set_uint32(dev, "ged-event", event);
+    qdev_prop_set_uint32(dev, "slp-typs", (1 << ACPI_GED_SLP_TYP_S3) |
+                         (1 << ACPI_GED_SLP_TYP_S4) |
+                         (1 << ACPI_GED_SLP_TYP_S5));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* ged event */

@@ -418,6 +418,24 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     /* System State Package */
     scope = aml_scope("\\");
     pkg = aml_package(4);
+    aml_append(pkg, aml_int(ACPI_GED_SLP_TYP_S3));
+    aml_append(pkg, aml_int(0)); /* ignored */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(scope, aml_name_decl("_S3", pkg));
+    aml_append(dsdt, scope);
+
+    scope = aml_scope("\\");
+    pkg = aml_package(4);
+    aml_append(pkg, aml_int(ACPI_GED_SLP_TYP_S4));
+    aml_append(pkg, aml_int(0)); /* ignored */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(scope, aml_name_decl("_S4", pkg));
+    aml_append(dsdt, scope);
+
+    scope = aml_scope("\\");
+    pkg = aml_package(4);
     aml_append(pkg, aml_int(ACPI_GED_SLP_TYP_S5));
     aml_append(pkg, aml_int(0)); /* ignored */
     aml_append(pkg, aml_int(0)); /* reserved */
