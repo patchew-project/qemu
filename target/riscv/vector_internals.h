@@ -233,4 +233,52 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,    \
 #define WOP_UUU_H uint32_t, uint16_t, uint16_t, uint32_t, uint32_t
 #define WOP_UUU_W uint64_t, uint32_t, uint32_t, uint64_t, uint64_t
 
+typedef struct {
+    void *host;
+    int flags;
+    MemTxAttrs attrs;
+} RVVHostPage;
+
+typedef struct {
+    /*
+     * First and last element wholly contained within the two pages.
+     * mem_off_first[0] and reg_idx_first[0] are always set >= 0.
+     * reg_idx_last[0] may be < 0 if the first element crosses pages.
+     * All of mem_off_first[1], reg_idx_first[1] and reg_idx_last[1]
+     * are set >= 0 only if there are complete elements on a second page.
+     */
+    int16_t mem_off_first[2];
+    int16_t reg_idx_first[2];
+    int16_t reg_idx_last[2];
+
+    /*
+     * One element that is misaligned and spans both pages,
+     * or -1 if there is no such active element.
+     */
+    int16_t mem_off_split;
+    int16_t reg_idx_split;
+
+    /*
+     * The byte offset at which the entire operation crosses a page boundary.
+     * Set >= 0 if and only if the entire operation spans two pages.
+     */
+    int16_t page_split;
+
+    /* TLB data for the two pages. */
+    RVVHostPage page[2];
+} RVVContLdSt;
+
+#ifdef CONFIG_USER_ONLY
+static inline void
+vext_cont_ldst_watchpoints(CPURISCVState *env, RVVContLdSt *info, uint64_t *v0,
+                           target_ulong addr, uint32_t log2_esz, bool is_load,
+                           uintptr_t ra, uint32_t desc)
+{}
+#else
+void vext_cont_ldst_watchpoints(CPURISCVState *env, RVVContLdSt *info,
+                                uint64_t *v0, target_ulong addr,
+                                uint32_t log2_esz, bool is_load, uintptr_t ra,
+                                uint32_t desc);
+#endif
+
 #endif /* TARGET_RISCV_VECTOR_INTERNALS_H */
