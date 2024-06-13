@@ -457,6 +457,69 @@ GEN_VEXT_ST_ELEM(ste_h, uint16_t, H2, stw)
 GEN_VEXT_ST_ELEM(ste_w, uint32_t, H4, stl)
 GEN_VEXT_ST_ELEM(ste_d, uint64_t, H8, stq)
 
+static inline uint32_t
+vext_group_ldst_host(CPURISCVState *env, void *vd, uint32_t byte_end,
+                     uint32_t byte_offset, void *host, uint32_t esz,
+                     bool is_load)
+{
+    uint32_t group_size;
+    static vext_ldst_elem_fn_host * const fns[2][4] = {
+        /* Store */
+        { ste_b_host, ste_h_host, ste_w_host, ste_d_host },
+        /* Load */
+        { lde_b_host, lde_h_host, lde_w_host, lde_d_host }
+    };
+    vext_ldst_elem_fn_host *fn;
+
+    if (byte_offset + 8 < byte_end) {
+        group_size = MO_64;
+    } else if (byte_offset + 4 < byte_end) {
+        group_size = MO_32;
+    } else if (byte_offset + 2 < byte_end) {
+        group_size = MO_16;
+    } else {
+        group_size = MO_8;
+    }
+
+    fn = fns[is_load][group_size];
+    fn(vd, byte_offset, host + byte_offset);
+
+    return 1 << group_size;
+}
+
+static inline void
+vext_continus_ldst_tlb(CPURISCVState *env, vext_ldst_elem_fn_tlb *ldst_tlb,
+                       void *vd, uint32_t evl, target_ulong addr,
+                       uint32_t reg_start, uintptr_t ra, uint32_t esz,
+                       bool is_load)
+{
+    for (; reg_start < evl; reg_start++, addr += esz) {
+        ldst_tlb(env, adjust_addr(env, addr), reg_start * esz, vd, ra);
+    }
+}
+
+static inline void
+vext_continus_ldst_host(CPURISCVState *env, vext_ldst_elem_fn_host *ldst_host,
+                        void *vd, uint32_t evl, uint32_t reg_start, void *host,
+                        uint32_t esz, bool is_load)
+{
+#if TARGET_BIG_ENDIAN != HOST_BIG_ENDIAN
+    for (; reg_start < evl; reg_start++) {
+        uint32_t byte_off = reg_start * esz;
+        ldst_host(vd, byte_off, host + byte_off);
+    }
+#else
+    uint32_t group_byte;
+    uint32_t byte_start = reg_start * esz;
+    uint32_t byte_end = evl * esz;
+    while (byte_start < byte_end) {
+        group_byte = vext_group_ldst_host(env, vd, byte_end, byte_start, host,
+                                          esz, is_load);
+        byte_start += group_byte;
+    }
+#endif
+}
+
 static void vext_set_tail_elems_1s(target_ulong vl, void *vd,
                                    uint32_t desc, uint32_t nf,
                                    uint32_t esz, uint32_t max_elems)
@@ -555,6 +618,7 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
              uint32_t evl, uintptr_t ra, bool is_load)
 {
     RVVContLdSt info;
+    target_ulong addr;
     void *host;
     int flags;
     intptr_t reg_start, reg_last;
@@ -587,13 +651,19 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
         }
         reg_last += 1;
 
-        for (i = reg_start; i < reg_last; ++i) {
-            k = 0;
-            while (k < nf) {
-                target_ulong addr = base + ((i * nf + k) << log2_esz);
-                ldst_tlb(env, adjust_addr(env, addr),
-                         (i + k * max_elems) << log2_esz, vd, ra);
-                k++;
+        if (nf == 1) {
+            addr = base + reg_start * esz;
+            vext_continus_ldst_tlb(env, ldst_tlb, vd, reg_last, addr,
+                                   reg_start, ra, esz, is_load);
+        } else {
+            for (i = reg_start; i < reg_last; ++i) {
+                k = 0;
+                while (k < nf) {
+                    addr = base + ((i * nf + k) * esz);
+                    ldst_tlb(env, adjust_addr(env, addr),
+                             (i + k * max_elems) << log2_esz, vd, ra);
+                    k++;
+                }
             }
         }
 
@@ -607,12 +677,17 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     reg_last = info.reg_idx_last[0] + 1;
     host = info.page[0].host;
 
-    for (i = reg_start; i < reg_last; ++i) {
-        k = 0;
-        while (k < nf) {
-            ldst_host(vd, (i + k * max_elems) << log2_esz,
-                      host + ((i * nf + k) << log2_esz));
-            k++;
+    if (nf == 1) {
+        vext_continus_ldst_host(env, ldst_host, vd, reg_last, reg_start, host,
+                                esz, is_load);
+    } else {
+        for (i = reg_start; i < reg_last; ++i) {
+            k = 0;
+            while (k < nf) {
+                ldst_host(vd, (i + k * max_elems) << log2_esz,
+                          host + ((i * nf + k) * esz));
+                k++;
+            }
         }
     }
 
@@ -624,7 +699,7 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
         reg_start = info.reg_idx_split;
         k = 0;
         while (k < nf) {
-            target_ulong addr = base + ((reg_start * nf + k) << log2_esz);
+            addr = base + ((reg_start * nf + k) << log2_esz);
             ldst_tlb(env, adjust_addr(env, addr),
                      (reg_start + k * max_elems) << log2_esz, vd, ra);
             k++;
@@ -636,12 +711,17 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
         reg_last = info.reg_idx_last[1] + 1;
         host = info.page[1].host;
 
-        for (i = reg_start; i < reg_last; ++i) {
-            k = 0;
-            while (k < nf) {
-                ldst_host(vd, (i + k * max_elems) << log2_esz,
-                          host + ((i * nf + k) << log2_esz));
-                k++;
+        if (nf == 1) {
+            vext_continus_ldst_host(env, ldst_host, vd, reg_last, reg_start,
+                                    host, esz, is_load);
+        } else {
+            for (i = reg_start; i < reg_last; ++i) {
+                k = 0;
+                while (k < nf) {
+                    ldst_host(vd, (i + k * max_elems) << log2_esz,
+                              host + ((i * nf + k) << log2_esz));
+                    k++;
+                }
             }
         }
     }
@@ -974,20 +1054,17 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
              * load/store rest of elements of current segment pointed by vstart
              */
             addr = base + (reg_start << log2_esz);
-            for (; reg_start < evl; reg_start++, addr += esz) {
-                ldst_tlb(env, adjust_addr(env, addr), reg_start << log2_esz,
-                         vd, ra);
-            }
+            vext_continus_ldst_tlb(env, ldst_tlb, vd, evl, addr, reg_start, ra,
+                                   esz, is_load);
             idx_nf++;
         }
 
         /* load/store elements for rest of segments */
         evl = nf * max_elems;
         addr = base + (reg_start << log2_esz);
-        for (; reg_start < evl; reg_start++, addr += esz) {
-            ldst_tlb(env, adjust_addr(env, addr), reg_start << log2_esz, vd,
-                     ra);
-        }
+        reg_start = idx_nf * max_elems;
+        vext_continus_ldst_tlb(env, ldst_tlb, vd, evl, addr, reg_start, ra,
+                               esz, is_load);
 
         env->vstart = 0;
         return;
@@ -1003,17 +1080,16 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
 
     if (off) {
         /* load/store rest of elements of current segment pointed by vstart */
-        for (; reg_start < evl; reg_start++) {
-            ldst_host(vd, reg_start << log2_esz,
-                      host + (reg_start << log2_esz));
-        }
+        vext_continus_ldst_host(env, ldst_host, vd, evl, reg_start, host, esz,
+                                is_load);
         idx_nf++;
     }
 
     /* load/store elements for rest of segments */
-    for (; reg_start < reg_last; reg_start++) {
-        ldst_host(vd, reg_start << log2_esz, host + (reg_start << log2_esz));
-    }
+    evl = reg_last;
+    reg_start = idx_nf * max_elems;
+    vext_continus_ldst_host(env, ldst_host, vd, evl, reg_start, host, esz,
+                            is_load);
 
     /*
      * Use the slow path to manage the cross-page misalignment.
@@ -1037,18 +1113,16 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
             /*
              * load/store rest of elements of current segment pointed by vstart
              */
-            for (; reg_start < evl; reg_start++) {
-                ldst_host(vd, reg_start << log2_esz,
-                          host + (reg_start << log2_esz));
-            }
+            vext_continus_ldst_host(env, ldst_host, vd, evl, reg_start, host,
+                                    esz, is_load);
             idx_nf++;
         }
 
         /* load/store elements for rest of segments */
-        for (; reg_start < reg_last; reg_start++) {
-            ldst_host(vd, reg_start << log2_esz,
-                      host + (reg_start << log2_esz));
-        }
+        evl = reg_last;
+        reg_start = idx_nf * max_elems;
+        vext_continus_ldst_host(env, ldst_host, vd, evl, reg_start, host, esz,
+                                is_load);
     }
 
     env->vstart = 0;
