@@ -243,7 +243,8 @@ iort_host_bridges(Object *obj, void *opaque)
 
             AcpiIortIdMapping idmap = {
                 .input_base = min_bus << 8,
-                .id_count = (max_bus - min_bus + 1) << 8,
+                /* id_count is the number of IDs in the range minus one */
+                .id_count = ((max_bus - min_bus + 1) << 8) - 1,
             };
             g_array_append_val(idmap_blob, idmap);
         }
@@ -298,7 +299,9 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
             idmap = &g_array_index(smmu_idmaps, AcpiIortIdMapping, i);
 
             if (next_range.input_base < idmap->input_base) {
+                /* id_count is the number of IDs in the range minus one */
                 next_range.id_count = idmap->input_base - next_range.input_base;
+                next_range.id_count -= 1;
                 g_array_append_val(its_idmaps, next_range);
             }
 
