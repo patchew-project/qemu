@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-run-state.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/generic_event_device.h"
 #include "hw/irq.h"
@@ -186,24 +187,53 @@ static const MemoryRegionOps ged_evt_ops = {
 
 static uint64_t ged_regs_read(void *opaque, hwaddr addr, unsigned size)
 {
+    GEDState *ged_st = opaque;
+
+    switch (addr) {
+    case ACPI_GED_REG_SLEEP_STS:
+        return ged_st->sleep_sts;
+    default:
+        break;
+    }
+
     return 0;
 }
 
 static void ged_regs_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned int size)
 {
-    bool slp_en;
-    int slp_typ;
+    GEDState *ged_st = opaque;
+    AcpiGedState *s = container_of(ged_st, AcpiGedState, ged_state);
 
     switch (addr) {
     case ACPI_GED_REG_SLEEP_CTL:
-        slp_typ = (data >> 2) & 0x07;
-        slp_en  = (data >> 5) & 0x01;
-        if (slp_en && slp_typ == 5) {
-            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        if (data & ACPI_GED_SLP_EN) {
+            switch (extract8(data, 2, 3)) {
+            case ACPI_GED_SLP_TYP_S3:
+                if (s->slp_typs_bitmap & (1 << ACPI_GED_SLP_TYP_S3)) {
+                    qemu_system_suspend_request();
+                }
+                break;
+            case ACPI_GED_SLP_TYP_S4:
+                if (s->slp_typs_bitmap & (1 << ACPI_GED_SLP_TYP_S4)) {
+                    qapi_event_send_suspend_disk();
+                    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+                }
+                break;
+            case ACPI_GED_SLP_TYP_S5:
+                if (s->slp_typs_bitmap & (1 << ACPI_GED_SLP_TYP_S5)) {
+                    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+                }
+                break;
+            default:
+                break;
+            }
         }
         return;
     case ACPI_GED_REG_SLEEP_STS:
+        if (data & ACPI_GED_WAK_STS) {
+            ged_st->sleep_sts &= ~ACPI_GED_WAK_STS;
+        }
         return;
     case ACPI_GED_REG_RESET:
         if (data == ACPI_GED_RESET_VALUE) {
@@ -222,6 +252,14 @@ static const MemoryRegionOps ged_regs_ops = {
         .max_access_size = 1,
     },
 };
+
+static void acpi_ged_notify_wakeup(Notifier *notifier, void *data)
+{
+    GEDState *ged_st = container_of(notifier, GEDState, wakeup);
+
+    ged_st->sleep_sts |= ACPI_GED_WAK_STS;
+}
+
 
 static void acpi_ged_device_plug_cb(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
@@ -305,6 +343,8 @@ static void acpi_ged_send_event(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 
 static Property acpi_ged_properties[] = {
     DEFINE_PROP_UINT32("ged-event", AcpiGedState, ged_event_bitmap, 0),
+    DEFINE_PROP_UINT32("slp-typs", AcpiGedState, slp_typs_bitmap,
+                        (1 << ACPI_GED_SLP_TYP_S5)),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -320,10 +360,11 @@ static const VMStateDescription vmstate_memhp_state = {
 
 static const VMStateDescription vmstate_ged_state = {
     .name = "acpi-ged-state",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(sel, GEDState),
+        VMSTATE_UINT8(sleep_sts, GEDState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -371,6 +412,18 @@ static const VMStateDescription vmstate_acpi_ged = {
     }
 };
 
+static void acpi_ged_realize(DeviceState *dev, Error **errp)
+{
+    AcpiGedState *s = ACPI_GED(dev);
+    GEDState *ged_st = &s->ged_state;
+
+    if (s->slp_typs_bitmap & (1 << ACPI_GED_SLP_TYP_S3)) {
+        ged_st->wakeup.notify = acpi_ged_notify_wakeup;
+        qemu_register_wakeup_notifier(&ged_st->wakeup);
+        qemu_register_wakeup_support();
+    }
+}
+
 static void acpi_ged_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -409,6 +462,7 @@ static void acpi_ged_class_init(ObjectClass *class, void *data)
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(class);
 
     dc->desc = "ACPI Generic Event Device";
+    dc->realize = acpi_ged_realize;
     device_class_set_props(dc, acpi_ged_properties);
     dc->vmsd = &vmstate_acpi_ged;
 

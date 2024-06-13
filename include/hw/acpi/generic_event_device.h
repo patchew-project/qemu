@@ -80,8 +80,15 @@ OBJECT_DECLARE_SIMPLE_TYPE(AcpiGedState, ACPI_GED)
 /* ACPI_GED_REG_RESET value for reset*/
 #define ACPI_GED_RESET_VALUE       0x42
 
-/* ACPI_GED_REG_SLEEP_CTL.SLP_TYP value for S5 (aka poweroff) */
+/* ACPI_GED_REG_SLEEP_CTL.SLP_EN bit */
+#define ACPI_GED_SLP_EN            (1 << 5)
+
+/* ACPI_GED_REG_SLEEP_CTL.SLP_TYP values */
+#define ACPI_GED_SLP_TYP_S3        0x03
+#define ACPI_GED_SLP_TYP_S4        0x04
 #define ACPI_GED_SLP_TYP_S5        0x05
+
+#define ACPI_GED_WAK_STS           (1 << 7)
 
 #define GED_DEVICE      "GED"
 #define AML_GED_EVT_REG "EREG"
@@ -99,7 +106,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(AcpiGedState, ACPI_GED)
 typedef struct GEDState {
     MemoryRegion evt;
     MemoryRegion regs;
+    Notifier     wakeup;
     uint32_t     sel;
+    uint8_t      sleep_sts;
 } GEDState;
 
 struct AcpiGedState {
@@ -108,6 +117,7 @@ struct AcpiGedState {
     MemoryRegion container_memhp;
     GEDState ged_state;
     uint32_t ged_event_bitmap;
+    uint32_t slp_typs_bitmap;
     qemu_irq irq;
     AcpiGhesState ghes_state;
 };
