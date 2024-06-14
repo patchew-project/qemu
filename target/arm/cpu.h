@@ -30,6 +30,8 @@
 #include "qapi/qapi-types-common.h"
 #include "target/arm/multiprocessing.h"
 #include "target/arm/gtimer.h"
+#include "chardev/char.h"
+#include "chardev/char-fe.h"
 
 #ifdef TARGET_AARCH64
 #define KVM_HAVE_MCE_INJECTION 1
@@ -523,6 +525,11 @@ typedef struct CPUArchState {
 
         /* NV2 register */
         uint64_t vncr_el2;
+        /*
+         * Debug Trace regsiters
+         */
+        uint32_t dbgdtr_tx;
+        uint32_t dbgdtr_rx;
     } cp15;
 
     struct {
@@ -1097,6 +1104,9 @@ struct ArchCPU {
 
     /* Generic timer counter frequency, in Hz */
     uint64_t gt_cntfrq_hz;
+
+    /* dcc chardev */
+    CharBackend dcc;
 };
 
 typedef struct ARMCPUInfo {
@@ -2388,6 +2398,7 @@ enum arm_features {
      * CPU types added in future.
      */
     ARM_FEATURE_BACKCOMPAT_CNTFRQ, /* 62.5MHz timer default */
+    ARM_FEATURE_DCC,
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

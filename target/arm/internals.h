@@ -1778,4 +1778,8 @@ uint64_t gt_get_countervalue(CPUARMState *env);
  * and CNTVCT_EL0 (this will be either 0 or the value of CNTVOFF_EL2).
  */
 uint64_t gt_virt_cnt_offset(CPUARMState *env);
+/*
+ * Initialise Coresight Debug interface
+ */
+void arm_dcc_init(ARMCPU *cpu);
 #endif

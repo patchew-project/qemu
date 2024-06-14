@@ -9268,6 +9268,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         }
     }
 
+    if (arm_feature(&cpu->env, ARM_FEATURE_DCC)) {
+        arm_dcc_init(cpu);
+    }
     /*
      * Register the base EL2 cpregs.
      * Pre v8, these registers are implemented only as part of the
