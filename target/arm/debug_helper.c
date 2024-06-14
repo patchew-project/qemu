@@ -970,7 +970,7 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
     { .name = "MDCCSR_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 2, .opc1 = 3, .crn = 0, .crm = 1, .opc2 = 0,
       .access = PL0_R, .accessfn = access_tdcc,
-      .type = ARM_CP_CONST, .resetvalue = 0 },
+      .fieldoffset = offsetof(CPUARMState, cp15.mdscr_el1)}, /* Xilinx */
     /*
      * These registers belong to the Debug Communications Channel,
      * which is not implemented. However we implement RAZ/WI behaviour
