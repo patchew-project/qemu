@@ -270,7 +270,7 @@ void os_setup_limits(void)
         return;
     }
 
-    nofile.rlim_cur = nofile.rlim_max;
+    nofile.rlim_cur = OPEN_MAX < nofile.rlim_max ? OPEN_MAX : nofile.rlim_max;
 
     if (setrlimit(RLIMIT_NOFILE, &nofile) < 0) {
         warn_report("unable to set NOFILE limit: %s", strerror(errno));
