@@ -17,7 +17,7 @@ size_t qemu_target_page_size(void)
     return TARGET_PAGE_SIZE;
 }
 
-int qemu_target_page_mask(void)
+target_ulong qemu_target_page_mask(void)
 {
     return TARGET_PAGE_MASK;
 }
