@@ -2090,6 +2090,13 @@ sev_guest_instance_init(Object *obj)
     object_property_add_uint32_ptr(obj, "policy", &sev_guest->policy,
                                    OBJ_PROP_FLAG_READWRITE);
     object_apply_compat_props(obj);
+
+    /*
+     * KVM_SEV_INIT2 was only introduced in Linux 6.10. Avoid
+     * breaking existing users of SEV, since the overwhealming
+     * majority won't have a new enough kernel for a long time
+     */
+    sev_guest->legacy_vm_type = true;
 }
 
 /* guest info specific sev/sev-es */
