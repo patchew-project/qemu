@@ -780,6 +780,22 @@ int kvm_loongarch_set_interrupt(LoongArchCPU *cpu, int irq, int level)
     return kvm_vcpu_ioctl(cs, KVM_INTERRUPT, &intr);
 }
 
+bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
+{
+    struct kvm_device_attr attr;
+    int ret;
+
+    switch (feature) {
+    case LOONGARCH_FEATURE_PMU:
+        attr.group = KVM_LOONGARCH_VM_FEAT_CTRL;
+        attr.attr = KVM_LOONGARCH_VM_FEAT_PMU;
+        ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        return (ret == 0);
+    default:
+        return false;
+    }
+}
+
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
 }

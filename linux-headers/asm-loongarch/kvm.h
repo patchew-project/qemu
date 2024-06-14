@@ -83,6 +83,9 @@ struct kvm_fpu {
 #define KVM_IOC_CPUCFG(REG)		LOONGARCH_REG_64(KVM_REG_LOONGARCH_CPUCFG, REG)
 #define KVM_LOONGARCH_VCPU_CPUCFG	0
 
+#define KVM_LOONGARCH_VM_FEAT_CTRL 	0
+#define  KVM_LOONGARCH_VM_FEAT_PMU 	0
+
 struct kvm_debug_exit_arch {
 };
 
