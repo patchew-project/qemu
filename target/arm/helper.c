@@ -2684,7 +2684,8 @@ static void gt_update_irq(ARMCPU *cpu, int timeridx)
      * If bit CNTHCTL_EL2.CNT[VP]MASK is set, it overrides IMASK.
      * It is RES0 in Secure and NonSecure state.
      */
-    if ((ss == ARMSS_Root || ss == ARMSS_Realm) &&
+    if ((arm_hcr_el2_eff(env) & HCR_E2H) &&
+        (ss == ARMSS_Root || ss == ARMSS_Realm) &&
         ((timeridx == GTIMER_VIRT && (cnthctl & R_CNTHCTL_CNTVMASK_MASK)) ||
          (timeridx == GTIMER_PHYS && (cnthctl & R_CNTHCTL_CNTPMASK_MASK)))) {
         irqstate = 0;
