@@ -102,6 +102,10 @@ void fw_cfg_build_smbios(PCMachineState *pcms, FWCfgState *fw_cfg,
                         smbios_anchor, smbios_anchor_len);
     }
 #endif
+
+    /* Add etc/e820 late, once all regions should be present */
+    fw_cfg_add_file(fw_cfg, "etc/e820", e820_table,
+                    sizeof(struct e820_entry) * e820_get_num_entries());
 }
 
 FWCfgState *fw_cfg_arch_create(MachineState *ms,
@@ -138,9 +142,6 @@ FWCfgState *fw_cfg_arch_create(MachineState *ms,
                      acpi_tables, acpi_tables_len);
 #endif
     fw_cfg_add_i32(fw_cfg, FW_CFG_IRQ0_OVERRIDE, 1);
-
-    fw_cfg_add_file(fw_cfg, "etc/e820", e820_table,
-                    sizeof(struct e820_entry) * e820_get_num_entries());
 
     fw_cfg_add_bytes(fw_cfg, FW_CFG_HPET, &hpet_cfg, sizeof(hpet_cfg));
     /* allocate memory for the NUMA channel: one (64bit) word for the number
