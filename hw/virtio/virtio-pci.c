@@ -1442,7 +1442,9 @@ static void virtio_pci_set_vector(VirtIODevice *vdev,
      * Otherwise just need to set the new vector on the device.
      */
     if (kvm_irqfd && old_vector != VIRTIO_NO_VECTOR) {
-        kvm_virtio_pci_vector_release_one(proxy, queue_no);
+        if (proxy->vector_irqfd) {
+            kvm_virtio_pci_vector_release_one(proxy, queue_no);
+        }
     }
     /* Set the new vector on the device. */
     if (queue_no == VIRTIO_CONFIG_IRQ_IDX) {
@@ -1452,7 +1454,9 @@ static void virtio_pci_set_vector(VirtIODevice *vdev,
     }
     /* If the new vector changed need to set it up. */
     if (kvm_irqfd && new_vector != VIRTIO_NO_VECTOR) {
-        kvm_virtio_pci_vector_use_one(proxy, queue_no);
+        if (proxy->vector_irqfd) {
+            kvm_virtio_pci_vector_use_one(proxy, queue_no);
+        }
     }
 }
 
