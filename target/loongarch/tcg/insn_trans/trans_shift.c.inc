@@ -72,10 +72,6 @@ static bool trans_srai_w(DisasContext *ctx, arg_srai_w *a)
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_ZERO);
 
-    if (!avail_64(ctx)) {
-        return false;
-    }
-
     tcg_gen_sextract_tl(dest, src1, a->imm, 32 - a->imm);
     gen_set_gpr(a->rd, dest, EXT_NONE);
 
