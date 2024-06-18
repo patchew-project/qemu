@@ -550,6 +550,7 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
     GPIOSets *set;
     uint32_t value = 0;
     uint64_t debounce_value;
+    uint32_t reg_table_size;
 
     idx = offset >> 2;
     if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
@@ -557,6 +558,18 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
         debounce_value = (uint64_t) s->debounce_regs[idx];
         trace_aspeed_gpio_read(offset, debounce_value);
         return debounce_value;
+    }
+
+    if (agc->reg_table == aspeed_3_3v_gpios) {
+        reg_table_size = GPIO_3_3V_REG_ARRAY_SIZE;
+    } else {
+        reg_table_size = GPIO_1_8V_REG_ARRAY_SIZE;
+    }
+
+    if (idx >= reg_table_size) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: idx 0x%" PRIx64 " out of bounds\n",
+                      __func__, idx);
+        return 0;
     }
 
     reg = &agc->reg_table[idx];
@@ -768,6 +781,7 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
     const AspeedGPIOReg *reg;
     GPIOSets *set;
     uint32_t cleared;
+    uint32_t reg_table_size;
 
     trace_aspeed_gpio_write(offset, data);
 
@@ -782,6 +796,18 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
     if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
         idx -= GPIO_DEBOUNCE_TIME_1;
         s->debounce_regs[idx] = (uint32_t) data;
+        return;
+    }
+
+    if (agc->reg_table == aspeed_3_3v_gpios) {
+        reg_table_size = GPIO_3_3V_REG_ARRAY_SIZE;
+    } else {
+        reg_table_size = GPIO_1_8V_REG_ARRAY_SIZE;
+    }
+
+    if (idx >= reg_table_size) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: idx 0x%" PRIx64 " out of bounds\n",
+                      __func__, idx);
         return;
     }
 
