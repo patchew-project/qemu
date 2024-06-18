@@ -25,6 +25,9 @@ libqos_srcs = files(
         # usb
         'usb.c',
 
+        #riscv csr
+        'csr.c',
+
         # qgraph devices:
         'e1000e.c',
         'i2c.c',
