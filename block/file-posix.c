@@ -740,7 +740,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif /* !defined(CONFIG_LINUX_IO_URING) */
 
-    s->has_discard = true;
+    s->has_discard = !!(bdrv_flags & BDRV_O_UNMAP);
     s->has_write_zeroes = true;
 
     if (fstat(s->fd, &st) < 0) {
