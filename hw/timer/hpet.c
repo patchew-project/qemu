@@ -599,8 +599,12 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                 s->hpet_offset =
                     ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
                 for (i = 0; i < s->num_timers; i++) {
-                    if ((&s->timer[i])->cmp != ~0ULL) {
-                        hpet_set_timer(&s->timer[i]);
+                    HPETTimer *timer = &s->timer[i];
+                    if (timer_enabled(timer)) {
+                        if (timer_is_periodic(timer)) {
+                            timer->cmp &= 0xffffffffULL;
+                        }
+                        hpet_set_timer(timer);
                     }
                 }
             } else if (deactivating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
