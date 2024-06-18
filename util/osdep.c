@@ -625,3 +625,118 @@ int qemu_fdatasync(int fd)
     return fsync(fd);
 #endif
 }
+
+#ifdef CONFIG_LINUX
+static bool qemu_close_all_open_fd_proc(const int *skip, unsigned int nskip)
+{
+    struct dirent *de;
+    int fd, dfd;
+    bool close_fd;
+    DIR *dir;
+    int i;
+
+    dir = opendir("/proc/self/fd");
+    if (!dir) {
+        /* If /proc is not mounted, there is nothing that can be done. */
+        return false;
+    }
+    /* Avoid closing the directory. */
+    dfd = dirfd(dir);
+
+    for (de = readdir(dir); de; de = readdir(dir)) {
+        fd = atoi(de->d_name);
+        close_fd = true;
+        if (fd == dfd) {
+            close_fd = false;
+        } else {
+            for (i = 0; i < nskip; i++) {
+                if (fd == skip[i]) {
+                    close_fd = false;
+                    break;
+                }
+            }
+        }
+        if (close_fd) {
+            close(fd);
+        }
+    }
+    closedir(dir);
+
+    return true;
+}
+#else
+static bool qemu_close_all_open_fd_proc(const int *skip, unsigned int nskip)
+{
+    return false;
+}
+#endif
+
+#ifdef CONFIG_CLOSE_RANGE
+static bool qemu_close_all_open_fd_close_range(const int *skip,
+                                               unsigned int nskip)
+{
+    int max_fd = sysconf(_SC_OPEN_MAX) - 1;
+    int first = 0, last = max_fd;
+    int cur_skip = 0, ret;
+
+    do {
+        if (nskip) {
+            while (first == skip[cur_skip]) {
+                cur_skip++;
+                first++;
+            }
+            if (cur_skip < nskip) {
+                last = skip[cur_skip] - 1;
+            }
+            if (last > max_fd) {
+                last = max_fd;
+                /*
+                 * We can directly skip the remaining skip fds since the current
+                 * one is already above the maximum supported one.
+                 */
+                cur_skip = nskip;
+            }
+            if (first > last) {
+                break;
+            }
+        }
+        ret = close_range(first, last, 0);
+        if (ret < 0) {
+            return false;
+        }
+        first = last + 1;
+        last = max_fd;
+    } while (cur_skip < nskip);
+
+    return true;
+}
+#else
+static bool qemu_close_all_open_fd_close_range(const int *skip,
+                                               unsigned int nskip)
+{
+    return false;
+}
+#endif
+
+void qemu_close_all_open_fd(const int *skip, unsigned int nskip)
+{
+    int open_max = sysconf(_SC_OPEN_MAX);
+    int cur_skip = 0, i;
+
+    if (qemu_close_all_open_fd_close_range(skip, nskip)) {
+        return;
+    }
+
+    if (qemu_close_all_open_fd_proc(skip, nskip)) {
+        return;
+    }
+
+    /* Fallback */
+    for (i = 0; i < open_max; i++) {
+        if (i == skip[cur_skip]) {
+            cur_skip++;
+            continue;
+        }
+        close(i);
+    }
+}
