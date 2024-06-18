@@ -146,7 +146,12 @@ static uint64_t exynos4210_rng_read(void *opaque, hwaddr offset,
     Exynos4210RngState *s = (Exynos4210RngState *)opaque;
     uint32_t val = 0;
 
-    assert(size == 4);
+    if (size != 4) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid read size %u at offset 0x%" HWADDR_PRIx
+                      "\n", __func__, size, offset);
+        return 0;
+    }
 
     switch (offset) {
     case EXYNOS4210_RNG_CONTROL_1:
@@ -181,7 +186,12 @@ static void exynos4210_rng_write(void *opaque, hwaddr offset,
 {
     Exynos4210RngState *s = (Exynos4210RngState *)opaque;
 
-    assert(size == 4);
+    if (size != 4) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid write size %u at offset 0x%" HWADDR_PRIx
+                      "\n", __func__, size, offset);
+        return;
+    }
 
     switch (offset) {
     case EXYNOS4210_RNG_CONTROL_1:
