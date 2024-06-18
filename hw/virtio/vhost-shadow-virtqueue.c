@@ -217,6 +217,122 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
     return true;
 }
 
+/**
+ * Write descriptors to SVQ packed vring
+ *
+ * @svq: The shadow virtqueue
+ * @sg: Cache for hwaddr
+ * @out_sg: The iovec from the guest that is read-only for device
+ * @out_num: iovec length
+ * @in_sg: The iovec from the guest that is write-only for device
+ * @in_num: iovec length
+ * @head_flags: flags for first descriptor in list
+ *
+ * Return true if success, false otherwise and print error.
+ */
+static bool vhost_svq_vring_write_descs_packed(VhostShadowVirtqueue *svq, hwaddr *sg,
+                                        const struct iovec *out_sg, size_t out_num,
+                                        const struct iovec *in_sg, size_t in_num,
+                                        uint16_t *head_flags)
+{
+    uint16_t id, curr, head, i;
+    unsigned n;
+    struct vring_packed_desc *descs = svq->vring_packed.vring.desc;
+    bool ok;
+
+    head = svq->vring_packed.next_avail_idx;
+    i = head;
+    id = svq->free_head;
+    curr = id;
+
+    size_t num = out_num + in_num;
+
+    if (num == 0) {
+        return true;
+    }
+
+    ok = vhost_svq_translate_addr(svq, sg, out_sg, out_num);
+    if (unlikely(!ok)) {
+        return false;
+    }
+
+    ok = vhost_svq_translate_addr(svq, sg + out_num, in_sg, in_num);
+    if (unlikely(!ok)) {
+        return false;
+    }
+
+    for (n = 0; n < num; n++) {
+        uint16_t flags = cpu_to_le16(svq->vring_packed.avail_used_flags |
+                (n < out_num ? 0 : VRING_DESC_F_WRITE) |
+                (n + 1 == num ? 0 : VRING_DESC_F_NEXT));
+        if (i == head) {
+            *head_flags = flags;
+        } else {
+            descs[i].flags = flags;
+        }
+
+        descs[i].addr = cpu_to_le64(sg[n]);
+        descs[i].id = id;
+        if (n < out_num) {
+            descs[i].len = cpu_to_le32(out_sg[n].iov_len);
+        } else {
+            descs[i].len = cpu_to_le32(in_sg[n - out_num].iov_len);
+        }
+
+        curr = cpu_to_le16(svq->desc_next[curr]);
+
+        if (++i >= svq->vring_packed.vring.num) {
+            i = 0;
+            svq->vring_packed.avail_used_flags ^=
+                    1 << VRING_PACKED_DESC_F_AVAIL |
+                    1 << VRING_PACKED_DESC_F_USED;
+        }
+    }
+
+    if (i <= head) {
+        svq->vring_packed.avail_wrap_counter ^= 1;
+    }
+
+    svq->vring_packed.next_avail_idx = i;
+    svq->free_head = curr;
+    return true;
+}
+
+static bool vhost_svq_add_packed(VhostShadowVirtqueue *svq,
+                                const struct iovec *out_sg, size_t out_num,
+                                const struct iovec *in_sg, size_t in_num,
+                                unsigned *head)
+{
+    bool ok;
+    uint16_t head_flags = 0;
+    g_autofree hwaddr *sgs = g_new(hwaddr, out_num + in_num);
+
+    *head = svq->vring_packed.next_avail_idx;
+
+    /* We need some descriptors here */
+    if (unlikely(!out_num && !in_num)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Guest provided element with no descriptors");
+        return false;
+    }
+
+    ok = vhost_svq_vring_write_descs_packed(svq, sgs, out_sg, out_num,
+                                            in_sg, in_num, &head_flags);
+    if (unlikely(!ok)) {
+        return false;
+    }
+
+    /*
+     * A driver MUST NOT make the first descriptor in the list
+     * available before all subsequent descriptors comprising
+     * the list are made available.
+     */
+    smp_wmb();
+    svq->vring_packed.vring.desc[*head].flags = head_flags;
+
+    return true;
+}
+
 static void vhost_svq_kick(VhostShadowVirtqueue *svq)
 {
     bool needs_kick;
@@ -258,7 +374,13 @@ int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
         return -ENOSPC;
     }
 
-    ok = vhost_svq_add_split(svq, out_sg, out_num, in_sg, in_num, &qemu_head);
+    if (virtio_vdev_has_feature(svq->vdev, VIRTIO_F_RING_PACKED)) {
+        ok = vhost_svq_add_packed(svq, out_sg, out_num,
+                                  in_sg, in_num, &qemu_head);
+    } else {
+        ok = vhost_svq_add_split(svq, out_sg, out_num,
+                                 in_sg, in_num, &qemu_head);
+    }
     if (unlikely(!ok)) {
         return -EINVAL;
     }
