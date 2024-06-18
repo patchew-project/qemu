@@ -391,7 +391,9 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
         pc_hi = (val - pc_offset) >> 12;
         offset_hi = val_hi - pc_hi;
 
-        tcg_debug_assert(offset_hi == sextreg(offset_hi, 0, 20));
+        if (offset_hi != sextreg(offset_hi, 0, 20)) {
+            goto out;
+        }
         tcg_out_opc_pcalau12i(s, rd, offset_hi);
         if (val_lo != 0) {
             tcg_out_opc_ori(s, rd, rd, val_lo & 0xfff);
@@ -399,6 +401,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
         return;
     }
 
+out:
     hi12 = sextreg(val, 12, 20);
     hi32 = sextreg(val, 32, 20);
     hi52 = sextreg(val, 52, 12);
