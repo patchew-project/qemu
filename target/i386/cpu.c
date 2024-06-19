@@ -6453,16 +6453,22 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
              * set 24..14, 31..26 bit to configured values
              */
             if (*eax & 0x1f) {
-                int host_vcpus_per_cache = 1 + ((*eax & 0x3FFC000) >> 14);
+                int host_thread_ids_per_cache;
+                int guest_thread_ids_per_pkg;
 
                 *eax &= ~0xFC000000;
                 *eax |= max_core_ids_in_package(&topo_info) << 26;
-                if (host_vcpus_per_cache > threads_per_pkg) {
+
+                host_thread_ids_per_cache = 1 + ((*eax & 0x3FFC000) >> 14);
+                guest_thread_ids_per_pkg =
+                    max_thread_ids_for_cache(&topo_info,
+                                             CPU_TOPO_LEVEL_PACKAGE);
+
+                if (host_thread_ids_per_cache > guest_thread_ids_per_pkg) {
                     *eax &= ~0x3FFC000;
 
                     /* Share the cache at package level. */
-                    *eax |= max_thread_ids_for_cache(&topo_info,
-                                CPU_TOPO_LEVEL_PACKAGE) << 14;
+                    *eax |= guest_thread_ids_per_pkg << 14;
                 }
             }
         } else if (cpu->vendor_cpuid_only && IS_AMD_CPU(env)) {
