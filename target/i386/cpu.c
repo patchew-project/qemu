@@ -6452,7 +6452,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
              * QEMU has its own number of cores/logical cpus,
              * set 24..14, 31..26 bit to configured values
              */
-            if (*eax & 31) {
+            if (*eax & 0x1f) {
                 int host_vcpus_per_cache = 1 + ((*eax & 0x3FFC000) >> 14);
 
                 *eax &= ~0xFC000000;
