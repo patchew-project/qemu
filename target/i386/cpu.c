@@ -6463,7 +6463,15 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 guest_thread_ids_per_pkg =
                     max_thread_ids_for_cache(&topo_info,
                                              CPU_TOPO_LEVEL_PACKAGE);
-
+                /*
+                 * We handle this case because it causes sharing threads to
+                 * overflow out of the package scope. In other cases, there
+                 * is no need to adjust the cache topology info for the Guest,
+                 * as the Host's maximum addressable thread IDs are not out of
+                 * bounds in the Guest's APIC ID scope, and are always valid,
+                 * even though Host's cache topology may not correspond to
+                 * Guest's CPU topology level.
+                 */
                 if (host_thread_ids_per_cache > guest_thread_ids_per_pkg) {
                     *eax &= ~0x3FFC000;
 
