@@ -20,11 +20,7 @@
 # understand.  However, in real protocol usage, they're emitted as a
 # single line.
 #
-# Also, the following notation is used to denote data flow:
-#
-# Example:
-#
-# ::
+# Also, the following notation is used to denote data flow::
 #
 #   -> data issued by the Client
 #   <- Server data response

@@ -50,7 +50,8 @@
 #
 # Since: 9.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "timestamp": { "seconds": 1713771323, "microseconds": 212268 },
 #          "event": "VFIO_MIGRATION",

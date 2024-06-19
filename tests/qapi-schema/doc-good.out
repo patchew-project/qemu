@@ -93,11 +93,13 @@ Notes:
 
 Duis aute irure dolor
 
-Example:
+.. code-block:: QMP
+   :caption: Example:
 
 -> in
 <- out
-Examples:
+.. code-block::
+
 - *verbatim*
 - {braces}
 doc symbol=Enum
@@ -184,10 +186,14 @@ frobnicate
  - Ut enim ad minim veniam
 
  Duis aute irure dolor
-    section=Example
+
+.. code-block::
+
  -> in
  <- out
-    section=Examples
+
+.. code-block::
+
  - *verbatim*
  - {braces}
     section=Since
@@ -199,7 +205,9 @@ If you're bored enough to read this, go see a video of boxed cats
 a feature
     feature=cmd-feat2
 another feature
-    section=Example
+    section=None
+.. code-block::
+
  -> in
 
  <- out

@@ -62,7 +62,8 @@
 #        the ``-device DEVICE,help`` command-line argument, where DEVICE
 #        is the device's name.
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "device_add",
 #          "arguments": { "driver": "e1000", "id": "net1",
@@ -104,11 +105,15 @@
 #
 # Since: 0.14
 #
-# Examples:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "device_del",
 #          "arguments": { "id": "net1" } }
 #     <- { "return": {} }
+#
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "device_del",
 #          "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
@@ -130,7 +135,8 @@
 #
 # Since: 1.5
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "DEVICE_DELETED",
 #          "data": { "device": "virtio-net-pci-0",
@@ -152,7 +158,8 @@
 #
 # Since: 6.2
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "DEVICE_UNPLUG_GUEST_ERROR",
 #          "data": { "device": "core1",

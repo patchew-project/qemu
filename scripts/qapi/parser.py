@@ -554,7 +554,7 @@ class QAPISchemaParser:
                     # Note: "sections" with two colons are left alone as
                     # rST markup and not interpreted as a section heading.
 
-                    # TODO: Remove this error sometime in 2025 or so
+                    # TODO: Remove these errors sometime in 2025 or so
                     # after we've fully transitioned to the new qapidoc
                     # generator.
 
@@ -565,6 +565,15 @@ class QAPISchemaParser:
                             "supported. Please use rST's '.. note::' or "
                             "'.. admonition:: notes' directives, or another "
                             "suitable admonition instead."
+                        )
+                        raise QAPIParseError(self, emsg)
+
+                    if 'Example' in match.group(1):
+                        emsg = (
+                            f"The '{match.group(1)}' section is no longer "
+                            "supported. Please use rST's "
+                            "'.. code-block:: QMP' directive, 'Example::', "
+                            "or other suitable markup instead."
                         )
                         raise QAPIParseError(self, emsg)
 

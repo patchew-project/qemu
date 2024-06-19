@@ -764,7 +764,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-block" }
 #     <- {
@@ -1168,7 +1169,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-blockstats" }
 #     <- {
@@ -1461,7 +1463,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block_resize",
 #          "arguments": { "device": "scratch", "size": 1073741824 } }
@@ -1682,7 +1685,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-snapshot-sync",
 #          "arguments": { "device": "ide-hd0",
@@ -1715,7 +1719,8 @@
 #
 # Since: 2.5
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": { "driver": "qcow2",
@@ -1861,7 +1866,8 @@
 #
 # Since: 1.3
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-commit",
 #          "arguments": { "device": "virtio0",
@@ -1899,7 +1905,8 @@
 #
 # Since: 1.6
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "drive-backup",
 #          "arguments": { "device": "drive0",
@@ -1925,7 +1932,8 @@
 #
 # Since: 2.3
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-backup",
 #          "arguments": { "device": "src-id",
@@ -1949,7 +1957,8 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-named-block-nodes" }
 #     <- { "return": [ { "ro":false,
@@ -2130,7 +2139,8 @@
 #
 # Since: 1.3
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "drive-mirror",
 #          "arguments": { "device": "ide-hd0",
@@ -2307,7 +2317,8 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-dirty-bitmap-add",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2331,7 +2342,8 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-dirty-bitmap-remove",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2354,7 +2366,8 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-dirty-bitmap-clear",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2375,7 +2388,8 @@
 #
 # Since: 4.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-dirty-bitmap-enable",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2396,7 +2410,8 @@
 #
 # Since: 4.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-dirty-bitmap-disable",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2428,7 +2443,8 @@
 #
 # Since: 4.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-dirty-bitmap-merge",
 #          "arguments": { "node": "drive0", "target": "bitmap0",
@@ -2537,7 +2553,8 @@
 #
 # Since: 2.6
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-mirror",
 #          "arguments": { "device": "ide-hd0",
@@ -2862,7 +2879,8 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-stream",
 #          "arguments": { "device": "virtio0",
@@ -4801,7 +4819,8 @@
 #
 # Since: 2.9
 #
-# Examples:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": {
@@ -4814,6 +4833,9 @@
 #           }
 #         }
 #     <- { "return": {} }
+#
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": {
@@ -4899,7 +4921,8 @@
 #
 # Since: 2.9
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": {
@@ -5548,7 +5571,8 @@
 # .. note:: If action is "stop", a STOP event will eventually follow the
 #    BLOCK_IO_ERROR event.
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "BLOCK_IMAGE_CORRUPTED",
 #          "data": { "device": "", "node-name": "drive", "fatal": false,
@@ -5597,7 +5621,8 @@
 #
 # Since: 0.13
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "BLOCK_IO_ERROR",
 #          "data": { "device": "ide0-hd1",
@@ -5637,7 +5662,8 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "BLOCK_JOB_COMPLETED",
 #          "data": { "type": "stream", "device": "virtio-disk0",
@@ -5672,7 +5698,8 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "BLOCK_JOB_CANCELLED",
 #          "data": { "type": "stream", "device": "virtio-disk0",
@@ -5701,7 +5728,8 @@
 #
 # Since: 1.3
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "BLOCK_JOB_ERROR",
 #          "data": { "device": "ide0-hd1",
@@ -5736,7 +5764,8 @@
 #
 # Since: 1.3
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "BLOCK_JOB_READY",
 #          "data": { "device": "drive0", "type": "mirror", "speed": 0,
@@ -5764,7 +5793,8 @@
 #
 # Since: 2.12
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "BLOCK_JOB_PENDING",
 #          "data": { "type": "mirror", "id": "backup_1" },
@@ -5838,7 +5868,8 @@
 #
 # Since: 2.3
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "block-set-write-threshold",
 #          "arguments": { "node-name": "mydev",
@@ -5883,9 +5914,8 @@
 #
 # Since: 2.7
 #
-# Examples:
-#
-#     1. Add a new node to a quorum
+# .. code-block:: QMP
+#    :caption: Example: Add a new node to a quorum
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": {
@@ -5899,7 +5929,8 @@
 #                         "node": "new_node" } }
 #     <- { "return": {} }
 #
-#     2. Delete a quorum's node
+# .. code-block:: QMP
+#    :caption: Example: Delete a quorum's node
 #
 #     -> { "execute": "x-blockdev-change",
 #          "arguments": { "parent": "disk1",
@@ -5935,16 +5966,16 @@
 #
 # Since: 2.12
 #
-# Examples:
-#
-#     1. Move a node into an IOThread
+# .. code-block:: QMP
+#    :caption: Example: Move a node into an IOThread
 #
 #     -> { "execute": "x-blockdev-set-iothread",
 #          "arguments": { "node-name": "disk1",
 #                         "iothread": "iothread0" } }
 #     <- { "return": {} }
 #
-#     2. Move a node into the main loop
+# .. code-block:: QMP
+#    :caption: Example: Move a node into the main loop
 #
 #     -> { "execute": "x-blockdev-set-iothread",
 #          "arguments": { "node-name": "disk1",
@@ -5989,7 +6020,8 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "QUORUM_FAILURE",
 #          "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
@@ -6020,16 +6052,16 @@
 #
 # Since: 2.0
 #
-# Examples:
-#
-#     1. Read operation
+# .. code-block:: QMP
+#    :caption: Example: Read operation
 #
 #     <- { "event": "QUORUM_REPORT_BAD",
 #          "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
 #                    "type": "read" },
 #          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 #
-#     2. Flush operation
+# .. code-block:: QMP
+#    :caption: Example: Flush operation
 #
 #     <- { "event": "QUORUM_REPORT_BAD",
 #          "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
@@ -6077,7 +6109,8 @@
 #
 # Since: 1.7
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-snapshot-internal-sync",
 #          "arguments": { "device": "ide-hd0",
@@ -6116,7 +6149,8 @@
 #
 # Since: 1.7
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "blockdev-snapshot-delete-internal-sync",
 #          "arguments": { "device": "ide-hd0",

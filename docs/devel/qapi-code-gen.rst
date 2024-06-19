@@ -995,8 +995,8 @@ line "Features:", like this::
   # @feature: Description text
 
 A tagged section begins with a paragraph that starts with one of the
-following words: "Since:", "Example:"/"Examples:", "Returns:",
-"Errors:", "TODO:".  It ends with the start of a new section.
+following words: "Since:", "Returns:", "Errors:", "TODO:".  It ends with
+the start of a new section.
 
 The second and subsequent lines of tagged sections must be indented
 like this::
@@ -1020,10 +1020,9 @@ detailing a relevant error condition. For example::
 A "Since: x.y.z" tagged section lists the release that introduced the
 definition.
 
-An "Example" or "Examples" section is rendered entirely
-as literal fixed-width text.  "TODO" sections are not rendered at all
-(they are for developers, not users of QMP).  In other sections, the
-text is formatted, and rST markup can be used.
+"TODO" sections are not rendered at all (they are for developers, not
+users of QMP).  In other sections, the text is formatted, and rST markup
+can be used.
 
 For example::
 
@@ -1058,11 +1057,11 @@ For example::
  #
  # Since: 0.14
  #
- # Example:
+ # .. code-block:: QMP
  #
  #     -> { "execute": "query-blockstats" }
  #     <- {
- #          ... lots of output ...
+ #          ...
  #        }
  ##
  { 'command': 'query-blockstats',

@@ -35,7 +35,10 @@ Duis aute irure dolor
 
 Example:
 
--> in <- out Examples: - *verbatim* - {braces}
+-> in <- out .. code-block:
+
+   - *verbatim*
+   - {braces}
 
 
 "Enum" (Enum)
@@ -219,16 +222,8 @@ Notes:
 
 Duis aute irure dolor
 
-
-Example
-~~~~~~~
-
    -> in
    <- out
-
-
-Examples
-~~~~~~~~
 
    - *verbatim*
    - {braces}
@@ -259,10 +254,6 @@ Features
 
 "cmd-feat2"
    another feature
-
-
-Example
-~~~~~~~
 
    -> in
 

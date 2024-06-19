@@ -182,7 +182,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-pci" }
 #     <- { "return": [
@@ -311,8 +312,7 @@
 #           ]
 #        }
 #
-#     Note: This example has been shortened as the real response is too
-#     long.
+# This example has been shortened as the real response is too long.
 #
 ##
 { 'command': 'query-pci', 'returns': ['PciInfo'] }

@@ -40,7 +40,8 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-chardev" }
 #     <- {
@@ -86,7 +87,8 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "query-chardev-backends" }
 #     <- {
@@ -141,7 +143,8 @@
 #
 # Since: 1.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "ringbuf-write",
 #          "arguments": { "device": "foo",
@@ -177,7 +180,8 @@
 #
 # Since: 1.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "ringbuf-read",
 #          "arguments": { "device": "foo",
@@ -699,18 +703,25 @@
 #
 # Since: 1.4
 #
-# Examples:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute" : "chardev-add",
 #          "arguments" : { "id" : "foo",
 #                          "backend" : { "type" : "null", "data" : {} } } }
 #     <- { "return": {} }
 #
+# .. code-block:: QMP
+#    :caption: Example
+#
 #     -> { "execute" : "chardev-add",
 #          "arguments" : { "id" : "bar",
 #                          "backend" : { "type" : "file",
 #                                        "data" : { "out" : "/tmp/bar.log" } } } }
 #     <- { "return": {} }
+#
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute" : "chardev-add",
 #          "arguments" : { "id" : "baz",
@@ -735,12 +746,16 @@
 #
 # Since: 2.10
 #
-# Examples:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute" : "chardev-change",
 #          "arguments" : { "id" : "baz",
 #                          "backend" : { "type" : "pty", "data" : {} } } }
 #     <- { "return": { "pty" : "/dev/pty/42" } }
+#
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> {"execute" : "chardev-change",
 #         "arguments" : {
@@ -772,7 +787,8 @@
 #
 # Since: 1.4
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
 #     <- { "return": {} }
@@ -789,7 +805,8 @@
 #
 # Since: 2.10
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     -> { "execute": "chardev-send-break", "arguments": { "id" : "foo" } }
 #     <- { "return": {} }
@@ -810,7 +827,8 @@
 #
 # Since: 2.1
 #
-# Example:
+# .. code-block:: QMP
+#    :caption: Example
 #
 #     <- { "event": "VSERPORT_CHANGE",
 #          "data": { "id": "channel0", "open": true },
