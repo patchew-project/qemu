@@ -296,6 +296,10 @@ if get_option('with_rust').allowed()
 endif
 with_rust = cargo.found()
 
+if with_rust
+  subdir('rust')
+endif
+
 # default flags for all hosts
 # We use -fwrapv to tell the compiler that we require a C dialect where
 # left shift of signed integers is well defined and has the expected
