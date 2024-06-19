@@ -76,7 +76,7 @@ Not in list
 - Second list
   Note: still in list
 
-Note: not in list
+.. note:: not in list
 
 1. Third list
    is numbered
@@ -169,15 +169,17 @@ description starts on the same line
 a feature
     feature=cmd-feat2
 another feature
-    section=Note
-@arg3 is undocumented
+    section=None
+.. note:: @arg3 is undocumented
     section=Returns
 @Object
     section=Errors
 some
     section=TODO
 frobnicate
-    section=Notes
+    section=None
+.. admonition:: Notes
+
  - Lorem ipsum dolor sit amet
  - Ut enim ad minim veniam
 

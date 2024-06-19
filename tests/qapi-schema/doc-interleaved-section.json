@@ -10,7 +10,7 @@
 #
 #           bao
 #
-# Note: a section.
+# Returns: a section.
 #
 # @foobar: catch this
 #
