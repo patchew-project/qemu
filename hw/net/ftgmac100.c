@@ -56,6 +56,10 @@
 #define FTGMAC100_PHYDATA         0x64
 #define FTGMAC100_FCR             0x68
 
+#define FTGMAC100_NPTXR_BADR_HIGH   0x17C
+#define FTGMAC100_HPTXR_BADR_HIGH   0x184
+#define FTGMAC100_RXR_BADR_HIGH     0x18C
+
 /*
  * Interrupt status register & interrupt enable register
  */
@@ -165,6 +169,8 @@
 #define FTGMAC100_TXDES1_TX2FIC          (1 << 30)
 #define FTGMAC100_TXDES1_TXIC            (1 << 31)
 
+#define FTGMAC100_TXDES2_TXBUF_BADR_HI(x)   (((x) >> 16) & 0x7)
+
 /*
  * Receive descriptor
  */
@@ -197,6 +203,8 @@
 #define FTGMAC100_RXDES1_TCP_CHKSUM_ERR  (1 << 25)
 #define FTGMAC100_RXDES1_UDP_CHKSUM_ERR  (1 << 26)
 #define FTGMAC100_RXDES1_IP_CHKSUM_ERR   (1 << 27)
+
+#define FTGMAC100_RXDES2_RXBUF_BADR_HI(x)   (((x) >> 16) & 0x7)
 
 /*
  * Receive and transmit Buffer Descriptor
@@ -515,12 +523,13 @@ out:
     return frame_size;
 }
 
-static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
-                            uint32_t tx_descriptor)
+static void ftgmac100_do_tx(FTGMAC100State *s, uint64_t tx_ring,
+                            uint64_t tx_descriptor)
 {
     int frame_size = 0;
     uint8_t *ptr = s->frame;
-    uint32_t addr = tx_descriptor;
+    uint64_t addr = tx_descriptor;
+    uint64_t buf_addr = 0;
     uint32_t flags = 0;
 
     while (1) {
@@ -559,7 +568,10 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
             len =  sizeof(s->frame) - frame_size;
         }
 
-        if (dma_memory_read(&address_space_memory, bd.des3,
+        buf_addr = deposit64(buf_addr, 32, 32,
+                             FTGMAC100_TXDES2_TXBUF_BADR_HI(bd.des2));
+        buf_addr = deposit64(buf_addr, 0, 32, bd.des3);
+        if (dma_memory_read(&address_space_memory, buf_addr,
                             ptr, len, MEMTXATTRS_UNSPECIFIED)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to read packet @ 0x%x\n",
                           __func__, bd.des3);
@@ -710,7 +722,7 @@ static uint64_t ftgmac100_read(void *opaque, hwaddr addr, unsigned size)
 {
     FTGMAC100State *s = FTGMAC100(opaque);
 
-    switch (addr & 0xff) {
+    switch (addr) {
     case FTGMAC100_ISR:
         return s->isr;
     case FTGMAC100_IER:
@@ -726,9 +738,9 @@ static uint64_t ftgmac100_read(void *opaque, hwaddr addr, unsigned size)
     case FTGMAC100_MATH1:
         return s->math[1];
     case FTGMAC100_RXR_BADR:
-        return s->rx_ring;
+        return extract64(s->rx_ring, 0, 32);
     case FTGMAC100_NPTXR_BADR:
-        return s->tx_ring;
+        return extract64(s->tx_ring, 0, 32);
     case FTGMAC100_ITC:
         return s->itc;
     case FTGMAC100_DBLAC:
@@ -751,10 +763,15 @@ static uint64_t ftgmac100_read(void *opaque, hwaddr addr, unsigned size)
         /* We might want to support these one day */
     case FTGMAC100_HPTXPD: /* High Priority Transmit Poll Demand */
     case FTGMAC100_HPTXR_BADR: /* High Priority Transmit Ring Base Address */
+    case FTGMAC100_HPTXR_BADR_HIGH:
     case FTGMAC100_MACSR: /* MAC Status Register (MACSR) */
         qemu_log_mask(LOG_UNIMP, "%s: read to unimplemented register 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
         return 0;
+    case FTGMAC100_NPTXR_BADR_HIGH:
+        return extract64(s->tx_ring, 32, 32);
+    case FTGMAC100_RXR_BADR_HIGH:
+        return extract64(s->rx_ring, 32, 32);
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad address at offset 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
@@ -767,7 +784,7 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
 {
     FTGMAC100State *s = FTGMAC100(opaque);
 
-    switch (addr & 0xff) {
+    switch (addr) {
     case FTGMAC100_ISR: /* Interrupt status */
         s->isr &= ~value;
         break;
@@ -799,9 +816,8 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
                           HWADDR_PRIx "\n", __func__, value);
             return;
         }
-
-        s->rx_ring = value;
-        s->rx_descriptor = s->rx_ring;
+        s->rx_ring = deposit64(s->rx_ring, 0, 32, value);
+        s->rx_descriptor = deposit64(s->rx_descriptor, 0, 32, value);
         break;
 
     case FTGMAC100_RBSR: /* DMA buffer size */
@@ -814,8 +830,8 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
                           HWADDR_PRIx "\n", __func__, value);
             return;
         }
-        s->tx_ring = value;
-        s->tx_descriptor = s->tx_ring;
+        s->tx_ring = deposit64(s->tx_ring, 0, 32, value);
+        s->tx_descriptor = deposit64(s->tx_descriptor, 0, 32, value);
         break;
 
     case FTGMAC100_NPTXPD: /* Trigger transmit */
@@ -905,6 +921,14 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_UNIMP, "%s: write to unimplemented register 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
         break;
+    case FTGMAC100_NPTXR_BADR_HIGH: /* Transmit buffer address high */
+        s->tx_ring = deposit64(s->tx_ring, 32, 32, value);
+        s->tx_descriptor = deposit64(s->tx_descriptor, 32, 32, value);
+        break;
+    case FTGMAC100_RXR_BADR_HIGH: /* Ring buffer address high */
+        s->rx_ring = deposit64(s->rx_ring, 32, 32, value);
+        s->rx_descriptor = deposit64(s->rx_descriptor, 32, 32, value);
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad address at offset 0x%"
                       HWADDR_PRIx "\n", __func__, addr);
@@ -957,9 +981,9 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
     FTGMAC100State *s = FTGMAC100(qemu_get_nic_opaque(nc));
     FTGMAC100Desc bd;
     uint32_t flags = 0;
-    uint32_t addr;
+    uint64_t addr;
     uint32_t crc;
-    uint32_t buf_addr;
+    uint64_t buf_addr = 0;
     uint8_t *crc_ptr;
     uint32_t buf_len;
     size_t size = len;
@@ -1024,7 +1048,10 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
         if (size < 4) {
             buf_len += size - 4;
         }
-        buf_addr = bd.des3;
+
+        buf_addr = deposit64(buf_addr, 32, 32,
+                             FTGMAC100_RXDES2_RXBUF_BADR_HI(bd.des2));
+        buf_addr = deposit64(buf_addr, 0, 32, bd.des3);
         if (first && proto == ETH_P_VLAN && buf_len >= 18) {
             bd.des1 = lduw_be_p(buf + 14) | FTGMAC100_RXDES1_VLANTAG_AVAIL;
 
@@ -1121,18 +1148,14 @@ static void ftgmac100_realize(DeviceState *dev, Error **errp)
 
 static const VMStateDescription vmstate_ftgmac100 = {
     .name = TYPE_FTGMAC100,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(irq_state, FTGMAC100State),
         VMSTATE_UINT32(isr, FTGMAC100State),
         VMSTATE_UINT32(ier, FTGMAC100State),
         VMSTATE_UINT32(rx_enabled, FTGMAC100State),
-        VMSTATE_UINT32(rx_ring, FTGMAC100State),
         VMSTATE_UINT32(rbsr, FTGMAC100State),
-        VMSTATE_UINT32(tx_ring, FTGMAC100State),
-        VMSTATE_UINT32(rx_descriptor, FTGMAC100State),
-        VMSTATE_UINT32(tx_descriptor, FTGMAC100State),
         VMSTATE_UINT32_ARRAY(math, FTGMAC100State, 2),
         VMSTATE_UINT32(itc, FTGMAC100State),
         VMSTATE_UINT32(aptcr, FTGMAC100State),
@@ -1151,6 +1174,10 @@ static const VMStateDescription vmstate_ftgmac100 = {
         VMSTATE_UINT32(phy_int_mask, FTGMAC100State),
         VMSTATE_UINT32(txdes0_edotr, FTGMAC100State),
         VMSTATE_UINT32(rxdes0_edorr, FTGMAC100State),
+        VMSTATE_UINT64(rx_ring, FTGMAC100State),
+        VMSTATE_UINT64(tx_ring, FTGMAC100State),
+        VMSTATE_UINT64(rx_descriptor, FTGMAC100State),
+        VMSTATE_UINT64(tx_descriptor, FTGMAC100State),
         VMSTATE_END_OF_LIST()
     }
 };
