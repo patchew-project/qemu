@@ -3910,6 +3910,62 @@ foreach target : target_dirs
     lib_deps += dep.partial_dependency(compile_args: true, includes: true)
   endforeach
 
+  if with_rust and target_type == 'system'
+       # FIXME:
+       # > WARNING: Project specifies a minimum meson_version '>=0.63.0' but
+       # > uses features which were added in newer versions:
+       # > * 0.64.0: {'fs.copyfile'}
+       # > * 1.0.0: {'dependencies arg in rust.bindgen', 'module rust as stable module'}
+      rust_bindgen = import('rust')
+
+      # We need one generated_rs target per target, so give them
+      # target-specific names.
+      copy = fs.copyfile('rust/wrapper.h',
+                         target + '_wrapper.h')
+      generated_rs = rust_bindgen.bindgen(
+        input: copy,
+        dependencies: arch_deps + lib_deps,
+        output: target + '-generated.rs',
+        include_directories: include_directories('.', 'include'),
+        args: [
+          '--ctypes-prefix', 'core::ffi',
+          '--formatter', 'rustfmt',
+          '--generate-block',
+          '--generate-cstr',
+          '--impl-debug',
+          '--merge-extern-blocks',
+          '--no-doc-comments',
+          '--no-include-path-detection',
+          '--use-core',
+          '--with-derive-default',
+          '--allowlist-file', meson.project_source_root() + '/include/.*',
+          '--allowlist-file', meson.project_source_root() + '/.*',
+          '--allowlist-file', meson.project_build_root() + '/.*'
+        ],
+      )
+
+      if target in rust_targets
+        rust_hw = ss.source_set()
+        foreach t: rust_targets[target]
+          rust_device_cargo = custom_target(t['name'],
+                                       output: t['output'],
+                                       depends: [generated_rs],
+                                       build_always_stale: true,
+                                       command: t['command'])
+          rust_dep = declare_dependency(link_args: [
+                                          '-Wl,--whole-archive',
+                                          t['output-path'],
+                                          '-Wl,--no-whole-archive'
+                                          ],
+                                          sources: [rust_device_cargo])
+          rust_hw.add(rust_dep)
+        endforeach
+        rust_hw_config = rust_hw.apply(config_target, strict: false)
+        arch_srcs += rust_hw_config.sources()
+        arch_deps += rust_hw_config.dependencies()
+      endif
+  endif
+
   lib = static_library('qemu-' + target,
                  sources: arch_srcs + genh,
                  dependencies: lib_deps,
