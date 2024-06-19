@@ -2839,7 +2839,7 @@ static inline uint8_t address_space_ldub_cached(MemoryRegionCache *cache,
 {
     assert(addr < cache->len);
     if (likely(cache->ptr)) {
-        return ldub_p(cache->ptr + addr);
+        return ldub_p((char *)cache->ptr + addr);
     } else {
         return address_space_ldub_cached_slow(cache, addr, attrs, result);
     }
@@ -2850,7 +2850,7 @@ static inline void address_space_stb_cached(MemoryRegionCache *cache,
 {
     assert(addr < cache->len);
     if (likely(cache->ptr)) {
-        stb_p(cache->ptr + addr, val);
+        stb_p((char *)cache->ptr + addr, val);
     } else {
         address_space_stb_cached_slow(cache, addr, val, attrs, result);
     }
@@ -3123,7 +3123,7 @@ address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
     assert(addr < cache->len && len <= cache->len - addr);
     fuzz_dma_read_cb(cache->xlat + addr, len, cache->mrs.mr);
     if (likely(cache->ptr)) {
-        memcpy(buf, cache->ptr + addr, len);
+        memcpy(buf, (char *)cache->ptr + addr, len);
         return MEMTX_OK;
     } else {
         return address_space_read_cached_slow(cache, addr, buf, len);
@@ -3144,7 +3144,7 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
 {
     assert(addr < cache->len && len <= cache->len - addr);
     if (likely(cache->ptr)) {
-        memcpy(cache->ptr + addr, buf, len);
+        memcpy((char *)cache->ptr + addr, buf, len);
         return MEMTX_OK;
     } else {
         return address_space_write_cached_slow(cache, addr, buf, len);
