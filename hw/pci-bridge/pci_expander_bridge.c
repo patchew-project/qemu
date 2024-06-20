@@ -93,6 +93,21 @@ static void pxb_bus_class_init(ObjectClass *class, void *data)
     pbc->numa_node = pxb_bus_numa_node;
 }
 
+static void prop_pxb_cxl_uid_get(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    uint32_t uid = pci_bus_num(PCI_BUS(obj));
+
+    visit_type_uint32(v, name, &uid, errp);
+}
+
+static void pxb_cxl_bus_class_init(ObjectClass *class, void *data)
+{
+    pxb_bus_class_init(class, data);
+    object_class_property_add(class, "acpi_uid", "uint32",
+                              prop_pxb_cxl_uid_get, NULL, NULL, NULL);
+}
+
 static const TypeInfo pxb_bus_info = {
     .name          = TYPE_PXB_BUS,
     .parent        = TYPE_PCI_BUS,
@@ -111,7 +126,7 @@ static const TypeInfo pxb_cxl_bus_info = {
     .name          = TYPE_PXB_CXL_BUS,
     .parent        = TYPE_CXL_BUS,
     .instance_size = sizeof(PXBBus),
-    .class_init    = pxb_bus_class_init,
+    .class_init    = pxb_cxl_bus_class_init,
 };
 
 static const char *pxb_host_root_bus_path(PCIHostState *host_bridge,
