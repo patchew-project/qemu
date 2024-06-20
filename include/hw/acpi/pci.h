@@ -43,7 +43,8 @@ void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus);
 void build_pci_bridge_aml(AcpiDevAmlIf *adev, Aml *scope);
 
 #define TYPE_ACPI_GENERIC_INITIATOR "acpi-generic-initiator"
+#define TYPE_ACPI_GENERIC_PORT "acpi-generic-port"
 
-void build_srat_generic_pci_initiator(GArray *table_data);
+void build_srat_generic_affinity_structures(GArray *table_data);
 
 #endif

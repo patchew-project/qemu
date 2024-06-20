@@ -1,78 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Support for generating PCI related ACPI tables and passing them to Guests
- *
- * Copyright (C) 2006 Fabrice Bellard
- * Copyright (C) 2008-2010  Kevin O'Connor <kevin@koconnor.net>
- * Copyright (C) 2013-2019 Red Hat Inc
- * Copyright (C) 2019 Intel Corporation
- *
- * Author: Wei Yang <richardw.yang@linux.intel.com>
- * Author: Michael S. Tsirkin <mst@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
+ * Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved
  */
 
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
-#include "qapi/error.h"
-#include "hw/boards.h"
+#include "hw/acpi/acpi_generic_initiator.h"
 #include "hw/acpi/aml-build.h"
-#include "hw/acpi/pci.h"
+#include "hw/boards.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_device.h"
-#include "hw/pci/pcie_host.h"
-
-/*
- * PCI Firmware Specification, Revision 3.0
- * 4.1.2 MCFG Table Description.
- */
-void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info,
-                const char *oem_id, const char *oem_table_id)
-{
-    AcpiTable table = { .sig = "MCFG", .rev = 1,
-                        .oem_id = oem_id, .oem_table_id = oem_table_id };
-
-    acpi_table_begin(&table, table_data);
-
-    /* Reserved */
-    build_append_int_noprefix(table_data, 0, 8);
-    /*
-     * Memory Mapped Enhanced Configuration Space Base Address Allocation
-     * Structure
-     */
-    /* Base address, processor-relative */
-    build_append_int_noprefix(table_data, info->base, 8);
-    /* PCI segment group number */
-    build_append_int_noprefix(table_data, 0, 2);
-    /* Starting PCI Bus number */
-    build_append_int_noprefix(table_data, 0, 1);
-    /* Final PCI Bus number */
-    build_append_int_noprefix(table_data, PCIE_MMCFG_BUS(info->size - 1), 1);
-    /* Reserved */
-    build_append_int_noprefix(table_data, 0, 4);
-
-    acpi_table_end(linker, &table);
-}
-
-typedef struct AcpiGenericInitiator {
-    /* private */
-    Object parent;
-
-    /* public */
-    char *pci_dev;
-    uint16_t node;
-} AcpiGenericInitiator;
+#include "qemu/error-report.h"
+#include "qapi/error.h"
 
 typedef struct AcpiGenericInitiatorClass {
     ObjectClass parent_class;
@@ -138,49 +76,6 @@ static void acpi_generic_initiator_class_init(ObjectClass *oc, void *data)
         acpi_generic_initiator_set_node, NULL, NULL);
 }
 
-static int build_acpi_generic_initiator(Object *obj, void *opaque)
-{
-    MachineState *ms = MACHINE(qdev_get_machine());
-    AcpiGenericInitiator *gi;
-    GArray *table_data = opaque;
-    uint8_t bus, devfn;
-    Object *o;
-
-    if (!object_dynamic_cast(obj, TYPE_ACPI_GENERIC_INITIATOR)) {
-        return 0;
-    }
-
-    gi = ACPI_GENERIC_INITIATOR(obj);
-    if (gi->node >= ms->numa_state->num_nodes) {
-        error_printf("%s: Specified node %d is invalid.\n",
-                     TYPE_ACPI_GENERIC_INITIATOR, gi->node);
-        exit(1);
-    }
-
-    o = object_resolve_path_type(gi->pci_dev, TYPE_PCI_DEVICE, NULL);
-    if (!o) {
-        error_printf("%s: Specified device must be a PCI device.\n",
-                     TYPE_ACPI_GENERIC_INITIATOR);
-        exit(1);
-    }
-
-    bus = object_property_get_uint(o, "bus", &error_fatal);
-    devfn = object_property_get_uint(o, "addr", &error_fatal);
-
-    build_srat_pci_generic_initiator(table_data, gi->node, 0, bus, devfn);
-
-    return 0;
-}
-
-typedef struct AcpiGenericPort {
-    /* private */
-    Object parent;
-
-    /* public */
-    char *pci_bus;
-    uint16_t node;
-} AcpiGenericPort;
-
 typedef struct AcpiGenericPortClass {
     ObjectClass parent_class;
 } AcpiGenericPortClass;
@@ -243,6 +138,40 @@ static void acpi_generic_port_class_init(ObjectClass *oc, void *data)
         acpi_generic_port_set_node, NULL, NULL);
 }
 
+static int build_acpi_generic_initiator(Object *obj, void *opaque)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    AcpiGenericInitiator *gi;
+    GArray *table_data = opaque;
+    uint8_t bus, devfn;
+    Object *o;
+
+    if (!object_dynamic_cast(obj, TYPE_ACPI_GENERIC_INITIATOR)) {
+        return 0;
+    }
+
+    gi = ACPI_GENERIC_INITIATOR(obj);
+    if (gi->node >= ms->numa_state->num_nodes) {
+        error_printf("%s: Specified node %d is invalid.\n",
+                     TYPE_ACPI_GENERIC_INITIATOR, gi->node);
+        exit(1);
+    }
+
+    o = object_resolve_path_type(gi->pci_dev, TYPE_PCI_DEVICE, NULL);
+    if (!o) {
+        error_printf("%s: Specified device must be a PCI device.\n",
+                     TYPE_ACPI_GENERIC_INITIATOR);
+        exit(1);
+    }
+
+    bus = object_property_get_uint(o, "bus", &error_fatal);
+    devfn = object_property_get_uint(o, "addr", &error_fatal);
+
+    build_srat_pci_generic_initiator(table_data, gi->node, 0, bus, devfn);
+
+    return 0;
+}
+
 static int build_acpi_generic_port(Object *obj, void *opaque)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -268,7 +197,7 @@ static int build_acpi_generic_port(Object *obj, void *opaque)
     if (!o) {
         error_printf("%s: device must be a CXL host bridge.\n",
                      TYPE_ACPI_GENERIC_PORT);
-       exit(1);
+        exit(1);
     }
 
     uid = object_property_get_uint(o, "acpi_uid", &error_fatal);
@@ -277,7 +206,7 @@ static int build_acpi_generic_port(Object *obj, void *opaque)
     return 0;
 }
 
-void build_srat_generic_affinity_structures(GArray *table_data)
+void build_srat_generic_pci_initiator(GArray *table_data)
 {
     object_child_foreach_recursive(object_get_root(),
                                    build_acpi_generic_initiator,
