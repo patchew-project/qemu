@@ -28,6 +28,7 @@
 
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/acpi/acpi_aml_interface.h"
+#include "qom/object_interfaces.h"
 
 typedef struct AcpiMcfgInfo {
     uint64_t base;
@@ -40,4 +41,9 @@ Aml *aml_pci_device_dsm(void);
 
 void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus);
 void build_pci_bridge_aml(AcpiDevAmlIf *adev, Aml *scope);
+
+#define TYPE_ACPI_GENERIC_INITIATOR "acpi-generic-initiator"
+
+void build_srat_generic_pci_initiator(GArray *table_data);
+
 #endif
