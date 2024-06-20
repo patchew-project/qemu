@@ -38,6 +38,11 @@
 #define MULTIFD_MAGIC 0x11223344U
 #define MULTIFD_VERSION 1
 
+struct MultiFDSlots {
+    MultiFDSendData **free;
+    MultiFDSendData *active;
+};
+
 typedef struct {
     uint32_t magic;
     uint32_t version;
@@ -737,7 +742,22 @@ static inline bool multifd_queue_full(MultiFDPages_t *pages)
 static inline void multifd_enqueue(MultiFDPages_t *pages, ram_addr_t offset)
 {
     pages->offset[pages->num++] = offset;
-    multifd_ram_send_slots->active->size += qemu_target_page_size();
+    multifd_set_slot_size(multifd_ram_send_slots, qemu_target_page_size());
+}
+
+void *multifd_get_active_slot(MultiFDSlots *multifd_ram_send_slots)
+{
+    return multifd_ram_send_slots->active->opaque;
+}
+
+void multifd_set_slot_size(MultiFDSlots *multifd_ram_send_slots, size_t size)
+{
+    multifd_ram_send_slots->active->size += size;
+}
+
+bool multifd_slot_has_data(MultiFDSlots *multifd_ram_send_slots)
+{
+    return !!multifd_ram_send_slots->active->size;
 }
 
 /* Returns true if enqueue successful, false otherwise */
@@ -746,7 +766,7 @@ bool multifd_queue_page(RAMBlock *block, ram_addr_t offset)
     MultiFDPages_t *pages;
 
 retry:
-    pages = multifd_ram_send_slots->active->opaque;
+    pages = multifd_get_active_slot(multifd_ram_send_slots);
 
     /* If the queue is empty, we can already enqueue now */
     if (multifd_queue_empty(pages)) {
@@ -951,7 +971,7 @@ int multifd_send_sync_main(void)
         return 0;
     }
 
-    if (multifd_ram_send_slots->active->size) {
+    if (multifd_slot_has_data(multifd_ram_send_slots)) {
         if (!multifd_send(multifd_ram_send_slots)) {
             error_report("%s: multifd_send_pages fail", __func__);
             return -1;

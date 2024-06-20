@@ -102,15 +102,13 @@ struct MultiFDSendData {
     void (*cleanup)(void *);
 };
 
-struct MultiFDSlots {
-    MultiFDSendData **free;
-    MultiFDSendData *active;
-};
-
 MultiFDSlots *multifd_allocate_slots(void *(*alloc_fn)(void),
                                      void (*reset_fn)(void *),
                                      void (*cleanup_fn)(void *));
 void multifd_ram_save_setup(void);
+void *multifd_get_active_slot(MultiFDSlots *multifd_ram_send_slots);
+void multifd_set_slot_size(MultiFDSlots *multifd_ram_send_slots, size_t size);
+bool multifd_slot_has_data(MultiFDSlots *multifd_ram_send_slots);
 
 typedef struct {
     /* Fields are only written at creating/deletion time */
