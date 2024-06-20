@@ -134,6 +134,7 @@ enum {
     } while (0)
 
 void generate_exception(DisasContext *ctx, int excp);
+void generate_exception_with_code(DisasContext *ctx, int excp, int code);
 void generate_exception_err(DisasContext *ctx, int excp, int err);
 void generate_exception_end(DisasContext *ctx, int excp);
 void generate_exception_break(DisasContext *ctx, int code);

@@ -1353,6 +1353,12 @@ void generate_exception(DisasContext *ctx, int excp)
     gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp));
 }
 
+void generate_exception_with_code(DisasContext *ctx, int excp, int code)
+{
+    gen_helper_raise_exception_err(tcg_env, tcg_constant_i32(excp),
+                                   tcg_constant_i32(code));
+}
+
 void generate_exception_end(DisasContext *ctx, int excp)
 {
     generate_exception_err(ctx, excp, 0);
@@ -4553,7 +4559,7 @@ static void gen_trap(DisasContext *ctx, uint32_t opc,
         if (ctx->hflags != ctx->saved_hflags) {
             tcg_gen_movi_i32(hflags, ctx->hflags);
         }
-        generate_exception(ctx, EXCP_TRAP);
+        generate_exception_with_code(ctx, EXCP_TRAP, code);
         gen_set_label(l1);
     }
 }
