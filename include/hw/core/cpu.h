@@ -587,8 +587,25 @@ extern CPUTailQ cpus_queue;
 
 #define first_cpu        QTAILQ_FIRST_RCU(&cpus_queue)
 #define CPU_NEXT(cpu)    QTAILQ_NEXT_RCU(cpu, node)
+
+/**
+ * CPU_FOREACH - Helper to iterate over all CPUs
+ *
+ * This macro iterates over all CPUs in the system. It must be used
+ * under an RCU read protection, e.g. WITH_RCU_READ_LOCK_GUARD(). If
+ * you don't want the CPU list to change while iterating use
+ * CPU_FOREACH_SAFE under the cpu_list_lock().
+ */
 #define CPU_FOREACH(cpu) QTAILQ_FOREACH_RCU(cpu, &cpus_queue, node)
-#define CPU_FOREACH_SAFE(cpu, next_cpu) \
+
+/**
+ * CPU_FOREACH_SAFE - Helper to iterate over all CPUs, safe against CPU changes
+ *
+ * This macro iterates over all CPUs in the system, and is safe
+ * against CPU list changes. The target data structure must be
+ * protected by cpu_list_lock(), and does not need RCU.
+ */
+#define CPU_FOREACH_SAFE(cpu, next_cpu)                         \
     QTAILQ_FOREACH_SAFE_RCU(cpu, &cpus_queue, node, next_cpu)
 
 extern __thread CPUState *current_cpu;
