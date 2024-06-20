@@ -17,6 +17,10 @@
 
 typedef struct MultiFDRecvData MultiFDRecvData;
 typedef struct MultiFDSendData MultiFDSendData;
+typedef struct MultiFDSlots MultiFDSlots;
+
+typedef void *(multifd_data_alloc_cb)(void);
+typedef void (multifd_data_cleanup_cb)(void *);
 
 bool multifd_send_setup(void);
 void multifd_send_shutdown(void);
@@ -93,7 +97,20 @@ struct MultiFDRecvData {
 struct MultiFDSendData {
     void *opaque;
     size_t size;
+    /* reset the slot for reuse after successful transfer */
+    void (*reset)(void *);
+    void (*cleanup)(void *);
 };
+
+struct MultiFDSlots {
+    MultiFDSendData **free;
+    MultiFDSendData *active;
+};
+
+MultiFDSlots *multifd_allocate_slots(void *(*alloc_fn)(void),
+                                     void (*reset_fn)(void *),
+                                     void (*cleanup_fn)(void *));
+void multifd_ram_save_setup(void);
 
 typedef struct {
     /* Fields are only written at creating/deletion time */
