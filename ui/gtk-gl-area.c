@@ -65,39 +65,36 @@ void gd_gl_area_draw(VirtualConsole *vc)
             } else {
                 qemu_dmabuf_set_draw_submitted(dmabuf, false);
             }
-        }
-#endif
 
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, vc->gfx.guest_fb.framebuffer);
-        /* GtkGLArea sets GL_DRAW_FRAMEBUFFER for us */
+            if (qemu_dmabuf_get_render_sync(dmabuf)) {
+                int fence_fd;
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, vc->gfx.guest_fb.framebuffer);
+                /* GtkGLArea sets GL_DRAW_FRAMEBUFFER for us */
 
-        glViewport(0, 0, ww, wh);
-        y1 = vc->gfx.y0_top ? 0 : vc->gfx.h;
-        y2 = vc->gfx.y0_top ? vc->gfx.h : 0;
-        glBlitFramebuffer(0, y1, vc->gfx.w, y2,
-                          0, 0, ww, wh,
-                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
-#ifdef CONFIG_GBM
-        if (dmabuf) {
-            int fence_fd;
-            fence_fd = egl_dmabuf_create_fence(dmabuf);
-            if (fence_fd >= 0) {
-                qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
-                return;
+                glViewport(0, 0, ww, wh);
+                y1 = vc->gfx.y0_top ? 0 : vc->gfx.h;
+                y2 = vc->gfx.y0_top ? vc->gfx.h : 0;
+                glBlitFramebuffer(0, y1, vc->gfx.w, y2,
+                                  0, 0, ww, wh,
+                                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
+                fence_fd = egl_dmabuf_create_fence(dmabuf);
+                if (fence_fd >= 0) {
+                    qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
+                } else {
+                    graphic_hw_gl_block(vc->gfx.dcl.con, false);
+                }
             }
-            graphic_hw_gl_block(vc->gfx.dcl.con, false);
         }
 #endif
-        glFlush();
     } else {
         if (!vc->gfx.ds) {
             return;
         }
-        gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
 
         surface_gl_setup_viewport(vc->gfx.gls, vc->gfx.ds, ww, wh);
         surface_gl_render_texture(vc->gfx.gls, vc->gfx.ds);
     }
+    glFlush();
 }
 
 void gd_gl_area_update(DisplayChangeListener *dcl,
@@ -119,13 +116,19 @@ void gd_gl_area_refresh(DisplayChangeListener *dcl)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
+#ifdef CONFIG_GBM
+    QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
+#endif
+
     gd_update_monitor_refresh_rate(vc, vc->window ? vc->window : vc->gfx.drawing_area);
 
-    if (vc->gfx.guest_fb.dmabuf &&
-        qemu_dmabuf_get_draw_submitted(vc->gfx.guest_fb.dmabuf)) {
+#ifdef CONFIG_GBM
+    if (dmabuf && qemu_dmabuf_get_draw_submitted(dmabuf) &&
+        qemu_dmabuf_get_render_sync(dmabuf)) {
         gd_gl_area_draw(vc);
         return;
     }
+#endif
 
     if (!vc->gfx.gls) {
         if (!gtk_widget_get_realized(vc->gfx.drawing_area)) {
@@ -282,13 +285,42 @@ void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+#ifdef CONFIG_GBM
+    QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
+    int ww, wh, ws, y1, y2;
 
-    if (vc->gfx.guest_fb.dmabuf &&
-        !qemu_dmabuf_get_draw_submitted(vc->gfx.guest_fb.dmabuf)) {
+    if (dmabuf && !qemu_dmabuf_get_draw_submitted(dmabuf)) {
+        gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
+        ws = gdk_window_get_scale_factor(gtk_widget_get_window(vc->gfx.drawing_area));
+        ww = gtk_widget_get_allocated_width(vc->gfx.drawing_area) * ws;
+        wh = gtk_widget_get_allocated_height(vc->gfx.drawing_area) * ws;
+
         graphic_hw_gl_block(vc->gfx.dcl.con, true);
-        qemu_dmabuf_set_draw_submitted(vc->gfx.guest_fb.dmabuf, true);
+        qemu_dmabuf_set_draw_submitted(dmabuf, true);
         gtk_gl_area_set_scanout_mode(vc, true);
+        if (!qemu_dmabuf_get_render_sync(dmabuf)) {
+            int fence_fd;
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, vc->gfx.guest_fb.framebuffer);
+            /* GtkGLArea sets GL_DRAW_FRAMEBUFFER for us */
+
+            glViewport(0, 0, ww, wh);
+            y1 = vc->gfx.y0_top ? 0 : vc->gfx.h;
+            y2 = vc->gfx.y0_top ? vc->gfx.h : 0;
+            glBlitFramebuffer(0, y1, vc->gfx.w, y2,
+                              0, 0, ww, wh,
+                              GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+            egl_dmabuf_create_fence(dmabuf);
+            fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
+            if (fence_fd >= 0) {
+                qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
+            } else {
+                graphic_hw_gl_block(vc->gfx.dcl.con, false);
+            }
+        }
     }
+#endif
+
     gtk_gl_area_queue_render(GTK_GL_AREA(vc->gfx.drawing_area));
 }
 
