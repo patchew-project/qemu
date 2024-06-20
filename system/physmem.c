@@ -783,7 +783,7 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
 }
 
 /* Called from RCU critical section */
-static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
+RAMBlock *qemu_get_ram_block(ram_addr_t addr)
 {
     RAMBlock *block;
 
@@ -1804,6 +1804,37 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
     }
 }
 
+/* Called with ram_list.mutex held */
+static bool dirty_ring_init(Error **errp)
+{
+    static bool initialized;
+    if (initialized) {
+        return true;
+    }
+
+    unsigned long dirty_ring_size = migration_get_dirty_ring_size();
+
+    for (int i = 0; i < 2; i++) {
+        DirtyRing *ring = &ram_list.dirty_rings[i];
+        ring->buffer = g_malloc(sizeof(ring->buffer[0]) * dirty_ring_size);
+
+        if (ring->buffer == NULL) {
+            error_setg(errp, "Failed to allocate dirty ring buffer");
+            return false;
+        }
+
+        ring->size = dirty_ring_size;
+        ring->mask = dirty_ring_size - 1;
+        ring->rpos = 0;
+        ring->wpos = 0;
+    }
+
+    ram_list.dirty_ring_switch = 0;
+
+    initialized = true;
+    return true;
+}
+
 static void ram_block_add(RAMBlock *new_block, Error **errp)
 {
     const bool noreserve = qemu_ram_is_noreserve(new_block);
@@ -1868,6 +1899,13 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
     if (new_ram_size > old_ram_size) {
         dirty_memory_extend(old_ram_size, new_ram_size);
     }
+
+    if (migration_has_dirty_ring()) {
+        if (!dirty_ring_init(errp)) {
+            goto out_free;
+        }
+    }
+
     /* Keep the list sorted from biggest to smallest block.  Unlike QTAILQ,
      * QLIST (which has an RCU-friendly variant) does not have insertion at
      * tail, so save the last element in last_block.
@@ -3887,4 +3925,92 @@ bool ram_block_discard_is_required(void)
 {
     return qatomic_read(&ram_block_discard_required_cnt) ||
            qatomic_read(&ram_block_coordinated_discard_required_cnt);
+}
+
+DirtyRing *ram_list_get_enqueue_dirty(void)
+{
+    return &ram_list.dirty_rings[ram_list.dirty_ring_switch & 1];
+}
+
+DirtyRing *ram_list_get_dequeue_dirty(void)
+{
+    return &ram_list.dirty_rings[(ram_list.dirty_ring_switch + 1) & 1];
+}
+
+bool ram_list_enqueue_dirty(unsigned long page)
+{
+    DirtyRing *ring = &ram_list.dirty_rings[ram_list.dirty_ring_switch & 1];
+
+    assert(ring->buffer);
+
+    if (unlikely(ring->wpos - ring->rpos == ring->size)) {
+        return false;
+    }
+
+    ring->buffer[ring->wpos & ring->mask] = page;
+    ring->wpos++;
+
+    return true;
+}
+
+bool ram_list_dequeue_dirty(unsigned long *page)
+{
+    DirtyRing *ring =
+        &ram_list.dirty_rings[(ram_list.dirty_ring_switch + 1) & 1];
+
+    assert(ring->buffer);
+
+    if (unlikely(ring->rpos == ring->wpos)) {
+        return false;
+    }
+
+    *page = ring->buffer[ring->rpos & ring->mask];
+    ring->rpos++;
+
+    return true;
+}
+
+unsigned long ram_list_enqueue_dirty_capacity(void)
+{
+    DirtyRing *ring = &ram_list.dirty_rings[ram_list.dirty_ring_switch & 1];
+
+    return ring->size - (ring->wpos - ring->rpos);
+
+}
+
+unsigned long ram_list_dequeue_dirty_capacity(void)
+{
+    DirtyRing *ring =
+        &ram_list.dirty_rings[(ram_list.dirty_ring_switch + 1) & 1];
+
+    return ring->wpos - ring->rpos;
+}
+
+bool ram_list_enqueue_dirty_full(void)
+{
+    DirtyRing *ring = &ram_list.dirty_rings[ram_list.dirty_ring_switch & 1];
+
+    return (ring->wpos - ring->rpos) == ring->size;
+}
+
+bool ram_list_dequeue_dirty_full(void)
+{
+    DirtyRing *ring =
+        &ram_list.dirty_rings[(ram_list.dirty_ring_switch + 1) & 1];
+
+    return (ring->wpos - ring->rpos) == ring->size;
+}
+
+void ram_list_dequeue_dirty_reset(void)
+{
+    DirtyRing *ring =
+        &ram_list.dirty_rings[(ram_list.dirty_ring_switch + 1) & 1];
+
+    ring->rpos = 0;
+    ring->wpos = 0;
+}
+
+void ram_list_dirty_ring_switch(void)
+{
+    ram_list.dirty_ring_switch++;
 }

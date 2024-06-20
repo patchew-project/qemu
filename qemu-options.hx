@@ -556,6 +556,35 @@ SRST
         -numa hmat-cache,node-id=1,size=10K,level=1,associativity=direct,policy=write-back,line=8
 ERST
 
+DEF("migration", HAS_ARG, QEMU_OPTION_migration,
+    "-migration [dirty-logging=method][,dirty-ring-size=n]\n"
+    "                Configure migration settings.\n"
+    "                dirty-logging: Specify the dirty logging method.\n"
+    "                    bitmap: Use bitmap-based dirty logging (default).\n"
+    "                    ring: Use ring-based dirty logging.\n"
+    "                dirty-ring-size: Specify the size of the dirty ring buffer.\n"
+    "                    This option is only applicable if dirty-logging is set to ring.\n"
+    "                    The size must be a power of 2.\n"
+    "                    Example: -migration dirty-logging=ring,dirty-ring-size=1024\n", QEMU_ARCH_ALL)
+SRST
+``-migration [dirty-logging=method,dirty-ring-size=n]``
+    Configure migration settings.
+
+    ``dirty-logging=bitmap``
+        Use bitmap-based dirty logging. This is the default method for tracking changes to memory pages during migration.
+
+    ``dirty-logging=ring``
+        Use ring-based dirty logging. This method uses a ring buffer to track changes to memory pages, which can be more efficient in some scenarios.
+
+    ``dirty-ring-size=n``
+        Specify the size of the dirty ring buffer when using ring-based dirty logging. The size must be a power of 2 (e.g., 1024, 2048, 4096). This option is only applicable if dirty-logging is set to ring.
+
+    Example:
+    ::
+
+        -migration dirty-logging=ring,dirty-ring-size=1024
+ERST
+
 DEF("add-fd", HAS_ARG, QEMU_OPTION_add_fd,
     "-add-fd fd=fd,set=set[,opaque=opaque]\n"
     "                Add 'fd' to fd 'set'\n", QEMU_ARCH_ALL)

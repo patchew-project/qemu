@@ -163,6 +163,7 @@ static const char *accelerators;
 static bool have_custom_ram_size;
 static const char *ram_memdev_id;
 static QDict *machine_opts_dict;
+static QDict *migration_opts_dict;
 static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
 static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
 static int display_remote;
@@ -753,6 +754,22 @@ static QemuOptsList qemu_smp_opts = {
         }, {
             .name = "maxcpus",
             .type = QEMU_OPT_NUMBER,
+        },
+        { /*End of list */ }
+    },
+};
+
+static QemuOptsList qemu_migration_opts = {
+    .name = "migration-opts",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_smp_opts.head),
+    .desc = {
+        {
+            .name = "dirty-logging", /* bitmap/ring */
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "dirty-ring-size",
+            .type = QEMU_OPT_SIZE,
         },
         { /*End of list */ }
     },
@@ -2742,7 +2759,7 @@ void qmp_x_exit_preconfig(Error **errp)
 void qemu_init(int argc, char **argv)
 {
     QemuOpts *opts;
-    QemuOpts *icount_opts = NULL, *accel_opts = NULL;
+    QemuOpts *icount_opts = NULL, *accel_opts = NULL, *migration_opts = NULL;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -2781,6 +2798,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_migration_opts);
     qemu_add_run_with_opts();
     module_call_init(MODULE_INIT_OPTS);
 
@@ -2812,6 +2830,7 @@ void qemu_init(int argc, char **argv)
     }
 
     machine_opts_dict = qdict_new();
+    migration_opts_dict = qdict_new();
     if (userconfig) {
         qemu_read_default_config_file(&error_fatal);
     }
@@ -3369,6 +3388,46 @@ void qemu_init(int argc, char **argv)
                 machine_parse_property_opt(qemu_find_opts("smp-opts"),
                                            "smp", optarg);
                 break;
+            case QEMU_OPTION_migration:
+                migration_opts =
+                    qemu_opts_parse_noisily(qemu_find_opts("migration-opts"),
+                                            optarg,
+                                            false);
+
+                optarg = qemu_opt_get(migration_opts, "dirty-logging");
+                if (optarg == NULL || strcmp(optarg, "bitmap") == 0) {
+                    qdict_put_str(migration_opts_dict,
+                                  "dirty-logging",
+                                  "bitmap");
+
+                    if (qemu_opt_find(migration_opts, "dirty-ring-size")) {
+                        error_report("dirty-ring-size is only supported "
+                                     "with dirty-logging=ring");
+                        exit(1);
+                    }
+                } else if (strcmp(optarg, "ring") == 0) {
+                    qdict_put_str(migration_opts_dict, "dirty-logging", "ring");
+
+                    uint64_t dirty_ring_size = qemu_opt_get_size(migration_opts,
+                                                                 "dirty-ring-size",
+                                                                 0);
+                    if (ctpop64(dirty_ring_size) != 1) {
+                        error_report("dirty-ring-size must be a power of 2");
+                        exit(1);
+                    } else if (dirty_ring_size > (uint64_t)INT64_MAX) {
+                        error_report("dirty-ring-size is too large");
+                        exit(1);
+                    }
+
+                    qdict_put_int(migration_opts_dict,
+                                  "dirty-ring-size",
+                                  dirty_ring_size);
+                } else {
+                    error_report("invalid dirty-logging option: %s", optarg);
+                    exit(1);
+                }
+
+                break;
 #ifdef CONFIG_VNC
             case QEMU_OPTION_vnc:
                 vnc_parse(optarg);
@@ -3735,7 +3794,7 @@ void qemu_init(int argc, char **argv)
      * Note: creates a QOM object, must run only after global and
      * compat properties have been set up.
      */
-    migration_object_init();
+    migration_object_init(migration_opts_dict);
 
     /* parse features once if machine provides default cpu_type */
     current_machine->cpu_type = machine_class_default_cpu_type(machine_class);

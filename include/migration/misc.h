@@ -51,13 +51,15 @@ AnnounceParameters *migrate_announce_params(void);
 void dump_vmstate_json_to_file(FILE *out_fp);
 
 /* migration/migration.c */
-void migration_object_init(void);
+void migration_object_init(QDict *qdict);
 void migration_shutdown(void);
 bool migration_is_idle(void);
 bool migration_is_active(void);
 bool migration_is_device(void);
 bool migration_thread_is_self(void);
 bool migration_is_setup_or_active(void);
+bool migration_has_dirty_ring(void);
+unsigned long migration_get_dirty_ring_size(void);
 
 typedef enum MigrationEventType {
     MIG_EVENT_PRECOPY_SETUP,

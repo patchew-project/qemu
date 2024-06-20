@@ -44,6 +44,7 @@
 #include "qapi/qapi-events-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/rcu.h"
 #include "postcopy-ram.h"
 #include "qemu/thread.h"
@@ -207,11 +208,19 @@ static int migration_stop_vm(MigrationState *s, RunState state)
     return ret;
 }
 
-void migration_object_init(void)
+void migration_object_init(QDict *qdict)
 {
     /* This can only be called once. */
     assert(!current_migration);
     current_migration = MIGRATION_OBJ(object_new(TYPE_MIGRATION));
+
+    const char *logging_method = qdict_get_try_str(qdict, "dirty-logging");
+    if (logging_method == NULL || strcmp(logging_method, "bitmap") == 0) {
+        current_migration->dirty_ring_size = 0;
+    } else if (strcmp(logging_method, "ring") == 0) {
+        current_migration->dirty_ring_size = qdict_get_int(qdict,
+                                                           "dirty-ring-size");
+    }
 
     /*
      * Init the migrate incoming object as well no matter whether
@@ -1630,6 +1639,20 @@ bool migration_thread_is_self(void)
 bool migrate_mode_is_cpr(MigrationState *s)
 {
     return s->parameters.mode == MIG_MODE_CPR_REBOOT;
+}
+
+bool migration_has_dirty_ring(void)
+{
+    MigrationState *s = current_migration;
+
+    return s->dirty_ring_size != 0;
+}
+
+unsigned long migration_get_dirty_ring_size(void)
+{
+    MigrationState *s = current_migration;
+
+    return s->dirty_ring_size;
 }
 
 int migrate_init(MigrationState *s, Error **errp)
@@ -3806,6 +3829,8 @@ static void migration_instance_init(Object *obj)
     qemu_sem_init(&ms->wait_unplug_sem, 0);
     qemu_sem_init(&ms->postcopy_qemufile_src_sem, 0);
     qemu_mutex_init(&ms->qemu_file_lock);
+
+    ms->dirty_ring_size = 0;
 }
 
 /*

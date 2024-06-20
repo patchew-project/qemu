@@ -457,6 +457,12 @@ struct MigrationState {
     bool switchover_acked;
     /* Is this a rdma migration */
     bool rdma_migration;
+
+    /*
+     * The number of elements in the dirty-ring.
+     * It is 0 if the dirty-ring is not enabled.
+     */
+    unsigned long dirty_ring_size;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

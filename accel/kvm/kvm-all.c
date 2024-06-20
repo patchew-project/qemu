@@ -667,7 +667,13 @@ static void kvm_dirty_ring_mark_page(KVMState *s, uint32_t as_id,
         return;
     }
 
-    set_bit(offset, mem->dirty_bmap);
+    if (!test_and_set_bit(offset, mem->dirty_bmap) &&
+        mem->flags & KVM_MEM_LOG_DIRTY_PAGES &&
+        migration_has_dirty_ring()) {
+        unsigned long pfn =
+            (mem->ram_start_offset >> TARGET_PAGE_BITS) + offset;
+        ram_list_enqueue_dirty(pfn);
+    }
 }
 
 static bool dirty_gfn_is_dirtied(struct kvm_dirty_gfn *gfn)
@@ -1674,6 +1680,34 @@ static void kvm_log_sync_global(MemoryListener *l, bool last_stage)
 
     /* Flush all kernel dirty addresses into KVMSlot dirty bitmap */
     kvm_dirty_ring_flush();
+
+    if (!ram_list_enqueue_dirty_full()) {
+        cpu_physical_memory_set_dirty_ring(ram_list_get_enqueue_dirty());
+
+        if (s->kvm_dirty_ring_with_bitmap && last_stage) {
+            kvm_slots_lock();
+            for (i = 0; i < s->nr_slots; i++) {
+                mem = &kml->slots[i];
+                if (mem->memory_size &&
+                    mem->flags & KVM_MEM_LOG_DIRTY_PAGES &&
+                    kvm_slot_get_dirty_log(s, mem)) {
+                    kvm_slot_sync_dirty_pages(mem);
+                }
+            }
+            kvm_slots_unlock();
+        }
+
+        kvm_slots_lock();
+        for (i = 0; i < s->nr_slots; i++) {
+            mem = &kml->slots[i];
+            if (mem->memory_size && mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
+                kvm_slot_reset_dirty_pages(mem);
+            }
+        }
+        kvm_slots_unlock();
+
+        return;
+    }
 
     /*
      * TODO: make this faster when nr_slots is big while there are

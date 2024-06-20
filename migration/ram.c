@@ -387,6 +387,7 @@ struct RAMState {
     bool xbzrle_started;
     /* Are we on the last stage of migration */
     bool last_stage;
+    bool first_bitmap_scanning;
 
     /* total handled target pages at the beginning of period */
     uint64_t target_page_count_prev;
@@ -1041,6 +1042,29 @@ static void migration_trigger_throttle(RAMState *rs)
     }
 }
 
+static uint64_t migration_sync_dirty_ring(RAMBlock *block)
+{
+    uint64_t dirty_page_count = 0;
+
+    uint64_t base = block->offset >> TARGET_PAGE_BITS;
+    uint64_t size = block->used_length >> TARGET_PAGE_BITS;
+    uint64_t nr = BITS_TO_LONGS(size);
+    for (uint64_t i = 0; i < nr; i++) {
+        if (block->bmap[i]) {
+            uint64_t page = i * BITS_PER_LONG;
+            uint64_t end = MIN(page + BITS_PER_LONG, size);
+            for (; page < end; page++) {
+                if (test_bit(page, block->bmap)) {
+                    ram_list_enqueue_dirty(base + page);
+                    dirty_page_count++;
+                }
+            }
+        }
+    }
+
+    return dirty_page_count;
+}
+
 static void migration_bitmap_sync(RAMState *rs, bool last_stage)
 {
     RAMBlock *block;
@@ -1052,8 +1076,47 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
         rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     }
 
+    if (migration_has_dirty_ring()) {
+        if (unlikely(ram_list_dequeue_dirty_full())) {
+            ram_list_dequeue_dirty_reset();
+
+            if (ram_list_enqueue_dirty_capacity() >=
+                rs->migration_dirty_pages) {
+                uint64_t dirty_page_count = 0;
+                WITH_QEMU_LOCK_GUARD(&rs->bitmap_mutex) {
+                    WITH_RCU_READ_LOCK_GUARD() {
+                        RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+                            dirty_page_count +=
+                                migration_sync_dirty_ring(block);
+                            if (dirty_page_count >=
+                                rs->migration_dirty_pages) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else {
+                DirtyRing *ring = ram_list_get_enqueue_dirty();
+                ring->wpos = ring->rpos + ring->size;
+            }
+        } else {
+            unsigned long page;
+            while (ram_list_dequeue_dirty(&page)) {
+                block = qemu_get_ram_block(page << TARGET_PAGE_BITS);
+                if (test_bit(page - (block->offset >> TARGET_PAGE_BITS),
+                             block->bmap)) {
+                    ram_list_enqueue_dirty(page);
+                }
+            }
+        }
+    }
+
     trace_migration_bitmap_sync_start();
     memory_global_dirty_log_sync(last_stage);
+
+    if (migration_has_dirty_ring()) {
+        ram_list_dirty_ring_switch();
+    }
 
     WITH_QEMU_LOCK_GUARD(&rs->bitmap_mutex) {
         WITH_RCU_READ_LOCK_GUARD() {
@@ -2214,7 +2277,11 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss)
             return tmppages;
         }
 
-        pss_find_next_dirty(pss);
+        if (!migration_has_dirty_ring()) {
+            pss_find_next_dirty(pss);
+        } else {
+            break;
+        }
     } while (pss_within_range(pss));
 
     pss_host_page_finish(pss);
@@ -2260,24 +2327,51 @@ static int ram_find_and_save_block(RAMState *rs)
 
     pss_init(pss, rs->last_seen_block, rs->last_page);
 
-    while (true){
-        if (!get_queued_page(rs, pss)) {
-            /* priority queue empty, so just search for something dirty */
-            int res = find_dirty_block(rs, pss);
-            if (res != PAGE_DIRTY_FOUND) {
-                if (res == PAGE_ALL_CLEAN) {
-                    break;
-                } else if (res == PAGE_TRY_AGAIN) {
-                    continue;
-                } else if (res < 0) {
-                    pages = res;
+    if (rs->first_bitmap_scanning ||
+        !migration_has_dirty_ring() ||
+        ram_list_dequeue_dirty_full()) {
+        while (true) {
+            if (!get_queued_page(rs, pss)) {
+                /* priority queue empty, so just search for something dirty */
+                int res = find_dirty_block(rs, pss);
+                if (pss->complete_round) {
+                    rs->first_bitmap_scanning = false;
+                }
+                if (res != PAGE_DIRTY_FOUND) {
+                    if (res == PAGE_ALL_CLEAN) {
+                        break;
+                    } else if (res == PAGE_TRY_AGAIN) {
+                        continue;
+                    } else if (res < 0) {
+                        pages = res;
+                        break;
+                    }
+                }
+            }
+            pages = ram_save_host_page(rs, pss);
+            if (pages) {
+                break;
+            }
+        }
+    } else {
+        while (get_queued_page(rs, pss)) {
+            pages = ram_save_host_page(rs, pss);
+            if (pages) {
+                break;
+            }
+        }
+
+        if (!pages) {
+            unsigned long page;
+            while (ram_list_dequeue_dirty(&page)) {
+                pss->block = qemu_get_ram_block(page << TARGET_PAGE_BITS);
+                pss->page = page - (pss->block->offset >> TARGET_PAGE_BITS);
+                pss->complete_round = false;
+                pages = ram_save_host_page(rs, pss);
+                if (pages) {
                     break;
                 }
             }
-        }
-        pages = ram_save_host_page(rs, pss);
-        if (pages) {
-            break;
         }
     }
 
@@ -2404,6 +2498,7 @@ static void ram_state_reset(RAMState *rs)
     rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->xbzrle_started = false;
+    rs->first_bitmap_scanning = true;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
