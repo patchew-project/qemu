@@ -2795,8 +2795,10 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
 #define ARG1_DECL    AddressSpace *as
 #include "exec/memory_ldst_phys.h.inc"
 
+typedef uint8_t *MemoryRegionCachePtr;
+
 struct MemoryRegionCache {
-    void *ptr;
+    MemoryRegionCachePtr ptr;
     hwaddr xlat;
     hwaddr len;
     FlatView *fv;
