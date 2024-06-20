@@ -456,7 +456,7 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
     }
     dmabuf = qemu_dmabuf_new(w, h, stride, x, y, backing_width,
                              backing_height, fourcc, modifier, fd,
-                             false, backing_y_0_top);
+                             false, backing_y_0_top, false);
 
     dbus_scanout_dmabuf(dcl, dmabuf);
     qemu_dmabuf_close(dmabuf);

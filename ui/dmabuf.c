@@ -26,6 +26,7 @@ struct QemuDmaBuf {
     void      *sync;
     int       fence_fd;
     bool      allow_fences;
+    bool      render_sync;
     bool      draw_submitted;
 };
 
@@ -34,7 +35,7 @@ QemuDmaBuf *qemu_dmabuf_new(uint32_t width, uint32_t height,
                             uint32_t y, uint32_t backing_width,
                             uint32_t backing_height, uint32_t fourcc,
                             uint64_t modifier, int32_t dmabuf_fd,
-                            bool allow_fences, bool y0_top) {
+                            bool allow_fences, bool y0_top, bool render_sync) {
     QemuDmaBuf *dmabuf;
 
     dmabuf = g_new0(QemuDmaBuf, 1);
@@ -51,6 +52,7 @@ QemuDmaBuf *qemu_dmabuf_new(uint32_t width, uint32_t height,
     dmabuf->fd = dmabuf_fd;
     dmabuf->allow_fences = allow_fences;
     dmabuf->y0_top = y0_top;
+    dmabuf->render_sync = render_sync;
     dmabuf->fence_fd = -1;
 
     return dmabuf;
@@ -196,6 +198,13 @@ bool qemu_dmabuf_get_draw_submitted(QemuDmaBuf *dmabuf)
     assert(dmabuf != NULL);
 
     return dmabuf->draw_submitted;
+}
+
+bool qemu_dmabuf_get_render_sync(QemuDmaBuf *dmabuf)
+{
+    assert(dmabuf != NULL);
+
+    return dmabuf->render_sync;
 }
 
 void qemu_dmabuf_set_texture(QemuDmaBuf *dmabuf, uint32_t texture)

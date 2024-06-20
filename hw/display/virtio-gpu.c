@@ -1671,6 +1671,8 @@ static Property virtio_gpu_properties[] = {
                      256 * MiB),
     DEFINE_PROP_BIT("blob", VirtIOGPU, parent_obj.conf.flags,
                     VIRTIO_GPU_FLAG_BLOB_ENABLED, false),
+    DEFINE_PROP_BIT("render_sync", VirtIOGPU, parent_obj.conf.flags,
+                    VIRTIO_GPU_FLAG_RENDER_SYNC_ENABLED, true),
     DEFINE_PROP_SIZE("hostmem", VirtIOGPU, parent_obj.conf.hostmem, 0),
     DEFINE_PROP_UINT8("x-scanout-vmstate-version", VirtIOGPU, scanout_vmstate_version, 2),
     DEFINE_PROP_END_OF_LIST(),

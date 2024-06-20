@@ -285,7 +285,8 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
                                  m->fd_stride, 0, 0, 0, 0,
                                  m->fd_drm_fourcc, modifier,
                                  fd, false, m->fd_flags &
-                                 VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP);
+                                 VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP,
+                                 false);
 
         dpy_gl_scanout_dmabuf(con, dmabuf);
         g->dmabuf[m->scanout_id] = dmabuf;

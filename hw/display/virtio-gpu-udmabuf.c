@@ -176,6 +176,7 @@ static VGPUDMABuf
                           struct virtio_gpu_rect *r)
 {
     VGPUDMABuf *dmabuf;
+    bool render_sync = virtio_gpu_render_sync_enabled(g->parent_obj.conf);
 
     if (res->dmabuf_fd < 0) {
         return NULL;
@@ -185,7 +186,7 @@ static VGPUDMABuf
     dmabuf->buf = qemu_dmabuf_new(r->width, r->height, fb->stride,
                                   r->x, r->y, fb->width, fb->height,
                                   qemu_pixman_to_drm_format(fb->format),
-                                  0, res->dmabuf_fd, true, false);
+                                  0, res->dmabuf_fd, true, false, render_sync);
     dmabuf->scanout_id = scanout_id;
     QTAILQ_INSERT_HEAD(&g->dmabuf.bufs, dmabuf, next);
 
