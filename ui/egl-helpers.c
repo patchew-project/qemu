@@ -371,34 +371,29 @@ void egl_dmabuf_release_texture(QemuDmaBuf *dmabuf)
     qemu_dmabuf_set_texture(dmabuf, 0);
 }
 
-void egl_dmabuf_create_sync(QemuDmaBuf *dmabuf)
+int egl_dmabuf_create_fence(QemuDmaBuf *dmabuf)
 {
     EGLSyncKHR sync;
+    int fence_fd = -1;
 
     if (epoxy_has_egl_extension(qemu_egl_display,
                                 "EGL_KHR_fence_sync") &&
         epoxy_has_egl_extension(qemu_egl_display,
-                                "EGL_ANDROID_native_fence_sync")) {
+                                "EGL_ANDROID_native_fence_sync") &&
+        qemu_dmabuf_get_fence_fd(dmabuf) == -1) {
         sync = eglCreateSyncKHR(qemu_egl_display,
                                 EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
         if (sync != EGL_NO_SYNC_KHR) {
-            qemu_dmabuf_set_sync(dmabuf, sync);
+            fence_fd = eglDupNativeFenceFDANDROID(qemu_egl_display,
+                                                  sync);
+            if (fence_fd >= 0) {
+                qemu_dmabuf_set_fence_fd(dmabuf, fence_fd);
+            }
+            eglDestroySyncKHR(qemu_egl_display, sync);
         }
     }
-}
 
-void egl_dmabuf_create_fence(QemuDmaBuf *dmabuf)
-{
-    void *sync = qemu_dmabuf_get_sync(dmabuf);
-    int fence_fd;
-
-    if (sync) {
-        fence_fd = eglDupNativeFenceFDANDROID(qemu_egl_display,
-                                              sync);
-        qemu_dmabuf_set_fence_fd(dmabuf, fence_fd);
-        eglDestroySyncKHR(qemu_egl_display, sync);
-        qemu_dmabuf_set_sync(dmabuf, NULL);
-    }
+    return fence_fd;
 }
 
 #endif /* CONFIG_GBM */
