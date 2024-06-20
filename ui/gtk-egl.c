@@ -80,6 +80,12 @@ void gd_egl_draw(VirtualConsole *vc)
     ww = gdk_window_get_width(window) * ws;
     wh = gdk_window_get_height(window) * ws;
 
+    vc->gfx.scale_x = (double)ww / surface_width(vc->gfx.ds);
+    vc->gfx.scale_y = (double)wh / surface_height(vc->gfx.ds);
+
+    eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
+                   vc->gfx.esurface, vc->gfx.ectx);
+
     if (vc->gfx.scanout_mode) {
 #ifdef CONFIG_GBM
         if (dmabuf) {
@@ -88,21 +94,9 @@ void gd_egl_draw(VirtualConsole *vc)
             } else {
                 qemu_dmabuf_set_draw_submitted(dmabuf, false);
             }
-        }
-#endif
-        gd_egl_scanout_flush(&vc->gfx.dcl, 0, 0, vc->gfx.w, vc->gfx.h);
 
-        vc->gfx.scale_x = (double)ww / surface_width(vc->gfx.ds);
-        vc->gfx.scale_y = (double)wh / surface_height(vc->gfx.ds);
-
-        glFlush();
-#ifdef CONFIG_GBM
-        if (dmabuf) {
-            fence_fd = egl_dmabuf_create_fence(dmabuf);
-            if (fence_fd >= 0) {
-                qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
-            } else {
-                graphic_hw_gl_block(vc->gfx.dcl.con, false);
+            if (qemu_dmabuf_get_render_sync(dmabuf)) {
+                gd_egl_scanout_flush(&vc->gfx.dcl, 0, 0, vc->gfx.w, vc->gfx.h);
             }
         }
 #endif
@@ -110,19 +104,12 @@ void gd_egl_draw(VirtualConsole *vc)
         if (!vc->gfx.ds) {
             return;
         }
-        eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
-                       vc->gfx.esurface, vc->gfx.ectx);
-
         surface_gl_setup_viewport(vc->gfx.gls, vc->gfx.ds, ww, wh);
         surface_gl_render_texture(vc->gfx.gls, vc->gfx.ds);
-
-        eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
-
-        vc->gfx.scale_x = (double)ww / surface_width(vc->gfx.ds);
-        vc->gfx.scale_y = (double)wh / surface_height(vc->gfx.ds);
-
-        glFlush();
     }
+
+    eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
+    glFlush();
 }
 
 void gd_egl_update(DisplayChangeListener *dcl,
@@ -146,14 +133,20 @@ void gd_egl_refresh(DisplayChangeListener *dcl)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
+#ifdef CONFIG_GBM
+    QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
+#endif
+
     gd_update_monitor_refresh_rate(
             vc, vc->window ? vc->window : vc->gfx.drawing_area);
 
-    if (vc->gfx.guest_fb.dmabuf &&
-        qemu_dmabuf_get_draw_submitted(vc->gfx.guest_fb.dmabuf)) {
+#ifdef CONFIG_GBM
+    if (dmabuf && qemu_dmabuf_get_draw_submitted(dmabuf) &&
+        qemu_dmabuf_get_render_sync(dmabuf)) {
         gd_egl_draw(vc);
         return;
     }
+#endif
 
     if (!vc->gfx.esurface) {
         gd_egl_init(vc);
@@ -166,9 +159,9 @@ void gd_egl_refresh(DisplayChangeListener *dcl)
             surface_gl_create_texture(vc->gfx.gls, vc->gfx.ds);
         }
 #ifdef CONFIG_GBM
-        if (vc->gfx.guest_fb.dmabuf) {
-            egl_dmabuf_release_texture(vc->gfx.guest_fb.dmabuf);
-            gd_egl_scanout_dmabuf(dcl, vc->gfx.guest_fb.dmabuf);
+        if (dmabuf) {
+            egl_dmabuf_release_texture(dmabuf);
+            gd_egl_scanout_dmabuf(dcl, dmabuf);
         }
 #endif
     }
@@ -344,6 +337,11 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
         return;
     }
     if (!vc->gfx.guest_fb.framebuffer) {
+#ifdef CONFIG_GBM
+        if (dmabuf) {
+            graphic_hw_gl_block(vc->gfx.dcl.con, false);
+        }
+#endif
         return;
     }
 
@@ -366,7 +364,16 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
         egl_fb_blit(&vc->gfx.win_fb, &vc->gfx.guest_fb, !vc->gfx.y0_top);
     }
 
-    eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
+#ifdef CONFIG_GBM
+    if (dmabuf) {
+        fence_fd = egl_dmabuf_create_fence(dmabuf);
+        if (fence_fd >= 0) {
+            qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
+        } else {
+            graphic_hw_gl_block(vc->gfx.dcl.con, false);
+        }
+    }
+#endif
 }
 
 void gd_egl_flush(DisplayChangeListener *dcl,
@@ -374,15 +381,22 @@ void gd_egl_flush(DisplayChangeListener *dcl,
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     GtkWidget *area = vc->gfx.drawing_area;
-
-    if (vc->gfx.guest_fb.dmabuf &&
-        !qemu_dmabuf_get_draw_submitted(vc->gfx.guest_fb.dmabuf)) {
-        graphic_hw_gl_block(vc->gfx.dcl.con, true);
-        qemu_dmabuf_set_draw_submitted(vc->gfx.guest_fb.dmabuf, true);
-        gtk_egl_set_scanout_mode(vc, true);
-        gtk_widget_queue_draw_area(area, x, y, w, h);
+#ifdef CONFIG_GBM
+    QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
+    if (dmabuf) {
+        if (!qemu_dmabuf_get_draw_submitted(dmabuf)) {
+            graphic_hw_gl_block(vc->gfx.dcl.con, true);
+            qemu_dmabuf_set_draw_submitted(dmabuf, true);
+            gtk_egl_set_scanout_mode(vc, true);
+            if (!qemu_dmabuf_get_render_sync(dmabuf)) {
+                gd_egl_scanout_flush(&vc->gfx.dcl, 0, 0, vc->gfx.w, vc->gfx.h);
+            }
+            gtk_widget_queue_draw_area(area, x, y, w, h);
+        }
         return;
     }
+#endif
+
     gd_egl_scanout_flush(&vc->gfx.dcl, x, y, w, h);
 }
 
