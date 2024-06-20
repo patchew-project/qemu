@@ -65,22 +65,21 @@ static void virtio_net_fuzz_multi(QTestState *s,
         } else {
             vqa.rx = 0;
             uint64_t req_addr = guest_alloc(t_alloc, vqa.length);
-            /*
-             * If checking used ring, ensure that the fuzzer doesn't trigger
-             * trivial asserion failure on zero-zied buffer
-             */
             qtest_memwrite(s, req_addr, Data, vqa.length);
-
 
             free_head = qvirtqueue_add(s, q, req_addr, vqa.length,
                     vqa.write, vqa.next);
-            qvirtqueue_add(s, q, req_addr, vqa.length, vqa.write , vqa.next);
             qvirtqueue_kick(s, dev, q, free_head);
         }
 
         /* Run the main loop */
         qtest_clock_step(s, 100);
         flush_events(s);
+        /* Input led to a virtio_error */
+        if (dev->bus->get_status(dev) & VIRTIO_CONFIG_S_NEEDS_RESET ||
+          !(dev->bus->get_status(dev) & VIRTIO_CONFIG_S_DRIVER_OK)) {
+            return;
+        }
 
         /* Wait on used descriptors */
         if (check_used && !vqa.rx) {
@@ -92,10 +91,6 @@ static void virtio_net_fuzz_multi(QTestState *s,
              */
             while (!vqa.rx && q != net_if->queues[QVIRTIO_RX_VQ]) {
                 uint32_t got_desc_idx;
-                /* Input led to a virtio_error */
-                if (dev->bus->get_status(dev) & VIRTIO_CONFIG_S_NEEDS_RESET) {
-                    break;
-                }
                 if (dev->bus->get_queue_isr_status(dev, q) &&
                         qvirtqueue_get_buf(s, q, &got_desc_idx, NULL)) {
                     g_assert_cmpint(got_desc_idx, ==, free_head);
@@ -107,6 +102,11 @@ static void virtio_net_fuzz_multi(QTestState *s,
                 /* Run the main loop */
                 qtest_clock_step(s, 100);
                 flush_events(s);
+                /* Input led to a virtio_error */
+                if (dev->bus->get_status(dev) & VIRTIO_CONFIG_S_NEEDS_RESET ||
+                  !(dev->bus->get_status(dev) & VIRTIO_CONFIG_S_DRIVER_OK)) {
+                    return;
+                }
             }
         }
         Data += vqa.length;
