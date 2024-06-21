@@ -317,6 +317,8 @@ static uint8_t sd_crc7(const void *message, size_t width)
     return shift_reg;
 }
 
+/* Operation Conditions register */
+
 #define OCR_POWER_DELAY_NS      500000 /* 0.5ms */
 
 FIELD(OCR, VDD_VOLTAGE_WINDOW,          0, 24)
@@ -366,6 +368,8 @@ static void sd_set_ocr(SDState *sd)
     }
 }
 
+/* SD Configuration register */
+
 static void sd_set_scr(SDState *sd)
 {
     sd->scr[0] = 0 << 4;        /* SCR structure version 1.0 */
@@ -387,6 +391,8 @@ static void sd_set_scr(SDState *sd)
     sd->scr[6] = 0x00;
     sd->scr[7] = 0x00;
 }
+
+/* Card IDentification register */
 
 #define MID     0xaa
 #define OID     "XY"
@@ -412,6 +418,8 @@ static void sd_set_cid(SDState *sd)
     sd->cid[14] = ((MDT_YR % 10) << 4) | MDT_MON;
     sd->cid[15] = (sd_crc7(sd->cid, 15) << 1) | 1;
 }
+
+/* Card-Specific Data register */
 
 #define HWBLOCK_SHIFT   9        /* 512 bytes */
 #define SECTOR_SHIFT    5        /* 16 kilobytes */
@@ -482,6 +490,8 @@ static void sd_set_csd(SDState *sd, uint64_t size)
     sd->csd[15] = (sd_crc7(sd->csd, 15) << 1) | 1;
 }
 
+/* Relative Card Address register */
+
 static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
 {
     if (sd_cmd_type[req.cmd] == sd_ac || sd_cmd_type[req.cmd] == sd_adtc) {
@@ -489,6 +499,8 @@ static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
     }
     return 0;
 }
+
+/* Card Status register */
 
 FIELD(CSR, AKE_SEQ_ERROR,               3,  1)
 FIELD(CSR, APP_CMD,                     5,  1)
@@ -620,6 +632,8 @@ static void sd_reset(DeviceState *dev)
     sect = sd_addr_to_wpnum(size) + 1;
 
     sd->state = sd_idle_state;
+
+    /* card registers */
     sd->rca = 0x0000;
     sd->size = size;
     sd_set_ocr(sd);
@@ -1052,6 +1066,7 @@ static sd_rsp_type_t sd_cmd_unimplemented(SDState *sd, SDRequest req)
     return sd_illegal;
 }
 
+/* CMD0 */
 static sd_rsp_type_t sd_cmd_GO_IDLE_STATE(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_inactive_state) {
@@ -1062,6 +1077,7 @@ static sd_rsp_type_t sd_cmd_GO_IDLE_STATE(SDState *sd, SDRequest req)
     return sd_is_spi(sd) ? sd_r1 : sd_r0;
 }
 
+/* CMD1 */
 static sd_rsp_type_t spi_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
 {
     sd->state = sd_transfer_state;
@@ -1069,6 +1085,7 @@ static sd_rsp_type_t spi_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
     return sd_r1;
 }
 
+/* CMD2 */
 static sd_rsp_type_t sd_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
 {
     switch (sd->state) {
@@ -1080,6 +1097,7 @@ static sd_rsp_type_t sd_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
     }
 }
 
+/* CMD3 */
 static sd_rsp_type_t sd_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
 {
     switch (sd->state) {
@@ -1094,6 +1112,7 @@ static sd_rsp_type_t sd_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
     }
 }
 
+/* CMD19 */
 static sd_rsp_type_t sd_cmd_SEND_TUNING_BLOCK(SDState *sd, SDRequest req)
 {
     if (sd->spec_version < SD_PHY_SPECv3_01_VERS) {
@@ -1110,6 +1129,7 @@ static sd_rsp_type_t sd_cmd_SEND_TUNING_BLOCK(SDState *sd, SDRequest req)
     return sd_r1;
 }
 
+/* CMD23 */
 static sd_rsp_type_t sd_cmd_SET_BLOCK_COUNT(SDState *sd, SDRequest req)
 {
     if (sd->spec_version < SD_PHY_SPECv3_01_VERS) {
