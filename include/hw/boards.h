@@ -4,6 +4,7 @@
 #define HW_BOARDS_H
 
 #include "exec/memory.h"
+#include "sysemu/igvm-cfg.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/blockdev.h"
 #include "qapi/qapi-types-machine.h"
@@ -382,6 +383,7 @@ struct MachineState {
     bool suppress_vmdesc;
     bool enable_graphics;
     ConfidentialGuestSupport *cgs;
+    IgvmCfgState *igvm;
     HostMemoryBackend *memdev;
     /*
      * convenience alias to ram_memdev_id backend memory region
