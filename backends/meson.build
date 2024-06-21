@@ -32,6 +32,8 @@ system_ss.add(when: gio, if_true: files('dbus-vmstate.c'))
 system_ss.add(when: 'CONFIG_SGX', if_true: files('hostmem-epc.c'))
 if igvm.found()
   system_ss.add(igvm)
+  system_ss.add(files('igvm-cfg.c'), igvm)
+  system_ss.add(files('igvm.c'), igvm)
 endif
 
 subdir('tpm')
