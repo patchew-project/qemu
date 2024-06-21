@@ -9,7 +9,10 @@
  * directory.
  */
 
-#include "libc.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "s390-ccw.h"
 #include "sclp.h"
 #include "s390-time.h"
@@ -140,20 +143,17 @@ static int get_index(void)
         }
     }
 
-    return atoui(buf);
+    return atoi(buf);
 }
 
 static void boot_menu_prompt(bool retry)
 {
-    char tmp[11];
-
     if (retry) {
         sclp_print("\nError: undefined configuration"
                    "\nPlease choose:\n");
     } else if (timeout > 0) {
-        sclp_print("Please choose (default will boot in ");
-        sclp_print(uitoa(timeout / 1000, tmp, sizeof(tmp)));
-        sclp_print(" seconds):\n");
+        printf("Please choose (default will boot in %d seconds):\n",
+               (int)(timeout / 1000));
     } else {
         sclp_print("Please choose:\n");
     }
@@ -163,7 +163,6 @@ static int get_boot_index(bool *valid_entries)
 {
     int boot_index;
     bool retry = false;
-    char tmp[5];
 
     do {
         boot_menu_prompt(retry);
@@ -172,8 +171,7 @@ static int get_boot_index(bool *valid_entries)
     } while (boot_index < 0 || boot_index >= MAX_BOOT_ENTRIES ||
              !valid_entries[boot_index]);
 
-    sclp_print("\nBooting entry #");
-    sclp_print(uitoa(boot_index, tmp, sizeof(tmp)));
+    printf("\nBooting entry #%d", boot_index);
 
     return boot_index;
 }
@@ -189,7 +187,7 @@ static int zipl_print_entry(const char *data, size_t len)
 
     sclp_print(buf);
 
-    return buf[0] == ' ' ? atoui(buf + 1) : atoui(buf);
+    return buf[0] == ' ' ? atoi(buf + 1) : atoi(buf);
 }
 
 int menu_get_zipl_boot_index(const char *menu_data)
@@ -231,7 +229,6 @@ int menu_get_zipl_boot_index(const char *menu_data)
 
 int menu_get_enum_boot_index(bool *valid_entries)
 {
-    char tmp[3];
     int i;
 
     sclp_print("s390-ccw Enumerated Boot Menu.\n\n");
@@ -241,9 +238,7 @@ int menu_get_enum_boot_index(bool *valid_entries)
             if (i < 10) {
                 sclp_print(" ");
             }
-            sclp_print("[");
-            sclp_print(uitoa(i, tmp, sizeof(tmp)));
-            sclp_print("]");
+            printf("[%d]", i);
             if (i == 0) {
                 sclp_print(" default\n");
             }

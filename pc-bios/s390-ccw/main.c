@@ -8,7 +8,8 @@
  * directory.
  */
 
-#include "libc.h"
+#include <stdlib.h>
+#include <string.h>
 #include "helper.h"
 #include "s390-arch.h"
 #include "s390-ccw.h"
@@ -50,7 +51,7 @@ void write_iplb_location(void)
 
 unsigned int get_loadparm_index(void)
 {
-    return atoui(loadparm_str);
+    return atoi(loadparm_str);
 }
 
 static int is_dev_possibly_bootable(int dev_no, int sch_no)

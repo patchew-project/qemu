@@ -13,6 +13,10 @@
 
 /* #define DEBUG */
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 typedef unsigned char      u8;
 typedef unsigned short     u16;
 typedef unsigned int       u32;
@@ -26,9 +30,6 @@ typedef unsigned long long u64;
 #define EBUSY   2
 #define ENODEV  3
 
-#ifndef NULL
-#define NULL    0
-#endif
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
