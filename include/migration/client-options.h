@@ -16,6 +16,7 @@ bool migrate_background_snapshot(void);
 bool migrate_dirty_limit(void);
 bool migrate_postcopy_ram(void);
 bool migrate_switchover_ack(void);
+bool migrate_switchover_abort(void);
 
 /* parameters */
 

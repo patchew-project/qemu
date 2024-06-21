@@ -1492,6 +1492,7 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
 {
     int64_t start_ts_each, end_ts_each;
     SaveStateEntry *se;
+    MigrationState *s = migrate_get_current();
     int ret;
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
@@ -1523,6 +1524,11 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
         end_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
         trace_vmstate_downtime_save("iterable", se->idstr, se->instance_id,
                                     end_ts_each - start_ts_each);
+        if (migration_downtime_exceeded()) {
+            if (migration_set_downtime_exceeded_error(s, f)) {
+                return -1;
+            }
+        }
     }
 
     trace_vmstate_downtime_checkpoint("src-iterable-saved");
@@ -1561,6 +1567,13 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         end_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
         trace_vmstate_downtime_save("non-iterable", se->idstr, se->instance_id,
                                     end_ts_each - start_ts_each);
+
+        if (migration_downtime_exceeded()) {
+            if (migration_set_downtime_exceeded_error(ms, f)) {
+                return -1;
+            }
+        }
+
     }
 
     if (inactivate_disks) {

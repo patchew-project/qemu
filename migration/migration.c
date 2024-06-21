@@ -113,6 +113,7 @@ static void migration_downtime_start(MigrationState *s)
 {
     trace_vmstate_downtime_checkpoint("src-downtime-start");
     s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    s->downtime_now = s->downtime_start;
 }
 
 static void migration_downtime_end(MigrationState *s)
@@ -204,6 +205,10 @@ static int migration_stop_vm(MigrationState *s, RunState state)
     trace_vmstate_downtime_checkpoint("src-vm-stopped");
     trace_migration_completion_vm_stop(ret);
 
+    if (migration_downtime_exceeded()) {
+        migration_set_downtime_exceeded_error(s, s->to_dst_file);
+        ret = -1;
+    }
     return ret;
 }
 
@@ -1652,6 +1657,7 @@ int migrate_init(MigrationState *s, Error **errp)
     s->mbps = 0.0;
     s->pages_per_second = 0.0;
     s->downtime = 0;
+    s->downtime_now = 0;
     s->expected_downtime = 0;
     s->setup_time = 0;
     s->start_postcopy = false;
@@ -2756,6 +2762,39 @@ static void migration_completion_failed(MigrationState *s,
 
     migrate_set_state(&s->state, current_active_state,
                       MIGRATION_STATUS_FAILED);
+}
+
+int64_t migration_get_current_downtime(MigrationState *s)
+{
+    s->downtime_now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+    return s->downtime_now - s->downtime_start;
+}
+
+bool migration_downtime_exceeded(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    if (!migrate_switchover_abort()) {
+        return 0;
+    }
+
+    return migration_get_current_downtime(s) >= s->parameters.downtime_limit +
+                                                s->parameters.switchover_limit;
+}
+
+int migration_set_downtime_exceeded_error(MigrationState *s, QEMUFile *f)
+{
+    int64_t limit = s->parameters.downtime_limit;
+    Error *errp = NULL;
+
+    error_setg(&errp, "Downtime Limit of %" PRIi64" ms exceeded by %"PRIi64" ms",
+               limit, (s->downtime_now - s->downtime_start) - limit);
+
+    migration_cancel(errp);
+    error_free(errp);
+
+    return -EFAULT;
 }
 
 /**

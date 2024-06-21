@@ -40,6 +40,13 @@
  * for sending the last part */
 #define DEFAULT_MIGRATE_SET_DOWNTIME 300
 
+/*
+ * Time in milliseconds that downtime can exceed downtime limit
+ * on source or destination before migration aborts if capability
+ * switchover_abort is enabled
+ */
+#define DEFAULT_MIGRATE_SET_SWITCHOVER_LIMIT 0
+
 /* Define default autoconverge cpu throttle migration parameters */
 #define DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD 50
 #define DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL 20
@@ -162,6 +169,9 @@ Property migration_properties[] = {
     DEFINE_PROP_ZERO_PAGE_DETECTION("zero-page-detection", MigrationState,
                        parameters.zero_page_detection,
                        ZERO_PAGE_DETECTION_MULTIFD),
+    DEFINE_PROP_UINT64("x-switchover-limit", MigrationState,
+                       parameters.switchover_limit,
+                       DEFAULT_MIGRATE_SET_SWITCHOVER_LIMIT),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -184,6 +194,8 @@ Property migration_properties[] = {
 #endif
     DEFINE_PROP_MIG_CAP("x-switchover-ack",
                         MIGRATION_CAPABILITY_SWITCHOVER_ACK),
+    DEFINE_PROP_MIG_CAP("x-switchover-abort",
+                        MIGRATION_CAPABILITY_SWITCHOVER_ABORT),
     DEFINE_PROP_MIG_CAP("x-dirty-limit", MIGRATION_CAPABILITY_DIRTY_LIMIT),
     DEFINE_PROP_MIG_CAP("mapped-ram", MIGRATION_CAPABILITY_MAPPED_RAM),
     DEFINE_PROP_END_OF_LIST(),
@@ -313,6 +325,13 @@ bool migrate_switchover_ack(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_SWITCHOVER_ACK];
+}
+
+bool migrate_switchover_abort(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_SWITCHOVER_ABORT];
 }
 
 bool migrate_validate_uuid(void)
@@ -592,6 +611,14 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         }
     }
 
+    if (new_caps[MIGRATION_CAPABILITY_SWITCHOVER_ABORT]) {
+        if (!new_caps[MIGRATION_CAPABILITY_RETURN_PATH]) {
+            error_setg(errp, "Capability 'switchover-abort' requires capability "
+                             "'return-path'");
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -824,6 +851,13 @@ ZeroPageDetection migrate_zero_page_detection(void)
     return s->parameters.zero_page_detection;
 }
 
+void migrate_set_switchover_limit(uint64_t value)
+{
+    MigrationState *s = migrate_get_current();
+
+   s->parameters.switchover_limit = value;
+}
+
 /* parameters helpers */
 
 AnnounceParameters *migrate_announce_params(void)
@@ -905,6 +939,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->mode = s->parameters.mode;
     params->has_zero_page_detection = true;
     params->zero_page_detection = s->parameters.zero_page_detection;
+    params->has_switchover_limit = true;
+    params->switchover_limit = s->parameters.switchover_limit;
 
     return params;
 }
@@ -937,6 +973,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_vcpu_dirty_limit = true;
     params->has_mode = true;
     params->has_zero_page_detection = true;
+    params->has_switchover_limit = true;
 }
 
 /*
@@ -1110,6 +1147,15 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
+    if (params->has_switchover_limit &&
+        (params->switchover_limit > MAX_MIGRATE_DOWNTIME)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "switchover_limit",
+                   "an integer in the range of 0 to "
+                    stringify(MAX_MIGRATE_DOWNTIME)" ms");
+        return false;
+    }
+
     return true;
 }
 
@@ -1216,6 +1262,11 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_zero_page_detection) {
         dest->zero_page_detection = params->zero_page_detection;
     }
+
+    if (params->has_switchover_limit) {
+        dest->switchover_limit = params->switchover_limit;
+    }
+
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -1341,6 +1392,11 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     if (params->has_zero_page_detection) {
         s->parameters.zero_page_detection = params->zero_page_detection;
     }
+
+    if (params->has_switchover_limit) {
+        s->parameters.switchover_limit = params->switchover_limit;
+    }
+
 }
 
 void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
