@@ -31,6 +31,6 @@ static inline const char *cpu_get_model(uint32_t eflags)
     default:
         break;
     }
-    return "5KEf";
+    return "MIPS64R2-generic";
 }
 #endif
