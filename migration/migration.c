@@ -240,6 +240,8 @@ void migration_object_init(void)
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
 
     current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
+    /* Downtime will start when source sends its current downtime. */
+    current_incoming->downtime_start = 0;
 
     migration_object_check(current_migration, &error_fatal);
 

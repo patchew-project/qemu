@@ -54,6 +54,9 @@ postcopy_pause_incoming(void) ""
 postcopy_pause_incoming_continued(void) ""
 postcopy_page_req_sync(void *host_addr) "sync page req %p"
 
+qemu_savevm_send_downtime(uint64_t src_abort_limit_ms, uint64_t source_downtime) "switchover abort limit=%"PRIi64", source downtime=%"PRIi64
+loadvm_handle_src_downtime(uint64_t src_abort_limit_ms, uint64_t source_downtime) "switchover abort limit=%"PRIi64", source downtime=%"PRIi64
+qemu_loadvm_downtime_abort(uint64_t abort_limit_ms, uint64_t dst_downtime, uint64_t source_downtime) "switchover abort limit=%"PRIi64", destination downtime=%"PRIi64", source downtime=%"PRIi64
 # vmstate.c
 vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
 vmstate_load_state(const char *name, int version_id) "%s v%d"

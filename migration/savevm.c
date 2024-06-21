@@ -90,6 +90,7 @@ enum qemu_vm_cmd {
     MIG_CMD_ENABLE_COLO,       /* Enable COLO */
     MIG_CMD_POSTCOPY_RESUME,   /* resume postcopy on dest */
     MIG_CMD_RECV_BITMAP,       /* Request for recved bitmap on dst */
+    MIG_CMD_SEND_SRC_DOWNTIME,    /* Send current downtime to dst */
     MIG_CMD_MAX
 };
 
@@ -109,6 +110,7 @@ static struct mig_cmd_args {
     [MIG_CMD_POSTCOPY_RESUME]  = { .len =  0, .name = "POSTCOPY_RESUME" },
     [MIG_CMD_PACKAGED]         = { .len =  4, .name = "PACKAGED" },
     [MIG_CMD_RECV_BITMAP]      = { .len = -1, .name = "RECV_BITMAP" },
+    [MIG_CMD_SEND_SRC_DOWNTIME] = { .len = -1, .name = "SEND_SRC_DOWNTIME" },
     [MIG_CMD_MAX]              = { .len = -1, .name = "MAX" },
 };
 
@@ -1218,6 +1220,18 @@ void qemu_savevm_send_recv_bitmap(QEMUFile *f, char *block_name)
     qemu_savevm_command_send(f, MIG_CMD_RECV_BITMAP, len + 1, (uint8_t *)buf);
 }
 
+void qemu_savevm_send_downtime(QEMUFile *f, int64_t abort_limit_ms,
+                               int64_t source_downtime)
+{
+    uint64_t tmp[2];
+    tmp[0] = cpu_to_be64(abort_limit_ms);
+    tmp[1] = cpu_to_be64(source_downtime);
+
+    trace_qemu_savevm_send_downtime(abort_limit_ms, source_downtime);
+    qemu_savevm_command_send(f, MIG_CMD_SEND_SRC_DOWNTIME,
+                             16, (uint8_t *)tmp);
+}
+
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -1635,6 +1649,14 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
         }
     }
 
+    if (migrate_switchover_abort()) {
+        MigrationState *s = migrate_get_current();
+        uint64_t abort_limit_ms =
+            s->parameters.downtime_limit + s->parameters.switchover_limit;
+        qemu_savevm_send_downtime(f, abort_limit_ms,
+                                  migration_get_current_downtime(s));
+    }
+
     if (iterable_only) {
         goto flush;
     }
@@ -1916,6 +1938,20 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis,
         return -1;
     }
 
+    return 0;
+}
+
+static int loadvm_handle_src_downtime(MigrationIncomingState *mis,
+                                      uint16_t len)
+{
+    uint64_t src_abort_limit = qemu_get_be64(mis->from_src_file);
+    uint64_t src_current_downtime = qemu_get_be64(mis->from_src_file);
+
+    mis->abort_limit = src_abort_limit;
+    mis->src_downtime = src_current_downtime;
+    mis->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+    trace_loadvm_handle_src_downtime(src_abort_limit, src_current_downtime);
     return 0;
 }
 
@@ -2540,6 +2576,9 @@ static int loadvm_process_command(QEMUFile *f)
 
     case MIG_CMD_ENABLE_COLO:
         return loadvm_process_enable_colo(mis);
+
+    case MIG_CMD_SEND_SRC_DOWNTIME:
+        return loadvm_handle_src_downtime(mis, len);
     }
 
     return 0;
@@ -2659,6 +2698,18 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis,
         trace_vmstate_downtime_load("non-iterable", se->idstr,
                                     se->instance_id, end_ts - start_ts);
     }
+    if (migrate_switchover_abort() && type == QEMU_VM_SECTION_FULL &&
+        mis->downtime_start) {
+        mis->downtime_now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        uint64_t dst_downtime = mis->downtime_now - mis->downtime_start;
+        if (mis->src_downtime + dst_downtime >= mis->abort_limit) {
+            error_report("Shutdown destination migration, migration abort_limit"
+                         "(%lu ms) was reached.", mis->abort_limit);
+            trace_qemu_loadvm_downtime_abort(mis->abort_limit, dst_downtime,
+                                             mis->src_downtime);
+            return -EINVAL;
+        }
+    }
 
     if (!check_section_footer(f, se)) {
         return -EINVAL;
@@ -2712,6 +2763,19 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis,
         end_ts = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
         trace_vmstate_downtime_load("iterable", se->idstr,
                                     se->instance_id, end_ts - start_ts);
+    }
+
+    if (migrate_switchover_abort() && type == QEMU_VM_SECTION_END &&
+        mis->downtime_start) {
+        mis->downtime_now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        uint64_t dst_downtime = mis->downtime_now - mis->downtime_start;
+        if (mis->src_downtime + dst_downtime >= mis->abort_limit) {
+            error_report("Shutdown destination migration, migration abort_limit (%lu ms)"
+                          "was reached.", mis->abort_limit);
+            trace_qemu_loadvm_downtime_abort(mis->abort_limit, dst_downtime,
+                                             mis->src_downtime);
+            return -EINVAL;
+        }
     }
 
     if (!check_section_footer(f, se)) {
@@ -2901,6 +2965,10 @@ retry:
         }
 
         trace_qemu_loadvm_state_section(section_type);
+        /* Start destination timer after we receive the downtime from source. */
+        if (mis->downtime_start) {
+            mis->downtime_now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        }
         switch (section_type) {
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:

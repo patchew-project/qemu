@@ -230,6 +230,21 @@ struct MigrationIncomingState {
 
     /* Do exit on incoming migration failure */
     bool exit_on_error;
+
+    /* Initial downtime on destination set by MIG_CMD_SEND_SRC_DOWNTIME */
+    uint64_t downtime_start;
+    /*
+     * Current donwtime on destination that initially set equal to source by
+     * MIG_CMD_SEND_SRC_DOWNTIME, then updated by destination itself.
+     */
+    uint64_t downtime_now;
+    /*
+     * Abort live migration on destination when current destination downtime
+     * exceeds the abort_limit. abort_limit is being set by
+     * MIG_CMD_SEND_SRC_DOWNTIME sent from source.
+     */
+    uint64_t abort_limit;
+    uint64_t src_downtime;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
