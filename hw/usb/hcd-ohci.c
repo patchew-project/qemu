@@ -980,7 +980,8 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
         if (dev == NULL) {
             trace_usb_ohci_td_dev_error();
-            return 1;
+            OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_DEVICENOTRESPONDING);
+            goto exit_and_retire;
         }
         ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
         if (ohci->async_td) {
@@ -1087,6 +1088,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         ed->head |= OHCI_ED_H;
     }
 
+exit_and_retire:
     /* Retire this TD */
     ed->head &= ~OHCI_DPTR_MASK;
     ed->head |= td.next & OHCI_DPTR_MASK;
