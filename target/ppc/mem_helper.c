@@ -270,13 +270,13 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
     }
 }
 
-static void dcbz_common(CPUPPCState *env, target_ulong addr,
-                        uint32_t opcode, bool epid, uintptr_t retaddr)
+void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode,
+                 uint32_t mmu_idx)
 {
     target_ulong mask, dcbz_size = env->dcache_line_size;
     uint32_t i;
     void *haddr;
-    int mmu_idx = epid ? PPC_TLB_EPID_STORE : ppc_env_mmu_index(env, false);
+    uintptr_t retaddr = GETPC();
 
 #if defined(TARGET_PPC64)
     /* Check for dcbz vs dcbzl on 970 */
@@ -305,16 +305,6 @@ static void dcbz_common(CPUPPCState *env, target_ulong addr,
             cpu_stq_mmuidx_ra(env, addr + i, 0, mmu_idx, retaddr);
         }
     }
-}
-
-void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
-{
-    dcbz_common(env, addr, opcode, false, GETPC());
-}
-
-void helper_dcbzep(CPUPPCState *env, target_ulong addr, uint32_t opcode)
-{
-    dcbz_common(env, addr, opcode, true, GETPC());
 }
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)
