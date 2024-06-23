@@ -590,6 +590,10 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                  unsigned size, MMUAccessType access_type,
                                  int mmu_idx, MemTxAttrs attrs,
                                  MemTxResult response, uintptr_t retaddr);
+G_NORETURN void m68k_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                             MMUAccessType access_type,
+                                             int mmu_idx,
+                                             uintptr_t retaddr);
 #endif
 
 #include "exec/cpu-all.h"

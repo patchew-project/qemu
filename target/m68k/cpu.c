@@ -538,6 +538,7 @@ static const TCGCPUOps m68k_tcg_ops = {
     .cpu_exec_interrupt = m68k_cpu_exec_interrupt,
     .do_interrupt = m68k_cpu_do_interrupt,
     .do_transaction_failed = m68k_cpu_transaction_failed,
+    .do_unaligned_access = m68k_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
 };
 
