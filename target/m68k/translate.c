@@ -303,13 +303,18 @@ static inline TCGv gen_load(DisasContext *s, int opsize, TCGv addr,
                             int sign, int index)
 {
     TCGv tmp = tcg_temp_new_i32();
+    MemOp memop = opsize | (sign ? MO_SIGN : 0) | MO_TE;
 
     switch (opsize) {
     case OS_BYTE:
+        tcg_gen_qemu_ld_tl(tmp, addr, index, memop);
+        break;
     case OS_WORD:
     case OS_LONG:
-        tcg_gen_qemu_ld_tl(tmp, addr, index,
-                           opsize | (sign ? MO_SIGN : 0) | MO_TE);
+        if (!m68k_feature(s->env, M68K_FEATURE_UNALIGNED_DATA)) {
+            memop |= MO_ALIGN_2;
+        }
+        tcg_gen_qemu_ld_tl(tmp, addr, index, memop);
         break;
     default:
         g_assert_not_reached();
@@ -321,11 +326,18 @@ static inline TCGv gen_load(DisasContext *s, int opsize, TCGv addr,
 static inline void gen_store(DisasContext *s, int opsize, TCGv addr, TCGv val,
                              int index)
 {
+    MemOp memop = opsize | MO_TE;
+
     switch (opsize) {
     case OS_BYTE:
+        tcg_gen_qemu_st_tl(val, addr, index, memop);
+        break;
     case OS_WORD:
     case OS_LONG:
-        tcg_gen_qemu_st_tl(val, addr, index, opsize | MO_TE);
+        if (!m68k_feature(s->env, M68K_FEATURE_UNALIGNED_DATA)) {
+            memop |= MO_ALIGN_2;
+        }
+        tcg_gen_qemu_st_tl(val, addr, index, memop);
         break;
     default:
         g_assert_not_reached();
