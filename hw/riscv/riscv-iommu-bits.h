@@ -82,6 +82,7 @@ struct riscv_iommu_pq_record {
 
 /* 5.4 Features control register (32bits) */
 #define RISCV_IOMMU_REG_FCTL            0x0008
+#define RISCV_IOMMU_FCTL_BE             BIT(0)
 #define RISCV_IOMMU_FCTL_WSI            BIT(1)
 
 /* 5.5 Device-directory-table pointer (64bits) */
@@ -311,6 +312,7 @@ enum riscv_iommu_fq_causes {
 
 /* Translation attributes fields */
 #define RISCV_IOMMU_PC_TA_V             BIT_ULL(0)
+#define RISCV_IOMMU_PC_TA_RESERVED      GENMASK_ULL(63, 32)
 
 /* First stage context fields */
 #define RISCV_IOMMU_PC_FSC_PPN          GENMASK_ULL(43, 0)
