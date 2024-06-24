@@ -1,4 +1,4 @@
-# Functional test that boots a Linux kernel and checks the console
+# Functional test that boots a kernel and checks the console
 #
 # SPDX-FileCopyrightText: 2023-2024 Linaro Ltd.
 # SPDX-FileContributor: Philippe Mathieu-Daudé <philmd@linaro.org>
@@ -8,7 +8,7 @@
 
 import os
 
-from avocado import skipUnless
+from avocado import skipIf, skipUnless
 from avocado.utils import archive
 
 from avocado_qemu import QemuSystemTest
@@ -165,14 +165,14 @@ class Aarch64SbsarefMachine(QemuSystemTest):
         """
         self.boot_alpine_linux("max,pauth-impdef=on")
 
-    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
+    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'),
+                'Test might timeout due to PAuth emulation')
     def test_sbsaref_alpine_linux_max(self):
         """
         :avocado: tags=cpu:max
         :avocado: tags=os:linux
         """
         self.boot_alpine_linux("max")
-
 
     # This tests the whole boot chain from EFI to Userspace
     # We only boot a whole OS for the current top level CPU and GIC
@@ -200,6 +200,9 @@ class Aarch64SbsarefMachine(QemuSystemTest):
                                  "Welcome to the OpenBSD/arm64"
                                  " 7.3 installation program.")
 
+
+    # we keep OpenBSD 7.3 on Cortex-A57 by request
+    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_sbsaref_openbsd73_cortex_a57(self):
         """
         :avocado: tags=cpu:cortex-a57
@@ -207,32 +210,66 @@ class Aarch64SbsarefMachine(QemuSystemTest):
         """
         self.boot_openbsd73("cortex-a57")
 
-    def test_sbsaref_openbsd73_neoverse_n1(self):
-        """
-        :avocado: tags=cpu:neoverse-n1
-        :avocado: tags=os:openbsd
-        """
-        self.boot_openbsd73("neoverse-n1")
 
-    def test_sbsaref_openbsd73_max_pauth_off(self):
+    # This tests the whole boot chain from EFI to Userspace
+    # We only boot a whole OS for the current top level CPU and GIC
+    # Other test profiles should use more minimal boots
+    def boot_freebsd(self, cpu):
+        self.fetch_firmware()
+
+        img_url = (
+            "https://download.freebsd.org/releases/arm64/aarch64/ISO-IMAGES/"
+            "14.1/FreeBSD-14.1-RELEASE-arm64-aarch64-bootonly.iso"
+        )
+
+        img_hash = "44cdbae275ef1bb6dab1d5fbb59473d4f741e1c8ea8a80fd9e906b531d6ad461"
+        img_path = self.fetch_asset(img_url, algorithm="sha256", asset_hash=img_hash)
+
+        self.vm.set_console()
+        self.vm.add_args(
+            "-cpu",
+            cpu,
+            "-drive",
+            f"file={img_path},format=raw",
+        )
+
+        self.vm.launch()
+        wait_for_console_pattern(self, "Welcome to FreeBSD!")
+
+    def test_sbsaref_freebsd_cortex_a57(self):
+        """
+        :avocado: tags=cpu:cortex-a57
+        :avocado: tags=os:freebsd
+        """
+        self.boot_freebsd("cortex-a57")
+
+    # We use Neoverse-N2 as default cpu
+    def test_sbsaref_freebsd_neoverse_n2(self):
+        """
+        :avocado: tags=cpu:neoverse-n2
+        :avocado: tags=os:freebsd
+        """
+        self.boot_freebsd("neoverse-n2")
+
+    def test_sbsaref_freebsd_max_pauth_off(self):
         """
         :avocado: tags=cpu:max
-        :avocado: tags=os:openbsd
+        :avocado: tags=os:freebsd
         """
-        self.boot_openbsd73("max,pauth=off")
+        self.boot_freebsd("max,pauth=off")
 
-    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
-    def test_sbsaref_openbsd73_max_pauth_impdef(self):
+    def test_sbsaref_freebsd_max_pauth_impdef(self):
         """
         :avocado: tags=cpu:max
-        :avocado: tags=os:openbsd
+        :avocado: tags=os:freebsd
         """
-        self.boot_openbsd73("max,pauth-impdef=on")
+        self.boot_freebsd("max,pauth-impdef=on")
 
-    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
-    def test_sbsaref_openbsd73_max(self):
+    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'),
+                'Test might timeout due to PAuth emulation')
+    def test_sbsaref_freebsd_max(self):
         """
         :avocado: tags=cpu:max
-        :avocado: tags=os:openbsd
+        :avocado: tags=os:freebsd
         """
-        self.boot_openbsd73("max")
+        self.boot_freebsd("max")
