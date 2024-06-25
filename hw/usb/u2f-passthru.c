@@ -118,7 +118,10 @@ static inline uint16_t packet_init_get_bcnt(
 static void u2f_passthru_reset(U2FPassthruState *key)
 {
     timer_del(&key->timer);
-    qemu_set_fd_handler(key->hidraw_fd, NULL, NULL, key);
+
+    if (key->hidraw_fd >= 0) {
+        qemu_set_fd_handler(key->hidraw_fd, NULL, NULL, key);
+    }
     key->last_transaction_time = 0;
     key->current_transactions_start = 0;
     key->current_transactions_end = 0;
@@ -456,47 +459,79 @@ static int u2f_passthru_open_from_scan(void)
 }
 #endif
 
-static void u2f_passthru_unrealize(U2FKeyState *base)
+
+static int u2f_passthru_open_hidraw(U2FPassthruState *key, Error** errp)
+{
+    int fd;
+    if (key->hidraw == NULL) {
+#ifdef CONFIG_LIBUDEV
+        fd = u2f_passthru_open_from_scan();
+
+        if (fd < 0 && errp) {
+            error_setg(errp, "%s: Failed to find a U2F USB device",
+                       TYPE_U2F_PASSTHRU);
+        }
+#else
+        if (errp) {
+            error_setg(errp, "%s: Missing hidraw", TYPE_U2F_PASSTHRU);
+        }
+        return -1;
+#endif
+    } else {
+        fd = qemu_open_old(key->hidraw, O_RDWR);
+
+        if (fd < 0 && errp) {
+            error_setg(errp, "%s: Failed to open %s", TYPE_U2F_PASSTHRU,
+                       key->hidraw);
+
+        } else if (!u2f_passthru_is_u2f_device(fd)) {
+            qemu_close(fd);
+            if (errp) {
+                error_setg(errp, "%s: Passed hidraw does not represent "
+                           "a U2F HID device", TYPE_U2F_PASSTHRU);
+            }
+            return -1;
+        }
+    }
+
+    return fd;
+}
+
+static bool u2f_passthru_start(U2FKeyState *base)
+{
+    U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
+
+    if (key->hidraw_fd < 0) {
+        key->hidraw_fd = u2f_passthru_open_hidraw(key, NULL);
+    }
+    return key->hidraw_fd >= 0;
+}
+
+static void u2f_passthru_stop(U2FKeyState *base)
 {
     U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
 
     u2f_passthru_reset(key);
-    qemu_close(key->hidraw_fd);
+    if (key->hidraw_fd >= 0) {
+        qemu_close(key->hidraw_fd);
+        key->hidraw_fd = -1;
+    }
 }
 
+static void u2f_passthru_unrealize(U2FKeyState *base)
+{
+    u2f_passthru_stop(base);
+}
 static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
 {
     U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
-    int fd;
+    int fd = u2f_passthru_open_hidraw(key, errp);
 
-    if (key->hidraw == NULL) {
-#ifdef CONFIG_LIBUDEV
-        fd = u2f_passthru_open_from_scan();
-        if (fd < 0) {
-            error_setg(errp, "%s: Failed to find a U2F USB device",
-                       TYPE_U2F_PASSTHRU);
-            return;
-        }
-#else
-        error_setg(errp, "%s: Missing hidraw", TYPE_U2F_PASSTHRU);
-        return;
-#endif
-    } else {
-        fd = qemu_open_old(key->hidraw, O_RDWR);
-        if (fd < 0) {
-            error_setg(errp, "%s: Failed to open %s", TYPE_U2F_PASSTHRU,
-                       key->hidraw);
-            return;
-        }
-
-        if (!u2f_passthru_is_u2f_device(fd)) {
-            qemu_close(fd);
-            error_setg(errp, "%s: Passed hidraw does not represent "
-                       "a U2F HID device", TYPE_U2F_PASSTHRU);
-            return;
-        }
+    /* we only open the fd to error at start */
+    if (fd >= 0) {
+        qemu_close(fd);
     }
-    key->hidraw_fd = fd;
+    key->hidraw_fd = -1;
     u2f_passthru_reset(key);
 }
 
@@ -531,6 +566,9 @@ static void u2f_passthru_class_init(ObjectClass *klass, void *data)
     kc->realize = u2f_passthru_realize;
     kc->unrealize = u2f_passthru_unrealize;
     kc->recv_from_guest = u2f_passthru_recv_from_guest;
+    kc->start = u2f_passthru_start;
+    kc->stop  = u2f_passthru_stop;
+
     dc->desc = "QEMU U2F passthrough key";
     dc->vmsd = &u2f_passthru_vmstate;
     device_class_set_props(dc, u2f_passthru_properties);
