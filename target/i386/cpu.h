@@ -1037,9 +1037,19 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
 #define CPUID_VENDOR_AMD_3   0x444d4163 /* "cAMD" */
 #define CPUID_VENDOR_AMD   "AuthenticAMD"
 
+#define CPUID_VENDOR_VIA_1 0x746E6543 /* "Cent" */
+#define CPUID_VENDOR_VIA_2 0x48727561 /* "aurH" */
+#define CPUID_VENDOR_VIA_3 0x736C7561 /* "auls" */
+
+#define CPUID_VENDOR_ZHAOXIN_1 0x68532020 /* "  Sh" */
+#define CPUID_VENDOR_ZHAOXIN_2 0x68676E61 /* "angh" */
+#define CPUID_VENDOR_ZHAOXIN_3 0x20206961 /* "ai  " */
+
 #define CPUID_VENDOR_VIA   "CentaurHauls"
 
 #define CPUID_VENDOR_HYGON    "HygonGenuine"
+
+#define CPUID_VENDOR_ZHAOXIN  "  Shanghai  "
 
 #define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
                            (env)->cpuid_vendor2 == CPUID_VENDOR_INTEL_2 && \
@@ -1047,6 +1057,13 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
 #define IS_AMD_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_AMD_1 && \
                          (env)->cpuid_vendor2 == CPUID_VENDOR_AMD_2 && \
                          (env)->cpuid_vendor3 == CPUID_VENDOR_AMD_3)
+#define IS_VIA_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_VIA_1 && \
+                         (env)->cpuid_vendor2 == CPUID_VENDOR_VIA_2 && \
+                         (env)->cpuid_vendor3 == CPUID_VENDOR_VIA_3)
+#define IS_ZHAOXIN_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_ZHAOXIN_1 && \
+                             (env)->cpuid_vendor2 == CPUID_VENDOR_ZHAOXIN_2 && \
+                             (env)->cpuid_vendor3 == CPUID_VENDOR_ZHAOXIN_3)
+
 
 #define CPUID_MWAIT_IBE     (1U << 1) /* Interrupts can exit capability */
 #define CPUID_MWAIT_EMX     (1U << 0) /* enumeration supported */
