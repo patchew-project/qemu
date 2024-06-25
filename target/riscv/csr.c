@@ -875,20 +875,25 @@ static RISCVException write_mhpmcounter(CPURISCVState *env, int csrno,
     int ctr_idx = csrno - CSR_MCYCLE;
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
     uint64_t mhpmctr_val = val;
+    int event_idx;
 
     counter->mhpmcounter_val = val;
-    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        counter->mhpmcounter_prev = get_ticks(false);
-        if (ctr_idx > 2) {
+    event_idx = riscv_pmu_get_event_by_ctr(env, ctr_idx);
+
+    if (event_idx != RISCV_PMU_EVENT_NOT_PRESENTED) {
+        if (RISCV_PMU_CTR_IS_HPM(ctr_idx) && env->pmu_ctr_write) {
+            env->pmu_ctr_write(counter, event_idx, val, false);
+        } else {
+            counter->mhpmcounter_prev = get_ticks(false);
+        }
+        if (RISCV_PMU_CTR_IS_HPM(ctr_idx)) {
             if (riscv_cpu_mxl(env) == MXL_RV32) {
                 mhpmctr_val = mhpmctr_val |
                               ((uint64_t)counter->mhpmcounterh_val << 32);
             }
             riscv_pmu_setup_timer(env, mhpmctr_val, ctr_idx);
         }
-     } else {
-        /* Other counters can keep incrementing from the given value */
+    } else {
         counter->mhpmcounter_prev = val;
     }
 
@@ -902,13 +907,19 @@ static RISCVException write_mhpmcounterh(CPURISCVState *env, int csrno,
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
     uint64_t mhpmctr_val = counter->mhpmcounter_val;
     uint64_t mhpmctrh_val = val;
+    int event_idx;
 
     counter->mhpmcounterh_val = val;
     mhpmctr_val = mhpmctr_val | (mhpmctrh_val << 32);
-    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        counter->mhpmcounterh_prev = get_ticks(true);
-        if (ctr_idx > 2) {
+    event_idx = riscv_pmu_get_event_by_ctr(env, ctr_idx);
+
+    if (event_idx != RISCV_PMU_EVENT_NOT_PRESENTED) {
+        if (RISCV_PMU_CTR_IS_HPM(ctr_idx) && env->pmu_ctr_write) {
+            env->pmu_ctr_write(counter, event_idx, val, true);
+        } else {
+            counter->mhpmcounterh_prev = get_ticks(true);
+        }
+        if (RISCV_PMU_CTR_IS_HPM(ctr_idx)) {
             riscv_pmu_setup_timer(env, mhpmctr_val, ctr_idx);
         }
     } else {
@@ -926,6 +937,7 @@ static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
                                          counter->mhpmcounter_prev;
     target_ulong ctr_val = upper_half ? counter->mhpmcounterh_val :
                                         counter->mhpmcounter_val;
+    int event_idx;
 
     if (get_field(env->mcountinhibit, BIT(ctr_idx))) {
         /*
@@ -946,9 +958,14 @@ static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
      * The kernel computes the perf delta by subtracting the current value from
      * the value it initialized previously (ctr_val).
      */
-    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        *val = get_ticks(upper_half) - ctr_prev + ctr_val;
+    event_idx = riscv_pmu_get_event_by_ctr(env, ctr_idx);
+    if (event_idx != RISCV_PMU_EVENT_NOT_PRESENTED) {
+        if (RISCV_PMU_CTR_IS_HPM(ctr_idx) && env->pmu_ctr_read) {
+            *val = env->pmu_ctr_read(counter, event_idx,
+                                     upper_half);
+        } else {
+            *val = get_ticks(upper_half) - ctr_prev + ctr_val;
+        }
     } else {
         *val = ctr_val;
     }

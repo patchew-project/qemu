@@ -374,6 +374,13 @@ struct CPUArchState {
     uint64_t (*rdtime_fn)(void *);
     void *rdtime_fn_arg;
 
+    /*machine specific pmu callback */
+    void (*pmu_ctr_write)(PMUCTRState *counter, uint32_t event_idx,
+                          target_ulong val, bool high_half);
+    target_ulong (*pmu_ctr_read)(PMUCTRState *counter, uint32_t event_idx,
+                                 bool high_half);
+    bool (*pmu_vendor_support)(uint32_t event_idx);
+
     /* machine specific AIA ireg read-modify-write callback */
 #define AIA_MAKE_IREG(__isel, __priv, __virt, __vgein, __xlen) \
     ((((__xlen) & 0xff) << 24) | \
@@ -455,6 +462,8 @@ struct ArchCPU {
     uint32_t pmu_avail_ctrs;
     /* Mapping of events to counters */
     GHashTable *pmu_event_ctr_map;
+    /* Mapping of counters to events */
+    GHashTable *pmu_ctr_event_map;
     const GPtrArray *decoders;
 };
 
