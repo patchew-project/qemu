@@ -154,15 +154,8 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
 {
     IOAPICCommonState *s = opaque;
 
-    /* ISA IRQs map to GSI 1-1 except for IRQ0 which maps
-     * to GSI 2.  GSI maps to ioapic 1-1.  This is not
-     * the cleanest way of doing it but it should work. */
-
     trace_ioapic_set_irq(vector, level);
     ioapic_stat_update_irq(s, vector, level);
-    if (vector == 0) {
-        vector = 2;
-    }
     if (vector < IOAPIC_NUM_PINS) {
         uint32_t mask = 1 << vector;
         uint64_t entry = s->ioredtbl[vector];
