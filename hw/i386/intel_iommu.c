@@ -2410,6 +2410,22 @@ static void vtd_handle_gcmd_ire(IntelIOMMUState *s, bool en)
     }
 }
 
+/* Handle Compatibility Format Interrupts Enable/Disable */
+static void vtd_handle_gcmd_cfi(IntelIOMMUState *s, bool en)
+{
+    trace_vtd_cfi_enable(en);
+
+    if (en) {
+        s->cfi_enabled = true;
+        /* Ok - report back to driver */
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_CFIS);
+    } else {
+        s->cfi_enabled = false;
+        /* Ok - report back to driver */
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_CFIS, 0);
+    }
+}
+
 /* Handle write to Global Command Register */
 static void vtd_handle_gcmd_write(IntelIOMMUState *s)
 {
@@ -2439,6 +2455,10 @@ static void vtd_handle_gcmd_write(IntelIOMMUState *s)
         x86_iommu_ir_supported(x86_iommu)) {
         /* Interrupt remap enable/disable */
         vtd_handle_gcmd_ire(s, val & VTD_GCMD_IRE);
+    }
+    if (changed & VTD_GCMD_CFI) {
+        /* Compatibility format interrupts enable/disable */
+        vtd_handle_gcmd_cfi(s, val & VTD_GCMD_CFI);
     }
 }
 
@@ -3304,6 +3324,7 @@ static const VMStateDescription vtd_vmstate = {
         VMSTATE_BOOL(dmar_enabled, IntelIOMMUState),
         VMSTATE_BOOL(qi_enabled, IntelIOMMUState),
         VMSTATE_BOOL(intr_enabled, IntelIOMMUState),
+        VMSTATE_BOOL(cfi_enabled, IntelIOMMUState),
         VMSTATE_BOOL(intr_eime, IntelIOMMUState),
         VMSTATE_END_OF_LIST()
     }
@@ -3525,6 +3546,12 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
 
     /* This is compatible mode. */
     if (addr.addr.int_mode != VTD_IR_INT_FORMAT_REMAP) {
+        if (iommu->intr_eime || !iommu->cfi_enabled) {
+            if (do_fault) {
+                vtd_report_ir_fault(iommu, sid, VTD_FR_IR_REQ_COMPAT, 0);
+            }
+            return -EINVAL;
+        }
         memcpy(translated, origin, sizeof(*origin));
         goto out;
     }
@@ -3950,6 +3977,7 @@ static void vtd_init(IntelIOMMUState *s)
     s->root_scalable = false;
     s->dmar_enabled = false;
     s->intr_enabled = false;
+    s->cfi_enabled = false;
     s->iq_head = 0;
     s->iq_tail = 0;
     s->iq = 0;
