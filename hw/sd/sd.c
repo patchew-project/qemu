@@ -1626,10 +1626,12 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         switch (sd->state) {
         case sd_transfer_state:
             sd->data_offset = 0;
-            if (req.arg & 1)
-                sd->state = sd_sendingdata_state;
-            else
-                sd->state = sd_receivingdata_state;
+            if (req.arg & 1) {
+                return sd_cmd_to_sendingdata(sd, req, 0,
+                                             sd->vendor_data,
+                                             sizeof(sd->vendor_data));
+            }
+            sd->state = sd_receivingdata_state;
             return sd_r1;
 
         default:
@@ -2115,6 +2117,7 @@ uint8_t sd_read_byte(SDState *sd)
     case 17: /* CMD17:  READ_SINGLE_BLOCK */
     case 19: /* CMD19:  SEND_TUNING_BLOCK (SD) */
     case 30: /* CMD30:  SEND_WRITE_PROT */
+    case 56: /* CMD56:  GEN_CMD */
         sd_generic_read_byte(sd, &ret);
         break;
 
@@ -2161,14 +2164,6 @@ uint8_t sd_read_byte(SDState *sd)
 
         if (sd->data_offset >= sizeof(sd->scr))
             sd->state = sd_transfer_state;
-        break;
-
-    case 56:  /* CMD56:  GEN_CMD */
-        ret = sd->vendor_data[sd->data_offset ++];
-
-        if (sd->data_offset >= sizeof(sd->vendor_data)) {
-            sd->state = sd_transfer_state;
-        }
         break;
 
     default:
