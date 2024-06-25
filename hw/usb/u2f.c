@@ -253,6 +253,12 @@ static void u2f_key_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         packet_in = u2f_pending_in_get(key);
         if (packet_in == NULL) {
+            U2FKeyClass *kc = U2F_KEY_GET_CLASS(key);
+
+            /* An early INTR IN is sent to kick the device. */
+            if (!key->started) {
+                key->started = (kc->start ? kc->start(key) : true);
+            }
             p->status = USB_RET_NAK;
             return;
         }
@@ -317,6 +323,21 @@ const VMStateDescription vmstate_u2f_key = {
     }
 };
 
+static void u2f_ep_stopped(USBDevice *dev, USBEndpoint *ep)
+{
+    U2FKeyState *key = U2F_KEY(dev);
+    U2FKeyClass *kc = U2F_KEY_GET_CLASS(key);
+
+    if (!key->started) {
+        return;
+    }
+    if (kc->stop) {
+        kc->stop(key);
+    }
+    key->started = false;
+}
+
+
 static void u2f_key_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -332,6 +353,8 @@ static void u2f_key_class_init(ObjectClass *klass, void *data)
     uc->unrealize      = u2f_key_unrealize;
     dc->desc           = "QEMU U2F key";
     dc->vmsd           = &vmstate_u2f_key;
+
+    uc->ep_stopped     = u2f_ep_stopped;
 }
 
 static const TypeInfo u2f_key_info = {

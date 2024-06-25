@@ -49,6 +49,9 @@ struct U2FKeyClass {
                             const uint8_t packet[U2FHID_PACKET_SIZE]);
     void (*realize)(U2FKeyState *key, Error **errp);
     void (*unrealize)(U2FKeyState *key);
+
+    bool (*start)(U2FKeyState *key);
+    void (*stop)(U2FKeyState *key);
 };
 
 /*
@@ -64,6 +67,8 @@ struct U2FKeyState {
     uint8_t pending_in_start;
     uint8_t pending_in_end;
     uint8_t pending_in_num;
+
+    bool started;
 };
 
 /*
