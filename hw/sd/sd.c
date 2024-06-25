@@ -46,6 +46,7 @@
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
+#include "qemu/guest-random.h"
 #include "qemu/module.h"
 #include "sdmmc-internal.h"
 #include "trace.h"
@@ -489,11 +490,6 @@ static void sd_set_csd(SDState *sd, uint64_t size)
 }
 
 /* Relative Card Address register */
-
-static void sd_set_rca(SDState *sd)
-{
-    sd->rca += 0x4567;
-}
 
 static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
 {
@@ -1107,7 +1103,7 @@ static sd_rsp_type_t sd_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
     case sd_identification_state:
     case sd_standby_state:
         sd->state = sd_standby_state;
-        sd_set_rca(sd);
+        qemu_guest_getrandom_nofail(&sd->rca, sizeof(sd->rca));
         return sd_r6;
 
     default:
