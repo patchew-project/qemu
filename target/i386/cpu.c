@@ -6972,9 +6972,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
          * So don't set it here for Intel to make Linux guests happy.
          */
         if (threads_per_pkg > 1) {
-            if (env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1 ||
-                env->cpuid_vendor2 != CPUID_VENDOR_INTEL_2 ||
-                env->cpuid_vendor3 != CPUID_VENDOR_INTEL_3) {
+            if (!IS_INTEL_CPU(env) &&
+                !IS_ZHAOXIN_CPU(env) &&
+                !IS_VIA_CPU(env)) {
                 *ecx |= 1 << 1;    /* CmpLegacy bit */
             }
         }
