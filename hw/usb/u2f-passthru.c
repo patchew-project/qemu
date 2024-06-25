@@ -296,9 +296,13 @@ static void u2f_passthru_recv_from_host(U2FPassthruState *key,
         return;
     }
 
+    bool keepalive = false;
     if (packet_is_init(packet)) {
         transaction->resp_bcnt = packet_init_get_bcnt(packet);
         transaction->resp_size = PACKET_INIT_DATA_SIZE;
+
+        if (packet->init.cmd == U2FHID_CMD_KEEPALIVE)
+            keepalive = true;
 
         if (packet->cid == BROADCAST_CID) {
             /* Nonce checking for legitimate response */
@@ -312,7 +316,7 @@ static void u2f_passthru_recv_from_host(U2FPassthruState *key,
     }
 
     /* Transaction end check */
-    if (transaction->resp_size >= transaction->resp_bcnt) {
+    if (!keepalive && transaction->resp_size >= transaction->resp_bcnt) {
         u2f_transaction_close(key, cid);
     }
     u2f_send_to_guest(&key->base, raw_packet);
