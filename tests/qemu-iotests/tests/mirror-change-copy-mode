@@ -150,7 +150,7 @@ class TestMirrorChangeCopyMode(iotests.QMPTestCase):
         len_before_change = result[0]['len']
 
         # Change the copy mode while requests are happening.
-        self.vm.cmd('block-job-change',
+        self.vm.cmd('job-change',
                     id='mirror',
                     type='mirror',
                     copy_mode='write-blocking')
