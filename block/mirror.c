@@ -1258,11 +1258,11 @@ static bool commit_active_cancel(Job *job, bool force)
     return force || !job_is_ready(job);
 }
 
-static void mirror_change(BlockJob *job, BlockJobChangeOptions *opts,
+static void mirror_change(BlockJob *job, JobChangeOptions *opts,
                           Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
-    BlockJobChangeOptionsMirror *change_opts = &opts->u.mirror;
+    JobChangeOptionsMirror *change_opts = &opts->u.mirror;
     MirrorCopyMode current;
 
     /*

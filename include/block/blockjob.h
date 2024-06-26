@@ -181,7 +181,7 @@ bool block_job_set_speed_locked(BlockJob *job, int64_t speed, Error **errp);
  *
  * Change the job according to opts.
  */
-void block_job_change_locked(BlockJob *job, BlockJobChangeOptions *opts,
+void block_job_change_locked(BlockJob *job, JobChangeOptions *opts,
                              Error **errp);
 
 /**
