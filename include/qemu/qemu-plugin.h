@@ -552,6 +552,26 @@ QEMU_PLUGIN_API
 bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info);
 
 /**
+ * qemu_plugin_mem_get_value_lower_bits() - return 64 lower bits of latest
+ * accessed memory value
+ * @info: opaque memory transaction handle
+ *
+ * Returns: lower bits for value accessed
+ */
+QEMU_PLUGIN_API
+uint64_t qemu_plugin_mem_get_value_lower_bits(qemu_plugin_meminfo_t info);
+
+/**
+ * qemu_plugin_mem_get_value_upper_bits() - return 64 upper bits of latest
+ * accessed memory value
+ * @info: opaque memory transaction handle
+ *
+ * Returns: upper bits for value accessed
+ */
+QEMU_PLUGIN_API
+uint64_t qemu_plugin_mem_get_value_upper_bits(qemu_plugin_meminfo_t info);
+
+/**
  * qemu_plugin_get_hwaddr() - return handle for memory operation
  * @info: opaque memory info structure
  * @vaddr: the virtual address of the memory operation
