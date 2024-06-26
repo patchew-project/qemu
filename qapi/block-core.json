@@ -6148,3 +6148,91 @@
 ##
 { 'struct': 'DummyBlockCoreForceArrays',
   'data': { 'unused-block-graph-info': ['BlockGraphInfo'] } }
+
+##
+# @BlockParentType:
+#
+# @qdev: block device, such as created by device_add, and denoted by
+#     qdev-id
+#
+# @driver: block driver node, such as created by blockdev-add, and
+#     denoted by node-name
+#
+# @export: block export, such created by block-export-add, and
+#     denoted by export-id
+#
+# Since 9.1
+##
+{ 'enum': 'BlockParentType',
+  'data': ['qdev', 'driver', 'export'] }
+
+##
+# @BdrvChildRefQdev:
+#
+# @qdev-id: the device's ID or QOM path
+#
+# Since 9.1
+##
+{ 'struct': 'BdrvChildRefQdev',
+  'data': { 'qdev-id': 'str' } }
+
+##
+# @BdrvChildRefExport:
+#
+# @export-id: block export identifier
+#
+# Since 9.1
+##
+{ 'struct': 'BdrvChildRefExport',
+  'data': { 'export-id': 'str' } }
+
+##
+# @BdrvChildRefDriver:
+#
+# @node-name: the node name of the parent block node
+#
+# @child: name of the child to be replaced, like "file" or "backing"
+#
+# Since 9.1
+##
+{ 'struct': 'BdrvChildRefDriver',
+  'data': { 'node-name': 'str', 'child': 'str' } }
+
+##
+# @BlockdevReplace:
+#
+# @parent-type: type of the parent, which child is to be replaced
+#
+# @new-child: new child for replacement
+#
+# Since 9.1
+##
+{ 'union': 'BlockdevReplace',
+  'base': {
+      'parent-type': 'BlockParentType',
+      'new-child': 'str'
+  },
+  'discriminator': 'parent-type',
+  'data': {
+      'qdev': 'BdrvChildRefQdev',
+      'export': 'BdrvChildRefExport',
+      'driver': 'BdrvChildRefDriver'
+  } }
+
+##
+# @blockdev-replace:
+#
+# Replace a block-node associated with device (selected by
+# @qdev-id) or with block-export (selected by @export-id) or
+# any child of block-node (selected by @node-name and @child)
+# with @new-child block-node.
+#
+# Features:
+#
+# @unstable: This command is experimental.
+#
+# Since 9.1
+##
+{ 'command': 'blockdev-replace', 'boxed': true,
+  'features': [ 'unstable' ],
+  'data': 'BlockdevReplace' }
