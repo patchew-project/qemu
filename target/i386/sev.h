@@ -45,7 +45,7 @@ typedef struct SevKernelLoaderContext {
     size_t cmdline_size;
 } SevKernelLoaderContext;
 
-#ifdef CONFIG_SEV
+#if defined(CONFIG_SEV) && defined(HOST_X86_64)
 bool sev_enabled(void);
 bool sev_es_enabled(void);
 bool sev_snp_enabled(void);
