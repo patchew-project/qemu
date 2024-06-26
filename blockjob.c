@@ -319,6 +319,12 @@ void block_job_change_locked(BlockJob *job, JobChangeOptions *opts,
 
     GLOBAL_STATE_CODE();
 
+    if (job_type(&job->job) != opts->type) {
+        error_setg(errp, "Job '%s' is '%s' job, not '%s'", job->job.id,
+                   job_type_str(&job->job), JobType_str(opts->type));
+        return;
+    }
+
     if (job_apply_verb_locked(&job->job, JOB_VERB_CHANGE, errp)) {
         return;
     }
