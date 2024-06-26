@@ -721,7 +721,6 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
 
     qdev_init_gpio_out(dev, &s->cpu_intr, 1);
     qdev_init_gpio_in_named(dev, via_isa_pirq, "pirq", PCI_NUM_PINS);
-    isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
     isa_bus = isa_bus_new(dev, pci_address_space(d), pci_address_space_io(d),
                           errp);
 
@@ -729,7 +728,9 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
         return;
     }
 
+    isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
     s->isa_irqs_in = i8259_init(isa_bus, *isa_irq);
+    qemu_free_irqs(isa_irq, 1);
     isa_bus_register_input_irqs(isa_bus, s->isa_irqs_in);
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
     i8257_dma_init(OBJECT(d), isa_bus, 0);
