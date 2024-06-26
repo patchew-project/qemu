@@ -14,9 +14,20 @@
  */
 
 static void atomic_trace_rmw_post(CPUArchState *env, uint64_t addr,
+                                  uint64_t read_value_upper_bits,
+                                  uint64_t read_value_lower_bits,
+                                  uint64_t write_value_upper_bits,
+                                  uint64_t write_value_lower_bits,
                                   MemOpIdx oi)
 {
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_RW);
+    if (cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
+        qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
+                                read_value_upper_bits, read_value_lower_bits,
+                                oi, QEMU_PLUGIN_MEM_R);
+        qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
+                                write_value_upper_bits, write_value_lower_bits,
+                                oi, QEMU_PLUGIN_MEM_W);
+    }
 }
 
 /*

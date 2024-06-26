@@ -575,14 +575,21 @@ void exec_inline_op(enum plugin_dyn_cb_type type,
 }
 
 void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
+                             uint64_t value_upper_bits,
+                             uint64_t value_lower_bits,
                              MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
     GArray *arr = cpu->neg.plugin_mem_cbs;
+    CPUPluginState *plugin_state = cpu->plugin_state;
     size_t i;
 
     if (arr == NULL) {
         return;
     }
+
+    plugin_state->mem_value_upper_bits = value_upper_bits;
+    plugin_state->mem_value_lower_bits = value_lower_bits;
+
     for (i = 0; i < arr->len; i++) {
         struct qemu_plugin_dyn_cb *cb =
             &g_array_index(arr, struct qemu_plugin_dyn_cb, i);
