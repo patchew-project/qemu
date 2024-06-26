@@ -464,6 +464,14 @@ static void macio_ide_initfn(Object *obj)
                              qdev_prop_allow_set_link_before_realize, 0);
 }
 
+static void macio_ide_finalize(Object *obj)
+{
+    MACIOIDEState *s = MACIO_IDE(obj);
+
+    qemu_free_irq(s->dma_irq);
+    qemu_free_irq(s->ide_irq);
+}
+
 static Property macio_ide_properties[] = {
     DEFINE_PROP_UINT32("channel", MACIOIDEState, channel, 0),
     DEFINE_PROP_UINT32("addr", MACIOIDEState, addr, -1),
@@ -486,6 +494,7 @@ static const TypeInfo macio_ide_type_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MACIOIDEState),
     .instance_init = macio_ide_initfn,
+    .instance_finalize = macio_ide_finalize,
     .class_init = macio_ide_class_init,
 };
 
