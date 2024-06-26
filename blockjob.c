@@ -312,32 +312,6 @@ static bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     return block_job_set_speed_locked(job, speed, errp);
 }
 
-void block_job_change_locked(BlockJob *job, JobChangeOptions *opts,
-                             Error **errp)
-{
-    const BlockJobDriver *drv = block_job_driver(job);
-
-    GLOBAL_STATE_CODE();
-
-    if (job_type(&job->job) != opts->type) {
-        error_setg(errp, "Job '%s' is '%s' job, not '%s'", job->job.id,
-                   job_type_str(&job->job), JobType_str(opts->type));
-        return;
-    }
-
-    if (job_apply_verb_locked(&job->job, JOB_VERB_CHANGE, errp)) {
-        return;
-    }
-
-    if (drv->change) {
-        job_unlock();
-        drv->change(job, opts, errp);
-        job_lock();
-    } else {
-        error_setg(errp, "Job type does not support change");
-    }
-}
-
 void block_job_ratelimit_processed_bytes(BlockJob *job, uint64_t n)
 {
     IO_CODE();

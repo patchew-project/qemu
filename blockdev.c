@@ -3259,7 +3259,7 @@ void qmp_block_job_change(JobChangeOptions *opts, Error **errp)
         return;
     }
 
-    block_job_change_locked(job, opts, errp);
+    job_change_locked(&job->job, opts, errp);
 }
 
 void qmp_change_backing_file(const char *device,

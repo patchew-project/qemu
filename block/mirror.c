@@ -1258,10 +1258,9 @@ static bool commit_active_cancel(Job *job, bool force)
     return force || !job_is_ready(job);
 }
 
-static void mirror_change(BlockJob *job, JobChangeOptions *opts,
-                          Error **errp)
+static void mirror_change(Job *job, JobChangeOptions *opts, Error **errp)
 {
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     JobChangeOptionsMirror *change_opts = &opts->u.mirror;
     MirrorCopyMode current;
 
@@ -1316,9 +1315,9 @@ static const BlockJobDriver mirror_job_driver = {
         .pause                  = mirror_pause,
         .complete               = mirror_complete,
         .cancel                 = mirror_cancel,
+        .change                 = mirror_change,
     },
     .drained_poll           = mirror_drained_poll,
-    .change                 = mirror_change,
     .query                  = mirror_query,
 };
 
