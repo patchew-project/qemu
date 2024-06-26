@@ -2171,13 +2171,13 @@ sev_snp_guest_set_id_block(Object *obj, const char *value, Error **errp)
 
     finish->id_block_en = 0;
     g_free(sev_snp_guest->id_block);
-    g_free((guchar *)finish->id_block_uaddr);
+    g_free((void *)(uintptr_t)finish->id_block_uaddr);
 
     /* store the base64 str so we don't need to re-encode in getter */
     sev_snp_guest->id_block = g_strdup(value);
 
     finish->id_block_uaddr =
-        (uint64_t)qbase64_decode(sev_snp_guest->id_block, -1, &len, errp);
+        (uintptr_t)qbase64_decode(sev_snp_guest->id_block, -1, &len, errp);
 
     if (!finish->id_block_uaddr) {
         return;
@@ -2208,13 +2208,13 @@ sev_snp_guest_set_id_auth(Object *obj, const char *value, Error **errp)
     gsize len;
 
     g_free(sev_snp_guest->id_auth);
-    g_free((guchar *)finish->id_auth_uaddr);
+    g_free((void *)(uintptr_t)finish->id_auth_uaddr);
 
     /* store the base64 str so we don't need to re-encode in getter */
     sev_snp_guest->id_auth = g_strdup(value);
 
     finish->id_auth_uaddr =
-        (uint64_t)qbase64_decode(sev_snp_guest->id_auth, -1, &len, errp);
+        (uintptr_t)qbase64_decode(sev_snp_guest->id_auth, -1, &len, errp);
 
     if (!finish->id_auth_uaddr) {
         return;
