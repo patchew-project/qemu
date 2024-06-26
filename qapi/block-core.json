@@ -3067,11 +3067,12 @@
 #
 # @copy-mode: Switch to this copy mode.  Currently, only the switch
 #     from 'background' to 'write-blocking' is implemented.
+#     If absent, copy mode remains the same.  (optional since 9.1)
 #
 # Since: 8.2
 ##
 { 'struct': 'JobChangeOptionsMirror',
-  'data': { 'copy-mode' : 'MirrorCopyMode' } }
+  'data': { '*copy-mode' : 'MirrorCopyMode' } }
 
 ##
 # @JobChangeOptions:
