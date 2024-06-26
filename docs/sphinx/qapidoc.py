@@ -494,7 +494,41 @@ class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
         super().visit_module(name)
 
 
-class QAPIDocDirective(Directive):
+class NestedDirective(Directive):
+    def run(self):
+        raise NotImplementedError
+
+    def do_parse(self, rstlist, node):
+        """
+        Parse rST source lines and add them to the specified node
+
+        Take the list of rST source lines rstlist, parse them as
+        rST, and add the resulting docutils nodes as children of node.
+        The nodes are parsed in a way that allows them to include
+        subheadings (titles) without confusing the rendering of
+        anything else.
+        """
+        # This is from kerneldoc.py -- it works around an API change in
+        # Sphinx between 1.6 and 1.7. Unlike kerneldoc.py, we use
+        # sphinx.util.nodes.nested_parse_with_titles() rather than the
+        # plain self.state.nested_parse(), and so we can drop the saving
+        # of title_styles and section_level that kerneldoc.py does,
+        # because nested_parse_with_titles() does that for us.
+        if USE_SSI:
+            with switch_source_input(self.state, rstlist):
+                nested_parse_with_titles(self.state, rstlist, node)
+        else:
+            save = self.state.memo.reporter
+            self.state.memo.reporter = AutodocReporter(
+                rstlist, self.state.memo.reporter
+            )
+            try:
+                nested_parse_with_titles(self.state, rstlist, node)
+            finally:
+                self.state.memo.reporter = save
+
+
+class QAPIDocDirective(NestedDirective):
     """Extract documentation from the specified QAPI .json file"""
 
     required_argument = 1
@@ -531,34 +565,6 @@ class QAPIDocDirective(Directive):
             # Launder QAPI parse errors into Sphinx extension errors
             # so they are displayed nicely to the user
             raise ExtensionError(str(err)) from err
-
-    def do_parse(self, rstlist, node):
-        """Parse rST source lines and add them to the specified node
-
-        Take the list of rST source lines rstlist, parse them as
-        rST, and add the resulting docutils nodes as children of node.
-        The nodes are parsed in a way that allows them to include
-        subheadings (titles) without confusing the rendering of
-        anything else.
-        """
-        # This is from kerneldoc.py -- it works around an API change in
-        # Sphinx between 1.6 and 1.7. Unlike kerneldoc.py, we use
-        # sphinx.util.nodes.nested_parse_with_titles() rather than the
-        # plain self.state.nested_parse(), and so we can drop the saving
-        # of title_styles and section_level that kerneldoc.py does,
-        # because nested_parse_with_titles() does that for us.
-        if USE_SSI:
-            with switch_source_input(self.state, rstlist):
-                nested_parse_with_titles(self.state, rstlist, node)
-        else:
-            save = self.state.memo.reporter
-            self.state.memo.reporter = AutodocReporter(
-                rstlist, self.state.memo.reporter
-            )
-            try:
-                nested_parse_with_titles(self.state, rstlist, node)
-            finally:
-                self.state.memo.reporter = save
 
 
 def setup(app):
