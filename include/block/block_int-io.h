@@ -130,6 +130,8 @@ bdrv_co_refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 int co_wrapper_mixed_bdrv_rdlock
 bdrv_refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 
+BdrvChild * GRAPH_RDLOCK
+bdrv_find_child(BlockDriverState *parent_bs, const char *child_name);
 BdrvChild * GRAPH_RDLOCK bdrv_cow_child(BlockDriverState *bs);
 BdrvChild * GRAPH_RDLOCK bdrv_filter_child(BlockDriverState *bs);
 BdrvChild * GRAPH_RDLOCK bdrv_filter_or_cow_child(BlockDriverState *bs);
