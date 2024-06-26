@@ -139,6 +139,20 @@ void qmp_job_dismiss(const char *id, Error **errp)
     job_dismiss_locked(&job, errp);
 }
 
+void qmp_job_change(JobChangeOptions *opts, Error **errp)
+{
+    Job *job;
+
+    JOB_LOCK_GUARD();
+    job = find_job_locked(opts->id, errp);
+
+    if (!job) {
+        return;
+    }
+
+    job_change_locked(job, opts, errp);
+}
+
 /* Called with job_mutex held. */
 static JobInfo *job_query_single_locked(Job *job, Error **errp)
 {
