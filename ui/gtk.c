@@ -164,7 +164,7 @@ static VirtualConsole *gd_vc_find_by_page(GtkDisplayState *s, gint page)
     for (i = 0; i < s->nb_vcs; i++) {
         vc = &s->vc[i];
         p = gtk_notebook_page_num(GTK_NOTEBOOK(s->notebook), vc->tab_item);
-        if (p == page) {
+        if (p > -1 && p == page) {
             return vc;
         }
     }
@@ -357,7 +357,7 @@ static void gtk_release_modifiers(GtkDisplayState *s)
 {
     VirtualConsole *vc = gd_vc_find_current(s);
 
-    if (vc->type != GD_VC_GFX ||
+    if (!vc || vc->type != GD_VC_GFX ||
         !qemu_console_is_graphic(vc->gfx.dcl.con)) {
         return;
     }
