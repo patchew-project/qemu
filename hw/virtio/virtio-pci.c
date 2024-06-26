@@ -860,6 +860,11 @@ static int virtio_pci_get_notifier(VirtIOPCIProxy *proxy, int queue_no,
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     VirtQueue *vq;
 
+    if ((proxy->vector_irqfd == NULL) &&
+        (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        return -1;
+    }
+
     if (queue_no == VIRTIO_CONFIG_IRQ_IDX) {
         *n = virtio_config_get_guest_notifier(vdev);
         *vector = vdev->config_vector;
@@ -1452,7 +1457,9 @@ static void virtio_pci_set_vector(VirtIODevice *vdev,
     }
     /* If the new vector changed need to set it up. */
     if (kvm_irqfd && new_vector != VIRTIO_NO_VECTOR) {
-        kvm_virtio_pci_vector_use_one(proxy, queue_no);
+        if (kvm_virtio_pci_vector_use_one(proxy, queue_no)) {
+            virtio_error(vdev, "fail to set the vector %d", new_vector);
+        }
     }
 }
 
