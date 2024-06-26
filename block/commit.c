@@ -134,6 +134,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     int64_t n = 0; /* bytes */
     QEMU_AUTO_VFREE void *buf = NULL;
     int64_t len, base_len;
+    bool need_final_flush = true;
 
     len = blk_co_getlength(s->top);
     if (len < 0) {
@@ -155,8 +156,8 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
 
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
-    for (offset = 0; offset < len; offset += n) {
-        bool copy;
+    for (offset = 0; offset < len || need_final_flush; offset += n) {
+        bool copy = false;
         bool error_in_source = true;
 
         /* Note that even when no rate limit is applied we need to yield
@@ -166,22 +167,34 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         if (job_is_cancelled(&s->common.job)) {
             break;
         }
-        /* Copy if allocated above the base */
-        ret = blk_co_is_allocated_above(s->top, s->base_overlay, true,
-                                        offset, COMMIT_BUFFER_SIZE, &n);
-        copy = (ret > 0);
-        trace_commit_one_iteration(s, offset, n, ret);
-        if (copy) {
-            assert(n < SIZE_MAX);
 
-            ret = blk_co_pread(s->top, offset, n, buf, 0);
-            if (ret >= 0) {
-                ret = blk_co_pwrite(s->base, offset, n, buf, 0);
-                if (ret < 0) {
-                    error_in_source = false;
+        if (offset < len) {
+            /* Copy if allocated above the base */
+            ret = blk_co_is_allocated_above(s->top, s->base_overlay, true,
+                                            offset, COMMIT_BUFFER_SIZE, &n);
+            copy = (ret > 0);
+            trace_commit_one_iteration(s, offset, n, ret);
+            if (copy) {
+                assert(n < SIZE_MAX);
+
+                ret = blk_co_pread(s->top, offset, n, buf, 0);
+                if (ret >= 0) {
+                    ret = blk_co_pwrite(s->base, offset, n, buf, 0);
+                    if (ret < 0) {
+                        error_in_source = false;
+                    }
                 }
             }
+        } else {
+            assert(need_final_flush);
+            ret = blk_co_flush(s->base);
+            if (ret < 0) {
+                error_in_source = false;
+            } else {
+                need_final_flush = false;
+            }
         }
+
         if (ret < 0) {
             BlockErrorAction action =
                 block_job_error_action(&s->common, s->on_error,
