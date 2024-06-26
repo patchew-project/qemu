@@ -351,6 +351,27 @@ bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info)
     return get_plugin_meminfo_rw(info) & QEMU_PLUGIN_MEM_W;
 }
 
+uint64_t qemu_plugin_mem_get_value_upper_bits(qemu_plugin_meminfo_t info)
+{
+    return current_cpu->plugin_state->mem_value_upper_bits;
+}
+
+uint64_t qemu_plugin_mem_get_value_lower_bits(qemu_plugin_meminfo_t info)
+{
+    uint64_t value = current_cpu->plugin_state->mem_value_lower_bits;
+    /* tcg values are sign extended, so we must clip them */
+    switch (qemu_plugin_mem_size_shift(info)) {
+    case 0:
+        return value & 0xff;
+    case 1:
+        return value & 0xffff;
+    case 2:
+        return value & 0xffffffff;
+    default:
+        return value;
+    }
+}
+
 /*
  * Virtual Memory queries
  */
