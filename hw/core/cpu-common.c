@@ -283,6 +283,9 @@ static void cpu_common_finalize(Object *obj)
 {
     CPUState *cpu = CPU(obj);
 
+    g_free(cpu->thread);
+    g_free(cpu->halt_cond);
+    g_free(cpu->cpu_ases);
     g_array_free(cpu->gdb_regs, TRUE);
     qemu_lockcnt_destroy(&cpu->in_ioctl_lock);
     qemu_mutex_destroy(&cpu->work_mutex);
