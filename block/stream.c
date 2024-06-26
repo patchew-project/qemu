@@ -160,6 +160,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
     int64_t offset = 0;
     int error = 0;
     int64_t n = 0; /* bytes */
+    bool need_final_flush = true;
 
     WITH_GRAPH_RDLOCK_GUARD() {
         unfiltered_bs = bdrv_skip_filters(s->target_bs);
@@ -175,9 +176,12 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
     }
     job_progress_set_remaining(&s->common.job, len);
 
-    for ( ; offset < len; offset += n) {
-        bool copy;
+    for ( ; offset < len || need_final_flush; offset += n) {
+        bool copy = false;
+        bool error_is_read = true;
         int ret;
+
+        n = 0;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -187,35 +191,46 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
             break;
         }
 
-        copy = false;
+        if (offset < len) {
+            WITH_GRAPH_RDLOCK_GUARD() {
+                ret = bdrv_co_is_allocated(unfiltered_bs, offset, STREAM_CHUNK,
+                                           &n);
+                if (ret == 1) {
+                    /* Allocated in the top, no need to copy.  */
+                } else if (ret >= 0) {
+                    /*
+                     * Copy if allocated in the intermediate images.  Limit to
+                     * the known-unallocated area
+                     * [offset, offset+n*BDRV_SECTOR_SIZE).
+                     */
+                    ret = bdrv_co_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
+                                                     s->base_overlay, true,
+                                                     offset, n, &n);
+                    /* Finish early if end of backing file has been reached */
+                    if (ret == 0 && n == 0) {
+                        n = len - offset;
+                    }
 
-        WITH_GRAPH_RDLOCK_GUARD() {
-            ret = bdrv_co_is_allocated(unfiltered_bs, offset, STREAM_CHUNK, &n);
-            if (ret == 1) {
-                /* Allocated in the top, no need to copy.  */
-            } else if (ret >= 0) {
-                /*
-                 * Copy if allocated in the intermediate images.  Limit to the
-                 * known-unallocated area [offset, offset+n*BDRV_SECTOR_SIZE).
-                 */
-                ret = bdrv_co_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
-                                                 s->base_overlay, true,
-                                                 offset, n, &n);
-                /* Finish early if end of backing file has been reached */
-                if (ret == 0 && n == 0) {
-                    n = len - offset;
+                    copy = (ret > 0);
                 }
-
-                copy = (ret > 0);
             }
-        }
-        trace_stream_one_iteration(s, offset, n, ret);
-        if (copy) {
-            ret = stream_populate(s->blk, offset, n);
+            trace_stream_one_iteration(s, offset, n, ret);
+            if (copy) {
+                ret = stream_populate(s->blk, offset, n);
+            }
+        } else {
+            assert(need_final_flush);
+            ret = blk_co_flush(s->blk);
+            if (ret < 0) {
+                error_is_read = false;
+            } else {
+                need_final_flush = false;
+            }
         }
         if (ret < 0) {
             BlockErrorAction action =
-                block_job_error_action(&s->common, s->on_error, true, -ret);
+                block_job_error_action(&s->common, s->on_error,
+                                       error_is_read, -ret);
             if (action == BLOCK_ERROR_ACTION_STOP) {
                 n = 0;
                 continue;
