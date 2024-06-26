@@ -3095,9 +3095,15 @@
 #
 # Change the block job's options.
 #
+# Features:
+#
+# @deprecated: This command is deprecated.  Use @job-change
+#     instead.
+#
 # Since: 8.2
 ##
 { 'command': 'block-job-change',
+  'features': ['deprecated'],
   'data': 'JobChangeOptions', 'boxed': true }
 
 ##
