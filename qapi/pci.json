@@ -182,7 +182,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-pci" }
 #     <- { "return": [
