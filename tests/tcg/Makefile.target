@@ -90,6 +90,7 @@ CFLAGS=
 LDFLAGS=
 
 QEMU_OPTS=
+CHECK_PLUGIN_OUTPUT_COMMAND=true
 
 
 # If TCG debugging, or TCI is enabled things are a lot slower
@@ -180,6 +181,8 @@ run-plugin-%:
 		-plugin $(PLUGIN_LIB)/$(call extract-plugin,$@)$(PLUGIN_ARGS) \
 		-d plugin -D $*.pout \
 		 $(call strip-plugin,$<))
+	@$(CHECK_PLUGIN_OUTPUT_COMMAND) $*.pout || echo \
+	$(CHECK_PLUGIN_OUTPUT_COMMAND) $*.pout failed
 else
 run-%: %
 	$(call run-test, $<, \
@@ -194,6 +197,8 @@ run-plugin-%:
 	   	  -plugin $(PLUGIN_LIB)/$(call extract-plugin,$@)$(PLUGIN_ARGS) \
 	    	  -d plugin -D $*.pout \
 		  $(QEMU_OPTS) $(call strip-plugin,$<))
+	@$(CHECK_PLUGIN_OUTPUT_COMMAND) $*.pout || echo \
+	$(CHECK_PLUGIN_OUTPUT_COMMAND) $*.pout failed
 endif
 
 gdb-%: %
