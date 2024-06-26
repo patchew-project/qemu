@@ -73,7 +73,7 @@ struct BlockJobDriver {
      *
      * Note that this can already be called before the job coroutine is running.
      */
-    void (*change)(BlockJob *job, BlockJobChangeOptions *opts, Error **errp);
+    void (*change)(BlockJob *job, JobChangeOptions *opts, Error **errp);
 
     /*
      * Query information specific to this kind of block job.

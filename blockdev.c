@@ -3248,7 +3248,7 @@ void qmp_block_job_dismiss(const char *id, Error **errp)
     job_dismiss_locked(&job, errp);
 }
 
-void qmp_block_job_change(BlockJobChangeOptions *opts, Error **errp)
+void qmp_block_job_change(JobChangeOptions *opts, Error **errp)
 {
     BlockJob *job;
 
