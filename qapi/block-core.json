@@ -3101,6 +3101,16 @@
   'data': 'JobChangeOptions', 'boxed': true }
 
 ##
+# @job-change:
+#
+# Change the block job's options.
+#
+# Since: 9.1
+##
+{ 'command': 'job-change',
+  'data': 'JobChangeOptions', 'boxed': true }
+
+##
 # @BlockdevDiscardOptions:
 #
 # Determines how to handle discard requests.
