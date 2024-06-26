@@ -27,6 +27,7 @@
 #define JOB_H
 
 #include "qapi/qapi-types-job.h"
+#include "qapi/qapi-types-block-core.h"
 #include "qemu/queue.h"
 #include "qemu/progress_meter.h"
 #include "qemu/coroutine.h"
@@ -307,6 +308,12 @@ struct JobDriver {
      */
     bool (*cancel)(Job *job, bool force);
 
+    /**
+     * Change the @job's options according to @opts.
+     *
+     * Note that this can already be called before the job coroutine is running.
+     */
+    void (*change)(Job *job, JobChangeOptions *opts, Error **errp);
 
     /**
      * Called when the job is freed.
@@ -704,6 +711,11 @@ void job_finalize_locked(Job *job, Error **errp);
  * Called with job lock held.
  */
 void job_dismiss_locked(Job **job, Error **errp);
+
+/**
+ * Change the job according to opts.
+ */
+void job_change_locked(Job *job, JobChangeOptions *opts, Error **errp);
 
 /**
  * Synchronously finishes the given @job. If @finish is given, it is called to

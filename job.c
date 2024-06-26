@@ -1262,3 +1262,26 @@ int job_finish_sync_locked(Job *job,
     job_unref_locked(job);
     return ret;
 }
+
+void job_change_locked(Job *job, JobChangeOptions *opts, Error **errp)
+{
+    GLOBAL_STATE_CODE();
+
+    if (job_type(job) != opts->type) {
+        error_setg(errp, "Job '%s' is '%s' job, not '%s'", job->id,
+                   job_type_str(job), JobType_str(opts->type));
+        return;
+    }
+
+    if (job_apply_verb_locked(job, JOB_VERB_CHANGE, errp)) {
+        return;
+    }
+
+    if (job->driver->change) {
+        job_unlock();
+        job->driver->change(job, opts, errp);
+        job_lock();
+    } else {
+        error_setg(errp, "Job type does not support change");
+    }
+}
