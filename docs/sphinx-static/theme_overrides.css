@@ -87,6 +87,52 @@ div[class^="highlight"] pre {
     padding-bottom: 1px;
 }
 
+/* qmp-example directive styling */
+
+.rst-content .admonition-example {
+    background-color: #fcfcfc;
+    padding: 0px;
+}
+
+.rst-content .admonition-example > .admonition-title {
+    background-color: #338254;
+    margin: 0px;
+}
+
+.rst-content .admonition-example > div[class^=highlight] {
+    border-top: 1px solid #d7f0d7;
+    border-bottom: 1px solid #d7f0d7;
+    border-left: 3px solid #d7f0d7;
+    border-right: 3px solid #d7f0d7;
+}
+
+.rst-content .admonition-example .highlight {
+    background: linear-gradient(#d9f1d9 1%, #ecf8ec 10%,
+                                #ecf8ec 90%, #d9f1d9 99%);
+}
+
+.rst-content .admonition-example > .admonition-title:before {
+    content: "🧩";
+}
+
+.rst-content .admonition-example > .admonition-title p {
+    margin: 0px;
+}
+
+.rst-content .admonition-example p {
+    padding: 15px 10px;
+    margin: 0px;
+    background-color: #fafafa;
+    border-left: 1px solid #ededed;
+    border-right: 1px solid #ededed;
+}
+
+.rst-content .admonition-example > .admonition  {
+    background-color: #fcfcfc;
+}
+
+/* end qmp-example styling */
+
 @media screen {
 
     /* content column
