@@ -62,6 +62,7 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
 BlockCopyCallState *block_copy_async(BlockCopyState *s,
                                      int64_t offset, int64_t bytes,
                                      int max_workers, int64_t max_chunk,
+                                     bool need_final_flush,
                                      BlockCopyAsyncCallbackFunc cb,
                                      void *cb_opaque);
 

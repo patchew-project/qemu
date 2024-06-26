@@ -54,6 +54,7 @@ typedef struct BlockCopyCallState {
     int max_workers;
     int64_t max_chunk;
     bool ignore_ratelimit;
+    bool need_final_flush;
     BlockCopyAsyncCallbackFunc cb;
     void *cb_opaque;
     /* Coroutine where async block-copy is running */
@@ -899,6 +900,10 @@ block_copy_common(BlockCopyCallState *call_state)
          */
     } while (ret > 0 && !qatomic_read(&call_state->cancelled));
 
+    if (ret == 0 && call_state->need_final_flush) {
+        ret = bdrv_co_flush(s->target->bs);
+    }
+
     qatomic_store_release(&call_state->finished, true);
 
     if (call_state->cb) {
@@ -954,6 +959,7 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t start, int64_t bytes,
 BlockCopyCallState *block_copy_async(BlockCopyState *s,
                                      int64_t offset, int64_t bytes,
                                      int max_workers, int64_t max_chunk,
+                                     bool need_final_flush,
                                      BlockCopyAsyncCallbackFunc cb,
                                      void *cb_opaque)
 {
@@ -965,6 +971,7 @@ BlockCopyCallState *block_copy_async(BlockCopyState *s,
         .bytes = bytes,
         .max_workers = max_workers,
         .max_chunk = max_chunk,
+        .need_final_flush = need_final_flush,
         .cb = cb,
         .cb_opaque = cb_opaque,
 

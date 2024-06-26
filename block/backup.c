@@ -156,7 +156,7 @@ static int coroutine_fn backup_loop(BackupBlockJob *job)
         job->bg_bcs_call = s = block_copy_async(job->bcs, 0,
                 QEMU_ALIGN_UP(job->len, job->cluster_size),
                 job->perf.max_workers, job->perf.max_chunk,
-                backup_block_copy_callback, job);
+                true, backup_block_copy_callback, job);
 
         while (!block_copy_call_finished(s) &&
                !job_is_cancelled(&job->common.job))
