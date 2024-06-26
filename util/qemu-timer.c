@@ -369,7 +369,10 @@ void timer_init_full(QEMUTimer *ts,
     ts->opaque = opaque;
     ts->scale = scale;
     ts->attributes = attributes;
+    qemu_mutex_init(&ts->opaque_lock);
+    qemu_cond_init(&ts->cb_done);
     ts->expire_time = -1;
+    ts->cb_running = false;
 }
 
 void timer_deinit(QEMUTimer *ts)
@@ -394,6 +397,12 @@ static void timer_del_locked(QEMUTimerList *timer_list, QEMUTimer *ts)
         }
         pt = &t->next;
     }
+
+    qemu_mutex_lock(&ts->opaque_lock);
+    while (ts->cb_running) {
+        qemu_cond_wait(&ts->cb_done, &ts->opaque_lock);
+    }
+    qemu_mutex_unlock(&ts->opaque_lock);
 }
 
 static bool timer_mod_ns_locked(QEMUTimerList *timer_list,
@@ -571,10 +580,22 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         cb = ts->cb;
         opaque = ts->opaque;
 
+        /* Mark the callback as running to prevent
+         * destroying `opaque` in another thread.
+         */
+        qemu_mutex_lock(&ts->opaque_lock);
+        ts->cb_running = true;
+        qemu_mutex_unlock(&ts->opaque_lock);
+
         /* run the callback (the timer list can be modified) */
         qemu_mutex_unlock(&timer_list->active_timers_lock);
         cb(opaque);
         qemu_mutex_lock(&timer_list->active_timers_lock);
+
+        qemu_mutex_lock(&ts->opaque_lock);
+        ts->cb_running = false;
+        qemu_cond_broadcast(&ts->cb_done);
+        qemu_mutex_unlock(&ts->opaque_lock);
 
         progress = true;
     }

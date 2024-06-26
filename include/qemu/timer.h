@@ -3,6 +3,7 @@
 
 #include "qemu/bitops.h"
 #include "qemu/notify.h"
+#include "qemu/thread.h"
 #include "qemu/host-utils.h"
 
 #define NANOSECONDS_PER_SECOND 1000000000LL
@@ -86,9 +87,12 @@ struct QEMUTimer {
     QEMUTimerList *timer_list;
     QEMUTimerCB *cb;
     void *opaque;
+    QemuMutex opaque_lock;
+    QemuCond cb_done;
     QEMUTimer *next;
     int attributes;
     int scale;
+    bool cb_running;
 };
 
 extern QEMUTimerListGroup main_loop_tlg;
