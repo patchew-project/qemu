@@ -906,6 +906,8 @@ typedef enum {
     rv_op_amocas_w = 875,
     rv_op_amocas_d = 876,
     rv_op_amocas_q = 877,
+    rv_op_wrs_sto = 878,
+    rv_op_wrs_nto = 879,
 } rv_op;
 
 /* register names */
@@ -2096,6 +2098,8 @@ const rv_opcode_data rvi_opcode_data[] = {
     { "amocas.w", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
     { "amocas.d", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
     { "amocas.q", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "wrs.sto", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "wrs.nto", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -3817,6 +3821,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                     case 0: op = rv_op_ecall; break;
                     case 32: op = rv_op_ebreak; break;
                     case 64: op = rv_op_uret; break;
+                    case 416: op = rv_op_wrs_nto; break;
+                    case 928: op = rv_op_wrs_sto; break;
                     }
                     break;
                 case 256:
