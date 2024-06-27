@@ -537,6 +537,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
     if (!kvm_enabled()) {
         ipi = qdev_new(TYPE_LOONGSON_IPI);
         qdev_prop_set_uint32(ipi, "num-cpu", machine->smp.cpus);
+        qdev_prop_set_bit(ipi, "has-mmio", true);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
         memory_region_add_subregion(iocsr, SMP_IPI_MAILBOX,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 0));

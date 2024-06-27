@@ -305,15 +305,19 @@ static void loongson_ipi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    for (i = 0; i < s->num_cpu; i++) {
-        s->cpu[i].ipi = s;
-        s->cpu[i].ipi_mmio_mem = g_new0(MemoryRegion, 1);
-        g_autofree char *name = g_strdup_printf("loongson_ipi_cpu%d_mmio", i);
-        memory_region_init_io(s->cpu[i].ipi_mmio_mem, OBJECT(dev),
-                              &loongson_ipi_core_ops, &s->cpu[i], name, 0x48);
-        sysbus_init_mmio(sbd, s->cpu[i].ipi_mmio_mem);
+    if (s->has_mmio) {
+        for (i = 0; i < s->num_cpu; i++) {
+            s->cpu[i].ipi = s;
+            s->cpu[i].ipi_mmio_mem = g_new0(MemoryRegion, 1);
+            g_autofree char *name =
+                        g_strdup_printf("loongson_ipi_cpu%d_mmio", i);
+            memory_region_init_io(s->cpu[i].ipi_mmio_mem, OBJECT(dev),
+                                  &loongson_ipi_core_ops, &s->cpu[i],
+                                  name, 0x48);
+            sysbus_init_mmio(sbd, s->cpu[i].ipi_mmio_mem);
 
-        qdev_init_gpio_out(dev, &s->cpu[i].irq, 1);
+            qdev_init_gpio_out(dev, &s->cpu[i].irq, 1);
+        }
     }
 }
 
@@ -344,6 +348,7 @@ static const VMStateDescription vmstate_loongson_ipi = {
 
 static Property ipi_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", LoongsonIPI, num_cpu, 1),
+    DEFINE_PROP_BOOL("has-mmio", LoongsonIPI, has_mmio, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
