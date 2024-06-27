@@ -168,7 +168,6 @@ static bool sd_is_spi(SDState *sd)
 static const char *sd_version_str(enum SDPhySpecificationVersion version)
 {
     static const char *sdphy_version[] = {
-        [SD_PHY_SPECv1_10_VERS]     = "v1.10",
         [SD_PHY_SPECv2_00_VERS]     = "v2.00",
         [SD_PHY_SPECv3_01_VERS]     = "v3.01",
     };
@@ -371,11 +370,7 @@ static void sd_set_ocr(SDState *sd)
 static void sd_set_scr(SDState *sd)
 {
     sd->scr[0] = 0 << 4;        /* SCR structure version 1.0 */
-    if (sd->spec_version == SD_PHY_SPECv1_10_VERS) {
-        sd->scr[0] |= 1;        /* Spec Version 1.10 */
-    } else {
-        sd->scr[0] |= 2;        /* Spec Version 2.00 or Version 3.0X */
-    }
+    sd->scr[0] |= 2;            /* Spec Version 2.00 or Version 3.0X */
     sd->scr[1] = (2 << 4)       /* SDSC Card (Security Version 1.01) */
                  | 0b0101;      /* 1-bit or 4-bit width bus modes */
     sd->scr[2] = 0x00;          /* Extended Security is not supported. */
@@ -1241,9 +1236,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         break;
 
     case 8:  /* CMD8:   SEND_IF_COND */
-        if (sd->spec_version < SD_PHY_SPECv2_00_VERS) {
-            break;
-        }
         if (sd->state != sd_idle_state) {
             break;
         }
@@ -2231,7 +2223,7 @@ static void sd_realize(DeviceState *dev, Error **errp)
     int ret;
 
     switch (sd->spec_version) {
-    case SD_PHY_SPECv1_10_VERS
+    case SD_PHY_SPECv2_00_VERS
      ... SD_PHY_SPECv3_01_VERS:
         break;
     default:
