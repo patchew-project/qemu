@@ -26,7 +26,7 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev,
     Object *owner = OBJECT(dev);
 
     /* If loading ROM from file, pci handles it */
-    if (dev->romfile || !dev->rom_bar) {
+    if (dev->romfile || dev->rom_bar == ON_OFF_AUTO_OFF) {
         return NULL;
     }
 
@@ -71,7 +71,7 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev,
     if (!fread(ptr, 1, st.st_size, fp)) {
         error_report("pci-assign: Cannot read from host %s", rom_file);
         error_printf("Device option ROM contents are probably invalid "
-                     "(check dmesg).\nSkip option ROM probe with rombar=0, "
+                     "(check dmesg).\nSkip option ROM probe with rombar=off, "
                      "or load from file with romfile=\n");
         goto close_rom;
     }

@@ -568,7 +568,7 @@ static void test_hotplug_2_reverse(void)
                          "{'bus': 'root0',"
                          "'failover': true,"
                          "'netdev': 'hs0',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_STANDBY0"'}");
 
@@ -655,7 +655,7 @@ static void test_migrate_out(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -765,7 +765,7 @@ static void test_migrate_in(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -819,7 +819,7 @@ static void test_off_migrate_out(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -887,7 +887,7 @@ static void test_off_migrate_in(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -938,7 +938,7 @@ static void test_guest_off_migrate_out(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1014,7 +1014,7 @@ static void test_guest_off_migrate_in(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1065,7 +1065,7 @@ static void test_migrate_guest_off_abort(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1170,7 +1170,7 @@ static void test_migrate_abort_wait_unplug(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1259,7 +1259,7 @@ static void test_migrate_abort_active(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1358,7 +1358,7 @@ static void test_migrate_off_abort(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1450,7 +1450,7 @@ static void test_migrate_abort_timeout(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1543,7 +1543,7 @@ static void test_multi_out(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1574,7 +1574,7 @@ static void test_multi_out(gconstpointer opaque)
                          "{'bus': 'root3',"
                          "'failover_pair_id': 'standby1',"
                          "'netdev': 'hs3',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY1"'}");
 
@@ -1713,7 +1713,7 @@ static void test_multi_in(gconstpointer opaque)
                          "{'bus': 'root1',"
                          "'failover_pair_id': 'standby0',"
                          "'netdev': 'hs1',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY0"'}");
 
@@ -1737,7 +1737,7 @@ static void test_multi_in(gconstpointer opaque)
                          "{'bus': 'root3',"
                          "'failover_pair_id': 'standby1',"
                          "'netdev': 'hs3',"
-                         "'rombar': 0,"
+                         "'rombar': 'off',"
                          "'romfile': '',"
                          "'mac': '"MAC_PRIMARY1"'}");
 
