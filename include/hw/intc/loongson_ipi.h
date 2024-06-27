@@ -50,6 +50,7 @@ struct LoongsonIPI {
     MemoryRegion ipi_iocsr_mem;
     MemoryRegion ipi64_iocsr_mem;
     uint32_t num_cpu;
+    bool has_mmio;
     IPICore *cpu;
 };
 
