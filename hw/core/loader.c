@@ -1075,7 +1075,7 @@ ssize_t rom_add_file(const char *file, const char *fw_dir,
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
-    ssize_t rc;
+    ssize_t rc, sz = 0;
     int fd = -1;
     char devpath[100];
 
@@ -1116,12 +1116,15 @@ ssize_t rom_add_file(const char *file, const char *fw_dir,
     rom->datasize = rom->romsize;
     rom->data     = g_malloc0(rom->datasize);
     lseek(fd, 0, SEEK_SET);
-    rc = read(fd, rom->data, rom->datasize);
-    if (rc != rom->datasize) {
-        fprintf(stderr, "rom: file %-20s: read error: rc=%zd (expected %zd)\n",
-                rom->name, rc, rom->datasize);
-        goto err;
-    }
+    do {
+        rc = read(fd, &rom->data[sz], rom->datasize);
+        if (rc == -1) {
+                fprintf(stderr, "rom: file %-20s: read error: %s\n",
+                        rom->name, strerror(errno));
+                goto err;
+        }
+        sz += rc;
+    } while (sz != rom->datasize);
     close(fd);
     rom_insert(rom);
     if (rom->fw_file && fw_cfg) {
