@@ -427,7 +427,7 @@ static void macio_ide_realizefn(DeviceState *dev, Error **errp)
     s->bus.dma = &s->dma;
 }
 
-static void pmac_ide_irq(void *opaque, int n, int level)
+static void pmac_irq(void *opaque, int n, int level)
 {
     MACIOIDEState *s = opaque;
     uint32_t mask = 0x80000000u >> n;
@@ -446,6 +446,11 @@ static void pmac_ide_irq(void *opaque, int n, int level)
     }
 }
 
+static void pmac_ide_irq(void *opaque, int n, int level)
+{
+    pmac_irq(opaque, 1, level);
+}
+
 static void macio_ide_initfn(Object *obj)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
@@ -456,8 +461,8 @@ static void macio_ide_initfn(Object *obj)
     sysbus_init_mmio(d, &s->mem);
     sysbus_init_irq(d, &s->real_ide_irq);
     sysbus_init_irq(d, &s->real_dma_irq);
-    s->dma_irq = qemu_allocate_irq(pmac_ide_irq, s, 0);
-    s->ide_irq = qemu_allocate_irq(pmac_ide_irq, s, 1);
+    s->dma_irq = qemu_allocate_irq(pmac_irq, s, 0);
+    qdev_init_gpio_in_named_with_opaque(DEVICE(obj), pmac_ide_irq, s, NULL, 1);
 
     object_property_add_link(obj, "dbdma", TYPE_MAC_DBDMA,
                              (Object **) &s->dbdma,
