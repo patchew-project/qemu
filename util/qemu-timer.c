@@ -370,6 +370,7 @@ void timer_init_full(QEMUTimer *ts,
     ts->scale = scale;
     ts->attributes = attributes;
     ts->expire_time = -1;
+    ts->cb_running = false;
 }
 
 void timer_deinit(QEMUTimer *ts)
@@ -435,6 +436,10 @@ void timer_del(QEMUTimer *ts)
         qemu_mutex_lock(&timer_list->active_timers_lock);
         timer_del_locked(timer_list, ts);
         qemu_mutex_unlock(&timer_list->active_timers_lock);
+
+        if (qatomic_read(&ts->cb_running)) {
+            qemu_event_wait(&timer_list->timers_done_ev);
+        }
     }
 }
 
@@ -571,9 +576,15 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         cb = ts->cb;
         opaque = ts->opaque;
 
+        /* prevent timer_del from returning while cb(opaque)
+         * is still running (by waiting for timers_done_ev).
+         */
+        qatomic_set(&ts->cb_running, true);
+
         /* run the callback (the timer list can be modified) */
         qemu_mutex_unlock(&timer_list->active_timers_lock);
         cb(opaque);
+        qatomic_set(&ts->cb_running, false);
         qemu_mutex_lock(&timer_list->active_timers_lock);
 
         progress = true;

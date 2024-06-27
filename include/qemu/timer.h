@@ -89,6 +89,7 @@ struct QEMUTimer {
     QEMUTimer *next;
     int attributes;
     int scale;
+    bool cb_running;
 };
 
 extern QEMUTimerListGroup main_loop_tlg;
