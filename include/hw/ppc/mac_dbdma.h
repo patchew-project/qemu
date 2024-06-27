@@ -32,6 +32,7 @@
 typedef struct DBDMA_io DBDMA_io;
 
 typedef void (*DBDMA_flush)(DBDMA_io *io);
+typedef void (*DBDMA_irq)(DBDMA_io *io);
 typedef void (*DBDMA_rw)(DBDMA_io *io);
 typedef void (*DBDMA_end)(DBDMA_io *io);
 struct DBDMA_io {
@@ -154,7 +155,7 @@ typedef struct dbdma_cmd {
 typedef struct DBDMA_channel {
     int channel;
     uint32_t regs[DBDMA_REGS];
-    qemu_irq irq;
+    DBDMA_irq irq;
     DBDMA_io io;
     DBDMA_rw rw;
     DBDMA_flush flush;
@@ -172,7 +173,7 @@ typedef struct DBDMAState DBDMAState;
 
 /* Externally callable functions */
 
-void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
+void DBDMA_register_channel(void *dbdma, int nchan, DBDMA_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque);
 void DBDMA_kick(DBDMAState *dbdma);

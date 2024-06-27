@@ -114,7 +114,7 @@ static void kill_channel(DBDMA_channel *ch)
     ch->regs[DBDMA_STATUS] |= DEAD;
     ch->regs[DBDMA_STATUS] &= ~ACTIVE;
 
-    qemu_irq_raise(ch->irq);
+    ch->irq(&ch->io);
 }
 
 static void conditional_interrupt(DBDMA_channel *ch)
@@ -133,7 +133,7 @@ static void conditional_interrupt(DBDMA_channel *ch)
     case INTR_NEVER:  /* don't interrupt */
         return;
     case INTR_ALWAYS: /* always interrupt */
-        qemu_irq_raise(ch->irq);
+            ch->irq(&ch->io);
         DBDMA_DPRINTFCH(ch, "%s: raise\n", __func__);
         return;
     }
@@ -148,13 +148,13 @@ static void conditional_interrupt(DBDMA_channel *ch)
     switch(intr) {
     case INTR_IFSET:  /* intr if condition bit is 1 */
         if (cond) {
-            qemu_irq_raise(ch->irq);
+            ch->irq(&ch->io);
             DBDMA_DPRINTFCH(ch, "%s: raise\n", __func__);
         }
         return;
     case INTR_IFCLR:  /* intr if condition bit is 0 */
         if (!cond) {
-            qemu_irq_raise(ch->irq);
+            ch->irq(&ch->io);
             DBDMA_DPRINTFCH(ch, "%s: raise\n", __func__);
         }
         return;
@@ -562,7 +562,7 @@ void DBDMA_kick(DBDMAState *dbdma)
     qemu_bh_schedule(dbdma->bh);
 }
 
-void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
+void DBDMA_register_channel(void *dbdma, int nchan, DBDMA_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque)
 {

@@ -427,9 +427,8 @@ static void macio_ide_realizefn(DeviceState *dev, Error **errp)
     s->bus.dma = &s->dma;
 }
 
-static void pmac_irq(void *opaque, int n, int level)
+static void pmac_irq(MACIOIDEState *s, int n, int level)
 {
-    MACIOIDEState *s = opaque;
     uint32_t mask = 0x80000000u >> n;
 
     /* We need to reflect the IRQ state in the irq register */
@@ -444,6 +443,11 @@ static void pmac_irq(void *opaque, int n, int level)
     } else {
         qemu_set_irq(s->real_dma_irq, level);
     }
+}
+
+static void pmac_dma_irq(DBDMA_io *io)
+{
+    pmac_irq(io->opaque, 0, 1);
 }
 
 static void pmac_ide_irq(void *opaque, int n, int level)
@@ -461,7 +465,6 @@ static void macio_ide_initfn(Object *obj)
     sysbus_init_mmio(d, &s->mem);
     sysbus_init_irq(d, &s->real_ide_irq);
     sysbus_init_irq(d, &s->real_dma_irq);
-    s->dma_irq = qemu_allocate_irq(pmac_irq, s, 0);
     qdev_init_gpio_in_named_with_opaque(DEVICE(obj), pmac_ide_irq, s, NULL, 1);
 
     object_property_add_link(obj, "dbdma", TYPE_MAC_DBDMA,
@@ -513,7 +516,7 @@ void macio_ide_init_drives(MACIOIDEState *s, DriveInfo **hd_table)
 
 void macio_ide_register_dma(MACIOIDEState *s)
 {
-    DBDMA_register_channel(s->dbdma, s->channel, s->dma_irq,
+    DBDMA_register_channel(s->dbdma, s->channel, pmac_dma_irq,
                            pmac_ide_transfer, pmac_ide_flush, s);
 }
 
