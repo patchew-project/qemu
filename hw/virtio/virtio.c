@@ -507,10 +507,13 @@ static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
     address_space_cache_invalidate(&caches->used, pa, sizeof(val));
 }
 
-static void virtio_queue_split_set_notification(VirtQueue *vq, int enable)
+static bool virtio_queue_split_set_notification(VirtQueue *vq, int enable)
 {
+    uint16_t shadow_idx;
+
     RCU_READ_LOCK_GUARD();
 
+    shadow_idx = vq->shadow_avail_idx;
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vring_avail_idx(vq));
     } else if (enable) {
@@ -521,10 +524,14 @@ static void virtio_queue_split_set_notification(VirtQueue *vq, int enable)
     if (enable) {
         /* Expose avail event/used flags before caller checks the avail idx. */
         smp_mb();
+
+        return shadow_idx != vring_avail_idx(vq);
     }
+
+    return false;
 }
 
-static void virtio_queue_packed_set_notification(VirtQueue *vq, int enable)
+static bool virtio_queue_packed_set_notification(VirtQueue *vq, int enable)
 {
     uint16_t off_wrap;
     VRingPackedDescEvent e;
@@ -533,7 +540,7 @@ static void virtio_queue_packed_set_notification(VirtQueue *vq, int enable)
     RCU_READ_LOCK_GUARD();
     caches = vring_get_region_caches(vq);
     if (!caches) {
-        return;
+        return false;
     }
 
     vring_packed_event_read(vq->vdev, &caches->used, &e);
@@ -555,6 +562,8 @@ static void virtio_queue_packed_set_notification(VirtQueue *vq, int enable)
         /* Expose avail event/used flags before caller checks the avail idx. */
         smp_mb();
     }
+
+    return false;
 }
 
 bool virtio_queue_get_notification(VirtQueue *vq)
@@ -562,18 +571,18 @@ bool virtio_queue_get_notification(VirtQueue *vq)
     return vq->notification;
 }
 
-void virtio_queue_set_notification(VirtQueue *vq, int enable)
+bool virtio_queue_set_notification(VirtQueue *vq, int enable)
 {
     vq->notification = enable;
 
     if (!vq->vring.desc) {
-        return;
+        return false;
     }
 
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
-        virtio_queue_packed_set_notification(vq, enable);
+        return virtio_queue_packed_set_notification(vq, enable);
     } else {
-        virtio_queue_split_set_notification(vq, enable);
+        return virtio_queue_split_set_notification(vq, enable);
     }
 }
 
