@@ -115,6 +115,8 @@ typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_SHARED_OBJECT_ADD = 6,
     VHOST_USER_BACKEND_SHARED_OBJECT_REMOVE = 7,
     VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP = 8,
+    VHOST_USER_BACKEND_SHMEM_MAP = 9,
+    VHOST_USER_BACKEND_SHMEM_UNMAP = 10,
     VHOST_USER_BACKEND_MAX
 }  VhostUserBackendRequest;
 
@@ -192,6 +194,24 @@ typedef struct VhostUserShared {
     unsigned char uuid[16];
 } VhostUserShared;
 
+/* For the flags field of VhostUserMMap */
+#define VHOST_USER_FLAG_MAP_R (1u << 0)
+#define VHOST_USER_FLAG_MAP_W (1u << 1)
+
+typedef struct {
+    /* VIRTIO Shared Memory Region ID */
+    uint8_t shmid;
+    uint8_t padding[7];
+    /* File offset */
+    uint64_t fd_offset;
+    /* Offset within the VIRTIO Shared Memory Region */
+    uint64_t shm_offset;
+    /* Size of the mapping */
+    uint64_t len;
+    /* Flags for the mmap operation, from VHOST_USER_FLAG_* */
+    uint64_t flags;
+} VhostUserMMap;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -224,6 +244,7 @@ typedef union {
         VhostUserInflight inflight;
         VhostUserShared object;
         VhostUserTransferDeviceState transfer_state;
+        VhostUserMMap mmap;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1748,6 +1769,100 @@ vhost_user_backend_handle_shared_object_lookup(struct vhost_user *u,
     return 0;
 }
 
+static int
+vhost_user_backend_handle_shmem_map(struct vhost_dev *dev,
+                                    VhostUserMMap *vu_mmap,
+                                    int fd)
+{
+    void *addr = 0;
+    MemoryRegion *mr = NULL;
+
+    if (fd < 0) {
+        error_report("Bad fd for map");
+        return -EBADF;
+    }
+
+    if (!dev->vdev->shmem_list ||
+        dev->vdev->n_shmem_regions <= vu_mmap->shmid) {
+        error_report("Device only has %d VIRTIO Shared Memory Regions. "
+                     "Requested ID: %d",
+                     dev->vdev->n_shmem_regions, vu_mmap->shmid);
+        return -EFAULT;
+    }
+
+    mr = &dev->vdev->shmem_list[vu_mmap->shmid];
+
+    if (!mr) {
+        error_report("VIRTIO Shared Memory Region at "
+                     "ID %d unitialized", vu_mmap->shmid);
+        return -EFAULT;
+    }
+
+    if ((vu_mmap->shm_offset + vu_mmap->len) < vu_mmap->len ||
+        (vu_mmap->shm_offset + vu_mmap->len) > mr->size) {
+        error_report("Bad offset/len for mmap %" PRIx64 "+%" PRIx64,
+                     vu_mmap->shm_offset, vu_mmap->len);
+        return -EFAULT;
+    }
+
+    void *shmem_ptr = memory_region_get_ram_ptr(mr);
+
+    addr = mmap(shmem_ptr + vu_mmap->shm_offset, vu_mmap->len,
+        ((vu_mmap->flags & VHOST_USER_FLAG_MAP_R) ? PROT_READ : 0) |
+        ((vu_mmap->flags & VHOST_USER_FLAG_MAP_W) ? PROT_WRITE : 0),
+        MAP_SHARED | MAP_FIXED, fd, vu_mmap->fd_offset);
+
+    if (addr == MAP_FAILED) {
+        error_report("Failed to mmap mem fd");
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+static int
+vhost_user_backend_handle_shmem_unmap(struct vhost_dev *dev,
+                                      VhostUserMMap *vu_mmap)
+{
+    void *addr = 0;
+    MemoryRegion *mr = NULL;
+
+    if (!dev->vdev->shmem_list ||
+        dev->vdev->n_shmem_regions <= vu_mmap->shmid) {
+        error_report("Device only has %d VIRTIO Shared Memory Regions. "
+                     "Requested ID: %d",
+                     dev->vdev->n_shmem_regions, vu_mmap->shmid);
+        return -EFAULT;
+    }
+
+    mr = &dev->vdev->shmem_list[vu_mmap->shmid];
+
+    if (!mr) {
+        error_report("VIRTIO Shared Memory Region at "
+                     "ID %d unitialized", vu_mmap->shmid);
+        return -EFAULT;
+    }
+
+    if ((vu_mmap->shm_offset + vu_mmap->len) < vu_mmap->len ||
+        (vu_mmap->shm_offset + vu_mmap->len) > mr->size) {
+        error_report("Bad offset/len for mmap %" PRIx64 "+%" PRIx64,
+                     vu_mmap->shm_offset, vu_mmap->len);
+        return -EFAULT;
+    }
+
+    void *shmem_ptr = memory_region_get_ram_ptr(mr);
+
+    addr = mmap(shmem_ptr + vu_mmap->shm_offset, vu_mmap->len,
+                PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+
+    if (addr == MAP_FAILED) {
+        error_report("Failed to unmap memory");
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
 static void close_backend_channel(struct vhost_user *u)
 {
     g_source_destroy(u->backend_src);
@@ -1815,6 +1930,13 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
     case VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP:
         ret = vhost_user_backend_handle_shared_object_lookup(dev->opaque, ioc,
                                                              &hdr, &payload);
+        break;
+    case VHOST_USER_BACKEND_SHMEM_MAP:
+        ret = vhost_user_backend_handle_shmem_map(dev, &payload.mmap,
+                                                  fd ? fd[0] : -1);
+        break;
+    case VHOST_USER_BACKEND_SHMEM_UNMAP:
+        ret = vhost_user_backend_handle_shmem_unmap(dev, &payload.mmap);
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);

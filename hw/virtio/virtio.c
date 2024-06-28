@@ -2856,6 +2856,16 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
     return vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
 
+MemoryRegion *virtio_new_shmem_region(VirtIODevice *vdev)
+{
+    MemoryRegion *mr = g_new0(MemoryRegion, 1);
+    ++vdev->n_shmem_regions;
+    vdev->shmem_list = g_renew(MemoryRegion, vdev->shmem_list,
+                               vdev->n_shmem_regions);
+    vdev->shmem_list[vdev->n_shmem_regions - 1] = *mr;
+    return mr;
+}
+
 /* A wrapper for use as a VMState .put function */
 static int virtio_device_put(QEMUFile *f, void *opaque, size_t size,
                               const VMStateField *field, JSONWriter *vmdesc)
@@ -3264,6 +3274,8 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
             virtio_vmstate_change, vdev);
     vdev->device_endian = virtio_default_endian();
     vdev->use_guest_notifier_mask = true;
+    vdev->shmem_list = NULL;
+    vdev->n_shmem_regions = 0;
 }
 
 /*

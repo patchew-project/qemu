@@ -165,6 +165,9 @@ struct VirtIODevice
      */
     EventNotifier config_notifier;
     bool device_iotlb_enabled;
+    /* Shared memory region for vhost-user mappings. */
+    MemoryRegion *shmem_list;
+    int n_shmem_regions;
 };
 
 struct VirtioDeviceClass {
@@ -279,6 +282,8 @@ void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq);
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
 int virtio_save(VirtIODevice *vdev, QEMUFile *f);
+
+MemoryRegion *virtio_new_shmem_region(VirtIODevice *vdev);
 
 extern const VMStateInfo virtio_vmstate_info;
 

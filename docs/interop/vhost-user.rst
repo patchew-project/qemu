@@ -1859,6 +1859,33 @@ is sent by the front-end.
   when the operation is successful, or non-zero otherwise. Note that if the
   operation fails, no fd is sent to the backend.
 
+``VHOST_USER_BACKEND_SHMEM_MAP``
+  :id: 9
+  :equivalent ioctl: N/A
+  :request payload: fd and ``struct VhostUserMMap``
+  :reply payload: N/A
+
+  This message can be submitted by the backends to advertise a new mapping
+  to be made in a given VIRTIO Shared Memory Region. Upon receiving the message,
+  The front-end will mmap the given fd into the VIRTIO Shared Memory Region
+  with the requested ``shmid``. A reply is generated indicating whether mapping
+  succeeded.
+
+  Mapping over an already existing map is not allowed and request shall fail.
+  Therefore, the memory range in the request must correspond with a valid,
+  free region of the VIRTIO Shared Memory Region.
+
+``VHOST_USER_BACKEND_SHMEM_UNMAP``
+  :id: 10
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserMMap``
+  :reply payload: N/A
+
+  This message can be submitted by the backends so that the front-end un-mmap
+  a given range (``offset``, ``len``) in the VIRTIO Shared Memory Region with
+  the requested ``shmid``.
+  A reply is generated indicating whether unmapping succeeded.
+
 .. _reply_ack:
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK
