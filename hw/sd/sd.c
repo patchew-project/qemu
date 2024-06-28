@@ -1218,7 +1218,13 @@ static sd_rsp_type_t emmc_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
 {
     switch (sd->state) {
+    case sd_idle_state:
+        if (!sd->aspeed_emmc_kludge) {
+            return sd_invalid_state_for_cmd(sd, req);
+        }
+        /* fall-through */
     case sd_ready_state:
+        /* Bus always won */
         sd->state = sd_identification_state;
         return sd_r2_i;
     default:
