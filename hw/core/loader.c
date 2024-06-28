@@ -1115,14 +1115,13 @@ ssize_t rom_add_file(const char *file, const char *fw_dir,
 
     rom->datasize = rom->romsize;
     rom->data     = g_malloc0(rom->datasize);
-    lseek(fd, 0, SEEK_SET);
-    rc = read(fd, rom->data, rom->datasize);
+    close(fd);
+    rc = load_image_size(rom->path, rom->data, rom->datasize);
     if (rc != rom->datasize) {
         fprintf(stderr, "rom: file %-20s: read error: rc=%zd (expected %zd)\n",
                 rom->name, rc, rom->datasize);
         goto err;
     }
-    close(fd);
     rom_insert(rom);
     if (rom->fw_file && fw_cfg) {
         const char *basename;
