@@ -1693,6 +1693,9 @@ static sd_rsp_type_t sd_cmd_APP_CMD(SDState *sd, SDRequest req)
     case sd_sleep_state:
         return sd_invalid_state_for_cmd(sd, req);
     case sd_idle_state:
+        if (sd_is_emmc(sd)) {
+            return sd_invalid_state_for_cmd(sd, req);
+        }
         if (!sd_is_spi(sd) && sd_req_get_rca(sd, req) != 0x0000) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "SD: illegal RCA 0x%04x for APP_CMD\n", req.cmd);
@@ -1707,7 +1710,7 @@ static sd_rsp_type_t sd_cmd_APP_CMD(SDState *sd, SDRequest req)
     sd->expecting_acmd = true;
     sd->card_status |= APP_CMD;
 
-    return sd_r1;
+    return sd->aspeed_emmc_kludge ? sd_r0 : sd_r1;
 }
 
 /* CMD56 */
