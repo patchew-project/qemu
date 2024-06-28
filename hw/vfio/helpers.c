@@ -586,6 +586,7 @@ int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
         g_free(*info);
     }
 
+    g_free(*info);
     *info = NULL;
     return -ENODEV;
 }
