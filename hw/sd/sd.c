@@ -129,6 +129,7 @@ struct SDState {
     uint8_t spec_version;
     BlockBackend *blk;
     bool aspeed_emmc_kludge;
+    uint8_t boot_config;
 
     const SDProto *proto;
 
@@ -505,6 +506,8 @@ static void mmc_set_ext_csd(SDState *sd, uint64_t size)
     sd->ext_csd[159] = 0x00; /* Max enhanced area size */
     sd->ext_csd[158] = 0x00; /* ... */
     sd->ext_csd[157] = 0xEC; /* ... */
+
+    sd->ext_csd[EXT_CSD_PART_CONFIG] = sd->boot_config;
 }
 
 static void sd_emmc_set_csd(SDState *sd, uint64_t size)
@@ -1004,7 +1007,13 @@ static uint32_t sd_emmc_bootpart_offset(SDState *sd)
 {
     unsigned int access = sd->ext_csd[EXT_CSD_PART_CONFIG] &
         EXT_CSD_PART_CONFIG_ACC_MASK;
+    unsigned int enable = sd->ext_csd[EXT_CSD_PART_CONFIG] &
+         EXT_CSD_PART_CONFIG_EN_MASK;
     unsigned int boot_capacity = sd_boot_capacity_bytes(sd);
+
+    if (!enable) {
+        return 0;
+    }
 
     switch (access) {
     case EXT_CSD_PART_CONFIG_ACC_DEFAULT:
@@ -2808,6 +2817,7 @@ static Property sd_properties[] = {
      * whether card should be in SSI or MMC/SD mode.  It is also up to the
      * board to ensure that ssi transfers only occur when the chip select
      * is asserted.  */
+    DEFINE_PROP_UINT8("boot-config", SDState, boot_config, 0x0),
     DEFINE_PROP_END_OF_LIST()
 };
 
