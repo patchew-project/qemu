@@ -118,7 +118,7 @@ static bool require_nf(int vd, int nf, int lmul)
  */
 static bool require_align(const int8_t val, const int8_t lmul)
 {
-    return lmul <= 0 || extract32(val, 0, lmul) == 0;
+    return lmul <= 0 || val % lmul == 0;
 }
 
 /*
