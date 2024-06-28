@@ -219,7 +219,7 @@ static size_t curl_header_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
         && g_ascii_strncasecmp(header, accept_ranges,
                                strlen(accept_ranges)) == 0) {
 
-        char *p = strchr(header, ':') + 1;
+        char *p = header + strlen(accept_ranges);
 
         /* Skip whitespace between the header name and value. */
         while (p < end && *p && g_ascii_isspace(*p)) {
