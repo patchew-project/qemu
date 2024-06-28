@@ -1,0 +1,49 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+
+##
+# = ARM Processor Errors
+##
+
+##
+# @ArmProcessorErrorType:
+#
+# Type of ARM processor error to inject
+#
+# @unknown-error: Unknown error
+#
+# @cache-error: Cache error
+#
+# @tlb-error: TLB error
+#
+# @bus-error: Bus error.
+#
+# @micro-arch-error: Micro architectural error.
+#
+# Since: 9.1
+##
+{ 'enum': 'ArmProcessorErrorType',
+  'data': ['unknown-error',
+	   'cache-error',
+           'tlb-error',
+           'bus-error',
+           'micro-arch-error']
+}
+
+##
+# @arm-inject-error:
+#
+# Inject ARM Processor error.
+#
+# @errortypes: ARM processor error types to inject
+#
+# Features:
+#
+# @unstable: This command is experimental.
+#
+# Since: 9.1
+##
+{ 'command': 'arm-inject-error',
+  'data': { 'errortypes': ['ArmProcessorErrorType'] },
+  'features': [ 'unstable' ]
+}

@@ -22,6 +22,7 @@ if have_system or have_tools or have_ga
 endif
 
 qapi_all_modules = [
+  'arm-error-inject',
   'authz',
   'block',
   'block-core',
