@@ -804,6 +804,10 @@ static void sd_reset(DeviceState *dev)
     }
     size = sect << HWBLOCK_SHIFT;
 
+    if (sc->bootpart_offset) {
+        size -= sd_boot_capacity_bytes(sd) * 2;
+    }
+
     sect = sd_addr_to_wpnum(size) + 1;
 
     sd->state = sd_idle_state;
