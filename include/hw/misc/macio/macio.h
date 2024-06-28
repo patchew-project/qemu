@@ -92,6 +92,11 @@ struct MACIOIDEState {
     uint32_t irq_reg;
 };
 
+#define MACIO_IDE_PMAC_NIRQS 2
+
+#define MACIO_IDE_PMAC_DMA_IRQ 0
+#define MACIO_IDE_PMAC_IDE_IRQ 1
+
 void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);
 void macio_ide_register_dma(MACIOIDEState *ide);
 
