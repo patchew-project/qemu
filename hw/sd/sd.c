@@ -1190,6 +1190,12 @@ static sd_rsp_type_t spi_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
     return sd_r1;
 }
 
+static sd_rsp_type_t emmc_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
+{
+    sd_ocr_powerup(sd);
+    return sd->state == sd_idle_state ? sd_r3 : sd_r0;
+}
+
 /* CMD2 */
 static sd_rsp_type_t sd_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
 {
@@ -2398,6 +2404,7 @@ static const SDProto sd_proto_emmc = {
     .name = "eMMC",
     .cmd = {
         [0]  = {0,  sd_bc,   "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
+        [1]  = {0,  sd_bcr,  "SEND_OP_COND", emmc_cmd_SEND_OP_COND},
         [2]  = {0,  sd_bcr,  "ALL_SEND_CID", sd_cmd_ALL_SEND_CID},
         [3]  = {0,  sd_ac,   "SET_RELATIVE_ADDR", emmc_cmd_SET_RELATIVE_ADDR},
         [4]  = {0,  sd_bc,   "SEND_DSR", sd_cmd_unimplemented},
