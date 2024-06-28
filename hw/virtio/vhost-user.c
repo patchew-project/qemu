@@ -1884,16 +1884,42 @@ static int
 vhost_user_backend_handle_mem_read(struct vhost_dev *dev,
                                    VhostUserMemRWMsg *mem_rw)
 {
-    /* TODO */
-    return -EPERM;
+    ram_addr_t offset;
+    int fd;
+    MemoryRegion *mr;
+    
+    mr = vhost_user_get_mr_data(mem_rw->guest_address, &offset, &fd);
+
+    if (!mr) {
+        error_report("Failed to get memory region with address %" PRIx64,
+                     mem_rw->guest_address);
+        return -EFAULT;
+    }
+
+    memcpy(mem_rw->data, memory_region_get_ram_ptr(mr) + offset, mem_rw->size);
+
+    return 0;
 }
 
 static int
 vhost_user_backend_handle_mem_write(struct vhost_dev *dev,
                                    VhostUserMemRWMsg *mem_rw)
 {
-    /* TODO */
-    return -EPERM;
+    ram_addr_t offset;
+    int fd;
+    MemoryRegion *mr;
+    
+    mr = vhost_user_get_mr_data(mem_rw->guest_address, &offset, &fd);
+
+    if (!mr) {
+        error_report("Failed to get memory region with address %" PRIx64,
+                     mem_rw->guest_address);
+        return -EFAULT;
+    }
+
+    memcpy(memory_region_get_ram_ptr(mr) + offset, mem_rw->data, mem_rw->size);
+
+    return 0;
 }
 
 static void close_backend_channel(struct vhost_user *u)
