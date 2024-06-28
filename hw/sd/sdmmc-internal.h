@@ -108,4 +108,7 @@
 #define EXT_CSD_PART_CONFIG_EN_BOOT0    (0x1 << 3)
 #define EXT_CSD_PART_CONFIG_EN_USER     (0x7 << 3)
 
+#define EXT_CSD_BUS_WIDTH_8_MASK        0x4
+#define EXT_CSD_BUS_WIDTH_4_MASK        0x2
+
 #endif
