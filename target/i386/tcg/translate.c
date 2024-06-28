@@ -877,7 +877,7 @@ static CCPrepare gen_prepare_sign_nz(TCGv src, MemOp size)
         return (CCPrepare) { .cond = TCG_COND_LT, .reg = src };
     } else {
         return (CCPrepare) { .cond = TCG_COND_TSTNE, .reg = src,
-                             .imm = 1ull << ((8 << size) - 1) };
+                             .imm = (1ull << (8 << size)) - 1 };
     }
 }
 
