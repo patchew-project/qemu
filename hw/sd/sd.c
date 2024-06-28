@@ -1660,6 +1660,12 @@ static sd_rsp_type_t sd_cmd_GEN_CMD(SDState *sd, SDRequest req)
     }
 }
 
+/* CMD58 */
+static sd_rsp_type_t spi_cmd_READ_OCR(SDState *sd, SDRequest req)
+{
+    return sd_r3;
+}
+
 static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
     uint64_t addr;
@@ -1748,9 +1754,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         return sd_cmd_to_receivingdata(sd, req, 0, sizeof(sd->cid));
 
     /* Application specific commands (Class 8) */
-    case 58:    /* CMD58:   READ_OCR (SPI) */
-        return sd_r3;
-
     case 59:    /* CMD59:   CRC_ON_OFF (SPI) */
         return sd_r1;
 
@@ -2321,6 +2324,7 @@ static const SDProto sd_proto_spi = {
         [55] = {8,  sd_spi, "APP_CMD", sd_cmd_APP_CMD},
         [56] = {8,  sd_spi, "GEN_CMD", sd_cmd_GEN_CMD},
         [57] = {10, sd_spi, "DIRECT_SECURE_WRITE", sd_cmd_optional},
+        [58] = {0,  sd_spi, "READ_OCR", spi_cmd_READ_OCR},
     },
     .acmd = {
         [41] = {8,  sd_spi, "SEND_OP_COND", spi_cmd_SEND_OP_COND},
