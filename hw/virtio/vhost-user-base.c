@@ -268,7 +268,9 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBase *vub = VHOST_USER_BASE(dev);
-    int ret;
+    uint64_t memory_sizes[8];
+    void *cache_ptr;
+    int i, ret, nregions;
 
     if (!vub->chardev.chr) {
         error_setg(errp, "vhost-user-base: missing chardev");
@@ -311,7 +313,7 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
 
     /* Allocate queues */
     vub->vqs = g_ptr_array_sized_new(vub->num_vqs);
-    for (int i = 0; i < vub->num_vqs; i++) {
+    for (i = 0; i < vub->num_vqs; i++) {
         g_ptr_array_add(vub->vqs,
                         virtio_add_queue(vdev, vub->vq_size,
                                          vub_handle_output));
@@ -326,6 +328,39 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
 
     if (ret < 0) {
         do_vhost_user_cleanup(vdev, vub);
+    }
+
+    ret = vub->vhost_dev.vhost_ops->vhost_get_shmem_config(&vub->vhost_dev,
+                                                           &nregions,
+                                                           memory_sizes,
+                                                           errp);
+
+    if (ret < 0) {
+        do_vhost_user_cleanup(vdev, vub);
+    }
+
+    for (i = 0; i < nregions; i++) {
+        if (memory_sizes[i]) {
+            if (!is_power_of_2(memory_sizes[i]) ||
+                memory_sizes[i] < qemu_real_host_page_size()) {
+                error_setg(errp, "Shared memory %d size must be a power of 2 "
+                                 "no smaller than the page size", i);
+                return;
+            }
+
+            cache_ptr = mmap(NULL, memory_sizes[i], PROT_READ,
+                            MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+            if (cache_ptr == MAP_FAILED) {
+                error_setg(errp, "Unable to mmap blank cache: %s",
+                           strerror(errno));
+                return;
+            }
+
+            virtio_new_shmem_region(vdev);
+            memory_region_init_ram_ptr(&vdev->shmem_list[i],
+                                    OBJECT(vdev), "vub-shm-" + i,
+                                    memory_sizes[i], cache_ptr);
+        }
     }
 
     qemu_chr_fe_set_handlers(&vub->chardev, NULL, NULL, vub_event, NULL,
