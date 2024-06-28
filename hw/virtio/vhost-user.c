@@ -118,6 +118,8 @@ typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP = 8,
     VHOST_USER_BACKEND_SHMEM_MAP = 9,
     VHOST_USER_BACKEND_SHMEM_UNMAP = 10,
+    VHOST_USER_BACKEND_MEM_READ = 11,
+    VHOST_USER_BACKEND_MEM_WRITE = 12,
     VHOST_USER_BACKEND_MAX
 }  VhostUserBackendRequest;
 
@@ -144,6 +146,12 @@ typedef struct VhostUserShMemConfig {
     uint32_t padding;
     uint64_t memory_sizes[VHOST_MEMORY_BASELINE_NREGIONS];
 } VhostUserShMemConfig;
+
+typedef struct VhostUserMemRWMsg {
+    uint64_t guest_address;
+    uint32_t size;
+    uint8_t data[];
+} VhostUserMemRWMsg;
 
 typedef struct VhostUserLog {
     uint64_t mmap_size;
@@ -253,6 +261,7 @@ typedef union {
         VhostUserTransferDeviceState transfer_state;
         VhostUserMMap mmap;
         VhostUserShMemConfig shmem;
+        VhostUserMemRWMsg mem_rw;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1871,6 +1880,22 @@ vhost_user_backend_handle_shmem_unmap(struct vhost_dev *dev,
     return 0;
 }
 
+static int
+vhost_user_backend_handle_mem_read(struct vhost_dev *dev,
+                                   VhostUserMemRWMsg *mem_rw)
+{
+    /* TODO */
+    return -EPERM;
+}
+
+static int
+vhost_user_backend_handle_mem_write(struct vhost_dev *dev,
+                                   VhostUserMemRWMsg *mem_rw)
+{
+    /* TODO */
+    return -EPERM;
+}
+
 static void close_backend_channel(struct vhost_user *u)
 {
     g_source_destroy(u->backend_src);
@@ -1945,6 +1970,12 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
         break;
     case VHOST_USER_BACKEND_SHMEM_UNMAP:
         ret = vhost_user_backend_handle_shmem_unmap(dev, &payload.mmap);
+        break;
+    case VHOST_USER_BACKEND_MEM_READ:
+        ret = vhost_user_backend_handle_mem_read(dev, &payload.mem_rw);
+        break;
+    case VHOST_USER_BACKEND_MEM_WRITE:
+        ret = vhost_user_backend_handle_mem_write(dev, &payload.mem_rw);
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);

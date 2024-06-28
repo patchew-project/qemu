@@ -1651,6 +1651,90 @@ vu_shmem_unmap(VuDev *dev, uint8_t shmid, uint64_t fd_offset,
     return vu_process_message_reply(dev, &vmsg);
 }
 
+bool
+vu_send_mem_read(VuDev *dev, uint64_t guest_addr, uint32_t size,
+                 uint8_t *data)
+{
+    VhostUserMsg msg_reply;
+    VhostUserMsg msg = {
+        .request = VHOST_USER_BACKEND_MEM_READ,
+        .size = sizeof(msg.payload.mem_rw),
+        .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .payload = {
+            .mem_rw = {
+                .guest_address = guest_addr,
+                .size = size,
+            }
+        }
+    };
+
+    pthread_mutex_lock(&dev->backend_mutex);
+    if (!vu_message_write(dev, dev->backend_fd, &msg)) {
+        goto out_err;
+    }
+
+    if (!vu_message_read_default(dev, dev->backend_fd, &msg_reply)) {
+        goto out_err;
+    }
+
+    if (msg_reply.request != msg.request) {
+        DPRINT("Received unexpected msg type. Expected %d, received %d",
+               msg.request, msg_reply.request);
+        goto out_err;
+    }
+
+    if (msg_reply.payload.mem_rw.size != size) {
+        DPRINT("Received unexpected number of bytes in the response. "
+               "Expected %d, received %d",
+               size, msg_reply.payload.mem_rw.size);
+        goto out_err;
+    }
+
+    data = malloc(msg_reply.payload.mem_rw.size);
+    if (!data) {
+        DPRINT("Failed to malloc read memory data");
+        goto out_err;
+    }
+
+    memcpy(data, msg_reply.payload.mem_rw.data, size);
+    pthread_mutex_unlock(&dev->backend_mutex);
+    return true;
+
+out_err:
+    pthread_mutex_unlock(&dev->backend_mutex);
+    return false;
+}
+
+bool
+vu_send_mem_write(VuDev *dev, uint64_t guest_addr, uint32_t size,
+                  uint8_t *data)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_BACKEND_MEM_WRITE,
+        .size = sizeof(msg.payload.mem_rw),
+        .flags = VHOST_USER_VERSION,
+        .payload = {
+            .mem_rw = {
+                .guest_address = guest_addr,
+                .size = size,
+            }
+        }
+    };
+    memcpy(msg.payload.mem_rw.data, data, size);
+
+    if (vu_has_protocol_feature(dev, VHOST_USER_PROTOCOL_F_REPLY_ACK)) {
+        msg.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    if (!vu_message_write(dev, dev->backend_fd, &msg)) {
+        pthread_mutex_unlock(&dev->backend_mutex);
+        return false;
+    }
+
+    /* Also unlocks the backend_mutex */
+    return vu_process_message_reply(dev, &msg);
+}
+
 static bool
 vu_set_vring_call_exec(VuDev *dev, VhostUserMsg *vmsg)
 {

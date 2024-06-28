@@ -129,6 +129,8 @@ typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP = 8,
     VHOST_USER_BACKEND_SHMEM_MAP = 9,
     VHOST_USER_BACKEND_SHMEM_UNMAP = 10,
+    VHOST_USER_BACKEND_MEM_READ = 11,
+    VHOST_USER_BACKEND_MEM_WRITE = 12,
     VHOST_USER_BACKEND_MAX
 }  VhostUserBackendRequest;
 
@@ -151,6 +153,12 @@ typedef struct VhostUserMemRegMsg {
     uint64_t padding;
     VhostUserMemoryRegion region;
 } VhostUserMemRegMsg;
+
+typedef struct VhostUserMemRWMsg {
+    uint64_t guest_address;
+    uint32_t size;
+    uint8_t data[];
+} VhostUserMemRWMsg;
 
 typedef struct VhostUserLog {
     uint64_t mmap_size;
@@ -235,6 +243,7 @@ typedef struct VhostUserMsg {
         VhostUserInflight inflight;
         VhostUserShared object;
         VhostUserMMap mmap;
+        VhostUserMemRWMsg mem_rw;
     } payload;
 
     int fds[VHOST_MEMORY_BASELINE_NREGIONS];
@@ -649,6 +658,35 @@ bool vu_shmem_map(VuDev *dev, uint8_t shmid, uint64_t fd_offset,
  */
 bool vu_shmem_unmap(VuDev *dev, uint8_t shmid, uint64_t fd_offset,
                   uint64_t shm_offset, uint64_t len);
+
+/**
+ * vu_send_mem_read:
+ * @dev: a VuDev context
+ * @guest_addr: guest physical address to read
+ * @size: number of bytes to read
+ * @data: head of an unitialized bytes array
+ *
+ * Reads `size` bytes of `guest_addr` in the frontend and stores
+ * them in `data`.
+ *
+ * Returns: TRUE on success, FALSE on failure.
+ */
+bool vu_send_mem_read(VuDev *dev, uint64_t guest_addr, uint32_t size,
+                      uint8_t *data);
+
+/**
+ * vu_send_mem_write:
+ * @dev: a VuDev context
+ * @guest_addr: guest physical address to write
+ * @size: number of bytes to write
+ * @data: head of an array with `size` bytes to write
+ *
+ * Writes `size` bytes from `data` into `guest_addr` in the frontend.
+ *
+ * Returns: TRUE on success, FALSE on failure.
+ */
+bool vu_send_mem_write(VuDev *dev, uint64_t guest_addr, uint32_t size,
+                      uint8_t *data);
 
 /**
  * vu_queue_set_notification:
