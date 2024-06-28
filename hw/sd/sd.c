@@ -1657,14 +1657,12 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
     case 56:  /* CMD56:  GEN_CMD */
         switch (sd->state) {
         case sd_transfer_state:
-            sd->data_offset = 0;
             if (req.arg & 1) {
                 return sd_cmd_to_sendingdata(sd, req, 0,
                                              sd->vendor_data,
                                              sizeof(sd->vendor_data));
             }
-            sd->state = sd_receivingdata_state;
-            return sd_r1;
+            return sd_cmd_to_receivingdata(sd, req, 0, sizeof(sd->vendor_data));
 
         default:
             break;
@@ -2109,9 +2107,8 @@ void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 56:  /* CMD56:  GEN_CMD */
-        sd->vendor_data[sd->data_offset ++] = value;
-        if (sd->data_offset >= sizeof(sd->vendor_data)) {
-            sd->state = sd_transfer_state;
+        if (sd_generic_write_byte(sd, value)) {
+            memcpy(sd->vendor_data, sd->data, sizeof(sd->vendor_data));
         }
         break;
 
