@@ -374,7 +374,7 @@ static void pl011_write(void *opaque, hwaddr offset,
         s->ilpr = value;
         break;
     case 9: /* UARTIBRD */
-        s->ibrd = value;
+        s->ibrd = value & 0xFFFF;
         pl011_trace_baudrate_change(s);
         break;
     case 10: /* UARTFBRD */
