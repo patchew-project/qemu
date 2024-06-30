@@ -51,8 +51,10 @@ static uint64_t bcm2835_thermal_read(void *opaque, hwaddr addr, unsigned size)
         val = FIELD_DP32(bcm2835_thermal_temp2adc(25), STAT, VALID, true);
         break;
     default:
-        /* MemoryRegionOps are aligned, so this can not happen. */
-        g_assert_not_reached();
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "bcm2835_thermal_read: invalid address 0x%"
+                      HWADDR_PRIx "\n", addr);
+        val = 0;
     }
     return val;
 }
@@ -72,8 +74,10 @@ static void bcm2835_thermal_write(void *opaque, hwaddr addr,
                        __func__, value, addr);
         break;
     default:
-        /* MemoryRegionOps are aligned, so this can not happen. */
-        g_assert_not_reached();
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "bcm2835_thermal_write: invalid address 0x%"
+                      HWADDR_PRIx "\n", addr);
+        break;
     }
 }
 
