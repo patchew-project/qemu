@@ -368,6 +368,8 @@ void musb_reset(MUSBState *s)
         s->ep[i].maxp[1] = 0x40;
         s->ep[i].musb = s;
         s->ep[i].epnum = i;
+        usb_packet_cleanup(&s->ep[i].packey[0].p);
+        usb_packet_cleanup(&s->ep[i].packey[1].p);
         usb_packet_init(&s->ep[i].packey[0].p);
         usb_packet_init(&s->ep[i].packey[1].p);
     }
