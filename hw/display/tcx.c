@@ -33,6 +33,7 @@
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 #include "qom/object.h"
 
 #define TCX_ROM_FILE "QEMU,tcx.bin"
@@ -577,6 +578,14 @@ static void tcx_blit_writel(void *opaque, hwaddr addr,
         addr = (addr >> 3) & 0xfffff;
         adsr = val & 0xffffff;
         len = ((val >> 24) & 0x1f) + 1;
+
+        if (addr + len > s->vram_size || adsr + len > s->vram_size) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: VRAM access out of bounds. addr: 0x%lx, adsr: 0x%x, len: %u\n",
+                          __func__, addr, adsr, len);
+            return;
+        }
+
         if (adsr == 0xffffff) {
             memset(&s->vram[addr], s->tmpblit, len);
             if (s->depth == 24) {
