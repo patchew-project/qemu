@@ -387,8 +387,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         ret = WaitForMultipleObjects(count, events, FALSE, timeout);
         if (blocking) {
             assert(first);
-            qatomic_store_release(&ctx->notify_me,
-                                  qatomic_read(&ctx->notify_me) - 2);
+            qatomic_fetch_sub(&ctx->notify_me, 2);
             aio_notify_accept(ctx);
         }
 

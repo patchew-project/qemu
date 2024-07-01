@@ -672,8 +672,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     if (use_notify_me) {
         /* Finish the poll before clearing the flag.  */
-        qatomic_store_release(&ctx->notify_me,
-                             qatomic_read(&ctx->notify_me) - 2);
+        qatomic_fetch_sub(&ctx->notify_me, 2);
     }
 
     aio_notify_accept(ctx);

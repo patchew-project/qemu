@@ -330,7 +330,7 @@ aio_ctx_check(GSource *source)
     BHListSlice *s;
 
     /* Finish computing the timeout before clearing the flag.  */
-    qatomic_store_release(&ctx->notify_me, qatomic_read(&ctx->notify_me) & ~1);
+    qatomic_fetch_and(&ctx->notify_me, ~1);
     aio_notify_accept(ctx);
 
     QSLIST_FOREACH_RCU(bh, &ctx->bh_list, next) {
