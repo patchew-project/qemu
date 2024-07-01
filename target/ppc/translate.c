@@ -4445,14 +4445,36 @@ static void gen_dcblc(DisasContext *ctx)
 /* dcbz */
 static void gen_dcbz(DisasContext *ctx)
 {
-    TCGv tcgv_addr;
-    TCGv_i32 tcgv_op;
+    TCGv addr, mask, dcbz_size, t0;
+    TCGv_i32 op = tcg_constant_i32(ctx->opcode & 0x03FF000);
+    TCGv_i64 z64 = tcg_constant_i64(0);
+    TCGv_i128 z128 = tcg_temp_new_i128();
+    TCGLabel *l;
+
+    addr = tcg_temp_new();
+    mask = tcg_temp_new();
+    dcbz_size = tcg_temp_new();
+    t0 = tcg_temp_new();
+    l = gen_new_label();
 
     gen_set_access_type(ctx, ACCESS_CACHE);
-    tcgv_addr = tcg_temp_new();
-    tcgv_op = tcg_constant_i32(ctx->opcode & 0x03FF000);
-    gen_addr_reg_index(ctx, tcgv_addr);
-    gen_helper_dcbz(tcg_env, tcgv_addr, tcgv_op);
+    gen_helper_dcbz_size(dcbz_size, tcg_env, op);
+    tcg_gen_mov_tl(mask, dcbz_size);
+    tcg_gen_subi_tl(mask, mask, 1);
+    tcg_gen_not_tl(mask, mask);
+    gen_addr_reg_index(ctx, addr);
+    tcg_gen_and_tl(addr, addr, mask);
+    tcg_gen_mov_tl(t0, cpu_reserve);
+    tcg_gen_and_tl(t0, t0, mask);
+    tcg_gen_movcond_tl(TCG_COND_EQ, cpu_reserve, addr, t0,
+                       tcg_constant_tl(-1), cpu_reserve);
+
+    tcg_gen_concat_i64_i128(z128, z64, z64);
+    gen_set_label(l);
+    tcg_gen_qemu_st_i128(z128, addr, ctx->mem_idx, DEF_MEMOP(MO_128));
+    tcg_gen_addi_tl(addr, addr, 16);
+    tcg_gen_subi_tl(dcbz_size, dcbz_size, 16);
+    tcg_gen_brcondi_tl(TCG_COND_GT, dcbz_size, 0, l);
 }
 
 /* dcbzep */
