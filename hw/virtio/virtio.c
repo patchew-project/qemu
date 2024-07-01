@@ -668,6 +668,45 @@ static inline bool is_desc_avail(uint16_t flags, bool wrap_counter)
     return (avail != used) && (avail == wrap_counter);
 }
 
+bool virtio_queue_set_notification_and_check(VirtQueue *vq, int enable)
+{
+    uint16_t shadow_idx;
+    VRingPackedDesc desc;
+    VRingMemoryRegionCaches *caches;
+
+    vq->notification = enable;
+
+    if (!vq->vring.desc) {
+        return false;
+    }
+
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+        virtio_queue_packed_set_notification(vq, enable);
+
+        if (enable) {
+            caches = vring_get_region_caches(vq);
+            if (!caches) {
+                return false;
+            }
+
+            vring_packed_desc_read(vq->vdev, &desc, &caches->desc,
+                                   vq->shadow_avail_idx, true);
+            if (is_desc_avail(desc.flags, vq->shadow_avail_wrap_counter)) {
+                return true;
+            }
+        }
+    } else {
+        shadow_idx = vq->shadow_avail_idx;
+        virtio_queue_split_set_notification(vq, enable);
+
+        if (enable) {
+            return shadow_idx != vring_avail_idx(vq);
+        }
+    }
+
+    return false;
+}
+
 /* Fetch avail_idx from VQ memory only when we really need to know if
  * guest has added some buffers.
  * Called within rcu_read_lock().  */

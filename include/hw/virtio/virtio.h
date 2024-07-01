@@ -302,6 +302,7 @@ void virtio_notify_config(VirtIODevice *vdev);
 
 bool virtio_queue_get_notification(VirtQueue *vq);
 void virtio_queue_set_notification(VirtQueue *vq, int enable);
+bool virtio_queue_set_notification_and_check(VirtQueue *vq, int enable);
 
 int virtio_queue_ready(VirtQueue *vq);
 
