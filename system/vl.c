@@ -3318,10 +3318,22 @@ void qemu_init(int argc, char **argv)
                     }
                     break;
                 }
-            case QEMU_OPTION_accel:
+            case QEMU_OPTION_accel: {
+                QemuOptsList *list = qemu_find_opts("accel");
+                const char *prev_accel = qemu_opt_get(QTAILQ_LAST(&list->head),
+                                                      "accel");
+
                 accel_opts = qemu_opts_parse_noisily(qemu_find_opts("accel"),
                                                      optarg, true);
                 optarg = qemu_opt_get(accel_opts, "accel");
+
+                if (prev_accel && optarg && strcmp(prev_accel, optarg)) {
+                    printf("Unable to mix accelerators with multiple "
+                           "-accel options (have: '%s' and '%s')\n",
+                           prev_accel, optarg);
+                    exit(1);
+                }
+
                 if (!optarg || is_help_option(optarg)) {
                     printf("Accelerators supported in QEMU binary:\n");
                     GSList *el, *accel_list = object_class_get_list(TYPE_ACCEL,
@@ -3343,6 +3355,7 @@ void qemu_init(int argc, char **argv)
                     exit(0);
                 }
                 break;
+            }
             case QEMU_OPTION_usb:
                 qdict_put_str(machine_opts_dict, "usb", "on");
                 break;
