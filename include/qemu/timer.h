@@ -636,6 +636,17 @@ void timer_deinit(QEMUTimer *ts);
 void timer_del(QEMUTimer *ts);
 
 /**
+ * timer_join:
+ * @ts: the timer
+ *
+ * Wait for the timer callback to finish (if it is runniing).
+ *
+ * This function is thread-safe but the timer and its timer list must not be
+ * freed while this function is running.
+ */
+void timer_join(QEMUTimer *ts);
+
+/**
  * timer_free:
  * @ts: the timer
  *
