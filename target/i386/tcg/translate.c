@@ -318,9 +318,8 @@ static uint8_t cc_op_live(CCOp op)
     case CC_OP_SBBB ... CC_OP_SBBQ:
     case CC_OP_ADCOX:
         return USES_CC_DST | USES_CC_SRC | USES_CC_SRC2;
-    default:
-        g_assert_not_reached();
     }
+    g_assert_not_reached();
 }
 
 static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
