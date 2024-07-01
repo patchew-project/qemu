@@ -290,26 +290,38 @@ enum {
 };
 
 /* Bit set if the global variable is live after setting CC_OP to X.  */
-static const uint8_t cc_op_live[CC_OP_NB] = {
-    [CC_OP_DYNAMIC] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
-    [CC_OP_EFLAGS] = USES_CC_SRC,
-    [CC_OP_MULB ... CC_OP_MULQ] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_ADDB ... CC_OP_ADDQ] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_ADCB ... CC_OP_ADCQ] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
-    [CC_OP_SUBB ... CC_OP_SUBQ] = USES_CC_DST | USES_CC_SRC | USES_CC_SRCT,
-    [CC_OP_SBBB ... CC_OP_SBBQ] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
-    [CC_OP_LOGICB ... CC_OP_LOGICQ] = USES_CC_DST,
-    [CC_OP_INCB ... CC_OP_INCQ] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_DECB ... CC_OP_DECQ] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_SHLB ... CC_OP_SHLQ] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_SARB ... CC_OP_SARQ] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_BMILGB ... CC_OP_BMILGQ] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_ADCX] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
-    [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
-    [CC_OP_CLR] = 0,
-    [CC_OP_POPCNT] = USES_CC_DST,
-};
+static uint8_t cc_op_live(CCOp op)
+{
+    switch (op) {
+    case CC_OP_CLR:
+        return 0;
+    case CC_OP_EFLAGS:
+        return USES_CC_SRC;
+    case CC_OP_POPCNT:
+    case CC_OP_LOGICB ... CC_OP_LOGICQ:
+        return USES_CC_DST;
+    case CC_OP_MULB ... CC_OP_MULQ:
+    case CC_OP_ADDB ... CC_OP_ADDQ:
+    case CC_OP_INCB ... CC_OP_INCQ:
+    case CC_OP_DECB ... CC_OP_DECQ:
+    case CC_OP_SHLB ... CC_OP_SHLQ:
+    case CC_OP_SARB ... CC_OP_SARQ:
+    case CC_OP_BMILGB ... CC_OP_BMILGQ:
+    case CC_OP_ADCX:
+        return USES_CC_DST | USES_CC_SRC;
+    case CC_OP_ADOX:
+        return USES_CC_SRC | USES_CC_SRC2;
+    case CC_OP_SUBB ... CC_OP_SUBQ:
+        return USES_CC_DST | USES_CC_SRC | USES_CC_SRCT;
+    case CC_OP_DYNAMIC:
+    case CC_OP_ADCB ... CC_OP_ADCQ:
+    case CC_OP_SBBB ... CC_OP_SBBQ:
+    case CC_OP_ADCOX:
+        return USES_CC_DST | USES_CC_SRC | USES_CC_SRC2;
+    default:
+        g_assert_not_reached();
+    }
+}
 
 static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
 {
@@ -320,7 +332,7 @@ static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
     }
 
     /* Discard CC computation that will no longer be used.  */
-    dead = cc_op_live[s->cc_op] & ~cc_op_live[op];
+    dead = cc_op_live(s->cc_op) & ~cc_op_live(op);
     if (dead & USES_CC_DST) {
         tcg_gen_discard_tl(cpu_cc_dst);
     }
@@ -816,7 +828,7 @@ static void gen_mov_eflags(DisasContext *s, TCGv reg)
     src2 = cpu_cc_src2;
 
     /* Take care to not read values that are not live.  */
-    live = cc_op_live[s->cc_op] & ~USES_CC_SRCT;
+    live = cc_op_live(s->cc_op) & ~USES_CC_SRCT;
     dead = live ^ (USES_CC_DST | USES_CC_SRC | USES_CC_SRC2);
     if (dead) {
         TCGv zero = tcg_constant_tl(0);
