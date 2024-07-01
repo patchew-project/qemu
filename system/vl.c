@@ -259,6 +259,7 @@ static QemuOptsList qemu_accel_opts = {
     .name = "accel",
     .implied_opt_name = "accel",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_accel_opts.head),
+    .merge_lists = true,
     .desc = {
         /*
          * no elements => accept any
