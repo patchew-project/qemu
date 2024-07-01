@@ -1270,14 +1270,27 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
  * are only needed for conditional branches.
  */
 typedef enum {
-    CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
-    CC_OP_EFLAGS,  /* all cc are explicitly computed, CC_SRC = flags */
-    CC_OP_ADCX, /* CC_DST = C, CC_SRC = rest.  */
-    CC_OP_ADOX, /* CC_SRC2 = O, CC_SRC = rest.  */
-    CC_OP_ADCOX, /* CC_DST = C, CC_SRC2 = O, CC_SRC = rest.  */
-    CC_OP_CLR, /* Z and P set, all other flags clear.  */
+    CC_OP_DYNAMIC = 0, /* must use dynamic code to get cc_op */
+    CC_OP_EFLAGS = 1,  /* all cc are explicitly computed, CC_SRC = flags */
+    CC_OP_ADCX = 2,    /* CC_DST = C, CC_SRC = rest.  */
+    CC_OP_ADOX = 3,    /* CC_SRC2 = O, CC_SRC = rest.  */
+    CC_OP_ADCOX = 4,   /* CC_DST = C, CC_SRC2 = O, CC_SRC = rest.  */
+    CC_OP_CLR = 5,     /* Z and P set, all other flags clear.  */
 
-    CC_OP_MULB, /* modify all flags, C, O = (CC_SRC != 0) */
+    /*
+     * Z via CC_DST, all other flags clear.
+     * Treat CC_OP_POPCNT like the other BWLQ ops in making the low bits
+     * equal MO_TL; this gives a value of either 6 or 7.
+     */
+#ifdef TARGET_X86_64
+    CC_OP_POPCNT = 7,
+#else
+    CC_OP_POPCNT = 6,
+#endif
+
+#define CC_OP_FIRST_BWLQ  CC_OP_POPCNT
+
+    CC_OP_MULB = 8, /* modify all flags, C, O = (CC_SRC != 0) */
     CC_OP_MULW,
     CC_OP_MULL,
     CC_OP_MULQ,
@@ -1332,20 +1345,11 @@ typedef enum {
     CC_OP_BMILGL,
     CC_OP_BMILGQ,
 
-    /*
-     * Note that only CC_OP_POPCNT (i.e. the one with MO_TL size)
-     * is used or implemented, because the translation needs
-     * to zero-extend CC_DST anyway.
-     */
-    CC_OP_POPCNTB__, /* Z via CC_DST, all other flags clear.  */
-    CC_OP_POPCNTW__,
-    CC_OP_POPCNTL__,
-    CC_OP_POPCNTQ__,
-    CC_OP_POPCNT = sizeof(target_ulong) == 8 ? CC_OP_POPCNTQ__ : CC_OP_POPCNTL__,
-
-    CC_OP_NB,
+#define CC_OP_LAST_BWLQ CC_OP_BMILGQ
 } CCOp;
-QEMU_BUILD_BUG_ON(CC_OP_NB >= 128);
+
+/* See X86DecodedInsn.cc_op, using int8_t. */
+QEMU_BUILD_BUG_ON(CC_OP_LAST_BWLQ > INT8_MAX);
 
 typedef struct SegmentCache {
     uint32_t selector;
