@@ -1455,7 +1455,9 @@ static void virtio_pci_set_vector(VirtIODevice *vdev,
     }
     /* If the new vector changed need to set it up. */
     if (kvm_irqfd && new_vector != VIRTIO_NO_VECTOR) {
-        kvm_virtio_pci_vector_use_one(proxy, queue_no);
+        if (kvm_virtio_pci_vector_use_one(proxy, queue_no)) {
+            virtio_error(vdev, "fail to set the vector %d", new_vector);
+        }
     }
 }
 
