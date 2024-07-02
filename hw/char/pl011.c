@@ -374,11 +374,11 @@ static void pl011_write(void *opaque, hwaddr offset,
         s->ilpr = value;
         break;
     case 9: /* UARTIBRD */
-        s->ibrd = value;
+        s->ibrd = value & 0xffff;
         pl011_trace_baudrate_change(s);
         break;
     case 10: /* UARTFBRD */
-        s->fbrd = value;
+        s->fbrd = value & 0x3f;
         pl011_trace_baudrate_change(s);
         break;
     case 11: /* UARTLCR_H */
@@ -530,6 +530,9 @@ static int pl011_post_load(void *opaque, int version_id)
         s->read_fifo[0] = s->read_fifo[s->read_pos];
         s->read_pos = 0;
     }
+
+    s->ibrd &= 0xffff;
+    s->fbrd &= 0x3f;
 
     return 0;
 }
