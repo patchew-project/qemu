@@ -23,7 +23,6 @@ struct QemuDmaBuf {
     uint32_t  backing_width;
     uint32_t  backing_height;
     bool      y0_top;
-    void      *sync;
     int       fence_fd;
     bool      allow_fences;
     bool      draw_submitted;
@@ -170,13 +169,6 @@ bool qemu_dmabuf_get_y0_top(QemuDmaBuf *dmabuf)
     return dmabuf->y0_top;
 }
 
-void *qemu_dmabuf_get_sync(QemuDmaBuf *dmabuf)
-{
-    assert(dmabuf != NULL);
-
-    return dmabuf->sync;
-}
-
 int32_t qemu_dmabuf_get_fence_fd(QemuDmaBuf *dmabuf)
 {
     assert(dmabuf != NULL);
@@ -208,12 +200,6 @@ void qemu_dmabuf_set_fence_fd(QemuDmaBuf *dmabuf, int32_t fence_fd)
 {
     assert(dmabuf != NULL);
     dmabuf->fence_fd = fence_fd;
-}
-
-void qemu_dmabuf_set_sync(QemuDmaBuf *dmabuf, void *sync)
-{
-    assert(dmabuf != NULL);
-    dmabuf->sync = sync;
 }
 
 void qemu_dmabuf_set_draw_submitted(QemuDmaBuf *dmabuf, bool draw_submitted)
