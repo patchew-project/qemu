@@ -1289,3 +1289,25 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
 #define DATA_SIZE 16
 #include "atomic_template.h"
 #endif
+
+void *memset_ra(void *p, int c, size_t n, uintptr_t ra)
+{
+    void *r;
+
+    set_helper_retaddr(ra);
+    r = memset(p, c, n);
+    clear_helper_retaddr();
+
+    return r;
+}
+
+void *memmove_ra(void *d, const void *s, size_t n, uintptr_t ra)
+{
+    void *r;
+
+    set_helper_retaddr(ra);
+    r = memmove(d, s, n);
+    clear_helper_retaddr();
+
+    return r;
+}

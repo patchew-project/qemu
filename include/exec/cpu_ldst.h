@@ -379,4 +379,44 @@ void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
                         MMUAccessType access_type, int mmu_idx);
 #endif
 
+/**
+ * memset_ra:
+ * @p: host pointer
+ * @c: data
+ * @n: length
+ * @ra: unwind return address
+ *
+ * Like system memset(p,c,n), except manages @ra for the calling
+ * helper in the event of a signal.  To be used with the result
+ * of tlb_vaddr_to_host to resolve the host pointer.
+ */
+#ifdef CONFIG_USER_ONLY
+void *memset_ra(void *p, int c, size_t n, uintptr_t ra);
+#else
+static inline void *memset_ra(void *p, int c, size_t n, uintptr_t ra)
+{
+    return memset(p, c, n);
+}
+#endif
+
+/**
+ * memmove_ra:
+ * @d: host destination pointer
+ * @s: host source pointer
+ * @n: length
+ * @ra: unwind return address
+ *
+ * Like system memmove(d,s,n), except manages @ra for the calling
+ * helper in the event of a signal.  To be used with the result of
+ * tlb_vaddr_to_host to resolve the host pointer.
+ */
+#ifdef CONFIG_USER_ONLY
+void *memmove_ra(void *d, const void *s, size_t n, uintptr_t ra);
+#else
+static inline void *memmove_ra(void *d, const void *s, size_t n, uintptr_t ra)
+{
+    return memmove(d, s, n);
+}
+#endif
+
 #endif /* CPU_LDST_H */
