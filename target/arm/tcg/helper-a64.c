@@ -971,7 +971,7 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
     }
 #endif
 
-    memset(mem, 0, blocklen);
+    memset_ra(mem, 0, blocklen, GETPC());
 }
 
 void HELPER(unaligned_access)(CPUARMState *env, uint64_t addr,
@@ -1120,7 +1120,7 @@ static uint64_t set_step(CPUARMState *env, uint64_t toaddr,
     }
 #endif
     /* Easy case: just memset the host memory */
-    memset(mem, data, setsize);
+    memset_ra(mem, data, setsize, ra);
     return setsize;
 }
 
@@ -1163,7 +1163,7 @@ static uint64_t set_step_tags(CPUARMState *env, uint64_t toaddr,
     }
 #endif
     /* Easy case: just memset the host memory */
-    memset(mem, data, setsize);
+    memset_ra(mem, data, setsize, ra);
     mte_mops_set_tags(env, toaddr, setsize, *mtedesc);
     return setsize;
 }
@@ -1497,7 +1497,7 @@ static uint64_t copy_step(CPUARMState *env, uint64_t toaddr, uint64_t fromaddr,
     }
 #endif
     /* Easy case: just memmove the host memory */
-    memmove(wmem, rmem, copysize);
+    memmove_ra(wmem, rmem, copysize, ra);
     return copysize;
 }
 
@@ -1572,7 +1572,7 @@ static uint64_t copy_step_rev(CPUARMState *env, uint64_t toaddr,
      * Easy case: just memmove the host memory. Note that wmem and
      * rmem here point to the *last* byte to copy.
      */
-    memmove(wmem - (copysize - 1), rmem - (copysize - 1), copysize);
+    memmove_ra(wmem - (copysize - 1), rmem - (copysize - 1), copysize, ra);
     return copysize;
 }
 
