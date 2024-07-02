@@ -47,3 +47,15 @@ pl330_iomem_read(uint32_t addr, uint32_t data) "addr: 0x%08"PRIx32" data: 0x%08"
 
 # xilinx_axidma.c
 xilinx_axidma_loading_desc_fail(uint32_t res) "error:%u"
+
+# ioatdma.c
+ioatdma_io_read(int reg, uint64_t value, unsigned int size) "reg=0x%x value=0x%"PRIx64" size=%u"
+ioatdma_io_write(int reg, uint64_t value, unsigned int size) "reg=0x%x value=0x%"PRIx64" size=%u"
+ioatdma_chan_read(const char *id, int idx, uint64_t addr, int reg, uint64_t value, unsigned int size) "%s: chan[%d] addr=0x%"PRIx64" reg=0x%x value=0x%"PRIx64" size=%u"
+ioatdma_chan_write(const char *id, int idx, uint64_t addr, int reg, uint64_t value, unsigned int size) "%s: chan[%d] addr=0x%"PRIx64" reg=0x%x value=0x%"PRIx64" size=%u"
+ioatdma_config_read(uint64_t addr, uint64_t value, unsigned int size) "addr=0x%"PRIx64" value=0x%"PRIx64" size=%u"
+ioatdma_config_write(uint64_t addr, uint64_t value, unsigned int size) "addr=0x%"PRIx64" value=0x%"PRIx64" size=%u"
+ioatdma_transfer_batch(uint64_t chanaddr, uint32_t size, uint16_t idx, uint16_t dma_count) "chainaddr=0x%"PRIx64" transfer_size=%u idx=%u dma_count=%u"
+ioatdma_transfer_one(uint64_t chanaddr, uint64_t next,  uint32_t size, uint64_t saddr, uint64_t daddr, uint32_t ctl, uint8_t int_en, uint8_t compl_write) "[0x%"PRIx64"]: next=0x%"PRIx64" size=%u saddr=0x%"PRIx64" daddr=0x%"PRIx64" ctl=0x%x int_en=%u compl_write=%u"
+ioatdma_write_completion(uint16_t idx, uint64_t compaddr, uint64_t addr) "[%u] 0x%"PRIx64"=0x%"PRIx64
+

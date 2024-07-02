@@ -30,3 +30,7 @@ config SIFIVE_PDMA
 config XLNX_CSU_DMA
     bool
     select REGISTER
+
+config INTEL_IOATDMA
+    default y if PCI_DEVICES
+    depends on PCI && MSI_NONBROKEN
