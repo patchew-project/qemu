@@ -68,7 +68,6 @@ void gd_egl_draw(VirtualConsole *vc)
     GdkWindow *window;
 #ifdef CONFIG_GBM
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
-    int fence_fd;
 #endif
     int ww, wh, ws;
 
@@ -99,13 +98,12 @@ void gd_egl_draw(VirtualConsole *vc)
         glFlush();
 #ifdef CONFIG_GBM
         if (dmabuf) {
-            egl_dmabuf_create_fence(dmabuf);
-            fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
+            int fence_fd = egl_dmabuf_create_fence_fd(dmabuf);
             if (fence_fd >= 0) {
                 qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
-                return;
+            } else {
+                graphic_hw_gl_block(vc->gfx.dcl.con, false);
             }
-            graphic_hw_gl_block(vc->gfx.dcl.con, false);
         }
 #endif
     } else {
@@ -364,12 +362,6 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
         egl_fb_blit(&vc->gfx.win_fb, &vc->gfx.guest_fb, !vc->gfx.y0_top);
     }
 
-#ifdef CONFIG_GBM
-    if (vc->gfx.guest_fb.dmabuf) {
-        egl_dmabuf_create_sync(vc->gfx.guest_fb.dmabuf);
-    }
-#endif
-
     eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
 }
 
@@ -387,7 +379,6 @@ void gd_egl_flush(DisplayChangeListener *dcl,
         gtk_widget_queue_draw_area(area, x, y, w, h);
         return;
     }
-
     gd_egl_scanout_flush(&vc->gfx.dcl, x, y, w, h);
 }
 

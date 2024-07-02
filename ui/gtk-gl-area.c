@@ -79,15 +79,8 @@ void gd_gl_area_draw(VirtualConsole *vc)
                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
 #ifdef CONFIG_GBM
         if (dmabuf) {
-            egl_dmabuf_create_sync(dmabuf);
-        }
-#endif
-        glFlush();
-#ifdef CONFIG_GBM
-        if (dmabuf) {
             int fence_fd;
-            egl_dmabuf_create_fence(dmabuf);
-            fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
+            fence_fd = egl_dmabuf_create_fence_fd(dmabuf);
             if (fence_fd >= 0) {
                 qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
                 return;
@@ -95,6 +88,7 @@ void gd_gl_area_draw(VirtualConsole *vc)
             graphic_hw_gl_block(vc->gfx.dcl.con, false);
         }
 #endif
+        glFlush();
     } else {
         if (!vc->gfx.ds) {
             return;
