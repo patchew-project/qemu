@@ -332,7 +332,7 @@ static void aspeed_soc_ast2700_init(Object *obj)
 
     for (i = 0; i < sc->macs_num; i++) {
         object_initialize_child(obj, "ftgmac100[*]", &s->ftgmac100[i],
-                                TYPE_FTGMAC100);
+                                TYPE_FTGMAC100_HIGH);
 
         object_initialize_child(obj, "mii[*]", &s->mii[i], TYPE_ASPEED_MII);
     }
@@ -552,6 +552,7 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Net */
     for (i = 0; i < sc->macs_num; i++) {
         object_property_set_bool(OBJECT(&s->ftgmac100[i]), "aspeed", true,
                                  &error_abort);
