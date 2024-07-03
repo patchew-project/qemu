@@ -2153,7 +2153,7 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
     g->driver   = qemu_opt_get(opts, "driver");
     g->property = qemu_opt_get(opts, "property");
     g->value    = qemu_opt_get(opts, "value");
-    qdev_prop_register_global(g);
+    object_prop_register_global(g);
     return 0;
 }
 
@@ -2679,7 +2679,7 @@ static bool qemu_machine_creation_done(Error **errp)
         net_check_clients();
     }
 
-    qdev_prop_check_globals();
+    object_prop_check_globals();
 
     qdev_machine_creation_done();
 
@@ -3705,7 +3705,7 @@ void qemu_init(int argc, char **argv)
      * Beware, QOM objects created before this point miss global and
      * compat properties.
      *
-     * Global properties get set up by qdev_prop_register_global(),
+     * Global properties get set up by object_prop_register_global(),
      * called from user_register_global_props(), and certain option
      * desugaring.  Also in CPU feature desugaring (buried in
      * parse_cpu_option()), which happens below this point, but may

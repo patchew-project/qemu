@@ -41,7 +41,7 @@ static bool check_prop_still_unset(Object *obj, const char *name,
                                    const void *old_val, const char *new_val,
                                    bool allow_override, Error **errp)
 {
-    const GlobalProperty *prop = qdev_find_global_prop(obj, name);
+    const GlobalProperty *prop = object_find_global_prop(obj, name);
 
     if (!old_val || (!prop && allow_override)) {
         return true;

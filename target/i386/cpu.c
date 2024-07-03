@@ -5789,7 +5789,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
         prop->driver = typename;
         prop->property = g_strdup(name);
         prop->value = g_strdup(val);
-        qdev_prop_register_global(prop);
+        object_prop_register_global(prop);
     }
 
     if (ambiguous) {

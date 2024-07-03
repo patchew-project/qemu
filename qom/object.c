@@ -472,6 +472,76 @@ bool object_apply_global_props(Object *obj, const GPtrArray *props,
     return true;
 }
 
+static GPtrArray *global_props(void)
+{
+    static GPtrArray *gp;
+
+    if (!gp) {
+        gp = g_ptr_array_new();
+    }
+
+    return gp;
+}
+
+void object_prop_register_global(GlobalProperty *prop)
+{
+    g_ptr_array_add(global_props(), prop);
+}
+
+void object_prop_set_globals(Object *obj, Error **errp)
+{
+    object_apply_global_props(obj, global_props(), errp);
+}
+
+const GlobalProperty *object_find_global_prop(Object *obj,
+                                              const char *name)
+{
+    GPtrArray *props = global_props();
+    const GlobalProperty *p;
+    int i;
+
+    for (i = 0; i < props->len; i++) {
+        p = g_ptr_array_index(props, i);
+        if (object_dynamic_cast(obj, p->driver)
+            && !strcmp(p->property, name)) {
+            return p;
+        }
+    }
+    return NULL;
+}
+
+int object_prop_check_globals(void)
+{
+    int i, ret = 0;
+
+    for (i = 0; i < global_props()->len; i++) {
+        GlobalProperty *prop;
+        ObjectClass *oc;
+        DeviceClass *dc;
+
+        prop = g_ptr_array_index(global_props(), i);
+        if (prop->used) {
+            continue;
+        }
+        oc = object_class_by_name(prop->driver);
+        oc = object_class_dynamic_cast(oc, TYPE_DEVICE);
+        if (!oc) {
+            warn_report("global %s.%s has invalid class name",
+                        prop->driver, prop->property);
+            ret = 1;
+            continue;
+        }
+        dc = DEVICE_CLASS(oc);
+        if (!dc->hotpluggable && !prop->used) {
+            warn_report("global %s.%s=%s not used",
+                        prop->driver, prop->property, prop->value);
+            ret = 1;
+            continue;
+        }
+    }
+    return ret;
+}
+
 /*
  * Global property defaults
  * Slot 0: accelerator's global property defaults

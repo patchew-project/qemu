@@ -695,8 +695,42 @@ Object *object_new_with_propv(const char *typename,
                               Error **errp,
                               va_list vargs);
 
+/**
+ * typedef GlobalProperty - a global property type
+ *
+ * @used: Set to true if property was used when initializing an object
+ * @optional: If set to true, GlobalProperty will be skipped without errors
+ *            if the property doesn't exist.
+ *
+ * When used with devices: an error is fatal for non-hotplugged devices when
+ * the global is applied.
+ */
+typedef struct GlobalProperty {
+    const char *driver;
+    const char *property;
+    const char *value;
+    bool used;
+    bool optional;
+} GlobalProperty;
+
+static inline void
+compat_props_add(GPtrArray *arr,
+                 GlobalProperty props[], size_t nelem)
+{
+    int i;
+    for (i = 0; i < nelem; i++) {
+        g_ptr_array_add(arr, (void *)&props[i]);
+    }
+}
+
 bool object_apply_global_props(Object *obj, const GPtrArray *props,
                                Error **errp);
+void object_prop_set_globals(Object *obj, Error **errp);
+void object_prop_register_global(GlobalProperty *prop);
+int object_prop_check_globals(void);
+const GlobalProperty *object_find_global_prop(Object *obj,
+                                              const char *name);
+
 void object_set_machine_compat_props(GPtrArray *compat_props);
 void object_set_accelerator_compat_props(GPtrArray *compat_props);
 void object_register_sugar_prop(const char *driver, const char *prop,
