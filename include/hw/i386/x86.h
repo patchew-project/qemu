@@ -25,6 +25,7 @@
 #include "hw/intc/ioapic.h"
 #include "hw/isa/isa.h"
 #include "qom/object.h"
+#include "sysemu/igvm-cfg.h"
 
 struct X86MachineClass {
     /*< private >*/
@@ -97,6 +98,8 @@ struct X86MachineState {
      * which means no limitation on the guest's bus locks.
      */
     uint64_t bus_lock_ratelimit;
+
+    IgvmCfgState *igvm;
 };
 
 #define X86_MACHINE_SMM              "smm"
