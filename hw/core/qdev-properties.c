@@ -10,6 +10,7 @@
 #include "qemu/cutils.h"
 #include "qdev-prop-internal.h"
 #include "qom/qom-qobject.h"
+#include "qemu/accel.h"
 
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                   Error **errp)
@@ -894,27 +895,38 @@ int qdev_prop_check_globals(void)
 
     for (i = 0; i < global_props()->len; i++) {
         GlobalProperty *prop;
-        ObjectClass *oc;
+        ObjectClass *globalc, *oc;
         DeviceClass *dc;
 
         prop = g_ptr_array_index(global_props(), i);
         if (prop->used) {
             continue;
         }
-        oc = object_class_by_name(prop->driver);
-        oc = object_class_dynamic_cast(oc, TYPE_DEVICE);
-        if (!oc) {
-            warn_report("global %s.%s has invalid class name",
-                        prop->driver, prop->property);
-            ret = 1;
+        globalc = object_class_by_name(prop->driver);
+        oc = object_class_dynamic_cast(globalc, TYPE_DEVICE);
+        if (oc) {
+            dc = DEVICE_CLASS(oc);
+            if (!dc->hotpluggable && !prop->used) {
+                warn_report("global %s.%s=%s not used",
+                            prop->driver, prop->property, prop->value);
+                ret = 1;
+            }
             continue;
         }
-        dc = DEVICE_CLASS(oc);
-        if (!dc->hotpluggable && !prop->used) {
+
+        /*
+         * At this point is either an accelerator global that is
+         * unused or an invalid global. Both set ret = 1.
+         */
+        ret = 1;
+
+        oc = object_class_dynamic_cast(globalc, TYPE_ACCEL);
+        if (oc) {
             warn_report("global %s.%s=%s not used",
                         prop->driver, prop->property, prop->value);
-            ret = 1;
-            continue;
+        } else {
+            warn_report("global %s.%s has invalid class name",
+                        prop->driver, prop->property);
         }
     }
     return ret;
