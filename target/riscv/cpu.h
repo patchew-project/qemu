@@ -32,6 +32,8 @@
 #include "cpu_cfg.h"
 #include "qapi/qapi-types-common.h"
 #include "cpu-qom.h"
+#include "qemu/cutils.h"
+#include "sysemu/qtest.h"
 
 typedef struct CPUArchState CPURISCVState;
 
@@ -838,6 +840,7 @@ bool riscv_cpu_accelerator_compatible(RISCVCPU *cpu);
 
 /* CSR function table */
 extern riscv_csr_operations csr_ops[CSR_TABLE_SIZE];
+bool csr_qtest_callback(CharBackend *chr, gchar **words);
 
 extern const bool valid_vm_1_10_32[], valid_vm_1_10_64[];
 
