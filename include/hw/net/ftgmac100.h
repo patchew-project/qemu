@@ -14,6 +14,8 @@
 #define TYPE_FTGMAC100 "ftgmac100"
 OBJECT_DECLARE_SIMPLE_TYPE(FTGMAC100State, FTGMAC100)
 
+#define FTGMAC100_NR_REGS   0x200
+
 #include "hw/sysbus.h"
 #include "net/net.h"
 
