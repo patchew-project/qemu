@@ -1020,11 +1020,21 @@ static void sm501_system_config_write(void *opaque, hwaddr addr,
         s->gpio_63_32_control = value & 0xFF80FFFF;
         break;
     case SM501_DRAM_CONTROL:
-        s->local_mem_size_index = (value >> 13) & 0x7;
-        /* TODO : check validity of size change */
+    {
+        int local_mem_size_index = (value >> 13) & 0x7;
+        if (local_mem_size_index < ARRAY_SIZE(sm501_mem_local_size) &&
+            sm501_mem_local_size[local_mem_size_index] <=
+                    memory_region_size(&s->local_mem_region)) {
+            s->local_mem_size_index = local_mem_size_index;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "sm501: Invalid local_mem_size_index value: %d or memory size too large\n",
+                          local_mem_size_index);
+        }
         s->dram_control &= 0x80000000;
         s->dram_control |= value & 0x7FFFFFC3;
         break;
+    }
     case SM501_ARBTRTN_CONTROL:
         s->arbitration_control = value & 0x37777777;
         break;
