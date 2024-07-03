@@ -1542,12 +1542,9 @@ sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp)
 
     /* if SEV is in update state then encrypt the data else do nothing */
     if (sev_check_state(sev_common, SEV_STATE_LAUNCH_UPDATE)) {
-        int ret;
-
-        ret = klass->launch_update_data(sev_common, gpa, ptr, len);
-        if (ret < 0) {
-            error_setg(errp, "SEV: Failed to encrypt pflash rom");
-            return ret;
+        if (klass->launch_update_data(sev_common, gpa, ptr, len)) {
+            error_setg(errp, "SEV: Failed to encrypt flash");
+            return -1;
         }
     }
 
