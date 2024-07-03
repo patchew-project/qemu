@@ -673,7 +673,7 @@ static void device_post_init(Object *obj)
      * precedence.
      */
     object_apply_compat_props(obj);
-    qdev_prop_set_globals(DEVICE(obj));
+    qdev_prop_set_globals(obj, DEVICE(obj)->hotplugged ? NULL : &error_fatal);
 }
 
 /* Unlink device from bus and free the structure.  */

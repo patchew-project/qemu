@@ -920,10 +920,9 @@ int qdev_prop_check_globals(void)
     return ret;
 }
 
-void qdev_prop_set_globals(DeviceState *dev)
+void qdev_prop_set_globals(Object *obj, Error **errp)
 {
-    object_apply_global_props(OBJECT(dev), global_props(),
-                              dev->hotplugged ? NULL : &error_fatal);
+    object_apply_global_props(obj, global_props(), errp);
 }
 
 /* --- 64bit unsigned int 'size' type --- */
