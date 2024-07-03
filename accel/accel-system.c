@@ -29,6 +29,7 @@
 #include "sysemu/cpus.h"
 #include "qemu/error-report.h"
 #include "accel-system.h"
+#include "qapi/error.h"
 
 int accel_init_machine(AccelState *accel, MachineState *ms)
 {
@@ -43,6 +44,7 @@ int accel_init_machine(AccelState *accel, MachineState *ms)
         object_unref(OBJECT(accel));
     } else {
         object_set_accelerator_compat_props(acc->compat_props);
+        object_prop_set_globals(OBJECT(accel), &error_fatal);
     }
     return ret;
 }
