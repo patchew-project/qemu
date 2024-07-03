@@ -12,13 +12,15 @@
 #include "qom/object.h"
 
 #define TYPE_FTGMAC100 "ftgmac100"
-OBJECT_DECLARE_SIMPLE_TYPE(FTGMAC100State, FTGMAC100)
+#define TYPE_FTGMAC100_HIGH "ftgmac100_high"
+OBJECT_DECLARE_TYPE(FTGMAC100State, FTGMAC100Class, FTGMAC100)
 
-#define FTGMAC100_NR_REGS   0x200
+#define FTGMAC100_NR_REGS 0x200
+#define FTGMAC100_HIGH_OFFSET 0x100
+#define FTGMAC100_HIGH_NR_REGS 0x100
 
 #include "hw/sysbus.h"
 #include "net/net.h"
-
 /*
  * Max frame size for the receiving buffer
  */
@@ -33,6 +35,7 @@ struct FTGMAC100State {
     NICConf conf;
     qemu_irq irq;
     MemoryRegion iomem;
+    MemoryRegion iomem_high;
 
     uint8_t frame[FTGMAC100_MAX_FRAME_SIZE];
 
@@ -40,10 +43,6 @@ struct FTGMAC100State {
     uint32_t isr;
     uint32_t ier;
     uint32_t rx_enabled;
-    uint32_t rx_ring;
-    uint32_t rx_descriptor;
-    uint32_t tx_ring;
-    uint32_t tx_descriptor;
     uint32_t math[2];
     uint32_t rbsr;
     uint32_t itc;
@@ -56,7 +55,10 @@ struct FTGMAC100State {
     uint32_t phycr;
     uint32_t phydata;
     uint32_t fcr;
-
+    uint64_t rx_ring;
+    uint64_t rx_descriptor;
+    uint64_t tx_ring;
+    uint64_t tx_descriptor;
 
     uint32_t phy_status;
     uint32_t phy_control;
@@ -67,6 +69,12 @@ struct FTGMAC100State {
     bool aspeed;
     uint32_t txdes0_edotr;
     uint32_t rxdes0_edorr;
+};
+
+struct FTGMAC100Class {
+    SysBusDeviceClass parent_class;
+
+    bool is_dma64;
 };
 
 #define TYPE_ASPEED_MII "aspeed-mmi"
