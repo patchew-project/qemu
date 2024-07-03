@@ -147,7 +147,14 @@ static uint64_t sifive_plic_read(void *opaque, hwaddr addr, unsigned size)
                             (plic->num_sources + 31) >> 3)) {
         uint32_t word = (addr - plic->pending_base) >> 2;
 
-        return plic->pending[word];
+        if (word < plic->bitfield_words) {
+            return plic->pending[word];
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "sifive_plic_read: Word out of bounds for pending_base read: word=%u\n",
+                          word);
+            return 0;
+        }
     } else if (addr_between(addr, plic->enable_base,
                             plic->num_addrs * plic->enable_stride)) {
         uint32_t addrid = (addr - plic->enable_base) / plic->enable_stride;
