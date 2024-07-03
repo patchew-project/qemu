@@ -1741,7 +1741,7 @@ static int hyperv_init_vcpu(X86CPU *cpu)
     return 0;
 }
 
-static Error *invtsc_mig_blocker;
+static Error *cpu_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100
 
@@ -2012,6 +2012,15 @@ full:
     abort();
 }
 
+static bool kvm_vcpu_need_block_migration(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+
+    return !cpu->enforce_cpuid ||
+           (!env->user_tsc_khz && (env->features[FEAT_8000_0007_EDX] &
+                                   CPUID_APM_INVTSC));
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     struct {
@@ -2248,18 +2257,14 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_mcg_ext_ctl = has_msr_feature_control = true;
     }
 
-    if (!env->user_tsc_khz) {
-        if ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
-            invtsc_mig_blocker == NULL) {
-            error_setg(&invtsc_mig_blocker,
-                       "State blocked by non-migratable CPU device"
-                       " (invtsc flag)");
-            r = migrate_add_blocker(&invtsc_mig_blocker, &local_err);
+    if (!cpu_mig_blocker &&  kvm_vcpu_need_block_migration(cpu)) {
+            error_setg(&cpu_mig_blocker,
+                       "State blocked by non-migratable CPU device");
+            r = migrate_add_blocker(&cpu_mig_blocker, &local_err);
             if (r < 0) {
                 error_report_err(local_err);
                 return r;
             }
-        }
     }
 
     if (cpu->vmware_cpuid_freq
@@ -2312,7 +2317,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     return 0;
 
  fail:
-    migrate_del_blocker(&invtsc_mig_blocker);
+    migrate_del_blocker(&cpu_mig_blocker);
 
     return r;
 }
