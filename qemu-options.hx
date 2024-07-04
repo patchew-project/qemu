@@ -159,6 +159,15 @@ SRST
         ::
 
             -machine cxl-fmw.0.targets.0=cxl.0,cxl-fmw.0.targets.1=cxl.1,cxl-fmw.0.size=128G,cxl-fmw.0.interleave-granularity=512
+
+    ``smp-cache='id'``
+        Allows to configure cache property (now only the cache topology level).
+
+        For example:
+        ::
+
+            -object '{"qom-type":"smp-cache","id":"cache","caches":[{"name":"l1d","topo":"core"},{"name":"l1i","topo":"core"},{"name":"l2","topo":"module"},{"name":"l3","topo":"die"}]}'
+            -machine smp-cache=cache
 ERST
 
 DEF("M", HAS_ARG, QEMU_OPTION_M,
@@ -5871,6 +5880,55 @@ SRST
         ::
 
             (qemu) qom-set /objects/iothread1 poll-max-ns 100000
+
+    ``-object '{"qom-type":"smp-cache","id":id,"caches":[{"name":cache_name,"topo":cache_topo}]}'``
+        Create an smp-cache object that configures machine's cache
+        property. Currently, cache property only include cache topology
+        level.
+
+        This option must be written in JSON format to support JSON list.
+
+        The ``caches`` parameter accepts a list of cache property in JSON
+        format.
+
+        A list element requires the cache name to be specified in the
+        ``name`` parameter (currently ``l1d``, ``l1i``, ``l2`` and ``l3``
+        are supported). ``topo`` parameter accepts CPU topology levels
+        including ``thread``, ``core``, ``module``, ``cluster``, ``die``,
+        ``socket``, ``book``, ``drawer`` and ``default``. The ``topo``
+        parameter indicates CPUs winthin the same CPU topology container
+        are sharing the same cache.
+
+        Some machines may have their own cache topology model, and this
+        object may override the machine-specific cache topology setting
+        by specifying smp-cache object in the -machine. When specifying
+        the cache topology level of ``default``, it will honor the default
+        machine-specific cache topology setting. For other topology levels,
+        they will override the default setting.
+
+        An example list of caches to configure the cache model (l1d cache
+        per core, l1i cache per core, l2 cache per module and l3 cache per
+        socket) supported by PC machine might look like:
+
+        ::
+
+              {
+                "caches": [
+                   { "name": "l1d", "topo": "core" },
+                   { "name": "l1i", "topo": "core" },
+                   { "name": "l2", "topo": "module" },
+                   { "name": "l3", "topo": "socket" },
+                ]
+              }
+
+        An example smp-cache object would look like:()
+
+        .. parsed-literal::
+
+             # |qemu_system| \\
+                 ... \\
+                 -object '{"qom-type":"smp-cache","id":id,"caches":[{"name":cache_name,"topo":cache_topo}]}' \\
+                 ...
 ERST
 
 
