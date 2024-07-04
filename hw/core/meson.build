@@ -14,6 +14,7 @@ hwcore_ss.add(files(
 
 common_ss.add(files('cpu-common.c'))
 common_ss.add(files('machine-smp.c'))
+common_ss.add(files('smp-cache.c'))
 system_ss.add(when: 'CONFIG_FITLOADER', if_true: files('loader-fit.c'))
 system_ss.add(when: 'CONFIG_GENERIC_LOADER', if_true: files('generic-loader.c'))
 system_ss.add(when: 'CONFIG_GUEST_LOADER', if_true: files('guest-loader.c'))

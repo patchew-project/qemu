@@ -64,3 +64,53 @@
   'prefix': 'CPU_TOPO_LEVEL',
   'data': [ 'invalid', 'thread', 'core', 'module', 'cluster',
             'die', 'socket', 'book', 'drawer', 'default' ] }
+
+##
+# @SMPCacheName:
+#
+# An enumeration of cache for SMP systems.  The cache name here is
+# a combination of cache level and cache type.
+#
+# @l1d: L1 data cache.
+#
+# @l1i: L1 instruction cache.
+#
+# @l2: L2 (unified) cache.
+#
+# @l3: L3 (unified) cache
+#
+# Since: 9.1
+##
+{ 'enum': 'SMPCacheName',
+  'prefix': 'SMP_CACHE',
+  'data': [ 'l1d', 'l1i', 'l2', 'l3' ] }
+
+##
+# @SMPCacheProperty:
+#
+# Cache information for SMP systems.
+#
+# @name: Cache name.
+#
+# @topo: Cache topology level.  It accepts the CPU topology
+#     enumeration as the parameter, i.e., CPUs in the same
+#     topology container share the same cache.
+#
+# Since: 9.1
+##
+{ 'struct': 'SMPCacheProperty',
+  'data': {
+  'name': 'SMPCacheName',
+  'topo': 'CpuTopologyLevel' } }
+
+##
+# @SMPCacheProperties:
+#
+# List wrapper of SMPCacheProperty.
+#
+# @caches: the SMPCacheProperty list.
+#
+# Since 9.1
+##
+{ 'struct': 'SMPCacheProperties',
+  'data': { 'caches': ['SMPCacheProperty'] } }

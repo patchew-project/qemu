@@ -8,6 +8,7 @@
 { 'include': 'block-core.json' }
 { 'include': 'common.json' }
 { 'include': 'crypto.json' }
+{ 'include': 'machine-common.json' }
 
 ##
 # = QEMU Object Model (QOM)
@@ -1064,6 +1065,7 @@
       'if': 'CONFIG_SECRET_KEYRING' },
     'sev-guest',
     'sev-snp-guest',
+    'smp-cache',
     'thread-context',
     's390-pv-guest',
     'throttle-group',
@@ -1135,6 +1137,7 @@
                                       'if': 'CONFIG_SECRET_KEYRING' },
       'sev-guest':                  'SevGuestProperties',
       'sev-snp-guest':              'SevSnpGuestProperties',
+      'smp-cache':                  'SMPCacheProperties',
       'thread-context':             'ThreadContextProperties',
       'throttle-group':             'ThrottleGroupProperties',
       'tls-creds-anon':             'TlsCredsAnonProperties',
