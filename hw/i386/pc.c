@@ -1773,6 +1773,10 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->nvdimm_supported = true;
     mc->smp_props.dies_supported = true;
     mc->smp_props.modules_supported = true;
+    mc->smp_props.cache_supported[SMP_CACHE_L1D] = true;
+    mc->smp_props.cache_supported[SMP_CACHE_L1I] = true;
+    mc->smp_props.cache_supported[SMP_CACHE_L2] = true;
+    mc->smp_props.cache_supported[SMP_CACHE_L3] = true;
     mc->default_ram_id = "pc.ram";
     pcmc->default_smbios_ep_type = SMBIOS_ENTRY_POINT_TYPE_AUTO;
 
