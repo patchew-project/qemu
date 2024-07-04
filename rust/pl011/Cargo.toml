@@ -1,0 +1,67 @@
+[package]
+name = "pl011"
+version = "0.1.0"
+edition = "2021"
+authors = ["Manos Pitsidianakis <manos.pitsidianakis@linaro.org>"]
+license = "GPL-2.0 OR GPL-3.0-or-later"
+readme = "README.md"
+homepage = "https://www.qemu.org"
+description = "pl011 device model for QEMU"
+repository = "https://gitlab.com/epilys/rust-for-qemu"
+resolver = "2"
+publish = false
+keywords = []
+categories = []
+
+[lib]
+crate-type = ["staticlib"]
+
+# bilge deps included here to include them with docs
+[dependencies]
+arbitrary-int = { version = "1.2.7" }
+bilge = { version = "0.2.0" }
+bilge-impl = { version = "0.2.0" }
+qemu_api = { path = "../qemu-api" }
+
+[lints]
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+redundant_explicit_links = "deny"
+[lints.clippy]
+# lint groups
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
+complexity = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+style = { level = "deny", priority = -1 }
+# restriction group
+dbg_macro = "deny"
+rc_buffer = "deny"
+as_underscore = "deny"
+assertions_on_result_states = "deny"
+# pedantic group
+doc_markdown = "deny"
+expect_fun_call = "deny"
+borrow_as_ptr = "deny"
+case_sensitive_file_extension_comparisons = "deny"
+cast_lossless = "deny"
+cast_ptr_alignment = "allow"
+large_futures = "deny"
+waker_clone_wake = "deny"
+unused_enumerate_index = "deny"
+unnecessary_fallible_conversions = "deny"
+struct_field_names = "deny"
+manual_hash_one = "deny"
+into_iter_without_iter = "deny"
+option_if_let_else = "deny"
+missing_const_for_fn = "deny"
+significant_drop_tightening = "deny"
+multiple_crate_versions = "deny"
+significant_drop_in_scrutinee = "deny"
+cognitive_complexity = "deny"
+missing_safety_doc = "allow"
+
+# Do not include in any global workspace
+[workspace]

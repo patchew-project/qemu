@@ -93,6 +93,8 @@ subdir('qemu-api')
 # bindgen dependency is declared.
 rust_hw_target_list = {}
 
+subdir('pl011')
+
 foreach rust_hw_target, rust_hws: rust_hw_target_list
   foreach rust_hw_dev: rust_hws
     crate_metadata = {
