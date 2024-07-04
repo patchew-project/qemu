@@ -153,6 +153,12 @@ static void cxl_dsp_realize(PCIDevice *d, Error **errp)
         goto err_bridge;
     }
 
+    if (pcie_find_port_by_pn(pci_get_bus(d), p->port) != NULL) {
+        rc = -EBUSY;
+        error_setg(errp, "Can't link port, error %d", rc);
+        goto err_msi;
+    }
+
     rc = pcie_cap_init(d, CXL_DOWNSTREAM_PORT_EXP_OFFSET,
                        PCI_EXP_TYPE_DOWNSTREAM, p->port,
                        errp);

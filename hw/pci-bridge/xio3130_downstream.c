@@ -88,6 +88,12 @@ static void xio3130_downstream_realize(PCIDevice *d, Error **errp)
         goto err_msi;
     }
 
+    if (pcie_find_port_by_pn(pci_get_bus(d), p->port) != NULL) {
+        rc = -EBUSY;
+        error_setg(errp, "Can't link port, error %d", rc);
+        goto err_msi;
+    }
+
     rc = pcie_cap_init(d, XIO3130_EXP_OFFSET, PCI_EXP_TYPE_DOWNSTREAM,
                        p->port, errp);
     if (rc < 0) {

@@ -89,6 +89,12 @@ static void rp_realize(PCIDevice *d, Error **errp)
         }
     }
 
+    if (pcie_find_port_by_pn(pci_get_bus(d), p->port) != NULL) {
+        rc = -EBUSY;
+        error_setg(errp, "Can't link port, error %d", rc);
+        goto err_int;
+    }
+
     rc = pcie_cap_init(d, rpc->exp_offset, PCI_EXP_TYPE_ROOT_PORT,
                        p->port, errp);
     if (rc < 0) {
