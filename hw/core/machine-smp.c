@@ -276,3 +276,83 @@ CpuTopologyLevel machine_get_cache_topo_level(const MachineState *ms,
 {
     return ms->smp_cache->props[cache].topo;
 }
+
+static bool machine_check_topo_support(MachineState *ms,
+                                       CpuTopologyLevel topo,
+                                       Error **errp)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+
+    if ((topo == CPU_TOPO_LEVEL_MODULE && !mc->smp_props.modules_supported) ||
+        (topo == CPU_TOPO_LEVEL_CLUSTER && !mc->smp_props.clusters_supported) ||
+        (topo == CPU_TOPO_LEVEL_DIE && !mc->smp_props.dies_supported) ||
+        (topo == CPU_TOPO_LEVEL_BOOK && !mc->smp_props.books_supported) ||
+        (topo == CPU_TOPO_LEVEL_DRAWER && !mc->smp_props.drawers_supported)) {
+        error_setg(errp,
+                   "Invalid topology level: %s. "
+                   "The topology level is not supported by this machine",
+                   CpuTopologyLevel_str(topo));
+        return false;
+    }
+
+    return true;
+}
+
+/*
+ * When both cache1 and cache2 are configured with specific topology levels
+ * (not default level), is cache1's topology level higher than cache2?
+ */
+static bool smp_cache_topo_cmp(const SMPCache *smp_cache,
+                               SMPCacheName cache1,
+                               SMPCacheName cache2)
+{
+    if (smp_cache->props[cache1].topo != CPU_TOPO_LEVEL_DEFAULT &&
+        smp_cache->props[cache1].topo > smp_cache->props[cache2].topo) {
+        return true;
+    }
+    return false;
+}
+
+bool machine_check_smp_cache_support(MachineState *ms,
+                                     const SMPCache *smp_cache,
+                                     Error **errp)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+
+    for (int i = 0; i < SMP_CACHE__MAX; i++) {
+        const SMPCacheProperty *prop = &smp_cache->props[i];
+
+        /*
+         * Allow setting "default" topology level even though the cache
+         * isn't supported by machine.
+         */
+        if (prop->topo != CPU_TOPO_LEVEL_DEFAULT &&
+            !mc->smp_props.cache_supported[prop->name]) {
+            error_setg(errp,
+                       "%s cache topology not supported by this machine",
+                       SMPCacheName_str(prop->name));
+            return false;
+        }
+
+        if (!machine_check_topo_support(ms, prop->topo, errp)) {
+            return false;
+        }
+    }
+
+    if (smp_cache_topo_cmp(smp_cache, SMP_CACHE_L1D, SMP_CACHE_L2) ||
+        smp_cache_topo_cmp(smp_cache, SMP_CACHE_L1I, SMP_CACHE_L2)) {
+        error_setg(errp,
+                   "Invalid smp cache topology. "
+                   "L2 cache topology level shouldn't be lower than L1 cache");
+        return false;
+    }
+
+    if (smp_cache_topo_cmp(smp_cache, SMP_CACHE_L2, SMP_CACHE_L3)) {
+        error_setg(errp,
+                   "Invalid smp cache topology. "
+                   "L3 cache topology level shouldn't be lower than L2 cache");
+        return false;
+    }
+
+    return true;
+}

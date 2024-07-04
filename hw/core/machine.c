@@ -926,6 +926,20 @@ static void machine_set_smp(Object *obj, Visitor *v, const char *name,
     machine_parse_smp_config(ms, config, errp);
 }
 
+static void machine_check_smp_cache(const Object *obj, const char *name,
+                                    Object *child, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+    SMPCache *smp_cache = SMP_CACHE(child);
+
+    if (ms->smp_cache) {
+        error_setg(errp, "Invalid smp cache property. which has been set");
+        return;
+    }
+
+    machine_check_smp_cache_support(ms, smp_cache, errp);
+}
+
 static void machine_get_boot(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
@@ -1045,11 +1059,10 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "smp",
         "CPU topology");
 
-    /* TODO: Implement check() method based on machine support. */
     object_class_property_add_link(oc, "smp-cache",
                                    TYPE_SMP_CACHE,
                                    offsetof(MachineState, smp_cache),
-                                   object_property_allow_set_link,
+                                   machine_check_smp_cache,
                                    OBJ_PROP_LINK_STRONG);
     object_class_property_set_description(oc, "smp-cache",
         "SMP cache property");
