@@ -1045,6 +1045,15 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "smp",
         "CPU topology");
 
+    /* TODO: Implement check() method based on machine support. */
+    object_class_property_add_link(oc, "smp-cache",
+                                   TYPE_SMP_CACHE,
+                                   offsetof(MachineState, smp_cache),
+                                   object_property_allow_set_link,
+                                   OBJ_PROP_LINK_STRONG);
+    object_class_property_set_description(oc, "smp-cache",
+        "SMP cache property");
+
     object_class_property_add(oc, "phandle-start", "int",
         machine_get_phandle_start, machine_set_phandle_start,
         NULL, NULL);
