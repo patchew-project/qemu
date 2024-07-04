@@ -75,17 +75,7 @@ bool host_cpu_realizefn(CPUState *cs, Error **errp)
     CPUX86State *env = &cpu->env;
 
     if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-        uint32_t phys_bits = host_cpu_adjust_phys_bits(cpu);
-
-        if (phys_bits &&
-            (phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
-             phys_bits < 32)) {
-            error_setg(errp, "phys-bits should be between 32 and %u "
-                       " (but is %u)",
-                       TARGET_PHYS_ADDR_SPACE_BITS, phys_bits);
-            return false;
-        }
-        cpu->phys_bits = phys_bits;
+        cpu->phys_bits = host_cpu_adjust_phys_bits(cpu);
     }
     return true;
 }
