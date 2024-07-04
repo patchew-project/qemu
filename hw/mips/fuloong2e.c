@@ -286,6 +286,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     /* South bridge -> IP5 */
     pci_dev = pci_new_multifunction(PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),
                                     TYPE_VT82C686B_ISA);
+    qdev_connect_gpio_out_named(DEVICE(pci_dev), "intr", 0, env->irq[5]);
 
     /* Set properties on individual devices before realizing the south bridge */
     if (machine->audiodev) {
@@ -299,7 +300,6 @@ static void mips_fuloong2e_init(MachineState *machine)
                               object_resolve_path_component(OBJECT(pci_dev),
                                                             "rtc"),
                               "date");
-    qdev_connect_gpio_out_named(DEVICE(pci_dev), "intr", 0, env->irq[5]);
 
     dev = DEVICE(object_resolve_path_component(OBJECT(pci_dev), "ide"));
     pci_ide_create_devs(PCI_DEVICE(dev));

@@ -148,13 +148,13 @@ static void amigaone_init(MachineState *machine)
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* VIA VT82c686B South Bridge (multifunction PCI device) */
-    via = OBJECT(pci_create_simple_multifunction(pci_bus, PCI_DEVFN(7, 0),
-                                                 TYPE_VT82C686B_ISA));
+    via = OBJECT(pci_new_multifunction(PCI_DEVFN(7, 0), TYPE_VT82C686B_ISA));
+    qdev_connect_gpio_out_named(DEVICE(via), "intr", 0,
+                                qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_INT));
+    pci_realize_and_unref(PCI_DEVICE(via), pci_bus, &error_abort);
     object_property_add_alias(OBJECT(machine), "rtc-time",
                               object_resolve_path_component(via, "rtc"),
                               "date");
-    qdev_connect_gpio_out_named(DEVICE(via), "intr", 0,
-                                qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_INT));
     for (i = 0; i < PCI_NUM_PINS; i++) {
         qdev_connect_gpio_out(dev, i, qdev_get_gpio_in_named(DEVICE(via),
                                                              "pirq", i));
