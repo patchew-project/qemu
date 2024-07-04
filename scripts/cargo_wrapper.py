@@ -111,6 +111,8 @@ def get_cargo_rustc(args: argparse.Namespace) -> tuple[Dict[str, Any], List[str]
 
     env = os.environ
     env["CARGO_ENCODED_RUSTFLAGS"] = cfg
+    env["MESON_BUILD_DIR"] = str(target_dir)
+    env["MESON_BUILD_ROOT"] = str(args.meson_build_root)
 
     return (env, cargo_cmd)
 
@@ -231,19 +233,11 @@ def main() -> None:
         default=[],
     )
     parser.add_argument(
-        "--meson-build-dir",
-        metavar="BUILD_DIR",
-        help="meson.current_build_dir()",
+        "--meson-build-root",
+        metavar="BUILD_ROOT",
+        help="meson.project_build_root(): the root build directory. Example: '/path/to/qemu/build'",
         type=Path,
-        dest="meson_build_dir",
-        required=True,
-    )
-    parser.add_argument(
-        "--meson-source-dir",
-        metavar="SOURCE_DIR",
-        help="meson.current_source_dir()",
-        type=Path,
-        dest="meson_build_dir",
+        dest="meson_build_root",
         required=True,
     )
     parser.add_argument(
