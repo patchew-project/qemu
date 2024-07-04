@@ -81,12 +81,6 @@ static void piix_set_pci_irq(void *opaque, int pirq, int level)
     piix_set_pci_irq_level(s, pirq, level);
 }
 
-static void piix_request_i8259_irq(void *opaque, int irq, int level)
-{
-    PIIXState *s = opaque;
-    qemu_set_irq(s->cpu_intr, level);
-}
-
 static PCIINTxRoute piix_route_intx_pin_to_irq(void *opaque, int pin)
 {
     PCIDevice *pci_dev = opaque;
@@ -315,9 +309,7 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
 
     /* PIC */
     if (d->has_pic) {
-        qemu_irq *i8259_out_irq = qemu_allocate_irqs(piix_request_i8259_irq, d,
-                                                     1);
-        qemu_irq *i8259 = i8259_init(isa_bus, *i8259_out_irq);
+        qemu_irq *i8259 = i8259_init(isa_bus, d->cpu_intr);
         size_t i;
 
         for (i = 0; i < ISA_NUM_IRQS; i++) {
@@ -325,8 +317,6 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
         }
 
         g_free(i8259);
-
-        qdev_init_gpio_out_named(DEVICE(dev), &d->cpu_intr, "intr", 1);
     }
 
     isa_bus_register_input_irqs(isa_bus, d->isa_irqs_in);
@@ -402,6 +392,7 @@ static void pci_piix_init(Object *obj)
 {
     PIIXState *d = PIIX_PCI_DEVICE(obj);
 
+    qdev_init_gpio_out_named(DEVICE(obj), &d->cpu_intr, "intr", 1);
     qdev_init_gpio_out_named(DEVICE(obj), d->isa_irqs_in, "isa-irqs",
                              ISA_NUM_IRQS);
 
