@@ -3340,6 +3340,11 @@ F: hw/core/register.c
 F: include/hw/register.h
 F: include/hw/registerfields.h
 
+Rust
+M: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
+S: Maintained
+F: rust/qemu-api
+
 SLIRP
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
 S: Maintained
@@ -4233,6 +4238,8 @@ F: scripts/cargo_wrapper.py
 F: rust/meson.build
 F: rust/wrapper.h
 F: rust/.gitignore
+F: rust/rustfmt.toml
+F: rust/.cargo/config.toml
 
 Miscellaneous
 -------------
