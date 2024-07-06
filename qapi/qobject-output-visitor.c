@@ -173,7 +173,7 @@ static bool qobject_output_type_bool(Visitor *v, const char *name, bool *obj,
 }
 
 static bool qobject_output_type_str(Visitor *v, const char *name, char **obj,
-                                    Error **errp)
+                                    bool consume, Error **errp)
 {
     QObjectOutputVisitor *qov = to_qov(v);
     if (*obj) {

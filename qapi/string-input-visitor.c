@@ -336,7 +336,7 @@ static bool parse_type_bool(Visitor *v, const char *name, bool *obj,
 }
 
 static bool parse_type_str(Visitor *v, const char *name, char **obj,
-                           Error **errp)
+                           bool consume, Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
 

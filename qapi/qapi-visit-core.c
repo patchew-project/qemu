@@ -336,7 +336,8 @@ bool visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
     return v->type_bool(v, name, obj, errp);
 }
 
-bool visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
+static bool visit_type_str_common(Visitor *v, const char *name, char **obj,
+                                  bool consume, Error **errp)
 {
     bool ok;
 
@@ -346,11 +347,23 @@ bool visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
     assert(!(v->type & VISITOR_OUTPUT) || *obj);
      */
     trace_visit_type_str(v, name, obj);
-    ok = v->type_str(v, name, obj, errp);
+    ok = v->type_str(v, name, obj, consume, errp);
     if (v->type & VISITOR_INPUT) {
         assert(ok != !*obj);
     }
     return ok;
+}
+
+bool visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
+{
+    return visit_type_str_common(v, name, obj, true, errp);
+}
+
+bool visit_type_str_preserving(Visitor *v, const char *name, char **obj,
+                               Error **errp)
+{
+    assert(v->type & VISITOR_INPUT);
+    return visit_type_str_common(v, name, obj, false, errp);
 }
 
 bool visit_type_number(Visitor *v, const char *name, double *obj,

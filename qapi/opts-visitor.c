@@ -347,7 +347,8 @@ processed(OptsVisitor *ov, const char *name)
 
 
 static bool
-opts_type_str(Visitor *v, const char *name, char **obj, Error **errp)
+opts_type_str(Visitor *v, const char *name, char **obj, bool consume,
+              Error **errp)
 {
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
@@ -363,7 +364,9 @@ opts_type_str(Visitor *v, const char *name, char **obj, Error **errp)
      * valid enum value; this is harmless because tracking what gets
      * consumed only matters to visit_end_struct() as the final error
      * check if there were no other failures during the visit.  */
-    processed(ov, name);
+    if (consume) {
+        processed(ov, name);
+    }
     return true;
 }
 

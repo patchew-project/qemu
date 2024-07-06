@@ -95,7 +95,8 @@ struct Visitor
     bool (*type_bool)(Visitor *v, const char *name, bool *obj, Error **errp);
 
     /* Must be set */
-    bool (*type_str)(Visitor *v, const char *name, char **obj, Error **errp);
+    bool (*type_str)(Visitor *v, const char *name, char **obj, bool consume,
+                     Error **errp);
 
     /* Must be set to visit numbers */
     bool (*type_number)(Visitor *v, const char *name, double *obj,

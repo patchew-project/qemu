@@ -655,6 +655,26 @@ bool visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp);
 bool visit_type_str(Visitor *v, const char *name, char **obj, Error **errp);
 
 /*
+ * Visit a string value but do not consume it.
+ *
+ * @name expresses the relationship of this string to its parent
+ * container; see the general description of @name above.
+ *
+ * @obj must be non-NULL.  Input and clone visitors set *@obj to the
+ * value (always using "" rather than NULL for an empty string).
+ * Other visitors leave *@obj unchanged, and commonly treat NULL like
+ * "".
+ *
+ * This function must be called only with an input visitor.
+ *
+ * This is mostly identical with visit_type_str() but leaves the value intact.
+ * This is useful when the caller may interpret the value with a different
+ * type.
+ */
+bool visit_type_str_preserving(Visitor *v, const char *name, char **obj,
+                               Error **errp);
+
+/*
  * Visit a number (i.e. double) value.
  *
  * @name expresses the relationship of this number to its parent
