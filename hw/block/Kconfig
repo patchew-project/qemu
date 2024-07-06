@@ -44,3 +44,9 @@ config VHOST_USER_BLK
 
 config SWIM
     bool
+
+config VIRTIO_SDHCI
+    bool
+    default y
+    select SD
+    depends on VIRTIO
