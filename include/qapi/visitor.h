@@ -513,11 +513,6 @@ void visit_set_policy(Visitor *v, CompatPolicy *policy);
  * is an input visitor.
  *
  * Return true on success, false on failure.
- *
- * May call visit_type_str() under the hood, and the enum visit may
- * fail even if the corresponding string visit succeeded; this implies
- * that an input visitor's visit_type_str() must have no unwelcome
- * side effects.
  */
 bool visit_type_enum(Visitor *v, const char *name, int *obj,
                      const QEnumLookup *lookup, Error **errp);
