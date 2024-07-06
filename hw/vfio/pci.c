@@ -902,7 +902,7 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
         error_report("vfio-pci: Cannot read device rom at "
                     "%s", vdev->vbasedev.name);
         error_printf("Device option ROM contents are probably invalid "
-                    "(check dmesg).\nSkip option ROM probe with rombar=0, "
+                    "(check dmesg).\nSkip option ROM probe with rombar=off, "
                     "or load from file with romfile=\n");
         return;
     }
@@ -1012,11 +1012,10 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
 {
     uint32_t orig, size = cpu_to_le32((uint32_t)PCI_ROM_ADDRESS_MASK);
     off_t offset = vdev->config_offset + PCI_ROM_ADDRESS;
-    DeviceState *dev = DEVICE(vdev);
     char *name;
     int fd = vdev->vbasedev.fd;
 
-    if (vdev->pdev.romfile || !vdev->pdev.rom_bar) {
+    if (vdev->pdev.romfile || vdev->pdev.rom_bar == ON_OFF_AUTO_OFF) {
         /* Since pci handles romfile, just print a message and return */
         if (vfio_opt_rom_in_denylist(vdev) && vdev->pdev.romfile) {
             warn_report("Device at %s is known to cause system instability"
@@ -1046,17 +1045,17 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
     }
 
     if (vfio_opt_rom_in_denylist(vdev)) {
-        if (dev->opts && qdict_haskey(dev->opts, "rombar")) {
+        if (vdev->pdev.rom_bar == ON_OFF_AUTO_ON) {
             warn_report("Device at %s is known to cause system instability"
                         " issues during option rom execution",
                         vdev->vbasedev.name);
             error_printf("Proceeding anyway since user specified"
-                         " non zero value for rombar\n");
+                         " on for rombar\n");
         } else {
             warn_report("Rom loading for device at %s has been disabled"
                         " due to system instability issues",
                         vdev->vbasedev.name);
-            error_printf("Specify rombar=1 or romfile to force\n");
+            error_printf("Specify rombar=on or romfile to force\n");
             return;
         }
     }

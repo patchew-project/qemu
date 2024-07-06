@@ -67,11 +67,64 @@ static char *pcibus_get_fw_dev_path(DeviceState *dev);
 static void pcibus_reset_hold(Object *obj, ResetType type);
 static bool pcie_has_upstream_port(PCIDevice *dev);
 
+static void rom_bar_get(Object *obj, Visitor *v, const char *name, void *opaque,
+                        Error **errp)
+{
+    Property *prop = opaque;
+    int *ptr = object_field_prop_ptr(obj, prop);
+
+    visit_type_enum(v, name, ptr, prop->info->enum_table, errp);
+}
+
+static void rom_bar_set(Object *obj, Visitor *v, const char *name, void *opaque,
+                        Error **errp)
+{
+    Property *prop = opaque;
+    Error *local_err = NULL;
+    int *ptr = object_field_prop_ptr(obj, prop);
+    uint32_t value;
+
+    visit_type_enum(v, name, ptr, prop->info->enum_table, &local_err);
+    if (!local_err) {
+        return;
+    }
+
+    if (visit_type_uint32(v, name, &value, NULL)) {
+        if (value) {
+            *ptr = ON_OFF_AUTO_ON;
+            warn_report("Specifying a number for rombar is deprecated; replace a non-zero value with 'on'");
+        } else {
+            *ptr = ON_OFF_AUTO_OFF;
+            warn_report("Specifying a number for rombar is deprecated; replace 0 with 'off'");
+        }
+
+        return;
+    }
+
+    error_propagate(errp, local_err);
+}
+
+static void rom_bar_set_default_value(ObjectProperty *op, const Property *prop)
+{
+    object_property_set_default_str(op,
+        qapi_enum_lookup(prop->info->enum_table, prop->defval.i));
+}
+
+static const PropertyInfo qdev_prop_rom_bar = {
+    .name = "OnOffAuto",
+    .description = "on/off/auto",
+    .enum_table = &OnOffAuto_lookup,
+    .get = rom_bar_get,
+    .set = rom_bar_set,
+    .set_default_value = rom_bar_set_default_value,
+};
+
 static Property pci_props[] = {
     DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
     DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
     DEFINE_PROP_UINT32("romsize", PCIDevice, romsize, UINT32_MAX),
-    DEFINE_PROP_UINT32("rombar",  PCIDevice, rom_bar, 1),
+    DEFINE_PROP_SIGNED("rombar",  PCIDevice, rom_bar, ON_OFF_AUTO_AUTO,
+                       qdev_prop_rom_bar, OnOffAuto),
     DEFINE_PROP_BIT("multifunction", PCIDevice, cap_present,
                     QEMU_PCI_CAP_MULTIFUNCTION_BITNR, false),
     DEFINE_PROP_BIT("x-pcie-lnksta-dllla", PCIDevice, cap_present,
@@ -2334,7 +2387,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
         return;
     }
 
-    if (!pdev->rom_bar) {
+    if (pdev->rom_bar == ON_OFF_AUTO_OFF) {
         /*
          * Load rom via fw_cfg instead of creating a rom bar,
          * for 0.11 compatibility.
