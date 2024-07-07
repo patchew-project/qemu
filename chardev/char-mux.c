@@ -210,8 +210,8 @@ static int mux_chr_can_read(void *opaque)
         return 1;
     }
 
-    if (be && be->chr_can_read) {
-        return be->chr_can_read(be->opaque);
+    if (be && be->chr_can_read && be->chr_can_read(be->opaque)) {
+        return 1;
     }
 
     return 0;
