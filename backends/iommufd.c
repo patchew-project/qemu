@@ -314,6 +314,8 @@ static int hiod_iommufd_get_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
     switch (cap) {
     case HOST_IOMMU_DEVICE_CAP_IOMMU_TYPE:
         return caps->type;
+    case HOST_IOMMU_DEVICE_CAP_DIRTY_TRACKING:
+        return caps->dirty_tracking;
     case HOST_IOMMU_DEVICE_CAP_AW_BITS:
         return caps->aw_bits;
     default:

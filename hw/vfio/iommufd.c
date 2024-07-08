@@ -832,6 +832,7 @@ static bool hiod_iommufd_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
         hiod->name = g_strdup(vdev->name);
         caps->type = type;
         caps->aw_bits = vfio_device_get_aw_bits(vdev);
+        caps->dirty_tracking = (hw_caps & IOMMU_HW_CAP_DIRTY_TRACKING);
     }
 
     return true;

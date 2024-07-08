@@ -25,6 +25,7 @@
 typedef struct HostIOMMUDeviceCaps {
     uint32_t type;
     uint8_t aw_bits;
+    bool dirty_tracking;
 } HostIOMMUDeviceCaps;
 
 #define TYPE_HOST_IOMMU_DEVICE "host-iommu-device"
@@ -104,6 +105,7 @@ struct HostIOMMUDeviceClass {
  */
 #define HOST_IOMMU_DEVICE_CAP_IOMMU_TYPE        0
 #define HOST_IOMMU_DEVICE_CAP_AW_BITS           1
+#define HOST_IOMMU_DEVICE_CAP_DIRTY_TRACKING    2
 
 #define HOST_IOMMU_DEVICE_CAP_AW_BITS_MAX       64
 #endif
