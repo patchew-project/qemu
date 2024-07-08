@@ -23,6 +23,8 @@
 #define INITIAL_MXCSR   0x1f80
 #define MAX_NUMBER_OF_RUNS  42
 
+#define MAX_CHUNK_SIZE (128 * 1024 * 1024)
+
 typedef struct idt_desc {
     uint16_t offset1;   /* offset bits 0..15 */
     uint16_t selector;
@@ -434,13 +436,22 @@ static bool write_dump(struct pa_space *ps,
 
     for (i = 0; i < ps->block_nr; i++) {
         struct pa_block *b = &ps->block[i];
+        size_t offset = 0;
+        size_t chunk_size;
 
         printf("Writing block #%zu/%zu of %"PRIu64" bytes to file...\n", i,
                 ps->block_nr, b->size);
-        if (fwrite(b->addr, b->size, 1, dmp_file) != 1) {
-            eprintf("Failed to write block\n");
-            fclose(dmp_file);
-            return false;
+
+        while (offset < b->size) {
+            chunk_size = (b->size - offset > MAX_CHUNK_SIZE)
+                         ? MAX_CHUNK_SIZE
+                         : (b->size - offset);
+            if (fwrite(b->addr + offset, chunk_size, 1, dmp_file) != 1) {
+                eprintf("Failed to write block\n");
+                fclose(dmp_file);
+                return false;
+            }
+            offset += chunk_size;
         }
     }
 
