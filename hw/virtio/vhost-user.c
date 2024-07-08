@@ -440,7 +440,7 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     int ret;
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_SET_LOG_BASE,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
         .payload.log.mmap_size = log->size * sizeof(*(log->log)),
         .payload.log.mmap_offset = 0,
         .hdr.size = sizeof(msg.payload.log),
@@ -460,7 +460,7 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
         return ret;
     }
 
-    if (shmfd) {
+    if (shmfd && (msg.hdr.flags & VHOST_USER_NEED_REPLY_MASK)) {
         msg.hdr.size = 0;
         ret = vhost_user_read(dev, &msg);
         if (ret < 0) {
