@@ -631,14 +631,12 @@ static bool hiod_iommufd_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
 
     hiod->agent = opaque;
 
-    if (!iommufd_backend_get_device_info(vdev->iommufd, vdev->devid,
-                                         &type, &data, sizeof(data), errp)) {
-        return false;
+    if (iommufd_backend_get_device_info(vdev->iommufd, vdev->devid,
+                                         &type, &data, sizeof(data), NULL)) {
+        hiod->name = g_strdup(vdev->name);
+        caps->type = type;
+        caps->aw_bits = vfio_device_get_aw_bits(vdev);
     }
-
-    hiod->name = g_strdup(vdev->name);
-    caps->type = type;
-    caps->aw_bits = vfio_device_get_aw_bits(vdev);
 
     return true;
 }
