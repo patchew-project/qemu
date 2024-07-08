@@ -1243,7 +1243,7 @@ void memory_region_init(MemoryRegion *mr,
                         uint64_t size);
 
 /**
- * memory_region_ref: Add 1 to a memory region's reference count
+ * memory_region_ref: Add a reference to a memory region
  *
  * Whenever memory regions are accessed outside the BQL, they need to be
  * preserved against hot-unplug.  MemoryRegions actually do not have their
@@ -1260,7 +1260,7 @@ void memory_region_init(MemoryRegion *mr,
 void memory_region_ref(MemoryRegion *mr);
 
 /**
- * memory_region_unref: Remove 1 to a memory region's reference count
+ * memory_region_unref: Remove a reference to a memory region
  *
  * Whenever memory regions are accessed outside the BQL, they need to be
  * preserved against hot-unplug.  MemoryRegions actually do not have their
