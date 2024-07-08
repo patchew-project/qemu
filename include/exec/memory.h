@@ -1245,7 +1245,7 @@ void memory_region_init(MemoryRegion *mr,
 /**
  * memory_region_ref: Add a reference to a memory region
  *
- * This function adds a reference to the owner.
+ * This function adds a reference to the owner if present.
  * See docs/devel/memory.rst to know about owner.
  *
  * @mr: the #MemoryRegion
@@ -1255,8 +1255,8 @@ void memory_region_ref(MemoryRegion *mr);
 /**
  * memory_region_unref: Remove a reference to a memory region
  *
- * This function removes a reference to the owner and possibly destroys it.
- * See docs/devel/memory.rst to know about owner.
+ * This function removes a reference to the owner and possibly destroys it if
+ * present. See docs/devel/memory.rst to know about owner.
  *
  * @mr: the #MemoryRegion
  */
