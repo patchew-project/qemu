@@ -2435,6 +2435,22 @@ static void vtd_handle_gcmd_ire(IntelIOMMUState *s, bool en)
     }
 }
 
+/* Handle Compatibility Format Interrupts Enable/Disable */
+static void vtd_handle_gcmd_cfi(IntelIOMMUState *s, bool en)
+{
+    trace_vtd_cfi_enable(en);
+
+    if (en) {
+        s->cfi_enabled = true;
+        /* Ok - report back to driver */
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_CFIS);
+    } else {
+        s->cfi_enabled = false;
+        /* Ok - report back to driver */
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_CFIS, 0);
+    }
+}
+
 /* Handle write to Global Command Register */
 static void vtd_handle_gcmd_write(IntelIOMMUState *s)
 {
@@ -2464,6 +2480,10 @@ static void vtd_handle_gcmd_write(IntelIOMMUState *s)
         x86_iommu_ir_supported(x86_iommu)) {
         /* Interrupt remap enable/disable */
         vtd_handle_gcmd_ire(s, val & VTD_GCMD_IRE);
+    }
+    if (changed & VTD_GCMD_CFI) {
+        /* Compatibility format interrupts enable/disable */
+        vtd_handle_gcmd_cfi(s, val & VTD_GCMD_CFI);
     }
 }
 
@@ -3308,7 +3328,25 @@ static int vtd_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vtd_vmstate = {
+static bool vtd_cfi_needed(void *opaque)
+{
+    IntelIOMMUState *iommu = opaque;
+
+    return iommu->intr_enabled && !iommu->intr_eime;
+}
+
+static const VMStateDescription vmstate_vtd_cfi = {
+    .name = "iommu-intel/cfi",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vtd_cfi_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(cfi_enabled, IntelIOMMUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_vtd = {
     .name = "iommu-intel",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -3331,6 +3369,10 @@ static const VMStateDescription vtd_vmstate = {
         VMSTATE_BOOL(intr_enabled, IntelIOMMUState),
         VMSTATE_BOOL(intr_eime, IntelIOMMUState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_vtd_cfi,
+        NULL
     }
 };
 
@@ -3550,6 +3592,12 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
 
     /* This is compatible mode. */
     if (addr.addr.int_mode != VTD_IR_INT_FORMAT_REMAP) {
+        if (iommu->intr_eime || !iommu->cfi_enabled) {
+            if (do_fault) {
+                vtd_report_ir_fault(iommu, sid, VTD_FR_IR_REQ_COMPAT, 0);
+            }
+            return -EINVAL;
+        }
         memcpy(translated, origin, sizeof(*origin));
         goto out;
     }
@@ -4111,6 +4159,7 @@ static void vtd_init(IntelIOMMUState *s)
     s->root_scalable = false;
     s->dmar_enabled = false;
     s->intr_enabled = false;
+    s->cfi_enabled = false;
     s->iq_head = 0;
     s->iq_tail = 0;
     s->iq = 0;
@@ -4358,7 +4407,7 @@ static void vtd_class_init(ObjectClass *klass, void *data)
     X86IOMMUClass *x86_class = X86_IOMMU_DEVICE_CLASS(klass);
 
     dc->reset = vtd_reset;
-    dc->vmsd = &vtd_vmstate;
+    dc->vmsd = &vmstate_vtd;
     device_class_set_props(dc, vtd_properties);
     dc->hotpluggable = false;
     x86_class->realize = vtd_realize;
