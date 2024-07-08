@@ -1246,6 +1246,7 @@ void memory_region_init(MemoryRegion *mr,
  * memory_region_ref: Add a reference to a memory region
  *
  * This function adds a reference to the owner if present.
+ * The owner must not call this function as it results in a circular reference.
  * See docs/devel/memory.rst to know about owner.
  *
  * @mr: the #MemoryRegion
