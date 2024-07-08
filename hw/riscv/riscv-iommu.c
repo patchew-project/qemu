@@ -621,6 +621,7 @@ static MemTxResult riscv_iommu_msi_write(RISCVIOMMUState *s,
         cause = RISCV_IOMMU_FQ_CAUSE_MSI_WR_FAULT;
         goto err;
     }
+    trace_riscv_iommu_mrif_notification(s->parent_obj.id, n190, addr);
 
     return MEMTX_OK;
 
