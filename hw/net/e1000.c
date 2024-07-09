@@ -126,6 +126,12 @@ struct E1000State_st {
 
     QEMUTimer *flush_queue_timer;
 
+    /*
+     * Indicate that the receive circular buffer queue overrun
+     * the last time hardware produced packets.
+     */
+    bool last_overrun;
+
 /* Compatibility flags for migration to/from qemu 1.3.0 and older */
 #define E1000_FLAG_MAC_BIT 2
 #define E1000_FLAG_TSO_BIT 3
@@ -832,7 +838,7 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
     int bufs;
     /* Fast-path short packets */
     if (total_size <= s->rxbuf_size) {
-        return s->mac_reg[RDH] != s->mac_reg[RDT];
+        return s->mac_reg[RDH] != s->mac_reg[RDT] || !s->last_overrun;
     }
     if (s->mac_reg[RDH] < s->mac_reg[RDT]) {
         bufs = s->mac_reg[RDT] - s->mac_reg[RDH];
@@ -840,7 +846,12 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
         bufs = s->mac_reg[RDLEN] /  sizeof(struct e1000_rx_desc) +
             s->mac_reg[RDT] - s->mac_reg[RDH];
     } else {
-        return false;
+        if (s->last_overrun) {
+            return false;
+        }
+
+        /* Receive ring buffer is empty */
+        bufs = s->mac_reg[RDLEN] / sizeof(struct e1000_rx_desc);
     }
     return total_size <= bufs * s->rxbuf_size;
 }
@@ -998,6 +1009,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     } while (desc_offset < total_size);
 
     e1000x_update_rx_total_stats(s->mac_reg, pkt_type, size, total_size);
+    s->last_overrun = s->mac_reg[RDH] == s->mac_reg[RDT];
 
     n = E1000_ICS_RXT0;
     if ((rdt = s->mac_reg[RDT]) < s->mac_reg[RDH])
