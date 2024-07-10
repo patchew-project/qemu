@@ -5419,6 +5419,7 @@ static bool kvm_install_pmu_event_filter(KVMState *s)
 {
     struct kvm_pmu_event_filter *kvm_filter;
     KVMPMUFilter *filter = s->pmu_filter;
+    KVMPMUFilterAction action;
     int ret;
 
     kvm_filter = g_malloc0(sizeof(struct kvm_pmu_event_filter) +
@@ -5426,9 +5427,14 @@ static bool kvm_install_pmu_event_filter(KVMState *s)
 
     /*
      * Currently, kvm-pmu-filter only supports configuring the same
-     * action for PMU events.
+     * action for PMU fixed-counters/events.
      */
-    switch (filter->events->value->action) {
+    if (filter->x86_fixed_counter) {
+        action = filter->x86_fixed_counter->action;
+    } else {
+        action = filter->events->value->action;
+    }
+    switch (action) {
     case KVM_PMU_FILTER_ACTION_ALLOW:
         kvm_filter->action = KVM_PMU_EVENT_ALLOW;
         break;
@@ -5439,23 +5445,29 @@ static bool kvm_install_pmu_event_filter(KVMState *s)
         g_assert_not_reached();
     }
 
-    /*
-     * The check in kvm_arch_check_pmu_filter() ensures masked entry
-     * format won't be mixed with other formats.
-     */
-    kvm_filter->flags = filter->events->value->format ==
-                        KVM_PMU_EVENT_FMT_X86_MASKED_ENTRY ?
-                        KVM_PMU_EVENT_FLAG_MASKED_EVENTS : 0;
-
-    if (kvm_filter->flags == KVM_PMU_EVENT_FLAG_MASKED_EVENTS &&
-        !kvm_vm_check_extension(s, KVM_CAP_PMU_EVENT_MASKED_EVENTS)) {
-        error_report("Masked entry format of PMU event "
-                     "is not supported by Host.");
-        goto fail;
+    if (filter->x86_fixed_counter) {
+        kvm_filter->fixed_counter_bitmap = filter->x86_fixed_counter->bitmap;
     }
 
-    if (!kvm_config_pmu_event(filter, kvm_filter)) {
-        goto fail;
+    if (filter->nevents) {
+        /*
+         * The check in kvm_arch_check_pmu_filter() ensures masked entry
+         * format won't be mixed with other formats.
+         */
+        kvm_filter->flags = filter->events->value->format ==
+                            KVM_PMU_EVENT_FMT_X86_MASKED_ENTRY ?
+                            KVM_PMU_EVENT_FLAG_MASKED_EVENTS : 0;
+
+        if (kvm_filter->flags == KVM_PMU_EVENT_FLAG_MASKED_EVENTS &&
+            !kvm_vm_check_extension(s, KVM_CAP_PMU_EVENT_MASKED_EVENTS)) {
+            error_report("Masked entry format of PMU event "
+                         "is not supported by Host.");
+            goto fail;
+        }
+
+        if (!kvm_config_pmu_event(filter, kvm_filter)) {
+            goto fail;
+        }
     }
 
     ret = kvm_vm_ioctl(s, KVM_SET_PMU_EVENT_FILTER, kvm_filter);
@@ -6088,17 +6100,24 @@ static void kvm_arch_check_pmu_filter(const Object *obj, const char *name,
     KVMPMUFilterAction action;
     uint32_t base_flag;
 
-    if (!filter->nevents) {
+    if (!filter->x86_fixed_counter && !filter->nevents) {
         error_setg(errp,
                    "Empty KVM PMU filter.");
         return;
     }
 
     /* Pick the first event's flag as the base one. */
-    base_flag = events->value->format ==
-                KVM_PMU_EVENT_FMT_X86_MASKED_ENTRY ?
-                KVM_PMU_EVENT_FLAG_MASKED_EVENTS : 0;
+    base_flag = 0;
+    if (filter->nevents &&
+        events->value->format == KVM_PMU_EVENT_FMT_X86_MASKED_ENTRY) {
+        base_flag = KVM_PMU_EVENT_FLAG_MASKED_EVENTS;
+    }
+
     action = KVM_PMU_FILTER_ACTION__MAX;
+    if (filter->x86_fixed_counter) {
+        action = filter->x86_fixed_counter->action;
+    }
+
     while (events) {
         KVMPMUFilterEvent *event = events->value;
         uint32_t flag;
@@ -6128,9 +6147,13 @@ static void kvm_arch_check_pmu_filter(const Object *obj, const char *name,
         if (action == KVM_PMU_FILTER_ACTION__MAX) {
             action = event->action;
         } else if (action != event->action) {
-            /* TODO: Support events with different actions if necessary. */
+            /*
+             * TODO: Support fixed-counters/events with different actions
+             * if necessary.
+             */
             error_setg(errp,
-                       "Only support PMU events with the same action");
+                       "Only support PMU fixed-counters/events "
+                       "with the same action");
             return;
         }
 

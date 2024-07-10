@@ -124,6 +124,21 @@
             'x86-masked-entry': 'KVMPMUX86MaskedEntry' } }
 
 ##
+# @KVMPMUX86FixedCounter:
+#
+# x86 fixed counter that KVM PMU filter supports.
+#
+# @action: action that KVM PMU filter will take.
+#
+# @bitmap: x86 fixed counter bitmap.
+#
+# Since 9.1
+##
+{ 'struct': 'KVMPMUX86FixedCounter',
+  'data': { 'action': 'KVMPMUFilterAction',
+            'bitmap': 'uint32' } }
+
+##
 # @KVMPMUFilterProperty:
 #
 # Property of KVM PMU Filter.
@@ -209,13 +224,32 @@
             'x86-masked-entry': 'KVMPMUX86MaskedEntryVariant' } }
 
 ##
+# @KVMPMUX86FixedCounterVariant:
+#
+# The variant of KVMPMUX86FixedCounter with the string, rather than
+# the numeric value.
+#
+# @action: action that KVM PMU filter will take.
+#
+# @bitmap: x86 fixed counter bitmap.  This field is a uint32 string.
+#
+# Since 9.1
+##
+{ 'struct': 'KVMPMUX86FixedCounterVariant',
+  'data': { 'action': 'KVMPMUFilterAction',
+            'bitmap': 'str' } }
+
+##
 # @KVMPMUFilterPropertyVariant:
 #
 # The variant of KVMPMUFilterProperty.
 #
 # @events: the KVMPMUFilterEventVariant list.
 #
+# @x86-fixed-counter: enablement bitmap of x86 fixed counters.
+#
 # Since 9.1
 ##
 { 'struct': 'KVMPMUFilterPropertyVariant',
-  'data': { '*events': ['KVMPMUFilterEventVariant'] } }
+  'data': { '*events': ['KVMPMUFilterEventVariant'],
+            '*x86-fixed-counter': 'KVMPMUX86FixedCounterVariant' } }

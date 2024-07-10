@@ -24,6 +24,7 @@ struct KVMPMUFilter {
 
     uint32_t nevents;
     KVMPMUFilterEventList *events;
+    KVMPMUX86FixedCounter *x86_fixed_counter;
 };
 
 /*

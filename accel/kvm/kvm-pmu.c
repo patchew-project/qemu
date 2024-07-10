@@ -257,6 +257,68 @@ fail:
 }
 
 static void
+kvm_pmu_filter_get_fixed_counter(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
+{
+    KVMPMUFilter *filter = KVM_PMU_FILTER(obj);
+    KVMPMUX86FixedCounterVariant *str_counter;
+
+    str_counter = g_new(KVMPMUX86FixedCounterVariant, 1);
+    str_counter->action = filter->x86_fixed_counter->action;
+    str_counter->bitmap = g_strdup_printf("0x%x",
+                                          filter->x86_fixed_counter->bitmap);
+
+    visit_type_KVMPMUX86FixedCounterVariant(v, name, &str_counter, errp);
+    qapi_free_KVMPMUX86FixedCounterVariant(str_counter);
+}
+
+static void
+kvm_pmu_filter_set_fixed_counter(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
+{
+    KVMPMUFilter *filter = KVM_PMU_FILTER(obj);
+    KVMPMUX86FixedCounterVariant *str_counter;
+    KVMPMUX86FixedCounter *new_counter, *old_counter;
+    uint64_t bitmap;
+    int ret;
+
+    old_counter = filter->x86_fixed_counter;
+    if (!visit_type_KVMPMUX86FixedCounterVariant(v, name,
+                                                 &str_counter, errp)) {
+        return;
+    }
+
+    new_counter  = g_new(KVMPMUX86FixedCounter, 1);
+    new_counter->action = str_counter->action;
+
+    ret = qemu_strtou64(str_counter->bitmap, NULL,
+                        0, &bitmap);
+    if (ret < 0) {
+        error_setg(errp,
+                   "Invalid x86 fixed counter (bitmap: %s): %s. "
+                   "The bitmap must be a uint32 string.",
+                   str_counter->bitmap, strerror(-ret));
+        g_free(new_counter);
+        goto fail;
+    }
+    if (bitmap > UINT32_MAX) {
+        error_setg(errp,
+                   "Invalid x86 fixed counter (bitmap: %s): "
+                   "Numerical result out of range. "
+                   "The bitmap must be a uint32 string.",
+                   str_counter->bitmap);
+        g_free(new_counter);
+        goto fail;
+    }
+    new_counter->bitmap = bitmap;
+    filter->x86_fixed_counter = new_counter;
+    qapi_free_KVMPMUX86FixedCounter(old_counter);
+
+fail:
+    qapi_free_KVMPMUX86FixedCounterVariant(str_counter);
+}
+
+static void
 kvm_pmu_filter_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add(oc, "events",
@@ -266,6 +328,15 @@ kvm_pmu_filter_class_init(ObjectClass *oc, void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, "events",
                                           "KVM PMU event list");
+
+    object_class_property_add(oc, "x86-fixed-counter",
+                              "KVMPMUX86FixedCounter",
+                              kvm_pmu_filter_get_fixed_counter,
+                              kvm_pmu_filter_set_fixed_counter,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "x86-fixed-counter",
+                                          "Enablement bitmap of "
+                                          "x86 PMU fixed counter");
 }
 
 static void kvm_pmu_filter_instance_init(Object *obj)
