@@ -474,7 +474,6 @@ vext_ldff(void *vd, void *v0, target_ulong base,
           vext_ldst_elem_fn *ldst_elem,
           uint32_t log2_esz, uintptr_t ra)
 {
-    void *host;
     uint32_t i, k, vl = 0;
     uint32_t nf = vext_nf(desc);
     uint32_t vm = vext_vm(desc);
@@ -493,27 +492,31 @@ vext_ldff(void *vd, void *v0, target_ulong base,
         }
         addr = adjust_addr(env, base + i * (nf << log2_esz));
         if (i == 0) {
+            /* Allow fault on first element. */
             probe_pages(env, addr, nf << log2_esz, ra, MMU_DATA_LOAD);
         } else {
-            /* if it triggers an exception, no need to check watchpoint */
             remain = nf << log2_esz;
             while (remain > 0) {
+                void *host;
+                int flags;
+
                 offset = -(addr | TARGET_PAGE_MASK);
-                host = tlb_vaddr_to_host(env, addr, MMU_DATA_LOAD, mmu_index);
-                if (host) {
-#ifdef CONFIG_USER_ONLY
-                    if (!page_check_range(addr, offset, PAGE_READ)) {
-                        vl = i;
-                        goto ProbeSuccess;
-                    }
-#else
-                    probe_pages(env, addr, offset, ra, MMU_DATA_LOAD);
-#endif
-                } else {
+
+                /* Probe nonfault on subsequent elements. */
+                flags = probe_access_flags(env, addr, offset, MMU_DATA_LOAD,
+                                           mmu_index, true, &host, 0);
+                if (flags) {
+                    /*
+                     * Stop any flag bit set:
+                     *   invalid (unmapped)
+                     *   mmio (transaction failed)
+                     *   watchpoint (debug)
+                     * In all cases, handle as the first load next time.
+                     */
                     vl = i;
-                    goto ProbeSuccess;
+                    break;
                 }
-                if (remain <=  offset) {
+                if (remain <= offset) {
                     break;
                 }
                 remain -= offset;
@@ -521,7 +524,6 @@ vext_ldff(void *vd, void *v0, target_ulong base,
             }
         }
     }
-ProbeSuccess:
     /* load bytes from guest memory */
     if (vl != 0) {
         env->vl = vl;
