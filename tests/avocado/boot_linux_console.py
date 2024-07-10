@@ -12,6 +12,7 @@ import os
 import lzma
 import gzip
 import shutil
+import time
 
 from avocado import skip
 from avocado import skipUnless
@@ -1545,3 +1546,40 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
         self.do_test_advcal_2018('02', tar_hash, 'santas-sleigh-ride.elf')
+
+    def test_riscv64_virt_rv32i(self):
+        """
+        :avocado: tags=arch:riscv64
+        :avocado: tags=machine:virt
+        :avocado: tags=cpu:rv32
+        """
+        kernel_url = ('https://github.com/romanheros/rv32-linux/raw/master/'
+                      'Image32.xz')
+        kernel_hash = 'a7ced5c38722481e0821b7cd70719cf53e46c13b'
+        kernel_path_xz = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
+        kernel_path =  os.path.join(self.workdir, 'kernel.riscv32')
+        archive.lzma_uncompress(kernel_path_xz, kernel_path)
+
+        rootfs_url = ('https://github.com/romanheros/rv32-linux/raw/master/'
+                      'rootfs.ext2.xz')
+        rootfs_hash = 'dc25ab9d4b233e8e0bcf7eb220d56fd2008fe263'
+        rootfs_path_xz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash)
+
+        rootfs_path =  os.path.join(self.workdir, 'rootfs.riscv32')
+        archive.lzma_uncompress(rootfs_path_xz, rootfs_path)
+
+        self.vm.set_console()
+        kernel_command_line = 'root=/dev/vda ro console=ttyS0'
+        self.vm.add_args('-kernel', kernel_path,
+                         '-append', kernel_command_line,
+                         '-drive', 'file=' + rootfs_path +
+                                   ',format=raw,id=hd0,if=none',
+                         '-device', 'virtio-blk-device,drive=hd0')
+        self.vm.launch()
+
+        console_pattern = 'Welcome to Buildroot'
+        self.wait_for_console_pattern(console_pattern)
+        exec_command(self, 'root')
+        time.sleep(0.1)
+        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo', 'rv32i')
