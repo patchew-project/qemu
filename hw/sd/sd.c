@@ -163,6 +163,8 @@ struct SDState {
      */
     bool expecting_acmd;
     uint32_t blk_written;
+    int64_t reset_time_ns;
+    uint32_t cmd_count;
 
     uint64_t data_start;
     uint32_t data_offset;
@@ -352,6 +354,11 @@ static uint8_t sd_crc7(const void *message, size_t width)
     return shift_reg;
 }
 
+static int64_t sd_uptime_ns(SDState *sd)
+{
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - sd->reset_time_ns;
+}
+
 /* Operation Conditions register */
 
 #define OCR_POWER_DELAY_NS      500000 /* 0.5ms */
@@ -478,6 +485,10 @@ static void emmc_set_cid(SDState *sd)
 #define WPGROUP_SHIFT   7        /* 2 megs */
 #define CMULT_SHIFT     9        /* 512 times HWBLOCK_SIZE */
 #define WPGROUP_SIZE    (1 << (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT))
+
+#define OD_FREQ_MIN_HZ   10000
+#define OD_FREQ_MAX_HZ  400000
+#define BOOT_MODE_DELAY_CYCLES_MIN 74
 
 static const uint8_t sd_csd_rw_mask[16] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -797,6 +808,8 @@ static void sd_reset(DeviceState *dev)
 
     sect = sd_addr_to_wpnum(size) + 1;
 
+    sd->reset_time_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    sd->cmd_count = 0;
     sd->state = sd_idle_state;
 
     /* card registers */
@@ -905,6 +918,18 @@ static const VMStateDescription emmc_extcsd_vmstate = {
     },
 };
 
+static const VMStateDescription sdmmc_uptime_cmdcnt_vmstate = {
+    .name = "sd-card/uptime-command_count-state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmstate_needed_for_emmc,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT64(reset_time_ns, SDState),
+        VMSTATE_UINT32(cmd_count, SDState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static int sd_vmstate_pre_load(void *opaque)
 {
     SDState *sd = opaque;
@@ -953,6 +978,7 @@ static const VMStateDescription sd_vmstate = {
     .subsections = (const VMStateDescription * const []) {
         &sd_ocr_vmstate,
         &emmc_extcsd_vmstate,
+        &sdmmc_uptime_cmdcnt_vmstate,
         NULL
     },
 };
@@ -1925,6 +1951,16 @@ static sd_rsp_type_t sd_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
         sd->state = sd_ready_state;
     }
 
+    if (sd_is_emmc(sd) && sd->cmd_count == 1) {
+        int64_t clk_cycles = sd_uptime_ns(sd) / OD_FREQ_MIN_HZ;
+
+        trace_sdcard_ext_csd_bootmode(sd_uptime_ns(sd), clk_cycles,
+                                      clk_cycles > BOOT_MODE_DELAY_CYCLES_MIN);
+        if (clk_cycles > BOOT_MODE_DELAY_CYCLES_MIN) {
+            sd->ext_csd[EXT_CSD_PART_CONFIG] |= (1 << 3);
+        }
+    }
+
     return sd_r3;
 }
 
@@ -2106,6 +2142,8 @@ int sd_do_command(SDState *sd, SDRequest *req,
     if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable) {
         return 0;
     }
+
+    ++sd->cmd_count;
 
     if (sd->state == sd_inactive_state) {
         rtype = sd_illegal;
