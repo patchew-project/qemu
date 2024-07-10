@@ -16,12 +16,14 @@ RUN dnf distro-sync -y && \
         alsa-lib-devel \
         bash \
         bc \
+        bindgen-cli \
         bison \
         brlapi-devel \
         bzip2 \
         bzip2-devel \
         ca-certificates \
         capstone-devel \
+        cargo \
         ccache \
         clang \
         ctags \
@@ -102,6 +104,7 @@ RUN dnf distro-sync -y && \
         python3-sphinx_rtd_theme \
         python3-tomli \
         rdma-core-devel \
+        rust \
         sed \
         snappy-devel \
         socat \

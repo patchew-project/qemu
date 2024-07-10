@@ -7,10 +7,12 @@
 packages:
   - bash
   - bc
+  - bindgen
   - bison
   - bsdextrautils
   - bzip2
   - ca-certificates
+  - cargo
   - ccache
   - clang
   - dbus
@@ -112,6 +114,7 @@ packages:
   - python3-venv
   - python3-yaml
   - rpm2cpio
+  - rustc
   - sed
   - socat
   - sparse

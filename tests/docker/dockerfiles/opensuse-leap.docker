@@ -16,6 +16,7 @@ RUN zypper update -y && \
            brlapi-devel \
            bzip2 \
            ca-certificates \
+           cargo \
            ccache \
            clang \
            ctags \
@@ -94,6 +95,7 @@ RUN zypper update -y && \
            python311-pip \
            python311-setuptools \
            rdma-core-devel \
+           rust \
            sed \
            snappy-devel \
            sndio-devel \
