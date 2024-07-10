@@ -76,6 +76,7 @@ typedef struct kvm_msr_handlers {
 
 bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
                     QEMUWRMSRHandler *wrmsr);
+bool kvm_filter_pmu_event(KVMState *s);
 
 #endif /* CONFIG_KVM */
 
