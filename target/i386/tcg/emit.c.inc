@@ -2788,6 +2788,8 @@ static void gen_POP(DisasContext *s, X86DecodedInsn *decode)
     X86DecodedOp *op = &decode->op[0];
     MemOp ot = gen_pop_T0(s);
 
+    /* Only 16/32-bit access in 32-bit mode, 16/64-bit access in long mode.  */
+    assert(ot == op->ot);
     if (op->has_ea || op->unit == X86_OP_SEG) {
         /* NOTE: order is important for MMU exceptions */
         gen_writeback(s, decode, 0, s->T0);
