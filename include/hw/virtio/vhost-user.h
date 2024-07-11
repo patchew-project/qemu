@@ -67,6 +67,9 @@ typedef struct VhostUserState {
     GPtrArray *notifiers;
     int memory_slots;
     bool supports_config;
+
+    /* Hold lock for vhost_user_write/read cycle */
+    QemuMutex vhost_user_rw_lock;
 } VhostUserState;
 
 /**
