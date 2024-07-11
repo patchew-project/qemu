@@ -20,8 +20,10 @@
 
 import os
 import iotests
+import random
 
 MiB = 1024 * 1024
+GiB = MiB * 1024
 disk = os.path.join(iotests.test_dir, 'disk')
 overlay = os.path.join(iotests.test_dir, 'overlay')
 refdisk = os.path.join(iotests.test_dir, 'refdisk')
@@ -174,6 +176,38 @@ class TestTruncate(iotests.QMPTestCase):
 
     def test_truncate_over_preallocated_area__off(self):
         self.do_test('off', '150M')
+
+
+class TestPreallocAsyncWrites(iotests.QMPTestCase):
+    def setUp(self):
+        # Make sure we get reproducible write patterns on each run
+        random.seed(42)
+        iotests.qemu_img_create('-f', iotests.imgfmt, disk, '-o',
+                                f'cluster_size={MiB},lazy_refcounts=on',
+                                str(64 * GiB))
+
+    def tearDown(self):
+        os.remove(disk)
+
+    def test_prealloc_async_writes(self):
+        requests = 1024 # Number of write/read requests to feed to qemu-io
+        total_clusters = 64 * 1024 # 64G / 1M
+
+        offsets = random.sample(range(0, total_clusters), requests)
+        aio_write_cmds = [f'aio_write -P 0xaa {off}M 1M' for off in offsets]
+        read_cmds = [f'read -P 0xaa {off}M 1M' for off in offsets]
+
+        proc = iotests.QemuIoInteractive('--aio', 'native', '--nocache',
+                                         '--image-opts', drive_opts)
+        for cmd in aio_write_cmds:
+            proc.cmd(cmd)
+        proc.close()
+
+        proc = iotests.QemuIoInteractive('-f', iotests.imgfmt, disk)
+        for cmd in read_cmds:
+            out = proc.cmd(cmd)
+            self.assertFalse('Pattern verification failed' in str(out))
+        proc.close()
 
 
 if __name__ == '__main__':
