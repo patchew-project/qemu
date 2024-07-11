@@ -12,7 +12,7 @@ import sys
 import os
 
 from qemu.machine import QEMUMachine
-from avocado_qemu import QemuSystemTest
+from qemu_pytest import QemuSystemTest
 
 # Virtio Device IDs:
 VIRTIO_NET = 1
