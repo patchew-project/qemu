@@ -280,7 +280,8 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     PnvCore *pc = PNV_CORE(OBJECT(dev));
     PnvCoreClass *pcc = PNV_CORE_GET_CLASS(pc);
     CPUCore *cc = CPU_CORE(OBJECT(dev));
-    PnvMachineClass *pmc = PNV_MACHINE_GET_CLASS(pc->chip->pnv_machine);
+    PnvMachineState *pnv = pc->chip->pnv_machine;
+    PnvMachineClass *pmc = PNV_MACHINE_GET_CLASS(pnv);
     const char *typename = pnv_core_cpu_typename(pc);
     Error *local_err = NULL;
     void *obj;
@@ -289,6 +290,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
 
     assert(pc->chip);
 
+    pc->big_core = pnv->big_core;
     pc->tod_state.big_core_quirk = pmc->quirk_tb_big_core;
 
     pc->threads = g_new(PowerPCCPU *, cc->nr_threads);
@@ -299,7 +301,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
         obj = object_new(typename);
         cpu = POWERPC_CPU(obj);
 
-        pc->threads[i] = POWERPC_CPU(obj);
+        pc->threads[i] = cpu;
         if (cc->nr_threads > 1) {
             cpu->env.has_smt_siblings = true;
         }
