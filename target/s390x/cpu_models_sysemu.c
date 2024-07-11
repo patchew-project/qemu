@@ -211,7 +211,15 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
     bitmap_zero(bitmap, S390_FEAT_MAX);
     s390_get_deprecated_features(bitmap);
 
-    bitmap_and(bitmap, bitmap, model->def->full_feat, S390_FEAT_MAX);
+    /*
+     * For static model expansion, filter out deprecated features that are
+     * not a subset of the model's feature set. Otherwise, report the entire 
+     * deprecated features list.
+     */
+    if (delta_changes) {
+        bitmap_and(bitmap, bitmap, model->def->full_feat, S390_FEAT_MAX);
+    }
+
     s390_feat_bitmap_to_ascii(bitmap, &info->deprecated_props, list_add_feat);
     info->has_deprecated_props = !!info->deprecated_props;
 }
