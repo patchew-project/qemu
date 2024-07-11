@@ -78,6 +78,8 @@ typedef struct BDRVPreallocateState {
 
     /* Gives up the resize permission on children when parents don't need it */
     QEMUBH *drop_resize_bh;
+
+    CoMutex file_end_lock;
 } BDRVPreallocateState;
 
 static int preallocate_drop_resize(BlockDriverState *bs, Error **errp);
@@ -169,6 +171,8 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
     bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED |
         ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
             bs->file->bs->supported_zero_flags);
+
+    qemu_co_mutex_init(&s->file_end_lock);
 
     return 0;
 }
@@ -342,6 +346,7 @@ handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
             return false;
         }
 
+        QEMU_LOCK_GUARD(&s->file_end_lock);
         if (s->file_end < 0) {
             s->file_end = s->data_end;
         }
@@ -352,6 +357,8 @@ handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
     }
 
     /* We have valid s->data_end, and request writes beyond it. */
+
+    QEMU_LOCK_GUARD(&s->file_end_lock);
 
     s->data_end = end;
     if (s->zero_start < 0 || !want_merge_zero) {
@@ -428,6 +435,8 @@ preallocate_co_truncate(BlockDriverState *bs, int64_t offset,
     BDRVPreallocateState *s = bs->opaque;
     int ret;
 
+    QEMU_LOCK_GUARD(&s->file_end_lock);
+
     if (s->data_end >= 0 && offset > s->data_end) {
         if (s->file_end < 0) {
             s->file_end = bdrv_co_getlength(bs->file->bs);
@@ -500,6 +509,8 @@ preallocate_co_getlength(BlockDriverState *bs)
     if (s->data_end >= 0) {
         return s->data_end;
     }
+
+    QEMU_LOCK_GUARD(&s->file_end_lock);
 
     ret = bdrv_co_getlength(bs->file->bs);
 
