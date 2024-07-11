@@ -63,9 +63,8 @@ void helper_store_purr(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
-    uint32_t nr_threads = cs->nr_threads;
 
-    if (nr_threads == 1 || !(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+    if (ppc_cpu_lpar_single_threaded(cs)) {
         cpu_ppc_store_purr(env, val);
         return;
     }
@@ -82,9 +81,8 @@ void helper_store_tbl(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
-    uint32_t nr_threads = cs->nr_threads;
 
-    if (nr_threads == 1 || !(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+    if (ppc_cpu_lpar_single_threaded(cs)) {
         cpu_ppc_store_tbl(env, val);
         return;
     }
@@ -99,9 +97,8 @@ void helper_store_tbu(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
-    uint32_t nr_threads = cs->nr_threads;
 
-    if (nr_threads == 1 || !(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+    if (ppc_cpu_lpar_single_threaded(cs)) {
         cpu_ppc_store_tbu(env, val);
         return;
     }
@@ -141,9 +138,8 @@ void helper_store_hdecr(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
-    uint32_t nr_threads = cs->nr_threads;
 
-    if (nr_threads == 1 || !(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+    if (ppc_cpu_lpar_single_threaded(cs)) {
         cpu_ppc_store_hdecr(env, val);
         return;
     }
@@ -158,9 +154,8 @@ void helper_store_vtb(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
-    uint32_t nr_threads = cs->nr_threads;
 
-    if (nr_threads == 1 || !(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+    if (ppc_cpu_lpar_single_threaded(cs)) {
         cpu_ppc_store_vtb(env, val);
         return;
     }
@@ -175,9 +170,8 @@ void helper_store_tbu40(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
-    uint32_t nr_threads = cs->nr_threads;
 
-    if (nr_threads == 1 || !(env->flags & POWERPC_FLAG_SMT_1LPAR)) {
+    if (ppc_cpu_lpar_single_threaded(cs)) {
         cpu_ppc_store_tbu40(env, val);
         return;
     }
@@ -288,7 +282,7 @@ static void write_tfmr(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
 
-    if (cs->nr_threads == 1) {
+    if (ppc_cpu_core_single_threaded(cs)) {
         env->spr[SPR_TFMR] = val;
     } else {
         CPUState *ccs;
