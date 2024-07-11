@@ -9,6 +9,7 @@ pytests_generic = [
 ]
 
 pytests_arm = [
+  'arm_canona1100',
   'machine_arm_n8x0',
 ]
 
@@ -22,6 +23,10 @@ pytests_loongarch64 = [
 
 pytests_mips64el = [
   'machine_mips_loongson3v',
+]
+
+pytests_ppc = [
+  'ppc_bamboo',
 ]
 
 pytests_x86_64 = [
