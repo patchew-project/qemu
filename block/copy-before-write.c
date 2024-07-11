@@ -234,6 +234,7 @@ cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset, int64_t bytes,
         *req = (BlockReq) {.offset = -1, .bytes = -1};
         *file = s->target;
     } else {
+        reqlist_wait_all(&s->frozen_read_reqs, offset, bytes, &s->lock);
         reqlist_init_req(&s->frozen_read_reqs, req, offset, bytes);
         *file = bs->file;
     }
