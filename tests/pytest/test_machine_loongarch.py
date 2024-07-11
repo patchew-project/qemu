@@ -5,9 +5,9 @@
 # Copyright (c) 2023 Loongson Technology Corporation Limited
 #
 
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import exec_command_and_wait_for_pattern
-from avocado_qemu import wait_for_console_pattern
+from qemu_pytest import QemuSystemTest
+from qemu_pytest import exec_command_and_wait_for_pattern
+from qemu_pytest import wait_for_console_pattern
 
 class LoongArchMachine(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
@@ -21,10 +21,7 @@ class LoongArchMachine(QemuSystemTest):
 
     def test_loongarch64_devices(self):
 
-        """
-        :avocado: tags=arch:loongarch64
-        :avocado: tags=machine:virt
-        """
+        self.machine = 'virt'
 
         kernel_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
                       'releases/download/2024-05-30/vmlinuz.efi')

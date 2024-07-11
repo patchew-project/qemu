@@ -8,6 +8,22 @@ pytests_generic = [
   'version',
 ]
 
+pytests_arm = [
+  'machine_arm_n8x0',
+]
+
+pytests_avr = [
+  'machine_avr6',
+]
+
+pytests_loongarch64 = [
+  'machine_loongarch',
+]
+
+pytests_mips64el = [
+  'machine_mips_loongson3v',
+]
+
 pytests_x86_64 = [
   'cpu_queries',
   'mem_addr_space',
