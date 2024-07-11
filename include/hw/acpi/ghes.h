@@ -23,6 +23,7 @@
 #define ACPI_GHES_H
 
 #include "hw/acpi/bios-linker-loader.h"
+#include "qapi/qapi-commands-arm-error-inject.h"
 
 /*
  * Values for Hardware Error Notification Type field
@@ -68,6 +69,43 @@ typedef struct AcpiGhesState {
     bool present; /* True if GHES is present at all on this board */
 } AcpiGhesState;
 
+typedef struct ArmPEI {
+    uint16_t validation;
+    uint8_t type;
+    uint16_t multiple_error;
+    uint8_t flags;
+    uint64_t error_info;
+    uint64_t virt_addr;
+    uint64_t phy_addr;
+} ArmPEI;
+
+typedef struct ArmContext {
+    uint16_t type;
+    uint32_t size;
+    uint64_t *array;
+} ArmContext;
+
+/* ARM processor - UEFI 2.10 table N.16 */
+typedef struct ArmError {
+    uint16_t validation;
+
+    uint8_t affinity_level;
+    uint64_t mpidr_el1;
+    uint64_t midr_el1;
+    uint32_t running_state;
+    uint32_t psci_state;
+
+    /* Those are calculated based on the input data */
+    uint16_t err_info_num;
+    uint16_t context_info_num;
+    uint32_t vendor_num;
+    uint32_t context_length;
+
+    ArmPEI *pei;
+    ArmContext *context;
+    uint8_t *vendor;
+} ArmError;
+
 void build_ghes_error_table(GArray *hardware_errors, BIOSLinker *linker);
 void acpi_build_hest(GArray *table_data, BIOSLinker *linker,
                      const char *oem_id, const char *oem_table_id);
@@ -75,7 +113,7 @@ void acpi_ghes_add_fw_cfg(AcpiGhesState *vms, FWCfgState *s,
                           GArray *hardware_errors);
 int acpi_ghes_record_errors(uint8_t notify, uint64_t error_physical_addr);
 
-bool ghes_record_arm_errors(uint8_t error_types, uint32_t notify);
+bool ghes_record_arm_errors(ArmError error, uint32_t notify);
 
 /**
  * acpi_ghes_present: Report whether ACPI GHES table is present
