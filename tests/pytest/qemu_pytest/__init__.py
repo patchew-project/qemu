@@ -11,6 +11,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import hashlib
 import logging
 import os
 import shutil
@@ -201,17 +202,34 @@ class QemuBaseTest(unittest.TestCase):
         self.assertIsNotNone(SOURCE_DIR,'PYTEST_SOURCE_ROOT must be set')
         self.assertIsNotNone(self.qemu_bin, 'PYTEST_QEMU_BINARY must be set')
 
-    def fetch_asset(self, name,
-                    asset_hash, algorithm=None,
-                    locations=None, expire=None,
-                    find_only=False, cancel_on_missing=True):
-        return super().fetch_asset(name,
-                        asset_hash=asset_hash,
-                        algorithm=algorithm,
-                        locations=locations,
-                        expire=expire,
-                        find_only=find_only,
-                        cancel_on_missing=cancel_on_missing)
+    def check_hash(self, file_name, expected_hash):
+        if not expected_hash:
+            return True
+        if len(expected_hash) == 32:
+            sum_prog = 'md5sum'
+        elif len(expected_hash) == 40:
+            sum_prog = 'sha1sum'
+        elif len(expected_hash) == 64:
+            sum_prog = 'sha256sum'
+        elif len(expected_hash) == 128:
+            sum_prog = 'sha512sum'
+        else:
+            raise Exception("unknown hash type")
+        checksum = subprocess.check_output([sum_prog, file_name]).split()[0]
+        return expected_hash == checksum.decode("utf-8")
+
+    def fetch_asset(self, url, asset_hash):
+        cache_dir = os.path.expanduser("~/.cache/qemu/download")
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        fname = os.path.join(cache_dir,
+                             hashlib.sha1(url.encode("utf-8")).hexdigest())
+        if os.path.exists(fname) and self.check_hash(fname, asset_hash):
+            return fname
+        logging.debug("Downloading %s to %s...", url, fname)
+        subprocess.check_call(["wget", "-c", url, "-O", fname + ".download"])
+        os.rename(fname + ".download", fname)
+        return fname
 
 
 class QemuSystemTest(QemuBaseTest):
