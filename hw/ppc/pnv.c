@@ -2703,11 +2703,24 @@ static void pnv_cpu_do_nmi_on_cpu(CPUState *cs, run_on_cpu_data arg)
          */
         env->spr[SPR_SRR1] |= SRR1_WAKESCOM;
     }
+    if (arg.host_int) {
+        cpu_resume(cs);
+    }
 }
 
-static void pnv_cpu_do_nmi(PnvChip *chip, PowerPCCPU *cpu, void *opaque)
+static void pnv_cpu_do_nmi(CPUState *cs, int resume)
 {
-    async_run_on_cpu(CPU(cpu), pnv_cpu_do_nmi_on_cpu, RUN_ON_CPU_NULL);
+    async_run_on_cpu(cs, pnv_cpu_do_nmi_on_cpu, RUN_ON_CPU_HOST_INT(resume));
+}
+
+void pnv_cpu_do_nmi_resume(CPUState *cs)
+{
+    pnv_cpu_do_nmi(cs, 1);
+}
+
+static void do_pnv_cpu_do_nmi(PnvChip *chip, PowerPCCPU *cpu, void *opaque)
+{
+    pnv_cpu_do_nmi(CPU(cpu), 0);
 }
 
 static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
@@ -2716,7 +2729,7 @@ static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
-        pnv_chip_foreach_cpu(pnv->chips[i], pnv_cpu_do_nmi, NULL);
+        pnv_chip_foreach_cpu(pnv->chips[i], do_pnv_cpu_do_nmi, NULL);
     }
 }
 

@@ -613,6 +613,16 @@ void pause_all_vcpus(void)
     bql_lock();
 }
 
+void cpu_pause(CPUState *cpu)
+{
+    if (qemu_cpu_is_self(cpu)) {
+        qemu_cpu_stop(cpu, true);
+    } else {
+        cpu->stop = true;
+        qemu_cpu_kick(cpu);
+    }
+}
+
 void cpu_resume(CPUState *cpu)
 {
     cpu->stop = false;
