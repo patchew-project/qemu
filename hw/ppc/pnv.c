@@ -2158,6 +2158,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         return;
     }
 
+    chip->pnv_machine = pnv;
     chip->cores = g_new0(PnvCore *, chip->nr_cores);
 
     for (i = 0, core_hwid = 0; (core_hwid < sizeof(chip->cores_mask) * 8)
@@ -2570,7 +2571,7 @@ static void pnv_cpu_do_nmi(PnvChip *chip, PowerPCCPU *cpu, void *opaque)
 
 static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
 {
-    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    PnvMachineState *pnv = PNV_MACHINE(n);
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {

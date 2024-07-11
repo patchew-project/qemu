@@ -22,6 +22,8 @@ struct PnvChip {
     SysBusDevice parent_obj;
 
     /*< public >*/
+    PnvMachineState *pnv_machine;
+
     uint32_t     chip_id;
     uint64_t     ram_start;
     uint64_t     ram_size;
