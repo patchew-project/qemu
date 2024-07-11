@@ -34,6 +34,9 @@ typedef struct IOWatchPoll {
     GSourceFunc fd_read;
     void *opaque;
     GMainContext *context;
+
+    QemuMutex mut;
+    bool dead;
 } IOWatchPoll;
 
 static IOWatchPoll *io_watch_poll_from_source(GSource *source)
@@ -62,10 +65,20 @@ static gboolean io_watch_poll_prepare(GSource *source,
      * more data.
      */
     if (now_active) {
+        qemu_mutex_lock(&iwp->mut);
+
+        /* Don't create a watch if we are about to be destroyed. */
+        if (iwp->dead) {
+            qemu_mutex_unlock(&iwp->mut);
+            return FALSE;
+        }
+
         iwp->src = qio_channel_create_watch(
             iwp->ioc, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL);
         g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
         g_source_attach(iwp->src, iwp->context);
+
+        qemu_mutex_unlock(&iwp->mut);
     } else {
         g_source_destroy(iwp->src);
         g_source_unref(iwp->src);
@@ -97,6 +110,7 @@ static void io_watch_poll_finalize(GSource *source)
      */
     IOWatchPoll *iwp = io_watch_poll_from_source(source);
     assert(iwp->src == NULL);
+    qemu_mutex_destroy(&iwp->mut);
 }
 
 static GSourceFuncs io_watch_poll_funcs = {
@@ -124,6 +138,8 @@ GSource *io_add_watch_poll(Chardev *chr,
     iwp->fd_read = (GSourceFunc) fd_read;
     iwp->src = NULL;
     iwp->context = context;
+    qemu_mutex_init(&iwp->mut);
+    iwp->dead = false;
 
     name = g_strdup_printf("chardev-iowatch-%s", chr->label);
     g_source_set_name((GSource *)iwp, name);
@@ -139,11 +155,16 @@ static void io_remove_watch_poll(GSource *source)
     IOWatchPoll *iwp;
 
     iwp = io_watch_poll_from_source(source);
+
+    qemu_mutex_lock(&iwp->mut);
+    iwp->dead = true;
     if (iwp->src) {
         g_source_destroy(iwp->src);
         g_source_unref(iwp->src);
         iwp->src = NULL;
     }
+    qemu_mutex_unlock(&iwp->mut);
+
     g_source_destroy(&iwp->parent);
 }
 
