@@ -8,18 +8,16 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from avocado_qemu import QemuSystemTest
+from qemu_pytest import QemuSystemTest
 
 from qemu.utils import get_info_usernet_hostfwd_port
 
 
 class InfoUsernet(QemuSystemTest):
-    """
-    :avocado: tags=machine:none
-    """
 
     def test_hostfwd(self):
         self.require_netdev('user')
+        self.machine = 'none'
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22')
         self.vm.launch()
         res = self.vm.cmd('human-monitor-command',
