@@ -675,3 +675,21 @@ int vfio_device_get_aw_bits(VFIODevice *vdev)
 
     return HOST_IOMMU_DEVICE_CAP_AW_BITS_MAX;
 }
+
+void vfio_set_mdev(VFIODevice *vbasedev)
+{
+    g_autofree char *tmp = NULL;
+    char *subsys;
+    bool is_mdev;
+
+    if (!vbasedev->sysfsdev) {
+        return;
+    }
+
+    tmp = g_strdup_printf("%s/subsystem", vbasedev->sysfsdev);
+    subsys = realpath(tmp, NULL);
+    is_mdev = subsys && (strcmp(subsys, "/sys/bus/mdev") == 0);
+    free(subsys);
+
+    vbasedev->mdev = is_mdev;
+}

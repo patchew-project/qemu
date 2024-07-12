@@ -2963,12 +2963,10 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     ERRP_GUARD();
     VFIOPCIDevice *vdev = VFIO_PCI(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
-    char *subsys;
     int i, ret;
     bool is_mdev;
     char uuid[UUID_STR_LEN];
     g_autofree char *name = NULL;
-    g_autofree char *tmp = NULL;
 
     if (vbasedev->fd < 0 && !vbasedev->sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
@@ -2997,11 +2995,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
      * stays in sync with the active working set of the guest driver.  Prevent
      * the x-balloon-allowed option unless this is minimally an mdev device.
      */
-    tmp = g_strdup_printf("%s/subsystem", vbasedev->sysfsdev);
-    subsys = realpath(tmp, NULL);
-    is_mdev = subsys && (strcmp(subsys, "/sys/bus/mdev") == 0);
-    free(subsys);
-
+    vfio_set_mdev(vbasedev);
+    is_mdev = vbasedev->mdev;
     trace_vfio_mdev(vbasedev->name, is_mdev);
 
     if (vbasedev->ram_block_discard_allowed && !is_mdev) {
