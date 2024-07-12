@@ -21,9 +21,10 @@
 static void fw_cfg_vmci_write(void *dev, off_t offset, size_t len)
 {
     VMCoreInfoState *s = VMCOREINFO(dev);
+    uint16_t guest_format = le16_to_cpu(s->vmcoreinfo.guest_format);
 
     s->has_vmcoreinfo = offset == 0 && len == sizeof(s->vmcoreinfo)
-        && s->vmcoreinfo.guest_format != FW_CFG_VMCOREINFO_FORMAT_NONE;
+        && guest_format != FW_CFG_VMCOREINFO_FORMAT_NONE;
 }
 
 static void vmcoreinfo_reset(void *dev)
