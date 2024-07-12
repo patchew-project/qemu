@@ -20,6 +20,7 @@
 #include "hw/hotplug.h"
 
 #define ACPI_CPU_HOTPLUG_REG_LEN 12
+#define ACPI_CPU_SCAN_METHOD "CSCN"
 
 typedef struct AcpiCpuStatus {
     CPUState *cpu;
