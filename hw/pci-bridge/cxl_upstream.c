@@ -263,7 +263,7 @@ static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
         sslbis_bandwidth->sslbe[i] = (CDATSslbe) {
             .port_x_id = CDAT_PORT_ID_USP,
             .port_y_id = port_ids[i],
-            .latency_bandwidth = 16, /* 16 GB/s */
+            .latency_bandwidth = 128, /* 128 GB/s */
         };
     }
 

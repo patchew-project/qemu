@@ -105,7 +105,7 @@ static void ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
         .flags = HMAT_LB_MEM_MEMORY,
         .data_type = HMAT_LB_DATA_READ_BANDWIDTH,
         .entry_base_unit = 1000, /* GB/s */
-        .entry[0] = 16,
+        .entry[0] = 48,
     };
 
     dslbis3 = g_malloc(sizeof(*dslbis3));
@@ -118,7 +118,7 @@ static void ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
         .flags = HMAT_LB_MEM_MEMORY,
         .data_type = HMAT_LB_DATA_WRITE_BANDWIDTH,
         .entry_base_unit = 1000, /* GB/s */
-        .entry[0] = 16,
+        .entry[0] = 48,
     };
 
     dsemts = g_malloc(sizeof(*dsemts));
