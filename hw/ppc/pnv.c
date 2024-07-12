@@ -2244,11 +2244,12 @@ static void pnv_chip_core_sanitize(PnvMachineState *pnv, PnvChip *chip,
 
 static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
 {
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    PnvMachineClass *pmc = PNV_MACHINE_GET_CLASS(pnv);
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);
     int i, core_hwid;
-    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
 
     if (!object_class_by_name(typename)) {
         error_setg(errp, "Unable to find PowerNV CPU Core '%s'", typename);
@@ -2291,6 +2292,9 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
                                 &error_fatal);
         object_property_set_link(OBJECT(pnv_core), "chip", OBJECT(chip),
                                  &error_abort);
+
+        pnv_core->tod_state.big_core_quirk = pmc->quirk_tb_big_core;
+
         qdev_realize(DEVICE(pnv_core), NULL, &error_fatal);
 
         /* Each core has an XSCOM MMIO region */
@@ -2603,6 +2607,7 @@ static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
     pmc->max_smt_threads = 4;
+    pmc->quirk_tb_big_core = true;
     pmc->dt_power_mgt = pnv_dt_power_mgt;
 
     xfc->match_nvt = pnv10_xive_match_nvt;
