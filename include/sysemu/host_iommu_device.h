@@ -24,6 +24,7 @@
  */
 typedef struct HostIOMMUDeviceCaps {
     uint32_t type;
+    uint64_t hw_caps;
 } HostIOMMUDeviceCaps;
 
 #define TYPE_HOST_IOMMU_DEVICE "host-iommu-device"

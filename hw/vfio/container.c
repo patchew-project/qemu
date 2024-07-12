@@ -907,6 +907,7 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
                                       AddressSpace *as, Error **errp)
 {
     int groupid = vfio_device_groupid(vbasedev, errp);
+    HostIOMMUDevice *hiod = vbasedev->hiod;
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
     VFIOContainerBase *bcontainer;
@@ -916,6 +917,11 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     }
 
     trace_vfio_attach_device(vbasedev->name, groupid);
+
+    if (hiod &&
+        !HOST_IOMMU_DEVICE_GET_CLASS(hiod)->realize(hiod, vbasedev, errp)) {
+        return false;
+    }
 
     group = vfio_get_group(groupid, as, errp);
     if (!group) {

@@ -384,6 +384,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     Error *err = NULL;
     const VFIOIOMMUClass *iommufd_vioc =
         VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
+    HostIOMMUDevice *hiod = vbasedev->hiod;
 
     if (vbasedev->fd < 0) {
         devfd = iommufd_cdev_getfd(vbasedev->sysfsdev, errp);
@@ -400,6 +401,11 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     }
 
     space = vfio_get_address_space(as);
+
+    if (hiod &&
+        !HOST_IOMMU_DEVICE_GET_CLASS(hiod)->realize(hiod, vbasedev, errp)) {
+        return false;
+    }
 
     /* try to attach to an existing container in this space */
     QLIST_FOREACH(bcontainer, &space->containers, next) {
@@ -722,6 +728,7 @@ static bool hiod_iommufd_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
 
     hiod->name = g_strdup(vdev->name);
     caps->type = type;
+    caps->hw_caps = hw_caps;
 
     return true;
 }
