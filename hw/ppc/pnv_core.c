@@ -296,7 +296,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
         obj = object_new(typename);
         cpu = POWERPC_CPU(obj);
 
-        pc->threads[i] = POWERPC_CPU(obj);
+        pc->threads[i] = cpu;
         if (cc->nr_threads > 1) {
             cpu->env.has_smt_siblings = true;
         }
