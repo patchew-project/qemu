@@ -2,40 +2,258 @@
 # vim: filetype=python
 
 ##
-# = ARM Processor Errors
+# = ARM Processor Errors as defined at:
+# https://uefi.org/specs/UEFI/2.10/Apx_N_Common_Platform_Error_Record.html
+# See tables N.16, N.17 and N.21.
 ##
+
+##
+# @ArmProcessorValidationBits:
+#
+# Indcates whether or not fields of ARM processor CPER record are valid.
+#
+# @mpidr-valid:  MPIDR Valid
+#
+# @affinity-valid: Error affinity level Valid
+#
+# @running-state-valid: Running State
+#
+# @vendor-specific-valid: Vendor Specific Info Valid
+#
+# Since: 9.1
+##
+{ 'enum': 'ArmProcessorValidationBits',
+  'data': ['mpidr-valid',
+           'affinity-valid',
+           'running-state-valid',
+           'vendor-specific-valid']
+}
+
+##
+# @ArmProcessorFlags:
+#
+# Indicates error attributes at the Error info section.
+#
+# @first-error-cap: First error captured
+#
+# @last-error-cap:  Last error captured
+#
+# @propagated: Propagated
+#
+# @overflow: Overflow
+#
+# Since: 9.1
+##
+{ 'enum': 'ArmProcessorFlags',
+  'data': ['first-error-cap',
+           'last-error-cap',
+           'propagated',
+           'overflow']
+}
+
+##
+# @ArmProcessorRunningState:
+#
+# Indicates if the processor is running.
+#
+# @processor-running: indicates that the processor is running
+#
+# Since: 9.1
+##
+{ 'enum': 'ArmProcessorRunningState',
+  'data': ['processor-running']
+}
 
 ##
 # @ArmProcessorErrorType:
 #
-# Type of ARM processor error to inject
-#
-# @unknown-error: Unknown error
+# Type of ARM processor error information to inject.
 #
 # @cache-error: Cache error
 #
 # @tlb-error: TLB error
 #
-# @bus-error: Bus error.
+# @bus-error: Bus error
 #
-# @micro-arch-error: Micro architectural error.
+# @micro-arch-error: Micro architectural error
 #
 # Since: 9.1
 ##
 { 'enum': 'ArmProcessorErrorType',
-  'data': ['unknown-error',
-	   'cache-error',
+  'data': ['cache-error',
            'tlb-error',
            'bus-error',
            'micro-arch-error']
+ }
+
+##
+# @ArmPeiValidationBits:
+#
+# Indcates whether or not fields of Processor Error Info section are valid.
+#
+# @multiple-error-valid: Information at multiple-error field is valid
+#
+# @flags-valid: Information at flags field is valid
+#
+# @error-info-valid: Information at error-info field is valid
+#
+# @virt-addr-valid: Information at virt-addr field is valid
+#
+# @phy-addr-valid: Information at phy-addr field is valid
+#
+# Since: 9.1
+##
+{ 'enum': 'ArmPeiValidationBits',
+  'data': ['multiple-error-valid',
+           'flags-valid',
+           'error-info-valid',
+           'virt-addr-valid',
+           'phy-addr-valid']
+}
+
+##
+# @ArmProcessorErrorInformation:
+#
+# Contains ARM processor error information (PEI) data according with UEFI
+# CPER table N.17.
+#
+# @validation:
+#       Valid validation bits for error-info section.
+#       Argument is optional. If not specified, those flags will be enabled:
+#       first-error-cap and propagated.
+#
+# @type:
+#       ARM processor error types to inject. Argument is mandatory.
+#
+# @multiple-error:
+#       Indicates whether multiple errors have occurred.
+#       Argument is optional. If not specified and @validation not enforced,
+#       this field will be marked as invalid at CPER record..
+#
+# @flags:
+#       Indicates flags that describe the error attributes.
+#       Argument is optional. If not specified and defaults to
+#       first-error and propagated.
+#
+# @error-info:
+#       Error information structure is specific to each error type.
+#       Argument is optional, and its value depends on the PEI type(s).
+#       If not defined, the default depends on the type:
+#       - for cache-error: 0x0091000F;
+#       - for tlb-error: 0x0054007F;
+#       - for bus-error: 0x80D6460FFF;
+#       - for micro-arch-error: 0x78DA03FF;
+#       - if multiple types used, this bit is disabled from @validation bits.
+#
+# @virt-addr:
+#       Virtual fault address associated with the error.
+#       Argument is optional. If not specified and @validation not enforced,
+#       this field will be marked as invalid at CPER record..
+#
+# @phy-addr:
+#       Physical fault address associated with the error.
+#       Argument is optional. If not specified and @validation not enforced,
+#       this field will be marked as invalid at CPER record..
+#
+# Since: 9.1
+##
+{ 'struct': 'ArmProcessorErrorInformation',
+  'data': { '*validation': ['ArmPeiValidationBits'],
+            'type': ['ArmProcessorErrorType'],
+            '*multiple-error': 'uint16',
+            '*flags': ['ArmProcessorFlags'],
+            '*error-info': 'uint64',
+            '*virt-addr':  'uint64',
+            '*phy-addr': 'uint64'}
+}
+
+##
+# @ArmProcessorContext:
+#
+# Provide processor context state specific to the ARM processor architecture,
+# According with UEFI 2.10 CPER table N.21.
+# Argument is optional.If not specified, no context will be used.
+#
+# @type:
+#       Contains an integer value indicating the type of context state being
+#       reported.
+#       Argument is optional. If not defined, it will be set to be EL1 register
+#       for the emulation, e. g.:
+#       - on arm32: AArch32 EL1 context registers;
+#       - on arm64: AArch64 EL1 context registers.
+#
+# @register:
+#       Provides the contents of the actual registers or raw data, depending
+#       on the context type.
+#       Argument is optional. If not defined, it will fill the first register
+#       with 0xDEADBEEF, and the other ones with zero.
+#
+# @minimal-size:
+#       Argument is optional. If provided, define the minimal size of the
+#       context register array. The actual size is defined by checking the
+#       number of register values plus the content of this field (if used),
+#       ensuring that each processor context information structure array is
+#       padded with zeros if the size is not a multiple of 16 bytes.
+#
+# Since: 9.1
+##
+{ 'struct': 'ArmProcessorContext',
+  'data': { '*type': 'uint16',
+            '*minimal-size': 'uint32',
+            '*register': ['uint64']}
 }
 
 ##
 # @arm-inject-error:
 #
-# Inject ARM Processor error.
+# Inject ARM Processor error with data to be filled accordign with UEFI 2.10
+# CPER table N.16.
 #
-# @errortypes: ARM processor error types to inject
+# @validation:
+#       Valid validation bits for ARM processor CPER.
+#       Argument is optional. If not specified, the default is
+#       calculated based on having the corresponding arguments filled.
+#
+# @affinity-level:
+#       Error affinity level for errors that can be attributed to a specific
+#       affinity level.
+#       Argument is optional. If not specified and @validation not enforced,
+#       this field will be marked as invalid at CPER record.
+#
+# @mpidr-el1:
+#       Processor’s unique ID in the system.
+#       Argument is optional. If not specified, it will use the cpu mpidr
+#       field from the emulation data. If zero and @validation is not
+#       enforced, this field will be marked as invalid at CPER record.
+#
+# @midr-el1:  Identification info of the chip
+#       Argument is optional. If not specified, it will use the cpu mpidr
+#       field from the emulation data. If zero and @validation is not
+#       enforced, this field will be marked as invalid at CPER record.
+#
+# @running-state:
+#       Indicates the running state of the processor.
+#       Argument is optional. If not specified and @validation not enforced,
+#       this field will be marked as invalid at CPER record.
+#
+# @psci-state:
+#       Provides PSCI state of the processor, as defined in ARM PSCI document.
+#       Argument is optional. If not specified, it will use the cpu power
+#       state field from the emulation data.
+#
+# @context:
+#       Contains an array of processor context registers.
+#       Argument is optional. If not specified, no context will be added.
+#
+# @vendor-specific:
+#       Contains a byte array of vendor-specific data.
+#       Argument is optional. If not specified, no vendor-specific data
+#       will be added.
+#
+# @error:
+#       Contains an array of ARM processor error information (PEI) sections.
+#       Argument is optional. If not specified, defaults to a single
+#       Program Error Information record defaulting to type=cache-error.
 #
 # Features:
 #
@@ -44,6 +262,16 @@
 # Since: 9.1
 ##
 { 'command': 'arm-inject-error',
-  'data': { 'errortypes': ['ArmProcessorErrorType'] },
+  'data': {
+    '*validation': ['ArmProcessorValidationBits'],
+    '*affinity-level': 'uint8',
+    '*mpidr-el1': 'uint64',
+    '*midr-el1': 'uint64',
+    '*running-state':  ['ArmProcessorRunningState'],
+    '*psci-state': 'uint32',
+    '*context': ['ArmProcessorContext'],
+    '*vendor-specific': ['uint8'],
+    '*error': ['ArmProcessorErrorInformation']
+  },
   'features': [ 'unstable' ]
 }

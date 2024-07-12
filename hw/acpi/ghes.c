@@ -55,10 +55,10 @@
 #define ACPI_GHES_MEM_CPER_LENGTH           80
 
 /*
- * ARM Processor section CPER size, UEFI 2.10: N.2.4.4
- * ARM Processor Error Section
+ * ARM Processor error section CPER sizes - UEFI 2.10: N.2.4.4
  */
-#define ACPI_GHES_ARM_CPER_LENGTH (72 + 600)
+#define ACPI_GHES_ARM_CPER_LENGTH           40
+#define ACPI_GHES_ARM_CPER_PEI_LENGTH       32
 
 /* Masks for block_status flags */
 #define ACPI_GEBS_UNCORRECTABLE         1
@@ -242,94 +242,98 @@ static int acpi_ghes_record_mem_error(uint64_t error_block_address,
 }
 
 /* UEFI 2.9: N.2.4.4 ARM Processor Error Section */
-static void acpi_ghes_build_append_arm_cper(uint8_t error_types, GArray *table)
+static void acpi_ghes_build_append_arm_cper(ArmError err, uint32_t cper_length,
+                                            GArray *table)
 {
+    unsigned int i, j;
+
     /*
      * ARM Processor Error Record
      */
 
     /* Validation Bits */
-    build_append_int_noprefix(table,
-                              (1ULL << 3) | /* Vendor specific info Valid */
-                              (1ULL << 2) | /* Running status Valid */
-                              (1ULL << 1) | /* Error affinity level Valid */
-                              (1ULL << 0), /* MPIDR Valid */
-                              4);
+    build_append_int_noprefix(table, err.validation, 4);
+
     /* Error Info Num */
-    build_append_int_noprefix(table, 1, 2);
+    build_append_int_noprefix(table, err.err_info_num, 2);
+
     /* Context Info Num */
-    build_append_int_noprefix(table, 1, 2);
+    build_append_int_noprefix(table, err.context_info_num, 2);
+
     /* Section length */
-    build_append_int_noprefix(table, ACPI_GHES_ARM_CPER_LENGTH, 4);
+    build_append_int_noprefix(table, cper_length, 4);
+
     /* Error affinity level */
-    build_append_int_noprefix(table, 2, 1);
+    build_append_int_noprefix(table, err.affinity_level, 1);
+
     /* Reserved */
     build_append_int_noprefix(table, 0, 3);
+
     /* MPIDR_EL1 */
-    build_append_int_noprefix(table, 0xAB12, 8);
+    build_append_int_noprefix(table, err.mpidr_el1, 8);
+
     /* MIDR_EL1 */
-    build_append_int_noprefix(table, 0xCD24, 8);
+    build_append_int_noprefix(table, err.midr_el1, 8);
+
     /* Running state */
-    build_append_int_noprefix(table, 0x1, 4);
-    /* PSCI state */
-    build_append_int_noprefix(table, 0x1234, 4);
+    build_append_int_noprefix(table, err.running_state, 4);
 
-    /* ARM Propcessor error information */
-    /* Version */
-    build_append_int_noprefix(table, 0, 1);
-    /*  Length */
-    build_append_int_noprefix(table, 32, 1);
-    /* Validation Bits */
-    build_append_int_noprefix(table,
-                              (1ULL << 4) | /* Physical fault address Valid */
-                             (1ULL << 3) | /* Virtual fault address Valid */
-                             (1ULL << 2) | /* Error information Valid */
-                              (1ULL << 1) | /* Flags Valid */
-                              (1ULL << 0), /* Multiple error count Valid */
-                              2);
-    /* Type */
-    if (error_types & BIT(ARM_PROCESSOR_ERROR_TYPE_CACHE_ERROR) ||
-        error_types & BIT(ARM_PROCESSOR_ERROR_TYPE_TLB_ERROR) ||
-        error_types & BIT(ARM_PROCESSOR_ERROR_TYPE_BUS_ERROR) ||
-        error_types & BIT(ARM_PROCESSOR_ERROR_TYPE_MICRO_ARCH_ERROR)) {
-        build_append_int_noprefix(table, error_types, 1);
-    } else {
-        return;
-    }
-    /* Multiple error count */
-    build_append_int_noprefix(table, 2, 2);
-    /* Flags  */
-    build_append_int_noprefix(table, 0xD, 1);
-    /* Error information  */
-    if (error_types & BIT(ARM_PROCESSOR_ERROR_TYPE_CACHE_ERROR)) {
-        build_append_int_noprefix(table, 0x0091000F, 8);
-    } else if (error_types & BIT(ARM_PROCESSOR_ERROR_TYPE_TLB_ERROR)) {
-        build_append_int_noprefix(table, 0x0054007F, 8);
-    } else if (error_types & BIT(ARM_PROCESSOR_ERROR_TYPE_BUS_ERROR)) {
-        build_append_int_noprefix(table, 0x80D6460FFF, 8);
-    } else if (error_types & BIT(ARM_PROCESSOR_ERROR_TYPE_MICRO_ARCH_ERROR)) {
-        build_append_int_noprefix(table, 0x78DA03FF, 8);
-    } else {
-        return;
-    }
-    /* Virtual fault address  */
-    build_append_int_noprefix(table, 0x67320230, 8);
-    /* Physical fault address  */
-    build_append_int_noprefix(table, 0x5CDFD492, 8);
+    /* PSCI state: only valid when running state is zero  */
+    build_append_int_noprefix(table, err.psci_state, 4);
 
-    /* ARM Propcessor error context information */
-    /* Version */
-    build_append_int_noprefix(table, 0, 2);
-    /* Validation Bits */
-    /* AArch64 EL1 context registers Valid */
-    build_append_int_noprefix(table, 5, 2);
-    /* Register array size */
-    build_append_int_noprefix(table, 592, 4);
-    /* Register array */
-    build_append_int_noprefix(table, 0x12ABDE67, 8);
+    for (i = 0; i < err.err_info_num; i++) {
+        /* ARM Propcessor error information */
+        /* Version */
+        build_append_int_noprefix(table, 0, 1);
+
+        /*  Length */
+        build_append_int_noprefix(table, ACPI_GHES_ARM_CPER_PEI_LENGTH, 1);
+
+        /* Validation Bits */
+        build_append_int_noprefix(table, err.pei[i].validation, 2);
+
+        /* Type */
+        build_append_int_noprefix(table, err.pei[i].type, 1);
+
+        /* Multiple error count */
+        build_append_int_noprefix(table, err.pei[i].multiple_error, 2);
+
+        /* Flags  */
+        build_append_int_noprefix(table, err.pei[i].flags, 1);
+
+        /* Error information  */
+        build_append_int_noprefix(table, err.pei[i].error_info, 8);
+
+        /* Virtual fault address  */
+        build_append_int_noprefix(table, err.pei[i].virt_addr, 8);
+
+        /* Physical fault address  */
+        build_append_int_noprefix(table, err.pei[i].phy_addr, 8);
+    }
+
+    for (i = 0; i < err.context_info_num; i++) {
+        /* ARM Propcessor error context information */
+        /* Version */
+        build_append_int_noprefix(table, 0, 2);
+
+        /* Validation type */
+        build_append_int_noprefix(table, err.context[i].type, 2);
+
+        /* Register array size */
+        build_append_int_noprefix(table, err.context[i].size * 8, 4);
+
+        /* Register array (byte 8 of Context info) */
+        for (j = 0; j < err.context[i].size; j++) {
+            build_append_int_noprefix(table, err.context[i].array[j], 8);
+        }
+    }
+
+    for (i = 0; i < err.vendor_num; i++) {
+        build_append_int_noprefix(table, err.vendor[i], 1);
+    }
 }
 
-static int acpi_ghes_record_arm_error(uint8_t error_types,
+static int acpi_ghes_record_arm_error(ArmError error,
                                       uint64_t error_block_address)
 {
     GArray *block;
@@ -344,12 +348,18 @@ static int acpi_ghes_record_arm_error(uint8_t error_types,
      * Table 17-13 Generic Error Data Entry
      */
     QemuUUID fru_id = {};
-    uint32_t data_length;
+    uint32_t cper_length, data_length;
 
     block = g_array_new(false, true /* clear */, 1);
 
     /* This is the length if adding a new generic error data entry*/
-    data_length = ACPI_GHES_DATA_LENGTH + ACPI_GHES_ARM_CPER_LENGTH;
+    cper_length = ACPI_GHES_ARM_CPER_LENGTH;
+    cper_length += ACPI_GHES_ARM_CPER_PEI_LENGTH * error.err_info_num;
+    cper_length += error.context_length;
+    cper_length += error.vendor_num;
+
+    data_length = ACPI_GHES_DATA_LENGTH + cper_length;
+
     /*
      * It should not run out of the preallocated memory if adding a new generic
      * error data entry
@@ -363,11 +373,11 @@ static int acpi_ghes_record_arm_error(uint8_t error_types,
 
     /* Build this new generic error data entry header */
     acpi_ghes_generic_error_data(block, uefi_cper_arm_sec,
-        ACPI_CPER_SEV_RECOVERABLE, 0, 0,
-        ACPI_GHES_ARM_CPER_LENGTH, fru_id, 0);
+                                 ACPI_CPER_SEV_RECOVERABLE, 0, 0,
+                                 cper_length, fru_id, 0);
 
     /* Build the ARM processor error section CPER */
-    acpi_ghes_build_append_arm_cper(error_types, block);
+    acpi_ghes_build_append_arm_cper(error, cper_length, block);
 
     /* Write the generic error data entry into guest memory */
     cpu_physical_memory_write(error_block_address, block->data, block->len);
@@ -663,7 +673,7 @@ static bool ghes_get_addr(uint32_t notify, uint64_t *error_block_addr,
     return true;
 }
 
-bool ghes_record_arm_errors(uint8_t error_types, uint32_t notify)
+bool ghes_record_arm_errors(ArmError error, uint32_t notify)
 {
     int read_ack_register = 0;
     uint64_t read_ack_register_addr = 0;
@@ -689,7 +699,7 @@ bool ghes_record_arm_errors(uint8_t error_types, uint32_t notify)
     read_ack_register = cpu_to_le64(0);
     cpu_physical_memory_write(read_ack_register_addr,
                               &read_ack_register, sizeof(uint64_t));
-    return acpi_ghes_record_arm_error(error_types, error_block_addr);
+    return acpi_ghes_record_arm_error(error, error_block_addr);
 }
 
 bool acpi_ghes_present(void)
