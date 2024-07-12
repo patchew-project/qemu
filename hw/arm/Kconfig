@@ -712,3 +712,7 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
+
+config ARM_EINJ
+    bool
+    default y if AARCH64
