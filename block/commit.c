@@ -128,6 +128,11 @@ static void commit_clean(Job *job)
     blk_unref(s->top);
 }
 
+typedef enum CommitMethod {
+    COMMIT_METHOD_COPY,
+    COMMIT_METHOD_IGNORE,
+} CommitMethod;
+
 static int coroutine_fn commit_run(Job *job, Error **errp)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
@@ -158,8 +163,8 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
     for (offset = 0; offset < len; offset += n) {
-        bool copy;
         bool error_in_source = true;
+        CommitMethod commit_method = COMMIT_METHOD_COPY;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -175,19 +180,31 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
                 &n, NULL, NULL, NULL);
         }
 
-        copy = (ret >= 0 && ret & BDRV_BLOCK_ALLOCATED);
         trace_commit_one_iteration(s, offset, n, ret);
-        if (copy) {
-            assert(n < SIZE_MAX);
 
-            ret = blk_co_pread(s->top, offset, n, buf, 0);
-            if (ret >= 0) {
-                ret = blk_co_pwrite(s->base, offset, n, buf, 0);
-                if (ret < 0) {
-                    error_in_source = false;
+        if (ret >= 0) {
+            if (!(ret & BDRV_BLOCK_ALLOCATED)) {
+                commit_method = COMMIT_METHOD_IGNORE;
+            }
+
+            switch (commit_method) {
+            case COMMIT_METHOD_COPY:
+                assert(n < SIZE_MAX);
+                ret = blk_co_pread(s->top, offset, n, buf, 0);
+                if (ret >= 0) {
+                    ret = blk_co_pwrite(s->base, offset, n, buf, 0);
+                    if (ret < 0) {
+                        error_in_source = false;
+                    }
                 }
+                break;
+            case COMMIT_METHOD_IGNORE:
+                break;
+            default:
+                abort();
             }
         }
+
         if (ret < 0) {
             BlockErrorAction action =
                 block_job_error_action(&s->common, s->on_error,
@@ -202,7 +219,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         /* Publish progress */
         job_progress_update(&s->common.job, n);
 
-        if (copy) {
+        if (commit_method == COMMIT_METHOD_COPY) {
             block_job_ratelimit_processed_bytes(&s->common, n);
         }
     }
