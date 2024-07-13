@@ -130,6 +130,7 @@ static void commit_clean(Job *job)
 
 typedef enum CommitMethod {
     COMMIT_METHOD_COPY,
+    COMMIT_METHOD_ZERO,
     COMMIT_METHOD_IGNORE,
 } CommitMethod;
 
@@ -185,6 +186,18 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         if (ret >= 0) {
             if (!(ret & BDRV_BLOCK_ALLOCATED)) {
                 commit_method = COMMIT_METHOD_IGNORE;
+            } else if (ret & BDRV_BLOCK_ZERO) {
+                int64_t target_offset;
+                int64_t target_bytes;
+                WITH_GRAPH_RDLOCK_GUARD() {
+                    bdrv_round_to_subclusters(s->base_bs, offset, n,
+                                           &target_offset, &target_bytes);
+                }
+
+                if (target_offset == offset &&
+                    target_bytes == n) {
+                    commit_method = COMMIT_METHOD_ZERO;
+                }
             }
 
             switch (commit_method) {
@@ -197,6 +210,11 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
                         error_in_source = false;
                     }
                 }
+                break;
+            case COMMIT_METHOD_ZERO:
+                ret = blk_co_pwrite_zeroes(s->base, offset, n,
+                    BDRV_REQ_MAY_UNMAP);
+                error_in_source = false;
                 break;
             case COMMIT_METHOD_IGNORE:
                 break;
@@ -216,6 +234,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
                 continue;
             }
         }
+
         /* Publish progress */
         job_progress_update(&s->common.job, n);
 
