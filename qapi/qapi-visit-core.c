@@ -411,7 +411,7 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
     int64_t value;
     g_autofree char *enum_str = NULL;
 
-    if (!visit_type_str(v, name, &enum_str, errp)) {
+    if (!visit_type_str_preserving(v, name, &enum_str, errp)) {
         return false;
     }
 
@@ -430,6 +430,8 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
         return false;
     }
 
+    enum_str = NULL;
+    visit_type_str(v, name, &enum_str, &error_abort);
     *obj = value;
     return true;
 }

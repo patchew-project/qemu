@@ -359,11 +359,6 @@ opts_type_str(Visitor *v, const char *name, char **obj, bool consume,
         return false;
     }
     *obj = g_strdup(opt->str ? opt->str : "");
-    /* Note that we consume a string even if this is called as part of
-     * an enum visit that later fails because the string is not a
-     * valid enum value; this is harmless because tracking what gets
-     * consumed only matters to visit_end_struct() as the final error
-     * check if there were no other failures during the visit.  */
     if (consume) {
         processed(ov, name);
     }
