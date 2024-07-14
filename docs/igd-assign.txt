@@ -35,7 +35,7 @@ IGD has two different modes for assignment using vfio-pci:
       ISA/LPC bridge device (vfio-pci-igd-lpc-bridge) on the root bus at
       PCI address 1f.0.
     * The IGD device must have a VGA ROM, either provided via the romfile
-      option or loaded automatically through vfio (standard).  rombar=0
+      option or loaded automatically through vfio (standard).  rombar=off
       will disable legacy mode support.
     * Hotplug of the IGD device is not supported.
     * The IGD device must be a SandyBridge or newer model device.

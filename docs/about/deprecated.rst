@@ -389,6 +389,13 @@ recommending to switch to their stable counterparts:
 SD physical layer specification v2.00 supersedes the v1.10 one.
 v2.00 is the default since QEMU 3.0.0.
 
+Integer specification of PCI device's ``rombar`` property (since 9.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Specifying an integer for the ``rombar`` property of a PCI device is being
+deprecated starting in 9.1 due to obscurity of such an specification. Replace
+zero with ``off`` and a non-zero value with ``on``, respectively.
+
 Block device options
 ''''''''''''''''''''
 

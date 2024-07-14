@@ -33,7 +33,7 @@
  * execution as noticed with the BCM 57810 card for lack of a
  * more better way to handle such issues.
  * The  user can still override by specifying a romfile or
- * rombar=1.
+ * rombar=on.
  * Please see https://bugs.launchpad.net/qemu/+bug/1284874
  * for an analysis of the 57810 card hang. When adding
  * a new vendor id/device id combination below, please also add
