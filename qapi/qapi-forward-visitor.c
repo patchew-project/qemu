@@ -180,6 +180,7 @@ static bool forward_field_type_bool(Visitor *v, const char *name, bool *obj,
 }
 
 static bool forward_field_type_str(Visitor *v, const char *name, char **obj,
+                                   bool consume,
                                    Error **errp)
 {
     ForwardFieldVisitor *ffv = to_ffv(v);
@@ -187,7 +188,8 @@ static bool forward_field_type_str(Visitor *v, const char *name, char **obj,
     if (!forward_field_translate_name(ffv, &name, errp)) {
         return false;
     }
-    return visit_type_str(ffv->target, name, obj, errp);
+    return (consume ? visit_type_str : visit_type_str_preserving)(
+        ffv->target, name, obj, errp);
 }
 
 static bool forward_field_type_size(Visitor *v, const char *name, uint64_t *obj,
