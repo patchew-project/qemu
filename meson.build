@@ -609,6 +609,7 @@ if host_os != 'openbsd' and \
 endif
 
 qemu_common_flags += cc.get_supported_arguments(hardening_flags)
+qemu_common_flags += cc.get_supported_arguments('-fno-sanitize=function')
 
 add_global_arguments(qemu_common_flags, native: false, language: all_languages)
 add_global_link_arguments(qemu_ldflags, native: false, language: all_languages)
