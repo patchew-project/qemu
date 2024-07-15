@@ -164,6 +164,8 @@ struct RISCVCPUConfig {
     bool pmp;
     bool debug;
     bool misa_w;
+    bool iopmp;
+    uint32_t iopmp_rrid;
 
     bool short_isa_string;
 

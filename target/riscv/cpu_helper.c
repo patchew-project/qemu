@@ -1418,9 +1418,21 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     }
 
     if (ret == TRANSLATE_SUCCESS) {
-        tlb_set_page(cs, address & ~(tlb_size - 1), pa & ~(tlb_size - 1),
-                     prot, mmu_idx, tlb_size);
-        return true;
+        if (cpu->cfg.iopmp) {
+            /*
+             * Do not align address on early stage because IOPMP needs origin
+             * address for permission check.
+             */
+            tlb_set_page_with_attrs(cs, address, pa,
+                                    (MemTxAttrs)
+                                        {
+                                          .requester_id = cpu->cfg.iopmp_rrid,
+                                        },
+                                    prot, mmu_idx, tlb_size);
+        } else {
+            tlb_set_page(cs, address & ~(tlb_size - 1), pa & ~(tlb_size - 1),
+                         prot, mmu_idx, tlb_size);
+        }
     } else if (probe) {
         return false;
     } else {
