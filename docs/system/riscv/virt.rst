@@ -116,6 +116,11 @@ The following machine-specific options are supported:
   having AIA IMSIC (i.e. "aia=aplic-imsic" selected). When not specified,
   the default number of per-HART VS-level AIA IMSIC pages is 0.
 
+- iopmp=[on|off]
+
+  When this option is "on", an IOPMP device is added to machine. IOPMP checks
+  memory transcations in system memory. This option is assumed to be "off".
+
 Running Linux kernel
 --------------------
 
