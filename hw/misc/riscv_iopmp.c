@@ -1151,4 +1151,65 @@ iopmp_register_types(void)
     type_register_static(&iopmp_iommu_memory_region_info);
 }
 
+/*
+ * Copies subregions from the source memory region to the destination memory
+ * region
+ */
+static void copy_memory_subregions(MemoryRegion *src_mr, MemoryRegion *dst_mr)
+{
+    int32_t priority;
+    hwaddr addr;
+    MemoryRegion *alias, *subregion;
+    QTAILQ_FOREACH(subregion, &src_mr->subregions, subregions_link) {
+        priority = subregion->priority;
+        addr = subregion->addr;
+        alias = g_malloc0(sizeof(MemoryRegion));
+        memory_region_init_alias(alias, NULL, subregion->name, subregion, 0,
+                                 memory_region_size(subregion));
+        memory_region_add_subregion_overlap(dst_mr, addr, alias, priority);
+    }
+}
+
+/*
+ * Create downstream of system memory for IOPMP, and overlap memory region
+ * specified in memmap with IOPMP translator. Make sure subregions are added to
+ * system memory before call this function. It also add entry to
+ * iopmp_protection_memmaps for recording the relationship between physical
+ * address regions and IOPMP.
+ */
+void iopmp_setup_system_memory(DeviceState *dev, const MemMapEntry *memmap,
+                               uint32_t map_entry_num)
+{
+    IopmpState *s = IOPMP(dev);
+    uint32_t i;
+    MemoryRegion *iommu_alias;
+    MemoryRegion *target_mr = get_system_memory();
+    MemoryRegion *downstream = g_malloc0(sizeof(MemoryRegion));
+    memory_region_init(downstream, NULL, "iopmp_downstream",
+                       memory_region_size(target_mr));
+    /* Copy subregions of target to downstream */
+    copy_memory_subregions(target_mr, downstream);
+
+    iopmp_protection_memmap *map;
+    for (i = 0; i < map_entry_num; i++) {
+        /* Memory access to protected regions of target are through IOPMP */
+        iommu_alias = g_new(MemoryRegion, 1);
+        memory_region_init_alias(iommu_alias, NULL, "iommu_alias",
+                                 MEMORY_REGION(&s->iommu), memmap[i].base,
+                                 memmap[i].size);
+        memory_region_add_subregion_overlap(target_mr, memmap[i].base,
+                                            iommu_alias, 1);
+        /* Record which IOPMP is responsible for the region */
+        map = g_new0(iopmp_protection_memmap, 1);
+        map->iopmp_s = s;
+        map->entry.base = memmap[i].base;
+        map->entry.size = memmap[i].size;
+        QLIST_INSERT_HEAD(&iopmp_protection_memmaps, map, list);
+    }
+    s->downstream = downstream;
+    address_space_init(&s->downstream_as, s->downstream,
+                       "iopmp-downstream-as");
+}
+
+
 type_init(iopmp_register_types);

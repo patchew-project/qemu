@@ -165,4 +165,7 @@ typedef struct IopmpState {
     uint32_t fabricated_v;
 } IopmpState;
 
+void iopmp_setup_system_memory(DeviceState *dev, const MemMapEntry *memmap,
+                               uint32_t mapentry_num);
+
 #endif
