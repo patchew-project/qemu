@@ -1942,8 +1942,13 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
         this_size = 1 << this_mop;
         this_mop |= MO_BE;
 
-        r = memory_region_dispatch_read(mr, mr_offset, &val,
-                                        this_mop, full->attrs);
+        if (type == MMU_INST_FETCH) {
+            r = memory_region_dispatch_fetch(mr, mr_offset, &val,
+                                             this_mop, full->attrs);
+        } else {
+            r = memory_region_dispatch_read(mr, mr_offset, &val,
+                                            this_mop, full->attrs);
+        }
         if (unlikely(r != MEMTX_OK)) {
             io_failed(cpu, full, addr, this_size, type, mmu_idx, r, ra);
         }
