@@ -1211,5 +1211,11 @@ void iopmp_setup_system_memory(DeviceState *dev, const MemMapEntry *memmap,
                        "iopmp-downstream-as");
 }
 
+void iopmp_setup_cpu(RISCVCPU *cpu, uint32_t rrid)
+{
+    cpu->cfg.iopmp = true;
+    cpu->cfg.iopmp_rrid = rrid;
+}
+
 
 type_init(iopmp_register_types);
