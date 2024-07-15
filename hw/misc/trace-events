@@ -362,3 +362,6 @@ aspeed_sli_read(uint64_t offset, unsigned int size, uint32_t data) "To 0x%" PRIx
 aspeed_sliio_write(uint64_t offset, unsigned int size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
 aspeed_sliio_read(uint64_t offset, unsigned int size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
 
+# riscv_iopmp.c
+iopmp_read(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%x"
+iopmp_write(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%x"
