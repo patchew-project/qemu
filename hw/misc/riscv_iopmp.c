@@ -1217,5 +1217,73 @@ void iopmp_setup_cpu(RISCVCPU *cpu, uint32_t rrid)
     cpu->cfg.iopmp_rrid = rrid;
 }
 
+static void send_transaction_start(IopmpState *s, uint32_t rrid)
+{
+    int flag = 0;
+    if (rrid < s->rrid_num) {
+        while (flag == 0) {
+            /* Wait last transaction of rrid complete */
+            while (s->transaction_state[rrid].running) {
+                ;
+            }
+            qemu_mutex_lock(&s->iopmp_transaction_mutex);
+            /* Check status again */
+            if (s->transaction_state[rrid].running == false) {
+                s->transaction_state[rrid].running = true;
+                s->transaction_state[rrid].supported = true;
+                flag = 1;
+            }
+            qemu_mutex_unlock(&s->iopmp_transaction_mutex);
+        }
+    }
+}
+
+static void send_transaction_complete(IopmpState *s, uint32_t rrid)
+{
+    if (rrid < s->rrid_num) {
+        qemu_mutex_lock(&s->iopmp_transaction_mutex);
+        s->transaction_state[rrid].running = false;
+        s->transaction_state[rrid].supported = false;
+        qemu_mutex_unlock(&s->iopmp_transaction_mutex);
+    }
+}
+
+static void send_transaction_info(IopmpState *s, uint32_t rrid,
+                                  hwaddr start_addr, hwaddr size)
+{
+    if (rrid < s->rrid_num) {
+        s->transaction_state[rrid].start_addr = start_addr;
+        s->transaction_state[rrid].end_addr = start_addr + size - 1;
+    }
+}
+
+/*
+ * Perform address_space_rw to system memory and send transaction information
+ * to correspond IOPMP for partially hit detection.
+ */
+MemTxResult iopmp_dma_rw(hwaddr addr, uint32_t rrid, void *buf, hwaddr len,
+                         bool is_write)
+{
+    MemTxResult result;
+    MemTxAttrs attrs;
+    iopmp_protection_memmap *map;
+    /* Find which IOPMP is responsible for receiving transaction information */
+    QLIST_FOREACH(map, &iopmp_protection_memmaps, list) {
+        if (addr >= map->entry.base &&
+            addr < map->entry.base + map->entry.size) {
+            send_transaction_start(map->iopmp_s, rrid);
+            send_transaction_info(map->iopmp_s, rrid, addr, len);
+            break;
+        }
+    }
+
+    attrs.requester_id = rrid;
+    result = address_space_rw(&address_space_memory, addr, attrs, buf, len,
+                              is_write);
+    if (map) {
+        send_transaction_complete(map->iopmp_s, rrid);
+    }
+    return result;
+}
 
 type_init(iopmp_register_types);

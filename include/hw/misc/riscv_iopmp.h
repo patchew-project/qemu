@@ -168,5 +168,6 @@ typedef struct IopmpState {
 void iopmp_setup_system_memory(DeviceState *dev, const MemMapEntry *memmap,
                                uint32_t mapentry_num);
 void iopmp_setup_cpu(RISCVCPU *cpu, uint32_t rrid);
-
+MemTxResult iopmp_dma_rw(hwaddr addr, uint32_t rrid, void *buf, hwaddr len,
+                         bool is_write);
 #endif
