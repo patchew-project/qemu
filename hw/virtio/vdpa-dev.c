@@ -63,19 +63,19 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     }
 
     v->vhostfd = qemu_open(v->vhostdev, O_RDWR, errp);
-    if (*errp) {
+    if (v->vhostfd < 0) {
         return;
     }
 
     v->vdev_id = vhost_vdpa_device_get_u32(v->vhostfd,
                                            VHOST_VDPA_GET_DEVICE_ID, errp);
-    if (*errp) {
+    if (v->vdev_id < 0) {
         goto out;
     }
 
     max_queue_size = vhost_vdpa_device_get_u32(v->vhostfd,
                                                VHOST_VDPA_GET_VRING_NUM, errp);
-    if (*errp) {
+    if (max_queue_size < 0) {
         goto out;
     }
 
@@ -89,7 +89,7 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
 
     v->num_queues = vhost_vdpa_device_get_u32(v->vhostfd,
                                               VHOST_VDPA_GET_VQS_COUNT, errp);
-    if (*errp) {
+    if (v->num_queues < 0) {
         goto out;
     }
 
@@ -127,7 +127,7 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     v->config_size = vhost_vdpa_device_get_u32(v->vhostfd,
                                                VHOST_VDPA_GET_CONFIG_SIZE,
                                                errp);
-    if (*errp) {
+    if (v->config_size < 0) {
         goto vhost_cleanup;
     }
 
