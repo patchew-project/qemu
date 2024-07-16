@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv_core.h"
+#include "hw/ppc/pnv_chip.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "qemu/log.h"
@@ -296,6 +297,14 @@ static void write_tfmr(CPUPPCState *env, target_ulong val)
 static PnvCoreTODState *cpu_get_tbst(PowerPCCPU *cpu)
 {
     PnvCore *pc = pnv_cpu_state(cpu)->pnv_core;
+
+    if (pc->big_core && pc->tod_state.big_core_quirk) {
+        /* Must operate on the even small core */
+        int core_id = CPU_CORE(pc)->core_id;
+        if (core_id & 1) {
+            pc = pc->chip->cores[core_id & ~1];
+        }
+    }
 
     return &pc->tod_state;
 }
