@@ -5314,7 +5314,7 @@ int kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
 {
     int i, ret;
 
-    for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
+    for (i = 0; i < KVM_MSR_FILTER_MAX_RANGES; i++) {
         if (!msr_handlers[i].msr) {
             msr_handlers[i] = (KVMMSRHandlers) {
                 .msr = msr,
@@ -5340,7 +5340,7 @@ static int kvm_handle_rdmsr(X86CPU *cpu, struct kvm_run *run)
     int i;
     bool r;
 
-    for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
+    for (i = 0; i < KVM_MSR_FILTER_MAX_RANGES; i++) {
         KVMMSRHandlers *handler = &msr_handlers[i];
         if (run->msr.index == handler->msr) {
             if (handler->rdmsr) {
@@ -5360,7 +5360,7 @@ static int kvm_handle_wrmsr(X86CPU *cpu, struct kvm_run *run)
     int i;
     bool r;
 
-    for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
+    for (i = 0; i < KVM_MSR_FILTER_MAX_RANGES; i++) {
         KVMMSRHandlers *handler = &msr_handlers[i];
         if (run->msr.index == handler->msr) {
             if (handler->wrmsr) {
