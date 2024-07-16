@@ -758,6 +758,14 @@ static inline void qemu_reset_optind(void)
 int qemu_fdatasync(int fd);
 
 /**
+ * Close all open file descriptors except the ones supplied in the @skip array
+ *
+ * @skip: ordered array of distinct file descriptors that should not be closed
+ * @nskip: number of entries in the @skip array.
+ */
+void qemu_close_all_open_fd(const int *skip, unsigned int nskip);
+
+/**
  * Sync changes made to the memory mapped file back to the backing
  * storage. For POSIX compliant systems this will fallback
  * to regular msync call. Otherwise it will trigger whole file sync
