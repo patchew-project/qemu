@@ -208,7 +208,7 @@ class QemuBaseTest(unittest.TestCase):
     BUILD_DIR = _build_dir()
 
     workdir = None
-    log = logging.getLogger('qemu-test')
+    log = None
 
     def setUp(self, bin_prefix):
         self.assertIsNotNone(self.qemu_bin, 'QEMU_TEST_QEMU_BINARY must be set')
@@ -217,6 +217,18 @@ class QemuBaseTest(unittest.TestCase):
         self.workdir = os.path.join(self.workdir, self.id())
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
+
+        self.log = logging.getLogger('qemu-test')
+        self.log.setLevel(logging.DEBUG)
+        self._log_fh = logging.FileHandler(os.path.join(self.workdir,
+                                                        'base.log'), mode='w')
+        self._log_fh.setLevel(logging.DEBUG)
+        fileFormatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
+        self._log_fh.setFormatter(fileFormatter)
+        self.log.addHandler(self._log_fh)
+
+    def tearDown(self):
+        self.log.removeHandler(self._log_fh)
 
     def check_hash(self, file_name, expected_hash):
         if not expected_hash:
@@ -268,6 +280,15 @@ class QemuSystemTest(QemuBaseTest):
         self._vms = {}
 
         super().setUp('qemu-system-')
+
+        console_log = logging.getLogger('console')
+        console_log.setLevel(logging.DEBUG)
+        self._console_log_fh = logging.FileHandler(os.path.join(self.workdir,
+                                                   'console.log'), mode='w')
+        self._console_log_fh.setLevel(logging.DEBUG)
+        fileFormatter = logging.Formatter('%(asctime)s: %(message)s')
+        self._console_log_fh.setFormatter(fileFormatter)
+        console_log.addHandler(self._console_log_fh)
 
     def set_machine(self, machinename):
         # TODO: We should use QMP to get the list of available machines
@@ -359,4 +380,5 @@ class QemuSystemTest(QemuBaseTest):
     def tearDown(self):
         for vm in self._vms.values():
             vm.shutdown()
+        logging.getLogger('console').removeHandler(self._console_log_fh)
         super().tearDown()
