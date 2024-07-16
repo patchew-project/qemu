@@ -9,6 +9,8 @@ check-help:
 	@echo "Individual test suites:"
 	@echo " $(MAKE) check-qtest-TARGET     Run qtest tests for given target"
 	@echo " $(MAKE) check-qtest            Run qtest tests"
+	@echo " $(MAKE) check-functional       Run python-based functional tests"
+	@echo " $(MAKE) check-functional-TARG  Run functional tests for a given target"
 	@echo " $(MAKE) check-unit             Run qobject tests"
 	@echo " $(MAKE) check-qapi-schema      Run QAPI schema tests"
 	@echo " $(MAKE) check-block            Run block tests"
@@ -111,7 +113,7 @@ quiet-venv-pip = $(quiet-@)$(call quiet-command-run, \
 
 $(TESTS_VENV_TOKEN): $(SRC_PATH)/pythondeps.toml
 	$(call quiet-venv-pip,install -e "$(SRC_PATH)/python/")
-	$(MKVENV_ENSUREGROUP) $< avocado
+	$(MKVENV_ENSUREGROUP) $< tests
 	$(call quiet-command, touch $@)
 
 $(TESTS_RESULTS_DIR):
@@ -151,6 +153,20 @@ check-acceptance-deprecated-warning:
 	@echo
 
 check-acceptance: check-acceptance-deprecated-warning | check-avocado
+
+# Make sure that pycotap is installed before running any functional tests:
+ifneq ($(filter check-func%,$(MAKECMDGOALS))$(filter check,$(MAKECMDGOALS)),)
+do-meson-check: check-venv
+endif
+
+FUNCTIONAL_TARGETS=$(patsubst %-softmmu,check-functional-%, $(filter %-softmmu,$(TARGETS)))
+.PHONY: $(FUNCTIONAL_TARGETS)
+$(FUNCTIONAL_TARGETS):
+	@make SPEED=thorough $(subst -functional,-func,$@)
+
+.PHONY: check-functional
+check-functional:
+	@make SPEED=thorough check-func check-func-quick
 
 # Consolidated targets
 
