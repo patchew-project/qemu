@@ -11,6 +11,8 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import hashlib
+import urllib.request
 import logging
 import os
 import pycotap
@@ -23,6 +25,7 @@ import uuid
 import unittest
 
 from pathlib import Path
+from shutil import copyfileobj
 from qemu.machine import QEMUMachine
 from qemu.utils import (get_info_usernet_hostfwd_port, kvm_available,
                         tcg_available)
@@ -214,6 +217,39 @@ class QemuBaseTest(unittest.TestCase):
         self.workdir = os.path.join(self.workdir, self.id())
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
+
+    def check_hash(self, file_name, expected_hash):
+        if not expected_hash:
+            return True
+        if len(expected_hash) == 40:
+            sum_prog = 'sha1sum'
+        elif len(expected_hash) == 64:
+            sum_prog = 'sha256sum'
+        elif len(expected_hash) == 128:
+            sum_prog = 'sha512sum'
+        else:
+            raise Exception("unknown hash type")
+        checksum = subprocess.check_output([sum_prog, file_name]).split()[0]
+        return expected_hash == checksum.decode("utf-8")
+
+    def fetch_asset(self, url, asset_hash):
+        cache_dir = os.path.expanduser("~/.cache/qemu/download")
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        fname = os.path.join(cache_dir,
+                             hashlib.sha256(url.encode("utf-8")).hexdigest())
+        if os.path.exists(fname) and self.check_hash(fname, asset_hash):
+            return fname
+        self.log.info("Downloading %s to %s...", url, fname)
+        dl_fname = fname + ".download"
+        with urllib.request.urlopen(url) as src:
+            with open(dl_fname, "wb+") as dst:
+                copyfileobj(src, dst)
+        if not self.check_hash(dl_fname, asset_hash):
+            os.remove(dl_fname)
+            raise Exception("Hash of " + url + " does not match")
+        os.rename(dl_fname, fname)
+        return fname
 
     def main():
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
