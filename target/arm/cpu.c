@@ -1594,6 +1594,13 @@ static bool arm_get_pmu(Object *obj, Error **errp)
 static void arm_set_pmu(Object *obj, bool value, Error **errp)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+    const char *typename = object_get_typename(obj);
+
+    if (strcmp(typename, ARM_CPU_TYPE_NAME("host")) &&
+        strcmp(typename, ARM_CPU_TYPE_NAME("max"))) {
+        error_setg(errp, "Setting 'pmu' is only supported by host and max");
+        return;
+    }
 
     if (value) {
         if (kvm_enabled() && !kvm_arm_pmu_supported()) {
