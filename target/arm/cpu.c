@@ -1781,8 +1781,9 @@ void arm_cpu_post_init(Object *obj)
 
     if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
         cpu->has_pmu = true;
-        object_property_add_bool(obj, "pmu", arm_get_pmu, arm_set_pmu);
     }
+
+    object_property_add_bool(obj, "pmu", arm_get_pmu, arm_set_pmu);
 
     /*
      * Allow user to turn off VFP and Neon support, but only for TCG --
