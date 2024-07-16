@@ -1603,6 +1603,10 @@ static void arm_set_pmu(Object *obj, bool value, Error **errp)
     }
 
     if (value) {
+        if (hvf_enabled()) {
+            error_setg(errp, "'pmu' feature not suported by hvf");
+            return;
+        }
         if (kvm_enabled() && !kvm_arm_pmu_supported()) {
             error_setg(errp, "'pmu' feature not supported by KVM on this host");
             return;
