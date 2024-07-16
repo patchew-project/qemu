@@ -2682,7 +2682,10 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         return ret;
     }
 
-    kvm_get_supported_feature_msrs(s);
+    ret = kvm_get_supported_feature_msrs(s);
+    if (ret < 0) {
+        return ret;
+    }
 
     uname(&utsname);
     lm_capable_kernel = strcmp(utsname.machine, "x86_64") == 0;
@@ -2740,6 +2743,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         if (ret < 0) {
             error_report("kvm: guest stopping CPU not supported: %s",
                          strerror(-ret));
+            return ret;
         }
     }
 
@@ -2785,7 +2789,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         if (ret) {
             error_report("Could not enable user space MSRs: %s",
                          strerror(-ret));
-            exit(1);
+            return ret;
         }
 
         ret = kvm_filter_msr(s, MSR_CORE_THREAD_COUNT,
@@ -2793,7 +2797,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         if (ret) {
             error_report("Could not install MSR_CORE_THREAD_COUNT handler: %s",
                          strerror(-ret));
-            exit(1);
+            return ret;
         }
     }
 
