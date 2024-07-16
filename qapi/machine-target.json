@@ -21,8 +21,12 @@
 # @props: a dictionary of QOM properties to be applied
 #
 # @deprecated-props: a list of properties that are flagged as deprecated
-#     by the CPU vendor.  These props are a subset of the full model's
-#     definition list of properties. (since 9.1)
+#     by the CPU vendor.  (since 9.1).
+#
+# .. note:: Since 9.1, the list of deprecated props were always a subset
+#    of the model's full-definition list of properites. Now, this list is
+#    populated with the model's enabled property set when delta changes
+#    are applied. All deprecated properties are reported otherwise.
 #
 # Since: 2.8
 ##
