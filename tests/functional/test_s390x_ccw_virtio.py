@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Functional test that boots an s390x Linux guest with ccw and PCI devices
 # attached and checks whether the devices are recognized by Linux
 #
@@ -12,11 +14,10 @@
 import os
 import tempfile
 
-from avocado import skipUnless
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import exec_command_and_wait_for_pattern
-from avocado_qemu import wait_for_console_pattern
-from avocado.utils import archive
+from qemu_test import QemuSystemTest
+from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import wait_for_console_pattern
+from qemu_test.utils import lzma_uncompress
 
 class S390CCWVirtioMachine(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
@@ -41,11 +42,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
         self.dmesg_clear_count += 1
 
     def test_s390x_devices(self):
-
-        """
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
-        """
+        self.set_machine('s390-ccw-virtio')
 
         kernel_url = ('https://snapshot.debian.org/archive/debian/'
                       '20201126T092837Z/dists/buster/main/installer-s390x/'
@@ -160,15 +157,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
 
 
     def test_s390x_fedora(self):
-
-        """
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
-        :avocado: tags=device:virtio-gpu
-        :avocado: tags=device:virtio-crypto
-        :avocado: tags=device:virtio-net
-        :avocado: tags=flaky
-        """
+        self.set_machine('s390-ccw-virtio')
 
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'
                       '/fedora-secondary/releases/31/Server/s390x/os'
@@ -182,7 +171,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
         initrd_hash = '3de45d411df5624b8d8ef21cd0b44419ab59b12f'
         initrd_path_xz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
         initrd_path = os.path.join(self.workdir, 'initrd-raw.img')
-        archive.lzma_uncompress(initrd_path_xz, initrd_path)
+        lzma_uncompress(initrd_path_xz, initrd_path)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE + ' audit=0 '
@@ -275,3 +264,6 @@ class S390CCWVirtioMachine(QemuSystemTest):
         exec_command_and_wait_for_pattern(self,
                         'while ! (dmesg -c | grep Start.virtcrypto_remove) ; do'
                         ' sleep 1 ; done', 'Start virtcrypto_remove.')
+
+if __name__ == '__main__':
+    QemuSystemTest.main()

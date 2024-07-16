@@ -13,6 +13,7 @@ endif
 test_timeouts = {
   'netdev_ethtool' : 180,
   'ppc_74xx' : 90,
+  's390x_ccw_virtio' : 180,
 }
 
 tests_generic = [
@@ -45,6 +46,11 @@ tests_ppc_quick = [
 tests_ppc_thorough = [
   'ppc_405',
   'ppc_bamboo',
+]
+
+tests_s390x_thorough = [
+  's390x_ccw_virtio',
+  's390x_topology',
 ]
 
 tests_sparc64_thorough = [
