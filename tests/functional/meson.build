@@ -22,6 +22,7 @@ tests_generic = [
 ]
 
 tests_arm_thorough = [
+  'arm_canona1100',
   'arm_n8x0',
 ]
 
@@ -43,6 +44,11 @@ tests_ppc_quick = [
 
 tests_ppc_thorough = [
   'ppc_405',
+  'ppc_bamboo',
+]
+
+tests_sparc64_thorough = [
+  'sparc64_sun4u',
 ]
 
 tests_x86_64_quick = [
