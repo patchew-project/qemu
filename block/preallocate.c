@@ -383,6 +383,13 @@ handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
 
     want_merge_zero = want_merge_zero && (prealloc_start <= offset);
 
+    /*
+     * Assign file_end before making actual preallocation. This will ensure
+     * that next request performed while preallocation is in progress will
+     * be passed without preallocation.
+     */
+    s->file_end = prealloc_end;
+
     ret = bdrv_co_pwrite_zeroes(
             bs->file, prealloc_start, prealloc_end - prealloc_start,
             BDRV_REQ_NO_FALLBACK | BDRV_REQ_SERIALISING | BDRV_REQ_NO_WAIT);
@@ -391,7 +398,6 @@ handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
         return false;
     }
 
-    s->file_end = prealloc_end;
     return want_merge_zero;
 }
 
