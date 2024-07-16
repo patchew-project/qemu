@@ -273,12 +273,6 @@ int qemu_socketpair(int domain, int type, int protocol, int sv[2])
 }
 
 char *
-qemu_get_local_state_dir(void)
-{
-    return get_relocated_path(CONFIG_QEMU_LOCALSTATEDIR);
-}
-
-char *
 qemu_get_runtime_dir(void)
 {
     char *env = getenv("XDG_RUNTIME_DIR");

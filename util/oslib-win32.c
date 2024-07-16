@@ -230,16 +230,6 @@ int qemu_get_thread_id(void)
 }
 
 char *
-qemu_get_local_state_dir(void)
-{
-    const char * const *data_dirs = g_get_system_data_dirs();
-
-    g_assert(data_dirs && data_dirs[0]);
-
-    return g_strdup(data_dirs[0]);
-}
-
-char *
 qemu_get_runtime_dir(void)
 {
     size_t size = GetEnvironmentVariableA("XDG_RUNTIME_DIR", NULL, 0);
