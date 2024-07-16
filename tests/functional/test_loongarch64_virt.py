@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # LoongArch virt test.
@@ -5,9 +7,9 @@
 # Copyright (c) 2023 Loongson Technology Corporation Limited
 #
 
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import exec_command_and_wait_for_pattern
-from avocado_qemu import wait_for_console_pattern
+from qemu_test import QemuSystemTest
+from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import wait_for_console_pattern
 
 class LoongArchMachine(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
@@ -21,10 +23,7 @@ class LoongArchMachine(QemuSystemTest):
 
     def test_loongarch64_devices(self):
 
-        """
-        :avocado: tags=arch:loongarch64
-        :avocado: tags=machine:virt
-        """
+        self.set_machine('virt')
 
         kernel_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
                       'releases/download/2024-05-30/vmlinuz.efi')
@@ -56,3 +55,6 @@ class LoongArchMachine(QemuSystemTest):
         self.wait_for_console_pattern('Run /sbin/init as init process')
         exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
                                           'processor		: 3')
+
+if __name__ == '__main__':
+    QemuSystemTest.main()

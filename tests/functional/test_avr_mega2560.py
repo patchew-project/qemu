@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #
 # QEMU AVR integration tests
 #
@@ -19,16 +20,12 @@
 
 import time
 
-from avocado_qemu import QemuSystemTest
+from qemu_test import QemuSystemTest
 
 class AVR6Machine(QemuSystemTest):
     timeout = 5
 
     def test_freertos(self):
-        """
-        :avocado: tags=arch:avr
-        :avocado: tags=machine:arduino-mega-2560-v3
-        """
         """
         https://github.com/seharris/qemu-avr-tests/raw/master/free-rtos/Demo/AVR_ATMega2560_GCC/demo.elf
         constantly prints out 'ABCDEFGHIJKLMNOPQRSTUVWXABCDEFGHIJKLMNOPQRSTUVWX'
@@ -39,6 +36,7 @@ class AVR6Machine(QemuSystemTest):
         rom_hash = '7eb521f511ca8f2622e0a3c5e8dd686efbb911d4'
         rom_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
 
+        self.set_machine('arduino-mega-2560-v3')
         self.vm.add_args('-bios', rom_path)
         self.vm.add_args('-nographic')
         self.vm.launch()
@@ -48,3 +46,6 @@ class AVR6Machine(QemuSystemTest):
 
         self.assertIn('ABCDEFGHIJKLMNOPQRSTUVWXABCDEFGHIJKLMNOPQRSTUVWX',
                 self.vm.get_log())
+
+if __name__ == '__main__':
+    QemuSystemTest.main()

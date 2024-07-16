@@ -221,7 +221,7 @@ S: Maintained
 F: docs/system/target-avr.rst
 F: gdb-xml/avr-cpu.xml
 F: target/avr/
-F: tests/avocado/machine_avr6.py
+F: tests/functional/test_avr_mega2560.py
 
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -264,7 +264,7 @@ M: Song Gao <gaosong@loongson.cn>
 S: Maintained
 F: target/loongarch/
 F: tests/tcg/loongarch64/
-F: tests/avocado/machine_loongarch.py
+F: tests/functional/test_loongarch64_virt.py
 
 M68K TCG CPUs
 M: Laurent Vivier <laurent@vivier.eu>
@@ -883,7 +883,7 @@ F: include/hw/display/blizzard.h
 F: include/hw/input/lm832x.h
 F: include/hw/input/tsc2xxx.h
 F: include/hw/misc/cbus.h
-F: tests/avocado/machine_arm_n8x0.py
+F: tests/functional/test_arm_n8x0.py
 F: docs/system/arm/nseries.rst
 
 Palm
@@ -1392,7 +1392,7 @@ F: hw/mips/loongson3_bootp.h
 F: hw/mips/loongson3_virt.c
 F: include/hw/intc/loongson_ipi.h
 F: include/hw/intc/loongson_liointc.h
-F: tests/avocado/machine_mips_loongson3v.py
+F: tests/functional/test_mips64el_loongson3v.py
 
 Boston
 M: Paul Burton <paulburton@kernel.org>
@@ -1418,7 +1418,7 @@ PowerPC Machines
 L: qemu-ppc@nongnu.org
 S: Orphan
 F: hw/ppc/ppc405*
-F: tests/avocado/ppc_405.py
+F: tests/functional/test_ppc_405.py
 
 Bamboo
 L: qemu-ppc@nongnu.org
@@ -2483,7 +2483,7 @@ R: Sriram Yagnaraman <sriram.yagnaraman@ericsson.com>
 S: Maintained
 F: docs/system/devices/igb.rst
 F: hw/net/igb*
-F: tests/avocado/netdev-ethtool.py
+F: tests/functional/test_netdev_ethtool.py
 F: tests/qtest/igb-test.c
 F: tests/qtest/libqos/igb.c
 

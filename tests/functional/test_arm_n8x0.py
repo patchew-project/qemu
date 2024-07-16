@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Functional test that boots a Linux kernel and checks the console
 #
 # Copyright (c) 2020 Red Hat, Inc.
@@ -10,9 +12,9 @@
 
 import os
 
-from avocado import skipUnless
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import wait_for_console_pattern
+from unittest import skipUnless
+from qemu_test import QemuSystemTest
+from qemu_test import wait_for_console_pattern
 
 class N8x0Machine(QemuSystemTest):
     """Boots the Linux kernel and checks that the console is operational"""
@@ -32,18 +34,15 @@ class N8x0Machine(QemuSystemTest):
         self.vm.launch()
         wait_for_console_pattern(self, 'TSC2005 driver initializing')
 
-    @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_n800(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=machine:n800
-        """
+        self.set_machine('n800')
         self.__do_test_n8x0()
 
-    @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_n810(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=machine:n810
-        """
+        self.set_machine('n810')
         self.__do_test_n8x0()
+
+if __name__ == '__main__':
+    QemuSystemTest.main()
