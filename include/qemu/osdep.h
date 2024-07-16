@@ -671,6 +671,18 @@ void qemu_set_cloexec(int fd);
 char *qemu_get_local_state_dir(void);
 
 /**
+ * qemu_get_runtime_dir:
+ *
+ * Return a dynamically allocated directory path that is appropriate for storing
+ * runtime files. It corresponds to "run" directory in Unix, and uses
+ * $XDG_RUNTIME_DIR if available.
+ *
+ * The caller is responsible for releasing the value returned with g_free()
+ * after use.
+ */
+char *qemu_get_runtime_dir(void);
+
+/**
  * qemu_getauxval:
  * @type: the auxiliary vector key to lookup
  *
