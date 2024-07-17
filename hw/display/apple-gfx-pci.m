@@ -1,6 +1,7 @@
 #include "apple-gfx.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/msi.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "trace.h"
 #import <ParavirtualizedGraphics/ParavirtualizedGraphics.h>
@@ -86,6 +87,46 @@ static void apple_gfx_pci_reset(DeviceState *dev)
     [s->common.pgdev reset];
 }
 
+static void apple_gfx_pci_get_display_modes(Object *obj, Visitor *v,
+                                            const char *name, void *opaque,
+                                            Error **errp)
+{
+    Property *prop = opaque;
+    AppleGFXDisplayModeList *mode_list = object_field_prop_ptr(obj, prop);
+
+    apple_gfx_get_display_modes(mode_list, v, name, errp);
+}
+
+static void apple_gfx_pci_set_display_modes(Object *obj, Visitor *v,
+                                            const char *name, void *opaque,
+                                            Error **errp)
+{
+    Property *prop = opaque;
+    AppleGFXDisplayModeList *mode_list = object_field_prop_ptr(obj, prop);
+
+    apple_gfx_set_display_modes(mode_list, v, name, errp);
+}
+
+const PropertyInfo apple_gfx_pci_prop_display_modes = {
+    .name  = "display_modes",
+    .description =
+        "Colon-separated list of display modes; "
+        "<width>x<height>@<refresh-rate>; the first mode is considered "
+        "'native'. Example: 3840x2160@60:2560x1440@60:1920x1080@60",
+    .get   = apple_gfx_pci_get_display_modes,
+    .set   = apple_gfx_pci_set_display_modes,
+};
+
+#define DEFINE_PROP_DISPLAY_MODES(_name, _state, _field) \
+    DEFINE_PROP(_name, _state, _field, apple_gfx_pci_prop_display_modes, \
+                AppleGFXDisplayModeList)
+
+static Property apple_gfx_pci_properties[] = {
+    DEFINE_PROP_DISPLAY_MODES("display-modes", AppleGFXPCIState,
+                              common.display_modes),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void apple_gfx_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -101,7 +142,7 @@ static void apple_gfx_pci_class_init(ObjectClass *klass, void *data)
     pci->class_id = PCI_CLASS_DISPLAY_OTHER;
     pci->realize = apple_gfx_pci_realize;
 
-    // TODO: Property for setting mode list
+    device_class_set_props(dc, apple_gfx_pci_properties);
 }
 
 static TypeInfo apple_gfx_pci_types[] = {
