@@ -69,6 +69,22 @@ static int scale_by_log2_tag_granule(DisasContext *s, int x)
 }
 
 /*
+ * For Advanced SIMD shift by immediate, extract esz from immh.
+ * The result must be validated by the translator: MO_8 <= x <= MO_64.
+ */
+static int esz_immh(DisasContext *s, int x)
+{
+    return 32 - clz32(x) - 1;
+}
+
+/* For Advanced SIMD shift by immediate, right shift count. */
+static int rcount_immhb(DisasContext *s, int x)
+{
+    int size = esz_immh(s, x >> 3);
+    return (16 << size) - x;
+}
+
+/*
  * Include the generated decoders.
  */
 
@@ -6918,6 +6934,35 @@ static bool trans_Vimm(DisasContext *s, arg_Vimm *a)
     return true;
 }
 
+/*
+ * Advanced SIMD Shift by Immediate
+ */
+
+static bool do_vec_shift_imm(DisasContext *s, arg_qrri_e *a, GVecGen2iFn *fn)
+{
+    /* Validate result of esz_immh, for invalid immh == 0. */
+    if (a->esz < 0) {
+        return false;
+    }
+    if (a->esz == MO_64 && !a->q) {
+        return false;
+    }
+    if (fp_access_check(s)) {
+        gen_gvec_fn2i(s, a->q, a->rd, a->rn, a->imm, fn, a->esz);
+    }
+    return true;
+}
+
+TRANS(SSHR_v, do_vec_shift_imm, a, gen_gvec_sshr)
+TRANS(USHR_v, do_vec_shift_imm, a, gen_gvec_ushr)
+TRANS(SSRA_v, do_vec_shift_imm, a, gen_gvec_ssra)
+TRANS(USRA_v, do_vec_shift_imm, a, gen_gvec_usra)
+TRANS(SRSHR_v, do_vec_shift_imm, a, gen_gvec_srshr)
+TRANS(URSHR_v, do_vec_shift_imm, a, gen_gvec_urshr)
+TRANS(SRSRA_v, do_vec_shift_imm, a, gen_gvec_srsra)
+TRANS(URSRA_v, do_vec_shift_imm, a, gen_gvec_ursra)
+TRANS(SRI_v, do_vec_shift_imm, a, gen_gvec_sri)
+
 /* Shift a TCGv src by TCGv shift_amount, put result in dst.
  * Note that it is the caller's responsibility to ensure that the
  * shift amount is in range (ie 0..31 or 0..63) and provide the ARM
@@ -10382,53 +10427,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 }
 
-/* SSHR[RA]/USHR[RA] - Vector shift right (optional rounding/accumulate) */
-static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
-                                 int immh, int immb, int opcode, int rn, int rd)
-{
-    int size = 32 - clz32(immh) - 1;
-    int immhb = immh << 3 | immb;
-    int shift = 2 * (8 << size) - immhb;
-    GVecGen2iFn *gvec_fn;
-
-    if (extract32(immh, 3, 1) && !is_q) {
-        unallocated_encoding(s);
-        return;
-    }
-    tcg_debug_assert(size <= 3);
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    switch (opcode) {
-    case 0x02: /* SSRA / USRA (accumulate) */
-        gvec_fn = is_u ? gen_gvec_usra : gen_gvec_ssra;
-        break;
-
-    case 0x08: /* SRI */
-        gvec_fn = gen_gvec_sri;
-        break;
-
-    case 0x00: /* SSHR / USHR */
-        gvec_fn = is_u ? gen_gvec_ushr : gen_gvec_sshr;
-        break;
-
-    case 0x04: /* SRSHR / URSHR (rounding) */
-        gvec_fn = is_u ? gen_gvec_urshr : gen_gvec_srshr;
-        break;
-
-    case 0x06: /* SRSRA / URSRA (accum + rounding) */
-        gvec_fn = is_u ? gen_gvec_ursra : gen_gvec_srsra;
-        break;
-
-    default:
-        g_assert_not_reached();
-    }
-
-    gen_gvec_fn2i(s, is_q, rd, rn, shift, gvec_fn, size);
-}
-
 /* SHL/SLI - Vector shift left */
 static void handle_vec_simd_shli(DisasContext *s, bool is_q, bool insert,
                                  int immh, int immb, int opcode, int rn, int rd)
@@ -10568,18 +10566,6 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     }
 
     switch (opcode) {
-    case 0x08: /* SRI */
-        if (!is_u) {
-            unallocated_encoding(s);
-            return;
-        }
-        /* fall through */
-    case 0x00: /* SSHR / USHR */
-    case 0x02: /* SSRA / USRA (accumulate) */
-    case 0x04: /* SRSHR / URSHR (rounding) */
-    case 0x06: /* SRSRA / URSRA (accum + rounding) */
-        handle_vec_simd_shri(s, is_q, is_u, immh, immb, opcode, rn, rd);
-        break;
     case 0x0a: /* SHL / SLI */
         handle_vec_simd_shli(s, is_q, is_u, immh, immb, opcode, rn, rd);
         break;
@@ -10618,6 +10604,11 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
         handle_simd_shift_fpint_conv(s, false, is_q, is_u, immh, immb, rn, rd);
         return;
     default:
+    case 0x00: /* SSHR / USHR */
+    case 0x02: /* SSRA / USRA (accumulate) */
+    case 0x04: /* SRSHR / URSHR (rounding) */
+    case 0x06: /* SRSRA / URSRA (accum + rounding) */
+    case 0x08: /* SRI */
         unallocated_encoding(s);
         return;
     }

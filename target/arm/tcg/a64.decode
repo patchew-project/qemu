@@ -34,6 +34,7 @@
 &rrx_e          rd rn rm idx esz
 &rrrr_e         rd rn rm ra esz
 &qrr_e          q rd rn esz
+&qrri_e         q rd rn imm esz
 &qrrr_e         q rd rn rm esz
 &qrrx_e         q rd rn rm idx esz
 &qrrrr_e        q rd rn rm ra esz
@@ -1185,11 +1186,31 @@ FMINV_s         0110 1110 10 11000 01111 10 ..... .....     @rr_q1e2
 
 FMOVI_s         0001 1110 .. 1 imm:8 100 00000 rd:5         esz=%esz_hsd
 
-# Advanced SIMD Modified Immediate
+# Advanced SIMD Modified Immediate / Shift by Immediate
 
 %abcdefgh       16:3 5:5
+%esz_immh       19:4 !function=esz_immh
+%rcount_immhb   16:7 !function=rcount_immhb
+
+@qrshifti       . q:1 .. ..... .... ... ..... . rn:5 rd:5   \
+                &qrri_e esz=%esz_immh imm=%rcount_immhb
 
 FMOVI_v_h       0 q:1 00 1111 00000 ... 1111 11 ..... rd:5  %abcdefgh
 
-# MOVI, MVNI, ORR, BIC, FMOV are all intermixed via cmode.
-Vimm            0 q:1 op:1 0 1111 00000 ... cmode:4 01 ..... rd:5 %abcdefgh
+{
+  # MOVI, MVNI, ORR, BIC, FMOV are all intermixed via cmode.
+  Vimm          0 q:1 op:1 0 1111 00000 ... cmode:4 01 ..... rd:5 %abcdefgh
+
+  # Shift by immediate requires immh==0, consumed by Vimm above.
+  [
+    SSHR_v      0.00 11110 .... ... 00000 1 ..... .....     @qrshifti
+    USHR_v      0.10 11110 .... ... 00000 1 ..... .....     @qrshifti
+    SSRA_v      0.00 11110 .... ... 00010 1 ..... .....     @qrshifti
+    USRA_v      0.10 11110 .... ... 00010 1 ..... .....     @qrshifti
+    SRSHR_v     0.00 11110 .... ... 00100 1 ..... .....     @qrshifti
+    URSHR_v     0.10 11110 .... ... 00100 1 ..... .....     @qrshifti
+    SRSRA_v     0.00 11110 .... ... 00110 1 ..... .....     @qrshifti
+    URSRA_v     0.10 11110 .... ... 00110 1 ..... .....     @qrshifti
+    SRI_v       0.10 11110 .... ... 01000 1 ..... .....     @qrshifti
+  ]
+}
