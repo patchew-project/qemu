@@ -143,3 +143,11 @@ config XLNX_DISPLAYPORT
 
 config DM163
     bool
+
+config MAC_PVG
+    bool
+    default y
+
+config MAC_PVG_VMAPPLE
+    bool
+    depends on MAC_PVG
