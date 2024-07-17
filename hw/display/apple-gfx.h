@@ -43,6 +43,7 @@ struct AppleGFXState {
     /* The following fields should only be accessed from render_queue: */
     bool gfx_update_requested;
     bool new_frame_ready;
+    bool using_managed_texture_storage;
     int32_t pending_frames;
     void *vram;
     DisplaySurface *surface;

@@ -129,7 +129,12 @@ static void apple_gfx_render_new_frame(AppleGFXState *s)
         return;
     }
     [texture retain];
-
+    if (s->using_managed_texture_storage) {
+        /* "Managed" textures exist in both VRAM and RAM and must be synced. */
+        id<MTLBlitCommandEncoder> blit = [command_buffer blitCommandEncoder];
+        [blit synchronizeResource:texture];
+        [blit endEncoding];
+    }
     [command_buffer retain];
     [command_buffer addCompletedHandler:
         ^(id<MTLCommandBuffer> cb)
@@ -247,6 +252,9 @@ static void set_mode(AppleGFXState *s, uint32_t width, uint32_t height)
         textureDescriptor.usage = s->pgdisp.minimumTextureUsage;
         texture = [s->mtl newTextureWithDescriptor:textureDescriptor];
     }
+
+    s->using_managed_texture_storage =
+        (texture.storageMode == MTLStorageModeManaged);
 
     dispatch_sync(s->render_queue,
         ^{
