@@ -7,7 +7,8 @@
 
 #include "hw/sysbus.h"
 
-#define TYPE_LOONGARCH_PCH_PIC "loongarch_pch_pic"
+#define TYPE_LOONGARCH_PCH_PIC          "loongarch_pch_pic"
+#define TYPE_KVM_LOONGARCH_PCH_PIC      "loongarch_kvm_pch_pic"
 #define PCH_PIC_NAME(name) TYPE_LOONGARCH_PCH_PIC#name
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchPCHPIC, LOONGARCH_PCH_PIC)
 
@@ -36,6 +37,19 @@ OBJECT_DECLARE_SIMPLE_TYPE(LoongArchPCHPIC, LOONGARCH_PCH_PIC)
 #define PCH_PIC_INT_STATUS_HI           0x3a4
 #define PCH_PIC_INT_POL_LO              0x3e0
 #define PCH_PIC_INT_POL_HI              0x3e4
+
+#define PCH_PIC_INT_ID_START            PCH_PIC_INT_ID_LO
+#define PCH_PIC_MASK_START              PCH_PIC_INT_MASK_LO
+#define PCH_PIC_HTMSI_EN_START          PCH_PIC_HTMSI_EN_LO
+#define PCH_PIC_EDGE_START              PCH_PIC_INT_EDGE_LO
+#define PCH_PIC_CLEAR_START             PCH_PIC_INT_CLEAR_LO
+#define PCH_PIC_AUTO_CTRL0_START        PCH_PIC_AUTO_CTRL0_LO
+#define PCH_PIC_AUTO_CTRL1_START        PCH_PIC_AUTO_CTRL1_LO
+#define PCH_PIC_ROUTE_ENTRY_START       PCH_PIC_ROUTE_ENTRY_OFFSET
+#define PCH_PIC_HTMSI_VEC_START         PCH_PIC_HTMSI_VEC_OFFSET
+#define PCH_PIC_INT_IRR_START           0x380
+#define PCH_PIC_INT_ISR_START           PCH_PIC_INT_STATUS_LO
+#define PCH_PIC_POLARITY_START          PCH_PIC_INT_POL_LO
 
 #define STATUS_LO_START                 0
 #define STATUS_HI_START                 0x4
@@ -67,3 +81,38 @@ struct LoongArchPCHPIC {
     MemoryRegion iomem8;
     unsigned int irq_num;
 };
+
+struct KVMLoongArchPCHPIC {
+    SysBusDevice parent_obj;
+    uint64_t int_mask; /*0x020 interrupt mask register*/
+    uint64_t htmsi_en; /*0x040 1=msi*/
+    uint64_t intedge; /*0x060 edge=1 level  =0*/
+    uint64_t intclr; /*0x080 for clean edge int,set 1 clean,set 0 is noused*/
+    uint64_t auto_crtl0; /*0x0c0*/
+    uint64_t auto_crtl1; /*0x0e0*/
+    uint64_t last_intirr;    /* edge detection */
+    uint64_t intirr; /* 0x380 interrupt request register */
+    uint64_t intisr; /* 0x3a0 interrupt service register */
+    /*
+     * 0x3e0 interrupt level polarity selection
+     * register 0 for high level trigger
+     */
+    uint64_t int_polarity;
+
+    uint8_t route_entry[64]; /*0x100 - 0x138*/
+    uint8_t htmsi_vector[64]; /*0x200 - 0x238*/
+};
+typedef struct KVMLoongArchPCHPIC KVMLoongArchPCHPIC;
+DECLARE_INSTANCE_CHECKER(KVMLoongArchPCHPIC, KVM_LOONGARCH_PCH_PIC,
+                         TYPE_KVM_LOONGARCH_PCH_PIC)
+
+struct KVMLoongArchPCHPICClass {
+    SysBusDeviceClass parent_class;
+    DeviceRealize parent_realize;
+
+    bool is_created;
+    int dev_fd;
+};
+typedef struct KVMLoongArchPCHPICClass KVMLoongArchPCHPICClass;
+DECLARE_CLASS_CHECKERS(KVMLoongArchPCHPICClass, KVM_LOONGARCH_PCH_PIC,
+                       TYPE_KVM_LOONGARCH_PCH_PIC)

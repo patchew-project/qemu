@@ -862,40 +862,45 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
     /* Add Extend I/O Interrupt Controller node */
     fdt_add_eiointc_node(lvms, &cpuintc_phandle, &eiointc_phandle);
 
-    pch_pic = qdev_new(TYPE_LOONGARCH_PCH_PIC);
-    num = VIRT_PCH_PIC_IRQ_NUM;
-    qdev_prop_set_uint32(pch_pic, "pch_pic_irq_num", num);
-    d = SYS_BUS_DEVICE(pch_pic);
-    sysbus_realize_and_unref(d, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), VIRT_IOAPIC_REG_BASE,
-                            sysbus_mmio_get_region(d, 0));
-    memory_region_add_subregion(get_system_memory(),
+    if (kvm_kernel_irqchip_allowed()) {
+        pch_pic = qdev_new(TYPE_KVM_LOONGARCH_PCH_PIC);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(pch_pic), &error_fatal);
+    } else {
+        pch_pic = qdev_new(TYPE_LOONGARCH_PCH_PIC);
+        num = VIRT_PCH_PIC_IRQ_NUM;
+        qdev_prop_set_uint32(pch_pic, "pch_pic_irq_num", num);
+        d = SYS_BUS_DEVICE(pch_pic);
+        sysbus_realize_and_unref(d, &error_fatal);
+        memory_region_add_subregion(get_system_memory(), VIRT_IOAPIC_REG_BASE,
+                                sysbus_mmio_get_region(d, 0));
+        memory_region_add_subregion(get_system_memory(),
                             VIRT_IOAPIC_REG_BASE + PCH_PIC_ROUTE_ENTRY_OFFSET,
                             sysbus_mmio_get_region(d, 1));
-    memory_region_add_subregion(get_system_memory(),
-                            VIRT_IOAPIC_REG_BASE + PCH_PIC_INT_STATUS_LO,
-                            sysbus_mmio_get_region(d, 2));
+        memory_region_add_subregion(get_system_memory(),
+                                VIRT_IOAPIC_REG_BASE + PCH_PIC_INT_STATUS_LO,
+                                sysbus_mmio_get_region(d, 2));
 
-    /* Connect pch_pic irqs to extioi */
-    for (i = 0; i < num; i++) {
-        qdev_connect_gpio_out(DEVICE(d), i, qdev_get_gpio_in(extioi, i));
-    }
+        /* Connect pch_pic irqs to extioi */
+        for (i = 0; i < num; i++) {
+            qdev_connect_gpio_out(DEVICE(d), i, qdev_get_gpio_in(extioi, i));
+        }
 
-    /* Add PCH PIC node */
-    fdt_add_pch_pic_node(lvms, &eiointc_phandle, &pch_pic_phandle);
+        /* Add PCH PIC node */
+        fdt_add_pch_pic_node(lvms, &eiointc_phandle, &pch_pic_phandle);
 
-    pch_msi = qdev_new(TYPE_LOONGARCH_PCH_MSI);
-    start   =  num;
-    num = EXTIOI_IRQS - start;
-    qdev_prop_set_uint32(pch_msi, "msi_irq_base", start);
-    qdev_prop_set_uint32(pch_msi, "msi_irq_num", num);
-    d = SYS_BUS_DEVICE(pch_msi);
-    sysbus_realize_and_unref(d, &error_fatal);
-    sysbus_mmio_map(d, 0, VIRT_PCH_MSI_ADDR_LOW);
-    for (i = 0; i < num; i++) {
-        /* Connect pch_msi irqs to extioi */
-        qdev_connect_gpio_out(DEVICE(d), i,
-                              qdev_get_gpio_in(extioi, i + start));
+        pch_msi = qdev_new(TYPE_LOONGARCH_PCH_MSI);
+        start   =  num;
+        num = EXTIOI_IRQS - start;
+        qdev_prop_set_uint32(pch_msi, "msi_irq_base", start);
+        qdev_prop_set_uint32(pch_msi, "msi_irq_num", num);
+        d = SYS_BUS_DEVICE(pch_msi);
+        sysbus_realize_and_unref(d, &error_fatal);
+        sysbus_mmio_map(d, 0, VIRT_PCH_MSI_ADDR_LOW);
+        for (i = 0; i < num; i++) {
+            /* Connect pch_msi irqs to extioi */
+            qdev_connect_gpio_out(DEVICE(d), i,
+                                  qdev_get_gpio_in(extioi, i + start));
+        }
     }
 
     /* Add PCH MSI node */
