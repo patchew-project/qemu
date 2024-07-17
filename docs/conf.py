@@ -62,6 +62,9 @@ needs_sphinx = '3.4.3'
 # ones.
 extensions = ['kerneldoc', 'qmp_lexer', 'hxtool', 'depfile', 'qapidoc']
 
+if sphinx.version_info[:3] >= (6, 0, 0):
+    extensions += ['sphinxcontrib.jquery']
+
 if sphinx.version_info[:3] > (4, 0, 0):
     tags.add('sphinx4')
     extensions += ['dbusdoc']
