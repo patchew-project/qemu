@@ -884,24 +884,36 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
         for (i = 0; i < num; i++) {
             qdev_connect_gpio_out(DEVICE(d), i, qdev_get_gpio_in(extioi, i));
         }
+    }
 
-        /* Add PCH PIC node */
-        fdt_add_pch_pic_node(lvms, &eiointc_phandle, &pch_pic_phandle);
+    /* Add PCH PIC node */
+    fdt_add_pch_pic_node(lvms, &eiointc_phandle, &pch_pic_phandle);
 
-        pch_msi = qdev_new(TYPE_LOONGARCH_PCH_MSI);
-        start   =  num;
-        num = EXTIOI_IRQS - start;
-        qdev_prop_set_uint32(pch_msi, "msi_irq_base", start);
-        qdev_prop_set_uint32(pch_msi, "msi_irq_num", num);
-        d = SYS_BUS_DEVICE(pch_msi);
-        sysbus_realize_and_unref(d, &error_fatal);
-        sysbus_mmio_map(d, 0, VIRT_PCH_MSI_ADDR_LOW);
+    pch_msi = qdev_new(TYPE_LOONGARCH_PCH_MSI);
+    num = VIRT_PCH_PIC_IRQ_NUM;
+    start   =  num;
+    num = EXTIOI_IRQS - start;
+    qdev_prop_set_uint32(pch_msi, "msi_irq_base", start);
+    qdev_prop_set_uint32(pch_msi, "msi_irq_num", num);
+    d = SYS_BUS_DEVICE(pch_msi);
+    sysbus_realize_and_unref(d, &error_fatal);
+
+    if (kvm_kernel_irqchip_allowed()) {
+        if (kvm_has_gsi_routing()) {
+            for (i = 0; i < 64; ++i) {
+                kvm_irqchip_add_irq_route(kvm_state, i, 0, i);
+            }
+            kvm_gsi_routing_allowed = true;
+        }
+        kvm_msi_via_irqfd_allowed = kvm_irqfds_enabled();
+    } else {
+        /* Connect pch_msi irqs to extioi */
         for (i = 0; i < num; i++) {
-            /* Connect pch_msi irqs to extioi */
             qdev_connect_gpio_out(DEVICE(d), i,
                                   qdev_get_gpio_in(extioi, i + start));
         }
     }
+    sysbus_mmio_map(d, 0, VIRT_PCH_MSI_ADDR_LOW);
 
     /* Add PCH MSI node */
     fdt_add_pch_msi_node(lvms, &eiointc_phandle, &pch_msi_phandle);
