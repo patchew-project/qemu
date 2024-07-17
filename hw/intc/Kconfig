@@ -90,6 +90,10 @@ config M68K_IRQC
 config LOONGSON_IPI
     bool
 
+config LOONGARCH_IPI_KVM
+    bool
+    default y
+
 config LOONGARCH_PCH_PIC
     bool
     select UNIMP
