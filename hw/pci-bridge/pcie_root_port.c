@@ -67,6 +67,11 @@ static void rp_realize(PCIDevice *d, Error **errp)
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
     int rc;
 
+    if (pcie_find_port_by_pn(pci_get_bus(d), p->port) != NULL) {
+        error_setg(errp, "Can't link port, error %d", -EBUSY);
+        return;
+    }
+
     pci_config_set_interrupt_pin(d->config, 1);
     if (d->cap_present & QEMU_PCIE_CAP_CXL) {
         pci_bridge_initfn(d, TYPE_CXL_BUS);

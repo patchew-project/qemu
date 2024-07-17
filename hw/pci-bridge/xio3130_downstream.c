@@ -69,6 +69,11 @@ static void xio3130_downstream_realize(PCIDevice *d, Error **errp)
     PCIESlot *s = PCIE_SLOT(d);
     int rc;
 
+    if (pcie_find_port_by_pn(pci_get_bus(d), p->port) != NULL) {
+        error_setg(errp, "Can't link port, error %d", -EBUSY);
+        return;
+    }
+
     pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
 
