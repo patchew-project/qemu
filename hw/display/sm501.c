@@ -961,7 +961,7 @@ static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
         ret = 0x050100A0;
         break;
     case SM501_DRAM_CONTROL:
-        ret = (s->dram_control & 0x07F107C0) | s->local_mem_size_index << 13;
+        ret = s->dram_control;
         break;
     case SM501_ARBTRTN_CONTROL:
         ret = s->arbitration_control;
@@ -1020,11 +1020,24 @@ static void sm501_system_config_write(void *opaque, hwaddr addr,
         s->gpio_63_32_control = value & 0xFF80FFFF;
         break;
     case SM501_DRAM_CONTROL:
-        s->local_mem_size_index = (value >> 13) & 0x7;
-        /* TODO : check validity of size change */
+    {
+        int local_mem_size_index = (value >> 13) & 0x7;
+        if (local_mem_size_index >= ARRAY_SIZE(sm501_mem_local_size)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "sm501: Invalid local_mem_size_index value: %d\n",
+                          local_mem_size_index);
+        } else if (sm501_mem_local_size[local_mem_size_index] >
+                   memory_region_size(&s->local_mem_region)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "sm501: Memory size %d cannot be more than vram_size\n",
+                          sm501_mem_local_size[local_mem_size_index]);
+        } else {
+            s->local_mem_size_index = local_mem_size_index;
+        }
         s->dram_control &= 0x80000000;
         s->dram_control |= value & 0x7FFFFFC3;
         break;
+    }
     case SM501_ARBTRTN_CONTROL:
         s->arbitration_control = value & 0x37777777;
         break;
