@@ -613,3 +613,135 @@ int qemu_fdatasync(int fd)
     return fsync(fd);
 #endif
 }
+
+static bool qemu_close_all_open_fd_proc(const int *skip, unsigned int nskip)
+{
+#ifdef CONFIG_LINUX
+    struct dirent *de;
+    int fd, dfd;
+    bool close_fd;
+    DIR *dir;
+    unsigned int i, skip_start = 0, skip_end = nskip;
+
+    dir = opendir("/proc/self/fd");
+    if (!dir) {
+        /* If /proc is not mounted, there is nothing that can be done. */
+        return false;
+    }
+    /* Avoid closing the directory. */
+    dfd = dirfd(dir);
+
+    for (de = readdir(dir); de; de = readdir(dir)) {
+        if (de->d_name[0] == '.') {
+            continue;
+        }
+        fd = atoi(de->d_name);
+        close_fd = true;
+        if (fd == dfd) {
+            close_fd = false;
+        } else {
+            for (i = skip_start; i < skip_end; i++) {
+                if (fd < skip[i]) {
+                    /* We are below the next skipped fd, break */
+                    break;
+                } else if (fd == skip[i]) {
+                    close_fd = false;
+                    /* Restrict the range as we found fds matching start/end */
+                    if (i == skip_start) {
+                        skip_start++;
+                    } else if (i == skip_end) {
+                        skip_end--;
+                    }
+                    break;
+                }
+            }
+        }
+        if (close_fd) {
+            close(fd);
+        }
+    }
+    closedir(dir);
+
+    return true;
+#else
+    return false;
+#endif
+}
+
+
+static bool qemu_close_all_open_fd_close_range(const int *skip,
+                                               unsigned int nskip)
+{
+#ifdef CONFIG_CLOSE_RANGE
+    int max_fd = sysconf(_SC_OPEN_MAX) - 1;
+    int first = 0, last = max_fd;
+    unsigned int cur_skip = 0;
+    int ret;
+
+    do {
+        /* Find the start boundary of the range to close */
+        while (cur_skip < nskip && first == skip[cur_skip]) {
+            cur_skip++;
+            first++;
+        }
+
+        /* Find the upper boundary of the range to close */
+        if (cur_skip < nskip) {
+            last = skip[cur_skip] - 1;
+        }
+        /*
+         * Adjust the maximum fd to close if it's above what the system
+         * supports
+         */
+        if (last > max_fd) {
+            last = max_fd;
+            /*
+             * We can directly skip the remaining skip fds since the current
+             * one is already above the maximum supported one.
+             */
+            cur_skip = nskip;
+        }
+        /* If last was adjusted, we might be > first, bail out */
+        if (first > last) {
+            break;
+        }
+
+        ret = close_range(first, last, 0);
+        if (ret < 0) {
+            return false;
+        }
+        first = last + 1;
+        last = max_fd;
+    } while (cur_skip < nskip);
+
+    return true;
+#else
+    return false;
+#endif
+}
+
+void qemu_close_all_open_fd(const int *skip, unsigned int nskip)
+{
+    int open_max = sysconf(_SC_OPEN_MAX);
+    unsigned int cur_skip = 0;
+    int i;
+
+    assert(skip != NULL || nskip == 0);
+
+    if (qemu_close_all_open_fd_close_range(skip, nskip)) {
+        return;
+    }
+
+    if (qemu_close_all_open_fd_proc(skip, nskip)) {
+        return;
+    }
+
+    /* Fallback */
+    for (i = 0; i < open_max; i++) {
+        if (cur_skip < nskip && i == skip[cur_skip]) {
+            cur_skip++;
+            continue;
+        }
+        close(i);
+    }
+}
