@@ -283,12 +283,26 @@ static void create_fb(AppleGFXState *s)
     s->cursor_show = true;
 }
 
+static size_t apple_gfx_get_default_mmio_range_size(void)
+{
+    size_t mmio_range_size;
+    @autoreleasepool {
+        PGDeviceDescriptor *desc = [PGDeviceDescriptor new];
+        mmio_range_size = desc.mmioLength;
+        [desc release];
+    }
+    return mmio_range_size;
+}
+
 void apple_gfx_common_init(Object *obj, AppleGFXState *s, const char* obj_name)
 {
     Error *local_err = NULL;
     int r;
+    size_t mmio_range_size = apple_gfx_get_default_mmio_range_size();
 
-    memory_region_init_io(&s->iomem_gfx, obj, &apple_gfx_ops, s, obj_name, 0x4000);
+    trace_apple_gfx_common_init(obj_name, mmio_range_size);
+    memory_region_init_io(&s->iomem_gfx, obj, &apple_gfx_ops, s, obj_name,
+                          mmio_range_size);
 
     /* TODO: PVG framework supports serialising device state: integrate it! */
     if (apple_gfx_mig_blocker == NULL) {
