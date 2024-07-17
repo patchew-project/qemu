@@ -8,4 +8,6 @@
 int qemu_default_main(void);
 extern int (*qemu_main)(void);
 
+void cocoa_enable_runloop_on_main_thread(void);
+
 #endif /* QEMU_MAIN_H */

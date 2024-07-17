@@ -2028,6 +2028,7 @@ static void *call_qemu_main(void *opaque)
     exit(status);
 }
 
+static bool run_as_cocoa_app = false;
 static int cocoa_main(void)
 {
     QemuThread thread;
@@ -2040,7 +2041,11 @@ static int cocoa_main(void)
 
     // Start the main event loop
     COCOA_DEBUG("Main thread: entering OSX run loop\n");
-    [NSApp run];
+    if (run_as_cocoa_app) {
+        [NSApp run];
+    } else {
+        CFRunLoopRun();
+    }
     COCOA_DEBUG("Main thread: left OSX run loop, which should never happen\n");
 
     abort();
@@ -2114,13 +2119,19 @@ static void cocoa_cursor_define(DisplayChangeListener *dcl, QEMUCursor *cursor)
     });
 }
 
+void cocoa_enable_runloop_on_main_thread(void)
+{
+    qemu_main = cocoa_main;
+}
+
 static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
 
-    qemu_main = cocoa_main;
+    run_as_cocoa_app = true;
+    cocoa_enable_runloop_on_main_thread();
 
     // Pull this console process up to being a fully-fledged graphical
     // app with a menubar and Dock icon

@@ -14,6 +14,7 @@
 
 #include "apple-gfx.h"
 #include "trace.h"
+#include "qemu-main.h"
 #include "qemu/main-loop.h"
 #include "ui/console.h"
 #include "monitor/monitor.h"
@@ -290,6 +291,8 @@ void apple_gfx_common_init(Object *obj, AppleGFXState *s, const char* obj_name)
             error_report_err(local_err);
         }
     }
+
+    cocoa_enable_runloop_on_main_thread();
 }
 
 static void apple_gfx_register_task_mapping_handlers(AppleGFXState *s,
