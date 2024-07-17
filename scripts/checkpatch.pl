@@ -1374,6 +1374,7 @@ sub process {
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
 	my $reported_maintainer_file = 0;
+	my $reported_imported_file = 0;
 	my $non_utf8_charset = 0;
 
 	our @report = ();
@@ -1673,8 +1674,17 @@ sub process {
 # ignore non-hunk lines and lines being removed
 		next if (!$hunk_line || $line =~ /^-/);
 
-# ignore files that are being periodically imported from Linux
-		next if ($realfile =~ /^(linux-headers|include\/standard-headers)\//);
+# ignore files that are being periodically imported from Linux and emit a warning
+		if ($realfile =~ /^(linux-headers|include\/standard-headers)\//) {
+			if (!$reported_imported_file) {
+				$reported_imported_file = 1;
+				WARN("added, moved or deleted file(s) " .
+				     "imported from Linux, are you using " .
+				     "scripts/update-linux-headers.sh?\n" .
+				     $herecurr);
+			}
+			next;
+		}
 
 #trailing whitespace
 		if ($line =~ /^\+.*\015/) {
