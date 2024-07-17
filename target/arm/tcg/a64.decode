@@ -1191,9 +1191,12 @@ FMOVI_s         0001 1110 .. 1 imm:8 100 00000 rd:5         esz=%esz_hsd
 %abcdefgh       16:3 5:5
 %esz_immh       19:4 !function=esz_immh
 %rcount_immhb   16:7 !function=rcount_immhb
+%lcount_immhb   16:7 !function=lcount_immhb
 
 @qrshifti       . q:1 .. ..... .... ... ..... . rn:5 rd:5   \
                 &qrri_e esz=%esz_immh imm=%rcount_immhb
+@qlshifti       . q:1 .. ..... .... ... ..... . rn:5 rd:5   \
+                &qrri_e esz=%esz_immh imm=%lcount_immhb
 
 FMOVI_v_h       0 q:1 00 1111 00000 ... 1111 11 ..... rd:5  %abcdefgh
 
@@ -1212,5 +1215,8 @@ FMOVI_v_h       0 q:1 00 1111 00000 ... 1111 11 ..... rd:5  %abcdefgh
     SRSRA_v     0.00 11110 .... ... 00110 1 ..... .....     @qrshifti
     URSRA_v     0.10 11110 .... ... 00110 1 ..... .....     @qrshifti
     SRI_v       0.10 11110 .... ... 01000 1 ..... .....     @qrshifti
+
+    SHL_v       0.00 11110 .... ... 01010 1 ..... .....     @qlshifti
+    SLI_v       0.10 11110 .... ... 01010 1 ..... .....     @qlshifti
   ]
 }
