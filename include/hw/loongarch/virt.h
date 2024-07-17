@@ -37,6 +37,21 @@
 
 #define FDT_BASE                0x100000
 
+/* KVM_IRQ_LINE irq field index values */
+#define KVM_LOONGARCH_IRQ_TYPE_SHIFT            24
+#define KVM_LOONGARCH_IRQ_TYPE_MASK             0xff
+#define KVM_LOONGARCH_IRQ_VCPU_SHIFT            16
+#define KVM_LOONGARCH_IRQ_VCPU_MASK             0xff
+#define KVM_LOONGARCH_IRQ_NUM_SHIFT             0
+#define KVM_LOONGARCH_IRQ_NUM_MASK              0xffff
+
+/* irq_type field */
+#define KVM_LOONGARCH_IRQ_TYPE_CPU_IP           0
+#define KVM_LOONGARCH_IRQ_TYPE_CPU_IO           1
+#define KVM_LOONGARCH_IRQ_TYPE_HT               2
+#define KVM_LOONGARCH_IRQ_TYPE_MSI              3
+#define KVM_LOONGARCH_IRQ_TYPE_IOAPIC           4
+
 struct LoongArchVirtMachineState {
     /*< private >*/
     MachineState parent_obj;

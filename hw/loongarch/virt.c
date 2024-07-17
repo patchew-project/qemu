@@ -828,28 +828,34 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
     }
 
     /* Create EXTIOI device */
-    extioi = qdev_new(TYPE_LOONGARCH_EXTIOI);
-    qdev_prop_set_uint32(extioi, "num-cpu", ms->smp.cpus);
-    if (virt_is_veiointc_enabled(lvms)) {
-        qdev_prop_set_bit(extioi, "has-virtualization-extension", true);
-    }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
-    memory_region_add_subregion(&lvms->system_iocsr, APIC_BASE,
-                    sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi), 0));
-    if (virt_is_veiointc_enabled(lvms)) {
-        memory_region_add_subregion(&lvms->system_iocsr, EXTIOI_VIRT_BASE,
-                    sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi), 1));
-    }
+    if (kvm_kernel_irqchip_allowed()) {
+        extioi = qdev_new(TYPE_KVM_LOONGARCH_EXTIOI);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
+        kvm_async_interrupts_allowed = true;
+    } else {
+        extioi = qdev_new(TYPE_LOONGARCH_EXTIOI);
+        qdev_prop_set_uint32(extioi, "num-cpu", ms->smp.cpus);
+        if (virt_is_veiointc_enabled(lvms)) {
+            qdev_prop_set_bit(extioi, "has-virtualization-extension", true);
+        }
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
+        memory_region_add_subregion(&lvms->system_iocsr, APIC_BASE,
+                       sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi), 0));
+        if (virt_is_veiointc_enabled(lvms)) {
+            memory_region_add_subregion(&lvms->system_iocsr, EXTIOI_VIRT_BASE,
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi), 1));
+        }
 
-    /*
-     * connect ext irq to the cpu irq
-     * cpu_pin[9:2] <= intc_pin[7:0]
-     */
-    for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
-        cpudev = DEVICE(qemu_get_cpu(cpu));
-        for (pin = 0; pin < LS3A_INTC_IP; pin++) {
-            qdev_connect_gpio_out(extioi, (cpu * 8 + pin),
-                                  qdev_get_gpio_in(cpudev, pin + 2));
+        /*
+         * connect ext irq to the cpu irq
+         * cpu_pin[9:2] <= intc_pin[7:0]
+         */
+        for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
+            cpudev = DEVICE(qemu_get_cpu(cpu));
+            for (pin = 0; pin < LS3A_INTC_IP; pin++) {
+                qdev_connect_gpio_out(extioi, (cpu * 8 + pin),
+                                      qdev_get_gpio_in(cpudev, pin + 2));
+            }
         }
     }
 
