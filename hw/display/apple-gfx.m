@@ -500,6 +500,32 @@ static NSArray<PGDisplayMode*>* apple_gfx_prepare_display_mode_array(void)
     return mode_array;
 }
 
+static id<MTLDevice> copy_suitable_metal_device(void)
+{
+    id<MTLDevice> dev = nil;
+    NSArray<id<MTLDevice>> *devs = MTLCopyAllDevices();
+
+    /* Prefer a unified memory GPU. Failing that, pick a non-removable GPU. */
+    for (size_t i = 0; i < devs.count; ++i) {
+        if (devs[i].hasUnifiedMemory) {
+            dev = devs[i];
+            break;
+        }
+        if (!devs[i].removable) {
+            dev = devs[i];
+        }
+    }
+
+    if (dev != nil) {
+        [dev retain];
+    } else {
+        dev = MTLCreateSystemDefaultDevice();
+    }
+    [devs release];
+
+    return dev;
+}
+
 void apple_gfx_common_realize(AppleGFXState *s, PGDeviceDescriptor *desc)
 {
     PGDisplayDescriptor *disp_desc = nil;
@@ -507,7 +533,7 @@ void apple_gfx_common_realize(AppleGFXState *s, PGDeviceDescriptor *desc)
     QTAILQ_INIT(&s->tasks);
     s->render_queue = dispatch_queue_create("apple-gfx.render",
                                             DISPATCH_QUEUE_SERIAL);
-    s->mtl = MTLCreateSystemDefaultDevice();
+    s->mtl = copy_suitable_metal_device();
     s->mtl_queue = [s->mtl newCommandQueue];
 
     desc.device = s->mtl;
