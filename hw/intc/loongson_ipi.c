@@ -357,11 +357,16 @@ static void loongson_ipi_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_loongson_ipi;
 }
 
-static void loongson_ipi_finalize(Object *obj)
+static void loongson_ipi_common_finalize(Object *obj)
 {
     LoongsonIPIState *s = LOONGSON_IPI(obj);
 
     g_free(s->cpu);
+}
+
+static void loongson_ipi_finalize(Object *obj)
+{
+    loongson_ipi_common_finalize(obj);
 }
 
 static const TypeInfo loongson_ipi_types[] = {
