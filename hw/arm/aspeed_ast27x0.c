@@ -164,6 +164,11 @@ struct gic_intc_irq_info {
     const int *ptr;
 };
 
+struct gic_intc_orgate_info {
+    int index;
+    int int_num;
+};
+
 static const struct gic_intc_irq_info aspeed_soc_ast2700_gic_intcmap[] = {
     {128,  aspeed_soc_ast2700_gic128_intcmap},
     {129,  NULL},
@@ -191,6 +196,27 @@ static qemu_irq aspeed_soc_ast2700_get_irq(AspeedSoCState *s, int dev)
     }
 
     return qdev_get_gpio_in(DEVICE(&a->gic), sc->irqmap[dev]);
+}
+
+static void aspeed_soc_ast2700_get_intc_orgate(AspeedSoCState *s, int dev,
+    struct gic_intc_orgate_info *orgate_info)
+{
+    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(aspeed_soc_ast2700_gic_intcmap); i++) {
+        if (sc->irqmap[dev] == aspeed_soc_ast2700_gic_intcmap[i].irq) {
+            assert(aspeed_soc_ast2700_gic_intcmap[i].ptr);
+            orgate_info->index = i;
+            orgate_info->int_num = aspeed_soc_ast2700_gic_intcmap[i].ptr[dev];
+            return;
+        }
+    }
+
+    /*
+     * Invalid orgate index, device irq should be 128 to 136.
+     */
+    g_assert_not_reached();
 }
 
 static uint64_t aspeed_ram_capacity_read(void *opaque, hwaddr addr,
