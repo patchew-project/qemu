@@ -951,9 +951,6 @@ static MemTxResult virt_iocsr_misc_write(void *opaque, hwaddr addr,
         if (val & BIT_ULL(IOCSRM_EXTIOI_EN)) {
             features |= BIT(EXTIOI_ENABLE);
         }
-        if (val & BIT_ULL(IOCSRM_EXTIOI_INT_ENCODE)) {
-            features |= BIT(EXTIOI_ENABLE_INT_ENCODE);
-        }
 
         address_space_stl(&lvms->as_iocsr,
                           EXTIOI_VIRT_BASE + EXTIOI_VIRT_CONFIG,
@@ -1001,9 +998,6 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
                                      attrs, NULL);
         if (features & BIT(EXTIOI_ENABLE)) {
             ret |= BIT_ULL(IOCSRM_EXTIOI_EN);
-        }
-        if (features & BIT(EXTIOI_ENABLE_INT_ENCODE)) {
-            ret |= BIT_ULL(IOCSRM_EXTIOI_INT_ENCODE);
         }
         break;
     default:
