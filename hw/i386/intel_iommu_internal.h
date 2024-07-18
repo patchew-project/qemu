@@ -440,6 +440,24 @@ typedef union VTDInvDesc VTDInvDesc;
         (0x3ffff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM | VTD_SL_TM)) : \
         (0x3ffff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
 
+/* Rsvd field masks for fpte */
+#define VTD_FS_UPPER_IGNORED 0xfff0000000000000ULL
+#define VTD_FPTE_PAGE_L1_RSVD_MASK(aw) (~(VTD_HAW_MASK(aw)) & \
+                                       (~VTD_FS_UPPER_IGNORED))
+#define VTD_FPTE_PAGE_L2_RSVD_MASK(aw) (~(VTD_HAW_MASK(aw)) & \
+                                       (~VTD_FS_UPPER_IGNORED))
+#define VTD_FPTE_PAGE_L3_RSVD_MASK(aw) (~(VTD_HAW_MASK(aw)) & \
+                                       (~VTD_FS_UPPER_IGNORED))
+#define VTD_FPTE_PAGE_L3_FS1GP_RSVD_MASK(aw) ((0x3fffe000ULL | \
+                                                ~(VTD_HAW_MASK(aw))) \
+                                              & (~VTD_FS_UPPER_IGNORED))
+#define VTD_FPTE_PAGE_L2_FS2MP_RSVD_MASK(aw) ((0x1fe000ULL | \
+                                                ~(VTD_HAW_MASK(aw))) \
+                                              & (~VTD_FS_UPPER_IGNORED))
+#define VTD_FPTE_PAGE_L4_RSVD_MASK(aw) ((0x80ULL | \
+                                            ~(VTD_HAW_MASK(aw))) \
+                                        & (~VTD_FS_UPPER_IGNORED))
+
 #define VTD_INV_DESC_PIOTLB_ALL_IN_PASID  (2ULL << 4)
 #define VTD_INV_DESC_PIOTLB_PSI_IN_PASID  (3ULL << 4)
 
@@ -532,6 +550,14 @@ typedef struct VTDRootEntry VTDRootEntry;
 
 #define VTD_SM_PASID_ENTRY_AW          7ULL /* Adjusted guest-address-width */
 #define VTD_SM_PASID_ENTRY_DID(val)    ((val) & VTD_DOMAIN_ID_MASK)
+
+#define VTD_SM_PASID_ENTRY_FLPM          3ULL
+#define VTD_SM_PASID_ENTRY_FLPTPTR       (~0xfffULL)
+
+/* First Level Paging Structure */
+/* Masks for First Level Paging Entry */
+#define VTD_FL_P                    1ULL
+#define VTD_FL_RW_MASK              (1ULL << 1)
 
 /* Second Level Page Translation Pointer*/
 #define VTD_SM_PASID_ENTRY_SLPTPTR     (~0xfffULL)
