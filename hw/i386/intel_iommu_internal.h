@@ -326,6 +326,7 @@ typedef enum VTDFaultReason {
 
     /* Output address in the interrupt address range for scalable mode */
     VTD_FR_SM_INTERRUPT_ADDR = 0x87,
+    VTD_FR_FS_BIT_UPDATE_FAILED = 0x91, /* SFS.10 */
     VTD_FR_MAX,                 /* Guard */
 } VTDFaultReason;
 
@@ -560,6 +561,8 @@ typedef struct VTDRootEntry VTDRootEntry;
 /* Masks for First Level Paging Entry */
 #define VTD_FL_P                    1ULL
 #define VTD_FL_RW_MASK              (1ULL << 1)
+#define VTD_FL_A                    0x20
+#define VTD_FL_D                    0x40
 
 /* Second Level Page Translation Pointer*/
 #define VTD_SM_PASID_ENTRY_SLPTPTR     (~0xfffULL)
