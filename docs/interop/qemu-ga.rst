@@ -131,6 +131,7 @@ fsfreeze-hook  string
 statedir       string
 verbose        boolean
 block-rpcs     string list
+allow-rpcs     string list
 =============  ===========
 
 See also
