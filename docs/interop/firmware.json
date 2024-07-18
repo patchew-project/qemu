@@ -14,7 +14,10 @@
 # = Firmware
 ##
 
-{ 'include' : 'machine.json' }
+{ 'pragma': {
+    'member-name-exceptions': [
+        'FirmwareArchitecture' # x86_64
+    ] } }
 
 ##
 # @FirmwareOSInterface:
@@ -60,6 +63,28 @@
   'data' : [ 'flash', 'kernel', 'memory' ] }
 
 ##
+# @FirmwareArchitecture:
+#
+# Enumerations of architectures for which Qemu uses additional firmware files.
+# The values are a subset of the enum SysEmuTarget.
+#
+# @aarch64: 64-bit Arm.
+#
+# @arm: 32-bit Arm.
+#
+# @i386: 32-bit x86.
+#
+# @loongarch64: 64-bit LoongArch.
+#
+# @x86_64: 64-bit x86.
+#
+# Since: 9.1
+##
+{ 'enum' : 'FirmwareArchitecture',
+  'data' : [ 'aarch64', 'arm', 'i386', 'loongarch64', 'x86_64' ] }
+
+
+##
 # @FirmwareTarget:
 #
 # Defines the machine types that firmware may execute on.
@@ -80,7 +105,7 @@
 # Since: 3.0
 ##
 { 'struct' : 'FirmwareTarget',
-  'data'   : { 'architecture' : 'SysEmuTarget',
+  'data'   : { 'architecture' : 'FirmwareArchitecture',
                'machines'     : [ 'str' ] } }
 
 ##
