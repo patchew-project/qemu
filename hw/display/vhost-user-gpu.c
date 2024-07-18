@@ -643,6 +643,30 @@ vhost_user_gpu_device_realize(DeviceState *qdev, Error **errp)
     }
 
     g->vhost_gpu_fd = -1;
+
+    /*
+     * If shared memory is enabled in the config, the parent (virtio-gpu-pci,
+     * virtio-vga) has already added a shared memory region at this point.
+     * Add a subregion that spans the whole region and register it in
+     * the shmem_list to be usable for SHMEM_MMAP/UNMAP operations.
+     */
+    if (virtio_gpu_hostmem_enabled(g->parent_obj.conf)) {
+        void *hostmem_ptr = mmap(NULL, g->parent_obj.conf.hostmem,
+                                 PROT_READ | PROT_WRITE,
+                                 MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+        if (hostmem_ptr == MAP_FAILED) {
+            error_setg(errp, "Unable to mmap blank hostmem");
+            return;
+        }
+
+        virtio_new_shmem_region(vdev);
+        MemoryRegion *mr = &vdev->shmem_list[vdev->n_shmem_regions - 1];
+        memory_region_init_ram_ptr(mr,
+                                   OBJECT(vdev),
+                                   "vhost-user-gpu-hostmem",
+                                   g->parent_obj.conf.hostmem, hostmem_ptr);
+        memory_region_add_subregion(&g->parent_obj.hostmem, 0, mr);
+    }
 }
 
 static struct vhost_dev *vhost_user_gpu_get_vhost(VirtIODevice *vdev)
@@ -653,6 +677,7 @@ static struct vhost_dev *vhost_user_gpu_get_vhost(VirtIODevice *vdev)
 
 static Property vhost_user_gpu_properties[] = {
     VIRTIO_GPU_BASE_PROPERTIES(VhostUserGPU, parent_obj.conf),
+    DEFINE_PROP_SIZE("hostmem", VhostUserGPU, parent_obj.conf.hostmem, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
