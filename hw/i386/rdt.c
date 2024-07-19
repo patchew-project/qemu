@@ -17,6 +17,10 @@
 #define MAX_L2_MASK_COUNT      48
 #define MAX_MBA_THRTL_COUNT    31
 
+#define CPUID_10_1_EDX_COS_MAX          MAX_L3_MASK_COUNT
+#define CPUID_10_2_EDX_COS_MAX          MAX_L2_MASK_COUNT
+#define CPUID_10_3_EDX_COS_MAX          MAX_MBA_THRTL_COUNT
+
 #define TYPE_RDT "rdt"
 #define RDT_NUM_RMID_PROP "rmids"
 
@@ -56,6 +60,10 @@ struct RDTState {
 };
 
 struct RDTStateClass { };
+
+uint32_t rdt_get_cpuid_10_1_edx_cos_max(void) { return CPUID_10_1_EDX_COS_MAX; }
+uint32_t rdt_get_cpuid_10_2_edx_cos_max(void) { return CPUID_10_2_EDX_COS_MAX; }
+uint32_t rdt_get_cpuid_10_3_edx_cos_max(void) { return CPUID_10_3_EDX_COS_MAX; }
 
 bool rdt_associate_rmid_cos(uint64_t msr_ia32_pqr_assoc) {
     X86CPU *cpu = X86_CPU(current_cpu);
