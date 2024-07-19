@@ -46,20 +46,14 @@ CXL 2.0 Device Types
 --------------------
 CXL 2.0 End Points are often categorized into three types.
 
-**Type 1:** These support coherent caching of host memory.  Example might
-be a crypto accelerators.  May also have device private memory accessible
-via means such as PCI memory reads and writes to BARs.
+**Type 1: Accelerators without device memory**. These support coherent caching of host memory. Example might be a crypto accelerators or smart NICs that use coherency semantics along with PCIe-style DMA transfers. Type1 devices implement a fully coherent cache but no host-managed device memory.
 
-**Type 2:** These support coherent caching of host memory and host
-managed device memory (HDM) for which the coherency protocol is managed
-by the host. This is a complex topic, so for more information on CXL
-coherency see the CXL 2.0 specification.
+**Type 2: Accelerators with device memory**. These support coherent caching of host memory and host managed device memory (HDM) for which the coherency protocol is managed by the host. Type 2 devices are accelerators such as GP-GPUs and FPGAs with device memory that can be mapped in part to the cacheable system memory. These devices also cache system memory for processing.
 
-**Type 3 Memory devices:**  These devices act as a means of attaching
-additional memory (HDM) to a CXL host including both volatile and
-persistent memory. The CXL topology may support interleaving across a
-number of Type 3 memory devices using HDM Decoders in the host, host
-bridge, switch upstream port and endpoints.
+**Type 3: Memory devices**. These devices act as a means of attaching
+additional memory (HDM) to a CXL host with different memory types, including supporting multiple memory tiers attached to the device with both volatile and persistent memory. The CXL topology may support interleaving across a number of Type 3 memory devices using HDM Decoders in the host, host bridge, switch upstream port and endpoints.
+
+See more information about CXL.io CXL.cache CXL.mem in the `CXL 2.0 specification <https://computeexpresslink.org/past-cxl-specifications-landing-page/>`_.
 
 Scope of CXL emulation in QEMU
 ------------------------------
