@@ -1987,6 +1987,8 @@ typedef struct CPUArchState {
 
 struct kvm_msrs;
 
+struct RDTState;
+struct rdtStateInstance;
 /**
  * X86CPU:
  * @env: #CPUX86State
@@ -2142,6 +2144,9 @@ struct ArchCPU {
     struct DeviceState *apic_state;
     struct MemoryRegion *cpu_as_root, *cpu_as_mem, *smram;
     Notifier machine_done;
+
+    /* Help the RDT MSRs find the RDT device */
+    struct RDTStateInstance *rdt;
 
     struct kvm_msrs *kvm_msr_buf;
 
