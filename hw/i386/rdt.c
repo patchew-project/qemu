@@ -62,10 +62,38 @@ static void rdt_init(Object *obj)
 
 static void rdt_realize(DeviceState *dev, Error **errp)
 {
+    CPUState *cs = first_cpu;
+
+    RDTState *rdtDev = RDT(dev);
+    rdtDev->rdtInstances = g_array_new(false, true, sizeof(RDTStateInstance));
+    g_array_set_size(rdtDev->rdtInstances, cs->nr_cores);
+    CPU_FOREACH(cs) {
+        RDTStateInstance *rdt = &g_array_index(rdtDev->rdtInstances, RDTStateInstance, cs->cpu_index);
+
+        X86CPU *cpu = X86_CPU(cs);
+        rdt->rdtstate = rdtDev;
+        cpu->rdt = rdt;
+
+        rdt->monitors = g_array_new(false, true, sizeof(RDTMonitor));
+        rdt->rdtstate->allocations = g_array_new(false, true, sizeof(RDTAllocation));
+
+        g_array_set_size(rdt->monitors, rdtDev->rmids);
+        g_array_set_size(rdt->rdtstate->allocations, rdtDev->rmids);
+    }
 }
 
 static void rdt_finalize(Object *obj)
 {
+    CPUState *cs;
+    RDTState *rdt = RDT(obj);
+
+    CPU_FOREACH(cs) {
+        RDTStateInstance *rdtInstance = &g_array_index(rdt->rdtInstances, RDTStateInstance, cs->cpu_index);
+        g_array_free(rdtInstance->monitors, true);
+        g_array_free(rdtInstance->rdtstate->allocations, true);
+    }
+
+    g_array_free(rdt->rdtInstances, true);
 }
 
 static void rdt_class_init(ObjectClass *klass, void *data)
