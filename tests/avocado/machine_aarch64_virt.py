@@ -20,6 +20,10 @@ from avocado.utils import process
 from avocado.utils.path import find_command
 
 class Aarch64VirtMachine(QemuSystemTest):
+    """
+    :avocado: tags=arch:aarch64
+    :avocado: tags=machine:virt
+    """
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
     timeout = 360
 
@@ -33,8 +37,6 @@ class Aarch64VirtMachine(QemuSystemTest):
     # Other test profiles should use more minimal boots
     def test_alpine_virt_tcg_gic_max(self):
         """
-        :avocado: tags=arch:aarch64
-        :avocado: tags=machine:virt
         :avocado: tags=accel:tcg
         """
         iso_url = ('https://dl-cdn.alpinelinux.org/'
@@ -129,8 +131,6 @@ class Aarch64VirtMachine(QemuSystemTest):
 
     def test_aarch64_virt_gicv3(self):
         """
-        :avocado: tags=arch:aarch64
-        :avocado: tags=machine:virt
         :avocado: tags=accel:tcg
         :avocado: tags=cpu:max
         """
@@ -138,8 +138,6 @@ class Aarch64VirtMachine(QemuSystemTest):
 
     def test_aarch64_virt_gicv2(self):
         """
-        :avocado: tags=arch:aarch64
-        :avocado: tags=machine:virt
         :avocado: tags=accel:tcg
         :avocado: tags=cpu:max
         """

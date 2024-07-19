@@ -64,12 +64,12 @@ class BootLinuxX8664(LinuxTest):
 class BootLinuxAarch64(LinuxTest):
     """
     :avocado: tags=arch:aarch64
-    :avocado: tags=machine:virt
     """
     timeout = 720
 
     def test_virt_kvm(self):
         """
+        :avocado: tags=machine:virt
         :avocado: tags=accel:kvm
         :avocado: tags=cpu:host
         """

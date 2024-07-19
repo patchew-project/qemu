@@ -61,8 +61,6 @@ class BootXenBase(LinuxKernelTest):
 
 
 class BootXen(BootXenBase):
-
-    def test_arm64_xen_411_and_dom0(self):
         """
         :avocado: tags=arch:aarch64
         :avocado: tags=accel:tcg
@@ -70,6 +68,7 @@ class BootXen(BootXenBase):
         :avocado: tags=machine:virt
         """
 
+    def test_arm64_xen_411_and_dom0(self):
         # archive of file from https://deb.debian.org/debian/pool/main/x/xen/
         xen_url = ('https://fileserver.linaro.org/s/JSsewXGZ6mqxPr5/'
                    'download?path=%2F&files='
@@ -81,13 +80,6 @@ class BootXen(BootXenBase):
         self.launch_xen(xen_path)
 
     def test_arm64_xen_414_and_dom0(self):
-        """
-        :avocado: tags=arch:aarch64
-        :avocado: tags=accel:tcg
-        :avocado: tags=cpu:cortex-a57
-        :avocado: tags=machine:virt
-        """
-
         # archive of file from https://deb.debian.org/debian/pool/main/x/xen/
         xen_url = ('https://fileserver.linaro.org/s/JSsewXGZ6mqxPr5/'
                    'download?path=%2F&files='
@@ -99,13 +91,6 @@ class BootXen(BootXenBase):
         self.launch_xen(xen_path)
 
     def test_arm64_xen_415_and_dom0(self):
-        """
-        :avocado: tags=arch:aarch64
-        :avocado: tags=accel:tcg
-        :avocado: tags=cpu:cortex-a57
-        :avocado: tags=machine:virt
-        """
-
         xen_url = ('https://fileserver.linaro.org/'
                    's/JSsewXGZ6mqxPr5/download'
                    '?path=%2F&files=xen-upstream-4.15-unstable.deb')
