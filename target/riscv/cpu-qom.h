@@ -31,6 +31,8 @@
 
 #define TYPE_RISCV_CPU_ANY              RISCV_CPU_TYPE_NAME("any")
 #define TYPE_RISCV_CPU_MAX              RISCV_CPU_TYPE_NAME("max")
+#define TYPE_RISCV_CPU_ANY32            RISCV_CPU_TYPE_NAME("any32")
+#define TYPE_RISCV_CPU_MAX32            RISCV_CPU_TYPE_NAME("max32")
 #define TYPE_RISCV_CPU_BASE32           RISCV_CPU_TYPE_NAME("rv32")
 #define TYPE_RISCV_CPU_BASE64           RISCV_CPU_TYPE_NAME("rv64")
 #define TYPE_RISCV_CPU_BASE128          RISCV_CPU_TYPE_NAME("x-rv128")
