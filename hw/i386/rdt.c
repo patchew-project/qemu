@@ -7,6 +7,11 @@
 #include "target/i386/cpu.h"
 #include "hw/isa/isa.h"
 
+/* RDT Monitoring Event Codes */
+#define RDT_EVENT_L3_OCCUPANCY 1
+#define RDT_EVENT_L3_REMOTE_BW 2
+#define RDT_EVENT_L3_LOCAL_BW 3
+
 /* Max counts for allocation masks or CBMs. In other words, the size of respective MSRs*/
 #define MAX_L3_MASK_COUNT      128
 #define MAX_L2_MASK_COUNT      48
@@ -14,6 +19,9 @@
 
 #define TYPE_RDT "rdt"
 #define RDT_NUM_RMID_PROP "rmids"
+
+#define QM_CTR_Error        (1ULL << 63)
+#define QM_CTR_Unavailable  (1ULL << 62)
 
 OBJECT_DECLARE_TYPE(RDTState, RDTStateClass, RDT);
 
@@ -48,6 +56,122 @@ struct RDTState {
 };
 
 struct RDTStateClass { };
+
+bool rdt_associate_rmid_cos(uint64_t msr_ia32_pqr_assoc) {
+    X86CPU *cpu = X86_CPU(current_cpu);
+    RDTStateInstance *rdt = cpu->rdt;
+    RDTAllocation *alloc;
+
+    uint32_t cos_id = (msr_ia32_pqr_assoc & 0xffff0000) >> 16;
+    uint32_t rmid = msr_ia32_pqr_assoc & 0xffff;
+
+    if (cos_id > MAX_L3_MASK_COUNT || cos_id > MAX_L2_MASK_COUNT ||
+    cos_id > MAX_MBA_THRTL_COUNT || rmid > rdt_max_rmid(rdt)) {
+        return false;
+    }
+
+    rdt->active_rmid = rmid;
+
+    alloc = &g_array_index(rdt->rdtstate->allocations, RDTAllocation, rmid);
+
+    alloc->active_cos = cos_id;
+
+    return true;
+}
+
+uint32_t rdt_read_l3_mask(uint32_t pos)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    RDTStateInstance *rdt = cpu->rdt;
+
+    uint32_t val = rdt->rdtstate->msr_L3_ia32_mask_n[pos];
+    return val;
+}
+
+uint32_t rdt_read_l2_mask(uint32_t pos)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    RDTStateInstance *rdt = cpu->rdt;
+
+    uint32_t val = rdt->rdtstate->msr_L2_ia32_mask_n[pos];
+    return val;
+}
+
+uint32_t rdt_read_mba_thrtl(uint32_t pos)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    RDTStateInstance *rdt = cpu->rdt;
+
+    uint32_t val = rdt->rdtstate->ia32_L2_qos_ext_bw_thrtl_n[pos];
+    return val;
+}
+
+void rdt_write_msr_l3_mask(uint32_t pos, uint32_t val) {
+    X86CPU *cpu = X86_CPU(current_cpu);
+    RDTStateInstance *rdt = cpu->rdt;
+
+    rdt->rdtstate->msr_L3_ia32_mask_n[pos] = val;
+}
+
+void rdt_write_msr_l2_mask(uint32_t pos, uint32_t val) {
+    X86CPU *cpu = X86_CPU(current_cpu);
+    RDTStateInstance *rdt = cpu->rdt;
+
+    rdt->rdtstate->msr_L2_ia32_mask_n[pos] = val;
+}
+
+void rdt_write_mba_thrtl(uint32_t pos, uint32_t val) {
+    X86CPU *cpu = X86_CPU(current_cpu);
+    RDTStateInstance *rdt = cpu->rdt;
+
+    rdt->rdtstate->ia32_L2_qos_ext_bw_thrtl_n[pos] = val;
+}
+
+uint32_t rdt_max_rmid(RDTStateInstance *rdt)
+{
+    RDTState *rdtdev = rdt->rdtstate;
+    return rdtdev->rmids - 1;
+}
+
+uint64_t rdt_read_event_count(RDTStateInstance *rdtInstance, uint32_t rmid, uint32_t event_id)
+{
+    CPUState *cs;
+    RDTMonitor *mon;
+    RDTState *rdt = rdtInstance->rdtstate;
+
+    uint32_t count_l3 = 0;
+    uint32_t count_local= 0;
+    uint32_t count_remote = 0;
+
+    if (!rdt) {
+        return 0;
+    }
+
+    CPU_FOREACH(cs) {
+        rdtInstance = &g_array_index(rdt->rdtInstances, RDTStateInstance, cs->cpu_index);
+        if (rmid >= rdtInstance->monitors->len) {
+            return QM_CTR_Error;
+        }
+        mon = &g_array_index(rdtInstance->monitors, RDTMonitor, rmid);
+        count_l3 += mon->count_l3;
+        count_local += mon->count_local;
+        count_remote += mon->count_remote;
+    }
+
+    switch (event_id) {
+        case RDT_EVENT_L3_OCCUPANCY:
+            return count_l3 == 0 ? QM_CTR_Unavailable : count_l3;
+            break;
+        case RDT_EVENT_L3_REMOTE_BW:
+            return count_remote == 0 ? QM_CTR_Unavailable : count_remote;
+            break;
+        case RDT_EVENT_L3_LOCAL_BW:
+            return count_local == 0 ? QM_CTR_Unavailable : count_local;
+            break;
+        default:
+            return QM_CTR_Error;
+    }
+}
 
 OBJECT_DEFINE_TYPE(RDTState, rdt, RDT, ISA_DEVICE);
 
