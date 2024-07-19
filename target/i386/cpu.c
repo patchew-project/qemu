@@ -42,6 +42,7 @@
 #include "hw/boards.h"
 #include "hw/i386/sgx-epc.h"
 #endif
+#include "hw/i386/rdt.h"
 
 #include "disas/capstone.h"
 #include "cpu-internal.h"
@@ -6629,6 +6630,96 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         assert(!(*eax & ~0x1f));
         *ebx &= 0xffff; /* The count doesn't need to be reliable. */
         break;
+#ifndef CONFIG_USER_ONLY
+    case 0xF:
+        /* Shared Resource Monitoring Enumeration Leaf */
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+        if (!(env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_PQM))
+            break;
+        assert(cpu->rdt);
+        /* Non-zero count is ResId */
+        switch (count) {
+            /* Monitoring Resource Type Enumeration */
+            case 0:
+                *edx = env->features[FEAT_RDT_15_0_EDX];
+                *ebx = rdt_max_rmid(cpu->rdt);
+                break;
+            /* L3 Cache Monitoring Capability Enumeration Data */
+            case 1:
+                /* Upscaling Factor */
+                *ebx = 1;
+                /* MaxRMID */
+                *ecx = rdt_max_rmid(cpu->rdt);
+                /* Set L3 Total BW */
+                *edx |= rdt_cpuid_15_1_edx_l3_total_bw_enabled();
+                /* Set L3 Local BW */
+                *edx |= rdt_cpuid_15_1_edx_l3_local_bw_enabled();
+                /* Set L3 Occupancy */
+                *edx |= rdt_cpuid_15_1_edx_l3_occupancy_enabled();
+                break;
+            default:
+                break;
+        }
+        break;
+    case 0x10:
+        /* Shared Resource Director Technology Allocation Enumeration Leaf */
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+        if (!(env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_PQE))
+            break;
+        assert(cpu->rdt);
+        /* Non-zero count is ResId */
+        switch (count) {
+            /* Cache Allocation Technology Available Resource Types */
+            case 0:
+                /* Set L3 CAT */
+                *ebx |= rdt_cpuid_10_0_ebx_l3_cat_enabled();
+                /* Set L2 CAT */
+                *ebx |= rdt_cpuid_10_0_ebx_l2_cat_enabled();
+                /* Set MBA */
+                *ebx |= rdt_cpuid_10_0_ebx_l2_mba_enabled();
+                // *edx = env->features[FEAT_RDT_10_0_EBX];
+                break;
+            case 1:
+                /* Length of capacity bitmask in -1 notation */
+                *eax = rdt_get_cpuid_10_1_eax_cbm_length();
+                /* Capability bit mask */
+                *ebx = rdt_cpuid_10_1_ebx_cbm_enabled();
+                /* Code and Data priotitization */
+                *ecx |= rdt_cpuid_10_1_ecx_cdp_enabled();
+                /* Support for n COS masks (zero-referenced)*/
+                *edx =  rdt_get_cpuid_10_1_edx_cos_max();
+                break;
+            case 2:
+                /* Length of capacity bitmask in -1 notation */
+                *eax = rdt_get_cpuid_10_2_eax_cbm_length();
+                /* Capability bit mask */
+                *ebx = rdt_cpuid_10_2_ebx_cbm_enabled();
+                /* Support for n COS masks (zero-referenced)*/
+                *edx =  rdt_get_cpuid_10_2_edx_cos_max();
+                break;
+            case 3:
+                /* Max throttling value -1 (89 means 90) */
+                *eax = rdt_get_cpuid_10_3_eax_thrtl_max();
+                /* Linear response of delay values */
+                *ecx = rdt_cpuid_10_3_eax_linear_response_enabled();
+                /* Max number of CLOS -1 (15 means 16) */
+                *edx = rdt_get_cpuid_10_3_edx_cos_max();
+                break;
+            default:
+                *eax = 0;
+                *ebx = 0;
+                *ecx = 0;
+                *edx = 0;
+                break;
+        }
+        break;
+#endif
     case 0x1C:
         if (cpu->enable_pmu && (env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR)) {
             x86_cpu_get_supported_cpuid(0x1C, 0, eax, ebx, ecx, edx);
