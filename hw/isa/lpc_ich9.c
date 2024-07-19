@@ -43,6 +43,7 @@
 #include "hw/southbridge/ich9.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
+#include "hw/acpi/ich9_timer.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/runstate.h"
@@ -530,6 +531,11 @@ ich9_lpc_pmcon_update(ICH9LPCState *lpc)
 {
     uint16_t gen_pmcon_1 = pci_get_word(lpc->d.config + ICH9_LPC_GEN_PMCON_1);
     uint16_t wmask;
+
+    ich9_pm_update_swsmi_timer(&lpc->pm, lpc->pm.smi_en &
+                                             ICH9_PMIO_SMI_EN_SWSMI_EN);
+    ich9_pm_update_periodic_timer(&lpc->pm, lpc->pm.smi_en &
+                                                ICH9_PMIO_SMI_EN_PERIODIC_EN);
 
     if (gen_pmcon_1 & ICH9_LPC_GEN_PMCON_1_SMI_LOCK) {
         wmask = pci_get_word(lpc->d.wmask + ICH9_LPC_GEN_PMCON_1);

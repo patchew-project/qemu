@@ -35,6 +35,7 @@
 #include "sysemu/runstate.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9_tco.h"
+#include "hw/acpi/ich9_timer.h"
 
 #include "hw/southbridge/ich9.h"
 #include "hw/mem/pc-dimm.h"
@@ -108,6 +109,16 @@ static void ich9_smi_writel(void *opaque, hwaddr addr, uint64_t val,
         }
         pm->smi_en &= ~pm->smi_en_wmask;
         pm->smi_en |= (val & pm->smi_en_wmask);
+        ich9_pm_update_swsmi_timer(pm, pm->smi_en &
+                                           ICH9_PMIO_SMI_EN_SWSMI_EN);
+        ich9_pm_update_periodic_timer(pm, pm->smi_en &
+                                              ICH9_PMIO_SMI_EN_PERIODIC_EN);
+        break;
+    case 4:
+        pm->smi_sts &= ~(ICH9_PMIO_SMI_STS_SWSMI_STS |
+                         ICH9_PMIO_SMI_STS_PERIODIC_STS);
+        pm->smi_sts |= val & (ICH9_PMIO_SMI_STS_SWSMI_STS |
+                              ICH9_PMIO_SMI_STS_PERIODIC_STS);
         break;
     }
 }
@@ -304,6 +315,10 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq)
     memory_region_init_io(&pm->io_smi, OBJECT(lpc_pci), &ich9_smi_ops, pm,
                           "acpi-smi", 8);
     memory_region_add_subregion(&pm->io, ICH9_PMIO_SMI_EN, &pm->io_smi);
+
+    pm->swsmi_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ich9_swsmi_timer, pm);
+
+    pm->periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ich9_periodic_timer, pm);
 
     if (pm->enable_tco) {
         acpi_pm_tco_init(&pm->tco_regs, &pm->io);
