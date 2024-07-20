@@ -544,7 +544,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
         access_size_min = 1;
     }
     if (!access_size_max) {
-        access_size_max = 4;
+        access_size_max = 8;
     }
 
     /* Do not allow more than one simultaneous access to a device's IO Regions */
