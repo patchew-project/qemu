@@ -2245,6 +2245,11 @@ struct ArchCPU {
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
 
+    /* Always return values for 0x1f leaf. In cases where extended CPU topology
+     * is not configured, return values equivalent of leaf 0xb.
+     */
+    bool enable_cpuid_0x1f_enforce;
+
     /* Enable auto level-increase for all CPUID leaves */
     bool full_cpuid_auto_level;
 

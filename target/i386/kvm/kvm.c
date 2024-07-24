@@ -1830,6 +1830,7 @@ static uint32_t kvm_x86_build_cpuid(CPUX86State *env,
     uint32_t limit, i, j;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
+    X86CPU *cpu = env_archcpu(env);
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
 
@@ -1864,7 +1865,8 @@ static uint32_t kvm_x86_build_cpuid(CPUX86State *env,
             break;
         }
         case 0x1f:
-            if (!x86_has_extended_topo(env->avail_cpu_topo)) {
+            if (!x86_has_extended_topo(env->avail_cpu_topo) &&
+                !cpu->enable_cpuid_0x1f_enforce) {
                 cpuid_i--;
                 break;
             }
