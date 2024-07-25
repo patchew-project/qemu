@@ -225,6 +225,13 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset,
 
     assert(pci_is_express(dev));
 
+    if ((type == PCI_EXP_TYPE_DOWNSTREAM || type == PCI_EXP_TYPE_ROOT_PORT) &&
+        pcie_find_port_by_pn(pci_get_bus(dev), port)) {
+        error_setg(errp, "The port %d is already in use, please select "
+                   "another port", port);
+        return -EBUSY;
+    }
+
     pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
                              PCI_EXP_VER2_SIZEOF, errp);
     if (pos < 0) {
