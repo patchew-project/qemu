@@ -225,6 +225,13 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset,
 
     assert(pci_is_express(dev));
 
+    if (pci_is_express_downstream_port(dev) &&
+        pcie_find_port_by_pn(pci_get_bus(dev), port)) {
+        pos = -EBUSY;
+        error_setg(errp, "Can't link port, error %d", pos);
+        return pos;
+    }
+
     pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
                              PCI_EXP_VER2_SIZEOF, errp);
     if (pos < 0) {
