@@ -18,6 +18,7 @@
 #include "ui/qemu-pixman.h"
 #include "ui/console.h"
 #include "hw/virtio/virtio.h"
+#include "hw/display/edid.h"
 #include "qemu/log.h"
 #include "system/vhost-user-backend.h"
 
@@ -154,6 +155,7 @@ struct VirtIOGPUBase {
     MemoryRegion hostmem;
 
     struct virtio_gpu_scanout scanout[VIRTIO_GPU_MAX_SCANOUTS];
+    struct qemu_edid_info   edid_info[VIRTIO_GPU_MAX_SCANOUTS];
 
     int enabled_output_bitmask;
     struct virtio_gpu_requested_state req_state[VIRTIO_GPU_MAX_SCANOUTS];
@@ -171,6 +173,30 @@ struct VirtIOGPUBaseClass {
                     VIRTIO_GPU_FLAG_EDID_ENABLED, true), \
     DEFINE_PROP_UINT32("xres", _state, _conf.xres, 1280), \
     DEFINE_PROP_UINT32("yres", _state, _conf.yres, 800)
+
+#define VIRTIO_GPU_EDID_PROPERTIES_MULTI_DISPLAY(_state, _edid_info)   \
+    (VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 0),                \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 1),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 2),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 3),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 4),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 5),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 6),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 7),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 8),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 9),                 \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 10),                \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 11),                \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 12),                \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 13),                \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 14),                \
+    VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, 15))                \
+
+#define VIRTIO_GPU_EDID_PROPERTIES(_state, _edid_info, id)             \
+    (DEFINE_PROP_UINT32("maxx" #id, _state, _edid_info[id].maxx, 0),   \
+    DEFINE_PROP_UINT32("maxy" #id, _state, _edid_info[id].maxy, 0),    \
+    DEFINE_PROP_UINT32("refresh_rate" #id, _state,                     \
+            _edid_info[id].refresh_rate, 0))
 
 typedef struct VGPUDMABuf {
     QemuDmaBuf *buf;

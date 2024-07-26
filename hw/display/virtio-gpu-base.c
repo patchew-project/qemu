@@ -46,8 +46,18 @@ virtio_gpu_base_fill_display_info(VirtIOGPUBase *g,
     for (i = 0; i < g->conf.max_outputs; i++) {
         if (g->enabled_output_bitmask & (1 << i)) {
             dpy_info->pmodes[i].enabled = 1;
-            dpy_info->pmodes[i].r.width = cpu_to_le32(g->req_state[i].width);
-            dpy_info->pmodes[i].r.height = cpu_to_le32(g->req_state[i].height);
+            if (g->edid_info[i].maxx && g->edid_info[i].maxy &&
+                virtio_gpu_edid_enabled(g->conf)) {
+                dpy_info->pmodes[i].r.width =
+                    cpu_to_le32(g->edid_info[i].maxx);
+                dpy_info->pmodes[i].r.height =
+                    cpu_to_le32(g->edid_info[i].maxy);
+            } else {
+                dpy_info->pmodes[i].r.width =
+                    cpu_to_le32(g->req_state[i].width);
+                dpy_info->pmodes[i].r.height =
+                    cpu_to_le32(g->req_state[i].height);
+            }
         }
     }
 }
@@ -62,6 +72,8 @@ virtio_gpu_base_generate_edid(VirtIOGPUBase *g, int scanout,
         .prefx = g->req_state[scanout].width,
         .prefy = g->req_state[scanout].height,
         .refresh_rate = g->req_state[scanout].refresh_rate,
+        .maxx = g->req_state[scanout].width,
+        .maxy = g->req_state[scanout].height,
     };
 
     edid->size = cpu_to_le32(sizeof(edid->edid));
@@ -96,9 +108,16 @@ static void virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
 
     g->req_state[idx].x = info->xoff;
     g->req_state[idx].y = info->yoff;
-    g->req_state[idx].refresh_rate = info->refresh_rate;
-    g->req_state[idx].width = info->width;
-    g->req_state[idx].height = info->height;
+    if (!g->edid_info[idx].refresh_rate) {
+        g->req_state[idx].refresh_rate = info->refresh_rate;
+    }
+    if (!g->edid_info[idx].maxx) {
+        g->req_state[idx].width = info->width;
+    }
+    if (!g->edid_info[idx].maxy) {
+        g->req_state[idx].height = info->height;
+    }
+
     g->req_state[idx].width_mm = info->width_mm;
     g->req_state[idx].height_mm = info->height_mm;
 
@@ -203,11 +222,19 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
 
     g->enabled_output_bitmask = 1;
 
-    g->req_state[0].width = g->conf.xres;
-    g->req_state[0].height = g->conf.yres;
 
     g->hw_ops = &virtio_gpu_ops;
     for (i = 0; i < g->conf.max_outputs; i++) {
+        if (g->edid_info[i].maxx && g->edid_info[i].maxy &&
+            virtio_gpu_edid_enabled(g->conf) &&
+            g->edid_info[i].refresh_rate) {
+            g->req_state[i].refresh_rate = g->edid_info[i].refresh_rate;
+            g->req_state[i].width = g->edid_info[i].maxx;
+            g->req_state[i].height = g->edid_info[i].maxy;
+        } else {
+            g->req_state[i].width = g->conf.xres;
+            g->req_state[i].height = g->conf.yres;
+        }
         g->scanout[i].con =
             graphic_console_init(DEVICE(g), i, &virtio_gpu_ops, g);
     }
