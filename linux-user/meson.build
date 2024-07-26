@@ -31,8 +31,11 @@ linux_user_ss.add(when: 'CONFIG_TCG_PLUGINS', if_true: files('plugin-api.c'))
 
 syscall_nr_generators = {}
 
+# It requires "include/elf.h"
+gen_vdso_inc = include_directories('..' / 'include')
 gen_vdso_exe = executable('gen-vdso', 'gen-vdso.c',
-                          native: true, build_by_default: false)
+                          native: true, build_by_default: false,
+                          include_directories: gen_vdso_inc)
 gen_vdso = generator(gen_vdso_exe, output: '@BASENAME@.c.inc',
                      arguments: ['-o', '@OUTPUT@', '@EXTRA_ARGS@', '@INPUT@'])
 
