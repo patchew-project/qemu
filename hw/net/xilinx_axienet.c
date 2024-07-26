@@ -530,6 +530,40 @@ static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
     return r;
 }
 
+static void axienet_eth_rx_notify(void *opaque)
+{
+    XilinxAXIEnet *s = XILINX_AXI_ENET(opaque);
+
+    /* If RX is disabled, don't trigger DMA to update RX desc and send IRQ */
+    if (!axienet_rx_enabled(s)) {
+        return;
+    }
+
+    while (s->rxappsize && stream_can_push(s->tx_control_dev,
+                                           axienet_eth_rx_notify, s)) {
+        size_t ret = stream_push(s->tx_control_dev,
+                                 (void *)s->rxapp + CONTROL_PAYLOAD_SIZE
+                                 - s->rxappsize, s->rxappsize, true);
+        s->rxappsize -= ret;
+    }
+
+    while (s->rxsize && stream_can_push(s->tx_data_dev,
+                                        axienet_eth_rx_notify, s)) {
+        size_t ret = stream_push(s->tx_data_dev, (void *)s->rxmem + s->rxpos,
+                                 s->rxsize, true);
+        s->rxsize -= ret;
+        s->rxpos += ret;
+        if (!s->rxsize) {
+            s->regs[R_IS] |= IS_RX_COMPLETE;
+            if (s->need_flush) {
+                s->need_flush = false;
+                qemu_flush_queued_packets(qemu_get_queue(s->nic));
+            }
+        }
+    }
+    enet_update_irq(s);
+}
+
 static void enet_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
@@ -545,6 +579,14 @@ static void enet_write(void *opaque, hwaddr addr,
                 axienet_rx_reset(s);
             } else {
                 qemu_flush_queued_packets(qemu_get_queue(s->nic));
+            }
+
+            /*
+             * When RX is enabled, check if any remaining data in rxmem
+             * and send them.
+             */
+            if ((addr & 1) && s->rcw[addr & 1] & RCW1_RX) {
+                axienet_eth_rx_notify(s);
             }
             break;
 
@@ -664,35 +706,6 @@ static int enet_match_addr(const uint8_t *buf, uint32_t f0, uint32_t f1)
     }
 
     return match;
-}
-
-static void axienet_eth_rx_notify(void *opaque)
-{
-    XilinxAXIEnet *s = XILINX_AXI_ENET(opaque);
-
-    while (s->rxappsize && stream_can_push(s->tx_control_dev,
-                                           axienet_eth_rx_notify, s)) {
-        size_t ret = stream_push(s->tx_control_dev,
-                                 (void *)s->rxapp + CONTROL_PAYLOAD_SIZE
-                                 - s->rxappsize, s->rxappsize, true);
-        s->rxappsize -= ret;
-    }
-
-    while (s->rxsize && stream_can_push(s->tx_data_dev,
-                                        axienet_eth_rx_notify, s)) {
-        size_t ret = stream_push(s->tx_data_dev, (void *)s->rxmem + s->rxpos,
-                                 s->rxsize, true);
-        s->rxsize -= ret;
-        s->rxpos += ret;
-        if (!s->rxsize) {
-            s->regs[R_IS] |= IS_RX_COMPLETE;
-            if (s->need_flush) {
-                s->need_flush = false;
-                qemu_flush_queued_packets(qemu_get_queue(s->nic));
-            }
-        }
-    }
-    enet_update_irq(s);
 }
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
