@@ -177,11 +177,24 @@ static inline int stream_halted(struct Stream *s)
     return !!(s->regs[R_DMASR] & DMASR_HALTED);
 }
 
+static void stream_update_irq(struct Stream *s)
+{
+    unsigned int pending, mask, irq;
+
+    pending = s->regs[R_DMASR] & DMASR_IRQ_MASK;
+    mask = s->regs[R_DMACR] & DMASR_IRQ_MASK;
+
+    irq = pending & mask;
+
+    qemu_set_irq(s->irq, !!irq);
+}
+
 static void stream_reset(struct Stream *s)
 {
     s->regs[R_DMASR] = DMASR_HALTED;  /* starts up halted.  */
     s->regs[R_DMACR] = 1 << 16; /* Starts with one in compl threshold.  */
     s->sof = true;
+    stream_update_irq(s); /* Clear interrupt */
 }
 
 /* Map an offset addr into a channel index.  */
@@ -247,18 +260,6 @@ static MemTxResult stream_desc_store(struct Stream *s, hwaddr addr)
         stream_dma_error(s, result);
     }
     return result;
-}
-
-static void stream_update_irq(struct Stream *s)
-{
-    unsigned int pending, mask, irq;
-
-    pending = s->regs[R_DMASR] & DMASR_IRQ_MASK;
-    mask = s->regs[R_DMACR] & DMASR_IRQ_MASK;
-
-    irq = pending & mask;
-
-    qemu_set_irq(s->irq, !!irq);
 }
 
 static void stream_reload_complete_cnt(struct Stream *s)
