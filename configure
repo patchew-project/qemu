@@ -1005,9 +1005,12 @@ if test "$download" = "enabled" ; then
 fi
 
 if test "$docs" != "disabled" ; then
-    if ! $mkvenv ensuregroup \
+    if ! ( $mkvenv ensuregroup \
          $(test "$docs" = "enabled" && echo "$mkvenv_online_flag") \
-         ${source_path}/pythondeps.toml docs;
+         ${source_path}/pythondeps.toml docs && \
+         $mkvenv ensuregroup \
+         $(test "$docs" = "enabled" && echo "$mkvenv_online_flag") \
+         ${source_path}/pythondeps.toml docs-theme );
     then
         if test "$docs" = "enabled" ; then
             exit 1
