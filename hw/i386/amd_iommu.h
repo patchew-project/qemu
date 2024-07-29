@@ -26,6 +26,7 @@
 #include "qom/object.h"
 
 /* Capability registers */
+#define AMDVI_CAPAB_FEAT_REG          0x02
 #define AMDVI_CAPAB_BAR_LOW           0x04
 #define AMDVI_CAPAB_BAR_HIGH          0x08
 #define AMDVI_CAPAB_RANGE             0x0C
@@ -34,14 +35,17 @@
 #define AMDVI_CAPAB_SIZE              0x18
 #define AMDVI_CAPAB_REG_SIZE          0x04
 
-/* Capability header data */
+/*
+ * Capability header data which covers the capability id and the feature
+ * flags reside at upper 16-bits portion of the header.
+ */
 #define AMDVI_CAPAB_ID_SEC            0xf
-#define AMDVI_CAPAB_FLAT_EXT          (1 << 28)
-#define AMDVI_CAPAB_EFR_SUP           (1 << 27)
-#define AMDVI_CAPAB_FLAG_NPCACHE      (1 << 26)
-#define AMDVI_CAPAB_FLAG_HTTUNNEL     (1 << 25)
-#define AMDVI_CAPAB_FLAG_IOTLBSUP     (1 << 24)
-#define AMDVI_CAPAB_INIT_TYPE         (3 << 16)
+#define AMDVI_CAPAB_FLAT_EXT          (1 << 12)
+#define AMDVI_CAPAB_EFR_SUP           (1 << 11)
+#define AMDVI_CAPAB_FLAG_NPCACHE      (1 << 10)
+#define AMDVI_CAPAB_FLAG_HTTUNNEL     (1 << 9)
+#define AMDVI_CAPAB_FLAG_IOTLBSUP     (1 << 8)
+#define AMDVI_CAPAB_INIT_TYPE         (3 << 0)
 
 /* No. of used MMIO registers */
 #define AMDVI_MMIO_REGS_HIGH  7
@@ -183,8 +187,8 @@
 /* capabilities header */
 #define AMDVI_CAPAB_FEATURES (AMDVI_CAPAB_FLAT_EXT | \
         AMDVI_CAPAB_FLAG_NPCACHE | AMDVI_CAPAB_FLAG_IOTLBSUP \
-        | AMDVI_CAPAB_ID_SEC | AMDVI_CAPAB_INIT_TYPE | \
-        AMDVI_CAPAB_FLAG_HTTUNNEL |  AMDVI_CAPAB_EFR_SUP)
+        | AMDVI_CAPAB_INIT_TYPE | AMDVI_CAPAB_FLAG_HTTUNNEL \
+        | AMDVI_CAPAB_EFR_SUP)
 
 /* AMDVI default address */
 #define AMDVI_BASE_ADDR 0xfed80000ULL
