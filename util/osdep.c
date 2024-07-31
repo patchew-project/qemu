@@ -295,9 +295,9 @@ static int qemu_open_cloexec(const char *name, int flags, mode_t mode)
 {
     int ret;
 #ifdef O_CLOEXEC
-    ret = open(name, flags | O_CLOEXEC, mode);
+    ret = RETRY_ON_EINTR(open(name, flags | O_CLOEXEC, mode));
 #else
-    ret = open(name, flags, mode);
+    ret = RETRY_ON_EINTR(open(name, flags, mode));
     if (ret >= 0) {
         qemu_set_cloexec(ret);
     }
