@@ -294,14 +294,17 @@ bool qemu_has_direct_io(void)
 static int qemu_open_cloexec(const char *name, int flags, mode_t mode)
 {
     int ret;
+    do  {
 #ifdef O_CLOEXEC
-    ret = open(name, flags | O_CLOEXEC, mode);
+        ret = open(name, flags | O_CLOEXEC, mode);
 #else
-    ret = open(name, flags, mode);
-    if (ret >= 0) {
-        qemu_set_cloexec(ret);
-    }
+        ret = open(name, flags, mode);
+        if (ret >= 0) {
+            qemu_set_cloexec(ret);
+        }
 #endif
+    } while (ret == -1 && errno == EINTR);
+
     return ret;
 }
 
