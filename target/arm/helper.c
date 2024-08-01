@@ -5242,6 +5242,12 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
       .writefn = sdcr_write,
       .fieldoffset = offsetoflow32(CPUARMState, cp15.mdcr_el3) },
+    { .name = "PMCCNTR", .state = ARM_CP_STATE_AA32,
+      .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_64BIT,
+      .cp = 15, .crm = 9, .opc1 = 0,
+      .access = PL0_RW, .resetvalue = 0, .fgt = FGT_PMCCNTR_EL0,
+      .readfn = pmccntr_read, .writefn = pmccntr_write,
+      .accessfn = pmreg_access_ccntr },
 };
 
 /* These are present only when EL1 supports AArch32 */
