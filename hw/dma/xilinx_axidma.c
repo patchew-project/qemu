@@ -194,6 +194,20 @@ static inline int streamid_from_addr(hwaddr addr)
     return sid;
 }
 
+/* When DMA is error, fill in the register of this Stream. */
+static void stream_dma_error(struct Stream *s, MemTxResult result)
+{
+    if (result == MEMTX_DECODE_ERROR) {
+        s->regs[R_DMASR] |= DMASR_DECERR;
+    } else {
+        s->regs[R_DMASR] |= DMASR_SLVERR;
+    }
+
+    s->regs[R_DMACR] &= ~DMACR_RUNSTOP;
+    s->regs[R_DMASR] |= DMASR_HALTED;
+    s->regs[R_DMASR] |= DMASR_ERR_IRQ;
+}
+
 static MemTxResult stream_desc_load(struct Stream *s, hwaddr addr)
 {
     struct SDesc *d = &s->desc;
@@ -203,16 +217,7 @@ static MemTxResult stream_desc_load(struct Stream *s, hwaddr addr)
                                             d, sizeof *d);
     if (result != MEMTX_OK) {
         trace_xilinx_axidma_loading_desc_fail(result);
-
-        if (result == MEMTX_DECODE_ERROR) {
-            s->regs[R_DMASR] |= DMASR_DECERR;
-        } else {
-            s->regs[R_DMASR] |= DMASR_SLVERR;
-        }
-
-        s->regs[R_DMACR] &= ~DMACR_RUNSTOP;
-        s->regs[R_DMASR] |= DMASR_HALTED;
-        s->regs[R_DMASR] |= DMASR_ERR_IRQ;
+        stream_dma_error(s, result);
         return result;
     }
 
@@ -224,17 +229,24 @@ static MemTxResult stream_desc_load(struct Stream *s, hwaddr addr)
     return result;
 }
 
-static void stream_desc_store(struct Stream *s, hwaddr addr)
+static MemTxResult stream_desc_store(struct Stream *s, hwaddr addr)
 {
     struct SDesc *d = &s->desc;
+    MemTxResult result;
 
     /* Convert from host endianness into LE.  */
     d->buffer_address = cpu_to_le64(d->buffer_address);
     d->nxtdesc = cpu_to_le64(d->nxtdesc);
     d->control = cpu_to_le32(d->control);
     d->status = cpu_to_le32(d->status);
-    address_space_write(&s->dma->as, addr, MEMTXATTRS_UNSPECIFIED,
-                        d, sizeof *d);
+    result = address_space_write(&s->dma->as, addr, MEMTXATTRS_UNSPECIFIED,
+                                 d, sizeof *d);
+
+    if (result != MEMTX_OK) {
+        trace_xilinx_axidma_storing_desc_fail(result);
+        stream_dma_error(s, result);
+    }
+    return result;
 }
 
 static void stream_update_irq(struct Stream *s)
@@ -294,6 +306,7 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
     uint32_t txlen, origin_txlen;
     uint64_t addr;
     bool eop;
+    MemTxResult result;
 
     if (!stream_running(s) || stream_idle(s) || stream_halted(s)) {
         return;
@@ -322,9 +335,14 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
             unsigned int len;
 
             len = txlen > sizeof s->txbuf ? sizeof s->txbuf : txlen;
-            address_space_read(&s->dma->as, addr,
-                               MEMTXATTRS_UNSPECIFIED,
-                               s->txbuf, len);
+            result = address_space_read(&s->dma->as, addr,
+                                        MEMTXATTRS_UNSPECIFIED,
+                                        s->txbuf, len);
+            if (result != MEMTX_OK) {
+                stream_dma_error(s, result);
+                return;
+            }
+
             stream_push(tx_data_dev, s->txbuf, len, eop && len == txlen);
             txlen -= len;
             addr += len;
@@ -336,7 +354,9 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
 
         /* Update the descriptor.  */
         s->desc.status = origin_txlen | SDESC_STATUS_COMPLETE;
-        stream_desc_store(s, s->regs[R_CURDESC]);
+        if (stream_desc_store(s, s->regs[R_CURDESC]) != MEMTX_OK) {
+            break;
+        }
 
         /* Advance.  */
         prev_d = s->regs[R_CURDESC];
@@ -354,6 +374,7 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
     uint32_t prev_d;
     unsigned int rxlen;
     size_t pos = 0;
+    MemTxResult result;
 
     if (!stream_running(s) || stream_idle(s) || stream_halted(s)) {
         return 0;
@@ -375,8 +396,13 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
             rxlen = len;
         }
 
-        address_space_write(&s->dma->as, s->desc.buffer_address,
-                            MEMTXATTRS_UNSPECIFIED, buf + pos, rxlen);
+        result = address_space_write(&s->dma->as, s->desc.buffer_address,
+                                     MEMTXATTRS_UNSPECIFIED, buf + pos, rxlen);
+        if (result != MEMTX_OK) {
+            stream_dma_error(s, result);
+            break;
+        }
+
         len -= rxlen;
         pos += rxlen;
 
@@ -389,7 +415,10 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
 
         s->desc.status |= s->sof << SDESC_STATUS_SOF_BIT;
         s->desc.status |= SDESC_STATUS_COMPLETE;
-        stream_desc_store(s, s->regs[R_CURDESC]);
+        result = stream_desc_store(s, s->regs[R_CURDESC]);
+        if (result != MEMTX_OK) {
+            break;
+        }
         s->sof = eop;
 
         /* Advance.  */
