@@ -23,6 +23,7 @@
 #include "trace.h"
 #include "nbd-internal.h"
 #include "qemu/cutils.h"
+#include "qemu/unicode.h"
 
 /* Definitions for opaque data types */
 
@@ -230,7 +231,9 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
     }
 
     if (msg) {
-        error_append_hint(errp, "server reported: %s\n", msg);
+        g_autoptr(GString) buf = g_string_sized_new(reply->length);
+        mod_utf8_sanitize(buf, msg);
+        error_append_hint(errp, "server reported: %s\n", buf->str);
     }
 
  err:
