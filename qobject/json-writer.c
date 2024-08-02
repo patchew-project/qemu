@@ -104,53 +104,8 @@ static void pretty_newline_or_space(JSONWriter *writer)
 
 static void quoted_str(JSONWriter *writer, const char *str)
 {
-    const char *ptr;
-    char *end;
-    int cp;
-
     g_string_append_c(writer->contents, '"');
-
-    for (ptr = str; *ptr; ptr = end) {
-        cp = mod_utf8_codepoint(ptr, 6, &end);
-        switch (cp) {
-        case '\"':
-            g_string_append(writer->contents, "\\\"");
-            break;
-        case '\\':
-            g_string_append(writer->contents, "\\\\");
-            break;
-        case '\b':
-            g_string_append(writer->contents, "\\b");
-            break;
-        case '\f':
-            g_string_append(writer->contents, "\\f");
-            break;
-        case '\n':
-            g_string_append(writer->contents, "\\n");
-            break;
-        case '\r':
-            g_string_append(writer->contents, "\\r");
-            break;
-        case '\t':
-            g_string_append(writer->contents, "\\t");
-            break;
-        default:
-            if (cp < 0) {
-                cp = 0xFFFD; /* replacement character */
-            }
-            if (cp > 0xFFFF) {
-                /* beyond BMP; need a surrogate pair */
-                g_string_append_printf(writer->contents, "\\u%04X\\u%04X",
-                                       0xD800 + ((cp - 0x10000) >> 10),
-                                       0xDC00 + ((cp - 0x10000) & 0x3FF));
-            } else if (cp < 0x20 || cp >= 0x7F) {
-                g_string_append_printf(writer->contents, "\\u%04X", cp);
-            } else {
-                g_string_append_c(writer->contents, cp);
-            }
-        }
-    };
-
+    mod_utf8_sanitize(writer->contents, str);
     g_string_append_c(writer->contents, '"');
 }
 

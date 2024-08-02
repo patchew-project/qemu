@@ -154,3 +154,87 @@ ssize_t mod_utf8_encode(char buf[], size_t bufsz, int codepoint)
     buf[4] = 0;
     return 4;
 }
+
+/**
+ * mod_utf8_sanitize:
+ * @buf: Destination buffer
+ * @str: Modified UTF-8 string to sanitize
+ *
+ * Append the contents of the NUL-terminated Modified UTF-8 string
+ * @str into @buf, with escape sequences used for non-printable ASCII
+ * and for quote characters.  The result is therefore safe for output
+ * to a terminal.
+ *
+ * Modified UTF-8 is exactly like UTF-8, except U+0000 is encoded as
+ * "\xC0\x80".
+ */
+void mod_utf8_sanitize(GString *buf, const char *str)
+{
+    mod_utf8_sanitize_len(buf, str, -1);
+}
+
+/**
+ * mod_utf8_sanitize:
+ * @buf: Destination buffer
+ * @str: Modified UTF-8 string to sanitize
+ * @len: Length of @str, or negative to stop at NUL terminator
+ *
+ * Append the contents of @len bytes of the Modified UTF-8 string
+ * @str into @buf, with escape sequences used for non-printable ASCII
+ * and for quote characters.  The result is therefore safe for output
+ * to a terminal.
+ *
+ * Modified UTF-8 is exactly like UTF-8, except U+0000 is encoded as
+ * "\xC0\x80".
+ */
+void mod_utf8_sanitize_len(GString *buf, const char *str, ssize_t len)
+{
+    const char *ptr;
+    char *end;
+    int cp;
+
+    if (len < 0) {
+        len = strlen(str);
+    }
+
+    for (ptr = str; *ptr; ptr = end) {
+        cp = mod_utf8_codepoint(ptr, MIN(6, str + len - ptr), &end);
+        switch (cp) {
+        case '\"':
+            g_string_append(buf, "\\\"");
+            break;
+        case '\\':
+            g_string_append(buf, "\\\\");
+            break;
+        case '\b':
+            g_string_append(buf, "\\b");
+            break;
+        case '\f':
+            g_string_append(buf, "\\f");
+            break;
+        case '\n':
+            g_string_append(buf, "\\n");
+            break;
+        case '\r':
+            g_string_append(buf, "\\r");
+            break;
+        case '\t':
+            g_string_append(buf, "\\t");
+            break;
+        default:
+            if (cp < 0) {
+                cp = 0xFFFD; /* replacement character */
+            }
+            if (cp > 0xFFFF) {
+                /* beyond BMP; need a surrogate pair */
+                g_string_append_printf(buf, "\\u%04X\\u%04X",
+                                       0xD800 + ((cp - 0x10000) >> 10),
+                                       0xDC00 + ((cp - 0x10000) & 0x3FF));
+            } else if (cp < 0x20 || cp >= 0x7F) {
+                g_string_append_printf(buf, "\\u%04X", cp);
+            } else {
+                g_string_append_c(buf, cp);
+            }
+        }
+    }
+}
