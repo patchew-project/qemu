@@ -102,7 +102,7 @@
 ##
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
-            '*begin': 'int', '*length': 'int',
+            '*begin': 'uint64', '*length': 'size',
             '*format': 'DumpGuestMemoryFormat'} }
 
 ##
