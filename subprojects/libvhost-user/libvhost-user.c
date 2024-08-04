@@ -667,6 +667,7 @@ vu_send_reply(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
 {
     /* Set the version in the flags when sending the reply */
     vmsg->flags &= ~VHOST_USER_VERSION_MASK;
+    vmsg->flags &= ~VHOST_USER_NEED_REPLY_MASK;
     vmsg->flags |= VHOST_USER_VERSION;
     vmsg->flags |= VHOST_USER_REPLY_MASK;
 

@@ -1080,7 +1080,7 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
     int ret;
     VhostUserMsg msg = {
         .hdr.request = request,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
     };
 
     if (vhost_user_per_device_request(request) && dev->vq_index != 0) {
