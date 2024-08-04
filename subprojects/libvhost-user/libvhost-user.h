@@ -234,6 +234,8 @@ typedef struct VuDev VuDev;
 
 typedef uint64_t (*vu_get_features_cb) (VuDev *dev);
 typedef void (*vu_set_features_cb) (VuDev *dev, uint64_t features);
+typedef uint64_t (*vu_get_protocol_features_cb) (VuDev *dev);
+typedef void (*vu_set_protocol_features_cb) (VuDev *dev, uint64_t features);
 typedef int (*vu_process_msg_cb) (VuDev *dev, VhostUserMsg *vmsg,
                                   int *do_reply);
 typedef bool (*vu_read_msg_cb) (VuDev *dev, int sock, VhostUserMsg *vmsg);
@@ -252,9 +254,9 @@ typedef struct VuDevIface {
     vu_set_features_cb set_features;
     /* get the protocol feature bitmask from the underlying vhost
      * implementation */
-    vu_get_features_cb get_protocol_features;
+    vu_get_protocol_features_cb get_protocol_features;
     /* enable protocol features in the underlying vhost implementation. */
-    vu_set_features_cb set_protocol_features;
+    vu_set_protocol_features_cb set_protocol_features;
     /* process_msg is called for each vhost-user message received */
     /* skip libvhost-user processing if return value != 0 */
     vu_process_msg_cb process_msg;

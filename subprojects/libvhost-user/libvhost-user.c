@@ -2158,32 +2158,39 @@ vu_dispatch(VuDev *dev)
 {
     VhostUserMsg vmsg = { 0, };
     int reply_requested;
-    bool need_reply, success = false;
+    bool need_reply, success = true;
 
     if (!dev->read_msg(dev, dev->sock, &vmsg)) {
-        goto end;
+        success = false;
+        free(vmsg.data);
+        return success;
     }
 
     need_reply = vmsg.flags & VHOST_USER_NEED_REPLY_MASK;
 
     reply_requested = vu_process_message(dev, &vmsg);
-    if (!reply_requested && need_reply) {
-        vmsg_set_reply_u64(&vmsg, 0);
-        reply_requested = 1;
+
+    if (need_reply) {
+        if (reply_requested) {
+            if (!vu_send_reply(dev, dev->sock, &vmsg)) {
+                success = false;
+            }
+        } else {
+            // need reply but no reply requested, return 0(u64)
+            vmsg_set_reply_u64(&vmsg, 0);
+            if (!vu_send_reply(dev, dev->sock, &vmsg)) {
+                success = false;
+            }
+        }
+    } else {
+        // no need reply but reply requested, send a reply
+        if (reply_requested) {
+            if (!vu_send_reply(dev, dev->sock, &vmsg)) {
+                success = false;
+            }
+        }
     }
 
-    if (!reply_requested) {
-        success = true;
-        goto end;
-    }
-
-    if (!vu_send_reply(dev, dev->sock, &vmsg)) {
-        goto end;
-    }
-
-    success = true;
-
-end:
     free(vmsg.data);
     return success;
 }
