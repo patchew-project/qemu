@@ -143,6 +143,11 @@ void qio_net_listener_set_client_func_full(QIONetListener *listener,
 {
     size_t i;
 
+
+    if (!listener->nsioc || !listener->io_source || !listener->name) {
+        return;
+    }
+
     if (listener->io_notify) {
         listener->io_notify(listener->io_data);
     }
@@ -264,6 +269,10 @@ void qio_net_listener_disconnect(QIONetListener *listener)
 {
     size_t i;
 
+    if (!listener->nsioc || !listener->io_source || !listener->name) {
+        return;
+    }
+
     if (!listener->connected) {
         return;
     }
@@ -301,6 +310,10 @@ static void qio_net_listener_finalize(Object *obj)
     g_free(listener->io_source);
     g_free(listener->sioc);
     g_free(listener->name);
+
+    listener->io_source = NULL;
+    listener->sioc = NULL;
+    listener->name = NULL;
 }
 
 static const TypeInfo qio_net_listener_info = {
