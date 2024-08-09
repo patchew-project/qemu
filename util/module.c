@@ -369,6 +369,7 @@ void module_load_qom_all(void)
         }
         if (module_load("", modinfo->name, &local_err) < 0) {
             error_report_err(local_err);
+            local_err = NULL;
         }
     }
     module_loaded_qom_all = true;
