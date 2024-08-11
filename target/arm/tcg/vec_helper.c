@@ -2866,7 +2866,7 @@ static uint32_t do_smmla_b(uint32_t sum, void *vn, void *vm)
     int8_t *n = vn, *m = vm;
 
     for (intptr_t k = 0; k < 8; ++k) {
-        sum += n[H1(k)] * m[H1(k)];
+        sum += (uint32_t)n[H1(k)] * (uint32_t)m[H1(k)];
     }
     return sum;
 }
@@ -2876,7 +2876,7 @@ static uint32_t do_ummla_b(uint32_t sum, void *vn, void *vm)
     uint8_t *n = vn, *m = vm;
 
     for (intptr_t k = 0; k < 8; ++k) {
-        sum += n[H1(k)] * m[H1(k)];
+        sum += (uint32_t)n[H1(k)] * (uint32_t)m[H1(k)];
     }
     return sum;
 }
@@ -2887,7 +2887,7 @@ static uint32_t do_usmmla_b(uint32_t sum, void *vn, void *vm)
     int8_t *m = vm;
 
     for (intptr_t k = 0; k < 8; ++k) {
-        sum += n[H1(k)] * m[H1(k)];
+        sum += (uint32_t)n[H1(k)] * (uint32_t)m[H1(k)];
     }
     return sum;
 }
