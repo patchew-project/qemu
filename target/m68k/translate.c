@@ -969,11 +969,11 @@ static void gen_load_fp(DisasContext *s, int opsize, TCGv addr, TCGv_ptr fp,
         tcg_gen_st_i64(t64, fp, offsetof(FPReg, l.lower));
         break;
     case OS_PACKED:
-        /*
-         * unimplemented data type on 68040/ColdFire
-         * FIXME if needed for another FPU
-         */
-        gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+        if (!m68k_feature(s->env, M68K_FEATURE_FPU_PACKED_DECIMAL)) {
+            gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+            break;
+        }
+        gen_helper_load_pdr_to_fx80(tcg_env, fp, addr);
         break;
     default:
         g_assert_not_reached();
@@ -1148,11 +1148,13 @@ static int gen_ea_mode_fp(CPUM68KState *env, DisasContext *s, int mode,
                 tcg_gen_st_i64(t64, fp, offsetof(FPReg, l.lower));
                 break;
             case OS_PACKED:
-                /*
-                 * unimplemented data type on 68040/ColdFire
-                 * FIXME if needed for another FPU
-                 */
-                gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+                if (!m68k_feature(s->env, M68K_FEATURE_FPU_PACKED_DECIMAL)) {
+                    gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+                    break;
+                }
+                tmp = tcg_constant_tl(s->pc);
+                s->pc += 12;
+                gen_helper_load_pdr_to_fx80(tcg_env, fp, tmp);
                 break;
             default:
                 g_assert_not_reached();

@@ -747,3 +747,140 @@ void HELPER(fcosh)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_cosh(val->d, &env->fp_status);
 }
+
+/* From m68k float.h, LDBL_MAX_10_EXP. */
+#define FX80_MAX_10_EXP  4932
+
+/* 10**0 through 10**18 */
+static const int64_t i64_pow10[] = {
+    1ll,
+    10ll,
+    100ll,
+    1000ll,
+    10000ll,
+    100000ll,
+    1000000ll,
+    10000000ll,
+    100000000ll,
+    1000000000ll,
+    10000000000ll,
+    100000000000ll,
+    1000000000000ll,
+    10000000000000ll,
+    100000000000000ll,
+    1000000000000000ll,
+    10000000000000000ll,
+    100000000000000000ll,
+    1000000000000000000ll,
+};
+
+/* Form 10**exp */
+static floatx80 floatx80_exp10i(int exp, float_status *status)
+{
+    static floatx80 cache[FX80_MAX_10_EXP + 1];
+
+    floatx80 ret;
+
+    assert(exp >= 0 && exp <= FX80_MAX_10_EXP);
+
+    ret = cache[exp];
+    if (ret.high) {
+        if (exp >= ARRAY_SIZE(i64_pow10)) {
+            float_raise(float_flag_inexact, status);
+        }
+    } else {
+        FloatRoundMode old_round = get_float_rounding_mode(status);
+        set_float_rounding_mode(float_round_nearest_even, status);
+
+        if (exp < ARRAY_SIZE(i64_pow10)) {
+            ret = int64_to_floatx80(i64_pow10[exp], status);
+        } else {
+            int e0 = exp / 2;
+            int e1 = exp - e0;
+            ret = floatx80_mul(floatx80_exp10i(e0, status),
+                               floatx80_exp10i(e1, status), status);
+        }
+
+        set_float_rounding_mode(old_round, status);
+        cache[exp] = ret;
+    }
+    return ret;
+}
+
+void HELPER(load_pdr_to_fx80)(CPUM68KState *env, FPReg *res, target_ulong addr)
+{
+    uint64_t lo;
+    uint32_t hi;
+    int64_t mant;
+    int exp;
+    floatx80 fexp;
+
+    hi = cpu_ldl_be_data_ra(env, addr, GETPC());
+    lo = cpu_ldq_be_data_ra(env, addr + 4, GETPC());
+
+    if (unlikely((hi & 0x7fff0000) == 0x7fff0000)) {
+        /* NaN or Inf */
+        res->l.lower = lo;
+        res->l.upper = hi >> 16;
+        return;
+    }
+
+    /* Initialize mant with the integer digit. */
+    mant = hi & 0xf;
+    if (!mant && !lo) {
+        /* +/- 0, regardless of exponent. */
+        res->l.lower = 0;
+        res->l.upper = (hi >> 16) & 0x8000;
+        return;
+    }
+
+    /*
+     * Accumulate the 16 decimal fraction digits into mant.
+     * With 17 decimal digits, the maximum value is 10**17 - 1,
+     * which is less than 2**57.
+     */
+    for (int i = 60; i >= 0; i -= 4) {
+        /*
+         * From 1.6.6 Data Format and Type Summary:
+         * The fpu does not detect non-decimal digits in any of the exponent,
+         * integer, or fraction digits.  These non-decimal digits are converted
+         * in the same manner as decimal digits; the result is probably useless
+         * although it is repeatable.
+         */
+        mant = mant * 10 + ((lo >> i) & 0xf);
+    }
+
+    /* Apply the mantissa sign. */
+    if (hi & 0x80000000) {
+        mant = -mant;
+    }
+
+    /* Convert the 3 digit decimal exponent to binary. */
+    exp = ((hi >> 24) & 0xf)
+        + ((hi >> 20) & 0xf) * 10
+        + ((hi >> 16) & 0xf) * 100;
+
+    /* Apply the exponent sign. */
+    if (hi & 0x40000000) {
+        exp = -exp;
+    }
+
+    /*
+     * Our representation of mant is integral, whereas the decimal point
+     * belongs between the integer and fractional components.
+     * Adjust the exponent to compensate.
+     */
+    exp -= 16;
+
+    /* Convert mantissa. */
+    res->d = int64_to_floatx80(mant, &env->fp_status);
+
+    /* Apply exponent. */
+    if (exp > 0) {
+        fexp = floatx80_exp10i(exp, &env->fp_status);
+        res->d = floatx80_mul(res->d, fexp, &env->fp_status);
+    } else if (exp < 0) {
+        fexp = floatx80_exp10i(-exp, &env->fp_status);
+        res->d = floatx80_div(res->d, fexp, &env->fp_status);
+    }
+}
