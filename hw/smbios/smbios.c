@@ -83,6 +83,12 @@ static struct {
     .processor_family = 0x01, /* Other */
 };
 
+struct type7_instance {
+    uint16_t level, size;
+    QTAILQ_ENTRY(type7_instance) next;
+};
+static QTAILQ_HEAD(, type7_instance) type7 = QTAILQ_HEAD_INITIALIZER(type7);
+
 struct type8_instance {
     const char *internal_reference, *external_reference;
     uint8_t connector_type, port_type;
@@ -326,6 +332,23 @@ static const QemuOptDesc qemu_smbios_type4_opts[] = {
         .name = "processor-id",
         .type = QEMU_OPT_NUMBER,
         .help = "processor id",
+    },
+    { /* end of list */ }
+};
+
+static const QemuOptDesc qemu_smbios_type7_opts[] = {
+    {
+        .name = "type",
+        .type = QEMU_OPT_NUMBER,
+        .help = "SMBIOS element type",
+    },{
+        .name = "level",
+        .type = QEMU_OPT_NUMBER,
+        .help = "cache level",
+    },{
+        .name = "size",
+        .type = QEMU_OPT_NUMBER,
+        .help = "cache size",
     },
     { /* end of list */ }
 };
@@ -733,6 +756,32 @@ static void smbios_build_type_4_table(MachineState *ms, unsigned instance,
     smbios_type4_count++;
 }
 
+static void smbios_build_type_7_table(void)
+{
+    unsigned instance = 0;
+    struct type7_instance *t7;
+    char designation[20];
+
+    QTAILQ_FOREACH(t7, &type7, next) {
+        SMBIOS_BUILD_TABLE_PRE(7, T0_BASE + instance, true);
+        sprintf(designation, "CPU Internal L%d", t7->level);
+        SMBIOS_TABLE_SET_STR(7, socket_designation, designation);
+        t->cache_configuration =  0x180 | (t7->level-1); /* not socketed, enabled, write back*/
+        t->installed_size =  t7->size;
+        t->maximum_cache_size =  t7->size; /* set max to installed */
+        t->supported_sram_type = 0x10; /* pipeline burst */
+        t->current_sram_type = 0x10; /* pipeline burst */
+        t->cache_speed = 0x1; /* 1 ns */
+        t->error_correction_type = 0x6; /* Multi-bit ECC */
+        t->system_cache_type = 0x05; /* Unified */
+        t->associativity = 0x6; /* Fully Associative */
+        t->maximum_cache_size2 = t7->size;
+        t->installed_cache_size2 = t7->size;
+        SMBIOS_BUILD_TABLE_POST;
+        instance++;
+    }
+}
+
 static void smbios_build_type_8_table(void)
 {
     unsigned instance = 0;
@@ -1120,6 +1169,7 @@ static bool smbios_get_tables_ep(MachineState *ms,
         }
     }
 
+    smbios_build_type_7_table();
     smbios_build_type_8_table();
     smbios_build_type_9_table(errp);
     smbios_build_type_11_table();
@@ -1479,6 +1529,19 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
                 type4.current_speed > UINT16_MAX) {
                 error_setg(errp, "SMBIOS CPU speed is too large (> %d)",
                            UINT16_MAX);
+            }
+            return;
+        case 7:
+            if (!qemu_opts_validate(opts, qemu_smbios_type7_opts, errp)) {
+                return;
+            }
+            struct type7_instance *t7_i;
+            t7_i = g_new0(struct type7_instance, 1);
+            t7_i->level = qemu_opt_get_number(opts,"level", 0x0);
+            t7_i->size = qemu_opt_get_number(opts, "size", 0x0200);
+            /* Only cache levels 1-8 are permitted */
+            if (t7_i->level > 0 && t7_i->level < 9) {
+                QTAILQ_INSERT_TAIL(&type7, t7_i, next);
             }
             return;
         case 8:

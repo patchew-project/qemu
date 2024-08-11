@@ -220,6 +220,24 @@ typedef enum smbios_type_4_len_ver {
     SMBIOS_TYPE_4_LEN_V30 = offsetofend(struct smbios_type_4, thread_count2),
 } smbios_type_4_len_ver;
 
+/* SMBIOS type 7 - Cache Information (v2.0+) */
+struct smbios_type_7 {
+    struct smbios_structure_header header;
+    uint8_t socket_designation;
+    uint16_t cache_configuration;
+    uint16_t maximum_cache_size;
+    uint16_t installed_size;
+    uint16_t supported_sram_type;
+    uint16_t current_sram_type;
+    uint8_t cache_speed;
+    uint8_t error_correction_type;
+    uint8_t system_cache_type;
+    uint8_t associativity;
+    uint32_t maximum_cache_size2;
+    uint32_t installed_cache_size2;
+    /* contained elements follow */
+} QEMU_PACKED;
+
 /* SMBIOS type 8 - Port Connector Information */
 struct smbios_type_8 {
     struct smbios_structure_header header;
