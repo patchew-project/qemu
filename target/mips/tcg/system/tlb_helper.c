@@ -942,8 +942,9 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
          * Memory reads during hardware page table walking are performed
          * as if they were kernel-mode load instructions.
          */
-        int ptw_mmu_idx = (env->hflags & MIPS_HFLAG_ERL ?
-                           MMU_ERL_IDX : MMU_KERNEL_IDX);
+        int ptw_mmu_idx = (env->hflags & MIPS_HFLAG_ERL)
+                          ? MMU_ERL_IDX
+                          : (env->hflags & MIPS_HFLAG_KSU);
 
         if (page_table_walk_refill(env, address, ptw_mmu_idx)) {
             ret = get_physical_address(env, &physical, &prot, address,
