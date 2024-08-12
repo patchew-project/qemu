@@ -120,6 +120,8 @@ typedef struct DisasContext {
     int done_mac;
     int writeback_mask;
     TCGv writeback[8];
+    uint16_t insn;
+    uint16_t ext;
     bool ss_active;
 } DisasContext;
 
@@ -672,6 +674,7 @@ static inline int ext_opsize(int ext, int pos)
     case 4: return OS_WORD;
     case 5: return OS_DOUBLE;
     case 6: return OS_BYTE;
+    case 7: return OS_PACKED; /* store, dynamic k-factor */
     default:
         g_assert_not_reached();
     }
@@ -1016,11 +1019,25 @@ static void gen_store_fp(DisasContext *s, int opsize, TCGv addr, TCGv_ptr fp,
         tcg_gen_qemu_st_i64(t64, tmp, index, MO_TEUQ);
         break;
     case OS_PACKED:
+        if (!m68k_feature(s->env, M68K_FEATURE_FPU_PACKED_DECIMAL)) {
+            gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+            break;
+        }
         /*
-         * unimplemented data type on 68040/ColdFire
-         * FIXME if needed for another FPU
+         * For stores we must recover k-factor, either from an
+         * immediate or the low 7 bits of a D register.
          */
-        gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+        switch ((s->ext >> 10) & 7) {
+        case 3:
+            tcg_gen_movi_i32(tmp, sextract32(s->ext, 0, 7));
+            break;
+        case 7:
+            tcg_gen_sextract_i32(tmp, DREG(s->ext, 4), 0, 7);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        gen_helper_store_fx80_to_pdr(tcg_env, addr, fp, tmp);
         break;
     default:
         g_assert_not_reached();
@@ -4946,6 +4963,8 @@ DISAS_INSN(fpu)
     TCGv_ptr cpu_src, cpu_dest;
 
     ext = read_im16(env, s);
+    s->ext = ext;
+
     opmode = ext & 0x7f;
     switch ((ext >> 13) & 7) {
     case 0:
@@ -6048,6 +6067,8 @@ static void m68k_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     CPUM68KState *env = cpu_env(cpu);
     uint16_t insn = read_im16(env, dc);
 
+    dc->insn = insn;
+    dc->ext = 0;
     opcode_table[insn](env, dc, insn);
     do_writebacks(dc);
 
