@@ -1974,11 +1974,12 @@ static CXLRetCode cmd_media_scan_media(const struct cxl_cmd *cmd,
     }
     query_length = ldq_le_p(&in->length) * CXL_CACHE_LINE_SIZE;
 
-    if (query_start + query_length > cxl_dstate->static_mem_size) {
-        return CXL_MBOX_INVALID_PA;
-    }
-    if (ct3d->dc.num_regions && query_start + query_length >=
+    if (ct3d->dc.num_regions) {
+        if (query_start + query_length >=
             cxl_dstate->static_mem_size + ct3d->dc.total_capacity) {
+                return CXL_MBOX_INVALID_PA;
+            }
+    } else if (query_start + query_length > cxl_dstate->static_mem_size) {
         return CXL_MBOX_INVALID_PA;
     }
 
