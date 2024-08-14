@@ -3773,7 +3773,7 @@ if have_block
     'blockjob.c',
     'job.c',
     'qemu-io-cmds.c',
-  ))
+  ), qemuutil)
   if config_host_data.get('CONFIG_REPLICATION')
     block_ss.add(files('replication.c'))
   endif
