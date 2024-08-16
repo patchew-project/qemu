@@ -779,6 +779,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     ObjectClass *class;
     NamedGPIOList *ngl;
     NamedClockList *ncl;
+    g_autofree char *qom_path = object_get_canonical_path(OBJECT(dev));
 
     QLIST_FOREACH(ngl, &dev->gpios, node) {
         if (ngl->num_in) {
@@ -803,6 +804,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
     bus_print_dev(dev->parent_bus, mon, dev, indent);
+    qdev_printf("qom-path %s\n", qom_path);
 }
 
 static void qbus_print(Monitor *mon, BusState *bus, int indent, bool details)
