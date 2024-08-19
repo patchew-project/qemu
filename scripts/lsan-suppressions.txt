@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (c) 2024 Linaro Limited
+
+# This is a set of suppressions for LeakSanitizer; you can use it
+# by setting
+#   LSAN_OPTIONS="suppressions=/path/to/scripts/lsan-suppressions.txt"
+# when running a QEMU built with the leak-sanitizer.
+
+# g_set_user_dirs() deliberately leaks the previous cached g_get_user_*
+# values. This is documented in upstream glib's valgrind-format
+# suppression file:
+# https://github.com/GNOME/glib/blob/main/tools/glib.supp
+# This avoids false positive leak reports for the qga-ssh-test.
+leak:g_set_user_dirs
