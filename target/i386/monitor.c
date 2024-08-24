@@ -50,9 +50,13 @@ static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
 }
 
 static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
-                      hwaddr pte, hwaddr mask)
+                      hwaddr pte, hwaddr mask, hwaddr *filter)
 {
     addr = addr_canonical(env, addr);
+
+    if (filter && (*filter & mask) != (addr & mask)) {
+        return;
+    }
 
     monitor_printf(mon, HWADDR_FMT_plx ": " HWADDR_FMT_plx
                    " %c%c%c%c%c%c%c%c%c\n",
@@ -69,7 +73,7 @@ static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
                    pte & PG_RW_MASK ? 'W' : '-');
 }
 
-static void tlb_info_32(Monitor *mon, CPUArchState *env)
+static void tlb_info_32(Monitor *mon, CPUArchState *env, hwaddr *filter)
 {
     unsigned int l1, l2;
     uint32_t pgd, pde, pte;
@@ -81,7 +85,7 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env)
         if (pde & PG_PRESENT_MASK) {
             if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
                 /* 4M pages */
-                print_pte(mon, env, (l1 << 22), pde, ~((1 << 21) - 1));
+                print_pte(mon, env, (l1 << 22), pde, ~((1 << 21) - 1), filter);
             } else {
                 for(l2 = 0; l2 < 1024; l2++) {
                     cpu_physical_memory_read((pde & ~0xfff) + l2 * 4, &pte, 4);
@@ -89,7 +93,8 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env)
                     if (pte & PG_PRESENT_MASK) {
                         print_pte(mon, env, (l1 << 22) + (l2 << 12),
                                   pte & ~PG_PSE_MASK,
-                                  ~0xfff);
+                                  ~0xfff,
+                                  filter);
                     }
                 }
             }
@@ -97,7 +102,7 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env)
     }
 }
 
-static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
+static void tlb_info_pae32(Monitor *mon, CPUArchState *env, hwaddr *filter)
 {
     unsigned int l1, l2, l3;
     uint64_t pdpe, pde, pte;
@@ -116,7 +121,8 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
                     if (pde & PG_PSE_MASK) {
                         /* 2M pages with PAE, CR4.PSE is ignored */
                         print_pte(mon, env, (l1 << 30) + (l2 << 21), pde,
-                                  ~((hwaddr)(1 << 20) - 1));
+                                  ~((hwaddr)(1 << 20) - 1),
+                                  filter);
                     } else {
                         pt_addr = pde & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
@@ -126,7 +132,8 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
                                 print_pte(mon, env, (l1 << 30) + (l2 << 21)
                                           + (l3 << 12),
                                           pte & ~PG_PSE_MASK,
-                                          ~(hwaddr)0xfff);
+                                          ~(hwaddr)0xfff,
+                                          filter);
                             }
                         }
                     }
@@ -138,7 +145,7 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
 
 #ifdef TARGET_X86_64
 static void tlb_info_la48(Monitor *mon, CPUArchState *env,
-        uint64_t l0, uint64_t pml4_addr)
+        uint64_t l0, uint64_t pml4_addr, hwaddr *filter)
 {
     uint64_t l1, l2, l3, l4;
     uint64_t pml4e, pdpe, pde, pte;
@@ -162,7 +169,7 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env,
             if (pdpe & PG_PSE_MASK) {
                 /* 1G pages, CR4.PSE is ignored */
                 print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30),
-                        pdpe, 0x3ffffc0000000ULL);
+                        pdpe, 0x3ffffc0000000ULL, filter);
                 continue;
             }
 
@@ -177,7 +184,7 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env,
                 if (pde & PG_PSE_MASK) {
                     /* 2M pages, CR4.PSE is ignored */
                     print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30) +
-                            (l3 << 21), pde, 0x3ffffffe00000ULL);
+                            (l3 << 21), pde, 0x3ffffffe00000ULL, filter);
                     continue;
                 }
 
@@ -190,7 +197,8 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env,
                     if (pte & PG_PRESENT_MASK) {
                         print_pte(mon, env, (l0 << 48) + (l1 << 39) +
                                 (l2 << 30) + (l3 << 21) + (l4 << 12),
-                                pte & ~PG_PSE_MASK, 0x3fffffffff000ULL);
+                                pte & ~PG_PSE_MASK, 0x3fffffffff000ULL,
+                                filter);
                     }
                 }
             }
@@ -198,7 +206,7 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env,
     }
 }
 
-static void tlb_info_la57(Monitor *mon, CPUArchState *env)
+static void tlb_info_la57(Monitor *mon, CPUArchState *env, hwaddr *filter)
 {
     uint64_t l0;
     uint64_t pml5e;
@@ -209,7 +217,7 @@ static void tlb_info_la57(Monitor *mon, CPUArchState *env)
         cpu_physical_memory_read(pml5_addr + l0 * 8, &pml5e, 8);
         pml5e = le64_to_cpu(pml5e);
         if (pml5e & PG_PRESENT_MASK) {
-            tlb_info_la48(mon, env, l0, pml5e & 0x3fffffffff000ULL);
+            tlb_info_la48(mon, env, l0, pml5e & 0x3fffffffff000ULL, filter);
         }
     }
 }
@@ -218,6 +226,9 @@ static void tlb_info_la57(Monitor *mon, CPUArchState *env)
 void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
+
+    hwaddr filter_addr = qdict_get_try_int(qdict, "virt", 0);
+    hwaddr *filter = qdict_haskey(qdict, "virt") ? &filter_addr : NULL;
 
     env = mon_get_cpu_env(mon);
     if (!env) {
@@ -233,17 +244,17 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
             if (env->cr[4] & CR4_LA57_MASK) {
-                tlb_info_la57(mon, env);
+                tlb_info_la57(mon, env, filter);
             } else {
-                tlb_info_la48(mon, env, 0, env->cr[3] & 0x3fffffffff000ULL);
+                tlb_info_la48(mon, env, 0, env->cr[3] & 0x3fffffffff000ULL, filter);
             }
         } else
 #endif
         {
-            tlb_info_pae32(mon, env);
+            tlb_info_pae32(mon, env, filter);
         }
     } else {
-        tlb_info_32(mon, env);
+        tlb_info_32(mon, env, filter);
     }
 }
 

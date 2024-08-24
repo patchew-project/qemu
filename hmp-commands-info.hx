@@ -199,8 +199,13 @@ ERST
     defined(TARGET_PPC) || defined(TARGET_XTENSA) || defined(TARGET_M68K)
     {
         .name       = "tlb",
+#if defined(TARGET_I386)
+        .args_type  = "virt:l?",
+        .params     = "[virt]",
+#else
         .args_type  = "",
         .params     = "",
+#endif
         .help       = "show virtual to physical memory mappings",
         .cmd        = hmp_info_tlb,
     },
