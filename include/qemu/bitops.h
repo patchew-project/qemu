@@ -626,6 +626,32 @@ static inline int64_t sextract64(uint64_t value, int start, int length)
 }
 
 /**
+ * deposit8:
+ * @value: initial value to insert bit field into
+ * @start: the lowest bit in the bit field (numbered from 0)
+ * @length: the length of the bit field
+ * @fieldval: the value to insert into the bit field
+ *
+ * Deposit @fieldval into the 8 bit @value at the bit field specified
+ * by the @start and @length parameters, and return the modified
+ * @value. Bits of @value outside the bit field are not modified.
+ * Bits of @fieldval above the least significant @length bits are
+ * ignored. The bit field must lie entirely within the 8 bit word.
+ * It is valid to request that all 8 bits are modified (ie @length
+ * 8 and @start 0).
+ *
+ * Returns: the modified @value.
+ */
+static inline uint8_t deposit8(uint8_t value, int start, int length,
+                               uint8_t fieldval)
+{
+    uint8_t mask = 0xFF;
+    assert(start >= 0 && length > 0 && length <= 8 - start);
+    mask = (mask >> (8 - length)) << start;
+    return (value & ~mask) | ((fieldval << start) & mask);
+}
+
+/**
  * deposit32:
  * @value: initial value to insert bit field into
  * @start: the lowest bit in the bit field (numbered from 0)
