@@ -135,6 +135,14 @@ bool cxl_event_insert(CXLDeviceState *cxlds, CXLEventLogType log_type,
     QSIMPLEQ_INSERT_TAIL(&log->events, entry, node);
     cxl_event_set_status(cxlds, log_type, true);
 
+    /*
+     * For dynamic capacity event records grouped via More flag,
+     * Only raise interrupt after inserting the last record in the log.
+     */
+    if (log_type == CXL_EVENT_TYPE_DYNAMIC_CAP) {
+        CXLEventDynamicCapacity *dCap = (CXLEventDynamicCapacity *)event;
+        return (dCap->flags & MORE_FLAG) ? false : true;
+    }
     /* Count went from 0 to 1 */
     return cxl_event_count(log) == 1;
 }

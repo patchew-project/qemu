@@ -170,6 +170,7 @@ typedef struct CXLEventMemoryModule {
  * CXL r3.1 section Table 8-50: Dynamic Capacity Event Record
  * All fields little endian.
  */
+#define MORE_FLAG BIT_MASK(0)
 typedef struct CXLEventDynamicCapacity {
     CXLEventRecordHdr hdr;
     uint8_t type;
