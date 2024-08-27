@@ -394,6 +394,14 @@ static void dma_register(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
 
     memory_region_add_subregion(dma_as->root, (hwaddr)iov->iov_base, subregion);
 
+    /*
+     * Insertion into the address space grabbed a reference to keep the memory
+     * region alive. However, the memory region object was created with an
+     * original reference count of 1, so we must unref since we don't keep that
+     * reference.
+     */
+    memory_region_unref(subregion);
+
     trace_vfu_dma_register((uint64_t)iov->iov_base, iov->iov_len);
 }
 
