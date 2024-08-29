@@ -261,6 +261,34 @@ static int add_calxeda_midway_xgmac_fdt_node(SysBusDevice *sbdev, void *opaque)
     g_free(nodename);
     return 0;
 }
+/* Tegra234 MGBE properties whose values are copied/pasted from host */
+static HostProperty nvidia_tegra234_mgbe_copied_properties[] = {
+    {"compatible", false},
+    {"dma-coherent", true},
+    {"interrupt-names", true},
+    {"clock-names", false},
+    {"reg-names", false},
+    {"nvidia,rx_frames", true},
+    {"nvidia,max-platform-mtu", true},
+    {"nvidia,nvidia,slot_intvl_vals", true},
+    {"nvidia,tx_frames", true},
+    {"nvidia,rx_riwt", true},
+    {"nvidia,num-dma-chans", true},
+    {"nvidia,promisc_mode", true},
+    {"nvidia,mtl-queues", true},
+    {"nvidia,dcs-enable", true},
+    {"nvidia,dma_tx_ring_sz", true},
+    {"nvidia,num-mtl-queues", true},
+    {"nvidia,tx-queue-prio", true},
+    {"nvidia,dma-chans", true},
+    {"nvidia,rx-queue-prio", true},
+    {"mac-address", true},
+    {"nvidia,ptp_ref_clock_speed", true},
+    {"nvidia,ptp-rx-queue", true},
+    {"nvidia,tc-mapping", true},
+    {"phy-mode", false},
+    {"reset-names", false},
+};
 
 /* AMD xgbe properties whose values are copied/pasted from host */
 static HostProperty amd_xgbe_copied_properties[] = {
@@ -417,6 +445,180 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
     return 0;
 }
 
+static int add_nvidia_tegra234_mgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
+{
+    PlatformBusFDTData *data = opaque;
+    PlatformBusDevice *pbus = data->pbus;
+    VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    VFIOINTp *intp;
+    const char *parent_node = data->pbus_node_name;
+    char **node_path;
+    char *dt_name;
+    char *nodename;
+    void *host_fdt;
+    void *guest_fdt = data->fdt;
+    int i;
+    uint32_t *irq_attr, *reg_attr;
+    uint64_t mmio_base, irq_number;
+    uint32_t guest_clock_phandles[13];
+    uint32_t syscon_phandle, rst_phandle;
+    const char *clock_name[13] = {
+        "/rx-input-m", "/rx-pcs-m", "/rx-pcs-input",
+         "/rx-pcs", "/tx", "/tx-pcs",
+         "/mac-divider", "/mac", "/eee-pcs", "/mgbe",
+         "/ptp-ref", "/mgbe_macsec", "/rx-input"};
+    char *c, *fixed_name;
+
+    host_fdt = load_device_tree_from_sysfs();
+
+/*
+ * Temporary hack since we assign the mac (host=6810000.ethernet)
+ * while the host dt node is named 680000.ethernet (hypervisor).
+ * so if we use sysfs_to_dt_name(vbasedev->name), the node is not
+ * found! This may have been fixed already by Thierry though.
+ */
+    fixed_name = g_strdup(vbasedev->name);
+    c = strrchr(fixed_name, '1');
+    if (c) {
+        *c = '0';
+    }
+    dt_name = sysfs_to_dt_name(fixed_name);
+    if (!dt_name) {
+        error_report("%s incorrect sysfs device name %s",
+                     __func__, vbasedev->name);
+        exit(1);
+    }
+    node_path = qemu_fdt_node_path(host_fdt, dt_name, vdev->compat,
+                                   &error_fatal);
+    if (!node_path || !node_path[0]) {
+        error_report("%s unable to retrieve node path for %s/%s",
+                     __func__, dt_name, vdev->compat);
+        exit(1);
+    }
+
+    if (node_path[1]) {
+        error_report("%s more than one node matching %s/%s!",
+                     __func__, dt_name, vdev->compat);
+        exit(1);
+    }
+
+    g_free(dt_name);
+    g_free(fixed_name);
+
+/*
+ * Note on my host 4 regions are present including undocumented
+ * macsec-base: mac\0xpcs\0macsec-base\0hypervisor
+ */
+    if (vbasedev->num_regions != 4) {
+        error_report("%s unexpected number of regions?", __func__);
+        exit(1);
+    }
+
+    /* generate dummy nodes for reset (hisilicon rst and syscon) */
+
+    rst_phandle = qemu_fdt_alloc_phandle(guest_fdt);
+    syscon_phandle = qemu_fdt_alloc_phandle(guest_fdt);
+
+    qemu_fdt_add_subnode(guest_fdt, "/hisi-rst-syscon");
+    qemu_fdt_setprop_cell(guest_fdt, "/hisi-rst-syscon",
+                          "phandle", syscon_phandle);
+    qemu_fdt_setprop_string(guest_fdt, "/hisi-rst-syscon",
+                          "compatible", "syscon");
+
+    qemu_fdt_setprop_sized_cells(guest_fdt, "/hisi-rst-syscon", "reg",
+                                 2, 0x0, 2, 0x1000);
+
+    qemu_fdt_add_subnode(guest_fdt, "/hisi-rst");
+    qemu_fdt_setprop_cell(guest_fdt, "/hisi-rst",
+                          "phandle", rst_phandle);
+    qemu_fdt_setprop_cell(guest_fdt, "/hisi-rst",
+                          "hisilicon,rst-syscon", syscon_phandle);
+    qemu_fdt_setprop_string(guest_fdt, "/hisi-rst",
+                          "compatible", "hisilicon,hi3660-reset");
+    qemu_fdt_setprop_cell(guest_fdt, "/hisi-rst", "#reset-cells", 2);
+
+    /*
+     * generate nodes for 13 clocks. The standard clock node generation code
+     * cannot be used here since host uses single node that provides all the
+     * clocks and we don't want that node on guest? Anyway those clocks are
+     * not fixed. Some of those clocks may not be needed though.
+     */
+    for (int j = 0 ; j < 13; j++) {
+        guest_clock_phandles[j] = qemu_fdt_alloc_phandle(guest_fdt);
+        qemu_fdt_add_subnode(guest_fdt, clock_name[j]);
+        qemu_fdt_setprop_cell(guest_fdt, clock_name[j],
+                              "phandle", guest_clock_phandles[j]);
+        qemu_fdt_setprop_string(guest_fdt, clock_name[j],
+                                "compatible", "fixed-clock");
+        qemu_fdt_setprop_cell(guest_fdt, clock_name[j], "clock-frequency", 120);
+        qemu_fdt_setprop_cell(guest_fdt, clock_name[j], "#clock-cells", 0x0);
+    }
+
+    mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, 0);
+    nodename = g_strdup_printf("%s/%s@%" PRIx64, parent_node,
+                               vbasedev->name, mmio_base);
+    qemu_fdt_add_subnode(guest_fdt, nodename);
+
+    copy_properties_from_host(nvidia_tegra234_mgbe_copied_properties,
+                       ARRAY_SIZE(nvidia_tegra234_mgbe_copied_properties),
+                       host_fdt, guest_fdt,
+                       node_path[0], nodename);
+
+    /* regs */
+    reg_attr = g_new(uint32_t, vbasedev->num_regions * 2);
+    for (i = 0; i < vbasedev->num_regions; i++) {
+        mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, i);
+        reg_attr[2 * i] = cpu_to_be32(mmio_base);
+        reg_attr[2 * i + 1] = cpu_to_be32(
+                                memory_region_size(vdev->regions[i]->mem));
+    }
+    qemu_fdt_setprop(guest_fdt, nodename, "reg", reg_attr,
+                     vbasedev->num_regions * 2 * sizeof(uint32_t));
+
+    /* interrupts */
+    irq_attr = g_new(uint32_t, vbasedev->num_irqs * 3);
+    for (i = 0; i < vbasedev->num_irqs; i++) {
+        irq_number = platform_bus_get_irqn(pbus, sbdev , i)
+                         + data->irq_start;
+        irq_attr[3 * i] = cpu_to_be32(GIC_FDT_IRQ_TYPE_SPI);
+        irq_attr[3 * i + 1] = cpu_to_be32(irq_number);
+        /*
+         * General device interrupt and PCS auto-negotiation interrupts are
+         * level-sensitive while the 4 per-channel interrupts are edge
+         * sensitive
+         */
+        QLIST_FOREACH(intp, &vdev->intp_list, next) {
+            if (intp->pin == i) {
+                break;
+            }
+        }
+        if (intp->flags & VFIO_IRQ_INFO_AUTOMASKED) {
+            irq_attr[3 * i + 2] = cpu_to_be32(GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+        } else {
+            irq_attr[3 * i + 2] = cpu_to_be32(GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
+        }
+    }
+    qemu_fdt_setprop(guest_fdt, nodename, "interrupts",
+                     irq_attr, vbasedev->num_irqs * 3 * sizeof(uint32_t));
+
+    /* clocks */
+    qemu_fdt_setprop_cells(guest_fdt, nodename, "clocks",
+                           guest_clock_phandles[0], guest_clock_phandles[1],
+                           guest_clock_phandles[2], guest_clock_phandles[3],
+                           guest_clock_phandles[4], guest_clock_phandles[5],
+                           guest_clock_phandles[6], guest_clock_phandles[7],
+                           guest_clock_phandles[8], guest_clock_phandles[9],
+                           guest_clock_phandles[10], guest_clock_phandles[11],
+                           guest_clock_phandles[12]);
+
+    /* resets */
+    qemu_fdt_setprop_cells(guest_fdt, nodename, "resets",
+                           rst_phandle, 0, 0, rst_phandle, 8, 0);
+
+    return 0;
+}
+
 /* DT compatible matching */
 static bool vfio_platform_match(SysBusDevice *sbdev,
                                 const BindingEntry *entry)
@@ -514,6 +716,7 @@ static const BindingEntry bindings[] = {
     TYPE_BINDING(TYPE_VFIO_CALXEDA_XGMAC, add_calxeda_midway_xgmac_fdt_node),
     TYPE_BINDING(TYPE_VFIO_AMD_XGBE, add_amd_xgbe_fdt_node),
     VFIO_PLATFORM_BINDING("amd,xgbe-seattle-v1a", add_amd_xgbe_fdt_node),
+    VFIO_PLATFORM_BINDING("nvidia,tegra234-mgbe", add_nvidia_tegra234_mgbe_fdt_node),
 #endif
 #ifdef CONFIG_TPM
     TYPE_BINDING(TYPE_TPM_TIS_SYSBUS, add_tpm_tis_fdt_node),
