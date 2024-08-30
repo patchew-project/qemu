@@ -28,6 +28,10 @@ void stop_all_tasks(void);
 extern const char *qemu_uname_release;
 extern unsigned long mmap_min_addr;
 
+extern bool qemu_dup_for_children;
+extern int qemu_argc;
+extern char ** qemu_argv;
+
 typedef struct IOCTLEntry IOCTLEntry;
 
 typedef abi_long do_ioctl_fn(const IOCTLEntry *ie, uint8_t *buf_temp,

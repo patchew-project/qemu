@@ -8587,13 +8587,14 @@ static int do_execv(CPUArchState *cpu_env, int dirfd,
                     abi_long pathname, abi_long guest_argp,
                     abi_long guest_envp, int flags, bool is_execveat)
 {
-    int ret;
+    int ret, argp_offset;
     char **argp, **envp;
     int argc, envc;
     abi_ulong gp;
     abi_ulong addr;
     char **q;
     void *p;
+    bool through_qemu = !is_execveat && qemu_dup_for_children;
 
     argc = 0;
 
@@ -8617,10 +8618,11 @@ static int do_execv(CPUArchState *cpu_env, int dirfd,
         envc++;
     }
 
-    argp = g_new0(char *, argc + 1);
+    argp_offset = through_qemu ? qemu_argc : 0;
+    argp = g_new0(char *, argc + argp_offset + 1);
     envp = g_new0(char *, envc + 1);
 
-    for (gp = guest_argp, q = argp; gp; gp += sizeof(abi_ulong), q++) {
+    for (gp = guest_argp, q = argp + argp_offset; gp; gp += sizeof(abi_ulong), q++) {
         if (get_user_ual(addr, gp)) {
             goto execve_efault;
         }
@@ -8665,9 +8667,17 @@ static int do_execv(CPUArchState *cpu_env, int dirfd,
     }
 
     const char *exe = p;
-    if (is_proc_myself(p, "exe")) {
+    if (through_qemu) {
+        int i;
+        for (i = 0; i < argp_offset; ++i) {
+            argp[i] = qemu_argv[i];
+        }
+        exe = qemu_argv[0];
+    }
+    else if (is_proc_myself(p, "exe")) {
         exe = exec_path;
     }
+
     ret = is_execveat
         ? safe_execveat(dirfd, exe, argp, envp, flags)
         : safe_execve(exe, argp, envp);
@@ -8681,7 +8691,7 @@ execve_efault:
     ret = -TARGET_EFAULT;
 
 execve_end:
-    for (gp = guest_argp, q = argp; *q; gp += sizeof(abi_ulong), q++) {
+    for (gp = guest_argp, q = argp + argp_offset; *q; gp += sizeof(abi_ulong), q++) {
         if (get_user_ual(addr, gp) || !addr) {
             break;
         }
