@@ -44,6 +44,11 @@
 #include "qemu/thread-context.h"
 #include "qemu/main-loop.h"
 
+#ifdef CONFIG_DARWIN
+#include <limits.h>
+#include <unistd.h>
+#endif
+
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
 #endif
@@ -971,6 +976,13 @@ static void qemu_close_all_open_fd_fallback(const int *skip, unsigned int nskip,
 void qemu_close_all_open_fd(const int *skip, unsigned int nskip)
 {
     int open_max = sysconf(_SC_OPEN_MAX);
+    if (open_max == -1) {
+#ifdef CONFIG_DARWIN
+        open_max = OPEN_MAX;
+#else
+        open_max = 1024;
+#endif
+    }
 
     assert(skip != NULL || nskip == 0);
 
