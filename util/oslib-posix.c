@@ -857,8 +857,13 @@ static bool qemu_close_all_open_fd_proc(const int *skip, unsigned int nskip)
     int fd, dfd;
     DIR *dir;
     unsigned int skip_start = 0, skip_end = nskip;
+#if defined(CONFIG_LINUX) || defined(CONFIG_SOLARIS)
+    const char *self_fd = "/proc/self/fd";
+#else
+    const char *self_fd = "/dev/fd";
+#endif
 
-    dir = opendir("/proc/self/fd");
+    dir = opendir(self_fd);
     if (!dir) {
         /* If /proc is not mounted, there is nothing that can be done. */
         return false;
