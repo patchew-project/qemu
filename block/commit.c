@@ -130,7 +130,6 @@ static void commit_clean(Job *job)
 
 static int commit_iteration(CommitBlockJob *s, int64_t offset, int64_t *n, void *buf) {
     int ret = 0;
-    bool copy;
     bool error_in_source = true;
 
     /* Copy if allocated above the base */
@@ -140,19 +139,34 @@ static int commit_iteration(CommitBlockJob *s, int64_t offset, int64_t *n, void 
             n, NULL, NULL, NULL);
     }
 
-    copy = (ret >= 0 && ret & BDRV_BLOCK_ALLOCATED);
+    if (ret < 0) {
+        goto handle_error;
+    }
+
     trace_commit_one_iteration(s, offset, *n, ret);
-    if (copy) {
+
+    if (ret & BDRV_BLOCK_ALLOCATED) {
         assert(*n < SIZE_MAX);
 
         ret = blk_co_pread(s->top, offset, *n, buf, 0);
-        if (ret >= 0) {
-            ret = blk_co_pwrite(s->base, offset, *n, buf, 0);
-            if (ret < 0) {
-                error_in_source = false;
-            }
+        if (ret < 0) {
+            goto handle_error;
         }
+
+        ret = blk_co_pwrite(s->base, offset, *n, buf, 0);
+        if (ret < 0) {
+            error_in_source = false;
+            goto handle_error;
+        }
+
+        block_job_ratelimit_processed_bytes(&s->common, *n);
     }
+
+    /* Publish progress */
+
+    job_progress_update(&s->common.job, *n);
+
+handle_error:
     if (ret < 0) {
         BlockErrorAction action = block_job_error_action(&s->common, s->on_error,
                                                          error_in_source, -ret);
@@ -160,14 +174,7 @@ static int commit_iteration(CommitBlockJob *s, int64_t offset, int64_t *n, void 
             return ret;
         } else {
             *n = 0;
-            return 0;
         }
-    }
-    /* Publish progress */
-    job_progress_update(&s->common.job, *n);
-
-    if (copy) {
-        block_job_ratelimit_processed_bytes(&s->common, *n);
     }
 
     return 0;
