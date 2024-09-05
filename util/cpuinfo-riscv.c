@@ -6,6 +6,7 @@
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
 #include "host/cpuinfo.h"
+#include "asm/unistd.h"
 
 #ifdef CONFIG_ASM_HWPROBE_H
 #include <asm/hwprobe.h>
