@@ -496,11 +496,13 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
                          "-display none "
                          "-audio none "
                          "%s"
-                         " -accel qtest",
+                         " -accel qtest"
+                         " 2> %s",
                          socket_path,
                          getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL,
                          qmp_socket_path,
-                         extra_args ?: "");
+                         extra_args ?: "",
+                         getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL);
 
     qtest_client_set_rx_handler(s, qtest_client_socket_recv_line);
     qtest_client_set_tx_handler(s, qtest_client_socket_send);

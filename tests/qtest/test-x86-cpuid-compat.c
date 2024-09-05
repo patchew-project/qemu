@@ -203,6 +203,9 @@ static void test_plus_minus_subprocess(void)
         return;
     }
 
+    const char *log = g_getenv("QTEST_LOG");
+    g_setenv("QTEST_LOG", "1", true);
+
     /* Rules:
      * 1)"-foo" overrides "+foo"
      * 2) "[+-]foo" overrides "foo=..."
@@ -226,6 +229,9 @@ static void test_plus_minus_subprocess(void)
     g_assert_true(qom_get_bool(path, "sse4-2"));
     g_assert_true(qom_get_bool(path, "sse4.2"));
 
+    if (log) {
+        g_setenv("QTEST_LOG", log, true);
+    }
     qtest_end();
     g_free(path);
 }
