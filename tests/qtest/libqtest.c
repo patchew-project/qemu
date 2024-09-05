@@ -499,7 +499,7 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
                          " -accel qtest"
                          " 2> %s",
                          socket_path,
-                         getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL,
+                         g_test_verbose() ? DEV_STDERR : DEV_NULL,
                          qmp_socket_path,
                          extra_args ?: "",
                          getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL);
