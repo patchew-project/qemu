@@ -913,6 +913,70 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     create_pca9552(soc, 15, 0x60);
 }
 
+static void bonnell_bmc_i2c_init(AspeedMachineState *bmc)
+{
+    AspeedSoCState *soc = bmc->soc;
+    I2CBus *bus;
+
+    bus = aspeed_i2c_get_bus(&soc->i2c, 0);
+
+    at24c_eeprom_init(bus, 0x51, 8 * KiB);      /* atmel,24c64 */
+    /* tca9554@11:20 */
+    i2c_slave_create_simple(bus, "pca9554", 0x20);
+
+    /* ucd90160@2:64 */
+
+    /* fsg032@3:5a */
+    /* fsg032@3:5b */
+
+    bus = aspeed_i2c_get_bus(&soc->i2c, 7);
+
+    /* si7020@7:40 */
+
+    /* Bonnell expects a TMP275 but a TMP105 is compatible */
+    i2c_slave_create_simple(bus, TYPE_TMP105, 0x48);
+    at24c_eeprom_init(bus, 0x50, 8 * KiB);      /* atmel,24c64 */
+    at24c_eeprom_init(bus, 0x51, 8 * KiB);      /* atmel,24c64 */
+    i2c_slave_create_simple(bus, "max31785", 0x52);
+
+    /* pca9551; assume/hope pca9552 is compatible enough */
+    create_pca9552(soc, 7, 0x60);
+
+    /* ibm,op-panel@7:62 */
+    /* dps310@7:76 */
+
+    bus = aspeed_i2c_get_bus(&soc->i2c, 8);
+
+    /* rx8900@8:32 */
+
+    /* Bonnell expects a TMP275 but a TMP105 is compatible */
+    i2c_slave_create_simple(bus, TYPE_TMP105, 0x48);
+    at24c_eeprom_init(bus, 0x51, 16 * KiB);      /* atmel,24c128 */
+
+    /* pca9551@8:60 */
+    create_pca9552(soc, 8, 0x60);
+
+    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 9), "tmp423", 0x4c);
+
+    bus = aspeed_i2c_get_bus(&soc->i2c, 11);
+
+    /* tca9554@11:20 */
+    i2c_slave_create_simple(bus, "pca9554", 0x20);
+    i2c_slave_create_simple(bus, "tmp423", 0x4c);
+    /* pca9849@11:75 */
+    i2c_slave_create_simple(bus, "pca9546", 0x75);
+
+    /* npct75x@12:2e (tpm) */
+
+    /* atmel,24c64 */
+    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 12), 0x50, 8 * KiB);
+
+    /* atmel,24c64 */
+    at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 13), 0x50, 8 * KiB);
+    /* pca9551@13:60 */
+    create_pca9552(soc, 13, 0x60);
+}
+
 static void get_pca9548_channels(I2CBus *bus, uint8_t mux_addr,
                                  I2CBus **channels)
 {
@@ -1541,6 +1605,25 @@ static void aspeed_machine_rainier_class_init(ObjectClass *oc, const void *data)
     aspeed_machine_ast2600_class_emmc_init(oc);
 };
 
+static void aspeed_machine_bonnell_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+
+    mc->desc       = "IBM Bonnell BMC (Cortex-A7)";
+    amc->soc_name  = "ast2600-a3";
+    amc->hw_strap1 = RAINIER_BMC_HW_STRAP1;
+    amc->hw_strap2 = RAINIER_BMC_HW_STRAP2;
+    amc->fmc_model = "mx66l1g45g";
+    amc->spi_model = "mx66l1g45g";
+    amc->num_cs    = 2;
+    amc->macs_mask  = ASPEED_MAC2_ON | ASPEED_MAC3_ON;
+    amc->i2c_init  = bonnell_bmc_i2c_init;
+    mc->default_ram_size = 1 * GiB;
+    aspeed_machine_class_init_cpus_defaults(mc);
+    aspeed_machine_ast2600_class_emmc_init(oc);
+};
+
 #define FUJI_BMC_RAM_SIZE ASPEED_RAM_SIZE(2 * GiB)
 
 static void aspeed_machine_fuji_class_init(ObjectClass *oc, const void *data)
@@ -1869,6 +1952,10 @@ static const TypeInfo aspeed_machine_types[] = {
         .name          = MACHINE_TYPE_NAME("rainier-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_rainier_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("bonnell-bmc"),
+        .parent        = TYPE_ASPEED_MACHINE,
+        .class_init    = aspeed_machine_bonnell_class_init,
     }, {
         .name          = MACHINE_TYPE_NAME("fuji-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
