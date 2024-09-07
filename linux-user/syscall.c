@@ -6935,9 +6935,6 @@ static inline abi_long copy_to_user_flock(abi_ulong target_flock_addr,
     return 0;
 }
 
-typedef abi_long from_flock64_fn(struct flock *fl, abi_ulong target_addr);
-typedef abi_long to_flock64_fn(abi_ulong target_addr, const struct flock *fl);
-
 #if defined(TARGET_ARM) && TARGET_ABI_BITS == 32
 struct target_oabi_flock64 {
     abi_short l_type;
@@ -12535,14 +12532,19 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     {
         int cmd;
         struct flock fl;
-        from_flock64_fn *copyfrom = copy_from_user_flock64;
-        to_flock64_fn *copyto = copy_to_user_flock64;
 
 #ifdef TARGET_ARM
-        if (!cpu_env->eabi) {
-            copyfrom = copy_from_user_oabi_flock64;
-            copyto = copy_to_user_oabi_flock64;
-        }
+# define copyfrom(fl, arg) \
+           (cpu_env->eabi ? \
+             copy_from_user_flock64(fl, arg) : \
+             copy_from_user_oabi_flock64(fl, arg))
+# define copyto(arg, fl) \
+           (cpu_env->eabi ? \
+             copy_to_user_flock64(arg, fl) : \
+             copy_to_user_oabi_flock64(arg, fl))
+#else
+# define copyfrom copy_from_user_flock64
+# define copyto copy_to_user_flock64
 #endif
 
         cmd = target_to_host_fcntl_cmd(arg2);
@@ -12560,7 +12562,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             if (ret == 0) {
                 ret = copyto(arg3, &fl);
             }
-	    break;
+            break;
 
         case TARGET_F_SETLK64:
         case TARGET_F_SETLKW64:
@@ -12569,10 +12571,12 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                 break;
             }
             ret = get_errno(safe_fcntl(arg1, cmd, &fl));
-	    break;
+            break;
         default:
             ret = do_fcntl(arg1, arg2, arg3);
             break;
+#undef copyfrom
+#undef copyto
         }
         return ret;
     }
