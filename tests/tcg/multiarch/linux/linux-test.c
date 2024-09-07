@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #define _GNU_SOURCE
+#define _LARGEFILE64_SOURCE
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
