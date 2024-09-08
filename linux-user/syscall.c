@@ -6935,10 +6935,12 @@ static inline abi_long copy_to_user_flock(abi_ulong target_flock_addr,
     return 0;
 }
 
-typedef abi_long from_flock64_fn(struct flock *fl, abi_ulong target_addr);
-typedef abi_long to_flock64_fn(abi_ulong target_addr, const struct flock *fl);
-
 #if defined(TARGET_ARM) && TARGET_ABI_BITS == 32
+/*
+ * For 32bit arm flock64 syscall there are 2 variants of target_flock
+ * depending on eabi
+ */
+
 struct target_oabi_flock64 {
     abi_short l_type;
     abi_short l_whence;
@@ -6990,6 +6992,19 @@ static inline abi_long copy_to_user_oabi_flock64(abi_ulong target_flock_addr,
     unlock_user_struct(target_fl, target_flock_addr, 1);
     return 0;
 }
+
+#define copy_from_user_flock64_2abi(cpu_env, fl, target_flock_addr) \
+          (cpu_env->eabi ? copy_from_user_flock64(fl, target_flock_addr) : \
+                           copy_from_user_oabi_flock64(fl, target_flock_addr))
+#define copy_to_user_flock64_2abi(cpu_env, target_flock_addr, fl) \
+          (cpu_env->eabi ? copy_to_user_flock64(target_flock_addr, fl) \
+                           copy_to_user_oabi_flock64(target_flock_addr, fl))
+#else
+
+#define copy_from_user_flock64_2abi(cpu_env, fl, target_flock_addr) \
+            copy_from_user_flock64(fl, target_flock_addr)
+#define copy_to_user_flock64_2abi(cpu_env, target_flock_addr, fl) \
+            copy_to_user_flock64(target_flock_addr, fl)
 #endif
 
 static inline abi_long copy_from_user_flock64(struct flock *fl,
@@ -12535,15 +12550,6 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     {
         int cmd;
         struct flock fl;
-        from_flock64_fn *copyfrom = copy_from_user_flock64;
-        to_flock64_fn *copyto = copy_to_user_flock64;
-
-#ifdef TARGET_ARM
-        if (!cpu_env->eabi) {
-            copyfrom = copy_from_user_oabi_flock64;
-            copyto = copy_to_user_oabi_flock64;
-        }
-#endif
 
         cmd = target_to_host_fcntl_cmd(arg2);
         if (cmd == -TARGET_EINVAL) {
@@ -12552,24 +12558,24 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 
         switch(arg2) {
         case TARGET_F_GETLK64:
-            ret = copyfrom(&fl, arg3);
+            ret = copy_from_user_flock64_2abi(cpu_env, &fl, arg3);
             if (ret) {
                 break;
             }
             ret = get_errno(safe_fcntl(arg1, cmd, &fl));
             if (ret == 0) {
-                ret = copyto(arg3, &fl);
+                ret = copy_to_user_flock64_2abi(cpu_env, arg3, &fl);
             }
-	    break;
+            break;
 
         case TARGET_F_SETLK64:
         case TARGET_F_SETLKW64:
-            ret = copyfrom(&fl, arg3);
+            ret = copy_from_user_flock64_2abi(cpu_env, &fl, arg3);
             if (ret) {
                 break;
             }
             ret = get_errno(safe_fcntl(arg1, cmd, &fl));
-	    break;
+            break;
         default:
             ret = do_fcntl(arg1, arg2, arg3);
             break;
