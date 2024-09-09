@@ -401,9 +401,12 @@ OS management of CXL memory devices as described here.
 * CONFIG_CXL_BUS
 * CONFIG_CXL_PCI
 * CONFIG_CXL_ACPI
-* CONFIG_CXL_PMEM
+* CONFIG_CXL_PMEM(depends on LIBNVDIMM)
 * CONFIG_CXL_MEM
 * CONFIG_CXL_PORT
+
+Dynamic provisioning of new memory region since Linux 6.0
+
 * CONFIG_CXL_REGION
 
 References
