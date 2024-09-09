@@ -311,6 +311,8 @@ void qmp_blockdev_change_medium(const char *device,
                                 bool has_force, bool force,
                                 bool has_read_only,
                                 BlockdevChangeReadOnlyMode read_only,
+                                bool has_file_locking_mode,
+                                BlockdevChangeFileLockingMode file_locking_mode,
                                 Error **errp)
 {
     BlockBackend *blk;
@@ -360,6 +362,26 @@ void qmp_blockdev_change_medium(const char *device,
 
     if (format) {
         qdict_put_str(options, "driver", format);
+    }
+
+    if (!has_file_locking_mode) {
+        file_locking_mode = BLOCKDEV_CHANGE_FILE_LOCKING_MODE_AUTO;
+    }
+
+    switch (file_locking_mode) {
+    case BLOCKDEV_CHANGE_FILE_LOCKING_MODE_AUTO:
+        break;
+
+    case BLOCKDEV_CHANGE_FILE_LOCKING_MODE_OFF:
+        qdict_put_str(options, "file.locking", "off");
+        break;
+
+    case BLOCKDEV_CHANGE_FILE_LOCKING_MODE_ON:
+        qdict_put_str(options, "file.locking", "on");
+        break;
+
+    default:
+        abort();
     }
 
     medium_bs = bdrv_open(filename, NULL, options, bdrv_flags, errp);

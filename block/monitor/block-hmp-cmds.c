@@ -1008,5 +1008,5 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
     }
 
     qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
-                               !!read_only, read_only_mode, errp);
+                               !!read_only, read_only_mode, false, 0, errp);
 }

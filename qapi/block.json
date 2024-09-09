@@ -310,6 +310,23 @@
   'data': ['retain', 'read-only', 'read-write'] }
 
 ##
+# @BlockdevChangeFileLockingMode:
+#
+# Specifies the new locking mode of a file image passed to the
+# @blockdev-change-medium command.
+#
+# @auto: Use locking if API is available
+#
+# @off: Disable file image locking
+#
+# @on: Enable file image locking
+#
+# Since: 9.2
+##
+{ 'enum': 'BlockdevChangeFileLockingMode',
+  'data': ['auto', 'off', 'on'] }
+
+##
 # @blockdev-change-medium:
 #
 # Changes the medium inserted into a block device by ejecting the
@@ -329,6 +346,9 @@
 #
 # @read-only-mode: change the read-only mode of the device; defaults
 #     to 'retain'
+#
+# @file-locking-mode: change the locking mode of the file image; defaults
+#     to 'auto' (since: 9.2)
 #
 # @force: if false (the default), an eject request through
 #     blockdev-open-tray will be sent to the guest if it has locked
@@ -378,7 +398,8 @@
             'filename': 'str',
             '*format': 'str',
             '*force': 'bool',
-            '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }
+            '*read-only-mode': 'BlockdevChangeReadOnlyMode',
+            '*file-locking-mode': 'BlockdevChangeFileLockingMode' } }
 
 ##
 # @DEVICE_TRAY_MOVED:
