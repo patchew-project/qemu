@@ -19,6 +19,21 @@ slow_qtests = {
   'vmgenid-test': 610,
 }
 
+# Tests which override the default of "can run in parallel".
+# Don't use this to work around test bugs which prevent parallelism.
+# Do document why we need to make a particular test serialized.
+# Do be sparing with use of this: tests listed here will not be
+# run in parallel with any other test, not merely not with other
+# instances of themselves.
+#
+# The migration-test's subtests will each kick off two QEMU processes,
+# so allowing multiple migration-tests in parallel can overload the
+# host system and result in intermittent timeouts. So we only want to
+# run one migration-test at once.a
+qtests_parallelism = {
+  'migration-test': false,
+}
+
 qtests_generic = [
   'cdrom-test',
   'device-introspect-test',
@@ -456,6 +471,7 @@ foreach dir : target_dirs
          protocol: 'tap',
          timeout: slow_qtests.get(test, 60),
          priority: slow_qtests.get(test, 60),
+         is_parallel: qtests_parallelism.get(test, true),
          suite: ['qtest', 'qtest-' + target_base])
   endforeach
 endforeach
