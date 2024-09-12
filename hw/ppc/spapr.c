@@ -2780,8 +2780,8 @@ static hwaddr spapr_rma_size(SpaprMachineState *spapr, Error **errp)
 
     if (rma_size < MIN_RMA_SLOF) {
         error_setg(errp,
-                   "pSeries SLOF firmware requires >= %" HWADDR_PRIx
-                   "ldMiB guest RMA (Real Mode Area memory)",
+                   "pSeries SLOF firmware requires >= %" HWADDR_PRId
+                   "MiB guest RMA (Real Mode Area memory)",
                    MIN_RMA_SLOF / MiB);
         return 0;
     }
