@@ -31,6 +31,23 @@ struct Aml {
     AmlBlockFlags block_flags;
 };
 
+typedef enum ACPIPPTTCacheType {
+    DATA,
+    INSTRUCTION,
+    UNIFIED,
+} ACPIPPTTCacheType;
+
+typedef struct ACPIPPTTCache {
+    ACPIPPTTCacheType type;
+    uint32_t pptt_id;
+    uint32_t sets;
+    uint32_t size;
+    uint32_t level;
+    uint16_t linesize;
+    uint8_t attributes; /* write policy: 0x0 write back, 0x1 write through */
+    uint8_t associativity;
+} ACPIPPTTCache;
+
 typedef enum {
     AML_COMPATIBILITY = 0,
     AML_TYPEA = 1,
@@ -497,7 +514,8 @@ void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 const char *oem_id, const char *oem_table_id);
 
 void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
-                const char *oem_id, const char *oem_table_id);
+                const char *oem_id, const char *oem_table_id,
+                int num_caches, ACPIPPTTCache *caches);
 
 void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
                 const char *oem_id, const char *oem_table_id);

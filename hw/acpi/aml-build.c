@@ -2046,6 +2046,203 @@ void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
     acpi_table_end(linker, &table);
 }
 
+static bool cache_described_at(MachineState *ms, CpuTopologyLevel level)
+{
+    if (machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L3) == level ||
+        machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L2) == level ||
+        machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L1I) == level ||
+        machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L1D) == level) {
+        return true;
+    }
+
+    return false;
+}
+
+static int partial_cache_description(MachineState *ms, ACPIPPTTCache* caches,
+                                 int num_caches)
+{
+    int level, c;
+
+    for (level = 1; level < num_caches; level++) {
+        for (c = 0; c < num_caches; c++) {
+            if (caches[c].level != level) {
+                continue;
+            }
+
+            switch (level) {
+            case 1:
+                /*
+                 * L1 cache is assumed to have both L1I and L1D available.
+                 * Technically both need to be checked.
+                 */
+                if (machine_get_cache_topo_level(ms,
+                                                 CACHE_LEVEL_AND_TYPE_L1I) ==
+                    CPU_TOPOLOGY_LEVEL_DEFAULT)
+                {
+                    assert(machine_get_cache_topo_level(ms,
+                               CACHE_LEVEL_AND_TYPE_L1D) ==
+                           CPU_TOPOLOGY_LEVEL_DEFAULT);
+                    return level;
+                }
+                break;
+            case 2:
+                if (machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L2) ==
+                        CPU_TOPOLOGY_LEVEL_DEFAULT) {
+                    return level;
+                }
+                break;
+            case 3:
+                if (machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L3) ==
+                        CPU_TOPOLOGY_LEVEL_DEFAULT) {
+                    return level;
+                }
+                break;
+            }
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * This function assumes l3 and l2 have unified cache and l1 is split l1d
+ * and l1i, and further prepares the lowest cache level for a topology
+ * level.  The info will be fed to build_caches to create caches at the
+ * right level.
+ */
+static int find_the_lowest_level_cache_defined_at_level(MachineState *ms,
+                int *level_found,
+                CpuTopologyLevel topo_level) {
+
+    CpuTopologyLevel level;
+
+    level = machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L1I);
+    if (level == topo_level) {
+        *level_found = 1;
+        return 1;
+    }
+
+    level = machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L1D);
+    if (level == topo_level) {
+        *level_found = 1;
+        return 1;
+    }
+
+    level = machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L2);
+    if (level == topo_level) {
+        *level_found = 2;
+        return 2;
+    }
+
+    level = machine_get_cache_topo_level(ms, CACHE_LEVEL_AND_TYPE_L3);
+    if (level == topo_level) {
+        *level_found = 3;
+        return 3;
+    }
+
+    return 0;
+}
+
+static void build_cache_nodes(GArray *tbl, ACPIPPTTCache *cache,
+                              uint32_t next_offset, unsigned int id)
+{
+    int val;
+
+    /* Type 1 - cache */
+    build_append_byte(tbl, 1);
+    /* Length */
+    build_append_byte(tbl, 28);
+    /* Reserved */
+    build_append_int_noprefix(tbl, 0, 2);
+    /* Flags - everything except possibly the ID */
+    build_append_int_noprefix(tbl, 0xff, 4);
+    /* Offset of next cache up */
+    build_append_int_noprefix(tbl, next_offset, 4);
+    build_append_int_noprefix(tbl, cache->size, 4);
+    build_append_int_noprefix(tbl, cache->sets, 4);
+    build_append_byte(tbl, cache->associativity);
+    val = 0x3;
+    switch (cache->type) {
+    case INSTRUCTION:
+        val |= (1 << 2);
+        break;
+    case DATA:
+        val |= (0 << 2); /* Data */
+        break;
+    case UNIFIED:
+        val |= (3 << 2); /* Unified */
+        break;
+    }
+    build_append_byte(tbl, val);
+    build_append_int_noprefix(tbl, cache->linesize, 2);
+    build_append_int_noprefix(tbl,
+                             (cache->type << 24) | (cache->level << 16) | id,
+                             4);
+}
+
+/*
+ * builds caches from the top level (`level_high` parameter) to the bottom
+ * level (`level_low` parameter).  It searches for caches found in
+ * systems' registers, and fills up the table. Then it updates the
+ * `data_offset` and `instr_offset` parameters with the offset of the data
+ * and instruction caches of the lowest level, respectively.
+ */
+static bool build_caches(GArray *table_data, uint32_t pptt_start,
+                                int num_caches, ACPIPPTTCache *caches,
+                                int base_id,
+                                uint8_t level_high, /* Inclusive */
+                                uint8_t level_low, /* Inclusive */
+                                uint32_t *data_offset,
+                                uint32_t *instr_offset)
+{
+    uint32_t next_level_offset_data = 0, next_level_offset_instruction = 0;
+    uint32_t this_offset, next_offset = 0;
+    int c, level;
+    bool found_cache = false;
+
+    /* Walk caches from top to bottom */
+    for (level = level_high; level >= level_low; level--) {
+        for (c = 0; c < num_caches; c++) {
+            if (caches[c].level != level) {
+                continue;
+            }
+
+            /* Assume only unified above l1 for now */
+            this_offset = table_data->len - pptt_start;
+            switch (caches[c].type) {
+            case INSTRUCTION:
+                next_offset = next_level_offset_instruction;
+                break;
+            case DATA:
+                next_offset = next_level_offset_data;
+                break;
+            case UNIFIED:
+                /* Either is fine here - hopefully */
+                next_offset = next_level_offset_instruction;
+                break;
+            }
+            build_cache_nodes(table_data, &caches[c], next_offset, base_id);
+            switch (caches[c].type) {
+            case INSTRUCTION:
+                next_level_offset_instruction = this_offset;
+                break;
+            case DATA:
+                next_level_offset_data = this_offset;
+                break;
+            case UNIFIED:
+                next_level_offset_instruction = this_offset;
+                next_level_offset_data = this_offset;
+                break;
+            }
+            *data_offset = next_level_offset_data;
+            *instr_offset = next_level_offset_instruction;
+
+            found_cache = true;
+        }
+    }
+
+    return found_cache;
+}
 /*
  * ACPI spec, Revision 6.3
  * 5.2.29.1 Processor hierarchy node structure (Type 0)
@@ -2141,23 +2338,39 @@ void build_spcr(GArray *table_data, BIOSLinker *linker,
     }
     acpi_table_end(linker, &table);
 }
+
 /*
  * ACPI spec, Revision 6.3
  * 5.2.29 Processor Properties Topology Table (PPTT)
  */
 void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
-                const char *oem_id, const char *oem_table_id)
+                 const char *oem_id, const char *oem_table_id,
+                 int num_caches, ACPIPPTTCache *caches)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     CPUArchIdList *cpus = ms->possible_cpus;
+    uint32_t l1_data_offset = 0, l1_instr_offset = 0, cluster_data_offset = 0;
+    uint32_t cluster_instr_offset = 0, node_data_offset = 0;
+    uint32_t node_instr_offset = 0;
+    int top_node = 3, top_cluster = 3, top_core = 3;
+    int bottom_node = 3, bottom_cluster = 3, bottom_core = 3;
     int64_t socket_id = -1, cluster_id = -1, core_id = -1;
     uint32_t socket_offset = 0, cluster_offset = 0, core_offset = 0;
     uint32_t pptt_start = table_data->len;
     int n;
-    AcpiTable table = { .sig = "PPTT", .rev = 2,
+    uint32_t priv_rsrc[2];
+    uint32_t num_priv = 0;
+    bool cache_created;
+
+    AcpiTable table = { .sig = "PPTT", .rev = 3,
                         .oem_id = oem_id, .oem_table_id = oem_table_id };
 
     acpi_table_begin(&table, table_data);
+
+    n = partial_cache_description(ms, caches, num_caches);
+    if (ms->smp_cache.IsDefined && n) {
+        error_setg(&error_fatal, "Missing cache description at level %d", n);
+    }
 
     /*
      * This works with the assumption that cpus[n].props.*_id has been
@@ -2171,10 +2384,37 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
             socket_id = cpus->cpus[n].props.socket_id;
             cluster_id = -1;
             core_id = -1;
+            bottom_node = top_node;
+            num_priv = 0;
+
+            if (cache_described_at(ms, CPU_TOPOLOGY_LEVEL_SOCKET) &&
+                    find_the_lowest_level_cache_defined_at_level(ms,
+                        &bottom_node,
+                        CPU_TOPOLOGY_LEVEL_SOCKET)) {
+                cache_created = build_caches(table_data, pptt_start,
+                                    num_caches, caches,
+                                    n, top_node, bottom_node,
+                                    &node_data_offset, &node_instr_offset);
+
+                if (!cache_created) {
+                    error_setg(&error_fatal, "No caches at levels %d-%d",
+                               top_node, bottom_node);
+                }
+
+                priv_rsrc[0] = node_instr_offset;
+                priv_rsrc[1] = node_data_offset;
+
+                if (node_instr_offset || node_data_offset) {
+                    num_priv = node_instr_offset == node_data_offset ? 1 : 2;
+                }
+
+                top_cluster = bottom_node - 1;
+            }
+
             socket_offset = table_data->len - pptt_start;
             build_processor_hierarchy_node(table_data,
                 (1 << 0), /* Physical package */
-                0, socket_id, NULL, 0);
+                0, socket_id, priv_rsrc, num_priv);
         }
 
         if (mc->smp_props.clusters_supported && mc->smp_props.has_clusters) {
@@ -2182,20 +2422,80 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 assert(cpus->cpus[n].props.cluster_id > cluster_id);
                 cluster_id = cpus->cpus[n].props.cluster_id;
                 core_id = -1;
+                bottom_cluster = top_cluster;
+                num_priv = 0;
+
+                if (cache_described_at(ms, CPU_TOPOLOGY_LEVEL_CLUSTER) &&
+                       find_the_lowest_level_cache_defined_at_level(ms,
+                           &bottom_cluster,
+                           CPU_TOPOLOGY_LEVEL_CLUSTER)) {
+
+                    cache_created = build_caches(table_data, pptt_start,
+                        num_caches, caches, n, top_cluster, bottom_cluster,
+                        &cluster_data_offset, &cluster_instr_offset);
+
+                    if (!cache_created) {
+                        error_setg(&error_fatal, "No caches at levels %d-%d",
+                                   top_cluster, bottom_cluster);
+                    }
+
+                    priv_rsrc[0] = cluster_instr_offset;
+                    priv_rsrc[1] = cluster_data_offset;
+
+                    if (cluster_instr_offset || cluster_data_offset) {
+                        num_priv = cluster_instr_offset == cluster_data_offset ?
+                            1 : 2;
+                    }
+
+                    top_core = bottom_cluster - 1;
+                } else {
+                    top_core = bottom_node - 1;
+                }
+
                 cluster_offset = table_data->len - pptt_start;
                 build_processor_hierarchy_node(table_data,
                     (0 << 0), /* Not a physical package */
-                    socket_offset, cluster_id, NULL, 0);
+                    socket_offset, cluster_id, priv_rsrc, num_priv);
             }
         } else {
+            if (cache_described_at(ms, CPU_TOPOLOGY_LEVEL_CLUSTER)) {
+                error_setg(&error_fatal, "Not clusters found for the cache");
+            }
+
             cluster_offset = socket_offset;
+            top_core = bottom_node - 1; /* there is no cluster */
+        }
+
+        if (cpus->cpus[n].props.core_id != core_id) {
+            bottom_core = top_core;
+            num_priv = 0;
+
+            if (cache_described_at(ms, CPU_TOPOLOGY_LEVEL_CORE) &&
+                    find_the_lowest_level_cache_defined_at_level(ms,
+                        &bottom_core,
+                        CPU_TOPOLOGY_LEVEL_CORE)) {
+                cache_created = build_caches(table_data, pptt_start,
+                                    num_caches, caches,
+                                    n, top_core , bottom_core,
+                                    &l1_data_offset, &l1_instr_offset);
+
+                if (!cache_created) {
+                    error_setg(&error_fatal, "No cache defined at levels %d-%d",
+                        top_core, bottom_core);
+                }
+
+                priv_rsrc[0] = l1_instr_offset;
+                priv_rsrc[1] = l1_data_offset;
+
+                num_priv = l1_instr_offset == l1_data_offset ? 1 : 2;
+            }
         }
 
         if (ms->smp.threads == 1) {
             build_processor_hierarchy_node(table_data,
                 (1 << 1) | /* ACPI Processor ID valid */
                 (1 << 3),  /* Node is a Leaf */
-                cluster_offset, n, NULL, 0);
+                cluster_offset, n, priv_rsrc, num_priv);
         } else {
             if (cpus->cpus[n].props.core_id != core_id) {
                 assert(cpus->cpus[n].props.core_id > core_id);
@@ -2203,7 +2503,7 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 core_offset = table_data->len - pptt_start;
                 build_processor_hierarchy_node(table_data,
                     (0 << 0), /* Not a physical package */
-                    cluster_offset, core_id, NULL, 0);
+                    cluster_offset, core_id, priv_rsrc, num_priv);
             }
 
             build_processor_hierarchy_node(table_data,

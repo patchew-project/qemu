@@ -59,10 +59,13 @@
 #include "hw/acpi/viot.h"
 #include "hw/virtio/virtio-acpi.h"
 #include "target/arm/multiprocessing.h"
+#include "cpu-features.h"
 
 #define ARM_SPI_BASE 32
 
 #define ACPI_BUILD_TABLE_SIZE             0x20000
+
+#define ACPI_PPTT_MAX_CACHES 16
 
 static void acpi_dsdt_add_cpus(Aml *scope, VirtMachineState *vms)
 {
@@ -889,6 +892,132 @@ static void acpi_align_size(GArray *blob, unsigned align)
     g_array_set_size(blob, ROUND_UP(acpi_data_len(blob), align));
 }
 
+static unsigned int virt_get_caches(VirtMachineState *vms,
+                                    ACPIPPTTCache *caches)
+{
+    ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(0)); /* assume homogeneous CPUs */
+    bool ccidx = cpu_isar_feature(any_ccidx, armcpu);
+    unsigned int num_cache, i;
+    int level_instr = 1, level_data = 1;
+
+    for (i = 0, num_cache = 0; i < ACPI_PPTT_MAX_CACHES; i++, num_cache++) {
+        int type = (armcpu->clidr >> (3 * i)) & 7;
+        int bank_index;
+        int level;
+        ACPIPPTTCacheType cache_type;
+
+        if (type == 0) {
+            break;
+        }
+
+        switch (type) {
+        case 1:
+            cache_type = INSTRUCTION;
+            level = level_instr;
+            break;
+        case 2:
+            cache_type = DATA;
+            level = level_data;
+            break;
+        case 4:
+            cache_type = UNIFIED;
+            level = level_instr > level_data ? level_instr : level_data;
+            break;
+        case 3: /* Split - Do data first */
+            cache_type = DATA;
+            level = level_data;
+            break;
+        default:
+            error_setg(&error_abort, "Unrecognized cache type");
+            return 0;
+        }
+        /*
+         * ccsidr is indexed using both the level and whether it is
+         * an instruction cache. Unified caches use the same storage
+         * as data caches.
+         */
+        bank_index = (i * 2) | ((type == 1) ? 1 : 0);
+        if (ccidx) {
+            caches[num_cache] = (ACPIPPTTCache) {
+                .type =  cache_type,
+                .level = level,
+                .linesize = 1 << (FIELD_EX64(armcpu->ccsidr[bank_index],
+                                             CCSIDR_EL1,
+                                             CCIDX_LINESIZE) + 4),
+                .associativity = FIELD_EX64(armcpu->ccsidr[bank_index],
+                                            CCSIDR_EL1,
+                                            CCIDX_ASSOCIATIVITY) + 1,
+                .sets = FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
+                                   CCIDX_NUMSETS) + 1,
+            };
+        } else {
+            caches[num_cache] = (ACPIPPTTCache) {
+                .type =  cache_type,
+                .level = level,
+                .linesize = 1 << (FIELD_EX64(armcpu->ccsidr[bank_index],
+                                             CCSIDR_EL1, LINESIZE) + 4),
+                .associativity = FIELD_EX64(armcpu->ccsidr[bank_index],
+                                            CCSIDR_EL1,
+                                            ASSOCIATIVITY) + 1,
+                .sets = FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
+                                   NUMSETS) + 1,
+            };
+        }
+        caches[num_cache].size = caches[num_cache].associativity *
+            caches[num_cache].sets * caches[num_cache].linesize;
+
+        /* Break one 'split' entry up into two records */
+        if (type == 3) {
+            num_cache++;
+            bank_index = (i * 2) | 1;
+            if (ccidx) {
+                /* Instruction cache: bottom bit set when reading banked reg */
+                caches[num_cache] = (ACPIPPTTCache) {
+                    .type = INSTRUCTION,
+                    .level = level_instr,
+                    .linesize = 1 << (FIELD_EX64(armcpu->ccsidr[bank_index],
+                                                 CCSIDR_EL1,
+                                                 CCIDX_LINESIZE) + 4),
+                    .associativity = FIELD_EX64(armcpu->ccsidr[bank_index],
+                                                CCSIDR_EL1,
+                                                CCIDX_ASSOCIATIVITY) + 1,
+                    .sets = FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
+                                       CCIDX_NUMSETS) + 1,
+                };
+            } else {
+                caches[num_cache] = (ACPIPPTTCache) {
+                    .type = INSTRUCTION,
+                    .level = level_instr,
+                    .linesize = 1 << (FIELD_EX64(armcpu->ccsidr[bank_index],
+                                                 CCSIDR_EL1, LINESIZE) + 4),
+                    .associativity = FIELD_EX64(armcpu->ccsidr[bank_index],
+                                                CCSIDR_EL1,
+                                                ASSOCIATIVITY) + 1,
+                    .sets = FIELD_EX64(armcpu->ccsidr[bank_index], CCSIDR_EL1,
+                                       NUMSETS) + 1,
+                };
+            }
+            caches[num_cache].size = caches[num_cache].associativity *
+                caches[num_cache].sets * caches[num_cache].linesize;
+        }
+        switch (type) {
+        case 1:
+            level_instr++;
+            break;
+        case 2:
+            level_data++;
+            break;
+        case 3:
+        case 4:
+            level_instr++;
+            level_data++;
+            break;
+        }
+    }
+
+    return num_cache;
+}
+
 static
 void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 {
@@ -897,6 +1026,11 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     unsigned dsdt, xsdt;
     GArray *tables_blob = tables->table_data;
     MachineState *ms = MACHINE(vms);
+
+    ACPIPPTTCache caches[ACPI_PPTT_MAX_CACHES]; /* Can select up to 16 */
+    unsigned int num_cache;
+
+    num_cache = virt_get_caches(vms, caches);
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
@@ -919,7 +1053,8 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     if (!vmc->no_cpu_topology) {
         acpi_add_table(table_offsets, tables_blob);
         build_pptt(tables_blob, tables->linker, ms,
-                   vms->oem_id, vms->oem_table_id);
+                   vms->oem_id, vms->oem_table_id,
+                   num_cache, caches);
     }
 
     acpi_add_table(table_offsets, tables_blob);
