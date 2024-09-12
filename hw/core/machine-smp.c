@@ -279,6 +279,8 @@ static bool machine_check_topo_support(MachineState *ms,
         return false;
     }
 
+    ms->smp_cache.IsDefined = true;
+
     return true;
 }
 
