@@ -371,6 +371,7 @@ In QEMU the vhost-user message is implemented with the following struct:
           VhostUserConfig config;
           VhostUserVringArea area;
           VhostUserInflight inflight;
+          VhostUserMMap mmap;
       };
   } QEMU_PACKED VhostUserMsg;
 
@@ -1860,6 +1861,36 @@ is sent by the front-end.
   shared table given a UUID. Frontend will reply passing the fd and a zero
   when the operation is successful, or non-zero otherwise. Note that if the
   operation fails, no fd is sent to the backend.
+
+``VHOST_USER_BACKEND_SHMEM_MAP``
+  :id: 9
+  :equivalent ioctl: N/A
+  :request payload: fd and ``struct VhostUserMMap``
+  :reply payload: N/A
+
+  This message can be submitted by the backends to advertise a new mapping
+  to be made in a given VIRTIO Shared Memory Region. Upon receiving the message,
+  The front-end will mmap the given fd into the VIRTIO Shared Memory Region
+  with the requested ``shmid``. A reply is generated indicating whether mapping
+  succeeded.
+
+  Mapping over an already existing map is not allowed and request shall fail.
+  Therefore, the memory range in the request must correspond with a valid,
+  free region of the VIRTIO Shared Memory Region. Also, note that mappings
+  consume resources and that the request can fail when there are no resources
+  available.
+
+``VHOST_USER_BACKEND_SHMEM_UNMAP``
+  :id: 10
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserMMap``
+  :reply payload: N/A
+
+  This message can be submitted by the backends so that the front-end un-mmap
+  a given range (``shm_offset``, ``len``) in the VIRTIO Shared Memory Region
+  with the requested ``shmid``. Note that the given range shall correspond to
+  the entirety of a valid mapped region.
+  A reply is generated indicating whether unmapping succeeded.
 
 .. _reply_ack:
 
