@@ -371,6 +371,8 @@ In QEMU the vhost-user message is implemented with the following struct:
           VhostUserConfig config;
           VhostUserVringArea area;
           VhostUserInflight inflight;
+          VhostUserShared object;
+          VhostUserTransferDeviceState transfer_state;
           VhostUserMMap mmap;
       };
   } QEMU_PACKED VhostUserMsg;
