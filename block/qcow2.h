@@ -134,6 +134,7 @@
 #define QCOW2_OPT_DISCARD_SNAPSHOT "pass-discard-snapshot"
 #define QCOW2_OPT_DISCARD_OTHER "pass-discard-other"
 #define QCOW2_OPT_DISCARD_NO_UNREF "discard-no-unref"
+#define QCOW2_OPT_DISCARD_SUBCLUSTERS "discard-subclusters"
 #define QCOW2_OPT_OVERLAP "overlap-check"
 #define QCOW2_OPT_OVERLAP_TEMPLATE "overlap-check.template"
 #define QCOW2_OPT_OVERLAP_MAIN_HEADER "overlap-check.main-header"
@@ -387,6 +388,7 @@ typedef struct BDRVQcow2State {
     bool discard_passthrough[QCOW2_DISCARD_MAX];
 
     bool discard_no_unref;
+    bool discard_subclusters;
 
     int overlap_check; /* bitmask of Qcow2MetadataOverlap values */
     bool signaled_corruption;

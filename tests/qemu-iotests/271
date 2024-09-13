@@ -100,13 +100,14 @@ _filter_trace_fallocate()
 #      discard  -> discard
 _run_test()
 {
-    unset c sc off len cmd opt
+    unset c sc off len cmd trace opt
     for var in "$@"; do eval "$var"; done
     case "${cmd:-write}" in
         zero)
             cmd="write -q -z";;
         unmap)
-            opt="--trace enable=file_do_fallocate"
+            trace="--trace enable=file_do_fallocate"
+            opt="-c reopen -o discard-subclusters=on"
             cmd="write -q -z -u";;
         compress)
             pat=$((${pat:-0} + 1))
@@ -115,7 +116,8 @@ _run_test()
             pat=$((${pat:-0} + 1))
             cmd="write -q -P ${pat}";;
         discard)
-            opt="--trace enable=file_do_fallocate"
+            trace="--trace enable=file_do_fallocate"
+            opt="-c reopen -o discard-subclusters=on"
             cmd="discard -q";;
         *)
             echo "Unknown option $cmd"
@@ -129,7 +131,7 @@ _run_test()
     cmd="$cmd ${offset} ${len}"
     raw_cmd=$(echo $cmd | sed s/-c//) # Raw images don't support -c
     echo $cmd | sed 's/-P [0-9][0-9]\?/-P PATTERN/'
-    $QEMU_IO $opt -c "$cmd" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_trace_fallocate
+    $QEMU_IO $trace ${opt:+ "$opt"} -c "$cmd" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_trace_fallocate
     $QEMU_IO -c "$raw_cmd" -f raw "$TEST_IMG.raw" | _filter_qemu_io
     _verify_img
     _verify_l2_bitmap "$c"

@@ -685,6 +685,7 @@ static const char *const mutable_opts[] = {
     QCOW2_OPT_DISCARD_SNAPSHOT,
     QCOW2_OPT_DISCARD_OTHER,
     QCOW2_OPT_DISCARD_NO_UNREF,
+    QCOW2_OPT_DISCARD_SUBCLUSTERS,
     QCOW2_OPT_OVERLAP,
     QCOW2_OPT_OVERLAP_TEMPLATE,
     QCOW2_OPT_OVERLAP_MAIN_HEADER,
@@ -733,6 +734,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .name = QCOW2_OPT_DISCARD_NO_UNREF,
             .type = QEMU_OPT_BOOL,
             .help = "Do not unreference discarded clusters",
+        },
+        {
+            .name = QCOW2_OPT_DISCARD_SUBCLUSTERS,
+            .type = QEMU_OPT_BOOL,
+            .help = "Allow subcluster aligned discard requests",
         },
         {
             .name = QCOW2_OPT_OVERLAP,
@@ -978,6 +984,7 @@ typedef struct Qcow2ReopenState {
     int overlap_check;
     bool discard_passthrough[QCOW2_DISCARD_MAX];
     bool discard_no_unref;
+    bool discard_subclusters;
     uint64_t cache_clean_interval;
     QCryptoBlockOpenOptions *crypto_opts; /* Disk encryption runtime options */
 } Qcow2ReopenState;
@@ -1157,6 +1164,16 @@ qcow2_update_options_prepare(BlockDriverState *bs, Qcow2ReopenState *r,
         goto fail;
     }
 
+    r->discard_subclusters =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SUBCLUSTERS, false);
+    if (r->discard_subclusters && !has_subclusters(s)) {
+        error_setg(errp,
+                   "Image doesn't have extended L2 entries, but option "
+                   "'discard-subclusters' is enabled");
+        ret = -EINVAL;
+        goto fail;
+    }
+
     switch (s->crypt_method_header) {
     case QCOW_CRYPT_NONE:
         if (encryptfmt) {
@@ -1238,6 +1255,7 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     }
 
     s->discard_no_unref = r->discard_no_unref;
+    s->discard_subclusters = r->discard_subclusters;
 
     if (s->cache_clean_interval != r->cache_clean_interval) {
         cache_clean_timer_del(bs);
@@ -1981,7 +1999,8 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.request_alignment = qcrypto_block_get_sector_size(s->crypto);
     }
     bs->bl.pwrite_zeroes_alignment = s->subcluster_size;
-    bs->bl.pdiscard_alignment = s->subcluster_size;
+    bs->bl.pdiscard_alignment = s->discard_subclusters ?
+                                s->subcluster_size : s->cluster_size;
 }
 
 static int GRAPH_UNLOCKED
