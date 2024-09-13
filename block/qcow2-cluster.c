@@ -2221,7 +2221,7 @@ zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
 
 static int coroutine_fn GRAPH_RDLOCK
 zero_l2_subclusters(BlockDriverState *bs, uint64_t offset,
-                    unsigned nb_subclusters)
+                    unsigned nb_subclusters, int flags)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t new_l2_bitmap;
@@ -2236,6 +2236,16 @@ zero_l2_subclusters(BlockDriverState *bs, uint64_t offset,
     new_l2_bitmap = scri.l2_bitmap;
     new_l2_bitmap |=  QCOW_OFLAG_SUB_ZERO_RANGE(sc, sc + nb_subclusters);
     new_l2_bitmap &= ~QCOW_OFLAG_SUB_ALLOC_RANGE(sc, sc + nb_subclusters);
+
+    /*
+     * If there're no non-zero subclusters left, we might as well zeroize
+     * the entire cluster.  That way we'd also update the refcount table.
+     */
+    if ((new_l2_bitmap & QCOW_L2_BITMAP_ALL_ZEROES) ==
+        QCOW_L2_BITMAP_ALL_ZEROES) {
+        return zero_in_l2_slice(bs, QEMU_ALIGN_DOWN(offset, s->cluster_size),
+                                1, flags);
+    }
 
     if (new_l2_bitmap != scri.l2_bitmap) {
         set_l2_bitmap(s, scri.l2_slice, scri.l2_index, new_l2_bitmap);
@@ -2293,7 +2303,7 @@ int coroutine_fn qcow2_subcluster_zeroize(BlockDriverState *bs, uint64_t offset,
 
     if (head) {
         ret = zero_l2_subclusters(bs, offset - head,
-                                  size_to_subclusters(s, head));
+                                  size_to_subclusters(s, head), flags);
         if (ret < 0) {
             goto fail;
         }
@@ -2314,7 +2324,8 @@ int coroutine_fn qcow2_subcluster_zeroize(BlockDriverState *bs, uint64_t offset,
     }
 
     if (tail) {
-        ret = zero_l2_subclusters(bs, end_offset, size_to_subclusters(s, tail));
+        ret = zero_l2_subclusters(bs, end_offset,
+                                  size_to_subclusters(s, tail), flags);
         if (ret < 0) {
             goto fail;
         }
