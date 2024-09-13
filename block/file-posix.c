@@ -1939,6 +1939,7 @@ static int translate_err(int err)
 static int do_fallocate(int fd, int mode, off_t offset, off_t len)
 {
     do {
+        trace_file_do_fallocate(fd, mode, offset, len);
         if (fallocate(fd, mode, offset, len) == 0) {
             return 0;
         }
