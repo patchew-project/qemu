@@ -81,6 +81,12 @@ _verify_l2_bitmap()
     fi
 }
 
+# Filter out trace params which we don't control (file fd)
+_filter_trace_fallocate()
+{
+    sed -E 's/fd=[0-9]+/fd=N/g'
+}
+
 # This should be called as _run_test c=XXX sc=XXX off=XXX len=XXX cmd=XXX
 # c:   cluster number (0 if unset)
 # sc:  subcluster number inside cluster @c (0 if unset)
@@ -94,12 +100,13 @@ _verify_l2_bitmap()
 #      discard  -> discard
 _run_test()
 {
-    unset c sc off len cmd
+    unset c sc off len cmd opt
     for var in "$@"; do eval "$var"; done
     case "${cmd:-write}" in
         zero)
             cmd="write -q -z";;
         unmap)
+            opt="--trace enable=file_do_fallocate"
             cmd="write -q -z -u";;
         compress)
             pat=$((${pat:-0} + 1))
@@ -108,6 +115,7 @@ _run_test()
             pat=$((${pat:-0} + 1))
             cmd="write -q -P ${pat}";;
         discard)
+            opt="--trace enable=file_do_fallocate"
             cmd="discard -q";;
         *)
             echo "Unknown option $cmd"
@@ -121,7 +129,7 @@ _run_test()
     cmd="$cmd ${offset} ${len}"
     raw_cmd=$(echo $cmd | sed s/-c//) # Raw images don't support -c
     echo $cmd | sed 's/-P [0-9][0-9]\?/-P PATTERN/'
-    $QEMU_IO -c "$cmd" "$TEST_IMG" | _filter_qemu_io
+    $QEMU_IO $opt -c "$cmd" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_trace_fallocate
     $QEMU_IO -c "$raw_cmd" -f raw "$TEST_IMG.raw" | _filter_qemu_io
     _verify_img
     _verify_l2_bitmap "$c"
@@ -202,9 +210,10 @@ for use_backing_file in yes no; do
     alloc="$(seq 16 31)"; zero="$(seq 0 15)"
     _run_test sc=0 len=32k cmd=unmap
 
-    ### Zero and unmap cluster #0
+    ### Zero and unmap second half of cluster #0 (this will unmap it and
+    ### discard l2 entry)
     alloc=""; zero="$(seq 0 31)"
-    _run_test sc=0 len=64k cmd=unmap
+    _run_test sc=16 len=32k cmd=unmap
 
     ### Write subcluster #1 (middle of subcluster)
     alloc="1"; zero="0 $(seq 2 31)"
@@ -439,6 +448,12 @@ for use_backing_file in yes no; do
     _verify_l2_bitmap 16
     _verify_l2_bitmap 17
 
+    # Unmap subclusters #0-#3 of an unallocated cluster #8.  Since
+    # 'write -z -u' doesn't lead to full discard, subclusters should become
+    # explicitly zeroized
+    alloc=""; zero="$(seq 0 3)"
+    _run_test c=8 sc=0 len=8k cmd=unmap
+
     # Cluster-aligned request from clusters #9 to #11
     alloc=""; zero="$(seq 0 31)"
     _run_test c=9 sc=0 len=192k cmd=unmap
@@ -523,26 +538,45 @@ for use_backing_file in yes no; do
     echo
     echo "### Discarding clusters with non-zero bitmaps (backing file: $use_backing_file) ###"
     echo
+
+    _reset_img 1M
+
+    # Write first half of cluster #0 and discard another half
+    alloc="$(seq 0 15)"; zero=""
+    _run_test sc=0 len=32k
+    # When discarding unallocated subclusters, they only have to be
+    # explicitly zeroized when the image has a backing file
     if [ "$use_backing_file" = "yes" ]; then
-        _make_test_img -o extended_l2=on -F raw -b "$TEST_IMG.base" 1M
+        alloc="$(seq 0 15)"; zero="$(seq 16 31)"
     else
-        _make_test_img -o extended_l2=on 1M
+        alloc="$(seq 0 15)"; zero=""
     fi
-    # Write clusters #0-#2 and then discard them
-    $QEMU_IO -c 'write -q 0 128k' "$TEST_IMG"
-    $QEMU_IO -c 'discard -q 0 128k' "$TEST_IMG"
-    # 'qemu-io discard' doesn't do a full discard, it zeroizes the
-    # cluster, so both clusters have all zero bits set now
+    _run_test sc=16 len=32k cmd=discard
+
+    # Write cluster #0 and discard its subclusters #0-#3
+    alloc="$(seq 0 31)"; zero=""
+    _run_test sc=0 len=64k
+    alloc="$(seq 4 31)"; zero="$(seq 0 3)"
+    _run_test sc=0 len=8k cmd=discard
+
+    # Discard remaining subclusters #4-#32.  This should unmap the cluster
+    # and discard its l2 entry
     alloc=""; zero="$(seq 0 31)"
-    _verify_l2_bitmap 0
+    _run_test sc=4 len=56k cmd=discard
+
+    # Write clusters #0-#1 and then discard them
+    alloc="$(seq 0 31)"; zero=""
+    _run_test sc=0 len=128k
+    # 'qemu-io discard' doesn't do a full discard, it zeroizes the
+    # cluster, so both clusters have all zero bits set after discard
+    alloc=""; zero="$(seq 0 31)"
+    _run_test sc=0 len=128k cmd=discard
     _verify_l2_bitmap 1
+
     # Now mark the 2nd half of the subclusters from cluster #0 as unallocated
     poke_file "$TEST_IMG" $(($l2_offset+8)) "\x00\x00"
+
     # Discard cluster #0 again to see how the zero bits have changed
-    $QEMU_IO -c 'discard -q 0 64k' "$TEST_IMG"
-    # And do a full discard of cluster #1 by shrinking and growing the image
-    $QEMU_IMG resize --shrink "$TEST_IMG" 64k
-    $QEMU_IMG resize "$TEST_IMG" 1M
     # A normal discard sets all 'zero' bits only if the image has a
     # backing file, otherwise it won't touch them.
     if [ "$use_backing_file" = "yes" ]; then
@@ -550,7 +584,11 @@ for use_backing_file in yes no; do
     else
         alloc=""; zero="$(seq 0 15)"
     fi
-    _verify_l2_bitmap 0
+    _run_test sc=0 len=64k cmd=discard
+
+    # And do a full discard of cluster #1 by shrinking and growing the image
+    $QEMU_IMG resize --shrink "$TEST_IMG" 64k
+    $QEMU_IMG resize "$TEST_IMG" 1M
     # A full discard should clear the L2 entry completely. However
     # when growing an image with a backing file the new clusters are
     # zeroized to hide the stale data from the backing file

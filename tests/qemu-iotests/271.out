@@ -29,14 +29,17 @@ L2 entry #0: 0x8000000000050000 ffffffff00000000
 write -q -P PATTERN 0 64k
 L2 entry #0: 0x8000000000050000 00000000ffffffff
 write -q -z -u 0 32k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=32768
 L2 entry #0: 0x8000000000050000 0000ffffffff0000
-write -q -z -u 0 64k
+write -q -z -u 32k 32k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=65536
 L2 entry #0: 0x0000000000000000 ffffffff00000000
 write -q -P PATTERN 3k 512
 L2 entry #0: 0x8000000000050000 fffffffd00000002
 write -q -P PATTERN 0 64k
 L2 entry #0: 0x8000000000050000 00000000ffffffff
 discard -q 0 64k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=65536
 L2 entry #0: 0x0000000000000000 ffffffff00000000
 write -q -c -P PATTERN 0 64k
 L2 entry #0: 0x4000000000050000 0000000000000000
@@ -71,14 +74,17 @@ L2 entry #0: 0x8000000000050000 ffffffff00000000
 write -q -P PATTERN 0 64k
 L2 entry #0: 0x8000000000050000 00000000ffffffff
 write -q -z -u 0 32k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=32768
 L2 entry #0: 0x8000000000050000 0000ffffffff0000
-write -q -z -u 0 64k
+write -q -z -u 32k 32k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=65536
 L2 entry #0: 0x0000000000000000 ffffffff00000000
 write -q -P PATTERN 3k 512
 L2 entry #0: 0x8000000000050000 fffffffd00000002
 write -q -P PATTERN 0 64k
 L2 entry #0: 0x8000000000050000 00000000ffffffff
 discard -q 0 64k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=65536
 L2 entry #0: 0x0000000000000000 ffffffff00000000
 write -q -c -P PATTERN 0 64k
 L2 entry #0: 0x4000000000050000 0000000000000000
@@ -301,15 +307,20 @@ L2 entry #14: 0x80000000000a0000 00000000ffffffff
 L2 entry #15: 0x80000000000b0000 00000000ffffffff
 L2 entry #16: 0x80000000000c0000 00000000ffffffff
 L2 entry #17: 0x80000000000d0000 00000000ffffffff
+write -q -z -u 512k 8k
+L2 entry #8: 0x0000000000000000 0000000f00000000
 write -q -z -u 576k 192k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=196608
 L2 entry #9: 0x0000000000000000 ffffffff00000000
 L2 entry #10: 0x0000000000000000 ffffffff00000000
 L2 entry #11: 0x0000000000000000 ffffffff00000000
 write -q -z -u 800k 128k
+file_do_fallocate fd=N mode=0x03 offset=557056 len=131072
 L2 entry #12: 0x8000000000080000 ffff00000000ffff
 L2 entry #13: 0x0000000000000000 ffffffff00000000
 L2 entry #14: 0x80000000000a0000 0000ffffffff0000
 write -q -z -u 991k 128k
+file_do_fallocate fd=N mode=0x03 offset=753664 len=129024
 L2 entry #15: 0x80000000000b0000 ffff00000000ffff
 L2 entry #16: 0x0000000000000000 ffffffff00000000
 L2 entry #17: 0x80000000000d0000 00007fffffff8000
@@ -339,6 +350,7 @@ L2 entry #27: 0x4000000000120000 0000000000000000
 write -q -c -P PATTERN 1792k 64k
 L2 entry #28: 0x4000000000130000 0000000000000000
 write -q -z -u 1152k 192k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=196608
 L2 entry #18: 0x0000000000000000 ffffffff00000000
 L2 entry #19: 0x0000000000000000 ffffffff00000000
 L2 entry #20: 0x0000000000000000 ffffffff00000000
@@ -351,6 +363,8 @@ L2 entry #24: 0x8000000000090000 00000000ffffffff
 L2 entry #25: 0x80000000000e0000 00000000ffffffff
 L2 entry #26: 0x80000000000f0000 00000000ffffffff
 write -q -z -u 1759k 128k
+file_do_fallocate fd=N mode=0x03 offset=819200 len=32768
+file_do_fallocate fd=N mode=0x03 offset=1245184 len=65536
 L2 entry #27: 0x80000000000c0000 ffff00000000ffff
 L2 entry #28: 0x0000000000000000 ffffffff00000000
 L2 entry #29: 0x8000000000100000 00007fff00008000
@@ -369,15 +383,20 @@ L2 entry #14: 0x80000000000a0000 00000000ffffffff
 L2 entry #15: 0x80000000000b0000 00000000ffffffff
 L2 entry #16: 0x80000000000c0000 00000000ffffffff
 L2 entry #17: 0x80000000000d0000 00000000ffffffff
+write -q -z -u 512k 8k
+L2 entry #8: 0x0000000000000000 0000000f00000000
 write -q -z -u 576k 192k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=196608
 L2 entry #9: 0x0000000000000000 ffffffff00000000
 L2 entry #10: 0x0000000000000000 ffffffff00000000
 L2 entry #11: 0x0000000000000000 ffffffff00000000
 write -q -z -u 800k 128k
+file_do_fallocate fd=N mode=0x03 offset=557056 len=131072
 L2 entry #12: 0x8000000000080000 ffff00000000ffff
 L2 entry #13: 0x0000000000000000 ffffffff00000000
 L2 entry #14: 0x80000000000a0000 0000ffffffff0000
 write -q -z -u 991k 128k
+file_do_fallocate fd=N mode=0x03 offset=753664 len=129024
 L2 entry #15: 0x80000000000b0000 ffff00000000ffff
 L2 entry #16: 0x0000000000000000 ffffffff00000000
 L2 entry #17: 0x80000000000d0000 00007fffffff8000
@@ -407,6 +426,7 @@ L2 entry #27: 0x4000000000120000 0000000000000000
 write -q -c -P PATTERN 1792k 64k
 L2 entry #28: 0x4000000000130000 0000000000000000
 write -q -z -u 1152k 192k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=196608
 L2 entry #18: 0x0000000000000000 ffffffff00000000
 L2 entry #19: 0x0000000000000000 ffffffff00000000
 L2 entry #20: 0x0000000000000000 ffffffff00000000
@@ -419,28 +439,69 @@ L2 entry #24: 0x8000000000090000 00000000ffffffff
 L2 entry #25: 0x80000000000e0000 00000000ffffffff
 L2 entry #26: 0x80000000000f0000 00000000ffffffff
 write -q -z -u 1759k 128k
+file_do_fallocate fd=N mode=0x03 offset=819200 len=32768
+file_do_fallocate fd=N mode=0x03 offset=1245184 len=65536
 L2 entry #27: 0x80000000000c0000 ffff00000000ffff
 L2 entry #28: 0x0000000000000000 ffffffff00000000
 L2 entry #29: 0x0000000000000000 0000ffff00000000
 
 ### Discarding clusters with non-zero bitmaps (backing file: yes) ###
 
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=raw size=1048576
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
+write -q -P PATTERN 0 32k
+L2 entry #0: 0x8000000000050000 000000000000ffff
+discard -q 32k 32k
+file_do_fallocate fd=N mode=0x03 offset=360448 len=32768
+L2 entry #0: 0x8000000000050000 ffff00000000ffff
+write -q -P PATTERN 0 64k
+L2 entry #0: 0x8000000000050000 00000000ffffffff
+discard -q 0 8k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=8192
+L2 entry #0: 0x8000000000050000 0000000ffffffff0
+discard -q 8k 56k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=65536
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+write -q -P PATTERN 0 128k
+L2 entry #0: 0x8000000000050000 00000000ffffffff
+discard -q 0 128k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=131072
 L2 entry #0: 0x0000000000000000 ffffffff00000000
 L2 entry #1: 0x0000000000000000 ffffffff00000000
-Image resized.
-Image resized.
+discard -q 0 64k
 L2 entry #0: 0x0000000000000000 ffffffff00000000
+Image resized.
+Image resized.
 L2 entry #1: 0x0000000000000000 ffffffff00000000
 
 ### Discarding clusters with non-zero bitmaps (backing file: no) ###
 
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=1048576
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+write -q -P PATTERN 0 32k
+L2 entry #0: 0x8000000000050000 000000000000ffff
+discard -q 32k 32k
+file_do_fallocate fd=N mode=0x03 offset=360448 len=32768
+L2 entry #0: 0x8000000000050000 000000000000ffff
+write -q -P PATTERN 0 64k
+L2 entry #0: 0x8000000000050000 00000000ffffffff
+discard -q 0 8k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=8192
+L2 entry #0: 0x8000000000050000 0000000ffffffff0
+discard -q 8k 56k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=65536
+L2 entry #0: 0x0000000000000000 ffffffff00000000
+write -q -P PATTERN 0 128k
+L2 entry #0: 0x8000000000050000 00000000ffffffff
+discard -q 0 128k
+file_do_fallocate fd=N mode=0x03 offset=327680 len=131072
 L2 entry #0: 0x0000000000000000 ffffffff00000000
 L2 entry #1: 0x0000000000000000 ffffffff00000000
-Image resized.
-Image resized.
+discard -q 0 64k
 L2 entry #0: 0x0000000000000000 0000ffff00000000
+Image resized.
+Image resized.
 L2 entry #1: 0x0000000000000000 0000000000000000
 
 ### Corrupted L2 entries - read test (allocated) ###
