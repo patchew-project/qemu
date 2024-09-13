@@ -953,8 +953,8 @@ void coroutine_fn GRAPH_RDLOCK
 qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m);
 
 int GRAPH_RDLOCK
-qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
-                      enum qcow2_discard_type type, bool full_discard);
+qcow2_subcluster_discard(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+                         enum qcow2_discard_type type, bool full_discard);
 
 int coroutine_fn GRAPH_RDLOCK
 qcow2_subcluster_zeroize(BlockDriverState *bs, uint64_t offset, uint64_t bytes,

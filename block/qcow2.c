@@ -1981,7 +1981,7 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.request_alignment = qcrypto_block_get_sector_size(s->crypto);
     }
     bs->bl.pwrite_zeroes_alignment = s->subcluster_size;
-    bs->bl.pdiscard_alignment = s->cluster_size;
+    bs->bl.pdiscard_alignment = s->subcluster_size;
 }
 
 static int GRAPH_UNLOCKED
@@ -4126,19 +4126,19 @@ qcow2_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
         return -ENOTSUP;
     }
 
-    if (!QEMU_IS_ALIGNED(offset | bytes, s->cluster_size)) {
-        assert(bytes < s->cluster_size);
+    if (!QEMU_IS_ALIGNED(offset | bytes, bs->bl.pdiscard_alignment)) {
+        assert(bytes < bs->bl.pdiscard_alignment);
         /* Ignore partial clusters, except for the special case of the
          * complete partial cluster at the end of an unaligned file */
-        if (!QEMU_IS_ALIGNED(offset, s->cluster_size) ||
+        if (!QEMU_IS_ALIGNED(offset, bs->bl.pdiscard_alignment) ||
             offset + bytes != bs->total_sectors * BDRV_SECTOR_SIZE) {
             return -ENOTSUP;
         }
     }
 
     qemu_co_mutex_lock(&s->lock);
-    ret = qcow2_cluster_discard(bs, offset, bytes, QCOW2_DISCARD_REQUEST,
-                                false);
+    ret = qcow2_subcluster_discard(bs, offset, bytes, QCOW2_DISCARD_REQUEST,
+                                   false);
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
@@ -4349,10 +4349,10 @@ qcow2_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
             goto fail;
         }
 
-        ret = qcow2_cluster_discard(bs, ROUND_UP(offset, s->cluster_size),
-                                    old_length - ROUND_UP(offset,
-                                                          s->cluster_size),
-                                    QCOW2_DISCARD_ALWAYS, true);
+        ret = qcow2_subcluster_discard(bs, ROUND_UP(offset, s->cluster_size),
+                                       old_length - ROUND_UP(offset,
+                                                             s->cluster_size),
+                                       QCOW2_DISCARD_ALWAYS, true);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to discard cropped clusters");
             goto fail;
@@ -5046,8 +5046,9 @@ static int GRAPH_RDLOCK qcow2_make_empty(BlockDriverState *bs)
          * default action for this kind of discard is to pass the discard,
          * which will ideally result in an actually smaller image file, as
          * is probably desired. */
-        ret = qcow2_cluster_discard(bs, offset, MIN(step, end_offset - offset),
-                                    QCOW2_DISCARD_SNAPSHOT, true);
+        ret = qcow2_subcluster_discard(bs, offset,
+                                       MIN(step, end_offset - offset),
+                                       QCOW2_DISCARD_SNAPSHOT, true);
         if (ret < 0) {
             break;
         }
