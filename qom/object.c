@@ -564,9 +564,9 @@ static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
     object_ref(obj);
-    object_class_property_init_all(obj);
     obj->properties = g_hash_table_new_full(g_str_hash, g_str_equal,
                                             NULL, object_property_free);
+    object_class_property_init_all(obj);
     object_init_with_type(obj, type);
     object_post_init_with_type(obj, type);
 }
