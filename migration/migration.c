@@ -444,6 +444,7 @@ void migration_incoming_state_destroy(void)
     struct MigrationIncomingState *mis = migration_incoming_get_current();
 
     multifd_recv_cleanup();
+    qemu_loadvm_state_cleanup();
 
     /*
      * RAM state cleanup needs to happen after multifd cleanup, because
