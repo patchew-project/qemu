@@ -25,7 +25,6 @@ qio_channel_socket_listen_async(void *ioc, void *addr, int num) "Socket listen a
 qio_channel_socket_listen_fail(void *ioc) "Socket listen fail ioc=%p"
 qio_channel_socket_listen_complete(void *ioc, int fd) "Socket listen complete ioc=%p fd=%d"
 qio_channel_socket_dgram_sync(void *ioc, void *localAddr, void *remoteAddr) "Socket dgram sync ioc=%p localAddr=%p remoteAddr=%p"
-qio_channel_socket_dgram_async(void *ioc, void *localAddr, void *remoteAddr) "Socket dgram async ioc=%p localAddr=%p remoteAddr=%p"
 qio_channel_socket_dgram_fail(void *ioc) "Socket dgram fail ioc=%p"
 qio_channel_socket_dgram_complete(void *ioc, int fd) "Socket dgram complete ioc=%p fd=%d"
 qio_channel_socket_accept(void *ioc) "Socket accept start ioc=%p"

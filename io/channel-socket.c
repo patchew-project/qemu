@@ -319,60 +319,6 @@ int qio_channel_socket_dgram_sync(QIOChannelSocket *ioc,
 }
 
 
-struct QIOChannelSocketDGramWorkerData {
-    SocketAddress *localAddr;
-    SocketAddress *remoteAddr;
-};
-
-
-static void qio_channel_socket_dgram_worker_free(gpointer opaque)
-{
-    struct QIOChannelSocketDGramWorkerData *data = opaque;
-    qapi_free_SocketAddress(data->localAddr);
-    qapi_free_SocketAddress(data->remoteAddr);
-    g_free(data);
-}
-
-static void qio_channel_socket_dgram_worker(QIOTask *task,
-                                            gpointer opaque)
-{
-    QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
-    struct QIOChannelSocketDGramWorkerData *data = opaque;
-    Error *err = NULL;
-
-    /* socket_dgram() blocks in DNS lookups, so we must use a thread */
-    qio_channel_socket_dgram_sync(ioc, data->localAddr,
-                                  data->remoteAddr, &err);
-
-    qio_task_set_error(task, err);
-}
-
-
-void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
-                                    SocketAddress *localAddr,
-                                    SocketAddress *remoteAddr,
-                                    QIOTaskFunc callback,
-                                    gpointer opaque,
-                                    GDestroyNotify destroy,
-                                    GMainContext *context)
-{
-    QIOTask *task = qio_task_new(
-        OBJECT(ioc), callback, opaque, destroy);
-    struct QIOChannelSocketDGramWorkerData *data = g_new0(
-        struct QIOChannelSocketDGramWorkerData, 1);
-
-    data->localAddr = QAPI_CLONE(SocketAddress, localAddr);
-    data->remoteAddr = QAPI_CLONE(SocketAddress, remoteAddr);
-
-    trace_qio_channel_socket_dgram_async(ioc, localAddr, remoteAddr);
-    qio_task_run_in_thread(task,
-                           qio_channel_socket_dgram_worker,
-                           data,
-                           qio_channel_socket_dgram_worker_free,
-                           context);
-}
-
-
 QIOChannelSocket *
 qio_channel_socket_accept(QIOChannelSocket *ioc,
                           Error **errp)
