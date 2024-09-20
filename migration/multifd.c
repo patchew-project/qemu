@@ -1531,6 +1531,8 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
         id = qatomic_read(&multifd_recv_state->count);
     }
 
+    qio_channel_set_blocking(ioc, false, NULL);
+
     p = &multifd_recv_state->params[id];
     if (p->c != NULL) {
         error_setg(&local_err, "multifd: received id '%d' already setup'",
