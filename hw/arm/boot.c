@@ -720,7 +720,11 @@ static void do_cpu_reset(void *opaque)
                 g_assert_not_reached();
             }
 
-            cpu_set_pc(cs, entry);
+            if (cs == first_cpu || !info->secondary_cpu_reset_hook) {
+                cpu_set_pc(cs, entry);
+            } else {
+                info->secondary_cpu_reset_hook(cpu, info);
+            }
         } else {
             /*
              * If we are booting Linux then we might need to do so at:
@@ -1299,20 +1303,24 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
         }
     }
 
-    if (info->psci_conduit == QEMU_PSCI_CONDUIT_DISABLED &&
-        info->is_linux && nb_cpus > 1) {
+    if (info->psci_conduit == QEMU_PSCI_CONDUIT_DISABLED && nb_cpus > 1) {
         /*
-         * We're booting Linux but not using PSCI, so for SMP we need
-         * to write a custom secondary CPU boot loader stub, and arrange
-         * for the secondary CPU reset to make the accompanying initialization.
+         * We're not using PSCI, so for SMP we may need to write a custom
+         * secondary CPU boot loader stub, and arrange for the secondary CPU
+         * reset to make the accompanying initialization.
          */
-        if (!info->secondary_cpu_reset_hook) {
-            info->secondary_cpu_reset_hook = default_reset_secondary;
+        if (info->is_linux) {
+            /* For the Linux boot, use default hooks if needed */
+            if (!info->secondary_cpu_reset_hook) {
+                info->secondary_cpu_reset_hook = default_reset_secondary;
+            }
+            if (!info->write_secondary_boot) {
+                info->write_secondary_boot = default_write_secondary;
+            }
         }
-        if (!info->write_secondary_boot) {
-            info->write_secondary_boot = default_write_secondary;
+        if (info->write_secondary_boot) {
+            info->write_secondary_boot(cpu, info);
         }
-        info->write_secondary_boot(cpu, info);
     } else {
         /*
          * No secondary boot stub; don't use the reset hook that would
