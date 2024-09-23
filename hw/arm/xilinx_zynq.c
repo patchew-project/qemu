@@ -65,6 +65,8 @@ static const int dma_irqs[8] = {
 
 #define BOARD_SETUP_ADDR        0x100
 
+#define SECONDARY_SETUP_ADDR    0xFFFFFFE8
+
 #define SLCR_LOCK_OFFSET        0x004
 #define SLCR_UNLOCK_OFFSET      0x008
 #define SLCR_ARM_PLL_OFFSET     0x100
@@ -111,6 +113,28 @@ static void zynq_write_board_setup(ARMCPU *cpu,
     }
     rom_add_blob_fixed("board-setup", board_setup_blob,
                        sizeof(board_setup_blob), BOARD_SETUP_ADDR);
+}
+
+static void zynq_secondary_cpu_reset(ARMCPU *cpu,
+                                     const struct arm_boot_info *info)
+{
+    /*
+     * After a system reset (SRST), the CPU1 should execute a wfe instruction
+     * and then load the start address from 0xfffffff0:
+     *
+     * https://docs.amd.com/r/en-US/ug585-zynq-7000-SoC-TRM/Starting-Code-on-CPU-1
+     */
+    uint32_t secondary_setup_blob[] = {
+        0xe320f002, /* wfe */
+        0xe51ff004, /* ldr pc, [pc, #-4] */
+        SECONDARY_SETUP_ADDR
+    };
+    for (int n = 0; n < ARRAY_SIZE(secondary_setup_blob); n++) {
+        secondary_setup_blob[n] = tswap32(secondary_setup_blob[n]);
+    }
+    rom_add_blob_fixed("secondary-setup", secondary_setup_blob,
+                       sizeof(secondary_setup_blob), SECONDARY_SETUP_ADDR);
+    cpu_set_pc(CPU(cpu), SECONDARY_SETUP_ADDR);
 }
 
 static struct arm_boot_info zynq_binfo = {};
@@ -449,6 +473,7 @@ static void zynq_init(MachineState *machine)
     zynq_binfo.loader_start = 0;
     zynq_binfo.board_setup_addr = BOARD_SETUP_ADDR;
     zynq_binfo.write_board_setup = zynq_write_board_setup;
+    zynq_binfo.secondary_cpu_reset_hook = zynq_secondary_cpu_reset;
 
     arm_load_kernel(zynq_machine->cpu[0], machine, &zynq_binfo);
 }
