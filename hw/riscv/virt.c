@@ -565,6 +565,16 @@ static void create_fdt_one_imsic(RISCVVirtState *s, hwaddr base_addr,
                           FDT_IMSIC_INT_CELLS);
     qemu_fdt_setprop(ms->fdt, imsic_name, "interrupt-controller", NULL, 0);
     qemu_fdt_setprop(ms->fdt, imsic_name, "msi-controller", NULL, 0);
+    /*
+     * Per the DT binding, we should also add #msi-cells with a value of zero.
+     * But, Linux which does not include commit db8e81132cf0 ("of/irq: Support
+     * #msi-cells=<0> in of_msi_get_domain") does not properly handle #msi-cells
+     * with a value of zero. For this reason, the property has intentionally
+     * been left out. It's harmless to not add it since the absence of the
+     * property and a value of zero for the property mean the same thing.
+     * However, since the DT binding requires the property, DT validation may
+     * fail.
+     */
     qemu_fdt_setprop(ms->fdt, imsic_name, "interrupts-extended",
                      imsic_cells, ms->smp.cpus * sizeof(uint32_t) * 2);
     qemu_fdt_setprop(ms->fdt, imsic_name, "reg", imsic_regs,
