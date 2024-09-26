@@ -189,10 +189,10 @@ static void xen_block_connect(XenDevice *xendev, Error **errp)
         feature_large_sector_size = 0;
     }
 
-    if (feature_large_sector_size != 1 &&
+    if (feature_large_sector_size == 1 &&
         conf->logical_block_size != XEN_BLKIF_SECTOR_SIZE) {
-        error_setg(errp, "logical_block_size != %u not supported by frontend",
-                   XEN_BLKIF_SECTOR_SIZE);
+        error_setg(errp,
+                   "\"feature-large-sector-size\" not supported by backend");
         return;
     }
 
@@ -295,7 +295,7 @@ static void xen_block_set_size(XenBlockDevice *blockdev)
     const char *type = object_get_typename(OBJECT(blockdev));
     XenBlockVdev *vdev = &blockdev->props.vdev;
     BlockConf *conf = &blockdev->props.conf;
-    int64_t sectors = blk_getlength(conf->blk) / conf->logical_block_size;
+    int64_t sectors = blk_getlength(conf->blk) / XEN_BLKIF_SECTOR_SIZE;
     XenDevice *xendev = XEN_DEVICE(blockdev);
 
     trace_xen_block_size(type, vdev->disk, vdev->partition, sectors);

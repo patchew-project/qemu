@@ -176,7 +176,11 @@ static int xen_block_parse_request(XenBlockRequest *request)
         goto err;
     }
 
-    request->start = request->req.sector_number * dataplane->sector_size;
+    request->start = request->req.sector_number * XEN_BLKIF_SECTOR_SIZE;
+    if (!QEMU_IS_ALIGNED(request->start, dataplane->sector_size)) {
+        error_report("error: sector_number missaligned with sector-size");
+        goto err;
+    }
     for (i = 0; i < request->req.nr_segments; i++) {
         if (i == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
             error_report("error: nr_segments too big");
@@ -186,14 +190,23 @@ static int xen_block_parse_request(XenBlockRequest *request)
             error_report("error: first > last sector");
             goto err;
         }
-        if (request->req.seg[i].last_sect * dataplane->sector_size >=
+        if (request->req.seg[i].last_sect * XEN_BLKIF_SECTOR_SIZE >=
             XEN_PAGE_SIZE) {
             error_report("error: page crossing");
             goto err;
         }
+        if (!QEMU_IS_ALIGNED(request->req.seg[i].first_sect,
+                             dataplane->sector_size / XEN_BLKIF_SECTOR_SIZE)) {
+            error_report("error: first_sect missaligned with sector-size");
+            goto err;
+        }
 
         len = (request->req.seg[i].last_sect -
-               request->req.seg[i].first_sect + 1) * dataplane->sector_size;
+               request->req.seg[i].first_sect + 1) * XEN_BLKIF_SECTOR_SIZE;
+        if (!QEMU_IS_ALIGNED(len, dataplane->sector_size)) {
+            error_report("error: segment size missaligned with sector-size");
+            goto err;
+        }
         request->size += len;
     }
     if (request->start + request->size > blk_getlength(dataplane->blk)) {
@@ -227,17 +240,17 @@ static int xen_block_copy_request(XenBlockRequest *request)
         if (to_domain) {
             segs[i].dest.foreign.ref = request->req.seg[i].gref;
             segs[i].dest.foreign.offset = request->req.seg[i].first_sect *
-                dataplane->sector_size;
+                XEN_BLKIF_SECTOR_SIZE;
             segs[i].source.virt = virt;
         } else {
             segs[i].source.foreign.ref = request->req.seg[i].gref;
             segs[i].source.foreign.offset = request->req.seg[i].first_sect *
-                dataplane->sector_size;
+                XEN_BLKIF_SECTOR_SIZE;
             segs[i].dest.virt = virt;
         }
         segs[i].len = (request->req.seg[i].last_sect -
                        request->req.seg[i].first_sect + 1) *
-                      dataplane->sector_size;
+                      XEN_BLKIF_SECTOR_SIZE;
         virt += segs[i].len;
     }
 
@@ -331,12 +344,12 @@ static bool xen_block_split_discard(XenBlockRequest *request,
 
     /* Wrap around, or overflowing byte limit? */
     if (sec_start + sec_count < sec_count ||
-        sec_start + sec_count > INT64_MAX / dataplane->sector_size) {
+        sec_start + sec_count > INT64_MAX / XEN_BLKIF_SECTOR_SIZE) {
         return false;
     }
 
-    byte_offset = sec_start * dataplane->sector_size;
-    byte_remaining = sec_count * dataplane->sector_size;
+    byte_offset = sec_start * XEN_BLKIF_SECTOR_SIZE;
+    byte_remaining = sec_count * XEN_BLKIF_SECTOR_SIZE;
 
     do {
         byte_chunk = byte_remaining > BDRV_REQUEST_MAX_BYTES ?
