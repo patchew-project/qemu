@@ -2155,7 +2155,7 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
     uint32_t pptt_start = table_data->len;
     uint32_t root_offset;
     int n;
-    AcpiTable table = { .sig = "PPTT", .rev = 2,
+    AcpiTable table = { .sig = "PPTT", .rev = 3,
                         .oem_id = oem_id, .oem_table_id = oem_table_id };
 
     acpi_table_begin(&table, table_data);
