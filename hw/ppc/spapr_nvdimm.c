@@ -248,7 +248,6 @@ static target_ulong h_scm_read_metadata(PowerPCCPU *cpu,
     SpaprDrc *drc = spapr_drc_by_index(drc_index);
     NVDIMMDevice *nvdimm;
     NVDIMMClass *ddc;
-    uint64_t data = 0;
     uint8_t buf[8] = { 0 };
 
     if (!drc || !drc->dev ||
@@ -270,24 +269,7 @@ static target_ulong h_scm_read_metadata(PowerPCCPU *cpu,
     ddc = NVDIMM_GET_CLASS(nvdimm);
     ddc->read_label_data(nvdimm, buf, len, offset);
 
-    switch (len) {
-    case 1:
-        data = ldub_p(buf);
-        break;
-    case 2:
-        data = lduw_be_p(buf);
-        break;
-    case 4:
-        data = ldl_be_p(buf);
-        break;
-    case 8:
-        data = ldq_be_p(buf);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    args[0] = data;
+    args[0] = ldn_be_p(buf, len);
 
     return H_SUCCESS;
 }
@@ -323,31 +305,10 @@ static target_ulong h_scm_write_metadata(PowerPCCPU *cpu,
         return H_P2;
     }
 
-    switch (len) {
-    case 1:
-        if (data & 0xffffffffffffff00) {
-            return H_P2;
-        }
-        stb_p(buf, data);
-        break;
-    case 2:
-        if (data & 0xffffffffffff0000) {
-            return H_P2;
-        }
-        stw_be_p(buf, data);
-        break;
-    case 4:
-        if (data & 0xffffffff00000000) {
-            return H_P2;
-        }
-        stl_be_p(buf, data);
-        break;
-    case 8:
-        stq_be_p(buf, data);
-        break;
-    default:
-            g_assert_not_reached();
+    if (len < 8 && extract64(data, 8 * len, 64 - 8 * len)) {
+        return H_P2;
     }
+    stn_be_p(buf, data, len);
 
     ddc = NVDIMM_GET_CLASS(nvdimm);
     ddc->write_label_data(nvdimm, buf, len, offset);
