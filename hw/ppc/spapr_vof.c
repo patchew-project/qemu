@@ -136,26 +136,17 @@ bool spapr_vof_setprop(MachineState *ms, const char *path, const char *propname,
             vof->bootargs = g_strndup(val, vallen);
             return true;
         }
-        if (strcmp(propname, "linux,initrd-start") == 0) {
-            if (vallen == sizeof(uint32_t)) {
-                spapr->initrd_base = ldl_be_p(val);
-                return true;
+        switch (vallen) {
+        case 4:
+        case 8:
+            if (strcmp(propname, "linux,initrd-start") == 0) {
+                spapr->initrd_base = ldn_be_p(val, vallen);
             }
-            if (vallen == sizeof(uint64_t)) {
-                spapr->initrd_base = ldq_be_p(val);
-                return true;
+            if (strcmp(propname, "linux,initrd-end") == 0) {
+                spapr->initrd_size = ldn_be_p(val, vallen);
             }
-            return false;
-        }
-        if (strcmp(propname, "linux,initrd-end") == 0) {
-            if (vallen == sizeof(uint32_t)) {
-                spapr->initrd_size = ldl_be_p(val) - spapr->initrd_base;
-                return true;
-            }
-            if (vallen == sizeof(uint64_t)) {
-                spapr->initrd_size = ldq_be_p(val) - spapr->initrd_base;
-                return true;
-            }
+            return true;
+        default:
             return false;
         }
     }
