@@ -318,11 +318,7 @@ static int l2tpv3_verify_header(NetL2TPV3State *s, uint8_t *buf)
     */
 
     if (s->cookie) {
-        if (s->cookie_is_64) {
-            cookie = ldq_be_p(buf + s->cookie_offset);
-        } else {
-            cookie = ldl_be_p(buf + s->cookie_offset) & 0xffffffffULL;
-        }
+        cookie = ldn_be_p(buf + s->cookie_offset, s->cookie_is_64 ? 8 : 4);
         if (cookie != s->rx_cookie) {
             if (!s->header_mismatch) {
                 error_report("unknown cookie id");
