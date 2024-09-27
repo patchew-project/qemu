@@ -628,6 +628,7 @@ static void vof_dt_memory_available(void *fdt, GArray *claimed, uint64_t base)
     const uint8_t *mem0_reg;
     g_autofree uint8_t *avail = NULL;
     uint8_t *availcur;
+    size_t elsz;
 
     if (!fdt || !claimed) {
         return;
@@ -645,11 +646,8 @@ static void vof_dt_memory_available(void *fdt, GArray *claimed, uint64_t base)
 
     mem0_reg = fdt_getprop(fdt, offset, "reg", &proplen);
     g_assert(mem0_reg && proplen == sizeof(uint32_t) * (ac + sc));
-    if (sc == 2) {
-        mem0_end = ldq_be_p(mem0_reg + sizeof(uint32_t) * ac);
-    } else {
-        mem0_end = be32_to_cpu(*(uint32_t *)(mem0_reg + sizeof(uint32_t) * ac));
-    }
+    elsz = sc * sizeof(uint32_t);
+    mem0_end = ldn_be_p(mem0_reg + sizeof(uint32_t) * ac, elsz);
 
     g_array_sort(claimed, of_claimed_compare_func);
     vof_claimed_dump(claimed);
@@ -674,18 +672,12 @@ static void vof_dt_memory_available(void *fdt, GArray *claimed, uint64_t base)
             size = mem0_end - start;
         }
 
-        if (ac == 2) {
-            *(uint64_t *) availcur = cpu_to_be64(start);
-        } else {
-            *(uint32_t *) availcur = cpu_to_be32(start);
-        }
-        availcur += sizeof(uint32_t) * ac;
-        if (sc == 2) {
-            *(uint64_t *) availcur = cpu_to_be64(size);
-        } else {
-            *(uint32_t *) availcur = cpu_to_be32(size);
-        }
-        availcur += sizeof(uint32_t) * sc;
+        elsz = ac * sizeof(uint32_t);
+        stn_be_p(&availcur, elsz, start);
+        availcur += elsz;
+        elsz = sc * sizeof(uint32_t);
+        stn_be_p(&availcur, elsz, size);
+        availcur += elsz;
 
         if (size) {
             trace_vof_avail(c.start + c.size, c.start + c.size + size, size);
