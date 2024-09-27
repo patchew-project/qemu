@@ -57,16 +57,8 @@ void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
 {
     if (strcmp("fromhost", st_name) == 0) {
         fromhost_addr = st_value;
-        if (st_size != 8) {
-            error_report("HTIF fromhost must be 8 bytes");
-            exit(1);
-        }
     } else if (strcmp("tohost", st_name) == 0) {
         tohost_addr = st_value;
-        if (st_size != 8) {
-            error_report("HTIF tohost must be 8 bytes");
-            exit(1);
-        }
     } else if (strcmp("begin_signature", st_name) == 0) {
         begin_sig_addr = st_value;
     } else if (strcmp("end_signature", st_name) == 0) {
@@ -288,18 +280,26 @@ static void htif_mm_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned size)
 {
     HTIFState *s = opaque;
-    if (addr == TOHOST_OFFSET1) {
-        if (s->tohost == 0x0) {
-            s->allow_tohost = 1;
-            s->tohost = value & 0xFFFFFFFF;
+    int htif_cmd_write = 0;
+    if (size == 8 && addr == TOHOST_OFFSET1) {
+        htif_cmd_write = 1;
+        s->tohost = value;
+        htif_handle_tohost_write(s, s->tohost);
+    } else if (size == 4 && addr == TOHOST_OFFSET1) {
+        if ((value) == (s->tohost & 0xFFFF)) {
+            s->allow_tohost = s->allow_tohost + 1;
         } else {
             s->allow_tohost = 0;
         }
-    } else if (addr == TOHOST_OFFSET2) {
-        if (s->allow_tohost) {
-            s->tohost |= value << 32;
-            htif_handle_tohost_write(s, s->tohost);
+        s->tohost = deposit64(s->tohost, 0, 32, value);
+    } else if (size == 4 && addr == TOHOST_OFFSET2) {
+        if ((value & 0xFF) == (s->tohost & 0xFF00)) {
+            s->allow_tohost = s->allow_tohost + 1;
+        } else {
+            s->allow_tohost = 1;
         }
+        htif_cmd_write = 1;
+        s->tohost = deposit64(s->tohost, 32, 32, value);
     } else if (addr == FROMHOST_OFFSET1) {
         s->fromhost_inprogress = 1;
         s->fromhost = value & 0xFFFFFFFF;
@@ -309,6 +309,9 @@ static void htif_mm_write(void *opaque, hwaddr addr,
     } else {
         qemu_log("Invalid htif write: address %016" PRIx64 "\n",
             (uint64_t)addr);
+    }
+    if ((s->tohost == 1 && htif_cmd_write) || s->allow_tohost > 2) {
+        htif_handle_tohost_write(s, s->tohost);
     }
 }
 
