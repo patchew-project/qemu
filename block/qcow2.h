@@ -255,9 +255,9 @@ typedef struct Qcow2ZonedHeaderExtension {
 } QEMU_PACKED Qcow2ZonedHeaderExtension;
 
 typedef struct Qcow2ZoneListEntry {
-    QLIST_ENTRY(Qcow2ZoneListEntry) exp_open_zone_entry;
-    QLIST_ENTRY(Qcow2ZoneListEntry) imp_open_zone_entry;
-    QLIST_ENTRY(Qcow2ZoneListEntry) closed_zone_entry;
+    QTAILQ_ENTRY(Qcow2ZoneListEntry) exp_open_zone_entry;
+    QTAILQ_ENTRY(Qcow2ZoneListEntry) imp_open_zone_entry;
+    QTAILQ_ENTRY(Qcow2ZoneListEntry) closed_zone_entry;
 } Qcow2ZoneListEntry;
 
 typedef struct Qcow2UnknownHeaderExtension {
@@ -452,6 +452,13 @@ typedef struct BDRVQcow2State {
 
     /* States of zoned device */
     Qcow2ZonedHeaderExtension zoned_header;
+    QTAILQ_HEAD(, Qcow2ZoneListEntry) exp_open_zones;
+    QTAILQ_HEAD(, Qcow2ZoneListEntry) imp_open_zones;
+    QTAILQ_HEAD(, Qcow2ZoneListEntry) closed_zones;
+    Qcow2ZoneListEntry *zone_list_entries;
+    uint32_t nr_zones_exp_open;
+    uint32_t nr_zones_imp_open;
+    uint32_t nr_zones_closed;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
