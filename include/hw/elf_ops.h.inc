@@ -41,6 +41,13 @@ static void glue(bswap_shdr, SZ)(struct elf_shdr *shdr)
     bswapSZs(&shdr->sh_entsize);
 }
 
+static void glue(bswap_nhdr, SZ)(struct elf_note *nhdr)
+{
+    bswap32s(&nhdr->n_namesz);
+    bswap32s(&nhdr->n_descsz);
+    bswap32s(&nhdr->n_type);
+}
+
 static void glue(bswap_sym, SZ)(struct elf_sym *sym)
 {
     bswap32s(&sym->st_name);
@@ -275,7 +282,8 @@ fail:
 static struct elf_note *glue(get_elf_note_type, SZ)(struct elf_note *nhdr,
                                                     elf_word note_size,
                                                     elf_word phdr_align,
-                                                    elf_word elf_note_type)
+                                                    elf_word elf_note_type,
+                                                    int must_swab)
 {
     elf_word nhdr_size = sizeof(struct elf_note);
     elf_word elf_note_entry_offset = 0;
@@ -287,6 +295,9 @@ static struct elf_note *glue(get_elf_note_type, SZ)(struct elf_note *nhdr,
         return NULL;
     }
 
+    if (must_swab) {
+        glue(bswap_nhdr, SZ)(nhdr);
+    }
     note_type = nhdr->n_type;
     while (note_type != elf_note_type) {
         nhdr_namesz = nhdr->n_namesz;
@@ -306,6 +317,9 @@ static struct elf_note *glue(get_elf_note_type, SZ)(struct elf_note *nhdr,
 
         /* skip to the next ELF Note entry */
         nhdr = (void *)nhdr + elf_note_entry_offset;
+        if (must_swab) {
+            glue(bswap_nhdr, SZ)(nhdr);
+        }
         note_type = nhdr->n_type;
     }
 
@@ -603,7 +617,8 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
             nhdr = (struct elf_note *)data;
             assert(translate_opaque != NULL);
             nhdr = glue(get_elf_note_type, SZ)(nhdr, file_size, ph->p_align,
-                                               *(uint64_t *)translate_opaque);
+                                               *(uint64_t *)translate_opaque,
+                                               must_swab);
             if (nhdr != NULL) {
                 elf_note_fn((void *)nhdr, (void *)&ph->p_align, SZ == 64);
             }
