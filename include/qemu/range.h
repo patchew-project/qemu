@@ -213,6 +213,10 @@ static inline int range_covers_byte(uint64_t offset, uint64_t len,
 static inline bool ranges_overlap(uint64_t first1, uint64_t len1,
                                   uint64_t first2, uint64_t len2)
 {
+    if (first1 + len1 == 0 || first2 + len2 == 0) {
+        return false;
+    }
+
     uint64_t last1 = range_get_last(first1, len1);
     uint64_t last2 = range_get_last(first2, len2);
 
