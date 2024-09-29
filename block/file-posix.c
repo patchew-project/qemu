@@ -2570,11 +2570,19 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
 #if defined(CONFIG_BLKZONED)
     if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
         bs->bl.zoned != BLK_Z_NONE) {
-        qemu_co_mutex_lock(&bs->wps->colock);
+        BlockZoneWps *wps = bs->wps;
+        int index = offset / bs->bl.zone_size;
+        qemu_co_mutex_lock(&wps->colock);
+        uint64_t *wp = &wps->wp[index];
         if (type & QEMU_AIO_ZONE_APPEND) {
-            int index = offset / bs->bl.zone_size;
-            offset = bs->wps->wp[index];
+            offset = *wp;
+            *offset_ptr = offset;
         }
+        /* Advance the wp if needed */
+        if (offset + bytes > *wp) {
+            *wp = offset + bytes;
+        }
+        qemu_co_mutex_unlock(&bs->wps->colock);
     }
 #endif
 
@@ -2625,28 +2633,19 @@ out:
 #if defined(CONFIG_BLKZONED)
     if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
         bs->bl.zoned != BLK_Z_NONE) {
-        BlockZoneWps *wps = bs->wps;
         if (ret == 0) {
-            uint64_t *wp = &wps->wp[offset / bs->bl.zone_size];
-            if (!BDRV_ZT_IS_CONV(*wp)) {
-                if (type & QEMU_AIO_ZONE_APPEND) {
-                    *offset_ptr = *wp;
-                    trace_zbd_zone_append_complete(bs, *offset_ptr
-                        >> BDRV_SECTOR_BITS);
-                }
-                /* Advance the wp if needed */
-                if (offset + bytes > *wp) {
-                    *wp = offset + bytes;
-                }
+            if (type & QEMU_AIO_ZONE_APPEND) {
+                trace_zbd_zone_append_complete(bs, *offset_ptr
+                    >> BDRV_SECTOR_BITS);
             }
         } else {
+            qemu_co_mutex_lock(&bs->wps->colock);
             /*
              * write and append write are not allowed to cross zone boundaries
              */
             update_zones_wp(bs, s->fd, offset, 1);
+            qemu_co_mutex_unlock(&bs->wps->colock);
         }
-
-        qemu_co_mutex_unlock(&wps->colock);
     }
 #endif
     return ret;
