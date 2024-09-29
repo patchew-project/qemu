@@ -193,6 +193,10 @@ EOF
         cp "$hdrdir/include/asm/kvm_para.h" "$output/linux-headers/asm-loongarch/"
         cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-loongarch/"
     fi
+    if [ $arch = loongarch ]; then
+        cp "$hdrdir/include/asm/kvm_para.h" "$output/linux-headers/asm-loongarch/"
+        cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-loongarch/"
+    fi
 done
 arch=
 
