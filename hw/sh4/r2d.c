@@ -358,9 +358,11 @@ static void r2d_init(MachineState *machine)
         }
 
         /* initialization which should be done by firmware */
-        boot_params.loader_type = tswap32(1);
-        boot_params.initrd_start = tswap32(INITRD_LOAD_OFFSET);
-        boot_params.initrd_size = tswap32(initrd_size);
+        stl_endian_p(TARGET_BIG_ENDIAN, &boot_params.loader_type, 1);
+        stl_endian_p(TARGET_BIG_ENDIAN, &boot_params.initrd_start,
+                     INITRD_LOAD_OFFSET);
+        stl_endian_p(TARGET_BIG_ENDIAN, &boot_params.initrd_size,
+                     initrd_size);
     }
 
     if (kernel_cmdline) {
