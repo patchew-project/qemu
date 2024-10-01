@@ -263,5 +263,6 @@ int main(int argc, char *argv[])
             "\n"
             "# quirks section end\n");
 
+    xkb_state_unref(state);
     exit(0);
 }
