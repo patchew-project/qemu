@@ -82,6 +82,10 @@ unsigned long mmap_min_addr;
 uintptr_t guest_base;
 bool have_guest_base;
 
+bool qemu_dup_for_children;
+int qemu_argc;
+char **qemu_argv;
+
 /*
  * Used to implement backwards-compatibility for the `-strace`, and
  * QEMU_STRACE options. Without this, the QEMU_LOG can be overwritten by
@@ -467,6 +471,11 @@ static void handle_arg_jitdump(const char *arg)
     perf_enable_jitdump();
 }
 
+static void handle_arg_qemu_children(const char *arg)
+{
+    qemu_dup_for_children = true;
+}
+
 static QemuPluginList plugins = QTAILQ_HEAD_INITIALIZER(plugins);
 
 #ifdef CONFIG_PLUGIN
@@ -547,6 +556,10 @@ static const struct qemu_argument arg_table[] = {
      "",           "Generate a /tmp/perf-${pid}.map file for perf"},
     {"jitdump",    "QEMU_JITDUMP",     false, handle_arg_jitdump,
      "",           "Generate a jit-${pid}.dump file for perf"},
+    {"qemu-children",
+                   "QEMU_CHILDREN",    false, handle_arg_qemu_children,
+     "",           "Run child processes (created with execve) with qemu "
+                   "(as instantiated for the parent)"},
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
@@ -749,6 +762,14 @@ int main(int argc, char **argv, char **envp)
     qemu_plugin_add_opts();
 
     optind = parse_args(argc, argv);
+
+    if (qemu_dup_for_children) {
+        qemu_argc = optind;
+        qemu_argv = g_new0(char *, qemu_argc);
+        for (i = 0; i < optind; ++i) {
+            qemu_argv[i] = strdup(argv[i]);
+        }
+    }
 
     qemu_set_log_filename_flags(last_log_filename,
                                 last_log_mask | (enable_strace * LOG_STRACE),
