@@ -3057,7 +3057,7 @@ void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
 
 enum {
     /* The string "GNU\0" as a magic number. */
-    GNU0_MAGIC = const_le32('G' | 'N' << 8 | 'U' << 16),
+    GNU0_MAGIC = 'G' | 'N' << 8 | 'U' << 16,
     NOTE_DATA_SZ = 1 * KiB,
     NOTE_NAME_SZ = 4,
     ELF_GNU_PROPERTY_ALIGN = ELF_CLASS == ELFCLASS32 ? 4 : 8,
