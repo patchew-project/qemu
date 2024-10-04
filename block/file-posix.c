@@ -2563,18 +2563,46 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
     int ret;
-    uint64_t offset = *offset_ptr;
+    uint64_t end_offset, end_zone, offset = *offset_ptr;
+    uint64_t *wp;
 
     if (fd_open(bs) < 0)
         return -EIO;
 #if defined(CONFIG_BLKZONED)
     if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
         bs->bl.zoned != BLK_Z_NONE) {
-        qemu_co_mutex_lock(&bs->wps->colock);
-        if (type & QEMU_AIO_ZONE_APPEND) {
-            int index = offset / bs->bl.zone_size;
-            offset = bs->wps->wp[index];
+        BlockZoneWps *wps = bs->wps;
+        int index = offset / bs->bl.zone_size;
+
+        qemu_co_mutex_lock(&wps->colock);
+        wp = &wps->wp[index];
+        if (!BDRV_ZT_IS_CONV(*wp)) {
+            if (type & QEMU_AIO_WRITE && offset != *wp) {
+                error_report("write offset 0x%" PRIx64 " is not equal to the wp"
+                             " of zone[%d] 0x%" PRIx64 "", offset, index, *wp);
+                qemu_co_mutex_unlock(&wps->colock);
+                return -EINVAL;
+            }
+
+            if (type & QEMU_AIO_ZONE_APPEND) {
+                offset = *wp;
+                *offset_ptr = offset;
+            }
+
+            end_offset = offset + bytes;
+            end_zone = (index + 1) * bs->bl.zone_size;
+            if (end_offset > end_zone) {
+                error_report("write exceeds zone boundary with end_offset "
+                             "%" PRIu64 ", end_zone %" PRIu64 "",
+                             end_offset, end_zone);
+                qemu_co_mutex_unlock(&wps->colock);
+                return -EINVAL;
+            }
+
+            /* Advance the wp */
+            *wp = end_offset;
         }
+        qemu_co_mutex_unlock(&bs->wps->colock);
     }
 #endif
 
@@ -2625,28 +2653,19 @@ out:
 #if defined(CONFIG_BLKZONED)
     if ((type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) &&
         bs->bl.zoned != BLK_Z_NONE) {
-        BlockZoneWps *wps = bs->wps;
         if (ret == 0) {
-            uint64_t *wp = &wps->wp[offset / bs->bl.zone_size];
-            if (!BDRV_ZT_IS_CONV(*wp)) {
-                if (type & QEMU_AIO_ZONE_APPEND) {
-                    *offset_ptr = *wp;
-                    trace_zbd_zone_append_complete(bs, *offset_ptr
-                        >> BDRV_SECTOR_BITS);
-                }
-                /* Advance the wp if needed */
-                if (offset + bytes > *wp) {
-                    *wp = offset + bytes;
-                }
+            if (type & QEMU_AIO_ZONE_APPEND) {
+                trace_zbd_zone_append_complete(bs, *offset_ptr
+                    >> BDRV_SECTOR_BITS);
             }
         } else {
+            qemu_co_mutex_lock(&bs->wps->colock);
             /*
              * write and append write are not allowed to cross zone boundaries
              */
             update_zones_wp(bs, s->fd, offset, 1);
+            qemu_co_mutex_unlock(&bs->wps->colock);
         }
-
-        qemu_co_mutex_unlock(&wps->colock);
     }
 #endif
     return ret;
