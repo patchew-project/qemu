@@ -581,14 +581,14 @@ static void vbe_fixup_regs(VGACommonState *s)
     }
 
     /* check width */
-    r[VBE_DISPI_INDEX_XRES] &= ~7u;
+    r[VBE_DISPI_INDEX_XRES] &= ~1u;
     if (r[VBE_DISPI_INDEX_XRES] == 0) {
         r[VBE_DISPI_INDEX_XRES] = 8;
     }
     if (r[VBE_DISPI_INDEX_XRES] > VBE_DISPI_MAX_XRES) {
         r[VBE_DISPI_INDEX_XRES] = VBE_DISPI_MAX_XRES;
     }
-    r[VBE_DISPI_INDEX_VIRT_WIDTH] &= ~7u;
+    r[VBE_DISPI_INDEX_VIRT_WIDTH] &= ~1u;
     if (r[VBE_DISPI_INDEX_VIRT_WIDTH] > VBE_DISPI_MAX_XRES) {
         r[VBE_DISPI_INDEX_VIRT_WIDTH] = VBE_DISPI_MAX_XRES;
     }
