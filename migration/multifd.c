@@ -543,7 +543,7 @@ void multifd_send_shutdown(void)
 {
     int i;
 
-    if (!migrate_multifd()) {
+    if (!multifd_send_state) {
         return;
     }
 
