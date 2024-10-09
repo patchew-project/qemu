@@ -92,8 +92,10 @@ class TestPreallocateFilter(TestPreallocateBase):
         self.vm.cmd('block-commit', device='overlay')
         self.complete_and_wait()
 
-        # commit of new megabyte should trigger preallocation
-        self.check_big()
+        # commit of new megabyte should trigger preallocation, but drain
+        # will make file smaller
+        self.check_small()
+
 
     def test_reopen_opts(self):
         self.vm.cmd('blockdev-reopen', options=[{

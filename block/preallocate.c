@@ -78,6 +78,7 @@ typedef struct BDRVPreallocateState {
 
     /* Gives up the resize permission on children when parents don't need it */
     QEMUBH *drop_resize_bh;
+    bool    drop_resize_armed;
 } BDRVPreallocateState;
 
 static int preallocate_drop_resize(BlockDriverState *bs, Error **errp);
@@ -151,6 +152,7 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
      */
     s->file_end = s->zero_start = s->data_end = -EINVAL;
     s->drop_resize_bh = qemu_bh_new(preallocate_drop_resize_bh, bs);
+    s->drop_resize_armed = false;
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
@@ -208,7 +210,7 @@ static void preallocate_close(BlockDriverState *bs)
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    qemu_bh_cancel(s->drop_resize_bh);
+    assert(!s->drop_resize_armed);
     qemu_bh_delete(s->drop_resize_bh);
 
     if (s->data_end >= 0) {
@@ -516,6 +518,8 @@ preallocate_drop_resize(BlockDriverState *bs, Error **errp)
     BDRVPreallocateState *s = bs->opaque;
     int ret;
 
+    s->drop_resize_armed = false;
+
     if (s->data_end < 0) {
         return 0;
     }
@@ -544,6 +548,12 @@ preallocate_drop_resize(BlockDriverState *bs, Error **errp)
 
 static void preallocate_drop_resize_bh(void *opaque)
 {
+    BlockDriverState *bs = opaque;
+
+     /*
+      * In case of errors, we'll simply keep the exclusive lock on the image
+      * indefinitely.
+      */
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
@@ -551,7 +561,9 @@ static void preallocate_drop_resize_bh(void *opaque)
      * In case of errors, we'll simply keep the exclusive lock on the image
      * indefinitely.
      */
-    preallocate_drop_resize(opaque, NULL);
+    preallocate_drop_resize(bs, NULL);
+
+    bdrv_dec_in_flight(bs);
 }
 
 static void GRAPH_RDLOCK
@@ -560,13 +572,13 @@ preallocate_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
     BDRVPreallocateState *s = bs->opaque;
 
     if (can_write_resize(perm)) {
-        qemu_bh_cancel(s->drop_resize_bh);
         if (s->data_end < 0) {
             s->data_end = s->file_end = s->zero_start =
                 bs->file->bs->total_sectors * BDRV_SECTOR_SIZE;
         }
     } else {
-        qemu_bh_schedule(s->drop_resize_bh);
+        assert(!s->drop_resize_armed);
+        assert(s->data_end < 0);
     }
 }
 
@@ -605,6 +617,26 @@ static int preallocate_check_perm(BlockDriverState *bs, uint64_t perm,
     return 0;
 }
 
+static void preallocate_drain_begin(BlockDriverState *bs)
+{
+    BDRVPreallocateState *s = bs->opaque;
+
+    if (s->data_end < 0) {
+        return;
+    }
+    if (s->drop_resize_armed) {
+        return;
+    }
+    if (s->data_end == s->file_end) {
+        s->file_end = s->zero_start = s->data_end = -EINVAL;
+        return;
+    }
+
+    s->drop_resize_armed = true;
+    bdrv_inc_in_flight(bs);
+    qemu_bh_schedule(s->drop_resize_bh);
+}
+
 static BlockDriver bdrv_preallocate_filter = {
     .format_name = "preallocate",
     .instance_size = sizeof(BDRVPreallocateState),
@@ -612,6 +644,8 @@ static BlockDriver bdrv_preallocate_filter = {
     .bdrv_co_getlength    = preallocate_co_getlength,
     .bdrv_open            = preallocate_open,
     .bdrv_close           = preallocate_close,
+
+    .bdrv_drain_begin     = preallocate_drain_begin,
 
     .bdrv_reopen_prepare  = preallocate_reopen_prepare,
     .bdrv_reopen_commit   = preallocate_reopen_commit,
