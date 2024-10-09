@@ -594,6 +594,17 @@ static void preallocate_child_perm(BlockDriverState *bs, BdrvChild *c,
     }
 }
 
+static int preallocate_check_perm(BlockDriverState *bs, uint64_t perm,
+                                  uint64_t shared, Error **errp)
+{
+    BDRVPreallocateState *s = bs->opaque;
+    if (!can_write_resize(perm) && s->data_end != -EINVAL) {
+        error_setg_errno(errp, EPERM, "Write access is required for truncate");
+        return -EPERM;
+    }
+    return 0;
+}
+
 static BlockDriver bdrv_preallocate_filter = {
     .format_name = "preallocate",
     .instance_size = sizeof(BDRVPreallocateState),
@@ -615,6 +626,7 @@ static BlockDriver bdrv_preallocate_filter = {
 
     .bdrv_set_perm = preallocate_set_perm,
     .bdrv_child_perm = preallocate_child_perm,
+    .bdrv_check_perm = preallocate_check_perm,
 
     .is_filter = true,
 };
