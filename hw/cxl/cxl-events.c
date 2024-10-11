@@ -16,8 +16,6 @@
 #include "hw/cxl/cxl.h"
 #include "hw/cxl/cxl_events.h"
 
-/* Artificial limit on the number of events a log can hold */
-#define CXL_TEST_EVENT_OVERFLOW 8
 
 static void reset_overflow(CXLEventLog *log)
 {

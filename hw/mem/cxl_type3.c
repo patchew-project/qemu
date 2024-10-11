@@ -2030,6 +2030,13 @@ static void qmp_cxl_process_dynamic_capacity_prescriptive(const char *path,
         num_extents++;
     }
 
+    if (num_extents > CXL_TEST_EVENT_OVERFLOW) {
+        error_setg(errp,
+                   "at most %d extents allowed in one add/release request",
+                   CXL_TEST_EVENT_OVERFLOW);
+       return;
+    }
+
     /* Create extent list for event being passed to host */
     i = 0;
     list = records;
