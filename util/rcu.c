@@ -415,6 +415,7 @@ static void rcu_init_complete(void)
     qemu_thread_create(&thread, "call_rcu", call_rcu_thread,
                        NULL, QEMU_THREAD_DETACHED);
 
+    atexit(drain_call_rcu);
     rcu_register_thread();
 }
 
