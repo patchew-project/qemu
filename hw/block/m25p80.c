@@ -850,6 +850,16 @@ static void complete_collecting_data(Flash *s)
         s->enh_volatile_cfg = s->data[0];
         break;
     case RDID_90:
+        if (get_man(s) == MAN_WINBOND) {
+            s->data[0] = s->pi->id[0];
+            s->data[1] = s->pi->id[2];
+            s->pos = 0;
+            s->len = 2;
+            s->data_read_loop = true;
+            s->state = STATE_READING_DATA;
+            break;
+        }
+        /* fallthrough */
     case RDID_AB:
         if (get_man(s) == MAN_SST) {
             if (s->cur_addr <= 1) {
