@@ -180,7 +180,6 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
                                 RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
         last_periodic_clock = next_periodic_clock - old_period;
         lost_clock = cur_clock - last_periodic_clock;
-        assert(lost_clock >= 0);
     }
 
     /*
@@ -199,10 +198,15 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
      */
     if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         uint32_t old_irq_coalesced = s->irq_coalesced;
+        if (lost_clock >= 0) {
+            lost_clock += old_irq_coalesced * old_period;
+            s->irq_coalesced = lost_clock / s->period;
+            lost_clock %= s->period;
+        } else {
+            s->irq_coalesced = 0;
+            lost_clock = 0;
+        }
 
-        lost_clock += old_irq_coalesced * old_period;
-        s->irq_coalesced = lost_clock / s->period;
-        lost_clock %= s->period;
         if (old_irq_coalesced != s->irq_coalesced ||
             old_period != s->period) {
             DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, "
@@ -215,6 +219,7 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
          * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
          * is not used, we should make the time progress anyway.
          */
+        lost_clock = MAX(0, lost_clock);
         lost_clock = MIN(lost_clock, period);
     }
 
