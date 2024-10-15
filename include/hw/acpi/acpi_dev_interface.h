@@ -34,10 +34,6 @@ void acpi_send_event(DeviceState *dev, AcpiEventStatusBits event);
  * ospm_status: returns status of ACPI device objects, reported
  *              via _OST method if device supports it.
  * send_event: inject a specified event into guest
- * madt_cpu: fills @entry with Interrupt Controller Structure
- *           for CPU indexed by @uid in @apic_ids array,
- *           returned structure types are:
- *           0 - Local APIC, 9 - Local x2APIC, 0xB - GICC
  *
  * Interface is designed for providing unified interface
  * to generic ACPI functionality that could be used without
