@@ -194,6 +194,7 @@ static void nested_save_state(struct nested_ppc_state *save, PowerPCCPU *cpu)
         save->fscr = env->spr[SPR_FSCR];
         save->pspb = env->spr[SPR_PSPB];
         save->ctrl = env->spr[SPR_CTRL];
+        save->dpdes = env->spr[SPR_DPDES];
         save->vrsave = env->spr[SPR_VRSAVE];
         save->dar = env->spr[SPR_DAR];
         save->dsisr = env->spr[SPR_DSISR];
@@ -293,6 +294,7 @@ static void nested_load_state(PowerPCCPU *cpu, struct nested_ppc_state *load)
         env->spr[SPR_FSCR] = load->fscr;
         env->spr[SPR_PSPB] = load->pspb;
         env->spr[SPR_CTRL] = load->ctrl;
+        env->spr[SPR_DPDES] = load->dpdes;
         env->spr[SPR_VRSAVE] = load->vrsave;
         env->spr[SPR_DAR] = load->dar;
         env->spr[SPR_DSISR] = load->dsisr;
