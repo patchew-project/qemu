@@ -50,6 +50,8 @@ vmstate_load(const char *idstr, const char *vmsd_name) "%s, %s"
 vmstate_downtime_save(const char *type, const char *idstr, uint32_t instance_id, int64_t downtime) "type=%s idstr=%s instance_id=%d downtime=%"PRIi64
 vmstate_downtime_load(const char *type, const char *idstr, uint32_t instance_id, int64_t downtime) "type=%s idstr=%s instance_id=%d downtime=%"PRIi64
 vmstate_downtime_checkpoint(const char *checkpoint) "%s"
+vmstate_handler_insert(char *idstr, uint32_t instance_id, int alias_id, int version_id, int section_id, char *compat_idstr, int compat_instance_id) "id=%s instance_id=%"PRIu32" alias_id=%d version_id=%d section_id=%d compat_id=%s compat_instance_id=%d"
+vmstate_handler_remove(int section_id) "section_id=%d"
 postcopy_pause_incoming(void) ""
 postcopy_pause_incoming_continued(void) ""
 postcopy_page_req_sync(void *host_addr) "sync page req %p"

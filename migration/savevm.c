@@ -751,6 +751,11 @@ static void savevm_state_handler_insert(SaveStateEntry *nse)
 
     assert(priority <= MIG_PRI_MAX);
 
+    trace_vmstate_handler_insert(
+        nse->idstr, nse->instance_id, nse->alias_id, nse->version_id,
+        nse->section_id, nse->compat ? nse->compat->idstr : NULL,
+        nse->compat ? nse->compat->instance_id : 0);
+
     /*
      * This should never happen otherwise migration will probably fail
      * silently somewhere because we can be wrongly applying one
@@ -786,6 +791,8 @@ static void savevm_state_handler_remove(SaveStateEntry *se)
 {
     SaveStateEntry *next;
     MigrationPriority priority = save_state_priority(se);
+
+    trace_vmstate_handler_remove(se->section_id);
 
     if (se == savevm_state.handler_pri_head[priority]) {
         next = QTAILQ_NEXT(se, entry);
