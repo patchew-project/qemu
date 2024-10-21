@@ -2997,6 +2997,10 @@ static void pgb_dynamic(const char *image_name, uintptr_t guest_loaddr,
 
         ret = pgb_find_itree(&ga, root, align, brk);
         free_self_maps(root);
+
+        if (ret == -1) {
+            ret = pgb_find_fallback(&ga, align, brk);
+        }
     }
 
     if (ret == -1) {
