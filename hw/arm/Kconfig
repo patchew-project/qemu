@@ -214,6 +214,7 @@ config STELLARIS
     bool
     default y
     depends on TCG && ARM
+    depends on !HAVE_RUST # Rust does not implement pl011-luminary
     imply I2C_DEVICES
     select ARM_V7M
     select CMSDK_APB_WATCHDOG
