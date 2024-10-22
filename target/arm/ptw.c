@@ -2347,6 +2347,13 @@ static bool pmsav7_use_background_region(ARMCPU *cpu, ARMMMUIdx mmu_idx,
     return regime_sctlr(env, mmu_idx) & SCTLR_BR;
 }
 
+/* armv6m PMSAv6 is mostly compatible with PMSAv7,
+ * main difference :
+ * - min region size is 256 instead of 32
+ * - TEX can be only 0 (Tex not used by qemu)
+ * - no alias register
+ * - HardFault instead of MemManage
+ */
 static bool get_phys_addr_pmsav7(CPUARMState *env,
                                  S1Translate *ptw,
                                  uint32_t address,
@@ -2387,11 +2394,19 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
                 continue;
             }
 
-            if (!rsize) {
+            /* Issue warning for invalid values
+             * for armv7-m rsize >= 4 (min 32)
+             * for armv6-m rsize >= 7 (min 256)
+             */
+            if (!rsize ||
+                (arm_feature(env, ARM_FEATURE_M) && (
+                       rsize < 7 ||
+                       (rsize < 4 && !arm_feature(env, ARM_FEATURE_V7))))) {
                 qemu_log_mask(LOG_GUEST_ERROR,
-                              "DRSR[%d]: Rsize field cannot be 0\n", n);
+                              "DRSR[%d]: Rsize field cannot be %d\n", n, rsize);
                 continue;
             }
+
             rsize++;
             rmask = (1ull << rsize) - 1;
 
@@ -3479,8 +3494,8 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
             /* PMSAv8 */
             ret = get_phys_addr_pmsav8(env, ptw, address, access_type,
                                        result, fi);
-        } else if (arm_feature(env, ARM_FEATURE_V7)) {
-            /* PMSAv7 */
+        } else if (arm_feature(env, ARM_FEATURE_V7) || arm_feature(env, ARM_FEATURE_M)) {
+            /* PMSAv7 or PMSAv6 */
             ret = get_phys_addr_pmsav7(env, ptw, address, access_type,
                                        result, fi);
         } else {
