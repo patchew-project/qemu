@@ -15101,7 +15101,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     if (cpu_supports_isa(env, INSN_VR54XX) && decode_ext_vr54xx(ctx, ctx->opcode)) {
         return;
     }
-    if (decode_ext_loongson(ctx, ctx->opcode)) {
+    if (TARGET_LONG_BITS == 64 && decode_ext_loongson(ctx, ctx->opcode)) {
         return;
     }
 #if defined(TARGET_MIPS64)
