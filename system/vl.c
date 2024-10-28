@@ -2196,7 +2196,7 @@ static void qemu_create_machine(QDict *qdict)
     qemu_create_machine_containers(OBJECT(current_machine));
     object_property_add_child(machine_get_container("unattached"),
                               "sysbus", OBJECT(sysbus_get_default()));
-
+    current_machine->has_defaults = defaults_enabled();
     if (machine_class->minimum_page_bits) {
         if (!set_preferred_target_page_bits(machine_class->minimum_page_bits)) {
             /* This would be a board error: specifying a minimum smaller than
