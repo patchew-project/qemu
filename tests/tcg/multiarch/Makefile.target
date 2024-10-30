@@ -30,6 +30,14 @@ run-float_%: float_%
 	$(call conditional-diff-out,$<,$(SRC_PATH)/tests/tcg/$(TARGET_NAME)/$<.ref)
 
 
+run-linux-execve-qemu-children: linux-execve-qemu-children
+	$(call run-test,$<, $(QEMU) $(QEMU_OPTS) -qemu-children $< $(QEMU) 0)
+	$(call run-test,$<, $(QEMU) $(QEMU_OPTS) $< linux-execve 0 skip)
+
+run-plugin-linux-execve-qemu-children-with-%: linux-execve-qemu-children
+	$(call run-test,$<, $(QEMU) $(QEMU_OPTS) -qemu-children $< $(QEMU) 0)
+	$(call run-test,$<, $(QEMU) $(QEMU_OPTS) $< linux-execve 0 skip)
+
 testthread: LDFLAGS+=-lpthread
 
 threadcount: LDFLAGS+=-lpthread
