@@ -20,3 +20,13 @@ void gicv3_set_gicv3state(CPUState *cpu, GICv3CPUState *s)
 
     env->gicv3state = (void *)s;
 };
+
+void gicv3_init_cpuif(GICv3State *s)
+{
+    ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_GET_CLASS(s);
+
+    /* define and register `system registers` with the vCPU  */
+    for (int i = 0; i < s->num_cpu; i++) {
+        agcc->init_cpu_reginfo(s->cpu[i].cpu);
+    }
+}
