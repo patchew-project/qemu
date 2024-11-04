@@ -1198,6 +1198,8 @@ static void kvm_riscv_init_multiext_cfg(RISCVCPU *cpu, KVMScratchCPU *kvmcpu)
     }
 
     kvm_riscv_check_sbi_dbcn_support(cpu, kvmcpu, reglist);
+
+    g_free(reglist);
 }
 
 static void riscv_init_kvm_registers(Object *cpu_obj)
