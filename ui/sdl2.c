@@ -301,6 +301,35 @@ static void sdl_mouse_mode_change(Notifier *notify, void *data)
     }
 }
 
+/*
+ * guest_x and guest_y represent the global coordinates on the VM side,
+ * while x and y represent the global coordinates on the host side.
+ * The goal of this entire process is to align the global coordinates
+ * of the VM with those of host using dx and dy. The current approach
+ * aims for precise calibration in one attempt; however, because guest_x
+ * and guest_y are non-zero values, they are not accurate values when
+ * they are counted out to become negative. Therefore, achieving perfect
+ * alignment in one attempt is impossible. Since the same calibration
+ * method is used each time, repeated attempts cannot achieve alignment
+ * either. By introducing a convergence factor, guest_x and guest_y can
+ * be made to approach host x and y indefinitely.
+ *
+ *           QEMU                             VM
+ *    calculates (dx, dy)                  (dx, dy)
+ * using (guest_x, guest_y) ------------>input driver
+ *           ^                                 |
+ *           |                                 |
+ *           |       update                    V
+ *           | (guest_x, guest_y)            input
+ *           |                            dispatcher ---> WindowManager
+ *           |                                 |             |
+ *           |                                 |             |
+ *           |             libdrm              V             |
+ * display device <-- drmModeMoveCursor <-- compositor <---- |
+ * (e.g. virtio-gpu)  (guest_x, guest_y)   calculates (guest_x, guest_y)
+ *                                         using (dx, dy)
+ */
+#define CONVERGENCE_FACTOR 3
 static void sdl_send_mouse_event(struct sdl2_console *scon, int dx, int dy,
                                  int x, int y, int state)
 {
@@ -325,15 +354,15 @@ static void sdl_send_mouse_event(struct sdl2_console *scon, int dx, int dy,
                              y, 0, surface_height(scon->surface));
     } else {
         if (guest_cursor) {
-            x -= guest_x;
-            y -= guest_y;
-            guest_x += x;
-            guest_y += y;
-            dx = x;
-            dy = y;
+            dx = x - guest_x;
+            dy = y - guest_y;
+            guest_x = x;
+            guest_y = y;
         }
-        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_X, dx);
-        qemu_input_queue_rel(scon->dcl.con, INPUT_AXIS_Y, dy);
+        qemu_input_queue_rel(scon->dcl.con,
+                             INPUT_AXIS_X, dx / CONVERGENCE_FACTOR);
+        qemu_input_queue_rel(scon->dcl.con,
+                             INPUT_AXIS_Y, dy / CONVERGENCE_FACTOR);
     }
     qemu_input_event_sync();
 }
