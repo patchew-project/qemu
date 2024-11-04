@@ -1238,6 +1238,10 @@ static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
     };
     int r;
 
+    if (virtio_vdev_has_feature(dev->vdev, VIRTIO_F_RING_PACKED)) {
+        s.num = 0x80008000;
+    }
+
     r = vhost_vdpa_set_dev_vring_base(dev, &s);
     if (unlikely(r)) {
         error_setg_errno(errp, -r, "Cannot set vring base");
