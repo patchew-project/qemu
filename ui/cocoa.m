@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 
 #import <Cocoa/Cocoa.h>
+#import <IOKit/IOKitLib.h>
 #import <QuartzCore/QuartzCore.h>
 #include <crt_externs.h>
 
@@ -293,6 +294,75 @@ static void handleAnyDeviceErrors(Error * err)
                                       encoding: NSASCIIStringEncoding]);
         error_free(err);
     }
+}
+
+static bool get_fallback_refresh_rate(CGDirectDisplayID displayID, double *p_rate)
+{
+    bool found = false;
+    io_iterator_t it;
+    io_service_t service;
+    CFNumberRef indexRef, clockRef, countRef;
+    uint32_t clock, count;
+
+    if (IOServiceGetMatchingServices(kIOMasterPortDefault,
+                                     IOServiceMatching("IOFramebuffer"),
+                                     &it) != 0) {
+        return false;
+    }
+    while ((service = IOIteratorNext(it)) != 0) {
+        uint32_t index;
+        bool found_display_id;
+        indexRef = IORegistryEntryCreateCFProperty(service,
+                                                   CFSTR("IOFramebufferOpenGLIndex"),
+                                                   kCFAllocatorDefault,
+                                                   kNilOptions);
+        if (!indexRef) {
+            continue;
+        }
+        found_display_id =
+            CFNumberGetValue(indexRef, kCFNumberIntType, &index) &&
+            CGOpenGLDisplayMaskToDisplayID(1 << index) == displayID;
+        CFRelease(indexRef);
+        if (found_display_id) {
+            break;
+        }
+    }
+    if (!service) {
+        goto out;
+    }
+
+    clockRef = IORegistryEntryCreateCFProperty(service,
+                                               CFSTR("IOFBCurrentPixelClock"),
+                                               kCFAllocatorDefault,
+                                               kNilOptions);
+    if (!clockRef) {
+        goto out;
+    }
+    if (!CFNumberGetValue(clockRef, kCFNumberIntType, &clock) || !clock) {
+        goto out_clock_ref;
+    }
+
+    countRef = IORegistryEntryCreateCFProperty(service,
+                                               CFSTR("IOFBCurrentPixelCount"),
+                                               kCFAllocatorDefault,
+                                               kNilOptions);
+    if (!countRef) {
+        goto out_clock_ref;
+    }
+    if (!CFNumberGetValue(countRef, kCFNumberIntType, &count) || !count) {
+        goto out_count_ref;
+    }
+
+    *p_rate = clock / (double) count;
+    found = true;
+
+out_count_ref:
+    CFRelease(countRef);
+out_clock_ref:
+    CFRelease(clockRef);
+out:
+    IOObjectRelease(it);
+    return found;
 }
 
 /*
@@ -661,20 +731,16 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
         NSSize screenSize = [[[self window] screen] frame].size;
         CGSize screenPhysicalSize = CGDisplayScreenSize(display);
         bool isFullscreen = ([[self window] styleMask] & NSWindowStyleMaskFullScreen) != 0;
-        CVDisplayLinkRef displayLink;
+        CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
+        double rate = CGDisplayModeGetRefreshRate(mode);
+
+        if (rate != 0.0 || get_fallback_refresh_rate(display, &rate)) {
+            update_displaychangelistener(&dcl, 1000 / rate);
+            info.refresh_rate = (int64_t)1000 * rate;
+        }
+        CGDisplayModeRelease(mode);
 
         frameSize = isFullscreen ? [self screenSafeAreaSize] : [self frame].size;
-
-        if (!CVDisplayLinkCreateWithCGDisplay(display, &displayLink)) {
-            CVTime period = CVDisplayLinkGetNominalOutputVideoRefreshPeriod(displayLink);
-            CVDisplayLinkRelease(displayLink);
-            if (!(period.flags & kCVTimeIsIndefinite)) {
-                update_displaychangelistener(&dcl,
-                                             1000 * period.timeValue / period.timeScale);
-                info.refresh_rate = (int64_t)1000 * period.timeScale / period.timeValue;
-            }
-        }
-
         info.width_mm = frameSize.width / screenSize.width * screenPhysicalSize.width;
         info.height_mm = frameSize.height / screenSize.height * screenPhysicalSize.height;
     } else {
