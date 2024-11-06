@@ -238,7 +238,7 @@ static void imx_gpt_compute_next_timeout(IMXGPTState *s, bool event)
     }
 
     /* the new range to count down from */
-    limit = timeout - imx_gpt_update_count(s);
+    limit = (long long)timeout - imx_gpt_update_count(s);
 
     if (limit < 0) {
         /*
