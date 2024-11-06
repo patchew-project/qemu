@@ -115,6 +115,10 @@ static bool read_eif_header(FILE *f, EifHeader *header, uint32_t *crc,
 
     for (int i = 0; i < MAX_SECTIONS; ++i) {
         header->section_offsets[i] = be64_to_cpu(header->section_offsets[i]);
+        if (header->section_offsets[i] > OFF_MAX) {
+            error_setg(errp, "Invalid EIF image. Section offset out of bounds");
+            return false;
+        }
     }
 
     for (int i = 0; i < MAX_SECTIONS; ++i) {
