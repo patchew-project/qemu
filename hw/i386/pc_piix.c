@@ -314,9 +314,9 @@ static void pc_init1(MachineState *machine, const char *pci_type)
     /* init basic PC hardware */
     pc_basic_device_init(pcms, isa_bus, x86ms->gsi, x86ms->rtc,
                          !MACHINE_CLASS(pcmc)->no_floppy, 0x4);
-
-    pc_nic_init(pcmc, isa_bus, pcms->pcibus);
-
+    if (pcmc->pci_enabled) {
+        pc_nic_init(pcmc, isa_bus, pcms->pcibus);
+    }
 #ifdef CONFIG_IDE_ISA
     if (!pcmc->pci_enabled) {
         DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
