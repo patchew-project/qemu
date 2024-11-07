@@ -2078,6 +2078,21 @@ static void write_unit_ip_len(VirtioNetRscUnit *unit, uint16_t l)
     stw_be_p(unit->ip_plen, l);
 }
 
+/*
+ * Accessors to read and write the IP packet data length field. This
+ * is a potentially unaligned network-byte-order 16 bit unsigned integer
+ * pointed to by unit->ip_len.
+ */
+static uint16_t read_unit_ip_len(VirtioNetRscUnit *unit)
+{
+    return ldl_be_p(unit->ip_plen);
+}
+
+static void write_unit_ip_len(VirtioNetRscUnit *unit, uint16_t l)
+{
+    stl_be_p(unit->ip_plen, l);
+}
+
 static void virtio_net_rsc_extract_unit4(VirtioNetRscChain *chain,
                                          const uint8_t *buf,
                                          VirtioNetRscUnit *unit)
