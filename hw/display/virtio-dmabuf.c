@@ -39,7 +39,12 @@ static bool virtio_add_resource(QemuUUID *uuid, VirtioSharedObject *value)
                                                g_free);
     }
     if (g_hash_table_lookup(resource_uuids, uuid) == NULL) {
-        g_hash_table_insert(resource_uuids, uuid, value);
+        QemuUUID *persistent_uuid = g_memdup2(uuid, sizeof(QemuUUID));
+        if (persistent_uuid == NULL) {
+            result = false;
+        } else {
+            g_hash_table_insert(resource_uuids, persistent_uuid, value);
+        }
     } else {
         result = false;
     }
