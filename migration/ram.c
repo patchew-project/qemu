@@ -2740,7 +2740,7 @@ static void ram_list_init_bitmaps(void)
 {
     MigrationState *ms = migrate_get_current();
     RAMBlock *block;
-    unsigned long pages;
+    unsigned long pages, clear_bmap_pages;
     uint8_t shift;
 
     /* Skip setting bitmap if there is no RAM */
@@ -2758,6 +2758,7 @@ static void ram_list_init_bitmaps(void)
 
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             pages = block->max_length >> TARGET_PAGE_BITS;
+            clear_bmap_pages = clear_bmap_size(pages, shift);
             /*
              * The initial dirty bitmap for migration must be set with all
              * ones to make sure we'll migrate every guest RAM page to
@@ -2773,7 +2774,12 @@ static void ram_list_init_bitmaps(void)
                 block->file_bmap = bitmap_new(pages);
             }
             block->clear_bmap_shift = shift;
-            block->clear_bmap = bitmap_new(clear_bmap_size(pages, shift));
+            block->clear_bmap = bitmap_new(clear_bmap_pages);
+            /*
+             * Set clear_bmap to 1 unconditionally, as we always set bmap
+             * to all 1s by default.
+             */
+            bitmap_set(block->clear_bmap, 0, clear_bmap_pages);
         }
     }
 }
@@ -2805,7 +2811,6 @@ static bool ram_init_bitmaps(RAMState *rs, Error **errp)
             if (!ret) {
                 goto out_unlock;
             }
-            migration_bitmap_sync_precopy(false);
         }
     }
 out_unlock:

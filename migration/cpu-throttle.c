@@ -141,7 +141,7 @@ void cpu_throttle_dirty_sync_timer_tick(void *opaque)
      * effect on guest performance, therefore omit it to avoid
      * paying extra for the sync penalty.
      */
-    if (sync_cnt <= 1) {
+    if (!sync_cnt) {
         goto end;
     }
 
