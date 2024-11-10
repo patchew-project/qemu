@@ -24,6 +24,7 @@ QEMU files related to TPM TIS interface:
  - ``hw/tpm/tpm_tis_isa.c``
  - ``hw/tpm/tpm_tis_sysbus.c``
  - ``hw/tpm/tpm_tis_i2c.c``
+ - ``hw/tpm/tpm_tis_spi.c``
  - ``hw/tpm/tpm_tis.h``
 
 Both an ISA device and a sysbus device are available. The former is
@@ -32,6 +33,9 @@ Arm virt machine.
 
 An I2C device support is also provided which can be instantiated in the Arm
 based emulation machines. This device only supports the TPM 2 protocol.
+
+A Serial Peripheral Interface (SPI) device support has been added to the
+PowerNV emulation machines. This device only supports the TPM 2 protocol.
 
 CRB interface
 -------------
@@ -338,6 +342,17 @@ In case a pSeries machine is emulated, use the following command line:
     -device spapr-vscsi,id=scsi0,reg=0x00002000 \
     -device virtio-blk-pci,bus=pci.0,addr=0x3,drive=drive-virtio-disk0,id=virtio-disk0 \
     -drive file=test.img,format=raw,if=none,id=drive-virtio-disk0
+
+In case a PowerNV machine is emulated and you want to use a TPM device
+attached to SPI bus, use the following command line (SPI bus master is
+provided by PowerNV SPI device):
+
+.. code-block:: console
+
+  qemu-system-ppc64 -m 2G -machine powernv10 -nographic \
+    -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
+    -tpmdev emulator,id=tpm0,chardev=chrtpm \
+    -device tpm-tis-spi,tpmdev=tpm0,bus=pnv-spi-bus.4
 
 In case an Arm virt machine is emulated, use the following command line:
 
