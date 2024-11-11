@@ -220,6 +220,8 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn);
 bool decode_64bit_enabled(DisasContext *ctx);
 
 /* decodetree generated */
+bool decode_isa_nanomips16(DisasContext *ctx, uint16_t insn);
+bool decode_isa_nanomips32(DisasContext *ctx, uint32_t insn);
 bool decode_isa_rel6(DisasContext *ctx, uint32_t insn);
 bool decode_ase_msa(DisasContext *ctx, uint32_t insn);
 bool decode_ext_txx9(DisasContext *ctx, uint32_t insn);
