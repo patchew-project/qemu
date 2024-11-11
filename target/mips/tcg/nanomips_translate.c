@@ -9,6 +9,18 @@
 #include "qemu/osdep.h"
 #include "translate.h"
 
+static inline int minus_1(DisasContext *ctx, int x)
+{
+    return x - 1;
+}
+
 /* Include the auto-generated decoders.  */
 #include "decode-nanomips16.c.inc"
 #include "decode-nanomips32.c.inc"
+
+static bool trans_LSA(DisasContext *ctx, arg_r *a)
+{
+    gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa);
+
+    return true;
+}

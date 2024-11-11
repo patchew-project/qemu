@@ -6,3 +6,11 @@
 #
 # Reference: nanoMIPS32 Instruction Set Technical Reference Manual
 #            (Document Number: MD01247)
+
+&r                  rs rt rd sa
+
+%lsa_u2             9:2  !function=minus_1
+
+@lsa                ...... rt:5 rs:5 rd:5 .. --- ... ...    &r sa=%lsa_u2
+
+LSA                 001000 ..... ..... ..... .. ... 001 111 @lsa
