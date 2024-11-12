@@ -3000,6 +3000,9 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
                 gen_reserved_instruction(ctx);
                 return 2;
             }
+            if (decode_isa_micromips32(ctx, ctx->opcode)) {
+                return 4;
+            }
             break;
         case 1:
         /* POOL16A, POOL16B, POOL16C, LWGP16, POOL16F */
@@ -3009,6 +3012,9 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         /* MOVE16, ANDI16, POOL16D, POOL16E, BEQZ16, BNEZ16, B16, LI16 */
             if (ctx->hflags & MIPS_HFLAG_BDS32) {
                 gen_reserved_instruction(ctx);
+                return 2;
+            }
+            if (decode_isa_micromips16(ctx, ctx->opcode)) {
                 return 2;
             }
             break;
