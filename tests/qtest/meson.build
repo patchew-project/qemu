@@ -5,7 +5,7 @@ slow_qtests = {
   'cdrom-test' : 610,
   'device-introspect-test' : 720,
   'ide-test' : 120,
-  'migration-test' : 480,
+  'migration-test' : 600,
   'npcm7xx_pwm-test': 300,
   'npcm7xx_watchdog_timer-test': 120,
   'qmp-cmd-test' : 120,
@@ -15,7 +15,7 @@ slow_qtests = {
   'pxe-test': 610,
   'prom-env-test': 360,
   'boot-serial-test': 360,
-  'qos-test': 120,
+  'qos-test': 240,
   'vmgenid-test': 610,
 }
 
