@@ -325,7 +325,7 @@ static void walk_path(QOSGraphNode *orig_path, int len)
  *   machine/drivers/test objects
  * - Cleans up everything
  */
-int main(int argc, char **argv, char** envp)
+int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
@@ -335,7 +335,7 @@ int main(int argc, char **argv, char** envp)
 
     if (g_test_verbose()) {
         qos_printf("ENVIRONMENT VARIABLES: {\n");
-        for (char **env = envp; *env != 0; env++) {
+        for (char **env = environ; *env != 0; env++) {
             qos_printf("\t%s\n", *env);
         }
         qos_printf("}\n");
