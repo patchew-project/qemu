@@ -18,7 +18,13 @@ if test $# -lt 1; then
     error "Usage: $0 <output tarball>"
 fi
 
-tar_file=$(realpath "$1")
+which realpath
+if [ $? -eq 0 ]; then
+    tar_file=$(realpath -s "$1")
+else
+    d=$(dirname "$1")
+    tar_file=$(readlink -e "$d")"/"$(basename "$1")
+fi
 sub_tdir=$(mktemp -d "${tar_file%.tar}.sub.XXXXXXXX")
 sub_file="${sub_tdir}/submodule.tar"
 
