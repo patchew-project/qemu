@@ -4482,6 +4482,13 @@ static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
         return 2;
     }
 
+    if (decode_isa_nanomips16(ctx, ctx->opcode)) {
+        return 2;
+    }
+    if (decode_isa_nanomips32(ctx, ctx->opcode)) {
+        return 4;
+    }
+
     op = extract32(ctx->opcode, 10, 6);
     switch (op) {
     case NM_P16_MV:
