@@ -65,7 +65,7 @@ mkdir -p "$DEST_DIR/lib/"  # Copy the shared libraries here
 # Build once to get the list of dynamic lib paths, and copy them over
 ../configure --disable-werror --cc="$CC" --cxx="$CXX" --enable-fuzzing \
     --prefix="/opt/qemu-oss-fuzz" \
-    --extra-cflags="$EXTRA_CFLAGS" --target-list="i386-softmmu"
+    --extra-cflags="$EXTRA_CFLAGS" --target-list="i386-softmmu" --disable-tcg
 
 if ! make "-j$(nproc)" qemu-fuzz-i386; then
     fatal "Build failed. Please specify a compiler with fuzzing support"\
@@ -83,7 +83,7 @@ if [ "$GITLAB_CI" != "true" ]; then
     ../configure --disable-werror --cc="$CC" --cxx="$CXX" --enable-fuzzing \
         --prefix="/opt/qemu-oss-fuzz" \
         --extra-cflags="$EXTRA_CFLAGS" --extra-ldflags="-Wl,-rpath,\$ORIGIN/lib" \
-        --target-list="i386-softmmu"
+        --target-list="i386-softmmu" --disable-tcg
     make "-j$(nproc)" qemu-fuzz-i386 V=1
 fi
 
