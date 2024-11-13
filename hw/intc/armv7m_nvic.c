@@ -1386,7 +1386,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         }
         return (cpu->env.pmsav7.drbar[region] & ~0x1f) | (region & 0xf);
     }
-    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
+    case 0xda0: /* MPU_RASR (v6M/v7M), MPU_RLAR (v8M) */
     case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
     case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
     case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
@@ -1406,6 +1406,14 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
                 return 0;
             }
             return cpu->env.pmsav8.rlar[attrs.secure][region];
+        }
+        if (!arm_feature(&s->cpu->env, ARM_FEATURE_V7)) {
+            /*
+             * armv6-m do not support A alias
+             */
+            if (offset != 0xda0) {
+                goto bad_offset;
+            }
         }
 
         if (region >= cpu->pmsav7_dregion) {
@@ -1876,6 +1884,21 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             return;
         }
 
+        if (!arm_feature(&s->cpu->env, ARM_FEATURE_V7)) {
+            if (offset != 0xd9c) {
+                /*
+                 * armv6-m do not support A alias
+                 */
+                goto bad_offset;
+            }
+
+            /*
+             * armv6-m do not support region address with alignement
+             * less than 256. Force alignement.
+             */
+            value &= ~0xe0;
+        }
+
         if (value & (1 << 4)) {
             /* VALID bit means use the region number specified in this
              * value and also update MPU_RNR.REGION with that value.
@@ -1900,12 +1923,14 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         tlb_flush(CPU(cpu));
         break;
     }
-    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
+    case 0xda0: /* MPU_RASR (v6M/v7M), MPU_RLAR (v8M) */
     case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
     case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
     case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
     {
         int region = cpu->env.pmsav7.rnr[attrs.secure];
+        int rsize;
+        int rsize_min;
 
         if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             /* PMSAv8M handling of the aliases is different from v7M:
@@ -1923,6 +1948,28 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             }
             cpu->env.pmsav8.rlar[attrs.secure][region] = value;
             tlb_flush(CPU(cpu));
+            return;
+        }
+
+        if (!arm_feature(&s->cpu->env, ARM_FEATURE_V7)) {
+            if (offset != 0xda0) {
+                /*
+                 * armv6-m do not support A alias
+                 */
+                goto bad_offset;
+            }
+        }
+
+        rsize = extract32(value, 1, 5);
+        /*
+         * for armv6-m rsize >= 7 (min 256)
+         * for armv7-m rsize >= 4 (min 32)
+         */
+        rsize_min = arm_feature(&s->cpu->env, ARM_FEATURE_V7) ? 4 : 7;
+
+        if (rsize < rsize_min) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                    "MPU region size too small %d\n", rsize);
             return;
         }
 

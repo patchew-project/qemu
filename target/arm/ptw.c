@@ -3479,8 +3479,18 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
             /* PMSAv8 */
             ret = get_phys_addr_pmsav8(env, ptw, address, access_type,
                                        result, fi);
-        } else if (arm_feature(env, ARM_FEATURE_V7)) {
-            /* PMSAv7 */
+        } else if (arm_feature(env, ARM_FEATURE_V7) ||
+                   arm_feature(env, ARM_FEATURE_M)) {
+            /*
+             * PMSAv7 or armv6-m PMSAv6
+             *
+             * armv6-m PMSAv6 is mostly compatible with PMSAv7,
+             * main difference :
+             * - min region size is 256 instead of 32
+             * - TEX can be only 0 (Tex not used by qemu)
+             * - no alias register
+             * - HardFault instead of MemManage
+             */
             ret = get_phys_addr_pmsav7(env, ptw, address, access_type,
                                        result, fi);
         } else {

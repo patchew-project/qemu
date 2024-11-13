@@ -75,6 +75,21 @@ static void cortex_m0_initfn(Object *obj)
     cpu->isar.id_isar6 = 0x00000000;
 }
 
+static void cortex_m0p_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    /*
+     * cortex-m0p is a cortex-m0 with
+     * vtor and mpu extension
+     */
+    cortex_m0_initfn(obj);
+
+    cpu->midr = 0x410cc601;
+    cpu->pmsav7_dregion = 8;
+}
+
+
 static void cortex_m3_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -272,6 +287,8 @@ static void arm_v7m_class_init(ObjectClass *oc, const void *data)
 
 static const ARMCPUInfo arm_v7m_cpus[] = {
     { .name = "cortex-m0",   .initfn = cortex_m0_initfn,
+                             .class_init = arm_v7m_class_init },
+    { .name = "cortex-m0p",  .initfn = cortex_m0p_initfn,
                              .class_init = arm_v7m_class_init },
     { .name = "cortex-m3",   .initfn = cortex_m3_initfn,
                              .class_init = arm_v7m_class_init },
