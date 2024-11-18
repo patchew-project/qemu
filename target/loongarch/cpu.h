@@ -308,7 +308,7 @@ typedef struct CPUArchState {
     uint64_t gpr[32];
     uint64_t pc;
 
-    fpr_t fpr[32];
+    fpr_t fpr[32] QEMU_ALIGNED(16);
     bool cf[8];
     uint32_t fcsr0;
     lbt_t  lbt;
@@ -494,6 +494,7 @@ static inline void set_pc(CPULoongArchState *env, uint64_t value)
 
 #define CPU_RESOLVING_TYPE TYPE_LOONGARCH_CPU
 
+QEMU_BUILD_BUG_ON((offsetof(CPULoongArchState, fpr[0]) & (15)) != 0);
 void loongarch_cpu_post_init(Object *obj);
 
 #ifdef CONFIG_KVM
