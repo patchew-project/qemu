@@ -71,6 +71,10 @@ static void arduino_machine_class_init(ObjectClass *oc, const void *data)
 
 static void arduino_duemilanove_class_init(ObjectClass *oc, const void *data)
 {
+    static const char * const valid_cpu_types[] = {
+        AVR_CPU_TYPE_NAME("avr5"),
+        NULL
+    };
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
 
@@ -80,12 +84,17 @@ static void arduino_duemilanove_class_init(ObjectClass *oc, const void *data)
      */
     mc->desc        = "Arduino Duemilanove (ATmega168)",
     mc->alias       = "2009";
+    mc->valid_cpu_types = valid_cpu_types;
     amc->mcu_type   = TYPE_ATMEGA168_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
 };
 
 static void arduino_uno_class_init(ObjectClass *oc, const void *data)
 {
+    static const char * const valid_cpu_types[] = {
+        AVR_CPU_TYPE_NAME("avr5"),
+        NULL
+    };
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
 
@@ -95,12 +104,17 @@ static void arduino_uno_class_init(ObjectClass *oc, const void *data)
      */
     mc->desc        = "Arduino UNO (ATmega328P)";
     mc->alias       = "uno";
+    mc->valid_cpu_types = valid_cpu_types;
     amc->mcu_type   = TYPE_ATMEGA328_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
 };
 
 static void arduino_mega_class_init(ObjectClass *oc, const void *data)
 {
+    static const char * const valid_cpu_types[] = {
+        AVR_CPU_TYPE_NAME("avr51"),
+        NULL
+    };
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
 
@@ -110,12 +124,17 @@ static void arduino_mega_class_init(ObjectClass *oc, const void *data)
      */
     mc->desc        = "Arduino Mega (ATmega1280)";
     mc->alias       = "mega";
+    mc->valid_cpu_types = valid_cpu_types;
     amc->mcu_type   = TYPE_ATMEGA1280_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
 };
 
 static void arduino_mega2560_class_init(ObjectClass *oc, const void *data)
 {
+    static const char * const valid_cpu_types[] = {
+        AVR_CPU_TYPE_NAME("avr6"),
+        NULL
+    };
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
 
@@ -125,6 +144,7 @@ static void arduino_mega2560_class_init(ObjectClass *oc, const void *data)
      */
     mc->desc        = "Arduino Mega 2560 (ATmega2560)";
     mc->alias       = "mega2560";
+    mc->valid_cpu_types = valid_cpu_types;
     amc->mcu_type   = TYPE_ATMEGA2560_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000; /* CSTCE16M0V53-R0 */
 };
