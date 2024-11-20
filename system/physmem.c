@@ -3734,11 +3734,12 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
         MemTxResult res;
 
         page = addr & TARGET_PAGE_MASK;
-        phys_addr = cpu_get_phys_page_attrs_debug(cpu, page, &attrs);
+        phys_addr = cpu_get_phys_page_attrs_debug(cpu, addr, &attrs);
         asidx = cpu_asidx_from_attrs(cpu, attrs);
         /* if no physical page mapped, return an error */
         if (phys_addr == -1)
             return -1;
+        phys_addr &= TARGET_PAGE_MASK;
         l = (page + TARGET_PAGE_SIZE) - addr;
         if (l > len)
             l = len;
