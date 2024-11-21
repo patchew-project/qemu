@@ -438,6 +438,15 @@ static void gd_update(DisplayChangeListener *dcl,
 
 static void gd_refresh(DisplayChangeListener *dcl)
 {
+#ifdef GDK_WINDOWING_QUARTZ
+    GMainContext *context;
+    if (GDK_IS_QUARTZ_DISPLAY(gdk_display_get_default())) {
+        context = g_main_context_default();
+        while (g_main_context_pending(context)) {
+            g_main_context_iteration(context, FALSE);
+        }
+    }
+#endif
     graphic_hw_update(dcl->con);
 }
 
