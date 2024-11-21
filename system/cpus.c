@@ -691,6 +691,7 @@ void qemu_init_vcpu(CPUState *cpu)
     cpu->nr_threads =  ms->smp.threads;
     cpu->stopped = true;
     cpu->random_seed = qemu_guest_random_seed_thread_part1();
+    cpu->vcpu_in_kvm = false;
 
     if (!cpu->as) {
         /* If the target cpu hasn't set up any address spaces itself,
