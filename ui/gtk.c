@@ -810,17 +810,9 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
 
 #if defined(CONFIG_OPENGL)
     if (vc->gfx.gls) {
-        if (gtk_use_gl_area) {
-            /* invoke render callback please */
-            return FALSE;
-        } else {
-#ifdef CONFIG_X11
-            gd_egl_draw(vc);
-            return TRUE;
-#else
-            abort();
-#endif
-        }
+        assert(gtk_use_gl_area);
+        /* invoke render callback please */
+        return FALSE;
     }
 #endif
 
@@ -2156,32 +2148,12 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 
 #if defined(CONFIG_OPENGL)
     if (display_opengl) {
-        if (gtk_use_gl_area) {
-            vc->gfx.drawing_area = gtk_gl_area_new();
-            g_signal_connect(vc->gfx.drawing_area, "realize",
-                             G_CALLBACK(gl_area_realize), vc);
-            vc->gfx.dcl.ops = &dcl_gl_area_ops;
-            vc->gfx.dgc.ops = &gl_area_ctx_ops;
-        } else {
-#ifdef CONFIG_X11
-            vc->gfx.drawing_area = gtk_drawing_area_new();
-            /*
-             * gtk_widget_set_double_buffered() was deprecated in 3.14.
-             * It is required for opengl rendering on X11 though.  A
-             * proper replacement (native opengl support) is only
-             * available in 3.16+.  Silence the warning if possible.
-             */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-            gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
-#pragma GCC diagnostic pop
-            vc->gfx.dcl.ops = &dcl_egl_ops;
-            vc->gfx.dgc.ops = &egl_ctx_ops;
-            vc->gfx.has_dmabuf = qemu_egl_has_dmabuf();
-#else
-            abort();
-#endif
-        }
+        assert(gtk_use_gl_area);
+        vc->gfx.drawing_area = gtk_gl_area_new();
+        g_signal_connect(vc->gfx.drawing_area, "realize",
+                         G_CALLBACK(gl_area_realize), vc);
+        vc->gfx.dcl.ops = &dcl_gl_area_ops;
+        vc->gfx.dgc.ops = &gl_area_ctx_ops;
     } else
 #endif
     {
