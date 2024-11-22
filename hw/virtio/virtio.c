@@ -3369,7 +3369,13 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                 continue;
             }
 
-            nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
+            if (vring_avail_idx(&vdev->vq[i]) >= vdev->vq[i].last_avail_idx) {
+                nheads = vring_avail_idx(&vdev->vq[i]) -
+                         vdev->vq[i].last_avail_idx;
+            } else {
+                nheads = UINT16_MAX - vdev->vq[i].last_avail_idx +
+                         vring_avail_idx(&vdev->vq[i]) + 1;
+            }
             /* Check it isn't doing strange things with descriptor numbers. */
             if (nheads > vdev->vq[i].vring.num) {
                 virtio_error(vdev, "VQ %d size 0x%x Guest index 0x%x "
