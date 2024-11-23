@@ -714,3 +714,49 @@ target_ulong helper_hyp_hlvx_wu(CPURISCVState *env, target_ulong addr)
 }
 
 #endif /* !CONFIG_USER_ONLY */
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
+
+void helper_print1(void *fmt)
+{
+    printf((const char *)fmt);
+}
+
+void helper_print2(void *fmt, target_ulong arg2)
+{
+   printf((const char *)fmt, arg2);
+}
+
+void helper_print3(void *fmt, target_ulong arg2, target_ulong arg3)
+{
+     printf((const char *)fmt, arg2, arg3);
+}
+
+void helper_print4(void *fmt, target_ulong arg2, target_ulong arg3,
+                   target_ulong arg4)
+{
+    printf((const char *)fmt, arg2, arg3, arg4);
+}
+
+void helper_print5(void *fmt, target_ulong arg2, target_ulong arg3,
+                   target_ulong arg4, target_ulong arg5)
+{
+    printf((const char *)fmt, arg2, arg3, arg4, arg5);
+}
+
+void helper_print6(void *fmt, target_ulong arg2, target_ulong arg3,
+                   target_ulong arg4, target_ulong arg5, target_ulong arg6)
+{
+    printf((const char *)fmt, arg2, arg3, arg4, arg5, arg6);
+}
+
+void helper_print7(void *fmt, target_ulong arg2, target_ulong arg3,
+                   target_ulong arg4, target_ulong arg5, target_ulong arg6,
+                   target_ulong arg7)
+{
+    printf((const char *)fmt, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+#pragma GCC diagnostic pop
+

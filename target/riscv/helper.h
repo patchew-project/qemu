@@ -1284,3 +1284,16 @@ DEF_HELPER_4(vgmul_vv, void, ptr, ptr, env, i32)
 DEF_HELPER_5(vsm4k_vi, void, ptr, ptr, i32, env, i32)
 DEF_HELPER_4(vsm4r_vv, void, ptr, ptr, env, i32)
 DEF_HELPER_4(vsm4r_vs, void, ptr, ptr, env, i32)
+
+DEF_HELPER_1(print1, void, ptr)
+DEF_HELPER_2(print2, void, ptr, tl)
+DEF_HELPER_3(print3, void, ptr, tl, tl)
+DEF_HELPER_4(print4, void, ptr, tl, tl, tl)
+DEF_HELPER_5(print5, void, ptr, tl, tl, tl, tl)
+DEF_HELPER_6(print6, void, ptr, tl, tl, tl, tl, tl)
+DEF_HELPER_7(print7, void, ptr, tl, tl, tl, tl, tl, tl)
+
+#define gen_helper_print(num, fmt, ...) do { \
+    assert(num >= 1 && num <= 7); \
+    gen_helper_print##num(tcg_constant_ptr((uintptr_t)fmt), __VA_ARGS__); \
+} while(0)
