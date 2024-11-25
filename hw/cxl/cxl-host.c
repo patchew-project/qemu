@@ -16,13 +16,14 @@
 #include "qapi/qapi-visit-machine.h"
 #include "hw/cxl/cxl.h"
 #include "hw/cxl/cxl_host.h"
+#include "hw/irq.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/pci-bridge/pci_expander_bridge.h"
 
-static void cxl_fixed_memory_window_config(CXLState *cxl_state,
+void cxl_fixed_memory_window_config(CXLState *cxl_state,
                                            CXLFixedMemoryWindowOptions *object,
                                            Error **errp)
 {
@@ -164,6 +165,17 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr)
     /* Address is relative to memory region. Convert to HPA */
     addr += fw->base;
 
+    if (fw->sbsa_target) {
+        hb = PCI_HOST_BRIDGE(fw->sbsa_target);
+        SbsaCXLHost *host = fw->sbsa_target;
+
+        hb_cstate = &host->cxl_cstate;
+        cache_mem = hb_cstate->crb.cache_mem_registers;
+        target_found = cxl_hdm_find_target(cache_mem, addr, &target);
+        rp = pcie_find_port_by_pn(hb->bus, target);
+        goto done;
+    }
+
     rb_index = (addr / cxl_decode_ig(fw->enc_int_gran)) % fw->num_targets;
     hb = PCI_HOST_BRIDGE(fw->target_hbs[rb_index]->cxl_host_bridge);
     if (!hb || !hb->bus || !pci_bus_is_cxl(hb->bus)) {
@@ -194,6 +206,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr)
         }
     }
 
+done:
     d = pci_bridge_get_sec_bus(PCI_BRIDGE(rp))->devices[0];
     if (!d) {
         return NULL;
@@ -370,3 +383,157 @@ void cxl_hook_up_pxb_registers(PCIBus *bus, CXLState *state, Error **errp)
         }
     }
 }
+
+/****************************************************************************
+ * Sbsa CXL host
+ */
+
+static void sbsa_cxl_set_irq(void *opaque, int irq_num, int level)
+{
+    SbsaCXLHost *host = opaque;
+
+    qemu_set_irq(host->irq[irq_num], level);
+}
+
+int sbsa_cxl_set_irq_num(SbsaCXLHost *host, int index, int gsi)
+{
+    if (index >= SBSA_CXL_NUM_IRQS) {
+        return -EINVAL;
+    }
+
+    host->irq_num[index] = gsi;
+    return 0;
+}
+
+static PCIINTxRoute sbsa_cxl_route_intx_pin_to_irq(void *opaque, int pin)
+{
+    PCIINTxRoute route;
+    SbsaCXLHost *host = opaque;
+    int gsi = host->irq_num[pin];
+
+    route.irq = gsi;
+    if (gsi < 0) {
+        route.mode = PCI_INTX_DISABLED;
+    } else {
+        route.mode = PCI_INTX_ENABLED;
+    }
+
+    return route;
+}
+
+static const char *sbsa_host_root_bus_path(PCIHostState *host_bridge,
+                                          PCIBus *rootbus)
+{
+    return "0001:00";
+}
+
+void sbsa_cxl_hook_up_registers(CXLState *cxl_state, SbsaCXLHost *host, Error **errp)
+{
+    CXLComponentState *cxl_cstate = &host->cxl_cstate;
+    struct MemoryRegion *mr = &cxl_cstate->crb.component_registers;
+    hwaddr offset;
+
+    offset = memory_region_size(mr) * cxl_state->next_mr_idx;
+    if (offset > memory_region_size(&cxl_state->host_mr)) {
+        error_setg(errp, "Insufficient space for sbsa cxl host register space");
+        return;
+    }
+
+    memory_region_add_subregion(&cxl_state->host_mr, offset, mr);
+    cxl_state->next_mr_idx++;
+}
+
+static void sbsa_cxl_host_reset(SbsaCXLHost *host)
+{
+    CXLComponentState *cxl_cstate = &host->cxl_cstate;
+    uint32_t *reg_state = cxl_cstate->crb.cache_mem_registers;
+    uint32_t *write_msk = cxl_cstate->crb.cache_mem_regs_write_mask;
+
+    cxl_component_register_init_common(reg_state, write_msk, CXL2_RC);
+
+    ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, TARGET_COUNT,
+                         8);
+}
+
+static void sbsa_cxl_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SbsaCXLHost *host = SBSA_CXL_HOST(dev);
+    CXLComponentState *cxl_cstate = &host->cxl_cstate;
+    struct MemoryRegion *mr = &cxl_cstate->crb.component_registers;
+    PCIBus *cxlbus;
+    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    PCIExpressHost *pex = PCIE_HOST_BRIDGE(dev);
+    int i;
+
+    /* CHBCR MMIO init */
+    sbsa_cxl_host_reset(host);
+    cxl_component_register_block_init(OBJECT(dev), cxl_cstate,
+                                      TYPE_SBSA_CXL_HOST);
+    sysbus_init_mmio(sbd, mr);
+
+    /* PCIe Host MMIO init */
+    pcie_host_mmcfg_init(pex, PCIE_MMCFG_SIZE_MAX);
+    sysbus_init_mmio(sbd, &pex->mmio);
+
+    memory_region_init(&host->io_mmio, OBJECT(host), "cxl_host_mmio", UINT64_MAX);
+    memory_region_init(&host->io_ioport, OBJECT(host), "cxl_host_ioport", 64 * 1024);
+
+    memory_region_init_io(&host->io_mmio_window, OBJECT(host),
+                              &unassigned_io_ops, OBJECT(host),
+                              "cxl_host_mmio_window", UINT64_MAX);
+    memory_region_init_io(&host->io_ioport_window, OBJECT(host),
+                              &unassigned_io_ops, OBJECT(host),
+                              "cxl_host_ioport_window", 64 * 1024);
+
+    memory_region_add_subregion(&host->io_mmio_window, 0, &host->io_mmio);
+    memory_region_add_subregion(&host->io_ioport_window, 0, &host->io_ioport);
+    sysbus_init_mmio(sbd, &host->io_mmio_window);
+    sysbus_init_mmio(sbd, &host->io_ioport_window);
+
+    sysbus_init_mmio(sbd, &host->io_mmio);
+    sysbus_init_mmio(sbd, &host->io_ioport);
+
+    for (i = 0; i < SBSA_CXL_NUM_IRQS; i++) {
+        sysbus_init_irq(sbd, &host->irq[i]);
+        host->irq_num[i] = -1;
+    }
+
+    pci->bus = pci_register_root_bus(dev, "cxlhost.0", sbsa_cxl_set_irq,
+                                     pci_swizzle_map_irq_fn, host, &host->io_mmio,
+                                     &host->io_ioport, 0, 4, TYPE_CXL_BUS);
+    cxlbus = pci->bus;
+    cxlbus->flags |= PCI_BUS_CXL;
+
+    pci_bus_set_route_irq_fn(pci->bus, sbsa_cxl_route_intx_pin_to_irq);
+}
+
+static void sbsa_cxl_host_class_init(ObjectClass *class, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(class);
+    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(class);
+
+    hc->root_bus_path = sbsa_host_root_bus_path;
+    dc->realize = sbsa_cxl_realize;
+    dc->desc = "Sbsa CXL Host Bridge";
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->fw_name = "cxl";
+
+}
+
+/*
+ *  SBSA CXL HOST
+ */
+static const TypeInfo sbsa_cxl_host_info = {
+    .name          = TYPE_SBSA_CXL_HOST,
+    .parent        = TYPE_PCIE_HOST_BRIDGE,
+    .instance_size = sizeof(SbsaCXLHost),
+    .class_init    = sbsa_cxl_host_class_init,
+};
+
+static void cxl_host_register(void)
+{
+    type_register_static(&sbsa_cxl_host_info);
+}
+
+type_init(cxl_host_register)
