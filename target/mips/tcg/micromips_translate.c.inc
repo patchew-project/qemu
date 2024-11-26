@@ -113,7 +113,6 @@ enum {
     BLTZALC = 0x38,
     BLTUC = 0x38,
     SW16 = 0x3a,
-    LI16 = 0x3b,
     JALX32 = 0x3c,
     JAL32 = 0x3d,
     BLEZC = 0x3d,
@@ -3004,7 +3003,7 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         case 2:
         /* LBU16, LHU16, LWSP16, LW16, SB16, SH16, SWSP16, SW16 */
         case 3:
-        /* MOVE16, ANDI16, POOL16D, POOL16E, BEQZ16, BNEZ16, B16, LI16 */
+        /* MOVE16, ANDI16, POOL16D, POOL16E, BEQZ16, BNEZ16, B16 */
             if (ctx->hflags & MIPS_HFLAG_BDS32) {
                 gen_reserved_instruction(ctx);
                 return 2;
@@ -3213,15 +3212,6 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
                            0, sextract32(ctx->opcode, 0, 7) << 1,
                            (ctx->insn_flags & ISA_MIPS_R6) ? 0 : 4);
 
-        break;
-    case LI16:
-        {
-            int reg = mmreg(uMIPS_RD(ctx->opcode));
-            int imm = ZIMM(ctx->opcode, 0, 7);
-
-            imm = (imm == 0x7f ? -1 : imm);
-            tcg_gen_movi_tl(cpu_gpr[reg], imm);
-        }
         break;
     case RES_29:
     case RES_31:
