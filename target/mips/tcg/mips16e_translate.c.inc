@@ -657,6 +657,14 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
     int n_bytes;
 
     ctx->opcode = translator_lduw(env, &ctx->base, ctx->base.pc_next);
+
+    if (decode_ase_mips16e_16(ctx, ctx->opcode)) {
+        return 2;
+    }
+    if (decode_ase_mips16e_32(ctx, ctx->opcode)) {
+        return 4;
+    }
+
     op = (ctx->opcode >> 11) & 0x1f;
     sa = (ctx->opcode >> 2) & 0x7;
     sa = sa == 0 ? 8 : sa;
