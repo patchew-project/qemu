@@ -7,3 +7,11 @@
 # Reference: MIPS Architecture for Programmers, Volume IV-a
 #            The MIPS16e Application Specific Extension
 #            (Document Number: MD00076)
+
+&rd_imm         rd imm
+
+%xlat_rx8       8:3  !function=xlat
+
+@ri             ..... ... imm:8             &rd_imm   rd=%xlat_rx8
+
+LI              01101 ... ........          @ri
