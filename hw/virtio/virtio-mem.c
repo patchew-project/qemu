@@ -673,6 +673,10 @@ static int virtio_mem_state_change_request(VirtIOMEM *vmem, uint64_t gpa,
         return VIRTIO_MEM_RESP_NACK;
     }
 
+    if (!plug && vmem->size <= vmem->requested_size) {
+        return VIRTIO_MEM_RESP_NACK;
+    }
+
     /* test if really all blocks are in the opposite state */
     if ((plug && !virtio_mem_is_range_unplugged(vmem, gpa, size)) ||
         (!plug && !virtio_mem_is_range_plugged(vmem, gpa, size))) {
