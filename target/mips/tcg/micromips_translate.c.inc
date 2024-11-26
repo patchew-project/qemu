@@ -2973,6 +2973,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
 
 static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
 {
+    uint32_t opcode;
     uint32_t op;
 
     /* make sure instructions are on a halfword boundary */
@@ -2982,6 +2983,8 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         return 2;
     }
 
+    opcode = translator_lduw(env, &ctx->base, ctx->base.pc_next);
+    ctx->opcode = opcode;
     op = (ctx->opcode >> 10) & 0x3f;
     /* Enforce properly-sized instructions in a delay slot */
     if (ctx->hflags & MIPS_HFLAG_BDS_STRICT) {
