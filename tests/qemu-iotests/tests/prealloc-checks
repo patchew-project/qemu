@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+# group: rw
+#
+# Checks for preallocate filter.
+#
+# Copyright (c) 2024 Virtuozzo International GmbH. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=andrey.drobyshev@virtuozzo.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    rm -f $SOCK_DIR/nbd.sock
+    rm -f $TEST_IMG.snap
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ../common.rc
+. ../common.filter
+. ../common.qemu
+
+_supported_fmt qcow2
+
+_recreate_test_img()
+{
+    local size="1M"
+    local imgopts="cluster_size=$size,extended_l2=on,lazy_refcounts=on"
+    local image="$TEST_IMG"
+
+    if test -n "$1" ; then
+        image="$1"
+    fi
+
+    rm -f $image
+    TEST_IMG=$image _make_test_img -o "$imgopts" $size
+}
+
+blkopts="node-name=disk,driver=qcow2,file.driver=preallocate,"
+blkopts+="file.node-name=prealloc,file.file.driver=file,"
+blkopts+="file.file.filename=$TEST_IMG,file.file.node-name=storage"
+
+#
+# 1. Launch a VM so that its block graph contains preallocate filter node,
+# and perform its local migration to a file.  That is similar to doing
+# "virsh save VM /path/to/vmsave".
+#
+
+echo
+echo === 1. Migration to a local file ===
+echo
+
+echo "# Create image and start VM with preallocate filter:"
+echo
+_recreate_test_img
+qemu_comm_method="monitor" _launch_qemu -blockdev "$blkopts"
+handle=$QEMU_HANDLE
+_send_qemu_cmd $handle "" "(qemu)"
+
+echo
+echo "# Migrate VM to a local file (/dev/null):"
+echo
+_send_qemu_cmd $handle "migrate \"exec: cat > '/dev/null'\"" "(qemu)"
+
+echo
+echo "# Exit VM:"
+echo
+_send_qemu_cmd $handle "quit" ""
+wait=yes _cleanup_qemu
+
+#
+# 2. Same as 1st, but this time we make sure that preallocate filter is
+# actually active. To do that we perform a write op beyond current length
+# (which is 0 as the image's just created).  Then migrate VM to a local
+# file (/dev/null).
+#
+
+echo
+echo === 2. Migration to a local file after a write operation ===
+echo
+
+echo "# Create image and start VM with preallocate filter:"
+echo
+_recreate_test_img
+qemu_comm_method="monitor" _launch_qemu -blockdev "$blkopts"
+handle=$QEMU_HANDLE
+_send_qemu_cmd $handle "" "(qemu)"
+
+echo
+echo "# Perform write op to the image to activate preallocate filter:"
+echo
+_send_qemu_cmd $handle 'qemu-io disk "write -P 0xff 0 1M"' "1 MiB"
+
+echo
+echo "# Migrate VM to a local file (/dev/null):"
+echo
+_send_qemu_cmd $handle "migrate \"exec: cat > '/dev/null'\"" "(qemu)"
+
+echo
+echo "# Exit VM:"
+echo
+_send_qemu_cmd $handle "quit" ""
+wait=yes _cleanup_qemu
+
+#
+# 3. Add another overlay image (with preallocation filter as well), launch
+# VM, export its disk via nbd to perform a write operation and activate the
+# preallocation filter, and then run 'blockdev-snapshot' to turn the overlay
+# image into an external snapshot of the disk.
+#
+
+echo
+echo === 3. Taking external snapshot after a write operation ===
+echo
+
+snapblkopts="node-name=snap,driver=qcow2,file.driver=preallocate,"
+snapblkopts+="file.node-name=snap-prealloc,file.file.driver=file,"
+snapblkopts+="file.file.filename=$TEST_IMG.snap,"
+snapblkopts+="file.file.node-name=snap-storage"
+
+echo "# Create disk and snapshot images and start VM with preallocate filter:"
+echo
+_recreate_test_img
+_recreate_test_img $TEST_IMG.snap
+
+qemu_comm_method="qmp" qmp_pretty= \
+    _launch_qemu -blockdev "$snapblkopts" -blockdev "$blkopts"
+handle=$QEMU_HANDLE
+_send_qemu_cmd $handle "{ 'execute': 'qmp_capabilities' }" "return"
+
+silent=yes
+
+echo
+echo "# Start nbd server:"
+echo
+_send_qemu_cmd $handle \
+    "{ 'execute': 'nbd-server-start',
+       'arguments': { 'addr': { 'type': 'unix',
+                                'data': { 'path': '$SOCK_DIR/nbd.sock' }}}}"
+_send_qemu_cmd $handle "" "return"
+
+echo
+echo "# Export 'disk' node via nbd server:"
+echo
+_send_qemu_cmd $handle \
+    "{ 'execute': 'block-export-add',
+       'arguments': { 'type': 'nbd', 'node-name': 'disk', 'id': 'nbdexp',
+                      'name': 'nbdexp', 'writable': true }}"
+_send_qemu_cmd $handle "" "return"
+
+echo
+echo "# Perform write op to the nbd-exported disk:"
+echo
+silent=
+$QEMU_IO_PROG -f raw -c "write -P 0xff 0 1M" \
+    "nbd+unix:///nbdexp?socket=$SOCK_DIR/nbd.sock" 2>&1 \
+    | _filter_qemu_io | _filter_nbd
+
+echo
+echo "# Delete nbd export:"
+echo
+silent=yes
+_send_qemu_cmd $handle \
+    "{ 'execute': 'block-export-del', 'arguments': { 'id': 'nbdexp' }}"
+_send_qemu_cmd $handle "" "return"
+
+echo
+echo "# Stop nbd server:"
+echo
+_send_qemu_cmd $handle \
+    "{ 'execute': 'nbd-server-stop' }"
+_send_qemu_cmd $handle "" "return"
+
+echo
+echo "# Turn 'snap' node into the external snapshot of 'disk' node:"
+echo
+silent=
+_send_qemu_cmd $handle \
+    "{ 'execute': 'blockdev-snapshot',
+       'arguments': { 'node': 'disk', 'overlay': 'snap' }}"
+_send_qemu_cmd $handle "" "return"
+
+echo
+echo "# Check block graph:"
+echo
+_send_qemu_cmd $handle \
+    "{ 'execute': 'x-debug-query-block-graph' }"
+_send_qemu_cmd $handle "" "return"
+
+echo
+echo "# Exit VM:"
+echo
+qmp_pretty=
+silent=yes
+_send_qemu_cmd $handle "{ 'execute': 'quit' }" "qmp-quit"
+wait=yes _cleanup_qemu
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

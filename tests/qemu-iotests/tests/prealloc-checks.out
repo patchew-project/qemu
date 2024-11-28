@@ -1,0 +1,81 @@
+QA output created by prealloc-checks
+
+=== 1. Migration to a local file ===
+
+# Create image and start VM with preallocate filter:
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu)
+
+# Migrate VM to a local file (/dev/null):
+
+(qemu) migrate "exec: cat > '/dev/null'"
+
+# Exit VM:
+
+(qemu) quit
+
+=== 2. Migration to a local file after a write operation ===
+
+# Create image and start VM with preallocate filter:
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu)
+
+# Perform write op to the image to activate preallocate filter:
+
+(qemu) qemu-io disk "write -P 0xff 0 1M"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+# Migrate VM to a local file (/dev/null):
+
+(qemu) migrate "exec: cat > '/dev/null'"
+
+# Exit VM:
+
+(qemu) quit
+
+=== 3. Taking external snapshot after a write operation ===
+
+# Create disk and snapshot images and start VM with preallocate filter:
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/t.IMGFMT.snap', fmt=IMGFMT size=1048576
+{ 'execute': 'qmp_capabilities' }
+{"return": {}}
+
+# Start nbd server:
+
+
+# Export 'disk' node via nbd server:
+
+
+# Perform write op to the nbd-exported disk:
+
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+# Delete nbd export:
+
+
+# Stop nbd server:
+
+
+# Turn 'snap' node into the external snapshot of 'disk' node:
+
+{ 'execute': 'blockdev-snapshot',
+       'arguments': { 'node': 'disk', 'overlay': 'snap' }}
+{"return": {}}
+
+# Check block graph:
+
+{ 'execute': 'x-debug-query-block-graph' }
+{"return": {"edges": [{"name": "file", "parent": 4, "shared-perm": ["write-unchanged", "consistent-read"], "perm": ["consistent-read"], "child": 6}, {"name": "file", "parent": 6, "shared-perm": ["write-unchanged", "consistent-read"], "perm": ["consistent-read"], "child": 5}, {"name": "file", "parent": 3, "shared-perm": ["write-unchanged", "consistent-read"], "perm": ["resize", "write", "consistent-read"], "child": 2}, {"name": "backing", "parent": 3, "shared-perm": ["resize", "write-unchanged", "write", "consistent-read"], "perm": [], "child": 4}, {"name": "file", "parent": 2, "shared-perm": ["write-unchanged", "consistent-read"], "perm": ["resize", "write", "consistent-read"], "child": 1}], "nodes": [{"name": "disk", "type": "block-driver", "id": 4}, {"name": "prealloc", "type": "block-driver", "id": 6}, {"name": "storage", "type": "block-driver", "id": 5}, {"name": "snap", "type": "block-driver", "id": 3}, {"name": "snap-prealloc", "type": "block-driver", "id": 2}, {"name": "snap-storage", "type": "block-driver", "id": 1}]}}
+
+# Exit VM:
+
+{"return": {}}
+*** done
