@@ -77,8 +77,6 @@ typedef struct BDRVPreallocateState {
      */
 } BDRVPreallocateState;
 
-static int preallocate_drop_resize(BlockDriverState *bs, Error **errp);
-
 #define PREALLOCATE_OPT_PREALLOC_ALIGN "prealloc-align"
 #define PREALLOCATE_OPT_PREALLOC_SIZE "prealloc-size"
 static QemuOptsList runtime_opts = {
@@ -169,7 +167,7 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
 }
 
 static int GRAPH_RDLOCK
-preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
+preallocate_drop_resize(BlockDriverState *bs, Error **errp)
 {
     BDRVPreallocateState *s = bs->opaque;
     int ret;
@@ -198,7 +196,7 @@ static void preallocate_close(BlockDriverState *bs)
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    preallocate_truncate_to_real_size(bs, NULL);
+    preallocate_drop_resize(bs, NULL);
 }
 
 
@@ -486,36 +484,6 @@ preallocate_co_getlength(BlockDriverState *bs)
     }
 
     return bdrv_co_getlength(bs->file->bs);
-}
-
-static int GRAPH_RDLOCK
-preallocate_drop_resize(BlockDriverState *bs, Error **errp)
-{
-    BDRVPreallocateState *s = bs->opaque;
-    int ret;
-
-    if (s->data_end < 0) {
-        return 0;
-    }
-
-    /*
-     * Before switching children to be read-only, truncate them to remove
-     * the preallocation and let them have the real size.
-     */
-    ret = preallocate_truncate_to_real_size(bs, errp);
-    if (ret < 0) {
-        return ret;
-    }
-
-    /*
-     * We'll drop our permissions and will allow other users to take write and
-     * resize permissions (see preallocate_child_perm). Anyone will be able to
-     * change the child, so mark all states invalid. We'll regain control if a
-     * parent requests write access again.
-     */
-    bdrv_child_refresh_perms(bs, bs->file, NULL);
-
-    return 0;
 }
 
 static void preallocate_child_perm(BlockDriverState *bs, BdrvChild *c,
