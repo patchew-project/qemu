@@ -179,12 +179,11 @@ preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
     BDRVPreallocateState *s = bs->opaque;
     int ret;
 
-    if (s->file_end < 0) {
-        s->file_end = bdrv_getlength(bs->file->bs);
-        if (s->file_end < 0) {
-            error_setg_errno(errp, -s->file_end, "Failed to get file length");
-            return s->file_end;
-        }
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        return 0;
+    }
+    if (s->data_end < 0) {
+        return 0;
     }
 
     if (s->data_end < s->file_end) {
@@ -192,11 +191,9 @@ preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
                             NULL);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to drop preallocation");
-            s->file_end = ret;
-            return ret;
         }
-        s->file_end = s->data_end;
     }
+    s->data_end = s->file_end = s->zero_start = -EINVAL;
 
     return 0;
 }
@@ -211,9 +208,7 @@ static void preallocate_close(BlockDriverState *bs)
     qemu_bh_cancel(s->drop_resize_bh);
     qemu_bh_delete(s->drop_resize_bh);
 
-    if (s->data_end >= 0) {
-        preallocate_truncate_to_real_size(bs, NULL);
-    }
+    preallocate_truncate_to_real_size(bs, NULL);
 }
 
 
@@ -528,8 +523,6 @@ preallocate_drop_resize(BlockDriverState *bs, Error **errp)
      * change the child, so mark all states invalid. We'll regain control if a
      * parent requests write access again.
      */
-    s->data_end = s->file_end = s->zero_start = -EINVAL;
-
     bdrv_child_refresh_perms(bs, bs->file, NULL);
 
     return 0;
