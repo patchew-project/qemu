@@ -594,6 +594,11 @@ static void preallocate_child_perm(BlockDriverState *bs, BdrvChild *c,
     }
 }
 
+static int GRAPH_RDLOCK preallocate_inactivate(BlockDriverState *bs)
+{
+    return preallocate_drop_resize(bs, NULL);
+}
+
 static BlockDriver bdrv_preallocate_filter = {
     .format_name = "preallocate",
     .instance_size = sizeof(BDRVPreallocateState),
@@ -615,6 +620,8 @@ static BlockDriver bdrv_preallocate_filter = {
 
     .bdrv_set_perm = preallocate_set_perm,
     .bdrv_child_perm = preallocate_child_perm,
+
+    .bdrv_inactivate = preallocate_inactivate,
 
     .is_filter = true,
 };
