@@ -75,13 +75,9 @@ typedef struct BDRVPreallocateState {
      * be invalid (< 0) when we don't have both exclusive BLK_PERM_RESIZE and
      * BLK_PERM_WRITE permissions on file child.
      */
-
-    /* Gives up the resize permission on children when parents don't need it */
-    QEMUBH *drop_resize_bh;
 } BDRVPreallocateState;
 
 static int preallocate_drop_resize(BlockDriverState *bs, Error **errp);
-static void preallocate_drop_resize_bh(void *opaque);
 
 #define PREALLOCATE_OPT_PREALLOC_ALIGN "prealloc-align"
 #define PREALLOCATE_OPT_PREALLOC_SIZE "prealloc-size"
@@ -150,7 +146,6 @@ static int preallocate_open(BlockDriverState *bs, QDict *options, int flags,
      * For this to work, mark them invalid.
      */
     s->file_end = s->zero_start = s->data_end = -EINVAL;
-    s->drop_resize_bh = qemu_bh_new(preallocate_drop_resize_bh, bs);
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
@@ -200,13 +195,8 @@ preallocate_truncate_to_real_size(BlockDriverState *bs, Error **errp)
 
 static void preallocate_close(BlockDriverState *bs)
 {
-    BDRVPreallocateState *s = bs->opaque;
-
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
-
-    qemu_bh_cancel(s->drop_resize_bh);
-    qemu_bh_delete(s->drop_resize_bh);
 
     preallocate_truncate_to_real_size(bs, NULL);
 }
@@ -528,34 +518,6 @@ preallocate_drop_resize(BlockDriverState *bs, Error **errp)
     return 0;
 }
 
-static void preallocate_drop_resize_bh(void *opaque)
-{
-    GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
-
-    /*
-     * In case of errors, we'll simply keep the exclusive lock on the image
-     * indefinitely.
-     */
-    preallocate_drop_resize(opaque, NULL);
-}
-
-static void GRAPH_RDLOCK
-preallocate_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
-{
-    BDRVPreallocateState *s = bs->opaque;
-
-    if (can_write_resize(perm)) {
-        qemu_bh_cancel(s->drop_resize_bh);
-        if (s->data_end < 0) {
-            s->data_end = s->file_end = s->zero_start =
-                bs->file->bs->total_sectors * BDRV_SECTOR_SIZE;
-        }
-    } else {
-        qemu_bh_schedule(s->drop_resize_bh);
-    }
-}
-
 static void preallocate_child_perm(BlockDriverState *bs, BdrvChild *c,
     BdrvChildRole role, BlockReopenQueue *reopen_queue,
     uint64_t perm, uint64_t shared, uint64_t *nperm, uint64_t *nshared)
@@ -604,7 +566,6 @@ static BlockDriver bdrv_preallocate_filter = {
     .bdrv_co_flush = preallocate_co_flush,
     .bdrv_co_truncate = preallocate_co_truncate,
 
-    .bdrv_set_perm = preallocate_set_perm,
     .bdrv_child_perm = preallocate_child_perm,
 
     .bdrv_inactivate = preallocate_inactivate,
