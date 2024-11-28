@@ -494,20 +494,13 @@ static int coroutine_fn GRAPH_RDLOCK preallocate_co_flush(BlockDriverState *bs)
 static int64_t coroutine_fn GRAPH_RDLOCK
 preallocate_co_getlength(BlockDriverState *bs)
 {
-    int64_t ret;
     BDRVPreallocateState *s = bs->opaque;
 
     if (s->data_end >= 0) {
         return s->data_end;
     }
 
-    ret = bdrv_co_getlength(bs->file->bs);
-
-    if (has_prealloc_perms(bs)) {
-        s->file_end = s->zero_start = s->data_end = ret;
-    }
-
-    return ret;
+    return bdrv_co_getlength(bs->file->bs);
 }
 
 static int GRAPH_RDLOCK
