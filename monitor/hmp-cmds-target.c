@@ -117,7 +117,7 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
         }
 
         monitor_printf(mon, "\nCPU#%d\n", cs->cpu_index);
-        cpu_dump_state(cs, NULL, CPU_DUMP_FPU);
+        cpu_dump_state(cs, NULL, CPU_DUMP_CODE);
     }
 }
 
