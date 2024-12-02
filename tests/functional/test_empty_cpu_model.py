@@ -13,7 +13,7 @@ from qemu_test import QemuSystemTest
 
 class EmptyCPUModel(QemuSystemTest):
     def test(self):
-        self.vm.add_args('-S', '-display', 'none', '-machine', 'none', '-cpu', '')
+        self.vm.add_args('-S', '-display', 'none', '-machine', 'none,accel=qtest', '-cpu', '')
         self.vm.set_qmp_monitor(enabled=False)
         self.vm.launch()
         self.vm.wait()
