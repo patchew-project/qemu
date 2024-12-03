@@ -295,7 +295,10 @@ class QemuBinaryInfo(object):
         self._machine_info = {}
 
         dbg("devtype: %r", devtype)
-        args = ['-S', '-machine', 'none,accel=kvm:tcg']
+        args = ['-S',
+                '-machine', 'none',
+                '-accel', 'kvm:tcg',
+               ]
         dbg("querying info for QEMU binary: %s", binary)
         vm = QEMUMachine(binary=binary, args=args)
         vm.launch()
@@ -358,7 +361,9 @@ def checkOneCase(args, testcase):
 
     dbg("will test: %r", testcase)
 
-    args = ['-S', '-machine', '%s,accel=%s' % (machine, accel),
+    args = ['-S',
+            '-machine', machine,
+            '-accel', accel,
             '-device', qemuOptsEscape(device)]
     cmdline = ' '.join([binary] + args)
     dbg("will launch QEMU: %s", cmdline)
