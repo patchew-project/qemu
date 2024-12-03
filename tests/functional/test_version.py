@@ -18,6 +18,7 @@ class Version(QemuSystemTest):
 
     def test_qmp_human_info_version(self):
         self.set_machine('none')
+        self.vm.add_args('-accel', 'qtest')
         self.vm.add_args('-nodefaults')
         self.vm.launch()
         res = self.vm.cmd('human-monitor-command',
