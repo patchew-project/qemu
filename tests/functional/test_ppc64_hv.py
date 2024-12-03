@@ -107,7 +107,8 @@ class HypervisorTest(QemuSystemTest):
         else:
             append = ''
         exec_command(self, 'qemu-system-ppc64 -nographic -smp 2 -m 1g '
-                           '-machine pseries,x-vof=on,accel=kvm '
+                           '-accel kvm '
+                           '-machine pseries,x-vof=on '
                            '-machine cap-cfpc=broken,cap-sbbc=broken,'
                                     'cap-ibs=broken,cap-ccf-assist=off '
                            '-drive file=/dev/nvme0n1,format=raw,readonly=on '
