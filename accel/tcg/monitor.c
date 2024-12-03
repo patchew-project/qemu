@@ -204,7 +204,7 @@ HumanReadableText *qmp_x_query_jit(Error **errp)
     g_autoptr(GString) buf = g_string_new("");
 
     if (!tcg_enabled()) {
-        error_setg(errp, "JIT information is only available with accel=tcg");
+        error_setg(errp, "JIT information is only available with TCG");
         return NULL;
     }
 
@@ -226,7 +226,7 @@ HumanReadableText *qmp_x_query_opcount(Error **errp)
 
     if (!tcg_enabled()) {
         error_setg(errp,
-                   "Opcode count information is only available with accel=tcg");
+                   "Opcode count information is only available with TCG");
         return NULL;
     }
 

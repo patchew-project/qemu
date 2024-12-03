@@ -216,7 +216,7 @@ The ``enforce-config-section`` property was replaced by the
 ``-no-kvm`` (removed in 5.2)
 ''''''''''''''''''''''''''''
 
-The ``-no-kvm`` argument was a synonym for setting ``-machine accel=tcg``.
+The ``-no-kvm`` argument was a synonym for setting ``-accel tcg``.
 
 ``-realtime`` (removed in 6.0)
 ''''''''''''''''''''''''''''''

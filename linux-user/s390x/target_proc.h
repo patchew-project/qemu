@@ -7,7 +7,7 @@
 #define S390X_TARGET_PROC_H
 
 /*
- * Emulate what a Linux kernel running in qemu-system-s390x -M accel=tcg would
+ * Emulate what a Linux kernel running in 'qemu-system-s390x -accel tcg' would
  * show in /proc/cpuinfo.
  *
  * Skip the following in order to match the missing support in op_ecag():
