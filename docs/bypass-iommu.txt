@@ -51,7 +51,8 @@ And we got:
 x86 architecture:
 
 qemu-system-x86_64 \
- -machine q35,accel=kvm,default_bus_bypass_iommu=true \
+ -accel kvm \
+ -machine q35,default_bus_bypass_iommu=true \
  -device pxb-pcie,bus_nr=0x10,id=pci.10,bus=pcie.0,addr=0x3 \
  -device pxb-pcie,bus_nr=0x20,id=pci.20,bus=pcie.0,addr=0x4,bypass_iommu=true \
  -device intel-iommu \

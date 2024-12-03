@@ -228,7 +228,7 @@ which allows the platform to communicate what features it supports related to
 NVDIMM data persistence.  Users can provide a persistence value to a guest via
 the optional "nvdimm-persistence" machine command line option:
 
-    -machine pc,accel=kvm,nvdimm,nvdimm-persistence=cpu
+    -machine pc,nvdimm,nvdimm-persistence=cpu
 
 There are currently two valid values for this option:
 

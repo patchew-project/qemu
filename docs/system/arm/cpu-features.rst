@@ -332,7 +332,7 @@ SVE CPU Property Examples
   3) When KVM is enabled, implicitly enable all host CPU supported vector
      lengths with the ``host`` CPU type::
 
-     $ qemu-system-aarch64 -M virt,accel=kvm -cpu host
+     $ qemu-system-aarch64 -M virt -accel kvm -cpu host
 
   4) Only enable the 128-bit vector length::
 

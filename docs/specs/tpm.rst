@@ -329,7 +329,7 @@ In case a pSeries machine is emulated, use the following command line:
 
 .. code-block:: console
 
-  qemu-system-ppc64 -display sdl -machine pseries,accel=kvm \
+  qemu-system-ppc64 -display sdl -accel kvm -machine pseries \
     -m 1024 -bios slof.bin -boot menu=on \
     -nodefaults -device VGA -device pci-ohci -device usb-kbd \
     -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \

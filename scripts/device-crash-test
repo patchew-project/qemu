@@ -147,7 +147,7 @@ ERROR_RULE_LIST = [
     # "spapr-cpu-core needs a pseries machine"
     {'machine':'(?!pseries).*', 'device':'.*-spapr-cpu-core', 'expected':True},
 
-    # KVM-specific devices shouldn't be tried without accel=kvm:
+    # KVM-specific devices shouldn't be tried without '-accel kvm':
     {'accel':'(?!kvm).*', 'device':'kvmclock', 'expected':True},
 
     # xen-specific machines and devices:

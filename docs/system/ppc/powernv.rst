@@ -63,7 +63,7 @@ powernv. kvm-pr in theory could be used as a valid accel option but
 this isn't supported by kvm-pr at this moment.
 
 To spare users from dealing with not so informative errors when attempting
-to use accel=kvm, the powernv machine will throw an error informing that
+to use '-accel kvm', the powernv machine will throw an error informing that
 KVM is not supported. This can be revisited in the future if kvm-pr (or
 any other KVM alternative) is usable as KVM accel for this machine.
 
