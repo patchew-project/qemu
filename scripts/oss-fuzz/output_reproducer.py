@@ -64,8 +64,6 @@ def c_reproducer(name, args, trace):
 
     # libqtest will add its own qtest args, so get rid of them
     args = args.replace("-accel qtest","")
-    args = args.replace(",accel=qtest","")
-    args = args.replace("-machine accel=qtest","")
     args = args.replace("-qtest stdio","")
     result.append("""QTestState *s = qtest_init("{}");""".format(args))
     for l in trace.splitlines():

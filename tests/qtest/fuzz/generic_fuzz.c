@@ -918,7 +918,7 @@ static GString *generic_fuzz_cmdline(FuzzTarget *t)
         usage();
     }
     g_string_append_printf(cmd_line, " -display none \
-                                      -machine accel=qtest, \
+                                      -accel qtest \
                                       -m 512M %s ", getenv("QEMU_FUZZ_ARGS"));
     return cmd_line;
 }

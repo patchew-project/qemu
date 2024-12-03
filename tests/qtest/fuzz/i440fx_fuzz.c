@@ -145,7 +145,7 @@ static void i440fx_fuzz_qos(QTestState *s,
     pciconfig_fuzz_qos(s, bus, Data, Size);
 }
 
-static const char *i440fx_qtest_argv = TARGET_NAME " -machine accel=qtest"
+static const char *i440fx_qtest_argv = TARGET_NAME " -accel qtest"
                                        " -m 0 -display none";
 static GString *i440fx_argv(FuzzTarget *t)
 {

@@ -5,15 +5,15 @@
 Use this to convert qtest log info from a generic fuzzer input into a qtest
 trace that you can feed into a standard qemu-system process. Example usage:
 
-QEMU_FUZZ_ARGS="-machine q35,accel=qtest" QEMU_FUZZ_OBJECTS="*" \
+QEMU_FUZZ_ARGS="-machine q35 -accel qtest" QEMU_FUZZ_OBJECTS="*" \
         ./i386-softmmu/qemu-fuzz-i386 --fuzz-target=generic-pci-fuzz
 # .. Finds some crash
 QTEST_LOG=1 FUZZ_SERIALIZE_QTEST=1 \
-QEMU_FUZZ_ARGS="-machine q35,accel=qtest" QEMU_FUZZ_OBJECTS="*" \
+QEMU_FUZZ_ARGS="-machine q35 -accel qtest" QEMU_FUZZ_OBJECTS="*" \
         ./i386-softmmu/qemu-fuzz-i386 --fuzz-target=generic-pci-fuzz
         /path/to/crash 2> qtest_log_output
 scripts/oss-fuzz/reorder_fuzzer_qtest_trace.py qtest_log_output > qtest_trace
-./i386-softmmu/qemu-fuzz-i386 -machine q35,accel=qtest \
+./i386-softmmu/qemu-fuzz-i386 -machine q35 -accel qtest \
         -qtest stdio < qtest_trace
 
 ### Details ###

@@ -84,7 +84,7 @@ static GString *qos_build_main_args(void)
     }
     /* Prepend the arguments that we need */
     g_string_prepend(cmd_line,
-            TARGET_NAME " -display none -machine accel=qtest -m 64 ");
+            TARGET_NAME " -display none -accel qtest -m 64 ");
     return cmd_line;
 }
 
