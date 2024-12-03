@@ -55,7 +55,8 @@ class VirtioGPUx86(QemuSystemTest):
         self.vm.set_console()
         self.vm.add_args("-cpu", "host")
         self.vm.add_args("-m", "2G")
-        self.vm.add_args("-machine", "pc,accel=kvm")
+        self.vm.add_args('-accel', 'kvm')
+        self.vm.add_args("-machine", "pc")
         self.vm.add_args("-device", "virtio-vga-gl")
         self.vm.add_args("-display", "egl-headless")
         self.vm.add_args(
@@ -110,10 +111,11 @@ class VirtioGPUx86(QemuSystemTest):
         )
 
         self.vm.set_console()
+        self.vm.add_args('-accel', 'kvm')
         self.vm.add_args("-cpu", "host")
         self.vm.add_args("-m", "2G")
         self.vm.add_args("-object", "memory-backend-memfd,id=mem,size=2G")
-        self.vm.add_args("-machine", "pc,memory-backend=mem,accel=kvm")
+        self.vm.add_args("-machine", "pc,memory-backend=mem")
         self.vm.add_args("-chardev", "socket,id=vug,fd=%d" % qemu_sock.fileno())
         self.vm.add_args("-device", "vhost-user-vga,chardev=vug")
         self.vm.add_args("-display", "egl-headless")
