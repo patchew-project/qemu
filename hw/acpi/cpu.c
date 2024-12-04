@@ -23,6 +23,33 @@ enum {
     CPHP_CMD_MAX
 };
 
+// Enforce mutual exclusion between is_inserting and is_removing
+void acpi_cpu_set_inserting(AcpiCpuStatus *cdev, bool new_val)
+{
+    if (!cdev) {
+        return;
+    }
+
+    if (new_val) {
+        cdev->is_removing = false;
+    }
+
+    cdev->is_inserting = new_val;
+}
+
+void acpi_cpu_set_removing(AcpiCpuStatus *cdev, bool new_val)
+{
+    if (!cdev) {
+        return;
+    }
+
+    if (new_val) {
+        cdev->is_inserting = false;
+    }
+
+    cdev->is_removing = new_val;
+}
+
 static ACPIOSTInfo *acpi_cpu_device_status(int idx, AcpiCpuStatus *cdev)
 {
     ACPIOSTInfo *info = g_new0(ACPIOSTInfo, 1);
@@ -125,10 +152,10 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
     case ACPI_CPU_FLAGS_OFFSET_RW: /* set is_* fields  */
         cdev = &cpu_st->devs[cpu_st->selector];
         if (data & 2) { /* clear insert event */
-            cdev->is_inserting = false;
+            acpi_cpu_set_inserting(cdev, false);
             trace_cpuhp_acpi_clear_inserting_evt(cpu_st->selector);
         } else if (data & 4) { /* clear remove event */
-            cdev->is_removing = false;
+            acpi_cpu_set_removing(cdev, false);
             trace_cpuhp_acpi_clear_remove_evt(cpu_st->selector);
         } else if (data & 8) {
             DeviceState *dev = NULL;
@@ -259,7 +286,7 @@ void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
 
     cdev->cpu = CPU(dev);
     if (dev->hotplugged) {
-        cdev->is_inserting = true;
+        acpi_cpu_set_inserting(cdev, true);
         acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
     }
 }
@@ -272,10 +299,11 @@ void acpi_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
 
     cdev = get_cpu_status(cpu_st, dev);
     if (!cdev) {
+        warn_report("CPU status bad in unplug req cb\n");
         return;
     }
 
-    cdev->is_removing = true;
+    acpi_cpu_set_removing(cdev, true);
     acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
 }
 

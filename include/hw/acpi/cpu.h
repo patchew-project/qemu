@@ -39,6 +39,10 @@ typedef struct CPUHotplugState {
     AcpiCpuStatus *devs;
 } CPUHotplugState;
 
+// Enforce mutual exclusion between is_inserting and is_removing
+void acpi_cpu_set_inserting(AcpiCpuStatus *cdev, bool new_val);
+void acpi_cpu_set_removing(AcpiCpuStatus *cdev, bool new_val);
+
 void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
                       CPUHotplugState *cpu_st, DeviceState *dev, Error **errp);
 
