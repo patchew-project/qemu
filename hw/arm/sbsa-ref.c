@@ -51,6 +51,7 @@
 #include "qobject/qlist.h"
 #include "qom/object.h"
 #include "target/arm/cpu-qom.h"
+#include "target/arm/cpu-features.h"
 #include "target/arm/gtimer.h"
 
 #define RAMLIMIT_GB 8192
@@ -795,6 +796,12 @@ static void sbsa_ref_init(MachineState *machine)
 
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
         object_unref(cpuobj);
+    }
+
+    if (cpu_isar_feature(aa64_rme, ARM_CPU(qemu_get_cpu(0)))
+            && machine->ram_size < 2 * GiB) {
+        error_report("sbsa-ref: RME feature requires at least 2GB of RAM");
+        exit(1);
     }
 
     memory_region_add_subregion(sysmem, sbsa_ref_memmap[SBSA_MEM].base,
