@@ -167,7 +167,12 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     int len = 0;
 
     if (!ct3d->hostpmem && !ct3d->hostvmem && !ct3d->dc.num_regions) {
-        return 0;
+        /* zero memory size device. Build one entry with size 0 */
+        table = g_malloc0(CT3_CDAT_NUM_ENTRIES * sizeof(*table));
+        ct3_build_cdat_entries_for_mr(&(table[0]), dsmad_handle++,
+                                0, false, false, 0);
+        *cdat_table = g_steal_pointer(&table);
+        return CT3_CDAT_NUM_ENTRIES;
     }
 
     if (ct3d->hostvmem) {
@@ -720,8 +725,11 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
 
     if (!ct3d->hostmem && !ct3d->hostvmem && !ct3d->hostpmem
         && !ct3d->dc.num_regions) {
-        error_setg(errp, "at least one memdev property must be set");
-        return false;
+        /* no memdev property provided. Default to zero memory size device */
+        ct3d->cxl_dstate.pmem_size = 0;
+        ct3d->cxl_dstate.vmem_size = 0;
+        ct3d->cxl_dstate.static_mem_size = 0;
+        return true;
     } else if (ct3d->hostmem && ct3d->hostpmem) {
         error_setg(errp, "[memdev] cannot be used with new "
                          "[persistent-memdev] property");
