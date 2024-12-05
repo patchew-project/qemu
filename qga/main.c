@@ -145,7 +145,7 @@ DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
 DWORD WINAPI handle_serial_device_events(DWORD type, LPVOID data);
 VOID WINAPI service_main(DWORD argc, TCHAR *argv[]);
 #endif
-static int run_agent(GAState *s);
+static void run_agent(GAState *s);
 static void stop_agent(GAState *s, bool requested);
 
 static void
@@ -1521,7 +1521,7 @@ static void cleanup_agent(GAState *s)
     ga_state = NULL;
 }
 
-static int run_agent_once(GAState *s)
+static void run_agent_once(GAState *s)
 {
     if (!s->channel &&
         channel_init(s, s->config->method, s->config->channel_path,
@@ -1536,8 +1536,6 @@ static int run_agent_once(GAState *s)
         ga_channel_free(s->channel);
         s->channel = NULL;
     }
-
-    return EXIT_SUCCESS;
 }
 
 static void wait_for_channel_availability(GAState *s)
@@ -1561,21 +1559,17 @@ static void wait_for_channel_availability(GAState *s)
 #endif
 }
 
-static int run_agent(GAState *s)
+static void run_agent(GAState *s)
 {
-    int ret = EXIT_SUCCESS;
-
     s->force_exit = false;
 
     do {
-        ret = run_agent_once(s);
+        run_agent_once(s);
         if (s->config->retry_path && !s->force_exit) {
             g_warning("agent stopped unexpectedly, restarting...");
             wait_for_channel_availability(s);
         }
     } while (s->config->retry_path && !s->force_exit);
-
-    return ret;
 }
 
 static void stop_agent(GAState *s, bool requested)
@@ -1674,13 +1668,14 @@ int main(int argc, char **argv)
         SERVICE_TABLE_ENTRY service_table[] = {
             { (char *)QGA_SERVICE_NAME, service_main }, { NULL, NULL } };
         StartServiceCtrlDispatcher(service_table);
-        ret = EXIT_SUCCESS;
     } else {
-        ret = run_agent(s);
+        run_agent(s);
     }
 #else
-    ret = run_agent(s);
+    run_agent(s);
 #endif
+
+    ret = EXIT_SUCCESS;
 
     cleanup_agent(s);
 
