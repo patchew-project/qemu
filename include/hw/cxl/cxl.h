@@ -17,6 +17,7 @@
 #include "cxl_pci.h"
 #include "cxl_component.h"
 #include "cxl_device.h"
+#include "hw/pci/pcie_host.h"
 
 #define CXL_CACHE_LINE_SIZE 64
 #define CXL_COMPONENT_REG_BAR_IDX 0
@@ -24,12 +25,34 @@
 
 #define CXL_WINDOW_MAX 10
 
+#define PXB_CXL_HOST_TYPE 0
+#define CXL_HOST_BRIDGE_TYPE 1
+
+#define TYPE_CXL_HOST "cxl-host"
+OBJECT_DECLARE_SIMPLE_TYPE(CXLHostBridge, CXL_HOST)
+
+#define CXL_HOST_NUM_IRQS 4
+
 typedef struct PXBCXLDev PXBCXLDev;
+
+typedef struct CXLHostBridge {
+    PCIExpressHost parent_obj;
+
+    CXLComponentState cxl_cstate;
+
+    MemoryRegion io_ioport;
+    MemoryRegion io_mmio;
+    MemoryRegion io_ioport_window;
+    MemoryRegion io_mmio_window;
+    qemu_irq irq[CXL_HOST_NUM_IRQS];
+    int irq_num[CXL_HOST_NUM_IRQS];
+} CXLHostBridge;
 
 typedef struct CXLFixedWindow {
     uint64_t size;
     char **targets;
     PXBCXLDev *target_hbs[16];
+    CXLHostBridge *target_chb[16];
     uint8_t num_targets;
     uint8_t enc_int_ways;
     uint8_t enc_int_gran;

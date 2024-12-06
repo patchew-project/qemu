@@ -270,8 +270,8 @@ uint8_t cxl_interleave_granularity_enc(uint64_t gran, Error **errp);
 
 hwaddr cxl_decode_ig(int ig);
 
-CXLComponentState *cxl_get_hb_cstate(PCIHostState *hb);
-bool cxl_get_hb_passthrough(PCIHostState *hb);
+CXLComponentState *cxl_get_hb_cstate(PCIHostState *hb, int type);
+bool cxl_get_hb_passthrough(PCIHostState *hb, int type);
 
 bool cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp);
 void cxl_doe_cdat_release(CXLComponentState *cxl_cstate);
