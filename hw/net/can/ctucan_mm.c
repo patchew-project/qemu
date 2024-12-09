@@ -160,6 +160,9 @@ static void ctucan_mm_realize(DeviceState *dev, Error **errp)
         }
         sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(gicdev, d->cfg.irq));
     }
+    for (i = 0 ; i < CTUCAN_MM_CORE_COUNT; i++) {
+        ctucan_init(&d->ctucan_state[i], d->irq);
+    }
 }
 
 /*
