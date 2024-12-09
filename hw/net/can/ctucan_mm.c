@@ -59,7 +59,8 @@ struct CtuCanMmState {
 
     struct {
         uint64_t    iobase;
-        uint32_t    irq;
+        uint32_t    irqnum;
+        char        *irqctrl;
     } cfg;
 
     MemoryRegion    ctucan_io_region;
@@ -144,9 +145,16 @@ static void ctucan_mm_realize(DeviceState *dev, Error **errp)
     if (d->cfg.iobase != 0) {
         sysbus_mmio_map(sbd, 0, d->cfg.iobase);
     }
-    if (d->cfg.irq != 0) {
+    if (d->cfg.irqnum != 0) {
         //const char *id = "/machine/unattached/device[3]/gic";
-        const char *id = "/machine/unattached/device[3]";
+        //const char *id = "/machine/unattached/device[3]";
+        char *id = d->cfg.irqctrl;
+
+        if (!id) {
+            error_setg(errp, "irqctrl object path is mandatory when irqnum is specified");
+            return;
+        }
+
         Object *obj = object_resolve_path_at(container_get(qdev_get_machine(), "/peripheral"), id);
         DeviceState *gicdev;
         if (!obj) {
@@ -158,7 +166,7 @@ static void ctucan_mm_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "%s is not a hotpluggable device", id);
             return;
         }
-        sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(gicdev, d->cfg.irq));
+        sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(gicdev, d->cfg.irqnum));
     }
     for (i = 0 ; i < CTUCAN_MM_CORE_COUNT; i++) {
         ctucan_init(&d->ctucan_state[i], d->irq);
@@ -243,7 +251,8 @@ static Property ctucan_mm_properties[] = {
     //DEFINE_PROP_UNSIGNED_NODEFAULT("base", CtuCanMmState, cfg.base,
     //                               qdev_prop_uint64, uint64_t),
     DEFINE_PROP_UINT64("iobase", CtuCanMmState, cfg.iobase, 0),
-    DEFINE_PROP_UINT32("irq", CtuCanMmState, cfg.irq, 0),
+    DEFINE_PROP_UINT32("irqnum", CtuCanMmState, cfg.irqnum, 0),
+    DEFINE_PROP_STRING("irqctrl", CtuCanMmState, cfg.irqctrl),
     DEFINE_PROP_END_OF_LIST(),
 };
 
