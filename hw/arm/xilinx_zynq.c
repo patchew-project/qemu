@@ -473,6 +473,7 @@ static void zynq_machine_class_init(ObjectClass *oc, const void *data)
                                           "Supported boot modes:"
                                           " jtag qspi sd nor");
     object_property_set_default_str(prop, "qspi");
+    machine_class_allow_dynamic_sysbus_dev(mc, "ctucan_mm");
 }
 
 static const TypeInfo zynq_machine_type = {
