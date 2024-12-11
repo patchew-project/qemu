@@ -1209,7 +1209,8 @@ cocoa = dependency('appleframeworks',
 vmnet = dependency('appleframeworks', modules: 'vmnet', required: get_option('vmnet'))
 if vmnet.found() and not cc.has_header_symbol('vmnet/vmnet.h',
                                               'VMNET_BRIDGED_MODE',
-                                              dependencies: vmnet)
+                                              dependencies: vmnet,
+                                              args: '-Wno-unused-value')
   vmnet = not_found
   if get_option('vmnet').enabled()
     error('vmnet.framework API is outdated')
@@ -2747,7 +2748,7 @@ config_host_data.set('CONFIG_RTNETLINK',
 config_host_data.set('CONFIG_SYSMACROS',
                      cc.has_header_symbol('sys/sysmacros.h', 'makedev'))
 config_host_data.set('HAVE_OPTRESET',
-                     cc.has_header_symbol('getopt.h', 'optreset'))
+                     cc.has_header_symbol('getopt.h', 'optreset', args: '-Wno-unused-value'))
 config_host_data.set('HAVE_IPPROTO_MPTCP',
                      cc.has_header_symbol('netinet/in.h', 'IPPROTO_MPTCP'))
 if libaio.found()
@@ -2773,10 +2774,12 @@ config_host_data.set('HAVE_BLK_ZONE_REP_CAPACITY',
 # has_type
 config_host_data.set('CONFIG_IOVEC',
                      cc.has_type('struct iovec',
-                                 prefix: '#include <sys/uio.h>'))
+                                 prefix: '#include <sys/uio.h>',
+                                 args: '-Wno-unused-value'))
 config_host_data.set('HAVE_UTMPX',
                      cc.has_type('struct utmpx',
-                                 prefix: '#include <utmpx.h>'))
+                                 prefix: '#include <utmpx.h>',
+                                 args: '-Wno-unused-value'))
 
 config_host_data.set('CONFIG_EVENTFD', cc.links('''
   #include <sys/eventfd.h>
