@@ -2750,7 +2750,7 @@ static void glue(gen_, name##epx)(DisasContext *ctx)                          \
     gen_set_access_type(ctx, ACCESS_INT);                                     \
     EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(ctx, EA);                                              \
-    tcg_gen_qemu_st_tl(                                                       \
+    gen_st_tl(ctx,                                                            \
         cpu_gpr[rD(ctx->opcode)], EA, PPC_TLB_EPID_STORE, stop);              \
 }
 
@@ -3006,7 +3006,7 @@ static void gen_fetch_inc_conditional(DisasContext *ctx, MemOp memop,
     /* E.g. for fetch and increment bounded... */
     /* mem(EA,s) = (t != t2 ? u = t + 1 : t) */
     tcg_gen_movcond_tl(cond, u, t, t2, u, t);
-    tcg_gen_qemu_st_tl(u, EA, ctx->mem_idx, memop);
+    gen_st_tl(ctx, u, EA, ctx->mem_idx, memop);
 
     /* RT = (t != t2 ? t : u = 1<<(s*8-1)) */
     tcg_gen_movcond_tl(cond, cpu_gpr[rD(ctx->opcode)], t, t2, t,
@@ -3071,7 +3071,7 @@ static void gen_ld_atomic(DisasContext *ctx, MemOp memop)
             }
             tcg_gen_movcond_tl(TCG_COND_NE, t1, t0, t1,
                                cpu_gpr[(rt + 2) & 31], t0);
-            tcg_gen_qemu_st_tl(t1, EA, ctx->mem_idx, memop);
+            gen_st_tl(ctx, t1, EA, ctx->mem_idx, memop);
             tcg_gen_mov_tl(dst, t0);
         }
         break;
@@ -3175,8 +3175,8 @@ static void gen_st_atomic(DisasContext *ctx, MemOp memop)
             gen_ld_tl(ctx, t2, ea_plus_s, ctx->mem_idx, memop);
             tcg_gen_movcond_tl(TCG_COND_EQ, s, t, t2, src, t);
             tcg_gen_movcond_tl(TCG_COND_EQ, s2, t, t2, src, t2);
-            tcg_gen_qemu_st_tl(s, EA, ctx->mem_idx, memop);
-            tcg_gen_qemu_st_tl(s2, ea_plus_s, ctx->mem_idx, memop);
+            gen_st_tl(ctx, s, EA, ctx->mem_idx, memop);
+            gen_st_tl(ctx, s2, ea_plus_s, ctx->mem_idx, memop);
         }
         break;
     default:
