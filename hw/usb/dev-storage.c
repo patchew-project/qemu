@@ -27,7 +27,7 @@
 #define MassStorageReset  0xff
 #define GetMaxLun         0xfe
 
-struct usb_msd_cbw {
+struct QEMU_PACKED usb_msd_cbw {
     uint32_t sig;
     uint32_t tag;
     uint32_t data_len;
@@ -636,6 +636,9 @@ static const TypeInfo usb_storage_dev_type_info = {
 
 static void usb_msd_register_types(void)
 {
+    qemu_build_assert(sizeof(struct usb_msd_cbw) == 31);
+    qemu_build_assert(sizeof(struct usb_msd_csw) == 13);
+
     type_register_static(&usb_storage_dev_type_info);
 }
 
