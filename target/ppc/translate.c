@@ -3065,31 +3065,94 @@ static void gen_ld_atomic(DisasContext *ctx, MemOp memop)
     memop |= MO_ALIGN;
     switch (gpr_FC) {
     case 0: /* Fetch and add */
-        tcg_gen_atomic_fetch_add_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_fetch_add_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_fetch_add_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 1: /* Fetch and xor */
-        tcg_gen_atomic_fetch_xor_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_fetch_xor_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_fetch_xor_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 2: /* Fetch and or */
-        tcg_gen_atomic_fetch_or_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_fetch_or_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_fetch_or_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 3: /* Fetch and 'and' */
-        tcg_gen_atomic_fetch_and_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_fetch_and_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_fetch_and_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 4:  /* Fetch and max unsigned */
-        tcg_gen_atomic_fetch_umax_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_fetch_umax_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_fetch_umax_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 5:  /* Fetch and max signed */
-        tcg_gen_atomic_fetch_smax_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_fetch_smax_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_fetch_smax_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 6:  /* Fetch and min unsigned */
-        tcg_gen_atomic_fetch_umin_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_fetch_umin_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_fetch_umin_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 7:  /* Fetch and min signed */
-        tcg_gen_atomic_fetch_smin_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_fetch_smin_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_fetch_smin_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 8: /* Swap */
-        tcg_gen_atomic_xchg_tl(dst, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_xchg_tl(dst, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_xchg_tl(dst, EA, src, ctx->mem_idx, memop);
+        }
         break;
 
     case 16: /* Compare and swap not equal */
