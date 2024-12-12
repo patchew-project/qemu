@@ -6689,7 +6689,8 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->access_type = -1;
     ctx->need_access_type = !mmu_is_64bit(env->mmu_model);
     ctx->le_mode = (hflags >> HFLAGS_LE) & 1;
-    ctx->default_tcg_memop_mask = ctx->le_mode ? MO_LE : MO_BE;
+    ctx->default_tcg_memop_mask = (!need_addrswizzle_le(ctx) &&
+                                   ctx->le_mode) ? MO_LE : MO_BE;
     ctx->flags = env->flags;
 #if defined(TARGET_PPC64)
     ctx->excp_model = env->excp_model;
