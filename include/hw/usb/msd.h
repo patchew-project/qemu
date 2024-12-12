@@ -10,11 +10,11 @@
 #include "hw/usb.h"
 #include "hw/scsi/scsi.h"
 
-enum USBMSDMode {
-    USB_MSDM_CBW, /* Command Block.  */
-    USB_MSDM_DATAOUT, /* Transfer data to device.  */
-    USB_MSDM_DATAIN, /* Transfer data from device.  */
-    USB_MSDM_CSW /* Command Status.  */
+enum USBMSDCBWState {
+    USB_MSD_CBW_NONE,    /* Ready, waiting for CBW packet. */
+    USB_MSD_CBW_DATAOUT, /* Expecting DATA-OUT (to device) packet */
+    USB_MSD_CBW_DATAIN,  /* Expecting DATA-IN (from device) packet */
+    USB_MSD_CBW_CSW      /* No more data, expecting CSW packet.  */
 };
 
 struct QEMU_PACKED usb_msd_csw {
@@ -26,7 +26,7 @@ struct QEMU_PACKED usb_msd_csw {
 
 struct MSDState {
     USBDevice dev;
-    enum USBMSDMode mode;
+    enum USBMSDCBWState cbw_state;
     uint32_t scsi_off;
     uint32_t scsi_len;
     uint32_t data_len;

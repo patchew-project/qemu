@@ -264,12 +264,12 @@ void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->data_packet;
 
-    if (s->mode == USB_MSDM_DATAIN) {
+    if (s->cbw_state == USB_MSD_CBW_DATAIN) {
         if (req->cmd.mode == SCSI_XFER_TO_DEV) {
             usb_msd_fatal_error(s);
             return;
         }
-    } else if (s->mode == USB_MSDM_DATAOUT) {
+    } else if (s->cbw_state == USB_MSD_CBW_DATAOUT) {
         if (req->cmd.mode != SCSI_XFER_TO_DEV) {
             usb_msd_fatal_error(s);
             return;
@@ -301,7 +301,7 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid)
 
     g_assert(s->req);
     /* The CBW is what starts the SCSI request */
-    g_assert(s->mode != USB_MSDM_CBW);
+    g_assert(s->cbw_state != USB_MSD_CBW_NONE);
 
     s->csw.sig = cpu_to_le32(0x53425355);
     s->csw.tag = cpu_to_le32(req->tag);
@@ -312,7 +312,8 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid)
     s->req = NULL;
 
     if (p) {
-        g_assert(s->mode == USB_MSDM_DATAIN || s->mode == USB_MSDM_DATAOUT);
+        g_assert(s->cbw_state == USB_MSD_CBW_DATAIN ||
+                 s->cbw_state == USB_MSD_CBW_DATAOUT);
         if (s->data_len) {
             int len = (p->iov.size - p->actual_length);
             usb_packet_skip(p, len);
@@ -322,19 +323,19 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid)
             s->data_len -= len;
         }
         if (s->data_len == 0) {
-            s->mode = USB_MSDM_CSW;
+            s->cbw_state = USB_MSD_CBW_CSW;
         }
         /* USB_RET_SUCCESS status clears previous ASYNC status */
         usb_msd_data_packet_complete(s, USB_RET_SUCCESS);
     } else if (s->data_len == 0) {
-        s->mode = USB_MSDM_CSW;
+        s->cbw_state = USB_MSD_CBW_CSW;
     }
 
-    if (s->mode == USB_MSDM_CSW) {
+    if (s->cbw_state == USB_MSD_CBW_CSW) {
         p = s->csw_in_packet;
         if (p) {
             usb_msd_send_status(s, p);
-            s->mode = USB_MSDM_CBW;
+            s->cbw_state = USB_MSD_CBW_NONE;
             /* USB_RET_SUCCESS status clears previous ASYNC status */
             usb_msd_csw_packet_complete(s, USB_RET_SUCCESS);
         }
@@ -377,7 +378,7 @@ void usb_msd_handle_reset(USBDevice *dev)
     }
 
     memset(&s->csw, 0, sizeof(s->csw));
-    s->mode = USB_MSDM_CBW;
+    s->cbw_state = USB_MSD_CBW_NONE;
 
     s->needs_reset = false;
 }
@@ -478,8 +479,8 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
     SCSIDevice *scsi_dev;
     int len;
 
-    switch (s->mode) {
-    case USB_MSDM_CBW:
+    switch (s->cbw_state) {
+    case USB_MSD_CBW_NONE:
         if (!try_get_valid_cbw(p, &cbw)) {
             goto fail;
         }
@@ -492,11 +493,11 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
         tag = le32_to_cpu(cbw.tag);
         s->data_len = le32_to_cpu(cbw.data_len);
         if (s->data_len == 0) {
-            s->mode = USB_MSDM_CSW;
+            s->cbw_state = USB_MSD_CBW_CSW;
         } else if (cbw.flags & 0x80) {
-            s->mode = USB_MSDM_DATAIN;
+            s->cbw_state = USB_MSD_CBW_DATAIN;
         } else {
-            s->mode = USB_MSDM_DATAOUT;
+            s->cbw_state = USB_MSD_CBW_DATAOUT;
         }
         trace_usb_msd_cmd_submit(cbw.lun, tag, cbw.flags,
                                  cbw.cmd_len, s->data_len);
@@ -513,7 +514,7 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
         }
         break;
 
-    case USB_MSDM_DATAOUT:
+    case USB_MSD_CBW_DATAOUT:
         trace_usb_msd_data_out(p->iov.size, s->data_len);
         if (p->iov.size > s->data_len) {
             goto fail;
@@ -531,7 +532,7 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
                 }
                 s->data_len -= len;
                 if (s->data_len == 0) {
-                    s->mode = USB_MSDM_CSW;
+                    s->cbw_state = USB_MSD_CBW_CSW;
                 }
             }
         }
@@ -556,8 +557,8 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
     MSDState *s = (MSDState *)dev;
     int len;
 
-    switch (s->mode) {
-    case USB_MSDM_DATAOUT:
+    switch (s->cbw_state) {
+    case USB_MSD_CBW_DATAOUT:
         if (!check_valid_csw(p)) {
             goto fail;
         }
@@ -573,7 +574,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
         p->status = USB_RET_ASYNC;
         break;
 
-    case USB_MSDM_CSW:
+    case USB_MSD_CBW_CSW:
         if (!check_valid_csw(p)) {
             goto fail;
         }
@@ -585,11 +586,11 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
             p->status = USB_RET_ASYNC;
         } else {
             usb_msd_send_status(s, p);
-            s->mode = USB_MSDM_CBW;
+            s->cbw_state = USB_MSD_CBW_NONE;
         }
         break;
 
-    case USB_MSDM_DATAIN:
+    case USB_MSD_CBW_DATAIN:
         trace_usb_msd_data_in(p->iov.size, s->data_len, s->scsi_len);
         if (s->scsi_len) {
             usb_msd_copy_data(s, p);
@@ -603,11 +604,12 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
                 }
                 s->data_len -= len;
                 if (s->data_len == 0) {
-                    s->mode = USB_MSDM_CSW;
+                    s->cbw_state = USB_MSD_CBW_CSW;
                 }
             }
         }
-        if (p->actual_length < p->iov.size && s->mode == USB_MSDM_DATAIN) {
+        if (p->actual_length < p->iov.size &&
+                s->cbw_state == USB_MSD_CBW_DATAIN) {
             trace_usb_msd_packet_async();
             s->data_packet = p;
             p->status = USB_RET_ASYNC;
@@ -672,7 +674,7 @@ static const VMStateDescription vmstate_usb_msd = {
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, MSDState),
-        VMSTATE_UINT32(mode, MSDState),
+        VMSTATE_UINT32(cbw_state, MSDState),
         VMSTATE_UINT32(scsi_len, MSDState),
         VMSTATE_UINT32(scsi_off, MSDState),
         VMSTATE_UINT32(data_len, MSDState),
