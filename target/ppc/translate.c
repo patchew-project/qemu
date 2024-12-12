@@ -209,6 +209,12 @@ struct DisasContext {
 #define DISAS_CHAIN        DISAS_TARGET_2  /* lookup next tb, pc updated */
 #define DISAS_CHAIN_UPDATE DISAS_TARGET_3  /* lookup next tb, pc stale */
 
+/* Return true iff address swizzling required */
+static inline bool need_addrswizzle_le(const DisasContext *ctx)
+{
+    return ctx->le_mode && true;
+}
+
 /* Return true iff byteswap is needed in a scalar memop */
 static inline bool need_byteswap(const DisasContext *ctx)
 {
@@ -2604,7 +2610,9 @@ static TCGv do_ea_calc_ra(DisasContext *ctx, int ra)
 static void gen_ld_tl(DisasContext *ctx, TCGv val, TCGv addr, TCGArg idx,
                       MemOp memop)
 {
-    tcg_gen_qemu_ld_tl(val, addr, idx, memop);
+    if (!need_addrswizzle_le(ctx)) {
+        tcg_gen_qemu_ld_tl(val, addr, idx, memop);
+    }
 }
 
 #define GEN_QEMU_LOAD_TL(ldop, op)                                      \
@@ -2645,7 +2653,9 @@ GEN_QEMU_LOAD_64(ld64ur, BSWAP_MEMOP(MO_UQ))
 static void gen_st_tl(DisasContext *ctx, TCGv val, TCGv addr, TCGArg idx,
                       MemOp memop)
 {
-    tcg_gen_qemu_st_tl(val, addr, idx, memop);
+    if (!need_addrswizzle_le(ctx)) {
+        tcg_gen_qemu_st_tl(val, addr, idx, memop);
+    }
 }
 
 #define GEN_QEMU_STORE_TL(stop, op)                                     \
