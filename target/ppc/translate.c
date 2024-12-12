@@ -2701,7 +2701,7 @@ static void glue(gen_, name##epx)(DisasContext *ctx)                          \
     gen_set_access_type(ctx, ACCESS_INT);                                     \
     EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(ctx, EA);                                              \
-    tcg_gen_qemu_ld_tl(cpu_gpr[rD(ctx->opcode)], EA, PPC_TLB_EPID_LOAD, ldop);\
+    gen_ld_tl(ctx, cpu_gpr[rD(ctx->opcode)], EA, PPC_TLB_EPID_LOAD, ldop);    \
 }
 
 GEN_LDEPX(lb, DEF_MEMOP(MO_UB), 0x1F, 0x02)
@@ -2968,7 +2968,7 @@ static void gen_load_locked(DisasContext *ctx, MemOp memop)
 
     gen_set_access_type(ctx, ACCESS_RES);
     gen_addr_reg_index(ctx, t0);
-    tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, DEF_MEMOP(memop) | MO_ALIGN);
+    gen_ld_tl(ctx, gpr, t0, ctx->mem_idx, DEF_MEMOP(memop) | MO_ALIGN);
     tcg_gen_mov_tl(cpu_reserve, t0);
     tcg_gen_movi_tl(cpu_reserve_length, memop_size(memop));
     tcg_gen_mov_tl(cpu_reserve_val, gpr);
@@ -2992,9 +2992,9 @@ static void gen_fetch_inc_conditional(DisasContext *ctx, MemOp memop,
     TCGv t2 = tcg_temp_new();
     TCGv u = tcg_temp_new();
 
-    tcg_gen_qemu_ld_tl(t, EA, ctx->mem_idx, memop);
+    gen_ld_tl(ctx, t, EA, ctx->mem_idx, memop);
     tcg_gen_addi_tl(t2, EA, memop_size(memop));
-    tcg_gen_qemu_ld_tl(t2, t2, ctx->mem_idx, memop);
+    gen_ld_tl(ctx, t2, t2, ctx->mem_idx, memop);
     tcg_gen_addi_tl(u, t, addend);
 
     /* E.g. for fetch and increment bounded... */
@@ -3057,7 +3057,7 @@ static void gen_ld_atomic(DisasContext *ctx, MemOp memop)
             TCGv t0 = tcg_temp_new();
             TCGv t1 = tcg_temp_new();
 
-            tcg_gen_qemu_ld_tl(t0, EA, ctx->mem_idx, memop);
+            gen_ld_tl(ctx, t0, EA, ctx->mem_idx, memop);
             if ((memop & MO_SIZE) == MO_64 || TARGET_LONG_BITS == 32) {
                 tcg_gen_mov_tl(t1, src);
             } else {
@@ -3164,9 +3164,9 @@ static void gen_st_atomic(DisasContext *ctx, MemOp memop)
             TCGv s2 = tcg_temp_new();
             TCGv ea_plus_s = tcg_temp_new();
 
-            tcg_gen_qemu_ld_tl(t, EA, ctx->mem_idx, memop);
+            gen_ld_tl(ctx, t, EA, ctx->mem_idx, memop);
             tcg_gen_addi_tl(ea_plus_s, EA, memop_size(memop));
-            tcg_gen_qemu_ld_tl(t2, ea_plus_s, ctx->mem_idx, memop);
+            gen_ld_tl(ctx, t2, ea_plus_s, ctx->mem_idx, memop);
             tcg_gen_movcond_tl(TCG_COND_EQ, s, t, t2, src, t);
             tcg_gen_movcond_tl(TCG_COND_EQ, s2, t, t2, src, t2);
             tcg_gen_qemu_st_tl(s, EA, ctx->mem_idx, memop);

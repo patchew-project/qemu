@@ -37,7 +37,7 @@ static bool do_ldst(DisasContext *ctx, int rt, int ra, TCGv displ, bool update,
     if (store) {
         tcg_gen_qemu_st_tl(cpu_gpr[rt], ea, ctx->mem_idx, mop);
     } else {
-        tcg_gen_qemu_ld_tl(cpu_gpr[rt], ea, ctx->mem_idx, mop);
+        gen_ld_tl(ctx, cpu_gpr[rt], ea, ctx->mem_idx, mop);
     }
     if (update) {
         tcg_gen_mov_tl(cpu_gpr[ra], ea);
