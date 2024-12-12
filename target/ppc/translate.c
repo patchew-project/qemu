@@ -2642,12 +2642,18 @@ GEN_QEMU_LOAD_64(ld64,  DEF_MEMOP(MO_UQ))
 GEN_QEMU_LOAD_64(ld64ur, BSWAP_MEMOP(MO_UQ))
 #endif
 
+static void gen_st_tl(DisasContext *ctx, TCGv val, TCGv addr, TCGArg idx,
+                      MemOp memop)
+{
+    tcg_gen_qemu_st_tl(val, addr, idx, memop);
+}
+
 #define GEN_QEMU_STORE_TL(stop, op)                                     \
 static void glue(gen_qemu_, stop)(DisasContext *ctx,                    \
                                   TCGv val,                             \
                                   TCGv addr)                            \
 {                                                                       \
-    tcg_gen_qemu_st_tl(val, addr, ctx->mem_idx, op);                    \
+    gen_st_tl(ctx, val, addr, ctx->mem_idx, op);                        \
 }
 
 #if defined(TARGET_PPC64) || !defined(CONFIG_USER_ONLY)
