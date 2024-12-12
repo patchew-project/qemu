@@ -896,7 +896,11 @@ static void xlnx_dp_write(void *opaque, hwaddr offset, uint64_t value,
         xlnx_dp_update_irq(s);
         break;
     default:
-        assert(offset <= (0x504C >> 2));
+        /*
+         * Check to ensure the offset is within the bounds of
+         * the core_registers[] array.
+        */
+        assert(offset < DP_CORE_REG_ARRAY_SIZE);
         s->core_registers[offset] = value;
         break;
     }
