@@ -2587,6 +2587,24 @@ static TCGv do_ea_calc(DisasContext *ctx, int ra, TCGv displ)
     return ea;
 }
 
+/*
+ * Swizzle the address lines for little endian accesses as used by older
+ * CPUs. The bottom 3 address lines are exlusive-ORed by a constant to
+ * generate the correct address for a little endian access. For more
+ * information see https://wiki.preterhuman.net/images/f/fc/Endian.pdf
+ */
+static inline void gen_addr_swizzle_le(TCGv ret, TCGv addr, MemOp op)
+{
+    MemOp size = op & MO_SIZE;
+    TCGv aoff = tcg_temp_new();
+    static int c_swizzle[MO_SIZE] = { 0x7, 0x6, 0x4, 0x0 };
+
+    tcg_gen_andi_tl(aoff, addr, (1 << size) - 1);
+    tcg_gen_andi_tl(ret, addr, ~((1 << size) - 1));
+    tcg_gen_xori_tl(ret, ret, c_swizzle[size]);
+    tcg_gen_sub_tl(ret, ret, aoff);
+}
+
 #if defined(TARGET_PPC64)
 /* EA <- (ra == 0) ? 0 : GPR[ra] */
 static TCGv do_ea_calc_ra(DisasContext *ctx, int ra)
@@ -2612,6 +2630,10 @@ static void gen_ld_tl(DisasContext *ctx, TCGv val, TCGv addr, TCGArg idx,
 {
     if (!need_addrswizzle_le(ctx)) {
         tcg_gen_qemu_ld_tl(val, addr, idx, memop);
+    } else {
+        TCGv taddr = tcg_temp_new();
+        gen_addr_swizzle_le(taddr, addr, memop);
+        tcg_gen_qemu_ld_tl(val, taddr, idx, memop);
     }
 }
 
@@ -2655,6 +2677,10 @@ static void gen_st_tl(DisasContext *ctx, TCGv val, TCGv addr, TCGArg idx,
 {
     if (!need_addrswizzle_le(ctx)) {
         tcg_gen_qemu_st_tl(val, addr, idx, memop);
+    } else {
+        TCGv taddr = tcg_temp_new();
+        gen_addr_swizzle_le(taddr, addr, memop);
+        tcg_gen_qemu_st_tl(val, taddr, idx, memop);
     }
 }
 
