@@ -2601,12 +2601,18 @@ static TCGv do_ea_calc_ra(DisasContext *ctx, int ra)
 #define DEF_MEMOP(op) ((op) | ctx->default_tcg_memop_mask)
 #define BSWAP_MEMOP(op) ((op) | (ctx->default_tcg_memop_mask ^ MO_BSWAP))
 
+static void gen_ld_tl(DisasContext *ctx, TCGv val, TCGv addr, TCGArg idx,
+                      MemOp memop)
+{
+    tcg_gen_qemu_ld_tl(val, addr, idx, memop);
+}
+
 #define GEN_QEMU_LOAD_TL(ldop, op)                                      \
 static void glue(gen_qemu_, ldop)(DisasContext *ctx,                    \
                                   TCGv val,                             \
                                   TCGv addr)                            \
 {                                                                       \
-    tcg_gen_qemu_ld_tl(val, addr, ctx->mem_idx, op);                    \
+    gen_ld_tl(ctx, val, addr, ctx->mem_idx, op);                        \
 }
 
 GEN_QEMU_LOAD_TL(ld8u,  DEF_MEMOP(MO_UB))
