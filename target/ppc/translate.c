@@ -3371,9 +3371,18 @@ static void gen_conditional_store(DisasContext *ctx, MemOp memop)
     tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, lfail);
     tcg_gen_brcondi_tl(TCG_COND_NE, cpu_reserve_length, memop_size(memop), lfail);
 
-    tcg_gen_atomic_cmpxchg_tl(t0, cpu_reserve, cpu_reserve_val,
-                              cpu_gpr[rs], ctx->mem_idx,
-                              DEF_MEMOP(memop) | MO_ALIGN);
+    if (!need_addrswizzle_le(ctx)) {
+        tcg_gen_atomic_cmpxchg_tl(t0, cpu_reserve, cpu_reserve_val,
+                                  cpu_gpr[rs], ctx->mem_idx,
+                                  DEF_MEMOP(memop) | MO_ALIGN);
+    } else {
+        TCGv ta = tcg_temp_new();
+
+        gen_addr_swizzle_le(ta, cpu_reserve, memop);
+        tcg_gen_atomic_cmpxchg_tl(t0, ta, cpu_reserve_val,
+                                  cpu_gpr[rs], ctx->mem_idx,
+                                  DEF_MEMOP(memop) | MO_ALIGN);
+    }
     tcg_gen_setcond_tl(TCG_COND_EQ, t0, t0, cpu_reserve_val);
     tcg_gen_shli_tl(t0, t0, CRF_EQ_BIT);
     tcg_gen_or_tl(cr0, cr0, t0);
