@@ -743,6 +743,7 @@ static void xlnx_dp_write(void *opaque, hwaddr offset, uint64_t value,
     DPRINTF("core write @%" PRIx64 " = 0x%8.8" PRIX64 "\n", offset, value);
 
     offset = offset >> 2;
+    assert(offset <= (0x3AC >> 2));
 
     switch (offset) {
     /*
@@ -896,7 +897,6 @@ static void xlnx_dp_write(void *opaque, hwaddr offset, uint64_t value,
         xlnx_dp_update_irq(s);
         break;
     default:
-        assert(offset <= (0x504C >> 2));
         s->core_registers[offset] = value;
         break;
     }
