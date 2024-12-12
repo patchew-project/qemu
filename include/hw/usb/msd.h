@@ -33,8 +33,11 @@ struct MSDState {
     struct usb_msd_csw csw;
     SCSIRequest *req;
     SCSIBus bus;
+
     /* For async completion.  */
-    USBPacket *packet;
+    USBPacket *data_packet;
+    USBPacket *csw_in_packet;
+
     /* usb-storage only */
     BlockConf conf;
     bool removable;

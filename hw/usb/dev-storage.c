@@ -178,18 +178,33 @@ static const USBDesc desc = {
     .str   = desc_strings,
 };
 
-static void usb_msd_packet_complete(MSDState *s, int status)
+static void usb_msd_data_packet_complete(MSDState *s, int status)
 {
-    USBPacket *p = s->packet;
+    USBPacket *p = s->data_packet;
 
     /*
-     * Set s->packet to NULL before calling usb_packet_complete
-     * because another request may be issued before
-     * usb_packet_complete returns.
+     * Set s->data_packet to NULL before calling usb_packet_complete
+     * because another request may be issued before usb_packet_complete
+     * returns.
      */
     trace_usb_msd_packet_complete();
+    s->data_packet = NULL;
     p->status = status;
-    s->packet = NULL;
+    usb_packet_complete(&s->dev, p);
+}
+
+static void usb_msd_csw_packet_complete(MSDState *s, int status)
+{
+    USBPacket *p = s->csw_in_packet;
+
+    /*
+     * Set s->csw_in_packet to NULL before calling usb_packet_complete
+     * because another request may be issued before usb_packet_complete
+     * returns.
+     */
+    trace_usb_msd_packet_complete();
+    s->csw_in_packet = NULL;
+    p->status = status;
     usb_packet_complete(&s->dev, p);
 }
 
@@ -197,8 +212,12 @@ static void usb_msd_fatal_error(MSDState *s)
 {
     trace_usb_msd_fatal_error();
 
-    if (s->packet) {
-        usb_msd_packet_complete(s, USB_RET_STALL);
+    if (s->data_packet) {
+        usb_msd_data_packet_complete(s, USB_RET_STALL);
+    }
+
+    if (s->csw_in_packet) {
+        usb_msd_csw_packet_complete(s, USB_RET_STALL);
     }
 
     /*
@@ -243,7 +262,7 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
 void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
-    USBPacket *p = s->packet;
+    USBPacket *p = s->data_packet;
 
     if ((s->mode == USB_MSDM_DATAOUT) != (req->cmd.mode == SCSI_XFER_TO_DEV)) {
         usb_msd_fatal_error(s);
@@ -254,10 +273,10 @@ void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
     s->scsi_off = 0;
     if (p) {
         usb_msd_copy_data(s, p);
-        p = s->packet;
+        p = s->data_packet;
         if (p && p->actual_length == p->iov.size) {
             /* USB_RET_SUCCESS status clears previous ASYNC status */
-            usb_msd_packet_complete(s, USB_RET_SUCCESS);
+            usb_msd_data_packet_complete(s, USB_RET_SUCCESS);
         }
     }
 }
@@ -265,7 +284,7 @@ void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
 void usb_msd_command_complete(SCSIRequest *req, size_t resid)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
-    USBPacket *p = s->packet;
+    USBPacket *p = s->data_packet;
 
     trace_usb_msd_cmd_complete(req->status, req->tag);
 
@@ -274,35 +293,37 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid)
     s->csw.residue = cpu_to_le32(s->data_len);
     s->csw.status = req->status != 0;
 
-    if (s->packet) {
-        if (s->data_len == 0 && s->mode == USB_MSDM_DATAOUT) {
-            /* A deferred packet with no write data remaining must be
-               the status read packet.  */
-            usb_msd_send_status(s, p);
-            s->mode = USB_MSDM_CBW;
-        } else if (s->mode == USB_MSDM_CSW) {
-            usb_msd_send_status(s, p);
-            s->mode = USB_MSDM_CBW;
-        } else {
-            if (s->data_len) {
-                int len = (p->iov.size - p->actual_length);
-                usb_packet_skip(p, len);
-                if (len > s->data_len) {
-                    len = s->data_len;
-                }
-                s->data_len -= len;
+    scsi_req_unref(req);
+    s->req = NULL;
+
+    if (p) {
+        g_assert(s->mode == USB_MSDM_DATAIN || s->mode == USB_MSDM_DATAOUT);
+        if (s->data_len) {
+            int len = (p->iov.size - p->actual_length);
+            usb_packet_skip(p, len);
+            if (len > s->data_len) {
+                len = s->data_len;
             }
-            if (s->data_len == 0) {
-                s->mode = USB_MSDM_CSW;
-            }
+            s->data_len -= len;
+        }
+        if (s->data_len == 0) {
+            s->mode = USB_MSDM_CSW;
         }
         /* USB_RET_SUCCESS status clears previous ASYNC status */
-        usb_msd_packet_complete(s, USB_RET_SUCCESS);
+        usb_msd_data_packet_complete(s, USB_RET_SUCCESS);
     } else if (s->data_len == 0) {
         s->mode = USB_MSDM_CSW;
     }
-    scsi_req_unref(req);
-    s->req = NULL;
+
+    if (s->mode == USB_MSDM_CSW) {
+        p = s->csw_in_packet;
+        if (p) {
+            usb_msd_send_status(s, p);
+            s->mode = USB_MSDM_CBW;
+            /* USB_RET_SUCCESS status clears previous ASYNC status */
+            usb_msd_csw_packet_complete(s, USB_RET_SUCCESS);
+        }
+    }
 }
 
 void usb_msd_request_cancelled(SCSIRequest *req)
@@ -332,8 +353,12 @@ void usb_msd_handle_reset(USBDevice *dev)
     }
     assert(s->req == NULL);
 
-    if (s->packet) {
-        usb_msd_packet_complete(s, USB_RET_STALL);
+    if (s->data_packet) {
+        usb_msd_data_packet_complete(s, USB_RET_STALL);
+    }
+
+    if (s->csw_in_packet) {
+        usb_msd_csw_packet_complete(s, USB_RET_STALL);
     }
 
     memset(&s->csw, 0, sizeof(s->csw));
@@ -388,11 +413,15 @@ static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
 {
     MSDState *s = USB_STORAGE_DEV(dev);
 
-    assert(s->packet == p);
-    s->packet = NULL;
-
-    if (s->req) {
-        scsi_req_cancel(s->req);
+    if (p == s->data_packet) {
+        s->data_packet = NULL;
+        if (s->req) {
+            scsi_req_cancel(s->req);
+        }
+    } else if (p == s->csw_in_packet) {
+        s->csw_in_packet = NULL;
+    } else {
+        g_assert_not_reached();
     }
 }
 
@@ -493,7 +522,7 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
         }
         if (p->actual_length < p->iov.size) {
             trace_usb_msd_packet_async();
-            s->packet = p;
+            s->data_packet = p;
             p->status = USB_RET_ASYNC;
         }
         break;
@@ -525,7 +554,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
 
         /* Waiting for SCSI write to complete.  */
         trace_usb_msd_packet_async();
-        s->packet = p;
+        s->csw_in_packet = p;
         p->status = USB_RET_ASYNC;
         break;
 
@@ -537,7 +566,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
         if (s->req) {
             /* still in flight */
             trace_usb_msd_packet_async();
-            s->packet = p;
+            s->csw_in_packet = p;
             p->status = USB_RET_ASYNC;
         } else {
             usb_msd_send_status(s, p);
@@ -565,7 +594,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
         }
         if (p->actual_length < p->iov.size && s->mode == USB_MSDM_DATAIN) {
             trace_usb_msd_packet_async();
-            s->packet = p;
+            s->data_packet = p;
             p->status = USB_RET_ASYNC;
         }
         break;
