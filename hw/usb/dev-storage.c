@@ -436,6 +436,8 @@ static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
         }
     } else if (p == s->csw_in_packet) {
         s->csw_in_packet = NULL;
+    } else if (p == s->unknown_in_packet) {
+        s->unknown_in_packet = NULL;
     } else {
         g_assert_not_reached();
     }
@@ -499,6 +501,19 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
         } else {
             s->cbw_state = USB_MSD_CBW_DATAOUT;
         }
+        if (s->unknown_in_packet) {
+            if (s->cbw_state == USB_MSD_CBW_DATAIN) {
+                /* Must be a DATAIN packet */
+                s->data_packet = s->unknown_in_packet;
+            } else {
+                /* Must be the CSW packet */
+                if (!check_valid_csw(s->unknown_in_packet)) {
+                    goto fail;
+                }
+                s->csw_in_packet = s->unknown_in_packet;
+            }
+            s->unknown_in_packet = NULL;
+        }
         trace_usb_msd_cmd_submit(cbw.lun, tag, cbw.flags,
                                  cbw.cmd_len, s->data_len);
         assert(le32_to_cpu(s->csw.residue) == 0);
@@ -516,6 +531,11 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
 
     case USB_MSD_CBW_DATAOUT:
         trace_usb_msd_data_out(p->iov.size, s->data_len);
+        if (s->unknown_in_packet) {
+            error_report("usb-msd: unknown_in_packet in DATAOUT state");
+            goto fail;
+        }
+
         if (p->iov.size > s->data_len) {
             goto fail;
         }
@@ -558,7 +578,22 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
     int len;
 
     switch (s->cbw_state) {
+    case USB_MSD_CBW_NONE:
+        if (s->unknown_in_packet) {
+            qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: second IN packet was"
+                                           "received before CBW\n");
+            goto fail;
+        }
+        trace_usb_msd_packet_async();
+        s->unknown_in_packet = p;
+        p->status = USB_RET_ASYNC;
+        break;
+
     case USB_MSD_CBW_DATAOUT:
+        if (s->unknown_in_packet) {
+            error_report("usb-msd: unknown_in_packet in DATAOUT state");
+            goto fail;
+        }
         if (!check_valid_csw(p)) {
             goto fail;
         }
@@ -575,6 +610,10 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_MSD_CBW_CSW:
+        if (s->unknown_in_packet) {
+            error_report("usb-msd: unknown_in_packet in DATAOUT state");
+            goto fail;
+        }
         if (!check_valid_csw(p)) {
             goto fail;
         }
@@ -592,6 +631,10 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
 
     case USB_MSD_CBW_DATAIN:
         trace_usb_msd_data_in(p->iov.size, s->data_len, s->scsi_len);
+        if (s->unknown_in_packet) {
+            error_report("usb-msd: unknown_in_packet in DATAIN state");
+            goto fail;
+        }
         if (s->scsi_len) {
             usb_msd_copy_data(s, p);
         }

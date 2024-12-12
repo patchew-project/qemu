@@ -37,6 +37,7 @@ struct MSDState {
     /* For async completion.  */
     USBPacket *data_packet;
     USBPacket *csw_in_packet;
+    USBPacket *unknown_in_packet;
 
     /* usb-storage only */
     BlockConf conf;
