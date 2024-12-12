@@ -3234,28 +3234,84 @@ static void gen_st_atomic(DisasContext *ctx, MemOp memop)
     memop |= MO_ALIGN;
     switch (gpr_FC) {
     case 0: /* add and Store */
-        tcg_gen_atomic_add_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_add_fetch_tl(discard, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_add_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 1: /* xor and Store */
-        tcg_gen_atomic_xor_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_xor_fetch_tl(discard, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_xor_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 2: /* Or and Store */
-        tcg_gen_atomic_or_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_or_fetch_tl(discard, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_or_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 3: /* 'and' and Store */
-        tcg_gen_atomic_and_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_and_fetch_tl(discard, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_and_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 4:  /* Store max unsigned */
-        tcg_gen_atomic_umax_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_umax_fetch_tl(discard, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_umax_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 5:  /* Store max signed */
-        tcg_gen_atomic_smax_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_smax_fetch_tl(discard, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_smax_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 6:  /* Store min unsigned */
-        tcg_gen_atomic_umin_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_umin_fetch_tl(discard, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_umin_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 7:  /* Store min signed */
-        tcg_gen_atomic_smin_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        if (need_addrswizzle_le(ctx)) {
+            TCGv ta = tcg_temp_new();
+
+            gen_addr_swizzle_le(ta, EA, memop);
+            tcg_gen_atomic_smin_fetch_tl(discard, ta, src, ctx->mem_idx, memop);
+        } else {
+            tcg_gen_atomic_smin_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        }
         break;
     case 24: /* Store twin  */
         if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
