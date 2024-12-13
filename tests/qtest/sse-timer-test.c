@@ -29,6 +29,13 @@
 /* Base of the System Counter control frame */
 #define COUNTER_BASE 0x58100000
 
+/* Base of the MSSDK APB Watchdog Device */
+#define WDOG_BASE 0x4802e000
+
+/* CMSDK Watchdog offsets */
+#define WDOGLOAD 0
+#define WDOGCONTROL 8
+
 /* SSE counter register offsets in the control frame */
 #define CNTCR 0
 #define CNTSR 0x4
@@ -63,24 +70,26 @@ static void clock_step_ticks(uint64_t ticks)
     clock_step(FOUR_TICKS * (ticks >> 2));
 }
 
-static void reset_counter_and_timer(void)
+static void reset_watchdog_counter_and_timer(void)
 {
     /*
-     * Reset the system counter and the timer between tests. This
+     * Reset the system watchdog, counter and the timer between tests. This
      * isn't a full reset, but it's sufficient for what the tests check.
      */
+    writel(WDOG_BASE + WDOGCONTROL, 0);
     writel(COUNTER_BASE + CNTCR, 0);
     writel(TIMER_BASE + CNTP_CTL, 0);
     writel(TIMER_BASE + CNTP_AIVAL_CTL, 0);
     writel(COUNTER_BASE + CNTCV_LO, 0);
     writel(COUNTER_BASE + CNTCV_HI, 0);
+    writel(WDOG_BASE + WDOGCONTROL, 1);
 }
 
 static void test_counter(void)
 {
     /* Basic counter functionality test */
 
-    reset_counter_and_timer();
+    reset_watchdog_counter_and_timer();
     /* The counter should start disabled: check that it doesn't move */
     clock_step_ticks(100);
     g_assert_cmpuint(readl(COUNTER_BASE + CNTCV_LO), ==, 0);
@@ -103,7 +112,7 @@ static void test_timer(void)
 {
     /* Basic timer functionality test */
 
-    reset_counter_and_timer();
+    reset_watchdog_counter_and_timer();
     /*
      * The timer is behind a Peripheral Protection Controller, and
      * qtest accesses are always non-secure (no memory attributes),
@@ -195,7 +204,7 @@ static void test_timer_scale_change(void)
      * Test that the timer responds correctly to counter
      * scaling changes while it has an active timer.
      */
-    reset_counter_and_timer();
+    reset_watchdog_counter_and_timer();
     /* Give ourselves access to the timer, and enable the counter and timer */
     writel(PERIPHNSPPC0, 1);
     writel(COUNTER_BASE + CNTCR, 1);
