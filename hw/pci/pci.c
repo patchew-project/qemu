@@ -2960,6 +2960,12 @@ void pci_setup_iommu(PCIBus *bus, const PCIIOMMUOps *ops, void *opaque)
     bus->iommu_opaque = opaque;
 }
 
+void pci_setup_iommu_downstream_mem(PCIBus *bus, MemoryRegion *mr)
+{
+    assert(bus->iommu_ops && bus->iommu_ops->set_memory_region);
+    bus->iommu_ops->set_memory_region(bus->iommu_opaque, mr);
+}
+
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;
