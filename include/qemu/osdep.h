@@ -842,6 +842,13 @@ static inline int platform_does_not_support_system(const char *command)
 }
 #endif /* !HAVE_SYSTEM_FUNCTION */
 
+/**
+ * qemu_mkdir_with_parents:
+ *
+ * Create directories with parents.  Abort on failures.
+ */
+void qemu_mkdir_with_parents(const char *dir, int mode);
+
 #ifdef __cplusplus
 }
 #endif

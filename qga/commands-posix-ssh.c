@@ -18,7 +18,6 @@ static struct passwd *
 test_get_passwd_entry(const gchar *user_name, GError **error)
 {
     struct passwd *p;
-    int ret;
 
     if (!user_name || g_strcmp0(user_name, g_get_user_name())) {
         g_set_error(error, G_UNIX_ERROR, 0, "Invalid user name");
@@ -30,8 +29,7 @@ test_get_passwd_entry(const gchar *user_name, GError **error)
     p->pw_uid = geteuid();
     p->pw_gid = getegid();
 
-    ret = g_mkdir_with_parents(p->pw_dir, 0700);
-    g_assert(ret == 0);
+    qemu_mkdir_with_parents(p->pw_dir, 0700);
 
     return p;
 }
@@ -263,11 +261,9 @@ test_authorized_keys_set(const char *contents)
 {
     g_autoptr(GError) err = NULL;
     g_autofree char *path = NULL;
-    int ret;
 
     path = g_build_filename(g_get_home_dir(), ".ssh", NULL);
-    ret = g_mkdir_with_parents(path, 0700);
-    g_assert(ret == 0);
+    qemu_mkdir_with_parents(path, 0700);
     g_free(path);
 
     path = test_get_authorized_keys_path();

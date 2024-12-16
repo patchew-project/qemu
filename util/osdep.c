@@ -613,3 +613,9 @@ int qemu_fdatasync(int fd)
     return fsync(fd);
 #endif
 }
+
+void qemu_mkdir_with_parents(const char *dir, int mode)
+{
+    int ret = g_mkdir_with_parents(dir, 0700);
+    g_assert(ret == 0);
+}
