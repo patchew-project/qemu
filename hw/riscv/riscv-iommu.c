@@ -49,6 +49,7 @@ struct RISCVIOMMUSpace {
     RISCVIOMMUState *iommu;     /* Managing IOMMU device state */
     uint32_t devid;             /* Requester identifier, AKA device_id */
     bool notifier;              /* IOMMU unmap notifier enabled */
+    bool dynamic_devid;         /* Acquiring device_id dynamically */
     QLIST_ENTRY(RISCVIOMMUSpace) list;
 };
 
@@ -1194,7 +1195,8 @@ static void riscv_iommu_ctx_put(RISCVIOMMUState *s, void *ref)
 }
 
 /* Find or allocate address space for a given device */
-static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, uint32_t devid)
+static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, uint32_t devid,
+                                       bool dynamic)
 {
     RISCVIOMMUSpace *as;
 
@@ -1213,6 +1215,7 @@ static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, uint32_t devid)
 
         as->iommu = s;
         as->devid = devid;
+        as->dynamic_devid = dynamic;
 
         snprintf(name, sizeof(name), "riscv-iommu-%04x:%02x.%d-iova",
             PCI_BUS_NUM(as->devid), PCI_SLOT(as->devid), PCI_FUNC(as->devid));
@@ -2615,7 +2618,8 @@ static AddressSpace *riscv_iommu_find_as(PCIBus *bus, void *opaque, int devfn)
 
     /* Find first matching IOMMU */
     while (s != NULL && as == NULL) {
-        as = riscv_iommu_space(s, PCI_BUILD_BDF(pci_bus_num(bus), devfn));
+        as = riscv_iommu_space(s, PCI_BUILD_BDF(pci_bus_num(bus), devfn),
+                               false);
         s = s->iommus.le_next;
     }
 
@@ -2638,11 +2642,10 @@ void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
         pci_setup_iommu(bus, &riscv_iommu_ops, iommu);
     } else if (bus->iommu_ops && bus->iommu_ops->set_memory_region) {
         /*
-         * TODO:
          * All memory transactions of this bus will be directed to this AS.
          * We need to distinguish the source device dynamically.
          */
-        AddressSpace *as = riscv_iommu_space(iommu, 0);
+        AddressSpace *as = riscv_iommu_space(iommu, 0, true);
         pci_setup_iommu_downstream_mem(bus, as->root);
     } else {
         error_setg(errp, "can't register secondary IOMMU for PCI bus #%d",
@@ -2653,6 +2656,12 @@ void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
 static int riscv_iommu_memory_region_index(IOMMUMemoryRegion *iommu_mr,
     MemTxAttrs attrs)
 {
+    RISCVIOMMUSpace *as = container_of(iommu_mr, RISCVIOMMUSpace, iova_mr);
+
+    if (as->dynamic_devid) {
+        as->devid = attrs.requester_id;
+    }
+
     return attrs.unspecified ? RISCV_IOMMU_NOPROCID : (int)attrs.pid;
 }
 
