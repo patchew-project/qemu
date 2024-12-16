@@ -154,6 +154,11 @@ void gdb_continue(void);
  */
 int gdb_continue_partial(char *newstates);
 
+/**
+ * gdb_reset() - reset target in mode specific way.
+ */
+void gdb_reset(void);
+
 /*
  * Helpers with separate system and user implementations
  */

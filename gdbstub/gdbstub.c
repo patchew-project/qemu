@@ -2100,6 +2100,11 @@ static int gdb_handle_packet(const char *line_buf)
         gdb_exit(0);
         gdb_qemu_exit(0);
         break;
+    case 'r':
+    case 'R':
+        /* Reset the target */
+        gdb_reset();
+        break;
     case 'D':
         {
             static const GdbCmdParseEntry detach_cmd_desc = {

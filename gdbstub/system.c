@@ -607,6 +607,15 @@ int gdb_continue_partial(char *newstates)
 }
 
 /*
+ * Reset the system.
+ */
+
+void gdb_reset(void)
+{
+    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+}
+
+/*
  * Signal Handling - in system mode we only need SIGINT and SIGTRAP; other
  * signals are not yet supported.
  */

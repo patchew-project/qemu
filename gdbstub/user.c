@@ -738,6 +738,18 @@ int gdb_continue_partial(char *newstates)
 }
 
 /*
+ * Reset target. (currently not implemented)
+ */
+
+void gdb_reset(void)
+{
+    // Not implemented.
+    // By default, the RSP reset command does not trigger a response. We respond with an
+    // error code here, so the client does not assume the system has been reset.
+    gdb_put_packet("E00");
+}
+
+/*
  * Memory access helpers
  */
 int gdb_target_memory_rw_debug(CPUState *cpu, hwaddr addr,
@@ -827,6 +839,7 @@ void gdb_breakpoint_remove_all(CPUState *cs)
 {
     cpu_breakpoint_remove_all(cs, BP_GDB);
 }
+
 
 /*
  * For user-mode syscall support we send the system call immediately
