@@ -2636,6 +2636,14 @@ void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
         QLIST_INSERT_AFTER(last, iommu, iommus);
     } else if (!bus->iommu_ops && !bus->iommu_opaque) {
         pci_setup_iommu(bus, &riscv_iommu_ops, iommu);
+    } else if (bus->iommu_ops && bus->iommu_ops->set_memory_region) {
+        /*
+         * TODO:
+         * All memory transactions of this bus will be directed to this AS.
+         * We need to distinguish the source device dynamically.
+         */
+        AddressSpace *as = riscv_iommu_space(iommu, 0);
+        pci_setup_iommu_downstream_mem(bus, as->root);
     } else {
         error_setg(errp, "can't register secondary IOMMU for PCI bus #%d",
             pci_bus_num(bus));
