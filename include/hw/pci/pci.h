@@ -398,6 +398,19 @@ typedef struct PCIIOMMUOps {
      */
     AddressSpace * (*get_address_space)(PCIBus *bus, void *opaque, int devfn);
     /**
+     * @set_memory_region: set the downstream memory region for a set of
+     * devices on a PCI bus.
+     *
+     * Optional callback, which should be implemented when get_address_space()
+     * is registered by the PCI host(e.g. TYPE_DESIGNWARE_PCIE_HOST), which
+     * makes an IOMMU not able to register get_address_space() again.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @mr: the downsteam memory region
+     */
+    void (*set_memory_region)(void *opaque, MemoryRegion *mr);
+    /**
      * @set_iommu_device: attach a HostIOMMUDevice to a vIOMMU
      *
      * Optional callback, if not implemented in vIOMMU, then vIOMMU can't
