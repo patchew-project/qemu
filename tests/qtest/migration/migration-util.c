@@ -27,8 +27,8 @@
 #include <sys/syscall.h>
 #endif
 
-/* for uffd_version_check() */
-#if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
+/* for ufd_version_check() */
+#if defined(__linux__) && defined(CONFIG_EVENTFD)
 #include <sys/eventfd.h>
 #include "qemu/userfaultfd.h"
 #endif
@@ -333,7 +333,7 @@ bool probe_o_direct_support(const char *tmpfs)
 }
 #endif
 
-#if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
+#if defined(__linux__) && defined(CONFIG_EVENTFD)
 bool ufd_version_check(bool *uffd_feature_thread_id)
 {
     struct uffdio_api api_struct;
