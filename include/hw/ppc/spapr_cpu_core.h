@@ -46,6 +46,7 @@ typedef struct SpaprCpuState {
     uint64_t vpa_addr;
     uint64_t slb_shadow_addr, slb_shadow_size;
     uint64_t dtl_addr, dtl_size;
+    bool dispatched; /* for vpa dispatch counter tracking */
     bool prod; /* not migrated, only used to improve dispatch latencies */
     struct ICPState *icp;
     struct XiveTCTX *tctx;
@@ -59,5 +60,7 @@ static inline SpaprCpuState *spapr_cpu_state(PowerPCCPU *cpu)
 {
     return (SpaprCpuState *)cpu->machine_data;
 }
+
+void vpa_dispatch(CPUState *cs, SpaprCpuState *spapr_cpu, bool dispatch);
 
 #endif

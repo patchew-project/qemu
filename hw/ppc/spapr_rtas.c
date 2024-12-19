@@ -219,6 +219,7 @@ static void rtas_stop_self(PowerPCCPU *cpu, SpaprMachineState *spapr,
     env->quiesced = true; /* set "RTAS stopped" state. */
     ppc_maybe_interrupt(env);
     cs->halted = 1;
+    vpa_dispatch(cs, spapr_cpu_state(cpu), false);
     ppc_store_lpcr(cpu, env->spr[SPR_LPCR] & ~pcc->lpcr_pm);
     kvmppc_set_reg_ppc_online(cpu, 0);
     qemu_cpu_kick(cs);
