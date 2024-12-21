@@ -6703,7 +6703,13 @@ static const gchar *x86_gdb_arch_name(CPUState *cs)
 #ifdef TARGET_X86_64
     return "i386:x86-64";
 #else
-    return "i386";
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+    if (env->cr[0] & 1) {
+        return "i386";
+    } else {
+        return "i8086";
+    }
 #endif
 }
 

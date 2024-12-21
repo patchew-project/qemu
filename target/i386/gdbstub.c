@@ -136,7 +136,13 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
                 return gdb_get_regl(mem_buf, 0);
             }
         } else {
-            return gdb_get_reg32(mem_buf, env->regs[gpr_map32[n]]);
+            if (n != R_ESP || (env->cr[0] & 1)) {
+                return gdb_get_reg32(mem_buf, env->regs[gpr_map32[n]]);
+            } else {
+                return gdb_get_reg32(mem_buf,
+                                     (env->segs[R_SS].selector << 4) +
+                                      env->regs[gpr_map32[n]]);
+            }
         }
     } else if (n >= IDX_FP_REGS && n < IDX_FP_REGS + 8) {
         int st_index = n - IDX_FP_REGS;
@@ -155,7 +161,12 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     } else {
         switch (n) {
         case IDX_IP_REG:
-            return gdb_get_reg(env, mem_buf, env->eip);
+            if (TARGET_LONG_BITS != 32 || (env->cr[0] & 1)) {
+                return gdb_get_reg(env, mem_buf, env->eip);
+            } else {
+                return gdb_get_reg(env, mem_buf,
+                                   (env->segs[R_CS].selector << 4) + env->eip);
+            }
         case IDX_FLAGS_REG:
             return gdb_get_reg32(mem_buf, env->eflags);
 
