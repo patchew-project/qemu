@@ -5,6 +5,7 @@
  * Copyright (c) 2023 Loongson Technology Corporation Limited
  */
 
+#include <zlib.h>
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "target/loongarch/cpu.h"
@@ -94,87 +95,164 @@ static inline void *guidcpy(void *dst, const void *src)
     return memcpy(dst, src, sizeof(efi_guid_t));
 }
 
-static void init_efi_boot_memmap(struct efi_system_table *systab,
-                                 void *p, void *start)
+static void efi_hdr_crc32(efi_table_hdr_t *hdr)
 {
-    unsigned i;
-    struct efi_boot_memmap *boot_memmap = p;
-    efi_guid_t tbl_guid = LINUX_EFI_BOOT_MEMMAP_GUID;
+    uint32_t val;
 
-    /* efi_configuration_table 1 */
-    guidcpy(&systab->tables[0].guid, &tbl_guid);
-    systab->tables[0].table = (struct efi_configuration_table *)(p - start);
-    systab->nr_tables = 1;
+    hdr->crc32 = 0;
+    val = crc32(0, (const unsigned char *)hdr, hdr->headersize);
+    hdr->crc32 = cpu_to_le32(val);
+}
 
-    boot_memmap->desc_size = sizeof(efi_memory_desc_t);
-    boot_memmap->desc_ver = 1;
-    boot_memmap->map_size = 0;
+static void init_efi_vendor_string(void **p)
+{
+    uint16_t *vendor_str = *p;
 
-    efi_memory_desc_t *map = p + sizeof(struct efi_boot_memmap);
+    /* QEMU in UTF16-LE */
+    stw_le_p(vendor_str++, 0x0051); /* Q */
+    stw_le_p(vendor_str++, 0x0045); /* E */
+    stw_le_p(vendor_str++, 0x004D); /* M */
+    stw_le_p(vendor_str++, 0x0055); /* U */
+    stw_le_p(vendor_str++, 0x0000); /* \0 */
+
+    *p = vendor_str;
+    *p = QEMU_ALIGN_PTR_UP(*p, sizeof(target_long));
+}
+
+static void memmap_write_descs(efi_memory_desc_t *map)
+{
+    int i;
+
     for (i = 0; i < memmap_entries; i++) {
-        map = (void *)boot_memmap + sizeof(*map);
-        map[i].type = memmap_table[i].type;
-        map[i].phys_addr = ROUND_UP(memmap_table[i].address, 64 * KiB);
-        map[i].num_pages = ROUND_DOWN(memmap_table[i].address +
-                        memmap_table[i].length - map[i].phys_addr, 64 * KiB);
-        p += sizeof(efi_memory_desc_t);
+        uint32_t efi_type;
+        hwaddr start = memmap_table[i].address;
+        hwaddr end = memmap_table[i].address + memmap_table[i].length;
+
+        switch (memmap_table[i].type) {
+        case MEMMAP_TYPE_MEMORY:
+            efi_type = EFI_CONVENTIONAL_MEMORY;
+            break;
+        case MEMMAP_TYPE_RESERVED:
+            efi_type = EFI_RESERVED_TYPE;
+            break;
+        case MEMMAP_TYPE_ACPI:
+            efi_type = EFI_ACPI_RECLAIM_MEMORY;
+            break;
+        case MEMMAP_TYPE_NVS:
+            efi_type = EFI_ACPI_MEMORY_NVS;
+            break;
+        default:
+            efi_type = EFI_RESERVED_TYPE;
+            break;
+        }
+
+        if (memmap_table[i].reserved) {
+            start = QEMU_ALIGN_DOWN(start, EFI_PAGE_SIZE);
+            end = QEMU_ALIGN_UP(end, EFI_PAGE_SIZE);
+        } else {
+            start = QEMU_ALIGN_UP(start, EFI_PAGE_SIZE);
+            end = QEMU_ALIGN_DOWN(end, EFI_PAGE_SIZE);
+        }
+
+        map[i].type = cpu_to_le32(efi_type);
+        map[i].phys_addr = cpu_to_le64(start);
+        map[i].virt_addr = cpu_to_le64(start);
+        map[i].num_pages = cpu_to_le64((end - start) >> EFI_PAGE_SHIFT);
     }
 }
 
-static void init_efi_initrd_table(struct efi_system_table *systab,
-                                  void *p, void *start)
-{
-    efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;
-    struct efi_initrd *initrd_table  = p;
-
-    /* efi_configuration_table 2 */
-    guidcpy(&systab->tables[1].guid, &tbl_guid);
-    systab->tables[1].table = (struct efi_configuration_table *)(p - start);
-    systab->nr_tables = 2;
-
-    initrd_table->base = initrd_offset;
-    initrd_table->size = initrd_size;
+#define EFI_BOOT_MEMMAP_TABLE_GEN(type)                                     \
+static void init_efi_boot_memmap_##type(void *guidp, void **p)              \
+{                                                                           \
+    struct efi_boot_memmap_##type *boot_memmap = *p;                        \
+    efi_guid_t tbl_guid = LINUX_EFI_BOOT_MEMMAP_GUID;                       \
+                                                                            \
+    /* efi_configuration_table 1 */                                         \
+    guidcpy(guidp, &tbl_guid);                                              \
+                                                                            \
+    boot_memmap->desc_size = cpu_to_le##type(sizeof(efi_memory_desc_t));    \
+    boot_memmap->desc_ver = cpu_to_le32(1);                                 \
+    boot_memmap->map_size = cpu_to_le##type(boot_memmap->desc_size *        \
+                                            memmap_entries);                \
+    memmap_write_descs(boot_memmap->map);                                   \
+    *p += sizeof(struct efi_boot_memmap_##type);                            \
 }
 
-static void init_efi_fdt_table(struct efi_system_table *systab)
-{
-    efi_guid_t tbl_guid = DEVICE_TREE_GUID;
-
-    /* efi_configuration_table 3 */
-    guidcpy(&systab->tables[2].guid, &tbl_guid);
-    systab->tables[2].table = (void *)FDT_BASE;
-    systab->nr_tables = 3;
+#define EFI_INITRD_TABLE_GEN(type)                                          \
+static void init_efi_initrd_table_##type(void *guidp, void **p)             \
+{                                                                           \
+    efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;                      \
+    struct efi_initrd_##type *initrd_table = *p;                            \
+                                                                            \
+    /* efi_configuration_table  */                                          \
+    guidcpy(guidp, &tbl_guid);                                              \
+                                                                            \
+    initrd_table->base = cpu_to_le##type(initrd_offset);                    \
+    initrd_table->size = cpu_to_le##type(initrd_size);                      \
+    *p += sizeof(struct efi_initrd_##type);                                 \
 }
 
-static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
-{
-    void *bp_tables_start;
-    struct efi_system_table *systab = p;
+#define BOOTP_ALIGN_PTR_UP(p, s, n) ({                                      \
+    uintptr_t __ptr = (uintptr_t)(s) +                                      \
+        QEMU_ALIGN_UP((uintptr_t)(p) - (uintptr_t)(s), n);                  \
+    (typeof(p))(__ptr);                                                     \
+})
 
-    info->a2 = p - start;
-
-    systab->hdr.signature = EFI_SYSTEM_TABLE_SIGNATURE;
-    systab->hdr.revision = EFI_SPECIFICATION_VERSION;
-    systab->hdr.revision = sizeof(struct efi_system_table),
-    systab->fw_revision = FW_VERSION << 16 | FW_PATCHLEVEL << 8;
-    systab->runtime = 0;
-    systab->boottime = 0;
-    systab->nr_tables = 0;
-
-    p += ROUND_UP(sizeof(struct efi_system_table), 64 * KiB);
-
-    systab->tables = p;
-    bp_tables_start = p;
-
-    init_efi_boot_memmap(systab, p, start);
-    p += ROUND_UP(sizeof(struct efi_boot_memmap) +
-                  sizeof(efi_memory_desc_t) * memmap_entries, 64 * KiB);
-    init_efi_initrd_table(systab, p, start);
-    p += ROUND_UP(sizeof(struct efi_initrd), 64 * KiB);
-    init_efi_fdt_table(systab);
-
-    systab->tables = (struct efi_configuration_table *)(bp_tables_start - start);
+#define EFI_INIT_SYSTAB_GEN(type)                                           \
+    EFI_BOOT_MEMMAP_TABLE_GEN(type)                                         \
+    EFI_INITRD_TABLE_GEN(type)                                              \
+static void init_systab_##type(struct loongarch_boot_info *info,            \
+                               void *p, void *start)                        \
+{                                                                           \
+    uint32_t nr_tables = 0;                                                 \
+    const efi_guid_t fdt_guid = DEVICE_TREE_GUID;                           \
+    struct efi_system_table_##type *systab;                                 \
+    struct efi_configuration_table_##type *cfg_tabs;                        \
+                                                                            \
+    p = BOOTP_ALIGN_PTR_UP(p, start, EFI_TABLE_ALIGN);                      \
+    systab = p;                                                             \
+    info->a2 = p - start;                                                   \
+                                                                            \
+    systab->hdr.signature = cpu_to_le64(EFI_SYSTEM_TABLE_SIGNATURE);        \
+    systab->hdr.revision = cpu_to_le32(EFI_SPECIFICATION_VERSION);          \
+    systab->hdr.headersize =                                                \
+            cpu_to_le32(sizeof(struct efi_system_table_##type));            \
+    systab->fw_revision =                                                   \
+            cpu_to_le32(FW_VERSION << 16 | FW_PATCHLEVEL << 8);             \
+    systab->runtime = 0;                                                    \
+    systab->boottime = 0;                                                   \
+    systab->nr_tables = 0;                                                  \
+                                                                            \
+    p += sizeof(struct efi_system_table_##type);                            \
+    systab->fw_vendor = cpu_to_le##type(p - start);                         \
+    init_efi_vendor_string(&p);                                             \
+                                                                            \
+    p = BOOTP_ALIGN_PTR_UP(p, start, EFI_TABLE_ALIGN);                      \
+    systab->tables = cpu_to_le##type(p - start);                            \
+    cfg_tabs = p;                                                           \
+    p += sizeof(struct efi_configuration_table_##type) * 3;                 \
+                                                                            \
+    p = BOOTP_ALIGN_PTR_UP(p, start, EFI_TABLE_ALIGN);                      \
+    cfg_tabs[nr_tables].table = cpu_to_le##type(p - start);                 \
+    init_efi_boot_memmap_##type(&cfg_tabs[nr_tables].guid, &p);             \
+    nr_tables++;                                                            \
+                                                                            \
+    if (initrd_size > 0) {                                                  \
+        cfg_tabs[nr_tables].table = cpu_to_le##type(p - start);             \
+        init_efi_initrd_table_##type(&cfg_tabs[nr_tables].guid, &p);        \
+        nr_tables++;                                                        \
+    }                                                                       \
+                                                                            \
+    guidcpy(&cfg_tabs[nr_tables].guid, &fdt_guid);                          \
+    cfg_tabs[nr_tables].table = cpu_to_le##type(FDT_BASE);                  \
+    nr_tables++;                                                            \
+                                                                            \
+    systab->nr_tables = cpu_to_le32(nr_tables);                             \
+    efi_hdr_crc32(&systab->hdr);                                            \
 }
+
+EFI_INIT_SYSTAB_GEN(32)
+EFI_INIT_SYSTAB_GEN(64)
 
 static void init_cmdline(struct loongarch_boot_info *info, void *p, void *start)
 {
@@ -335,21 +413,25 @@ static void loongarch_firmware_boot(LoongArchVirtMachineState *lvms,
     fw_cfg_add_kernel_info(info, lvms->fw_cfg);
 }
 
-static void init_boot_rom(struct loongarch_boot_info *info, void *p)
+static void init_boot_rom(struct loongarch_boot_info *info, void *p,
+                          bool is_64bit)
 {
     void *start = p;
 
     init_cmdline(info, p, start);
     p += COMMAND_LINE_SIZE;
 
-    init_systab(info, p, start);
+    if (is_64bit)
+        init_systab_64(info, p, start);
+    else
+        init_systab_32(info, p, start);
 }
 
 static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
 {
     void *p, *bp;
     int64_t kernel_addr = VIRT_FLASH0_BASE;
-    LoongArchCPU *lacpu;
+    LoongArchCPU *lacpu = LOONGARCH_CPU(first_cpu);
     CPUState *cs;
 
     if (info->kernel_filename) {
@@ -363,7 +445,7 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
     /* Load cmdline and system tables at [0 - 1 MiB] */
     p = g_malloc0(1 * MiB);
     bp = p;
-    init_boot_rom(info, p);
+    init_boot_rom(info, p, is_la64(&lacpu->env));
     rom_add_blob_fixed_as("boot_info", bp, 1 * MiB, 0, &address_space_memory);
 
     /* Load slave boot code at pflash0 . */
