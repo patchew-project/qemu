@@ -42,53 +42,64 @@ unsigned memmap_entries;
 ram_addr_t initrd_offset;
 uint64_t initrd_size;
 
-static const unsigned int slave_boot_code[] = {
-                  /* Configure reset ebase.                    */
-    0x0400302c,   /* csrwr      $t0, LOONGARCH_CSR_EENTRY      */
+static void generate_secondary_boot_code(void *boot_code, bool is_64bit)
+{
+    uint32_t *p = boot_code;
 
-                  /* Disable interrupt.                        */
-    0x0380100c,   /* ori        $t0, $zero,0x4                 */
-    0x04000180,   /* csrxchg    $zero, $t0, LOONGARCH_CSR_CRMD */
+    /* Configure reset ebase. */
+    stl_p(p++, 0x0400302c); /* csrwr      $t0, LOONGARCH_CSR_EENTRY  */
 
-                  /* Clear mailbox.                            */
-    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
-    0x038081ad,   /* ori        $t1, $t1, CORE_BUF_20  */
-    0x06481da0,   /* iocsrwr.d  $zero, $t1                     */
+    /* Disable interrupt. */
+    stl_p(p++, 0x0380100c); /* ori        $t0, $zero, 0x4            */
+    stl_p(p++, 0x04000180); /* csrxchg    $zero, $t0, LOONGARCH_CSR_CRMD */
 
-                  /* Enable IPI interrupt.                     */
-    0x1400002c,   /* lu12i.w    $t0, 1(0x1)                    */
-    0x0400118c,   /* csrxchg    $t0, $t0, LOONGARCH_CSR_ECFG   */
-    0x02fffc0c,   /* addi.d     $t0, $r0,-1(0xfff)             */
-    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
-    0x038011ad,   /* ori        $t1, $t1, CORE_EN_OFF          */
-    0x064819ac,   /* iocsrwr.w  $t0, $t1                       */
-    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
-    0x038081ad,   /* ori        $t1, $t1, CORE_BUF_20          */
+    /* Clear mailbox. */
+    stl_p(p++, 0x1400002d); /* lu12i.w    $t1, 1(0x1)                */
+    stl_p(p++, 0x038081ad); /* ori        $t1, $t1, CORE_BUF_20      */
+    if (is_64bit) {
+        stl_p(p++, 0x06481da0); /* iocsrwr.d  $zero, $t1             */
+    } else {
+        stl_p(p++, 0x064819a0); /* iocsrwr.w  $zero, $t1             */
+    }
 
-                  /* Wait for wakeup  <.L11>:                  */
-    0x06488000,   /* idle       0x0                            */
-    0x03400000,   /* andi       $zero, $zero, 0x0              */
-    0x064809ac,   /* iocsrrd.w  $t0, $t1                       */
-    0x43fff59f,   /* beqz       $t0, -12(0x7ffff4) # 48 <.L11> */
+    /* Enable IPI interrupt. */
+    stl_p(p++, 0x1400002c); /* lu12i.w    $t0, 1(0x1)                */
+    stl_p(p++, 0x0400118c); /* csrxchg    $t0, $t0, LOONGARCH_CSR_ECFG */
+    stl_p(p++, 0x02fffc0c); /* addi.d     $t0, $r0, -1(0xfff)        */
+    stl_p(p++, 0x1400002d); /* lu12i.w    $t1, 1(0x1)                */
+    stl_p(p++, 0x038011ad); /* ori        $t1, $t1, CORE_EN_OFF      */
+    stl_p(p++, 0x064819ac); /* iocsrwr.w  $t0, $t1                   */
+    stl_p(p++, 0x1400002d); /* lu12i.w    $t1, 1(0x1)                */
+    stl_p(p++, 0x038081ad); /* ori        $t1, $t1, CORE_BUF_20      */
 
-                  /* Read and clear IPI interrupt.             */
-    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
-    0x064809ac,   /* iocsrrd.w  $t0, $t1                       */
-    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
-    0x038031ad,   /* ori        $t1, $t1, CORE_CLEAR_OFF       */
-    0x064819ac,   /* iocsrwr.w  $t0, $t1                       */
+    /* Wait for wakeup <.L11>: */
+    stl_p(p++, 0x06488000); /* idle       0x0                        */
+    stl_p(p++, 0x03400000); /* andi       $zero, $zero, 0x0          */
+    stl_p(p++, 0x064809ac); /* iocsrrd.w  $t0, $t1                   */
+    stl_p(p++, 0x43fff59f); /* beqz       $t0, -12(0x7ffff4) # 48 <.L11> */
 
-                  /* Disable  IPI interrupt.                   */
-    0x1400002c,   /* lu12i.w    $t0, 1(0x1)                    */
-    0x04001180,   /* csrxchg    $zero, $t0, LOONGARCH_CSR_ECFG */
+    /* Read and clear IPI interrupt. */
+    stl_p(p++, 0x1400002d); /* lu12i.w    $t1, 1(0x1)                */
+    stl_p(p++, 0x064809ac); /* iocsrrd.w  $t0, $t1                   */
+    stl_p(p++, 0x1400002d); /* lu12i.w    $t1, 1(0x1)                */
+    stl_p(p++, 0x038031ad); /* ori        $t1, $t1, CORE_CLEAR_OFF   */
+    stl_p(p++, 0x064819ac); /* iocsrwr.w  $t0, $t1                   */
 
-                  /* Read mail buf and jump to specified entry */
-    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
-    0x038081ad,   /* ori        $t1, $t1, CORE_BUF_20          */
-    0x06480dac,   /* iocsrrd.d  $t0, $t1                       */
-    0x00150181,   /* move       $ra, $t0                       */
-    0x4c000020,   /* jirl       $zero, $ra,0                   */
-};
+    /* Disable IPI interrupt. */
+    stl_p(p++, 0x1400002c); /* lu12i.w    $t0, 1(0x1)                */
+    stl_p(p++, 0x04001180); /* csrxchg    $zero, $t0, LOONGARCH_CSR_ECFG */
+
+    /* Read mail buf and jump to specified entry. */
+    stl_p(p++, 0x1400002d); /* lu12i.w    $t1, 1(0x1)                */
+    stl_p(p++, 0x038081ad); /* ori        $t1, $t1, CORE_BUF_20      */
+    if (is_64bit) {
+        stl_p(p++, 0x06480dac); /* iocsrrd.d  $t0, $t1               */
+    } else {
+        stl_p(p++, 0x064809ac); /* iocsrrd.w  $t0, $t1               */
+    }
+    stl_p(p++, 0x00150181); /* move       $ra, $t0                   */
+    stl_p(p++, 0x4c000020); /* jirl       $zero, $ra, 0              */
+}
 
 static inline void *guidcpy(void *dst, const void *src)
 {
@@ -450,7 +461,7 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
 
     /* Load slave boot code at pflash0 . */
     void *boot_code = g_malloc0(VIRT_FLASH0_SIZE);
-    memcpy(boot_code, &slave_boot_code, sizeof(slave_boot_code));
+    generate_secondary_boot_code(boot_code, is_la64(&lacpu->env));
     rom_add_blob_fixed("boot_code", boot_code, VIRT_FLASH0_SIZE, VIRT_FLASH0_BASE);
 
     CPU_FOREACH(cs) {
