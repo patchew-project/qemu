@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -82,6 +83,13 @@ static struct {
     .processor_id = 0,
     .processor_family = 0x01, /* Other */
 };
+
+struct type7_instance {
+    uint16_t level;
+    uint64_t size;
+    QTAILQ_ENTRY(type7_instance) next;
+};
+static QTAILQ_HEAD(, type7_instance) type7 = QTAILQ_HEAD_INITIALIZER(type7);
 
 struct type8_instance {
     const char *internal_reference, *external_reference;
@@ -326,6 +334,23 @@ static const QemuOptDesc qemu_smbios_type4_opts[] = {
         .name = "processor-id",
         .type = QEMU_OPT_NUMBER,
         .help = "processor id",
+    },
+    { /* end of list */ }
+};
+
+static const QemuOptDesc qemu_smbios_type7_opts[] = {
+    {
+        .name = "type",
+        .type = QEMU_OPT_NUMBER,
+        .help = "SMBIOS element type",
+    },{
+        .name = "level",
+        .type = QEMU_OPT_NUMBER,
+        .help = "cache level",
+    },{
+        .name = "size",
+        .type = QEMU_OPT_SIZE,
+        .help = "cache size",
     },
     { /* end of list */ }
 };
@@ -733,6 +758,80 @@ static void smbios_build_type_4_table(MachineState *ms, unsigned instance,
     smbios_type4_count++;
 }
 
+static void smbios_build_type_7_table(SmbiosEntryPointType ep_type)
+{
+    unsigned instance = 0;
+    size_t tbl_len = SMBIOS_TYPE_7_LEN_V21;
+    struct type7_instance *t7;
+    char designation[50];
+    uint16_t cache_size = 0;
+    uint32_t cache_size2 = 0;
+
+    if (ep_type == SMBIOS_ENTRY_POINT_TYPE_64) {
+        tbl_len = SMBIOS_TYPE_7_LEN_V31;
+    }
+
+    QTAILQ_FOREACH(t7, &type7, next) {
+        if (t7->size < 1024) {
+            error_report("SMBIOS CPU cache size (%lu) is too small (>1k)",
+                         t7->size);
+            exit(1);
+        }
+        SMBIOS_BUILD_TABLE_PRE(7, T0_BASE + instance, true);
+        sprintf(designation, "CPU Internal L%d", t7->level);
+        SMBIOS_TABLE_SET_STR(7, socket_designation, designation);
+        /* cache not socketed, enabled, write back */
+        t->cache_configuration =  cpu_to_le16(0x180 | ((t7->level) - 1));
+        if (tbl_len == SMBIOS_TYPE_7_LEN_V21) {
+            if (t7->size > 1024*MiB) {
+                error_report("SMBIOS 2.0 doesn't support CPU cache "
+                            "sizes more than 1024 MiB, use "
+                            "-machine smbios-entry-point-type=64 option to "
+                            "enable SMBIOS 3.0 support");
+                exit(1);
+            }
+        }
+        /* size is defined in 1k granularity */
+        cache_size = t7->size/1024;
+        if (t7->size > INT16_MAX) {
+            /* set granularity to 64KiB */
+            cache_size = cpu_to_le16(t7->size/(64*1024) | (0x1 << 15));
+        }
+
+        t->supported_sram_type = cpu_to_le16(0x10); /* pipeline burst */
+        t->current_sram_type = cpu_to_le16(0x10); /* pipeline burst */
+        t->cache_speed = 0x1; /* 1 ns */
+        t->error_correction_type = 0x6; /* Multi-bit ECC */
+        t->system_cache_type = 0x05; /* Unified */
+        t->associativity = 0x6; /* Fully Associative */
+
+        if (tbl_len == SMBIOS_TYPE_7_LEN_V31) {
+            if (t7->size > ((uint64_t)2 << 45)) {
+                error_report("SMBIOS CPU cache size (%lu) is too large",
+                             t7->size);
+                exit(1);
+            }
+            cache_size2 = t7->size/1024;
+            /* For Cache sizes greater than 2047 MB, the */
+            /* Maximum Cache Size field is set to 0xFFFF */
+            if (cache_size2 > (2 << 20)) {
+                cache_size = 0xffff;
+                /* set granularity to 64KiB */
+                cache_size2 = cpu_to_le32(t7->size/(64*1024) | (0x1 << 31));
+            }
+
+            t->maximum_cache_size2 = cache_size2;
+            t->installed_cache_size2 = cache_size2;
+
+        }
+        t->installed_size = cache_size;
+        /* set max size to installed size */
+        t->maximum_cache_size = cache_size;
+        SMBIOS_BUILD_TABLE_POST;
+        instance++;
+    }
+}
+
 static void smbios_build_type_8_table(void)
 {
     unsigned instance = 0;
@@ -1120,6 +1219,7 @@ static bool smbios_get_tables_ep(MachineState *ms,
         }
     }
 
+    smbios_build_type_7_table(ep_type);
     smbios_build_type_8_table();
     smbios_build_type_9_table(errp);
     smbios_build_type_11_table();
@@ -1480,6 +1580,22 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
                 error_setg(errp, "SMBIOS CPU speed is too large (> %d)",
                            UINT16_MAX);
             }
+            return;
+        case 7:
+            if (!qemu_opts_validate(opts, qemu_smbios_type7_opts, errp)) {
+                return;
+            }
+            struct type7_instance *t7_i;
+            t7_i = g_new0(struct type7_instance, 1);
+            t7_i->level = qemu_opt_get_number(opts, "level", 0);
+            t7_i->size = qemu_opt_get_size(opts, "size", 0);
+            /* Only cache levels 1-8 are permitted */
+            if (t7_i->level > 8) {
+                error_setg(errp, "SMBIOS CPU cache level %d is invalid (1-8)",
+                           t7_i->level);
+                return;
+            }
+            QTAILQ_INSERT_TAIL(&type7, t7_i, next);
             return;
         case 8:
             if (!qemu_opts_validate(opts, qemu_smbios_type8_opts, errp)) {
