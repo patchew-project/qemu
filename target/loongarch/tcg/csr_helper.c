@@ -43,7 +43,7 @@ target_ulong helper_csrrd_pgd(CPULoongArchState *env)
         v = env->CSR_BADV;
     }
 
-    if ((v >> 63) & 0x1) {
+    if (v >> (is_la64(env) ? 63 : 31) & 0x1) {
         v = env->CSR_PGDH;
     } else {
         v = env->CSR_PGDL;
