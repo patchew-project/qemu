@@ -21,12 +21,28 @@
 static bool validate_options(const Netdev *netdev, Error **errp)
 {
     const NetdevVmnetHostOptions *options = &(netdev->u.vmnet_host);
-    QemuUUID net_uuid;
 
-    if (options->net_uuid &&
-        qemu_uuid_parse(options->net_uuid, &net_uuid) < 0) {
-        error_setg(errp, "Invalid UUID provided in 'net-uuid'");
-        return false;
+    if (__builtin_available(macOS 11, *)) {
+        QemuUUID net_uuid;
+        if (options->net_uuid &&
+            qemu_uuid_parse(options->net_uuid, &net_uuid) < 0) {
+            error_setg(errp, "Invalid UUID provided in 'net-uuid'");
+            return false;
+        }
+    } else {
+        if (options->has_isolated) {
+            error_setg(errp,
+                       "vmnet-host.isolated feature is "
+                       "unavailable: outdated vmnet.framework API");
+            return false;
+        }
+
+        if (options->net_uuid) {
+            error_setg(errp,
+                       "vmnet-host.net-uuid feature is "
+                       "unavailable: outdated vmnet.framework API");
+            return false;
+        }
     }
 
     if ((options->start_address ||
@@ -53,16 +69,18 @@ static xpc_object_t build_if_desc(const Netdev *netdev)
                               vmnet_operation_mode_key,
                               VMNET_HOST_MODE);
 
-    xpc_dictionary_set_bool(if_desc,
-                            vmnet_enable_isolation_key,
-                            options->isolated);
+    if (__builtin_available(macOS 11, *)) {
+        xpc_dictionary_set_bool(if_desc,
+                                vmnet_enable_isolation_key,
+                                options->isolated);
 
-    QemuUUID net_uuid;
-    if (options->net_uuid) {
-        qemu_uuid_parse(options->net_uuid, &net_uuid);
-        xpc_dictionary_set_uuid(if_desc,
-                                vmnet_network_identifier_key,
-                                net_uuid.data);
+        QemuUUID net_uuid;
+        if (options->net_uuid) {
+            qemu_uuid_parse(options->net_uuid, &net_uuid);
+            xpc_dictionary_set_uuid(if_desc,
+                                    vmnet_network_identifier_key,
+                                    net_uuid.data);
+        }
     }
 
     if (options->start_address) {
