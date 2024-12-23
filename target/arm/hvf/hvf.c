@@ -898,7 +898,9 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     r |= hv_vcpu_get_sys_reg(fd, HV_SYS_REG_MIDR_EL1, &ahcf->midr);
     r |= hv_vcpu_destroy(fd);
 
-    clamp_id_aa64mmfr0_parange_to_ipa_size(&host_isar.id_aa64mmfr0);
+    if (__builtin_available(macOS 13.0, *)) {
+        clamp_id_aa64mmfr0_parange_to_ipa_size(&host_isar.id_aa64mmfr0);
+    }
 
     /*
      * Disable SME, which is not properly handled by QEMU hvf yet.
@@ -936,26 +938,34 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 
 uint32_t hvf_arm_get_default_ipa_bit_size(void)
 {
-    uint32_t default_ipa_size;
-    hv_return_t ret = hv_vm_config_get_default_ipa_size(&default_ipa_size);
-    assert_hvf_ok(ret);
+    if (__builtin_available(macOS 13.0, *)) {
+        uint32_t default_ipa_size;
+        hv_return_t ret = hv_vm_config_get_default_ipa_size(&default_ipa_size);
+        assert_hvf_ok(ret);
 
-    return default_ipa_size;
+        return default_ipa_size;
+    } else {
+        return 0;
+    }
 }
 
 uint32_t hvf_arm_get_max_ipa_bit_size(void)
 {
-    uint32_t max_ipa_size;
-    hv_return_t ret = hv_vm_config_get_max_ipa_size(&max_ipa_size);
-    assert_hvf_ok(ret);
+    if (__builtin_available(macOS 13.0, *)) {
+        uint32_t max_ipa_size;
+        hv_return_t ret = hv_vm_config_get_max_ipa_size(&max_ipa_size);
+        assert_hvf_ok(ret);
 
-    /*
-     * We clamp any IPA size we want to back the VM with to a valid PARange
-     * value so the guest doesn't try and map memory outside of the valid range.
-     * This logic just clamps the passed in IPA bit size to the first valid
-     * PARange value <= to it.
-     */
-    return round_down_to_parange_bit_size(max_ipa_size);
+        /*
+         * We clamp any IPA size we want to back the VM with to a valid PARange
+         * value so the guest doesn't try and map memory outside of the valid
+         * range. This logic just clamps the passed in IPA bit size to the first
+         * valid PARange value <= to it.
+         */
+        return round_down_to_parange_bit_size(max_ipa_size);
+    } else {
+        return 0;
+    }
 }
 
 void hvf_arm_set_cpu_features_from_host(ARMCPU *cpu)
@@ -986,13 +996,18 @@ void hvf_arch_vcpu_destroy(CPUState *cpu)
 hv_return_t hvf_arch_vm_create(MachineState *ms, uint32_t pa_range)
 {
     hv_return_t ret;
-    hv_vm_config_t config = hv_vm_config_create();
+    hv_vm_config_t config;
 
-    ret = hv_vm_config_set_ipa_size(config, pa_range);
-    if (ret != HV_SUCCESS) {
-        goto cleanup;
+    if (__builtin_available(macOS 13.0, *)) {
+        config = hv_vm_config_create();
+        ret = hv_vm_config_set_ipa_size(config, pa_range);
+        if (ret != HV_SUCCESS) {
+            goto cleanup;
+        }
+        chosen_ipa_bit_size = pa_range;
+    } else {
+        config = NULL;
     }
-    chosen_ipa_bit_size = pa_range;
 
     ret = hv_vm_create(config);
 
