@@ -38,11 +38,35 @@ typedef struct {
         EFI_GUID(0xb1b621d5, 0xf19c, 0x41a5,  0x83, 0x0b, \
                  0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0)
 
+/* Memory types: */
+#define EFI_RESERVED_TYPE           0
+#define EFI_LOADER_CODE             1
+#define EFI_LOADER_DATA             2
+#define EFI_BOOT_SERVICES_CODE      3
+#define EFI_BOOT_SERVICES_DATA      4
+#define EFI_RUNTIME_SERVICES_CODE   5
+#define EFI_RUNTIME_SERVICES_DATA   6
+#define EFI_CONVENTIONAL_MEMORY     7
+#define EFI_UNUSABLE_MEMORY         8
+#define EFI_ACPI_RECLAIM_MEMORY     9
+#define EFI_ACPI_MEMORY_NVS         10
+#define EFI_MEMORY_MAPPED_IO        11
+#define EFI_MEMORY_MAPPED_IO_PORT_SPACE 12
+#define EFI_PAL_CODE                13
+#define EFI_PERSISTENT_MEMORY       14
+#define EFI_UNACCEPTED_MEMORY       15
+#define EFI_MAX_MEMORY_TYPE         16
+
+#define EFI_PAGE_SHIFT      12
+#define EFI_PAGE_SIZE       (1UL << EFI_PAGE_SHIFT)
+
+#define EFI_TABLE_ALIGN     (64 * KiB)
+
 struct efi_config_table {
     efi_guid_t guid;
     uint64_t *ptr;
     const char name[16];
-};
+} QEMU_PACKED;
 
 typedef struct {
     uint64_t signature;
@@ -50,51 +74,90 @@ typedef struct {
     uint32_t headersize;
     uint32_t crc32;
     uint32_t reserved;
-} efi_table_hdr_t;
+} QEMU_PACKED efi_table_hdr_t;
 
-struct efi_configuration_table {
+struct efi_configuration_table_32 {
     efi_guid_t guid;
-    void *table;
-};
+    uint32_t table;
+} QEMU_PACKED;
 
-struct efi_system_table {
+struct efi_configuration_table_64 {
+    efi_guid_t guid;
+    uint64_t table;
+} QEMU_PACKED;
+
+struct efi_system_table_32 {
+    efi_table_hdr_t hdr;
+    uint32_t fw_vendor;        /* physical addr of CHAR16 vendor string */
+    uint32_t fw_revision;
+    uint32_t con_in_handle;
+    uint32_t con_in;
+    uint32_t con_out_handle;
+    uint32_t con_out;
+    uint32_t stderr_handle;
+    uint32_t stderr_placeholder;
+    uint32_t runtime;
+    uint32_t boottime;
+    uint32_t nr_tables;
+    uint32_t tables;
+} QEMU_PACKED;
+
+struct efi_system_table_64 {
     efi_table_hdr_t hdr;
     uint64_t fw_vendor;        /* physical addr of CHAR16 vendor string */
     uint32_t fw_revision;
+    uint32_t __pad1;
     uint64_t con_in_handle;
-    uint64_t *con_in;
+    uint64_t con_in;
     uint64_t con_out_handle;
-    uint64_t *con_out;
+    uint64_t con_out;
     uint64_t stderr_handle;
     uint64_t stderr_placeholder;
-    uint64_t *runtime;
-    uint64_t *boottime;
-    uint64_t nr_tables;
-    struct efi_configuration_table *tables;
-};
+    uint64_t runtime;
+    uint64_t boottime;
+    uint32_t nr_tables;
+    uint32_t __pad2;
+    uint64_t tables;
+} QEMU_PACKED;
 
 typedef struct {
     uint32_t type;
-    uint32_t pad;
+    uint32_t __pad;
     uint64_t phys_addr;
     uint64_t virt_addr;
     uint64_t num_pages;
     uint64_t attribute;
-} efi_memory_desc_t;
+} QEMU_PACKED efi_memory_desc_t;
 
-struct efi_boot_memmap {
+struct efi_boot_memmap_32 {
+    uint32_t map_size;
+    uint32_t desc_size;
+    uint32_t desc_ver;
+    uint32_t map_key;
+    uint32_t buff_size;
+    uint32_t __pad;
+    efi_memory_desc_t map[32];
+} QEMU_PACKED;
+
+struct efi_boot_memmap_64 {
     uint64_t map_size;
     uint64_t desc_size;
     uint32_t desc_ver;
+    uint32_t __pad;
     uint64_t map_key;
     uint64_t buff_size;
     efi_memory_desc_t map[32];
-};
+} QEMU_PACKED;
 
-struct efi_initrd {
+struct efi_initrd_32 {
+    uint32_t base;
+    uint32_t size;
+} QEMU_PACKED;
+
+struct efi_initrd_64 {
     uint64_t base;
     uint64_t size;
-};
+} QEMU_PACKED;
 
 struct loongarch_boot_info {
     uint64_t ram_size;
@@ -110,6 +173,11 @@ extern unsigned memmap_entries;
 struct memmap_entry {
     uint64_t address;
     uint64_t length;
+    /* E820 style type */
+#define MEMMAP_TYPE_MEMORY      1
+#define MEMMAP_TYPE_RESERVED    2
+#define MEMMAP_TYPE_ACPI        3
+#define MEMMAP_TYPE_NVS         4
     uint32_t type;
     uint32_t reserved;
 };
