@@ -42,7 +42,7 @@ unsigned memmap_entries;
 ram_addr_t initrd_offset;
 uint64_t initrd_size;
 
-static void generate_secondary_boot_code(void *boot_code)
+static void generate_secondary_boot_code(void *boot_code, bool  is_64bit)
 {
     uint32_t *p = boot_code;
 
@@ -56,7 +56,11 @@ static void generate_secondary_boot_code(void *boot_code)
     /* Clear mailbox. */
     stl_p(p++, 0x1400002d); /* lu12i.w    $t1, 1(0x1)                */
     stl_p(p++, 0x038081ad); /* ori        $t1, $t1, CORE_BUF_20      */
-    stl_p(p++, 0x06481da0); /* iocsrwr.d  $zero, $t1                 */
+    if (is_64bit) {
+        stl_p(p++, 0x06481da0); /* iocsrwr.d  $zero, $t1             */
+    } else {
+        stl_p(p++, 0x064819a0); /* iocsrwr.w  $zero, $t1             */
+    }
 
     /* Enable IPI interrupt. */
     stl_p(p++, 0x1400002c); /* lu12i.w    $t0, 1(0x1)                */
@@ -88,7 +92,11 @@ static void generate_secondary_boot_code(void *boot_code)
     /* Read mail buf and jump to specified entry. */
     stl_p(p++, 0x1400002d); /* lu12i.w    $t1, 1(0x1)                */
     stl_p(p++, 0x038081ad); /* ori        $t1, $t1, CORE_BUF_20      */
-    stl_p(p++, 0x06480dac); /* iocsrrd.d  $t0, $t1                   */
+    if (is_64bit) {
+        stl_p(p++, 0x06480dac); /* iocsrrd.d  $t0, $t1               */
+    } else {
+        stl_p(p++, 0x064809ac); /* iocsrrd.w  $t0, $t1               */
+    }
     stl_p(p++, 0x00150181); /* move       $ra, $t0                   */
     stl_p(p++, 0x4c000020); /* jirl       $zero, $ra, 0              */
 }
@@ -453,7 +461,7 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
 
     /* Load slave boot code at pflash0 . */
     void *boot_code = g_malloc0(VIRT_FLASH0_SIZE);
-    generate_secondary_boot_code(boot_code);
+    generate_secondary_boot_code(boot_code, is_la64(&lacpu->env));
     rom_add_blob_fixed("boot_code", boot_code, VIRT_FLASH0_SIZE, VIRT_FLASH0_BASE);
 
     CPU_FOREACH(cs) {
