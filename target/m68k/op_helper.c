@@ -201,9 +201,6 @@ static void cf_interrupt_all(CPUM68KState *env, int is_hw)
             /* Return from an exception.  */
             cf_rte(env);
             return;
-        case EXCP_SEMIHOSTING:
-            do_m68k_semihosting(env, env->dregs[0]);
-            return;
         }
     }
 
@@ -421,6 +418,15 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
 {
+    CPUState *cs = env_cpu(env);
+
+    if (!is_hw) {
+        switch (cs->exception_index) {
+        case EXCP_SEMIHOSTING:
+            do_m68k_semihosting(env, env->dregs[0]);
+            return;
+        }
+    }
     if (m68k_feature(env, M68K_FEATURE_M68K)) {
         m68k_interrupt_all(env, is_hw);
         return;
