@@ -637,7 +637,6 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
 #ifdef CONFIG_TCG
     restore_fp_status(env);
 #endif
-    cs->exception_index = -1;
 }
 
 static void loongarch_cpu_disas_set_info(CPUState *s, disassemble_info *info)

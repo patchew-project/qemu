@@ -116,7 +116,6 @@ static void openrisc_cpu_reset_hold(Object *obj, ResetType type)
     cpu->env.pc = 0x100;
     cpu->env.sr = SR_FO | SR_SM;
     cpu->env.lock_addr = -1;
-    cs->exception_index = -1;
     cpu_set_fpcsr(&cpu->env, 0);
 
     set_float_detect_tininess(float_tininess_before_rounding,

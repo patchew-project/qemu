@@ -220,7 +220,6 @@ static void hppa_cpu_reset_hold(Object *obj, ResetType type)
     if (scc->parent_phases.hold) {
         scc->parent_phases.hold(obj, type);
     }
-    cs->exception_index = -1;
     cs->halted = 0;
     cpu_set_pc(cs, 0xf0000004);
 
