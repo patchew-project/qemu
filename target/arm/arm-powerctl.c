@@ -67,7 +67,6 @@ static void arm_set_cpu_on_async_work(CPUState *target_cpu_state,
     /* Initialize the cpu we are turning on */
     cpu_reset(target_cpu_state);
     arm_emulate_firmware_reset(target_cpu_state, info->target_el);
-    target_cpu_state->halted = 0;
 
     /* We check if the started CPU is now at the correct level */
     assert(info->target_el == arm_current_el(&target_cpu->env));
@@ -194,7 +193,6 @@ static void arm_set_cpu_on_and_reset_async_work(CPUState *target_cpu_state,
 
     /* Initialize the cpu we are turning on */
     cpu_reset(target_cpu_state);
-    target_cpu_state->halted = 0;
 
     /* Finally set the power status */
     assert(bql_locked());
