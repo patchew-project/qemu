@@ -281,31 +281,30 @@ static void dirtylimit_set_throttle(CPUState *cpu,
 {
     int64_t ring_full_time_us = 0;
     uint64_t sleep_pct = 0;
+    uint64_t throttle_pct = 0;
     uint64_t throttle_us = 0;
+    int64_t throtlle_us_old = cpu->throttle_us_per_full;
 
     if (current == 0) {
         cpu->throttle_us_per_full = 0;
-        return;
+        goto end;
     }
 
     ring_full_time_us = dirtylimit_dirty_ring_full_time(current);
 
     if (dirtylimit_need_linear_adjustment(quota, current)) {
         if (quota < current) {
-            sleep_pct = (current - quota) * 100 / current;
+            throttle_pct  = (current - quota) * 100 / current;
             throttle_us =
-                ring_full_time_us * sleep_pct / (double)(100 - sleep_pct);
+                ring_full_time_us * throttle_pct / (double)(100 - throttle_pct);
             cpu->throttle_us_per_full += throttle_us;
         } else {
-            sleep_pct = (quota - current) * 100 / quota;
+            throttle_pct = (quota - current) * 100 / quota;
             throttle_us =
-                ring_full_time_us * sleep_pct / (double)(100 - sleep_pct);
+                ring_full_time_us * throttle_pct / (double)(100 - throttle_pct);
             cpu->throttle_us_per_full -= throttle_us;
         }
 
-        trace_dirtylimit_throttle_pct(cpu->cpu_index,
-                                      sleep_pct,
-                                      throttle_us);
     } else {
         if (quota < current) {
             cpu->throttle_us_per_full += ring_full_time_us / 10;
@@ -323,6 +322,19 @@ static void dirtylimit_set_throttle(CPUState *cpu,
         ring_full_time_us * DIRTYLIMIT_THROTTLE_PCT_MAX);
 
     cpu->throttle_us_per_full = MAX(cpu->throttle_us_per_full, 0);
+
+end:
+    if (cpu->throttle_us_per_full - throtlle_us_old) {
+        if (current) {
+            sleep_pct = ring_full_time_us * 100 / (ring_full_time_us +
+                    cpu->throttle_us_per_full);
+        } else {
+            sleep_pct = 0;
+        }
+        trace_dirtylimit_throttle_pct(cpu->cpu_index,
+                                      sleep_pct,
+                                      cpu->throttle_us_per_full -
+                                      throtlle_us_old); }
 }
 
 static void dirtylimit_adjust_throttle(CPUState *cpu)
