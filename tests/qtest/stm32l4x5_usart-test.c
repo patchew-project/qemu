@@ -46,26 +46,7 @@ REG32(ICR, 0x20)
 REG32(RDR, 0x24)
 REG32(TDR, 0x28)
 
-#define NVIC_ISPR1 0XE000E204
-#define NVIC_ICPR1 0xE000E284
-#define USART1_IRQ 37
-
-static bool check_nvic_pending(QTestState *qts, unsigned int n)
-{
-    /* No USART interrupts are less than 32 */
-    assert(n > 32);
-    n -= 32;
-    return qtest_readl(qts, NVIC_ISPR1) & (1 << n);
-}
-
-static bool clear_nvic_pending(QTestState *qts, unsigned int n)
-{
-    /* No USART interrupts are less than 32 */
-    assert(n > 32);
-    n -= 32;
-    qtest_writel(qts, NVIC_ICPR1, (1 << n));
-    return true;
-}
+#define USART1_EXTI_IRQ 26
 
 /*
  * Wait indefinitely for the flag to be updated.
@@ -195,6 +176,8 @@ static void init_uart(QTestState *qts)
     /* Enable the transmitter, the receiver and the USART. */
     qtest_writel(qts, (USART1_BASE_ADDR + A_CR1),
         cr1 | R_CR1_UE_MASK | R_CR1_RE_MASK | R_CR1_TE_MASK);
+
+    qtest_irq_intercept_out_named(qts, "machine/soc/exti", "sysbus-irq");
 }
 
 static void test_write_read(void)
@@ -221,7 +204,7 @@ static void test_receive_char(void)
     g_assert_true(send(sock_fd, "a", 1, 0) == 1);
     usart_wait_for_flag(qts, USART1_BASE_ADDR + A_ISR, R_ISR_RXNE_MASK);
     g_assert_cmphex(qtest_readl(qts, USART1_BASE_ADDR + A_RDR), ==, 'a');
-    g_assert_false(check_nvic_pending(qts, USART1_IRQ));
+    g_assert_cmpuint(qtest_get_irq_lowered_counter(qts, USART1_EXTI_IRQ), ==, 0);
 
     /* Now with the IRQ */
     cr1 = qtest_readl(qts, (USART1_BASE_ADDR + A_CR1));
@@ -230,8 +213,7 @@ static void test_receive_char(void)
     g_assert_true(send(sock_fd, "b", 1, 0) == 1);
     usart_wait_for_flag(qts, USART1_BASE_ADDR + A_ISR, R_ISR_RXNE_MASK);
     g_assert_cmphex(qtest_readl(qts, USART1_BASE_ADDR + A_RDR), ==, 'b');
-    g_assert_true(check_nvic_pending(qts, USART1_IRQ));
-    clear_nvic_pending(qts, USART1_IRQ);
+    g_assert_cmpuint(qtest_get_irq_lowered_counter(qts, USART1_EXTI_IRQ), >, 0);
 
     close(sock_fd);
 
@@ -251,7 +233,7 @@ static void test_send_char(void)
     qtest_writel(qts, USART1_BASE_ADDR + A_TDR, 'c');
     g_assert_true(recv(sock_fd, s, 1, 0) == 1);
     g_assert_cmphex(s[0], ==, 'c');
-    g_assert_false(check_nvic_pending(qts, USART1_IRQ));
+    g_assert_cmpuint(qtest_get_irq_lowered_counter(qts, USART1_EXTI_IRQ), ==, 0);
 
     /* Now with the IRQ */
     cr1 = qtest_readl(qts, (USART1_BASE_ADDR + A_CR1));
@@ -260,8 +242,7 @@ static void test_send_char(void)
     qtest_writel(qts, USART1_BASE_ADDR + A_TDR, 'd');
     g_assert_true(recv(sock_fd, s, 1, 0) == 1);
     g_assert_cmphex(s[0], ==, 'd');
-    g_assert_true(check_nvic_pending(qts, USART1_IRQ));
-    clear_nvic_pending(qts, USART1_IRQ);
+    g_assert_cmpuint(qtest_get_irq_raised_counter(qts, USART1_EXTI_IRQ), >, 0);
 
     close(sock_fd);
 
