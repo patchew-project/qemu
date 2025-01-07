@@ -41,6 +41,13 @@ struct VFIOAPDevice {
     EventNotifier cfg_notifier;
 };
 
+typedef struct APConfigChgEvent {
+    QTAILQ_ENTRY(APConfigChgEvent) next;
+} APConfigChgEvent;
+
+QTAILQ_HEAD(, APConfigChgEvent) cfg_chg_events =
+    QTAILQ_HEAD_INITIALIZER(cfg_chg_events);
+
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOAPDevice, VFIO_AP_DEVICE)
 
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
@@ -76,6 +83,9 @@ static void vfio_ap_cfg_chg_notifier_handler(void *opaque)
 {
     VFIOAPDevice *vapdev = opaque;
 
+    APConfigChgEvent *new_event = g_new0(APConfigChgEvent, 1);
+
+    QTAILQ_INSERT_TAIL(&cfg_chg_events, new_event, next);
     if (!event_notifier_test_and_clear(&vapdev->cfg_notifier)) {
         warn_report("Event notifier not initialized");
         return;
