@@ -452,3 +452,8 @@ void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
         }
     }
 }
+
+bool cpu_is_of_type(CPUState *cpu, const char *typename)
+{
+    return !!object_class_dynamic_cast((ObjectClass *)cpu->cc, typename);
+}

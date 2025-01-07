@@ -793,6 +793,15 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
 char *cpu_model_from_type(const char *typename);
 
 /**
+ * cpu_is_of_type: Check if a CPU instance implement a QOM type
+ * @cpu: The CPU to be added to the list of CPUs.
+ * @typename: The CPU type.
+ *
+ * Returns: %true if @cpu is a QOM child of type @typename.
+ */
+bool cpu_is_of_type(CPUState *cpu, const char *typename);
+
+/**
  * cpu_create:
  * @typename: The CPU type.
  *
