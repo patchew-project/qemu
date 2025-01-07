@@ -36,9 +36,11 @@ CPUState *arm_get_cpu_by_id(uint64_t id)
     DPRINTF("cpu %" PRId64 "\n", id);
 
     CPU_FOREACH(cpu) {
-        ARMCPU *armcpu = ARM_CPU(cpu);
+        if (!cpu_is_of_type(cpu, TYPE_ARM_CPU)) {
+            continue;
+        }
 
-        if (arm_cpu_mp_affinity(armcpu) == id) {
+        if (arm_cpu_mp_affinity((ARMCPU *)cpu) == id) {
             return cpu;
         }
     }
