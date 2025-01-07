@@ -94,6 +94,43 @@ static void vfio_ap_cfg_chg_notifier_handler(void *opaque)
     css_generate_css_crws(0);
 }
 
+int ap_chsc_sei_nt0_get_event(void *res)
+{
+    APConfigChgEvent *cfg_chg_event = QTAILQ_FIRST(&cfg_chg_events);
+    ChscSeiNt0Res *nt0_res  = (ChscSeiNt0Res *)res;
+    memset(nt0_res, 0, sizeof(*nt0_res));
+    int rc = 1;
+
+    if (cfg_chg_event) {
+        QTAILQ_REMOVE(&cfg_chg_events, cfg_chg_event, next);
+        free(cfg_chg_event);
+
+        /*
+         * If there are any AP configuration change events in the queue,
+         * indicate to the caller that there is pending event info in
+         * the response block
+         */
+        if (!QTAILQ_EMPTY(&cfg_chg_events)) {
+            nt0_res->flags |= PENDING_EVENT_INFO_BITMASK;
+        }
+
+        nt0_res->length = sizeof(ChscSeiNt0Res);
+        nt0_res->code = 1;
+        nt0_res->nt = 0;
+        nt0_res->rs = 5;
+        nt0_res->cc = 3;
+
+        rc = 0;
+    }
+
+    return rc;
+}
+
+int ap_chsc_sei_nt0_have_event(void)
+{
+    return !QTAILQ_EMPTY(&cfg_chg_events);
+}
+
 static bool vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
                                           unsigned int irq, Error **errp)
 {
