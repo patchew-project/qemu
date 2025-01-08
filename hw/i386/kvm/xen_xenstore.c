@@ -534,6 +534,10 @@ static void xs_read(XenXenstoreState *s, unsigned int req_id,
         return;
     }
 
+    if (!len) {
+        return;
+    }
+
     memcpy(&rsp_data[rsp->len], data->data, len);
     rsp->len += len;
 }
