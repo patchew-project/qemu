@@ -70,7 +70,7 @@ int nthreadsrunning;
 #define GOFLAG_RUN  1
 #define GOFLAG_STOP 2
 
-static volatile int goflag = GOFLAG_INIT;
+static _Atomic int goflag = GOFLAG_INIT;
 
 #define RCU_READ_RUN 1000
 
