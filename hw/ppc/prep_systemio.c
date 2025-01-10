@@ -260,8 +260,6 @@ static void prep_systemio_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_out(dev, &s->non_contiguous_io_map_irq, 1);
     s->iomap_type = PORT0850_IOMAP_NONCONTIGUOUS;
-    qemu_set_irq(s->non_contiguous_io_map_irq,
-                 s->iomap_type & PORT0850_IOMAP_NONCONTIGUOUS);
     s->softreset_irq = qdev_get_gpio_in(DEVICE(s->cpu), PPC6xx_INPUT_HRESET);
 
     isa_register_portio_list(isa, &s->portio, 0x0, ppc_io800_port_list, s,
@@ -271,6 +269,14 @@ static void prep_systemio_realize(DeviceState *dev, Error **errp)
                           &ppc_parity_error_ops, s, "ppc-parity", 0x4);
     memory_region_add_subregion(get_system_memory(), 0xbfffeff0,
                                 &s->ppc_parity_mem);
+}
+
+static void prep_systemio_reset_exit(Object *obj, ResetType type)
+{
+    PrepSystemIoState *s = PREP_SYSTEMIO(obj);
+
+    qemu_set_irq(s->non_contiguous_io_map_irq,
+                 s->iomap_type & PORT0850_IOMAP_NONCONTIGUOUS);
 }
 
 static const VMStateDescription vmstate_prep_systemio = {
@@ -295,10 +301,12 @@ static const Property prep_systemio_properties[] = {
 static void prep_systemio_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = prep_systemio_realize;
     dc->vmsd = &vmstate_prep_systemio;
     device_class_set_props(dc, prep_systemio_properties);
+    rc->phases.exit = prep_systemio_reset_exit;
 }
 
 static const TypeInfo prep_systemio800_info = {
