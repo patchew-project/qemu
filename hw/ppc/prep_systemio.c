@@ -44,7 +44,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(PrepSystemIoState, PREP_SYSTEMIO)
 
 struct PrepSystemIoState {
     ISADevice parent_obj;
+
     MemoryRegion ppc_parity_mem;
+    CPUState *cpu;
 
     qemu_irq non_contiguous_io_map_irq;
     uint8_t sreset; /* 0x0092 */
@@ -255,14 +257,12 @@ static void prep_systemio_realize(DeviceState *dev, Error **errp)
 {
     ISADevice *isa = ISA_DEVICE(dev);
     PrepSystemIoState *s = PREP_SYSTEMIO(dev);
-    PowerPCCPU *cpu;
 
     qdev_init_gpio_out(dev, &s->non_contiguous_io_map_irq, 1);
     s->iomap_type = PORT0850_IOMAP_NONCONTIGUOUS;
     qemu_set_irq(s->non_contiguous_io_map_irq,
                  s->iomap_type & PORT0850_IOMAP_NONCONTIGUOUS);
-    cpu = POWERPC_CPU(first_cpu);
-    s->softreset_irq = qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_HRESET);
+    s->softreset_irq = qdev_get_gpio_in(DEVICE(s->cpu), PPC6xx_INPUT_HRESET);
 
     isa_register_portio_list(isa, &s->portio, 0x0, ppc_io800_port_list, s,
                              "systemio800");
@@ -288,6 +288,8 @@ static const VMStateDescription vmstate_prep_systemio = {
 static const Property prep_systemio_properties[] = {
     DEFINE_PROP_UINT8("ibm-planar-id", PrepSystemIoState, ibm_planar_id, 0),
     DEFINE_PROP_UINT8("equipment", PrepSystemIoState, equipment, 0),
+    DEFINE_PROP_LINK("cpu", PrepSystemIoState, cpu,
+                     TYPE_POWERPC_CPU, CPUState *),
 };
 
 static void prep_systemio_class_initfn(ObjectClass *klass, const void *data)
