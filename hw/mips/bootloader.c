@@ -205,9 +205,10 @@ static void bl_gen_sw(const CPUMIPSState *env, void **p,
     }
 }
 
-static void bl_gen_sd(void **p, bl_reg rt, uint8_t base, uint16_t offset)
+static void bl_gen_sd(const CPUMIPSState *env, void **p,
+                      bl_reg rt, uint8_t base, uint16_t offset)
 {
-    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
+    if (bootcpu_supports_isa(env, ISA_MIPS3)) {
         bl_gen_i_type(p, 0x3f, base, rt, offset);
     } else {
         g_assert_not_reached(); /* unsupported */
@@ -284,7 +285,7 @@ void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
     bl_gen_load_ulong(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);
     if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
-        bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
+        bl_gen_sd(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
     } else {
         bl_gen_sw(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
     }
@@ -301,5 +302,5 @@ void bl_gen_write_u64(void **p, target_ulong addr, uint64_t val)
 {
     bl_gen_dli(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);
-    bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
+    bl_gen_sd(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
 }
