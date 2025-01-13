@@ -283,14 +283,15 @@ void bl_gen_jump_kernel(const MIPSCPU *cpu, void **p,
     bl_gen_jump_to(cpu, p, kernel_addr);
 }
 
-void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
+void bl_gen_write_ulong(const MIPSCPU *cpu, void **p,
+                        target_ulong addr, target_ulong val)
 {
-    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, val);
-    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_K1, addr);
-    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
-        bl_gen_sd(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
+    bl_gen_load_ulong(&cpu->env, p, BL_REG_K0, val);
+    bl_gen_load_ulong(&cpu->env, p, BL_REG_K1, addr);
+    if (bootcpu_supports_isa(&cpu->env, ISA_MIPS3)) {
+        bl_gen_sd(&cpu->env, p, BL_REG_K0, BL_REG_K1, 0x0);
     } else {
-        bl_gen_sw(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
+        bl_gen_sw(&cpu->env, p, BL_REG_K0, BL_REG_K1, 0x0);
     }
 }
 
