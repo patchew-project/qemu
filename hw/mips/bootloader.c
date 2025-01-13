@@ -277,7 +277,8 @@ void bl_gen_jump_kernel(void **p,
     bl_gen_jump_to(p, kernel_addr);
 }
 
-void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
+void bl_gen_write_ulong(const MIPSCPU *cpu, void **p,
+                        target_ulong addr, target_ulong val)
 {
     bl_gen_load_ulong(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);
@@ -288,14 +289,16 @@ void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
     }
 }
 
-void bl_gen_write_u32(void **p, target_ulong addr, uint32_t val)
+void bl_gen_write_u32(const MIPSCPU *cpu, void **p,
+                      target_ulong addr, uint32_t val)
 {
     bl_gen_li(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);
     bl_gen_sw(p, BL_REG_K0, BL_REG_K1, 0x0);
 }
 
-void bl_gen_write_u64(void **p, target_ulong addr, uint64_t val)
+void bl_gen_write_u64(const MIPSCPU *cpu, void **p,
+                      target_ulong addr, uint64_t val)
 {
     bl_gen_dli(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);

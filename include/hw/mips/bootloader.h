@@ -10,6 +10,7 @@
 #define HW_MIPS_BOOTLOADER_H
 
 #include "exec/cpu-defs.h"
+#include "target/mips/cpu-qom.h"
 
 /**
  * bl_gen_jump_to: Generate bootloader code to jump to an address
@@ -47,30 +48,36 @@ void bl_gen_jump_kernel(void **ptr,
  * bl_gen_write_ulong: Generate bootloader code to write an unsigned long
  *                     value at an address
  *
+ * @cpu: The MIPS CPU which will run the bootloader code
  * @ptr: Pointer to buffer where to write the bootloader code
  * @addr: Address to write to
  * @val: Value to write at @addr
  */
-void bl_gen_write_ulong(void **ptr, target_ulong addr, target_ulong val);
+void bl_gen_write_ulong(const MIPSCPU *cpu, void **ptr,
+                        target_ulong addr, target_ulong val);
 
 /**
  * bl_gen_write_u32: Generate bootloader code to write a 32-bit unsigned
  *                   value at an address
  *
+ * @cpu: The MIPS CPU which will run the bootloader code
  * @ptr: Pointer to buffer where to write the bootloader code
  * @addr: Address to write to
  * @val: Value to write at @addr
  */
-void bl_gen_write_u32(void **ptr, target_ulong addr, uint32_t val);
+void bl_gen_write_u32(const MIPSCPU *cpu, void **ptr,
+                      target_ulong addr, uint32_t val);
 
 /**
  * bl_gen_write_u64: Generate bootloader code to write a 64-bit unsigned
  *                   value at an address
  *
+ * @cpu: The MIPS CPU which will run the bootloader code
  * @ptr: Pointer to buffer where to write the bootloader code
  * @addr: Address to write to
  * @val: Value to write at @addr
  */
-void bl_gen_write_u64(void **ptr, target_ulong addr, uint64_t val);
+void bl_gen_write_u64(const MIPSCPU *cpu, void **ptr,
+                      target_ulong addr, uint64_t val);
 
 #endif

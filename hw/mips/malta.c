@@ -617,6 +617,7 @@ static void bl_setup_gt64120_jump_kernel(MaltaState *s, void **p,
     static const char pci_pins_cfg[PCI_NUM_PINS] = {
         10, 10, 11, 11 /* PIIX IRQRC[A:D] */
     };
+    const MIPSCPU *cpu = s->cpus[0];
 
     /* Bus endianness is always reversed */
 #if TARGET_BIG_ENDIAN
@@ -628,29 +629,29 @@ static void bl_setup_gt64120_jump_kernel(MaltaState *s, void **p,
     /* setup MEM-to-PCI0 mapping as done by YAMON */
 
     /* move GT64120 registers from 0x14000000 to 0x1be00000 */
-    bl_gen_write_u32(p, /* GT_ISD */
+    bl_gen_write_u32(cpu, p, /* GT_ISD */
                      cpu_mips_phys_to_kseg1(NULL, 0x14000000 + 0x68),
                      cpu_to_gt32(0x1be00000 << 3));
 
     /* setup PCI0 io window to 0x18000000-0x181fffff */
-    bl_gen_write_u32(p, /* GT_PCI0IOLD */
+    bl_gen_write_u32(cpu, p, /* GT_PCI0IOLD */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x48),
                      cpu_to_gt32(0x18000000 << 3));
-    bl_gen_write_u32(p, /* GT_PCI0IOHD */
+    bl_gen_write_u32(cpu, p, /* GT_PCI0IOHD */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x50),
                      cpu_to_gt32(0x08000000 << 3));
 
     /* setup PCI0 mem windows */
-    bl_gen_write_u32(p, /* GT_PCI0M0LD */
+    bl_gen_write_u32(cpu, p, /* GT_PCI0M0LD */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x58),
                      cpu_to_gt32(0x10000000 << 3));
-    bl_gen_write_u32(p, /* GT_PCI0M0HD */
+    bl_gen_write_u32(cpu, p, /* GT_PCI0M0HD */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x60),
                      cpu_to_gt32(0x07e00000 << 3));
-    bl_gen_write_u32(p, /* GT_PCI0M1LD */
+    bl_gen_write_u32(cpu, p, /* GT_PCI0M1LD */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x80),
                      cpu_to_gt32(0x18200000 << 3));
-    bl_gen_write_u32(p, /* GT_PCI0M1HD */
+    bl_gen_write_u32(cpu, p, /* GT_PCI0M1HD */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x88),
                      cpu_to_gt32(0x0bc00000 << 3));
 
@@ -661,12 +662,12 @@ static void bl_setup_gt64120_jump_kernel(MaltaState *s, void **p,
      * Load the PIIX IRQC[A:D] routing config address, then
      * write routing configuration to the config data register.
      */
-    bl_gen_write_u32(p, /* GT_PCI0_CFGADDR */
+    bl_gen_write_u32(cpu, p, /* GT_PCI0_CFGADDR */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0xcf8),
                      tswap32((1 << 31) /* ConfigEn */
                              | PCI_BUILD_BDF(0, PIIX4_PCI_DEVFN) << 8
                              | PIIX_PIRQCA));
-    bl_gen_write_u32(p, /* GT_PCI0_CFGDATA */
+    bl_gen_write_u32(cpu, p, /* GT_PCI0_CFGDATA */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0xcfc),
                      tswap32(ldl_be_p(pci_pins_cfg)));
 
