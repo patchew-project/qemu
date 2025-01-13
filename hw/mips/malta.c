@@ -610,7 +610,8 @@ static void network_init(PCIBus *pci_bus)
     pci_init_nic_devices(pci_bus, "pcnet");
 }
 
-static void bl_setup_gt64120_jump_kernel(void **p, uint64_t run_addr,
+static void bl_setup_gt64120_jump_kernel(MaltaState *s, void **p,
+                                         uint64_t run_addr,
                                          uint64_t kernel_entry)
 {
     static const char pci_pins_cfg[PCI_NUM_PINS] = {
@@ -710,7 +711,7 @@ static void write_bootloader_nanomips(MaltaState *s,
 
     /* to_here: */
 
-    bl_setup_gt64120_jump_kernel((void **)&p, run_addr, kernel_entry);
+    bl_setup_gt64120_jump_kernel(s, (void **)&p, run_addr, kernel_entry);
 }
 
 /*
@@ -776,7 +777,7 @@ static void write_bootloader(MaltaState *s,
      *
      */
 
-    bl_setup_gt64120_jump_kernel((void **)&p, run_addr, kernel_entry);
+    bl_setup_gt64120_jump_kernel(s, (void **)&p, run_addr, kernel_entry);
 
     /* YAMON subroutines */
     p = (uint32_t *) (base + 0x800);
