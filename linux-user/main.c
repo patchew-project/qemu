@@ -1041,6 +1041,8 @@ int main(int argc, char **argv, char **envp)
 
     target_cpu_copy_regs(env, regs);
 
+    current_cpu = cpu;
+
     if (gdbstub) {
         gdbserver_start(gdbstub, &error_fatal);
     }

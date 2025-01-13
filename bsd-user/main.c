@@ -646,6 +646,8 @@ int main(int argc, char **argv)
 
     target_cpu_init(env, regs);
 
+    current_cpu = cpu;
+
     if (gdbstub) {
         gdbserver_start(gdbstub, &error_fatal);
     }

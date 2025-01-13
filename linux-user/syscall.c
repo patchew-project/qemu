@@ -6565,6 +6565,7 @@ static void *clone_func(void *arg)
     env = info->env;
     cpu = env_cpu(env);
     thread_cpu = cpu;
+    current_cpu = cpu;
     ts = get_task_state(cpu);
     info->tid = sys_gettid();
     task_settid(ts);
