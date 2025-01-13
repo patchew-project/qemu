@@ -67,9 +67,9 @@ static void st_nm32_p(void **ptr, uint32_t insn)
 }
 
 /* Base types */
-static void bl_gen_nop(void **ptr)
+static void bl_gen_nop(const CPUMIPSState *env, void **ptr)
 {
-    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_NANOMIPS32)) {
+    if (bootcpu_supports_isa(env, ISA_NANOMIPS32)) {
         st_nm32_p(ptr, 0x8000c000);
     } else {
         uint32_t *p = *ptr;
@@ -247,7 +247,7 @@ void bl_gen_jump_to(void **p, target_ulong jump_addr)
 {
     bl_gen_load_ulong(p, BL_REG_T9, jump_addr);
     bl_gen_jalr(p, BL_REG_T9);
-    bl_gen_nop(p); /* delay slot */
+    bl_gen_nop(&MIPS_CPU(first_cpu)->env, p); /* delay slot */
 }
 
 void bl_gen_jump_kernel(void **p,
