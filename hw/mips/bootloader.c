@@ -127,7 +127,7 @@ static void bl_gen_dsll(void **p, bl_reg rd, bl_reg rt, uint8_t sa)
     }
 }
 
-static void bl_gen_jalr(void **p, bl_reg rs)
+static void bl_gen_jalr(const CPUMIPSState *env, void **p, bl_reg rs)
 {
     if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
         uint32_t insn = 0;
@@ -253,7 +253,7 @@ void bl_gen_jump_to(const MIPSCPU *cpu, void **p, target_ulong jump_addr)
     const CPUMIPSState *env = &cpu->env;
 
     bl_gen_load_ulong(env, p, BL_REG_T9, jump_addr);
-    bl_gen_jalr(p, BL_REG_T9);
+    bl_gen_jalr(env, p, BL_REG_T9);
     bl_gen_nop(p); /* delay slot */
 }
 
