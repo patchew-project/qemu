@@ -295,11 +295,12 @@ void bl_gen_write_ulong(const MIPSCPU *cpu, void **p,
     }
 }
 
-void bl_gen_write_u32(void **p, target_ulong addr, uint32_t val)
+void bl_gen_write_u32(const MIPSCPU *cpu, void **p,
+                      target_ulong addr, uint32_t val)
 {
-    bl_gen_li(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, val);
-    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_K1, addr);
-    bl_gen_sw(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
+    bl_gen_li(&cpu->env, p, BL_REG_K0, val);
+    bl_gen_load_ulong(&cpu->env, p, BL_REG_K1, addr);
+    bl_gen_sw(&cpu->env, p, BL_REG_K0, BL_REG_K1, 0x0);
 }
 
 void bl_gen_write_u64(void **p, target_ulong addr, uint64_t val)
