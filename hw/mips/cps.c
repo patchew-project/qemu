@@ -73,6 +73,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    s->cpus = g_new(MIPSCPU *, s->num_vp);
     for (int i = 0; i < s->num_vp; i++) {
         MIPSCPU *cpu = MIPS_CPU(object_new(s->cpu_type));
         CPUMIPSState *env = &cpu->env;
@@ -90,6 +91,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
             return;
         }
+        s->cpus[i] = cpu;
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
@@ -145,7 +147,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gic), 0));
 
     /* Global Configuration Registers */
-    gcr_base = MIPS_CPU(first_cpu)->env.CP0_CMGCRBase << 4;
+    gcr_base = s->cpus[0]->env.CP0_CMGCRBase << 4;
 
     object_initialize_child(OBJECT(dev), "gcr", &s->gcr, TYPE_MIPS_GCR);
     object_property_set_uint(OBJECT(&s->gcr), "num-vp", s->num_vp,
