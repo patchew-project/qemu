@@ -323,7 +323,8 @@ static void boston_register_types(void)
 }
 type_init(boston_register_types)
 
-static void gen_firmware(void *p, hwaddr kernel_entry, hwaddr fdt_addr)
+static void gen_firmware(const MIPSCPU *cpu, void *p,
+                         hwaddr kernel_entry, hwaddr fdt_addr)
 {
     uint64_t regaddr;
 
@@ -831,7 +832,9 @@ static void boston_mach_init(MachineState *machine)
             }
         }
 
-        gen_firmware(memory_region_get_ram_ptr(flash) + 0x7c00000,
+        gen_firmware(MIPS_CPU(object_resolve_path_component(OBJECT(&s->cps),
+                                                            "cpu[0]")),
+                     memory_region_get_ram_ptr(flash) + 0x7c00000,
                      s->kernel_entry, s->fdt_base);
     } else if (!qtest_enabled()) {
         error_report("Please provide either a -kernel or -bios argument");
