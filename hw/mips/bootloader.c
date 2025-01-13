@@ -256,7 +256,7 @@ void bl_gen_jump_to(const MIPSCPU *cpu, void **p, target_ulong jump_addr)
     bl_gen_nop(&cpu->env, p); /* delay slot */
 }
 
-void bl_gen_jump_kernel(void **p,
+void bl_gen_jump_kernel(const MIPSCPU *cpu, void **p,
                         bool set_sp, target_ulong sp,
                         bool set_a0, target_ulong a0,
                         bool set_a1, target_ulong a1,
@@ -265,22 +265,22 @@ void bl_gen_jump_kernel(void **p,
                         target_ulong kernel_addr)
 {
     if (set_sp) {
-        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_SP, sp);
+        bl_gen_load_ulong(&cpu->env, p, BL_REG_SP, sp);
     }
     if (set_a0) {
-        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A0, a0);
+        bl_gen_load_ulong(&cpu->env, p, BL_REG_A0, a0);
     }
     if (set_a1) {
-        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A1, a1);
+        bl_gen_load_ulong(&cpu->env, p, BL_REG_A1, a1);
     }
     if (set_a2) {
-        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A2, a2);
+        bl_gen_load_ulong(&cpu->env, p, BL_REG_A2, a2);
     }
     if (set_a3) {
-        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A3, a3);
+        bl_gen_load_ulong(&cpu->env, p, BL_REG_A3, a3);
     }
 
-    bl_gen_jump_to(MIPS_CPU(first_cpu), p, kernel_addr);
+    bl_gen_jump_to(cpu, p, kernel_addr);
 }
 
 void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)

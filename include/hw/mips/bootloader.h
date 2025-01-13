@@ -13,7 +13,7 @@
 #include "target/mips/cpu-qom.h"
 
 void bl_gen_jump_to(const MIPSCPU *cpu, void **ptr, target_ulong jump_addr);
-void bl_gen_jump_kernel(void **ptr,
+void bl_gen_jump_kernel(const MIPSCPU *cpu, void **ptr,
                         bool set_sp, target_ulong sp,
                         bool set_a0, target_ulong a0,
                         bool set_a1, target_ulong a1,
