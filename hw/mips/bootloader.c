@@ -213,7 +213,8 @@ static void bl_gen_sd(void **p, bl_reg rt, uint8_t base, uint16_t offset)
 }
 
 /* Pseudo instructions */
-static void bl_gen_li(void **p, bl_reg rt, uint32_t imm)
+static void bl_gen_li(const CPUMIPSState *env, void **p,
+                      bl_reg rt, uint32_t imm)
 {
     if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
         bl_gen_lui_nm(p, rt, extract32(imm, 12, 20));
@@ -224,9 +225,10 @@ static void bl_gen_li(void **p, bl_reg rt, uint32_t imm)
     }
 }
 
-static void bl_gen_dli(void **p, bl_reg rt, uint64_t imm)
+static void bl_gen_dli(const CPUMIPSState *env, void **p,
+                       bl_reg rt, uint64_t imm)
 {
-    bl_gen_li(p, rt, extract64(imm, 32, 32));
+    bl_gen_li(env, p, rt, extract64(imm, 32, 32));
     bl_gen_dsll(p, rt, rt, 16);
     bl_gen_ori(p, rt, rt, extract64(imm, 16, 16));
     bl_gen_dsll(p, rt, rt, 16);
@@ -237,9 +239,9 @@ static void bl_gen_load_ulong(const CPUMIPSState *env, void **p,
                               bl_reg rt, target_ulong imm)
 {
     if (bootcpu_supports_isa(ISA_MIPS3)) {
-        bl_gen_dli(p, rt, imm); /* 64bit */
+        bl_gen_dli(env, p, rt, imm); /* 64bit */
     } else {
-        bl_gen_li(p, rt, imm); /* 32bit */
+        bl_gen_li(env, p, rt, imm); /* 32bit */
     }
 }
 
@@ -301,7 +303,7 @@ void bl_gen_write_u32(const MIPSCPU *cpu, void **p,
 {
     const CPUMIPSState *env = &cpu->env;
 
-    bl_gen_li(p, BL_REG_K0, val);
+    bl_gen_li(env, p, BL_REG_K0, val);
     bl_gen_load_ulong(env, p, BL_REG_K1, addr);
     bl_gen_sw(p, BL_REG_K0, BL_REG_K1, 0x0);
 }
@@ -311,7 +313,7 @@ void bl_gen_write_u64(const MIPSCPU *cpu, void **p,
 {
     const CPUMIPSState *env = &cpu->env;
 
-    bl_gen_dli(p, BL_REG_K0, val);
+    bl_gen_dli(env, p, BL_REG_K0, val);
     bl_gen_load_ulong(env, p, BL_REG_K1, addr);
     bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
 }
