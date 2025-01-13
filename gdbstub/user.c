@@ -202,6 +202,8 @@ int gdb_handlesig(CPUState *cpu, int sig, const char *reason, void *siginfo,
     char buf[256];
     int n;
 
+    EXCLUSIVE_GUARD();
+
     if (!gdbserver_state.init || gdbserver_user_state.fd < 0) {
         return sig;
     }
