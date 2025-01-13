@@ -194,7 +194,8 @@ static void bl_gen_sw_nm(void **ptr, bl_reg rt, uint8_t rs, uint16_t ofs12)
     st_nm32_p(ptr, insn);
 }
 
-static void bl_gen_sw(void **p, bl_reg rt, uint8_t base, uint16_t offset)
+static void bl_gen_sw(const CPUMIPSState *env, void **p,
+                      bl_reg rt, uint8_t base, uint16_t offset)
 {
     if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
         bl_gen_sw_nm(p, rt, base, offset);
@@ -203,7 +204,8 @@ static void bl_gen_sw(void **p, bl_reg rt, uint8_t base, uint16_t offset)
     }
 }
 
-static void bl_gen_sd(void **p, bl_reg rt, uint8_t base, uint16_t offset)
+static void bl_gen_sd(const CPUMIPSState *env, void **p,
+                      bl_reg rt, uint8_t base, uint16_t offset)
 {
     if (bootcpu_supports_isa(ISA_MIPS3)) {
         bl_gen_i_type(p, 0x3f, base, rt, offset);
@@ -292,9 +294,9 @@ void bl_gen_write_ulong(const MIPSCPU *cpu, void **p,
     bl_gen_load_ulong(env, p, BL_REG_K0, val);
     bl_gen_load_ulong(env, p, BL_REG_K1, addr);
     if (bootcpu_supports_isa(ISA_MIPS3)) {
-        bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
+        bl_gen_sd(env, p, BL_REG_K0, BL_REG_K1, 0x0);
     } else {
-        bl_gen_sw(p, BL_REG_K0, BL_REG_K1, 0x0);
+        bl_gen_sw(env, p, BL_REG_K0, BL_REG_K1, 0x0);
     }
 }
 
@@ -305,7 +307,7 @@ void bl_gen_write_u32(const MIPSCPU *cpu, void **p,
 
     bl_gen_li(env, p, BL_REG_K0, val);
     bl_gen_load_ulong(env, p, BL_REG_K1, addr);
-    bl_gen_sw(p, BL_REG_K0, BL_REG_K1, 0x0);
+    bl_gen_sw(env, p, BL_REG_K0, BL_REG_K1, 0x0);
 }
 
 void bl_gen_write_u64(const MIPSCPU *cpu, void **p,
@@ -315,5 +317,5 @@ void bl_gen_write_u64(const MIPSCPU *cpu, void **p,
 
     bl_gen_dli(env, p, BL_REG_K0, val);
     bl_gen_load_ulong(env, p, BL_REG_K1, addr);
-    bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
+    bl_gen_sd(env, p, BL_REG_K0, BL_REG_K1, 0x0);
 }
