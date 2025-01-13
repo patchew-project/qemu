@@ -101,6 +101,7 @@ struct MaltaState {
     SysBusDevice parent_obj;
 
     Clock *cpuclk;
+    MIPSCPU **cpus;
     MIPSCPSState cps;
 };
 
@@ -1028,6 +1029,7 @@ static void create_cpu_without_cps(MachineState *ms, MaltaState *s,
     for (i = 0; i < ms->smp.cpus; i++) {
         cpu = mips_cpu_create_with_clock(ms->cpu_type, s->cpuclk,
                                          TARGET_BIG_ENDIAN);
+        s->cpus[i] = cpu;
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
@@ -1054,6 +1056,7 @@ static void create_cps(MachineState *ms, MaltaState *s,
                             &error_fatal);
     qdev_connect_clock_in(DEVICE(&s->cps), "clk-in", s->cpuclk);
     sysbus_realize(SYS_BUS_DEVICE(&s->cps), &error_fatal);
+    memcpy(s->cpus, s->cps.cpus, ms->smp.cpus * sizeof(MIPSCPU *));
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->cps), 0, 0, 1);
 
@@ -1061,9 +1064,11 @@ static void create_cps(MachineState *ms, MaltaState *s,
     *cbus_irq = NULL;
 }
 
-static void mips_create_cpu(MachineState *ms, MaltaState *s,
-                            qemu_irq *cbus_irq, qemu_irq *i8259_irq)
+/* Initialize MaltaState::cpus[] */
+static void mips_create_cpus(MachineState *ms, MaltaState *s,
+                             qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
+    s->cpus = g_new(MIPSCPU *, ms->smp.cpus);
     if ((ms->smp.cpus > 1) && cpu_type_supports_cps_smp(ms->cpu_type)) {
         create_cps(ms, s, cbus_irq, i8259_irq);
     } else {
@@ -1102,7 +1107,7 @@ void mips_malta_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
     /* create CPU */
-    mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);
+    mips_create_cpus(machine, s, &cbus_irq, &i8259_irq);
 
     /* allocate RAM */
     if (ram_size > 2 * GiB) {
