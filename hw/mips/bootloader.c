@@ -51,7 +51,7 @@ typedef enum bl_reg {
 
 static bool bootcpu_supports_isa(const CPUMIPSState *env, uint64_t isa_mask)
 {
-    return cpu_supports_isa(&MIPS_CPU(first_cpu)->env, isa_mask);
+    return cpu_supports_isa(env, isa_mask);
 }
 
 static void st_nm32_p(void **ptr, uint32_t insn)
