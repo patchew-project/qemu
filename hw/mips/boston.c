@@ -329,20 +329,20 @@ static void gen_firmware(void *p, hwaddr kernel_entry, hwaddr fdt_addr)
 
     /* Move CM GCRs */
     regaddr = cpu_mips_phys_to_kseg1(NULL, GCR_BASE_ADDR + GCR_BASE_OFS),
-    bl_gen_write_ulong(&p, regaddr,
-                       boston_memmap[BOSTON_CM].base);
+    bl_gen_write_u64(&p, regaddr,
+                     boston_memmap[BOSTON_CM].base);
 
     /* Move & enable GIC GCRs */
     regaddr = cpu_mips_phys_to_kseg1(NULL, boston_memmap[BOSTON_CM].base
                                            + GCR_GIC_BASE_OFS),
-    bl_gen_write_ulong(&p, regaddr,
-                       boston_memmap[BOSTON_GIC].base | GCR_GIC_BASE_GICEN_MSK);
+    bl_gen_write_u64(&p, regaddr,
+                     boston_memmap[BOSTON_GIC].base | GCR_GIC_BASE_GICEN_MSK);
 
     /* Move & enable CPC GCRs */
     regaddr = cpu_mips_phys_to_kseg1(NULL, boston_memmap[BOSTON_CM].base
                                            + GCR_CPC_BASE_OFS),
-    bl_gen_write_ulong(&p, regaddr,
-                       boston_memmap[BOSTON_CPC].base | GCR_CPC_BASE_CPCEN_MSK);
+    bl_gen_write_u64(&p, regaddr,
+                     boston_memmap[BOSTON_CPC].base | GCR_CPC_BASE_CPCEN_MSK);
 
     /*
      * Setup argument registers to follow the UHI boot protocol:
