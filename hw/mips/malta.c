@@ -1033,12 +1033,13 @@ static void create_cpu_without_cps(MachineState *ms, MaltaState *s,
         cpu_mips_irq_init_cpu(cpu);
         cpu_mips_clock_init(cpu);
         qemu_register_reset(main_cpu_reset, cpu);
-    }
 
-    cpu = MIPS_CPU(first_cpu);
-    env = &cpu->env;
-    *i8259_irq = env->irq[2];
-    *cbus_irq = env->irq[4];
+        if (i == 0) {
+            env = &cpu->env;
+            *i8259_irq = env->irq[2];
+            *cbus_irq = env->irq[4];
+        }
+    }
 }
 
 static void create_cps(MachineState *ms, MaltaState *s,
