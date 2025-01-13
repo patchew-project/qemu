@@ -323,25 +323,26 @@ static void boston_register_types(void)
 }
 type_init(boston_register_types)
 
-static void gen_firmware(void *p, hwaddr kernel_entry, hwaddr fdt_addr)
+static void gen_firmware(const MIPSCPU *cpu, void *p,
+                         hwaddr kernel_entry, hwaddr fdt_addr)
 {
     uint64_t regaddr;
 
     /* Move CM GCRs */
     regaddr = cpu_mips_phys_to_kseg1(NULL, GCR_BASE_ADDR + GCR_BASE_OFS),
-    bl_gen_write_u64(MIPS_CPU(first_cpu), &p, regaddr,
+    bl_gen_write_u64(cpu, &p, regaddr,
                      boston_memmap[BOSTON_CM].base);
 
     /* Move & enable GIC GCRs */
     regaddr = cpu_mips_phys_to_kseg1(NULL, boston_memmap[BOSTON_CM].base
                                            + GCR_GIC_BASE_OFS),
-    bl_gen_write_u64(MIPS_CPU(first_cpu), &p, regaddr,
+    bl_gen_write_u64(cpu, &p, regaddr,
                      boston_memmap[BOSTON_GIC].base | GCR_GIC_BASE_GICEN_MSK);
 
     /* Move & enable CPC GCRs */
     regaddr = cpu_mips_phys_to_kseg1(NULL, boston_memmap[BOSTON_CM].base
                                            + GCR_CPC_BASE_OFS),
-    bl_gen_write_u64(MIPS_CPU(first_cpu), &p, regaddr,
+    bl_gen_write_u64(cpu, &p, regaddr,
                      boston_memmap[BOSTON_CPC].base | GCR_CPC_BASE_CPCEN_MSK);
 
     /*
@@ -352,7 +353,7 @@ static void gen_firmware(void *p, hwaddr kernel_entry, hwaddr fdt_addr)
      * a2/$6 = 0
      * a3/$7 = 0
      */
-    bl_gen_jump_kernel(MIPS_CPU(first_cpu), &p,
+    bl_gen_jump_kernel(cpu, &p,
                        true, 0, true, (int32_t)-2,
                        true, fdt_addr, true, 0, true, 0,
                        kernel_entry);
@@ -831,7 +832,9 @@ static void boston_mach_init(MachineState *machine)
             }
         }
 
-        gen_firmware(memory_region_get_ram_ptr(flash) + 0x7c00000,
+        gen_firmware(MIPS_CPU(object_resolve_path_component(OBJECT(&s->cps),
+                                                            "cpu[0]")),
+                     memory_region_get_ram_ptr(flash) + 0x7c00000,
                      s->kernel_entry, s->fdt_base);
     } else if (!qtest_enabled()) {
         error_report("Please provide either a -kernel or -bios argument");
