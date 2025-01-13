@@ -238,19 +238,20 @@ static void bl_gen_dli(const CPUMIPSState *env, void **p,
     bl_gen_ori(p, rt, rt, extract64(imm, 0, 16));
 }
 
-static void bl_gen_load_ulong(void **p, bl_reg rt, target_ulong imm)
+static void bl_gen_load_ulong(const CPUMIPSState *env, void **p,
+                              bl_reg rt, target_ulong imm)
 {
-    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
-        bl_gen_dli(&MIPS_CPU(first_cpu)->env, p, rt, imm); /* 64bit */
+    if (bootcpu_supports_isa(env, ISA_MIPS3)) {
+        bl_gen_dli(env, p, rt, imm); /* 64bit */
     } else {
-        bl_gen_li(&MIPS_CPU(first_cpu)->env, p, rt, imm); /* 32bit */
+        bl_gen_li(env, p, rt, imm); /* 32bit */
     }
 }
 
 /* Helpers */
 void bl_gen_jump_to(void **p, target_ulong jump_addr)
 {
-    bl_gen_load_ulong(p, BL_REG_T9, jump_addr);
+    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_T9, jump_addr);
     bl_gen_jalr(&MIPS_CPU(first_cpu)->env, p, BL_REG_T9);
     bl_gen_nop(&MIPS_CPU(first_cpu)->env, p); /* delay slot */
 }
@@ -264,19 +265,19 @@ void bl_gen_jump_kernel(void **p,
                         target_ulong kernel_addr)
 {
     if (set_sp) {
-        bl_gen_load_ulong(p, BL_REG_SP, sp);
+        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_SP, sp);
     }
     if (set_a0) {
-        bl_gen_load_ulong(p, BL_REG_A0, a0);
+        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A0, a0);
     }
     if (set_a1) {
-        bl_gen_load_ulong(p, BL_REG_A1, a1);
+        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A1, a1);
     }
     if (set_a2) {
-        bl_gen_load_ulong(p, BL_REG_A2, a2);
+        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A2, a2);
     }
     if (set_a3) {
-        bl_gen_load_ulong(p, BL_REG_A3, a3);
+        bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A3, a3);
     }
 
     bl_gen_jump_to(p, kernel_addr);
@@ -284,8 +285,8 @@ void bl_gen_jump_kernel(void **p,
 
 void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
 {
-    bl_gen_load_ulong(p, BL_REG_K0, val);
-    bl_gen_load_ulong(p, BL_REG_K1, addr);
+    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, val);
+    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_K1, addr);
     if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
         bl_gen_sd(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
     } else {
@@ -296,13 +297,13 @@ void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
 void bl_gen_write_u32(void **p, target_ulong addr, uint32_t val)
 {
     bl_gen_li(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, val);
-    bl_gen_load_ulong(p, BL_REG_K1, addr);
+    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_K1, addr);
     bl_gen_sw(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
 }
 
 void bl_gen_write_u64(void **p, target_ulong addr, uint64_t val)
 {
     bl_gen_dli(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, val);
-    bl_gen_load_ulong(p, BL_REG_K1, addr);
+    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_K1, addr);
     bl_gen_sd(&MIPS_CPU(first_cpu)->env, p, BL_REG_K0, BL_REG_K1, 0x0);
 }
