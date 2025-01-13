@@ -243,14 +243,14 @@ static void bl_gen_load_ulong(void **p, bl_reg rt, target_ulong imm)
 }
 
 /* Helpers */
-void bl_gen_jump_to(void **p, target_ulong jump_addr)
+void bl_gen_jump_to(const MIPSCPU *cpu, void **p, target_ulong jump_addr)
 {
     bl_gen_load_ulong(p, BL_REG_T9, jump_addr);
     bl_gen_jalr(p, BL_REG_T9);
     bl_gen_nop(p); /* delay slot */
 }
 
-void bl_gen_jump_kernel(void **p,
+void bl_gen_jump_kernel(const MIPSCPU *cpu, void **p,
                         bool set_sp, target_ulong sp,
                         bool set_a0, target_ulong a0,
                         bool set_a1, target_ulong a1,
@@ -274,7 +274,7 @@ void bl_gen_jump_kernel(void **p,
         bl_gen_load_ulong(p, BL_REG_A3, a3);
     }
 
-    bl_gen_jump_to(p, kernel_addr);
+    bl_gen_jump_to(cpu, p, kernel_addr);
 }
 
 void bl_gen_write_ulong(const MIPSCPU *cpu, void **p,

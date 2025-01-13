@@ -179,7 +179,7 @@ static void write_bootloader(const MIPSCPU *cpu, uint8_t *base,
     /* Second part of the bootloader */
     p = (uint32_t *)(base + 0x040);
 
-    bl_gen_jump_kernel((void **)&p,
+    bl_gen_jump_kernel(cpu, (void **)&p,
                        true, ENVP_VADDR - 64,
                        true, 2, true, ENVP_VADDR,
                        true, ENVP_VADDR + 8,

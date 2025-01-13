@@ -671,7 +671,7 @@ static void bl_setup_gt64120_jump_kernel(MaltaState *s, void **p,
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0xcfc),
                      tswap32(ldl_be_p(pci_pins_cfg)));
 
-    bl_gen_jump_kernel(p,
+    bl_gen_jump_kernel(cpu, p,
                        true, ENVP_VADDR - 64,
                        /*
                         * If semihosting is used, arguments have already

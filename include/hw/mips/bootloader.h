@@ -15,14 +15,16 @@
 /**
  * bl_gen_jump_to: Generate bootloader code to jump to an address
  *
+ * @cpu: The MIPS CPU which will run the bootloader code
  * @ptr: Pointer to buffer where to write the bootloader code
  * @jump_addr: Address to jump to
  */
-void bl_gen_jump_to(void **ptr, target_ulong jump_addr);
+void bl_gen_jump_to(const MIPSCPU *cpu, void **ptr, target_ulong jump_addr);
 
 /**
  * bl_gen_jump_kernel: Generate bootloader code to jump to a Linux kernel
  *
+ * @cpu: The MIPS CPU which will run the bootloader code
  * @ptr: Pointer to buffer where to write the bootloader code
  * @set_sp: Whether to set $sp register
  * @set_a0: Whether to set $a0 register
@@ -36,7 +38,7 @@ void bl_gen_jump_to(void **ptr, target_ulong jump_addr);
  * @a3: Value to set $a0 to if @set_a3 is set
  * @kernel_addr: Start address of the kernel to jump to
  */
-void bl_gen_jump_kernel(void **ptr,
+void bl_gen_jump_kernel(const MIPSCPU *cpu, void **ptr,
                         bool set_sp, target_ulong sp,
                         bool set_a0, target_ulong a0,
                         bool set_a1, target_ulong a1,

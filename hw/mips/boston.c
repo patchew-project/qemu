@@ -353,7 +353,7 @@ static void gen_firmware(const MIPSCPU *cpu, void *p,
      * a2/$6 = 0
      * a3/$7 = 0
      */
-    bl_gen_jump_kernel(&p,
+    bl_gen_jump_kernel(cpu, &p,
                        true, 0, true, (int32_t)-2,
                        true, fdt_addr, true, 0, true, 0,
                        kernel_entry);
