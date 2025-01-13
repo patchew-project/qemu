@@ -249,11 +249,11 @@ static void bl_gen_load_ulong(const CPUMIPSState *env, void **p,
 }
 
 /* Helpers */
-void bl_gen_jump_to(void **p, target_ulong jump_addr)
+void bl_gen_jump_to(const MIPSCPU *cpu, void **p, target_ulong jump_addr)
 {
-    bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_T9, jump_addr);
-    bl_gen_jalr(&MIPS_CPU(first_cpu)->env, p, BL_REG_T9);
-    bl_gen_nop(&MIPS_CPU(first_cpu)->env, p); /* delay slot */
+    bl_gen_load_ulong(&cpu->env, p, BL_REG_T9, jump_addr);
+    bl_gen_jalr(&cpu->env, p, BL_REG_T9);
+    bl_gen_nop(&cpu->env, p); /* delay slot */
 }
 
 void bl_gen_jump_kernel(void **p,
@@ -280,7 +280,7 @@ void bl_gen_jump_kernel(void **p,
         bl_gen_load_ulong(&MIPS_CPU(first_cpu)->env, p, BL_REG_A3, a3);
     }
 
-    bl_gen_jump_to(p, kernel_addr);
+    bl_gen_jump_to(MIPS_CPU(first_cpu), p, kernel_addr);
 }
 
 void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)

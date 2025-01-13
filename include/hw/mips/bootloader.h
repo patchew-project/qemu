@@ -10,8 +10,9 @@
 #define HW_MIPS_BOOTLOADER_H
 
 #include "exec/cpu-defs.h"
+#include "target/mips/cpu-qom.h"
 
-void bl_gen_jump_to(void **ptr, target_ulong jump_addr);
+void bl_gen_jump_to(const MIPSCPU *cpu, void **ptr, target_ulong jump_addr);
 void bl_gen_jump_kernel(void **ptr,
                         bool set_sp, target_ulong sp,
                         bool set_a0, target_ulong a0,
