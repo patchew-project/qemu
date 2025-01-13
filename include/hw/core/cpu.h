@@ -1042,6 +1042,17 @@ void start_exclusive(void);
  */
 void end_exclusive(void);
 
+static inline void exclusive_unlock_guard(int *exclusive_guard G_GNUC_UNUSED)
+{
+    end_exclusive();
+}
+
+#define EXCLUSIVE_GUARD()                                      \
+    int glue(exclusive_guard, __COUNTER__)                     \
+            G_GNUC_UNUSED                                      \
+            __attribute__((cleanup(exclusive_unlock_guard))) = \
+        (start_exclusive(), 0);
+
 /**
  * qemu_init_vcpu:
  * @cpu: The vCPU to initialize.
