@@ -49,9 +49,9 @@ typedef enum bl_reg {
     BL_REG_RA = 31,
 } bl_reg;
 
-static bool bootcpu_supports_isa(uint64_t isa_mask)
+static bool bootcpu_supports_isa(const CPUMIPSState *env, uint64_t isa_mask)
 {
-    return cpu_supports_isa(&MIPS_CPU(first_cpu)->env, isa_mask);
+    return cpu_supports_isa(env, isa_mask);
 }
 
 static void st_nm32_p(void **ptr, uint32_t insn)
@@ -69,7 +69,7 @@ static void st_nm32_p(void **ptr, uint32_t insn)
 /* Base types */
 static void bl_gen_nop(void **ptr)
 {
-    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_NANOMIPS32)) {
         st_nm32_p(ptr, 0x8000c000);
     } else {
         uint32_t *p = *ptr;
@@ -120,7 +120,7 @@ static void bl_gen_i_type(void **ptr, uint8_t opcode,
 /* Single instructions */
 static void bl_gen_dsll(void **p, bl_reg rd, bl_reg rt, uint8_t sa)
 {
-    if (bootcpu_supports_isa(ISA_MIPS3)) {
+    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
         bl_gen_r_type(p, 0, 0, rt, rd, sa, 0x38);
     } else {
         g_assert_not_reached(); /* unsupported */
@@ -129,7 +129,7 @@ static void bl_gen_dsll(void **p, bl_reg rd, bl_reg rt, uint8_t sa)
 
 static void bl_gen_jalr(void **p, bl_reg rs)
 {
-    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_NANOMIPS32)) {
         uint32_t insn = 0;
 
         insn = deposit32(insn, 26, 6, 0b010010); /* JALRC */
@@ -196,7 +196,7 @@ static void bl_gen_sw_nm(void **ptr, bl_reg rt, uint8_t rs, uint16_t ofs12)
 
 static void bl_gen_sw(void **p, bl_reg rt, uint8_t base, uint16_t offset)
 {
-    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_NANOMIPS32)) {
         bl_gen_sw_nm(p, rt, base, offset);
     } else {
         bl_gen_i_type(p, 0x2b, base, rt, offset);
@@ -205,7 +205,7 @@ static void bl_gen_sw(void **p, bl_reg rt, uint8_t base, uint16_t offset)
 
 static void bl_gen_sd(void **p, bl_reg rt, uint8_t base, uint16_t offset)
 {
-    if (bootcpu_supports_isa(ISA_MIPS3)) {
+    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
         bl_gen_i_type(p, 0x3f, base, rt, offset);
     } else {
         g_assert_not_reached(); /* unsupported */
@@ -215,7 +215,7 @@ static void bl_gen_sd(void **p, bl_reg rt, uint8_t base, uint16_t offset)
 /* Pseudo instructions */
 static void bl_gen_li(void **p, bl_reg rt, uint32_t imm)
 {
-    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_NANOMIPS32)) {
         bl_gen_lui_nm(p, rt, extract32(imm, 12, 20));
         bl_gen_ori_nm(p, rt, rt, extract32(imm, 0, 12));
     } else {
@@ -235,7 +235,7 @@ static void bl_gen_dli(void **p, bl_reg rt, uint64_t imm)
 
 static void bl_gen_load_ulong(void **p, bl_reg rt, target_ulong imm)
 {
-    if (bootcpu_supports_isa(ISA_MIPS3)) {
+    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
         bl_gen_dli(p, rt, imm); /* 64bit */
     } else {
         bl_gen_li(p, rt, imm); /* 32bit */
@@ -281,7 +281,7 @@ void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
 {
     bl_gen_load_ulong(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);
-    if (bootcpu_supports_isa(ISA_MIPS3)) {
+    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
         bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
     } else {
         bl_gen_sw(p, BL_REG_K0, BL_REG_K1, 0x0);
