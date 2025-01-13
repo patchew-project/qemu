@@ -682,7 +682,8 @@ static void bl_setup_gt64120_jump_kernel(void **p, uint64_t run_addr,
                        kernel_entry);
 }
 
-static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
+static void write_bootloader_nanomips(MaltaState *s,
+                                      uint8_t *base, uint64_t run_addr,
                                       uint64_t kernel_entry)
 {
     uint16_t *p;
@@ -734,7 +735,8 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
  *   a2 - 32-bit address of the environment variables table
  *   a3 - RAM size in bytes
  */
-static void write_bootloader(uint8_t *base, uint64_t run_addr,
+static void write_bootloader(MaltaState *s,
+                             uint8_t *base, uint64_t run_addr,
                              uint64_t kernel_entry)
 {
     uint32_t *p;
@@ -1163,10 +1165,10 @@ void mips_malta_init(MachineState *machine)
         kernel_entry = load_kernel();
 
         if (!cpu_type_supports_isa(machine->cpu_type, ISA_NANOMIPS32)) {
-            write_bootloader(memory_region_get_ram_ptr(bios),
+            write_bootloader(s, memory_region_get_ram_ptr(bios),
                              bootloader_run_addr, kernel_entry);
         } else {
-            write_bootloader_nanomips(memory_region_get_ram_ptr(bios),
+            write_bootloader_nanomips(s, memory_region_get_ram_ptr(bios),
                                       bootloader_run_addr, kernel_entry);
         }
     } else {
