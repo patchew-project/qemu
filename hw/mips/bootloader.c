@@ -118,9 +118,10 @@ static void bl_gen_i_type(void **ptr, uint8_t opcode,
 }
 
 /* Single instructions */
-static void bl_gen_dsll(void **p, bl_reg rd, bl_reg rt, uint8_t sa)
+static void bl_gen_dsll(const CPUMIPSState *env, void **p,
+                        bl_reg rd, bl_reg rt, uint8_t sa)
 {
-    if (bootcpu_supports_isa(&MIPS_CPU(first_cpu)->env, ISA_MIPS3)) {
+    if (bootcpu_supports_isa(env, ISA_MIPS3)) {
         bl_gen_r_type(p, 0, 0, rt, rd, sa, 0x38);
     } else {
         g_assert_not_reached(); /* unsupported */
@@ -227,9 +228,9 @@ static void bl_gen_li(void **p, bl_reg rt, uint32_t imm)
 static void bl_gen_dli(void **p, bl_reg rt, uint64_t imm)
 {
     bl_gen_li(p, rt, extract64(imm, 32, 32));
-    bl_gen_dsll(p, rt, rt, 16);
+    bl_gen_dsll(&MIPS_CPU(first_cpu)->env, p, rt, rt, 16);
     bl_gen_ori(p, rt, rt, extract64(imm, 16, 16));
-    bl_gen_dsll(p, rt, rt, 16);
+    bl_gen_dsll(&MIPS_CPU(first_cpu)->env, p, rt, rt, 16);
     bl_gen_ori(p, rt, rt, extract64(imm, 0, 16));
 }
 
