@@ -233,7 +233,8 @@ static void bl_gen_dli(void **p, bl_reg rt, uint64_t imm)
     bl_gen_ori(p, rt, rt, extract64(imm, 0, 16));
 }
 
-static void bl_gen_load_ulong(void **p, bl_reg rt, target_ulong imm)
+static void bl_gen_load_ulong(const CPUMIPSState *env, void **p,
+                              bl_reg rt, target_ulong imm)
 {
     if (bootcpu_supports_isa(ISA_MIPS3)) {
         bl_gen_dli(p, rt, imm); /* 64bit */
@@ -245,7 +246,9 @@ static void bl_gen_load_ulong(void **p, bl_reg rt, target_ulong imm)
 /* Helpers */
 void bl_gen_jump_to(const MIPSCPU *cpu, void **p, target_ulong jump_addr)
 {
-    bl_gen_load_ulong(p, BL_REG_T9, jump_addr);
+    const CPUMIPSState *env = &cpu->env;
+
+    bl_gen_load_ulong(env, p, BL_REG_T9, jump_addr);
     bl_gen_jalr(p, BL_REG_T9);
     bl_gen_nop(p); /* delay slot */
 }
@@ -258,20 +261,22 @@ void bl_gen_jump_kernel(const MIPSCPU *cpu, void **p,
                         bool set_a3, target_ulong a3,
                         target_ulong kernel_addr)
 {
+    const CPUMIPSState *env = &cpu->env;
+
     if (set_sp) {
-        bl_gen_load_ulong(p, BL_REG_SP, sp);
+        bl_gen_load_ulong(env, p, BL_REG_SP, sp);
     }
     if (set_a0) {
-        bl_gen_load_ulong(p, BL_REG_A0, a0);
+        bl_gen_load_ulong(env, p, BL_REG_A0, a0);
     }
     if (set_a1) {
-        bl_gen_load_ulong(p, BL_REG_A1, a1);
+        bl_gen_load_ulong(env, p, BL_REG_A1, a1);
     }
     if (set_a2) {
-        bl_gen_load_ulong(p, BL_REG_A2, a2);
+        bl_gen_load_ulong(env, p, BL_REG_A2, a2);
     }
     if (set_a3) {
-        bl_gen_load_ulong(p, BL_REG_A3, a3);
+        bl_gen_load_ulong(env, p, BL_REG_A3, a3);
     }
 
     bl_gen_jump_to(cpu, p, kernel_addr);
@@ -280,8 +285,10 @@ void bl_gen_jump_kernel(const MIPSCPU *cpu, void **p,
 void bl_gen_write_ulong(const MIPSCPU *cpu, void **p,
                         target_ulong addr, target_ulong val)
 {
-    bl_gen_load_ulong(p, BL_REG_K0, val);
-    bl_gen_load_ulong(p, BL_REG_K1, addr);
+    const CPUMIPSState *env = &cpu->env;
+
+    bl_gen_load_ulong(env, p, BL_REG_K0, val);
+    bl_gen_load_ulong(env, p, BL_REG_K1, addr);
     if (bootcpu_supports_isa(ISA_MIPS3)) {
         bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
     } else {
@@ -292,15 +299,19 @@ void bl_gen_write_ulong(const MIPSCPU *cpu, void **p,
 void bl_gen_write_u32(const MIPSCPU *cpu, void **p,
                       target_ulong addr, uint32_t val)
 {
+    const CPUMIPSState *env = &cpu->env;
+
     bl_gen_li(p, BL_REG_K0, val);
-    bl_gen_load_ulong(p, BL_REG_K1, addr);
+    bl_gen_load_ulong(env, p, BL_REG_K1, addr);
     bl_gen_sw(p, BL_REG_K0, BL_REG_K1, 0x0);
 }
 
 void bl_gen_write_u64(const MIPSCPU *cpu, void **p,
                       target_ulong addr, uint64_t val)
 {
+    const CPUMIPSState *env = &cpu->env;
+
     bl_gen_dli(p, BL_REG_K0, val);
-    bl_gen_load_ulong(p, BL_REG_K1, addr);
+    bl_gen_load_ulong(env, p, BL_REG_K1, addr);
     bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
 }
