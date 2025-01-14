@@ -4707,6 +4707,16 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_FIELD;
     }
 
+    if (!n->features.hbs.lbafee) {
+        if ((NVME_ID_NS_NVM_ELBAF_PIF(ns->id_ns_nvm.elbaf[
+             NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)]) != 0)) {
+            return NVME_INVALID_FORMAT | NVME_DNR;
+        }
+        if (NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas) > ns->id_ns.nlbaf) {
+            return NVME_INVALID_FORMAT | NVME_DNR;
+        }
+    }
+
     req->ns = ns;
 
     switch (ns->csi) {
@@ -6942,8 +6952,26 @@ done:
     nvme_do_format(iocb);
 }
 
-static uint16_t nvme_format_check(NvmeNamespace *ns, uint8_t lbaf, uint8_t pi)
+static uint16_t nvme_format_check(NvmeFormatAIOCB *iocb)
 {
+    NvmeNamespace *ns = iocb->ns;
+    NvmeRequest *req = iocb->req;
+    NvmeCtrl *n = nvme_ctrl(req);
+    uint8_t lbaf = iocb->lbaf;
+    uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
+    uint8_t pi = (dw10 >> 5) & 0x7;
+
+    if (!n->features.hbs.lbafee) {
+        if ((NVME_ID_NS_NVM_ELBAF_PIF(ns->id_ns_nvm.elbaf[lbaf]) != 0) ||
+            (NVME_ID_NS_NVM_ELBAF_PIF(ns->id_ns_nvm.elbaf[
+             NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)]) != 0)) {
+            return NVME_INVALID_FORMAT | NVME_DNR;
+        }
+        if (NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas) > ns->id_ns.nlbaf) {
+            return NVME_INVALID_FORMAT | NVME_DNR;
+        }
+    }
+
     if (ns->params.zoned) {
         return NVME_INVALID_FORMAT | NVME_DNR;
     }
@@ -6967,9 +6995,6 @@ static void nvme_do_format(NvmeFormatAIOCB *iocb)
 {
     NvmeRequest *req = iocb->req;
     NvmeCtrl *n = nvme_ctrl(req);
-    uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
-    uint8_t lbaf = dw10 & 0xf;
-    uint8_t pi = (dw10 >> 5) & 0x7;
     uint16_t status;
     int i;
 
@@ -6991,7 +7016,7 @@ static void nvme_do_format(NvmeFormatAIOCB *iocb)
         goto done;
     }
 
-    status = nvme_format_check(iocb->ns, lbaf, pi);
+    status = nvme_format_check(iocb);
     if (status) {
         req->status = status;
         goto done;
