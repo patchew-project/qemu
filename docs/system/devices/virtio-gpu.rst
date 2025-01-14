@@ -4,14 +4,91 @@
 virtio-gpu
 ==========
 
-This document explains the setup and usage of the virtio-gpu device.
-The virtio-gpu device paravirtualizes the GPU and display controller.
+The virtio-gpu device provides a GPU and display controller
+paravirtualized using VirtIO. It supports a number of different modes
+from simple 2D displays to fully accelerated 3D graphics.
 
-Linux kernel support
---------------------
+Dependencies
+............
+
+.. note::
+  GPU virtualisation is still an evolving field. Depending on the mode
+  you are running you may need to override distribution supplied
+  libraries with more recent versions or enable build options.
+
+Host requirements
+-----------------
+
+Depending on the mode there are a number of requirements the host must
+meet to be able to be able to support guests. For 3D acceleration QEMU
+must be able to access the hosts GPU and for the best performance be
+able to reliably share GPU memory with the guest.
+
+.. list-table:: Host Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Kernel
+    - Userspace
+  * - virtio-gpu
+    - framebuffer enabled
+    - GTK or SDL display
+  * - virtio-gpu-gl (OpenGL pass-through)
+    - GPU enabled
+    - libvirglrenderer (virgl support)
+  * - virtio-gpu-gl (rutabaga/gfxstream)
+    - GPU enabled
+    - aemu/rutabaga_gfx_ffi or vhost-user client with support
+  * - virtio-gpu-gl (Vulkan pass-through)
+    - Linux 6.13, CONFIG_UDMA
+    - libvirglrenderer (>= 1.1.0, venus support)
+  * - virtio-gpu-gl (Native Context)
+    - Linux 6.13, CONFIG_UDMA
+    - libvirglrenderer (master, possibly with patches)
+
+
+Guest requirements
+------------------
 
 virtio-gpu requires a guest Linux kernel built with the
-``CONFIG_DRM_VIRTIO_GPU`` option.
+``CONFIG_DRM_VIRTIO_GPU`` option. Otherwise for 3D accelerations you
+will need support from Mesa configured for whichever encapsulation you
+need.
+
+.. list-table:: Guest Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Min Mesa Version
+    - Mesa flags
+  * - virtio-gpu
+    - n/a
+    - n/a
+  * - virtio-gpu-gl (OpenGL pass-through)
+    - 20.3.0+
+    - -Dgallium-drivers=virgl
+  * - virtio-gpu-gl (rutabaga/gfxstream)
+    - 24.3.0+
+    - -Dvulkan-drivers=gfxstream
+  * - virtio-gpu-gl (Vulkan pass-through)
+    - 24.2+
+    - -Dvulkan-drivers=virtio
+  * - virtio-gpu-gl (Native Context/Freedreno)
+    - master
+    - ?
+  * - virtio-gpu-gl (Native Context/Intel)
+    - `mr29870`_
+    - -Dvulkan-drivers=iris -Dintel-virtio-experimental=true
+  * - virtio-gpu-gl (Native Context/AMD)
+    - `mr21658`_
+    - -Dvulkan-drivers=radeonsi
+
+.. _mr29870: https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/29870
+.. _mr21658: https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/21658
+      
+Further information
+...................
+
 
 QEMU virtio-gpu variants
 ------------------------
