@@ -2146,6 +2146,10 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         env->mstatus &= ~MSTATUS_FS;
     }
 
+    if (!(env->misa_ext & RVV)) {
+        env->mstatus &= ~MSTATUS_VS;
+    }
+
     /* flush translation cache */
     tb_flush(env_cpu(env));
     env->xl = riscv_cpu_mxl(env);
