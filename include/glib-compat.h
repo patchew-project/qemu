@@ -75,6 +75,17 @@
  * without generating warnings.
  */
 
+static inline gboolean g_spawn_check_wait_status_qemu(gint wait_status,
+                                                      GError **error)
+{
+#if GLIB_CHECK_VERSION(2, 70, 0)
+    return g_spawn_check_wait_status(wait_status, error);
+#else
+    return g_spawn_check_exit_status(wait_status, error);
+#endif
+}
+#define g_spawn_check_wait_status(w, e) g_spawn_check_wait_status_qemu(w, e)
+
 /*
  * g_memdup2_qemu:
  * @mem: (nullable): the memory to copy.
