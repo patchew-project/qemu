@@ -44,6 +44,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/option.h"
 #include "hw/pci-host/ppce500.h"
+#include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "hw/platform-bus.h"
 #include "hw/net/fsl_etsec/etsec.h"
@@ -1279,11 +1280,83 @@ void ppce500_init(MachineState *machine)
     boot_info->dt_size = dt_size;
 }
 
+static int law_idx(hwaddr addr)
+{
+    int idx;
+
+    addr -= 0xc08;
+    idx = 2 * ((addr >> 5) & 0xf);
+    if (addr & 8) {
+        idx++;
+    }
+    assert(idx < 2 * NR_LAWS);
+    return idx;
+}
+
+static uint64_t law_read(void *opaque, hwaddr addr, unsigned size)
+{
+    PPCE500CCSRState *s = opaque;
+    uint64_t val = 0;
+
+    switch (addr) {
+    case 0:
+        val = s->ccsr_space.addr >> 12;
+        break;
+    case 0xc08 ... 0xd70:
+        val = s->law_regs[law_idx(addr)];
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid local access register read"
+                      "0x%" HWADDR_PRIx "\n", addr);
+    }
+    return val;
+}
+
+static void law_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+{
+    PPCE500CCSRState *s = opaque;
+
+    switch (addr) {
+    case 0:
+        val &= 0xffff00;
+        memory_region_set_address(&s->ccsr_space, val << 12);
+        break;
+    case 0xc08 ... 0xd70:
+    {
+        int idx = law_idx(addr);
+
+        qemu_log_mask(LOG_UNIMP, "Unimplemented local access register write"
+                      "0x%" HWADDR_PRIx " <- 0x%" PRIx64 "\n", addr, val);
+        val &= (idx & 1) ? 0x80f0003f : 0xffffff;
+        s->law_regs[idx] = val;
+        break;
+    }
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid local access register write"
+                      "0x%" HWADDR_PRIx "\n", addr);
+    }
+}
+
+static const MemoryRegionOps law_ops = {
+    .read = law_read,
+    .write = law_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
 static void e500_ccsr_initfn(Object *obj)
 {
-    PPCE500CCSRState *ccsr = CCSR(obj);
-    memory_region_init(&ccsr->ccsr_space, obj, "e500-ccsr",
-                       MPC8544_CCSRBAR_SIZE);
+    PPCE500CCSRState *s = CCSR(obj);
+    MemoryRegion *mr;
+
+    memory_region_init(&s->ccsr_space, obj, "e500-ccsr", MPC8544_CCSRBAR_SIZE);
+
+    mr = g_new(MemoryRegion, 1);
+    memory_region_init_io(mr, obj, &law_ops, s, "local-access", 4096);
+    memory_region_add_subregion(&s->ccsr_space, 0, mr);
 }
 
 static const TypeInfo e500_ccsr_info = {
