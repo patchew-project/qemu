@@ -385,56 +385,30 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     return s;
 }
 
-static void close_all_fds_after_fork(int excluded_fd)
+static void unset_cloexec(gpointer data)
 {
-    const int skip_fd[] = {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO,
-                           excluded_fd};
-    unsigned int nskip = ARRAY_SIZE(skip_fd);
-
-    /*
-     * skip_fd must be an ordered array of distinct fds, exclude
-     * excluded_fd if already included in the [STDIN_FILENO - STDERR_FILENO]
-     * range
-     */
-    if (excluded_fd <= STDERR_FILENO) {
-        nskip--;
-    }
-
-    qemu_close_all_open_fd(skip_fd, nskip);
+    g_assert(!fcntl(GPOINTER_TO_INT(data), F_SETFD, 0));
 }
 
 static void launch_script(const char *setup_script, const char *ifname,
                           int fd, Error **errp)
 {
-    int pid, status;
-    char *args[3];
-    char **parg;
+    gint status;
+    gchar *argv[] = { (gchar *)setup_script, (gchar *)ifname, NULL };
+    g_autoptr(GError) error = NULL;
 
     /* try to launch network script */
-    pid = fork();
-    if (pid < 0) {
-        error_setg_errno(errp, errno, "could not launch network script %s",
-                         setup_script);
+    if (!g_spawn_sync(NULL, argv, NULL, G_SPAWN_CHILD_INHERITS_STDIN,
+                      unset_cloexec, GINT_TO_POINTER(fd),
+                      NULL, NULL, &status, &error)) {
+        error_setg(errp, "could not launch network script %s: %s",
+                   setup_script, error->message);
         return;
     }
-    if (pid == 0) {
-        close_all_fds_after_fork(fd);
-        parg = args;
-        *parg++ = (char *)setup_script;
-        *parg++ = (char *)ifname;
-        *parg = NULL;
-        execv(setup_script, args);
-        _exit(1);
-    } else {
-        while (waitpid(pid, &status, 0) != pid) {
-            /* loop */
-        }
 
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            return;
-        }
-        error_setg(errp, "network script %s failed with status %d",
-                   setup_script, status);
+    if (!g_spawn_check_wait_status(status, &error)) {
+        error_setg(errp, "network script %s failed: %s",
+                   setup_script, error->message);
     }
 }
 
@@ -477,6 +451,12 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
 {
     sigset_t oldmask, mask;
     g_autofree char *default_helper = NULL;
+    g_autofree char *fd_buf = NULL;
+    g_autofree char *br_buf = NULL;
+    g_autofree char *helper_cmd = NULL;
+    g_autoptr(GError) error = NULL;
+    int fd;
+    int saved_errno;
     int pid, status;
     char *args[5];
     char **parg;
@@ -495,82 +475,65 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
         return -1;
     }
 
+    fd_buf = g_strdup_printf("%s%d", "--fd=", sv[1]);
+
+    if (strrchr(helper, ' ') || strrchr(helper, '\t')) {
+        /* assume helper is a command */
+
+        if (strstr(helper, "--br=") == NULL) {
+            br_buf = g_strdup_printf("%s%s", "--br=", bridge);
+        }
+
+        helper_cmd = g_strdup_printf("%s %s %s %s", helper,
+                        "--use-vnet", fd_buf, br_buf ? br_buf : "");
+
+        parg = args;
+        *parg++ = (char *)"sh";
+        *parg++ = (char *)"-c";
+        *parg++ = helper_cmd;
+        *parg++ = NULL;
+    } else {
+        /* assume helper is just the executable path name */
+
+        br_buf = g_strdup_printf("%s%s", "--br=", bridge);
+
+        parg = args;
+        *parg++ = (char *)helper;
+        *parg++ = (char *)"--use-vnet";
+        *parg++ = fd_buf;
+        *parg++ = br_buf;
+        *parg++ = NULL;
+    }
+
     /* try to launch bridge helper */
-    pid = fork();
-    if (pid < 0) {
-        error_setg_errno(errp, errno, "Can't fork bridge helper");
+    if (!g_spawn_async(NULL, args, NULL,
+                       G_SPAWN_DO_NOT_REAP_CHILD | G_SPAWN_CHILD_INHERITS_STDIN,
+                       unset_cloexec, GINT_TO_POINTER(sv[1]), &pid, &error)) {
+        error_setg(errp, "could not launch bridge helper: %s", error->message);
         return -1;
     }
-    if (pid == 0) {
-        char *fd_buf = NULL;
-        char *br_buf = NULL;
-        char *helper_cmd = NULL;
 
-        close_all_fds_after_fork(sv[1]);
-        fd_buf = g_strdup_printf("%s%d", "--fd=", sv[1]);
+    close(sv[1]);
 
-        if (strrchr(helper, ' ') || strrchr(helper, '\t')) {
-            /* assume helper is a command */
+    fd = RETRY_ON_EINTR(recv_fd(sv[0]));
+    saved_errno = errno;
 
-            if (strstr(helper, "--br=") == NULL) {
-                br_buf = g_strdup_printf("%s%s", "--br=", bridge);
-            }
+    close(sv[0]);
 
-            helper_cmd = g_strdup_printf("%s %s %s %s", helper,
-                            "--use-vnet", fd_buf, br_buf ? br_buf : "");
-
-            parg = args;
-            *parg++ = (char *)"sh";
-            *parg++ = (char *)"-c";
-            *parg++ = helper_cmd;
-            *parg++ = NULL;
-
-            execv("/bin/sh", args);
-            g_free(helper_cmd);
-        } else {
-            /* assume helper is just the executable path name */
-
-            br_buf = g_strdup_printf("%s%s", "--br=", bridge);
-
-            parg = args;
-            *parg++ = (char *)helper;
-            *parg++ = (char *)"--use-vnet";
-            *parg++ = fd_buf;
-            *parg++ = br_buf;
-            *parg++ = NULL;
-
-            execv(helper, args);
-        }
-        g_free(fd_buf);
-        g_free(br_buf);
-        _exit(1);
-
-    } else {
-        int fd;
-        int saved_errno;
-
-        close(sv[1]);
-
-        fd = RETRY_ON_EINTR(recv_fd(sv[0]));
-        saved_errno = errno;
-
-        close(sv[0]);
-
-        while (waitpid(pid, &status, 0) != pid) {
-            /* loop */
-        }
-        sigprocmask(SIG_SETMASK, &oldmask, NULL);
-        if (fd < 0) {
-            error_setg_errno(errp, saved_errno,
-                             "failed to recv file descriptor");
-            return -1;
-        }
-        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            error_setg(errp, "bridge helper failed");
-            return -1;
-        }
-        return fd;
+    while (waitpid(pid, &status, 0) != pid) {
+        /* loop */
     }
+    sigprocmask(SIG_SETMASK, &oldmask, NULL);
+    if (fd < 0) {
+        error_setg_errno(errp, saved_errno,
+                            "failed to recv file descriptor");
+        return -1;
+    }
+    if (!g_spawn_check_wait_status(status, &error)) {
+        error_setg(errp, "bridge helper failed: %s", error->message);
+        return -1;
+    }
+    return fd;
 }
 
 int net_init_bridge(const Netdev *netdev, const char *name,
