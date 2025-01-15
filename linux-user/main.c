@@ -231,6 +231,8 @@ void init_task_state(TaskState *ts)
         ts->start_boottime += bt.tv_nsec * (uint64_t) ticks_per_sec /
                               NANOSECONDS_PER_SECOND;
     }
+
+    ts->sys_dispatch_len = (abi_ulong)~0ULL;
 }
 
 CPUArchState *cpu_copy(CPUArchState *env)
