@@ -931,7 +931,10 @@ static void ide_dma_cb(void *opaque, int ret)
     s->io_buffer_size = n * 512;
     prep_size = s->bus->dma->ops->prepare_buf(s->bus->dma, s->io_buffer_size);
     /* prepare_buf() must succeed and respect the limit */
-    assert(prep_size >= 0 && prep_size <= n * 512);
+    if (prep_size < 0 || prep_size > n * 512) {
+        ide_dma_error(s);
+        return;
+    }
 
     /*
      * Now prep_size stores the number of bytes in the sglist, and
