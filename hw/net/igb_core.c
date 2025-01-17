@@ -3093,7 +3093,6 @@ igb_set_eitr(IGBCore *core, int index, uint32_t val)
     val &= E1000_EITR_INTERVAL | E1000_EITR_LLI_EN;
 
     core->mac[index] = val;
-    core->eitr_guest_value[eitr_num] = val;
 }
 
 static void

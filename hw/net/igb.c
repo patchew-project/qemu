@@ -583,7 +583,7 @@ static const VMStateDescription igb_vmstate = {
         VMSTATE_IGB_INTR_DELAY_TIMER_ARRAY(core.eitr, IGBState,
                                            IGB_INTR_NUM),
 
-        VMSTATE_UINT32_ARRAY(core.eitr_guest_value, IGBState, IGB_INTR_NUM),
+        VMSTATE_UNUSED(sizeof(uint32_t) * IGB_INTR_NUM),
 
         VMSTATE_STRUCT_ARRAY(core.tx, IGBState, IGB_NUM_QUEUES, 0,
                              igb_vmstate_tx, struct igb_tx),
