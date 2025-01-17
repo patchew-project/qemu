@@ -16,15 +16,37 @@
 #include "qapi/qapi-visit-machine.h"
 #include "hw/cxl/cxl.h"
 #include "hw/cxl/cxl_host.h"
+#include "hw/irq.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/pci-bridge/pci_expander_bridge.h"
 
-static void cxl_fixed_memory_window_config(CXLState *cxl_state,
-                                           CXLFixedMemoryWindowOptions *object,
-                                           Error **errp)
+CXLComponentState *cxl_get_hb_cstate(PCIHostState *hb, int type)
+{
+    if (type == 0) {
+        CXLHost *pxbhost = PXB_CXL_HOST(hb);
+        return &pxbhost->cxl_cstate;
+    } else {
+        CXLHostBridge *cxlhost = CXL_HOST(hb);
+        return &cxlhost->cxl_cstate;
+    }
+}
+
+bool cxl_get_hb_passthrough(PCIHostState *hb, int type)
+{
+    if (type == 0) {
+        CXLHost *pxbhost = PXB_CXL_HOST(hb);
+        return pxbhost->passthrough;
+    } else {
+        return false;
+    }
+}
+
+void cxl_fixed_memory_window_config(CXLState *cxl_state,
+                                    CXLFixedMemoryWindowOptions *object,
+                                    Error **errp)
 {
     ERRP_GUARD();
     g_autofree CXLFixedWindow *fw = g_malloc0(sizeof(*fw));
@@ -79,18 +101,24 @@ void cxl_fmws_link_targets(CXLState *cxl_state, Error **errp)
             int i;
 
             for (i = 0; i < fw->num_targets; i++) {
-                Object *o;
+                Object *pxb_cxl, *cxl_host;
                 bool ambig;
 
-                o = object_resolve_path_type(fw->targets[i],
+                pxb_cxl = object_resolve_path_type(fw->targets[i],
                                              TYPE_PXB_CXL_DEV,
                                              &ambig);
-                if (!o) {
-                    error_setg(errp, "Could not resolve CXLFM target %s",
-                               fw->targets[i]);
+                if (!pxb_cxl) {
+                    cxl_host = object_resolve_path_type(fw->targets[i],
+                                             TYPE_CXL_HOST,
+                                             &ambig);
+                    if (!cxl_host) {
+                        error_setg(errp, "Could not resolve CXLFM target %s",
+                                   fw->targets[i]);
                     return;
+                    }
+                    fw->target_chb[i] = CXL_HOST(cxl_host);
                 }
-                fw->target_hbs[i] = PXB_CXL_DEV(o);
+                fw->target_hbs[i] = PXB_CXL_DEV(pxb_cxl);
             }
         }
     }
@@ -160,23 +188,36 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr)
     uint8_t target;
     bool target_found;
     PCIDevice *rp, *d;
+    int type;
 
     /* Address is relative to memory region. Convert to HPA */
     addr += fw->base;
 
     rb_index = (addr / cxl_decode_ig(fw->enc_int_gran)) % fw->num_targets;
-    hb = PCI_HOST_BRIDGE(fw->target_hbs[rb_index]->cxl_host_bridge);
-    if (!hb || !hb->bus || !pci_bus_is_cxl(hb->bus)) {
-        return NULL;
+    if (fw->target_chb[rb_index]) {
+        type = CXL_HOST_BRIDGE_TYPE;
+        hb = PCI_HOST_BRIDGE(fw->target_chb[rb_index]);
+        CXLHostBridge *host = fw->target_chb[rb_index];
+
+        hb_cstate = &host->cxl_cstate;
+        cache_mem = hb_cstate->crb.cache_mem_registers;
+        target_found = cxl_hdm_find_target(cache_mem, addr, &target);
+        rp = pcie_find_port_by_pn(hb->bus, target);
+    } else {
+        type = PXB_CXL_HOST_TYPE;
+        hb = PCI_HOST_BRIDGE(fw->target_hbs[rb_index]->cxl_host_bridge);
+        if (!hb || !hb->bus || !pci_bus_is_cxl(hb->bus)) {
+            return NULL;
+        }
     }
 
-    if (cxl_get_hb_passthrough(hb)) {
+    if (cxl_get_hb_passthrough(hb, type)) {
         rp = pcie_find_port_first(hb->bus);
         if (!rp) {
             return NULL;
         }
     } else {
-        hb_cstate = cxl_get_hb_cstate(hb);
+        hb_cstate = cxl_get_hb_cstate(hb, type);
         if (!hb_cstate) {
             return NULL;
         }
@@ -370,3 +411,154 @@ void cxl_hook_up_pxb_registers(PCIBus *bus, CXLState *state, Error **errp)
         }
     }
 }
+
+static void cxl_host_set_irq(void *opaque, int irq_num, int level)
+{
+    CXLHostBridge *host = opaque;
+
+    qemu_set_irq(host->irq[irq_num], level);
+}
+
+int cxl_host_set_irq_num(CXLHostBridge *host, int index, int gsi)
+{
+    if (index >= CXL_HOST_NUM_IRQS) {
+        return -EINVAL;
+    }
+
+    host->irq_num[index] = gsi;
+    return 0;
+}
+
+static PCIINTxRoute cxl_host_route_intx_pin_to_irq(void *opaque, int pin)
+{
+    PCIINTxRoute route;
+    CXLHostBridge *host = opaque;
+    int gsi = host->irq_num[pin];
+
+    route.irq = gsi;
+    if (gsi < 0) {
+        route.mode = PCI_INTX_DISABLED;
+    } else {
+        route.mode = PCI_INTX_ENABLED;
+    }
+
+    return route;
+}
+
+static const char *cxl_host_root_bus_path(PCIHostState *host_bridge,
+                                          PCIBus *rootbus)
+{
+    return "0001:00";
+}
+
+void cxl_host_hook_up_registers(CXLState *cxl_state, CXLHostBridge *host,
+                                Error **errp)
+{
+    CXLComponentState *cxl_cstate = &host->cxl_cstate;
+    struct MemoryRegion *mr = &cxl_cstate->crb.component_registers;
+    hwaddr offset;
+
+    offset = memory_region_size(mr) * cxl_state->next_mr_idx;
+    if (offset > memory_region_size(&cxl_state->host_mr)) {
+        error_setg(errp, "Insufficient space for sbsa cxl host register space");
+        return;
+    }
+
+    memory_region_add_subregion(&cxl_state->host_mr, offset, mr);
+    cxl_state->next_mr_idx++;
+}
+
+static void cxl_host_reset(CXLHostBridge *host)
+{
+    CXLComponentState *cxl_cstate = &host->cxl_cstate;
+    uint32_t *reg_state = cxl_cstate->crb.cache_mem_registers;
+    uint32_t *write_msk = cxl_cstate->crb.cache_mem_regs_write_mask;
+
+    cxl_component_register_init_common(reg_state, write_msk, CXL2_RC);
+
+    ARRAY_FIELD_DP32(reg_state, CXL_HDM_DECODER_CAPABILITY, TARGET_COUNT,
+                     8);
+}
+
+static void cxl_host_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    CXLHostBridge *host = CXL_HOST(dev);
+    CXLComponentState *cxl_cstate = &host->cxl_cstate;
+    struct MemoryRegion *mr = &cxl_cstate->crb.component_registers;
+    PCIBus *cxlbus;
+    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    PCIExpressHost *pex = PCIE_HOST_BRIDGE(dev);
+    int i;
+
+    /* CHBCR MMIO init */
+    cxl_host_reset(host);
+    cxl_component_register_block_init(OBJECT(dev), cxl_cstate, TYPE_CXL_HOST);
+    sysbus_init_mmio(sbd, mr);
+
+    /* MMFG window init */
+    pcie_host_mmcfg_init(pex, PCIE_MMCFG_SIZE_MAX);
+    sysbus_init_mmio(sbd, &pex->mmio);
+
+    /* mmio window init */
+    memory_region_init(&host->io_mmio, OBJECT(host), "cxl_host_mmio",
+                        UINT64_MAX);
+
+    memory_region_init_io(&host->io_mmio_window, OBJECT(host),
+                              &unassigned_io_ops, OBJECT(host),
+                              "cxl_host_mmio_window", UINT64_MAX);
+
+    memory_region_add_subregion(&host->io_mmio_window, 0, &host->io_mmio);
+    sysbus_init_mmio(sbd, &host->io_mmio_window);
+
+    /* ioport window init, 64K is the legacy size in x86 */
+    memory_region_init(&host->io_ioport, OBJECT(host), "cxl_host_ioport",
+                        64 * 1024);
+
+    memory_region_init_io(&host->io_ioport_window, OBJECT(host),
+                              &unassigned_io_ops, OBJECT(host),
+                              "cxl_host_ioport_window", 64 * 1024);
+
+    memory_region_add_subregion(&host->io_ioport_window, 0, &host->io_ioport);
+    sysbus_init_mmio(sbd, &host->io_ioport_window);
+
+    /* PCIe host bridge use 4 legacy IRQ lines */
+    for (i = 0; i < CXL_HOST_NUM_IRQS; i++) {
+        sysbus_init_irq(sbd, &host->irq[i]);
+        host->irq_num[i] = -1;
+    }
+
+    pci->bus = pci_register_root_bus(dev, "cxlhost.0", cxl_host_set_irq,
+                                 pci_swizzle_map_irq_fn, host, &host->io_mmio,
+                                 &host->io_ioport, 0, 4, TYPE_CXL_BUS);
+    cxlbus = pci->bus;
+    cxlbus->flags |= PCI_BUS_CXL;
+
+    pci_bus_set_route_irq_fn(pci->bus, cxl_host_route_intx_pin_to_irq);
+}
+
+static void cxl_host_class_init(ObjectClass *class, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(class);
+    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(class);
+
+    hc->root_bus_path = cxl_host_root_bus_path;
+    dc->realize = cxl_host_realize;
+    dc->desc = "CXL Host Bridge";
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->fw_name = "cxl";
+}
+
+static const TypeInfo cxl_host_info = {
+    .name          = TYPE_CXL_HOST,
+    .parent        = TYPE_PCIE_HOST_BRIDGE,
+    .instance_size = sizeof(CXLHostBridge),
+    .class_init    = cxl_host_class_init,
+};
+
+static void cxl_host_register(void)
+{
+    type_register_static(&cxl_host_info);
+}
+
+type_init(cxl_host_register)
