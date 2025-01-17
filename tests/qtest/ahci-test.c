@@ -1483,6 +1483,8 @@ static void test_reset_pending_callback(void)
     /* Wait for throttled write to finish. */
     sleep(1);
 
+    stop_ahci_device(ahci);
+
     /* Start again. */
     ahci_clean_mem(ahci);
     ahci_pci_enable(ahci);

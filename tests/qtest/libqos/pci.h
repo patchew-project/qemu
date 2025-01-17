@@ -65,6 +65,8 @@ struct QPCIDevice
 {
     QPCIBus *bus;
     int devfn;
+    bool bars_mapped[6];
+    QPCIBar bars[6];
     bool msix_enabled;
     QPCIBar msix_table_bar, msix_pba_bar;
     uint64_t msix_table_off, msix_pba_off;
