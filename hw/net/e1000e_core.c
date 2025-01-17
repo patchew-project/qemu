@@ -51,8 +51,13 @@
 
 #include "trace.h"
 
-/* No more then 7813 interrupts per second according to spec 10.2.4.2 */
-#define E1000E_MIN_XITR     (500)
+/*
+ * A suggested range for ITR is 651-5580, according to spec 10.2.4.2, but
+ * QEMU has traditionally set 500 here and spec 7.4.4 ITR rules says the
+ * max observable interrupts from the adapter should be 7813/s (corresponding
+ * to 500).
+ */
+#define E1000E_DEFAULT_ITR (500)
 
 #define E1000E_MAX_TX_FRAGS (64)
 
@@ -2831,11 +2836,7 @@ e1000e_set_itr(E1000ECore *core, int index, uint32_t val)
     trace_e1000e_irq_itr_set(val);
 
     core->itr_guest_value = interval;
-    if (interval == 0) {
-        core->mac[index] = 0;
-    } else {
-        core->mac[index] = MAX(interval, E1000E_MIN_XITR);
-    }
+    core->mac[index] = interval;
 }
 
 static void
@@ -2847,11 +2848,7 @@ e1000e_set_eitr(E1000ECore *core, int index, uint32_t val)
     trace_e1000e_irq_eitr_set(eitr_num, val);
 
     core->eitr_guest_value[eitr_num] = interval;
-    if (interval == 0) {
-        core->mac[index] = 0;
-    } else {
-        core->mac[index] = MAX(interval, E1000E_MIN_XITR);
-    }
+    core->mac[index] = interval;
 }
 
 static void
@@ -3500,8 +3497,7 @@ static const uint32_t e1000e_mac_reg_init[] = {
     [FACTPS]        = E1000_FACTPS_LAN0_ON | 0x20000000,
     [SWSM]          = 1,
     [RXCSUM]        = E1000_RXCSUM_IPOFLD | E1000_RXCSUM_TUOFLD,
-    [ITR]           = E1000E_MIN_XITR,
-    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = E1000E_MIN_XITR,
+    [ITR]           = E1000E_DEFAULT_ITR,
 };
 
 static void e1000e_reset(E1000ECore *core, bool sw)
