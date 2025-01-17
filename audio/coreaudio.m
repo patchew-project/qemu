@@ -466,6 +466,7 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     core->outputDeviceID = deviceID;
     core->audioDevicePropertyBufferFrameSize = audioDevicePropertyBufferFrameSize;
     core->hw.samples = core->bufferCount * core->audioDevicePropertyBufferFrameSize;
+    audio_generic_initialize_buffer_out(&core->hw);
     core->ioprocid = ioprocid;
 
     return 0;
