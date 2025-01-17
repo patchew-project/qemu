@@ -204,11 +204,26 @@ the list of KVM vCPU features and their descriptions.
   the guest scheduler behavior and/or be exposed to the guest
   userspace.
 
-TCG vCPU Features
-=================
+"PAuth" (Pointer Authentication)
+================================
 
-TCG vCPU features are CPU features that are specific to TCG.
-Below is the list of TCG vCPU features and their descriptions.
+PAuth (Pointer Authentication) is a security feature in software that
+was introduced in Armv8.3-A and Armv9.0-A.  It aims to protect against
+ROP (return-oriented programming) attacks.
+
+KVM
+---
+
+``pauth``
+
+  Enable or disable ``FEAT_Pauth``.  The host silicon will choose the
+  cryptographic algorithm.  No other properties can be controlled.
+
+TCG
+---
+
+For TCG, along with ``pauth``, it is possible to control a few other
+properties of PAuth:
 
 ``pauth``
   Enable or disable ``FEAT_Pauth`` entirely.
