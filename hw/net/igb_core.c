@@ -168,16 +168,7 @@ igb_intmgr_timer_resume(IGBIntrDelayTimer *timer)
 }
 
 static void
-igb_intrmgr_on_msix_throttling_timer(void *opaque)
-{
-    IGBIntrDelayTimer *timer = opaque;
-    int idx = timer - &timer->core->eitr[0];
-
-    timer->running = false;
-
-    trace_e1000e_irq_msix_notify_postponed_vec(idx);
-    igb_msix_notify(timer->core, idx);
-}
+igb_intrmgr_on_msix_throttling_timer(void *opaque);
 
 static void
 igb_intrmgr_initialize_all_timers(IGBCore *core, bool create)
@@ -2276,6 +2267,23 @@ static void igb_send_msix(IGBCore *core, uint32_t causes)
             trace_e1000e_irq_msix_notify_vec(vector);
             igb_msix_notify(core, vector);
         }
+    }
+}
+
+static void
+igb_intrmgr_on_msix_throttling_timer(void *opaque)
+{
+    IGBIntrDelayTimer *timer = opaque;
+    IGBCore *core = timer->core;
+    int vector = timer - &core->eitr[0];
+    uint32_t causes;
+
+    timer->running = false;
+
+    causes = core->mac[EICR] & core->mac[EIMS];
+    if ((causes & BIT(vector)) && !igb_eitr_should_postpone(core, vector)) {
+        trace_e1000e_irq_msix_notify_postponed_vec(vector);
+        igb_msix_notify(core, vector);
     }
 }
 
