@@ -2783,7 +2783,11 @@ e1000e_set_itr(E1000ECore *core, int index, uint32_t val)
     trace_e1000e_irq_itr_set(val);
 
     core->itr_guest_value = interval;
-    core->mac[index] = MAX(interval, E1000E_MIN_XITR);
+    if (interval == 0) {
+        core->mac[index] = 0;
+    } else {
+        core->mac[index] = MAX(interval, E1000E_MIN_XITR);
+    }
 }
 
 static void
@@ -2795,7 +2799,11 @@ e1000e_set_eitr(E1000ECore *core, int index, uint32_t val)
     trace_e1000e_irq_eitr_set(eitr_num, val);
 
     core->eitr_guest_value[eitr_num] = interval;
-    core->mac[index] = MAX(interval, E1000E_MIN_XITR);
+    if (interval == 0) {
+        core->mac[index] = 0;
+    } else {
+        core->mac[index] = MAX(interval, E1000E_MIN_XITR);
+    }
 }
 
 static void
