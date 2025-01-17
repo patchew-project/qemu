@@ -321,8 +321,12 @@ union e1000_adv_rx_desc {
 #define E1000_EICR_TX_QUEUE3    0x00000800 /* Tx Queue 3 Interrupt */
 #define E1000_EICR_OTHER        0x80000000 /* Interrupt Cause Active */
 
-/* Extended Interrupt Cause Set */
-/* E1000_EITR_CNT_IGNR is only for 82576 and newer */
+/* Extended Interrupt Throttle */
+/* These are only for 82576 and newer */
+#define E1000_EITR_INTERVAL     0x00007FFC
+#define E1000_EITR_LLI_EN       0x00008000
+#define E1000_EITR_LLI_CNT      0x001F0000
+#define E1000_EITR_ITR_CNT      0x7FE00000
 #define E1000_EITR_CNT_IGNR     0x80000000 /* Don't reset counters on write */
 
 #define E1000_TSYNCTXCTL_VALID    0x00000001 /* tx timestamp valid */
