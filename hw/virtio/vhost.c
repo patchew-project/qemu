@@ -930,6 +930,10 @@ static void vhost_iommu_region_del(MemoryListener *listener,
             break;
         }
     }
+    if (QLIST_EMPTY(&dev->iommu_list) &&
+        dev->vhost_ops->vhost_set_iotlb_callback) {
+        dev->vhost_ops->vhost_set_iotlb_callback(dev, false);
+    }
 }
 
 void vhost_toggle_device_iotlb(VirtIODevice *vdev)
