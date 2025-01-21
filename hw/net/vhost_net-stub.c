@@ -93,7 +93,7 @@ void vhost_net_config_mask(VHostNetState *net, VirtIODevice *dev, bool mask)
 
 int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
 {
-    return -1;
+    return -ENOTSUP;
 }
 
 VHostNetState *get_vhost_net(NetClientState *nc)

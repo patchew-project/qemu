@@ -147,7 +147,7 @@ static ssize_t vhost_user_receive(NetClientState *nc, const uint8_t *buf,
 
         r = vhost_net_notify_migration_done(s->vhost_net, mac_addr);
 
-        if ((r != 0) && (display_rarp_failure)) {
+        if ((r != 0) && (r != -ENOTSUP) && (display_rarp_failure)) {
             fprintf(stderr,
                     "Vhost user backend fails to broadcast fake RARP\n");
             fflush(stderr);
