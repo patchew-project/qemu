@@ -21,7 +21,7 @@ struct target_pt_regs {
 
 #define TARGET_FORCE_SHMLBA
 
-static inline abi_ulong target_shmlba(CPUSH4State *env)
+static inline abi_ulong target_shmlba(const CPUSH4State *env)
 {
     return 0x4000;
 }

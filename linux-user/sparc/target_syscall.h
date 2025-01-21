@@ -45,7 +45,7 @@ struct target_pt_regs {
  */
 #define TARGET_FORCE_SHMLBA
 
-static inline abi_ulong target_shmlba(CPUSPARCState *env)
+static inline abi_ulong target_shmlba(const CPUSPARCState *env)
 {
 #ifdef TARGET_SPARC64
     return MAX(TARGET_PAGE_SIZE, 16 * 1024);

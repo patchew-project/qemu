@@ -35,7 +35,7 @@ struct target_pt_regs {
 
 #define TARGET_FORCE_SHMLBA
 
-static inline abi_ulong target_shmlba(CPUARMState *env)
+static inline abi_ulong target_shmlba(const CPUARMState *env)
 {
     return 4 * 4096;
 }
