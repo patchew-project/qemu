@@ -2848,11 +2848,14 @@ F: hw/hyperv/hv-balloon*.h
 F: include/hw/hyperv/dynmem-proto.h
 F: include/hw/hyperv/hv-balloon.h
 
-ivshmem-flat
+ivshmem
 M: Gustavo Romero <gustavo.romero@linaro.org>
 S: Maintained
+F: hw/misc/ivshmem-pci.c
 F: hw/misc/ivshmem-flat.c
+F: include/hw/misc/ivshmem.h
 F: include/hw/misc/ivshmem-flat.h
+F: docs/system/devices/ivshmem.rst
 F: docs/system/devices/ivshmem-flat.rst
 
 UEFI variable service
