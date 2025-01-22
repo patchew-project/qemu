@@ -192,17 +192,25 @@ void cxl_component_register_block_init(Object *obj,
                                        const char *type)
 {
     ComponentRegisters *cregs = &cxl_cstate->crb;
+    DeviceState *io_dev;
+    SysBusDevice *io_sbd;
 
     memory_region_init(&cregs->component_registers, obj, type,
                        CXL2_COMPONENT_BLOCK_SIZE);
 
     /* io registers controls link which we don't care about in QEMU */
-    memory_region_init_io(&cregs->io, obj, NULL, NULL, ".io",
-                          CXL2_COMPONENT_IO_REGION_SIZE);
+    object_initialize_child(obj, "io", &cregs->io, TYPE_UNIMPLEMENTED_DEVICE);
+    io_dev = DEVICE(&cregs->io);
+    io_sbd = SYS_BUS_DEVICE(&cregs->io);
+    qdev_prop_set_string(io_dev, "name", ".io");
+    qdev_prop_set_uint64(io_dev, "size", CXL2_COMPONENT_IO_REGION_SIZE);
+    sysbus_realize(io_sbd, &error_fatal);
+
     memory_region_init_io(&cregs->cache_mem, obj, &cache_mem_ops, cxl_cstate,
                           ".cache_mem", CXL2_COMPONENT_CM_REGION_SIZE);
 
-    memory_region_add_subregion(&cregs->component_registers, 0, &cregs->io);
+    memory_region_add_subregion(&cregs->component_registers, 0,
+                                sysbus_mmio_get_region(io_sbd, 0));
     memory_region_add_subregion(&cregs->component_registers,
                                 CXL2_COMPONENT_IO_REGION_SIZE,
                                 &cregs->cache_mem);

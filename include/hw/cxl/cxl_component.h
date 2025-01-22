@@ -18,6 +18,7 @@
 #include "qemu/range.h"
 #include "hw/cxl/cxl_cdat.h"
 #include "hw/register.h"
+#include "hw/misc/unimp.h"
 #include "qapi/error.h"
 
 enum reg_type {
@@ -218,7 +219,7 @@ typedef struct component_registers {
      *   0xe000 - 0xe3ff CXL ARB/MUX registers
      *   0xe400 - 0xffff RSVD
      */
-    MemoryRegion io;
+    UnimplementedDeviceState io;
 
     uint32_t cache_mem_registers[CXL2_COMPONENT_CM_REGION_SIZE >> 2];
     uint32_t cache_mem_regs_write_mask[CXL2_COMPONENT_CM_REGION_SIZE >> 2];
