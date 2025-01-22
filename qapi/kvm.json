@@ -1,0 +1,116 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+
+##
+# = KVM based feature API
+##
+
+##
+# @KVMPMUFilterAction:
+#
+# Actions that KVM PMU filter supports.
+#
+# @deny: disable the PMU event/counter in KVM PMU filter.
+#
+# @allow: enable the PMU event/counter in KVM PMU filter.
+#
+# Since 10.0
+##
+{ 'enum': 'KVMPMUFilterAction',
+  'prefix': 'KVM_PMU_FILTER_ACTION',
+  'data': ['allow', 'deny'] }
+
+##
+# @KVMPMUEventEncodeFmt:
+#
+# Encoding formats of PMU event that QEMU/KVM supports.
+#
+# @raw: the encoded event code that KVM can directly consume.
+#
+# Since 10.0
+##
+{ 'enum': 'KVMPMUEventEncodeFmt',
+  'prefix': 'KVM_PMU_EVENT_FMT',
+  'data': ['raw'] }
+
+##
+# @KVMPMURawEvent:
+#
+# Raw PMU event code.
+#
+# @code: the raw value that has been encoded, and QEMU could deliver
+#     to KVM directly.
+#
+# Since 10.0
+##
+{ 'struct': 'KVMPMURawEvent',
+  'data': { 'code': 'uint64' } }
+
+##
+# @KVMPMUFilterEvent:
+#
+# PMU event filtered by KVM.
+#
+# @format: PMU event format.
+#
+# Since 10.0
+##
+{ 'union': 'KVMPMUFilterEvent',
+  'base': { 'format': 'KVMPMUEventEncodeFmt' },
+  'discriminator': 'format',
+  'data': { 'raw': 'KVMPMURawEvent' } }
+
+##
+# @KVMPMUFilterProperty:
+#
+# Property of KVM PMU Filter.
+#
+# @events: the KVMPMUFilterEvent list.
+#
+# Since 10.0
+##
+{ 'struct': 'KVMPMUFilterProperty',
+  'data': { '*events': ['KVMPMUFilterEvent'] } }
+
+##
+# @KVMPMURawEventVariant:
+#
+# The variant of KVMPMURawEvent with the string, rather than the
+# numeric value.
+#
+# @code: the raw value that has been encoded, and QEMU could deliver
+#     to KVM directly.  This field is a uint64 string.
+#
+# Since 10.0
+##
+{ 'struct': 'KVMPMURawEventVariant',
+  'data': { 'code': 'str' } }
+
+##
+# @KVMPMUFilterEventVariant:
+#
+# The variant of KVMPMUFilterEvent.
+#
+# @format: PMU event format.
+#
+# Since 10.0
+##
+{ 'union': 'KVMPMUFilterEventVariant',
+  'base': { 'format': 'KVMPMUEventEncodeFmt' },
+  'discriminator': 'format',
+  'data': { 'raw': 'KVMPMURawEventVariant' } }
+
+##
+# @KVMPMUFilterPropertyVariant:
+#
+# The variant of KVMPMUFilterProperty.
+#
+# @action: action that KVM PMU filter will take.
+#
+# @events: the KVMPMUFilterEventVariant list.
+#
+# Since 10.0
+##
+{ 'struct': 'KVMPMUFilterPropertyVariant',
+  'data': { 'action': 'KVMPMUFilterAction',
+            '*events': ['KVMPMUFilterEventVariant'] } }
