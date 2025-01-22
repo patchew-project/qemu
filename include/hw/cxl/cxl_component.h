@@ -218,7 +218,6 @@ typedef struct component_registers {
      *   0xe000 - 0xe3ff CXL ARB/MUX registers
      *   0xe400 - 0xffff RSVD
      */
-    uint32_t io_registers[CXL2_COMPONENT_IO_REGION_SIZE >> 2];
     MemoryRegion io;
 
     uint32_t cache_mem_registers[CXL2_COMPONENT_CM_REGION_SIZE >> 2];
