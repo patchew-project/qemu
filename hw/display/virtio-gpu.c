@@ -102,6 +102,7 @@ static void update_cursor(VirtIOGPU *g, struct virtio_gpu_update_cursor *cursor)
 
         if (cursor->resource_id > 0) {
             vgc->update_cursor_data(g, s, cursor->resource_id);
+            cursor_unmultiply_alpha(s->current_cursor);
         }
         dpy_cursor_define(s->con, s->current_cursor);
 
