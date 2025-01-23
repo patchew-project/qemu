@@ -175,6 +175,12 @@ void cursor_set_mono(QEMUCursor *c,
                      int transparent, uint8_t *mask);
 void cursor_get_mono_mask(QEMUCursor *c, int transparent, uint8_t *mask);
 
+void cursor_multiply_alpha(QEMUCursor *c);
+void cursor_unmultiply_alpha(QEMUCursor *c);
+void cursor_swap_rgb(QEMUCursor *c);
+QEMUCursor *cursor_copy(QEMUCursor *c);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QEMUCursor, cursor_unref);
+
 typedef void *QEMUGLContext;
 typedef struct QEMUGLParams QEMUGLParams;
 

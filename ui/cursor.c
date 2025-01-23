@@ -225,3 +225,52 @@ void cursor_get_mono_mask(QEMUCursor *c, int transparent, uint8_t *mask)
         mask += bpl;
     }
 }
+
+void cursor_multiply_alpha(QEMUCursor *c)
+{
+    int i;
+
+    for (i = 0 ; i < (c->width * c->height); i++) {
+        guint8 *pixels = (guint8 *)c->data + (i * 4);
+        pixels[0] = (unsigned)pixels[0] * pixels[3] / 255;
+        pixels[1] = (unsigned)pixels[1] * pixels[3] / 255;
+        pixels[2] = (unsigned)pixels[2] * pixels[3] / 255;
+    }
+}
+
+void cursor_unmultiply_alpha(QEMUCursor *c)
+{
+    int i;
+
+    for (i = 0 ; i < (c->width * c->height); i++) {
+        guint8 *pixels = (guint8 *)c->data + (i * 4);
+        guint8 alpha = pixels[3] ? pixels[3] : 1;
+        pixels[0] = (unsigned)pixels[0] * 255 / alpha;
+        pixels[1] = (unsigned)pixels[1] * 255 / alpha;
+        pixels[2] = (unsigned)pixels[2] * 255 / alpha;
+    }
+}
+
+void cursor_swap_rgb(QEMUCursor *c)
+{
+    int i;
+
+    for (i = 0 ; i < (c->width * c->height); i++) {
+        guint8 *pixels = (guint8 *)c->data + (i * 4);
+        pixels[0] ^= pixels[2];
+        pixels[2] ^= pixels[0];
+        pixels[0] ^= pixels[2];
+    }
+}
+
+QEMUCursor *cursor_copy(QEMUCursor *c)
+{
+    QEMUCursor *ret = cursor_alloc(c->width, c->height);
+
+    ret->hot_x = c->hot_x;
+    ret->hot_y = c->hot_y;
+
+    memcpy(ret->data, c->data, c->width * c->height * 4);
+
+    return ret;
+}
