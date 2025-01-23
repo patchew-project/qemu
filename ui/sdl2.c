@@ -749,7 +749,7 @@ static void sdl_mouse_define(DisplayChangeListener *dcl,
 
     guest_sprite_surface =
         SDL_CreateRGBSurfaceFrom(c->data, c->width, c->height, 32, c->width * 4,
-                                 0xff0000, 0x00ff00, 0xff, 0xff000000);
+                                 0xff, 0x00ff00, 0xff0000, 0xff000000);
 
     if (!guest_sprite_surface) {
         fprintf(stderr, "Failed to make rgb surface from %p\n", c);
