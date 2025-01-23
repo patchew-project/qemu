@@ -994,6 +994,7 @@ static int vnc_cursor_define(VncState *vs)
     }
 
     if (vnc_has_feature(vs, VNC_FEATURE_ALPHA_CURSOR)) {
+        g_autoptr(QEMUCursor) tmpc = cursor_copy(c);
         vnc_lock_output(vs);
         vnc_write_u8(vs,  VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
         vnc_write_u8(vs,  0);  /*  padding     */
@@ -1001,7 +1002,11 @@ static int vnc_cursor_define(VncState *vs)
         vnc_framebuffer_update(vs, c->hot_x, c->hot_y, c->width, c->height,
                                VNC_ENCODING_ALPHA_CURSOR);
         vnc_write_s32(vs, VNC_ENCODING_RAW);
-        vnc_write(vs, c->data, c->width * c->height * 4);
+
+        // Alpha is required to be pre-multiplied into RGB components
+        cursor_multiply_alpha(tmpc);
+
+        vnc_write(vs, tmpc->data, c->width * c->height * 4);
         vnc_unlock_output(vs);
         return 0;
     }
