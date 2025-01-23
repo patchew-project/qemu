@@ -102,6 +102,7 @@ static void update_cursor(VirtIOGPU *g, struct virtio_gpu_update_cursor *cursor)
 
         if (cursor->resource_id > 0) {
             vgc->update_cursor_data(g, s, cursor->resource_id);
+            cursor_dump_hex(s->current_cursor, "", 24, 24);
             cursor_unmultiply_alpha(s->current_cursor);
             cursor_swap_rgb(s->current_cursor);
         }

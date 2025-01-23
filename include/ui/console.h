@@ -169,6 +169,7 @@ void cursor_unref(QEMUCursor *c);
 QEMUCursor *cursor_builtin_hidden(void);
 QEMUCursor *cursor_builtin_left_ptr(void);
 void cursor_print_ascii_art(QEMUCursor *c, const char *prefix);
+void cursor_dump_hex(QEMUCursor *c, const char *prefix, int maxw, int maxh);
 int cursor_get_mono_bpl(QEMUCursor *c);
 void cursor_set_mono(QEMUCursor *c,
                      uint32_t foreground, uint32_t background, uint8_t *image,

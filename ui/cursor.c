@@ -80,6 +80,27 @@ void cursor_print_ascii_art(QEMUCursor *c, const char *prefix)
     }
 }
 
+void cursor_dump_hex(QEMUCursor *c, const char *prefix, int maxw, int maxh)
+{
+    uint8_t *data = (uint8_t *) c->data;
+    int x,y,v;
+
+    maxw = MIN(maxw, c->width);
+    maxh = MIN(maxh, c->height);
+
+    for (y = 0; y < maxh; y++) {
+        fprintf(stderr, "%s: %2d: |", prefix, y);
+        for (x = 0; x < maxw; x++) {
+            for (v = 0; v < 4 ; v++, data++) {
+                fprintf(stderr, "%02x", *data);
+            }
+            fprintf(stderr, " ");
+        }
+        data += (c->width - maxw) * 4;
+        fprintf(stderr, "|\n");
+    }
+}
+
 QEMUCursor *cursor_builtin_hidden(void)
 {
     return cursor_parse_xpm(cursor_hidden_xpm);
