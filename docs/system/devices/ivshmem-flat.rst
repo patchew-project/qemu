@@ -17,7 +17,7 @@ running Linux), and an arm VM (using the ivshmem-flat device and running Zephyr
 instead).
 
 The ivshmem-flat device does not support the use of a ``memdev`` option (see
-ivshmem.rst for more details). It relies on the ivshmem server to create and
+ivshmem-pci.rst for more details). It relies on the ivshmem server to create and
 distribute the proper shared memory file descriptor and the eventfd(s) to notify
 (interrupt) the peers. Therefore, to use this device, it is always necessary to
 have an ivshmem server up and running for proper device creation.

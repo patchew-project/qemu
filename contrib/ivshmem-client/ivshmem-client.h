@@ -22,7 +22,7 @@
 #include <sys/select.h>
 
 #include "qemu/queue.h"
-#include "hw/misc/ivshmem.h"
+#include "hw/misc/ivshmem-pci.h"
 
 /**
  * Maximum number of notification vectors supported by the client

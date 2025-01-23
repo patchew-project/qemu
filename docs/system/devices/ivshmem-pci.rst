@@ -1,5 +1,5 @@
-Inter-VM Shared Memory device
------------------------------
+Inter-VM Shared Memory PCI device
+---------------------------------
 
 On Linux hosts, a shared memory device is available. The basic syntax
 is:

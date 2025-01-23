@@ -17,9 +17,9 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#ifndef IVSHMEM_H
-#define IVSHMEM_H
+#ifndef IVSHMEM_PCI_H
+#define IVSHMEM_PCI_H
 
 #define IVSHMEM_PROTOCOL_VERSION 0
 
-#endif /* IVSHMEM_H */
+#endif /* IVSHMEM_PCI_H */

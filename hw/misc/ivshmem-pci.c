@@ -37,7 +37,7 @@
 #include "system/hostmem.h"
 #include "qapi/visitor.h"
 
-#include "hw/misc/ivshmem.h"
+#include "hw/misc/ivshmem-pci.h"
 #include "qom/object.h"
 
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
