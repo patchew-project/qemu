@@ -374,8 +374,6 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
     uint16_t all_dirty, work, to_clean;
     int64_t now = get_clock_realtime();
 
-    assert_cpu_is_self(cpu);
-
     tlb_debug("mmu_idx:0x%04" PRIx16 "\n", asked);
 
     qemu_spin_lock(&cpu->neg.tlb.c.lock);
@@ -411,8 +409,6 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
 void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
 {
     tlb_debug("mmu_idx: 0x%" PRIx16 "\n", idxmap);
-
-    assert_cpu_is_self(cpu);
 
     tlb_flush_by_mmuidx_async_work(cpu, RUN_ON_CPU_HOST_INT(idxmap));
 }
