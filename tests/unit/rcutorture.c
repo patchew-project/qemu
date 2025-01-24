@@ -123,10 +123,10 @@ static void *rcu_read_perf_test(void *arg)
 
     *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
     qatomic_inc(&nthreadsrunning);
-    while (goflag == GOFLAG_INIT) {
+    while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
-    while (goflag == GOFLAG_RUN) {
+    while (qatomic_read(&goflag) == GOFLAG_RUN) {
         for (i = 0; i < RCU_READ_RUN; i++) {
             rcu_read_lock();
             rcu_read_unlock();
@@ -149,10 +149,10 @@ static void *rcu_update_perf_test(void *arg)
 
     *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
     qatomic_inc(&nthreadsrunning);
-    while (goflag == GOFLAG_INIT) {
+    while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
-    while (goflag == GOFLAG_RUN) {
+    while (qatomic_read(&goflag) == GOFLAG_RUN) {
         synchronize_rcu();
         n_updates_local++;
     }
@@ -174,9 +174,9 @@ static void perftestrun(int nthreads, int duration, int nreaders, int nupdaters)
     while (qatomic_read(&nthreadsrunning) < nthreads) {
         g_usleep(1000);
     }
-    goflag = GOFLAG_RUN;
+    qatomic_set(&goflag, GOFLAG_RUN);
     g_usleep(duration * G_USEC_PER_SEC);
-    goflag = GOFLAG_STOP;
+    qatomic_set(&goflag, GOFLAG_STOP);
     wait_all_threads();
     printf("n_reads: %lld  n_updates: %ld  nreaders: %d  nupdaters: %d duration: %d\n",
            n_reads, n_updates, nreaders, nupdaters, duration);
@@ -253,10 +253,10 @@ static void *rcu_read_stress_test(void *arg)
     rcu_register_thread();
 
     *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
-    while (goflag == GOFLAG_INIT) {
+    while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
-    while (goflag == GOFLAG_RUN) {
+    while (qatomic_read(&goflag) == GOFLAG_RUN) {
         rcu_read_lock();
         p = qatomic_rcu_read(&rcu_stress_current);
         if (qatomic_read(&p->mbtest) == 0) {
@@ -305,11 +305,11 @@ static void *rcu_update_stress_test(void *arg)
     rcu_register_thread();
     *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
 
-    while (goflag == GOFLAG_INIT) {
+    while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
 
-    while (goflag == GOFLAG_RUN) {
+    while (qatomic_read(&goflag) == GOFLAG_RUN) {
         struct rcu_stress *p;
         rcu_stress_idx++;
         if (rcu_stress_idx >= RCU_STRESS_PIPE_LEN) {
@@ -347,10 +347,10 @@ static void *rcu_fake_update_stress_test(void *arg)
     rcu_register_thread();
 
     *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
-    while (goflag == GOFLAG_INIT) {
+    while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
-    while (goflag == GOFLAG_RUN) {
+    while (qatomic_read(&goflag) == GOFLAG_RUN) {
         synchronize_rcu();
         g_usleep(1000);
     }
@@ -373,9 +373,9 @@ static void stresstest(int nreaders, int duration)
     for (i = 0; i < 5; i++) {
         create_thread(rcu_fake_update_stress_test);
     }
-    goflag = GOFLAG_RUN;
+    qatomic_set(&goflag, GOFLAG_RUN);
     g_usleep(duration * G_USEC_PER_SEC);
-    goflag = GOFLAG_STOP;
+    qatomic_set(&goflag, GOFLAG_STOP);
     wait_all_threads();
     printf("n_reads: %lld  n_updates: %ld  n_mberror: %d\n",
            n_reads, n_updates, n_mberror);
@@ -403,9 +403,9 @@ static void gtest_stress(int nreaders, int duration)
     for (i = 0; i < 5; i++) {
         create_thread(rcu_fake_update_stress_test);
     }
-    goflag = GOFLAG_RUN;
+    qatomic_set(&goflag, GOFLAG_RUN);
     g_usleep(duration * G_USEC_PER_SEC);
-    goflag = GOFLAG_STOP;
+    qatomic_set(&goflag, GOFLAG_STOP);
     wait_all_threads();
     g_assert_cmpint(n_mberror, ==, 0);
     for (i = 2; i <= RCU_STRESS_PIPE_LEN; i++) {
