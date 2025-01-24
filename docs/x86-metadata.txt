@@ -1,0 +1,301 @@
+x86 Instruction Set Metadata
+============================
+
+Legacy x86 instructions have been parameterized in the instruction set
+metadata using a new LEX prefix for instruction encoding with abstract width
+suffix codes that synthesize multiple instruction widths using combinations
+of operand size prefixes and `REX.W` bits. This new LEX format makes legacy
+instruction encodings consistent with VEX and EVEX encodings as well as
+eliminating some redundancy in the metadata.
+
+There are a small number of special cases for legacy instructions which need
+mode-dependent overrides for cases such as, a different opcode is used for
+different modes, or the instruction has a quirk where the operand size does
+not follow the default rules for instruction word and address sizes:
+
+- `.wx` is used to specify 64-bit instructions that default to 32-bit
+  operands in 64-bit mode.
+- `.ww` is used to specify 64-bit instructions that default to 64-bit
+  operands in 64-bit mode.
+- `.o16` is used to specify an instruction override specific to 16-bit mode.
+- `.o32` is used to specify an instruction override specific to 32-bit mode.
+- `.o64` is used to specify an instruction override specific to 64-bit mode.
+
+CSV File Format
+===============
+
+The instruction set metadata in the `data` directory has the following fields
+which map to instruction encoding tables in the Intel Architecture Software
+Developer's Manual:
+
+- _Instruction_: opcode and operands from Opcode/Instruction column.
+- _Opcode_: instruction encoding from Opcode/Instruction column.
+- _Valid 64-bit_: 64-bit valid field from 64/32 bit Mode Support column.
+- _Valid 32-bit_: 32-bit valid field from 64/32 bit Mode Support column.
+- _Valid 16-bit_: 16-bit valid field from Compat/Legacy Mode column.
+- _Feature Flags_: extension name from CPUID Feature Flag column.
+- _Operand 1_: Operand 1 column from Instruction Operand Encoding table.
+- _Operand 2_: Operand 2 column from Instruction Operand Encoding table.
+- _Operand 3_: Operand 3 column from Instruction Operand Encoding table.
+- _Operand 4_: Operand 4 column from Instruction Operand Encoding table.
+- _Tuple Type_: Tuple Type column from Instruction Operand Encoding table.
+
+The instruction set metadata in the `data` directory is derived from
+[x86-csv](https://github.com/GregoryComer/x86-csv), although it has had
+extensive modifications to fix transcription errors, to revise legacy
+instruction encodings to conform to the new LEX format, as well as add
+missing details such as missing operands or recently added AVX-512
+instruction encodings and various other instruction set extensions.
+
+Table Generation
+================
+
+The appendices outline the printable form of the mnemonics used in the
+generated tables to describe operands, instruction encodings and field order.
+The mnemonics are referenced in the instruction set metadata files which are
+translated to enums and arrays by `scripts/x86-tablegen.py` which then map to
+the enum type and set definitions in `disas/x86.h`:
+
+- _enum x86_opr_ - operand encoding enum type and set attributes.
+- _enum x86_enc_ - instruction encoding enum type and set attributes.
+- _enum x86_ord_ - operand to instruction encoding field map set attributes.
+
+The enum values are combined together with _logical or_ combinations to
+form the primary metadata tables used by the encoder and decoder library:
+
+- _struct x86_opc_data_ - table type for instruction opcode encodings.
+- _struct x86_opr_data_ - table type for unique sets of instruction operands.
+- _struct x86_ord_data_ - table type for unique sets of instruction field orders.
+
+***Note***: There are some differences between the mnemonics used in the
+CSV metadata and the C enums. Exceptions are described in `operand_map` and
+`opcode_map` within `scripts/x86_tablegen.py`. The primary differences are
+in the names used in the operand columns to indicate operand field order,
+otherwise a type prefix is added, dots and brackets are omitted, and forward
+slashes are translated to underscores.
+
+Appendices
+==========
+
+This section describes the mnemonics used in the primary data structures:
+
+- _Appendix A - Operand Encoding_ - describes instruction operands.
+- _Appendix B - Operand Order_ - describes instruction field ordering.
+- _Appendix C - Instruction Encoding Prefixes_ - describes encoding prefixes.
+- _Appendix D - Instruction Encoding Suffixes_ - describes encoding suffixes.
+- _Appendix E - Instruction Synthesis Notes_ - notes on prefix synthesis.
+
+Appendix A - Operand Encoding
+=============================
+
+This table outlines the operand mnemonics used in instruction operands
+_(enum x86_opr)_.
+
+| operand            | description                                           |
+|:-------------------|:------------------------------------------------------|
+| `r`                | integer register                                      |
+| `v`                | vector register                                       |
+| `k`                | mask register                                         |
+| `seg`              | segment register                                      |
+| `creg`             | control register                                      |
+| `dreg`             | debug register                                        |
+| `bnd`              | bound register                                        |
+| `mem`              | memory reference                                      |
+| `rw`               | integer register word-sized (16/32/64 bit)            |
+| `ra`               | integer register addr-sized (16/32/64 bit)            |
+| `mw`               | memory reference word-sized (16/32/64 bit)            |
+| `mm`               | vector register 64-bit                                |
+| `xmm`              | vector register 128-bit                               |
+| `ymm`              | vector register 256-bit                               |
+| `zmm`              | vector register 512-bit                               |
+| `r8`               | register 8-bit                                        |
+| `r16`              | register 16-bit                                       |
+| `r32`              | register 32-bit                                       |
+| `r64`              | register 64-bit                                       |
+| `m8`               | memory reference 8-bit byte                           |
+| `m16`              | memory reference 16-bit word                          |
+| `m32`              | memory reference 32-bit dword                         |
+| `m64`              | memory reference 64-bit qword                         |
+| `m128`             | memory reference 128-bit oword/xmmword                |
+| `m256`             | memory reference 256-bit ymmword                      |
+| `m512`             | memory reference 512-bit zmmword                      |
+| `m80`              | memory reference 80-bit tword/tbyte                   |
+| `m384`             | memory reference 384-bit key locker handle            |
+| `mib`              | memory reference bound                                |
+| `m16bcst`          | memory reference 16-bit word broadcast                |
+| `m32bcst`          | memory reference 32-bit word broadcast                |
+| `m64bcst`          | memory reference 64-bit word broadcast                |
+| `vm32`             | vector memory 32-bit                                  |
+| `vm64`             | vector memory 64-bit                                  |
+| `{er}`             | operand suffix - embedded rounding control            |
+| `{k}`              | operand suffix - apply mask register                  |
+| `{sae}`            | operand suffix - suppress all execptions              |
+| `{z}`              | operand suffix - zero instead of merge                |
+| `{rs2}`            | operand suffix - register stride 2                    |
+| `{rs4}`            | operand suffix - register stride 4                    |
+| `r/m8`             | register unsized memory 8-bit                         |
+| `r/m16`            | register unsized memory 16-bit                        |
+| `r/m32`            | register unsized memory 32-bit                        |
+| `r/m64`            | register unsized memory 64-bit                        |
+| `k/m8`             | mask register memory 8-bit                            |
+| `k/m16`            | mask register memory 16-bit                           |
+| `k/m32`            | mask register memory 32-bit                           |
+| `k/m64`            | mask register memory 64-bit                           |
+| `bnd/m64`          | bound register memory 64-bit                          |
+| `bnd/m128`         | bound register memory 128-bit                         |
+| `rw/mw`            | register or memory 16/32/64-bit (word size)           |
+| `r8/m8`            | 8-bit register 8-bit memory                           |
+| `r?/m?`            | N-bit register N-bit memory                           |
+| `mm/m?`            | 64-bit vector N-bit memory                            |
+| `xmm/m?`           | 128-bit vector N-bit memory                           |
+| `ymm/m?`           | 256-bit vector N-bit memory                           |
+| `zmm/m?`           | 512-bit vector N-bit memory                           |
+| `xmm/m?/m?bcst`    | 128-bit vector N-bit memory N-bit broadcast           |
+| `ymm/m?/m?bcst`    | 256-bit vector N-bit memory N-bit broadcast           |
+| `zmm/m?/m?bcst`    | 512-bit vector N-bit memory N-bit broadcast           |
+| `vm32x`            | 32-bit vector memory in xmm                           |
+| `vm32y`            | 32-bit vector memory in ymm                           |
+| `vm32z`            | 32-bit vector memory in zmm                           |
+| `vm64x`            | 64-bit vector memory in xmm                           |
+| `vm64y`            | 64-bit vector memory in ymm                           |
+| `vm64z`            | 64-bit vector memory in zmm                           |
+| `st0`              | implicit register st0                                 |
+| `st1`              | implicit register st1                                 |
+| `es`               | implicit segment es                                   |
+| `cs`               | implicit segment cs                                   |
+| `ss`               | implicit segment ss                                   |
+| `ds`               | implicit segment ds                                   |
+| `fs`               | implicit segment fs                                   |
+| `gs`               | implicit segment gs                                   |
+| `aw`               | implicit register (ax/eax/rax)                        |
+| `cw`               | implicit register (cx/ecx/rcx)                        |
+| `dw`               | implicit register (dx/edx/rdx)                        |
+| `bw`               | implicit register (bx/ebx/rbx)                        |
+| `pa`               | implicit indirect register (ax/eax/rax)               |
+| `pc`               | implicit indirect register (cx/ecx/rcx)               |
+| `pd`               | implicit indirect register (dx/edx/rdx)               |
+| `pb`               | implicit indirect register (bx/ebx/rbx)               |
+| `psi`              | implicit indirect register (si/esi/rsi)               |
+| `pdi`              | implicit indirect register (di/edi/rdi)               |
+| `xmm0`             | implicit register xmm0                                |
+| `xmm0_7`           | implicit registers xmm0-xmm7                          |
+| `1`                | constant 1                                            |
+| `ib`               | 8-bit immediate                                       |
+| `iw`               | 16-bit or 32-bit immediate (mode + operand size)      |
+| `id`               | 32-bit immediate                                      |
+| `iq`               | 64-bit immediate                                      |
+| `rel8`             | 8-bit displacement                                    |
+| `relw`             | 6-bit or 32-bit displacement (mode + operand size)    |
+| `moffs`            | indirect memory offset                                |
+| `far16/16`         | 16-bit seg 16-bit far displacement                    |
+| `far16/32`         | 16-bit seg 32-bit far displacement                    |
+| `memfar16/16`      | indirect 16-bit seg 16-bit far displacement           |
+| `memfar16/32`      | indirect 16-bit seg 32-bit far displacement           |
+| `memfar16/64`      | indirect 16-bit seg 64-bit far displacement           |
+
+Appendix B - Operand Order
+==========================
+
+This table outlines the mnemonics used to map operand field order
+_(enum x86_ord)_.
+
+| mnemonic | description                                                     |
+|:---------|:----------------------------------------------------------------|
+| `imm`    | ib, iw, i16, i32, i64                                           |
+| `reg`    | modrm.reg                                                       |
+| `mrm`    | modrm.r/m                                                       |
+| `sib`    | modrm.r/m sib                                                   |
+| `is4`    | register from ib                                                |
+| `ime`    | i8, i16 (special case for CALLF/JMPF/ENTER)                     |
+| `vec`    | VEX.vvvv                                                        |
+| `opr`    | opcode +r                                                       |
+| `one`    | constant 1                                                      |
+| `rax`    | constant al/ax/eax/rax                                          |
+| `rcx`    | constant cl/cx/ecx/rcx                                          |
+| `rdx`    | constant dl/dx/edx/rdx                                          |
+| `rbx`    | constant bl/bx/ebx/rbx                                          |
+| `rsp`    | constant sp/esp/rsp                                             |
+| `rbp`    | constant bp/ebp/rbp                                             |
+| `rsi`    | constant si/esi/rsi                                             |
+| `rdi`    | constant di/edi/rdi                                             |
+| `st0`    | constant st(0)                                                  |
+| `stx`    | constant st(i)                                                  |
+| `seg`    | constant segment                                                |
+| `xmm0`   | constant xmm0                                                   |
+| `xmm0_7` | constant xmm0-xmm7                                              |
+| `mxcsr`  | constant mxcsr                                                  |
+| `rflags` | constant rflags                                                 |
+
+Appendix C - Instruction Encoding Prefixes
+==========================================
+
+This table outlines the mnemonic prefixes used in instruction encodings
+_(enum x86_enc)_.
+
+| mnemonic | description                                                     |
+|:---------|:----------------------------------------------------------------|
+| `lex`    | legacy instruction                                              |
+| `vex`    | VEX encoded instruction                                         |
+| `evex`   | EVEX encoded instruction                                        |
+| `.lz`    | VEX encoding L=0 and L=1 is unassigned                          |
+| `.l0`    | VEX encoding L=0                                                |
+| `.l1`    | VEX encoding L=1                                                |
+| `.lig`   | VEX/EVEX encoding ignores length L=any                          |
+| `.128`   | VEX/EVEX encoding uses 128-bit vector L=0                       |
+| `.256`   | VEX/EVEX encoding uses 256-bit vector L=1                       |
+| `.512`   | EVEX encoding uses 512-bit vector L=2                           |
+| `.66`    | prefix byte 66 is used for opcode mapping                       |
+| `.f2`    | prefix byte f2 is used for opcode mapping                       |
+| `.f3`    | prefix byte f3 is used for opcode mapping                       |
+| `.9b`    | prefix byte 9b is used for opcode mapping (x87 only)            |
+| `.0f`    | map 0f is used in opcode                                        |
+| `.0f38`  | map 0f38 is used in opcode                                      |
+| `.0f3a`  | map 0f3a is used in opcode                                      |
+| `.wn`    | no register extension, fixed operand size                       |
+| `.wb`    | register extension, fixed operand size                          |
+| `.wx`    | REX and/or operand size extension, optional 66 or REX.W0/W1     |
+| `.ww`    | REX and/or operand size extension, optional 66 and REX.WIG      |
+| `.w0`    | LEX/VEX/EVEX optional REX W0 with operand size used in opcode   |
+| `.w1`    | LEX/VEX/EVEX mandatory REX W1 with operand size used in opcode  |
+| `.wig`   | VEX/EVEX encoding width ignored                                 |
+
+Appendix D - Instruction Encoding Suffixes
+==========================================
+
+This table outlines the mnemonic suffixes used in instruction encodings
+_(enum x86_enc)_.
+
+| mnemonic | description                                                     |
+|:---------|:----------------------------------------------------------------|
+| `/r`     | ModRM byte                                                      |
+| `/0../9` | ModRM byte with 'r' field used for functions 0 to 7             |
+| `XX+r`   | opcode byte with 3-bit register added to the opcode             |
+| `XX`     | opcode byte                                                     |
+| `ib`     | 8-bit immediate                                                 |
+| `iw`     | 16-bit or 32-bit immediate (real mode XOR operand size)         |
+| `i16`    | 16-bit immediate                                                |
+| `i32`    | 32-bit immediate                                                |
+| `i64`    | 64-bit immediate                                                |
+| `o16`    | encoding uses prefix 66 in 32-bit and 64-bit modes              |
+| `o32`    | encoding uses prefix 66 in 16-bit mode                          |
+| `o64`    | encoding is used exclusively in 64-bit mode with REX.W=1        |
+| `a16`    | encoding uses prefix 67 in 32-bit and 64-bit modes              |
+| `a32`    | encoding uses prefix 67 in 16-bit mode                          |
+| `a64`    | encoding is used exclusively in 64-bit mode                     |
+| `lock`   | memory operand encodings can be used with the LOCK prefix       |
+
+Appendix E - Instruction Synthesis Notes
+========================================
+
+The `.wx` and `.ww` mnemonics are used to synthesize prefix combinations:
+
+- `.wx` labels opcodes with _default 32-bit operand size in 64-bit mode_
+  to synthesize 16/32/64-bit versions using REX and operand size prefix,
+  or in 16/32-bit modes synthesizes 16/32-bit versions using only the
+  operand size prefix. REX is used for register extension on opcodes
+  with `rw` or `rw/mw` operands or fixed register operands like `aw`.
+- `.ww` labels opcodes with _default 64-bit operand size in 64-bit mode_
+  to synthesize 16/64-bit versions using only the operand size prefix,
+  or in 16/32-bit modes. synthesizes 16/32-bit versions using only the
+  operand size prefix. REX is used for register extension on opcodes
+  with `rw` or `rw/mw` operands or fixed register operands like `aw`.
