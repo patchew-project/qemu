@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"RDRAND rw","LEX.0F.WX C7 /6","Valid","Valid","Invalid","RDRAND","ModRM:r/m (w)","","","","","Read a 16/32/64-bit random number and store in the destination register."

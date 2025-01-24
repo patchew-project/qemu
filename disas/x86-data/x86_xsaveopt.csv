@@ -1,0 +1,3 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"XSAVEOPT mem","LEX.0F.W0 AE /6","Valid","Valid","Invalid","XSAVEOPT","ModRM:r/m (w)","","","","","Save state components specified by EDX:EAX to mem, optimizing if possible."
+"XSAVEOPT64 mem","LEX.0F.W1 AE /6","Valid","Valid","Invalid","XSAVEOPT","ModRM:r/m (w)","","","","","Save state components specified by EDX:EAX to mem, optimizing if possible."

@@ -1,0 +1,3 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"CLAC","LEX.0F.W0 01 CA","Valid","Valid","Invalid","SMAP","","","","","","Clear the AC flag in the EFLAGS register."
+"STAC","LEX.0F.W0 01 CB","Valid","Valid","Invalid","SMAP","","","","","","Set the AC flag in the EFLAGS register."

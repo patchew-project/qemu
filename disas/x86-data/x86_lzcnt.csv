@@ -1,0 +1,3 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"LZCNT rw, rw/mw","LEX.F3.0F.W0 BD /r","Valid","Valid","Valid","LZCNT","ModRM:reg (w)","ModRM:r/m (r)","","","","Count the number of leading zero bits in r/m, return result in r."
+"LZCNT rw, rw/mw","LEX.F3.0F.W1 BD /r","Valid","Invalid","Invalid","LZCNT","ModRM:reg (w)","ModRM:r/m (r)","","","","Count the number of leading zero bits in r/m, return result in r."

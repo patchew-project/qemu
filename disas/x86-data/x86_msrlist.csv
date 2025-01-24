@@ -1,0 +1,4 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"RDMSRLIST","LEX.F2.0F.W0 01 C6","Valid","Valid","Invalid","MSRLIST","RDI (r)","RSI (r)","RCX (r)","","","Read the requested list of MSRs, and store the read values to memory."
+"WRMSRLIST","LEX.F3.0F.W0 01 C6","Valid","Valid","Invalid","MSRLIST","RDI (r)","RSI (r)","RCX (r)","","","Write requested list of MSRs with the values specified in memory."
+"WRMSRNS","LEX.0F.W0 01 C6","Valid","Valid","Invalid","MSRLIST","RDX (r)","RAX (r)","RCX (r)","","","Write the value in EDX:EAX to MSR specified by ECX."

@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"RDPID rw","LEX.F3.0F.W0 C7 /7","Valid","Valid","Invalid","RDPID","ModRM:r/m (w)","","","","","Read IA32_TSC_AUX into r."

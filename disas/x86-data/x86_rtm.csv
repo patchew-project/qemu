@@ -1,0 +1,5 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"XABORT ib","LEX.WN C6 F8 ib","Valid","Valid","Invalid","RTM","ib","","","","","Causes an RTM abort if in RTM execution"
+"XBEGIN relw","LEX.WN C7 F8 iw","Valid","Valid","Invalid","RTM","iw","","","","","Specifies the start of an RTM region. Provides a 32-bit relative offset to compute the address of the fallback instruction address at which execution resumes following an RTM abort."
+"XEND","LEX.0F.W0 01 D5","Valid","Valid","Invalid","RTM","","","","","","Specifies the end of an RTM code region."
+"XTEST","LEX.0F.W0 01 D6","Valid","Valid","Invalid","HLE RTM","","","","","","Test if executing in a transactional region"

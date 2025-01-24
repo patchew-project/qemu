@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"CLDEMOTE m8","LEX.0F.W0 1c /0","Valid","Valid","Invalid","CLDEMOTE","ModRM:r/m (w)","","","","","Hint to hardware to move the cache line containing m8 to a more distant level of the cache without writing back to memory."
