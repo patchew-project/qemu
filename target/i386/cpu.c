@@ -46,6 +46,7 @@
 #include "tcg/tcg-cpu.h"
 
 #include "disas/capstone.h"
+#include "disas/x86.h"
 #include "cpu-internal.h"
 
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp);
@@ -8686,6 +8687,12 @@ static void x86_disas_set_info(CPUState *cs, disassemble_info *info)
                       : CS_MODE_16);
     info->cap_insn_unit = 1;
     info->cap_insn_split = 8;
+
+    info->print_insn = print_insn_x86;
+    info->private_data = x86_ctx_create(
+        env->hflags & HF_CS64_MASK ? x86_modes_64
+        : env->hflags & HF_CS32_MASK ? x86_modes_32
+        : x86_modes_16);
 }
 
 void x86_update_hflags(CPUX86State *env)
