@@ -407,7 +407,7 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
  * (or default timer list group, if NULL).
  * The caller is responsible for allocating the memory.
  *
- * You need not call an explicit deinit call. Simply make
+ * You need not call an explicit timer_deinit() call. Simply make
  * sure it is not on a list with timer_del.
  */
 void timer_init_full(QEMUTimer *ts,

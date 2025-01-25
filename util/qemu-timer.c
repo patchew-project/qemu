@@ -355,6 +355,7 @@ void timer_init_full(QEMUTimer *ts,
     if (!timer_list_group) {
         timer_list_group = &main_loop_tlg;
     }
+    assert(ts->timer_list == NULL);
     ts->timer_list = timer_list_group->tl[type];
     ts->cb = cb;
     ts->opaque = opaque;
