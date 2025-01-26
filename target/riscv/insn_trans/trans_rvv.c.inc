@@ -3453,7 +3453,9 @@ static bool vrgather_vv_check(DisasContext *s, arg_rmrr *a)
            require_align(a->rs1, s->lmul) &&
            require_align(a->rs2, s->lmul) &&
            (a->rd != a->rs2 && a->rd != a->rs1) &&
-           require_vm(a->vm, a->rd);
+           require_vm(a->vm, a->rd) &&
+           require_vm(a->vm, a->rs1) &&
+           require_vm(a->vm, a->rs2);
 }
 
 static bool vrgatherei16_vv_check(DisasContext *s, arg_rmrr *a)
@@ -3470,7 +3472,9 @@ static bool vrgatherei16_vv_check(DisasContext *s, arg_rmrr *a)
                           a->rs1, 1 << MAX(emul, 0)) &&
            !is_overlapped(a->rd, 1 << MAX(s->lmul, 0),
                           a->rs2, 1 << MAX(s->lmul, 0)) &&
-           require_vm(a->vm, a->rd);
+           require_vm(a->vm, a->rd) &&
+           require_vm(a->vm, a->rs1) &&
+           require_vm(a->vm, a->rs2);
 }
 
 GEN_OPIVV_TRANS(vrgather_vv, vrgather_vv_check)
@@ -3483,7 +3487,8 @@ static bool vrgather_vx_check(DisasContext *s, arg_rmrr *a)
            require_align(a->rd, s->lmul) &&
            require_align(a->rs2, s->lmul) &&
            (a->rd != a->rs2) &&
-           require_vm(a->vm, a->rd);
+           require_vm(a->vm, a->rd) &&
+           require_vm(a->vm, a->rs2);
 }
 
 /* vrgather.vx vd, vs2, rs1, vm # vd[i] = (x[rs1] >= VLMAX) ? 0 : vs2[rs1] */
