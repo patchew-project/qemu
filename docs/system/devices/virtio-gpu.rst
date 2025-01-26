@@ -5,13 +5,33 @@ virtio-gpu
 ==========
 
 This document explains the setup and usage of the virtio-gpu device.
-The virtio-gpu device paravirtualizes the GPU and display controller.
+The virtio-gpu device provides a GPU and display controller
+paravirtualized using VirtIO. It supports a number of different modes
+from simple 2D displays to fully accelerated 3D graphics.
 
 Linux kernel support
 --------------------
 
 virtio-gpu requires a guest Linux kernel built with the
 ``CONFIG_DRM_VIRTIO_GPU`` option.
+
+Dependencies
+............
+
+.. note::
+  GPU virtualisation is still an evolving field. Depending on the mode
+  you are running you may need to override distribution supplied
+  libraries with more recent versions or enable build options.
+
+  Depending on the mode there are a number of requirements the host must
+  meet to be able to be able to support guests. For 3D acceleration QEMU
+  must be able to access the hosts GPU and for the best performance be
+  able to reliably share GPU memory with the guest.
+
+  Virtio-gpu requires a guest Linux kernel built with the
+  ``CONFIG_DRM_VIRTIO_GPU`` option. For 3D accelerations you
+  will need support from guest Mesa configured for whichever encapsulation
+  you need.
 
 QEMU virtio-gpu variants
 ------------------------
@@ -56,6 +76,16 @@ on typical modern Linux distributions.
 .. _Mesa: https://www.mesa3d.org/
 .. _SwiftShader: https://github.com/google/swiftshader
 
+.. list-table:: Host Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Kernel
+    - Userspace
+  * - virtio-gpu
+    - Framebuffer enabled
+    - GTK or SDL display
+
 virtio-gpu virglrenderer
 ------------------------
 
@@ -93,6 +123,61 @@ of virtio-gpu host memory window. This is typically between 256M and 8G.
     -device virtio-gpu-gl,hostmem=8G,blob=on,drm_native_context=on
 
 .. _drm: https://gitlab.freedesktop.org/virgl/virglrenderer/-/tree/main/src/drm
+
+.. list-table:: Host Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Kernel
+    - Userspace
+  * - virtio-gpu-gl (OpenGL pass-through)
+    - GPU enabled
+    - libvirglrenderer (virgl support)
+  * - virtio-gpu-gl (Vulkan pass-through)
+    - Linux 6.13+
+    - libvirglrenderer (>= 1.0.0, venus support)
+  * - virtio-gpu-gl (vDRM native context/AMD)
+    - Linux 6.13+
+    - libvirglrenderer (>= 1.1.0, DRM renderer support)
+  * - virtio-gpu-gl (vDRM native context/Freedreno)
+    - Linux 6.4+
+    - libvirglrenderer (>= 1.0.0, DRM renderer support)
+  * - virtio-gpu-gl (vDRM native context/Intel i915)
+    - Linux 6.13+
+    - libvirglrenderer (`mr1384`_, DRM renderer support)
+  * - virtio-gpu-gl (vDRM native context/Asahi)
+    - Linux 6.13+
+    - libvirglrenderer (`mr1274`_, DRM renderer support)
+
+.. _mr1384: https://gitlab.freedesktop.org/virgl/virglrenderer/-/merge_requests/1384
+.. _mr1274: https://gitlab.freedesktop.org/virgl/virglrenderer/-/merge_requests/1274
+
+.. list-table:: Guest Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Mesa Version
+    - Mesa build flags
+  * - virtio-gpu-gl (OpenGL pass-through)
+    - 20.3.0+
+    - -Dgallium-drivers=virgl
+  * - virtio-gpu-gl (Vulkan pass-through)
+    - 24.2.0+
+    - -Dvulkan-drivers=virtio
+  * - virtio-gpu-gl (vDRM native context/AMD)
+    - 25.0.0+
+    - -Dgallium-drivers=radeonsi -Dvulkan-drivers=amd -Damdgpu-virtio=true
+  * - virtio-gpu-gl (vDRM native context/Freedreno)
+    - 23.1.0+
+    - -Dgallium-drivers=freedreno -Dvulkan-drivers=freedreno
+  * - virtio-gpu-gl (vDRM native context/Intel i915)
+    - `mr29870`_
+    - -Dgallium-drivers=iris -Dvulkan-drivers=intel -Dintel-virtio-experimental=true
+  * - virtio-gpu-gl (vDRM native context/Asahi)
+    - 24.2.0+
+    - -Dgallium-drivers=asahi -Dvulkan-drivers=asahi
+
+.. _mr29870: https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/29870
 
 virtio-gpu rutabaga
 -------------------
@@ -133,3 +218,23 @@ Surfaceless is the default if ``wsi`` is not specified.
 .. _Wayland display passthrough: https://www.youtube.com/watch?v=OZJiHMtIQ2M
 .. _gfxstream-enabled rutabaga: https://crosvm.dev/book/appendix/rutabaga_gfx.html
 .. _guest Wayland proxy: https://crosvm.dev/book/devices/wayland.html
+
+.. list-table:: Host Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Kernel
+    - Userspace
+  * - virtio-gpu-gl (rutabaga/gfxstream)
+    - GPU enabled
+    - aemu/rutabaga_gfx_ffi or vhost-user client with support
+
+.. list-table:: Guest Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Mesa Version
+    - Mesa build flags
+  * - virtio-gpu-gl (rutabaga/gfxstream)
+    - 24.3.0+
+    - -Dvulkan-drivers=gfxstream
