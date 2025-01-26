@@ -549,7 +549,8 @@ static bool vext_check_dds(DisasContext *s, int vd, int vs1, int vs2, int vm)
 {
     return vext_check_ds(s, vd, vs1, vm) &&
            require_vm(vm, vs2) &&
-           require_align(vs2, s->lmul + 1);
+           require_align(vs2, s->lmul + 1) &&
+           !is_overlapped(vs2, 1 << MAX(s->lmul+1, 0), vs1, 1 << MAX(s->lmul, 0));
 }
 
 static bool vext_check_sd(DisasContext *s, int vd, int vs, int vm)
