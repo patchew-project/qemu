@@ -458,13 +458,14 @@ static bool vext_check_mss(DisasContext *s, int vd, int vs1, int vs2)
  *      instruction cannot overlap the source mask register (v0).
  *      (Section 5.3)
  */
-static bool vext_wide_check_common(DisasContext *s, int vd, int vm)
+static bool vext_wide_check_common(DisasContext *s, int vd, int vs, int vm)
 {
     return (s->lmul <= 2) &&
            (s->sew < MO_64) &&
            ((s->sew + 1) <= (s->cfg_ptr->elen >> 4)) &&
            require_align(vd, s->lmul + 1) &&
-           require_vm(vm, vd);
+           require_vm(vm, vd) &&
+           require_vm(vm, vs);
 }
 
 /*
@@ -498,14 +499,14 @@ static bool vext_narrow_check_common(DisasContext *s, int vd, int vs2,
 
 static bool vext_check_ds(DisasContext *s, int vd, int vs, int vm)
 {
-    return vext_wide_check_common(s, vd, vm) &&
+    return vext_wide_check_common(s, vd, vs, vm) &&
            require_align(vs, s->lmul) &&
            require_noover(vd, s->lmul + 1, vs, s->lmul);
 }
 
 static bool vext_check_dd(DisasContext *s, int vd, int vs, int vm)
 {
-    return vext_wide_check_common(s, vd, vm) &&
+    return vext_wide_check_common(s, vd, vs, vm) &&
            require_align(vs, s->lmul + 1);
 }
 
