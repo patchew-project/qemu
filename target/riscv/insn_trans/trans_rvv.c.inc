@@ -609,6 +609,7 @@ static bool vext_check_slide(DisasContext *s, int vd, int vs2,
 {
     bool ret = require_align(vs2, s->lmul) &&
                require_align(vd, s->lmul) &&
+               require_vm(vm, vs2) &&
                require_vm(vm, vd);
     if (is_over) {
         ret &= (vd != vs2);
