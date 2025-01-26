@@ -382,6 +382,7 @@ static bool vext_check_ld_index(DisasContext *s, int vd, int vs2,
 static bool vext_check_ss(DisasContext *s, int vd, int vs, int vm)
 {
     return require_vm(vm, vd) &&
+           require_vm(vm, vs) &&
            require_align(vd, s->lmul) &&
            require_align(vs, s->lmul);
 }
