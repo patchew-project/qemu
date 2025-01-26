@@ -3631,6 +3631,7 @@ static bool int_ext_check(DisasContext *s, arg_rmr *a, uint8_t div)
         require_align(a->rd, s->lmul) &&
         require_align(a->rs2, s->lmul - div) &&
         require_vm(a->vm, a->rd) &&
+        require_vm(a->vm, a->rs2) &&
         require_noover(a->rd, s->lmul, a->rs2, s->lmul - div);
     return ret;
 }
