@@ -548,6 +548,7 @@ static bool vext_check_dss(DisasContext *s, int vd, int vs1, int vs2, int vm)
 static bool vext_check_dds(DisasContext *s, int vd, int vs1, int vs2, int vm)
 {
     return vext_check_ds(s, vd, vs1, vm) &&
+           require_vm(vm, vs2) &&
            require_align(vs2, s->lmul + 1);
 }
 
