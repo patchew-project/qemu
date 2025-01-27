@@ -243,6 +243,19 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
     return g_ptr_array_index(tb->insns, idx);
 }
 
+struct qemu_plugin_insn *
+qemu_plugin_tb_get_insn_by_vaddr(const struct qemu_plugin_tb *tb, uint64_t vaddr)
+{
+    struct qemu_plugin_insn *insn;
+    for (size_t i = 0; i < tb->n; i++){
+        insn = g_ptr_array_index(tb->insns, idx);
+        if (insn != NULL && insn->vaddr == vaddr){
+            return insn;
+        }
+    }
+    return NULL;
+}
+
 /*
  * Instruction information
  *

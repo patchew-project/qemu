@@ -501,6 +501,17 @@ struct qemu_plugin_insn *
 qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx);
 
 /**
+ * qemu_plugin_tb_get_insn_by_vaddr() - lookup handle for instruction by vaddr
+ * @tb: opaque handle to TB passed to callback
+ * @vaddr: virtual address of instruction
+ *
+ * Returns: opaque handle to instruction
+ */
+QEMU_PLUGIN_API
+struct qemu_plugin_insn *
+qemu_plugin_tb_get_insn_by_vaddr(const struct qemu_plugin_tb *tb, uint64_t vaddr);
+
+/**
  * qemu_plugin_insn_data() - copy instruction data
  * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
  * @dest: destination into which data is copied
