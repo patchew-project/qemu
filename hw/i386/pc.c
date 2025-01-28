@@ -31,6 +31,7 @@
 #include "hw/hyperv/hv-balloon.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/i386/vmport.h"
+#include "target/i386/cpu.h"
 #include "system/cpus.h"
 #include "hw/ide/ide-bus.h"
 #include "hw/timer/hpet.h"
@@ -617,6 +618,19 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     if (level) {
         cpu_interrupt(CPU(cpu), CPU_INTERRUPT_SMI);
     }
+}
+
+void pc_init_cpus(MachineState *ms)
+{
+    X86MachineState *x86ms = X86_MACHINE(ms);
+    PCMachineState *pcms = PC_MACHINE(ms);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+
+    if (pcmc->no_versioned_cpu_model) {
+        /* use legacy cpu as it does not support versions */
+        x86_cpu_set_legacy_version();
+    }
+    x86_cpus_init(x86ms);
 }
 
 static
