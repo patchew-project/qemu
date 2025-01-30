@@ -960,6 +960,10 @@ static void *postcopy_ram_fault_thread(void *opaque)
     int ret;
     size_t index;
     RAMBlock *rb = NULL;
+    int poll_timeout = migrate_postcopy_rp_keepalive_period();
+    if (poll_timeout == 0) {
+        poll_timeout = -1; /* wait forever with no keepalive messages */
+    }
 
     trace_postcopy_ram_fault_thread_entry();
     rcu_register_thread();
@@ -995,7 +999,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
          * an eventfd
          */
 
-        poll_result = poll(pfd, pfd_len, -1 /* Wait forever */);
+        poll_result = poll(pfd, pfd_len, poll_timeout);
         if (poll_result == -1) {
             error_report("%s: userfault poll: %s", __func__, strerror(errno));
             break;
@@ -1008,6 +1012,15 @@ static void *postcopy_ram_fault_thread(void *opaque)
              * the channel is rebuilt.
              */
             postcopy_pause_fault_thread(mis);
+        }
+
+        if (poll_result == 0) {
+            /*
+             * No page to request, send at least a keepalive message to check
+             * that the connection is not broken.
+             */
+            migrate_send_rp_keepalive(mis);
+            continue;
         }
 
         if (pfd[1].revents) {

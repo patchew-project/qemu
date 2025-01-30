@@ -92,6 +92,8 @@ enum mig_rp_message_type {
     MIG_RP_MSG_RESUME_ACK,   /* tell source that we are ready to resume */
     MIG_RP_MSG_SWITCHOVER_ACK, /* Tell source it's OK to do switchover */
 
+    MIG_RP_MSG_KEEPALIVE, /* Keepalive message from destination to source */
+
     MIG_RP_MSG_MAX
 };
 
@@ -531,6 +533,12 @@ static int migrate_send_rp_message(MigrationIncomingState *mis,
     qemu_put_be16(mis->to_src_file, len);
     qemu_put_buffer(mis->to_src_file, data, len);
     return qemu_fflush(mis->to_src_file);
+}
+
+void migrate_send_rp_keepalive(MigrationIncomingState *mis)
+{
+    trace_migrate_send_rp_keepalive();
+    migrate_send_rp_message(mis, MIG_RP_MSG_KEEPALIVE, 0, NULL);
 }
 
 /* Request one page from the source VM at the given start address.
@@ -2607,6 +2615,10 @@ static void *source_return_path_thread(void *opaque)
         case MIG_RP_MSG_SWITCHOVER_ACK:
             ms->switchover_acked = true;
             trace_source_return_path_thread_switchover_acked();
+            break;
+
+        case MIG_RP_MSG_KEEPALIVE:
+            trace_source_return_path_thread_received_keepalive();
             break;
 
         default:

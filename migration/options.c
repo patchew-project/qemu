@@ -86,6 +86,12 @@
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT_PERIOD     1000    /* milliseconds */
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT            1       /* MB/s */
 
+/*
+ * Time in milliseconds for periodic keepalive message from destination to
+ * source during postcopy if there is no other traffic, 0: no keepalive messages
+ */
+#define DEFAULT_MIGRATE_POSTCOPY_RP_KEEPALIVE_PERIOD 60000
+
 const Property migration_properties[] = {
     DEFINE_PROP_BOOL("store-global-state", MigrationState,
                      store_global_state, true),
@@ -177,6 +183,9 @@ const Property migration_properties[] = {
     DEFINE_PROP_ZERO_PAGE_DETECTION("zero-page-detection", MigrationState,
                        parameters.zero_page_detection,
                        ZERO_PAGE_DETECTION_MULTIFD),
+    DEFINE_PROP_UINT32("postcopy-rp-keepalive-period", MigrationState,
+                       parameters.postcopy_rp_keepalive_period,
+                       DEFAULT_MIGRATE_POSTCOPY_RP_KEEPALIVE_PERIOD),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -877,6 +886,13 @@ ZeroPageDetection migrate_zero_page_detection(void)
     return s->parameters.zero_page_detection;
 }
 
+uint32_t migrate_postcopy_rp_keepalive_period(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.postcopy_rp_keepalive_period;
+}
+
 /* parameters helpers */
 
 AnnounceParameters *migrate_announce_params(void)
@@ -962,6 +978,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->zero_page_detection = s->parameters.zero_page_detection;
     params->has_direct_io = true;
     params->direct_io = s->parameters.direct_io;
+    params->has_postcopy_rp_keepalive_period = true;
+    params->postcopy_rp_keepalive_period = s->parameters.postcopy_rp_keepalive_period;
 
     return params;
 }
@@ -996,6 +1014,7 @@ void migrate_params_init(MigrationParameters *params)
     params->has_mode = true;
     params->has_zero_page_detection = true;
     params->has_direct_io = true;
+    params->has_postcopy_rp_keepalive_period = true;
 }
 
 /*
@@ -1182,6 +1201,14 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
+    if (params->has_postcopy_rp_keepalive_period &&
+        params->postcopy_rp_keepalive_period > INT_MAX) {
+        error_setg(errp,
+                   "Parameter 'postcopy-rp-keepalive-period' must be less than %d",
+                   INT_MAX);
+        return false;
+    }
+
     return true;
 }
 
@@ -1299,6 +1326,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
 
     if (params->has_direct_io) {
         dest->direct_io = params->direct_io;
+    }
+
+    if (params->has_postcopy_rp_keepalive_period) {
+        dest->postcopy_rp_keepalive_period = params->postcopy_rp_keepalive_period;
     }
 }
 
@@ -1431,6 +1462,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_direct_io) {
         s->parameters.direct_io = params->direct_io;
+    }
+
+    if (params->has_postcopy_rp_keepalive_period) {
+        s->parameters.postcopy_rp_keepalive_period = params->postcopy_rp_keepalive_period;
     }
 }
 
