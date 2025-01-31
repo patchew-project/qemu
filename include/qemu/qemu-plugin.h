@@ -477,6 +477,16 @@ QEMU_PLUGIN_API
 size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);
 
 /**
+ * qemu_plugin_tb_size() - query helper for size of TB
+ * @tb: opaque handle to TB passed to callback
+ * 
+ * Returns: size of block in bytes
+ */
+
+QEMU_PLUGIN_API
+size_t qemu_plugin_tb_size(const struct qemu_plugin_tb *tb);
+
+/**
  * qemu_plugin_tb_vaddr() - query helper for vaddr of TB start
  * @tb: opaque handle to TB passed to callback
  *

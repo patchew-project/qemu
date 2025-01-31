@@ -228,6 +228,13 @@ size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb)
     return tb->n;
 }
 
+size_t qemu_plugin_tb_size(const struct qemu_plugin_tb *tb)
+{
+    struct qemu_plugin_insn *last;
+    last = g_ptr_array_index(tb->insns, tb->n - 1);
+    return qemu_plugin_insn_vaddr(last) + qemu_plugin_insn_size(last) - qemu_plugin_tb_vaddr(tb);
+}
+
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb)
 {
     const DisasContextBase *db = tcg_ctx->plugin_db;
