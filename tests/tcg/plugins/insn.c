@@ -142,6 +142,8 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 {
     size_t n = qemu_plugin_tb_n_insns(tb);
     size_t i;
+    size_t tb_size = 0;
+    struct qemu_plugin_insn *last;
 
     for (i = 0; i < n; i++) {
         struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, i);
@@ -156,6 +158,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 
         if (do_size) {
             size_t sz = qemu_plugin_insn_size(insn);
+            tb_size += sz;
             if (sz > sizes->len) {
                 g_array_set_size(sizes, sz);
             }
@@ -187,6 +190,13 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
             }
             g_free(insn_disas);
         }
+    }
+
+    last = qemu_plugin_tb_get_insn(tb, n - 1);
+    g_assert(qemu_plugin_tb_get_insn_by_vaddr(tb, qemu_plugin_insn_vaddr(last)) == last);
+
+    if (do_size){
+        g_assert(tb_size == qemu_plugin_tb_size(tb));
     }
 }
 
