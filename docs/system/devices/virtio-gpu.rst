@@ -5,7 +5,9 @@ virtio-gpu
 ==========
 
 This document explains the setup and usage of the virtio-gpu device.
-The virtio-gpu device paravirtualizes the GPU and display controller.
+The virtio-gpu device provides a GPU and display controller
+paravirtualized using VirtIO. It supports a number of different modes
+from simple 2D displays to fully accelerated 3D graphics.
 
 Linux kernel support
 --------------------
@@ -56,6 +58,17 @@ on typical modern Linux distributions.
 .. _Mesa: https://www.mesa3d.org/
 .. _SwiftShader: https://github.com/google/swiftshader
 
+3D acceleration
+---------------
+
+3D acceleration of a virtualized GPU is still an evolving field.
+Depending on the 3D mode you are running you may need to override
+distribution supplied libraries with more recent versions or enable
+build options. There are a number of requirements the host must meet
+to be able to be able to support guests. QEMU must be able to access the
+host's GPU and for the best performance be able to reliably share GPU
+memory with the guest.
+
 virtio-gpu virglrenderer
 ------------------------
 
@@ -93,6 +106,61 @@ of virtio-gpu host memory window. This is typically between 256M and 8G.
     -device virtio-gpu-gl,hostmem=8G,blob=on,drm_native_context=on
 
 .. _drm: https://gitlab.freedesktop.org/virgl/virglrenderer/-/tree/main/src/drm
+
+.. list-table:: Linux Host Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Kernel
+    - libvirglrenderer build flags
+  * - OpenGL pass-through
+    - Linux any stable version
+    - N/A
+  * - Vulkan pass-through
+    - Linux 6.13+
+    - -Dvenus=true -Drender-server=true
+  * - AMDGPU DRM native context
+    - Linux 6.13+
+    - -Ddrm-renderers=amdgpu-experimental
+  * - Freedreno DRM native context
+    - Linux 6.4+
+    - -Ddrm-renderers=msm
+  * - Intel i915 DRM native context
+    - Linux 6.13+
+    - -Ddrm-renderers=i915-experimental `mr1384`_
+  * - Asahi DRM native context
+    - Linux 6.13+
+    - -Ddrm-renderers=asahi-experimental `mr1274`_
+
+.. _mr1384: https://gitlab.freedesktop.org/virgl/virglrenderer/-/merge_requests/1384
+.. _mr1274: https://gitlab.freedesktop.org/virgl/virglrenderer/-/merge_requests/1274
+
+.. list-table:: Linux Guest Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Mesa Version
+    - Mesa build flags
+  * - OpenGL pass-through
+    - 16.0.0+
+    - -Dgallium-drivers=virgl
+  * - Vulkan pass-through
+    - 24.2.0+
+    - -Dvulkan-drivers=virtio
+  * - AMDGPU DRM native context
+    - 25.0.0+
+    - -Dgallium-drivers=radeonsi -Dvulkan-drivers=amd -Damdgpu-virtio=true
+  * - Freedreno DRM native context
+    - 23.1.0+
+    - -Dgallium-drivers=freedreno -Dvulkan-drivers=freedreno
+  * - Intel i915 DRM native context
+    - `mr29870`_
+    - -Dgallium-drivers=iris -Dvulkan-drivers=intel -Dintel-virtio-experimental=true
+  * - Asahi DRM native context
+    - 24.2.0+
+    - -Dgallium-drivers=asahi -Dvulkan-drivers=asahi
+
+.. _mr29870: https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/29870
 
 virtio-gpu rutabaga
 -------------------
@@ -133,3 +201,25 @@ Surfaceless is the default if ``wsi`` is not specified.
 .. _Wayland display passthrough: https://www.youtube.com/watch?v=OZJiHMtIQ2M
 .. _gfxstream-enabled rutabaga: https://crosvm.dev/book/appendix/rutabaga_gfx.html
 .. _guest Wayland proxy: https://crosvm.dev/book/devices/wayland.html
+
+.. list-table:: Linux Host Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Kernel
+    - Userspace
+  * - rutabaga-gfxstream
+    - Linux 6.13+
+    - rutabaga_gfx_ffi or vhost-user client with `gfxstream support`_
+
+.. _gfxstream support: https://github.com/rust-vmm/vhost-device/tree/main/staging/vhost-device-gpu
+
+.. list-table:: Linux Guest Requirements
+  :header-rows: 1
+
+  * - Mode
+    - Mesa Version
+    - Mesa build flags
+  * - rutabaga-gfxstream
+    - 24.3.0+
+    - -Dvulkan-drivers=gfxstream
