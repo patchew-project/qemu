@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "migration/cpr.h"
+#include "migration/migration.h"
 #include "migration/misc.h"
 #include "migration/options.h"
 #include "migration/qemu-file.h"
@@ -137,7 +138,7 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
 {
     int ret;
     QEMUFile *f;
-    MigMode mode = migrate_mode();
+    MigMode mode = migrate_get_current()->parameters.mode;
 
     trace_cpr_state_save(MigMode_str(mode));
 
