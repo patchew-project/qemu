@@ -948,13 +948,17 @@
 #     designated guest firmware page for measured boot with -kernel
 #     (default: false) (since 6.2)
 #
+# @allowed-sev-features: true if secure allowed-sev-features feature
+#     is to be enabled in an SEV-ES or SNP guest. (default: false)
+#
 # Since: 9.1
 ##
 { 'struct': 'SevCommonProperties',
   'data': { '*sev-device': 'str',
             '*cbitpos': 'uint32',
             'reduced-phys-bits': 'uint32',
-            '*kernel-hashes': 'bool' } }
+            '*kernel-hashes': 'bool',
+            '*allowed-sev-features': 'bool' } }
 
 ##
 # @SevGuestProperties:

@@ -99,6 +99,7 @@ struct SevCommonState {
     uint32_t cbitpos;
     uint32_t reduced_phys_bits;
     bool kernel_hashes;
+    uint64_t vmsa_features;
 
     /* runtime state */
     uint8_t api_major;
@@ -410,6 +411,33 @@ sev_get_reduced_phys_bits(void)
     SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
 
     return sev_common ? sev_common->reduced_phys_bits : 0;
+}
+
+static __u64
+sev_supported_vmsa_features(void)
+{
+    uint64_t supported_vmsa_features = 0;
+    struct kvm_device_attr attr = {
+        .group = KVM_X86_GRP_SEV,
+        .attr = KVM_X86_SEV_VMSA_FEATURES,
+        .addr = (unsigned long) &supported_vmsa_features
+    };
+
+    bool sys_attr = kvm_check_extension(kvm_state, KVM_CAP_SYS_ATTRIBUTES);
+    if (!sys_attr) {
+        return 0;
+    }
+
+    int rc = kvm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    if (rc < 0) {
+        if (rc != -ENXIO) {
+            warn_report("KVM_GET_DEVICE_ATTR(0, KVM_X86_SEV_VMSA_FEATURES) "
+                        "error: %d", rc);
+        }
+        return 0;
+    }
+
+    return supported_vmsa_features;
 }
 
 static SevInfo *sev_get_info(void)
@@ -1525,6 +1553,20 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     case KVM_X86_SNP_VM: {
         struct kvm_sev_init args = { 0 };
 
+        if (sev_es_enabled()) {
+            __u64 vmsa_features, supported_vmsa_features;
+
+            supported_vmsa_features = sev_supported_vmsa_features();
+            vmsa_features = sev_common->vmsa_features;
+            if ((vmsa_features & supported_vmsa_features) != vmsa_features) {
+                error_setg(errp, "%s: requested sev feature mask (0x%llx) "
+                           "contains bits not supported by the host kernel "
+                           " (0x%llx)", __func__, vmsa_features,
+                           supported_vmsa_features);
+            return -1;
+            }
+            args.vmsa_features = vmsa_features;
+        }
         ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_INIT2, &args, &fw_error);
         break;
     }
@@ -2045,6 +2087,19 @@ static void sev_common_set_kernel_hashes(Object *obj, bool value, Error **errp)
     SEV_COMMON(obj)->kernel_hashes = value;
 }
 
+static bool
+sev_snp_guest_get_allowed_sev_features(Object *obj, Error **errp)
+{
+    return SEV_COMMON(obj)->vmsa_features & SEV_VMSA_ALLOWED_SEV_FEATURES;
+}
+
+static void
+sev_snp_guest_set_allowed_sev_features(Object *obj, bool value, Error **errp)
+{
+    if (value)
+        SEV_COMMON(obj)->vmsa_features |= SEV_VMSA_ALLOWED_SEV_FEATURES;
+}
+
 static void
 sev_common_class_init(ObjectClass *oc, const void *data)
 {
@@ -2062,6 +2117,11 @@ sev_common_class_init(ObjectClass *oc, const void *data)
                                    sev_common_set_kernel_hashes);
     object_class_property_set_description(oc, "kernel-hashes",
             "add kernel hashes to guest firmware for measured Linux boot");
+    object_class_property_add_bool(oc, "allowed-sev-features",
+                                   sev_snp_guest_get_allowed_sev_features,
+                                   sev_snp_guest_set_allowed_sev_features);
+    object_class_property_set_description(oc, "allowed-sev-features",
+            "Enable the Allowed SEV Features feature");
 }
 
 static void
