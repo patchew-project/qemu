@@ -2446,7 +2446,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     uint8_t *u;
     GArray *tables_blob = tables->table_data;
     AcpiSlicOem slic_oem = { .id = NULL, .table_id = NULL };
-    Object *vmgenid_dev, *vmclock_dev;
+    Object *vmgenid_dev;
     char *oem_id;
     char *oem_table_id;
 
@@ -2519,12 +2519,16 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
                            tables->vmgenid, tables->linker, x86ms->oem_id);
     }
 
-    vmclock_dev = find_vmclock_dev();
-    if (vmclock_dev) {
-        acpi_add_table(table_offsets, tables_blob);
-        vmclock_build_acpi(VMCLOCK(vmclock_dev), tables_blob, tables->linker,
-                           x86ms->oem_id);
+#ifdef CONFIG_ACPI_VMCLOCK
+    {
+        Object *vmclock_dev = find_vmclock_dev();
+        if (vmclock_dev) {
+            acpi_add_table(table_offsets, tables_blob);
+            vmclock_build_acpi(VMCLOCK(vmclock_dev), tables_blob, tables->linker,
+                               x86ms->oem_id);
+        }
     }
+#endif
 
     if (misc.has_hpet) {
         acpi_add_table(table_offsets, tables_blob);

@@ -20,7 +20,6 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
-#include "system/reset.h"
 
 #include "standard-headers/linux/vmclock-abi.h"
 
@@ -107,15 +106,14 @@ static const VMStateDescription vmstate_vmclock = {
     },
 };
 
-static void vmclock_handle_reset(void *opaque)
+void vmclock_mmio_map(Object *dev, hwaddr addr)
 {
-    VmclockState *vms = VMCLOCK(opaque);
+    VmclockState *vms = VMCLOCK(dev);
 
-    if (!memory_region_is_mapped(&vms->clk_page)) {
-        memory_region_add_subregion_overlap(get_system_memory(),
-                                            vms->physaddr,
-                                            &vms->clk_page, 0);
-    }
+    vms->physaddr = addr;
+    memory_region_add_subregion_overlap(get_system_memory(),
+                                        vms->physaddr,
+                                        &vms->clk_page, 0);
 }
 
 static void vmclock_realize(DeviceState *dev, Error **errp)
@@ -130,8 +128,6 @@ static void vmclock_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "at most one %s device is permitted", TYPE_VMCLOCK);
         return;
     }
-
-    vms->physaddr = VMCLOCK_ADDR;
 
     e820_add_entry(vms->physaddr, VMCLOCK_SIZE, E820_RESERVED);
 
@@ -148,8 +144,6 @@ static void vmclock_realize(DeviceState *dev, Error **errp)
     /* These are all zero and thus default, but be explicit */
     vms->clk->clock_status = VMCLOCK_STATUS_UNKNOWN;
     vms->clk->counter_id = VMCLOCK_COUNTER_INVALID;
-
-    qemu_register_reset(vmclock_handle_reset, vms);
 
     vmclock_update_guest(vms);
 }

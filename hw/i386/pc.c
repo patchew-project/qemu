@@ -61,6 +61,7 @@
 #include "hw/i386/kvm/xen_gnttab.h"
 #include "hw/i386/kvm/xen_xenstore.h"
 #include "hw/mem/memory-device.h"
+#include "hw/acpi/vmclock.h"
 #include "e820_memory_layout.h"
 #include "trace.h"
 #include "sev.h"
@@ -638,6 +639,15 @@ void pc_machine_done(Notifier *notifier, void *data)
 
     pci_bus_add_fw_cfg_extra_pci_roots(x86ms->fw_cfg, pcms->pcibus,
                                        &error_abort);
+
+#ifdef CONFIG_ACPI_VMCLOCK
+    {
+        Object *vmclock = find_vmclock_dev();
+        if (vmclock) {
+            vmclock_mmio_map(vmclock, VMCLOCK_ADDR);
+        }
+    }
+#endif
 
     acpi_setup();
     if (x86ms->fw_cfg) {

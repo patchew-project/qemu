@@ -30,5 +30,6 @@ static inline Object *find_vmclock_dev(void)
 
 void vmclock_build_acpi(VmclockState *vms, GArray *table_data,
                         BIOSLinker *linker, const char *oem_id);
+void vmclock_mmio_map(Object *dev, hwaddr addr);
 
 #endif
