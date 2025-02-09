@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"MOVDIR64B ra, m512","LEX.66.0F38.W0 F8 /r","Valid","Valid","Invalid","MOVDIR64B","ModRM:reg (w)","ModRM:r/m (r)","","","","Move 64-bytes as Direct Store."

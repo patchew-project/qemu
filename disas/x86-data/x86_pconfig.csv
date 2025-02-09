@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"PCONFIG","LEX.0F.W0 01 c5","Valid","Valid","Invalid","PCONFIG","","","","","","This instruction is used to execute functions for configuring platform features."

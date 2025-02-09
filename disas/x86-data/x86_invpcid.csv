@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"INVPCID r64, m128","LEX.66.0F38.W0 82 /r","Valid","Valid","Invalid","INVPCID","ModRM:reg (r)","ModRM:r/m (r, ModRM:[7:6] must not be 11b)","","","","Invalidates entries in the TLBs and paging-structure caches based on invalidation type in r and descrip-tor in m128."

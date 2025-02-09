@@ -1,0 +1,4 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"TPAUSE rw","LEX.66.0F.W0 ae /6","Valid","Valid","Invalid","WAITPKG","ModRM:r/m (r)","RDX (r)","RAX (r)","","","Directs the processor to enter an implementation-dependent optimized state until the TSC reaches the value in EDX:EAX."
+"UMONITOR rw","LEX.F3.0F.W0 ae /6","Valid","Valid","Invalid","WAITPKG","ModRM:r/m (r)","","","","","Sets up a linear address range to be monitored by hardware and activates the monitor. The address range should be a write-back memory caching type. The address is contained in r16/r32/r64."
+"UMWAIT rw","LEX.F2.0F.W0 ae /6","Valid","Valid","Invalid","WAITPKG","ModRM:r/m (r)","RDX (r)","RAX (r)","","","A hint that allows the processor to stop instruction execution and enter an implementation-dependent optimized state until occurrence of a class of events."

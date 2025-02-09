@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"PEXTRQ r64/m64, xmm2, ib","LEX.66.0F3A.W1 16 /r ib","Valid","Invalid","Invalid","SSE4_3","ModRM:r/m (w)","ModRM:reg (r)","ib","","","Extract a qword integer value from xmm2 at the source qword offset specified by ib into r/m64."

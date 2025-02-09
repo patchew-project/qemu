@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"CLWB m8","LEX.66.0F.W0 AE /6","Valid","Valid","Invalid","CLWB","ModRM:r/m (r)","","","","","Writes back modified cache line containing m8, and may retain the line in cache hierarchy in non-modified state."
