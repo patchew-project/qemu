@@ -19,7 +19,9 @@ char *qemu_open_flags_tostr(int flags)
         #ifdef O_DIRECT
         (flags & O_DIRECT) ? "|DIRECT" : "",
         #endif
+        #if defined(O_LARGEFILE) && O_LARGEFILE != 0
         (flags & O_LARGEFILE) ? "|LARGEFILE" : "",
+        #endif
         (flags & O_DIRECTORY) ? "|DIRECTORY" : "",
         (flags & O_NOFOLLOW) ? "|NOFOLLOW" : "",
         #ifdef O_NOATIME
