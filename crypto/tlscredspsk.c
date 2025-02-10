@@ -71,6 +71,7 @@ static int
 qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *psk_creds,
                            Error **errp)
 {
+    QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(psk_creds);
     g_autofree char *pskfile = NULL;
     g_autofree char *dhparams = NULL;
     const char *username;
@@ -79,18 +80,18 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *psk_creds,
     gnutls_datum_t key = { .data = NULL };
 
     trace_qcrypto_tls_creds_psk_load(psk_creds,
-            psk_creds->parent_obj.dir ? psk_creds->parent_obj.dir : "<nodir>");
+                                     creds->dir ? creds->dir : "<nodir>");
 
-    if (psk_creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+    if (creds->endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
         if (psk_creds->username) {
             error_setg(errp, "username should not be set when endpoint=server");
             goto cleanup;
         }
 
-        if (qcrypto_tls_creds_get_path(&psk_creds->parent_obj,
+        if (qcrypto_tls_creds_get_path(creds,
                                        QCRYPTO_TLS_CREDS_DH_PARAMS,
                                        false, &dhparams, errp) < 0 ||
-            qcrypto_tls_creds_get_path(&psk_creds->parent_obj,
+            qcrypto_tls_creds_get_path(creds,
                                        QCRYPTO_TLS_CREDS_PSKFILE,
                                        true, &pskfile, errp) < 0) {
             goto cleanup;
@@ -103,8 +104,8 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *psk_creds,
             goto cleanup;
         }
 
-        if (qcrypto_tls_creds_get_dh_params_file(&psk_creds->parent_obj, dhparams,
-                                                 &psk_creds->parent_obj.dh_params,
+        if (qcrypto_tls_creds_get_dh_params_file(creds, dhparams,
+                                                 &creds->dh_params,
                                                  errp) < 0) {
             goto cleanup;
         }
@@ -116,9 +117,9 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *psk_creds,
             goto cleanup;
         }
         gnutls_psk_set_server_dh_params(psk_creds->data.server,
-                                        psk_creds->parent_obj.dh_params);
+                                        creds->dh_params);
     } else {
-        if (qcrypto_tls_creds_get_path(&psk_creds->parent_obj,
+        if (qcrypto_tls_creds_get_path(creds,
                                        QCRYPTO_TLS_CREDS_PSKFILE,
                                        true, &pskfile, errp) < 0) {
             goto cleanup;
@@ -159,7 +160,9 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *psk_creds,
 static void
 qcrypto_tls_creds_psk_unload(QCryptoTLSCredsPSK *psk_creds)
 {
-    if (psk_creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
+    QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(psk_creds);
+
+    if (creds->endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
         if (psk_creds->data.client) {
             gnutls_psk_free_client_credentials(psk_creds->data.client);
             psk_creds->data.client = NULL;
@@ -170,9 +173,9 @@ qcrypto_tls_creds_psk_unload(QCryptoTLSCredsPSK *psk_creds)
             psk_creds->data.server = NULL;
         }
     }
-    if (psk_creds->parent_obj.dh_params) {
-        gnutls_dh_params_deinit(psk_creds->parent_obj.dh_params);
-        psk_creds->parent_obj.dh_params = NULL;
+    if (creds->dh_params) {
+        gnutls_dh_params_deinit(creds->dh_params);
+        creds->dh_params = NULL;
     }
 }
 
