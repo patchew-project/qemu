@@ -33,39 +33,39 @@
 
 
 static int
-qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
+qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *anon_creds,
                             Error **errp)
 {
     g_autofree char *dhparams = NULL;
     int ret;
 
-    trace_qcrypto_tls_creds_anon_load(creds,
-            creds->parent_obj.dir ? creds->parent_obj.dir : "<nodir>");
+    trace_qcrypto_tls_creds_anon_load(anon_creds,
+            anon_creds->parent_obj.dir ? anon_creds->parent_obj.dir : "<nodir>");
 
-    if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
-        if (qcrypto_tls_creds_get_path(&creds->parent_obj,
+    if (anon_creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        if (qcrypto_tls_creds_get_path(&anon_creds->parent_obj,
                                        QCRYPTO_TLS_CREDS_DH_PARAMS,
                                        false, &dhparams, errp) < 0) {
             return -1;
         }
 
-        ret = gnutls_anon_allocate_server_credentials(&creds->data.server);
+        ret = gnutls_anon_allocate_server_credentials(&anon_creds->data.server);
         if (ret < 0) {
             error_setg(errp, "Cannot allocate credentials: %s",
                        gnutls_strerror(ret));
             return -1;
         }
 
-        if (qcrypto_tls_creds_get_dh_params_file(&creds->parent_obj, dhparams,
-                                                 &creds->parent_obj.dh_params,
+        if (qcrypto_tls_creds_get_dh_params_file(&anon_creds->parent_obj, dhparams,
+                                                 &anon_creds->parent_obj.dh_params,
                                                  errp) < 0) {
             return -1;
         }
 
-        gnutls_anon_set_server_dh_params(creds->data.server,
-                                         creds->parent_obj.dh_params);
+        gnutls_anon_set_server_dh_params(anon_creds->data.server,
+                                         anon_creds->parent_obj.dh_params);
     } else {
-        ret = gnutls_anon_allocate_client_credentials(&creds->data.client);
+        ret = gnutls_anon_allocate_client_credentials(&anon_creds->data.client);
         if (ret < 0) {
             error_setg(errp, "Cannot allocate credentials: %s",
                        gnutls_strerror(ret));
@@ -78,22 +78,22 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
 
 
 static void
-qcrypto_tls_creds_anon_unload(QCryptoTLSCredsAnon *creds)
+qcrypto_tls_creds_anon_unload(QCryptoTLSCredsAnon *anon_creds)
 {
-    if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
-        if (creds->data.client) {
-            gnutls_anon_free_client_credentials(creds->data.client);
-            creds->data.client = NULL;
+    if (anon_creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
+        if (anon_creds->data.client) {
+            gnutls_anon_free_client_credentials(anon_creds->data.client);
+            anon_creds->data.client = NULL;
         }
     } else {
-        if (creds->data.server) {
-            gnutls_anon_free_server_credentials(creds->data.server);
-            creds->data.server = NULL;
+        if (anon_creds->data.server) {
+            gnutls_anon_free_server_credentials(anon_creds->data.server);
+            anon_creds->data.server = NULL;
         }
     }
-    if (creds->parent_obj.dh_params) {
-        gnutls_dh_params_deinit(creds->parent_obj.dh_params);
-        creds->parent_obj.dh_params = NULL;
+    if (anon_creds->parent_obj.dh_params) {
+        gnutls_dh_params_deinit(anon_creds->parent_obj.dh_params);
+        anon_creds->parent_obj.dh_params = NULL;
     }
 }
 
