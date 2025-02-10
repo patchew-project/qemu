@@ -36,14 +36,15 @@ static int
 qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *anon_creds,
                             Error **errp)
 {
+    QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(anon_creds);
     g_autofree char *dhparams = NULL;
     int ret;
 
     trace_qcrypto_tls_creds_anon_load(anon_creds,
-            anon_creds->parent_obj.dir ? anon_creds->parent_obj.dir : "<nodir>");
+                                      creds->dir ? creds->dir : "<nodir>");
 
-    if (anon_creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
-        if (qcrypto_tls_creds_get_path(&anon_creds->parent_obj,
+    if (creds->endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        if (qcrypto_tls_creds_get_path(creds,
                                        QCRYPTO_TLS_CREDS_DH_PARAMS,
                                        false, &dhparams, errp) < 0) {
             return -1;
@@ -56,14 +57,14 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *anon_creds,
             return -1;
         }
 
-        if (qcrypto_tls_creds_get_dh_params_file(&anon_creds->parent_obj, dhparams,
-                                                 &anon_creds->parent_obj.dh_params,
+        if (qcrypto_tls_creds_get_dh_params_file(creds, dhparams,
+                                                 &creds->dh_params,
                                                  errp) < 0) {
             return -1;
         }
 
         gnutls_anon_set_server_dh_params(anon_creds->data.server,
-                                         anon_creds->parent_obj.dh_params);
+                                         creds->dh_params);
     } else {
         ret = gnutls_anon_allocate_client_credentials(&anon_creds->data.client);
         if (ret < 0) {
@@ -80,7 +81,9 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *anon_creds,
 static void
 qcrypto_tls_creds_anon_unload(QCryptoTLSCredsAnon *anon_creds)
 {
-    if (anon_creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
+    QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(anon_creds);
+
+    if (creds->endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
         if (anon_creds->data.client) {
             gnutls_anon_free_client_credentials(anon_creds->data.client);
             anon_creds->data.client = NULL;
@@ -91,9 +94,9 @@ qcrypto_tls_creds_anon_unload(QCryptoTLSCredsAnon *anon_creds)
             anon_creds->data.server = NULL;
         }
     }
-    if (anon_creds->parent_obj.dh_params) {
-        gnutls_dh_params_deinit(anon_creds->parent_obj.dh_params);
-        anon_creds->parent_obj.dh_params = NULL;
+    if (creds->dh_params) {
+        gnutls_dh_params_deinit(creds->dh_params);
+        creds->dh_params = NULL;
     }
 }
 
