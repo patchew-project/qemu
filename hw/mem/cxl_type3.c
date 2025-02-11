@@ -318,12 +318,6 @@ static void ct3d_config_write(PCIDevice *pci_dev, uint32_t addr, uint32_t val,
     pcie_aer_write_config(pci_dev, addr, val, size);
 }
 
-/*
- * Null value of all Fs suggested by IEEE RA guidelines for use of
- * EU, OUI and CID
- */
-#define UI64_NULL ~(0ULL)
-
 static void build_dvsecs(CXLType3Dev *ct3d)
 {
     CXLComponentState *cxl_cstate = &ct3d->cxl_cstate;
@@ -863,12 +857,9 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
     pci_config_set_prog_interface(pci_conf, 0x10);
 
     pcie_endpoint_cap_init(pci_dev, 0x80);
-    if (ct3d->sn != UI64_NULL) {
-        pcie_dev_ser_num_init(pci_dev, 0x100, ct3d->sn);
-        cxl_cstate->dvsec_offset = 0x100 + 0x0c;
-    } else {
-        cxl_cstate->dvsec_offset = 0x100;
-    }
+
+    pcie_dev_ser_num_init(pci_dev, 0x100, ct3d->sn);
+    cxl_cstate->dvsec_offset = 0x100 + 0x0c;
 
     ct3d->cxl_cstate.pdev = pci_dev;
     build_dvsecs(ct3d);
@@ -1241,7 +1232,7 @@ static const Property ct3_props[] = {
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_LINK("lsa", CXLType3Dev, lsa, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
-    DEFINE_PROP_UINT64("sn", CXLType3Dev, sn, UI64_NULL),
+    DEFINE_PROP_UINT64("sn", CXLType3Dev, sn, 0x1),
     DEFINE_PROP_STRING("cdat", CXLType3Dev, cxl_cstate.cdat.filename),
     DEFINE_PROP_UINT8("num-dc-regions", CXLType3Dev, dc.num_regions, 0),
     DEFINE_PROP_LINK("volatile-dc-memdev", CXLType3Dev, dc.host_dc,
