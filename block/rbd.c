@@ -102,7 +102,7 @@ typedef struct BDRVRBDState {
 } BDRVRBDState;
 
 typedef struct RBDTask {
-    BlockDriverState *bs;
+    AioContext *ctx;
     Coroutine *co;
     bool complete;
     int64_t ret;
@@ -1268,8 +1268,7 @@ static void qemu_rbd_completion_cb(rbd_completion_t c, RBDTask *task)
 {
     task->ret = rbd_aio_get_return_value(c);
     rbd_aio_release(c);
-    aio_bh_schedule_oneshot(bdrv_get_aio_context(task->bs),
-                            qemu_rbd_finish_bh, task);
+    aio_bh_schedule_oneshot(task->ctx, qemu_rbd_finish_bh, task);
 }
 
 static int coroutine_fn qemu_rbd_start_co(BlockDriverState *bs,
@@ -1280,7 +1279,10 @@ static int coroutine_fn qemu_rbd_start_co(BlockDriverState *bs,
                                           RBDAIOCmd cmd)
 {
     BDRVRBDState *s = bs->opaque;
-    RBDTask task = { .bs = bs, .co = qemu_coroutine_self() };
+    RBDTask task = {
+        .ctx = qemu_get_current_aio_context(),
+        .co = qemu_coroutine_self(),
+    };
     rbd_completion_t c;
     int r;
 
