@@ -741,6 +741,12 @@ struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
     if (ep == 0) {
         return &dev->ep_ctl;
     }
+
+    if (pid == USB_TOKEN_SETUP) {
+        /* Do not handle setup packets here */
+        return &dev->ep_ctl;
+    }
+
     assert(pid == USB_TOKEN_IN || pid == USB_TOKEN_OUT);
     assert(ep > 0 && ep <= USB_MAX_ENDPOINTS);
     eps = (pid == USB_TOKEN_IN) ? dev->ep_in : dev->ep_out;
