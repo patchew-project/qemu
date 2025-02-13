@@ -512,8 +512,8 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
     TestBlockJob *s = container_of(job, TestBlockJob, common.job);
 
     job_transition_to_ready(&s->common.job);
-    while (!s->should_complete) {
-        s->n++;
+    while (!qatomic_read(&s->should_complete)) {
+        qatomic_inc(&s->n);
         g_assert(qemu_get_current_aio_context() == job->aio_context);
 
         /* Avoid job_sleep_ns() because it marks the job as !busy. We want to
@@ -532,7 +532,7 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
 static void test_job_complete(Job *job, Error **errp)
 {
     TestBlockJob *s = container_of(job, TestBlockJob, common.job);
-    s->should_complete = true;
+    qatomic_set(&s->should_complete, true);
 }
 
 BlockJobDriver test_job_driver = {
@@ -563,28 +563,28 @@ static void test_attach_blockjob(void)
                             0, 0, NULL, NULL, &error_abort);
     job_start(&tjob->common.job);
 
-    while (tjob->n == 0) {
+    while (qatomic_read(&tjob->n) == 0) {
         aio_poll(qemu_get_aio_context(), false);
     }
 
     blk_set_aio_context(blk, ctx, &error_abort);
 
     tjob->n = 0;
-    while (tjob->n == 0) {
+    while (qatomic_read(&tjob->n) == 0) {
         aio_poll(qemu_get_aio_context(), false);
     }
 
     blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
 
     tjob->n = 0;
-    while (tjob->n == 0) {
+    while (qatomic_read(&tjob->n) == 0) {
         aio_poll(qemu_get_aio_context(), false);
     }
 
     blk_set_aio_context(blk, ctx, &error_abort);
 
     tjob->n = 0;
-    while (tjob->n == 0) {
+    while (qatomic_read(&tjob->n) == 0) {
         aio_poll(qemu_get_aio_context(), false);
     }
 
