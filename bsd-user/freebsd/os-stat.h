@@ -475,6 +475,7 @@ static inline abi_long do_freebsd11_getdents(abi_long arg1,
             de->d_reclen = tswap16(reclen);
             de->d_fileno = tswap32(de->d_fileno);
             len -= reclen;
+            de = (struct freebsd11_dirent *)((void *)de + reclen);
         }
     }
     return ret;
