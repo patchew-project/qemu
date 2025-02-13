@@ -56,7 +56,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     const char *name;
     int i;
 
-    if (type != CPU_MODEL_EXPANSION_TYPE_STATIC) {
+    if (type != CPU_MODEL_EXPANSION_TYPE_FULL) {
         error_setg(errp, "The requested expansion type is not supported");
         return NULL;
     }
