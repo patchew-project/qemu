@@ -2713,10 +2713,6 @@ void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
                                    TPRAccess access);
 
 /* Special values for X86CPUVersion: */
-
-/* Resolve to latest CPU version */
-#define CPU_VERSION_LATEST -1
-
 /*
  * Resolve to version defined by current machine type.
  * See x86_cpu_set_default_version()
