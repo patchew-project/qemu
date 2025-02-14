@@ -390,23 +390,23 @@ static void get_hw_error_offsets(uint64_t ghes_addr,
     *read_ack_register_addr = ghes_addr + sizeof(uint64_t);
 }
 
-static void ghes_record_cper_errors(const void *cper, size_t len,
-                                    uint16_t source_id, Error **errp)
+static int ghes_record_cper_errors(const void *cper, size_t len,
+                                   uint16_t source_id)
 {
     uint64_t cper_addr = 0, read_ack_register_addr = 0, read_ack_register;
     AcpiGedState *acpi_ged_state;
     AcpiGhesState *ags;
 
     if (len > ACPI_GHES_MAX_RAW_DATA_LENGTH) {
-        error_setg(errp, "GHES CPER record is too big: %zd", len);
-        return;
+        error_report("GHES CPER record is too big: %zd", len);
+        return -1;
     }
 
     acpi_ged_state = ACPI_GED(object_resolve_path_type("", TYPE_ACPI_GED,
                                                        NULL));
     if (!acpi_ged_state) {
-        error_setg(errp, "Can't find ACPI_GED object");
-        return;
+        error_report("Can't find ACPI_GED object");
+        return -1;
     }
     ags = &acpi_ged_state->ghes_state;
 
@@ -415,8 +415,8 @@ static void ghes_record_cper_errors(const void *cper, size_t len,
                          &cper_addr, &read_ack_register_addr);
 
     if (!cper_addr) {
-        error_setg(errp, "can not find Generic Error Status Block");
-        return;
+        error_report("can not find Generic Error Status Block");
+        return -1;
     }
 
     cpu_physical_memory_read(read_ack_register_addr,
@@ -424,10 +424,9 @@ static void ghes_record_cper_errors(const void *cper, size_t len,
 
     /* zero means OSPM does not acknowledge the error */
     if (!read_ack_register) {
-        error_setg(errp,
-                   "OSPM does not acknowledge previous error,"
-                   " so can not record CPER for current error anymore");
-        return;
+        error_report("OSPM does not acknowledge previous error,"
+                     " so can not record CPER for current error anymore");
+        return -1;
     }
 
     read_ack_register = cpu_to_le64(0);
@@ -440,6 +439,8 @@ static void ghes_record_cper_errors(const void *cper, size_t len,
 
     /* Write the generic error data entry into guest memory */
     cpu_physical_memory_write(cper_addr, cper, len);
+
+    return 0;
 }
 
 int acpi_ghes_memory_errors(uint16_t source_id, uint64_t physical_address)
@@ -448,9 +449,8 @@ int acpi_ghes_memory_errors(uint16_t source_id, uint64_t physical_address)
     const uint8_t guid[] =
           UUID_LE(0xA5BC1114, 0x6F64, 0x4EDE, 0xB8, 0x63, 0x3E, 0x83, \
                   0xED, 0x7C, 0x83, 0xB1);
-    Error *errp = NULL;
-    int data_length;
     GArray *block;
+    int data_length, ret;
 
     block = g_array_new(false, true /* clear */, 1);
 
@@ -468,16 +468,11 @@ int acpi_ghes_memory_errors(uint16_t source_id, uint64_t physical_address)
     acpi_ghes_build_append_mem_cper(block, physical_address);
 
     /* Report the error */
-    ghes_record_cper_errors(block->data, block->len, source_id, &errp);
+    ret = ghes_record_cper_errors(block->data, block->len, source_id);
 
     g_array_free(block, true);
 
-    if (errp) {
-        error_report_err(errp);
-        return -1;
-    }
-
-    return 0;
+    return ret;
 }
 
 bool acpi_ghes_present(void)
