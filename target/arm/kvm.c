@@ -2323,6 +2323,30 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
     return ret;
 }
 
+static void report_memory_error(CPUState *c, hwaddr paddr)
+{
+    int ret;
+
+    while (true) {
+        /* Retry if the previously report error hasn't been claimed */
+        ret = acpi_ghes_memory_errors(ACPI_HEST_SRC_ID_SEA, paddr, true);
+        if (ret <= 0) {
+            break;
+        }
+
+        bql_unlock();
+        g_usleep(1000);
+        bql_lock();
+    }
+
+    if (ret == 0) {
+        kvm_inject_arm_sea(c);
+    } else {
+        error_report("Error %d to report memory error", ret);
+        abort();
+    }
+}
+
 void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
 {
     ram_addr_t ram_addr;
@@ -2348,12 +2372,7 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
              */
             if (code == BUS_MCEERR_AR) {
                 kvm_cpu_synchronize_state(c);
-                if (!acpi_ghes_memory_errors(ACPI_HEST_SRC_ID_SEA, paddr, false)) {
-                    kvm_inject_arm_sea(c);
-                } else {
-                    error_report("failed to record the error");
-                    abort();
-                }
+                report_memory_error(c, paddr);
             }
             return;
         }
