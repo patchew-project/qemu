@@ -391,7 +391,7 @@ static void get_hw_error_offsets(uint64_t ghes_addr,
 }
 
 static int ghes_record_cper_errors(const void *cper, size_t len,
-                                   uint16_t source_id)
+                                   uint16_t source_id, bool retry_allowed)
 {
     uint64_t cper_addr = 0, read_ack_register_addr = 0, read_ack_register;
     AcpiGedState *acpi_ged_state;
@@ -424,6 +424,10 @@ static int ghes_record_cper_errors(const void *cper, size_t len,
 
     /* zero means OSPM does not acknowledge the error */
     if (!read_ack_register) {
+        if (retry_allowed) {
+            return 1;
+        }
+
         error_report("OSPM does not acknowledge previous error,"
                      " so can not record CPER for current error anymore");
         return -1;
@@ -443,7 +447,8 @@ static int ghes_record_cper_errors(const void *cper, size_t len,
     return 0;
 }
 
-int acpi_ghes_memory_errors(uint16_t source_id, uint64_t physical_address)
+int acpi_ghes_memory_errors(uint16_t source_id, uint64_t physical_address,
+                            bool retry_allowed)
 {
     /* Memory Error Section Type */
     const uint8_t guid[] =
@@ -468,7 +473,8 @@ int acpi_ghes_memory_errors(uint16_t source_id, uint64_t physical_address)
     acpi_ghes_build_append_mem_cper(block, physical_address);
 
     /* Report the error */
-    ret = ghes_record_cper_errors(block->data, block->len, source_id);
+    ret = ghes_record_cper_errors(block->data, block->len,
+                                  source_id, retry_allowed);
 
     g_array_free(block, true);
 
