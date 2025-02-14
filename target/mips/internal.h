@@ -399,7 +399,7 @@ static inline void compute_hflags(CPUMIPSState *env)
         }
     }
     if (ase_msa_available(env)) {
-        if (env->CP0_Config5 & (1 << CP0C5_MSAEn)) {
+        if ((env->CP0_Config5 & (1 << CP0C5_MSAEn)) || (env->msa_on)) {
             env->hflags |= MIPS_HFLAG_MSA;
         }
     }

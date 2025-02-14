@@ -1191,6 +1191,7 @@ typedef struct CPUArchState {
     QEMUTimer *timer; /* Internal timer */
     Clock *count_clock; /* CP0_Count clock */
     target_ulong exception_base; /* ExceptionBase input to the core */
+    bool msa_on; /* Enable MSA using a CLI flag -cpu ...,msa=on/off */
 } CPUMIPSState;
 
 /**

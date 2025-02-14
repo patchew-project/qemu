@@ -491,8 +491,24 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
     mcc->parent_realize(dev, errp);
 }
 
+static bool mips_get_msa_on(Object *obj, Error **errp)
+{
+    MIPSCPU *cpu = MIPS_CPU(obj);
+    CPUMIPSState *env = &cpu->env;
+    return env->msa_on;
+}
+
+static void mips_set_msa_on(Object *obj, bool value, Error **errp)
+{
+    MIPSCPU *cpu = MIPS_CPU(obj);
+    CPUMIPSState *env = &cpu->env;
+    env->msa_on = value;
+}
+
 static void mips_cpu_initfn(Object *obj)
 {
+    object_property_add_bool(obj, "msa", mips_get_msa_on, mips_set_msa_on);
+    object_property_set_bool(obj, "msa", false, NULL);
     MIPSCPU *cpu = MIPS_CPU(obj);
     CPUMIPSState *env = &cpu->env;
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(obj);
