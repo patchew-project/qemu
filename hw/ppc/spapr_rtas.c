@@ -695,7 +695,7 @@ static void trigger_fadump_boot(target_ulong spapr_retcode)
 }
 
 /* Papr Section 7.4.9 ibm,configure-kernel-dump RTAS call */
-static __attribute((unused)) void rtas_configure_kernel_dump(PowerPCCPU *cpu,
+static void rtas_configure_kernel_dump(PowerPCCPU *cpu,
                                    SpaprMachineState *spapr,
                                    uint32_t token, uint32_t nargs,
                                    target_ulong args,
@@ -1110,6 +1110,10 @@ static void core_rtas_register_types(void)
                         rtas_ibm_nmi_register);
     spapr_rtas_register(RTAS_IBM_NMI_INTERLOCK, "ibm,nmi-interlock",
                         rtas_ibm_nmi_interlock);
+
+    /* Register Fadump rtas call */
+    spapr_rtas_register(RTAS_CONFIGURE_KERNEL_DUMP, "ibm,configure-kernel-dump",
+                        rtas_configure_kernel_dump);
 
     qtest_set_command_cb(spapr_qtest_callback);
 }
