@@ -347,6 +347,120 @@ static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
 struct fadump_metadata fadump_metadata;
 bool is_next_boot_fadump;
 
+/* Preserve the memory locations registered for fadump */
+static bool fadump_preserve_mem(void)
+{
+    struct rtas_fadump_mem_struct *fdm = &fadump_metadata.registered_fdm;
+    uint64_t next_section_addr;
+    int dump_num_sections, data_type;
+    uint64_t src_addr, src_len, dest_addr;
+    void *copy_buffer;
+
+    assert(fadump_metadata.fadump_registered);
+    assert(fadump_metadata.fdm_addr != -1);
+
+    /* Read the fadump header passed during fadump registration */
+    cpu_physical_memory_read(fadump_metadata.fdm_addr,
+            &fdm->header, sizeof(fdm->header));
+
+    /* Verify that we understand the fadump header version */
+    if (fdm->header.dump_format_version != cpu_to_be32(FADUMP_VERSION)) {
+        /*
+         * Dump format version is unknown and likely changed from the time
+         * of fadump registration. Back out now.
+         */
+        return false;
+    }
+
+    dump_num_sections = be16_to_cpu(fdm->header.dump_num_sections);
+
+    if (dump_num_sections > FADUMP_MAX_SECTIONS) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "FADUMP: Too many sections: %d\n", fdm->header.dump_num_sections);
+        return false;
+    }
+
+    next_section_addr =
+        fadump_metadata.fdm_addr +
+        be32_to_cpu(fdm->header.offset_first_dump_section);
+
+    /*
+     * Handle all sections
+     *
+     * CPU State Data and HPTE regions are handled in their own cases
+     *
+     * RMR regions and any custom OS reserved regions such as parameter
+     * save area, are handled by simply copying the source region to
+     * destination address
+     */
+    for (int i = 0; i < dump_num_sections; ++i) {
+        /* Read the fadump section from memory */
+        cpu_physical_memory_read(next_section_addr,
+                &fdm->rgn[i], sizeof(fdm->rgn[i]));
+
+        next_section_addr += sizeof(fdm->rgn[i]);
+
+        data_type = be16_to_cpu(fdm->rgn[i].source_data_type);
+        src_addr  = be64_to_cpu(fdm->rgn[i].source_address);
+        src_len   = be64_to_cpu(fdm->rgn[i].source_len);
+        dest_addr = be64_to_cpu(fdm->rgn[i].destination_address);
+
+        /* Reset error_flags & bytes_dumped for now */
+        fdm->rgn[i].error_flags = 0;
+        fdm->rgn[i].bytes_dumped = 0;
+
+        if (be32_to_cpu(fdm->rgn[i].request_flag) != FADUMP_REQUEST_FLAG) {
+            qemu_log_mask(LOG_UNIMP,
+                "FADUMP: Skipping copying region as not requested\n");
+            continue;
+        }
+
+        switch (data_type) {
+        case FADUMP_CPU_STATE_DATA:
+            /* TODO: Add CPU state data */
+            break;
+        case FADUMP_HPTE_REGION:
+            /* TODO: Add hpte state data */
+            break;
+        case FADUMP_REAL_MODE_REGION:
+        case FADUMP_PARAM_AREA:
+            /* Skip copy if source and destination are same (eg. param area) */
+            if (src_addr != dest_addr) {
+                copy_buffer = g_malloc(src_len + 1);
+                if (copy_buffer == NULL) {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                        "FADUMP: Failed allocating memory for copying reserved memory regions\n");
+                    fdm->rgn[i].error_flags =
+                        cpu_to_be16(FADUMP_ERROR_LENGTH_EXCEEDS_SOURCE);
+
+                    continue;
+                }
+
+                /* Copy the source region to destination */
+                cpu_physical_memory_read(src_addr, copy_buffer, src_len);
+                cpu_physical_memory_write(dest_addr, copy_buffer, src_len);
+                g_free(copy_buffer);
+            }
+
+            /*
+             * Considering cpu_physical_memory_write would have copied the
+             * complete region
+             */
+            fdm->rgn[i].bytes_dumped = cpu_to_be64(src_len);
+
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "FADUMP: Skipping unknown source data type: %d\n", data_type);
+
+            fdm->rgn[i].error_flags =
+                cpu_to_be16(FADUMP_ERROR_INVALID_DATA_TYPE);
+        }
+    }
+
+    return true;
+}
+
 static void trigger_fadump_boot(target_ulong spapr_retcode)
 {
     /*
@@ -356,7 +470,8 @@ static void trigger_fadump_boot(target_ulong spapr_retcode)
      */
     pause_all_vcpus();
 
-    if (true /* TODO: Preserve memory registered for fadump */) {
+    /* Preserve the memory locations registered for fadump */
+    if (!fadump_preserve_mem()) {
         /* Failed to preserve the registered memory regions */
         rtas_st(spapr_retcode, 0, RTAS_OUT_HW_ERROR);
 

@@ -780,7 +780,32 @@ void push_sregs_to_kvm_pr(SpaprMachineState *spapr);
 #define FADUMP_CMD_UNREGISTER          2
 #define FADUMP_CMD_INVALIDATE          3
 
-#define FADUMP_VERSION    1
+#define FADUMP_VERSION                 1
+
+/*
+ * The Firmware Assisted Dump Memory structure supports a maximum of 10 sections
+ * in the dump memory structure. Presently, three sections are used for
+ * CPU state data, HPTE & Parameters area, while the remaining seven sections
+ * can be used for boot memory regions.
+ */
+#define FADUMP_MAX_SECTIONS            10
+#define RTAS_FADUMP_MAX_BOOT_MEM_REGS  7
+
+/* Firmware provided dump sections */
+#define FADUMP_CPU_STATE_DATA   0x0001
+#define FADUMP_HPTE_REGION      0x0002
+#define FADUMP_REAL_MODE_REGION 0x0011
+
+/* OS defined sections */
+#define FADUMP_PARAM_AREA       0x0100
+
+/* Dump request flag */
+#define FADUMP_REQUEST_FLAG     0x00000001
+
+/* Dump status flag */
+#define FADUMP_ERROR_INVALID_DATA_TYPE          0x8000
+#define FADUMP_ERROR_INVALID_SOURCE_ADDR        0x4000
+#define FADUMP_ERROR_LENGTH_EXCEEDS_SOURCE      0x2000
 
 /*
  * The Firmware Assisted Dump Memory structure supports a maximum of 10 sections
