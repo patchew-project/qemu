@@ -3063,6 +3063,75 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
     return vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
 
+VirtSharedMemory *virtio_new_shmem_region(VirtIODevice *vdev)
+{
+    ++vdev->n_shmem_regions;
+    vdev->shmem_list = g_renew(VirtSharedMemory, vdev->shmem_list,
+                               vdev->n_shmem_regions);
+    vdev->shmem_list[vdev->n_shmem_regions - 1].mr = g_new0(MemoryRegion, 1);
+    QTAILQ_INIT(&vdev->shmem_list[vdev->n_shmem_regions - 1].mmaps);
+    return &vdev->shmem_list[vdev->n_shmem_regions - 1];
+}
+
+void virtio_add_shmem_map(VirtSharedMemory *shmem, const char *shm_name,
+                          hwaddr shm_offset, hwaddr fd_offset, uint64_t size,
+                          int fd, Error **errp)
+{
+    MappedMemoryRegion *mmap;
+    fd = dup(fd);
+    if (fd < 0) {
+        error_setg_errno(errp, errno, "Failed to duplicate fd");
+        return;
+    }
+
+    if (shm_offset + size > shmem->mr->size) {
+        error_setg(errp, "Memory exceeds the shared memory boundaries");
+        return;
+    }
+
+    mmap = g_new0(MappedMemoryRegion, 1);
+    mmap->mem = g_new0(MemoryRegion, 1);
+    mmap->offset = shm_offset;
+    if (!memory_region_init_ram_from_fd(mmap->mem,
+                                        OBJECT(shmem->mr),
+                                        shm_name, size, RAM_SHARED,
+                                        fd, fd_offset, errp)) {
+        error_setg(errp, "Failed to mmap region %s", shm_name);
+        close(fd);
+        g_free(mmap->mem);
+        g_free(mmap);
+        return;
+    }
+    memory_region_add_subregion(shmem->mr, shm_offset, mmap->mem);
+
+    QTAILQ_INSERT_TAIL(&shmem->mmaps, mmap, link);
+}
+
+MappedMemoryRegion *virtio_find_shmem_map(VirtSharedMemory *shmem,
+                                          hwaddr offset, uint64_t size)
+{
+    MappedMemoryRegion *mmap;
+    QTAILQ_FOREACH(mmap, &shmem->mmaps, link) {
+        if (mmap->offset == offset && mmap->mem->size == size) {
+            return mmap;
+        }
+    }
+    return NULL;
+}
+
+void virtio_del_shmem_map(VirtSharedMemory *shmem, hwaddr offset,
+                          uint64_t size)
+{
+    MappedMemoryRegion *mmap = virtio_find_shmem_map(shmem, offset, size);
+    if (mmap == NULL) {
+        return;
+    }
+
+    object_unparent(OBJECT(mmap->mem));
+    QTAILQ_REMOVE(&shmem->mmaps, mmap, link);
+    g_free(mmap);
+}
+
 /* A wrapper for use as a VMState .put function */
 static int virtio_device_put(QEMUFile *f, void *opaque, size_t size,
                               const VMStateField *field, JSONWriter *vmdesc)
@@ -3492,6 +3561,8 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
             virtio_vmstate_change, vdev);
     vdev->device_endian = virtio_default_endian();
     vdev->use_guest_notifier_mask = true;
+    vdev->shmem_list = NULL;
+    vdev->n_shmem_regions = 0;
 }
 
 /*
@@ -4003,11 +4074,21 @@ static void virtio_device_free_virtqueues(VirtIODevice *vdev)
 static void virtio_device_instance_finalize(Object *obj)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(obj);
+    VirtSharedMemory *shmem = NULL;
+    int i;
 
     virtio_device_free_virtqueues(vdev);
 
     g_free(vdev->config);
     g_free(vdev->vector_queues);
+    for (i = 0; i< vdev->n_shmem_regions; i++) {
+        shmem = &vdev->shmem_list[i];
+        while (!QTAILQ_EMPTY(&shmem->mmaps)) {
+            MappedMemoryRegion *mmap_reg = QTAILQ_FIRST(&shmem->mmaps);
+            QTAILQ_REMOVE(&shmem->mmaps, mmap_reg, link);
+            g_free(mmap_reg);
+        }
+    }
 }
 
 static const Property virtio_properties[] = {
