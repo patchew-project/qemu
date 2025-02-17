@@ -344,6 +344,105 @@ static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
     rtas_st(rets, 0, ret);
 }
 
+struct fadump_metadata fadump_metadata;
+
+/* Papr Section 7.4.9 ibm,configure-kernel-dump RTAS call */
+static __attribute((unused)) void rtas_configure_kernel_dump(PowerPCCPU *cpu,
+                                   SpaprMachineState *spapr,
+                                   uint32_t token, uint32_t nargs,
+                                   target_ulong args,
+                                   uint32_t nret, target_ulong rets)
+{
+    struct rtas_fadump_section_header header;
+    target_ulong cmd = rtas_ld(args, 0);
+    target_ulong fdm_addr = rtas_ld(args, 1);
+    target_ulong fdm_size = rtas_ld(args, 2);
+
+    /* Number outputs has to be 1 */
+    if (nret != 1) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                "FADUMP: ibm,configure-kernel-dump RTAS called with nret != 1.\n");
+        return;
+    }
+
+    /* Number inputs has to be 3 */
+    if (nargs != 3) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    switch (cmd) {
+    case FADUMP_CMD_REGISTER:
+        if (fadump_metadata.fadump_registered) {
+            /* Fadump already registered */
+            rtas_st(rets, 0, RTAS_OUT_DUMP_ALREADY_REGISTERED);
+            return;
+        }
+
+        if (fadump_metadata.fadump_dump_active == 1) {
+            rtas_st(rets, 0, RTAS_OUT_DUMP_ACTIVE);
+            return;
+        }
+
+        if (fdm_size < sizeof(struct rtas_fadump_section_header)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "FADUMP: Header size is invalid: %lu\n", fdm_size);
+            rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+            return;
+        }
+
+        /* XXX: Can we ensure fdm_addr points to a valid RMR-memory buffer ? */
+        if (fdm_addr <= 0) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "FADUMP: Invalid fdm address: %ld\n", fdm_addr);
+            rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+            return;
+        }
+
+        /* Verify that we understand the fadump header version */
+        cpu_physical_memory_read(fdm_addr, &header, sizeof(header));
+        if (header.dump_format_version != cpu_to_be32(FADUMP_VERSION)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "FADUMP: Unknown fadump header version: 0x%x\n",
+                header.dump_format_version);
+            rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+            return;
+        }
+
+        fadump_metadata.fadump_registered = true;
+        fadump_metadata.fadump_dump_active = false;
+        fadump_metadata.fdm_addr = fdm_addr;
+        break;
+    case FADUMP_CMD_UNREGISTER:
+        if (fadump_metadata.fadump_dump_active == 1) {
+            rtas_st(rets, 0, RTAS_OUT_DUMP_ACTIVE);
+            return;
+        }
+
+        fadump_metadata.fadump_registered = false;
+        fadump_metadata.fadump_dump_active = false;
+        fadump_metadata.fdm_addr = -1;
+        break;
+    case FADUMP_CMD_INVALIDATE:
+        if (fadump_metadata.fadump_dump_active) {
+            fadump_metadata.fadump_registered = false;
+            fadump_metadata.fadump_dump_active = false;
+            fadump_metadata.fdm_addr = -1;
+            memset(&fadump_metadata.registered_fdm, 0,
+                    sizeof(fadump_metadata.registered_fdm));
+        } else {
+            hcall_dprintf("fadump: Nothing to invalidate, no dump active.\n");
+        }
+        break;
+    default:
+        hcall_dprintf("Unknown RTAS token 0x%x\n", token);
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+}
+
 static void rtas_ibm_os_term(PowerPCCPU *cpu,
                             SpaprMachineState *spapr,
                             uint32_t token, uint32_t nargs,
