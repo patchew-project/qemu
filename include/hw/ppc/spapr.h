@@ -932,6 +932,8 @@ static inline uint64_t fadump_gpr_id_to_u64(uint32_t gpr_id)
     return val;
 }
 
+extern bool is_next_boot_fadump;
+
 struct fadump_metadata {
     bool fadump_registered;
     bool fadump_dump_active;
