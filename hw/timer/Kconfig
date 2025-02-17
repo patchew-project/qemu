@@ -19,6 +19,10 @@ config HPET
 config HPET_C
     bool
 
+config X_HPET_RUST
+    bool
+    default y if PC && HAVE_RUST
+
 config I8254
     bool
     depends on ISA_BUS
