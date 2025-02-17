@@ -391,6 +391,7 @@ In QEMU the vhost-user message is implemented with the following struct:
           VhostUserTransferDeviceState transfer_state;
           VhostUserMMap mmap;
           VhostUserShMemConfig shmem;
+          VhostUserMemRWMsg mem_rw;
       };
   } QEMU_PACKED VhostUserMsg;
 
@@ -1937,6 +1938,38 @@ is sent by the front-end.
   VIRTIO Shared Memory Region with the requested ``shmid``. Note that the
   given range shall correspond to the entirety of a valid mapped region.
   A reply is generated indicating whether unmapping succeeded.
+
+``VHOST_USER_BACKEND_MEM_READ``
+  :id: 11
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserMemRWMsg``
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_SHMEM`` protocol feature has been
+  successfully negotiated, this message can be submitted by the backends to
+  read a memory region that has failed to resolve a translation due to an
+  incomplete memory table, after another device called
+  ``VHOST_USER_BACKEND_SHMEM_MAP`` for the same region on a shared
+  descriptor file.
+
+  This mechanism works as a fallback for resolving those memory
+  accesses and ensure that DMA works with Shared Memory Regions.
+
+``VHOST_USER_BACKEND_MEM_WRITE``
+  :id: 12
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserMemRWMsg``
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_SHMEM`` protocol feature has been
+  successfully negotiated, this message can be submitted by the backends to
+  write a memory region that has failed due to resolve a translation an
+  incomplete memory table  after another device called
+  ``VHOST_USER_BACKEND_SHMEM_MAP`` for the same region on a shared
+  descriptor file.
+
+  This mechanism works as a fallback for resolving those memory
+  accesses and ensure that DMA works with Shared Memory Regions.
 
 .. _reply_ack:
 
