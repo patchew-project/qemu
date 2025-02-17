@@ -345,6 +345,43 @@ static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
 }
 
 struct fadump_metadata fadump_metadata;
+bool is_next_boot_fadump;
+
+static void trigger_fadump_boot(target_ulong spapr_retcode)
+{
+    /*
+     * In PowerNV, SBE stops all clocks for cores, do similar to it
+     * QEMU's nearest equivalent is 'pause_all_vcpus'
+     * See 'stopClocksS0' in SBE source code for more info on SBE part
+     */
+    pause_all_vcpus();
+
+    if (true /* TODO: Preserve memory registered for fadump */) {
+        /* Failed to preserve the registered memory regions */
+        rtas_st(spapr_retcode, 0, RTAS_OUT_HW_ERROR);
+
+        /* Cause a reboot */
+        qemu_system_guest_panicked(NULL);
+        return;
+    }
+
+    /* Mark next boot as fadump boot */
+    is_next_boot_fadump = true;
+
+    /* Reset fadump_registered for next boot */
+    fadump_metadata.fadump_registered = false;
+    fadump_metadata.fadump_dump_active = true;
+
+    /* Then do a guest reset */
+    /*
+     * Requirement:
+     * This guest reset should not clear the memory (which is
+     * the case when this is merged)
+     */
+    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+
+    rtas_st(spapr_retcode, 0, RTAS_OUT_SUCCESS);
+}
 
 /* Papr Section 7.4.9 ibm,configure-kernel-dump RTAS call */
 static __attribute((unused)) void rtas_configure_kernel_dump(PowerPCCPU *cpu,
@@ -451,6 +488,11 @@ static void rtas_ibm_os_term(PowerPCCPU *cpu,
 {
     target_ulong msgaddr = rtas_ld(args, 0);
     char msg[512];
+
+    if (fadump_metadata.fadump_registered) {
+        /* If fadump boot works, control won't come back here */
+        return trigger_fadump_boot(rets);
+    }
 
     cpu_physical_memory_read(msgaddr, msg, sizeof(msg) - 1);
     msg[sizeof(msg) - 1] = 0;
