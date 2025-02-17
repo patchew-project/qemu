@@ -351,9 +351,12 @@ bool is_next_boot_fadump;
 static bool fadump_preserve_mem(void)
 {
     struct rtas_fadump_mem_struct *fdm = &fadump_metadata.registered_fdm;
+    struct rtas_fadump_section *cpu_state_region;
     uint64_t next_section_addr;
     int dump_num_sections, data_type;
     uint64_t src_addr, src_len, dest_addr;
+    uint64_t cpu_state_addr, cpu_state_len = 0;
+    void *cpu_state_buffer;
     void *copy_buffer;
 
     assert(fadump_metadata.fadump_registered);
@@ -416,9 +419,174 @@ static bool fadump_preserve_mem(void)
         }
 
         switch (data_type) {
-        case FADUMP_CPU_STATE_DATA:
-            /* TODO: Add CPU state data */
+        case FADUMP_CPU_STATE_DATA: {
+            struct rtas_fadump_reg_save_area_header reg_save_hdr;
+            struct rtas_fadump_reg_entry **reg_entries;
+            struct rtas_fadump_reg_entry *curr_reg_entry;
+
+            uint32_t fadump_reg_entries_size;
+            __be32 num_cpus = 0;
+            uint32_t num_regs_per_cpu = 0;
+            CPUState *cpu;
+            CPUPPCState *env;
+            PowerPCCPU *ppc_cpu;
+
+            CPU_FOREACH(cpu) {
+                ++num_cpus;
+            }
+
+            reg_save_hdr.version = cpu_to_be32(1);
+            reg_save_hdr.magic_number =
+                cpu_to_be64(fadump_str_to_u64("REGSAVE"));
+
+            /* Reg save area header is immediately followed by num cpus */
+            reg_save_hdr.num_cpu_offset =
+                cpu_to_be32(sizeof(struct rtas_fadump_reg_save_area_header));
+
+            fadump_reg_entries_size = num_cpus *
+                                      FADUMP_NUM_PER_CPU_REGS *
+                                      sizeof(struct rtas_fadump_reg_entry);
+
+            reg_entries = malloc(fadump_reg_entries_size);
+            curr_reg_entry = (struct rtas_fadump_reg_entry *)reg_entries;
+
+            /* This must loop num_cpus time */
+            CPU_FOREACH(cpu) {
+                ppc_cpu = POWERPC_CPU(cpu);
+                env = cpu_env(cpu);
+                num_regs_per_cpu = 0;
+
+                curr_reg_entry->reg_id =
+                    cpu_to_be64(fadump_str_to_u64("CPUSTRT"));
+                curr_reg_entry->reg_value = ppc_cpu->vcpu_id;
+                ++curr_reg_entry;
+
+#define REG_ENTRY(id, val)                                     \
+                do {                                           \
+                    curr_reg_entry->reg_id =                   \
+                        cpu_to_be64(fadump_str_to_u64(#id));   \
+                    curr_reg_entry->reg_value = val;           \
+                    ++curr_reg_entry;                          \
+                    ++num_regs_per_cpu;                        \
+                } while (0)
+
+                REG_ENTRY(ACOP, env->spr[SPR_ACOP]);
+                REG_ENTRY(AMR, env->spr[SPR_AMR]);
+                REG_ENTRY(BESCR, env->spr[SPR_BESCR]);
+                REG_ENTRY(CFAR, env->spr[SPR_CFAR]);
+                REG_ENTRY(CIABR, env->spr[SPR_CIABR]);
+
+                /* Save the condition register */
+                uint64_t cr = 0;
+                cr |= (env->crf[0] & 0xf);
+                cr |= (env->crf[1] & 0xf) << 1;
+                cr |= (env->crf[2] & 0xf) << 2;
+                cr |= (env->crf[3] & 0xf) << 3;
+                cr |= (env->crf[4] & 0xf) << 4;
+                cr |= (env->crf[5] & 0xf) << 5;
+                cr |= (env->crf[6] & 0xf) << 6;
+                cr |= (env->crf[7] & 0xf) << 7;
+                REG_ENTRY(CR, cr);
+
+                REG_ENTRY(CTR, env->spr[SPR_CTR]);
+                REG_ENTRY(CTRL, env->spr[SPR_CTRL]);
+                REG_ENTRY(DABR, env->spr[SPR_DABR]);
+                REG_ENTRY(DABRX, env->spr[SPR_DABRX]);
+                REG_ENTRY(DAR, env->spr[SPR_DAR]);
+                REG_ENTRY(DAWR0, env->spr[SPR_DAWR0]);
+                REG_ENTRY(DAWR1, env->spr[SPR_DAWR1]);
+                REG_ENTRY(DAWRX0, env->spr[SPR_DAWRX0]);
+                REG_ENTRY(DAWRX1, env->spr[SPR_DAWRX1]);
+                REG_ENTRY(DPDES, env->spr[SPR_DPDES]);
+                REG_ENTRY(DSCR, env->spr[SPR_DSCR]);
+                REG_ENTRY(DSISR, env->spr[SPR_DSISR]);
+                REG_ENTRY(EBBHR, env->spr[SPR_EBBHR]);
+                REG_ENTRY(EBBRR, env->spr[SPR_EBBRR]);
+
+                REG_ENTRY(FPSCR, env->fpscr);
+                REG_ENTRY(FSCR, env->spr[SPR_FSCR]);
+
+                /* Save the GPRs */
+                for (int gpr_id = 0; gpr_id < 32; ++gpr_id) {
+                    curr_reg_entry->reg_id =
+                        cpu_to_be64(fadump_gpr_id_to_u64(gpr_id));
+                    curr_reg_entry->reg_value = env->gpr[i];
+                    ++curr_reg_entry;
+                    ++num_regs_per_cpu;
+                }
+
+                REG_ENTRY(IAMR, env->spr[SPR_IAMR]);
+                REG_ENTRY(IC, env->spr[SPR_IC]);
+                REG_ENTRY(LR, env->spr[SPR_LR]);
+
+                REG_ENTRY(MSR, env->msr);
+                REG_ENTRY(NIA, env->nip);   /* NIA */
+                REG_ENTRY(PIR, env->spr[SPR_PIR]);
+                REG_ENTRY(PSPB, env->spr[SPR_PSPB]);
+                REG_ENTRY(PVR, env->spr[SPR_PVR]);
+                REG_ENTRY(RPR, env->spr[SPR_RPR]);
+                REG_ENTRY(SPURR, env->spr[SPR_SPURR]);
+                REG_ENTRY(SRR0, env->spr[SPR_SRR0]);
+                REG_ENTRY(SRR1, env->spr[SPR_SRR1]);
+                REG_ENTRY(TAR, env->spr[SPR_TAR]);
+                REG_ENTRY(TEXASR, env->spr[SPR_TEXASR]);
+                REG_ENTRY(TFHAR, env->spr[SPR_TFHAR]);
+                REG_ENTRY(TFIAR, env->spr[SPR_TFIAR]);
+                REG_ENTRY(TIR, env->spr[SPR_TIR]);
+                REG_ENTRY(UAMOR, env->spr[SPR_UAMOR]);
+                REG_ENTRY(VRSAVE, env->spr[SPR_VRSAVE]);
+                REG_ENTRY(VSCR, env->vscr);
+                REG_ENTRY(VTB, env->spr[SPR_VTB]);
+                REG_ENTRY(WORT, env->spr[SPR_WORT]);
+                REG_ENTRY(XER, env->spr[SPR_XER]);
+
+                /*
+                 * Ignoring transaction checkpoint and few other registers
+                 * mentioned in PAPR as not supported in QEMU
+                 */
+#undef REG_ENTRY
+
+                /* End the registers for this CPU with "CPUEND" reg entry */
+                curr_reg_entry->reg_id =
+                    cpu_to_be64(fadump_str_to_u64("CPUEND"));
+
+                /* Ensure the number of registers match (+2 for STRT & END) */
+                assert(FADUMP_NUM_PER_CPU_REGS == num_regs_per_cpu + 2);
+
+                ++curr_reg_entry;
+            }
+
+            cpu_state_len = 0;
+            cpu_state_len += sizeof(reg_save_hdr);     /* reg save header */
+            cpu_state_len += sizeof(__be32);           /* num_cpus */
+            cpu_state_len += fadump_reg_entries_size;  /* reg entries */
+
+            cpu_state_region = &fdm->rgn[i];
+            cpu_state_addr = dest_addr;
+            cpu_state_buffer = g_malloc(cpu_state_len);
+
+            uint64_t offset = 0;
+            memcpy(cpu_state_buffer + offset,
+                    &reg_save_hdr, sizeof(reg_save_hdr));
+            offset += sizeof(reg_save_hdr);
+
+            /* Write num_cpus */
+            num_cpus = cpu_to_be32(num_cpus);
+            memcpy(cpu_state_buffer + offset, &num_cpus, sizeof(__be32));
+            offset += sizeof(__be32);
+
+            /* Write the register entries */
+            memcpy(cpu_state_buffer + offset,
+                    reg_entries, fadump_reg_entries_size);
+            offset += fadump_reg_entries_size;
+
+            /*
+             * We will write the cpu state data later, as otherwise it
+             * might get overwritten by other fadump regions
+             */
+
             break;
+        }
         case FADUMP_HPTE_REGION:
             /* TODO: Add hpte state data */
             break;
@@ -456,6 +624,34 @@ static bool fadump_preserve_mem(void)
             fdm->rgn[i].error_flags =
                 cpu_to_be16(FADUMP_ERROR_INVALID_DATA_TYPE);
         }
+    }
+
+    /*
+     * Write the Register Save Area
+     *
+     * CPU State/Register Save Area should be written after dumping the
+     * memory to prevent overwritting while saving other memory regions
+     *
+     * eg. If boot memory region is 1G, then both the first 1GB memory, and
+     * the Register Save Area needs to be saved at 1GB.
+     * And as the CPU_STATE_DATA region comes first than the
+     * REAL_MODE_REGION region to be copied, the CPU_STATE_DATA will get
+     * overwritten if saved before the 0GB - 1GB region is copied after
+     * saving CPU state data
+     */
+    cpu_physical_memory_write(cpu_state_addr, cpu_state_buffer, cpu_state_len);
+    g_free(cpu_state_buffer);
+
+    /*
+     * Set bytes_dumped in cpu state region, so kernel knows platform have
+     * exported it
+     */
+    cpu_state_region->bytes_dumped = cpu_to_be64(cpu_state_len);
+
+    if (cpu_state_region->source_len != cpu_state_region->bytes_dumped) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                "CPU State region's length passed by kernel, doesn't match"
+                " with CPU State region length exported by QEMU");
     }
 
     return true;

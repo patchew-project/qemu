@@ -796,6 +796,9 @@ void push_sregs_to_kvm_pr(SpaprMachineState *spapr);
 #define FADUMP_HPTE_REGION      0x0002
 #define FADUMP_REAL_MODE_REGION 0x0011
 
+/* Number of registers stored per cpu */
+#define FADUMP_NUM_PER_CPU_REGS (32 /*GPR*/ + 45 /*others*/ + 2 /*STRT & END*/)
+
 /* OS defined sections */
 #define FADUMP_PARAM_AREA       0x0100
 
@@ -848,6 +851,86 @@ struct rtas_fadump_mem_struct {
     struct rtas_fadump_section_header header;
     struct rtas_fadump_section        rgn[FADUMP_MAX_SECTIONS];
 };
+
+/*
+ * The firmware-assisted dump format.
+ *
+ * The register save area is an area in the partition's memory used to preserve
+ * the register contents (CPU state data) for the active CPUs during a firmware
+ * assisted dump. The dump format contains register save area header followed
+ * by register entries. Each list of registers for a CPU starts with "CPUSTRT"
+ * and ends with "CPUEND".
+ */
+
+/* Register save area header. */
+struct rtas_fadump_reg_save_area_header {
+    __be64    magic_number;
+    __be32    version;
+    __be32    num_cpu_offset;
+};
+
+/* Register entry. */
+struct rtas_fadump_reg_entry {
+    __be64    reg_id;
+    __be64    reg_value;
+};
+
+/*
+ * Copy the ascii values for first 8 characters from a string into u64
+ * variable at their respective indexes.
+ * e.g.
+ *  The string "FADMPINF" will be converted into 0x4641444d50494e46
+ */
+static inline uint64_t fadump_str_to_u64(const char *str)
+{
+    uint64_t val = 0;
+    int i;
+
+    for (i = 0; i < sizeof(val); i++) {
+        val = (*str) ? (val << 8) | *str++ : val << 8;
+    }
+    return val;
+}
+
+/**
+ * Get the identifier id for register entries of GPRs
+ *
+ * It gives the same id as 'fadump_str_to_u64' when the complete string id
+ * of the GPR is given, ie.
+ *
+ *   fadump_str_to_u64("GPR05") == fadump_gpr_id_to_u64(5);
+ *   fadump_str_to_u64("GPR12") == fadump_gpr_id_to_u64(12);
+ *
+ * And so on. Hence this can be implemented by creating a dynamic
+ * string for each GPR, such as "GPR00", "GPR01", ... "GPR31"
+ * Instead of allocating a string, an observation from the math of
+ * 'fadump_str_to_u64' or from PAPR tells us that there's a pattern
+ * in the identifier IDs, such that the first 8 bytes are affected only by
+ * whether it is GPR0*, GPR1*, GPR2*, GPR3*. 9th byte is always 0x3. And
+ * the the 10th byte is the index of the GPR modulo 10.
+ */
+static inline uint64_t fadump_gpr_id_to_u64(uint32_t gpr_id)
+{
+    uint64_t val = 0;
+
+    /* Valid range of GPR id is only GPR0 to GPR31 */
+    assert(gpr_id < 32);
+
+    if (gpr_id <= 9) {
+        val = fadump_str_to_u64("GPR0");
+    } else if (gpr_id <= 19) {
+        val = fadump_str_to_u64("GPR1");
+    } else if (gpr_id <= 29) {
+        val = fadump_str_to_u64("GPR2");
+    } else {
+        val = fadump_str_to_u64("GPR3");
+    }
+
+    val |= 0x30000000;
+    val |= ((gpr_id % 10) << 12);
+
+    return val;
+}
 
 struct fadump_metadata {
     bool fadump_registered;
