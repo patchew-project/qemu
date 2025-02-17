@@ -118,6 +118,8 @@ typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP = 8,
     VHOST_USER_BACKEND_SHMEM_MAP = 9,
     VHOST_USER_BACKEND_SHMEM_UNMAP = 10,
+    VHOST_USER_BACKEND_MEM_READ = 11,
+    VHOST_USER_BACKEND_MEM_WRITE = 12,
     VHOST_USER_BACKEND_MAX
 }  VhostUserBackendRequest;
 
@@ -144,6 +146,12 @@ typedef struct VhostUserShMemConfig {
     uint32_t padding;
     uint64_t memory_sizes[VIRTIO_MAX_SHMEM_REGIONS];
 } VhostUserShMemConfig;
+
+typedef struct VhostUserMemRWMsg {
+    uint64_t guest_address;
+    uint32_t size;
+    uint8_t data[];
+} VhostUserMemRWMsg;
 
 typedef struct VhostUserLog {
     uint64_t mmap_size;
@@ -253,6 +261,7 @@ typedef union {
         VhostUserTransferDeviceState transfer_state;
         VhostUserMMap mmap;
         VhostUserShMemConfig shmem;
+        VhostUserMemRWMsg mem_rw;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -341,17 +350,23 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         return r;
     }
 
-    /* validate message size is sane */
-    if (msg->hdr.size > VHOST_USER_PAYLOAD_SIZE) {
-        error_report("Failed to read msg header."
-                " Size %d exceeds the maximum %zu.", msg->hdr.size,
-                VHOST_USER_PAYLOAD_SIZE);
-        return -EPROTO;
-    }
-
     if (msg->hdr.size) {
         p += VHOST_USER_HDR_SIZE;
         size = msg->hdr.size;
+        /* validate message size is sane */
+        if (msg->hdr.size > VHOST_USER_PAYLOAD_SIZE) {
+            switch(msg->hdr.request) {
+                case VHOST_USER_BACKEND_MEM_READ:
+                case VHOST_USER_BACKEND_MEM_WRITE:
+                    p = g_malloc0(size);
+                    break;
+                default:
+                    error_report("Failed to read msg header."
+                                 " Size %d exceeds the maximum %zu.",
+                                 size, VHOST_USER_PAYLOAD_SIZE);
+                    return -EPROTO;
+            }
+        }
         r = qemu_chr_fe_read_all(chr, p, size);
         if (r != size) {
             int saved_errno = errno;
@@ -1902,6 +1917,28 @@ vhost_user_backend_handle_shmem_unmap(struct vhost_dev *dev,
     return 0;
 }
 
+static int
+vhost_user_backend_handle_mem_read(struct vhost_dev *dev,
+                                   VhostUserMemRWMsg *mem_rw)
+{
+    MemTxResult result;
+    result = address_space_read(dev->vdev->dma_as, mem_rw->guest_address,
+                                MEMTXATTRS_UNSPECIFIED, &mem_rw->data,
+                                mem_rw->size);
+    return result;
+}
+
+static int
+vhost_user_backend_handle_mem_write(struct vhost_dev *dev,
+                                   VhostUserMemRWMsg *mem_rw)
+{
+    MemTxResult result;
+    result = address_space_write(dev->vdev->dma_as, mem_rw->guest_address,
+                                 MEMTXATTRS_UNSPECIFIED, &mem_rw->data,
+                                 mem_rw->size);
+    return result;
+}
+
 static void close_backend_channel(struct vhost_user *u)
 {
     g_source_destroy(u->backend_src);
@@ -1917,7 +1954,7 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
     struct vhost_dev *dev = opaque;
     struct vhost_user *u = dev->opaque;
     VhostUserHeader hdr = { 0, };
-    VhostUserPayload payload = { 0, };
+    VhostUserPayload *payload = g_new0(VhostUserPayload, 1);
     Error *local_err = NULL;
     gboolean rc = G_SOURCE_CONTINUE;
     int ret = 0;
@@ -1936,47 +1973,60 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
     }
 
     if (hdr.size > VHOST_USER_PAYLOAD_SIZE) {
-        error_report("Failed to read msg header."
-                " Size %d exceeds the maximum %zu.", hdr.size,
-                VHOST_USER_PAYLOAD_SIZE);
-        goto err;
+        switch (hdr.request) {
+            case VHOST_USER_BACKEND_MEM_READ:
+            case VHOST_USER_BACKEND_MEM_WRITE:
+                payload = g_malloc0(hdr.size);
+                break;
+            default:
+                error_report("Failed to read msg header."
+                             " Size %d exceeds the maximum %zu.", hdr.size,
+                             VHOST_USER_PAYLOAD_SIZE);
+                goto err;
+        }
     }
 
     /* Read payload */
-    if (qio_channel_read_all(ioc, (char *) &payload, hdr.size, &local_err)) {
+    if (qio_channel_read_all(ioc, (char *) payload, hdr.size, &local_err)) {
         error_report_err(local_err);
         goto err;
     }
 
     switch (hdr.request) {
     case VHOST_USER_BACKEND_IOTLB_MSG:
-        ret = vhost_backend_handle_iotlb_msg(dev, &payload.iotlb);
+        ret = vhost_backend_handle_iotlb_msg(dev, &payload->iotlb);
         break;
     case VHOST_USER_BACKEND_CONFIG_CHANGE_MSG:
         ret = vhost_user_backend_handle_config_change(dev);
         break;
     case VHOST_USER_BACKEND_VRING_HOST_NOTIFIER_MSG:
-        ret = vhost_user_backend_handle_vring_host_notifier(dev, &payload.area,
+        ret = vhost_user_backend_handle_vring_host_notifier(dev, &payload->area,
                                                           fd ? fd[0] : -1);
         break;
     case VHOST_USER_BACKEND_SHARED_OBJECT_ADD:
-        ret = vhost_user_backend_handle_shared_object_add(dev, &payload.object);
+        ret = vhost_user_backend_handle_shared_object_add(dev, &payload->object);
         break;
     case VHOST_USER_BACKEND_SHARED_OBJECT_REMOVE:
         ret = vhost_user_backend_handle_shared_object_remove(dev,
-                                                             &payload.object);
+                                                             &payload->object);
         break;
     case VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP:
         ret = vhost_user_backend_handle_shared_object_lookup(dev->opaque, ioc,
-                                                             &hdr, &payload);
+                                                             &hdr, payload);
+        break;
     case VHOST_USER_BACKEND_SHMEM_MAP:
-        ret = vhost_user_backend_handle_shmem_map(dev, ioc, &hdr, &payload,
+        ret = vhost_user_backend_handle_shmem_map(dev, ioc, &hdr, payload,
                                                   fd ? fd[0] : -1, &local_err);
         break;
     case VHOST_USER_BACKEND_SHMEM_UNMAP:
-        ret = vhost_user_backend_handle_shmem_unmap(dev, ioc, &hdr, &payload,
+        ret = vhost_user_backend_handle_shmem_unmap(dev, ioc, &hdr, payload,
                                                     &local_err);
         break;
+    case VHOST_USER_BACKEND_MEM_READ:
+        ret = vhost_user_backend_handle_mem_read(dev, &payload->mem_rw);
+        break;
+    case VHOST_USER_BACKEND_MEM_WRITE:
+        ret = vhost_user_backend_handle_mem_write(dev, &payload->mem_rw);
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);
@@ -1988,10 +2038,10 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
      * directly in their request handlers.
      */
     if (hdr.flags & VHOST_USER_NEED_REPLY_MASK) {
-        payload.u64 = !!ret;
-        hdr.size = sizeof(payload.u64);
+        payload->u64 = !!ret;
+        hdr.size = sizeof(payload->u64);
 
-        if (!vhost_user_send_resp(ioc, &hdr, &payload, &local_err)) {
+        if (!vhost_user_send_resp(ioc, &hdr, payload, &local_err)) {
             error_report_err(local_err);
             goto err;
         }
@@ -2009,6 +2059,7 @@ fdcleanup:
             close(fd[i]);
         }
     }
+    g_free(payload);
     return rc;
 }
 
