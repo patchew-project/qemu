@@ -3498,7 +3498,7 @@ static int t32_expandimm_rot(DisasContext *s, int x)
 }
 
 /* Return the unrotated immediate from T32ExpandImm.  */
-static int t32_expandimm_imm(DisasContext *s, int x)
+static uint32_t t32_expandimm_imm(DisasContext *s, uint32_t x)
 {
     uint32_t imm = extract32(x, 0, 8);
 
