@@ -437,7 +437,7 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
             return 0;
         }
 
-        switch (addr & 0x18) {
+        switch (addr & (0x1f & ~4)) {
         case HPET_TN_CFG: // including interrupt capabilities
             return timer->config >> shift;
         case HPET_TN_CMP: // comparator register
@@ -493,7 +493,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             trace_hpet_timer_id_out_of_range(timer_id);
             return;
         }
-        switch (addr & 0x18) {
+
+        switch (addr & (0x1f & ~4)) {
         case HPET_TN_CFG:
             trace_hpet_ram_write_tn_cfg(addr & 4);
             old_val = timer->config;
