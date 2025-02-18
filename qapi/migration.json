@@ -1394,6 +1394,21 @@
   'data': { 'pass': 'int' } }
 
 ##
+# @MIGRATION_THROTTLE:
+#
+# Emitted from the source side of a migration at the start of vCPU throttle
+#
+# Since: 10.0
+#
+# Example:
+#
+# <- { "event": "MIGRATION_THROTTLE",
+#      "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
+#
+##
+{ 'event': 'MIGRATION_THROTTLE' }
+
+##
 # @COLOMessage:
 #
 # The message transmission between Primary side and Secondary side.

@@ -561,6 +561,7 @@ static void mig_throttle_guest_down(uint64_t bytes_dirty_period,
 
     /* We have not started throttling yet. Let's start it. */
     if (!cpu_throttle_active()) {
+        qapi_event_send_migration_throttle();
         cpu_throttle_set(pct_initial);
     } else {
         /* Throttling already on, just increase the rate */
