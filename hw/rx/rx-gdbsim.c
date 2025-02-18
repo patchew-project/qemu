@@ -25,6 +25,7 @@
 #include "exec/cpu_ldst.h"
 #include "hw/loader.h"
 #include "hw/rx/rx62n.h"
+#include "elf.h"
 #include "system/qtest.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
@@ -85,12 +86,47 @@ static void rx_cpu_reset(void *opaque)
     }
 }
 
+static bool rx_load_elf(RXCPU *cpu, const char *filename)
+{
+    CPUState *cs = CPU(cpu);
+    Elf32_Ehdr elf_header;
+    bool elf_is64;
+    Error *err = NULL;
+    uint64_t lowaddr, highaddr, entry;
+    ssize_t ret;
+
+    load_elf_hdr(filename, &elf_header, &elf_is64, &err);
+    if (err) {
+        error_free(err);
+        return false;
+    }
+
+    ret = load_elf_as(filename, NULL, NULL, NULL,
+                      &entry, &lowaddr, &highaddr, NULL, false,
+                      EM_RX, 1, 0, cs->as);
+
+    if (ret <= 0) {
+        /* The header loaded but the image didn't */
+        error_report("qemu: could not load elf '%s': %s",
+                     filename, load_elf_strerror(ret));
+        exit(1);
+    }
+
+    cpu->env.reset_pc = entry;
+    cpu->env.use_reset_pc = true;
+    return true;
+}
+
 static void rx_load_image(RXCPU *cpu, const char *filename,
                           uint32_t start, uint32_t size)
 {
     static uint32_t extable[32];
     long kernel_size;
     int i;
+
+    if (rx_load_elf(cpu, filename)) {
+        return;
+    }
 
     kernel_size = load_image_targphys(filename, start, size);
     if (kernel_size < 0) {
