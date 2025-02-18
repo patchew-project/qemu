@@ -89,7 +89,6 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
     CPUState *cs = CPU(obj);
     RXCPUClass *rcc = RX_CPU_GET_CLASS(obj);
     CPURXState *env = cpu_env(cs);
-    uint32_t *resetvec;
 
     if (rcc->parent_phases.hold) {
         rcc->parent_phases.hold(obj, type);
@@ -97,11 +96,6 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
 
     memset(env, 0, offsetof(CPURXState, end_reset_fields));
 
-    resetvec = rom_ptr(0xfffffffc, 4);
-    if (resetvec) {
-        /* In the case of kernel, it is ignored because it is not set. */
-        env->pc = ldl_p(resetvec);
-    }
     rx_cpu_unpack_psw(env, 0, 1);
     env->regs[0] = env->isp = env->usp = 0;
     env->fpsw = 0;
@@ -155,7 +149,6 @@ static void rx_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     qemu_init_vcpu(cs);
-    cpu_reset(cs);
 
     rcc->parent_realize(dev, errp);
 }
@@ -203,6 +196,8 @@ static void rx_cpu_init(Object *obj)
 {
     RXCPU *cpu = RX_CPU(obj);
 
+    cpu->env.reset_pc = 0;
+    cpu->env.use_reset_pc = false;
     qdev_init_gpio_in(DEVICE(cpu), rx_cpu_set_irq, 2);
 }
 

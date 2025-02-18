@@ -104,6 +104,9 @@ typedef struct CPUArchState {
     uint32_t ack_ipl;           /* execute ipl */
     float_status fp_status;
     qemu_irq ack;               /* Interrupt acknowledge */
+
+    bool use_reset_pc;          /* Use reset_pc instead of reset vector */
+    uint32_t reset_pc;          /* PC reset value when use_reset_pc */
 } CPURXState;
 
 /*

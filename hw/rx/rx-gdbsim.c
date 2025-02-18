@@ -22,6 +22,7 @@
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "exec/cpu_ldst.h"
 #include "hw/loader.h"
 #include "hw/rx/rx62n.h"
 #include "system/qtest.h"
@@ -56,6 +57,34 @@ DECLARE_OBJ_CHECKERS(RxGdbSimMachineState, RxGdbSimMachineClass,
                      RX_GDBSIM_MACHINE, TYPE_RX_GDBSIM_MACHINE)
 
 
+static void rx_cpu_reset(void *opaque)
+{
+    RXCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    CPURXState *env = cpu_env(cs);
+
+    cpu_reset(cs);
+
+    if (env->use_reset_pc) {
+        /*
+         * Load the PC with the starting address for the kernel
+         */
+        env->pc = env->reset_pc;
+    } else {
+        /*
+         * Load the initial PC from the reset vector. If there is
+         * a ROM containing that vector use that, otherwise read
+         * it from target memory.
+         */
+        uint32_t *resetvec_p = rom_ptr_for_as(cs->as, 0xfffffffc, 4);
+        if (resetvec_p) {
+            env->pc = ldl_p(resetvec_p);
+        } else {
+            env->pc = cpu_ldl_data(env, 0xfffffffc);
+        }
+    }
+}
+
 static void rx_load_image(RXCPU *cpu, const char *filename,
                           uint32_t start, uint32_t size)
 {
@@ -68,7 +97,8 @@ static void rx_load_image(RXCPU *cpu, const char *filename,
         fprintf(stderr, "qemu: could not load kernel '%s'\n", filename);
         exit(1);
     }
-    cpu->env.pc = start;
+    cpu->env.reset_pc = start;
+    cpu->env.use_reset_pc = true;
 
     /* setup exception trap trampoline */
     /* linux kernel only works little-endian mode */
@@ -87,6 +117,7 @@ static void rx_gdbsim_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *dtb_filename = machine->dtb;
     uint8_t rng_seed[32];
+    CPUState *cs;
 
     if (machine->ram_size < mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -152,6 +183,9 @@ static void rx_gdbsim_init(MachineState *machine)
             /* Set dtb address to R1 */
             s->mcu.cpu.env.regs[1] = SDRAM_BASE + dtb_offset;
         }
+    }
+    for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
+        qemu_register_reset(rx_cpu_reset, RX_CPU(cs));
     }
 }
 
