@@ -388,7 +388,11 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
         *pflags = ehdr.e_flags;
     }
     if (pentry) {
-        *pentry = ehdr.e_entry;
+        if (translate_fn) {
+            *pentry = translate_fn(translate_opaque, ehdr.e_entry);
+        } else {
+            *pentry = ehdr.e_entry;
+        }
     }
 
     glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb, sym_cb);
