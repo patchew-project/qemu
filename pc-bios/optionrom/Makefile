@@ -37,6 +37,7 @@ config-cc.mak: Makefile
 -include config-cc.mak
 
 override LDFLAGS = -nostdlib -Wl,--build-id=none,-T,$(SRC_DIR)/flat.lds
+override LDFLAGS += -Wl,--no-error-rwx-segments
 
 pvh.img: pvh.o pvh_main.o
 
