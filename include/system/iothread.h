@@ -33,6 +33,7 @@ struct IOThread {
     bool stopping;              /* has iothread_stop() been called? */
     bool running;               /* should iothread_run() continue? */
     int thread_id;
+    char *g_source_name;
 
     /* AioContext poll parameters */
     int64_t poll_max_ns;

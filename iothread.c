@@ -67,7 +67,14 @@ static void *iothread_run(void *opaque)
          * changed in previous aio_poll()
          */
         if (iothread->running && qatomic_read(&iothread->run_gcontext)) {
+            GSource *source = aio_get_g_source(iothread->ctx);
+
+            g_source_set_name(source, iothread->g_source_name);
+            g_source_attach(source, iothread->worker_context);
+            g_source_unref(source);
+
             g_main_loop_run(iothread->main_loop);
+            assert(!iothread->running);
         }
     }
 
@@ -136,18 +143,14 @@ static void iothread_instance_finalize(Object *obj)
         iothread->main_loop = NULL;
     }
     qemu_sem_destroy(&iothread->init_done_sem);
+
+    g_free(iothread->g_source_name);
+    iothread->g_source_name = NULL;
 }
 
-static void iothread_init_gcontext(IOThread *iothread, const char *thread_name)
+static void iothread_init_gcontext(IOThread *iothread)
 {
-    GSource *source;
-    g_autofree char *name = g_strdup_printf("%s aio-context", thread_name);
-
     iothread->worker_context = g_main_context_new();
-    source = aio_get_g_source(iothread_get_aio_context(iothread));
-    g_source_set_name(source, name);
-    g_source_attach(source, iothread->worker_context);
-    g_source_unref(source);
     iothread->main_loop = g_main_loop_new(iothread->worker_context, TRUE);
 }
 
@@ -192,12 +195,13 @@ static void iothread_init(EventLoopBase *base, Error **errp)
 
     thread_name = g_strdup_printf("IO %s",
                         object_get_canonical_path_component(OBJECT(base)));
+    iothread->g_source_name = g_strdup_printf("%s aio-context", thread_name);
 
     /*
      * Init one GMainContext for the iothread unconditionally, even if
      * it's not used
      */
-    iothread_init_gcontext(iothread, thread_name);
+    iothread_init_gcontext(iothread);
 
     iothread_set_aio_context_params(base, &local_error);
     if (local_error) {
