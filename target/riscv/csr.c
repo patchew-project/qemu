@@ -2111,11 +2111,12 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     val &= env->misa_ext_mask;
 
     /*
-     * Suppress 'C' if next instruction is not aligned
+     * Disabling 'C' increases IALIGN to 32. If subsequent instruction's address
+     * is not 32-bit aligned, write to misa is suppressed.
      * TODO: this should check next_pc
      */
-    if ((val & RVC) && (GETPC() & ~3) != 0) {
-        val &= ~RVC;
+    if (!(val & RVC) && (env->misa_ext & RVC) && (GETPC() & 0x3)) {
+        return RISCV_EXCP_NONE;
     }
 
     /* Disable RVG if any of its dependencies are disabled */
