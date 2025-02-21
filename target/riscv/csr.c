@@ -2111,11 +2111,13 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     val &= env->misa_ext_mask;
 
     /*
-     * Suppress 'C' if next instruction is not aligned
-     * TODO: this should check next_pc
+     * Disabling 'C' increases IALIGN to 32. If subsequent instruction's address
+     * is not 32-bit aligned, write to misa is suppressed.
+     *
+     * All csr-related instructions are 4-byte, so we can check current pc alignment.
      */
-    if ((val & RVC) && (GETPC() & ~3) != 0) {
-        val &= ~RVC;
+    if (!(val & RVC) && (env->misa_ext & RVC) && !QEMU_IS_ALIGNED(env->pc, 4)) {
+        return RISCV_EXCP_NONE;
     }
 
     /* Disable RVG if any of its dependencies are disabled */
