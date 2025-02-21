@@ -37,14 +37,15 @@ static bool ovmf_flash_parsed;
 static uint8_t *ovmf_table;
 static int ovmf_table_len;
 
-void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size)
+void pc_system_parse_ovmf_flash(uint8_t *flash_ptr,
+                                size_t flash_size, bool force)
 {
     uint8_t *ptr;
     QemuUUID guid;
     int tot_len;
 
     /* should only be called once */
-    if (ovmf_flash_parsed) {
+    if (ovmf_flash_parsed && !force) {
         return;
     }
 
