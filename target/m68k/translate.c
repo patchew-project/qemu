@@ -897,14 +897,6 @@ static TCGv gen_ea_mode(CPUM68KState *env, DisasContext *s, int mode, int reg0,
     return NULL_QREG;
 }
 
-static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
-                   int opsize, TCGv val, TCGv *addrp, ea_what what, int index)
-{
-    int mode = extract32(insn, 3, 3);
-    int reg0 = REG(insn, 0);
-    return gen_ea_mode(env, s, mode, reg0, opsize, val, addrp, what, index);
-}
-
 static TCGv_ptr gen_fp_ptr(int freg)
 {
     TCGv_ptr fp = tcg_temp_new_ptr();
@@ -1368,18 +1360,22 @@ static void gen_exit_tb(DisasContext *s)
     s->base.is_jmp = DISAS_EXIT;
 }
 
-#define SRC_EA(env, result, opsize, op_sign, addrp) do {                \
-        result = gen_ea(env, s, insn, opsize, NULL_QREG, addrp,         \
-                        op_sign ? EA_LOADS : EA_LOADU, IS_USER(s));     \
+#define SRC_EA(env, result, opsize, op_sign, addrp)                     \
+    do {                                                                \
+        result = gen_ea_mode(env, s, extract32(insn, 3, 3),             \
+                             REG(insn, 0), opsize, NULL_QREG, addrp,    \
+                             op_sign ? EA_LOADS : EA_LOADU, IS_USER(s)); \
         if (IS_NULL_QREG(result)) {                                     \
             gen_addr_fault(s);                                          \
             return;                                                     \
         }                                                               \
     } while (0)
 
-#define DEST_EA(env, insn, opsize, val, addrp) do {                     \
-        TCGv ea_result = gen_ea(env, s, insn, opsize, val, addrp,       \
-                                EA_STORE, IS_USER(s));                  \
+#define DEST_EA(env, insn, opsize, val, addrp)                          \
+    do {                                                                \
+        TCGv ea_result = gen_ea_mode(env, s, extract32(insn, 3, 3),     \
+                                     REG(insn, 0), opsize, val, addrp,  \
+                                     EA_STORE, IS_USER(s));             \
         if (IS_NULL_QREG(ea_result)) {                                  \
             gen_addr_fault(s);                                          \
             return;                                                     \
