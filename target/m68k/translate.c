@@ -776,9 +776,8 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
  * a write otherwise it is a read (0 == sign extend, -1 == zero extend).
  * ADDRP is non-null for readwrite operands.
  */
-static TCGv gen_load_mode(CPUM68KState *env, DisasContext *s,
-                          int mode, int reg0, int opsize, TCGv *addrp,
-                          int sign, int index)
+static TCGv gen_load_mode(DisasContext *s, int mode, int reg0, int opsize,
+                          TCGv *addrp, int sign, int index)
 {
     TCGv reg, ret, addr = NULL;
     int32_t offset;
@@ -799,19 +798,19 @@ static TCGv gen_load_mode(CPUM68KState *env, DisasContext *s,
             /* Immediate: sign extend values for consistency.  */
             switch (opsize) {
             case OS_BYTE:
-                offset = read_im8(env, s);
+                offset = read_im8(s->env, s);
                 if (sign) {
                     offset = (int8_t)offset;
                 }
                 break;
             case OS_WORD:
-                offset = read_im16(env, s);
+                offset = read_im16(s->env, s);
                 if (sign) {
                     offset = (int16_t)offset;
                 }
                 break;
             case OS_LONG:
-                offset = read_im32(env, s);
+                offset = read_im32(s->env, s);
                 break;
             default:
                 g_assert_not_reached();
@@ -1324,7 +1323,7 @@ static void gen_exit_tb(DisasContext *s)
 
 #define SRC_EA(env, result, opsize, op_sign, addrp)                     \
     do {                                                                \
-        result = gen_load_mode(env, s, extract32(insn, 3, 3),           \
+        result = gen_load_mode(s, extract32(insn, 3, 3),                \
                                REG(insn, 0), opsize, addrp,             \
                                op_sign, IS_USER(s));                    \
         if (IS_NULL_QREG(result)) {                                     \
@@ -1700,10 +1699,8 @@ DISAS_INSN(abcd_mem)
 
     /* Indirect pre-decrement load (mode 4) */
 
-    src = gen_load_mode(env, s, 4, REG(insn, 0), OS_BYTE,
-                        NULL, false, IS_USER(s));
-    dest = gen_load_mode(env, s, 4, REG(insn, 9), OS_BYTE,
-                         &addr, false, IS_USER(s));
+    src = gen_load_mode(s, 4, REG(insn, 0), OS_BYTE, NULL, false, IS_USER(s));
+    dest = gen_load_mode(s, 4, REG(insn, 9), OS_BYTE, &addr, false, IS_USER(s));
 
     bcd_add(dest, src);
 
@@ -1736,10 +1733,8 @@ DISAS_INSN(sbcd_mem)
 
     /* Indirect pre-decrement load (mode 4) */
 
-    src = gen_load_mode(env, s, 4, REG(insn, 0), OS_BYTE,
-                        NULL, false, IS_USER(s));
-    dest = gen_load_mode(env, s, 4, REG(insn, 9), OS_BYTE,
-                         &addr, false, IS_USER(s));
+    src = gen_load_mode(s, 4, REG(insn, 0), OS_BYTE, NULL, false, IS_USER(s));
+    dest = gen_load_mode(s, 4, REG(insn, 9), OS_BYTE, &addr, false, IS_USER(s));
 
     bcd_sub(dest, src);
 
@@ -3120,11 +3115,9 @@ DISAS_INSN(cmpm)
     TCGv src, dst;
 
     /* Post-increment load (mode 3) from Ay.  */
-    src = gen_load_mode(env, s, 3, REG(insn, 0), opsize,
-                        NULL, true, IS_USER(s));
+    src = gen_load_mode(s, 3, REG(insn, 0), opsize, NULL, true, IS_USER(s));
     /* Post-increment load (mode 3) from Ax.  */
-    dst = gen_load_mode(env, s, 3, REG(insn, 9), opsize,
-                        NULL, true, IS_USER(s));
+    dst = gen_load_mode(s, 3, REG(insn, 9), opsize, NULL, true, IS_USER(s));
 
     gen_update_cc_cmp(s, dst, src, opsize);
 }
