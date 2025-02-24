@@ -425,6 +425,7 @@ void HELPER(ftst)(CPUM68KState *env, FPReg *val)
 void HELPER(fconst)(CPUM68KState *env, FPReg *val, uint32_t offset)
 {
     val->d = fpu_rom[offset];
+    HELPER(ftst)(env, val);
 }
 
 typedef int (*float_access)(CPUM68KState *env, uint32_t addr, FPReg *fp,
