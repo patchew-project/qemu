@@ -169,19 +169,19 @@ static int cpu_m68k_exceptbits_from_host(int host_bits)
     int target_bits = 0;
 
     if (host_bits & float_flag_invalid) {
-        target_bits |= 0x80;
+        target_bits |= FPSR_AEXP_IOP;
     }
     if (host_bits & float_flag_overflow) {
-        target_bits |= 0x40;
+        target_bits |= FPSR_AEXP_OVFL;
     }
     if (host_bits & (float_flag_underflow | float_flag_output_denormal_flushed)) {
-        target_bits |= 0x20;
+        target_bits |= FPSR_AEXP_UNFL;
     }
     if (host_bits & float_flag_divbyzero) {
-        target_bits |= 0x10;
+        target_bits |= FPSR_AEXP_DZ;
     }
     if (host_bits & float_flag_inexact) {
-        target_bits |= 0x08;
+        target_bits |= FPSR_AEXC_INEX;
     }
     return target_bits;
 }
@@ -191,19 +191,19 @@ static int cpu_m68k_exceptbits_to_host(int target_bits)
 {
     int host_bits = 0;
 
-    if (target_bits & 0x80) {
+    if (target_bits & FPSR_AEXP_IOP) {
         host_bits |= float_flag_invalid;
     }
-    if (target_bits & 0x40) {
+    if (target_bits & FPSR_AEXP_OVFL) {
         host_bits |= float_flag_overflow;
     }
-    if (target_bits & 0x20) {
+    if (target_bits & FPSR_AEXP_UNFL) {
         host_bits |= float_flag_underflow;
     }
-    if (target_bits & 0x10) {
+    if (target_bits & FPSR_AEXP_DZ) {
         host_bits |= float_flag_divbyzero;
     }
-    if (target_bits & 0x08) {
+    if (target_bits & FPSR_AEXC_INEX) {
         host_bits |= float_flag_inexact;
     }
     return host_bits;
@@ -213,7 +213,7 @@ uint32_t cpu_m68k_get_fpsr(CPUM68KState *env)
 {
     int host_flags = get_float_exception_flags(&env->fp_status);
     int target_flags = cpu_m68k_exceptbits_from_host(host_flags);
-    int except = (env->fpsr & ~(0xf8)) | target_flags;
+    int except = (env->fpsr & ~FPSR_AEXC_MASK) | target_flags;
     return except;
 }
 
