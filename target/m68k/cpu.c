@@ -478,7 +478,7 @@ static int fpu_post_load(void *opaque, int version)
     return 0;
 }
 
-const VMStateDescription vmmstate_fpu = {
+static const VMStateDescription vmstate_fpu = {
     .name = "cpu/fpu",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -500,7 +500,7 @@ static bool cf_spregs_needed(void *opaque)
     return m68k_feature(&s->env, M68K_FEATURE_CF_ISA_A);
 }
 
-const VMStateDescription vmstate_cf_spregs = {
+static const VMStateDescription vmstate_cf_spregs = {
     .name = "cpu/cf_spregs",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -522,7 +522,7 @@ static bool cpu_68040_mmu_needed(void *opaque)
     return m68k_feature(&s->env, M68K_FEATURE_M68040);
 }
 
-const VMStateDescription vmstate_68040_mmu = {
+static const VMStateDescription vmstate_68040_mmu = {
     .name = "cpu/68040_mmu",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -547,7 +547,7 @@ static bool cpu_68040_spregs_needed(void *opaque)
     return m68k_feature(&s->env, M68K_FEATURE_M68040);
 }
 
-const VMStateDescription vmstate_68040_spregs = {
+static const VMStateDescription vmstate_68040_spregs = {
     .name = "cpu/68040_spregs",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -583,7 +583,7 @@ static const VMStateDescription vmstate_m68k_cpu = {
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
-        &vmmstate_fpu,
+        &vmstate_fpu,
         &vmstate_cf_spregs,
         &vmstate_68040_mmu,
         &vmstate_68040_spregs,
