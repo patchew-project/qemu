@@ -60,8 +60,6 @@ static TCGv_i64 cpu_macc[4];
 
 static TCGv NULL_QREG;
 #define IS_NULL_QREG(t) (t == NULL_QREG)
-/* Used to distinguish stores from bad addressing modes.  */
-static TCGv store_dummy;
 
 void m68k_tcg_init(void)
 {
@@ -105,7 +103,6 @@ void m68k_tcg_init(void)
     }
 
     NULL_QREG = tcg_global_mem_new(tcg_env, -4, "NULL");
-    store_dummy = tcg_global_mem_new(tcg_env, -8, "NULL");
 }
 
 /* internal defines */
@@ -338,21 +335,6 @@ typedef enum {
     EA_LOADU,
     EA_LOADS
 } ea_what;
-
-/*
- * Generate an unsigned load if VAL is 0 a signed load if val is -1,
- * otherwise generate a store.
- */
-static TCGv gen_ldst(DisasContext *s, int opsize, TCGv addr, TCGv val,
-                     ea_what what, int index)
-{
-    if (what == EA_STORE) {
-        gen_store(s, opsize, addr, val, index);
-        return store_dummy;
-    } else {
-        return gen_load(s, opsize, addr, what == EA_LOADS, index);
-    }
-}
 
 /* Read a 16-bit immediate constant */
 static inline uint16_t read_im16(CPUM68KState *env, DisasContext *s)
@@ -795,9 +777,9 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
  * a write otherwise it is a read (0 == sign extend, -1 == zero extend).
  * ADDRP is non-null for readwrite operands.
  */
-static TCGv gen_ea_mode(CPUM68KState *env, DisasContext *s, int mode, int reg0,
-                        int opsize, TCGv val, TCGv *addrp, ea_what what,
-                        int index)
+static TCGv gen_load_mode(CPUM68KState *env, DisasContext *s,
+                          int mode, int reg0, int opsize, TCGv *addrp,
+                          int sign, int index)
 {
     TCGv reg, ret, addr = NULL;
     int32_t offset;
@@ -805,40 +787,28 @@ static TCGv gen_ea_mode(CPUM68KState *env, DisasContext *s, int mode, int reg0,
     switch (mode) {
     case 0: /* Data register direct.  */
         reg = cpu_dregs[reg0];
-        if (what == EA_STORE) {
-            gen_partset_reg(opsize, reg, val);
-            ret = store_dummy;
-        } else {
-            ret = gen_extend(s, reg, opsize, what == EA_LOADS);
-        }
+        ret = gen_extend(s, reg, opsize, sign);
         break;
 
     case 1: /* Address register direct.  */
         reg = get_areg(s, reg0);
-        if (what == EA_STORE) {
-            tcg_gen_mov_i32(reg, val);
-            ret = store_dummy;
-        } else {
-            ret = gen_extend(s, reg, opsize, what == EA_LOADS);
-        }
+        ret = gen_extend(s, reg, opsize, sign);
         break;
 
     case 7: /* Other */
-        if (reg0 == 4 && what != EA_STORE) {
+        if (reg0 == 4) {
             /* Immediate: sign extend values for consistency.  */
             switch (opsize) {
             case OS_BYTE:
-                if (what == EA_LOADS) {
-                    offset = (int8_t)read_im8(env, s);
-                } else {
-                    offset = read_im8(env, s);
+                offset = read_im8(env, s);
+                if (sign) {
+                    offset = (int8_t)offset;
                 }
                 break;
             case OS_WORD:
-                if (what == EA_LOADS) {
-                    offset = (int16_t)read_im16(env, s);
-                } else {
-                    offset = read_im16(env, s);
+                offset = read_im16(env, s);
+                if (sign) {
+                    offset = (int16_t)offset;
                 }
                 break;
             case OS_LONG:
@@ -857,17 +827,13 @@ static TCGv gen_ea_mode(CPUM68KState *env, DisasContext *s, int mode, int reg0,
     case 4: /* Indirect predecrememnt.  */
     case 5: /* Indirect displacement.  */
     case 6: /* Indirect index + displacement.  */
-        if (what == EA_STORE && addrp && *addrp) {
-            addr = *addrp;
-        } else {
-            addr = gen_lea_mode(env, s, mode, reg0, opsize);
-            if (IS_NULL_QREG(addr)) {
-                ret = addr;
-                addr = NULL;
-                break;
-            }
+        addr = gen_lea_mode(env, s, mode, reg0, opsize);
+        if (IS_NULL_QREG(addr)) {
+            ret = addr;
+            addr = NULL;
+            break;
         }
-        ret = gen_ldst(s, opsize, addr, val, what, index);
+        ret = gen_load(s, opsize, addr, sign, index);
         break;
 
     default:
@@ -878,6 +844,43 @@ static TCGv gen_ea_mode(CPUM68KState *env, DisasContext *s, int mode, int reg0,
         *addrp = addr;
     }
     return ret;
+}
+
+static bool gen_store_mode(CPUM68KState *env, DisasContext *s,
+                           int mode, int reg0, int opsize,
+                           TCGv val, TCGv addr, int index)
+{
+    TCGv reg;
+
+    switch (mode) {
+    case 0: /* Data register direct.  */
+        reg = cpu_dregs[reg0];
+        gen_partset_reg(opsize, reg, val);
+        return true;
+
+    case 1: /* Address register direct.  */
+        reg = get_areg(s, reg0);
+        tcg_gen_mov_i32(reg, val);
+        return true;
+
+    case 2: /* Indirect register */
+    case 3: /* Indirect postincrement.  */
+    case 4: /* Indirect predecrememnt.  */
+    case 5: /* Indirect displacement.  */
+    case 6: /* Indirect index + displacement.  */
+    case 7: /* Other */
+        if (!addr) {
+            addr = gen_lea_mode(env, s, mode, reg0, opsize);
+            if (IS_NULL_QREG(addr)) {
+                return false;
+            }
+        }
+        gen_store(s, opsize, addr, val, index);
+        return true;
+
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static TCGv_ptr gen_fp_ptr(int freg)
@@ -1322,13 +1325,9 @@ static void gen_exit_tb(DisasContext *s)
 
 #define SRC_EA(env, result, opsize, op_sign, addrp)                     \
     do {                                                                \
-        TCGv *addrp_ = (addrp);                                         \
-        if (addrp_) {                                                   \
-            *addrp_ = NULL;                                             \
-        }                                                               \
-        result = gen_ea_mode(env, s, extract32(insn, 3, 3),             \
-                             REG(insn, 0), opsize, NULL_QREG, addrp_,   \
-                             op_sign ? EA_LOADS : EA_LOADU, IS_USER(s)); \
+        result = gen_load_mode(env, s, extract32(insn, 3, 3),           \
+                               REG(insn, 0), opsize, addrp,             \
+                               op_sign, IS_USER(s));                    \
         if (IS_NULL_QREG(result)) {                                     \
             gen_addr_fault(s);                                          \
             return;                                                     \
@@ -1337,10 +1336,10 @@ static void gen_exit_tb(DisasContext *s)
 
 #define DEST_EA(env, insn, opsize, val, addrp)                          \
     do {                                                                \
-        TCGv ea_result = gen_ea_mode(env, s, extract32(insn, 3, 3),     \
-                                     REG(insn, 0), opsize, val, addrp,  \
-                                     EA_STORE, IS_USER(s));             \
-        if (IS_NULL_QREG(ea_result)) {                                  \
+        TCGv *addrp_ = (addrp);                                         \
+        if (!gen_store_mode(env, s, extract32(insn, 3, 3),              \
+                            REG(insn, 0), opsize, val,                  \
+                            addrp_ ? *addrp_ : NULL, IS_USER(s))) {     \
             gen_addr_fault(s);                                          \
             return;                                                     \
         }                                                               \
@@ -1702,15 +1701,14 @@ DISAS_INSN(abcd_mem)
 
     /* Indirect pre-decrement load (mode 4) */
 
-    src = gen_ea_mode(env, s, 4, REG(insn, 0), OS_BYTE,
-                      NULL_QREG, NULL, EA_LOADU, IS_USER(s));
-    dest = gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE,
-                       NULL_QREG, &addr, EA_LOADU, IS_USER(s));
+    src = gen_load_mode(env, s, 4, REG(insn, 0), OS_BYTE,
+                        NULL, false, IS_USER(s));
+    dest = gen_load_mode(env, s, 4, REG(insn, 9), OS_BYTE,
+                         &addr, false, IS_USER(s));
 
     bcd_add(dest, src);
 
-    gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, &addr,
-                EA_STORE, IS_USER(s));
+    gen_store_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, addr, IS_USER(s));
 
     bcd_flags(dest);
 }
@@ -1739,15 +1737,14 @@ DISAS_INSN(sbcd_mem)
 
     /* Indirect pre-decrement load (mode 4) */
 
-    src = gen_ea_mode(env, s, 4, REG(insn, 0), OS_BYTE,
-                      NULL_QREG, NULL, EA_LOADU, IS_USER(s));
-    dest = gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE,
-                       NULL_QREG, &addr, EA_LOADU, IS_USER(s));
+    src = gen_load_mode(env, s, 4, REG(insn, 0), OS_BYTE,
+                        NULL, false, IS_USER(s));
+    dest = gen_load_mode(env, s, 4, REG(insn, 9), OS_BYTE,
+                         &addr, false, IS_USER(s));
 
     bcd_sub(dest, src);
 
-    gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, &addr,
-                EA_STORE, IS_USER(s));
+    gen_store_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, addr, IS_USER(s));
 
     bcd_flags(dest);
 }
@@ -3124,11 +3121,11 @@ DISAS_INSN(cmpm)
     TCGv src, dst;
 
     /* Post-increment load (mode 3) from Ay.  */
-    src = gen_ea_mode(env, s, 3, REG(insn, 0), opsize,
-                      NULL_QREG, NULL, EA_LOADS, IS_USER(s));
+    src = gen_load_mode(env, s, 3, REG(insn, 0), opsize,
+                        NULL, true, IS_USER(s));
     /* Post-increment load (mode 3) from Ax.  */
-    dst = gen_ea_mode(env, s, 3, REG(insn, 9), opsize,
-                      NULL_QREG, NULL, EA_LOADS, IS_USER(s));
+    dst = gen_load_mode(env, s, 3, REG(insn, 9), opsize,
+                        NULL, true, IS_USER(s));
 
     gen_update_cc_cmp(s, dst, src, opsize);
 }
