@@ -56,7 +56,7 @@ from .qom_common import QOMCommand
 fuse.fuse_python_api = (0, 2)
 
 
-class QOMFuse(QOMCommand, Operations):
+class QOMFuse(QOMCommand, Operations):  # type: ignore
     """
     QOMFuse implements both fuse.Operations and QOMCommand.
 

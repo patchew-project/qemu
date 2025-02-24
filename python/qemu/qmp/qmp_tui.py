@@ -401,7 +401,7 @@ class App(QMPClient):
             raise err
 
 
-class StatusBar(urwid.Text):
+class StatusBar(urwid.Text):  # type: ignore
     """
     A simple statusbar modelled using the Text widget. The status can be
     set using the set_text function. All text set is aligned to right.
@@ -412,7 +412,7 @@ class StatusBar(urwid.Text):
         super().__init__(text, align='right')
 
 
-class Editor(urwid_readline.ReadlineEdit):
+class Editor(urwid_readline.ReadlineEdit):  # type: ignore
     """
     A simple editor modelled using the urwid_readline.ReadlineEdit widget.
     Mimcs GNU readline shortcuts and provides history support.
@@ -485,7 +485,7 @@ class Editor(urwid_readline.ReadlineEdit):
         return None
 
 
-class EditorWidget(urwid.Filler):
+class EditorWidget(urwid.Filler):  # type: ignore
     """
     Wrapper around the editor widget.
 
@@ -498,7 +498,7 @@ class EditorWidget(urwid.Filler):
         super().__init__(Editor(parent), valign='top')
 
 
-class HistoryBox(urwid.ListBox):
+class HistoryBox(urwid.ListBox):  # type: ignore
     """
     This widget is modelled using the ListBox widget, contains the list of
     all messages both QMP messages and log messages to be shown in the TUI.
@@ -535,7 +535,7 @@ class HistoryBox(urwid.ListBox):
             super().keypress(size, 'down')
 
 
-class HistoryWindow(urwid.Frame):
+class HistoryWindow(urwid.Frame):  # type: ignore
     """
     This window composes the HistoryBox and EditorWidget in a horizontal split.
     By default the first focus is given to the history box.
@@ -572,7 +572,7 @@ class HistoryWindow(urwid.Frame):
         self.history.add_to_history(formatted)
 
 
-class Window(urwid.Frame):
+class Window(urwid.Frame):  # type: ignore
     """
     This window is the top most widget of the TUI and will contain other
     windows. Each child of this widget is responsible for displaying a specific
