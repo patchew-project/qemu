@@ -844,8 +844,7 @@ static TCGv gen_load_mode(DisasContext *s, int mode, int reg0, int opsize,
     return ret;
 }
 
-static bool gen_store_mode(CPUM68KState *env, DisasContext *s,
-                           int mode, int reg0, int opsize,
+static bool gen_store_mode(DisasContext *s, int mode, int reg0, int opsize,
                            TCGv val, TCGv addr, int index)
 {
     TCGv reg;
@@ -1335,7 +1334,7 @@ static void gen_exit_tb(DisasContext *s)
 #define DEST_EA(env, insn, opsize, val, addrp)                          \
     do {                                                                \
         TCGv *addrp_ = (addrp);                                         \
-        if (!gen_store_mode(env, s, extract32(insn, 3, 3),              \
+        if (!gen_store_mode(s, extract32(insn, 3, 3),                   \
                             REG(insn, 0), opsize, val,                  \
                             addrp_ ? *addrp_ : NULL, IS_USER(s))) {     \
             gen_addr_fault(s);                                          \
@@ -1704,7 +1703,7 @@ DISAS_INSN(abcd_mem)
 
     bcd_add(dest, src);
 
-    gen_store_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, addr, IS_USER(s));
+    gen_store_mode(s, 4, REG(insn, 9), OS_BYTE, dest, addr, IS_USER(s));
 
     bcd_flags(dest);
 }
@@ -1738,7 +1737,7 @@ DISAS_INSN(sbcd_mem)
 
     bcd_sub(dest, src);
 
-    gen_store_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, addr, IS_USER(s));
+    gen_store_mode(s, 4, REG(insn, 9), OS_BYTE, dest, addr, IS_USER(s));
 
     bcd_flags(dest);
 }
