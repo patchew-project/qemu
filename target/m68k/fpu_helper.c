@@ -168,26 +168,28 @@ static void update_fpsr(CPUM68KState *env, int cc)
     uint32_t fpsr = env->fpsr;
     int flags = get_float_exception_flags(&env->fp_status);
 
-    fpsr &= ~FPSR_CC_MASK;
+    fpsr &= ~(FPSR_CC_MASK | FPSR_EXC_MASK);
     fpsr |= cc;
 
     if (flags) {
         set_float_exception_flags(0, &env->fp_status);
 
-        if (flags & float_flag_invalid) {
-            fpsr |= FPSR_AEXP_IOP;
+        if (flags & float_flag_invalid_snan) {
+            fpsr |= FPSR_EXC_SNAN | FPSR_AEXP_IOP;
+        } else if (flags & float_flag_invalid) {
+            fpsr |= FPSR_EXC_OPERR | FPSR_AEXP_IOP;
         }
         if (flags & float_flag_overflow) {
-            fpsr |= FPSR_AEXP_OVFL;
+            fpsr |= FPSR_EXC_OVFL | FPSR_AEXP_OVFL;
         }
         if (flags & (float_flag_underflow | float_flag_output_denormal_flushed)) {
-            fpsr |= FPSR_AEXP_UNFL;
+            fpsr |= FPSR_EXC_UNFL | FPSR_AEXP_UNFL;
         }
         if (flags & float_flag_divbyzero) {
-            fpsr |= FPSR_AEXP_DZ;
+            fpsr |= FPSR_EXC_DZ | FPSR_AEXP_DZ;
         }
         if (flags & float_flag_inexact) {
-            fpsr |= FPSR_AEXC_INEX;
+            fpsr |= FPSR_EXC_INEX2 | FPSR_AEXC_INEX;
         }
     }
     env->fpsr = fpsr;
