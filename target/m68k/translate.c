@@ -392,7 +392,7 @@ static TCGv gen_addr_index(DisasContext *s, uint16_t ext, TCGv tmp)
  * Handle a base + index + displacement effective address.
  * A NULL_QREG base means pc-relative.
  */
-static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
+static TCGv gen_lea_indexed(DisasContext *s, TCGv base)
 {
     uint32_t offset;
     uint16_t ext;
@@ -401,7 +401,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
     uint32_t bd, od;
 
     offset = s->pc;
-    ext = read_im16(env, s);
+    ext = read_im16(s->env, s);
 
     if ((ext & 0x800) == 0 && !m68k_feature(s->env, M68K_FEATURE_WORD_INDEX))
         return NULL_QREG;
@@ -419,9 +419,9 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
         if ((ext & 0x30) > 0x10) {
             /* base displacement */
             if ((ext & 0x30) == 0x20) {
-                bd = (int16_t)read_im16(env, s);
+                bd = (int16_t)read_im16(s->env, s);
             } else {
-                bd = read_im32(env, s);
+                bd = read_im32(s->env, s);
             }
         } else {
             bd = 0;
@@ -467,9 +467,9 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
             if ((ext & 3) > 1) {
                 /* outer displacement */
                 if ((ext & 3) == 2) {
-                    od = (int16_t)read_im16(env, s);
+                    od = (int16_t)read_im16(s->env, s);
                 } else {
-                    od = read_im32(env, s);
+                    od = read_im32(s->env, s);
                 }
             } else {
                 od = 0;
@@ -738,7 +738,7 @@ static TCGv gen_lea_mode(CPUM68KState *env, DisasContext *s,
         return addr;
     case 6: /* Indirect index + displacement.  */
         reg = get_areg(s, reg0);
-        return gen_lea_indexed(env, s, reg);
+        return gen_lea_indexed(s, reg);
     case 7: /* Other */
         switch (reg0) {
         case 0: /* Absolute short.  */
@@ -752,7 +752,7 @@ static TCGv gen_lea_mode(CPUM68KState *env, DisasContext *s,
             offset += (int16_t)read_im16(env, s);
             break;
         case 3: /* pc index+displacement.  */
-            return gen_lea_indexed(env, s, NULL_QREG);
+            return gen_lea_indexed(s, NULL_QREG);
         case 4: /* Immediate.  */
         default:
             return NULL_QREG;
