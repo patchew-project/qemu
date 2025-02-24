@@ -163,76 +163,34 @@ void HELPER(set_fpcr)(CPUM68KState *env, uint32_t val)
     cpu_m68k_set_fpcr(env, val);
 }
 
-/* Convert host exception flags to cpu_m68k form.  */
-static int cpu_m68k_exceptbits_from_host(int host_bits)
+static void update_fpsr(CPUM68KState *env, int cc)
 {
-    int target_bits = 0;
+    uint32_t fpsr = env->fpsr;
+    int flags = get_float_exception_flags(&env->fp_status);
 
-    if (host_bits & float_flag_invalid) {
-        target_bits |= FPSR_AEXP_IOP;
-    }
-    if (host_bits & float_flag_overflow) {
-        target_bits |= FPSR_AEXP_OVFL;
-    }
-    if (host_bits & (float_flag_underflow | float_flag_output_denormal_flushed)) {
-        target_bits |= FPSR_AEXP_UNFL;
-    }
-    if (host_bits & float_flag_divbyzero) {
-        target_bits |= FPSR_AEXP_DZ;
-    }
-    if (host_bits & float_flag_inexact) {
-        target_bits |= FPSR_AEXC_INEX;
-    }
-    return target_bits;
-}
+    fpsr &= ~FPSR_CC_MASK;
+    fpsr |= cc;
 
-/* Convert cpu_m68k exception flags to target form.  */
-static int cpu_m68k_exceptbits_to_host(int target_bits)
-{
-    int host_bits = 0;
+    if (flags) {
+        set_float_exception_flags(0, &env->fp_status);
 
-    if (target_bits & FPSR_AEXP_IOP) {
-        host_bits |= float_flag_invalid;
+        if (flags & float_flag_invalid) {
+            fpsr |= FPSR_AEXP_IOP;
+        }
+        if (flags & float_flag_overflow) {
+            fpsr |= FPSR_AEXP_OVFL;
+        }
+        if (flags & (float_flag_underflow | float_flag_output_denormal_flushed)) {
+            fpsr |= FPSR_AEXP_UNFL;
+        }
+        if (flags & float_flag_divbyzero) {
+            fpsr |= FPSR_AEXP_DZ;
+        }
+        if (flags & float_flag_inexact) {
+            fpsr |= FPSR_AEXC_INEX;
+        }
     }
-    if (target_bits & FPSR_AEXP_OVFL) {
-        host_bits |= float_flag_overflow;
-    }
-    if (target_bits & FPSR_AEXP_UNFL) {
-        host_bits |= float_flag_underflow;
-    }
-    if (target_bits & FPSR_AEXP_DZ) {
-        host_bits |= float_flag_divbyzero;
-    }
-    if (target_bits & FPSR_AEXC_INEX) {
-        host_bits |= float_flag_inexact;
-    }
-    return host_bits;
-}
-
-uint32_t cpu_m68k_get_fpsr(CPUM68KState *env)
-{
-    int host_flags = get_float_exception_flags(&env->fp_status);
-    int target_flags = cpu_m68k_exceptbits_from_host(host_flags);
-    int except = (env->fpsr & ~FPSR_AEXC_MASK) | target_flags;
-    return except;
-}
-
-uint32_t HELPER(get_fpsr)(CPUM68KState *env)
-{
-    return cpu_m68k_get_fpsr(env);
-}
-
-void cpu_m68k_set_fpsr(CPUM68KState *env, uint32_t val)
-{
-    env->fpsr = val;
-
-    int host_flags = cpu_m68k_exceptbits_to_host((int) env->fpsr);
-    set_float_exception_flags(host_flags, &env->fp_status);
-}
-
-void HELPER(set_fpsr)(CPUM68KState *env, uint32_t val)
-{
-    cpu_m68k_set_fpsr(env, val);
+    env->fpsr = fpsr;
 }
 
 #define PREC_BEGIN(prec)                                        \
@@ -441,12 +399,12 @@ void HELPER(fcmp)(CPUM68KState *env, FPReg *val0, FPReg *val1)
     FloatRelation float_compare;
 
     float_compare = floatx80_compare(val1->d, val0->d, &env->fp_status);
-    env->fpsr = (env->fpsr & ~FPSR_CC_MASK) | float_comp_to_cc(float_compare);
+    update_fpsr(env, float_comp_to_cc(float_compare));
 }
 
 void HELPER(ftst)(CPUM68KState *env, FPReg *val)
 {
-    uint32_t cc = 0;
+    int cc = 0;
 
     if (floatx80_is_neg(val->d)) {
         cc |= FPSR_CC_N;
@@ -459,7 +417,7 @@ void HELPER(ftst)(CPUM68KState *env, FPReg *val)
     } else if (floatx80_is_zero(val->d)) {
         cc |= FPSR_CC_Z;
     }
-    env->fpsr = (env->fpsr & ~FPSR_CC_MASK) | cc;
+    update_fpsr(env, cc);
 }
 
 void HELPER(fconst)(CPUM68KState *env, FPReg *val, uint32_t offset)
