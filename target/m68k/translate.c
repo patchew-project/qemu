@@ -1012,9 +1012,8 @@ static void gen_ldst_fp(DisasContext *s, int opsize, TCGv addr,
     }
 }
 
-static int gen_ea_mode_fp(CPUM68KState *env, DisasContext *s, int mode,
-                          int reg0, int opsize, TCGv_ptr fp, ea_what what,
-                          int index)
+static int gen_ea_mode_fp(DisasContext *s, int mode, int reg0, int opsize,
+                          TCGv_ptr fp, ea_what what, int index)
 {
     TCGv reg, addr, tmp;
     TCGv_i64 t64;
@@ -1059,23 +1058,23 @@ static int gen_ea_mode_fp(CPUM68KState *env, DisasContext *s, int mode,
         if (reg0 == 4 && what != EA_STORE) {
             switch (opsize) {
             case OS_BYTE:
-                tmp = tcg_constant_i32((int8_t)read_im8(env, s));
+                tmp = tcg_constant_i32((int8_t)read_im8(s->env, s));
                 gen_helper_exts32(tcg_env, fp, tmp);
                 break;
             case OS_WORD:
-                tmp = tcg_constant_i32((int16_t)read_im16(env, s));
+                tmp = tcg_constant_i32((int16_t)read_im16(s->env, s));
                 gen_helper_exts32(tcg_env, fp, tmp);
                 break;
             case OS_LONG:
-                tmp = tcg_constant_i32(read_im32(env, s));
+                tmp = tcg_constant_i32(read_im32(s->env, s));
                 gen_helper_exts32(tcg_env, fp, tmp);
                 break;
             case OS_SINGLE:
-                tmp = tcg_constant_i32(read_im32(env, s));
+                tmp = tcg_constant_i32(read_im32(s->env, s));
                 gen_helper_extf32(tcg_env, fp, tmp);
                 break;
             case OS_DOUBLE:
-                t64 = tcg_constant_i64(read_im64(env, s));
+                t64 = tcg_constant_i64(read_im64(s->env, s));
                 gen_helper_extf64(tcg_env, fp, t64);
                 break;
             case OS_EXTENDED:
@@ -1083,9 +1082,9 @@ static int gen_ea_mode_fp(CPUM68KState *env, DisasContext *s, int mode,
                     gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
                     break;
                 }
-                tmp = tcg_constant_i32(read_im32(env, s) >> 16);
+                tmp = tcg_constant_i32(read_im32(s->env, s) >> 16);
                 tcg_gen_st16_i32(tmp, fp, offsetof(FPReg, l.upper));
-                t64 = tcg_constant_i64(read_im64(env, s));
+                t64 = tcg_constant_i64(read_im64(s->env, s));
                 tcg_gen_st_i64(t64, fp, offsetof(FPReg, l.lower));
                 break;
             case OS_PACKED:
@@ -1122,7 +1121,7 @@ static int gen_ea_fp(CPUM68KState *env, DisasContext *s, uint16_t insn,
 {
     int mode = extract32(insn, 3, 3);
     int reg0 = REG(insn, 0);
-    return gen_ea_mode_fp(env, s, mode, reg0, opsize, fp, what, index);
+    return gen_ea_mode_fp(s, mode, reg0, opsize, fp, what, index);
 }
 
 typedef struct {
