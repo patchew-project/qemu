@@ -648,6 +648,7 @@ static inline int ext_opsize(int ext, int pos)
     case 4: return OS_WORD;
     case 5: return OS_DOUBLE;
     case 6: return OS_BYTE;
+    case 7: return OS_PACKED; /* store, dynamic k-factor */
     default:
         g_assert_not_reached();
     }
@@ -967,11 +968,13 @@ static bool gen_load_fp(DisasContext *s, uint16_t insn, int opsize,
                 tcg_gen_st_i64(t64, fp, offsetof(FPReg, l.lower));
                 break;
             case OS_PACKED:
-                /*
-                 * unimplemented data type on 68040/ColdFire
-                 * FIXME if needed for another FPU
-                 */
-                gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+                if (!m68k_feature(s->env, M68K_FEATURE_FPU_PACKED_DECIMAL)) {
+                    gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+                    break;
+                }
+                tmp = tcg_constant_tl(s->pc);
+                s->pc += 12;
+                gen_helper_load_pdr_to_fx80(tcg_env, fp, tmp);
                 break;
             default:
                 g_assert_not_reached();
@@ -1029,20 +1032,20 @@ static bool gen_load_fp(DisasContext *s, uint16_t insn, int opsize,
         tcg_gen_st_i64(t64, fp, offsetof(FPReg, l.lower));
         break;
     case OS_PACKED:
-        /*
-         * unimplemented data type on 68040/ColdFire
-         * FIXME if needed for another FPU
-         */
-        gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
-        return false;
+        if (!m68k_feature(s->env, M68K_FEATURE_FPU_PACKED_DECIMAL)) {
+            gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+            return false;
+        }
+        gen_helper_load_pdr_to_fx80(tcg_env, fp, addr);
+        break;
     default:
         g_assert_not_reached();
     }
     return true;
 }
 
-static bool gen_store_fp(DisasContext *s, uint16_t insn, int opsize,
-                         TCGv_ptr fp, int index)
+static bool gen_store_fp(DisasContext *s, uint16_t insn, uint16_t ext,
+                         int opsize, TCGv_ptr fp, int index)
 {
     int mode = extract32(insn, 3, 3);
     int reg0 = REG(insn, 0);
@@ -1120,12 +1123,27 @@ static bool gen_store_fp(DisasContext *s, uint16_t insn, int opsize,
         tcg_gen_qemu_st_i64(t64, addr, index, MO_TEUQ);
         break;
     case OS_PACKED:
+        if (!m68k_feature(s->env, M68K_FEATURE_FPU_PACKED_DECIMAL)) {
+            gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
+            return false;
+        }
         /*
-         * unimplemented data type on 68040/ColdFire
-         * FIXME if needed for another FPU
+         * For stores we must recover k-factor, either from an
+         * immediate or the low 7 bits of a D register.
          */
-        gen_exception(s, s->base.pc_next, EXCP_FP_UNIMP);
-        return false;
+        switch ((ext >> 10) & 7) {
+        case 3:
+            tmp = tcg_constant_i32(sextract32(ext, 0, 7));
+            break;
+        case 7:
+            tmp = tcg_temp_new();
+            tcg_gen_sextract_i32(tmp, DREG(ext, 4), 0, 7);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        gen_helper_store_fx80_to_pdr(tcg_env, addr, fp, tmp);
+        break;
     default:
         g_assert_not_reached();
     }
@@ -4870,6 +4888,7 @@ DISAS_INSN(fpu)
     TCGv_ptr cpu_src, cpu_dest;
 
     ext = read_im16(env, s);
+
     opmode = ext & 0x7f;
     switch ((ext >> 13) & 7) {
     case 0:
@@ -4888,7 +4907,7 @@ DISAS_INSN(fpu)
     case 3: /* fmove out */
         cpu_src = gen_fp_ptr(REG(ext, 7));
         opsize = ext_opsize(ext, 10);
-        if (gen_store_fp(s, insn, opsize, cpu_src, IS_USER(s))) {
+        if (gen_store_fp(s, insn, ext, opsize, cpu_src, IS_USER(s))) {
             gen_helper_ftst(tcg_env, cpu_src);
         }
         return;

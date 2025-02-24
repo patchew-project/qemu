@@ -192,6 +192,13 @@ static void update_fpsr(CPUM68KState *env, int cc)
             fpsr |= FPSR_EXC_INEX2 | FPSR_AEXC_INEX;
         }
     }
+
+    /* Incorporate packed decimal real inexact conversion. */
+    if (env->fpsr_inex1) {
+        env->fpsr_inex1 = false;
+        fpsr |= FPSR_EXC_INEX1 | FPSR_AEXC_INEX;
+    }
+
     env->fpsr = fpsr;
 }
 
@@ -707,4 +714,234 @@ void HELPER(fsinh)(CPUM68KState *env, FPReg *res, FPReg *val)
 void HELPER(fcosh)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_cosh(val->d, &env->fp_status);
+}
+
+static const floatx80 floatx80_pow10[] = {
+#include "floatx80-pow10.c.inc"
+};
+
+static floatx80 floatx80_scale10i(floatx80 x, int e, float_status *status)
+{
+    if (e == 0) {
+        return x;
+    }
+    if (e < 0) {
+        e = -e;
+        assert(e < ARRAY_SIZE(floatx80_pow10));
+        return floatx80_div(x, floatx80_pow10[e], status);
+    } else if (e < ARRAY_SIZE(floatx80_pow10)) {
+        return floatx80_mul(x, floatx80_pow10[e], status);
+    } else {
+        /*
+         * Because of denormals, we may need to scale up more than
+         * is possible with one multiplication.  Do the best we can.
+         */
+        int e0 = ARRAY_SIZE(floatx80_pow10) - 1;
+        int e1 = e - e0;
+        x = floatx80_mul(x, floatx80_pow10[e0], status);
+        return floatx80_mul(x, floatx80_pow10[e1], status);
+    }
+}
+
+void HELPER(load_pdr_to_fx80)(CPUM68KState *env, FPReg *res, target_ulong addr)
+{
+    float_status status;
+    uint64_t lo;
+    uint32_t hi;
+    int64_t mant;
+    int exp;
+    floatx80 t;
+
+    hi = cpu_ldl_be_data_ra(env, addr, GETPC());
+    lo = cpu_ldq_be_data_ra(env, addr + 4, GETPC());
+
+    if (unlikely((hi & 0x7fff0000) == 0x7fff0000)) {
+        /* NaN or Inf */
+        res->l.lower = lo;
+        res->l.upper = hi >> 16;
+        return;
+    }
+
+    /* Initialize mant with the integer digit. */
+    mant = hi & 0xf;
+    if (!mant && !lo) {
+        /* +/- 0, regardless of exponent. */
+        res->l.lower = 0;
+        res->l.upper = (hi >> 16) & 0x8000;
+        return;
+    }
+
+    /*
+     * Accumulate the 16 decimal fraction digits into mant.
+     * With 17 decimal digits, the maximum value is 10**17 - 1,
+     * which is less than 2**57.
+     */
+    for (int i = 60; i >= 0; i -= 4) {
+        /*
+         * From 1.6.6 Data Format and Type Summary:
+         * The fpu does not detect non-decimal digits in any of the exponent,
+         * integer, or fraction digits.  These non-decimal digits are converted
+         * in the same manner as decimal digits; the result is probably useless
+         * although it is repeatable.
+         */
+        mant = mant * 10 + ((lo >> i) & 0xf);
+    }
+
+    /* Apply the mantissa sign. */
+    if (hi & 0x80000000) {
+        mant = -mant;
+    }
+
+    /* Convert the 3 digit decimal exponent to binary. */
+    exp = ((hi >> 24) & 0xf)
+        + ((hi >> 20) & 0xf) * 10
+        + ((hi >> 16) & 0xf) * 100;
+
+    /* Apply the exponent sign. */
+    if (hi & 0x40000000) {
+        exp = -exp;
+    }
+
+    /*
+     * Our representation of mant is integral, whereas the decimal point
+     * belongs between the integer and fractional components.
+     * Adjust the exponent to compensate.
+     */
+    exp -= 16;
+
+    status = env->fp_status;
+    set_floatx80_rounding_precision(floatx80_precision_x, &status);
+    set_float_exception_flags(0, &status);
+
+    /* Convert mantissa and apply exponent. */
+    t = int64_to_floatx80(mant, &status),
+    res->d = floatx80_scale10i(t, exp, &status);
+
+    /*
+     * The only exception bit that is relevant is inexact.
+     * All of the rest will be collected from the result.
+     */
+    env->fpsr_inex1 = get_float_exception_flags(&status) & float_flag_inexact;
+}
+
+#define KFACTOR_MIN  1
+#define KFACTOR_MAX  17
+
+void HELPER(store_fx80_to_pdr)(CPUM68KState *env, target_ulong addr,
+                               FPReg *srcp, int kfactor)
+{
+    /* 10**0 through 10**17 */
+    static const int64_t i64_pow10[KFACTOR_MAX + 1] = {
+        1ll,
+        10ll,
+        100ll,
+        1000ll,
+        10000ll,
+        100000ll,
+        1000000ll,
+        10000000ll,
+        100000000ll,
+        1000000000ll,
+        10000000000ll,
+        100000000000ll,
+        1000000000000ll,
+        10000000000000ll,
+        100000000000000ll,
+        1000000000000000ll,
+        10000000000000000ll,
+        100000000000000000ll,
+    };
+
+    float_status status;
+    floatx80 x = srcp->d;
+    int len, exp2, exp10;
+    uint64_t res_lo;
+    uint32_t res_hi;
+    int64_t y;
+
+    res_lo = x.low;
+    exp2 = x.high & 0x7fff;
+    if (unlikely(exp2 == 0x7fff)) {
+        /* NaN and Inf */
+        res_hi = (uint32_t)x.high << 16;
+        goto done;
+    }
+
+    /* Copy the sign bit to the output, and then x = abs(x). */
+    res_hi = (x.high & 0x8000u) << 16;
+    x.high &= 0x7fff;
+
+    if (exp2 == 0) {
+        if (res_lo == 0) {
+            /* +/- 0 */
+            goto done;
+        }
+        /* denormal */
+        exp2 = -0x3fff - clz64(res_lo);
+    } else {
+        exp2 -= 0x3fff;
+    }
+
+    status = env->fp_status;
+    set_floatx80_rounding_precision(floatx80_precision_x, &status);
+
+    /*
+     * Begin with an approximation of log2(x) via the base 2 exponent.
+     * Scale, such that the value is integral in the number of digits
+     * we wish to extract.
+     */
+    exp10 = (exp2 * 30102) / 100000;
+    while (1) {
+        floatx80 t;
+
+        /* kfactor controls the number of output digits */
+        if (kfactor <= 0) {
+            /* kfactor is number of digits right of the decimal point. */
+            len = exp10 - kfactor;
+        } else {
+            /* kfactor is number of significant digits */
+            len = kfactor;
+        }
+        len = MIN(MAX(len, KFACTOR_MIN), KFACTOR_MAX);
+
+        /*
+         * Scale, so that we have the requested number of digits
+         * left of the decimal point.  Convert to integer, which
+         * handles the rounding (and may force adjustment of exp10).
+         */
+        set_float_exception_flags(0, &status);
+        t = floatx80_scale10i(x, len - 1 - exp10, &status);
+        y = floatx80_to_int64(t, &status);
+        if (y < i64_pow10[len - 1]) {
+            exp10--;
+        } else if (y < i64_pow10[len]) {
+            break;
+        } else {
+            exp10++;
+        }
+    }
+
+    /* The only exception bit that is relevant is inexact. */
+    env->fpsr_inex1 = get_float_exception_flags(&status) & float_flag_inexact;
+
+    /* Output the mantissa. */
+    res_hi |= y / i64_pow10[len - 1];
+    res_lo = 0;
+    for (int i = 1; i < len; ++i) {
+        int64_t d = (y / i64_pow10[len - 1 - i]) % 10;
+        res_lo |= d << (64 - i * 4);
+    }
+
+    /* Output the exponent. */
+    if (exp10 < 0) {
+        res_hi |= 0x40000000;
+        exp10 = -exp10;
+    }
+    for (int i = 24; exp10; i -= 4, exp10 /= 10) {
+        res_hi |= (exp10 % 10) << i;
+    }
+
+ done:
+    cpu_stl_be_data_ra(env, addr, res_hi, GETPC());
+    cpu_stq_be_data_ra(env, addr + 4, res_lo, GETPC());
 }
