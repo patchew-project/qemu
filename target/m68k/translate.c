@@ -694,8 +694,7 @@ static int addr_inc_size(DisasContext *s, int reg0, int opsize)
 /*
  * Generate code for an "effective address".
  */
-static TCGv gen_lea_mode(CPUM68KState *env, DisasContext *s,
-                         int mode, int reg0, int opsize)
+static TCGv gen_lea_mode(DisasContext *s, int mode, int reg0, int opsize)
 {
     TCGv reg, addr, tmp;
     uint16_t ext;
@@ -733,7 +732,7 @@ static TCGv gen_lea_mode(CPUM68KState *env, DisasContext *s,
     case 5: /* Indirect displacement.  */
         reg = get_areg(s, reg0);
         addr = tcg_temp_new();
-        ext = read_im16(env, s);
+        ext = read_im16(s->env, s);
         tcg_gen_addi_i32(addr, reg, (int16_t)ext);
         return addr;
     case 6: /* Indirect index + displacement.  */
@@ -742,14 +741,14 @@ static TCGv gen_lea_mode(CPUM68KState *env, DisasContext *s,
     case 7: /* Other */
         switch (reg0) {
         case 0: /* Absolute short.  */
-            offset = (int16_t)read_im16(env, s);
+            offset = (int16_t)read_im16(s->env, s);
             break;
         case 1: /* Absolute long.  */
-            offset = read_im32(env, s);
+            offset = read_im32(s->env, s);
             break;
         case 2: /* pc displacement  */
             offset = s->pc;
-            offset += (int16_t)read_im16(env, s);
+            offset += (int16_t)read_im16(s->env, s);
             break;
         case 3: /* pc index+displacement.  */
             return gen_lea_indexed(s, NULL_QREG);
@@ -769,7 +768,7 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
 {
     int mode = extract32(insn, 3, 3);
     int reg0 = REG(insn, 0);
-    return gen_lea_mode(env, s, mode, reg0, opsize);
+    return gen_lea_mode(s, mode, reg0, opsize);
 }
 
 /*
@@ -827,7 +826,7 @@ static TCGv gen_load_mode(CPUM68KState *env, DisasContext *s,
     case 4: /* Indirect predecrememnt.  */
     case 5: /* Indirect displacement.  */
     case 6: /* Indirect index + displacement.  */
-        addr = gen_lea_mode(env, s, mode, reg0, opsize);
+        addr = gen_lea_mode(s, mode, reg0, opsize);
         if (IS_NULL_QREG(addr)) {
             ret = addr;
             addr = NULL;
@@ -870,7 +869,7 @@ static bool gen_store_mode(CPUM68KState *env, DisasContext *s,
     case 6: /* Indirect index + displacement.  */
     case 7: /* Other */
         if (!addr) {
-            addr = gen_lea_mode(env, s, mode, reg0, opsize);
+            addr = gen_lea_mode(s, mode, reg0, opsize);
             if (IS_NULL_QREG(addr)) {
                 return false;
             }
@@ -1110,7 +1109,7 @@ static int gen_ea_mode_fp(CPUM68KState *env, DisasContext *s, int mode,
     case 4: /* Indirect predecrememnt.  */
     case 5: /* Indirect displacement.  */
     case 6: /* Indirect index + displacement.  */
-        addr = gen_lea_mode(env, s, mode, reg0, opsize);
+        addr = gen_lea_mode(s, mode, reg0, opsize);
         if (IS_NULL_QREG(addr)) {
             return -1;
         }
@@ -1931,7 +1930,7 @@ DISAS_INSN(movem)
         break;
 
     default:
-        tmp = gen_lea_mode(env, s, mode, reg0, opsize);
+        tmp = gen_lea_mode(s, mode, reg0, opsize);
         if (IS_NULL_QREG(tmp)) {
             goto do_addr_fault;
         }
@@ -2673,7 +2672,7 @@ DISAS_INSN(tas)
     } else {
         TCGv src1, addr;
 
-        addr = gen_lea_mode(env, s, mode, reg0, OS_BYTE);
+        addr = gen_lea_mode(s, mode, reg0, OS_BYTE);
         if (IS_NULL_QREG(addr)) {
             gen_addr_fault(s);
             return;
