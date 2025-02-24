@@ -330,12 +330,6 @@ static inline void gen_store(DisasContext *s, int opsize, TCGv addr, TCGv val,
     }
 }
 
-typedef enum {
-    EA_STORE,
-    EA_LOADU,
-    EA_LOADS
-} ea_what;
-
 /* Read a 16-bit immediate constant */
 static inline uint16_t read_im16(CPUM68KState *env, DisasContext *s)
 {
@@ -1002,60 +996,38 @@ static void gen_store_fp(DisasContext *s, int opsize, TCGv addr, TCGv_ptr fp,
     }
 }
 
-static void gen_ldst_fp(DisasContext *s, int opsize, TCGv addr,
-                        TCGv_ptr fp, ea_what what, int index)
+static bool gen_load_mode_fp(DisasContext *s, uint16_t insn, int opsize,
+                             TCGv_ptr fp, int index)
 {
-    if (what == EA_STORE) {
-        gen_store_fp(s, opsize, addr, fp, index);
-    } else {
-        gen_load_fp(s, opsize, addr, fp, index);
-    }
-}
-
-static int gen_ea_mode_fp(DisasContext *s, int mode, int reg0, int opsize,
-                          TCGv_ptr fp, ea_what what, int index)
-{
+    int mode = extract32(insn, 3, 3);
+    int reg0 = REG(insn, 0);
     TCGv reg, addr, tmp;
     TCGv_i64 t64;
 
     switch (mode) {
     case 0: /* Data register direct.  */
         reg = cpu_dregs[reg0];
-        if (what == EA_STORE) {
-            switch (opsize) {
-            case OS_BYTE:
-            case OS_WORD:
-            case OS_LONG:
-                gen_helper_reds32(reg, tcg_env, fp);
-                break;
-            case OS_SINGLE:
-                gen_helper_redf32(reg, tcg_env, fp);
-                break;
-            default:
-                g_assert_not_reached();
-            }
-        } else {
-            tmp = tcg_temp_new();
-            switch (opsize) {
-            case OS_BYTE:
-            case OS_WORD:
-            case OS_LONG:
-                tcg_gen_ext_i32(tmp, reg, opsize | MO_SIGN);
-                gen_helper_exts32(tcg_env, fp, tmp);
-                break;
-            case OS_SINGLE:
-                gen_helper_extf32(tcg_env, fp, reg);
-                break;
-            default:
-                g_assert_not_reached();
-            }
+        tmp = tcg_temp_new();
+        switch (opsize) {
+        case OS_BYTE:
+        case OS_WORD:
+        case OS_LONG:
+            tcg_gen_ext_i32(tmp, reg, opsize | MO_SIGN);
+            gen_helper_exts32(tcg_env, fp, tmp);
+            break;
+        case OS_SINGLE:
+            gen_helper_extf32(tcg_env, fp, reg);
+            break;
+        default:
+            g_assert_not_reached();
         }
-        return 0;
+        return true;
+
     case 1: /* Address register direct.  */
-        return -1;
+        return false;
 
     case 7: /* Other */
-        if (reg0 == 4 && what != EA_STORE) {
+        if (reg0 == 4) {
             switch (opsize) {
             case OS_BYTE:
                 tmp = tcg_constant_i32((int8_t)read_im8(s->env, s));
@@ -1097,7 +1069,7 @@ static int gen_ea_mode_fp(DisasContext *s, int mode, int reg0, int opsize,
             default:
                 g_assert_not_reached();
             }
-            return 0;
+            return true;
         }
         /* fall through */
 
@@ -1108,20 +1080,55 @@ static int gen_ea_mode_fp(DisasContext *s, int mode, int reg0, int opsize,
     case 6: /* Indirect index + displacement.  */
         addr = gen_lea_mode(s, mode, reg0, opsize);
         if (IS_NULL_QREG(addr)) {
-            return -1;
+            return false;
         }
-        gen_ldst_fp(s, opsize, addr, fp, what, index);
-        return 0;
+        gen_load_fp(s, opsize, addr, fp, index);
+        return true;
     }
     g_assert_not_reached();
 }
 
-static int gen_ea_fp(CPUM68KState *env, DisasContext *s, uint16_t insn,
-                       int opsize, TCGv_ptr fp, ea_what what, int index)
+static bool gen_store_mode_fp(DisasContext *s, uint16_t insn, int opsize,
+                              TCGv_ptr fp, int index)
 {
     int mode = extract32(insn, 3, 3);
     int reg0 = REG(insn, 0);
-    return gen_ea_mode_fp(s, mode, reg0, opsize, fp, what, index);
+    TCGv reg, addr;
+
+    switch (mode) {
+    case 0: /* Data register direct.  */
+        reg = cpu_dregs[reg0];
+        switch (opsize) {
+        case OS_BYTE:
+        case OS_WORD:
+        case OS_LONG:
+            gen_helper_reds32(reg, tcg_env, fp);
+            break;
+        case OS_SINGLE:
+            gen_helper_redf32(reg, tcg_env, fp);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        return true;
+
+    case 1: /* Address register direct.  */
+        return false;
+
+    case 2: /* Indirect register */
+    case 3: /* Indirect postincrement.  */
+    case 4: /* Indirect predecrememnt.  */
+    case 5: /* Indirect displacement.  */
+    case 6: /* Indirect index + displacement.  */
+    case 7: /* Other */
+        addr = gen_lea_mode(s, mode, reg0, opsize);
+        if (IS_NULL_QREG(addr)) {
+            return false;
+        }
+        gen_store_fp(s, opsize, addr, fp, index);
+        return true;
+    }
+    g_assert_not_reached();
 }
 
 typedef struct {
@@ -4880,8 +4887,7 @@ DISAS_INSN(fpu)
     case 3: /* fmove out */
         cpu_src = gen_fp_ptr(REG(ext, 7));
         opsize = ext_opsize(ext, 10);
-        if (gen_ea_fp(env, s, insn, opsize, cpu_src,
-                      EA_STORE, IS_USER(s)) == -1) {
+        if (!gen_store_mode_fp(s, insn, opsize, cpu_src, IS_USER(s))) {
             gen_addr_fault(s);
         }
         gen_helper_ftst(tcg_env, cpu_src);
@@ -4902,8 +4908,7 @@ DISAS_INSN(fpu)
         /* Source effective address.  */
         opsize = ext_opsize(ext, 10);
         cpu_src = gen_fp_result_ptr();
-        if (gen_ea_fp(env, s, insn, opsize, cpu_src,
-                      EA_LOADS, IS_USER(s)) == -1) {
+        if (!gen_load_mode_fp(s, insn, opsize, cpu_src, IS_USER(s))) {
             gen_addr_fault(s);
             return;
         }
