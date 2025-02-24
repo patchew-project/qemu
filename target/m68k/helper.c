@@ -47,8 +47,8 @@ static int cf_fpu_gdb_get_reg(CPUState *cs, GByteArray *mem_buf, int n)
         return gdb_get_reg32(mem_buf, env->fpcr);
     case 9: /* fpstatus */
         return gdb_get_reg32(mem_buf, env->fpsr);
-    case 10: /* fpiar, not implemented */
-        return gdb_get_reg32(mem_buf, 0);
+    case 10: /* fpiar */
+        return gdb_get_reg32(mem_buf, env->fpiar);
     }
     return 0;
 }
@@ -71,7 +71,8 @@ static int cf_fpu_gdb_set_reg(CPUState *cs, uint8_t *mem_buf, int n)
     case 9: /* fpstatus */
         env->fpsr = ldl_be_p(mem_buf);
         return 4;
-    case 10: /* fpiar, not implemented */
+    case 10: /* fpiar */
+        env->fpiar = ldl_p(mem_buf);
         return 4;
     }
     return 0;
@@ -93,8 +94,8 @@ static int m68k_fpu_gdb_get_reg(CPUState *cs, GByteArray *mem_buf, int n)
         return gdb_get_reg32(mem_buf, env->fpcr);
     case 9: /* fpstatus */
         return gdb_get_reg32(mem_buf, env->fpsr);
-    case 10: /* fpiar, not implemented */
-        return gdb_get_reg32(mem_buf, 0);
+    case 10: /* fpiar */
+        return gdb_get_reg32(mem_buf, env->fpiar);
     }
     return 0;
 }
@@ -116,7 +117,8 @@ static int m68k_fpu_gdb_set_reg(CPUState *cs, uint8_t *mem_buf, int n)
     case 9: /* fpstatus */
         env->fpsr = ldl_be_p(mem_buf);
         return 4;
-    case 10: /* fpiar, not implemented */
+    case 10: /* fpiar */
+        env->fpiar = ldl_p(mem_buf);
         return 4;
     }
     return 0;

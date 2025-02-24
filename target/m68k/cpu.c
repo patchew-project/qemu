@@ -470,6 +470,23 @@ static const VMStateDescription vmstate_freg = {
     }
 };
 
+static bool fpu_fpiar_needed(void *opaque)
+{
+    M68kCPU *s = opaque;
+    return s->env.fpiar != 0;
+}
+
+static const VMStateDescription vmstate_fpiar = {
+    .name = "cpu/fpu/fpiar",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = fpu_fpiar_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(env.fpiar, M68kCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int fpu_post_load(void *opaque, int version)
 {
     M68kCPU *s = opaque;
@@ -490,7 +507,11 @@ static const VMStateDescription vmstate_fpu = {
         VMSTATE_STRUCT_ARRAY(env.fregs, M68kCPU, 8, 0, vmstate_freg, FPReg),
         VMSTATE_STRUCT(env.fp_result, M68kCPU, 0, vmstate_freg, FPReg),
         VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_fpiar,
+        NULL
+    },
 };
 
 static bool cf_spregs_needed(void *opaque)
