@@ -480,6 +480,7 @@ static int fpu_post_load(void *opaque, int version)
 {
     M68kCPU *s = opaque;
 
+    cpu_m68k_set_fpcr(&s->env, s->env.fpcr);
     cpu_m68k_set_fpsr(&s->env, s->env.fpsr);
     return 0;
 }
