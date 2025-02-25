@@ -7284,9 +7284,6 @@ static void ppc_cpu_reset_hold(Object *obj, ResetType type)
     if (tcg_enabled()) {
         cpu_breakpoint_remove_all(cs, BP_CPU);
         cpu_watchpoint_remove_all(cs, BP_CPU);
-        if (env->mmu_model != POWERPC_MMU_REAL) {
-            ppc_tlb_invalidate_all(env);
-        }
         pmu_mmcr01a_updated(env);
     }
 
