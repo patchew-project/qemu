@@ -35,7 +35,7 @@ nbd_server_stop()
         read NBD_PID < "$nbd_pid_file"
         rm -f "$nbd_pid_file"
         if [ -n "$NBD_PID" ]; then
-            kill "$NBD_PID"
+            kill -9 "$NBD_PID"
         fi
     fi
     rm -f "$nbd_unix_socket" "$nbd_stderr_fifo"
