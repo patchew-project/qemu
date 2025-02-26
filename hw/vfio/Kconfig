@@ -19,7 +19,7 @@ config VFIO_PLATFORM
     bool
     default y
     select VFIO
-    depends on LINUX && PLATFORM_BUS
+    depends on LINUX && PLATFORM_BUS && AARCH64
 
 config VFIO_XGMAC
     bool
