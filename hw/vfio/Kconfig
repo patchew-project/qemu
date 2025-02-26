@@ -7,7 +7,7 @@ config VFIO_PCI
     default y
     select VFIO
     select EDID
-    depends on LINUX && PCI
+    depends on LINUX && PCI && (AARCH64 || PPC64 || X86_64 || S390X)
 
 config VFIO_CCW
     bool
