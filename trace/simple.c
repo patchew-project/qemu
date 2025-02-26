@@ -380,8 +380,22 @@ void st_print_trace_file_status(void)
 
 void st_flush_trace_buffer(void)
 {
-    flush_trace_file(true);
+    flush_trace_file(trace_writeout_enabled);
 }
+
+#ifndef _WIN32
+static void trace_thread_atfork(void)
+{
+    /*
+     * If we fork, the writer thread does not exist in the child, so
+     * make sure to allow st_flush_trace_buffer() to clean up correctly.
+     */
+    g_mutex_lock(&trace_lock);
+    trace_writeout_enabled = false;
+    g_cond_signal(&trace_empty_cond);
+    g_mutex_unlock(&trace_lock);
+}
+#endif
 
 /* Helper function to create a thread with signals blocked.  Use glib's
  * portable threads since QEMU abstractions cannot be used due to reentrancy in
@@ -396,6 +410,7 @@ static GThread *trace_thread_create(GThreadFunc fn)
 
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
+    pthread_atfork(NULL, NULL, trace_thread_atfork);
 #endif
 
     thread = g_thread_new("trace-thread", fn, NULL);
