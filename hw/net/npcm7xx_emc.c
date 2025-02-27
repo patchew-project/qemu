@@ -424,7 +424,12 @@ static bool emc_can_receive(NetClientState *nc)
 static bool emc_receive_filter1(NPCM7xxEMCState *emc, const uint8_t *buf,
                                 size_t len, const char **fail_reason)
 {
-    eth_pkt_types_e pkt_type = get_eth_packet_type(PKT_GET_ETH_HDR(buf));
+    struct eth_header eth_hdr = {};
+    eth_pkt_types_e pkt_type;
+
+    memcpy(&eth_hdr, PKT_GET_ETH_HDR(buf),
+           (sizeof(eth_hdr) > len) ? len : sizeof(eth_hdr));
+    pkt_type = get_eth_packet_type(&eth_hdr);
 
     switch (pkt_type) {
     case ETH_PKT_BCAST:
