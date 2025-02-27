@@ -989,12 +989,16 @@ static void ftgmac100_high_write(void *opaque, hwaddr addr,
 static int ftgmac100_filter(FTGMAC100State *s, const uint8_t *buf, size_t len)
 {
     unsigned mcast_idx;
+    struct eth_header eth_hdr = {};
 
     if (s->maccr & FTGMAC100_MACCR_RX_ALL) {
         return 1;
     }
 
-    switch (get_eth_packet_type(PKT_GET_ETH_HDR(buf))) {
+    memcpy(&eth_hdr, PKT_GET_ETH_HDR(buf),
+           (sizeof(eth_hdr) > len) ? len : sizeof(eth_hdr));
+
+    switch (get_eth_packet_type(&eth_hdr)) {
     case ETH_PKT_BCAST:
         if (!(s->maccr & FTGMAC100_MACCR_RX_BROADPKT)) {
             return 0;
@@ -1028,6 +1032,7 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
 {
     FTGMAC100State *s = FTGMAC100(qemu_get_nic_opaque(nc));
     FTGMAC100Desc bd;
+    struct eth_header eth_hdr = {};
     uint32_t flags = 0;
     uint64_t addr;
     uint32_t crc;
@@ -1036,7 +1041,11 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
     uint32_t buf_len;
     size_t size = len;
     uint32_t first = FTGMAC100_RXDES0_FRS;
-    uint16_t proto = be16_to_cpu(PKT_GET_ETH_HDR(buf)->h_proto);
+    uint16_t proto;
+
+    memcpy(&eth_hdr, PKT_GET_ETH_HDR(buf),
+           (sizeof(eth_hdr) > len) ? len : sizeof(eth_hdr));
+    proto = be16_to_cpu(eth_hdr.h_proto);
     int max_frame_size = ftgmac100_max_frame_size(s, proto);
 
     if ((s->maccr & (FTGMAC100_MACCR_RXDMA_EN | FTGMAC100_MACCR_RXMAC_EN))
@@ -1061,7 +1070,7 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
         flags |= FTGMAC100_RXDES0_FTL;
     }
 
-    switch (get_eth_packet_type(PKT_GET_ETH_HDR(buf))) {
+    switch (get_eth_packet_type(&eth_hdr)) {
     case ETH_PKT_BCAST:
         flags |= FTGMAC100_RXDES0_BROADCAST;
         break;
