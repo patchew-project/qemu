@@ -63,8 +63,8 @@ struct EduState {
 
 #define EDU_DMA_RUN             0x1
 #define EDU_DMA_DIR(cmd)        (((cmd) & 0x2) >> 1)
-# define EDU_DMA_FROM_PCI       0
-# define EDU_DMA_TO_PCI         1
+# define EDU_DMA_TO_PCI         0
+# define EDU_DMA_FROM_PCI       1
 #define EDU_DMA_IRQ             0x4
     struct dma_state {
         dma_addr_t src;
@@ -146,7 +146,7 @@ static void edu_dma_timer(void *opaque)
         return;
     }
 
-    if (EDU_DMA_DIR(edu->dma.cmd) == EDU_DMA_FROM_PCI) {
+    if (EDU_DMA_DIR(edu->dma.cmd) == EDU_DMA_TO_PCI) {
         uint64_t dst = edu->dma.dst;
         edu_check_range(dst, edu->dma.cnt, DMA_START, DMA_SIZE);
         dst -= DMA_START;
