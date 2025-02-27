@@ -5426,10 +5426,15 @@ static RISCVException rmw_seed(CPURISCVState *env, int csrno,
 {
     target_ulong rval;
 
-    rval = riscv_new_csr_seed(new_value, write_mask);
+    if (env->zkr_csr_is_read) {
+        rval = riscv_new_csr_seed(new_value, write_mask);
+    } else {
+        rval = SEED_OPST_BIST;
+    }
 
     if (ret_value) {
         *ret_value = rval;
+        env->zkr_csr_is_read = true;
     }
 
     return RISCV_EXCP_NONE;
