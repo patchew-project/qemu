@@ -187,7 +187,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
 {
     const char *key, *key_end, *val_end, *s, *end;
     size_t len;
-    char key_in_cur[128];
+    char key_in_cur[128] = {};
     QDict *cur;
     int ret;
     QObject *next;
