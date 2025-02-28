@@ -2263,6 +2263,9 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     virtio_pci_bus_new(&proxy->bus, sizeof(proxy->bus), proxy);
     if (k->realize) {
         k->realize(proxy, errp);
+        if (*errp) {
+            address_space_destroy(&proxy->modern_cfg_mem_as);
+        }
     }
 }
 
