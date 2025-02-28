@@ -258,16 +258,9 @@ void pc_system_firmware_init(PCMachineState *pcms,
     pc_system_flash_cleanup_unused(pcms);
 }
 
-void x86_firmware_configure(hwaddr gpa, void *ptr, int size)
+static void x86_firmware_configure_sev(hwaddr gpa, void *ptr, int size)
 {
     int ret;
-
-    /*
-     * OVMF places a GUIDed structures in the flash, so
-     * search for them
-     */
-    pc_system_parse_ovmf_flash(ptr, size);
-
     if (sev_enabled()) {
 
         /* Copy the SEV metadata table (if it exists) */
@@ -281,4 +274,21 @@ void x86_firmware_configure(hwaddr gpa, void *ptr, int size)
 
         sev_encrypt_flash(gpa, ptr, size, &error_fatal);
     }
+}
+
+void x86_firmware_configure(hwaddr gpa, void *ptr, int size)
+{
+    /*
+     * OVMF places a GUIDed structures in the flash, so
+     * search for them
+     */
+    pc_system_parse_ovmf_flash(ptr, size);
+    x86_firmware_configure_sev(gpa, ptr, size);
+}
+
+void x86_firmware_reconfigure(hwaddr gpa, void *ptr, int size)
+{
+    set_ovmf_flash_parsed_false();
+    pc_system_parse_ovmf_flash(ptr, size);
+    x86_firmware_configure_sev(gpa, ptr, size);
 }
