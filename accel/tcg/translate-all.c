@@ -267,7 +267,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
     tcg_insn_unit *gen_code_buf;
     int gen_code_size, search_size, max_insns;
     int64_t ti;
-    void *host_pc;
+    void *host_pc = NULL;
 
     assert_memory_lock();
     qemu_thread_jit_write();
