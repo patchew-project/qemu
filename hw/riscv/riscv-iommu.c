@@ -2645,7 +2645,13 @@ void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
 static int riscv_iommu_memory_region_index(IOMMUMemoryRegion *iommu_mr,
     MemTxAttrs attrs)
 {
-    return attrs.unspecified ? RISCV_IOMMU_NOPROCID : (int)attrs.pid;
+    RISCVIOMMUSpace *as = container_of(iommu_mr, RISCVIOMMUSpace, iova_mr);
+
+    /* Requesters must attach its device ID. */
+    g_assert(attrs.unspecified == 0);
+
+    as->devid = attrs.requester_id;
+    return attrs.pid;
 }
 
 static int riscv_iommu_memory_region_index_len(IOMMUMemoryRegion *iommu_mr)
