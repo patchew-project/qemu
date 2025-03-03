@@ -237,7 +237,7 @@ static void register_amr_sprs(CPUPPCState *env)
     spr_register_kvm_hv(env, SPR_AMR, "AMR",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_amr,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_generic, &spr_write_amr,
                      KVM_REG_PPC_AMR, 0);
     spr_register_kvm_hv(env, SPR_UAMOR, "UAMOR",
                      SPR_NOACCESS, SPR_NOACCESS,
@@ -258,7 +258,7 @@ static void register_iamr_sprs(CPUPPCState *env)
     spr_register_kvm_hv(env, SPR_IAMR, "IAMR",
                         SPR_NOACCESS, SPR_NOACCESS,
                         &spr_read_generic, &spr_write_iamr,
-                        &spr_read_generic, &spr_write_generic,
+                        &spr_read_generic, &spr_write_iamr,
                         KVM_REG_PPC_IAMR, 0);
 #endif /* !CONFIG_USER_ONLY */
 }

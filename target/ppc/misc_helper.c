@@ -169,6 +169,54 @@ void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 }
 
 #if defined(TARGET_PPC64)
+void helper_store_amr(CPUPPCState *env, target_ulong val)
+{
+    target_ulong old, new, mask;
+
+    if (FIELD_EX64(env->msr, MSR, PR)) {
+        mask = env->spr[SPR_UAMOR];
+    } else if (FIELD_EX64(env->msr, MSR, HV)) {
+        mask = (target_ulong)-1;
+    } else {
+        mask = env->spr[SPR_AMOR];
+    }
+
+    old = env->spr[SPR_AMR];
+    /* Replace controllable bits with those in val */
+    new = (old & ~mask) | (val & mask);
+
+    if (old != new) {
+        CPUState *cs = env_cpu(env);
+        env->spr[SPR_AMR] = new;
+        /* AMR is involved in MMU translations so must flush TLB */
+        tlb_flush(cs);
+    }
+}
+
+void helper_store_iamr(CPUPPCState *env, target_ulong val)
+{
+    target_ulong old, new, mask;
+
+    if (FIELD_EX64(env->msr, MSR, PR)) {
+        g_assert_not_reached(); /* mtIAMR is privileged */
+    } else if (FIELD_EX64(env->msr, MSR, HV)) {
+        mask = (target_ulong)-1;
+    } else {
+        mask = env->spr[SPR_AMOR];
+    }
+
+    old = env->spr[SPR_IAMR];
+    /* Replace controllable bits with those in val */
+    new = (old & ~mask) | (val & mask);
+
+    if (old != new) {
+        CPUState *cs = env_cpu(env);
+        env->spr[SPR_IAMR] = new;
+        /* IAMR is involved in MMU translations so must flush TLB */
+        tlb_flush(cs);
+    }
+}
+
 void helper_store_hrmor(CPUPPCState *env, target_ulong val)
 {
     if (env->spr[SPR_HRMOR] != val) {

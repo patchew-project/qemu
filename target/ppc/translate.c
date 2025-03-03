@@ -1092,33 +1092,7 @@ void spr_write_excp_vector(DisasContext *ctx, int sprn, int gprn)
 #ifndef CONFIG_USER_ONLY
 void spr_write_amr(DisasContext *ctx, int sprn, int gprn)
 {
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
-    TCGv t2 = tcg_temp_new();
-
-    /*
-     * Note, the HV=1 PR=0 case is handled earlier by simply using
-     * spr_write_generic for HV mode in the SPR table
-     */
-
-    /* Build insertion mask into t1 based on context */
-    if (ctx->pr) {
-        gen_load_spr(t1, SPR_UAMOR);
-    } else {
-        gen_load_spr(t1, SPR_AMOR);
-    }
-
-    /* Mask new bits into t2 */
-    tcg_gen_and_tl(t2, t1, cpu_gpr[gprn]);
-
-    /* Load AMR and clear new bits in t0 */
-    gen_load_spr(t0, SPR_AMR);
-    tcg_gen_andc_tl(t0, t0, t1);
-
-    /* Or'in new bits and write it out */
-    tcg_gen_or_tl(t0, t0, t2);
-    gen_store_spr(SPR_AMR, t0);
-    spr_store_dump_spr(SPR_AMR);
+    gen_helper_store_amr(tcg_env, cpu_gpr[gprn]);
 }
 
 void spr_write_uamor(DisasContext *ctx, int sprn, int gprn)
@@ -1150,29 +1124,7 @@ void spr_write_uamor(DisasContext *ctx, int sprn, int gprn)
 
 void spr_write_iamr(DisasContext *ctx, int sprn, int gprn)
 {
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
-    TCGv t2 = tcg_temp_new();
-
-    /*
-     * Note, the HV=1 case is handled earlier by simply using
-     * spr_write_generic for HV mode in the SPR table
-     */
-
-    /* Build insertion mask into t1 based on context */
-    gen_load_spr(t1, SPR_AMOR);
-
-    /* Mask new bits into t2 */
-    tcg_gen_and_tl(t2, t1, cpu_gpr[gprn]);
-
-    /* Load AMR and clear new bits in t0 */
-    gen_load_spr(t0, SPR_IAMR);
-    tcg_gen_andc_tl(t0, t0, t1);
-
-    /* Or'in new bits and write it out */
-    tcg_gen_or_tl(t0, t0, t2);
-    gen_store_spr(SPR_IAMR, t0);
-    spr_store_dump_spr(SPR_IAMR);
+    gen_helper_store_iamr(tcg_env, cpu_gpr[gprn]);
 }
 #endif
 #endif
