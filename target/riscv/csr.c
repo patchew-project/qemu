@@ -3399,6 +3399,10 @@ static RISCVException write_mstateen0(CPURISCVState *env, int csrno,
         wr_mask |= SMSTATEEN0_P1P13;
     }
 
+    if (riscv_cpu_cfg(env)->debug) {
+        wr_mask |= SMSTATEEN0_HSCONTXT;
+    }
+
     if (riscv_cpu_cfg(env)->ext_smaia || riscv_cpu_cfg(env)->ext_smcsrind) {
         wr_mask |= SMSTATEEN0_SVSLCT;
     }
@@ -5327,6 +5331,35 @@ static RISCVException write_mcontext(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException read_scontext(CPURISCVState *env, int csrno,
+                                    target_ulong *val)
+{
+    RISCVException ret = smstateen_acc_ok(env, 0, SMSTATEEN0_HSCONTXT);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    *val = env->scontext;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_scontext(CPURISCVState *env, int csrno,
+                                     target_ulong val)
+{
+    bool rv32 = riscv_cpu_mxl(env) == MXL_RV32 ? true : false;
+
+    RISCVException ret = smstateen_acc_ok(env, 0, SMSTATEEN0_HSCONTXT);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    /* Spec suggest 16-bit for RV32 and 34-bit for RV64 */
+    target_ulong mask = rv32 ? SCONTEXT32 : SCONTEXT64;
+
+    env->scontext = val & mask;
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_mnscratch(CPURISCVState *env, int csrno,
                                      target_ulong *val)
 {
@@ -5978,6 +6011,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* Supervisor-Level High-Half CSRs (AIA) */
     [CSR_SIEH]       = { "sieh",   aia_smode32, NULL, NULL, rmw_sieh },
     [CSR_SIPH]       = { "siph",   aia_smode32, NULL, NULL, rmw_siph },
+
+    /* Supervisor-Level Sdtrig CSRs (debug) */
+    [CSR_SCONTEXT]   = { "scontext", debug, read_scontext, write_scontext },
 
     [CSR_HSTATUS]     = { "hstatus",     hmode,   read_hstatus, write_hstatus,
                           .min_priv_ver = PRIV_VERSION_1_12_0                },

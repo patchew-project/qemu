@@ -258,6 +258,9 @@
 /* VS-Level Control transfer records CSRs */
 #define CSR_VSCTRCTL        0x24e
 
+/* Supervisor-Level Sdtrig CSRs (debug) */
+#define CSR_SCONTEXT        0x5a8
+
 /* Hpervisor CSRs */
 #define CSR_HSTATUS         0x600
 #define CSR_HEDELEG         0x602
@@ -1103,4 +1106,6 @@ typedef enum CTRType {
 #define MCONTEXT64                         0x0000000000001FFFULL
 #define MCONTEXT32_HCONTEXT                0x0000007F
 #define MCONTEXT64_HCONTEXT                0x0000000000003FFFULL
+#define SCONTEXT32                         0x0000FFFF
+#define SCONTEXT64                         0x00000000FFFFFFFFULL
 #endif

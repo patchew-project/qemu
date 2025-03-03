@@ -1083,4 +1083,5 @@ void riscv_trigger_reset_hold(CPURISCVState *env)
     }
 
     env->mcontext = 0;
+    env->scontext = 0;
 }
