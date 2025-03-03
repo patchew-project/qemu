@@ -5518,7 +5518,7 @@ static void register_book3s_ids_sprs(CPUPPCState *env)
     spr_register_hv(env, SPR_HRMOR, "HRMOR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_core_write_generic,
+                 &spr_read_generic, &spr_write_hrmor,
                  0x00000000);
 }
 

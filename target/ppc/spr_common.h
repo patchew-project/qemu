@@ -179,6 +179,7 @@ void spr_write_pidr(DisasContext *ctx, int sprn, int gprn);
 void spr_write_lpidr(DisasContext *ctx, int sprn, int gprn);
 void spr_read_hior(DisasContext *ctx, int gprn, int sprn);
 void spr_write_hior(DisasContext *ctx, int sprn, int gprn);
+void spr_write_hrmor(DisasContext *ctx, int sprn, int gprn);
 void spr_write_ptcr(DisasContext *ctx, int sprn, int gprn);
 void spr_write_pcr(DisasContext *ctx, int sprn, int gprn);
 void spr_read_dpdes(DisasContext *ctx, int gprn, int sprn);

@@ -169,6 +169,29 @@ void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 }
 
 #if defined(TARGET_PPC64)
+void helper_store_hrmor(CPUPPCState *env, target_ulong val)
+{
+    if (env->spr[SPR_HRMOR] != val) {
+        CPUState *cs = env_cpu(env);
+
+        qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, val);
+
+        if (ppc_cpu_lpar_single_threaded(cs)) {
+            env->spr[SPR_HRMOR] = val;
+            tlb_flush(cs);
+        } else {
+            CPUState *ccs;
+
+            THREAD_SIBLING_FOREACH(cs, ccs) {
+                PowerPCCPU *ccpu = POWERPC_CPU(ccs);
+                CPUPPCState *cenv = &ccpu->env;
+                cenv->spr[SPR_HRMOR] = val;
+                tlb_flush(ccs);
+            }
+        }
+    }
+}
+
 void helper_store_ptcr(CPUPPCState *env, target_ulong val)
 {
     if (env->spr[SPR_PTCR] != val) {

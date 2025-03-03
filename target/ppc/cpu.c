@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "cpu-models.h"
 #include "cpu-qom.h"
+#include "exec/exec-all.h"
 #include "exec/log.h"
 #include "exec/watchpoint.h"
 #include "fpu/softfloat-helpers.h"
@@ -101,6 +102,9 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
     env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
     /* The gtse bit affects hflags */
     hreg_compute_hflags(env);
+
+    /* Various untagged bits affect translation (e.g., TC, HR, etc). */
+    tlb_flush(env_cpu(env));
 
     ppc_maybe_interrupt(env);
 }

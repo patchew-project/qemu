@@ -921,6 +921,16 @@ void spr_write_hior(DisasContext *ctx, int sprn, int gprn)
     tcg_gen_andi_tl(t0, cpu_gpr[gprn], 0x3FFFFF00000ULL);
     tcg_gen_st_tl(t0, tcg_env, offsetof(CPUPPCState, excp_prefix));
 }
+
+void spr_write_hrmor(DisasContext *ctx, int sprn, int gprn)
+{
+    if (!gen_serialize_core(ctx)) {
+        return;
+    }
+
+    gen_helper_store_hrmor(tcg_env, cpu_gpr[gprn]);
+}
+
 void spr_write_ptcr(DisasContext *ctx, int sprn, int gprn)
 {
     if (!gen_serialize_core(ctx)) {
