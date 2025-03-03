@@ -2752,6 +2752,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
                             &perf,
                             backup->on_source_error,
                             backup->on_target_error,
+                            backup->has_on_cbw_error ? backup->on_cbw_error : ON_CBW_ERROR_BREAK_GUEST_WRITE,
                             job_flags, NULL, NULL, txn, errp);
     return job;
 }
