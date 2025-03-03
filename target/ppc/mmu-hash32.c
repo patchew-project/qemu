@@ -410,19 +410,20 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
 
     /* 8. Update PTE referenced and changed bits if necessary */
-
-    if (!(pte.pte1 & HPTE32_R_R)) {
-        ppc_hash32_set_r(cpu, pte_offset, pte.pte1);
-    }
-    if (!(pte.pte1 & HPTE32_R_C)) {
-        if (access_type == MMU_DATA_STORE) {
-            ppc_hash32_set_c(cpu, pte_offset, pte.pte1);
-        } else {
-            /*
-             * Treat the page as read-only for now, so that a later write
-             * will pass through this function again to set the C bit
-             */
-            prot &= ~PAGE_WRITE;
+    if (guest_visible) {
+        if (!(pte.pte1 & HPTE32_R_R)) {
+            ppc_hash32_set_r(cpu, pte_offset, pte.pte1);
+        }
+        if (!(pte.pte1 & HPTE32_R_C)) {
+            if (access_type == MMU_DATA_STORE) {
+                ppc_hash32_set_c(cpu, pte_offset, pte.pte1);
+            } else {
+                /*
+                 * Treat the page as read-only for now, so that a later write
+                 * will pass through this function again to set the C bit
+                 */
+                prot &= ~PAGE_WRITE;
+            }
         }
     }
     *protp = prot;

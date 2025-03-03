@@ -1183,19 +1183,20 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
 
     /* 6. Update PTE referenced and changed bits if necessary */
-
-    if (!(pte.pte1 & HPTE64_R_R)) {
-        ppc_hash64_set_r(cpu, ptex, pte.pte1);
-    }
-    if (!(pte.pte1 & HPTE64_R_C)) {
-        if (access_type == MMU_DATA_STORE) {
-            ppc_hash64_set_c(cpu, ptex, pte.pte1);
-        } else {
-            /*
-             * Treat the page as read-only for now, so that a later write
-             * will pass through this function again to set the C bit
-             */
-            prot &= ~PAGE_WRITE;
+    if (guest_visible) {
+        if (!(pte.pte1 & HPTE64_R_R)) {
+            ppc_hash64_set_r(cpu, ptex, pte.pte1);
+        }
+        if (!(pte.pte1 & HPTE64_R_C)) {
+            if (access_type == MMU_DATA_STORE) {
+                ppc_hash64_set_c(cpu, ptex, pte.pte1);
+            } else {
+                /*
+                 * Treat the page as read-only for now, so that a later write
+                 * will pass through this function again to set the C bit
+                 */
+                prot &= ~PAGE_WRITE;
+            }
         }
     }
 
