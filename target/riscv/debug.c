@@ -220,8 +220,8 @@ static inline void warn_always_zero_bit(target_ulong val, target_ulong mask,
 
 static target_ulong textra_validate(CPURISCVState *env, target_ulong tdata3)
 {
-    target_ulong mhvalue, mhselect;
-    target_ulong mhselect_new;
+    target_ulong mhvalue, mhselect, sbytemask, svalue, sselect;
+    target_ulong mhselect_new, sselect_new;
     target_ulong textra;
     const uint32_t mhselect_no_rvh[8] = { 0, 0, 0, 0, 4, 4, 4, 4 };
 
@@ -229,25 +229,17 @@ static target_ulong textra_validate(CPURISCVState *env, target_ulong tdata3)
     case MXL_RV32:
         mhvalue  = get_field(tdata3, TEXTRA32_MHVALUE);
         mhselect = get_field(tdata3, TEXTRA32_MHSELECT);
-        /* Validate unimplemented (always zero) bits */
-        warn_always_zero_bit(tdata3, (target_ulong)TEXTRA32_SBYTEMASK,
-                             "sbytemask");
-        warn_always_zero_bit(tdata3, (target_ulong)TEXTRA32_SVALUE,
-                             "svalue");
-        warn_always_zero_bit(tdata3, (target_ulong)TEXTRA32_SSELECT,
-                             "sselect");
+        sbytemask  = get_field(tdata3, TEXTRA32_SBYTEMASK);
+        svalue  = get_field(tdata3, TEXTRA32_SVALUE);
+        sselect = get_field(tdata3, TEXTRA32_SSELECT);
         break;
     case MXL_RV64:
     case MXL_RV128:
         mhvalue  = get_field(tdata3, TEXTRA64_MHVALUE);
         mhselect = get_field(tdata3, TEXTRA64_MHSELECT);
-        /* Validate unimplemented (always zero) bits */
-        warn_always_zero_bit(tdata3, (target_ulong)TEXTRA64_SBYTEMASK,
-                             "sbytemask");
-        warn_always_zero_bit(tdata3, (target_ulong)TEXTRA64_SVALUE,
-                             "svalue");
-        warn_always_zero_bit(tdata3, (target_ulong)TEXTRA64_SSELECT,
-                             "sselect");
+        sbytemask  = get_field(tdata3, TEXTRA64_SBYTEMASK);
+        svalue  = get_field(tdata3, TEXTRA64_SVALUE);
+        sselect = get_field(tdata3, TEXTRA64_SSELECT);
         break;
     default:
         g_assert_not_reached();
@@ -259,17 +251,34 @@ static target_ulong textra_validate(CPURISCVState *env, target_ulong tdata3)
         qemu_log_mask(LOG_UNIMP, "mhselect only supports 0 or 4 for now\n");
     }
 
+    /* Validate sselect. */
+    switch (sselect) {
+    case SSELECT_IGNORE:
+    case SSELECT_SCONTEXT:
+        sselect_new = sselect;
+        break;
+    default:
+        sselect_new = 0;
+        qemu_log_mask(LOG_UNIMP, "sselect only supports 0 or 1 for now\n");
+    }
+
     /* Write legal values into textra */
     textra = 0;
     switch (riscv_cpu_mxl(env)) {
     case MXL_RV32:
-        textra = set_field(textra, TEXTRA32_MHVALUE,  mhvalue);
-        textra = set_field(textra, TEXTRA32_MHSELECT, mhselect_new);
+        textra = set_field(textra, TEXTRA32_MHVALUE,   mhvalue);
+        textra = set_field(textra, TEXTRA32_MHSELECT,  mhselect_new);
+        textra = set_field(textra, TEXTRA32_SBYTEMASK, sbytemask);
+        textra = set_field(textra, TEXTRA32_SVALUE,    svalue);
+        textra = set_field(textra, TEXTRA32_SSELECT,   sselect_new);
         break;
     case MXL_RV64:
     case MXL_RV128:
-        textra = set_field(textra, TEXTRA64_MHVALUE,  mhvalue);
-        textra = set_field(textra, TEXTRA64_MHSELECT, mhselect_new);
+        textra = set_field(textra, TEXTRA64_MHVALUE,   mhvalue);
+        textra = set_field(textra, TEXTRA64_MHSELECT,  mhselect_new);
+        textra = set_field(textra, TEXTRA64_SBYTEMASK, sbytemask);
+        textra = set_field(textra, TEXTRA64_SVALUE,    svalue);
+        textra = set_field(textra, TEXTRA64_SSELECT,   sselect_new);
         break;
     default:
         g_assert_not_reached();
@@ -369,7 +378,7 @@ static bool trigger_textra_match(CPURISCVState *env, trigger_type_t type,
                                  int trigger_index)
 {
     target_ulong textra = env->tdata3[trigger_index];
-    target_ulong mhvalue, mhselect;
+    target_ulong mhvalue, mhselect, sbytemask, svalue, sselect;
 
     if (type < TRIGGER_TYPE_AD_MATCH || type > TRIGGER_TYPE_AD_MATCH6) {
         /* textra checking is only applicable when type is 2, 3, 4, 5, or 6 */
@@ -380,11 +389,17 @@ static bool trigger_textra_match(CPURISCVState *env, trigger_type_t type,
     case MXL_RV32:
         mhvalue  = get_field(textra, TEXTRA32_MHVALUE);
         mhselect = get_field(textra, TEXTRA32_MHSELECT);
+        sbytemask = get_field(textra, TEXTRA32_SBYTEMASK);
+        svalue = get_field(textra, TEXTRA32_SVALUE);
+        sselect = get_field(textra, TEXTRA32_SSELECT);
         break;
     case MXL_RV64:
     case MXL_RV128:
         mhvalue  = get_field(textra, TEXTRA64_MHVALUE);
         mhselect = get_field(textra, TEXTRA64_MHSELECT);
+        sbytemask  = get_field(textra, TEXTRA64_SBYTEMASK);
+        svalue  = get_field(textra, TEXTRA64_SVALUE);
+        sselect = get_field(textra, TEXTRA64_SSELECT);
         break;
     default:
         g_assert_not_reached();
@@ -397,6 +412,24 @@ static bool trigger_textra_match(CPURISCVState *env, trigger_type_t type,
     case MHSELECT_MCONTEXT:
         /* Match if the low bits of mcontext/hcontext equal mhvalue. */
         if (mhvalue != env->mcontext) {
+            return false;
+        }
+        break;
+    default:
+        break;
+    }
+
+    target_ulong svalue_mask = ((sbytemask & 1) * 0xFF) |
+        ((sbytemask & 2) * 0x7F80) | ((sbytemask & 4) * 0x3FC000) |
+        ((sbytemask & 8) * 0x1FE00000);
+
+    /* Check svalue and sselect. */
+    switch (sselect) {
+    case SSELECT_IGNORE:
+        break;
+    case SSELECT_SCONTEXT:
+        /* Match if the low bits of scontext equal svalue. */
+        if ((svalue & svalue_mask) != (env->scontext & svalue_mask)) {
             return false;
         }
         break;

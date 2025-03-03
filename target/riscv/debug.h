@@ -134,6 +134,9 @@ enum {
 #define MHSELECT_IGNORE       0
 #define MHSELECT_MCONTEXT     4
 
+#define SSELECT_IGNORE        0
+#define SSELECT_SCONTEXT      1
+
 bool tdata_available(CPURISCVState *env, int tdata_index);
 
 target_ulong tselect_csr_read(CPURISCVState *env);
