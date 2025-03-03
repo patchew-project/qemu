@@ -473,12 +473,24 @@ void helper_store_pmcr(CPUPPCState *env, target_ulong val)
 
 void helper_store_pidr(CPUPPCState *env, target_ulong val)
 {
+    if (env->spr[SPR_BOOKS_PID] == (uint32_t)val) {
+        return;
+    }
+
     env->spr[SPR_BOOKS_PID] = (uint32_t)val;
-    tlb_flush(env_cpu(env));
+
+    if (env->spr[SPR_LPCR] & LPCR_HR) {
+        /* PID is only relevant to CPU translations when LPCR[HR]=1 */
+        tlb_flush(env_cpu(env));
+    }
 }
 
 void helper_store_lpidr(CPUPPCState *env, target_ulong val)
 {
+    if (env->spr[SPR_LPIDR] == (uint32_t)val) {
+        return;
+    }
+
     env->spr[SPR_LPIDR] = (uint32_t)val;
 
     /*

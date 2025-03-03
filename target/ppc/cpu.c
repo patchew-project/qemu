@@ -98,8 +98,14 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
+    target_ulong old, new;
 
-    env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
+    old = env->spr[SPR_LPCR];
+    new = val & pcc->lpcr_mask;
+    if (old == new) {
+        return;
+    }
+    env->spr[SPR_LPCR] = new;
     /* The gtse bit affects hflags */
     hreg_compute_hflags(env);
 
