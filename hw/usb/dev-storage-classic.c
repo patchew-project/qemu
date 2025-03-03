@@ -33,10 +33,9 @@ static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
     BlockBackend *blk = s->conf.blk;
     SCSIDevice *scsi_dev;
 
-    if (!blk) {
-        error_setg(errp, "drive property not set");
-        return;
-    }
+    usb_desc_create_serial(dev);
+    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),
+                 &usb_msd_scsi_info_storage);
 
     /*
      * Hack alert: this pretends to be a block device, but it's really
@@ -48,23 +47,23 @@ static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
      *
      * The hack is probably a bad idea.
      */
-    blk_ref(blk);
-    blk_detach_dev(blk, DEVICE(s));
-    s->conf.blk = NULL;
+    if (blk) {
+        blk_ref(blk);
+        blk_detach_dev(blk, DEVICE(s));
+        s->conf.blk = NULL;
 
-    usb_desc_create_serial(dev);
+        scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
+                                             &s->conf, dev->serial, errp);
+        blk_unref(blk);
+        if (!scsi_dev) {
+            return;
+        }
+        s->scsi_dev = scsi_dev;
+    }
+
     usb_desc_init(dev);
     dev->flags |= (1 << USB_DEV_FLAG_IS_SCSI_STORAGE);
-    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev),
-                 &usb_msd_scsi_info_storage);
-    scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
-                                         &s->conf, dev->serial, errp);
-    blk_unref(blk);
-    if (!scsi_dev) {
-        return;
-    }
     usb_msd_handle_reset(dev);
-    s->scsi_dev = scsi_dev;
 }
 
 static const Property msd_properties[] = {
