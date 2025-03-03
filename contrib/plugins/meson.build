@@ -13,11 +13,15 @@ if get_option('plugins')
                         include_directories: '../../include/qemu',
                         link_depends: [win32_qemu_plugin_api_lib],
                         link_args: win32_qemu_plugin_api_link_flags,
-                        dependencies: glib)
+                        dependencies: glib,
+                        install: true,
+                        install_dir: qemu_moddir)
     else
       t += shared_module(i, files(i + '.c'),
                         include_directories: '../../include/qemu',
-                        dependencies: glib)
+                        dependencies: glib,
+                        install: true,
+                        install_dir: qemu_moddir)
     endif
   endforeach
 endif
