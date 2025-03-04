@@ -285,6 +285,7 @@ static void vmdk_free_extents(BlockDriverState *bs)
     bdrv_graph_wrunlock();
 
     g_free(s->extents);
+    s->extents = NULL;
 }
 
 static void vmdk_free_last_extent(BlockDriverState *bs)
