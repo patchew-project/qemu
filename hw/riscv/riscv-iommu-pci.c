@@ -24,6 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/riscv/riscv_hart.h"
 #include "migration/vmstate.h"
+#include "exec/target_page.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/host-utils.h"
@@ -103,7 +104,8 @@ static void riscv_iommu_pci_realize(PCIDevice *dev, Error **errp)
     qdev_realize(DEVICE(iommu), NULL, errp);
 
     memory_region_init(&s->bar0, OBJECT(s), "riscv-iommu-bar0",
-        QEMU_ALIGN_UP(memory_region_size(&iommu->regs_mr), TARGET_PAGE_SIZE));
+                       QEMU_ALIGN_UP(memory_region_size(&iommu->regs_mr),
+                                     qemu_target_page_size()));
     memory_region_add_subregion(&s->bar0, 0, &iommu->regs_mr);
 
     pcie_endpoint_cap_init(dev, 0);

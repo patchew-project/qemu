@@ -24,6 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/riscv/riscv_hart.h"
 #include "migration/vmstate.h"
+#include "exec/target_page.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 
@@ -288,14 +289,14 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
         riscv_iommu_msi_check(s, ctx, iotlb->iova)) {
         iotlb->target_as = &s->trap_as;
         iotlb->translated_addr = iotlb->iova;
-        iotlb->addr_mask = ~TARGET_PAGE_MASK;
+        iotlb->addr_mask = ~qemu_target_page_mask();
         return 0;
     }
 
     /* Exit early for pass-through mode. */
     if (!(en_s || en_g)) {
         iotlb->translated_addr = iotlb->iova;
-        iotlb->addr_mask = ~TARGET_PAGE_MASK;
+        iotlb->addr_mask = ~qemu_target_page_mask();
         /* Allow R/W in pass-through mode */
         iotlb->perm = IOMMU_RW;
         return 0;
@@ -378,7 +379,7 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     do {
         const unsigned widened = (pass && !sc[pass].step) ? 2 : 0;
         const unsigned va_bits = widened + sc[pass].ptidxbits;
-        const unsigned va_skip = TARGET_PAGE_BITS + sc[pass].ptidxbits *
+        const unsigned va_skip = qemu_target_page_bits() + sc[pass].ptidxbits *
                                  (sc[pass].levels - 1 - sc[pass].step);
         const unsigned idx = (addr >> va_skip) & ((1 << va_bits) - 1);
         const dma_addr_t pte_addr = base + idx * sc[pass].ptesize;
@@ -443,7 +444,7 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
             break;                /* Reserved leaf PTE flags: PTE_W */
         } else if ((pte & (PTE_R | PTE_W | PTE_X)) == (PTE_W | PTE_X)) {
             break;                /* Reserved leaf PTE flags: PTE_W + PTE_X */
-        } else if (ppn & ((1ULL << (va_skip - TARGET_PAGE_BITS)) - 1)) {
+        } else if (ppn & ((1ULL << (va_skip - qemu_target_page_bits())) - 1)) {
             break;                /* Misaligned PPN */
         } else if ((iotlb->perm & IOMMU_RO) && !(pte & PTE_R)) {
             break;                /* Read access check failed */
@@ -475,7 +476,7 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
                 riscv_iommu_msi_check(s, ctx, base)) {
                 /* Trap MSI writes and return GPA address. */
                 iotlb->target_as = &s->trap_as;
-                iotlb->addr_mask = ~TARGET_PAGE_MASK;
+                iotlb->addr_mask = ~qemu_target_page_mask();
                 return 0;
             }
 
@@ -946,7 +947,7 @@ static int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx)
          *   device index: [23:16][15:7][6:0]
          */
         const int split = depth * 9 + 6 + dc_fmt;
-        addr |= ((ctx->devid >> split) << 3) & ~TARGET_PAGE_MASK;
+        addr |= ((ctx->devid >> split) << 3) & ~qemu_target_page_mask();
         if (dma_memory_read(s->target_as, addr, &de, sizeof(de),
                             MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
             return RISCV_IOMMU_FQ_CAUSE_DDT_LOAD_FAULT;
@@ -966,7 +967,7 @@ static int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx)
     riscv_iommu_hpm_incr_ctr(s, ctx, RISCV_IOMMU_HPMEVENT_DD_WALK);
 
     /* index into device context entry page */
-    addr |= (ctx->devid * dc_len) & ~TARGET_PAGE_MASK;
+    addr |= (ctx->devid * dc_len) & ~qemu_target_page_mask();
 
     memset(&dc, 0, sizeof(dc));
     if (dma_memory_read(s->target_as, addr, &dc, dc_len,
@@ -1037,7 +1038,7 @@ static int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx)
          * level. See IOMMU Specification, 2.2. Process-Directory-Table.
          */
         const int split = depth * 9 + 8;
-        addr |= ((ctx->process_id >> split) << 3) & ~TARGET_PAGE_MASK;
+        addr |= ((ctx->process_id >> split) << 3) & ~qemu_target_page_mask();
         if (dma_memory_read(s->target_as, addr, &de, sizeof(de),
                             MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
             return RISCV_IOMMU_FQ_CAUSE_PDT_LOAD_FAULT;
@@ -1052,7 +1053,7 @@ static int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx)
     riscv_iommu_hpm_incr_ctr(s, ctx, RISCV_IOMMU_HPMEVENT_PD_WALK);
 
     /* Leaf entry in PDT */
-    addr |= (ctx->process_id << 4) & ~TARGET_PAGE_MASK;
+    addr |= (ctx->process_id << 4) & ~qemu_target_page_mask();
     if (dma_memory_read(s->target_as, addr, &dc.ta, sizeof(uint64_t) * 2,
                         MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
         return RISCV_IOMMU_FQ_CAUSE_PDT_LOAD_FAULT;
@@ -1445,7 +1446,7 @@ static int riscv_iommu_translate(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     perm = iot ? iot->perm : IOMMU_NONE;
     if (perm != IOMMU_NONE) {
         iotlb->translated_addr = PPN_PHYS(iot->phys);
-        iotlb->addr_mask = ~TARGET_PAGE_MASK;
+        iotlb->addr_mask = ~qemu_target_page_mask();
         iotlb->perm = perm;
         fault = 0;
         goto done;
@@ -1488,7 +1489,7 @@ done:
                                RISCV_IOMMU_PREQ_HDR_PID, ctx->process_id);
         }
         pr.hdr = set_field(pr.hdr, RISCV_IOMMU_PREQ_HDR_DID, ctx->devid);
-        pr.payload = (iotlb->iova & TARGET_PAGE_MASK) |
+        pr.payload = (iotlb->iova & qemu_target_page_mask()) |
                      RISCV_IOMMU_PREQ_PAYLOAD_M;
         riscv_iommu_pri(s, &pr);
         return fault;
@@ -1690,7 +1691,7 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
                                        RISCV_IOMMU_CMD_IOTINVAL_GSCID);
             uint32_t pscid = get_field(cmd.dword0,
                                        RISCV_IOMMU_CMD_IOTINVAL_PSCID);
-            hwaddr iova = (cmd.dword1 << 2) & TARGET_PAGE_MASK;
+            hwaddr iova = (cmd.dword1 << 2) & qemu_target_page_mask();
 
             if (pscv) {
                 /* illegal command arguments IOTINVAL.GVMA & PSCV == 1 */
@@ -1722,7 +1723,7 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
                                        RISCV_IOMMU_CMD_IOTINVAL_GSCID);
             uint32_t pscid = get_field(cmd.dword0,
                                        RISCV_IOMMU_CMD_IOTINVAL_PSCID);
-            hwaddr iova = (cmd.dword1 << 2) & TARGET_PAGE_MASK;
+            hwaddr iova = (cmd.dword1 << 2) & qemu_target_page_mask();
             RISCVIOMMUTransTag transtag;
 
             if (gv) {
@@ -1935,7 +1936,7 @@ static void riscv_iommu_process_dbg(RISCVIOMMUState *s)
             iova = RISCV_IOMMU_TR_RESPONSE_FAULT | (((uint64_t) fault) << 10);
         } else {
             iova = iotlb.translated_addr & ~iotlb.addr_mask;
-            iova >>= TARGET_PAGE_BITS;
+            iova >>= qemu_target_page_bits();
             iova &= RISCV_IOMMU_TR_RESPONSE_PPN;
 
             /* We do not support superpages (> 4kbs) for now */
