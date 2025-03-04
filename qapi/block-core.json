@@ -1622,6 +1622,9 @@
 # @discard-source: Discard blocks on source which have already been
 #     copied to the target.  (Since 9.1)
 #
+# @on-cbw-error: optional policy defining behavior on I/O errors in
+#     copy-before-write jobs; defaults to break-guest-write.  (Since 10.0)
+#
 # @x-perf: Performance options.  (Since 6.0)
 #
 # Features:
@@ -1641,6 +1644,7 @@
             '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
+            '*on-cbw-error': 'OnCbwError',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool',
             '*filter-node-name': 'str',
             '*discard-source': 'bool',
