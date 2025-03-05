@@ -133,6 +133,18 @@ typedef enum {
     CXL_MBOX_MAX = 0x20
 } CXLRetCode;
 
+/* types of logs */
+typedef enum {
+    CXL_LOG_COMMAND_EFFECT,
+    CXL_LOG_VENDOR_DEBUG,
+    CXL_LOG_COMPONENT_STATE_DUMP,
+    CXL_LOG_ERROR_CHECK_SCRUB,
+    CXL_LOG_MEDIA_TEST_CAPABILITY,
+    CXL_LOG_MEDIA_TEST_RESULTS_SHORT,
+    CXL_LOG_MEDIA_TEST_RESULTS_LONG,
+    MAX_LOG_TYPE
+} CXLLogType;
+
 typedef struct CXLCCI CXLCCI;
 typedef struct cxl_device_state CXLDeviceState;
 struct cxl_cmd;
@@ -163,6 +175,11 @@ typedef struct CXLEventLog {
     QSIMPLEQ_HEAD(, CXLEvent) events;
 } CXLEventLog;
 
+typedef struct CXLLogCapabilities {
+    uint32_t param_flags;
+    QemuUUID uuid;
+} CXLLogCapabilities;
+
 typedef struct CXLCCI {
     struct cxl_cmd cxl_cmd_set[256][256];
     struct cel_log {
@@ -170,6 +187,9 @@ typedef struct CXLCCI {
         uint16_t effect;
     } cel_log[1 << 16];
     size_t cel_size;
+
+    /* get log capabilities */
+    const CXLLogCapabilities *supported_log_cap;
 
     /* background command handling (times in ms) */
     struct {
