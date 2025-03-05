@@ -278,17 +278,21 @@ static void x86_firmware_configure_sev(hwaddr gpa, void *ptr, int size)
 
 void x86_firmware_configure(hwaddr gpa, void *ptr, int size)
 {
-    /*
-     * OVMF places a GUIDed structures in the flash, so
-     * search for them
-     */
-    pc_system_parse_ovmf_flash(ptr, size);
+    if (ovmf_supported()) {
+        /*
+         * OVMF places a GUIDed structures in the flash, so
+         * search for them
+         */
+        pc_system_parse_ovmf_flash(ptr, size);
+    }
     x86_firmware_configure_sev(gpa, ptr, size);
 }
 
 void x86_firmware_reconfigure(hwaddr gpa, void *ptr, int size)
 {
-    invalidate_ovmf_parsed_metadata();
-    pc_system_parse_ovmf_flash(ptr, size);
+    if (ovmf_supported()) {
+        invalidate_ovmf_parsed_metadata();
+        pc_system_parse_ovmf_flash(ptr, size);
+    }
     x86_firmware_configure_sev(gpa, ptr, size);
 }

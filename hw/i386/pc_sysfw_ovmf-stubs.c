@@ -15,6 +15,11 @@
 #include "qemu/osdep.h"
 #include "hw/i386/pc.h"
 
+bool ovmf_supported(void)
+{
+    return false;
+}
+
 bool pc_system_ovmf_table_find(const char *entry, uint8_t **data, int *data_len)
 {
     g_assert_not_reached();

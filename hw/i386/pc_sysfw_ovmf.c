@@ -37,6 +37,11 @@ static bool ovmf_flash_parsed;
 static uint8_t *ovmf_table;
 static int ovmf_table_len;
 
+bool ovmf_supported(void)
+{
+    return true;
+}
+
 void invalidate_ovmf_parsed_metadata(void)
 {
     ovmf_flash_parsed = false;
