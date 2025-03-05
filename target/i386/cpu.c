@@ -5654,27 +5654,12 @@ void x86_cpu_set_default_version(X86CPUVersion version)
     default_cpu_version = version;
 }
 
-static X86CPUVersion x86_cpu_model_last_version(const X86CPUModel *model)
-{
-    int v = 0;
-    const X86CPUVersionDefinition *vdef =
-        x86_cpu_def_get_versions(model->cpudef);
-    while (vdef->version) {
-        v = vdef->version;
-        vdef++;
-    }
-    return v;
-}
-
 /* Return the actual version being used for a specific CPU model */
 static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model)
 {
     X86CPUVersion v = model->version;
     if (v == CPU_VERSION_AUTO) {
         v = default_cpu_version;
-    }
-    if (v == CPU_VERSION_LATEST) {
-        return x86_cpu_model_last_version(model);
     }
     return v;
 }
