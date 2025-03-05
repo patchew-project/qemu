@@ -155,5 +155,6 @@ DeviceState *ioapic_init_secondary(GSIState *gsi_state);
 
 /* pc_sysfw.c */
 void x86_firmware_configure(hwaddr gpa, void *ptr, int size);
+void x86_firmware_reconfigure(hwaddr gpa, void *ptr, int size);
 
 #endif
