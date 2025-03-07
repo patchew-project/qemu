@@ -216,6 +216,16 @@ or to disable zero page detection completely:
 
     ``migrate_set_parameter zero-page-detection none``
 
+Compression
++++++++++++
+
+.. toctree::
+   :maxdepth: 1
+
+   qpl-compression
+   uadk-compression
+   qatzip-compression
+
 Error handling
 --------------
 
