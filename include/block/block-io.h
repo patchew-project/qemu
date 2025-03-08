@@ -354,6 +354,11 @@ bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
     AIO_WAIT_WHILE(bdrv_get_aio_context(bs_),              \
                    cond); })
 
+#define BDRV_POLL_WHILE_TIMEOUT(bs, cond, timeout) ({      \
+    BlockDriverState *bs_ = (bs);                          \
+    AIO_WAIT_WHILE_TIMEOUT(bdrv_get_aio_context(bs_),      \
+                           cond, timeout); })
+
 void bdrv_drain(BlockDriverState *bs);
 
 int co_wrapper_mixed_bdrv_rdlock
@@ -430,6 +435,8 @@ bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent,
  * This function can be recursive.
  */
 void bdrv_drained_begin(BlockDriverState *bs);
+
+int bdrv_drained_begin_timeout(BlockDriverState *bs, int64_t timeout_ms);
 
 /**
  * bdrv_do_drained_begin_quiesce:

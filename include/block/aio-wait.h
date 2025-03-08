@@ -28,6 +28,8 @@
 #include "block/aio.h"
 #include "qemu/main-loop.h"
 
+#define AIO_WAIT_INTERVAL 10  /* ms */
+
 /**
  * AioWait:
  *
@@ -55,6 +57,11 @@ typedef struct {
     /* Number of waiting AIO_WAIT_WHILE() callers. Accessed with atomic ops. */
     unsigned num_waiters;
 } AioWait;
+
+typedef struct {
+    struct QEMUTimer *timer;
+    int64_t interval;
+} AioWaitTimer;
 
 extern AioWait global_aio_wait;
 
@@ -98,6 +105,55 @@ extern AioWait global_aio_wait;
     }                                                              \
     qatomic_dec(&wait_->num_waiters);                              \
     waited_; })
+
+/**
+ * AIO_WAIT_WHILE_TIMEOUT:
+ *
+ * Refer to the implementation of AIO_WAIT_WHILE_INTERNAL,
+ * the timeout parameter is added.
+ */
+#define AIO_WAIT_WHILE_TIMEOUT(ctx, cond, timeout) ({                    \
+    int ret_ = 0;                                                        \
+    AioWait *wait_ = &global_aio_wait;                                   \
+    AioContext *ctx_ = (ctx);                                            \
+    int64_t start_ = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);             \
+    int64_t deadline_ = start_ + (timeout);                              \
+    /* Ensure that the aio_poll exits periodically to check timeout. */  \
+    AioWaitTimer *s_ = g_malloc0(sizeof(AioWaitTimer));                  \
+    s_->interval = AIO_WAIT_INTERVAL;                                    \
+    /* Increment wait_->num_waiters before evaluating cond. */           \
+    qatomic_inc(&wait_->num_waiters);                                    \
+    /* Paired with smp_mb in aio_wait_kick(). */                         \
+    smp_mb__after_rmw();                                                 \
+    if (ctx_ && in_aio_context_home_thread(ctx_)) {                      \
+        s_->timer = aio_timer_new(ctx_, QEMU_CLOCK_REALTIME,             \
+                        SCALE_MS, aio_wait_timer_retry, s_);             \
+        aio_wait_timer_retry(s_);                                        \
+        while ((cond)) {                                                 \
+            aio_poll(ctx_, true);                                        \
+            if (qemu_clock_get_ms(QEMU_CLOCK_REALTIME) > deadline_) {    \
+                ret_ = -ETIMEDOUT;                                       \
+                break;                                                   \
+            }                                                            \
+        }                                                                \
+    } else {                                                             \
+        s_->timer = aio_timer_new(qemu_get_aio_context(),                \
+            QEMU_CLOCK_REALTIME, SCALE_MS, aio_wait_timer_retry, s_);    \
+        aio_wait_timer_retry(s_);                                        \
+        while ((cond)) {                                                 \
+            assert(qemu_get_current_aio_context() ==                     \
+                   qemu_get_aio_context());                              \
+            aio_poll(qemu_get_aio_context(), true);                      \
+            if (qemu_clock_get_ms(QEMU_CLOCK_REALTIME) > deadline_) {    \
+                ret_ = -ETIMEDOUT;                                       \
+                break;                                                   \
+            }                                                            \
+        }                                                                \
+    }                                                                    \
+    qatomic_dec(&wait_->num_waiters);                                    \
+    timer_free(s_->timer);                                               \
+    g_free(s_);                                                          \
+    ret_; })
 
 #define AIO_WAIT_WHILE(ctx, cond)                                  \
     AIO_WAIT_WHILE_INTERNAL(ctx, cond)
@@ -148,5 +204,7 @@ static inline bool in_aio_context_home_thread(AioContext *ctx)
         return false;
     }
 }
+
+void aio_wait_timer_retry(void *opaque);
 
 #endif /* QEMU_AIO_WAIT_H */

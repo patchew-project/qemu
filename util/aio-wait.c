@@ -84,3 +84,10 @@ void aio_wait_bh_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
     aio_bh_schedule_oneshot(ctx, aio_wait_bh, &data);
     AIO_WAIT_WHILE_UNLOCKED(NULL, !data.done);
 }
+
+void aio_wait_timer_retry(void *opaque)
+{
+    AioWaitTimer *s = opaque;
+
+    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + s->interval);
+}
