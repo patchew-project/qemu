@@ -39,6 +39,8 @@
 #include "system/block-backend.h"
 #include "system/blockdev.h"
 
+#define QMP_BLOCKING_TIMEOUT 5000 /* ms */
+
 static BlockBackend *qmp_get_blk(const char *blk_name, const char *qdev_id,
                                  Error **errp)
 {
@@ -502,7 +504,10 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
         blk_set_io_limits(blk, &cfg);
     } else if (blk_get_public(blk)->throttle_group_member.throttle_state) {
         /* If all throttling settings are set to 0, disable I/O limits */
-        blk_io_limits_disable(blk);
+        if (blk_io_limits_disable_timeout(blk, QMP_BLOCKING_TIMEOUT) < 0) {
+            error_setg(errp, "Blk io limits disable timeout");
+            return;
+        }
     }
 }
 
