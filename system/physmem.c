@@ -3304,7 +3304,6 @@ void cpu_exec_init_all(void)
      * do this much later, rather than requiring board models to state
      * up front what their requirements are.
      */
-    finalize_target_page_bits();
     io_mem_init();
     memory_map_init();
 }
