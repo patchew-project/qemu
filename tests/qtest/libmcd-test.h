@@ -56,4 +56,13 @@ MCDQryRegGroupsResult *qtest_mcd_qry_reg_groups(QTestState *qts,
 MCDQryRegMapResult *qtest_mcd_qry_reg_map(QTestState *qts,
                                           q_obj_mcd_qry_reg_map_arg *args);
 
+MCDRunResult *qtest_mcd_run(QTestState *qts,
+                            q_obj_mcd_run_arg *args);
+
+MCDStopResult *qtest_mcd_stop(QTestState *qts,
+                              q_obj_mcd_stop_arg *args);
+
+MCDQryStateResult *qtest_mcd_qry_state(QTestState *qts,
+                                       q_obj_mcd_qry_state_arg *args);
+
 #endif /* LIBMCD_TEST_H */

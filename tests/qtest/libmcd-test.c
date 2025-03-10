@@ -317,4 +317,63 @@ MCDQryRegMapResult *qtest_mcd_qry_reg_map(QTestState *qts,
     UNMARSHAL_RESULT(MCDQryRegMapResult);
 
     return unmarshal;
+
+}
+
+MCDRunResult *qtest_mcd_run(QTestState *qts, q_obj_mcd_run_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDRunResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_run_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-run',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDRunResult);
+
+    return unmarshal;
+}
+
+MCDStopResult *qtest_mcd_stop(QTestState *qts, q_obj_mcd_stop_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDStopResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_stop_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-stop',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDStopResult);
+
+    return unmarshal;
+}
+
+MCDQryStateResult *qtest_mcd_qry_state(QTestState *qts,
+                                       q_obj_mcd_qry_state_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDQryStateResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_qry_state_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-qry-state',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDQryStateResult);
+
+    return unmarshal;
 }
