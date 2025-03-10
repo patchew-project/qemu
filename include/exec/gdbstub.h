@@ -16,10 +16,16 @@ typedef struct GDBFeatureBuilder {
     int base_reg;
 } GDBFeatureBuilder;
 
-
 /* Get or set a register.  Returns the size of the register.  */
 typedef int (*gdb_get_reg_cb)(CPUState *cpu, GByteArray *buf, int reg);
 typedef int (*gdb_set_reg_cb)(CPUState *cpu, uint8_t *buf, int reg);
+
+typedef struct GDBRegisterState {
+    int base_reg;
+    gdb_get_reg_cb get_reg;
+    gdb_set_reg_cb set_reg;
+    const GDBFeature *feature;
+} GDBRegisterState;
 
 /**
  * gdb_init_cpu(): Initialize the CPU for gdbstub.
