@@ -4,3 +4,186 @@
 ##
 # = Multi-Core Debug (MCD) API
 ##
+
+
+##
+# == Definition of Structures
+##
+
+
+##
+# @MCDAPIVersion:
+#
+# Structure type containing the MCD API version information of the tool.
+#
+# @v-api-major: API major version.
+# @v-api-minor: API minor version.
+# @author:      API name of the author of this MCD API version.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDAPIVersion',
+  'data': {
+    'v-api-major': 'uint16',
+    'v-api-minor': 'uint16',
+    'author':      'str' } }
+
+
+##
+# @MCDImplVersionInfo:
+#
+# Structure type containing the MCD API implementation information.
+#
+# @v-api:       Implemented API version.
+# @v-imp-major: Major version number of this implementation.
+# @v-imp-minor: Minor version number of this implementation.
+# @v-imp-build: Build number of this implementation.
+# @vendor:      Name of vendor of the implementation.
+# @date:        String from __DATE__ macro at compile time.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDImplVersionInfo',
+  'data': {
+    'v-api'      : 'MCDAPIVersion',
+    'v-imp-major': 'uint16',
+    'v-imp-minor': 'uint16',
+    'v-imp-build': 'uint16',
+    'vendor'     : 'str',
+    'date'       : 'str' } }
+
+
+##
+# @MCDErrorInfo:
+#
+# Structure type containing the error status and error event notification.
+#
+# @return-status: Return status from the last API call.
+# @error-code:    Detailed error code from the last API call.
+# @error-events:  Detailed event code from the last API call.
+# @error-str:     Detailed error text string from the last API call.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDErrorInfo',
+  'data': {
+    'return-status': 'uint32',
+    'error-code'   : 'uint32',
+    'error-events' : 'uint32',
+    'error-str'    : 'str' }}
+
+
+##
+# == Target Initialization API
+##
+
+
+##
+# @MCDInitializeResult:
+#
+# Return value of @mcd-initialize.
+#
+# @return-status: Return code.
+#
+# @impl-info: Information about the QEMU build, its version and the version of
+#             the implemented MCD API.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDInitializeResult',
+  'data': {
+    'return-status': 'uint32',
+    '*impl-info'   : 'MCDImplVersionInfo' } }
+
+
+##
+# @mcd-initialize:
+#
+# Function initializing the interaction between a tool-side implementation and
+# target-side implementation.
+#
+# @version-req: MCD API version as requested by an upper layer.
+#
+# Returns: @MCDInitializeResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#    :title: Check compatibility with MCD server
+#
+#     -> { "execute": "mcd-initialize",
+#          "arguments": { "version-req": { "v-api-major": 1,
+#                                          "v-api-minor": 1,
+#                                          "author": "" } } }
+#     <- {
+#            "return": {
+#                "impl-info": {
+#                    "v-api": {
+#                        "v-api-minor": 1,
+#                        "v-api-major": 1,
+#                        "author": "QEMU Release"
+#                    },
+#                    "vendor": "QEMU",
+#                    "v-imp-minor": 2,
+#                    "v-imp-major": 9,
+#                    "v-imp-build": 0,
+#                    "date": "Dec 18 2024"
+#                },
+#                "return-status": 0
+#            }
+#        }
+##
+{ 'command': 'mcd-initialize',
+  'data': { 'version-req': 'MCDAPIVersion' },
+  'returns': 'MCDInitializeResult' }
+
+
+##
+# @mcd-exit:
+#
+# Function cleaning up all core and server connections from a tool.
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-exit' }
+
+
+##
+# == Core Connection API
+##
+
+
+##
+# @mcd-qry-error-info:
+#
+# Function allowing the access to detailed error and/or event information after
+# an API call.
+#
+# Returns: @MCDErrorInfo
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#    :title: Incompatible MCD versions
+#
+#     -> { "execute": "mcd-initialize",
+#          "arguments": { "version-req": { "v-api-major": 2,
+#                                          "v-api-minor": 0,
+#                                          "author": "" } } }
+#     <- {
+#            "return": {
+#                "return-status": 3
+#            }
+#        }
+#     -> { "execute": "mcd-qry-error-info" }
+#     <- {
+#            "return": {
+#                "error-str": "incompatible versions",
+#                "error-code": 3840,
+#                "error-events": 0,
+#                "return-status": 3
+#            }
+#        }
+##
+{ 'command': 'mcd-qry-error-info',
+  'returns': 'MCDErrorInfo' }

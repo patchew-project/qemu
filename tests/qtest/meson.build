@@ -30,6 +30,7 @@ qtests_generic = [
   'qos-test',
   'readconfig-test',
   'netdev-socket',
+  'mcd-test',
 ]
 if enable_modules
   qtests_generic += [ 'modules-test' ]
@@ -383,6 +384,7 @@ qtests = {
   'netdev-socket': files('netdev-socket.c', '../unit/socket-helpers.c'),
   'aspeed_smc-test': files('aspeed-smc-utils.c', 'aspeed_smc-test.c'),
   'ast2700-smc-test': files('aspeed-smc-utils.c', 'ast2700-smc-test.c'),
+  'mcd-test': files('mcd-test.c', 'libmcd-test.c', '../../mcd/libmcd_qapi.c'),
 }
 
 if vnc.found()

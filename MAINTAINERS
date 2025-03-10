@@ -3137,6 +3137,8 @@ S: Maintained
 F: mcd/*
 F: docs/interop/mcd.rst
 F: qapi/mcd.json
+F: tests/qtest/libmcd-test.*
+F: tests/qtest/mcd-test.c
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
