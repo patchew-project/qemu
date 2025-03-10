@@ -226,6 +226,10 @@ GDBProcess *gdb_get_process(uint32_t pid)
 
 static GDBProcess *gdb_get_cpu_process(CPUState *cpu)
 {
+    if (!gdbserver_state.processes) {
+        return NULL;
+    }
+
     return gdb_get_process(gdb_get_cpu_pid(cpu));
 }
 
@@ -2287,7 +2291,7 @@ void gdb_set_stop_cpu(CPUState *cpu)
 {
     GDBProcess *p = gdb_get_cpu_process(cpu);
 
-    if (!p->attached) {
+    if (!p || !p->attached) {
         /*
          * Having a stop CPU corresponding to a process that is not attached
          * confuses GDB. So we ignore the request.

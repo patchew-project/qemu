@@ -1549,6 +1549,43 @@
     'global'  : 'bool' },
   'returns': 'MCDStopResult' }
 
+
+##
+# @MCDStepResult:
+#
+# Return value of @mcd-step.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDStepResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-step:
+#
+# Function stepping a target core based on the particular step type.
+#
+# @core-uid:  Unique identifier of the open core as returned by @mcd-open-core.
+# @global:    Set to "TRUE" if all cores of a system shall start
+#             execution. Otherwise, starting execution of selected core only.
+# @step-type: The unit, the stepping of the target core is based on.
+# @n-steps:   The number of steps, the target core is stepped for.
+#
+# Returns: @MCDStepResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-step',
+  'data': {
+    'core-uid' : 'uint32',
+    'global'   : 'bool',
+    'step-type': 'uint32',
+    'n-steps'  : 'uint32' },
+  'returns': 'MCDStepResult' }
+
+
 ##
 # @MCDSetGlobalResult:
 #
@@ -1579,7 +1616,6 @@
     'core-uid': 'uint32',
     'enable'  : 'bool' },
   'returns': 'MCDSetGlobalResult' }
-
 
 ##
 # @MCDQryStateResult:
