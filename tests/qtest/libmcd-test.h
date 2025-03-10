@@ -18,7 +18,8 @@
 MCDInitializeResult *qtest_mcd_initialize(QTestState *qts,
                                           q_obj_mcd_initialize_arg *args);
 
-MCDErrorInfo *qtest_mcd_qry_error_info(QTestState *qts);
+MCDErrorInfo *qtest_mcd_qry_error_info(QTestState *qts,
+                                       q_obj_mcd_qry_error_info_arg *args);
 
 void qtest_mcd_exit(QTestState *qts);
 
@@ -39,5 +40,11 @@ MCDQryDevicesResult *qtest_mcd_qry_devices(QTestState *qts,
 
 MCDQryCoresResult *qtest_mcd_qry_cores(QTestState *qts,
                                        q_obj_mcd_qry_cores_arg *args);
+
+MCDOpenCoreResult *qtest_mcd_open_core(QTestState *qts,
+                                       q_obj_mcd_open_core_arg *args);
+
+MCDCloseCoreResult *qtest_mcd_close_core(QTestState *qts,
+                                         q_obj_mcd_close_core_arg *args);
 
 #endif /* LIBMCD_TEST_H */

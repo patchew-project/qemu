@@ -713,12 +713,141 @@
 # == Core Connection API
 ##
 
+##
+# @MCDOpenCoreResult:
+#
+# Return value of @mcd-open-core.
+#
+# @return-status: Return code.
+# @core-uid:      Unique identifier of the core instance.
+# @core-con-info: Core connection information of the core instance.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDOpenCoreResult',
+  'data': {
+    'return-status' : 'uint32',
+    '*core-uid'     : 'uint32',
+    '*core-con-info': 'MCDCoreConInfo' }}
+
+
+##
+# @mcd-open-core:
+#
+# Function opening a core connection.
+#
+# @core-con-info: Unambiguous core information (e.g. from @mcd-qry-cores).
+#
+# Returns: @MCDOpenCoreResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "mcd-open-core",
+#          "arguments": {
+#              "core-con-info": {
+#                  "core-id": 0,
+#                  "device": "virt-10.0",
+#                  "device-id": 0,
+#                  "device-key": "",
+#                  "system": "",
+#                  "core": "cortex-a53-arm-cpu",
+#                  "host": "",
+#                  "system-key": "qemu-system-aarch64",
+#                  "system-instance": "",
+#                  "acc-hw": "",
+#                  "core-type": 0,
+#                  "device-type": 0,
+#                  "server-key": "",
+#                  "server-port": 0 } } }
+#     <- {
+#          "return": {
+#              "core-con-info": {
+#                  "core-id": 0,
+#                  "device": "virt-10.0",
+#                  "device-id": 0,
+#                  "device-key": "",
+#                  "system": "",
+#                  "core": "cortex-a53-arm-cpu",
+#                  "host": "",
+#                  "system-key": "qemu-system-aarch64",
+#                  "system-instance": "",
+#                  "acc-hw": "",
+#                  "core-type": 0,
+#                  "device-type": 0,
+#                  "server-key": "",
+#                  "server-port": 0
+#              },
+#              "return-status": 0,
+#              "core-uid": 1
+#          }
+#        }
+##
+{ 'command': 'mcd-open-core',
+  'data': { 'core-con-info': 'MCDCoreConInfo' },
+  'returns': 'MCDOpenCoreResult' }
+
+
+##
+# @MCDCloseCoreResult:
+#
+# Return value of @mcd-close-core.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDCloseCoreResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-close-core:
+#
+# Function closing a core connection.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+#
+# Returns: @MCDCloseCoreResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "mcd-close-core", "arguments": { "core-uid": 1 } }
+#     <- {
+#            "return": {
+#                "return-status": 0
+#            }
+#        }
+#     -> { "execute": "mcd-close-core", "arguments": { "core-uid": 1 } }
+#     <- {
+#            "return": {
+#                "return-status": 3
+#            }
+#        }
+#     -> { "execute": "mcd-qry-error-info", "arguments": { "core-uid": 1 } }
+#     <- {
+#            "return": {
+#                "error-str": "core not open",
+#                "error-code": 512,
+#                "error-events": 0,
+#                "return-status": 3
+#            }
+#        }
+##
+{ 'command': 'mcd-close-core',
+  'data': { 'core-uid': 'uint32' },
+  'returns': 'MCDCloseCoreResult' }
+
 
 ##
 # @mcd-qry-error-info:
 #
 # Function allowing the access to detailed error and/or event information after
 # an API call.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
 #
 # Returns: @MCDErrorInfo
 #
@@ -736,7 +865,7 @@
 #                "return-status": 3
 #            }
 #        }
-#     -> { "execute": "mcd-qry-error-info" }
+#     -> { "execute": "mcd-qry-error-info", "arguments": { "core-uid": 0 }}
 #     <- {
 #            "return": {
 #                "error-str": "incompatible versions",
@@ -747,4 +876,5 @@
 #        }
 ##
 { 'command': 'mcd-qry-error-info',
+  'data': { 'core-uid': 'uint32' },
   'returns': 'MCDErrorInfo' }

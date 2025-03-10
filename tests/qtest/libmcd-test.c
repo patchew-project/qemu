@@ -72,20 +72,26 @@ MCDInitializeResult *qtest_mcd_initialize(QTestState *qts,
     return unmarshal;
 }
 
-MCDErrorInfo *qtest_mcd_qry_error_info(QTestState *qts)
+MCDErrorInfo *qtest_mcd_qry_error_info(QTestState *qts,
+                                       q_obj_mcd_qry_error_info_arg *args)
 {
     Visitor *v;
-    QDict *resp;
+    QObject *marshal;
+    QDict *arg, *resp;
     QObject *ret;
     bool ok;
     MCDErrorInfo *unmarshal;
 
-    resp = qtest_qmp(qts, "{'execute': 'mcd-qry-error-info'}");
+    MARSHAL_ARGS(q_obj_mcd_qry_error_info_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-qry-error-info',"
+                          "'arguments': %p}", arg);
 
     UNMARSHAL_RESULT(MCDErrorInfo);
 
     return unmarshal;
 }
+
 
 void qtest_mcd_exit(QTestState *qts)
 {
@@ -209,6 +215,46 @@ MCDQryCoresResult *qtest_mcd_qry_cores(QTestState *qts,
                           "'arguments': %p}", arg);
 
     UNMARSHAL_RESULT(MCDQryCoresResult);
+
+    return unmarshal;
+}
+
+MCDOpenCoreResult *qtest_mcd_open_core(QTestState *qts,
+                                       q_obj_mcd_open_core_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDOpenCoreResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_open_core_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-open-core',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDOpenCoreResult);
+
+    return unmarshal;
+}
+
+MCDCloseCoreResult *qtest_mcd_close_core(QTestState *qts,
+                                         q_obj_mcd_close_core_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDCloseCoreResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_close_core_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-close-core',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDCloseCoreResult);
 
     return unmarshal;
 }
