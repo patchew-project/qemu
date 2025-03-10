@@ -3131,6 +3131,12 @@ F: scripts/feature_to_c.py
 F: scripts/probe-gdb-support.py
 T: git https://gitlab.com/stsquad/qemu gdbstub/next
 
+MCD
+M: Mario Fleischmann <mario.fleischmann@lauterbach.com>
+S: Maintained
+F: mcd/*
+F: docs/interop/mcd.rst
+
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Xu <peterx@redhat.com>
