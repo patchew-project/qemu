@@ -1373,3 +1373,103 @@
     'start-index': 'uint32',
     'num-regs': 'uint32' },
   'returns': 'MCDQryRegMapResult' }
+
+
+##
+# == Target Execution Control API
+##
+
+
+##
+# @MCDRunResult:
+#
+# Return value of @MCDRunResult.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDRunResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-run:
+#
+# Function starting execution on a particular core.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+# @global:   Set to "TRUE" if all cores of a system shall start execution.
+#            Otherwise, starting execution of selected core only.
+#
+# Returns: @MCDRunResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-run',
+  'data': {
+    'core-uid': 'uint32',
+    'global'  : 'bool' },
+  'returns': 'MCDRunResult' }
+
+
+##
+# @MCDStopResult:
+#
+# Return value of @mcd-stop.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDStopResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-stop:
+#
+# Function stopping execution on a particular core.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+# @global:   Set to "TRUE" if all cores of a system shall stop execution.
+#            Otherwise, stopping execution of selected core only.
+#
+# Returns: @MCDStopResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-stop',
+  'data': {
+    'core-uid': 'uint32',
+    'global'  : 'bool' },
+  'returns': 'MCDStopResult' }
+
+##
+# @MCDSetGlobalResult:
+#
+# Return value of @mcd-set-global.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDSetGlobalResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-set-global:
+#
+# Function enabling/disabling global stop and run activities on this core.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+# @enable:   Set to "TRUE" if this core should perform global run or stop
+#            activities.
+#
+# Returns: @MCDSetGlobalResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-set-global',
+  'data': {
+    'core-uid': 'uint32',
+    'enable'  : 'bool' },
+  'returns': 'MCDSetGlobalResult' }
