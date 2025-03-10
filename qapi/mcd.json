@@ -306,6 +306,238 @@
     'reg-type'            : 'uint32',
     'hw-thread-id'        : 'uint32' } }
 
+
+##
+# @MCDTrigInfo:
+#
+# Structure type containing information about trigger capabilities.
+#
+# @type:           Supported trigger types (OR'ed bitmask).
+# @option:         Supported trigger options (OR'ed bitmask).
+# @action:         Supported trigger actions (OR'ed bitmask).
+# @trig-number:    Number of usable triggers (or 0 if number not known).
+# @state-number:   Number of states of the trigger set's state machine (or 0 if
+#                  not known).
+# @counter-number: Number of usable counters (or 0 if not known)
+# @sw-breakpoints: True if software breakpoints via code patch are available.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDTrigInfo',
+  'data': {
+      'type'          : 'uint32',
+      'option'        : 'uint32',
+      'action'        : 'uint32',
+      'trig-number'   : 'uint32',
+      'state-number'  : 'uint32',
+      'counter-number': 'uint32',
+      'sw-breakpoints': 'bool' } }
+
+
+##
+# @MCDCtrigInfo:
+#
+# Structure type containing information about a custom trigger.
+#
+# @ctrig-id: Custom trigger ID, ID 0 is reserved.
+# @info-str: Description of the custom trigger.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDCtrigInfo',
+  'data': {
+    'ctrig-id': 'uint32',
+    'info-str': 'str' } }
+
+
+##
+# @MCDTrigSimpleCore:
+#
+# Structure type containing information about a simple core trigger condition.
+#
+# @type:           Trigger type, for this structure type it must be one of:
+#                  - %MCD_TRIG_TYPE_IP
+#                  - %MCD_TRIG_TYPE_READ
+#                  - %MCD_TRIG_TYPE_WRITE
+#                  - %MCD_TRIG_TYPE_RW
+#                  - %MCD_TRIG_TYPE_NOCYCLE
+# @option:         Adds further qualifiers to the trigger or overrides the
+#                  behaviour (multiple options possible)
+# @action:         Action to be taken on trigger. Only one per trigger allowed.
+# @action-param:   Parameter for action - depends on the selected action.
+# @modified:       Set to "TRUE" on return of @mcd-create-trig if trigger
+#                  was modified by implementation, untouched otherwise.
+# @state-mask:     Set bits indicate that this trigger is inactive when
+#                  reaching the corresponding state of the state machine. Bit 0
+#                  represents state '1' of the state machine. Only to be
+#                  considered if %MCD_TRIG_OPT_STATE_IS_CONDITION is set in
+#                  @option.
+# @addr-start:     Start address for the address range the trigger shall be
+#                  activated for.
+# @addr-range:     Size of the address range for the trigger (in bytes). If it
+#                  is set to '0', the trigger is activated by an access to a
+#                  single address. If it is set to '1', the range of addresses
+#                  is two (@addr_start + 1). The address range can be
+#                  "inverted" if %MCD_TRIG_OPT_OUT_OF_RANGE is set in @option.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDTrigSimpleCore',
+  'data': {
+  'type'        : 'uint32',
+  'option'      : 'uint32',
+  'action'      : 'uint32',
+  'action-param': 'uint32',
+  'modified'    : 'bool',
+  'state-mask'  : 'uint32',
+  'addr-start'  : 'MCDAddr',
+  'addr-range'  : 'uint64' }}
+
+
+##
+# @MCDTrigComplexCore:
+#
+# Structure type containing information about a complex core trigger condition.
+#
+# @type:           Trigger type, for this structure type it must be one of:
+#                  - %MCD_TRIG_TYPE_IP
+#                  - %MCD_TRIG_TYPE_READ
+#                  - %MCD_TRIG_TYPE_WRITE
+#                  - %MCD_TRIG_TYPE_RW
+#                  - %MCD_TRIG_TYPE_NOCYCLE
+# @option:         Adds further qualifiers to the trigger or overrides the
+#                  behaviour (multiple options possible)
+# @action:         Action to be taken on trigger. Only one per trigger allowed.
+# @action-param:   Parameter for action - depends on the selected action.
+# @modified:       Set to "TRUE" on return of @mcd-create-trig if trigger
+#                  was modified by implementation, untouched otherwise.
+# @state-mask:     Set bits indicate that this trigger is inactive when
+#                  reaching the corresponding state of the state machine. Bit 0
+#                  represents state '1' of the state machine. Only to be
+#                  considered if %MCD_TRIG_OPT_STATE_IS_CONDITION is set in
+#                  @option.
+# @addr-start:     Start address for the address range the trigger shall be
+#                  activated for.
+# @addr-range:     Size of the address range for the trigger (in bytes). If it
+#                  is set to '0', the trigger is activated by an access to a
+#                  single address. If it is set to '1', the range of addresses
+#                  is two (@addr_start + 1). The address range can be
+#                  "inverted" if %MCD_TRIG_OPT_OUT_OF_RANGE is set in @option.
+# @data-start:     Data comparison value of the trigger. Only considered if
+#                  %MCD_TRIG_OPT_DATA_IS_CONDITION is set in @option. Setting
+#                  option %MCD_TRIG_OPT_NOT_DATA activates the trigger on a
+#                  data mismatch.
+# @data-range:     Size of the data value range for the trigger. If it is set
+#                  to '0', the trigger is activated on a match with a single
+#                  value. If it is set to '1', the range of values is two
+#                  (@data_range + 1). Option %MCD_TRIG_OPT_SIGNED_DATA may be
+#                  set in @option if the data shall be interpreted as signed.
+#                  This usually also requires the option
+#                  %MCD_TRIG_OPT_DATASIZE_IS_CONDITION to be set in @option.
+# @data-mask:      Only value bits are considered for which the mask is set to
+#                  '0'
+# @data-size:      Size of the access in bytes. If set to '0' the size shall
+#                  not be considered. Shall be only considered if
+#                  %MCD_TRIG_OPT_DATASIZE_IS_CONDITION is set in @option.
+# @hw-thread-id:   ID of the hardware thread this trigger is associated with.
+# @sw-thread-id:   ID of the software thread this trigger is associated with.
+# @core-mode-mask: Mask of core modes for which the trigger shall not be
+#                  activated. A set bit disables the trigger for the
+#                  corresponding mode. Bit 0 represents core mode '1', bit 31
+#                  represents core mode '32'.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDTrigComplexCore',
+  'data': {
+    'type'          : 'uint32',
+    'option'        : 'uint32',
+    'action'        : 'uint32',
+    'action-param'  : 'uint32',
+    'modified'      : 'bool',
+    'state-mask'    : 'uint32',
+    'addr-start'    : 'MCDAddr',
+    'addr-range'    : 'uint64',
+    'data-start'    : 'uint64',
+    'data-range'    : 'uint64',
+    'data-mask'     : 'uint64',
+    'data-size'     : 'uint32',
+    'hw-thread-id'  : 'uint32',
+    'sw-thread-id'  : 'uint64',
+    'core-mode-mask': 'uint32' }}
+
+
+##
+# @MCDTrig:
+#
+# Compound structure which can be set to every supported trigger type.
+# Only one member is supposed to be set at once.
+#
+# @trig-simple-core:  Simple core trigger condition.
+# @trig-complex-core: Complex core trigger condition.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDTrig',
+  'data': {
+    '*trig-simple-core':  'MCDTrigSimpleCore',
+    '*trig-complex-core': 'MCDTrigComplexCore' } }
+
+
+##
+# @MCDTrigState:
+#
+# Structure type containing a trigger state.
+#
+# @active:         Was active at the point of time the trigger set was
+#                  uploaded.
+# @captured:       Activated at least once after trigger got downloaded to the
+#                  target.
+# @captured-valid: The information in @captured is valid.
+# @count-value:    Current value of the counter (for counter triggers).
+# @count-valid:    The information in @count-value is valid.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDTrigState',
+  'data': {
+     'active'        : 'bool',
+     'captured'      : 'bool',
+     'captured-valid': 'bool',
+     'count-value'   : 'uint64',
+     'count-valid'   : 'bool' } }
+
+
+##
+# @MCDTrigSetState:
+#
+# Structure type containing a trigger state.
+#
+# @active: Set if the trigger set is currently active.
+# @state: Current state of the trigger set's state machine.
+# @state-valid: Current state is valid.
+# @trig-bus: Current state of trigger bus.
+# @trig-bus-valid: Current state of trig-bus is valid.
+# @trace: Current state of trace start/stop.
+# @trace-valid: Current state is valid.
+# @analysis: Current state of performance analysis start/stop.
+# @analysis-valid: Current state is valid.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDTrigSetState',
+  'data': {
+    'active'        : 'bool',
+    'state'         : 'uint32',
+    'state-valid'   : 'bool',
+    'trig-bus'      : 'uint32',
+    'trig-bus-valid': 'bool',
+    'trace'         : 'bool',
+    'trace-valid'   : 'bool',
+    'analysis'      : 'bool',
+    'analysis-valid': 'bool' } }
+
+
 ##
 # @MCDTx:
 #
@@ -1647,3 +1879,359 @@
 { 'command': 'mcd-qry-state',
   'data': { 'core-uid': 'uint32' },
   'returns': 'MCDQryStateResult' }
+
+
+##
+# == Target Trigger Setup API
+##
+
+
+##
+# @MCDQryTrigInfoResult:
+#
+# Return value of @mcd-qry-trig-info.
+#
+# @return-status: Return code.
+# @trig-info:     Information about supported triggers.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryTrigInfoResult',
+  'data': {
+    'return-status': 'uint32',
+    '*trig-info'   : 'MCDTrigInfo' }}
+
+
+##
+# @mcd-qry-trig-info:
+#
+# Function querying information about trigger capabilities.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+#
+# Returns: @MCDQryTrigInfoResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-trig-info',
+  'data': { 'core-uid': 'uint32' },
+  'returns': 'MCDQryTrigInfoResult' }
+
+
+##
+# @MCDQryCtrigsResult:
+#
+# Return value of @mcd-qry-ctrigs.
+#
+# @return-status: Return code.
+# @num-ctrigs:    Number of returned custom triggers. In case the input value of
+#                 @num_ctrigs is '0', this is the number of all available custom
+#                 triggers for the selected core.
+# @ctrig-info:    Custom trigger information.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryCtrigsResult',
+  'data': {
+    'return-status': 'uint32',
+    '*num-ctrigs'  : 'uint32',
+    '*ctrig-info'  : [ 'MCDCtrigInfo' ] }}
+
+
+##
+# @mcd-qry-ctrigs:
+#
+# Function querying information about custom triggers.
+#
+# @core-uid:    Unique identifier of the open core as returned by
+#               @mcd-open-core.
+# @start-index: Start index of the requested custom triggers. This refers
+#               to an internal list of the target side implementation.
+# @num-ctrigs:  Number of custom triggers, information is requested of. If it is
+#               set to '0', no custom trigger information is returned but the
+#               number of all available custom triggers for the selected core.
+#
+# Returns: @MCDQryCtrigsResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-ctrigs',
+  'data': {
+    'core-uid'   : 'uint32',
+    'start-index': 'uint32',
+    'num-ctrigs' : 'uint32' },
+  'returns': 'MCDQryCtrigsResult' }
+
+
+##
+# @MCDCreateTrigResult:
+#
+# Return value of @mcd-create-trig.
+#
+# @return-status: Return code.
+# @trig:          Information about the created trigger object.
+# @trig-id:       Unique ID for the newly created trigger returned by the API
+#                 implementation. A value of '0' indicates that the breakpoint
+#                 is set, but cannot be identified by an ID. Removing such
+#                 breakpoints is only possible by calling @mcd-remove-trig-set.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDCreateTrigResult',
+  'data': {
+    'return-status': 'uint32',
+    '*trig'        : 'MCDTrig',
+    '*trig-id'     : 'uint32' }}
+
+
+##
+# @mcd-create-trig:
+#
+# Function allowing the creation of a new trigger.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+# @trig:     Information about the trigger object to be created.
+#
+# Returns: @MCDCreateTrigResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-create-trig',
+  'data': {
+    'core-uid': 'uint32',
+    'trig'    : 'MCDTrig' },
+  'returns': 'MCDCreateTrigResult' }
+
+
+##
+# @MCDQryTrigResult:
+#
+# Return value of @mcd-qry-trig.
+#
+# @return-status: Return code.
+# @trig:          Information about the trigger object.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryTrigResult',
+  'data': {
+    'return-status': 'uint32',
+    '*trig'        : 'MCDTrig' }}
+
+
+##
+# @mcd-qry-trig:
+#
+# Function querying the contents of a trigger.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+# @trig-id:  ID of the trigger the user queries.
+#
+# Returns: @MCDQryTrigResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-trig',
+  'data': {
+    'core-uid': 'uint32',
+    'trig-id' : 'uint32'},
+  'returns': 'MCDQryTrigResult' }
+
+
+##
+# @MCDRemoveTrigResult:
+#
+# Return value of @mcd-remove-trig.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDRemoveTrigResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-remove-trig:
+#
+# Function allowing a user to delete a particular trigger from a trigger set.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+# @trig-id:  ID of the trigger the user wants to delete.
+#
+# Returns: @MCDRemoveTrigResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-remove-trig',
+  'data': {
+    'core-uid': 'uint32',
+    'trig-id' : 'uint32' },
+  'returns': 'MCDRemoveTrigResult' }
+
+
+##
+# @MCDQryTrigStateResult:
+#
+# Return value of @mcd-qry-trig-state.
+#
+# @return-status: Return code.
+# @trig-state:    Queried Trigger state.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryTrigStateResult',
+  'data': {
+    'return-status': 'uint32',
+    '*trig-state'  : 'MCDTrigState' }}
+
+
+##
+# @mcd-qry-trig-state:
+#
+# Function allowing a user to query the trigger states from the target.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+# @trig-id:  ID of the trigger, the tool queries the state for.
+#
+# Returns: @MCDQryTrigStateResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-trig-state',
+  'data': {
+    'core-uid': 'uint32',
+    'trig-id' : 'uint32' },
+  'returns': 'MCDQryTrigStateResult' }
+
+
+##
+# @MCDActivateTrigSetResult:
+#
+# Return value of @mcd-activate-trig-set.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDActivateTrigSetResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-activate-trig-set:
+#
+# Function allowing a user to activate a trigger set on the target.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+#
+# Returns: @MCDActivateTrigSetResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-activate-trig-set',
+  'data': { 'core-uid': 'uint32' },
+  'returns': 'MCDActivateTrigSetResult' }
+
+
+##
+# @MCDRemoveTrigSetResult:
+#
+# Return value of @mcd-remove-trig-set.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDRemoveTrigSetResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-remove-trig-set:
+#
+# Function allowing a user to delete a trigger set.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+#
+# Returns: @MCDActivateTrigSetResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-remove-trig-set',
+  'data': { 'core-uid': 'uint32' },
+  'returns': 'MCDActivateTrigSetResult' }
+
+
+##
+# @MCDQryTrigSetResult:
+#
+# Return value of @mcd-qry-trig-set.
+#
+# @return-status: Return code.
+# @num-trigs:     The number of returned triggers. In case the input value of
+#                 @num_trigs is '0', this is the number of all available triggers
+#                 of this core's trigger set.
+# @trig-ids:      List of trigger IDs set in the target.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryTrigSetResult',
+  'data': {
+    'return-status': 'uint32',
+    '*num-trigs'   : 'uint32',
+    '*trig-ids'    : [ 'uint32' ] }}
+
+
+##
+# @mcd-qry-trig-set:
+#
+# Function querying the contents of a trigger set.
+#
+# @core-uid:    Unique identifier of the open core as returned by
+#               @mcd-open-core.
+# @start-index: Start index of the requested triggers. This refers to an
+#               internal list of the target side implementation.
+# @num-trigs:   The number of queried triggers starting from the defined
+#               @start-index. If it is set to '0', no triggers are returned but
+#               the number of all available triggers of the trigger set.
+#
+# Returns: @MCDQryTrigSetResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-trig-set',
+  'data': {
+      'core-uid'   : 'uint32',
+      'start-index': 'uint32',
+      'num-trigs'  : 'uint32' },
+  'returns': 'MCDQryTrigSetResult' }
+
+
+##
+# @MCDQryTrigSetStateResult:
+#
+# Return value of @mcd-qry-trig-set-state.
+#
+# @return-status: Return code.
+# @trig-state:    Information about the current state of the trigger set.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryTrigSetStateResult',
+  'data': {
+    'return-status': 'uint32',
+    '*trig-state'  : 'MCDTrigSetState' }}
+
+
+##
+# @mcd-qry-trig-set-state:
+#
+# Function querying the state of a trigger set.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+#
+# Returns: @MCDQryTrigSetStateResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-trig-set-state',
+  'data': { 'core-uid': 'uint32' },
+  'returns': 'MCDQryTrigSetStateResult' }
