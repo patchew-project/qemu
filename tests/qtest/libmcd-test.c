@@ -87,6 +87,12 @@ MCDErrorInfo *qtest_mcd_qry_error_info(QTestState *qts)
     return unmarshal;
 }
 
+void qtest_mcd_exit(QTestState *qts)
+{
+    QDict *resp = qtest_qmp(qts, "{'execute': 'mcd-exit' }");
+    qobject_unref(resp);
+}
+
 MCDQryServersResult *qtest_mcd_qry_servers(QTestState *qts,
                                            q_obj_mcd_qry_servers_arg *args)
 {
@@ -143,6 +149,66 @@ MCDCloseServerResult *qtest_mcd_close_server(QTestState *qts,
                           "'arguments': %p}", arg);
 
     UNMARSHAL_RESULT(MCDCloseServerResult);
+
+    return unmarshal;
+}
+
+MCDQrySystemsResult *qtest_mcd_qry_systems(QTestState *qts,
+                                            q_obj_mcd_qry_systems_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDQrySystemsResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_qry_systems_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-qry-systems',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDQrySystemsResult);
+
+    return unmarshal;
+}
+
+MCDQryDevicesResult *qtest_mcd_qry_devices(QTestState *qts,
+                                           q_obj_mcd_qry_devices_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDQryDevicesResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_qry_devices_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-qry-devices',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDQryDevicesResult);
+
+    return unmarshal;
+}
+
+MCDQryCoresResult *qtest_mcd_qry_cores(QTestState *qts,
+                                       q_obj_mcd_qry_cores_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDQryCoresResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_qry_cores_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-qry-cores',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDQryCoresResult);
 
     return unmarshal;
 }
