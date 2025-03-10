@@ -50,4 +50,10 @@ MCDCloseCoreResult *qtest_mcd_close_core(QTestState *qts,
 MCDQryMemSpacesResult *qtest_mcd_qry_mem_spaces(QTestState *qts,
     q_obj_mcd_qry_mem_spaces_arg *args);
 
+MCDQryRegGroupsResult *qtest_mcd_qry_reg_groups(QTestState *qts,
+    q_obj_mcd_qry_reg_groups_arg *args);
+
+MCDQryRegMapResult *qtest_mcd_qry_reg_map(QTestState *qts,
+                                          q_obj_mcd_qry_reg_map_arg *args);
+
 #endif /* LIBMCD_TEST_H */

@@ -216,6 +216,98 @@
 
 
 ##
+# @MCDRegisterGroup:
+#
+# Structure type containing register group information.
+#
+# @reg-group-id:   Contains the ID of this register group. A register group ID
+#                  must be unique within the scope of a target core. ID '0' is
+#                  reserved.
+# @reg-group-name: The name of a register group. A register group name cannot
+#                  be longer than MCD_REG_NAME_LEN characters (use
+#                  representative names).
+# @n-registers:    Number of registers part of this group.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDRegisterGroup',
+  'data': {
+    'reg-group-id'  : 'uint32',
+    'reg-group-name': 'str',
+    'n-registers'   : 'uint32' } }
+
+
+##
+# @MCDAddr:
+#
+# Structure type containing a completely resolved logical or physical memory
+# address.
+#
+# @address:         Address value within a memory space, expressed in bytes.
+# @mem-space-id:    ID of the memory space associated with this address, e.g. a
+#                   program memory, a data memory or registers .
+# @addr-space-id:   ID of the address space in which this address is valid.
+# @addr-space-type: Type of the address space in which this address is valid.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDAddr',
+  'data': {
+    'address'        : 'uint64',
+    'mem-space-id'   : 'uint32',
+    'addr-space-id'  : 'uint32',
+    'addr-space-type': 'uint32' } }
+
+
+##
+# @MCDRegisterInfo:
+#
+# Structure type containing register information for a single register.
+#
+# @addr:                   Either the address of a memory mapped register or
+#                          the register address in a dedicated
+#                          "register memory space"
+# @reg-group-id:           ID of the group this register belongs to.
+# @regname:                The name of a register. A register name cannot be
+#                          longer than MCD_REG_NAME_LEN characters (use
+#                          representative names).
+# @regsize:                Register size in bits.
+# @core-mode-mask-read:    Mask of core modes for which read accesses are
+#                          impossible. A set bit indicates that read accesses
+#                          are denied in this mode. Bit 0 represents core mode
+#                          '1', bit 31 represents core mode 32. Overrides
+#                          @core-mode-mask-read of the corresponding
+#                          mcd_memspace_st.
+# @core-mode-mask-write:   Mask of core modes for which write accesses are
+#                          impossible. A set bit indicates that write accesses
+#                          are denied in this mode. Bit 0 represents core mode
+#                          '1', bit 31 represents core mode '32'. Overrides
+#                          @core-mode-mask-write of the corresponding
+#                          mcd_memspace_st.
+# @side-effects-read:      Reading this register can trigger side effects.
+# @side-effects-write:     Writing this register can trigger side effects.
+# @reg-type:               Register type (simple, compound or partial)
+# @hw-thread-id:           Hardware thread ID this register belongs to. The ID
+#                          must be set to '0' if the register is not assigned
+#                          to a hardware thread.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDRegisterInfo',
+  'data': {
+    'addr'                : 'MCDAddr',
+    'reg-group-id'        : 'uint32',
+    'regname'             : 'str',
+    'regsize'             : 'uint32',
+    'core-mode-mask-read' : 'uint32',
+    'core-mode-mask-write': 'uint32',
+    'side-effects-read'   : 'bool',
+    'side-effects-write'  : 'bool',
+    'reg-type'            : 'uint32',
+    'hw-thread-id'        : 'uint32' } }
+
+
+##
 # == Target Initialization API
 ##
 
@@ -1077,3 +1169,207 @@
      'start-index'   : 'uint32',
      'num-mem-spaces': 'uint32' },
   'returns': 'MCDQryMemSpacesResult' }
+
+
+##
+# @MCDQryRegGroupsResult:
+#
+# Return value of @mcd-qry-reg-groups.
+#
+# @return-status:  Return code.
+# @num-reg-groups: Number of returned register groups. In case the input value
+#                  of @num-reg-groups is '0', this is the number of all
+#                  available register groups for the selected core.
+# @reg-groups:     Register group information.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryRegGroupsResult',
+  'data': {
+    'return-status'  : 'uint32',
+    '*num-reg-groups': 'uint32',
+    '*reg-groups'    : [ 'MCDRegisterGroup' ] }}
+
+
+##
+# @mcd-qry-reg-groups:
+#
+# Function querying the register groups defined for a particular component.
+#
+# @core-uid:       Unique ID of the core the calling function addresses.
+# @start-index:    Start index of the requested register groups. This refers
+#                  to an internal list of the target side implementation.
+# @num-reg-groups: Number of register groups, information is requested of. If
+#                  it is set to '0', no register groups information is returned
+#                  but the number of all available register groups for the
+#                  selected core.
+#
+# Returns: @MCDQryRegGroupsResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-reg-groups',
+  'data': {
+    'core-uid'      : 'uint32',
+    'start-index'   : 'uint32',
+    'num-reg-groups': 'uint32' },
+  'returns': 'MCDQryRegGroupsResult' }
+
+
+##
+# @MCDQryRegMapResult:
+#
+# Return value of @mcd-qry-reg-map.
+#
+# @return-status: Return code.
+# @num-regs:      Number of returned registers. In case the input value of
+#                 @num-regs is '0', this is the number of all available register
+#                 for the selected register group.
+# @reg-info:      Register information.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryRegMapResult',
+  'data': {
+    'return-status': 'uint32',
+    '*num-regs'    : 'uint32',
+    '*reg-info'    : [ 'MCDRegisterInfo' ] }}
+
+##
+# @mcd-qry-reg-map:
+#
+# Function querying the register information of a particular register group.
+#
+# @core-uid:     Unique ID of the core the calling function addresses.
+# @reg-group-id: ID of the register group detailed register information is
+#                requested for.
+# @start-index:  Start index of the requested registers. This refers to an
+#                internal list of the target side implementation.
+# @num-regs:     Number of registers, information is requested of. If it
+#                is set to '0', no register information is returned but the
+#                number of all available registers within for the selected
+#                register group.
+#
+# Returns: @MCDQryRegMapResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "mcd-qry-reg-groups",
+#          "arguments": { "core-uid": 1,
+#                         "start-index": 0,
+#                         "num-reg-groups": 3 } }
+#     <- {
+#            "return": {
+#                "reg-groups": [
+#                    {
+#                        "reg-group-id": 1,
+#                        "reg-group-name": "org.gnu.gdb.aarch64.core",
+#                        "n-registers": 34
+#                    },
+#                    {
+#                        "reg-group-id": 2,
+#                        "reg-group-name": "org.gnu.gdb.aarch64.fpu",
+#                        "n-registers": 34
+#                    },
+#                    {
+#                        "reg-group-id": 3,
+#                        "reg-group-name": "org.qemu.gdb.arm.sys.regs",
+#                        "n-registers": 210
+#                    }
+#                ],
+#                "return-status": 0,
+#                "num-reg-groups": 3
+#            }
+#        }
+#     -> { "execute": "mcd-qry-reg-map",
+#          "arguments": { "core-uid": 1,
+#                         "reg-group-id": 1,
+#                         "start-index": 0,
+#                         "num-regs": 34 } }
+#     <- {
+#            "return": {
+#                "reg-info": [
+#                    {
+#                        "reg-group-id": 1,
+#                        "regname": "x0",
+#                        "side-effects-read": false,
+#                        "addr": {
+#                            "mem-space-id": 5,
+#                            "addr-space-id": 0,
+#                            "address": 0,
+#                            "addr-space-type": 0
+#                        },
+#                        "reg-type": 0,
+#                        "core-mode-mask-write": 0,
+#                        "core-mode-mask-read": 0,
+#                        "regsize": 64,
+#                        "hw-thread-id": 0,
+#                        "side-effects-write": false
+#                    },
+#                    {
+#                        "reg-group-id": 1,
+#                        "regname": "x1",
+#                        "side-effects-read": false,
+#                        "addr": {
+#                            "mem-space-id": 5,
+#                            "addr-space-id": 0,
+#                            "address": 1,
+#                            "addr-space-type": 0
+#                        },
+#                        "reg-type": 0,
+#                        "core-mode-mask-write": 0,
+#                        "core-mode-mask-read": 0,
+#                        "regsize": 64,
+#                        "hw-thread-id": 0,
+#                        "side-effects-write": false
+#                    },
+#                    {
+#                        "reg-group-id": 1,
+#                        "regname": "x2",
+#                        "side-effects-read": false,
+#                        "addr": {
+#                            "mem-space-id": 5,
+#                            "addr-space-id": 0,
+#                            "address": 2,
+#                            "addr-space-type": 0
+#                        },
+#                        "reg-type": 0,
+#                        "core-mode-mask-write": 0,
+#                        "core-mode-mask-read": 0,
+#                        "regsize": 64,
+#                        "hw-thread-id": 0,
+#                        "side-effects-write": false
+#                    },
+#                    {
+#                        "reg-group-id": 1,
+#                        "regname": "x3",
+#                        "side-effects-read": false,
+#                        "addr": {
+#                            "mem-space-id": 5,
+#                            "addr-space-id": 0,
+#                            "address": 3,
+#                            "addr-space-type": 0
+#                        },
+#                        "reg-type": 0,
+#                        "core-mode-mask-write": 0,
+#                        "core-mode-mask-read": 0,
+#                        "regsize": 64,
+#                        "hw-thread-id": 0,
+#                        "side-effects-write": false
+#                    },
+#                    ...
+#                ],
+#                "return-status": 0,
+#                "num-regs": 34
+#            }
+#        }
+##
+{ 'command': 'mcd-qry-reg-map',
+  'data': {
+    'core-uid': 'uint32',
+    'reg-group-id': 'uint32',
+    'start-index': 'uint32',
+    'num-regs': 'uint32' },
+  'returns': 'MCDQryRegMapResult' }
