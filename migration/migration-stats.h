@@ -51,11 +51,6 @@ typedef struct {
      */
     Stat64 dirty_sync_count;
     /*
-     * Number of times zero copy failed to send any page using zero
-     * copy.
-     */
-    Stat64 dirty_sync_missed_zero_copy;
-    /*
      * Number of bytes sent at migration completion stage while the
      * guest is stopped.
      */

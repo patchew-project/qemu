@@ -602,9 +602,6 @@ static int multifd_zero_copy_flush(QIOChannel *c)
         error_report_err(err);
         return -1;
     }
-    if (ret == 1) {
-        stat64_add(&mig_stats.dirty_sync_missed_zero_copy, 1);
-    }
 
     return ret;
 }
