@@ -3712,6 +3712,7 @@ subdir('authz')
 subdir('crypto')
 subdir('ui')
 subdir('gdbstub')
+subdir('mcd')
 if have_system
   subdir('hw')
 else

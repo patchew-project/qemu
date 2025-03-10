@@ -38,6 +38,20 @@ The resulting system can be visualized as follows::
     | qemu-system-*  |      | -machine |           | -cpu |
     +----------------+      +----------+           +------+
 
+
+Debugging via QMP
+-----------------
+
+Since the MCD API does not define a communication protocol, the QEMU Machine
+Protocol (QMP) is utilized to implement a remote procedure call mechanism.
+Each function within the API corresponds to one QMP command, ensuring a
+one-to-one mapping between the API's functions and the QMP commands.
+
+If you are not familiar with QMP, see the :doc:`qmp-spec` for the
+protocol, and the :doc:`qemu-qmp-ref` for a full reference of all
+commands.
+
+
 API Reference
 -------------
 

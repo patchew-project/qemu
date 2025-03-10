@@ -40,6 +40,7 @@ qapi_all_modules = [
   'machine-common',
   'machine',
   'machine-target',
+  'mcd',
   'migration',
   'misc',
   'misc-target',
