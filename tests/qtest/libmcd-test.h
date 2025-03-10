@@ -47,4 +47,7 @@ MCDOpenCoreResult *qtest_mcd_open_core(QTestState *qts,
 MCDCloseCoreResult *qtest_mcd_close_core(QTestState *qts,
                                          q_obj_mcd_close_core_arg *args);
 
+MCDQryMemSpacesResult *qtest_mcd_qry_mem_spaces(QTestState *qts,
+    q_obj_mcd_qry_mem_spaces_arg *args);
+
 #endif /* LIBMCD_TEST_H */

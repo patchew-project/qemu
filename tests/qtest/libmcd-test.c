@@ -258,3 +258,23 @@ MCDCloseCoreResult *qtest_mcd_close_core(QTestState *qts,
 
     return unmarshal;
 }
+
+MCDQryMemSpacesResult *qtest_mcd_qry_mem_spaces(
+    QTestState *qts, q_obj_mcd_qry_mem_spaces_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDQryMemSpacesResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_qry_mem_spaces_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-qry-mem-spaces',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDQryMemSpacesResult);
+
+    return unmarshal;
+}
