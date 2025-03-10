@@ -20,4 +20,13 @@ MCDInitializeResult *qtest_mcd_initialize(QTestState *qts,
 
 MCDErrorInfo *qtest_mcd_qry_error_info(QTestState *qts);
 
+MCDQryServersResult *qtest_mcd_qry_servers(QTestState *qts,
+                                           q_obj_mcd_qry_servers_arg *args);
+
+MCDOpenServerResult *qtest_mcd_open_server(QTestState *qts,
+                                           q_obj_mcd_open_server_arg *args);
+
+MCDCloseServerResult *qtest_mcd_close_server(QTestState *qts,
+                                             q_obj_mcd_close_server_arg *args);
+
 #endif /* LIBMCD_TEST_H */

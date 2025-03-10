@@ -86,3 +86,63 @@ MCDErrorInfo *qtest_mcd_qry_error_info(QTestState *qts)
 
     return unmarshal;
 }
+
+MCDQryServersResult *qtest_mcd_qry_servers(QTestState *qts,
+                                           q_obj_mcd_qry_servers_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDQryServersResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_qry_servers_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-qry-servers',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDQryServersResult);
+
+    return unmarshal;
+}
+
+MCDOpenServerResult *qtest_mcd_open_server(QTestState *qts,
+                                           q_obj_mcd_open_server_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDOpenServerResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_open_server_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-open-server',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDOpenServerResult);
+
+    return unmarshal;
+}
+
+MCDCloseServerResult *qtest_mcd_close_server(QTestState *qts,
+                                             q_obj_mcd_close_server_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDCloseServerResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_close_server_arg);
+
+    resp = qtest_qmp(qts, "{'execute': 'mcd-close-server',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDCloseServerResult);
+
+    return unmarshal;
+}
