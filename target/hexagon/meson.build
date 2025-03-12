@@ -323,30 +323,13 @@ if idef_parser_enabled and 'hexagon-linux-user' in target_dirs
         command: [idef_parser, '@INPUT@', '@OUTPUT0@', '@OUTPUT1@', '@OUTPUT2@']
     )
 
-    indent = find_program('indent', required: false)
-    if indent.found()
-        idef_generated_tcg_c = custom_target(
-            'indent',
-            input: idef_generated_tcg[0],
-            output: 'idef-generated-emitter.indented.c',
-            command: [indent, '-linux', '@INPUT@', '-o', '@OUTPUT@']
-        )
-    else
-        idef_generated_tcg_c = custom_target(
-            'copy',
-            input: idef_generated_tcg[0],
-            output: 'idef-generated-emitter.indented.c',
-            command: ['cp', '@INPUT@', '@OUTPUT@']
-        )
-    endif
-
     idef_generated_list = idef_generated_tcg[2].full_path()
 
-    hexagon_ss.add(idef_generated_tcg_c)
+    hexagon_ss.add(idef_generated_tcg[0])
 
     # Setup input and dependencies for the next step, this depends on whether or
     # not idef-parser is enabled
-    helper_dep = [semantics_generated, idef_generated_tcg_c, idef_generated_tcg]
+    helper_dep = [semantics_generated, idef_generated_tcg]
     helper_in = [semantics_generated, gen_tcg_h, gen_tcg_hvx_h, '--idef-parser', idef_generated_list]
 else
     # Setup input and dependencies for the next step, this depends on whether or
