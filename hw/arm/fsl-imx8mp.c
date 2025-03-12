@@ -696,6 +696,8 @@ static void fsl_imx8mp_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, fsl_imx8mp_properties);
     dc->realize = fsl_imx8mp_realize;
 
+    /* Reason: SoC can only be instantiated from a board */
+    dc->user_creatable = false;
     dc->desc = "i.MX 8M Plus SoC";
 }
 
