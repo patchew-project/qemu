@@ -874,7 +874,6 @@ void qemu_init_subsystems(void)
     runstate_init();
     precopy_infrastructure_init();
     postcopy_infrastructure_init();
-    monitor_init_globals();
 
     if (qcrypto_init(&err) < 0) {
         error_reportf_err(err, "cannot initialize crypto: ");

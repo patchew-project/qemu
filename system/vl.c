@@ -2887,6 +2887,8 @@ void qemu_init(int argc, char **argv)
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
+    monitor_init_globals();
+
     os_setup_limits();
 
 #ifdef CONFIG_MODULES
