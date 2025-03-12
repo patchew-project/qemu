@@ -6860,7 +6860,7 @@ int bdrv_activate(BlockDriverState *bs, Error **errp)
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!bs->drv)  {
-        return -ENOMEDIUM;
+        return 0;
     }
 
     QLIST_FOREACH(child, &bs->children, next) {
