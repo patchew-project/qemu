@@ -54,6 +54,7 @@ test_timeouts = {
   'ppc64_powernv' : 480,
   'ppc64_pseries' : 480,
   'ppc64_replay' : 210,
+  'ppc64_fadump' : 480,
   'ppc64_tuxrun' : 420,
   'ppc64_mac99' : 120,
   'riscv64_tuxrun' : 120,
@@ -245,6 +246,7 @@ tests_ppc64_system_thorough = [
   'ppc64_reverse_debug',
   'ppc64_tuxrun',
   'ppc64_mac99',
+  'ppc64_fadump',
 ]
 
 tests_riscv32_system_quick = [
