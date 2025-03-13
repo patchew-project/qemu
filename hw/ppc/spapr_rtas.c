@@ -369,7 +369,7 @@ static void rtas_configure_kernel_dump(PowerPCCPU *cpu,
 
     switch (cmd) {
     case FADUMP_CMD_REGISTER:
-        ret_val = do_fadump_register();
+        ret_val = do_fadump_register(spapr, args);
         if (ret_val != RTAS_OUT_SUCCESS) {
             rtas_st(rets, 0, ret_val);
             return;
