@@ -169,6 +169,9 @@ int ram_block_discard_guest_memfd_range(RAMBlock *rb, uint64_t start,
 /* Returns: 0 on success, -1 on error */
 int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
                         void *ptr, size_t len, bool is_write);
+/* Returns: 0 on success, -1 on error */
+int phys_memory_rw_debug(hwaddr addr, void *buf,
+                         hwaddr len, bool is_write);
 
 /* vl.c */
 void list_cpus(void);

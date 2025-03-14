@@ -481,6 +481,17 @@ would ignore the write attempt).
 
 ``cpu_memory_rw_debug``
 
+``phys_memory_rw_debug``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Access system memory by physical address for debug purposes.
+
+This function is intended for use by the GDB stub and similar code.
+It takes a physical address and operates on the system address space.
+Access is performed as in cpu_memory_rw_debug().
+
+``phys_memory_rw_debug``
+
 ``dma_memory_*``
 ~~~~~~~~~~~~~~~~
 

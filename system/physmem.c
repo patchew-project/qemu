@@ -3755,6 +3755,22 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
     return 0;
 }
 
+/* physical memory access for debug (includes writing to ROM) */
+int phys_memory_rw_debug(hwaddr addr, void *buf,
+                         hwaddr len, bool is_write)
+{
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    MemTxResult res;
+
+    attrs.debug = 1;
+    res = address_space_rw(&address_space_memory, addr, attrs,
+                           buf, len, is_write);
+    if (res != MEMTX_OK) {
+        return -1;
+    }
+    return 0;
+}
+
 bool cpu_physical_memory_is_io(hwaddr phys_addr)
 {
     MemoryRegion*mr;
