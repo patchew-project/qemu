@@ -1880,7 +1880,7 @@
       'load5m': 'number',
       'load15m': 'number'
   },
-  'if': 'CONFIG_GETLOADAVG'
+  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_GETLOADAVG'] }
 }
 
 ##
@@ -1894,7 +1894,7 @@
 ##
 { 'command': 'guest-get-load',
   'returns': 'GuestLoadAverage',
-  'if': 'CONFIG_GETLOADAVG'
+  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_GETLOADAVG'] }
 }
 
 ##
