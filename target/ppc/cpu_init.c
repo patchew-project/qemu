@@ -7603,9 +7603,14 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     int i;
 
     qemu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
-                 TARGET_FMT_lx " XER " TARGET_FMT_lx " CPU#%d\n",
-                 env->nip, env->lr, env->ctr, cpu_read_xer(env),
-                 cs->cpu_index);
+                 TARGET_FMT_lx " XER " TARGET_FMT_lx,
+                 env->nip, env->lr, env->ctr, cpu_read_xer(env));
+    if (env->spr_cb[SPR_PIR].name) {
+        qemu_fprintf(f, " PIR " TARGET_FMT_lx, env->spr[SPR_PIR]);
+    } else if (env->spr_cb[SPR_BOOKE_PIR].name) {
+        qemu_fprintf(f, " PIR " TARGET_FMT_lx, env->spr[SPR_BOOKE_PIR]);
+    }
+    qemu_fprintf(f, " CPU#%d\n", cs->cpu_index);
     qemu_fprintf(f, "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
                  "%08x iidx %d didx %d\n",
                  env->msr, env->spr[SPR_HID0], env->hflags,
