@@ -736,7 +736,7 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
        * If ARM_CP_NOP is used, resetfn is not called,
        * So ARM_CP_NO_RAW is appropriate type.
        */
-      .type = ARM_CP_NO_RAW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .access = PL1_RW,
       .readfn = arm_cp_read_zero,
       .writefn = arm_cp_write_ignore,

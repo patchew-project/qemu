@@ -523,7 +523,7 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
       .resetvalue = 0 },
     /* v6 doesn't have the cache ID registers but Linux reads them anyway */
     { .name = "DUMMY", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = CP_ANY,
-      .access = PL1_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW,
+      .access = PL1_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .resetvalue = 0 },
     /*
      * We don't implement pre-v7 debug but most CPUs had at least a DBGDIDR;
@@ -654,7 +654,8 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
      * So use arm_cp_write_ignore() function instead of ARM_CP_NOP flag.
      */
     { .name = "ISB", .cp = 15, .crn = 7, .crm = 5, .opc1 = 0, .opc2 = 4,
-      .access = PL0_W, .type = ARM_CP_NO_RAW, .writefn = arm_cp_write_ignore },
+      .access = PL0_W, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
+      .writefn = arm_cp_write_ignore },
     { .name = "DSB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 4,
       .access = PL0_W, .type = ARM_CP_NOP },
     { .name = "DMB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
@@ -1928,13 +1929,13 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "PMSWINC", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 4,
       .access = PL0_W, .accessfn = pmreg_access_swinc,
       .fgt = FGT_PMSWINC_EL0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .writefn = pmswinc_write },
     { .name = "PMSWINC_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 12, .opc2 = 4,
       .access = PL0_W, .accessfn = pmreg_access_swinc,
       .fgt = FGT_PMSWINC_EL0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .writefn = pmswinc_write },
     { .name = "PMSELR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 5,
       .access = PL0_RW, .type = ARM_CP_ALIAS,
@@ -1976,24 +1977,24 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.pmccfiltr_el0),
       .resetvalue = 0, },
     { .name = "PMXEVTYPER", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 1,
-      .access = PL0_RW, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = pmreg_access,
       .fgt = FGT_PMEVTYPERN_EL0,
       .writefn = pmxevtyper_write, .readfn = pmxevtyper_read },
     { .name = "PMXEVTYPER_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 13, .opc2 = 1,
-      .access = PL0_RW, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = pmreg_access,
       .fgt = FGT_PMEVTYPERN_EL0,
       .writefn = pmxevtyper_write, .readfn = pmxevtyper_read },
     { .name = "PMXEVCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 2,
-      .access = PL0_RW, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = pmreg_access_xevcntr,
       .fgt = FGT_PMEVCNTRN_EL0,
       .writefn = pmxevcntr_write, .readfn = pmxevcntr_read },
     { .name = "PMXEVCNTR_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 13, .opc2 = 2,
-      .access = PL0_RW, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = pmreg_access_xevcntr,
       .fgt = FGT_PMEVCNTRN_EL0,
       .writefn = pmxevcntr_write, .readfn = pmxevcntr_read },
@@ -2026,14 +2027,14 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "PMINTENCLR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .accessfn = access_tpm,
       .fgt = FGT_PMINTEN,
-      .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_NO_RAW,
+      .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .writefn = pmintenclr_write, },
     { .name = "PMINTENCLR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 9, .crm = 14, .opc2 = 2,
       .access = PL1_RW, .accessfn = access_tpm,
       .fgt = FGT_PMINTEN,
-      .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_NO_RAW,
+      .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .writefn = pmintenclr_write },
     { .name = "CCSIDR", .state = ARM_CP_STATE_BOTH,
@@ -2041,7 +2042,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .access = PL1_R,
       .accessfn = access_tid4,
       .fgt = FGT_CCSIDR_EL1,
-      .readfn = ccsidr_read, .type = ARM_CP_NO_RAW },
+      .readfn = ccsidr_read, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB },
     { .name = "CSSELR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 2, .opc2 = 0,
       .access = PL1_RW,
@@ -2115,7 +2116,8 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "ISR_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 1, .opc2 = 0,
       .fgt = FGT_ISR_EL1,
-      .type = ARM_CP_NO_RAW, .access = PL1_R, .readfn = isr_read },
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
+      .access = PL1_R, .readfn = isr_read },
 };
 
 static const ARMCPRegInfo pmovsset_cp_reginfo[] = {
@@ -3206,53 +3208,55 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     /* TimerValue views: a 32 bit downcounting view of the underlying state */
     { .name = "CNTP_TVAL", .cp = 15, .crn = 14, .crm = 2, .opc1 = 0, .opc2 = 0,
       .secure = ARM_CP_SECSTATE_NS,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL0_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL0_RW,
       .accessfn = gt_ptimer_access,
       .readfn = gt_phys_redir_tval_read, .writefn = gt_phys_redir_tval_write,
     },
     { .name = "CNTP_TVAL_S",
       .cp = 15, .crn = 14, .crm = 2, .opc1 = 0, .opc2 = 0,
       .secure = ARM_CP_SECSTATE_S,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL0_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL0_RW,
       .accessfn = gt_ptimer_access,
       .readfn = gt_sec_tval_read, .writefn = gt_sec_tval_write,
     },
     { .name = "CNTP_TVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 2, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL0_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL0_RW,
       .accessfn = gt_ptimer_access, .resetfn = gt_phys_timer_reset,
       .readfn = gt_phys_redir_tval_read, .writefn = gt_phys_redir_tval_write,
     },
     { .name = "CNTV_TVAL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL0_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL0_RW,
       .accessfn = gt_vtimer_access,
       .readfn = gt_virt_redir_tval_read, .writefn = gt_virt_redir_tval_write,
     },
     { .name = "CNTV_TVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 3, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL0_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL0_RW,
       .accessfn = gt_vtimer_access, .resetfn = gt_virt_timer_reset,
       .readfn = gt_virt_redir_tval_read, .writefn = gt_virt_redir_tval_write,
     },
     /* The counter itself */
     { .name = "CNTPCT", .cp = 15, .crm = 14, .opc1 = 0,
-      .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R,
+      .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = gt_pct_access,
       .readfn = gt_cnt_read, .resetfn = arm_cp_reset_ignore,
     },
     { .name = "CNTPCT_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 1,
-      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = gt_pct_access, .readfn = gt_cnt_read,
     },
     { .name = "CNTVCT", .cp = 15, .crm = 14, .opc1 = 1,
-      .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R,
+      .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = gt_vct_access,
       .readfn = gt_virt_cnt_read, .resetfn = arm_cp_reset_ignore,
     },
     { .name = "CNTVCT_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 2,
-      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = gt_vct_access, .readfn = gt_virt_cnt_read,
     },
     /* Comparison value, indicating when the timer goes off */
@@ -3307,7 +3311,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
      */
     { .name = "CNTPS_TVAL_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 7, .crn = 14, .crm = 2, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL1_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL1_RW,
       .accessfn = gt_stimer_access,
       .readfn = gt_sec_tval_read,
       .writefn = gt_sec_tval_write,
@@ -3337,23 +3341,27 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
  */
 static const ARMCPRegInfo gen_timer_ecv_cp_reginfo[] = {
     { .name = "CNTVCTSS", .cp = 15, .crm = 14, .opc1 = 9,
-      .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R,
+      .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = gt_vct_access,
       .readfn = gt_virt_cnt_read, .resetfn = arm_cp_reset_ignore,
     },
     { .name = "CNTVCTSS_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 6,
-      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = gt_vct_access, .readfn = gt_virt_cnt_read,
     },
     { .name = "CNTPCTSS", .cp = 15, .crm = 14, .opc1 = 8,
-      .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R,
+      .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = gt_pct_access,
       .readfn = gt_cnt_read, .resetfn = arm_cp_reset_ignore,
     },
     { .name = "CNTPCTSS_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 5,
-      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .accessfn = gt_pct_access, .readfn = gt_cnt_read,
     },
 };
@@ -3415,7 +3423,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     },
     { .name = "CNTVCT_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 2,
-      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .readfn = gt_virt_cnt_read,
     },
 };
@@ -3427,7 +3435,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 static const ARMCPRegInfo gen_timer_ecv_cp_reginfo[] = {
     { .name = "CNTVCTSS_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 6,
-      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
+      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO,
       .readfn = gt_virt_cnt_read,
     },
 };
@@ -4120,12 +4128,12 @@ static uint64_t pmsav8r_regn_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static const ARMCPRegInfo pmsav8r_cp_reginfo[] = {
     { .name = "PRBAR",
       .cp = 15, .opc1 = 0, .crn = 6, .crm = 3, .opc2 = 0,
-      .access = PL1_RW, .type = ARM_CP_NO_RAW,
+      .access = PL1_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .accessfn = access_tvm_trvm,
       .readfn = prbar_read, .writefn = prbar_write },
     { .name = "PRLAR",
       .cp = 15, .opc1 = 0, .crn = 6, .crm = 3, .opc2 = 1,
-      .access = PL1_RW, .type = ARM_CP_NO_RAW,
+      .access = PL1_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .accessfn = access_tvm_trvm,
       .readfn = prlar_read, .writefn = prlar_write },
     { .name = "PRSELR", .resetvalue = 0,
@@ -4135,11 +4143,11 @@ static const ARMCPRegInfo pmsav8r_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, pmsav7.rnr[M_REG_NS]) },
     { .name = "HPRBAR", .resetvalue = 0,
       .cp = 15, .opc1 = 4, .crn = 6, .crm = 3, .opc2 = 0,
-      .access = PL2_RW, .type = ARM_CP_NO_RAW,
+      .access = PL2_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .readfn = hprbar_read, .writefn = hprbar_write },
     { .name = "HPRLAR",
       .cp = 15, .opc1 = 4, .crn = 6, .crm = 3, .opc2 = 1,
-      .access = PL2_RW, .type = ARM_CP_NO_RAW,
+      .access = PL2_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .readfn = hprlar_read, .writefn = hprlar_write },
     { .name = "HPRSELR", .resetvalue = 0,
       .cp = 15, .opc1 = 4, .crn = 6, .crm = 2, .opc2 = 1,
@@ -4148,7 +4156,7 @@ static const ARMCPRegInfo pmsav8r_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, pmsav8.hprselr) },
     { .name = "HPRENR",
       .cp = 15, .opc1 = 4, .crn = 6, .crm = 1, .opc2 = 1,
-      .access = PL2_RW, .type = ARM_CP_NO_RAW,
+      .access = PL2_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .readfn = hprenr_read, .writefn = hprenr_write },
 };
 
@@ -4159,17 +4167,17 @@ static const ARMCPRegInfo pmsav7_cp_reginfo[] = {
      * not register cpregs but still need the state to be reset.
      */
     { .name = "DRBAR", .cp = 15, .crn = 6, .opc1 = 0, .crm = 1, .opc2 = 0,
-      .access = PL1_RW, .type = ARM_CP_NO_RAW,
+      .access = PL1_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .fieldoffset = offsetof(CPUARMState, pmsav7.drbar),
       .readfn = pmsav7_read, .writefn = pmsav7_write,
       .resetfn = arm_cp_reset_ignore },
     { .name = "DRSR", .cp = 15, .crn = 6, .opc1 = 0, .crm = 1, .opc2 = 2,
-      .access = PL1_RW, .type = ARM_CP_NO_RAW,
+      .access = PL1_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .fieldoffset = offsetof(CPUARMState, pmsav7.drsr),
       .readfn = pmsav7_read, .writefn = pmsav7_write,
       .resetfn = arm_cp_reset_ignore },
     { .name = "DRACR", .cp = 15, .crn = 6, .opc1 = 0, .crm = 1, .opc2 = 4,
-      .access = PL1_RW, .type = ARM_CP_NO_RAW,
+      .access = PL1_RW, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .fieldoffset = offsetof(CPUARMState, pmsav7.dracr),
       .readfn = pmsav7_read, .writefn = pmsav7_write,
       .resetfn = arm_cp_reset_ignore },
@@ -4453,7 +4461,7 @@ static const ARMCPRegInfo omap_cp_reginfo[] = {
       .writefn = omap_threadid_write },
     { .name = "TI925T_STATUS", .cp = 15, .crn = 15,
       .crm = 8, .opc1 = 0, .opc2 = 0, .access = PL1_RW,
-      .type = ARM_CP_NO_RAW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .readfn = arm_cp_read_zero, .writefn = omap_wfi_write, },
     /*
      * TODO: Peripheral port remap register:
@@ -4463,7 +4471,7 @@ static const ARMCPRegInfo omap_cp_reginfo[] = {
      */
     { .name = "OMAP_CACHEMAINT", .cp = 15, .crn = 7, .crm = CP_ANY,
       .opc1 = 0, .opc2 = CP_ANY, .access = PL1_W,
-      .type = ARM_CP_OVERRIDE | ARM_CP_NO_RAW,
+      .type = ARM_CP_OVERRIDE | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .writefn = omap_cachemaint_write },
     { .name = "C9", .cp = 15, .crn = 9,
       .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW,
@@ -4513,21 +4521,21 @@ static const ARMCPRegInfo dummy_c15_cp_reginfo[] = {
     { .name = "C15_IMPDEF", .cp = 15, .crn = 15,
       .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
       .access = PL1_RW,
-      .type = ARM_CP_CONST | ARM_CP_NO_RAW | ARM_CP_OVERRIDE,
+      .type = ARM_CP_CONST | ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_OVERRIDE,
       .resetvalue = 0 },
 };
 
 static const ARMCPRegInfo cache_dirty_status_cp_reginfo[] = {
     /* Cache status: RAZ because we have no cache so it's always clean */
     { .name = "CDSR", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 6,
-      .access = PL1_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW,
+      .access = PL1_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .resetvalue = 0 },
 };
 
 static const ARMCPRegInfo cache_block_ops_cp_reginfo[] = {
     /* We never have a block transfer operation in progress */
     { .name = "BXSR", .cp = 15, .crn = 7, .crm = 12, .opc1 = 0, .opc2 = 4,
-      .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW,
+      .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .resetvalue = 0 },
     /* The cache ops themselves: these all NOP for QEMU */
     { .name = "IICR", .cp = 15, .crm = 5, .opc1 = 0,
@@ -4550,10 +4558,10 @@ static const ARMCPRegInfo cache_test_clean_cp_reginfo[] = {
      * to indicate that there are no dirty cache lines.
      */
     { .name = "TC_DCACHE", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 3,
-      .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW,
+      .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .resetvalue = (1 << 30) },
     { .name = "TCI_DCACHE", .cp = 15, .crn = 7, .crm = 14, .opc1 = 0, .opc2 = 3,
-      .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW,
+      .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .resetvalue = (1 << 30) },
 };
 
@@ -4562,7 +4570,7 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
     { .name = "C9_READBUFFER", .cp = 15, .crn = 9,
       .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
       .access = PL1_RW, .resetvalue = 0,
-      .type = ARM_CP_CONST | ARM_CP_OVERRIDE | ARM_CP_NO_RAW },
+      .type = ARM_CP_CONST | ARM_CP_OVERRIDE | ARM_CP_NO_RAW | ARM_CP_NO_GDB },
 };
 
 static uint64_t midr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -4685,7 +4693,7 @@ static void aa64_pan_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo pan_reginfo = {
     .name = "PAN", .state = ARM_CP_STATE_AA64,
     .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 2, .opc2 = 3,
-    .type = ARM_CP_NO_RAW, .access = PL1_RW,
+    .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB, .access = PL1_RW,
     .readfn = aa64_pan_read, .writefn = aa64_pan_write
 };
 
@@ -4703,7 +4711,7 @@ static void aa64_uao_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo uao_reginfo = {
     .name = "UAO", .state = ARM_CP_STATE_AA64,
     .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 2, .opc2 = 4,
-    .type = ARM_CP_NO_RAW, .access = PL1_RW,
+    .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB, .access = PL1_RW,
     .readfn = aa64_uao_read, .writefn = aa64_uao_write
 };
 
@@ -4721,7 +4729,7 @@ static void aa64_dit_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo dit_reginfo = {
     .name = "DIT", .state = ARM_CP_STATE_AA64,
     .opc0 = 3, .opc1 = 3, .crn = 4, .crm = 2, .opc2 = 5,
-    .type = ARM_CP_NO_RAW, .access = PL0_RW,
+    .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB, .access = PL0_RW,
     .readfn = aa64_dit_read, .writefn = aa64_dit_write
 };
 
@@ -4739,7 +4747,7 @@ static void aa64_ssbs_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static const ARMCPRegInfo ssbs_reginfo = {
     .name = "SSBS", .state = ARM_CP_STATE_AA64,
     .opc0 = 3, .opc1 = 3, .crn = 4, .crm = 2, .opc2 = 6,
-    .type = ARM_CP_NO_RAW, .access = PL0_RW,
+    .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB, .access = PL0_RW,
     .readfn = aa64_ssbs_read, .writefn = aa64_ssbs_write
 };
 
@@ -5003,7 +5011,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .access = PL0_RW, .type = ARM_CP_NZCV },
     { .name = "DAIF", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 1, .crn = 4, .crm = 2,
-      .type = ARM_CP_NO_RAW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .access = PL0_RW, .accessfn = aa64_daif_access,
       .fieldoffset = offsetof(CPUARMState, daif),
       .writefn = aa64_daif_write, .resetfn = arm_cp_reset_ignore },
@@ -5017,7 +5025,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .readfn = aa64_fpsr_read, .writefn = aa64_fpsr_write },
     { .name = "DCZID_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 7, .crn = 0, .crm = 0,
-      .access = PL0_R, .type = ARM_CP_NO_RAW,
+      .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .fgt = FGT_DCZID_EL0,
       .readfn = aa64_dczid_read },
     { .name = "DC_ZVA", .state = ARM_CP_STATE_AA64,
@@ -5052,7 +5060,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .fgt = FGT_ICIVAU,
       .accessfn = access_tocu,
 #ifdef CONFIG_USER_ONLY
-      .type = ARM_CP_NO_RAW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .writefn = ic_ivau_write
 #else
       .type = ARM_CP_NOP
@@ -5095,48 +5103,58 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     /* 64 bit address translation operations */
     { .name = "AT_S1E1R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 0,
-      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL1_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E1R,
       .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S1E1W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 1,
-      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL1_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E1W,
       .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S1E0R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 2,
-      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL1_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E0R,
       .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S1E0W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 8, .opc2 = 3,
-      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL1_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E0W,
       .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S12E1R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 4,
-      .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL2_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .accessfn = at_e012_access, .writefn = ats_write64 },
     { .name = "AT_S12E1W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 5,
-      .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL2_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .accessfn = at_e012_access, .writefn = ats_write64 },
     { .name = "AT_S12E0R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 6,
-      .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL2_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .accessfn = at_e012_access, .writefn = ats_write64 },
     { .name = "AT_S12E0W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 7,
-      .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL2_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .accessfn = at_e012_access, .writefn = ats_write64 },
     /* AT S1E2* are elsewhere as they UNDEF from EL3 if EL2 is not present */
     { .name = "AT_S1E3R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 6, .crn = 7, .crm = 8, .opc2 = 0,
-      .access = PL3_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL3_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .writefn = ats_write64 },
     { .name = "AT_S1E3W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 6, .crn = 7, .crm = 8, .opc2 = 1,
-      .access = PL3_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL3_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .writefn = ats_write64 },
     { .name = "PAR_EL1", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
@@ -5208,7 +5226,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, sp_el[1]) },
     { .name = "SPSel", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 2, .opc2 = 0,
-      .type = ARM_CP_NO_RAW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .access = PL1_RW, .readfn = spsel_read, .writefn = spsel_write },
     { .name = "SPSR_IRQ", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
@@ -5756,12 +5774,12 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "AT_S1E2R", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 0,
       .access = PL2_W, .accessfn = at_s1e2_access,
-      .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC | ARM_CP_EL3_NO_EL2_UNDEF,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC | ARM_CP_EL3_NO_EL2_UNDEF,
       .writefn = ats_write64 },
     { .name = "AT_S1E2W", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 1,
       .access = PL2_W, .accessfn = at_s1e2_access,
-      .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC | ARM_CP_EL3_NO_EL2_UNDEF,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC | ARM_CP_EL3_NO_EL2_UNDEF,
       .writefn = ats_write64 },
     /*
      * The AArch32 ATS1H* operations are CONSTRAINED UNPREDICTABLE
@@ -5771,10 +5789,12 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
      */
     { .name = "ATS1HR", .cp = 15, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 0,
       .access = PL2_W,
-      .writefn = ats1h_write, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC },
+      .writefn = ats1h_write,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC },
     { .name = "ATS1HW", .cp = 15, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 1,
       .access = PL2_W,
-      .writefn = ats1h_write, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC },
+      .writefn = ats1h_write,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC },
     { .name = "CNTHCTL_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 1, .opc2 = 0,
       /*
@@ -5806,7 +5826,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .writefn = gt_hyp_cval_write, .raw_writefn = raw_write },
     { .name = "CNTHP_TVAL_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 2, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL2_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL2_RW,
       .resetfn = gt_hyp_timer_reset,
       .readfn = gt_hyp_tval_read, .writefn = gt_hyp_tval_write },
     { .name = "CNTHP_CTL_EL2", .state = ARM_CP_STATE_BOTH,
@@ -5865,7 +5885,7 @@ static const ARMCPRegInfo el2_sec_cp_reginfo[] = {
     /* Secure EL2 Physical Timer */
     { .name = "CNTHPS_TVAL_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 5, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL2_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL2_RW,
       .accessfn = gt_sel2timer_access,
       .readfn = gt_sec_pel2_tval_read,
       .writefn = gt_sec_pel2_tval_write,
@@ -5889,7 +5909,7 @@ static const ARMCPRegInfo el2_sec_cp_reginfo[] = {
     /* Secure EL2 Virtual Timer */
     { .name = "CNTHVS_TVAL_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 4, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL2_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL2_RW,
       .accessfn = gt_sel2timer_access,
       .readfn = gt_sec_vel2_tval_read,
       .writefn = gt_sec_vel2_tval_write,
@@ -6816,7 +6836,7 @@ static CPAccessResult aa64_allint_access(CPUARMState *env,
 static const ARMCPRegInfo nmi_reginfo[] = {
     { .name = "ALLINT", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .opc2 = 0, .crn = 4, .crm = 3,
-      .type = ARM_CP_NO_RAW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .access = PL1_RW, .accessfn = aa64_allint_access,
       .fieldoffset = offsetof(CPUARMState, pstate),
       .writefn = aa64_allint_write, .readfn = aa64_allint_read,
@@ -7115,11 +7135,11 @@ static uint64_t rndr_readfn(CPUARMState *env, const ARMCPRegInfo *ri)
 /* We do not support re-seeding, so the two registers operate the same.  */
 static const ARMCPRegInfo rndr_reginfo[] = {
     { .name = "RNDR", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END | ARM_CP_IO,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_SUPPRESS_TB_END | ARM_CP_IO,
       .opc0 = 3, .opc1 = 3, .crn = 2, .crm = 4, .opc2 = 0,
       .access = PL0_R, .readfn = rndr_readfn },
     { .name = "RNDRRS", .state = ARM_CP_STATE_AA64,
-      .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END | ARM_CP_IO,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_SUPPRESS_TB_END | ARM_CP_IO,
       .opc0 = 3, .opc1 = 3, .crn = 2, .crm = 4, .opc2 = 1,
       .access = PL0_R, .readfn = rndr_readfn },
 };
@@ -7161,7 +7181,8 @@ static void dccvap_writefn(CPUARMState *env, const ARMCPRegInfo *opaque,
 static const ARMCPRegInfo dcpop_reg[] = {
     { .name = "DC_CVAP", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 12, .opc2 = 1,
-      .access = PL0_W, .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END,
+      .access = PL0_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_SUPPRESS_TB_END,
       .fgt = FGT_DCCVAP,
       .accessfn = aa64_cacheop_poc_access, .writefn = dccvap_writefn },
 };
@@ -7169,7 +7190,8 @@ static const ARMCPRegInfo dcpop_reg[] = {
 static const ARMCPRegInfo dcpodp_reg[] = {
     { .name = "DC_CVADP", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 13, .opc2 = 1,
-      .access = PL0_W, .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END,
+      .access = PL0_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_SUPPRESS_TB_END,
       .fgt = FGT_DCCVADP,
       .accessfn = aa64_cacheop_poc_access, .writefn = dccvap_writefn },
 };
@@ -7281,7 +7303,7 @@ static const ARMCPRegInfo mte_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.gcr_el1) },
     { .name = "TCO", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 4, .crm = 2, .opc2 = 7,
-      .type = ARM_CP_NO_RAW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .access = PL0_RW, .readfn = tco_read, .writefn = tco_write },
     { .name = "DC_IGVAC", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 6, .opc2 = 3,
@@ -7569,7 +7591,7 @@ static const ARMCPRegInfo ccsidr2_reginfo[] = {
       .opc0 = 3, .opc1 = 1, .crn = 0, .crm = 0, .opc2 = 2,
       .access = PL1_R,
       .accessfn = access_tid4,
-      .readfn = ccsidr2_read, .type = ARM_CP_NO_RAW },
+      .readfn = ccsidr2_read, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB },
 };
 
 static CPAccessResult access_aa64_tid3(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -7654,7 +7676,7 @@ static const ARMCPRegInfo vhe_reginfo[] = {
       .writefn = gt_hv_cval_write, .raw_writefn = raw_write },
     { .name = "CNTHV_TVAL_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 3, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL2_RW,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO, .access = PL2_RW,
       .resetfn = gt_hv_timer_reset,
       .readfn = gt_hv_tval_read, .writefn = gt_hv_tval_write },
     { .name = "CNTHV_CTL_EL2", .state = ARM_CP_STATE_BOTH,
@@ -7679,12 +7701,12 @@ static const ARMCPRegInfo vhe_reginfo[] = {
       .writefn = gt_virt_ctl_write, .raw_writefn = raw_write },
     { .name = "CNTP_TVAL_EL02", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 5, .crn = 14, .crm = 2, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO | ARM_CP_ALIAS,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO | ARM_CP_ALIAS,
       .access = PL2_RW, .accessfn = e2h_access,
       .readfn = gt_phys_tval_read, .writefn = gt_phys_tval_write },
     { .name = "CNTV_TVAL_EL02", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 5, .crn = 14, .crm = 3, .opc2 = 0,
-      .type = ARM_CP_NO_RAW | ARM_CP_IO | ARM_CP_ALIAS,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_IO | ARM_CP_ALIAS,
       .access = PL2_RW, .accessfn = e2h_access,
       .readfn = gt_virt_tval_read, .writefn = gt_virt_tval_write },
     { .name = "CNTP_CVAL_EL02", .state = ARM_CP_STATE_AA64,
@@ -7708,12 +7730,14 @@ static const ARMCPRegInfo vhe_reginfo[] = {
 static const ARMCPRegInfo ats1e1_reginfo[] = {
     { .name = "AT_S1E1RP", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 9, .opc2 = 0,
-      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL1_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E1RP,
       .accessfn = at_s1e01_access, .writefn = ats_write64 },
     { .name = "AT_S1E1WP", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 9, .opc2 = 1,
-      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL1_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .fgt = FGT_ATS1E1WP,
       .accessfn = at_s1e01_access, .writefn = ats_write64 },
 };
@@ -7721,11 +7745,13 @@ static const ARMCPRegInfo ats1e1_reginfo[] = {
 static const ARMCPRegInfo ats1cp_reginfo[] = {
     { .name = "ATS1CPRP",
       .cp = 15, .opc1 = 0, .crn = 7, .crm = 9, .opc2 = 0,
-      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL1_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .writefn = ats_write },
     { .name = "ATS1CPWP",
       .cp = 15, .opc1 = 0, .crn = 7, .crm = 9, .opc2 = 1,
-      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC,
+      .access = PL1_W,
+      .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC,
       .writefn = ats_write },
 };
 #endif
@@ -7784,13 +7810,13 @@ void register_cp_regs_for_features(ARMCPU *cpu)
              */
             { .name = "ID_PFR1", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 1, .opc2 = 1,
-              .access = PL1_R, .type = ARM_CP_NO_RAW,
+              .access = PL1_R, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
               .accessfn = access_aa32_tid3,
 #ifdef CONFIG_USER_ONLY
               .type = ARM_CP_CONST,
               .resetvalue = cpu->isar.id_pfr1,
 #else
-              .type = ARM_CP_NO_RAW,
+              .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
               .accessfn = access_aa32_tid3,
               .readfn = id_pfr1_read,
               .writefn = arm_cp_write_ignore
@@ -7918,7 +7944,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .type = ARM_CP_CONST,
               .resetvalue = cpu->isar.id_aa64pfr0
 #else
-              .type = ARM_CP_NO_RAW,
+              .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
               .accessfn = access_aa64_tid3,
               .readfn = id_aa64pfr0_read,
               .writefn = arm_cp_write_ignore
@@ -8504,7 +8530,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             /* This underdecoding is safe because the reginfo is NO_RAW. */
             { .name = "ATS", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = CP_ANY,
               .access = PL1_W, .accessfn = ats_access,
-              .writefn = ats_write, .type = ARM_CP_NO_RAW | ARM_CP_RAISES_EXC },
+              .writefn = ats_write,
+              .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB | ARM_CP_RAISES_EXC },
 #endif
         };
 
@@ -8588,7 +8615,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         ARMCPRegInfo id_v8_midr_cp_reginfo[] = {
             { .name = "MIDR_EL1", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 0, .opc2 = 0,
-              .access = PL1_R, .type = ARM_CP_NO_RAW, .resetvalue = cpu->midr,
+              .access = PL1_R, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
+              .resetvalue = cpu->midr,
               .fgt = FGT_MIDR_EL1,
               .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid),
               .readfn = midr_read },
@@ -8712,7 +8740,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 
                 tmp_string = g_strdup_printf("PRBAR%u", i);
                 ARMCPRegInfo tmp_prbarn_reginfo = {
-                    .name = tmp_string, .type = ARM_CP_ALIAS | ARM_CP_NO_RAW,
+                    .name = tmp_string,
+                    .type = ARM_CP_ALIAS | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
                     .cp = 15, .opc1 = opc1, .crn = 6, .crm = crm, .opc2 = opc2,
                     .access = PL1_RW, .resetvalue = 0,
                     .accessfn = access_tvm_trvm,
@@ -8724,7 +8753,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
                 opc2 = extract32(i, 0, 1) << 2 | 0x1;
                 tmp_string = g_strdup_printf("PRLAR%u", i);
                 ARMCPRegInfo tmp_prlarn_reginfo = {
-                    .name = tmp_string, .type = ARM_CP_ALIAS | ARM_CP_NO_RAW,
+                    .name = tmp_string,
+                    .type = ARM_CP_ALIAS | ARM_CP_NO_RAW | ARM_CP_NO_GDB,
                     .cp = 15, .opc1 = opc1, .crn = 6, .crm = crm, .opc2 = opc2,
                     .access = PL1_RW, .resetvalue = 0,
                     .accessfn = access_tvm_trvm,
@@ -8743,7 +8773,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
                 tmp_string = g_strdup_printf("HPRBAR%u", i);
                 ARMCPRegInfo tmp_hprbarn_reginfo = {
                     .name = tmp_string,
-                    .type = ARM_CP_NO_RAW,
+                    .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
                     .cp = 15, .opc1 = opc1, .crn = 6, .crm = crm, .opc2 = opc2,
                     .access = PL2_RW, .resetvalue = 0,
                     .writefn = pmsav8r_regn_write, .readfn = pmsav8r_regn_read
@@ -8755,7 +8785,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
                 tmp_string = g_strdup_printf("HPRLAR%u", i);
                 ARMCPRegInfo tmp_hprlarn_reginfo = {
                     .name = tmp_string,
-                    .type = ARM_CP_NO_RAW,
+                    .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
                     .cp = 15, .opc1 = opc1, .crn = 6, .crm = crm, .opc2 = opc2,
                     .access = PL2_RW, .resetvalue = 0,
                     .writefn = pmsav8r_regn_write, .readfn = pmsav8r_regn_read
@@ -8773,7 +8803,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             { .name = "MPIDR_EL1", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
               .fgt = FGT_MPIDR_EL1,
-              .access = PL1_R, .readfn = mpidr_read, .type = ARM_CP_NO_RAW },
+              .access = PL1_R, .readfn = mpidr_read,
+              .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB },
         };
 #ifdef CONFIG_USER_ONLY
         static const ARMCPRegUserSpaceInfo mpidr_user_cp_reginfo[] = {
@@ -9211,7 +9242,7 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
      * never migratable and not even raw-accessible.
      */
     if (r2->type & ARM_CP_SPECIAL_MASK) {
-        r2->type |= ARM_CP_NO_RAW;
+        r2->type |= ARM_CP_NO_RAW | ARM_CP_NO_GDB;
     }
     if (((r->crm == CP_ANY) && crm != 0) ||
         ((r->opc1 == CP_ANY) && opc1 != 0) ||

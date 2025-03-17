@@ -1013,7 +1013,7 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.mdscr_el1), },
     { .name = "OSLAR_EL1", .state = ARM_CP_STATE_BOTH,
       .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 4,
-      .access = PL1_W, .type = ARM_CP_NO_RAW,
+      .access = PL1_W, .type = ARM_CP_NO_RAW | ARM_CP_NO_GDB,
       .accessfn = access_tdosa,
       .fgt = FGT_OSLAR_EL1,
       .writefn = oslar_write },
