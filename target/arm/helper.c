@@ -1903,12 +1903,21 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .accessfn = pmreg_access,
       .fgt = FGT_PMCNTEN,
       .writefn = pmcntenclr_write,
-      .type = ARM_CP_ALIAS | ARM_CP_IO },
+      /*
+       * Flag PMCNTENCLR with ARM_CP_NO_RAW instead of implementing raw
+       * access to workaround a problem with KVM; KVM applies bit operations
+       * that prevents writing back raw values since Linux 6.7:
+       * https://web.git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=a45f41d754e0b37de4b7dc1fb3c6b7a1285882fc
+       *
+       * It is fine to lack raw access with PMCNTENCLR because KVM still
+       * exposes PMCNTENSET, which shares the underlying state.
+       */
+      .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_NO_RAW },
     { .name = "PMCNTENCLR_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 12, .opc2 = 2,
       .access = PL0_RW, .accessfn = pmreg_access,
       .fgt = FGT_PMCNTEN,
-      .type = ARM_CP_ALIAS | ARM_CP_IO,
+      .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_NO_RAW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
       .writefn = pmcntenclr_write },
     { .name = "PMOVSR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 3,
@@ -2027,6 +2036,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "PMINTENCLR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .accessfn = access_tpm,
       .fgt = FGT_PMINTEN,
+      /* Flag PMINTENCLR with ARM_CP_NO_RAW, as with PMCNTENCLR. */
       .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_NO_RAW,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .writefn = pmintenclr_write, },
