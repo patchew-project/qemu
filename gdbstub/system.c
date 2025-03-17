@@ -17,6 +17,7 @@
 #include "exec/gdbstub.h"
 #include "gdbstub/syscalls.h"
 #include "gdbstub/commands.h"
+#include "exec/address-spaces.h"
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
 #include "system/accel-ops.h"
@@ -453,16 +454,30 @@ void gdb_qemu_exit(int code)
  */
 static int phy_memory_mode;
 
+/*
+ * Like cpu_memory_rw_debug but it operates on the system address space
+ * rather than the CPU's view of memory.
+ */
+static int phys_memory_rw_debug(hwaddr addr, void *buf,
+                                hwaddr len, bool is_write)
+{
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    MemTxResult res;
+
+    attrs.debug = 1;
+    res = address_space_rw(&address_space_memory, addr, attrs,
+                           buf, len, is_write);
+    if (res != MEMTX_OK) {
+        return -1;
+    }
+    return 0;
+}
+
 int gdb_target_memory_rw_debug(CPUState *cpu, hwaddr addr,
                                uint8_t *buf, int len, bool is_write)
 {
     if (phy_memory_mode) {
-        if (is_write) {
-            cpu_physical_memory_write(addr, buf, len);
-        } else {
-            cpu_physical_memory_read(addr, buf, len);
-        }
-        return 0;
+        return phys_memory_rw_debug(addr, buf, len, is_write);
     }
 
     if (cpu->cc->memory_rw_debug) {
