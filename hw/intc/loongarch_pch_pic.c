@@ -108,11 +108,6 @@ static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
     case PCH_PIC_HTMSI_EN_HI:
         val = s->htmsi_en >> 32;
         break;
-    case PCH_PIC_AUTO_CTRL0_LO:
-    case PCH_PIC_AUTO_CTRL0_HI:
-    case PCH_PIC_AUTO_CTRL1_LO:
-    case PCH_PIC_AUTO_CTRL1_HI:
-        break;
     default:
         break;
     }
@@ -190,11 +185,6 @@ static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
         break;
     case PCH_PIC_HTMSI_EN_HI:
         s->htmsi_en = get_writew_val(s->htmsi_en, data, 1);
-        break;
-    case PCH_PIC_AUTO_CTRL0_LO:
-    case PCH_PIC_AUTO_CTRL0_HI:
-    case PCH_PIC_AUTO_CTRL1_LO:
-    case PCH_PIC_AUTO_CTRL1_HI:
         break;
     default:
         break;
