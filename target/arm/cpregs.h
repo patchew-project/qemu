@@ -75,10 +75,10 @@ enum {
      */
     ARM_CP_IO                    = 1 << 9,
     /*
-     * Flag: Register has no underlying state and does not support raw access
-     * for state saving/loading; it will not be used for either migration or
-     * KVM state synchronization. Typically this is for "registers" which are
-     * actually used as instructions for cache maintenance and so on.
+     * Flag: Register does not support raw access for state saving/loading; it
+     * will not be used for either migration or KVM state synchronization.
+     * Typically this is for "registers" which are actually used as instructions
+     * for cache maintenance and so on.
      */
     ARM_CP_NO_RAW                = 1 << 10,
     /*
