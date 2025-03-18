@@ -1978,6 +1978,10 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
 
     if (s->crypto) {
         /* Encryption works on a sector granularity */
+        if (!s->crypto) {
+            error_setg(errp, "Encryption context is missing");
+            return;
+        }
         bs->bl.request_alignment = qcrypto_block_get_sector_size(s->crypto);
     }
     bs->bl.pwrite_zeroes_alignment = s->subcluster_size;
