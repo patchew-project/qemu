@@ -53,16 +53,16 @@ def render_block_graph(qmp, filename, format='png'):
 
     graph = Digraph(comment='Block Nodes Graph')
     graph.format = format
-    graph.node('permission symbols:\l'
-               '  w - Write\l'
-               '  r - consistent-Read\l'
-               '  u - write - Unchanged\l'
-               '  g - Graph-mod\l'
-               '  s - reSize\l'
-               'edge label scheme:\l'
-               '  <child type>\l'
-               '  <perm>\l'
-               '  <shared_perm>\l', shape='none')
+    graph.node(r'permission symbols:\l'
+               r'  w - Write\l'
+               r'  r - consistent-Read\l'
+               r'  u - write - Unchanged\l'
+               r'  g - Graph-mod\l'
+               r'  s - reSize\l'
+               r'edge label scheme:\l'
+               r'  <child type>\l'
+               r'  <perm>\l'
+               r'  <shared_perm>\l', shape='none')
 
     for n in block_graph['nodes']:
         if n['type'] == 'block-driver':
@@ -83,8 +83,8 @@ def render_block_graph(qmp, filename, format='png'):
         graph.node(str(n['id']), label, shape=shape)
 
     for e in block_graph['edges']:
-        label = '%s\l%s\l%s\l' % (e['name'], perm(e['perm']),
-                                  perm(e['shared-perm']))
+        label = r'%s\l%s\l%s\l' % (e['name'], perm(e['perm']),
+                                   perm(e['shared-perm']))
         graph.edge(str(e['parent']), str(e['child']), label=label)
 
     graph.render(filename)
