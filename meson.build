@@ -3673,6 +3673,7 @@ block_ss = ss.source_set()
 chardev_ss = ss.source_set()
 common_ss = ss.source_set()
 crypto_ss = ss.source_set()
+gpiodev_ss = ss.source_set()
 hwcore_ss = ss.source_set()
 io_ss = ss.source_set()
 qmp_ss = ss.source_set()
@@ -3766,6 +3767,7 @@ subdir('io')
 subdir('chardev')
 subdir('fsdev')
 subdir('dump')
+subdir('gpiodev')
 
 if have_block
   block_ss.add(files(
@@ -4059,11 +4061,18 @@ libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
 hwcore = declare_dependency(objects: libhwcore.extract_all_objects(recursive: false))
 common_ss.add(hwcore)
 
+libgpiodev = static_library('gpiodev', gpiodev_ss.sources() + genh,
+                            dependencies: gpiodev_ss.dependencies(),
+                            build_by_default: false)
+
+gpiodev = declare_dependency(objects: libgpiodev.extract_all_objects(recursive: false),
+                             dependencies: gpiodev_ss.dependencies())
+
 ###########
 # Targets #
 ###########
 
-system_ss.add(authz, blockdev, chardev, crypto, io, qmp)
+system_ss.add(authz, blockdev, chardev, crypto, gpiodev, io, qmp)
 common_ss.add(qom, qemuutil)
 
 common_ss.add_all(when: 'CONFIG_SYSTEM_ONLY', if_true: [system_ss])

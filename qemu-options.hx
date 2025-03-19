@@ -4081,6 +4081,15 @@ ERST
 
 DEFHEADING()
 
+DEFHEADING(GPIO device options:)
+
+DEF("gpiodev", HAS_ARG, QEMU_OPTION_gpiodev,
+    "-gpiodev help\n"
+    , QEMU_ARCH_ALL
+)
+
+DEFHEADING()
+
 #ifdef CONFIG_TPM
 DEFHEADING(TPM device options:)
 
