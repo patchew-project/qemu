@@ -23,6 +23,7 @@ import sys
 import subprocess
 import json
 from graphviz import Digraph
+import argparse
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
 from qemu.qmp import QMPError
@@ -91,13 +92,19 @@ def render_block_graph(qmp, filename, format='png'):
 
 
 class LibvirtGuest():
-    def __init__(self, name):
+    def __init__(self, name, uri=None):
         self.name = name
+        self.uri = uri
 
     def cmd(self, cmd):
         # only supports qmp commands without parameters
         m = {'execute': cmd}
-        ar = ['virsh', 'qemu-monitor-command', self.name, json.dumps(m)]
+        ar = ['virsh']
+
+        if self.uri:
+            ar += ['-c', self.uri]
+
+        ar += ['qemu-monitor-command', self.name, json.dumps(m)]
 
         reply = json.loads(subprocess.check_output(ar))
 
@@ -108,15 +115,39 @@ class LibvirtGuest():
 
 
 if __name__ == '__main__':
-    obj = sys.argv[1]
-    out = sys.argv[2]
+    parser = argparse.ArgumentParser(
+            description='Tool that renders the qemu block graph into a image.')
 
-    if os.path.exists(obj):
-        # assume unix socket
-        qmp = QEMUMonitorProtocol(obj)
+    modegroup = parser.add_mutually_exclusive_group(required=True)
+
+    modegroup.add_argument('--socket',
+                           help='socket mode - path to qemu monitor socket')
+    modegroup.add_argument('--vm', help='libvirt mode - name of libvirt VM')
+
+    parser.add_argument('--uri', help='libvirt URI to connect to')
+
+    parser.add_argument('--output',
+                        help='path to output image (.png suffix added); '
+                             'in libvirt mode default is the name of the VM')
+
+    args = parser.parse_args()
+
+    if args.socket:
+        if not args.output:
+            print("--output required in socket mode", file=sys.stderr)
+            parser.print_usage()
+            sys.exit(1)
+
+        qmp = QEMUMonitorProtocol(args.socket)
         qmp.connect()
-    else:
-        # assume libvirt guest name
-        qmp = LibvirtGuest(obj)
+        out = args.output
+
+    if args.vm:
+        qmp = LibvirtGuest(args.vm, args.uri)
+
+        if args.output:
+            out = args.output
+        else:
+            out = args.vm
 
     render_block_graph(qmp, out)
