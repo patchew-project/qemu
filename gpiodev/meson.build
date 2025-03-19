@@ -4,4 +4,5 @@ gpiodev_ss.add(files(
   'gpio.c',
 ))
 
+gpiodev_ss.add(when: fuse, if_true: files('gpio-guse.c'))
 gpiodev_ss = gpiodev_ss.apply({})

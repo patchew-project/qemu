@@ -56,6 +56,7 @@ struct Gpiodev {
 OBJECT_DECLARE_TYPE(Gpiodev, GpiodevClass, GPIODEV)
 
 #define TYPE_GPIODEV_CHARDEV "gpiodev-chardev"
+#define TYPE_GPIODEV_GUSEDEV "gpiodev-guse"
 
 struct GpiodevClass {
     ObjectClass parent_class;

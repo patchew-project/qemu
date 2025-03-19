@@ -21,12 +21,36 @@
 ##
 # @GpiodevBackendKind:
 #
-# @chardev: chardevs
+# @chardev: Gpio dev over chardev backend
+# @gusedev: Gpio dev over GUSE FUSE module
 #
 # Since: 9.2
 ##
 { 'enum': 'GpiodevBackendKind',
-  'data': [ 'chardev' ] }
+  'data': [ 'chardev',
+            { 'name': 'gusedev', 'if': 'CONFIG_LINUX' } ] }
+
+##
+# @GpiodevGusedev:
+#
+# Configuration info for guse gpiodevs.
+#
+# @devname: Name of device created in /dev
+#
+# Since: 9.2
+##
+  { 'struct': 'GpiodevGusedev',
+    'data': { 'devname': 'str' } }
+
+##
+# @GpiodevGusedevWrapper:
+#
+# @data: Configuration info for chardev gpiodevs
+#
+# Since: 9.2
+##
+{ 'struct': 'GpiodevGusedevWrapper',
+  'data': { 'data': 'GpiodevGusedev' } }
 
 ##
 # @GpiodevChardev:
@@ -65,4 +89,5 @@
 { 'union': 'GpiodevBackend',
   'base': { 'type': 'GpiodevBackendKind' },
   'discriminator': 'type',
-  'data': { 'chardev': 'GpiodevChardevWrapper' } }
+  'data': { 'chardev': 'GpiodevChardevWrapper',
+            'gusedev': { 'type': 'GpiodevGusedevWrapper', 'if': 'CONFIG_LINUX' } } }
