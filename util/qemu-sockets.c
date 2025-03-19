@@ -217,6 +217,19 @@ static int inet_set_sockopts(int sock, InetSocketAddress *saddr, Error **errp)
                              "Unable to set keep-alive option on socket");
             return -1;
         }
+#ifdef HAVE_TCP_KEEPIDLE
+        if (saddr->has_keep_alive_idle_period &&
+            saddr->keep_alive_idle_period) {
+            int keep_idle = saddr->has_keep_alive_idle_period;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keep_idle,
+                             sizeof(keep_idle));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive idle option on socket");
+                return -1;
+            }
+        }
+#endif
     }
     return 0;
 }
@@ -697,6 +710,22 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
         }
         addr->has_keep_alive = true;
     }
+#ifdef HAVE_TCP_KEEPIDLE
+    begin = strstr(optstr, ",keep-alive-idle-period=");
+    if (begin) {
+        begin += strlen(",keep-alive-idle-period=");
+        if (sscanf(begin, "%" PRIu32 "%n", &addr->keep_alive_idle_period, &pos) != 1 ||
+            (begin[pos] != '\0' && begin[pos] != ',')) {
+            error_setg(errp, "error parsing keep-alive-idle-period argument");
+            return -1;
+        }
+        if (addr->keep_alive_idle_period > INT_MAX) {
+            error_setg(errp, "keep-alive-idle-period value is too large");
+            return -1;
+        }
+        addr->has_keep_alive_idle_period = true;
+    }
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
     begin = strstr(optstr, ",mptcp");
     if (begin) {

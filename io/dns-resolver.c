@@ -128,6 +128,10 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
 #endif
             .has_keep_alive = iaddr->has_keep_alive,
             .keep_alive = iaddr->keep_alive,
+#ifdef HAVE_TCP_KEEPIDLE
+            .has_keep_alive_idle_period = iaddr->has_keep_alive_idle_period,
+            .keep_alive_idle_period = iaddr->keep_alive_idle_period,
+#endif
         };
 
         (*addrs)[i] = newaddr;
