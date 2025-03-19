@@ -1,4 +1,5 @@
 gpiodev_ss.add(files(
+  'gpio-fe.c',
   'gpio.c',
 ))
 
