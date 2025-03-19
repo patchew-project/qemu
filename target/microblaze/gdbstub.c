@@ -19,7 +19,7 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "gdbstub/helpers.h"
+#include "gdbstub/registers.h"
 
 /*
  * GDB expects SREGs in the following order:
@@ -50,62 +50,52 @@ int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
-    uint32_t val;
+    MemOp mo = TARGET_BIG_ENDIAN ? MO_BEUL : MO_LEUL;
 
     switch (n) {
     case 1 ... 31:
-        val = env->regs[n];
-        break;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->regs[n]);
     case GDB_PC:
-        val = env->pc;
-        break;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->pc);
     case GDB_MSR:
-        val = mb_cpu_read_msr(env);
-        break;
+        uint32_t msr = mb_cpu_read_msr(env);
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &msr);
     case GDB_EAR:
-        val = env->ear;
-        break;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->ear);
     case GDB_ESR:
-        val = env->esr;
-        break;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->esr);
     case GDB_FSR:
-        val = env->fsr;
-        break;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->fsr);
     case GDB_BTR:
-        val = env->btr;
-        break;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->btr);
     case GDB_PVR0 ... GDB_PVR11:
         /* PVR12 is intentionally skipped */
-        val = cpu->cfg.pvr_regs[n - GDB_PVR0];
-        break;
+        return gdb_get_register_value(mo, mem_buf,
+                                      (uint8_t *) &cpu->cfg.pvr_regs[n - GDB_PVR0]);
     case GDB_EDR:
-        val = env->edr;
-        break;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->edr);
     default:
         /* Other SRegs aren't modeled, so report a value of 0 */
-        val = 0;
-        break;
+        return 0;
     }
-    return gdb_get_reg32(mem_buf, val);
 }
 
 int mb_cpu_gdb_read_stack_protect(CPUState *cs, GByteArray *mem_buf, int n)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
-    uint32_t val;
+    MemOp mo = TARGET_BIG_ENDIAN ? MO_BEUL : MO_LEUL;
 
     switch (n) {
     case GDB_SP_SHL:
-        val = env->slr;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->slr);
         break;
     case GDB_SP_SHR:
-        val = env->shr;
+        return gdb_get_register_value(mo, mem_buf, (uint8_t *) &env->shr);
         break;
     default:
         return 0;
     }
-    return gdb_get_reg32(mem_buf, val);
 }
 
 int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
