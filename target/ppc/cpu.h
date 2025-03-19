@@ -2900,7 +2900,12 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
            (start + nregs > 32 && (rx >= start || rx < start + nregs - 32));
 }
 
-/* Accessors for FP, VMX and VSX registers */
+/*
+ * Access functions for FP, VMX and VSX registers
+ *
+ * The register is stored as a 128 bit host endian value so we need to
+ * take that into account when accessing smaller parts of it.
+ */
 #if HOST_BIG_ENDIAN
 #define VsrB(i) u8[i]
 #define VsrSB(i) s8[i]
