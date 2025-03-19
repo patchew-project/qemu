@@ -98,6 +98,7 @@ struct efi_initrd {
 
 struct loongarch_boot_info {
     uint64_t ram_size;
+    struct NumaState *numa_state;
     const char *kernel_filename;
     const char *kernel_cmdline;
     const char *initrd_filename;

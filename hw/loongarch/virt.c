@@ -753,6 +753,7 @@ static void virt_init(MachineState *machine)
     qemu_register_powerdown_notifier(&lvms->powerdown_notifier);
 
     lvms->bootinfo.ram_size = ram_size;
+    lvms->bootinfo.numa_state = machine->numa_state;
     loongarch_load_kernel(machine, &lvms->bootinfo);
 }
 
