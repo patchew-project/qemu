@@ -32,6 +32,7 @@
 #include "exec/gdbstub.h"
 #include "gdbstub/commands.h"
 #include "gdbstub/syscalls.h"
+#include "gdbstub/registers.h"
 #ifdef CONFIG_USER_ONLY
 #include "accel/tcg/vcpu-state.h"
 #include "gdbstub/user.h"
@@ -45,6 +46,7 @@
 #include "system/runstate.h"
 #include "exec/replay-core.h"
 #include "exec/hwaddr.h"
+#include "exec/memop.h"
 
 #include "internals.h"
 
@@ -550,6 +552,26 @@ static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
     }
     return 0;
 }
+
+/*
+ * Target helper function to read value into GByteArray, target
+ * supplies the size and target endianess via the MemOp.
+ */
+int gdb_get_register_value(MemOp op, GByteArray *buf, uint8_t *val)
+{
+    size_t bytes = memop_size(op);
+
+    if (op & MO_BSWAP) {
+        for ( int i = bytes ; i > 0; i--) {
+            g_byte_array_append(buf, &val[i - 1], 1);
+        };
+    } else {
+        g_byte_array_append(buf, val, bytes);
+    }
+
+    return bytes;
+}
+
 
 static void gdb_register_feature(CPUState *cpu, int base_reg,
                                  gdb_get_reg_cb get_reg, gdb_set_reg_cb set_reg,
