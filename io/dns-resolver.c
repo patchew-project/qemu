@@ -126,6 +126,8 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
             .has_mptcp = iaddr->has_mptcp,
             .mptcp = iaddr->mptcp,
 #endif
+            .has_keep_alive = iaddr->has_keep_alive,
+            .keep_alive = iaddr->keep_alive,
         };
 
         (*addrs)[i] = newaddr;

@@ -205,6 +205,22 @@ static int try_bind(int socket, InetSocketAddress *saddr, struct addrinfo *e)
 #endif
 }
 
+static int inet_set_sockopts(int sock, InetSocketAddress *saddr, Error **errp)
+{
+    if (saddr->keep_alive) {
+        int keep_alive = 1;
+        int ret = setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+                             &keep_alive, sizeof(keep_alive));
+
+        if (ret < 0) {
+            error_setg_errno(errp, errno,
+                             "Unable to set keep-alive option on socket");
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int inet_listen_saddr(InetSocketAddress *saddr,
                              int port_offset,
                              int num,
@@ -219,12 +235,6 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     int slisten = -1;
     int saved_errno = 0;
     bool socket_created = false;
-
-    if (saddr->keep_alive) {
-        error_setg(errp, "keep-alive option is not supported for passive "
-                   "sockets");
-        return -1;
-    }
 
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_PASSIVE;
@@ -313,12 +323,17 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
                     goto listen_failed;
                 }
             } else {
-                if (!listen(slisten, num)) {
+                if (listen(slisten, num)) {
+                    if (errno != EADDRINUSE) {
+                        error_setg_errno(errp, errno,
+                                         "Failed to listen on socket");
+                        goto listen_failed;
+                    }
+                } else {
+                    if (inet_set_sockopts(slisten, saddr, errp)) {
+                        goto listen_failed;
+                    }
                     goto listen_ok;
-                }
-                if (errno != EADDRINUSE) {
-                    error_setg_errno(errp, errno, "Failed to listen on socket");
-                    goto listen_failed;
                 }
             }
             /* Someone else managed to bind to the same port and beat us
@@ -474,19 +489,10 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
         error_propagate(errp, local_err);
         return sock;
     }
-
-    if (saddr->keep_alive) {
-        int val = 1;
-        int ret = setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-                             &val, sizeof(val));
-
-        if (ret < 0) {
-            error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
-            close(sock);
-            return -1;
-        }
+    if (inet_set_sockopts(sock, saddr, errp)) {
+        close(sock);
+        return -1;
     }
-
     return sock;
 }
 
