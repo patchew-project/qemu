@@ -291,6 +291,8 @@ static int aspeed_evaluate_irq(GPIOSets *regs, int gpio_prev_high, int gpio)
     return 0;
 }
 
+static void aspeed_gpio_line_event(AspeedGPIOState *s, uint32_t set_idx, uint32_t pin_idx);
+
 #define nested_struct_index(ta, pa, m, tb, pb) \
         (pb - ((tb *)(((char *)pa) + offsetof(ta, m))))
 
@@ -337,6 +339,9 @@ static void aspeed_gpio_update(AspeedGPIOState *s, GPIOSets *regs,
                 /* ...trigger the line-state IRQ */
                 ptrdiff_t set = aspeed_gpio_set_idx(s, regs);
                 qemu_set_irq(s->gpios[set][gpio], !!(new & mask));
+
+                /* ...notify gpio backend if any */
+                aspeed_gpio_line_event(s, set, gpio);
             } else {
                 /* ...otherwise if we meet the line's current IRQ policy... */
                 if (aspeed_evaluate_irq(regs, old & mask, gpio)) {
@@ -358,6 +363,18 @@ static bool aspeed_gpio_get_pin_level(AspeedGPIOState *s, uint32_t set_idx,
     reg_val = s->sets[set_idx].data_value;
 
     return !!(reg_val & pin_mask);
+}
+
+static void aspeed_gpio_line_event(AspeedGPIOState *s, uint32_t set_idx, uint32_t pin_idx)
+{
+    uint32_t offset = set_idx * ASPEED_GPIOS_PER_SET + pin_idx;
+    QEMUGpioLineEvent event = GPIO_EVENT_FALLING_EDGE;
+
+    if (aspeed_gpio_get_pin_level(s, set_idx, pin_idx)) {
+        event = GPIO_EVENT_RISING_EDGE;
+    }
+
+    qemu_gpio_fe_line_event(&s->gpiodev, offset, event);
 }
 
 static void aspeed_gpio_set_pin_level(AspeedGPIOState *s, uint32_t set_idx,
@@ -659,6 +676,13 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
     return value;
 }
 
+static void aspeed_gpio_config_event(AspeedGPIOState *s, uint32_t set_idx, uint32_t pin_idx)
+{
+    uint32_t offset = set_idx * ASPEED_GPIOS_PER_SET + pin_idx;
+
+    qemu_gpio_fe_config_event(&s->gpiodev, offset, GPIO_LINE_CHANGED_CONFIG);
+}
+
 static void aspeed_gpio_write_index_mode(void *opaque, hwaddr offset,
                                                 uint64_t data, uint32_t size)
 {
@@ -674,6 +698,7 @@ static void aspeed_gpio_write_index_mode(void *opaque, hwaddr offset,
     uint32_t group_idx = pin_idx / GPIOS_PER_GROUP;
     uint32_t reg_value = 0;
     uint32_t pending = 0;
+    uint32_t old_direction;
 
     set = &s->sets[set_idx];
     props = &agc->props[set_idx];
@@ -711,8 +736,12 @@ static void aspeed_gpio_write_index_mode(void *opaque, hwaddr offset,
          *  data = ( data | ~input) & output;
          */
         reg_value = (reg_value | ~props->input) & props->output;
+        old_direction = set->direction;
         set->direction = update_value_control_source(set, set->direction,
                                                      reg_value);
+        if (set->direction != old_direction) {
+            aspeed_gpio_config_event(s, set_idx, pin_idx);
+        }
         break;
     case gpio_reg_idx_interrupt:
         reg_value = set->int_enable;
@@ -812,6 +841,7 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
     const AspeedGPIOReg *reg;
     GPIOSets *set;
     uint32_t cleared;
+    uint32_t old_direction;
 
     trace_aspeed_gpio_write(offset, data);
 
@@ -866,7 +896,17 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
          *  data = ( data | ~input) & output;
          */
         data = (data | ~props->input) & props->output;
+        old_direction = set->direction;
         set->direction = update_value_control_source(set, set->direction, data);
+        qemu_log("gpio_reg_direction: 0x%x 0x%x\n", set->direction, old_direction);
+        if (set->direction != old_direction) {
+            unsigned long changed = set->direction ^ old_direction;
+            int idx = find_first_bit(&changed, ASPEED_GPIOS_PER_SET);
+            while (idx < ASPEED_GPIOS_PER_SET) {
+                aspeed_gpio_config_event(s, reg->set_idx, idx);
+                idx = find_next_bit(&changed, ASPEED_GPIOS_PER_SET, idx + 1);
+            }
+        }
         break;
     case gpio_reg_int_enable:
         set->int_enable = update_value_control_source(set, set->int_enable,
@@ -1387,11 +1427,85 @@ static void aspeed_gpio_reset(DeviceState *dev)
     memset(s->sets, 0, sizeof(s->sets));
 }
 
+static void aspeed_gpio_line_info(void *opaque, gpio_line_info *info)
+{
+    AspeedGPIOState *s = ASPEED_GPIO(opaque);
+    AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
+    uint32_t group_idx = 0, pin_idx = 0, idx = 0;
+    uint32_t offset = info->offset;
+    const GPIOSetProperties *props;
+    bool direction;
+    const char *group;
+    int i, set_idx, grp_idx, pin;
+
+    for (i = 0; i < ASPEED_GPIO_MAX_NR_SETS; i++) {
+        props = &agc->props[i];
+        uint32_t skip = ~(props->input | props->output);
+        for (int j = 0; j < ASPEED_GPIOS_PER_SET; j++) {
+            if (skip >> j & 1) {
+                continue;
+            }
+
+            group_idx = j / GPIOS_PER_GROUP;
+            pin_idx = j % GPIOS_PER_GROUP;
+            if (idx == offset) {
+                goto found;
+            }
+
+            idx++;
+        }
+    }
+
+    return;
+
+found:
+    group = &props->group_label[group_idx][0];
+    set_idx = get_set_idx(s, group, &grp_idx);
+    snprintf(info->name, sizeof(info->name), "gpio%s%d", group, pin_idx);
+    pin =  pin_idx + group_idx * GPIOS_PER_GROUP;
+    direction = !!(s->sets[set_idx].direction & BIT_ULL(pin));
+
+    if (direction) {
+        info->flags |= GPIO_LINE_FLAG_OUTPUT;
+    } else {
+        info->flags |= GPIO_LINE_FLAG_INPUT;
+    }
+
+    qemu_log("%u: %s: set_idx=%d, grp_idx=%d, group_idx=%u, pin_idx=%u\n", offset, info->name, set_idx, grp_idx, group_idx, pin_idx);
+}
+
+static int aspeed_gpio_get_line(void *opaque, uint32_t offset)
+{
+    AspeedGPIOState *s = ASPEED_GPIO(opaque);
+    int set_idx, pin_idx;
+
+    set_idx = offset / ASPEED_GPIOS_PER_SET;
+    pin_idx = offset % ASPEED_GPIOS_PER_SET;
+
+    return aspeed_gpio_get_pin_level(s, set_idx, pin_idx);
+}
+
+static int aspeed_gpio_set_line(void *opaque, uint32_t offset, uint8_t value)
+{
+    AspeedGPIOState *s = ASPEED_GPIO(opaque);
+    int set_idx, pin_idx;
+
+    set_idx = offset / ASPEED_GPIOS_PER_SET;
+    pin_idx = offset % ASPEED_GPIOS_PER_SET;
+
+    aspeed_gpio_set_pin_level(s, set_idx, pin_idx, value);
+
+    return 0;
+}
+
 static void aspeed_gpio_realize(DeviceState *dev, Error **errp)
 {
     AspeedGPIOState *s = ASPEED_GPIO(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
+    DeviceState *d = DEVICE(s);
+    Object *backend;
+    Gpiodev *gpio;
 
     /* Interrupt parent line */
     sysbus_init_irq(sbd, &s->irq);
@@ -1412,6 +1526,19 @@ static void aspeed_gpio_realize(DeviceState *dev, Error **errp)
                           TYPE_ASPEED_GPIO, agc->mem_size);
 
     sysbus_init_mmio(sbd, &s->iomem);
+
+    /* NOTE: or we can create one per set */
+    if (d->id) {
+        backend = object_resolve_path_type(d->id, TYPE_GPIODEV, NULL);
+        if (backend) {
+            gpio = GPIODEV(backend);
+            qemu_gpio_fe_init(&s->gpiodev, gpio, agc->nr_gpio_pins, d->id,
+                              "ASPEED GPIO", NULL);
+            qemu_gpio_fe_set_handlers(&s->gpiodev, aspeed_gpio_line_info,
+                                      aspeed_gpio_get_line,
+                                      aspeed_gpio_set_line, s);
+        }
+    }
 }
 
 static void aspeed_gpio_init(Object *obj)

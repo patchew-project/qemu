@@ -12,6 +12,8 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "gpiodev/gpio.h"
+#include "gpiodev/gpio-fe.h"
 
 #define TYPE_ASPEED_GPIO "aspeed.gpio"
 OBJECT_DECLARE_TYPE(AspeedGPIOState, AspeedGPIOClass, ASPEED_GPIO)
@@ -85,6 +87,7 @@ struct AspeedGPIOState {
     SysBusDevice parent;
 
     /*< public >*/
+    GpioBackend gpiodev;
     MemoryRegion iomem;
     int pending;
     qemu_irq irq;
