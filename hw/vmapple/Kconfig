@@ -22,7 +22,8 @@ config VMAPPLE
     select PLATFORM_BUS
     select PCI_EXPRESS
     select PCI_EXPRESS_GENERIC_BRIDGE
-    select PL011 # UART
+    select PL011 if !HAVE_RUST # UART
+    select X_PL011_RUST if HAVE_RUST # UART
     select PL031 # RTC
     select PL061 # GPIO
     select GPIO_PWR
