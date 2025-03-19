@@ -20,7 +20,7 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "internals.h"
-#include "gdbstub/helpers.h"
+#include "gdbstub/registers.h"
 #include "gdbstub/commands.h"
 #include "tcg/mte_helper.h"
 #if defined(CONFIG_USER_ONLY) && defined(CONFIG_LINUX)
@@ -39,15 +39,16 @@ int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
     if (n < 31) {
         /* Core integer register.  */
-        return gdb_get_reg64(mem_buf, env->xregs[n]);
+        return gdb_get_register_value(MO_TEUO, mem_buf, (uint8_t *) &env->xregs[n]);
     }
     switch (n) {
     case 31:
-        return gdb_get_reg64(mem_buf, env->xregs[31]);
+        return gdb_get_register_value(MO_TEUO, mem_buf, (uint8_t *) &env->xregs[31]);
     case 32:
-        return gdb_get_reg64(mem_buf, env->pc);
+        return gdb_get_register_value(MO_TEUO, mem_buf, (uint8_t *) &env->pc);
     case 33:
-        return gdb_get_reg32(mem_buf, pstate_read(env));
+        uint32_t pstate = pstate_read(env);
+        return gdb_get_register_value(MO_TEUL, mem_buf, (uint8_t *) &pstate);
     }
     /* Unknown register.  */
     return 0;
@@ -86,23 +87,27 @@ int aarch64_gdb_get_fpu_reg(CPUState *cs, GByteArray *buf, int reg)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
+    uint32_t fpr;
 
     switch (reg) {
     case 0 ... 31:
     {
         /* 128 bit FP register - quads are in LE order */
         uint64_t *q = aa64_vfp_qreg(env, reg);
-        return gdb_get_reg128(buf, q[1], q[0]);
+        return gdb_get_register_value(MO_TEUO, buf, (uint8_t *) q);
     }
     case 32:
         /* FPSR */
-        return gdb_get_reg32(buf, vfp_get_fpsr(env));
+        fpr = vfp_get_fpsr(env);
+        break;
     case 33:
         /* FPCR */
-        return gdb_get_reg32(buf, vfp_get_fpcr(env));
+        fpr = vfp_get_fpcr(env);
+        break;
     default:
         return 0;
     }
+    return gdb_get_register_value(MO_TEUL, buf, (uint8_t *) &fpr);
 }
 
 int aarch64_gdb_set_fpu_reg(CPUState *cs, uint8_t *buf, int reg)
@@ -136,30 +141,37 @@ int aarch64_gdb_get_sve_reg(CPUState *cs, GByteArray *buf, int reg)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
+    uint32_t fpr;
 
     switch (reg) {
     /* The first 32 registers are the zregs */
     case 0 ... 31:
     {
         int vq, len = 0;
+        ARMVectorReg *zreg = &env->vfp.zregs[reg];
+
         for (vq = 0; vq < cpu->sve_max_vq; vq++) {
-            len += gdb_get_reg128(buf,
-                                  env->vfp.zregs[reg].d[vq * 2 + 1],
-                                  env->vfp.zregs[reg].d[vq * 2]);
+            len += gdb_get_register_value(MO_TEUQ, buf,
+                                          (uint8_t *) &zreg->d[vq * 2 + 1]);
+            len += gdb_get_register_value(MO_TEUQ, buf,
+                                          (uint8_t *) &zreg->d[vq * 2]);
         }
         return len;
     }
     case 32:
-        return gdb_get_reg32(buf, vfp_get_fpsr(env));
+        fpr = vfp_get_fpsr(env);
+        return gdb_get_register_value(MO_TEUL, buf, (uint8_t *) &fpr);
     case 33:
-        return gdb_get_reg32(buf, vfp_get_fpcr(env));
+        fpr = vfp_get_fpcr(env);
+        return gdb_get_register_value(MO_TEUL, buf, (uint8_t *) &fpr);
     /* then 16 predicates and the ffr */
     case 34 ... 50:
     {
         int preg = reg - 34;
         int vq, len = 0;
         for (vq = 0; vq < cpu->sve_max_vq; vq = vq + 4) {
-            len += gdb_get_reg64(buf, env->vfp.pregs[preg].p[vq / 4]);
+            len += gdb_get_register_value(MO_TEUQ, buf,
+                                          (uint8_t *) &env->vfp.pregs[preg].p[vq / 4]);
         }
         return len;
     }
@@ -169,8 +181,8 @@ int aarch64_gdb_get_sve_reg(CPUState *cs, GByteArray *buf, int reg)
          * We report in Vector Granules (VG) which is 64bit in a Z reg
          * while the ZCR works in Vector Quads (VQ) which is 128bit chunks.
          */
-        int vq = sve_vqm1_for_el(env, arm_current_el(env)) + 1;
-        return gdb_get_reg64(buf, vq * 2);
+        uint64_t vq = (sve_vqm1_for_el(env, arm_current_el(env)) + 1) * 2;
+        return gdb_get_register_value(MO_TEUL, buf, (uint8_t *) &vq);
     }
     default:
         /* gdbstub asked for something out our range */
@@ -252,10 +264,11 @@ int aarch64_gdb_get_pauth_reg(CPUState *cs, GByteArray *buf, int reg)
             bool is_data = !(reg & 1);
             bool is_high = reg & 2;
             ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
-            ARMVAParameters param;
+            ARMVAParameters param = aa64_va_parameters(env, -is_high, mmu_idx,
+                                                       is_data, false);
+            uint64_t pauth_mask = pauth_ptr_mask(param);
 
-            param = aa64_va_parameters(env, -is_high, mmu_idx, is_data, false);
-            return gdb_get_reg64(buf, pauth_ptr_mask(param));
+            return gdb_get_register_value(MO_TEUQ, buf, (uint8_t *) &pauth_mask);
         }
     default:
         return 0;
@@ -403,7 +416,7 @@ int aarch64_gdb_get_tag_ctl_reg(CPUState *cs, GByteArray *buf, int reg)
 
     tcf0 = extract64(env->cp15.sctlr_el[1], 38, 2);
 
-    return gdb_get_reg64(buf, tcf0);
+    return gdb_get_register_value(MO_TEUQ, buf, (uint8_t *) &tcf0);
 }
 
 int aarch64_gdb_set_tag_ctl_reg(CPUState *cs, uint8_t *buf, int reg)
