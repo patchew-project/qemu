@@ -41,6 +41,7 @@
 { 'include': 'block-export.json' }
 { 'include': 'char.json' }
 { 'include': 'dump.json' }
+{ 'include': 'gpio.json' }
 { 'include': 'net.json' }
 { 'include': 'ebpf.json' }
 { 'include': 'rocker.json' }

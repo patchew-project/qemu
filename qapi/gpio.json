@@ -1,0 +1,68 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+#
+
+##
+# = Gpio devices
+##
+
+##
+# @GpiodevInfo:
+#
+# Information about a gpio device.
+#
+# @label: the label of the gpio device
+#
+# Since: 9.2
+##
+{ 'struct': 'GpiodevInfo',
+  'data': { 'label': 'str' } }
+
+##
+# @GpiodevBackendKind:
+#
+# @chardev: chardevs
+#
+# Since: 9.2
+##
+{ 'enum': 'GpiodevBackendKind',
+  'data': [ 'chardev' ] }
+
+##
+# @GpiodevChardev:
+#
+# Configuration info for chardev gpiodevs.
+#
+# @chardev: chardev id
+#
+# @size: buffer size, default is 65536
+#
+# Since: 9.2
+##
+  { 'struct': 'GpiodevChardev',
+    'data': { 'chardev': 'str',
+              '*size': 'int' } }
+
+##
+# @GpiodevChardevWrapper:
+#
+# @data: Configuration info for chardev gpiodevs
+#
+# Since: 9.2
+##
+{ 'struct': 'GpiodevChardevWrapper',
+  'data': { 'data': 'GpiodevChardev' } }
+
+##
+# @GpiodevBackend:
+#
+# Configuration info for the new chardev backend.
+#
+# @type: backend type
+#
+# Since: 9.2
+##
+{ 'union': 'GpiodevBackend',
+  'base': { 'type': 'GpiodevBackendKind' },
+  'discriminator': 'type',
+  'data': { 'chardev': 'GpiodevChardevWrapper' } }
