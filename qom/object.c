@@ -940,8 +940,9 @@ out:
     return obj;
 }
 
-ObjectClass *object_class_dynamic_cast(ObjectClass *class,
-                                       const char *typename)
+static ObjectClass *object_class_dynamic_cast_ambiguous(ObjectClass *class,
+                                                        const char *typename,
+                                                        bool *ambiguous)
 {
     ObjectClass *ret = NULL;
     TypeImpl *target_type;
@@ -977,6 +978,9 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
             }
          }
 
+        if (ambiguous) {
+            *ambiguous = found > 0;
+        }
         /* The match was ambiguous, don't allow a cast */
         if (found > 1) {
             ret = NULL;
@@ -986,6 +990,12 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
     }
 
     return ret;
+}
+
+ObjectClass *object_class_dynamic_cast(ObjectClass *class,
+                                       const char *typename)
+{
+    return object_class_dynamic_cast_ambiguous(class, typename, NULL);
 }
 
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
