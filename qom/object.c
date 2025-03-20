@@ -992,6 +992,17 @@ static ObjectClass *object_class_dynamic_cast_ambiguous(ObjectClass *class,
     return ret;
 }
 
+bool object_class_implements_type(ObjectClass *class,
+                                  const char *typename)
+{
+    ObjectClass *k;
+    bool ambiguous = false;
+
+    k = object_class_dynamic_cast_ambiguous(class, typename, &ambiguous);
+
+    return k || ambiguous;
+}
+
 ObjectClass *object_class_dynamic_cast(ObjectClass *class,
                                        const char *typename)
 {

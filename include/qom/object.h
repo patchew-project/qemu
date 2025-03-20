@@ -996,6 +996,16 @@ const char *object_class_get_name(ObjectClass *klass);
 bool object_class_is_abstract(ObjectClass *klass);
 
 /**
+ * object_class_implements_type:
+ * @klass: The class to check the implementation for.
+ * @typename: The QOM typename of the implementation to check to.
+ *
+ * Returns: %true if @klass implements %typename, %false otherwise.
+ */
+bool object_class_implements_type(ObjectClass *class,
+                                  const char *typename);
+
+/**
  * object_class_by_name:
  * @typename: The QOM typename to obtain the class for.
  *
