@@ -246,7 +246,7 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
         }
     }
 
-    if (!object_class_dynamic_cast(oc, TYPE_DEVICE)) {
+    if (!object_class_implements_type(oc, TYPE_DEVICE)) {
         if (*driver != original_name) {
             error_setg(errp, "'%s' (alias '%s') is not a valid device model"
                        " name", original_name, *driver);
@@ -269,7 +269,7 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
         return NULL;
     }
 
-    if (object_class_dynamic_cast(oc, TYPE_SYS_BUS_DEVICE)) {
+    if (object_class_implements_type(oc, TYPE_SYS_BUS_DEVICE)) {
         /* sysbus devices need to be allowed by the machine */
         MachineClass *mc = MACHINE_CLASS(object_get_class(qdev_get_machine()));
         if (!device_type_is_dynamic_sysbus(mc, *driver)) {

@@ -147,7 +147,7 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
     assert(cc->class_by_name);
     assert(cpu_model);
     oc = cc->class_by_name(cpu_model);
-    if (object_class_dynamic_cast(oc, typename) &&
+    if (object_class_implements_type(oc, typename) &&
         !object_class_is_abstract(oc)) {
         return oc;
     }

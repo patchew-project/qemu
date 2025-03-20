@@ -2244,12 +2244,12 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     /* initialize cap_present for pci_is_express() and pci_config_size(),
      * Note that hybrid PCIs are not set automatically and need to manage
      * QEMU_PCI_CAP_EXPRESS manually */
-    if (object_class_dynamic_cast(klass, INTERFACE_PCIE_DEVICE) &&
-       !object_class_dynamic_cast(klass, INTERFACE_CONVENTIONAL_PCI_DEVICE)) {
+    if (object_class_implements_type(klass, INTERFACE_PCIE_DEVICE) &&
+       !object_class_implements_type(klass, INTERFACE_CONVENTIONAL_PCI_DEVICE)) {
         pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
     }
 
-    if (object_class_dynamic_cast(klass, INTERFACE_CXL_DEVICE)) {
+    if (object_class_implements_type(klass, INTERFACE_CXL_DEVICE)) {
         pci_dev->cap_present |= QEMU_PCIE_CAP_CXL;
     }
 

@@ -34,7 +34,7 @@ tpm_be_find_by_type(enum TpmType type)
     oc = object_class_by_name(typename);
     g_free(typename);
 
-    if (!object_class_dynamic_cast(oc, TYPE_TPM_BACKEND)) {
+    if (!object_class_implements_type(oc, TYPE_TPM_BACKEND)) {
         return NULL;
     }
 

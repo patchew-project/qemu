@@ -144,7 +144,7 @@ static void del_nic_peer(NICState *nic, void *opaque)
     ObjectClass *klass = module_object_class_by_name(nc->model);
 
     /* Only delete peers of PCI NICs that we're about to delete */
-    if (!klass || !object_class_dynamic_cast(klass, TYPE_PCI_DEVICE)) {
+    if (!klass || !object_class_implements_type(klass, TYPE_PCI_DEVICE)) {
         return;
     }
 

@@ -528,7 +528,7 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
     oc = module_object_class_by_name(typename);
     g_free(typename);
 
-    if (!object_class_dynamic_cast(oc, TYPE_CHARDEV)) {
+    if (!object_class_implements_type(oc, TYPE_CHARDEV)) {
         error_setg(errp, "'%s' is not a valid char driver name", driver);
         return NULL;
     }

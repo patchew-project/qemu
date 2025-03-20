@@ -143,7 +143,7 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
         return NULL;
     }
 
-    if (!object_class_dynamic_cast(klass, TYPE_DEVICE)
+    if (!object_class_implements_type(klass, TYPE_DEVICE)
         || object_class_is_abstract(klass)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "typename",
                    "a non-abstract device type");
@@ -202,7 +202,7 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
         return NULL;
     }
 
-    if (!object_class_dynamic_cast(klass, TYPE_OBJECT)) {
+    if (!object_class_implements_type(klass, TYPE_OBJECT)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "typename",
                    "a QOM type");
         return NULL;

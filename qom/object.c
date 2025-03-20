@@ -894,7 +894,7 @@ bool object_set_propv(Object *obj,
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
-    if (obj && object_class_dynamic_cast(object_get_class(obj), typename)) {
+    if (obj && object_class_implements_type(object_get_class(obj), typename)) {
         return obj;
     }
 

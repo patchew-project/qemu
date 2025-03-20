@@ -738,7 +738,7 @@ bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type)
     for (wl = mc->allowed_dynamic_sysbus_devices;
          !allowed && wl;
          wl = wl->next) {
-        allowed |= !!object_class_dynamic_cast(klass, wl->value);
+        allowed |= object_class_implements_type(klass, wl->value);
     }
 
     return allowed;
@@ -1556,7 +1556,7 @@ static bool is_cpu_type_supported(const MachineState *machine, Error **errp)
     if (mc->valid_cpu_types) {
         assert(mc->valid_cpu_types[0] != NULL);
         for (i = 0; mc->valid_cpu_types[i]; i++) {
-            if (object_class_dynamic_cast(oc, mc->valid_cpu_types[i])) {
+            if (object_class_implements_type(oc, mc->valid_cpu_types[i])) {
                 break;
             }
         }

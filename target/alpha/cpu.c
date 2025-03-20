@@ -149,7 +149,7 @@ static ObjectClass *alpha_cpu_class_by_name(const char *cpu_model)
     int i;
 
     oc = object_class_by_name(cpu_model);
-    if (oc != NULL && object_class_dynamic_cast(oc, TYPE_ALPHA_CPU) != NULL) {
+    if (oc != NULL && object_class_implements_type(oc, TYPE_ALPHA_CPU)) {
         return oc;
     }
 
