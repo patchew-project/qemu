@@ -1136,7 +1136,7 @@ static void object_class_foreach_tramp(gpointer key, gpointer value,
     }
 
     if (data->implements_type && 
-        !object_class_dynamic_cast(k, data->implements_type)) {
+        !object_class_implements_type(k, data->implements_type)) {
         return;
     }
 
