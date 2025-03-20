@@ -115,10 +115,26 @@ static void interface_ambiguous_test(void)
 {
     Object *obj = object_new(TYPE_INDIRECT_IMPL);
     ObjectClass *klass = object_get_class(obj);
+    GSList *list, *el;
 
     g_assert(object_class_implements_type(klass, TYPE_TEST_IF2A));
     g_assert(object_class_implements_type(klass, TYPE_TEST_IF2B));
     g_assert(object_class_implements_type(klass, TYPE_TEST_IF));
+    list = object_class_get_list(TYPE_TEST_IF, true);
+    for (el = list; el; el = el->next) {
+        TestIfClass *ioc = el->data;
+        printf("%x %x\n", ioc->test, PATTERN);
+        //g_assert(ioc->test == PATTERN);
+    }
+    g_free(list);
+    list = object_class_get_list(TYPE_TEST_IF2A, true);
+    for (el = list; el; el = el->next) {
+        TestIfClass *dc = OBJECT_CLASS_CHECK(TestIfClass, el->data,
+                                             TYPE_TEST_IF2A);
+        printf("%x %x\n", dc->test, PATTERN);
+        //g_assert(ioc->test == PATTERN);
+    }
+    g_free(list);
     object_unref(obj);
 }
 
