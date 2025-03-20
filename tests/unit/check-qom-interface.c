@@ -36,6 +36,19 @@ static const TypeInfo test_if_info = {
     .class_size = sizeof(TestIfClass),
 };
 
+#define TYPE_TEST_IF2A "test-interface-level2a"
+#define TYPE_TEST_IF2B "test-interface-level2b"
+
+static const TypeInfo test_if2a_info = {
+    .name          = TYPE_TEST_IF2A,
+    .parent        = TYPE_TEST_IF,
+};
+
+static const TypeInfo test_if2b_info = {
+    .name          = TYPE_TEST_IF2B,
+    .parent        = TYPE_TEST_IF,
+};
+
 #define PATTERN 0xFAFBFCFD
 
 static void test_class_init(ObjectClass *oc, const void *data)
@@ -54,6 +67,18 @@ static const TypeInfo direct_impl_info = {
     .class_init = test_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_TEST_IF },
+        { }
+    }
+};
+
+#define TYPE_INDIRECT_IMPL "indirect-impl"
+
+static const TypeInfo indirect_impl_info = {
+    .name = TYPE_INDIRECT_IMPL,
+    .parent = TYPE_DIRECT_IMPL,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TEST_IF2A },
+        { TYPE_TEST_IF2B },
         { }
     }
 };
@@ -86,18 +111,33 @@ static void interface_intermediate_test(void)
     test_interface_impl(TYPE_INTERMEDIATE_IMPL);
 }
 
+static void interface_ambiguous_test(void)
+{
+    Object *obj = object_new(TYPE_INDIRECT_IMPL);
+    ObjectClass *klass = object_get_class(obj);
+
+    g_assert(object_class_implements_type(klass, TYPE_TEST_IF2A));
+    g_assert(object_class_implements_type(klass, TYPE_TEST_IF2B));
+    g_assert(object_class_implements_type(klass, TYPE_TEST_IF));
+    object_unref(obj);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     module_call_init(MODULE_INIT_QOM);
     type_register_static(&test_if_info);
+    type_register_static(&test_if2a_info);
+    type_register_static(&test_if2b_info);
     type_register_static(&direct_impl_info);
+    type_register_static(&indirect_impl_info);
     type_register_static(&intermediate_impl_info);
 
     g_test_add_func("/qom/interface/direct_impl", interface_direct_test);
     g_test_add_func("/qom/interface/intermediate_impl",
                     interface_intermediate_test);
+    g_test_add_func("/qom/interface/ambiguous_impl", interface_ambiguous_test);
 
     return g_test_run();
 }
