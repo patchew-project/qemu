@@ -338,6 +338,7 @@ static void virgl_cmd_context_create(VirtIOGPU *g,
                                     cc.debug_name);
 
     if (cc.context_init) {
+#if VIRGL_VERSION_MAJOR >= 1
         if (!virtio_gpu_context_init_enabled(g->parent_obj.conf)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: context_init disabled",
                           __func__);
@@ -345,7 +346,6 @@ static void virgl_cmd_context_create(VirtIOGPU *g,
             return;
         }
 
-#if VIRGL_VERSION_MAJOR >= 1
         virgl_renderer_context_create_with_flags(cc.hdr.ctx_id,
                                                  cc.context_init,
                                                  cc.nlen,
