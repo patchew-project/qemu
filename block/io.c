@@ -255,6 +255,8 @@ typedef struct {
     bool begin;
     bool poll;
     BdrvChild *parent;
+    uint64_t timeout_ns;
+    int ret;
 } BdrvCoDrainData;
 
 /* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */
@@ -283,6 +285,10 @@ static bool bdrv_drain_poll_top_level(BlockDriverState *bs,
     return bdrv_drain_poll(bs, ignore_parent, false);
 }
 
+static int bdrv_do_drained_begin_timeout(BlockDriverState *bs,
+                                         BdrvChild *parent,
+                                         bool poll,
+                                         uint64_t timeout_ns);
 static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
                                   bool poll);
 static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent);
@@ -296,7 +302,9 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     if (bs) {
         bdrv_dec_in_flight(bs);
         if (data->begin) {
-            bdrv_do_drained_begin(bs, data->parent, data->poll);
+            data->ret = bdrv_do_drained_begin_timeout(bs, data->parent,
+                                                      data->poll,
+                                                      data->timeout_ns);
         } else {
             assert(!data->poll);
             bdrv_do_drained_end(bs, data->parent);
@@ -310,10 +318,11 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     aio_co_wake(co);
 }
 
-static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
-                                                bool begin,
-                                                BdrvChild *parent,
-                                                bool poll)
+static int coroutine_fn bdrv_co_yield_to_drain_timeout(BlockDriverState *bs,
+                                                       bool begin,
+                                                       BdrvChild *parent,
+                                                       bool poll,
+                                                       uint64_t timeout_ns)
 {
     BdrvCoDrainData data;
     Coroutine *self = qemu_coroutine_self();
@@ -329,6 +338,8 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
         .begin = begin,
         .parent = parent,
         .poll = poll,
+        .timeout_ns = timeout_ns,
+        .ret = 0
     };
 
     if (bs) {
@@ -342,16 +353,27 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     /* If we are resumed from some other event (such as an aio completion or a
      * timer callback), it is a bug in the caller that should be fixed. */
     assert(data.done);
+    return data.ret;
 }
 
-static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
-                                  bool poll)
+static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
+                                                bool begin,
+                                                BdrvChild *parent,
+                                                bool poll)
+{
+    bdrv_co_yield_to_drain_timeout(bs, begin, parent, poll, 0);
+}
+
+static int bdrv_do_drained_begin_timeout(BlockDriverState *bs,
+                                         BdrvChild *parent,
+                                         bool poll,
+                                         uint64_t timeout_ns)
 {
     IO_OR_GS_CODE();
 
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs, true, parent, poll);
-        return;
+        return bdrv_co_yield_to_drain_timeout(bs, true, parent, poll,
+                                              timeout_ns);
     }
 
     GLOBAL_STATE_CODE();
@@ -375,8 +397,17 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
      * nodes.
      */
     if (poll) {
-        BDRV_POLL_WHILE(bs, bdrv_drain_poll_top_level(bs, parent));
+        return BDRV_POLL_WHILE_TIMEOUT(bs,
+                                       bdrv_drain_poll_top_level(bs, parent),
+                                       timeout_ns);
     }
+    return 0;
+}
+
+static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
+                                  bool poll)
+{
+    bdrv_do_drained_begin_timeout(bs, parent, poll, 0);
 }
 
 void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent)
@@ -389,6 +420,13 @@ bdrv_drained_begin(BlockDriverState *bs)
 {
     IO_OR_GS_CODE();
     bdrv_do_drained_begin(bs, NULL, true);
+}
+
+int coroutine_mixed_fn
+bdrv_drained_begin_timeout(BlockDriverState *bs, uint64_t timeout_ns)
+{
+    IO_OR_GS_CODE();
+    return bdrv_do_drained_begin_timeout(bs, NULL, true, timeout_ns);
 }
 
 /**
