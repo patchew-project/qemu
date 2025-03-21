@@ -35,7 +35,7 @@
 #include <math.h>
 
 target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
-                            target_ulong s2)
+                            target_ulong s2, target_ulong immutable)
 {
     int vlmax, vl;
     RISCVCPU *cpu = env_archcpu(env);
@@ -82,6 +82,13 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
         vl = (s1 + 1) >> 1;
     } else {
         vl = vlmax;
+    }
+    if (immutable && (env->vl != vl || env->vill)) {
+        /* only set vill bit and vtype, not vl. */
+        env->vill = 1;
+        env->vtype = s2;
+        env->vstart = 0;
+        return 0;
     }
     env->vl = vl;
     env->vtype = s2;
