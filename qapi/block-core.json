@@ -2626,6 +2626,9 @@
 #
 # @group: throttle group name (Since 2.4)
 #
+# @timeout: In seconds. Timeout for block_set_io_throttle,
+#     0 means no limit. Defaults to 0. (Since 10.0)
+#
 # Features:
 #
 # @deprecated: Member @device is deprecated.  Use @id instead.
@@ -2642,7 +2645,7 @@
             '*bps_max_length': 'int', '*bps_rd_max_length': 'int',
             '*bps_wr_max_length': 'int', '*iops_max_length': 'int',
             '*iops_rd_max_length': 'int', '*iops_wr_max_length': 'int',
-            '*iops_size': 'int', '*group': 'str' } }
+            '*iops_size': 'int', '*group': 'str', '*timeout': 'uint32'} }
 
 ##
 # @ThrottleLimits:
