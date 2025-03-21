@@ -1450,23 +1450,28 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
         err_value = (uint32_t)s;
         goto error;
     }
-    for (i = 0; i < n->rss_data.indirections_len; ++i) {
-        uint16_t val = n->rss_data.indirections_table[i];
-        n->rss_data.indirections_table[i] = virtio_lduw_p(vdev, &val);
-    }
     offset += size_get;
     size_get = sizeof(temp);
     s = iov_to_buf(iov, iov_cnt, offset, &temp, size_get);
     if (s != size_get) {
-        err_msg = "Can't get queue_pairs";
+        err_msg = "Can't get max_tx_vq";
         err_value = (uint32_t)s;
         goto error;
     }
-    queue_pairs = do_rss ? virtio_lduw_p(vdev, &temp.us) : n->curr_queue_pairs;
-    if (queue_pairs == 0 || queue_pairs > n->max_queue_pairs) {
-        err_msg = "Invalid number of queue_pairs";
-        err_value = queue_pairs;
-        goto error;
+    if (do_rss) {
+        queue_pairs = virtio_lduw_p(vdev, &temp.us);
+        for (i = 0; i < n->rss_data.indirections_len; ++i) {
+            uint16_t val = n->rss_data.indirections_table[i];
+            n->rss_data.indirections_table[i] = virtio_lduw_p(vdev, &val);
+            queue_pairs = MAX(queue_pairs, n->rss_data.indirections_table[i]);
+        }
+        if (queue_pairs == 0 || queue_pairs > n->max_queue_pairs) {
+            err_msg = "Invalid number of queue_pairs";
+            err_value = queue_pairs;
+            goto error;
+        }
+    } else {
+        queue_pairs = n->curr_queue_pairs;
     }
     if (temp.b > VIRTIO_NET_RSS_MAX_KEY_SIZE) {
         err_msg = "Invalid key size";
