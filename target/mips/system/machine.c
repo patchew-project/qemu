@@ -139,7 +139,11 @@ static int get_tlb(QEMUFile *f, void *pv, size_t size,
     r4k_tlb_t *v = pv;
     uint16_t flags;
 
-    qemu_get_betls(f, &v->VPN);
+#ifdef TARGET_MIPS64
+    qemu_get_be64s(f, &v->VPN);
+#else
+    qemu_get_be32s(f, &v->VPN);
+#endif
     qemu_get_be32s(f, &v->PageMask);
     qemu_get_be16s(f, &v->ASID);
     qemu_get_be32s(f, &v->MMID);
@@ -182,7 +186,11 @@ static int put_tlb(QEMUFile *f, void *pv, size_t size,
                       (v->D0 << 1) |
                       (v->D1 << 0));
 
-    qemu_put_betls(f, &v->VPN);
+#ifdef TARGET_MIPS64
+    qemu_put_be64s(f, &v->VPN);
+#else
+    qemu_put_be32s(f, &v->VPN);
+#endif
     qemu_put_be32s(f, &v->PageMask);
     qemu_put_be16s(f, &asid);
     qemu_put_be32s(f, &mmid);
