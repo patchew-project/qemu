@@ -65,5 +65,5 @@ struct FadumpMemStruct {
     FadumpSection       rgn[FADUMP_MAX_SECTIONS];
 };
 
-uint32_t do_fadump_register(void);
+uint32_t do_fadump_register(struct SpaprMachineState *, target_ulong);
 #endif /* PPC_SPAPR_FADUMP_H */
