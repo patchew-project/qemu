@@ -86,7 +86,13 @@ static int get_fsr(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field)
 {
     SPARCCPU *cpu = opaque;
-    target_ulong val = qemu_get_betl(f);
+    target_ulong val;
+
+#ifdef TARGET_SPARC64
+    val = qemu_get_be64(f);
+#else
+    val = qemu_get_be32(f);
+#endif
 
     cpu_put_fsr(&cpu->env, val);
     return 0;
@@ -98,7 +104,11 @@ static int put_fsr(QEMUFile *f, void *opaque, size_t size,
     SPARCCPU *cpu = opaque;
     target_ulong val = cpu_get_fsr(&cpu->env);
 
-    qemu_put_betl(f, val);
+#ifdef TARGET_SPARC64
+    qemu_put_be64(f, val);
+#else
+    qemu_put_be32(f, val);
+#endif
     return 0;
 }
 
