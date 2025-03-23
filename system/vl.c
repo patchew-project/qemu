@@ -3411,8 +3411,8 @@ void qemu_init(int argc, char **argv)
                         machine_help_func(machine_opts_dict);
                         exit(EXIT_SUCCESS);
                     }
-                    break;
                 }
+                break;
             case QEMU_OPTION_accel:
                 accel_opts = qemu_opts_parse_noisily(qemu_find_opts("accel"),
                                                      optarg, true);
