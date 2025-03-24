@@ -2052,8 +2052,25 @@ full:
     abort();
 }
 
+static bool pmu_cap_set = false;
 int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
 {
+    KVMState *s = kvm_state;
+    X86CPU *x86_cpu = X86_CPU(cpu);
+
+    if (!pmu_cap_set && kvm_check_extension(s, KVM_CAP_PMU_CAPABILITY)) {
+        int r = kvm_vm_enable_cap(s, KVM_CAP_PMU_CAPABILITY, 0,
+                                  KVM_PMU_CAP_DISABLE & !x86_cpu->enable_pmu);
+        if (r < 0) {
+            error_report("kvm: Failed to %s pmu cap: %s",
+                         x86_cpu->enable_pmu ? "enable" : "disable",
+                         strerror(-r));
+            return r;
+        }
+
+        pmu_cap_set = true;
+    }
+
     return 0;
 }
 
