@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/gdbstub.h"
-#include "gdbstub/helpers.h"
+#include "gdbstub/registers.h"
 #include "gdbstub/commands.h"
 #include "system/tcg.h"
 #include "internals.h"
@@ -33,12 +33,16 @@ typedef struct RegisterSysregFeatureParam {
     int n;
 } RegisterSysregFeatureParam;
 
-/* Old gdb always expect FPA registers.  Newer (xml-aware) gdb only expect
-   whatever the target description contains.  Due to a historical mishap
-   the FPA registers appear in between core integer regs and the CPSR.
-   We hack round this by giving the FPA regs zero size when talking to a
-   newer gdb.  */
-
+/*
+ * Old gdb always expect FPA registers. Newer (xml-aware) gdb only
+ * expect whatever the target description contains. Due to a
+ * historical mishap the FPA registers appear in between core integer
+ * regs and the CPSR. We hack round this by giving the FPA regs zero
+ * size when talking to a newer gdb.
+ *
+ * While gdb cares about the memory endianess of the target all
+ * registers are passed in little-endian mode.
+ */
 int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -52,15 +56,17 @@ int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
     if (n < 16) {
         /* Core integer register.  */
-        return gdb_get_reg32(mem_buf, env->regs[n]);
+        return gdb_get_reg32_value(MO_TE | MO_32, mem_buf, &env->regs[n]);
     }
     if (n == 25) {
         /* CPSR, or XPSR for M-profile */
+        uint32_t reg;
         if (arm_feature(env, ARM_FEATURE_M)) {
-            return gdb_get_reg32(mem_buf, xpsr_read(env));
+            reg = xpsr_read(env);
         } else {
-            return gdb_get_reg32(mem_buf, cpsr_read(env));
+            reg = cpsr_read(env);
         }
+        return gdb_get_reg32_value(MO_TE | MO_32, mem_buf, &reg);
     }
     /* Unknown register.  */
     return 0;
@@ -127,19 +133,21 @@ static int vfp_gdb_get_reg(CPUState *cs, GByteArray *buf, int reg)
 
     /* VFP data registers are always little-endian.  */
     if (reg < nregs) {
-        return gdb_get_reg64(buf, *aa32_vfp_dreg(env, reg));
+        return gdb_get_reg64_value(MO_TE | MO_64, buf, aa32_vfp_dreg(env, reg));
     }
     if (arm_feature(env, ARM_FEATURE_NEON)) {
         /* Aliases for Q regs.  */
         nregs += 16;
         if (reg < nregs) {
             uint64_t *q = aa32_vfp_qreg(env, reg - 32);
-            return gdb_get_reg128(buf, q[0], q[1]);
+            return gdb_get_reg64_value(MO_TE | MO_64, buf, q);
         }
     }
     switch (reg - nregs) {
+        uint32_t fpcr;
     case 0:
-        return gdb_get_reg32(buf, vfp_get_fpscr(env));
+        fpcr = vfp_get_fpscr(env);
+        return gdb_get_reg32_value(MO_TE | MO_32, buf, &fpcr);
     }
     return 0;
 }
@@ -178,9 +186,11 @@ static int vfp_gdb_get_sysreg(CPUState *cs, GByteArray *buf, int reg)
 
     switch (reg) {
     case 0:
-        return gdb_get_reg32(buf, env->vfp.xregs[ARM_VFP_FPSID]);
+        return gdb_get_reg32_value(MO_TE | MO_32, buf,
+                                   &env->vfp.xregs[ARM_VFP_FPSID]);
     case 1:
-        return gdb_get_reg32(buf, env->vfp.xregs[ARM_VFP_FPEXC]);
+        return gdb_get_reg32_value(MO_TE | MO_32, buf,
+                                   &env->vfp.xregs[ARM_VFP_FPEXC]);
     }
     return 0;
 }
@@ -208,7 +218,7 @@ static int mve_gdb_get_reg(CPUState *cs, GByteArray *buf, int reg)
 
     switch (reg) {
     case 0:
-        return gdb_get_reg32(buf, env->v7m.vpr);
+        return gdb_get_reg32_value(MO_TE | MO_32, buf, &env->v7m.vpr);
     default:
         return 0;
     }
@@ -248,9 +258,11 @@ static int arm_gdb_get_sysreg(CPUState *cs, GByteArray *buf, int reg)
     ri = get_arm_cp_reginfo(cpu->cp_regs, key);
     if (ri) {
         if (cpreg_field_is_64bit(ri)) {
-            return gdb_get_reg64(buf, (uint64_t)read_raw_cp_reg(env, ri));
+            uint64_t cpreg = read_raw_cp_reg(env, ri);
+            return gdb_get_register_value(MO_TEUQ, buf, (uint8_t *) &cpreg);
         } else {
-            return gdb_get_reg32(buf, (uint32_t)read_raw_cp_reg(env, ri));
+            uint32_t cpreg = (uint32_t) read_raw_cp_reg(env, ri);
+            return gdb_get_register_value(MO_TEUL, buf, (uint8_t *) &cpreg);
         }
     }
     return 0;
@@ -387,12 +399,12 @@ static uint32_t *m_sysreg_ptr(CPUARMState *env, MProfileSysreg reg, bool sec)
 static int m_sysreg_get(CPUARMState *env, GByteArray *buf,
                         MProfileSysreg reg, bool secure)
 {
-    uint32_t *ptr = m_sysreg_ptr(env, reg, secure);
+    uint8_t *ptr = (uint8_t *) m_sysreg_ptr(env, reg, secure);
 
     if (ptr == NULL) {
         return 0;
     }
-    return gdb_get_reg32(buf, *ptr);
+    return gdb_get_register_value(MO_TEUL, buf, ptr);
 }
 
 static int arm_gdb_get_m_systemreg(CPUState *cs, GByteArray *buf, int reg)
@@ -405,7 +417,8 @@ static int arm_gdb_get_m_systemreg(CPUState *cs, GByteArray *buf, int reg)
      * banked and non-banked bits.
      */
     if (reg == M_SYSREG_CONTROL) {
-        return gdb_get_reg32(buf, arm_v7m_mrs_control(env, env->v7m.secure));
+        uint32_t reg32 = arm_v7m_mrs_control(env, env->v7m.secure);
+        return gdb_get_register_value(MO_TEUL, buf, (uint8_t *) &reg32);
     }
     return m_sysreg_get(env, buf, reg, env->v7m.secure);
 }
