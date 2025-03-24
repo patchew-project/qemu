@@ -1135,6 +1135,8 @@ static void vhost_vdpa_svq_unmap_rings(struct vhost_dev *dev,
 
     vhost_vdpa_svq_unmap_ring(v, svq_addr.desc_user_addr);
 
+    vhost_vdpa_svq_unmap_ring(v, svq_addr.avail_user_addr);
+
     vhost_vdpa_svq_unmap_ring(v, svq_addr.used_user_addr);
 }
 
@@ -1189,38 +1191,61 @@ static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
                                      Error **errp)
 {
     ERRP_GUARD();
-    DMAMap device_region, driver_region;
+    DMAMap descriptor_region, device_region, driver_region;
     struct vhost_vring_addr svq_addr;
     struct vhost_vdpa *v = dev->opaque;
+    size_t descriptor_size = vhost_svq_descriptor_area_size(svq);
     size_t device_size = vhost_svq_device_area_size(svq);
     size_t driver_size = vhost_svq_driver_area_size(svq);
-    size_t avail_offset;
     bool ok;
 
     vhost_svq_get_vring_addr(svq, &svq_addr);
 
+    descriptor_region = (DMAMap) {
+        .translated_addr = svq_addr.desc_user_addr,
+        .size = descriptor_size - 1,
+        .perm = IOMMU_RO,
+    };
+    if (svq->is_packed) {
+        descriptor_region.perm = IOMMU_RW;
+    }
+
+    ok = vhost_vdpa_svq_map_ring(v, &descriptor_region, svq_addr.desc_user_addr,
+                                 errp);
+    if (unlikely(!ok)) {
+        error_prepend(errp, "Cannot create vq descriptor region: ");
+        return false;
+    }
+    addr->desc_user_addr = descriptor_region.iova;
+
     driver_region = (DMAMap) {
+        .translated_addr = svq_addr.avail_user_addr,
         .size = driver_size - 1,
         .perm = IOMMU_RO,
     };
-    ok = vhost_vdpa_svq_map_ring(v, &driver_region, svq_addr.desc_user_addr,
+    ok = vhost_vdpa_svq_map_ring(v, &driver_region, svq_addr.avail_user_addr,
                                  errp);
     if (unlikely(!ok)) {
         error_prepend(errp, "Cannot create vq driver region: ");
+        vhost_vdpa_svq_unmap_ring(v, descriptor_region.translated_addr);
         return false;
     }
-    addr->desc_user_addr = driver_region.iova;
-    avail_offset = svq_addr.avail_user_addr - svq_addr.desc_user_addr;
-    addr->avail_user_addr = driver_region.iova + avail_offset;
+    addr->avail_user_addr = driver_region.iova;
 
     device_region = (DMAMap) {
+        .translated_addr = svq_addr.used_user_addr,
         .size = device_size - 1,
         .perm = IOMMU_RW,
     };
+    if (svq->is_packed) {
+        device_region.perm = IOMMU_WO;
+    }
+
     ok = vhost_vdpa_svq_map_ring(v, &device_region, svq_addr.used_user_addr,
                                  errp);
     if (unlikely(!ok)) {
         error_prepend(errp, "Cannot create vq device region: ");
+        vhost_vdpa_svq_unmap_ring(v, descriptor_region.translated_addr);
         vhost_vdpa_svq_unmap_ring(v, driver_region.translated_addr);
     }
     addr->used_user_addr = device_region.iova;
