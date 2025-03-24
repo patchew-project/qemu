@@ -2,7 +2,9 @@
  * gdbstub helpers
  *
  * These are all used by the various frontends and have to be host
- * aware to ensure things are store in target order.
+ * aware to ensure things are store in target order. Consider using
+ * the endian neutral registers.h if you want the architecture to be
+ * included in an eventual single QEMU binary.
  *
  * Copyright (c) 2022 Linaro Ltd
  *
