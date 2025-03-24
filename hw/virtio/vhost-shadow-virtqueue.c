@@ -463,7 +463,7 @@ static void vhost_handle_guest_kick_notifier(EventNotifier *n)
     vhost_handle_guest_kick(svq);
 }
 
-static bool vhost_svq_more_used(VhostShadowVirtqueue *svq)
+static bool vhost_svq_more_used_split(VhostShadowVirtqueue *svq)
 {
     uint16_t *used_idx = &svq->vring.used->idx;
     if (svq->last_used_idx != svq->shadow_used_idx) {
@@ -473,6 +473,22 @@ static bool vhost_svq_more_used(VhostShadowVirtqueue *svq)
     svq->shadow_used_idx = le16_to_cpu(*(volatile uint16_t *)used_idx);
 
     return svq->last_used_idx != svq->shadow_used_idx;
+}
+
+static bool vhost_svq_more_used_packed(VhostShadowVirtqueue *svq)
+{
+    bool avail_flag, used_flag, used_wrap_counter;
+    uint16_t last_used_idx, last_used, flags;
+
+    last_used_idx = svq->last_used_idx;
+    last_used = last_used_idx & ~(1 << VRING_PACKED_EVENT_F_WRAP_CTR);
+    used_wrap_counter = !!(last_used_idx & (1 << VRING_PACKED_EVENT_F_WRAP_CTR));
+
+    flags = le16_to_cpu(svq->vring_packed.vring.desc[last_used].flags);
+    avail_flag = !!(flags & (1 << VRING_PACKED_DESC_F_AVAIL));
+    used_flag = !!(flags & (1 << VRING_PACKED_DESC_F_USED));
+
+    return avail_flag == used_flag && used_flag == used_wrap_counter;
 }
 
 /**
@@ -486,16 +502,31 @@ static bool vhost_svq_more_used(VhostShadowVirtqueue *svq)
  */
 static bool vhost_svq_enable_notification(VhostShadowVirtqueue *svq)
 {
+    bool more_used;
     if (virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
-        uint16_t *used_event = (uint16_t *)&svq->vring.avail->ring[svq->vring.num];
-        *used_event = cpu_to_le16(svq->shadow_used_idx);
+        if (!svq->is_packed) {
+            uint16_t *used_event = (uint16_t *)&svq->vring.avail->ring[svq->vring.num];
+            *used_event = cpu_to_le16(svq->shadow_used_idx);
+        }
     } else {
-        svq->vring.avail->flags &= ~cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+        if (svq->is_packed) {
+            /* vq->vring_packed.vring.driver->off_wrap = cpu_to_le16(svq->last_used_idx); */
+            svq->vring_packed.vring.driver->flags =
+                cpu_to_le16(VRING_PACKED_EVENT_FLAG_ENABLE);
+        } else {
+            svq->vring.avail->flags &= ~cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+        }
     }
 
     /* Make sure the event is enabled before the read of used_idx */
     smp_mb();
-    return !vhost_svq_more_used(svq);
+    if (svq->is_packed) {
+        more_used = !vhost_svq_more_used_packed(svq);
+    } else {
+        more_used = !vhost_svq_more_used_split(svq);
+    }
+
+    return more_used;
 }
 
 static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
@@ -505,7 +536,12 @@ static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
      * index is already an index too far away.
      */
     if (!virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
-        svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+        if (svq->is_packed) {
+            svq->vring_packed.vring.driver->flags =
+                cpu_to_le16(VRING_PACKED_EVENT_FLAG_DISABLE);
+        } else {
+            svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+        }
     }
 }
 
@@ -519,15 +555,14 @@ static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
     return i;
 }
 
-G_GNUC_WARN_UNUSED_RESULT
-static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
-                                           uint32_t *len)
+static VirtQueueElement *vhost_svq_get_buf_split(VhostShadowVirtqueue *svq,
+                                                 uint32_t *len)
 {
     const vring_used_t *used = svq->vring.used;
     vring_used_elem_t used_elem;
     uint16_t last_used, last_used_chain, num;
 
-    if (!vhost_svq_more_used(svq)) {
+    if (!vhost_svq_more_used_split(svq)) {
         return NULL;
     }
 
@@ -560,6 +595,66 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
 
     *len = used_elem.len;
     return g_steal_pointer(&svq->desc_state[used_elem.id].elem);
+}
+
+static VirtQueueElement *vhost_svq_get_buf_packed(VhostShadowVirtqueue *svq,
+                                                  uint32_t *len)
+{
+    bool used_wrap_counter;
+    uint16_t last_used_idx, last_used, id, num, last_used_chain;
+
+    if (!vhost_svq_more_used_packed(svq)) {
+        return NULL;
+    }
+
+    /* Only get used array entries after they have been exposed by dev */
+    smp_rmb();
+    last_used_idx = svq->last_used_idx;
+    last_used = last_used_idx & ~(1 << VRING_PACKED_EVENT_F_WRAP_CTR);
+    used_wrap_counter = !!(last_used_idx & (1 << VRING_PACKED_EVENT_F_WRAP_CTR));
+    id = le32_to_cpu(svq->vring_packed.vring.desc[last_used].id);
+    *len = le32_to_cpu(svq->vring_packed.vring.desc[last_used].len);
+
+    if (unlikely(id >= svq->vring.num)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Device %s says index %u is used",
+                      svq->vdev->name, id);
+        return NULL;
+    }
+
+    if (unlikely(!svq->desc_state[id].ndescs)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "Device %s says index %u is used, but it was not available",
+            svq->vdev->name, id);
+        return NULL;
+    }
+
+    num = svq->desc_state[id].ndescs;
+    svq->desc_state[id].ndescs = 0;
+    last_used_chain = vhost_svq_last_desc_of_chain(svq, num, id);
+    svq->desc_next[last_used_chain] = svq->free_head;
+    svq->free_head = id;
+    svq->num_free += num;
+
+    last_used += num;
+    if (unlikely(last_used >= svq->vring_packed.vring.num)) {
+        last_used -= svq->vring_packed.vring.num;
+        used_wrap_counter ^= 1;
+    }
+
+    last_used = (last_used | (used_wrap_counter << VRING_PACKED_EVENT_F_WRAP_CTR));
+    svq->last_used_idx = last_used;
+    return g_steal_pointer(&svq->desc_state[id].elem);
+}
+
+G_GNUC_WARN_UNUSED_RESULT
+static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
+                                           uint32_t *len)
+{
+    if (svq->is_packed) {
+        return vhost_svq_get_buf_packed(svq, len);
+    }
+
+    return vhost_svq_get_buf_split(svq, len);
 }
 
 /**
@@ -639,7 +734,11 @@ size_t vhost_svq_poll(VhostShadowVirtqueue *svq, size_t num)
         uint32_t r = 0;
 
         do {
-            if (vhost_svq_more_used(svq)) {
+            if (!svq->is_packed && vhost_svq_more_used_split(svq)) {
+                break;
+            }
+
+            if (svq->is_packed && vhost_svq_more_used_packed(svq)) {
                 break;
             }
 
