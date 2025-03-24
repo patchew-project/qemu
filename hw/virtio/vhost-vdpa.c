@@ -1263,6 +1263,21 @@ static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
     };
     int r;
 
+    /*
+     * In Linux, the upper 16 bits of s.num is encoded as
+     * the last used idx while the lower 16 bits is encoded
+     * as the last avail idx when using packed vqs. The most
+     * significant bit for each idx represents the counter
+     * and should be set in both cases while the remaining
+     * bits are cleared.
+     */
+    if (virtio_vdev_has_feature(dev->vdev, VIRTIO_F_RING_PACKED)) {
+        uint32_t last_avail_idx = 0 | (1 << VRING_PACKED_EVENT_F_WRAP_CTR);
+        uint32_t last_used_idx = 0 | (1 << VRING_PACKED_EVENT_F_WRAP_CTR);
+
+        s.num = (last_used_idx << 16) | last_avail_idx;
+    }
+
     r = vhost_vdpa_set_dev_vring_base(dev, &s);
     if (unlikely(r)) {
         error_setg_errno(errp, -r, "Cannot set vring base");
