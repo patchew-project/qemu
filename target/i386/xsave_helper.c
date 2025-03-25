@@ -44,8 +44,8 @@ void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen)
     for (i = 0; i < CPU_NB_REGS; i++) {
         uint8_t *xmm = legacy->xmm_regs[i];
 
-        stq_p(xmm,     env->xmm_regs[i].ZMM_Q(0));
-        stq_p(xmm + 8, env->xmm_regs[i].ZMM_Q(1));
+        stq_le_p(xmm,     env->xmm_regs[i].ZMM_Q(0));
+        stq_le_p(xmm + 8, env->xmm_regs[i].ZMM_Q(1));
     }
 
     header->xstate_bv = env->xstate_bv;
@@ -59,8 +59,8 @@ void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen)
         for (i = 0; i < CPU_NB_REGS; i++) {
             uint8_t *ymmh = avx->ymmh[i];
 
-            stq_p(ymmh,     env->xmm_regs[i].ZMM_Q(2));
-            stq_p(ymmh + 8, env->xmm_regs[i].ZMM_Q(3));
+            stq_le_p(ymmh,     env->xmm_regs[i].ZMM_Q(2));
+            stq_le_p(ymmh + 8, env->xmm_regs[i].ZMM_Q(3));
         }
     }
 
@@ -102,10 +102,10 @@ void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen)
         for (i = 0; i < CPU_NB_REGS; i++) {
             uint8_t *zmmh = zmm_hi256->zmm_hi256[i];
 
-            stq_p(zmmh,      env->xmm_regs[i].ZMM_Q(4));
-            stq_p(zmmh + 8,  env->xmm_regs[i].ZMM_Q(5));
-            stq_p(zmmh + 16, env->xmm_regs[i].ZMM_Q(6));
-            stq_p(zmmh + 24, env->xmm_regs[i].ZMM_Q(7));
+            stq_le_p(zmmh,      env->xmm_regs[i].ZMM_Q(4));
+            stq_le_p(zmmh + 8,  env->xmm_regs[i].ZMM_Q(5));
+            stq_le_p(zmmh + 16, env->xmm_regs[i].ZMM_Q(6));
+            stq_le_p(zmmh + 24, env->xmm_regs[i].ZMM_Q(7));
         }
 
 #ifdef TARGET_X86_64
@@ -178,8 +178,8 @@ void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen)
     for (i = 0; i < CPU_NB_REGS; i++) {
         const uint8_t *xmm = legacy->xmm_regs[i];
 
-        env->xmm_regs[i].ZMM_Q(0) = ldq_p(xmm);
-        env->xmm_regs[i].ZMM_Q(1) = ldq_p(xmm + 8);
+        env->xmm_regs[i].ZMM_Q(0) = ldq_le_p(xmm);
+        env->xmm_regs[i].ZMM_Q(1) = ldq_le_p(xmm + 8);
     }
 
     env->xstate_bv = header->xstate_bv;
@@ -192,8 +192,8 @@ void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen)
         for (i = 0; i < CPU_NB_REGS; i++) {
             const uint8_t *ymmh = avx->ymmh[i];
 
-            env->xmm_regs[i].ZMM_Q(2) = ldq_p(ymmh);
-            env->xmm_regs[i].ZMM_Q(3) = ldq_p(ymmh + 8);
+            env->xmm_regs[i].ZMM_Q(2) = ldq_le_p(ymmh);
+            env->xmm_regs[i].ZMM_Q(3) = ldq_le_p(ymmh + 8);
         }
     }
 
@@ -242,10 +242,10 @@ void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen)
         for (i = 0; i < CPU_NB_REGS; i++) {
             const uint8_t *zmmh = zmm_hi256->zmm_hi256[i];
 
-            env->xmm_regs[i].ZMM_Q(4) = ldq_p(zmmh);
-            env->xmm_regs[i].ZMM_Q(5) = ldq_p(zmmh + 8);
-            env->xmm_regs[i].ZMM_Q(6) = ldq_p(zmmh + 16);
-            env->xmm_regs[i].ZMM_Q(7) = ldq_p(zmmh + 24);
+            env->xmm_regs[i].ZMM_Q(4) = ldq_le_p(zmmh);
+            env->xmm_regs[i].ZMM_Q(5) = ldq_le_p(zmmh + 8);
+            env->xmm_regs[i].ZMM_Q(6) = ldq_le_p(zmmh + 16);
+            env->xmm_regs[i].ZMM_Q(7) = ldq_le_p(zmmh + 24);
         }
 
 #ifdef TARGET_X86_64
