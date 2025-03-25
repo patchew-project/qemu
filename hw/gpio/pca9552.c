@@ -459,6 +459,8 @@ static void pca9552_class_init(ObjectClass *oc, const void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCA955xClass *pc = PCA955X_CLASS(oc);
 
+    dc->desc = "PCA9552 LED blinker";
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     device_class_set_legacy_reset(dc, pca9552_reset);
     dc->vmsd = &pca9552_vmstate;
     pc->max_reg = PCA9552_LS3;
