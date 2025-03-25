@@ -207,6 +207,8 @@ static void dps310_class_init(ObjectClass *klass, const void *data)
     k->send = dps310_tx;
     device_class_set_legacy_reset(dc, dps310_reset);
     dc->vmsd = &vmstate_dps310;
+    dc->desc = "Infineon DPS310 temperature and humidity sensor";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo dps310_info = {

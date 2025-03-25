@@ -323,6 +323,8 @@ static void tmp105_class_init(ObjectClass *klass, const void *data)
     k->recv = tmp105_rx;
     k->send = tmp105_tx;
     dc->vmsd = &vmstate_tmp105;
+    dc->desc = "TI TMP105 temperature sensor";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo tmp105_info = {

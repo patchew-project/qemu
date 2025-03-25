@@ -342,6 +342,7 @@ static void tmp421_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
+    g_autofree char *name_up = NULL;
 
     dc->realize = tmp421_realize;
     k->event = tmp421_event;
@@ -349,6 +350,9 @@ static void tmp421_class_init(ObjectClass *klass, const void *data)
     k->send = tmp421_tx;
     dc->vmsd = &vmstate_tmp421;
     sc->dev = (DeviceInfo *) data;
+    name_up = g_ascii_strup(sc->dev->name, -1);
+    dc->desc = g_strconcat("TI ", name_up, " temperature sensor", NULL);
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 
     object_class_property_add(klass, "temperature0", "int",
                               tmp421_get_temperature,

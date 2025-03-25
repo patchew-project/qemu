@@ -280,19 +280,25 @@ static void emc141x_class_init(ObjectClass *klass, const void *data)
 static void emc1413_class_init(ObjectClass *klass, const void *data)
 {
     EMC141XClass *ec = EMC141X_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     emc141x_class_init(klass, data);
     ec->model = EMC1413_DEVICE_ID;
     ec->sensors_count = 3;
+    dc->desc = "SMSC EMC1413 temperature sensor";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static void emc1414_class_init(ObjectClass *klass, const void *data)
 {
     EMC141XClass *ec = EMC141X_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     emc141x_class_init(klass, data);
     ec->model = EMC1414_DEVICE_ID;
     ec->sensors_count = 4;
+    dc->desc = "SMSC EMC1414 temperature sensor";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo emc141x_info = {
