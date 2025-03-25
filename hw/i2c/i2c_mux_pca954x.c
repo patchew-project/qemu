@@ -175,12 +175,18 @@ I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel)
 static void pca9546_class_init(ObjectClass *klass, const void *data)
 {
     Pca954xClass *s = PCA954X_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "PCA9546 I2C multiplexer";
     s->nchans = PCA9546_CHANNEL_COUNT;
 }
 
 static void pca9548_class_init(ObjectClass *klass, const void *data)
 {
     Pca954xClass *s = PCA954X_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "PCA9548 I2C multiplexer";
     s->nchans = PCA9548_CHANNEL_COUNT;
 }
 
@@ -226,13 +232,13 @@ static void pca954x_class_init(ObjectClass *klass, const void *data)
 
     rc->phases.enter = pca954x_enter_reset;
 
-    dc->desc = "Pca954x i2c-mux";
     dc->realize = pca954x_realize;
 
     k->write_data = pca954x_write_data;
     k->receive_byte = pca954x_read_byte;
 
     device_class_set_props(dc, pca954x_props);
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pca954x_info[] = {
