@@ -232,6 +232,7 @@ static void axp2xx_class_init(ObjectClass *oc, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 
     rc->phases.enter = axp2xx_reset_enter;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->vmsd = &vmstate_axp2xx;
     isc->event = axp2xx_event;
     isc->recv = axp2xx_rx;
@@ -250,7 +251,9 @@ static const TypeInfo axp2xx_info = {
 static void axp209_class_init(ObjectClass *oc, const void *data)
 {
     AXP2xxClass *sc = AXP2XX_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
+    dc->desc = "AXP209 power system management";
     sc->reset_enter = axp209_reset_enter;
 }
 
@@ -263,7 +266,9 @@ static const TypeInfo axp209_info = {
 static void axp221_class_init(ObjectClass *oc, const void *data)
 {
     AXP2xxClass *sc = AXP2XX_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
+    dc->desc = "AXP221 power system management";
     sc->reset_enter = axp221_reset_enter;
 }
 
