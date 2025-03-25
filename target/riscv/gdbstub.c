@@ -193,7 +193,7 @@ static int riscv_gdb_set_csr(CPUState *cs, uint8_t *mem_buf, int n)
     CPURISCVState *env = &cpu->env;
 
     if (n < CSR_TABLE_SIZE) {
-        target_ulong val = ldtul_p(mem_buf);
+        target_ulong val = ldn_p(mem_buf, sizeof(val));
         int result;
 
         result = riscv_csrrw_debug(env, n, NULL, val, -1);
@@ -229,15 +229,17 @@ static int riscv_gdb_set_virtual(CPUState *cs, uint8_t *mem_buf, int n)
         RISCVCPU *cpu = RISCV_CPU(cs);
         CPURISCVState *env = &cpu->env;
 
-        target_ulong new_priv = ldtul_p(mem_buf) & 0x3;
+        target_ulong new_priv;
+        size_t regsize = sizeof(new_priv);
         bool new_virt = 0;
 
+        new_priv = ldn_p(mem_buf, regsize) & 0x3;
         if (new_priv == PRV_RESERVED) {
             new_priv = PRV_S;
         }
 
         if (new_priv != PRV_M) {
-            new_virt = (ldtul_p(mem_buf) & BIT(2)) >> 2;
+            new_virt = (ldn_p(mem_buf, regsize) & BIT(2)) >> 2;
         }
 
         if (riscv_has_ext(env, RVH) && new_virt != env->virt_enabled) {
