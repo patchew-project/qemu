@@ -367,6 +367,7 @@ static int gdb_get_spr_reg(CPUState *cs, GByteArray *buf, int n)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
+    target_ulong val;
     int reg;
     int len;
 
@@ -375,10 +376,7 @@ static int gdb_get_spr_reg(CPUState *cs, GByteArray *buf, int n)
         return 0;
     }
 
-    len = TARGET_LONG_SIZE;
-
     /* Handle those SPRs that are not part of the env->spr[] array */
-    target_ulong val;
     switch (reg) {
 #if defined(TARGET_PPC64)
     case SPR_CFAR:
@@ -402,6 +400,7 @@ static int gdb_get_spr_reg(CPUState *cs, GByteArray *buf, int n)
     }
     gdb_get_regl(buf, val);
 
+    len = sizeof(val);
     ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, len), len);
     return len;
 }
@@ -410,6 +409,7 @@ static int gdb_set_spr_reg(CPUState *cs, uint8_t *mem_buf, int n)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
+    target_ulong val;
     int reg;
     int len;
 
@@ -418,11 +418,11 @@ static int gdb_set_spr_reg(CPUState *cs, uint8_t *mem_buf, int n)
         return 0;
     }
 
-    len = TARGET_LONG_SIZE;
+    len = sizeof(val);
     ppc_maybe_bswap_register(env, mem_buf, len);
 
     /* Handle those SPRs that are not part of the env->spr[] array */
-    target_ulong val = ldn_p(mem_buf, len);
+    val = ldn_p(mem_buf, len);
     switch (reg) {
 #if defined(TARGET_PPC64)
     case SPR_CFAR:
