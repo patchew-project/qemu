@@ -230,6 +230,8 @@ static void ds1338_class_init(ObjectClass *klass, const void *data)
     k->send = ds1338_send;
     device_class_set_legacy_reset(dc, ds1338_reset);
     dc->vmsd = &vmstate_ds1338;
+    dc->desc = "Maxim DS1338 RTC";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo ds1338_types[] = {

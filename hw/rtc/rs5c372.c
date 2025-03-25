@@ -216,6 +216,8 @@ static void rs5c372_class_init(ObjectClass *klass, const void *data)
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "Ricoh RS5C372 RTC";
     k->event = rs5c372_event;
     k->recv = rs5c372_recv;
     k->send = rs5c372_send;

@@ -99,6 +99,8 @@ static void m41t80_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "ST M41T80 RTC";
     dc->realize = m41t80_realize;
     sc->send = m41t80_send;
     sc->recv = m41t80_recv;
