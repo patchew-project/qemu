@@ -324,8 +324,14 @@ static const FDMonOps fdmon_io_uring_ops = {
 bool fdmon_io_uring_setup(AioContext *ctx)
 {
     int ret;
+    unsigned int flags = 0;
 
-    ret = io_uring_queue_init(FDMON_IO_URING_ENTRIES, &ctx->fdmon_io_uring, 0);
+    /* This improves performance but can be skipped on old hosts */
+#ifdef IORING_SETUP_SINGLE_ISSUER
+    flags |= IORING_SETUP_SINGLE_ISSUER
+#endif
+
+    ret = io_uring_queue_init(FDMON_IO_URING_ENTRIES, &ctx->fdmon_io_uring, flags);
     if (ret != 0) {
         return false;
     }
