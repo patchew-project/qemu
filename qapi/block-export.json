@@ -179,12 +179,18 @@
 #     mount the export with allow_other, and if that fails, try again
 #     without.  (since 6.1; default: auto)
 #
+# @iothreads: Enables multi-threading: Handle requests in each of the
+#     given iothreads (instead of the block device's iothread, or the
+#     export's "main" iothread).  For this, the FUSE FD is duplicated so
+#     there is one FD per iothread.  (since 10.1)
+#
 # Since: 6.0
 ##
 { 'struct': 'BlockExportOptionsFuse',
   'data': { 'mountpoint': 'str',
             '*growable': 'bool',
-            '*allow-other': 'FuseExportAllowOther' },
+            '*allow-other': 'FuseExportAllowOther',
+            '*iothreads': ['str'] },
   'if': 'CONFIG_FUSE' }
 
 ##
