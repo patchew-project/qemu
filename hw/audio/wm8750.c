@@ -721,6 +721,8 @@ static void wm8750_class_init(ObjectClass *klass, const void *data)
     sc->send = wm8750_tx;
     dc->vmsd = &vmstate_wm8750;
     device_class_set_props(dc, wm8750_properties);
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
+    dc->desc = "WM8750 Stereo CODEC";
 }
 
 static const TypeInfo wm8750_info = {
