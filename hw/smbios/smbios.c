@@ -1283,6 +1283,7 @@ static int save_opt_one(void *opaque,
                 return -1;
             }
             g_byte_array_append(data, (guint8 *)buf, ret);
+            g_byte_array_append(data, (guint8 *)"\0", 1);
         }
 
         buf[0] = '\0';
