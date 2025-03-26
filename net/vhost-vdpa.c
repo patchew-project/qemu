@@ -1870,6 +1870,8 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                                      iova_range, features, shared, errp);
         if (!ncs[i])
             goto err;
+
+        ncs[i]->check_mac = opts->check_mac;
     }
 
     if (has_cvq) {
@@ -1882,6 +1884,8 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                                  errp);
         if (!nc)
             goto err;
+
+        nc->check_mac = opts->check_mac;
     }
 
     return 0;
