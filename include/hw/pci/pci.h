@@ -256,6 +256,7 @@ void pci_del_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
 
 uint8_t pci_find_capability(PCIDevice *pci_dev, uint8_t cap_id);
 
+int pci_irq_disabled(PCIDevice *d);
 
 uint32_t pci_default_read_config(PCIDevice *d,
                                  uint32_t address, int len);

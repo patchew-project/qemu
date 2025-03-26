@@ -936,11 +936,14 @@ static void virtio_ccw_vmstate_change(DeviceState *d, bool running)
     }
 }
 
-static bool virtio_ccw_query_guest_notifiers(DeviceState *d)
+static bool virtio_ccw_query_guest_notifiers_used(DeviceState *d, int n)
 {
     CcwDevice *dev = CCW_DEVICE(d);
+    VirtioCcwDevice *vdev = VIRTIO_CCW_DEVICE(d);
+    VirtIODevice *virtio_dev = virtio_bus_get_device(&vdev->bus);
 
-    return !!(dev->sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA);
+    return !!(dev->sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA)
+            && virtio_queue_vector(virtio_dev, n) != VIRTIO_NO_VECTOR;
 }
 
 static int virtio_ccw_get_mappings(VirtioCcwDevice *dev)
@@ -1270,7 +1273,7 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, const void *data)
     bus_class->max_dev = 1;
     k->notify = virtio_ccw_notify;
     k->vmstate_change = virtio_ccw_vmstate_change;
-    k->query_guest_notifiers = virtio_ccw_query_guest_notifiers;
+    k->query_guest_notifiers_used = virtio_ccw_query_guest_notifiers_used;
     k->set_guest_notifiers = virtio_ccw_set_guest_notifiers;
     k->save_queue = virtio_ccw_save_queue;
     k->load_queue = virtio_ccw_load_queue;

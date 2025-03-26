@@ -30,6 +30,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/loader.h"
@@ -1031,7 +1032,7 @@ static void virtio_pci_one_vector_mask(VirtIOPCIProxy *proxy,
 
     /* If guest supports masking, keep irqfd but mask it.
      * Otherwise, clean it up now.
-     */ 
+     */
     if (vdev->use_guest_notifier_mask && k->guest_notifier_mask) {
         k->guest_notifier_mask(vdev, queue_no, true);
     } else {
@@ -1212,10 +1213,15 @@ static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
     return 0;
 }
 
-static bool virtio_pci_query_guest_notifiers(DeviceState *d)
+static bool virtio_pci_query_guest_notifiers_used(DeviceState *d, int n)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
-    return msix_enabled(&proxy->pci_dev);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    if (msix_enabled(&proxy->pci_dev))
+        return virtio_queue_vector(vdev, n) != VIRTIO_NO_VECTOR;
+    else
+        return !pci_irq_disabled(&proxy->pci_dev);
 }
 
 static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
@@ -2599,7 +2605,7 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, const void *data)
     k->save_extra_state = virtio_pci_save_extra_state;
     k->load_extra_state = virtio_pci_load_extra_state;
     k->has_extra_state = virtio_pci_has_extra_state;
-    k->query_guest_notifiers = virtio_pci_query_guest_notifiers;
+    k->query_guest_notifiers_used = virtio_pci_query_guest_notifiers_used;
     k->set_guest_notifiers = virtio_pci_set_guest_notifiers;
     k->set_host_notifier_mr = virtio_pci_set_host_notifier_mr;
     k->vmstate_change = virtio_pci_vmstate_change;
@@ -2630,4 +2636,3 @@ static void virtio_pci_register_types(void)
 }
 
 type_init(virtio_pci_register_types)
-
