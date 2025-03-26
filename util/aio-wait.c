@@ -84,3 +84,8 @@ void aio_wait_bh_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
     aio_bh_schedule_oneshot(ctx, aio_wait_bh, &data);
     AIO_WAIT_WHILE_UNLOCKED(NULL, !data.done);
 }
+
+void aio_wait_timer_cb(void *opaque)
+{
+    /* The point is to make AIO_WAIT_WHILE_TIMEOUT()'s aio_poll() return */
+}

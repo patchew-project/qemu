@@ -354,6 +354,11 @@ bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
     AIO_WAIT_WHILE(bdrv_get_aio_context(bs_),              \
                    cond); })
 
+#define BDRV_POLL_WHILE_TIMEOUT(bs, cond, timeout_ns) ({   \
+    BlockDriverState *bs_ = (bs);                          \
+    AIO_WAIT_WHILE_TIMEOUT(bdrv_get_aio_context(bs_),      \
+                           cond, timeout_ns); })
+
 void bdrv_drain(BlockDriverState *bs);
 
 int co_wrapper_mixed_bdrv_rdlock
@@ -432,7 +437,22 @@ bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent,
 void bdrv_drained_begin(BlockDriverState *bs);
 
 /**
- * bdrv_do_drained_begin_quiesce:
+ * bdrv_drained_begin_timeout:
+ *
+ * Added timeout parameter for bdrv_drained_begin() to make a time limited.
+ *
+ * @timeout_ns: maximum duration to wait; 0 means infinite, equal to call
+ *              bdrv_drained_begin().
+ *
+ * Returns: 0 if succeeded; -ETIMEDOUT when a timeout occurs.
+ *
+ * Note: when the timeout fails, we've already begin aquiesced section, so we
+ * still need to call bdrv_drained_end() to end the quiescent section.
+ */
+int bdrv_drained_begin_timeout(BlockDriverState *bs, uint64_t timeout_ns);
+
+/**
+ * bdrv_do_drained_badegin_quiesce:
  *
  * Quiesces a BDS like bdrv_drained_begin(), but does not wait for already
  * running requests to complete.
