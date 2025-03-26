@@ -2680,19 +2680,31 @@ void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg)
 
 void blk_io_limits_disable(BlockBackend *blk)
 {
+    blk_io_limits_disable_timeout(blk, 0);
+}
+
+int blk_io_limits_disable_timeout(BlockBackend *blk, uint64_t timeout_ns)
+{
     BlockDriverState *bs = blk_bs(blk);
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
+    int ret = 0;
+
     assert(tgm->throttle_state);
     GLOBAL_STATE_CODE();
     if (bs) {
         bdrv_ref(bs);
-        bdrv_drained_begin(bs);
+        ret = bdrv_drained_begin_timeout(bs, timeout_ns);
+        if (ret < 0) {
+            goto out;
+        }
     }
     throttle_group_unregister_tgm(tgm);
+out:
     if (bs) {
         bdrv_drained_end(bs);
         bdrv_unref(bs);
     }
+    return ret;
 }
 
 /* should be called before blk_set_io_limits if a limit is set */
