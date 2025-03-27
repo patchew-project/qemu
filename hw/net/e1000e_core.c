@@ -127,7 +127,7 @@ static inline void
 e1000e_intrmgr_stop_timer(E1000IntrDelayTimer *timer)
 {
     if (timer->running) {
-        timer_del(timer->timer);
+        timer_free(timer->timer);
         timer->running = false;
     }
 }
@@ -360,13 +360,13 @@ e1000e_intrmgr_fire_all_timers(E1000ECore *core)
     int i;
 
     if (core->itr.running) {
-        timer_del(core->itr.timer);
+        timer_free(core->itr.timer);
         e1000e_intrmgr_on_throttling_timer(&core->itr);
     }
 
     for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
         if (core->eitr[i].running) {
-            timer_del(core->eitr[i].timer);
+            timer_free(core->eitr[i].timer);
             e1000e_intrmgr_on_msix_throttling_timer(&core->eitr[i]);
         }
     }
@@ -3452,7 +3452,7 @@ static void e1000e_reset(E1000ECore *core, bool sw)
 {
     int i;
 
-    timer_del(core->autoneg_timer);
+    timer_free(core->autoneg_timer);
 
     e1000e_intrmgr_reset(core);
 

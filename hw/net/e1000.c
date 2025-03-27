@@ -379,9 +379,9 @@ static void e1000_reset_hold(Object *obj, ResetType type)
     E1000BaseClass *edc = E1000_GET_CLASS(d);
     uint8_t *macaddr = d->conf.macaddr.a;
 
-    timer_del(d->autoneg_timer);
-    timer_del(d->mit_timer);
-    timer_del(d->flush_queue_timer);
+    timer_free(d->autoneg_timer);
+    timer_free(d->mit_timer);
+    timer_free(d->flush_queue_timer);
     d->mit_timer_on = 0;
     d->mit_irq_level = 0;
     d->mit_ide = 0;
