@@ -320,11 +320,46 @@ static void gt64120_isd_mapping(GT64120State *s)
     memory_region_transaction_commit();
 }
 
+static uint64_t gt64120_pci_data_read(void *opaque, hwaddr addr, unsigned size)
+{
+    GT64120State *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    uint32_t val = pci_data_read(phb->bus, phb->config_reg, size);
+    
+    /* Only swap for non-bridge devices in big-endian mode */
+    if (!(s->regs[GT_PCI0_CMD] & 1) && (phb->config_reg & 0x00fff800)) {
+        val = bswap32(val);
+    }
+    return val;
+}
+
+static void gt64120_pci_data_write(void *opaque, hwaddr addr, 
+    uint64_t val, unsigned size)
+{
+    GT64120State *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    if (!(s->regs[GT_PCI0_CMD] & 1) && (phb->config_reg & 0x00fff800)) {
+        val = bswap32(val);
+    }
+    if (phb->config_reg & (1u << 31))
+        pci_data_write(phb->bus, phb->config_reg | (addr & 3), val, size);
+}
+
+static const MemoryRegionOps gt64120_pci_data_ops = {
+    .read = gt64120_pci_data_read,
+    .write = gt64120_pci_data_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+};
+
 static void gt64120_update_pci_cfgdata_mapping(GT64120State *s)
 {
     /* Indexed on MByteSwap bit, see Table 158: PCI_0 Command, Offset: 0xc00 */
     static const MemoryRegionOps *pci_host_data_ops[] = {
-        &pci_host_data_be_ops, &pci_host_data_le_ops
+        &gt64120_pci_data_ops, &pci_host_data_le_ops
     };
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
