@@ -422,7 +422,7 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
             }
         } else {
             if (q->tx_timer) {
-                timer_del(q->tx_timer);
+                timer_free(q->tx_timer);
             } else {
                 qemu_bh_cancel(q->tx_bh);
             }
@@ -2839,7 +2839,7 @@ static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
 
     if (q->tx_waiting) {
         /* We already have queued packets, immediately flush */
-        timer_del(q->tx_timer);
+        timer_free(q->tx_timer);
         virtio_net_tx_timer(q);
     } else {
         /* re-arm timer to flush it (and more) on next tick */
@@ -3977,7 +3977,7 @@ static void virtio_net_reset(VirtIODevice *vdev)
     n->nobcast = 0;
     /* multiqueue is disabled by default */
     n->curr_queue_pairs = 1;
-    timer_del(n->announce_timer.tm);
+    timer_free(n->announce_timer.tm);
     n->announce_timer.round = 0;
     n->status &= ~VIRTIO_NET_S_ANNOUNCE;
 
