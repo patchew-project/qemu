@@ -410,7 +410,7 @@ static void hpet_set_timer(HPETTimer *t)
 static void hpet_del_timer(HPETTimer *t)
 {
     HPETState *s = t->state;
-    timer_del(t->qemu_timer);
+    timer_free(t->qemu_timer);
 
     if (s->isr & (1 << t->tn)) {
         /* For level-triggered interrupt, this leaves ISR set but lowers irq.  */
