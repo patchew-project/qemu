@@ -52,6 +52,7 @@ static void sdhci_pci_exit(PCIDevice *dev)
     qemu_free_irq(s->irq);
     sdhci_common_unrealize(s);
     sdhci_uninitfn(s);
+    qemu_free_irq(s->irq);
 }
 
 static void sdhci_pci_class_init(ObjectClass *klass, const void *data)
