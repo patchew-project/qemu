@@ -1241,8 +1241,8 @@ static void rocker_msix_uninit(Rocker *r)
 {
     PCIDevice *dev = PCI_DEVICE(r);
 
-    msix_uninit(dev, &r->msix_bar, &r->msix_bar);
     rocker_msix_vectors_unuse(r, ROCKER_MSIX_VEC_COUNT(r->fp_ports));
+    msix_uninit(dev, &r->msix_bar, &r->msix_bar);
 }
 
 static World *rocker_world_type_by_name(Rocker *r, const char *name)
