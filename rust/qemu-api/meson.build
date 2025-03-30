@@ -22,6 +22,7 @@ _qemu_api_rs = static_library(
       'src/chardev.rs',
       'src/errno.rs',
       'src/irq.rs',
+      'src/log.rs',
       'src/memory.rs',
       'src/module.rs',
       'src/prelude.rs',

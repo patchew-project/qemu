@@ -152,6 +152,7 @@ module           status
 ``cell``         stable
 ``errno``        complete
 ``irq``          complete
+``log``          proof of concept
 ``memory``       stable
 ``module``       complete
 ``offset_of``    stable
