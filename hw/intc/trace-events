@@ -291,6 +291,8 @@ xive_nvp_backlog_op(uint8_t blk, uint32_t idx, uint8_t op, uint8_t priority, uin
 xive_nvgc_backlog_op(bool c, uint8_t blk, uint32_t idx, uint8_t op, uint8_t priority, uint32_t rc) "NVGC crowd=%d 0x%x/0x%x operation=%d priority=%d rc=%d"
 
 # pnv_xive.c
+pnv_xive_pter_enable(int cpu_index) "CPU[%d]"
+pnv_xive_pter_disable(int cpu_index) "CPU[%d]"
 pnv_xive_ic_hw_trigger(uint64_t addr, uint64_t val) "@0x%"PRIx64" val=0x%"PRIx64
 
 # goldfish_pic.c

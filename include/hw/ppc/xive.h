@@ -352,6 +352,7 @@ struct XiveTCTX {
     DeviceState parent_obj;
 
     CPUState    *cs;
+    bool        cpu_enabled; /* Physical Thread Enabled (used by pnv_xive) */
     qemu_irq    hv_output;
     qemu_irq    os_output;
 

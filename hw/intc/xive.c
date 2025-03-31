@@ -677,6 +677,8 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
 
     trace_xive_tctx_tm_write(tctx->cs->cpu_index, offset, size, value);
 
+    g_assert(tctx->cpu_enabled);
+
     /*
      * TODO: check V bit in Q[0-3]W2
      */
@@ -715,6 +717,13 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
 {
     const XiveTmOp *xto;
     uint64_t ret;
+
+    if (!tctx->cpu_enabled) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid read access to TIMA "
+                                       "with physical thread enable cleared\n");
+        /* TODO: This should set a FIR bit */
+        return -1;
+    }
 
     /*
      * TODO: check V bit in Q[0-3]W2
@@ -822,6 +831,8 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, GString *buf)
 
 void xive_tctx_reset(XiveTCTX *tctx)
 {
+    tctx->cpu_enabled = false;
+
     memset(tctx->regs, 0, sizeof(tctx->regs));
 
     /* Set some defaults */

@@ -25,6 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "system/reset.h"
 #include "system/qtest.h"
+#include "trace.h"
 
 #include <libfdt.h>
 
@@ -612,16 +613,6 @@ static uint32_t pnv_xive2_get_config(Xive2Router *xrtr)
     return cfg;
 }
 
-static bool pnv_xive2_is_cpu_enabled(PnvXive2 *xive, PowerPCCPU *cpu)
-{
-    int pir = ppc_cpu_pir(cpu);
-    uint32_t fc = PNV10_PIR2FUSEDCORE(pir);
-    uint64_t reg = fc < 8 ? TCTXT_EN0 : TCTXT_EN1;
-    uint32_t bit = pir & 0x3f;
-
-    return xive->tctxt_regs[reg >> 3] & PPC_BIT(bit);
-}
-
 static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
                                uint8_t nvt_blk, uint32_t nvt_idx,
                                bool crowd, bool cam_ignore, uint8_t priority,
@@ -640,14 +631,12 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
 
         for (j = 0; j < cc->nr_threads; j++) {
             PowerPCCPU *cpu = pc->threads[j];
-            XiveTCTX *tctx;
+            XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
             int ring;
 
-            if (!pnv_xive2_is_cpu_enabled(xive, cpu)) {
+            if (!tctx->cpu_enabled) {
                 continue;
             }
-
-            tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
 
             if (gen1_tima_os) {
                 ring = xive_presenter_tctx_match(xptr, tctx, format, nvt_blk,
@@ -721,14 +710,12 @@ static int pnv_xive2_broadcast(XivePresenter *xptr,
 
         for (j = 0; j < cc->nr_threads; j++) {
             PowerPCCPU *cpu = pc->threads[j];
-            XiveTCTX *tctx;
+            XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
             int ring;
 
-            if (!pnv_xive2_is_cpu_enabled(xive, cpu)) {
+            if (!tctx->cpu_enabled) {
                 continue;
             }
-
-            tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
 
             if (gen1_tima_os) {
                 ring = xive_presenter_tctx_match(xptr, tctx, 0, nvt_blk,
@@ -758,13 +745,10 @@ static uint8_t pnv_xive2_get_block_id(Xive2Router *xrtr)
  */
 static PnvXive2 *pnv_xive2_tm_get_xive(PowerPCCPU *cpu)
 {
-    int pir = ppc_cpu_pir(cpu);
-    XivePresenter *xptr = XIVE_TCTX(pnv_cpu_state(cpu)->intc)->xptr;
+    XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+    XivePresenter *xptr = tctx->xptr;
     PnvXive2 *xive = PNV_XIVE2(xptr);
 
-    if (!pnv_xive2_is_cpu_enabled(xive, cpu)) {
-        xive2_error(xive, "IC: CPU %x is not enabled", pir);
-    }
     return xive;
 }
 
@@ -1734,6 +1718,71 @@ static uint64_t pnv_xive2_ic_tctxt_read(void *opaque, hwaddr offset,
     return val;
 }
 
+static bool pnv_xive2_is_cpu_thread_enabled(PnvXive2 *xive, PowerPCCPU *cpu)
+{
+    int pir = ppc_cpu_pir(cpu);
+    uint32_t fc = PNV10_PIR2FUSEDCORE(pir);
+    uint64_t reg = fc < 8 ? TCTXT_EN0 : TCTXT_EN1;
+    uint32_t bit = pir & 0x3f;
+
+    return xive->tctxt_regs[reg >> 3] & PPC_BIT(bit);
+}
+
+/*
+ * Check for updates to CPU physical thread enable register and bring
+ * cpu threads up and down. When a thread is disabled:
+ * - All the associated processor exception lines are set inactive.
+ * - A FIR bit is set on any CI operations to the associated TIMA.
+ * - Any CI store data to the associated TIMA is ignored.
+ * - All load response data to the associated TIMA is all ones.
+ * - All TIMA context values are reset to zero.
+ */
+static void pnv_xive2_update_cpu_thread_enables(PnvXive2 *xive)
+{
+    PnvChip *chip = xive->chip;
+    int i, j;
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pc = chip->cores[i];
+        CPUCore *cc = CPU_CORE(pc);
+
+        for (j = 0; j < cc->nr_threads; j++) {
+            PowerPCCPU *cpu = pc->threads[j];
+            XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+            if (pnv_xive2_is_cpu_thread_enabled(xive, cpu)) {
+                if (tctx->cpu_enabled) {
+                    continue;
+                }
+                trace_pnv_xive_pter_enable(tctx->cs->cpu_index);
+                tctx->cpu_enabled = true;
+            } else {
+                if (!tctx->cpu_enabled) {
+                    continue;
+                }
+                trace_pnv_xive_pter_disable(tctx->cs->cpu_index);
+                xive_tctx_reset(tctx); /* This clears ->cpu_enabled */
+            }
+        }
+    }
+}
+
+static bool __pnv_xive2_check_tctx_enabled(const char *func, XiveTCTX *tctx)
+{
+    if (tctx->cpu_enabled) {
+        return true;
+    }
+
+    qemu_log_mask(LOG_GUEST_ERROR, "XIVE: CPU[%d] invalid write access to TIMA "
+                                   "with physical thread enable cleared\n",
+                                   tctx->cs->cpu_index);
+    /* TODO: This should set a FIR bit */
+    return false;
+}
+
+#define pnv_xive2_check_tctx_enabled(tctx)        \
+            __pnv_xive2_check_tctx_enabled(__func__, tctx)
+
 static void pnv_xive2_ic_tctxt_write(void *opaque, hwaddr offset,
                                      uint64_t val, unsigned size)
 {
@@ -1768,6 +1817,7 @@ static void pnv_xive2_ic_tctxt_write(void *opaque, hwaddr offset,
         xive2_error(xive, "TCTXT: invalid write @%"HWADDR_PRIx, offset);
         return;
     }
+    pnv_xive2_update_cpu_thread_enables(xive);
 }
 
 static const MemoryRegionOps pnv_xive2_ic_tctxt_ops = {
@@ -2099,6 +2149,7 @@ static XiveTCTX *pnv_xive2_get_indirect_tctx(PnvXive2 *xive, uint32_t pir)
 {
     PnvChip *chip = xive->chip;
     PowerPCCPU *cpu = NULL;
+    XiveTCTX *tctx;
 
     cpu = pnv_chip_find_cpu(chip, pir);
     if (!cpu) {
@@ -2106,11 +2157,9 @@ static XiveTCTX *pnv_xive2_get_indirect_tctx(PnvXive2 *xive, uint32_t pir)
         return NULL;
     }
 
-    if (!pnv_xive2_is_cpu_enabled(xive, cpu)) {
-        xive2_error(xive, "IC: CPU %x is not enabled", pir);
-    }
+    tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
 
-    return XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+    return tctx;
 }
 
 static uint64_t pnv_xive2_ic_tm_indirect_read(void *opaque, hwaddr offset,
@@ -2127,7 +2176,9 @@ static uint64_t pnv_xive2_ic_tm_indirect_read(void *opaque, hwaddr offset,
     hw_page_offset = pnv_xive2_ic_tm_get_hw_page_offset(xive, offset);
     tctx = pnv_xive2_get_indirect_tctx(xive, pir);
     if (tctx) {
-        val = xive_tctx_tm_read(xptr, tctx, hw_page_offset, size);
+        if (pnv_xive2_check_tctx_enabled(tctx)) {
+            val = xive_tctx_tm_read(xptr, tctx, hw_page_offset, size);
+        }
     }
 
     return val;
@@ -2146,7 +2197,9 @@ static void pnv_xive2_ic_tm_indirect_write(void *opaque, hwaddr offset,
     hw_page_offset = pnv_xive2_ic_tm_get_hw_page_offset(xive, offset);
     tctx = pnv_xive2_get_indirect_tctx(xive, pir);
     if (tctx) {
-        xive_tctx_tm_write(xptr, tctx, hw_page_offset, val, size);
+        if (pnv_xive2_check_tctx_enabled(tctx)) {
+            xive_tctx_tm_write(xptr, tctx, hw_page_offset, val, size);
+        }
     }
 }
 
@@ -2175,7 +2228,9 @@ static void pnv_xive2_tm_write(void *opaque, hwaddr offset,
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
     XivePresenter *xptr = XIVE_PRESENTER(xive);
 
-    xive_tctx_tm_write(xptr, tctx, offset, value, size);
+    if (pnv_xive2_check_tctx_enabled(tctx)) {
+        xive_tctx_tm_write(xptr, tctx, offset, value, size);
+    }
 }
 
 static uint64_t pnv_xive2_tm_read(void *opaque, hwaddr offset, unsigned size)
@@ -2184,8 +2239,13 @@ static uint64_t pnv_xive2_tm_read(void *opaque, hwaddr offset, unsigned size)
     PnvXive2 *xive = pnv_xive2_tm_get_xive(cpu);
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
     XivePresenter *xptr = XIVE_PRESENTER(xive);
+    uint64_t val = -1;
 
-    return xive_tctx_tm_read(xptr, tctx, offset, size);
+    if (pnv_xive2_check_tctx_enabled(tctx)) {
+        val = xive_tctx_tm_read(xptr, tctx, offset, size);
+    }
+
+    return val;
 }
 
 static const MemoryRegionOps pnv_xive2_tm_ops = {

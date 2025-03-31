@@ -455,21 +455,6 @@ static int pnv_xive_set_pq(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
     return 0;
 }
 
-/*
- * One bit per thread id. The first register PC_THREAD_EN_REG0 covers
- * the first cores 0-15 (normal) of the chip or 0-7 (fused). The
- * second register covers cores 16-23 (normal) or 8-11 (fused).
- */
-static bool pnv_xive_is_cpu_enabled(PnvXive *xive, PowerPCCPU *cpu)
-{
-    int pir = ppc_cpu_pir(cpu);
-    uint32_t fc = PNV9_PIR2FUSEDCORE(pir);
-    uint64_t reg = fc < 8 ? PC_THREAD_EN_REG0 : PC_THREAD_EN_REG1;
-    uint32_t bit = pir & 0x3f;
-
-    return xive->regs[reg >> 3] & PPC_BIT(bit);
-}
-
 static int pnv_xive_match_nvt(XivePresenter *xptr, uint8_t format,
                               uint8_t nvt_blk, uint32_t nvt_idx,
                               bool crowd, bool cam_ignore, uint8_t priority,
@@ -486,14 +471,12 @@ static int pnv_xive_match_nvt(XivePresenter *xptr, uint8_t format,
 
         for (j = 0; j < cc->nr_threads; j++) {
             PowerPCCPU *cpu = pc->threads[j];
-            XiveTCTX *tctx;
+            XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
             int ring;
 
-            if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
+            if (!tctx->cpu_enabled) {
                 continue;
             }
-
-            tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
 
             /*
              * Check the thread context CAM lines and record matches.
@@ -545,13 +528,10 @@ static uint8_t pnv_xive_get_block_id(XiveRouter *xrtr)
  */
 static PnvXive *pnv_xive_tm_get_xive(PowerPCCPU *cpu)
 {
-    int pir = ppc_cpu_pir(cpu);
-    XivePresenter *xptr = XIVE_TCTX(pnv_cpu_state(cpu)->intc)->xptr;
+    XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+    XivePresenter *xptr = tctx->xptr;
     PnvXive *xive = PNV_XIVE(xptr);
 
-    if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
-        xive_error(xive, "IC: CPU %x is not enabled", pir);
-    }
     return xive;
 }
 
@@ -903,6 +883,76 @@ static void pnv_xive_vst_set_data(PnvXive *xive, uint64_t vsd, bool pc_engine)
 }
 
 /*
+ * One bit per thread id. The first register PC_THREAD_EN_REG0 covers
+ * the first cores 0-15 (normal) of the chip or 0-7 (fused). The
+ * second register covers cores 16-23 (normal) or 8-11 (fused).
+ */
+static bool pnv_xive_is_cpu_thread_enabled(PnvXive *xive, PowerPCCPU *cpu)
+{
+    int pir = ppc_cpu_pir(cpu);
+    uint32_t fc = PNV9_PIR2FUSEDCORE(pir);
+    uint64_t reg = fc < 8 ? PC_THREAD_EN_REG0 : PC_THREAD_EN_REG1;
+    uint32_t bit = pir & 0x3f;
+
+    return xive->regs[reg >> 3] & PPC_BIT(bit);
+}
+
+/*
+ * Check for updates to CPU physical thread enable register and bring
+ * cpu threads up and down. When a thread is disabled:
+ * - All the associated processor exception lines are set inactive.
+ * - A FIR bit is set on any CI operations to the associated TIMA.
+ * - Any CI store data to the associated TIMA is ignored.
+ * - All load response data to the associated TIMA is all ones.
+ * - All TIMA context values are reset to zero.
+ */
+static void pnv_xive_update_cpu_thread_enables(PnvXive *xive)
+{
+    PnvChip *chip = xive->chip;
+    int i, j;
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pc = chip->cores[i];
+        CPUCore *cc = CPU_CORE(pc);
+
+        for (j = 0; j < cc->nr_threads; j++) {
+            PowerPCCPU *cpu = pc->threads[j];
+            XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+            if (pnv_xive_is_cpu_thread_enabled(xive, cpu)) {
+                if (tctx->cpu_enabled) {
+                    continue;
+                }
+                trace_pnv_xive_pter_enable(tctx->cs->cpu_index);
+                tctx->cpu_enabled = true;
+            } else {
+                if (!tctx->cpu_enabled) {
+                    continue;
+                }
+                trace_pnv_xive_pter_disable(tctx->cs->cpu_index);
+                xive_tctx_reset(tctx); /* This clears ->cpu_enabled */
+            }
+        }
+    }
+}
+
+static bool __pnv_xive_check_tctx_enabled(const char *func, XiveTCTX *tctx)
+{
+    if (tctx->cpu_enabled) {
+        return true;
+    }
+
+    qemu_log_mask(LOG_GUEST_ERROR, "XIVE: CPU[%d] invalid write access to TIMA "
+                                   "with physical thread enable cleared\n",
+                                   tctx->cs->cpu_index);
+    /* TODO: This should set a FIR bit */
+    return false;
+}
+
+#define pnv_xive_check_tctx_enabled(tctx)        \
+            __pnv_xive_check_tctx_enabled(__func__, tctx)
+
+/*
  * Interrupt controller MMIO region. The layout is compatible between
  * 4K and 64K pages :
  *
@@ -1138,15 +1188,19 @@ static void pnv_xive_ic_reg_write(void *opaque, hwaddr offset,
 
     case PC_THREAD_EN_REG0_SET:
         xive->regs[PC_THREAD_EN_REG0 >> 3] |= val;
+        pnv_xive_update_cpu_thread_enables(xive);
         break;
     case PC_THREAD_EN_REG1_SET:
         xive->regs[PC_THREAD_EN_REG1 >> 3] |= val;
+        pnv_xive_update_cpu_thread_enables(xive);
         break;
     case PC_THREAD_EN_REG0_CLR:
         xive->regs[PC_THREAD_EN_REG0 >> 3] &= ~val;
+        pnv_xive_update_cpu_thread_enables(xive);
         break;
     case PC_THREAD_EN_REG1_CLR:
         xive->regs[PC_THREAD_EN_REG1 >> 3] &= ~val;
+        pnv_xive_update_cpu_thread_enables(xive);
         break;
 
     /*
@@ -1575,6 +1629,7 @@ static XiveTCTX *pnv_xive_get_indirect_tctx(PnvXive *xive)
     PnvChip *chip = xive->chip;
     uint64_t tctxt_indir = xive->regs[PC_TCTXT_INDIR0 >> 3];
     PowerPCCPU *cpu = NULL;
+    XiveTCTX *tctx;
     int pir;
 
     if (!(tctxt_indir & PC_TCTXT_INDIR_VALID)) {
@@ -1589,18 +1644,19 @@ static XiveTCTX *pnv_xive_get_indirect_tctx(PnvXive *xive)
         return NULL;
     }
 
-    /* Check that HW thread is XIVE enabled */
-    if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
-        xive_error(xive, "IC: CPU %x is not enabled", pir);
-    }
+    tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
 
-    return XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+    return tctx;
 }
 
 static void xive_tm_indirect_write(void *opaque, hwaddr offset,
                                    uint64_t value, unsigned size)
 {
     XiveTCTX *tctx = pnv_xive_get_indirect_tctx(PNV_XIVE(opaque));
+
+    if (!pnv_xive_check_tctx_enabled(tctx)) {
+        return;
+    }
 
     xive_tctx_tm_write(XIVE_PRESENTER(opaque), tctx, offset, value, size);
 }
@@ -1609,6 +1665,10 @@ static uint64_t xive_tm_indirect_read(void *opaque, hwaddr offset,
                                       unsigned size)
 {
     XiveTCTX *tctx = pnv_xive_get_indirect_tctx(PNV_XIVE(opaque));
+
+    if (!pnv_xive_check_tctx_enabled(tctx)) {
+        return -1;
+    }
 
     return xive_tctx_tm_read(XIVE_PRESENTER(opaque), tctx, offset, size);
 }
@@ -1634,6 +1694,10 @@ static void pnv_xive_tm_write(void *opaque, hwaddr offset,
     PnvXive *xive = pnv_xive_tm_get_xive(cpu);
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
 
+    if (!pnv_xive_check_tctx_enabled(tctx)) {
+        return;
+    }
+
     xive_tctx_tm_write(XIVE_PRESENTER(xive), tctx, offset, value, size);
 }
 
@@ -1642,6 +1706,10 @@ static uint64_t pnv_xive_tm_read(void *opaque, hwaddr offset, unsigned size)
     PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
     PnvXive *xive = pnv_xive_tm_get_xive(cpu);
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
+
+    if (!pnv_xive_check_tctx_enabled(tctx)) {
+        return -1;
+    }
 
     return xive_tctx_tm_read(XIVE_PRESENTER(xive), tctx, offset, size);
 }
