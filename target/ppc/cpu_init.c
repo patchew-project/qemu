@@ -7531,6 +7531,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, const void *data)
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &ppc_sysemu_ops;
     INTERRUPT_STATS_PROVIDER_CLASS(oc)->get_statistics = ppc_get_irq_stats;
+    INTERRUPT_STATS_PROVIDER_CLASS(oc)->print_info = ppc_cpu_irq_print_info;
 
     /* check_prot_access_type relies on MMU access and PAGE bits relations */
     qemu_build_assert(MMU_DATA_LOAD == 0 && MMU_DATA_STORE == 1 &&

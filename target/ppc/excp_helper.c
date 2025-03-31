@@ -104,6 +104,49 @@ static const char *powerpc_excp_name(int excp)
     }
 }
 
+static const char *powerpc_intr_name(uint32_t intr)
+{
+    switch (intr) {
+    case PPC_INTERRUPT_RESET:      return "RSET";
+    case PPC_INTERRUPT_WAKEUP:     return "WAKE";
+    case PPC_INTERRUPT_MCK:        return "MCHK";
+    case PPC_INTERRUPT_EXT:        return "EXTN";
+    case PPC_INTERRUPT_SMI:        return "SMI";
+    case PPC_INTERRUPT_CEXT:       return "CEXT";
+    case PPC_INTERRUPT_DEBUG:      return "DEBG";
+    case PPC_INTERRUPT_THERM:      return "THRM";
+    case PPC_INTERRUPT_DECR:       return "DECR";
+    case PPC_INTERRUPT_HDECR:      return "HDEC";
+    case PPC_INTERRUPT_PIT:        return "PIT";
+    case PPC_INTERRUPT_FIT:        return "FIT";
+    case PPC_INTERRUPT_WDT:        return "WDT";
+    case PPC_INTERRUPT_CDOORBELL:  return "CDBL";
+    case PPC_INTERRUPT_DOORBELL:   return "DBL";
+    case PPC_INTERRUPT_PERFM:      return "PMU";
+    case PPC_INTERRUPT_HMI:        return "HMI";
+    case PPC_INTERRUPT_HDOORBELL:  return "HDBL";
+    case PPC_INTERRUPT_HVIRT:      return "HVRT";
+    case PPC_INTERRUPT_EBB:        return "EBB";
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static bool powerpc_is_hv_intr(uint32_t intr)
+{
+    switch (intr) {
+    case PPC_INTERRUPT_RESET:
+    case PPC_INTERRUPT_MCK:
+    case PPC_INTERRUPT_HDECR:
+    case PPC_INTERRUPT_HMI:
+    case PPC_INTERRUPT_HDOORBELL:
+    case PPC_INTERRUPT_HVIRT:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static void dump_syscall(CPUPPCState *env)
 {
     qemu_log_mask(CPU_LOG_INT, "syscall r0=%016" PRIx64
@@ -2427,6 +2470,79 @@ static void ppc_deliver_interrupt(CPUPPCState *env, int interrupt)
     default:
         cpu_abort(env_cpu(env), "Invalid PowerPC interrupt %d. Aborting\n",
                   interrupt);
+    }
+}
+
+void ppc_cpu_irq_print_info(InterruptStatsProvider *obj, GString *buf)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(obj);
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    const char *priv1 = "";
+    const char *priv2;
+    bool none;
+    int i;
+
+    g_string_append_printf(buf, "CPU[%x] interrupt info\n", cs->cpu_index);
+
+    g_string_append_printf(buf, "    state:%s",
+                           cs->halted ? "stopped" : "running");
+    if (env->resume_as_sreset) {
+        g_string_append_printf(buf, "(wake with sreset)");
+    }
+
+    if (FIELD_EX64(env->msr, MSR, PR)) {
+        priv2 = "user";
+    } else {
+        priv2 = "privileged";
+    }
+    if (env->has_hv_mode) {
+        if (FIELD_EX64_HV(env->msr)) {
+            priv1 = "host-";
+        } else {
+            priv1 = "guest-";
+        }
+    }
+    g_string_append_printf(buf, " mode:%s%s\n", priv1, priv2);
+
+    if (env->has_hv_mode) {
+        g_string_append_printf(buf, "    hypervisor irqs:%s\n",
+                !FIELD_EX64_HV(env->msr) || FIELD_EX64(env->msr, MSR, EE) ?
+                    "enabled" : "disabled");
+    }
+    g_string_append_printf(buf, "    supervisor irqs:%s\n",
+            FIELD_EX64(env->msr, MSR, EE) ? "enabled" : "disabled");
+
+    if (env->has_hv_mode) {
+        none = true;
+        g_string_append_printf(buf, "    pending hypervisor interrupts: ");
+        for (i = 0; i < 32; i++) {
+            uint32_t intr = (1U << i);
+            if (powerpc_is_hv_intr(intr) && (env->pending_interrupts & intr)) {
+                none = false;
+                g_string_append_printf(buf, "%s ", powerpc_intr_name(intr));
+            }
+        }
+        if (none) {
+            g_string_append_printf(buf, "none\n");
+        } else {
+            g_string_append_printf(buf, "\n");
+        }
+    }
+
+    none = true;
+    g_string_append_printf(buf, "    pending supervisor interrupts: ");
+    for (i = 0; i < 32; i++) {
+        uint32_t intr = (1U << i);
+        if (!powerpc_is_hv_intr(intr) && (env->pending_interrupts & intr)) {
+            none = false;
+            g_string_append_printf(buf, "%s ", powerpc_intr_name(intr));
+        }
+    }
+    if (none) {
+        g_string_append_printf(buf, "none\n");
+    } else {
+        g_string_append_printf(buf, "\n");
     }
 }
 
