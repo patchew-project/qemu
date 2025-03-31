@@ -5505,7 +5505,7 @@ static const X86CPUDefinition builtin_x86_defs[] = {
         .level = 0x1F,
         .vendor = CPUID_VENDOR_ZHAOXIN1,
         .family = 7,
-        .model = 11,
+        .model = 0x5b,
         .stepping = 3,
         /* missing: CPUID_HT, CPUID_TM, CPUID_PBE */
         .features[FEAT_1_EDX] =
