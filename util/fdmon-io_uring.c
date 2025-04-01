@@ -45,6 +45,7 @@
 
 #include "qemu/osdep.h"
 #include <poll.h>
+#include "qemu/error-report.h"
 #include "qemu/rcu_queue.h"
 #include "aio-posix.h"
 
@@ -369,7 +370,8 @@ bool fdmon_io_uring_setup(AioContext *ctx)
 
     ret = io_uring_queue_init(FDMON_IO_URING_ENTRIES, &ctx->fdmon_io_uring, 0);
     if (ret != 0) {
-        return false;
+        error_report("failed to initialize io_uring: %s", strerror(-ret));
+        exit(EXIT_FAILURE);
     }
 
     QSLIST_INIT(&ctx->submit_list);
