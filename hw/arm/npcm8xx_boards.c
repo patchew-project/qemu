@@ -27,6 +27,7 @@
 #include "qemu/error-report.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
+#include "system/block-backend.h"
 
 #define NPCM845_EVB_POWER_ON_STRAPS 0x000017ff
 
@@ -59,10 +60,21 @@ static void npcm8xx_connect_flash(NPCM7xxFIUState *fiu, int cs_no,
 {
     DeviceState *flash;
     qemu_irq flash_cs;
+    BlockBackend *blk;
+    uint64_t blk_size, perm, shared_perm;
 
     flash = qdev_new(flash_type);
     if (dinfo) {
         qdev_prop_set_drive(flash, "drive", blk_by_legacy_dinfo(dinfo));
+        blk = blk_by_legacy_dinfo(dinfo);
+        blk_size = blk_getlength(blk);
+        if (blk_size < fiu->flash_size) {
+            blk_get_perm(blk, &perm, &shared_perm);
+            blk_set_perm(blk, BLK_PERM_ALL, BLK_PERM_ALL, &error_abort);
+            blk_truncate(blk, fiu->flash_size, true, PREALLOC_MODE_OFF,
+                         BDRV_REQ_ZERO_WRITE, &error_abort);
+            blk_set_perm(blk, perm, shared_perm, &error_abort);
+        }
     }
     qdev_realize_and_unref(flash, BUS(fiu->spi), &error_fatal);
 
@@ -194,7 +206,8 @@ static void npcm845_evb_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm8xx_load_bootrom(machine, soc);
-    npcm8xx_connect_flash(&soc->fiu[0], 0, "w25q256", drive_get(IF_MTD, 0, 0));
+    npcm8xx_connect_flash(&soc->fiu[0], 0, "mx66l1g45g",
+                          drive_get(IF_MTD, 0, 0));
     npcm845_evb_i2c_init(soc);
     npcm845_evb_fan_init(NPCM8XX_MACHINE(machine), soc);
     npcm8xx_load_kernel(machine, soc);
