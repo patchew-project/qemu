@@ -423,6 +423,7 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
     ThrottleConfig cfg;
     BlockDriverState *bs;
     BlockBackend *blk;
+    uint64_t timeout_ns;
 
     blk = qmp_get_blk(arg->device, arg->id, errp);
     if (!blk) {
@@ -444,6 +445,10 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
     cfg.buckets[THROTTLE_OPS_READ].avg  = arg->iops_rd;
     cfg.buckets[THROTTLE_OPS_WRITE].avg = arg->iops_wr;
 
+    timeout_ns = 0; /* 0 means infinite */
+    if (arg->has_timeout) {
+        timeout_ns = arg->timeout * NANOSECONDS_PER_SECOND;
+    }
     if (arg->has_bps_max) {
         cfg.buckets[THROTTLE_BPS_TOTAL].max = arg->bps_max;
     }
@@ -502,7 +507,10 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
         blk_set_io_limits(blk, &cfg);
     } else if (blk_get_public(blk)->throttle_group_member.throttle_state) {
         /* If all throttling settings are set to 0, disable I/O limits */
-        blk_io_limits_disable(blk);
+        if (blk_io_limits_disable_timeout(blk, timeout_ns) < 0) {
+            error_setg(errp, "command timed out");
+            return;
+        }
     }
 }
 
