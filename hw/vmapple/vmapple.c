@@ -48,6 +48,7 @@
 #include "qobject/qlist.h"
 #include "standard-headers/linux/input.h"
 #include "system/hvf.h"
+#include "system/qtest.h"
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "system/system.h"
@@ -494,7 +495,9 @@ static void mach_vmapple_init(MachineState *machine)
                                 machine->ram);
 
     create_gic(vms, sysmem);
-    create_bdif(vms, sysmem);
+    if (!qtest_enabled()) {
+        create_bdif(vms, sysmem);
+    }
     create_pvpanic(vms, sysmem);
     create_aes(vms, sysmem);
     create_gfx(vms, sysmem);
@@ -504,7 +507,9 @@ static void mach_vmapple_init(MachineState *machine)
 
     create_gpio_devices(vms, VMAPPLE_GPIO, sysmem);
 
-    vmapple_firmware_init(vms, sysmem);
+    if (!qtest_enabled()) {
+        vmapple_firmware_init(vms, sysmem);
+    }
     create_cfg(vms, sysmem, &error_fatal);
 
     /* connect powerdown request */
@@ -541,17 +546,19 @@ static const CPUArchIdList *vmapple_possible_cpu_arch_ids(MachineState *ms)
 {
     int n;
     unsigned int max_cpus = ms->smp.max_cpus;
+    const char *cpu_type;
 
     if (ms->possible_cpus) {
         assert(ms->possible_cpus->len == max_cpus);
         return ms->possible_cpus;
     }
 
+    cpu_type = qtest_enabled() ? ARM_CPU_TYPE_NAME("max") : ms->cpu_type;
     ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
                                   sizeof(CPUArchId) * max_cpus);
     ms->possible_cpus->len = max_cpus;
     for (n = 0; n < ms->possible_cpus->len; n++) {
-        ms->possible_cpus->cpus[n].type = ms->cpu_type;
+        ms->possible_cpus->cpus[n].type = cpu_type;
         ms->possible_cpus->cpus[n].arch_id =
             arm_build_mp_affinity(n, GICV3_TARGETLIST_BITS);
         ms->possible_cpus->cpus[n].props.has_thread_id = true;
