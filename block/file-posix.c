@@ -2514,27 +2514,6 @@ static bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
     return true;
 }
 
-#ifdef CONFIG_LINUX_IO_URING
-static inline bool raw_check_linux_io_uring(BDRVRawState *s)
-{
-    Error *local_err = NULL;
-    AioContext *ctx;
-
-    if (!s->use_linux_io_uring) {
-        return false;
-    }
-
-    ctx = qemu_get_current_aio_context();
-    if (unlikely(!aio_setup_linux_io_uring(ctx, &local_err))) {
-        error_reportf_err(local_err, "Unable to use linux io_uring, "
-                                     "falling back to thread pool: ");
-        s->use_linux_io_uring = false;
-        return false;
-    }
-    return true;
-}
-#endif
-
 #ifdef CONFIG_LINUX_AIO
 static inline bool raw_check_linux_aio(BDRVRawState *s)
 {
@@ -2587,7 +2566,7 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
     if (s->needs_alignment && !bdrv_qiov_is_aligned(bs, qiov)) {
         type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_IO_URING
-    } else if (raw_check_linux_io_uring(s)) {
+    } else if (s->use_linux_io_uring) {
         assert(qiov->size == bytes);
         ret = luring_co_submit(bs, s->fd, offset, qiov, type, flags);
         goto out;
@@ -2684,7 +2663,7 @@ static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
     };
 
 #ifdef CONFIG_LINUX_IO_URING
-    if (raw_check_linux_io_uring(s)) {
+    if (s->use_linux_io_uring) {
         return luring_co_submit(bs, s->fd, 0, NULL, QEMU_AIO_FLUSH, 0);
     }
 #endif
