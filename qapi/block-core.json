@@ -1460,6 +1460,9 @@
 #
 # @size: new image size in bytes
 #
+# @timeout: In seconds. Timeout for block_resize,
+#     0 means no limit. Defaults to 0. (Since 10.1)
+#
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
@@ -1474,7 +1477,8 @@
 { 'command': 'block_resize',
   'data': { '*device': 'str',
             '*node-name': 'str',
-            'size': 'int' },
+            'size': 'int',
+            '*timeout': 'uint32' },
   'coroutine': true,
   'allow-preconfig': true }
 

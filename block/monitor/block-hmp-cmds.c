@@ -486,7 +486,7 @@ void coroutine_fn hmp_block_resize(Monitor *mon, const QDict *qdict)
     int64_t size = qdict_get_int(qdict, "size");
     Error *err = NULL;
 
-    qmp_block_resize(device, NULL, size, &err);
+    qmp_block_resize(device, NULL, size, false, 0, &err);
     hmp_handle_error(mon, err);
 }
 

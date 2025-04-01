@@ -2252,12 +2252,15 @@ BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
 }
 
 void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
-                                   int64_t size, Error **errp)
+                                   int64_t size,
+                                   bool has_timeout, uint32_t timeout,
+                                   Error **errp)
 {
     Error *local_err = NULL;
     BlockBackend *blk;
     BlockDriverState *bs;
     AioContext *old_ctx;
+    uint64_t timeout_ns;
 
     bs = bdrv_lookup_bs(device, node_name, &local_err);
     if (local_err) {
@@ -2282,12 +2285,21 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
         return;
     }
 
-    bdrv_drained_begin(bs);
+    /* Default is 0, that means infinite */
+    timeout_ns = 0;
+    if (has_timeout) {
+        timeout_ns = timeout * NANOSECONDS_PER_SECOND;
+    }
+    if (bdrv_drained_begin_timeout(bs, timeout_ns) < 0) {
+        error_setg(errp, "command timed out");
+        goto out;
+    }
 
     old_ctx = bdrv_co_enter(bs);
     blk_co_truncate(blk, size, false, PREALLOC_MODE_OFF, 0, errp);
     bdrv_co_leave(bs, old_ctx);
 
+out:
     bdrv_drained_end(bs);
     blk_co_unref(blk);
 }
