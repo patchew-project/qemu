@@ -403,6 +403,7 @@ void qemu_event_set(QemuEvent *ev)
             qemu_futex_wake(ev, INT_MAX);
         }
     }
+    QEMU_TSAN_ANNOTATE_HAPPENS_BEFORE(ev);
 }
 
 void qemu_event_reset(QemuEvent *ev)
@@ -420,6 +421,7 @@ void qemu_event_reset(QemuEvent *ev)
      * Pairs with the first memory barrier in qemu_event_set().
      */
     smp_mb__after_rmw();
+    QEMU_TSAN_ANNOTATE_HAPPENS_BEFORE(ev);
 }
 
 void qemu_event_wait(QemuEvent *ev)
@@ -452,6 +454,7 @@ void qemu_event_wait(QemuEvent *ev)
              * like the load above.
              */
             if (qatomic_cmpxchg(&ev->value, EV_FREE, EV_BUSY) == EV_SET) {
+                QEMU_TSAN_ANNOTATE_HAPPENS_AFTER(ev);
                 return;
             }
         }
@@ -463,6 +466,7 @@ void qemu_event_wait(QemuEvent *ev)
          */
         qemu_futex_wait(ev, EV_BUSY);
     }
+    QEMU_TSAN_ANNOTATE_HAPPENS_AFTER(ev);
 }
 
 static __thread NotifierList thread_exit;
