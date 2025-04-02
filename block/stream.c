@@ -160,6 +160,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
     int64_t offset = 0;
     int error = 0;
     int64_t n = 0; /* bytes */
+    int ret = -1;
 
     WITH_GRAPH_RDLOCK_GUARD() {
         unfiltered_bs = bdrv_skip_filters(s->target_bs);
@@ -177,7 +178,6 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
 
     for ( ; offset < len; offset += n) {
         bool copy;
-        int ret = -1;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -235,8 +235,12 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         }
     }
 
+    do {
+        ret = blk_co_flush(s->blk);
+    } while (block_job_handle_error(&s->common, ret, s->on_error, true, false));
+
     /* Do not remove the backing file if an error was there but ignored. */
-    return error;
+    return error ?: ret;
 }
 
 static const BlockJobDriver stream_job_driver = {

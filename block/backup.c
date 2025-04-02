@@ -221,6 +221,14 @@ static int coroutine_fn backup_loop(BackupBlockJob *job)
     }
 
 out:
+    if (ret == 0) {
+        do {
+            WITH_GRAPH_RDLOCK_GUARD() {
+                ret = bdrv_co_flush(job->target_bs);
+            }
+        } while (block_job_handle_error(&job->common, ret, job->on_target_error,
+                                        true, true));
+    }
     block_copy_call_free(s);
     job->bg_bcs_call = NULL;
     return ret;

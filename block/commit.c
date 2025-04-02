@@ -201,7 +201,11 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         }
     }
 
-    return 0;
+    do {
+        ret = blk_co_flush(s->base);
+    } while (block_job_handle_error(&s->common, ret, s->on_error, true, true));
+
+    return ret;
 }
 
 static const BlockJobDriver commit_job_driver = {

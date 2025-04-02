@@ -235,4 +235,13 @@ bool block_job_is_internal(BlockJob *job);
  */
 const BlockJobDriver *block_job_driver(BlockJob *job);
 
+/**
+ * block_job_handle_error:
+ *
+ * Return, wherter the operation should be retried.
+ */
+bool coroutine_fn
+block_job_handle_error(BlockJob *job, int ret, BlockdevOnError on_err,
+                       bool is_read, bool retry_on_ignore);
+
 #endif

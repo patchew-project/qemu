@@ -626,3 +626,37 @@ AioContext *block_job_get_aio_context(BlockJob *job)
     GLOBAL_STATE_CODE();
     return job->job.aio_context;
 }
+
+bool coroutine_fn
+block_job_handle_error(BlockJob *job, int ret, BlockdevOnError on_err,
+                       bool is_read, bool retry_on_ignore)
+{
+    assert(ret >= 0);
+
+    if (ret == 0) {
+        return false;
+    }
+
+    if (job_is_cancelled(&job->job)) {
+        return false;
+    }
+
+    BlockErrorAction action =
+        block_job_error_action(job, on_err, is_read, -ret);
+    switch (action) {
+    case BLOCK_ERROR_ACTION_REPORT:
+        return false;
+    case BLOCK_ERROR_ACTION_IGNORE:
+        if (!retry_on_ignore) {
+            return false;
+        }
+        /* fallthrough */
+    case BLOCK_ERROR_ACTION_STOP:
+        job_pause_point(&job->job);
+        break;
+    default:
+        abort();
+    }
+
+    return true;
+}
