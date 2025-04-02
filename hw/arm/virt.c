@@ -3161,9 +3161,10 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
 #ifdef CONFIG_TCG
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
-#else
+#ifdef TARGET_AARCH64
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("max");
-#endif
+#endif /* TARGET_AARCH64 */
+#endif /* CONFIG_TCG */
     mc->valid_cpu_types = valid_cpu_types;
     mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
     mc->kvm_type = virt_kvm_type;
