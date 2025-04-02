@@ -472,7 +472,6 @@ typedef enum {
 #define MACSR_V     0x002
 #define MACSR_EV    0x001
 
-void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector);
 void m68k_switch_sp(CPUM68KState *env);
 
 void do_m68k_semihosting(CPUM68KState *env, int nr);

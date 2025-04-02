@@ -8,12 +8,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/nmi.h"
 #include "hw/intc/intc.h"
 #include "hw/intc/m68k_irqc.h"
+#include "target/m68k/cpu-qom.h"
 
 
 static bool m68k_irqc_get_statistics(InterruptStatsProvider *obj,

@@ -29,4 +29,6 @@ OBJECT_DECLARE_CPU_TYPE(M68kCPU, M68kCPUClass, M68K_CPU)
 #define M68K_CPU_TYPE_SUFFIX "-" TYPE_M68K_CPU
 #define M68K_CPU_TYPE_NAME(model) model M68K_CPU_TYPE_SUFFIX
 
+void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector);
+
 #endif
