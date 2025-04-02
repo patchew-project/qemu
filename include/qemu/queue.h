@@ -217,7 +217,8 @@ struct {                                                                \
 #define QSLIST_INSERT_HEAD_ATOMIC(head, elm, field) do {                     \
         typeof(elm) save_sle_next;                                           \
         do {                                                                 \
-            save_sle_next = (elm)->field.sle_next = (head)->slh_first;       \
+            save_sle_next = qatomic_read(&(head)->slh_first);                \
+            (elm)->field.sle_next = save_sle_next;                           \
         } while (qatomic_cmpxchg(&(head)->slh_first, save_sle_next, (elm)) !=\
                  save_sle_next);                                             \
 } while (/*CONSTCOND*/0)
