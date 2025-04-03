@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "qemu/plugin-memory.h"
 #include "qemu/plugin.h"
+#include "plugin.h"
 
 /*
  * In system mode we cannot trace the binary being executed so the
@@ -127,5 +128,12 @@ void qemu_plugin_update_ns(const void *handle, int64_t new_time)
         async_run_on_cpu(current_cpu,
                          advance_virtual_time__async,
                          RUN_ON_CPU_HOST_ULONG(new_time));
+    }
+}
+
+void qemu_plugin_register_time_cb(qemu_plugin_id_t id, const void *handle, qemu_plugin_time_cb_t cb)
+{
+    if (handle == &has_control) {
+        plugin_register_cb(id, QEMU_PLUGIN_EV_GET_TIME, cb);
     }
 }

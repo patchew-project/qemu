@@ -571,6 +571,28 @@ void qemu_plugin_flush_cb(void)
     plugin_cb__simple(QEMU_PLUGIN_EV_FLUSH);
 }
 
+/*
+ * Disable CFI checks.
+ * The callback function has been loaded from an external library so we do not
+ * have type information
+ */
+QEMU_DISABLE_CFI
+bool qemu_plugin_maybe_fetch_time(int64_t *tptr)
+{
+    enum qemu_plugin_event ev = QEMU_PLUGIN_EV_GET_TIME;
+
+    /* there should only be one callback */
+    if (!QLIST_EMPTY(&plugin.cb_lists[ev])) {
+        struct qemu_plugin_cb *cb = QLIST_FIRST(&plugin.cb_lists[ev]);
+        qemu_plugin_time_cb_t func = cb->f.generic;
+        *tptr = func();
+        return true;
+    }
+
+    return false;
+}
+
+
 void exec_inline_op(enum plugin_dyn_cb_type type,
                     struct qemu_plugin_inline_cb *cb,
                     int cpu_index)

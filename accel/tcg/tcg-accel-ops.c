@@ -33,6 +33,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 #include "qemu/timer.h"
+#include "qemu/plugin.h"
 #include "exec/cputlb.h"
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
@@ -200,6 +201,10 @@ static inline void tcg_remove_all_breakpoints(CPUState *cpu)
 
 static int64_t tcg_get_virtual_clock(void)
 {
+    int64_t from_plugin;
+    if (qemu_plugin_maybe_fetch_time(&from_plugin)) {
+        return from_plugin;
+    }
     return cpu_get_clock();
 }
 

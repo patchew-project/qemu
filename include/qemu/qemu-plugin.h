@@ -714,6 +714,22 @@ QEMU_PLUGIN_API
 const void *qemu_plugin_request_time_control(void);
 
 /**
+ * typedef qemu_plugin_vcpu_mem_cb_t - time callback function
+ * Returns time in ns (starting from 0)
+ */
+typedef int64_t (*qemu_plugin_time_cb_t) (void);
+
+/**
+ * qemu_plugin_register_time_cb() - register a time callback
+ *
+ * This can only be called once a plugin has successfully called
+ * qemu_plugin_request_time_control(). The callback will get called
+ * whenever qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) is called.
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_register_time_cb(qemu_plugin_id_t id, const void *handle, qemu_plugin_time_cb_t cb);
+
+/**
  * qemu_plugin_update_ns() - update system emulation time
  * @handle: opaque handle returned by qemu_plugin_request_time_control()
  * @time: time in nanoseconds
@@ -722,6 +738,8 @@ const void *qemu_plugin_request_time_control(void);
  * time control handle) to move system time forward to @time. For
  * user-mode emulation the time is not changed by this as all reported
  * time comes from the host kernel.
+ *
+ * This allows QEMU to execute any pending timers.
  *
  * Start time is 0.
  */
