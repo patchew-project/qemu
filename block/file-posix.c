@@ -1745,12 +1745,24 @@ qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
 }
 
 static ssize_t
-qemu_pwrite_fua(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+qemu_pwritev_fua(const RawPosixAIOData *aiocb, struct iovec *iov, int iovcnt)
 {
 #ifdef RWF_DSYNC
-    return pwritev2(fd, iov, nr_iov, offset, RWF_DSYNC);
+    return pwritev2(aiocb->aio_fildes,
+                    iov,
+                    iovcnt,
+                    aiocb->aio_offset,
+                    RWF_DSYNC);
 #else
-    return pwritev2(fd, iov, nr_iov, offset, 0);
+    ssize_t len = pwritev2(aiocb->aio_fildes,
+                        iov,
+                        iovcnt,
+                        aiocb->aio_offset,
+                        0);
+    if (len == 0) {
+        len = handle_aiocb_flush(aiocb);
+    }
+    return len;
 #endif
 }
 
@@ -1779,10 +1791,7 @@ static ssize_t handle_aiocb_rw_vector(RawPosixAIOData *aiocb)
     len = RETRY_ON_EINTR(
         (aiocb->aio_type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) ?
             (aiocb->flags &  BDRV_REQ_FUA) ?
-                qemu_pwrite_fua(aiocb->aio_fildes,
-                                aiocb->io.iov,
-                                aiocb->io.niov,
-                                aiocb->aio_offset) :
+                qemu_pwritev_fua(aiocb, aiocb->io.iov, aiocb->io.niov) :
                 qemu_pwritev(aiocb->aio_fildes,
                             aiocb->io.iov,
                             aiocb->io.niov,
@@ -1813,10 +1822,11 @@ static ssize_t handle_aiocb_rw_linear(RawPosixAIOData *aiocb, char *buf)
     while (offset < aiocb->aio_nbytes) {
         if (aiocb->aio_type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) {
             if (aiocb->flags & BDRV_REQ_FUA) {
-                len = qemu_pwrite_fua(aiocb->aio_fildes,
-                                    aiocb->io.iov,
-                                    aiocb->io.niov,
-                                    aiocb->aio_offset);
+                struct iovec iov = {
+                    .iov_base = buf,
+                    .iov_len = aiocb->aio_nbytes - offset,
+                };
+                len = qemu_pwritev_fua(aiocb, &iov, 1);
             } else {
                 len = pwrite(aiocb->aio_fildes,
                             (const char *)buf + offset,
@@ -2639,12 +2649,6 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
 
     assert(qiov->size == bytes);
     ret = raw_thread_pool_submit(handle_aiocb_rw, &acb);
-#ifndef RWD_DSYNC
-    if (ret == 0 && (flags & BDRV_REQ_FUA)) {
-        /* TODO Use pwritev2() instead if it's available */
-        ret = raw_co_flush_to_disk(bs);
-    }
-#endif
     goto out; /* Avoid the compiler err of unused label */
 
 out:
