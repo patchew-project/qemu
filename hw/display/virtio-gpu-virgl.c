@@ -1030,6 +1030,19 @@ static int virgl_make_context_current(void *opaque, int scanout_idx,
                                    qctx);
 }
 
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 3
+static int virgl_get_server_fd(void *opaque, uint32_t version)
+{
+    VirtIOGPU *g = opaque;
+
+    if (g->parent_obj.conf.serverfd) {
+        return g->parent_obj.conf.serverfd_parsed;
+    }
+
+    return -1;
+}
+#endif
+
 static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
     .version             = 1,
     .write_fence         = virgl_write_fence,
@@ -1097,6 +1110,10 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     uint32_t flags = 0;
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
 
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 3
+    virtio_gpu_3d_cbs.version = 3;
+    virtio_gpu_3d_cbs.get_server_fd = virgl_get_server_fd;
+#endif
 #if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
     if (qemu_egl_display) {
         virtio_gpu_3d_cbs.version = 4;

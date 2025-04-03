@@ -128,6 +128,8 @@ struct virtio_gpu_base_conf {
     uint32_t xres;
     uint32_t yres;
     uint64_t hostmem;
+    char *serverfd;
+    int serverfd_parsed;
 };
 
 struct virtio_gpu_ctrl_command {

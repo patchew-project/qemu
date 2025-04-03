@@ -22,6 +22,7 @@
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/qdev-properties.h"
+#include "monitor/monitor.h"
 
 #include <virglrenderer.h>
 
@@ -143,6 +144,17 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
         return;
     }
 
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 3
+    if (g->parent_obj.conf.serverfd) {
+        g->parent_obj.conf.serverfd_parsed =
+            monitor_fd_param(monitor_cur(), g->parent_obj.conf.serverfd, errp);
+        if (g->parent_obj.conf.serverfd_parsed < 0) {
+            error_prepend(errp, "unable to parse serverfd: ");
+            return;
+        }
+    }
+#endif
+
     g->parent_obj.conf.flags |= (1 << VIRTIO_GPU_FLAG_VIRGL_ENABLED);
     g->capset_ids = virtio_gpu_virgl_get_capsets(g);
     VIRTIO_GPU_BASE(g)->virtio_config.num_capsets = g->capset_ids->len;
@@ -159,6 +171,9 @@ static const Property virtio_gpu_gl_properties[] = {
                     VIRTIO_GPU_FLAG_STATS_ENABLED, false),
     DEFINE_PROP_BIT("venus", VirtIOGPU, parent_obj.conf.flags,
                     VIRTIO_GPU_FLAG_VENUS_ENABLED, false),
+#if VIRGL_RENDERER_CALLBACKS_VERSION >= 3
+    DEFINE_PROP_STRING("serverfd", VirtIOGPU, parent_obj.conf.serverfd),
+#endif
 };
 
 static void virtio_gpu_gl_device_unrealize(DeviceState *qdev)
