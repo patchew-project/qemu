@@ -1761,6 +1761,12 @@ static void handle_query_qemu_supported(GArray *params, void *user_ctx)
     gdb_put_strbuf();
 }
 
+static void handle_query_qemu_pid(GArray *params, void *user_ctx)
+{
+    g_string_printf(gdbserver_state.str_buf, "F%x", getpid());
+    gdb_put_strbuf();
+}
+
 static const GdbCmdParseEntry gdb_gen_query_set_common_table[] = {
     /* Order is important if has same prefix */
     {
@@ -1916,6 +1922,10 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
     {
         .handler = handle_query_qemu_supported,
         .cmd = "qemu.Supported",
+    },
+    {
+        .handler = handle_query_qemu_pid,
+        .cmd = "qemu.Pid",
     },
 #ifndef CONFIG_USER_ONLY
     {
