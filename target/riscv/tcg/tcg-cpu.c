@@ -1597,6 +1597,8 @@ static void riscv_init_max_cpu_extensions(Object *obj)
     if (cpu->cfg.ext_smdbltrp) {
         isa_ext_update_enabled(cpu, CPU_CFG_OFFSET(ext_smdbltrp), false);
     }
+
+    object_property_set_bool(obj, "rva23s64", true, NULL);
 }
 
 static bool riscv_cpu_has_max_extensions(Object *cpu_obj)
