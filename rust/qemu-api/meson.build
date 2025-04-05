@@ -48,6 +48,17 @@ rust.test('rust-qemu-api-tests', _qemu_api_rs,
 qemu_api = declare_dependency(link_with: [_qemu_api_rs],
   dependencies: [qemuutil_rs, qemu_api_macros, qom, hwcore, chardev, migration])
 
+# Doctests are essentially integration tests, so they need the same "depends" as
+# below and cannot be run with "cargo test --doc".  Developer tools are only
+# supported for versions 1.74.0 or newer of Rust.
+if rustc.version().version_compare('>=1.74.0')
+  rust.doctest('rust-qemu-api-doctests',
+       _qemu_api_rs,
+       protocol: 'rust',
+       dependencies: qemu_api,
+       suite: ['doc', 'rust'])
+endif
+
 test('rust-qemu-api-integration',
     executable(
         'rust-qemu-api-integration',
