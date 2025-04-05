@@ -603,6 +603,7 @@ static void usb_dwc3_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     Error *err = NULL;
 
+    qdev_prop_set_bit(DEVICE(&s->sysbus_xhci), "erstba-hi-lo", true);
     sysbus_realize(SYS_BUS_DEVICE(&s->sysbus_xhci), &err);
     if (err) {
         error_propagate(errp, err);
