@@ -3108,10 +3108,15 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
         } else {
             intr->erstba_low = val & 0xffffffc0;
         }
+        if (xhci->erstba_hi_lo) {
+            xhci_er_reset(xhci, v);
+        }
         break;
     case 0x14: /* ERSTBA high */
         intr->erstba_high = val;
-        xhci_er_reset(xhci, v);
+        if (!xhci->erstba_hi_lo) {
+            xhci_er_reset(xhci, v);
+        }
         break;
     case 0x18: /* ERDP low */
         if (val & ERDP_EHB) {
@@ -3637,6 +3642,7 @@ static const Property xhci_properties[] = {
     DEFINE_PROP_UINT32("p3",    XHCIState, numports_3, 4),
     DEFINE_PROP_LINK("host",    XHCIState, hostOpaque, TYPE_DEVICE,
                      DeviceState *),
+    DEFINE_PROP_BOOL("erstba-hi-lo", XHCIState, erstba_hi_lo, false),
 };
 
 static void xhci_class_init(ObjectClass *klass, const void *data)
