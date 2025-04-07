@@ -247,8 +247,11 @@ def need_next_PC(tag):
 
 
 def need_pkt_has_multi_cof(tag):
-    return "A_COF" in attribdict[tag]
-
+    return (
+        "A_JUMP" in attribdict[tag]
+        or "A_CALL" in attribdict[tag]
+        or "J2_rte" == tag
+    ) and tag != "J2_hintjumpr"
 
 def need_pkt_need_commit(tag):
     return 'A_IMPLICIT_WRITES_USR' in attribdict[tag]
