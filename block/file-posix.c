@@ -233,6 +233,7 @@ typedef struct RawPosixAIOData {
             unsigned long op;
         } zone_mgmt;
     };
+    BdrvRequestFlags flags;
 } RawPosixAIOData;
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -1743,6 +1744,20 @@ qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
     return pwritev(fd, iov, nr_iov, offset);
 }
 
+static ssize_t
+qemu_pwritev_fua(int fd, struct iovec *iov, int nr_iov, off_t offset, RawPosixAIOData *aiocb)
+{
+#ifdef RWF_DSYNC
+    return pwritev2(fd, iov, nr_iov, offset, RWF_DSYNC);
+#else
+    ssize_t len = pwritev(fd, iov, nr_iov, offset);
+    if (len == 0) {
+        len = handle_aiocb_flush(aiocb);
+    }
+    return len;
+#endif
+}
+
 #else
 
 static bool preadv_present = false;
@@ -1759,6 +1774,11 @@ qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
     return -ENOSYS;
 }
 
+static ssize_t
+qemu_pwritev_fua(int fd, struct iovec *iov, int nr_iov, off_t offset, const RawPosixAIOData *aiocb)
+{
+    return -ENOSYS;
+}
 #endif
 
 static ssize_t handle_aiocb_rw_vector(RawPosixAIOData *aiocb)
@@ -1767,10 +1787,16 @@ static ssize_t handle_aiocb_rw_vector(RawPosixAIOData *aiocb)
 
     len = RETRY_ON_EINTR(
         (aiocb->aio_type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) ?
-            qemu_pwritev(aiocb->aio_fildes,
-                           aiocb->io.iov,
-                           aiocb->io.niov,
-                           aiocb->aio_offset) :
+            (aiocb->flags &  BDRV_REQ_FUA) ?
+                qemu_pwritev_fua(aiocb->aio_fildes,
+                                aiocb->io.iov,
+                                aiocb->io.niov,
+                                aiocb->aio_offset,
+                                aiocb) :
+                qemu_pwritev(aiocb->aio_fildes,
+                            aiocb->io.iov,
+                            aiocb->io.niov,
+                            aiocb->aio_offset) :
             qemu_preadv(aiocb->aio_fildes,
                           aiocb->io.iov,
                           aiocb->io.niov,
@@ -1796,10 +1822,31 @@ static ssize_t handle_aiocb_rw_linear(RawPosixAIOData *aiocb, char *buf)
 
     while (offset < aiocb->aio_nbytes) {
         if (aiocb->aio_type & (QEMU_AIO_WRITE | QEMU_AIO_ZONE_APPEND)) {
-            len = pwrite(aiocb->aio_fildes,
-                         (const char *)buf + offset,
-                         aiocb->aio_nbytes - offset,
-                         aiocb->aio_offset + offset);
+            if (aiocb->flags & BDRV_REQ_FUA) {
+                struct iovec iov = {
+                    .iov_base = buf + offset,
+                    .iov_len = aiocb->aio_nbytes - offset,
+                };
+                len = qemu_pwritev_fua(aiocb->aio_fildes,
+                                    &iov,
+                                    1,
+                                    aiocb->aio_offset + offset,
+                                    aiocb);
+                if (len == -ENOSYS) {
+                    len = pwrite(aiocb->aio_fildes,
+                                (const char *)buf + offset,
+                                aiocb->aio_nbytes - offset,
+                                aiocb->aio_offset + offset);
+                    if (len == 0) {
+                        len = handle_aiocb_flush(aiocb);
+                    }
+                }
+            } else {
+                len = pwrite(aiocb->aio_fildes,
+                            (const char *)buf + offset,
+                            aiocb->aio_nbytes - offset,
+                            aiocb->aio_offset + offset);
+            }
         } else {
             len = pread(aiocb->aio_fildes,
                         buf + offset,
@@ -2611,14 +2658,11 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
             .iov            = qiov->iov,
             .niov           = qiov->niov,
         },
+        .flags          = flags,
     };
 
     assert(qiov->size == bytes);
     ret = raw_thread_pool_submit(handle_aiocb_rw, &acb);
-    if (ret == 0 && (flags & BDRV_REQ_FUA)) {
-        /* TODO Use pwritev2() instead if it's available */
-        ret = raw_co_flush_to_disk(bs);
-    }
     goto out; /* Avoid the compiler err of unused label */
 
 out:
