@@ -116,6 +116,7 @@ typedef struct NvmeSubsystem {
             uint16_t nruh;
             uint32_t nrg;
         } fdp;
+        bool         cmic;
     } params;
 } NvmeSubsystem;
 

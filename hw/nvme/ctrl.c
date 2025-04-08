@@ -8880,7 +8880,10 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);
 
-    id->cmic |= NVME_CMIC_MULTI_CTRL;
+    if (n->subsys->params.cmic) {
+        id->cmic |= NVME_CMIC_MULTI_CTRL;
+    }
+
     ctratt |= NVME_CTRATT_ENDGRPS;
 
     id->endgidmax = cpu_to_le16(0x1);
