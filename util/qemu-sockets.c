@@ -217,6 +217,45 @@ static int inet_set_sockopts(int sock, InetSocketAddress *saddr, Error **errp)
                              "Unable to set keep-alive option on socket");
             return -1;
         }
+#ifdef HAVE_TCP_KEEPCNT
+        if (saddr->has_keep_alive_count &&
+            saddr->keep_alive_count) {
+            int keep_count = saddr->has_keep_alive_count;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &keep_count,
+                             sizeof(keep_count));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive count option on socket");
+                return -1;
+            }
+        }
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        if (saddr->has_keep_alive_idle &&
+            saddr->keep_alive_idle) {
+            int keep_idle = saddr->has_keep_alive_idle;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keep_idle,
+                             sizeof(keep_idle));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive idle option on socket");
+                return -1;
+            }
+        }
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        if (saddr->has_keep_alive_interval &&
+            saddr->keep_alive_interval) {
+            int keep_interval = saddr->has_keep_alive_interval;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keep_interval,
+                             sizeof(keep_interval));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive interval option on socket");
+                return -1;
+            }
+        }
+#endif
     }
     return 0;
 }
@@ -628,6 +667,22 @@ static int inet_parse_flag(const char *flagname, const char *optstr, bool *val,
     return 0;
 }
 
+static int inet_parse_u32(const char *optname, const char *optstr,
+                          uint32_t max, uint32_t *val, Error **errp)
+{
+    int pos;
+    if (sscanf(optstr, "%" PRIu32 "%n", val, &pos) != 1 ||
+        (optstr[pos] != '\0' && optstr[pos] != ',')) {
+        error_setg(errp, "error parsing %s argument", optname);
+        return -1;
+    }
+    if (*val > max) {
+        error_setg(errp, "%s is too large", optname);
+        return -1;
+    }
+    return 0;
+}
+
 int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
 {
     const char *optstr, *h;
@@ -700,6 +755,39 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
         }
         addr->has_keep_alive = true;
     }
+#ifdef HAVE_TCP_KEEPCNT
+    begin = strstr(optstr, ",keep-alive-count=");
+    if (begin) {
+        if (inet_parse_u32("keep-alive-count",
+                           begin + strlen(",keep-alive-count="), INT_MAX,
+                           &addr->keep_alive_count, errp)) {
+            return -1;
+        }
+        addr->has_keep_alive_count = true;
+    }
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+    begin = strstr(optstr, ",keep-alive-idle=");
+    if (begin) {
+        if (inet_parse_u32("keep-alive-idle",
+                           begin + strlen(",keep-alive-idle="), INT_MAX,
+                           &addr->keep_alive_idle, errp)) {
+            return -1;
+        }
+        addr->has_keep_alive_idle = true;
+    }
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+    begin = strstr(optstr, ",keep-alive-interval=");
+    if (begin) {
+        if (inet_parse_u32("keep-alive-interval",
+                           begin + strlen(",keep-alive-interval="), INT_MAX,
+                           &addr->keep_alive_interval, errp)) {
+            return -1;
+        }
+        addr->has_keep_alive_interval = true;
+    }
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
     begin = strstr(optstr, ",mptcp");
     if (begin) {
