@@ -3237,7 +3237,30 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     vnc_unlock_display(vd);
 
     QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
-        rects += vnc_update_client(vs, has_dirty);
+        int client_dirty = has_dirty;
+        if (vs->h264) {
+            if (client_dirty) {
+                vs->h264->keep_dirty = VNC_H264_KEEP_DIRTY;
+            } else {
+                if (vs->h264->keep_dirty > 0) {
+                    client_dirty = 1;
+                    vs->h264->keep_dirty--;
+                }
+            }
+        }
+
+        int count = vnc_update_client(vs, client_dirty);
+        rects += count;
+
+        if (vs->h264 && !count && vs->h264->keep_dirty) {
+            VncJob *job = vnc_job_new(vs);
+            int height = pixman_image_get_height(vd->server);
+            int width = pixman_image_get_width(vd->server);
+            vs->job_update = vs->update;
+            vs->update = VNC_STATE_UPDATE_NONE;
+            vnc_job_add_rect(job, 0, 0, width, height);
+            vnc_job_push(job);
+        }
         /* vs might be free()ed here */
     }
 
