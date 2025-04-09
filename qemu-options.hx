@@ -232,7 +232,8 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                eager-split-size=n (KVM Eager Page Split chunk size, default 0, disabled. ARM only)\n"
     "                notify-vmexit=run|internal-error|disable,notify-window=n (enable notify VM exit and set notify window, x86 only)\n"
     "                thread=single|multi (enable multi-threaded TCG)\n"
-    "                device=path (KVM device path, default /dev/kvm)\n", QEMU_ARCH_ALL)
+    "                device=path (KVM device path, default /dev/kvm)\n"
+    "                pmu-filter=id (configure KVM PMU filter)\n", QEMU_ARCH_ALL)
 SRST
 ``-accel name[,prop=value[,...]]``
     This is used to enable an accelerator. Depending on the target
@@ -317,6 +318,10 @@ SRST
         Sets the path to the KVM device node. Defaults to ``/dev/kvm``. This
         option can be used to pass the KVM device to use via a file descriptor
         by setting the value to ``/dev/fdset/NN``.
+
+    ``pmu-filter=id``
+        Sets the id of KVM PMU filter object. This option can be used to set
+        whitelist or blacklist of PMU events for Guest.
 
 ERST
 
@@ -6144,6 +6149,46 @@ SRST
         ::
 
             (qemu) qom-set /objects/iothread1 poll-max-ns 100000
+
+    ``-object '{"qom-type":"kvm-pmu-filter","id":id,"action":action,"events":[entry_list]}'``
+        Create a kvm-pmu-filter object that configures KVM to filter
+        selected PMU events for Guest.
+
+        This option must be written in JSON format to support ``events``
+        JSON list.
+
+        The ``action`` parameter sets the action that KVM will take for
+        the selected PMU events. It accepts ``allow`` or ``deny``. If
+        the action is set to ``allow``, all PMU events except the
+        selected ones will be disabled and blocked in the Guest. But if
+        the action is set to ``deny``, then only the selected events
+        will be denied, while all other events can be accessed normally
+        in the Guest.
+
+        The ``events`` parameter accepts a list of PMU event entries in
+        JSON format. Event entries, based on different encoding formats,
+        have the following types:
+
+        ``{"format":"raw","code":raw_code}``
+            Encode the single PMU event with raw format. The ``code``
+            parameter accepts raw code of a PMU event. For x86, the raw
+            code represents a combination of umask and event select:
+
+        ::
+
+            (((select & 0xf00UL) << 24) | \
+             ((select) & 0xff) | \
+             ((umask) & 0xff) << 8)
+
+        An example KVM PMU filter object would look like:
+
+        .. parsed-literal::
+
+             # |qemu_system| \\
+                 ... \\
+                 -accel kvm,pmu-filter=id \\
+                 -object '{"qom-type":"kvm-pmu-filter","id":"f0","action":"allow","events":[{"format":"raw","code":196}]}' \\
+                 ...
 ERST
 
 
