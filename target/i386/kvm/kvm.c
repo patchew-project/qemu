@@ -5975,6 +5975,10 @@ static bool kvm_config_pmu_event(KVMPMUFilter *filter,
         case KVM_PMU_EVENT_FORMAT_RAW:
             code = event->u.raw.code;
             break;
+        case KVM_PMU_EVENT_FORMAT_X86_SELECT_UMASK:
+            code = X86_PMU_RAW_EVENT(event->u.x86_select_umask.select,
+                                     event->u.x86_select_umask.umask);
+            break;
         default:
             g_assert_not_reached();
         }
@@ -6645,6 +6649,7 @@ static void kvm_arch_check_pmu_filter(const Object *obj, const char *name,
 
         switch (event->format) {
         case KVM_PMU_EVENT_FORMAT_RAW:
+        case KVM_PMU_EVENT_FORMAT_X86_SELECT_UMASK:
             break;
         default:
             error_setg(errp,

@@ -16,6 +16,8 @@
 #include "qom/object_interfaces.h"
 #include "system/kvm-pmu.h"
 
+#define UINT12_MAX (4095)
+
 static void kvm_pmu_filter_set_action(Object *obj, int value,
                                       Error **errp G_GNUC_UNUSED)
 {
@@ -53,9 +55,22 @@ static void kvm_pmu_filter_set_event(Object *obj, Visitor *v, const char *name,
     }
 
     for (node = head; node; node = node->next) {
-        switch (node->value->format) {
+        KvmPmuFilterEvent *event = node->value;
+
+        switch (event->format) {
         case KVM_PMU_EVENT_FORMAT_RAW:
             break;
+        case KVM_PMU_EVENT_FORMAT_X86_SELECT_UMASK: {
+            if (event->u.x86_select_umask.select > UINT12_MAX) {
+                error_setg(errp,
+                           "Parameter 'select' out of range (%d).",
+                           UINT12_MAX);
+                goto fail;
+            }
+
+            /* No need to check the range of umask since it's uint8_t. */
+            break;
+        }
         default:
             g_assert_not_reached();
         }
@@ -67,6 +82,9 @@ static void kvm_pmu_filter_set_event(Object *obj, Visitor *v, const char *name,
     filter->events = head;
     qapi_free_KvmPmuFilterEventList(old_head);
     return;
+
+fail:
+    qapi_free_KvmPmuFilterEventList(head);
 }
 
 static void kvm_pmu_filter_class_init(ObjectClass *oc, void *data)

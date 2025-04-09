@@ -36,10 +36,12 @@
 #
 # @raw: the encoded event code that KVM can directly consume.
 #
+# @x86-select-umask: standard x86 encoding format with select and umask.
+#
 # Since 10.1
 ##
 { 'enum': 'KvmPmuEventFormat',
-  'data': ['raw'] }
+  'data': ['raw', 'x86-select-umask'] }
 
 ##
 # @KvmPmuRawEvent:
@@ -55,6 +57,20 @@
   'data': { 'code': 'uint64' } }
 
 ##
+# @KvmPmuX86SelectUmaskEvent:
+#
+# @select: x86 PMU event select field, which is a 12-bit unsigned
+#     number.
+#
+# @umask: x86 PMU event umask field.
+#
+# Since 10.1
+##
+{ 'struct': 'KvmPmuX86SelectUmaskEvent',
+  'data': { 'select': 'uint16',
+            'umask': 'uint8' } }
+
+##
 # @KvmPmuFilterEvent:
 #
 # PMU event filtered by KVM.
@@ -66,7 +82,8 @@
 { 'union': 'KvmPmuFilterEvent',
   'base': { 'format': 'KvmPmuEventFormat' },
   'discriminator': 'format',
-  'data': { 'raw': 'KvmPmuRawEvent' } }
+  'data': { 'raw': 'KvmPmuRawEvent',
+            'x86-select-umask': 'KvmPmuX86SelectUmaskEvent' } }
 
 ##
 # @KvmPmuFilterProperties:

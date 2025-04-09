@@ -6180,6 +6180,9 @@ SRST
              ((select) & 0xff) | \
              ((umask) & 0xff) << 8)
 
+        ``{"format":"x86-select-umask","select":event_select,"umask":event_umask}``
+            Specify the single x86 PMU event with select and umask fields.
+
         An example KVM PMU filter object would look like:
 
         .. parsed-literal::
