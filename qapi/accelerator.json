@@ -1,0 +1,14 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+#
+# Copyright (C) 2025 Intel Corporation.
+#
+# Author: Zhao Liu <zhao1.liu@intel.com>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+##
+# = Accelerators
+##
+
+{ 'include': 'kvm.json' }

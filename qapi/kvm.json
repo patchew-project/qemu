@@ -1,0 +1,84 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+#
+# Copyright (C) 2025 Intel Corporation.
+#
+# Author: Zhao Liu <zhao1.liu@intel.com>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+##
+# == KVM
+##
+
+##
+# === PMU stuff (KVM related)
+##
+
+##
+# @KvmPmuFilterAction:
+#
+# Actions that KVM PMU filter supports.
+#
+# @deny: disable the PMU event/counter in KVM PMU filter.
+#
+# @allow: enable the PMU event/counter in KVM PMU filter.
+#
+# Since 10.1
+##
+{ 'enum': 'KvmPmuFilterAction',
+  'data': ['allow', 'deny'] }
+
+##
+# @KvmPmuEventFormat:
+#
+# Encoding formats of PMU event that QEMU/KVM supports.
+#
+# @raw: the encoded event code that KVM can directly consume.
+#
+# Since 10.1
+##
+{ 'enum': 'KvmPmuEventFormat',
+  'data': ['raw'] }
+
+##
+# @KvmPmuRawEvent:
+#
+# Raw PMU event code.
+#
+# @code: the raw value that has been encoded, and QEMU could deliver
+#     to KVM directly.
+#
+# Since 10.1
+##
+{ 'struct': 'KvmPmuRawEvent',
+  'data': { 'code': 'uint64' } }
+
+##
+# @KvmPmuFilterEvent:
+#
+# PMU event filtered by KVM.
+#
+# @format: PMU event format.
+#
+# Since 10.1
+##
+{ 'union': 'KvmPmuFilterEvent',
+  'base': { 'format': 'KvmPmuEventFormat' },
+  'discriminator': 'format',
+  'data': { 'raw': 'KvmPmuRawEvent' } }
+
+##
+# @KvmPmuFilterProperties:
+#
+# Properties of KVM PMU Filter.
+#
+# @action: action that KVM PMU filter will take for selected PMU events.
+#
+# @events: list of selected PMU events.
+#
+# Since 10.1
+##
+{ 'struct': 'KvmPmuFilterProperties',
+  'data': { 'action': 'KvmPmuFilterAction',
+            '*events': ['KvmPmuFilterEvent'] } }
