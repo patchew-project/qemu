@@ -5979,6 +5979,13 @@ static bool kvm_config_pmu_event(KVMPMUFilter *filter,
             code = X86_PMU_RAW_EVENT(event->u.x86_select_umask.select,
                                      event->u.x86_select_umask.umask);
             break;
+        case KVM_PMU_EVENT_FORMAT_X86_MASKED_ENTRY:
+            code = KVM_PMU_ENCODE_MASKED_ENTRY(
+                       event->u.x86_masked_entry.select,
+                       event->u.x86_masked_entry.mask,
+                       event->u.x86_masked_entry.match,
+                       event->u.x86_masked_entry.exclude ? 1 : 0);
+            break;
         default:
             g_assert_not_reached();
         }
@@ -6008,6 +6015,17 @@ static int kvm_install_pmu_event_filter(KVMState *s)
         break;
     default:
         g_assert_not_reached();
+    }
+
+    kvm_filter->flags = filter->events->value->format ==
+                        KVM_PMU_EVENT_FORMAT_X86_MASKED_ENTRY ?
+                        KVM_PMU_EVENT_FLAG_MASKED_EVENTS : 0;
+
+    if (kvm_filter->flags == KVM_PMU_EVENT_FLAG_MASKED_EVENTS &&
+        !kvm_vm_check_extension(s, KVM_CAP_PMU_EVENT_MASKED_EVENTS)) {
+        error_report("Masked entry format of PMU event "
+                     "is not supported by Host.");
+        goto fail;
     }
 
     if (!kvm_config_pmu_event(filter, kvm_filter)) {
@@ -6637,6 +6655,7 @@ static void kvm_arch_check_pmu_filter(const Object *obj, const char *name,
 {
     KVMPMUFilter *filter = KVM_PMU_FILTER(child);
     KvmPmuFilterEventList *events = filter->events;
+    uint32_t base_flag;
 
     if (!filter->nevents) {
         error_setg(errp,
@@ -6644,17 +6663,33 @@ static void kvm_arch_check_pmu_filter(const Object *obj, const char *name,
         return;
     }
 
+    /* Pick the first event's flag as the base one. */
+    base_flag = events->value->format ==
+                KVM_PMU_EVENT_FORMAT_X86_MASKED_ENTRY ?
+                KVM_PMU_EVENT_FLAG_MASKED_EVENTS : 0;
     while (events) {
         KvmPmuFilterEvent *event = events->value;
+        uint32_t flag;
 
         switch (event->format) {
         case KVM_PMU_EVENT_FORMAT_RAW:
         case KVM_PMU_EVENT_FORMAT_X86_SELECT_UMASK:
+            flag = 0;
+            break;
+        case KVM_PMU_EVENT_FORMAT_X86_MASKED_ENTRY:
+            flag = KVM_PMU_EVENT_FLAG_MASKED_EVENTS;
             break;
         default:
             error_setg(errp,
                        "Unsupported PMU event format %s.",
                        KvmPmuEventFormat_str(events->value->format));
+            return;
+        }
+
+        if (flag != base_flag) {
+            error_setg(errp,
+                       "Masked entry format cannot be mixed with "
+                       "other formats.");
             return;
         }
 

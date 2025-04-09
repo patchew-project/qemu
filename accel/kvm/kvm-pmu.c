@@ -71,6 +71,20 @@ static void kvm_pmu_filter_set_event(Object *obj, Visitor *v, const char *name,
             /* No need to check the range of umask since it's uint8_t. */
             break;
         }
+        case KVM_PMU_EVENT_FORMAT_X86_MASKED_ENTRY: {
+            if (event->u.x86_masked_entry.select > UINT12_MAX) {
+                error_setg(errp,
+                           "Parameter 'select' out of range (%d).",
+                           UINT12_MAX);
+                goto fail;
+            }
+
+            /*
+             * No need to check the range of match or mask fields since
+             * they're both uint8_t.
+             */
+            break;
+        }
         default:
             g_assert_not_reached();
         }

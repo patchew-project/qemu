@@ -6183,6 +6183,19 @@ SRST
         ``{"format":"x86-select-umask","select":event_select,"umask":event_umask}``
             Specify the single x86 PMU event with select and umask fields.
 
+        ``{"format":"x86-masked-entry","select":event_select,"mask":entry_mask,"match":entry_match,"exclude":exclude}``
+            Configure a set of x86 PMU events that share the same
+            ``select`` field. The events are determined by a formula
+            that checks if an event's umask is included:
+
+        ::
+
+            event_umask & entry_mask == entry_match
+
+            The "exclude" parameter controls whether to exclude the
+            events selected based on the above formula, under the given
+            "select" field.
+
         An example KVM PMU filter object would look like:
 
         .. parsed-literal::

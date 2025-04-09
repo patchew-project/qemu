@@ -38,10 +38,13 @@
 #
 # @x86-select-umask: standard x86 encoding format with select and umask.
 #
+# @x86-masked-entry: KVM's masked entry format for x86, which could
+#     mask bunch of events.
+#
 # Since 10.1
 ##
 { 'enum': 'KvmPmuEventFormat',
-  'data': ['raw', 'x86-select-umask'] }
+  'data': ['raw', 'x86-select-umask', 'x86-masked-entry'] }
 
 ##
 # @KvmPmuRawEvent:
@@ -71,6 +74,27 @@
             'umask': 'uint8' } }
 
 ##
+# @KvmPmuX86MaskedEntry:
+#
+# x86 PMU events encoding in KVM masked entry format.
+#
+# @select: x86 PMU event select, which is a 12-bit unsigned number.
+#
+# @match: umask match.
+#
+# @mask: umask mask.
+#
+# @exclude: whether the matched events are excluded.
+#
+# Since 10.1
+##
+{ 'struct': 'KvmPmuX86MaskedEntry',
+  'data': { 'select': 'uint16',
+            'match': 'uint8',
+            'mask': 'uint8',
+            'exclude': 'bool' } }
+
+##
 # @KvmPmuFilterEvent:
 #
 # PMU event filtered by KVM.
@@ -83,7 +107,8 @@
   'base': { 'format': 'KvmPmuEventFormat' },
   'discriminator': 'format',
   'data': { 'raw': 'KvmPmuRawEvent',
-            'x86-select-umask': 'KvmPmuX86SelectUmaskEvent' } }
+            'x86-select-umask': 'KvmPmuX86SelectUmaskEvent',
+            'x86-masked-entry': 'KvmPmuX86MaskedEntry' } }
 
 ##
 # @KvmPmuFilterProperties:
