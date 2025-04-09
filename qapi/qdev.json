@@ -187,3 +187,35 @@
 { 'command': 'device-sync-config',
   'features': [ 'unstable' ],
   'data': {'id': 'str'} }
+
+##
+# @VirtqueueError:
+#
+# @vhost-vring-error: the vhost device has communicated failure via
+#     the vring error file descriptor
+#
+# Since: 10.1
+##
+{ 'enum': 'VirtqueueError',
+  'data': [ 'vhost-vring-error' ] }
+
+##
+# @VIRTQUEUE_ERROR:
+#
+# Emitted when a device virtqueue fails at runtime.
+#
+# @device: the device's ID if it has one
+#
+# @qom-path: the device's QOM path
+#
+# @virtqueue: the index of the virtqueue that failed
+#
+# @error: error identifier
+#
+# @description: human readable description
+#
+# Since: 10.1
+##
+{ 'event': 'VIRTQUEUE_ERROR',
+ 'data': { '*device': 'str', 'qom-path': 'str', 'virtqueue': 'int',
+            'error': 'VirtqueueError', 'description': 'str'} }
