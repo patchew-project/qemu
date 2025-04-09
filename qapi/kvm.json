@@ -115,7 +115,10 @@
 #
 # Properties of KVM PMU Filter.
 #
-# @action: action that KVM PMU filter will take for selected PMU events.
+# @action: action that KVM PMU filter will take for selected PMU events
+#     and counters.
+#
+# @x86-fixed-counter: enablement bitmap of x86 fixed counters.
 #
 # @events: list of selected PMU events.
 #
@@ -123,4 +126,5 @@
 ##
 { 'struct': 'KvmPmuFilterProperties',
   'data': { 'action': 'KvmPmuFilterAction',
+            '*x86-fixed-counter': 'uint32',
             '*events': ['KvmPmuFilterEvent'] } }

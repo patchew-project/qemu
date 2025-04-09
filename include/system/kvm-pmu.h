@@ -19,10 +19,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(KVMPMUFilter, KVM_PMU_FILTER)
 
 /**
  * KVMPMUFilter:
- * @action: action that KVM PMU filter will take for selected PMU events.
+ * @action: action that KVM PMU filter will take for selected PMU events
+ *    and counters.
  * @nevents: number of PMU event entries listed in @events
  * @events: list of PMU event entries.  A PMU event entry may represent one
  *    event or multiple events due to its format.
+ * @x86_fixed_counter: bitmap of x86 fixed counter.
  */
 struct KVMPMUFilter {
     Object parent_obj;
@@ -30,6 +32,7 @@ struct KVMPMUFilter {
     KvmPmuFilterAction action;
     uint32_t nevents;
     KvmPmuFilterEventList *events;
+    uint32_t x86_fixed_counter;
 };
 
 /*

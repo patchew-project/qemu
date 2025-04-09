@@ -101,6 +101,29 @@ fail:
     qapi_free_KvmPmuFilterEventList(head);
 }
 
+static void kvm_pmu_filter_get_fixed_counter(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    KVMPMUFilter *filter = KVM_PMU_FILTER(obj);
+
+    visit_type_uint32(v, name, &filter->x86_fixed_counter, errp);
+}
+
+static void kvm_pmu_filter_set_fixed_counter(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    KVMPMUFilter *filter = KVM_PMU_FILTER(obj);
+    uint32_t counter;
+
+    if (!visit_type_uint32(v, name, &counter, errp)) {
+        return;
+    }
+
+    filter->x86_fixed_counter = counter;
+}
+
 static void kvm_pmu_filter_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_enum(oc, "action", "KvmPmuFilterAction",
@@ -116,6 +139,14 @@ static void kvm_pmu_filter_class_init(ObjectClass *oc, void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, "events",
                                           "KVM PMU event list");
+
+    object_class_property_add(oc, "x86-fixed-counter", "uint32_t",
+                              kvm_pmu_filter_get_fixed_counter,
+                              kvm_pmu_filter_set_fixed_counter,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "x86-fixed-counter",
+                                          "Enablement bitmap of "
+                                          "x86 PMU fixed counter");
 }
 
 static void kvm_pmu_filter_instance_init(Object *obj)

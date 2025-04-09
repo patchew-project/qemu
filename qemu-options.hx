@@ -6150,7 +6150,7 @@ SRST
 
             (qemu) qom-set /objects/iothread1 poll-max-ns 100000
 
-    ``-object '{"qom-type":"kvm-pmu-filter","id":id,"action":action,"events":[entry_list]}'``
+    ``-object '{"qom-type":"kvm-pmu-filter","id":id,"x86-fixed-counter":bitmap,"action":action,"events":[entry_list]}'``
         Create a kvm-pmu-filter object that configures KVM to filter
         selected PMU events for Guest.
 
@@ -6164,6 +6164,10 @@ SRST
         the action is set to ``deny``, then only the selected events
         will be denied, while all other events can be accessed normally
         in the Guest.
+
+        The ``x86-fixed-counter`` parameter sets a bitmap of x86 fixed
+        counters, and ``action`` will also take effect on the selected
+        fixed counters.
 
         The ``events`` parameter accepts a list of PMU event entries in
         JSON format. Event entries, based on different encoding formats,
