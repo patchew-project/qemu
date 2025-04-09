@@ -39,4 +39,8 @@ extern const uint32_t id_register_sysreg[NUM_ID_IDX];
 
 int get_sysreg_idx(ARMSysRegs sysreg);
 
+#ifdef CONFIG_KVM
+uint64_t idregs_sysreg_to_kvm_reg(ARMSysRegs sysreg);
+#endif
+
 #endif /* ARM_CPU_SYSREGS_H */
