@@ -8880,7 +8880,20 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);
 
-    id->cmic |= NVME_CMIC_MULTI_CTRL;
+    n->subsys->total_ctrls++;
+
+    /* Check if there are more than 2 controllers or cmic.mctrs is enabled */
+    if (n->subsys->params.cmic_mctrs || (n->subsys->total_ctrls > 2)) {
+        id->cmic |= NVME_CMIC_MULTI_CTRL;
+    } else if (n->subsys->total_ctrls == 2) {
+        /*
+         * When the 2nd controller on this subsys is inited, CMIC.MCTRS
+         * needs to be set. Also need to go back and set CMIC.MCTRS
+         * on the first controller.
+         */
+        id->cmic |= NVME_CMIC_MULTI_CTRL;
+        n->subsys->ctrls[0]->id_ctrl.cmic |= NVME_CMIC_MULTI_CTRL;
+    }
     ctratt |= NVME_CTRATT_ENDGRPS;
 
     id->endgidmax = cpu_to_le16(0x1);
