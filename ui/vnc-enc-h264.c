@@ -3,7 +3,7 @@
 
 #include <gst/gst.h>
 
-static void libavcodec_destroy_encoder_context(VncState *vs)
+static void destroy_encoder_context(VncState *vs)
 {
     if (!vs->h264) {
         return;
@@ -35,13 +35,13 @@ static void libavcodec_destroy_encoder_context(VncState *vs)
     }
 }
 
-static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
+static bool create_encoder_context(VncState *vs, int w, int h)
 {
     g_assert(vs->h264 != NULL);
 
     if (vs->h264->sink) {
         if (w != vs->h264->width || h != vs->h264->height) {
-            libavcodec_destroy_encoder_context(vs);
+            destroy_encoder_context(vs);
         }
     }
 
@@ -55,21 +55,21 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
     vs->h264->source = gst_element_factory_make("appsrc", "source");
     if (!vs->h264->source) {
         VNC_DEBUG("Could not create gst source\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
     vs->h264->convert = gst_element_factory_make("videoconvert", "convert");
     if (!vs->h264->convert) {
         VNC_DEBUG("Could not create gst convert element\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
     vs->h264->gst_encoder = gst_element_factory_make("x264enc", "gst-encoder");
     if (!vs->h264->gst_encoder) {
         VNC_DEBUG("Could not create gst x264 encoder\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -86,14 +86,14 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
     vs->h264->sink = gst_element_factory_make("appsink", "sink");
     if (!vs->h264->sink) {
         VNC_DEBUG("Could not create gst sink\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
     vs->h264->pipeline = gst_pipeline_new("vnc-h264-pipeline");
     if (!vs->h264->pipeline) {
         VNC_DEBUG("Could not create gst pipeline\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -101,7 +101,7 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
     if (!gst_bin_add(GST_BIN(vs->h264->pipeline), vs->h264->source)) {
         gst_object_unref(vs->h264->source);
         VNC_DEBUG("Could not add source to gst pipeline\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -109,7 +109,7 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
     if (!gst_bin_add(GST_BIN(vs->h264->pipeline), vs->h264->convert)) {
         gst_object_unref(vs->h264->convert);
         VNC_DEBUG("Could not add convert to gst pipeline\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -117,7 +117,7 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
     if (!gst_bin_add(GST_BIN(vs->h264->pipeline), vs->h264->gst_encoder)) {
         gst_object_unref(vs->h264->gst_encoder);
         VNC_DEBUG("Could not add encoder to gst pipeline\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -125,7 +125,7 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
     if (!gst_bin_add(GST_BIN(vs->h264->pipeline), vs->h264->sink)) {
         gst_object_unref(vs->h264->sink);
         VNC_DEBUG("Could not add sink to gst pipeline\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -139,7 +139,7 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
 
     if (!source_caps) {
         VNC_DEBUG("Could not create source caps filter\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -154,7 +154,7 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
             NULL
         ) != TRUE) {
         VNC_DEBUG("Elements could not be linked.\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -162,7 +162,7 @@ static bool libavcodec_create_encoder_context(VncState *vs, int w, int h)
     int ret = gst_element_set_state(vs->h264->pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         VNC_DEBUG("Unable to set the pipeline to the playing state.\n");
-        libavcodec_destroy_encoder_context(vs);
+        destroy_encoder_context(vs);
         return FALSE;
     }
 
@@ -183,7 +183,7 @@ int vnc_h264_send_framebuffer_update(
     int _x,
     int _y,
     int _w,
-    int _h,
+    int _h
 ) {
     g_assert(vs->h264 != NULL);
     g_assert(vs->vd != NULL);
@@ -205,7 +205,7 @@ int vnc_h264_send_framebuffer_update(
         rdb_h264_flags = 2;
     }
 
-    if (!libavcodec_create_encoder_context(vs, width, height)) {
+    if (!create_encoder_context(vs, width, height)) {
         VNC_DEBUG("Create encoder context failed\n");
         return -1;
     }
@@ -262,7 +262,7 @@ void vnc_h264_clear(VncState *vs)
         return;
     }
 
-    libavcodec_destroy_encoder_context(vs);
+    destroy_encoder_context(vs);
 
     g_free(vs->h264);
     vs->h264 = NULL;
