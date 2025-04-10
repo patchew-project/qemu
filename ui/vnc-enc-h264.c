@@ -3,13 +3,21 @@
 
 #include <gst/gst.h>
 
-const char *encoder_list[] = { "x264enc", "openh264enc", NULL };
-
-static const char *get_available_encoder(void)
+static char *get_available_encoder(const char *encoder_list)
 {
+    g_assert(encoder_list != NULL);
+
+    if (!strcmp(encoder_list, "")) {
+        /* use default list */
+        encoder_list = "x264enc openh264enc";
+    }
+
+    char *ret = NULL;
+    char **encoder_array = g_strsplit(encoder_list, " ", -1);
+
     int i = 0;
     do {
-        const char *encoder_name = encoder_list[i];
+        const char *encoder_name = encoder_array[i];
         if (encoder_name == NULL) {
             break;
         }
@@ -17,12 +25,15 @@ static const char *get_available_encoder(void)
             encoder_name, "video-encoder");
         if (element != NULL) {
             gst_object_unref(element);
-            return encoder_name;
+            ret = strdup(encoder_name);
+            break;
         }
         i = i + 1;
     } while (true);
 
-    return NULL;
+    g_strfreev(encoder_array);
+
+    return ret;
 }
 
 static GstElement *create_encoder(const char *encoder_name)
@@ -215,8 +226,10 @@ static bool create_encoder_context(VncState *vs, int w, int h)
 int vnc_h264_encoder_init(VncState *vs)
 {
     g_assert(vs->h264 == NULL);
+    g_assert(vs->vd != NULL);
+    g_assert(vs->vd->h264_encoder_list != NULL);
 
-    const char *encoder_name = get_available_encoder();
+    char *encoder_name = get_available_encoder(vs->vd->h264_encoder_list);
     if (encoder_name == NULL) {
         VNC_DEBUG("No H264 encoder available.\n");
         return -1;
@@ -316,6 +329,7 @@ void vnc_h264_clear(VncState *vs)
 
     destroy_encoder_context(vs);
 
+    g_free(vs->h264->encoder_name);
     g_free(vs->h264);
     vs->h264 = NULL;
 }
