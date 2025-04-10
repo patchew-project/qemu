@@ -3,6 +3,60 @@
 
 #include <gst/gst.h>
 
+const char *encoder_list[] = { "x264enc", "openh264enc", NULL };
+
+static const char *get_available_encoder(void)
+{
+    int i = 0;
+    do {
+        const char *encoder_name = encoder_list[i];
+        if (encoder_name == NULL) {
+            break;
+        }
+        GstElement *element = gst_element_factory_make(
+            encoder_name, "video-encoder");
+        if (element != NULL) {
+            gst_object_unref(element);
+            return encoder_name;
+        }
+        i = i + 1;
+    } while (true);
+
+    return NULL;
+}
+
+static GstElement *create_encoder(const char *encoder_name)
+{
+    GstElement *encoder = gst_element_factory_make(
+        encoder_name, "video-encoder");
+    if (!encoder) {
+        VNC_DEBUG("Could not create gst '%s' video encoder\n", encoder_name);
+        return NULL;
+    }
+
+    if (!strcmp(encoder_name, "x264enc")) {
+        g_object_set(encoder, "tune", 4, NULL); /* zerolatency */
+        /*
+         * fix for zerolatency with novnc (without,
+         * noVNC displays green stripes)
+         */
+        g_object_set(encoder, "threads", 1, NULL);
+        g_object_set(encoder, "pass", 5, NULL); /* Constant Quality */
+        g_object_set(encoder, "quantizer", 26, NULL);
+        /* avoid access unit delimiters (Nal Unit Type 9) - not required */
+        g_object_set(encoder, "aud", false, NULL);
+    } else if (!strcmp(encoder_name, "openh264enc")) {
+        g_object_set(encoder, "usage-type", 1, NULL); /* screen content */
+        g_object_set(encoder, "complexity", 2, NULL); /* high */
+        g_object_set(encoder, "rate-control", 2, NULL); /* off (buffer) */
+    } else {
+        VNC_DEBUG("Unknown H264 encoder name '%s' - no setting any properties",
+            encoder_name);
+    }
+
+    return encoder;
+}
+
 static void destroy_encoder_context(VncState *vs)
 {
     if (!vs->h264) {
@@ -66,22 +120,11 @@ static bool create_encoder_context(VncState *vs, int w, int h)
         return FALSE;
     }
 
-    vs->h264->gst_encoder = gst_element_factory_make("x264enc", "gst-encoder");
+    vs->h264->gst_encoder = create_encoder(vs->h264->encoder_name);
     if (!vs->h264->gst_encoder) {
-        VNC_DEBUG("Could not create gst x264 encoder\n");
         destroy_encoder_context(vs);
         return FALSE;
     }
-
-    g_object_set(vs->h264->gst_encoder, "tune", 4, NULL); /* zerolatency */
-    /* fix for zerolatency with novnc (without, noVNC displays green stripes) */
-    g_object_set(vs->h264->gst_encoder, "threads", 1, NULL);
-
-    g_object_set(vs->h264->gst_encoder, "pass", 5, NULL); /* Constant Quality */
-    g_object_set(vs->h264->gst_encoder, "quantizer", 26, NULL);
-
-    /* avoid access unit delimiters (Nal Unit Type 9) - not required */
-    g_object_set(vs->h264->gst_encoder, "aud", false, NULL);
 
     vs->h264->sink = gst_element_factory_make("appsink", "sink");
     if (!vs->h264->sink) {
@@ -173,7 +216,16 @@ int vnc_h264_encoder_init(VncState *vs)
 {
     g_assert(vs->h264 == NULL);
 
+    const char *encoder_name = get_available_encoder();
+    if (encoder_name == NULL) {
+        VNC_DEBUG("No H264 encoder available.\n");
+        return -1;
+    }
+
     vs->h264 = g_malloc0(sizeof(VncH264));
+    vs->h264->encoder_name = encoder_name;
+
+    VNC_DEBUG("Allow H264 using encoder '%s`\n", encoder_name);
 
     return 0;
 }
