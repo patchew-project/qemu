@@ -1003,9 +1003,7 @@ static inline void tlb_set_compare(CPUTLBEntryFull *full, CPUTLBEntry *ent,
     if (enable) {
         address |= flags & TLB_FLAGS_MASK;
         flags &= TLB_SLOW_FLAGS_MASK;
-        if (flags) {
             address |= TLB_FORCE_SLOW;
-        }
     } else {
         address = -1;
         flags = 0;
@@ -1663,6 +1661,10 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data, MemOp memop,
         }
         tlb_addr = tlb_read_idx(entry, access_type) & ~TLB_INVALID_MASK;
     }
+
+    vaddr page = addr & TARGET_PAGE_MASK;
+    hwaddr physaddr = cpu_get_phys_page_debug(cpu, page);
+    g_assert(physaddr != -1);
 
     full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
     flags = tlb_addr & (TLB_FLAGS_MASK & ~TLB_FORCE_SLOW);
