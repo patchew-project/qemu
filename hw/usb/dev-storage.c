@@ -264,13 +264,24 @@ void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->data_packet;
 
-    if ((s->mode == USB_MSDM_DATAOUT) != (req->cmd.mode == SCSI_XFER_TO_DEV)) {
-        usb_msd_fatal_error(s);
-        return;
+    if (s->mode == USB_MSDM_DATAIN) {
+        if (req->cmd.mode == SCSI_XFER_TO_DEV) {
+            usb_msd_fatal_error(s);
+            return;
+        }
+    } else if (s->mode == USB_MSDM_DATAOUT) {
+        if (req->cmd.mode != SCSI_XFER_TO_DEV) {
+            usb_msd_fatal_error(s);
+            return;
+        }
+    } else {
+        g_assert_not_reached();
     }
 
+    assert(s->scsi_len == 0);
     s->scsi_len = len;
     s->scsi_off = 0;
+
     if (p) {
         usb_msd_copy_data(s, p);
         p = s->data_packet;
@@ -287,6 +298,10 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid)
     USBPacket *p = s->data_packet;
 
     trace_usb_msd_cmd_complete(req->status, req->tag);
+
+    g_assert(s->req);
+    /* The CBW is what starts the SCSI request */
+    g_assert(s->mode != USB_MSDM_CBW);
 
     s->csw.sig = cpu_to_le32(0x53425355);
     s->csw.tag = cpu_to_le32(req->tag);
@@ -486,7 +501,7 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
         trace_usb_msd_cmd_submit(cbw.lun, tag, cbw.flags,
                                  cbw.cmd_len, s->data_len);
         assert(le32_to_cpu(s->csw.residue) == 0);
-        s->scsi_len = 0;
+        assert(s->scsi_len == 0);
         s->req = scsi_req_new(scsi_dev, tag, cbw.lun,
                               cbw.cmd, cbw.cmd_len, NULL);
         if (s->commandlog) {
