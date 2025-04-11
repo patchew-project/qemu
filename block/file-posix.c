@@ -3289,7 +3289,14 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
         return ret;
     }
 
-    if (!want_zero) {
+    /*
+     * If want_zero is clear, then the caller wants speed over
+     * accuracy, and the only place where SEEK_DATA should be
+     * attempted is at the start of the file to learn if the file has
+     * any data at all (anywhere else, just blindly claim the entire
+     * file is data).
+     */
+    if (!want_zero && offset) {
         *pnum = bytes;
         *map = offset;
         *file = bs;
