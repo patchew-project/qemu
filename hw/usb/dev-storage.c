@@ -395,14 +395,163 @@ static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
+static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
 {
     MSDState *s = (MSDState *)dev;
     uint32_t tag;
     struct usb_msd_cbw cbw;
-    uint8_t devep = p->ep->nr;
     SCSIDevice *scsi_dev;
     int len;
+
+    switch (s->mode) {
+    case USB_MSDM_CBW:
+        if (p->iov.size != 31) {
+            error_report("usb-msd: Bad CBW size");
+            goto fail;
+        }
+        usb_packet_copy(p, &cbw, 31);
+        if (le32_to_cpu(cbw.sig) != 0x43425355) {
+            error_report("usb-msd: Bad signature %08x",
+                         le32_to_cpu(cbw.sig));
+            goto fail;
+        }
+        scsi_dev = scsi_device_find(&s->bus, 0, 0, cbw.lun);
+        if (scsi_dev == NULL) {
+            error_report("usb-msd: Bad LUN %d", cbw.lun);
+            goto fail;
+        }
+        tag = le32_to_cpu(cbw.tag);
+        s->data_len = le32_to_cpu(cbw.data_len);
+        if (s->data_len == 0) {
+            s->mode = USB_MSDM_CSW;
+        } else if (cbw.flags & 0x80) {
+            s->mode = USB_MSDM_DATAIN;
+        } else {
+            s->mode = USB_MSDM_DATAOUT;
+        }
+        trace_usb_msd_cmd_submit(cbw.lun, tag, cbw.flags,
+                                 cbw.cmd_len, s->data_len);
+        assert(le32_to_cpu(s->csw.residue) == 0);
+        s->scsi_len = 0;
+        s->req = scsi_req_new(scsi_dev, tag, cbw.lun,
+                              cbw.cmd, cbw.cmd_len, NULL);
+        if (s->commandlog) {
+            scsi_req_print(s->req);
+        }
+        len = scsi_req_enqueue(s->req);
+        if (len) {
+            scsi_req_continue(s->req);
+        }
+        break;
+
+    case USB_MSDM_DATAOUT:
+        trace_usb_msd_data_out(p->iov.size, s->data_len);
+        if (p->iov.size > s->data_len) {
+            goto fail;
+        }
+
+        if (s->scsi_len) {
+            usb_msd_copy_data(s, p);
+        }
+        if (le32_to_cpu(s->csw.residue)) {
+            len = p->iov.size - p->actual_length;
+            if (len) {
+                usb_packet_skip(p, len);
+                if (len > s->data_len) {
+                    len = s->data_len;
+                }
+                s->data_len -= len;
+                if (s->data_len == 0) {
+                    s->mode = USB_MSDM_CSW;
+                }
+            }
+        }
+        if (p->actual_length < p->iov.size) {
+            trace_usb_msd_packet_async();
+            s->packet = p;
+            p->status = USB_RET_ASYNC;
+        }
+        break;
+
+    default:
+        goto fail;
+    }
+    return;
+
+fail:
+    p->status = USB_RET_STALL;
+}
+
+static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
+{
+    MSDState *s = (MSDState *)dev;
+    int len;
+
+    switch (s->mode) {
+    case USB_MSDM_DATAOUT:
+        if (s->data_len != 0 || p->iov.size < 13) {
+            goto fail;
+        }
+        /* Waiting for SCSI write to complete.  */
+        trace_usb_msd_packet_async();
+        s->packet = p;
+        p->status = USB_RET_ASYNC;
+        break;
+
+    case USB_MSDM_CSW:
+        if (p->iov.size < 13) {
+            goto fail;
+        }
+
+        if (s->req) {
+            /* still in flight */
+            trace_usb_msd_packet_async();
+            s->packet = p;
+            p->status = USB_RET_ASYNC;
+        } else {
+            usb_msd_send_status(s, p);
+            s->mode = USB_MSDM_CBW;
+        }
+        break;
+
+    case USB_MSDM_DATAIN:
+        trace_usb_msd_data_in(p->iov.size, s->data_len, s->scsi_len);
+        if (s->scsi_len) {
+            usb_msd_copy_data(s, p);
+        }
+        if (le32_to_cpu(s->csw.residue)) {
+            len = p->iov.size - p->actual_length;
+            if (len) {
+                usb_packet_skip(p, len);
+                if (len > s->data_len) {
+                    len = s->data_len;
+                }
+                s->data_len -= len;
+                if (s->data_len == 0) {
+                    s->mode = USB_MSDM_CSW;
+                }
+            }
+        }
+        if (p->actual_length < p->iov.size && s->mode == USB_MSDM_DATAIN) {
+            trace_usb_msd_packet_async();
+            s->packet = p;
+            p->status = USB_RET_ASYNC;
+        }
+        break;
+
+    default:
+        goto fail;
+    }
+    return;
+
+fail:
+    p->status = USB_RET_STALL;
+}
+
+static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
+{
+    MSDState *s = (MSDState *)dev;
+    uint8_t devep = p->ep->nr;
 
     if (s->needs_reset) {
         p->status = USB_RET_STALL;
@@ -411,142 +560,17 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
-        if (devep != 2)
-            goto fail;
-
-        switch (s->mode) {
-        case USB_MSDM_CBW:
-            if (p->iov.size != 31) {
-                error_report("usb-msd: Bad CBW size");
-                goto fail;
-            }
-            usb_packet_copy(p, &cbw, 31);
-            if (le32_to_cpu(cbw.sig) != 0x43425355) {
-                error_report("usb-msd: Bad signature %08x",
-                             le32_to_cpu(cbw.sig));
-                goto fail;
-            }
-            scsi_dev = scsi_device_find(&s->bus, 0, 0, cbw.lun);
-            if (scsi_dev == NULL) {
-                error_report("usb-msd: Bad LUN %d", cbw.lun);
-                goto fail;
-            }
-            tag = le32_to_cpu(cbw.tag);
-            s->data_len = le32_to_cpu(cbw.data_len);
-            if (s->data_len == 0) {
-                s->mode = USB_MSDM_CSW;
-            } else if (cbw.flags & 0x80) {
-                s->mode = USB_MSDM_DATAIN;
-            } else {
-                s->mode = USB_MSDM_DATAOUT;
-            }
-            trace_usb_msd_cmd_submit(cbw.lun, tag, cbw.flags,
-                                     cbw.cmd_len, s->data_len);
-            assert(le32_to_cpu(s->csw.residue) == 0);
-            s->scsi_len = 0;
-            s->req = scsi_req_new(scsi_dev, tag, cbw.lun, cbw.cmd, cbw.cmd_len, NULL);
-            if (s->commandlog) {
-                scsi_req_print(s->req);
-            }
-            len = scsi_req_enqueue(s->req);
-            if (len) {
-                scsi_req_continue(s->req);
-            }
-            break;
-
-        case USB_MSDM_DATAOUT:
-            trace_usb_msd_data_out(p->iov.size, s->data_len);
-            if (p->iov.size > s->data_len) {
-                goto fail;
-            }
-
-            if (s->scsi_len) {
-                usb_msd_copy_data(s, p);
-            }
-            if (le32_to_cpu(s->csw.residue)) {
-                len = p->iov.size - p->actual_length;
-                if (len) {
-                    usb_packet_skip(p, len);
-                    if (len > s->data_len) {
-                        len = s->data_len;
-                    }
-                    s->data_len -= len;
-                    if (s->data_len == 0) {
-                        s->mode = USB_MSDM_CSW;
-                    }
-                }
-            }
-            if (p->actual_length < p->iov.size) {
-                trace_usb_msd_packet_async();
-                s->packet = p;
-                p->status = USB_RET_ASYNC;
-            }
-            break;
-
-        default:
+        if (devep != 2) {
             goto fail;
         }
+        usb_msd_handle_data_out(dev, p);
         break;
 
     case USB_TOKEN_IN:
-        if (devep != 1)
-            goto fail;
-
-        switch (s->mode) {
-        case USB_MSDM_DATAOUT:
-            if (s->data_len != 0 || p->iov.size < 13) {
-                goto fail;
-            }
-            /* Waiting for SCSI write to complete.  */
-            trace_usb_msd_packet_async();
-            s->packet = p;
-            p->status = USB_RET_ASYNC;
-            break;
-
-        case USB_MSDM_CSW:
-            if (p->iov.size < 13) {
-                goto fail;
-            }
-
-            if (s->req) {
-                /* still in flight */
-                trace_usb_msd_packet_async();
-                s->packet = p;
-                p->status = USB_RET_ASYNC;
-            } else {
-                usb_msd_send_status(s, p);
-                s->mode = USB_MSDM_CBW;
-            }
-            break;
-
-        case USB_MSDM_DATAIN:
-            trace_usb_msd_data_in(p->iov.size, s->data_len, s->scsi_len);
-            if (s->scsi_len) {
-                usb_msd_copy_data(s, p);
-            }
-            if (le32_to_cpu(s->csw.residue)) {
-                len = p->iov.size - p->actual_length;
-                if (len) {
-                    usb_packet_skip(p, len);
-                    if (len > s->data_len) {
-                        len = s->data_len;
-                    }
-                    s->data_len -= len;
-                    if (s->data_len == 0) {
-                        s->mode = USB_MSDM_CSW;
-                    }
-                }
-            }
-            if (p->actual_length < p->iov.size && s->mode == USB_MSDM_DATAIN) {
-                trace_usb_msd_packet_async();
-                s->packet = p;
-                p->status = USB_RET_ASYNC;
-            }
-            break;
-
-        default:
+        if (devep != 1) {
             goto fail;
         }
+        usb_msd_handle_data_in(dev, p);
         break;
 
     default:
