@@ -361,9 +361,33 @@ static void submit_cr_trb(XHCIQState *s, XHCITRB *trb)
     xhci_db_writel(s, 0, 0); /* doorbell 0 */
 }
 
+static void submit_tr_trb(XHCIQState *s, int slot, XHCITRB *trb)
+{
+    XHCIQSlotState *sl = &s->slots[slot];
+    uint64_t tr_addr = sl->transfer_ring + sl->tr_trb_idx * TRB_SIZE;
+    XHCITRB t;
+
+    trb->control |= sl->tr_trb_c; /* C */
+
+    t.parameter = cpu_to_le64(trb->parameter);
+    t.status = cpu_to_le32(trb->status);
+    t.control = cpu_to_le32(trb->control);
+
+    qtest_memwrite(s->parent->qts, tr_addr, &t, TRB_SIZE);
+    sl->tr_trb_idx++;
+    /* Last entry contains the link, so wrap back */
+    if (sl->tr_trb_idx == sl->tr_trb_entries - 1) {
+        set_link_trb(s, sl->transfer_ring, sl->tr_trb_c, sl->tr_trb_entries);
+        sl->tr_trb_idx = 0;
+        sl->tr_trb_c ^= 1;
+    }
+    xhci_db_writel(s, slot, 1); /* doorbell slot, EP0 target */
+}
+
 /*
  * This test brings up an endpoint and runs some noops through its command
- * ring and gets responses back on the event ring.
+ * ring and gets responses back on the event ring, then brings up a device
+ * context and runs some noops through its transfer ring.
  *
  * This could be librified in future (like AHCI0 to have a way to bring up
  * an endpoint to test device protocols.
@@ -518,6 +542,16 @@ static void pci_xhci_stress_rings(void)
     wait_event_trb(s, &trb);
 
     /* XXX: Could check EP state is running */
+
+    /* Wrap the transfer ring a few times */
+    for (i = 0; i < 100; i++) {
+        /* Issue a transfer ring slot 0 noop */
+        memset(&trb, 0, TRB_SIZE);
+        trb.control |= TR_NOOP << TRB_TYPE_SHIFT;
+        trb.control |= TRB_TR_IOC;
+        submit_tr_trb(s, slotid, &trb);
+        wait_event_trb(s, &trb);
+    }
 
     /* Shut it down */
     qpci_msix_disable(s->dev);
