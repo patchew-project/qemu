@@ -359,7 +359,7 @@ static void usb_msd_handle_control(USBDevice *dev, USBPacket *p,
         /* Class specific requests.  */
     case ClassInterfaceOutRequest | MassStorageReset:
         /* Reset state ready for the next CBW.  */
-        s->mode = USB_MSDM_CBW;
+        usb_msd_handle_reset(dev);
         break;
     case ClassInterfaceRequest | GetMaxLun:
         maxlun = 0;
