@@ -508,6 +508,32 @@ enum BdrvChildRoleBits {
                               | BDRV_CHILD_PRIMARY,
 };
 
+/* Modes for block status calls */
+enum BlockStatusMode {
+    /*
+     * Status should be as accurate as possible: _OFFSET_VALID
+     * and_OFFSET_ZERO should each be set where efficiently possible,
+     * extents may be smaller, and iteration through the entire block
+     * device may take more calls.
+     */
+    BDRV_BSTAT_PRECISE,
+
+    /*
+     * The caller is primarily concerned about overall allocation:
+     * favor larger *pnum, perhaps by coalescing extents and reporting
+     * _DATA instead of _ZERO, and without needing to read data or
+     * bothering with _OFFSET_VALID.
+     */
+    BDRV_BSTAT_ALLOCATED,
+
+    /*
+     * The caller is primarily concerned about whether the device
+     * reads as zero: favor a result of _ZERO, even if it requires
+     * reading a few sectors to verify, without needing _OFFSET_VALID.
+     */
+    BDRV_BSTAT_ZERO,
+};
+
 /* Mask of BdrvChildRoleBits values */
 typedef unsigned int BdrvChildRole;
 

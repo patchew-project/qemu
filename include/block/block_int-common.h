@@ -606,13 +606,16 @@ struct BlockDriver {
      * and/or BDRV_BLOCK_RAW; if the current layer defers to a backing
      * layer, the result should be 0 (and not BDRV_BLOCK_ZERO).  See
      * block.h for the overall meaning of the bits.  As a hint, the
-     * flag want_zero is true if the caller cares more about precise
-     * mappings (favor accurate _OFFSET_VALID/_ZERO) or false for
-     * overall allocation (favor larger *pnum, perhaps by reporting
-     * _DATA instead of _ZERO).  The block layer guarantees input
-     * clamped to bdrv_getlength() and aligned to request_alignment,
-     * as well as non-NULL pnum, map, and file; in turn, the driver
-     * must return an error or set pnum to an aligned non-zero value.
+     * flag @mode is BDRV_BSTAT_PRECISE if the caller cares more about
+     * precise mappings (favor accurate _OFFSET_VALID/_ZERO),
+     * BDRV_BSTAT_ALLOCATED for overall allocation (favor larger
+     * *pnum, perhaps by reporting _DATA instead of _ZERO), or
+     * BDRV_BSTAT_ZERO for overall reads-as-zero (favor _ZERO, even if
+     * it requires reading a few sectors to verify).  The block layer
+     * guarantees input clamped to bdrv_getlength() and aligned to
+     * request_alignment, as well as non-NULL pnum, map, and file; in
+     * turn, the driver must return an error or set pnum to an aligned
+     * non-zero value.
      *
      * Note that @bytes is just a hint on how big of a region the
      * caller wants to inspect.  It is not a limit on *pnum.
@@ -624,8 +627,8 @@ struct BlockDriver {
      * to clamping *pnum for return to its caller.
      */
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_block_status)(
-        BlockDriverState *bs,
-        bool want_zero, int64_t offset, int64_t bytes, int64_t *pnum,
+        BlockDriverState *bs, enum BlockStatusMode mode,
+        int64_t offset, int64_t bytes, int64_t *pnum,
         int64_t *map, BlockDriverState **file);
 
     /*
@@ -649,8 +652,8 @@ struct BlockDriver {
         QEMUIOVector *qiov, size_t qiov_offset);
 
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_snapshot_block_status)(
-        BlockDriverState *bs, bool want_zero, int64_t offset, int64_t bytes,
-        int64_t *pnum, int64_t *map, BlockDriverState **file);
+        BlockDriverState *bs, enum BlockStatusMode mode, int64_t offset,
+        int64_t bytes, int64_t *pnum, int64_t *map, BlockDriverState **file);
 
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pdiscard_snapshot)(
         BlockDriverState *bs, int64_t offset, int64_t bytes);

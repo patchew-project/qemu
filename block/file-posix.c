@@ -3273,7 +3273,7 @@ static int find_allocation(BlockDriverState *bs, off_t start,
  * well exceed it.
  */
 static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
-                                            bool want_zero,
+                                            enum BlockStatusMode mode,
                                             int64_t offset,
                                             int64_t bytes, int64_t *pnum,
                                             int64_t *map,
@@ -3290,13 +3290,13 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
     }
 
     /*
-     * If want_zero is clear, then the caller wants speed over
+     * If mode != PRECISE, then the caller wants speed over
      * accuracy, and the only place where SEEK_DATA should be
      * attempted is at the start of the file to learn if the file has
      * any data at all (anywhere else, just blindly claim the entire
      * file is data).
      */
-    if (!want_zero && offset) {
+    if (mode != BDRV_BSTAT_PRECISE && offset) {
         *pnum = bytes;
         *map = offset;
         *file = bs;
