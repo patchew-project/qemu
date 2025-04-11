@@ -65,6 +65,8 @@ typedef struct XHCIQState {
                       PCI_VENDOR_ID_REDHAT)
 #define XHCI_NEC_ID (PCI_DEVICE_ID_NEC_UPD720200 << 16 | \
                      PCI_VENDOR_ID_NEC)
+#define XHCI_TI_ID  (PCI_DEVICE_ID_TI_TUSB73X0 << 16 | \
+                     PCI_VENDOR_ID_TI)
 
 /**
  * Locate, verify, and return a handle to the XHCI device.
@@ -85,6 +87,7 @@ static QPCIDevice *get_xhci_device(QTestState *qts, uint32_t *fingerprint)
     switch (xhci_fingerprint) {
     case XHCI_QEMU_ID:
     case XHCI_NEC_ID:
+    case XHCI_TI_ID:
         break;
     default:
         /* Unknown device. */
@@ -610,6 +613,7 @@ int main(int argc, char **argv)
     TestData td[] = {
         { .device = "qemu-xhci", },
         { .device = "nec-usb-xhci", },
+        { .device = "ti-usb-xhci", },
     };
 
     g_test_init(&argc, &argv, NULL);
