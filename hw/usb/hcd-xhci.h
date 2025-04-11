@@ -350,6 +350,13 @@ typedef struct XHCIRing {
     bool ccs;
 } XHCIRing;
 
+typedef struct XHCIEvRingSeg {
+    uint32_t addr_low;
+    uint32_t addr_high;
+    uint32_t size;
+    uint32_t rsvd;
+} XHCIEvRingSeg;
+
 typedef struct XHCIPort {
     XHCIState *xhci;
     uint32_t portsc;
