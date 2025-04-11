@@ -2538,6 +2538,12 @@
 #     disappear from the query list without user intervention.
 #     Defaults to true.  (Since 3.1)
 #
+# @target-is-zero: Assume the destination read as all zeroes before
+#     the mirror started, even if qemu is unable to quickly learn that
+#     from the destination.  Default false, since setting this to true
+#     when the destination is not already zero can lead to a corrupt
+#     destination.  (Since 9.1)
+#
 # Since: 2.6
 #
 # .. qmp-example::
@@ -2557,7 +2563,8 @@
             '*on-target-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*copy-mode': 'MirrorCopyMode',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },
+            '*auto-finalize': 'bool', '*auto-dismiss': 'bool',
+            '*target-is-zero': 'bool'},
   'allow-preconfig': true }
 
 ##
