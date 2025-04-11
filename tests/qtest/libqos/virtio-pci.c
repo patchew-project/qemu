@@ -300,13 +300,22 @@ static const QVirtioPCIMSIXOps qvirtio_pci_msix_ops_legacy = {
 
 void qvirtio_pci_device_enable(QVirtioPCIDevice *d)
 {
+    g_assert(!d->enabled);
+    d->enabled = true;
     qpci_device_enable(d->pdev);
     d->bar = qpci_iomap(d->pdev, d->bar_idx, NULL);
 }
 
 void qvirtio_pci_device_disable(QVirtioPCIDevice *d)
 {
-    qpci_iounmap(d->pdev, d->bar);
+    /*
+     * Test for "enabled" device state because some paths can call
+     * qvirtio_pci_disable_device() on devices that have not been enabled.
+     */
+    if (d->enabled) {
+        qpci_iounmap(d->pdev, d->bar);
+        d->enabled = false;
+    }
 }
 
 void qvirtqueue_pci_msix_setup(QVirtioPCIDevice *d, QVirtQueuePCI *vqpci,
