@@ -2880,7 +2880,7 @@ igb_mac_swsm_read(IGBCore *core, int index)
 static uint32_t
 igb_mac_eitr_read(IGBCore *core, int index)
 {
-    return core->eitr_guest_value[index - EITR0];
+    return core->mac[index - EITR0];
 }
 
 static uint32_t igb_mac_vfmailbox_read(IGBCore *core, int index)
@@ -3046,7 +3046,6 @@ igb_set_eitr(IGBCore *core, int index, uint32_t val)
 
     trace_igb_irq_eitr_set(eitr_num, val);
 
-    core->eitr_guest_value[eitr_num] = val & ~E1000_EITR_CNT_IGNR;
     core->mac[index] = val & 0x7FFE;
 }
 
@@ -4527,12 +4526,23 @@ void igb_core_pre_save(IGBCore *core)
             core->tx[i].skip_cp = true;
         }
     }
+
+    /* back compat, QEMU moves EITR in eitr_guest_value state */
+    for (i = 0; i < IGB_INTR_NUM; i++) {
+        core->eitr_guest_value[i] = core->mac[EITR0 + i];
+    }
 }
 
 int
 igb_core_post_load(IGBCore *core)
 {
+    int i;
     NetClientState *nc = qemu_get_queue(core->owner_nic);
+
+    /* back compat */
+    for (i = 0; i < IGB_INTR_NUM; i++) {
+        core->mac[EITR0 + i] = core->eitr_guest_value[i];
+    }
 
     /*
      * nc.link_down can't be migrated, so infer link_down according
