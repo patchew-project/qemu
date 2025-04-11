@@ -85,6 +85,8 @@ static void verify_state(AHCIQState *ahci, uint64_t hba_old)
     uint64_t hba_base;
     AHCICommandHeader cmd;
 
+    g_assert_cmphex(ahci->hba_bar.addr, ==, hba_old);
+
     ahci_fingerprint = qpci_config_readl(ahci->dev, PCI_VENDOR_ID);
     g_assert_cmphex(ahci_fingerprint, ==, ahci->fingerprint);
 
@@ -193,16 +195,26 @@ static AHCIQState *ahci_boot(const char *cli, ...)
 
 /**
  * Clean up the PCI device, then terminate the QEMU instance.
+ * Should be called if ahci_pci_enable (or ahci_boot_and_enable)
+ * was not used, or device/pci was disabled later.
  */
-static void ahci_shutdown(AHCIQState *ahci)
+static void ahci_shutdown_pci_disabled(AHCIQState *ahci)
 {
     QOSState *qs = ahci->parent;
 
-    ahci_pci_disable(ahci);
     ahci_clean_mem(ahci);
     free_ahci_device(ahci->dev);
     g_free(ahci);
     qtest_shutdown(qs);
+}
+
+/**
+ * Clean up the PCI device, then terminate the QEMU instance.
+ */
+static void ahci_shutdown(AHCIQState *ahci)
+{
+    ahci_pci_disable(ahci);
+    ahci_shutdown_pci_disabled(ahci);
 }
 
 /**
@@ -945,7 +957,7 @@ static void test_sanity(void)
 {
     AHCIQState *ahci;
     ahci = ahci_boot(NULL);
-    ahci_shutdown(ahci);
+    ahci_shutdown_pci_disabled(ahci);
 }
 
 /**
@@ -957,7 +969,7 @@ static void test_pci_spec(void)
     AHCIQState *ahci;
     ahci = ahci_boot(NULL);
     ahci_test_pci_spec(ahci);
-    ahci_shutdown(ahci);
+    ahci_shutdown_pci_disabled(ahci);
 }
 
 /**
@@ -1143,8 +1155,8 @@ static void test_migrate_sanity(void)
 
     ahci_migrate(src, dst, uri);
 
-    ahci_shutdown(src);
-    ahci_shutdown(dst);
+    ahci_shutdown_pci_disabled(src);
+    ahci_shutdown_pci_disabled(dst);
     g_free(uri);
 }
 
@@ -1182,7 +1194,7 @@ static void ahci_migrate_simple(uint8_t cmd_read, uint8_t cmd_write)
     /* Verify pattern */
     g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
 
-    ahci_shutdown(src);
+    ahci_shutdown_pci_disabled(src);
     ahci_shutdown(dst);
     g_free(rx);
     g_free(tx);
@@ -1324,7 +1336,7 @@ static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
     g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
 
     /* Cleanup and go home. */
-    ahci_shutdown(src);
+    ahci_shutdown_pci_disabled(src);
     ahci_shutdown(dst);
     g_free(rx);
     g_free(tx);
@@ -1388,8 +1400,8 @@ static void test_flush_migrate(void)
     ahci_command_verify(dst, cmd);
 
     ahci_command_free(cmd);
-    ahci_shutdown(src);
-    ahci_shutdown(dst);
+    ahci_shutdown_pci_disabled(src);
+    ahci_shutdown_pci_disabled(dst);
     g_free(uri);
 }
 
@@ -1421,6 +1433,7 @@ static void test_reset(void)
         ahci_set(ahci, AHCI_GHC, AHCI_GHC_HR);
         stop_ahci_device(ahci);
         ahci_clean_mem(ahci);
+        start_ahci_device(ahci);
     }
 
     ahci_shutdown(ahci);
@@ -1508,7 +1521,7 @@ static void test_reset_pending_callback(void)
     stop_ahci_device(ahci);
     ahci_clean_mem(ahci);
 
-    ahci_shutdown(ahci);
+    ahci_shutdown_pci_disabled(ahci);
 }
 
 static void test_ncq_simple(void)
