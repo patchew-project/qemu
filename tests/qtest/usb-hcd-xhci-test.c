@@ -13,9 +13,14 @@
 #include "libqos/libqos-pc.h"
 #include "libqtest-single.h"
 #include "libqos/usb.h"
+#include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 #include "hw/usb/hcd-xhci.h"
+
+typedef struct TestData {
+    const char *device;
+} TestData;
 
 /*** Test Setup & Teardown ***/
 typedef struct XHCIQSlotState {
@@ -56,6 +61,8 @@ typedef struct XHCIQState {
     XHCIQSlotState slots[32];
 } XHCIQState;
 
+#define XHCI_QEMU_ID (PCI_DEVICE_ID_REDHAT_XHCI << 16 | \
+                      PCI_VENDOR_ID_REDHAT)
 #define XHCI_NEC_ID (PCI_DEVICE_ID_NEC_UPD720200 << 16 | \
                      PCI_VENDOR_ID_NEC)
 
@@ -76,6 +83,7 @@ static QPCIDevice *get_xhci_device(QTestState *qts, uint32_t *fingerprint)
 
     xhci_fingerprint = qpci_config_readl(xhci, PCI_VENDOR_ID);
     switch (xhci_fingerprint) {
+    case XHCI_QEMU_ID:
     case XHCI_NEC_ID:
         break;
     default:
@@ -128,18 +136,19 @@ static XHCIQState *xhci_boot(const char *cli, ...)
     XHCIQState *s;
     va_list ap;
 
-    if (cli) {
-        va_start(ap, cli);
-        s = xhci_vboot(cli, ap);
-        va_end(ap);
-    } else {
-        s = xhci_boot("-M q35 "
-                      "-device nec-usb-xhci,id=xhci,bus=pcie.0,addr=1d.0 "
-                      "-drive id=drive0,if=none,file=null-co://,"
-                          "file.read-zeroes=on,format=raw");
-    }
+    va_start(ap, cli);
+    s = xhci_vboot(cli, ap);
+    va_end(ap);
 
     return s;
+}
+
+static XHCIQState *xhci_boot_dev(const char *device)
+{
+    return xhci_boot("-M q35 "
+                    "-device %s,id=xhci,bus=pcie.0,addr=1d.0 "
+                    "-drive id=drive0,if=none,file=null-co://,"
+                        "file.read-zeroes=on,format=raw", device);
 }
 
 /**
@@ -156,12 +165,13 @@ static void xhci_shutdown(XHCIQState *xhci)
 
 /*** tests ***/
 
-static void test_xhci_hotplug(void)
+static void test_xhci_hotplug(const void *arg)
 {
+    const TestData *td = arg;
     XHCIQState *s;
     QTestState *qts;
 
-    s = xhci_boot(NULL);
+    s = xhci_boot_dev(td->device);
     qts = s->parent->qts;
 
     usb_test_hotplug(qts, "xhci", "1", NULL);
@@ -169,12 +179,13 @@ static void test_xhci_hotplug(void)
     xhci_shutdown(s);
 }
 
-static void test_usb_uas_hotplug(void)
+static void test_usb_uas_hotplug(const void *arg)
 {
+    const TestData *td = arg;
     XHCIQState *s;
     QTestState *qts;
 
-    s = xhci_boot(NULL);
+    s = xhci_boot_dev(td->device);
     qts = s->parent->qts;
 
     qtest_qmp_device_add(qts, "usb-uas", "uas", "{}");
@@ -191,12 +202,13 @@ static void test_usb_uas_hotplug(void)
     xhci_shutdown(s);
 }
 
-static void test_usb_ccid_hotplug(void)
+static void test_usb_ccid_hotplug(const void *arg)
 {
+    const TestData *td = arg;
     XHCIQState *s;
     QTestState *qts;
 
-    s = xhci_boot(NULL);
+    s = xhci_boot_dev(td->device);
     qts = s->parent->qts;
 
     qtest_qmp_device_add(qts, "usb-ccid", "ccid", "{}");
@@ -392,8 +404,9 @@ static void submit_tr_trb(XHCIQState *s, int slot, XHCITRB *trb)
  * This could be librified in future (like AHCI0 to have a way to bring up
  * an endpoint to test device protocols.
  */
-static void pci_xhci_stress_rings(void)
+static void test_xhci_stress_rings(const void *arg)
 {
+    const TestData *td = arg;
     XHCIQState *s;
     uint32_t value;
     uint64_t input_context;
@@ -405,11 +418,11 @@ static void pci_xhci_stress_rings(void)
     int i;
 
     s = xhci_boot("-M q35 "
-            "-device nec-usb-xhci,id=xhci,bus=pcie.0,addr=1d.0 "
+            "-device %s,id=xhci,bus=pcie.0,addr=1d.0 "
             "-device usb-storage,bus=xhci.0,drive=drive0 "
             "-drive id=drive0,if=none,file=null-co://,"
-                "file.read-zeroes=on,format=raw "
-            );
+                "file.read-zeroes=on,format=raw ",
+            td->device);
 
     hcsparams1 = xhci_cap_readl(s, XHCI_HCCAP_REG_HCSPARAMS1);
     s->maxports = (hcsparams1 >> 24) & 0xff;
@@ -567,11 +580,37 @@ static void pci_xhci_stress_rings(void)
     xhci_shutdown(s);
 }
 
+static void add_test(const char *name, TestData *td, void (*fn)(const void *))
+{
+    g_autofree char *full_name = g_strdup_printf(
+            "/xhci/pci/%s/%s", td->device, name);
+    qtest_add_data_func(full_name, td, fn);
+}
+
+static void add_tests(TestData *td)
+{
+    add_test("hotplug", td, test_xhci_hotplug);
+    if (qtest_has_device("usb-uas")) {
+        add_test("usb-uas", td, test_usb_uas_hotplug);
+    }
+    if (qtest_has_device("usb-ccid")) {
+        add_test("usb-ccid", td, test_usb_ccid_hotplug);
+    }
+    if (qtest_has_device("usb-storage")) {
+        add_test("xhci-stress-rings", td, test_xhci_stress_rings);
+    }
+}
+
 /* tests */
 int main(int argc, char **argv)
 {
     int ret;
     const char *arch;
+    int i;
+    TestData td[] = {
+        { .device = "qemu-xhci", },
+        { .device = "nec-usb-xhci", },
+    };
 
     g_test_init(&argc, &argv, NULL);
 
@@ -582,19 +621,10 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    if (!qtest_has_device("nec-usb-xhci")) {
-        return 0;
-    }
-
-    qtest_add_func("/xhci/pci/hotplug", test_xhci_hotplug);
-    if (qtest_has_device("usb-uas")) {
-        qtest_add_func("/xhci/pci/hotplug/usb-uas", test_usb_uas_hotplug);
-    }
-    if (qtest_has_device("usb-ccid")) {
-        qtest_add_func("/xhci/pci/hotplug/usb-ccid", test_usb_ccid_hotplug);
-    }
-    if (qtest_has_device("usb-storage")) {
-        qtest_add_func("/xhci/pci/xhci-stress-rings", pci_xhci_stress_rings);
+    for (i = 0; i < ARRAY_SIZE(td); i++) {
+        if (qtest_has_device(td[i].device)) {
+            add_tests(&td[i]);
+        }
     }
 
     ret = g_test_run();
