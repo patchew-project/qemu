@@ -841,14 +841,20 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
     int64_t offset;
     BlockDriverState *bs;
     BlockDriverState *target_bs = blk_bs(s->target);
-    int ret = -1;
+    int ret;
     int64_t count;
 
     bdrv_graph_co_rdlock();
     bs = s->mirror_top_bs->backing->bs;
+    if (s->zero_target) {
+        ret = bdrv_co_is_zero_fast(target_bs, 0, s->bdev_length);
+    }
     bdrv_graph_co_rdunlock();
 
-    if (s->zero_target) {
+    if (s->zero_target && ret <= 0) {
+        if (ret < 0) {
+            return ret;
+        }
         if (!bdrv_can_write_zeroes_with_unmap(target_bs)) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, 0, s->bdev_length);
             return 0;
