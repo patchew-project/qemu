@@ -178,16 +178,62 @@ e1000e_intrmgr_on_throttling_timer(void *opaque)
     }
 }
 
+static uint32_t find_msix_causes(E1000ECore *core, int vec)
+{
+    uint32_t causes = 0;
+    uint32_t int_cfg;
+
+    int_cfg = E1000_IVAR_RXQ0(core->mac[IVAR]);
+    if (E1000_IVAR_ENTRY_VALID(int_cfg) &&
+        E1000_IVAR_ENTRY_VEC(int_cfg) == vec) {
+        causes |= E1000_ICR_RXQ0;
+    }
+
+    int_cfg = E1000_IVAR_RXQ1(core->mac[IVAR]);
+    if (E1000_IVAR_ENTRY_VALID(int_cfg) &&
+        E1000_IVAR_ENTRY_VEC(int_cfg) == vec) {
+        causes |= E1000_ICR_RXQ1;
+    }
+
+    int_cfg = E1000_IVAR_TXQ0(core->mac[IVAR]);
+    if (E1000_IVAR_ENTRY_VALID(int_cfg) &&
+        E1000_IVAR_ENTRY_VEC(int_cfg) == vec) {
+        causes |= E1000_ICR_TXQ0;
+    }
+
+    int_cfg = E1000_IVAR_TXQ1(core->mac[IVAR]);
+    if (E1000_IVAR_ENTRY_VALID(int_cfg) &&
+        E1000_IVAR_ENTRY_VEC(int_cfg) == vec) {
+        causes |= E1000_ICR_TXQ1;
+    }
+
+    int_cfg = E1000_IVAR_OTHER(core->mac[IVAR]);
+    if (E1000_IVAR_ENTRY_VALID(int_cfg) &&
+        E1000_IVAR_ENTRY_VEC(int_cfg) == vec) {
+        causes |= E1000_ICR_OTHER;
+    }
+
+    return causes;
+}
+
+static void
+e1000e_msix_notify(E1000ECore *core, uint32_t causes);
+
 static void
 e1000e_intrmgr_on_msix_throttling_timer(void *opaque)
 {
     E1000IntrDelayTimer *timer = opaque;
-    int idx = timer - &timer->core->eitr[0];
+    E1000ECore *core = timer->core;
+    int idx = timer - &core->eitr[0];
+    uint32_t causes;
 
     timer->running = false;
 
-    trace_e1000e_irq_msix_notify_postponed_vec(idx);
-    msix_notify(timer->core->owner, idx);
+    causes = find_msix_causes(core, idx) & core->mac[IMS] & core->mac[ICR];
+    if (causes) {
+        trace_e1000e_irq_msix_notify_postponed_vec(idx);
+        e1000e_msix_notify(core, causes);
+    }
 }
 
 static void
@@ -1992,10 +2038,11 @@ e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
     if (E1000_IVAR_ENTRY_VALID(int_cfg)) {
         uint32_t vec = E1000_IVAR_ENTRY_VEC(int_cfg);
         if (vec < E1000E_MSIX_VEC_NUM) {
-            if (!e1000e_eitr_should_postpone(core, vec)) {
-                trace_e1000e_irq_msix_notify_vec(vec);
-                msix_notify(core->owner, vec);
+            if (e1000e_eitr_should_postpone(core, vec)) {
+                return;
             }
+            trace_e1000e_irq_msix_notify_vec(vec);
+            msix_notify(core->owner, vec);
         } else {
             trace_e1000e_wrn_msix_vec_wrong(cause, int_cfg);
         }

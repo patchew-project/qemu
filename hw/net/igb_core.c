@@ -152,11 +152,14 @@ igb_intrmgr_arm_timer(IGBIntrDelayTimer *timer, int64_t delay_ns)
 static inline void
 igb_intrmgr_rearm_timer(IGBIntrDelayTimer *timer)
 {
-    uint32_t interval = (timer->core->mac[timer->delay_reg] &
-                         E1000_EITR_INTERVAL) >> 2;
-    int64_t delay_ns = (int64_t)interval * timer->delay_resolution_ns;
+    uint32_t eitr = timer->core->mac[timer->delay_reg];
 
-    igb_intrmgr_arm_timer(timer, delay_ns);
+    if (eitr != 0) {
+        uint32_t interval = (eitr & E1000_EITR_INTERVAL) >> 2;
+        int64_t delay_ns = (int64_t)interval * timer->delay_resolution_ns;
+
+        igb_intrmgr_arm_timer(timer, delay_ns);
+    }
 }
 
 static void
@@ -168,16 +171,7 @@ igb_intmgr_timer_resume(IGBIntrDelayTimer *timer)
 }
 
 static void
-igb_intrmgr_on_msix_throttling_timer(void *opaque)
-{
-    IGBIntrDelayTimer *timer = opaque;
-    int idx = timer - &timer->core->eitr[0];
-
-    timer->running = false;
-
-    trace_e1000e_irq_msix_notify_postponed_vec(idx);
-    igb_msix_notify(timer->core, idx);
-}
+igb_intrmgr_on_msix_throttling_timer(void *opaque);
 
 static void
 igb_intrmgr_initialize_all_timers(IGBCore *core, bool create)
@@ -2253,9 +2247,7 @@ igb_postpone_interrupt(IGBIntrDelayTimer *timer)
         return true;
     }
 
-    if (timer->core->mac[timer->delay_reg] != 0) {
-        igb_intrmgr_rearm_timer(timer);
-    }
+    igb_intrmgr_rearm_timer(timer);
 
     return false;
 }
@@ -2276,6 +2268,30 @@ static void igb_send_msix(IGBCore *core, uint32_t causes)
             trace_e1000e_irq_msix_notify_vec(vector);
             igb_msix_notify(core, vector);
         }
+    }
+}
+
+static void
+igb_intrmgr_on_msix_throttling_timer(void *opaque)
+{
+    IGBIntrDelayTimer *timer = opaque;
+    IGBCore *core = timer->core;
+    int vector = timer - &core->eitr[0];
+    uint32_t causes;
+
+    timer->running = false;
+
+    causes = core->mac[EICR] & core->mac[EIMS];
+    if (causes & BIT(vector)) {
+        /*
+         * The moderation counter is loaded with interval value whenever the
+         * interrupt is signaled. This includes when the interrupt is signaled
+         * by the counter reaching 0.
+         */
+        igb_intrmgr_rearm_timer(timer);
+
+        trace_e1000e_irq_msix_notify_postponed_vec(vector);
+        igb_msix_notify(core, vector);
     }
 }
 
