@@ -77,6 +77,20 @@ typedef struct AMDVIIOTLBEntry {
     uint64_t page_mask;         /* physical page size  */
 } AMDVIIOTLBEntry;
 
+/*
+ * These 'fault' reasons have an overloaded meaning since they are not only
+ * intended for describing reasons that generate an IO_PAGE_FAULT as per the AMD
+ * IOMMU specification, but are also used to signal internal errors in the
+ * emulation code.
+ */
+typedef enum AMDVIFaultReason {
+    AMDVI_FR_DTE_RTR_ERR = 1,           /* Failure to retrieve DTE */
+    AMDVI_FR_DTE_V,                     /* DTE[V] = 0 */
+    AMDVI_FR_DTE_TV,                    /* DTE[TV] = 0 */
+} AMDVIFaultReason;
+
+static int amdvi_as_to_dte(AMDVIAddressSpace *as, uint64_t *dte);
+
 uint64_t amdvi_extended_feature_register(AMDVIState *s)
 {
     uint64_t feature = AMDVI_DEFAULT_EXT_FEATURES;
@@ -882,6 +896,28 @@ static bool amdvi_get_dte(AMDVIState *s, int devid, uint64_t *entry)
     return true;
 }
 
+static int amdvi_as_to_dte(AMDVIAddressSpace *as, uint64_t *dte)
+{
+    uint16_t devid = PCI_BUILD_BDF(as->bus_num, as->devfn);
+    AMDVIState *s = as->iommu_state;
+
+    if (!amdvi_get_dte(s, devid, dte)) {
+        /* Unable to retrieve DTE for devid */
+        return -AMDVI_FR_DTE_RTR_ERR;
+    }
+
+    if (!(dte[0] & AMDVI_DEV_VALID)) {
+        /* DTE[V] not set, address is passed untranslated for devid */
+        return -AMDVI_FR_DTE_V;
+    }
+
+    if (!(dte[0] & AMDVI_DEV_TRANSLATION_VALID)) {
+        /* DTE[TV] not set, host page table not valid for devid */
+        return -AMDVI_FR_DTE_TV;
+    }
+    return 0;
+}
+
 /* get pte translation mode */
 static inline uint8_t get_pte_translation_mode(uint64_t pte)
 {
@@ -990,6 +1026,7 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
     uint16_t devid = PCI_BUILD_BDF(as->bus_num, as->devfn);
     AMDVIIOTLBEntry *iotlb_entry = amdvi_iotlb_lookup(s, addr, devid);
     uint64_t entry[4];
+    int dte_ret;
 
     if (iotlb_entry) {
         trace_amdvi_iotlb_hit(PCI_BUS_NUM(devid), PCI_SLOT(devid),
@@ -1001,13 +1038,13 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
         return;
     }
 
-    if (!amdvi_get_dte(s, devid, entry)) {
-        return;
-    }
+    dte_ret = amdvi_as_to_dte(as, entry);
 
-    /* devices with V = 0 are not translated */
-    if (!(entry[0] & AMDVI_DEV_VALID)) {
+    if (dte_ret == -AMDVI_FR_DTE_V) {
+        /* DTE[V]=0, address is passed untranslated */
         goto out;
+    } else if (dte_ret == -AMDVI_FR_DTE_TV) {
+        return;
     }
 
     amdvi_page_walk(as, entry, ret,
