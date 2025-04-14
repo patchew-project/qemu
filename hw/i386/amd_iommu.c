@@ -1109,6 +1109,71 @@ static IOMMUTLBEntry amdvi_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
+/*
+ * Unmap entire range that the notifier registered for i.e. the full AS.
+ *
+ * This is seemingly technically equivalent to directly calling
+ * memory_region_unmap_iommu_notifier_range(), but it allows to check for
+ * notifier boundaries and issue notifications with ranges within those bounds.
+ */
+static void amdvi_address_space_unmap(AMDVIAddressSpace *as, IOMMUNotifier *n)
+{
+
+    hwaddr start = n->start;
+    hwaddr end = n->end;
+    hwaddr remain;
+
+    assert(start <= end);
+    remain = end - start + 1;
+
+    /*
+     * Divide the notifier range into chunks that are aligned and do not exceed
+     * the notifier boundaries.
+     */
+    while (remain >= AMDVI_PAGE_SIZE) {
+
+        IOMMUTLBEvent event;
+
+        uint64_t mask = dma_aligned_pow2_mask(start, end, 64);
+
+        event.type = IOMMU_NOTIFIER_UNMAP;
+
+        IOMMUTLBEntry entry = {
+            .target_as = &address_space_memory,
+            .iova = start,
+            .translated_addr = 0,   /* irrelevant for unmap case */
+            .addr_mask = mask,
+            .perm = IOMMU_NONE,
+        };
+        event.entry = entry;
+
+        /* Call notifier registered for updates on this address space */
+        memory_region_notify_iommu_one(n, &event);
+
+        start += mask + 1;
+        remain -= mask + 1;
+    }
+
+    assert(!remain);
+}
+
+/*
+ * For all the address spaces with notifiers registered, unmap the entire range
+ * the notifier registered for i.e. clear all the address spaces managed by the
+ * IOMMU.
+ */
+static void amdvi_address_space_unmap_all(AMDVIState *s)
+{
+    AMDVIAddressSpace *as;
+    IOMMUNotifier *n;
+
+    QLIST_FOREACH(as, &s->amdvi_as_with_notifiers, next) {
+        IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+            amdvi_address_space_unmap(as, n);
+        }
+    }
+}
+
 static int amdvi_get_irte(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
                           union irte *irte, uint16_t devid)
 {
@@ -1667,6 +1732,9 @@ static void amdvi_sysbus_reset(DeviceState *dev)
 
     msi_reset(&s->pci.dev);
     amdvi_init(s);
+
+    /* Discard all mappings on device reset */
+    amdvi_address_space_unmap_all(s);
 }
 
 static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
