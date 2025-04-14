@@ -263,8 +263,8 @@ static void amdvi_encode_event(uint64_t *evt, uint16_t devid, uint64_t addr,
  *
  * @addr: virtual address in translation request
  */
-static void amdvi_page_fault(AMDVIState *s, uint16_t devid,
-                             hwaddr addr, uint16_t info)
+static void __attribute__((unused))
+amdvi_page_fault(AMDVIState *s, uint16_t devid, hwaddr addr, uint16_t info)
 {
     uint64_t evt[2];
 
@@ -1254,9 +1254,6 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
      */
     if ((pte == (uint64_t)-1) || (pte == (uint64_t)-2) ||
         !IOMMU_PTE_PRESENT(pte) || perms != (perms & amdvi_get_perms(pte))) {
-
-        amdvi_page_fault(as->iommu_state, as->devfn, addr, perms);
-        trace_amdvi_page_fault(addr);
         return;
     }
 
