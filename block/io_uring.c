@@ -58,6 +58,11 @@ struct LuringState {
     LuringQueue io_q;
 
     QEMUBH *completion_bh;
+
+    /* fixed file support */
+    int *registered_fds;
+    int nr_registered_fds;
+    int max_registered_fds; /* size of registered_fds */
 };
 
 /**
@@ -323,6 +328,41 @@ static void luring_deferred_fn(void *opaque)
     }
 }
 
+static int luring_register_fd(LuringState *s, int fd)
+{
+    int idx;
+    int *new_fds;
+    int ret;
+
+    for (idx = 0; idx < s->nr_registered_fds; idx++) {
+        if (s->registered_fds[idx] == fd) {
+            return idx;
+        }
+    }
+
+    /* Grow the array if needed */
+    if (s->nr_registered_fds >= s->max_registered_fds) {
+        int new_max = s->max_registered_fds * 2;
+        new_fds = g_realloc(s->registered_fds, sizeof(int) * new_max);
+        if (!new_fds) {
+            return -ENOMEM;
+        }
+        s->registered_fds = new_fds;
+        s->max_registered_fds = new_max;
+    }
+
+    idx = s->nr_registered_fds++;
+    s->registered_fds[idx] = fd;
+   
+    ret = io_uring_register_files(&s->ring, s->registered_fds, s->nr_registered_fds);
+    if (ret < 0) {
+        s->nr_registered_fds--;
+        return ret;
+    }
+
+    return idx;
+}
+
 /**
  * luring_do_submit:
  * @fd: file descriptor for I/O
@@ -339,6 +379,15 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
 {
     int ret;
     struct io_uring_sqe *sqes = &luringcb->sqeq;
+    int fixed_fd_idx;
+   
+    fixed_fd_idx = luring_register_fd(s, fd);
+    if (fixed_fd_idx < 0) {
+        return fixed_fd_idx;
+    }
+   
+    sqes->flags |= IOSQE_FIXED_FILE;
+    sqes->fd = fixed_fd_idx;
 
     switch (type) {
     case QEMU_AIO_WRITE:
@@ -447,6 +496,11 @@ LuringState *luring_init(Error **errp)
         return NULL;
     }
 
+    /* Initialize fixed file support */
+    s->max_registered_fds = 1024;
+    s->registered_fds = g_new0(int, s->max_registered_fds);
+    s->nr_registered_fds = 0;
+
     ioq_init(&s->io_q);
     return s;
 
@@ -454,6 +508,12 @@ LuringState *luring_init(Error **errp)
 
 void luring_cleanup(LuringState *s)
 {
+    if (s->registered_fds) {
+        if (s->nr_registered_fds > 0) {
+            io_uring_unregister_files(&s->ring);
+        }
+        g_free(s->registered_fds);
+    }
     io_uring_queue_exit(&s->ring);
     trace_luring_cleanup_state(s);
     g_free(s);
