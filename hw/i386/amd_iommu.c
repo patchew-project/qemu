@@ -1689,6 +1689,80 @@ fetch_pte(AMDVIAddressSpace *as, const hwaddr address, uint64_t dte,
 }
 
 /*
+ * Walk the guest page table for an IOVA and range and signal the registered
+ * notifiers to sync the shadow page tables in the host.
+ * Must be called with a valid DTE for DMA remapping i.e. V=1,TV=1
+ */
+static void __attribute__((unused))
+amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as, uint64_t *dte,
+                                   hwaddr addr, uint64_t size, bool send_unmap)
+{
+    IOMMUTLBEvent event;
+
+    hwaddr iova_next, page_mask, pagesize;
+    hwaddr iova = addr;
+    hwaddr end = iova + size - 1;
+
+    uint64_t pte;
+
+    while (iova < end) {
+
+        pte = fetch_pte(as, iova, dte[0], &pagesize);
+
+        if (pte == (uint64_t)-2) {
+            /*
+             * Invalid conditions such as the IOVA being larger than supported
+             * by current page table mode as configured in the DTE, or a failure
+             * to fetch the Page Table from the Page Table Root Pointer in DTE.
+             */
+            assert(pagesize == 0);
+            return;
+        }
+        /* PTE has been validated for major errors and pagesize is set */
+        assert(pagesize);
+        page_mask = ~(pagesize - 1);
+        iova_next = (iova & page_mask) + pagesize;
+
+        if (pte == (uint64_t)-1) {
+            /*
+             * Failure to read PTE from memory, the pagesize matches the current
+             * level. Unable to determine the region type, so a safe strategy is
+             * to skip the range and continue the page walk.
+             */
+            goto next;
+        }
+
+        event.entry.target_as = &address_space_memory;
+        event.entry.iova = iova & page_mask;
+        /* translated_addr is irrelevant for the unmap case */
+        event.entry.translated_addr = (pte & AMDVI_DEV_PT_ROOT_MASK) &
+                                      page_mask;
+        event.entry.addr_mask = ~page_mask;
+        event.entry.perm = amdvi_get_perms(pte);
+
+        /*
+         * In cases where the leaf PTE is not found, or it has invalid
+         * permissions, an UNMAP type notification is sent, but only if the
+         * caller requested it.
+         */
+        if (!IOMMU_PTE_PRESENT(pte) || (event.entry.perm == IOMMU_NONE)) {
+            if (!send_unmap) {
+                goto next;
+            }
+            event.type = IOMMU_NOTIFIER_UNMAP;
+        } else {
+            event.type = IOMMU_NOTIFIER_MAP;
+        }
+
+        /* Invoke the notifiers registered for this address space */
+        memory_region_notify_iommu(&as->iommu, 0, event);
+
+next:
+        iova = iova_next;
+    }
+}
+
+/*
  * Toggle between address translation and passthrough modes by enabling the
  * corresponding memory regions.
  */
