@@ -1564,6 +1564,131 @@ static const MemoryRegionOps amdvi_ir_ops = {
 };
 
 /*
+ * For a PTE encoding a large page, return the page size it encodes as described
+ * by the AMD IOMMU Specification Table 14: Example Page Size Encodings.
+ * No need to adjust the value of the PTE to point to the first PTE in the large
+ * page since the encoding guarantees all "base" PTEs in the large page are the
+ * same.
+ */
+static uint64_t large_pte_page_size(uint64_t pte)
+{
+    assert(PTE_NEXT_LEVEL(pte) == 7);
+
+    /* Determine size of the large/contiguous page encoded in the PTE */
+    return PTE_LARGE_PAGE_SIZE(pte);
+}
+
+/*
+ * Helper function to fetch a PTE using AMD v1 pgtable format.
+ * Returns:
+ * -2:  The Page Table Root could not be read from DTE, or IOVA is larger than
+ *      supported by current page table level encodedin DTE[Mode].
+ * -1:  PTE could not be read from guest memory during a page table walk.
+ *      This means that the DTE has valid data, and one of the lower level
+ *      entries in the Page Table could not be read.
+ *  0:  PTE is marked not present, or entry is 0.
+ * >0:  Leaf PTE value resolved from walking Guest IO Page Table.
+ */
+static uint64_t __attribute__((unused))
+fetch_pte(AMDVIAddressSpace *as, const hwaddr address, uint64_t dte,
+          hwaddr *page_size)
+{
+    IOMMUAccessFlags perms = amdvi_get_perms(dte);
+
+    uint8_t level, mode;
+    uint64_t pte = dte, pte_addr;
+
+    *page_size = 0;
+
+    if (perms == IOMMU_NONE) {
+        return (uint64_t)-2;
+    }
+
+    /*
+     * The Linux kernel driver initializes the default mode to 3, corresponding
+     * to a 39-bit GPA space, where each entry in the pagetable translates to a
+     * 1GB (2^30) page size.
+     */
+    level = mode = get_pte_translation_mode(dte);
+    assert(mode > 0 && mode < 7);
+
+    /*
+     * If IOVA is larger than the max supported by the current pgtable level,
+     * there is nothing to do. This signals that the pagetable level should be
+     * increased, or is an address meant to have special behavior like
+     * invalidating the entire cache.
+     */
+    if (address > PT_LEVEL_MAX_ADDR(mode - 1)) {
+        /* IOVA too large for the current DTE */
+        return (uint64_t)-2;
+    }
+
+    do {
+        level -= 1;
+
+        /* Update the page_size */
+        *page_size = PTE_LEVEL_PAGE_SIZE(level);
+
+        /* Permission bits are ANDed at every level, including the DTE */
+        perms &= amdvi_get_perms(pte);
+        if (perms == IOMMU_NONE) {
+            return pte;
+        }
+
+        /* Not Present */
+        if (!IOMMU_PTE_PRESENT(pte)) {
+            return 0;
+        }
+
+        /* Large or Leaf PTE found */
+        if (PTE_NEXT_LEVEL(pte) == 7 || PTE_NEXT_LEVEL(pte) == 0) {
+            /* Leaf PTE found */
+            break;
+        }
+
+        /*
+         * Index the pgtable using the IOVA bits corresponding to current level
+         * and walk down to the lower level.
+         */
+        pte_addr = NEXT_PTE_ADDR(pte, level, address);
+        pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
+
+        if (pte == (uint64_t)-1) {
+            /*
+             * A returned PTE of -1 indicates a failure to read the page table
+             * entry from guest memory.
+             */
+            if (level == mode - 1) {
+                /* Failure to retrieve the Page Table from Root Pointer */
+                *page_size = 0;
+                return (uint64_t)-2;
+            } else {
+                /* Failure to read PTE. Page walk skips a page_size chunk */
+                return pte;
+            }
+        }
+    } while (level > 0);
+
+    /*
+     * Page walk ends when Next Level field on PTE shows that either a leaf PTE
+     * or a series of large PTEs have been reached. In the latter case, return
+     * the pointer to the first PTE of the series.
+     */
+    assert(level == 0 || PTE_NEXT_LEVEL(pte) == 0 || PTE_NEXT_LEVEL(pte) == 7);
+
+    /*
+     * In case the range starts in the middle of a contiguous page, need to
+     * return the first PTE
+     */
+    if (PTE_NEXT_LEVEL(pte) == 7) {
+        /* Update page_size with the large PTE page size */
+        *page_size = large_pte_page_size(pte);
+    }
+
+    return pte;
+}
+
+/*
  * Toggle between address translation and passthrough modes by enabling the
  * corresponding memory regions.
  */
