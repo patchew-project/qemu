@@ -97,6 +97,9 @@ typedef enum AMDVIFaultReason {
 } AMDVIFaultReason;
 
 static int amdvi_as_to_dte(AMDVIAddressSpace *as, uint64_t *dte);
+static void amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as,
+                                               uint64_t *dte, hwaddr addr,
+                                               uint64_t size, bool send_unmap);
 
 uint64_t amdvi_extended_feature_register(AMDVIState *s)
 {
@@ -497,8 +500,7 @@ static gboolean amdvi_iotlb_remove_by_domid(gpointer key, gpointer value,
  * first zero at bit 51 or larger is a request to invalidate the entire address
  * space.
  */
-static uint64_t __attribute__((unused))
-amdvi_decode_invalidation_size(hwaddr addr, uint16_t flags)
+static uint64_t amdvi_decode_invalidation_size(hwaddr addr, uint16_t flags)
 {
     uint64_t size = AMDVI_PAGE_SIZE;
     uint8_t fzbit = 0;
@@ -515,10 +517,101 @@ amdvi_decode_invalidation_size(hwaddr addr, uint16_t flags)
     return size;
 }
 
+/*
+ * Synchronize the guest page tables with the shadow page tables kept in the
+ * host for the specified range.
+ * The invalidation command issued by the guest and intercepted by the VMM
+ * does not specify a device, but a domain, since all devices in the same domain
+ * share the same page tables. However, vIOMMU emulation creates separate
+ * address spaces per device, so it is necessary to traverse the list of all of
+ * address spaces (i.e. devices) that have notifiers registered in order to
+ * propagate the changes to the host page tables. This could generate redundant
+ * requests to map/unmap regions when there are several devices in a same domain
+ * but it must be optimized by maintaining an internal representation of the
+ * per-domain address space, and avoid invoking a notifier when the change is
+ * already reflected in the host page tables.
+ *
+ * We cannot return early from this function once a matching domain has been
+ * identified and its page tables synced (based on the fact that all devices in
+ * the same domain share the page tables). The reason is that different devices
+ * (i.e. address spaces) could have different notifiers registered, and by
+ * skipping address spaces that appear later on the amdvi_as_with_notifiers list
+ * their notifiers (which could differ from the ones registered for the first
+ * device/address space) would not be invoked.
+ */
+static void amdvi_sync_domain(AMDVIState *s, uint16_t domid, uint64_t addr,
+                              uint16_t flags)
+{
+    AMDVIAddressSpace *as;
+
+    uint64_t size = amdvi_decode_invalidation_size(addr, flags);
+
+    if (size == AMDVI_INV_ALL_PAGES) {
+        addr = 0;       /* Set start address to 0 and invalidate entire AS */
+    } else {
+        addr &= ~(size - 1);
+    }
+
+    /*
+     * Call notifiers that have registered for each address space matching the
+     * domain ID, in order to sync the guest pagetable state with the host.
+     */
+    QLIST_FOREACH(as, &s->amdvi_as_with_notifiers, next) {
+
+        uint64_t dte[4] = { 0 };
+
+        /*
+         * Retrieve the Device Table entry for the devid corresponding to the
+         * current address space, and verify the DomainID matches i.e. the page
+         * tables to be synced belong to devices in the domain.
+         */
+        if (amdvi_as_to_dte(as, dte)) {
+            continue;
+        }
+
+        /* Only need to sync the Page Tables for a matching domain */
+        if (domid != (dte[1] & AMDVI_DEV_DOMID_ID_MASK)) {
+            continue;
+        }
+
+        /*
+         * We have determined that there is a valid Device Table Entry for a
+         * device matching the DomainID in the INV_IOMMU_PAGES command issued by
+         * the guest. Walk the guest page table to sync shadow page table.
+         *
+         * An optimization can be made if only UNMAP notifiers are registered to
+         * avoid walking the page table and just invalidate the requested range.
+         */
+        if (as->notifier_flags & IOMMU_NOTIFIER_MAP) {
+
+            /* Sync guest IOMMU mappings with host */
+            amdvi_sync_shadow_page_table_range(as, &dte[0], addr, size, true);
+        } else {
+            /*
+             * For UNMAP only notifiers, invalidate the requested size. No page
+             * table walk is required since there is no need to replay mappings.
+             */
+            IOMMUTLBEvent event = {
+                .type = IOMMU_NOTIFIER_UNMAP,
+                .entry = {
+                    .target_as = &address_space_memory,
+                    .iova = addr,
+                    .translated_addr = 0, /* Irrelevant for unmap case */
+                    .addr_mask = size - 1,
+                    .perm = IOMMU_NONE,
+                },
+            };
+            memory_region_notify_iommu(&as->iommu, 0, event);
+        }
+    }
+}
+
 /* we don't have devid - we can't remove pages by address */
 static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
 {
     uint16_t domid = cpu_to_le16((uint16_t)extract64(cmd[0], 32, 16));
+    uint64_t addr = cpu_to_le64(extract64(cmd[1], 12, 52)) << 12;
+    uint16_t flags = cpu_to_le16((uint16_t)extract64(cmd[1], 0, 3));
 
     if (extract64(cmd[0], 20, 12) || extract64(cmd[0], 48, 12) ||
         extract64(cmd[1], 3, 9)) {
@@ -528,6 +621,8 @@ static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
 
     g_hash_table_foreach_remove(s->iotlb, amdvi_iotlb_remove_by_domid,
                                 &domid);
+
+    amdvi_sync_domain(s, domid, addr, flags);
     trace_amdvi_pages_inval(domid);
 }
 
@@ -1589,9 +1684,8 @@ static uint64_t large_pte_page_size(uint64_t pte)
  *  0:  PTE is marked not present, or entry is 0.
  * >0:  Leaf PTE value resolved from walking Guest IO Page Table.
  */
-static uint64_t __attribute__((unused))
-fetch_pte(AMDVIAddressSpace *as, const hwaddr address, uint64_t dte,
-          hwaddr *page_size)
+static uint64_t fetch_pte(AMDVIAddressSpace *as, const hwaddr address,
+                          uint64_t dte, hwaddr *page_size)
 {
     IOMMUAccessFlags perms = amdvi_get_perms(dte);
 
@@ -1693,9 +1787,9 @@ fetch_pte(AMDVIAddressSpace *as, const hwaddr address, uint64_t dte,
  * notifiers to sync the shadow page tables in the host.
  * Must be called with a valid DTE for DMA remapping i.e. V=1,TV=1
  */
-static void __attribute__((unused))
-amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as, uint64_t *dte,
-                                   hwaddr addr, uint64_t size, bool send_unmap)
+static void amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as,
+                                               uint64_t *dte, hwaddr addr,
+                                               uint64_t size, bool send_unmap)
 {
     IOMMUTLBEvent event;
 
