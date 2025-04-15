@@ -138,6 +138,7 @@ static bool riscv_hart_realize(RISCVHartArrayState *s, int idx,
     }
 
     s->harts[idx].env.mhartid = s->hartid_base + idx;
+    CPU(&s->harts[idx])->cpu_index = s->harts[idx].env.mhartid;
     qemu_register_reset(riscv_harts_cpu_reset, &s->harts[idx]);
     return qdev_realize(DEVICE(&s->harts[idx]), NULL, errp);
 }
