@@ -369,6 +369,23 @@ features are included if using "Host passthrough" or "Host model".
   Note that not all CPU hardware will support this feature.
 
 
+Preferred CPU models for Zhaoxin x86 hosts
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The following CPU models are preferred for use on Zhaoxin hosts.
+Administrators / applications are recommended to use the CPU model that
+matches the generation of the host CPUs in use. In a deployment with a
+mixture of host CPU models between machines, if live migration
+compatibility is required, use the newest CPU model that is compatible
+across all desired hosts.
+
+Currently, Zhaoxin provides a single CPU model (with potential for more in
+the near future), which has two versions. Among them, version 2 is recommended
+as it resolves several guest runtime issues related to the model field (FMS).
+
+``YongFeng-v2``
+    Zhaoxin KH-40000 Processor (2022)
+
+
 Default x86 CPU models
 ^^^^^^^^^^^^^^^^^^^^^^
 
