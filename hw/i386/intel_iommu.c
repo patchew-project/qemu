@@ -4216,6 +4216,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
     vtd_dev_as = g_hash_table_lookup(s->vtd_address_spaces, &key);
     if (!vtd_dev_as) {
         struct vtd_as_key *new_key = g_malloc(sizeof(*new_key));
+        bool take_bql = !bql_locked();
 
         new_key->bus = bus;
         new_key->devfn = devfn;
@@ -4237,6 +4238,11 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
         vtd_dev_as->iommu_state = s;
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
         vtd_dev_as->iova_tree = iova_tree_new();
+
+        /* Some functions in this branch require the bql, make sure we own it */
+        if (take_bql) {
+            bql_lock();
+        }
 
         memory_region_init(&vtd_dev_as->root, OBJECT(s), name, UINT64_MAX);
         address_space_init(&vtd_dev_as->as, &vtd_dev_as->root, "vtd-root");
@@ -4304,6 +4310,10 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
                                             &vtd_dev_as->nodmar, 0);
 
         vtd_switch_address_space(vtd_dev_as);
+
+        if (take_bql) {
+            bql_unlock();
+        }
 
         g_hash_table_insert(s->vtd_address_spaces, new_key, vtd_dev_as);
     }
