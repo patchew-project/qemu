@@ -131,12 +131,15 @@ static bool qvirtio_pci_get_queue_isr_status(QVirtioDevice *d, QVirtQueue *vq)
             /* No ISR checking should be done if masked, but read anyway */
             return qpci_msix_pending(dev->pdev, vqpci->msix_entry);
         } else {
-            data = qtest_readl(dev->pdev->bus->qts, vqpci->msix_addr);
+            qtest_memread(dev->pdev->bus->qts, vqpci->msix_addr, &data, 4);
+            data = le32_to_cpu(data);
             if (data == vqpci->msix_data) {
                 qtest_writel(dev->pdev->bus->qts, vqpci->msix_addr, 0);
                 return true;
-            } else {
+            } else if (data == 0) {
                 return false;
+            } else {
+                g_assert_not_reached();
             }
         }
     } else {
