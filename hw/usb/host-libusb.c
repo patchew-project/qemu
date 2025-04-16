@@ -1227,7 +1227,7 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
         !s->match.vendor_id &&
         !s->match.product_id &&
         !s->match.port) {
-        s->needs_autoscan = false;
+        s->needs_autoscan = true;
         ldev = usb_host_find_ref(s->match.bus_num,
                                  s->match.addr);
         if (!ldev) {
@@ -1244,6 +1244,9 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
         }
     } else {
         s->needs_autoscan = true;
+    }
+
+    if (s->needs_autoscan) {
         QTAILQ_INSERT_TAIL(&hostdevs, s, next);
         usb_host_auto_check(NULL);
     }
