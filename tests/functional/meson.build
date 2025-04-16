@@ -226,6 +226,7 @@ tests_ppc_system_thorough = [
   'ppc_bamboo',
   'ppc_mac',
   'ppc_mpc8544ds',
+  'ppc_pegasos2',
   'ppc_replay',
   'ppc_sam460ex',
   'ppc_tuxrun',
