@@ -305,6 +305,7 @@ static int multifd_recv_unfill_packet_ram(MultiFDRecvParams *p, Error **errp)
 
 static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 {
+    qatomic_inc(&multifd_recv_state->packet_num);
     p->packets_recved++;
 
     if (p->flags & MULTIFD_FLAG_DEVICE_STATE) {
@@ -1217,11 +1218,6 @@ void multifd_recv_sync_main(void)
     for (i = 0; i < thread_count; i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
-        WITH_QEMU_LOCK_GUARD(&p->mutex) {
-            if (multifd_recv_state->packet_num < p->packet_num) {
-                multifd_recv_state->packet_num = p->packet_num;
-            }
-        }
         trace_multifd_recv_sync_main_signal(p->id);
         qemu_sem_post(&p->sem_sync);
     }
