@@ -1773,6 +1773,13 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
         l->page[1].size = l->page[0].size - size0;
         l->page[0].size = size0;
 
+        /* check for wrapping address space on page crossing if target is 32 bit */
+        #if TARGET_LONG_BITS == 32
+        if (l->page[1].addr >= (1UL << TARGET_LONG_BITS)) {
+            l->page[1].addr %= (1UL << TARGET_LONG_BITS);
+        }
+        # endif
+
         /*
          * Lookup both pages, recognizing exceptions from either.  If the
          * second lookup potentially resized, refresh first CPUTLBEntryFull.
