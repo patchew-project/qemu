@@ -2756,19 +2756,15 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     }
 
     /*
-     * in Finish migrate and with the io-lock held everything should
+     * in FINISH_MIGRATE and with the BQL held everything should
      * be quiet, but we've potentially still got dirty pages and we
      * need to tell the destination to throw any pages it's already received
      * that are dirty
      */
-    if (migrate_postcopy_ram()) {
-        ram_postcopy_send_discard_bitmap(ms);
-    }
+    ram_postcopy_send_discard_bitmap(ms);
 
-    if (migrate_postcopy_ram()) {
-        /* Ping just for debugging, helps line traces up */
-        qemu_savevm_send_ping(ms->to_dst_file, 2);
-    }
+    /* Ping just for debugging, helps line traces up */
+    qemu_savevm_send_ping(ms->to_dst_file, 2);
 
     /*
      * While loading the device state we may trigger page transfer
@@ -2798,9 +2794,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         goto fail_closefb;
     }
 
-    if (migrate_postcopy_ram()) {
-        qemu_savevm_send_ping(fb, 3);
-    }
+    qemu_savevm_send_ping(fb, 3);
 
     qemu_savevm_send_postcopy_run(fb);
 
@@ -2831,13 +2825,11 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 
     migration_downtime_end(ms);
 
-    if (migrate_postcopy_ram()) {
-        /*
-         * Although this ping is just for debug, it could potentially be
-         * used for getting a better measurement of downtime at the source.
-         */
-        qemu_savevm_send_ping(ms->to_dst_file, 4);
-    }
+    /*
+     * Although this ping is just for debug, it could potentially be
+     * used for getting a better measurement of downtime at the source.
+     */
+    qemu_savevm_send_ping(ms->to_dst_file, 4);
 
     if (migrate_release_ram()) {
         ram_postcopy_migrated_memory_release(ms);
