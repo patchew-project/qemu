@@ -5327,6 +5327,31 @@ out:
     return 0;
 }
 
+static int print_measure_option_help(const char *format)
+{
+    BlockDriver *drv;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    /* Find driver and parse its options */
+    drv = bdrv_find_format(format);
+    if (!drv) {
+        error_report("Unknown file format '%s'", format);
+        return 1;
+    }
+
+    if (!drv->measure_opts) {
+        error_report("Format driver '%s' does not support measure options",
+            format);
+        return 1;
+    }
+
+    printf("Measure options for '%s':\n", format);
+    qemu_opts_print_help(drv->measure_opts, false);
+
+    return 0;
+}
+
 static void dump_json_block_measure_info(BlockMeasureInfo *info)
 {
     GString *str;
@@ -5366,7 +5391,7 @@ static int img_measure(int argc, char **argv)
     QemuOpts *opts = NULL;
     QemuOpts *object_opts = NULL;
     QemuOpts *sn_opts = NULL;
-    QemuOptsList *create_opts = NULL;
+    QemuOptsList *all_opts = NULL;
     bool image_opts = false;
     uint64_t img_size = UINT64_MAX;
     BlockMeasureInfo *info = NULL;
@@ -5491,10 +5516,15 @@ static int img_measure(int argc, char **argv)
                      drv->format_name);
         goto out;
     }
+    if (options && has_help_option(options)) {
+        ret = print_measure_option_help(drv->format_name);
+        goto out;
+    }
 
-    create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    create_opts = qemu_opts_append(create_opts, bdrv_file.create_opts);
-    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    all_opts = qemu_opts_append(all_opts, drv->create_opts);
+    all_opts = qemu_opts_append(all_opts, bdrv_file.create_opts);
+    all_opts = qemu_opts_append(all_opts, drv->measure_opts);
+    opts = qemu_opts_create(all_opts, NULL, 0, &error_abort);
     if (options) {
         if (!qemu_opts_do_parse(opts, options, NULL, &local_err)) {
             error_report_err(local_err);
@@ -5529,7 +5559,7 @@ out:
     qemu_opts_del(object_opts);
     qemu_opts_del(opts);
     qemu_opts_del(sn_opts);
-    qemu_opts_free(create_opts);
+    qemu_opts_free(all_opts);
     g_free(options);
     blk_unref(in_blk);
     return ret;

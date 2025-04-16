@@ -57,6 +57,7 @@
 #define BLOCK_OPT_DATA_FILE_RAW     "data_file_raw"
 #define BLOCK_OPT_COMPRESSION_TYPE  "compression_type"
 #define BLOCK_OPT_EXTL2             "extended_l2"
+#define BLOCK_OPT_FOR_COMMIT        "for_commit"
 
 #define BLOCK_PROBE_BUF_SIZE        512
 
@@ -176,6 +177,9 @@ struct BlockDriver {
 
     /* List of options for image amend */
     QemuOptsList *amend_opts;
+
+    /* List of options for image measure */
+    QemuOptsList *measure_opts;
 
     /*
      * If this driver supports reopening images this contains a

@@ -5557,6 +5557,34 @@
   'features': [ 'unstable' ],
   'allow-preconfig': true }
 
+  ##
+  # @BlockdevMeasureOptionsQcow2:
+  #
+  # Driver specific image measure options for qcow2.
+  #
+  # @for-commit: Use the measure command to calculate commit image size
+  #
+  # Since: 10.0
+  ##
+  { 'struct': 'BlockdevMeasureOptionsQcow2',
+    'data': { '*for-commit': 'bool' } }
+
+  ##
+  # @BlockdevMeasureOptions:
+  #
+  # Options for measuring an image format
+  #
+  # @driver: Block driver of the node to measure.
+  #
+  # Since: 10.0
+  ##
+  { 'union': 'BlockdevMeasureOptions',
+    'base': {
+        'driver':         'BlockdevDriver' },
+    'discriminator': 'driver',
+    'data': {
+        'qcow2':           'BlockdevMeasureOptionsQcow2' } }
+
 ##
 # @BlockErrorAction:
 #

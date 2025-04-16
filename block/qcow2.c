@@ -3945,6 +3945,7 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
         { BLOCK_OPT_COMPAT_LEVEL,       "version" },
         { BLOCK_OPT_DATA_FILE_RAW,      "data-file-raw" },
         { BLOCK_OPT_COMPRESSION_TYPE,   "compression-type" },
+        { BLOCK_OPT_FOR_COMMIT,         "for-commit" },
         { NULL, NULL },
     };
 
@@ -6066,6 +6067,20 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
         .def_value_str = "16"                                       \
     }
 
+static QemuOptsList qcow2_measure_opts = {
+    .name = "qcow2-measure-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(qcow2_measure_opts.head),
+    .desc = {
+        {                                                       \
+            .name = BLOCK_OPT_FOR_COMMIT,                       \
+            .type = QEMU_OPT_BOOL,                              \
+            .help = "Use measure for commit",                   \
+            .def_value_str = "off"                              \
+        },                                                      \
+        { /* end of list */ }
+    }
+};
+
 static QemuOptsList qcow2_create_opts = {
     .name = "qcow2-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(qcow2_create_opts.head),
@@ -6190,6 +6205,7 @@ BlockDriver bdrv_qcow2 = {
 
     .create_opts                        = &qcow2_create_opts,
     .amend_opts                         = &qcow2_amend_opts,
+    .measure_opts                       = &qcow2_measure_opts,
     .strong_runtime_opts                = qcow2_strong_runtime_opts,
     .mutable_opts                       = mutable_opts,
     .bdrv_co_check                      = qcow2_co_check,
