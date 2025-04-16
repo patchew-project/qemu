@@ -58,4 +58,65 @@ read 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 # Output of qemu-img map
 Offset          Length          Mapped to       File
+
+### Test qemu-img measure for commit differences with 'discard-no-unref' option enabled
+
+# Create a base image and fill it with data
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 8388608/8388608 bytes at offset 10485760
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 33554432/33554432 bytes at offset 25165824
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 20971520/20971520 bytes at offset 58720256
+20 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 10485760/10485760 bytes at offset 33554432
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+# Create a top image and do some writes and discards
+Formatting 'TEST_DIR/t.IMGFMT.top', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+wrote 8388608/8388608 bytes at offset 16777216
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 20971520/20971520 bytes at offset 62914560
+20 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 10485760/10485760 bytes at offset 88080384
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+# Measure size with discard-no-unref=true
+{
+    "bitmaps": 0,
+    "required": 88670208,
+    "fully-allocated": 134545408
+}
+# Merging the top image into the base image
+Image committed.
+base disk image file size in bytes: 88408064
+# Create a base image and fill it with data
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 8388608/8388608 bytes at offset 10485760
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 33554432/33554432 bytes at offset 25165824
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 20971520/20971520 bytes at offset 58720256
+20 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 10485760/10485760 bytes at offset 33554432
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+# Create a top image and do some writes and discards
+Formatting 'TEST_DIR/t.IMGFMT.top', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+wrote 8388608/8388608 bytes at offset 16777216
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 20971520/20971520 bytes at offset 62914560
+20 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 10485760/10485760 bytes at offset 88080384
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+# Measure size with discard-no-unref=false
+{
+    "bitmaps": 0,
+    "required": 71892992,
+    "fully-allocated": 134545408
+}
+# Merging the top image into the base image
+Image committed.
+base disk image file size in bytes: 71630848
 *** done

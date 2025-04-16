@@ -92,6 +92,51 @@ for qcow2_compat in 0.10 1.1; do
     $QEMU_IMG map "$TEST_IMG" | _filter_testdir
 done
 
+echo
+echo "### Test qemu-img measure for commit differences with 'discard-no-unref' option enabled"
+echo
+
+for DISCARD_NO_UNREF in true false; do
+    echo "# Create a base image and fill it with data"
+    TEST_IMG="$TEST_IMG.base" _make_test_img 128M
+
+    $QEMU_IO -c 'write 0 8M' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'write 10M 8M' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'write 24M 32M' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c 'write 56M 20M' "$TEST_IMG.base" | _filter_qemu_io
+    $QEMU_IO -c "reopen -o discard=unmap,discard-no-unref=$DISCARD_NO_UNREF" \
+        -c 'discard 32M 10M' "$TEST_IMG.base" | _filter_qemu_io
+
+    echo "# Create a top image and do some writes and discards"
+    TEST_IMG="$TEST_IMG.top" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT 128M
+
+    $QEMU_IO -c "reopen -o discard=unmap,discard-no-unref=$DISCARD_NO_UNREF" -c 'write 16M 8M' \
+        -c 'discard 60M 20M' -c 'write 84M 10M' "$TEST_IMG.top" | _filter_qemu_io
+
+    FILE_JSON="json:{
+        'file': {
+            'driver': 'file',
+            'filename': '$TEST_IMG.top'
+        },
+        'driver': 'qcow2',
+        'discard': 'unmap',
+        'discard-no-unref': '$DISCARD_NO_UNREF',
+        'backing': {
+            'driver': 'qcow2',
+            'discard-no-unref': '$DISCARD_NO_UNREF',
+            'file': {
+                'driver': 'file',
+                'filename': '$TEST_IMG.base'
+            },
+            'backing': null
+        }}"
+    echo "# Measure size with discard-no-unref=$DISCARD_NO_UNREF"
+    $QEMU_IMG measure --output=json -ofor_commit=on -O qcow2 "${FILE_JSON}"
+    echo "# Merging the top image into the base image"
+    $QEMU_IMG commit -t none -f qcow2 "${FILE_JSON}"
+    stat -c"base disk image file size in bytes: %s" "$TEST_IMG.base"
+done
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
