@@ -5086,6 +5086,7 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     bool has_backing_file;
     bool has_luks;
     bool extended_l2;
+    bool for_commit;
     size_t l2e_size;
 
     /* Parse image creation options */
@@ -5157,6 +5158,9 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
         goto err;
     }
 
+    /* Check if this measure is for commit size calculation */
+    for_commit = qemu_opt_get_bool_del(opts, BLOCK_OPT_FOR_COMMIT, false);
+
     /* Account for input image */
     if (in_bs) {
         int64_t ssize = bdrv_getlength(in_bs);
@@ -5178,6 +5182,28 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
         } else {
             int64_t offset;
             int64_t pnum = 0;
+            BlockDriverState *parent = NULL;
+            BDRVQcow2State *sp = NULL;
+            int64_t next_cluster_index = 0;
+            int64_t last_cluster_index = 0;
+            int64_t max_allocated_clusters = 0;
+            int64_t freed_clusters = 0;
+
+            if (for_commit) {
+                int64_t psize;
+
+                parent = bdrv_filter_or_cow_bs(in_bs);
+                if (parent) {
+                    sp = parent->opaque;
+                } else {
+                    error_setg(&local_err,
+                        "No parent found, cannot measure for commit");
+                    goto err;
+                }
+                psize = bdrv_getlength(parent);
+                last_cluster_index = qcow2_get_last_cluster(parent, psize);
+                max_allocated_clusters = last_cluster_index;
+            }
 
             for (offset = 0; offset < ssize; offset += pnum) {
                 int ret;
@@ -5191,16 +5217,99 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
                     goto err;
                 }
 
-                if (ret & BDRV_BLOCK_ZERO) {
-                    /* Skip zero regions (safe with no backing file) */
-                } else if ((ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) ==
-                           (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) {
+                /*
+                 * If this is a measure for_commit then we have a parent
+                 * We check the allocation status of the parent blocks to see
+                 * if we need to allocate new blocks or not.
+                 * We also keep track of the number of freed clusters.
+                 */
+                if (for_commit) {
+                    int retp;
+                    int64_t pnum_parent = 0;
+
+                    /* Check if the parent block is allocated */
+                    retp = bdrv_block_status_above(parent, NULL, offset,
+                                            ssize - offset, &pnum_parent, NULL,
+                                            NULL);
+
+                    if (retp < 0) {
+                        error_setg_errno(&local_err, -ret,
+                                            "Unable to get block status for parent");
+                        goto err;
+                    }
+                    /*
+                     * If the parent continuous block is smaller, use that pnum,
+                     * so the next iteration starts with the smallest offset.
+                     */
+                    if (pnum_parent < pnum) {
+                        pnum = pnum_parent;
+                    }
+
                     /* Extend pnum to end of cluster for next iteration */
                     pnum = ROUND_UP(offset + pnum, cluster_size) - offset;
 
-                    /* Count clusters we've seen */
-                    required += offset % cluster_size + pnum;
+                    uint64_t nb_clusters = size_to_clusters(sp, pnum);
+
+                    /*
+                     * When the block has no offset and the new
+                     * block is non-zero, we will need to
+                     * allocate a new cluster for the commit.
+                     */
+                    if (~retp & BDRV_BLOCK_OFFSET_VALID &&
+                        ~ret & BDRV_BLOCK_ZERO) {
+                        uint64_t i, refcount = 0;
+
+                    retry:
+                        for (i = 0; i < nb_clusters; i++) {
+                            int retr;
+                            next_cluster_index++;
+
+                            retr = qcow2_get_refcount(parent,
+                                next_cluster_index, &refcount);
+                            if (retr < 0) {
+                                error_setg_errno(&local_err, -retr,
+                                    "Unable to get refcount");
+                                goto err;
+                            }
+                            /* No free block found, retry */
+                            if (refcount != 0) {
+                                goto retry;
+                            }
+                        }
+                        /* Check if we have a new maximum cluster index */
+                        if ((next_cluster_index - freed_clusters) >
+                            last_cluster_index &&
+                            (next_cluster_index - freed_clusters) >
+                            max_allocated_clusters) {
+                            max_allocated_clusters =
+                                next_cluster_index - freed_clusters;
+                        }
+                    } else if (!sp->discard_no_unref &&
+                               (ret & BDRV_BLOCK_ZERO) &&
+                               (retp & BDRV_BLOCK_DATA)) {
+                        /*
+                         * Parent block is allocated but new block is zero
+                         * we can free. Except if the parent block is zero.
+                         */
+                        freed_clusters += nb_clusters;
+                    }
+                } else {
+                    if (ret & BDRV_BLOCK_ZERO) {
+                        /* Skip zero regions (safe with no backing file) */
+                    } else if (((ret &
+                                 (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) ==
+                                (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED))) {
+                        /* Extend pnum to end of cluster for next iteration */
+                        pnum = ROUND_UP(offset + pnum, cluster_size) - offset;
+
+                        /* Count clusters we've seen */
+                        required += offset % cluster_size + pnum;
+                    }
                 }
+            }
+            if (for_commit) {
+                /* Then the required size is just until the last cluster */
+                required = max_allocated_clusters << sp->cluster_bits;
             }
         }
     }
