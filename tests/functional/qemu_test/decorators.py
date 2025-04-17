@@ -5,6 +5,7 @@
 import importlib
 import os
 import platform
+import subprocess
 from unittest import skipIf, skipUnless
 
 from .cmd import which
@@ -131,3 +132,21 @@ def skipIfMissingImports(*args):
 
     return skipUnless(has_imports, 'required import(s) "%s" not installed' %
                                    ", ".join(args))
+
+'''
+Decorator to skip execution of a test if the system's
+locked memory limit is below the required threshold.
+Takes required locked memory threshold in kB.
+Example:
+
+  @skipLockedMemoryTest(2_097_152)
+'''
+def skipLockedMemoryTest(locked_memory):
+    ulimit_memory = subprocess.run(
+        ['bash', '-c', 'ulimit -l'],
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    return skipUnless(ulimit_memory == 'unlimited' or int(ulimit_memory) >= locked_memory,
+                      f'Test required {locked_memory} kB of available locked memory')
