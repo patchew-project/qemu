@@ -634,28 +634,39 @@ static int kvm_riscv_put_regs_core(CPUState *cs)
     return ret;
 }
 
-static int kvm_riscv_get_regs_csr(CPUState *cs)
+static int kvm_riscv_get_reg_csr(CPUState *cs,
+                                 KVMCPUConfig *csr_cfg)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     uint64_t reg;
+    int ret;
+
+    if (!csr_cfg->supported) {
+        return 0;
+    }
+
+    ret = kvm_get_one_reg(cs, csr_cfg->kvm_reg_id, &reg);
+    if (ret) {
+        return ret;
+    }
+
+    if (csr_cfg->prop_size == sizeof(uint32_t)) {
+        kvm_cpu_csr_set_u32(cpu, csr_cfg, reg);
+    } else {
+        kvm_cpu_csr_set_u64(cpu, csr_cfg, reg);
+    }
+
+    return 0;
+}
+
+static int kvm_riscv_get_regs_csr(CPUState *cs)
+{
     int i, ret;
 
     for (i = 0; i < ARRAY_SIZE(kvm_csr_cfgs); i++) {
-        KVMCPUConfig *csr_cfg = &kvm_csr_cfgs[i];
-
-        if (!csr_cfg->supported) {
-            continue;
-        }
-
-        ret = kvm_get_one_reg(cs, csr_cfg->kvm_reg_id, &reg);
+        ret = kvm_riscv_get_reg_csr(cs, &kvm_csr_cfgs[i]);
         if (ret) {
             return ret;
-        }
-
-        if (csr_cfg->prop_size == sizeof(uint32_t)) {
-            kvm_cpu_csr_set_u32(cpu, csr_cfg, reg);
-        } else {
-            kvm_cpu_csr_set_u64(cpu, csr_cfg, reg);
         }
     }
 
@@ -690,8 +701,11 @@ static int kvm_riscv_put_regs_csr(CPUState *cs)
     return 0;
 }
 
-static void kvm_riscv_reset_regs_csr(CPURISCVState *env)
+static void kvm_riscv_reset_regs_csr(CPUState *cs, CPURISCVState *env)
 {
+    uint64_t scounteren_kvm_id = RISCV_CSR_REG(scounteren);
+    int ret;
+
     env->mstatus = 0;
     env->mie = 0;
     env->stvec = 0;
@@ -701,8 +715,30 @@ static void kvm_riscv_reset_regs_csr(CPURISCVState *env)
     env->stval = 0;
     env->mip = 0;
     env->satp = 0;
-    env->scounteren = 0;
     env->senvcfg = 0;
+
+    /*
+     * Some kernels will take issue with env->scounteren = 0
+     * causing problems inside the KVM guest with 'rdtime'.
+     * Read 'scounteren' from the host and use it.
+     */
+    for (int i = 0; i < ARRAY_SIZE(kvm_csr_cfgs); i++) {
+        KVMCPUConfig *csr_cfg = &kvm_csr_cfgs[i];
+
+        if (csr_cfg->kvm_reg_id != scounteren_kvm_id) {
+            continue;
+        }
+
+        if (!csr_cfg->supported) {
+            break;
+        }
+
+        ret = kvm_riscv_get_reg_csr(cs, &kvm_csr_cfgs[i]);
+        if (ret) {
+            error_report("Unable to retrieve scounteren from host ,"
+                         "error %d", ret);
+        }
+    }
 }
 
 static int kvm_riscv_get_regs_fp(CPUState *cs)
@@ -1711,16 +1747,17 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 void kvm_riscv_reset_vcpu(RISCVCPU *cpu)
 {
     CPURISCVState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     int i;
 
     for (i = 0; i < 32; i++) {
         env->gpr[i] = 0;
     }
     env->pc = cpu->env.kernel_addr;
-    env->gpr[10] = kvm_arch_vcpu_id(CPU(cpu)); /* a0 */
+    env->gpr[10] = kvm_arch_vcpu_id(cs);       /* a0 */
     env->gpr[11] = cpu->env.fdt_addr;          /* a1 */
 
-    kvm_riscv_reset_regs_csr(env);
+    kvm_riscv_reset_regs_csr(cs, env);
 }
 
 void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level)
