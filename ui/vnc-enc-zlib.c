@@ -76,7 +76,7 @@ static int vnc_zlib_stop(VncState *vs)
         zstream->zalloc = vnc_zlib_zalloc;
         zstream->zfree = vnc_zlib_zfree;
 
-        err = deflateInit2(zstream, vs->tight->compression, Z_DEFLATED,
+        err = deflateInit2(zstream, vs->worker->tight.compression, Z_DEFLATED,
                            MAX_WBITS,
                            MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 
@@ -85,16 +85,16 @@ static int vnc_zlib_stop(VncState *vs)
             return -1;
         }
 
-        vs->zlib.level = vs->tight->compression;
+        vs->zlib.level = vs->worker->tight.compression;
         zstream->opaque = vs;
     }
 
-    if (vs->tight->compression != vs->zlib.level) {
-        if (deflateParams(zstream, vs->tight->compression,
+    if (vs->worker->tight.compression != vs->zlib.level) {
+        if (deflateParams(zstream, vs->worker->tight.compression,
                           Z_DEFAULT_STRATEGY) != Z_OK) {
             return -1;
         }
-        vs->zlib.level = vs->tight->compression;
+        vs->zlib.level = vs->worker->tight.compression;
     }
 
     // reserve memory in output buffer

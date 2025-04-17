@@ -261,6 +261,13 @@ typedef enum {
 
 #define VNC_MAGIC ((uint64_t)0x05b3f069b3d204bb)
 
+typedef struct VncWorker {
+    uint8_t lossy_rect[VNC_STAT_ROWS][VNC_STAT_COLS];
+
+    VncTight tight;
+    VncZrle zrle;
+} VncWorker;
+
 struct VncState
 {
     uint64_t magic;
@@ -270,8 +277,7 @@ struct VncState
     gboolean disconnecting;
 
     DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT], VNC_DIRTY_BITS);
-    uint8_t **lossy_rect; /* Not an Array to avoid costly memcpy in
-                           * vnc-jobs-async.c */
+    VncWorker *worker;
 
     VncDisplay *vd;
     VncStateUpdate update; /* Most recent pending request from client */
@@ -339,10 +345,8 @@ struct VncState
     /* Encoding specific, if you add something here, don't forget to
      *  update vnc_async_encoding_start()
      */
-    VncTight *tight;
     VncZlib zlib;
     VncHextile hextile;
-    VncZrle *zrle;
     VncZywrle zywrle;
 
     Notifier mouse_mode_notifier;

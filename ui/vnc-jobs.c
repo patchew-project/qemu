@@ -185,14 +185,12 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
     local->vnc_encoding = orig->vnc_encoding;
     local->features = orig->features;
     local->vd = orig->vd;
-    local->lossy_rect = orig->lossy_rect;
+    local->worker = orig->worker;
     local->write_pixels = orig->write_pixels;
     local->client_pf = orig->client_pf;
     local->client_be = orig->client_be;
-    local->tight = orig->tight;
     local->zlib = orig->zlib;
     local->hextile = orig->hextile;
-    local->zrle = orig->zrle;
     local->client_width = orig->client_width;
     local->client_height = orig->client_height;
 }
@@ -200,11 +198,8 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
 static void vnc_async_encoding_end(VncState *orig, VncState *local)
 {
     buffer_free(&local->output);
-    orig->tight = local->tight;
     orig->zlib = local->zlib;
     orig->hextile = local->hextile;
-    orig->zrle = local->zrle;
-    orig->lossy_rect = local->lossy_rect;
 }
 
 static bool vnc_worker_clamp_rect(VncState *vs, VncJob *job, VncRect *rect)

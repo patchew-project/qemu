@@ -116,7 +116,7 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
 
 static bool tight_can_send_png_rect(VncState *vs, int w, int h)
 {
-    if (vs->tight->type != VNC_ENCODING_TIGHT_PNG) {
+    if (vs->worker->tight.type != VNC_ENCODING_TIGHT_PNG) {
         return false;
     }
 
@@ -144,7 +144,7 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
     int pixels = 0;
     int pix, left[3];
     unsigned int errors;
-    unsigned char *buf = vs->tight->tight.buffer;
+    unsigned char *buf = vs->worker->tight.tight.buffer;
 
     /*
      * If client is big-endian, color samples begin from the second
@@ -215,7 +215,7 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
         int pixels = 0;                                                 \
         int sample, sum, left[3];                                       \
         unsigned int errors;                                            \
-        unsigned char *buf = vs->tight->tight.buffer;                    \
+        unsigned char *buf = vs->worker->tight.tight.buffer;            \
                                                                         \
         endian = 0; /* FIXME */                                         \
                                                                         \
@@ -296,8 +296,8 @@ static int
 tight_detect_smooth_image(VncState *vs, int w, int h)
 {
     unsigned int errors;
-    int compression = vs->tight->compression;
-    int quality = vs->tight->quality;
+    int compression = vs->worker->tight.compression;
+    int quality = vs->worker->tight.quality;
 
     if (!vs->vd->lossy) {
         return 0;
@@ -309,7 +309,7 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
         return 0;
     }
 
-    if (vs->tight->quality != (uint8_t)-1) {
+    if (vs->worker->tight.quality != (uint8_t)-1) {
         if (w * h < VNC_TIGHT_JPEG_MIN_RECT_SIZE) {
             return 0;
         }
@@ -320,9 +320,9 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
     }
 
     if (vs->client_pf.bytes_per_pixel == 4) {
-        if (vs->tight->pixel24) {
+        if (vs->worker->tight.pixel24) {
             errors = tight_detect_smooth_image24(vs, w, h);
-            if (vs->tight->quality != (uint8_t)-1) {
+            if (vs->worker->tight.quality != (uint8_t)-1) {
                 return (errors < tight_conf[quality].jpeg_threshold24);
             }
             return (errors < tight_conf[compression].gradient_threshold24);
@@ -352,7 +352,7 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
         uint##bpp##_t c0, c1, ci;                                       \
         int i, n0, n1;                                                  \
                                                                         \
-        data = (uint##bpp##_t *)vs->tight->tight.buffer;                \
+        data = (uint##bpp##_t *)vs->worker->tight.tight.buffer;         \
                                                                         \
         c0 = data[0];                                                   \
         i = 1;                                                          \
@@ -421,11 +421,12 @@ static int tight_fill_palette(VncState *vs, int x, int y,
                               size_t count, uint32_t *bg, uint32_t *fg,
                               VncPalette *palette)
 {
+    uint8_t compression = vs->worker->tight.compression;
     int max;
 
-    max = count / tight_conf[vs->tight->compression].idx_max_colors_divisor;
+    max = count / tight_conf[compression].idx_max_colors_divisor;
     if (max < 2 &&
-        count >= tight_conf[vs->tight->compression].mono_min_rect_size) {
+        count >= tight_conf[compression].mono_min_rect_size) {
         max = 2;
     }
     if (max >= 256) {
@@ -558,7 +559,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
     int x, y, c;
 
     buf32 = (uint32_t *)buf;
-    memset(vs->tight->gradient.buffer, 0, w * 3 * sizeof(int));
+    memset(vs->worker->tight.gradient.buffer, 0, w * 3 * sizeof(int));
 
     if (1 /* FIXME */) {
         shift[0] = vs->client_pf.rshift;
@@ -575,7 +576,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
             upper[c] = 0;
             here[c] = 0;
         }
-        prev = (int *)vs->tight->gradient.buffer;
+        prev = (int *)vs->worker->tight.gradient.buffer;
         for (x = 0; x < w; x++) {
             pix32 = *buf32++;
             for (c = 0; c < 3; c++) {
@@ -602,64 +603,64 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
  * ``Gradient'' filter for other color depths.
  */
 
-#define DEFINE_GRADIENT_FILTER_FUNCTION(bpp)                            \
-                                                                        \
-    static void                                                         \
-    tight_filter_gradient##bpp(VncState *vs, uint##bpp##_t *buf,        \
-                               int w, int h) {                          \
-        uint##bpp##_t pix, diff;                                        \
-        bool endian;                                                    \
-        int *prev;                                                      \
-        int max[3], shift[3];                                           \
-        int here[3], upper[3], left[3], upperleft[3];                   \
-        int prediction;                                                 \
-        int x, y, c;                                                    \
-                                                                        \
-        memset(vs->tight->gradient.buffer, 0, w * 3 * sizeof(int));     \
-                                                                        \
-        endian = 0; /* FIXME */                                         \
-                                                                        \
-        max[0] = vs->client_pf.rmax;                                    \
-        max[1] = vs->client_pf.gmax;                                    \
-        max[2] = vs->client_pf.bmax;                                    \
-        shift[0] = vs->client_pf.rshift;                                \
-        shift[1] = vs->client_pf.gshift;                                \
-        shift[2] = vs->client_pf.bshift;                                \
-                                                                        \
-        for (y = 0; y < h; y++) {                                       \
-            for (c = 0; c < 3; c++) {                                   \
-                upper[c] = 0;                                           \
-                here[c] = 0;                                            \
-            }                                                           \
-            prev = (int *)vs->tight->gradient.buffer;                    \
-            for (x = 0; x < w; x++) {                                   \
-                pix = *buf;                                             \
-                if (endian) {                                           \
-                    pix = bswap##bpp(pix);                              \
-                }                                                       \
-                diff = 0;                                               \
-                for (c = 0; c < 3; c++) {                               \
-                    upperleft[c] = upper[c];                            \
-                    left[c] = here[c];                                  \
-                    upper[c] = *prev;                                   \
-                    here[c] = (int)(pix >> shift[c] & max[c]);          \
-                    *prev++ = here[c];                                  \
-                                                                        \
-                    prediction = left[c] + upper[c] - upperleft[c];     \
-                    if (prediction < 0) {                               \
-                        prediction = 0;                                 \
-                    } else if (prediction > max[c]) {                   \
-                        prediction = max[c];                            \
-                    }                                                   \
-                    diff |= ((here[c] - prediction) & max[c])           \
-                        << shift[c];                                    \
-                }                                                       \
-                if (endian) {                                           \
-                    diff = bswap##bpp(diff);                            \
-                }                                                       \
-                *buf++ = diff;                                          \
-            }                                                           \
-        }                                                               \
+#define DEFINE_GRADIENT_FILTER_FUNCTION(bpp)                                \
+                                                                            \
+    static void                                                             \
+    tight_filter_gradient##bpp(VncState *vs, uint##bpp##_t *buf,            \
+                               int w, int h) {                              \
+        uint##bpp##_t pix, diff;                                            \
+        bool endian;                                                        \
+        int *prev;                                                          \
+        int max[3], shift[3];                                               \
+        int here[3], upper[3], left[3], upperleft[3];                       \
+        int prediction;                                                     \
+        int x, y, c;                                                        \
+                                                                            \
+        memset(vs->worker->tight.gradient.buffer, 0, w * 3 * sizeof(int));  \
+                                                                            \
+        endian = 0; /* FIXME */                                             \
+                                                                            \
+        max[0] = vs->client_pf.rmax;                                        \
+        max[1] = vs->client_pf.gmax;                                        \
+        max[2] = vs->client_pf.bmax;                                        \
+        shift[0] = vs->client_pf.rshift;                                    \
+        shift[1] = vs->client_pf.gshift;                                    \
+        shift[2] = vs->client_pf.bshift;                                    \
+                                                                            \
+        for (y = 0; y < h; y++) {                                           \
+            for (c = 0; c < 3; c++) {                                       \
+                upper[c] = 0;                                               \
+                here[c] = 0;                                                \
+            }                                                               \
+            prev = (int *)vs->worker->tight.gradient.buffer;                \
+            for (x = 0; x < w; x++) {                                       \
+                pix = *buf;                                                 \
+                if (endian) {                                               \
+                    pix = bswap##bpp(pix);                                  \
+                }                                                           \
+                diff = 0;                                                   \
+                for (c = 0; c < 3; c++) {                                   \
+                    upperleft[c] = upper[c];                                \
+                    left[c] = here[c];                                      \
+                    upper[c] = *prev;                                       \
+                    here[c] = (int)(pix >> shift[c] & max[c]);              \
+                    *prev++ = here[c];                                      \
+                                                                            \
+                    prediction = left[c] + upper[c] - upperleft[c];         \
+                    if (prediction < 0) {                                   \
+                        prediction = 0;                                     \
+                    } else if (prediction > max[c]) {                       \
+                        prediction = max[c];                                \
+                    }                                                       \
+                    diff |= ((here[c] - prediction) & max[c])               \
+                        << shift[c];                                        \
+                }                                                           \
+                if (endian) {                                               \
+                    diff = bswap##bpp(diff);                                \
+                }                                                           \
+                *buf++ = diff;                                              \
+            }                                                               \
+        }                                                                   \
     }
 
 DEFINE_GRADIENT_FILTER_FUNCTION(16)
@@ -785,7 +786,7 @@ static void extend_solid_area(VncState *vs, int x, int y, int w, int h,
 static int tight_init_stream(VncState *vs, int stream_id,
                              int level, int strategy)
 {
-    z_streamp zstream = &vs->tight->stream[stream_id];
+    z_streamp zstream = &vs->worker->tight.stream[stream_id];
 
     if (zstream->opaque == NULL) {
         int err;
@@ -803,15 +804,15 @@ static int tight_init_stream(VncState *vs, int stream_id,
             return -1;
         }
 
-        vs->tight->levels[stream_id] = level;
+        vs->worker->tight.levels[stream_id] = level;
         zstream->opaque = vs;
     }
 
-    if (vs->tight->levels[stream_id] != level) {
+    if (vs->worker->tight.levels[stream_id] != level) {
         if (deflateParams(zstream, level, strategy) != Z_OK) {
             return -1;
         }
-        vs->tight->levels[stream_id] = level;
+        vs->worker->tight.levels[stream_id] = level;
     }
     return 0;
 }
@@ -839,11 +840,12 @@ static void tight_send_compact_size(VncState *vs, size_t len)
 static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
                                int level, int strategy)
 {
-    z_streamp zstream = &vs->tight->stream[stream_id];
+    VncTight *tight = &vs->worker->tight;
+    z_streamp zstream = &vs->worker->tight.stream[stream_id];
     int previous_out;
 
     if (bytes < VNC_TIGHT_MIN_TO_COMPRESS) {
-        vnc_write(vs, vs->tight->tight.buffer, vs->tight->tight.offset);
+        vnc_write(vs, tight->tight.buffer,  tight->tight.offset);
         return bytes;
     }
 
@@ -852,13 +854,13 @@ static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
     }
 
     /* reserve memory in output buffer */
-    buffer_reserve(&vs->tight->zlib, bytes + 64);
+    buffer_reserve(&tight->zlib, bytes + 64);
 
     /* set pointers */
-    zstream->next_in = vs->tight->tight.buffer;
-    zstream->avail_in = vs->tight->tight.offset;
-    zstream->next_out = vs->tight->zlib.buffer + vs->tight->zlib.offset;
-    zstream->avail_out = vs->tight->zlib.capacity - vs->tight->zlib.offset;
+    zstream->next_in = tight->tight.buffer;
+    zstream->avail_in = tight->tight.offset;
+    zstream->next_out = tight->zlib.buffer + tight->zlib.offset;
+    zstream->avail_out = tight->zlib.capacity - tight->zlib.offset;
     previous_out = zstream->avail_out;
     zstream->data_type = Z_BINARY;
 
@@ -868,14 +870,14 @@ static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
         return -1;
     }
 
-    vs->tight->zlib.offset = vs->tight->zlib.capacity - zstream->avail_out;
+    tight->zlib.offset = tight->zlib.capacity - zstream->avail_out;
     /* ...how much data has actually been produced by deflate() */
     bytes = previous_out - zstream->avail_out;
 
     tight_send_compact_size(vs, bytes);
-    vnc_write(vs, vs->tight->zlib.buffer, bytes);
+    vnc_write(vs, tight->zlib.buffer, bytes);
 
-    buffer_reset(&vs->tight->zlib);
+    buffer_reset(&tight->zlib);
 
     return bytes;
 }
@@ -916,6 +918,7 @@ static void tight_pack24(VncState *vs, uint8_t *buf, size_t count, size_t *ret)
 
 static int send_full_color_rect(VncState *vs, int x, int y, int w, int h)
 {
+    int level = tight_conf[vs->worker->tight.compression].raw_zlib_level;
     int stream = 0;
     ssize_t bytes;
 
@@ -927,16 +930,15 @@ static int send_full_color_rect(VncState *vs, int x, int y, int w, int h)
 
     vnc_write_u8(vs, stream << 4); /* no flushing, no filter */
 
-    if (vs->tight->pixel24) {
-        tight_pack24(vs, vs->tight->tight.buffer, w * h,
-                     &vs->tight->tight.offset);
+    if (vs->worker->tight.pixel24) {
+        tight_pack24(vs, vs->worker->tight.tight.buffer, w * h,
+                     &vs->worker->tight.tight.offset);
         bytes = 3;
     } else {
         bytes = vs->client_pf.bytes_per_pixel;
     }
 
-    bytes = tight_compress_data(vs, stream, w * h * bytes,
-                            tight_conf[vs->tight->compression].raw_zlib_level,
+    bytes = tight_compress_data(vs, stream, w * h * bytes, level,
                             Z_DEFAULT_STRATEGY);
 
     return (bytes >= 0);
@@ -944,18 +946,19 @@ static int send_full_color_rect(VncState *vs, int x, int y, int w, int h)
 
 static int send_solid_rect(VncState *vs)
 {
+    VncTight *tight = &vs->worker->tight;
     size_t bytes;
 
     vnc_write_u8(vs, VNC_TIGHT_FILL << 4); /* no flushing, no filter */
 
-    if (vs->tight->pixel24) {
-        tight_pack24(vs, vs->tight->tight.buffer, 1, &vs->tight->tight.offset);
+    if (tight->pixel24) {
+        tight_pack24(vs, tight->tight.buffer, 1, &tight->tight.offset);
         bytes = 3;
     } else {
         bytes = vs->client_pf.bytes_per_pixel;
     }
 
-    vnc_write(vs, vs->tight->tight.buffer, bytes);
+    vnc_write(vs, tight->tight.buffer, bytes);
     return 1;
 }
 
@@ -964,7 +967,7 @@ static int send_mono_rect(VncState *vs, int x, int y,
 {
     ssize_t bytes;
     int stream = 1;
-    int level = tight_conf[vs->tight->compression].mono_zlib_level;
+    int level = tight_conf[vs->worker->tight.compression].mono_zlib_level;
 
 #ifdef CONFIG_PNG
     if (tight_can_send_png_rect(vs, w, h)) {
@@ -992,26 +995,26 @@ static int send_mono_rect(VncState *vs, int x, int y,
         uint32_t buf[2] = {bg, fg};
         size_t ret = sizeof (buf);
 
-        if (vs->tight->pixel24) {
+        if (vs->worker->tight.pixel24) {
             tight_pack24(vs, (unsigned char*)buf, 2, &ret);
         }
         vnc_write(vs, buf, ret);
 
-        tight_encode_mono_rect32(vs->tight->tight.buffer, w, h, bg, fg);
+        tight_encode_mono_rect32(vs->worker->tight.tight.buffer, w, h, bg, fg);
         break;
     }
     case 2:
         vnc_write(vs, &bg, 2);
         vnc_write(vs, &fg, 2);
-        tight_encode_mono_rect16(vs->tight->tight.buffer, w, h, bg, fg);
+        tight_encode_mono_rect16(vs->worker->tight.tight.buffer, w, h, bg, fg);
         break;
     default:
         vnc_write_u8(vs, bg);
         vnc_write_u8(vs, fg);
-        tight_encode_mono_rect8(vs->tight->tight.buffer, w, h, bg, fg);
+        tight_encode_mono_rect8(vs->worker->tight.tight.buffer, w, h, bg, fg);
         break;
     }
-    vs->tight->tight.offset = bytes;
+    vs->worker->tight.tight.offset = bytes;
 
     bytes = tight_compress_data(vs, stream, bytes, level, Z_DEFAULT_STRATEGY);
     return (bytes >= 0);
@@ -1040,8 +1043,9 @@ static void write_palette(int idx, uint32_t color, void *opaque)
 
 static bool send_gradient_rect(VncState *vs, int x, int y, int w, int h)
 {
+    VncTight *tight = &vs->worker->tight;
     int stream = 3;
-    int level = tight_conf[vs->tight->compression].gradient_zlib_level;
+    int level = tight_conf[tight->compression].gradient_zlib_level;
     ssize_t bytes;
 
     if (vs->client_pf.bytes_per_pixel == 1) {
@@ -1051,23 +1055,23 @@ static bool send_gradient_rect(VncState *vs, int x, int y, int w, int h)
     vnc_write_u8(vs, (stream | VNC_TIGHT_EXPLICIT_FILTER) << 4);
     vnc_write_u8(vs, VNC_TIGHT_FILTER_GRADIENT);
 
-    buffer_reserve(&vs->tight->gradient, w * 3 * sizeof(int));
+    buffer_reserve(&tight->gradient, w * 3 * sizeof(int));
 
-    if (vs->tight->pixel24) {
-        tight_filter_gradient24(vs, vs->tight->tight.buffer, w, h);
+    if (tight->pixel24) {
+        tight_filter_gradient24(vs, tight->tight.buffer, w, h);
         bytes = 3;
     } else if (vs->client_pf.bytes_per_pixel == 4) {
-        tight_filter_gradient32(vs, (uint32_t *)vs->tight->tight.buffer, w, h);
+        tight_filter_gradient32(vs, (uint32_t *)tight->tight.buffer, w, h);
         bytes = 4;
     } else {
-        tight_filter_gradient16(vs, (uint16_t *)vs->tight->tight.buffer, w, h);
+        tight_filter_gradient16(vs, (uint16_t *)tight->tight.buffer, w, h);
         bytes = 2;
     }
 
-    buffer_reset(&vs->tight->gradient);
+    buffer_reset(&tight->gradient);
 
     bytes = w * h * bytes;
-    vs->tight->tight.offset = bytes;
+    tight->tight.offset = bytes;
 
     bytes = tight_compress_data(vs, stream, bytes,
                                 level, Z_FILTERED);
@@ -1077,8 +1081,9 @@ static bool send_gradient_rect(VncState *vs, int x, int y, int w, int h)
 static int send_palette_rect(VncState *vs, int x, int y,
                              int w, int h, VncPalette *palette)
 {
+    VncTight *tight = &vs->worker->tight;
     int stream = 2;
-    int level = tight_conf[vs->tight->compression].idx_zlib_level;
+    int level = tight_conf[tight->compression].idx_zlib_level;
     int colors;
     ssize_t bytes;
 
@@ -1105,12 +1110,12 @@ static int send_palette_rect(VncState *vs, int x, int y,
         palette_iter(palette, write_palette, &priv);
         vnc_write(vs, header, palette_sz * sizeof(uint32_t));
 
-        if (vs->tight->pixel24) {
+        if (tight->pixel24) {
             tight_pack24(vs, vs->output.buffer + old_offset, colors, &offset);
             vs->output.offset = old_offset + offset;
         }
 
-        tight_encode_indexed_rect32(vs->tight->tight.buffer, w * h, palette);
+        tight_encode_indexed_rect32(tight->tight.buffer, w * h, palette);
         break;
     }
     case 2:
@@ -1121,14 +1126,14 @@ static int send_palette_rect(VncState *vs, int x, int y,
 
         palette_iter(palette, write_palette, &priv);
         vnc_write(vs, header, palette_sz * sizeof(uint16_t));
-        tight_encode_indexed_rect16(vs->tight->tight.buffer, w * h, palette);
+        tight_encode_indexed_rect16(tight->tight.buffer, w * h, palette);
         break;
     }
     default:
         return -1; /* No palette for 8bits colors */
     }
     bytes = w * h;
-    vs->tight->tight.offset = bytes;
+    tight->tight.offset = bytes;
 
     bytes = tight_compress_data(vs, stream, bytes,
                                 level, Z_DEFAULT_STRATEGY);
@@ -1147,7 +1152,7 @@ static int send_palette_rect(VncState *vs, int x, int y,
 static void jpeg_init_destination(j_compress_ptr cinfo)
 {
     VncState *vs = cinfo->client_data;
-    Buffer *buffer = &vs->tight->jpeg;
+    Buffer *buffer = &vs->worker->tight.jpeg;
 
     cinfo->dest->next_output_byte = (JOCTET *)buffer->buffer + buffer->offset;
     cinfo->dest->free_in_buffer = (size_t)(buffer->capacity - buffer->offset);
@@ -1157,7 +1162,7 @@ static void jpeg_init_destination(j_compress_ptr cinfo)
 static boolean jpeg_empty_output_buffer(j_compress_ptr cinfo)
 {
     VncState *vs = cinfo->client_data;
-    Buffer *buffer = &vs->tight->jpeg;
+    Buffer *buffer = &vs->worker->tight.jpeg;
 
     buffer->offset = buffer->capacity;
     buffer_reserve(buffer, 2048);
@@ -1169,7 +1174,7 @@ static boolean jpeg_empty_output_buffer(j_compress_ptr cinfo)
 static void jpeg_term_destination(j_compress_ptr cinfo)
 {
     VncState *vs = cinfo->client_data;
-    Buffer *buffer = &vs->tight->jpeg;
+    Buffer *buffer = &vs->worker->tight.jpeg;
 
     buffer->offset = buffer->capacity - cinfo->dest->free_in_buffer;
 }
@@ -1188,7 +1193,7 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
         return send_full_color_rect(vs, x, y, w, h);
     }
 
-    buffer_reserve(&vs->tight->jpeg, 2048);
+    buffer_reserve(&vs->worker->tight.jpeg, 2048);
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfo);
@@ -1223,9 +1228,9 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
 
     vnc_write_u8(vs, VNC_TIGHT_JPEG << 4);
 
-    tight_send_compact_size(vs, vs->tight->jpeg.offset);
-    vnc_write(vs, vs->tight->jpeg.buffer, vs->tight->jpeg.offset);
-    buffer_reset(&vs->tight->jpeg);
+    tight_send_compact_size(vs, vs->worker->tight.jpeg.offset);
+    vnc_write(vs, vs->worker->tight.jpeg.buffer, vs->worker->tight.jpeg.offset);
+    buffer_reset(&vs->worker->tight.jpeg);
 
     return 1;
 }
@@ -1241,7 +1246,7 @@ static void write_png_palette(int idx, uint32_t pix, void *opaque)
     VncState *vs = priv->vs;
     png_colorp color = &priv->png_palette[idx];
 
-    if (vs->tight->pixel24)
+    if (vs->worker->tight.pixel24)
     {
         color->red = (pix >> vs->client_pf.rshift) & vs->client_pf.rmax;
         color->green = (pix >> vs->client_pf.gshift) & vs->client_pf.gmax;
@@ -1266,12 +1271,12 @@ static void write_png_palette(int idx, uint32_t pix, void *opaque)
 static void png_write_data(png_structp png_ptr, png_bytep data,
                            png_size_t length)
 {
-    VncState *vs = png_get_io_ptr(png_ptr);
+    VncWorker *worker = png_get_io_ptr(png_ptr);
 
-    buffer_reserve(&vs->tight->png, vs->tight->png.offset + length);
-    memcpy(vs->tight->png.buffer + vs->tight->png.offset, data, length);
+    buffer_reserve(&worker->tight.png, worker->tight.png.offset + length);
+    memcpy(worker->tight.png.buffer + worker->tight.png.offset, data, length);
 
-    vs->tight->png.offset += length;
+    worker->tight.png.offset += length;
 }
 
 static void png_flush_data(png_structp png_ptr)
@@ -1296,8 +1301,8 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
     png_infop info_ptr;
     png_colorp png_palette = NULL;
     pixman_image_t *linebuf;
-    int level = tight_png_conf[vs->tight->compression].png_zlib_level;
-    int filters = tight_png_conf[vs->tight->compression].png_filters;
+    int level = tight_png_conf[vs->worker->tight.compression].png_zlib_level;
+    int filters = tight_png_conf[vs->worker->tight.compression].png_filters;
     uint8_t *buf;
     int dy;
 
@@ -1314,7 +1319,7 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
         return -1;
     }
 
-    png_set_write_fn(png_ptr, (void *) vs, png_write_data, png_flush_data);
+    png_set_write_fn(png_ptr, vs->worker, png_write_data, png_flush_data);
     png_set_compression_level(png_ptr, level);
     png_set_filter(png_ptr, PNG_FILTER_TYPE_DEFAULT, filters);
 
@@ -1341,23 +1346,23 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
         png_set_PLTE(png_ptr, info_ptr, png_palette, palette_size(palette));
 
         if (vs->client_pf.bytes_per_pixel == 4) {
-            tight_encode_indexed_rect32(vs->tight->tight.buffer, w * h,
+            tight_encode_indexed_rect32(vs->worker->tight.tight.buffer, w * h,
                                         palette);
         } else {
-            tight_encode_indexed_rect16(vs->tight->tight.buffer, w * h,
+            tight_encode_indexed_rect16(vs->worker->tight.tight.buffer, w * h,
                                         palette);
         }
     }
 
     png_write_info(png_ptr, info_ptr);
 
-    buffer_reserve(&vs->tight->png, 2048);
+    buffer_reserve(&vs->worker->tight.png, 2048);
     linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, w);
     buf = (uint8_t *)pixman_image_get_data(linebuf);
     for (dy = 0; dy < h; dy++)
     {
         if (color_type == PNG_COLOR_TYPE_PALETTE) {
-            memcpy(buf, vs->tight->tight.buffer + (dy * w), w);
+            memcpy(buf, vs->worker->tight.tight.buffer + (dy * w), w);
         } else {
             qemu_pixman_linebuf_fill(linebuf, vs->vd->server, w, x, y + dy);
         }
@@ -1375,27 +1380,27 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
 
     vnc_write_u8(vs, VNC_TIGHT_PNG << 4);
 
-    tight_send_compact_size(vs, vs->tight->png.offset);
-    vnc_write(vs, vs->tight->png.buffer, vs->tight->png.offset);
-    buffer_reset(&vs->tight->png);
+    tight_send_compact_size(vs, vs->worker->tight.png.offset);
+    vnc_write(vs, vs->worker->tight.png.buffer, vs->worker->tight.png.offset);
+    buffer_reset(&vs->worker->tight.png);
     return 1;
 }
 #endif /* CONFIG_PNG */
 
 static void vnc_tight_start(VncState *vs)
 {
-    buffer_reset(&vs->tight->tight);
+    buffer_reset(&vs->worker->tight.tight);
 
     // make the output buffer be the zlib buffer, so we can compress it later
-    vs->tight->tmp = vs->output;
-    vs->output = vs->tight->tight;
+    vs->worker->tight.tmp = vs->output;
+    vs->output = vs->worker->tight.tight;
 }
 
 static void vnc_tight_stop(VncState *vs)
 {
     // switch back to normal output/zlib buffers
-    vs->tight->tight = vs->output;
-    vs->output = vs->tight->tmp;
+    vs->worker->tight.tight = vs->output;
+    vs->output = vs->worker->tight.tmp;
 }
 
 static int send_sub_rect_nojpeg(VncState *vs, int x, int y, int w, int h,
@@ -1429,9 +1434,9 @@ static int send_sub_rect_jpeg(VncState *vs, int x, int y, int w, int h,
     int ret;
 
     if (colors == 0) {
-        if (force || (tight_jpeg_conf[vs->tight->quality].jpeg_full &&
+        if (force || (tight_jpeg_conf[vs->worker->tight.quality].jpeg_full &&
                       tight_detect_smooth_image(vs, w, h))) {
-            int quality = tight_conf[vs->tight->quality].jpeg_quality;
+            int quality = tight_conf[vs->worker->tight.quality].jpeg_quality;
 
             ret = send_jpeg_rect(vs, x, y, w, h, quality);
         } else {
@@ -1443,9 +1448,9 @@ static int send_sub_rect_jpeg(VncState *vs, int x, int y, int w, int h,
         ret = send_mono_rect(vs, x, y, w, h, bg, fg);
     } else if (colors <= 256) {
         if (force || (colors > 96 &&
-                      tight_jpeg_conf[vs->tight->quality].jpeg_idx &&
+                      tight_jpeg_conf[vs->worker->tight.quality].jpeg_idx &&
                       tight_detect_smooth_image(vs, w, h))) {
-            int quality = tight_conf[vs->tight->quality].jpeg_quality;
+            int quality = tight_conf[vs->worker->tight.quality].jpeg_quality;
 
             ret = send_jpeg_rect(vs, x, y, w, h, quality);
         } else {
@@ -1469,6 +1474,7 @@ static void vnc_tight_cleanup(Notifier *n, void *value)
 
 static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 {
+    VncTight *tight = &vs->worker->tight;
     uint32_t bg = 0, fg = 0;
     int colors;
     int ret = 0;
@@ -1483,20 +1489,20 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
         qemu_thread_atexit_add(&vnc_tight_cleanup_notifier);
     }
 
-    vnc_framebuffer_update(vs, x, y, w, h, vs->tight->type);
+    vnc_framebuffer_update(vs, x, y, w, h, tight->type);
 
     vnc_tight_start(vs);
     vnc_raw_send_framebuffer_update(vs, x, y, w, h);
     vnc_tight_stop(vs);
 
 #ifdef CONFIG_VNC_JPEG
-    if (!vs->vd->non_adaptive && vs->tight->quality != (uint8_t)-1) {
+    if (!vs->vd->non_adaptive && tight->quality != (uint8_t)-1) {
         double freq = vnc_update_freq(vs, x, y, w, h);
 
-        if (freq < tight_jpeg_conf[vs->tight->quality].jpeg_freq_min) {
+        if (freq < tight_jpeg_conf[tight->quality].jpeg_freq_min) {
             allow_jpeg = false;
         }
-        if (freq >= tight_jpeg_conf[vs->tight->quality].jpeg_freq_threshold) {
+        if (freq >= tight_jpeg_conf[tight->quality].jpeg_freq_threshold) {
             force_jpeg = true;
             vnc_sent_lossy_rect(vs, x, y, w, h);
         }
@@ -1506,7 +1512,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     colors = tight_fill_palette(vs, x, y, w * h, &bg, &fg, color_count_palette);
 
 #ifdef CONFIG_VNC_JPEG
-    if (allow_jpeg && vs->tight->quality != (uint8_t)-1) {
+    if (allow_jpeg && tight->quality != (uint8_t)-1) {
         ret = send_sub_rect_jpeg(vs, x, y, w, h, bg, fg, colors,
                                  color_count_palette, force_jpeg);
     } else {
@@ -1523,7 +1529,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 
 static int send_sub_rect_solid(VncState *vs, int x, int y, int w, int h)
 {
-    vnc_framebuffer_update(vs, x, y, w, h, vs->tight->type);
+    vnc_framebuffer_update(vs, x, y, w, h, vs->worker->tight.type);
 
     vnc_tight_start(vs);
     vnc_raw_send_framebuffer_update(vs, x, y, w, h);
@@ -1541,8 +1547,8 @@ static int send_rect_simple(VncState *vs, int x, int y, int w, int h,
     int rw, rh;
     int n = 0;
 
-    max_size = tight_conf[vs->tight->compression].max_rect_size;
-    max_width = tight_conf[vs->tight->compression].max_rect_width;
+    max_size = tight_conf[vs->worker->tight.compression].max_rect_size;
+    max_width = tight_conf[vs->worker->tight.compression].max_rect_width;
 
     if (split && (w > max_width || w * h > max_size)) {
         max_sub_width = (w > max_width) ? max_width : w;
@@ -1647,20 +1653,21 @@ static int find_large_solid_color_rect(VncState *vs, int x, int y,
 static int tight_send_framebuffer_update(VncState *vs, int x, int y,
                                          int w, int h)
 {
+    VncTight *tight = &vs->worker->tight;
     int max_rows;
 
     if (vs->client_pf.bytes_per_pixel == 4 && vs->client_pf.rmax == 0xFF &&
         vs->client_pf.bmax == 0xFF && vs->client_pf.gmax == 0xFF) {
-        vs->tight->pixel24 = true;
+        tight->pixel24 = true;
     } else {
-        vs->tight->pixel24 = false;
+        tight->pixel24 = false;
     }
 
 #ifdef CONFIG_VNC_JPEG
-    if (vs->tight->quality != (uint8_t)-1) {
+    if (tight->quality != (uint8_t)-1) {
         double freq = vnc_update_freq(vs, x, y, w, h);
 
-        if (freq > tight_jpeg_conf[vs->tight->quality].jpeg_freq_threshold) {
+        if (freq > tight_jpeg_conf[tight->quality].jpeg_freq_threshold) {
             return send_rect_simple(vs, x, y, w, h, false);
         }
     }
@@ -1672,8 +1679,8 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
 
     /* Calculate maximum number of rows in one non-solid rectangle. */
 
-    max_rows = tight_conf[vs->tight->compression].max_rect_size;
-    max_rows /= MIN(tight_conf[vs->tight->compression].max_rect_width, w);
+    max_rows = tight_conf[tight->compression].max_rect_size;
+    max_rows /= MIN(tight_conf[tight->compression].max_rect_width, w);
 
     return find_large_solid_color_rect(vs, x, y, w, h, max_rows);
 }
@@ -1681,33 +1688,33 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
 int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y,
                                       int w, int h)
 {
-    vs->tight->type = VNC_ENCODING_TIGHT;
+    vs->worker->tight.type = VNC_ENCODING_TIGHT;
     return tight_send_framebuffer_update(vs, x, y, w, h);
 }
 
 int vnc_tight_png_send_framebuffer_update(VncState *vs, int x, int y,
                                           int w, int h)
 {
-    vs->tight->type = VNC_ENCODING_TIGHT_PNG;
+    vs->worker->tight.type = VNC_ENCODING_TIGHT_PNG;
     return tight_send_framebuffer_update(vs, x, y, w, h);
 }
 
 void vnc_tight_clear(VncState *vs)
 {
     int i;
-    for (i = 0; i < ARRAY_SIZE(vs->tight->stream); i++) {
-        if (vs->tight->stream[i].opaque) {
-            deflateEnd(&vs->tight->stream[i]);
+    for (i = 0; i < ARRAY_SIZE(vs->worker->tight.stream); i++) {
+        if (vs->worker->tight.stream[i].opaque) {
+            deflateEnd(&vs->worker->tight.stream[i]);
         }
     }
 
-    buffer_free(&vs->tight->tight);
-    buffer_free(&vs->tight->zlib);
-    buffer_free(&vs->tight->gradient);
+    buffer_free(&vs->worker->tight.tight);
+    buffer_free(&vs->worker->tight.zlib);
+    buffer_free(&vs->worker->tight.gradient);
 #ifdef CONFIG_VNC_JPEG
-    buffer_free(&vs->tight->jpeg);
+    buffer_free(&vs->worker->tight.jpeg);
 #endif
 #ifdef CONFIG_PNG
-    buffer_free(&vs->tight->png);
+    buffer_free(&vs->worker->tight.png);
 #endif
 }
