@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/misc/unimp.h"
+#include "system/block-backend-global-state.h"
 #include "hw/arm/aspeed_soc.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
@@ -263,6 +264,8 @@ static void aspeed_soc_ast2600_init(Object *obj)
 
     object_initialize_child(obj, "sbc", &s->sbc, TYPE_ASPEED_SBC);
 
+    object_initialize_child(obj, "otpmem", &s->otpmem, TYPE_ASPEED_OTPMEM);
+
     object_initialize_child(obj, "iomem", &s->iomem, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "video", &s->video, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "dpmcu", &s->dpmcu, TYPE_UNIMPLEMENTED_DEVICE);
@@ -293,6 +296,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     qemu_irq irq;
     g_autofree char *sram_name = NULL;
+    BlockBackend *blk;
 
     /* Default boot region (SPI memory or ROMs) */
     memory_region_init(&s->spi_boot_container, OBJECT(s),
@@ -626,6 +630,21 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                                sc->irqmap[ASPEED_DEV_I3C] + i);
         /* The AST2600 I3C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i3c.devices[i]), 0, irq);
+    }
+
+    /* OTP memory */
+    blk = blk_by_name(ASPEED_OTPMEM_DRIVE);
+    if (blk) {
+        blk_set_perm(blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                     0, &error_fatal);
+        qdev_prop_set_drive(DEVICE(&s->otpmem), "drive", blk);
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->otpmem), errp)) {
+            return;
+        }
+        /* Assign OTP memory to SBC */
+        object_property_set_link(OBJECT(&s->sbc), "otpmem",
+                                 OBJECT(&s->otpmem), &error_abort);
     }
 
     /* Secure Boot Controller */

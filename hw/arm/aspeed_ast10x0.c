@@ -15,6 +15,7 @@
 #include "system/system.h"
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
+#include "system/block-backend-global-state.h"
 #include "hw/arm/aspeed_soc.h"
 
 #define ASPEED_SOC_IOMEM_SIZE 0x00200000
@@ -156,6 +157,8 @@ static void aspeed_soc_ast1030_init(Object *obj)
 
     object_initialize_child(obj, "sbc", &s->sbc, TYPE_ASPEED_SBC);
 
+    object_initialize_child(obj, "otpmem", &s->otpmem, TYPE_ASPEED_OTPMEM);
+
     for (i = 0; i < sc->wdts_num; i++) {
         snprintf(typename, sizeof(typename), "aspeed.wdt-%s", socname);
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], typename);
@@ -194,6 +197,7 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
     Error *err = NULL;
     int i;
     g_autofree char *sram_name = NULL;
+    BlockBackend *blk;
 
     if (!clock_has_source(s->sysclk)) {
         error_setg(errp, "sysclk clock must be wired up by the board code");
@@ -357,6 +361,21 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
                         sc->memmap[ASPEED_DEV_SPI1 + i]);
         aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->spi[i]), 1,
                         ASPEED_SMC_GET_CLASS(&s->spi[i])->flash_window_base);
+    }
+
+    /* OTP memory */
+    blk = blk_by_name(ASPEED_OTPMEM_DRIVE);
+    if (blk) {
+        blk_set_perm(blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                     0, &error_fatal);
+        qdev_prop_set_drive(DEVICE(&s->otpmem), "drive", blk);
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->otpmem), errp)) {
+            return;
+        }
+        /* Assign OTP memory to SBC */
+        object_property_set_link(OBJECT(&s->sbc), "otpmem",
+                                 OBJECT(&s->otpmem), &error_abort);
     }
 
     /* Secure Boot Controller */
