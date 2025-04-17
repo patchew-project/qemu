@@ -3757,6 +3757,20 @@ static bool virtio_net_check_vdpa_mac(VirtIONet *n, uint8_t *hwmac,
         if ((memcmp(hwmac, cmdline_mac, sizeof(MACAddr)) == 0)) {
             return true;
         }
+        /*
+         * 2. The hardware MAC address is NOT 0 and the MAC address in
+         *  the QEMU command line is 0.
+         *  In this case,qemu will use the hardware MAC address overwrite
+         *  the QEMU command line MAC address saved in VirtIONet->mac[0].
+         *  In the following process, QEMU will use this MAC address
+         *  to complete the initialization.
+         */
+        if (memcmp(cmdline_mac, &zero, sizeof(MACAddr)) == 0) {
+            /* overwrite the mac address with hardware address */
+            memcpy(&n->mac[0], hwmac, sizeof(n->mac));
+            memcpy(&n->nic_conf.macaddr, hwmac, sizeof(n->mac));
+            return true;
+        }
     }
 
     return false;
