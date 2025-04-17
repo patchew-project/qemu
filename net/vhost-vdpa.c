@@ -1871,6 +1871,11 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
         if (!ncs[i])
             goto err;
     }
+    /* Enable the mac check by default */
+    if (opts->has_check_mac)
+        ncs[0]->check_mac = opts->check_mac;
+    else
+        ncs[0]->check_mac = true;
 
     if (has_cvq) {
         VhostVDPAState *s0 = DO_UPCAST(VhostVDPAState, nc, ncs[0]);
