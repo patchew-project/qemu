@@ -3772,7 +3772,18 @@ static bool virtio_net_check_vdpa_mac(VirtIONet *n, uint8_t *hwmac,
             return true;
         }
     }
+    /*
+     * 3. The hardware MAC address is 0,
+     *  and the MAC address in the QEMU command line is also 0.
+     *  In this situation, QEMU generates a random MAC address and
+     *  uses CVQ/set_config to assign it to the device.
+     */
+    if ((memcmp(hwmac, &zero, sizeof(MACAddr)) == 0) &&
+        (memcmp(cmdline_mac, &zero, sizeof(MACAddr)) == 0)) {
+        memcpy(&n->mac[0], &n->nic_conf.macaddr, sizeof(n->mac));
 
+        return true;
+    }
     return false;
 }
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
