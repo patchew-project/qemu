@@ -189,7 +189,6 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
     local->write_pixels = orig->write_pixels;
     local->client_pf = orig->client_pf;
     local->client_be = orig->client_be;
-    local->zlib = orig->zlib;
     local->hextile = orig->hextile;
     local->client_width = orig->client_width;
     local->client_height = orig->client_height;
@@ -198,7 +197,6 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
 static void vnc_async_encoding_end(VncState *orig, VncState *local)
 {
     buffer_free(&local->output);
-    orig->zlib = local->zlib;
     orig->hextile = local->hextile;
 }
 

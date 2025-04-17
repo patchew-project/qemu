@@ -3258,7 +3258,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
 #ifdef CONFIG_PNG
     buffer_init(&vs->worker->tight.png,      "vnc-tight-png/%p", sioc);
 #endif
-    buffer_init(&vs->zlib.zlib,              "vnc-zlib/%p", sioc);
+    buffer_init(&vs->worker->zlib.zlib,      "vnc-zlib/%p", sioc);
     buffer_init(&vs->worker->zrle.zrle,      "vnc-zrle/%p", sioc);
     buffer_init(&vs->worker->zrle.fb,        "vnc-zrle-fb/%p", sioc);
     buffer_init(&vs->worker->zrle.zlib,      "vnc-zrle-zlib/%p", sioc);

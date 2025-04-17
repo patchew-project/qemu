@@ -265,6 +265,7 @@ typedef struct VncWorker {
     uint8_t lossy_rect[VNC_STAT_ROWS][VNC_STAT_COLS];
 
     VncTight tight;
+    VncZlib zlib;
     VncZrle zrle;
 } VncWorker;
 
@@ -345,7 +346,6 @@ struct VncState
     /* Encoding specific, if you add something here, don't forget to
      *  update vnc_async_encoding_start()
      */
-    VncZlib zlib;
     VncHextile hextile;
     VncZywrle zywrle;
 
