@@ -29,15 +29,17 @@
 
 static char *get_available_encoder(const char *encoder_list)
 {
+    char *ret = NULL;
+    char **encoder_array = NULL;
+
     g_assert(encoder_list != NULL);
 
     if (!strcmp(encoder_list, "")) {
         /* use default list */
-        encoder_list = "x264enc openh264enc";
+        encoder_list = "nvh264enc vaapih264enc x264enc openh264enc";
     }
 
-    char *ret = NULL;
-    char **encoder_array = g_strsplit(encoder_list, " ", -1);
+    encoder_array = g_strsplit(encoder_list, " ", -1);
 
     int i = 0;
     do {
@@ -69,7 +71,19 @@ static GstElement *create_encoder(const char *encoder_name)
         return NULL;
     }
 
-    if (!strcmp(encoder_name, "x264enc")) {
+    if (!strcmp(encoder_name, "nvh264enc")) {
+        g_object_set(
+            encoder,
+            "preset", 8,         /* p1 - fastest */
+            "multi-pass", 1,     /* multipass disabled */
+            "tune", 2,           /* low latency */
+            "zerolatency", true, /* low latency */
+            /* avoid access unit delimiters (Nal Unit Type 9) - not required */
+            "aud", false,
+            NULL);
+    } else if (!strcmp(encoder_name, "vaapih264enc")) {
+        g_object_set(encoder, "tune", 1, NULL); /* high compression */
+    } else if (!strcmp(encoder_name, "x264enc")) {
         g_object_set(
             encoder,
             "tune", 4, /* zerolatency */
