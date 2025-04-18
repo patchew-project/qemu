@@ -3220,6 +3220,7 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     VncState *vs, *vn;
     int has_dirty, rects = 0;
+    bool keep_dirty = false;
 
     if (QTAILQ_EMPTY(&vd->clients)) {
         update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
@@ -3247,6 +3248,9 @@ static void vnc_refresh(DisplayChangeListener *dcl)
                     vs->h264->keep_dirty--;
                 }
             }
+            if (vs->h264->keep_dirty > 0) {
+                keep_dirty = true;
+            }
         }
 
         int count = vnc_update_client(vs, client_dirty);
@@ -3264,7 +3268,7 @@ static void vnc_refresh(DisplayChangeListener *dcl)
         /* vs might be free()ed here */
     }
 
-    if (has_dirty && rects) {
+    if ((has_dirty && rects) || keep_dirty) {
         vd->dcl.update_interval /= 2;
         if (vd->dcl.update_interval < VNC_REFRESH_INTERVAL_BASE) {
             vd->dcl.update_interval = VNC_REFRESH_INTERVAL_BASE;
