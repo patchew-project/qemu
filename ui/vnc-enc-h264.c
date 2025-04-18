@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "system/runstate.h"
+
 #include "vnc.h"
 
 #include <gst/gst.h>
@@ -114,13 +116,33 @@ static GstElement *create_encoder(const char *encoder_name)
     return encoder;
 }
 
-static void destroy_encoder_context(VncState *vs)
+static void destroy_encoder_context(VncH264 *h264)
 {
-    gst_clear_object(&vs->h264->source);
-    gst_clear_object(&vs->h264->convert);
-    gst_clear_object(&vs->h264->gst_encoder);
-    gst_clear_object(&vs->h264->sink);
-    gst_clear_object(&vs->h264->pipeline);
+    GstStateChangeReturn state_change_ret;
+
+    g_assert(h264 != NULL);
+
+    VNC_DEBUG("Destroy h264 context.\n");
+
+    /*
+     * Some encoders can hang indefinetly (i.e. nvh264enc) if
+     * the pipeline is not stopped before it is destroyed
+     * (Observed on Debian bookworm).
+     */
+    if (h264->pipeline != NULL) {
+        state_change_ret = gst_element_set_state(
+            h264->pipeline, GST_STATE_NULL);
+
+        if (state_change_ret == GST_STATE_CHANGE_FAILURE) {
+            VNC_DEBUG("Unable to stop the GST pipeline\n");
+        }
+    }
+
+    gst_clear_object(&h264->source);
+    gst_clear_object(&h264->convert);
+    gst_clear_object(&h264->gst_encoder);
+    gst_clear_object(&h264->sink);
+    gst_clear_object(&h264->pipeline);
 }
 
 static bool create_encoder_context(VncState *vs, int w, int h)
@@ -132,7 +154,7 @@ static bool create_encoder_context(VncState *vs, int w, int h)
 
     if (vs->h264->sink) {
         if (w != vs->h264->width || h != vs->h264->height) {
-            destroy_encoder_context(vs);
+            destroy_encoder_context(vs->h264);
         }
     }
 
@@ -239,8 +261,14 @@ static bool create_encoder_context(VncState *vs, int w, int h)
     return TRUE;
 
  error:
-    destroy_encoder_context(vs);
+    destroy_encoder_context(vs->h264);
     return FALSE;
+}
+
+static void shutdown_h264(Notifier *n, void *opaque)
+{
+    VncH264 *h264 =  container_of(n, VncH264, shutdown_notifier);
+    destroy_encoder_context(h264);
 }
 
 bool vnc_h264_encoder_init(VncState *vs)
@@ -259,6 +287,8 @@ bool vnc_h264_encoder_init(VncState *vs)
 
     vs->h264 = g_new0(VncH264, 1);
     vs->h264->encoder_name = encoder_name;
+    vs->h264->shutdown_notifier.notify = shutdown_h264;
+    qemu_register_shutdown_notifier(&vs->h264->shutdown_notifier);
 
     VNC_DEBUG("Allow H264 using encoder '%s`\n", encoder_name);
 
@@ -362,7 +392,9 @@ void vnc_h264_clear(VncState *vs)
         return;
     }
 
-    destroy_encoder_context(vs);
+    notifier_remove(&vs->h264->shutdown_notifier);
+
+    destroy_encoder_context(vs->h264);
     g_free(vs->h264->encoder_name);
 
     g_clear_pointer(&vs->h264, g_free);

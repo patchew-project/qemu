@@ -248,6 +248,7 @@ typedef struct VncH264 {
     size_t width;
     size_t height;
     guint keep_dirty;
+    Notifier shutdown_notifier;
 } VncH264;
 #endif
 
