@@ -970,6 +970,9 @@ int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
         case VNC_ENCODING_ZYWRLE:
             n = vnc_zywrle_send_framebuffer_update(vs, x, y, w, h);
             break;
+        case VNC_ENCODING_H264:
+            n = vnc_h264_send_framebuffer_update(vs, x, y, w, h);
+            break;
         default:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
             n = vnc_raw_send_framebuffer_update(vs, x, y, w, h);
@@ -1323,6 +1326,10 @@ void vnc_disconnect_finish(VncState *vs)
     vnc_zlib_clear(vs);
     vnc_tight_clear(vs);
     vnc_zrle_clear(vs);
+
+#ifdef CONFIG_GSTREAMER
+    vnc_h264_clear(vs);
+#endif
 
 #ifdef CONFIG_VNC_SASL
     vnc_sasl_client_cleanup(vs);
@@ -2179,6 +2186,16 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vnc_set_feature(vs, VNC_FEATURE_ZYWRLE);
             vs->vnc_encoding = enc;
             break;
+#ifdef CONFIG_GSTREAMER
+        case VNC_ENCODING_H264:
+            if (vnc_h264_encoder_init(vs)) {
+                vnc_set_feature(vs, VNC_FEATURE_H264);
+                vs->vnc_encoding = enc;
+            } else {
+                VNC_DEBUG("vnc_h264_encoder_init failed\n");
+            }
+            break;
+#endif
         case VNC_ENCODING_DESKTOPRESIZE:
             vnc_set_feature(vs, VNC_FEATURE_RESIZE);
             break;
@@ -4288,6 +4305,10 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     char *id = (char *)qemu_opts_id(opts);
+
+#ifdef CONFIG_GSTREAMER
+    gst_init(NULL, NULL);
+#endif
 
     assert(id);
     vnc_display_init(id, &local_err);
