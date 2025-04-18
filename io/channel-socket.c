@@ -410,6 +410,19 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
     }
 #endif /* WIN32 */
 
+#if __APPLE__
+    /* On macOS we need to tune unix domain socket buffer for best performance.
+     * Apple recommends sizing the receive buffer at 4 times the size of the
+     * send buffer.
+     */
+    if (cioc->localAddr.ss_family == AF_UNIX) {
+        const int sndbuf_size = 1024 * 1024;
+        const int rcvbuf_size = 4 * sndbuf_size;
+        setsockopt(cioc->fd, SOL_SOCKET, SO_SNDBUF, &sndbuf_size, sizeof(sndbuf_size));
+        setsockopt(cioc->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size));
+    }
+#endif /* __APPLE__ */
+
     qio_channel_set_feature(QIO_CHANNEL(cioc),
                             QIO_CHANNEL_FEATURE_READ_MSG_PEEK);
 
