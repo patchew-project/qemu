@@ -256,6 +256,8 @@ option('vnc_sasl', type : 'feature', value : 'auto',
        description: 'SASL authentication for VNC server')
 option('vte', type : 'feature', value : 'auto',
        description: 'vte support for the gtk UI')
+option('gstreamer', type : 'feature', value : 'auto',
+       description: 'for VNC H.264 encoding with gstreamer')
 
 # GTK Clipboard implementation is disabled by default, since it may cause hangs
 # of the guest VCPUs. See gitlab issue 1150:
