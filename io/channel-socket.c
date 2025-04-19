@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qemu/module.h"
+#include "qemu/units.h"
 #include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "io/channel-watch.h"
@@ -36,6 +37,33 @@
 #endif
 
 #define SOCKET_MAX_FDS 16
+
+/*
+ * Apple recommends sizing the receive buffer at 4 times the size of the send
+ * buffer. Testing shows that 1m send buffer and 4 MiB receive buffer gives
+ * best throuput and lowest cpu usage.
+ */
+#ifdef __APPLE__
+#define UNIX_SOCKET_SEND_BUFFER_SIZE (1 * MiB)
+#define UNIX_SOCKET_RECV_BUFFER_SIZE (4 * UNIX_SOCKET_SEND_BUFFER_SIZE)
+#endif /* __APPLE__ */
+
+static void qio_channel_socket_set_buffers(QIOChannelSocket *ioc)
+{
+#ifdef __APPLE__
+    if (ioc->localAddr.ss_family == AF_UNIX) {
+        int value;
+
+        /* This is a performance optimization; don't fail on errors. */
+
+        value = UNIX_SOCKET_SEND_BUFFER_SIZE;
+        setsockopt(ioc->fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value));
+
+        value = UNIX_SOCKET_RECV_BUFFER_SIZE;
+        setsockopt(ioc->fd, SOL_SOCKET, SO_RCVBUF, &value, sizeof(value));
+    }
+#endif /* __APPLE__ */
+}
 
 SocketAddress *
 qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
@@ -173,6 +201,8 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
                                 QIO_CHANNEL_FEATURE_WRITE_ZERO_COPY);
     }
 #endif
+
+    qio_channel_socket_set_buffers(ioc);
 
     qio_channel_set_feature(QIO_CHANNEL(ioc),
                             QIO_CHANNEL_FEATURE_READ_MSG_PEEK);
@@ -409,6 +439,8 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
         qio_channel_set_feature(ioc_local, QIO_CHANNEL_FEATURE_FD_PASS);
     }
 #endif /* WIN32 */
+
+    qio_channel_socket_set_buffers(cioc);
 
     qio_channel_set_feature(QIO_CHANNEL(cioc),
                             QIO_CHANNEL_FEATURE_READ_MSG_PEEK);
