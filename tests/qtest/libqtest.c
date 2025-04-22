@@ -597,7 +597,7 @@ QTestState *qtest_init_with_env_and_capabilities(const char *var,
 QTestState *qtest_init_with_env(const char *var, const char *extra_args,
                                 bool do_connect)
 {
-    return qtest_init_with_env_and_capabilities(var, extra_args, NULL, true);
+    return qtest_init_with_env_and_capabilities(var, extra_args, NULL, do_connect);
 }
 
 QTestState *qtest_init(const char *extra_args)
