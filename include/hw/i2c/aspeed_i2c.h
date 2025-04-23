@@ -290,7 +290,7 @@ struct AspeedI2CClass {
     uint8_t num_busses;
     uint8_t reg_size;
     uint32_t reg_gap_size;
-    uint8_t gap;
+    unsigned gap;
     qemu_irq (*bus_get_irq)(AspeedI2CBus *);
 
     uint64_t pool_size;

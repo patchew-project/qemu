@@ -1215,7 +1215,7 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < aic->num_busses; i++) {
         Object *bus = OBJECT(&s->busses[i]);
-        int offset = i < aic->gap ? 1 : 5;
+        unsigned offset = i < aic->gap ? 1 : 5;
 
         if (!object_property_set_link(bus, "controller", OBJECT(s), errp)) {
             return;
@@ -1557,7 +1557,6 @@ static void aspeed_2600_i2c_class_init(ObjectClass *klass, const void *data)
 
     aic->num_busses = 16;
     aic->reg_size = 0x80;
-    aic->gap = -1; /* no gap */
     aic->bus_get_irq = aspeed_2600_i2c_bus_get_irq;
     aic->pool_size = 0x20;
     aic->pool_base = 0xC00;
@@ -1581,7 +1580,6 @@ static void aspeed_1030_i2c_class_init(ObjectClass *klass, const void *data)
 
     aic->num_busses = 14;
     aic->reg_size = 0x80;
-    aic->gap = -1; /* no gap */
     aic->bus_get_irq = aspeed_2600_i2c_bus_get_irq;
     aic->pool_size = 0x20;
     aic->pool_base = 0xC00;
@@ -1606,7 +1604,6 @@ static void aspeed_2700_i2c_class_init(ObjectClass *klass, const void *data)
     aic->num_busses = 16;
     aic->reg_size = 0x80;
     aic->reg_gap_size = 0x80;
-    aic->gap = -1; /* no gap */
     aic->bus_get_irq = aspeed_2600_i2c_bus_get_irq;
     aic->pool_size = 0x20;
     aic->pool_gap_size = 0xe0;
