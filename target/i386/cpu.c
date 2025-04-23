@@ -7267,11 +7267,23 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *edx = env->cpuid_model[(index - 0x80000002) * 4 + 3];
         break;
     case 0x80000005:
-        /* cache info (L1 cache) */
-        if (cpu->cache_info_passthrough) {
+        /*
+         * cache info (L1 cache)
+         *
+         * For !vendor_cpuid_only case, non-AMD CPU would get the wrong
+         * information, i.e., get AMD's cache model. It doesn't matter,
+         * vendor_cpuid_only has been turned on by default since
+         * PC machine v6.1.
+         */
+        if (cpu->vendor_cpuid_only &&
+            (IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env))) {
+            *eax = *ebx = *ecx = *edx = 0;
+            break;
+        } else if (cpu->cache_info_passthrough) {
             x86_cpu_get_cache_cpuid(index, 0, eax, ebx, ecx, edx);
             break;
         }
+
         *eax = (L1_DTLB_2M_ASSOC << 24) | (L1_DTLB_2M_ENTRIES << 16) |
                (L1_ITLB_2M_ASSOC <<  8) | (L1_ITLB_2M_ENTRIES);
         *ebx = (L1_DTLB_4K_ASSOC << 24) | (L1_DTLB_4K_ENTRIES << 16) |
