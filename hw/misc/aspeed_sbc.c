@@ -17,7 +17,11 @@
 #include "migration/vmstate.h"
 
 #define R_PROT          (0x000 / 4)
+#define R_CMD           (0x004 / 4)
+#define R_ADDR          (0x010 / 4)
 #define R_STATUS        (0x014 / 4)
+#define R_CAMP1         (0x020 / 4)
+#define R_CAMP2         (0x024 / 4)
 #define R_QSR           (0x040 / 4)
 
 /* R_STATUS */
@@ -57,6 +61,143 @@ static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
     return s->regs[addr];
 }
 
+static void aspeed_sbc_otpmem_read(void *opaque)
+{
+    AspeedSBCState *s = ASPEED_SBC(opaque);
+    uint32_t otp_addr, data, otp_offset;
+    bool is_data = false;
+    Error *local_err = NULL;
+
+    assert(s->otpmem);
+
+    otp_addr = s->regs[R_ADDR];
+    if (otp_addr < OTP_DATA_DWORD_COUNT) {
+        is_data = true;
+    } else if (otp_addr >= OTP_TOTAL_DWORD_COUNT) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Invalid OTP addr 0x%x\n",
+                      __func__, otp_addr);
+        return;
+    }
+    otp_offset = otp_addr << 2;
+
+    s->otpmem->ops->read(s->otpmem, otp_offset, &data, &local_err);
+    if (local_err) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to read data 0x%x, %s\n",
+                      __func__, otp_offset,
+                      error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+    s->regs[R_CAMP1] = data;
+
+    if (is_data) {
+        s->otpmem->ops->read(s->otpmem, otp_offset + 4, &data, &local_err);
+        if (local_err) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Failed to read data 0x%x, %s\n",
+                          __func__, otp_offset,
+                          error_get_pretty(local_err));
+            error_free(local_err);
+            return;
+        }
+        s->regs[R_CAMP2] = data;
+    }
+}
+
+static void mr_handler(uint32_t otp_addr, uint32_t data)
+{
+    switch (otp_addr) {
+    case MODE_REGISTER:
+    case MODE_REGISTER_A:
+    case MODE_REGISTER_B:
+        /* HW behavior, do nothing here */
+        break;
+    default:
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: Unsupported address 0x%x\n",
+                  __func__, otp_addr);
+        return;
+    }
+}
+
+static void aspeed_sbc_otpmem_write(void *opaque)
+{
+    AspeedSBCState *s = ASPEED_SBC(opaque);
+    uint32_t otp_addr, data;
+
+    otp_addr = s->regs[R_ADDR];
+    data = s->regs[R_CAMP1];
+
+    if (otp_addr == 0) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: ignore write program bit request\n",
+                      __func__);
+    } else if (otp_addr >= MODE_REGISTER) {
+        mr_handler(otp_addr, data);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unhandled OTP write address 0x%x\n",
+                      __func__, otp_addr);
+    }
+}
+
+static void aspeed_sbc_otpmem_prog(void *opaque)
+{
+    AspeedSBCState *s = ASPEED_SBC(opaque);
+    uint32_t otp_addr, value;
+    Error *local_err = NULL;
+
+    assert(s->otpmem);
+
+    otp_addr = s->regs[R_ADDR];
+    value = s->regs[R_CAMP1];
+    if (otp_addr >= OTP_TOTAL_DWORD_COUNT) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Invalid OTP addr 0x%x\n",
+                      __func__, otp_addr);
+        return;
+    }
+
+    s->otpmem->ops->prog(s->otpmem, otp_addr, value, &local_err);
+    if (local_err) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to program data 0x%x to 0x%x, %s\n",
+                      __func__, value, otp_addr,
+                      error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+}
+
+static void aspeed_sbc_handle_command(void *opaque, uint32_t cmd)
+{
+    AspeedSBCState *s = ASPEED_SBC(opaque);
+
+    s->regs[R_STATUS] &= ~(OTP_MEM_IDLE | OTP_IDLE);
+
+    switch (cmd) {
+    case READ_CMD:
+        aspeed_sbc_otpmem_read(s);
+        break;
+    case WRITE_CMD:
+        aspeed_sbc_otpmem_write(s);
+        break;
+    case PROG_CMD:
+        aspeed_sbc_otpmem_prog(s);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unknown command 0x%x\n",
+                      __func__, cmd);
+        break;
+    }
+
+    s->regs[R_STATUS] |= (OTP_MEM_IDLE | OTP_IDLE);
+}
+
+
 static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned int size)
 {
@@ -77,6 +218,9 @@ static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: write to read only register 0x%" HWADDR_PRIx "\n",
                       __func__, addr << 2);
+        return;
+    case R_CMD:
+        aspeed_sbc_handle_command(opaque, data);
         return;
     default:
         break;
@@ -139,6 +283,8 @@ static const VMStateDescription vmstate_aspeed_sbc = {
 static const Property aspeed_sbc_properties[] = {
     DEFINE_PROP_BOOL("emmc-abr", AspeedSBCState, emmc_abr, 0),
     DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
+    DEFINE_PROP_LINK("otpmem", AspeedSBCState, otpmem,
+                     TYPE_ASPEED_OTPMEM, AspeedOTPMemState *),
 };
 
 static void aspeed_sbc_class_init(ObjectClass *klass, const void *data)
