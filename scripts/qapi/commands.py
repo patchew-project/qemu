@@ -405,6 +405,10 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
             if self._gen_tracing:
                 self._gen_trace_events.add(gen_trace(name))
         with self._temp_module('./init'):
+            # TODO: This if guard should be implemented as a runtime check
+            # instead of #ifdef based ifcond.
+            # "#if TARGET_S390X && CONFIG_KVM" will become:
+            # "if (target_s390x() || kvm_enabled()) {"
             with ifcontext(ifcond, self._genh, self._genc):
                 self._genc.add(gen_register_command(
                     name, features, success_response, allow_oob,

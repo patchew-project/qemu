@@ -206,6 +206,8 @@ def gen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]],
     def do_gen(ifcond: Union[str, Dict[str, Any]],
                need_parens: bool) -> str:
         if isinstance(ifcond, str):
+            if ifcond.startswith('TARGET_') or ifcond == 'CONFIG_KVM':
+                return '1 /*' + ifcond + '*/'
             return cond_fmt % ifcond
         assert isinstance(ifcond, dict) and len(ifcond) == 1
         if 'not' in ifcond:
@@ -247,7 +249,7 @@ def gen_endif(cond: str) -> str:
     if not cond:
         return ''
     return mcgen('''
-#endif /* %(cond)s */
+#endif // %(cond)s
 ''', cond=cond)
 
 
