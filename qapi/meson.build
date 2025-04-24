@@ -147,3 +147,6 @@ foreach output : qapi_specific_outputs + qapi_nonmodule_outputs
   specific_ss.add(when: 'CONFIG_SYSTEM_ONLY', if_true: qapi_files[i])
   i = i + 1
 endforeach
+
+system_ss.add(when: 'CONFIG_SYSTEM_ONLY',
+              if_true: files('commands-weak-stubs.c'))
