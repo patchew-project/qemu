@@ -849,13 +849,30 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
     bdrv_graph_co_rdunlock();
 
     if (s->zero_target) {
+        offset = 0;
+        bdrv_graph_co_rdlock();
+        ret = bdrv_co_is_all_zeroes(target_bs);
+        bdrv_graph_co_rdunlock();
+        if (ret < 0) {
+            return ret;
+        }
+        /*
+         * If the destination already reads as zero, and we are not
+         * requested to punch holes into existing zeroes, then we can
+         * skip pre-zeroing the destination.
+         */
+        if (ret > 0 &&
+            (target_bs->detect_zeroes != BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP ||
+             !bdrv_can_write_zeroes_with_unmap(target_bs))) {
+            offset = s->bdev_length;
+        }
         if (!bdrv_can_write_zeroes_with_unmap(target_bs)) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, 0, s->bdev_length);
             return 0;
         }
 
         s->initial_zeroing_ongoing = true;
-        for (offset = 0; offset < s->bdev_length; ) {
+        while (offset < s->bdev_length) {
             int bytes = MIN(s->bdev_length - offset,
                             QEMU_ALIGN_DOWN(INT_MAX, s->granularity));
 
