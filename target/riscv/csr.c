@@ -2111,10 +2111,13 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     val &= env->misa_ext_mask;
 
     /*
-     * Suppress 'C' if next instruction is not aligned
-     * TODO: this should check next_pc
+     * Suppress 'C' if next instruction is not aligned.
+     * Outside of the context of a running cpu, env->pc contains next_pc.
+     * Within the context of a running cpu, env->pc contains the pc of
+     * the csrw/csrrw instruction.  But since all such instructions are
+     * exactly 4 bytes, next_pc has the same alignment mod 4.
      */
-    if ((val & RVC) && (GETPC() & ~3) != 0) {
+    if ((val & RVC) && (env->pc & ~3) != 0) {
         val &= ~RVC;
     }
 
