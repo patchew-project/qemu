@@ -50,6 +50,7 @@
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"
 #include "qapi/error.h"
+#include "exec/target_page.h"
 #include "migration/blocker.h"
 
 #include "system/hvf.h"
