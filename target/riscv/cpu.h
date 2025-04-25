@@ -396,7 +396,14 @@ struct CPUArchState {
      */
     bool two_stage_indirect_lookup;
 
-    uint32_t scounteren;
+    /*
+     * scounteren is supposed to be an uint32_t, as the spec
+     * says. We're using a target_ulong instead because the
+     * scounteren KVM CSR is defined as target_ulong in
+     * kvm_riscv_csr, and we want to avoid having to deal
+     * with an ulong reg being read/written in an uint32_t.
+     */
+    target_ulong scounteren;
     uint32_t mcounteren;
 
     uint32_t scountinhibit;
