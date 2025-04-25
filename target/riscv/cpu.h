@@ -396,8 +396,8 @@ struct CPUArchState {
      */
     bool two_stage_indirect_lookup;
 
-    uint32_t scounteren;
-    uint32_t mcounteren;
+    target_ulong scounteren;
+    target_ulong mcounteren;
 
     uint32_t scountinhibit;
     uint32_t mcountinhibit;
