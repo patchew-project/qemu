@@ -239,9 +239,7 @@ static int coroutine_fn null_co_block_status(BlockDriverState *bs,
     *map = offset;
     *file = bs;
 
-    if (s->read_zeroes) {
-        ret |= BDRV_BLOCK_ZERO;
-    }
+    ret |= s->read_zeroes ? BDRV_BLOCK_ZERO : BDRV_BLOCK_DATA;
     return ret;
 }
 
