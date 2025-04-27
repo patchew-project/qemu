@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qemu/module.h"
+#include "qemu/units.h"
 #include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "io/channel-watch.h"
@@ -36,6 +37,33 @@
 #endif
 
 #define SOCKET_MAX_FDS 16
+
+/*
+ * Testing shows that 2m send buffer gives best throuput and lowest cpu usage.
+ * Changing the receive buffer size has no effect on performance.
+ */
+#ifdef __APPLE__
+#define UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE (2 * MiB)
+#endif /* __APPLE__ */
+
+static void qio_channel_socket_set_buffers(QIOChannelSocket *ioc)
+{
+    if (ioc->localAddr.ss_family == AF_UNIX) {
+        int type;
+        socklen_t type_len = sizeof(type);
+
+        if (getsockopt(ioc->fd, SOL_SOCKET, SO_TYPE, &type, &type_len) == -1) {
+            return;
+        }
+
+#ifdef UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE
+        if (type == SOCK_STREAM) {
+            const int value = UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE;
+            setsockopt(ioc->fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value));
+        }
+#endif /* UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE */
+    }
+}
 
 SocketAddress *
 qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
@@ -173,6 +201,8 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
                                 QIO_CHANNEL_FEATURE_WRITE_ZERO_COPY);
     }
 #endif
+
+    qio_channel_socket_set_buffers(ioc);
 
     qio_channel_set_feature(QIO_CHANNEL(ioc),
                             QIO_CHANNEL_FEATURE_READ_MSG_PEEK);
@@ -409,6 +439,8 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
         qio_channel_set_feature(ioc_local, QIO_CHANNEL_FEATURE_FD_PASS);
     }
 #endif /* WIN32 */
+
+    qio_channel_socket_set_buffers(cioc);
 
     qio_channel_set_feature(QIO_CHANNEL(cioc),
                             QIO_CHANNEL_FEATURE_READ_MSG_PEEK);
