@@ -3297,10 +3297,17 @@
 #     false, the buffer is left unchanged.
 #     (default: false; since: 4.1)
 #
+# @read-pattern: if set, reads from the device produce the specified
+#     pattern; if unset, the buffer is left unchanged.
+#     (since: 10.1)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNull',
-  'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
+  'data': { '*size': 'int',
+            '*latency-ns': 'uint64',
+            '*read-zeroes': 'bool',
+            '*read-pattern': 'int' } }
 
 ##
 # @BlockdevOptionsNVMe:

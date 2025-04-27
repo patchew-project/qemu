@@ -22,11 +22,14 @@
 
 #define NULL_OPT_LATENCY "latency-ns"
 #define NULL_OPT_ZEROES  "read-zeroes"
+#define NULL_OPT_PATTERN  "read-pattern"
 
 typedef struct {
     int64_t length;
     int64_t latency_ns;
     bool read_zeroes;
+    bool has_read_pattern;
+    int read_pattern;
 } BDRVNullState;
 
 static QemuOptsList runtime_opts = {
@@ -48,6 +51,11 @@ static QemuOptsList runtime_opts = {
             .name = NULL_OPT_ZEROES,
             .type = QEMU_OPT_BOOL,
             .help = "return zeroes when read",
+        },
+        {
+            .name = NULL_OPT_PATTERN,
+            .type = QEMU_OPT_NUMBER,
+            .help = "return pattern when read",
         },
         { /* end of list */ }
     },
@@ -95,6 +103,10 @@ static int null_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
     }
     s->read_zeroes = qemu_opt_get_bool(opts, NULL_OPT_ZEROES, false);
+    s->has_read_pattern = qemu_opt_find(opts, NULL_OPT_PATTERN) != NULL;
+    if (s->has_read_pattern) {
+        s->read_pattern = qemu_opt_get_number(opts, NULL_OPT_PATTERN, 0);
+    }
     qemu_opts_del(opts);
     bs->supported_write_flags = BDRV_REQ_FUA;
     return ret;
@@ -125,6 +137,8 @@ static coroutine_fn int null_co_preadv(BlockDriverState *bs,
 
     if (s->read_zeroes) {
         qemu_iovec_memset(qiov, 0, 0, bytes);
+    } else if (s->has_read_pattern) {
+        qemu_iovec_memset(qiov, 0, s->read_pattern, bytes);
     }
 
     return null_co_common(bs);
@@ -199,6 +213,8 @@ static BlockAIOCB *null_aio_preadv(BlockDriverState *bs,
 
     if (s->read_zeroes) {
         qemu_iovec_memset(qiov, 0, 0, bytes);
+    } else if (s->has_read_pattern) {
+        qemu_iovec_memset(qiov, 0, s->read_pattern, bytes);
     }
 
     return null_aio_common(bs, cb, opaque);
@@ -272,6 +288,7 @@ null_co_get_allocated_file_size(BlockDriverState *bs)
 static const char *const null_strong_runtime_opts[] = {
     BLOCK_OPT_SIZE,
     NULL_OPT_ZEROES,
+    NULL_OPT_PATTERN,
 
     NULL
 };
