@@ -39,12 +39,13 @@
 #define SOCKET_MAX_FDS 16
 
 /*
- * Testing shows that 2m send buffer gives best throuput and lowest cpu usage.
- * Changing the receive buffer size has no effect on performance.
+ * Testing shows that 2m send buffer is optimal. Changing the receive buffer
+ * size has no effect on performance.
+ * On Linux we need to increase net.core.wmem_max to make this effective.
  */
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
 #define UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE (2 * MiB)
-#endif /* __APPLE__ */
+#endif
 
 static void qio_channel_socket_set_buffers(QIOChannelSocket *ioc)
 {
