@@ -20,6 +20,8 @@
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 /* how many times do we update time per sec */
 #define NUM_TIME_UPDATE_PER_SEC 10
 #define NSEC_IN_ONE_SEC (1000 * 1000 * 1000)
@@ -129,6 +131,18 @@ static void plugin_exit(qemu_plugin_id_t id, void *udata)
     qemu_plugin_scoreboard_free(vcpus);
 }
 
+typedef struct {
+    const char* suffix;
+    unsigned long multipler;
+} scale_entry;
+
+/* a bit like units.h but not binary */
+static scale_entry scales[] = {
+    { "khz", 1000 },
+    { "mhz", 1000 * 1000 },
+    { "ghz", 1000 * 1000 * 1000 },
+};
+
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            const qemu_info_t *info, int argc,
                                            char **argv)
@@ -137,11 +151,18 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         char *opt = argv[i];
         g_auto(GStrv) tokens = g_strsplit(opt, "=", 2);
         if (g_strcmp0(tokens[0], "ips") == 0) {
-            max_insn_per_second = g_ascii_strtoull(tokens[1], NULL, 10);
+            char *endptr = NULL;
+            max_insn_per_second = g_ascii_strtoull(tokens[1], &endptr, 10);
             if (!max_insn_per_second && errno) {
                 fprintf(stderr, "%s: couldn't parse %s (%s)\n",
                         __func__, tokens[1], g_strerror(errno));
                 return -1;
+            }
+            for (int j = 0; j < ARRAY_SIZE(scales); j++) {
+                if (g_str_has_suffix(endptr, scales[j].suffix)) {
+                        max_insn_per_second *= scales[j].multipler;
+                        break;
+                }
             }
         } else {
             fprintf(stderr, "option parsing failed: %s\n", opt);
