@@ -4238,6 +4238,12 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
         vtd_dev_as->iova_tree = iova_tree_new();
 
+        /*
+         * memory_region_add_subregion_overlap requires the bql,
+         * make sure we own it.
+         */
+        BQL_LOCK_GUARD();
+
         memory_region_init(&vtd_dev_as->root, OBJECT(s), name, UINT64_MAX);
         address_space_init(&vtd_dev_as->as, &vtd_dev_as->root, "vtd-root");
 
