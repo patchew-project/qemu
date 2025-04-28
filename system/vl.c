@@ -142,6 +142,10 @@
 #include "qemu/guest-random.h"
 #include "qemu/keyval.h"
 
+#ifdef CONFIG_GSTREAMER
+#include <gst/gst.h>
+#endif
+
 #define MAX_VIRTIO_CONSOLES 1
 
 typedef struct BlockdevOptionsQueueEntry {
@@ -2849,6 +2853,10 @@ void qemu_init(int argc, char **argv)
     MachineClass *machine_class;
     bool userconfig = true;
     FILE *vmstate_dump_file = NULL;
+
+#ifdef CONFIG_GSTREAMER
+    gst_init(&argc, &argv);
+#endif
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
