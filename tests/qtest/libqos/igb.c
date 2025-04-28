@@ -103,11 +103,15 @@ static void igb_pci_start_hw(QOSGraphObject *obj)
     e1000e_macreg_write(&d->e1000e, E1000_RDLEN(0), E1000E_RING_LEN);
     e1000e_macreg_write(&d->e1000e, E1000_RDT(0), 0);
     e1000e_macreg_write(&d->e1000e, E1000_RDH(0), 0);
+    uint32_t safe32_address;
+    memcpy(&safe32_address, address, sizeof(uint32_t));
     e1000e_macreg_write(&d->e1000e, E1000_RA,
-                        le32_to_cpu(*(uint32_t *)address));
+                        le32_to_cpu(safe32_address));
+    uint16_t safe16_address;
+    memcpy(&safe16_address, (address + 4), sizeof(uint16_t));
     e1000e_macreg_write(&d->e1000e, E1000_RA + 4,
                         E1000_RAH_AV | E1000_RAH_POOL_1 |
-                        le16_to_cpu(*(uint16_t *)(address + 4)));
+                        le16_to_cpu(safe16_address));
 
     /* Set supported receive descriptor mode */
     e1000e_macreg_write(&d->e1000e,
