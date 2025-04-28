@@ -224,6 +224,7 @@ docker-run: docker-qemu-src
 			$(if $(NOUSER),,				\
 				-e CCACHE_DIR=/var/tmp/ccache 		\
 				-v $(DOCKER_CCACHE_DIR):/var/tmp/ccache:z \
+				-v $(HOME)/.cache:$(HOME)/.cache 	\
 			)						\
 			-v $$(readlink -e $(DOCKER_SRC_COPY)):/var/tmp/qemu:z$(COMMA)ro \
 			$(IMAGE) 					\
