@@ -970,6 +970,11 @@ int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
         case VNC_ENCODING_ZYWRLE:
             n = vnc_zywrle_send_framebuffer_update(vs, x, y, w, h);
             break;
+#ifdef CONFIG_GSTREAMER
+        case VNC_ENCODING_H264:
+            n = vnc_h264_send_framebuffer_update(vs);
+            break;
+#endif
         default:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
             n = vnc_raw_send_framebuffer_update(vs, x, y, w, h);
@@ -1152,6 +1157,14 @@ static int vnc_update_client(VncState *vs, int has_dirty)
         return 0;
     }
 
+    if (vs->vnc_encoding == VNC_ENCODING_H264) {
+        vs->job_update = vs->update;
+        vs->update = VNC_STATE_UPDATE_NONE;
+        vnc_job_push(vnc_job_new(vs)); /* fullscreen update */
+        vs->has_dirty = 0;
+        return 1;
+    }
+
     vs->has_dirty += has_dirty;
     if (!vnc_should_update(vs)) {
         return 0;
@@ -1204,7 +1217,11 @@ static int vnc_update_client(VncState *vs, int has_dirty)
 
     vs->job_update = vs->update;
     vs->update = VNC_STATE_UPDATE_NONE;
-    vnc_job_push(job);
+    if (QLIST_EMPTY(&job->rectangles)) {
+        g_free(job);
+    } else {
+        vnc_job_push(job);
+    }
     vs->has_dirty = 0;
     return n;
 }
@@ -1323,6 +1340,10 @@ void vnc_disconnect_finish(VncState *vs)
     vnc_zlib_clear(vs);
     vnc_tight_clear(vs);
     vnc_zrle_clear(vs);
+
+#ifdef CONFIG_GSTREAMER
+    vnc_h264_clear(vs);
+#endif
 
 #ifdef CONFIG_VNC_SASL
     vnc_sasl_client_cleanup(vs);
@@ -2179,6 +2200,16 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vnc_set_feature(vs, VNC_FEATURE_ZYWRLE);
             vs->vnc_encoding = enc;
             break;
+#ifdef CONFIG_GSTREAMER
+        case VNC_ENCODING_H264:
+            if (vnc_h264_encoder_init(vs)) {
+                vnc_set_feature(vs, VNC_FEATURE_H264);
+                vs->vnc_encoding = enc;
+            } else {
+                VNC_DEBUG("vnc_h264_encoder_init failed\n");
+            }
+            break;
+#endif
         case VNC_ENCODING_DESKTOPRESIZE:
             vnc_set_feature(vs, VNC_FEATURE_RESIZE);
             break;

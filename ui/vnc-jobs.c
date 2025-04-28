@@ -111,7 +111,7 @@ int vnc_job_add_rect(VncJob *job, int x, int y, int w, int h)
 void vnc_job_push(VncJob *job)
 {
     vnc_lock_queue(queue);
-    if (queue->exit || QLIST_EMPTY(&job->rectangles)) {
+    if (queue->exit) {
         g_free(job);
     } else {
         QTAILQ_INSERT_TAIL(&queue->jobs, job, next);
@@ -193,6 +193,9 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
     local->zlib = orig->zlib;
     local->hextile = orig->hextile;
     local->zrle = orig->zrle;
+#ifdef CONFIG_GSTREAMER
+    local->h264 = orig->h264;
+#endif
     local->client_width = orig->client_width;
     local->client_height = orig->client_height;
 }
@@ -204,6 +207,9 @@ static void vnc_async_encoding_end(VncState *orig, VncState *local)
     orig->zlib = local->zlib;
     orig->hextile = local->hextile;
     orig->zrle = local->zrle;
+#ifdef CONFIG_GSTREAMER
+    orig->h264 = local->h264;
+#endif
     orig->lossy_rect = local->lossy_rect;
 }
 
@@ -284,25 +290,40 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
     vnc_write_u16(&vs, 0);
 
     vnc_lock_display(job->vs->vd);
-    QLIST_FOREACH_SAFE(entry, &job->rectangles, next, tmp) {
-        int n;
 
-        if (job->vs->ioc == NULL) {
-            vnc_unlock_display(job->vs->vd);
-            /* Copy persistent encoding data */
-            vnc_async_encoding_end(job->vs, &vs);
-            goto disconnected;
+    if (QLIST_EMPTY(&job->rectangles)) {
+        /* Send full screen update (used by h264 encoder) */
+        int width = pixman_image_get_width(vs.vd->server);
+        int height = pixman_image_get_height(vs.vd->server);
+        int n = vnc_send_framebuffer_update(&vs, 0, 0, width, height);
+        if (n >= 0) {
+            n_rectangles += n;
         }
+    } else {
+        QLIST_FOREACH_SAFE(entry, &job->rectangles, next, tmp) {
+            int n;
 
-        if (vnc_worker_clamp_rect(&vs, job, &entry->rect)) {
-            n = vnc_send_framebuffer_update(&vs, entry->rect.x, entry->rect.y,
-                                            entry->rect.w, entry->rect.h);
-
-            if (n >= 0) {
-                n_rectangles += n;
+            if (job->vs->ioc == NULL) {
+                vnc_unlock_display(job->vs->vd);
+                /* Copy persistent encoding data */
+                vnc_async_encoding_end(job->vs, &vs);
+                goto disconnected;
             }
+
+            if (vnc_worker_clamp_rect(&vs, job, &entry->rect)) {
+                n = vnc_send_framebuffer_update(
+                    &vs,
+                    entry->rect.x,
+                    entry->rect.y,
+                    entry->rect.w,
+                    entry->rect.h);
+
+                if (n >= 0) {
+                    n_rectangles += n;
+                }
+            }
+            g_free(entry);
         }
-        g_free(entry);
     }
     trace_vnc_job_nrects(&vs, job, n_rectangles);
     vnc_unlock_display(job->vs->vd);
