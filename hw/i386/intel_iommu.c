@@ -4203,11 +4203,15 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
         .pasid = pasid,
     };
     VTDAddressSpace *vtd_dev_as;
+    struct vtd_as_key *new_key = NULL;
     char name[128];
 
+    vtd_iommu_lock(s);
     vtd_dev_as = g_hash_table_lookup(s->vtd_address_spaces, &key);
+    vtd_iommu_unlock(s);
+
     if (!vtd_dev_as) {
-        struct vtd_as_key *new_key = g_malloc(sizeof(*new_key));
+        new_key = g_malloc(sizeof(*new_key));
 
         new_key->bus = bus;
         new_key->devfn = devfn;
@@ -4302,9 +4306,29 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
                                             &vtd_dev_as->nodmar, 0);
 
         vtd_switch_address_space(vtd_dev_as);
-
-        g_hash_table_insert(s->vtd_address_spaces, new_key, vtd_dev_as);
     }
+
+    if (new_key != NULL) {
+        VTDAddressSpace *second_vtd_dev_as;
+
+        /*
+         * Take the lock again and recheck as the AS might have
+         * been created in the meantime.
+         */
+        vtd_iommu_lock(s);
+
+        second_vtd_dev_as = g_hash_table_lookup(s->vtd_address_spaces, &key);
+        if (!second_vtd_dev_as) {
+            g_hash_table_insert(s->vtd_address_spaces, new_key, vtd_dev_as);
+        } else {
+            vtd_dev_as = second_vtd_dev_as;
+            g_free(vtd_dev_as);
+            g_free(new_key);
+        }
+
+        vtd_iommu_unlock(s);
+    }
+
     return vtd_dev_as;
 }
 
