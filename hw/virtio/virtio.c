@@ -182,6 +182,7 @@ const char *virtio_device_names[] = {
     [VIRTIO_ID_FS] = "virtio-user-fs",
     [VIRTIO_ID_PMEM] = "virtio-pmem",
     [VIRTIO_ID_RPMB] = "virtio-rpmb",
+    [VIRTIO_ID_RDMA] = "virtio-rdma",
     [VIRTIO_ID_MAC80211_HWSIM] = "virtio-mac-hwsim",
     [VIRTIO_ID_VIDEO_ENCODER] = "virtio-vid-encoder",
     [VIRTIO_ID_VIDEO_DECODER] = "virtio-vid-decoder",
