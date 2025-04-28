@@ -2202,11 +2202,11 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
 #ifdef CONFIG_GSTREAMER
         case VNC_ENCODING_H264:
-            if (vnc_h264_encoder_init(vs)) {
-                vnc_set_feature(vs, VNC_FEATURE_H264);
-                vs->vnc_encoding = enc;
-            } else {
-                VNC_DEBUG("vnc_h264_encoder_init failed\n");
+            if (vs->vd->h264_encoder_list != NULL) { /* if h264 is enabled */
+                if (vnc_h264_encoder_init(vs)) {
+                    vnc_set_feature(vs, VNC_FEATURE_H264);
+                    vs->vnc_encoding = enc;
+                }
             }
             break;
 #endif
@@ -3634,6 +3634,12 @@ static QemuOptsList qemu_vnc_opts = {
         },{
             .name = "power-control",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "h264",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "h264-encoders",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -4193,6 +4199,19 @@ void vnc_display_open(const char *id, Error **errp)
         if (saslauthz) {
             vd->sasl.authzid = g_strdup(saslauthz);
         }
+    }
+#endif
+
+#ifdef CONFIG_GSTREAMER
+    if (qemu_opt_get_bool(opts, "h264", true)) {
+        const char *h264_encoders = qemu_opt_get(opts, "h264-encoders");
+        if (h264_encoders) {
+            vd->h264_encoder_list = h264_encoders;
+        } else {
+            vd->h264_encoder_list = ""; /* use default encoder list */
+        }
+    } else {
+        vd->h264_encoder_list = NULL; /* disable h264 */
     }
 #endif
 
