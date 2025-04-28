@@ -51,6 +51,7 @@
 #include "qemu/thread.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
+#include "ui/console.h"
 #include "system/cpus.h"
 #include "system/qtest.h"
 #include "system/replay.h"
@@ -924,6 +925,7 @@ void qemu_cleanup(int status)
     job_cancel_sync_all();
     bdrv_close_all();
 
+    vnc_cleanup();
     /* vhost-user must be cleaned up before chardevs.  */
     tpm_cleanup();
     net_cleanup();

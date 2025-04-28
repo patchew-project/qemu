@@ -4364,6 +4364,21 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+void vnc_cleanup(void)
+{
+    VncDisplay *vd;
+    VncState *vs;
+
+    QTAILQ_FOREACH(vd, &vnc_displays, next) {
+        QTAILQ_FOREACH(vs, &vd->clients, next) {
+#ifdef CONFIG_GSTREAMER
+            /* correctly close all h264 encoder pipelines */
+            vnc_h264_clear(vs);
+#endif
+        }
+    }
+}
+
 static void vnc_register_config(void)
 {
     qemu_add_opts(&qemu_vnc_opts);

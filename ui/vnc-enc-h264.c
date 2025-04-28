@@ -95,6 +95,24 @@ static GstElement *create_encoder(const char *encoder_name)
 
 static void destroy_encoder_context(VncState *vs)
 {
+    GstStateChangeReturn state_change_ret;
+
+    VNC_DEBUG("Destroy h264 context.\n");
+
+    /*
+     * Some encoders can hang indefinitely (i.e. nvh264enc) if
+     * the pipeline is not stopped before it is destroyed
+     * (Observed on Debian bookworm).
+     */
+    if (vs->h264->pipeline != NULL) {
+        state_change_ret = gst_element_set_state(
+            vs->h264->pipeline, GST_STATE_NULL);
+
+        if (state_change_ret == GST_STATE_CHANGE_FAILURE) {
+            VNC_DEBUG("Unable to stop the GST pipeline\n");
+        }
+    }
+
     gst_clear_object(&vs->h264->source);
     gst_clear_object(&vs->h264->convert);
     gst_clear_object(&vs->h264->gst_encoder);
