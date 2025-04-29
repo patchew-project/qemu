@@ -656,21 +656,13 @@ static void object_property_del_all(Object *obj)
     g_autoptr(GHashTable) done = g_hash_table_new(NULL, NULL);
     ObjectProperty *prop;
     ObjectPropertyIterator iter;
-    bool released;
 
-    do {
-        released = false;
-        object_property_iter_init(&iter, obj);
-        while ((prop = object_property_iter_next(&iter)) != NULL) {
-            if (g_hash_table_add(done, prop)) {
-                if (prop->release) {
-                    prop->release(obj, prop->name, prop->opaque);
-                    released = true;
-                    break;
-                }
-            }
+    object_property_iter_init(&iter, obj);
+    while ((prop = object_property_iter_next(&iter)) != NULL) {
+        if (prop->release) {
+            prop->release(obj, prop->name, prop->opaque);
         }
-    } while (released);
+    }
 
     g_hash_table_unref(obj->properties);
 }
