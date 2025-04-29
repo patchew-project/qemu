@@ -85,6 +85,7 @@ blobs = [
   'npcm8xx_bootrom.bin',
   'vof.bin',
   'vof-nvram.bin',
+  'ast27x0_bootrom.bin',
 ]
 
 if get_option('install_blobs')
