@@ -231,6 +231,7 @@ static void release_drive(Object *obj, const char *name, void *opaque)
     if (*ptr) {
         blockdev_auto_del(*ptr);
         blk_detach_dev(*ptr, dev);
+        *ptr = NULL;
     }
 }
 
