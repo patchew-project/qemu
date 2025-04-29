@@ -3536,6 +3536,7 @@ F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/data/vmstate-static-checker/
 F: tests/functional/test_migration.py
+F: tests/functional/test_vmstate.py
 F: tests/qtest/migration/
 F: tests/qtest/migration-*
 F: docs/devel/migration/
