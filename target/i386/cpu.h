@@ -2164,7 +2164,6 @@ struct ArchCPU {
     uint8_t hyperv_ver_id_sb;
     uint32_t hyperv_ver_id_sn;
 
-    bool check_cpuid;
     bool enforce_cpuid;
     /*
      * Force features to be enabled even if the host doesn't support them.
