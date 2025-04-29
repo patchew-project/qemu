@@ -40,6 +40,7 @@ enum s390_reset {
     /* default is a reset not triggered by a CPU e.g. issued by QMP */
     S390_RESET_EXTERNAL = 0,
     S390_RESET_REIPL,
+    S390_RESET_REIPL_CLEAR,
     S390_RESET_MODIFIED_CLEAR,
     S390_RESET_LOAD_NORMAL,
     S390_RESET_PV,

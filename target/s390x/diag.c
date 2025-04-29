@@ -105,8 +105,7 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
         s390_ipl_reset_request(cs, S390_RESET_LOAD_NORMAL);
         break;
     case DIAG308_LOAD_CLEAR:
-        /* Well we still lack the clearing bit... */
-        s390_ipl_reset_request(cs, S390_RESET_REIPL);
+        s390_ipl_reset_request(cs, S390_RESET_REIPL_CLEAR);
         break;
     case DIAG308_SET:
     case DIAG308_PV_SET:

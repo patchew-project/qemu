@@ -457,6 +457,7 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
     enum s390_reset reset_type;
     CPUState *cs, *t;
     S390CPU *cpu;
+    RAMBlock *rb = machine->ram->ram_block;
 
     /*
      * Temporarily drop the record/replay mutex to let rr_cpu_thread_fn()
@@ -481,6 +482,7 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
     switch (reset_type) {
     case S390_RESET_EXTERNAL:
     case S390_RESET_REIPL:
+    case S390_RESET_REIPL_CLEAR:
         /*
          * Reset the subsystem which includes a AP reset. If a PV
          * guest had APQNs attached the AP reset is a prerequisite to
@@ -489,6 +491,10 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
         subsystem_reset();
         if (s390_is_pv()) {
             s390_machine_unprotect(ms);
+        }
+
+        if (reset_type == S390_RESET_REIPL_CLEAR) {
+            ram_block_discard_range(rb, 0 , qemu_ram_get_used_length(rb));
         }
 
         /*
