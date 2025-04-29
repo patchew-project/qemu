@@ -112,6 +112,7 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_set_legacy_instance_id(dev, isa->iobase, 2);
+    qdev_prop_set_enum(dev, "fallback", FLOPPY_DRIVE_TYPE_288);
 
     fdctrl_realize_common(dev, fdctrl, &err);
     if (err != NULL) {
@@ -292,9 +293,6 @@ static const Property isa_fdc_properties[] = {
                         FloppyDriveType),
     DEFINE_PROP_SIGNED("fdtypeB", FDCtrlISABus, state.qdev_for_drives[1].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
-                        FloppyDriveType),
-    DEFINE_PROP_SIGNED("fallback", FDCtrlISABus, state.fallback,
-                        FLOPPY_DRIVE_TYPE_288, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
 };
 
