@@ -2680,6 +2680,13 @@ static void qemu_maybe_daemonize(const char *pid_file)
     }
 }
 
+void qemu_cleanup_displays(void)
+{
+#ifdef CONFIG_VNC
+   vnc_cleanup();
+#endif
+}
+
 static void qemu_init_displays(void)
 {
     DisplayState *ds;

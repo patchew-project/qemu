@@ -924,6 +924,8 @@ void qemu_cleanup(int status)
     job_cancel_sync_all();
     bdrv_close_all();
 
+    qemu_cleanup_displays();
+
     /* vhost-user must be cleaned up before chardevs.  */
     tpm_cleanup();
     net_cleanup();
