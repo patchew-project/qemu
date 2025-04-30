@@ -491,3 +491,15 @@ void free_mcd_txlist(mcd_txlist_st *txlist)
 
     g_free(txlist->tx);
 }
+
+MCDRstInfo *marshal_mcd_rst_info(const mcd_rst_info_st *rst_info)
+{
+    MCDRstInfo *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDRstInfo) {
+        .class_vector = rst_info->class_vector,
+        .info_str = g_strdup(rst_info->info_str),
+    };
+
+    return marshal;
+}

@@ -634,6 +634,67 @@ MCDQryStateResult *qmp_mcd_qry_state(uint32_t core_uid, Error **errp)
     return result;
 }
 
+MCDQryRstClassesResult *qmp_mcd_qry_rst_classes(uint32_t core_uid, Error **errp)
+{
+    MCDQryRstClassesResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_qry_rst_classes_f(core,
+                                                  &result->rst_class_vector);
+    result->has_rst_class_vector = result->return_status == MCD_RET_ACT_NONE;
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDQryRstClassInfoResult *qmp_mcd_qry_rst_class_info(uint32_t core_uid,
+                                                     uint8_t rst_class,
+                                                     Error **errp)
+{
+    MCDQryRstClassInfoResult *result = g_malloc0(sizeof(*result));
+    mcd_rst_info_st rst_info;
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_qry_rst_class_info_f(core, rst_class,
+                                                     &rst_info);
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->rst_info = marshal_mcd_rst_info(&rst_info);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDRstResult *qmp_mcd_rst(uint32_t core_uid, uint32_t rst_class_vector,
+                          bool rst_and_halt, Error **errp)
+{
+    MCDRstResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_rst_f(core, rst_class_vector, rst_and_halt);
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
 MCDQryTrigInfoResult *qmp_mcd_qry_trig_info(uint32_t core_uid, Error **errp)
 {
     MCDQryTrigInfoResult *result = g_malloc0(sizeof(*result));

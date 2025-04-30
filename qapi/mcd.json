@@ -610,6 +610,24 @@
     'stop-str'    : 'str',
     'info-str'    : 'str' } }
 
+
+##
+# @MCDRstInfo:
+#
+# Structure type containing information about a particular reset class.
+#
+# @class-vector: Reset class vector which issues this reset. Exactly one bit
+#                may be set.
+# @info-str:     Description of the reset class.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDRstInfo',
+  'data': {
+    'class-vector': 'uint32',
+    'info-str'    : 'str' } }
+
+
 ##
 # == Target Initialization API
 ##
@@ -1879,6 +1897,117 @@
 { 'command': 'mcd-qry-state',
   'data': { 'core-uid': 'uint32' },
   'returns': 'MCDQryStateResult' }
+
+
+##
+# == Reset Control API
+##
+
+
+##
+# @MCDQryRstClassesResult:
+#
+# Return value of @mcd-qry-rst-classes.
+#
+# @return-status:    Return code.
+# @rst-class-vector: A 32 bit vector that defines the available reset classes.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryRstClassesResult',
+   'data': {
+     'return-status': 'uint32',
+     '*rst-class-vector': 'uint32' }}
+
+
+##
+# @mcd-qry-rst-classes:
+#
+# Function querying information about reset classes supported by the target
+# system.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+#
+# Returns: @MCDQryRstClassesResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-rst-classes',
+  'data': { 'core-uid': 'uint32' },
+  'returns': 'MCDQryRstClassesResult' }
+
+
+##
+# @MCDQryRstClassInfoResult:
+#
+# Return value of @mcd-qry-rst-class-info.
+#
+# @return-status: Return code.
+# @rst-info:      Detailed information about the reset class.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryRstClassInfoResult',
+  'data': {
+    'return-status': 'uint32',
+    '*rst-info': 'MCDRstInfo' }}
+
+
+##
+# @mcd-qry-rst-class-info:
+#
+# Function querying information about a particular reset class supported by the
+# target system.
+#
+# @core-uid:  Unique identifier of the open core as returned by @mcd-open-core.
+# @rst-class: Reset class ID which refers to a bit in the 32-bit reset class
+#             vector as obtained by @mcd-qry-rst-classes.
+#
+# Returns: @MCDQryRstClassInfoResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-rst-class-info',
+  'data': {
+    'core-uid' : 'uint32',
+    'rst-class': 'uint8'},
+  'returns': 'MCDQryRstClassInfoResult' }
+
+
+##
+# @MCDRstResult:
+#
+# Return value of @mcd-rst.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDRstResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-rst:
+#
+# Function triggering one or more reset signals in parallel on the target
+# system.
+#
+# @core-uid:         Unique identifier of the open core as returned by
+#                    @mcd-open-core.
+# @rst-class-vector: Reset vector specifying the resets which shall be issued.
+# @rst-and-halt:     Optionally halting the core if the reset changes the core
+#                    state.
+#
+# Returns: @MCDRstResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-rst',
+  'data': {
+    'core-uid'        : 'uint32',
+    'rst-class-vector': 'uint32',
+    'rst-and-halt'    : 'bool'},
+  'returns': 'MCDRstResult' }
 
 
 ##

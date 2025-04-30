@@ -22,6 +22,8 @@
 /* Custom memory space type */
 static const mcd_mem_type_et MCD_MEM_SPACE_IS_SECURE = 0x00010000;
 
+#define MCD_RST_CLASS_SYSTEM_RESET 0
+
 static const mcd_error_info_st MCD_ERROR_NOT_IMPLEMENTED = {
     .return_status = MCD_RET_ACT_HANDLE_ERROR,
     .error_code = MCD_ERR_FN_UNIMPLEMENTED,
@@ -2100,24 +2102,110 @@ mcd_return_et mcd_execute_command_f(const mcd_core_st *core,
 mcd_return_et mcd_qry_rst_classes_f(const mcd_core_st *core,
                                     uint32_t *rst_class_vector)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!rst_class_vector) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    *rst_class_vector = (1 << MCD_RST_CLASS_SYSTEM_RESET);
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_qry_rst_class_info_f(const mcd_core_st *core,
                                        uint8_t rst_class,
                                        mcd_rst_info_st *rst_info)
 {
+    mcdcore_state *core_state;
 
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (rst_class != MCD_RST_CLASS_SYSTEM_RESET) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "unknown reset class",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (!rst_info) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    *rst_info = (mcd_rst_info_st) {
+        .class_vector = (1 << MCD_RST_CLASS_SYSTEM_RESET),
+        .info_str = "System Reset",
+    };
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
 mcd_return_et mcd_rst_f(const mcd_core_st *core, uint32_t rst_class_vector,
                         bool rst_and_halt)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (rst_class_vector != (1 << MCD_RST_CLASS_SYSTEM_RESET)) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "unknown reset class",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (rst_and_halt) {
+        mcd_return_et ret = mcd_stop_f(core, true);
+        if (ret != MCD_RET_ACT_NONE) {
+            return ret;
+        }
+    }
+
+    qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_UI);
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_chl_open_f(const mcd_core_st *core, mcd_chl_st *channel)
