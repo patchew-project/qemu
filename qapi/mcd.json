@@ -308,6 +308,29 @@
 
 
 ##
+# @MCDCoreState:
+#
+# Structure type containing the state of a core.
+#
+# @state:        Core state.
+# @event:        Core events (OR'ed bitmask)
+# @hw-thread-id: ID of the hardware thread that caused the core to stop.
+# @trig-id:      ID of the trigger that caused the core to stop.
+# @stop-str:     Detailed description of a special stop reason.
+# @info-str:     Detailed description of the core state.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDCoreState',
+  'data': {
+    'state'       : 'uint32',
+    'event'       : 'uint32',
+    'hw-thread-id': 'uint32',
+    'trig-id'     : 'uint32',
+    'stop-str'    : 'str',
+    'info-str'    : 'str' } }
+
+##
 # == Target Initialization API
 ##
 
@@ -1473,3 +1496,35 @@
     'core-uid': 'uint32',
     'enable'  : 'bool' },
   'returns': 'MCDSetGlobalResult' }
+
+
+##
+# @MCDQryStateResult:
+#
+# Return value of @mcd-qry-state.
+#
+# @return-status: Return code.
+# @state:         The current execution state of the target core.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryStateResult',
+  'data': {
+    'return-status': 'uint32',
+    '*state': 'MCDCoreState' }}
+
+
+##
+# @mcd-qry-state:
+#
+# Function querying the execution state of a target core.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+#
+# Returns: @MCDQryStateResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-qry-state',
+  'data': { 'core-uid': 'uint32' },
+  'returns': 'MCDQryStateResult' }

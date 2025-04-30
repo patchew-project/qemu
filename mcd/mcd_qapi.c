@@ -195,3 +195,19 @@ MCDRegisterInfo *marshal_mcd_register_info(const mcd_register_info_st *reg_info)
 
     return marshal;
 }
+
+MCDCoreState *marshal_mcd_core_state(const mcd_core_state_st *state)
+{
+    MCDCoreState *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDCoreState) {
+        .state = state->state,
+        .event = state->event,
+        .hw_thread_id = state->hw_thread_id,
+        .trig_id = state->trig_id,
+        .stop_str = g_strdup(state->stop_str),
+        .info_str = g_strdup(state->info_str),
+    };
+
+    return marshal;
+}

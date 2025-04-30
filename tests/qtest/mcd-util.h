@@ -60,4 +60,13 @@ MCDQryRegGroupsResult *qtest_mcd_qry_reg_groups(QTestStateMCD *qts,
 MCDQryRegMapResult *qtest_mcd_qry_reg_map(QTestStateMCD *qts,
                                           q_obj_mcd_qry_reg_map_arg *args);
 
+MCDRunResult *qtest_mcd_run(QTestStateMCD *qts,
+                            q_obj_mcd_run_arg *args);
+
+MCDStopResult *qtest_mcd_stop(QTestStateMCD *qts,
+                              q_obj_mcd_stop_arg *args);
+
+MCDQryStateResult *qtest_mcd_qry_state(QTestStateMCD *qts,
+                                       q_obj_mcd_qry_state_arg *args);
+
 #endif /* TEST_MCD_UTILS_H */

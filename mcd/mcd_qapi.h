@@ -35,6 +35,8 @@ MCDAddr *marshal_mcd_addr(const mcd_addr_st *addr);
 MCDRegisterInfo *marshal_mcd_register_info(
     const mcd_register_info_st *reg_info);
 
+MCDCoreState *marshal_mcd_core_state(const mcd_core_state_st *state);
+
 mcd_api_version_st unmarshal_mcd_api_version(MCDAPIVersion *api_version);
 
 mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info);

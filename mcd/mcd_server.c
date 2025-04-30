@@ -16,6 +16,7 @@
 #include "exec/gdbstub.h"
 #include "hw/core/cpu.h"
 #include "system/runstate.h"
+#include "system/hw_accel.h"
 
 /* Custom memory space type */
 static const mcd_mem_type_et MCD_MEM_SPACE_IS_SECURE = 0x00010000;
@@ -1192,7 +1193,52 @@ mcd_return_et mcd_set_global_f(const mcd_core_st *core, bool enable)
 
 mcd_return_et mcd_qry_state_f(const mcd_core_st *core, mcd_core_state_st *state)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    mcdcore_state *core_state;
+    RunState rs;
+
+    if (!core || !state) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    *state = (mcd_core_state_st) {
+        .stop_str = "",
+        .info_str = "",
+    };
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    cpu_synchronize_state(core_state->cpu);
+    rs = runstate_get();
+    switch (rs) {
+    case RUN_STATE_PRELAUNCH:
+    case RUN_STATE_DEBUG:
+    case RUN_STATE_PAUSED:
+        state->state = MCD_CORE_STATE_DEBUG;
+        pstrcpy(state->stop_str, MCD_INFO_STR_LEN, "RUN_STATE_PAUSED");
+        break;
+    case RUN_STATE_RUNNING:
+        if (core_state->cpu->running) {
+            state->state = MCD_CORE_STATE_RUNNING;
+        } else if (core_state->cpu->stopped) {
+            state->state = MCD_CORE_STATE_DEBUG;
+        } else if (core_state->cpu->halted) {
+            state->state = MCD_CORE_STATE_HALTED;
+            pstrcpy(state->info_str, MCD_INFO_STR_LEN, "halted");
+        } else {
+            state->state = MCD_CORE_STATE_UNKNOWN;
+        }
+        break;
+    default:
+        state->state = MCD_CORE_STATE_UNKNOWN;
+        break;
+    }
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 

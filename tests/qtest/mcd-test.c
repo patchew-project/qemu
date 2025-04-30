@@ -26,7 +26,7 @@
 #include "libqtest.h"
 #include "mcd-util.h"
 
-#define QEMU_EXTRA_ARGS ""
+#define QEMU_EXTRA_ARGS "-accel tcg"
 
 static bool verbose;
 
@@ -135,6 +135,45 @@ static MCDQryCoresResult *open_server_query_cores(QTestStateMCD *qts)
     qapi_free_MCDQryDevicesResult(qry_devices_result);
 
     return qry_cores_result;
+}
+
+static mcd_core_state_et check_core_state(QTestStateMCD *qts, uint32_t core_uid)
+{
+    mcd_core_state_et state;
+
+    q_obj_mcd_qry_state_arg qry_state_args = {
+        .core_uid = core_uid,
+    };
+
+    MCDQryStateResult *qry_state_result = qtest_mcd_qry_state(qts,
+                                                              &qry_state_args);
+
+    g_assert(qry_state_result->return_status == MCD_RET_ACT_NONE);
+    g_assert(qry_state_result->state);
+    state = qry_state_result->state->state;
+
+    if (verbose) {
+        fprintf(stderr, "[INFO]\tCore state: ");
+        switch (qry_state_result->state->state) {
+        case MCD_CORE_STATE_RUNNING:
+            fprintf(stderr, "running\n");
+            break;
+        case MCD_CORE_STATE_HALTED:
+            fprintf(stderr, "halted\n");
+            break;
+        case MCD_CORE_STATE_DEBUG:
+            fprintf(stderr, "debug\n");
+            break;
+        case MCD_CORE_STATE_UNKNOWN:
+            fprintf(stderr, "unknown\n");
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    qapi_free_MCDQryStateResult(qry_state_result);
+    return state;
 }
 
 static void test_initialize(void)
@@ -562,6 +601,85 @@ static void test_qry_core_info(void)
     mcdtest_quit(&qts);
 }
 
+static void test_go_stop(void)
+{
+    QTestStateMCD qts = mcdtest_init(QEMU_EXTRA_ARGS);
+    mcd_core_state_et core_state;
+    MCDQryCoresResult *cores_query = open_server_query_cores(&qts);
+
+    MCDCoreConInfoList *core_head = cores_query->core_con_info;
+    for (uint32_t c = 0; c < cores_query->num_cores; c++) {
+        q_obj_mcd_stop_arg stop_args = {
+            .global = true, /* only global stops currently supported */
+        };
+
+        q_obj_mcd_run_arg run_args = {
+            .global = true,
+        };
+
+        q_obj_mcd_close_core_arg close_core_args;
+
+        MCDRunResult *run_result;
+        MCDStopResult *stop_result;
+        MCDOpenCoreResult *open_core_result;
+        MCDCloseCoreResult *close_core_result;
+
+        MCDCoreConInfo *core_con_info = core_head->value;
+        q_obj_mcd_open_core_arg open_core_args = {
+            .core_con_info = core_con_info,
+        };
+
+        if (verbose) {
+            fprintf(stderr, "[INFO]\tTesting core %s (#%d)...\n",
+                            core_con_info->core,
+                            core_con_info->core_id);
+        }
+
+        open_core_result = qtest_mcd_open_core(&qts, &open_core_args);
+        g_assert(open_core_result->return_status == MCD_RET_ACT_NONE);
+        g_assert(open_core_result->has_core_uid);
+
+        check_core_state(&qts, open_core_result->core_uid);
+
+        if (verbose) {
+            fprintf(stderr, "[INFO]\tStop core\n");
+        }
+
+        stop_args.core_uid = open_core_result->core_uid;
+        stop_result = qtest_mcd_stop(&qts, &stop_args);
+        g_assert(stop_result->return_status == MCD_RET_ACT_NONE);
+        qapi_free_MCDStopResult(stop_result);
+
+        core_state = check_core_state(&qts, open_core_result->core_uid);
+        g_assert(core_state == MCD_CORE_STATE_DEBUG);
+
+        if (verbose) {
+            fprintf(stderr, "[INFO]\tResume core\n");
+        }
+
+        run_args.core_uid = open_core_result->core_uid;
+        run_result = qtest_mcd_run(&qts, &run_args);
+        g_assert(run_result->return_status == MCD_RET_ACT_NONE);
+        qapi_free_MCDRunResult(run_result);
+
+        core_state = check_core_state(&qts, open_core_result->core_uid);
+        /* could be running as well as halted */
+        g_assert(core_state != MCD_CORE_STATE_DEBUG);
+
+        close_core_args.core_uid = open_core_result->core_uid;
+        close_core_result = qtest_mcd_close_core(&qts, &close_core_args);
+        g_assert(close_core_result->return_status == MCD_RET_ACT_NONE);
+
+        qapi_free_MCDCloseCoreResult(close_core_result);
+        qapi_free_MCDOpenCoreResult(open_core_result);
+        core_head = core_head->next;
+    }
+
+    qapi_free_MCDQryCoresResult(cores_query);
+    qtest_mcd_exit(&qts);
+    mcdtest_quit(&qts);
+}
+
 int main(int argc, char *argv[])
 {
     char *v_env = getenv("V");
@@ -575,5 +693,6 @@ int main(int argc, char *argv[])
     qtest_add_func("mcd/qry-cores", test_qry_cores);
     qtest_add_func("mcd/open-core", test_open_core);
     qtest_add_func("mcd/qry-core-info", test_qry_core_info);
+    qtest_add_func("mcd/go-stop", test_go_stop);
     return g_test_run();
 }
