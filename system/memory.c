@@ -3296,6 +3296,27 @@ typedef QTAILQ_HEAD(, MemoryRegionList) MemoryRegionListHead;
                            int128_sub((size), int128_one())) : 0)
 #define MTREE_INDENT "  "
 
+enum mtree_node_type {
+    MTREE_NODE_T_INNER,
+    MTREE_NODE_T_TAIL,
+};
+
+#define PRINT_MTREE_NODE(node_type) do {  \
+    if (node_type == MTREE_NODE_T_TAIL) { \
+        qemu_printf("└── ");              \
+    } else {                              \
+        qemu_printf("├── ");              \
+    }                                     \
+} while (0)
+
+#define PRINT_MTREE_COL(level) do { \
+    if (level == 0) {               \
+        qemu_printf("│  ");         \
+    } else {                        \
+        qemu_printf("│   ");        \
+    }                               \
+} while (0)
+
 static void mtree_expand_owner(const char *label, Object *obj)
 {
     DeviceState *dev = (DeviceState *) object_dynamic_cast(obj, TYPE_DEVICE);
@@ -3335,7 +3356,8 @@ static void mtree_print_mr_owner(const MemoryRegion *mr)
 static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
                            hwaddr base,
                            MemoryRegionListHead *alias_print_queue,
-                           bool owner, bool display_disabled)
+                           bool owner, bool display_disabled,
+                           enum mtree_node_type node_type)
 {
     MemoryRegionList *new_ml, *ml, *next_ml;
     MemoryRegionListHead submr_print_queue;
@@ -3376,8 +3398,9 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
         }
         if (mr->enabled || display_disabled) {
             for (i = 0; i < level; i++) {
-                qemu_printf(MTREE_INDENT);
+                PRINT_MTREE_COL(i);
             }
+            PRINT_MTREE_NODE(node_type);
             qemu_printf(HWADDR_FMT_plx "-" HWADDR_FMT_plx
                         " (prio %d, %s%s): alias %s @%s " HWADDR_FMT_plx
                         "-" HWADDR_FMT_plx "%s",
@@ -3398,8 +3421,9 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
     } else {
         if (mr->enabled || display_disabled) {
             for (i = 0; i < level; i++) {
-                qemu_printf(MTREE_INDENT);
+                PRINT_MTREE_COL(i);
             }
+            PRINT_MTREE_NODE(node_type);
             qemu_printf(HWADDR_FMT_plx "-" HWADDR_FMT_plx
                         " (prio %d, %s%s): %s%s",
                         cur_start, cur_end,
@@ -3435,8 +3459,12 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
     }
 
     QTAILQ_FOREACH(ml, &submr_print_queue, mrqueue) {
+        if (ml == QTAILQ_LAST(&submr_print_queue)) {
+            node_type = MTREE_NODE_T_TAIL;
+        }
         mtree_print_mr(ml->mr, level + 1, cur_start,
-                       alias_print_queue, owner, display_disabled);
+                       alias_print_queue, owner,
+                       display_disabled, node_type);
     }
 
     QTAILQ_FOREACH_SAFE(ml, &submr_print_queue, mrqueue, next_ml) {
@@ -3614,7 +3642,8 @@ static void mtree_print_as(gpointer key, gpointer value, gpointer user_data)
     struct AddressSpaceInfo *asi = user_data;
 
     g_slist_foreach(as_same_root_mr_list, mtree_print_as_name, NULL);
-    mtree_print_mr(mr, 1, 0, asi->ml_head, asi->owner, asi->disabled);
+    mtree_print_mr(mr, 1, 0, asi->ml_head, asi->owner, asi->disabled,
+                   MTREE_NODE_T_INNER);
     qemu_printf("\n");
 }
 
@@ -3659,7 +3688,8 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, mrqueue) {
         qemu_printf("memory-region: %s\n", memory_region_name(ml->mr));
-        mtree_print_mr(ml->mr, 1, 0, &ml_head, owner, disabled);
+        mtree_print_mr(ml->mr, 1, 0, &ml_head, owner, disabled,
+                       MTREE_NODE_T_INNER);
         qemu_printf("\n");
     }
 
