@@ -3137,6 +3137,7 @@ S: Maintained
 F: mcd/*
 F: docs/interop/mcd.rst
 F: qapi/mcd.json
+F: include/exec/mcdstub.h
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>

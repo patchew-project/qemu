@@ -72,6 +72,9 @@
 #include "system/numa.h"
 #include "system/hostmem.h"
 #include "exec/gdbstub.h"
+#ifdef CONFIG_MCD
+#include "exec/mcdstub.h"
+#endif
 #include "gdbstub/enums.h"
 #include "qemu/timer.h"
 #include "chardev/char.h"
@@ -1281,6 +1284,7 @@ struct device_config {
         DEV_PARALLEL,  /* -parallel      */
         DEV_DEBUGCON,  /* -debugcon */
         DEV_GDB,       /* -gdb, -s */
+        DEV_MCD,       /* -mcd */
         DEV_SCLP,      /* s390 sclp */
     } type;
     const char *cmdline;
@@ -2790,6 +2794,10 @@ static bool qemu_machine_creation_done(Error **errp)
 
     foreach_device_config_or_exit(DEV_GDB, gdbserver_start);
 
+#ifdef CONFIG_MCD
+    foreach_device_config_or_exit(DEV_MCD, mcd_monitor_start);
+#endif
+
     if (!vga_interface_created && !default_vga &&
         vga_interface_type != VGA_NONE) {
         warn_report("A -vga option was passed but this machine "
@@ -3151,6 +3159,11 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_gdb:
                 add_device_config(DEV_GDB, optarg);
                 break;
+#ifdef CONFIG_MCD
+            case QEMU_OPTION_mcd:
+                add_device_config(DEV_MCD, optarg);
+                break;
+#endif
             case QEMU_OPTION_L:
                 if (is_help_option(optarg)) {
                     list_data_dirs = true;

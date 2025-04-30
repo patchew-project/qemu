@@ -4724,6 +4724,17 @@ SRST
     (see the :ref:`GDB usage` chapter in the System Emulation Users Guide).
 ERST
 
+
+#ifdef CONFIG_MCD
+DEF("mcd", HAS_ARG, QEMU_OPTION_mcd, \
+    "-mcd dev        accept MCD connection on 'dev'\n",
+    QEMU_ARCH_ALL)
+SRST
+``-mcd dev``
+    Start the MCD QAPI monitor and accept connections on device 'dev'.
+ERST
+#endif
+
 DEF("d", HAS_ARG, QEMU_OPTION_d, \
     "-d item1,...    enable logging of specified items (use '-d help' for a list of log items)\n",
     QEMU_ARCH_ALL)
