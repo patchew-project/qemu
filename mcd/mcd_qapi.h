@@ -27,6 +27,14 @@ MCDCoreConInfo *marshal_mcd_core_con_info(const mcd_core_con_info_st *con_info);
 
 MCDMemspace *marshal_mcd_memspace(const mcd_memspace_st *mem_space);
 
+MCDRegisterGroup *marshal_mcd_register_group(
+    const mcd_register_group_st *reg_group);
+
+MCDAddr *marshal_mcd_addr(const mcd_addr_st *addr);
+
+MCDRegisterInfo *marshal_mcd_register_info(
+    const mcd_register_info_st *reg_info);
+
 mcd_api_version_st unmarshal_mcd_api_version(MCDAPIVersion *api_version);
 
 mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info);

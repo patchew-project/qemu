@@ -147,3 +147,51 @@ MCDMemspace *marshal_mcd_memspace(const mcd_memspace_st *mem_space)
 
     return marshal;
 }
+
+MCDRegisterGroup *marshal_mcd_register_group(
+    const mcd_register_group_st *reg_group)
+{
+    MCDRegisterGroup *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDRegisterGroup) {
+        .reg_group_id = reg_group->reg_group_id,
+        .reg_group_name = g_strdup(reg_group->reg_group_name),
+        .n_registers = reg_group->n_registers,
+    };
+
+    return marshal;
+}
+
+MCDAddr *marshal_mcd_addr(const mcd_addr_st *addr)
+{
+    MCDAddr *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDAddr) {
+        .address = addr->address,
+        .mem_space_id = addr->mem_space_id,
+        .addr_space_id = addr->addr_space_id,
+        .addr_space_type = addr->addr_space_type,
+    };
+
+    return marshal;
+}
+
+MCDRegisterInfo *marshal_mcd_register_info(const mcd_register_info_st *reg_info)
+{
+    MCDRegisterInfo *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDRegisterInfo) {
+        .addr = marshal_mcd_addr(&reg_info->addr),
+        .reg_group_id = reg_info->reg_group_id,
+        .regname = g_strdup(reg_info->regname),
+        .regsize = reg_info->regsize,
+        .core_mode_mask_read = reg_info->core_mode_mask_read,
+        .core_mode_mask_write = reg_info->core_mode_mask_write,
+        .side_effects_read = reg_info->has_side_effects_read,
+        .side_effects_write = reg_info->has_side_effects_write,
+        .reg_type = reg_info->reg_type,
+        .hw_thread_id = reg_info->hw_thread_id,
+    };
+
+    return marshal;
+}

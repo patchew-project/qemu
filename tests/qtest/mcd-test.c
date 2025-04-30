@@ -407,8 +407,12 @@ static void test_qry_core_info(void)
     MCDCoreConInfoList *core_head = cores_query->core_con_info;
     for (uint32_t c = 0; c < cores_query->num_cores; c++) {
         q_obj_mcd_qry_mem_spaces_arg qry_mem_spaces_args;
+        q_obj_mcd_qry_reg_groups_arg qry_reg_groups_args;
+        q_obj_mcd_qry_reg_map_arg qry_reg_map_args;
         q_obj_mcd_close_core_arg close_core_args;
         MCDQryMemSpacesResult *qry_mem_spaces_result;
+        MCDQryRegGroupsResult *qry_reg_groups_result;
+        MCDQryRegMapResult *qry_reg_map_result;
         MCDCloseCoreResult *close_core_result;
 
         MCDCoreConInfo *core_con_info = core_head->value;
@@ -425,6 +429,8 @@ static void test_qry_core_info(void)
                                 core_con_info->core,
                                 core_con_info->core_id);
         }
+
+        /* Memory Space Query */
 
         qry_mem_spaces_args = (q_obj_mcd_qry_mem_spaces_arg) {
             .core_uid = open_core_result->core_uid,
@@ -463,6 +469,85 @@ static void test_qry_core_info(void)
         }
 
         qapi_free_MCDQryMemSpacesResult(qry_mem_spaces_result);
+
+        /* Register Query */
+
+        qry_reg_groups_args = (q_obj_mcd_qry_reg_groups_arg) {
+            .core_uid = open_core_result->core_uid,
+            .start_index = 0,
+            .num_reg_groups = 0, /* query only number of register groups */
+        };
+
+        qry_reg_groups_result = qtest_mcd_qry_reg_groups(&qts,
+                                                        &qry_reg_groups_args);
+        g_assert(qry_reg_groups_result->return_status == MCD_RET_ACT_NONE);
+        g_assert(qry_reg_groups_result->has_num_reg_groups);
+
+        if (qry_reg_groups_result->num_reg_groups == 0) {
+            fprintf(stderr, "[WARN]\tTNo register groups!\n");
+        }
+
+        qry_reg_groups_args.num_reg_groups =
+            qry_reg_groups_result->num_reg_groups;
+
+        qapi_free_MCDQryRegGroupsResult(qry_reg_groups_result);
+        qry_reg_groups_result = qtest_mcd_qry_reg_groups(&qts,
+                                                         &qry_reg_groups_args);
+        g_assert(qry_reg_groups_result->return_status == MCD_RET_ACT_NONE);
+        g_assert(qry_reg_groups_result->has_num_reg_groups);
+
+        if (verbose) {
+            MCDRegisterGroupList *rg_head = qry_reg_groups_result->reg_groups;
+            for (uint32_t i = 0;
+                 i < qry_reg_groups_result->num_reg_groups; i++) {
+                MCDRegisterGroup *rg = rg_head->value;
+                if (verbose) {
+                    fprintf(stderr, "\tRegister Group: %s (#%d) with "
+                                    "%d registers\n",
+                                    rg->reg_group_name,
+                                    rg->reg_group_id,
+                                    rg->n_registers);
+                }
+                rg_head = rg_head->next;
+            }
+        }
+
+        qapi_free_MCDQryRegGroupsResult(qry_reg_groups_result);
+
+        qry_reg_map_args = (q_obj_mcd_qry_reg_map_arg) {
+            .core_uid = open_core_result->core_uid,
+            .reg_group_id = 0,
+            .start_index = 0,
+            .num_regs = 0, /* query only number of registers */
+        };
+
+        qry_reg_map_result = qtest_mcd_qry_reg_map(&qts, &qry_reg_map_args);
+        g_assert(qry_reg_map_result->return_status == MCD_RET_ACT_NONE);
+        g_assert(qry_reg_map_result->has_num_regs);
+
+        if (verbose) {
+            fprintf(stderr, "\t%d registers found\n",
+                qry_reg_map_result->num_regs);
+        }
+
+        qry_reg_map_args.num_regs = qry_reg_map_result->num_regs;
+        qapi_free_MCDQryRegMapResult(qry_reg_map_result);
+
+        qry_reg_map_result = qtest_mcd_qry_reg_map(&qts, &qry_reg_map_args);
+        g_assert(qry_reg_map_result->return_status == MCD_RET_ACT_NONE);
+        g_assert(qry_reg_map_result->has_num_regs);
+        if (verbose) {
+            MCDRegisterInfoList *r_head = qry_reg_map_result->reg_info;
+            for (uint32_t i = 0;
+                 i < qry_reg_map_result->num_regs; i++) {
+                MCDRegisterInfo *r = r_head->value;
+                fprintf(stderr, "\tRegister: %s (#%lx)\n",
+                        r->regname, r->addr->address);
+                r_head = r_head->next;
+            }
+        }
+        qapi_free_MCDQryRegMapResult(qry_reg_map_result);
+
         close_core_args.core_uid = open_core_result->core_uid;
         close_core_result = qtest_mcd_close_core(&qts, &close_core_args);
         g_assert(close_core_result->return_status == MCD_RET_ACT_NONE);
