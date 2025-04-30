@@ -56,6 +56,8 @@ MCDTx *marshal_mcd_tx(const mcd_tx_st *tx);
 
 MCDTxlist *marshal_mcd_txlist(const mcd_txlist_st *txlist);
 
+MCDRstInfo *marshal_mcd_rst_info(const mcd_rst_info_st *rst_info);
+
 mcd_api_version_st unmarshal_mcd_api_version(MCDAPIVersion *api_version);
 
 mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info);
