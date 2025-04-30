@@ -38,6 +38,12 @@ The resulting system can be visualized as follows::
     | qemu-system-*  |      | -machine |           | -cpu |
     +----------------+      +----------+           +------+
 
+To configure the build for MCD support:
+
+.. code::
+
+  ./configure --enable-mcd
+
 API Reference
 -------------
 
