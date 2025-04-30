@@ -3295,13 +3295,23 @@
 #
 # @read-zeroes: if true, emulate a sparse image, and reads from the
 #     device produce zeroes; if false, emulate an allocated image but
-#     reads from the device leave the buffer unchanged.
+#     reads from the device leave the buffer unchanged. Mutually
+#     exclusive with @read-pattern.
 #     (default: false; since: 4.1)
+#
+# @read-pattern: if set, emulate an allocated image, and reads from the
+#     device produce the specified byte value; if unset, reads from the
+#     device leave the buffer unchanged. Mutually exclusive with
+#     @read-zeroes.
+#     (since: 10.1)
 #
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNull',
-  'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
+  'data': { '*size': 'int',
+            '*latency-ns': 'uint64',
+            '*read-zeroes': 'bool',
+            '*read-pattern': 'uint8' } }
 
 ##
 # @BlockdevOptionsNVMe:
