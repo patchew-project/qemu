@@ -14,6 +14,7 @@
 #include "hw/boards.h"
 #include "exec/tswap.h"
 #include "exec/gdbstub.h"
+#include "exec/watchpoint.h"
 #include "hw/core/cpu.h"
 #include "system/runstate.h"
 #include "system/hw_accel.h"
@@ -71,7 +72,10 @@ static const mcd_error_info_st MCD_ERROR_NONE = {
  * @register_groups:         Register groups as queried by
  *                           mcd_qry_reg_groups_f().
  * @registers:               Registers as queried by mcd_qry_reg_map_f().
+ * @triggers:                Triggers as created in mcd_create_trig_f().
  * @vm_state_change_handler: State change handler.
+ * @num_created_triggers:    Total amount of created triggers since last
+ *                           mcd_open_server_f().
  *
  * MCD is mainly being used on the core level:
  * After the initial query functions, a core connection is opened in
@@ -91,6 +95,8 @@ typedef struct mcdcore_state {
     GArray *register_groups;
     GArray *registers;
     VMChangeStateEntry *vm_state_change_handler;
+    GArray *triggers;
+    uint32_t num_created_triggers;
 } mcdcore_state;
 
 /**
@@ -101,6 +107,8 @@ typedef struct mcdcore_state {
  * @open_server:  Open server instance as allocated in mcd_open_server_f().
  * @system_key:   System key as provided in mcd_open_server_f()
  * @cores:        Internal core information database.
+ * @bp_cpu:       CPU hitting the most recent break-/watchpoint.
+ * @bp_addr:      Address of the most recent break-/watchpoint.
  */
 typedef struct mcdserver_state {
     const mcd_error_info_st *last_error;
@@ -108,6 +116,8 @@ typedef struct mcdserver_state {
     mcd_server_st *open_server;
     char system_key[MCD_KEY_LEN];
     GArray *cores;
+    CPUState const *bp_cpu;
+    vaddr bp_addr;
 } mcdserver_state;
 
 static mcdserver_state g_server_state = {
@@ -115,7 +125,23 @@ static mcdserver_state g_server_state = {
     .open_server = NULL,
     .system_key = "",
     .cores = NULL,
+    .bp_cpu = NULL,
 };
+
+/**
+ * struct mcd_active_trigger - Identifiable active trigger
+ *
+ * @trig: Trigger instance as created in mcd_create_trig_f().
+ * @id:   Unique trigger identifier.
+ *
+ * Currently, only mcd_trig_simple_core_st is supported.
+ */
+typedef struct mcd_active_trigger {
+    mcd_trig_simple_core_st trig;
+    uint32_t id;
+    bool captured;
+} mcd_active_trigger;
+
 
 static mcdcore_state *find_core(const mcd_core_con_info_st *core_con_info)
 {
@@ -140,6 +166,16 @@ static void mcd_handle_vm_state_change(void *opaque, bool running,
 {
     mcdcore_state *core_state = (mcdcore_state *)opaque;
     CPUState *cpu = core_state->cpu;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (state == RUN_STATE_DEBUG && cpu->watchpoint_hit) {
+        g_server_state.bp_cpu = cpu;
+        g_server_state.bp_addr = cpu->watchpoint_hit->vaddr;
+        cpu->watchpoint_hit = NULL;
+    } else if (cpu_breakpoint_test(cpu, cc->get_pc(cpu), BP_GDB)) {
+        g_server_state.bp_cpu = cpu;
+        g_server_state.bp_addr = cc->get_pc(cpu);
+    }
 
     /* disable single step if it was enabled */
     cpu_single_step(cpu, 0);
@@ -295,7 +331,9 @@ mcd_return_et mcd_open_server_f(const char *system_key,
                                            sizeof(mcd_register_group_st)),
             .registers = g_array_new(false, true,
                                      sizeof(mcd_register_info_st)),
+            .triggers = g_array_new(false, true, sizeof(mcd_active_trigger)),
             .vm_state_change_handler = NULL,
+            .num_created_triggers = 0,
         };
         pstrcpy(c.info.core, MCD_UNIQUE_NAME_LEN, cpu_model);
         g_array_append_val(g_server_state.cores, c);
@@ -339,6 +377,7 @@ mcd_return_et mcd_close_server_f(const mcd_server_st *server)
         g_array_free(c->memory_spaces, true);
         g_array_free(c->register_groups, true);
         g_array_free(c->registers, true);
+        g_array_free(c->triggers, true);
     }
 
     g_array_free(g_server_state.cores, true);
@@ -682,6 +721,8 @@ mcd_return_et mcd_open_core_f(const mcd_core_con_info_st *core_con_info,
     core_state->last_error = &MCD_ERROR_NONE;
     core_state->vm_state_change_handler = qemu_add_vm_change_state_handler(
         mcd_handle_vm_state_change, core_state);
+    g_array_set_size(core_state->triggers, 0);
+    core_state->num_created_triggers = 0;
 
     g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
@@ -722,6 +763,8 @@ mcd_return_et mcd_close_core_f(const mcd_core_st *core)
     g_array_set_size(core_state->memory_spaces, 0);
     g_array_set_size(core_state->register_groups, 0);
     g_array_set_size(core_state->registers, 0);
+    g_array_set_size(core_state->triggers, 0);
+    core_state->num_created_triggers = 0;
 
     g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
@@ -1037,68 +1080,553 @@ mcd_return_et mcd_qry_reg_compound_f(const mcd_core_st *core,
 mcd_return_et mcd_qry_trig_info_f(const mcd_core_st *core,
                                   mcd_trig_info_st *trig_info)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!trig_info) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    *trig_info = (mcd_trig_info_st){
+        .type = MCD_TRIG_TYPE_IP |
+                MCD_TRIG_TYPE_READ |
+                MCD_TRIG_TYPE_WRITE |
+                MCD_TRIG_TYPE_RW,
+        .option = MCD_TRIG_OPT_DEFAULT,
+        .action = MCD_TRIG_ACTION_DBG_DEBUG,
+        .trig_number = 0,
+        .state_number = 0,
+        .counter_number = 0,
+        .sw_breakpoints = false,
+    };
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_qry_ctrigs_f(const mcd_core_st *core, uint32_t start_index,
                                uint32_t *num_ctrigs,
                                mcd_ctrig_info_st *ctrig_info)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+
+    if (!core || !num_ctrigs) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (*num_ctrigs == 0) {
+        core_state->last_error = &MCD_ERROR_NONE;
+        return core_state->last_error->return_status;
+    }
+
+    if (start_index > 0) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "custom triggers are currently not supported",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    *num_ctrigs = 0;
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
+}
+
+static mcd_return_et mcd_create_trig_simple_core(mcdcore_state *core_state,
+                                                 mcd_trig_simple_core_st *trig)
+{
+    uint32_t ms_id = trig->addr_start.mem_space_id;
+    const mcd_memspace_st *ms;
+    int ret_val;
+
+    /* memory space ID 0 is reserved */
+    if (ms_id == 0 || ms_id > core_state->memory_spaces->len) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "unknown memory space ID",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    ms = &g_array_index(core_state->memory_spaces, mcd_memspace_st, ms_id - 1);
+    if (!(ms->mem_type & MCD_MEM_SPACE_IS_LOGICAL)) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "only logical trigger addresses are supported",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    switch (trig->type) {
+    case MCD_TRIG_TYPE_IP:
+        ret_val = cpu_breakpoint_insert(core_state->cpu,
+                                        trig->addr_start.address,
+                                        BP_GDB, NULL);
+        break;
+    case MCD_TRIG_TYPE_WRITE:
+        ret_val = cpu_watchpoint_insert(core_state->cpu,
+                                        trig->addr_start.address, 4,
+                                        BP_GDB | BP_MEM_WRITE, NULL);
+        break;
+    case MCD_TRIG_TYPE_READ:
+        ret_val = cpu_watchpoint_insert(core_state->cpu,
+                                        trig->addr_start.address, 4,
+                                        BP_GDB | BP_MEM_READ, NULL);
+        break;
+    case MCD_TRIG_TYPE_RW:
+        ret_val = cpu_watchpoint_insert(core_state->cpu,
+                                        trig->addr_start.address, 4,
+                                        BP_GDB | BP_MEM_ACCESS, NULL);
+        break;
+    default:
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TRIG_CREATE,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "unknown trigger type",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (ret_val != 0) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TRIG_CREATE,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "trigger could not be created",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    return MCD_RET_ACT_NONE;
 }
 
 mcd_return_et mcd_create_trig_f(const mcd_core_st *core, void *trig,
                                 uint32_t *trig_id)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+    uint32_t struct_size;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!trig || !trig_id) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    struct_size = *((uint32_t *)trig);
+    if (struct_size == (uint32_t) sizeof(mcd_trig_simple_core_st) ||
+        struct_size == (uint32_t) sizeof(mcd_trig_complex_core_st))
+    {
+        /* only trig_simple_cores are currently supported */
+        mcd_trig_simple_core_st *simple_trig = (mcd_trig_simple_core_st *)trig;
+
+        if (mcd_create_trig_simple_core(core_state, simple_trig) !=
+            MCD_RET_ACT_NONE) {
+            return core_state->last_error->return_status;
+        }
+
+        *trig_id = ++core_state->num_created_triggers;
+        mcd_active_trigger t = {
+            .trig = *simple_trig,
+            .id = *trig_id,
+            .captured = false,
+        };
+        g_array_append_val(core_state->triggers, t);
+    } else {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TRIG_CREATE,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "trigger with struct_size not supported",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
+}
+
+/*
+ * find_trig() - Searches for a trigger with trig_id in the core-internal
+ *               trigger list. If found, the trigger as well as (optionally)
+ *               its index in the internal list are returned.
+ */
+static mcd_active_trigger *find_trig(mcdcore_state *core_state,
+                                     uint32_t trig_id,
+                                     uint32_t *trig_array_index)
+{
+    g_assert(core_state->triggers);
+    for (uint32_t i = 0; i < core_state->triggers->len; i++) {
+        mcd_active_trigger *t = &g_array_index(core_state->triggers,
+                                               mcd_active_trigger, i);
+        if (t->id == trig_id) {
+            if (trig_array_index) {
+                *trig_array_index = i;
+            }
+            return t;
+        }
+    }
+
+    return NULL;
 }
 
 mcd_return_et mcd_qry_trig_f(const mcd_core_st *core, uint32_t trig_id,
                              uint32_t max_trig_size, void *trig)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+    mcd_active_trigger *active_trig;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (max_trig_size < sizeof(*active_trig)) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_RESULT_TOO_LONG,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (!trig) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    active_trig = find_trig(core_state, trig_id, NULL);
+    if (!active_trig) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TRIG_ACCESS,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "trigger with trig_id not found",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    memcpy(trig, &active_trig->trig, sizeof(active_trig->trig));
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
+}
+
+static mcd_return_et mcd_remove_trig_simple_core(mcdcore_state *core_state,
+                                                 mcd_trig_simple_core_st *trig)
+{
+    int ret_val;
+
+    switch (trig->type) {
+    case MCD_TRIG_TYPE_IP:
+        ret_val = cpu_breakpoint_remove(core_state->cpu,
+                                    trig->addr_start.address,
+                                    BP_GDB);
+        break;
+    case MCD_TRIG_TYPE_WRITE:
+        ret_val = cpu_watchpoint_remove(core_state->cpu,
+                                        trig->addr_start.address, 4,
+                                        BP_GDB | BP_MEM_WRITE);
+        break;
+    case MCD_TRIG_TYPE_READ:
+        ret_val = cpu_watchpoint_remove(core_state->cpu,
+                                        trig->addr_start.address, 4,
+                                        BP_GDB | BP_MEM_READ);
+        break;
+    case MCD_TRIG_TYPE_RW:
+        ret_val = cpu_watchpoint_remove(core_state->cpu,
+                                        trig->addr_start.address, 4,
+                                        BP_GDB | BP_MEM_ACCESS);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (ret_val != 0) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TRIG_CREATE,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "trigger could not be removed",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    return MCD_RET_ACT_NONE;
 }
 
 mcd_return_et mcd_remove_trig_f(const mcd_core_st *core, uint32_t trig_id)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+    mcd_active_trigger *trig;
+    uint32_t trig_index;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    trig = find_trig(core_state, trig_id, &trig_index);
+    if (!trig) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TRIG_ACCESS,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "trigger with trig_id not found",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (mcd_remove_trig_simple_core(core_state, &trig->trig)
+        != MCD_RET_ACT_NONE) {
+        return core_state->last_error->return_status;
+    }
+
+    g_array_remove_index(core_state->triggers, trig_index);
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_qry_trig_state_f(const mcd_core_st *core, uint32_t trig_id,
                                    mcd_trig_state_st *trig_state)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+    mcd_active_trigger *trig;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!trig_state) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    trig = find_trig(core_state, trig_id, NULL);
+    if (!trig) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TRIG_ACCESS,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "trigger with trig_id not found",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    /* triggers are always active */
+    *trig_state = (mcd_trig_state_st) {
+        .active = true,
+        .captured = trig->captured,
+        .captured_valid = true,
+        .count_valid = false,
+    };
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_activate_trig_set_f(const mcd_core_st *core)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    /* Triggers are already activated when being created */
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_remove_trig_set_f(const mcd_core_st *core)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    g_assert(core_state->triggers);
+
+    while (core_state->triggers->len > 0) {
+        uint32_t len = core_state->triggers->len;
+        mcd_active_trigger *trig = &g_array_index(core_state->triggers,
+                                                  mcd_active_trigger, 0);
+        if (mcd_remove_trig_f(core, trig->id) != MCD_RET_ACT_NONE) {
+            return core_state->last_error->return_status;
+        }
+        g_assert(core_state->triggers->len == len - 1);
+    }
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_qry_trig_set_f(const mcd_core_st *core, uint32_t start_index,
                                  uint32_t *num_trigs, uint32_t *trig_ids)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    uint32_t i;
+    mcdcore_state *core_state;
+
+    if (!core || !num_trigs) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    g_assert(core_state->triggers);
+
+    if (*num_trigs == 0) {
+        *num_trigs = core_state->triggers->len;
+        core_state->last_error = &MCD_ERROR_NONE;
+        return core_state->last_error->return_status;
+    }
+
+    if (start_index >= core_state->triggers->len) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "start_index exceeds the number of triggers",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (!trig_ids) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    for (i = 0; i < *num_trigs &&
+         start_index + i < core_state->triggers->len; i++) {
+
+        mcd_active_trigger *t = &g_array_index(core_state->triggers,
+                                               mcd_active_trigger,
+                                               start_index + i);
+        trig_ids[i] = t->id;
+    }
+
+    *num_trigs = i;
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_qry_trig_set_state_f(const mcd_core_st *core,
                                        mcd_trig_set_state_st *trig_state)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    mcdcore_state *core_state;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!trig_state) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    *trig_state = (mcd_trig_set_state_st) {
+        .active = true,
+        .state_valid = false,
+        .trig_bus_valid = false,
+        .trace_valid = false,
+        .analysis_valid = false,
+    };
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
@@ -1534,6 +2062,26 @@ mcd_return_et mcd_qry_state_f(const mcd_core_st *core, mcd_core_state_st *state)
     default:
         state->state = MCD_CORE_STATE_UNKNOWN;
         break;
+    }
+
+    if (state->state == MCD_CORE_STATE_DEBUG && g_server_state.bp_cpu) {
+        if (g_server_state.bp_cpu == core_state->cpu) {
+            state->event = MCD_CORE_EVENT_TRIGGER_CHANGE;
+            GArray *trigs = core_state->triggers;
+            for (int i = 0; i < trigs->len; i++) {
+                mcd_active_trigger *t = &g_array_index(trigs,
+                                                       mcd_active_trigger, i);
+                if (g_server_state.bp_addr >= t->trig.addr_start.address
+                &&  g_server_state.bp_addr <= t->trig.addr_start.address
+                                            + t->trig.addr_range) {
+                    state->trig_id = t->id;
+                    t->captured = true;
+                }
+            }
+            g_server_state.bp_cpu = NULL;
+        } else {
+            state->state = MCD_CORE_STATE_HALTED;
+        }
     }
 
     g_server_state.last_error = &MCD_ERROR_NONE;

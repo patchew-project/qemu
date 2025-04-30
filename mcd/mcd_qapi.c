@@ -224,6 +224,158 @@ MCDCoreState *marshal_mcd_core_state(const mcd_core_state_st *state)
     return marshal;
 }
 
+MCDTrigInfo *marshal_mcd_trig_info(const mcd_trig_info_st *trig_info)
+{
+    MCDTrigInfo *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDTrigInfo) {
+        .type = trig_info->type,
+        .option = trig_info->option,
+        .action = trig_info->action,
+        .trig_number = trig_info->trig_number,
+        .state_number = trig_info->state_number,
+        .counter_number = trig_info->counter_number,
+        .sw_breakpoints = trig_info->sw_breakpoints,
+    };
+
+    return marshal;
+}
+
+MCDCtrigInfo *marshal_mcd_ctrig_info(const mcd_ctrig_info_st *trig_info)
+{
+    MCDCtrigInfo *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDCtrigInfo) {
+        .ctrig_id = trig_info->ctrig_id,
+        .info_str = g_strdup(trig_info->info_str),
+    };
+
+    return marshal;
+}
+
+MCDTrigSimpleCore *marshal_mcd_trig_simple_core(
+    mcd_trig_simple_core_st const *trig_simple_core)
+{
+    MCDTrigSimpleCore *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDTrigSimpleCore) {
+        .type = trig_simple_core->type,
+        .option = trig_simple_core->option,
+        .action = trig_simple_core->action,
+        .action_param = trig_simple_core->action_param,
+        .modified = trig_simple_core->modified,
+        .state_mask = trig_simple_core->state_mask,
+        .addr_start = marshal_mcd_addr(&trig_simple_core->addr_start),
+        .addr_range = trig_simple_core->addr_range,
+    };
+
+    return marshal;
+}
+
+mcd_trig_simple_core_st unmarshal_mcd_trig_simple_core(
+     MCDTrigSimpleCore *trig_simple_core)
+{
+    mcd_trig_simple_core_st unmarshal =  {
+        .struct_size = sizeof(mcd_trig_simple_core_st),
+        .type = trig_simple_core->type,
+        .option = trig_simple_core->option,
+        .action = trig_simple_core->action,
+        .action_param = trig_simple_core->action_param,
+        .modified = trig_simple_core->modified,
+        .state_mask = trig_simple_core->state_mask,
+        .addr_start = unmarshal_mcd_addr(trig_simple_core->addr_start),
+        .addr_range = trig_simple_core->addr_range,
+    };
+
+    return unmarshal;
+}
+
+MCDTrigComplexCore *marshal_mcd_trig_complex_core(
+    mcd_trig_complex_core_st const *trig_complex_core)
+{
+    MCDTrigComplexCore *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDTrigComplexCore) {
+        .type = trig_complex_core->type,
+        .option = trig_complex_core->option,
+        .action = trig_complex_core->action,
+        .action_param = trig_complex_core->action_param,
+        .modified = trig_complex_core->modified,
+        .state_mask = trig_complex_core->state_mask,
+        .addr_start = marshal_mcd_addr(&trig_complex_core->addr_start),
+        .addr_range = trig_complex_core->addr_range,
+        .data_start = trig_complex_core->data_start,
+        .data_range = trig_complex_core->data_range,
+        .data_mask = trig_complex_core->data_mask,
+        .data_size = trig_complex_core->data_size,
+        .hw_thread_id = trig_complex_core->hw_thread_id,
+        .sw_thread_id = trig_complex_core->sw_thread_id,
+        .core_mode_mask = trig_complex_core->core_mode_mask,
+    };
+
+    return marshal;
+}
+
+mcd_trig_complex_core_st unmarshal_mcd_trig_complex_core(
+     MCDTrigComplexCore *trig_complex_core)
+{
+    mcd_trig_complex_core_st unmarshal =  {
+        .struct_size = sizeof(mcd_trig_complex_core_st),
+        .type = trig_complex_core->type,
+        .option = trig_complex_core->option,
+        .action = trig_complex_core->action,
+        .action_param = trig_complex_core->action_param,
+        .modified = trig_complex_core->modified,
+        .state_mask = trig_complex_core->state_mask,
+        .addr_start = unmarshal_mcd_addr(trig_complex_core->addr_start),
+        .addr_range = trig_complex_core->addr_range,
+        .data_start = trig_complex_core->data_start,
+        .data_range = trig_complex_core->data_range,
+        .data_mask = trig_complex_core->data_mask,
+        .data_size = trig_complex_core->data_size,
+        .hw_thread_id = trig_complex_core->hw_thread_id,
+        .sw_thread_id = trig_complex_core->sw_thread_id,
+        .core_mode_mask = trig_complex_core->core_mode_mask,
+    };
+
+    return unmarshal;
+}
+
+MCDTrigState *marshal_mcd_trig_state(const mcd_trig_state_st *trig_info)
+{
+    MCDTrigState *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDTrigState) {
+        .active = trig_info->active,
+        .captured = trig_info->captured,
+        .captured_valid = trig_info->captured_valid,
+        .count_value = trig_info->count_value,
+        .count_valid = trig_info->count_valid,
+    };
+
+    return marshal;
+}
+
+MCDTrigSetState *marshal_mcd_trig_set_state(
+    const mcd_trig_set_state_st *trig_state)
+{
+    MCDTrigSetState *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDTrigSetState) {
+        .active = trig_state->active,
+        .state = trig_state->state,
+        .state_valid = trig_state->state_valid,
+        .trig_bus = trig_state->trig_bus,
+        .trig_bus_valid = trig_state->trig_bus_valid,
+        .trace = trig_state->trace,
+        .trace_valid = trig_state->trace_valid,
+        .analysis = trig_state->analysis,
+        .analysis_valid = trig_state->analysis_valid,
+    };
+
+    return marshal;
+}
+
 MCDTx *marshal_mcd_tx(const mcd_tx_st *tx)
 {
     MCDTx *marshal = g_malloc0(sizeof(*marshal));
