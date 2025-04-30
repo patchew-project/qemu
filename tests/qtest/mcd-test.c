@@ -132,6 +132,100 @@ static void test_initialize(void)
     mcdtest_quit(&qts);
 }
 
+static void test_qry_servers(void)
+{
+    QTestStateMCD qts = mcdtest_init(QEMU_EXTRA_ARGS);
+
+    char host[] = "";
+
+    q_obj_mcd_qry_servers_arg qapi_args = {
+        .host = host,
+        .running = true,
+        .start_index = 0,
+        .num_servers = 0,
+    };
+
+    MCDQryServersResult *result = qtest_mcd_qry_servers(&qts, &qapi_args);
+    g_assert(result->return_status == MCD_RET_ACT_NONE);
+    g_assert(result->has_num_servers);
+    g_assert(result->num_servers == 1);
+    g_assert(result->has_server_info == false);
+
+    qapi_args.num_servers = result->num_servers;
+    qapi_free_MCDQryServersResult(result);
+
+    result = qtest_mcd_qry_servers(&qts, &qapi_args);
+
+    g_assert(result->return_status == MCD_RET_ACT_NONE);
+    g_assert(result->has_num_servers);
+    g_assert(result->num_servers == 1);
+    g_assert(result->has_server_info);
+
+    if (verbose) {
+        MCDServerInfo *server_info = result->server_info->value;
+        fprintf(stderr, "[INFO]\tServer info: %s (%s)\n",
+                        server_info->server,
+                        server_info->system_instance);
+    }
+
+    qapi_free_MCDQryServersResult(result);
+    mcdtest_quit(&qts);
+}
+
+static void test_open_server(void)
+{
+    QTestStateMCD qts = mcdtest_init(QEMU_EXTRA_ARGS);
+
+    char empty_string[] = "";
+
+    q_obj_mcd_open_server_arg open_server_args = {
+        .system_key = empty_string,
+        .config_string = empty_string,
+    };
+
+    q_obj_mcd_close_server_arg close_server_args;
+
+    MCDOpenServerResult *open_server_result;
+    MCDCloseServerResult *close_server_result;
+
+    open_server_result = qtest_mcd_open_server(&qts, &open_server_args);
+    g_assert(open_server_result->return_status == MCD_RET_ACT_NONE);
+    g_assert(open_server_result->has_server_uid);
+
+    close_server_args.server_uid = open_server_result->server_uid;
+    qapi_free_MCDOpenServerResult(open_server_result);
+
+    /* Check that server cannot be opened twice */
+    open_server_result = qtest_mcd_open_server(&qts, &open_server_args);
+    g_assert(open_server_result->return_status != MCD_RET_ACT_NONE);
+
+    if (verbose) {
+        MCDErrorInfo *error_info = qtest_mcd_qry_error_info(&qts);
+        fprintf(stderr, "[INFO]\tServer cannot be opened twice: %s\n",
+                        error_info->error_str);
+        qapi_free_MCDErrorInfo(error_info);
+    }
+
+    qapi_free_MCDOpenServerResult(open_server_result);
+    close_server_result = qtest_mcd_close_server(&qts, &close_server_args);
+    g_assert(close_server_result->return_status == MCD_RET_ACT_NONE);
+    qapi_free_MCDCloseServerResult(close_server_result);
+
+    /* Check that server cannot be closed twice */
+    close_server_result = qtest_mcd_close_server(&qts, &close_server_args);
+    g_assert(close_server_result->return_status != MCD_RET_ACT_NONE);
+
+    if (verbose) {
+        MCDErrorInfo *error_info = qtest_mcd_qry_error_info(&qts);
+        fprintf(stderr, "[INFO]\tServer cannot be closed twice: %s\n",
+                        error_info->error_str);
+        qapi_free_MCDErrorInfo(error_info);
+    }
+
+    qapi_free_MCDCloseServerResult(close_server_result);
+    mcdtest_quit(&qts);
+}
+
 int main(int argc, char *argv[])
 {
     char *v_env = getenv("V");
@@ -140,5 +234,7 @@ int main(int argc, char *argv[])
 
     qtest_add_func("mcd/initialize-mcdtest", test_initialize_mcdtest);
     qtest_add_func("mcd/initialize", test_initialize);
+    qtest_add_func("mcd/qry-servers", test_qry_servers);
+    qtest_add_func("mcd/open-server", test_open_server);
     return g_test_run();
 }

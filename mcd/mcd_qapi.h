@@ -21,6 +21,8 @@ MCDImplVersionInfo *marshal_mcd_impl_version_info(
 
 MCDErrorInfo *marshal_mcd_error_info(const mcd_error_info_st *error_info);
 
+MCDServerInfo *marshal_mcd_server_info(const mcd_server_info_st *server_info);
+
 mcd_api_version_st unmarshal_mcd_api_version(MCDAPIVersion *api_version);
 
 #endif /* MCD_QAPI_H */

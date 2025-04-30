@@ -38,14 +38,17 @@ static mcd_error_info_st custom_mcd_error;
 /**
  * struct mcdserver_state - State of the MCD server
  *
- * @last_error: Error info of most recent executed function.
+ * @last_error:  Error info of most recent executed function.
+ * @open_server: Open server instance as allocated in mcd_open_server_f().
  */
 typedef struct mcdserver_state {
     const mcd_error_info_st *last_error;
+    mcd_server_st *open_server;
 } mcdserver_state;
 
 static mcdserver_state g_server_state = {
     .last_error = &MCD_ERROR_NONE,
+    .open_server = NULL,
 };
 
 mcd_return_et mcd_initialize_f(const mcd_api_version_st *version_req,
@@ -87,7 +90,10 @@ mcd_return_et mcd_initialize_f(const mcd_api_version_st *version_req,
 
 void mcd_exit_f(void)
 {
-    g_server_state.last_error = &MCD_ERROR_NONE;
+    if (g_server_state.open_server) {
+        mcd_close_server_f(g_server_state.open_server);
+    }
+
     return;
 }
 
@@ -95,7 +101,51 @@ mcd_return_et mcd_qry_servers_f(const char *host, bool running,
                                 uint32_t start_index, uint32_t *num_servers,
                                 mcd_server_info_st *server_info)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    if (start_index >= 1) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "QEMU only has one MCD server",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!num_servers) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!running) {
+        /* MCD server is always running */
+        *num_servers = 0;
+        g_server_state.last_error = &MCD_ERROR_NONE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (*num_servers == 0) {
+        *num_servers = 1;
+        g_server_state.last_error = &MCD_ERROR_NONE;
+        return g_server_state.last_error->return_status;
+    }
+
+    /* num_servers != 0 => return server information */
+
+    if (!server_info) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    *server_info = (mcd_server_info_st) {
+        .server = "QEMU"
+    };
+    snprintf(server_info->system_instance, MCD_UNIQUE_NAME_LEN,
+             "Process ID: %d", (int) getpid());
+
+    *num_servers = 1;
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
@@ -103,13 +153,63 @@ mcd_return_et mcd_open_server_f(const char *system_key,
                                 const char *config_string,
                                 mcd_server_st **server)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    if (g_server_state.open_server) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_CONNECTION,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "server already open",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!server) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    g_server_state.open_server = g_malloc(sizeof(mcd_server_st));
+    *g_server_state.open_server = (mcd_server_st) {
+        .instance = NULL,
+        .host = "QEMU",
+        .config_string = "",
+    };
+
+    *server = g_server_state.open_server;
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
 mcd_return_et mcd_close_server_f(const mcd_server_st *server)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    if (!g_server_state.open_server) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_CONNECTION,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "server not open",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (server != g_server_state.open_server) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_CONNECTION,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "unknown server",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    g_free(g_server_state.open_server);
+    g_server_state.open_server = NULL;
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
