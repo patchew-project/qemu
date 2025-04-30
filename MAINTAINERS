@@ -3136,6 +3136,7 @@ M: Mario Fleischmann <mario.fleischmann@lauterbach.com>
 S: Maintained
 F: mcd/*
 F: docs/interop/mcd.rst
+F: qapi/mcd.json
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
