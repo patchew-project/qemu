@@ -399,6 +399,84 @@ static void test_open_core(void)
     mcdtest_quit(&qts);
 }
 
+static void test_qry_core_info(void)
+{
+    QTestStateMCD qts = mcdtest_init(QEMU_EXTRA_ARGS);
+    MCDQryCoresResult *cores_query = open_server_query_cores(&qts);
+
+    MCDCoreConInfoList *core_head = cores_query->core_con_info;
+    for (uint32_t c = 0; c < cores_query->num_cores; c++) {
+        q_obj_mcd_qry_mem_spaces_arg qry_mem_spaces_args;
+        q_obj_mcd_close_core_arg close_core_args;
+        MCDQryMemSpacesResult *qry_mem_spaces_result;
+        MCDCloseCoreResult *close_core_result;
+
+        MCDCoreConInfo *core_con_info = core_head->value;
+        q_obj_mcd_open_core_arg open_core_args = {
+            .core_con_info = core_con_info,
+        };
+        MCDOpenCoreResult *open_core_result =
+            qtest_mcd_open_core(&qts, &open_core_args);
+        g_assert(open_core_result->return_status == MCD_RET_ACT_NONE);
+        g_assert(open_core_result->has_core_uid);
+
+        if (verbose) {
+            fprintf(stderr, "[INFO]\tCore %s #%d\n",
+                                core_con_info->core,
+                                core_con_info->core_id);
+        }
+
+        qry_mem_spaces_args = (q_obj_mcd_qry_mem_spaces_arg) {
+            .core_uid = open_core_result->core_uid,
+            .start_index = 0,
+            .num_mem_spaces = 0,
+        };
+
+        qry_mem_spaces_result = qtest_mcd_qry_mem_spaces(&qts,
+                                                         &qry_mem_spaces_args);
+        g_assert(qry_mem_spaces_result->return_status == MCD_RET_ACT_NONE);
+        g_assert(qry_mem_spaces_result->has_num_mem_spaces);
+        g_assert(qry_mem_spaces_result->num_mem_spaces > 0);
+
+        qry_mem_spaces_args.num_mem_spaces =
+            qry_mem_spaces_result->num_mem_spaces;
+        qapi_free_MCDQryMemSpacesResult(qry_mem_spaces_result);
+        qry_mem_spaces_result = qtest_mcd_qry_mem_spaces(&qts,
+                                                         &qry_mem_spaces_args);
+        g_assert(qry_mem_spaces_result->return_status == MCD_RET_ACT_NONE);
+        g_assert(qry_mem_spaces_result->has_num_mem_spaces);
+
+        if (verbose) {
+            MCDMemspaceList *ms_head = qry_mem_spaces_result->mem_spaces;
+            for (uint32_t i = 0;
+                 i < qry_mem_spaces_result->num_mem_spaces; i++) {
+                MCDMemspace *ms = ms_head->value;
+                if (verbose) {
+                    fprintf(stderr, "\tMemory Space: %s (#%d)\n"
+                                    "\t              Type: 0x%x\n",
+                                    ms->mem_space_name,
+                                    ms->mem_space_id,
+                                    ms->mem_type);
+                }
+                ms_head = ms_head->next;
+            }
+        }
+
+        qapi_free_MCDQryMemSpacesResult(qry_mem_spaces_result);
+        close_core_args.core_uid = open_core_result->core_uid;
+        close_core_result = qtest_mcd_close_core(&qts, &close_core_args);
+        g_assert(close_core_result->return_status == MCD_RET_ACT_NONE);
+
+        qapi_free_MCDCloseCoreResult(close_core_result);
+        qapi_free_MCDOpenCoreResult(open_core_result);
+        core_head = core_head->next;
+    }
+
+    qapi_free_MCDQryCoresResult(cores_query);
+    qtest_mcd_exit(&qts);
+    mcdtest_quit(&qts);
+}
+
 int main(int argc, char *argv[])
 {
     char *v_env = getenv("V");
@@ -411,5 +489,6 @@ int main(int argc, char *argv[])
     qtest_add_func("mcd/open-server", test_open_server);
     qtest_add_func("mcd/qry-cores", test_qry_cores);
     qtest_add_func("mcd/open-core", test_open_core);
+    qtest_add_func("mcd/qry-core-info", test_qry_core_info);
     return g_test_run();
 }
