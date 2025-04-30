@@ -22,6 +22,7 @@
 #include <sys/procctl.h>
 #endif /* __FreeBSD__ */
 
+#include "mcd/mcd_qapi.h"
 #include "libqtest.h"
 #include "mcd-util.h"
 
@@ -71,6 +72,66 @@ static void test_initialize_mcdtest(void)
     mcdtest_quit(&qts);
 }
 
+static void test_initialize(void)
+{
+    QTestStateMCD qts = mcdtest_init(QEMU_EXTRA_ARGS);
+    MCDErrorInfo *error_info;
+
+    mcd_api_version_st version_req = {
+        .v_api_major = MCD_API_VER_MAJOR,
+        .v_api_minor = MCD_API_VER_MINOR,
+        .author = "",
+    };
+
+    q_obj_mcd_initialize_arg qapi_args = {
+        .version_req = marshal_mcd_api_version(&version_req),
+    };
+
+    MCDInitializeResult *result = qtest_mcd_initialize(&qts, &qapi_args);
+    g_assert(result->return_status == MCD_RET_ACT_NONE);
+
+    if (verbose) {
+        fprintf(stderr, "[INFO]\tAPI v%d.%d (%s)\n",
+                        result->impl_info->v_api->v_api_major,
+                        result->impl_info->v_api->v_api_minor,
+                        result->impl_info->v_api->author);
+        fprintf(stderr, "[INFO]\tImplementation v%d.%d.%d %s (%s)\n",
+                        result->impl_info->v_imp_major,
+                        result->impl_info->v_imp_minor,
+                        result->impl_info->v_imp_build,
+                        result->impl_info->date,
+                        result->impl_info->vendor);
+    }
+
+    qapi_free_MCDAPIVersion(qapi_args.version_req);
+    qapi_free_MCDInitializeResult(result);
+
+    /* Incompatible version */
+    version_req = (mcd_api_version_st) {
+        .v_api_major = MCD_API_VER_MAJOR,
+        .v_api_minor = MCD_API_VER_MINOR + 1,
+        .author = "",
+    };
+
+    qapi_args.version_req = marshal_mcd_api_version(&version_req);
+    result = qtest_mcd_initialize(&qts, &qapi_args);
+    g_assert(result->return_status != MCD_RET_ACT_NONE);
+
+    error_info = qtest_mcd_qry_error_info(&qts);
+    g_assert(error_info->error_code == MCD_ERR_GENERAL);
+
+    if (verbose) {
+        fprintf(stderr, "[INFO]\tInitialization with newer API failed "
+                        "successfully: %s\n", error_info->error_str);
+    }
+
+    qapi_free_MCDAPIVersion(qapi_args.version_req);
+    qapi_free_MCDInitializeResult(result);
+    qapi_free_MCDErrorInfo(error_info);
+
+    mcdtest_quit(&qts);
+}
+
 int main(int argc, char *argv[])
 {
     char *v_env = getenv("V");
@@ -78,5 +139,6 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("mcd/initialize-mcdtest", test_initialize_mcdtest);
+    qtest_add_func("mcd/initialize", test_initialize);
     return g_test_run();
 }
