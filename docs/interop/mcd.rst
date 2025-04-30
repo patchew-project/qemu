@@ -44,6 +44,19 @@ To configure the build for MCD support:
 
   ./configure --enable-mcd
 
+Debugging via QAPI
+------------------
+
+Since the MCD API does not define a communication protocol, a QAPI schema
+has been added to implement a remote procedure call mechanism.
+Each function within the API corresponds to one QAPI command, ensuring a
+one-to-one mapping between the API's functions and the QAPI commands.
+
+QAPI Reference
+--------------
+
+.. qapi-doc:: qapi/mcd.json
+
 API Reference
 -------------
 
