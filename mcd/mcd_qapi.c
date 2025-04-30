@@ -126,6 +126,18 @@ mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info)
     return unmarshal;
 }
 
+mcd_addr_st unmarshal_mcd_addr(MCDAddr *addr)
+{
+    mcd_addr_st unmarshal = {
+        .address = addr->address,
+        .mem_space_id = addr->mem_space_id,
+        .addr_space_id = addr->addr_space_id,
+        .addr_space_type = addr->addr_space_type,
+    };
+
+    return unmarshal;
+}
+
 MCDMemspace *marshal_mcd_memspace(const mcd_memspace_st *mem_space)
 {
     MCDMemspace *marshal = g_malloc0(sizeof(*marshal));
@@ -210,4 +222,120 @@ MCDCoreState *marshal_mcd_core_state(const mcd_core_state_st *state)
     };
 
     return marshal;
+}
+
+MCDTx *marshal_mcd_tx(const mcd_tx_st *tx)
+{
+    MCDTx *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDTx) {
+        .addr = marshal_mcd_addr(&tx->addr),
+        .access_type = tx->access_type,
+        .options = tx->options,
+        .access_width = tx->access_width,
+        .core_mode = tx->core_mode,
+        .num_bytes = tx->num_bytes,
+        .num_bytes_ok = tx->num_bytes_ok,
+    };
+
+    if (tx->num_bytes == 0) {
+        return marshal;
+    }
+
+    g_assert(tx->data);
+
+    uint8List *head = marshal->data;
+    for (int i = tx->num_bytes - 1; i >= 0; i--) {
+        QAPI_LIST_PREPEND(head, tx->data[i]);
+    }
+    marshal->data = head;
+    return marshal;
+}
+
+mcd_tx_st unmarshal_mcd_tx(MCDTx *tx)
+{
+    mcd_tx_st unmarshal = {
+        .addr = unmarshal_mcd_addr(tx->addr),
+        .access_type = tx->access_type,
+        .options = tx->options,
+        .access_width = tx->access_width,
+        .core_mode = tx->core_mode,
+        .data = NULL,
+        .num_bytes = tx->num_bytes,
+        .num_bytes_ok = tx->num_bytes_ok,
+    };
+
+    if (tx->num_bytes == 0) {
+        return unmarshal;
+    }
+
+    unmarshal.data = g_malloc(tx->num_bytes);
+    uint8List *current_data = tx->data;
+    for (uint32_t i = 0; i < tx->num_bytes; i++) {
+        g_assert(current_data);
+        unmarshal.data[i] = current_data->value;
+        current_data = current_data->next;
+    }
+
+    return unmarshal;
+}
+
+void free_mcd_tx(mcd_tx_st *tx)
+{
+    g_free(tx->data);
+}
+
+MCDTxlist *marshal_mcd_txlist(const mcd_txlist_st *txlist)
+{
+    MCDTxlist *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDTxlist) {
+        .num_tx = txlist->num_tx,
+        .num_tx_ok = txlist->num_tx_ok,
+    };
+
+    if (txlist->num_tx == 0) {
+        return marshal;
+    }
+
+    g_assert(txlist->tx);
+
+    MCDTxList **tailp = &(marshal->tx);
+    for (uint32_t i = 0; i < txlist->num_tx; i++) {
+        MCDTx *tx = marshal_mcd_tx(txlist->tx + i);
+        QAPI_LIST_APPEND(tailp, tx);
+    }
+
+    return marshal;
+}
+
+mcd_txlist_st unmarshal_mcd_txlist(MCDTxlist *txlist)
+{
+    mcd_txlist_st unmarshal = {
+        .tx = g_malloc(txlist->num_tx * sizeof(mcd_tx_st)),
+        .num_tx = txlist->num_tx,
+        .num_tx_ok = txlist->num_tx_ok,
+    };
+
+    MCDTxList *current_tx = txlist->tx;
+    for (uint32_t i = 0; i < txlist->num_tx; i++) {
+        g_assert(current_tx);
+        unmarshal.tx[i] = unmarshal_mcd_tx(current_tx->value);
+        current_tx = current_tx->next;
+    }
+
+    return unmarshal;
+}
+
+void free_mcd_txlist(mcd_txlist_st *txlist)
+{
+    if (!txlist->tx) {
+        return;
+    }
+
+    for (uint32_t i = 0; i < txlist->num_tx; i++) {
+        free_mcd_tx(txlist->tx + i);
+    }
+
+    g_free(txlist->tx);
 }

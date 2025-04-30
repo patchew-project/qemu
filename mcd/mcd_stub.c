@@ -517,6 +517,32 @@ MCDQryRegMapResult *qmp_mcd_qry_reg_map(uint32_t core_uid,
     return result;
 }
 
+MCDExecuteTxlistResult *qmp_mcd_execute_txlist(uint32_t core_uid,
+                                               MCDTxlist *txlist,
+                                               Error **errp)
+{
+    MCDExecuteTxlistResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    mcd_txlist_st txlist_unmarshalled = unmarshal_mcd_txlist(txlist);
+
+    result->return_status = mcd_execute_txlist_f(core, &txlist_unmarshalled);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->txlist = marshal_mcd_txlist(&txlist_unmarshalled);
+    }
+
+    free_mcd_txlist(&txlist_unmarshalled);
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
 MCDRunResult *qmp_mcd_run(uint32_t core_uid, bool global, Error **errp)
 {
     MCDRunResult *result = g_malloc0(sizeof(*result));

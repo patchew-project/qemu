@@ -37,8 +37,22 @@ MCDRegisterInfo *marshal_mcd_register_info(
 
 MCDCoreState *marshal_mcd_core_state(const mcd_core_state_st *state);
 
+MCDTx *marshal_mcd_tx(const mcd_tx_st *tx);
+
+MCDTxlist *marshal_mcd_txlist(const mcd_txlist_st *txlist);
+
 mcd_api_version_st unmarshal_mcd_api_version(MCDAPIVersion *api_version);
 
 mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info);
+
+mcd_addr_st unmarshal_mcd_addr(MCDAddr *addr);
+
+mcd_tx_st unmarshal_mcd_tx(MCDTx *tx);
+
+mcd_txlist_st unmarshal_mcd_txlist(MCDTxlist *txlist);
+
+void free_mcd_tx(mcd_tx_st *tx);
+
+void free_mcd_txlist(mcd_txlist_st *txlist);
 
 #endif /* MCD_QAPI_H */
