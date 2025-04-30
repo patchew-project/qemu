@@ -226,6 +226,88 @@ static void test_open_server(void)
     mcdtest_quit(&qts);
 }
 
+static void test_qry_cores(void)
+{
+    QTestStateMCD qts = mcdtest_init(QEMU_EXTRA_ARGS);
+
+    char empty_string[] = "";
+
+    q_obj_mcd_open_server_arg open_server_args = {
+        .system_key = empty_string,
+        .config_string = empty_string,
+    };
+
+    q_obj_mcd_qry_systems_arg qry_systems_args = {
+        .start_index = 0,
+        .num_systems = 1,
+    };
+
+    q_obj_mcd_qry_devices_arg qry_devices_args = {
+        .start_index = 0,
+        .num_devices = 1,
+    };
+
+    q_obj_mcd_qry_cores_arg qry_cores_args = {
+        .start_index = 0,
+        /* first, only query the number of cores */
+        .num_cores = 0,
+    };
+
+    MCDOpenServerResult *open_server_result;
+    MCDQrySystemsResult *qry_systems_result;
+    MCDQryDevicesResult *qry_devices_result;
+    MCDQryCoresResult *qry_cores_result;
+
+    open_server_result = qtest_mcd_open_server(&qts, &open_server_args);
+    g_assert(open_server_result->return_status == MCD_RET_ACT_NONE);
+    g_assert(open_server_result->has_server_uid);
+    qapi_free_MCDOpenServerResult(open_server_result);
+
+    qry_systems_result = qtest_mcd_qry_systems(&qts, &qry_systems_args);
+    g_assert(qry_systems_result->return_status == MCD_RET_ACT_NONE);
+    g_assert(qry_systems_result->has_system_con_info);
+
+    qry_devices_args.system_con_info =
+        qry_systems_result->system_con_info->value;
+
+    qry_devices_result = qtest_mcd_qry_devices(&qts, &qry_devices_args);
+    g_assert(qry_devices_result->return_status == MCD_RET_ACT_NONE);
+    g_assert(qry_devices_result->has_device_con_info);
+    qapi_free_MCDQrySystemsResult(qry_systems_result);
+
+    qry_cores_args.connection_info =
+        qry_devices_result->device_con_info->value;
+
+    qry_cores_result = qtest_mcd_qry_cores(&qts, &qry_cores_args);
+    g_assert(qry_cores_result->return_status == MCD_RET_ACT_NONE);
+    g_assert(qry_cores_result->has_num_cores);
+    g_assert(qry_cores_result->num_cores > 0);
+    qry_cores_args.num_cores = qry_cores_result->num_cores;
+    qapi_free_MCDQryCoresResult(qry_cores_result);
+    qry_cores_result = qtest_mcd_qry_cores(&qts, &qry_cores_args);
+    qapi_free_MCDQryDevicesResult(qry_devices_result);
+
+    if (verbose) {
+        MCDCoreConInfoList *core_head = qry_cores_result->core_con_info;
+        for (uint32_t c = 0; c < qry_cores_result->num_cores; c++) {
+            MCDCoreConInfo *core_con = core_head->value;
+            if (verbose) {
+                fprintf(stderr, "[INFO]\tSystem: %s\n"
+                                "\tDevice: %s\n"
+                                "\tCore:   %s (#%d)\n",
+                                core_con->system,
+                                core_con->device,
+                                core_con->core, core_con->core_id);
+            }
+            core_head = core_head->next;
+        }
+    }
+
+    qapi_free_MCDQryCoresResult(qry_cores_result);
+    qtest_mcd_exit(&qts);
+    mcdtest_quit(&qts);
+}
+
 int main(int argc, char *argv[])
 {
     char *v_env = getenv("V");
@@ -236,5 +318,6 @@ int main(int argc, char *argv[])
     qtest_add_func("mcd/initialize", test_initialize);
     qtest_add_func("mcd/qry-servers", test_qry_servers);
     qtest_add_func("mcd/open-server", test_open_server);
+    qtest_add_func("mcd/qry-cores", test_qry_cores);
     return g_test_run();
 }

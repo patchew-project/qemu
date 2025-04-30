@@ -134,6 +134,122 @@ MCDCloseServerResult *qmp_mcd_close_server(uint32_t server_uid, Error **errp)
     return result;
 }
 
+MCDQrySystemsResult *qmp_mcd_qry_systems(uint32_t start_index,
+                                         uint32_t num_systems, Error **errp)
+{
+    MCDCoreConInfoList **tailp;
+    MCDCoreConInfo *info;
+    mcd_core_con_info_st *system_con_info = NULL;
+    bool query_num_only = num_systems == 0;
+    MCDQrySystemsResult *result = g_malloc0(sizeof(*result));
+
+    if (!query_num_only) {
+        system_con_info = g_malloc0(num_systems * sizeof(*system_con_info));
+    }
+
+    result->return_status = mcd_qry_systems_f(start_index, &num_systems,
+                                              system_con_info);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_num_systems = true;
+        result->num_systems = num_systems;
+        if (!query_num_only) {
+            result->has_system_con_info = true;
+            tailp = &(result->system_con_info);
+            for (uint32_t i = 0; i < num_systems; i++) {
+                info = marshal_mcd_core_con_info(system_con_info + i);
+                QAPI_LIST_APPEND(tailp, info);
+            }
+        }
+    }
+
+    if (!query_num_only) {
+        g_free(system_con_info);
+    }
+
+    return result;
+}
+
+MCDQryDevicesResult *qmp_mcd_qry_devices(MCDCoreConInfo *system_con_info,
+                                         uint32_t start_index,
+                                         uint32_t num_devices, Error **errp)
+{
+    MCDCoreConInfoList **tailp;
+    MCDCoreConInfo *info;
+    mcd_core_con_info_st *device_con_info = NULL;
+    bool query_num_only = num_devices == 0;
+    MCDQryDevicesResult *result = g_malloc0(sizeof(*result));
+    mcd_core_con_info_st system_con_info_unmarshalled =
+        unmarshal_mcd_core_con_info(system_con_info);
+
+    if (!query_num_only) {
+        device_con_info = g_malloc0(num_devices * sizeof(*device_con_info));
+    }
+
+    result->return_status = mcd_qry_devices_f(&system_con_info_unmarshalled,
+                                              start_index, &num_devices,
+                                              device_con_info);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_num_devices = true;
+        result->num_devices = num_devices;
+        if (!query_num_only) {
+            result->has_device_con_info = true;
+            tailp = &(result->device_con_info);
+            for (uint32_t i = 0; i < num_devices; i++) {
+                info = marshal_mcd_core_con_info(device_con_info + i);
+                QAPI_LIST_APPEND(tailp, info);
+            }
+        }
+    }
+
+    if (!query_num_only) {
+        g_free(device_con_info);
+    }
+
+    return result;
+}
+
+MCDQryCoresResult *qmp_mcd_qry_cores(MCDCoreConInfo *connection_info,
+                                     uint32_t start_index, uint32_t num_cores,
+                                     Error **errp)
+{
+    MCDCoreConInfoList **tailp;
+    MCDCoreConInfo *info;
+    mcd_core_con_info_st *core_con_info = NULL;
+    bool query_num_only = num_cores == 0;
+    MCDQryCoresResult *result = g_malloc0(sizeof(*result));
+    mcd_core_con_info_st connection_info_unmarshalled =
+        unmarshal_mcd_core_con_info(connection_info);
+
+    if (!query_num_only) {
+        core_con_info = g_malloc0(num_cores * sizeof(*core_con_info));
+    }
+
+    result->return_status = mcd_qry_cores_f(&connection_info_unmarshalled,
+                                            start_index, &num_cores,
+                                            core_con_info);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_num_cores = true;
+        result->num_cores = num_cores;
+        if (!query_num_only) {
+            result->has_core_con_info = true;
+            tailp = &(result->core_con_info);
+            for (uint32_t i = 0; i < num_cores; i++) {
+                info = marshal_mcd_core_con_info(core_con_info + i);
+                QAPI_LIST_APPEND(tailp, info);
+            }
+        }
+    }
+
+    if (!query_num_only) {
+        g_free(core_con_info);
+    }
+
+    return result;
+}
+
 MCDErrorInfo *qmp_mcd_qry_error_info(Error **errp)
 {
     MCDErrorInfo *result;

@@ -77,3 +77,51 @@ MCDServerInfo *marshal_mcd_server_info(const mcd_server_info_st *server_info)
 
     return marshal;
 }
+
+MCDCoreConInfo *marshal_mcd_core_con_info(const mcd_core_con_info_st *con_info)
+{
+    MCDCoreConInfo *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDCoreConInfo) {
+        .host = g_strdup(con_info->host),
+        .server_port = con_info->server_port,
+        .server_key = g_strdup(con_info->server_key),
+        .system_key = g_strdup(con_info->system_key),
+        .device_key = g_strdup(con_info->device_key),
+        .system = g_strdup(con_info->system),
+        .system_instance = g_strdup(con_info->system_instance),
+        .acc_hw = g_strdup(con_info->acc_hw),
+        .device_type = con_info->device_type,
+        .device = g_strdup(con_info->device),
+        .device_id = con_info->device_id,
+        .core = g_strdup(con_info->core),
+        .core_type = con_info->core_type,
+        .core_id = con_info->core_id,
+    };
+
+    return marshal;
+}
+
+mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info)
+{
+    mcd_core_con_info_st unmarshal = {
+        .server_port = con_info->server_port,
+        .device_type = con_info->device_type,
+        .device_id = con_info->device_id,
+        .core_type = con_info->core_type,
+        .core_id = con_info->core_id,
+    };
+
+    strncpy(unmarshal.host, con_info->host, MCD_HOSTNAME_LEN - 1);
+    strncpy(unmarshal.server_key, con_info->server_key, MCD_KEY_LEN - 1);
+    strncpy(unmarshal.system_key, con_info->system_key, MCD_KEY_LEN - 1);
+    strncpy(unmarshal.device_key, con_info->device_key, MCD_KEY_LEN - 1);
+    strncpy(unmarshal.system, con_info->system, MCD_UNIQUE_NAME_LEN - 1);
+    strncpy(unmarshal.system_instance, con_info->system_instance,
+            MCD_UNIQUE_NAME_LEN - 1);
+    strncpy(unmarshal.acc_hw, con_info->acc_hw, MCD_UNIQUE_NAME_LEN - 1);
+    strncpy(unmarshal.device, con_info->device, MCD_UNIQUE_NAME_LEN - 1);
+    strncpy(unmarshal.core, con_info->core, MCD_UNIQUE_NAME_LEN - 1);
+
+    return unmarshal;
+}
