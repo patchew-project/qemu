@@ -28,7 +28,9 @@ mcd_ss = ss.source_set()
 
 mcd_ss.add(mcd_qapi_files.to_list())
 mcd_ss.add(files(
-  'mcd_server.c'))
+  'mcd_server.c',
+  'mcd_stub.c',
+  'mcd_monitor.c'))
 
 mcd_ss = mcd_ss.apply({})
 

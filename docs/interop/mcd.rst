@@ -52,6 +52,8 @@ has been added to implement a remote procedure call mechanism.
 Each function within the API corresponds to one QAPI command, ensuring a
 one-to-one mapping between the API's functions and the QAPI commands.
 
+Use the option ``-mcd dev`` to start MCD's QAPI monitor.
+
 QAPI Reference
 --------------
 
