@@ -23,6 +23,10 @@ MCDErrorInfo *marshal_mcd_error_info(const mcd_error_info_st *error_info);
 
 MCDServerInfo *marshal_mcd_server_info(const mcd_server_info_st *server_info);
 
+MCDCoreConInfo *marshal_mcd_core_con_info(const mcd_core_con_info_st *con_info);
+
 mcd_api_version_st unmarshal_mcd_api_version(MCDAPIVersion *api_version);
+
+mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info);
 
 #endif /* MCD_QAPI_H */

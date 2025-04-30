@@ -9,7 +9,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "mcd_api.h"
+#include "hw/boards.h"
 
 static const mcd_error_info_st MCD_ERROR_NOT_IMPLEMENTED = {
     .return_status = MCD_RET_ACT_HANDLE_ERROR,
@@ -23,6 +25,13 @@ static const mcd_error_info_st MCD_ERROR_INVALID_NULL_PARAM = {
     .error_code = MCD_ERR_PARAM,
     .error_events = MCD_ERR_EVT_NONE,
     .error_str = "null was invalidly passed as a parameter",
+};
+
+static const mcd_error_info_st MCD_ERROR_SERVER_NOT_OPEN = {
+    .return_status = MCD_RET_ACT_HANDLE_ERROR,
+    .error_code = MCD_ERR_CONNECTION,
+    .error_events = MCD_ERR_EVT_NONE,
+    .error_str = "server is not open",
 };
 
 static const mcd_error_info_st MCD_ERROR_NONE = {
@@ -40,15 +49,21 @@ static mcd_error_info_st custom_mcd_error;
  *
  * @last_error:  Error info of most recent executed function.
  * @open_server: Open server instance as allocated in mcd_open_server_f().
+ * @system_key:  System key as provided in mcd_open_server_f()
+ * @cores:       Internal core information database.
  */
 typedef struct mcdserver_state {
     const mcd_error_info_st *last_error;
     mcd_server_st *open_server;
+    char system_key[MCD_KEY_LEN];
+    GArray *cores;
 } mcdserver_state;
 
 static mcdserver_state g_server_state = {
     .last_error = &MCD_ERROR_NONE,
     .open_server = NULL,
+    .system_key = "",
+    .cores = NULL,
 };
 
 mcd_return_et mcd_initialize_f(const mcd_api_version_st *version_req,
@@ -153,6 +168,8 @@ mcd_return_et mcd_open_server_f(const char *system_key,
                                 const char *config_string,
                                 mcd_server_st **server)
 {
+    CPUState *cpu;
+
     if (g_server_state.open_server) {
         custom_mcd_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
@@ -177,6 +194,23 @@ mcd_return_et mcd_open_server_f(const char *system_key,
     };
 
     *server = g_server_state.open_server;
+
+    if (system_key) {
+        pstrcpy(g_server_state.system_key, MCD_KEY_LEN, system_key);
+    }
+
+    /* update the internal core information data base */
+    g_server_state.cores = g_array_new(false, true,
+                                       sizeof(mcd_core_con_info_st));
+    CPU_FOREACH(cpu) {
+        ObjectClass *oc = object_get_class(OBJECT(cpu));
+        const char *cpu_model = object_class_get_name(oc);
+        mcd_core_con_info_st info = {
+            .core_id = g_server_state.cores->len,
+        };
+        pstrcpy(info.core, MCD_UNIQUE_NAME_LEN, cpu_model);
+        g_array_append_val(g_server_state.cores, info);
+    }
 
     g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
@@ -206,8 +240,10 @@ mcd_return_et mcd_close_server_f(const mcd_server_st *server)
         return g_server_state.last_error->return_status;
     }
 
+    g_array_free(g_server_state.cores, true);
     g_free(g_server_state.open_server);
     g_server_state.open_server = NULL;
+    g_server_state.system_key[0] = '\0';
 
     g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
@@ -231,7 +267,45 @@ mcd_return_et mcd_qry_server_config_f(const mcd_server_st *server,
 mcd_return_et mcd_qry_systems_f(uint32_t start_index, uint32_t *num_systems,
                                 mcd_core_con_info_st *system_con_info)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    if (!num_systems) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (*num_systems == 0) {
+        *num_systems = 1;
+        g_server_state.last_error = &MCD_ERROR_NONE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (start_index >= 1) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "QEMU only emulates one system",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    /* num_systems != 0 => return system information */
+
+    if (!system_con_info) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    *system_con_info = (mcd_core_con_info_st) {};
+    pstrcpy(system_con_info->system, MCD_UNIQUE_NAME_LEN, g_get_prgname());
+    pstrcpy(system_con_info->system_key, MCD_KEY_LEN,
+            g_server_state.system_key);
+    snprintf(system_con_info->system_instance, MCD_UNIQUE_NAME_LEN ,
+             "Process ID: %d", (int) getpid());
+
+    *num_systems = 1;
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
@@ -239,7 +313,41 @@ mcd_return_et mcd_qry_devices_f(const mcd_core_con_info_st *system_con_info,
                                 uint32_t start_index, uint32_t *num_devices,
                                 mcd_core_con_info_st *device_con_info)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    MachineClass *mc = MACHINE_GET_CLASS(current_machine);
+
+    if (!system_con_info || !num_devices) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (*num_devices == 0) {
+        *num_devices = 1;
+        g_server_state.last_error = &MCD_ERROR_NONE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (start_index >= 1) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "QEMU only emulates one machine",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!device_con_info) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    *device_con_info = *system_con_info;
+    pstrcpy(device_con_info->device, MCD_UNIQUE_NAME_LEN, mc->name);
+
+    *num_devices = 1;
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
@@ -247,7 +355,58 @@ mcd_return_et mcd_qry_cores_f(const mcd_core_con_info_st *connection_info,
                               uint32_t start_index, uint32_t *num_cores,
                               mcd_core_con_info_st *core_con_info)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    uint32_t i;
+
+    if (!g_server_state.open_server) {
+        g_server_state.last_error = &MCD_ERROR_SERVER_NOT_OPEN;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!connection_info || !num_cores) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    /* array is allocated during core database update in mcd_server_open_f */
+    g_assert(g_server_state.cores);
+
+    if (*num_cores == 0) {
+        *num_cores = g_server_state.cores->len;
+        g_server_state.last_error = &MCD_ERROR_NONE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (start_index >= g_server_state.cores->len) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "start_index exceeds the number of cores",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!core_con_info) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    for (i = 0;
+         i < *num_cores && start_index + i < g_server_state.cores->len;
+         i++) {
+
+        mcd_core_con_info_st *info = &g_array_index(g_server_state.cores,
+                                                    mcd_core_con_info_st,
+                                                    start_index + i);
+        core_con_info[i] = *connection_info;
+        core_con_info[i].core_id = info->core_id;
+        pstrcpy(core_con_info[i].core, MCD_UNIQUE_NAME_LEN, info->core);
+    }
+
+    *num_cores = i;
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 

@@ -92,6 +92,62 @@
 
 
 ##
+# @MCDCoreConInfo:
+#
+# Structure type containing the core connection information.
+#
+# @host:            String containing the IP host name.
+# @server-port:     Port number of the server.
+# @server-key:      String containing the server key as provided by
+#                   mcd_open_server_f().
+# @system-key:      String containing the system key as provided by
+#                   mcd_open_server_f().
+# @device-key:      String containing the device key, optional for
+#                   mcd_open_core_f().
+# @system:          String containing the system name. Predefined value is
+#                   "Real HW" for physical devices. Note that in case of "Real
+#                   HW" the @acc-hw always needs to be defined.
+# @system-instance: String containing the unique system instance identifier.
+#                   Allows to differentiate between several system instances
+#                   with the same name. A typical use case is a simulator where
+#                   different instances can be distinguished by their process
+#                   ID. (For example @system-instance could be: "Process ID:
+#                   1234")
+# @acc-hw:          String containing the unique device access hardware name.
+# @device-type:     Device type identifier (IEEE 1149.1 device ID)
+# @device:          String containing the system unique device instance name.
+#                   For Real HW this is usually the sales name of the device.
+#                   If the access hardware operates a multi device target
+#                   system (e.g. over IEEE1149.7), this device string can
+#                   contain an index to differentiate between several devices
+#                   of the same type.
+# @device-id:       Unique device ID.
+# @core:            String containing the device unique core name.
+# @core-type:       Core type identifier (taken from ELF predefined
+#                   architecture)
+# @core-id:         Unique core ID representing the core version.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDCoreConInfo',
+  'data': {
+    'host'           : 'str',
+    'server-port'    : 'uint32',
+    'server-key'     : 'str',
+    'system-key'     : 'str',
+    'device-key'     : 'str',
+    'system'         : 'str',
+    'system-instance': 'str',
+    'acc-hw'         : 'str',
+    'device-type'    : 'uint32',
+    'device'         : 'str',
+    'device-id'      : 'uint32',
+    'core'           : 'str',
+    'core-type'      : 'uint32',
+    'core-id'        : 'uint32' } }
+
+
+##
 # == Target Initialization API
 ##
 
@@ -352,6 +408,306 @@
   'data': { 'server-uid': 'uint32' },
   'returns': 'MCDCloseServerResult' }
 
+
+##
+# == Target System Features API
+##
+
+
+##
+# @MCDQrySystemsResult:
+#
+# Return value of @mcd-qry-systems.
+#
+# @return-status:   Return code.
+# @num-systems:     The number of systems the core connection info was returned
+#                   for. In case the input value of @num-systems is '0', this is
+#                   the number of all available systems.
+# @system-con-info: Core connection information of the requested systems.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQrySystemsResult',
+  'data': {
+    'return-status'   : 'uint32',
+    '*num-systems'    : 'uint32',
+    '*system-con-info': [ 'MCDCoreConInfo' ] }}
+
+
+##
+# @mcd-qry-systems:
+#
+# Function querying the core connection information of a specified number of
+# systems.
+#
+# @start-index: Start index of the queried systems. This refers to an
+#               internal list of the target side implementation.
+# @num-systems: The number of queried systems starting from the defined
+#               @start-index. If it is set to '0', no core connection
+#               information is returned but the number of available systems.
+#
+# Returns: @MCDQrySystemsResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "mcd-qry-systems",
+#          "arguments": { "start-index": 0,
+#                         "num-systems": 1 } }
+#     <- {
+#            "return": {
+#                "num-systems": 1,
+#                "system-con-info": [
+#                    {
+#                        "core-id": 0,
+#                        "device": "",
+#                        "device-id": 0,
+#                        "device-key": "",
+#                        "system": "qemu-system-aarch64",
+#                        "core": "",
+#                        "host": "",
+#                        "system-key": "",
+#                        "system-instance": "Process ID: 21591",
+#                        "acc-hw": "",
+#                        "core-type": 0,
+#                        "device-type": 0,
+#                        "server-key": "",
+#                        "server-port": 0
+#                    }
+#                ],
+#                "return-status": 0
+#            }
+#        }
+##
+{ 'command': 'mcd-qry-systems',
+  'data': {
+    'start-index': 'uint32',
+    'num-systems': 'uint32' },
+  'returns': 'MCDQrySystemsResult' }
+
+
+##
+# @MCDQryDevicesResult:
+#
+# Return value of @mcd-qry-devices.
+#
+# @return-status:   Return code.
+# @num-devices:     The number of devices the core connection information was
+#                   returned for. In case the input value of @num-devices is
+#                   '0', this is the number of all available devices for the
+#                   selected system.
+# @device-con-info: Core connection information of the requested devices.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryDevicesResult',
+  'data': {
+    'return-status'   : 'uint32',
+    '*num-devices'    : 'uint32',
+    '*device-con-info': [ 'MCDCoreConInfo' ] }}
+
+
+##
+# @mcd-qry-devices:
+#
+# Function querying the core connection information of a specified number of
+# devices of a system.
+#
+# @system-con-info: Core connection information of the system the devices
+#                   are queried from.
+# @start-index:     Start index of the requested devices. This refers to
+#                   an internal list of the target side implementation.
+# @num-devices:     The number of queried devices (e.g. simulated on or
+#                   connected to this host computer) starting from the defined
+#                   @start-index. If it is set to '0', no core connection
+#                   information is returned but the number of all available
+#                   devices.
+#
+# Returns: @MCDQryDevicesResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "mcd-qry-devices",
+#          "arguments": {
+#              "start-index": 0,
+#               "num-devices": 1,
+#               "system-con-info": {
+#                   "core-id": 0,
+#                   "device": "",
+#                   "device-id": 0,
+#                   "device-key": "",
+#                   "system": "qemu-system-aarch64",
+#                   "core": "",
+#                   "host": "",
+#                   "system-key": "",
+#                   "system-instance": "",
+#                   "acc-hw": "",
+#                   "core-type": 0,
+#                   "device-type": 0,
+#                   "server-key": "",
+#                   "server-port": 0 } } }
+#     <- {
+#            "return": {
+#                "return-status": 0,
+#                "num-devices": 1,
+#                "device-con-info": [
+#                    {
+#                        "core-id": 0,
+#                        "device": "virt-10.0",
+#                        "device-id": 0,
+#                        "device-key": "",
+#                        "system": "qemu-system-aarch64",
+#                        "core": "",
+#                        "host": "",
+#                        "system-key": "",
+#                        "system-instance": "",
+#                        "acc-hw": "",
+#                        "core-type": 0,
+#                        "device-type": 0,
+#                        "server-key": "",
+#                        "server-port": 0
+#                    }
+#                ]
+#            }
+#        }
+##
+{ 'command': 'mcd-qry-devices',
+  'data': {
+    'system-con-info': 'MCDCoreConInfo',
+    'start-index'    : 'uint32',
+    'num-devices'    : 'uint32' },
+  'returns': 'MCDQryDevicesResult' }
+
+
+##
+# @MCDQryCoresResult:
+#
+# Return value of @mcd-qry-cores.
+#
+# @return-status: Return code.
+#
+# @num-cores:     The number of cores the core connection information
+#                 is returned for. In case the input value of @num-cores is '0',
+#                 this is the number of all available cores for the selected
+#                 system or device.
+# @core-con-info: Core connection information of the requested cores.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryCoresResult',
+  'data': {
+  'return-status' : 'uint32',
+  '*num-cores'    : 'uint32',
+  '*core-con-info': [ 'MCDCoreConInfo' ] }}
+
+
+##
+# @mcd-qry-cores:
+#
+# Function querying the core connection information of a specified number of
+# cores of a system/device.
+#
+# @connection-info: Core connection information of the system or device
+#                   the cores are queried from.
+# @start-index:     Start index of the requested cores. This refers to an
+#                   internal list of the target side implementation.
+# @num-cores:       The number of queried cores starting from the defined
+#                   @start-index. If it is set to '0', no core connection
+#                   information is returned but the number of all available
+#                   cores.
+#
+# Returns: @MCDQryCoresResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#    :title: Multicore
+#
+#     -> { "execute": "mcd-qry-cores",
+#          "arguments": {
+#              "start-index": 0,
+#               "num-cores": 3,
+#               "connection-info": {
+#                   "core-id": 0,
+#                   "device": "virt-10.0",
+#                   "device-id": 0,
+#                   "device-key": "",
+#                   "system": "",
+#                   "core": "",
+#                   "host": "",
+#                   "system-key": "qemu-system-aarch64",
+#                   "system-instance": "",
+#                   "acc-hw": "",
+#                   "core-type": 0,
+#                   "device-type": 0,
+#                   "server-key": "",
+#                   "server-port": 0 } } }
+#     <- {
+#            "return": {
+#                "num-cores": 3,
+#                "core-con-info": [
+#                    {
+#                        "core-id": 0,
+#                        "device": "virt-10.0",
+#                        "device-id": 0,
+#                        "device-key": "",
+#                        "system": "",
+#                        "core": "cortex-a53-arm-cpu",
+#                        "host": "",
+#                        "system-key": "qemu-system-aarch64",
+#                        "system-instance": "",
+#                        "acc-hw": "",
+#                        "core-type": 0,
+#                        "device-type": 0,
+#                        "server-key": "",
+#                        "server-port": 0
+#                    },
+#                    {
+#                        "core-id": 1,
+#                        "device": "virt-10.0",
+#                        "device-id": 0,
+#                        "device-key": "",
+#                        "system": "",
+#                        "core": "cortex-a53-arm-cpu",
+#                        "host": "",
+#                        "system-key": "qemu-system-aarch64",
+#                        "system-instance": "",
+#                        "acc-hw": "",
+#                        "core-type": 0,
+#                        "device-type": 0,
+#                        "server-key": "",
+#                        "server-port": 0
+#                    },
+#                    {
+#                        "core-id": 2,
+#                        "device": "virt-10.0",
+#                        "device-id": 0,
+#                        "device-key": "",
+#                        "system": "",
+#                        "core": "cortex-a53-arm-cpu",
+#                        "host": "",
+#                        "system-key": "qemu-system-aarch64",
+#                        "system-instance": "",
+#                        "acc-hw": "",
+#                        "core-type": 0,
+#                        "device-type": 0,
+#                        "server-key": "",
+#                        "server-port": 0
+#                    }
+#                ],
+#                "return-status": 0
+#            }
+#        }
+##
+{ 'command': 'mcd-qry-cores',
+  'data': {
+    'connection-info': 'MCDCoreConInfo',
+    'start-index'    : 'uint32',
+    'num-cores'      : 'uint32' },
+  'returns': 'MCDQryCoresResult' }
 
 ##
 # == Core Connection API
