@@ -14,6 +14,8 @@
 #include "hw/boards.h"
 #include "exec/tswap.h"
 #include "exec/gdbstub.h"
+#include "hw/core/cpu.h"
+#include "system/runstate.h"
 
 /* Custom memory space type */
 static const mcd_mem_type_et MCD_MEM_SPACE_IS_SECURE = 0x00010000;
@@ -1087,13 +1089,53 @@ mcd_return_et mcd_execute_txlist_f(const mcd_core_st *core,
 
 mcd_return_et mcd_run_f(const mcd_core_st *core, bool global)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+
+    if (g_server_state.cores->len > 1 && global) {
+        vm_start();
+        g_server_state.last_error = &MCD_ERROR_NONE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!runstate_needs_reset() && !runstate_is_running() &&
+        !vm_prepare_start(false)) {
+        cpu_resume(core_state->cpu);
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+    }
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_stop_f(const mcd_core_st *core, bool global)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    if (g_server_state.cores->len > 1 && !global) {
+        g_server_state.custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_FN_UNIMPLEMENTED,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "core-specific stop not implemented",
+        };
+        g_server_state.last_error = &g_server_state.custom_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (runstate_is_running()) {
+        vm_stop(RUN_STATE_DEBUG);
+    }
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
@@ -1120,7 +1162,31 @@ mcd_return_et mcd_step_f(const mcd_core_st *core, bool global,
 
 mcd_return_et mcd_set_global_f(const mcd_core_st *core, bool enable)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    mcdcore_state *core_state;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!enable) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_GENERAL,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "global stop activities cannot be disabled",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 

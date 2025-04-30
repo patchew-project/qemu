@@ -516,3 +516,55 @@ MCDQryRegMapResult *qmp_mcd_qry_reg_map(uint32_t core_uid,
     g_stub_state.on_error_ask_server = true;
     return result;
 }
+
+MCDRunResult *qmp_mcd_run(uint32_t core_uid, bool global, Error **errp)
+{
+    MCDRunResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_run_f(core, global);
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDStopResult *qmp_mcd_stop(uint32_t core_uid, bool global, Error **errp)
+{
+    MCDStopResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_stop_f(core, global);
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDSetGlobalResult *qmp_mcd_set_global(uint32_t core_uid, bool enable,
+                                       Error **errp)
+{
+    MCDSetGlobalResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_set_global_f(core, enable);
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
