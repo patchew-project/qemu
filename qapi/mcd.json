@@ -306,6 +306,54 @@
     'reg-type'            : 'uint32',
     'hw-thread-id'        : 'uint32' } }
 
+##
+# @MCDTx:
+#
+# Structure type containing information about a single transaction.
+#
+# @addr:         The address of the first memory cell/register.
+# @access-type:  Type of access: Read/Write/Read+Write/Write+Verify.
+# @options:      Access options: burst, side-effects, alternate path, cache,
+#                etc.
+# @access-width: Access size in bytes (or 0 if access size does not matter).
+# @core-mode:    The core mode in which the access should be performed (or 0
+#                for most permissive mode).
+# @data:         Byte array of size @num-bytes storing the access data.
+# @num-bytes:    Size of the memory/register access. The buffer @data needs to
+#                be of this size.
+# @num-bytes-ok: Number of successfully received/sent bytes.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDTx',
+  'data': {
+    'addr'        : 'MCDAddr',
+    'access-type' : 'uint32',
+    'options'     : 'uint32',
+    'access-width': 'uint8',
+    'core-mode'   : 'uint8',
+    'data'        : ['uint8'],
+    'num-bytes'   : 'uint32',
+    'num-bytes-ok': 'uint32' } }
+
+
+##
+# @MCDTxlist:
+#
+# Structure type containing a transaction list.
+#
+# @tx:        Array of size @num-tx storing the transactions.
+# @num-tx:    Number of transactions.
+# @num-tx-ok: Number of transactions which succeeded without any errors.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDTxlist',
+  'data': {
+    'tx'       : ['MCDTx'],
+    'num-tx'   : 'uint32',
+    'num-tx-ok': 'uint32' } }
+
 
 ##
 # @MCDCoreState:
@@ -1401,6 +1449,41 @@
 ##
 # == Target Execution Control API
 ##
+
+
+##
+# @MCDExecuteTxlistResult:
+#
+# Return value of @mcd-execute-txlist.
+#
+# @return-status: Return code.
+# @txlist:        Transaction list after execution.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDExecuteTxlistResult',
+  'data': {
+    'return-status': 'uint32',
+    '*txlist'      : 'MCDTxlist' }}
+
+
+##
+# @mcd-execute-txlist:
+#
+# Function executing a transaction list on the target.
+#
+# @core-uid: Unique identifier of the open core as returned by @mcd-open-core.
+# @txlist:   Transaction list for execution.
+#
+# Returns: @MCDExecuteTxlistResult
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-execute-txlist',
+  'data': {
+    'core-uid': 'uint32',
+    'txlist'  : 'MCDTxlist' },
+  'returns': 'MCDExecuteTxlistResult' }
 
 
 ##

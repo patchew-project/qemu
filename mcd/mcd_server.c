@@ -1081,11 +1081,214 @@ mcd_return_et mcd_qry_trig_set_state_f(const mcd_core_st *core,
     return g_server_state.last_error->return_status;
 }
 
+static mcd_return_et execute_memory_tx(mcdcore_state *core_state, mcd_tx_st *tx,
+                                       mcd_mem_type_et type)
+{
+    MemTxResult result = MEMTX_ERROR;
+
+    /* each address space has one physical and one virtual memory */
+    int address_space_id = (tx->addr.mem_space_id - 1) / 2;
+    AddressSpace *as = cpu_get_address_space(core_state->cpu, address_space_id);
+
+    hwaddr addr = tx->addr.address;
+    hwaddr len = tx->access_width > 0 ? tx->access_width : tx->num_bytes;
+    bool is_write;
+
+    if (tx->access_type == MCD_TX_AT_R) {
+        is_write = false;
+    } else if (tx->access_type == MCD_TX_AT_W) {
+        is_write = true;
+    } else {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TXLIST_TX,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "tx access type not supported",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (type & MCD_MEM_SPACE_IS_PHYSICAL) {
+        MemTxAttrs attrs = {
+            .secure = !!(type & MCD_MEM_SPACE_IS_SECURE),
+            .space = address_space_id,
+        };
+
+        for (tx->num_bytes_ok = 0;
+             tx->num_bytes_ok < tx->num_bytes;
+             tx->num_bytes_ok += len) {
+            void *buf = tx->data + tx->num_bytes_ok;
+            result = address_space_rw(as, addr + tx->num_bytes_ok, attrs,
+                                      buf, len, is_write);
+            if (result != MEMTX_OK) {
+                break;
+            }
+        }
+    } else if (type & MCD_MEM_SPACE_IS_LOGICAL) {
+        for (tx->num_bytes_ok = 0;
+             tx->num_bytes_ok < tx->num_bytes;
+             tx->num_bytes_ok += len) {
+            void *buf = tx->data + tx->num_bytes_ok;
+            int ret = cpu_memory_rw_debug(core_state->cpu,
+                                          addr + tx->num_bytes_ok,
+                                          buf, len, is_write);
+            result = (ret == 0) ? MEMTX_OK : MEMTX_ERROR;
+            if (result != MEMTX_OK) {
+                break;
+            }
+        }
+    } else {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TXLIST_TX,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "unknown mem space type",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (result != MEMTX_OK) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = is_write ? MCD_ERR_TXLIST_WRITE : MCD_ERR_TXLIST_READ,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "",
+        };
+        snprintf(core_state->custom_error.error_str, MCD_INFO_STR_LEN,
+                 "Memory tx failed with error code %d", result);
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    tx->num_bytes_ok = tx->num_bytes;
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
+}
+
+static mcd_return_et execute_register_tx(mcdcore_state *core_state,
+                                         mcd_tx_st *tx)
+{
+    if (tx->access_type == MCD_TX_AT_R) {
+        GByteArray *mem_buf = g_byte_array_new();
+        int read_bytes = gdb_read_register(core_state->cpu, mem_buf,
+                                           tx->addr.address);
+        if (read_bytes > tx->num_bytes) {
+            g_byte_array_free(mem_buf, true);
+            core_state->custom_error = (mcd_error_info_st) {
+                .return_status = MCD_RET_ACT_HANDLE_ERROR,
+                .error_code = MCD_ERR_TXLIST_READ,
+                .error_events = MCD_ERR_EVT_NONE,
+                .error_str = "too many bytes read",
+            };
+            core_state->last_error = &core_state->custom_error;
+            return core_state->last_error->return_status;
+        }
+        memcpy(tx->data, mem_buf->data, read_bytes);
+        g_byte_array_free(mem_buf, true);
+        tx->num_bytes_ok = read_bytes;
+    } else if (tx->access_type == MCD_TX_AT_W) {
+        int written_bytes = gdb_write_register(core_state->cpu, tx->data,
+                                               tx->addr.address);
+        if (written_bytes > tx->num_bytes) {
+            core_state->custom_error = (mcd_error_info_st) {
+                .return_status = MCD_RET_ACT_HANDLE_ERROR,
+                .error_code = MCD_ERR_TXLIST_READ,
+                .error_events = MCD_ERR_EVT_NONE,
+                .error_str = "too many bytes written",
+            };
+            core_state->last_error = &core_state->custom_error;
+            return core_state->last_error->return_status;
+        }
+        tx->num_bytes_ok = written_bytes;
+    } else {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TXLIST_TX,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "tx access type not supported",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
+}
+
+static mcd_return_et execute_tx(mcdcore_state *core_state, mcd_tx_st *tx)
+{
+    mcd_memspace_st *ms;
+
+    uint32_t ms_id = tx->addr.mem_space_id;
+    if (ms_id == 0 || ms_id > core_state->memory_spaces->len) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "unknown memory space ID",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (tx->access_width > 0 && tx->num_bytes % tx->access_width != 0) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TXLIST_TX,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "alignment error",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    ms = &g_array_index(core_state->memory_spaces, mcd_memspace_st, ms_id - 1);
+    if (ms->mem_type & MCD_MEM_SPACE_IS_PHYSICAL ||
+        ms->mem_type & MCD_MEM_SPACE_IS_LOGICAL) {
+        return execute_memory_tx(core_state, tx, ms->mem_type);
+    } else if (ms->mem_type & MCD_MEM_SPACE_IS_REGISTERS) {
+        return execute_register_tx(core_state, tx);
+    } else {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TXLIST_TX,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "unknown memory space type",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+}
+
 mcd_return_et mcd_execute_txlist_f(const mcd_core_st *core,
                                    mcd_txlist_st *txlist)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+
+    if (!core || !txlist) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    for (uint32_t i = 0; i < txlist->num_tx; i++) {
+        mcd_tx_st *tx = txlist->tx + i;
+        if (execute_tx(core_state, tx) != MCD_RET_ACT_NONE) {
+            return core_state->last_error->return_status;
+        } else {
+            txlist->num_tx_ok++;
+        }
+    }
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_run_f(const mcd_core_st *core, bool global)
