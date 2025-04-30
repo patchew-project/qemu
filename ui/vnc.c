@@ -3234,6 +3234,7 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     VncState *vs, *vn;
     int has_dirty, rects = 0;
+    bool keep_dirty = false;
 
     if (QTAILQ_EMPTY(&vd->clients)) {
         update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
@@ -3251,11 +3252,21 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     vnc_unlock_display(vd);
 
     QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
+#ifdef CONFIG_GSTREAMER
+        if (vs->h264) {
+            if (has_dirty) {
+                vs->h264->keep_dirty = VNC_H264_KEEP_DIRTY;
+            } else if (vs->h264->keep_dirty > 0) {
+                keep_dirty = true;
+                vs->h264->keep_dirty--;
+            }
+        }
+#endif
         rects += vnc_update_client(vs, has_dirty);
         /* vs might be free()ed here */
     }
 
-    if (has_dirty && rects) {
+    if ((has_dirty && rects) || keep_dirty) {
         vd->dcl.update_interval /= 2;
         if (vd->dcl.update_interval < VNC_REFRESH_INTERVAL_BASE) {
             vd->dcl.update_interval = VNC_REFRESH_INTERVAL_BASE;
