@@ -59,14 +59,19 @@ static const mcd_error_info_st MCD_ERROR_NONE = {
 /**
  * struct mcdcore_state - State of a core.
  *
- * @last_error:      Error info of most recent executed core-related function.
- * @custom_error:    Reserves memory for custom MCD errors.
- * @info:            Core connection information.
- * @open_core:       Open core instance as allocated in mcd_open_core_f().
- * @cpu:             QEMU's internal CPU handle.
- * @memory_spaces:   Memory spaces as queried by mcd_qry_mem_spaces_f().
- * @register_groups: Register groups as queried by mcd_qry_reg_groups_f().
- * @registers:       Registers as queried by mcd_qry_reg_map_f().
+ * @last_error:              Error info of most recent executed core-related
+ *                           function.
+ * @custom_error:            Reserves memory for custom MCD errors.
+ * @info:                    Core connection information.
+ * @open_core:               Open core instance as allocated in
+ *                           mcd_open_core_f().
+ * @cpu:                     QEMU's internal CPU handle.
+ * @memory_spaces:           Memory spaces as queried by
+ *                           mcd_qry_mem_spaces_f().
+ * @register_groups:         Register groups as queried by
+ *                           mcd_qry_reg_groups_f().
+ * @registers:               Registers as queried by mcd_qry_reg_map_f().
+ * @vm_state_change_handler: State change handler.
  *
  * MCD is mainly being used on the core level:
  * After the initial query functions, a core connection is opened in
@@ -85,6 +90,7 @@ typedef struct mcdcore_state {
     GArray *memory_spaces;
     GArray *register_groups;
     GArray *registers;
+    VMChangeStateEntry *vm_state_change_handler;
 } mcdcore_state;
 
 /**
@@ -127,6 +133,16 @@ static mcdcore_state *find_core(const mcd_core_con_info_st *core_con_info)
 
     core = &g_array_index(g_server_state.cores, mcdcore_state, core_id);
     return core;
+}
+
+static void mcd_handle_vm_state_change(void *opaque, bool running,
+                                       RunState state)
+{
+    mcdcore_state *core_state = (mcdcore_state *)opaque;
+    CPUState *cpu = core_state->cpu;
+
+    /* disable single step if it was enabled */
+    cpu_single_step(cpu, 0);
 }
 
 mcd_return_et mcd_initialize_f(const mcd_api_version_st *version_req,
@@ -279,6 +295,7 @@ mcd_return_et mcd_open_server_f(const char *system_key,
                                            sizeof(mcd_register_group_st)),
             .registers = g_array_new(false, true,
                                      sizeof(mcd_register_info_st)),
+            .vm_state_change_handler = NULL,
         };
         pstrcpy(c.info.core, MCD_UNIQUE_NAME_LEN, cpu_model);
         g_array_append_val(g_server_state.cores, c);
@@ -663,6 +680,8 @@ mcd_return_et mcd_open_core_f(const mcd_core_con_info_st *core_con_info,
     (*core)->instance = NULL;
     core_state->open_core = *core;
     core_state->last_error = &MCD_ERROR_NONE;
+    core_state->vm_state_change_handler = qemu_add_vm_change_state_handler(
+        mcd_handle_vm_state_change, core_state);
 
     g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
@@ -694,6 +713,8 @@ mcd_return_et mcd_close_core_f(const mcd_core_st *core)
         return g_server_state.last_error->return_status;
     }
 
+    qemu_del_vm_change_state_handler(core_state->vm_state_change_handler);
+    core_state->vm_state_change_handler = NULL;
     g_free((void *)core->core_con_info);
     g_free((void *)core);
     core_state->open_core = NULL;
@@ -1360,8 +1381,82 @@ mcd_return_et mcd_qry_current_time_f(const mcd_core_st *core,
 mcd_return_et mcd_step_f(const mcd_core_st *core, bool global,
                          mcd_core_step_type_et step_type, uint32_t n_steps)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+    int supported_step_flags = SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
+
+    if (global) {
+        g_server_state.custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_FN_UNIMPLEMENTED,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "global step not implemented",
+        };
+        g_server_state.last_error = &g_server_state.custom_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (n_steps != 1) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "only single step supported",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (runstate_needs_reset()) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_GENERAL,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "internal error: runstate needs reset",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (vm_prepare_start(true) != 0) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_GENERAL,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "internal error: vm_prepare_start failed",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (step_type != MCD_CORE_STEP_TYPE_INSTR) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_TXLIST_TX,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "step type not supported",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    supported_step_flags &= accel_supported_gdbstub_sstep_flags();
+    cpu_single_step(core_state->cpu, supported_step_flags);
+    cpu_resume(core_state->cpu);
+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_set_global_f(const mcd_core_st *core, bool enable)
