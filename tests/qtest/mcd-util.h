@@ -22,7 +22,8 @@ typedef struct {
 MCDInitializeResult *qtest_mcd_initialize(QTestStateMCD *qts,
                                           q_obj_mcd_initialize_arg *args);
 
-MCDErrorInfo *qtest_mcd_qry_error_info(QTestStateMCD *qts);
+MCDErrorInfo *qtest_mcd_qry_error_info(QTestStateMCD *qts,
+                                       q_obj_mcd_qry_error_info_arg *args);
 
 void qtest_mcd_exit(QTestStateMCD *qts);
 
@@ -43,5 +44,11 @@ MCDQryDevicesResult *qtest_mcd_qry_devices(QTestStateMCD *qts,
 
 MCDQryCoresResult *qtest_mcd_qry_cores(QTestStateMCD *qts,
                                        q_obj_mcd_qry_cores_arg *args);
+
+MCDOpenCoreResult *qtest_mcd_open_core(QTestStateMCD *qts,
+                                       q_obj_mcd_open_core_arg *args);
+
+MCDCloseCoreResult *qtest_mcd_close_core(QTestStateMCD *qts,
+                                         q_obj_mcd_close_core_arg *args);
 
 #endif /* TEST_MCD_UTILS_H */
