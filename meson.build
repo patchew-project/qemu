@@ -4066,6 +4066,10 @@ libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
 hwcore = declare_dependency(objects: libhwcore.extract_all_objects(recursive: false))
 common_ss.add(hwcore)
 
+if get_option('mcd').enabled()
+  subdir('mcd')
+endif
+
 ###########
 # Targets #
 ###########
