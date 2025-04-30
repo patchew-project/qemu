@@ -423,3 +423,96 @@ MCDQryMemSpacesResult *qmp_mcd_qry_mem_spaces(uint32_t core_uid,
     g_stub_state.on_error_ask_server = true;
     return result;
 }
+
+MCDQryRegGroupsResult *qmp_mcd_qry_reg_groups(uint32_t core_uid,
+                                              uint32_t start_index,
+                                              uint32_t num_reg_groups,
+                                              Error **errp)
+{
+    MCDRegisterGroupList **tailp;
+    MCDRegisterGroup *rg;
+    mcd_register_group_st *reg_groups = NULL;
+    bool query_num_only = num_reg_groups == 0;
+    MCDQryRegGroupsResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    if (!query_num_only) {
+        reg_groups = g_malloc0(num_reg_groups * sizeof(*reg_groups));
+    }
+
+    result->return_status = mcd_qry_reg_groups_f(core, start_index,
+                                                 &num_reg_groups, reg_groups);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_num_reg_groups = true;
+        result->num_reg_groups = num_reg_groups;
+        if (!query_num_only) {
+            result->has_reg_groups = true;
+            tailp = &(result->reg_groups);
+            for (uint32_t i = 0; i < num_reg_groups; i++) {
+                rg = marshal_mcd_register_group(reg_groups + i);
+                QAPI_LIST_APPEND(tailp, rg);
+            }
+        }
+    }
+
+    if (!query_num_only) {
+        g_free(reg_groups);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDQryRegMapResult *qmp_mcd_qry_reg_map(uint32_t core_uid,
+                                        uint32_t reg_group_id,
+                                        uint32_t start_index, uint32_t num_regs,
+                                        Error **errp)
+{
+    MCDRegisterInfoList **tailp;
+    MCDRegisterInfo *r;
+    mcd_register_info_st *regs = NULL;
+    bool query_num_only = num_regs == 0;
+    MCDQryRegMapResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    if (!query_num_only) {
+        regs = g_malloc0(num_regs * sizeof(*regs));
+    }
+
+    result->return_status = mcd_qry_reg_map_f(core, reg_group_id,
+                                              start_index, &num_regs,
+                                              regs);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_num_regs = true;
+        result->num_regs = num_regs;
+        if (!query_num_only) {
+            result->has_reg_info = true;
+            tailp = &(result->reg_info);
+            for (uint32_t i = 0; i < num_regs; i++) {
+                r = marshal_mcd_register_info(regs + i);
+                QAPI_LIST_APPEND(tailp, r);
+            }
+        }
+    }
+
+    if (!query_num_only) {
+        g_free(regs);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}

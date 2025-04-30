@@ -289,3 +289,43 @@ MCDQryMemSpacesResult *qtest_mcd_qry_mem_spaces(
 
     return unmarshal;
 }
+
+MCDQryRegGroupsResult *qtest_mcd_qry_reg_groups(
+    QTestStateMCD *qts, q_obj_mcd_qry_reg_groups_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDQryRegGroupsResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_qry_reg_groups_arg);
+
+    resp = qtest_mcd(qts, "{'execute': 'mcd-qry-reg-groups',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDQryRegGroupsResult);
+
+    return unmarshal;
+}
+
+MCDQryRegMapResult *qtest_mcd_qry_reg_map(QTestStateMCD *qts,
+                                          q_obj_mcd_qry_reg_map_arg *args)
+{
+    Visitor *v;
+    QObject *marshal;
+    QDict *arg, *resp;
+    QObject *ret;
+    bool ok;
+    MCDQryRegMapResult *unmarshal;
+
+    MARSHAL_ARGS(q_obj_mcd_qry_reg_map_arg);
+
+    resp = qtest_mcd(qts, "{'execute': 'mcd-qry-reg-map',"
+                          "'arguments': %p}", arg);
+
+    UNMARSHAL_RESULT(MCDQryRegMapResult);
+
+    return unmarshal;
+}

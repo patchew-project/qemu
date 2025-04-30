@@ -13,6 +13,7 @@
 #include "mcd_api.h"
 #include "hw/boards.h"
 #include "exec/tswap.h"
+#include "exec/gdbstub.h"
 
 /* Custom memory space type */
 static const mcd_mem_type_et MCD_MEM_SPACE_IS_SECURE = 0x00010000;
@@ -55,12 +56,14 @@ static const mcd_error_info_st MCD_ERROR_NONE = {
 /**
  * struct mcdcore_state - State of a core.
  *
- * @last_error:    Error info of most recent executed core-related function.
- * @custom_error:  Reserves memory for custom MCD errors.
- * @info:          Core connection information.
- * @open_core:     Open core instance as allocated in mcd_open_core_f().
- * @cpu:           QEMU's internal CPU handle.
- * @memory_spaces: Memory spaces as queried by mcd_qry_mem_spaces_f().
+ * @last_error:      Error info of most recent executed core-related function.
+ * @custom_error:    Reserves memory for custom MCD errors.
+ * @info:            Core connection information.
+ * @open_core:       Open core instance as allocated in mcd_open_core_f().
+ * @cpu:             QEMU's internal CPU handle.
+ * @memory_spaces:   Memory spaces as queried by mcd_qry_mem_spaces_f().
+ * @register_groups: Register groups as queried by mcd_qry_reg_groups_f().
+ * @registers:       Registers as queried by mcd_qry_reg_map_f().
  *
  * MCD is mainly being used on the core level:
  * After the initial query functions, a core connection is opened in
@@ -77,6 +80,8 @@ typedef struct mcdcore_state {
     mcd_core_st *open_core;
     CPUState *cpu;
     GArray *memory_spaces;
+    GArray *register_groups;
+    GArray *registers;
 } mcdcore_state;
 
 /**
@@ -267,6 +272,10 @@ mcd_return_et mcd_open_server_f(const char *system_key,
             .open_core = NULL,
             .cpu = cpu,
             .memory_spaces = g_array_new(false, true, sizeof(mcd_memspace_st)),
+            .register_groups = g_array_new(false, true,
+                                           sizeof(mcd_register_group_st)),
+            .registers = g_array_new(false, true,
+                                     sizeof(mcd_register_info_st)),
         };
         pstrcpy(c.info.core, MCD_UNIQUE_NAME_LEN, cpu_model);
         g_array_append_val(g_server_state.cores, c);
@@ -306,6 +315,10 @@ mcd_return_et mcd_close_server_f(const mcd_server_st *server)
         if (c->open_core) {
             mcd_close_core_f(c->open_core);
         }
+
+        g_array_free(c->memory_spaces, true);
+        g_array_free(c->register_groups, true);
+        g_array_free(c->registers, true);
     }
 
     g_array_free(g_server_state.cores, true);
@@ -538,6 +551,59 @@ static mcd_return_et query_memspaces(mcdcore_state *core_state)
     return MCD_RET_ACT_NONE;
 }
 
+static mcd_return_et query_registers(mcdcore_state *core_state)
+{
+    GArray *gdb_regs = core_state->cpu->gdb_regs;
+    assert(gdb_regs);
+
+    g_array_set_size(core_state->register_groups, 0);
+    g_array_set_size(core_state->registers, 0);
+
+    for (int feature_id = 0; feature_id < gdb_regs->len; feature_id++) {
+        GDBRegisterState *f = &g_array_index(gdb_regs, GDBRegisterState,
+                                             feature_id);
+        /* register group ID 0 is reserved */
+        uint32_t group_id = feature_id + 1;
+        uint32_t num_regs = 0;
+
+        GByteArray *mem_buf = g_byte_array_new();
+        for (int i = 0; i < f->feature->num_regs; i++) {
+            const char *name = f->feature->regs[i];
+            if (name) {
+                int reg_id = f->base_reg + i;
+                int bitsize = gdb_read_register(core_state->cpu,
+                                                mem_buf, reg_id) * 8;
+                mcd_register_info_st r = {
+                    .addr = {
+                        .address = (uint64_t) reg_id,
+                        /* memory space "GDB Registers" */
+                        .mem_space_id = core_state->memory_spaces->len,
+                        .addr_space_type = MCD_NOTUSED_ID,
+                    },
+                    .reg_group_id = group_id,
+                    .regsize = (uint32_t) bitsize,
+                    .reg_type = MCD_REG_TYPE_SIMPLE,
+                    /* ID 0 reserved */
+                    .hw_thread_id = core_state->info.core_id + 1,
+                };
+                strncpy(r.regname, name, MCD_REG_NAME_LEN - 1);
+                g_array_append_val(core_state->registers, r);
+                num_regs++;
+            }
+        }
+        g_byte_array_free(mem_buf, true);
+
+        mcd_register_group_st rg = {
+            .reg_group_id = group_id,
+            .n_registers = num_regs,
+        };
+        strncpy(rg.reg_group_name, f->feature->name, MCD_REG_NAME_LEN - 1);
+        g_array_append_val(core_state->register_groups, rg);
+    }
+
+    return MCD_RET_ACT_NONE;
+}
+
 mcd_return_et mcd_open_core_f(const mcd_core_con_info_st *core_con_info,
                               mcd_core_st **core)
 {
@@ -580,6 +646,10 @@ mcd_return_et mcd_open_core_f(const mcd_core_con_info_st *core_con_info,
     }
 
     if (query_memspaces(core_state) != MCD_RET_ACT_NONE) {
+        return g_server_state.last_error->return_status;
+    }
+
+    if (query_registers(core_state) != MCD_RET_ACT_NONE) {
         return g_server_state.last_error->return_status;
     }
 
@@ -626,6 +696,8 @@ mcd_return_et mcd_close_core_f(const mcd_core_st *core)
     core_state->open_core = NULL;
     core_state->cpu = NULL;
     g_array_set_size(core_state->memory_spaces, 0);
+    g_array_set_size(core_state->register_groups, 0);
+    g_array_set_size(core_state->registers, 0);
 
     g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
@@ -771,16 +843,161 @@ mcd_return_et mcd_qry_reg_groups_f(const mcd_core_st *core,
                                    uint32_t *num_reg_groups,
                                    mcd_register_group_st *reg_groups)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    uint32_t i;
+    mcdcore_state *core_state;
+
+    if (!core || !num_reg_groups) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    g_assert(core_state->register_groups);
+
+    if (core_state->register_groups->len == 0) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_NO_REG_GROUPS,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (*num_reg_groups == 0) {
+        *num_reg_groups = core_state->register_groups->len;
+        core_state->last_error = &MCD_ERROR_NONE;
+        return core_state->last_error->return_status;
+    }
+
+    if (start_index >= core_state->register_groups->len) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "start_index exceeds the number of register groups",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (!reg_groups) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    for (i = 0; i < *num_reg_groups &&
+         start_index + i < core_state->register_groups->len; i++) {
+
+        reg_groups[i] = g_array_index(core_state->register_groups,
+                                      mcd_register_group_st, start_index + i);
+    }
+
+    *num_reg_groups = i;
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_qry_reg_map_f(const mcd_core_st *core, uint32_t reg_group_id,
                                 uint32_t start_index, uint32_t *num_regs,
                                 mcd_register_info_st *reg_info)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    mcdcore_state *core_state;
+    bool query_all_regs = reg_group_id == 0;
+    bool query_num_only;
+
+    if (!core || !num_regs) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    query_num_only = *num_regs == 0;
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (core_state->register_groups->len == 0 ||
+        reg_group_id > core_state->register_groups->len) {
+
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_REG_GROUP_ID,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    /*
+     * Depending on reg_group_id, start_index refers either to the total list of
+     * register or a single register group.
+     */
+
+    if (query_all_regs) {
+        if (start_index >= core_state->registers->len) {
+            core_state->custom_error = (mcd_error_info_st) {
+                .return_status = MCD_RET_ACT_HANDLE_ERROR,
+                .error_code = MCD_ERR_PARAM,
+                .error_events = MCD_ERR_EVT_NONE,
+                .error_str = "start_index exceeds the number of registers",
+            };
+            core_state->last_error = &core_state->custom_error;
+            return core_state->last_error->return_status;
+        };
+
+        if (*num_regs == 0) {
+            *num_regs = core_state->registers->len;
+        } else if (*num_regs > core_state->registers->len - start_index) {
+            *num_regs = core_state->registers->len - start_index;
+        }
+    } else {
+        mcd_register_group_st *rg = &g_array_index(core_state->register_groups,
+            mcd_register_group_st, reg_group_id - 1);
+
+        if (start_index > rg->n_registers) {
+            core_state->custom_error = (mcd_error_info_st) {
+                .return_status = MCD_RET_ACT_HANDLE_ERROR,
+                .error_code = MCD_ERR_PARAM,
+                .error_events = MCD_ERR_EVT_NONE,
+                .error_str = "start_index exceeds the number of registers",
+            };
+            core_state->last_error = &core_state->custom_error;
+            return core_state->last_error->return_status;
+        }
+
+        if (*num_regs == 0) {
+            *num_regs = rg->n_registers;
+        } else if (*num_regs > rg->n_registers - start_index) {
+            *num_regs = rg->n_registers - start_index;
+        }
+
+        for (uint32_t rg_id = 0; rg_id < reg_group_id - 1; rg_id++) {
+            mcd_register_group_st *prev_rg = &g_array_index(
+                core_state->register_groups, mcd_register_group_st, rg_id);
+            start_index += prev_rg->n_registers;
+        }
+    }
+
+    if (!query_num_only) {
+        for (uint32_t i = 0; i < *num_regs; i++) {
+            reg_info[i] = g_array_index(
+                core_state->registers, mcd_register_info_st, start_index + i);
+        }
+    }
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_qry_reg_compound_f(const mcd_core_st *core,
