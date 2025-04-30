@@ -34,6 +34,13 @@ static const mcd_error_info_st MCD_ERROR_SERVER_NOT_OPEN = {
     .error_str = "server is not open",
 };
 
+static const mcd_error_info_st MCD_ERROR_UNKNOWN_CORE = {
+    .return_status = MCD_RET_ACT_HANDLE_ERROR,
+    .error_code = MCD_ERR_PARAM,
+    .error_events = MCD_ERR_EVT_NONE,
+    .error_str = "specified core is unknown to server",
+};
+
 static const mcd_error_info_st MCD_ERROR_NONE = {
     .return_status = MCD_RET_ACT_NONE,
     .error_code = MCD_ERR_NONE,
@@ -43,6 +50,24 @@ static const mcd_error_info_st MCD_ERROR_NONE = {
 
 /* reserves memory for custom errors */
 static mcd_error_info_st custom_mcd_error;
+
+/**
+ * struct mcdcore_state - State of a core.
+ *
+ * @last_error: Error info of most recent executed function.
+ * @info:       Core connection information.
+ * @open_core:  Open core instance as allocated in mcd_open_core_f().
+ *
+ * MCD is mainly being used on the core level:
+ * After the initial query functions, a core connection is opened in
+ * mcd_open_core_f(). The allocated mcd_core_st instance is then the basis
+ * of subsequent operations.
+ */
+typedef struct mcdcore_state {
+    const mcd_error_info_st *last_error;
+    mcd_core_con_info_st info;
+    mcd_core_st *open_core;
+} mcdcore_state;
 
 /**
  * struct mcdserver_state - State of the MCD server
@@ -65,6 +90,24 @@ static mcdserver_state g_server_state = {
     .system_key = "",
     .cores = NULL,
 };
+
+static mcdcore_state *find_core(const mcd_core_con_info_st *core_con_info)
+{
+    uint32_t core_id;
+    mcdcore_state *core;
+
+    if (!core_con_info || !g_server_state.cores) {
+        return NULL;
+    }
+
+    core_id = core_con_info->core_id;
+    if (core_id > g_server_state.cores->len) {
+        return NULL;
+    }
+
+    core = &g_array_index(g_server_state.cores, mcdcore_state, core_id);
+    return core;
+}
 
 mcd_return_et mcd_initialize_f(const mcd_api_version_st *version_req,
                                mcd_impl_version_info_st *impl_info)
@@ -200,16 +243,19 @@ mcd_return_et mcd_open_server_f(const char *system_key,
     }
 
     /* update the internal core information data base */
-    g_server_state.cores = g_array_new(false, true,
-                                       sizeof(mcd_core_con_info_st));
+    g_server_state.cores = g_array_new(false, true, sizeof(mcdcore_state));
     CPU_FOREACH(cpu) {
         ObjectClass *oc = object_get_class(OBJECT(cpu));
         const char *cpu_model = object_class_get_name(oc);
-        mcd_core_con_info_st info = {
-            .core_id = g_server_state.cores->len,
+        mcdcore_state c = {
+            .info = (mcd_core_con_info_st) {
+                .core_id = g_server_state.cores->len,
+            },
+            .last_error = &MCD_ERROR_NONE,
+            .open_core = NULL,
         };
-        pstrcpy(info.core, MCD_UNIQUE_NAME_LEN, cpu_model);
-        g_array_append_val(g_server_state.cores, info);
+        pstrcpy(c.info.core, MCD_UNIQUE_NAME_LEN, cpu_model);
+        g_array_append_val(g_server_state.cores, c);
     }
 
     g_server_state.last_error = &MCD_ERROR_NONE;
@@ -238,6 +284,14 @@ mcd_return_et mcd_close_server_f(const mcd_server_st *server)
         };
         g_server_state.last_error = &custom_mcd_error;
         return g_server_state.last_error->return_status;
+    }
+
+    for (int i = 0; i < g_server_state.cores->len; i++) {
+        mcdcore_state *c = &g_array_index(g_server_state.cores,
+                                          mcdcore_state, i);
+        if (c->open_core) {
+            mcd_close_core_f(c->open_core);
+        }
     }
 
     g_array_free(g_server_state.cores, true);
@@ -396,12 +450,11 @@ mcd_return_et mcd_qry_cores_f(const mcd_core_con_info_st *connection_info,
          i < *num_cores && start_index + i < g_server_state.cores->len;
          i++) {
 
-        mcd_core_con_info_st *info = &g_array_index(g_server_state.cores,
-                                                    mcd_core_con_info_st,
-                                                    start_index + i);
+        mcdcore_state *c = &g_array_index(g_server_state.cores, mcdcore_state,
+                                          start_index + i);
         core_con_info[i] = *connection_info;
-        core_con_info[i].core_id = info->core_id;
-        pstrcpy(core_con_info[i].core, MCD_UNIQUE_NAME_LEN, info->core);
+        core_con_info[i].core_id = c->info.core_id;
+        pstrcpy(core_con_info[i].core, MCD_UNIQUE_NAME_LEN, c->info.core);
     }
 
     *num_cores = i;
@@ -421,21 +474,116 @@ mcd_return_et mcd_qry_core_modes_f(const mcd_core_st *core,
 mcd_return_et mcd_open_core_f(const mcd_core_con_info_st *core_con_info,
                               mcd_core_st **core)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    uint32_t core_id;
+    mcdcore_state *core_state;
+    mcd_core_con_info_st *info;
+
+    if (!g_server_state.open_server) {
+        g_server_state.last_error = &MCD_ERROR_SERVER_NOT_OPEN;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (!core_con_info || !core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_id = core_con_info->core_id;
+    if (core_id > g_server_state.cores->len) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "specified core index exceeds the number of cores",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = &g_array_index(g_server_state.cores, mcdcore_state, core_id);
+    if (core_state->open_core) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_CONNECTION,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "core already open",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    *core = g_malloc(sizeof(mcd_core_st));
+    info = g_malloc(sizeof(mcd_core_con_info_st));
+    *info = *core_con_info;
+    (*core)->core_con_info = info;
+    (*core)->instance = NULL;
+    core_state->open_core = *core;
+    core_state->last_error = &MCD_ERROR_NONE;
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
 mcd_return_et mcd_close_core_f(const mcd_core_st *core)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    mcdcore_state *core_state;
+
+    if (!core) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (core_state->open_core != core) {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_CONNECTION,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "core not open",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    g_free((void *)core->core_con_info);
+    g_free((void *)core);
+    core_state->open_core = NULL;
+
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
 }
 
 void mcd_qry_error_info_f(const mcd_core_st *core,
                           mcd_error_info_st *error_info)
 {
-    if (error_info) {
+    mcdcore_state *core_state;
+
+    if (!error_info) {
+        return;
+    }
+
+    if (!core) {
         *error_info = *g_server_state.last_error;
+        return;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state)  {
+        *error_info = MCD_ERROR_UNKNOWN_CORE;
+    } else if (core_state->open_core != core) {
+        *error_info = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_CONNECTION,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "core not open",
+        };
+    } else {
+        *error_info = *core_state->last_error;
     }
 }
 
