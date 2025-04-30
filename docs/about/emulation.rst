@@ -336,6 +336,8 @@ Behaviour can be tweaked with the following arguments:
     - Give a summary of the instruction sizes for the execution
   * - match=<string>
     - Only instrument instructions matching the string prefix
+  * - vaddr=<start>+<count>
+    - Counts executed instructions in this virtual address range. <start> and <count> must be in base 16
 
 The ``match`` option will show some basic stats including how many
 instructions have executed since the last execution. For

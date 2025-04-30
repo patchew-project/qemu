@@ -48,6 +48,14 @@ static GHashTable *match_insn_records;
 static GMutex match_hash_lock;
 
 
+typedef struct {
+    uint64_t start;
+    uint64_t end;
+    qemu_plugin_u64 hits; /* Number of insn executed in this range */
+} VaddrRange;
+
+static GArray *vaddr_ranges;
+
 static Instruction * get_insn_record(const char *disas, uint64_t vaddr, Match *m)
 {
     g_autofree char *str_hash = g_strdup_printf("%"PRIx64" %s", vaddr, disas);
@@ -187,6 +195,15 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
             }
             g_free(insn_disas);
         }
+
+        for (int j = 0; j < vaddr_ranges->len; j++) {
+            VaddrRange *var = &g_array_index(vaddr_ranges, VaddrRange, j);
+            uint64_t vaddr = qemu_plugin_insn_vaddr(insn);
+            if (var->start <= vaddr && vaddr < var->end) {
+                qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+                    insn, QEMU_PLUGIN_INLINE_ADD_U64, var->hits, 1);
+            }
+        }
     }
 }
 
@@ -246,6 +263,19 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 
     g_array_free(matches, TRUE);
     g_array_free(sizes, TRUE);
+
+    for (i = 0; i < vaddr_ranges->len; ++i) {
+        VaddrRange *var = &g_array_index(vaddr_ranges, VaddrRange, i);
+        uint64_t hits = qemu_plugin_u64_sum(var->hits);
+
+        g_string_printf(out, "Vaddr range [0x%08lx, 0x%08lx): %"PRId64" hits\n",
+                        var->start, var->end, hits);
+        qemu_plugin_outs(out->str);
+        qemu_plugin_scoreboard_free(var->hits.score);
+    }
+
+
+    g_array_free(vaddr_ranges, TRUE);
 }
 
 
@@ -258,6 +288,48 @@ static void parse_match(char *match)
     g_array_append_val(matches, new_match);
 }
 
+static void parse_vaddr(const char *arg)
+{
+    char *vaddr = g_strdup(arg);
+    char *saveptr, *token1, *token2;
+    uint64_t start, len, end;
+    token1 = strtok_r(vaddr, "+", &saveptr);
+    token2 = strtok_r(NULL, "+", &saveptr);
+    if (!token1 || !token2) {
+        fprintf(stderr, "vaddr usage: vaddr=start+count (both base 16!)\n");
+        exit(1);
+    }
+
+    start = g_ascii_strtoull(token1, NULL, 16);
+    len = g_ascii_strtoull(token2, NULL, 16);
+    end = start + len;
+
+    g_free(vaddr);
+
+    if (start == 0 || end == 0) {
+        fprintf(stderr, "vaddr usage: vaddr=start+count (both base 16!)\n");
+        exit(1);
+    }
+
+    if (UINT64_MAX - start < len) {
+        fprintf(stderr, "integer overflow in vaddr end address calculation."
+                        " Specified vaddr=start+count incorrect.\n");
+        exit(1);
+    }
+
+    g_autoptr(GString) out = g_string_new(NULL);
+    g_string_printf(out, "Registering new Vaddr range"
+                        " start=0x%08lx len=0x%08lx end=0x%08lx\n", start, len, end);
+    qemu_plugin_outs(out->str);
+
+    VaddrRange new_vaddrrange = {
+        .start = start,
+        .end = end,
+        .hits = qemu_plugin_scoreboard_u64(
+            qemu_plugin_scoreboard_new(sizeof(uint64_t))) };
+    g_array_append_val(vaddr_ranges, new_vaddrrange);
+}
+
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            const qemu_info_t *info,
                                            int argc, char **argv)
@@ -265,6 +337,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     matches = g_array_new(false, true, sizeof(Match));
     /* null terminated so 0 is not a special case */
     sizes = g_array_new(true, true, sizeof(unsigned long));
+    vaddr_ranges = g_array_new(false, true, sizeof(VaddrRange));
 
     for (int i = 0; i < argc; i++) {
         char *opt = argv[i];
@@ -281,6 +354,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
             }
         } else if (g_strcmp0(tokens[0], "match") == 0) {
             parse_match(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "vaddr") == 0) {
+            parse_vaddr(tokens[1]);
         } else if (g_strcmp0(tokens[0], "trace") == 0) {
             if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &do_trace)) {
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
@@ -288,6 +363,20 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
             }
         } else {
             fprintf(stderr, "option parsing failed: %s\n", opt);
+            return -1;
+        }
+    }
+
+    /* Check for invalid parameter combinations */
+    if (vaddr_ranges->len > 0) {
+        if (matches->len > 0) {
+            fprintf(stderr, "match=... and vaddr=... are incompatible."
+                            " Use only one of them.\n");
+            return -1;
+        }
+
+        if (!do_inline) {
+            fprintf(stderr, "vaddr=... is only supported in conjunction with inline.\n");
             return -1;
         }
     }
