@@ -397,6 +397,11 @@ if dbus_display
   qtests += {'dbus-display-test': [dbus_display1, gio]}
 endif
 
+if get_option('mcd').enabled()
+  qtests += { 'mcd-test': files('mcd-test.c') }
+  qtests_generic += [ 'mcd-test' ]
+endif
+
 qtest_executables = {}
 foreach dir : target_dirs
   if not dir.endswith('-softmmu')
