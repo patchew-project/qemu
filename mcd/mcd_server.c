@@ -8,6 +8,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "mcd_api.h"
 
 static const mcd_error_info_st MCD_ERROR_NOT_IMPLEMENTED = {
@@ -17,12 +18,22 @@ static const mcd_error_info_st MCD_ERROR_NOT_IMPLEMENTED = {
     .error_str = "",
 };
 
+static const mcd_error_info_st MCD_ERROR_INVALID_NULL_PARAM = {
+    .return_status = MCD_RET_ACT_HANDLE_ERROR,
+    .error_code = MCD_ERR_PARAM,
+    .error_events = MCD_ERR_EVT_NONE,
+    .error_str = "null was invalidly passed as a parameter",
+};
+
 static const mcd_error_info_st MCD_ERROR_NONE = {
     .return_status = MCD_RET_ACT_NONE,
     .error_code = MCD_ERR_NONE,
     .error_events = MCD_ERR_EVT_NONE,
     .error_str = "",
 };
+
+/* reserves memory for custom errors */
+static mcd_error_info_st custom_mcd_error;
 
 /**
  * struct mcdserver_state - State of the MCD server
@@ -40,12 +51,43 @@ static mcdserver_state g_server_state = {
 mcd_return_et mcd_initialize_f(const mcd_api_version_st *version_req,
                                mcd_impl_version_info_st *impl_info)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
+    if (!version_req || !impl_info) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    *impl_info = (mcd_impl_version_info_st) {
+        .v_api = (mcd_api_version_st) {
+            .v_api_major = MCD_API_VER_MAJOR,
+            .v_api_minor = MCD_API_VER_MINOR,
+            .author = MCD_API_VER_AUTHOR,
+        },
+        .v_imp_major = QEMU_VERSION_MAJOR,
+        .v_imp_minor = QEMU_VERSION_MINOR,
+        .v_imp_build = 0,
+        .vendor = "QEMU",
+        .date = __DATE__,
+    };
+
+    if (version_req->v_api_major == MCD_API_VER_MAJOR &&
+        version_req->v_api_minor <= MCD_API_VER_MINOR) {
+        g_server_state.last_error = &MCD_ERROR_NONE;
+    } else {
+        custom_mcd_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_GENERAL,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "incompatible versions",
+        };
+        g_server_state.last_error = &custom_mcd_error;
+    }
+
     return g_server_state.last_error->return_status;
 }
 
 void mcd_exit_f(void)
 {
+    g_server_state.last_error = &MCD_ERROR_NONE;
     return;
 }
 

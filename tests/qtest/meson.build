@@ -398,7 +398,7 @@ if dbus_display
 endif
 
 if get_option('mcd').enabled()
-  qtests += { 'mcd-test': files('mcd-test.c') }
+  qtests += { 'mcd-test': files('mcd-test.c', 'mcd-util.c') + mcd_qapi }
   qtests_generic += [ 'mcd-test' ]
 endif
 

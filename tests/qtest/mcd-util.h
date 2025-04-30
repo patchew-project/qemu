@@ -12,10 +12,16 @@
 #define TEST_MCD_UTILS_H
 
 #include "libqtest.h"
+#include "mcd/mcd-qapi-visit.h"
 
 typedef struct {
     QTestState *qts;
     int mcd_fd;
 } QTestStateMCD;
+
+MCDInitializeResult *qtest_mcd_initialize(QTestStateMCD *qts,
+                                          q_obj_mcd_initialize_arg *args);
+
+MCDErrorInfo *qtest_mcd_qry_error_info(QTestStateMCD *qts);
 
 #endif /* TEST_MCD_UTILS_H */
