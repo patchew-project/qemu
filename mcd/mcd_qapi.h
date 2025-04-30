@@ -37,6 +37,21 @@ MCDRegisterInfo *marshal_mcd_register_info(
 
 MCDCoreState *marshal_mcd_core_state(const mcd_core_state_st *state);
 
+MCDTrigInfo *marshal_mcd_trig_info(const mcd_trig_info_st *trig_info);
+
+MCDCtrigInfo *marshal_mcd_ctrig_info(const mcd_ctrig_info_st *trig_info);
+
+MCDTrigSimpleCore *marshal_mcd_trig_simple_core(
+    const mcd_trig_simple_core_st *trig_simple_core);
+
+MCDTrigComplexCore *marshal_mcd_trig_complex_core(
+    const mcd_trig_complex_core_st *trig_complex_core);
+
+MCDTrigState *marshal_mcd_trig_state(const mcd_trig_state_st *trig_info);
+
+MCDTrigSetState *marshal_mcd_trig_set_state(
+    const mcd_trig_set_state_st *trig_state);
+
 MCDTx *marshal_mcd_tx(const mcd_tx_st *tx);
 
 MCDTxlist *marshal_mcd_txlist(const mcd_txlist_st *txlist);
@@ -46,6 +61,12 @@ mcd_api_version_st unmarshal_mcd_api_version(MCDAPIVersion *api_version);
 mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info);
 
 mcd_addr_st unmarshal_mcd_addr(MCDAddr *addr);
+
+mcd_trig_simple_core_st unmarshal_mcd_trig_simple_core(
+    MCDTrigSimpleCore *trig_simple_core);
+
+mcd_trig_complex_core_st unmarshal_mcd_trig_complex_core(
+    MCDTrigComplexCore *trig_complex_core);
 
 mcd_tx_st unmarshal_mcd_tx(MCDTx *tx);
 

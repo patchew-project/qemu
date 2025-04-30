@@ -633,3 +633,293 @@ MCDQryStateResult *qmp_mcd_qry_state(uint32_t core_uid, Error **errp)
     g_stub_state.on_error_ask_server = true;
     return result;
 }
+
+MCDQryTrigInfoResult *qmp_mcd_qry_trig_info(uint32_t core_uid, Error **errp)
+{
+    MCDQryTrigInfoResult *result = g_malloc0(sizeof(*result));
+    mcd_trig_info_st trig_info;
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_qry_trig_info_f(core, &trig_info);
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->trig_info = marshal_mcd_trig_info(&trig_info);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDQryCtrigsResult *qmp_mcd_qry_ctrigs(uint32_t core_uid, uint32_t start_index,
+                                       uint32_t num_ctrigs, Error **errp)
+{
+    MCDCtrigInfoList **tailp;
+    MCDCtrigInfo *info;
+    MCDQryCtrigsResult *result = g_malloc0(sizeof(*result));
+    mcd_ctrig_info_st *ctrig_info = NULL;
+    bool query_num_only = num_ctrigs == 0;
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    if (!query_num_only) {
+        ctrig_info = g_malloc0(num_ctrigs * sizeof(*ctrig_info));
+    }
+
+    result->return_status = mcd_qry_ctrigs_f(core, start_index, &num_ctrigs,
+                                             ctrig_info);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_num_ctrigs = true;
+        result->num_ctrigs = num_ctrigs;
+        if (!query_num_only) {
+            result->has_ctrig_info = true;
+            tailp = &(result->ctrig_info);
+            for (uint32_t i = 0; i < num_ctrigs; i++) {
+                info = marshal_mcd_ctrig_info(ctrig_info + i);
+                QAPI_LIST_APPEND(tailp, info);
+            }
+        }
+    }
+
+    if (!query_num_only) {
+        g_free(ctrig_info);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDCreateTrigResult *qmp_mcd_create_trig(uint32_t core_uid, MCDTrig *trig,
+                                         Error **errp)
+{
+    MCDCreateTrigResult *result = g_malloc0(sizeof(*result));
+    mcd_trig_simple_core_st trig_simple;
+    mcd_trig_complex_core_st trig_complex;
+    void *trig_p;
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+
+    if (trig->trig_simple_core) {
+        trig_simple = unmarshal_mcd_trig_simple_core(trig->trig_simple_core);
+        trig_p = (void *) &trig_simple;
+    } else if (trig->trig_complex_core) {
+        trig_complex = unmarshal_mcd_trig_complex_core(trig->trig_complex_core);
+        trig_p = (void *) &trig_complex;
+    } else {
+        g_assert_not_reached();
+    }
+
+    uint32_t trig_id;
+    result->return_status = mcd_create_trig_f(core, trig_p, &trig_id);
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_trig_id = true;
+        result->trig_id = trig_id;
+        result->trig = g_malloc0(sizeof(*result->trig));
+        if (trig_p == &trig_simple) {
+            result->trig->trig_simple_core =
+                marshal_mcd_trig_simple_core(&trig_simple);
+            result->trig->trig_complex_core = NULL;
+        } else if (trig_p == &trig_complex) {
+            result->trig->trig_complex_core =
+                marshal_mcd_trig_complex_core(&trig_complex);
+            result->trig->trig_simple_core = NULL;
+        } else {
+            g_assert_not_reached();
+        }
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDQryTrigResult *qmp_mcd_qry_trig(uint32_t core_uid, uint32_t trig_id,
+                                   Error **errp)
+{
+    MCDQryTrigResult *result = g_malloc0(sizeof(*result));
+    /* Currently, only trig simple and complex cores are supported */
+    mcd_trig_complex_core_st trig;
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_qry_trig_f(core, trig_id, sizeof(trig), &trig);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->trig = g_malloc0(sizeof(*result->trig));
+        if (trig.struct_size == sizeof(mcd_trig_complex_core_st)) {
+            result->trig->trig_complex_core =
+                marshal_mcd_trig_complex_core(&trig);
+        } else if (trig.struct_size == sizeof(mcd_trig_simple_core_st)) {
+            mcd_trig_simple_core_st *trig_simple =
+                (mcd_trig_simple_core_st *) &trig;
+            result->trig->trig_simple_core =
+                marshal_mcd_trig_simple_core(trig_simple);
+        } else {
+            g_assert_not_reached();
+        }
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDRemoveTrigResult *qmp_mcd_remove_trig(uint32_t core_uid, uint32_t trig_id,
+                                         Error **errp)
+{
+    MCDRemoveTrigResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_remove_trig_f(core, trig_id);
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDQryTrigStateResult *qmp_mcd_qry_trig_state(uint32_t core_uid,
+                                              uint32_t trig_id, Error **errp)
+{
+    MCDQryTrigStateResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    mcd_trig_state_st trig_state;
+    result->return_status = mcd_qry_trig_state_f(core, trig_id, &trig_state);
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->trig_state = marshal_mcd_trig_state(&trig_state);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDActivateTrigSetResult *qmp_mcd_activate_trig_set(uint32_t core_uid,
+                                                    Error **errp)
+{
+    MCDActivateTrigSetResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_activate_trig_set_f(core);
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDActivateTrigSetResult *qmp_mcd_remove_trig_set(uint32_t core_uid,
+                                                  Error **errp)
+{
+    MCDActivateTrigSetResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_remove_trig_set_f(core);
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDQryTrigSetResult *qmp_mcd_qry_trig_set(uint32_t core_uid,
+                                          uint32_t start_index,
+                                          uint32_t num_trigs, Error **errp)
+{
+    uint32List **tailp;
+    MCDQryTrigSetResult *result = g_malloc0(sizeof(*result));
+    uint32_t *trig_ids = NULL;
+    bool query_num_only = num_trigs == 0;
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    if (!query_num_only) {
+        trig_ids = g_malloc0(num_trigs * sizeof(*trig_ids));
+    }
+
+    result->return_status = mcd_qry_trig_set_f(core, start_index, &num_trigs,
+                                               trig_ids);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_num_trigs = true;
+        result->num_trigs = num_trigs;
+        if (!query_num_only) {
+            result->has_trig_ids = true;
+            tailp = &(result->trig_ids);
+            for (uint32_t i = 0; i < num_trigs; i++) {
+                QAPI_LIST_APPEND(tailp, trig_ids[i]);
+            }
+        }
+    }
+
+    if (!query_num_only) {
+        g_free(trig_ids);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
+
+MCDQryTrigSetStateResult *qmp_mcd_qry_trig_set_state(uint32_t core_uid,
+                                                     Error **errp)
+{
+    MCDQryTrigSetStateResult *result = g_malloc0(sizeof(*result));
+    mcd_trig_set_state_st trig_state;
+    mcd_core_st *core = NULL;
+
+    result->return_status = retrieve_open_core(core_uid, &core);
+    if (result->return_status != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+        return result;
+    }
+
+    result->return_status = mcd_qry_trig_set_state_f(core, &trig_state);
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->trig_state = marshal_mcd_trig_set_state(&trig_state);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}
