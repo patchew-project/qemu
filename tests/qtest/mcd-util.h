@@ -51,4 +51,7 @@ MCDOpenCoreResult *qtest_mcd_open_core(QTestStateMCD *qts,
 MCDCloseCoreResult *qtest_mcd_close_core(QTestStateMCD *qts,
                                          q_obj_mcd_close_core_arg *args);
 
+MCDQryMemSpacesResult *qtest_mcd_qry_mem_spaces(QTestStateMCD *qts,
+    q_obj_mcd_qry_mem_spaces_arg *args);
+
 #endif /* TEST_MCD_UTILS_H */

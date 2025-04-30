@@ -12,6 +12,10 @@
 #include "qemu/cutils.h"
 #include "mcd_api.h"
 #include "hw/boards.h"
+#include "exec/tswap.h"
+
+/* Custom memory space type */
+static const mcd_mem_type_et MCD_MEM_SPACE_IS_SECURE = 0x00010000;
 
 static const mcd_error_info_st MCD_ERROR_NOT_IMPLEMENTED = {
     .return_status = MCD_RET_ACT_HANDLE_ERROR,
@@ -48,37 +52,45 @@ static const mcd_error_info_st MCD_ERROR_NONE = {
     .error_str = "",
 };
 
-/* reserves memory for custom errors */
-static mcd_error_info_st custom_mcd_error;
-
 /**
  * struct mcdcore_state - State of a core.
  *
- * @last_error: Error info of most recent executed function.
- * @info:       Core connection information.
- * @open_core:  Open core instance as allocated in mcd_open_core_f().
+ * @last_error:    Error info of most recent executed core-related function.
+ * @custom_error:  Reserves memory for custom MCD errors.
+ * @info:          Core connection information.
+ * @open_core:     Open core instance as allocated in mcd_open_core_f().
+ * @cpu:           QEMU's internal CPU handle.
+ * @memory_spaces: Memory spaces as queried by mcd_qry_mem_spaces_f().
  *
  * MCD is mainly being used on the core level:
  * After the initial query functions, a core connection is opened in
  * mcd_open_core_f(). The allocated mcd_core_st instance is then the basis
  * of subsequent operations.
+ *
+ * @cpu is the internal CPU handle through which core specific debug
+ * functions are implemented.
  */
 typedef struct mcdcore_state {
     const mcd_error_info_st *last_error;
+    mcd_error_info_st custom_error;
     mcd_core_con_info_st info;
     mcd_core_st *open_core;
+    CPUState *cpu;
+    GArray *memory_spaces;
 } mcdcore_state;
 
 /**
  * struct mcdserver_state - State of the MCD server
  *
- * @last_error:  Error info of most recent executed function.
- * @open_server: Open server instance as allocated in mcd_open_server_f().
- * @system_key:  System key as provided in mcd_open_server_f()
- * @cores:       Internal core information database.
+ * @last_error:   Error info of most recent executed function.
+ * @custom_error: Reserves memory for custom MCD errors.
+ * @open_server:  Open server instance as allocated in mcd_open_server_f().
+ * @system_key:   System key as provided in mcd_open_server_f()
+ * @cores:        Internal core information database.
  */
 typedef struct mcdserver_state {
     const mcd_error_info_st *last_error;
+    mcd_error_info_st custom_error;
     mcd_server_st *open_server;
     char system_key[MCD_KEY_LEN];
     GArray *cores;
@@ -134,13 +146,13 @@ mcd_return_et mcd_initialize_f(const mcd_api_version_st *version_req,
         version_req->v_api_minor <= MCD_API_VER_MINOR) {
         g_server_state.last_error = &MCD_ERROR_NONE;
     } else {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_GENERAL,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "incompatible versions",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
     }
 
     return g_server_state.last_error->return_status;
@@ -160,13 +172,13 @@ mcd_return_et mcd_qry_servers_f(const char *host, bool running,
                                 mcd_server_info_st *server_info)
 {
     if (start_index >= 1) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_PARAM,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "QEMU only has one MCD server",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
@@ -214,13 +226,13 @@ mcd_return_et mcd_open_server_f(const char *system_key,
     CPUState *cpu;
 
     if (g_server_state.open_server) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_CONNECTION,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "server already open",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
@@ -253,6 +265,8 @@ mcd_return_et mcd_open_server_f(const char *system_key,
             },
             .last_error = &MCD_ERROR_NONE,
             .open_core = NULL,
+            .cpu = cpu,
+            .memory_spaces = g_array_new(false, true, sizeof(mcd_memspace_st)),
         };
         pstrcpy(c.info.core, MCD_UNIQUE_NAME_LEN, cpu_model);
         g_array_append_val(g_server_state.cores, c);
@@ -265,24 +279,24 @@ mcd_return_et mcd_open_server_f(const char *system_key,
 mcd_return_et mcd_close_server_f(const mcd_server_st *server)
 {
     if (!g_server_state.open_server) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_CONNECTION,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "server not open",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
     if (server != g_server_state.open_server) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_CONNECTION,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "unknown server",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
@@ -333,13 +347,13 @@ mcd_return_et mcd_qry_systems_f(uint32_t start_index, uint32_t *num_systems,
     }
 
     if (start_index >= 1) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_PARAM,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "QEMU only emulates one system",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
@@ -381,13 +395,13 @@ mcd_return_et mcd_qry_devices_f(const mcd_core_con_info_st *system_con_info,
     }
 
     if (start_index >= 1) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_PARAM,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "QEMU only emulates one machine",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
@@ -431,13 +445,13 @@ mcd_return_et mcd_qry_cores_f(const mcd_core_con_info_st *connection_info,
     }
 
     if (start_index >= g_server_state.cores->len) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_PARAM,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "start_index exceeds the number of cores",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
@@ -471,6 +485,59 @@ mcd_return_et mcd_qry_core_modes_f(const mcd_core_st *core,
     return g_server_state.last_error->return_status;
 }
 
+static mcd_return_et query_memspaces(mcdcore_state *core_state)
+{
+    g_array_set_size(core_state->memory_spaces, 0);
+
+    mcd_endian_et endian = target_big_endian() ? MCD_ENDIAN_BIG
+                                               : MCD_ENDIAN_LITTLE;
+
+    for (uint32_t i = 0; i < core_state->cpu->num_ases; i++) {
+        AddressSpace *as = cpu_get_address_space(core_state->cpu, i);
+
+        int secure_flag = 0;
+        if (core_state->cpu->num_ases > 1) {
+            int sid = cpu_asidx_from_attrs(core_state->cpu,
+                                           (MemTxAttrs) { .secure = 1 });
+            if (i == sid) {
+                secure_flag = MCD_MEM_SPACE_IS_SECURE;
+            }
+        }
+
+        const char *as_name = as->name;
+        const char *mr_name = as->root->name;
+
+        mcd_memspace_st physical = {
+            /* mem space ID 0 is reserved */
+            .mem_space_id = core_state->memory_spaces->len + 1,
+            .mem_type = MCD_MEM_SPACE_IS_PHYSICAL | secure_flag,
+            .endian = endian,
+        };
+        strncpy(physical.mem_space_name, mr_name, MCD_MEM_SPACE_NAME_LEN - 1);
+
+        g_array_append_val(core_state->memory_spaces, physical);
+
+        mcd_memspace_st logical = {
+            .mem_space_id = core_state->memory_spaces->len + 1,
+            .mem_type = MCD_MEM_SPACE_IS_LOGICAL | secure_flag,
+            .endian = endian,
+        };
+        strncpy(logical.mem_space_name, as_name, MCD_MEM_SPACE_NAME_LEN - 1);
+
+        g_array_append_val(core_state->memory_spaces, logical);
+    }
+
+    mcd_memspace_st gdb_registers = {
+        .mem_space_id = core_state->memory_spaces->len + 1,
+        .mem_space_name = "GDB Registers",
+        .mem_type = MCD_MEM_SPACE_IS_REGISTERS,
+        .endian = endian,
+    };
+    g_array_append_val(core_state->memory_spaces, gdb_registers);
+
+    return MCD_RET_ACT_NONE;
+}
+
 mcd_return_et mcd_open_core_f(const mcd_core_con_info_st *core_con_info,
                               mcd_core_st **core)
 {
@@ -490,25 +557,29 @@ mcd_return_et mcd_open_core_f(const mcd_core_con_info_st *core_con_info,
 
     core_id = core_con_info->core_id;
     if (core_id > g_server_state.cores->len) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_PARAM,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "specified core index exceeds the number of cores",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
     core_state = &g_array_index(g_server_state.cores, mcdcore_state, core_id);
     if (core_state->open_core) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_CONNECTION,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "core already open",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
+        return g_server_state.last_error->return_status;
+    }
+
+    if (query_memspaces(core_state) != MCD_RET_ACT_NONE) {
         return g_server_state.last_error->return_status;
     }
 
@@ -540,19 +611,21 @@ mcd_return_et mcd_close_core_f(const mcd_core_st *core)
     }
 
     if (core_state->open_core != core) {
-        custom_mcd_error = (mcd_error_info_st) {
+        g_server_state.custom_error = (mcd_error_info_st) {
             .return_status = MCD_RET_ACT_HANDLE_ERROR,
             .error_code = MCD_ERR_CONNECTION,
             .error_events = MCD_ERR_EVT_NONE,
             .error_str = "core not open",
         };
-        g_server_state.last_error = &custom_mcd_error;
+        g_server_state.last_error = &g_server_state.custom_error;
         return g_server_state.last_error->return_status;
     }
 
     g_free((void *)core->core_con_info);
     g_free((void *)core);
     core_state->open_core = NULL;
+    core_state->cpu = NULL;
+    g_array_set_size(core_state->memory_spaces, 0);
 
     g_server_state.last_error = &MCD_ERROR_NONE;
     return g_server_state.last_error->return_status;
@@ -613,8 +686,66 @@ mcd_return_et mcd_qry_mem_spaces_f(const mcd_core_st *core,
                                    uint32_t *num_mem_spaces,
                                    mcd_memspace_st *mem_spaces)
 {
-    g_server_state.last_error = &MCD_ERROR_NOT_IMPLEMENTED;
-    return g_server_state.last_error->return_status;
+    uint32_t i;
+    mcdcore_state *core_state;
+
+    if (!core || !num_mem_spaces) {
+        g_server_state.last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return g_server_state.last_error->return_status;
+    }
+
+    core_state = find_core(core->core_con_info);
+    if (!core_state || core_state->open_core != core) {
+        g_server_state.last_error = &MCD_ERROR_UNKNOWN_CORE;
+        return g_server_state.last_error->return_status;
+    }
+
+    g_assert(core_state->memory_spaces);
+
+    if (core_state->memory_spaces->len == 0) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_NO_MEM_SPACES,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (*num_mem_spaces == 0) {
+        *num_mem_spaces = core_state->memory_spaces->len;
+        core_state->last_error = &MCD_ERROR_NONE;
+        return core_state->last_error->return_status;
+    }
+
+    if (start_index >= core_state->memory_spaces->len) {
+        core_state->custom_error = (mcd_error_info_st) {
+            .return_status = MCD_RET_ACT_HANDLE_ERROR,
+            .error_code = MCD_ERR_PARAM,
+            .error_events = MCD_ERR_EVT_NONE,
+            .error_str = "start_index exceeds the number of memory spaces",
+        };
+        core_state->last_error = &core_state->custom_error;
+        return core_state->last_error->return_status;
+    }
+
+    if (!mem_spaces) {
+        core_state->last_error = &MCD_ERROR_INVALID_NULL_PARAM;
+        return core_state->last_error->return_status;
+    }
+
+    for (i = 0; i < *num_mem_spaces &&
+         start_index + i < core_state->memory_spaces->len; i++) {
+
+        mem_spaces[i] = g_array_index(core_state->memory_spaces,
+                                      mcd_memspace_st, start_index + i);
+    }
+
+    *num_mem_spaces = i;
+
+    core_state->last_error = &MCD_ERROR_NONE;
+    return core_state->last_error->return_status;
 }
 
 mcd_return_et mcd_qry_mem_blocks_f(const mcd_core_st *core,

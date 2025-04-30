@@ -25,6 +25,8 @@ MCDServerInfo *marshal_mcd_server_info(const mcd_server_info_st *server_info);
 
 MCDCoreConInfo *marshal_mcd_core_con_info(const mcd_core_con_info_st *con_info);
 
+MCDMemspace *marshal_mcd_memspace(const mcd_memspace_st *mem_space);
+
 mcd_api_version_st unmarshal_mcd_api_version(MCDAPIVersion *api_version);
 
 mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info);

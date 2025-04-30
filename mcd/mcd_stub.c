@@ -379,3 +379,47 @@ MCDErrorInfo *qmp_mcd_qry_error_info(uint32_t core_uid, Error **errp)
     result = marshal_mcd_error_info(&error_info);
     return result;
 }
+
+MCDQryMemSpacesResult *qmp_mcd_qry_mem_spaces(uint32_t core_uid,
+                                              uint32_t start_index,
+                                              uint32_t num_mem_spaces,
+                                              Error **errp)
+{
+    MCDMemspaceList **tailp;
+    MCDMemspace *ms;
+    mcd_memspace_st *memspaces = NULL;
+    bool query_num_only = num_mem_spaces == 0;
+    MCDQryMemSpacesResult *result = g_malloc0(sizeof(*result));
+    mcd_core_st *core = NULL;
+
+    if (retrieve_open_core(core_uid, &core) != MCD_RET_ACT_NONE) {
+        g_stub_state.on_error_ask_server = false;
+    }
+
+    if (!query_num_only) {
+        memspaces = g_malloc0(num_mem_spaces * sizeof(*memspaces));
+    }
+
+    result->return_status = mcd_qry_mem_spaces_f(core, start_index,
+                                                 &num_mem_spaces, memspaces);
+
+    if (result->return_status == MCD_RET_ACT_NONE) {
+        result->has_num_mem_spaces = true;
+        result->num_mem_spaces = num_mem_spaces;
+        if (!query_num_only) {
+            result->has_mem_spaces = true;
+            tailp = &(result->mem_spaces);
+            for (uint32_t i = 0; i < num_mem_spaces; i++) {
+                ms = marshal_mcd_memspace(memspaces + i);
+                QAPI_LIST_APPEND(tailp, ms);
+            }
+        }
+    }
+
+    if (!query_num_only) {
+        g_free(memspaces);
+    }
+
+    g_stub_state.on_error_ask_server = true;
+    return result;
+}

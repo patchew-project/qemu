@@ -125,3 +125,25 @@ mcd_core_con_info_st unmarshal_mcd_core_con_info(MCDCoreConInfo *con_info)
 
     return unmarshal;
 }
+
+MCDMemspace *marshal_mcd_memspace(const mcd_memspace_st *mem_space)
+{
+    MCDMemspace *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDMemspace) {
+        .mem_space_id = mem_space->mem_space_id,
+        .mem_space_name = g_strdup(mem_space->mem_space_name),
+        .mem_type = mem_space->mem_type,
+        .bits_per_mau = mem_space->bits_per_mau,
+        .invariance = mem_space->invariance,
+        .endian = mem_space->endian,
+        .min_addr = mem_space->min_addr,
+        .max_addr = mem_space->max_addr,
+        .num_mem_blocks = mem_space->num_mem_blocks,
+        .supported_access_options = mem_space->supported_access_options,
+        .core_mode_mask_read = mem_space->core_mode_mask_read,
+        .core_mode_mask_write = mem_space->core_mode_mask_write,
+    };
+
+    return marshal;
+}

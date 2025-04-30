@@ -148,6 +148,74 @@
 
 
 ##
+# @MCDMemspace:
+#
+# Structure type containing information about a memory space.
+#
+# @mem-space-id:             ID of this memory space, ID 0 is reserved.
+# @mem-space-name:           Unique name of the memory space.
+# @mem-type:                 Type of the memory space.
+# @bits-per-mau:             Bits per minimum addressable unit (MAU). The
+#                            minimum addressable unit of a memory is defined as
+#                            the size in bits of its basic block that may have
+#                            a unique address. For example for a byte
+#                            addressable memory this value would be set to '8'
+#                            according to the 8 bits of a byte block.
+# @invariance:               The total number of bytes in a memory word, which
+#                            is @bits-per-mau divided by 8, consists of groups
+#                            of "invariant" bytes. These groups can be arranged
+#                            in Big Endian or Little Endian order.
+#                            For example an @invariance of '2' and '64'
+#                            @bits-per-mau, a Little Endian word are
+#                            represented as b0 b1 b2 b3 b4 b5 b6 b7.
+#                            In contrast to this, a Big Endian word is
+#                            represented as b6 b7 b4 b5 b2 b3 b0 b1.
+# @endian:                   Endianness of this memory space. Can be overriden
+#                            by @endian of a MCDMemblock.
+# @min-addr:                 Minimum address of this memory space.
+# @max-addr:                 Maximum address of this memory space.
+# @num-mem-blocks:           Number of memory blocks in this memory space. Each
+#                            memory space may have a certain number of memory
+#                            blocks. Memory blocks contain additional
+#                            information pertaining to the intended purpose of
+#                            the memory. This information may be used as a hint
+#                            for memory data representation within a tool's
+#                            memory view. This field specifies the number of
+#                            memory blocks present in this memory space.
+# @supported-access-options: Supported memory access options (OR'ed bitmask).
+#                            Can be overriden by @supported-access-options of a
+#                            MCDMemblock.
+# @core-mode-mask-read:      Mask of core modes for which read accesses are
+#                            impossible. A set bit indicates that read accesses
+#                            are denied in this mode. Bit 0 represents core
+#                            mode '1', bit 31 represents core mode '32'. Can be
+#                            overriden by @core-mode-mask-read of a MCDMemblock.
+# @core-mode-mask-write:     Mask of core modes for which write accesses are
+#                            impossible; a set bit indicates that write
+#                            accesses are denied in this mode. Bit 0 represents
+#                            core mode '1', bit 31 represents core mode '32'.
+#                            Can be overriden by
+#                            @core-mode-mask-write of a MCDMemblock.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDMemspace',
+  'data': {
+    'mem-space-id'            : 'uint32',
+    'mem-space-name'          : 'str',
+    'mem-type'                : 'uint32',
+    'bits-per-mau'            : 'uint32',
+    'invariance'              : 'uint8',
+    'endian'                  : 'uint32',
+    'min-addr'                : 'uint64',
+    'max-addr'                : 'uint64',
+    'num-mem-blocks'          : 'uint32',
+    'supported-access-options': 'uint32',
+    'core-mode-mask-read'     : 'uint32',
+    'core-mode-mask-write'    : 'uint32' } }
+
+
+##
 # == Target Initialization API
 ##
 
@@ -878,3 +946,134 @@
 { 'command': 'mcd-qry-error-info',
   'data': { 'core-uid': 'uint32' },
   'returns': 'MCDErrorInfo' }
+
+
+##
+# @MCDQryMemSpacesResult:
+#
+# Return value of @mcd-qry-mem-spaces.
+#
+# @return-status:  Return code.
+# @num-mem-spaces: The number of returned memory spaces. In case the input value
+#                  of @num-mem-spaces is '0', this is the number of all
+#                  available memory spaces for the selected core.
+# @mem-spaces:     Memory space information.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryMemSpacesResult',
+  'data': {
+    'return-status'  : 'uint32',
+    '*num-mem-spaces': 'uint32',
+    '*mem-spaces'    : [ 'MCDMemspace' ] }}
+
+##
+# @mcd-qry-mem-spaces:
+#
+# Function querying the available memory spaces for a particular component.
+#
+# @core-uid:       Unique identifier of the open core as returned by
+#                  @mcd-open-core.
+# @start-index:    Start index of the requested memory spaces. This refers to
+#                  an internal list of the target side implementation.
+# @num-mem-spaces: Number of memory spaces, information is requested of. If it
+#                  is set to '0', no memory space information is returned but
+#                  the number of all available memory spaces for the selected
+#                  core.
+#
+# Returns: @MCDQryMemSpacesResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#    :title: Arm TrustZone
+#
+#     -> { "execute": "mcd-qry-mem-spaces",
+#          "arguments": { "core-uid": 1,
+#                         "start-index": 0,
+#                         "num-mem-spaces": 20 } }
+#     <- {
+#          "return": {
+#              "mem-spaces": [
+#                  {
+#                      "mem-space-id": 1,
+#                      "bits-per-mau": 0,
+#                      "mem-space-name": "system",
+#                      "endian": 0,
+#                      "max-addr": 0,
+#                      "mem-type": 16,
+#                      "core-mode-mask-write": 0,
+#                      "core-mode-mask-read": 0,
+#                      "supported-access-options": 0,
+#                      "invariance": 0,
+#                      "num-mem-blocks": 0,
+#                      "min-addr": 0
+#                  },
+#                  {
+#                      "mem-space-id": 2,
+#                      "bits-per-mau": 0,
+#                      "mem-space-name": "cpu-memory-0",
+#                      "endian": 0,
+#                      "max-addr": 0,
+#                      "mem-type": 32,
+#                      "core-mode-mask-write": 0,
+#                      "core-mode-mask-read": 0,
+#                      "supported-access-options": 0,
+#                      "invariance": 0,
+#                      "num-mem-blocks": 0,
+#                      "min-addr": 0
+#                  },
+#                  {
+#                      "mem-space-id": 3,
+#                      "bits-per-mau": 0,
+#                      "mem-space-name": "secure-memory",
+#                      "endian": 0,
+#                      "max-addr": 0,
+#                      "mem-type": 65552,
+#                      "core-mode-mask-write": 0,
+#                      "core-mode-mask-read": 0,
+#                      "supported-access-options": 0,
+#                      "invariance": 0,
+#                      "num-mem-blocks": 0,
+#                      "min-addr": 0
+#                  },
+#                  {
+#                      "mem-space-id": 4,
+#                      "bits-per-mau": 0,
+#                      "mem-space-name": "cpu-secure-memory-0",
+#                      "endian": 0,
+#                      "max-addr": 0,
+#                      "mem-type": 65568,
+#                      "core-mode-mask-write": 0,
+#                      "core-mode-mask-read": 0,
+#                      "supported-access-options": 0,
+#                      "invariance": 0,
+#                      "num-mem-blocks": 0,
+#                      "min-addr": 0
+#                  },
+#                  {
+#                      "mem-space-id": 5,
+#                      "bits-per-mau": 0,
+#                      "mem-space-name": "GDB Registers",
+#                      "endian": 0,
+#                      "max-addr": 0,
+#                      "mem-type": 1,
+#                      "core-mode-mask-write": 0,
+#                      "core-mode-mask-read": 0,
+#                      "supported-access-options": 0,
+#                      "invariance": 0,
+#                      "num-mem-blocks": 0,
+#                      "min-addr": 0
+#                  }
+#              ],
+#              "return-status": 0,
+#              "num-mem-spaces": 5
+#          }
+#        }
+##
+{ 'command': 'mcd-qry-mem-spaces',
+  'data': {
+     'core-uid'      : 'uint32',
+     'start-index'   : 'uint32',
+     'num-mem-spaces': 'uint32' },
+  'returns': 'MCDQryMemSpacesResult' }
