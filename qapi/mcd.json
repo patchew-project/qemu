@@ -74,6 +74,24 @@
 
 
 ##
+# @MCDServerInfo:
+#
+# Structure type containing the server information.
+#
+# @server:          String containing the server name.
+# @system-instance: String containing the unique system instance identifier.
+# @acc-hw:          String containing the unique device access hardware name.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDServerInfo',
+  'data': {
+    'server'         : 'str',
+    'system-instance': 'str',
+    'acc-hw'         : 'str' } }
+
+
+##
 # == Target Initialization API
 ##
 
@@ -146,6 +164,193 @@
 # Since: 9.1
 ##
 { 'command': 'mcd-exit' }
+
+
+##
+# == Server Connection API
+##
+
+
+##
+# @MCDQryServersResult:
+#
+# Return value of @mcd-qry-servers.
+#
+# @return-status: Return code.
+# @num-servers:   The number of returned servers. In case the input value of
+#                 @num-servers is '0', this is the number of all available
+#                 servers.
+# @server-info:   Server information.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDQryServersResult',
+  'data': {
+    'return-status': 'uint32',
+    '*num-servers' : 'uint32',
+    '*server-info' : [ 'MCDServerInfo' ] }}
+
+
+##
+# @mcd-qry-servers:
+#
+# Function returning a list of available servers.
+#
+# @host:        String containing the host name.
+# @running:     Selects between running and installed servers.
+# @start-index: Start index of the queried servers. This refers to an
+#               internal list of the target side implementation.
+# @num-servers: The number of queried servers starting from the defined
+#               @start-index. If it is set to '0', no server descriptions are
+#               returned but the number of all available servers.
+#
+# Returns: @MCDQryServersResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#
+#     -> { "execute": "mcd-qry-servers",
+#        "arguments": { "host": "",
+#                       "running": true,
+#                       "start-index": 0,
+#                       "num-servers": 0 } }
+#    <- {
+#           "return": {
+#               "num-servers": 1,
+#               "return-status": 0
+#           }
+#       }
+#
+#    -> { "execute": "mcd-qry-servers",
+#         "arguments": { "host": "",
+#                        "running": true,
+#                        "start-index": 0,
+#                        "num-servers": 1 } }
+#    <- {
+#           "return": {
+#               "num-servers": 1,
+#               "server-info": [
+#                   {
+#                       "system-instance": "Process ID: 44801",
+#                       "acc-hw": "",
+#                       "server": "QEMU"
+#                   }
+#               ],
+#               "return-status": 0
+#           }
+#       }
+##
+{ 'command': 'mcd-qry-servers',
+  'data': {
+    'host'       : 'str',
+    'running'    : 'bool',
+    'start-index': 'uint32',
+    'num-servers': 'uint32' },
+  'returns': 'MCDQryServersResult' }
+
+
+##
+# @MCDOpenServerResult:
+#
+# Return value of @mcd-open-server.
+#
+# @return-status: Return code.
+# @server-uid:    Unique identifier of the server instance.
+# @host:          String containing the host name.
+# @config-string: Server configuration information.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDOpenServerResult',
+  'data': {
+    'return-status' : 'uint32',
+    '*server-uid'   : 'uint32',
+    '*host'         : 'str',
+    '*config-string': 'str' } }
+
+
+##
+# @mcd-open-server:
+#
+# Function opening the connection to a server on a host computer.
+#
+# @system-key:    A server is claimed by this key when being opened.
+# @config-string: Allows the configuration of the server connection by a
+#                 character string. Delimiters are blanks, tabs and line
+#                 breaks. Value strings are always enclosed with "double
+#                 quotes". Bool values can be "TRUE" or "FALSE" (both in
+#                 small letters).
+#
+# Returns: @MCDOpenServerResult
+#
+# Since: 9.1
+#
+# .. qmp-example::
+#
+#    -> { "execute": "mcd-open-server",
+#         "arguments": { "system-key": "",
+#                        "config-string": "" } }
+#    <- {
+#           "return": {
+#               "config-string": "",
+#               "host": "QEMU",
+#               "server-uid": 1,
+#               "return-status": 0
+#           }
+#       }
+#    -> { "execute": "mcd-open-server",
+#         "arguments": { "system-key": "",
+#                        "config-string": "" } }
+#    <- {
+#           "return": {
+#               "return-status": 3
+#           }
+#       }
+#    -> { "execute": "mcd-qry-error-info" }
+#    <- {
+#           "return": {
+#               "error-str": "server already open",
+#               "error-code": 512,
+#               "error-events": 0,
+#               "return-status": 3
+#           }
+#       }
+##
+{ 'command': 'mcd-open-server',
+  'data': {
+    'system-key'   : 'str',
+    'config-string': 'str' },
+  'returns': 'MCDOpenServerResult' }
+
+
+##
+# @MCDCloseServerResult:
+#
+# Return value of @mcd-close-server.
+#
+# @return-status: Return code.
+#
+# Since: 9.1
+##
+{ 'struct': 'MCDCloseServerResult', 'data': { 'return-status': 'uint32' } }
+
+
+##
+# @mcd-close-server:
+#
+# Function closing the connection to a debug server on a host computer.
+#
+# @server-uid: Unique identifier of the open server as returned by
+#              @mcd-open-server.
+#
+# Returns: @MCDCloseServerResult.
+#
+# Since: 9.1
+##
+{ 'command': 'mcd-close-server',
+  'data': { 'server-uid': 'uint32' },
+  'returns': 'MCDCloseServerResult' }
 
 
 ##

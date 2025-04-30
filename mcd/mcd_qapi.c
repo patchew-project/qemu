@@ -64,3 +64,16 @@ MCDErrorInfo *marshal_mcd_error_info(const mcd_error_info_st *error_info)
 
     return marshal;
 }
+
+MCDServerInfo *marshal_mcd_server_info(const mcd_server_info_st *server_info)
+{
+    MCDServerInfo *marshal = g_malloc0(sizeof(*marshal));
+
+    *marshal = (MCDServerInfo) {
+        .server = g_strdup(server_info->server),
+        .system_instance = g_strdup(server_info->system_instance),
+        .acc_hw = g_strdup(server_info->acc_hw),
+    };
+
+    return marshal;
+}
