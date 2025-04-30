@@ -25,49 +25,76 @@
  */
 static uint16_t qvirtio_readw(QVirtioDevice *d, QTestState *qts, uint64_t addr)
 {
-    uint16_t val = qtest_readw(qts, addr);
+    uint8_t buf[2];
 
-    if (d->features & (1ull << VIRTIO_F_VERSION_1) && qtest_big_endian(qts)) {
-        val = bswap16(val);
+    if (d->features & (1ull << VIRTIO_F_VERSION_1)) {
+        qtest_memread(qts, addr, buf, sizeof(buf));
+        return (buf[1] << 8) | buf[0];
+    } else {
+        return qtest_readw(qts, addr);
     }
-    return val;
 }
 
 static uint32_t qvirtio_readl(QVirtioDevice *d, QTestState *qts, uint64_t addr)
 {
-    uint32_t val = qtest_readl(qts, addr);
+    uint8_t buf[4];
 
-    if (d->features & (1ull << VIRTIO_F_VERSION_1) && qtest_big_endian(qts)) {
-        val = bswap32(val);
+    if (d->features & (1ull << VIRTIO_F_VERSION_1)) {
+        qtest_memread(qts, addr, buf, sizeof(buf));
+        return (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
+    } else {
+        return qtest_readl(qts, addr);
     }
-    return val;
 }
 
 static void qvirtio_writew(QVirtioDevice *d, QTestState *qts,
                            uint64_t addr, uint16_t val)
 {
-    if (d->features & (1ull << VIRTIO_F_VERSION_1) && qtest_big_endian(qts)) {
-        val = bswap16(val);
+    uint8_t buf[2];
+
+    if (d->features & (1ull << VIRTIO_F_VERSION_1)) {
+        buf[0] = val;
+        buf[1] = val >> 8;
+        qtest_memwrite(qts, addr, buf, sizeof(buf));
+    } else {
+        qtest_writew(qts, addr, val);
     }
-    qtest_writew(qts, addr, val);
 }
 
 static void qvirtio_writel(QVirtioDevice *d, QTestState *qts,
                            uint64_t addr, uint32_t val)
 {
-    if (d->features & (1ull << VIRTIO_F_VERSION_1) && qtest_big_endian(qts)) {
-        val = bswap32(val);
+    uint8_t buf[4];
+
+    if (d->features & (1ull << VIRTIO_F_VERSION_1)) {
+        buf[0] = val;
+        buf[1] = val >> 8;
+        buf[2] = val >> 16;
+        buf[3] = val >> 24;
+        qtest_memwrite(qts, addr, buf, sizeof(buf));
+    } else {
+        qtest_writel(qts, addr, val);
     }
-    qtest_writel(qts, addr, val);
 }
 
 static void qvirtio_writeq(QVirtioDevice *d, QTestState *qts,
                            uint64_t addr, uint64_t val)
 {
-    if (d->features & (1ull << VIRTIO_F_VERSION_1) && qtest_big_endian(qts)) {
-        val = bswap64(val);
+    uint8_t buf[8];
+
+    if (d->features & (1ull << VIRTIO_F_VERSION_1)) {
+        buf[0] = val;
+        buf[1] = val >> 8;
+        buf[2] = val >> 16;
+        buf[3] = val >> 24;
+        buf[4] = val >> 32;
+        buf[5] = val >> 40;
+        buf[6] = val >> 48;
+        buf[7] = val >> 56;
+        qtest_memwrite(qts, addr, buf, sizeof(buf));
+    } else {
+        qtest_writeq(qts, addr, val);
     }
-    qtest_writeq(qts, addr, val);
 }
 
 uint8_t qvirtio_config_readb(QVirtioDevice *d, uint64_t addr)
