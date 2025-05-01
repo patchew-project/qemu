@@ -38,4 +38,10 @@
  */
 #define PAGE_PASSTHROUGH 0x0800
 
+/*
+ * For linux-user, indicates that the page should not be included in a core 
+ * dump.
+ */
+#define PAGE_DONTDUMP   0x1000
+
 #endif
