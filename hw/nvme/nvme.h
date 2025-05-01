@@ -116,7 +116,9 @@ typedef struct NvmeSubsystem {
             uint16_t nruh;
             uint32_t nrg;
         } fdp;
+        bool         cmic_mctrs;
     } params;
+    uint8_t          total_ctrls;
 } NvmeSubsystem;
 
 int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp);
