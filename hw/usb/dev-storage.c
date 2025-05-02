@@ -407,7 +407,7 @@ static bool try_get_valid_cbw(USBPacket *p, struct usb_msd_cbw *cbw)
 {
     uint32_t sig;
 
-    if (p->iov.size != CBW_SIZE) {
+    if (p->iov.size < CBW_SIZE) {
         qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: Bad CBW size %zu\n",
                                        p->iov.size);
         return false;
