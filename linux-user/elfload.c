@@ -4066,6 +4066,10 @@ static size_t vma_dump_size(vaddr start, vaddr end, int flags)
         return 0;
     }
 
+    if (flags & PAGE_DONTDUMP) {
+        return 0;
+    }
+
     /*
      * Usually we don't dump executable pages as they contain
      * non-writable code that debugger can read directly from
