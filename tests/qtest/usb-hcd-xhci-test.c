@@ -287,11 +287,48 @@ static bool xhci_test_isr(XHCIQState *s)
                                     s->guest_msix_addr, s->msix_data);
 }
 
-static void wait_event_trb(XHCIQState *s, XHCITRB *trb)
+static bool check_event_trb(XHCIQState *s, XHCITRB *trb)
 {
-    XHCITRB t;
     XHCIQTRState *tr = &s->event_ring;
     uint64_t er_addr = tr->addr + tr->trb_idx * TRB_SIZE;
+    XHCITRB t;
+
+    qtest_memread(s->parent->qts, er_addr, &t, TRB_SIZE);
+    trb->parameter = le64_to_cpu(t.parameter);
+    trb->status = le32_to_cpu(t.status);
+    trb->control = le32_to_cpu(t.control);
+
+    return ((trb->control & TRB_C) == tr->trb_c);
+}
+
+static void consume_event(XHCIQState *s)
+{
+    XHCIQTRState *tr = &s->event_ring;
+    uint64_t er_addr = tr->addr + tr->trb_idx * TRB_SIZE;
+
+    tr->trb_idx++;
+    if (tr->trb_idx == tr->trb_entries) {
+        tr->trb_idx = 0;
+        tr->trb_c ^= 1;
+    }
+    /* Update ERDP to processed TRB addr and EHB bit, which clears EHB */
+    er_addr = tr->addr + tr->trb_idx * TRB_SIZE;
+    xhci_intr_writel(s, 0, XHCI_INTR_REG_ERDP_LO,
+                     (er_addr & 0xffffffff) | XHCI_ERDP_EHB);
+}
+
+static bool try_get_event_trb(XHCIQState *s, XHCITRB *trb)
+{
+    if (check_event_trb(s, trb)) {
+        consume_event(s);
+        return true;
+    }
+    return false;
+}
+
+static void wait_event_trb(XHCIQState *s, XHCITRB *trb)
+{
+    XHCIQTRState *tr = &s->event_ring;
     uint32_t value;
     guint64 end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
 
@@ -306,30 +343,24 @@ static void wait_event_trb(XHCIQState *s, XHCITRB *trb)
     value = xhci_op_readl(s, XHCI_OPER_REG_USBSTS);
     g_assert(value & XHCI_USBSTS_EINT);
 
-    /* With MSI-X enabled, IMAN IP is cleared after raising the interrupt */
-    value = xhci_intr_readl(s, 0, XHCI_INTR_REG_IMAN);
-    g_assert(!(value & XHCI_IMAN_IP));
+    if (0) {
+        /*
+         * With MSI-X enabled, IMAN IP is cleared after raising the interrupt,
+         * but if concurrent events may be occurring, it could be set again.
+         */
+        value = xhci_intr_readl(s, 0, XHCI_INTR_REG_IMAN);
+        g_assert(!(value & XHCI_IMAN_IP));
+    }
+
+    if (!check_event_trb(s, trb)) {
+        g_assert_not_reached();
+    }
+    g_assert_cmpint((trb->status >> 24), ==, CC_SUCCESS);
+    g_assert((trb->control & TRB_C) == tr->trb_c); /* C bit has been set */
 
     xhci_op_writel(s, XHCI_OPER_REG_USBSTS, XHCI_USBSTS_EINT); /* clear EINT */
 
-    qtest_memread(s->parent->qts, er_addr, &t, TRB_SIZE);
-
-    trb->parameter = le64_to_cpu(t.parameter);
-    trb->status = le32_to_cpu(t.status);
-    trb->control = le32_to_cpu(t.control);
-
-    g_assert((trb->status >> 24) == CC_SUCCESS);
-    g_assert((trb->control & TRB_C) == tr->trb_c); /* C bit has been set */
-
-    tr->trb_idx++;
-    if (tr->trb_idx == tr->trb_entries) {
-        tr->trb_idx = 0;
-        tr->trb_c ^= 1;
-    }
-    /* Update ERDP to processed TRB addr and EHB bit, which clears EHB */
-    er_addr = tr->addr + tr->trb_idx * TRB_SIZE;
-    xhci_intr_writel(s, 0, XHCI_INTR_REG_ERDP_LO,
-                     (er_addr & 0xffffffff) | XHCI_ERDP_EHB);
+    consume_event(s);
 }
 
 static void set_link_trb(XHCIQState *s, uint64_t ring, uint32_t c,
@@ -763,6 +794,106 @@ static ssize_t xhci_submit_scsi_cmd(XHCIQState *s,
     return data_len - le32_to_cpu(csw.residue); /* bytes copied */
 }
 
+/*
+ * Submit command with CSW sent ahead of CBW.
+ * Can only be no-data or data-out commands (because a data-in command
+ * would interpret the CSW as a data-in).
+ */
+static ssize_t xhci_submit_out_of_order_scsi_cmd(XHCIQState *s,
+                                    const uint8_t *cmd, uint8_t cmd_len,
+                                    void *data, uint32_t data_len)
+{
+    struct usb_msd_cbw cbw;
+    struct usb_msd_csw csw;
+    uint64_t trb_data, csw_data;
+    XHCITRB trb, csw_trb;
+    uint64_t tag, csw_tag;
+    bool got_csw = false;
+
+    /* TRB data payload */
+    trb_data = xhci_guest_zalloc(s, data_len > sizeof(cbw) ? data_len : sizeof(cbw));
+    csw_data = xhci_guest_zalloc(s, sizeof(csw));
+
+    /* Issue a transfer ring ep 2 data (in) */
+    memset(&csw_trb, 0, TRB_SIZE);
+    csw_trb.parameter = csw_data;
+    csw_trb.status = sizeof(csw);
+    csw_trb.control |= TR_NORMAL << TRB_TYPE_SHIFT;
+    csw_trb.control |= TRB_TR_IOC;
+    csw_tag = submit_tr_trb(s, s->slotid, 2, &csw_trb);
+
+    memset(&cbw, 0, sizeof(cbw));
+    cbw.sig = cpu_to_le32(0x43425355);
+    cbw.tag = cpu_to_le32(0);
+    cbw.data_len = cpu_to_le32(data_len);
+    cbw.flags = 0x00;
+    cbw.lun = 0;
+    cbw.cmd_len = cmd_len; /* cmd len */
+    memcpy(cbw.cmd, cmd, cmd_len);
+    qtest_memwrite(s->parent->qts, trb_data, &cbw, sizeof(cbw));
+
+    /* Issue a transfer ring ep 3 data (out) */
+    memset(&trb, 0, TRB_SIZE);
+    trb.parameter = trb_data;
+    trb.status = sizeof(cbw);
+    trb.control |= TR_NORMAL << TRB_TYPE_SHIFT;
+    trb.control |= TRB_TR_IOC;
+    tag = submit_tr_trb(s, s->slotid, 3, &trb);
+
+    wait_event_trb(s, &trb);
+    if (trb.parameter == csw_tag) {
+        g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+        got_csw = true;
+        if (!try_get_event_trb(s, &trb)) {
+            wait_event_trb(s, &trb);
+        }
+    }
+    g_assert_cmphex(trb.parameter, ==, tag);
+    g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+
+    if (data_len) {
+        qtest_memwrite(s->parent->qts, trb_data, data, data_len);
+
+        /* Issue a transfer ring ep 3 data (out) */
+        memset(&trb, 0, TRB_SIZE);
+        trb.parameter = trb_data;
+        trb.status = data_len; /* data_len bytes, no more packets */
+        trb.control |= TR_NORMAL << TRB_TYPE_SHIFT;
+        trb.control |= TRB_TR_IOC;
+        tag = submit_tr_trb(s, s->slotid, 3, &trb);
+        wait_event_trb(s, &trb);
+        if (trb.parameter == csw_tag) {
+            g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+            got_csw = true;
+            if (!try_get_event_trb(s, &trb)) {
+                wait_event_trb(s, &trb);
+            }
+        }
+        g_assert_cmphex(trb.parameter, ==, tag);
+        g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+    } else {
+        /* No data */
+    }
+
+    if (!got_csw) {
+        wait_event_trb(s, &csw_trb);
+        g_assert_cmphex(csw_trb.parameter, ==, csw_tag);
+        g_assert_cmpint(TRB_TYPE(csw_trb), ==, ER_TRANSFER);
+    }
+
+    qtest_memread(s->parent->qts, csw_data, &csw, sizeof(csw));
+
+    guest_free(&s->parent->alloc, trb_data);
+    guest_free(&s->parent->alloc, csw_data);
+
+    g_assert(csw.sig == cpu_to_le32(0x53425355));
+    g_assert(csw.tag == cpu_to_le32(0));
+    if (csw.status) {
+        return -1;
+    }
+    return data_len - le32_to_cpu(csw.residue); /* bytes copied */
+}
+
 #include "scsi/constants.h"
 
 static void xhci_test_msd(XHCIQState *s)
@@ -794,6 +925,11 @@ static void xhci_test_msd(XHCIQState *s)
     memset(scsi_cmd, 0, sizeof(scsi_cmd));
     scsi_cmd[0] = INQUIRY;
     if (xhci_submit_scsi_cmd(s, scsi_cmd, 6, mem, 0, false) < 0) {
+        g_assert_not_reached();
+    }
+
+    /* Try an "out of order" command */
+    if (xhci_submit_out_of_order_scsi_cmd(s, scsi_cmd, 6, mem, 0) < 0) {
         g_assert_not_reached();
     }
 
