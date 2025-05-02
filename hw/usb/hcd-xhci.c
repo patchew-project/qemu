@@ -46,22 +46,14 @@
 #define COMMAND_LIMIT   256
 #define TRANSFER_LIMIT  256
 
-#define LEN_CAP         0x40
-#define LEN_OPER        (0x400 + XHCI_PORT_PR_SZ * XHCI_MAXPORTS)
-#define LEN_RUNTIME     ((XHCI_MAXINTRS + 1) * XHCI_INTR_IR_SZ)
-#define LEN_DOORBELL    ((XHCI_MAXSLOTS + 1) * 0x20)
-
-#define OFF_OPER        LEN_CAP
-#define OFF_RUNTIME     0x1000
-#define OFF_DOORBELL    0x2000
-
-#if (OFF_OPER + LEN_OPER) > OFF_RUNTIME
-#error Increase OFF_RUNTIME
+#if (XHCI_REGS_OFFSET_PORT + XHCI_REGS_LENGTH_PORT) > XHCI_REGS_OFFSET_RUNTIME
+#error Increase XHCI_REGS_OFFSET_RUNTIME
 #endif
-#if (OFF_RUNTIME + LEN_RUNTIME) > OFF_DOORBELL
-#error Increase OFF_DOORBELL
+#if (XHCI_REGS_OFFSET_RUNTIME + XHCI_REGS_LENGTH_RUNTIME) >    \
+    XHCI_REGS_OFFSET_DOORBELL
+#error Increase XHCI_REGS_OFFSET_DOORBELL
 #endif
-#if (OFF_DOORBELL + LEN_DOORBELL) > XHCI_LEN_REGS
+#if (XHCI_REGS_OFFSET_DOORBELL + XHCI_REGS_LENGTH_DOORBELL) > XHCI_LEN_REGS
 # error Increase XHCI_LEN_REGS
 #endif
 
@@ -2584,7 +2576,7 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
 
     switch (reg) {
     case XHCI_HCCAP_REG_CAPLENGTH: /* Covers HCIVERSION and CAPLENGTH */
-        ret = 0x01000000 | LEN_CAP;
+        ret = 0x01000000 | XHCI_REGS_LENGTH_CAP;
         break;
     case XHCI_HCCAP_REG_HCSPARAMS1:
         ret = ((xhci->numports_2+xhci->numports_3)<<24)
@@ -2604,10 +2596,10 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         }
         break;
     case XHCI_HCCAP_REG_DBOFF:
-        ret = OFF_DOORBELL;
+        ret = XHCI_REGS_OFFSET_DOORBELL;
         break;
     case XHCI_HCCAP_REG_RTSOFF:
-        ret = OFF_RUNTIME;
+        ret = XHCI_REGS_OFFSET_RUNTIME;
         break;
 
     /* extended capabilities */
@@ -3257,22 +3249,26 @@ static void usb_xhci_realize(DeviceState *dev, Error **errp)
 
     memory_region_init(&xhci->mem, OBJECT(dev), "xhci", XHCI_LEN_REGS);
     memory_region_init_io(&xhci->mem_cap, OBJECT(dev), &xhci_cap_ops, xhci,
-                          "capabilities", LEN_CAP);
+                          "capabilities", XHCI_REGS_LENGTH_CAP);
     memory_region_init_io(&xhci->mem_oper, OBJECT(dev), &xhci_oper_ops, xhci,
-                          "operational", 0x400);
+                          "operational", XHCI_REGS_LENGTH_OPER);
     memory_region_init_io(&xhci->mem_runtime, OBJECT(dev), &xhci_runtime_ops,
-                           xhci, "runtime", LEN_RUNTIME);
+                           xhci, "runtime", XHCI_REGS_LENGTH_RUNTIME);
     memory_region_init_io(&xhci->mem_doorbell, OBJECT(dev), &xhci_doorbell_ops,
-                           xhci, "doorbell", LEN_DOORBELL);
+                           xhci, "doorbell", XHCI_REGS_LENGTH_DOORBELL);
 
-    memory_region_add_subregion(&xhci->mem, 0,            &xhci->mem_cap);
-    memory_region_add_subregion(&xhci->mem, OFF_OPER,     &xhci->mem_oper);
-    memory_region_add_subregion(&xhci->mem, OFF_RUNTIME,  &xhci->mem_runtime);
-    memory_region_add_subregion(&xhci->mem, OFF_DOORBELL, &xhci->mem_doorbell);
+    memory_region_add_subregion(&xhci->mem, XHCI_REGS_OFFSET_CAP,
+                                &xhci->mem_cap);
+    memory_region_add_subregion(&xhci->mem, XHCI_REGS_OFFSET_OPER,
+                                &xhci->mem_oper);
+    memory_region_add_subregion(&xhci->mem, XHCI_REGS_OFFSET_RUNTIME,
+                                &xhci->mem_runtime);
+    memory_region_add_subregion(&xhci->mem, XHCI_REGS_OFFSET_DOORBELL,
+                                &xhci->mem_doorbell);
 
     for (i = 0; i < xhci->numports; i++) {
         XHCIPort *port = &xhci->ports[i];
-        uint32_t offset = OFF_OPER + 0x400 + XHCI_PORT_PR_SZ * i;
+        uint32_t offset = XHCI_REGS_OFFSET_PORT + XHCI_PORT_PR_SZ * i;
         port->xhci = xhci;
         memory_region_init_io(&port->mem, OBJECT(dev), &xhci_port_ops, port,
                               port->name, XHCI_PORT_PR_SZ);

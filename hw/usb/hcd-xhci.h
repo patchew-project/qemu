@@ -115,6 +115,22 @@ typedef enum TRBCCode {
     CC_SPLIT_TRANSACTION_ERROR
 } TRBCCode;
 
+/* Register regions */
+#define XHCI_REGS_LENGTH_CAP         0x40
+#define XHCI_REGS_LENGTH_OPER        0x400
+#define XHCI_REGS_LENGTH_PORT        (XHCI_PORT_PR_SZ * XHCI_MAXPORTS)
+#define XHCI_REGS_LENGTH_RUNTIME     ((XHCI_MAXINTRS + 1) * XHCI_INTR_IR_SZ)
+/* XXX: Should doorbell length be *4 rather than *32? */
+#define XHCI_REGS_LENGTH_DOORBELL    ((XHCI_MAXSLOTS + 1) * 0x20)
+
+#define XHCI_REGS_OFFSET_CAP         0
+#define XHCI_REGS_OFFSET_OPER        (XHCI_REGS_OFFSET_CAP +   \
+                                      XHCI_REGS_LENGTH_CAP)
+#define XHCI_REGS_OFFSET_PORT        (XHCI_REGS_OFFSET_OPER +  \
+                                      XHCI_REGS_LENGTH_OPER)
+#define XHCI_REGS_OFFSET_RUNTIME     0x1000
+#define XHCI_REGS_OFFSET_DOORBELL    0x2000
+
 /* Register definitions */
 #define XHCI_HCCAP_REG_CAPLENGTH            0x00
 #define XHCI_HCCAP_REG_HCIVERSION           0x02
