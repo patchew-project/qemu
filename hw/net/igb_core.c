@@ -4589,7 +4589,9 @@ igb_core_post_load(IGBCore *core)
 
     /*
      * we need to restart intrmgr timers, as an older version of
-     * QEMU can have stopped them before migration
+     * QEMU can have stopped them before migration.
+     * XXX: re-setting timers with fresh values breaks deterministic
+     * replay.
      */
     igb_intrmgr_resume(core);
     igb_autoneg_resume(core);
