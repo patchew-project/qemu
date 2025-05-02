@@ -26,6 +26,9 @@ SysEmuTarget target_system_arch(void)
     static SysEmuTarget system_arch = SYS_EMU_TARGET__MAX;
 
     if (system_arch == SYS_EMU_TARGET__MAX) {
+        system_arch = target_info()->target_arch;
+    }
+    if (system_arch == SYS_EMU_TARGET__MAX) {
         system_arch = qapi_enum_parse(&SysEmuTarget_lookup, target_name(), -1,
                                       &error_abort);
     }
