@@ -146,6 +146,9 @@ union e1000_adv_rx_desc {
 #define IGB_82576_VF_DEV_ID        0x10CA
 #define IGB_I350_VF_DEV_ID         0x1520
 
+/* Delay increments in nanoseconds for interrupt throttling registers */
+#define IGB_INTR_THROTTLING_NS_RES (1 * SCALE_US)
+
 /* VLAN info */
 #define IGB_TX_FLAGS_VLAN_MASK     0xffff0000
 #define IGB_TX_FLAGS_VLAN_SHIFT    16
