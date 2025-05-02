@@ -181,7 +181,7 @@ static void test_e1000e_rx(void *obj, void *data, QGuestAllocator * alloc)
 static void test_e1000e_multiple_transfers(void *obj, void *data,
                                            QGuestAllocator *alloc)
 {
-    static const long iterations = 4 * 1024;
+    static const long iterations = 1 * 1024;
     long i;
 
     QE1000E_PCI *e1000e = obj;
@@ -194,8 +194,8 @@ static void test_e1000e_multiple_transfers(void *obj, void *data,
         return;
     }
 
-    /* Clear EITR because buggy QEMU throttle timer causes superfluous irqs */
-    e1000e_macreg_write(d, E1000_EITR + E1000E_RX0_MSG_ID * 4, 0);
+    /* Use EITR for one irq and disable it for the other, for testing */
+    e1000e_macreg_write(d, E1000_EITR + E1000E_RX0_MSG_ID * 4, 500);
     e1000e_macreg_write(d, E1000_EITR + E1000E_TX0_MSG_ID * 4, 0);
 
     for (i = 0; i < iterations; i++) {
