@@ -171,12 +171,17 @@ static void
 igb_intrmgr_on_msix_throttling_timer(void *opaque)
 {
     IGBIntrDelayTimer *timer = opaque;
-    int idx = timer - &timer->core->eitr[0];
+    IGBCore *core = timer->core;
+    int vector = timer - &core->eitr[0];
+    uint32_t causes;
 
     timer->running = false;
 
-    trace_e1000e_irq_msix_notify_postponed_vec(idx);
-    igb_msix_notify(timer->core, idx);
+    causes = core->mac[EICR] & core->mac[EIMS];
+    if (causes & BIT(vector)) {
+        trace_e1000e_irq_msix_notify_postponed_vec(vector);
+        igb_msix_notify(core, vector);
+    }
 }
 
 static void
