@@ -115,6 +115,220 @@ typedef enum TRBCCode {
     CC_SPLIT_TRANSACTION_ERROR
 } TRBCCode;
 
+/* Register definitions */
+#define XHCI_HCCAP_REG_CAPLENGTH            0x00
+#define XHCI_HCCAP_REG_HCIVERSION           0x02
+#define XHCI_HCCAP_REG_HCSPARAMS1           0x04
+#define XHCI_HCCAP_REG_HCSPARAMS2           0x08
+#define XHCI_HCCAP_REG_HCSPARAMS3           0x0C
+#define XHCI_HCCAP_REG_HCCPARAMS1           0x10
+#define   XHCI_HCCPARAMS1_AC64              0x00000001
+#define   XHCI_HCCPARAMS1_XECP_SHIFT        16
+#define   XHCI_HCCPARAMS1_MAXPSASIZE_SHIFT  12
+#define XHCI_HCCAP_REG_DBOFF                0x14
+#define XHCI_HCCAP_REG_RTSOFF               0x18
+#define XHCI_HCCAP_REG_HCCPARAMS2           0x1C
+#define XHCI_HCCAP_EXTCAP_START             0x20 /* SW-defined */
+
+#define XHCI_PORT_PR_SZ                     0x10
+#define XHCI_PORT_REG_PORTSC                0x00
+#define   XHCI_PORTSC_CCS                   (1 << 0)
+#define   XHCI_PORTSC_PED                   (1 << 1)
+#define   XHCI_PORTSC_OCA                   (1 << 3)
+#define   XHCI_PORTSC_PR                    (1 << 4)
+#define   XHCI_PORTSC_PLS_SHIFT             5
+#define   XHCI_PORTSC_PLS_MASK              0xf
+#define   XHCI_PORTSC_PP                    (1 << 9)
+#define   XHCI_PORTSC_SPEED_SHIFT           10
+#define   XHCI_PORTSC_SPEED_MASK            0xf
+#define   XHCI_PORTSC_SPEED_FULL            (1 << 10)
+#define   XHCI_PORTSC_SPEED_LOW             (2 << 10)
+#define   XHCI_PORTSC_SPEED_HIGH            (3 << 10)
+#define   XHCI_PORTSC_SPEED_SUPER           (4 << 10)
+#define   XHCI_PORTSC_PIC_SHIFT             14
+#define   XHCI_PORTSC_PIC_MASK              0x3
+#define   XHCI_PORTSC_LWS                   (1 << 16)
+#define   XHCI_PORTSC_CSC                   (1 << 17)
+#define   XHCI_PORTSC_PEC                   (1 << 18)
+#define   XHCI_PORTSC_WRC                   (1 << 19)
+#define   XHCI_PORTSC_OCC                   (1 << 20)
+#define   XHCI_PORTSC_PRC                   (1 << 21)
+#define   XHCI_PORTSC_PLC                   (1 << 22)
+#define   XHCI_PORTSC_CEC                   (1 << 23)
+#define   XHCI_PORTSC_CAS                   (1 << 24)
+#define   XHCI_PORTSC_WCE                   (1 << 25)
+#define   XHCI_PORTSC_WDE                   (1 << 26)
+#define   XHCI_PORTSC_WOE                   (1 << 27)
+#define   XHCI_PORTSC_DR                    (1 << 30)
+#define   XHCI_PORTSC_WPR                   (1 << 31)
+/* read/write bits */
+#define   XHCI_PORTSC_RW_MASK               (XHCI_PORTSC_PP |    \
+                                             XHCI_PORTSC_WCE |   \
+                                             XHCI_PORTSC_WDE |   \
+                                             XHCI_PORTSC_WOE)
+/* write-1-to-clear bits*/
+#define   XHCI_PORTSC_W1C_MASK              (XHCI_PORTSC_CSC |   \
+                                             XHCI_PORTSC_PEC |   \
+                                             XHCI_PORTSC_WRC |   \
+                                             XHCI_PORTSC_OCC |   \
+                                             XHCI_PORTSC_PRC |   \
+                                             XHCI_PORTSC_PLC |   \
+                                             XHCI_PORTSC_CEC)
+#define XHCI_PORT_REG_PORTPMSC              0x04
+#define XHCI_PORT_REG_PORTLI                0x08
+#define XHCI_PORT_REG_PORTHLPMC             0x0C
+
+#define XHCI_OPER_REG_USBCMD                0x00
+#define   XHCI_USBCMD_RS                    (1 << 0)
+#define   XHCI_USBCMD_HCRST                 (1 << 1)
+#define   XHCI_USBCMD_INTE                  (1 << 2)
+#define   XHCI_USBCMD_HSEE                  (1 << 3)
+#define   XHCI_USBCMD_LHCRST                (1 << 7)
+#define   XHCI_USBCMD_CSS                   (1 << 8)
+#define   XHCI_USBCMD_CRS                   (1 << 9)
+#define   XHCI_USBCMD_EWE                   (1 << 10)
+#define   XHCI_USBCMD_EU3S                  (1 << 11)
+#define XHCI_OPER_REG_USBSTS                0x04
+#define   XHCI_USBSTS_HCH                   (1 << 0)
+#define   XHCI_USBSTS_HSE                   (1 << 2)
+#define   XHCI_USBSTS_EINT                  (1 << 3)
+#define   XHCI_USBSTS_PCD                   (1 << 4)
+#define   XHCI_USBSTS_SSS                   (1 << 8)
+#define   XHCI_USBSTS_RSS                   (1 << 9)
+#define   XHCI_USBSTS_SRE                   (1 << 10)
+#define   XHCI_USBSTS_CNR                   (1 << 11)
+#define   XHCI_USBSTS_HCE                   (1 << 12)
+/* these bits are write-1-to-clear */
+#define   XHCI_USBSTS_W1C_MASK              (XHCI_USBSTS_HSE |    \
+                                             XHCI_USBSTS_EINT |   \
+                                             XHCI_USBSTS_PCD |    \
+                                             XHCI_USBSTS_SRE)
+#define XHCI_OPER_REG_PAGESIZE              0x08
+#define XHCI_OPER_REG_DNCTRL                0x14
+#define XHCI_OPER_REG_CRCR_LO               0x18
+#define   XHCI_CRCR_RCS                     (1 << 0)
+#define   XHCI_CRCR_CS                      (1 << 1)
+#define   XHCI_CRCR_CA                      (1 << 2)
+#define   XHCI_CRCR_CRR                     (1 << 3)
+#define XHCI_OPER_REG_CRCR_HI               0x1C
+#define XHCI_OPER_REG_DCBAAP_LO             0x30
+#define XHCI_OPER_REG_DCBAAP_HI             0x34
+#define XHCI_OPER_REG_CONFIG                0x38
+
+#define XHCI_DBELL_DB_SZ                    0x4
+
+#define XHCI_INTR_REG_MFINDEX               0x00
+#define XHCI_INTR_REG_IR0                   0x20
+#define XHCI_INTR_IR_SZ                     0x20
+
+#define XHCI_INTR_REG_IMAN                  0x00
+#define   XHCI_IMAN_IP                      (1 << 0)
+#define   XHCI_IMAN_IE                      (1 << 1)
+#define XHCI_INTR_REG_IMOD                  0x04
+#define XHCI_INTR_REG_ERSTSZ                0x08
+#define XHCI_INTR_REG_ERSTBA_LO             0x10
+#define XHCI_INTR_REG_ERSTBA_HI             0x14
+#define XHCI_INTR_REG_ERDP_LO               0x18
+#define   XHCI_ERDP_EHB                     (1 << 3)
+#define XHCI_INTR_REG_ERDP_HI               0x1C
+
+#define TRB_SIZE 16
+typedef struct XHCITRB {
+    uint64_t parameter;
+    uint32_t status;
+    uint32_t control;
+    dma_addr_t addr;
+    bool ccs;
+} XHCITRB;
+
+enum {
+    PLS_U0              =  0,
+    PLS_U1              =  1,
+    PLS_U2              =  2,
+    PLS_U3              =  3,
+    PLS_DISABLED        =  4,
+    PLS_RX_DETECT       =  5,
+    PLS_INACTIVE        =  6,
+    PLS_POLLING         =  7,
+    PLS_RECOVERY        =  8,
+    PLS_HOT_RESET       =  9,
+    PLS_COMPILANCE_MODE = 10,
+    PLS_TEST_MODE       = 11,
+    PLS_RESUME          = 15,
+};
+
+#define CR_LINK TR_LINK
+
+#define TRB_C               (1 << 0)
+#define TRB_TYPE_SHIFT      10
+#define TRB_TYPE_MASK       0x3f
+#define TRB_TYPE(t)         (((t).control >> TRB_TYPE_SHIFT) & TRB_TYPE_MASK)
+
+#define TRB_EV_ED           (1 << 2)
+
+#define TRB_TR_ENT          (1 << 1)
+#define TRB_TR_ISP          (1 << 2)
+#define TRB_TR_NS           (1 << 3)
+#define TRB_TR_CH           (1 << 4)
+#define TRB_TR_IOC          (1 << 5)
+#define TRB_TR_IDT          (1 << 6)
+#define TRB_TR_TBC_SHIFT    7
+#define TRB_TR_TBC_MASK     0x3
+#define TRB_TR_BEI          (1 << 9)
+#define TRB_TR_TLBPC_SHIFT  16
+#define TRB_TR_TLBPC_MASK   0xf
+#define TRB_TR_FRAMEID_SHIFT    20
+#define TRB_TR_FRAMEID_MASK 0x7ff
+#define TRB_TR_SIA          (1 << 31)
+
+#define TRB_TR_DIR          (1 << 16)
+
+#define TRB_CR_SLOTID_SHIFT 24
+#define TRB_CR_SLOTID_MASK  0xff
+#define TRB_CR_EPID_SHIFT   16
+#define TRB_CR_EPID_MASK    0x1f
+
+#define TRB_CR_BSR          (1 << 9)
+#define TRB_CR_DC           (1 << 9)
+
+#define TRB_LK_TC           (1 << 1)
+
+#define TRB_INTR_SHIFT      22
+#define TRB_INTR_MASK       0x3ff
+#define TRB_INTR(t)         (((t).status >> TRB_INTR_SHIFT) & TRB_INTR_MASK)
+
+#define EP_TYPE_MASK        0x7
+#define EP_TYPE_SHIFT       3
+
+#define EP_STATE_MASK       0x7
+#define EP_DISABLED         (0 << 0)
+#define EP_RUNNING          (1 << 0)
+#define EP_HALTED           (2 << 0)
+#define EP_STOPPED          (3 << 0)
+#define EP_ERROR            (4 << 0)
+
+#define SLOT_STATE_MASK     0x1f
+#define SLOT_STATE_SHIFT    27
+#define SLOT_STATE(s)       (((s) >> SLOT_STATE_SHIFT) & SLOT_STATE_MASK)
+#define SLOT_ENABLED        0
+#define SLOT_DEFAULT        1
+#define SLOT_ADDRESSED      2
+#define SLOT_CONFIGURED     3
+
+#define SLOT_CONTEXT_ENTRIES_MASK 0x1f
+#define SLOT_CONTEXT_ENTRIES_SHIFT 27
+
+typedef enum EPType {
+    ET_INVALID = 0,
+    ET_ISO_OUT,
+    ET_BULK_OUT,
+    ET_INTR_OUT,
+    ET_CONTROL,
+    ET_ISO_IN,
+    ET_BULK_IN,
+    ET_INTR_IN,
+} EPType;
+
 typedef struct XHCIRing {
     dma_addr_t dequeue;
     bool ccs;
