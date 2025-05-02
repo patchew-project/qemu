@@ -140,17 +140,23 @@ static void igb_msix_notify(IGBCore *core, unsigned int cause)
 }
 
 static inline void
-igb_intrmgr_rearm_timer(IGBIntrDelayTimer *timer)
+igb_intrmgr_arm_timer(IGBIntrDelayTimer *timer, int64_t delay_ns)
 {
-    int64_t delay_ns =
-            (int64_t)((timer->core->mac[timer->delay_reg] & 0x7FFC) >> 2) *
-                     timer->delay_resolution_ns;
-
     trace_e1000e_irq_rearm_timer(timer->delay_reg << 2, delay_ns);
 
     timer_mod(timer->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + delay_ns);
 
     timer->running = true;
+}
+
+static inline void
+igb_intrmgr_rearm_timer(IGBIntrDelayTimer *timer)
+{
+    uint32_t interval = (timer->core->mac[timer->delay_reg] &
+                         E1000_EITR_INTERVAL) >> 2;
+    int64_t delay_ns = (int64_t)interval * timer->delay_resolution_ns;
+
+    igb_intrmgr_arm_timer(timer, delay_ns);
 }
 
 static void
@@ -2881,7 +2887,21 @@ igb_mac_swsm_read(IGBCore *core, int index)
 static uint32_t
 igb_mac_eitr_read(IGBCore *core, int index)
 {
-    return core->mac[index - EITR0];
+    uint32_t eitr_num = index - EITR0;
+    uint32_t val = core->mac[eitr_num];
+    IGBIntrDelayTimer *timer = &core->eitr[eitr_num];
+
+    if (timer->running) { /* timer is pending, find time remaining */
+        int64_t remains = timer_expire_time_ns(timer->timer) -
+                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        if (remains > 0) {
+            uint32_t cnt; /* CNT is the most significant 10 of 12 bits */
+            cnt = remains / timer->delay_resolution_ns;
+            val |= ((cnt >> 2) << 21) & E1000_EITR_ITR_CNT;
+        }
+    }
+
+    return val;
 }
 
 static uint32_t igb_mac_vfmailbox_read(IGBCore *core, int index)
@@ -3046,6 +3066,22 @@ igb_set_eitr(IGBCore *core, int index, uint32_t val)
     uint32_t eitr_num = index - EITR0;
 
     trace_igb_irq_eitr_set(eitr_num, val);
+
+    if (val & (E1000_EITR_LLI_EN | E1000_EITR_LLI_CNT)) {
+        qemu_log_mask(LOG_UNIMP, "%s: LLI moderation not supported, ignoring\n",
+                                 __func__);
+    }
+
+    if (!(val & E1000_EITR_CNT_IGNR)) {
+        IGBIntrDelayTimer *timer = &core->eitr[eitr_num];
+        uint32_t itr_cnt = (val & E1000_EITR_ITR_CNT) >> 21;
+        /* CNT is the most significant 10 of 12 bits */
+        uint64_t ns = (itr_cnt << 2) * timer->delay_resolution_ns;
+
+        igb_intrmgr_arm_timer(timer, ns);
+    }
+
+    val &= E1000_EITR_INTERVAL | E1000_EITR_LLI_EN;
 
     core->mac[index] = val;
 }

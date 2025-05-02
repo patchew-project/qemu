@@ -631,6 +631,12 @@ union e1000_adv_rx_desc {
 #define E1000_EICR_MSIX_MASK   0x01FFFFFF /* Bits used in MSI-X mode */
 #define E1000_EICR_LEGACY_MASK 0x4000FFFF /* Bits used in non MSI-X mode */
 
+/* These are only for 82576 and newer */
+#define E1000_EITR_INTERVAL     0x00007FFC
+#define E1000_EITR_LLI_EN       0x00008000
+#define E1000_EITR_LLI_CNT      0x001F0000
+#define E1000_EITR_ITR_CNT      0x7FE00000
+
 /* Mirror VF Control (only RST bit); RW */
 #define E1000_PVTCTRL(_n) (0x10000 + (_n) * 0x100)
 
