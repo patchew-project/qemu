@@ -61,6 +61,9 @@ static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *a
                                    E1000_TXD_DTYP_D   |
                                    sizeof(buffer));
 
+    /* Ensure the interrupt has not been taken already */
+    g_assert(!e1000e_pending_isr(d, E1000E_TX0_MSG_ID));
+
     /* Put descriptor to the ring */
     e1000e_tx_ring_push(d, &descr);
 
@@ -104,6 +107,9 @@ static void e1000e_receive_verify(QE1000E *d, int *test_sockets, QGuestAllocator
 
     char buffer[64];
     int ret;
+
+    /* Ensure the interrupt has not been taken already */
+    g_assert(!e1000e_pending_isr(d, E1000E_RX0_MSG_ID));
 
     /* Send a dummy packet to device's socket*/
     ret = iov_send(test_sockets[0], iov, 2, 0, sizeof(len) + sizeof(packet));
@@ -187,6 +193,10 @@ static void test_e1000e_multiple_transfers(void *obj, void *data,
     if (qpci_check_buggy_msi(dev)) {
         return;
     }
+
+    /* Clear EITR because buggy QEMU throttle timer causes superfluous irqs */
+    e1000e_macreg_write(d, E1000_EITR + E1000E_RX0_MSG_ID * 4, 0);
+    e1000e_macreg_write(d, E1000_EITR + E1000E_TX0_MSG_ID * 4, 0);
 
     for (i = 0; i < iterations; i++) {
         e1000e_send_verify(d, data, alloc);
