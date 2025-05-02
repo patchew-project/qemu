@@ -48,6 +48,8 @@ typedef struct XHCIQState {
     QPCIBar bar;
     uint64_t barsize;
     uint32_t fingerprint;
+    uint64_t guest_msix_addr;
+    uint32_t msix_data;
 
     /* In-memory arrays */
     uint64_t dc_base_array;
@@ -279,7 +281,8 @@ static void xhci_db_writel(XHCIQState *s, uint32_t db, uint32_t value)
 
 static bool xhci_test_isr(XHCIQState *s)
 {
-    return xhci_op_readl(s, XHCI_OPER_REG_USBSTS) & XHCI_USBSTS_EINT;
+    return qpci_msix_test_interrupt(s->dev, 0,
+                                    s->guest_msix_addr, s->msix_data);
 }
 
 static void wait_event_trb(XHCIQState *s, XHCITRB *trb)
@@ -297,6 +300,9 @@ static void wait_event_trb(XHCIQState *s, XHCITRB *trb)
         }
         qtest_clock_step(s->parent->qts, 10000);
     }
+
+    value = xhci_op_readl(s, XHCI_OPER_REG_USBSTS);
+    g_assert(value & XHCI_USBSTS_EINT);
 
     /* With MSI-X enabled, IMAN IP is cleared after raising the interrupt */
     value = xhci_intr_readl(s, 0, XHCI_INTR_REG_IMAN);
@@ -395,7 +401,12 @@ static void xhci_enable_device(XHCIQState *s)
     uint32_t value;
     int i;
 
+    s->guest_msix_addr = xhci_guest_zalloc(s, 4);
+    s->msix_data = 0x1234abcd;
+
     qpci_msix_enable(s->dev);
+    qpci_msix_set_entry(s->dev, 0, s->guest_msix_addr, s->msix_data);
+    qpci_msix_set_masked(s->dev, 0, false);
 
     hcsparams1 = xhci_cap_readl(s, XHCI_HCCAP_REG_HCSPARAMS1);
     s->maxports = (hcsparams1 >> 24) & 0xff;
@@ -640,6 +651,7 @@ static void xhci_disable_device(XHCIQState *s)
     guest_free(&s->parent->alloc, s->command_ring.addr);
     guest_free(&s->parent->alloc, s->event_ring_seg);
     guest_free(&s->parent->alloc, s->dc_base_array);
+    guest_free(&s->parent->alloc, s->guest_msix_addr);
 }
 
 struct QEMU_PACKED usb_msd_cbw {
