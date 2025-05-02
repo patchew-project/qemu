@@ -24,6 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
 #include "cpu.h"
 #include "exec/target_page.h"
 #include "trace.h"
@@ -1874,6 +1875,25 @@ static void smmu_reset_exit(Object *obj, ResetType type)
     smmuv3_init_regs(s);
 }
 
+static int smmuv3_pcie_bus(Object *obj, void *opaque)
+{
+    DeviceState *d = opaque;
+    PCIBus *bus;
+
+    if (!object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
+        return 0;
+    }
+
+    bus = PCI_HOST_BRIDGE(obj)->bus;
+    if (d->parent_bus && !strcmp(bus->qbus.name, d->parent_bus->name)) {
+        object_property_set_link(OBJECT(d), "primary-bus", OBJECT(bus),
+                                 &error_abort);
+        /* Return non-zero as we got the bus and don't need further iteration.*/
+        return 1;
+    }
+    return 0;
+}
+
 static void smmu_realize(DeviceState *d, Error **errp)
 {
     SMMUState *sys = ARM_SMMU(d);
@@ -1881,6 +1901,10 @@ static void smmu_realize(DeviceState *d, Error **errp)
     SMMUv3Class *c = ARM_SMMUV3_GET_CLASS(s);
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
     Error *local_err = NULL;
+
+    if (!object_property_get_link(OBJECT(d), "primary-bus", &error_abort)) {
+        object_child_foreach_recursive(object_get_root(), smmuv3_pcie_bus, d);
+    }
 
     c->parent_realize(d, &local_err);
     if (local_err) {
@@ -1996,6 +2020,8 @@ static void smmuv3_class_init(ObjectClass *klass, const void *data)
     device_class_set_parent_realize(dc, smmu_realize,
                                     &c->parent_realize);
     device_class_set_props(dc, smmuv3_properties);
+    dc->hotpluggable = false;
+    dc->bus_type = TYPE_PCIE_BUS;
 }
 
 static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
