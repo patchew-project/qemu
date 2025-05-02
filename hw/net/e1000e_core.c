@@ -218,7 +218,7 @@ static uint32_t find_msix_causes(E1000ECore *core, int vec)
 }
 
 static void
-e1000e_msix_auto_clear_mask(E1000ECore *core, uint32_t cause);
+e1000e_msix_notify(E1000ECore *core, uint32_t causes);
 
 static void
 e1000e_intrmgr_on_msix_throttling_timer(void *opaque)
@@ -233,8 +233,7 @@ e1000e_intrmgr_on_msix_throttling_timer(void *opaque)
     causes = find_msix_causes(core, idx) & core->mac[IMS] & core->mac[ICR];
     if (causes) {
         trace_e1000e_irq_msix_notify_postponed_vec(idx);
-        msix_notify(core->owner, causes);
-        e1000e_msix_auto_clear_mask(core, causes);
+        e1000e_msix_notify(core, causes);
     }
 }
 
