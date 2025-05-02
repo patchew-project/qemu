@@ -14,6 +14,7 @@ typedef enum USBMSDCBWState {
     USB_MSD_CBW_NONE,    /* Ready, waiting for CBW packet. */
     USB_MSD_CBW_DATAOUT, /* Expecting DATA-OUT (to device) packet */
     USB_MSD_CBW_DATAIN,  /* Expecting DATA-IN (from device) packet */
+    USB_MSD_CBW_NODATA,  /* No data, CSW but also a SCSI completion */
     USB_MSD_CBW_CSW      /* No more data, expecting CSW packet.  */
 } USBMSDCBWState;
 
