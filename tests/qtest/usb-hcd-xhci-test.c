@@ -753,8 +753,28 @@ static ssize_t xhci_submit_scsi_cmd(XHCIQState *s,
 
 static void xhci_test_msd(XHCIQState *s)
 {
+    XHCITRB trb;
+    uint64_t tag;
     uint8_t scsi_cmd[16];
     g_autofree void *mem = g_malloc0(0x1000); /* buffer for writing to guest */
+
+    /* Issue a transfer ring ep 2 noop */
+    memset(&trb, 0, TRB_SIZE);
+    trb.control |= TR_NOOP << TRB_TYPE_SHIFT;
+    trb.control |= TRB_TR_IOC;
+    tag = submit_tr_trb(s, s->slotid, 2, &trb);
+    wait_event_trb(s, &trb);
+    g_assert_cmphex(trb.parameter, ==, tag);
+    g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+
+    /* Issue a transfer ring ep 3 noop */
+    memset(&trb, 0, TRB_SIZE);
+    trb.control |= TR_NOOP << TRB_TYPE_SHIFT;
+    trb.control |= TRB_TR_IOC;
+    tag = submit_tr_trb(s, s->slotid, 3, &trb);
+    wait_event_trb(s, &trb);
+    g_assert_cmphex(trb.parameter, ==, tag);
+    g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
 
     /* Clear SENSE data */
     memset(scsi_cmd, 0, sizeof(scsi_cmd));
@@ -819,6 +839,22 @@ static void test_xhci_stress_rings(const void *arg)
         wait_event_trb(s, &trb);
         g_assert_cmphex(trb.parameter , ==, tag);
         g_assert_cmpint(TRB_TYPE(trb), ==, ER_COMMAND_COMPLETE);
+    }
+
+    if (qtest_has_device("usb-storage")) {
+        xhci_enable_slot(s);
+
+        /* Wrap the transfer ring a few times */
+        for (i = 0; i < 100; i++) {
+            /* Issue a transfer ring ep 0 noop */
+            memset(&trb, 0, TRB_SIZE);
+            trb.control |= TR_NOOP << TRB_TYPE_SHIFT;
+            trb.control |= TRB_TR_IOC;
+            tag = submit_tr_trb(s, s->slotid, 0, &trb);
+            wait_event_trb(s, &trb);
+            g_assert_cmphex(trb.parameter, ==, tag);
+            g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+        }
     }
 
     xhci_disable_device(s);
