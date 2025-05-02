@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -402,6 +403,36 @@ static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
     }
 }
 
+static bool try_get_valid_cbw(USBPacket *p, struct usb_msd_cbw *cbw)
+{
+    uint32_t sig;
+
+    if (p->iov.size != CBW_SIZE) {
+        qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: Bad CBW size %zu\n",
+                                       p->iov.size);
+        return false;
+    }
+    usb_packet_copy(p, cbw, CBW_SIZE);
+    sig = le32_to_cpu(cbw->sig);
+    if (sig != 0x43425355) {
+        qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: Bad CBW signature 0x%08x\n",
+                                       sig);
+        return false;
+    }
+
+    return true;
+}
+
+static bool check_valid_csw(USBPacket *p)
+{
+    if (p->iov.size < CSW_SIZE) {
+        qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: Bad CSW size %zu\n",
+                      p->iov.size);
+        return false;
+    }
+    return true;
+}
+
 static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
 {
     MSDState *s = (MSDState *)dev;
@@ -412,19 +443,13 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
 
     switch (s->mode) {
     case USB_MSDM_CBW:
-        if (p->iov.size != CBW_SIZE) {
-            error_report("usb-msd: Bad CBW size");
-            goto fail;
-        }
-        usb_packet_copy(p, &cbw, CBW_SIZE);
-        if (le32_to_cpu(cbw.sig) != 0x43425355) {
-            error_report("usb-msd: Bad signature %08x",
-                         le32_to_cpu(cbw.sig));
+        if (!try_get_valid_cbw(p, &cbw)) {
             goto fail;
         }
         scsi_dev = scsi_device_find(&s->bus, 0, 0, cbw.lun);
         if (scsi_dev == NULL) {
-            error_report("usb-msd: Bad LUN %d", cbw.lun);
+            qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: Bad CBW LUN %d\n",
+                                           cbw.lun);
             goto fail;
         }
         tag = le32_to_cpu(cbw.tag);
@@ -496,9 +521,15 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
 
     switch (s->mode) {
     case USB_MSDM_DATAOUT:
-        if (s->data_len != 0 || p->iov.size < CSW_SIZE) {
+        if (!check_valid_csw(p)) {
             goto fail;
         }
+        if (s->data_len != 0) {
+            qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: CSW received before "
+                                           "all data was sent\n");
+            goto fail;
+        }
+
         /* Waiting for SCSI write to complete.  */
         trace_usb_msd_packet_async();
         s->packet = p;
@@ -506,7 +537,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_MSDM_CSW:
-        if (p->iov.size < CSW_SIZE) {
+        if (!check_valid_csw(p)) {
             goto fail;
         }
 
