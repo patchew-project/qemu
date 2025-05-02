@@ -64,6 +64,9 @@ static void igb_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *allo
                                           E1000_TXD_DTYP_D   |
                                           sizeof(buffer));
 
+    /* Ensure the interrupt has not been taken already */
+    g_assert(!e1000e_pending_isr(d, E1000E_TX0_MSG_ID));
+
     /* Put descriptor to the ring */
     e1000e_tx_ring_push(d, &descr);
 
@@ -118,6 +121,9 @@ static void igb_receive_verify(QE1000E *d, int *test_sockets, QGuestAllocator *a
     /* Prepare RX descriptor */
     memset(&descr, 0, sizeof(descr));
     descr.read.pkt_addr = cpu_to_le64(data);
+
+    /* Ensure the interrupt has not been taken already */
+    g_assert(!e1000e_pending_isr(d, E1000E_RX0_MSG_ID));
 
     /* Put descriptor to the ring */
     e1000e_rx_ring_push(d, &descr);
