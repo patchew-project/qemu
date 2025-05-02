@@ -230,10 +230,12 @@ e1000e_intrmgr_on_msix_throttling_timer(void *opaque)
 
     timer->running = false;
 
-    causes = find_msix_causes(core, idx);
-    trace_e1000e_irq_msix_notify_postponed_vec(idx);
-    msix_notify(core->owner, idx);
-    e1000e_msix_auto_clear_mask(core, causes);
+    causes = find_msix_causes(core, idx) & core->mac[IMS] & core->mac[ICR];
+    if (causes) {
+        trace_e1000e_irq_msix_notify_postponed_vec(idx);
+        msix_notify(core->owner, causes);
+        e1000e_msix_auto_clear_mask(core, causes);
+    }
 }
 
 static void
