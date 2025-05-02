@@ -142,8 +142,9 @@ static void igb_msix_notify(IGBCore *core, unsigned int cause)
 static inline void
 igb_intrmgr_rearm_timer(IGBIntrDelayTimer *timer)
 {
-    int64_t delay_ns = (int64_t) timer->core->mac[timer->delay_reg] *
-                                 timer->delay_resolution_ns;
+    int64_t delay_ns =
+            (int64_t)((timer->core->mac[timer->delay_reg] & 0x7FFC) >> 2) *
+                     timer->delay_resolution_ns;
 
     trace_e1000e_irq_rearm_timer(timer->delay_reg << 2, delay_ns);
 
@@ -180,7 +181,7 @@ igb_intrmgr_initialize_all_timers(IGBCore *core, bool create)
     for (i = 0; i < IGB_INTR_NUM; i++) {
         core->eitr[i].core = core;
         core->eitr[i].delay_reg = EITR0 + i;
-        core->eitr[i].delay_resolution_ns = E1000_INTR_DELAY_NS_RES;
+        core->eitr[i].delay_resolution_ns = IGB_INTR_THROTTLING_NS_RES;
     }
 
     if (!create) {
