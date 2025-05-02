@@ -215,17 +215,25 @@ void ahci_pci_disable(AHCIQState *ahci)
  */
 void start_ahci_device(AHCIQState *ahci)
 {
+    g_assert(!ahci->pci_enabled);
+
     /* Map AHCI's ABAR (BAR5) */
     ahci->hba_bar = qpci_iomap(ahci->dev, 5, &ahci->barsize);
 
     /* turns on pci.cmd.iose, pci.cmd.mse and pci.cmd.bme */
     qpci_device_enable(ahci->dev);
+
+    ahci->pci_enabled = true;
 }
 
 void stop_ahci_device(AHCIQState *ahci)
 {
+    g_assert(ahci->pci_enabled);
+
     /* Unmap AHCI's ABAR */
     qpci_iounmap(ahci->dev, ahci->hba_bar);
+
+    ahci->pci_enabled = false;
 }
 
 /**
@@ -249,6 +257,7 @@ void ahci_hba_enable(AHCIQState *ahci)
     uint8_t num_cmd_slots;
 
     g_assert(ahci != NULL);
+    g_assert(ahci->pci_enabled);
 
     /* Set GHC.AE to 1 */
     ahci_set(ahci, AHCI_GHC, AHCI_GHC_AE);

@@ -342,6 +342,7 @@ typedef struct AHCIQState {
     uint32_t cap;
     uint32_t cap2;
     AHCIPortQState port[32];
+    bool pci_enabled;
     bool enabled;
 } AHCIQState;
 
