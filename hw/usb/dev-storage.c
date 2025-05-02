@@ -318,9 +318,12 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid)
     scsi_req_unref(req);
     s->req = NULL;
 
+    g_assert(s->cbw_state == USB_MSD_CBW_DATAIN ||
+             s->cbw_state == USB_MSD_CBW_DATAOUT ||
+             s->cbw_state == USB_MSD_CBW_NODATA);
+
     if (p) {
-        g_assert(s->cbw_state == USB_MSD_CBW_DATAIN ||
-                 s->cbw_state == USB_MSD_CBW_DATAOUT);
+        g_assert(s->cbw_state != USB_MSD_CBW_NODATA);
         if (s->data_len) {
             int len = (p->iov.size - p->actual_length);
             usb_packet_skip(p, len);
@@ -500,7 +503,7 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
         tag = le32_to_cpu(cbw.tag);
         s->data_len = le32_to_cpu(cbw.data_len);
         if (s->data_len == 0) {
-            s->cbw_state = USB_MSD_CBW_CSW;
+            s->cbw_state = USB_MSD_CBW_NODATA;
         } else if (cbw.flags & 0x80) {
             s->cbw_state = USB_MSD_CBW_DATAIN;
         } else {
@@ -565,6 +568,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
     int len;
 
     switch (s->cbw_state) {
+    case USB_MSD_CBW_NODATA:
     case USB_MSD_CBW_DATAOUT:
         if (!check_valid_csw(p)) {
             goto fail;
