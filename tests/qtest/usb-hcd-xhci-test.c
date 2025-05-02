@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "libqtest.h"
 #include "libqtest-single.h"
 #include "libqos/libqos.h"
@@ -15,6 +16,8 @@
 #include "libqos/usb.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"
+#include "hw/pci/pci_regs.h"
+#include "hw/usb/hcd-xhci.h"
 
 typedef struct TestData {
     const char *device;
@@ -22,6 +25,22 @@ typedef struct TestData {
 } TestData;
 
 /*** Test Setup & Teardown ***/
+
+/* Transfer-Ring state */
+typedef struct XHCIQTRState {
+    uint64_t addr; /* In-memory ring */
+
+    uint32_t trb_entries;
+    uint32_t trb_idx;
+    uint32_t trb_c;
+} XHCIQTRState;
+
+typedef struct XHCIQSlotState {
+    /* In-memory device context array */
+    uint64_t device_context;
+    XHCIQTRState transfer_ring[31]; /* 1 for each EP */
+} XHCIQSlotState;
+
 typedef struct XHCIQState {
     /* QEMU PCI variables */
     QOSState *parent;
@@ -29,6 +48,21 @@ typedef struct XHCIQState {
     QPCIBar bar;
     uint64_t barsize;
     uint32_t fingerprint;
+
+    /* In-memory arrays */
+    uint64_t dc_base_array;
+    uint64_t event_ring_seg;
+    XHCIQTRState command_ring;
+    XHCIQTRState event_ring;
+
+    /* Host controller properties */
+    uint32_t rtoff, dboff;
+    uint32_t maxports, maxslots, maxintrs;
+
+    /* Current properties */
+    uint32_t slotid; /* enabled slot id (only enable one) */
+
+    XHCIQSlotState slots[32];
 } XHCIQState;
 
 #define XHCI_QEMU_ID (PCI_DEVICE_ID_REDHAT_XHCI << 16 | \
@@ -160,6 +194,8 @@ static void test_usb_uas_hotplug(const void *arg)
 
     qtest_qmp_device_del(qts, "scsihd");
     qtest_qmp_device_del(qts, "uas");
+
+    xhci_shutdown(s);
 }
 
 static void test_usb_ccid_hotplug(const void *arg)
@@ -176,6 +212,305 @@ static void test_usb_ccid_hotplug(const void *arg)
     /* check the device can be added again */
     qtest_qmp_device_add(qts, "usb-ccid", "ccid", "{}");
     qtest_qmp_device_del(qts, "ccid");
+
+    xhci_shutdown(s);
+}
+
+static uint64_t xhci_guest_zalloc(XHCIQState *s, uint64_t size)
+{
+    uint64_t ret;
+
+    ret = guest_alloc(&s->parent->alloc, size);
+    g_assert(ret);
+    qtest_memset(s->parent->qts, ret, 0, size);
+
+    return ret;
+}
+
+static uint32_t xhci_cap_readl(XHCIQState *s, uint64_t addr)
+{
+    return qpci_io_readl(s->dev, s->bar, XHCI_REGS_OFFSET_CAP + addr);
+}
+
+static uint32_t xhci_op_readl(XHCIQState *s, uint64_t addr)
+{
+    return qpci_io_readl(s->dev, s->bar, XHCI_REGS_OFFSET_OPER + addr);
+}
+
+static void xhci_op_writel(XHCIQState *s, uint64_t addr, uint32_t value)
+{
+    qpci_io_writel(s->dev, s->bar, XHCI_REGS_OFFSET_OPER + addr, value);
+}
+
+static uint32_t xhci_port_readl(XHCIQState *s, uint32_t port, uint64_t addr)
+{
+    return qpci_io_readl(s->dev, s->bar,
+                         XHCI_REGS_OFFSET_PORT + port * XHCI_PORT_PR_SZ + addr);
+}
+
+static uint32_t xhci_rt_readl(XHCIQState *s, uint64_t addr)
+{
+    return qpci_io_readl(s->dev, s->bar, s->rtoff + addr);
+}
+
+static void xhci_rt_writel(XHCIQState *s, uint64_t addr, uint32_t value)
+{
+    qpci_io_writel(s->dev, s->bar, s->rtoff + addr, value);
+}
+
+static uint32_t xhci_intr_readl(XHCIQState *s, uint32_t intr, uint64_t addr)
+{
+    return xhci_rt_readl(s, XHCI_INTR_REG_IR0 +
+                            intr * XHCI_INTR_IR_SZ + addr);
+}
+
+
+static void xhci_intr_writel(XHCIQState *s, uint32_t intr, uint64_t addr,
+                             uint32_t value)
+{
+    xhci_rt_writel(s, XHCI_INTR_REG_IR0 +
+                      intr * XHCI_INTR_IR_SZ + addr, value);
+}
+
+static void xhci_db_writel(XHCIQState *s, uint32_t db, uint32_t value)
+{
+    qpci_io_writel(s->dev, s->bar, s->dboff + db * XHCI_DBELL_DB_SZ, value);
+}
+
+static bool xhci_test_isr(XHCIQState *s)
+{
+    return xhci_op_readl(s, XHCI_OPER_REG_USBSTS) & XHCI_USBSTS_EINT;
+}
+
+static void wait_event_trb(XHCIQState *s, XHCITRB *trb)
+{
+    XHCITRB t;
+    XHCIQTRState *tr = &s->event_ring;
+    uint64_t er_addr = tr->addr + tr->trb_idx * TRB_SIZE;
+    uint32_t value;
+    guint64 end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+
+    /* Wait for event interrupt  */
+    while (!xhci_test_isr(s)) {
+        if (g_get_monotonic_time() >= end_time) {
+            g_error("Timeout expired");
+        }
+        qtest_clock_step(s->parent->qts, 10000);
+    }
+
+    /* With MSI-X enabled, IMAN IP is cleared after raising the interrupt */
+    value = xhci_intr_readl(s, 0, XHCI_INTR_REG_IMAN);
+    g_assert(!(value & XHCI_IMAN_IP));
+
+    xhci_op_writel(s, XHCI_OPER_REG_USBSTS, XHCI_USBSTS_EINT); /* clear EINT */
+
+    qtest_memread(s->parent->qts, er_addr, &t, TRB_SIZE);
+
+    trb->parameter = le64_to_cpu(t.parameter);
+    trb->status = le32_to_cpu(t.status);
+    trb->control = le32_to_cpu(t.control);
+
+    g_assert((trb->status >> 24) == CC_SUCCESS);
+    g_assert((trb->control & TRB_C) == tr->trb_c); /* C bit has been set */
+
+    tr->trb_idx++;
+    if (tr->trb_idx == tr->trb_entries) {
+        tr->trb_idx = 0;
+        tr->trb_c ^= 1;
+    }
+    /* Update ERDP to processed TRB addr and EHB bit, which clears EHB */
+    er_addr = tr->addr + tr->trb_idx * TRB_SIZE;
+    xhci_intr_writel(s, 0, XHCI_INTR_REG_ERDP_LO,
+                     (er_addr & 0xffffffff) | XHCI_ERDP_EHB);
+}
+
+static void set_link_trb(XHCIQState *s, uint64_t ring, uint32_t c,
+                         uint32_t entries)
+{
+    XHCITRB trb;
+
+    g_assert(entries > 1);
+
+    memset(&trb, 0, TRB_SIZE);
+    trb.parameter = ring;
+    trb.control = cpu_to_le32(c | /* C */
+                              (TR_LINK << TRB_TYPE_SHIFT) |
+                              TRB_LK_TC);
+    qtest_memwrite(s->parent->qts, ring + TRB_SIZE * (entries - 1),
+                   &trb, TRB_SIZE);
+}
+
+static uint64_t queue_trb(XHCIQState *s, XHCIQTRState *tr, const XHCITRB *trb)
+{
+    uint64_t tr_addr = tr->addr + tr->trb_idx * TRB_SIZE;
+    XHCITRB t;
+
+    t.parameter = cpu_to_le64(trb->parameter);
+    t.status = cpu_to_le32(trb->status);
+    t.control = cpu_to_le32(trb->control | tr->trb_c);
+
+    qtest_memwrite(s->parent->qts, tr_addr, &t, TRB_SIZE);
+    tr->trb_idx++;
+    /* Last entry contains the link, so wrap back */
+    if (tr->trb_idx == tr->trb_entries - 1) {
+        set_link_trb(s, tr->addr, tr->trb_c, tr->trb_entries);
+        tr->trb_idx = 0;
+        tr->trb_c ^= 1;
+    }
+
+    return tr_addr;
+}
+
+static uint64_t submit_cr_trb(XHCIQState *s, const XHCITRB *trb)
+{
+    XHCIQTRState *tr = &s->command_ring;
+    uint64_t ret;
+
+    ret = queue_trb(s, tr, trb);
+
+    xhci_db_writel(s, 0, 0); /* doorbell host, doorbell 0 (command) */
+
+    return ret;
+}
+
+static void xhci_enable_device(XHCIQState *s)
+{
+    XHCIQTRState *tr;
+    XHCIEvRingSeg ev_seg;
+    uint32_t hcsparams1;
+    uint32_t value;
+    int i;
+
+    qpci_msix_enable(s->dev);
+
+    hcsparams1 = xhci_cap_readl(s, XHCI_HCCAP_REG_HCSPARAMS1);
+    s->maxports = (hcsparams1 >> 24) & 0xff;
+    s->maxintrs = (hcsparams1 >> 8) & 0x3ff;
+    s->maxslots = hcsparams1 & 0xff;
+
+    s->dboff = xhci_cap_readl(s, XHCI_HCCAP_REG_DBOFF);
+    s->rtoff = xhci_cap_readl(s, XHCI_HCCAP_REG_RTSOFF);
+
+    s->dc_base_array = xhci_guest_zalloc(s, 0x800);
+    s->event_ring_seg = xhci_guest_zalloc(s, 0x100);
+
+    /* Arbitrary small sizes so we can make them wrap */
+    tr = &s->command_ring;
+    tr->addr = xhci_guest_zalloc(s, 0x1000);
+    tr->trb_entries = 0x20;
+    tr->trb_c = 1;
+
+    tr = &s->event_ring;
+    tr->addr = xhci_guest_zalloc(s, 0x1000);
+    tr->trb_entries = 0x10;
+    tr->trb_c = 1;
+
+    tr = &s->event_ring;
+    ev_seg.addr_low = cpu_to_le32(tr->addr & 0xffffffff);
+    ev_seg.addr_high = cpu_to_le32(tr->addr >> 32);
+    ev_seg.size = cpu_to_le32(tr->trb_entries);
+    ev_seg.rsvd = 0;
+    qtest_memwrite(s->parent->qts, s->event_ring_seg, &ev_seg, sizeof(ev_seg));
+
+    xhci_op_writel(s, XHCI_OPER_REG_USBCMD, XHCI_USBCMD_HCRST);
+    do {
+        value = xhci_op_readl(s, XHCI_OPER_REG_USBSTS);
+    } while (value & XHCI_USBSTS_CNR);
+
+    xhci_op_writel(s, XHCI_OPER_REG_CONFIG, s->maxslots);
+
+    xhci_op_writel(s, XHCI_OPER_REG_DCBAAP_LO, s->dc_base_array & 0xffffffff);
+    xhci_op_writel(s, XHCI_OPER_REG_DCBAAP_HI, s->dc_base_array >> 32);
+
+    tr = &s->command_ring;
+    xhci_op_writel(s, XHCI_OPER_REG_CRCR_LO,
+                   (tr->addr & 0xffffffff) | tr->trb_c);
+    xhci_op_writel(s, XHCI_OPER_REG_CRCR_HI, tr->addr >> 32);
+
+    xhci_intr_writel(s, 0, XHCI_INTR_REG_ERSTSZ, 1);
+
+    xhci_intr_writel(s, 0, XHCI_INTR_REG_ERSTBA_LO,
+                     s->event_ring_seg & 0xffffffff);
+    xhci_intr_writel(s, 0, XHCI_INTR_REG_ERSTBA_HI,
+                     s->event_ring_seg >> 32);
+
+    /* ERDP */
+    tr = &s->event_ring;
+    xhci_intr_writel(s, 0, XHCI_INTR_REG_ERDP_LO, tr->addr & 0xffffffff);
+    xhci_intr_writel(s, 0, XHCI_INTR_REG_ERDP_HI, tr->addr >> 32);
+
+    xhci_op_writel(s, XHCI_OPER_REG_USBCMD, XHCI_USBCMD_RS | XHCI_USBCMD_INTE);
+
+    /* Enable interrupts on ER IMAN */
+    xhci_intr_writel(s, 0, XHCI_INTR_REG_IMAN, XHCI_IMAN_IE);
+
+    /* Ensure there is no interrupt pending */
+    g_assert(!xhci_test_isr(s));
+
+    /* Query ports */
+    for (i = 0; i < s->maxports; i++) {
+        value = xhci_port_readl(s, i, 0); /* PORTSC */
+
+        /* All ports should be disabled */
+        g_assert(!(value & XHCI_PORTSC_CCS));
+        g_assert(!(value & XHCI_PORTSC_PED));
+        g_assert(((value >> XHCI_PORTSC_PLS_SHIFT) &
+                  XHCI_PORTSC_PLS_MASK) == 5);
+    }
+}
+
+static void xhci_disable_device(XHCIQState *s)
+{
+    int i;
+
+    /* Shut it down */
+    qpci_msix_disable(s->dev);
+
+    guest_free(&s->parent->alloc, s->slots[s->slotid].device_context);
+    for (i = 0; i < 31; i++) {
+        guest_free(&s->parent->alloc,
+                   s->slots[s->slotid].transfer_ring[i].addr);
+    }
+    guest_free(&s->parent->alloc, s->event_ring.addr);
+    guest_free(&s->parent->alloc, s->command_ring.addr);
+    guest_free(&s->parent->alloc, s->event_ring_seg);
+    guest_free(&s->parent->alloc, s->dc_base_array);
+}
+
+/*
+ * This test brings up an endpoint and runs some noops through its command
+ * ring and gets responses back on the event ring, then brings up a device
+ * context and runs some noops through its transfer ring (if available).
+ */
+static void test_xhci_stress_rings(const void *arg)
+{
+    const TestData *td = arg;
+    XHCIQState *s;
+    XHCITRB trb;
+    uint64_t tag;
+    int i;
+
+    s = xhci_boot("-M q35 "
+                  "-device %s,id=xhci,bus=pcie.0,addr=1d.0 ",
+                  td->device);
+    g_assert_cmphex(s->fingerprint, ==, td->fingerprint);
+
+    xhci_enable_device(s);
+
+    /* Wrap the command and event rings with no-ops a few times */
+    for (i = 0; i < 100; i++) {
+        /* Issue a command ring no-op */
+        memset(&trb, 0, TRB_SIZE);
+        trb.control |= CR_NOOP << TRB_TYPE_SHIFT;
+        trb.control |= TRB_TR_IOC;
+        tag = submit_cr_trb(s, &trb);
+        wait_event_trb(s, &trb);
+        g_assert_cmphex(trb.parameter , ==, tag);
+        g_assert_cmpint(TRB_TYPE(trb), ==, ER_COMMAND_COMPLETE);
+    }
+
+    xhci_disable_device(s);
+    xhci_shutdown(s);
 }
 
 static void add_test(const char *name, TestData *td, void (*fn)(const void *))
@@ -194,6 +529,7 @@ static void add_tests(TestData *td)
     if (qtest_has_device("usb-ccid")) {
         add_test("usb-ccid", td, test_usb_ccid_hotplug);
     }
+    add_test("xhci-stress-rings", td, test_xhci_stress_rings);
 }
 
 /* tests */
