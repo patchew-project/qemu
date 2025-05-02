@@ -1,6 +1,11 @@
 config VIRTIO
     bool
 
+config VIRTIO_LEGACY
+    bool
+    default y
+    depends on VIRTIO
+
 config VIRTIO_RNG
     bool
     default y

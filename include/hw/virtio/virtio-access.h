@@ -20,7 +20,10 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
 
-#if defined(TARGET_PPC64) || defined(TARGET_ARM)
+#include CONFIG_DEVICES
+
+#if defined(CONFIG_VIRTIO_LEGACY) && \
+    (defined(TARGET_PPC64) || defined(TARGET_ARM))
 #define LEGACY_VIRTIO_IS_BIENDIAN 1
 #endif
 

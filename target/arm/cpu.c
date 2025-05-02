@@ -38,6 +38,7 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #include "hw/boards.h"
+#include CONFIG_DEVICES
 #ifdef CONFIG_TCG
 #include "hw/intc/armv7m_nvic.h"
 #endif /* CONFIG_TCG */
@@ -1129,6 +1130,7 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
 #endif
 }
 
+#ifdef CONFIG_VIRTIO_LEGACY
 static bool arm_cpu_virtio_is_big_endian(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -1137,6 +1139,7 @@ static bool arm_cpu_virtio_is_big_endian(CPUState *cs)
     cpu_synchronize_state(cs);
     return arm_cpu_data_is_big_endian(env);
 }
+#endif
 
 #ifdef CONFIG_TCG
 bool arm_cpu_exec_halt(CPUState *cs)
@@ -2704,7 +2707,9 @@ static const struct SysemuCPUOps arm_sysemu_ops = {
     .asidx_from_attrs = arm_asidx_from_attrs,
     .write_elf32_note = arm_cpu_write_elf32_note,
     .write_elf64_note = arm_cpu_write_elf64_note,
+#ifdef CONFIG_VIRTIO_LEGACY
     .virtio_is_big_endian = arm_cpu_virtio_is_big_endian,
+#endif
     .legacy_vmsd = &vmstate_arm_cpu,
 };
 #endif

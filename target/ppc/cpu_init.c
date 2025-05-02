@@ -49,6 +49,7 @@
 #include "hw/boards.h"
 #include "hw/intc/intc.h"
 #include "kvm_ppc.h"
+#include CONFIG_DEVICES
 #endif
 
 #include "cpu_init.h"
@@ -7351,12 +7352,14 @@ static void ppc_cpu_reset_hold(Object *obj, ResetType type)
 
 #ifndef CONFIG_USER_ONLY
 
+#ifdef CONFIG_VIRTIO_LEGACY
 static bool ppc_cpu_is_big_endian(CPUState *cs)
 {
     cpu_synchronize_state(cs);
 
     return !FIELD_EX64(cpu_env(cs)->msr, MSR, LE);
 }
+#endif
 
 static bool ppc_get_irq_stats(InterruptStatsProvider *obj,
                               uint64_t **irq_counts, unsigned int *nb_irqs)
@@ -7469,7 +7472,9 @@ static const struct SysemuCPUOps ppc_sysemu_ops = {
     .get_phys_page_debug = ppc_cpu_get_phys_page_debug,
     .write_elf32_note = ppc32_cpu_write_elf32_note,
     .write_elf64_note = ppc64_cpu_write_elf64_note,
+#ifdef CONFIG_VIRTIO_LEGACY
     .virtio_is_big_endian = ppc_cpu_is_big_endian,
+#endif
     .legacy_vmsd = &vmstate_ppc_cpu,
 };
 #endif

@@ -47,6 +47,8 @@
 #include "standard-headers/linux/virtio_mem.h"
 #include "standard-headers/linux/virtio_vsock.h"
 
+#include CONFIG_DEVICES
+
 /*
  * Maximum size of virtio device config space
  */
@@ -3502,6 +3504,7 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
 bool virtio_legacy_allowed(VirtIODevice *vdev)
 {
     switch (vdev->device_id) {
+#ifdef CONFIG_VIRTIO_LEGACY
     case VIRTIO_ID_NET:
     case VIRTIO_ID_BLOCK:
     case VIRTIO_ID_CONSOLE:
@@ -3513,6 +3516,7 @@ bool virtio_legacy_allowed(VirtIODevice *vdev)
     case VIRTIO_ID_RPROC_SERIAL:
     case VIRTIO_ID_CAIF:
         return true;
+#endif
     default:
         return false;
     }
@@ -4014,8 +4018,10 @@ static const Property virtio_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIODevice, host_features),
     DEFINE_PROP_BOOL("use-started", VirtIODevice, use_started, true),
     DEFINE_PROP_BOOL("use-disabled-flag", VirtIODevice, use_disabled_flag, true),
+#ifdef CONFIG_VIRTIO_LEGACY
     DEFINE_PROP_BOOL("x-disable-legacy-check", VirtIODevice,
                      disable_legacy_check, false),
+#endif
 };
 
 static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
@@ -4151,7 +4157,9 @@ static void virtio_device_class_init(ObjectClass *klass, const void *data)
     vdc->start_ioeventfd = virtio_device_start_ioeventfd_impl;
     vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
 
+#ifdef CONFIG_VIRTIO_LEGACY
     vdc->legacy_features |= VIRTIO_LEGACY_FEATURES;
+#endif
 }
 
 bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
