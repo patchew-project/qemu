@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/target-info.h"
 #include "qemu/target-info-impl.h"
+#include "qapi/error.h"
 
 const char *target_name(void)
 {
@@ -18,6 +19,17 @@ const char *target_name(void)
 unsigned target_long_bits(void)
 {
     return target_info()->long_bits;
+}
+
+SysEmuTarget target_system_arch(void)
+{
+    static SysEmuTarget system_arch = SYS_EMU_TARGET__MAX;
+
+    if (system_arch == SYS_EMU_TARGET__MAX) {
+        system_arch = qapi_enum_parse(&SysEmuTarget_lookup, target_name(), -1,
+                                      &error_abort);
+    }
+    return system_arch;
 }
 
 const char *target_cpu_type(void)

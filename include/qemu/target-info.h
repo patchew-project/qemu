@@ -9,12 +9,21 @@
 #ifndef QEMU_TARGET_INFO_H
 #define QEMU_TARGET_INFO_H
 
+#include "qapi/qapi-types-machine.h"
+
 /**
  * target_name:
  *
  * Returns: Canonical target name (i.e. "i386").
  */
 const char *target_name(void);
+
+/**
+ * target_system_arch:
+ *
+ * Returns: QAPI SysEmuTarget enum (i.e. SYS_EMU_TARGET_I386).
+ */
+SysEmuTarget target_system_arch(void);
 
 /**
  * target_long_bits:
