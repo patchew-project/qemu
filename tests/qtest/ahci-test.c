@@ -198,6 +198,7 @@ static void ahci_shutdown(AHCIQState *ahci)
 {
     QOSState *qs = ahci->parent;
 
+    ahci_pci_disable(ahci);
     ahci_clean_mem(ahci);
     free_ahci_device(ahci->dev);
     g_free(ahci);
@@ -1418,6 +1419,7 @@ static void test_reset(void)
                                CMD_READ_DMA_EXT,
                                CMD_WRITE_DMA_EXT);
         ahci_set(ahci, AHCI_GHC, AHCI_GHC_HR);
+        stop_ahci_device(ahci);
         ahci_clean_mem(ahci);
     }
 
@@ -1484,6 +1486,7 @@ static void test_reset_pending_callback(void)
     sleep(1);
 
     /* Start again. */
+    stop_ahci_device(ahci);
     ahci_clean_mem(ahci);
     ahci_pci_enable(ahci);
     ahci_hba_enable(ahci);
@@ -1502,6 +1505,7 @@ static void test_reset_pending_callback(void)
     ahci_free(ahci, ptr1);
     ahci_free(ahci, ptr2);
 
+    stop_ahci_device(ahci);
     ahci_clean_mem(ahci);
 
     ahci_shutdown(ahci);
