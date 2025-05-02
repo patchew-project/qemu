@@ -27,7 +27,14 @@
 #define MassStorageReset  0xff
 #define GetMaxLun         0xfe
 
-struct usb_msd_cbw {
+/*
+ * CBW and CSW packets have a minimum size, enough to contain the
+ * respective data structure.
+ */
+#define CBW_SIZE sizeof(struct usb_msd_cbw)
+#define CSW_SIZE sizeof(struct usb_msd_csw)
+
+struct QEMU_PACKED usb_msd_cbw {
     uint32_t sig;
     uint32_t tag;
     uint32_t data_len;
@@ -405,11 +412,11 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
 
     switch (s->mode) {
     case USB_MSDM_CBW:
-        if (p->iov.size != 31) {
+        if (p->iov.size != CBW_SIZE) {
             error_report("usb-msd: Bad CBW size");
             goto fail;
         }
-        usb_packet_copy(p, &cbw, 31);
+        usb_packet_copy(p, &cbw, CBW_SIZE);
         if (le32_to_cpu(cbw.sig) != 0x43425355) {
             error_report("usb-msd: Bad signature %08x",
                          le32_to_cpu(cbw.sig));
@@ -489,7 +496,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
 
     switch (s->mode) {
     case USB_MSDM_DATAOUT:
-        if (s->data_len != 0 || p->iov.size < 13) {
+        if (s->data_len != 0 || p->iov.size < CSW_SIZE) {
             goto fail;
         }
         /* Waiting for SCSI write to complete.  */
@@ -499,7 +506,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_MSDM_CSW:
-        if (p->iov.size < 13) {
+        if (p->iov.size < CSW_SIZE) {
             goto fail;
         }
 
@@ -636,6 +643,10 @@ static const TypeInfo usb_storage_dev_type_info = {
 
 static void usb_msd_register_types(void)
 {
+    /* Ensure the header structures are the right size */
+    qemu_build_assert(CBW_SIZE == 31);
+    qemu_build_assert(CSW_SIZE == 13);
+
     type_register_static(&usb_storage_dev_type_info);
 }
 
