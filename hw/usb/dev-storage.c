@@ -185,6 +185,21 @@ static const USBDesc desc = {
     .str   = desc_strings,
 };
 
+
+static void usb_msd_change_cbw_state(MSDState *s, USBMSDCBWState cbw_state)
+{
+    g_assert(s->cbw_state != cbw_state);
+    s->cbw_state = cbw_state;
+    trace_usb_msd_cbw_state(s->cbw_state);
+}
+
+static void usb_msd_set_cbw_state(MSDState *s, USBMSDCBWState cbw_state)
+{
+    if (s->cbw_state != cbw_state) {
+        usb_msd_change_cbw_state(s, cbw_state);
+    }
+}
+
 static void usb_msd_data_packet_complete(MSDState *s, int status)
 {
     USBPacket *p = s->data_packet;
@@ -194,7 +209,7 @@ static void usb_msd_data_packet_complete(MSDState *s, int status)
      * because another request may be issued before usb_packet_complete
      * returns.
      */
-    trace_usb_msd_packet_complete();
+    trace_usb_msd_data_packet_complete();
     s->data_packet = NULL;
     p->status = status;
     usb_packet_complete(&s->dev, p);
@@ -209,7 +224,7 @@ static void usb_msd_csw_packet_complete(MSDState *s, int status)
      * because another request may be issued before usb_packet_complete
      * returns.
      */
-    trace_usb_msd_packet_complete();
+    trace_usb_msd_csw_packet_complete();
     s->csw_in_packet = NULL;
     p->status = status;
     usb_packet_complete(&s->dev, p);
@@ -238,7 +253,11 @@ static void usb_msd_fatal_error(MSDState *s)
 static void usb_msd_copy_data(MSDState *s, USBPacket *p)
 {
     uint32_t len;
+
     len = p->iov.size - p->actual_length;
+
+    trace_usb_msd_copy_data(s->req->tag, len);
+
     if (len > s->scsi_len)
         len = s->scsi_len;
     usb_packet_copy(p, scsi_req_get_buf(s->req) + s->scsi_off, len);
@@ -270,6 +289,8 @@ void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->data_packet;
+
+    trace_usb_msd_transfer_data(req->tag, len);
 
     if (s->cbw_state == USB_MSD_CBW_DATAIN) {
         if (req->cmd.mode == SCSI_XFER_TO_DEV) {
@@ -333,19 +354,19 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid)
             s->data_len -= len;
         }
         if (s->data_len == 0) {
-            s->cbw_state = USB_MSD_CBW_CSW;
+            usb_msd_change_cbw_state(s, USB_MSD_CBW_CSW);
         }
         /* USB_RET_SUCCESS status clears previous ASYNC status */
         usb_msd_data_packet_complete(s, USB_RET_SUCCESS);
     } else if (s->data_len == 0) {
-        s->cbw_state = USB_MSD_CBW_CSW;
+        usb_msd_change_cbw_state(s, USB_MSD_CBW_CSW);
     }
 
     if (s->cbw_state == USB_MSD_CBW_CSW) {
         p = s->csw_in_packet;
         if (p) {
             usb_msd_send_status(s, p);
-            s->cbw_state = USB_MSD_CBW_NONE;
+            usb_msd_change_cbw_state(s, USB_MSD_CBW_NONE);
             /* USB_RET_SUCCESS status clears previous ASYNC status */
             usb_msd_csw_packet_complete(s, USB_RET_SUCCESS);
         }
@@ -388,7 +409,7 @@ void usb_msd_handle_reset(USBDevice *dev)
     }
 
     memset(&s->csw, 0, sizeof(s->csw));
-    s->cbw_state = USB_MSD_CBW_NONE;
+    usb_msd_set_cbw_state(s, USB_MSD_CBW_NONE);
 
     s->needs_reset = false;
 }
@@ -438,6 +459,8 @@ static void usb_msd_handle_control(USBDevice *dev, USBPacket *p,
 static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
 {
     MSDState *s = USB_STORAGE_DEV(dev);
+
+    trace_usb_msd_cancel_io();
 
     if (p == s->data_packet) {
         s->data_packet = NULL;
@@ -491,11 +514,14 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
     SCSIDevice *scsi_dev;
     int len;
 
+    trace_usb_msd_data_out(p->iov.size, s->data_len);
+
     switch (s->cbw_state) {
     case USB_MSD_CBW_NONE:
         if (!try_get_valid_cbw(p, &cbw)) {
             goto fail;
         }
+        trace_usb_msd_cbw_out();
         scsi_dev = scsi_device_find(&s->bus, 0, 0, cbw.lun);
         if (scsi_dev == NULL) {
             qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: Bad CBW LUN %d\n",
@@ -505,11 +531,11 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
         tag = le32_to_cpu(cbw.tag);
         s->data_len = le32_to_cpu(cbw.data_len);
         if (s->data_len == 0) {
-            s->cbw_state = USB_MSD_CBW_NODATA;
+            usb_msd_change_cbw_state(s, USB_MSD_CBW_NODATA);
         } else if (cbw.flags & 0x80) {
-            s->cbw_state = USB_MSD_CBW_DATAIN;
+            usb_msd_change_cbw_state(s, USB_MSD_CBW_DATAIN);
         } else {
-            s->cbw_state = USB_MSD_CBW_DATAOUT;
+            usb_msd_change_cbw_state(s, USB_MSD_CBW_DATAOUT);
         }
         if (s->unknown_in_packet) {
             if (s->cbw_state == USB_MSD_CBW_DATAIN) {
@@ -540,7 +566,6 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_MSD_CBW_DATAOUT:
-        trace_usb_msd_data_out(p->iov.size, s->data_len);
         if (s->unknown_in_packet) {
             error_report("usb-msd: unknown_in_packet in DATAOUT state");
             goto fail;
@@ -562,7 +587,7 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
                 }
                 s->data_len -= len;
                 if (s->data_len == 0) {
-                    s->cbw_state = USB_MSD_CBW_CSW;
+                    usb_msd_change_cbw_state(s, USB_MSD_CBW_CSW);
                 }
             }
         }
@@ -579,6 +604,7 @@ static void usb_msd_handle_data_out(USBDevice *dev, USBPacket *p)
     return;
 
 fail:
+    trace_usb_msd_bad_packet();
     p->status = USB_RET_STALL;
 }
 
@@ -587,8 +613,11 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
     MSDState *s = (MSDState *)dev;
     int len;
 
+    trace_usb_msd_data_in(p->iov.size, s->data_len, s->scsi_len);
+
     switch (s->cbw_state) {
     case USB_MSD_CBW_NONE:
+        trace_usb_msd_unknown_in(p->iov.size);
         if (s->unknown_in_packet) {
             qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: second IN packet was"
                                            "received before CBW\n");
@@ -602,12 +631,13 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
     case USB_MSD_CBW_NODATA:
     case USB_MSD_CBW_DATAOUT:
         if (s->unknown_in_packet) {
-            error_report("usb-msd: unknown_in_packet in DATAOUT state");
+            error_report("usb-msd: unknown_in_packet in DATAOUT/NODATA state");
             goto fail;
         }
         if (!check_valid_csw(p)) {
             goto fail;
         }
+        trace_usb_msd_csw_in();
         if (s->data_len != 0) {
             qemu_log_mask(LOG_GUEST_ERROR, "usb-msd: CSW received before "
                                            "all data was sent\n");
@@ -621,6 +651,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_MSD_CBW_CSW:
+        trace_usb_msd_csw_in();
         if (s->unknown_in_packet) {
             error_report("usb-msd: unknown_in_packet in CSW state");
             goto fail;
@@ -636,12 +667,11 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
             p->status = USB_RET_ASYNC;
         } else {
             usb_msd_send_status(s, p);
-            s->cbw_state = USB_MSD_CBW_NONE;
+            usb_msd_change_cbw_state(s, USB_MSD_CBW_NONE);
         }
         break;
 
     case USB_MSD_CBW_DATAIN:
-        trace_usb_msd_data_in(p->iov.size, s->data_len, s->scsi_len);
         if (s->unknown_in_packet) {
             error_report("usb-msd: unknown_in_packet in DATAIN state");
             goto fail;
@@ -658,7 +688,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
                 }
                 s->data_len -= len;
                 if (s->data_len == 0) {
-                    s->cbw_state = USB_MSD_CBW_CSW;
+                    usb_msd_change_cbw_state(s, USB_MSD_CBW_CSW);
                 }
             }
         }
@@ -676,6 +706,7 @@ static void usb_msd_handle_data_in(USBDevice *dev, USBPacket *p)
     return;
 
 fail:
+    trace_usb_msd_bad_packet();
     p->status = USB_RET_STALL;
 }
 
