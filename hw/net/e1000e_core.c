@@ -2564,18 +2564,6 @@ e1000e_mac_swsm_read(E1000ECore *core, int index)
 }
 
 static uint32_t
-e1000e_mac_itr_read(E1000ECore *core, int index)
-{
-    return core->itr_guest_value;
-}
-
-static uint32_t
-e1000e_mac_eitr_read(E1000ECore *core, int index)
-{
-    return core->eitr_guest_value[index - EITR];
-}
-
-static uint32_t
 e1000e_mac_icr_read(E1000ECore *core, int index)
 {
     uint32_t ret = core->mac[ICR];
@@ -2792,7 +2780,6 @@ e1000e_set_itr(E1000ECore *core, int index, uint32_t val)
 
     trace_e1000e_irq_itr_set(val);
 
-    core->itr_guest_value = interval;
     core->mac[index] = interval;
 }
 
@@ -2804,7 +2791,6 @@ e1000e_set_eitr(E1000ECore *core, int index, uint32_t val)
 
     trace_e1000e_irq_eitr_set(eitr_num, val);
 
-    core->eitr_guest_value[eitr_num] = interval;
     core->mac[index] = interval;
 }
 
@@ -3029,6 +3015,7 @@ static const readops e1000e_macreg_readops[] = {
     e1000e_getreg(GSCN_1),
     e1000e_getreg(FCAL),
     e1000e_getreg(FLSWCNT),
+    e1000e_getreg(ITR),
 
     [TOTH]    = e1000e_mac_read_clr8,
     [GOTCH]   = e1000e_mac_read_clr8,
@@ -3062,7 +3049,6 @@ static const readops e1000e_macreg_readops[] = {
     [MPRC]    = e1000e_mac_read_clr4,
     [BPTC]    = e1000e_mac_read_clr4,
     [TSCTC]   = e1000e_mac_read_clr4,
-    [ITR]     = e1000e_mac_itr_read,
     [CTRL]    = e1000e_get_ctrl,
     [TARC1]   = e1000e_get_tarc,
     [SWSM]    = e1000e_mac_swsm_read,
@@ -3087,7 +3073,7 @@ static const readops e1000e_macreg_readops[] = {
     [RETA ... RETA + 31]   = e1000e_mac_readreg,
     [RSSRK ... RSSRK + 31] = e1000e_mac_readreg,
     [MAVTV0 ... MAVTV3]    = e1000e_mac_readreg,
-    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = e1000e_mac_eitr_read
+    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = e1000e_mac_readreg,
 };
 enum { E1000E_NREADOPS = ARRAY_SIZE(e1000e_macreg_readops) };
 
@@ -3517,12 +3503,25 @@ void e1000e_core_pre_save(E1000ECore *core)
             core->tx[i].skip_cp = true;
         }
     }
+
+    /* back compat, QEMU moves xITR in itr_guest_value state */
+    core->itr_guest_value = core->mac[ITR];
+    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
+        core->eitr_guest_value[i] = core->mac[EITR + i];
+    }
 }
 
 int
 e1000e_core_post_load(E1000ECore *core)
 {
+    int i;
     NetClientState *nc = qemu_get_queue(core->owner_nic);
+
+    /* back compat */
+    core->mac[ITR] = core->itr_guest_value;
+    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
+        core->mac[EITR + i] = core->eitr_guest_value[i];
+    }
 
     /*
      * nc.link_down can't be migrated, so infer link_down according
