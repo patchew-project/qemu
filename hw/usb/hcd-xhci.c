@@ -128,13 +128,6 @@ struct XHCIEPContext {
     QEMUTimer *kick_timer;
 };
 
-typedef struct XHCIEvRingSeg {
-    uint32_t addr_low;
-    uint32_t addr_high;
-    uint32_t size;
-    uint32_t rsvd;
-} XHCIEvRingSeg;
-
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid, unsigned int streamid);
 static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid);
