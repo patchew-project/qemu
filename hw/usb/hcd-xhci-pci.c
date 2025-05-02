@@ -32,9 +32,6 @@
 #include "trace.h"
 #include "qapi/error.h"
 
-#define OFF_MSIX_TABLE  0x3000
-#define OFF_MSIX_PBA    0x3800
-
 static void xhci_pci_intr_update(XHCIState *xhci, int n, bool enable)
 {
     XHCIPciState *s = container_of(xhci, XHCIPciState, xhci);
@@ -120,6 +117,31 @@ static int xhci_pci_vmstate_post_load(void *opaque, int version_id)
    return 0;
 }
 
+static int xhci_pci_add_pm_capability(PCIDevice *pci_dev, uint8_t offset,
+                                      Error **errp)
+{
+    int err;
+
+    err = pci_add_capability(pci_dev, PCI_CAP_ID_PM, offset,
+                             PCI_PM_SIZEOF, errp);
+    if (err < 0) {
+        return err;
+    }
+
+    pci_set_word(pci_dev->config + offset + PCI_PM_PMC,
+                 PCI_PM_CAP_VER_1_2 |
+                 PCI_PM_CAP_D1 | PCI_PM_CAP_D2 |
+                 PCI_PM_CAP_PME_D0 | PCI_PM_CAP_PME_D1 |
+                 PCI_PM_CAP_PME_D2 | PCI_PM_CAP_PME_D3hot);
+    pci_set_word(pci_dev->wmask + offset + PCI_PM_PMC, 0);
+    pci_set_word(pci_dev->config + offset + PCI_PM_CTRL,
+                 PCI_PM_CTRL_NO_SOFT_RESET);
+    pci_set_word(pci_dev->wmask + offset + PCI_PM_CTRL,
+                 PCI_PM_CTRL_STATE_MASK);
+
+    return 0;
+}
+
 static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
 {
     int ret;
@@ -128,7 +150,7 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
 
     dev->config[PCI_CLASS_PROG] = 0x30;    /* xHCI */
     dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
-    dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
+    dev->config[PCI_CACHE_LINE_SIZE] = s->cache_line_size;
     dev->config[0x60] = 0x30; /* release number */
 
     object_property_set_link(OBJECT(&s->xhci), "host", OBJECT(s), NULL);
@@ -144,40 +166,78 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
         s->xhci.nec_quirks = true;
     }
 
-    if (s->msi != ON_OFF_AUTO_OFF) {
-        ret = msi_init(dev, 0x70, s->xhci.numintrs, true, false, &err);
-        /*
-         * Any error other than -ENOTSUP(board's MSI support is broken)
-         * is a programming error
-         */
-        assert(!ret || ret == -ENOTSUP);
-        if (ret && s->msi == ON_OFF_AUTO_ON) {
-            /* Can't satisfy user's explicit msi=on request, fail */
-            error_append_hint(&err, "You have to use msi=auto (default) or "
-                    "msi=off with this machine type.\n");
+    if (s->pm_cap_off) {
+        if (xhci_pci_add_pm_capability(dev, s->pm_cap_off, &err)) {
             error_propagate(errp, err);
             return;
         }
-        assert(!err || s->msi == ON_OFF_AUTO_AUTO);
-        /* With msi=auto, we fall back to MSI off silently */
-        error_free(err);
     }
+
+    if (s->msi != ON_OFF_AUTO_OFF) {
+        ret = msi_init(dev, s->msi_cap_off, s->xhci.numintrs,
+                       true, false, &err);
+        if (ret) {
+            if (ret != -ENOTSUP) {
+                /* Programming error */
+                error_propagate(errp, err);
+                return;
+            }
+            if (s->msi == ON_OFF_AUTO_ON) {
+                /* Can't satisfy user's explicit msi=on request, fail */
+                error_append_hint(&err, "You have to use msi=auto (default) "
+                                  "or msi=off with this machine type.\n");
+                error_propagate(errp, err);
+                return;
+            }
+            error_free(err);
+            err = NULL; /* With msi=auto, we fall back to MSI off silently */
+        }
+    }
+
     pci_register_bar(dev, 0,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                      PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &s->xhci.mem);
 
     if (pci_bus_is_express(pci_get_bus(dev))) {
-        ret = pcie_endpoint_cap_init(dev, 0xa0);
+        ret = pcie_endpoint_cap_init(dev, s->pcie_cap_off);
         assert(ret > 0);
     }
 
     if (s->msix != ON_OFF_AUTO_OFF) {
-        /* TODO check for errors, and should fail when msix=on */
-        msix_init(dev, s->xhci.numintrs,
-                  &s->xhci.mem, 0, OFF_MSIX_TABLE,
-                  &s->xhci.mem, 0, OFF_MSIX_PBA,
-                  0x90, NULL);
+        MemoryRegion *msix_bar = &s->xhci.mem;
+
+        if (s->msix_bar_nr != 0) {
+            memory_region_init(&dev->msix_exclusive_bar, OBJECT(dev),
+                               "xhci-msix", s->msix_bar_size);
+            msix_bar = &dev->msix_exclusive_bar;
+            pci_register_bar(dev, s->msix_bar_nr,
+                             PCI_BASE_ADDRESS_SPACE_MEMORY |
+                             PCI_BASE_ADDRESS_MEM_TYPE_64,
+                             msix_bar);
+        }
+
+        ret = msix_init(dev, s->xhci.numintrs,
+                        msix_bar, s->msix_bar_nr, s->msix_table_off,
+                        msix_bar, s->msix_bar_nr, s->msix_pba_off,
+                        s->msix_cap_off, &err);
+        if (ret) {
+            if (ret != -ENOTSUP) {
+                /* Programming error */
+                error_propagate(errp, err);
+                return;
+            }
+            if (s->msix == ON_OFF_AUTO_ON) {
+                /* Can't satisfy user's explicit msix=on request, fail */
+                error_append_hint(&err, "You have to use msix=auto (default) "
+                                  "or msix=off with this machine type.\n");
+                error_propagate(errp, err);
+                return;
+            }
+            error_free(err);
+            err = NULL; /* With msix=auto, we fall back to MSI-X off silently */
+            /* Should we unregister BAR and memory region here? */
+        }
     }
     s->xhci.as = pci_get_address_space(dev);
 }
@@ -214,6 +274,16 @@ static void xhci_instance_init(Object *obj)
     PCI_DEVICE(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
     object_initialize_child(obj, "xhci-core", &s->xhci, TYPE_XHCI);
     qdev_alias_all_properties(DEVICE(&s->xhci), obj);
+
+    s->cache_line_size = 0x10;
+    s->pm_cap_off = 0;
+    s->pcie_cap_off = 0xa0;
+    s->msi_cap_off = 0x70;
+    s->msix_cap_off = 0x90;
+    s->msix_bar_nr = 0;
+    s->msix_bar_size = 0;
+    s->msix_table_off = 0x3000;
+    s->msix_pba_off = 0x3800;
 }
 
 static const Property xhci_pci_properties[] = {
