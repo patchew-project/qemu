@@ -373,6 +373,20 @@ static uint64_t submit_cr_trb(XHCIQState *s, const XHCITRB *trb)
     return ret;
 }
 
+static uint64_t submit_tr_trb(XHCIQState *s, int slot, int ep,
+                              const XHCITRB *trb)
+{
+    XHCIQSlotState *sl = &s->slots[slot];
+    XHCIQTRState *tr = &sl->transfer_ring[ep];
+    uint64_t ret;
+
+    ret = queue_trb(s, tr, trb);
+
+    xhci_db_writel(s, slot, 1 + ep); /* doorbell slot, EP<ep> target */
+
+    return ret;
+}
+
 static void xhci_enable_device(XHCIQState *s)
 {
     XHCIQTRState *tr;
@@ -451,12 +465,163 @@ static void xhci_enable_device(XHCIQState *s)
     for (i = 0; i < s->maxports; i++) {
         value = xhci_port_readl(s, i, 0); /* PORTSC */
 
-        /* All ports should be disabled */
-        g_assert(!(value & XHCI_PORTSC_CCS));
-        g_assert(!(value & XHCI_PORTSC_PED));
-        g_assert(((value >> XHCI_PORTSC_PLS_SHIFT) &
-                  XHCI_PORTSC_PLS_MASK) == 5);
+        /* First port should be attached and enabled if we have usb-storage */
+        if (qtest_has_device("usb-storage") && i == 0) {
+            g_assert(value & XHCI_PORTSC_CCS);
+            g_assert(value & XHCI_PORTSC_PED);
+            /* Port Speed must be identified (non-zero) */
+            g_assert(((value >> XHCI_PORTSC_SPEED_SHIFT) &
+                      XHCI_PORTSC_SPEED_MASK) != 0);
+        } else {
+            g_assert(!(value & XHCI_PORTSC_CCS));
+            g_assert(!(value & XHCI_PORTSC_PED));
+            g_assert(((value >> XHCI_PORTSC_PLS_SHIFT) &
+                      XHCI_PORTSC_PLS_MASK) == 5);
+        }
     }
+}
+
+/* XXX: what should these values be? */
+#define TRB_MAX_PACKET_SIZE 0x200
+#define TRB_AVERAGE_LENGTH  0x200
+
+static void xhci_enable_slot(XHCIQState *s)
+{
+    XHCIQTRState *tr;
+    uint64_t input_context;
+    XHCITRB trb;
+    uint64_t tag;
+    g_autofree void *mem = g_malloc0(0x1000); /* buffer for writing to guest */
+    uint32_t *dc; /* device context */
+
+    /* Issue a command ring enable slot */
+    memset(&trb, 0, TRB_SIZE);
+    trb.control |= CR_ENABLE_SLOT << TRB_TYPE_SHIFT;
+    trb.control |= TRB_TR_IOC;
+    tag = submit_cr_trb(s, &trb);
+    wait_event_trb(s, &trb);
+    g_assert_cmphex(trb.parameter , ==, tag);
+    g_assert_cmpint(TRB_TYPE(trb), ==, ER_COMMAND_COMPLETE);
+    s->slotid = (trb.control >> TRB_CR_SLOTID_SHIFT) & 0xff;
+
+    /* 32-byte input context size, should check HCCPARAMS1 for 64-byte size */
+    input_context = xhci_guest_zalloc(s, 0x420);
+
+    /* Set input control context */
+    memset(mem, 0, 0x420);
+    ((uint32_t *)mem)[1] = cpu_to_le32(0x3); /* Add device contexts 0 and 1 */
+
+    /* Slot context */
+    dc = mem + 1 * 0x20;
+    dc[0] = cpu_to_le32(1 << 27); /* 1 context entry */
+    dc[1] = cpu_to_le32(1 << 16); /* 1 port number */
+
+    /* Endpoint 0 context */
+    tr = &s->slots[s->slotid].transfer_ring[0];
+    tr->addr = xhci_guest_zalloc(s, 0x1000);
+    tr->trb_entries = 0x10;
+    tr->trb_c = 1;
+
+    dc = mem + 2 * 0x20;
+    dc[0] = 0;
+    dc[1] = cpu_to_le32((ET_CONTROL << EP_TYPE_SHIFT) |
+                        (TRB_MAX_PACKET_SIZE << 16));
+    dc[2] = cpu_to_le32((tr->addr & 0xffffffff) | 1); /* DCS=1 */
+    dc[3] = cpu_to_le32(tr->addr >> 32);
+    dc[4] = cpu_to_le32(TRB_AVERAGE_LENGTH);
+    qtest_memwrite(s->parent->qts, input_context, mem, 0x420);
+
+    s->slots[s->slotid].device_context = xhci_guest_zalloc(s, 0x400);
+
+    ((uint64_t *)mem)[0] = cpu_to_le64(s->slots[s->slotid].device_context);
+    qtest_memwrite(s->parent->qts, s->dc_base_array + 8 * s->slotid, mem, 8);
+
+    /* Issue a command ring address device */
+    memset(&trb, 0, TRB_SIZE);
+    trb.parameter = input_context;
+    trb.control |= CR_ADDRESS_DEVICE << TRB_TYPE_SHIFT;
+    trb.control |= s->slotid << TRB_CR_SLOTID_SHIFT;
+    tag = submit_cr_trb(s, &trb);
+    wait_event_trb(s, &trb);
+    g_assert_cmphex(trb.parameter , ==, tag);
+    g_assert_cmpint(TRB_TYPE(trb), ==, ER_COMMAND_COMPLETE);
+
+    guest_free(&s->parent->alloc, input_context);
+
+    /* Check EP0 is running */
+    qtest_memread(s->parent->qts, s->slots[s->slotid].device_context, mem, 0x400);
+    g_assert((((uint32_t *)mem)[8] & 0x3) == EP_RUNNING);
+}
+
+static void xhci_enable_msd_bulk_endpoints(XHCIQState *s)
+{
+    XHCIQTRState *tr;
+    uint64_t input_context;
+    XHCITRB trb;
+    uint64_t tag;
+    g_autofree void *mem = g_malloc0(0x1000); /* buffer for writing to guest */
+    uint32_t *dc; /* device context */
+
+    /* Configure 2 more endpoints */
+
+    /* 32-byte input context size, should check HCCPARAMS1 for 64-byte size */
+    input_context = xhci_guest_zalloc(s, 0x420);
+
+    /* Set input control context */
+    memset(mem, 0, 0x420);
+    ((uint32_t *)mem)[1] = cpu_to_le32(0x19); /* Add device contexts 0, 3, 4 */
+
+    /* Slot context */
+    dc = mem + 1 * 0x20;
+    dc[0] = cpu_to_le32(1 << 27); /* 1 context entry */
+    dc[1] = cpu_to_le32(1 << 16); /* 1 port number */
+
+    /* Endpoint 1 (IN) context */
+    tr = &s->slots[s->slotid].transfer_ring[2];
+    tr->addr = xhci_guest_zalloc(s, 0x1000);
+    tr->trb_entries = 0x10;
+    tr->trb_c = 1;
+
+    dc = mem + 4 * 0x20;
+    dc[0] = 0;
+    dc[1] = cpu_to_le32((ET_BULK_IN << EP_TYPE_SHIFT) |
+                        (TRB_MAX_PACKET_SIZE << 16));
+    dc[2] = cpu_to_le32((tr->addr & 0xffffffff) | 1); /* DCS=1 */
+    dc[3] = cpu_to_le32(tr->addr >> 32);
+    dc[4] = cpu_to_le32(TRB_AVERAGE_LENGTH);
+
+    /* Endpoint 2 (OUT) context */
+    tr = &s->slots[s->slotid].transfer_ring[3];
+    tr->addr = xhci_guest_zalloc(s, 0x1000);
+    tr->trb_entries = 0x10;
+    tr->trb_c = 1;
+
+    dc = mem + 5 * 0x20;
+    dc[0] = 0;
+    dc[1] = cpu_to_le32((ET_BULK_OUT << EP_TYPE_SHIFT) |
+                        (TRB_MAX_PACKET_SIZE << 16));
+    dc[2] = cpu_to_le32((tr->addr & 0xffffffff) | 1); /* DCS=1 */
+    dc[3] = cpu_to_le32(tr->addr >> 32);
+    dc[4] = cpu_to_le32(TRB_AVERAGE_LENGTH);
+    qtest_memwrite(s->parent->qts, input_context, mem, 0x420);
+
+    /* Issue a command ring configure endpoint */
+    memset(&trb, 0, TRB_SIZE);
+    trb.parameter = input_context;
+    trb.control |= CR_CONFIGURE_ENDPOINT << TRB_TYPE_SHIFT;
+    trb.control |= s->slotid << TRB_CR_SLOTID_SHIFT;
+    tag = submit_cr_trb(s, &trb);
+    wait_event_trb(s, &trb);
+    g_assert_cmphex(trb.parameter , ==, tag);
+    g_assert_cmpint(TRB_TYPE(trb), ==, ER_COMMAND_COMPLETE);
+
+    guest_free(&s->parent->alloc, input_context);
+
+    /* Check EPs are running */
+    qtest_memread(s->parent->qts, s->slots[s->slotid].device_context, mem, 0x400);
+    g_assert((((uint32_t *)mem)[1*8] & 0x3) == EP_RUNNING);
+    g_assert((((uint32_t *)mem)[3*8] & 0x3) == EP_RUNNING);
+    g_assert((((uint32_t *)mem)[4*8] & 0x3) == EP_RUNNING);
 }
 
 static void xhci_disable_device(XHCIQState *s)
@@ -477,6 +642,144 @@ static void xhci_disable_device(XHCIQState *s)
     guest_free(&s->parent->alloc, s->dc_base_array);
 }
 
+struct QEMU_PACKED usb_msd_cbw {
+    uint32_t sig;
+    uint32_t tag;
+    uint32_t data_len;
+    uint8_t flags;
+    uint8_t lun;
+    uint8_t cmd_len;
+    uint8_t cmd[16];
+};
+
+struct QEMU_PACKED usb_msd_csw {
+    uint32_t sig;
+    uint32_t tag;
+    uint32_t residue;
+    uint8_t status;
+};
+
+static ssize_t xhci_submit_scsi_cmd(XHCIQState *s,
+                                    const uint8_t *cmd, uint8_t cmd_len,
+                                    void *data, uint32_t data_len,
+                                    bool data_in)
+{
+    struct usb_msd_cbw cbw;
+    struct usb_msd_csw csw;
+    uint64_t trb_data;
+    XHCITRB trb;
+    uint64_t tag;
+
+    /* TRB data payload */
+    trb_data = xhci_guest_zalloc(s, data_len > sizeof(cbw) ? data_len : sizeof(cbw));
+
+    memset(&cbw, 0, sizeof(cbw));
+    cbw.sig = cpu_to_le32(0x43425355);
+    cbw.tag = cpu_to_le32(0);
+    cbw.data_len = cpu_to_le32(data_len);
+    cbw.flags = data_in ? 0x80 : 0x00;
+    cbw.lun = 0;
+    cbw.cmd_len = cmd_len; /* cmd len */
+    memcpy(cbw.cmd, cmd, cmd_len);
+    qtest_memwrite(s->parent->qts, trb_data, &cbw, sizeof(cbw));
+
+    /* Issue a transfer ring ep 3 data (out) */
+    memset(&trb, 0, TRB_SIZE);
+    trb.parameter = trb_data;
+    trb.status = sizeof(cbw);
+    trb.control |= TR_NORMAL << TRB_TYPE_SHIFT;
+    trb.control |= TRB_TR_IOC;
+    tag = submit_tr_trb(s, s->slotid, 3, &trb);
+    wait_event_trb(s, &trb);
+    g_assert_cmphex(trb.parameter, ==, tag);
+    g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+
+    if (data_in) {
+        g_assert(data_len);
+
+        /* Issue a transfer ring ep 2 data (in) */
+        memset(&trb, 0, TRB_SIZE);
+        trb.parameter = trb_data;
+        trb.status = data_len; /* data_len bytes, no more packets */
+        trb.control |= TR_NORMAL << TRB_TYPE_SHIFT;
+        trb.control |= TRB_TR_IOC;
+        tag = submit_tr_trb(s, s->slotid, 2, &trb);
+        wait_event_trb(s, &trb);
+        g_assert_cmphex(trb.parameter, ==, tag);
+        g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+
+        qtest_memread(s->parent->qts, trb_data, data, data_len);
+    } else if (data_len) {
+        qtest_memwrite(s->parent->qts, trb_data, data, data_len);
+
+        /* Issue a transfer ring ep 3 data (out) */
+        memset(&trb, 0, TRB_SIZE);
+        trb.parameter = trb_data;
+        trb.status = data_len; /* data_len bytes, no more packets */
+        trb.control |= TR_NORMAL << TRB_TYPE_SHIFT;
+        trb.control |= TRB_TR_IOC;
+        tag = submit_tr_trb(s, s->slotid, 3, &trb);
+        wait_event_trb(s, &trb);
+        g_assert_cmphex(trb.parameter, ==, tag);
+        g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+    } else {
+        /* No data */
+    }
+
+    /* Issue a transfer ring ep 2 data (in) */
+    memset(&trb, 0, TRB_SIZE);
+    trb.parameter = trb_data;
+    trb.status = sizeof(csw);
+    trb.control |= TR_NORMAL << TRB_TYPE_SHIFT;
+    trb.control |= TRB_TR_IOC;
+    tag = submit_tr_trb(s, s->slotid, 2, &trb);
+    wait_event_trb(s, &trb);
+    g_assert_cmphex(trb.parameter, ==, tag);
+    g_assert_cmpint(TRB_TYPE(trb), ==, ER_TRANSFER);
+
+    qtest_memread(s->parent->qts, trb_data, &csw, sizeof(csw));
+
+    guest_free(&s->parent->alloc, trb_data);
+
+    g_assert(csw.sig == cpu_to_le32(0x53425355));
+    g_assert(csw.tag == cpu_to_le32(0));
+    if (csw.status) {
+        return -1;
+    }
+    return data_len - le32_to_cpu(csw.residue); /* bytes copied */
+}
+
+#include "scsi/constants.h"
+
+static void xhci_test_msd(XHCIQState *s)
+{
+    uint8_t scsi_cmd[16];
+    g_autofree void *mem = g_malloc0(0x1000); /* buffer for writing to guest */
+
+    /* Clear SENSE data */
+    memset(scsi_cmd, 0, sizeof(scsi_cmd));
+    scsi_cmd[0] = INQUIRY;
+    if (xhci_submit_scsi_cmd(s, scsi_cmd, 6, mem, 0, false) < 0) {
+        g_assert_not_reached();
+    }
+
+    /* Report LUNs */
+    memset(scsi_cmd, 0, sizeof(scsi_cmd));
+    scsi_cmd[0] = REPORT_LUNS;
+    /* length in big-endian */
+    scsi_cmd[6] = 0x00;
+    scsi_cmd[7] = 0x00;
+    scsi_cmd[8] = 0x01;
+    scsi_cmd[9] = 0x00;
+
+    if (xhci_submit_scsi_cmd(s, scsi_cmd, 16, mem, 0x100, true) < 0) {
+        g_assert_not_reached();
+    }
+
+    /* Check REPORT_LUNS data found 1 LUN */
+    g_assert(((uint32_t *)mem)[0] == cpu_to_be32(8)); /* LUN List Length */
+}
+
 /*
  * This test brings up an endpoint and runs some noops through its command
  * ring and gets responses back on the event ring, then brings up a device
@@ -490,9 +793,18 @@ static void test_xhci_stress_rings(const void *arg)
     uint64_t tag;
     int i;
 
-    s = xhci_boot("-M q35 "
-                  "-device %s,id=xhci,bus=pcie.0,addr=1d.0 ",
-                  td->device);
+    if (qtest_has_device("usb-storage")) {
+        s = xhci_boot("-M q35 "
+                "-device %s,id=xhci,bus=pcie.0,addr=1d.0 "
+                "-device usb-storage,bus=xhci.0,drive=drive0 "
+                "-drive id=drive0,if=none,file=null-co://,"
+                    "file.read-zeroes=on,format=raw ",
+                td->device);
+    } else {
+        s = xhci_boot("-M q35 "
+                "-device %s,id=xhci,bus=pcie.0,addr=1d.0 ",
+                td->device);
+    }
     g_assert_cmphex(s->fingerprint, ==, td->fingerprint);
 
     xhci_enable_device(s);
@@ -508,6 +820,34 @@ static void test_xhci_stress_rings(const void *arg)
         g_assert_cmphex(trb.parameter , ==, tag);
         g_assert_cmpint(TRB_TYPE(trb), ==, ER_COMMAND_COMPLETE);
     }
+
+    xhci_disable_device(s);
+    xhci_shutdown(s);
+}
+
+/*
+ * This test brings up a USB MSD endpoint and runs MSD (SCSI) commands.
+ */
+static void test_usb_msd(const void *arg)
+{
+    const TestData *td = arg;
+    XHCIQState *s;
+
+    s = xhci_boot("-M q35 "
+            "-device %s,id=xhci,bus=pcie.0,addr=1d.0 "
+            "-device usb-storage,bus=xhci.0,drive=drive0 "
+            "-drive id=drive0,if=none,file=null-co://,"
+                "file.read-zeroes=on,format=raw ",
+            td->device);
+    g_assert_cmphex(s->fingerprint, ==, td->fingerprint);
+
+    xhci_enable_device(s);
+
+    xhci_enable_slot(s);
+
+    xhci_enable_msd_bulk_endpoints(s);
+
+    xhci_test_msd(s);
 
     xhci_disable_device(s);
     xhci_shutdown(s);
@@ -530,6 +870,9 @@ static void add_tests(TestData *td)
         add_test("usb-ccid", td, test_usb_ccid_hotplug);
     }
     add_test("xhci-stress-rings", td, test_xhci_stress_rings);
+    if (qtest_has_device("usb-storage")) {
+        add_test("usb-msd", td, test_usb_msd);
+    }
 }
 
 /* tests */
