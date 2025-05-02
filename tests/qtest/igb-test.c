@@ -198,6 +198,10 @@ static void test_igb_multiple_transfers(void *obj, void *data,
         return;
     }
 
+    /* Use EITR for one irq and disable it for the other, for testing */
+    e1000e_macreg_write(d, E1000_EITR(E1000E_RX0_MSG_ID), 0);
+    e1000e_macreg_write(d, E1000_EITR(E1000E_TX0_MSG_ID), 10 << 2); /* 10us */
+
     for (i = 0; i < iterations; i++) {
         igb_send_verify(d, data, alloc);
         igb_receive_verify(d, data, alloc);
