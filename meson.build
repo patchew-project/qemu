@@ -5,12 +5,13 @@ project('qemu', ['c'], meson_version: '>=1.5.0',
 
 meson.add_devenv({ 'MESON_BUILD_ROOT' : meson.project_build_root() })
 
-add_test_setup('quick', exclude_suites: ['slow', 'thorough'], is_default: true,
+add_test_setup('quick', exclude_suites: ['slow', 'thorough'],
                env: ['RUST_BACKTRACE=1'])
 add_test_setup('slow', exclude_suites: ['thorough'],
                env: ['G_TEST_SLOW=1', 'SPEED=slow', 'RUST_BACKTRACE=1'])
 add_test_setup('thorough',
-               env: ['G_TEST_SLOW=1', 'SPEED=thorough', 'RUST_BACKTRACE=1'])
+               env: ['G_TEST_SLOW=1', 'SPEED=thorough', 'RUST_BACKTRACE=1'],
+               is_default: true)
 
 meson.add_postconf_script(find_program('scripts/symlink-install-tree.py'))
 
