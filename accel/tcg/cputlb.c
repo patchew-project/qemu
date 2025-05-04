@@ -2945,3 +2945,9 @@ vaddr cpu_pointer_wrap_notreached(CPUState *cs, int idx, vaddr res, vaddr base)
 {
     g_assert_not_reached();
 }
+
+/* To be used for strict 32-bit targets. */
+vaddr cpu_pointer_wrap_uint32(CPUState *cs, int idx, vaddr res, vaddr base)
+{
+    return (uint32_t)res;
+}
