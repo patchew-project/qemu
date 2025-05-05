@@ -1986,21 +1986,37 @@ static bool fold_extract(OptContext *ctx, TCGOp *op)
 
 static bool fold_extract2(OptContext *ctx, TCGOp *op)
 {
-    if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
-        uint64_t v1 = arg_const_val(op->args[1]);
-        uint64_t v2 = arg_const_val(op->args[2]);
-        int shr = op->args[3];
+    TempOptInfo *t1 = arg_info(op->args[1]);
+    TempOptInfo *t2 = arg_info(op->args[2]);
+    uint64_t v1 = ti_const_val(t1);
+    uint64_t v2 = ti_const_val(t2);
+    uint64_t z1 = t1->z_mask;
+    uint64_t z2 = t2->z_mask;
+    uint64_t o1 = t1->o_mask;
+    uint64_t o2 = t2->o_mask;
+    int shr = op->args[3];
 
-        if (ctx->type == TCG_TYPE_I32) {
-            v1 = (uint32_t)v1 >> shr;
-            v2 = (uint64_t)((int32_t)v2 << (32 - shr));
-        } else {
-            v1 >>= shr;
-            v2 <<= 64 - shr;
-        }
+    if (ctx->type == TCG_TYPE_I32) {
+        v1 = (uint32_t)v1 >> shr;
+        z1 = (uint32_t)z1 >> shr;
+        o1 = (uint32_t)o1 >> shr;
+        v2 = (uint64_t)((int32_t)v2 << (32 - shr));
+        z2 = (uint64_t)((int32_t)z2 << (32 - shr));
+        o2 = (uint64_t)((int32_t)o2 << (32 - shr));
+    } else {
+        v1 >>= shr;
+        z1 >>= shr;
+        o1 >>= shr;
+        v2 <<= 64 - shr;
+        z2 <<= 64 - shr;
+        o2 <<= 64 - shr;
+    }
+
+    if (ti_is_const(t1) && ti_is_const(t2)) {
         return tcg_opt_gen_movi(ctx, op, op->args[0], v1 | v2);
     }
-    return finish_folding(ctx, op);
+
+    return fold_masks_zo(ctx, op, z1 | z2, o1 | o2);
 }
 
 static bool fold_exts(OptContext *ctx, TCGOp *op)
