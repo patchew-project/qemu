@@ -3209,6 +3209,7 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
             case WRITE_DATA:
                 memcpy(ram_ptr, buf, l);
                 invalidate_and_set_dirty(mr, addr1, l);
+                buf += l;
                 break;
             case FLUSH_CACHE:
                 flush_idcache_range((uintptr_t)ram_ptr, (uintptr_t)ram_ptr, l);
@@ -3216,7 +3217,6 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
             }
         }
         len -= l;
-        buf += l;
         addr += l;
     }
     return MEMTX_OK;
