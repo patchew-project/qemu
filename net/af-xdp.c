@@ -51,6 +51,8 @@ typedef struct AFXDPState {
 
     uint32_t             n_queues;
     uint32_t             xdp_flags;
+    char                 *map_path;
+    uint32_t             map_start_index;
     bool                 inhibit;
 } AFXDPState;
 
@@ -261,6 +263,7 @@ static void af_xdp_send(void *opaque)
 static void af_xdp_cleanup(NetClientState *nc)
 {
     AFXDPState *s = DO_UPCAST(AFXDPState, nc, nc);
+    int pin_fd, idx;
 
     qemu_purge_queued_packets(nc);
 
@@ -282,6 +285,22 @@ static void af_xdp_cleanup(NetClientState *nc)
                 "af-xdp: unable to remove XDP program from '%s', ifindex: %d\n",
                 s->ifname, s->ifindex);
     }
+    if (s->map_path) {
+        pin_fd = bpf_obj_get(s->map_path);
+        if (pin_fd < 0) {
+            fprintf(stderr,
+                "af-xdp: unable to remove %s's XSK sockets from '%s', ifindex: %d\n",
+                s->ifname, s->map_path, s->ifindex);
+        } else {
+            idx = nc->queue_index;
+            if (s->map_start_index > 0) {
+                idx += s->map_start_index;
+            }
+            bpf_map_delete_elem(pin_fd, &idx);
+            close(pin_fd);
+        }
+    }
+    g_free(s->map_path);
 }
 
 static int af_xdp_umem_create(AFXDPState *s, int sock_fd, Error **errp)
@@ -343,7 +362,7 @@ static int af_xdp_socket_create(AFXDPState *s,
         .bind_flags = XDP_USE_NEED_WAKEUP,
         .xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST,
     };
-    int queue_id, error = 0;
+    int queue_id, pin_fd, xsk_fd, idx, error = 0;
 
     s->inhibit = opts->has_inhibit && opts->inhibit;
     if (s->inhibit) {
@@ -381,6 +400,23 @@ static int af_xdp_socket_create(AFXDPState *s,
                                    s->umem, &s->rx, &s->tx, &cfg)) {
                 error = errno;
             }
+        }
+    }
+
+    if (!error && s->map_path) {
+        pin_fd = bpf_obj_get(s->map_path);
+        if (pin_fd < 0) {
+            error = errno;
+        } else {
+            xsk_fd = xsk_socket__fd(s->xsk);
+            idx = s->nc.queue_index;
+            if (s->map_start_index) {
+                idx += s->map_start_index;
+            }
+            if (bpf_map_update_elem(pin_fd, &idx, &xsk_fd, 0)) {
+                error = errno;
+            }
+            close(pin_fd);
         }
     }
 
@@ -465,8 +501,12 @@ int net_init_af_xdp(const Netdev *netdev,
         return -1;
     }
 
-    if ((opts->has_inhibit && opts->inhibit) != !!opts->sock_fds) {
-        error_setg(errp, "'inhibit=on' requires 'sock-fds' and vice versa");
+    if ((opts->has_inhibit && opts->inhibit) != !!(opts->sock_fds || opts->map_path)) {
+        if (opts->has_inhibit && opts->inhibit) {
+            error_setg(errp, "'inhibit=on' requires setting 'sock-fds' or 'map-path'");
+        } else {
+            error_setg(errp, "'sock-fds' or 'map-path' requires setting 'inhibit=on'");
+        }
         return -1;
     }
 
@@ -491,6 +531,12 @@ int net_init_af_xdp(const Netdev *netdev,
         pstrcpy(s->ifname, sizeof(s->ifname), opts->ifname);
         s->ifindex = ifindex;
         s->n_queues = queues;
+        if (opts->map_path) {
+            s->map_path = g_strdup(opts->map_path);
+            if (opts->has_map_start_index && opts->map_start_index > 0) {
+                s->map_start_index = opts->map_start_index;
+            }
+        }
 
         if (af_xdp_umem_create(s, sock_fds ? sock_fds[i] : -1, errp)
             || af_xdp_socket_create(s, opts, errp)) {
@@ -504,10 +550,15 @@ int net_init_af_xdp(const Netdev *netdev,
     if (nc0) {
         s = DO_UPCAST(AFXDPState, nc, nc0);
         if (bpf_xdp_query_id(s->ifindex, s->xdp_flags, &prog_id) || !prog_id) {
-            error_setg_errno(errp, errno,
-                             "no XDP program loaded on '%s', ifindex: %d",
-                             s->ifname, s->ifindex);
-            goto err;
+            if (!s->inhibit) {
+                error_setg_errno(errp, errno,
+                                 "no XDP program loaded on '%s', ifindex: %d",
+                                 s->ifname, s->ifindex);
+                goto err;
+            } else {
+                warn_report("no XDP program loaded yet on '%s', ifindex: %d",
+                            s->ifname, s->ifindex);
+            }
         }
     }
 

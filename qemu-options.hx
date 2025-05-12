@@ -2909,6 +2909,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifdef CONFIG_AF_XDP
     "-netdev af-xdp,id=str,ifname=name[,mode=native|skb][,force-copy=on|off]\n"
     "         [,queues=n][,start-queue=m][,inhibit=on|off][,sock-fds=x:y:...:z]\n"
+    "         [,map-path=/path/to/socket/map][,map-start-index=i]\n"
     "                attach to the existing network interface 'name' with AF_XDP socket\n"
     "                use 'mode=MODE' to specify an XDP program attach mode\n"
     "                use 'force-copy=on|off' to force XDP copy mode even if device supports zero-copy (default: off)\n"
@@ -2916,6 +2917,8 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                with inhibit=on,\n"
     "                  use 'sock-fds' to provide file descriptors for already open AF_XDP sockets\n"
     "                  added to a socket map in XDP program.  One socket per queue.\n"
+    "                  use 'map-path' to provide the socket map location to populate AF_XDP sockets with\n"
+    "                  beginning from the 'map-start-index' specified index (default: 0) (Since 10.1)\n"
     "                use 'queues=n' to specify how many queues of a multiqueue interface should be used\n"
     "                use 'start-queue=m' to specify the first queue that should be used\n"
 #endif
