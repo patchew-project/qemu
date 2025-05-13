@@ -383,6 +383,7 @@ void cxl_hook_up_pxb_registers(PCIBus *bus, CXLState *state, Error **errp)
 struct cfmw_update_state {
     hwaddr base;
     hwaddr maxaddr;
+    bool update_mmio;
 };
 
 static void cxl_fmws_update(Object *obj, void *opaque)
@@ -397,7 +398,9 @@ static void cxl_fmws_update(Object *obj, void *opaque)
     fw = CXL_FMW(obj);
     if (s->base + fw->size <= s->maxaddr) {
         fw->base = s->base;
-        sysbus_mmio_map(SYS_BUS_DEVICE(fw), 0, fw->base);
+        if (s->update_mmio) {
+            sysbus_mmio_map(SYS_BUS_DEVICE(fw), 0, fw->base);
+        }
         s->base += fw->size;
     }
 
@@ -438,13 +441,14 @@ GSList *cxl_fmws_get_all_sorted(void)
     return g_slist_sort_with_data(cxl_fmws_get_all(), cfmws_cmp, NULL);
 }
 
-hwaddr cxl_fmws_set_memmap_and_update_mmio(hwaddr base, hwaddr max_addr)
+hwaddr cxl_fmws_set_memmap(hwaddr base, hwaddr max_addr)
 {
     GSList *cfmws_list, *iter;
 
     struct cfmw_update_state cfmwss = {
         .base = base,
         .maxaddr = max_addr,
+        .update_mmio = false,
     };
     cfmws_list = cxl_fmws_get_all_sorted();
     for (iter = cfmws_list; iter; iter = iter->next) {
@@ -453,6 +457,44 @@ hwaddr cxl_fmws_set_memmap_and_update_mmio(hwaddr base, hwaddr max_addr)
     g_slist_free(cfmws_list);
 
     return cfmwss.base;
+}
+
+hwaddr cxl_fmws_set_memmap_and_update_mmio(hwaddr base, hwaddr max_addr)
+{
+    GSList *cfmws_list, *iter;
+
+    struct cfmw_update_state cfmwss = {
+        .base = base,
+        .maxaddr = max_addr,
+        .update_mmio = true,
+    };
+    cfmws_list = cxl_fmws_get_all_sorted();
+    for (iter = cfmws_list; iter; iter = iter->next) {
+        cxl_fmws_update(iter->data, &cfmwss);
+    }
+    g_slist_free(cfmws_list);
+
+    return cfmwss.base;
+}
+
+static int cxl_fmws_mmio_map(Object *obj, void *opaque)
+{
+    struct CXLFixedWindow *fw;
+
+    if (!object_dynamic_cast(obj, TYPE_CXL_FMW)) {
+        return 0;
+    }
+    fw = CXL_FMW(obj);
+    sysbus_mmio_map(SYS_BUS_DEVICE(fw), 0, fw->base);
+
+    return 0;
+}
+
+void cxl_fmws_update_mmio(void)
+{
+    /* Ordering is not required for this */
+    object_child_foreach_recursive(object_get_root(), cxl_fmws_mmio_map,
+                                   NULL);
 }
 
 static void cxl_fmw_realize(DeviceState *dev, Error **errp)
