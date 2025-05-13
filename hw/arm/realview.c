@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/primecell.h"
@@ -31,6 +30,7 @@
 #include "hw/sd/sd.h"
 #include "audio/audio.h"
 #include "target/arm/cpu-qom.h"
+#include "target/arm/cpu_has_feature.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
@@ -77,7 +77,6 @@ static void realview_init(MachineState *machine,
                           enum realview_board_type board_type)
 {
     ARMCPU *cpu = NULL;
-    CPUARMState *env;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram_lo;
     MemoryRegion *ram_hi = g_new(MemoryRegion, 1);
@@ -138,16 +137,15 @@ static void realview_init(MachineState *machine,
         cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpuobj), ARM_CPU_IRQ);
     }
     cpu = ARM_CPU(first_cpu);
-    env = &cpu->env;
-    if (arm_feature(env, ARM_FEATURE_V7)) {
+    if (arm_cpu_has_feature(cpu, ARM_FEATURE_V7)) {
         if (is_mpcore) {
             proc_id = 0x0c000000;
         } else {
             proc_id = 0x0e000000;
         }
-    } else if (arm_feature(env, ARM_FEATURE_V6K)) {
+    } else if (arm_cpu_has_feature(cpu, ARM_FEATURE_V6K)) {
         proc_id = 0x06000000;
-    } else if (arm_feature(env, ARM_FEATURE_V6)) {
+    } else if (arm_cpu_has_feature(cpu, ARM_FEATURE_V6)) {
         proc_id = 0x04000000;
     } else {
         proc_id = 0x02000000;
