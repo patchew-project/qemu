@@ -1212,10 +1212,16 @@ static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
     return 0;
 }
 
-static bool virtio_pci_query_guest_notifiers(DeviceState *d)
+static bool virtio_pci_query_guest_notifiers(DeviceState *d, int n)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
-    return msix_enabled(&proxy->pci_dev);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    if (msix_enabled(&proxy->pci_dev)) {
+        return virtio_queue_vector(vdev, n) != VIRTIO_NO_VECTOR;
+    } else {
+        return !pci_irq_disabled(&proxy->pci_dev);
+    }
 }
 
 static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)

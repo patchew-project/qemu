@@ -936,11 +936,14 @@ static void virtio_ccw_vmstate_change(DeviceState *d, bool running)
     }
 }
 
-static bool virtio_ccw_query_guest_notifiers(DeviceState *d)
+static bool virtio_ccw_query_guest_notifiers(DeviceState *d, int n)
 {
     CcwDevice *dev = CCW_DEVICE(d);
+    VirtioCcwDevice *vdev = VIRTIO_CCW_DEVICE(d);
+    VirtIODevice *virtio_dev = virtio_bus_get_device(&vdev->bus);
 
-    return !!(dev->sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA);
+    return !!(dev->sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA)
+            && virtio_queue_vector(virtio_dev, n) != VIRTIO_NO_VECTOR;
 }
 
 static int virtio_ccw_get_mappings(VirtioCcwDevice *dev)

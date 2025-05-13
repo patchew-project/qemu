@@ -48,7 +48,7 @@ struct VirtioBusClass {
     int (*load_done)(DeviceState *d, QEMUFile *f);
     int (*load_extra_state)(DeviceState *d, QEMUFile *f);
     bool (*has_extra_state)(DeviceState *d);
-    bool (*query_guest_notifiers)(DeviceState *d);
+    bool (*query_guest_notifiers)(DeviceState *d, int n);
     int (*set_guest_notifiers)(DeviceState *d, int nvqs, bool assign);
     int (*set_host_notifier_mr)(DeviceState *d, int n,
                                 MemoryRegion *mr, bool assign);
