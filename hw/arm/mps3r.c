@@ -29,7 +29,6 @@
 #include "qapi/error.h"
 #include "qobject/qlist.h"
 #include "system/address-spaces.h"
-#include "cpu.h"
 #include "system/system.h"
 #include "hw/boards.h"
 #include "hw/or-irq.h"

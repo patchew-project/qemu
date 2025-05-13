@@ -35,7 +35,6 @@
 #include "hw/cpu/a15mpcore.h"
 #include "qemu/log.h"
 #include "qom/object.h"
-#include "cpu.h"
 #include "target/arm/cpu-qom.h"
 
 #define SMP_BOOT_ADDR           0x100
