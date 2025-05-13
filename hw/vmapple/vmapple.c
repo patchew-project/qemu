@@ -53,6 +53,7 @@
 #include "system/system.h"
 #include "target/arm/gtimer.h"
 #include "target/arm/multiprocessing.h"
+#include "target/arm/psci.h"
 
 struct VMAppleMachineState {
     MachineState parent;

@@ -12,6 +12,7 @@
 #define HW_ARM_BOOT_H
 
 #include "target/arm/cpu-qom.h"
+//#include "target/arm/psci.h"
 #include "qemu/notify.h"
 
 typedef enum {
@@ -100,7 +101,7 @@ struct arm_boot_info {
      * as the conduit specifies calls should go to (eg guest firmware booted
      * to EL3) then PSCI will not be enabled.
      */
-    int psci_conduit;
+    int psci_conduit;//
     /* Used internally by arm_boot.c */
     int is_linux;
     hwaddr initrd_start;

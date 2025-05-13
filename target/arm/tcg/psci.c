@@ -25,6 +25,7 @@
 #include "internals.h"
 #include "arm-powerctl.h"
 #include "target/arm/multiprocessing.h"
+#include "target/arm/psci.h"
 
 bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
 {

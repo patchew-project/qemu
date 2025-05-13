@@ -18,6 +18,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "system/qtest.h"
+#include "target/arm/psci.h"
 
 static void mcimx6ul_evk_init(MachineState *machine)
 {

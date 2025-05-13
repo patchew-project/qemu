@@ -3098,11 +3098,8 @@ static inline bool bswap_code(bool sctlr_b)
 #endif
 }
 
-enum {
-    QEMU_PSCI_CONDUIT_DISABLED = 0,
-    QEMU_PSCI_CONDUIT_SMC = 1,
-    QEMU_PSCI_CONDUIT_HVC = 2,
-};
+void cpu_get_tb_cpu_state(CPUARMState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags);
 
 #ifndef CONFIG_USER_ONLY
 /* Return the address space index to use for a memory access */

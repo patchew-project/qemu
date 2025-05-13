@@ -33,6 +33,7 @@
 #include "target/arm/internals.h"
 #include "target/arm/multiprocessing.h"
 #include "target/arm/gtimer.h"
+#include "target/arm/psci.h"
 #include "trace.h"
 #include "migration/vmstate.h"
 

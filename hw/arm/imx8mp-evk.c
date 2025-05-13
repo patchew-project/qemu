@@ -15,6 +15,7 @@
 #include "system/qtest.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "target/arm/psci.h"
 #include <libfdt.h>
 
 static void imx8mp_evk_modify_dtb(const struct arm_boot_info *info, void *fdt)
