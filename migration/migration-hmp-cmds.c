@@ -58,8 +58,6 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 
     info = qmp_query_migrate(NULL);
 
-    migration_global_dump(mon);
-
     if (info->blocked_reasons) {
         strList *reasons = info->blocked_reasons;
         monitor_printf(mon, "Outgoing migration blocked:\n");
@@ -234,6 +232,8 @@ void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict)
 void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
 {
     MigrationParameters *params;
+
+    migration_global_dump(mon);
 
     params = qmp_query_migrate_parameters(NULL);
 
