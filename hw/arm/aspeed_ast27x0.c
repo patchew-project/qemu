@@ -22,6 +22,7 @@
 #include "hw/intc/arm_gicv3.h"
 #include "qobject/qlist.h"
 #include "qemu/log.h"
+#include "target/arm/multiprocessing.h"
 
 #define AST2700_SOC_IO_SIZE          0x01000000
 #define AST2700_SOC_IOMEM_SIZE       0x01000000
