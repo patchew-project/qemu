@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "cpregs.h"
 #include "qemu/module.h"
 #include "qemu/units.h"

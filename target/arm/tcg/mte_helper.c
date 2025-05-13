@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "internals.h"
 #include "exec/page-protection.h"
 #ifdef CONFIG_USER_ONLY

@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "fpu/softfloat.h"
 #include "vec_internal.h"

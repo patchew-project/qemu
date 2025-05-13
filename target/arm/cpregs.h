@@ -23,7 +23,7 @@
 
 #include "hw/registerfields.h"
 #include "target/arm/kvm-consts.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 
 /*
  * ARMCPRegInfo type field bits:

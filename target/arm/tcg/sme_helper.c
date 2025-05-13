@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "internals.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "exec/helper-proto.h"

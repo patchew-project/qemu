@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "qemu/error-report.h"
 #include "system/kvm.h"
 #include "system/tcg.h"

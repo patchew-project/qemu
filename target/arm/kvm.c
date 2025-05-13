@@ -25,7 +25,7 @@
 #include "system/kvm.h"
 #include "system/kvm_int.h"
 #include "kvm_arm.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "trace.h"
 #include "internals.h"
 #include "hw/pci/pci.h"

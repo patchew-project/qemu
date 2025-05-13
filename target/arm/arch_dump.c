@@ -19,7 +19,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "elf.h"
 #include "system/dump.h"
 #include "cpu-features.h"

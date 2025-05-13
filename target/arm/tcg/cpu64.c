@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "qemu/module.h"
 #include "qapi/visitor.h"
 #include "hw/qdev-properties.h"

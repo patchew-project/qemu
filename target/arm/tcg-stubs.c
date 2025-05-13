@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "internals.h"
 
 void write_v7m_exception(CPUARMState *env, uint32_t new_exc)

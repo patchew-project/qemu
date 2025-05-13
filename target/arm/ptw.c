@@ -14,7 +14,7 @@
 #include "exec/target_page.h"
 #include "exec/tlb-flags.h"
 #include "accel/tcg/probe.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "idau.h"

@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "accel/tcg/cpu-ops.h"
 #include "internals.h"
 #include "target/arm/idau.h"

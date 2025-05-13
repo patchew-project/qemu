@@ -18,7 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/target_page.h"
 #include "internals.h"

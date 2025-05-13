@@ -9,7 +9,7 @@
 #include "qemu/log.h"
 #include "exec/cputlb.h"
 #include "exec/target_page.h"
-#include "cpu.h"
+#include "target/arm/cpu.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "cpregs.h"
