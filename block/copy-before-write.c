@@ -207,10 +207,11 @@ static int coroutine_fn GRAPH_RDLOCK cbw_co_flush(BlockDriverState *bs)
  */
 static BlockReq * coroutine_fn GRAPH_RDLOCK
 cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset, int64_t bytes,
-                       int64_t *pnum, BdrvChild **file)
+                       int64_t *pnum, BdrvChild **file, bool query)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
     BlockReq *req = g_new(BlockReq, 1);
+    int64_t next_dirty;
     bool done;
 
     QEMU_LOCK_GUARD(&s->lock);
@@ -220,9 +221,13 @@ cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset, int64_t bytes,
         return NULL;
     }
 
-    if (bdrv_dirty_bitmap_next_dirty(s->access_bitmap, offset, bytes) != -1) {
-        g_free(req);
-        return NULL;
+    next_dirty = bdrv_dirty_bitmap_next_dirty(s->access_bitmap, offset, bytes);
+    if (next_dirty != -1) {
+        if (!query || next_dirty == offset) {
+            g_free(req);
+            return NULL;
+        }
+        bytes = offset + bytes - next_dirty;
     }
 
     done = bdrv_dirty_bitmap_status(s->done_bitmap, offset, bytes, pnum);
@@ -270,7 +275,8 @@ cbw_co_preadv_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes,
     while (bytes) {
         int64_t cur_bytes;
 
-        req = cbw_snapshot_read_lock(bs, offset, bytes, &cur_bytes, &file);
+        req = cbw_snapshot_read_lock(bs, offset, bytes, &cur_bytes, &file,
+                                     false);
         if (!req) {
             return -EACCES;
         }
@@ -302,7 +308,7 @@ cbw_co_snapshot_block_status(BlockDriverState *bs, unsigned int mode,
     int64_t cur_bytes;
     BdrvChild *child;
 
-    req = cbw_snapshot_read_lock(bs, offset, bytes, &cur_bytes, &child);
+    req = cbw_snapshot_read_lock(bs, offset, bytes, &cur_bytes, &child, true);
     if (!req) {
         return -EACCES;
     }
