@@ -52,6 +52,7 @@
 #include "cpregs.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"
+#include "target/arm/multiprocessing.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
