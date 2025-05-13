@@ -221,7 +221,13 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
 
     object_initialize_child(OBJECT(s), "rpu-cluster", &s->rpu_cluster,
                             TYPE_CPU_CLUSTER);
-    qdev_prop_set_uint32(DEVICE(&s->rpu_cluster), "cluster-id", 1);
+
+    /* In order to connect gdb to the boot cpu, adjust the cluster-id.  */
+    if (!strncmp(boot_cpu, "rpu-cpu", 7)) {
+        qdev_prop_set_uint32(DEVICE(&s->rpu_cluster), "cluster-id", 0);
+    } else {
+        qdev_prop_set_uint32(DEVICE(&s->rpu_cluster), "cluster-id", 1);
+    }
 
     for (i = 0; i < num_rpus; i++) {
         const char *name;
@@ -380,7 +386,6 @@ static void xlnx_zynqmp_init(Object *obj)
 
     object_initialize_child(obj, "apu-cluster", &s->apu_cluster,
                             TYPE_CPU_CLUSTER);
-    qdev_prop_set_uint32(DEVICE(&s->apu_cluster), "cluster-id", 0);
 
     for (i = 0; i < num_apus; i++) {
         object_initialize_child(OBJECT(&s->apu_cluster), "apu-cpu[*]",
@@ -474,6 +479,13 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     DeviceState *splitter;
 
     ram_size = memory_region_size(s->ddr_ram);
+
+    /* In order to connect gdb to the boot cpu, adjust the cluster-id.  */
+    if (!strncmp(boot_cpu, "apu-cpu", 7)) {
+        qdev_prop_set_uint32(DEVICE(&s->apu_cluster), "cluster-id", 0);
+    } else {
+        qdev_prop_set_uint32(DEVICE(&s->apu_cluster), "cluster-id", 1);
+    }
 
     /*
      * Create the DDR Memory Regions. User friendly checks should happen at
