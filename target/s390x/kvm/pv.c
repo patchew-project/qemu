@@ -313,12 +313,6 @@ struct S390PVGuest {
     ConfidentialGuestSupport parent_obj;
 };
 
-typedef struct S390PVGuestClass S390PVGuestClass;
-
-struct S390PVGuestClass {
-    ConfidentialGuestSupportClass parent_class;
-};
-
 /*
  * If protected virtualization is enabled, the amount of data that the
  * Read SCP Info Service Call can use is limited to one page. The
@@ -380,12 +374,12 @@ static int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     return 0;
 }
 
-OBJECT_DEFINE_TYPE_WITH_INTERFACES(S390PVGuest,
-                                   s390_pv_guest,
-                                   S390_PV_GUEST,
-                                   CONFIDENTIAL_GUEST_SUPPORT,
-                                   { TYPE_USER_CREATABLE },
-                                   { NULL })
+OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(S390PVGuest,
+                                          s390_pv_guest,
+                                          S390_PV_GUEST,
+                                          CONFIDENTIAL_GUEST_SUPPORT,
+                                          { TYPE_USER_CREATABLE },
+                                          { NULL })
 
 static void s390_pv_guest_class_init(ObjectClass *oc, const void *data)
 {
