@@ -6,6 +6,7 @@
 #include "qemu/osdep.h"
 #include "disas/disas.h"
 #include "disas/capstone.h"
+#include "disas/x86.h"
 #include "disas-internal.h"
 
 
@@ -50,12 +51,16 @@ static void initialize_debug_host(CPUDebug *s)
     s->info.cap_mode = CS_MODE_32;
     s->info.cap_insn_unit = 1;
     s->info.cap_insn_split = 8;
+    s->info.private_data = x86_ctx_create(x86_modes_32);
+    s->info.print_insn = print_insn_x86;
 #elif defined(__x86_64__)
     s->info.mach = bfd_mach_x86_64;
     s->info.cap_arch = CS_ARCH_X86;
     s->info.cap_mode = CS_MODE_64;
     s->info.cap_insn_unit = 1;
     s->info.cap_insn_split = 8;
+    s->info.private_data = x86_ctx_create(x86_modes_64);
+    s->info.print_insn = print_insn_x86;
 #elif defined(_ARCH_PPC)
     s->info.cap_arch = CS_ARCH_PPC;
 # ifdef _ARCH_PPC64
