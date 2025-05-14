@@ -249,7 +249,7 @@ struct Object
  * declared.
  *
  * This macro should be used unless the class struct needs to have
- * virtual methods declared.
+ * virtual methods or fields declared.
  */
 #define OBJECT_DECLARE_SIMPLE_TYPE(InstanceType, MODULE_OBJ_NAME) \
     typedef struct InstanceType InstanceType; \
@@ -402,7 +402,8 @@ struct Object
  *
  * This is a variant of OBJECT_DEFINE_TYPE_EXTENDED, which is suitable for
  * the case of a non-abstract type, with interfaces, and with no requirement
- * for a class struct.
+ * for a class struct. If you declared your type with OBJECT_DECLARE_SIMPLE_TYPE
+ * then this is probably the right choice for defining it.
  */
 #define OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(ModuleObjName, \
                                                   module_obj_name, \
