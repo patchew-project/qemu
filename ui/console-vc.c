@@ -70,17 +70,19 @@ typedef struct QemuTextConsole {
     Fifo8 out_fifo;
 } QemuTextConsole;
 
-typedef QemuConsoleClass QemuTextConsoleClass;
-
-OBJECT_DEFINE_TYPE(QemuTextConsole, qemu_text_console, QEMU_TEXT_CONSOLE, QEMU_CONSOLE)
+OBJECT_DEFINE_SIMPLE_TYPE(QemuTextConsole,
+                          qemu_text_console,
+                          QEMU_TEXT_CONSOLE,
+                          QEMU_CONSOLE)
 
 typedef struct QemuFixedTextConsole {
     QemuTextConsole parent;
 } QemuFixedTextConsole;
 
-typedef QemuTextConsoleClass QemuFixedTextConsoleClass;
-
-OBJECT_DEFINE_TYPE(QemuFixedTextConsole, qemu_fixed_text_console, QEMU_FIXED_TEXT_CONSOLE, QEMU_TEXT_CONSOLE)
+OBJECT_DEFINE_SIMPLE_TYPE(QemuFixedTextConsole,
+                          qemu_fixed_text_console,
+                          QEMU_FIXED_TEXT_CONSOLE,
+                          QEMU_TEXT_CONSOLE)
 
 struct VCChardev {
     Chardev parent;
