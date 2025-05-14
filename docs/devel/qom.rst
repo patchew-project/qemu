@@ -326,20 +326,11 @@ This is equivalent to the following:
    :caption: Expansion from declaring a simple type
 
    typedef struct MyDevice MyDevice;
-   typedef struct MyDeviceClass MyDeviceClass;
 
-   G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDeviceClass, object_unref)
+   G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDevice, object_unref)
 
-   #define MY_DEVICE_GET_CLASS(void *obj) \
-           OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
-   #define MY_DEVICE_CLASS(void *klass) \
-           OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
    #define MY_DEVICE(void *obj)
            OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
-
-   struct MyDeviceClass {
-       DeviceClass parent_class;
-   };
 
 The 'struct MyDevice' needs to be declared separately.
 If the type requires virtual functions to be declared in the class
