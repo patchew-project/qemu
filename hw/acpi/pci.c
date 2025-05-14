@@ -75,16 +75,12 @@ typedef struct AcpiGenericInitiator {
     uint32_t node;
 } AcpiGenericInitiator;
 
-typedef struct AcpiGenericInitiatorClass {
-    ObjectClass parent_class;
-} AcpiGenericInitiatorClass;
-
 #define TYPE_ACPI_GENERIC_INITIATOR "acpi-generic-initiator"
 
-OBJECT_DEFINE_TYPE_WITH_INTERFACES(AcpiGenericInitiator, acpi_generic_initiator,
-                   ACPI_GENERIC_INITIATOR, OBJECT,
-                   { TYPE_USER_CREATABLE },
-                   { NULL })
+OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(AcpiGenericInitiator, acpi_generic_initiator,
+                                          ACPI_GENERIC_INITIATOR, OBJECT,
+                                          { TYPE_USER_CREATABLE },
+                                          { NULL })
 
 OBJECT_DECLARE_SIMPLE_TYPE(AcpiGenericInitiator, ACPI_GENERIC_INITIATOR)
 
@@ -191,16 +187,12 @@ typedef struct AcpiGenericPort {
     uint32_t node;
 } AcpiGenericPort;
 
-typedef struct AcpiGenericPortClass {
-    ObjectClass parent_class;
-} AcpiGenericPortClass;
-
 #define TYPE_ACPI_GENERIC_PORT "acpi-generic-port"
 
-OBJECT_DEFINE_TYPE_WITH_INTERFACES(AcpiGenericPort, acpi_generic_port,
-                   ACPI_GENERIC_PORT, OBJECT,
-                   { TYPE_USER_CREATABLE },
-                   { NULL })
+OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(AcpiGenericPort, acpi_generic_port,
+                                          ACPI_GENERIC_PORT, OBJECT,
+                                          { TYPE_USER_CREATABLE },
+                                          { NULL })
 
 OBJECT_DECLARE_SIMPLE_TYPE(AcpiGenericPort, ACPI_GENERIC_PORT)
 
