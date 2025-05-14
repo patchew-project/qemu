@@ -20,11 +20,6 @@
 OBJECT_DECLARE_SIMPLE_TYPE(PefGuest, PEF_GUEST)
 
 typedef struct PefGuest PefGuest;
-typedef struct PefGuestClass PefGuestClass;
-
-struct PefGuestClass {
-    ConfidentialGuestSupportClass parent_class;
-};
 
 /**
  * PefGuest:
@@ -121,12 +116,12 @@ static int pef_kvm_reset(ConfidentialGuestSupport *cgs, Error **errp)
     return kvmppc_svm_off(errp);
 }
 
-OBJECT_DEFINE_TYPE_WITH_INTERFACES(PefGuest,
-                                   pef_guest,
-                                   PEF_GUEST,
-                                   CONFIDENTIAL_GUEST_SUPPORT,
-                                   { TYPE_USER_CREATABLE },
-                                   { NULL })
+OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(PefGuest,
+                                          pef_guest,
+                                          PEF_GUEST,
+                                          CONFIDENTIAL_GUEST_SUPPORT,
+                                          { TYPE_USER_CREATABLE },
+                                          { NULL })
 
 static void pef_guest_class_init(ObjectClass *oc, const void *data)
 {
