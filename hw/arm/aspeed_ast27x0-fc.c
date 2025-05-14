@@ -48,7 +48,7 @@ struct Ast2700FCState {
     bool mmio_exec;
 };
 
-#define AST2700FC_BMC_RAM_SIZE (2 * GiB)
+#define AST2700FC_BMC_RAM_SIZE (1 * GiB)
 #define AST2700FC_CM4_DRAM_SIZE (32 * MiB)
 
 #define AST2700FC_HW_STRAP1 0x000000C0
@@ -59,6 +59,7 @@ struct Ast2700FCState {
 static void ast2700fc_ca35_init(MachineState *machine)
 {
     Ast2700FCState *s = AST2700A1FC(machine);
+    AspeedMachineClass *amc = ASPEED_MACHINE_GET_CLASS(machine);
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
 
@@ -85,6 +86,14 @@ static void ast2700fc_ca35_init(MachineState *machine)
     if (!object_property_set_int(OBJECT(&s->ca35), "ram-size",
                                  AST2700FC_BMC_RAM_SIZE, &error_abort)) {
         return;
+    }
+
+    for (int i = 0; i < sc->macs_num; i++) {
+        if ((amc->macs_mask & (1 << i)) &&
+            !qemu_configure_nic_device(DEVICE(&soc->ftgmac100[i]),
+                                       true, NULL)) {
+            break;
+        }
     }
     if (!object_property_set_int(OBJECT(&s->ca35), "hw-strap1",
                                  AST2700FC_HW_STRAP1, &error_abort)) {
@@ -171,6 +180,7 @@ static void ast2700fc_init(MachineState *machine)
 static void ast2700fc_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
     mc->alias = "ast2700fc";
     mc->desc = "ast2700 full core support";
@@ -178,12 +188,13 @@ static void ast2700fc_class_init(ObjectClass *oc, const void *data)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->min_cpus = mc->max_cpus = mc->default_cpus = 6;
+    amc->macs_mask = ASPEED_MAC0_ON | ASPEED_MAC1_ON | ASPEED_MAC2_ON;
 }
 
 static const TypeInfo ast2700fc_types[] = {
     {
         .name           = MACHINE_TYPE_NAME("ast2700fc"),
-        .parent         = TYPE_MACHINE,
+        .parent         = TYPE_ASPEED_MACHINE,
         .class_init     = ast2700fc_class_init,
         .instance_size  = sizeof(Ast2700FCState),
     },
