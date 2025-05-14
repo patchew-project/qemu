@@ -1,0 +1,3 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"RDPKRU","LEX.0F.W0 01 EE","Valid","Valid","Valid","OSPKE","","","","","","Reads PKRU into EAX."
+"WRPKRU","LEX.0F.W0 01 EF","Valid","Valid","Valid","OSPKE","","","","","","Writes EAX into PKRU."

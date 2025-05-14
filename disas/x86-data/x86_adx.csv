@@ -1,0 +1,5 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"ADCX rw, rw/mw","LEX.66.0F38.W0 F6 /r","Valid","Valid","Invalid","ADX","ModRM:reg (r, w)","ModRM:r/m (r)","","","","Unsigned addition of r with CF, r/m to r, writes CF."
+"ADCX rw, rw/mw","LEX.66.0F38.W1 F6 /r","Valid","Invalid","Invalid","ADX","ModRM:reg (r, w)","ModRM:r/m (r)","","","","Unsigned addition of r with CF, r/m to r, writes CF."
+"ADOX rw, rw/mw","LEX.F3.0F38.W0 F6 /r","Valid","Valid","Invalid","ADX","ModRM:reg (r, w)","ModRM:r/m (r)","","","","Unsigned addition of r with OF, r/m to r, writes OF."
+"ADOX rw, rw/mw","LEX.F3.0F38.W1 F6 /r","Valid","Invalid","Invalid","ADX","ModRM:reg (r, w)","ModRM:r/m (r)","","","","Unsigned addition of r with OF, r/m to r, writes OF."

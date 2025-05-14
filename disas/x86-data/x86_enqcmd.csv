@@ -1,0 +1,3 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"ENQCMD r64,m512","LEX.F2.0F38.W0 f8 /r","Valid","Valid","Invalid","ENQCMD","ModRM:reg (w)","ModRM:r/m (r)","","","","Atomically enqueue 64-byte user command from source memory operand to destination offset in ES segment specified in register operand as offset in ES segment."
+"ENQCMDS r64,m512","LEX.F3.0F38.W0 f8 /r","Valid","Valid","Invalid","ENQCMD","ModRM:reg (w)","ModRM:r/m (r)","","","","Atomically enqueue 64-byte command with PASID from source memory operand to destination offset in ES segment specified in register operand as offset in ES segment."

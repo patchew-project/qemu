@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"VCVTPS2PD ymm1 {k1}{z}, xmm2/m128/m32bcst","EVEX.256.0F.W0 5A /r","Valid","Valid","Invalid","AVX512VL","ModRM:reg (w)","ModRM:r/m (r)","","","Half Vector","Convert four packed single-precision floating-point values in xmm2/m128/m32bcst to packed double-precision floating-point values in ymm1 with writemask k1."

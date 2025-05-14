@@ -1,0 +1,3 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"VPEXTRW r32/m16, xmm2, ib","EVEX.128.66.0F3A.WIG 15 /r ib","Valid","Valid","Invalid","AVX512B","ModRM:r/m (w)","ModRM:reg (r)","ib","","Tuple1 Scalar","Extract a word integer value from xmm2 at the source word offset specified by ib into reg or m16. The upper bits of r are zeroed."
+"VPEXTRW r32, xmm1, ib","EVEX.128.66.0F.WIG C5 /r ib","Valid","Valid","Invalid","AVX512B","ModRM:reg (w)","ModRM:r/m (r)","ib","","","Extract the word specified by ib from xmm1 and move it to reg, bits 15:0. Zero-extend the result. The upper bits of r are zeroed."

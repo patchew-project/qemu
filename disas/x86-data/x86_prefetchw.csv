@@ -1,0 +1,7 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"PREFETCHNTA m8","LEX.0F.W0 18 /0","Valid","Valid","Valid","PREFETCHW","ModRM:r/m (r)","","","","","Move data from m8 closer to the processor using NTA hint."
+"PREFETCHT0 m8","LEX.0F.W0 18 /1","Valid","Valid","Valid","PREFETCHW","ModRM:r/m (r)","","","","","Move data from m8 closer to the processor using T0 hint."
+"PREFETCHT1 m8","LEX.0F.W0 18 /2","Valid","Valid","Valid","PREFETCHW","ModRM:r/m (r)","","","","","Move data from m8 closer to the processor using T1 hint."
+"PREFETCHT2 m8","LEX.0F.W0 18 /3","Valid","Valid","Valid","PREFETCHW","ModRM:r/m (r)","","","","","Move data from m8 closer to the processor using T2 hint."
+"PREFETCHW m8","LEX.0F.W0 0D /1","Valid","Valid","Invalid","PREFETCHW","ModRM:r/m (r)","","","","","Move data from m8 closer to the processor in anticipation of a write."
+"PREFETCHWT1 m8","LEX.0F.W0 0D /2","Valid","Valid","Invalid","PREFETCHW","ModRM:r/m (r)","","","","","Move data from m8 closer to the processor using T1 hint with intent to write."
