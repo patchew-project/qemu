@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"WBNOINVD","LEX.F3.0F.W0 09","Valid","Valid","Invalid","WBNOINVD","","","","","","Write back and do not flush internal caches; initiate writing-back without flushing of external caches."

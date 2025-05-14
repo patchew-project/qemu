@@ -1,0 +1,2 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"HRESET ib","LEX.F3.0F3A.W0 F0 C0 ib","Valid","Valid","Invalid","HRESET","ib","RAX (r)","","","","Processor history reset request. Controlled by the EAX implicit operand."

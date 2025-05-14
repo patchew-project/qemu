@@ -1,0 +1,3 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"MOVDIRI mw, rw","LEX.0F38.W0 F9 /r o32","Valid","Valid","Invalid","MOVDIRI","ModRM:r/m (w)","ModRM:reg (r)","","","","Move doubleword as Direct Store."
+"MOVDIRI mw, rw","LEX.0F38.W1 F9 /r o64","Valid","Valid","Invalid","MOVDIRI","ModRM:r/m (w)","ModRM:reg (r)","","","","Move quadword as Direct Store."

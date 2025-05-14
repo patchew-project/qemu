@@ -1,0 +1,6 @@
+"Instruction","Opcode","Valid 64-bit","Valid 32-bit","Valid 16-bit","Feature Flags","Operand 1","Operand 2","Operand 3","Operand 4","Tuple Type","Description"
+"CLUI","LEX.F3.0F.W0 01 ee","Valid","Valid","Invalid","UINTR","","","","","","Clear user interrupt flag; user interrupts blocked when user interrupt flag cleared."
+"SENDUIPI rw","LEX.F3.0F.W0 c7 /6","Valid","Valid","Invalid","UINTR","ModRM:r/m (r)","","","","","Send interprocessor user interrupt."
+"STUI","LEX.F3.0F.W0 01 ef","Valid","Valid","Invalid","UINTR","","","","","","Set user interrupt flag."
+"TESTUI","LEX.F3.0F.W0 01 ed","Valid","Valid","Invalid","UINTR","","","","","","Copies the current value of UIF into EFLAGS.CF."
+"UIRET","LEX.F3.0F.W0 01 ec","Valid","Valid","Invalid","UINTR","","","","","","Return from handling a user interrupt."
