@@ -8,6 +8,6 @@
 //! Precision Event Timers) device in QEMU.
 
 pub mod fw_cfg;
-pub mod hpet;
+pub mod device;
 
 pub const TYPE_HPET: &::std::ffi::CStr = c"hpet";
