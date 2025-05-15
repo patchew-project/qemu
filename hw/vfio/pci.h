@@ -220,6 +220,14 @@ Object *vfio_pci_get_object(VFIODevice *vbasedev);
 int vfio_pci_save_config(VFIODevice *vbasedev, QEMUFile *f, Error **errp);
 int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f);
 void vfio_pci_put_device(VFIOPCIDevice *vdev);
+bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp);
+void vfio_teardown_msi(VFIOPCIDevice *vdev);
+void vfio_bars_exit(VFIOPCIDevice *vdev);
+bool vfio_add_capabilities(VFIOPCIDevice *vdev, Error **errp);
+void vfio_register_err_notifier(VFIOPCIDevice *vdev);
+void vfio_register_req_notifier(VFIOPCIDevice *vdev);
+bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp);
+bool vfio_interrupt_setup(VFIOPCIDevice *vdev, Error **errp);
 
 uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size);
 void vfio_vga_write(void *opaque, hwaddr addr, uint64_t data, unsigned size);
