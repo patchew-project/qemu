@@ -15,7 +15,10 @@ class MicroblazeLittleEndianMachine(MicroblazeMachine):
     ASSET_IMAGE_LE = MicroblazeMachine.ASSET_IMAGE_LE
 
     def test_microblaze_s3adsp1800_legacy_le(self):
-        self.do_xmaton_le_test('petalogix-s3adsp1800')
+        self.do_xmaton_le_test()
+
+    def test_microblaze_s3adsp1800_legacy_be(self):
+        self.do_ballerina_be_test(force_endianness=True)
 
 
 if __name__ == '__main__':
