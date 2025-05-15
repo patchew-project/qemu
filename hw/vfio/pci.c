@@ -535,6 +535,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
 {
     VFIOPCIDevice *vdev = VFIO_PCI_BASE(pdev);
     VFIOMSIVector *vector;
+    bool new_vec = false;
     int ret;
     bool resizing = !!(vdev->nr_vectors < nr + 1);
 
@@ -549,6 +550,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
             error_report("vfio: Error: event_notifier_init failed");
         }
         vector->use = true;
+        new_vec = true;
         msix_vector_use(pdev, nr);
     }
 
@@ -575,6 +577,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
                 kvm_irqchip_commit_route_changes(&vfio_route_change);
                 vfio_connect_kvm_msi_virq(vector);
             }
+            new_vec = true;
         }
     }
 
@@ -583,6 +586,9 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
      * host allocate all possible MSI vectors for a device if they're not
      * in use, so we shutdown and incrementally increase them as needed.
      * nr_vectors represents the total number of vectors allocated.
+     *
+     * Otherwise, unmask the vector if the vector is already setup (and we can
+     * do so) or send the fd if not.
      *
      * When dynamic allocation is supported, let the host only allocate
      * and enable a vector when it is in use in guest. nr_vectors represents
@@ -594,13 +600,20 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     }
 
     if (!vdev->defer_kvm_irq_routing) {
-        if (vdev->msix->noresize && resizing) {
-            vfio_device_irq_disable(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
-            ret = vfio_enable_vectors(vdev, true);
-            if (ret) {
-                error_report("vfio: failed to enable vectors, %s",
-                             strerror(-ret));
+        if (resizing) {
+            if (vdev->msix->noresize) {
+                vfio_device_irq_disable(&vdev->vbasedev,
+                                        VFIO_PCI_MSIX_IRQ_INDEX);
+                ret = vfio_enable_vectors(vdev, true);
+                if (ret) {
+                    error_report("vfio: failed to enable vectors, %d", ret);
+                }
+            } else {
+                set_irq_signalling(&vdev->vbasedev, vector, nr);
             }
+        } else if (vdev->can_mask_msix && !new_vec) {
+            vfio_device_irq_unmask_single(&vdev->vbasedev,
+                                          VFIO_PCI_MSIX_IRQ_INDEX, nr);
         } else {
             set_irq_signalling(&vdev->vbasedev, vector, nr);
         }
@@ -629,6 +642,13 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
 
     trace_vfio_msix_vector_release(vdev->vbasedev.name, nr);
+
+    /* just mask vector if peer supports it */
+    if (vdev->can_mask_msix) {
+        vfio_device_irq_mask_single(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX,
+                                    nr);
+        return;
+    }
 
     /*
      * There are still old guests that mask and unmask vectors on every
@@ -702,6 +722,13 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
             error_report("vfio: failed to enable vectors, %s",
                          strerror(-ret));
         }
+    } else if (vdev->can_mask_msix) {
+        /*
+         * If we can use single irq masking, send an invalid fd on vector 0
+         * to enable MSI-X without any vectors enabled.
+         */
+        vfio_device_irq_set_signaling(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX,
+                                      0, VFIO_IRQ_SET_ACTION_TRIGGER, -1, NULL);
     } else {
         /*
          * Some communication channels between VF & PF or PF & fw rely on the
@@ -2840,6 +2867,14 @@ static bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
                               "requested feature x-vga\n");
             return false;
         }
+    }
+
+    ret = vfio_device_get_irq_info(vbasedev, VFIO_PCI_MSIX_IRQ_INDEX,
+                                   &irq_info);
+    if (ret == 0 && (irq_info.flags & VFIO_IRQ_INFO_MASKABLE)) {
+        vdev->can_mask_msix = true;
+    } else {
+        vdev->can_mask_msix = false;
     }
 
     ret = vfio_device_get_irq_info(vbasedev, VFIO_PCI_ERR_IRQ_INDEX, &irq_info);
