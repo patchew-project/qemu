@@ -298,6 +298,27 @@ static int qemu_rbd_set_auth(rados_t cluster, BlockdevOptionsRbd *opts,
     return 0;
 }
 
+static int qemu_rbd_set_key_value_pairs(rados_t cluster,
+                                        RbdKeyValuePairs *key_value_pairs,
+                                        Error **errp)
+{
+    if (!key_value_pairs) {
+        return 0;
+    }
+
+    if (key_value_pairs->has_rbd_cache_policy) {
+        RbdCachePolicy value = key_value_pairs->rbd_cache_policy;
+        int r = rados_conf_set(cluster, "rbd_cache_policy",
+                               RbdCachePolicy_str(value));
+        if (r < 0) {
+            error_setg_errno(errp, -r, "could not set 'rbd_cache_policy'");
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
+
 static int qemu_rbd_set_keypairs(rados_t cluster, const char *keypairs_json,
                                  Error **errp)
 {
@@ -791,6 +812,44 @@ exit:
     return ret;
 }
 
+static int qemu_rbd_extract_key_value_pairs(
+        QemuOpts *opts,
+        RbdKeyValuePairs **key_value_pairs,
+        Error **errp)
+{
+    QDict *opts_qdict;
+    QDict *key_value_pairs_qdict;
+    Visitor *v;
+    int ret = 0;
+
+    opts_qdict = qemu_opts_to_qdict(opts, NULL);
+    qdict_extract_subqdict(opts_qdict, &key_value_pairs_qdict,
+                           "key-value-pairs.");
+    qobject_unref(opts_qdict);
+    if (!qdict_size(key_value_pairs_qdict)) {
+        *key_value_pairs = NULL;
+        goto exit;
+    }
+
+    /* Convert options into a QAPI object */
+    v = qobject_input_visitor_new_flat_confused(key_value_pairs_qdict, errp);
+    if (!v) {
+        ret = -EINVAL;
+        goto exit;
+    }
+
+    visit_type_RbdKeyValuePairs(v, NULL, key_value_pairs, errp);
+    visit_free(v);
+    if (!*key_value_pairs) {
+        ret = -EINVAL;
+        goto exit;
+    }
+
+exit:
+    qobject_unref(key_value_pairs_qdict);
+    return ret;
+}
+
 static int coroutine_fn qemu_rbd_co_create_opts(BlockDriver *drv,
                                                 const char *filename,
                                                 QemuOpts *opts,
@@ -800,6 +859,7 @@ static int coroutine_fn qemu_rbd_co_create_opts(BlockDriver *drv,
     BlockdevCreateOptionsRbd *rbd_opts;
     BlockdevOptionsRbd *loc;
     RbdEncryptionCreateOptions *encrypt = NULL;
+    RbdKeyValuePairs *key_value_pairs = NULL;
     Error *local_err = NULL;
     const char *keypairs, *password_secret;
     QDict *options = NULL;
@@ -847,6 +907,13 @@ static int coroutine_fn qemu_rbd_co_create_opts(BlockDriver *drv,
     loc->q_namespace = g_strdup(qdict_get_try_str(options, "namespace"));
     loc->image       = g_strdup(qdict_get_try_str(options, "image"));
     keypairs         = qdict_get_try_str(options, "=keyvalue-pairs");
+
+    /* These are the key-value pairs coming in via the QAPI. */
+    ret = qemu_rbd_extract_key_value_pairs(opts, &key_value_pairs, errp);
+    if (ret < 0) {
+        goto exit;
+    }
+    loc->key_value_pairs = key_value_pairs;
 
     ret = qemu_rbd_do_create(create_options, keypairs, password_secret, errp);
     if (ret < 0) {
@@ -933,6 +1000,12 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
     }
 
     r = qemu_rbd_set_keypairs(*cluster, keypairs, errp);
+    if (r < 0) {
+        goto failed_shutdown;
+    }
+
+    /* For the key-value pairs coming via QAPI. */
+    r = qemu_rbd_set_key_value_pairs(*cluster, opts->key_value_pairs, errp);
     if (r < 0) {
         goto failed_shutdown;
     }

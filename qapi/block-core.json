@@ -4302,6 +4302,39 @@
             'luks2': 'RbdEncryptionCreateOptionsLUKS2' } }
 
 ##
+# @RbdCachePolicy:
+#
+# An enumeration of values for the 'rbd_cache_policy' Ceph
+# configuration setting.  See the Ceph documentation for details.
+#
+# @writearound: cachable writes return immediately, reads are not
+#     served from the cache.
+#
+# @writeback: cachable writes return immediately, reads are served
+#     from the cache.
+#
+# @writethrough: writes return only when the data is on disk for all
+#     replicas, reads are served from the cache.
+#
+# Since 10.1
+##
+{ 'enum' : 'RbdCachePolicy',
+  'data' : [ 'writearound', 'writeback', 'writethrough' ] }
+
+
+##
+# @RbdKeyValuePairs:
+#
+# Key-value pairs for Ceph configuration.
+#
+# @rbd-cache-policy: Ceph configuration option 'rbd_cache_policy'.
+#
+# Since 10.1
+##
+{ 'struct': 'RbdKeyValuePairs',
+  'data': { '*rbd-cache-policy': 'RbdCachePolicy' } }
+
+##
 # @BlockdevOptionsRbd:
 #
 # @pool: Ceph pool name.
@@ -4327,6 +4360,9 @@
 #     authentication.  This maps to Ceph configuration option "key".
 #     (Since 3.0)
 #
+# @key-value-pairs: Key-value pairs for additional Ceph configuraton.
+#     (Since 10.1)
+#
 # @server: Monitor host address and port.  This maps to the "mon_host"
 #     Ceph option.
 #
@@ -4342,6 +4378,7 @@
             '*user': 'str',
             '*auth-client-required': ['RbdAuthMode'],
             '*key-secret': 'str',
+            '*key-value-pairs' : 'RbdKeyValuePairs',
             '*server': ['InetSocketAddressBase'] } }
 
 ##
