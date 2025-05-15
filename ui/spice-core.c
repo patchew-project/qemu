@@ -56,6 +56,8 @@ struct SpiceTimer {
     QEMUTimer *timer;
 };
 
+#define MAX_REFRESH_RATE 30
+
 static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
 {
     SpiceTimer *timer;
@@ -492,6 +494,9 @@ static QemuOptsList qemu_spice_opts = {
             .name = "video-codecs",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "max-refresh-rate",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "agent-mouse",
             .type = QEMU_OPT_BOOL,
         },{
@@ -811,6 +816,12 @@ static void qemu_spice_init(void)
             error_report("invalid video codecs");
             exit(1);
         }
+    }
+
+    max_refresh_rate = qemu_opt_get_number(opts, "max-refresh-rate", MAX_REFRESH_RATE);
+    if (max_refresh_rate < 0) {
+        error_report("max refresh rate/fps is invalid");
+        exit(1);
     }
 
     spice_server_set_agent_mouse
