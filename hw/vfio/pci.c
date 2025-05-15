@@ -3017,6 +3017,19 @@ static bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIODevice *vbasedev = &vdev->vbasedev;
+    uint32_t config_space_size;
+    int ret;
+
+    config_space_size = MIN(pci_config_size(&vdev->pdev), vdev->config_size);
+
+    /* Get a copy of config space */
+    ret = vfio_pci_config_space_read(vdev, 0, config_space_size,
+                                     vdev->pdev.config);
+    if (ret < (int)config_space_size) {
+        ret = ret < 0 ? -ret : EFAULT;
+        error_setg_errno(errp, ret, "failed to read device config space");
+        return false;
+    }
 
     /* vfio emulates a lot for us, but some bits need extra love */
     vdev->emulated_config_bits = g_malloc0(vdev->config_size);
@@ -3143,10 +3156,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     ERRP_GUARD();
     VFIOPCIDevice *vdev = VFIO_PCI_BASE(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
-    int i, ret;
+    int i;
     char uuid[UUID_STR_LEN];
     g_autofree char *name = NULL;
-    uint32_t config_space_size;
 
     if (vbasedev->fd < 0 && !vbasedev->sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
@@ -3198,17 +3210,6 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     }
 
     if (!vfio_populate_device(vdev, errp)) {
-        goto error;
-    }
-
-    config_space_size = MIN(pci_config_size(&vdev->pdev), vdev->config_size);
-
-    /* Get a copy of config space */
-    ret = vfio_pci_config_space_read(vdev, 0, config_space_size,
-                                     vdev->pdev.config);
-    if (ret < (int)config_space_size) {
-        ret = ret < 0 ? -ret : EFAULT;
-        error_setg_errno(errp, ret, "failed to read device config space");
         goto error;
     }
 
