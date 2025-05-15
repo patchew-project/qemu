@@ -306,6 +306,14 @@ static int qemu_rbd_set_key_value_pairs(rados_t cluster,
         return 0;
     }
 
+    if (key_value_pairs->keyring) {
+        int r = rados_conf_set(cluster, "keyring", key_value_pairs->keyring);
+        if (r < 0) {
+            error_setg_errno(errp, -r, "could not set 'keyring'");
+            return -EINVAL;
+        }
+    }
+
     if (key_value_pairs->has_rbd_cache_policy) {
         RbdCachePolicy value = key_value_pairs->rbd_cache_policy;
         int r = rados_conf_set(cluster, "rbd_cache_policy",

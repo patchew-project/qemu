@@ -4327,12 +4327,15 @@
 #
 # Key-value pairs for Ceph configuration.
 #
+# @keyring: Ceph configuration option 'keyring'.
+#
 # @rbd-cache-policy: Ceph configuration option 'rbd_cache_policy'.
 #
 # Since 10.1
 ##
 { 'struct': 'RbdKeyValuePairs',
-  'data': { '*rbd-cache-policy': 'RbdCachePolicy' } }
+  'data': { '*keyring': 'str',
+            '*rbd-cache-policy': 'RbdCachePolicy' } }
 
 ##
 # @BlockdevOptionsRbd:
