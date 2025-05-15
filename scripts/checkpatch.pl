@@ -1496,6 +1496,13 @@ sub process_end_of_file {
 			     "' need 'SPDX-License-Identifier'?");
 		}
 	}
+	if ($fileinfo->{action} eq "new" &&
+	    !exists $fileinfo->{facts}->{sawboilerplate}) {
+		ERROR("New file '" . $fileinfo->{filenew} . "' must " .
+		      "not have license boilerplate header text unless " .
+		      "this file is copied from existing code with such " .
+		      "text already present.");
+	}
 }
 
 sub process {
@@ -1796,6 +1803,15 @@ sub process {
 		if ($rawline =~ m,SPDX-License-Identifier: (.*?)(\*/)?\s*$,) {
 			$fileinfo->{facts}->{sawspdx} = 1;
 			&checkspdx($realfile, $1);
+		}
+
+		if ($rawline =~ /licensed under the terms of the GNU GPL/ ||
+		    $rawline =~ /under the terms of the GNU General Public License/ ||
+		    $rawline =~ /under the terms of the GNU Lesser General Public/ ||
+		    $rawline =~ /Permission is hereby granted, free of charge/ ||
+		    $rawline =~ /GNU GPL, version 2 or later/ ||
+		    $rawline =~ /See the COPYING file/) {
+			$fileinfo->{facts}->{sawboilerplate} = 1;
 		}
 
 		if ($rawline =~ m,(SPDX-[a-zA-Z0-9-_]+):,) {
