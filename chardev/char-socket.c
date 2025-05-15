@@ -904,6 +904,12 @@ static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
     s->sioc = sioc;
     object_ref(OBJECT(sioc));
 
+    if (s->registered_yank) {
+        yank_register_function(CHARDEV_YANK_INSTANCE(chr->label),
+                               char_socket_yank_iochannel,
+                               QIO_CHANNEL(sioc));
+    }
+
     qio_channel_set_blocking(s->ioc, false, NULL);
 
     if (s->do_nodelay) {
@@ -944,11 +950,6 @@ static int tcp_chr_add_client(Chardev *chr, int fd)
     }
     tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     tcp_chr_set_client_ioc_name(chr, sioc);
-    if (s->registered_yank) {
-        yank_register_function(CHARDEV_YANK_INSTANCE(chr->label),
-                               char_socket_yank_iochannel,
-                               QIO_CHANNEL(sioc));
-    }
     ret = tcp_chr_new_client(chr, sioc);
     object_unref(OBJECT(sioc));
     return ret;
@@ -963,11 +964,6 @@ static void tcp_chr_accept(QIONetListener *listener,
 
     tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     tcp_chr_set_client_ioc_name(chr, cioc);
-    if (s->registered_yank) {
-        yank_register_function(CHARDEV_YANK_INSTANCE(chr->label),
-                               char_socket_yank_iochannel,
-                               QIO_CHANNEL(cioc));
-    }
     tcp_chr_new_client(chr, cioc);
 }
 
@@ -982,11 +978,6 @@ static int tcp_chr_connect_client_sync(Chardev *chr, Error **errp)
         tcp_chr_change_state(s, TCP_CHARDEV_STATE_DISCONNECTED);
         object_unref(OBJECT(sioc));
         return -1;
-    }
-    if (s->registered_yank) {
-        yank_register_function(CHARDEV_YANK_INSTANCE(chr->label),
-                               char_socket_yank_iochannel,
-                               QIO_CHANNEL(sioc));
     }
     tcp_chr_new_client(chr, sioc);
     object_unref(OBJECT(sioc));
@@ -1003,11 +994,6 @@ static void tcp_chr_accept_server_sync(Chardev *chr)
     tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     sioc = qio_net_listener_wait_client(s->listener);
     tcp_chr_set_client_ioc_name(chr, sioc);
-    if (s->registered_yank) {
-        yank_register_function(CHARDEV_YANK_INSTANCE(chr->label),
-                               char_socket_yank_iochannel,
-                               QIO_CHANNEL(sioc));
-    }
     tcp_chr_new_client(chr, sioc);
     object_unref(OBJECT(sioc));
 }
@@ -1181,11 +1167,6 @@ static void tcp_chr_connect_client_async(Chardev *chr)
     tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     sioc = qio_channel_socket_new();
     tcp_chr_set_client_ioc_name(chr, sioc);
-    if (s->registered_yank) {
-        yank_register_function(CHARDEV_YANK_INSTANCE(chr->label),
-                               char_socket_yank_iochannel,
-                               QIO_CHANNEL(sioc));
-    }
     /*
      * Normally code would use the qio_channel_socket_connect_async
      * method which uses a QIOTask + qio_task_set_error internally
