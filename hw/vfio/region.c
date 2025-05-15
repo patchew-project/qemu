@@ -200,6 +200,11 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
     region->size = info->size;
     region->fd_offset = info->offset;
     region->nr = index;
+    if (vbasedev->region_fds != NULL) {
+        region->fd = vbasedev->region_fds[index];
+    } else {
+        region->fd = vbasedev->fd;
+    }
 
     if (region->size) {
         region->mem = g_new0(MemoryRegion, 1);
@@ -278,7 +283,7 @@ int vfio_region_mmap(VFIORegion *region)
 
         region->mmaps[i].mmap = mmap(map_align, region->mmaps[i].size, prot,
                                      MAP_SHARED | MAP_FIXED,
-                                     region->vbasedev->fd,
+                                     region->fd,
                                      region->fd_offset +
                                      region->mmaps[i].offset);
         if (region->mmaps[i].mmap == MAP_FAILED) {
