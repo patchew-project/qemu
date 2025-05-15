@@ -374,7 +374,9 @@ static void tcp_chr_free_connection(Chardev *chr)
         s->read_msgfds_num = 0;
     }
 
+    qemu_mutex_lock(&chr->hup_source_lock);
     remove_hup_source(s);
+    qemu_mutex_unlock(&chr->hup_source_lock);
 
     tcp_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
@@ -613,6 +615,7 @@ static void update_ioc_handlers(SocketChardev *s)
                                      tcp_chr_read, chr,
                                      chr->gcontext);
 
+    qemu_mutex_lock(&chr->hup_source_lock);
     remove_hup_source(s);
     s->hup_source = qio_channel_create_watch(s->ioc, G_IO_HUP);
     /*
@@ -634,6 +637,7 @@ static void update_ioc_handlers(SocketChardev *s)
     g_source_set_callback(s->hup_source, (GSourceFunc)tcp_chr_hup,
                           chr, NULL);
     g_source_attach(s->hup_source, chr->gcontext);
+    qemu_mutex_unlock(&chr->hup_source_lock);
 }
 
 static void tcp_chr_connect(void *opaque)

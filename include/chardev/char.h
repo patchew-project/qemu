@@ -60,6 +60,7 @@ struct Chardev {
     Object parent_obj;
 
     QemuMutex chr_write_lock;
+    QemuMutex hup_source_lock;
     CharBackend *be;
     char *label;
     char *filename;

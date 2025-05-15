@@ -279,6 +279,7 @@ static void char_init(Object *obj)
     chr->handover_yank_instance = false;
     chr->logfd = -1;
     qemu_mutex_init(&chr->chr_write_lock);
+    qemu_mutex_init(&chr->hup_source_lock);
 
     /*
      * Assume if chr_update_read_handler is implemented it will
@@ -316,6 +317,7 @@ static void char_finalize(Object *obj)
         close(chr->logfd);
     }
     qemu_mutex_destroy(&chr->chr_write_lock);
+    qemu_mutex_destroy(&chr->hup_source_lock);
 }
 
 static const TypeInfo char_type_info = {
