@@ -3242,6 +3242,7 @@ config_devices_mak_list = []
 config_devices_h = {}
 config_target_h = {}
 config_target_mak = {}
+config_base_arch_mak = {}
 
 disassemblers = {
   'alpha' : ['CONFIG_ALPHA_DIS'],
@@ -3433,6 +3434,11 @@ foreach target : target_dirs
     config_all_devices += config_devices
   endif
   config_target_mak += {target: config_target}
+
+  # build a merged config for all targets with the same TARGET_BASE_ARCH
+  target_base_arch = config_target['TARGET_BASE_ARCH']
+  config_base_arch = config_base_arch_mak.get(target_base_arch, {}) + config_target
+  config_base_arch_mak += {target_base_arch: config_base_arch}
 endforeach
 target_dirs = actual_target_dirs
 
@@ -4111,11 +4117,16 @@ common_all = static_library('common',
 hw_common_arch_libs = {}
 target_common_arch_libs = {}
 target_common_system_arch_libs = {}
-foreach target : target_dirs
+foreach target_base_arch, config_base_arch : config_base_arch_mak
   config_target = config_target_mak[target]
-  target_base_arch = config_target['TARGET_BASE_ARCH']
   target_inc = [include_directories('target' / target_base_arch)]
   inc = [common_user_inc + target_inc]
+
+  target_common = common_ss.apply(config_target, strict: false)
+  common_deps = []
+  foreach dep: target_common.dependencies()
+    common_deps += dep.partial_dependency(compile_args: true, includes: true)
+  endforeach
 
   # prevent common code to access cpu compile time definition,
   # but still allow access to cpu.h
@@ -4131,7 +4142,7 @@ foreach target : target_dirs
         sources: src.all_sources() + genh,
         include_directories: inc,
         c_args: target_system_c_args,
-        dependencies: src.all_dependencies())
+        dependencies: src.all_dependencies() + common_deps)
       hw_common_arch_libs += {target_base_arch: lib}
     endif
   endif
@@ -4145,7 +4156,7 @@ foreach target : target_dirs
         sources: src.all_sources() + genh,
         include_directories: inc,
         c_args: target_c_args,
-        dependencies: src.all_dependencies())
+        dependencies: src.all_dependencies() + common_deps)
       target_common_arch_libs += {target_base_arch: lib}
     endif
   endif
@@ -4159,7 +4170,7 @@ foreach target : target_dirs
         sources: src.all_sources() + genh,
         include_directories: inc,
         c_args: target_system_c_args,
-        dependencies: src.all_dependencies())
+        dependencies: src.all_dependencies() + common_deps)
       target_common_system_arch_libs += {target_base_arch: lib}
     endif
   endif
