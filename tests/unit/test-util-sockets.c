@@ -449,6 +449,8 @@ static void test_inet_parse_all_options_good(void)
     InetSocketAddress exp_addr = {
         .host = host,
         .port = port,
+        .has_numeric = true,
+        .numeric =  true,
         .has_to = true,
         .to = 5006,
         .has_ipv4 = true,
@@ -463,7 +465,7 @@ static void test_inet_parse_all_options_good(void)
 #endif
     };
     inet_parse_test_helper(
-        "[::1]:5000,to=5006,ipv4=off,ipv6=on,keep-alive"
+        "[::1]:5000,numeric,to=5006,ipv4=off,ipv6=on,keep-alive"
 #ifdef HAVE_IPPROTO_MPTCP
         ",mptcp"
 #endif
