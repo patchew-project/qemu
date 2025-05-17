@@ -34,6 +34,9 @@
 #include "tcg/tcg.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
+#ifdef CONFIG_PLUGIN
+#include "qemu/plugin.h"
+#endif
 #include "exec/log.h"
 #include "qemu/main-loop.h"
 #include "exec/icount.h"
@@ -818,7 +821,13 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
              * True when it is, and we should restart on a new TB,
              * and via longjmp via cpu_loop_exit.
              */
+            const int prev_interrupt_request = interrupt_request;
             if (tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
+#ifdef CONFIG_PLUGIN
+                if (interrupt_request & CPU_INTERRUPT_HARD) {
+                    qemu_plugin_vcpu_int_cb(cpu, prev_interrupt_request);
+                }
+#endif /* CONFIG_PLUGIN */
                 if (!tcg_ops->need_replay_interrupt ||
                     tcg_ops->need_replay_interrupt(interrupt_request)) {
                     replay_interrupt();

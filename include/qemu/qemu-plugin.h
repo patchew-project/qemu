@@ -729,6 +729,23 @@ QEMU_PLUGIN_API
 void qemu_plugin_update_ns(const void *handle, int64_t time);
 
 typedef void
+(*qemu_plugin_vcpu_int_cb_t)(qemu_plugin_id_t id,
+                                 unsigned int vcpu_index,
+                                 uint32_t interrupt_request);
+
+/**
+ * qemu_plugin_register_vcpu_int_cb() -
+ *   register a vCPU hardware interruption callback
+ * @id: plugin ID
+ * @cb: callback function
+ *
+ * The @cb function is called every time a vCPU gets hardware interruption.
+ */
+QEMU_PLUGIN_API
+void qemu_plugin_register_vcpu_int_cb(qemu_plugin_id_t id,
+                                          qemu_plugin_vcpu_int_cb_t cb);
+
+typedef void
 (*qemu_plugin_vcpu_syscall_cb_t)(qemu_plugin_id_t id, unsigned int vcpu_index,
                                  int64_t num, uint64_t a1, uint64_t a2,
                                  uint64_t a3, uint64_t a4, uint64_t a5,

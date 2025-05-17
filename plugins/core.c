@@ -539,6 +539,23 @@ void qemu_plugin_vcpu_resume_cb(CPUState *cpu)
     }
 }
 
+/*
+ * Disable CFI checks.
+ * The callback function has been loaded from an external library so we do not
+ * have type information
+ */
+QEMU_DISABLE_CFI
+void qemu_plugin_vcpu_int_cb(CPUState *cpu, int interrupt_request)
+{
+    struct qemu_plugin_cb *cb, *next;
+    enum qemu_plugin_event ev = QEMU_PLUGIN_EV_VCPU_INT;
+
+    QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
+        qemu_plugin_vcpu_int_cb_t func = cb->f.vcpu_hardint;
+        func(cb->ctx->id, cpu->cpu_index, interrupt_request);
+    }
+}
+
 void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
                                        qemu_plugin_vcpu_simple_cb_t cb)
 {
@@ -549,6 +566,12 @@ void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_simple_cb_t cb)
 {
     plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_RESUME, cb);
+}
+
+void qemu_plugin_register_vcpu_int_cb(qemu_plugin_id_t id,
+                                          qemu_plugin_vcpu_int_cb_t cb)
+{
+    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_INT, cb);
 }
 
 void qemu_plugin_register_flush_cb(qemu_plugin_id_t id,
