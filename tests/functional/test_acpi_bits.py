@@ -31,15 +31,13 @@ including an upgraded acpica. The fork is located here:
 https://gitlab.com/qemu-project/biosbits-bits .
 """
 
+from collections.abc import Sequence
 import os
 import re
 import shutil
 import subprocess
+from typing import Optional
 
-from typing import (
-    Optional,
-    Sequence,
-)
 from qemu.machine import QEMUMachine
 from qemu_test import (QemuSystemTest, Asset, skipIfMissingCommands,
                        skipIfNotMachine)

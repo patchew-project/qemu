@@ -39,13 +39,8 @@ from compat import (
 
 
 if TYPE_CHECKING:
-    from typing import (
-        AbstractSet,
-        Any,
-        Iterable,
-        Optional,
-        Union,
-    )
+    from collections.abc import AbstractSet, Iterable
+    from typing import Any, Optional, Union
 
     from docutils.nodes import Element, Node
     from sphinx.addnodes import desc_signature, pending_xref

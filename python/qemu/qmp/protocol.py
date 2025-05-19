@@ -15,6 +15,7 @@ class.
 
 import asyncio
 from asyncio import StreamReader, StreamWriter
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from enum import Enum
 from functools import wraps
@@ -24,9 +25,6 @@ import socket
 from ssl import SSLContext
 from typing import (
     Any,
-    AsyncGenerator,
-    Awaitable,
-    Callable,
     Generic,
     Optional,
     TypeVar,

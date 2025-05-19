@@ -7,14 +7,9 @@ data to make sure it conforms to spec.
 """
 # pylint: disable=too-few-public-methods
 
-from collections import abc
+from collections.abc import Mapping, Sequence
 import copy
-from typing import (
-    Any,
-    Mapping,
-    Optional,
-    Sequence,
-)
+from typing import Any, Optional
 
 
 class Model:
@@ -68,7 +63,7 @@ class Greeting(Model):
         #: 'QMP' member
         self.QMP: QMPGreeting  # pylint: disable=invalid-name
 
-        self._check_member('QMP', abc.Mapping, "JSON object")
+        self._check_member('QMP', Mapping, "JSON object")
         self.QMP = QMPGreeting(self._raw['QMP'])
 
     def _asdict(self) -> dict[str, object]:
@@ -98,10 +93,10 @@ class QMPGreeting(Model):
         #: 'capabilities' member
         self.capabilities: Sequence[object]
 
-        self._check_member('version', abc.Mapping, "JSON object")
+        self._check_member('version', Mapping, "JSON object")
         self.version = self._raw['version']
 
-        self._check_member('capabilities', abc.Sequence, "JSON array")
+        self._check_member('capabilities', Sequence, "JSON array")
         self.capabilities = self._raw['capabilities']
 
 
@@ -120,7 +115,7 @@ class ErrorResponse(Model):
         #: 'id' member
         self.id: Optional[object] = None  # pylint: disable=invalid-name
 
-        self._check_member('error', abc.Mapping, "JSON object")
+        self._check_member('error', Mapping, "JSON object")
         self.error = ErrorInfo(self._raw['error'])
 
         if 'id' in raw:

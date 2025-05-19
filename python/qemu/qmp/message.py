@@ -5,15 +5,10 @@ This module provides the `Message` class, which represents a single QMP
 message sent to or from the server.
 """
 
+from collections.abc import Iterator, Mapping, MutableMapping
 import json
 from json import JSONDecodeError
-from typing import (
-    Iterator,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Union,
-)
+from typing import Optional, Union
 
 from .error import ProtocolError
 

@@ -17,6 +17,7 @@ which provides facilities for managing the lifetime of a QEMU VM.
 # Based on qmp.py.
 #
 
+from collections.abc import Sequence
 import errno
 from itertools import chain
 import locale
@@ -32,7 +33,6 @@ from typing import (
     Any,
     BinaryIO,
     Optional,
-    Sequence,
     TypeVar,
 )
 

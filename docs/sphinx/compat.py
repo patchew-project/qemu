@@ -2,13 +2,9 @@
 Sphinx cross-version compatibility goop
 """
 
+from collections.abc import Callable
 import re
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Optional,
-)
+from typing import TYPE_CHECKING, Any, Optional
 
 from docutils import nodes
 from docutils.nodes import Element, Node, Text

@@ -5,7 +5,9 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
-from typing import IO, Match, NamedTuple, Optional, Literal, Iterable, Any, TypeVar, NewType, Union
+
+from collections.abc import Iterable
+from typing import IO, NamedTuple, Optional, Literal, Any, TypeVar, NewType, Union
 from pathlib import Path
 from itertools import chain
 from tempfile import NamedTemporaryFile
@@ -45,9 +47,9 @@ class FileMatch:
     """
     regexp: Optional[str] = None
 
-    def __init__(self, f: 'FileInfo', m: Match) -> None:
+    def __init__(self, f: 'FileInfo', m: re.Match) -> None:
         self.file: 'FileInfo' = f
-        self.match: Match[str] = m
+        self.match: re.Match[str] = m
 
     @property
     def name(self) -> str:

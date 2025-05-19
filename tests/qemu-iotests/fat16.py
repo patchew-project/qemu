@@ -15,7 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Callable, Optional, Protocol
+from collections.abc import Callable
+from typing import Optional, Protocol
 import string
 
 SECTOR_SIZE = 512

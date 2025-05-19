@@ -19,14 +19,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable, ValuesView
 import os
 import re
 from typing import (
     Any,
-    Callable,
     Optional,
     Union,
-    ValuesView,
     cast,
 )
 

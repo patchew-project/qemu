@@ -13,11 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections.abc import Mapping
 import os
 import re
 import subprocess
 import sys
-from typing import Mapping, Optional
+from typing import Optional
 
 
 # TODO: Empty this list!

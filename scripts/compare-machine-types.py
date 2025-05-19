@@ -26,12 +26,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
+from collections.abc import Generator
 import sys
 from os import path
 from argparse import ArgumentParser, RawTextHelpFormatter, Namespace
 import pandas as pd
 from contextlib import ExitStack
-from typing import Optional, Generator, Union, Any
+from typing import Optional, Union, Any
 
 try:
     qemu_dir = path.abspath(path.dirname(path.dirname(__file__)))

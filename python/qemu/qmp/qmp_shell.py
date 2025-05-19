@@ -125,6 +125,7 @@ writing documentation for QEMU.
 
 import argparse
 import ast
+from collections.abc import Iterator, Sequence
 import json
 import logging
 import os
@@ -134,10 +135,8 @@ from subprocess import Popen
 import sys
 from typing import (
     IO,
-    Iterator,
     NoReturn,
     Optional,
-    Sequence,
     cast,
 )
 

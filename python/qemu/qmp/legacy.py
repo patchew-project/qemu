@@ -22,11 +22,11 @@ old interface.
 #
 
 import asyncio
+from collections.abc import Awaitable
 import socket
 from types import TracebackType
 from typing import (
     Any,
-    Awaitable,
     Optional,
     TypeVar,
     Union,

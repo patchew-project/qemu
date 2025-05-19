@@ -17,9 +17,10 @@ subclass of QEMUMachine, respectively.
 # Based on qmp.py.
 #
 
+from collections.abc import Sequence
 import os
 import socket
-from typing import Optional, Sequence, TextIO
+from typing import Optional, TextIO
 
 from qemu.qmp import SocketAddrT
 

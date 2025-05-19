@@ -68,13 +68,8 @@ from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
 
 
 if TYPE_CHECKING:
-    from typing import (
-        Any,
-        Generator,
-        Optional,
-        Sequence,
-        Union,
-    )
+    from collections.abc import Generator, Sequence
+    from typing import Any, Optional, Union
 
     from sphinx.application import Sphinx
     from sphinx.util.typing import ExtensionMetadata

@@ -33,16 +33,11 @@ optional arguments:
 ##
 
 import argparse
+from collections.abc import Iterator, Mapping
 from errno import ENOENT, EPERM
 import stat
 import sys
-from typing import (
-    IO,
-    Iterator,
-    Mapping,
-    Optional,
-    Union,
-)
+from typing import IO, Optional, Union
 
 import fuse
 from fuse import FUSE, FuseOSError, Operations

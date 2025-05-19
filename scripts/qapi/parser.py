@@ -14,14 +14,13 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from collections.abc import Mapping
 import enum
 import os
 import re
 from typing import (
     TYPE_CHECKING,
     Any,
-    Mapping,
-    Match,
     Optional,
     Union,
 )
@@ -430,7 +429,7 @@ class QAPISchemaParser:
         return self.val[2:].rstrip()
 
     @staticmethod
-    def _match_at_name_colon(string: str) -> Optional[Match[str]]:
+    def _match_at_name_colon(string: str) -> Optional[re.Match[str]]:
         return re.match(r'@([^:]*): *', string)
 
     def get_doc_indented(self, doc: 'QAPIDoc') -> Optional[str]:

@@ -16,6 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from collections.abc import Sequence
+from contextlib import AbstractContextManager as ContextManager
 import os
 from pathlib import Path
 import datetime
@@ -27,13 +29,8 @@ import json
 import shutil
 import sys
 from multiprocessing import Pool
-from typing import Optional, Any, Sequence
+from typing import Optional, Any
 from testenv import TestEnv
-
-if sys.version_info >= (3, 9):
-    from contextlib import AbstractContextManager as ContextManager
-else:
-    from typing import ContextManager
 
 
 def silent_unlink(path: Path) -> None:

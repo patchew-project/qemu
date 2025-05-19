@@ -11,14 +11,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from collections.abc import Sequence
 import re
-from typing import (
-    Any,
-    Match,
-    Optional,
-    Sequence,
-    Union,
-)
+from typing import Any, Optional, Union
 
 
 #: Magic string that gets removed along with all space to its right.
@@ -250,7 +245,7 @@ def gen_endif(cond: str) -> str:
 ''', cond=cond)
 
 
-def must_match(pattern: str, string: str) -> Match[str]:
+def must_match(pattern: str, string: str) -> re.Match[str]:
     match = re.match(pattern, string)
     assert match is not None
     return match

@@ -58,6 +58,7 @@ options:
 # later. See the COPYING file in the top-level directory.
 
 import argparse
+from collections.abc import Iterator, Sequence
 from importlib.metadata import (
     Distribution,
     EntryPoint,
@@ -76,13 +77,7 @@ import subprocess
 import sys
 import sysconfig
 from types import SimpleNamespace
-from typing import (
-    Any,
-    Iterator,
-    Optional,
-    Sequence,
-    Union,
-)
+from typing import Any, Optional, Union
 import venv
 
 

@@ -31,13 +31,9 @@ See `schema.QAPISchema` for processing into native Python data
 structures and contextual semantic validation.
 """
 
+from collections.abc import Iterable
 import re
-from typing import (
-    Iterable,
-    Optional,
-    Union,
-    cast,
-)
+from typing import Optional, Union, cast
 
 from .common import c_name
 from .error import QAPISemError

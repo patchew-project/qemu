@@ -20,6 +20,7 @@ import argparse
 import atexit
 import bz2
 from collections import OrderedDict
+from collections.abc import Callable, Iterable, Iterator, Sequence
 import faulthandler
 import json
 import logging
@@ -31,8 +32,7 @@ import struct
 import subprocess
 import sys
 import time
-from typing import (Any, Callable, Iterable, Iterator,
-                    Optional, Sequence, TextIO, TypeVar)
+from typing import Any, Optional, TextIO, TypeVar
 import unittest
 
 from contextlib import contextmanager

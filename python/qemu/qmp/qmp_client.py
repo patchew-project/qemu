@@ -8,15 +8,11 @@ accept an incoming connection from that server.
 """
 
 import asyncio
+from collections.abc import Mapping
 import logging
 import socket
 import struct
-from typing import (
-    Mapping,
-    Optional,
-    Union,
-    cast,
-)
+from typing import Optional, Union, cast
 
 from .error import ProtocolError, QMPError
 from .events import Events

@@ -6,10 +6,9 @@
 #
 # Author: Marc-André Lureau <marcandre.lureau@redhat.com>
 
+from collections.abc import Iterable, Iterator
 from typing import (
     Any,
-    Iterable,
-    Iterator,
     NamedTuple,
     Optional,
     cast,

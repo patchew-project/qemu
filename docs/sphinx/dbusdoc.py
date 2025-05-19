@@ -7,15 +7,13 @@
 # Author: Marc-André Lureau <marcandre.lureau@redhat.com>
 """dbus-doc is a Sphinx extension that provides documentation from D-Bus XML."""
 
+from collections.abc import Callable, Iterator, Sequence
 import os
 import re
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Iterator,
     Optional,
-    Sequence,
     TypeVar,
     Union,
 )

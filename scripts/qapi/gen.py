@@ -11,11 +11,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 import os
 import re
 import sys
-from typing import Iterator, Optional, Sequence
+from typing import Optional
 
 from .common import (
     c_enum_const,

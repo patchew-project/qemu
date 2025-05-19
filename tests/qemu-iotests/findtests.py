@@ -20,8 +20,9 @@ import os
 import glob
 import re
 from collections import defaultdict
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Optional, Iterator
+from typing import Optional
 
 
 @contextmanager

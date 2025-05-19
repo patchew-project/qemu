@@ -448,16 +448,15 @@ API Reference
 """
 
 import asyncio
-from contextlib import contextmanager
-import logging
-from typing import (
+from collections.abc import (
     AsyncIterator,
     Callable,
     Iterable,
     Iterator,
-    Optional,
-    Union,
 )
+from contextlib import contextmanager
+import logging
+from typing import Optional, Union
 
 from .error import QMPError
 from .message import Message
