@@ -365,6 +365,17 @@ our @typeList = (
 	qr{guintptr},
 );
 
+# Match text found in common license boilerplate comments:
+# for new files the SPDX-License-Identifier line is sufficient.
+our $LICENSE_BOILERPLATE = qr{
+    licensed under the terms of the GNU GPL|
+    under the terms of the GNU General Public License|
+    under the terms of the GNU Lesser General Public|
+    Permission is hereby granted, free of charge|
+    GNU GPL, version 2 or later|
+    See the COPYING file
+}x;
+
 # Load common spelling mistakes and build regular expression list.
 my $misspellings;
 my %spelling_fix;
@@ -1497,6 +1508,13 @@ sub process_end_of_file {
 			     "' need 'SPDX-License-Identifier'?");
 		}
 	}
+	if ($fileinfo->{action} eq "new" &&
+	    !exists $fileinfo->{facts}->{sawboilerplate}) {
+		ERROR("New file '" . $fileinfo->{filenew} . "' must " .
+		      "not have license boilerplate header text, only " .
+		      "the SPDX-License-Identifier, unless this file was " .
+		      "copied from existing code already having such text.");
+	}
 }
 
 sub process {
@@ -1797,6 +1815,10 @@ sub process {
 		if ($rawline =~ m,SPDX-License-Identifier: (.*?)(\*/)?\s*$,) {
 			$fileinfo->{facts}->{sawspdx} = 1;
 			&checkspdx($realfile, $1);
+		}
+
+		if ($rawline =~ /$LICENSE_BOILERPLATE/) {
+			$fileinfo->{facts}->{sawboilerplate} = 1;
 		}
 
 		if ($rawline =~ m,(SPDX-[a-zA-Z0-9-_]+):,) {
