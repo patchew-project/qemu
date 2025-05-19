@@ -154,7 +154,7 @@ struct debug_entry {
     uint64_t addr;
     int lineno;
     int discrim;
-    const char name[];
+    char name[];
 };
 
 struct jr_code_debug_info {
