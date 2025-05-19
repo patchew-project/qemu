@@ -454,6 +454,16 @@ static bool vfio_pci_igd_override_gms(int gen, uint32_t gms, uint32_t *gmch)
 #define IGD_GGC_MMIO_OFFSET     0x108040
 #define IGD_BDSM_MMIO_OFFSET    0x1080C0
 
+static bool is_igd(VFIOPCIDevice *vdev) {
+    if (vfio_is_vga(vdev)) {
+        return true;
+    }
+
+    PCIDevice *pdev = &vdev->pdev;
+    uint16_t class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
+    return class == PCI_CLASS_DISPLAY_OTHER;
+}
+
 void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 {
     VFIOQuirk *ggc_quirk, *bdsm_quirk;
@@ -461,7 +471,7 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     int gen;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev) || nr != 0) {
+        !is_igd(vdev) || nr != 0) {
         return;
     }
 
@@ -519,7 +529,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     Error *err = NULL;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev)) {
+        !is_igd(vdev)) {
         return true;
     }
 
@@ -685,7 +695,7 @@ static bool vfio_pci_kvmgt_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     int gen;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev)) {
+        !is_igd(vdev)) {
         return true;
     }
 
