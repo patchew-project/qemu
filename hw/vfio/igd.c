@@ -523,6 +523,11 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
         return true;
     }
 
+    /* Respect x-igd-opregion=off by skipping OpRegion handling */
+    if (!vdev->igd_opregion) {
+        return true;
+    }
+
     /* IGD device always comes with OpRegion */
     if (!vfio_pci_igd_opregion_detect(vdev, &opregion, errp)) {
         return true;
@@ -686,6 +691,11 @@ static bool vfio_pci_kvmgt_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
         !vfio_is_vga(vdev)) {
+        return true;
+    }
+
+    /* Respect x-igd-opregion=off by skipping OpRegion handling */
+    if (!vdev->igd_opregion) {
         return true;
     }
 
