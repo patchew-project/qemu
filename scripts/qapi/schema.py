@@ -24,8 +24,6 @@ import re
 from typing import (
     Any,
     Callable,
-    Dict,
-    List,
     Optional,
     Union,
     ValuesView,
@@ -49,7 +47,7 @@ from .source import QAPISourceInfo
 class QAPISchemaIfCond:
     def __init__(
         self,
-        ifcond: Optional[Union[str, Dict[str, object]]] = None,
+        ifcond: Optional[Union[str, dict[str, object]]] = None,
     ) -> None:
         self.ifcond = ifcond
 
@@ -121,7 +119,7 @@ class QAPISchemaDefinition(QAPISchemaEntity):
         info: Optional[QAPISourceInfo],
         doc: Optional[QAPIDoc],
         ifcond: Optional[QAPISchemaIfCond] = None,
-        features: Optional[List[QAPISchemaFeature]] = None,
+        features: Optional[list[QAPISchemaFeature]] = None,
     ):
         super().__init__(info)
         for f in features or []:
@@ -141,7 +139,7 @@ class QAPISchemaDefinition(QAPISchemaEntity):
     def check(self, schema: QAPISchema) -> None:
         assert not self._checked
         super().check(schema)
-        seen: Dict[str, QAPISchemaMember] = {}
+        seen: dict[str, QAPISchemaMember] = {}
         for f in self.features:
             f.check_clash(self.info, seen)
 
@@ -192,8 +190,8 @@ class QAPISchemaVisitor:
         name: str,
         info: Optional[QAPISourceInfo],
         ifcond: QAPISchemaIfCond,
-        features: List[QAPISchemaFeature],
-        members: List[QAPISchemaEnumMember],
+        features: list[QAPISchemaFeature],
+        members: list[QAPISchemaEnumMember],
         prefix: Optional[str],
     ) -> None:
         pass
@@ -212,9 +210,9 @@ class QAPISchemaVisitor:
         name: str,
         info: Optional[QAPISourceInfo],
         ifcond: QAPISchemaIfCond,
-        features: List[QAPISchemaFeature],
+        features: list[QAPISchemaFeature],
         base: Optional[QAPISchemaObjectType],
-        members: List[QAPISchemaObjectTypeMember],
+        members: list[QAPISchemaObjectTypeMember],
         branches: Optional[QAPISchemaBranches],
     ) -> None:
         pass
@@ -224,8 +222,8 @@ class QAPISchemaVisitor:
         name: str,
         info: Optional[QAPISourceInfo],
         ifcond: QAPISchemaIfCond,
-        features: List[QAPISchemaFeature],
-        members: List[QAPISchemaObjectTypeMember],
+        features: list[QAPISchemaFeature],
+        members: list[QAPISchemaObjectTypeMember],
         branches: Optional[QAPISchemaBranches],
     ) -> None:
         pass
@@ -235,7 +233,7 @@ class QAPISchemaVisitor:
         name: str,
         info: Optional[QAPISourceInfo],
         ifcond: QAPISchemaIfCond,
-        features: List[QAPISchemaFeature],
+        features: list[QAPISchemaFeature],
         alternatives: QAPISchemaAlternatives,
     ) -> None:
         pass
@@ -245,7 +243,7 @@ class QAPISchemaVisitor:
         name: str,
         info: Optional[QAPISourceInfo],
         ifcond: QAPISchemaIfCond,
-        features: List[QAPISchemaFeature],
+        features: list[QAPISchemaFeature],
         arg_type: Optional[QAPISchemaObjectType],
         ret_type: Optional[QAPISchemaType],
         gen: bool,
@@ -262,7 +260,7 @@ class QAPISchemaVisitor:
         name: str,
         info: Optional[QAPISourceInfo],
         ifcond: QAPISchemaIfCond,
-        features: List[QAPISchemaFeature],
+        features: list[QAPISchemaFeature],
         arg_type: Optional[QAPISchemaObjectType],
         boxed: bool,
     ) -> None:
@@ -275,7 +273,7 @@ class QAPISchemaModule:
 
     def __init__(self, name: str):
         self.name = name
-        self._entity_list: List[QAPISchemaEntity] = []
+        self._entity_list: list[QAPISchemaEntity] = []
 
     @staticmethod
     def is_system_module(name: str) -> bool:
@@ -418,8 +416,8 @@ class QAPISchemaEnumType(QAPISchemaType):
         info: Optional[QAPISourceInfo],
         doc: Optional[QAPIDoc],
         ifcond: Optional[QAPISchemaIfCond],
-        features: Optional[List[QAPISchemaFeature]],
-        members: List[QAPISchemaEnumMember],
+        features: Optional[list[QAPISchemaFeature]],
+        members: list[QAPISchemaEnumMember],
         prefix: Optional[str],
     ):
         super().__init__(name, info, doc, ifcond, features)
@@ -430,7 +428,7 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def check(self, schema: QAPISchema) -> None:
         super().check(schema)
-        seen: Dict[str, QAPISchemaMember] = {}
+        seen: dict[str, QAPISchemaMember] = {}
         for m in self.members:
             m.check_clash(self.info, seen)
 
@@ -447,7 +445,7 @@ class QAPISchemaEnumType(QAPISchemaType):
     def c_type(self) -> str:
         return c_name(self.name)
 
-    def member_names(self) -> List[str]:
+    def member_names(self) -> list[str]:
         return [m.name for m in self.members]
 
     def json_type(self) -> str:
@@ -521,9 +519,9 @@ class QAPISchemaObjectType(QAPISchemaType):
         info: Optional[QAPISourceInfo],
         doc: Optional[QAPIDoc],
         ifcond: Optional[QAPISchemaIfCond],
-        features: Optional[List[QAPISchemaFeature]],
+        features: Optional[list[QAPISchemaFeature]],
         base: Optional[str],
-        local_members: List[QAPISchemaObjectTypeMember],
+        local_members: list[QAPISchemaObjectTypeMember],
         branches: Optional[QAPISchemaBranches],
     ):
         # struct has local_members, optional base, and no branches
@@ -538,7 +536,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.base = None
         self.local_members = local_members
         self.branches = branches
-        self.members: List[QAPISchemaObjectTypeMember]
+        self.members: list[QAPISchemaObjectTypeMember]
         self._check_complete = False
 
     def check(self, schema: QAPISchema) -> None:
@@ -573,9 +571,9 @@ class QAPISchemaObjectType(QAPISchemaType):
             m.check_clash(self.info, seen)
 
         # self.check_clash() works in terms of the supertype, but
-        # self.members is declared List[QAPISchemaObjectTypeMember].
+        # self.members is declared list[QAPISchemaObjectTypeMember].
         # Cast down to the subtype.
-        members = cast(List[QAPISchemaObjectTypeMember], list(seen.values()))
+        members = cast(list[QAPISchemaObjectTypeMember], list(seen.values()))
 
         if self.branches:
             self.branches.check(schema, seen)
@@ -590,7 +588,7 @@ class QAPISchemaObjectType(QAPISchemaType):
     def check_clash(
         self,
         info: Optional[QAPISourceInfo],
-        seen: Dict[str, QAPISchemaMember],
+        seen: dict[str, QAPISchemaMember],
     ) -> None:
         assert self._checked
         for m in self.members:
@@ -650,7 +648,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         info: QAPISourceInfo,
         doc: Optional[QAPIDoc],
         ifcond: Optional[QAPISchemaIfCond],
-        features: List[QAPISchemaFeature],
+        features: list[QAPISchemaFeature],
         alternatives: QAPISchemaAlternatives,
     ):
         super().__init__(name, info, doc, ifcond, features)
@@ -667,8 +665,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
         self.alternatives.check(schema, {})
         # Alternate branch names have no relation to the tag enum values;
         # so we have to check for potential name collisions ourselves.
-        seen: Dict[str, QAPISchemaMember] = {}
-        types_seen: Dict[str, str] = {}
+        seen: dict[str, QAPISchemaMember] = {}
+        types_seen: dict[str, str] = {}
         for v in self.alternatives.variants:
             v.check_clash(self.info, seen)
             qtype = v.type.alternate_qtype()
@@ -720,7 +718,7 @@ class QAPISchemaVariants:
     def __init__(
         self,
         info: QAPISourceInfo,
-        variants: List[QAPISchemaVariant],
+        variants: list[QAPISchemaVariant],
     ):
         self.info = info
         self.tag_member: QAPISchemaObjectTypeMember
@@ -732,7 +730,7 @@ class QAPISchemaVariants:
 
     # pylint: disable=unused-argument
     def check(
-            self, schema: QAPISchema, seen: Dict[str, QAPISchemaMember]
+            self, schema: QAPISchema, seen: dict[str, QAPISchemaMember]
     ) -> None:
         for v in self.variants:
             v.check(schema)
@@ -741,13 +739,13 @@ class QAPISchemaVariants:
 class QAPISchemaBranches(QAPISchemaVariants):
     def __init__(self,
                  info: QAPISourceInfo,
-                 variants: List[QAPISchemaVariant],
+                 variants: list[QAPISchemaVariant],
                  tag_name: str):
         super().__init__(info, variants)
         self._tag_name = tag_name
 
     def check(
-            self, schema: QAPISchema, seen: Dict[str, QAPISchemaMember]
+            self, schema: QAPISchema, seen: dict[str, QAPISchemaMember]
     ) -> None:
         # We need to narrow the member type:
         tag_member = seen.get(c_name(self._tag_name))
@@ -815,7 +813,7 @@ class QAPISchemaBranches(QAPISchemaVariants):
     def check_clash(
         self,
         info: Optional[QAPISourceInfo],
-        seen: Dict[str, QAPISchemaMember],
+        seen: dict[str, QAPISchemaMember],
     ) -> None:
         for v in self.variants:
             # Reset seen map for each variant, since qapi names from one
@@ -829,13 +827,13 @@ class QAPISchemaBranches(QAPISchemaVariants):
 class QAPISchemaAlternatives(QAPISchemaVariants):
     def __init__(self,
                  info: QAPISourceInfo,
-                 variants: List[QAPISchemaVariant],
+                 variants: list[QAPISchemaVariant],
                  tag_member: QAPISchemaObjectTypeMember):
         super().__init__(info, variants)
         self.tag_member = tag_member
 
     def check(
-            self, schema: QAPISchema, seen: Dict[str, QAPISchemaMember]
+            self, schema: QAPISchema, seen: dict[str, QAPISchemaMember]
     ) -> None:
         super().check(schema, seen)
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
@@ -865,7 +863,7 @@ class QAPISchemaMember:
     def check_clash(
         self,
         info: Optional[QAPISourceInfo],
-        seen: Dict[str, QAPISchemaMember],
+        seen: dict[str, QAPISchemaMember],
     ) -> None:
         cname = c_name(self.name)
         if cname in seen:
@@ -916,7 +914,7 @@ class QAPISchemaEnumMember(QAPISchemaMember):
         name: str,
         info: Optional[QAPISourceInfo],
         ifcond: Optional[QAPISchemaIfCond] = None,
-        features: Optional[List[QAPISchemaFeature]] = None,
+        features: Optional[list[QAPISchemaFeature]] = None,
     ):
         super().__init__(name, info, ifcond)
         for f in features or []:
@@ -948,7 +946,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         typ: str,
         optional: bool,
         ifcond: Optional[QAPISchemaIfCond] = None,
-        features: Optional[List[QAPISchemaFeature]] = None,
+        features: Optional[list[QAPISchemaFeature]] = None,
     ):
         super().__init__(name, info, ifcond)
         for f in features or []:
@@ -965,7 +963,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         assert self.defined_in
         self.type = schema.resolve_type(self._type_name, self.info,
                                         self.describe)
-        seen: Dict[str, QAPISchemaMember] = {}
+        seen: dict[str, QAPISchemaMember] = {}
         for f in self.features:
             f.check_clash(self.info, seen)
 
@@ -998,7 +996,7 @@ class QAPISchemaCommand(QAPISchemaDefinition):
         info: QAPISourceInfo,
         doc: Optional[QAPIDoc],
         ifcond: QAPISchemaIfCond,
-        features: List[QAPISchemaFeature],
+        features: list[QAPISchemaFeature],
         arg_type: Optional[str],
         ret_type: Optional[str],
         gen: bool,
@@ -1080,7 +1078,7 @@ class QAPISchemaEvent(QAPISchemaDefinition):
         info: QAPISourceInfo,
         doc: Optional[QAPIDoc],
         ifcond: QAPISchemaIfCond,
-        features: List[QAPISchemaFeature],
+        features: list[QAPISchemaFeature],
         arg_type: Optional[str],
         boxed: bool,
     ):
@@ -1138,12 +1136,12 @@ class QAPISchema:
 
         exprs = check_exprs(parser.exprs)
         self.docs = parser.docs
-        self._entity_list: List[QAPISchemaEntity] = []
-        self._entity_dict: Dict[str, QAPISchemaDefinition] = {}
-        self._module_dict: Dict[str, QAPISchemaModule] = {}
+        self._entity_list: list[QAPISchemaEntity] = []
+        self._entity_dict: dict[str, QAPISchemaDefinition] = {}
+        self._module_dict: dict[str, QAPISchemaModule] = {}
         # NB, values in the dict will identify the first encountered
         # usage of a named feature only
-        self._feature_dict: Dict[str, QAPISchemaFeature] = {}
+        self._feature_dict: dict[str, QAPISchemaFeature] = {}
 
         # All schemas get the names defined in the QapiSpecialFeature enum.
         # Rely on dict iteration order matching insertion order so that
@@ -1269,9 +1267,9 @@ class QAPISchema:
 
     def _make_features(
         self,
-        features: Optional[List[Dict[str, Any]]],
+        features: Optional[list[dict[str, Any]]],
         info: Optional[QAPISourceInfo],
-    ) -> List[QAPISchemaFeature]:
+    ) -> list[QAPISchemaFeature]:
         if features is None:
             return []
 
@@ -1287,8 +1285,8 @@ class QAPISchema:
     def _make_enum_member(
         self,
         name: str,
-        ifcond: Optional[Union[str, Dict[str, Any]]],
-        features: Optional[List[Dict[str, Any]]],
+        ifcond: Optional[Union[str, dict[str, Any]]],
+        features: Optional[list[dict[str, Any]]],
         info: Optional[QAPISourceInfo],
     ) -> QAPISchemaEnumMember:
         return QAPISchemaEnumMember(name, info,
@@ -1296,8 +1294,8 @@ class QAPISchema:
                                     self._make_features(features, info))
 
     def _make_enum_members(
-        self, values: List[Dict[str, Any]], info: Optional[QAPISourceInfo]
-    ) -> List[QAPISchemaEnumMember]:
+        self, values: list[dict[str, Any]], info: Optional[QAPISourceInfo]
+    ) -> list[QAPISchemaEnumMember]:
         return [self._make_enum_member(v['name'], v.get('if'),
                                        v.get('features'), info)
                 for v in values]
@@ -1317,7 +1315,7 @@ class QAPISchema:
         info: QAPISourceInfo,
         ifcond: QAPISchemaIfCond,
         role: str,
-        members: List[QAPISchemaObjectTypeMember],
+        members: list[QAPISchemaObjectTypeMember],
     ) -> Optional[str]:
         if not members:
             return None
@@ -1348,9 +1346,9 @@ class QAPISchema:
     def _make_member(
         self,
         name: str,
-        typ: Union[List[str], str],
+        typ: Union[list[str], str],
         ifcond: QAPISchemaIfCond,
-        features: Optional[List[Dict[str, Any]]],
+        features: Optional[list[dict[str, Any]]],
         info: QAPISourceInfo,
     ) -> QAPISchemaObjectTypeMember:
         optional = False
@@ -1365,9 +1363,9 @@ class QAPISchema:
 
     def _make_members(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         info: QAPISourceInfo,
-    ) -> List[QAPISchemaObjectTypeMember]:
+    ) -> list[QAPISchemaObjectTypeMember]:
         return [self._make_member(key, value['type'],
                                   QAPISchemaIfCond(value.get('if')),
                                   value.get('features'), info)
@@ -1415,7 +1413,7 @@ class QAPISchema:
                                QAPISchemaIfCond(value.get('if')),
                                info)
             for (key, value) in data.items()]
-        members: List[QAPISchemaObjectTypeMember] = []
+        members: list[QAPISchemaObjectTypeMember] = []
         self._def_definition(
             QAPISchemaObjectType(name, info, expr.doc, ifcond, features,
                                  base, members,
@@ -1479,7 +1477,7 @@ class QAPISchema:
         self._def_definition(QAPISchemaEvent(name, info, expr.doc, ifcond,
                                              features, data, boxed))
 
-    def _def_exprs(self, exprs: List[QAPIExpression]) -> None:
+    def _def_exprs(self, exprs: list[QAPIExpression]) -> None:
         for expr in exprs:
             if 'enum' in expr:
                 self._def_enum_type(expr)

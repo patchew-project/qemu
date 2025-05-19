@@ -13,14 +13,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterator,
-    List,
     Optional,
     Sequence,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -116,7 +111,7 @@ class DBusDoc:
         self.indent = self.indent[:-3]
 
 
-def parse_generated_content(state: RSTState, content: StringList) -> List[Node]:
+def parse_generated_content(state: RSTState, content: StringList) -> list[Node]:
     """Parse a generated content by Documenter."""
     with switch_source_input(state, content):
         node = nodes.paragraph()
@@ -157,7 +152,7 @@ class DBusDocDirective(SphinxDirective):
         return result
 
 
-def setup(app: Sphinx) -> Dict[str, Any]:
+def setup(app: Sphinx) -> dict[str, Any]:
     """Register dbus-doc directive with Sphinx"""
     app.add_config_value("dbusdoc_srctree", None, "env")
     app.add_directive("dbus-doc", DBusDocDirective)

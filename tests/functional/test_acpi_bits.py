@@ -37,7 +37,6 @@ import shutil
 import subprocess
 
 from typing import (
-    List,
     Optional,
     Sequence,
 )
@@ -76,7 +75,7 @@ class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
         self.base_temp_dir = base_temp_dir
 
     @property
-    def _base_args(self) -> List[str]:
+    def _base_args(self) -> list[str]:
         args = super()._base_args
         args.extend([
             '-chardev',

@@ -33,9 +33,7 @@ structures and contextual semantic validation.
 
 import re
 from typing import (
-    Dict,
     Iterable,
-    List,
     Optional,
     Union,
     cast,
@@ -183,11 +181,11 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
                 info, "%s name should not end in 'List'" % meta)
 
 
-def check_keys(value: Dict[str, object],
+def check_keys(value: dict[str, object],
                info: QAPISourceInfo,
                source: str,
-               required: List[str],
-               optional: List[str]) -> None:
+               required: list[str],
+               optional: list[str]) -> None:
     """
     Ensure that a dict has a specific set of keys.
 
@@ -247,7 +245,7 @@ def check_flags(expr: QAPIExpression) -> None:
             expr.info, "flags 'allow-oob' and 'coroutine' are incompatible")
 
 
-def check_if(expr: Dict[str, object],
+def check_if(expr: dict[str, object],
              info: QAPISourceInfo, source: str) -> None:
     """
     Validate the ``if`` member of an object.
@@ -319,8 +317,8 @@ def normalize_members(members: object) -> None:
     ``{'type': value}``.
 
     :forms:
-      :sugared: ``Dict[str, Union[str, TypeRef]]``
-      :canonical: ``Dict[str, TypeRef]``
+      :sugared: ``dict[str, Union[str, TypeRef]]``
+      :canonical: ``dict[str, TypeRef]``
 
     :param members: The members value to normalize.
 
@@ -416,8 +414,8 @@ def check_features(features: Optional[object],
     Any ``str`` element will be normalized to ``{'name': element}``.
 
     :forms:
-      :sugared: ``List[Union[str, Feature]]``
-      :canonical: ``List[Feature]``
+      :sugared: ``list[Union[str, Feature]]``
+      :canonical: ``list[Feature]``
 
     :param features: The features member value to validate.
     :param info: QAPI schema source file information.
@@ -592,7 +590,7 @@ def check_event(expr: QAPIExpression) -> None:
         check_type_name_or_implicit(args, expr.info, "'data'", None)
 
 
-def check_exprs(exprs: List[QAPIExpression]) -> List[QAPIExpression]:
+def check_exprs(exprs: list[QAPIExpression]) -> list[QAPIExpression]:
     """
     Validate and normalize a list of parsed QAPI schema expressions.
 

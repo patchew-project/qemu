@@ -9,7 +9,7 @@
 
 from docutils.parsers.rst import Directive
 from sphinx.application import Sphinx
-from typing import Any, Dict
+from typing import Any
 
 
 class FakeDBusDocDirective(Directive):
@@ -20,7 +20,7 @@ class FakeDBusDocDirective(Directive):
         return []
 
 
-def setup(app: Sphinx) -> Dict[str, Any]:
+def setup(app: Sphinx) -> dict[str, Any]:
     """Register a fake dbus-doc directive with Sphinx"""
     app.add_directive("dbus-doc", FakeDBusDocDirective)
 

@@ -11,7 +11,6 @@ from collections import abc
 import copy
 from typing import (
     Any,
-    Dict,
     Mapping,
     Optional,
     Sequence,
@@ -72,7 +71,7 @@ class Greeting(Model):
         self._check_member('QMP', abc.Mapping, "JSON object")
         self.QMP = QMPGreeting(self._raw['QMP'])
 
-    def _asdict(self) -> Dict[str, object]:
+    def _asdict(self) -> dict[str, object]:
         """
         For compatibility with the iotests sync QMP wrapper.
 

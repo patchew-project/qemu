@@ -19,13 +19,7 @@ subclass of QEMUMachine, respectively.
 
 import os
 import socket
-from typing import (
-    List,
-    Optional,
-    Sequence,
-    TextIO,
-    Tuple,
-)
+from typing import Optional, Sequence, TextIO
 
 from qemu.qmp import SocketAddrT
 
@@ -145,10 +139,10 @@ class QEMUQtestMachine(QEMUMachine):
                          qmp_timer=qmp_timer)
         self._qtest: Optional[QEMUQtestProtocol] = None
         self._qtest_sock_pair: Optional[
-            Tuple[socket.socket, socket.socket]] = None
+            tuple[socket.socket, socket.socket]] = None
 
     @property
-    def _base_args(self) -> List[str]:
+    def _base_args(self) -> list[str]:
         args = super()._base_args
         assert self._qtest_sock_pair is not None
         fd = self._qtest_sock_pair[0].fileno()

@@ -12,8 +12,6 @@ import logging
 import socket
 import struct
 from typing import (
-    Dict,
-    List,
     Mapping,
     Optional,
     Union,
@@ -262,7 +260,7 @@ class QMPClient(AsyncProtocol[Message], Events):
         self._execute_id = 0
 
         # Incoming RPC reply messages.
-        self._pending: Dict[
+        self._pending: dict[
             Union[str, None],
             'asyncio.Queue[QMPClient._PendingT]'
         ] = {}
@@ -339,7 +337,7 @@ class QMPClient(AsyncProtocol[Message], Events):
         """
         self.logger.debug("Negotiating capabilities ...")
 
-        arguments: Dict[str, List[str]] = {}
+        arguments: dict[str, list[str]] = {}
         if self._greeting and 'oob' in self._greeting.QMP.capabilities:
             arguments.setdefault('enable', []).append('oob')
         msg = self.make_execute_msg('qmp_capabilities', arguments=arguments)

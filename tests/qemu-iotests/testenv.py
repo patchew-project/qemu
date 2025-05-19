@@ -25,7 +25,7 @@ import collections
 import random
 import subprocess
 import glob
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 
 if sys.version_info >= (3, 9):
     from contextlib import AbstractContextManager as ContextManager
@@ -81,7 +81,7 @@ class TestEnv(ContextManager['TestEnv']):
                      'IMGKEYSECRET', 'QEMU_DEFAULT_MACHINE', 'MALLOC_PERTURB_',
                      'GDB_OPTIONS', 'PRINT_QEMU']
 
-    def prepare_subprocess(self, args: List[str]) -> Dict[str, str]:
+    def prepare_subprocess(self, args: list[str]) -> dict[str, str]:
         if self.debug:
             args.append('-d')
 
@@ -96,7 +96,7 @@ class TestEnv(ContextManager['TestEnv']):
         os_env.update(self.get_env())
         return os_env
 
-    def get_env(self) -> Dict[str, str]:
+    def get_env(self) -> dict[str, str]:
         env = {}
         for v in self.env_variables:
             val = getattr(self, v.lower(), None)

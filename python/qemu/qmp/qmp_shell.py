@@ -134,9 +134,7 @@ from subprocess import Popen
 import sys
 from typing import (
     IO,
-    Dict,
     Iterator,
-    List,
     NoReturn,
     Optional,
     Sequence,
@@ -165,9 +163,9 @@ class QMPCompleter:
     QMPCompleter provides a readline library tab-complete behavior.
     """
     # NB: Python 3.9+ will probably allow us to subclass list[str] directly,
-    # but pylint as of today does not know that List[str] is simply 'list'.
+    # but pylint as of today does not know that list[str] is simply 'list'.
     def __init__(self) -> None:
-        self._matches: List[str] = []
+        self._matches: list[str] = []
 
     def append(self, value: str) -> None:
         """Append a new valid completion to the list of possibilities."""
@@ -229,7 +227,7 @@ class QMPShell(QEMUMonitorProtocol):
         self._greeting: Optional[QMPMessage] = None
         self._completer = QMPCompleter()
         self._transmode = False
-        self._actions: List[QMPMessage] = []
+        self._actions: list[QMPMessage] = []
         self._histfile = os.path.join(os.path.expanduser('~'),
                                       '.qmp-shell_history')
         self.pretty = pretty
@@ -246,7 +244,7 @@ class QMPShell(QEMUMonitorProtocol):
 
     def _fill_completion(self) -> None:
         try:
-            cmds = cast(List[Dict[str, str]], self.cmd('query-commands'))
+            cmds = cast(list[dict[str, str]], self.cmd('query-commands'))
             for cmd in cmds:
                 self._completer.append(cmd['name'])
         except ExecuteError:

@@ -21,7 +21,7 @@ import glob
 import re
 from collections import defaultdict
 from contextlib import contextmanager
-from typing import Optional, List, Iterator, Set
+from typing import Optional, Iterator
 
 
 @contextmanager
@@ -89,10 +89,10 @@ class TestFinder:
 
         return name
 
-    def find_tests(self, groups: Optional[List[str]] = None,
-                   exclude_groups: Optional[List[str]] = None,
-                   tests: Optional[List[str]] = None,
-                   start_from: Optional[str] = None) -> List[str]:
+    def find_tests(self, groups: Optional[list[str]] = None,
+                   exclude_groups: Optional[list[str]] = None,
+                   tests: Optional[list[str]] = None,
+                   start_from: Optional[str] = None) -> list[str]:
         """Find tests
 
         Algorithm:
@@ -123,7 +123,7 @@ class TestFinder:
         if tests is None:
             tests = []
 
-        res: Set[str] = set()
+        res: set[str] = set()
         if groups:
             # Some groups specified. exclude_groups supported, additionally
             # selecting some individual tests supported as well.

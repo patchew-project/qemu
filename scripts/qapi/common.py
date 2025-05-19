@@ -14,7 +14,6 @@
 import re
 from typing import (
     Any,
-    Dict,
     Match,
     Optional,
     Sequence,
@@ -199,11 +198,11 @@ def guardend(name: str) -> str:
                  name=c_fname(name).upper())
 
 
-def gen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]],
+def gen_ifcond(ifcond: Optional[Union[str, dict[str, Any]]],
                cond_fmt: str, not_fmt: str,
                all_operator: str, any_operator: str) -> str:
 
-    def do_gen(ifcond: Union[str, Dict[str, Any]],
+    def do_gen(ifcond: Union[str, dict[str, Any]],
                need_parens: bool) -> str:
         if isinstance(ifcond, str):
             return cond_fmt % ifcond
@@ -226,11 +225,11 @@ def gen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]],
     return do_gen(ifcond, False)
 
 
-def cgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
+def cgen_ifcond(ifcond: Optional[Union[str, dict[str, Any]]]) -> str:
     return gen_ifcond(ifcond, 'defined(%s)', '!%s', ' && ', ' || ')
 
 
-def docgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
+def docgen_ifcond(ifcond: Optional[Union[str, dict[str, Any]]]) -> str:
     # TODO Doc generated for conditions needs polish
     return gen_ifcond(ifcond, '%s', 'not %s', ' and ', ' or ')
 

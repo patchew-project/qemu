@@ -12,7 +12,6 @@
 import sys
 import os
 from random import randint
-from typing import Tuple
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -53,7 +52,7 @@ def write_setup_dir(dirpath: str, privkey_pem: bytes, cert_pem: bytes,
         f.write(f'{str(counter)}\n')
 
 
-def generate_ec_key_pair() -> Tuple[str, str]:
+def generate_ec_key_pair() -> tuple[str, str]:
     """
     Generate an ec key pair.
 

@@ -25,7 +25,7 @@ RE_TI_FIELDS = M(RE_TI_FIELD_INIT)
 RE_TYPEINFO_START = S(r'^[ \t]*', M(r'(static|const)\s+', name='modifiers'), r'TypeInfo\s+',
                       NAMED('name', RE_IDENTIFIER), r'\s*=\s*{[ \t]*\n')
 
-ParsedArray = List[str]
+ParsedArray = list[str]
 ParsedInitializerValue = Union[str, ParsedArray]
 class InitializerValue(NamedTuple):
     raw: str
@@ -59,7 +59,7 @@ class FieldInitializer(FileMatch):
             return array.parsed()
         return parsed
 
-TypeInfoInitializers = Dict[str, FieldInitializer]
+TypeInfoInitializers = dict[str, FieldInitializer]
 
 class TypeDefinition(FileMatch):
     """
@@ -343,7 +343,7 @@ class UseDeclareTypeExtended(TypeInfoVar):
 
         ok = True
 
-        #checkers: List[TypeCheckerDeclaration] = list(find_type_checkers(self.allfiles, uppercase))
+        #checkers: list[TypeCheckerDeclaration] = list(find_type_checkers(self.allfiles, uppercase))
         #for c in checkers:
         #    c.info("instance type checker declaration (%s) is here", c.group('uppercase'))
         #if not checkers:
@@ -448,7 +448,7 @@ class ObjectDefineType(TypeDefinition):
                r'\s*\);?\n?')
 
 def find_type_definitions(files: FileList, uppercase: str) -> Iterable[TypeDefinition]:
-    types: List[Type[TypeDefinition]] = [TypeInfoVar, ObjectDefineType, ObjectDefineTypeExtended]
+    types: list[type[TypeDefinition]] = [TypeInfoVar, ObjectDefineType, ObjectDefineTypeExtended]
     for t in types:
         for m in files.matches_of_type(t):
             m.debug("uppercase: %s", m.uppercase)
@@ -459,8 +459,8 @@ def find_type_definitions(files: FileList, uppercase: str) -> Iterable[TypeDefin
 class AddDeclareVoidClassType(TypeDeclarationFixup):
     """Will add DECLARE_CLASS_TYPE(..., void) if possible"""
     def gen_patches_for_type(self, uppercase: str,
-                             checkers: List[TypeDeclaration],
-                             fields: Dict[str, Optional[str]]) -> Iterable[Patch]:
+                             checkers: list[TypeDeclaration],
+                             fields: dict[str, Optional[str]]) -> Iterable[Patch]:
         defs = list(find_type_definitions(self.allfiles, uppercase))
         if len(defs) > 1:
             self.warn("multiple definitions for %s", uppercase)
@@ -554,7 +554,7 @@ class AddObjectDeclareType(DeclareObjCheckers):
             if not self.file.force:
                 return
 
-        decl_types: List[Type[TypeDeclaration]] = [DeclareClassCheckers, DeclareObjCheckers]
+        decl_types: list[type[TypeDeclaration]] = [DeclareClassCheckers, DeclareObjCheckers]
         class_decls = [m for t in decl_types
                        for m in self.allfiles.find_matches(t, uppercase, 'uppercase')]
 
@@ -634,7 +634,7 @@ class AddObjectDeclareSimpleType(DeclareInstanceChecker):
             if not self.file.force:
                 return
 
-        decl_types: List[Type[TypeDeclaration]] = [DeclareClassCheckers, DeclareObjCheckers]
+        decl_types: list[type[TypeDeclaration]] = [DeclareClassCheckers, DeclareObjCheckers]
         class_decls = [m for t in decl_types
                        for m in self.allfiles.find_matches(t, uppercase, 'uppercase')]
         if class_decls:

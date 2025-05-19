@@ -28,7 +28,7 @@ import argparse
 from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Any, Iterable, List, Mapping, Optional, Set
+from typing import Any, Iterable, Mapping, Optional
 
 try:
     import tomllib
@@ -41,7 +41,7 @@ STRICT_LINTS = {"unknown_lints", "warnings"}
 class CargoTOML:
     tomldata: Mapping[Any, Any]
     workspace_data: Mapping[Any, Any]
-    check_cfg: Set[str]
+    check_cfg: set[str]
 
     def __init__(self, path: Optional[str], workspace: Optional[str]):
         if path is not None:
@@ -78,7 +78,7 @@ class CargoTOML:
 
 @dataclass
 class LintFlag:
-    flags: List[str]
+    flags: list[str]
     priority: int
 
 

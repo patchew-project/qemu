@@ -13,7 +13,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 from .common import c_enum_const, c_name, mcgen
 from .gen import QAPISchemaModularCVisitor, gen_features, ifcontext
@@ -38,7 +38,7 @@ objects_seen = set()
 
 
 def gen_enum_lookup(name: str,
-                    members: List[QAPISchemaEnumMember],
+                    members: list[QAPISchemaEnumMember],
                     prefix: Optional[str] = None) -> str:
     max_index = c_enum_const(name, '_MAX', prefix)
     feats = ''
@@ -82,7 +82,7 @@ const QEnumLookup %(c_name)s_lookup = {
 
 
 def gen_enum(name: str,
-             members: List[QAPISchemaEnumMember],
+             members: list[QAPISchemaEnumMember],
              prefix: Optional[str] = None) -> str:
     # append automatically generated _MAX value
     enum_members = members + [QAPISchemaEnumMember('_MAX', None)]
@@ -136,7 +136,7 @@ struct %(c_name)s {
                  c_name=c_name(name), c_type=element_type.c_type())
 
 
-def gen_struct_members(members: List[QAPISchemaObjectTypeMember]) -> str:
+def gen_struct_members(members: list[QAPISchemaObjectTypeMember]) -> str:
     ret = ''
     for memb in members:
         ret += memb.ifcond.gen_if()
@@ -155,7 +155,7 @@ def gen_struct_members(members: List[QAPISchemaObjectTypeMember]) -> str:
 
 def gen_object(name: str, ifcond: QAPISchemaIfCond,
                base: Optional[QAPISchemaObjectType],
-               members: List[QAPISchemaObjectTypeMember],
+               members: list[QAPISchemaObjectTypeMember],
                variants: Optional[QAPISchemaVariants]) -> str:
     if name in objects_seen:
         return ''
@@ -325,8 +325,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
                         name: str,
                         info: Optional[QAPISourceInfo],
                         ifcond: QAPISchemaIfCond,
-                        features: List[QAPISchemaFeature],
-                        members: List[QAPISchemaEnumMember],
+                        features: list[QAPISchemaFeature],
+                        members: list[QAPISchemaEnumMember],
                         prefix: Optional[str]) -> None:
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.preamble_add(gen_enum(name, members, prefix))
@@ -346,9 +346,9 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
                           name: str,
                           info: Optional[QAPISourceInfo],
                           ifcond: QAPISchemaIfCond,
-                          features: List[QAPISchemaFeature],
+                          features: list[QAPISchemaFeature],
                           base: Optional[QAPISchemaObjectType],
-                          members: List[QAPISchemaObjectTypeMember],
+                          members: list[QAPISchemaObjectTypeMember],
                           branches: Optional[QAPISchemaBranches]) -> None:
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
@@ -369,7 +369,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
                              name: str,
                              info: Optional[QAPISourceInfo],
                              ifcond: QAPISchemaIfCond,
-                             features: List[QAPISchemaFeature],
+                             features: list[QAPISchemaFeature],
                              alternatives: QAPISchemaAlternatives) -> None:
         with ifcontext(ifcond, self._genh):
             self._genh.preamble_add(gen_fwd_object_or_array(name))

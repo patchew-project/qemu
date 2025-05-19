@@ -22,12 +22,12 @@
 import os
 import random
 import re
-from typing import Dict, List, Optional
+from typing import Optional
 
 import iotests
 
 
-BlockBitmapMapping = List[Dict[str, object]]
+BlockBitmapMapping = list[dict[str, object]]
 
 mig_sock = os.path.join(iotests.sock_dir, 'mig_sock')
 

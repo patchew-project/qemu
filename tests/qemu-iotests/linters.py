@@ -17,7 +17,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import List, Mapping, Optional
+from typing import Mapping, Optional
 
 
 # TODO: Empty this list!
@@ -49,7 +49,7 @@ def is_python_file(filename):
             return False
 
 
-def get_test_files() -> List[str]:
+def get_test_files() -> list[str]:
     named_tests = [f'tests/{entry}' for entry in os.listdir('tests')]
     check_tests = set(os.listdir('.') + named_tests) - set(SKIP_FILES)
     return list(filter(is_python_file, check_tests))
@@ -57,7 +57,7 @@ def get_test_files() -> List[str]:
 
 def run_linter(
         tool: str,
-        args: List[str],
+        args: list[str],
         env: Optional[Mapping[str, str]] = None,
         suppress_output: bool = False,
 ) -> None:

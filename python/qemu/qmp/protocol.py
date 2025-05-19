@@ -28,9 +28,7 @@ from typing import (
     Awaitable,
     Callable,
     Generic,
-    List,
     Optional,
-    Tuple,
     TypeVar,
     Union,
     cast,
@@ -50,7 +48,7 @@ T = TypeVar('T')
 _U = TypeVar('_U')
 _TaskFN = Callable[[], Awaitable[None]]  # aka ``async def func() -> None``
 
-InternetAddrT = Tuple[str, int]
+InternetAddrT = tuple[str, int]
 UnixAddrT = str
 SocketAddrT = Union[UnixAddrT, InternetAddrT]
 
@@ -248,7 +246,7 @@ class AsyncProtocol(Generic[T]):
         self._writer_task: Optional[asyncio.Future[None]] = None
 
         # Aggregate of the above two tasks, used for Exception management.
-        self._bh_tasks: Optional[asyncio.Future[Tuple[None, None]]] = None
+        self._bh_tasks: Optional[asyncio.Future[tuple[None, None]]] = None
 
         #: Disconnect task. The disconnect implementation runs in a task
         #: so that asynchronous disconnects (initiated by the
@@ -744,7 +742,7 @@ class AsyncProtocol(Generic[T]):
         assert self.runstate == Runstate.DISCONNECTING
         assert self._dc_task
 
-        aws: List[Awaitable[object]] = [self._dc_task]
+        aws: list[Awaitable[object]] = [self._dc_task]
         if self._bh_tasks:
             aws.insert(0, self._bh_tasks)
         all_defined_tasks = asyncio.gather(*aws)

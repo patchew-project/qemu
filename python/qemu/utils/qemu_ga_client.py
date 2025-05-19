@@ -45,7 +45,6 @@ import sys
 from typing import (
     Any,
     Callable,
-    Dict,
     Optional,
     Sequence,
 )
@@ -159,7 +158,7 @@ class QemuGuestAgentClient:
         # Can be int (freeze, thaw) or GuestFsfreezeStatus (status)
         return getattr(self.qga, 'fsfreeze' + '_' + cmd)()
 
-    def fstrim(self, minimum: int) -> Dict[str, object]:
+    def fstrim(self, minimum: int) -> dict[str, object]:
         # returns GuestFilesystemTrimResponse
         ret = getattr(self.qga, 'fstrim')(minimum=minimum)
         assert isinstance(ret, dict)

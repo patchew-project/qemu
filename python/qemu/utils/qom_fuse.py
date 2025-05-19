@@ -38,7 +38,6 @@ import stat
 import sys
 from typing import (
     IO,
-    Dict,
     Iterator,
     Mapping,
     Optional,
@@ -79,7 +78,7 @@ class QOMFuse(QOMCommand, Operations):
     def __init__(self, args: argparse.Namespace):
         super().__init__(args)
         self.mount = args.mount
-        self.ino_map: Dict[str, int] = {}
+        self.ino_map: dict[str, int] = {}
         self.ino_count = 1
 
     def run(self) -> int:

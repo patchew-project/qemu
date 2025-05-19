@@ -8,13 +8,10 @@
 
 from typing import (
     Any,
-    Dict,
     Iterable,
     Iterator,
-    List,
     NamedTuple,
     Optional,
-    Tuple,
     cast,
 )
 
@@ -87,7 +84,7 @@ class DBusInterface(DBusDescription):
         signode += addnodes.desc_name(sig, sig)
         return sig
 
-    def run(self) -> List[Node]:
+    def run(self) -> list[Node]:
         _, node = super().run()
         name = self.arguments[0]
         section = nodes.section(ids=[name + "-section"])
@@ -113,7 +110,7 @@ class DBusMethod(DBusMember):
         }
     )
 
-    doc_field_types: List[Field] = [
+    doc_field_types: list[Field] = [
         TypedField(
             "arg",
             label=_("Arguments"),
@@ -171,7 +168,7 @@ class DBusSignal(DBusMethod):
     Implementation of ``dbus:signal``.
     """
 
-    doc_field_types: List[Field] = [
+    doc_field_types: list[Field] = [
         TypedField(
             "arg",
             label=_("Arguments"),
@@ -203,7 +200,7 @@ class DBusProperty(DBusMember):
         }
     )
 
-    doc_field_types: List[Field] = []
+    doc_field_types: list[Field] = []
 
     def get_index_text(self, ifacename: str, name: str) -> str:
         return _("%s (%s property)") % (name, ifacename)
@@ -244,7 +241,7 @@ class DBusProperty(DBusMember):
         signode += addnodes.desc_sig_keyword_type(ty, ty)
         return sig
 
-    def run(self) -> List[Node]:
+    def run(self) -> list[Node]:
         self.name = "dbus:member"
         return super().run()
 
@@ -281,10 +278,10 @@ class DBusIndex(Index):
 
     def generate(
         self, docnames: Iterable[str] = None
-    ) -> Tuple[List[Tuple[str, List[IndexEntry]]], bool]:
-        content: Dict[str, List[IndexEntry]] = {}
+    ) -> tuple[list[tuple[str, list[IndexEntry]]], bool]:
+        content: dict[str, list[IndexEntry]] = {}
         # list of prefixes to ignore
-        ignores: List[str] = self.domain.env.config["dbus_index_common_prefix"]
+        ignores: list[str] = self.domain.env.config["dbus_index_common_prefix"]
         ignores = sorted(ignores, key=len, reverse=True)
 
         ifaces = sorted(
@@ -329,7 +326,7 @@ class DBusDomain(Domain):
 
     name = "dbus"
     label = "D-Bus"
-    object_types: Dict[str, ObjType] = {
+    object_types: dict[str, ObjType] = {
         "interface": ObjType(_("interface"), "iface", "obj"),
         "method": ObjType(_("method"), "meth", "obj"),
         "signal": ObjType(_("signal"), "sig", "obj"),
@@ -347,7 +344,7 @@ class DBusDomain(Domain):
         "sig": DBusXRef(),
         "prop": DBusXRef(),
     }
-    initial_data: Dict[str, Dict[str, Tuple[Any]]] = {
+    initial_data: dict[str, dict[str, tuple[Any]]] = {
         "objects": {},  # fullname -> ObjectEntry
     }
     indices = [
@@ -355,7 +352,7 @@ class DBusDomain(Domain):
     ]
 
     @property
-    def objects(self) -> Dict[str, ObjectEntry]:
+    def objects(self) -> dict[str, ObjectEntry]:
         return self.data.setdefault("objects", {})  # fullname -> ObjectEntry
 
     def note_object(
@@ -368,7 +365,7 @@ class DBusDomain(Domain):
             if obj.docname == docname:
                 del self.objects[fullname]
 
-    def find_obj(self, typ: str, name: str) -> Optional[Tuple[str, ObjectEntry]]:
+    def find_obj(self, typ: str, name: str) -> Optional[tuple[str, ObjectEntry]]:
         # skip parens
         if name[-2:] == "()":
             name = name[:-2]
@@ -396,7 +393,7 @@ class DBusDomain(Domain):
                 builder, fromdocname, objdef.docname, objdef.node_id, contnode
             )
 
-    def get_objects(self) -> Iterator[Tuple[str, str, str, str, str, int]]:
+    def get_objects(self) -> Iterator[tuple[str, str, str, str, str, int]]:
         for refname, obj in self.objects.items():
             yield (refname, refname, obj.objtype, obj.docname, obj.node_id, 1)
 

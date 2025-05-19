@@ -71,7 +71,6 @@ if TYPE_CHECKING:
     from typing import (
         Any,
         Generator,
-        List,
         Optional,
         Sequence,
         Union,
@@ -674,7 +673,7 @@ class QMPExample(CodeBlock, NestedDirective):
         )
         return node
 
-    def admonition_wrap(self, *content: nodes.Node) -> List[nodes.Node]:
+    def admonition_wrap(self, *content: nodes.Node) -> list[nodes.Node]:
         title = "Example:"
         if "title" in self.options:
             title = f"{title} {self.options['title']}"
@@ -687,7 +686,7 @@ class QMPExample(CodeBlock, NestedDirective):
         )
         return [admon]
 
-    def run_annotated(self) -> List[nodes.Node]:
+    def run_annotated(self) -> list[nodes.Node]:
         lang_node = self._highlightlang()
 
         content_node: nodes.Element = nodes.section()
@@ -708,7 +707,7 @@ class QMPExample(CodeBlock, NestedDirective):
 
         return content_node.children
 
-    def run(self) -> List[nodes.Node]:
+    def run(self) -> list[nodes.Node]:
         annotated = "annotated" in self.options
 
         if annotated:
