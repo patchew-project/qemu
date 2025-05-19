@@ -110,6 +110,44 @@ static void plugin_vcpu_cb__simple(CPUState *cpu, enum qemu_plugin_event ev)
  * have type information
  */
 QEMU_DISABLE_CFI
+static void plugin_vcpu_cb__discon(CPUState *cpu,
+                                   enum qemu_plugin_discon_type type,
+                                   uint64_t from)
+{
+    struct qemu_plugin_cb *cb, *next;
+    enum qemu_plugin_event ev;
+    uint64_t to = cpu->cc->get_pc(cpu);
+
+    if (cpu->cpu_index < plugin.num_vcpus) {
+        switch (type) {
+        case QEMU_PLUGIN_DISCON_INTERRUPT:
+            ev = QEMU_PLUGIN_EV_VCPU_INTERRUPT;
+            break;
+        case QEMU_PLUGIN_DISCON_EXCEPTION:
+            ev = QEMU_PLUGIN_EV_VCPU_EXCEPTION;
+            break;
+        case QEMU_PLUGIN_DISCON_HOSTCALL:
+            ev = QEMU_PLUGIN_EV_VCPU_HOSTCALL;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        /* iterate safely; plugins might uninstall themselves at any time */
+        QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
+            qemu_plugin_vcpu_discon_cb_t func = cb->f.vcpu_discon;
+
+            func(cb->ctx->id, cpu->cpu_index, type, from, to);
+        }
+    }
+}
+
+/*
+ * Disable CFI checks.
+ * The callback function has been loaded from an external library so we do not
+ * have type information
+ */
+QEMU_DISABLE_CFI
 static void plugin_cb__simple(enum qemu_plugin_event ev)
 {
     struct qemu_plugin_cb *cb, *next;
@@ -537,6 +575,21 @@ void qemu_plugin_vcpu_resume_cb(CPUState *cpu)
     if (cpu->cpu_index < plugin.num_vcpus) {
         plugin_vcpu_cb__simple(cpu, QEMU_PLUGIN_EV_VCPU_RESUME);
     }
+}
+
+void qemu_plugin_vcpu_interrupt_cb(CPUState *cpu, uint64_t from)
+{
+    plugin_vcpu_cb__discon(cpu, QEMU_PLUGIN_DISCON_INTERRUPT, from);
+}
+
+void qemu_plugin_vcpu_exception_cb(CPUState *cpu, uint64_t from)
+{
+    plugin_vcpu_cb__discon(cpu, QEMU_PLUGIN_DISCON_EXCEPTION, from);
+}
+
+void qemu_plugin_vcpu_hostcall_cb(CPUState *cpu, uint64_t from)
+{
+    plugin_vcpu_cb__discon(cpu, QEMU_PLUGIN_DISCON_HOSTCALL, from);
 }
 
 void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
