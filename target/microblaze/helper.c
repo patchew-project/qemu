@@ -26,6 +26,7 @@
 #include "exec/target_page.h"
 #include "qemu/host-utils.h"
 #include "exec/log.h"
+#include "qemu/plugin.h"
 
 #ifndef CONFIG_USER_ONLY
 static bool mb_cpu_access_is_secure(MicroBlazeCPU *cpu,
@@ -109,6 +110,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
     CPUMBState *env = &cpu->env;
     uint32_t t, msr = mb_cpu_read_msr(env);
     bool set_esr;
+    uint64_t last_pc = env->pc;
 
     /* IMM flag cannot propagate across a branch and into the dslot.  */
     assert((env->iflags & (D_FLAG | IMM_FLAG)) != (D_FLAG | IMM_FLAG));
@@ -212,6 +214,12 @@ void mb_cpu_do_interrupt(CPUState *cs)
 
     env->res_addr = RES_ADDR_NONE;
     env->iflags = 0;
+
+    if (cs->exception_index == EXCP_IRQ) {
+        qemu_plugin_vcpu_interrupt_cb(cs, last_pc);
+    } else {
+        qemu_plugin_vcpu_exception_cb(cs, last_pc);
+    }
 
     if (!set_esr) {
         qemu_log_mask(CPU_LOG_INT,
