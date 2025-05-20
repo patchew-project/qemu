@@ -106,9 +106,9 @@ static void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 
 static bool bdrv_backing_overridden(BlockDriverState *bs);
 
-static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
-                                    GHashTable *visited, Transaction *tran,
-                                    Error **errp);
+static bool GRAPH_RDLOCK
+bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
+                        GHashTable *visited, Transaction *tran, Error **errp);
 
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
@@ -3040,8 +3040,10 @@ static void GRAPH_WRLOCK bdrv_attach_child_common_abort(void *opaque)
 
         /* No need to visit `child`, because it has been detached already */
         visited = g_hash_table_new(NULL, NULL);
+        bdrv_drain_all_begin();
         ret = s->child->klass->change_aio_ctx(s->child, s->old_parent_ctx,
                                               visited, tran, &error_abort);
+        bdrv_drain_all_end();
         g_hash_table_destroy(visited);
 
         /* transaction is supposed to always succeed */
@@ -3122,9 +3124,11 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
             bool ret_child;
 
             g_hash_table_add(visited, new_child);
+            bdrv_drain_all_begin();
             ret_child = child_class->change_aio_ctx(new_child, child_ctx,
                                                     visited, aio_ctx_tran,
                                                     NULL);
+            bdrv_drain_all_end();
             if (ret_child == true) {
                 error_free(local_err);
                 ret = 0;
@@ -7619,10 +7623,6 @@ bool bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
 static void bdrv_set_aio_context_clean(void *opaque)
 {
     BdrvStateSetAioContext *state = (BdrvStateSetAioContext *) opaque;
-    BlockDriverState *bs = (BlockDriverState *) state->bs;
-
-    /* Paired with bdrv_drained_begin in bdrv_change_aio_context() */
-    bdrv_drained_end(bs);
 
     g_free(state);
 }
@@ -7650,6 +7650,8 @@ static TransactionActionDrv set_aio_context = {
  *
  * @visited will accumulate all visited BdrvChild objects. The caller is
  * responsible for freeing the list afterwards.
+ *
+ * @bs must be drained.
  */
 static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
                                     GHashTable *visited, Transaction *tran,
@@ -7664,21 +7666,17 @@ static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
         return true;
     }
 
-    bdrv_graph_rdlock_main_loop();
     QLIST_FOREACH(c, &bs->parents, next_parent) {
         if (!bdrv_parent_change_aio_context(c, ctx, visited, tran, errp)) {
-            bdrv_graph_rdunlock_main_loop();
             return false;
         }
     }
 
     QLIST_FOREACH(c, &bs->children, next) {
         if (!bdrv_child_change_aio_context(c, ctx, visited, tran, errp)) {
-            bdrv_graph_rdunlock_main_loop();
             return false;
         }
     }
-    bdrv_graph_rdunlock_main_loop();
 
     state = g_new(BdrvStateSetAioContext, 1);
     *state = (BdrvStateSetAioContext) {
@@ -7686,8 +7684,7 @@ static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
         .bs = bs,
     };
 
-    /* Paired with bdrv_drained_end in bdrv_set_aio_context_clean() */
-    bdrv_drained_begin(bs);
+    assert(bs->quiesce_counter > 0);
 
     tran_add(tran, &set_aio_context, state);
 
@@ -7720,7 +7717,11 @@ int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
     if (ignore_child) {
         g_hash_table_add(visited, ignore_child);
     }
+    bdrv_drain_all_begin();
+    bdrv_graph_rdlock_main_loop();
     ret = bdrv_change_aio_context(bs, ctx, visited, tran, errp);
+    bdrv_graph_rdunlock_main_loop();
+    bdrv_drain_all_end();
     g_hash_table_destroy(visited);
 
     /*
