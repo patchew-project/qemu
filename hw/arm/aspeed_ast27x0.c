@@ -335,11 +335,21 @@ static void aspeed_ram_capacity_write(void *opaque, hwaddr addr, uint64_t data,
     AspeedSoCState *s = ASPEED_SOC(opaque);
     ram_addr_t ram_size;
     MemTxResult result;
+    uint32_t le_data;
 
     ram_size = object_property_get_uint(OBJECT(&s->sdmc), "ram-size",
                                         &error_abort);
 
     assert(ram_size > 0);
+
+    if (size != 4) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unsupported write size: %d (only 4-byte allowed)\n",
+                      __func__, size);
+        return;
+    }
+
+    le_data = cpu_to_le32((uint32_t)data);
 
     /*
      * Emulate ddr capacity hardware behavior.
@@ -347,12 +357,12 @@ static void aspeed_ram_capacity_write(void *opaque, hwaddr addr, uint64_t data,
      * it would write the data to the "address % ram_size".
      */
     result = address_space_write(&s->dram_as, addr % ram_size,
-                                 MEMTXATTRS_UNSPECIFIED, &data, 4);
+                                 MEMTXATTRS_UNSPECIFIED, &le_data, 4);
     if (result != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: DRAM write failed, addr:0x%" HWADDR_PRIx
-                      ", data :0x%" PRIx64  "\n",
-                      __func__, addr % ram_size, data);
+                      ", data :0x%x\n",
+                      __func__, addr % ram_size, le_data);
     }
 }
 
@@ -360,9 +370,10 @@ static const MemoryRegionOps aspeed_ram_capacity_ops = {
     .read = aspeed_ram_capacity_read,
     .write = aspeed_ram_capacity_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
 };
 
