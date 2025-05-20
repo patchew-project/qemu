@@ -682,6 +682,12 @@ static void hpet_init(Object *obj)
     /* HPET Area */
     memory_region_init_io(&s->iomem, obj, &hpet_ram_ops, s, "hpet", HPET_LEN);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    if (s->num_timers < HPET_MIN_TIMERS) {
+        s->num_timers = HPET_MIN_TIMERS;
+    } else if (s->num_timers > HPET_MAX_TIMERS) {
+        s->num_timers = HPET_MAX_TIMERS;
+    }
 }
 
 static void hpet_realize(DeviceState *dev, Error **errp)
@@ -710,11 +716,6 @@ static void hpet_realize(DeviceState *dev, Error **errp)
         sysbus_init_irq(sbd, &s->irqs[i]);
     }
 
-    if (s->num_timers < HPET_MIN_TIMERS) {
-        s->num_timers = HPET_MIN_TIMERS;
-    } else if (s->num_timers > HPET_MAX_TIMERS) {
-        s->num_timers = HPET_MAX_TIMERS;
-    }
     for (i = 0; i < HPET_MAX_TIMERS; i++) {
         timer = &s->timer[i];
         timer->qemu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, hpet_timer, timer);
