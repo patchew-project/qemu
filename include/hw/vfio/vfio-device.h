@@ -133,7 +133,9 @@ struct VFIODeviceOps {
     (ret < 0 ? strerror(-ret) : "short write")
 
 void vfio_device_irq_disable(VFIODevice *vbasedev, int index);
+void vfio_device_irq_unmask_single(VFIODevice *vbasedev, int index, int irq);
 void vfio_device_irq_unmask(VFIODevice *vbasedev, int index);
+void vfio_device_irq_mask_single(VFIODevice *vbasedev, int index, int irq);
 void vfio_device_irq_mask(VFIODevice *vbasedev, int index);
 bool vfio_device_irq_set_signaling(VFIODevice *vbasedev, int index, int subindex,
                                    int action, int fd, Error **errp);
