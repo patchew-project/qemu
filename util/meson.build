@@ -87,7 +87,10 @@ if have_block or have_ga
   util_ss.add(files(f'coroutine-@coroutine_backend@.c'))
   util_ss.add(files('thread-pool.c', 'qemu-timer.c'))
 endif
-if have_block or have_ga or have_user
+if have_user
+  util_ss.add(files('unix-sockets.c'))
+endif
+if have_block or have_ga
   util_ss.add(files('qemu-sockets.c'))
 endif
 if have_block

@@ -65,6 +65,7 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp);
 
 NetworkAddressFamily inet_netfamily(int family);
 
+/* part of unix-sockets.c */
 int unix_listen(const char *path, Error **errp);
 int unix_connect(const char *path, Error **errp);
 
