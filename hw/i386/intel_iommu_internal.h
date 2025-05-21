@@ -564,6 +564,8 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_SM_CONTEXT_ENTRY_RSVD_VAL1      0xffffffffffe00000ULL
 
 typedef enum VTDPCInvType {
+    /* Force reset all */
+    VTD_PASID_CACHE_FORCE_RESET = 0,
     /* pasid cache invalidation rely on guest PASID entry */
     VTD_PASID_CACHE_GLOBAL_INV, /* pasid cache global invalidation */
     VTD_PASID_CACHE_DOMSI,      /* pasid cache domain selective invalidation */
