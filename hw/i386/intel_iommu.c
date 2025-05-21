@@ -5768,6 +5768,14 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
     VTDContextEntry ce;
     DMAMap map = { .iova = 0, .size = HWADDR_MAX };
 
+    /*
+     * Replay on stage-1 page table is meaningless as stage-1 page table
+     * is passthroughed to host to construct nested page table
+     */
+    if (s->flts && s->root_scalable) {
+        return;
+    }
+
     /* replay is protected by BQL, page walk will re-setup it safely */
     iova_tree_remove(vtd_as->iova_tree, map);
 
