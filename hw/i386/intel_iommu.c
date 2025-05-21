@@ -5608,8 +5608,7 @@ static bool vtd_check_hiod(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hiod,
     ret = hiodc->get_cap(hiod, HOST_IOMMU_DEVICE_CAP_ERRATA, errp);
     vtd_hiod->errata = ret;
 
-    error_setg(errp, "host device is uncompatible with stage-1 translation");
-    return false;
+    return true;
 }
 
 static bool vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
