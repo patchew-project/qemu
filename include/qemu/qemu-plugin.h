@@ -926,6 +926,51 @@ QEMU_PLUGIN_API
 int qemu_plugin_write_register(struct qemu_plugin_register *handle,
                               GByteArray *buf);
 
+/** struct qemu_plugin_address_space_info - Opaque handle for space info */
+struct qemu_plugin_address_space_info;
+
+/**
+ * qemu_plugin_get_current_vcpu_address_spaces() - get a list of address spaces
+ * for the current vCPU
+ *
+ * This function should be called in vCPU context, i.e. from a vCPU, translation
+ * block, or operation callback.
+ *
+ * This function is only valid for softmmu targets.
+ *
+ * Returns an opaque qemu_plugin_address_space* handle that is only valid for
+ * the duration of the callback. The caller is not responsible for freeing the
+ * result.
+ */
+QEMU_PLUGIN_API
+struct qemu_plugin_address_space_info*
+qemu_plugin_get_current_vcpu_address_spaces(void);
+
+/**
+ * qemu_plugin_n_address_spaces() - get the number of address spaces
+ *
+ * @info: opaque handle to address space information
+ *
+ * Returns the number of address spaces, or -1 if the handle is invalid.
+ */
+QEMU_PLUGIN_API
+int qemu_plugin_n_address_spaces(struct qemu_plugin_address_space_info *info);
+
+/**
+ * qemu_plugin_address_space_name() - get the name of an address space
+ *
+ * @info: opaque handle to address space information
+ * @idx: index of the address space
+ *
+ * Returns the name of the address space, or NULL if the handle is invalid. The
+ * caller is responsible for freeing the result.
+ *
+ */
+QEMU_PLUGIN_API
+const char*
+qemu_plugin_address_space_name(struct qemu_plugin_address_space_info *info,
+                               unsigned int idx);
+
 /**
  * qemu_plugin_read_memory_vaddr() - read from memory using a virtual address
  *

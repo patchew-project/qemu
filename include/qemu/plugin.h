@@ -139,6 +139,12 @@ struct qemu_plugin_tb {
     GArray *cbs;
 };
 
+/* Internal context for address space information */
+struct qemu_plugin_address_space_info {
+    CPUState *cpu;
+    GPtrArray *names;
+};
+
 /**
  * struct CPUPluginState - per-CPU state for plugins
  * @event_mask: plugin event bitmap. Modified only via async work.

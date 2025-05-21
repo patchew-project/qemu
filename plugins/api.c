@@ -39,6 +39,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/plugin.h"
 #include "qemu/log.h"
+#include "system/memory.h"
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
 #include "exec/target_page.h"
@@ -450,6 +451,84 @@ int qemu_plugin_write_register(struct qemu_plugin_register *reg,
     }
 
     return gdb_write_register(current_cpu, buf->data, GPOINTER_TO_INT(reg) - 1);
+}
+
+#ifdef CONFIG_SOFTMMU
+static __thread struct qemu_plugin_address_space_info address_space_info = {
+    NULL, NULL
+};
+static void free_g_string_and_data(gpointer data)
+{
+    g_string_free(data, true);
+}
+#endif
+
+struct qemu_plugin_address_space_info*
+qemu_plugin_get_current_vcpu_address_spaces(void)
+{
+#ifdef CONFIG_SOFTMMU
+    CPUState *cpu = current_cpu;
+
+    if (address_space_info.names == NULL) {
+        address_space_info.cpu = NULL;
+        address_space_info.names = g_ptr_array_new();
+        g_ptr_array_set_free_func(address_space_info.names,
+                                  free_g_string_and_data);
+    }
+
+    g_ptr_array_set_size(address_space_info.names, 0);
+
+    for (size_t i = 0; i < cpu->cpu_ases_count; i++) {
+        AddressSpace *as = cpu_get_address_space(cpu, i);
+
+        if (as == NULL || as->name == NULL) {
+            return NULL;
+        }
+
+        g_ptr_array_add(address_space_info.names,
+                        g_string_new(as->name));
+    }
+
+    address_space_info.cpu = cpu;
+
+    return &address_space_info;
+#else
+    return NULL;
+#endif
+}
+
+int qemu_plugin_n_address_spaces(struct qemu_plugin_address_space_info *info)
+{
+#ifdef CONFIG_SOFTMMU
+    if (info->cpu != current_cpu) {
+        address_space_info.cpu = NULL;
+        g_ptr_array_set_size(address_space_info.names, 0);
+        return -1;
+    }
+
+    return info->names->len;
+#else
+    return -1;
+#endif
+}
+
+const char *
+qemu_plugin_address_space_name(struct qemu_plugin_address_space_info *info,
+                               unsigned int idx)
+{
+#ifdef CONFIG_SOFTMMU
+    if (info->cpu != current_cpu) {
+        address_space_info.cpu = NULL;
+        g_ptr_array_set_size(address_space_info.names, 0);
+        return NULL;
+    }
+
+    if (idx < info->names->len) {
+        GString *name = g_ptr_array_index(info->names, idx);
+        return g_strdup(name->str);
+    }
+#endif
+    return NULL;
 }
 
 bool qemu_plugin_read_memory_vaddr(uint64_t addr, GByteArray *data, size_t len)
