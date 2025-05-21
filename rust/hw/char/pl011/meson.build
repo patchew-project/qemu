@@ -12,6 +12,7 @@ _libpl011_rs = static_library(
   dependencies: [
     bilge_dep,
     bilge_impl_dep,
+    bits_rs,
     qemu_api,
     qemu_api_macros,
   ],
