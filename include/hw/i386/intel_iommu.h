@@ -100,10 +100,32 @@ typedef struct VTDPASIDCacheEntry {
     bool cache_filled;
 } VTDPASIDCacheEntry;
 
+typedef struct VTDIOASContainer {
+    struct IOMMUFDBackend *iommufd;
+    uint32_t ioas_id;
+    MemoryListener listener;
+    QLIST_HEAD(, VTDS2Hwpt) s2_hwpt_list;
+    QLIST_ENTRY(VTDIOASContainer) next;
+    Error *error;
+} VTDIOASContainer;
+
+typedef struct VTDS2Hwpt {
+    uint32_t users;
+    uint32_t hwpt_id;
+    VTDIOASContainer *container;
+    QLIST_ENTRY(VTDS2Hwpt) next;
+} VTDS2Hwpt;
+
+typedef struct VTDHwpt {
+    uint32_t hwpt_id;
+    VTDS2Hwpt *s2_hwpt;
+} VTDHwpt;
+
 struct VTDAddressSpace {
     PCIBus *bus;
     uint8_t devfn;
     uint32_t pasid;
+    VTDHwpt hwpt;
     AddressSpace as;
     IOMMUMemoryRegion iommu;
     MemoryRegion root;          /* The root container of the device */
@@ -302,6 +324,8 @@ struct IntelIOMMUState {
     QLIST_HEAD(, VTDAddressSpace) vtd_as_with_notifiers;
 
     GHashTable *vtd_host_iommu_dev;             /* VTDHostIOMMUDevice */
+
+    QLIST_HEAD(, VTDIOASContainer) containers;
 
     /* interrupt remapping */
     bool intr_enabled;              /* Whether guest enabled IR */
