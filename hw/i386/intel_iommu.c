@@ -1597,6 +1597,22 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     return 0;
 }
 
+static int vtd_as_to_context_entry(VTDAddressSpace *vtd_as, VTDContextEntry *ce)
+{
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    uint8_t bus_num = pci_bus_num(vtd_as->bus);
+    uint8_t devfn = vtd_as->devfn;
+    VTDContextCacheEntry *cc_entry = &vtd_as->context_cache_entry;
+
+    /* Try to fetch context-entry from cache first */
+    if (cc_entry->context_cache_gen == s->context_cache_gen) {
+        *ce = cc_entry->context_entry;
+        return 0;
+    } else {
+        return vtd_dev_to_context_entry(s, bus_num, devfn, ce);
+    }
+}
+
 static int vtd_sync_shadow_page_hook(const IOMMUTLBEvent *event,
                                      void *private)
 {
@@ -1649,9 +1665,7 @@ static int vtd_address_space_sync(VTDAddressSpace *vtd_as)
         return 0;
     }
 
-    ret = vtd_dev_to_context_entry(vtd_as->iommu_state,
-                                   pci_bus_num(vtd_as->bus),
-                                   vtd_as->devfn, &ce);
+    ret = vtd_as_to_context_entry(vtd_as, &ce);
     if (ret) {
         if (ret == -VTD_FR_CONTEXT_ENTRY_P) {
             /*
@@ -1710,8 +1724,7 @@ static bool vtd_as_pt_enabled(VTDAddressSpace *as)
     assert(as);
 
     s = as->iommu_state;
-    if (vtd_dev_to_context_entry(s, pci_bus_num(as->bus), as->devfn,
-                                 &ce)) {
+    if (vtd_as_to_context_entry(as, &ce)) {
         /*
          * Possibly failed to parse the context entry for some reason
          * (e.g., during init, or any guest configuration errors on
@@ -2435,8 +2448,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
     vtd_iommu_unlock(s);
 
     QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
-        if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
-                                      vtd_as->devfn, &ce) &&
+        if (!vtd_as_to_context_entry(vtd_as, &ce) &&
             domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
             vtd_address_space_sync(vtd_as);
         }
@@ -2458,8 +2470,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
     hwaddr size = (1 << am) * VTD_PAGE_SIZE;
 
     QLIST_FOREACH(vtd_as, &(s->vtd_as_with_notifiers), next) {
-        ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
-                                       vtd_as->devfn, &ce);
+        ret = vtd_as_to_context_entry(vtd_as, &ce);
         if (!ret && domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
             uint32_t rid2pasid = PCI_NO_PASID;
 
@@ -2966,8 +2977,7 @@ static void vtd_piotlb_pasid_invalidate(IntelIOMMUState *s,
     vtd_iommu_unlock(s);
 
     QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
-        if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
-                                      vtd_as->devfn, &ce) &&
+        if (!vtd_as_to_context_entry(vtd_as, &ce) &&
             domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
             uint32_t rid2pasid = VTD_CE_GET_RID2PASID(&ce);
 
@@ -4146,7 +4156,7 @@ static void vtd_report_ir_illegal_access(VTDAddressSpace *vtd_as,
     assert(vtd_as->pasid != PCI_NO_PASID);
 
     /* Try out best to fetch FPD, we can't do anything more */
-    if (vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce) == 0) {
+    if (vtd_as_to_context_entry(vtd_as, &ce) == 0) {
         is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
         if (!is_fpd_set && s->root_scalable) {
             vtd_ce_get_pasid_fpd(s, &ce, &is_fpd_set, vtd_as->pasid);
@@ -4506,7 +4516,7 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
     /* replay is protected by BQL, page walk will re-setup it safely */
     iova_tree_remove(vtd_as->iova_tree, map);
 
-    if (vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce) == 0) {
+    if (vtd_as_to_context_entry(vtd_as, &ce) == 0) {
         trace_vtd_replay_ce_valid(s->root_scalable ? "scalable mode" :
                                   "legacy mode",
                                   bus_n, PCI_SLOT(vtd_as->devfn),
