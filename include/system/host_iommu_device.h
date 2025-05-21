@@ -125,5 +125,18 @@ struct HostIOMMUDeviceClass {
 #define HOST_IOMMU_DEVICE_CAP_FS1GP             3
 #define HOST_IOMMU_DEVICE_CAP_ERRATA            4
 
+/**
+ * enum host_iommu_device_iommu_hw_info_type - IOMMU Hardware Info Types
+ * @HOST_IOMMU_DEVICE_IOMMU_HW_INFO_TYPE_NONE: Used by the drivers that do not
+ *                                             report hardware info
+ * @HOST_IOMMU_DEVICE_IOMMU_HW_INFO_TYPE_INTEL_VTD: Intel VT-d iommu info type
+ *
+ * This is alias to enum iommu_hw_info_type but for general purpose.
+ */
+enum host_iommu_device_iommu_hw_info_type {
+    HOST_IOMMU_DEVICE_IOMMU_HW_INFO_TYPE_NONE,
+    HOST_IOMMU_DEVICE_IOMMU_HW_INFO_TYPE_INTEL_VTD,
+};
+
 #define HOST_IOMMU_DEVICE_CAP_AW_BITS_MAX       64
 #endif
