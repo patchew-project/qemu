@@ -21,6 +21,7 @@
 #include "hw/vfio/vfio-device.h"
 #include <sys/ioctl.h>
 #include <linux/iommufd.h>
+#include "hw/i386/intel_iommu_internal.h"
 
 static void iommufd_backend_init(Object *obj)
 {
@@ -364,6 +365,41 @@ bool host_iommu_device_iommufd_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
     return idevc->detach_hwpt(idev, errp);
 }
 
+static int hiod_iommufd_get_vtd_cap(HostIOMMUDevice *hiod, int cap,
+                                    Error **errp)
+{
+    Vtd_Caps *caps = &hiod->caps.vendor_caps.vtd;
+
+    switch (cap) {
+    case HOST_IOMMU_DEVICE_CAP_NESTING:
+        return !!(caps->ecap_reg & VTD_ECAP_NEST);
+    case HOST_IOMMU_DEVICE_CAP_FS1GP:
+        return !!(caps->cap_reg & VTD_CAP_FS1GP);
+    case HOST_IOMMU_DEVICE_CAP_ERRATA:
+        return caps->flags & IOMMU_HW_INFO_VTD_ERRATA_772415_SPR17;
+    default:
+        error_setg(errp, "%s: unsupported capability %x", hiod->name, cap);
+        return -EINVAL;
+    }
+}
+
+static int hiod_iommufd_get_vendor_cap(HostIOMMUDevice *hiod, int cap,
+                                       Error **errp)
+{
+    enum iommu_hw_info_type type = hiod->caps.type;
+
+    switch (type) {
+    case IOMMU_HW_INFO_TYPE_INTEL_VTD:
+        return hiod_iommufd_get_vtd_cap(hiod, cap, errp);
+    case IOMMU_HW_INFO_TYPE_ARM_SMMUV3:
+    case IOMMU_HW_INFO_TYPE_NONE:
+        break;
+    }
+
+    error_setg(errp, "%s: unsupported capability type %x", hiod->name, type);
+    return -EINVAL;
+}
+
 static int hiod_iommufd_get_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
 {
     HostIOMMUDeviceCaps *caps = &hiod->caps;
@@ -374,8 +410,7 @@ static int hiod_iommufd_get_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
     case HOST_IOMMU_DEVICE_CAP_AW_BITS:
         return vfio_device_get_aw_bits(hiod->agent);
     default:
-        error_setg(errp, "%s: unsupported capability %x", hiod->name, cap);
-        return -EINVAL;
+        return hiod_iommufd_get_vendor_cap(hiod, cap, errp);
     }
 }
 
