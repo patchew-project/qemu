@@ -103,6 +103,7 @@ typedef struct VTDPASIDCacheEntry {
 typedef struct VTDIOASContainer {
     struct IOMMUFDBackend *iommufd;
     uint32_t ioas_id;
+    uint32_t errata;
     MemoryListener listener;
     QLIST_HEAD(, VTDS2Hwpt) s2_hwpt_list;
     QLIST_ENTRY(VTDIOASContainer) next;

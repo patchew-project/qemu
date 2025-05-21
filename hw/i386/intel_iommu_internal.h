@@ -654,5 +654,6 @@ typedef struct VTDHostIOMMUDevice {
     PCIBus *bus;
     uint8_t devfn;
     HostIOMMUDevice *hiod;
+    uint32_t errata;
 } VTDHostIOMMUDevice;
 #endif
