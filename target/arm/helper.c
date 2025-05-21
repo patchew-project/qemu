@@ -7389,16 +7389,16 @@ static CPAccessResult access_scxtnum(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     uint64_t hcr = arm_hcr_el2_eff(env);
     int el = arm_current_el(env);
+    uint64_t sctlr;
 
-    if (el == 0 && !((hcr & HCR_E2H) && (hcr & HCR_TGE))) {
-        if (env->cp15.sctlr_el[1] & SCTLR_TSCXT) {
-            if (hcr & HCR_TGE) {
-                return CP_ACCESS_TRAP_EL2;
-            }
-            return CP_ACCESS_TRAP_EL1;
+    sctlr = el_is_in_host(env, el) ? env->cp15.sctlr_el[2] :
+            env->cp15.sctlr_el[1];
+
+    if (el == 0 && (sctlr & SCTLR_TSCXT)) {
+        if (hcr & HCR_TGE) {
+            return CP_ACCESS_TRAP_EL2;
         }
-    } else if (el < 2 && (env->cp15.sctlr_el[2] & SCTLR_TSCXT)) {
-        return CP_ACCESS_TRAP_EL2;
+        return CP_ACCESS_TRAP_EL1;
     }
     if (el < 2 && arm_is_el2_enabled(env) && !(hcr & HCR_ENSCXT)) {
         return CP_ACCESS_TRAP_EL2;
