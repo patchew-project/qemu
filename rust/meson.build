@@ -1,3 +1,6 @@
+subproject('bitfield-struct-0.9-rs', required: true)
+bitfield_struct_dep = dependency('bitfield-struct-0.9-rs')
+
 subdir('qemu-api-macros')
 subdir('bits')
 subdir('qemu-api')

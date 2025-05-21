@@ -1,0 +1,7 @@
+[wrap-file]
+directory = bitfield-struct-0.9.5
+source_url = https://crates.io/api/v1/crates/bitfield-struct/0.9.5/download
+source_filename = bitfield-struct-0.9.5.tar.gz
+source_hash = b2869c63ccf4f8bf0d485070b880e60e097fb7aeea80ee82a0a94a957e372a0b
+#method = cargo
+patch_directory = bitfield-struct-0.9-rs
