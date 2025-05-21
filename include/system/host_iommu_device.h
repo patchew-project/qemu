@@ -15,6 +15,17 @@
 #include "qom/object.h"
 #include "qapi/error.h"
 
+/* This is mirror of struct iommu_hw_info_vtd */
+typedef struct Vtd_Caps {
+    uint32_t flags;
+    uint64_t cap_reg;
+    uint64_t ecap_reg;
+} Vtd_Caps;
+
+typedef union VendorCaps {
+    Vtd_Caps vtd;
+} VendorCaps;
+
 /**
  * struct HostIOMMUDeviceCaps - Define host IOMMU device capabilities.
  *
@@ -26,6 +37,7 @@
 typedef struct HostIOMMUDeviceCaps {
     uint32_t type;
     uint64_t hw_caps;
+    VendorCaps vendor_caps;
 } HostIOMMUDeviceCaps;
 
 #define TYPE_HOST_IOMMU_DEVICE "host-iommu-device"
