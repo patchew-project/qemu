@@ -1,4 +1,5 @@
 subdir('qemu-api-macros')
+subdir('bits')
 subdir('qemu-api')
 
 subdir('hw')
