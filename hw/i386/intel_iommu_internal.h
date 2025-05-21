@@ -575,6 +575,7 @@ typedef enum VTDPCInvType {
     VTD_PASID_CACHE_FORCE_RESET = 0,
     /* pasid cache invalidation rely on guest PASID entry */
     VTD_PASID_CACHE_GLOBAL_INV, /* pasid cache global invalidation */
+    VTD_PASID_CACHE_DEVSI,      /* pasid cache device selective invalidation */
     VTD_PASID_CACHE_DOMSI,      /* pasid cache domain selective invalidation */
     VTD_PASID_CACHE_PASIDSI,    /* pasid cache pasid selective invalidation */
 } VTDPCInvType;
