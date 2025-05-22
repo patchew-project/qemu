@@ -3460,6 +3460,16 @@ TRANS(xvmskltz_d, LASX, gen_xx, gen_helper_vmskltz_d)
 TRANS(xvmskgez_b, LASX, gen_xx, gen_helper_vmskgez_b)
 TRANS(xvmsknz_b, LASX, gen_xx, gen_helper_vmsknz_b)
 
+static bool vldi_check_value(DisasContext *ctx, uint32_t imm)
+{
+    if (((imm >> 8) & 0xf) > 12) {
+        generate_exception(ctx, EXCCODE_INE);
+        return false;
+    }
+    return true;
+}
+
+
 #define EXPAND_BYTE(bit)  ((uint64_t)(bit ? 0xff : 0))
 
 static uint64_t vldi_get_value(DisasContext *ctx, uint32_t imm)
@@ -3588,6 +3598,9 @@ static bool gen_vldi(DisasContext *ctx, arg_vldi *a, uint32_t oprsz)
     sel = (a->imm >> 12) & 0x1;
 
     if (sel) {
+        if (!vldi_check_value(ctx, a->imm)) {
+            return true;
+        }
         value = vldi_get_value(ctx, a->imm);
         vece = MO_64;
     } else {
