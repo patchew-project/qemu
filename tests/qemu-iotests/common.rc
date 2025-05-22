@@ -143,6 +143,8 @@ _optstr_add()
 # report real disk usage for sparse files
 disk_usage()
 {
+    # ZFS has lazy allocation; sync the file first for best results
+    sync "$1"
     du --block-size=1 "$1" | awk '{print $1}'
 }
 
