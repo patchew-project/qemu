@@ -99,7 +99,7 @@
 ##
 # @query-cpus-fast:
 #
-# Returns information about all virtual CPUs.
+# Return information about all virtual CPUs.
 #
 # Returns: list of @CpuInfoFast
 #
@@ -467,7 +467,7 @@
 ##
 # @query-kvm:
 #
-# Returns information about KVM acceleration
+# Return information about KVM acceleration
 #
 # Returns: @KvmInfo
 #
