@@ -129,7 +129,7 @@
 # Return information about SEV/SEV-ES/SEV-SNP.
 #
 # If unavailable due to an incompatible configuration the
-# returned @enabled field will be set to 'false' and the
+# returned @enabled field is set to 'false' and the
 # state of all other fields is undefined.
 #
 # Returns: @SevInfo
