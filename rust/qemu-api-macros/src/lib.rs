@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse_macro_input, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Data,
-    DeriveInput, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token, Variant,
+    parse::Parse, parse_macro_input, parse_quote, punctuated::Punctuated, spanned::Spanned,
+    token::Comma, Data, DeriveInput, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token,
+    Variant,
 };
 
 mod utils;
@@ -141,6 +142,156 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
             }
         }
     })
+}
+
+#[derive(Debug)]
+struct DeviceProperty {
+    name: Option<syn::LitCStr>,
+    qdev_prop: Option<syn::Path>,
+    assert_type: Option<proc_macro2::TokenStream>,
+    bitnr: Option<syn::Expr>,
+    defval: Option<syn::Expr>,
+}
+
+impl Parse for DeviceProperty {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let _: syn::Token![#] = input.parse()?;
+        let bracketed;
+        _ = syn::bracketed!(bracketed in input);
+        let attribute = bracketed.parse::<syn::Ident>()?.to_string();
+        let (assert_type, qdev_prop) = match attribute.as_str() {
+            "property" => (None, None),
+            "bool_property" => (
+                Some(quote! { bool }),
+                Some(syn::parse2(
+                    quote! { ::qemu_api::bindings::qdev_prop_bool },
+                )?),
+            ),
+            other => unreachable!("Got unexpected DeviceProperty attribute `{}`", other),
+        };
+        let mut retval = Self {
+            name: None,
+            qdev_prop,
+            assert_type,
+            bitnr: None,
+            defval: None,
+        };
+        let content;
+        _ = syn::parenthesized!(content in bracketed);
+        while !content.is_empty() {
+            let value: syn::Ident = content.parse()?;
+            if value == "name" {
+                let _: syn::Token![=] = content.parse()?;
+                if retval.name.is_some() {
+                    panic!("`name` can only be used at most once");
+                }
+                retval.name = Some(content.parse()?);
+            } else if value == "qdev_prop" {
+                let _: syn::Token![=] = content.parse()?;
+                if retval.assert_type.is_some() {
+                    // qdev_prop will be Some(_), but we want to print a helpful error message
+                    // explaining why you should use #[property(...)] instead of saying "you
+                    // defined qdev_prop twice".
+                    panic!("Use `property` attribute instead of `{attribute}` if you want to override `qdev_prop` value.");
+                }
+                if retval.qdev_prop.is_some() {
+                    panic!("`qdev_prop` can only be used at most once");
+                }
+                retval.qdev_prop = Some(content.parse()?);
+            } else if value == "bitnr" {
+                let _: syn::Token![=] = content.parse()?;
+                if retval.bitnr.is_some() {
+                    panic!("`bitnr` can only be used at most once");
+                }
+                retval.bitnr = Some(content.parse()?);
+            } else if value == "default" {
+                let _: syn::Token![=] = content.parse()?;
+                if retval.defval.is_some() {
+                    panic!("`default` can only be used at most once");
+                }
+                retval.defval = Some(content.parse()?);
+            } else {
+                panic!("unrecognized field `{value}`");
+            }
+
+            if !content.is_empty() {
+                let _: syn::Token![,] = content.parse()?;
+            }
+        }
+        Ok(retval)
+    }
+}
+
+#[proc_macro_derive(DeviceProperties, attributes(property, bool_property))]
+pub fn derive_device_properties(input: TokenStream) -> TokenStream {
+    let span = proc_macro::Span::call_site();
+    let input = parse_macro_input!(input as DeriveInput);
+    let properties: Vec<(syn::Field, proc_macro2::Span, DeviceProperty)> = match input.data {
+        syn::Data::Struct(syn::DataStruct {
+            fields: syn::Fields::Named(fields),
+            ..
+        }) => fields
+            .named
+            .iter()
+            .flat_map(|f| {
+                f.attrs
+                    .iter()
+                    .filter(|a| a.path().is_ident("property") || a.path().is_ident("bool_property"))
+                    .map(|a| {
+                        (
+                            f.clone(),
+                            f.span(),
+                            syn::parse(a.to_token_stream().into())
+                                .expect("could not parse property attr"),
+                        )
+                    })
+            })
+            .collect::<Vec<_>>(),
+        _other => unreachable!(),
+    };
+    let name = &input.ident;
+
+    let mut assertions = vec![];
+    let mut properties_expanded = vec![];
+    let zero = syn::Expr::Verbatim(quote! { 0 });
+    for (field, field_span, prop) in properties {
+        let prop_name = prop.name.as_ref().unwrap();
+        let field_name = field.ident.as_ref().unwrap();
+        let qdev_prop = prop.qdev_prop.as_ref().unwrap();
+        let bitnr = prop.bitnr.as_ref().unwrap_or(&zero);
+        let set_default = prop.defval.is_some();
+        let defval = prop.defval.as_ref().unwrap_or(&zero);
+        if let Some(assert_type) = prop.assert_type {
+            assertions.push(quote_spanned! {field_span=>
+                ::qemu_api::assert_field_type! ( #name, #field_name, #assert_type );
+            });
+        }
+        properties_expanded.push(quote_spanned! {field_span=>
+            ::qemu_api::bindings::Property {
+                // use associated function syntax for type checking
+                name: ::std::ffi::CStr::as_ptr(#prop_name),
+                info: unsafe { &#qdev_prop },
+                offset: ::core::mem::offset_of!(#name, #field_name) as isize,
+                bitnr: #bitnr,
+                set_default: #set_default,
+                defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: #defval as u64 },
+                ..::qemu_api::zeroable::Zeroable::ZERO
+            }
+        });
+    }
+    let properties_expanded = quote_spanned! {span.into()=>
+        #(#assertions)*
+
+        impl ::qemu_api::qdev::DevicePropertiesImpl for #name {
+            fn properties() -> &'static [::qemu_api::bindings::Property] {
+                static PROPERTIES: &'static [::qemu_api::bindings::Property] = &[#(#properties_expanded),*];
+
+                PROPERTIES
+            }
+        }
+    };
+
+    TokenStream::from(properties_expanded)
 }
 
 #[proc_macro_derive(Wrapper)]
