@@ -679,37 +679,60 @@ class QAPIIndex(Index):
     ) -> Tuple[List[Tuple[str, List[IndexEntry]]], bool]:
         assert isinstance(self.domain, QAPIDomain)
         content: Dict[str, List[IndexEntry]] = {}
-        collapse = False
+        collapse = bool(not self.namespace)
 
-        for objname, obj in self.domain.objects.items():
+        module_index: Dict[str, List[IndexEntry]] = {}
+        type_index: Dict[str, List[IndexEntry]] = {}
+
+        for objname, obj in sorted(
+            self.domain.objects.items(),
+            key=lambda x: QAPIDescription.split_fqn(x[0])[2].lower(),
+        ):
             if docnames and obj.docname not in docnames:
                 continue
 
-            ns, _mod, name = QAPIDescription.split_fqn(objname)
+            ns, mod, name = QAPIDescription.split_fqn(objname)
 
-            if self.namespace != ns:
+            if self.namespace and self.namespace != ns:
                 continue
 
-            # Add an alphabetical entry:
+            # Index alphabetally on name only
             entries = content.setdefault(name[0].upper(), [])
+            extra = obj.objtype if self.namespace else f"{obj.objtype}, {ns}"
             entries.append(
                 IndexEntry(
-                    name, 0, obj.docname, obj.node_id, obj.objtype, "", ""
+                    name, 0, obj.docname, obj.node_id, extra, "", ""
                 )
             )
 
-            # Add a categorical entry:
-            category = obj.objtype.title() + "s"
-            entries = content.setdefault(category, [])
+            # Sub-index by-type
+            entries = type_index.setdefault(obj.objtype.title(), [])
+            extra = "" if self.namespace else ns
             entries.append(
-                IndexEntry(name, 0, obj.docname, obj.node_id, "", "", "")
+                IndexEntry(name, 2, obj.docname, obj.node_id, extra, "", "")
             )
 
-        # Sort entries within each category alphabetically
-        for category in content:
-            content[category] = sorted(content[category])
+            # Sub-index by-module
+            if mod:
+                category = mod if self.namespace else f"{mod}, {ns}"
+                entries = module_index.setdefault(category, [])
+                entries.append(
+                    IndexEntry(
+                        name, 2, obj.docname, obj.node_id, obj.objtype, "", ""
+                    )
+                )
 
-        # Sort the categories themselves; type names first, ABC entries last.
+        for key, indices in sorted(type_index.items()):
+            entries = content.setdefault("By type", [])
+            entries.append(IndexEntry(key, 1, "", "", "", "", ""))
+            entries.extend(indices)
+
+        for key, indices in sorted(module_index.items()):
+            entries = content.setdefault("By module", [])
+            entries.append(IndexEntry(key, 1, "", "", "", "", ""))
+            entries.extend(indices)
+
+        # Sort the categories themselves; meta-categories first.
         sorted_content = sorted(
             content.items(),
             key=lambda x: (len(x[0]) == 1, x[0]),
