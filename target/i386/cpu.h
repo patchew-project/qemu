@@ -2507,7 +2507,7 @@ void cpu_sync_avx_hflag(CPUX86State *env);
 #ifndef CONFIG_USER_ONLY
 static inline int x86_asidx_from_attrs(CPUState *cs, MemTxAttrs attrs)
 {
-    return !!attrs.secure;
+    return cs->num_ases == 1 ? 0 : (!!attrs.secure);
 }
 
 static inline AddressSpace *cpu_addressspace(CPUState *cs, MemTxAttrs attrs)
