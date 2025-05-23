@@ -117,10 +117,19 @@ static TCGv_i32 gen_cpu_index(void)
 static void gen_udata_cb(struct qemu_plugin_regular_cb *cb)
 {
     TCGv_i32 cpu_index = gen_cpu_index();
+    enum qemu_plugin_cb_flags cb_flags =
+        tcg_call_to_qemu_plugin_cb_flags(cb->info->flags);
+    TCGv_i32 flags = tcg_constant_i32(cb_flags);
+    tcg_gen_call1(qemu_plugin_set_cb_flags,
+                    qemu_plugin_get_set_cb_flags_helper_info(), NULL,
+                    tcgv_i32_temp(flags));
     tcg_gen_call2(cb->f.vcpu_udata, cb->info, NULL,
                   tcgv_i32_temp(cpu_index),
                   tcgv_ptr_temp(tcg_constant_ptr(cb->userp)));
+    tcg_gen_call0(qemu_plugin_clear_cb_flags,
+                  qemu_plugin_get_clear_cb_flags_helper_info(), NULL);
     tcg_temp_free_i32(cpu_index);
+    tcg_temp_free_i32(flags);
 }
 
 static TCGv_ptr gen_plugin_u64_ptr(qemu_plugin_u64 entry)
@@ -173,10 +182,19 @@ static void gen_udata_cond_cb(struct qemu_plugin_conditional_cb *cb)
     tcg_gen_ld_i64(val, ptr, 0);
     tcg_gen_brcondi_i64(cond, val, cb->imm, after_cb);
     TCGv_i32 cpu_index = gen_cpu_index();
+    enum qemu_plugin_cb_flags cb_flags =
+        tcg_call_to_qemu_plugin_cb_flags(cb->info->flags);
+    TCGv_i32 flags = tcg_constant_i32(cb_flags);
+    tcg_gen_call1(qemu_plugin_set_cb_flags,
+                  qemu_plugin_get_set_cb_flags_helper_info(), NULL,
+                  tcgv_i32_temp(flags));
     tcg_gen_call2(cb->f.vcpu_udata, cb->info, NULL,
                   tcgv_i32_temp(cpu_index),
                   tcgv_ptr_temp(tcg_constant_ptr(cb->userp)));
+     tcg_gen_call0(qemu_plugin_clear_cb_flags,
+                  qemu_plugin_get_clear_cb_flags_helper_info(), NULL);
     tcg_temp_free_i32(cpu_index);
+    tcg_temp_free_i32(flags);
     gen_set_label(after_cb);
 
     tcg_temp_free_i64(val);
@@ -210,12 +228,21 @@ static void gen_mem_cb(struct qemu_plugin_regular_cb *cb,
                        qemu_plugin_meminfo_t meminfo, TCGv_i64 addr)
 {
     TCGv_i32 cpu_index = gen_cpu_index();
+    enum qemu_plugin_cb_flags cb_flags =
+        tcg_call_to_qemu_plugin_cb_flags(cb->info->flags);
+    TCGv_i32 flags = tcg_constant_i32(cb_flags);
+    tcg_gen_call1(qemu_plugin_set_cb_flags,
+                  qemu_plugin_get_set_cb_flags_helper_info(), NULL,
+                  tcgv_i32_temp(flags));
     tcg_gen_call4(cb->f.vcpu_mem, cb->info, NULL,
                   tcgv_i32_temp(cpu_index),
                   tcgv_i32_temp(tcg_constant_i32(meminfo)),
                   tcgv_i64_temp(addr),
                   tcgv_ptr_temp(tcg_constant_ptr(cb->userp)));
+    tcg_gen_call0(qemu_plugin_clear_cb_flags,
+                  qemu_plugin_get_clear_cb_flags_helper_info(), NULL);
     tcg_temp_free_i32(cpu_index);
+    tcg_temp_free_i32(flags);
 }
 
 static void inject_cb(struct qemu_plugin_dyn_cb *cb)
