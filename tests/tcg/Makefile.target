@@ -177,6 +177,7 @@ RUN_TESTS+=$(EXTRA_RUNS)
 # exercise things. We can define them on a per-test basis here.
 run-plugin-%-with-libmem.so: PLUGIN_ARGS=$(COMMA)inline=true
 run-plugin-%-with-libpatch.so: PLUGIN_ARGS=$(COMMA)target=ffffffff$(COMMA)patch=00000000
+run-plugin-%-with-libhypercalls.so: PLUGIN_ARGS=$(COMMA)ignore_unsupported=true
 
 ifeq ($(filter %-softmmu, $(TARGET)),)
 run-%: %
