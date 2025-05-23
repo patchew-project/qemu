@@ -209,6 +209,18 @@ void qemu_plugin_user_prefork_lock(void);
  */
 void qemu_plugin_user_postfork(bool is_child);
 
+enum qemu_plugin_cb_flags tcg_call_to_qemu_plugin_cb_flags(int flags);
+
+void qemu_plugin_set_cb_flags(enum qemu_plugin_cb_flags flags);
+
+enum qemu_plugin_cb_flags qemu_plugin_get_cb_flags(void);
+
+void qemu_plugin_clear_cb_flags(void);
+
+TCGHelperInfo *qemu_plugin_get_set_cb_flags_helper_info(void);
+
+TCGHelperInfo *qemu_plugin_get_clear_cb_flags_helper_info(void);
+
 #else /* !CONFIG_PLUGIN */
 
 static inline void qemu_plugin_add_opts(void)
