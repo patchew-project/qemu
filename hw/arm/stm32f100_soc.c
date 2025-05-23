@@ -39,9 +39,29 @@
 static const uint32_t usart_addr[STM_NUM_USARTS] = { 0x40013800, 0x40004400,
     0x40004800 };
 static const uint32_t spi_addr[STM_NUM_SPIS] = { 0x40013000, 0x40003800 };
+static const uint32_t dma_addr[STM_NUM_DMA] = { 0x40020000, 0x40020400 };
 
 static const int usart_irq[STM_NUM_USARTS] = {37, 38, 39};
 static const int spi_irq[STM_NUM_SPIS] = {35, 36};
+static const uint8_t dma1_irq[] = {
+    11, /* DMA1 channel0 global interrupt */
+    12, /* DMA1 channel1 global interrupt */
+    13, /* DMA1 channel2 global interrupt */
+    14, /* DMA1 channel3 global interrupt */
+    15, /* DMA1 channel4 global interrupt */
+    16, /* DMA1 channel5 global interrupt */
+    17, /* DMA1 channel6 global interrupt */
+};
+
+static const uint8_t dma2_irq[] = {
+    56, /* DMA2 channel0 global interrupt */
+    57, /* DMA2 channel1 global interrupt */
+    58, /* DMA2 channel2 global interrupt */
+    59, /* DMA2 channel3 global interrupt */
+    59, /* DMA2 channel4/5 global interrupt */
+};
+
+static const uint8_t dma_chan_num[STM_NUM_DMA] = { 7, 6 };
 
 static void stm32f100_soc_initfn(Object *obj)
 {
@@ -57,6 +77,10 @@ static void stm32f100_soc_initfn(Object *obj)
 
     for (i = 0; i < STM_NUM_SPIS; i++) {
         object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_STM32F2XX_SPI);
+    }
+
+    for (i = 0; i < STM_NUM_DMA; i++) {
+        object_initialize_child(obj, "dma[*]", &s->dma[i], TYPE_STM32_DMA);
     }
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
@@ -125,6 +149,33 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
         return;
     }
+
+    /* DMA 1 */
+    dev = DEVICE(&(s->dma[0]));
+    qdev_prop_set_uint8(dev, "nchans", dma_chan_num[0]);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dma[0]), errp)) {
+        return;
+    }
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, dma_addr[0]);
+    for (i = 0; i < ARRAY_SIZE(dma1_irq); i++) {
+        sysbus_connect_irq(busdev, i, qdev_get_gpio_in(armv7m, dma1_irq[i]));
+    }
+
+    /* DMA 2 */
+    dev = DEVICE(&(s->dma[1]));
+    qdev_prop_set_uint8(dev, "nchans", dma_chan_num[1]);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dma[1]), errp)) {
+        return;
+    }
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, dma_addr[1]);
+    for (i = 0; i < ARRAY_SIZE(dma2_irq); i++) {
+        sysbus_connect_irq(busdev, i, qdev_get_gpio_in(armv7m, dma2_irq[i]));
+    }
+
+    /* DMA channel 4 and 5 have shared irq */
+    sysbus_connect_irq(busdev, i, qdev_get_gpio_in(armv7m, dma2_irq[i - 1]));
 
     /* Attach UART (uses USART registers) and USART controllers */
     for (i = 0; i < STM_NUM_USARTS; i++) {
