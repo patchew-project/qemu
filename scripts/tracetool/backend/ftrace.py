@@ -13,6 +13,7 @@ __email__      = "stefanha@redhat.com"
 
 
 import os.path
+from pathlib import PurePath
 
 from tracetool import out
 
@@ -29,6 +30,12 @@ def generate_h(event, group):
     argnames = ", ".join(event.args.names())
     if len(event.args) > 0:
         argnames = ", " + argnames
+
+    try:
+        event_filename = os.path.relpath(event.filename)
+    except ValueError:
+        event_filename = event.filename
+    event_filename = PurePath(event_filename).as_posix()
 
     out('    {',
         '        char ftrace_buf[MAX_TRACE_STRLEN];',
@@ -47,7 +54,7 @@ def generate_h(event, group):
         args=event.args,
         event_id="TRACE_" + event.name.upper(),
         event_lineno=event.lineno,
-        event_filename=os.path.relpath(event.filename),
+        event_filename=event_filename,
         fmt=event.fmt.rstrip("\n"),
         argnames=argnames)
 
