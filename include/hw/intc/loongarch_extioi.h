@@ -21,7 +21,6 @@ struct LoongArchExtIOIClass {
     LoongArchExtIOICommonClass parent_class;
 
     DeviceRealize parent_realize;
-    DeviceUnrealize parent_unrealize;
     ResettablePhases parent_phases;
 };
 
