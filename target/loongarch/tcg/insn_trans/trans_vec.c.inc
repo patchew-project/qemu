@@ -4667,7 +4667,7 @@ static bool do_vfcmp_cond_s(DisasContext *ctx, arg_vvv_fcond *a, uint32_t sz)
     }
 
     fn = (a->fcond & 1 ? gen_helper_vfcmp_s_s : gen_helper_vfcmp_c_s);
-    flags = get_fcmp_flags(a->fcond >> 1);
+    flags = get_fcmp_flags(ctx, a->fcond >> 1);
     fn(tcg_env, oprsz, vd, vj, vk, tcg_constant_i32(flags));
 
     return true;
@@ -4687,7 +4687,7 @@ static bool do_vfcmp_cond_d(DisasContext *ctx, arg_vvv_fcond *a, uint32_t sz)
     }
 
     fn = (a->fcond & 1 ? gen_helper_vfcmp_s_d : gen_helper_vfcmp_c_d);
-    flags = get_fcmp_flags(a->fcond >> 1);
+    flags = get_fcmp_flags(ctx, a->fcond >> 1);
     fn(tcg_env, oprsz, vd, vj, vk, tcg_constant_i32(flags));
 
     return true;
