@@ -374,6 +374,7 @@ config STM32F100_SOC
     select ARM_V7M
     select STM32F2XX_USART
     select STM32F2XX_SPI
+    select STM32_DMA
 
 config STM32F205_SOC
     bool
