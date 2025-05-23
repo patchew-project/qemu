@@ -47,3 +47,18 @@ pl330_iomem_read(uint32_t addr, uint32_t data) "addr: 0x%08"PRIx32" data: 0x%08"
 
 # xilinx_axidma.c
 xilinx_axidma_loading_desc_fail(uint32_t res) "error:%u"
+
+# stm32_dma.c
+stm32_dma_reset(const char *type) "%s"
+stm32_dma_set(int line, int value) "line %d, value %d"
+stm32_dma_transfer(uint8_t idx, uint64_t src, uint8_t swidth, uint64_t dst, uint8_t dwidth, uint32_t data) "idx: %d 0x%08" PRIx64"[%u] -> 0x%08" PRIx64 "[%u] 0x%x"
+stm32_dma_read(uint64_t addr) "address: 0x%08"PRIx64
+stm32_dma_write(uint64_t addr, uint64_t val) "address: 0x%08"PRIx64" data: 0x%08"PRIx64
+stm32_dma_chan_read(uint64_t addr, uint8_t idx, uint8_t reg, uint64_t val) "address: 0x%08"PRIx64" idx: %u reg: %x data: 0x%08"PRIx64
+stm32_dma_chan_write(uint64_t addr, uint8_t idx, uint8_t reg, uint64_t val) "address: 0x%08"PRIx64" idx: %u reg: %x data: 0x%08"PRIx64
+stm32_dma_transfer_fail(uint8_t idx, uint64_t src, uint64_t dst) "idx: %d 0x%08" PRIx64" -> 0x%08" PRIx64
+stm32_dma_raise(uint8_t idx, const char* type) "idx %d: %s"
+stm32_dma_lower(uint8_t idx) "idx %d"
+stm32_dma_cmen(uint8_t idx, uint32_t cnt) "idx %d cnt %u"
+stm32_dma_disabled(uint8_t idx, bool enabled, uint32_t cnt) "idx %d enabled %u cnt %u"
+
