@@ -82,6 +82,7 @@ ahci_mem_write_host(void *s, unsigned size, const char *reg, uint64_t addr, uint
 ahci_mem_write_unimpl(void *s, unsigned size, uint64_t addr, uint64_t val) "ahci(%p): write%u to unknown register 0x%"PRIx64": 0x%016"PRIx64
 ahci_set_signature(void *s, int port, uint8_t nsector, uint8_t sector, uint8_t lcyl, uint8_t hcyl, uint32_t sig) "ahci(%p)[%d]: set signature sector:0x%02x nsector:0x%02x lcyl:0x%02x hcyl:0x%02x (cumulatively: 0x%08x)"
 ahci_reset_port(void *s, int port) "ahci(%p)[%d]: reset port"
+ahci_reset_done(void *s) "ahci(%p): reset done"
 ahci_unmap_fis_address_null(void *s, int port) "ahci(%p)[%d]: Attempt to unmap NULL FIS address"
 ahci_unmap_clb_address_null(void *s, int port) "ahci(%p)[%d]: Attempt to unmap NULL CLB address"
 ahci_populate_sglist(void *s, int port) "ahci(%p)[%d]"

@@ -46,6 +46,7 @@ static bool ahci_map_clb_address(AHCIDevice *ad);
 static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
 static void ahci_unmap_fis_address(AHCIDevice *ad);
+static void ahci_reset_delayed(AHCIState *s, bool immediate);
 
 static const char *AHCIHostReg_lookup[AHCI_HOST_REG__COUNT] = {
     [AHCI_HOST_REG_CAP]        = "CAP",
@@ -1623,7 +1624,22 @@ void ahci_uninit(AHCIState *s)
     g_free(s->dev);
 }
 
-void ahci_reset(AHCIState *s)
+static void ahci_reset_complete(void *opaque)
+{
+    AHCIState *s = opaque;
+
+    trace_ahci_reset_done(s);
+
+    for (unsigned i = 0; i < s->ports; i++) {
+        AHCIPortRegs *pr;
+
+        pr = &s->dev[i].port_regs;
+        pr->cmd &= ~PORT_CMD_LIST_ON;
+    }
+    s->control_regs.ghc &= ~HOST_CTL_RESET;
+}
+
+static void ahci_reset_delayed(AHCIState *s, bool immediate)
 {
     AHCIPortRegs *pr;
     int i;
@@ -1639,16 +1655,25 @@ void ahci_reset(AHCIState *s)
      *
      * We set HOST_CAP_AHCI so we must enable AHCI at reset.
      */
-    s->control_regs.ghc = HOST_CTL_AHCI_EN;
+    s->control_regs.ghc = HOST_CTL_RESET | HOST_CTL_AHCI_EN;
 
     for (i = 0; i < s->ports; i++) {
         pr = &s->dev[i].port_regs;
         pr->irq_stat = 0;
         pr->irq_mask = 0;
         pr->scr_ctl = 0;
-        pr->cmd = PORT_CMD_SPIN_UP | PORT_CMD_POWER_ON;
+        pr->cmd = PORT_CMD_SPIN_UP | PORT_CMD_POWER_ON | PORT_CMD_LIST_ON;
         ahci_reset_port(s, i);
     }
+
+    if (immediate) {
+        ahci_reset_complete(s);
+    }
+}
+
+void ahci_reset(AHCIState *s)
+{
+    ahci_reset_delayed(s, false);
 }
 
 static const VMStateDescription vmstate_ncq_tfs = {
