@@ -1,0 +1,7 @@
+[wrap-file]
+directory = foreign-0.2.0
+source_url = https://crates.io/api/v1/crates/foreign/0.2.0/download
+source_filename = foreign-0.2.0.tar.gz
+source_hash = 37dd09e47ea8fd592a333f59fc52b894a97fe966ae9c6b7ef21ae38de6043462
+#method = cargo
+patch_directory = foreign-0.2-rs
