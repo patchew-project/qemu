@@ -346,7 +346,6 @@ static void ppc_core99_init(MachineState *machine)
                                     sysbus_mmio_get_region(s, 3));
     }
 
-    machine->usb |= defaults_enabled() && !machine->usb_disabled;
     has_pmu = (core99_machine->via_config != CORE99_VIA_CONFIG_CUDA);
     has_adb = (core99_machine->via_config == CORE99_VIA_CONFIG_CUDA ||
                core99_machine->via_config == CORE99_VIA_CONFIG_PMU_ADB);
@@ -427,7 +426,7 @@ static void ppc_core99_init(MachineState *machine)
 
         /* U3 needs to use USB for input because Linux doesn't support via-cuda
         on PPC64 */
-        if (!has_adb || machine_arch == ARCH_MAC99_U3) {
+        if ((!has_adb || machine_arch == ARCH_MAC99_U3) && defaults_enabled()) {
             USBBus *usb_bus;
 
             usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
