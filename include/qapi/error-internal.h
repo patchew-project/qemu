@@ -19,6 +19,7 @@ struct Error
     char *msg;
     ErrorClass err_class;
     const char *src, *func;
+    ssize_t src_len;
     int line;
     GString *hint;
 };
