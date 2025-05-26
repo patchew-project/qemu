@@ -40,6 +40,8 @@
 #define TEST_IMAGE_SIZE_MB_LARGE (200 * 1024)
 #define TEST_IMAGE_SIZE_MB_SMALL 64
 
+#define AHCI_RESET_TIMEOUT_NS   (500 * 1000 * 1000)
+
 /*** Globals ***/
 static char *tmp_path;
 static char *debug_path;
@@ -482,6 +484,8 @@ static void ahci_test_hba_spec(AHCIQState *ahci)
     uint8_t maxports;
 
     g_assert(ahci != NULL);
+
+    qtest_clock_step(ahci->parent->qts, AHCI_RESET_TIMEOUT_NS);
 
     /*
      * Note that the AHCI spec does expect the BIOS to set up a few things:

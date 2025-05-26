@@ -28,6 +28,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qemu/timer.h"
 #include "system/block-backend.h"
 #include "system/dma.h"
 #include "ahci-internal.h"
@@ -47,6 +48,7 @@ static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
 static void ahci_unmap_fis_address(AHCIDevice *ad);
 static void ahci_reset_delayed(AHCIState *s, bool immediate);
+static void ahci_reset_complete(void *opaque);
 
 static const char *AHCIHostReg_lookup[AHCI_HOST_REG__COUNT] = {
     [AHCI_HOST_REG_CAP]        = "CAP",
@@ -459,7 +461,7 @@ static void ahci_mem_write(void *opaque, hwaddr addr,
             break;
         case AHCI_HOST_REG_CTL: /* R/W */
             if (val & HOST_CTL_RESET) {
-                ahci_reset(s);
+                ahci_reset_delayed(s, true);
             } else {
                 s->control_regs.ghc = (val & 0x3) | HOST_CTL_AHCI_EN;
                 ahci_check_irq(s);
@@ -1591,6 +1593,7 @@ void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as)
     s->as = as;
     assert(s->ports > 0);
     s->dev = g_new0(AHCIDevice, s->ports);
+    s->reset_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, ahci_reset_complete, s);
     ahci_reg_init(s);
     irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
     for (i = 0; i < s->ports; i++) {
@@ -1622,7 +1625,11 @@ void ahci_uninit(AHCIState *s)
     }
 
     g_free(s->dev);
+
+    timer_free(s->reset_timer);
 }
+
+#define AHCI_RESET_DELAY_MS     69  /* Arbitrary value less than 500 ms */
 
 static void ahci_reset_complete(void *opaque)
 {
@@ -1667,7 +1674,11 @@ static void ahci_reset_delayed(AHCIState *s, bool immediate)
     }
 
     if (immediate) {
+        timer_del(s->reset_timer);
         ahci_reset_complete(s);
+    } else if (!timer_pending(s->reset_timer)) {
+        timer_mod(s->reset_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + AHCI_RESET_DELAY_MS);
     }
 }
 
@@ -1675,6 +1686,24 @@ void ahci_reset(AHCIState *s)
 {
     ahci_reset_delayed(s, false);
 }
+
+static bool ahci_timer_needed(void *opaque)
+{
+    AHCIState *s = opaque;
+
+    return timer_pending(s->reset_timer);
+}
+
+static const VMStateDescription vmstate_ahci_timer = {
+    .name = "ahci/reset_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ahci_timer_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_TIMER_PTR(reset_timer, AHCIState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_ncq_tfs = {
     .name = "ncq state",
@@ -1734,7 +1763,9 @@ static int ahci_state_post_load(void *opaque, int version_id)
         ad = &s->dev[i];
         pr = &ad->port_regs;
 
-        if (!(pr->cmd & PORT_CMD_START) && (pr->cmd & PORT_CMD_LIST_ON)) {
+        if (timer_pending(s->reset_timer)) {
+            /* Reset in progress */
+        } else if (!(pr->cmd & PORT_CMD_START) && (pr->cmd & PORT_CMD_LIST_ON)) {
             error_report("AHCI: DMA engine should be off, but status bit "
                          "indicates it is still running.");
             return -1;
@@ -1823,6 +1854,10 @@ const VMStateDescription vmstate_ahci = {
         VMSTATE_UINT32_EQUAL(ports, AHCIState, NULL),
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_ahci_timer,
+        NULL
+    }
 };
 
 void ahci_ide_create_devs(AHCIState *ahci, DriveInfo **hd)
