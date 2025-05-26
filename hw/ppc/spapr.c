@@ -3032,7 +3032,6 @@ static void spapr_machine_init(MachineState *machine)
     has_vga = spapr_vga_init(phb->bus, &error_fatal);
     if (has_vga) {
         spapr->want_stdout_path = !machine->enable_graphics;
-        machine->usb |= defaults_enabled() && !machine->usb_disabled;
     } else {
         spapr->want_stdout_path = true;
     }
@@ -3040,7 +3039,7 @@ static void spapr_machine_init(MachineState *machine)
     if (machine->usb) {
         pci_create_simple(phb->bus, -1, "nec-usb-xhci");
 
-        if (has_vga) {
+        if (has_vga && defaults_enabled()) {
             USBBus *usb_bus;
 
             usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
