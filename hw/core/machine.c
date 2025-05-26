@@ -498,7 +498,6 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
     MachineState *ms = MACHINE(obj);
 
     ms->usb = value;
-    ms->usb_disabled = !value;
 }
 
 static bool machine_get_graphics(Object *obj, Error **errp)
