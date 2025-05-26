@@ -386,18 +386,9 @@ void qemu_event_set(QemuEvent *ev)
 {
     assert(ev->initialized);
 
-    /*
-     * Pairs with both qemu_event_reset() and qemu_event_wait().
-     *
-     * qemu_event_set has release semantics, but because it *loads*
-     * ev->value we need a full memory barrier here.
-     */
-    smp_mb();
-    if (qatomic_read(&ev->value) != EV_SET) {
-        if (qatomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
-            /* There were waiters, wake them up.  */
-            qemu_futex_wake_all(ev);
-        }
+    if (qatomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
+        /* There were waiters, wake them up.  */
+        qemu_futex_wake_all(ev);
     }
 }
 
@@ -413,7 +404,7 @@ void qemu_event_reset(QemuEvent *ev)
 
     /*
      * Order reset before checking the condition in the caller.
-     * Pairs with the first memory barrier in qemu_event_set().
+     * Pairs with the store-release in qemu_event_set().
      */
     smp_mb__after_rmw();
 }
@@ -428,7 +419,7 @@ void qemu_event_wait(QemuEvent *ev)
         /*
          * qemu_event_wait must synchronize with qemu_event_set even if it does
          * not go down the slow path, so this load-acquire is needed that
-         * synchronizes with the first memory barrier in qemu_event_set().
+         * synchronizes with the store-release in qemu_event_set().
          */
         value = qatomic_load_acquire(&ev->value);
         if (value == EV_SET) {
