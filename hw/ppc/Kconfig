@@ -29,6 +29,7 @@ config POWERNV
     depends on PPC64 && FDT
     imply PCI_DEVICES
     imply TEST_DEVICES
+    select I2C
     select ISA_IPMI_BT
     select IPMI_LOCAL
     select ISA_BUS
