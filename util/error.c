@@ -29,8 +29,12 @@ static void error_handle(Error **errp, Error *err)
             /* No need to free it, the program will abort very soon...  */
             src = g_strndup(err->src, err->src_len);
         }
-        fprintf(stderr, "Unexpected error in %s() at %s:%d:\n",
-                err->func, src, err->line);
+        if (err->func) {
+            fprintf(stderr, "Unexpected error in %s() at %s:%d:\n",
+                    err->func, src, err->line);
+        } else {
+            fprintf(stderr, "Unexpected error at %s:%d:\n", src, err->line);
+        }
         error_report("%s", error_get_pretty(err));
         if (err->hint) {
             error_printf("%s", err->hint->str);
