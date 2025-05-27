@@ -27,5 +27,7 @@ struct LoongArchExtIOIClass {
 };
 
 void kvm_loongarch_extioi_realize(DeviceState *dev, Error **errp);
+int kvm_loongarch_extioi_pre_save(void *opaque);
+int kvm_loongarch_extioi_post_load(void *opaque, int version_id);
 
 #endif /* LOONGARCH_EXTIOI_H */
