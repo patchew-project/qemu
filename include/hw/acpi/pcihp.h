@@ -82,6 +82,8 @@ bool build_append_notification_callback(Aml *parent_scope, const PCIBus *bus);
 
 void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus);
 
+Aml *aml_pci_edsm(void);
+
 /* Called on reset */
 void acpi_pcihp_reset(AcpiPciHpState *s);
 
