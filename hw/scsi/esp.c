@@ -1347,11 +1347,17 @@ static int esp_post_load(void *opaque, int version_id)
         /* Migrate ti_buf to fifo */
         len = s->mig_ti_wptr - s->mig_ti_rptr;
         for (i = 0; i < len; i++) {
+            if (&s->fifo.num >= &s->fifo.capacity) {
+                return -1;
+            }
             fifo8_push(&s->fifo, s->mig_ti_buf[i]);
         }
 
         /* Migrate cmdbuf to cmdfifo */
         for (i = 0; i < s->mig_cmdlen; i++) {
+            if (&s->cmdfifo.num >= &s->cmdfifo.capacity) {
+                return -1;
+            }
             fifo8_push(&s->cmdfifo, s->mig_cmdbuf[i]);
         }
     }
