@@ -26,5 +26,7 @@ struct LoongarchIPIClass {
 };
 
 void kvm_loongarch_ipi_realize(DeviceState *dev, Error **errp);
+int kvm_loongarch_ipi_pre_save(void *opaque);
+int kvm_loongarch_ipi_post_load(void *opaque, int version_id);
 
 #endif
