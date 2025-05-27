@@ -3432,8 +3432,8 @@ static void virt_instance_init(Object *obj)
         vms->tcg_its = true;
     }
 
-    /* default disallows ACPI PCI hotplug */
-    vms->acpi_pcihp = false;
+    /* default allows ACPI PCI hotplug */
+    vms->acpi_pcihp = true;
 
     /* Default disallows iommu instantiation */
     vms->iommu = VIRT_IOMMU_NONE;
