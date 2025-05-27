@@ -37,7 +37,7 @@
 #define VIRTIO_ID_IOMEM			6 /* virtio ioMemory */
 #define VIRTIO_ID_RPMSG			7 /* virtio remote processor messaging */
 #define VIRTIO_ID_SCSI			8 /* virtio scsi */
-#define VIRTIO_ID_9P			9 /* 9p virtio console */
+#define VIRTIO_ID_9P			9 /* virtio 9p file sharing protocol */
 #define VIRTIO_ID_MAC80211_WLAN		10 /* virtio WLAN MAC */
 #define VIRTIO_ID_RPROC_SERIAL		11 /* virtio remoteproc serial link */
 #define VIRTIO_ID_CAIF			12 /* Virtio caif */
@@ -79,6 +79,6 @@
 #define VIRTIO_TRANS_ID_CONSOLE		0x1003 /* transitional virtio console */
 #define VIRTIO_TRANS_ID_SCSI		0x1004 /* transitional virtio SCSI */
 #define VIRTIO_TRANS_ID_RNG		0x1005 /* transitional virtio rng */
-#define VIRTIO_TRANS_ID_9P		0x1009 /* transitional virtio 9p console */
+#define VIRTIO_TRANS_ID_9P		0x1009 /* transitional virtio 9p file sharing protocol */
 
 #endif /* _LINUX_VIRTIO_IDS_H */
