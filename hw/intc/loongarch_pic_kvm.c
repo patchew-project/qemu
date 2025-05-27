@@ -13,6 +13,64 @@
 #include "hw/pci-host/ls7a.h"
 #include "system/kvm.h"
 
+static void kvm_pch_pic_access_regs(int fd, uint64_t addr,
+                                       void *val, bool write)
+{
+    kvm_device_access(fd, KVM_DEV_LOONGARCH_PCH_PIC_GRP_REGS,
+                      addr, val, write, &error_abort);
+}
+
+static void kvm_loongarch_pch_pic_save_load(void *opaque, bool write)
+{
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
+    LoongarchPICState *lps = LOONGARCH_PIC(opaque);
+    int fd = lps->dev_fd;
+    int addr, offset;
+
+    kvm_pch_pic_access_regs(fd, VIRT_PCH_REG_BASE + PCH_PIC_INT_MASK,
+                            &s->int_mask, write);
+    kvm_pch_pic_access_regs(fd, VIRT_PCH_REG_BASE + PCH_PIC_HTMSI_EN,
+                            &s->htmsi_en, write);
+    kvm_pch_pic_access_regs(fd, VIRT_PCH_REG_BASE + PCH_PIC_INT_EDGE,
+                            &s->intedge, write);
+    kvm_pch_pic_access_regs(fd, VIRT_PCH_REG_BASE + PCH_PIC_AUTO_CTRL0,
+                            &s->auto_crtl0, write);
+    kvm_pch_pic_access_regs(fd, VIRT_PCH_REG_BASE + PCH_PIC_AUTO_CTRL1,
+                            &s->auto_crtl1, write);
+
+    for (addr = PCH_PIC_ROUTE_ENTRY;
+        addr < PCH_PIC_ROUTE_ENTRY_END; addr++) {
+        offset = addr - PCH_PIC_ROUTE_ENTRY;
+        kvm_pch_pic_access_regs(fd, addr + VIRT_PCH_REG_BASE,
+                                &s->route_entry[offset], write);
+    }
+
+    for (addr = PCH_PIC_HTMSI_VEC; addr < PCH_PIC_HTMSI_VEC_END; addr++) {
+        offset = addr - PCH_PIC_HTMSI_VEC;
+        kvm_pch_pic_access_regs(fd, addr + VIRT_PCH_REG_BASE,
+                                &s->htmsi_vector[offset], write);
+    }
+
+    kvm_pch_pic_access_regs(fd, VIRT_PCH_REG_BASE + PCH_PIC_INT_REQUEST,
+                            &s->intirr, write);
+    kvm_pch_pic_access_regs(fd, VIRT_PCH_REG_BASE + PCH_PIC_INT_STATUS,
+                            &s->intisr, write);
+    kvm_pch_pic_access_regs(fd, VIRT_PCH_REG_BASE + PCH_PIC_INT_POL,
+                            &s->int_polarity, write);
+}
+
+int kvm_loongarch_pic_pre_save(void *opaque)
+{
+    kvm_loongarch_pch_pic_save_load(opaque, false);
+    return 0;
+}
+
+int kvm_loongarch_pic_post_load(void *opaque, int version_id)
+{
+    kvm_loongarch_pch_pic_save_load(opaque, true);
+    return 0;
+}
+
 void kvm_loongarch_pic_realize(DeviceState *dev, Error **errp)
 {
     LoongarchPICState *lps = LOONGARCH_PIC(dev);
