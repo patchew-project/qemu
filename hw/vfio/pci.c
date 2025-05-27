@@ -3296,6 +3296,7 @@ out_teardown:
     vfio_bars_exit(vdev);
 error:
     error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->name);
+    vfio_pci_put_device(vdev);
 }
 
 static void vfio_instance_finalize(Object *obj)
