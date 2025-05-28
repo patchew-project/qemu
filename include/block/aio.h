@@ -718,10 +718,11 @@ void qemu_set_current_aio_context(AioContext *ctx);
 /**
  * aio_context_setup:
  * @ctx: the aio context
+ * @errp: error pointer
  *
  * Initialize the aio context.
  */
-void aio_context_setup(AioContext *ctx);
+void aio_context_setup(AioContext *ctx, Error **errp);
 
 /**
  * aio_context_destroy:
