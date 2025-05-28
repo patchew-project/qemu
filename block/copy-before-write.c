@@ -53,7 +53,7 @@ typedef struct BDRVCopyBeforeWriteState {
     CoMutex lock;
 
     /*
-     * @access_bitmap: represents areas allowed for reading by fleecing user.
+     * @access_bitmap: represents areas disallowed for reading by fleecing user.
      * Reading from non-dirty areas leads to -EACCES.
      */
     BdrvDirtyBitmap *access_bitmap;
@@ -220,7 +220,7 @@ cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset, int64_t bytes,
         return NULL;
     }
 
-    if (bdrv_dirty_bitmap_next_zero(s->access_bitmap, offset, bytes) != -1) {
+    if (bdrv_dirty_bitmap_next_dirty(s->access_bitmap, offset, bytes) != -1) {
         g_free(req);
         return NULL;
     }
@@ -338,8 +338,8 @@ cbw_co_pdiscard_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes)
     aligned_bytes = aligned_end - aligned_offset;
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
-        bdrv_reset_dirty_bitmap(s->access_bitmap, aligned_offset,
-                                aligned_bytes);
+        bdrv_set_dirty_bitmap(s->access_bitmap, aligned_offset,
+                              aligned_bytes);
     }
 
     block_copy_reset(s->bcs, aligned_offset, aligned_bytes);
@@ -501,9 +501,12 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
     bdrv_disable_dirty_bitmap(s->access_bitmap);
-    bdrv_dirty_bitmap_merge_internal(s->access_bitmap,
-                                     block_copy_dirty_bitmap(s->bcs), NULL,
-                                     true);
+    if (bitmap) {
+        bdrv_dirty_bitmap_merge_internal(s->access_bitmap,
+                                         block_copy_dirty_bitmap(s->bcs), NULL,
+                                         true);
+        bdrv_dirty_bitmap_inverse(s->access_bitmap);
+    }
 
     qemu_co_mutex_init(&s->lock);
     QLIST_INIT(&s->frozen_read_reqs);
