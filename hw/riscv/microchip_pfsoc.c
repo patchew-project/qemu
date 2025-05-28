@@ -718,6 +718,8 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
     mc->default_ram_id = "microchip.icicle.kit.ram";
     mc->auto_create_sdcard = true;
 
+    machine_class_allow_dynamic_sysbus_dev(mc, "ctucan_mm");
+
     /*
      * Map 513 MiB high memory, the minimum required high memory size, because
      * HSS will do memory test against the high memory address range regardless
