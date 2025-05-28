@@ -1157,7 +1157,7 @@ linux_io_uring_test = '''
 
 linux_io_uring = not_found
 if not get_option('linux_io_uring').auto() or have_block
-  linux_io_uring = dependency('liburing', version: '>=0.3',
+  linux_io_uring = dependency('liburing', version: '>=2.1',
                               required: get_option('linux_io_uring'),
                               method: 'pkg-config')
   if not cc.links(linux_io_uring_test)

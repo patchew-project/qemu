@@ -124,8 +124,7 @@ static AioHandler *dequeue(AioHandlerSList *head, unsigned *flags)
     /*
      * Don't clear FDMON_IO_URING_REMOVE.  It's sticky so it can serve two
      * purposes: telling fill_sq_ring() to submit IORING_OP_POLL_REMOVE and
-     * telling process_cqe() to delete the AioHandler when its
-     * IORING_OP_POLL_ADD completes.
+     * telling process_cqe() to ignore IORING_OP_POLL_ADD completions.
      */
     *flags = qatomic_fetch_and(&node->flags, ~(FDMON_IO_URING_PENDING |
                                               FDMON_IO_URING_ADD));
@@ -166,12 +165,12 @@ static void fdmon_io_uring_update(AioContext *ctx,
     }
 }
 
-static void add_poll_add_sqe(AioContext *ctx, AioHandler *node)
+static void add_poll_multishot_sqe(AioContext *ctx, AioHandler *node)
 {
     struct io_uring_sqe *sqe = get_sqe(ctx);
     int events = poll_events_from_pfd(node->pfd.events);
 
-    io_uring_prep_poll_add(sqe, node->pfd.fd, events);
+    io_uring_prep_poll_multishot(sqe, node->pfd.fd, events);
     io_uring_sqe_set_data(sqe, node);
 }
 
@@ -213,7 +212,7 @@ static void fill_sq_ring(AioContext *ctx)
     while ((node = dequeue(&submit_list, &flags))) {
         /* Order matters, just in case both flags were set */
         if (flags & FDMON_IO_URING_ADD) {
-            add_poll_add_sqe(ctx, node);
+            add_poll_multishot_sqe(ctx, node);
         }
         if (flags & FDMON_IO_URING_REMOVE) {
             add_poll_remove_sqe(ctx, node);
@@ -234,21 +233,30 @@ static bool process_cqe(AioContext *ctx,
         return false;
     }
 
+    flags = qatomic_read(&node->flags);
+
     /*
-     * Deletion can only happen when IORING_OP_POLL_ADD completes.  If we race
-     * with enqueue() here then we can safely clear the FDMON_IO_URING_REMOVE
-     * bit before IORING_OP_POLL_REMOVE is submitted.
+     * poll_multishot cancelled by poll_remove? Or completed early because fd
+     * was closed before poll_remove finished?
      */
-    flags = qatomic_fetch_and(&node->flags, ~FDMON_IO_URING_REMOVE);
-    if (flags & FDMON_IO_URING_REMOVE) {
+    if (cqe->res == -ECANCELED || cqe->res == -EBADF) {
+        assert(!(cqe->flags & IORING_CQE_F_MORE));
+        assert(flags & FDMON_IO_URING_REMOVE);
         QLIST_INSERT_HEAD_RCU(&ctx->deleted_aio_handlers, node, node_deleted);
         return false;
     }
 
-    aio_add_ready_handler(ready_list, node, pfd_events_from_poll(cqe->res));
+    /* Ignore if it becomes ready during removal */
+    if (flags & FDMON_IO_URING_REMOVE) {
+        return false;
+    }
 
-    /* IORING_OP_POLL_ADD is one-shot so we must re-arm it */
-    add_poll_add_sqe(ctx, node);
+    /* Multi-shot can stop at any time, so re-arm if necessary */
+    if (!(cqe->flags & IORING_CQE_F_MORE)) {
+        add_poll_multishot_sqe(ctx, node);
+    }
+
+    aio_add_ready_handler(ready_list, node, pfd_events_from_poll(cqe->res));
     return true;
 }
 
