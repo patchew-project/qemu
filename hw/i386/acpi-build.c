@@ -40,6 +40,7 @@
 #include "hw/acpi/acpi_aml_interface.h"
 #include "hw/input/i8042.h"
 #include "hw/acpi/memory_hotplug.h"
+#include "hw/acpi/control_method_device.h"
 #include "system/tpm.h"
 #include "hw/acpi/tpm.h"
 #include "hw/acpi/vmgenid.h"
@@ -1359,7 +1360,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                                                      NULL);
     Object *q35 = object_resolve_type_unambiguous(TYPE_Q35_HOST_DEVICE, NULL);
     CrsRangeEntry *entry;
-    Aml *dsdt, *sb_scope, *scope, *dev, *method, *field, *pkg, *crs;
+    Aml *dsdt, *sb_scope, *scope, *dev, *method, *field, *pkg, *crs, *condition;
     CrsRangeSet crs_range_set;
     PCMachineState *pcms = PC_MACHINE(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
@@ -1463,6 +1464,27 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             aml_append(scope, method);
         }
     }
+    aml_append(dsdt, scope);
+
+    sb_scope = aml_scope("_SB");
+    acpi_dsdt_add_sleep_button(sb_scope);
+    aml_append(dsdt, sb_scope);
+
+    /*
+     * The event handler for the control method sleep button is generated
+     * for notifying OSPM (ACPI v6.5, Section 4.8.2.2.2.2).
+     */
+    scope =  aml_scope("\\_GPE");
+    method = aml_method("_L07", 0, AML_NOTSERIALIZED);
+    condition = aml_if(aml_name("\\_SB."ACPI_SLEEP_BUTTON_DEVICE".SBP"));
+    aml_append(condition,
+               aml_store(aml_int(1),
+                         aml_name("\\_SB."ACPI_SLEEP_BUTTON_DEVICE".SBP")));
+    aml_append(condition,
+               aml_notify(aml_name("\\_SB."ACPI_SLEEP_BUTTON_DEVICE),
+                                    aml_int(0x80)));
+    aml_append(method, condition);
+    aml_append(scope, method);
     aml_append(dsdt, scope);
 
     if (pcmc->legacy_cpu_hotplug) {
