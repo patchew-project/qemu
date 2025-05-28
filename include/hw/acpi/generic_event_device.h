@@ -85,6 +85,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(AcpiGedState, ACPI_GED)
 #define ACPI_GED_SLP_TYP_POS       0x2   /* SLP_TYPx Bit Offset */
 #define ACPI_GED_SLP_TYP_MASK      0x07  /* SLP_TYPx 3-bit mask */
 #define ACPI_GED_SLP_TYP_S5        0x05  /* System _S5 State (Soft Off) */
+#define ACPI_GED_SLP_TYP_S3        0x03  /* System _S3 State (Sleeping State) */
 #define ACPI_GED_SLP_EN            0x20  /* SLP_EN write-only bit */
 
 #define GED_DEVICE      "GED"
