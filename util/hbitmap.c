@@ -940,3 +940,18 @@ char *hbitmap_sha256(const HBitmap *bitmap, Error **errp)
 
     return hash;
 }
+
+void hbitmap_inverse(HBitmap *bitmap)
+{
+    int64_t pnum, pos = 0;
+    int64_t size = bitmap->orig_size;
+
+    while (pos < size) {
+        if (hbitmap_status(bitmap, pos, size - pos, &pnum)) {
+            hbitmap_reset(bitmap, pos, pnum);
+        } else {
+            hbitmap_set(bitmap, pos, pnum);
+        }
+        pos += pnum;
+    }
+}

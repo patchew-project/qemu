@@ -888,3 +888,12 @@ void bdrv_dirty_bitmap_merge_internal(BdrvDirtyBitmap *dest,
         }
     }
 }
+
+void bdrv_dirty_bitmap_inverse(BdrvDirtyBitmap *bitmap)
+{
+    assert(!bdrv_dirty_bitmap_readonly(bitmap));
+    assert(!bdrv_dirty_bitmap_inconsistent(bitmap));
+    bdrv_dirty_bitmaps_lock(bitmap->bs);
+    hbitmap_inverse(bitmap->bitmap);
+    bdrv_dirty_bitmaps_unlock(bitmap->bs);
+}

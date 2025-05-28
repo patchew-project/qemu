@@ -350,4 +350,12 @@ bool hbitmap_status(const HBitmap *hb, int64_t start, int64_t count,
  */
 int64_t hbitmap_iter_next(HBitmapIter *hbi);
 
+/**
+ * hbitmap_inverse:
+ * @bitmap: The HBitmap to operate on
+ *
+ * Inverse the bits in the bitmap. For example, 00011 will become 11100.
+ */
+void hbitmap_inverse(HBitmap *bitmap);
+
 #endif
