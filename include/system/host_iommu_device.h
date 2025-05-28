@@ -29,6 +29,10 @@ typedef union VendorCaps {
  *
  * @hw_caps: host platform IOMMU capabilities (e.g. on IOMMUFD this represents
  *           the @out_capabilities value returned from IOMMU_GET_HW_INFO ioctl)
+ *
+ * @vendor_caps: host platform IOMMU vendor specific capabilities (e.g. on
+ *               IOMMUFD this represents raw vendor data from data_uptr
+ *               buffer returned from IOMMU_GET_HW_INFO ioctl)
  */
 typedef struct HostIOMMUDeviceCaps {
     uint32_t type;
@@ -116,6 +120,9 @@ struct HostIOMMUDeviceClass {
  */
 #define HOST_IOMMU_DEVICE_CAP_IOMMU_TYPE        0
 #define HOST_IOMMU_DEVICE_CAP_AW_BITS           1
+#define HOST_IOMMU_DEVICE_CAP_NESTING           2
+#define HOST_IOMMU_DEVICE_CAP_FS1GP             3
+#define HOST_IOMMU_DEVICE_CAP_ERRATA            4
 
 #define HOST_IOMMU_DEVICE_CAP_AW_BITS_MAX       64
 #endif
