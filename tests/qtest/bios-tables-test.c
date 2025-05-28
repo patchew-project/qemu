@@ -824,10 +824,11 @@ static char *test_acpi_create_args(test_data *data, const char *params)
         /*
          * TODO: convert '-drive if=pflash' to new syntax (see e33763be7cd3)
          * when arm/virt boad starts to support it.
+         * NOTE: Explicitly add "-serial stdio" to enable uart in DSDT.
          */
         if (data->cd) {
             args = g_strdup_printf("-machine %s%s %s -accel tcg "
-                "-nodefaults -nographic "
+                "-nodefaults -serial stdio -nographic "
                 "-drive if=pflash,format=raw,file=%s,readonly=on "
                 "-drive if=pflash,format=raw,file=%s,snapshot=on -cdrom %s %s",
                 data->machine, data->machine_param ?: "",
@@ -835,7 +836,7 @@ static char *test_acpi_create_args(test_data *data, const char *params)
                 data->uefi_fl1, data->uefi_fl2, data->cd, params ? params : "");
         } else {
             args = g_strdup_printf("-machine %s%s %s -accel tcg "
-                "-nodefaults -nographic "
+                "-nodefaults -serial stdio -nographic "
                 "-drive if=pflash,format=raw,file=%s,readonly=on "
                 "-drive if=pflash,format=raw,file=%s,snapshot=on %s",
                 data->machine, data->machine_param ?: "",
