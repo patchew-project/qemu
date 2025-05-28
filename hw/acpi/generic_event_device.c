@@ -213,6 +213,9 @@ static void ged_regs_write(void *opaque, hwaddr addr, uint64_t data,
         if (slp_en && slp_typ == ACPI_GED_SLP_TYP_S5) {
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         }
+        if (slp_en && slp_typ == ACPI_GED_SLP_TYP_S3) {
+            qemu_system_suspend_request();
+        }
         return;
     case ACPI_GED_REG_SLEEP_STS:
         return;
