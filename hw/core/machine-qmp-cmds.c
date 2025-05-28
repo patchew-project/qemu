@@ -12,6 +12,7 @@
 #include "hw/boards.h"
 #include "hw/intc/intc.h"
 #include "hw/mem/memory-device.h"
+#include "hw/acpi/acpi.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qapi-commands-machine.h"
@@ -277,6 +278,16 @@ UuidInfo *qmp_query_uuid(Error **errp)
 void qmp_system_reset(Error **errp)
 {
     qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET);
+}
+
+void qmp_system_sleep(Error **errp)
+{
+    if (!qemu_wakeup_suspend_enabled()) {
+        error_setg(errp,
+                   "suspend from running is not supported by this machine");
+        return;
+    }
+    acpi_send_sleep_event();
 }
 
 void qmp_system_powerdown(Error **errp)
