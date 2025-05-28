@@ -1,0 +1,258 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/*
+ * CTU CAN FD memory mapped device emulation
+ * http://canbus.pages.fel.cvut.cz/
+ *
+ * Copyright (c) 2024 Pavel Pisa (pisa@cmp.felk.cvut.cz)
+ *
+ * Based on Kvaser PCI CAN device (SJA1000 based) emulation implemented by
+ * Jin Yang and Pavel Pisa
+ */
+
+#include "qemu/osdep.h"
+#include "qemu/event_notifier.h"
+#include "qemu/module.h"
+#include "qemu/thread.h"
+#include "qemu/sockets.h"
+#include "qapi/error.h"
+#include "chardev/char.h"
+#include "hw/irq.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
+#include "net/can_emu.h"
+
+#include "ctucan_core.h"
+
+#define TYPE_CTUCAN_MM_DEV "ctucan_mm"
+
+typedef struct CtuCanMmState CtuCanMmState;
+DECLARE_INSTANCE_CHECKER(CtuCanMmState, CTUCAN_MM_DEV,
+                         TYPE_CTUCAN_MM_DEV)
+
+#define CTUCAN_MM_CORE_COUNT     1
+#define CTUCAN_MM_CORE_RANGE     0x1000
+
+#define CTUCAN_MM_BYTES_PER_CORE 0x1000
+
+struct CtuCanMmState {
+    /*< private >*/
+    SysBusDevice    parent_obj;
+    /*< public >*/
+
+    struct {
+        uint64_t    iobase;
+        uint32_t    irqnum;
+        char        *irqctrl;
+    } cfg;
+
+    MemoryRegion    ctucan_io_region;
+
+    CtuCanCoreState ctucan_state[CTUCAN_MM_CORE_COUNT];
+    qemu_irq        irq;
+
+    char            *model;
+    CanBusState     *canbus[CTUCAN_MM_CORE_COUNT];
+};
+
+static void ctucan_mm_reset(DeviceState *dev)
+{
+    CtuCanMmState *d = CTUCAN_MM_DEV(dev);
+    int i;
+
+    for (i = 0 ; i < CTUCAN_MM_CORE_COUNT; i++) {
+        ctucan_hardware_reset(&d->ctucan_state[i]);
+    }
+}
+
+static uint64_t ctucan_mm_cores_io_read(void *opaque, hwaddr addr,
+                                          unsigned size)
+{
+    CtuCanMmState *d = opaque;
+    CtuCanCoreState *s;
+    hwaddr core_num = addr / CTUCAN_MM_BYTES_PER_CORE;
+
+    if (core_num >= CTUCAN_MM_CORE_COUNT) {
+        return 0;
+    }
+
+    s = &d->ctucan_state[core_num];
+
+    return ctucan_mem_read(s, addr % CTUCAN_MM_BYTES_PER_CORE, size);
+}
+
+static void ctucan_mm_cores_io_write(void *opaque, hwaddr addr, uint64_t data,
+                             unsigned size)
+{
+    CtuCanMmState *d = opaque;
+    CtuCanCoreState *s;
+    hwaddr core_num = addr / CTUCAN_MM_BYTES_PER_CORE;
+
+    if (core_num >= CTUCAN_MM_CORE_COUNT) {
+        return;
+    }
+
+    s = &d->ctucan_state[core_num];
+
+    return ctucan_mem_write(s, addr % CTUCAN_MM_BYTES_PER_CORE, data, size);
+}
+
+static const MemoryRegionOps ctucan_mm_cores_io_ops = {
+    .read = ctucan_mm_cores_io_read,
+    .write = ctucan_mm_cores_io_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+};
+
+static void ctucan_mm_realize(DeviceState *dev, Error **errp)
+{
+    CtuCanMmState *d = CTUCAN_MM_DEV(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    int i;
+
+    for (i = 0 ; i < CTUCAN_MM_CORE_COUNT; i++) {
+        ctucan_init(&d->ctucan_state[i], d->irq);
+    }
+
+    for (i = 0 ; i < CTUCAN_MM_CORE_COUNT; i++) {
+        if (ctucan_connect_to_bus(&d->ctucan_state[i], d->canbus[i]) < 0) {
+            error_setg(errp, "ctucan_connect_to_bus failed");
+            return;
+        }
+    }
+
+    if (d->cfg.iobase != 0) {
+        sysbus_mmio_map(sbd, 0, d->cfg.iobase);
+    }
+    if (d->cfg.irqnum != 0) {
+        char *id = d->cfg.irqctrl;
+        Object *obj;
+        DeviceState *gicdev;
+
+        if (!id) {
+            error_setg(errp, "irqctrl object path is mandatory when"
+                       "irqnum is specified");
+            return;
+        }
+
+        obj = object_resolve_path_at(object_resolve_path_at(qdev_get_machine(),
+                                     "peripheral"), id);
+        if (!obj) {
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", id);
+            return;
+        }
+        gicdev = (DeviceState *)object_dynamic_cast(obj, TYPE_DEVICE);
+        if (!gicdev) {
+            error_setg(errp, "%s is not a hotpluggable device", id);
+            return;
+        }
+        sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(gicdev, d->cfg.irqnum));
+    }
+    for (i = 0 ; i < CTUCAN_MM_CORE_COUNT; i++) {
+        ctucan_init(&d->ctucan_state[i], d->irq);
+    }
+}
+
+static void ctucan_mm_reset_init(Object *obj, ResetType type)
+{
+    CtuCanMmState *d = CTUCAN_MM_DEV(obj);
+    unsigned int i;
+
+    for (i = 0 ; i < CTUCAN_MM_CORE_COUNT; i++) {
+        ctucan_init(&d->ctucan_state[i], d->irq);
+    }
+}
+
+static void ctucan_mm_reset_hold(Object *obj, ResetType type)
+{
+    CtuCanMmState *d = CTUCAN_MM_DEV(obj);
+    unsigned int i;
+
+    for (i = 0 ; i < CTUCAN_MM_CORE_COUNT; i++) {
+        ctucan_init(&d->ctucan_state[i], d->irq);
+    }
+}
+
+static const VMStateDescription vmstate_ctucan_mm = {
+    .name = "ctucan_mm",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_STRUCT(ctucan_state[0], CtuCanMmState, 0, vmstate_ctucan,
+                       CtuCanCoreState),
+#if CTUCAN_MM_CORE_COUNT >= 2
+        VMSTATE_STRUCT(ctucan_state[1], CtuCanMmState, 0, vmstate_ctucan,
+                       CtuCanCoreState),
+#endif
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void ctucan_mm_instance_init(Object *obj)
+{
+    CtuCanMmState *d = CTUCAN_MM_DEV(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+#if CTUCAN_MM_CORE_COUNT <= 1
+    object_property_add_link(obj, "canbus", TYPE_CAN_BUS,
+                             (Object **)&d->canbus[0],
+                             qdev_prop_allow_set_link_before_realize, 0);
+#else /* CTUCAN_MM_CORE_COUNT >= 2 */
+    object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
+                             (Object **)&d->canbus[0],
+                             qdev_prop_allow_set_link_before_realize, 0);
+    object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
+                             (Object **)&d->canbus[1],
+                             qdev_prop_allow_set_link_before_realize, 0);
+#endif
+    memory_region_init_io(&d->ctucan_io_region, OBJECT(d),
+                          &ctucan_mm_cores_io_ops, d,
+                          "ctucan_mm", CTUCAN_MM_CORE_RANGE);
+
+    sysbus_init_mmio(sbd, &d->ctucan_io_region);
+    sysbus_init_irq(sbd, &d->irq);
+}
+
+static const Property ctucan_mm_properties[] = {
+    DEFINE_PROP_UINT64("iobase", CtuCanMmState, cfg.iobase, 0),
+    DEFINE_PROP_UINT32("irqnum", CtuCanMmState, cfg.irqnum, 0),
+    DEFINE_PROP_STRING("irqctrl", CtuCanMmState, cfg.irqctrl),
+};
+
+static void ctucan_mm_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    rc->phases.enter = ctucan_mm_reset_init;
+    rc->phases.hold = ctucan_mm_reset_hold;
+    dc->realize = ctucan_mm_realize;
+    /* ->exit = ctucan_mm_exit; */
+    dc->desc = "CTU CAN MM";
+    dc->vmsd = &vmstate_ctucan_mm;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->user_creatable = true;
+    /* dc->reset = ctucan_mm_reset; */
+    device_class_set_legacy_reset(dc, ctucan_mm_reset);
+
+    device_class_set_props(dc, ctucan_mm_properties);
+}
+
+static const TypeInfo ctucan_mm_info = {
+    .name          = TYPE_CTUCAN_MM_DEV,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(CtuCanMmState),
+    .class_init    = ctucan_mm_class_init,
+    .instance_init = ctucan_mm_instance_init,
+};
+
+static void ctucan_mm_register_types(void)
+{
+    type_register_static(&ctucan_mm_info);
+}
+
+type_init(ctucan_mm_register_types)
