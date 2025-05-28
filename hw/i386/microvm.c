@@ -489,6 +489,7 @@ static void microvm_machine_state_init(MachineState *machine)
     qemu_add_machine_init_done_notifier(&mms->machine_done);
     mms->powerdown_req.notify = microvm_powerdown_req;
     qemu_register_powerdown_notifier(&mms->powerdown_req);
+    qemu_register_wakeup_support();
 
     microvm_memory_init(mms);
 
