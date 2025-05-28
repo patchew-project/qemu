@@ -82,6 +82,7 @@ config SERVER_PLATFORM_REF
     select RISCV_ACLINT
     select RISCV_APLIC
     select RISCV_IMSIC
+    select RISCV_IOMMU
 
 config SHAKTI_C
     bool
