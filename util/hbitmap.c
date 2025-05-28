@@ -84,9 +84,6 @@ struct HBitmap {
      */
     int granularity;
 
-    /* A meta dirty bitmap to track the dirtiness of bits in this HBitmap. */
-    HBitmap *meta;
-
     /* A number of progressively less coarse bitmaps (i.e. level 0 is the
      * coarsest).  Each bit in level N represents a word in level N+1 that
      * has a set bit, except the last level where each bit represents the
@@ -480,10 +477,7 @@ void hbitmap_set(HBitmap *hb, uint64_t start, uint64_t count)
     n = last - first + 1;
 
     hb->count += n - hb_count_between(hb, first, last);
-    if (hb_set_between(hb, HBITMAP_LEVELS - 1, first, last) &&
-        hb->meta) {
-        hbitmap_set(hb->meta, start, count);
-    }
+    hb_set_between(hb, HBITMAP_LEVELS - 1, first, last);
 }
 
 /* Resetting works the other way round: propagate up if the new
@@ -577,10 +571,7 @@ void hbitmap_reset(HBitmap *hb, uint64_t start, uint64_t count)
     assert(last < hb->size);
 
     hb->count -= hb_count_between(hb, first, last);
-    if (hb_reset_between(hb, HBITMAP_LEVELS - 1, first, last) &&
-        hb->meta) {
-        hbitmap_set(hb->meta, start, count);
-    }
+    hb_reset_between(hb, HBITMAP_LEVELS - 1, first, last);
 }
 
 void hbitmap_reset_all(HBitmap *hb)
@@ -784,7 +775,6 @@ void hbitmap_deserialize_finish(HBitmap *bitmap)
 void hbitmap_free(HBitmap *hb)
 {
     unsigned i;
-    assert(!hb->meta);
     for (i = HBITMAP_LEVELS; i-- > 0; ) {
         g_free(hb->levels[i]);
     }
@@ -867,9 +857,6 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
             memset(&hb->levels[i][old], 0x00,
                    (size - old) * sizeof(*hb->levels[i]));
         }
-    }
-    if (hb->meta) {
-        hbitmap_truncate(hb->meta, hb->size << hb->granularity);
     }
 }
 
