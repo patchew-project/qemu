@@ -184,6 +184,7 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr);
 
 void acpi_send_gpe_event(ACPIREGS *ar, qemu_irq irq,
                          AcpiEventStatusBits status);
+void acpi_send_sleep_event(void);
 
 void acpi_update_sci(ACPIREGS *acpi_regs, qemu_irq irq);
 

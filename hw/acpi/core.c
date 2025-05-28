@@ -359,6 +359,18 @@ int acpi_get_slic_oem(AcpiSlicOem *oem)
     return -1;
 }
 
+void acpi_send_sleep_event(void)
+{
+    bool ambiguous;
+    Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, &ambiguous);
+
+    assert(!ambiguous);
+    if (obj) {
+        /* Send sleep event */
+        acpi_send_event(DEVICE(obj), ACPI_SLEEP_STATUS);
+    }
+}
+
 static void acpi_notify_wakeup(Notifier *notifier, void *data)
 {
     ACPIREGS *ar = container_of(notifier, ACPIREGS, wakeup);
