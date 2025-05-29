@@ -13,6 +13,7 @@ __email__      = "stefanha@redhat.com"
 
 
 import os.path
+from pathlib import PurePath
 
 from tracetool import out
 
@@ -36,6 +37,12 @@ def generate_h(event, group):
     else:
         cond = "trace_event_get_state(%s)" % ("TRACE_" + event.name.upper())
 
+    try:
+        event_filename = os.path.relpath(event.filename)
+    except ValueError:
+        event_filename = event.filename
+    event_filename = PurePath(event_filename).as_posix()
+
     out('    if (%(cond)s) {',
         '#line %(event_lineno)d "%(event_filename)s"',
         '        syslog(LOG_INFO, "%(name)s " %(fmt)s %(argnames)s);',
@@ -43,7 +50,7 @@ def generate_h(event, group):
         '    }',
         cond=cond,
         event_lineno=event.lineno,
-        event_filename=os.path.relpath(event.filename),
+        event_filename=event_filename,
         name=event.name,
         fmt=event.fmt.rstrip("\n"),
         argnames=argnames)
