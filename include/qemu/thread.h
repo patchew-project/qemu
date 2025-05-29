@@ -19,6 +19,25 @@ typedef struct QemuThread QemuThread;
  * https://learn.microsoft.com/en-us/windows/win32/sync/using-event-objects
  *
  * QemuEvent is more lightweight than QemuSemaphore when HAVE_FUTEX is defined.
+ *
+ * Memory ordering
+ * ---------------
+ *
+ * The documentation of Win32 manual-reset event objects do not specify
+ * memory ordering. Below describes the memory ordering QemuEvent establishes.
+ *
+ * Assume each of the following two orders is specified in a different thread:
+ * - X -> qemu_event_set()
+ * - qemu_event_reset() or qemu_event_wait() -> Y
+ *
+ * X -> Y will be ensured for the two threads if any of the following is
+ * satisfied:
+ * - qemu_event_set() happens before qemu_event_reset().
+ * - qemu_event_set() happens before qemu_event_wait().
+ * - qemu_event_wait() waits for qemu_event_set().
+ *
+ * Note that this is true even when the value is already set before
+ * qemu_event_set().
  */
 typedef struct QemuEvent {
 #ifndef HAVE_FUTEX

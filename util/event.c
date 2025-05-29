@@ -5,24 +5,33 @@
 
 /*
  * Valid transitions:
- * - free->set, when setting the event
- * - busy->set, when setting the event
- * - set->free, when resetting the event
- * - free->busy, when waiting
+ * - FREE -> SET (qemu_event_set)
+ * - BUSY -> SET (qemu_event_set)
+ * - SET -> FREE (qemu_event_reset)
+ * - FREE -> BUSY (qemu_event_wait)
  *
- * With futex, the waking and blocking operations follow busy->set and
- * free->busy, respectively.
+ * With futex, the waking and blocking operations follow
+ * BUSY -> SET and FREE -> BUSY, respectively.
  *
- * Without futex, busy->set and free->busy never happen. Instead, the waking
- * operation follows free->set and the blocking operation will happen when
- * waiting if the event is not set.
+ * Without futex, BUSY -> SET and FREE -> BUSY never happen. Instead, the waking
+ * operation follows FREE -> SET and the blocking operation will happen in
+ * qemu_event_wait() if the event is not SET.
  *
- * set->busy does not happen (it can be observed from the outside but
- * it really is set->free->busy).
+ * The following orders specified in a thread are preserved for any other thread
+ * accessing the event value:
+ * 1. qemu_event_set: X -> store SET
+ * 2. qemu_event_reset: store FREE -> X
+ * 3. qemu_event_wait: load SET -> X
+ * 4. qemu_event_set: store SET -> wake
  *
- * busy->free provably cannot happen; to enforce it, the set->free transition
- * is done with an OR, which becomes a no-op if the event has concurrently
- * transitioned to free or busy.
+ * Different combinations of orders 1, 2, 3, and 4 establish the order visible
+ * to the users of QemuEvent in different situations:
+ * When qemu_event_set() happens before qemu_event_reset(): orders 1 and 2
+ * When qemu_event_set() happens before qemu_event_wait(): orders 1 and 3
+ * when qemu_event_wait() waits for qemu_event_set(): orders 1 and 3
+ *
+ * Order 4 ensures that qemu_event_set() wakes qemu_event_wait() if it is
+ * blocked.
  */
 
 #define EV_SET         0
@@ -55,12 +64,23 @@ void qemu_event_set(QemuEvent *ev)
     assert(ev->initialized);
 
 #ifdef HAVE_FUTEX
+    /*
+     * Transitions:
+     * - FREE -> SET
+     * - BUSY -> SET
+     *
+     * Order 1. X -> store SET
+     */
     if (qatomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
-        /* There were waiters, wake them up.  */
+        /* Order 4. store SET -> wake  */
         qemu_futex_wake_all(ev);
     }
 #else
     pthread_mutex_lock(&ev->lock);
+    /*
+     * Transition FREE -> SET
+     * Order 1. X -> store SET
+     */
     qatomic_store_release(&ev->value, EV_SET);
     pthread_cond_broadcast(&ev->cond);
     pthread_mutex_unlock(&ev->lock);
@@ -72,15 +92,14 @@ void qemu_event_reset(QemuEvent *ev)
     assert(ev->initialized);
 
     /*
-     * If there was a concurrent reset (or even reset+wait),
-     * do nothing.  Otherwise change EV_SET->EV_FREE.
+     * Transition SET -> FREE
+     *
+     * Ensure that BUSY -> FREE never happens with an OR, which becomes a no-op
+     * if the event has concurrently transitioned to FREE or BUSY.
      */
     qatomic_or(&ev->value, EV_FREE);
 
-    /*
-     * Order reset before checking the condition in the caller.
-     * Pairs with the store-release in qemu_event_set().
-     */
+    /* Order 2. store FREE -> X */
     smp_mb__after_rmw();
 }
 
@@ -90,28 +109,14 @@ void qemu_event_wait(QemuEvent *ev)
 
 #ifdef HAVE_FUTEX
     while (true) {
-        /*
-         * qemu_event_wait must synchronize with qemu_event_set even if it does
-         * not go down the slow path, so this load-acquire is needed that
-         * synchronizes with the store-release in qemu_event_set().
-         */
+        /* Order 3. load SET -> X */
         unsigned value = qatomic_load_acquire(&ev->value);
         if (value == EV_SET) {
             break;
         }
 
         if (value == EV_FREE) {
-            /*
-             * Leave the event reset and tell qemu_event_set that there are
-             * waiters.  No need to retry, because there cannot be a concurrent
-             * busy->free transition.  After the CAS, the event will be either
-             * set or busy.
-             *
-             * This cmpxchg doesn't have particular ordering requirements if it
-             * succeeds (moving the store earlier can only cause
-             * qemu_event_set() to issue _more_ wakeups), the failing case needs
-             * acquire semantics like the load above.
-             */
+            /* Order 3. load SET -> X */
             if (qatomic_cmpxchg(&ev->value, EV_FREE, EV_BUSY) == EV_SET) {
                 break;
             }
@@ -120,6 +125,11 @@ void qemu_event_wait(QemuEvent *ev)
         qemu_futex_wait(ev, EV_BUSY);
     }
 #else
+    /*
+     * Order 3. load SET -> X
+     *
+     * qatomic_read() loads SET. ev->lock ensures the order.
+     */
     pthread_mutex_lock(&ev->lock);
     while (qatomic_read(&ev->value) != EV_SET) {
         pthread_cond_wait(&ev->cond, &ev->lock);
