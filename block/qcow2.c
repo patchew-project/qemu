@@ -3906,6 +3906,8 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
     BlockDriverState *bs = NULL;
     BlockDriverState *data_bs = NULL;
     const char *val;
+    bool keep_data_file = false;
+    BlockdevCreateOptionsQcow2 *qcow2_opts;
     int ret;
 
     /* Only the keyval visitor supports the dotted syntax needed for
@@ -3935,6 +3937,22 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
         qdict_put_str(qdict, BLOCK_OPT_COMPAT_LEVEL, "v2");
     } else if (val && !strcmp(val, "1.1")) {
         qdict_put_str(qdict, BLOCK_OPT_COMPAT_LEVEL, "v3");
+    }
+
+    val = qdict_get_try_str(qdict, BLOCK_OPT_KEEP_DATA_FILE);
+    if (val) {
+        if (!strcmp(val, "on")) {
+            keep_data_file = true;
+        } else if (!strcmp(val, "off")) {
+            keep_data_file = false;
+        } else {
+            error_setg(errp,
+                       "Invalid value '%s' for '%s': Must be 'on' or 'off'",
+                       val, BLOCK_OPT_KEEP_DATA_FILE);
+            ret = -EINVAL;
+            goto finish;
+        }
+        qdict_del(qdict, BLOCK_OPT_KEEP_DATA_FILE);
     }
 
     /* Change legacy command line options into QMP ones */
@@ -3973,9 +3991,11 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
     /* Create and open an external data file (protocol layer) */
     val = qdict_get_try_str(qdict, BLOCK_OPT_DATA_FILE);
     if (val) {
-        ret = bdrv_co_create_file(val, opts, errp);
-        if (ret < 0) {
-            goto finish;
+        if (!keep_data_file) {
+            ret = bdrv_co_create_file(val, opts, errp);
+            if (ret < 0) {
+                goto finish;
+            }
         }
 
         data_bs = bdrv_co_open(val, NULL, NULL,
@@ -3988,6 +4008,11 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
 
         qdict_del(qdict, BLOCK_OPT_DATA_FILE);
         qdict_put_str(qdict, "data-file", data_bs->node_name);
+    } else if (keep_data_file) {
+        error_setg(errp, "Must not use '%s=on' without '%s'",
+                   BLOCK_OPT_KEEP_DATA_FILE, BLOCK_OPT_DATA_FILE);
+        ret = -EINVAL;
+        goto finish;
     }
 
     /* Set 'driver' and 'node' options */
@@ -4008,6 +4033,40 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
         goto finish;
     }
 
+    qcow2_opts = &create_options->u.qcow2;
+
+    if (!qcow2_opts->has_preallocation) {
+        qcow2_opts->preallocation = PREALLOC_MODE_OFF;
+    }
+    if (!qcow2_opts->has_data_file_raw) {
+        qcow2_opts->data_file_raw = false;
+    }
+
+    if (keep_data_file &&
+        qcow2_opts->preallocation != PREALLOC_MODE_OFF &&
+        qcow2_opts->preallocation != PREALLOC_MODE_METADATA)
+    {
+        error_setg(errp, "Preallocating more than only metadata would "
+                   "overwrite the external data file's content and is "
+                   "therefore incompatible with '%s=on'",
+                   BLOCK_OPT_KEEP_DATA_FILE);
+        ret = -EINVAL;
+        goto finish;
+    }
+
+    if (keep_data_file &&
+        qcow2_opts->preallocation == PREALLOC_MODE_OFF &&
+        !qcow2_opts->data_file_raw)
+    {
+        error_setg(errp, "'%s=on' requires '%s=metadata' or '%s=on', or the "
+                   "file contents will not be visible",
+                   BLOCK_OPT_KEEP_DATA_FILE,
+                   BLOCK_OPT_PREALLOC,
+                   BLOCK_OPT_DATA_FILE_RAW);
+        ret = -EINVAL;
+        goto finish;
+    }
+
     /* Silently round up size */
     create_options->u.qcow2.size = ROUND_UP(create_options->u.qcow2.size,
                                             BDRV_SECTOR_SIZE);
@@ -4018,7 +4077,9 @@ finish:
     if (ret < 0) {
         bdrv_graph_co_rdlock();
         bdrv_co_delete_file_noerr(bs);
-        bdrv_co_delete_file_noerr(data_bs);
+        if (!keep_data_file) {
+            bdrv_co_delete_file_noerr(data_bs);
+        }
         bdrv_graph_co_rdunlock();
     } else {
         ret = 0;
@@ -6117,6 +6178,12 @@ static QemuOptsList qcow2_create_opts = {
             .help = "Compression method used for image cluster "        \
                     "compression",                                      \
             .def_value_str = "zlib"                                     \
+        },                                                              \
+        {                                                               \
+            .name = BLOCK_OPT_KEEP_DATA_FILE,                           \
+            .type = QEMU_OPT_BOOL,                                      \
+            .help = "Assume the external data file already exists and " \
+                    "do not overwrite it"                               \
         },
         QCOW_COMMON_OPTIONS,
         { /* end of list */ }
