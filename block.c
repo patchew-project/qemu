@@ -3995,10 +3995,8 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
     GLOBAL_STATE_CODE();
     assert(!qemu_in_coroutine());
 
-    /* TODO We'll eventually have to take a writer lock in this function */
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
-
     if (reference) {
+        GRAPH_RDLOCK_GUARD_MAINLOOP();
         bool options_non_empty = options ? qdict_size(options) : false;
         qobject_unref(options);
 
@@ -4018,6 +4016,9 @@ bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
     }
 
     bs = bdrv_new();
+
+    /* TODO We'll eventually have to take a writer lock in this function */
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /* NULL means an empty set of options */
     if (options == NULL) {
