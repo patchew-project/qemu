@@ -3288,6 +3288,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
                                             BlockDriverState **file)
 {
     off_t data = 0, hole = 0;
+    bool has_data = false;
     int ret;
 
     assert(QEMU_IS_ALIGNED(offset | bytes, bs->bl.request_alignment));
@@ -3305,40 +3306,62 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
         return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
     }
 
-    ret = find_allocation(bs, offset, &data, &hole);
-    if (ret == -ENXIO) {
-        /* Trailing hole */
-        *pnum = bytes;
-        ret = BDRV_BLOCK_ZERO;
-    } else if (ret < 0) {
-        /* No info available, so pretend there are no holes */
-        *pnum = bytes;
-        ret = BDRV_BLOCK_DATA;
-    } else if (data == offset) {
-        /* On a data extent, compute bytes to the end of the extent,
-         * possibly including a partial sector at EOF. */
-        *pnum = hole - offset;
-
-        /*
-         * We are not allowed to return partial sectors, though, so
-         * round up if necessary.
-         */
-        if (!QEMU_IS_ALIGNED(*pnum, bs->bl.request_alignment)) {
-            int64_t file_length = raw_getlength(bs);
-            if (file_length > 0) {
-                /* Ignore errors, this is just a safeguard */
-                assert(hole == file_length);
+    /*
+     * We may have allocation unaligned with the requested alignment
+     * due to the following reaons:
+     * - unaligned file size
+     * - inexact direct I/O alignment requirement estimation
+     * - mismatch between the allocation size and
+     *   direct I/O alignment requirement
+     *
+     * We are not allowed to return partial sectors, though, so iterate
+     * until finding an aligned location in or at a border of a hole.
+     */
+    *pnum = 0;
+    do {
+        ret = find_allocation(bs, offset + *pnum, &data, &hole);
+        if (ret == -ENXIO) {
+            /* Trailing hole */
+            if (!has_data) {
+                *pnum = bytes;
             }
-            *pnum = ROUND_UP(*pnum, bs->bl.request_alignment);
+            break;
         }
 
-        ret = BDRV_BLOCK_DATA;
-    } else {
-        /* On a hole, compute bytes to the beginning of the next extent.  */
-        assert(hole == offset);
-        *pnum = data - offset;
-        ret = BDRV_BLOCK_ZERO;
-    }
+        if (ret < 0) {
+            /* No info available, so pretend there are no holes */
+            *pnum = bytes;
+            has_data = true;
+            break;
+        }
+
+        data -= offset;
+        hole -= offset;
+
+        if (data == *pnum) {
+            /* Return the end of a data extent if aligned. */
+            has_data = true;
+            *pnum = ROUND_UP(hole, bs->bl.request_alignment);
+            if (*pnum == hole) {
+                break;
+            }
+        } else {
+            /* Round down the end of a hole. */
+            assert(hole == *pnum);
+
+            if (data - *pnum >= bs->bl.request_alignment) {
+                if (!has_data) {
+                    *pnum = ROUND_DOWN(data, bs->bl.request_alignment);
+                }
+                break;
+            }
+
+            has_data = true;
+            *pnum += bs->bl.request_alignment;
+        }
+
+    } while (*pnum < bytes);
+    ret = has_data ? BDRV_BLOCK_DATA : BDRV_BLOCK_ZERO;
     *map = offset;
     *file = bs;
     return ret | BDRV_BLOCK_OFFSET_VALID;
