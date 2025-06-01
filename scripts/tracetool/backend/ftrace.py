@@ -23,6 +23,10 @@ PUBLIC = True
 def generate_h_begin(events, group):
     out('#include "trace/ftrace.h"',
         '')
+    for event in events:
+        out('void _ftrace_%(api)s(%(args)s);',
+            api=event.api(),
+            args=event.args)
 
 
 def generate_h(event, group):
@@ -30,26 +34,42 @@ def generate_h(event, group):
     if len(event.args) > 0:
         argnames = ", " + argnames
 
-    out('    {',
-        '        char ftrace_buf[MAX_TRACE_STRLEN];',
-        '        int unused __attribute__ ((unused));',
-        '        int trlen;',
-        '        if (trace_event_get_state(%(event_id)s)) {',
-        '#line %(event_lineno)d "%(event_filename)s"',
-        '            trlen = snprintf(ftrace_buf, MAX_TRACE_STRLEN,',
-        '                             "%(name)s " %(fmt)s "\\n" %(argnames)s);',
-        '#line %(out_next_lineno)d "%(out_filename)s"',
-        '            trlen = MIN(trlen, MAX_TRACE_STRLEN - 1);',
-        '            unused = write(trace_marker_fd, ftrace_buf, trlen);',
+    out('        if (trace_event_get_state(%(event_id)s)) {',
+        '           _ftrace_%(api)s(%(args)s);',
         '        }',
-        '    }',
         name=event.name,
-        args=event.args,
+        args=", ".join(event.args.names()),
         event_id="TRACE_" + event.name.upper(),
         event_lineno=event.lineno,
         event_filename=os.path.relpath(event.filename),
         fmt=event.fmt.rstrip("\n"),
-        argnames=argnames)
+        argnames=argnames,
+        api=event.api()
+        )
+
+
+def generate_c(event, group):
+        argnames = ", ".join(event.args.names())
+        if len(event.args) > 0:
+            argnames = ", " + argnames
+        out('void _ftrace_%(api)s(%(args)s){',
+        '        char ftrace_buf[MAX_TRACE_STRLEN];',
+        '        int unused __attribute__ ((unused));',
+        '        int trlen;',
+        '#line %(event_lineno)d "%(event_filename)s"',
+        '       trlen = snprintf(ftrace_buf, MAX_TRACE_STRLEN,',
+        '#line %(out_next_lineno)d "%(out_filename)s"',
+        '                       "%(name)s " %(fmt)s "\\n" %(argnames)s);',
+        '       trlen = MIN(trlen, MAX_TRACE_STRLEN - 1);',
+        '       unused = write(trace_marker_fd, ftrace_buf, trlen);',
+        '}',
+        event_lineno=event.lineno,
+        event_filename=os.path.relpath(event.filename),
+        name=event.name,
+        fmt=event.fmt.rstrip("\n"),
+        argnames=argnames,
+        api=event.api(),
+        args=event.args)
 
 
 def generate_h_backend_dstate(event, group):
