@@ -24,6 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
 #include "cpu.h"
 #include "exec/target_page.h"
 #include "trace.h"
@@ -1881,6 +1882,13 @@ static void smmu_realize(DeviceState *d, Error **errp)
     SMMUv3Class *c = ARM_SMMUV3_GET_CLASS(s);
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
     Error *local_err = NULL;
+    Object *bus;
+
+    bus = object_property_get_link(OBJECT(d), "primary-bus", &error_abort);
+    if (!bus || !object_dynamic_cast(bus->parent, TYPE_PCI_HOST_BRIDGE)) {
+        error_setg(errp, "SMMUv3 is not attached to any PCIe Root Complex!");
+        return;
+    }
 
     c->parent_realize(d, &local_err);
     if (local_err) {
