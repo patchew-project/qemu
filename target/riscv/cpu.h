@@ -497,6 +497,10 @@ struct CPUArchState {
     target_ulong rnmip;
     uint64_t rnmi_irqvec;
     uint64_t rnmi_excpvec;
+
+    uint64_t mipstvec; /* MIPS tvec register */
+    uint64_t mipsconfig[12]; /* MIPS config register */
+    uint64_t mipspmacfg[15]; /* MIPS pmacfg register */
 };
 
 /*
@@ -969,6 +973,9 @@ const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 
 /* In th_csr.c */
 extern const RISCVCSR th_csr_list[];
+
+/* Implemented in mips_csr.c */
+extern const RISCVCSR mips_csr_list[];
 
 const char *priv_spec_to_str(int priv_version);
 #endif /* RISCV_CPU_H */
