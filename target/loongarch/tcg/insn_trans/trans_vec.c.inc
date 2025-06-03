@@ -3465,7 +3465,7 @@ TRANS(xvmsknz_b, LASX, gen_xx, gen_helper_vmsknz_b)
 static uint64_t vldi_get_value(DisasContext *ctx, uint32_t imm)
 {
     int mode;
-    uint64_t data, t;
+    uint64_t data = 0, t;
 
     /*
      * imm bit [11:8] is mode, mode value is 0-12.
@@ -3570,8 +3570,7 @@ static uint64_t vldi_get_value(DisasContext *ctx, uint32_t imm)
         }
         break;
     default:
-        generate_exception(ctx, EXCCODE_INE);
-        g_assert_not_reached();
+        data = -1;
     }
     return data;
 }
@@ -3579,7 +3578,12 @@ static uint64_t vldi_get_value(DisasContext *ctx, uint32_t imm)
 static bool gen_vldi(DisasContext *ctx, arg_vldi *a, uint32_t oprsz)
 {
     int sel, vece;
-    uint64_t value;
+    uint64_t value = vldi_get_value(ctx, a->imm);
+
+    if (value == -1){
+        generate_exception(ctx, EXCCODE_INE);
+        return true;
+    }
 
     if (!check_vec(ctx, oprsz)) {
         return true;
@@ -3588,7 +3592,6 @@ static bool gen_vldi(DisasContext *ctx, arg_vldi *a, uint32_t oprsz)
     sel = (a->imm >> 12) & 0x1;
 
     if (sel) {
-        value = vldi_get_value(ctx, a->imm);
         vece = MO_64;
     } else {
         value = ((int32_t)(a->imm << 22)) >> 22;
