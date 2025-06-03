@@ -145,6 +145,8 @@ typedef struct {
     /* Optional: fine tune start parameters */
     MigrateStart start;
 
+    const char *config;
+
     /* Required: the URI for the dst QEMU to listen on */
     const char *listen_uri;
 

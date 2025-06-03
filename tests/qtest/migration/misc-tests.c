@@ -256,6 +256,42 @@ static void test_validate_uri_channels_none_set(void)
     do_test_validate_uri_channel(&args);
 }
 
+static void test_config_migrate(void)
+{
+    QTestState *from, *to;
+    MigrateStart args = {
+        .hide_stderr = false,
+    };
+    const char *config = "{"
+        "'events':true, "
+        "'multifd':true, "
+        "'multifd-channels': 4"
+        "}";
+
+    if (migrate_start(&from, &to, "defer", &args)) {
+        return;
+    }
+
+    assert(qtest_qmp_cmd_has_feature(from, "migrate", "config"));
+
+    wait_for_serial("src_serial");
+    qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
+    migrate_ensure_converge(from);
+
+    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL,
+                         "{ 'exit-on-error': false, 'config': %p }",
+                         qobject_from_json(config, &error_abort));
+
+    migrate_qmp(from, to, migrate_get_connect_uri(to), NULL,
+                "{ 'config': %p }",
+                qobject_from_json(config, &error_abort));
+
+    wait_for_migration_complete(from);
+    wait_for_migration_complete(to);
+
+    migrate_end(from, to, false);
+}
+
 static void migration_test_add_misc_smoke(MigrationTestEnv *env)
 {
 #ifndef _WIN32
@@ -294,4 +330,7 @@ void migration_test_add_misc(MigrationTestEnv *env)
                        test_validate_uri_channels_both_set);
     migration_test_add("/migration/validate_uri/channels/none_set",
                        test_validate_uri_channels_none_set);
+
+    migration_test_add("/migration/config/migrate",
+                       test_config_migrate);
 }
