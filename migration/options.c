@@ -1186,9 +1186,9 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 static void migrate_params_test_apply(MigrationParameters *params,
                                       MigrationParameters *dest)
 {
-    *dest = migrate_get_current()->parameters;
+    MigrationState *s = migrate_get_current();
 
-    /* TODO use QAPI_CLONE() instead of duplicating it inline */
+    QAPI_CLONE_MEMBERS(MigrationParameters, dest, &s->parameters);
 
     if (params->has_throttle_trigger_threshold) {
         dest->throttle_trigger_threshold = params->throttle_trigger_threshold;
@@ -1208,23 +1208,14 @@ static void migrate_params_test_apply(MigrationParameters *params,
 
     if (params->tls_creds) {
         tls_option_set_str(&dest->tls_creds, params->tls_creds);
-    } else {
-        /* drop the reference, it's owned by s->parameters */
-        dest->tls_creds = NULL;
     }
 
     if (params->tls_hostname) {
         tls_option_set_str(&dest->tls_hostname, params->tls_hostname);
-    } else {
-        /* drop the reference, it's owned by s->parameters */
-        dest->tls_hostname = NULL;
     }
 
     if (params->tls_authz) {
         tls_option_set_str(&dest->tls_authz, params->tls_authz);
-    } else {
-        /* drop the reference, it's owned by s->parameters */
-        dest->tls_authz = NULL;
     }
 
     if (params->has_max_bandwidth) {
@@ -1281,7 +1272,6 @@ static void migrate_params_test_apply(MigrationParameters *params,
     }
 
     if (params->has_block_bitmap_mapping) {
-        dest->has_block_bitmap_mapping = true;
         dest->block_bitmap_mapping = params->block_bitmap_mapping;
     }
 
@@ -1432,6 +1422,14 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
     MigrationParameters tmp;
 
     migrate_params_test_apply(params, &tmp);
+
+    /*
+     * Mark block_bitmap_mapping as present now while we have the
+     * params structure with the user input around.
+     */
+    if (params->has_block_bitmap_mapping) {
+        migrate_get_current()->has_block_bitmap_mapping = true;
+    }
 
     if (migrate_params_check(&tmp, errp)) {
         migrate_params_apply(params);
