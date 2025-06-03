@@ -605,3 +605,15 @@ command documentation for details on the ``fdset`` usage.
 
 The ``zero-blocks`` capability was part of the block migration which
 doesn't exist anymore since it was removed in QEMU v9.1.
+
+``migrate-set-capabilities`` command (since 10.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''
+
+This command was deprecated. Use ``migrate-set-parameters`` instead
+which now supports setting capabilities.
+
+``query-migrate-capabilities`` command (since 10.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+This command was deprecated. Use ``query-migrate-parameters`` instead
+which now supports querying capabilities.
