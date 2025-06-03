@@ -335,6 +335,7 @@ void migration_object_init(void)
     current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
     migration_object_check(current_migration, &error_fatal);
+    migrate_params_store_defaults(current_migration);
 
     ram_mig_init();
     dirty_bitmap_mig_init();
@@ -1916,12 +1917,23 @@ void migrate_del_blocker(Error **reasonp)
 
 void qmp_migrate_incoming(const char *uri, bool has_channels,
                           MigrationChannelList *channels,
-                          bool has_exit_on_error, bool exit_on_error,
-                          Error **errp)
+                          MigrationParameters *config, bool has_exit_on_error,
+                          bool exit_on_error, Error **errp)
 {
     Error *local_err = NULL;
     static bool once = true;
+    MigrationState *s = migrate_get_current();
     MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (config) {
+        /*
+         * If a config was provided, all options set previously get
+         * ignored.
+         */
+        if (!migrate_params_override(s, config, errp)) {
+            return;
+        }
+    }
 
     if (!once) {
         error_setg(errp, "The incoming migration has already been started");
@@ -2182,7 +2194,8 @@ static gboolean qmp_migrate_finish_cb(QIOChannel *channel,
 }
 
 void qmp_migrate(const char *uri, bool has_channels,
-                 MigrationChannelList *channels, bool has_detach, bool detach,
+                 MigrationChannelList *channels,
+                 bool has_detach, bool detach, MigrationParameters *config,
                  bool has_resume, bool resume, Error **errp)
 {
     bool resume_requested;
@@ -2192,6 +2205,16 @@ void qmp_migrate(const char *uri, bool has_channels,
     MigrationAddress *addr = NULL;
     MigrationChannel *channelv[MIGRATION_CHANNEL_TYPE__MAX] = { NULL };
     MigrationChannel *cpr_channel = NULL;
+
+    if (config) {
+        /*
+         * If a config was provided, all options set previously get
+         * ignored.
+         */
+        if (!migrate_params_override(s, config, errp)) {
+            return;
+        }
+    }
 
     /*
      * Having preliminary checks for uri and channel

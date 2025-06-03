@@ -1333,6 +1333,36 @@ static void migrate_params_apply(MigrationParameters *params)
                                            params->block_bitmap_mapping);
 }
 
+void migrate_params_store_defaults(MigrationState *s)
+{
+    /*
+     * The defaults set for each qdev property in migration_properties
+     * will be stored as the default values for each migration
+     * parameter. For debugging, using -global can override the
+     * defaults.
+     */
+    QAPI_CLONE_MEMBERS(MigrationParameters, &s->defaults, &s->parameters);
+}
+
+bool migrate_params_override(MigrationState *s, MigrationParameters *new,
+                             Error **errp)
+{
+    ERRP_GUARD();
+
+    assert(bql_locked());
+
+    /* reset to default parameters */
+    migrate_params_apply(&s->defaults);
+
+    /* overwrite with the new ones */
+    qmp_migrate_set_parameters(new, errp);
+    if (*errp) {
+        return false;
+    }
+
+    return true;
+}
+
 void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 {
     MigrationParameters *tmp = g_new0(MigrationParameters, 1);

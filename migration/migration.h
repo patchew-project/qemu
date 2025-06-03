@@ -319,6 +319,7 @@ struct MigrationState {
 
     /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
+    MigrationParameters defaults;
 
     MigrationStatus state;
 

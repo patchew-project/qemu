@@ -1474,9 +1474,16 @@
 #
 # @resume: resume one paused migration, default "off".  (since 3.0)
 #
+# @config: migration configuration options, previously set via
+#     @migrate-set-parameters and @migrate-set-capabilities.  (since
+#     10.1)
+#
 # Features:
 #
 # @deprecated: Argument @detach is deprecated.
+# @config: Indicates this command can receive the entire migration
+# configuration via the @config field, dispensing the use of
+# @migrate-set-parameters.
 #
 # Since: 0.14
 #
@@ -1538,7 +1545,9 @@
   'data': {'*uri': 'str',
            '*channels': [ 'MigrationChannel' ],
            '*detach': { 'type': 'bool', 'features': [ 'deprecated' ] },
-           '*resume': 'bool' } }
+           '*config': 'MigrationParameters',
+           '*resume': 'bool' },
+  'features': [ 'config' ] }
 
 ##
 # @migrate-incoming:
@@ -1556,6 +1565,16 @@
 #     When set to false, the failure triggers a MIGRATION event, and
 #     error details could be retrieved with query-migrate.
 #     (since 9.1)
+#
+# @config: migration configuration options, previously set via
+#     @migrate-set-parameters and @migrate-set-capabilities.  (since
+#     10.1)
+#
+# Features:
+#
+# @config: Indicates this command can receive the entire migration
+# configuration via the @config field, dispensing the use of
+# @migrate-set-parameters.
 #
 # Since: 2.3
 #
@@ -1610,7 +1629,9 @@
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',
                       '*channels': [ 'MigrationChannel' ],
-                      '*exit-on-error': 'bool' } }
+                      '*config': 'MigrationParameters',
+                      '*exit-on-error': 'bool' },
+             'features': [ 'config' ] }
 
 ##
 # @xen-save-devices-state:
