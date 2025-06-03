@@ -162,9 +162,11 @@ const Property migration_properties[] = {
     DEFINE_PROP_SIZE("announce-step", MigrationState,
                       parameters.announce_step,
                       DEFAULT_MIGRATE_ANNOUNCE_STEP),
-    DEFINE_PROP_STRING("tls-creds", MigrationState, parameters.tls_creds),
-    DEFINE_PROP_STRING("tls-hostname", MigrationState, parameters.tls_hostname),
-    DEFINE_PROP_STRING("tls-authz", MigrationState, parameters.tls_authz),
+    /*
+     * tls-creds, tls-hostname and tls-authz are of type StrOrNull,
+     * which can't be easily handled (if at all) by qdev. So these
+     * will not be exposed as global migration options (-global).
+     */
     DEFINE_PROP_UINT64("x-vcpu-dirty-limit-period", MigrationState,
                        parameters.x_vcpu_dirty_limit_period,
                        DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT_PERIOD),
@@ -377,13 +379,6 @@ bool migrate_rdma(void)
     MigrationState *s = migrate_get_current();
 
     return s->rdma_migration;
-}
-
-bool migrate_tls(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->parameters.tls_creds && *s->parameters.tls_creds;
 }
 
 typedef enum WriteTrackingSupport {
@@ -834,21 +829,44 @@ const char *migrate_tls_authz(void)
 {
     MigrationState *s = migrate_get_current();
 
-    return s->parameters.tls_authz;
+    if (s->parameters.tls_authz &&
+        s->parameters.tls_authz->type == QTYPE_QSTRING &&
+        *s->parameters.tls_authz->u.s) {
+        return s->parameters.tls_authz->u.s;
+    }
+
+    return NULL;
 }
 
 const char *migrate_tls_creds(void)
 {
     MigrationState *s = migrate_get_current();
 
-    return s->parameters.tls_creds;
+    if (s->parameters.tls_creds &&
+        s->parameters.tls_creds->type == QTYPE_QSTRING &&
+        *s->parameters.tls_creds->u.s) {
+        return s->parameters.tls_creds->u.s;
+    }
+
+    return NULL;
 }
 
 const char *migrate_tls_hostname(void)
 {
     MigrationState *s = migrate_get_current();
 
-    return s->parameters.tls_hostname;
+    if (s->parameters.tls_hostname &&
+        s->parameters.tls_hostname->type == QTYPE_QSTRING &&
+        *s->parameters.tls_hostname->u.s) {
+        return s->parameters.tls_hostname->u.s;
+    }
+
+    return NULL;
+}
+
+bool migrate_tls(void)
+{
+    return !!migrate_tls_creds();
 }
 
 uint64_t migrate_vcpu_dirty_limit_period(void)
@@ -888,6 +906,36 @@ AnnounceParameters *migrate_announce_params(void)
     return &ap;
 }
 
+void migrate_tls_opts_free(MigrationParameters *params)
+{
+    qapi_free_StrOrNull(params->tls_creds);
+    qapi_free_StrOrNull(params->tls_hostname);
+    qapi_free_StrOrNull(params->tls_authz);
+}
+
+/* needs BQL if dst is part of s->parameters */
+static void tls_option_set_str(StrOrNull **dstp, StrOrNull *src)
+{
+    StrOrNull *dst = *dstp;
+
+    assert(!dst);
+
+    dst = *dstp = g_new0(StrOrNull, 1);
+    dst->type = QTYPE_QSTRING;
+
+    if (!src) {
+        dst->u.s = g_strdup("");
+        return;
+    }
+
+    if (src->type == QTYPE_QSTRING) {
+        dst->u.s = g_strdup(src->u.s);
+    } else {
+        assert(src->type == QTYPE_QNULL);
+        dst->u.s = g_strdup("");
+    }
+}
+
 MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 {
     MigrationParameters *params;
@@ -903,10 +951,11 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
     params->has_cpu_throttle_tailslow = true;
     params->cpu_throttle_tailslow = s->parameters.cpu_throttle_tailslow;
-    params->tls_creds = g_strdup(s->parameters.tls_creds);
-    params->tls_hostname = g_strdup(s->parameters.tls_hostname);
-    params->tls_authz = g_strdup(s->parameters.tls_authz ?
-                                 s->parameters.tls_authz : "");
+
+    tls_option_set_str(&params->tls_creds, s->parameters.tls_creds);
+    tls_option_set_str(&params->tls_hostname, s->parameters.tls_hostname);
+    tls_option_set_str(&params->tls_authz, s->parameters.tls_authz);
+
     params->has_max_bandwidth = true;
     params->max_bandwidth = s->parameters.max_bandwidth;
     params->has_avail_switchover_bandwidth = true;
@@ -963,9 +1012,6 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 
 void migrate_params_init(MigrationParameters *params)
 {
-    params->tls_hostname = g_strdup("");
-    params->tls_creds = g_strdup("");
-
     /* Set has_* up only for parameter checks */
     params->has_throttle_trigger_threshold = true;
     params->has_cpu_throttle_initial = true;
@@ -1142,7 +1188,8 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 #ifdef CONFIG_LINUX
     if (migrate_zero_copy_send() &&
         ((params->has_multifd_compression && params->multifd_compression) ||
-         (params->tls_creds && *params->tls_creds))) {
+         (params->tls_creds && params->tls_creds->type == QTYPE_QSTRING &&
+          *params->tls_creds->u.s))) {
         error_setg(errp,
                    "Zero copy only available for non-compressed non-TLS multifd migration");
         return false;
@@ -1204,18 +1251,24 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     }
 
     if (params->tls_creds) {
-        assert(params->tls_creds->type == QTYPE_QSTRING);
-        dest->tls_creds = params->tls_creds->u.s;
+        tls_option_set_str(&dest->tls_creds, params->tls_creds);
+    } else {
+        /* drop the reference, it's owned by s->parameters */
+        dest->tls_creds = NULL;
     }
 
     if (params->tls_hostname) {
-        assert(params->tls_hostname->type == QTYPE_QSTRING);
-        dest->tls_hostname = params->tls_hostname->u.s;
+        tls_option_set_str(&dest->tls_hostname, params->tls_hostname);
+    } else {
+        /* drop the reference, it's owned by s->parameters */
+        dest->tls_hostname = NULL;
     }
 
     if (params->tls_authz) {
-        assert(params->tls_authz->type == QTYPE_QSTRING);
-        dest->tls_authz = params->tls_authz->u.s;
+        tls_option_set_str(&dest->tls_authz, params->tls_authz);
+    } else {
+        /* drop the reference, it's owned by s->parameters */
+        dest->tls_authz = NULL;
     }
 
     if (params->has_max_bandwidth) {
@@ -1320,21 +1373,18 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
 
     if (params->tls_creds) {
-        g_free(s->parameters.tls_creds);
-        assert(params->tls_creds->type == QTYPE_QSTRING);
-        s->parameters.tls_creds = g_strdup(params->tls_creds->u.s);
+        qapi_free_StrOrNull(s->parameters.tls_creds);
+        tls_option_set_str(&s->parameters.tls_creds, params->tls_creds);
     }
 
     if (params->tls_hostname) {
-        g_free(s->parameters.tls_hostname);
-        assert(params->tls_hostname->type == QTYPE_QSTRING);
-        s->parameters.tls_hostname = g_strdup(params->tls_hostname->u.s);
+        qapi_free_StrOrNull(s->parameters.tls_hostname);
+        tls_option_set_str(&s->parameters.tls_hostname, params->tls_hostname);
     }
 
     if (params->tls_authz) {
-        g_free(s->parameters.tls_authz);
-        assert(params->tls_authz->type == QTYPE_QSTRING);
-        s->parameters.tls_authz = g_strdup(params->tls_authz->u.s);
+        qapi_free_StrOrNull(s->parameters.tls_authz);
+        tls_option_set_str(&s->parameters.tls_authz, params->tls_authz);
     }
 
     if (params->has_max_bandwidth) {
@@ -1433,32 +1483,11 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
 {
     MigrationParameters tmp;
 
-    /* TODO Rewrite "" to null instead for all three tls_* parameters */
-    if (params->tls_creds
-        && params->tls_creds->type == QTYPE_QNULL) {
-        qobject_unref(params->tls_creds->u.n);
-        params->tls_creds->type = QTYPE_QSTRING;
-        params->tls_creds->u.s = strdup("");
-    }
-    if (params->tls_hostname
-        && params->tls_hostname->type == QTYPE_QNULL) {
-        qobject_unref(params->tls_hostname->u.n);
-        params->tls_hostname->type = QTYPE_QSTRING;
-        params->tls_hostname->u.s = strdup("");
-    }
-    if (params->tls_authz
-        && params->tls_authz->type == QTYPE_QNULL) {
-        qobject_unref(params->tls_authz->u.n);
-        params->tls_authz->type = QTYPE_QSTRING;
-        params->tls_authz->u.s = strdup("");
-    }
-
     migrate_params_test_apply(params, &tmp);
 
-    if (!migrate_params_check(&tmp, errp)) {
-        /* Invalid parameter */
-        return;
+    if (migrate_params_check(&tmp, errp)) {
+        migrate_params_apply(params, errp);
     }
 
-    migrate_params_apply(params, errp);
+    migrate_tls_opts_free(&tmp);
 }
