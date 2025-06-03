@@ -240,6 +240,7 @@ void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict)
 void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
 {
     MigrationParameters *params;
+    const BitmapMigrationNodeAliasList *bmnal;
 
     params = qmp_query_migrate_parameters(NULL);
 
@@ -319,29 +320,26 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
             MigrationParameter_str(MIGRATION_PARAMETER_TLS_AUTHZ),
                        params->tls_authz ? params->tls_authz->u.s : "");
 
-        if (params->has_block_bitmap_mapping) {
-            const BitmapMigrationNodeAliasList *bmnal;
+        assert(params->has_block_bitmap_mapping);
+        monitor_printf(mon, "%s:\n",
+                       MigrationParameter_str(
+                           MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING));
 
-            monitor_printf(mon, "%s:\n",
-                           MigrationParameter_str(
-                               MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING));
+        for (bmnal = params->block_bitmap_mapping;
+             bmnal;
+             bmnal = bmnal->next)
+        {
+            const BitmapMigrationNodeAlias *bmna = bmnal->value;
+            const BitmapMigrationBitmapAliasList *bmbal;
 
-            for (bmnal = params->block_bitmap_mapping;
-                 bmnal;
-                 bmnal = bmnal->next)
-            {
-                const BitmapMigrationNodeAlias *bmna = bmnal->value;
-                const BitmapMigrationBitmapAliasList *bmbal;
+            monitor_printf(mon, "  '%s' -> '%s'\n",
+                           bmna->node_name, bmna->alias);
 
-                monitor_printf(mon, "  '%s' -> '%s'\n",
-                               bmna->node_name, bmna->alias);
+            for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
+                const BitmapMigrationBitmapAlias *bmba = bmbal->value;
 
-                for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
-                    const BitmapMigrationBitmapAlias *bmba = bmbal->value;
-
-                    monitor_printf(mon, "    '%s' -> '%s'\n",
-                                   bmba->name, bmba->alias);
-                }
+                monitor_printf(mon, "    '%s' -> '%s'\n",
+                               bmba->name, bmba->alias);
             }
         }
 
