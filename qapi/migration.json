@@ -776,6 +776,13 @@
 #
 # Set various migration parameters.
 #
+# Features:
+#
+# @capabilities: Indicates this command supports setting the set of
+# parameters previously known as capabilities.  This means this
+# command can (and should) be used instead of the depreacated
+# @migrate-set-capabilities.
+#
 # Since: 2.4
 #
 # .. qmp-example::
@@ -785,7 +792,8 @@
 #     <- { "return": {} }
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
-  'data': 'MigrationParameters' }
+  'data': 'MigrationParameters',
+  'features': [ 'capabilities' ] }
 
 ##
 # @MigrationParameters:
@@ -1110,6 +1118,13 @@
 #
 # Returns: @MigrationParameters
 #
+# Features:
+#
+# @capabilities: Indicates this command supports setting the set of
+# parameters previously known as capabilities.  This means this
+# command can (and should) be used instead of the depreacated
+# @migrate-set-capabilities.
+#
 # Since: 2.4
 #
 # .. qmp-example::
@@ -1125,7 +1140,8 @@
 #        }
 ##
 { 'command': 'query-migrate-parameters',
-  'returns': 'MigrationParameters' }
+  'returns': 'MigrationParameters',
+  'features': [ 'capabilities' ] }
 
 ##
 # @migrate-start-postcopy:
