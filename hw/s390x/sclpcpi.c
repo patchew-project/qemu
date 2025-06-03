@@ -18,6 +18,7 @@
 #include "qemu/timer.h"
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/ebcdic.h"
+#include "migration/vmstate.h"
 
 typedef struct Data {
     uint8_t id_format;
@@ -93,12 +94,26 @@ static char *get_sysplex_name(Object *obj, Error **errp)
     return g_strndup((char *) e->sysplex_name, sizeof(e->sysplex_name));
 }
 
+static const VMStateDescription vmstate_sclpcpi = {
+    .name = "s390_control_program_id",
+    .version_id = 0,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT8_ARRAY(system_type, SCLPEventCPI, 8),
+        VMSTATE_UINT8_ARRAY(system_name, SCLPEventCPI, 8),
+        VMSTATE_UINT64(system_level, SCLPEventCPI),
+        VMSTATE_UINT8_ARRAY(sysplex_name, SCLPEventCPI, 8),
+        VMSTATE_UINT64(timestamp, SCLPEventCPI),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void cpi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCLPEventClass *k = SCLP_EVENT_CLASS(klass);
 
     dc->user_creatable = false;
+    dc->vmsd =  &vmstate_sclpcpi;
 
     k->can_handle_event = can_handle_event;
     k->get_send_mask = send_mask;
