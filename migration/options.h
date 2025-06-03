@@ -92,4 +92,9 @@ ZeroPageDetection migrate_zero_page_detection(void);
 bool migrate_params_check(MigrationParameters *params, Error **errp);
 void migrate_params_init(MigrationParameters *params);
 void migrate_tls_opts_free(MigrationParameters *params);
+bool migrate_capability_get_compat(MigrationParameters *params, int i);
+void migrate_capability_set_compat(MigrationParameters *params, int i,
+                                   bool val);
+void migrate_capabilities_set_compat(MigrationParameters *params,
+                                     MigrationCapabilityStatusList *caps);
 #endif
