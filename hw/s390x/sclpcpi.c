@@ -15,7 +15,9 @@
   */
 
 #include "qemu/osdep.h"
+#include "qemu/timer.h"
 #include "hw/s390x/event-facility.h"
+#include "hw/s390x/ebcdic.h"
 
 typedef struct Data {
     uint8_t id_format;
@@ -55,9 +57,40 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
 {
     ControlProgramIdMsg *cpim = container_of(evt_buf_hdr, ControlProgramIdMsg,
                                              ebh);
+    SCLPEventCPI *e = SCLP_EVENT_CPI(event);
+
+    ascii_put(e->system_type, (char *)cpim->data.system_type,
+              sizeof(cpim->data.system_type));
+    ascii_put(e->system_name, (char *)cpim->data.system_name,
+              sizeof(cpim->data.system_name));
+    ascii_put(e->sysplex_name, (char *)cpim->data.sysplex_name,
+              sizeof(cpim->data.sysplex_name));
+    e->system_level = ldq_be_p(&cpim->data.system_level);
+    e->timestamp = qemu_clock_get_ns(QEMU_CLOCK_HOST);
 
     cpim->ebh.flags = SCLP_EVENT_BUFFER_ACCEPTED;
     return SCLP_RC_NORMAL_COMPLETION;
+}
+
+static char *get_system_type(Object *obj, Error **errp)
+{
+    SCLPEventCPI *e = SCLP_EVENT_CPI(obj);
+
+    return g_strndup((char *) e->system_type, sizeof(e->system_type));
+}
+
+static char *get_system_name(Object *obj, Error **errp)
+{
+    SCLPEventCPI *e = SCLP_EVENT_CPI(obj);
+
+    return g_strndup((char *) e->system_name, sizeof(e->system_name));
+}
+
+static char *get_sysplex_name(Object *obj, Error **errp)
+{
+    SCLPEventCPI *e = SCLP_EVENT_CPI(obj);
+
+    return g_strndup((char *) e->sysplex_name, sizeof(e->sysplex_name));
 }
 
 static void cpi_class_init(ObjectClass *klass, const void *data)
@@ -73,10 +106,24 @@ static void cpi_class_init(ObjectClass *klass, const void *data)
     k->write_event_data = write_event_data;
 }
 
+static void cpi_init(Object *obj)
+{
+    SCLPEventCPI *e = SCLP_EVENT_CPI(obj);
+
+    object_property_add_str(obj, "system_type", get_system_type, NULL);
+    object_property_add_str(obj, "system_name", get_system_name, NULL);
+    object_property_add_str(obj, "sysplex_name", get_sysplex_name, NULL);
+    object_property_add_uint64_ptr(obj, "system_level", &(e->system_level),
+                                   OBJ_PROP_FLAG_READ);
+    object_property_add_uint64_ptr(obj, "timestamp", &(e->timestamp),
+                                   OBJ_PROP_FLAG_READ);
+}
+
 static const TypeInfo sclp_cpi_info = {
     .name          = TYPE_SCLP_EVENT_CPI,
     .parent        = TYPE_SCLP_EVENT,
     .instance_size = sizeof(SCLPEventCPI),
+    .instance_init = cpi_init,
     .class_init    = cpi_class_init,
 };
 

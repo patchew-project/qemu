@@ -2279,3 +2279,61 @@
 # Since: 1.2
 ##
 { 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'] }
+
+##
+# @S390ControlProgramId:
+#
+# Control-program identifiers provide data about the guest operating system.
+# The control-program identifiers are: system type, system name, system level
+# and sysplex name.
+#
+# In Linux, all the control-program identifiers are user configurable. The
+# system type, system name, and sysplex name use EBCDIC characters from
+# this set: capital A-Z, 0-9, $, @, #, and blank.  In Linux, the system type,
+# system name and sysplex name are arbitrary free-form texts.
+#
+# In Linux, the 8-byte hexadecimal system-level has the format
+# 0x<a><b><cc><dd><eeee><ff><gg><hh>, where:
+# <a>: is one hexadecimal byte, its most significant bit indicates hypervisor
+# use
+# <b>: is one digit that represents Linux distributions as follows
+# 0: generic Linux
+# 1: Red Hat Enterprise Linux
+# 2: SUSE Linux Enterprise Server
+# 3: Canonical Ubuntu
+# 4: Fedora
+# 5: openSUSE Leap
+# 6: Debian GNU/Linux
+# 7: Red Hat Enterprise Linux CoreOS
+# <cc>: are two digits for a distribution-specific encoding of the major version
+# of the distribution
+# <dd>: are two digits for a distribution-specific encoding of the minor version
+# of the distribution
+# <eeee>: are four digits for the patch level of the distribution
+# <ff>: are two digits for the major version of the kernel
+# <gg>: are two digits for the minor version of the kernel
+# <hh>: are two digits for the stable version of the kernel
+# (e.g. 74872343805430528, when converted to hex is 0x010a000000060b00). On
+# machines prior to z16, some of the values are not available to display.
+#
+# Sysplex refers to a cluster of logical partitions that communicates and
+# co-operates with each other.
+#
+# @system-type: operating system (e.g. "LINUX   ")
+#
+# @system-name: user configurable name of the VM (e.g. "TESTVM  ")
+#
+# @system-level: distribution and kernel version in Linux
+#
+# @sysplex-name: sysplex which the VM belongs to, if any (e.g. "PLEX ")
+#
+# @timestamp: latest update of CPI data in nanoseconds since the UNIX EPOCH
+#
+# Since: 10.1
+##
+{ 'struct': 'S390ControlProgramId', 'data': {
+     'system-type': 'str',
+     'system-name': 'str',
+     'system-level': 'uint64',
+     'sysplex-name': 'str',
+     'timestamp': 'uint64' } }
