@@ -20,6 +20,10 @@
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-visit-migration.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
+#include "qapi/visitor.h"
+#include "qobject/qdict.h"
 #include "qobject/qnull.h"
 #include "system/runstate.h"
 #include "migration/colo.h"
@@ -1184,117 +1188,46 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     return true;
 }
 
-static void migrate_params_test_apply(MigrationParameters *params,
-                                      MigrationParameters *dest)
+static bool migrate_params_test_apply(MigrationParameters *params,
+                                      MigrationParameters *dest, Error **errp)
 {
     MigrationState *s = migrate_get_current();
+    QObject *ret_out = NULL;
+    Visitor *v;
+    bool ok;
 
     QAPI_CLONE_MEMBERS(MigrationParameters, dest, &s->parameters);
 
-    if (params->has_throttle_trigger_threshold) {
-        dest->throttle_trigger_threshold = params->throttle_trigger_threshold;
+    /* read in from params */
+    v = qobject_output_visitor_new(&ret_out);
+    ok = visit_type_MigrationParameters(v, NULL, &params, errp);
+    if (!ok) {
+        goto out;
+    }
+    visit_complete(v, &ret_out);
+    visit_free(v);
+
+    /* write out to dest */
+    v = qobject_input_visitor_new(ret_out);
+    ok = visit_start_struct(v, NULL, NULL, 0, errp);
+    if (!ok) {
+        goto out;
+    }
+    ok = visit_type_MigrationParameters_members(v, dest, errp);
+    if (!ok) {
+        goto out;
+    }
+    ok = visit_check_struct(v, errp);
+    visit_end_struct(v, NULL);
+    if (!ok) {
+        goto out;
     }
 
-    if (params->has_cpu_throttle_initial) {
-        dest->cpu_throttle_initial = params->cpu_throttle_initial;
-    }
+out:
+    visit_free(v);
+    qobject_unref(ret_out);
 
-    if (params->has_cpu_throttle_increment) {
-        dest->cpu_throttle_increment = params->cpu_throttle_increment;
-    }
-
-    if (params->has_cpu_throttle_tailslow) {
-        dest->cpu_throttle_tailslow = params->cpu_throttle_tailslow;
-    }
-
-    if (params->tls_creds) {
-        tls_option_set_str(&dest->tls_creds, params->tls_creds);
-    }
-
-    if (params->tls_hostname) {
-        tls_option_set_str(&dest->tls_hostname, params->tls_hostname);
-    }
-
-    if (params->tls_authz) {
-        tls_option_set_str(&dest->tls_authz, params->tls_authz);
-    }
-
-    if (params->has_max_bandwidth) {
-        dest->max_bandwidth = params->max_bandwidth;
-    }
-
-    if (params->has_avail_switchover_bandwidth) {
-        dest->avail_switchover_bandwidth = params->avail_switchover_bandwidth;
-    }
-
-    if (params->has_downtime_limit) {
-        dest->downtime_limit = params->downtime_limit;
-    }
-
-    if (params->has_x_checkpoint_delay) {
-        dest->x_checkpoint_delay = params->x_checkpoint_delay;
-    }
-
-    if (params->has_multifd_channels) {
-        dest->multifd_channels = params->multifd_channels;
-    }
-    if (params->has_multifd_compression) {
-        dest->multifd_compression = params->multifd_compression;
-    }
-    if (params->has_multifd_qatzip_level) {
-        dest->multifd_qatzip_level = params->multifd_qatzip_level;
-    }
-    if (params->has_multifd_zlib_level) {
-        dest->multifd_zlib_level = params->multifd_zlib_level;
-    }
-    if (params->has_multifd_zstd_level) {
-        dest->multifd_zstd_level = params->multifd_zstd_level;
-    }
-    if (params->has_xbzrle_cache_size) {
-        dest->xbzrle_cache_size = params->xbzrle_cache_size;
-    }
-    if (params->has_max_postcopy_bandwidth) {
-        dest->max_postcopy_bandwidth = params->max_postcopy_bandwidth;
-    }
-    if (params->has_max_cpu_throttle) {
-        dest->max_cpu_throttle = params->max_cpu_throttle;
-    }
-    if (params->has_announce_initial) {
-        dest->announce_initial = params->announce_initial;
-    }
-    if (params->has_announce_max) {
-        dest->announce_max = params->announce_max;
-    }
-    if (params->has_announce_rounds) {
-        dest->announce_rounds = params->announce_rounds;
-    }
-    if (params->has_announce_step) {
-        dest->announce_step = params->announce_step;
-    }
-
-    if (params->has_block_bitmap_mapping) {
-        dest->block_bitmap_mapping = params->block_bitmap_mapping;
-    }
-
-    if (params->has_x_vcpu_dirty_limit_period) {
-        dest->x_vcpu_dirty_limit_period =
-            params->x_vcpu_dirty_limit_period;
-    }
-    if (params->has_vcpu_dirty_limit) {
-        dest->vcpu_dirty_limit = params->vcpu_dirty_limit;
-    }
-
-    if (params->has_mode) {
-        dest->mode = params->mode;
-    }
-
-    if (params->has_zero_page_detection) {
-        dest->zero_page_detection = params->zero_page_detection;
-    }
-
-    if (params->has_direct_io) {
-        dest->direct_io = params->direct_io;
-    }
+    return ok;
 }
 
 static void migrate_params_apply(MigrationParameters *params)
@@ -1315,9 +1248,11 @@ static void migrate_params_apply(MigrationParameters *params)
 
 void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 {
-    MigrationParameters tmp;
+    MigrationParameters *tmp = g_new0(MigrationParameters, 1);
 
-    migrate_params_test_apply(params, &tmp);
+    if (!migrate_params_test_apply(params, tmp, errp)) {
+        return;
+    }
 
     /*
      * Mark block_bitmap_mapping as present now while we have the
@@ -1327,10 +1262,10 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
         migrate_get_current()->has_block_bitmap_mapping = true;
     }
 
-    if (migrate_params_check(&tmp, errp)) {
-        migrate_params_apply(&tmp);
+    if (migrate_params_check(tmp, errp)) {
+        migrate_params_apply(tmp);
         migrate_post_update_params(params, errp);
     }
 
-    migrate_tls_opts_free(&tmp);
+    qapi_free_MigrationParameters(tmp);
 }
