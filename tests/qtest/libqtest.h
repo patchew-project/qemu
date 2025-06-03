@@ -1153,4 +1153,16 @@ bool have_qemu_img(void);
  */
 bool mkimg(const char *file, const char *fmt, unsigned size_mb);
 
+/**
+ * qtest_qmp_cmd_has_feature:
+ * @qts: QTestState instance
+ * @cmd: The QMP command being introspected
+ * @feature: Name of the feature to be checked
+ *
+ * Returns: true if the QMP command @cmd supports @feature, false otherwise.
+ */
+bool qtest_qmp_cmd_has_feature(QTestState *qts, const char *cmd,
+                               const char *feature);
+
+
 #endif

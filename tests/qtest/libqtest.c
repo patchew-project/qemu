@@ -34,6 +34,9 @@
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
+#include "qapi/error.h"
+#include "qapi/qapi-visit-introspect.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
 #include "qobject/qlist.h"
@@ -2090,4 +2093,43 @@ bool mkimg(const char *file, const char *fmt, unsigned size_mb)
     free(qemu_img_abs_path);
 
     return ret && !err;
+}
+
+bool qtest_qmp_cmd_has_feature(QTestState *qts, const char *cmd,
+                               const char *feature)
+{
+    QDict *resp;
+    Visitor *qiv;
+    SchemaInfoList *tail;
+    SchemaInfo *si;
+    strList *str;
+
+    resp = qtest_qmp(qts, "{ 'execute': 'query-qmp-schema' }");
+
+    qiv = qobject_input_visitor_new(qdict_get(resp, "return"));
+    visit_type_SchemaInfoList(qiv, NULL, &tail, &error_abort);
+    visit_free(qiv);
+    qobject_unref(resp);
+
+    for (; tail; tail = tail->next) {
+        si = tail->value;
+
+        if (si->meta_type != SCHEMA_META_TYPE_COMMAND) {
+            continue;
+        }
+
+        if (g_str_equal(si->name, cmd)) {
+            break;
+        }
+    }
+
+    if (tail && si->has_features) {
+        for (str = si->features; str; str = str->next) {
+            if (g_str_equal(str->value, feature)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
