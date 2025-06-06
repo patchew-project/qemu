@@ -93,6 +93,8 @@ void accel_cpu_instance_init(CPUState *cpu);
 
 bool accel_cpu_realize(AccelState *accel, CPUState *cpu, Error **errp);
 
+void accel_create_vcpu_thread(AccelState *accel, CPUState *cpu);
+
 /**
  * accel_cpu_common_realize:
  * @cpu: The CPU that needs to call accel-specific cpu realization.
