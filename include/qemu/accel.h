@@ -39,7 +39,7 @@ typedef struct AccelClass {
     const char *name;
     AccelOpsClass *ops;
 
-    int (*init_machine)(MachineState *ms);
+    int (*init_machine)(MachineState *ms, AccelState *as);
     bool (*cpu_common_realize)(CPUState *cpu, Error **errp);
     void (*cpu_common_unrealize)(CPUState *cpu);
 
