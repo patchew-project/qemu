@@ -31,18 +31,9 @@ from sphinx.domains import (
 from sphinx.locale import _, __
 from sphinx.roles import XRefRole
 from sphinx.util import logging
+from sphinx.util.docfields import Field, GroupedField, TypedField
 from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import make_id, make_refnode
-
-from compat import (
-    CompatField,
-    CompatGroupedField,
-    CompatTypedField,
-    KeywordNode,
-    ParserFix,
-    Signature,
-    SpaceNode,
-)
 
 
 if TYPE_CHECKING:
@@ -63,6 +54,7 @@ if TYPE_CHECKING:
     from sphinx.util.typing import OptionSpec
 
 
+Signature = str
 logger = logging.getLogger(__name__)
 
 
@@ -157,7 +149,7 @@ class QAPIXRefRole(XRefRole):
         return results, []
 
 
-class QAPIDescription(ParserFix):
+class QAPIDescription(ObjectDescription[Signature]):
     """
     Generic QAPI description.
 
@@ -315,7 +307,7 @@ class QAPIObject(QAPIDescription):
 
     doc_field_types = [
         # :feat name: descr
-        CompatGroupedField(
+        GroupedField(
             "feature",
             label=_("Features"),
             names=("feat",),
@@ -327,8 +319,8 @@ class QAPIObject(QAPIDescription):
         """Return a prefix to put before the object name in the signature."""
         assert self.objtype
         return [
-            KeywordNode("", self.objtype.title()),
-            SpaceNode(" "),
+            addnodes.desc_sig_keyword("", self.objtype.title()),
+            addnodes.desc_sig_space(" "),
         ]
 
     def get_signature_suffix(self) -> List[nodes.Node]:
@@ -337,7 +329,7 @@ class QAPIObject(QAPIDescription):
 
         if "since" in self.options:
             ret += [
-                SpaceNode(" "),
+                addnodes.desc_sig_space(" "),
                 addnodes.desc_sig_element(
                     "", f"(Since: {self.options['since']})"
                 ),
@@ -470,7 +462,11 @@ class QAPIObject(QAPIDescription):
             )
             logger.warning(msg, location=field)
 
-    def transform_content(self, content_node: addnodes.desc_content) -> None:
+    def transform_content(
+        self,
+        # pylint: disable=arguments-renamed
+        content_node: addnodes.desc_content
+    ) -> None:
         # This hook runs after before_content and the nested parse, but
         # before the DocFieldTransformer is executed.
         super().transform_content(content_node)
@@ -485,7 +481,7 @@ class QAPIObject(QAPIDescription):
                     self._validate_field(field)
 
 
-class SpecialTypedField(CompatTypedField):
+class SpecialTypedField(TypedField):
     def make_field(self, *args: Any, **kwargs: Any) -> nodes.field:
         ret = super().make_field(*args, **kwargs)
 
@@ -518,14 +514,14 @@ class QAPICommand(QAPIObject):
                 can_collapse=False,
             ),
             # :error: descr
-            CompatField(
+            Field(
                 "error",
                 label=_("Errors"),
                 names=("error", "errors"),
                 has_arg=False,
             ),
             # :return TypeName: descr
-            CompatGroupedField(
+            GroupedField(
                 "returnvalue",
                 label=_("Return"),
                 rolename="type",
@@ -543,7 +539,7 @@ class QAPIEnum(QAPIObject):
     doc_field_types.extend(
         [
             # :value name: descr
-            CompatGroupedField(
+            GroupedField(
                 "value",
                 label=_("Values"),
                 names=("value",),
@@ -560,7 +556,7 @@ class QAPIAlternate(QAPIObject):
     doc_field_types.extend(
         [
             # :alt type name: descr
-            CompatTypedField(
+            TypedField(
                 "alternative",
                 label=_("Alternatives"),
                 names=("alt",),
