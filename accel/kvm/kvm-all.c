@@ -2582,14 +2582,12 @@ static int kvm_init(MachineState *ms, AccelState *as)
         { /* end of list */ }
     }, *nc = num_cpus;
     int soft_vcpus_limit, hard_vcpus_limit;
-    KVMState *s;
+    KVMState *s = KVM_STATE(as);
     const KVMCapabilityInfo *missing_cap;
     int ret;
     int type;
 
     qemu_mutex_init(&kml_slots_lock);
-
-    s = KVM_STATE(ms->accelerator);
 
     /*
      * On systems where the kernel can support different base page
