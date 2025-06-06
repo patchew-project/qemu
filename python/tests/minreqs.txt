@@ -11,19 +11,19 @@
 # When adding new dependencies, pin the very oldest non-yanked version
 # on PyPI that allows the test suite to pass.
 
-# For some reason, the presence of packaging==14.0 below requires us to
+# For some reason, the presence of packaging==21.0 below requires us to
 # also pin setuptools to version 70 or below. Otherwise, the
 # installation of the QEMU package itself fails, failing to find
 # setuptools.
 setuptools<=70
 
 # Dependencies for qapidoc/qapi_domain et al
-sphinx==3.4.3
+sphinx==6.2.1
 
 # Dependencies for the TUI addon (Required for successful linting)
 urwid==2.1.2
 urwid-readline==0.13
-Pygments==2.9.0
+Pygments==2.13.0
 
 # Dependencies for mkvenv
 distlib==0.3.6
@@ -55,24 +55,30 @@ astroid==2.15.4
 dill==0.2
 lazy-object-proxy==1.4.0
 platformdirs==2.2.0
-toml==0.10.0
 tomlkit==0.10.1
 wrapt==1.14.0
 
 # Transitive sphinx dependencies
-Jinja2==2.7
-MarkupSafe==1.1.0
+Jinja2==3.0
+MarkupSafe==2.0.0
 alabaster==0.7.1
-babel==1.3
-docutils==0.12
-imagesize==0.5.0
-packaging==14.0
-pytz==2011b0
-requests==2.5.0
-snowballstemmer==1.1
+babel==2.9
+certifi==2017.4.17
+chardet==3.0.2
+docutils==0.18.1
+idna==2.5
+imagesize==1.3
+importlib-metadata==4.8.1
+packaging==21.0
+pyparsing==2.0.2
+pytz==2015.7
+requests==2.25.0
+snowballstemmer==2.0
 sphinxcontrib-applehelp==1.0.0
 sphinxcontrib-devhelp==1.0.0
-sphinxcontrib-htmlhelp==1.0.0
+sphinxcontrib-htmlhelp==2.0.0
 sphinxcontrib-jsmath==1.0.0
 sphinxcontrib-qthelp==1.0.0
-sphinxcontrib-serializinghtml==1.0.0
+sphinxcontrib-serializinghtml==1.1.5
+urllib3==1.21.1
+zipp==0.5
