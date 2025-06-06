@@ -319,7 +319,7 @@ static int hvf_accel_init(MachineState *ms, AccelState *as)
 {
     int x;
     hv_return_t ret;
-    HVFState *s;
+    HVFState *s = HVF_STATE(as);
     int pa_range = 36;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
@@ -332,8 +332,6 @@ static int hvf_accel_init(MachineState *ms, AccelState *as)
 
     ret = hvf_arch_vm_create(ms, (uint32_t)pa_range);
     assert_hvf_ok(ret);
-
-    s = g_new0(HVFState, 1);
 
     s->num_slots = ARRAY_SIZE(s->slots);
     for (x = 0; x < s->num_slots; ++x) {
