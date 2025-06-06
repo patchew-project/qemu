@@ -18,7 +18,7 @@
 #include "qemu/main-loop.h"
 #include "hw/core/cpu.h"
 
-static void *dummy_cpu_thread_fn(void *arg)
+void *dummy_cpu_thread_routine(void *arg)
 {
     CPUState *cpu = arg;
 
@@ -69,16 +69,4 @@ void dummy_thread_precreate(CPUState *cpu)
 #ifdef _WIN32
     qemu_sem_init(&cpu->sem, 0);
 #endif
-}
-
-void dummy_start_vcpu_thread(CPUState *cpu)
-{
-    char thread_name[VCPU_THREAD_NAME_SIZE];
-
-    dummy_thread_precreate(cpu);
-
-    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/DUMMY",
-             cpu->cpu_index);
-    qemu_thread_create(cpu->thread, thread_name, dummy_cpu_thread_fn, cpu,
-                       QEMU_THREAD_JOINABLE);
 }
