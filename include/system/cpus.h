@@ -8,6 +8,7 @@ void cpus_register_accel(const AccelOpsClass *i);
 const AccelOpsClass *cpus_get_accel(void);
 
 /* accel/dummy-cpus.c */
+void dummy_thread_precreate(CPUState *cpu);
 
 /* Create a dummy vcpu for AccelOpsClass->create_vcpu_thread */
 void dummy_start_vcpu_thread(CPUState *);
