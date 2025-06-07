@@ -85,6 +85,19 @@ void vfio_device_irq_disable(VFIODevice *vbasedev, int index)
     vbasedev->io_ops->set_irqs(vbasedev, &irq_set);
 }
 
+void vfio_device_irq_unmask_single(VFIODevice *vbasedev, int index, int irq)
+{
+    struct vfio_irq_set irq_set = {
+        .argsz = sizeof(irq_set),
+        .flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_UNMASK,
+        .index = index,
+        .start = irq,
+        .count = 1,
+    };
+
+    vbasedev->io_ops->set_irqs(vbasedev, &irq_set);
+}
+
 void vfio_device_irq_unmask(VFIODevice *vbasedev, int index)
 {
     struct vfio_irq_set irq_set = {
@@ -92,6 +105,19 @@ void vfio_device_irq_unmask(VFIODevice *vbasedev, int index)
         .flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_UNMASK,
         .index = index,
         .start = 0,
+        .count = 1,
+    };
+
+    vbasedev->io_ops->set_irqs(vbasedev, &irq_set);
+}
+
+void vfio_device_irq_mask_single(VFIODevice *vbasedev, int index, int irq)
+{
+    struct vfio_irq_set irq_set = {
+        .argsz = sizeof(irq_set),
+        .flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_MASK,
+        .index = index,
+        .start = irq,
         .count = 1,
     };
 
