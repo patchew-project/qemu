@@ -15,3 +15,4 @@ testing infrastructure.
    fuzzing
    blkdebug
    blkverify
+   image-fuzzer
