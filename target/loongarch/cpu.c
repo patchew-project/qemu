@@ -523,6 +523,13 @@ static void loongarch_la464_initfn(Object *obj)
     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_WAYS, 7);
     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
 
+    env->CSR_MSGIS[0] = 0;
+    env->CSR_MSGIS[1] = 0;
+    env->CSR_MSGIS[2] = 0;
+    env->CSR_MSGIS[3] = 0;
+    env->CSR_MSGIR = 0;
+    env->CSR_MSGIE = 0;
+
     loongarch_la464_init_csr(obj);
     loongarch_cpu_post_init(obj);
 }

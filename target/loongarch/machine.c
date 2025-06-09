@@ -231,6 +231,11 @@ const VMStateDescription vmstate_loongarch_cpu = {
         VMSTATE_UINT64(env.CSR_DERA, LoongArchCPU),
         VMSTATE_UINT64(env.CSR_DSAVE, LoongArchCPU),
 
+        /* Msg interrupt CSRs */
+        VMSTATE_UINT64_ARRAY(env.CSR_MSGIS, LoongArchCPU, 4),
+        VMSTATE_UINT64(env.CSR_MSGIR, LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_MSGIE, LoongArchCPU),
+
         VMSTATE_UINT64(kvm_state_counter, LoongArchCPU),
         /* PV steal time */
         VMSTATE_UINT64(env.stealtime.guest_addr, LoongArchCPU),
