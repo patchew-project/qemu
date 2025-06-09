@@ -12,6 +12,7 @@ typedef struct CXLUpstreamPort {
     /*< public >*/
     CXLComponentState cxl_cstate;
     CXLCCI swcci;
+    CXLCCI mctpcci;
 
     PCIExpLinkSpeed speed;
     PCIExpLinkWidth width;

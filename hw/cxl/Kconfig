@@ -1,3 +1,7 @@
 config CXL
     bool
     default y if PCI_EXPRESS
+
+config I2C_MCTP_CXL
+    bool
+    default y if CXL && I2C_MCTP
