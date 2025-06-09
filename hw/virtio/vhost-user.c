@@ -115,6 +115,8 @@ typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_SHARED_OBJECT_ADD = 6,
     VHOST_USER_BACKEND_SHARED_OBJECT_REMOVE = 7,
     VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP = 8,
+    VHOST_USER_BACKEND_SHMEM_MAP = 9,
+    VHOST_USER_BACKEND_SHMEM_UNMAP = 10,
     VHOST_USER_BACKEND_MAX
 }  VhostUserBackendRequest;
 
@@ -192,6 +194,23 @@ typedef struct VhostUserShared {
     unsigned char uuid[16];
 } VhostUserShared;
 
+/* For the flags field of VhostUserMMap */
+#define VHOST_USER_FLAG_MAP_RW (1u << 0)
+
+typedef struct {
+    /* VIRTIO Shared Memory Region ID */
+    uint8_t shmid;
+    uint8_t padding[7];
+    /* File offset */
+    uint64_t fd_offset;
+    /* Offset within the VIRTIO Shared Memory Region */
+    uint64_t shm_offset;
+    /* Size of the mapping */
+    uint64_t len;
+    /* Flags for the mmap operation, from VHOST_USER_FLAG_MAP_* */
+    uint16_t flags;
+} VhostUserMMap;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -224,6 +243,7 @@ typedef union {
         VhostUserInflight inflight;
         VhostUserShared object;
         VhostUserTransferDeviceState transfer_state;
+        VhostUserMMap mmap;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1768,6 +1788,129 @@ vhost_user_backend_handle_shared_object_lookup(struct vhost_user *u,
     return 0;
 }
 
+static int
+vhost_user_backend_handle_shmem_map(struct vhost_dev *dev,
+                                    QIOChannel *ioc,
+                                    VhostUserHeader *hdr,
+                                    VhostUserPayload *payload,
+                                    int fd)
+{
+    uint32_t ram_flags;
+    VirtSharedMemory *shmem;
+    VhostUserMMap *vu_mmap = &payload->mmap;
+    Error *local_err = NULL;
+    g_autoptr(GString) shm_name = g_string_new(NULL);
+
+    if (fd < 0) {
+        error_report("Bad fd for map");
+        return -EBADF;
+    }
+
+    if (QSIMPLEQ_EMPTY(&dev->vdev->shmem_list)) {
+        error_report("Device has no VIRTIO Shared Memory Regions. "
+                     "Requested ID: %d", vu_mmap->shmid);
+        return -EFAULT;
+    }
+
+    shmem = virtio_find_shmem_region(dev->vdev, vu_mmap->shmid);
+    if (!shmem) {
+        error_report("VIRTIO Shared Memory Region at "
+                     "ID %d not found or unitialized", vu_mmap->shmid);
+        return -EFAULT;
+    }
+
+    if ((vu_mmap->shm_offset + vu_mmap->len) < vu_mmap->len ||
+        (vu_mmap->shm_offset + vu_mmap->len) > shmem->mr->size) {
+        error_report("Bad offset/len for mmap %" PRIx64 "+%" PRIx64,
+                     vu_mmap->shm_offset, vu_mmap->len);
+        return -EFAULT;
+    }
+
+    g_string_printf(shm_name, "virtio-shm%i-%lu",
+                    vu_mmap->shmid, vu_mmap->shm_offset);
+
+    memory_region_transaction_begin();
+    ram_flags = RAM_SHARED |
+                ((vu_mmap->flags & VHOST_USER_FLAG_MAP_RW) ? 0 : RAM_READONLY);
+    if (virtio_add_shmem_map(shmem, shm_name->str, vu_mmap->shm_offset,
+                             vu_mmap->fd_offset, vu_mmap->len, ram_flags,
+                             fd) != 0) {
+        memory_region_transaction_commit();
+        return -EFAULT;
+    }
+
+    if (hdr->flags & VHOST_USER_NEED_REPLY_MASK) {
+        payload->u64 = 0;
+        hdr->size = sizeof(payload->u64);
+        vhost_user_send_resp(ioc, hdr, payload, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            memory_region_transaction_commit();
+            return -EFAULT;
+        }
+    }
+
+    memory_region_transaction_commit();
+
+    return 0;
+}
+
+static int
+vhost_user_backend_handle_shmem_unmap(struct vhost_dev *dev,
+                                      QIOChannel *ioc,
+                                      VhostUserHeader *hdr,
+                                      VhostUserPayload *payload)
+{
+    VirtSharedMemory *shmem;
+    MappedMemoryRegion *mmap = NULL;
+    VhostUserMMap *vu_mmap = &payload->mmap;
+    Error *local_err = NULL;
+
+    if (QSIMPLEQ_EMPTY(&dev->vdev->shmem_list)) {
+        error_report("Device has no VIRTIO Shared Memory Regions. "
+                     "Requested ID: %d", vu_mmap->shmid);
+        return -EFAULT;
+    }
+
+    shmem = virtio_find_shmem_region(dev->vdev, vu_mmap->shmid);
+    if (!shmem) {
+        error_report("VIRTIO Shared Memory Region at "
+                     "ID %d not found or unitialized", vu_mmap->shmid);
+        return -EFAULT;
+    }
+
+    if ((vu_mmap->shm_offset + vu_mmap->len) < vu_mmap->len ||
+        (vu_mmap->shm_offset + vu_mmap->len) > shmem->mr->size) {
+        error_report("Bad offset/len for unmmap %" PRIx64 "+%" PRIx64,
+                     vu_mmap->shm_offset, vu_mmap->len);
+        return -EFAULT;
+    }
+
+    mmap = virtio_find_shmem_map(shmem, vu_mmap->shm_offset, vu_mmap->len);
+    if (!mmap) {
+        return -EFAULT;
+    }
+
+    memory_region_transaction_begin();
+    memory_region_del_subregion(shmem->mr, mmap->mem);
+    if (hdr->flags & VHOST_USER_NEED_REPLY_MASK) {
+        payload->u64 = 0;
+        hdr->size = sizeof(payload->u64);
+        vhost_user_send_resp(ioc, hdr, payload, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            memory_region_transaction_commit();
+            return -EFAULT;
+        }
+    }
+    memory_region_transaction_commit();
+
+    /* Free the MemoryRegion only after vhost_commit */
+    virtio_del_shmem_map(shmem, vu_mmap->shm_offset, vu_mmap->len);
+
+    return 0;
+}
+
 static void close_backend_channel(struct vhost_user *u)
 {
     g_source_destroy(u->backend_src);
@@ -1835,6 +1978,13 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
     case VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP:
         ret = vhost_user_backend_handle_shared_object_lookup(dev->opaque, ioc,
                                                              &hdr, &payload);
+        break;
+    case VHOST_USER_BACKEND_SHMEM_MAP:
+        ret = vhost_user_backend_handle_shmem_map(dev, ioc, &hdr, &payload,
+                                                  fd ? fd[0] : -1);
+        break;
+    case VHOST_USER_BACKEND_SHMEM_UNMAP:
+        ret = vhost_user_backend_handle_shmem_unmap(dev, ioc, &hdr, &payload);
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);
