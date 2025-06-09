@@ -503,11 +503,19 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms, MachineState *ms)
     qdev_prop_set_uint32(pch_msi, "msi_irq_num", num);
     d = SYS_BUS_DEVICE(pch_msi);
     sysbus_realize_and_unref(d, &error_fatal);
-    sysbus_mmio_map(d, 0, VIRT_PCH_MSI_ADDR_LOW);
-    for (i = 0; i < num; i++) {
-        /* Connect pch_msi irqs to extioi */
-        qdev_connect_gpio_out(DEVICE(d), i,
-                              qdev_get_gpio_in(extioi, i + start));
+    if (virt_is_avecintc_enabled(lvms)) {
+        for (i = 0; i < num; i++) {
+            /* Connect pch_msi irqs to avec */
+            qdev_connect_gpio_out(DEVICE(d), i,
+                                 qdev_get_gpio_in(avec, i + start));
+        }
+    } else {
+        sysbus_mmio_map(d, 0, VIRT_PCH_MSI_ADDR_LOW);
+        for (i = 0; i < num; i++) {
+            /* Connect pch_msi irqs to extioi */
+            qdev_connect_gpio_out(DEVICE(d), i,
+                                  qdev_get_gpio_in(extioi, i + start));
+        }
     }
 
     virt_devices_init(pch_pic, lvms);
