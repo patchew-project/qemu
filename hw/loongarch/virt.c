@@ -548,6 +548,8 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
         break;
     case FEATURE_REG:
         ret = BIT(IOCSRF_MSI) | BIT(IOCSRF_EXTIOI) | BIT(IOCSRF_CSRIPI);
+        /*TODO: check bit IOCSRF_AVEC with virt_is_avec_enabled */
+        ret |= BIT(IOCSRF_AVEC);
         if (kvm_enabled()) {
             ret |= BIT(IOCSRF_VM);
         }
@@ -573,6 +575,8 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
         if (features & BIT(EXTIOI_ENABLE_INT_ENCODE)) {
             ret |= BIT_ULL(IOCSRM_EXTIOI_INT_ENCODE);
         }
+        /* enable avec default */
+        ret |= BIT_ULL(IOCSRM_AVEC_EN);
         break;
     default:
         g_assert_not_reached();

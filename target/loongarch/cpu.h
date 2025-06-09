@@ -31,6 +31,7 @@
 #define IOCSRF_DVFSV1           7
 #define IOCSRF_GMOD             9
 #define IOCSRF_VM               11
+#define IOCSRF_AVEC             15
 
 #define VERSION_REG             0x0
 #define FEATURE_REG             0x8
@@ -39,6 +40,7 @@
 #define MISC_FUNC_REG           0x420
 #define IOCSRM_EXTIOI_EN        48
 #define IOCSRM_EXTIOI_INT_ENCODE 49
+#define IOCSRM_AVEC_EN           51
 
 #define IOCSR_MEM_SIZE          0x428
 
