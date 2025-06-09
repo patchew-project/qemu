@@ -98,6 +98,23 @@ enum virtio_device_endian {
     VIRTIO_DEVICE_ENDIAN_BIG,
 };
 
+struct MappedMemoryRegion {
+    MemoryRegion *mem;
+    hwaddr offset;
+    QTAILQ_ENTRY(MappedMemoryRegion) link;
+};
+
+typedef struct MappedMemoryRegion MappedMemoryRegion;
+
+struct VirtSharedMemory {
+    uint8_t shmid;
+    MemoryRegion *mr;
+    QTAILQ_HEAD(, MappedMemoryRegion) mmaps;
+    QSIMPLEQ_ENTRY(VirtSharedMemory) entry;
+};
+
+typedef struct VirtSharedMemory VirtSharedMemory;
+
 /**
  * struct VirtIODevice - common VirtIO structure
  * @name: name of the device
@@ -167,6 +184,8 @@ struct VirtIODevice
      */
     EventNotifier config_notifier;
     bool device_iotlb_enabled;
+    /* Shared memory region for mappings. */
+    QSIMPLEQ_HEAD(, VirtSharedMemory) shmem_list;
 };
 
 struct VirtioDeviceClass {
@@ -288,6 +307,16 @@ void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq);
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
 int virtio_save(VirtIODevice *vdev, QEMUFile *f);
+
+VirtSharedMemory *virtio_new_shmem_region(VirtIODevice *vdev, uint8_t shmid);
+VirtSharedMemory *virtio_find_shmem_region(VirtIODevice *vdev, uint8_t shmid);
+int virtio_add_shmem_map(VirtSharedMemory *shmem, const char *shm_name,
+                          hwaddr shm_offset, hwaddr fd_offset, uint64_t size,
+                          uint32_t ram_flags, int fd);
+MappedMemoryRegion *virtio_find_shmem_map(VirtSharedMemory *shmem,
+                                          hwaddr offset, uint64_t size);
+void virtio_del_shmem_map(VirtSharedMemory *shmem, hwaddr offset,
+                          uint64_t size);
 
 extern const VMStateInfo virtio_vmstate_info;
 
