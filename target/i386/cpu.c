@@ -9389,6 +9389,8 @@ static const Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-intel-pt-auto-level", X86CPU, intel_pt_auto_level,
                      true),
     DEFINE_PROP_BOOL("x-l1-cache-per-thread", X86CPU, l1_cache_per_core, true),
+    DEFINE_PROP_ON_OFF_AUTO("kvm-win-hack-sgx-cpu-hotplug", X86CPU,
+                            kvm_win_hack_sgx_cpu_hotplug, ON_OFF_AUTO_AUTO),
 };
 
 #ifndef CONFIG_USER_ONLY

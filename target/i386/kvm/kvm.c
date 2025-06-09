@@ -5266,12 +5266,55 @@ static int kvm_get_nested_state(X86CPU *cpu)
     return ret;
 }
 
+static int kvm_win_hack_hotplug_with_sgx(CPUState *cs)
+{
+    DeviceState *dev = DEVICE(cs);
+    X86CPU *cpu = X86_CPU(cs);
+    int ret;
+
+    /*
+     * If CPU supports Intel SGX, Windows guests expect readmsr 0x3a after
+     * hotplug to have some bits set, just like on other vCPUs. Unfortunately
+     * by default it is zero and other vCPUs registers are filled by Windows
+     * itself during startup.
+     * Just copy the value from another vCPU.
+     */
+
+    if (cpu->kvm_win_hack_sgx_cpu_hotplug == ON_OFF_AUTO_OFF ||
+        (cpu->kvm_win_hack_sgx_cpu_hotplug == ON_OFF_AUTO_AUTO &&
+        !hyperv_enabled(cpu))) {
+        return 0;
+    }
+
+    if (cpu->env.msr_ia32_feature_control) {
+        return 0;
+    }
+
+    if (IS_INTEL_CPU(&cpu->env) && dev->hotplugged && first_cpu) {
+        ret = kvm_get_one_msr(X86_CPU(first_cpu),
+                              MSR_IA32_FEATURE_CONTROL,
+                              &cpu->env.msr_ia32_feature_control);
+        if (ret != 1) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     int ret;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    if (level == KVM_PUT_FULL_STATE) {
+        ret = kvm_win_hack_hotplug_with_sgx(cpu);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     /*
      * Put MSR_IA32_FEATURE_CONTROL first, this ensures the VM gets out of VMX

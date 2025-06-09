@@ -2301,6 +2301,9 @@ struct ArchCPU {
     /* Forcefully disable KVM PV features not exposed in guest CPUIDs */
     bool kvm_pv_enforce_cpuid;
 
+    /* Copy msr 3a on cpu hotplug */
+    OnOffAuto kvm_win_hack_sgx_cpu_hotplug;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 
