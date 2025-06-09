@@ -117,6 +117,13 @@ static vaddr loongarch_cpu_get_pc(CPUState *cs)
 #ifndef CONFIG_USER_ONLY
 #include "hw/loongarch/virt.h"
 
+static uint32_t loongarch_cpu_has_interrupt(CPULoongArchState *env)
+{
+    uint32_t ret = 0;
+    ret = FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS);
+    ret |= FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, MSGINT);
+    return ret;
+}
 void loongarch_cpu_set_irq(void *opaque, int irq, int level)
 {
     LoongArchCPU *cpu = opaque;
@@ -134,21 +141,20 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
                 env->CSR_MSGIR = FIELD_DP64(env->CSR_MSGIR, CSR_MSGIR, INTNUM, i);
                 env->CSR_MSGIR = FIELD_DP64(env->CSR_MSGIR, CSR_MSGIR, ACTIVE, 0);
                 env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, MSGINT, 1);
-                cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+                env->CSR_ECFG = FIELD_DP64(env->CSR_ECFG, CSR_ECFG, MSGINT, 1);
                 clear_bit(i, &(env->CSR_MSGIS[i / 64]));
             }
         }
     } else {
        env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, MSGINT, 0);
-       env->CSR_MSGIR = FIELD_DP64(env->CSR_MSGIR, CSR_MSGIR, ACTIVE, 1);
-       return;
+       env->CSR_ECFG = FIELD_DP64(env->CSR_ECFG, CSR_ECFG, MSGINT, 0);
     }
 
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
         env->CSR_ESTAT = deposit64(env->CSR_ESTAT, irq, 1, level != 0);
-        if (FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS)) {
+        if (loongarch_cpu_has_interrupt(env)) {
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
@@ -166,12 +172,24 @@ static inline bool cpu_loongarch_hw_interrupts_enabled(CPULoongArchState *env)
     return ret;
 }
 
+static inline bool cpu_loongarch_hw_interrupt_msg_pending(CPULoongArchState *env)
+{
+    bool pending_msg = 0;
+    bool status_msg = 0;
+
+    pending_msg = FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, MSGINT);
+    status_msg = FIELD_EX64(env->CSR_ECFG, CSR_ECFG, MSGINT);
+
+    return (pending_msg & status_msg) != 0;
+}
 /* Check if there is pending and not masked out interrupt */
 static inline bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env)
 {
     uint32_t pending;
     uint32_t status;
-
+    if (cpu_loongarch_hw_interrupt_msg_pending(env)) {
+        return true;
+    }
     pending = FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS);
     status  = FIELD_EX64(env->CSR_ECFG, CSR_ECFG, LIE);
 
@@ -285,6 +303,13 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
         uint32_t vector = 0;
         uint32_t pending = FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS);
         pending &= FIELD_EX64(env->CSR_ECFG, CSR_ECFG, LIE);
+        if (cpu_loongarch_hw_interrupt_msg_pending(env)) {
+            env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, MSGINT, 0);
+            env->CSR_ECFG = FIELD_DP64(env->CSR_ECFG, CSR_ECFG, MSGINT, 0);
+            set_pc(env, env->CSR_EENTRY + \
+                   (EXCCODE_EXTERNAL_INT + INT_AVEC) * vec_size);
+            return;
+        }
 
         /* Find the highest-priority interrupt. */
         vector = 31 - clz32(pending);

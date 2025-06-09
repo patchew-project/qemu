@@ -35,11 +35,12 @@ FIELD(CSR_MISC, DWPL, 16, 3)
 
 #define LOONGARCH_CSR_ECFG           0x4 /* Exception config */
 FIELD(CSR_ECFG, LIE, 0, 13)
+FIELD(CSR_ECFG, MSGINT, 14, 1)      /* used for msg */
 FIELD(CSR_ECFG, VS, 16, 3)
 
 #define LOONGARCH_CSR_ESTAT          0x5 /* Exception status */
 FIELD(CSR_ESTAT, IS, 0, 13)
-FIELD(CSR_ESTAT, MSGINT, 14, 1)
+FIELD(CSR_ESTAT, MSGINT, 14, 1)    /* used for msg */
 FIELD(CSR_ESTAT, ECODE, 16, 6)
 FIELD(CSR_ESTAT, ESUBCODE, 22, 9)
 
