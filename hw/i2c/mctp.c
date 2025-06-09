@@ -33,23 +33,6 @@ typedef struct MCTPI2CPacket {
 #define i2c_mctp_payload_offset offsetof(MCTPI2CPacket, mctp.payload)
 #define i2c_mctp_payload(buf) (buf + i2c_mctp_payload_offset)
 
-/* DSP0236 1.3.0, Figure 20 */
-typedef struct MCTPControlMessage {
-#define MCTP_MESSAGE_TYPE_CONTROL 0x0
-    uint8_t type;
-#define MCTP_CONTROL_FLAGS_RQ               (1 << 7)
-#define MCTP_CONTROL_FLAGS_D                (1 << 6)
-    uint8_t flags;
-    uint8_t command_code;
-    uint8_t data[];
-} MCTPControlMessage;
-
-enum MCTPControlCommandCodes {
-    MCTP_CONTROL_SET_EID                    = 0x01,
-    MCTP_CONTROL_GET_EID                    = 0x02,
-    MCTP_CONTROL_GET_VERSION                = 0x04,
-    MCTP_CONTROL_GET_MESSAGE_TYPE_SUPPORT   = 0x05,
-};
 
 #define MCTP_CONTROL_ERROR_UNSUPPORTED_CMD 0x5
 

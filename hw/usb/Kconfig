@@ -105,6 +105,11 @@ config USB_SERIAL
     default y
     depends on USB
 
+config USB_MCTP
+    bool
+    default y if CXL
+    depends on USB
+
 config USB_NETWORK
     bool
     default y
