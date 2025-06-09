@@ -50,6 +50,7 @@ struct LoongArchVirtMachineState {
     Notifier     powerdown_notifier;
     OnOffAuto    acpi;
     OnOffAuto    veiointc;
+    OnOffAuto    avecintc;
     char         *oem_id;
     char         *oem_table_id;
     DeviceState  *acpi_ged;
@@ -69,6 +70,14 @@ struct LoongArchVirtMachineState {
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchVirtMachineState, LOONGARCH_VIRT_MACHINE)
 void virt_acpi_setup(LoongArchVirtMachineState *lvms);
 void virt_fdt_setup(LoongArchVirtMachineState *lvms);
+
+static inline bool virt_is_avecintc_enabled(LoongArchVirtMachineState *lvms)
+{
+    if (lvms->avecintc == ON_OFF_AUTO_OFF) {
+        return false;
+    }
+    return true;
+}
 
 static inline bool virt_is_veiointc_enabled(LoongArchVirtMachineState *lvms)
 {
