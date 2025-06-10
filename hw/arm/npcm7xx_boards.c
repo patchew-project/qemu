@@ -363,6 +363,7 @@ static void kudo_bmc_i2c_init(NPCM7xxState *soc)
 
 static void npcm750_evb_init(MachineState *machine)
 {
+    NPCM7xxMachine *ms = NPCM7XX_MACHINE(machine);
     NPCM7xxState *soc;
 
     soc = npcm7xx_create_soc(machine, NPCM750_EVB_POWER_ON_STRAPS);
@@ -370,14 +371,16 @@ static void npcm750_evb_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm7xx_load_bootrom(machine, soc);
-    npcm7xx_connect_flash(&soc->fiu[0], 0, "w25q256", drive_get(IF_MTD, 0, 0));
+    npcm7xx_connect_flash(&soc->fiu[0], 0, ms->spi_model ? : "w25q256",
+                          drive_get(IF_MTD, 0, 0));
     npcm750_evb_i2c_init(soc);
-    npcm750_evb_fan_init(NPCM7XX_MACHINE(machine), soc);
+    npcm750_evb_fan_init(ms, soc);
     npcm7xx_load_kernel(machine, soc);
 }
 
 static void quanta_gsj_init(MachineState *machine)
 {
+    NPCM7xxMachine *ms = NPCM7XX_MACHINE(machine);
     NPCM7xxState *soc;
 
     soc = npcm7xx_create_soc(machine, QUANTA_GSJ_POWER_ON_STRAPS);
@@ -385,15 +388,16 @@ static void quanta_gsj_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm7xx_load_bootrom(machine, soc);
-    npcm7xx_connect_flash(&soc->fiu[0], 0, "mx25l25635e",
+    npcm7xx_connect_flash(&soc->fiu[0], 0, ms->spi_model ? : "mx25l25635e",
                           drive_get(IF_MTD, 0, 0));
     quanta_gsj_i2c_init(soc);
-    quanta_gsj_fan_init(NPCM7XX_MACHINE(machine), soc);
+    quanta_gsj_fan_init(ms, soc);
     npcm7xx_load_kernel(machine, soc);
 }
 
 static void quanta_gbs_init(MachineState *machine)
 {
+    NPCM7xxMachine *ms = NPCM7XX_MACHINE(machine);
     NPCM7xxState *soc;
 
     soc = npcm7xx_create_soc(machine, QUANTA_GBS_POWER_ON_STRAPS);
@@ -402,7 +406,7 @@ static void quanta_gbs_init(MachineState *machine)
 
     npcm7xx_load_bootrom(machine, soc);
 
-    npcm7xx_connect_flash(&soc->fiu[0], 0, "mx66u51235f",
+    npcm7xx_connect_flash(&soc->fiu[0], 0, ms->spi_model ? : "mx66u51235f",
                           drive_get(IF_MTD, 0, 0));
 
     quanta_gbs_i2c_init(soc);
@@ -412,6 +416,7 @@ static void quanta_gbs_init(MachineState *machine)
 
 static void kudo_bmc_init(MachineState *machine)
 {
+    NPCM7xxMachine *ms = NPCM7XX_MACHINE(machine);
     NPCM7xxState *soc;
 
     soc = npcm7xx_create_soc(machine, KUDO_BMC_POWER_ON_STRAPS);
@@ -419,9 +424,9 @@ static void kudo_bmc_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm7xx_load_bootrom(machine, soc);
-    npcm7xx_connect_flash(&soc->fiu[0], 0, "mx66u51235f",
+    npcm7xx_connect_flash(&soc->fiu[0], 0, ms->spi_model ? : "mx66u51235f",
                           drive_get(IF_MTD, 0, 0));
-    npcm7xx_connect_flash(&soc->fiu[1], 0, "mx66u51235f",
+    npcm7xx_connect_flash(&soc->fiu[1], 0, ms->spi_model ? : "mx66u51235f",
                           drive_get(IF_MTD, 3, 0));
 
     kudo_bmc_i2c_init(soc);
@@ -431,6 +436,7 @@ static void kudo_bmc_init(MachineState *machine)
 
 static void mori_bmc_init(MachineState *machine)
 {
+    NPCM7xxMachine *ms = NPCM7XX_MACHINE(machine);
     NPCM7xxState *soc;
 
     soc = npcm7xx_create_soc(machine, MORI_BMC_POWER_ON_STRAPS);
@@ -438,7 +444,7 @@ static void mori_bmc_init(MachineState *machine)
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
     npcm7xx_load_bootrom(machine, soc);
-    npcm7xx_connect_flash(&soc->fiu[1], 0, "mx66u51235f",
+    npcm7xx_connect_flash(&soc->fiu[1], 0, ms->spi_model ? : "mx66u51235f",
                           drive_get(IF_MTD, 3, 0));
 
     npcm7xx_load_kernel(machine, soc);
@@ -451,6 +457,27 @@ static void npcm7xx_set_soc_type(NPCM7xxMachineClass *nmc, const char *type)
 
     nmc->soc_type = type;
     mc->default_cpus = mc->min_cpus = mc->max_cpus = sc->num_cpus;
+}
+
+static char *npcm7xx_get_spi_model(Object *obj, Error **errp)
+ {
+    NPCM7xxMachine *ms = NPCM7XX_MACHINE(obj);
+    return g_strdup(ms->spi_model);
+}
+
+static void npcm7xx_set_spi_model(Object *obj, const char *value, Error **errp)
+{
+    NPCM7xxMachine *ms = NPCM7XX_MACHINE(obj);
+
+    g_free(ms->spi_model);
+    ms->spi_model = g_strdup(value);
+}
+
+static void npcm7xx_machine_finalize(Object *obj)
+{
+    NPCM7xxMachine *ms = NPCM7XX_MACHINE(obj);
+
+    g_free(ms->spi_model);
 }
 
 static void npcm7xx_machine_class_init(ObjectClass *oc, const void *data)
@@ -466,6 +493,11 @@ static void npcm7xx_machine_class_init(ObjectClass *oc, const void *data)
     mc->no_parallel = 1;
     mc->default_ram_id = "ram";
     mc->valid_cpu_types = valid_cpu_types;
+
+    object_class_property_add_str(oc, "spi-model", npcm7xx_get_spi_model,
+                                  npcm7xx_set_spi_model);
+    object_class_property_set_description(oc, "spi-model",
+                                          "Change the SPI Flash model");
 }
 
 /*
@@ -542,6 +574,7 @@ static const TypeInfo npcm7xx_machine_types[] = {
         .name           = TYPE_NPCM7XX_MACHINE,
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(NPCM7xxMachine),
+        .instance_finalize = npcm7xx_machine_finalize,
         .class_size     = sizeof(NPCM7xxMachineClass),
         .class_init     = npcm7xx_machine_class_init,
         .abstract       = true,
