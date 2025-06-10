@@ -2,7 +2,7 @@ config CMSDK_APB_WATCHDOG
     bool
     select PTIMER
 
-config WDT_IB6300ESB
+config WDT_I6300ESB
     bool
     default y if PCI_DEVICES
     depends on PCI
