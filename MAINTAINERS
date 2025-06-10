@@ -367,7 +367,6 @@ F: tests/tcg/s390x/
 L: qemu-s390x@nongnu.org
 
 SH4 TCG CPUs
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
 S: Orphan
 F: target/sh4/
 F: hw/sh4/
@@ -1693,7 +1692,6 @@ F: docs/system/riscv/microblaze-v-generic.rst
 RX Machines
 -----------
 rx-gdbsim
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
 S: Orphan
 F: docs/system/target-rx.rst
 F: hw/rx/rx-gdbsim.c
@@ -1702,9 +1700,8 @@ F: tests/functional/test_rx_gdbsim.py
 SH4 Machines
 ------------
 R2D
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
 R: Magnus Damm <magnus.damm@gmail.com>
-S: Odd Fixes
+S: Orphan
 F: hw/char/sh_serial.c
 F: hw/sh4/r2d.c
 F: hw/intc/sh_intc.c
@@ -2753,9 +2750,8 @@ F: tests/qtest/*xive*
 F: docs/*/*xive*
 
 Renesas peripherals
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
 R: Magnus Damm <magnus.damm@gmail.com>
-S: Odd Fixes
+S: Orphan
 F: hw/char/renesas_sci.c
 F: hw/char/sh_serial.c
 F: hw/timer/renesas_*.c
@@ -2765,7 +2761,6 @@ F: include/hw/sh4/sh.h
 F: include/hw/timer/renesas_*.h
 
 Renesas RX peripherals
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
 S: Orphan
 F: hw/intc/rx_icu.c
 F: hw/rx/
