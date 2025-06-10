@@ -243,6 +243,9 @@ static QemuOptsList qemu_rtc_opts = {
         },{
             .name = "driftfix",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "time-dilation",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },

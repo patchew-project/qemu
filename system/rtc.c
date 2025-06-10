@@ -188,4 +188,15 @@ void configure_rtc(QemuOpts *opts)
             exit(1);
         }
     }
+    value = qemu_opt_get(opts, "time-dilation");
+    if (value) {
+        if (qemu_strtod_finite(value, NULL, &clock_time_dilation)) {
+            error_report("invalid time-dilation factor '%s'", value);
+            exit(1);
+        }
+        if (clock_time_dilation <= 0.0f) {
+            error_report("time-dilation factor must be strictly positive");
+            exit(1);
+        }
+    }
 }
