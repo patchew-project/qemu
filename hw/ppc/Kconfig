@@ -47,7 +47,7 @@ config POWERNV
 config PPC440
     bool
     default y
-    depends on PPC && FDT
+    depends on PPC && FDT && DTC
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply E1000_PCI
@@ -66,7 +66,7 @@ config PPC4XX
 config SAM460EX
     bool
     default y
-    depends on PPC && FDT
+    depends on PPC && FDT && DTC
     select PFLASH_CFI01
     select IDE_SII3112
     select M41T80
