@@ -29,6 +29,9 @@ config IVSHMEM
 config TPM
     bool
 
+config DTC
+    bool
+
 config FDT
     bool
 

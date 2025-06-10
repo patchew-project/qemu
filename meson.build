@@ -2119,6 +2119,15 @@ if fdt_opt == 'internal'
   fdt = libfdt_proj.get_variable('libfdt_dep')
 endif
 
+dtc = not_found
+dtc_opt = get_option('dtc')
+if dtc_opt == 'enabled' or (dtc_opt == 'auto' and have_system)
+  dtc = find_program('dtc', required: dtc_opt == 'enabled')
+  if not dtc.found() and dtc_opt == 'enabled'
+    error('dtc not found')
+  endif
+endif
+
 rdma = not_found
 if not get_option('rdma').auto() or have_system
   rdma_libs = [cc.find_library('rdmacm', has_headers: ['rdma/rdma_cma.h'],
@@ -2477,6 +2486,7 @@ config_host_data.set('CONFIG_FREEBSD', host_os == 'freebsd')
 config_host_data.set('CONFIG_CAPSTONE', capstone.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_DARWIN', host_os == 'darwin')
+config_host_data.set('CONFIG_DTC', dtc.found())
 config_host_data.set('CONFIG_FDT', fdt.found())
 config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
 config_host_data.set('CONFIG_GCOV', get_option('b_coverage'))
@@ -3314,6 +3324,7 @@ host_kconfig = \
   (libcbor.found() ? ['CONFIG_LIBCBOR=y'] : []) + \
   (gnutls.found() ? ['CONFIG_GNUTLS=y'] : []) + \
   (x11.found() ? ['CONFIG_X11=y'] : []) + \
+  (dtc.found() ? ['CONFIG_DTC=y'] : []) + \
   (fdt.found() ? ['CONFIG_FDT=y'] : []) + \
   (have_vhost_user ? ['CONFIG_VHOST_USER=y'] : []) + \
   (have_vhost_vdpa ? ['CONFIG_VHOST_VDPA=y'] : []) + \
@@ -4703,6 +4714,7 @@ summary_info += {'sphinx-build':      sphinx_build}
 if config_host.has_key('GDB')
   summary_info += {'gdb':             config_host['GDB']}
 endif
+summary_info += {'dtc':               dtc}
 summary_info += {'iasl':              iasl}
 summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
 if host_os == 'windows' and have_ga
