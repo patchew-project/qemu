@@ -28,6 +28,7 @@
 /* real time host monotonic timer */
 
 int64_t clock_start;
+double clock_time_dilation;
 
 #ifdef _WIN32
 

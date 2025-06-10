@@ -801,6 +801,18 @@ static inline int64_t get_max_clock_jump(void)
     return 60 * NANOSECONDS_PER_SECOND;
 }
 
+extern int64_t clock_start;
+extern double clock_time_dilation;
+
+static inline int64_t dilate_time(int64_t now)
+{
+    g_assert(now >= clock_start);
+    if (!clock_time_dilation) {
+        return now;
+    }
+    return clock_start + (now - clock_start) * clock_time_dilation;
+}
+
 /*
  * Low level clock functions
  */
@@ -811,10 +823,8 @@ static inline int64_t get_clock_realtime(void)
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
+    return dilate_time(tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000));
 }
-
-extern int64_t clock_start;
 
 /* Warning: don't insert tracepoints into these functions, they are
    also used by simpletrace backend and tracepoints would cause
@@ -826,7 +836,7 @@ static inline int64_t get_clock(void)
 {
     LARGE_INTEGER ti;
     QueryPerformanceCounter(&ti);
-    return muldiv64(ti.QuadPart, NANOSECONDS_PER_SECOND, clock_freq);
+    dilate_time(muldiv64(ti.QuadPart, NANOSECONDS_PER_SECOND, clock_freq));
 }
 
 #else
@@ -838,10 +848,10 @@ static inline int64_t get_clock(void)
     if (use_rt_clock) {
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
-        return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+        return dilate_time(ts.tv_sec * 1000000000LL + ts.tv_nsec);
     } else {
         /* XXX: using gettimeofday leads to problems if the date
-           changes, so it should be avoided. */
+           changes, so it should be avoided. Time is already dilated. */
         return get_clock_realtime();
     }
 }
