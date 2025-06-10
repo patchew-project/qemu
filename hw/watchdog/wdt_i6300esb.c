@@ -472,7 +472,7 @@ static void i6300esb_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, i6300esb_reset);
     dc->vmsd = &vmstate_i6300esb;
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
-    dc->desc = "Intel 6300ESB";
+    dc->desc = "virtual i6300ESB";
 }
 
 static const TypeInfo i6300esb_info = {
