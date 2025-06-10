@@ -46,7 +46,8 @@ QEMUFile *cpr_transfer_input(MigrationChannel *channel, Error **errp)
     MigrationAddress *addr = channel->addr;
 
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET &&
-        addr->u.socket.type == SOCKET_ADDRESS_TYPE_UNIX) {
+        (addr->u.socket.type == SOCKET_ADDRESS_TYPE_UNIX ||
+            addr->u.socket.type == SOCKET_ADDRESS_TYPE_FD)) {
 
         g_autoptr(QIOChannelSocket) sioc = NULL;
         SocketAddress *saddr = &addr->u.socket;

@@ -51,6 +51,51 @@ static void *test_mode_transfer_start(QTestState *from, QTestState *to)
 }
 
 /*
+ * Create a pre-listened UNIX domain socket at the specified path.
+ *
+ * This is used to eliminate a race condition that can occur
+ * intermittently in qtest during CPR tests. By pre-creating and
+ * listening on the socket, we avoid timing-related issues.
+ */
+static int setup_socket_listener(const char *path)
+{
+    struct sockaddr_un un;
+    size_t pathlen;
+    int sock_fd;
+
+    sock_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    if (sock_fd < 0) {
+        g_test_message("Failed to create Unix socket");
+        return -1;
+    }
+
+    pathlen = strlen(path);
+    if (pathlen >= sizeof(un.sun_path)) {
+        g_test_message("UNIX socket path '%s' is too long", path);
+        close(sock_fd);
+        return -1;
+    }
+
+    memset(&un, 0, sizeof(un));
+    un.sun_family = AF_UNIX;
+    strncpy(un.sun_path, path, sizeof(un.sun_path) - 1);
+
+    if (bind(sock_fd, (struct sockaddr *)&un, sizeof(un)) < 0) {
+        g_test_message("Failed to bind socket to %s", path);
+        close(sock_fd);
+        return -1;
+    }
+
+    if (listen(sock_fd, 1) < 0) {
+        g_test_message("Failed to listen on socket %s", path);
+        close(sock_fd);
+        return -1;
+    }
+
+    return sock_fd;
+}
+
+/*
  * cpr-transfer mode cannot use the target monitor prior to starting the
  * migration, and cannot connect synchronously to the monitor, so defer
  * the target connection.
@@ -60,13 +105,13 @@ static void test_mode_transfer_common(bool incoming_defer)
     g_autofree char *cpr_path = g_strdup_printf("%s/cpr.sock", tmpfs);
     g_autofree char *mig_path = g_strdup_printf("%s/migsocket", tmpfs);
     g_autofree char *uri = g_strdup_printf("unix:%s", mig_path);
+    g_autofree char *addr_type, *addr_key, *addr_value;
+    g_autofree char *opts_target;
 
     const char *opts = "-machine aux-ram-share=on -nodefaults";
     g_autofree const char *cpr_channel = g_strdup_printf(
         "cpr,addr.transport=socket,addr.type=unix,addr.path=%s",
         cpr_path);
-    g_autofree char *opts_target = g_strdup_printf("-incoming %s %s",
-                                                   cpr_channel, opts);
 
     g_autofree char *connect_channels = g_strdup_printf(
         "[ { 'channel-type': 'main',"
@@ -74,6 +119,29 @@ static void test_mode_transfer_common(bool incoming_defer)
         "              'type': 'unix',"
         "              'path': '%s' } } ]",
         mig_path);
+
+    /*
+     * Determine socket address type and value.
+     * If socket creation fails, provide the socket path to the target,
+     * so it can create the Unix domain socket itself.
+     * Otherwise, use the pre-listened socket file descriptor directly.
+     */
+    int cpr_sockfd = setup_socket_listener(cpr_path);
+
+    if (cpr_sockfd < 0) {
+        addr_type = g_strdup("unix");
+        addr_key = g_strdup("path");
+        addr_value = g_strdup(cpr_path);
+    } else {
+        addr_type = g_strdup("fd");
+        addr_key = g_strdup("str");
+        addr_value = g_strdup_printf("%d", cpr_sockfd);
+    }
+
+    opts_target = g_strdup_printf("-incoming cpr,addr.transport=socket,"
+                                  "addr.type=%s,addr.%s=%s %s",
+                                  addr_type, addr_key, addr_value, opts);
+
 
     MigrateCommon args = {
         .start.opts_source = opts,
