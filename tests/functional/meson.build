@@ -414,6 +414,4 @@ foreach speed : ['quick', 'thorough']
   endforeach
 endforeach
 
-run_target('precache-functional',
-           depends: precache_all,
-           command: ['true'])
+alias_target('precache-functional', precache_all)
