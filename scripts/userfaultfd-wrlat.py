@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 #
 # userfaultfd-wrlat Summarize userfaultfd write fault latencies.
 #                   Events are continuously accumulated for the
