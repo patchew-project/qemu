@@ -54,7 +54,11 @@ class Model:
 
 class Greeting(Model):
     """
-    Defined in qmp-spec.rst, section "Server Greeting".
+    Defined in qmp-spec.rst, "Server Greeting".
+
+    See `2.2 Server Greeting
+    <https://gitlab.com/qemu-project/qemu/-/blob/master/docs/interop/qmp-spec.txt#L61>`_
+    for details.
 
     :param raw: The raw Greeting object.
     :raise KeyError: If any required fields are absent.
