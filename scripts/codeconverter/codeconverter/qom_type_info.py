@@ -29,10 +29,6 @@ RE_TYPEINFO_START = S(r'^[ \t]*', M(r'(static|const)\s+', name='modifiers'), r'T
 
 ParsedArray = List[str]
 ParsedInitializerValue = Union[str, ParsedArray]
-class InitializerValue(NamedTuple):
-    raw: str
-    parsed: Optional[ParsedInitializerValue]
-    match: Optional[Match]
 
 class ArrayItem(FileMatch):
     regexp = RE_ARRAY_ITEM

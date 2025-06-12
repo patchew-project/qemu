@@ -418,9 +418,6 @@ class FileInfo(RegexpScanner):
             f.flush()
             subprocess.call(['diff', '-u', self.filename, f.name])
 
-    def ref(self):
-        return TypeInfoReference
-
 class FileList(RegexpScanner):
     def __init__(self):
         super().__init__()
