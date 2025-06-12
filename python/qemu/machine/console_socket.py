@@ -17,7 +17,7 @@ from collections import deque
 import socket
 import threading
 import time
-from typing import Deque, Optional
+from typing import Optional
 
 
 class ConsoleSocket(socket.socket):
@@ -43,7 +43,7 @@ class ConsoleSocket(socket.socket):
 
         self._recv_timeout_sec = 300.0
         self._sleep_time = 0.5
-        self._buffer: Deque[int] = deque()
+        self._buffer: deque[int] = deque()
         if address is not None:
             socket.socket.__init__(self, socket.AF_UNIX, socket.SOCK_STREAM)
             self.connect(address)

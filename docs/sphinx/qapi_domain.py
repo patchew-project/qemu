@@ -39,8 +39,8 @@ from compat import (
 
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from typing import AbstractSet, Any
+    from collections.abc import Iterable, Set
+    from typing import Any
 
     from docutils.nodes import Element, Node
     from sphinx.addnodes import desc_signature, pending_xref
@@ -825,7 +825,7 @@ class QAPIDomain(Domain):
                 del self.objects[fullname]
 
     def merge_domaindata(
-        self, docnames: AbstractSet[str], otherdata: dict[str, Any]
+        self, docnames: Set[str], otherdata: dict[str, Any]
     ) -> None:
         for fullname, obj in otherdata["objects"].items():
             if obj.docname in docnames:

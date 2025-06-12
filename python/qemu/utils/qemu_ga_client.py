@@ -39,11 +39,11 @@ See also: https://wiki.qemu.org/Features/QAPI/GuestAgent
 import argparse
 import asyncio
 import base64
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 import os
 import random
 import sys
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from qemu.qmp import ConnectError, SocketAddrT
 from qemu.qmp.legacy import QEMUMonitorProtocol
