@@ -13,6 +13,7 @@
 #include "hw/cxl/cxl_component.h"
 #include "hw/pci/pci_device.h"
 #include "hw/register.h"
+#include "hw/cxl/cxl_chmu.h"
 #include "hw/cxl/cxl_events.h"
 
 /*
@@ -91,9 +92,21 @@
     (CXL_MAILBOX_REGISTERS_OFFSET + CXL_MAILBOX_REGISTERS_LENGTH)
 #define CXL_MEMORY_DEVICE_REGISTERS_LENGTH 0x8
 
+#define CXL_NUM_CHMU_INSTANCES 1
+#define CXL_CHMU_OFFSET(x)                                               \
+    QEMU_ALIGN_UP(CXL_MEMORY_DEVICE_REGISTERS_OFFSET +                  \
+                  CXL_MEMORY_DEVICE_REGISTERS_LENGTH +                  \
+                  (x) * QEMU_ALIGN_UP(CXL_CHMU_SIZE, 1 << 16),          \
+                  1 << 16)
+
 #define CXL_MMIO_SIZE                                                   \
-    (CXL_DEVICE_CAP_REG_SIZE + CXL_DEVICE_STATUS_REGISTERS_LENGTH +     \
-     CXL_MAILBOX_REGISTERS_LENGTH + CXL_MEMORY_DEVICE_REGISTERS_LENGTH)
+    QEMU_ALIGN_UP(CXL_DEVICE_CAP_REG_SIZE +                             \
+                  CXL_DEVICE_STATUS_REGISTERS_LENGTH +                  \
+                  CXL_MAILBOX_REGISTERS_LENGTH +                        \
+                  CXL_MEMORY_DEVICE_REGISTERS_LENGTH +                  \
+                  CXL_NUM_CHMU_INSTANCES *                              \
+                  QEMU_ALIGN_UP(CXL_CHMU_SIZE, 1 << 16),                \
+                  (1 << 16))
 
 /* CXL r3.1 Table 8-34: Command Return Codes */
 typedef enum {
@@ -208,6 +221,7 @@ typedef struct CXLCCI {
 
 typedef struct cxl_device_state {
     MemoryRegion device_registers;
+    MemoryRegion chmu_registers[1];
 
     /* CXL r3.1 Section 8.2.8.3: Device Status Registers */
     struct {
@@ -257,6 +271,7 @@ typedef struct cxl_device_state {
     uint64_t vmem_size;
 
     const struct cxl_cmd (*cxl_cmd_set)[256];
+    CHMUState chmu[1];
     CXLEventLog event_logs[CXL_EVENT_TYPE_MAX];
 } CXLDeviceState;
 
@@ -660,6 +675,11 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
                            unsigned size, MemTxAttrs attrs);
 MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
                             unsigned size, MemTxAttrs attrs);
+
+bool cxl_type3_get_hdm_interleave_props(CXLType3Dev *ct3d, int which,
+                                        uint64_t *hpa_base, uint16_t *granual,
+                                        uint8_t *ways);
+void cxl_type3_set_hdm_isp(CXLType3Dev *ctrd, int which, uint8_t isp);
 
 uint64_t cxl_device_get_timestamp(CXLDeviceState *cxlds);
 

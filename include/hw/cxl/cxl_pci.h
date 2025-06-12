@@ -165,6 +165,7 @@ QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortFlexBus) != 0x20);
 enum register_locator_indicies {
     REG_LOC_IDX_COMPONENT,
     REG_LOC_IDX_DEVICE,
+    REG_LOC_IDX_CHMU0,
     NR_REG_LOC_IDX
 };
 /*
@@ -193,5 +194,7 @@ typedef struct CXLDVSECRegisterLocator {
 #define RBI_COMPONENT_REG  (1 << 8)
 #define RBI_BAR_VIRT_ACL   (2 << 8)
 #define RBI_CXL_DEVICE_REG (3 << 8)
+#define RBI_CXL_CPMU_REG   (4 << 8)
+#define RBI_CXL_CHMU_REG   (5 << 8)
 
 #endif

@@ -35,7 +35,10 @@ enum CXL_T3_MSIX_VECTOR {
     CXL_T3_MSIX_PCIE_DOE_TABLE_ACCESS = 0,
     CXL_T3_MSIX_EVENT_START = 2,
     CXL_T3_MSIX_MBOX = CXL_T3_MSIX_EVENT_START + CXL_EVENT_TYPE_MAX,
-    CXL_T3_MSIX_VECTOR_NR
+    CXL_T3_MSIX_CHMU0_BASE,
+    /* One interrupt per CMUH instance in the block */
+    CXL_T3_MSIX_VECTOR_NR =
+        CXL_T3_MSIX_CHMU0_BASE + CXL_CHMU_INSTANCES_PER_BLOCK,
 };
 
 #define DWORD_BYTE 4
@@ -387,7 +390,13 @@ static void build_dvsecs(CXLType3Dev *ct3d)
             .lo = RBI_CXL_DEVICE_REG | CXL_DEVICE_REG_BAR_IDX,
             .hi = 0,
         },
+        .reg_base[REG_LOC_IDX_CHMU0] = {
+            .lo = CXL_CHMU_OFFSET(0) | RBI_CXL_CHMU_REG |
+            CXL_DEVICE_REG_BAR_IDX,
+            .hi = 0,
+        },
     };
+
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,
                                REG_LOC_DVSEC_REVID, dvsec);
@@ -411,19 +420,101 @@ static void build_dvsecs(CXLType3Dev *ct3d)
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_REVID, dvsec);
 }
 
+bool cxl_type3_get_hdm_interleave_props(CXLType3Dev *ct3d, int which,
+                                        uint64_t *hpa_base, uint16_t *granual,
+                                        uint8_t *ways)
+{
+    int hdm_inc = R_CXL_HDM_DECODER1_BASE_LO - R_CXL_HDM_DECODER0_BASE_LO;
+    ComponentRegisters *cregs = &ct3d->cxl_cstate.crb;
+    uint32_t *cache_mem = cregs->cache_mem_registers;
+    uint32_t ctrl, low, high;
+
+    ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + which * hdm_inc);
+    /* TODO: Sanity checks that the decoder is possible */
+    if (!FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED)) {
+        return false;
+    }
+
+    *granual = cxl_decode_ig(FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IG));
+    *ways = cxl_interleave_ways_dec(FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IW),
+                                    NULL);
+    low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO + which * hdm_inc);
+    high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI + which * hdm_inc);
+    *hpa_base = ((uint64_t)high << 32) | (low & 0xf0000000);
+
+    return true;
+}
+
+/* Only the CHMU needs to know the way */
+void cxl_type3_set_hdm_isp(CXLType3Dev *ct3d, int which, uint8_t isp)
+{
+    ct3d->cxl_dstate.chmu[0].decoder[which].way = isp;
+}
+
 static void hdm_decoder_commit(CXLType3Dev *ct3d, int which)
 {
     int hdm_inc = R_CXL_HDM_DECODER1_BASE_LO - R_CXL_HDM_DECODER0_BASE_LO;
     ComponentRegisters *cregs = &ct3d->cxl_cstate.crb;
     uint32_t *cache_mem = cregs->cache_mem_registers;
-    uint32_t ctrl;
+    uint32_t ctrl, low, high;
+    uint64_t dpa_base = 0;
+    uint8_t iws;
+    uint16_t ig;
+    int d;
 
     ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + which * hdm_inc);
     /* TODO: Sanity checks that the decoder is possible */
     ctrl = FIELD_DP32(ctrl, CXL_HDM_DECODER0_CTRL, ERR, 0);
     ctrl = FIELD_DP32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED, 1);
 
+    /* Get interleave details for chmu */
+    ig = FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IG);
+    ct3d->cxl_dstate.chmu[0].decoder[which].interleave_gran = cxl_decode_ig(ig);
+
+    iws = FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IW);
+    ct3d->cxl_dstate.chmu[0].decoder[which].ways =
+        cxl_interleave_ways_dec(iws, NULL);
+
     stl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + which * hdm_inc, ctrl);
+
+    low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO + which * hdm_inc);
+    high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI + which * hdm_inc);
+    ct3d->cxl_dstate.chmu[0].decoder[which].base =
+        ((uint64_t)high << 32) | (low & 0xf0000000);
+
+    low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO + which * hdm_inc);
+    high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI + which * hdm_inc);
+    ct3d->cxl_dstate.chmu[0].decoder[which].size =
+        ((uint64_t)high << 32) | (low & 0xf0000000);
+
+    /*
+     * To figure out the DPA start, Add size / ways + skip for all earlier
+     * decoders + skip for the current one.
+     */
+    for (d = 0; d < which; d++) {
+        ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + d * hdm_inc);
+
+        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_DPA_SKIP_LO
+                       + d * hdm_inc);
+        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_DPA_SKIP_HI
+                        + d * hdm_inc);
+        dpa_base += ((uint64_t)high << 32) | (low & 0xf0000000);
+
+        iws = FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IW);
+        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO + d * hdm_inc);
+        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI + d * hdm_inc);
+        /* DPA space used is size / ways */
+        dpa_base += (((uint64_t)high << 32) | (low & 0xf0000000)) /
+            cxl_interleave_ways_dec(iws, NULL);
+    }
+    low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_DPA_SKIP_LO +
+                   which * hdm_inc);
+    high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_DPA_SKIP_HI +
+                    which * hdm_inc);
+    dpa_base += ((uint64_t)high << 32) | (low & 0xf0000000);
+
+
+    ct3d->cxl_dstate.chmu[0].decoder[which].dpa_base = dpa_base;
 }
 
 static void hdm_decoder_uncommit(CXLType3Dev *ct3d, int which)
@@ -902,6 +993,13 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
 
     cxl_device_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate,
                                    &ct3d->cci);
+
+    rc = cxl_chmu_register_block_init(OBJECT(pci_dev), &ct3d->cxl_dstate,
+                                      0, CXL_T3_MSIX_CHMU0_BASE, errp);
+    if (rc) {
+        goto err_free_special_ops;
+    }
+
     pci_register_bar(pci_dev, CXL_DEVICE_REG_BAR_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_TYPE_64,
@@ -1274,6 +1372,7 @@ static const Property ct3_props[] = {
                                 speed, PCIE_LINK_SPEED_32),
     DEFINE_PROP_PCIE_LINK_WIDTH("x-width", CXLType3Dev,
                                 width, PCIE_LINK_WIDTH_16),
+    DEFINE_PROP_UINT16("chmu-port", CXLType3Dev, cxl_dstate.chmu[0].port, 0),
 };
 
 static uint64_t get_lsa_size(CXLType3Dev *ct3d)

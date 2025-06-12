@@ -16,6 +16,7 @@
 #include "hw/pci/pci_host.h"
 #include "cxl_pci.h"
 #include "cxl_component.h"
+#include "cxl_chmu.h"
 #include "cxl_device.h"
 
 #define CXL_CACHE_LINE_SIZE 64
