@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Generate .stp file that printfs log messages (DTrace with SystemTAP only).
 """
@@ -17,6 +15,7 @@ from tracetool import out
 from tracetool.backend.dtrace import binary, probeprefix
 from tracetool.backend.simple import is_string
 from tracetool.format.stap import stap_escape
+
 
 def global_var_name(name):
     return probeprefix().replace(".", "_") + "_" + name

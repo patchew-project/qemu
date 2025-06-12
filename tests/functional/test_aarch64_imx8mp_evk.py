@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import LinuxKernelTest, Asset
+from qemu_test import Asset, LinuxKernelTest
 
 
 class Imx8mpEvkMachine(LinuxKernelTest):
@@ -28,7 +28,7 @@ class Imx8mpEvkMachine(LinuxKernelTest):
                 data = source.read(size)
             with open(out_path, "wb") as target:
                 target.write(data)
-        except (IOError, ValueError) as e:
+        except (OSError, ValueError) as e:
             self.log.error(f"Failed to extract {out_path}: {e}")
             raise
 

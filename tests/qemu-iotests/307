@@ -21,7 +21,7 @@
 # Test the block export QAPI interfaces
 
 import iotests
-import os
+
 
 # Need a writable image format (but not vpc, which rounds the image size, nor
 # luks which requires special command lines)

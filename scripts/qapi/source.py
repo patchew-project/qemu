@@ -10,7 +10,7 @@
 # See the COPYING file in the top-level directory.
 
 import copy
-from typing import List, Optional, TypeVar
+from typing import Optional, TypeVar
 
 
 class QAPISchemaPragma:
@@ -21,13 +21,13 @@ class QAPISchemaPragma:
         # Are documentation comments required?
         self.doc_required = False
         # Commands whose names may use '_'
-        self.command_name_exceptions: List[str] = []
+        self.command_name_exceptions: list[str] = []
         # Commands allowed to return a non-dictionary
-        self.command_returns_exceptions: List[str] = []
+        self.command_returns_exceptions: list[str] = []
         # Types, commands, and events with undocumented members
-        self.documentation_exceptions: List[str] = []
+        self.documentation_exceptions: list[str] = []
         # Types whose member names may violate case conventions
-        self.member_name_exceptions: List[str] = []
+        self.member_name_exceptions: list[str] = []
 
 
 class QAPISourceInfo:

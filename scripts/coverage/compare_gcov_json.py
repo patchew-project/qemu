@@ -15,8 +15,9 @@
 
 import argparse
 import json
-import sys
 from pathlib import Path
+import sys
+
 
 def create_parser():
     parser = argparse.ArgumentParser(
@@ -55,11 +56,11 @@ def load_json(json_file_path: Path, verbose = False) -> dict[str, set[int]]:
 
         lines = filecov["lines"]
 
-        executed_lines = set(
+        executed_lines = {
             linecov["line_number"]
             for linecov in filecov["lines"]
             if linecov["count"] != 0 and not linecov["gcovr/noncode"]
-        )
+        }
 
         # if this file has any coverage add it to the system
         if len(executed_lines) > 0:

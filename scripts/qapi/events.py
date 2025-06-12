@@ -12,7 +12,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 from .common import c_enum_const, c_name, mcgen
 from .gen import QAPISchemaModularCVisitor, build_params, ifcontext
@@ -80,7 +80,7 @@ def gen_param_var(typ: QAPISchemaObjectType) -> str:
 
 def gen_event_send(name: str,
                    arg_type: Optional[QAPISchemaObjectType],
-                   features: List[QAPISchemaFeature],
+                   features: list[QAPISchemaFeature],
                    boxed: bool,
                    event_enum_name: str,
                    event_emit: str) -> str:
@@ -180,7 +180,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
             prefix, 'qapi-events',
             ' * Schema-defined QAPI/QMP events', None, __doc__)
         self._event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
-        self._event_enum_members: List[QAPISchemaEnumMember] = []
+        self._event_enum_members: list[QAPISchemaEnumMember] = []
         self._event_emit_name = c_name(prefix + 'qapi_event_emit')
 
     def _begin_user_module(self, name: str) -> None:
@@ -230,7 +230,7 @@ void %(event_emit)s(%(event_enum)s event, QDict *qdict);
                     name: str,
                     info: Optional[QAPISourceInfo],
                     ifcond: QAPISchemaIfCond,
-                    features: List[QAPISchemaFeature],
+                    features: list[QAPISchemaFeature],
                     arg_type: Optional[QAPISchemaObjectType],
                     boxed: bool) -> None:
         with ifcontext(ifcond, self._genh, self._genc):

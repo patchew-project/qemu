@@ -24,6 +24,7 @@
 import iotests
 from iotests import imgfmt
 
+
 iotests.script_initialize(supported_fmts=['qcow2'],
                           supported_protocols=['file'])
 iotests.verify_working_luks()

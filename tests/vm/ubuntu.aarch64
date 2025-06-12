@@ -13,9 +13,11 @@
 #
 
 import sys
-import basevm
+
 import aarch64vm
+import basevm
 import ubuntuvm
+
 
 DEFAULT_CONFIG = {
     'cpu'          : "cortex-a57",
@@ -65,7 +67,7 @@ class UbuntuAarch64VM(ubuntuvm.UbuntuVM):
 
         # We have overridden boot() since aarch64 has additional parameters.
         # Call down to the base class method.
-        super(UbuntuAarch64VM, self).boot(img, extra_args=extra_args)
+        super().boot(img, extra_args=extra_args)
 
 if __name__ == "__main__":
     defaults = aarch64vm.get_config_defaults(UbuntuAarch64VM, DEFAULT_CONFIG)

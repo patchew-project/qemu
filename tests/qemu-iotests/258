@@ -21,8 +21,14 @@
 # Creator/Owner: Hanna Reitz <hreitz@redhat.com>
 
 import iotests
-from iotests import log, qemu_img, qemu_io, \
-        filter_qmp_testfiles, filter_qmp_imgfmt
+from iotests import (
+    filter_qmp_imgfmt,
+    filter_qmp_testfiles,
+    log,
+    qemu_img,
+    qemu_io,
+)
+
 
 # Returns a node for blockdev-add
 def node(node_name, path, backing=None, fmt=None, throttle=None):

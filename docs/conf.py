@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # QEMU documentation build configuration file, created by
 # sphinx-quickstart on Thu Jan 31 16:40:14 2019.
@@ -28,8 +27,10 @@
 
 import os
 import sys
+
 import sphinx
 from sphinx.errors import ConfigError
+
 
 # The per-manual conf.py will set qemu_docdir for a single-manual build;
 # otherwise set it here if this is an entire-manual-set build.
@@ -93,9 +94,9 @@ master_doc = 'index'
 default_role = 'any'
 
 # General information about the project.
-project = u'QEMU'
-copyright = u'2025, The QEMU Project Developers'
-author = u'The QEMU Project Developers'
+project = 'QEMU'
+copyright = '2025, The QEMU Project Developers'
+author = 'The QEMU Project Developers'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -291,8 +292,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'QEMU.tex', u'QEMU Documentation',
-     u'The QEMU Project Developers', 'manual'),
+    (master_doc, 'QEMU.tex', 'QEMU Documentation',
+     'The QEMU Project Developers', 'manual'),
 ]
 
 

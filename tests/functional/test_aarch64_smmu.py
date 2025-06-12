@@ -15,9 +15,13 @@
 import os
 import time
 
-from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
-from qemu_test import BUILD_DIR
 from qemu.utils import kvm_available
+from qemu_test import (
+    BUILD_DIR,
+    Asset,
+    LinuxKernelTest,
+    exec_command_and_wait_for_pattern,
+)
 
 
 class SMMU(LinuxKernelTest):

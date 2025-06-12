@@ -8,8 +8,9 @@
 
 import os
 import os.path
-import sys
 import subprocess
+import sys
+
 
 namespace = "qemu-project"
 if len(sys.argv) >= 2:
@@ -28,13 +29,13 @@ subprocess.check_call(["git", "fetch", "--refetch", "check-patch", "master"])
 
 ancestor = subprocess.check_output(["git", "merge-base",
                                     "check-patch/master", "HEAD"],
-                                   universal_newlines=True)
+                                   text=True)
 
 ancestor = ancestor.strip()
 
 log = subprocess.check_output(["git", "log", "--format=%H %s",
                                ancestor + "..."],
-                              universal_newlines=True)
+                              text=True)
 
 subprocess.check_call(["git", "remote", "rm", "check-patch"])
 

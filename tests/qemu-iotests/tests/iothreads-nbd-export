@@ -19,8 +19,11 @@
 # Creator/Owner: Kevin Wolf <kwolf@redhat.com>
 
 import time
+
 import qemu
+
 import iotests
+
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           supported_platforms=['linux'])

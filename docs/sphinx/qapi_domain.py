@@ -9,14 +9,7 @@ from __future__ import annotations
 
 import re
 import types
-from typing import (
-    TYPE_CHECKING,
-    List,
-    NamedTuple,
-    Tuple,
-    Type,
-    cast,
-)
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from docutils import nodes
 from docutils.parsers.rst import directives
@@ -46,14 +39,8 @@ from compat import (
 
 
 if TYPE_CHECKING:
-    from typing import (
-        AbstractSet,
-        Any,
-        Dict,
-        Iterable,
-        Optional,
-        Union,
-    )
+    from collections.abc import Iterable
+    from typing import AbstractSet, Any
 
     from docutils.nodes import Element, Node
     from sphinx.addnodes import desc_signature, pending_xref
@@ -68,7 +55,7 @@ logger = logging.getLogger(__name__)
 
 def _unpack_field(
     field: nodes.Node,
-) -> Tuple[nodes.field_name, nodes.field_body]:
+) -> tuple[nodes.field_name, nodes.field_body]:
     """
     docutils helper: unpack a field node in a type-safe manner.
     """
@@ -140,11 +127,11 @@ class QAPIXRefRole(XRefRole):
         env: BuildEnvironment,
         node: Element,
         is_ref: bool,
-    ) -> Tuple[List[nodes.Node], List[nodes.system_message]]:
+    ) -> tuple[list[nodes.Node], list[nodes.system_message]]:
 
         # node here is the pending_xref node (or whatever nodeclass was
         # configured at XRefRole class instantiation time).
-        results: List[nodes.Node] = [node]
+        results: list[nodes.Node] = [node]
 
         if node.get("qapi:array"):
             results.insert(0, nodes.literal("[", "["))
@@ -178,13 +165,13 @@ class QAPIDescription(ParserFix):
         # subclasses will handle this.
         return sig
 
-    def get_index_text(self, name: Signature) -> Tuple[str, str]:
+    def get_index_text(self, name: Signature) -> tuple[str, str]:
         """Return the text for the index entry of the object."""
 
         # NB: this is used for the global index, not the QAPI index.
         return ("single", f"{name} (QMP {self.objtype})")
 
-    def _get_context(self) -> Tuple[str, str]:
+    def _get_context(self) -> tuple[str, str]:
         namespace = self.options.get(
             "namespace", self.env.ref_context.get("qapi:namespace", "")
         )
@@ -240,7 +227,7 @@ class QAPIDescription(ParserFix):
                 )
 
     @staticmethod
-    def split_fqn(name: str) -> Tuple[str, str, str]:
+    def split_fqn(name: str) -> tuple[str, str, str]:
         if ":" in name:
             ns, name = name.split(":")
         else:
@@ -255,7 +242,7 @@ class QAPIDescription(ParserFix):
 
     def _object_hierarchy_parts(
         self, sig_node: desc_signature
-    ) -> Tuple[str, ...]:
+    ) -> tuple[str, ...]:
         if "fullname" not in sig_node:
             return ()
         return self.split_fqn(sig_node["fullname"])
@@ -264,7 +251,7 @@ class QAPIDescription(ParserFix):
         # This controls the name in the TOC and on the sidebar.
 
         # This is the return type of _object_hierarchy_parts().
-        toc_parts = cast(Tuple[str, ...], sig_node.get("_toc_parts", ()))
+        toc_parts = cast(tuple[str, ...], sig_node.get("_toc_parts", ()))
         if not toc_parts:
             return ""
 
@@ -323,7 +310,7 @@ class QAPIObject(QAPIDescription):
         ),
     ]
 
-    def get_signature_prefix(self) -> List[nodes.Node]:
+    def get_signature_prefix(self) -> list[nodes.Node]:
         """Return a prefix to put before the object name in the signature."""
         assert self.objtype
         return [
@@ -331,9 +318,9 @@ class QAPIObject(QAPIDescription):
             SpaceNode(" "),
         ]
 
-    def get_signature_suffix(self) -> List[nodes.Node]:
+    def get_signature_suffix(self) -> list[nodes.Node]:
         """Return a suffix to put after the object name in the signature."""
-        ret: List[nodes.Node] = []
+        ret: list[nodes.Node] = []
 
         if "since" in self.options:
             ret += [
@@ -383,7 +370,7 @@ class QAPIObject(QAPIDescription):
         infopips.attributes["classes"].append("qapi-infopips")
 
         def _add_pip(
-            source: str, content: Union[str, List[nodes.Node]], classname: str
+            source: str, content: str | list[nodes.Node], classname: str
         ) -> None:
             node = nodes.container(source)
             if isinstance(content, str):
@@ -626,7 +613,7 @@ class QAPIModule(QAPIDescription):
           Lorem ipsum, dolor sit amet ...
     """
 
-    def run(self) -> List[Node]:
+    def run(self) -> list[Node]:
         modname = self.arguments[0].strip()
         self.env.ref_context["qapi:module"] = modname
         ret = super().run()
@@ -641,11 +628,11 @@ class QAPIModule(QAPIDescription):
         ret.extend(desc_node.children[1].children)
 
         # Re-home node_ids so anchor refs still work:
-        node_ids: List[str]
+        node_ids: list[str]
         if node_ids := [
             node_id
             for el in desc_node.children[0].traverse(nodes.Element)
-            for node_id in cast(List[str], el.get("ids", ()))
+            for node_id in cast(list[str], el.get("ids", ()))
         ]:
             target_node = nodes.target(ids=node_ids)
             ret.insert(1, target_node)
@@ -657,7 +644,7 @@ class QAPINamespace(SphinxDirective):
     has_content = False
     required_arguments = 1
 
-    def run(self) -> List[Node]:
+    def run(self) -> list[Node]:
         namespace = self.arguments[0].strip()
         self.env.ref_context["qapi:namespace"] = namespace
 
@@ -678,10 +665,10 @@ class QAPIIndex(Index):
 
     def generate(
         self,
-        docnames: Optional[Iterable[str]] = None,
-    ) -> Tuple[List[Tuple[str, List[IndexEntry]]], bool]:
+        docnames: Iterable[str] | None = None,
+    ) -> tuple[list[tuple[str, list[IndexEntry]]], bool]:
         assert isinstance(self.domain, QAPIDomain)
-        content: Dict[str, List[IndexEntry]] = {}
+        content: dict[str, list[IndexEntry]] = {}
         collapse = False
 
         for objname, obj in self.domain.objects.items():
@@ -733,7 +720,7 @@ class QAPIDomain(Domain):
     # e.g., the :qapi:type: cross-reference role can refer to enum,
     # struct, union, or alternate objects; but :qapi:obj: can refer to
     # anything. Each object also gets its own targeted cross-reference role.
-    object_types: Dict[str, ObjType] = {
+    object_types: dict[str, ObjType] = {
         "module": ObjType(_("module"), "mod", "any"),
         "command": ObjType(_("command"), "cmd", "any"),
         "event": ObjType(_("event"), "event", "any"),
@@ -771,7 +758,7 @@ class QAPIDomain(Domain):
 
     # Moved into the data property at runtime;
     # this is the internal index of reference-able objects.
-    initial_data: Dict[str, Dict[str, Tuple[Any]]] = {
+    initial_data: dict[str, dict[str, tuple[Any]]] = {
         "objects": {},  # fullname -> ObjectEntry
     }
 
@@ -781,14 +768,14 @@ class QAPIDomain(Domain):
     ]
 
     @property
-    def objects(self) -> Dict[str, ObjectEntry]:
+    def objects(self) -> dict[str, ObjectEntry]:
         ret = self.data.setdefault("objects", {})
         return ret  # type: ignore[no-any-return]
 
     def setup(self) -> None:
         namespaces = set(self.env.app.config.qapi_namespaces)
         for namespace in namespaces:
-            new_index: Type[QAPIIndex] = types.new_class(
+            new_index: type[QAPIIndex] = types.new_class(
                 f"{namespace}Index", bases=(QAPIIndex,)
             )
             new_index.name = f"{namespace.lower()}-index"
@@ -838,7 +825,7 @@ class QAPIDomain(Domain):
                 del self.objects[fullname]
 
     def merge_domaindata(
-        self, docnames: AbstractSet[str], otherdata: Dict[str, Any]
+        self, docnames: AbstractSet[str], otherdata: dict[str, Any]
     ) -> None:
         for fullname, obj in otherdata["objects"].items():
             if obj.docname in docnames:
@@ -852,8 +839,8 @@ class QAPIDomain(Domain):
                 self.objects[fullname] = obj
 
     def find_obj(
-        self, namespace: str, modname: str, name: str, typ: Optional[str]
-    ) -> List[Tuple[str, ObjectEntry]]:
+        self, namespace: str, modname: str, name: str, typ: str | None
+    ) -> list[tuple[str, ObjectEntry]]:
         """
         Find a QAPI object for "name", maybe using contextual information.
 
@@ -890,7 +877,7 @@ class QAPIDomain(Domain):
 
         if typ is None:
             # :any: lookup, search everything:
-            objtypes: List[str] = list(self.object_types)
+            objtypes: list[str] = list(self.object_types)
         else:
             # type is specified and will be a role (e.g. obj, mod, cmd)
             # convert this to eligible object types (e.g. command, module)
@@ -901,7 +888,7 @@ class QAPIDomain(Domain):
         # search!
         # ##
 
-        def _search(needle: str) -> List[str]:
+        def _search(needle: str) -> list[str]:
             if (
                 needle
                 and needle in self.objects
@@ -1015,8 +1002,8 @@ class QAPIDomain(Domain):
         target: str,
         node: pending_xref,
         contnode: Element,
-    ) -> List[Tuple[str, nodes.reference]]:
-        results: List[Tuple[str, nodes.reference]] = []
+    ) -> list[tuple[str, nodes.reference]]:
+        results: list[tuple[str, nodes.reference]] = []
         matches = self.find_obj(
             node.get("qapi:namespace"), node.get("qapi:module"), target, None
         )
@@ -1031,7 +1018,7 @@ class QAPIDomain(Domain):
         return results
 
 
-def setup(app: Sphinx) -> Dict[str, Any]:
+def setup(app: Sphinx) -> dict[str, Any]:
     app.setup_extension("sphinx.directives")
     app.add_config_value(
         "qapi_allowed_fields",

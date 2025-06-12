@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Use this to convert qtest log info from a generic fuzzer input into a qtest
@@ -64,6 +63,7 @@ not reproduce the bug.
 
 import sys
 
+
 __author__     = "Alexander Bulekov <alxndr@bu.edu>"
 __copyright__  = "Copyright (C) 2020, Red Hat, Inc."
 __license__    = "GPL version 2 or (at your option) any later version"
@@ -73,11 +73,11 @@ __email__      = "alxndr@bu.edu"
 
 
 def usage():
-    sys.exit("Usage: {} /path/to/qtest_log_output".format((sys.argv[0])))
+    sys.exit(f"Usage: {(sys.argv[0])} /path/to/qtest_log_output")
 
 
 def main(filename):
-    with open(filename, "r") as f:
+    with open(filename) as f:
         trace = f.readlines()
 
     # Leave only lines that look like logged qtest commands

@@ -14,16 +14,25 @@
 # At the (gdb) prompt, type "source scripts/qemu-gdb.py".
 # "help qemu" should then list the supported QEMU debug support commands.
 
+import os
+import sys
+
 import gdb
 
-import os, sys
 
 # Annoyingly, gdb doesn't put the directory of scripts onto the
 # module search path. Do it manually.
 
 sys.path.append(os.path.dirname(__file__))
 
-from qemugdb import aio, mtree, coroutine, tcg, timers
+from qemugdb import (
+    aio,
+    coroutine,
+    mtree,
+    tcg,
+    timers,
+)
+
 
 class QemuCommand(gdb.Command):
     '''Prefix for QEMU debug support commands'''

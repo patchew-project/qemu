@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test some of the system debug features with the multiarch memory
 # test. It is a port of the original vmlinux focused test case but
@@ -8,7 +7,6 @@ from __future__ import print_function
 #
 
 import gdb
-import sys
 from test_gdbstub import main, report
 
 

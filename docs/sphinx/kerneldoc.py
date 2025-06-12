@@ -1,4 +1,3 @@
-# coding=utf-8
 #
 # Copyright © 2016 Intel Corporation
 #
@@ -28,16 +27,15 @@
 #
 
 import codecs
+import glob
 import os
+import re
 import subprocess
 import sys
-import re
-import glob
 
 from docutils import nodes, statemachine
+from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import ViewList
-from docutils.parsers.rst import directives, Directive
-
 import sphinx
 from sphinx.util import logging
 from sphinx.util.docutils import switch_source_input

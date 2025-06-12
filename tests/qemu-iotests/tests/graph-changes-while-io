@@ -21,9 +21,16 @@
 
 import os
 from threading import Thread
+
 import iotests
-from iotests import imgfmt, qemu_img, qemu_img_create, qemu_io, \
-        QMPTestCase, QemuStorageDaemon
+from iotests import (
+    QemuStorageDaemon,
+    QMPTestCase,
+    imgfmt,
+    qemu_img,
+    qemu_img_create,
+    qemu_io,
+)
 
 
 top = os.path.join(iotests.test_dir, 'top.img')

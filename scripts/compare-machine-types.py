@@ -26,12 +26,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
-import sys
-from os import path
-from argparse import ArgumentParser, RawTextHelpFormatter, Namespace
-import pandas as pd
+from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
+from collections.abc import Generator
 from contextlib import ExitStack
-from typing import Optional, List, Dict, Generator, Tuple, Union, Any, Set
+from os import path
+import sys
+from typing import Any, Optional, Union
+
+import pandas as pd
+
 
 try:
     qemu_dir = path.abspath(path.dirname(path.dirname(__file__)))
@@ -81,7 +84,7 @@ class Driver():
 
         return False
 
-    def set_implementations(self, implementations: List['Driver']) -> None:
+    def set_implementations(self, implementations: list['Driver']) -> None:
         self.implementations = implementations
 
 
@@ -89,7 +92,7 @@ class QEMUObject(Driver):
     def __init__(self, vm: QEMUMachine, name: str) -> None:
         super().__init__(vm, name, True)
 
-    def set_implementations(self, implementations: List[Driver]) -> None:
+    def set_implementations(self, implementations: list[Driver]) -> None:
         self.implementations = implementations
 
         # each implementation of the abstract driver has to use property getter
@@ -105,7 +108,7 @@ class QEMUObject(Driver):
 class QEMUDevice(QEMUObject):
     def __init__(self, vm: QEMUMachine) -> None:
         super().__init__(vm, 'device')
-        self.cached: Dict[str, List[Dict[str, Any]]] = {}
+        self.cached: dict[str, list[dict[str, Any]]] = {}
 
     def get_prop(self, driver: str, prop_name: str) -> str:
         if driver not in self.cached:
@@ -121,7 +124,7 @@ class QEMUDevice(QEMUObject):
 class QEMUx86CPU(QEMUObject):
     def __init__(self, vm: QEMUMachine) -> None:
         super().__init__(vm, 'x86_64-cpu')
-        self.cached: Dict[str, Dict[str, Any]] = {}
+        self.cached: dict[str, dict[str, Any]] = {}
 
     def get_prop(self, driver: str, prop_name: str) -> str:
         if not driver.endswith('-x86_64-cpu'):
@@ -141,7 +144,7 @@ class QEMUx86CPU(QEMUObject):
 class QEMUMemoryBackend(QEMUObject):
     def __init__(self, vm: QEMUMachine) -> None:
         super().__init__(vm, 'memory-backend')
-        self.cached: Dict[str, List[Dict[str, Any]]] = {}
+        self.cached: dict[str, list[dict[str, Any]]] = {}
 
     def get_prop(self, driver: str, prop_name: str) -> str:
         if driver not in self.cached:
@@ -172,7 +175,7 @@ class VMPropertyGetter:
     """It implements the relationship between drivers and how to get their
     properties"""
     def __init__(self, vm: QEMUMachine) -> None:
-        self.drivers: Dict[str, Driver] = {}
+        self.drivers: dict[str, Driver] = {}
 
         qom_all_types = vm.cmd('qom-list-types', abstract=True)
         self.drivers = {t['name']: new_driver(vm, t['name'],
@@ -201,7 +204,7 @@ class VMPropertyGetter:
 
         return drv.get_prop(driver, prop)
 
-    def get_implementations(self, driver: str) -> List[str]:
+    def get_implementations(self, driver: str) -> list[str]:
         return [impl.name for impl in self.drivers[driver].implementations]
 
 
@@ -211,10 +214,10 @@ class Machine:
     implementations)
     """
     # raw_mt_dict - dict produced by `query-machines`
-    def __init__(self, raw_mt_dict: Dict[str, Any],
+    def __init__(self, raw_mt_dict: dict[str, Any],
                  qemu_drivers: VMPropertyGetter) -> None:
         self.name = raw_mt_dict['name']
-        self.compat_props: Dict[str, Any] = {}
+        self.compat_props: dict[str, Any] = {}
         # properties are applied sequentially and can rewrite values like in
         # QEMU. Also it has to resolve class relationships to apply appropriate
         # values from abstract class to all implementations
@@ -239,7 +242,7 @@ class Configuration():
     """Class contains all necessary components to generate table and is used
     to compare different binaries"""
     def __init__(self, vm: QEMUMachine,
-                 req_mt: List[str], all_mt: bool) -> None:
+                 req_mt: list[str], all_mt: bool) -> None:
         self._vm = vm
         self._binary = vm.binary
         self._qemu_args = args.qemu_args.split(' ')
@@ -247,11 +250,11 @@ class Configuration():
         self._qemu_drivers = VMPropertyGetter(vm)
         self.req_mt = get_req_mt(self._qemu_drivers, vm, req_mt, all_mt)
 
-    def get_implementations(self, driver_name: str) -> List[str]:
+    def get_implementations(self, driver_name: str) -> list[str]:
         return self._qemu_drivers.get_implementations(driver_name)
 
-    def get_table(self, req_props: List[Tuple[str, str]]) -> pd.DataFrame:
-        table: List[pd.DataFrame] = []
+    def get_table(self, req_props: list[tuple[str, str]]) -> pd.DataFrame:
+        table: list[pd.DataFrame] = []
         for mt in self.req_mt:
             name = f'{self._binary}\n{mt.name}'
             column = []
@@ -339,7 +342,7 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def mt_comp(mt: Machine) -> Tuple[str, int, int, int]:
+def mt_comp(mt: Machine) -> tuple[str, int, int, int]:
     """Function to compare and sort machine by names.
     It returns socket_name, major version, minor version, revision"""
     # none, microvm, x-remote and etc.
@@ -353,7 +356,7 @@ def mt_comp(mt: Machine) -> Tuple[str, int, int, int]:
 
 
 def get_mt_definitions(qemu_drivers: VMPropertyGetter,
-                       vm: QEMUMachine) -> List[Machine]:
+                       vm: QEMUMachine) -> list[Machine]:
     """Constructs list of machine definitions (primarily compat_props) via
     info from QEMU"""
     raw_mt_defs = vm.cmd('query-machines', compat_props=True)
@@ -366,7 +369,7 @@ def get_mt_definitions(qemu_drivers: VMPropertyGetter,
 
 
 def get_req_mt(qemu_drivers: VMPropertyGetter, vm: QEMUMachine,
-               req_mt: Optional[List[str]], all_mt: bool) -> List[Machine]:
+               req_mt: Optional[list[str]], all_mt: bool) -> list[Machine]:
     """Returns list of requested by user machines"""
     mt_defs = get_mt_definitions(qemu_drivers, vm)
     if all_mt:
@@ -384,12 +387,12 @@ def get_req_mt(qemu_drivers: VMPropertyGetter, vm: QEMUMachine,
     return matched_mt
 
 
-def get_affected_props(configs: List[Configuration]) -> Generator[Tuple[str,
+def get_affected_props(configs: list[Configuration]) -> Generator[tuple[str,
                                                                         str],
                                                                   None, None]:
     """Helps to go through all affected in machine definitions drivers
     and properties"""
-    driver_props: Dict[str, Set[Any]] = {}
+    driver_props: dict[str, set[Any]] = {}
     for config in configs:
         for mt in config.req_mt:
             compat_props = mt.compat_props
@@ -437,7 +440,7 @@ def simplify_table(table: pd.DataFrame) -> pd.DataFrame:
 # driver2 | property3 |  value5  |  value6  | ...
 #   ...   |    ...    |   ...    |   ...    | ...
 #
-def fill_prop_table(configs: List[Configuration],
+def fill_prop_table(configs: list[Configuration],
                     is_raw: bool) -> pd.DataFrame:
     req_props = list(get_affected_props(configs))
     if not req_props:

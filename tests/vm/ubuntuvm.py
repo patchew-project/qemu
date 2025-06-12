@@ -14,12 +14,14 @@
 
 import os
 import subprocess
+
 import basevm
+
 
 class UbuntuVM(basevm.BaseVM):
 
     def __init__(self, args, config=None):
-        self.login_prompt = "ubuntu-{}-guest login:".format(self.arch)
+        self.login_prompt = f"ubuntu-{self.arch}-guest login:"
         basevm.BaseVM.__init__(self, args, config)
 
     def build_image(self, img):
@@ -45,7 +47,7 @@ class UbuntuVM(basevm.BaseVM):
         # We want to keep the VM system state stable.
         self.ssh_root('sed -ie \'s/"1"/"0"/g\' '\
                       '/etc/apt/apt.conf.d/20auto-upgrades')
-        self.ssh_root("sed -ie s/^#\ deb-src/deb-src/g /etc/apt/sources.list")
+        self.ssh_root(r"sed -ie s/^#\ deb-src/deb-src/g /etc/apt/sources.list")
 
         # If the user chooses not to do the install phase,
         # then we will jump right to the graceful shutdown

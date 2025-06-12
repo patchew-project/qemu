@@ -1,12 +1,13 @@
 """Helper functions for gdbstub testing
 
 """
-from __future__ import print_function
 import argparse
-import gdb
 import os
 import sys
 import traceback
+
+import gdb
+
 
 fail_count = 0
 
@@ -24,9 +25,9 @@ class arg_parser(argparse.ArgumentParser):
 def report(cond, msg):
     """Report success/fail of a test"""
     if cond:
-        print("PASS: {}".format(msg))
+        print(f"PASS: {msg}")
     else:
-        print("FAIL: {}".format(msg))
+        print(f"FAIL: {msg}")
         global fail_count
         fail_count += 1
 
@@ -38,10 +39,10 @@ def main(test, expected_arch=None):
     try:
         inferior = gdb.selected_inferior()
         arch = inferior.architecture()
-        print("ATTACHED: {}".format(arch.name()))
+        print(f"ATTACHED: {arch.name()}")
         if expected_arch is not None:
             report(arch.name() == expected_arch,
-                   "connected to {}".format(expected_arch))
+                   f"connected to {expected_arch}")
     except (gdb.error, AttributeError):
         print("SKIP: not connected")
         gdb_exit(0)
@@ -67,5 +68,5 @@ def main(test, expected_arch=None):
     except gdb.error:
         pass
 
-    print("All tests complete: {} failures".format(fail_count))
+    print(f"All tests complete: {fail_count} failures")
     gdb_exit(fail_count)

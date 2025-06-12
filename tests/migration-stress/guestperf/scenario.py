@@ -18,7 +18,7 @@
 #
 
 
-class Scenario(object):
+class Scenario:
 
     def __init__(self, name,
                  downtime=500,

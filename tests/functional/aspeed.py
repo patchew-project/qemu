@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import LinuxKernelTest
+from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
+
 
 class AspeedTest(LinuxKernelTest):
 

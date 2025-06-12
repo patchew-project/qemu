@@ -14,6 +14,7 @@
 from qemu_test import Asset
 from qemu_test.tuxruntest import TuxRunBaselineTest
 
+
 class TuxRunI386Test(TuxRunBaselineTest):
 
     ASSET_I386_KERNEL = Asset(

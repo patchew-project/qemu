@@ -16,15 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import sys
 import argparse
-import shutil
+import os
 from pathlib import Path
+import shutil
+import sys
 
 from findtests import TestFinder
 from testenv import TestEnv
 from testrunner import TestRunner
+
 
 def get_default_path(follow_link=False):
     """

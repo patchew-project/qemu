@@ -7,8 +7,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern
+from qemu_test import Asset, QemuSystemTest, wait_for_console_pattern
 
 
 class VirtexMl507Machine(QemuSystemTest):

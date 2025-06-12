@@ -9,18 +9,20 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 #
-import sys
 import argparse
-import os
-import os.path
-import re
-from typing import *
-
-from codeconverter.patching import FileInfo, match_class_dict, FileList
-import codeconverter.qom_macros
-from codeconverter.qom_type_info import TI_FIELDS, type_infos, TypeInfoVar
-
 import logging
+import re
+import sys
+
+from codeconverter.patching import FileInfo, FileList, match_class_dict
+import codeconverter.qom_macros
+from codeconverter.qom_type_info import (
+    TI_FIELDS,
+    TypeInfoVar,
+    type_infos,
+)
+
+
 logger = logging.getLogger(__name__)
 DBG = logger.debug
 INFO = logger.info

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # QAPI schema parser
 #
@@ -14,18 +13,15 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from collections.abc import Mapping
 import enum
 import os
 import re
+from re import Match
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    List,
-    Mapping,
-    Match,
     Optional,
-    Set,
     Union,
 )
 
@@ -41,10 +37,10 @@ if TYPE_CHECKING:
 
 
 # Return value alias for get_expr().
-_ExprValue = Union[List[object], Dict[str, object], str, bool]
+_ExprValue = Union[list[object], dict[str, object], str, bool]
 
 
-class QAPIExpression(Dict[str, Any]):
+class QAPIExpression(dict[str, Any]):
     # pylint: disable=too-few-public-methods
     def __init__(self,
                  data: Mapping[str, object],
@@ -91,7 +87,7 @@ class QAPISchemaParser:
     """
     def __init__(self,
                  fname: str,
-                 previously_included: Optional[Set[str]] = None,
+                 previously_included: Optional[set[str]] = None,
                  incl_info: Optional[QAPISourceInfo] = None):
         self._fname = fname
         self._included = previously_included or set()
@@ -107,8 +103,8 @@ class QAPISchemaParser:
         self.line_pos = 0
 
         # Parser output:
-        self.exprs: List[QAPIExpression] = []
-        self.docs: List[QAPIDoc] = []
+        self.exprs: list[QAPIExpression] = []
+        self.docs: list[QAPIDoc] = []
 
         # Showtime!
         self._parse()
@@ -122,7 +118,7 @@ class QAPISchemaParser:
         cur_doc = None
 
         # May raise OSError; allow the caller to handle it.
-        with open(self._fname, 'r', encoding='utf-8') as fp:
+        with open(self._fname, encoding='utf-8') as fp:
             self.src = fp.read()
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
@@ -195,7 +191,7 @@ class QAPISchemaParser:
     def _include(include: str,
                  info: QAPISourceInfo,
                  incl_fname: str,
-                 previously_included: Set[str]
+                 previously_included: set[str]
                  ) -> Optional['QAPISchemaParser']:
         incl_abs_fname = os.path.abspath(incl_fname)
         # catch inclusion cycle
@@ -220,7 +216,7 @@ class QAPISchemaParser:
     @staticmethod
     def _pragma(name: str, value: object, info: QAPISourceInfo) -> None:
 
-        def check_list_str(name: str, value: object) -> List[str]:
+        def check_list_str(name: str, value: object) -> list[str]:
             if (not isinstance(value, list) or
                     any(not isinstance(elt, str) for elt in value)):
                 raise QAPISemError(
@@ -354,8 +350,8 @@ class QAPISchemaParser:
                                    self.src[self.cursor-1:])
                 raise QAPIParseError(self, "stray '%s'" % match.group(0))
 
-    def get_members(self) -> Dict[str, object]:
-        expr: Dict[str, object] = {}
+    def get_members(self) -> dict[str, object]:
+        expr: dict[str, object] = {}
         if self.tok == '}':
             self.accept()
             return expr
@@ -381,8 +377,8 @@ class QAPISchemaParser:
             if self.tok != "'":
                 raise QAPIParseError(self, "expected string")
 
-    def get_values(self) -> List[object]:
-        expr: List[object] = []
+    def get_values(self) -> list[object]:
+        expr: list[object] = []
         if self.tok == ']':
             self.accept()
             return expr
@@ -694,21 +690,21 @@ class QAPIDoc:
         # definition doc's symbol, None for free-form doc
         self.symbol: Optional[str] = symbol
         # the sections in textual order
-        self.all_sections: List[QAPIDoc.Section] = [
+        self.all_sections: list[QAPIDoc.Section] = [
             QAPIDoc.Section(info, QAPIDoc.Kind.PLAIN)
         ]
         # the body section
         self.body: Optional[QAPIDoc.Section] = self.all_sections[0]
         # dicts mapping parameter/feature names to their description
-        self.args: Dict[str, QAPIDoc.ArgSection] = {}
-        self.features: Dict[str, QAPIDoc.ArgSection] = {}
+        self.args: dict[str, QAPIDoc.ArgSection] = {}
+        self.features: dict[str, QAPIDoc.ArgSection] = {}
         # a command's "Returns" and "Errors" section
         self.returns: Optional[QAPIDoc.Section] = None
         self.errors: Optional[QAPIDoc.Section] = None
         # "Since" section
         self.since: Optional[QAPIDoc.Section] = None
         # sections other than .body, .args, .features
-        self.sections: List[QAPIDoc.Section] = []
+        self.sections: list[QAPIDoc.Section] = []
 
     def end(self) -> None:
         for section in self.all_sections:
@@ -763,7 +759,7 @@ class QAPIDoc:
         info: QAPISourceInfo,
         name: str,
         kind: 'QAPIDoc.Kind',
-        desc: Dict[str, ArgSection]
+        desc: dict[str, ArgSection]
     ) -> None:
         if not name:
             raise QAPISemError(info, "invalid parameter name")
@@ -834,7 +830,7 @@ class QAPIDoc:
     def check(self) -> None:
 
         def check_args_section(
-                args: Dict[str, QAPIDoc.ArgSection], what: str
+                args: dict[str, QAPIDoc.ArgSection], what: str
         ) -> None:
             bogus = [name for name, section in args.items()
                      if not section.member]

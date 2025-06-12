@@ -12,6 +12,7 @@
 
 from qemu_test import QemuSystemTest
 
+
 class QueryCPUModelExpansion(QemuSystemTest):
     """
     Run query-cpu-model-expansion for each CPU model, and validate results

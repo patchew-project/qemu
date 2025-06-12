@@ -25,6 +25,7 @@ import re
 
 from qemu_test import QemuSystemTest
 
+
 class X86CPUModelAliases(QemuSystemTest):
     """
     Validation of PC CPU model versions and CPU model aliases
@@ -82,8 +83,8 @@ class X86CPUModelAliases(QemuSystemTest):
         # with older QEMU versions that didn't have the versioned CPU model
         self.vm.add_args('-S')
         self.vm.launch()
-        cpus = dict((m['name'], m) for m in
-                    self.vm.cmd('query-cpu-definitions'))
+        cpus = {m['name']: m for m in
+                    self.vm.cmd('query-cpu-definitions')}
 
         self.assertFalse(cpus['Cascadelake-Server']['static'],
                          'unversioned Cascadelake-Server CPU model must not be static')
@@ -113,8 +114,8 @@ class X86CPUModelAliases(QemuSystemTest):
         self.vm.add_args('-S')
         self.vm.launch()
 
-        cpus = dict((m['name'], m) for m in
-                    self.vm.cmd('query-cpu-definitions'))
+        cpus = {m['name']: m for m in
+                    self.vm.cmd('query-cpu-definitions')}
 
         self.assertFalse(cpus['Cascadelake-Server']['static'],
                          'unversioned Cascadelake-Server CPU model must not be static')
@@ -219,8 +220,8 @@ class X86CPUModelAliases(QemuSystemTest):
         self.vm.add_args('-S')
         self.vm.launch()
 
-        cpus = dict((m['name'], m) for m in
-                    self.vm.cmd('query-cpu-definitions'))
+        cpus = {m['name']: m for m in
+                    self.vm.cmd('query-cpu-definitions')}
 
         self.assertFalse(cpus['Cascadelake-Server']['static'],
                          'unversioned Cascadelake-Server CPU model must not be static')

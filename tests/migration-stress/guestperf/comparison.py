@@ -19,7 +19,8 @@
 
 from guestperf.scenario import Scenario
 
-class Comparison(object):
+
+class Comparison:
     def __init__(self, name, scenarios):
         self._name = name
         self._scenarios = scenarios

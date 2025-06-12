@@ -11,10 +11,12 @@
 # the COPYING file in the top-level directory.
 #
 import os
-import sys
 import subprocess
+import sys
+
 import basevm
 from qemu.utils import kvm_available
+
 
 # This is the config needed for current version of QEMU.
 # This works for both kvm and tcg.
@@ -71,22 +73,22 @@ def create_flash_images(flash_dir="./", efi_img=""):
     flash0_path = get_flash_path(flash_dir, "flash0")
     flash1_path = get_flash_path(flash_dir, "flash1")
     fd_null = open(os.devnull, 'w')
-    subprocess.check_call(["dd", "if=/dev/zero", "of={}".format(flash0_path),
+    subprocess.check_call(["dd", "if=/dev/zero", f"of={flash0_path}",
                            "bs=1M", "count=64"],
                            stdout=fd_null, stderr=subprocess.STDOUT)
     # A reliable way to get the QEMU EFI image is via an installed package or
     # via the bios included with qemu.
     if not os.path.exists(efi_img):
-        sys.stderr.write("*** efi argument is invalid ({})\n".format(efi_img))
+        sys.stderr.write(f"*** efi argument is invalid ({efi_img})\n")
         sys.stderr.write("*** please check --efi-aarch64 argument or "\
                          "install qemu-efi-aarch64 package\n")
         exit(3)
-    subprocess.check_call(["dd", "if={}".format(efi_img),
-                           "of={}".format(flash0_path),
+    subprocess.check_call(["dd", f"if={efi_img}",
+                           f"of={flash0_path}",
                            "conv=notrunc"],
                            stdout=fd_null, stderr=subprocess.STDOUT)
     subprocess.check_call(["dd", "if=/dev/zero",
-                           "of={}".format(flash1_path),
+                           f"of={flash1_path}",
                            "bs=1M", "count=64"],
                            stdout=fd_null, stderr=subprocess.STDOUT)
     fd_null.close()
@@ -103,4 +105,4 @@ def get_pflash_args(flash_dir="./"):
     return pflash_args.split(" ")
 
 def get_flash_path(flash_dir, name):
-    return os.path.join(flash_dir, "{}.img".format(name))
+    return os.path.join(flash_dir, f"{name}.img")

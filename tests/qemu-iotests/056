@@ -21,10 +21,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import time
 import os
+import time
+
 import iotests
-from iotests import qemu_img, qemu_io, create_image
+from iotests import create_image, qemu_img, qemu_io
+
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')

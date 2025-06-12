@@ -8,14 +8,15 @@
 import hashlib
 import logging
 import os
-import stat
-import sys
-import unittest
-import urllib.request
-from time import sleep
 from pathlib import Path
 from shutil import copyfileobj
+import stat
+import sys
+from time import sleep
+import unittest
 from urllib.error import HTTPError
+import urllib.request
+
 
 class AssetError(Exception):
     def __init__(self, asset, msg, transient=False):
@@ -182,7 +183,6 @@ class Asset:
                         self.hash.encode('utf8'))
         except Exception as e:
             self.log.debug("Unable to set xattr on %s: %s", tmp_cache_file, e)
-            pass
 
         if not self._check(tmp_cache_file):
             tmp_cache_file.unlink()

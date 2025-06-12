@@ -10,6 +10,7 @@ from unittest import skipIf, skipUnless
 
 from .cmd import which
 
+
 '''
 Decorator to skip execution of a test if the list
 of command binaries is not available in $PATH.

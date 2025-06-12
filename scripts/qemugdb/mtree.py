@@ -13,6 +13,7 @@
 
 import gdb
 
+
 def isnull(ptr):
     return ptr == gdb.Value(0).cast(ptr.type)
 

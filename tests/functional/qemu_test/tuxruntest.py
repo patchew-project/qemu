@@ -11,10 +11,14 @@
 
 import os
 
-from qemu_test import QemuSystemTest
-from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import wait_for_console_pattern
-from qemu_test import which, get_qemu_img
+from qemu_test import (
+    QemuSystemTest,
+    exec_command_and_wait_for_pattern,
+    get_qemu_img,
+    wait_for_console_pattern,
+    which,
+)
+
 
 class TuxRunBaselineTest(QemuSystemTest):
 

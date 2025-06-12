@@ -17,14 +17,14 @@
 ##  along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-import io
+import argparse
 import re
-
 import sys
 import textwrap
-import iset
+
 import hex_common
-import argparse
+import iset
+
 
 encs = {
     tag: "".join(reversed(iset.iset[tag]["enc"].replace(" ", "")))

@@ -22,9 +22,11 @@
 #
 
 import os
+
+from qemu.qmp.qmp_client import ExecuteError
+
 import iotests
 from iotests import try_remove
-from qemu.qmp.qmp_client import ExecuteError
 
 
 def io_write_patterns(img, patterns):
@@ -35,7 +37,7 @@ def io_write_patterns(img, patterns):
 def transaction_action(action, **kwargs):
     return {
         'type': action,
-        'data': dict((k.replace('_', '-'), v) for k, v in kwargs.items())
+        'data': {k.replace('_', '-'): v for k, v in kwargs.items()}
     }
 
 
@@ -89,7 +91,7 @@ class Bitmap:
 
 class TestIncrementalBackupBase(iotests.QMPTestCase):
     def __init__(self, *args):
-        super(TestIncrementalBackupBase, self).__init__(*args)
+        super().__init__(*args)
         self.bitmaps = list()
         self.files = list()
         self.drives = list()

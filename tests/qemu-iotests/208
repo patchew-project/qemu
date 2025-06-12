@@ -23,6 +23,7 @@
 
 import iotests
 
+
 iotests.script_initialize(supported_fmts=['generic'])
 
 with iotests.FilePath('disk.img') as disk_img_path, \

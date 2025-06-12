@@ -9,8 +9,12 @@
 
 import time
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import skipIfMissingImports, skipIfMissingCommands
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    skipIfMissingCommands,
+    skipIfMissingImports,
+)
 from qemu_test.tesseract import tesseract_ocr
 
 

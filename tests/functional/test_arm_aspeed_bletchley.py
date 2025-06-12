@@ -4,8 +4,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import Asset
 from aspeed import AspeedTest
+from qemu_test import Asset
 
 
 class BletchleyMachine(AspeedTest):

@@ -17,12 +17,12 @@ def run_test():
         gdb.execute("break sigwait")
         gdb.execute("continue")
         phase = gdb.parse_and_eval("phase").string()
-    report(phase == "sigwait", "{} == \"sigwait\"".format(phase))
+    report(phase == "sigwait", f"{phase} == \"sigwait\"")
 
     gdb.execute("signal SIGUSR1")
 
     exitcode = int(gdb.parse_and_eval("$_exitcode"))
-    report(exitcode == 0, "{} == 0".format(exitcode))
+    report(exitcode == 0, f"{exitcode} == 0")
 
 
 main(run_test)

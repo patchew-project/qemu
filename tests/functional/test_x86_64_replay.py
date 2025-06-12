@@ -5,9 +5,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from subprocess import check_call, DEVNULL
+from subprocess import DEVNULL, check_call
 
-from qemu_test import Asset, skipFlakyTest, get_qemu_img
+from qemu_test import Asset, get_qemu_img, skipFlakyTest
 from replay_kernel import ReplayKernelBase
 
 

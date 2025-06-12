@@ -19,13 +19,13 @@
 #
 
 
-import sys
-import subprocess
-import re
 import json
+import re
+import subprocess
+import sys
 
-import simplebench
 from results_to_text import results_to_text
+import simplebench
 from table_templater import Templater
 
 
@@ -33,7 +33,7 @@ def bench_func(env, case):
     test = templater.gen(env['data'], case['data'])
 
     p = subprocess.run(test, shell=True, stdout=subprocess.PIPE,
-                       stderr=subprocess.STDOUT, universal_newlines=True)
+                       stderr=subprocess.STDOUT, text=True)
 
     if p.returncode == 0:
         try:

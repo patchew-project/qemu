@@ -19,8 +19,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os, random, iotests, struct, qcow2, sys
-from iotests import qemu_img, qemu_io, image_size
+import os
+import random
+import struct
+
+import qcow2
+
+import iotests
+from iotests import image_size, qemu_img, qemu_io
+
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 check_img = os.path.join(iotests.test_dir, 'check.img')

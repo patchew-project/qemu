@@ -19,7 +19,9 @@
 #
 
 import math
+
 import tabulate
+
 
 # We want leading whitespace for difference row cells (see below)
 tabulate.PRESERVE_WHITESPACE = True
@@ -115,8 +117,8 @@ def results_to_text(results):
 
 
 if __name__ == '__main__':
-    import sys
     import json
+    import sys
 
     if len(sys.argv) < 2:
         print(f'USAGE: {sys.argv[0]} results.json')

@@ -22,10 +22,14 @@
 
 import os
 import re
-import json
+
 import iotests
-from iotests import qemu_img, qemu_img_info, supports_qcow2_zstd_compression
-import unittest
+from iotests import (
+    qemu_img,
+    qemu_img_info,
+    supports_qcow2_zstd_compression,
+)
+
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 

@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test the SVE ZReg reports the right amount of data. It uses the
 # sve-ioctl test and examines the register data each time the
@@ -10,12 +9,13 @@ from __future__ import print_function
 import gdb
 from test_gdbstub import main, report
 
+
 initial_vlen = 0
 
 
 class TestBreakpoint(gdb.Breakpoint):
     def __init__(self, sym_name="__sve_ld_done"):
-        super(TestBreakpoint, self).__init__(sym_name)
+        super().__init__(sym_name)
         # self.sym, ok = gdb.lookup_symbol(sym_name)
 
     def stop(self):

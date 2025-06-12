@@ -14,6 +14,7 @@
 from qemu_test import Asset
 from qemu_test.tuxruntest import TuxRunBaselineTest
 
+
 class TuxRunM68KTest(TuxRunBaselineTest):
 
     ASSET_M68K_KERNEL = Asset(

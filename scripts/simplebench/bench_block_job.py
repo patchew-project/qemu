@@ -19,11 +19,12 @@
 #
 
 
-import sys
-import os
-import subprocess
-import socket
 import json
+import os
+import socket
+import subprocess
+import sys
+
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import QEMUMachine
@@ -56,7 +57,7 @@ def bench_block_job(cmd, cmd_args, qemu_args):
         res = vm.qmp(cmd, **cmd_args)
         if res != {'return': {}}:
             vm.shutdown()
-            return {'error': '"{}" command failed: {}'.format(cmd, str(res))}
+            return {'error': f'"{cmd}" command failed: {str(res)}'}
 
         e = vm.event_wait('JOB_STATUS_CHANGE')
         assert e['data']['status'] == 'created'

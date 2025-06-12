@@ -11,15 +11,10 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from collections.abc import Sequence
 import re
-from typing import (
-    Any,
-    Dict,
-    Match,
-    Optional,
-    Sequence,
-    Union,
-)
+from re import Match
+from typing import Any, Optional, Union
 
 
 #: Magic string that gets removed along with all space to its right.
@@ -95,22 +90,22 @@ def c_name(name: str, protect: bool = True) -> str:
                     (like C keywords) by prepending ``q_``.
     """
     # ANSI X3J11/88-090, 3.1.1
-    c89_words = set(['auto', 'break', 'case', 'char', 'const', 'continue',
+    c89_words = {'auto', 'break', 'case', 'char', 'const', 'continue',
                      'default', 'do', 'double', 'else', 'enum', 'extern',
                      'float', 'for', 'goto', 'if', 'int', 'long', 'register',
                      'return', 'short', 'signed', 'sizeof', 'static',
                      'struct', 'switch', 'typedef', 'union', 'unsigned',
-                     'void', 'volatile', 'while'])
+                     'void', 'volatile', 'while'}
     # ISO/IEC 9899:1999, 6.4.1
-    c99_words = set(['inline', 'restrict', '_Bool', '_Complex', '_Imaginary'])
+    c99_words = {'inline', 'restrict', '_Bool', '_Complex', '_Imaginary'}
     # ISO/IEC 9899:2011, 6.4.1
-    c11_words = set(['_Alignas', '_Alignof', '_Atomic', '_Generic',
-                     '_Noreturn', '_Static_assert', '_Thread_local'])
+    c11_words = {'_Alignas', '_Alignof', '_Atomic', '_Generic',
+                     '_Noreturn', '_Static_assert', '_Thread_local'}
     # GCC http://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/C-Extensions.html
     # excluding _.*
-    gcc_words = set(['asm', 'typeof'])
+    gcc_words = {'asm', 'typeof'}
     # C++ ISO/IEC 14882:2003 2.11
-    cpp_words = set(['bool', 'catch', 'class', 'const_cast', 'delete',
+    cpp_words = {'bool', 'catch', 'class', 'const_cast', 'delete',
                      'dynamic_cast', 'explicit', 'false', 'friend', 'mutable',
                      'namespace', 'new', 'operator', 'private', 'protected',
                      'public', 'reinterpret_cast', 'static_cast', 'template',
@@ -118,9 +113,9 @@ def c_name(name: str, protect: bool = True) -> str:
                      'using', 'virtual', 'wchar_t',
                      # alternative representations
                      'and', 'and_eq', 'bitand', 'bitor', 'compl', 'not',
-                     'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'])
+                     'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'}
     # namespace pollution:
-    polluted_words = set(['unix', 'errno', 'mips', 'sparc', 'i386', 'linux'])
+    polluted_words = {'unix', 'errno', 'mips', 'sparc', 'i386', 'linux'}
     name = re.sub(r'[^A-Za-z0-9_]', '_', name)
     if protect and (name in (c89_words | c99_words | c11_words | gcc_words
                              | cpp_words | polluted_words)
@@ -139,7 +134,7 @@ class Indentation:
         self._level = initial
 
     def __repr__(self) -> str:
-        return "{}({:d})".format(type(self).__name__, self._level)
+        return f"{type(self).__name__}({self._level:d})"
 
     def __str__(self) -> str:
         """Return the current indentation as a string of spaces."""
@@ -199,11 +194,11 @@ def guardend(name: str) -> str:
                  name=c_fname(name).upper())
 
 
-def gen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]],
+def gen_ifcond(ifcond: Optional[Union[str, dict[str, Any]]],
                cond_fmt: str, not_fmt: str,
                all_operator: str, any_operator: str) -> str:
 
-    def do_gen(ifcond: Union[str, Dict[str, Any]],
+    def do_gen(ifcond: Union[str, dict[str, Any]],
                need_parens: bool) -> str:
         if isinstance(ifcond, str):
             return cond_fmt % ifcond
@@ -226,11 +221,11 @@ def gen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]],
     return do_gen(ifcond, False)
 
 
-def cgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
+def cgen_ifcond(ifcond: Optional[Union[str, dict[str, Any]]]) -> str:
     return gen_ifcond(ifcond, 'defined(%s)', '!%s', ' && ', ' || ')
 
 
-def docgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
+def docgen_ifcond(ifcond: Optional[Union[str, dict[str, Any]]]) -> str:
     # TODO Doc generated for conditions needs polish
     return gen_ifcond(ifcond, '%s', 'not %s', ' and ', ' or ')
 

@@ -7,12 +7,13 @@
 
 import contextlib
 import importlib
+from io import StringIO
 import os
 import platform
 import subprocess
 import tempfile
 import unittest
-from io import StringIO
+
 
 xmlpp = importlib.import_module("xml-preprocess")
 

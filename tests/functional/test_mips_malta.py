@@ -8,8 +8,12 @@
 
 import os
 
-from qemu_test import LinuxKernelTest, Asset, wait_for_console_pattern
-from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import (
+    Asset,
+    LinuxKernelTest,
+    exec_command_and_wait_for_pattern,
+    wait_for_console_pattern,
+)
 
 
 def mips_run_common_commands(test, prompt='#'):

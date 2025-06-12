@@ -18,9 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import simplebench
-from results_to_text import results_to_text
 from bench_block_job import bench_block_copy, drv_file, drv_nbd
+from results_to_text import results_to_text
+import simplebench
 
 
 def bench_func(env, case):

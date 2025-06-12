@@ -5,6 +5,7 @@ import hashlib
 import os
 import sys
 
+
 sha = hashlib.sha1()
 is_file = False
 for arg in sys.argv[1:]:

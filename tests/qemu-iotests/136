@@ -20,8 +20,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import iotests
 import os
+
+import iotests
+
 
 interval_length = 10
 nsec_per_sec = 1000000000

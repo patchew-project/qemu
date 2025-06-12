@@ -23,6 +23,7 @@
 
 from qemu_test import QemuSystemTest
 
+
 class OmittedCPUProps(QemuSystemTest):
 
     def test_no_die_id(self):

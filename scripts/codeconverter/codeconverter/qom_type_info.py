@@ -6,10 +6,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 import re
-from .regexps import *
+
 from .patching import *
-from .utils import *
 from .qom_macros import *
+from .regexps import *
+from .utils import *
+
 
 TI_FIELDS = [ 'name', 'parent', 'abstract', 'interfaces',
     'instance_size', 'instance_init', 'instance_post_init', 'instance_finalize',
@@ -89,8 +91,8 @@ class TypeDefinition(FileMatch):
         fields = self.group('fields')
         if fields is None:
             return None
-        d = dict((fm.group('field'), fm)
-                  for fm in self.group_finditer(FieldInitializer, 'fields'))
+        d = {fm.group('field'): fm
+                  for fm in self.group_finditer(FieldInitializer, 'fields')}
         self._initializers = d # type: ignore
         return self._initializers
 

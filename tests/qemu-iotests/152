@@ -20,8 +20,10 @@
 #
 
 import os
+
 import iotests
 from iotests import qemu_img
+
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 target_img = os.path.join(iotests.test_dir, 'target.img')

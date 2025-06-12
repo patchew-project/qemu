@@ -19,10 +19,10 @@
 import os
 import subprocess
 import sys
-from typing import List
+
+import linters
 
 import iotests
-import linters
 
 
 # Looking for something?
@@ -41,7 +41,7 @@ def check_linter(linter: str) -> bool:
     return True
 
 
-def test_pylint(files: List[str]) -> None:
+def test_pylint(files: list[str]) -> None:
     print('=== pylint ===')
     sys.stdout.flush()
 
@@ -51,7 +51,7 @@ def test_pylint(files: List[str]) -> None:
     linters.run_linter('pylint', files)
 
 
-def test_mypy(files: List[str]) -> None:
+def test_mypy(files: list[str]) -> None:
     print('=== mypy ===')
     sys.stdout.flush()
 

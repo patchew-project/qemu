@@ -5,10 +5,11 @@
 # parsing
 
 import json
-import subprocess
 import os
-import sys
 import shlex
+import subprocess
+import sys
+
 
 def cmdline_for_sparse(sparse, cmdline):
     # Do not include the C compiler executable
@@ -43,7 +44,7 @@ def build_path(s):
     return s if not root_path else os.path.join(root_path, s)
 
 ccjson_path = build_path(sys.argv[1])
-with open(ccjson_path, 'r') as fd:
+with open(ccjson_path) as fd:
     compile_commands = json.load(fd)
 
 sparse = sys.argv[2:]
@@ -52,7 +53,7 @@ for cmd in compile_commands:
     cmdline = shlex.split(cmd['command'])
     cmd = cmdline_for_sparse(sparse, cmdline)
     print('REAL_CC=%s' % shlex.quote(cmdline[0]),
-          ' '.join((shlex.quote(x) for x in cmd)))
+          shlex.join(cmd))
     sparse_env['REAL_CC'] = cmdline[0]
     r = subprocess.run(cmd, env=sparse_env, cwd=root_path)
     if r.returncode != 0:

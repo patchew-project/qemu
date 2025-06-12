@@ -25,10 +25,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import argparse
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Any, Iterable, List, Mapping, Optional, Set
+from typing import Any, Optional
+
 
 try:
     import tomllib
@@ -41,7 +43,7 @@ STRICT_LINTS = {"unknown_lints", "warnings"}
 class CargoTOML:
     tomldata: Mapping[Any, Any]
     workspace_data: Mapping[Any, Any]
-    check_cfg: Set[str]
+    check_cfg: set[str]
 
     def __init__(self, path: Optional[str], workspace: Optional[str]):
         if path is not None:
@@ -78,7 +80,7 @@ class CargoTOML:
 
 @dataclass
 class LintFlag:
-    flags: List[str]
+    flags: list[str]
     priority: int
 
 
@@ -199,7 +201,7 @@ def main() -> None:
         logging.basicConfig(level=logging.DEBUG)
     logging.debug("args: %s", args)
 
-    rustc_version = tuple((int(x) for x in args.rustc_version.split('.')[0:2]))
+    rustc_version = tuple(int(x) for x in args.rustc_version.split('.')[0:2])
     if args.workspace:
         workspace_cargo_toml = Path(args.workspace, "Cargo.toml").resolve()
         cargo_toml = CargoTOML(args.cargo_toml, str(workspace_cargo_toml))

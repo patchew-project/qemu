@@ -10,10 +10,10 @@
 import gzip
 import lzma
 import os
-import stat
 import shutil
+import stat
+from subprocess import CalledProcessError, run
 from urllib.parse import urlparse
-from subprocess import run, CalledProcessError
 
 from .asset import Asset
 

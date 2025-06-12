@@ -20,21 +20,21 @@
 
 import argparse
 import fnmatch
+import logging
 import os
 import os.path
 import platform
 import sys
-import logging
 
-from guestperf.hardware import Hardware
-from guestperf.engine import Engine
-from guestperf.scenario import Scenario
 from guestperf.comparison import COMPARISONS
+from guestperf.engine import Engine
+from guestperf.hardware import Hardware
 from guestperf.plot import Plot
 from guestperf.report import Report
+from guestperf.scenario import Scenario
 
 
-class BaseShell(object):
+class BaseShell:
 
     def __init__(self):
         parser = argparse.ArgumentParser(description="Migration Test Tool")
@@ -100,7 +100,7 @@ class BaseShell(object):
 class Shell(BaseShell):
 
     def __init__(self):
-        super(Shell, self).__init__()
+        super().__init__()
 
         parser = self._parser
 
@@ -205,7 +205,7 @@ class Shell(BaseShell):
 class BatchShell(BaseShell):
 
     def __init__(self):
-        super(BatchShell, self).__init__()
+        super().__init__()
 
         parser = self._parser
 
@@ -248,10 +248,10 @@ class BatchShell(BaseShell):
                 raise
 
 
-class PlotShell(object):
+class PlotShell:
 
     def __init__(self):
-        super(PlotShell, self).__init__()
+        super().__init__()
 
         self._parser = argparse.ArgumentParser(description="Migration Test Tool")
 

@@ -123,7 +123,7 @@ class ConsoleSocket(socket.socket):
             elapsed_sec = time.time() - start_time
             if elapsed_sec > self._recv_timeout_sec:
                 raise socket.timeout
-        return bytes((self._buffer.popleft() for i in range(bufsize)))
+        return bytes(self._buffer.popleft() for i in range(bufsize))
 
     def setblocking(self, value: bool) -> None:
         """When not draining we pass thru to the socket,

@@ -5,7 +5,6 @@ import socket
 from tempfile import TemporaryDirectory
 
 import avocado
-
 from qemu.qmp import ConnectError, Runstate
 from qemu.qmp.protocol import AsyncProtocol, StateError
 

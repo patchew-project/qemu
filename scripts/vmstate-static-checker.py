@@ -23,6 +23,7 @@ import argparse
 import json
 import sys
 
+
 # Count the number of errors found
 taint = 0
 

@@ -7,7 +7,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 """
 
-from typing import ValuesView
+from collections.abc import ValuesView
 
 from .common import c_enum_const, c_name
 from .gen import QAPISchemaMonolithicCVisitor

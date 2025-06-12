@@ -58,6 +58,7 @@ options:
 # later. See the COPYING file in the top-level directory.
 
 import argparse
+from collections.abc import Iterator, Sequence
 from importlib.metadata import (
     Distribution,
     EntryPoint,
@@ -76,15 +77,7 @@ import subprocess
 import sys
 import sysconfig
 from types import SimpleNamespace
-from typing import (
-    Any,
-    Dict,
-    Iterator,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import Any, Optional, Union
 import venv
 
 
@@ -510,7 +503,7 @@ def diagnose(
     online: bool,
     wheels_dir: Optional[Union[str, Path]],
     prog: Optional[str],
-) -> Tuple[str, bool]:
+) -> tuple[str, bool]:
     """
     Offer a summary to the user as to why a package failed to be installed.
 
@@ -623,7 +616,7 @@ def pip_install(
     )
 
 
-def _make_version_constraint(info: Dict[str, str], install: bool) -> str:
+def _make_version_constraint(info: dict[str, str], install: bool) -> str:
     """
     Construct the version constraint part of a PEP 508 dependency
     specification (for example '>=0.61.5') from the accepted and
@@ -648,10 +641,10 @@ def _make_version_constraint(info: Dict[str, str], install: bool) -> str:
 
 
 def _do_ensure(
-    group: Dict[str, Dict[str, str]],
+    group: dict[str, dict[str, str]],
     online: bool = False,
     wheels_dir: Optional[Union[str, Path]] = None,
-) -> Optional[Tuple[str, bool]]:
+) -> Optional[tuple[str, bool]]:
     """
     Use pip to ensure we have the packages specified in @group.
 
@@ -716,7 +709,7 @@ def _do_ensure(
     return None
 
 
-def _parse_groups(file: str) -> Dict[str, Dict[str, Any]]:
+def _parse_groups(file: str) -> dict[str, dict[str, Any]]:
     if not HAVE_TOMLLIB:
         if sys.version_info < (3, 11):
             raise Ouch("found no usable tomli, please install it")
@@ -727,7 +720,7 @@ def _parse_groups(file: str) -> Dict[str, Dict[str, Any]]:
 
     # Use loads() to support both tomli v1.2.x (Ubuntu 22.04,
     # Debian bullseye-backports) and v2.0.x
-    with open(file, "r", encoding="ascii") as depfile:
+    with open(file, encoding="ascii") as depfile:
         contents = depfile.read()
         return tomllib.loads(contents)  # type: ignore
 
@@ -756,7 +749,7 @@ def ensure_group(
 
     parsed_deps = _parse_groups(file)
 
-    to_install: Dict[str, Dict[str, str]] = {}
+    to_install: dict[str, dict[str, str]] = {}
     for group in groups:
         try:
             to_install.update(parsed_deps[group])

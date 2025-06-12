@@ -20,8 +20,9 @@
 #
 
 import os
+
 import iotests
-from iotests import imgfmt, qemu_img_create, QMPTestCase
+from iotests import QMPTestCase, imgfmt, qemu_img_create
 
 
 image_size = 1 * 1024 * 1024

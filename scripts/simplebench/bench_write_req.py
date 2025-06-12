@@ -22,11 +22,12 @@
 #
 
 
-import sys
 import os
 import subprocess
-import simplebench
+import sys
+
 from results_to_text import results_to_text
+import simplebench
 
 
 def bench_func(env, case):

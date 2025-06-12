@@ -19,9 +19,13 @@
 # Creator/Owner: Kevin Wolf <kwolf@redhat.com>
 
 import iotests
+from iotests import (
+    QemuIoInteractive,
+    filter_qemu_io,
+    filter_qmp_testfiles,
+    filter_qtest,
+)
 
-from iotests import QemuIoInteractive
-from iotests import filter_qemu_io, filter_qtest, filter_qmp_testfiles
 
 iotests.script_initialize(supported_fmts=['generic'],
                           supported_protocols=['file'],

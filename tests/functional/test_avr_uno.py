@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
+from qemu_test import Asset, QemuSystemTest, wait_for_console_pattern
 
 
 class UnoMachine(QemuSystemTest):

@@ -23,8 +23,10 @@
 #
 
 import os
+
 import iotests
 from iotests import qemu_img
+
 
 back0_img = os.path.join(iotests.test_dir, 'back0.' + iotests.imgfmt)
 back1_img = os.path.join(iotests.test_dir, 'back1.' + iotests.imgfmt)

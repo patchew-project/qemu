@@ -22,14 +22,7 @@ import logging
 from logging import Handler, LogRecord
 import signal
 import sys
-from typing import (
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    cast,
-)
+from typing import Optional, Union, cast
 
 
 try:
@@ -120,7 +113,7 @@ def format_json(msg: str) -> str:
 
 
 def has_handler_type(logger: logging.Logger,
-                     handler_type: Type[Handler]) -> bool:
+                     handler_type: type[Handler]) -> bool:
     """
     The Logger class has no interface to check if a certain type of handler is
     installed or not. So we provide an interface to do so.
@@ -151,7 +144,7 @@ class App(QMPClient):
     :param retry_delay:
         The delay(sec) before each retry
     """
-    def __init__(self, address: Union[str, Tuple[str, int]], num_retries: int,
+    def __init__(self, address: Union[str, tuple[str, int]], num_retries: int,
                  retry_delay: Optional[int]) -> None:
         urwid.register_signal(type(self), UPDATE_MSG)
         self.window = Window(self)
@@ -448,11 +441,11 @@ class Editor(urwid_readline.ReadlineEdit):
     def __init__(self, parent: App) -> None:
         super().__init__(caption='> ', multiline=True)
         self.parent = parent
-        self.history: List[str] = []
+        self.history: list[str] = []
         self.last_index: int = -1
         self.show_history: bool = False
 
-    def keypress(self, size: Tuple[int, int], key: str) -> Optional[str]:
+    def keypress(self, size: tuple[int, int], key: str) -> Optional[str]:
         """
         Handles the keypress on this widget.
 
@@ -530,7 +523,7 @@ class HistoryBox(urwid.ListBox):
         super().__init__(self.history)
 
     def add_to_history(self,
-                       history: Union[str, List[Tuple[str, str]]]) -> None:
+                       history: Union[str, list[tuple[str, str]]]) -> None:
         """
         Appends a message to the list and set the focus to the last appended
         message.
@@ -541,7 +534,7 @@ class HistoryBox(urwid.ListBox):
         self.history.append(urwid.Text(history))
         self.history.set_focus(len(self.history) - 1)
 
-    def mouse_event(self, size: Tuple[int, int], _event: str, button: float,
+    def mouse_event(self, size: tuple[int, int], _event: str, button: float,
                     _x: int, _y: int, focus: bool) -> None:
         # Unfortunately there are no urwid constants that represent the mouse
         # events.

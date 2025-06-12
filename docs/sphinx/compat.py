@@ -8,13 +8,11 @@ from typing import (
     Any,
     Callable,
     Optional,
-    Type,
 )
 
 from docutils import nodes
 from docutils.nodes import Element, Node, Text
 from docutils.statemachine import StringList
-
 import sphinx
 from sphinx import addnodes, util
 from sphinx.directives import ObjectDescription
@@ -85,7 +83,7 @@ def _compat_make_xref(  # pylint: disable=unused-argument
     rolename: str,
     domain: str,
     target: str,
-    innernode: Type[TextlikeNode] = addnodes.literal_emphasis,
+    innernode: type[TextlikeNode] = addnodes.literal_emphasis,
     contnode: Optional[Node] = None,
     env: Optional[BuildEnvironment] = None,
     inliner: Any = None,

@@ -21,10 +21,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import time
 import os
+
 import iotests
 from iotests import qemu_img, qemu_io
+
 
 test_drv_base_name = 'drive'
 
@@ -33,7 +34,7 @@ class ImageSnapshotTestCase(iotests.QMPTestCase):
 
     def __init__(self, *args):
         self.expect = []
-        super(ImageSnapshotTestCase, self).__init__(*args)
+        super().__init__(*args)
 
     def _setUp(self, test_img_base_name, image_num):
         self.vm = iotests.VM()

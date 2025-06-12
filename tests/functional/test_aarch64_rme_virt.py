@@ -11,9 +11,14 @@
 
 import os
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import exec_command, wait_for_console_pattern
-from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    exec_command,
+    exec_command_and_wait_for_pattern,
+    wait_for_console_pattern,
+)
+
 
 def test_realms_guest(test_rme_instance):
 

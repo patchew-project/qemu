@@ -83,7 +83,7 @@ with open("/tmp/callgrind_annotate.out", "w") as output:
 
 # Read the callgrind_annotate output to callgrind_data[]
 callgrind_data = []
-with open('/tmp/callgrind_annotate.out', 'r') as data:
+with open('/tmp/callgrind_annotate.out') as data:
     callgrind_data = data.readlines()
 
 # Line number with the total number of instructions

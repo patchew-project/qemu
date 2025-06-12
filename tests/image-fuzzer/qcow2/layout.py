@@ -16,12 +16,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import random
-import struct
-from . import fuzz
+from itertools import chain
 from math import ceil
 from os import urandom
-from itertools import chain
+import random
+import struct
+
+from . import fuzz
+
 
 MAX_IMAGE_SIZE = 10 * (1 << 20)
 # Standard sizes
@@ -29,7 +31,7 @@ UINT32_S = 4
 UINT64_S = 8
 
 
-class Field(object):
+class Field:
 
     """Atomic image element (field).
 
@@ -56,7 +58,7 @@ class Field(object):
             (self.fmt, self.offset, self.value, self.name)
 
 
-class FieldsList(object):
+class FieldsList:
 
     """List of fields.
 
@@ -80,7 +82,7 @@ class FieldsList(object):
         return len(self.data)
 
 
-class Image(object):
+class Image:
 
     """ Qcow2 image object.
 
@@ -338,14 +340,14 @@ class Image(object):
         def allocate_rfc_blocks(data, size):
             """Return indices of clusters allocated for refcount blocks."""
             cluster_ids = set()
-            diff = block_ids = set([x // size for x in data])
+            diff = block_ids = {x // size for x in data}
             while len(diff) != 0:
                 # Allocate all yet not allocated clusters
                 new = self._get_available_clusters(data | cluster_ids,
                                                    len(diff))
                 # Indices of new refcount blocks necessary to cover clusters
                 # in 'new'
-                diff = set([x // size for x in new]) - block_ids
+                diff = {x // size for x in new} - block_ids
                 cluster_ids |= new
                 block_ids |= diff
             return cluster_ids, block_ids
@@ -372,7 +374,7 @@ class Image(object):
                                                  table_size + 1))
             # New refcount blocks necessary for clusters occupied by the
             # refcount table
-            diff = set([c // block_size for c in table_clusters]) - blocks
+            diff = {c // block_size for c in table_clusters} - blocks
             blocks |= diff
             while len(diff) != 0:
                 # Allocate clusters for new refcount blocks
@@ -381,7 +383,7 @@ class Image(object):
                                                    len(diff))
                 # Indices of new refcount blocks necessary to cover
                 # clusters in 'new'
-                diff = set([x // block_size for x in new]) - blocks
+                diff = {x // block_size for x in new} - blocks
                 clusters |= new
                 blocks |= diff
                 # Check if the refcount table needs one more cluster
@@ -420,12 +422,12 @@ class Image(object):
             # All metadata for an empty guest image needs 4 clusters:
             # header, rfc table, rfc block, L1 table.
             # Header takes cluster #0, other clusters ##1-3 can be used
-            block_clusters = set([random.choice(list(set(range(1, 4)) -
-                                                     meta_data))])
-            block_ids = set([0])
-            table_clusters = set([random.choice(list(set(range(1, 4)) -
+            block_clusters = {random.choice(list(set(range(1, 4)) -
+                                                     meta_data))}
+            block_ids = {0}
+            table_clusters = {random.choice(list(set(range(1, 4)) -
                                                      meta_data -
-                                                     block_clusters))])
+                                                     block_clusters))}
         else:
             block_clusters, block_ids = \
                                 allocate_rfc_blocks(self.data_clusters |

@@ -8,8 +8,9 @@
 # Then the DSO loading would fail because of the missing symbol.
 
 
-import sys
 import subprocess
+import sys
+
 
 def filter_lines_set(stdout, from_staticlib):
     linesSet = set()

@@ -17,10 +17,8 @@
 ##  along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-import sys
-import re
-import string
 import hex_common
+
 
 ##
 ## Generate the DEF_HELPER prototype for an instruction

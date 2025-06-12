@@ -4,13 +4,14 @@ build helper script for edk2, see
 https://gitlab.com/kraxel/edk2-build-config
 
 """
+import argparse
+import configparser
 import os
+import shutil
+import subprocess
 import sys
 import time
-import shutil
-import argparse
-import subprocess
-import configparser
+
 
 rebase_prefix    = ""
 version_override = None
@@ -24,16 +25,16 @@ def check_rebase():
     gitdir = '.git'
 
     if os.path.isfile(gitdir):
-        with open(gitdir, 'r', encoding = 'utf-8') as f:
+        with open(gitdir, encoding = 'utf-8') as f:
             (unused, gitdir) = f.read().split()
 
     if not os.path.exists(f'{gitdir}/rebase-merge/msgnum'):
         return
-    with open(f'{gitdir}/rebase-merge/msgnum', 'r', encoding = 'utf-8') as f:
+    with open(f'{gitdir}/rebase-merge/msgnum', encoding = 'utf-8') as f:
         msgnum = int(f.read())
-    with open(f'{gitdir}/rebase-merge/end', 'r', encoding = 'utf-8') as f:
+    with open(f'{gitdir}/rebase-merge/end', encoding = 'utf-8') as f:
         end = int(f.read())
-    with open(f'{gitdir}/rebase-merge/head-name', 'r', encoding = 'utf-8') as f:
+    with open(f'{gitdir}/rebase-merge/head-name', encoding = 'utf-8') as f:
         head = f.read().strip().split('/')
 
     rebase_prefix = f'[ {int(msgnum/2)} / {int(end/2)} - {head[-1]} ] '

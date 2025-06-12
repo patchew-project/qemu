@@ -19,19 +19,19 @@
 #
 
 
-import sys
-import os
-import subprocess
-import re
 import json
+import os
+import re
+import subprocess
+import sys
 
-import simplebench
 from results_to_text import results_to_text
+import simplebench
 
 
 def qemu_img_bench(args):
     p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                       universal_newlines=True)
+                       text=True)
 
     if p.returncode == 0:
         try:

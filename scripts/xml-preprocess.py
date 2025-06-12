@@ -87,7 +87,7 @@ class Preprocessor():
         matches = re.findall(include_regex, xml_str)
         for group_inc, group_xml in matches:
             inc_file_path = group_xml.strip()
-            with open(inc_file_path, "r", encoding="utf-8") as inc_file:
+            with open(inc_file_path, encoding="utf-8") as inc_file:
                 inc_file_content = inc_file.read()
                 xml_str = xml_str.replace(group_inc, inc_file_content)
         return xml_str
@@ -262,7 +262,7 @@ class Preprocessor():
 
 
 def preprocess_xml(path: str) -> str:
-    with open(path, "r", encoding="utf-8") as original_file:
+    with open(path, encoding="utf-8") as original_file:
         input_xml = original_file.read()
 
         proc = Preprocessor()

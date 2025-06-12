@@ -8,8 +8,9 @@
 
 import os
 import os.path
-import sys
 import subprocess
+import sys
+
 
 namespace = "qemu-project"
 if len(sys.argv) >= 2:
@@ -25,7 +26,7 @@ subprocess.check_call(["git", "fetch", "--refetch", "check-dco", "master"])
 
 ancestor = subprocess.check_output(["git", "merge-base",
                                     "check-dco/master", "HEAD"],
-                                   universal_newlines=True)
+                                   text=True)
 
 ancestor = ancestor.strip()
 
@@ -38,7 +39,7 @@ print("\nChecking for 'Signed-off-by: NAME <EMAIL>' " +
 
 log = subprocess.check_output(["git", "log", "--format=%H %s",
                                ancestor + "..."],
-                              universal_newlines=True)
+                              text=True)
 
 if log == "":
     commits = []
@@ -48,7 +49,7 @@ else:
 for sha, subject in commits:
 
     msg = subprocess.check_output(["git", "show", "-s", sha],
-                                  universal_newlines=True)
+                                  text=True)
     lines = msg.strip().split("\n")
 
     print("🔍 %s %s" % (sha, subject))

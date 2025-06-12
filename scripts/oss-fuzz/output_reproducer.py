@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Convert plain qtest traces to C or Bash reproducers
@@ -10,11 +9,12 @@ clang-format -style="{BasedOnStyle: llvm, IndentWidth: 4, ColumnLimit: 90}"
 or similar
 """
 
-import sys
-import os
 import argparse
-import textwrap
 from datetime import date
+import os
+import sys
+import textwrap
+
 
 __author__     = "Alexander Bulekov <alxndr@bu.edu>"
 __copyright__  = "Copyright (C) 2021, Red Hat, Inc."
@@ -47,10 +47,10 @@ def c_comment(s):
 def print_c_function(s):
     print("/* ")
     for l in s.splitlines():
-        print(" * {}".format(l))
+        print(f" * {l}")
 
 def bash_reproducer(path, args, trace):
-    result = '\\\n'.join(textwrap.wrap("cat << EOF | {} {}".format(path, args),
+    result = '\\\n'.join(textwrap.wrap(f"cat << EOF | {path} {args}",
                                        72, break_on_hyphens=False,
                                        drop_whitespace=False))
     for l in trace.splitlines():
@@ -60,14 +60,14 @@ def bash_reproducer(path, args, trace):
 
 def c_reproducer(name, args, trace):
     result = []
-    result.append("""static void {}(void)\n{{""".format(name))
+    result.append(f"""static void {name}(void)\n{{""")
 
     # libqtest will add its own qtest args, so get rid of them
     args = args.replace("-accel qtest","")
     args = args.replace(",accel=qtest","")
     args = args.replace("-machine accel=qtest","")
     args = args.replace("-qtest stdio","")
-    result.append("""QTestState *s = qtest_init("{}");""".format(args))
+    result.append(f"""QTestState *s = qtest_init("{args}");""")
     for l in trace.splitlines():
         param = l.split()
         cmd = param[0]
@@ -90,7 +90,7 @@ def c_reproducer(name, args, trace):
             if len(param) ==1:
                 result.append("qtest_clock_step_next(s);")
             else:
-                result.append("qtest_clock_step(s, {});".format(param[1]))
+                result.append(f"qtest_clock_step(s, {param[1]});")
     result.append("qtest_quit(s);\n}")
     return "\n".join(result)
 

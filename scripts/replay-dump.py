@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # Dump the contents of a recorded execution stream
 #
@@ -19,18 +18,19 @@
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import struct
-import os
-import sys
 from collections import namedtuple
+import os
 from os import path
+import struct
+import sys
+
 
 # This mirrors some of the global replay state which some of the
 # stream loading refers to. Some decoders may read the next event so
 # we need handle that case. Calling reuse_event will ensure the next
 # event is read from the cache rather than advancing the file.
 
-class ReplayState(object):
+class ReplayState:
     def __init__(self):
         self.event = -1
         self.event_count = 0

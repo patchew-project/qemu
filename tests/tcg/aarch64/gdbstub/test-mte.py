@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test GDB memory-tag commands that exercise the stubs for the qIsAddressTagged,
 # qMemTag, and QMemTag packets, which are used for manipulating allocation tags.
@@ -20,6 +19,7 @@ except ModuleNotFoundError:
     exit("This script must be launched via tests/guest-debug/run-test.py!")
 import re
 from sys import argv
+
 from test_gdbstub import arg_parser, main, report
 
 

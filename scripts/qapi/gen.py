@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # QAPI code generation
 #
@@ -11,17 +10,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 import os
 import re
 import sys
-from typing import (
-    Dict,
-    Iterator,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Optional
 
 from .common import (
     c_enum_const,
@@ -136,7 +130,7 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
 class QAPIGenCCode(QAPIGen):
     def __init__(self, fname: str):
         super().__init__(fname)
-        self._start_if: Optional[Tuple[QAPISchemaIfCond, str, str]] = None
+        self._start_if: Optional[tuple[QAPISchemaIfCond, str, str]] = None
 
     def start_if(self, ifcond: QAPISchemaIfCond) -> None:
         assert self._start_if is None
@@ -264,7 +258,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._builtin_blurb = builtin_blurb
         self._pydoc = pydoc
         self._current_module: Optional[str] = None
-        self._module: Dict[str, Tuple[QAPIGenC, QAPIGenH,
+        self._module: dict[str, tuple[QAPIGenC, QAPIGenH,
                                       Optional[QAPIGenTrace]]] = {}
         self._main_module: Optional[str] = None
         self._gen_tracing = gen_tracing

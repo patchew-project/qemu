@@ -18,7 +18,7 @@
 #
 
 
-class Hardware(object):
+class Hardware:
     def __init__(self, cpus=1, mem=1,
                  src_cpu_bind=None, src_mem_bind=None,
                  dst_cpu_bind=None, dst_mem_bind=None,

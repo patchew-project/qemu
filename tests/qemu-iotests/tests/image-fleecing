@@ -27,6 +27,7 @@ from subprocess import CalledProcessError
 import iotests
 from iotests import log, qemu_img, qemu_io
 
+
 iotests.script_initialize(
     supported_fmts=['qcow2'],
     supported_platforms=['linux'],

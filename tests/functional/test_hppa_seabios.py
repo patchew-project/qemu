@@ -6,8 +6,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import QemuSystemTest
-from qemu_test import wait_for_console_pattern
+from qemu_test import QemuSystemTest, wait_for_console_pattern
+
 
 class HppaSeabios(QemuSystemTest):
 

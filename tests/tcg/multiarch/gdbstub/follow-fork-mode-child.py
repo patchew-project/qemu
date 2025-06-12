@@ -15,7 +15,7 @@ def run_test():
     have_fork_syscall = False
     for fork_syscall in ("fork", "clone", "clone2", "clone3"):
         try:
-            gdb.execute("catch syscall {}".format(fork_syscall))
+            gdb.execute(f"catch syscall {fork_syscall}")
         except gdb.error:
             pass
         else:
@@ -34,7 +34,7 @@ def run_test():
         # break_after_fork()
         gdb.execute("continue")
     exitcode = int(gdb.parse_and_eval("$_exitcode"))
-    report(exitcode == 42, "{} == 42".format(exitcode))
+    report(exitcode == 42, f"{exitcode} == 42")
 
 
 main(run_test)

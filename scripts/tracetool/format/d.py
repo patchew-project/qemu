@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 trace/generated-tracers.dtrace (DTrace only).
 """
@@ -12,8 +10,9 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-from tracetool import out
 from sys import platform
+
+from tracetool import out
 
 
 # Reserved keywords from

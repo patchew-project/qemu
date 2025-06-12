@@ -22,8 +22,15 @@
 # Creator/Owner: Hanna Reitz <hreitz@redhat.com>
 
 import iotests
-from iotests import log, qemu_img, filter_testfiles, filter_imgfmt, \
-        filter_qmp_testfiles, filter_qmp_imgfmt
+from iotests import (
+    filter_imgfmt,
+    filter_qmp_imgfmt,
+    filter_qmp_testfiles,
+    filter_testfiles,
+    log,
+    qemu_img,
+)
+
 
 # Need backing file and change-backing-file support
 iotests.script_initialize(

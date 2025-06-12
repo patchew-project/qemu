@@ -5,6 +5,7 @@ This runs as a sourced script (via -x, via run-test.py).
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 import ctypes
+
 from test_gdbstub import gdb_exit, main, report
 
 
@@ -26,11 +27,11 @@ def run_test():
     gdb.Breakpoint("break_here")
     gdb.execute("continue")
     val = gdb.parse_and_eval("*(char[2] *)q").string()
-    report(val == "42", "{} == 42".format(val))
+    report(val == "42", f"{val} == 42")
     gdb.execute("set *(char[3] *)q = \"24\"")
     gdb.execute("continue")
     exitcode = int(gdb.parse_and_eval("$_exitcode"))
-    report(exitcode == 0, "{} == 0".format(exitcode))
+    report(exitcode == 0, f"{exitcode} == 0")
 
 
 main(run_test)

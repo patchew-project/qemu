@@ -6,9 +6,10 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 """Helpers for creation of regular expressions"""
+import logging
 import re
 
-import logging
+
 logger = logging.getLogger(__name__)
 DBG = logger.debug
 INFO = logger.info

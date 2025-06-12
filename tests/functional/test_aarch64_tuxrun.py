@@ -14,6 +14,7 @@
 from qemu_test import Asset
 from qemu_test.tuxruntest import TuxRunBaselineTest
 
+
 class TuxRunAarch64Test(TuxRunBaselineTest):
 
     ASSET_ARM64_KERNEL = Asset(

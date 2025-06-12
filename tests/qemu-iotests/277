@@ -21,8 +21,10 @@
 
 import os
 import subprocess
+
 import iotests
 from iotests import file_path, log
+
 
 iotests.script_initialize()
 
@@ -38,7 +40,7 @@ def make_conf_file(event):
     :param event: which event the server should close a connection on
     """
     with open(conf_file, 'w') as conff:
-        conff.write('[inject-error]\nevent={}\nwhen=after'.format(event))
+        conff.write(f'[inject-error]\nevent={event}\nwhen=after')
 
 
 def start_server_NBD(event):
@@ -73,15 +75,15 @@ def check_proc_NBD(proc, connector):
         outs, errs = proc.communicate(timeout=10)
 
         if proc.returncode < 0:
-            log('NBD {}: EXIT SIGNAL {}\n'.format(connector, proc.returncode))
+            log(f'NBD {connector}: EXIT SIGNAL {proc.returncode}\n')
             log(outs)
         else:
             msg = outs.split('\n', 1)
-            log('NBD {}: {}'.format(connector, msg[0]))
+            log(f'NBD {connector}: {msg[0]}')
 
     except subprocess.TimeoutExpired:
         proc.kill()
-        log('NBD {}: ERROR timeout expired'.format(connector))
+        log(f'NBD {connector}: ERROR timeout expired')
     finally:
         if connector == 'server':
             os.remove(nbd_sock)

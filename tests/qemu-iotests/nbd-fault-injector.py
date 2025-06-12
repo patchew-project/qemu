@@ -43,11 +43,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
 
-import sys
-import socket
-import struct
 import collections
 import configparser
+import socket
+import struct
+import sys
+
 
 FAKE_DISK_SIZE = 8 * 1024 * 1024 * 1024 # 8 GB
 
@@ -87,7 +88,7 @@ def recvall(sock, bufsize):
         received += len(chunk)
     return b''.join(chunks)
 
-class Rule(object):
+class Rule:
     def __init__(self, name, event, io, when):
         self.name = name
         self.event = event
@@ -101,7 +102,7 @@ class Rule(object):
             return False
         return True
 
-class FaultInjectionSocket(object):
+class FaultInjectionSocket:
     def __init__(self, sock, rules):
         self.sock = sock
         self.rules = rules
@@ -226,7 +227,7 @@ def parse_config(config):
 
 def load_rules(filename):
     config = configparser.RawConfigParser()
-    with open(filename, 'rt') as f:
+    with open(filename) as f:
         config.read_file(f, filename)
     return parse_config(config)
 

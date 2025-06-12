@@ -9,8 +9,8 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
-import os
 import logging
+import os
 
 from qemu_test import LinuxKernelTest, get_qemu_img
 from qemu_test.ports import Ports
@@ -99,8 +99,7 @@ class ReverseDebugging(LinuxKernelTest):
         return vm.qmp('query-replay')['return']['icount']
 
     def reverse_debugging(self, shift=7, args=None):
-        from avocado.utils import gdb
-        from avocado.utils import process
+        from avocado.utils import gdb, process
 
         logger = logging.getLogger('replay')
 

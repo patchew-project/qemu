@@ -19,10 +19,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import iotests
 import subprocess
-from iotests import qemu_img_create, qemu_io_log, file_path, log, \
-        verify_qcow2_zstd_compression
+
+import iotests
+from iotests import (
+    file_path,
+    log,
+    qemu_img_create,
+    qemu_io_log,
+    verify_qcow2_zstd_compression,
+)
+
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           unsupported_imgopts=['refcount_bits', 'compat'])

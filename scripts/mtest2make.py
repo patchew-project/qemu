@@ -8,10 +8,10 @@ from collections import defaultdict
 import itertools
 import json
 import os
-import shlex
 import sys
 
-class Suite(object):
+
+class Suite:
     def __init__(self):
         self.deps = set()
         self.speeds = ['quick']
@@ -66,8 +66,8 @@ def process_tests(test, targets, suites):
         suites[s].deps.update(deps)
 
 def emit_prolog(suites, prefix):
-    all_targets = ' '.join((f'{prefix}-{k}' for k in suites.keys()))
-    all_xml = ' '.join((f'{prefix}-report-{k}.junit.xml' for k in suites.keys()))
+    all_targets = ' '.join(f'{prefix}-{k}' for k in suites.keys())
+    all_xml = ' '.join(f'{prefix}-report-{k}.junit.xml' for k in suites.keys())
     print()
     print(f'all-{prefix}-targets = {all_targets}')
     print(f'all-{prefix}-xml = {all_xml}')

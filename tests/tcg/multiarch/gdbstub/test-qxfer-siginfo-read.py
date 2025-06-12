@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test gdbstub Xfer:siginfo:read stub.
 #
@@ -15,6 +14,7 @@ from __future__ import print_function
 
 import gdb
 from test_gdbstub import main, report
+
 
 def run_test():
     "Run through the test"

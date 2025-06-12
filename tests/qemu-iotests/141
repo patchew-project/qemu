@@ -24,6 +24,7 @@
 
 import iotests
 
+
 # Common filters to mask values that vary in the test output
 QMP_FILTERS = [iotests.filter_qmp_testfiles, \
                iotests.filter_qmp_imgfmt]

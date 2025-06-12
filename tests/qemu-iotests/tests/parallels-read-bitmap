@@ -19,7 +19,13 @@
 #
 
 import iotests
-from iotests import qemu_nbd_popen, qemu_img_map, log, file_path
+from iotests import (
+    file_path,
+    log,
+    qemu_img_map,
+    qemu_nbd_popen,
+)
+
 
 iotests.script_initialize(supported_fmts=['parallels'])
 

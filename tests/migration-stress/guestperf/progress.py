@@ -18,7 +18,7 @@
 #
 
 
-class ProgressStats(object):
+class ProgressStats:
 
     def __init__(self,
                  transferred_bytes,
@@ -71,7 +71,7 @@ class ProgressStats(object):
             data["iterations"])
 
 
-class Progress(object):
+class Progress:
 
     def __init__(self,
                  status,

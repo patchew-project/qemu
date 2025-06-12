@@ -4,8 +4,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import sys
 import os
+import sys
 
 
 def main(args):
@@ -14,7 +14,7 @@ def main(args):
     varname = basename.replace('-', '_').replace('.', '_')
 
     with os.fdopen(sys.stdout.fileno(), "wt", closefd=False, newline='\n') as stdout:
-        with open(file_path, "r", encoding='utf-8') as file:
+        with open(file_path, encoding='utf-8') as file:
             print(f'static GLchar {varname}_src[] =', file=stdout)
             for line in file:
                 line = line.rstrip()

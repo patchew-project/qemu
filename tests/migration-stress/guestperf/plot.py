@@ -20,7 +20,7 @@
 import sys
 
 
-class Plot(object):
+class Plot:
 
     # Generated using
     # http://tools.medialab.sciences-po.fr/iwanthue/
@@ -358,8 +358,8 @@ class Plot(object):
         return annotations.values()
 
     def _generate_chart(self):
-        from plotly.offline import plot
         from plotly import graph_objs as go
+        from plotly.offline import plot
 
         graphs = []
         yaxismax = 0

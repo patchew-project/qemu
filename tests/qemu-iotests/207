@@ -21,9 +21,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import iotests
-import subprocess
 import re
+import subprocess
+
+import iotests
+
 
 iotests.script_initialize(
     supported_fmts=['raw'],

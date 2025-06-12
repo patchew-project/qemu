@@ -32,8 +32,9 @@
 # consuming CPU cycles.  No disk I/O is performed since the ring buffer holds a
 # fixed-size in-memory trace.
 
-import sys
 import os
+import sys
+
 
 tracing_dir = '/sys/kernel/debug/tracing'
 
@@ -60,7 +61,7 @@ def stop_tracing():
     write_file(trace_path('current_tracer'), 'nop')
 
 def dump_trace():
-    tracefile = open(trace_path('trace'), 'r')
+    tracefile = open(trace_path('trace'))
     try:
         lines = True
         while lines:
@@ -71,7 +72,7 @@ def dump_trace():
 
 def tail_trace():
     try:
-        for line in open(trace_path('trace_pipe'), 'r'):
+        for line in open(trace_path('trace_pipe')):
             sys.stdout.write(line)
     except KeyboardInterrupt:
         pass

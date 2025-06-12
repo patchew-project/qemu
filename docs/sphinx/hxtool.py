@@ -1,4 +1,3 @@
-# coding=utf-8
 #
 # QEMU hxtool .hx file parsing extension
 #
@@ -16,17 +15,17 @@
 # Each hxtool-doc:: directive takes one argument which is the
 # path of the .hx file to process, relative to the source tree.
 
+from enum import Enum
 import os
 import re
-from enum import Enum
 
 from docutils import nodes
+from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import ViewList
-from docutils.parsers.rst import directives, Directive
+import sphinx
 from sphinx.errors import ExtensionError
 from sphinx.util.docutils import switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
-import sphinx
 
 
 __version__ = '1.0'

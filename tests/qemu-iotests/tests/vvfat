@@ -22,9 +22,12 @@
 
 import os
 import shutil
+
+from fat16 import DIRENTRY_SIZE, MBR, Fat16
+
 import iotests
-from iotests import imgfmt, QMPTestCase
-from fat16 import MBR, Fat16, DIRENTRY_SIZE
+from iotests import QMPTestCase, imgfmt
+
 
 filesystem = os.path.join(iotests.test_dir, "filesystem")
 

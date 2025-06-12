@@ -8,8 +8,12 @@
 
 import bz2
 
-from qemu_test import QemuUserTest, Asset
-from qemu_test import skipIfMissingCommands, skipUntrustedTest
+from qemu_test import (
+    Asset,
+    QemuUserTest,
+    skipIfMissingCommands,
+    skipUntrustedTest,
+)
 
 
 class LoadBFLT(QemuUserTest):

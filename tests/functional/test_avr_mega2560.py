@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
+from qemu_test import Asset, QemuSystemTest, wait_for_console_pattern
 
 
 class AVR6Machine(QemuSystemTest):

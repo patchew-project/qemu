@@ -7,10 +7,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from os import access, R_OK, path
-from sys import argv, exit
-import json
 from collections import Counter
+import json
+from os import R_OK, access, path
+from sys import argv, exit
 
 
 def extract_build_units(cc_path):
@@ -21,7 +21,7 @@ def extract_build_units(cc_path):
         Hash table of ["unit"] = count
     """
 
-    j = json.load(open(cc_path, 'r'))
+    j = json.load(open(cc_path))
     files = [f['file'] for f in j]
     build_units = Counter(files)
 

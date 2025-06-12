@@ -13,7 +13,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 from .common import (
     c_enum_const,
@@ -59,7 +59,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
 
 def gen_visit_object_members(name: str,
                              base: Optional[QAPISchemaObjectType],
-                             members: List[QAPISchemaObjectTypeMember],
+                             members: list[QAPISchemaObjectTypeMember],
                              branches: Optional[QAPISchemaBranches]) -> str:
     ret = mcgen('''
 
@@ -370,8 +370,8 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
                         name: str,
                         info: Optional[QAPISourceInfo],
                         ifcond: QAPISchemaIfCond,
-                        features: List[QAPISchemaFeature],
-                        members: List[QAPISchemaEnumMember],
+                        features: list[QAPISchemaFeature],
+                        members: list[QAPISchemaEnumMember],
                         prefix: Optional[str]) -> None:
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_visit_decl(name, scalar=True))
@@ -390,9 +390,9 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
                           name: str,
                           info: Optional[QAPISourceInfo],
                           ifcond: QAPISchemaIfCond,
-                          features: List[QAPISchemaFeature],
+                          features: list[QAPISchemaFeature],
                           base: Optional[QAPISchemaObjectType],
-                          members: List[QAPISchemaObjectTypeMember],
+                          members: list[QAPISchemaObjectTypeMember],
                           branches: Optional[QAPISchemaBranches]) -> None:
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
@@ -412,7 +412,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
                              name: str,
                              info: Optional[QAPISourceInfo],
                              ifcond: QAPISchemaIfCond,
-                             features: List[QAPISchemaFeature],
+                             features: list[QAPISchemaFeature],
                              alternatives: QAPISchemaAlternatives) -> None:
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_visit_decl(name))

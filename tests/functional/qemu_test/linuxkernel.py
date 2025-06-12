@@ -6,7 +6,10 @@
 import hashlib
 import urllib.request
 
-from .cmd import wait_for_console_pattern, exec_command_and_wait_for_pattern
+from .cmd import (
+    exec_command_and_wait_for_pattern,
+    wait_for_console_pattern,
+)
 from .testcase import QemuSystemTest
 from .utils import get_usernet_hostfwd_port
 

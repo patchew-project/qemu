@@ -21,9 +21,14 @@
 import argparse
 import json
 
-import simplebench
+from bench_block_job import (
+    bench_block_copy,
+    drv_file,
+    drv_nbd,
+    drv_qcow2,
+)
 from results_to_text import results_to_text
-from bench_block_job import bench_block_copy, drv_file, drv_nbd, drv_qcow2
+import simplebench
 
 
 def bench_func(env, case):

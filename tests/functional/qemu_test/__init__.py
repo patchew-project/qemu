@@ -6,15 +6,29 @@
 # later.  See the COPYING file in the top-level directory.
 
 
-from .asset import Asset
-from .config import BUILD_DIR, dso_suffix
-from .cmd import is_readable_executable_file, \
-    interrupt_interactive_console_until_pattern, wait_for_console_pattern, \
-    exec_command, exec_command_and_wait_for_pattern, get_qemu_img, which
-from .testcase import QemuBaseTest, QemuUserTest, QemuSystemTest
-from .linuxkernel import LinuxKernelTest
-from .decorators import skipIfMissingCommands, skipIfNotMachine, \
-    skipFlakyTest, skipUntrustedTest, skipBigDataTest, skipSlowTest, \
-    skipIfMissingImports, skipIfOperatingSystem, skipLockedMemoryTest
 from .archive import archive_extract
+from .asset import Asset
+from .cmd import (
+    exec_command,
+    exec_command_and_wait_for_pattern,
+    get_qemu_img,
+    interrupt_interactive_console_until_pattern,
+    is_readable_executable_file,
+    wait_for_console_pattern,
+    which,
+)
+from .config import BUILD_DIR, dso_suffix
+from .decorators import (
+    skipBigDataTest,
+    skipFlakyTest,
+    skipIfMissingCommands,
+    skipIfMissingImports,
+    skipIfNotMachine,
+    skipIfOperatingSystem,
+    skipLockedMemoryTest,
+    skipSlowTest,
+    skipUntrustedTest,
+)
+from .linuxkernel import LinuxKernelTest
+from .testcase import QemuBaseTest, QemuSystemTest, QemuUserTest
 from .uncompress import uncompress

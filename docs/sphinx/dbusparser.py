@@ -78,7 +78,7 @@ class Property:
         elif self.access == "write":
             self.writable = True
         else:
-            raise ValueError('Invalid access type "{}"'.format(self.access))
+            raise ValueError(f'Invalid access type "{self.access}"')
         self.doc_string = ""
         self.since = ""
         self.deprecated = False
@@ -277,7 +277,7 @@ class DBusXMLParser:
                 elif direction == "out":
                     self._cur_object.out_args.append(arg)
                 else:
-                    raise ValueError('Invalid direction "{}"'.format(direction))
+                    raise ValueError(f'Invalid direction "{direction}"')
                 self._cur_object = arg
             elif name == DBusXMLParser.STATE_ANNOTATION:
                 self.state = DBusXMLParser.STATE_ANNOTATION

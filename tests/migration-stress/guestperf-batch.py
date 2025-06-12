@@ -22,5 +22,6 @@ import sys
 
 from guestperf.shell import BatchShell
 
+
 shell = BatchShell()
 sys.exit(shell.run(sys.argv[1:]))

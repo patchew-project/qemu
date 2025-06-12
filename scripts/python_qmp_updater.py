@@ -9,6 +9,7 @@ import re
 import sys
 from typing import Optional
 
+
 start_reg = re.compile(r'^(?P<padding> *)(?P<res>\w+) = (?P<vm>.*).qmp\(',
                        flags=re.MULTILINE)
 

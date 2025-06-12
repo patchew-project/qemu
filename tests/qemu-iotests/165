@@ -20,9 +20,10 @@
 #
 
 import os
-import re
+
 import iotests
 from iotests import qemu_img
+
 
 disk = os.path.join(iotests.test_dir, 'disk')
 disk_size = 0x40000000 # 1G

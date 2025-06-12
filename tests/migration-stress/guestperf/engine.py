@@ -27,14 +27,16 @@ from guestperf.progress import Progress, ProgressStats
 from guestperf.report import Report, ReportResult
 from guestperf.timings import TimingRecord, Timings
 
+
 sys.path.append(os.path.join(os.path.dirname(__file__),
                              '..', '..', '..', 'python'))
 from qemu.machine import QEMUMachine
 
+
 # multifd supported compression algorithms
 MULTIFD_CMP_ALGS = ("zlib", "zstd", "qpl", "uadk")
 
-class Engine(object):
+class Engine:
 
     def __init__(self, binary, dst_host, kernel, initrd, transport="tcp",
                  sleep=15, verbose=False, debug=False):
@@ -58,7 +60,7 @@ class Engine(object):
         jiffies_per_sec = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
         for tid in tid_list:
             statfile = "/proc/%d/task/%d/stat" % (pid, tid)
-            with open(statfile, "r") as fh:
+            with open(statfile) as fh:
                 stat = fh.readline()
                 fields = stat.split(" ")
                 stime = int(fields[13])
@@ -71,7 +73,7 @@ class Engine(object):
 
         jiffies_per_sec = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
         statfile = "/proc/%d/stat" % pid
-        with open(statfile, "r") as fh:
+        with open(statfile) as fh:
             stat = fh.readline()
             fields = stat.split(" ")
             stime = int(fields[13])

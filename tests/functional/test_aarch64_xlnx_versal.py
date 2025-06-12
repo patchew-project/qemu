@@ -4,7 +4,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import LinuxKernelTest, Asset
+from qemu_test import Asset, LinuxKernelTest
+
 
 class XlnxVersalVirtMachine(LinuxKernelTest):
 

@@ -21,8 +21,10 @@
 # Check that block node activation and inactivation works with a block graph
 # that is built with individually created nodes
 
-import iotests
 import os
+
+import iotests
+
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           supported_platforms=['linux'])

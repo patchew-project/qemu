@@ -6,8 +6,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import LinuxKernelTest, Asset
-from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import (
+    Asset,
+    LinuxKernelTest,
+    exec_command_and_wait_for_pattern,
+)
 
 
 class AST1030Machine(LinuxKernelTest):

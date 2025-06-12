@@ -26,7 +26,7 @@ MSR_IA32_VMX_VMFUNC = 0x491
 MSR_IA32_VMX_PROCBASED_CTLS3 = 0x492
 MSR_IA32_VMX_EXIT_CTLS2 = 0x493
 
-class msr(object):
+class msr:
     def __init__(self):
         try:
             self.f = open('/dev/cpu/0/msr', 'rb', 0)
@@ -40,7 +40,7 @@ class msr(object):
         except:
             return default
 
-class Control(object):
+class Control:
     def __init__(self, name, bits, cap_msr, true_cap_msr = None):
         self.name = name
         self.bits = bits
@@ -80,7 +80,7 @@ class Allowed1Control(Control):
         val = m.read(nr, 0)
         return (0, val)
 
-class Misc(object):
+class Misc:
     def __init__(self, name, bits, msr):
         self.name = name
         self.bits = bits

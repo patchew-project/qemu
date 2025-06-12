@@ -23,6 +23,7 @@
 import re
 import sys
 
+
 assert len(sys.argv) > 0
 
 def print_cocci_rule(qom_typedef, qom_cast_macro):
@@ -44,7 +45,7 @@ patterns = [
 
 for fn in sys.argv[1:]:
     try:
-        content = open(fn, 'rt').read()
+        content = open(fn).read()
     except:
         continue
     for pattern in patterns:

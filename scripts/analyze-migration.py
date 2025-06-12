@@ -17,12 +17,10 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
-import json
-import os
 import argparse
 import collections
-import struct
-import sys
+import json
+import os
 
 
 def mkdir_p(path):
@@ -32,7 +30,7 @@ def mkdir_p(path):
         pass
 
 
-class MigrationFile(object):
+class MigrationFile:
     def __init__(self, filename):
         self.filename = filename
         self.file = open(self.filename, "rb")
@@ -106,7 +104,7 @@ class MigrationFile(object):
     def close(self):
         self.file.close()
 
-class RamSection(object):
+class RamSection:
     RAM_SAVE_FLAG_COMPRESS = 0x02
     RAM_SAVE_FLAG_MEM_SIZE = 0x04
     RAM_SAVE_FLAG_PAGE     = 0x08
@@ -200,7 +198,7 @@ class RamSection(object):
                     self.files[self.name].seek(addr, os.SEEK_SET)
                     self.files[self.name].write(data)
                 if self.dump_memory:
-                    hexdata = " ".join("{0:02x}".format(ord(c)) for c in data)
+                    hexdata = " ".join(f"{ord(c):02x}" for c in data)
                     self.memory['%s (0x%016x)' % (self.name, addr)] = hexdata
 
                 flags &= ~self.RAM_SAVE_FLAG_PAGE
@@ -224,7 +222,7 @@ class RamSection(object):
                 self.files[key].close()
 
 
-class HTABSection(object):
+class HTABSection:
     HASH_PTE_SIZE_64       = 16
 
     def __init__(self, file, version_id, device, section_key):
@@ -261,7 +259,7 @@ class HTABSection(object):
         return ""
 
 
-class S390StorageAttributes(object):
+class S390StorageAttributes:
     STATTR_FLAG_EOS   = 0x01
     STATTR_FLAG_MORE  = 0x02
     STATTR_FLAG_ERROR = 0x04
@@ -302,7 +300,7 @@ class S390StorageAttributes(object):
         return ""
 
 
-class ConfigurationSection(object):
+class ConfigurationSection:
     def __init__(self, file, desc):
         self.file = file
         self.desc = desc
@@ -339,7 +337,7 @@ class ConfigurationSection(object):
             name_len = self.file.read32()
             name = self.file.readstr(len = name_len)
 
-class VMSDFieldGeneric(object):
+class VMSDFieldGeneric:
     def __init__(self, desc, file):
         self.file = file
         self.desc = desc
@@ -349,7 +347,7 @@ class VMSDFieldGeneric(object):
         return str(self.__str__())
 
     def __str__(self):
-        return " ".join("{0:02x}".format(c) for c in self.data)
+        return " ".join(f"{c:02x}" for c in self.data)
 
     def getDict(self):
         return self.__str__()
@@ -359,7 +357,7 @@ class VMSDFieldGeneric(object):
         self.data = self.file.readvar(size)
         return self.data
 
-class VMSDFieldCap(object):
+class VMSDFieldCap:
     def __init__(self, desc, file):
         self.file = file
         self.desc = desc
@@ -378,7 +376,7 @@ class VMSDFieldCap(object):
 
 class VMSDFieldInt(VMSDFieldGeneric):
     def __init__(self, desc, file):
-        super(VMSDFieldInt, self).__init__(desc, file)
+        super().__init__(desc, file)
         self.size = int(desc['size'])
         self.format = '0x%%0%dx' % (self.size * 2)
         self.sdtype = '>i%d' % self.size
@@ -397,7 +395,7 @@ class VMSDFieldInt(VMSDFieldGeneric):
         return self.__str__()
 
     def read(self):
-        super(VMSDFieldInt, self).read()
+        super().read()
         self.sdata = int.from_bytes(self.data, byteorder='big', signed=True)
         self.udata = int.from_bytes(self.data, byteorder='big', signed=False)
         self.data = self.sdata
@@ -405,23 +403,23 @@ class VMSDFieldInt(VMSDFieldGeneric):
 
 class VMSDFieldUInt(VMSDFieldInt):
     def __init__(self, desc, file):
-        super(VMSDFieldUInt, self).__init__(desc, file)
+        super().__init__(desc, file)
 
     def read(self):
-        super(VMSDFieldUInt, self).read()
+        super().read()
         self.data = self.udata
         return self.data
 
 class VMSDFieldIntLE(VMSDFieldInt):
     def __init__(self, desc, file):
-        super(VMSDFieldIntLE, self).__init__(desc, file)
+        super().__init__(desc, file)
         self.dtype = '<i%d' % self.size
 
 class VMSDFieldNull(VMSDFieldGeneric):
     NULL_PTR_MARKER = b'0'
 
     def __init__(self, desc, file):
-        super(VMSDFieldNull, self).__init__(desc, file)
+        super().__init__(desc, file)
 
     def __repr__(self):
         # A NULL pointer is encoded in the stream as a '0' to
@@ -435,13 +433,13 @@ class VMSDFieldNull(VMSDFieldGeneric):
         return self.__repr__()
 
     def read(self):
-        super(VMSDFieldNull, self).read()
+        super().read()
         assert(self.data == self.NULL_PTR_MARKER)
         return self.data
 
 class VMSDFieldBool(VMSDFieldGeneric):
     def __init__(self, desc, file):
-        super(VMSDFieldBool, self).__init__(desc, file)
+        super().__init__(desc, file)
 
     def __repr__(self):
         return self.data.__repr__()
@@ -453,7 +451,7 @@ class VMSDFieldBool(VMSDFieldGeneric):
         return self.data
 
     def read(self):
-        super(VMSDFieldBool, self).read()
+        super().read()
         if self.data[0] == 0:
             self.data = False
         else:
@@ -464,7 +462,7 @@ class VMSDFieldStruct(VMSDFieldGeneric):
     QEMU_VM_SUBSECTION    = 0x05
 
     def __init__(self, desc, file):
-        super(VMSDFieldStruct, self).__init__(desc, file)
+        super().__init__(desc, file)
         self.data = collections.OrderedDict()
 
         if 'fields' not in self.desc['struct']:
@@ -605,11 +603,11 @@ class VMSDSection(VMSDFieldStruct):
             self.vmsd_name = device['vmsd_name']
 
         # A section really is nothing but a FieldStruct :)
-        super(VMSDSection, self).__init__({ 'struct' : desc }, file)
+        super().__init__({ 'struct' : desc }, file)
 
 ###############################################################################
 
-class MigrationDump(object):
+class MigrationDump:
     QEMU_VM_FILE_MAGIC    = 0x5145564d
     QEMU_VM_FILE_VERSION  = 0x00000003
     QEMU_VM_EOF           = 0x00

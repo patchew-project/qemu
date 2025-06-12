@@ -13,12 +13,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from typing import (
-    Dict,
-    List,
-    Optional,
-    Set,
-)
+from typing import Optional
 
 from .common import c_name, mcgen
 from .gen import (
@@ -276,7 +271,7 @@ out:
 
 
 def gen_register_command(name: str,
-                         features: List[QAPISchemaFeature],
+                         features: list[QAPISchemaFeature],
                          success_response: bool,
                          allow_oob: bool,
                          allow_preconfig: bool,
@@ -308,7 +303,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
             prefix, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', None, __doc__,
             gen_tracing=gen_tracing)
-        self._visited_ret_types: Dict[QAPIGenC, Set[QAPISchemaType]] = {}
+        self._visited_ret_types: dict[QAPIGenC, set[QAPISchemaType]] = {}
         self._gen_tracing = gen_tracing
 
     def _begin_user_module(self, name: str) -> None:
@@ -375,7 +370,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
                       name: str,
                       info: Optional[QAPISourceInfo],
                       ifcond: QAPISchemaIfCond,
-                      features: List[QAPISchemaFeature],
+                      features: list[QAPISchemaFeature],
                       arg_type: Optional[QAPISchemaObjectType],
                       ret_type: Optional[QAPISchemaType],
                       gen: bool,

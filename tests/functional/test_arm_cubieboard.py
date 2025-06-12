@@ -4,9 +4,13 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
-from qemu_test import interrupt_interactive_console_until_pattern
-from qemu_test import skipBigDataTest
+from qemu_test import (
+    Asset,
+    LinuxKernelTest,
+    exec_command_and_wait_for_pattern,
+    interrupt_interactive_console_until_pattern,
+    skipBigDataTest,
+)
 from qemu_test.utils import image_pow2ceil_expand
 
 

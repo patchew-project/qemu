@@ -21,8 +21,10 @@
 # owner=jsnow@redhat.com
 
 import os
+
 import iotests
 from iotests import log
+
 
 iotests.verify_virtio_scsi_pci_or_ccw()
 
@@ -39,7 +41,7 @@ with iotests.FilePath('img0') as img0_path, \
 
     def create_target(filepath, name, size):
         basename = os.path.basename(filepath)
-        nodename = "file_{}".format(basename)
+        nodename = f"file_{basename}"
         log(vm.cmd('blockdev-create', job_id='job1',
                    options={
                        'driver': 'file',

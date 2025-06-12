@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Machinery for generating tracing-related intermediate files.
 """
@@ -16,8 +14,8 @@ import re
 import sys
 import weakref
 
-import tracetool.format
 import tracetool.backend
+import tracetool.format
 
 
 def error_write(*lines):
@@ -37,7 +35,7 @@ out_fobj = sys.stdout
 def out_open(filename):
     global out_filename, out_fobj
     out_filename = filename
-    out_fobj = open(filename, 'wt')
+    out_fobj = open(filename, 'w')
 
 def out(*lines, **kwargs):
     """Write a set of output lines.
@@ -190,7 +188,7 @@ class Arguments:
         return ["(%s)%s" % (type_, name) for type_, name in self._args]
 
 
-class Event(object):
+class Event:
     """Event description.
 
     Attributes
@@ -217,7 +215,7 @@ class Event(object):
                       r"(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
                       r"\s*")
 
-    _VALID_PROPS = set(["disable", "vcpu"])
+    _VALID_PROPS = {"disable", "vcpu"}
 
     def __init__(self, name, props, fmt, args, lineno, filename, orig=None,
                  event_trans=None, event_exec=None):
@@ -378,7 +376,6 @@ def read_events(fobj, fname):
 
 class TracetoolError (Exception):
     """Exception for calls to generate."""
-    pass
 
 
 def try_import(mod_name, attr_name=None, attr_default=None):

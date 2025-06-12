@@ -21,7 +21,8 @@
 # owner=s.reiter@proxmox.com
 
 import iotests
-from iotests import qemu_img_create, qemu_img_log, file_path
+from iotests import file_path, qemu_img_create, qemu_img_log
+
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           supported_protocols=['file'])

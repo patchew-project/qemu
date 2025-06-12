@@ -6,8 +6,12 @@
 #
 # A functional test that runs MicroPython on the arm microbit machine.
 
-from qemu_test import QemuSystemTest, Asset, exec_command_and_wait_for_pattern
-from qemu_test import wait_for_console_pattern
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    exec_command_and_wait_for_pattern,
+    wait_for_console_pattern,
+)
 
 
 class MicrobitMachine(QemuSystemTest):

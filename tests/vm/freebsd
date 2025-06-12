@@ -13,12 +13,11 @@
 #
 
 import os
-import re
-import sys
-import time
-import socket
 import subprocess
+import sys
+
 import basevm
+
 
 FREEBSD_CONFIG = {
     'cpu'	: "max,sse4.2=off",

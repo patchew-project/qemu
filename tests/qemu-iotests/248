@@ -20,7 +20,13 @@
 #
 
 import iotests
-from iotests import qemu_img_create, qemu_io, file_path, filter_qmp_testfiles
+from iotests import (
+    file_path,
+    filter_qmp_testfiles,
+    qemu_img_create,
+    qemu_io,
+)
+
 
 iotests.script_initialize(supported_fmts=['qcow2'])
 
@@ -30,10 +36,10 @@ limit = 2 * 1024 * 1024
 
 qemu_img_create('-f', iotests.imgfmt, source, str(size))
 qemu_img_create('-f', iotests.imgfmt, target, str(size))
-qemu_io('-c', 'write 0 {}'.format(size), source)
+qemu_io('-c', f'write 0 {size}', source)
 
 # raw format don't like empty files
-qemu_io('-c', 'write 0 {}'.format(size), target)
+qemu_io('-c', f'write 0 {size}', target)
 
 vm = iotests.VM().add_drive(source)
 vm.launch()

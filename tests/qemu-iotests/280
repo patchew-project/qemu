@@ -21,7 +21,7 @@
 # Test migration to file for taking an external snapshot with VM state.
 
 import iotests
-import os
+
 
 iotests.script_initialize(
     supported_fmts=['qcow2'],

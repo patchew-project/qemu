@@ -20,6 +20,8 @@ import argparse
 import atexit
 import bz2
 from collections import OrderedDict
+from collections.abc import Iterable, Iterator, Sequence
+from contextlib import contextmanager
 import faulthandler
 import json
 import logging
@@ -31,15 +33,23 @@ import struct
 import subprocess
 import sys
 import time
-from typing import (Any, Callable, Dict, Iterable, Iterator,
-                    List, Optional, Sequence, TextIO, Tuple, Type, TypeVar)
+from typing import (
+    Any,
+    Callable,
+    Optional,
+    TextIO,
+    TypeVar,
+)
 import unittest
 
-from contextlib import contextmanager
-
 from qemu.machine import qtest
-from qemu.qmp.legacy import QMPMessage, QMPReturnValue, QEMUMonitorProtocol
+from qemu.qmp.legacy import (
+    QEMUMonitorProtocol,
+    QMPMessage,
+    QMPReturnValue,
+)
 from qemu.utils import VerboseProcessError
+
 
 # Use this logger for logging messages directly from the iotests module
 logger = logging.getLogger('qemu.iotests')
@@ -154,7 +164,7 @@ def qemu_tool_popen(args: Sequence[str],
 def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
                               connect_stderr: bool = True,
                               drop_successful_output: bool = False) \
-        -> Tuple[str, int]:
+        -> tuple[str, int]:
     """
     Run a tool and return both its output and its exit code
     """
@@ -168,7 +178,7 @@ def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
             output = ''
         return (output, subp.returncode)
 
-def qemu_img_create_prepare_args(args: List[str]) -> List[str]:
+def qemu_img_create_prepare_args(args: list[str]) -> list[str]:
     if not args or args[0] != 'create':
         return list(args)
     args = args[1:]
@@ -233,7 +243,7 @@ def qemu_tool(*args: str, check: bool = True, combine_stdio: bool = True
         args,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT if combine_stdio else subprocess.PIPE,
-        universal_newlines=True,
+        text=True,
         check=False
     )
 
@@ -344,7 +354,7 @@ def img_info_log(filename: str, filter_path: Optional[str] = None,
         filter_path = filename
     log(filter_img_info(output, filter_path, drop_child_info))
 
-def qemu_io_wrap_args(args: Sequence[str]) -> List[str]:
+def qemu_io_wrap_args(args: Sequence[str]) -> list[str]:
     if '-f' in args or '--image-opts' in args:
         return qemu_io_args_no_fmt + list(args)
     else:
@@ -457,7 +467,7 @@ class QemuStorageDaemon:
 
         assert self._pid == self._p.pid
 
-    def qmp(self, cmd: str, args: Optional[Dict[str, object]] = None) \
+    def qmp(self, cmd: str, args: Optional[dict[str, object]] = None) \
             -> QMPMessage:
         assert self._qmp is not None
         return self._qmp.cmd_raw(cmd, args)
@@ -466,7 +476,7 @@ class QemuStorageDaemon:
         assert self._qmp is not None
         return self._qmp
 
-    def cmd(self, cmd: str, args: Optional[Dict[str, object]] = None) \
+    def cmd(self, cmd: str, args: Optional[dict[str, object]] = None) \
             -> QMPReturnValue:
         assert self._qmp is not None
         return self._qmp.cmd(cmd, **(args or {}))
@@ -498,7 +508,7 @@ def qemu_nbd(*args):
     '''Run qemu-nbd in daemon mode and return the parent's exit code'''
     return subprocess.call(qemu_nbd_args + ['--fork'] + list(args))
 
-def qemu_nbd_early_pipe(*args: str) -> Tuple[int, str]:
+def qemu_nbd_early_pipe(*args: str) -> tuple[int, str]:
     '''Run qemu-nbd in daemon mode and return both the parent's exit code
        and its output in case of an error'''
     full_args = qemu_nbd_args + ['--fork'] + list(args)
@@ -716,7 +726,7 @@ def filter_qtest(output: str) -> str:
     output = re.sub(r'\n?\[I \+\d+\.\d+\] CLOSED\n?$', '', output)
     return output
 
-Msg = TypeVar('Msg', Dict[str, Any], List[Any], str)
+Msg = TypeVar('Msg', dict[str, Any], list[Any], str)
 
 def log(msg: Msg,
         filters: Iterable[Callable[[Msg], Msg]] = (),
@@ -753,7 +763,7 @@ class Timeout:
         raise TimeoutError(self.errmsg)
 
 def file_pattern(name):
-    return "{0}-{1}".format(os.getpid(), name)
+    return f"{os.getpid()}-{name}"
 
 class FilePath:
     """
@@ -929,7 +939,7 @@ class VM(qtest.QEMUQtestMachine):
 
     def hmp(self, command_line: str, use_log: bool = False) -> QMPMessage:
         cmd = 'human-monitor-command'
-        kwargs: Dict[str, Any] = {'command-line': command_line}
+        kwargs: dict[str, Any] = {'command-line': command_line}
         if use_log:
             return self.qmp_log(cmd, **kwargs)
         else:
@@ -1421,11 +1431,11 @@ def _verify_protocol(supported: Sequence[str] = (),
 
 def _verify_platform(supported: Sequence[str] = (),
                      unsupported: Sequence[str] = ()) -> None:
-    if any((sys.platform.startswith(x) for x in unsupported)):
+    if any(sys.platform.startswith(x) for x in unsupported):
         notrun('not suitable for this OS: %s' % sys.platform)
 
     if supported:
-        if not any((sys.platform.startswith(x) for x in supported)):
+        if not any(sys.platform.startswith(x) for x in supported):
             notrun('not suitable for this OS: %s' % sys.platform)
 
 def _verify_cache_mode(supported_cache_modes: Sequence[str] = ()) -> None:
@@ -1472,7 +1482,7 @@ def verify_quorum():
     if not supports_quorum():
         notrun('quorum support missing')
 
-def has_working_luks() -> Tuple[bool, str]:
+def has_working_luks() -> tuple[bool, str]:
     """
     Check whether our LUKS driver can actually create images
     (this extends to LUKS encryption for qcow2).
@@ -1560,8 +1570,8 @@ def skip_if_unsupported(required_formats=(), read_only=False):
     '''Skip Test Decorator
        Runs the test if all the required formats are whitelisted'''
     def skip_test_decorator(func):
-        def func_wrapper(test_case: QMPTestCase, *args: List[Any],
-                         **kwargs: Dict[str, Any]) -> None:
+        def func_wrapper(test_case: QMPTestCase, *args: list[Any],
+                         **kwargs: dict[str, Any]) -> None:
             if callable(required_formats):
                 fmts = required_formats(test_case)
             else:
@@ -1577,13 +1587,13 @@ def skip_if_unsupported(required_formats=(), read_only=False):
     return skip_test_decorator
 
 def skip_for_formats(formats: Sequence[str] = ()) \
-    -> Callable[[Callable[[QMPTestCase, List[Any], Dict[str, Any]], None]],
-                Callable[[QMPTestCase, List[Any], Dict[str, Any]], None]]:
+    -> Callable[[Callable[[QMPTestCase, list[Any], dict[str, Any]], None]],
+                Callable[[QMPTestCase, list[Any], dict[str, Any]], None]]:
     '''Skip Test Decorator
        Skips the test for the given formats'''
     def skip_test_decorator(func):
-        def func_wrapper(test_case: QMPTestCase, *args: List[Any],
-                         **kwargs: Dict[str, Any]) -> None:
+        def func_wrapper(test_case: QMPTestCase, *args: list[Any],
+                         **kwargs: dict[str, Any]) -> None:
             if imgfmt in formats:
                 msg = f'{test_case}: Skipped for format {imgfmt}'
                 test_case.case_skip(msg)
@@ -1597,7 +1607,7 @@ def skip_if_user_is_root(func):
        Runs the test only without root permissions'''
     def func_wrapper(*args, **kwargs):
         if os.getuid() == 0:
-            case_notrun('{}: cannot be run as root'.format(args[0]))
+            case_notrun(f'{args[0]}: cannot be run as root')
             return None
         else:
             return func(*args, **kwargs)
@@ -1612,7 +1622,7 @@ class ReproducibleTestResult(unittest.TextTestResult):
         # Same as TextTestResult, but print dot instead of "s"
         unittest.TestResult.addSkip(self, test, reason)
         if self.showAll:
-            self.stream.writeln("skipped {0!r}".format(reason))
+            self.stream.writeln(f"skipped {reason!r}")
         elif self.dots:
             self.stream.write(".")
             self.stream.flush()
@@ -1635,7 +1645,7 @@ class ReproducibleTestRunner(unittest.TextTestRunner):
     def __init__(
         self,
         stream: Optional[TextIO] = None,
-        resultclass: Type[unittest.TextTestResult] =
+        resultclass: type[unittest.TextTestResult] =
         ReproducibleTestResult,
         **kwargs: Any
     ) -> None:
@@ -1645,7 +1655,7 @@ class ReproducibleTestRunner(unittest.TextTestRunner):
                          resultclass=resultclass,
                          **kwargs)
 
-def execute_unittest(argv: List[str], debug: bool = False) -> None:
+def execute_unittest(argv: list[str], debug: bool = False) -> None:
     """Executes unittests within the calling module."""
 
     # Some tests have warnings, especially ResourceWarnings for unclosed

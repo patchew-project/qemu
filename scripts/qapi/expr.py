@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright IBM, Corp. 2011
 # Copyright (c) 2013-2021 Red Hat Inc.
@@ -31,15 +30,9 @@ See `schema.QAPISchema` for processing into native Python data
 structures and contextual semantic validation.
 """
 
+from collections.abc import Iterable
 import re
-from typing import (
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Union,
-    cast,
-)
+from typing import Optional, Union, cast
 
 from .common import c_name
 from .error import QAPISemError
@@ -183,11 +176,11 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
                 info, "%s name should not end in 'List'" % meta)
 
 
-def check_keys(value: Dict[str, object],
+def check_keys(value: dict[str, object],
                info: QAPISourceInfo,
                source: str,
-               required: List[str],
-               optional: List[str]) -> None:
+               required: list[str],
+               optional: list[str]) -> None:
     """
     Ensure that a dict has a specific set of keys.
 
@@ -247,7 +240,7 @@ def check_flags(expr: QAPIExpression) -> None:
             expr.info, "flags 'allow-oob' and 'coroutine' are incompatible")
 
 
-def check_if(expr: Dict[str, object],
+def check_if(expr: dict[str, object],
              info: QAPISourceInfo, source: str) -> None:
     """
     Validate the ``if`` member of an object.
@@ -592,7 +585,7 @@ def check_event(expr: QAPIExpression) -> None:
         check_type_name_or_implicit(args, expr.info, "'data'", None)
 
 
-def check_exprs(exprs: List[QAPIExpression]) -> List[QAPIExpression]:
+def check_exprs(exprs: list[QAPIExpression]) -> list[QAPIExpression]:
     """
     Validate and normalize a list of parsed QAPI schema expressions.
 

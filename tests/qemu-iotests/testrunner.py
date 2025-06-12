@@ -16,24 +16,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from collections.abc import Sequence
+import contextlib
+from contextlib import AbstractContextManager as ContextManager
+import datetime
+import difflib
+import json
+from multiprocessing import Pool
 import os
 from pathlib import Path
-import datetime
-import time
-import difflib
-import subprocess
-import contextlib
-import json
 import shutil
+import subprocess
 import sys
-from multiprocessing import Pool
-from typing import List, Optional, Any, Sequence, Dict
-from testenv import TestEnv
+import time
+from typing import Any, Optional
 
-if sys.version_info >= (3, 9):
-    from contextlib import AbstractContextManager as ContextManager
-else:
-    from typing import ContextManager
+from testenv import TestEnv
 
 
 def silent_unlink(path: Path) -> None:
@@ -43,7 +41,7 @@ def silent_unlink(path: Path) -> None:
         pass
 
 
-def file_diff(file1: str, file2: str) -> List[str]:
+def file_diff(file1: str, file2: str) -> list[str]:
     with open(file1, encoding="utf-8") as f1, \
          open(file2, encoding="utf-8") as f2:
         # We want to ignore spaces at line ends. There are a lot of mess about
@@ -66,7 +64,7 @@ class LastElapsedTime(ContextManager['LastElapsedTime']):
     def __init__(self, cache_file: str, env: TestEnv) -> None:
         self.env = env
         self.cache_file = cache_file
-        self.cache: Dict[str, Dict[str, Dict[str, float]]]
+        self.cache: dict[str, dict[str, dict[str, float]]]
 
         try:
             with open(cache_file, encoding="utf-8") as f:
@@ -122,8 +120,8 @@ class TestRunner(ContextManager['TestRunner']):
         assert runner is not None
         return runner.run_test(test, test_field_width, mp=True)
 
-    def run_tests_pool(self, tests: List[str],
-                       test_field_width: int, jobs: int) -> List[TestResult]:
+    def run_tests_pool(self, tests: list[str],
+                       test_field_width: int, jobs: int) -> list[TestResult]:
 
         # passing self directly to Pool.starmap() just doesn't work, because
         # it's a context manager.
@@ -369,7 +367,7 @@ class TestRunner(ContextManager['TestRunner']):
         sys.stdout.flush()
         return res
 
-    def run_tests(self, tests: List[str], jobs: int = 1) -> bool:
+    def run_tests(self, tests: list[str], jobs: int = 1) -> bool:
         n_run = 0
         failed = []
         notrun = []

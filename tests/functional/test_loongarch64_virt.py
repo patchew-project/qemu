@@ -7,9 +7,13 @@
 # Copyright (c) 2023 Loongson Technology Corporation Limited
 #
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import wait_for_console_pattern
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    exec_command_and_wait_for_pattern,
+    wait_for_console_pattern,
+)
+
 
 class LoongArchMachine(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
