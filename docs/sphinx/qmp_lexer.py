@@ -10,10 +10,11 @@
 # See the COPYING file in the top-level directory.
 """qmp_lexer is a Sphinx extension that provides a QMP lexer for code blocks."""
 
-from pygments.lexer import RegexLexer, DelegatingLexer
-from pygments.lexers.data import JsonLexer
 from pygments import token
+from pygments.lexer import DelegatingLexer, RegexLexer
+from pygments.lexers.data import JsonLexer
 from sphinx import errors
+
 
 class QMPExampleMarkersLexer(RegexLexer):
     """
@@ -31,7 +32,7 @@ class QMPExampleMarkersLexer(RegexLexer):
 class QMPExampleLexer(DelegatingLexer):
     """QMPExampleLexer lexes annotated QMP examples."""
     def __init__(self, **options):
-        super(QMPExampleLexer, self).__init__(JsonLexer, QMPExampleMarkersLexer,
+        super().__init__(JsonLexer, QMPExampleMarkersLexer,
                                               token.Error, **options)
 
 def setup(sphinx):

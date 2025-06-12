@@ -22,10 +22,17 @@
 import os
 import random
 import socket
-import stat
-import time
+
 import iotests
-from iotests import cachemode, aiomode, imgfmt, qemu_img, qemu_nbd, qemu_nbd_early_pipe
+from iotests import (
+    aiomode,
+    cachemode,
+    imgfmt,
+    qemu_img,
+    qemu_nbd,
+    qemu_nbd_early_pipe,
+)
+
 
 NBD_PORT_START      = 32768
 NBD_PORT_END        = NBD_PORT_START + 1024

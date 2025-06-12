@@ -21,9 +21,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
-import textwrap
 import shlex
 import sys
+import textwrap
+
 
 # Options with nonstandard names (e.g. --with/--without) or OS-dependent
 # defaults.  Try not to add any.

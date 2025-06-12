@@ -39,16 +39,11 @@ See also: https://wiki.qemu.org/Features/QAPI/GuestAgent
 import argparse
 import asyncio
 import base64
+from collections.abc import Sequence
 import os
 import random
 import sys
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Optional,
-    Sequence,
-)
+from typing import Any, Callable, Optional
 
 from qemu.qmp import ConnectError, SocketAddrT
 from qemu.qmp.legacy import QEMUMonitorProtocol
@@ -76,7 +71,7 @@ class QemuGuestAgentClient:
     def sync(self, timeout: Optional[float] = 3) -> None:
         # Avoid being blocked forever
         if not self.ping(timeout):
-            raise EnvironmentError('Agent seems not alive')
+            raise OSError('Agent seems not alive')
         uid = random.randint(0, (1 << 32) - 1)
         while True:
             ret = self.qga.sync(id=uid)
@@ -159,7 +154,7 @@ class QemuGuestAgentClient:
         # Can be int (freeze, thaw) or GuestFsfreezeStatus (status)
         return getattr(self.qga, 'fsfreeze' + '_' + cmd)()
 
-    def fstrim(self, minimum: int) -> Dict[str, object]:
+    def fstrim(self, minimum: int) -> dict[str, object]:
         # returns GuestFilesystemTrimResponse
         ret = getattr(self.qga, 'fstrim')(minimum=minimum)
         assert isinstance(ret, dict)

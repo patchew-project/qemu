@@ -20,8 +20,10 @@
 #
 
 import os
+
 import iotests
 from iotests import qemu_img
+
 
 image0 = os.path.join(iotests.test_dir, 'image0')
 image1 = os.path.join(iotests.test_dir, 'image1')
@@ -38,11 +40,11 @@ class TestFdSets(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, image2, '128K')
         qemu_img('create', '-f', iotests.imgfmt, image3, '128K')
         qemu_img('create', '-f', iotests.imgfmt, image4, '128K')
-        self.file0 = open(image0, 'r')
+        self.file0 = open(image0)
         self.file1 = open(image1, 'w+')
-        self.file2 = open(image2, 'r')
-        self.file3 = open(image3, 'r')
-        self.file4 = open(image4, 'r')
+        self.file2 = open(image2)
+        self.file3 = open(image3)
+        self.file4 = open(image4)
         self.vm.add_fd(self.file0.fileno(), 1, 'image0:r')
         self.vm.add_fd(self.file1.fileno(), 1, 'image1:w+')
         self.vm.add_fd(self.file2.fileno(), 0, 'image2:r')

@@ -21,8 +21,15 @@
 import time
 
 import iotests
-from iotests import qemu_img_create, file_path, qemu_io_popen, qemu_nbd, \
-    qemu_io_log, log
+from iotests import (
+    file_path,
+    log,
+    qemu_img_create,
+    qemu_io_log,
+    qemu_io_popen,
+    qemu_nbd,
+)
+
 
 iotests.script_initialize(supported_fmts=['qcow2'])
 

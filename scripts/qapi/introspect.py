@@ -11,14 +11,12 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import (
     Any,
-    Dict,
     Generic,
-    List,
     Optional,
-    Sequence,
     TypeVar,
     Union,
 )
@@ -61,7 +59,7 @@ from .source import QAPISourceInfo
 # mark the imprecision in the type model where we'd otherwise use JSONValue.
 _Stub = Any
 _Scalar = Union[str, bool, None]
-_NonScalar = Union[Dict[str, _Stub], List[_Stub]]
+_NonScalar = Union[dict[str, _Stub], list[_Stub]]
 _Value = Union[_Scalar, _NonScalar]
 JSONValue = Union[_Value, 'Annotated[_Value]']
 
@@ -69,12 +67,12 @@ JSONValue = Union[_Value, 'Annotated[_Value]']
 # lack precise types for them here. Python 3.6 does not offer
 # TypedDict constructs, so they are broadly typed here as simple
 # Python Dicts.
-SchemaInfo = Dict[str, object]
-SchemaInfoEnumMember = Dict[str, object]
-SchemaInfoObject = Dict[str, object]
-SchemaInfoObjectVariant = Dict[str, object]
-SchemaInfoObjectMember = Dict[str, object]
-SchemaInfoCommand = Dict[str, object]
+SchemaInfo = dict[str, object]
+SchemaInfoEnumMember = dict[str, object]
+SchemaInfoObject = dict[str, object]
+SchemaInfoObjectVariant = dict[str, object]
+SchemaInfoObjectMember = dict[str, object]
+SchemaInfoCommand = dict[str, object]
 
 
 _ValueT = TypeVar('_ValueT', bound=_Value)
@@ -175,9 +173,9 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
-        self._trees: List[Annotated[SchemaInfo]] = []
-        self._used_types: List[QAPISchemaType] = []
-        self._name_map: Dict[str, str] = {}
+        self._trees: list[Annotated[SchemaInfo]] = []
+        self._used_types: list[QAPISchemaType] = []
+        self._name_map: dict[str, str] = {}
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqapi-introspect.h"
@@ -248,10 +246,10 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     @staticmethod
     def _gen_features(features: Sequence[QAPISchemaFeature]
-                      ) -> List[Annotated[str]]:
+                      ) -> list[Annotated[str]]:
         return [Annotated(f.name, f.ifcond) for f in features]
 
-    def _gen_tree(self, name: str, mtype: str, obj: Dict[str, object],
+    def _gen_tree(self, name: str, mtype: str, obj: dict[str, object],
                   ifcond: QAPISchemaIfCond = QAPISchemaIfCond(),
                   features: Sequence[QAPISchemaFeature] = ()) -> None:
         """
@@ -313,8 +311,8 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_enum_type(self, name: str, info: Optional[QAPISourceInfo],
                         ifcond: QAPISchemaIfCond,
-                        features: List[QAPISchemaFeature],
-                        members: List[QAPISchemaEnumMember],
+                        features: list[QAPISchemaFeature],
+                        members: list[QAPISchemaEnumMember],
                         prefix: Optional[str]) -> None:
         self._gen_tree(
             name, 'enum',
@@ -332,8 +330,8 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_object_type_flat(self, name: str, info: Optional[QAPISourceInfo],
                                ifcond: QAPISchemaIfCond,
-                               features: List[QAPISchemaFeature],
-                               members: List[QAPISchemaObjectTypeMember],
+                               features: list[QAPISchemaFeature],
+                               members: list[QAPISchemaObjectTypeMember],
                                branches: Optional[QAPISchemaBranches]) -> None:
         obj: SchemaInfoObject = {
             'members': [self._gen_object_member(m) for m in members]
@@ -345,7 +343,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_alternate_type(self, name: str, info: Optional[QAPISourceInfo],
                              ifcond: QAPISchemaIfCond,
-                             features: List[QAPISchemaFeature],
+                             features: list[QAPISchemaFeature],
                              alternatives: QAPISchemaAlternatives) -> None:
         self._gen_tree(
             name, 'alternate',
@@ -357,7 +355,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_command(self, name: str, info: Optional[QAPISourceInfo],
                       ifcond: QAPISchemaIfCond,
-                      features: List[QAPISchemaFeature],
+                      features: list[QAPISchemaFeature],
                       arg_type: Optional[QAPISchemaObjectType],
                       ret_type: Optional[QAPISchemaType], gen: bool,
                       success_response: bool, boxed: bool, allow_oob: bool,
@@ -376,7 +374,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_event(self, name: str, info: Optional[QAPISourceInfo],
                     ifcond: QAPISchemaIfCond,
-                    features: List[QAPISchemaFeature],
+                    features: list[QAPISchemaFeature],
                     arg_type: Optional[QAPISchemaObjectType],
                     boxed: bool) -> None:
         assert self._schema is not None

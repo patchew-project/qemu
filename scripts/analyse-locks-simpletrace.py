@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # Analyse lock events and compute statistics
 #
 # Author: Alex Bennée <alex.bennee@linaro.org>
 #
 
-import simpletrace
 import argparse
+
 import numpy as np
+import simpletrace
+
 
 class MutexAnalyser(simpletrace.Analyzer):
     "A simpletrace Analyser for checking locks."

@@ -19,7 +19,9 @@
 # Creator/Owner: Kevin Wolf <kwolf@redhat.com>
 
 import asyncio
+
 import iotests
+
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           supported_platforms=['linux'])

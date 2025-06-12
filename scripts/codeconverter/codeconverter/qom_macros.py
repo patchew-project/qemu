@@ -5,15 +5,16 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
-import re
 from itertools import chain
+import logging
+import re
 from typing import *
 
-from .regexps import *
 from .patching import *
+from .regexps import *
 from .utils import *
 
-import logging
+
 logger = logging.getLogger(__name__)
 DBG = logger.debug
 INFO = logger.info
@@ -590,16 +591,16 @@ class TypeDeclarationFixup(FileMatch):
         self.debug("checker_dict: %r", checker_dict)
         for uppercase,checkers in checker_dict.items():
             fields = ('instancetype', 'classtype', 'uppercase', 'typename')
-            fvalues = dict((field, set(getattr(m, field) for m in checkers
-                                       if getattr(m, field, None) is not None))
-                            for field in fields)
+            fvalues = {field: {getattr(m, field) for m in checkers
+                                       if getattr(m, field, None) is not None}
+                            for field in fields}
             for field,values in fvalues.items():
                 if len(values) > 1:
                     for c in checkers:
                         c.warn("%s mismatch (%s)", field, ' '.join(values))
                     return
 
-            field_dict = dict((f, v.pop() if v else None) for f,v in fvalues.items())
+            field_dict = {f: v.pop() if v else None for f,v in fvalues.items()}
             yield from self.gen_patches_for_type(uppercase, checkers, field_dict)
 
     def find_conflicts(self, uppercase: str, checkers: List[TypeDeclaration]) -> bool:

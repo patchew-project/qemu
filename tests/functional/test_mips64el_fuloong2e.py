@@ -11,10 +11,15 @@
 
 import os
 import subprocess
-
-from qemu_test import LinuxKernelTest, Asset
-from qemu_test import wait_for_console_pattern, skipUntrustedTest
 from unittest import skipUnless
+
+from qemu_test import (
+    Asset,
+    LinuxKernelTest,
+    skipUntrustedTest,
+    wait_for_console_pattern,
+)
+
 
 class MipsFuloong2e(LinuxKernelTest):
 

@@ -23,9 +23,11 @@ import math
 import os
 import subprocess
 import time
-from typing import List, Optional
+from typing import Optional
+
 import iotests
 from iotests import qemu_img
+
 
 source_img = os.path.join(iotests.test_dir, 'source.' + iotests.imgfmt)
 target_img = os.path.join(iotests.test_dir, 'target.' + iotests.imgfmt)
@@ -195,7 +197,7 @@ class TestActiveMirror(iotests.QMPTestCase):
 class TestThrottledWithNbdExportBase(iotests.QMPTestCase):
     image_len = 128 * 1024 * 1024  # MB
     iops: Optional[int] = None
-    background_processes: List['subprocess.Popen[str]'] = []
+    background_processes: list['subprocess.Popen[str]'] = []
 
     def setUp(self):
         # Must be set by subclasses

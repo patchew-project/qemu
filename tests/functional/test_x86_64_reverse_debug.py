@@ -12,7 +12,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from qemu_test import skipIfMissingImports, skipFlakyTest
+from qemu_test import skipFlakyTest, skipIfMissingImports
 from reverse_debugging import ReverseDebugging
 
 

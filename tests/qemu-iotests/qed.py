@@ -10,10 +10,10 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
 
-import sys
-import struct
 import random
-import optparse
+import struct
+import sys
+
 
 # This can be used as a module
 __all__ = ['QED_F_NEED_CHECK', 'QED']
@@ -35,7 +35,7 @@ def err(msg):
 
 def unpack_header(s):
     fields = struct.unpack(header_fmt, s)
-    return dict((field_names[idx], val) for idx, val in enumerate(fields))
+    return {field_names[idx]: val for idx, val in enumerate(fields)}
 
 def pack_header(header):
     fields = tuple(header[x] for x in field_names)
@@ -47,7 +47,7 @@ def unpack_table_elem(s):
 def pack_table_elem(elem):
     return struct.pack(table_elem_fmt, elem)
 
-class QED(object):
+class QED:
     def __init__(self, f):
         self.f = f
 

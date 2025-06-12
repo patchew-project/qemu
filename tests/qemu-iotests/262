@@ -21,8 +21,10 @@
 # Test migration with filter drivers present. Keep everything in an
 # iothread just for fun.
 
-import iotests
 import os
+
+import iotests
+
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           supported_platforms=['linux'],

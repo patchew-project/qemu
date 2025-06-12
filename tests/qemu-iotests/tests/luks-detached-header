@@ -22,14 +22,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os
 import json
+import os
+
 import iotests
 from iotests import (
+    QMPTestCase,
     imgfmt,
     qemu_img_create,
     qemu_img_info,
-    QMPTestCase,
 )
 
 

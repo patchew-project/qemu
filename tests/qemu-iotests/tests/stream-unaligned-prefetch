@@ -21,8 +21,15 @@
 #
 
 import os
+
 import iotests
-from iotests import imgfmt, qemu_img_create, qemu_io, QMPTestCase
+from iotests import (
+    QMPTestCase,
+    imgfmt,
+    qemu_img_create,
+    qemu_io,
+)
+
 
 image_size = 1 * 1024 * 1024
 cluster_size = 64 * 1024
@@ -42,11 +49,11 @@ class TestStreamUnalignedPrefetch(QMPTestCase):
         size.
         """
         qemu_img_create('-f', imgfmt,
-                        '-o', 'cluster_size={}'.format(cluster_size // 2),
+                        '-o', f'cluster_size={cluster_size // 2}',
                         base, str(image_size))
         qemu_io('-c', f'write 0 {cluster_size // 2}', base)
         qemu_img_create('-f', imgfmt,
-                        '-o', 'cluster_size={}'.format(cluster_size),
+                        '-o', f'cluster_size={cluster_size}',
                         top, str(image_size))
 
         self.vm = iotests.VM()

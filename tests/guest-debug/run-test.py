@@ -12,12 +12,13 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import argparse
-import subprocess
-import shutil
-import shlex
 import os
-from time import sleep
+import shlex
+import shutil
+import subprocess
 from tempfile import TemporaryDirectory
+from time import sleep
+
 
 def get_args():
     parser = argparse.ArgumentParser(description="A gdbstub test runner")

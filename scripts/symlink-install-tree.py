@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-from pathlib import PurePath
 import errno
 import json
 import os
+from pathlib import PurePath
 import shlex
 import subprocess
 import sys
+
 
 def destdir_join(d1: str, d2: str) -> str:
     if not d1:

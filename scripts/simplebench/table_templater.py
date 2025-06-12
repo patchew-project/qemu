@@ -17,9 +17,11 @@
 #
 
 import itertools
+
 from lark import Lark
 
-grammar = """
+
+grammar = r"""
 start: ( text | column_switch | row_switch )+
 
 column_switch: "{" text ["|" text]+ "}"

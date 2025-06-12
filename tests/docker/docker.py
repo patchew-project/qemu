@@ -11,23 +11,22 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
-import os
-import sys
-import subprocess
-import json
-import hashlib
-import atexit
-import uuid
 import argparse
+import atexit
 import enum
-import tempfile
-import re
-import signal
 import getpass
-from tarfile import TarFile, TarInfo
-from io import StringIO, BytesIO
+import hashlib
+from io import BytesIO, StringIO
+import json
+import os
+import re
 from shutil import copy, rmtree
-from datetime import datetime, timedelta
+import signal
+import subprocess
+import sys
+from tarfile import TarFile, TarInfo
+import tempfile
+import uuid
 
 
 FILTERED_ENV_NAMES = ['ftp_proxy', 'http_proxy', 'https_proxy']
@@ -65,7 +64,7 @@ def _text_checksum(text):
     return _bytes_checksum(text.encode('utf-8'))
 
 def _read_dockerfile(path):
-    return open(path, 'rt', encoding='utf-8').read()
+    return open(path, encoding='utf-8').read()
 
 def _file_checksum(filename):
     return _bytes_checksum(open(filename, 'rb').read())
@@ -108,7 +107,6 @@ def _copy_with_mkdir(src, root_dir, sub_path='.', name=None):
         copy(src, dest_file)
     except FileNotFoundError:
         print("Couldn't copy %s to %s" % (src, dest_file))
-        pass
 
 
 def _get_so_libs(executable):
@@ -218,7 +216,7 @@ def _dockerfile_verify_flat(df):
     return True
 
 
-class Docker(object):
+class Docker:
     """ Running Docker commands """
     def __init__(self):
         self._command = _guess_engine_command()
@@ -378,7 +376,7 @@ class Docker(object):
         return self._do([cmd] + argv, quiet=quiet)
 
 
-class SubCommand(object):
+class SubCommand:
     """A SubCommand template base class"""
     name = None  # Subcommand name
 
@@ -388,14 +386,12 @@ class SubCommand(object):
 
     def args(self, parser):
         """Setup argument parser"""
-        pass
 
     def run(self, args, argv):
         """Run command.
         args: parsed argument by argument parser.
         argv: remaining arguments from sys.argv.
         """
-        pass
 
 
 class RunCommand(SubCommand):
@@ -538,7 +534,7 @@ class UpdateCommand(SubCommand):
 
         # Create a Docker buildfile
         df = StringIO()
-        df.write(u"FROM %s\n" % args.tag)
+        df.write("FROM %s\n" % args.tag)
 
         if args.executable:
             # Add the executable to the tarball, using the current
@@ -564,9 +560,8 @@ class UpdateCommand(SubCommand):
                         tmp_tar.add(real_l, arcname="%s/%s" % (so_path, name))
                     except FileNotFoundError:
                         print("Couldn't add %s/%s to archive" % (so_path, name))
-                        pass
 
-            df.write(u"ADD . /\n")
+            df.write("ADD . /\n")
 
         if args.user:
             uid = os.getuid()

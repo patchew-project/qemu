@@ -8,7 +8,7 @@
 #  Thomas Huth <thuth@redhat.com>
 
 import os
-from subprocess import check_call, run, DEVNULL
+from subprocess import DEVNULL, check_call, run
 import tarfile
 from urllib.parse import urlparse
 import zipfile

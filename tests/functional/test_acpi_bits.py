@@ -31,19 +31,20 @@ including an upgraded acpica. The fork is located here:
 https://gitlab.com/qemu-project/biosbits-bits .
 """
 
+from collections.abc import Sequence
 import os
 import re
 import shutil
 import subprocess
+from typing import Optional
 
-from typing import (
-    List,
-    Optional,
-    Sequence,
-)
 from qemu.machine import QEMUMachine
-from qemu_test import (QemuSystemTest, Asset, skipIfMissingCommands,
-                       skipIfNotMachine)
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    skipIfMissingCommands,
+    skipIfNotMachine,
+)
 
 
 # default timeout of 120 secs is sometimes not enough for bits test.
@@ -76,7 +77,7 @@ class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
         self.base_temp_dir = base_temp_dir
 
     @property
-    def _base_args(self) -> List[str]:
+    def _base_args(self) -> list[str]:
         args = super()._base_args
         args.extend([
             '-chardev',
@@ -190,7 +191,7 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         self.assertTrue(os.path.exists(grub_i386_mods))
 
         new_script = ""
-        with open(mkrescue, 'r', encoding='utf-8') as filehandle:
+        with open(mkrescue, encoding='utf-8') as filehandle:
             orig_script = filehandle.read()
             new_script = re.sub('(^prefix=)(.*)',
                                 r'\1"%s"' %grub_x86_64_mods,
@@ -274,7 +275,7 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         """
         debugconf = self.scratch_file(self._debugcon_log)
         log = ""
-        with open(debugconf, 'r', encoding='utf-8') as filehandle:
+        with open(debugconf, encoding='utf-8') as filehandle:
             log = filehandle.read()
 
         matchiter = re.finditer(r'(.*Summary: )(\d+ passed), (\d+ failed).*',

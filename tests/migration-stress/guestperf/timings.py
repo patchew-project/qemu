@@ -18,7 +18,7 @@
 #
 
 
-class TimingRecord(object):
+class TimingRecord:
 
     def __init__(self, tid, timestamp, value):
 
@@ -41,7 +41,7 @@ class TimingRecord(object):
             data["value"])
 
 
-class Timings(object):
+class Timings:
 
     def __init__(self, records):
 

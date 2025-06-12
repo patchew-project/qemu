@@ -10,8 +10,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
-import sys
 import os
+import sys
+
 
 def get_string_struct(line):
     data = line.split()
@@ -35,7 +36,7 @@ def add_module(fheader, library, format_name, protocol_name):
 
 def process_file(fheader, filename):
     # This parser assumes the coding style rules are being followed
-    with open(filename, "r") as cfile:
+    with open(filename) as cfile:
         found_start = False
         library, _ = os.path.splitext(os.path.basename(filename))
         for line in cfile:

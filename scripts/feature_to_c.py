@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os, sys, xml.etree.ElementTree
+import os
+import sys
+import xml.etree.ElementTree
+
 
 def writeliteral(indent, bytes):
     sys.stdout.write(' ' * indent)

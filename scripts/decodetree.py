@@ -20,11 +20,12 @@
 # See the syntax and semantics in docs/devel/decodetree.rst.
 #
 
+import getopt
 import io
 import os
 import re
 import sys
-import getopt
+
 
 insnwidth = 32
 bitop_width = 32
@@ -87,7 +88,6 @@ re_pat_ident = '[a-zA-Z0-9_]*'
 
 class CycleError(ValueError):
     """Subclass of ValueError raised if cycles exist in the graph"""
-    pass
 
 class TopologicalSorter:
     """Topologically sort a graph"""
@@ -113,7 +113,7 @@ class TopologicalSorter:
         # Add empty dependencies where needed
         data.update({item:{} for item in extra_items_in_deps})
         while True:
-            ordered = set(item for item, dep in data.items() if not dep)
+            ordered = {item for item, dep in data.items() if not dep}
             if not ordered:
                 break
             r.extend(ordered)
@@ -1559,7 +1559,7 @@ def main():
 
     for filename in args:
         input_file = filename
-        f = open(filename, 'rt', encoding='utf-8')
+        f = open(filename, encoding='utf-8')
         parse_file(f, toppat)
         f.close()
 
@@ -1579,9 +1579,9 @@ def main():
         prop_size(stree)
 
     if output_null:
-        output_fd = open(os.devnull, 'wt', encoding='utf-8', errors="ignore")
+        output_fd = open(os.devnull, 'w', encoding='utf-8', errors="ignore")
     elif output_file:
-        output_fd = open(output_file, 'wt', encoding='utf-8')
+        output_fd = open(output_file, 'w', encoding='utf-8')
     else:
         output_fd = io.TextIOWrapper(sys.stdout.buffer,
                                      encoding=sys.stdout.encoding,

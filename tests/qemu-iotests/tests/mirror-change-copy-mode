@@ -23,7 +23,8 @@ import os
 import time
 
 import iotests
-from iotests import qemu_img, QemuStorageDaemon
+from iotests import QemuStorageDaemon, qemu_img
+
 
 iops_target = 8
 iops_source = iops_target * 2

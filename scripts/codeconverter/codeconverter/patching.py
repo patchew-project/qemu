@@ -5,16 +5,27 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
-from typing import IO, Match, NamedTuple, Optional, Literal, Iterable, Type, Dict, List, Any, TypeVar, NewType, Tuple, Union
-from pathlib import Path
-from itertools import chain
-from tempfile import NamedTemporaryFile
-import os
-import re
-import subprocess
+from collections.abc import Iterable
 from io import StringIO
-
+from itertools import chain
 import logging
+import os
+from pathlib import Path
+import re
+from re import Match
+import subprocess
+from tempfile import NamedTemporaryFile
+from typing import (
+    IO,
+    Any,
+    Literal,
+    NamedTuple,
+    Optional,
+    TypeVar,
+    Union,
+)
+
+
 logger = logging.getLogger(__name__)
 DBG = logger.debug
 INFO = logger.info
@@ -22,6 +33,7 @@ WARN = logger.warning
 ERROR = logger.error
 
 from .utils import *
+
 
 T = TypeVar('T')
 
@@ -104,7 +116,6 @@ class FileMatch:
 
     def sanity_check(self) -> None:
         """Sanity check match, and print warnings if necessary"""
-        pass
 
     def replacement(self) -> Optional[str]:
         """Return replacement text for pattern, to use new code conventions"""
@@ -181,14 +192,14 @@ class FileMatch:
             content = content[:endpos]
         return klass.compiled_re().match(content, pos)
 
-    def group_finditer(self, klass: Type['FileMatch'], group: Union[str, int]) -> Iterable['FileMatch']:
+    def group_finditer(self, klass: type['FileMatch'], group: Union[str, int]) -> Iterable['FileMatch']:
         assert self.file.original_content
         return (klass(self.file, m)
                 for m in klass.finditer(self.file.original_content,
                                         self.match.start(group),
                                         self.match.end(group)))
 
-    def try_group_match(self, klass: Type['FileMatch'], group: Union[str, int]) -> Optional['FileMatch']:
+    def try_group_match(self, klass: type['FileMatch'], group: Union[str, int]) -> Optional['FileMatch']:
         assert self.file.original_content
         m = klass.domatch(self.file.original_content,
                           self.match.start(group),
@@ -213,13 +224,13 @@ class FullMatch(FileMatch):
     """
     regexp = r'(?s).*' # (?s) is re.DOTALL
 
-def all_subclasses(c: Type[FileMatch]) -> Iterable[Type[FileMatch]]:
+def all_subclasses(c: type[FileMatch]) -> Iterable[type[FileMatch]]:
     for sc in c.__subclasses__():
         yield sc
         yield from all_subclasses(sc)
 
-def match_class_dict() -> Dict[str, Type[FileMatch]]:
-    d = dict((t.__name__, t) for t in all_subclasses(FileMatch))
+def match_class_dict() -> dict[str, type[FileMatch]]:
+    d = {t.__name__: t for t in all_subclasses(FileMatch)}
     return d
 
 def names(matches: Iterable[FileMatch]) -> Iterable[str]:
@@ -239,7 +250,7 @@ def apply_patches(s: str, patches: Iterable[Patch]) -> str:
     """
     r = StringIO()
     last = 0
-    def patch_sort_key(item: Tuple[int, Patch]) -> Tuple[int, int, int]:
+    def patch_sort_key(item: tuple[int, Patch]) -> tuple[int, int, int]:
         """Patches are sorted by byte position,
         patches at the same byte position are applied in the order
         they were generated.
@@ -263,22 +274,22 @@ def apply_patches(s: str, patches: Iterable[Patch]) -> str:
 
 class RegexpScanner:
     def __init__(self) -> None:
-        self.match_index: Dict[Type[Any], List[FileMatch]] = {}
-        self.match_name_index: Dict[Tuple[Type[Any], str, str], Optional[FileMatch]] = {}
+        self.match_index: dict[type[Any], list[FileMatch]] = {}
+        self.match_name_index: dict[tuple[type[Any], str, str], Optional[FileMatch]] = {}
 
-    def _matches_of_type(self, klass: Type[Any]) -> Iterable[FileMatch]:
+    def _matches_of_type(self, klass: type[Any]) -> Iterable[FileMatch]:
         raise NotImplementedError()
 
-    def matches_of_type(self, t: Type[T]) -> List[T]:
+    def matches_of_type(self, t: type[T]) -> list[T]:
         if t not in self.match_index:
             self.match_index[t] = list(self._matches_of_type(t))
         return self.match_index[t] # type: ignore
 
-    def find_matches(self, t: Type[T], name: str, group: str='name') -> List[T]:
+    def find_matches(self, t: type[T], name: str, group: str='name') -> list[T]:
         indexkey = (t, name, group)
         if indexkey in self.match_name_index:
             return self.match_name_index[indexkey] # type: ignore
-        r: List[T] = []
+        r: list[T] = []
         for m in self.matches_of_type(t):
             assert isinstance(m, FileMatch)
             if m.getgroup(group) == name:
@@ -286,7 +297,7 @@ class RegexpScanner:
         self.match_name_index[indexkey] = r # type: ignore
         return r
 
-    def find_match(self, t: Type[T], name: str, group: str='name') -> Optional[T]:
+    def find_match(self, t: type[T], name: str, group: str='name') -> Optional[T]:
         l = self.find_matches(t, name, group)
         if not l:
             return None
@@ -307,7 +318,7 @@ class FileInfo(RegexpScanner):
         super().__init__()
         self.allfiles = files
         self.filename = Path(filename)
-        self.patches: List[Patch] = []
+        self.patches: list[Patch] = []
         self.force = force
 
     def __repr__(self) -> str:
@@ -321,7 +332,7 @@ class FileInfo(RegexpScanner):
         """Return line and column for a match object inside original_content"""
         return line_col(self.original_content, start)
 
-    def _matches_of_type(self, klass: Type[Any]) -> List[FileMatch]:
+    def _matches_of_type(self, klass: type[Any]) -> list[FileMatch]:
         """Build FileMatch objects for each match of regexp"""
         if not hasattr(klass, 'regexp') or klass.regexp is None:
             return []
@@ -333,7 +344,7 @@ class FileInfo(RegexpScanner):
             klass.__name__,' '.join(names(matches)))
         return matches
 
-    def find_match(self, t: Type[T], name: str, group: str='name') -> Optional[T]:
+    def find_match(self, t: type[T], name: str, group: str='name') -> Optional[T]:
         for m in self.matches_of_type(t):
             assert isinstance(m, FileMatch)
             if m.getgroup(group) == name:
@@ -349,7 +360,7 @@ class FileInfo(RegexpScanner):
     def load(self) -> None:
         if self.original_content is not None:
             return
-        with open(self.filename, 'rt') as f:
+        with open(self.filename) as f:
             self.reset_content(f.read())
 
     @property
@@ -358,7 +369,7 @@ class FileInfo(RegexpScanner):
         return (m for l in lists
                   for m in l)
 
-    def gen_patches(self, matches: List[FileMatch]) -> None:
+    def gen_patches(self, matches: list[FileMatch]) -> None:
         for m in matches:
             DBG("Generating patches for %r", m)
             for i,p in enumerate(m.gen_patches()):
@@ -367,7 +378,7 @@ class FileInfo(RegexpScanner):
                     self.line_col(p.start), self.line_col(p.end), p.replacement)
                 self.patches.append(p)
 
-    def scan_for_matches(self, class_names: Optional[List[str]]=None) -> Iterable[FileMatch]:
+    def scan_for_matches(self, class_names: Optional[list[str]]=None) -> Iterable[FileMatch]:
         DBG("class names: %r", class_names)
         class_dict = match_class_dict()
         if class_names is None:
@@ -393,7 +404,7 @@ class FileInfo(RegexpScanner):
         f.write(self.get_patched_content())
 
     def write_to_filename(self, filename: os.PathLike) -> None:
-        with open(filename, 'wt') as of:
+        with open(filename, 'w') as of:
             self.write_to_file(of)
 
     def patch_inplace(self) -> None:
@@ -413,7 +424,7 @@ class FileInfo(RegexpScanner):
 class FileList(RegexpScanner):
     def __init__(self):
         super().__init__()
-        self.files: List[FileInfo] = []
+        self.files: list[FileInfo] = []
 
     def extend(self, *args, **kwargs):
         self.files.extend(*args, **kwargs)
@@ -421,7 +432,7 @@ class FileList(RegexpScanner):
     def __iter__(self):
         return iter(self.files)
 
-    def _matches_of_type(self, klass: Type[Any]) -> Iterable[FileMatch]:
+    def _matches_of_type(self, klass: type[Any]) -> Iterable[FileMatch]:
         return chain(*(f._matches_of_type(klass) for f in self.files))
 
     def find_file(self, name: str) -> Optional[FileInfo]:
@@ -432,7 +443,7 @@ class FileList(RegexpScanner):
         else:
             return None
 
-    def one_pass(self, class_names: List[str]) -> int:
+    def one_pass(self, class_names: list[str]) -> int:
         total_patches = 0
         for f in self.files:
             INFO("Scanning file %s", f.filename)
@@ -448,7 +459,7 @@ class FileList(RegexpScanner):
                     logger.exception("%s: failed to patch file", f.filename)
         return total_patches
 
-    def patch_content(self, max_passes, class_names: List[str]) -> None:
+    def patch_content(self, max_passes, class_names: list[str]) -> None:
         """Multi-pass content patching loop
 
         We run multiple passes because there are rules that will

@@ -9,12 +9,14 @@
 #
 # For help see docs/devel/tracing.rst
 
-import sys
-import struct
 import inspect
+import struct
+import sys
 import warnings
-from tracetool import read_events, Event
+
+from tracetool import Event, read_events
 from tracetool.backend.simple import is_string
+
 
 __all__ = ['Analyzer', 'Analyzer2', 'process', 'run']
 
@@ -166,11 +168,9 @@ class Analyzer:
 
     def begin(self):
         """Called at the start of the trace."""
-        pass
 
     def catchall(self, event, rec):
         """Called if no specific method for processing a trace event has been found."""
-        pass
 
     def _build_fn(self, event):
         fn = getattr(self, event.name, None)
@@ -208,7 +208,6 @@ class Analyzer:
 
     def end(self):
         """Called at the end of the trace."""
-        pass
 
     def __enter__(self):
         self.begin()
@@ -263,7 +262,6 @@ class Analyzer2(Analyzer):
 
     def catchall(self, *rec_args, event, timestamp_ns, pid, event_id, **kwargs):
         """Called if no specific method for processing a trace event has been found."""
-        pass
 
     def _process_event(self, rec_args, *, event, **kwargs):
         fn = getattr(self, event.name, self.catchall)
@@ -279,7 +277,7 @@ def process(events, log, analyzer, read_header=True):
     """
 
     if isinstance(events, str):
-        with open(events, 'r') as f:
+        with open(events) as f:
             events_list = read_events(f, events)
     elif isinstance(events, list):
         # Treat as a list of events already produced by tracetool.read_events
@@ -332,7 +330,7 @@ def run(analyzer):
     except (AssertionError, ValueError):
         raise SimpleException(f'usage: {sys.argv[0]} [--no-header] <trace-events> <trace-file>\n')
 
-    with open(trace_event_path, 'r') as events_fobj, open(trace_file_path, 'rb') as log_fobj:
+    with open(trace_event_path) as events_fobj, open(trace_file_path, 'rb') as log_fobj:
         process(events_fobj, log_fobj, analyzer, read_header=not no_header)
 
 if __name__ == '__main__':

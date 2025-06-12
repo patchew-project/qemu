@@ -22,6 +22,7 @@
 
 import iotests
 
+
 nsec_per_sec = 1000000000
 
 class ThrottleTestCase(iotests.QMPTestCase):
@@ -154,7 +155,7 @@ class ThrottleTestCase(iotests.QMPTestCase):
         for ndrives in range(1, self.max_drives + 1):
             # Pick each out of all possible params and test
             for tk in params:
-                limits = dict([(k, 0) for k in params])
+                limits = {k: 0 for k in params}
                 limits[tk] = params[tk] * ndrives
                 self.configure_throttle(ndrives, limits)
                 self.do_test_throttle(ndrives, 5, limits)
@@ -172,7 +173,7 @@ class ThrottleTestCase(iotests.QMPTestCase):
         for drive in range(0, self.max_drives):
             # Pick each out of all possible params and test
             for tk in params:
-                limits = dict([(k, 0) for k in params])
+                limits = {k: 0 for k in params}
                 limits[tk] = params[tk] * self.max_drives
                 self.configure_throttle(self.max_drives, limits)
                 self.do_test_throttle(1, 5, limits, drive)
@@ -193,7 +194,7 @@ class ThrottleTestCase(iotests.QMPTestCase):
             burst_length = 4
 
             # Configure the throttling settings
-            settings = dict([(k, 0) for k in params])
+            settings = {k: 0 for k in params}
             settings[tk] = rate
             settings['%s_max' % tk] = burst_rate
             settings['%s_max_length' % tk] = burst_length
@@ -204,7 +205,7 @@ class ThrottleTestCase(iotests.QMPTestCase):
             self.vm.qtest("clock_step %d" % wait_ns)
 
             # Test I/O at the max burst rate
-            limits = dict([(k, 0) for k in params])
+            limits = {k: 0 for k in params}
             limits[tk] = burst_rate
             self.do_test_throttle(ndrives, burst_length, limits)
 

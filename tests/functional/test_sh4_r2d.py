@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import LinuxKernelTest, Asset, skipFlakyTest
+from qemu_test import Asset, LinuxKernelTest, skipFlakyTest
 
 
 class R2dTest(LinuxKernelTest):

@@ -19,8 +19,8 @@
 # Creator/Owner: Kevin Wolf <kwolf@redhat.com>
 
 import iotests
-
 from iotests import filter_qemu_io, filter_qtest
+
 
 iotests.script_initialize(supported_fmts=['qcow2', 'qed', 'raw'],
                           supported_protocols=['file'],

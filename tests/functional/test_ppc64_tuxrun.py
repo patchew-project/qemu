@@ -11,11 +11,12 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from subprocess import check_call, DEVNULL
+from subprocess import DEVNULL, check_call
 import tempfile
 
 from qemu_test import Asset
 from qemu_test.tuxruntest import TuxRunBaselineTest
+
 
 class TuxRunPPC64Test(TuxRunBaselineTest):
 

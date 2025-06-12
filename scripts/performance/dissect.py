@@ -108,7 +108,7 @@ def main():
 
         # Read the callgrind_annotate output to callgrind_data[]
         callgrind_data = []
-        with open(annotate_out_path, 'r') as data:
+        with open(annotate_out_path) as data:
             callgrind_data = data.readlines()
 
         # Line number with the total number of instructions

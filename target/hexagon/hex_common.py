@@ -17,11 +17,10 @@
 ##  along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-import sys
-import re
-import string
-import textwrap
 import argparse
+import re
+import textwrap
+
 
 behdict = {}  # tag ->behavior
 semdict = {}  # tag -> semantics
@@ -105,7 +104,7 @@ def calculate_attribs():
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())
-    allmacros_restr = "|".join(set([m.re.pattern for m in macroValues]))
+    allmacros_restr = "|".join({m.re.pattern for m in macroValues})
     allmacros_re = re.compile(allmacros_restr)
     for macro in macroValues:
         expand_macro_attribs(macro, allmacros_re)
@@ -140,7 +139,7 @@ def ATTRIBUTES(tag, attribstring):
         attribdict[tag].add(attrib.strip())
 
 
-class Macro(object):
+class Macro:
     __slots__ = ["key", "name", "beh", "attribs", "re"]
 
     def __init__(self, name, beh, attribs):
@@ -278,7 +277,7 @@ def imm_name(immlett):
 
 def read_semantics_file(name):
     eval_line = ""
-    for line in open(name, "rt").readlines():
+    for line in open(name).readlines():
         if not line.startswith("#"):
             eval_line += line
             if line.endswith("\\\n"):
@@ -290,7 +289,7 @@ def read_semantics_file(name):
 
 def read_overrides_file(name):
     overridere = re.compile(r"#define fGEN_TCG_([A-Za-z0-9_]+)\(.*")
-    for line in open(name, "rt").readlines():
+    for line in open(name).readlines():
         if not overridere.match(line):
             continue
         tag = overridere.findall(line)[0]
@@ -299,7 +298,7 @@ def read_overrides_file(name):
 
 def read_idef_parser_enabled_file(name):
     global idef_parser_enabled
-    with open(name, "r") as idef_parser_enabled_file:
+    with open(name) as idef_parser_enabled_file:
         lines = idef_parser_enabled_file.read().strip().split("\n")
         idef_parser_enabled = set(lines)
 

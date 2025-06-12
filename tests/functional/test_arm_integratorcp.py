@@ -14,9 +14,13 @@
 
 import logging
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern
-from qemu_test import skipIfMissingImports, skipUntrustedTest
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    skipIfMissingImports,
+    skipUntrustedTest,
+    wait_for_console_pattern,
+)
 
 
 class IntegratorMachine(QemuSystemTest):
@@ -63,8 +67,8 @@ class IntegratorMachine(QemuSystemTest):
         """
         Boot Linux and verify the Tux logo is displayed on the framebuffer.
         """
-        import numpy as np
         import cv2
+        import numpy as np
 
         screendump_path = self.scratch_file("screendump.pbm")
         tuxlogo_path = self.ASSET_TUXLOGO.fetch()

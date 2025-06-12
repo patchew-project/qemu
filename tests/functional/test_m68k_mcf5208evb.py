@@ -5,7 +5,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import LinuxKernelTest, Asset
+from qemu_test import Asset, LinuxKernelTest
 
 
 class Mcf5208EvbTest(LinuxKernelTest):

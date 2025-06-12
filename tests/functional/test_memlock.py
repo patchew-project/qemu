@@ -11,10 +11,7 @@
 
 import re
 
-from typing import Dict
-
-from qemu_test import QemuSystemTest
-from qemu_test import skipLockedMemoryTest
+from qemu_test import QemuSystemTest, skipLockedMemoryTest
 
 
 STATUS_VALUE_PATTERN = re.compile(r'^(\w+):\s+(\d+) kB', re.MULTILINE)
@@ -57,7 +54,7 @@ class MemlockTest(QemuSystemTest):
         self.assertTrue(status['VmLck'] > 0)
         self.assertTrue(status['VmRSS'] <= status['VmSize'] * 0.30)
 
-    def get_process_status_values(self, pid: int) -> Dict[str, int]:
+    def get_process_status_values(self, pid: int) -> dict[str, int]:
         result = {}
         raw_status = self._get_raw_process_status(pid)
 
@@ -69,7 +66,7 @@ class MemlockTest(QemuSystemTest):
 
     def _get_raw_process_status(self, pid: int) -> str:
         try:
-            with open(f'/proc/{pid}/status', 'r') as f:
+            with open(f'/proc/{pid}/status') as f:
                 return f.read()
         except FileNotFoundError:
             self.skipTest("Can't open status file of the process")

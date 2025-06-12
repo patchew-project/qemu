@@ -14,6 +14,7 @@
 from qemu_test import Asset, exec_command_and_wait_for_pattern
 from qemu_test.tuxruntest import TuxRunBaselineTest
 
+
 class TuxRunSh4Test(TuxRunBaselineTest):
 
     ASSET_SH4_KERNEL = Asset(

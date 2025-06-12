@@ -16,21 +16,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import collections
+from contextlib import AbstractContextManager as ContextManager
+import glob
 import os
+from pathlib import Path
+import random
+import shutil
+import subprocess
 import sys
 import tempfile
-from pathlib import Path
-import shutil
-import collections
-import random
-import subprocess
-import glob
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 
-if sys.version_info >= (3, 9):
-    from contextlib import AbstractContextManager as ContextManager
-else:
-    from typing import ContextManager
 
 DEF_GDB_OPTIONS = 'localhost:12345'
 
@@ -40,7 +37,7 @@ def isxfile(path: str) -> bool:
 
 def get_default_machine(qemu_prog: str) -> str:
     outp = subprocess.run([qemu_prog, '-machine', 'help'], check=True,
-                          universal_newlines=True,
+                          text=True,
                           stdout=subprocess.PIPE).stdout
 
     machines = outp.split('\n')
@@ -50,7 +47,7 @@ def get_default_machine(qemu_prog: str) -> str:
         return ''
     default_machine = default_machine.split(' ', 1)[0]
 
-    alias_suf = ' (alias of {})'.format(default_machine)
+    alias_suf = f' (alias of {default_machine})'
     alias = next((m for m in machines if m.endswith(alias_suf)), None)
     if alias is not None:
         default_machine = alias.split(' ', 1)[0]
@@ -81,7 +78,7 @@ class TestEnv(ContextManager['TestEnv']):
                      'IMGKEYSECRET', 'QEMU_DEFAULT_MACHINE', 'MALLOC_PERTURB_',
                      'GDB_OPTIONS', 'PRINT_QEMU']
 
-    def prepare_subprocess(self, args: List[str]) -> Dict[str, str]:
+    def prepare_subprocess(self, args: list[str]) -> dict[str, str]:
         if self.debug:
             args.append('-d')
 
@@ -96,7 +93,7 @@ class TestEnv(ContextManager['TestEnv']):
         os_env.update(self.get_env())
         return os_env
 
-    def get_env(self) -> Dict[str, str]:
+    def get_env(self) -> dict[str, str]:
         env = {}
         for v in self.env_variables:
             val = getattr(self, v.lower(), None)

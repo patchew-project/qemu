@@ -1,4 +1,3 @@
-# coding=utf-8
 #
 # QEMU qapidoc QAPI file parsing extension
 #
@@ -68,14 +67,8 @@ from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
 
 
 if TYPE_CHECKING:
-    from typing import (
-        Any,
-        Generator,
-        List,
-        Optional,
-        Sequence,
-        Union,
-    )
+    from collections.abc import Generator, Sequence
+    from typing import Any
 
     from sphinx.application import Sphinx
     from sphinx.util.typing import ExtensionMetadata
@@ -98,7 +91,7 @@ class Transmogrifier:
     }
 
     def __init__(self) -> None:
-        self._curr_ent: Optional[QAPISchemaDefinition] = None
+        self._curr_ent: QAPISchemaDefinition | None = None
         self._result = StringList()
         self.indent = 0
 
@@ -132,7 +125,7 @@ class Transmogrifier:
         """Append one line of generated reST to the output."""
 
         # NB: Sphinx uses zero-indexed lines; subtract one.
-        lineno = tuple((n - 1 for n in lineno))
+        lineno = tuple(n - 1 for n in lineno)
 
         if line.strip():
             # not a blank line
@@ -176,7 +169,7 @@ class Transmogrifier:
         name: str,
         body: str,
         info: QAPISourceInfo,
-        typ: Optional[str] = None,
+        typ: str | None = None,
     ) -> None:
         if typ:
             text = f":{kind} {typ} {name}: {body}"
@@ -185,8 +178,8 @@ class Transmogrifier:
         self.add_lines(text, info)
 
     def format_type(
-        self, ent: Union[QAPISchemaDefinition | QAPISchemaMember]
-    ) -> Optional[str]:
+        self, ent: QAPISchemaDefinition | QAPISchemaMember
+    ) -> str | None:
         if isinstance(ent, (QAPISchemaEnumMember, QAPISchemaFeature)):
             return None
 
@@ -306,7 +299,7 @@ class Transmogrifier:
 
         def _get_target(
             ent: QAPISchemaDefinition,
-        ) -> Optional[QAPISchemaDefinition]:
+        ) -> QAPISchemaDefinition | None:
             if isinstance(ent, (QAPISchemaCommand, QAPISchemaEvent)):
                 return ent.arg_type
             if isinstance(ent, QAPISchemaObjectType):
@@ -674,7 +667,7 @@ class QMPExample(CodeBlock, NestedDirective):
         )
         return node
 
-    def admonition_wrap(self, *content: nodes.Node) -> List[nodes.Node]:
+    def admonition_wrap(self, *content: nodes.Node) -> list[nodes.Node]:
         title = "Example:"
         if "title" in self.options:
             title = f"{title} {self.options['title']}"
@@ -687,7 +680,7 @@ class QMPExample(CodeBlock, NestedDirective):
         )
         return [admon]
 
-    def run_annotated(self) -> List[nodes.Node]:
+    def run_annotated(self) -> list[nodes.Node]:
         lang_node = self._highlightlang()
 
         content_node: nodes.Element = nodes.section()
@@ -708,7 +701,7 @@ class QMPExample(CodeBlock, NestedDirective):
 
         return content_node.children
 
-    def run(self) -> List[nodes.Node]:
+    def run(self) -> list[nodes.Node]:
         annotated = "annotated" in self.options
 
         if annotated:

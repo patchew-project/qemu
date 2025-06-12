@@ -10,8 +10,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import sys
 from argparse import ArgumentParser
+import sys
+
 
 def extract_counts(path):
     """
@@ -29,7 +30,7 @@ def extract_counts(path):
     end_address = None
     read_count = 0
     write_count = 0
-    with open(path, 'r') as f:
+    with open(path) as f:
         for line in f:
             if line.startswith("Test data start:"):
                 start_address = int(line.split(':')[1].strip(), 16)
@@ -59,7 +60,7 @@ def parse_plugin_output(path, start, end):
     total_writes = 0
     seen_all = False
 
-    with open(path, 'r') as f:
+    with open(path) as f:
         next(f)  # Skip the header
         for line in f:
 

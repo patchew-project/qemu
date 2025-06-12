@@ -19,8 +19,8 @@ import http.client
 import json
 import os
 import subprocess
-import time
 import sys
+import time
 
 
 class CommunicationFailure(Exception):
@@ -40,7 +40,7 @@ def get_local_branch_commit(branch):
                             stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL,
                             cwd=os.path.dirname(__file__),
-                            universal_newlines=True).stdout.strip()
+                            text=True).stdout.strip()
     if result == branch:
         raise ValueError("There's no local branch named '%s'" % branch)
     if len(result) != 40:

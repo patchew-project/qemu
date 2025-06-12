@@ -17,9 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import struct
-import string
 import json
+import string
+import struct
 
 
 class ComplexEncoder(json.JSONEncoder):
@@ -115,8 +115,8 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
             assert fd is None and offset is None
 
         values = struct.unpack(self.fmt, data)
-        self.__dict__ = dict((field[2], values[i])
-                             for i, field in enumerate(self.fields))
+        self.__dict__ = {field[2]: values[i]
+                             for i, field in enumerate(self.fields)}
 
     def dump(self, is_json=False):
         if is_json:
@@ -130,10 +130,10 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
             else:
                 value_str = str(f[1](value))
 
-            print('{:<25} {}'.format(f[2], value_str))
+            print(f'{f[2]:<25} {value_str}')
 
     def to_json(self):
-        return dict((f[2], self.__dict__[f[2]]) for f in self.fields)
+        return {f[2]: self.__dict__[f[2]] for f in self.fields}
 
 
 class Qcow2BitmapExt(Qcow2Struct):
@@ -207,7 +207,7 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
 
     def dump(self):
         print(f'{"Bitmap name":<25} {self.name}')
-        super(Qcow2BitmapDirEntry, self).dump()
+        super().dump()
         self.bitmap_table.dump()
 
     def to_json(self):

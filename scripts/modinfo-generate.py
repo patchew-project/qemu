@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import os
 import sys
+
 
 def print_array(name, values):
     if len(values) == 0:
@@ -109,7 +109,7 @@ def main(args):
 
     error = False
     for dep in deps.difference(modules):
-        print("Dependency {} cannot be satisfied".format(dep),
+        print(f"Dependency {dep} cannot be satisfied",
               file=sys.stderr)
         error = True
 

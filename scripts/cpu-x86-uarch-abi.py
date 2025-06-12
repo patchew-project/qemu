@@ -6,8 +6,10 @@
 # compatibility levels for each CPU model.
 #
 
-from qemu.qmp.legacy import QEMUMonitorProtocol
 import sys
+
+from qemu.qmp.legacy import QEMUMonitorProtocol
+
 
 if len(sys.argv) != 2:
     print("syntax: %s QMP-SOCK\n\n" % __file__ +

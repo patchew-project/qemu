@@ -14,7 +14,6 @@
 import logging
 import os
 from pathlib import Path
-import pycotap
 import shutil
 from subprocess import run
 import sys
@@ -22,6 +21,7 @@ import tempfile
 import unittest
 import uuid
 
+import pycotap
 from qemu.machine import QEMUMachine
 from qemu.utils import kvm_available, tcg_available
 

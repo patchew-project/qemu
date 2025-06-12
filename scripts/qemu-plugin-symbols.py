@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # Extract QEMU Plugin API symbols from a header file
 #
@@ -14,6 +13,7 @@
 
 import argparse
 import re
+
 
 def extract_symbols(plugin_header):
     with open(plugin_header) as file:
@@ -38,7 +38,7 @@ def main() -> None:
 
     print('{')
     for s in syms:
-        print("  {};".format(s))
+        print(f"  {s};")
     print('};')
 
 if __name__ == '__main__':

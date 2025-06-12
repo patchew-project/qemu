@@ -19,12 +19,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import time
 import os
 import re
-import json
+import time
+
 import iotests
 from iotests import qemu_img, qemu_img_map, qemu_io
+
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 target_backing_img = os.path.join(iotests.test_dir, 'target-backing.img')
@@ -270,7 +271,7 @@ class TestSingleBlockdev(TestSingleDrive):
         self.assertEqual(result, 'Source and target image have different sizes')
 
     # qed does not support shrinking
-    @iotests.skip_for_formats(('qed'))
+    @iotests.skip_for_formats('qed')
     def test_small_target(self):
         self.do_test_target_size(self.image_len // 2)
 

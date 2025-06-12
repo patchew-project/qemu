@@ -20,11 +20,12 @@
 import json
 
 from guestperf.hardware import Hardware
-from guestperf.scenario import Scenario
 from guestperf.progress import Progress
+from guestperf.scenario import Scenario
 from guestperf.timings import Timings
 
-class ReportResult(object):
+
+class ReportResult:
 
     def __init__(self, success=False):
         self._success = success
@@ -40,7 +41,7 @@ class ReportResult(object):
             data["success"])
 
 
-class Report(object):
+class Report:
 
     def __init__(self,
                  hardware,
@@ -114,5 +115,5 @@ class Report(object):
 
     @classmethod
     def from_json_file(cls, filename):
-        with open(filename, "r") as fh:
+        with open(filename) as fh:
             return cls.deserialize(json.load(fh))

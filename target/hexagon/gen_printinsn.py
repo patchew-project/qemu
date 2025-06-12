@@ -17,11 +17,10 @@
 ##  along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-import sys
-import re
-import string
-import hex_common
 import argparse
+import re
+
+import hex_common
 
 
 ##

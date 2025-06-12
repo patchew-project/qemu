@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# coding: utf-8
 #
 # Probe gdb for supported architectures.
 #
@@ -19,8 +18,9 @@
 
 import argparse
 import re
-from subprocess import check_output, STDOUT, CalledProcessError
+from subprocess import STDOUT, CalledProcessError, check_output
 import sys
+
 
 # Mappings from gdb arch to QEMU target
 MAP = {

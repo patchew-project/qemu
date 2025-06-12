@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import iotests
-import os
+
 
 nbd_sock = iotests.file_path('nbd.sock', base_dir=iotests.sock_dir)
 

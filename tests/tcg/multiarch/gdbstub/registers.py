@@ -6,8 +6,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import gdb
 import xml.etree.ElementTree as ET
+
+import gdb
 from test_gdbstub import main, report
 
 

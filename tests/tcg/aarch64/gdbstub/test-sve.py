@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test the SVE registers are visible and changeable via gdbstub
 #
@@ -7,6 +6,7 @@ from __future__ import print_function
 
 import gdb
 from test_gdbstub import main, report
+
 
 MAGIC = 0xDEADBEEF
 

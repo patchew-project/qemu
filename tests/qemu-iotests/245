@@ -29,6 +29,7 @@ from subprocess import CalledProcessError
 import iotests
 from iotests import qemu_img, qemu_io
 
+
 hd_path = [
     os.path.join(iotests.test_dir, 'hd0.img'),
     os.path.join(iotests.test_dir, 'hd1.img'),

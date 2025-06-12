@@ -18,17 +18,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import sys
-import os
-import signal
-import subprocess
-import random
-import shutil
-from itertools import count
-import time
 import getopt
 import io
+from itertools import count
+import os
+import random
 import resource
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
 
 try:
     import json
@@ -67,7 +68,6 @@ def run_app(fd, q_args):
 
     class Alarm(Exception):
         """Exception for signal.alarm events."""
-        pass
 
     def handler(*args):
         """Notify that an alarm event occurred."""
@@ -98,10 +98,9 @@ def run_app(fd, q_args):
 
 class TestException(Exception):
     """Exception for errors risen by TestEnv objects."""
-    pass
 
 
-class TestEnv(object):
+class TestEnv:
 
     """Test object.
 

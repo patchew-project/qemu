@@ -7,9 +7,13 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later. See the COPYING file in the top-level directory.
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern, skipUntrustedTest
-from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    exec_command_and_wait_for_pattern,
+    skipUntrustedTest,
+    wait_for_console_pattern,
+)
 
 
 class IbmPrep40pMachine(QemuSystemTest):

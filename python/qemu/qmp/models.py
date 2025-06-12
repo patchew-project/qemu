@@ -8,14 +8,9 @@ data to make sure it conforms to spec.
 # pylint: disable=too-few-public-methods
 
 from collections import abc
+from collections.abc import Mapping, Sequence
 import copy
-from typing import (
-    Any,
-    Dict,
-    Mapping,
-    Optional,
-    Sequence,
-)
+from typing import Any, Optional
 
 
 class Model:
@@ -72,7 +67,7 @@ class Greeting(Model):
         self._check_member('QMP', abc.Mapping, "JSON object")
         self.QMP = QMPGreeting(self._raw['QMP'])
 
-    def _asdict(self) -> Dict[str, object]:
+    def _asdict(self) -> dict[str, object]:
         """
         For compatibility with the iotests sync QMP wrapper.
 

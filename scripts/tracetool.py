@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Command-line wrapper for the tracetool machinery.
@@ -13,8 +12,8 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-import sys
 import getopt
+import sys
 
 from tracetool import error_write, out, out_open
 import tracetool.backend
@@ -125,7 +124,7 @@ def main(args):
         error_opt("missing trace-events and output filepaths")
     events = []
     for arg in args[:-1]:
-        with open(arg, "r") as fh:
+        with open(arg) as fh:
             events.extend(tracetool.read_events(fh, arg))
 
     out_open(args[-1])

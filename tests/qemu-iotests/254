@@ -20,7 +20,8 @@
 #
 
 import iotests
-from iotests import qemu_img_create, file_path, log
+from iotests import file_path, log, qemu_img_create
+
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           unsupported_imgopts=['compat'])

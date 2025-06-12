@@ -13,6 +13,7 @@ Check compatibility of virtio device types
 from qemu.machine import QEMUMachine
 from qemu_test import QemuSystemTest
 
+
 # Virtio Device IDs:
 VIRTIO_NET = 1
 VIRTIO_BLOCK = 2

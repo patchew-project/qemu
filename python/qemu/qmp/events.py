@@ -448,19 +448,10 @@ API Reference
 """
 
 import asyncio
+from collections.abc import AsyncIterator, Iterable, Iterator
 from contextlib import contextmanager
 import logging
-from typing import (
-    AsyncIterator,
-    Callable,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Callable, Optional, Union
 
 from .error import QMPError
 from .message import Message
@@ -504,10 +495,10 @@ class EventListener:
         self._queue: 'asyncio.Queue[Message]' = asyncio.Queue()
 
         # Intended as a historical record, NOT a processing queue or backlog.
-        self._history: List[Message] = []
+        self._history: list[Message] = []
 
         #: Primary event filter, based on one or more event names.
-        self.names: Set[str] = set()
+        self.names: set[str] = set()
         if isinstance(names, str):
             self.names.add(names)
         elif names is not None:
@@ -517,7 +508,7 @@ class EventListener:
         self.event_filter: Optional[EventFilter] = event_filter
 
     def __repr__(self) -> str:
-        args: List[str] = []
+        args: list[str] = []
         if self.names:
             args.append(f"names={self.names!r}")
         if self.event_filter:
@@ -532,7 +523,7 @@ class EventListener:
         return f"{type(self).__name__}{state}({argstr})"
 
     @property
-    def history(self) -> Tuple[Message, ...]:
+    def history(self) -> tuple[Message, ...]:
         """
         A read-only history of all events seen so far.
 
@@ -596,7 +587,7 @@ class EventListener:
         """
         return self._queue.empty()
 
-    def clear(self) -> List[Message]:
+    def clear(self) -> list[Message]:
         """
         Clear this listener of all pending events.
 
@@ -650,7 +641,7 @@ class Events:
     property.
     """
     def __init__(self) -> None:
-        self._listeners: List[EventListener] = []
+        self._listeners: list[EventListener] = []
 
         #: Default, all-events `EventListener`. See `qmp.events` for more info.
         self.events: EventListener = EventListener()

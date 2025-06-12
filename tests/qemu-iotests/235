@@ -19,12 +19,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import sys
-import os
-import iotests
-from iotests import qemu_img_create, qemu_io, file_path, log
-
 from qemu.machine import QEMUMachine
+
+import iotests
+from iotests import (
+    file_path,
+    log,
+    qemu_img_create,
+    qemu_io,
+)
+
 
 iotests.script_initialize(supported_fmts=['qcow2'])
 

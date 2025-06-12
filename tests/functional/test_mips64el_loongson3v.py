@@ -9,8 +9,12 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern, skipUntrustedTest
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    skipUntrustedTest,
+    wait_for_console_pattern,
+)
 
 
 class MipsLoongson3v(QemuSystemTest):

@@ -1,4 +1,3 @@
-# coding=utf-8
 #
 # QEMU depfile generation extension
 #
@@ -11,17 +10,19 @@
    an external build system"""
 
 import os
-import sphinx
-import sys
 from pathlib import Path
+import sys
+
+import sphinx
+
 
 __version__ = '1.0'
 
 def get_infiles(env):
     for x in env.found_docs:
         yield str(env.doc2path(x))
-        yield from ((os.path.join(env.srcdir, dep)
-                    for dep in env.dependencies[x]))
+        yield from (os.path.join(env.srcdir, dep)
+                    for dep in env.dependencies[x])
     for mod in sys.modules.values():
         if hasattr(mod, '__file__'):
             if mod.__file__:

@@ -10,7 +10,7 @@ def run_test():
     gdb.execute("set follow-fork-mode parent")
     gdb.execute("continue")
     exitcode = int(gdb.parse_and_eval("$_exitcode"))
-    report(exitcode == 0, "{} == 0".format(exitcode))
+    report(exitcode == 0, f"{exitcode} == 0")
 
 
 main(run_test)

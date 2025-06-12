@@ -8,9 +8,14 @@
 import os
 import shutil
 
-from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
-from qemu_test import Asset, interrupt_interactive_console_until_pattern
-from qemu_test import wait_for_console_pattern, skipBigDataTest
+from qemu_test import (
+    Asset,
+    LinuxKernelTest,
+    exec_command_and_wait_for_pattern,
+    interrupt_interactive_console_until_pattern,
+    skipBigDataTest,
+    wait_for_console_pattern,
+)
 from qemu_test.utils import image_pow2ceil_expand
 
 

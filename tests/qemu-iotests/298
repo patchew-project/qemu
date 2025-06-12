@@ -19,7 +19,9 @@
 #
 
 import os
+
 import iotests
+
 
 MiB = 1024 * 1024
 disk = os.path.join(iotests.test_dir, 'disk')

@@ -22,15 +22,12 @@ old interface.
 #
 
 import asyncio
+from collections.abc import Awaitable
 import socket
 from types import TracebackType
 from typing import (
     Any,
-    Awaitable,
-    Dict,
-    List,
     Optional,
-    Type,
     TypeVar,
     Union,
 )
@@ -41,13 +38,13 @@ from .qmp_client import QMPClient
 
 
 #: QMPMessage is an entire QMP message of any kind.
-QMPMessage = Dict[str, Any]
+QMPMessage = dict[str, Any]
 
 #: QMPReturnValue is the 'return' value of a command.
 QMPReturnValue = object
 
 #: QMPObject is any object in a QMP message.
-QMPObject = Dict[str, object]
+QMPObject = dict[str, object]
 
 # QMPMessage can be outgoing commands or incoming events/returns.
 # QMPReturnValue is usually a dict/json object, but due to QAPI's
@@ -121,7 +118,7 @@ class QEMUMonitorProtocol:
         return self
 
     def __exit__(self,
-                 exc_type: Optional[Type[BaseException]],
+                 exc_type: Optional[type[BaseException]],
                  exc_val: Optional[BaseException],
                  exc_tb: Optional[TracebackType]) -> None:
         # Implement context manager exit function.
@@ -202,7 +199,7 @@ class QEMUMonitorProtocol:
         )
 
     def cmd_raw(self, name: str,
-                args: Optional[Dict[str, object]] = None) -> QMPMessage:
+                args: Optional[dict[str, object]] = None) -> QMPMessage:
         """
         Build a QMP command and send it to the QMP Monitor.
 
@@ -260,7 +257,7 @@ class QEMUMonitorProtocol:
             )
         )
 
-    def get_events(self, wait: Union[bool, float] = False) -> List[QMPMessage]:
+    def get_events(self, wait: Union[bool, float] = False) -> list[QMPMessage]:
         """
         Get a list of QMP events and clear all pending events.
 

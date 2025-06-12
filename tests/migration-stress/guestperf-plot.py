@@ -22,5 +22,6 @@ import sys
 
 from guestperf.shell import PlotShell
 
+
 shell = PlotShell()
 sys.exit(shell.run(sys.argv[1:]))

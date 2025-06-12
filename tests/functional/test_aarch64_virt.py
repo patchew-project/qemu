@@ -11,10 +11,15 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import logging
-from subprocess import check_call, DEVNULL
+from subprocess import DEVNULL, check_call
 
-from qemu_test import QemuSystemTest, Asset, exec_command_and_wait_for_pattern
-from qemu_test import wait_for_console_pattern, get_qemu_img
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    exec_command_and_wait_for_pattern,
+    get_qemu_img,
+    wait_for_console_pattern,
+)
 
 
 class Aarch64VirtMachine(QemuSystemTest):

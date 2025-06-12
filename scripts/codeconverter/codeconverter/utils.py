@@ -5,9 +5,10 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
+import logging
 from typing import *
 
-import logging
+
 logger = logging.getLogger(__name__)
 DBG = logger.debug
 INFO = logger.info

@@ -5,16 +5,10 @@ This module provides the `Message` class, which represents a single QMP
 message sent to or from the server.
 """
 
+from collections.abc import Iterator, Mapping, MutableMapping
 import json
 from json import JSONDecodeError
-from typing import (
-    Dict,
-    Iterator,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Union,
-)
+from typing import Optional, Union
 
 from .error import ProtocolError
 
@@ -71,7 +65,7 @@ class Message(MutableMapping[str, object]):
                  value: Union[bytes, Mapping[str, object]] = b'{}', *,
                  eager: bool = True):
         self._data: Optional[bytes] = None
-        self._obj: Optional[Dict[str, object]] = None
+        self._obj: Optional[dict[str, object]] = None
 
         if isinstance(value, bytes):
             self._data = value
@@ -125,7 +119,7 @@ class Message(MutableMapping[str, object]):
     # Conversion Methods
 
     @property
-    def _object(self) -> Dict[str, object]:
+    def _object(self) -> dict[str, object]:
         """
         A `dict` representing this QMP message.
 
@@ -150,7 +144,7 @@ class Message(MutableMapping[str, object]):
         return json.dumps(value, separators=(',', ':')).encode('utf-8')
 
     @classmethod
-    def _deserialize(cls, data: bytes) -> Dict[str, object]:
+    def _deserialize(cls, data: bytes) -> dict[str, object]:
         """
         Deserialize JSON `bytes` into a native Python `dict`.
 

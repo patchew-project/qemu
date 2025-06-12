@@ -22,8 +22,10 @@
 #
 
 import math
+
 import iotests
 from iotests import imgfmt
+
 
 iotests.script_initialize(supported_fmts=['vmdk'])
 

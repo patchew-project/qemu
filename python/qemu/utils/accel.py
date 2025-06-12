@@ -17,7 +17,7 @@ accelerators.
 import logging
 import os
 import subprocess
-from typing import List, Optional
+from typing import Optional
 
 
 LOG = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ ADDITIONAL_ARCHES = {
 }
 
 
-def list_accel(qemu_bin: str) -> List[str]:
+def list_accel(qemu_bin: str) -> list[str]:
     """
     List accelerators enabled in the QEMU binary.
 
@@ -43,7 +43,7 @@ def list_accel(qemu_bin: str) -> List[str]:
         return []
     try:
         out = subprocess.check_output([qemu_bin, '-accel', 'help'],
-                                      universal_newlines=True)
+                                      text=True)
     except:
         LOG.debug("Failed to get the list of accelerators in %s", qemu_bin)
         raise

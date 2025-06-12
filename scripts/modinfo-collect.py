@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-import os
-import sys
 import json
 import shlex
 import subprocess
+import sys
+
 
 def process_command(src, command):
     skip = False
@@ -53,7 +52,7 @@ def main(args):
         cmdline = process_command(src, command)
         print("MODINFO_DEBUG cmd", cmdline)
         result = subprocess.run(cmdline, stdout = subprocess.PIPE,
-                                universal_newlines = True)
+                                text = True)
         if result.returncode != 0:
             sys.exit(result.returncode)
         for line in result.stdout.split('\n'):

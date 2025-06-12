@@ -7,30 +7,16 @@
 # Author: Marc-André Lureau <marcandre.lureau@redhat.com>
 """dbus-doc is a Sphinx extension that provides documentation from D-Bus XML."""
 
-import os
-import re
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Any
 
-import sphinx
+import dbusdomain
+from dbusparser import parse_dbus_xml
 from docutils import nodes
 from docutils.nodes import Element, Node
 from docutils.parsers.rst import Directive, directives
 from docutils.parsers.rst.states import RSTState
 from docutils.statemachine import StringList, ViewList
+import sphinx
 from sphinx.application import Sphinx
 from sphinx.errors import ExtensionError
 from sphinx.util import logging
@@ -38,8 +24,6 @@ from sphinx.util.docstrings import prepare_docstring
 from sphinx.util.docutils import SphinxDirective, switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
 
-import dbusdomain
-from dbusparser import parse_dbus_xml
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +100,7 @@ class DBusDoc:
         self.indent = self.indent[:-3]
 
 
-def parse_generated_content(state: RSTState, content: StringList) -> List[Node]:
+def parse_generated_content(state: RSTState, content: StringList) -> list[Node]:
     """Parse a generated content by Documenter."""
     with switch_source_input(state, content):
         node = nodes.paragraph()
@@ -157,7 +141,7 @@ class DBusDocDirective(SphinxDirective):
         return result
 
 
-def setup(app: Sphinx) -> Dict[str, Any]:
+def setup(app: Sphinx) -> dict[str, Any]:
     """Register dbus-doc directive with Sphinx"""
     app.add_config_value("dbusdoc_srctree", None, "env")
     app.add_directive("dbus-doc", DBusDocDirective)

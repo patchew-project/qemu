@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 This takes a crashing qtest trace and tries to remove superfluous operations
 """
 
-import sys
 import os
-import subprocess
-import time
 import struct
+import subprocess
+import sys
+import time
+
 
 QEMU_ARGS = None
 QEMU_PATH = None
@@ -41,7 +41,7 @@ Options:
      timing dependent instructions. Off by default.
 -M2: try setting bits in operand of write/out to zero. Off by default.
 
-""".format((sys.argv[0])))
+""".format(sys.argv[0]))
 
 deduplication_note = """\n\
 Note: While trimming the input, sometimes the mutated trace triggers a different
@@ -71,7 +71,7 @@ def check_if_trace_crashes(trace, path):
         except subprocess.TimeoutExpired:
             print("subprocess.TimeoutExpired")
             return False
-        print("Identifying Crashes by this string: {}".format(CRASH_TOKEN))
+        print(f"Identifying Crashes by this string: {CRASH_TOKEN}")
         global deduplication_note
         print(deduplication_note)
         return True
@@ -136,7 +136,7 @@ def remove_lines(newtrace, outpath):
         prior = newtrace[i:i+remove_step]
         for j in range(i, i+remove_step):
             newtrace[j] = ""
-        print("Removing {lines} ...\n".format(lines=prior))
+        print(f"Removing {prior} ...\n")
         if check_if_trace_crashes(newtrace, outpath):
             i += remove_step
             # Double the number of lines to remove for next round
@@ -247,7 +247,7 @@ def clear_bits(newtrace, outpath):
            continue
         # write ADDR SIZE DATA
         # outx ADDR VALUE
-        print("\nzero setting bits: {}".format(newtrace[i]))
+        print(f"\nzero setting bits: {newtrace[i]}")
 
         prefix = " ".join(newtrace[i].split()[:-1])
         data = newtrace[i].split()[-1]
@@ -281,9 +281,9 @@ def minimize_trace(inpath, outpath):
     if not check_if_trace_crashes(trace, outpath):
         sys.exit("The input qtest trace didn't cause a crash...")
     end = time.time()
-    print("Crashed in {} seconds".format(end-start))
+    print(f"Crashed in {end-start} seconds")
     TIMEOUT = (end-start)*5
-    print("Setting the timeout for {} seconds".format(TIMEOUT))
+    print(f"Setting the timeout for {TIMEOUT} seconds")
 
     newtrace = trace[:]
     global M1, M2

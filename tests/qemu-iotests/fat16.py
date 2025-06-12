@@ -15,8 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Callable, List, Optional, Protocol, Set
 import string
+from typing import Callable, Optional, Protocol
+
 
 SECTOR_SIZE = 512
 DIRENTRY_SIZE = 32
@@ -227,7 +228,7 @@ class Fat16:
         self.fats = self.read_sectors(
             self.boot_sector.reserved_sectors, fat_size_in_sectors
         )
-        self.fats_dirty_sectors: Set[int] = set()
+        self.fats_dirty_sectors: set[int] = set()
 
     def read_sectors(self, start_sector: int, num_sectors: int) -> bytes:
         return self.sector_reader(start_sector + self.start_sector,
@@ -238,7 +239,7 @@ class Fat16:
 
     def directory_from_bytes(
         self, data: bytes, start_sector: int
-    ) -> List[FatDirectoryEntry]:
+    ) -> list[FatDirectoryEntry]:
         """
         Convert `bytes` into a list of `FatDirectoryEntry` objects.
         Will ignore long file names.
@@ -268,7 +269,7 @@ class Fat16:
             )
         return entries
 
-    def read_root_directory(self) -> List[FatDirectoryEntry]:
+    def read_root_directory(self) -> list[FatDirectoryEntry]:
         root_dir = self.read_sectors(
             self.boot_sector.root_dir_start(), self.boot_sector.root_dir_size()
         )
@@ -373,7 +374,7 @@ class Fat16:
 
     def read_directory(
         self, cluster: Optional[int]
-    ) -> List[FatDirectoryEntry]:
+    ) -> list[FatDirectoryEntry]:
         """
         Read the directory at the given cluster.
         """

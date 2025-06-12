@@ -21,8 +21,9 @@
 #
 
 import os
+
 import iotests
-import time
+
 
 base_img = os.path.join(iotests.test_dir, 'base.img')
 new_img = os.path.join(iotests.test_dir, 'new.img')

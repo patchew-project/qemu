@@ -19,15 +19,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import time
 import os
+import struct
+
 import qcow2
 from qcow2 import QcowHeader
+
 import iotests
 from iotests import qemu_img, qemu_img_log, qemu_io
-import struct
-import subprocess
-import sys
+
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
@@ -103,17 +103,14 @@ class TestRefcountTableGrowth(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=512', test_img, '16G')
         self.preallocate(test_img)
-        pass
 
 
     def tearDown(self):
         os.remove(test_img)
-        pass
 
     def test_grow_refcount_table(self):
         qemu_io('-c', 'write 3800M 1M', test_img)
         qemu_img_log('check' , test_img)
-        pass
 
 if __name__ == '__main__':
     iotests.activate_logging()

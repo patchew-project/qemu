@@ -24,16 +24,16 @@ Run QEMU with all combinations of -machine and -device types,
 check for crashes and unexpected errors.
 """
 
-import os
-import sys
-import glob
-import logging
-import traceback
-import re
-import random
 import argparse
 from itertools import chain
+import logging
+import os
 from pathlib import Path
+import random
+import re
+import sys
+import traceback
+
 
 try:
     from qemu.machine import QEMUMachine
@@ -286,7 +286,7 @@ def infoQDM(vm):
         yield d
 
 
-class QemuBinaryInfo(object):
+class QemuBinaryInfo:
     def __init__(self, binary, devtype):
         if devtype is None:
             devtype = 'device'
@@ -303,7 +303,7 @@ class QemuBinaryInfo(object):
             self.alldevs = set(qomListTypeNames(vm, implements=devtype, abstract=False))
             # there's no way to query DeviceClass::user_creatable using QMP,
             # so use 'info qdm':
-            self.no_user_devs = set([d['name'] for d in infoQDM(vm, ) if d['no-user']])
+            self.no_user_devs = {d['name'] for d in infoQDM(vm, ) if d['no-user']}
             self.machines = list(m['name'] for m in vm.cmd('query-machines'))
             self.user_devs = self.alldevs.difference(self.no_user_devs)
             self.kvm_available = vm.cmd('query-kvm')['enabled']

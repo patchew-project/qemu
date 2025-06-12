@@ -11,26 +11,27 @@
 # the COPYING file in the top-level directory.
 #
 
-import os
-import re
-import sys
-import socket
-import logging
-import time
-import datetime
-import subprocess
-import hashlib
 import argparse
 import atexit
-import tempfile
-import shutil
-import multiprocessing
-import traceback
-import shlex
+import datetime
+import hashlib
 import json
+import logging
+import multiprocessing
+import os
+import re
+import shlex
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import traceback
 
 from qemu.machine import QEMUMachine
 from qemu.utils import get_info_usernet_hostfwd_port, kvm_available
+
 
 SSH_KEY_FILE = os.path.join(os.path.dirname(__file__),
                "..", "keys", "id_rsa")
@@ -65,7 +66,7 @@ BOOT_DEVICE = {
                "-drive file={},format=raw,if=none,id=hd0 "\
                "-device scsi-hd,drive=hd0,bootindex=0",
 }
-class BaseVM(object):
+class BaseVM:
 
     envvars = [
         "https_proxy",
@@ -131,7 +132,7 @@ class BaseVM(object):
         if args.log_console:
                 self._console_log_path = \
                          os.path.join(os.path.expanduser("~/.cache/qemu-vm"),
-                                      "{}.install.log".format(self.name))
+                                      f"{self.name}.install.log")
         self._stderr = sys.stderr
         self._devnull = open(os.devnull, "w")
         if self.debug:
@@ -172,7 +173,7 @@ class BaseVM(object):
                     # Preserve quotes around arguments.
                     # shlex above takes them out, so add them in.
                     if " " in arg:
-                        arg = '"{}"'.format(arg)
+                        arg = f'"{arg}"'
                     self._config['extra_args'].append(arg)
 
     def validate_ssh_keys(self):
@@ -469,8 +470,8 @@ class BaseVM(object):
         cidir = self._tmpdir
         mdata = open(os.path.join(cidir, "meta-data"), "w")
         name = self.name.replace(".","-")
-        mdata.writelines(["instance-id: {}-vm-0\n".format(name),
-                          "local-hostname: {}-guest\n".format(name)])
+        mdata.writelines([f"instance-id: {name}-vm-0\n",
+                          f"local-hostname: {name}-guest\n"])
         mdata.close()
         udata = open(os.path.join(cidir, "user-data"), "w")
         print("guest user:pw {}:{}".format(self._config['guest_user'],
@@ -510,7 +511,7 @@ class BaseVM(object):
             json_path = os.path.join(
                 os.path.dirname(__file__), "generated", self.name + ".json"
             )
-        with open(json_path, "r") as fh:
+        with open(json_path) as fh:
             return json.load(fh)["pkgs"]
 
 
@@ -546,7 +547,7 @@ def parse_config(config, args):
     else:
         return config
     if not os.path.exists(config_file):
-        raise Exception("config file {} does not exist".format(config_file))
+        raise Exception(f"config file {config_file} does not exist")
     # We gracefully handle importing the yaml module
     # since it might not be installed.
     # If we are here it means the user supplied a .yml file,

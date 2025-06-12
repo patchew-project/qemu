@@ -24,6 +24,7 @@
 import iotests
 from iotests import imgfmt
 
+
 iotests.script_initialize(
     supported_fmts=['vdi'],
     supported_protocols=['file'],

@@ -33,21 +33,14 @@ optional arguments:
 ##
 
 import argparse
+from collections.abc import Iterator, Mapping
 from errno import ENOENT, EPERM
 import stat
 import sys
-from typing import (
-    IO,
-    Dict,
-    Iterator,
-    Mapping,
-    Optional,
-    Union,
-)
+from typing import IO, Optional, Union
 
 import fuse
 from fuse import FUSE, FuseOSError, Operations
-
 from qemu.qmp import ExecuteError
 
 from .qom_common import QOMCommand
@@ -79,7 +72,7 @@ class QOMFuse(QOMCommand, Operations):
     def __init__(self, args: argparse.Namespace):
         super().__init__(args)
         self.mount = args.mount
-        self.ino_map: Dict[str, int] = {}
+        self.ino_map: dict[str, int] = {}
         self.ino_count = 1
 
     def run(self) -> int:

@@ -8,7 +8,7 @@ from test_gdbstub import main, report
 def check_state(expected):
     """Check the catch_syscalls_state value"""
     actual = gdb.parse_and_eval("catch_syscalls_state").string()
-    report(actual == expected, "{} == {}".format(actual, expected))
+    report(actual == expected, f"{actual} == {expected}")
 
 
 def run_test():
@@ -23,7 +23,7 @@ def run_test():
     except gdb.error as exc:
         exc_str = str(exc)
         if "not supported on this architecture" in exc_str:
-            print("SKIP: {}".format(exc_str))
+            print(f"SKIP: {exc_str}")
             return
         raise
     for _ in range(2):
@@ -47,7 +47,7 @@ def run_test():
     gdb.execute("continue")
 
     exitcode = int(gdb.parse_and_eval("$_exitcode"))
-    report(exitcode == 0, "{} == 0".format(exitcode))
+    report(exitcode == 0, f"{exitcode} == 0")
 
 
 main(run_test)

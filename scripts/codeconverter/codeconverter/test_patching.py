@@ -6,8 +6,15 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 from tempfile import NamedTemporaryFile
-from .patching import FileInfo, FileMatch, Patch, FileList
+
+from .patching import (
+    FileInfo,
+    FileList,
+    FileMatch,
+    Patch,
+)
 from .regexps import *
+
 
 class BasicPattern(FileMatch):
     regexp = '[abc]{3}'

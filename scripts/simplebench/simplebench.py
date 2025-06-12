@@ -67,7 +67,7 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
     for i in range(count):
         t = time.time()
 
-        print('  #run {}'.format(i+1))
+        print(f'  #run {i+1}')
         do_drop_caches()
         res = test_func(test_env, test_case)
         print('   ', res)

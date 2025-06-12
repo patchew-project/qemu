@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # GDB debugging support, TCG status
 #
@@ -13,6 +12,7 @@
 # 'qemu tcg-lock-status' -- display the TCG lock status across threads
 
 import gdb
+
 
 class TCGLockStatusCommand(gdb.Command):
     '''Display TCG Execution Status'''

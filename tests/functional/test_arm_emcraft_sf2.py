@@ -7,8 +7,13 @@
 import os
 import shutil
 
-from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
+from qemu_test import (
+    Asset,
+    LinuxKernelTest,
+    exec_command_and_wait_for_pattern,
+)
 from qemu_test.utils import file_truncate
+
 
 class EmcraftSf2Machine(LinuxKernelTest):
 

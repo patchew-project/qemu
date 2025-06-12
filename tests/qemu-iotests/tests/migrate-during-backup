@@ -18,6 +18,7 @@
 #
 
 import os
+
 import iotests
 from iotests import qemu_img_create, qemu_io
 

@@ -14,9 +14,9 @@
 
 import argparse
 import difflib
+from io import StringIO
 import os
 import sys
-from io import StringIO
 
 from qapi.error import QAPIError
 from qapi.schema import QAPISchema, QAPISchemaVisitor

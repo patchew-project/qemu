@@ -17,11 +17,7 @@
 ##  along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-import sys
-import re
-import string
 import argparse
-from io import StringIO
 
 import hex_common
 

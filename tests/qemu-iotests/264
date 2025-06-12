@@ -19,11 +19,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import time
 import os
+import time
 
 import iotests
-from iotests import qemu_img_create, file_path, qemu_nbd_popen
+from iotests import file_path, qemu_img_create, qemu_nbd_popen
+
 
 disk_a, disk_b = file_path('disk_a', 'disk_b')
 nbd_sock = file_path('nbd-sock', base_dir=iotests.sock_dir)
@@ -38,7 +39,7 @@ class TestNbdReconnect(iotests.QMPTestCase):
         qemu_img_create('-f', iotests.imgfmt, disk_b, str(disk_size))
         self.vm = iotests.VM().add_drive(disk_a)
         self.vm.launch()
-        self.vm.hmp_qemu_io('drive0', 'write 0 {}'.format(disk_size))
+        self.vm.hmp_qemu_io('drive0', f'write 0 {disk_size}')
 
     def tearDown(self):
         self.vm.shutdown()

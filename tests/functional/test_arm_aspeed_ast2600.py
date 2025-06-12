@@ -5,13 +5,16 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-import time
-import tempfile
 import subprocess
+import tempfile
+import time
 
-from qemu_test import Asset
 from aspeed import AspeedTest
-from qemu_test import exec_command_and_wait_for_pattern, skipIfMissingCommands
+from qemu_test import (
+    Asset,
+    exec_command_and_wait_for_pattern,
+    skipIfMissingCommands,
+)
 
 
 class AST2600Machine(AspeedTest):

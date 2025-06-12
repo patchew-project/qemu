@@ -17,6 +17,7 @@ which provides facilities for managing the lifetime of a QEMU VM.
 # Based on qmp.py.
 #
 
+from collections.abc import Sequence
 import errno
 from itertools import chain
 import locale
@@ -31,12 +32,7 @@ from types import TracebackType
 from typing import (
     Any,
     BinaryIO,
-    Dict,
-    List,
     Optional,
-    Sequence,
-    Tuple,
-    Type,
     TypeVar,
 )
 
@@ -156,9 +152,9 @@ class QEMUMachine:
         self._qmp_timer = qmp_timer
 
         self._name = name or f"{id(self):x}"
-        self._sock_pair: Optional[Tuple[socket.socket, socket.socket]] = None
+        self._sock_pair: Optional[tuple[socket.socket, socket.socket]] = None
         self._cons_sock_pair: Optional[
-            Tuple[socket.socket, socket.socket]] = None
+            tuple[socket.socket, socket.socket]] = None
         self._temp_dir: Optional[str] = None
         self._base_temp_dir = base_temp_dir
         self._log_dir = log_dir
@@ -176,11 +172,11 @@ class QEMUMachine:
         self._qemu_log_path: Optional[str] = None
         self._qemu_log_file: Optional[BinaryIO] = None
         self._popen: Optional['subprocess.Popen[bytes]'] = None
-        self._events: List[QMPMessage] = []
+        self._events: list[QMPMessage] = []
         self._iolog: Optional[str] = None
         self._qmp_set = True   # Enable QMP monitor by default.
         self._qmp_connection: Optional[QEMUMonitorProtocol] = None
-        self._qemu_full_args: Tuple[str, ...] = ()
+        self._qemu_full_args: tuple[str, ...] = ()
         self._launched = False
         self._machine: Optional[str] = None
         self._console_index = 0
@@ -188,7 +184,7 @@ class QEMUMachine:
         self._console_device_type: Optional[str] = None
         self._console_socket: Optional[socket.socket] = None
         self._console_file: Optional[socket.SocketIO] = None
-        self._remove_files: List[str] = []
+        self._remove_files: list[str] = []
         self._user_killed = False
         self._quit_issued = False
 
@@ -196,7 +192,7 @@ class QEMUMachine:
         return self
 
     def __exit__(self,
-                 exc_type: Optional[Type[BaseException]],
+                 exc_type: Optional[type[BaseException]],
                  exc_val: Optional[BaseException],
                  exc_tb: Optional[TracebackType]) -> None:
         self.shutdown()
@@ -288,11 +284,11 @@ class QEMUMachine:
         # back to the platform default.
         _, encoding = locale.getlocale()
         if self._qemu_log_path is not None:
-            with open(self._qemu_log_path, "r", encoding=encoding) as iolog:
+            with open(self._qemu_log_path, encoding=encoding) as iolog:
                 self._iolog = iolog.read()
 
     @property
-    def _base_args(self) -> List[str]:
+    def _base_args(self) -> list[str]:
         args = ['-display', 'none', '-vga', 'none']
 
         if self._qmp_set:
@@ -324,7 +320,7 @@ class QEMUMachine:
         return args
 
     @property
-    def args(self) -> List[str]:
+    def args(self) -> list[str]:
         """Returns the list of arguments given to the QEMU binary."""
         return self._args
 
@@ -685,14 +681,14 @@ class QEMUMachine:
 
     @classmethod
     def _qmp_args(cls, conv_keys: bool,
-                  args: Dict[str, Any]) -> Dict[str, object]:
+                  args: dict[str, Any]) -> dict[str, object]:
         if conv_keys:
             return {k.replace('_', '-'): v for k, v in args.items()}
 
         return args
 
     def qmp(self, cmd: str,
-            args_dict: Optional[Dict[str, object]] = None,
+            args_dict: Optional[dict[str, object]] = None,
             conv_keys: Optional[bool] = None,
             **args: Any) -> QMPMessage:
         """
@@ -714,7 +710,7 @@ class QEMUMachine:
         return ret
 
     def cmd(self, cmd: str,
-            args_dict: Optional[Dict[str, object]] = None,
+            args_dict: Optional[dict[str, object]] = None,
             conv_keys: Optional[bool] = None,
             **args: Any) -> QMPReturnValue:
         """
@@ -745,7 +741,7 @@ class QEMUMachine:
             return self._events.pop(0)
         return self._qmp.pull_event(wait=wait)
 
-    def get_qmp_events(self, wait: bool = False) -> List[QMPMessage]:
+    def get_qmp_events(self, wait: bool = False) -> list[QMPMessage]:
         """
         Poll for queued QMP events and return a list of dicts
         """
@@ -800,7 +796,7 @@ class QEMUMachine:
         return self.events_wait([(name, match)], timeout)
 
     def events_wait(self,
-                    events: Sequence[Tuple[str, Any]],
+                    events: Sequence[tuple[str, Any]],
                     timeout: float = 60.0) -> Optional[QMPMessage]:
         """
         events_wait waits for and returns a single named event from QMP.

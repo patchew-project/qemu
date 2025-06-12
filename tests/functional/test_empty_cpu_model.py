@@ -11,6 +11,7 @@
 # later.  See the COPYING file in the top-level directory.
 from qemu_test import QemuSystemTest
 
+
 class EmptyCPUModel(QemuSystemTest):
     def test(self):
         self.vm.add_args('-S', '-display', 'none', '-machine', 'none', '-cpu', '')

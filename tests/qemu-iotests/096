@@ -20,8 +20,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import iotests
 import os
+
+import iotests
+
 
 class TestLiveSnapshot(iotests.QMPTestCase):
     base_img = os.path.join(iotests.test_dir, 'base.img')

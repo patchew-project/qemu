@@ -25,7 +25,7 @@ import os
 import re
 
 import iotests
-from iotests import qemu_img, qemu_img_create, Timeout
+from iotests import Timeout, qemu_img, qemu_img_create
 
 
 disk_a = os.path.join(iotests.test_dir, 'disk_a')

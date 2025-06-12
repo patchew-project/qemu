@@ -8,12 +8,13 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-import os
 import logging
-import time
+import os
 import subprocess
+import time
 
 from qemu_test.linuxkernel import LinuxKernelTest
+
 
 class ReplayKernelBase(LinuxKernelTest):
     """
@@ -81,4 +82,4 @@ class ReplayKernelBase(LinuxKernelTest):
         t2 = self.run_vm(kernel_path, kernel_command_line, console_pattern,
                          False, shift, args, replay_path)
         logger = logging.getLogger('replay')
-        logger.info('replay overhead {:.2%}'.format(t2 / t1 - 1))
+        logger.info(f'replay overhead {t2 / t1 - 1:.2%}')

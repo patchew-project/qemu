@@ -5,9 +5,10 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
-from .regexps import *
 from .qom_macros import *
 from .qom_type_info import *
+from .regexps import *
+
 
 def test_res() -> None:
     def fullmatch(regexp, s):

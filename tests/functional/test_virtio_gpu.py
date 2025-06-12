@@ -6,15 +6,17 @@
 # later.  See the COPYING file in the top-level directory.
 
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern
-from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import is_readable_executable_file
-
-
 import os
 import socket
 import subprocess
+
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    exec_command_and_wait_for_pattern,
+    is_readable_executable_file,
+    wait_for_console_pattern,
+)
 
 
 def pick_default_vug_bin(test):

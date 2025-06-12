@@ -20,10 +20,7 @@
 
 import sys
 
-from qcow2_format import (
-    QcowHeader,
-    QcowHeaderExtension
-)
+from qcow2_format import QcowHeader, QcowHeaderExtension
 
 
 is_json = False

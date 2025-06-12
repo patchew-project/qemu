@@ -16,6 +16,7 @@ the COPYING file in the top-level directory.
 import ctypes
 import struct
 
+
 try:
     UINTPTR_T = gdb.lookup_type("uintptr_t")
 except Exception as inst:
@@ -62,7 +63,7 @@ def le32_to_cpu(val):
 def le64_to_cpu(val):
     return struct.unpack("<Q", struct.pack("=Q", val))[0]
 
-class ELF(object):
+class ELF:
     """Representation of a ELF file."""
 
     def __init__(self, arch):
@@ -501,7 +502,7 @@ a halfway fortunate point, then its coredump should be in reasonable
 shape and this command should mostly work."""
 
     def __init__(self):
-        super(DumpGuestMemory, self).__init__("dump-guest-memory",
+        super().__init__("dump-guest-memory",
                                               gdb.COMMAND_DATA,
                                               gdb.COMPLETE_FILENAME)
         self.elf = None

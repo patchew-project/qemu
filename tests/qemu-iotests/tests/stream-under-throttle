@@ -21,7 +21,7 @@
 
 import asyncio
 import os
-from typing import List
+
 import iotests
 from iotests import qemu_img_create, qemu_io
 
@@ -39,7 +39,7 @@ class TcgVM(iotests.VM):
     the order they appear.
     '''
     @property
-    def _base_args(self) -> List[str]:
+    def _base_args(self) -> list[str]:
         # Put -accel tcg first so it takes precedence
         return ['-accel', 'tcg'] + super()._base_args
 

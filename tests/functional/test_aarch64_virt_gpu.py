@@ -9,16 +9,15 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu.machine.machine import VMLaunchFailure
+from re import search
+from subprocess import CalledProcessError, check_output
 
+from qemu.machine.machine import VMLaunchFailure
 from qemu_test import Asset
 from qemu_test import exec_command_and_wait_for_pattern as ec_and_wait
 from qemu_test import skipIfMissingCommands
-
 from qemu_test.linuxkernel import LinuxKernelTest
 
-from re import search
-from subprocess import check_output, CalledProcessError
 
 class Aarch64VirtGPUMachine(LinuxKernelTest):
 

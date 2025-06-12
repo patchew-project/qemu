@@ -22,12 +22,12 @@
 import os
 import random
 import re
-from typing import Dict, List, Optional
+from typing import Optional
 
 import iotests
 
 
-BlockBitmapMapping = List[Dict[str, object]]
+BlockBitmapMapping = list[dict[str, object]]
 
 mig_sock = os.path.join(iotests.sock_dir, 'mig_sock')
 
@@ -565,7 +565,7 @@ class TestCrossAliasMigration(TestDirtyBitmapMigration):
 
         # Extract and sort bitmap names
         for node in bitmaps:
-            bitmaps[node] = sorted((bmap['name'] for bmap in bitmaps[node]))
+            bitmaps[node] = sorted(bmap['name'] for bmap in bitmaps[node])
 
         self.assertEqual(bitmaps,
                          {'node-a': ['bmap-a', 'bmap-b'],
@@ -661,8 +661,8 @@ class TestAliasTransformMigration(TestDirtyBitmapMigration):
         bitmaps = self.vm_b.query_bitmaps()
 
         for node in bitmaps:
-            bitmaps[node] = sorted(((bmap['name'], bmap['persistent'])
-                                    for bmap in bitmaps[node]))
+            bitmaps[node] = sorted((bmap['name'], bmap['persistent'])
+                                    for bmap in bitmaps[node])
 
         self.assertEqual(bitmaps,
                          {'node-a': [('bmap-a', True), ('bmap-b', False)],

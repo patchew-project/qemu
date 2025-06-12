@@ -24,9 +24,9 @@ import io
 import tarfile
 
 import iotests
-
 from iotests import (
     file_path,
+    img_info_log,
     qemu_img,
     qemu_img_check,
     qemu_img_create,
@@ -34,8 +34,8 @@ from iotests import (
     qemu_img_measure,
     qemu_io,
     qemu_nbd_popen,
-    img_info_log,
 )
+
 
 iotests.script_initialize(supported_fmts=["qcow2"])
 

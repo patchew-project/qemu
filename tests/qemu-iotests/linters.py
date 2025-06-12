@@ -13,11 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections.abc import Mapping
 import os
 import re
 import subprocess
 import sys
-from typing import List, Mapping, Optional
+from typing import Optional
 
 
 # TODO: Empty this list!
@@ -49,7 +50,7 @@ def is_python_file(filename):
             return False
 
 
-def get_test_files() -> List[str]:
+def get_test_files() -> list[str]:
     named_tests = [f'tests/{entry}' for entry in os.listdir('tests')]
     check_tests = set(os.listdir('.') + named_tests) - set(SKIP_FILES)
     return list(filter(is_python_file, check_tests))
@@ -57,7 +58,7 @@ def get_test_files() -> List[str]:
 
 def run_linter(
         tool: str,
-        args: List[str],
+        args: list[str],
         env: Optional[Mapping[str, str]] = None,
         suppress_output: bool = False,
 ) -> None:
@@ -73,7 +74,7 @@ def run_linter(
         check=True,
         stdout=subprocess.PIPE if suppress_output else None,
         stderr=subprocess.STDOUT if suppress_output else None,
-        universal_newlines=True,
+        text=True,
     )
 
 

@@ -21,16 +21,15 @@
 # Exercise the QEMU 'luks' block driver to validate interoperability
 # with the Linux dm-crypt + cryptsetup implementation
 
-import subprocess
+import base64
 import os
 import os.path
-
-import base64
+import subprocess
 
 import iotests
 
 
-class LUKSConfig(object):
+class LUKSConfig:
     """Represent configuration parameters for a single LUKS
        setup to be tested"""
 

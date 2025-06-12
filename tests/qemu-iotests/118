@@ -20,10 +20,10 @@
 #
 
 import os
-import stat
-import time
+
 import iotests
 from iotests import qemu_img
+
 
 old_img = os.path.join(iotests.test_dir, 'test0.img')
 new_img = os.path.join(iotests.test_dir, 'test1.img')

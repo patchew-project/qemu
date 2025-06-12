@@ -21,7 +21,9 @@
 #
 
 import os
+
 import iotests
+
 
 imgs = (os.path.join(iotests.test_dir, 'quorum0.img'),
         os.path.join(iotests.test_dir, 'quorum1.img'),

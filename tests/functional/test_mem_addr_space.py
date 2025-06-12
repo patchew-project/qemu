@@ -10,8 +10,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import QemuSystemTest
 import time
+
+from qemu_test import QemuSystemTest
+
 
 class MemAddrCheck(QemuSystemTest):
     # after launch, in order to generate the logs from QEMU we need to

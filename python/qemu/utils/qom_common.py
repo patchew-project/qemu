@@ -18,14 +18,7 @@ QOM Command abstractions.
 import argparse
 import os
 import sys
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-    Type,
-    TypeVar,
-)
+from typing import Any, Optional, TypeVar
 
 from qemu.qmp import QMPError
 from qemu.qmp.legacy import QEMUMonitorProtocol
@@ -44,7 +37,7 @@ class ObjectPropertyInfo:
         self.default_value = default_value
 
     @classmethod
-    def make(cls, value: Dict[str, Any]) -> 'ObjectPropertyInfo':
+    def make(cls, value: dict[str, Any]) -> 'ObjectPropertyInfo':
         """
         Build an ObjectPropertyInfo from a Dict with an unknown shape.
         """
@@ -136,7 +129,7 @@ class QOMCommand:
         """
         raise NotImplementedError
 
-    def qom_list(self, path: str) -> List[ObjectPropertyInfo]:
+    def qom_list(self, path: str) -> list[ObjectPropertyInfo]:
         """
         :return: a strongly typed list from the 'qom-list' command.
         """
@@ -147,7 +140,7 @@ class QOMCommand:
 
     @classmethod
     def command_runner(
-            cls: Type[CommandT],
+            cls: type[CommandT],
             args: argparse.Namespace
     ) -> int:
         """

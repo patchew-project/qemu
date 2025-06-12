@@ -111,7 +111,7 @@ with open("/tmp/perf_report.out", "w") as output:
 
 # Read the reported data to functions[]
 functions = []
-with open("/tmp/perf_report.out", "r") as data:
+with open("/tmp/perf_report.out") as data:
     # Only read lines that are not comments (comments start with #)
     # Only read lines that are not empty
     functions = [line for line in data.readlines() if line and line[0]

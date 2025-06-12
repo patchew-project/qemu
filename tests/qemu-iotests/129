@@ -20,7 +20,9 @@
 #
 
 import os
+
 import iotests
+
 
 class TestStopWithBlockJob(iotests.QMPTestCase):
     test_img = os.path.join(iotests.test_dir, 'test.img')

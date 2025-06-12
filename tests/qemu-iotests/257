@@ -20,11 +20,11 @@
 #
 # owner=jsnow@redhat.com
 
-import math
 import os
 
 import iotests
 from iotests import log, qemu_img
+
 
 SIZE = 64 * 1024 * 1024
 GRANULARITY = 64 * 1024
@@ -129,7 +129,7 @@ class EmulatedBitmap:
         """
 
         name = qmp_bitmap.get('name', '(anonymous)')
-        log("= Checking Bitmap {:s} =".format(name))
+        log(f"= Checking Bitmap {name:s} =")
 
         want = self.count
         have = qmp_bitmap['count'] // qmp_bitmap['granularity']
@@ -157,7 +157,7 @@ class Drive:
 
     def create_target(self, name, fmt, size):
         basename = os.path.basename(self.path)
-        file_node_name = "file_{}".format(basename)
+        file_node_name = f"file_{basename}"
         vm = self.vm
 
         log(vm.cmd('blockdev-create', job_id='bdc-file-job',
@@ -202,25 +202,25 @@ def blockdev_backup_mktarget(drive, target_id, filepath, sync, **kwargs):
     blockdev_backup(drive.vm, drive.node, target_id, sync, **kwargs)
 
 def reference_backup(drive, n, filepath):
-    log("--- Reference Backup #{:d} ---\n".format(n))
-    target_id = "ref_target_{:d}".format(n)
-    job_id = "ref_backup_{:d}".format(n)
+    log(f"--- Reference Backup #{n:d} ---\n")
+    target_id = f"ref_target_{n:d}"
+    job_id = f"ref_backup_{n:d}"
     blockdev_backup_mktarget(drive, target_id, filepath, "full",
                              job_id=job_id)
     drive.vm.run_job(job_id, auto_dismiss=True)
     log('')
 
 def backup(drive, n, filepath, sync, **kwargs):
-    log("--- Test Backup #{:d} ---\n".format(n))
-    target_id = "backup_target_{:d}".format(n)
-    job_id = "backup_{:d}".format(n)
+    log(f"--- Test Backup #{n:d} ---\n")
+    target_id = f"backup_target_{n:d}"
+    job_id = f"backup_{n:d}"
     kwargs.setdefault('auto-finalize', False)
     blockdev_backup_mktarget(drive, target_id, filepath, sync,
                              job_id=job_id, **kwargs)
     return job_id
 
 def perform_writes(drive, n, filter_node_name=None):
-    log("--- Write #{:d} ---\n".format(n))
+    log(f"--- Write #{n:d} ---\n")
     for pattern in GROUPS[n].patterns:
         cmd = "write -P{:s} 0x{:07x} 0x{:x}".format(
             pattern.byte,
@@ -283,12 +283,12 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
             (img_path, bsync1, bsync2, fbackup0, fbackup1, fbackup2), \
          iotests.VM() as vm:
 
-        mode = "Mode {:s}; Bitmap Sync {:s}".format(msync_mode, bsync_mode)
+        mode = f"Mode {msync_mode:s}; Bitmap Sync {bsync_mode:s}"
         preposition = "with" if failure else "without"
         cond = "{:s} {:s}".format(preposition,
-                                  "{:s} failure".format(failure) if failure
+                                  f"{failure:s} failure" if failure
                                   else "failure")
-        log("\n=== {:s} {:s} ===\n".format(mode, cond))
+        log(f"\n=== {mode:s} {cond:s} ===\n")
 
         log('--- Preparing image & VM ---\n')
         drive0 = Drive(img_path, vm=vm)
@@ -506,7 +506,7 @@ def test_backup_api():
 
         # Dicts, as always, are not stably-ordered prior to 3.7, so use tuples:
         for sync_mode in ('incremental', 'bitmap', 'full', 'top', 'none'):
-            log("-- Sync mode {:s} tests --\n".format(sync_mode))
+            log(f"-- Sync mode {sync_mode:s} tests --\n")
             for bitmap in (None, 'bitmap404', 'bitmap0'):
                 for policy in error_cases[sync_mode][bitmap]:
                     blockdev_backup(drive0.vm, drive0.node, "backup_target",

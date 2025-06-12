@@ -2,6 +2,7 @@
 
 import sys
 
+
 print('''This unmaintained and undocumented script was removed in preference
 for qmp-shell. The assumption is that most users are using either
 qmp-shell, socat, or pasting/piping JSON into stdio. The duplication of

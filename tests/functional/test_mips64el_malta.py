@@ -9,13 +9,17 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
 import logging
+import os
 
-from qemu_test import LinuxKernelTest, Asset
-from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import skipIfMissingImports, skipFlakyTest, skipUntrustedTest
-
+from qemu_test import (
+    Asset,
+    LinuxKernelTest,
+    exec_command_and_wait_for_pattern,
+    skipFlakyTest,
+    skipIfMissingImports,
+    skipUntrustedTest,
+)
 from test_mips_malta import mips_check_wheezy
 
 
@@ -133,8 +137,8 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         Boot Linux kernel and check Tux logo is displayed on the framebuffer.
         """
 
-        import numpy as np
         import cv2
+        import numpy as np
 
         screendump_path = self.scratch_file('screendump.pbm')
 
@@ -192,6 +196,7 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
 
 
 from test_mipsel_malta import MaltaMachineYAMON
+
 
 if __name__ == '__main__':
     LinuxKernelTest.main()

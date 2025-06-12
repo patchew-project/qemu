@@ -21,10 +21,17 @@
 #
 # Creator/Owner: Hanna Reitz <hreitz@redhat.com>
 
-import iotests
-from iotests import log, qemu_img, qemu_io, filter_qmp_testfiles, \
-                    filter_qmp_imgfmt
 import json
+
+import iotests
+from iotests import (
+    filter_qmp_imgfmt,
+    filter_qmp_testfiles,
+    log,
+    qemu_img,
+    qemu_io,
+)
+
 
 # Need backing file support (for arbitrary backing formats)
 iotests.script_initialize(supported_fmts=['qcow2', 'qcow', 'qed'],

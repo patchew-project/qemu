@@ -21,6 +21,7 @@
 
 import os
 import signal
+
 import iotests
 from iotests import qemu_img_create, qemu_img_map, qemu_nbd
 

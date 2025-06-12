@@ -12,7 +12,6 @@ import os
 import socket
 
 from .config import BUILD_DIR
-from typing import List
 
 
 class Ports():
@@ -41,7 +40,7 @@ class Ports():
 
         return True
 
-    def find_free_ports(self, count: int) -> List[int]:
+    def find_free_ports(self, count: int) -> list[int]:
         result = []
         for port in range(self.PORTS_START, self.PORTS_END):
             if self.check_bind(port):

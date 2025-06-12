@@ -13,10 +13,11 @@
 #
 
 import os
-import sys
-import time
 import subprocess
+import sys
+
 import basevm
+
 
 class NetBSDVM(basevm.BaseVM):
     name = "netbsd"

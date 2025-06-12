@@ -20,10 +20,15 @@
 #
 
 import os
-import sys
+
 import iotests
-import time
-from iotests import qemu_img_create, qemu_io, filter_qemu_io, QemuIoInteractive
+from iotests import (
+    QemuIoInteractive,
+    filter_qemu_io,
+    qemu_img_create,
+    qemu_io,
+)
+
 
 nbd_sock = os.path.join(iotests.sock_dir, 'nbd_sock')
 nbd_uri = 'nbd+unix:///exp?socket=' + nbd_sock

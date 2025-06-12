@@ -16,8 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import random
 from functools import reduce
+import random
+
 
 UINT8 = 0xff
 UINT16 = 0xffff

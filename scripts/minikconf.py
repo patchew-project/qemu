@@ -12,9 +12,10 @@
 # the top-level directory.
 
 import os
-import sys
-import re
 import random
+import re
+import sys
+
 
 __all__ = [ 'KconfigDataError', 'KconfigParserError',
             'KconfigData', 'KconfigParser' ,
@@ -402,8 +403,8 @@ class KconfigParser:
         if incl_abs_fname in self.data.previously_included:
             return
         try:
-            fp = open(incl_abs_fname, 'rt', encoding='utf-8')
-        except IOError as e:
+            fp = open(incl_abs_fname, encoding='utf-8')
+        except OSError as e:
             raise KconfigParserError(self,
                                 '%s: %s' % (e.strerror, include))
 
@@ -696,7 +697,7 @@ if __name__ == '__main__':
             parser.do_assignment(name, value == 'y')
             external_vars.add(name[7:])
         else:
-            fp = open(arg, 'rt', encoding='utf-8')
+            fp = open(arg, encoding='utf-8')
             parser.parse_file(fp)
             fp.close()
 
@@ -705,7 +706,7 @@ if __name__ == '__main__':
         if key not in external_vars and config[key]:
             print ('CONFIG_%s=y' % key)
 
-    deps = open(argv[2], 'wt', encoding='utf-8')
+    deps = open(argv[2], 'w', encoding='utf-8')
     for fname in data.previously_included:
         print ('%s: %s' % (argv[1], fname), file=deps)
     deps.close()

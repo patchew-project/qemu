@@ -10,9 +10,12 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern
-from qemu_test import interrupt_interactive_console_until_pattern
+from qemu_test import (
+    Asset,
+    QemuSystemTest,
+    interrupt_interactive_console_until_pattern,
+    wait_for_console_pattern,
+)
 
 
 def fetch_firmware(test):

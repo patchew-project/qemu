@@ -23,5 +23,6 @@ import sys
 
 from guestperf.shell import Shell
 
+
 shell = Shell()
 sys.exit(shell.run(sys.argv[1:]))

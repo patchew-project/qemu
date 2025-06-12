@@ -22,6 +22,7 @@
 
 import iotests
 
+
 iotests.script_initialize(supported_fmts=['qcow2', 'qed', 'raw'],
                           supported_platforms=['linux'])
 
@@ -41,7 +42,7 @@ with iotests.FilePath('source.img') as source_img_path, \
     (source_vm.add_drive(source_img_path)
               .launch())
     (dest_vm.add_drive(dest_img_path)
-            .add_incoming('unix:{0}'.format(migration_sock_path))
+            .add_incoming(f'unix:{migration_sock_path}')
             .launch())
 
     source_vm.qmp_log('block-dirty-bitmap-add', node='drive0', name='bitmap0')
@@ -54,7 +55,7 @@ with iotests.FilePath('source.img') as source_img_path, \
     iotests.log(source_vm.qmp(
                   'drive-mirror',
                   device='drive0',
-                  target='nbd+unix:///drive0?socket={0}'.format(nbd_sock_path),
+                  target=f'nbd+unix:///drive0?socket={nbd_sock_path}',
                   sync='full',
                   format='raw', # always raw, the server handles the format
                   mode='existing',
@@ -70,7 +71,7 @@ with iotests.FilePath('source.img') as source_img_path, \
                     {'capability': 'dirty-bitmaps', 'state': True}]
     source_vm.qmp('migrate-set-capabilities', capabilities=capabilities)
     dest_vm.qmp('migrate-set-capabilities', capabilities=capabilities)
-    iotests.log(source_vm.qmp('migrate', uri='unix:{0}'.format(migration_sock_path)))
+    iotests.log(source_vm.qmp('migrate', uri=f'unix:{migration_sock_path}'))
 
     source_vm.qmp_log('migrate-start-postcopy')
 

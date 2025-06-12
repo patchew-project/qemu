@@ -25,6 +25,7 @@
 # refcount tables and L1 tables when referring to those clusters.
 
 import argparse
+from contextlib import contextmanager
 import errno
 import math
 import os
@@ -34,7 +35,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from contextlib import contextmanager
+
 
 QCOW2_DEFAULT_CLUSTER_SIZE = 65536
 QCOW2_DEFAULT_REFCOUNT_BITS = 16
@@ -74,8 +75,7 @@ def clusters_with_data(fd, cluster_size):
         try:
             data_from = os.lseek(fd, data_to, os.SEEK_DATA)
             data_to = align_up(os.lseek(fd, data_from, os.SEEK_HOLE), cluster_size)
-            for idx in range(data_from // cluster_size, data_to // cluster_size):
-                yield idx
+            yield from range(data_from // cluster_size, data_to // cluster_size)
         except OSError as err:
             if err.errno == errno.ENXIO:  # End of file reached
                 break
@@ -113,7 +113,7 @@ def get_input_as_raw_file(input_file, input_format):
         # Kill the storage daemon on exit
         # and remove all temporary files
         if os.path.exists(pid_file):
-            with open(pid_file, "r") as f:
+            with open(pid_file) as f:
                 pid = int(f.readline())
             os.kill(pid, signal.SIGTERM)
             while os.path.exists(pid_file):

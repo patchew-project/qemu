@@ -19,7 +19,13 @@
 #
 
 import iotests
-from iotests import log, qemu_img_create, qemu_img, qemu_img_info
+from iotests import (
+    log,
+    qemu_img,
+    qemu_img_create,
+    qemu_img_info,
+)
+
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           unsupported_imgopts=['compat'])

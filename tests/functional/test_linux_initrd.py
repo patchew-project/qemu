@@ -13,7 +13,7 @@
 import logging
 import tempfile
 
-from qemu_test import QemuSystemTest, Asset, skipFlakyTest
+from qemu_test import Asset, QemuSystemTest, skipFlakyTest
 
 
 class LinuxInitrd(QemuSystemTest):

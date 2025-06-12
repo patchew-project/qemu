@@ -11,12 +11,12 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import tempfile
 import mmap
 import re
+import tempfile
 
 from qemu.machine.machine import VMLaunchFailure
-from qemu_test import LinuxKernelTest, Asset
+from qemu_test import Asset, LinuxKernelTest
 
 
 class PluginKernelBase(LinuxKernelTest):

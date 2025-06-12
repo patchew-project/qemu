@@ -22,12 +22,12 @@
 # Test for live block commit
 # Derived from Image Streaming Test 030
 
-import time
+import errno
 import os
+
 import iotests
 from iotests import qemu_img, qemu_io
-import struct
-import errno
+
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 mid_img = os.path.join(iotests.test_dir, 'mid.img')

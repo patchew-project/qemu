@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # GDB debugging support
 #
 # Copyright 2017 Linaro Ltd
@@ -13,6 +12,7 @@
 # 'qemu timers' -- display the current timerlists
 
 import gdb
+
 
 class TimersCommand(gdb.Command):
     '''Display the current QEMU timers'''

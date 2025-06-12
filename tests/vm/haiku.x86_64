@@ -12,12 +12,11 @@
 #
 
 import os
-import re
-import sys
-import time
-import socket
 import subprocess
+import sys
+
 import basevm
+
 
 VAGRANT_KEY_FILE = os.path.join(os.path.dirname(__file__),
     "..", "keys", "vagrant")
