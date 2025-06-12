@@ -102,7 +102,6 @@
 #
 # Query yank instances.  See @YankInstance for more information.
 #
-# Returns: list of @YankInstance
 #
 # .. qmp-example::
 #

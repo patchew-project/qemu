@@ -286,8 +286,6 @@
 # is active there will be another json-object with RAM migration
 # status.
 #
-# Returns: @MigrationInfo
-#
 # Since: 0.14
 #
 # .. qmp-example::
@@ -536,8 +534,6 @@
 # @query-migrate-capabilities:
 #
 # Return information about the current migration capabilities status
-#
-# Returns: @MigrationCapabilityStatus
 #
 # Since: 1.2
 #
@@ -1322,8 +1318,6 @@
 #
 # Return information about the current migration parameters
 #
-# Returns: @MigrationParameters
-#
 # Since: 2.4
 #
 # .. qmp-example::
@@ -1904,8 +1898,6 @@
 #
 # Query replication status while the vm is running.
 #
-# Returns: A @ReplicationStatus object showing the status.
-#
 # .. qmp-example::
 #
 #     -> { "execute": "query-xen-replication-status" }
@@ -1957,8 +1949,6 @@
 # @query-colo-status:
 #
 # Query COLO status while the vm is running.
-#
-# Returns: A @COLOStatus object showing the status.
 #
 # .. qmp-example::
 #
@@ -2332,8 +2322,6 @@
 # Features:
 #
 # @deprecated: This command is deprecated with no replacement yet.
-#
-# Returns: @MigrationThreadInfo
 #
 # Since: 7.2
 ##
