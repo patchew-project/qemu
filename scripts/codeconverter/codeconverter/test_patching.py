@@ -7,13 +7,8 @@
 # the COPYING file in the top-level directory.
 from tempfile import NamedTemporaryFile
 
-from .patching import (
-    FileInfo,
-    FileList,
-    FileMatch,
-    Patch,
-)
-from .regexps import *
+from .patching import FileInfo, FileList, FileMatch
+from .regexps import NAMED, RE_IDENTIFIER, S
 
 
 class BasicPattern(FileMatch):

@@ -25,14 +25,14 @@ from typing import (
     Union,
 )
 
+from .utils import LineAndColumn, line_col
+
 
 logger = logging.getLogger(__name__)
 DBG = logger.debug
 INFO = logger.info
 WARN = logger.warning
 ERROR = logger.error
-
-from .utils import *
 
 
 T = TypeVar('T')

@@ -6,7 +6,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 import logging
-from typing import *
+from typing import (
+    NamedTuple,
+    NewType,
+    Optional,
+    TypeVar,
+)
 
 
 logger = logging.getLogger(__name__)
