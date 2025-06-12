@@ -273,6 +273,78 @@ static MemTxResult cxl_write_cfmws(void *opaque, hwaddr addr,
     return cxl_type3_write(d, addr + fw->base, data, size, attrs);
 }
 
+/*
+ * Updating the end point decoder stashed Interleave Set Positions (ISP)
+ * that is needed for the CHMU to pass to the cache plugin + hotness tracker
+ * is tricky as the decoders can be committed in any order.
+ *
+ * Brute force the problem by finding any endpoints below a cfmws and for
+ * each enabled decoder, probing until we get a match - if any upstream
+ * decoders are not commited this will fail but that is fine as we try again
+ * later when the situation is resolved by commiting upstream decoders.
+ *
+ * This is a rare operation, so not worth complexity of walking down from
+ * the Fixed memory windows. Just compare all with all.
+ */
+
+/* Update ISP for a given Type 3 memory device */
+static int cxl_type3_update_isp(Object *obj, void *opaque)
+{
+    CXLType3Dev *ct3d;
+    CXLFixedWindow *fw = opaque;
+    int i;
+
+    /*
+     * From the CXL Type 3 HDM decoders we need interleave info.
+     * That will let us then find out for each decoder what hits it....
+     */
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        return 0;
+    }
+
+    ct3d = CXL_TYPE3(obj);
+
+    for (i = 0; i < CXL_HDM_DECODER_COUNT; i++) {
+        uint64_t hpa_base;
+        uint16_t granual;
+        uint8_t ways, w;
+        PCIDevice *d;
+
+        if (!cxl_type3_get_hdm_interleave_props(ct3d, i, &hpa_base, &granual,
+                                                &ways)) {
+            continue; /* commit in order, but teardown can be messy */
+        }
+
+        for (w = 0; w < ways; w++) {
+            d = cxl_cfmws_find_device(fw, hpa_base + w * granual - fw->base);
+            if (d == PCI_DEVICE(ct3d)) {
+                cxl_type3_set_hdm_isp(ct3d, i, w);
+            }
+        }
+    }
+    return 0;
+}
+
+static int cxl_fmw_update_isp(Object *obj, void *priv)
+{
+    struct CXLFixedWindow *fw;
+
+    if (!object_dynamic_cast(obj, TYPE_CXL_FMW)) {
+        return 0;
+    }
+    fw = CXL_FMW(obj);
+    object_child_foreach_recursive(object_get_root(),
+                                   cxl_type3_update_isp, fw);
+    return 0;
+}
+
+/* Update all Interleave Set Positions on all EP HDM decoders */
+void cxl_update_isp(void)
+{
+    object_child_foreach_recursive(object_get_root(),
+                                   cxl_fmw_update_isp, NULL);
+}
+
 const MemoryRegionOps cfmws_ops = {
     .read_with_attrs = cxl_read_cfmws,
     .write_with_attrs = cxl_write_cfmws,

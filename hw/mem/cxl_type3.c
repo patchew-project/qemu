@@ -477,6 +477,8 @@ static void hdm_decoder_commit(CXLType3Dev *ct3d, int which)
 
     stl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + which * hdm_inc, ctrl);
 
+    cxl_update_isp();
+
     low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO + which * hdm_inc);
     high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI + which * hdm_inc);
     ct3d->cxl_dstate.chmu[0].decoder[which].base =
