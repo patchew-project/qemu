@@ -5,9 +5,35 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
-from .qom_macros import *
-from .qom_type_info import *
-from .regexps import *
+
+import re
+
+from .qom_macros import (
+    RE_CHECK_MACRO,
+    RE_MACRO_DEFINE,
+    RE_STRUCT_TYPEDEF,
+    InitialIncludes,
+)
+from .qom_type_info import (
+    RE_TI_FIELD_INIT,
+    RE_TI_FIELDS,
+    RE_TYPEINFO_START,
+    TypeInfoVar,
+)
+from .regexps import (
+    CPP_SPACE,
+    RE_ARRAY,
+    RE_ARRAY_CAST,
+    RE_ARRAY_ITEM,
+    RE_COMMENT,
+    RE_COMMENTS,
+    RE_EXPRESSION,
+    RE_FUN_CALL,
+    RE_IDENTIFIER,
+    RE_MACRO_CONCAT,
+    RE_SIMPLE_VALUE,
+    SP,
+)
 
 
 def test_res() -> None:

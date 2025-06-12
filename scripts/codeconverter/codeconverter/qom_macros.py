@@ -5,14 +5,47 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
+from collections.abc import Iterable, Iterator
 from itertools import chain
 import logging
 import re
-from typing import *
+from typing import (
+    Literal,
+    NamedTuple,
+    Optional,
+    cast,
+)
 
-from .patching import *
-from .regexps import *
-from .utils import *
+from .patching import (
+    FileInfo,
+    FileList,
+    FileMatch,
+    Patch,
+    RequiredIdentifier,
+)
+from .regexps import (
+    CPP_SPACE,
+    NAMED,
+    OPTIONAL_PARS,
+    OR,
+    RE_COMMENT,
+    RE_COMMENTS,
+    RE_EXPRESSION,
+    RE_FILE_BEGIN,
+    RE_FUN_CALL,
+    RE_IDENTIFIER,
+    RE_INCLUDE,
+    RE_MACRO_CONCAT,
+    RE_NUMBER,
+    RE_SIMPLEDEFINE,
+    RE_STRING,
+    RE_STRUCT_TYPE,
+    RE_TYPE,
+    SP,
+    M,
+    S,
+)
+from .utils import merge, opt_compare
 
 
 logger = logging.getLogger(__name__)
@@ -69,7 +102,7 @@ class TypeIdentifiers(NamedTuple):
         s = ', '.join('%s=%s' % (f,v) for f,v in values if v is not None)
         return f'{s}'
 
-    def check_consistency(self) -> List[str]:
+    def check_consistency(self) -> list[str]:
         """Check if identifiers are consistent with each other,
         return list of problems (or empty list if everything seems consistent)
         """
@@ -236,7 +269,7 @@ RE_CHECK_MACRO = \
         NAMED('qom_typename', RE_IDENTIFIER), r'\s*\)\n',
         n='?', name='check_args'))
 
-EXPECTED_CHECKER_SUFFIXES: List[Tuple[CheckerMacroName, str]] = [
+EXPECTED_CHECKER_SUFFIXES: list[tuple[CheckerMacroName, str]] = [
     ('OBJECT_GET_CLASS', '_GET_CLASS'),
     ('OBJECT_CLASS_CHECK', '_CLASS'),
 ]
@@ -268,7 +301,7 @@ class TypeCheckMacro(FileMatch):
         if self.typedefname and self.find_typedef() is None:
             self.warn("typedef used by %s not found", self.name)
 
-    def find_matching_macros(self) -> List['TypeCheckMacro']:
+    def find_matching_macros(self) -> list['TypeCheckMacro']:
         """Find other check macros that generate the same macro names
 
         The returned list will always be sorted.
@@ -281,7 +314,7 @@ class TypeCheckMacro(FileMatch):
                    and (my_ids.uppercase == m.type_identifiers.uppercase
                         or my_ids.typename == m.type_identifiers.typename)]
 
-    def merge_ids(self, matches: List['TypeCheckMacro']) -> Optional[TypeIdentifiers]:
+    def merge_ids(self, matches: list['TypeCheckMacro']) -> Optional[TypeIdentifiers]:
         """Try to merge info about type identifiers from all matches in a list"""
         if not matches:
             return None
@@ -581,10 +614,12 @@ class TypeDeclarationFixup(FileMatch):
             return
 
         # group checkers by uppercase name:
-        decl_types: List[Type[TypeDeclaration]] = [DeclareInstanceChecker, DeclareInstanceType,
-                                                   DeclareClassCheckers, DeclareClassType,
-                                                   DeclareObjCheckers]
-        checker_dict: Dict[str, List[TypeDeclaration]] = {}
+        decl_types: list[type[TypeDeclaration]] = [
+            DeclareInstanceChecker, DeclareInstanceType,
+            DeclareClassCheckers, DeclareClassType,
+            DeclareObjCheckers
+        ]
+        checker_dict: dict[str, list[TypeDeclaration]] = {}
         for t in decl_types:
             for m in self.file.matches_of_type(t):
                 checker_dict.setdefault(m.group('uppercase'), []).append(m)
@@ -603,9 +638,9 @@ class TypeDeclarationFixup(FileMatch):
             field_dict = {f: v.pop() if v else None for f,v in fvalues.items()}
             yield from self.gen_patches_for_type(uppercase, checkers, field_dict)
 
-    def find_conflicts(self, uppercase: str, checkers: List[TypeDeclaration]) -> bool:
+    def find_conflicts(self, uppercase: str, checkers: list[TypeDeclaration]) -> bool:
         """Look for conflicting declarations that would make it unsafe to add new ones"""
-        conflicting: List[FileMatch] = []
+        conflicting: list[FileMatch] = []
         # conflicts in the same file:
         conflicting.extend(chain(self.file.find_matches(DefineDirective, uppercase),
                                  self.file.find_matches(DeclareInterfaceChecker, uppercase, 'uppercase'),
@@ -634,8 +669,8 @@ class TypeDeclarationFixup(FileMatch):
         return False
 
     def gen_patches_for_type(self, uppercase: str,
-                             checkers: List[TypeDeclaration],
-                             fields: Dict[str, Optional[str]]) -> Iterable[Patch]:
+                             checkers: list[TypeDeclaration],
+                             fields: dict[str, Optional[str]]) -> Iterable[Patch]:
         """Should be reimplemented by subclasses"""
         return
         yield
@@ -644,8 +679,8 @@ class DeclareVoidTypes(TypeDeclarationFixup):
     """Add DECLARE_*_TYPE(..., void) when there's no declared type"""
     regexp = RE_FILE_BEGIN
     def gen_patches_for_type(self, uppercase: str,
-                             checkers: List[TypeDeclaration],
-                             fields: Dict[str, Optional[str]]) -> Iterable[Patch]:
+                             checkers: list[TypeDeclaration],
+                             fields: dict[str, Optional[str]]) -> Iterable[Patch]:
         if self.find_conflicts(uppercase, checkers):
             return
 
@@ -672,8 +707,8 @@ class DeclareVoidTypes(TypeDeclarationFixup):
 class AddDeclareTypeName(TypeDeclarationFixup):
     """Add DECLARE_TYPE_NAME declarations if necessary"""
     def gen_patches_for_type(self, uppercase: str,
-                             checkers: List[TypeDeclaration],
-                             fields: Dict[str, Optional[str]]) -> Iterable[Patch]:
+                             checkers: list[TypeDeclaration],
+                             fields: dict[str, Optional[str]]) -> Iterable[Patch]:
         typename = fields.get('typename')
         if typename is None:
             self.warn("typename unavailable")
@@ -754,7 +789,7 @@ def find_typename_uppercase(files: FileList, typename: str) -> Optional[str]:
 
 def find_type_checkers(files:FileList, name:str, group:str='uppercase') -> Iterable[TypeCheckerDeclaration]:
     """Find usage of DECLARE*CHECKER macro"""
-    c: Type[TypeCheckerDeclaration]
+    c: type[TypeCheckerDeclaration]
     for c in (DeclareInstanceChecker, DeclareClassCheckers, DeclareObjCheckers, ObjectDeclareType, ObjectDeclareSimpleType):
         yield from files.find_matches(c, name=name, group=group)
 
@@ -775,8 +810,8 @@ class InitialIncludes(FileMatch):
                  n='*', name='includes'))
 
 class SymbolUserList(NamedTuple):
-    definitions: List[FileMatch]
-    users: List[FileMatch]
+    definitions: list[FileMatch]
+    users: list[FileMatch]
 
 class MoveSymbols(FileMatch):
     """Handle missing symbols
@@ -790,7 +825,7 @@ class MoveSymbols(FileMatch):
             self.debug("skipping object.h")
             return
 
-        index: Dict[RequiredIdentifier, SymbolUserList] = {}
+        index: dict[RequiredIdentifier, SymbolUserList] = {}
         definition_classes = [SimpleTypedefMatch, FullStructTypedefMatch, ConstantDefine, Include]
         user_classes = [TypeCheckMacro, DeclareObjCheckers, DeclareInstanceChecker, DeclareClassCheckers, InterfaceCheckMacro]
 
