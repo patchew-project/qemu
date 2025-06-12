@@ -50,8 +50,8 @@ static void cswbcci_realize(PCIDevice *pci_dev, Error **errp)
                      &cxl_dstate->device_registers);
     regloc_dvsec = &(CXLDVSECRegisterLocator) {
         .rsvd         = 0,
-        .reg0_base_lo = RBI_CXL_DEVICE_REG | 0,
-        .reg0_base_hi = 0,
+        .reg_base[0].lo = RBI_CXL_DEVICE_REG | 0,
+        .reg_base[0].hi = 0,
     };
     cxl_component_create_dvsec(cxl_cstate, CXL3_SWITCH_MAILBOX_CCI,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,

@@ -161,6 +161,12 @@ typedef struct CXLDVSECPortFlexBus {
 } CXLDVSECPortFlexBus;
 QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortFlexBus) != 0x20);
 
+/* Only applies to the type 3 device emulation */
+enum register_locator_indicies {
+    REG_LOC_IDX_COMPONENT,
+    REG_LOC_IDX_DEVICE,
+    NR_REG_LOC_IDX
+};
 /*
  * CXL r3.1 Section 8.1.9: Register Locator DVSEC
  * DVSEC ID: 8, Revision 0
@@ -168,14 +174,11 @@ QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortFlexBus) != 0x20);
 typedef struct CXLDVSECRegisterLocator {
     DVSECHeader hdr;
     uint16_t rsvd;
-    uint32_t reg0_base_lo;
-    uint32_t reg0_base_hi;
-    uint32_t reg1_base_lo;
-    uint32_t reg1_base_hi;
-    uint32_t reg2_base_lo;
-    uint32_t reg2_base_hi;
+    struct {
+            uint32_t lo;
+            uint32_t hi;
+    } reg_base[NR_REG_LOC_IDX];
 } CXLDVSECRegisterLocator;
-QEMU_BUILD_BUG_ON(sizeof(CXLDVSECRegisterLocator) != 0x24);
 
 /* BAR Equivalence Indicator */
 #define BEI_BAR_10H 0
