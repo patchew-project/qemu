@@ -99,16 +99,18 @@ except ImportError:
         HAVE_DISTLIB = False
 
 # Try to load tomllib, with a fallback to tomli.
-# HAVE_TOMLLIB is checked below, just-in-time, so that mkvenv does not fail
+# TOML is checked below, just-in-time, so that mkvenv does not fail
 # outside the venv or before a potential call to ensurepip in checkpip().
-HAVE_TOMLLIB = True
+TOML = None
 try:
     import tomllib
+    TOML = tomllib
 except ImportError:
     try:
-        import tomli as tomllib
+        import tomli
+        TOML = tomli
     except ImportError:
-        HAVE_TOMLLIB = False
+        pass
 
 # Do not add any mandatory dependencies from outside the stdlib:
 # This script *must* be usable standalone!
@@ -194,6 +196,7 @@ class QemuEnvBuilder(venv.EnvBuilder):
         # Python 3.12+, not strictly necessary because it's documented
         # to be the same as 3.10 code below:
         if sys.version_info >= (3, 12):
+            assert isinstance(context.lib_path, str)
             return context.lib_path
 
         # Python 3.10+
@@ -710,7 +713,7 @@ def _do_ensure(
 
 
 def _parse_groups(file: str) -> dict[str, dict[str, Any]]:
-    if not HAVE_TOMLLIB:
+    if not TOML:
         if sys.version_info < (3, 11):
             raise Ouch("found no usable tomli, please install it")
 
@@ -722,7 +725,7 @@ def _parse_groups(file: str) -> dict[str, dict[str, Any]]:
     # Debian bullseye-backports) and v2.0.x
     with open(file, encoding="ascii") as depfile:
         contents = depfile.read()
-        return tomllib.loads(contents)  # type: ignore
+        return TOML.loads(contents)  # type: ignore
 
 
 def ensure_group(
