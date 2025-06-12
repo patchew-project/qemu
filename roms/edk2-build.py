@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 """
 build helper script for edk2, see
 https://gitlab.com/kraxel/edk2-build-config
