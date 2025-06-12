@@ -165,7 +165,8 @@
 #
 # Returns: @Object
 #
-# Errors: some
+# Errors:
+#     - some
 #
 # TODO: frobnicate
 #
