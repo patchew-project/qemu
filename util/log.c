@@ -143,6 +143,24 @@ void qemu_log_unlock(FILE *logfile)
     }
 }
 
+
+void qemu_log_timestamp(const char *fmt, ...)
+{
+    FILE *f = qemu_log_trylock();
+    if (f) {
+        va_list ap;
+        if(message_with_timestamp){
+            struct timeval _now;
+            gettimeofday(&_now, NULL);
+            fprintf(f,"%d@%zu.%06zu:",qemu_get_thread_id(),(size_t)_now.tv_sec, (size_t)_now.tv_usec);
+        }
+        va_start(ap, fmt);
+        vfprintf(f, fmt, ap);
+        va_end(ap);
+        qemu_log_unlock(f);
+    }
+}
+
 void qemu_log(const char *fmt, ...)
 {
     FILE *f = qemu_log_trylock();
