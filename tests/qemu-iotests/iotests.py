@@ -20,7 +20,12 @@ import argparse
 import atexit
 import bz2
 from collections import OrderedDict
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import (
+    Callable,
+    Iterable,
+    Iterator,
+    Sequence,
+)
 from contextlib import contextmanager
 import faulthandler
 import json
@@ -35,7 +40,6 @@ import sys
 import time
 from typing import (
     Any,
-    Callable,
     Optional,
     TextIO,
     TypeVar,
