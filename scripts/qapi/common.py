@@ -91,29 +91,29 @@ def c_name(name: str, protect: bool = True) -> str:
     """
     # ANSI X3J11/88-090, 3.1.1
     c89_words = {'auto', 'break', 'case', 'char', 'const', 'continue',
-                     'default', 'do', 'double', 'else', 'enum', 'extern',
-                     'float', 'for', 'goto', 'if', 'int', 'long', 'register',
-                     'return', 'short', 'signed', 'sizeof', 'static',
-                     'struct', 'switch', 'typedef', 'union', 'unsigned',
-                     'void', 'volatile', 'while'}
+                 'default', 'do', 'double', 'else', 'enum', 'extern',
+                 'float', 'for', 'goto', 'if', 'int', 'long', 'register',
+                 'return', 'short', 'signed', 'sizeof', 'static',
+                 'struct', 'switch', 'typedef', 'union', 'unsigned',
+                 'void', 'volatile', 'while'}
     # ISO/IEC 9899:1999, 6.4.1
     c99_words = {'inline', 'restrict', '_Bool', '_Complex', '_Imaginary'}
     # ISO/IEC 9899:2011, 6.4.1
     c11_words = {'_Alignas', '_Alignof', '_Atomic', '_Generic',
-                     '_Noreturn', '_Static_assert', '_Thread_local'}
+                 '_Noreturn', '_Static_assert', '_Thread_local'}
     # GCC http://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/C-Extensions.html
     # excluding _.*
     gcc_words = {'asm', 'typeof'}
     # C++ ISO/IEC 14882:2003 2.11
     cpp_words = {'bool', 'catch', 'class', 'const_cast', 'delete',
-                     'dynamic_cast', 'explicit', 'false', 'friend', 'mutable',
-                     'namespace', 'new', 'operator', 'private', 'protected',
-                     'public', 'reinterpret_cast', 'static_cast', 'template',
-                     'this', 'throw', 'true', 'try', 'typeid', 'typename',
-                     'using', 'virtual', 'wchar_t',
-                     # alternative representations
-                     'and', 'and_eq', 'bitand', 'bitor', 'compl', 'not',
-                     'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'}
+                 'dynamic_cast', 'explicit', 'false', 'friend', 'mutable',
+                 'namespace', 'new', 'operator', 'private', 'protected',
+                 'public', 'reinterpret_cast', 'static_cast', 'template',
+                 'this', 'throw', 'true', 'try', 'typeid', 'typename',
+                 'using', 'virtual', 'wchar_t',
+                 # alternative representations
+                 'and', 'and_eq', 'bitand', 'bitor', 'compl', 'not',
+                 'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'}
     # namespace pollution:
     polluted_words = {'unix', 'errno', 'mips', 'sparc', 'i386', 'linux'}
     name = re.sub(r'[^A-Za-z0-9_]', '_', name)

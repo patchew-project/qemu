@@ -41,6 +41,7 @@ from typing import IO, Optional, Union
 
 import fuse
 from fuse import FUSE, FuseOSError, Operations
+
 from qemu.qmp import ExecuteError
 
 from .qom_common import QOMCommand
