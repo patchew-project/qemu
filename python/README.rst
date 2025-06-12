@@ -5,24 +5,23 @@ This directory houses Python tooling used by the QEMU project to build,
 configure, and test QEMU. It is organized by namespace (``qemu``), and
 then by package (e.g. ``qemu/machine``, ``qemu/qmp``, etc).
 
-``setup.py`` is used by ``pip`` to install this tooling to the current
-environment. ``setup.cfg`` provides the packaging configuration used by
-``setup.py``. You will generally invoke it by doing one of the following:
+``pyproject.toml`` and ``setup.cfg`` are used by ``pip`` to install this
+tooling to the current environment. ``setup.cfg`` provides the packaging
+configuration, while ``pyproject.toml`` describes the package build
+system requirements.
 
-1. ``pip3 install .`` will install these packages to your current
-   environment. If you are inside a virtual environment, they will
-   install there. If you are not, it will attempt to install to the
-   global environment, which is **not recommended**.
+You will generally install these packages by invoking ``pip3 install
+.``; which will install these packages to your current environment. If
+you are inside a virtual environment, they will install there. If you
+are not, modern versions of pip will attempt instead to install to your
+local user environment. Older versions of pip will attempt to install to
+the global environment, which is **not recommended**.
 
-2. ``pip3 install --user .`` will install these packages to your user's
-   local python packages. If you are inside of a virtual environment,
-   this will fail; you want the first invocation above.
-
-If you append the ``--editable`` or ``-e`` argument to either invocation
-above, pip will install in "editable" mode. This installs the package as
-a forwarder ("qemu.egg-link") that points to the source tree. In so
-doing, the installed package always reflects the latest version in your
-source tree.
+If you append the ``--editable`` or ``-e`` argument to the above
+invocation, pip will install in "editable" mode. This installs the
+package as a "forwarder" that points to the source tree, so that the
+installed package always reflects the latest version in your source
+tree.
 
 Installing ".[devel]" instead of "." will additionally pull in required
 packages for testing this package. They are not runtime requirements,
@@ -81,4 +80,4 @@ Files in this directory
 - ``VERSION`` contains the PEP-440 compliant version used to describe
   this package; it is referenced by ``setup.cfg``.
 - ``setup.cfg`` houses setuptools package configuration.
-- ``setup.py`` is the setuptools installer used by pip; See above.
+- ``pyproject.toml`` lists build system requirements for the Python packages.
