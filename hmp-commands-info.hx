@@ -228,10 +228,11 @@ ERST
 
     {
         .name       = "mtree",
-        .args_type  = "flatview:-f,dispatch_tree:-d,owner:-o,disabled:-D",
-        .params     = "[-f][-d][-o][-D]",
+        .args_type  = "flatview:-f,dispatch_tree:-d,treeview:-t,owner:-o,disabled:-D",
+        .params     = "[-f][-d][-t][-o][-D]",
         .help       = "show memory tree (-f: dump flat view for address spaces;"
                       "-d: dump dispatch tree, valid with -f only);"
+                      "-t: dump tree node characters before memory regions;"
                       "-o: dump region owners/parents;"
                       "-D: dump disabled regions",
         .cmd        = hmp_info_mtree,

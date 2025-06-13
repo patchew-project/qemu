@@ -2576,7 +2576,8 @@ bool memory_global_dirty_log_start(unsigned int flags, Error **errp);
  */
 void memory_global_dirty_log_stop(unsigned int flags);
 
-void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled);
+void mtree_info(bool flatview, bool dispatch_tree, bool treeview,
+                bool owner, bool disabled);
 
 bool memory_region_access_valid(MemoryRegion *mr, hwaddr addr,
                                 unsigned size, bool is_write,

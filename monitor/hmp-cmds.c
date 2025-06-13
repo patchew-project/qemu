@@ -412,11 +412,12 @@ void hmp_boot_set(Monitor *mon, const QDict *qdict)
 void hmp_info_mtree(Monitor *mon, const QDict *qdict)
 {
     bool flatview = qdict_get_try_bool(qdict, "flatview", false);
+    bool treeview = qdict_get_try_bool(qdict, "treeview", false);
     bool dispatch_tree = qdict_get_try_bool(qdict, "dispatch_tree", false);
     bool owner = qdict_get_try_bool(qdict, "owner", false);
     bool disabled = qdict_get_try_bool(qdict, "disabled", false);
 
-    mtree_info(flatview, dispatch_tree, owner, disabled);
+    mtree_info(flatview, dispatch_tree, treeview, owner, disabled);
 }
 
 #if defined(CONFIG_FDT)

@@ -3265,10 +3265,25 @@ static const char *memory_region_type(MemoryRegion *mr)
     }
 }
 
+enum mtree_node_type {
+    MTREE_NODE_T_INNER,
+    MTREE_NODE_T_TAIL,
+};
+
+typedef struct PrintCol PrintCol;
+
+struct PrintCol {
+    bool print_col;
+    QTAILQ_ENTRY(PrintCol) queue;
+};
+
+typedef QTAILQ_HEAD(, PrintCol) PrintColHead;
+
 typedef struct MemoryRegionList MemoryRegionList;
 
 struct MemoryRegionList {
     const MemoryRegion *mr;
+    PrintColHead *col_string;
     QTAILQ_ENTRY(MemoryRegionList) mrqueue;
 };
 
@@ -3277,6 +3292,104 @@ typedef QTAILQ_HEAD(, MemoryRegionList) MemoryRegionListHead;
 #define MR_SIZE(size) (int128_nz(size) ? (hwaddr)int128_get64( \
                            int128_sub((size), int128_one())) : 0)
 #define MTREE_INDENT "  "
+
+static void mtree_print_col(PrintColHead *col_string, unsigned int level)
+{
+    PrintCol *col = NULL;
+    int i = 0;
+
+    /* Level 0 always has not a col. */
+    if (level == 0 || col_string == NULL) {
+        return;
+    }
+
+    /*
+     * If the parent node is not a tail node,
+     * print a column at the corresponding level.
+     */
+    if (col_string != NULL) {
+        QTAILQ_FOREACH(col, col_string, queue) {
+            if (i++ == level) {
+                break;
+            }
+        }
+    }
+
+    if (col != NULL && col->print_col) {
+        qemu_printf("|");
+    } else {
+        qemu_printf(" ");
+    }
+
+    /* Align with the first character of the parent node. */
+    qemu_printf("  ");
+}
+
+static void mtree_print_node(enum mtree_node_type node_type)
+{
+    if (node_type == MTREE_NODE_T_TAIL) {
+        qemu_printf("`- ");
+    } else {
+        qemu_printf("|- ");
+    }
+}
+
+static void mtree_print_head(PrintColHead *col_string, unsigned int level,
+                             enum mtree_node_type node_type, bool treeview)
+{
+    if (treeview) {
+        for (int i = 0; i < level; i++) {
+            mtree_print_col(col_string, i);
+        }
+        mtree_print_node(node_type);
+    } else {
+        for (int i = 0; i < level; i++) {
+            qemu_printf(MTREE_INDENT);
+        }
+    }
+}
+
+static PrintColHead *mtree_col_string_new(PrintColHead *col_string, int level,
+                                          enum mtree_node_type node_type)
+{
+    PrintColHead *new_col_string = g_new(PrintColHead, 1);
+    PrintCol *col, *new_col;
+    int i = 0;
+
+    QTAILQ_INIT(new_col_string);
+    if (col_string != NULL) {
+        QTAILQ_FOREACH(col, col_string, queue) {
+            new_col = g_new(PrintCol, 1);
+            new_col->print_col = col->print_col;
+            QTAILQ_INSERT_TAIL(new_col_string, new_col, queue);
+            i++;
+        }
+    } else {
+        new_col = g_new(PrintCol, 1);
+        new_col->print_col = true;
+        QTAILQ_INSERT_TAIL(new_col_string, new_col, queue);
+        i++;
+    }
+    for (; i < level; i++) {
+        new_col = g_new(PrintCol, 1);
+        if ((i == (level - 1)) && (node_type == MTREE_NODE_T_TAIL)) {
+            new_col->print_col = false;
+        } else {
+            new_col->print_col = true;
+        }
+        QTAILQ_INSERT_TAIL(new_col_string, new_col, queue);
+    }
+    return new_col_string;
+}
+
+static void mtree_col_string_free(PrintColHead *col_string)
+{
+    PrintCol *col, *next_col;
+    QTAILQ_FOREACH_SAFE(col, col_string, queue, next_col) {
+        g_free(col);
+    }
+    g_free(col_string);
+}
 
 static void mtree_expand_owner(const char *label, Object *obj)
 {
@@ -3317,12 +3430,14 @@ static void mtree_print_mr_owner(const MemoryRegion *mr)
 static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
                            hwaddr base,
                            MemoryRegionListHead *alias_print_queue,
-                           bool owner, bool display_disabled)
+                           bool owner, bool display_disabled,
+                           PrintColHead *col_string,
+                           enum mtree_node_type node_type,
+                           bool treeview)
 {
     MemoryRegionList *new_ml, *ml, *next_ml;
     MemoryRegionListHead submr_print_queue;
     const MemoryRegion *submr;
-    unsigned int i;
     hwaddr cur_start, cur_end;
 
     if (!mr) {
@@ -3357,9 +3472,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
             QTAILQ_INSERT_TAIL(alias_print_queue, ml, mrqueue);
         }
         if (mr->enabled || display_disabled) {
-            for (i = 0; i < level; i++) {
-                qemu_printf(MTREE_INDENT);
-            }
+            mtree_print_head(col_string, level, node_type, treeview);
             qemu_printf(HWADDR_FMT_plx "-" HWADDR_FMT_plx
                         " (prio %d, %s%s): alias %s @%s " HWADDR_FMT_plx
                         "-" HWADDR_FMT_plx "%s",
@@ -3379,9 +3492,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
         }
     } else {
         if (mr->enabled || display_disabled) {
-            for (i = 0; i < level; i++) {
-                qemu_printf(MTREE_INDENT);
-            }
+            mtree_print_head(col_string, level, node_type, treeview);
             qemu_printf(HWADDR_FMT_plx "-" HWADDR_FMT_plx
                         " (prio %d, %s%s): %s%s",
                         cur_start, cur_end,
@@ -3402,6 +3513,8 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
     QTAILQ_FOREACH(submr, &mr->subregions, subregions_link) {
         new_ml = g_new(MemoryRegionList, 1);
         new_ml->mr = submr;
+        new_ml->col_string = mtree_col_string_new(col_string,
+                                                  level + 1, node_type);
         QTAILQ_FOREACH(ml, &submr_print_queue, mrqueue) {
             if (new_ml->mr->addr < ml->mr->addr ||
                 (new_ml->mr->addr == ml->mr->addr &&
@@ -3418,10 +3531,13 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
 
     QTAILQ_FOREACH(ml, &submr_print_queue, mrqueue) {
         mtree_print_mr(ml->mr, level + 1, cur_start,
-                       alias_print_queue, owner, display_disabled);
+                       alias_print_queue, owner, display_disabled,
+                       ml->col_string, ml == QTAILQ_LAST(&submr_print_queue),
+                       treeview);
     }
 
     QTAILQ_FOREACH_SAFE(ml, &submr_print_queue, mrqueue, next_ml) {
+        mtree_col_string_free(ml->col_string);
         g_free(ml);
     }
 }
@@ -3571,6 +3687,7 @@ struct AddressSpaceInfo {
     MemoryRegionListHead *ml_head;
     bool owner;
     bool disabled;
+    bool treeview;
 };
 
 /* Returns negative value if a < b; zero if a = b; positive value if a > b. */
@@ -3596,7 +3713,8 @@ static void mtree_print_as(gpointer key, gpointer value, gpointer user_data)
     struct AddressSpaceInfo *asi = user_data;
 
     g_slist_foreach(as_same_root_mr_list, mtree_print_as_name, NULL);
-    mtree_print_mr(mr, 1, 0, asi->ml_head, asi->owner, asi->disabled);
+    mtree_print_mr(mr, 1, 0, asi->ml_head, asi->owner, asi->disabled,
+                   NULL, MTREE_NODE_T_TAIL, asi->treeview);
     qemu_printf("\n");
 }
 
@@ -3610,7 +3728,8 @@ static gboolean mtree_info_as_free(gpointer key, gpointer value,
     return true;
 }
 
-static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
+static void mtree_info_as(bool dispatch_tree, bool treeview,
+                          bool owner, bool disabled)
 {
     MemoryRegionListHead ml_head;
     MemoryRegionList *ml, *ml2;
@@ -3621,6 +3740,7 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
         .ml_head = &ml_head,
         .owner = owner,
         .disabled = disabled,
+        .treeview = treeview,
     };
 
     QTAILQ_INIT(&ml_head);
@@ -3641,7 +3761,8 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, mrqueue) {
         qemu_printf("memory-region: %s\n", memory_region_name(ml->mr));
-        mtree_print_mr(ml->mr, 1, 0, &ml_head, owner, disabled);
+        mtree_print_mr(ml->mr, 1, 0, &ml_head, owner, disabled,
+                       NULL, MTREE_NODE_T_TAIL, treeview);
         qemu_printf("\n");
     }
 
@@ -3650,12 +3771,13 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
     }
 }
 
-void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
+void mtree_info(bool flatview, bool dispatch_tree, bool treeview,
+                bool owner, bool disabled)
 {
     if (flatview) {
         mtree_info_flatview(dispatch_tree, owner);
     } else {
-        mtree_info_as(dispatch_tree, owner, disabled);
+        mtree_info_as(dispatch_tree, treeview, owner, disabled);
     }
 }
 
