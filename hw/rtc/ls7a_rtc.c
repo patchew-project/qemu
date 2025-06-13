@@ -145,20 +145,24 @@ static void toymatch_write(LS7ARtcState *s, uint64_t val, int num)
         now = qemu_clock_get_ms(rtc_clock);
         toymatch_val_to_time(s, val, &tm);
         expire_time = now + (qemu_timedate_diff(&tm) - s->offset_toy) * 1000;
-        timer_mod(s->toy_timer[num], expire_time);
+        if (expire_time > now) {
+            timer_mod(s->toy_timer[num], expire_time);
+        }
     }
 }
 
 static void rtcmatch_write(LS7ARtcState *s, uint64_t val, int num)
 {
-    uint64_t expire_ns;
+    int64_t expire_ns;
 
     /* it do not support write when toy disabled */
     if (rtc_enabled(s)) {
         s->rtcmatch[num] = val;
         /* calculate expire time */
         expire_ns = ticks_to_ns(val) - ticks_to_ns(s->offset_rtc);
-        timer_mod_ns(s->rtc_timer[num], expire_ns);
+        if (expire_ns > 0) {
+            timer_mod_ns(s->rtc_timer[num], expire_ns);
+        }
     }
 }
 
@@ -185,7 +189,7 @@ static void ls7a_rtc_stop(LS7ARtcState *s)
 static void ls7a_toy_start(LS7ARtcState *s)
 {
     int i;
-    uint64_t expire_time, now;
+    int64_t expire_time, now;
     struct tm tm = {};
 
     now = qemu_clock_get_ms(rtc_clock);
@@ -194,19 +198,23 @@ static void ls7a_toy_start(LS7ARtcState *s)
     for (i = 0; i < TIMER_NUMS; i++) {
         toymatch_val_to_time(s, s->toymatch[i], &tm);
         expire_time = now + (qemu_timedate_diff(&tm) - s->offset_toy) * 1000;
-        timer_mod(s->toy_timer[i], expire_time);
+        if (expire_time > now) {
+            timer_mod(s->toy_timer[i], expire_time);
+        }
     }
 }
 
 static void ls7a_rtc_start(LS7ARtcState *s)
 {
     int i;
-    uint64_t expire_time;
+    int64_t expire_time;
 
     /* recalculate expire time and enable timer */
     for (i = 0; i < TIMER_NUMS; i++) {
         expire_time = ticks_to_ns(s->rtcmatch[i]) - ticks_to_ns(s->offset_rtc);
-        timer_mod_ns(s->rtc_timer[i], expire_time);
+        if (expire_time > 0) {
+            timer_mod_ns(s->rtc_timer[i], expire_time);
+        }
     }
 }
 
@@ -370,7 +378,7 @@ static void toy_timer_cb(void *opaque)
     LS7ARtcState *s = opaque;
 
     if (toy_enabled(s)) {
-        qemu_irq_raise(s->irq);
+        qemu_irq_pulse(s->irq);
     }
 }
 
@@ -379,7 +387,7 @@ static void rtc_timer_cb(void *opaque)
     LS7ARtcState *s = opaque;
 
     if (rtc_enabled(s)) {
-        qemu_irq_raise(s->irq);
+        qemu_irq_pulse(s->irq);
     }
 }
 
