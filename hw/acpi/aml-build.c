@@ -160,7 +160,7 @@ void crs_replace_with_free_ranges(GPtrArray *ranges,
  */
 static void crs_range_merge(GPtrArray *range)
 {
-    GPtrArray *tmp = g_ptr_array_new_with_free_func(crs_range_free);
+    GPtrArray *tmp;
     CrsRangeEntry *entry;
     uint64_t range_base, range_limit;
     int i;
@@ -169,6 +169,7 @@ static void crs_range_merge(GPtrArray *range)
         return;
     }
 
+    tmp = g_ptr_array_new_with_free_func(crs_range_free);
     g_ptr_array_sort(range, crs_range_compare);
 
     entry = g_ptr_array_index(range, 0);
