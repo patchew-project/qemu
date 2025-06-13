@@ -1226,6 +1226,12 @@ SRST
     ``aw-bits=val`` (val between 32 and 64, default depends on machine)
         This decides the address width of the IOVA address space.
 
+``-device arm-smmuv3,primary-bus=id``
+    This is only supported by ``-machine virt`` (ARM).
+
+    ``primary-bus=id``
+        The PCIe Root Complex to be associated with.
+
 ERST
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
