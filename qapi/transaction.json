@@ -11,7 +11,7 @@
 ##
 # @Abort:
 #
-# This action can be used to test transaction failure.
+# This action can be used to test `transaction` failure.
 #
 # Since: 1.6
 ##
@@ -67,8 +67,8 @@
 #
 # Features:
 #
-# @deprecated: Member @drive-backup is deprecated.  Use member
-#     @blockdev-backup instead.
+# @deprecated: Member `drive-backup` is deprecated.  Use member
+#     `blockdev-backup` instead.
 #
 # Since: 1.1
 ##
@@ -156,7 +156,7 @@
 # @TransactionAction:
 #
 # A discriminated record of operations that can be performed with
-# @transaction.
+# `transaction`.
 #
 # @type: the operation to be performed
 #
@@ -187,7 +187,7 @@
 #
 # @completion-mode: Controls how jobs launched asynchronously by
 #     Actions will complete or fail as a group.  See
-#     @ActionCompletionMode for details.
+#     `ActionCompletionMode` for details.
 #
 # Since: 2.5
 ##
@@ -224,20 +224,20 @@
 # support it, for example, qcow2, and rbd,
 #
 # On failure, QEMU will try delete the newly created internal snapshot
-# in the transaction.  When an I/O error occurs during deletion, the
+# in the `transaction`.  When an I/O error occurs during deletion, the
 # user needs to fix it later with qemu-img or other command.
 #
-# @actions: List of @TransactionAction; information needed for the
+# @actions: List of `TransactionAction`; information needed for the
 #     respective operations.
 #
 # @properties: structure of additional options to control the
-#     execution of the transaction.  See @TransactionProperties for
+#     execution of the `transaction`.  See `TransactionProperties` for
 #     additional detail.
 #
 # Errors:
-#     - Any errors from commands in the transaction
+#     - Any errors from commands in the `transaction`
 #
-# .. note:: The transaction aborts on the first failure.  Therefore,
+# .. note:: The `transaction` aborts on the first failure.  Therefore,
 #    there will be information on only one failed operation returned
 #    in an error condition, and subsequent actions will not have been
 #    attempted.
