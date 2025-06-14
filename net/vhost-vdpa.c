@@ -1173,9 +1173,10 @@ static int vhost_vdpa_net_load_single_vlan(VhostVDPAState *s,
                                            struct iovec *in_cursor,
                                            uint16_t vid)
 {
+    __le16 vid_le = cpu_to_le16(vid);
     const struct iovec data = {
-        .iov_base = &vid,
-        .iov_len = sizeof(vid),
+        .iov_base = &vid_le,
+        .iov_len = sizeof(vid_le),
     };
     ssize_t r = vhost_vdpa_net_load_cmd(s, out_cursor, in_cursor,
                                         VIRTIO_NET_CTRL_VLAN,
