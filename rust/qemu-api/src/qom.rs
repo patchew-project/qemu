@@ -634,7 +634,7 @@ impl<T: ObjectType> Owned<T> {
     /// back to `from_raw()` (assuming the original `Owned` was valid!),
     /// since the owned reference remains there between the calls to
     /// `into_raw()` and `from_raw()`.
-    pub unsafe fn from_raw(ptr: *const T) -> Self {
+    pub const unsafe fn from_raw(ptr: *const T) -> Self {
         // SAFETY NOTE: while NonNull requires a mutable pointer, only
         // Deref is implemented so the pointer passed to from_raw
         // remains const

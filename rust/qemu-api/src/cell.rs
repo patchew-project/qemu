@@ -965,7 +965,7 @@ impl<T> Opaque<T> {
     /// # Safety
     ///
     /// The pointer must be valid, though it need not point to a valid value.
-    pub unsafe fn from_raw<'a>(ptr: *mut T) -> &'a Self {
+    pub const unsafe fn from_raw<'a>(ptr: *mut T) -> &'a Self {
         let ptr = NonNull::new(ptr).unwrap().cast::<Self>();
         // SAFETY: Self is a transparent wrapper over T
         unsafe { ptr.as_ref() }
