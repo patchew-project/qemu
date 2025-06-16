@@ -1752,6 +1752,22 @@ static void virt_build_smbios(VirtMachineState *vms)
     }
 }
 
+static AcpiPciHpState *get_acpi_pcihp_state(VirtMachineState *vms)
+{
+    AcpiGedState *acpi_ged_state;
+    AcpiPciHpState *pcihp_state;
+
+    if (!vms->acpi_dev) {
+        return NULL;
+    }
+    acpi_ged_state = ACPI_GED(vms->acpi_dev);
+    pcihp_state = &acpi_ged_state->pcihp_state;
+    if (pcihp_state->use_acpi_hotplug_bridge) {
+        return pcihp_state;
+    }
+    return NULL;
+}
+
 static
 void virt_machine_done(Notifier *notifier, void *data)
 {
@@ -2912,6 +2928,13 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
 
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        if (get_acpi_pcihp_state(vms)) {
+            acpi_pcihp_device_pre_plug_cb(HOTPLUG_HANDLER(vms->acpi_dev),
+                                          dev, errp);
+        }
+    }
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         virt_memory_pre_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
@@ -2963,6 +2986,15 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
         if (device_is_dynamic_sysbus(mc, dev)) {
             platform_bus_link_device(PLATFORM_BUS_DEVICE(vms->platform_bus_dev),
                                      SYS_BUS_DEVICE(dev));
+        }
+    }
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        AcpiPciHpState *pcihp_state = get_acpi_pcihp_state(vms);
+
+        if (pcihp_state) {
+            acpi_pcihp_device_plug_cb(HOTPLUG_HANDLER(vms->acpi_dev),
+                                      pcihp_state, dev, errp);
         }
     }
 
@@ -3022,12 +3054,27 @@ out:
 static void virt_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
+    bool supported = false;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         virt_dimm_unplug_request(hotplug_dev, dev, errp);
+        supported = true;
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
         virtio_md_pci_unplug_request(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev),
                                      errp);
-    } else {
+        supported = true;
+    }
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
+        AcpiPciHpState *pcihp_state = get_acpi_pcihp_state(vms);
+
+        if (pcihp_state) {
+            acpi_pcihp_device_unplug_request_cb(HOTPLUG_HANDLER(vms->acpi_dev),
+                                                pcihp_state, dev, errp);
+            supported = true;
+        }
+    }
+    if (!supported) {
         error_setg(errp, "device unplug request for unsupported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
     }
@@ -3036,11 +3083,27 @@ static void virt_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 static void virt_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
+    bool supported = false;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         virt_dimm_unplug(hotplug_dev, dev, errp);
+        supported = true;
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
         virtio_md_pci_unplug(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev), errp);
-    } else {
+        supported = true;
+    }
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
+
+        AcpiPciHpState *pcihp_state = get_acpi_pcihp_state(vms);
+
+        if (pcihp_state) {
+            acpi_pcihp_device_unplug_cb(HOTPLUG_HANDLER(vms->acpi_dev),
+                                        pcihp_state, dev, errp);
+            supported = true;
+        }
+    }
+    if (!supported) {
         error_setg(errp, "virt: device unplug for unsupported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
     }
@@ -3050,11 +3113,14 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
                                                         DeviceState *dev)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    VirtMachineState *vms = VIRT_MACHINE(machine);
 
     if (device_is_dynamic_sysbus(mc, dev) ||
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
         object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI) ||
-        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_IOMMU_PCI)) {
+        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_IOMMU_PCI) ||
+        (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE) &&
+                             get_acpi_pcihp_state(vms))) {
         return HOTPLUG_HANDLER(machine);
     }
     return NULL;
