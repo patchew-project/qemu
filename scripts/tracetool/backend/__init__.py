@@ -118,6 +118,9 @@ class Wrapper:
     def generate(self, event, group):
         self._run_function("generate_%s", event, group)
 
+    def generate_unconditional(self, event, group):
+        self._run_function("generate_%s_unconditional", event, group)
+    
     def generate_backend_dstate(self, event, group):
         self._run_function("generate_%s_backend_dstate", event, group)
 

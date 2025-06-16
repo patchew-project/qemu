@@ -76,13 +76,17 @@ def generate(events, backend, group):
         out('',
             'static inline void %(api)s(%(args)s)',
             '{',
-            '    if (%(cond)s) {',
+            api=e.api(),
+            args=e.args)
+        
+        if "disable" not in e.properties:
+            backend.generate_unconditional(e, group)
+
+        out('    if (%(cond)s) {',
             '        %(api_nocheck)s(%(names)s);',
             '    }',
             '}',
-            api=e.api(),
             api_nocheck=e.api(e.QEMU_TRACE_NOCHECK),
-            args=e.args,
             names=", ".join(e.args.names()),
             cond=cond)
 
