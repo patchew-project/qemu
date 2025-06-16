@@ -908,19 +908,6 @@ static SpaprCapabilities default_caps_with_cpu(SpaprMachineState *spapr,
         caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
     }
 
-    /* This is for pseries-2.12 and older */
-    if (smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] == 0) {
-        uint8_t mps;
-
-        if (kvmppc_hpt_needs_host_contiguous_pages()) {
-            mps = ctz64(qemu_minrampagesize());
-        } else {
-            mps = 34; /* allow everything up to 16GiB, i.e. everything */
-        }
-
-        caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = mps;
-    }
-
     return caps;
 }
 
