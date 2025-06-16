@@ -71,7 +71,8 @@ def generate(events, backend, group):
 
         out('}')
 
-        cond = "true"
+        event_id = 'TRACE_' + e.name.upper()
+        cond = "trace_event_get_state(%s)" % event_id
 
         out('',
             'static inline void %(api)s(%(args)s)',

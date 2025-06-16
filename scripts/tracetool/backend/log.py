@@ -31,9 +31,7 @@ def generate_h(event, group):
     if len(event.args) > 0:
         argnames = ", " + argnames
 
-    cond = "trace_event_get_state(%s)" % ("TRACE_" + event.name.upper())
-
-    out('    if (%(cond)s && qemu_loglevel_mask(LOG_TRACE)) {',
+    out('    if (qemu_loglevel_mask(LOG_TRACE)) {',
         '        if (message_with_timestamp) {',
         '            struct timeval _now;',
         '            gettimeofday(&_now, NULL);',
@@ -49,7 +47,6 @@ def generate_h(event, group):
         '#line %(out_next_lineno)d "%(out_filename)s"',
         '        }',
         '    }',
-        cond=cond,
         event_lineno=event.lineno,
         event_filename=os.path.relpath(event.filename),
         name=event.name,
