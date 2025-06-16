@@ -123,12 +123,17 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
                               uint32_t irq, VirtMachineState *vms)
 {
     int ecam_id = VIRT_ECAM_ID(vms->highmem_ecam);
+    AcpiGedState *acpi_ged_state = ACPI_GED(vms->acpi_dev);
+    AcpiPciHpState *pcihp_state = &acpi_ged_state->pcihp_state;
+
+
     struct GPEXConfig cfg = {
         .mmio32 = memmap[VIRT_PCIE_MMIO],
         .pio    = memmap[VIRT_PCIE_PIO],
         .ecam   = memmap[ecam_id],
         .irq    = irq,
         .bus    = vms->bus,
+        .pci_native_hotplug = !pcihp_state->use_acpi_hotplug_bridge,
     };
 
     if (vms->highmem_mmio) {
