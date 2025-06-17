@@ -1507,6 +1507,43 @@ static int kvm_arm_handle_sysreg_trap(ARMCPU *cpu,
     return -1;
 }
 
+/*
+ * The guest is making a hypercall or firmware call. We can handle a
+ * limited number of them (e.g. PSCI) but we can't emulate a true
+ * firmware. This is an abbreviated version of
+ * kvm_smccc_call_handler() in the kernel and the TCG only arm_handle_psci_call().
+ *
+ * In the SplitAccel case we would be transitioning to execute EL2+
+ * under TCG.
+ */
+static int kvm_arm_handle_hypercall(ARMCPU *cpu,
+                                    int esr_ec)
+{
+    CPUARMState *env = &cpu->env;
+    int32_t ret = 0;
+
+    trace_kvm_hypercall(esr_ec, env->xregs[0]);
+
+    switch (env->xregs[0]) {
+    case QEMU_PSCI_0_2_FN_PSCI_VERSION:
+        ret = QEMU_PSCI_VERSION_1_1;
+        break;
+    case QEMU_PSCI_0_2_FN_MIGRATE_INFO_TYPE:
+        ret = QEMU_PSCI_0_2_RET_TOS_MIGRATION_NOT_REQUIRED; /* No trusted OS */
+        break;
+    case QEMU_PSCI_1_0_FN_PSCI_FEATURES:
+        ret = QEMU_PSCI_RET_NOT_SUPPORTED;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unhandled hypercall %"PRIx64"\n",
+                      __func__, env->xregs[0]);
+        return -1;
+    }
+
+    env->xregs[0] = ret;
+    return 0;
+}
+
 /**
  * kvm_arm_handle_hard_trap:
  * @cpu: ARMCPU
@@ -1538,6 +1575,13 @@ static int kvm_arm_handle_hard_trap(ARMCPU *cpu,
     switch (esr_ec) {
     case EC_SYSTEMREGISTERTRAP:
         return kvm_arm_handle_sysreg_trap(cpu, esr_iss, elr);
+    case EC_AA32_SVC:
+    case EC_AA32_HVC:
+    case EC_AA32_SMC:
+    case EC_AA64_SVC:
+    case EC_AA64_HVC:
+    case EC_AA64_SMC:
+        return kvm_arm_handle_hypercall(cpu, esr_ec);
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unhandled EC: %x/%x/%x/%d\n",
                 __func__, esr_ec, esr_iss, esr_iss2, esr_il);
