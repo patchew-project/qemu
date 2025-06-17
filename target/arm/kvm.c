@@ -24,6 +24,7 @@
 #include "system/runstate.h"
 #include "system/kvm.h"
 #include "system/kvm_int.h"
+#include "cpregs.h"
 #include "kvm_arm.h"
 #include "cpu.h"
 #include "trace.h"
@@ -1414,6 +1415,98 @@ static bool kvm_arm_handle_debug(ARMCPU *cpu,
     return false;
 }
 
+/*
+ * To handle system register traps we should be able to extract the
+ * encoding from the ISS encoding and go from there.
+ */
+static int kvm_arm_handle_sysreg_trap(ARMCPU *cpu,
+                                      uint64_t esr_iss,
+                                      uint64_t elr)
+{
+    int op0 = extract32(esr_iss, 20, 2);
+    int op2 = extract32(esr_iss, 17, 3);
+    int op1 = extract32(esr_iss, 14, 3);
+    int crn = extract32(esr_iss, 10, 4);
+    int rt = extract32(esr_iss, 5, 5);
+    int crm = extract32(esr_iss, 1, 4);
+    bool is_read = extract32(esr_iss, 0, 1);
+
+    uint32_t key = ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP, crn, crm, op0, op1, op2);
+    const ARMCPRegInfo *ri = get_arm_cp_reginfo(cpu->cp_regs, key);
+
+    if (ri) {
+        CPUARMState *env = &cpu->env;
+        uint64_t val = 0;
+        bool take_bql = ri->type & ARM_CP_IO;
+
+        if (ri->accessfn) {
+            if (ri->accessfn(env, ri, true) != CP_ACCESS_OK) {
+                g_assert_not_reached();
+            }
+        }
+
+        if (take_bql) {
+            bql_lock();
+        }
+
+        if (is_read) {
+            if (ri->type & ARM_CP_CONST) {
+                val = ri->resetvalue;
+            } else if (ri->readfn) {
+                val = ri->readfn(env, ri);
+            } else {
+                val = CPREG_FIELD64(env, ri);
+            }
+            trace_kvm_sysreg_read(ri->name, val);
+
+            if (rt < 31) {
+                env->xregs[rt] = val;
+            } else {
+                /* this would be deeply weird */
+                g_assert_not_reached();
+            }
+        } else {
+            /* x31 == zero reg */
+            if (rt < 31) {
+                val = env->xregs[rt];
+            }
+
+            if (ri->writefn) {
+                ri->writefn(env, ri, val);
+            } else {
+                CPREG_FIELD64(env, ri) = val;
+            }
+            trace_kvm_sysreg_write(ri->name, val);
+        }
+
+        if (take_bql) {
+            bql_unlock();
+        }
+
+        /*
+         * Set PC to return.
+         *
+         * Note we elr_el2 doesn't seem to be what we need so lets
+         * rely on env->pc being correct.
+         *
+         * TODO We currently skip to the next instruction
+         * unconditionally but that is at odds with the kernels code
+         * which only does that conditionally (see kvm_handle_sys_reg
+         * -> perform_access):
+         *
+         *    if (likely(r->access(vcpu, params, r)))
+         *        kvm_incr_pc(vcpu);
+         *
+         */
+        env->pc = env->pc + 4;
+        return 0;
+    }
+
+    fprintf(stderr, "%s: @ %" PRIx64 " failed to find sysreg crn:%d crm:%d op0:%d op1:%d op2:%d\n",
+            __func__, elr, crn, crm, op0, op1, op2);
+    return -1;
+}
+
 /**
  * kvm_arm_handle_hard_trap:
  * @cpu: ARMCPU
@@ -1443,6 +1536,8 @@ static int kvm_arm_handle_hard_trap(ARMCPU *cpu,
     kvm_cpu_synchronize_state(cs);
 
     switch (esr_ec) {
+    case EC_SYSTEMREGISTERTRAP:
+        return kvm_arm_handle_sysreg_trap(cpu, esr_iss, elr);
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unhandled EC: %x/%x/%x/%d\n",
                 __func__, esr_ec, esr_iss, esr_iss2, esr_il);
