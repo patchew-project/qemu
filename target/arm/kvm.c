@@ -1544,6 +1544,32 @@ static int kvm_arm_handle_hypercall(ARMCPU *cpu,
     return 0;
 }
 
+/*
+ * It would be perfectly fine to immediately return from any WFE/WFI
+ * trap however that would mean we spend a lot of time bouncing
+ * between the hypervisor and QEMU when things are idle.
+ */
+
+static const char * wfx_insn[] = {
+    "WFI",
+    "WFE",
+    "WFIT",
+    "WFET"
+};
+
+static int kvm_arm_handle_wfx(CPUState *cs, int esr_iss)
+{
+    int ti = extract32(esr_iss, 0, 2);
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    trace_kvm_wfx_trap(cs->cpu_index, wfx_insn[ti], env->pc);
+
+    /* stop the CPU, return to the top of the loop */
+    cs->stop = true;
+    return EXCP_YIELD;
+}
+
 /**
  * kvm_arm_handle_hard_trap:
  * @cpu: ARMCPU
@@ -1582,6 +1608,8 @@ static int kvm_arm_handle_hard_trap(ARMCPU *cpu,
     case EC_AA64_HVC:
     case EC_AA64_SMC:
         return kvm_arm_handle_hypercall(cpu, esr_ec);
+    case EC_WFX_TRAP:
+        return kvm_arm_handle_wfx(cs, esr_iss);
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unhandled EC: %x/%x/%x/%d\n",
                 __func__, esr_ec, esr_iss, esr_iss2, esr_il);
