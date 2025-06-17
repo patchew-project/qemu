@@ -1615,6 +1615,18 @@ static void kvm_arch_set_eager_split_size(Object *obj, Visitor *v,
     s->kvm_eager_split_size = value;
 }
 
+static bool kvm_arch_get_trap_harder(Object *obj, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    return s->trap_harder;
+}
+
+static void kvm_arch_set_trap_harder(Object *obj, bool value, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    s->trap_harder = value;
+}
+
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
     object_class_property_add(oc, "eager-split-size", "size",
@@ -1623,6 +1635,13 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
 
     object_class_property_set_description(oc, "eager-split-size",
         "Eager Page Split chunk size for hugepages. (default: 0, disabled)");
+
+    object_class_property_add_bool(oc, "trap-harder",
+                                   kvm_arch_get_trap_harder,
+                                   kvm_arch_set_trap_harder);
+
+    object_class_property_set_description(oc, "trap-harder",
+        "Trap harder mode traps almost everything to QEMU (default: off)");
 }
 
 int kvm_arch_insert_hw_breakpoint(vaddr addr, vaddr len, int type)

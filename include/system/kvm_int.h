@@ -122,6 +122,10 @@ struct KVMState
     OnOffAuto kernel_irqchip_split;
     bool sync_mmu;
     bool guest_state_protected;
+
+    /* currently Arm only, but we have no KVMArmState */
+    bool trap_harder;
+
     uint64_t manual_dirty_log_protect;
     /*
      * Older POSIX says that ioctl numbers are signed int, but in
