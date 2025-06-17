@@ -95,13 +95,10 @@ static uint64_t mailbox_reg_read(void *opaque, hwaddr offset, unsigned size)
         }
         if (offset == A_CXL_DEV_MAILBOX_STS) {
             uint64_t status_reg = cxl_dstate->mbox_reg_state64[offset / size];
-            int bgop;
 
             qemu_mutex_lock(&cci->bg.lock);
-            bgop = !(cci->bg.complete_pct == 100 || cci->bg.aborted);
-
             status_reg = FIELD_DP64(status_reg, CXL_DEV_MAILBOX_STS, BG_OP,
-                                    bgop);
+                                    !!cci->bg.runtime);
             cxl_dstate->mbox_reg_state64[offset / size] = status_reg;
             qemu_mutex_unlock(&cci->bg.lock);
         }
