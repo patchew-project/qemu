@@ -3042,11 +3042,14 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
 
 /*
  * for arm64 kvm_type [7-0] encodes the requested number of bits
- * in the IPA address space
+ * in the IPA address space.
+ *
+ * For trap-me-harder we apply KVM_VM_TYPE_ARM_TRAP_ALL
  */
 static int virt_kvm_type(MachineState *ms, const char *type_str)
 {
     VirtMachineState *vms = VIRT_MACHINE(ms);
+    int kvm_type = kvm_arm_get_type(ms);
     int max_vm_pa_size, requested_pa_size;
     bool fixed_ipa;
 
@@ -3076,7 +3079,7 @@ static int virt_kvm_type(MachineState *ms, const char *type_str)
      * the implicit legacy 40b IPA setting, in which case the kvm_type
      * must be 0.
      */
-    return fixed_ipa ? 0 : requested_pa_size;
+    return fixed_ipa ? kvm_type : deposit32(kvm_type, 0, 8, requested_pa_size);
 }
 
 static int virt_hvf_get_physical_address_range(MachineState *ms)

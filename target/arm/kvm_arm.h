@@ -192,6 +192,15 @@ bool kvm_arm_sve_supported(void);
 bool kvm_arm_mte_supported(void);
 
 /**
+ * kvm_arm_get_type: return the base KVM type flags
+ * @ms: Machine state handle
+ *
+ * Returns the base type flags, usually zero. These will be combined
+ * with the IPA flags from bellow.
+ */
+int kvm_arm_get_type(MachineState *ms);
+
+/**
  * kvm_arm_get_max_vm_ipa_size:
  * @ms: Machine state handle
  * @fixed_ipa: True when the IPA limit is fixed at 40. This is the case
