@@ -88,6 +88,10 @@ typedef enum {
 #define ARM_EL_ISV_SHIFT 24
 #define ARM_EL_IL (1 << ARM_EL_IL_SHIFT)
 #define ARM_EL_ISV (1 << ARM_EL_ISV_SHIFT)
+#define ARM_EL_ISS_SHIFT 0
+#define ARM_EL_ISS_LENGTH 25
+#define ARM_EL_ISS2_SHIFT 32
+#define ARM_EL_ISS2_LENGTH 24
 
 /* In the Data Abort syndrome */
 #define ARM_EL_VNCR (1 << 13)
