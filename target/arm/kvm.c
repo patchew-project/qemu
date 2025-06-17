@@ -522,6 +522,12 @@ int kvm_arm_get_type(MachineState *ms)
     return s->trap_harder ? KVM_VM_TYPE_ARM_TRAP_ALL : 0;
 }
 
+bool kvm_arm_is_trapping_harder(MachineState *ms)
+{
+    KVMState *s = KVM_STATE(ms->accelerator);
+    return s->trap_harder;
+}
+
 int kvm_arch_get_default_type(MachineState *ms)
 {
     bool fixed_ipa;

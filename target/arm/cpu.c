@@ -1463,7 +1463,7 @@ static void arm_cpu_initfn(Object *obj)
 # endif
 #else
     /* Our inbound IRQ and FIQ lines */
-    if (kvm_enabled()) {
+    if (kvm_enabled() && kvm_irqchip_in_kernel()) {
         /*
          * VIRQ, VFIQ, NMI, VINMI are unused with KVM but we add
          * them to maintain the same interface as non-KVM CPUs.

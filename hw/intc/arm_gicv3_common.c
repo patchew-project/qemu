@@ -662,10 +662,6 @@ const char *gicv3_class_name(void)
     if (kvm_irqchip_in_kernel()) {
         return "kvm-arm-gicv3";
     } else {
-        if (kvm_enabled()) {
-            error_report("Userspace GICv3 is not supported with KVM");
-            exit(1);
-        }
         return "arm-gicv3";
     }
 }

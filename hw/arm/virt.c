@@ -2003,9 +2003,16 @@ static void finalize_gic_version(VirtMachineState *vms)
             gics_supported |= VIRT_GIC_VERSION_3_MASK;
         }
     } else if (kvm_enabled() && !kvm_irqchip_in_kernel()) {
-        /* KVM w/o kernel irqchip can only deal with GICv2 */
+        MachineState *ms = MACHINE(vms);
         gics_supported |= VIRT_GIC_VERSION_2_MASK;
-        accel_name = "KVM with kernel-irqchip=off";
+        if (kvm_arm_is_trapping_harder(ms) &&
+            module_object_class_by_name("arm-gicv3")) {
+            gics_supported |= VIRT_GIC_VERSION_3_MASK;
+            accel_name = "TMH KVM with kernel-irqchip=off";
+        } else {
+            /* KVM w/o kernel irqchip can only deal with GICv2 */
+            accel_name = "KVM with kernel-irqchip=off";
+        }
     } else if (tcg_enabled() || hvf_enabled() || qtest_enabled())  {
         gics_supported |= VIRT_GIC_VERSION_2_MASK;
         if (module_object_class_by_name("arm-gicv3")) {

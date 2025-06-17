@@ -201,6 +201,14 @@ bool kvm_arm_mte_supported(void);
 int kvm_arm_get_type(MachineState *ms);
 
 /**
+ * kvm_arm_is_trapping_harder: return true if trapping harder
+ * @ms: Machine state handle
+ *
+ * return true if trapping harder
+ */
+bool kvm_arm_is_trapping_harder(MachineState *ms);
+
+/**
  * kvm_arm_get_max_vm_ipa_size:
  * @ms: Machine state handle
  * @fixed_ipa: True when the IPA limit is fixed at 40. This is the case
