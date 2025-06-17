@@ -263,6 +263,7 @@ STDAPI COMRegister(void)
     qga_debug_begin;
 
     HRESULT hr;
+    HRESULT unregisterHr;
     COMInitializer initializer;
     COMPointer<IUnknown> pUnknown;
     COMPointer<ICOMAdminCatalog2> pCatalog;
@@ -287,9 +288,13 @@ STDAPI COMRegister(void)
 
     chk(QGAProviderFind(QGAProviderCount, (void *)&count));
     if (count) {
-        errmsg(E_ABORT, "QGA VSS Provider is already installed");
-        qga_debug_end;
-        return E_ABORT;
+        qga_debug("QGA VSS Provider is already installed. Attempting to unregister first.");
+        unregisterHr = COMUnregister();
+        if (FAILED(unregisterHr)) {
+            errmsg(unregisterHr, "Failed to unregister existing QGA VSS Provider. Aborting installation.");
+            qga_debug_end;
+            return E_ABORT; 
+        }
     }
 
     chk(CoCreateInstance(CLSID_COMAdminCatalog, NULL, CLSCTX_INPROC_SERVER,
