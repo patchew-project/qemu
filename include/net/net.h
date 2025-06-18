@@ -69,6 +69,7 @@ typedef bool (SetSteeringEBPF)(NetClientState *, int);
 typedef bool (NetCheckPeerType)(NetClientState *, ObjectClass *, Error **);
 typedef bool (IsVHostUser)(NetClientState *);
 typedef struct vhost_net *(GetVHostNet)(NetClientState *nc);
+typedef uint64_t (GetAckedFeatures)(NetClientState *nc);
 
 typedef struct NetClientInfo {
     NetClientDriver type;
@@ -97,6 +98,7 @@ typedef struct NetClientInfo {
     const int *vhost_feature_bits;
     IsVHostUser *is_vhost_user;
     GetVHostNet *get_vhost_net;
+    GetAckedFeatures *get_acked_features;
 } NetClientInfo;
 
 struct NetClientState {
@@ -198,6 +200,8 @@ int qemu_set_vnet_le(NetClientState *nc, bool is_le);
 int qemu_set_vnet_be(NetClientState *nc, bool is_be);
 bool qemu_is_vhost_user(NetClientState *nc);
 void qemu_macaddr_default_if_unset(MACAddr *macaddr);
+uint64_t qemu_get_acked_features(NetClientState *nc);
+
 /**
  * qemu_find_nic_info: Obtain NIC configuration information
  * @typename: Name of device object type

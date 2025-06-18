@@ -245,8 +245,8 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     int r;
     bool backend_kernel = options->backend_type == VHOST_BACKEND_TYPE_KERNEL;
     struct vhost_net *net = g_new0(struct vhost_net, 1);
-    uint64_t features = 0;
     Error *local_err = NULL;
+    uint64_t features;
 
     if (!options->net_backend) {
         fprintf(stderr, "vhost-net requires net backend to be setup\n");
@@ -297,17 +297,13 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     }
 
     /* Set sane init value. Override when guest acks. */
-#ifdef CONFIG_VHOST_NET_USER
-    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
-        features = vhost_user_get_acked_features(net->nc);
-        if (~net->dev.features & features) {
-            fprintf(stderr, "vhost lacks feature mask 0x%" PRIx64
-                    " for backend\n",
-                    (uint64_t)(~net->dev.features & features));
-            goto fail;
-        }
+    features = qemu_get_acked_features(net->nc);
+    if (~net->dev.features & features) {
+        fprintf(stderr, "vhost lacks feature mask 0x%" PRIx64
+                " for backend\n",
+                (uint64_t)(~net->dev.features & features));
+        goto fail;
     }
-#endif
 
     vhost_net_ack_features(net, features);
 

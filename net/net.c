@@ -608,6 +608,16 @@ int qemu_set_vnet_be(NetClientState *nc, bool is_be)
 #endif
 }
 
+uint64_t qemu_get_acked_features(NetClientState *nc)
+{
+    if (nc->info->get_acked_features) {
+        return nc->info->get_acked_features(nc);
+    }
+
+    return 0;
+}
+
+
 int qemu_can_receive_packet(NetClientState *nc)
 {
     if (nc->receive_disabled) {
