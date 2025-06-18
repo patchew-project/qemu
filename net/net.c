@@ -1267,6 +1267,9 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
     const char *name,
     NetClientState *peer, Error **errp) = {
         [NET_CLIENT_DRIVER_NIC]       = net_init_nic,
+#ifdef CONFIG_PASST
+        [NET_CLIENT_DRIVER_PASST]     = net_init_passt,
+#endif
 #ifdef CONFIG_SLIRP
         [NET_CLIENT_DRIVER_USER]      = net_init_slirp,
 #endif
@@ -1372,6 +1375,7 @@ void show_netdevs(void)
         "dgram",
         "hubport",
         "tap",
+        "passt",
 #ifdef CONFIG_SLIRP
         "user",
 #endif

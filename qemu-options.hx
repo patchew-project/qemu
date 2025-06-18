@@ -2796,6 +2796,18 @@ DEFHEADING()
 DEFHEADING(Network options:)
 
 DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
+#ifdef CONFIG_PASST
+    "-netdev passt,id=str[,path=file][,quiet=on|off][,debug=on|off][,trace=on|off]\n"
+    "          [,vhost-user=on|off][,pcap-file=file][,mtu=mtu]\n"
+    "          [,address=addr][,netmask=mask][,mac=addr][,gateway=addr]\n"
+    "          [,interface=name][,outbound=address][,outbound-if4=name]\n"
+    "          [,outbound-if6=name][,dns=addr][,search=list][,fqdn=name]\n"
+    "          [,dhcp-dns=on|off][,dhcp-search=on|off][,map-host-loopback=addr]\n"
+    "          [,map-guest-addr=addr][,dns-forward=addr][,dns-host=addr]\n"
+    "          [,tcp=on|off][,udp=on|off][,icmp=on|off][,dhcp=on|off]\n"
+    "          [,ndp=on|off][,dhcpv6=on|off][,ra=on|off][,freebind=on|off]\n"
+    "          [,ipv4=on|off][,ipv6=on|off][,tcp-ports=spec][,udp-ports=spec]\n"
+#endif
 #ifdef CONFIG_SLIRP
     "-netdev user,id=str[,ipv4=on|off][,net=addr[/mask]][,host=addr]\n"
     "         [,ipv6=on|off][,ipv6-net=addr[/int]][,ipv6-host=addr]\n"
@@ -2952,6 +2964,9 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                configure a hub port on the hub with ID 'n'\n", QEMU_ARCH_ALL)
 DEF("nic", HAS_ARG, QEMU_OPTION_nic,
     "-nic [tap|bridge|"
+#ifdef CONFIG_PASST
+    "passt|"
+#endif
 #ifdef CONFIG_SLIRP
     "user|"
 #endif
@@ -2984,6 +2999,9 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                configure or create an on-board (or machine default) NIC and\n"
     "                connect it to hub 0 (please use -nic unless you need a hub)\n"
     "-net ["
+#ifdef CONFIG_PASST
+    "passt|"
+#endif
 #ifdef CONFIG_SLIRP
     "user|"
 #endif
