@@ -108,6 +108,11 @@ config STM32L4X5_RCC
 config MIPS_ITU
     bool
 
+config MIPS_BOSTON_AIA
+    bool
+    default n
+    depends on RISCV64
+
 config MPS2_FPGAIO
     bool
     select LED
