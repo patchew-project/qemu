@@ -221,6 +221,13 @@ static bool vhost_user_check_peer_type(NetClientState *nc, ObjectClass *oc,
     return true;
 }
 
+static bool vhost_user_is_vhost_user(NetClientState *nc)
+{
+    assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_USER);
+
+    return true;
+}
+
 static NetClientInfo net_vhost_user_info = {
         .type = NET_CLIENT_DRIVER_VHOST_USER,
         .size = sizeof(NetVhostUserState),
@@ -231,6 +238,7 @@ static NetClientInfo net_vhost_user_info = {
         .set_vnet_be = vhost_user_set_vnet_endianness,
         .set_vnet_le = vhost_user_set_vnet_endianness,
         .check_peer_type = vhost_user_check_peer_type,
+        .is_vhost_user = vhost_user_is_vhost_user,
 };
 
 static gboolean net_vhost_user_watch(void *do_not_use, GIOCondition cond,

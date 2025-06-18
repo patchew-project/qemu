@@ -586,6 +586,15 @@ int qemu_set_vnet_le(NetClientState *nc, bool is_le)
 #endif
 }
 
+bool qemu_is_vhost_user(NetClientState *nc)
+{
+    if (nc->info->is_vhost_user) {
+        return nc->info->is_vhost_user(nc);
+    }
+
+    return false;
+}
+
 int qemu_set_vnet_be(NetClientState *nc, bool is_be)
 {
 #if HOST_BIG_ENDIAN

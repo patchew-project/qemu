@@ -98,27 +98,24 @@ static const int user_feature_bits[] = {
 
 static const int *vhost_net_get_feature_bits(struct vhost_net *net)
 {
-    const int *feature_bits = 0;
-
-    switch (net->nc->info->type) {
-    case NET_CLIENT_DRIVER_TAP:
-        feature_bits = kernel_feature_bits;
-        break;
-    case NET_CLIENT_DRIVER_VHOST_USER:
-        feature_bits = user_feature_bits;
-        break;
-#ifdef CONFIG_VHOST_NET_VDPA
-    case NET_CLIENT_DRIVER_VHOST_VDPA:
-        feature_bits = vdpa_feature_bits;
-        break;
-#endif
-    default:
-        error_report("Feature bits not defined for this type: %d",
-                net->nc->info->type);
-        break;
+    if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
+        return kernel_feature_bits;
     }
 
-    return feature_bits;
+    if (qemu_is_vhost_user(net->nc)) {
+        return user_feature_bits;
+    }
+
+#ifdef CONFIG_VHOST_NET_VDPA
+    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        return vdpa_feature_bits;
+    }
+#endif
+
+    error_report("Feature bits not defined for this type: %d",
+                 net->nc->info->type);
+
+    return 0;
 }
 
 uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
@@ -525,7 +522,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
          * because vhost user doesn't interrupt masking/unmasking
          * properly.
          */
-        if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+        if (qemu_is_vhost_user(net->nc)) {
             dev->use_guest_notifier_mask = false;
         }
      }

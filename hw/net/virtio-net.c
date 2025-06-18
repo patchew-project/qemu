@@ -679,13 +679,15 @@ static int virtio_net_max_tx_queue_size(VirtIONet *n)
         return VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
     }
 
-    switch(peer->info->type) {
-    case NET_CLIENT_DRIVER_VHOST_USER:
-    case NET_CLIENT_DRIVER_VHOST_VDPA:
+    if (qemu_is_vhost_user(peer)) {
         return VIRTQUEUE_MAX_SIZE;
-    default:
-        return VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
-    };
+    }
+
+    if (peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        return VIRTQUEUE_MAX_SIZE;
+    }
+
+    return VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
 }
 
 static int peer_attach(VirtIONet *n, int index)
@@ -696,7 +698,7 @@ static int peer_attach(VirtIONet *n, int index)
         return 0;
     }
 
-    if (nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+    if (qemu_is_vhost_user(nc->peer)) {
         vhost_set_vring_enable(nc->peer, 1);
     }
 
@@ -719,7 +721,7 @@ static int peer_detach(VirtIONet *n, int index)
         return 0;
     }
 
-    if (nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+    if (qemu_is_vhost_user(nc->peer)) {
         vhost_set_vring_enable(nc->peer, 0);
     }
 
