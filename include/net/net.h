@@ -70,6 +70,7 @@ typedef bool (NetCheckPeerType)(NetClientState *, ObjectClass *, Error **);
 typedef bool (IsVHostUser)(NetClientState *);
 typedef struct vhost_net *(GetVHostNet)(NetClientState *nc);
 typedef uint64_t (GetAckedFeatures)(NetClientState *nc);
+typedef void (SaveAcketFeatures)(NetClientState *nc);
 
 typedef struct NetClientInfo {
     NetClientDriver type;
@@ -99,6 +100,7 @@ typedef struct NetClientInfo {
     IsVHostUser *is_vhost_user;
     GetVHostNet *get_vhost_net;
     GetAckedFeatures *get_acked_features;
+    SaveAcketFeatures *save_acked_features;
 } NetClientInfo;
 
 struct NetClientState {
