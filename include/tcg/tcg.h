@@ -706,17 +706,16 @@ size_t tcg_nb_tbs(void);
 static inline void *tcg_malloc(int size)
 {
     TCGContext *s = tcg_ctx;
-    uint8_t *ptr, *ptr_end;
 
     /* ??? This is a weak placeholder for minimum malloc alignment.  */
     size = QEMU_ALIGN_UP(size, 8);
 
-    ptr = s->pool_cur;
-    ptr_end = ptr + size;
-    if (unlikely(ptr_end > s->pool_end)) {
+    if (unlikely(s->pool_end - s->pool_cur < size)) {
         return tcg_malloc_internal(tcg_ctx, size);
     } else {
-        s->pool_cur = ptr_end;
+        uint8_t *ptr = s->pool_cur;
+
+        s->pool_cur += size;
         return ptr;
     }
 }
