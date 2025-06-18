@@ -36,86 +36,14 @@
 #include "hw/virtio/virtio-bus.h"
 #include "linux-headers/linux/vhost.h"
 
-
-/* Features supported by host kernel. */
-static const int kernel_feature_bits[] = {
-    VIRTIO_F_NOTIFY_ON_EMPTY,
-    VIRTIO_RING_F_INDIRECT_DESC,
-    VIRTIO_RING_F_EVENT_IDX,
-    VIRTIO_NET_F_MRG_RXBUF,
-    VIRTIO_F_VERSION_1,
-    VIRTIO_NET_F_MTU,
-    VIRTIO_F_IOMMU_PLATFORM,
-    VIRTIO_F_RING_PACKED,
-    VIRTIO_F_RING_RESET,
-    VIRTIO_F_IN_ORDER,
-    VIRTIO_F_NOTIFICATION_DATA,
-    VIRTIO_NET_F_RSC_EXT,
-    VIRTIO_NET_F_HASH_REPORT,
-    VHOST_INVALID_FEATURE_BIT
-};
-
-/* Features supported by others. */
-static const int user_feature_bits[] = {
-    VIRTIO_F_NOTIFY_ON_EMPTY,
-    VIRTIO_F_NOTIFICATION_DATA,
-    VIRTIO_RING_F_INDIRECT_DESC,
-    VIRTIO_RING_F_EVENT_IDX,
-
-    VIRTIO_F_ANY_LAYOUT,
-    VIRTIO_F_VERSION_1,
-    VIRTIO_NET_F_CSUM,
-    VIRTIO_NET_F_GUEST_CSUM,
-    VIRTIO_NET_F_GSO,
-    VIRTIO_NET_F_GUEST_TSO4,
-    VIRTIO_NET_F_GUEST_TSO6,
-    VIRTIO_NET_F_GUEST_ECN,
-    VIRTIO_NET_F_GUEST_UFO,
-    VIRTIO_NET_F_HOST_TSO4,
-    VIRTIO_NET_F_HOST_TSO6,
-    VIRTIO_NET_F_HOST_ECN,
-    VIRTIO_NET_F_HOST_UFO,
-    VIRTIO_NET_F_MRG_RXBUF,
-    VIRTIO_NET_F_MTU,
-    VIRTIO_F_IOMMU_PLATFORM,
-    VIRTIO_F_RING_PACKED,
-    VIRTIO_F_RING_RESET,
-    VIRTIO_F_IN_ORDER,
-    VIRTIO_NET_F_RSS,
-    VIRTIO_NET_F_RSC_EXT,
-    VIRTIO_NET_F_HASH_REPORT,
-    VIRTIO_NET_F_GUEST_USO4,
-    VIRTIO_NET_F_GUEST_USO6,
-    VIRTIO_NET_F_HOST_USO,
-
-    /* This bit implies RARP isn't sent by QEMU out of band */
-    VIRTIO_NET_F_GUEST_ANNOUNCE,
-
-    VIRTIO_NET_F_MQ,
-
-    VHOST_INVALID_FEATURE_BIT
-};
-
 static const int *vhost_net_get_feature_bits(struct vhost_net *net)
 {
-    if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
-        return kernel_feature_bits;
+    if (net->nc->info->vhost_feature_bits == NULL) {
+        error_report("Feature bits not defined for this type: %d",
+                     net->nc->info->type);
     }
 
-    if (qemu_is_vhost_user(net->nc)) {
-        return user_feature_bits;
-    }
-
-#ifdef CONFIG_VHOST_NET_VDPA
-    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
-        return vdpa_feature_bits;
-    }
-#endif
-
-    error_report("Feature bits not defined for this type: %d",
-                 net->nc->info->type);
-
-    return 0;
+    return net->nc->info->vhost_feature_bits;
 }
 
 uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)

@@ -94,6 +94,7 @@ typedef struct NetClientInfo {
     NetAnnounce *announce;
     SetSteeringEBPF *set_steering_ebpf;
     NetCheckPeerType *check_peer_type;
+    const int *vhost_feature_bits;
     IsVHostUser *is_vhost_user;
     GetVHostNet *get_vhost_net;
 } NetClientInfo;

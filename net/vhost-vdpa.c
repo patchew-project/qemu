@@ -55,7 +55,7 @@ typedef struct VhostVDPAState {
  * with the exception of VHOST_INVALID_FEATURE_BIT,
  * which should always be the last entry.
  */
-const int vdpa_feature_bits[] = {
+static const int vdpa_feature_bits[] = {
     VIRTIO_F_ANY_LAYOUT,
     VIRTIO_F_IOMMU_PLATFORM,
     VIRTIO_F_NOTIFY_ON_EMPTY,
@@ -433,6 +433,7 @@ static NetClientInfo net_vhost_vdpa_info = {
         .check_peer_type = vhost_vdpa_check_peer_type,
         .set_steering_ebpf = vhost_vdpa_set_steering_ebpf,
         .get_vhost_net = vhost_vdpa_get_vhost_net,
+        .vhost_feature_bits = vdpa_feature_bits,
 };
 
 static int64_t vhost_vdpa_get_vring_group(int device_fd, unsigned vq_index,
@@ -1289,6 +1290,7 @@ static NetClientInfo net_vhost_vdpa_cvq_info = {
     .check_peer_type = vhost_vdpa_check_peer_type,
     .set_steering_ebpf = vhost_vdpa_set_steering_ebpf,
     .get_vhost_net = vhost_vdpa_get_vhost_net,
+    .vhost_feature_bits = vdpa_feature_bits,
 };
 
 /*
