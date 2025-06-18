@@ -35,7 +35,7 @@
 #include <math.h>
 
 target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
-                            target_ulong s2)
+                            target_ulong s2, target_ulong x0)
 {
     int vlmax, vl;
     RISCVCPU *cpu = env_archcpu(env);
@@ -64,15 +64,6 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
         }
     }
 
-    if ((sew > cpu->cfg.elen) || vill || (ediv != 0) || (reserved != 0)) {
-        /* only set vill bit. */
-        env->vill = 1;
-        env->vtype = 0;
-        env->vl = 0;
-        env->vstart = 0;
-        return 0;
-    }
-
     /* lmul encoded as in DisasContext::lmul */
     lmul = sextract32(FIELD_EX64(s2, VTYPE, VLMUL), 0, 3);
     vlmax = vext_get_vlmax(cpu->cfg.vlenb, vsew, lmul);
@@ -83,6 +74,17 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
     } else {
         vl = vlmax;
     }
+
+    if ((sew > cpu->cfg.elen) || vill || (ediv != 0) || (reserved != 0) ||
+        (cpu->cfg.rvv_vsetvl_x0_vill && x0 && (env->vl != vl))) {
+        /* only set vill bit. */
+        env->vill = 1;
+        env->vtype = 0;
+        env->vl = 0;
+        env->vstart = 0;
+        return 0;
+    }
+
     env->vl = vl;
     env->vtype = s2;
     env->vstart = 0;
