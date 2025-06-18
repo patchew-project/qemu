@@ -199,6 +199,13 @@ typedef struct PMUFixedCtrState {
         uint64_t counter_virt_prev[2];
 } PMUFixedCtrState;
 
+struct MIPSCSR {
+    uint64_t tvec;
+    uint64_t config[12];
+    uint64_t pmacfg[15];
+};
+typedef struct MIPSCSR MIPSCSR;
+
 struct CPUArchState {
     target_ulong gpr[32];
     target_ulong gprh[32]; /* 64 top bits of the 128-bit registers */
@@ -497,6 +504,8 @@ struct CPUArchState {
     target_ulong rnmip;
     uint64_t rnmi_irqvec;
     uint64_t rnmi_excpvec;
+
+    MIPSCSR mips_csrs;
 };
 
 /*
@@ -971,6 +980,9 @@ const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 
 /* In th_csr.c */
 extern const RISCVCSR th_csr_list[];
+
+/* Implemented in mips_csr.c */
+extern const RISCVCSR mips_csr_list[];
 
 const char *priv_spec_to_str(int priv_version);
 #endif /* RISCV_CPU_H */
