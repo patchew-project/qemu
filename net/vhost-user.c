@@ -284,6 +284,7 @@ static NetClientInfo net_vhost_user_info = {
         .vhost_feature_bits = user_feature_bits,
         .get_acked_features = vhost_user_get_acked_features,
         .save_acked_features = vhost_user_save_acked_features,
+        .max_tx_queue_size = VIRTQUEUE_MAX_SIZE,
 };
 
 static gboolean net_vhost_user_watch(void *do_not_use, GIOCondition cond,

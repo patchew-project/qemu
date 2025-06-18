@@ -434,6 +434,7 @@ static NetClientInfo net_vhost_vdpa_info = {
         .set_steering_ebpf = vhost_vdpa_set_steering_ebpf,
         .get_vhost_net = vhost_vdpa_get_vhost_net,
         .vhost_feature_bits = vdpa_feature_bits,
+        .max_tx_queue_size = VIRTQUEUE_MAX_SIZE,
 };
 
 static int64_t vhost_vdpa_get_vring_group(int device_fd, unsigned vq_index,
@@ -1291,6 +1292,7 @@ static NetClientInfo net_vhost_vdpa_cvq_info = {
     .set_steering_ebpf = vhost_vdpa_set_steering_ebpf,
     .get_vhost_net = vhost_vdpa_get_vhost_net,
     .vhost_feature_bits = vdpa_feature_bits,
+    .max_tx_queue_size = VIRTQUEUE_MAX_SIZE,
 };
 
 /*

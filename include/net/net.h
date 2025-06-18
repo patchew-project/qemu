@@ -101,6 +101,7 @@ typedef struct NetClientInfo {
     GetVHostNet *get_vhost_net;
     GetAckedFeatures *get_acked_features;
     SaveAcketFeatures *save_acked_features;
+    int max_tx_queue_size;
 } NetClientInfo;
 
 struct NetClientState {
