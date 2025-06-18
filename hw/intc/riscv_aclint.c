@@ -233,6 +233,9 @@ static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
         /* Check if timer interrupt is triggered for each hart. */
         for (i = 0; i < mtimer->num_harts; i++) {
             CPUState *cpu = cpu_by_arch_id(mtimer->hartid_base + i);
+            if (cpu == NULL) {
+                continue;
+            }
             CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
             if (!env) {
                 continue;
@@ -292,7 +295,11 @@ static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
     s->timecmp = g_new0(uint64_t, s->num_harts);
     /* Claim timer interrupt bits */
     for (i = 0; i < s->num_harts; i++) {
-        RISCVCPU *cpu = RISCV_CPU(cpu_by_arch_id(s->hartid_base + i));
+        CPUState *temp = cpu_by_arch_id(s->hartid_base + i);
+        if (temp == NULL) {
+            continue;
+        }
+        RISCVCPU *cpu = RISCV_CPU(temp);
         if (riscv_cpu_claim_interrupts(cpu, MIP_MTIP) < 0) {
             error_report("MTIP already claimed");
             exit(1);
@@ -373,6 +380,9 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
 
     for (i = 0; i < num_harts; i++) {
         CPUState *cpu = cpu_by_arch_id(hartid_base + i);
+        if (cpu == NULL) {
+            continue;
+        }
         RISCVCPU *rvcpu = RISCV_CPU(cpu);
         CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         riscv_aclint_mtimer_callback *cb =
@@ -408,6 +418,9 @@ static uint64_t riscv_aclint_swi_read(void *opaque, hwaddr addr,
     if (addr < (swi->num_harts << 2)) {
         size_t hartid = swi->hartid_base + (addr >> 2);
         CPUState *cpu = cpu_by_arch_id(hartid);
+        if (cpu == NULL) {
+            return 0;
+        }
         CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         if (!env) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -431,6 +444,9 @@ static void riscv_aclint_swi_write(void *opaque, hwaddr addr, uint64_t value,
     if (addr < (swi->num_harts << 2)) {
         size_t hartid = swi->hartid_base + (addr >> 2);
         CPUState *cpu = cpu_by_arch_id(hartid);
+        if (cpu == NULL) {
+            return;
+        }
         CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         if (!env) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -481,7 +497,11 @@ static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)
 
     /* Claim software interrupt bits */
     for (i = 0; i < swi->num_harts; i++) {
-        RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(swi->hartid_base + i));
+        CPUState *temp = cpu_by_arch_id(swi->hartid_base + i);
+        if (temp == NULL) {
+            continue;
+        }
+        RISCVCPU *cpu = RISCV_CPU(temp);
         /* We don't claim mip.SSIP because it is writable by software */
         if (riscv_cpu_claim_interrupts(cpu, swi->sswi ? 0 : MIP_MSIP) < 0) {
             error_report("MSIP already claimed");
@@ -545,6 +565,9 @@ DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
 
     for (i = 0; i < num_harts; i++) {
         CPUState *cpu = cpu_by_arch_id(hartid_base + i);
+        if (cpu == NULL) {
+            continue;
+        }
         RISCVCPU *rvcpu = RISCV_CPU(cpu);
 
         qdev_connect_gpio_out(dev, i,
