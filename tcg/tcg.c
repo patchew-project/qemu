@@ -1358,13 +1358,14 @@ void *tcg_malloc_internal(TCGContext *s, int size)
 
 void tcg_pool_reset(TCGContext *s)
 {
+    static uint8_t dummy_pool;
     TCGPool *p, *t;
     for (p = s->pool_first_large; p; p = t) {
         t = p->next;
         g_free(p);
     }
     s->pool_first_large = NULL;
-    s->pool_cur = s->pool_end = NULL;
+    s->pool_cur = s->pool_end = &dummy_pool;
     s->pool_current = NULL;
 }
 
