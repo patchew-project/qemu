@@ -41,6 +41,7 @@ test_timeouts = {
   'arm_replay' : 240,
   'arm_tuxrun' : 240,
   'arm_sx1' : 360,
+  'aspeed_otpmem': 1200,
   'intel_iommu': 300,
   'mips_malta' : 480,
   'mipsel_malta' : 420,
