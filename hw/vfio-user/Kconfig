@@ -1,0 +1,5 @@
+config VFIO_USER
+    bool
+    default y
+    depends on VFIO_PCI
+
