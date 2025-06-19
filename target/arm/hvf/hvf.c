@@ -1008,12 +1008,16 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     CPUARMState *env = &arm_cpu->env;
     uint32_t sregs_match_len = ARRAY_SIZE(hvf_sreg_match);
     uint32_t sregs_cnt = 0;
+    uint64_t freq_hz = 0;
     uint64_t pfr;
     hv_return_t ret;
     int i;
 
     env->aarch64 = true;
-    asm volatile("mrs %0, cntfrq_el0" : "=r"(arm_cpu->gt_cntfrq_hz));
+
+    /* system count frequency sanity check */
+    asm volatile("mrs %0, cntfrq_el0" : "=r"(freq_hz));
+    assert(arm_cpu->gt_cntfrq_hz == freq_hz);
 
     /* Allocate enough space for our sysreg sync */
     arm_cpu->cpreg_indexes = g_renew(uint64_t, arm_cpu->cpreg_indexes,
@@ -1080,6 +1084,10 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 
 bool hvf_arch_cpu_realize(CPUState *cs, Error **errp)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    asm volatile("mrs %0, cntfrq_el0" : "=r"(cpu->gt_cntfrq_hz));
+
     return true;
 }
 
