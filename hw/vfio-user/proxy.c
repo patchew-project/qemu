@@ -680,8 +680,8 @@ void vfio_user_send_wait(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
 /*
  * async send - msg can be queued, but will be freed when sent
  */
-static void vfio_user_send_async(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
-                                 VFIOUserFDs *fds)
+void vfio_user_send_async(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
+                          VFIOUserFDs *fds)
 {
     VFIOUserMsg *msg;
     int ret;
@@ -800,6 +800,14 @@ void vfio_user_putfds(VFIOUserMsg *msg)
     }
     g_free(fds);
     msg->fds = NULL;
+}
+
+void
+vfio_user_disable_posted_writes(VFIOUserProxy *proxy)
+{
+    WITH_QEMU_LOCK_GUARD(&proxy->lock) {
+         proxy->flags |= VFIO_PROXY_NO_POST;
+    }
 }
 
 static QLIST_HEAD(, VFIOUserProxy) vfio_user_sockets =
