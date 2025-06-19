@@ -40,7 +40,6 @@ def fetch_firmware(test):
         with open(path, "ab+") as fd:
             fd.truncate(256 << 20)  # Expand volumes to 256MiB
 
-    test.set_machine('sbsa-ref')
     test.vm.set_console()
     test.vm.add_args(
         "-drive", f"if=pflash,file={fs0_path},format=raw",
@@ -70,6 +69,7 @@ class Aarch64SbsarefMachine(QemuSystemTest):
 
         fetch_firmware(self)
 
+        self.set_machine('sbsa-ref')
         self.vm.add_args('-cpu', 'cortex-a57')
         self.vm.launch()
 
