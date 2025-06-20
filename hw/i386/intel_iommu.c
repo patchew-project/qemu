@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include CONFIG_DEVICES /* CONFIG_IOMMUFD */
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
@@ -41,6 +42,9 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "system/iommufd.h"
+#ifdef CONFIG_IOMMUFD
+#include <linux/iommufd.h>
+#endif
 
 /* context entry operations */
 #define VTD_CE_GET_RID2PASID(ce) \
@@ -837,6 +841,27 @@ static inline uint32_t vtd_sm_ce_get_pdt_entry_num(VTDContextEntry *ce)
 static inline uint16_t vtd_pe_get_did(VTDPASIDEntry *pe)
 {
     return VTD_SM_PASID_ENTRY_DID((pe)->val[1]);
+}
+
+static inline dma_addr_t vtd_pe_get_flpt_base(VTDPASIDEntry *pe)
+{
+    return pe->val[2] & VTD_SM_PASID_ENTRY_FLPTPTR;
+}
+
+static inline uint32_t vtd_pe_get_fl_aw(VTDPASIDEntry *pe)
+{
+    return 48 + ((pe->val[2] >> 2) & VTD_SM_PASID_ENTRY_FLPM) * 9;
+}
+
+static inline bool vtd_pe_pgtt_is_pt(VTDPASIDEntry *pe)
+{
+    return (VTD_PE_GET_TYPE(pe) == VTD_SM_PASID_ENTRY_PT);
+}
+
+/* check if pgtt is first stage translation */
+static inline bool vtd_pe_pgtt_is_flt(VTDPASIDEntry *pe)
+{
+    return (VTD_PE_GET_TYPE(pe) == VTD_SM_PASID_ENTRY_FLT);
 }
 
 static inline bool vtd_pdire_present(VTDPASIDDirEntry *pdire)
@@ -2431,6 +2456,188 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
     vtd_iommu_replay_all(s);
 }
 
+#ifdef CONFIG_IOMMUFD
+static void vtd_init_s1_hwpt_data(struct iommu_hwpt_vtd_s1 *vtd,
+                                  VTDPASIDEntry *pe)
+{
+    memset(vtd, 0, sizeof(*vtd));
+
+    vtd->flags =  (VTD_SM_PASID_ENTRY_SRE_BIT(pe->val[2]) ?
+                                        IOMMU_VTD_S1_SRE : 0) |
+                  (VTD_SM_PASID_ENTRY_WPE_BIT(pe->val[2]) ?
+                                        IOMMU_VTD_S1_WPE : 0) |
+                  (VTD_SM_PASID_ENTRY_EAFE_BIT(pe->val[2]) ?
+                                        IOMMU_VTD_S1_EAFE : 0);
+    vtd->addr_width = vtd_pe_get_fl_aw(pe);
+    vtd->pgtbl_addr = (uint64_t)vtd_pe_get_flpt_base(pe);
+}
+
+static int vtd_create_s1_hwpt(VTDHostIOMMUDevice *vtd_hiod,
+                              VTDPASIDEntry *pe, Error **errp)
+{
+    HostIOMMUDeviceIOMMUFD *idev = HOST_IOMMU_DEVICE_IOMMUFD(vtd_hiod->hiod);
+    struct iommu_hwpt_vtd_s1 vtd;
+    uint32_t s1_hwpt;
+
+    vtd_init_s1_hwpt_data(&vtd, pe);
+
+    if (!iommufd_backend_alloc_hwpt(idev->iommufd, idev->devid,
+                                    idev->hwpt_id, 0, IOMMU_HWPT_DATA_VTD_S1,
+                                    sizeof(vtd), &vtd, &s1_hwpt, errp)) {
+        return -EINVAL;
+    }
+
+    vtd_hiod->s1_hwpt = s1_hwpt;
+
+    return 0;
+}
+
+static void vtd_destroy_s1_hwpt(VTDHostIOMMUDevice *vtd_hiod)
+{
+    HostIOMMUDeviceIOMMUFD *idev = HOST_IOMMU_DEVICE_IOMMUFD(vtd_hiod->hiod);
+
+    iommufd_backend_free_id(idev->iommufd, vtd_hiod->s1_hwpt);
+    vtd_hiod->s1_hwpt = 0;
+}
+
+static int vtd_device_attach_iommufd(VTDHostIOMMUDevice *vtd_hiod,
+                                     uint32_t pasid, VTDPASIDEntry *pe,
+                                     Error **errp)
+{
+    HostIOMMUDeviceIOMMUFD *idev = HOST_IOMMU_DEVICE_IOMMUFD(vtd_hiod->hiod);
+    uint32_t hwpt_id;
+    int ret;
+
+    if (vtd_pe_pgtt_is_flt(pe)) {
+        ret = vtd_create_s1_hwpt(vtd_hiod, pe, errp);
+        if (ret) {
+            return ret;
+        }
+        hwpt_id = vtd_hiod->s1_hwpt;
+    } else {
+        hwpt_id = idev->hwpt_id;
+    }
+
+    ret = !host_iommu_device_iommufd_attach_hwpt(idev, hwpt_id, errp);
+    trace_vtd_device_attach_hwpt(idev->devid, pasid, hwpt_id, ret);
+    if (ret && vtd_pe_pgtt_is_flt(pe)) {
+        vtd_destroy_s1_hwpt(vtd_hiod);
+    }
+
+    return ret;
+}
+
+static int vtd_device_detach_iommufd(VTDHostIOMMUDevice *vtd_hiod,
+                                     uint32_t pasid, VTDPASIDEntry *pe,
+                                     Error **errp)
+{
+    HostIOMMUDeviceIOMMUFD *idev = HOST_IOMMU_DEVICE_IOMMUFD(vtd_hiod->hiod);
+    int ret;
+
+    if (vtd_hiod->iommu_state->dmar_enabled) {
+        ret = !host_iommu_device_iommufd_detach_hwpt(idev, errp);
+        trace_vtd_device_detach_hwpt(idev->devid, pasid, ret);
+    } else {
+        ret = !host_iommu_device_iommufd_attach_hwpt(idev, idev->hwpt_id, errp);
+        trace_vtd_device_reattach_def_hwpt(idev->devid, pasid, idev->hwpt_id,
+                                           ret);
+    }
+
+    if (vtd_pe_pgtt_is_flt(pe)) {
+        vtd_destroy_s1_hwpt(vtd_hiod);
+    }
+
+    return ret;
+}
+
+static int vtd_device_attach_pgtbl(VTDHostIOMMUDevice *vtd_hiod,
+                                   VTDAddressSpace *vtd_as, VTDPASIDEntry *pe)
+{
+    /*
+     * If pe->gptt == FLT, should be go ahead to do bind as host only
+     * accepts guest FLT under nesting. If pe->pgtt==PT, should setup
+     * the pasid with GPA page table. Otherwise should return failure.
+     */
+    if (!vtd_pe_pgtt_is_flt(pe) && !vtd_pe_pgtt_is_pt(pe)) {
+        return -EINVAL;
+    }
+
+    /* Should fail if the FLPT base is 0 */
+    if (vtd_pe_pgtt_is_flt(pe) && !vtd_pe_get_flpt_base(pe)) {
+        return -EINVAL;
+    }
+
+    return vtd_device_attach_iommufd(vtd_hiod, vtd_as->pasid, pe, &error_abort);
+}
+
+static int vtd_device_detach_pgtbl(VTDHostIOMMUDevice *vtd_hiod,
+                                   VTDAddressSpace *vtd_as)
+{
+    VTDPASIDEntry *cached_pe = vtd_as->pasid_cache_entry.cache_filled ?
+                       &vtd_as->pasid_cache_entry.pasid_entry : NULL;
+
+    if (!cached_pe ||
+        (!vtd_pe_pgtt_is_flt(cached_pe) && !vtd_pe_pgtt_is_pt(cached_pe))) {
+        return 0;
+    }
+
+    return vtd_device_detach_iommufd(vtd_hiod, vtd_as->pasid, cached_pe,
+                                     &error_abort);
+}
+
+/**
+ * Caller should hold iommu_lock.
+ */
+static int vtd_bind_guest_pasid(VTDAddressSpace *vtd_as,
+                                VTDPASIDEntry *pe, VTDPASIDOp op)
+{
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    VTDHostIOMMUDevice *vtd_hiod;
+    int devfn = vtd_as->devfn;
+    int ret = -EINVAL;
+    struct vtd_as_key key = {
+        .bus = vtd_as->bus,
+        .devfn = devfn,
+    };
+
+    vtd_hiod = g_hash_table_lookup(s->vtd_host_iommu_dev, &key);
+    if (!vtd_hiod || !vtd_hiod->hiod) {
+        /* means no need to go further, e.g. for emulated devices */
+        return 0;
+    }
+
+    if (vtd_as->pasid != PCI_NO_PASID) {
+        error_report("Non-rid_pasid %d not supported yet", vtd_as->pasid);
+        return ret;
+    }
+
+    switch (op) {
+    case VTD_PASID_UPDATE:
+    case VTD_PASID_BIND:
+    {
+        ret = vtd_device_attach_pgtbl(vtd_hiod, vtd_as, pe);
+        break;
+    }
+    case VTD_PASID_UNBIND:
+    {
+        ret = vtd_device_detach_pgtbl(vtd_hiod, vtd_as);
+        break;
+    }
+    default:
+        error_report_once("Unknown VTDPASIDOp!!!\n");
+        break;
+    }
+
+    return ret;
+}
+#else
+static int vtd_bind_guest_pasid(VTDAddressSpace *vtd_as,
+                                VTDPASIDEntry *pe, VTDPASIDOp op)
+{
+    return 0;
+}
+#endif
+
 /* Do a context-cache device-selective invalidation.
  * @func_mask: FM field after shifting
  */
@@ -3181,20 +3388,23 @@ static int vtd_fill_pe_in_cache(IntelIOMMUState *s, VTDAddressSpace *vtd_as,
                                 VTDPASIDEntry *pe)
 {
     VTDPASIDCacheEntry *pc_entry = &vtd_as->pasid_cache_entry;
+    int ret;
 
-    if (vtd_pasid_entry_compare(pe, &pc_entry->pasid_entry)) {
-        /* No need to go further as cached pasid entry is latest */
-        return 0;
+    if (pc_entry->cache_filled) {
+        if (vtd_pasid_entry_compare(pe, &pc_entry->pasid_entry)) {
+            /* No need to go further as cached pasid entry is latest */
+            return 0;
+        }
+        ret = vtd_bind_guest_pasid(vtd_as, pe, VTD_PASID_UPDATE);
+    } else {
+        ret = vtd_bind_guest_pasid(vtd_as, pe, VTD_PASID_BIND);
     }
 
-    pc_entry->pasid_entry = *pe;
-    pc_entry->cache_filled = true;
-
-    /*
-     * TODO: send pasid bind to host for passthru devices
-     */
-
-    return 0;
+    if (!ret) {
+        pc_entry->pasid_entry = *pe;
+        pc_entry->cache_filled = true;
+    }
+    return ret;
 }
 
 /*
@@ -3265,10 +3475,14 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
     return false;
 
 remove:
-    /*
-     * TODO: send pasid unbind to host for passthru devices
-     */
-    pc_entry->cache_filled = false;
+    if (pc_entry->cache_filled) {
+        if (vtd_bind_guest_pasid(vtd_as, NULL, VTD_PASID_UNBIND)) {
+            pasid_cache_info_set_error(pc_info);
+            return false;
+        } else {
+            pc_entry->cache_filled = false;
+        }
+    }
 
     /*
      * Don't remove address space of PCI_NO_PASID which is created by PCI
