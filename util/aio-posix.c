@@ -700,6 +700,17 @@ bool aio_poll(AioContext *ctx, bool blocking)
                              qatomic_read(&ctx->notify_me) - 2);
     }
 
+#ifdef CONFIG_LINUX_IO_URING
+    /*
+     * This is part of fdmon-io_uring.c but it's more efficient to do it here
+     * after notify_me has been reset. That way qemu_bh_schedule() ->
+     * aio_notify() does not write the EventNotifier.
+     */
+    if (!QSIMPLEQ_EMPTY(&ctx->cqe_handler_ready_list)) {
+        qemu_bh_schedule(ctx->cqe_handler_bh);
+    }
+#endif
+
     aio_notify_accept(ctx);
 
     /* Calculate blocked time for adaptive polling */
