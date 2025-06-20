@@ -2160,8 +2160,51 @@ static void hvf_vm_state_change(void *opaque, bool running, RunState state)
     }
 }
 
+static void trace_processor_feature_register(void)
+{
+    hv_return_t ret = HV_SUCCESS;
+    hv_vcpu_exit_t *exit;
+    hv_vcpu_t fd;
+    uint64_t pfr;
+
+    if (!trace_event_get_state_backends(TRACE_HVF_PROCESSOR_FEATURE_REGISTER)) {
+        return;
+    }
+
+    /* We set up a small vcpu to extract host registers */
+    ret = hv_vcpu_create(&fd, &exit, NULL);
+    assert_hvf_ok(ret);
+
+    ret = hv_vcpu_get_sys_reg(fd, HV_SYS_REG_ID_AA64PFR0_EL1, &pfr);
+    assert_hvf_ok(ret);
+    trace_hvf_processor_feature_register("EL0",
+                                         FIELD_EX64(pfr, ID_AA64PFR0, EL0));
+    trace_hvf_processor_feature_register("EL1",
+                                         FIELD_EX64(pfr, ID_AA64PFR0, EL1));
+    trace_hvf_processor_feature_register("EL2",
+                                         FIELD_EX64(pfr, ID_AA64PFR0, EL2));
+    trace_hvf_processor_feature_register("FP",
+                                         FIELD_EX64(pfr, ID_AA64PFR0, FP));
+    trace_hvf_processor_feature_register("AdvSIMD", FIELD_EX64(pfr,
+                                         ID_AA64PFR0, ADVSIMD));
+    trace_hvf_processor_feature_register("GIC", FIELD_EX64(pfr,
+                                         ID_AA64PFR0, GIC));
+    trace_hvf_processor_feature_register("SVE", FIELD_EX64(pfr,
+                                         ID_AA64PFR0, SVE));
+
+    ret = hv_vcpu_get_sys_reg(fd, HV_SYS_REG_ID_AA64PFR1_EL1, &pfr);
+    assert_hvf_ok(ret);
+    trace_hvf_processor_feature_register("MTE",
+                                         FIELD_EX64(pfr, ID_AA64PFR1, MTE));
+    trace_hvf_processor_feature_register("SME",
+                                         FIELD_EX64(pfr, ID_AA64PFR1, SME));
+    ret = hv_vcpu_destroy(fd);
+    assert_hvf_ok(ret);
+}
+
 int hvf_arch_init(void)
 {
+    trace_processor_feature_register();
     hvf_state->vtimer_offset = mach_absolute_time();
     vmstate_register(NULL, 0, &vmstate_hvf_vtimer, &vtimer);
     qemu_add_vm_change_state_handler(hvf_vm_state_change, &vtimer);
