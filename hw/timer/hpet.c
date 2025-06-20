@@ -681,6 +681,8 @@ static void hpet_init(Object *obj)
 
     /* HPET Area */
     memory_region_init_io(&s->iomem, obj, &hpet_ram_ops, s, "hpet", HPET_LEN);
+    memory_region_enable_lockless_ro_io(&s->iomem);
+    s->iomem.disable_reentrancy_guard = true;
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
