@@ -1779,6 +1779,7 @@ static bool vtd_dev_pt_enabled(IntelIOMMUState *s, VTDContextEntry *ce,
              */
             return false;
         }
+
         return (VTD_PE_GET_TYPE(&pe) == VTD_SM_PASID_ENTRY_PT);
     }
 
@@ -1790,10 +1791,33 @@ static bool vtd_as_pt_enabled(VTDAddressSpace *as)
 {
     IntelIOMMUState *s;
     VTDContextEntry ce;
+    struct vtd_as_key key = {
+        .bus = as->bus,
+        .devfn = as->devfn,
+    };
 
     assert(as);
 
     s = as->iommu_state;
+
+    /*
+     * When guest in scalable mode and x-flts=on, we stick to system MR
+     * for IOMMUFD backed host device. Then its default hwpt contains
+     * GPA->HPA mappings which is used directly if PGTT=PT and used as
+     * nested parent if PGTT=FLT. Otherwise fallback to original
+     * processing.
+     */
+     if (s->root_scalable && s->flts) {
+        VTDHostIOMMUDevice *vtd_hiod;
+
+        vtd_hiod = g_hash_table_lookup(s->vtd_host_iommu_dev, &key);
+        if (vtd_hiod && vtd_hiod->hiod &&
+            object_dynamic_cast(OBJECT(vtd_hiod->hiod),
+                                TYPE_HOST_IOMMU_DEVICE_IOMMUFD)) {
+            return true;
+        }
+    }
+
     if (vtd_dev_to_context_entry(s, pci_bus_num(as->bus), as->devfn,
                                  &ce)) {
         /*
