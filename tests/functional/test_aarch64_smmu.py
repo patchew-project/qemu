@@ -22,6 +22,7 @@ from qemu.utils import kvm_available
 
 class SMMU(LinuxKernelTest):
 
+    accel = 'kvm'
     default_kernel_params = ('earlyprintk=pl011,0x9000000 no_timer_check '
                              'printk.time=1 rd_NO_PLYMOUTH net.ifnames=0 '
                              'console=ttyAMA0 rd.rescue')
@@ -45,11 +46,11 @@ class SMMU(LinuxKernelTest):
         self.vm.add_args('-device', 'virtio-net,netdev=n1' + self.IOMMU_ADDON)
 
     def common_vm_setup(self, kernel, initrd, disk):
-        self.require_accelerator("kvm")
+        self.require_accelerator(self.accel)
         self.require_netdev('user')
         self.set_machine("virt")
         self.vm.add_args('-m', '1G')
-        self.vm.add_args("-accel", "kvm")
+        self.vm.add_args("-accel", self.accel)
         self.vm.add_args("-cpu", "host")
         self.vm.add_args("-machine", "iommu=smmuv3")
         self.vm.add_args("-d", "guest_errors")
@@ -199,6 +200,10 @@ class SMMU(LinuxKernelTest):
         self.kernel_params = (self.default_kernel_params +
                               ' iommu.strict=0')
         self.run_and_check(self.F33_FILENAME, self.F33_HSUM)
+
+
+class SMMU_HVF(SMMU):
+    accel = 'hvf'
 
 
 if __name__ == '__main__':
