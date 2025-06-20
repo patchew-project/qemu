@@ -2881,11 +2881,12 @@ int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
     return l;
 }
 
-bool prepare_mmio_access(MemoryRegion *mr)
+bool prepare_mmio_access(MemoryRegion *mr, bool read)
 {
     bool release_lock = false;
 
-    if (!bql_locked()) {
+    if (!bql_locked() &&
+        !(read && mr->lockless_ro_io == true)) {
         bql_lock();
         release_lock = true;
     }
@@ -2935,7 +2936,7 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
     if (!memory_access_is_direct(mr, true, attrs)) {
         uint64_t val;
         MemTxResult result;
-        bool release_lock = prepare_mmio_access(mr);
+        bool release_lock = prepare_mmio_access(mr, false);
 
         *l = memory_access_size(mr, *l, mr_addr);
         /*
@@ -3032,7 +3033,7 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
         /* I/O case */
         uint64_t val;
         MemTxResult result;
-        bool release_lock = prepare_mmio_access(mr);
+        bool release_lock = prepare_mmio_access(mr, true);
 
         *l = memory_access_size(mr, *l, mr_addr);
         result = memory_region_dispatch_read(mr, mr_addr, &val, size_memop(*l),

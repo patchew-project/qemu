@@ -2540,6 +2540,11 @@ void memory_region_clear_flush_coalesced(MemoryRegion *mr)
     }
 }
 
+void memory_region_enable_lockless_ro_io(MemoryRegion *mr)
+{
+    mr->lockless_ro_io = true;
+}
+
 void memory_region_add_eventfd(MemoryRegion *mr,
                                hwaddr addr,
                                unsigned size,

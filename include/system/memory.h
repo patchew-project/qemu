@@ -774,6 +774,7 @@ struct MemoryRegion {
     bool nonvolatile;
     bool rom_device;
     bool flush_coalesced_mmio;
+    bool lockless_ro_io;
     bool unmergeable;
     uint8_t dirty_log_mask;
     bool is_iommu;
@@ -2253,6 +2254,13 @@ void memory_region_set_flush_coalesced(MemoryRegion *mr);
 void memory_region_clear_flush_coalesced(MemoryRegion *mr);
 
 /**
+ * memory_region_enable_lockless_ro_io: Enable lockless (BQL) read-only acceess.
+ *
+ * Enable BQL-free readonly access for devices with fine-grained locking.
+ */
+void memory_region_enable_lockless_ro_io(MemoryRegion *mr);
+
+/**
  * memory_region_add_eventfd: Request an eventfd to be triggered when a word
  *                            is written to a location.
  *
@@ -3001,7 +3009,7 @@ MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
                                             hwaddr len);
 
 int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr);
-bool prepare_mmio_access(MemoryRegion *mr);
+bool prepare_mmio_access(MemoryRegion *mr, bool read);
 
 static inline bool memory_region_supports_direct_access(MemoryRegion *mr)
 {
