@@ -87,6 +87,8 @@ struct vtd_iotlb_key {
 static void vtd_address_space_refresh_all(IntelIOMMUState *s);
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n);
 
+static void vtd_pasid_cache_reset_locked(IntelIOMMUState *s);
+
 static void vtd_panic_require_caching_mode(void)
 {
     error_report("We need to set caching-mode=on for intel-iommu to enable "
@@ -391,6 +393,7 @@ static void vtd_reset_caches(IntelIOMMUState *s)
     vtd_iommu_lock(s);
     vtd_reset_iotlb_locked(s);
     vtd_reset_context_cache_locked(s);
+    vtd_pasid_cache_reset_locked(s);
     vtd_iommu_unlock(s);
 }
 
@@ -3196,6 +3199,8 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
     }
 
     switch (pc_info->type) {
+    case VTD_PASID_CACHE_FORCE_RESET:
+        goto remove;
     case VTD_PASID_CACHE_PASIDSI:
         if (pc_info->pasid != pasid) {
             return false;
@@ -3249,6 +3254,26 @@ remove:
         return false;
     }
     return true;
+}
+
+/* Caller of this function should hold iommu_lock */
+static void vtd_pasid_cache_reset_locked(IntelIOMMUState *s)
+{
+    VTDPASIDCacheInfo pc_info = {};
+
+    trace_vtd_pasid_cache_reset();
+
+    pc_info.type = VTD_PASID_CACHE_FORCE_RESET;
+
+    /*
+     * Reset pasid cache is a big hammer, so use g_hash_table_foreach_remove
+     * which will free the vtd_as instances. Also, as a big hammer, use
+     * VTD_PASID_CACHE_FORCE_RESET to ensure all the vtd_as instances are
+     * dropped, meanwhile the change will be passed to host if
+     * HostIOMMUDeviceIOMMUFD is available.
+     */
+    g_hash_table_foreach_remove(s->vtd_address_spaces,
+                                vtd_flush_pasid, &pc_info);
 }
 
 static void vtd_sm_pasid_table_walk_one(IntelIOMMUState *s,
@@ -3377,6 +3402,9 @@ static void vtd_replay_guest_pasid_bindings(IntelIOMMUState *s,
     case VTD_PASID_CACHE_GLOBAL_INV:
         /* loop all assigned devices */
         break;
+    case VTD_PASID_CACHE_FORCE_RESET:
+        /* For force reset, no need to go further replay */
+        return;
     default:
         error_report("invalid pc_info->type for replay");
         abort();
