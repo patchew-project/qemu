@@ -23,6 +23,12 @@
 #include "translate.h"
 
 
+void gen_helper_gvec_sudot_idx_4b(TCGv_ptr d, TCGv_ptr n, TCGv_ptr m,
+                                  TCGv_ptr a, TCGv_i32 desc)
+{
+    gen_helper_gvec_usdot_idx_4b(d, m, n, a, desc);
+}
+
 static void gen_gvec_fn3_qc(uint32_t rd_ofs, uint32_t rn_ofs, uint32_t rm_ofs,
                             uint32_t opr_sz, uint32_t max_sz,
                             gen_helper_gvec_3_ptr *fn)

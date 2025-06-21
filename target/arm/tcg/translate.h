@@ -627,6 +627,9 @@ void gen_gvec_urecpe(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
 void gen_gvec_ursqrte(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
                       uint32_t opr_sz, uint32_t max_sz);
 
+void gen_helper_gvec_sudot_idx_4b(TCGv_ptr d, TCGv_ptr n, TCGv_ptr m,
+                                  TCGv_ptr a, TCGv_i32 desc);
+
 /*
  * Forward to the isar_feature_* tests given a DisasContext pointer.
  */
