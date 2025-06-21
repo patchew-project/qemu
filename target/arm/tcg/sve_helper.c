@@ -4157,6 +4157,28 @@ uint32_t HELPER(sve_whilel)(void *vd, uint32_t count, uint32_t pred_desc)
     return pred_count_test(oprbits, count, false);
 }
 
+uint32_t HELPER(sve_while2l)(void *vd, uint32_t count, uint32_t pred_desc)
+{
+    uint32_t oprsz = FIELD_EX32(pred_desc, PREDDESC, OPRSZ);
+    uint32_t esz = FIELD_EX32(pred_desc, PREDDESC, ESZ);
+    uint32_t oprbits = oprsz * 8;
+    uint64_t esz_mask = pred_esz_masks[esz];
+    ARMPredicateReg *d = vd;
+
+    do_zero(&d[0], oprsz);
+    do_zero(&d[1], oprsz);
+
+    count <<= esz;
+    if (count <= oprbits) {
+        do_whilel(d[0].p, esz_mask, count, oprbits);
+    } else {
+        do_whilel(d[0].p, esz_mask, oprbits, oprbits);
+        do_whilel(d[1].p, esz_mask, count - oprbits, oprbits);
+    }
+
+    return pred_count_test(2 * oprbits, count, false);
+}
+
 static void do_whileg(uint64_t *d, uint64_t esz_mask,
                       uint32_t count, uint32_t oprbits)
 {
@@ -4188,6 +4210,28 @@ uint32_t HELPER(sve_whileg)(void *vd, uint32_t count, uint32_t pred_desc)
     do_whileg(vd, esz_mask, count, oprbits);
 
     return pred_count_test(oprbits, count, true);
+}
+
+uint32_t HELPER(sve_while2g)(void *vd, uint32_t count, uint32_t pred_desc)
+{
+    uint32_t oprsz = FIELD_EX32(pred_desc, PREDDESC, OPRSZ);
+    uint32_t esz = FIELD_EX32(pred_desc, PREDDESC, ESZ);
+    uint32_t oprbits = oprsz * 8;
+    uint64_t esz_mask = pred_esz_masks[esz];
+    ARMPredicateReg *d = vd;
+
+    do_zero(&d[0], oprsz);
+    do_zero(&d[1], oprsz);
+
+    count <<= esz;
+    if (count <= oprbits) {
+        do_whileg(d[0].p, esz_mask, count, oprbits);
+    } else {
+        do_whileg(d[0].p, esz_mask, oprbits, oprbits);
+        do_whileg(d[1].p, esz_mask, count - oprbits, oprbits);
+    }
+
+    return pred_count_test(2 * oprbits, count, true);
 }
 
 /* Recursive reduction on a function;
