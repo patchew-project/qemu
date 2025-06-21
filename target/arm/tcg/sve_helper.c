@@ -7839,3 +7839,85 @@ DO_FCVTLT(sve2_fcvtlt_sd, uint64_t, uint32_t, H1_8, H1_4, float32_to_float64)
 
 #undef DO_FCVTLT
 #undef DO_FCVTNT
+
+void HELPER(pext)(void *vd, uint32_t png, uint32_t desc)
+{
+    int pl = FIELD_EX32(desc, PREDDESC, OPRSZ);
+    int vl = pl * 8;
+    unsigned v_esz = FIELD_EX32(desc, PREDDESC, ESZ);
+    int part = FIELD_EX32(desc, PREDDESC, DATA);
+    unsigned p_esz;
+    uint64_t p_mask;
+    int p_count;
+    bool p_invert;
+
+    /* C.f. Arm pseudocode CounterToPredicate. */
+    if ((png & 0xf) == 0) {
+        /* Canonical false predicate. */
+        goto zeros;
+    }
+    p_esz = ctz32(png);
+
+    /*
+     * maxbit = log2(pl * 4)
+     *        = log2(vl / 8 * 4)
+     *        = log2(vl / 2)
+     *        = log2(vl) - 1
+     * maxbit_mask = ones<maxbit:0>
+     *             = (1 << (maxbit + 1)) - 1
+     *             = (1 << (log2(vl) - 1 + 1)) - 1
+     *             = (1 << log2(vl)) - 1
+     *             = pow2ceil(vl) - 1
+     * Note that we keep count in bytes, not elements.
+     */
+    p_count = (png & (pow2ceil(vl) - 1)) >> 1;
+    p_invert = (png >> 15) & 1;
+
+    /*
+     * If the esz encoded into the predicate is not larger than the
+     * vector operation esz, then the expanded predicate bit will
+     * be true for all vector elements.  If the predicate esz is
+     * larger than the vector esz, then only even multiples can be
+     * true, and the rest will be false.  This can be easily represented
+     * by taking the maximum esz for the pred_esz_mask.
+     */
+    p_mask = pred_esz_masks[MAX(v_esz, p_esz)];
+
+    if (p_count == 0) {
+        if (p_invert) {
+            /* Canonical true predicate: invert count zero. */
+            goto ones;
+        }
+        /* Non-canonical false predicate. */
+        goto zeros;
+    }
+
+    /* Adjust for the portion of the 4*VL counter to be extracted. */
+    p_count -= vl * part;
+
+    if (p_invert) {
+        if (p_count >= 0) {
+            goto ones;
+        }
+        if (p_count + vl <= 0) {
+            goto zeros;
+        }
+        do_whileg(vd, p_mask, p_count + vl, vl);
+    } else {
+        if (p_count <= 0) {
+            goto zeros;
+        }
+        if (p_count >= vl) {
+            goto ones;
+        }
+        do_whilel(vd, p_mask, p_count, vl);
+    }
+    return;
+
+ ones:
+    do_whilel(vd, p_mask, vl, vl);
+    return;
+ zeros:
+    memset(vd, 0, ROUND_UP(pl, 8));
+    return;
+}
