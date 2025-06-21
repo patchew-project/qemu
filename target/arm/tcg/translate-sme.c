@@ -863,6 +863,14 @@ static bool do_fdot_nx(DisasContext *s, arg_azx_n *a)
 
 TRANS_FEAT(FDOT_nx, aa64_sme2, do_fdot_nx, a)
 
+static bool trans_FVDOT(DisasContext *s, arg_azx_n *a)
+{
+    return dc_isar_feature(aa64_sme2, s) &&
+           do_azz_acc_fp(s, 1, 2, a->rv, a->off, a->zn, a->zm,
+                         a->idx, 2, false, FPST_ENV,
+                         gen_helper_sme2_fvdot_idx_h);
+}
+
 static bool do_bfdot(DisasContext *s, arg_azz_n *a, bool multi)
 {
     return do_azz_acc_fp(s, a->n, 1, a->rv, a->off, a->zn, a->zm, 0, 0,
@@ -879,3 +887,11 @@ static bool do_bfdot_nx(DisasContext *s, arg_azx_n *a)
 }
 
 TRANS_FEAT(BFDOT_nx, aa64_sme2, do_bfdot_nx, a)
+
+static bool trans_BFVDOT(DisasContext *s, arg_azx_n *a)
+{
+    return dc_isar_feature(aa64_sme2, s) &&
+           do_azz_acc_fp(s, 1, 2, a->rv, a->off, a->zn, a->zm,
+                         a->idx, 2, false, FPST_ENV,
+                         gen_helper_sme2_bfvdot_idx);
+}
