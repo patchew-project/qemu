@@ -3035,21 +3035,6 @@ void HELPER(sve_rev_d)(void *vd, void *vn, uint32_t desc)
     }
 }
 
-static uint64_t extractn(uint64_t *p, unsigned pos, unsigned len)
-{
-    uint64_t x;
-
-    p += pos / 64;
-    pos = pos % 64;
-
-    x = p[0];
-    if (pos + len > 64) {
-        x = (x >> pos) | (p[1] << (-pos & 63));
-        pos = 0;
-    }
-    return extract64(x, pos, len);
-}
-
 static void depositn(uint64_t *p, unsigned pos, unsigned len, uint64_t val)
 {
     p += pos / 64;

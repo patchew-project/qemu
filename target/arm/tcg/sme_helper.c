@@ -2020,3 +2020,62 @@ FCLAMP(sme2_fclamp_d, float64, H8)
 FCLAMP(sme2_bfclamp, bfloat16, H2)
 
 #undef FCLAMP
+
+#define DO_LUT_PRIM(SUFF, TYPE, H) \
+static inline void do_lut_##SUFF                                        \
+    (void *zd, uint64_t *indexes, uint32_t *zt0, unsigned elements,	\
+     unsigned segment, unsigned dstride, unsigned isize, unsigned nreg) \
+{                                                                       \
+    for (unsigned r = 0; r < nreg; ++r) {                               \
+        TYPE *dst = zd + dstride * r;                                   \
+        unsigned base = (segment + r) * elements;                       \
+        for (unsigned e = 0; e < elements; ++e) {                       \
+            unsigned index = extractn(indexes, base + e * isize, isize); \
+            dst[H(e)] = zt0[H4(index)];                                 \
+        }                                                               \
+    }                                                                   \
+}
+
+DO_LUT_PRIM(b, uint8_t, H1)
+DO_LUT_PRIM(h, uint16_t, H2)
+DO_LUT_PRIM(s, uint32_t, H4)
+
+#define DO_LUT(ISIZE, NREG, SUFF, TYPE) \
+void helper_sme2_luti##ISIZE##_##NREG##SUFF                             \
+    (void *zd, void *zn, CPUARMState *env, uint32_t desc)               \
+{                                                                       \
+    unsigned vl = simd_oprsz(desc);                                     \
+    unsigned strided = extract32(desc, SIMD_DATA_SHIFT, 1);             \
+    unsigned idx = extract32(desc, SIMD_DATA_SHIFT + 1, 4);             \
+    unsigned dstride = (!strided ? 1 : NREG == 4 ? 4 : 8);              \
+    unsigned segments = sizeof(TYPE) / (ISIZE * NREG);                  \
+    unsigned segment = idx & (segments - 1);                            \
+    ARMVectorReg indexes;                                               \
+    memcpy(&indexes, zn, vl);                                           \
+    do_lut_##SUFF(zd, indexes.d, (uint32_t *)&env->za_state.zt0,        \
+                  vl / sizeof(TYPE), segment * NREG,                    \
+                  dstride * sizeof(ARMVectorReg), ISIZE, NREG);         \
+}
+
+DO_LUT(2,1,b, uint8_t)
+DO_LUT(2,1,h, uint16_t)
+DO_LUT(2,1,s, uint32_t)
+DO_LUT(2,2,b, uint8_t)
+DO_LUT(2,2,h, uint16_t)
+DO_LUT(2,2,s, uint32_t)
+DO_LUT(2,4,b, uint8_t)
+DO_LUT(2,4,h, uint16_t)
+DO_LUT(2,4,s, uint32_t)
+
+DO_LUT(4,1,b, uint8_t)
+DO_LUT(4,1,h, uint16_t)
+DO_LUT(4,1,s, uint32_t)
+DO_LUT(4,2,b, uint8_t)
+DO_LUT(4,2,h, uint16_t)
+DO_LUT(4,2,s, uint32_t)
+DO_LUT(4,4,b, uint8_t)
+DO_LUT(4,4,h, uint16_t)
+DO_LUT(4,4,s, uint32_t)
+
+#undef DO_LUT
+#undef DO_LUT_PRIM
