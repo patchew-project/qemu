@@ -4184,6 +4184,65 @@ uint64_t HELPER(sve_cntp)(void *vn, void *vg, uint32_t pred_desc)
     return sum;
 }
 
+uint64_t HELPER(sve2p1_cntp_c)(uint32_t png, uint32_t desc)
+{
+    int pl = FIELD_EX32(desc, PREDDESC, OPRSZ);
+    int vl = pl * 8;
+    unsigned v_esz = FIELD_EX32(desc, PREDDESC, ESZ);
+    int lg2_width = FIELD_EX32(desc, PREDDESC, DATA) + 1;
+    unsigned p_esz;
+    int p_count, maxelem;
+    bool p_invert;
+
+    /* C.f. Arm pseudocode CounterToPredicate. */
+    if ((png & 0xf) == 0) {
+        /* Canonical false predicate. */
+        return 0;
+    }
+    p_esz = ctz32(png);
+
+    /*
+     * maxbit = log2(pl * 4)
+     *        = log2(vl / 8 * 4)
+     *        = log2(vl / 2)
+     *        = log2(vl) - 1
+     * maxbit_mask = ones<maxbit:0>
+     *             = (1 << (maxbit + 1)) - 1
+     *             = (1 << (log2(vl) - 1 + 1)) - 1
+     *             = (1 << log2(vl)) - 1
+     *             = pow2ceil(vl) - 1
+     * Note that we keep count in bytes, not elements.
+     */
+    p_count = (png & (pow2ceil(vl) - 1)) >> 1;
+    p_invert = (png >> 15) & 1;
+
+    /*
+     * If the esz encoded into the predicate is not larger than the
+     * vector operation esz, then the expanded predicate bit will
+     * be true for all vector elements.  If the predicate esz is
+     * larger than the vector esz, then only even multiples can be
+     * true, and the rest will be false.
+     */
+    v_esz = MAX(v_esz, p_esz);
+    maxelem = (vl << lg2_width) >> v_esz;
+
+    if (p_count == 0) {
+        if (p_invert) {
+            /* Canonical true predicate: invert count zero. */
+            return maxelem;
+        }
+        /* Non-canonical false predicate. */
+        return 0;
+    }
+    if (p_invert) {
+        p_count = DIV_ROUND_UP(p_count, 1 << v_esz);
+        p_count = maxelem - p_count;
+        return MAX(0, p_count);
+    }
+    p_count >>= v_esz;
+    return MIN(p_count, maxelem);
+}
+
 /* C.f. Arm pseudocode EncodePredCount */
 static uint64_t encode_pred_count(uint32_t elements, uint32_t count,
                                   uint32_t esz, bool invert)
