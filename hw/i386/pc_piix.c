@@ -181,6 +181,11 @@ static void pc_init1(MachineState *machine, const char *pci_type)
         }
     }
 
+    /* Add IRQ 14,15 to MADT overrides for PIIX3 IDE */
+    if (pcmc->pci_enabled) {
+        x86ms->pci_irq_mask |= (1<<14) | (1<<15);
+    }
+
     pc_machine_init_sgx_epc(pcms);
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
