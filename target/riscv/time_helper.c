@@ -64,6 +64,8 @@ void riscv_timer_write_timecmp(CPURISCVState *env, QEMUTimer *timer,
          * If we're setting an stimecmp value in the "past",
          * immediately raise the timer interrupt
          */
+        timer_del(timer);
+
         if (timer_irq == MIP_VSTIP) {
             env->vstime_irq = 1;
             riscv_cpu_update_mip(env, 0, BOOL_TO_MASK(1));
