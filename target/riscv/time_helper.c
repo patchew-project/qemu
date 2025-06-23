@@ -49,6 +49,16 @@ void riscv_timer_write_timecmp(CPURISCVState *env, QEMUTimer *timer,
     uint32_t timebase_freq = mtimer->timebase_freq;
     uint64_t rtc_r = env->rdtime_fn(env->rdtime_fn_arg) + delta;
 
+    /*
+     * *envcfg.STCE disables *stimecmp interrupts, but still allows higher
+     * privileges to write the *stimecmp CSRs.
+     */
+    if (!get_field(env->menvcfg, MENVCFG_STCE) ||
+        (timer_irq == MIP_VSTIP && !get_field(env->henvcfg, HENVCFG_STCE))) {
+        timer_del(timer);
+        return;
+    }
+
     if (timecmp <= rtc_r) {
         /*
          * If we're setting an stimecmp value in the "past",
