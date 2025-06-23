@@ -113,7 +113,7 @@ static gboolean tdx_get_quote_read(QIOChannel *ioc, GIOCondition condition,
                                      task->receive_buf_received);
         if (len == 0 ||
             len > (task->payload_len - HEADER_SIZE)) {
-            error_report("Message len %u must be non-zero & less than %zu",
+            error_report("Message len %u must be non-zero & less than %"PRIu64,
                          len, (task->payload_len - HEADER_SIZE));
             task->status_code = TDX_VP_GET_QUOTE_ERROR;
             goto end;
@@ -143,7 +143,7 @@ static gboolean tdx_get_quote_read(QIOChannel *ioc, GIOCondition condition,
             goto end;
         }
         if (hdr->size > (task->payload_len - HEADER_SIZE)) {
-            error_report("QGS message size %d exceeds payload capacity %zu",
+            error_report("QGS message size %d exceeds payload capacity %"PRIu64,
                          hdr->size, task->payload_len);
             task->status_code = TDX_VP_GET_QUOTE_ERROR;
             goto end;
@@ -166,7 +166,7 @@ static gboolean tdx_get_quote_read(QIOChannel *ioc, GIOCondition condition,
 
         if ((task->payload_len - HEADER_SIZE - sizeof(qgs_msg_get_quote_resp_t)) !=
             msg->quote_size) {
-            error_report("QGS quote size %d should be %zu",
+            error_report("QGS quote size %d should be %"PRIu64,
                          msg->quote_size,
                          (task->payload_len - sizeof(qgs_msg_get_quote_resp_t)));
             task->status_code = TDX_VP_GET_QUOTE_ERROR;

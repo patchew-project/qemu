@@ -1035,8 +1035,8 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp)
             return -1;
         }
         if (data_len != QCRYPTO_HASH_DIGEST_LEN_SHA384) {
-            error_setg(errp, "TDX 'mrconfigid' sha384 digest was %ld bytes, "
-                             "expected %d bytes", data_len,
+            error_setg(errp, "TDX 'mrconfigid' sha384 digest was %"PRId64" bytes, "
+                             "expected %d bytes", (uint64_t)data_len,
                              QCRYPTO_HASH_DIGEST_LEN_SHA384);
             return -1;
         }
@@ -1050,8 +1050,8 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp)
             return -1;
         }
         if (data_len != QCRYPTO_HASH_DIGEST_LEN_SHA384) {
-            error_setg(errp, "TDX 'mrowner' sha384 digest was %ld bytes, "
-                             "expected %d bytes", data_len,
+            error_setg(errp, "TDX 'mrowner' sha384 digest was %"PRId64" bytes, "
+                             "expected %d bytes", (uint64_t)data_len,
                              QCRYPTO_HASH_DIGEST_LEN_SHA384);
             return -1;
         }
@@ -1065,8 +1065,8 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp)
             return -1;
         }
         if (data_len != QCRYPTO_HASH_DIGEST_LEN_SHA384) {
-            error_setg(errp, "TDX 'mrownerconfig' sha384 digest was %ld bytes, "
-                             "expected %d bytes", data_len,
+            error_setg(errp, "TDX 'mrownerconfig' sha384 digest was %"PRId64" bytes, "
+                             "expected %d bytes", (uint64_t)data_len,
                              QCRYPTO_HASH_DIGEST_LEN_SHA384);
             return -1;
         }
