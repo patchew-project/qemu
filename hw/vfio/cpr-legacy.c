@@ -148,6 +148,7 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
          */
 
         VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+        DMA_MAP_FUNC saved_dma_map = vioc->dma_map;
         vioc->dma_map = vfio_legacy_cpr_dma_map;
 
         container->cpr.remap_listener = (MemoryListener) {
@@ -158,7 +159,7 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
                                  bcontainer->space->as);
         memory_listener_unregister(&container->cpr.remap_listener);
         container->cpr.vaddr_unmapped = false;
-        vioc->dma_map = container->cpr.saved_dma_map;
+        vioc->dma_map = saved_dma_map;
     }
     return 0;
 }
