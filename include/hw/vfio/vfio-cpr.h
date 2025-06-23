@@ -25,7 +25,6 @@ typedef struct VFIOContainerCPR {
     bool vaddr_unmapped;
     NotifierWithReturn transfer_notifier;
     MemoryListener remap_listener;
-    DMA_MAP_FUNC saved_dma_map;
 } VFIOContainerCPR;
 
 typedef struct VFIODeviceCPR {
