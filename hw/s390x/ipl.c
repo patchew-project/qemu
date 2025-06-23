@@ -399,8 +399,16 @@ static uint64_t s390_ipl_map_iplb_chain(IplParameterBlock *iplb_chain)
     uint16_t count = be16_to_cpu(ipl->qipl.chain_len);
     uint64_t len = sizeof(IplParameterBlock) * count;
     uint64_t chain_addr = find_iplb_chain_addr(ipl->bios_start_addr, count);
+    MemTxResult ret;
 
-    cpu_physical_memory_write(chain_addr, iplb_chain, len);
+    ret = address_space_write(&address_space_memory, chain_addr,
+            MEMTXATTRS_UNSPECIFIED, iplb_chain, len);
+
+    if (ret != MEMTX_OK) {
+        error_report("Failed to map IPLB chain.");
+        exit(1);
+    }
+
     return chain_addr;
 }
 
