@@ -232,7 +232,9 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         qemu_file_set_error(f, ret);
         return ret;
     }
-    if (vmsd->post_load) {
+    if (vmsd->post_load_with_error) {
+        ret = vmsd->post_load_with_error(opaque, version_id, errp);
+    } else if (vmsd->post_load) {
         ret = vmsd->post_load(opaque, version_id);
     }
     trace_vmstate_load_state_end(vmsd->name, "end", ret);
