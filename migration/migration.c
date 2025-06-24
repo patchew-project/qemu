@@ -903,7 +903,13 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
-        error_setg(&local_err, "load of migration failed: %s", strerror(-ret));
+        if (local_err) {
+            error_prepend(&local_err, "load of migration failed: %s: ",
+                          strerror(-ret));
+        } else {
+            error_setg(&local_err, "load of migration failed: %s",
+                       strerror(-ret));
+        }
         goto fail;
     }
 
