@@ -15,9 +15,13 @@
 #include "hw/misc/aspeed_sbc.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
+#include "trace.h"
 
 #define R_PROT          (0x000 / 4)
+#define R_CMD           (0x004 / 4)
+#define R_ADDR          (0x010 / 4)
 #define R_STATUS        (0x014 / 4)
+#define R_CAMP1         (0x020 / 4)
 #define R_QSR           (0x040 / 4)
 
 /* R_STATUS */
@@ -41,6 +45,11 @@
 #define QSR_RSA_MASK           (0x3 << 12)
 #define QSR_HASH_MASK          (0x3 << 10)
 
+typedef enum {
+    SBC_OTP_CMD_READ = 0x23b1e361,
+    SBC_OTP_CMD_PROG = 0x23b1e364,
+} SBC_OTP_Command;
+
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSBCState *s = ASPEED_SBC(opaque);
@@ -55,6 +64,78 @@ static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
     }
 
     return s->regs[addr];
+}
+
+static bool aspeed_sbc_otpmem_read(AspeedSBCState *s,
+                                   uint32_t otp_addr, Error **errp)
+{
+    MemTxResult ret;
+    AspeedOTPMemState *otpmem = ASPEED_OTPMEM(s->otpmem);
+    uint32_t value;
+
+    if (otpmem == NULL) {
+        return true;
+    }
+    ret = address_space_read(&otpmem->as, otp_addr, MEMTXATTRS_UNSPECIFIED,
+                             &value, sizeof(value));
+    if (ret != 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Failed to read OTP memory\n");
+        return false;
+    }
+    s->regs[R_CAMP1] = value;
+    trace_aspeed_sbc_otp_read(otp_addr, value);
+
+    return true;
+}
+
+static bool aspeed_sbc_otpmem_prog(AspeedSBCState *s,
+                                   uint32_t otp_addr, Error **errp)
+{
+    AspeedOTPMemState *otpmem = ASPEED_OTPMEM(s->otpmem);
+    uint32_t value = 0x12345678;
+
+    if (otpmem == NULL) {
+        return true;
+    }
+    address_space_write(&otpmem->as, otp_addr, MEMTXATTRS_UNSPECIFIED,
+                        &value, sizeof(value));
+    trace_aspeed_sbc_otp_prog(otp_addr, value);
+
+    return true;
+}
+
+static void aspeed_sbc_handle_command(void *opaque, uint32_t cmd)
+{
+    AspeedSBCState *s = ASPEED_SBC(opaque);
+    Error *local_err = NULL;
+    bool ret = false;
+    uint32_t otp_addr;
+
+    s->regs[R_STATUS] &= ~(OTP_MEM_IDLE | OTP_IDLE);
+    otp_addr = s->regs[R_ADDR];
+
+    switch (cmd) {
+    case SBC_OTP_CMD_READ:
+        ret = aspeed_sbc_otpmem_read(s, otp_addr, &local_err);
+        break;
+    case SBC_OTP_CMD_PROG:
+        ret = aspeed_sbc_otpmem_prog(s, otp_addr, &local_err);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unknown command 0x%x\n",
+                      __func__, cmd);
+        break;
+    }
+
+    trace_aspeed_sbc_handle_cmd(cmd, otp_addr, ret);
+    if (ret == false && local_err) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: %s\n",
+                      __func__, error_get_pretty(local_err));
+        error_free(local_err);
+    }
+    s->regs[R_STATUS] |= (OTP_MEM_IDLE | OTP_IDLE);
 }
 
 static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
@@ -77,6 +158,9 @@ static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: write to read only register 0x%" HWADDR_PRIx "\n",
                       __func__, addr << 2);
+        return;
+    case R_CMD:
+        aspeed_sbc_handle_command(opaque, data);
         return;
     default:
         break;
@@ -119,11 +203,19 @@ static void aspeed_sbc_realize(DeviceState *dev, Error **errp)
 {
     AspeedSBCState *s = ASPEED_SBC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    AspeedSBCClass *sc = ASPEED_SBC_GET_CLASS(s);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sbc_ops, s,
             TYPE_ASPEED_SBC, 0x1000);
 
     sysbus_init_mmio(sbd, &s->iomem);
+
+    if (sc->has_otpmem) {
+        s->otpmem = ASPEED_OTPMEM(object_new(TYPE_ASPEED_OTPMEM));
+        object_initialize_child(OBJECT(s), "otp", s->otpmem,
+                                TYPE_ASPEED_OTPMEM);
+        qdev_realize(DEVICE(s->otpmem), NULL, errp);
+    }
 }
 
 static const VMStateDescription vmstate_aspeed_sbc = {
