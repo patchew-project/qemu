@@ -13,7 +13,7 @@ config SGX
 config TDX
     bool
     select X86_FW_OVMF
-    depends on KVM
+    depends on KVM && !I386
 
 config PC
     bool
