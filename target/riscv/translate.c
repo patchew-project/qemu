@@ -1427,3 +1427,11 @@ void riscv_translate_init(void)
     load_val = tcg_global_mem_new(tcg_env, offsetof(CPURISCVState, load_val),
                              "load_val");
 }
+
+#ifndef CONFIG_USER_ONLY
+void cpu_set_exception_base(int vp_index, target_ulong address)
+{
+    RISCVCPU *vp = RISCV_CPU(qemu_get_cpu(vp_index));
+    vp->env.resetvec = address;
+}
+#endif
