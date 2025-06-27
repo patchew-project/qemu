@@ -876,7 +876,7 @@ process_incoming_migration_co(void *opaque)
                       MIGRATION_STATUS_ACTIVE);
 
     mis->loadvm_co = qemu_coroutine_self();
-    ret = qemu_loadvm_state(mis->from_src_file);
+    ret = qemu_loadvm_state(mis->from_src_file, &local_err);
     mis->loadvm_co = NULL;
 
     trace_vmstate_downtime_checkpoint("dst-precopy-loadvm-completed");
@@ -903,7 +903,10 @@ process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
-        error_setg(&local_err, "load of migration failed: %s", strerror(-ret));
+        if (local_err != NULL) {
+            error_prepend(&local_err, "load of migration failed: %s: ",
+                          strerror(-ret));
+        }
         goto fail;
     }
 
@@ -918,15 +921,19 @@ process_incoming_migration_co(void *opaque)
 fail:
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_FAILED);
-    migrate_set_error(s, local_err);
-    error_free(local_err);
+    if (local_err) {
+        migrate_set_error(s, local_err);
+        error_free(local_err);
+    }
 
     migration_incoming_state_destroy();
 
     if (mis->exit_on_error) {
         WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-            error_report_err(s->error);
-            s->error = NULL;
+            if (s->error) {
+                error_report_err(s->error);
+                s->error = NULL;
+            }
         }
 
         exit(EXIT_FAILURE);
