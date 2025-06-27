@@ -203,8 +203,25 @@ char *find_common_machine_version(const char *mtype, const char *var1,
         return g_strdup(type2);
     }
 
-    g_test_message("No common machine version for machine type '%s' between "
-                   "binaries %s and %s", mtype, getenv(var1), getenv(var2));
+    char *varstring1 = getenv(var1);
+    char *varstring2 = getenv(var2);
+    if (varstring1 && varstring2) {
+        g_test_message("No common machine version for machine type '%s' "
+                       "between binaries %s and %s",
+                       mtype, varstring1, varstring2);
+    } else if (varstring1) {
+        g_test_message("No common machine version for machine type '%s' "
+                       "between binary %s and environment variable %s",
+                       mtype, varstring1, var2);
+    } else if (varstring2) {
+        g_test_message("No common machine version for machine type '%s' "
+                       "between binary %s and environment variable %s",
+                       mtype, varstring2, var1);
+    } else {
+        g_test_message("No common machine version for machine type '%s' "
+                       "between environment variables %s and %s",
+                       mtype, var1, var2);
+    }
     g_assert_not_reached();
 }
 
