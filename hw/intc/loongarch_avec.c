@@ -17,6 +17,24 @@
 #include "trace.h"
 #include "hw/qdev-properties.h"
 
+static uint64_t loongarch_avec_mem_read(void *opaque,
+                                        hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void loongarch_avec_mem_write(void *opaque, hwaddr addr,
+                                     uint64_t val, unsigned size)
+{
+    return;
+}
+
+
+static const MemoryRegionOps loongarch_avec_ops = {
+    .read = loongarch_avec_mem_read,
+    .write = loongarch_avec_mem_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 static void loongarch_avec_realize(DeviceState *dev, Error **errp)
 {
@@ -39,6 +57,12 @@ static void loongarch_avec_unrealize(DeviceState *dev)
 
 static void loongarch_avec_init(Object *obj)
 {
+    LoongArchAVECState *s = LOONGARCH_AVEC(obj);
+    SysBusDevice *shd = SYS_BUS_DEVICE(obj);
+    memory_region_init_io(&s->avec_mmio, OBJECT(s), &loongarch_avec_ops,
+                          s, TYPE_LOONGARCH_AVEC, VIRT_AVEC_MSG_OFFSET);
+    sysbus_init_mmio(shd, &s->avec_mmio);
+    msi_nonbroken = true;
     return;
 }
 
