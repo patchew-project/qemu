@@ -13,6 +13,26 @@
 #include "hw/block/flash.h"
 #include "hw/loongarch/boot.h"
 
+#define IOCSRF_TEMP             0
+#define IOCSRF_NODECNT          1
+#define IOCSRF_MSI              2
+#define IOCSRF_EXTIOI           3
+#define IOCSRF_CSRIPI           4
+#define IOCSRF_FREQCSR          5
+#define IOCSRF_FREQSCALE        6
+#define IOCSRF_DVFSV1           7
+#define IOCSRF_GMOD             9
+#define IOCSRF_VM               11
+#define IOCSRF_AVEC             15
+
+#define VERSION_REG             0x0
+#define FEATURE_REG             0x8
+#define VENDOR_REG              0x10
+#define CPUNAME_REG             0x20
+#define MISC_FUNC_REG           0x420
+#define IOCSRM_EXTIOI_EN        48
+#define IOCSRM_EXTIOI_INT_ENCODE 49
+#define IOCSRM_AVEC_EN           51
 #define LOONGARCH_MAX_CPUS      256
 
 #define VIRT_FWCFG_BASE         0x1e020000UL
