@@ -28,6 +28,9 @@
 /* real time host monotonic timer */
 
 int64_t clock_start;
+int64_t clock_realtime_start;
+int64_t host_ticks_start;
+double clock_time_dilation = 1.0f;
 
 #ifdef _WIN32
 
@@ -44,6 +47,8 @@ static void __attribute__((constructor)) init_get_clock(void)
     }
     clock_freq = freq.QuadPart;
     clock_start = get_clock();
+    clock_realtime_start = get_clock_realtime();
+    host_ticks_start = cpu_get_host_ticks();
 }
 
 #else
@@ -59,5 +64,7 @@ static void __attribute__((constructor)) init_get_clock(void)
         use_rt_clock = 1;
     }
     clock_start = get_clock();
+    clock_realtime_start = get_clock_realtime();
+    host_ticks_start = cpu_get_host_ticks();
 }
 #endif
