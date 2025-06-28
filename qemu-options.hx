@@ -4885,7 +4885,7 @@ SRST
 ERST
 
 DEF("rtc", HAS_ARG, QEMU_OPTION_rtc, \
-    "-rtc [base=utc|localtime|<datetime>][,clock=host|rt|vm][,driftfix=none|slew]\n" \
+    "-rtc [base=utc|localtime|<datetime>][,clock=host|rt|vm][,driftfix=none|slew][,speed-factor=value]\n" \
     "                set the RTC base and clock, enable drift fix for clock ticks (x86 only)\n",
     QEMU_ARCH_ALL)
 
@@ -4914,6 +4914,11 @@ SRST
     problems, specifically with Windows' ACPI HAL. This option will try
     to figure out how many timer interrupts were not processed by the
     Windows guest and will re-inject them.
+
+    It's possible to slow or accelerate time using ``speed-factor``,
+    which is a factor (real number) applied to QEMU clock. A value of 0.1 will
+    slow time by a factor of 10, and a value of 10 will accelerate it with the
+    same factor.
 ERST
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \

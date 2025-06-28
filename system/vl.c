@@ -243,6 +243,9 @@ static QemuOptsList qemu_rtc_opts = {
         },{
             .name = "driftfix",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "speed-factor",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -2489,6 +2492,12 @@ static void configure_accelerators(const char *progname)
 
     if (icount_enabled() && !tcg_enabled()) {
         error_report("-icount is not allowed with hardware virtualization");
+        exit(1);
+    }
+
+    if (clock_time_dilation != 1.0f && !tcg_enabled()) {
+        error_report("-rtc speed-factor is not allowed with "
+                     "hardware virtualization");
         exit(1);
     }
 }
