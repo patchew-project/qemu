@@ -95,9 +95,20 @@ static void imx8mp_evk_init(MachineState *machine)
 
 static void imx8mp_evk_machine_init(MachineClass *mc)
 {
+    static const char *const valid_cpu_types[] = {
+        ARM_CPU_TYPE_NAME("cortex-a53"),
+#ifdef CONFIG_KVM
+        ARM_CPU_TYPE_NAME("host"),
+#endif /* CONFIG_KVM */
+        NULL
+    };
+
     mc->desc = "NXP i.MX 8M Plus EVK Board";
     mc->init = imx8mp_evk_init;
     mc->max_cpus = FSL_IMX8MP_NUM_CPUS;
+    mc->valid_cpu_types = valid_cpu_types;
+    mc->default_cpu_type = mc->valid_cpu_types[0];
     mc->default_ram_id = "imx8mp-evk.ram";
 }
+
 DEFINE_MACHINE("imx8mp-evk", imx8mp_evk_machine_init)
