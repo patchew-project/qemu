@@ -387,7 +387,7 @@ static void test_auto_converge(void)
      * Set the initial parameters so that the migration could not converge
      * without throttling.
      */
-    migrate_ensure_non_converge(from);
+    migrate_ensure_non_converge(from, args.config);
 
     /* To check remaining size after precopy */
     migrate_set_capability(from, "pause-before-switchover", true);
@@ -440,7 +440,7 @@ static void test_auto_converge(void)
     g_assert_cmpint(hit, ==, 1);
 
     /* Now, when we tested that throttling works, let it converge */
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, args.config);
 
     /*
      * Wait for pre-switchover status to check last throttle percentage
@@ -580,7 +580,7 @@ static void test_multifd_tcp_cancel(bool postcopy_ram)
         return;
     }
 
-    migrate_ensure_non_converge(from);
+    migrate_ensure_non_converge(from, args.config);
     migrate_prepare_for_dirty_mem(from);
 
     if (postcopy_ram) {
@@ -640,13 +640,13 @@ static void test_multifd_tcp_cancel(bool postcopy_ram)
     /* Start incoming migration from the 1st socket */
     migrate_incoming_qmp(to2, "tcp:127.0.0.1:0", NULL, "{}");
 
-    migrate_ensure_non_converge(from);
+    migrate_ensure_non_converge(from, args.config);
 
     migrate_qmp(from, to2, NULL, NULL, "{}");
 
     migrate_wait_for_dirty_mem(from, to2);
 
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, args.config);
 
     wait_for_stop(from, get_src());
     qtest_qmp_eventwait(to2, "RESUME");
@@ -675,7 +675,7 @@ static void test_cancel_src_after_failed(QTestState *from, QTestState *to,
      */
 
     wait_for_serial("src_serial");
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, NULL);
 
     migrate_qmp(from, to, uri, NULL, "{}");
 
@@ -699,7 +699,7 @@ static void test_cancel_src_after_cancelled(QTestState *from, QTestState *to,
     migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, NULL);
 
     migrate_qmp(from, to, uri, NULL, "{}");
 
@@ -723,7 +723,7 @@ static void test_cancel_src_after_complete(QTestState *from, QTestState *to,
     migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, NULL);
 
     migrate_qmp(from, to, uri, NULL, "{}");
 
@@ -752,7 +752,7 @@ static void test_cancel_src_after_none(QTestState *from, QTestState *to,
 
     migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
 
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, NULL);
     migrate_qmp(from, to, uri, NULL, "{}");
 
     wait_for_migration_complete(from);
@@ -771,7 +771,7 @@ static void test_cancel_src_pre_switchover(QTestState *from, QTestState *to,
     migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
 
     wait_for_serial("src_serial");
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, NULL);
 
     migrate_qmp(from, to, uri, NULL, "{}");
 
@@ -1080,7 +1080,7 @@ static void migrate_dirty_limit_wait_showup(QTestState *from,
     migrate_set_parameter_int(from, "vcpu-dirty-limit", value);
 
     /* Make sure migrate can't converge */
-    migrate_ensure_non_converge(from);
+    migrate_ensure_non_converge(from, NULL);
 
     /* To check limit rate after precopy */
     migrate_set_capability(from, "pause-before-switchover", true);

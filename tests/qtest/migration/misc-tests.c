@@ -70,7 +70,7 @@ static void test_analyze_script(void)
     file = g_strdup_printf("%s/migfile", tmpfs);
     uri = g_strdup_printf("exec:cat > %s", file);
 
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, args.config);
     migrate_qmp(from, to, uri, NULL, "{}");
     wait_for_migration_complete(from);
 
@@ -105,7 +105,7 @@ static void test_ignore_shared(void)
         return;
     }
 
-    migrate_ensure_non_converge(from);
+    migrate_ensure_non_converge(from, args.config);
     migrate_prepare_for_dirty_mem(from);
 
     /* Wait for the first serial output from the source */

@@ -513,7 +513,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
         args->postcopy_data = args->start_hook(from, to);
     }
 
-    migrate_ensure_non_converge(from);
+    migrate_ensure_non_converge(from, args->start.config);
     migrate_prepare_for_dirty_mem(from);
     qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { "
@@ -791,7 +791,7 @@ void test_precopy_common(MigrateCommon *args)
     }
 
     if (args->live) {
-        migrate_ensure_non_converge(from);
+        migrate_ensure_non_converge(from, args->start.config);
         migrate_prepare_for_dirty_mem(from);
     } else {
         /*
@@ -803,7 +803,7 @@ void test_precopy_common(MigrateCommon *args)
         if (args->result == MIG_TEST_SUCCEED) {
             qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
             wait_for_stop(from, &src_state);
-            migrate_ensure_converge(from);
+            migrate_ensure_converge(from, args->start.config);
         }
     }
 
@@ -862,7 +862,7 @@ void test_precopy_common(MigrateCommon *args)
             }
             migrate_wait_for_dirty_mem(from, to);
 
-            migrate_ensure_converge(from);
+            migrate_ensure_converge(from, args->start.config);
 
             /*
              * We do this first, as it has a timeout to stop us
@@ -965,7 +965,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
         data_hook = args->start_hook(from, to);
     }
 
-    migrate_ensure_converge(from);
+    migrate_ensure_converge(from, args->start.config);
     wait_for_serial("src_serial");
 
     if (stop_src) {

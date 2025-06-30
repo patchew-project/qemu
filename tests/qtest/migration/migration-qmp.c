@@ -471,18 +471,28 @@ void migrate_set_parameter_bool(QTestState *who, const char *parameter,
     migrate_check_parameter_bool(who, parameter, value);
 }
 
-void migrate_ensure_non_converge(QTestState *who)
+void migrate_ensure_non_converge(QTestState *who, QDict *config)
 {
     /* Can't converge with 1ms downtime + 3 mbs bandwidth limit */
-    migrate_set_parameter_int(who, "max-bandwidth", 3 * 1000 * 1000);
-    migrate_set_parameter_int(who, "downtime-limit", 1);
+    if (config) {
+        qdict_put_int(config, "max-bandwidth", 3 * 1000 * 1000);
+        qdict_put_int(config, "downtime-limit", 1);
+    } else {
+        migrate_set_parameter_int(who, "max-bandwidth", 3 * 1000 * 1000);
+        migrate_set_parameter_int(who, "downtime-limit", 1);
+    }
 }
 
-void migrate_ensure_converge(QTestState *who)
+void migrate_ensure_converge(QTestState *who, QDict *config)
 {
     /* Should converge with 30s downtime + 1 gbs bandwidth limit */
-    migrate_set_parameter_int(who, "max-bandwidth", 1 * 1000 * 1000 * 1000);
-    migrate_set_parameter_int(who, "downtime-limit", 30 * 1000);
+    if (config) {
+        qdict_put_int(config, "max-bandwidth", 1 * 1000 * 1000 * 1000);
+        qdict_put_int(config, "downtime-limit", 30 * 1000);
+    } else {
+        migrate_set_parameter_int(who, "max-bandwidth", 1 * 1000 * 1000 * 1000);
+        migrate_set_parameter_int(who, "downtime-limit", 30 * 1000);
+    }
 }
 
 void migrate_pause(QTestState *who)
