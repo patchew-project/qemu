@@ -97,7 +97,8 @@ void migrate_qmp_fail(QTestState *who, const char *uri,
     }
 
     err = qtest_qmp_assert_failure_ref(
-        who, "{ 'execute': 'migrate', 'arguments': %p}", args);
+        who, "{ 'execute': 'migrate', 'arguments': %p}",
+        qdict_clone_shallow(args));
 
     g_assert(qdict_haskey(err, "desc"));
 
@@ -136,7 +137,8 @@ void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
     }
 
     qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate', 'arguments': %p}", args);
+                             "{ 'execute': 'migrate', 'arguments': %p}",
+                             qdict_clone_shallow(args));
 }
 
 void migrate_set_capability(QTestState *who, const char *capability,
@@ -174,7 +176,7 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
     migrate_set_capability(to, "events", true);
 
     rsp = qtest_qmp(to, "{ 'execute': 'migrate-incoming', 'arguments': %p}",
-                    args);
+                    qdict_clone_shallow(args));
 
     if (!qdict_haskey(rsp, "return")) {
         g_autoptr(GString) s = qobject_to_json_pretty(QOBJECT(rsp), true);
