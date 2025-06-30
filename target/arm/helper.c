@@ -10929,7 +10929,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     arm_call_el_change_hook(cpu);
 
-    if (!kvm_enabled()) {
+    if (tcg_enabled()) {
         cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
     }
 }
