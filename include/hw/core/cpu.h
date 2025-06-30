@@ -160,6 +160,7 @@ struct CPUClass {
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
                            uint8_t *buf, size_t len, bool is_write);
     void (*dump_state)(CPUState *cpu, FILE *, int flags);
+    void (*dump_register)(CPUState *cpu, const char *reg, FILE *);
     void (*query_cpu_fast)(CPUState *cpu, CpuInfoFast *value);
     int64_t (*get_arch_id)(CPUState *cpu);
     void (*set_pc)(CPUState *cpu, vaddr value);
@@ -692,6 +693,16 @@ enum CPUDumpFlags {
  * Dumps CPU state.
  */
 void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
+
+/**
+ * cpu_dump_register:
+ * @cpu: The CPU whose register state is to be dumped.
+ * @reg: CPU register name to be dumped.
+ * @f: If non-null, dump to this stream, else to current print sink.
+ *
+ * Dumps CPU register state.
+ */
+void cpu_dump_register(CPUState *cpu, const char *reg, FILE *f);
 
 /**
  * cpu_get_phys_page_attrs_debug:

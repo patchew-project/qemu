@@ -113,6 +113,23 @@ SRST
     Show the cpu registers.
 ERST
 
+#if defined(TARGET_RISCV)
+    {
+        .name       = "register",
+        .args_type  = "register:s,cpustate_all:-a,vcpu:i?",
+        .params     = "[register|-a|vcpu]",
+        .help       = "show a cpu register (-a: show the register value for all cpus;"
+                      " vcpu: specific vCPU to query; show the current CPU's register if"
+                      " no vcpu is specified)",
+        .cmd        = hmp_info_register,
+    },
+
+SRST
+  ``info register``
+    Show a cpu register.
+ERST
+#endif
+
 #if defined(TARGET_I386)
     {
         .name       = "lapic",

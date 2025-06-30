@@ -638,6 +638,53 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 }
 
+static void riscv_cpu_dump_register(CPUState *cs, const char *reg, FILE *f)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    bool match_found = false;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(csr_ops); i++) {
+        RISCVException res;
+        target_ulong val = 0;
+        int csrno = i;
+
+        /*
+         * Early skip when possible since we're going
+         * through a lot of NULL entries.
+         */
+        if (csr_ops[csrno].predicate == NULL) {
+            continue;
+        }
+
+        /*
+         * We're doing partial register name matching,
+         * e.g. 'mhpm' will match all registers that
+         * starts with 'mhpm'.
+         */
+        if (strncasecmp(csr_ops[csrno].name, reg, strlen(reg)) != 0) {
+            continue;
+        }
+
+        res = riscv_csrrw_debug(env, csrno, &val, 0, 0);
+
+        /*
+         * Rely on the smode, hmode, etc, predicates within csr.c
+         * to do the filtering of the registers that are present.
+         */
+        if (res == RISCV_EXCP_NONE) {
+            if (!match_found) {
+                match_found = true;
+                qemu_fprintf(f, "\nCPU#%d\n", cs->cpu_index);
+            }
+
+            qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
+                         csr_ops[csrno].name, val);
+        }
+    }
+}
+
 static void riscv_cpu_set_pc(CPUState *cs, vaddr value)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
@@ -2653,6 +2700,7 @@ static void riscv_cpu_common_class_init(ObjectClass *c, const void *data)
 
     cc->class_by_name = riscv_cpu_class_by_name;
     cc->dump_state = riscv_cpu_dump_state;
+    cc->dump_register = riscv_cpu_dump_register;
     cc->set_pc = riscv_cpu_set_pc;
     cc->get_pc = riscv_cpu_get_pc;
     cc->gdb_read_register = riscv_cpu_gdb_read_register;

@@ -121,6 +121,36 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
     }
 }
 
+/*
+ * Based on hmp_info_registers().
+ */
+void hmp_info_register(Monitor *mon, const QDict *qdict)
+{
+    const char *reg = qdict_get_try_str(qdict, "register");
+    bool all_cpus = qdict_get_try_bool(qdict, "cpustate_all", false);
+    int vcpu = qdict_get_try_int(qdict, "vcpu", -1);
+    CPUState *cs;
+
+    if (all_cpus) {
+        CPU_FOREACH(cs) {
+            cpu_dump_register(cs, reg, NULL);
+        }
+    } else {
+        cs = vcpu >= 0 ? qemu_get_cpu(vcpu) : mon_get_cpu(mon);
+
+        if (!cs) {
+            if (vcpu >= 0) {
+                monitor_printf(mon, "CPU#%d not available\n", vcpu);
+            } else {
+                monitor_printf(mon, "No CPU available\n");
+            }
+            return;
+        }
+
+        cpu_dump_register(cs, reg, NULL);
+    }
+}
+
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
                         hwaddr addr, int is_physical)
 {

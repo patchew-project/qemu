@@ -108,6 +108,14 @@ void cpu_dump_state(CPUState *cpu, FILE *f, int flags)
     }
 }
 
+void cpu_dump_register(CPUState *cpu, const char *reg, FILE *f)
+{
+    if (cpu->cc->dump_register) {
+        cpu_synchronize_state(cpu);
+        cpu->cc->dump_register(cpu, reg, f);
+    }
+}
+
 void cpu_reset(CPUState *cpu)
 {
     device_cold_reset(DEVICE(cpu));
