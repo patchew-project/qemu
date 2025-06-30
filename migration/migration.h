@@ -510,6 +510,13 @@ struct MigrationState {
     bool rdma_migration;
 
     GSource *hup_source;
+
+    /*
+     * The block-bitmap-mapping option is allowed to be an emtpy list,
+     * therefore we need a way to know whether the user has given
+     * anything as input.
+     */
+    bool has_block_bitmap_mapping;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
