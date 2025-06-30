@@ -77,6 +77,10 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
         info->node_name = g_strdup(bs->node_name);
     }
 
+    if (bs->file && bs->file->bs && bs->file->bs->node_name[0]) {
+        info->file_child_node_name = g_strdup(bs->file->bs->node_name);
+    }
+
     backing = bdrv_cow_bs(bs);
     if (backing) {
         info->backing_file = g_strdup(backing->filename);

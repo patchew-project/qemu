@@ -47,6 +47,7 @@ Testing:
             "iops": 0,
             "bps_wr": 0,
             "write_threshold": 0,
+            "file-child-node-name": "disk0",
             "encrypted": false,
             "bps": 0,
             "bps_rd": 0,

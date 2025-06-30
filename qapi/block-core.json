@@ -481,6 +481,9 @@
 #     2.5: 'host_floppy' dropped 2.6: 'luks' added 2.8: 'replication'
 #     added, 'tftp' dropped 2.9: 'archipelago' dropped
 #
+# @file-child-node-name: the name of the 'file' child block driver node.
+#     (since: 10.1)
+#
 # @backing_file: the name of the backing file (for copy-on-write)
 #
 # @backing_file_depth: number of files in the backing file chain
@@ -559,6 +562,7 @@
 ##
 { 'struct': 'BlockDeviceInfo',
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
+            '*file-child-node-name': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'active': 'bool', 'encrypted': 'bool',
             'detect_zeroes': 'BlockdevDetectZeroesOptions',
