@@ -338,6 +338,7 @@ static void test_precopy_fd_file(void)
         .connect_uri = "fd:fd-mig",
         .start_hook = migrate_hook_start_precopy_fd_file,
         .end_hook = migrate_hook_end_fd,
+        .start.config = qdict_new(),
     };
     test_file_common(&args, true);
 }

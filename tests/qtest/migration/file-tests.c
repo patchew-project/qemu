@@ -27,6 +27,7 @@ static void test_precopy_file(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
+        .start.config = qdict_new(),
     };
 
     test_file_common(&args, true);
@@ -74,6 +75,7 @@ static void test_precopy_file_offset_fdset(void)
         .connect_uri = uri,
         .listen_uri = "defer",
         .start_hook = migrate_hook_start_file_offset_fdset,
+        .start.config = qdict_new(),
     };
 
     test_file_common(&args, false);
@@ -88,6 +90,7 @@ static void test_precopy_file_offset(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
+        .start.config = qdict_new(),
     };
 
     test_file_common(&args, false);
@@ -102,6 +105,7 @@ static void test_precopy_file_offset_bad(void)
         .connect_uri = uri,
         .listen_uri = "defer",
         .result = MIG_TEST_QMP_ERROR,
+        .start.config = qdict_new(),
     };
 
     test_file_common(&args, false);
@@ -114,11 +118,10 @@ static void test_precopy_file_mapped_ram_live(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
-        },
+        .start.config = qdict_new(),
     };
 
+    qdict_put_bool(args.start.config, "mapped-ram", true);
     test_file_common(&args, false);
 }
 
@@ -129,11 +132,9 @@ static void test_precopy_file_mapped_ram(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
-        },
+        .start.config = qdict_new(),
     };
-
+    qdict_put_bool(args.start.config, "mapped-ram", true);
     test_file_common(&args, true);
 }
 
@@ -144,12 +145,11 @@ static void test_multifd_file_mapped_ram_live(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
-        },
+        .start.config = qdict_new(),
     };
 
+    qdict_put_bool(args.start.config, "mapped-ram", true);
+    qdict_put_bool(args.start.config, "multifd", true);
     test_file_common(&args, false);
 }
 
@@ -160,22 +160,11 @@ static void test_multifd_file_mapped_ram(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
-        },
+        .start.config = qdict_new(),
     };
-
+    qdict_put_bool(args.start.config, "mapped-ram", true);
+    qdict_put_bool(args.start.config, "multifd", true);
     test_file_common(&args, true);
-}
-
-static void *migrate_hook_start_multifd_mapped_ram_dio(QTestState *from,
-                                                       QTestState *to)
-{
-    migrate_set_parameter_bool(from, "direct-io", true);
-    migrate_set_parameter_bool(to, "direct-io", true);
-
-    return NULL;
 }
 
 static void test_multifd_file_mapped_ram_dio(void)
@@ -185,12 +174,12 @@ static void test_multifd_file_mapped_ram_dio(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_mapped_ram_dio,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
+        .start.config = qdict_new(),
     };
+
+    qdict_put_bool(args.start.config, "direct-io", true);
+    qdict_put_bool(args.start.config, "mapped-ram", true);
+    qdict_put_bool(args.start.config, "multifd", true);
 
     if (!probe_o_direct_support(tmpfs)) {
         g_test_skip("Filesystem does not support O_DIRECT");
@@ -235,9 +224,6 @@ static void *migrate_hook_start_multifd_mapped_ram_fdset_dio(QTestState *from,
     fdset_add_fds(from, file, O_WRONLY, 2, true);
     fdset_add_fds(to, file, O_RDONLY, 2, true);
 
-    migrate_set_parameter_bool(from, "direct-io", true);
-    migrate_set_parameter_bool(to, "direct-io", true);
-
     return NULL;
 }
 
@@ -261,12 +247,11 @@ static void test_multifd_file_mapped_ram_fdset(void)
         .listen_uri = "defer",
         .start_hook = migrate_hook_start_multifd_mapped_ram_fdset,
         .end_hook = migrate_hook_end_multifd_mapped_ram_fdset,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
+        .start.config = qdict_new(),
     };
 
+    qdict_put_bool(args.start.config, "mapped-ram", true);
+    qdict_put_bool(args.start.config, "multifd", true);
     test_file_common(&args, true);
 }
 
@@ -279,11 +264,12 @@ static void test_multifd_file_mapped_ram_fdset_dio(void)
         .listen_uri = "defer",
         .start_hook = migrate_hook_start_multifd_mapped_ram_fdset_dio,
         .end_hook = migrate_hook_end_multifd_mapped_ram_fdset,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
+        .start.config = qdict_new(),
     };
+
+    qdict_put_bool(args.start.config, "direct-io", true);
+    qdict_put_bool(args.start.config, "mapped-ram", true);
+    qdict_put_bool(args.start.config, "multifd", true);
 
     if (!probe_o_direct_support(tmpfs)) {
         g_test_skip("Filesystem does not support O_DIRECT");

@@ -974,18 +974,21 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, NULL, "{}");
+        migrate_qmp_fail(from, args->connect_uri, NULL, "{ 'config': %p }",
+                         args->start.config);
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_qmp(from, to, args->connect_uri, NULL, "{ 'config': %p }",
+                args->start.config);
     wait_for_migration_complete(from);
 
     /*
      * We need to wait for the source to finish before starting the
      * destination.
      */
-    migrate_incoming_qmp(to, args->connect_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->connect_uri, NULL, "{ 'config': %p }",
+                         args->start.config);
     wait_for_migration_complete(to);
 
     if (stop_src) {
