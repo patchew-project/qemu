@@ -83,6 +83,8 @@ void migrate_capability_set_compat(MigrationParameters *params, int i,
                                    bool val);
 void migrate_capabilities_set_compat(MigrationParameters *params,
                                      MigrationCapabilityStatusList *caps);
-bool migrate_caps_check(const MigrationParameters *const new, Error **errp);
+bool migrate_caps_check(const MigrationParameters *new, Error **errp);
 void migrate_params_store_defaults(MigrationState *s);
+bool migrate_params_override(MigrationState *s, MigrationParameters *new,
+                             Error **errp);
 #endif

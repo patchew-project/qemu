@@ -1398,6 +1398,25 @@ void migrate_params_store_defaults(MigrationState *s)
     s->initial_params = QAPI_CLONE(MigrationParameters, &s->parameters);
 }
 
+bool migrate_params_override(MigrationState *s, MigrationParameters *new,
+                             Error **errp)
+{
+    ERRP_GUARD();
+
+    assert(bql_locked());
+
+    /* reset to initial parameters */
+    migrate_params_apply(s->initial_params);
+
+    /* apply the new ones on top */
+    qmp_migrate_set_parameters(new, errp);
+    if (*errp) {
+        return false;
+    }
+
+    return true;
+}
+
 void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 {
     MigrationState *s = migrate_get_current();

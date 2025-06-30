@@ -1456,6 +1456,13 @@
 #
 # @resume: resume one paused migration, default "off".  (since 3.0)
 #
+# @config: migration configuration options, previously set via
+#     @migrate-set-parameters and @migrate-set-capabilities.  Setting
+#     this argument causes all migration configuration options
+#     previously set via @migrate-set-parameters to be ignored.
+#     Configuration options not set will assume their default
+#     values. (since 10.1)
+#
 # Features:
 #
 # @deprecated: Argument @detach is deprecated.
@@ -1520,6 +1527,7 @@
   'data': {'*uri': 'str',
            '*channels': [ 'MigrationChannel' ],
            '*detach': { 'type': 'bool', 'features': [ 'deprecated' ] },
+           '*config': 'MigrationParameters',
            '*resume': 'bool' } }
 
 ##
@@ -1538,6 +1546,13 @@
 #     When set to false, the failure triggers a MIGRATION event, and
 #     error details could be retrieved with query-migrate.
 #     (since 9.1)
+#
+# @config: migration configuration options, previously set via
+#     @migrate-set-parameters and @migrate-set-capabilities.  Setting
+#     this argument causes all migration configuration options
+#     previously set via @migrate-set-parameters to be ignored.
+#     Configuration options not set will assume their default
+#     values. (since 10.1)
 #
 # Since: 2.3
 #
@@ -1592,6 +1607,7 @@
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',
                       '*channels': [ 'MigrationChannel' ],
+                      '*config': 'MigrationParameters',
                       '*exit-on-error': 'bool' } }
 
 ##
