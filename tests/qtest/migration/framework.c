@@ -211,6 +211,37 @@ static QList *migrate_start_get_qmp_capabilities(const MigrateStart *args)
 static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
                                            MigrateStart *args)
 {
+    if (args->config) {
+        const char *cap_multifd;
+        bool multifd;
+
+        for (uint8_t i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+            const char *cap = MigrationCapability_lookup.array[i];
+
+            if (!args->caps[i]) {
+                continue;
+            }
+
+            qdict_put_bool(args->config, cap, true);
+        }
+
+        if (!args->defer_target_connect) {
+            qdict_put_bool(args->config, "events", true);
+        }
+
+        cap_multifd = MigrationCapability_str(MIGRATION_CAPABILITY_MULTIFD);
+        multifd = qdict_get_try_bool(args->config, cap_multifd, false);
+
+        if (multifd) {
+            qdict_put_int(args->config, "multifd-channels",
+                          MULTIFD_TEST_CHANNELS);
+            qdict_put_int(args->config, "multifd-channels",
+                          MULTIFD_TEST_CHANNELS);
+        }
+
+        return;
+    }
+
     /*
      * MigrationCapability_lookup and MIGRATION_CAPABILITY_ constants
      * are from qapi-types-migration.h.

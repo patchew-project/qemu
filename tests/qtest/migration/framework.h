@@ -128,6 +128,7 @@ typedef struct {
      * migration_set_capabilities().
      */
     bool caps[MIGRATION_CAPABILITY__MAX];
+    QDict *config;
 } MigrateStart;
 
 typedef enum PostcopyRecoveryFailStage {
