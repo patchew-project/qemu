@@ -6324,10 +6324,7 @@ static void x86_cpuid_version_get_family(Object *obj, Visitor *v,
     CPUX86State *env = &cpu->env;
     uint64_t value;
 
-    value = (env->cpuid_version >> 8) & 0xf;
-    if (value == 0xf) {
-        value += (env->cpuid_version >> 20) & 0xff;
-    }
+    value = x86_cpu_family(env->cpuid_version);
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -6365,8 +6362,7 @@ static void x86_cpuid_version_get_model(Object *obj, Visitor *v,
     CPUX86State *env = &cpu->env;
     uint64_t value;
 
-    value = (env->cpuid_version >> 4) & 0xf;
-    value |= ((env->cpuid_version >> 16) & 0xf) << 4;
+    value = x86_cpu_model(env->cpuid_version);
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -6400,7 +6396,7 @@ static void x86_cpuid_version_get_stepping(Object *obj, Visitor *v,
     CPUX86State *env = &cpu->env;
     uint64_t value;
 
-    value = env->cpuid_version & 0xf;
+    value = x86_cpu_stepping(env->cpuid_version);
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -8154,7 +8150,7 @@ static void mce_init(X86CPU *cpu)
     CPUX86State *cenv = &cpu->env;
     unsigned int bank;
 
-    if (((cenv->cpuid_version >> 8) & 0xf) >= 6
+    if (x86_cpu_family(cenv->cpuid_version) >= 6
         && (cenv->features[FEAT_1_EDX] & (CPUID_MCE | CPUID_MCA)) ==
             (CPUID_MCE | CPUID_MCA)) {
         cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF |
