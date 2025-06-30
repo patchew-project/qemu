@@ -33,6 +33,11 @@
 #include "options.h"
 #include "migration.h"
 
+#define PARAM_INFO(_a, _f, _e, _v) do {                                 \
+        assert(_a);                                                     \
+        monitor_printf(mon, _f, MigrationParameter_str(_e), _v);        \
+    } while (0)
+
 static void migration_global_dump(Monitor *mon)
 {
     MigrationState *ms = migrate_get_current();
@@ -243,132 +248,160 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
     MigrationState *s = migrate_get_current();
 
     params = qmp_query_migrate_parameters(NULL);
+    assert(params);
 
-    if (params) {
-        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_INITIAL),
-            params->announce_initial);
-        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_MAX),
-            params->announce_max);
-        monitor_printf(mon, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_ROUNDS),
-            params->announce_rounds);
-        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_STEP),
-            params->announce_step);
-        assert(params->has_throttle_trigger_threshold);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD),
-            params->throttle_trigger_threshold);
-        assert(params->has_cpu_throttle_initial);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL),
-            params->cpu_throttle_initial);
-        assert(params->has_cpu_throttle_increment);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT),
-            params->cpu_throttle_increment);
-        assert(params->has_cpu_throttle_tailslow);
-        monitor_printf(mon, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_CPU_THROTTLE_TAILSLOW),
-            params->cpu_throttle_tailslow ? "on" : "off");
-        assert(params->has_max_cpu_throttle);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MAX_CPU_THROTTLE),
-            params->max_cpu_throttle);
-        assert(params->tls_creds);
-        monitor_printf(mon, "%s: '%s'\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_TLS_CREDS),
-                       params->tls_creds->u.s);
-        assert(params->tls_hostname);
-        monitor_printf(mon, "%s: '%s'\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_TLS_HOSTNAME),
-                       params->tls_hostname->u.s);
-        assert(params->has_max_bandwidth);
-        monitor_printf(mon, "%s: %" PRIu64 " bytes/second\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MAX_BANDWIDTH),
-            params->max_bandwidth);
-        assert(params->has_avail_switchover_bandwidth);
-        monitor_printf(mon, "%s: %" PRIu64 " bytes/second\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_AVAIL_SWITCHOVER_BANDWIDTH),
-            params->avail_switchover_bandwidth);
-        assert(params->has_downtime_limit);
-        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_DOWNTIME_LIMIT),
-            params->downtime_limit);
-        assert(params->has_x_checkpoint_delay);
-        monitor_printf(mon, "%s: %u ms\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_X_CHECKPOINT_DELAY),
-            params->x_checkpoint_delay);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_CHANNELS),
-            params->multifd_channels);
-        monitor_printf(mon, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_COMPRESSION),
-            MultiFDCompression_str(params->multifd_compression));
-        assert(params->has_zero_page_detection);
-        monitor_printf(mon, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_ZERO_PAGE_DETECTION),
-            qapi_enum_lookup(&ZeroPageDetection_lookup,
-                params->zero_page_detection));
-        monitor_printf(mon, "%s: %" PRIu64 " bytes\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
-            params->xbzrle_cache_size);
-        monitor_printf(mon, "%s: %" PRIu64 "\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH),
-            params->max_postcopy_bandwidth);
-        assert(params->tls_authz);
-        monitor_printf(mon, "%s: '%s'\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_TLS_AUTHZ),
-                       params->tls_authz->u.s);
+    PARAM_INFO(params->has_announce_initial,
+               "%s: %" PRIu64 " ms\n",
+               MIGRATION_PARAMETER_ANNOUNCE_INITIAL,
+               params->announce_initial);
 
-        if (s->has_block_bitmap_mapping) {
-            const BitmapMigrationNodeAliasList *bmnal;
+    PARAM_INFO(params->has_announce_max,
+               "%s: %" PRIu64 " ms\n",
+               MIGRATION_PARAMETER_ANNOUNCE_MAX,
+               params->announce_max);
 
-            monitor_printf(mon, "%s:\n",
-                           MigrationParameter_str(
-                               MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING));
+    PARAM_INFO(params->has_announce_rounds,
+               "%s: %" PRIu64 "\n",
+               MIGRATION_PARAMETER_ANNOUNCE_ROUNDS,
+               params->announce_rounds);
 
-            for (bmnal = params->block_bitmap_mapping;
-                 bmnal;
-                 bmnal = bmnal->next)
-            {
-                const BitmapMigrationNodeAlias *bmna = bmnal->value;
-                const BitmapMigrationBitmapAliasList *bmbal;
+    PARAM_INFO(params->has_announce_step,
+               "%s: %" PRIu64 " ms\n",
+               MIGRATION_PARAMETER_ANNOUNCE_STEP,
+               params->announce_step);
 
-                monitor_printf(mon, "  '%s' -> '%s'\n",
-                               bmna->node_name, bmna->alias);
+    PARAM_INFO(params->has_throttle_trigger_threshold,
+               "%s: %u\n",
+               MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD,
+               params->throttle_trigger_threshold);
 
-                for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
-                    const BitmapMigrationBitmapAlias *bmba = bmbal->value;
+    PARAM_INFO(params->has_cpu_throttle_initial,
+               "%s: %u\n",
+               MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL,
+               params->cpu_throttle_initial);
 
-                    monitor_printf(mon, "    '%s' -> '%s'\n",
-                                   bmba->name, bmba->alias);
-                }
+    PARAM_INFO(params->has_cpu_throttle_increment,
+               "%s: %u\n",
+               MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT,
+               params->cpu_throttle_increment);
+
+    PARAM_INFO(params->has_cpu_throttle_tailslow,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_CPU_THROTTLE_TAILSLOW,
+               params->cpu_throttle_tailslow ? "on" : "off");
+
+    PARAM_INFO(params->has_max_cpu_throttle,
+               "%s: %u\n",
+               MIGRATION_PARAMETER_MAX_CPU_THROTTLE,
+               params->max_cpu_throttle);
+
+    PARAM_INFO(params->tls_creds,
+               "%s: '%s'\n",
+               MIGRATION_PARAMETER_TLS_CREDS,
+               params->tls_creds->u.s);
+
+    PARAM_INFO(params->tls_hostname,
+               "%s: '%s'\n",
+               MIGRATION_PARAMETER_TLS_HOSTNAME,
+               params->tls_hostname->u.s);
+
+    PARAM_INFO(params->has_max_bandwidth,
+               "%s: %" PRIu64 " bytes/second\n",
+               MIGRATION_PARAMETER_MAX_BANDWIDTH,
+               params->max_bandwidth);
+
+    PARAM_INFO(params->has_avail_switchover_bandwidth,
+               "%s: %" PRIu64 " bytes/second\n",
+               MIGRATION_PARAMETER_AVAIL_SWITCHOVER_BANDWIDTH,
+               params->avail_switchover_bandwidth);
+
+    PARAM_INFO(params->has_downtime_limit,
+               "%s: %" PRIu64 " ms\n",
+               MIGRATION_PARAMETER_DOWNTIME_LIMIT,
+               params->downtime_limit);
+
+    PARAM_INFO(params->has_x_checkpoint_delay,
+               "%s: %u ms\n",
+               MIGRATION_PARAMETER_X_CHECKPOINT_DELAY,
+               params->x_checkpoint_delay);
+
+    PARAM_INFO(params->has_multifd_channels,
+               "%s: %u\n",
+               MIGRATION_PARAMETER_MULTIFD_CHANNELS,
+               params->multifd_channels);
+
+    PARAM_INFO(params->has_multifd_compression,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_MULTIFD_COMPRESSION,
+               qapi_enum_lookup(&MultiFDCompression_lookup,
+                                params->multifd_compression));
+
+    PARAM_INFO(params->has_zero_page_detection,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_ZERO_PAGE_DETECTION,
+               qapi_enum_lookup(&ZeroPageDetection_lookup,
+                                params->zero_page_detection));
+
+    PARAM_INFO(params->has_xbzrle_cache_size,
+               "%s: %" PRIu64 " bytes\n",
+               MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE,
+               params->xbzrle_cache_size);
+
+    PARAM_INFO(params->has_max_postcopy_bandwidth,
+               "%s: %" PRIu64 "\n",
+               MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH,
+               params->max_postcopy_bandwidth);
+
+    PARAM_INFO(params->tls_authz,
+               "%s: '%s'\n",
+               MIGRATION_PARAMETER_TLS_AUTHZ,
+               params->tls_authz->u.s);
+
+    if (s->has_block_bitmap_mapping) {
+        const BitmapMigrationNodeAliasList *bmnal;
+
+        monitor_printf(mon, "%s:\n",
+                       MigrationParameter_str(
+                           MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING));
+
+        for (bmnal = params->block_bitmap_mapping;
+             bmnal;
+             bmnal = bmnal->next)
+        {
+            const BitmapMigrationNodeAlias *bmna = bmnal->value;
+            const BitmapMigrationBitmapAliasList *bmbal;
+
+            monitor_printf(mon, "  '%s' -> '%s'\n",
+                           bmna->node_name, bmna->alias);
+
+            for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
+                const BitmapMigrationBitmapAlias *bmba = bmbal->value;
+
+                monitor_printf(mon, "    '%s' -> '%s'\n",
+                               bmba->name, bmba->alias);
             }
         }
-
-        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
-        MigrationParameter_str(MIGRATION_PARAMETER_X_VCPU_DIRTY_LIMIT_PERIOD),
-        params->x_vcpu_dirty_limit_period);
-
-        monitor_printf(mon, "%s: %" PRIu64 " MB/s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_VCPU_DIRTY_LIMIT),
-            params->vcpu_dirty_limit);
-
-        assert(params->has_mode);
-        monitor_printf(mon, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_MODE),
-            qapi_enum_lookup(&MigMode_lookup, params->mode));
-
-        if (params->has_direct_io) {
-            monitor_printf(mon, "%s: %s\n",
-                           MigrationParameter_str(
-                               MIGRATION_PARAMETER_DIRECT_IO),
-                           params->direct_io ? "on" : "off");
-        }
     }
+
+    PARAM_INFO(params->has_x_vcpu_dirty_limit_period,
+               "%s: %" PRIu64 " ms\n",
+               MIGRATION_PARAMETER_X_VCPU_DIRTY_LIMIT_PERIOD,
+               params->x_vcpu_dirty_limit_period);
+
+    PARAM_INFO(params->has_vcpu_dirty_limit,
+               "%s: %" PRIu64 " MB/s\n",
+               MIGRATION_PARAMETER_VCPU_DIRTY_LIMIT,
+               params->vcpu_dirty_limit);
+
+    PARAM_INFO(params->has_mode,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_MODE,
+               qapi_enum_lookup(&MigMode_lookup, params->mode));
+
+    PARAM_INFO(params->has_direct_io,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_DIRECT_IO,
+               params->direct_io ? "on" : "off");
 
     qapi_free_MigrationParameters(params);
 }
