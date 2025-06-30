@@ -46,7 +46,7 @@ bool migrate_postcopy(void);
 bool migrate_rdma(void);
 bool migrate_tls(void);
 
-bool migrate_rdma_caps_check(MigrationParameters *config, Error **errp);
+bool migrate_rdma_caps_check(const MigrationParameters *config, Error **errp);
 
 /* parameters */
 
@@ -75,7 +75,7 @@ const char *migrate_tls_hostname(void);
 uint64_t migrate_xbzrle_cache_size(void);
 ZeroPageDetection migrate_zero_page_detection(void);
 
-bool migrate_params_check(MigrationParameters *params, Error **errp);
+bool migrate_params_check(const MigrationParameters *params, Error **errp);
 void migrate_params_init(MigrationParameters *params);
 void migrate_tls_opts_free(MigrationParameters *params);
 bool migrate_capability_get_compat(MigrationParameters *params, int i);
@@ -83,5 +83,6 @@ void migrate_capability_set_compat(MigrationParameters *params, int i,
                                    bool val);
 void migrate_capabilities_set_compat(MigrationParameters *params,
                                      MigrationCapabilityStatusList *caps);
-bool migrate_caps_check(MigrationParameters *new, Error **errp);
+bool migrate_caps_check(const MigrationParameters *const new, Error **errp);
+void migrate_params_store_defaults(MigrationState *s);
 #endif

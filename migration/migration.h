@@ -319,6 +319,12 @@ struct MigrationState {
 
     /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
+    /*
+     * This holds the values initially set in the 'parameters' struct
+     * above. Any values overriden by -global migration.<parameter>
+     * will be reflected here as well.
+     */
+    const MigrationParameters *initial_params;
 
     MigrationStatus state;
 
