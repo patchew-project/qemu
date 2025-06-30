@@ -83,6 +83,11 @@
 #define DEFINE_PROP_MIG_CAP(name, x)             \
     DEFINE_PROP_BOOL(name, MigrationState, capabilities[x], false)
 
+const PropertyInfo qdev_prop_StrOrNull;
+#define DEFINE_PROP_STR_OR_NULL(_name, _state, _field)                  \
+    DEFINE_PROP(_name, _state, _field, qdev_prop_StrOrNull, StrOrNull *, \
+                .set_default = true)
+
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT_PERIOD     1000    /* milliseconds */
 #define DEFAULT_MIGRATE_VCPU_DIRTY_LIMIT            1       /* MB/s */
 
@@ -203,6 +208,48 @@ const Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("mapped-ram", MIGRATION_CAPABILITY_MAPPED_RAM),
 };
 const size_t migration_properties_count = ARRAY_SIZE(migration_properties);
+
+/*
+ * qdev property for TLS options handling via '-global migration'
+ * command line.
+ */
+static void set_StrOrNull(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
+{
+    const Property *prop = opaque;
+    StrOrNull **ptr = object_field_prop_ptr(obj, prop);
+    StrOrNull *str_or_null = g_new0(StrOrNull, 1);
+
+    /*
+     * Only str to keep compatibility, QNULL was never used via
+     * command line.
+     */
+    str_or_null->type = QTYPE_QSTRING;
+    if (!visit_type_str(v, name, &str_or_null->u.s, errp)) {
+        return;
+    }
+
+    qapi_free_StrOrNull(*ptr);
+    *ptr = str_or_null;
+}
+
+static void release_StrOrNull(Object *obj, const char *name, void *opaque)
+{
+    const Property *prop = opaque;
+    qapi_free_StrOrNull(*(StrOrNull **)object_field_prop_ptr(obj, prop));
+}
+
+static void set_default_value_tls_opt(ObjectProperty *op, const Property *prop)
+{
+    object_property_set_default_str(op, "");
+}
+
+const PropertyInfo qdev_prop_StrOrNull = {
+    .type  = "StrOrNull",
+    .set = set_StrOrNull,
+    .release = release_StrOrNull,
+    .set_default_value = set_default_value_tls_opt,
+};
 
 bool migrate_auto_converge(void)
 {
