@@ -4096,6 +4096,14 @@ static bool migration_object_check(MigrationState *ms, Error **errp)
         return false;
     }
 
+    /*
+     * FIXME: Temporarily while -global capabilties are still using
+     * s->capabilities. Will be gone by the end of the series.
+     */
+    for (int i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+        migrate_capability_set_compat(&ms->parameters, i, ms->capabilities[i]);
+    }
+
     return migrate_caps_check(old_caps, ms->capabilities, errp);
 }
 

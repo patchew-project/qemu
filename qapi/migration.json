@@ -763,7 +763,14 @@
            'vcpu-dirty-limit',
            'mode',
            'zero-page-detection',
-           'direct-io'] }
+           'direct-io', 'xbzrle', 'rdma-pin-all', 'auto-converge',
+           'zero-blocks', 'events', 'postcopy-ram', 'x-colo',
+           'release-ram', 'return-path', 'pause-before-switchover',
+           'multifd', 'dirty-bitmaps', 'postcopy-blocktime',
+           'late-block-activate', 'x-ignore-shared',
+           'validate-uuid', 'background-snapshot',
+           'zero-copy-send', 'postcopy-preempt',
+           'switchover-ack', 'dirty-limit', 'mapped-ram' ] }
 
 ##
 # @migrate-set-parameters:
@@ -934,10 +941,108 @@
 #     only has effect if the @mapped-ram capability is enabled.
 #     (Since 9.1)
 #
+# @xbzrle: Migration supports xbzrle (Xor Based Zero Run Length
+#     Encoding).  This feature allows us to minimize migration traffic
+#     for certain work loads, by sending compressed difference of the
+#     pages
+#
+# @rdma-pin-all: Controls whether or not the entire VM memory
+#     footprint is mlock()'d on demand or all at once.  Refer to
+#     docs/rdma.txt for usage.  Disabled by default.  (since 2.0)
+#
+# @zero-blocks: During storage migration encode blocks of zeroes
+#     efficiently.  This essentially saves 1MB of zeroes per block on
+#     the wire.  Enabling requires source and target VM to support
+#     this feature.  To enable it is sufficient to enable the
+#     capability on the source VM.  The feature is disabled by
+#     default.  (since 1.6)
+#
+# @events: generate events for each migration state change (since 2.4)
+#
+# @auto-converge: If enabled, QEMU will automatically throttle down
+#     the guest to speed up convergence of RAM migration.  (since 1.6)
+#
+# @postcopy-ram: Start executing on the migration target before all of
+#     RAM has been migrated, pulling the remaining pages along as
+#     needed.  The capacity must have the same setting on both source
+#     and target or migration will not even start.  NOTE: If the
+#     migration fails during postcopy the VM will fail.  (since 2.6)
+#
+# @x-colo: If enabled, migration will never end, and the state of the
+#     VM on the primary side will be migrated continuously to the VM
+#     on secondary side, this process is called COarse-Grain LOck
+#     Stepping (COLO) for Non-stop Service.  (since 2.8)
+#
+# @release-ram: if enabled, qemu will free the migrated ram pages on
+#     the source during postcopy-ram migration.  (since 2.9)
+#
+# @return-path: If enabled, migration will use the return path even
+#     for precopy.  (since 2.10)
+#
+# @pause-before-switchover: Pause outgoing migration before
+#     serialising device state and before disabling block IO (since
+#     2.11)
+#
+# @multifd: Use more than one fd for migration (since 4.0)
+#
+# @dirty-bitmaps: If enabled, QEMU will migrate named dirty bitmaps.
+#     (since 2.12)
+#
+# @postcopy-blocktime: Calculate downtime for postcopy live migration
+#     (since 3.0)
+#
+# @late-block-activate: If enabled, the destination will not activate
+#     block devices (and thus take locks) immediately at the end of
+#     migration.  (since 3.0)
+#
+# @x-ignore-shared: If enabled, QEMU will not migrate shared memory
+#     that is accessible on the destination machine.  (since 4.0)
+#
+# @validate-uuid: Send the UUID of the source to allow the destination
+#     to ensure it is the same.  (since 4.2)
+#
+# @background-snapshot: If enabled, the migration stream will be a
+#     snapshot of the VM exactly at the point when the migration
+#     procedure starts.  The VM RAM is saved with running VM.
+#     (since 6.0)
+#
+# @zero-copy-send: Controls behavior on sending memory pages on
+#     migration.  When true, enables a zero-copy mechanism for sending
+#     memory pages, if host supports it.  Requires that QEMU be
+#     permitted to use locked memory for guest RAM pages.  (since 7.1)
+#
+# @postcopy-preempt: If enabled, the migration process will allow
+#     postcopy requests to preempt precopy stream, so postcopy
+#     requests will be handled faster.  This is a performance feature
+#     and should not affect the correctness of postcopy migration.
+#     (since 7.1)
+#
+# @switchover-ack: If enabled, migration will not stop the source VM
+#     and complete the migration until an ACK is received from the
+#     destination that it's OK to do so.  Exactly when this ACK is
+#     sent depends on the migrated devices that use this feature.  For
+#     example, a device can use it to make sure some of its data is
+#     sent and loaded in the destination before doing switchover.
+#     This can reduce downtime if devices that support this capability
+#     are present.  'return-path' capability must be enabled to use
+#     it.  (since 8.1)
+#
+# @dirty-limit: If enabled, migration will throttle vCPUs as needed to
+#     keep their dirty page rate within @vcpu-dirty-limit.  This can
+#     improve responsiveness of large guests during live migration,
+#     and can result in more stable read performance.  Requires KVM
+#     with accelerator property "dirty-ring-size" set.  (Since 8.1)
+#
+# @mapped-ram: Migrate using fixed offsets in the migration file for
+#     each RAM page.  Requires a migration URI that supports seeking,
+#     such as a file.  (since 9.0)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay and
-#     @x-vcpu-dirty-limit-period are experimental.
+# @unstable: Members @x-checkpoint-delay, @x-vcpu-dirty-limit-period,
+#     @x-colo and @x-ignore-shared are experimental.
+# @deprecated: Member @zero-blocks is deprecated as being part of
+#     block migration which was already removed.
 #
 # Since: 2.4
 ##
@@ -972,7 +1077,29 @@
             '*vcpu-dirty-limit': 'uint64',
             '*mode': 'MigMode',
             '*zero-page-detection': 'ZeroPageDetection',
-            '*direct-io': 'bool' } }
+            '*direct-io': 'bool',
+            '*xbzrle': 'bool',
+            '*rdma-pin-all': 'bool',
+            '*auto-converge': 'bool',
+            '*zero-blocks': { 'type': 'bool', 'features': [ 'deprecated' ] },
+            '*events': 'bool',
+            '*postcopy-ram': 'bool',
+            '*x-colo': { 'type': 'bool', 'features': [ 'unstable' ] },
+            '*release-ram': 'bool',
+            '*return-path': 'bool',
+            '*pause-before-switchover': 'bool',
+            '*multifd': 'bool',
+            '*dirty-bitmaps': 'bool',
+            '*postcopy-blocktime': 'bool',
+            '*late-block-activate': 'bool',
+            '*x-ignore-shared': { 'type': 'bool', 'features': [ 'unstable' ] },
+            '*validate-uuid': 'bool',
+            '*background-snapshot': 'bool',
+            '*zero-copy-send': 'bool',
+            '*postcopy-preempt': 'bool',
+            '*switchover-ack': 'bool',
+            '*dirty-limit': 'bool',
+            '*mapped-ram': 'bool' } }
 
 ##
 # @query-migrate-parameters:

@@ -403,6 +403,116 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
                MIGRATION_PARAMETER_DIRECT_IO,
                params->direct_io ? "on" : "off");
 
+    PARAM_INFO(params->has_xbzrle,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_XBZRLE,
+               params->xbzrle ? "on" : "off");
+
+    PARAM_INFO(params->has_rdma_pin_all,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_RDMA_PIN_ALL,
+               params->rdma_pin_all ? "on" : "off");
+
+    PARAM_INFO(params->has_auto_converge,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_AUTO_CONVERGE,
+               params->auto_converge ? "on" : "off");
+
+    PARAM_INFO(params->has_zero_blocks,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_ZERO_BLOCKS,
+               params->zero_blocks ? "on" : "off");
+
+    PARAM_INFO(params->has_events,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_EVENTS,
+               params->events ? "on" : "off");
+
+    PARAM_INFO(params->has_postcopy_ram,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_POSTCOPY_RAM,
+               params->postcopy_ram ? "on" : "off");
+
+    PARAM_INFO(params->has_x_colo,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_X_COLO,
+               params->x_colo ? "on" : "off");
+
+    PARAM_INFO(params->has_release_ram,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_RELEASE_RAM,
+               params->release_ram ? "on" : "off");
+
+    PARAM_INFO(params->has_return_path,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_RETURN_PATH,
+               params->return_path ? "on" : "off");
+
+    PARAM_INFO(params->has_pause_before_switchover,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_PAUSE_BEFORE_SWITCHOVER,
+               params->pause_before_switchover ? "on" : "off");
+
+    PARAM_INFO(params->has_multifd,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_MULTIFD,
+               params->multifd ? "on" : "off");
+
+    PARAM_INFO(params->has_dirty_bitmaps,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_DIRTY_BITMAPS,
+               params->dirty_bitmaps ? "on" : "off");
+
+    PARAM_INFO(params->has_postcopy_blocktime,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_POSTCOPY_BLOCKTIME,
+               params->postcopy_blocktime ? "on" : "off");
+
+    PARAM_INFO(params->has_late_block_activate,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_LATE_BLOCK_ACTIVATE,
+               params->late_block_activate ? "on" : "off");
+
+    PARAM_INFO(params->has_x_ignore_shared,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_X_IGNORE_SHARED,
+               params->x_ignore_shared ? "on" : "off");
+
+    PARAM_INFO(params->has_validate_uuid,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_VALIDATE_UUID,
+               params->validate_uuid ? "on" : "off");
+
+    PARAM_INFO(params->has_background_snapshot,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_BACKGROUND_SNAPSHOT,
+               params->background_snapshot ? "on" : "off");
+
+    PARAM_INFO(params->has_zero_copy_send,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_ZERO_COPY_SEND,
+               params->zero_copy_send ? "on" : "off");
+
+    PARAM_INFO(params->has_postcopy_preempt,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_POSTCOPY_PREEMPT,
+               params->postcopy_preempt ? "on" : "off");
+
+    PARAM_INFO(params->has_switchover_ack,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_SWITCHOVER_ACK,
+               params->switchover_ack ? "on" : "off");
+
+    PARAM_INFO(params->has_dirty_limit,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_DIRTY_LIMIT,
+               params->dirty_limit ? "on" : "off");
+
+    PARAM_INFO(params->has_mapped_ram,
+               "%s: %s\n",
+               MIGRATION_PARAMETER_MAPPED_RAM,
+               params->mapped_ram ? "on" : "off");
+
     qapi_free_MigrationParameters(params);
 }
 
@@ -681,6 +791,94 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_DIRECT_IO:
         p->has_direct_io = true;
         visit_type_bool(v, param, &p->direct_io, &err);
+        break;
+    case MIGRATION_PARAMETER_XBZRLE:
+        p->has_xbzrle = true;
+        visit_type_bool(v, param, &p->xbzrle, &err);
+        break;
+    case MIGRATION_PARAMETER_RDMA_PIN_ALL:
+        p->has_rdma_pin_all = true;
+        visit_type_bool(v, param, &p->rdma_pin_all, &err);
+        break;
+    case MIGRATION_PARAMETER_AUTO_CONVERGE:
+        p->has_auto_converge = true;
+        visit_type_bool(v, param, &p->auto_converge, &err);
+        break;
+    case MIGRATION_PARAMETER_ZERO_BLOCKS:
+        p->has_zero_blocks = true;
+        visit_type_bool(v, param, &p->zero_blocks, &err);
+        break;
+    case MIGRATION_PARAMETER_EVENTS:
+        p->has_events = true;
+        visit_type_bool(v, param, &p->events, &err);
+        break;
+    case MIGRATION_PARAMETER_POSTCOPY_RAM:
+        p->has_postcopy_ram = true;
+        visit_type_bool(v, param, &p->postcopy_ram, &err);
+        break;
+    case MIGRATION_PARAMETER_X_COLO:
+        p->has_x_colo = true;
+        visit_type_bool(v, param, &p->x_colo, &err);
+        break;
+    case MIGRATION_PARAMETER_RELEASE_RAM:
+        p->has_release_ram = true;
+        visit_type_bool(v, param, &p->release_ram, &err);
+        break;
+    case MIGRATION_PARAMETER_RETURN_PATH:
+        p->has_return_path = true;
+        visit_type_bool(v, param, &p->return_path, &err);
+        break;
+    case MIGRATION_PARAMETER_PAUSE_BEFORE_SWITCHOVER:
+        p->has_pause_before_switchover = true;
+        visit_type_bool(v, param, &p->pause_before_switchover, &err);
+        break;
+    case MIGRATION_PARAMETER_MULTIFD:
+        p->has_multifd = true;
+        visit_type_bool(v, param, &p->multifd, &err);
+        break;
+    case MIGRATION_PARAMETER_DIRTY_BITMAPS:
+        p->has_dirty_bitmaps = true;
+        visit_type_bool(v, param, &p->dirty_bitmaps, &err);
+        break;
+    case MIGRATION_PARAMETER_POSTCOPY_BLOCKTIME:
+        p->has_postcopy_blocktime = true;
+        visit_type_bool(v, param, &p->postcopy_blocktime, &err);
+        break;
+    case MIGRATION_PARAMETER_LATE_BLOCK_ACTIVATE:
+        p->has_late_block_activate = true;
+        visit_type_bool(v, param, &p->late_block_activate, &err);
+        break;
+    case MIGRATION_PARAMETER_X_IGNORE_SHARED:
+        p->has_x_ignore_shared = true;
+        visit_type_bool(v, param, &p->x_ignore_shared, &err);
+        break;
+    case MIGRATION_PARAMETER_VALIDATE_UUID:
+        p->has_validate_uuid = true;
+        visit_type_bool(v, param, &p->validate_uuid, &err);
+        break;
+    case MIGRATION_PARAMETER_BACKGROUND_SNAPSHOT:
+        p->has_background_snapshot = true;
+        visit_type_bool(v, param, &p->background_snapshot, &err);
+        break;
+    case MIGRATION_PARAMETER_ZERO_COPY_SEND:
+        p->has_zero_copy_send = true;
+        visit_type_bool(v, param, &p->zero_copy_send, &err);
+        break;
+    case MIGRATION_PARAMETER_POSTCOPY_PREEMPT:
+        p->has_postcopy_preempt = true;
+        visit_type_bool(v, param, &p->postcopy_preempt, &err);
+        break;
+    case MIGRATION_PARAMETER_SWITCHOVER_ACK:
+        p->has_switchover_ack = true;
+        visit_type_bool(v, param, &p->switchover_ack, &err);
+        break;
+    case MIGRATION_PARAMETER_DIRTY_LIMIT:
+        p->has_dirty_limit = true;
+        visit_type_bool(v, param, &p->dirty_limit, &err);
+        break;
+    case MIGRATION_PARAMETER_MAPPED_RAM:
+        p->has_mapped_ram = true;
+        visit_type_bool(v, param, &p->mapped_ram, &err);
         break;
     default:
         g_assert_not_reached();

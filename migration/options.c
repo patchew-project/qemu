@@ -685,6 +685,111 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
     return true;
 }
 
+static bool *migrate_capability_get_addr(MigrationParameters *params, int i)
+{
+    bool *cap_addr = NULL;
+
+    switch (i) {
+    case MIGRATION_CAPABILITY_XBZRLE:
+        cap_addr = &params->xbzrle;
+        break;
+    case MIGRATION_CAPABILITY_RDMA_PIN_ALL:
+        cap_addr = &params->rdma_pin_all;
+        break;
+    case MIGRATION_CAPABILITY_AUTO_CONVERGE:
+        cap_addr = &params->auto_converge;
+        break;
+    case MIGRATION_CAPABILITY_ZERO_BLOCKS:
+        cap_addr = &params->zero_blocks;
+        break;
+    case MIGRATION_CAPABILITY_EVENTS:
+        cap_addr = &params->events;
+        break;
+    case MIGRATION_CAPABILITY_POSTCOPY_RAM:
+        cap_addr = &params->postcopy_ram;
+        break;
+    case MIGRATION_CAPABILITY_X_COLO:
+        cap_addr = &params->x_colo;
+        break;
+    case MIGRATION_CAPABILITY_RELEASE_RAM:
+        cap_addr = &params->release_ram;
+        break;
+    case MIGRATION_CAPABILITY_RETURN_PATH:
+        cap_addr = &params->return_path;
+        break;
+    case MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER:
+        cap_addr = &params->pause_before_switchover;
+        break;
+    case MIGRATION_CAPABILITY_MULTIFD:
+        cap_addr = &params->multifd;
+        break;
+    case MIGRATION_CAPABILITY_DIRTY_BITMAPS:
+        cap_addr = &params->dirty_bitmaps;
+        break;
+    case MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME:
+        cap_addr = &params->postcopy_blocktime;
+        break;
+    case MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE:
+        cap_addr = &params->late_block_activate;
+        break;
+    case MIGRATION_CAPABILITY_X_IGNORE_SHARED:
+        cap_addr = &params->x_ignore_shared;
+        break;
+    case MIGRATION_CAPABILITY_VALIDATE_UUID:
+        cap_addr = &params->validate_uuid;
+        break;
+    case MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT:
+        cap_addr = &params->background_snapshot;
+        break;
+    case MIGRATION_CAPABILITY_ZERO_COPY_SEND:
+        cap_addr = &params->zero_copy_send;
+        break;
+    case MIGRATION_CAPABILITY_POSTCOPY_PREEMPT:
+        cap_addr = &params->postcopy_preempt;
+        break;
+    case MIGRATION_CAPABILITY_SWITCHOVER_ACK:
+        cap_addr = &params->switchover_ack;
+        break;
+    case MIGRATION_CAPABILITY_DIRTY_LIMIT:
+        cap_addr = &params->dirty_limit;
+        break;
+    case MIGRATION_CAPABILITY_MAPPED_RAM:
+        cap_addr = &params->mapped_ram;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return cap_addr;
+}
+
+/* Compatibility for code that reads capabilities in a loop */
+bool migrate_capability_get_compat(MigrationParameters *params, int i)
+{
+    return *(migrate_capability_get_addr(params, i));
+}
+
+/* Compatibility for code that writes capabilities in a loop */
+void migrate_capability_set_compat(MigrationParameters *params, int i, bool val)
+{
+    *(migrate_capability_get_addr(params, i)) = val;
+}
+
+/*
+ * Set capabilities for compatibility with the old
+ * migrate-set-capabilities command.
+ */
+void migrate_capabilities_set_compat(MigrationParameters *params,
+                                     MigrationCapabilityStatusList *caps)
+{
+    MigrationCapabilityStatusList *cap;
+
+    for (cap = caps; cap; cap = cap->next) {
+        migrate_capability_set_compat(params, cap->value->capability,
+                                      cap->value->state);
+    }
+}
+
 MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 {
     MigrationCapabilityStatusList *head = NULL, **tail = &head;
@@ -726,6 +831,8 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     for (cap = params; cap; cap = cap->next) {
         s->capabilities[cap->value->capability] = cap->value->state;
     }
+
+    migrate_capabilities_set_compat(&s->parameters, params);
 }
 
 /* parameters */
@@ -1014,6 +1121,15 @@ static void migrate_mark_all_params_present(MigrationParameters *p)
         &p->has_announce_step, &p->has_block_bitmap_mapping,
         &p->has_x_vcpu_dirty_limit_period, &p->has_vcpu_dirty_limit,
         &p->has_mode, &p->has_zero_page_detection, &p->has_direct_io,
+        &p->has_xbzrle, &p->has_rdma_pin_all, &p->has_auto_converge,
+        &p->has_zero_blocks, &p->has_events, &p->has_postcopy_ram,
+        &p->has_x_colo, &p->has_release_ram, &p->has_return_path,
+        &p->has_pause_before_switchover, &p->has_multifd, &p->has_dirty_bitmaps,
+        &p->has_postcopy_blocktime, &p->has_late_block_activate,
+        &p->has_x_ignore_shared, &p->has_validate_uuid,
+        &p->has_background_snapshot, &p->has_zero_copy_send,
+        &p->has_postcopy_preempt, &p->has_switchover_ack, &p->has_dirty_limit,
+        &p->has_mapped_ram,
     };
 
     len = ARRAY_SIZE(has_fields);
@@ -1315,6 +1431,19 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
     tls_opt_to_str(&params->tls_creds);
     tls_opt_to_str(&params->tls_hostname);
     tls_opt_to_str(&params->tls_authz);
+
+    /*
+     * FIXME: Temporarily while migrate_caps_check is not
+     * converted to look at s->parameters. Will be gone the end of
+     * the series.
+     */
+    bool new_caps[MIGRATION_CAPABILITY__MAX] = { 0 };
+    for (int i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+        new_caps[i] = migrate_capability_get_compat(&s->parameters, i);
+    }
+    if (!migrate_caps_check(s->capabilities, new_caps, errp)) {
+        return;
+    }
 
     if (!migrate_params_merge(tmp, params, errp)) {
         return;
