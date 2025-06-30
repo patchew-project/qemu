@@ -8324,6 +8324,20 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
+    /*
+     * For years, KVM has inadvertently emulated the ARCH_CAPABILITIES
+     * MSR on AMD although this is an Intel-specific MSR; and KVM will
+     * continue doing so to not change its ABI for existing setups.
+     *
+     * So ensure that the ARCH_CAPABILITIES MSR is disabled on AMD cpus
+     * to prevent providing a cpu with an MSR which is not supposed to
+     * be there, unless it was explicitly requested by the user.
+     */
+    if (IS_AMD_CPU(env) &&
+        !(env->user_features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_CAPABILITIES)) {
+        env->features[FEAT_7_0_EDX] &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
+    }
+
     if (x86_threads_per_pkg(&env->topo_info) > 1) {
         env->features[FEAT_1_EDX] |= CPUID_HT;
 
