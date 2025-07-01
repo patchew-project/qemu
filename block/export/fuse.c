@@ -50,8 +50,17 @@
 
 /* Prevent overly long bounce buffer allocations */
 #define FUSE_MAX_READ_BYTES (MIN(BDRV_REQUEST_MAX_BYTES, 1 * 1024 * 1024))
-/* Small enough to fit in the request buffer */
-#define FUSE_MAX_WRITE_BYTES (4 * 1024)
+/*
+ * FUSE_MAX_WRITE_BYTES determines the maximum number of bytes we support in a
+ * write request; FUSE_IN_PLACE_WRITE_BYTES and FUSE_SPILLOVER_BUF_SIZE
+ * determine the split between the size of the in-place buffer in FuseRequest
+ * and the spill-over buffer in FuseQueue.  See FuseQueue.spillover_buf for a
+ * detailed explanation.
+ */
+#define FUSE_IN_PLACE_WRITE_BYTES (4 * 1024)
+#define FUSE_MAX_WRITE_BYTES (64 * 1024)
+#define FUSE_SPILLOVER_BUF_SIZE \
+    (FUSE_MAX_WRITE_BYTES - FUSE_IN_PLACE_WRITE_BYTES)
 
 typedef struct FuseExport FuseExport;
 
@@ -67,14 +76,48 @@ typedef struct FuseQueue {
 
     /*
      * The request buffer must be able to hold a full write, and/or at least
-     * FUSE_MIN_READ_BUFFER (from linux/fuse.h) bytes
+     * FUSE_MIN_READ_BUFFER (from linux/fuse.h) bytes.
+     * This however is just the first part of the buffer; every read is given
+     * a vector of this buffer (which should be enough for all normal requests,
+     * which we check via the static assertion in FUSE_IN_OP_STRUCT()) and the
+     * spill-over buffer below.
+     * Therefore, the size of this buffer plus FUSE_SPILLOVER_BUF_SIZE must be
+     * FUSE_MIN_READ_BUFFER or more (checked via static assertion below).
      */
-    char request_buf[MAX_CONST(
-        sizeof(struct fuse_in_header) + sizeof(struct fuse_write_in) +
-             FUSE_MAX_WRITE_BYTES,
-        FUSE_MIN_READ_BUFFER
-    )];
+    char request_buf[sizeof(struct fuse_in_header) +
+                     sizeof(struct fuse_write_in) +
+                     FUSE_IN_PLACE_WRITE_BYTES];
+
+    /*
+     * When retrieving a FUSE request, the destination buffer must always be
+     * sufficiently large for the whole request, i.e. with max_write=64k, we
+     * must provide a buffer that fits the WRITE header and 64 kB of space for
+     * data.
+     * We do want to support 64k write requests without requiring them to be
+     * split up, but at the same time, do not want to do such a large allocation
+     * for every single request.
+     * Therefore, the FuseRequest object provides an in-line buffer that is
+     * enough for write requests up to 4k (and all other requests), and for
+     * every request that is bigger, we provide a spill-over buffer here (for
+     * the remaining 64k - 4k = 60k).
+     * When poll_fuse_fd() reads a FUSE request, it passes these buffers as an
+     * I/O vector, and then checks the return value (number of bytes read) to
+     * find out whether the spill-over buffer was used.  If so, it will move the
+     * buffer to the request, and will allocate a new spill-over buffer for the
+     * next request.
+     *
+     * Free this buffer with qemu_vfree().
+     */
+    void *spillover_buf;
 } FuseQueue;
+
+/*
+ * Verify that FuseQueue.request_buf plus the spill-over buffer together
+ * are big enough to be accepted by the FUSE kernel driver.
+ */
+QEMU_BUILD_BUG_ON(sizeof(((FuseQueue *)0)->request_buf) +
+                  FUSE_SPILLOVER_BUF_SIZE <
+                  FUSE_MIN_READ_BUFFER);
 
 struct FuseExport {
     BlockExport common;
@@ -131,7 +174,8 @@ static int clone_fuse_fd(int fd, Error **errp);
 static bool is_regular_file(const char *path, Error **errp);
 
 static void read_from_fuse_fd(void *opaque);
-static void coroutine_fn fuse_co_process_request(FuseQueue *q);
+static void coroutine_fn
+fuse_co_process_request(FuseQueue *q, void *spillover_buf);
 
 static void fuse_inc_in_flight(FuseExport *exp)
 {
@@ -476,12 +520,27 @@ static void coroutine_fn co_read_from_fuse_fd(void *opaque)
     FuseExport *exp = q->exp;
     ssize_t ret;
     const struct fuse_in_header *in_hdr;
+    struct iovec iov[2];
+    void *spillover_buf = NULL;
 
     if (unlikely(exp->halted)) {
         goto no_request;
     }
 
-    ret = RETRY_ON_EINTR(read(fuse_fd, q->request_buf, sizeof(q->request_buf)));
+    /*
+     * If handling the last request consumed the spill-over buffer, allocate a
+     * new one.  Align it to the block device's alignment, which admittedly is
+     * only useful if FUSE_IN_PLACE_WRITE_BYTES is aligned, too.
+     */
+    if (unlikely(!q->spillover_buf)) {
+        q->spillover_buf = blk_blockalign(exp->common.blk,
+                                          FUSE_SPILLOVER_BUF_SIZE);
+    }
+    /* Construct the I/O vector to hold the FUSE request */
+    iov[0] = (struct iovec) { q->request_buf, sizeof(q->request_buf) };
+    iov[1] = (struct iovec) { q->spillover_buf, FUSE_SPILLOVER_BUF_SIZE };
+
+    ret = RETRY_ON_EINTR(readv(fuse_fd, iov, ARRAY_SIZE(iov)));
     if (ret < 0 && errno == EAGAIN) {
         /* No request available */
         goto no_request;
@@ -510,7 +569,13 @@ static void coroutine_fn co_read_from_fuse_fd(void *opaque)
         goto no_request;
     }
 
-    fuse_co_process_request(q);
+    if (unlikely(ret > sizeof(q->request_buf))) {
+        /* Spillover buffer used, take ownership */
+        spillover_buf = q->spillover_buf;
+        q->spillover_buf = NULL;
+    }
+
+    fuse_co_process_request(q, spillover_buf);
 
 no_request:
     fuse_dec_in_flight(exp);
@@ -559,6 +624,9 @@ static void fuse_export_delete(BlockExport *blk_exp)
         /* Queue 0's FD belongs to the FUSE session */
         if (i > 0 && q->fuse_fd >= 0) {
             close(q->fuse_fd);
+        }
+        if (q->spillover_buf) {
+            qemu_vfree(q->spillover_buf);
         }
     }
     g_free(exp->queues);
@@ -869,17 +937,25 @@ fuse_co_read(FuseExport *exp, void **bufptr, uint64_t offset, uint32_t size)
 }
 
 /**
- * Handle client writes to the exported image.  @buf has the data to be written
- * and will be copied to a bounce buffer before yielding for the first time.
+ * Handle client writes to the exported image.  @in_place_buf has the first
+ * FUSE_IN_PLACE_WRITE_BYTES bytes of the data to be written, @spillover_buf
+ * contains the rest (if any; NULL otherwise).
+ * Data in @in_place_buf is assumed to be overwritten after yielding, so will
+ * be copied to a bounce buffer beforehand.  @spillover_buf in contrast is
+ * assumed to be exclusively owned and will be used as-is.
  * Return the number of bytes written to *out on success, and -errno on error.
  */
 static ssize_t coroutine_fn
 fuse_co_write(FuseExport *exp, struct fuse_write_out *out,
-              uint64_t offset, uint32_t size, const void *buf)
+              uint64_t offset, uint32_t size,
+              const void *in_place_buf, const void *spillover_buf)
 {
+    size_t in_place_size;
     void *copied;
     int64_t blk_len;
     int ret;
+    struct iovec iov[2];
+    QEMUIOVector qiov;
 
     /* Limited by max_write, should not happen */
     if (size > BDRV_REQUEST_MAX_BYTES) {
@@ -891,8 +967,9 @@ fuse_co_write(FuseExport *exp, struct fuse_write_out *out,
     }
 
     /* Must copy to bounce buffer before potentially yielding */
-    copied = blk_blockalign(exp->common.blk, size);
-    memcpy(copied, buf, size);
+    in_place_size = MIN(size, FUSE_IN_PLACE_WRITE_BYTES);
+    copied = blk_blockalign(exp->common.blk, in_place_size);
+    memcpy(copied, in_place_buf, in_place_size);
 
     /**
      * Clients will expect short writes at EOF, so we have to limit
@@ -916,7 +993,21 @@ fuse_co_write(FuseExport *exp, struct fuse_write_out *out,
         }
     }
 
-    ret = blk_co_pwrite(exp->common.blk, offset, size, copied, 0);
+    iov[0] = (struct iovec) {
+        .iov_base = copied,
+        .iov_len = in_place_size,
+    };
+    if (size > FUSE_IN_PLACE_WRITE_BYTES) {
+        assert(size - FUSE_IN_PLACE_WRITE_BYTES <= FUSE_SPILLOVER_BUF_SIZE);
+        iov[1] = (struct iovec) {
+            .iov_base = (void *)spillover_buf,
+            .iov_len = size - FUSE_IN_PLACE_WRITE_BYTES,
+        };
+        qemu_iovec_init_external(&qiov, iov, 2);
+    } else {
+        qemu_iovec_init_external(&qiov, iov, 1);
+    }
+    ret = blk_co_pwritev(exp->common.blk, offset, size, &qiov, 0);
     if (ret < 0) {
         goto fail_free_buffer;
     }
@@ -1275,8 +1366,14 @@ static int fuse_write_buf_response(int fd, uint32_t req_id,
  * Note that yielding in any request-processing function can overwrite the
  * contents of q->request_buf.  Anything that takes a buffer needs to take
  * care that the content is copied before yielding.
+ *
+ * @spillover_buf can contain the tail of a write request too large to fit into
+ * q->request_buf.  This function takes ownership of it (i.e. will free it),
+ * which assumes that its contents will not be overwritten by concurrent
+ * requests (as opposed to q->request_buf).
  */
-static void coroutine_fn fuse_co_process_request(FuseQueue *q)
+static void coroutine_fn
+fuse_co_process_request(FuseQueue *q, void *spillover_buf)
 {
     FuseExport *exp = q->exp;
     uint32_t opcode;
@@ -1372,7 +1469,7 @@ static void coroutine_fn fuse_co_process_request(FuseQueue *q)
          * yielding.
          */
         ret = fuse_co_write(exp, FUSE_OUT_OP_STRUCT(write, out_buf),
-                            in->offset, in->size, in + 1);
+                            in->offset, in->size, in + 1, spillover_buf);
         break;
     }
 
@@ -1414,6 +1511,8 @@ static void coroutine_fn fuse_co_process_request(FuseQueue *q)
                             ret < 0 ? ret : 0,
                             ret < 0 ? 0 : ret);
     }
+
+    qemu_vfree(spillover_buf);
 }
 
 const BlockExportDriver blk_exp_fuse = {
