@@ -31,11 +31,14 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "system/block-backend.h"
+#include "system/block-backend.h"
+#include "system/iothread.h"
 
 #include <fuse.h>
 #include <fuse_lowlevel.h>
 
 #include "standard-headers/linux/fuse.h"
+#include <sys/ioctl.h>
 
 #if defined(CONFIG_FALLOCATE_ZERO_RANGE)
 #include <linux/falloc.h>
@@ -50,12 +53,17 @@
 /* Small enough to fit in the request buffer */
 #define FUSE_MAX_WRITE_BYTES (4 * 1024)
 
-typedef struct FuseExport {
-    BlockExport common;
+typedef struct FuseExport FuseExport;
 
-    struct fuse_session *fuse_session;
-    unsigned int in_flight; /* atomic */
-    bool mounted, fd_handler_set_up;
+/*
+ * One FUSE "queue", representing one FUSE FD from which requests are fetched
+ * and processed.  Each queue is tied to an AioContext.
+ */
+typedef struct FuseQueue {
+    FuseExport *exp;
+
+    AioContext *ctx;
+    int fuse_fd;
 
     /*
      * The request buffer must be able to hold a full write, and/or at least
@@ -66,6 +74,14 @@ typedef struct FuseExport {
              FUSE_MAX_WRITE_BYTES,
         FUSE_MIN_READ_BUFFER
     )];
+} FuseQueue;
+
+struct FuseExport {
+    BlockExport common;
+
+    struct fuse_session *fuse_session;
+    unsigned int in_flight; /* atomic */
+    bool mounted, fd_handler_set_up;
 
     /*
      * Set when there was an unrecoverable error and no requests should be read
@@ -74,7 +90,15 @@ typedef struct FuseExport {
      */
     bool halted;
 
-    int fuse_fd;
+    int num_queues;
+    FuseQueue *queues;
+    /*
+     * True if this export should follow the generic export's AioContext.
+     * Will be false if the queues' AioContexts have been explicitly set by the
+     * user, i.e. are expected to stay in those contexts.
+     * (I.e. is always false if there is more than one queue.)
+     */
+    bool follow_aio_context;
 
     char *mountpoint;
     bool writable;
@@ -85,11 +109,11 @@ typedef struct FuseExport {
     mode_t st_mode;
     uid_t st_uid;
     gid_t st_gid;
-} FuseExport;
+};
 
 /* Parameters to the request processing coroutine */
 typedef struct FuseRequestCoParam {
-    FuseExport *exp;
+    FuseQueue *q;
     int got_request;
 } FuseRequestCoParam;
 
@@ -102,11 +126,12 @@ static void fuse_export_halt(FuseExport *exp);
 static void init_exports_table(void);
 
 static int mount_fuse_export(FuseExport *exp, Error **errp);
+static int clone_fuse_fd(int fd, Error **errp);
 
 static bool is_regular_file(const char *path, Error **errp);
 
 static void read_from_fuse_fd(void *opaque);
-static void coroutine_fn fuse_co_process_request(FuseExport *exp);
+static void coroutine_fn fuse_co_process_request(FuseQueue *q);
 
 static void fuse_inc_in_flight(FuseExport *exp)
 {
@@ -136,8 +161,11 @@ static void fuse_attach_handlers(FuseExport *exp)
         return;
     }
 
-    aio_set_fd_handler(exp->common.ctx, exp->fuse_fd,
-                       read_from_fuse_fd, NULL, NULL, NULL, exp);
+    for (int i = 0; i < exp->num_queues; i++) {
+        aio_set_fd_handler(exp->queues[i].ctx, exp->queues[i].fuse_fd,
+                           read_from_fuse_fd, NULL, NULL, NULL,
+                           &exp->queues[i]);
+    }
     exp->fd_handler_set_up = true;
 }
 
@@ -146,8 +174,10 @@ static void fuse_attach_handlers(FuseExport *exp)
  */
 static void fuse_detach_handlers(FuseExport *exp)
 {
-    aio_set_fd_handler(exp->common.ctx, exp->fuse_fd,
-                       NULL, NULL, NULL, NULL, NULL);
+    for (int i = 0; i < exp->num_queues; i++) {
+        aio_set_fd_handler(exp->queues[i].ctx, exp->queues[i].fuse_fd,
+                           NULL, NULL, NULL, NULL, NULL);
+    }
     exp->fd_handler_set_up = false;
 }
 
@@ -162,6 +192,11 @@ static void fuse_export_drained_end(void *opaque)
 
     /* Refresh AioContext in case it changed */
     exp->common.ctx = blk_get_aio_context(exp->common.blk);
+    if (exp->follow_aio_context) {
+        assert(exp->num_queues == 1);
+        exp->queues[0].ctx = exp->common.ctx;
+    }
+
     fuse_attach_handlers(exp);
 }
 
@@ -192,8 +227,32 @@ static int fuse_export_create(BlockExport *blk_exp,
     assert(blk_exp_args->type == BLOCK_EXPORT_TYPE_FUSE);
 
     if (multithread) {
-        error_setg(errp, "FUSE export does not support multi-threading");
-        return -EINVAL;
+        /* Guaranteed by common export code */
+        assert(mt_count >= 1);
+
+        exp->follow_aio_context = false;
+        exp->num_queues = mt_count;
+        exp->queues = g_new(FuseQueue, mt_count);
+
+        for (size_t i = 0; i < mt_count; i++) {
+            exp->queues[i] = (FuseQueue) {
+                .exp = exp,
+                .ctx = multithread[i],
+                .fuse_fd = -1,
+            };
+        }
+    } else {
+        /* Guaranteed by common export code */
+        assert(mt_count == 0);
+
+        exp->follow_aio_context = true;
+        exp->num_queues = 1;
+        exp->queues = g_new(FuseQueue, 1);
+        exp->queues[0] = (FuseQueue) {
+            .exp = exp,
+            .ctx = exp->common.ctx,
+            .fuse_fd = -1,
+        };
     }
 
     /* For growable and writable exports, take the RESIZE permission */
@@ -280,11 +339,21 @@ static int fuse_export_create(BlockExport *blk_exp,
 
     g_hash_table_insert(exports, g_strdup(exp->mountpoint), NULL);
 
-    exp->fuse_fd = fuse_session_fd(exp->fuse_session);
-    ret = qemu_fcntl_addfl(exp->fuse_fd, O_NONBLOCK);
+    assert(exp->num_queues >= 1);
+    exp->queues[0].fuse_fd = fuse_session_fd(exp->fuse_session);
+    ret = qemu_fcntl_addfl(exp->queues[0].fuse_fd, O_NONBLOCK);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to make FUSE FD non-blocking");
         goto fail;
+    }
+
+    for (int i = 1; i < exp->num_queues; i++) {
+        int fd = clone_fuse_fd(exp->queues[0].fuse_fd, errp);
+        if (fd < 0) {
+            ret = fd;
+            goto fail;
+        }
+        exp->queues[i].fuse_fd = fd;
     }
 
     fuse_attach_handlers(exp);
@@ -360,8 +429,41 @@ static int mount_fuse_export(FuseExport *exp, Error **errp)
 }
 
 /**
+ * Clone the given /dev/fuse file descriptor, yielding a second FD from which
+ * requests can be pulled for the associated filesystem.  Returns an FD on
+ * success, and -errno on error.
+ */
+static int clone_fuse_fd(int fd, Error **errp)
+{
+    uint32_t src_fd = fd;
+    int new_fd;
+    int ret;
+
+    /*
+     * The name "/dev/fuse" is fixed, see libfuse's lib/fuse_loop_mt.c
+     * (fuse_clone_chan()).
+     */
+    new_fd = open("/dev/fuse", O_RDWR | O_CLOEXEC | O_NONBLOCK);
+    if (new_fd < 0) {
+        ret = -errno;
+        error_setg_errno(errp, errno, "Failed to open /dev/fuse");
+        return ret;
+    }
+
+    ret = ioctl(new_fd, FUSE_DEV_IOC_CLONE, &src_fd);
+    if (ret < 0) {
+        ret = -errno;
+        error_setg_errno(errp, errno, "Failed to clone FUSE FD");
+        close(new_fd);
+        return ret;
+    }
+
+    return new_fd;
+}
+
+/**
  * Try to read a single request from the FUSE FD.
- * Takes a FuseExport pointer in `opaque`.
+ * Takes a FuseQueue pointer in `opaque`.
  *
  * Assumes the export's in-flight counter has already been incremented.
  *
@@ -369,8 +471,9 @@ static int mount_fuse_export(FuseExport *exp, Error **errp)
  */
 static void coroutine_fn co_read_from_fuse_fd(void *opaque)
 {
-    FuseExport *exp = opaque;
-    int fuse_fd = exp->fuse_fd;
+    FuseQueue *q = opaque;
+    int fuse_fd = q->fuse_fd;
+    FuseExport *exp = q->exp;
     ssize_t ret;
     const struct fuse_in_header *in_hdr;
 
@@ -378,8 +481,7 @@ static void coroutine_fn co_read_from_fuse_fd(void *opaque)
         goto no_request;
     }
 
-    ret = RETRY_ON_EINTR(read(fuse_fd, exp->request_buf,
-                              sizeof(exp->request_buf)));
+    ret = RETRY_ON_EINTR(read(fuse_fd, q->request_buf, sizeof(q->request_buf)));
     if (ret < 0 && errno == EAGAIN) {
         /* No request available */
         goto no_request;
@@ -397,7 +499,7 @@ static void coroutine_fn co_read_from_fuse_fd(void *opaque)
         goto no_request;
     }
 
-    in_hdr = (const struct fuse_in_header *)exp->request_buf;
+    in_hdr = (const struct fuse_in_header *)q->request_buf;
     if (unlikely(ret != in_hdr->len)) {
         error_report("Number of bytes read from FUSE device does not match "
                      "request size, expected %" PRIu32 " bytes, read %zi "
@@ -408,7 +510,7 @@ static void coroutine_fn co_read_from_fuse_fd(void *opaque)
         goto no_request;
     }
 
-    fuse_co_process_request(exp);
+    fuse_co_process_request(q);
 
 no_request:
     fuse_dec_in_flight(exp);
@@ -417,16 +519,16 @@ no_request:
 /**
  * Try to read and process a single request from the FUSE FD.
  * (To be used as a handler for when the FUSE FD becomes readable.)
- * Takes a FuseExport pointer in `opaque`.
+ * Takes a FuseQueue pointer in `opaque`.
  */
 static void read_from_fuse_fd(void *opaque)
 {
-    FuseExport *exp = opaque;
+    FuseQueue *q = opaque;
     Coroutine *co;
 
-    co = qemu_coroutine_create(co_read_from_fuse_fd, exp);
+    co = qemu_coroutine_create(co_read_from_fuse_fd, q);
     /* Decremented by co_read_from_fuse_fd() */
-    fuse_inc_in_flight(exp);
+    fuse_inc_in_flight(q->exp);
     qemu_coroutine_enter(co);
 }
 
@@ -450,6 +552,16 @@ static void fuse_export_shutdown(BlockExport *blk_exp)
 static void fuse_export_delete(BlockExport *blk_exp)
 {
     FuseExport *exp = container_of(blk_exp, FuseExport, common);
+
+    for (int i = 0; i < exp->num_queues; i++) {
+        FuseQueue *q = &exp->queues[i];
+
+        /* Queue 0's FD belongs to the FUSE session */
+        if (i > 0 && q->fuse_fd >= 0) {
+            close(q->fuse_fd);
+        }
+    }
+    g_free(exp->queues);
 
     if (exp->fuse_session) {
         if (exp->mounted) {
@@ -1108,23 +1220,23 @@ static int fuse_write_buf_response(int fd, uint32_t req_id,
 /*
  * For use in fuse_co_process_request():
  * Returns a pointer to the parameter object for the given operation (inside of
- * export->request_buf, which is assumed to hold a fuse_in_header first).
- * Verifies that the object is complete (export->request_buf is large enough to
+ * queue->request_buf, which is assumed to hold a fuse_in_header first).
+ * Verifies that the object is complete (queue->request_buf is large enough to
  * hold it in one piece, and the request length includes the whole object).
  *
- * Note that export->request_buf may be overwritten after yielding, so the
+ * Note that queue->request_buf may be overwritten after yielding, so the
  * returned pointer must not be used across a function that may yield!
  */
-#define FUSE_IN_OP_STRUCT(op_name, export) \
+#define FUSE_IN_OP_STRUCT(op_name, queue) \
     ({ \
         const struct fuse_in_header *__in_hdr = \
-            (const struct fuse_in_header *)(export)->request_buf; \
+            (const struct fuse_in_header *)(queue)->request_buf; \
         const struct fuse_##op_name##_in *__in = \
             (const struct fuse_##op_name##_in *)(__in_hdr + 1); \
         const size_t __param_len = sizeof(*__in_hdr) + sizeof(*__in); \
         uint32_t __req_len; \
         \
-        QEMU_BUILD_BUG_ON(sizeof((export)->request_buf) < __param_len); \
+        QEMU_BUILD_BUG_ON(sizeof((queue)->request_buf) < __param_len); \
         \
         __req_len = __in_hdr->len; \
         if (__req_len < __param_len) { \
@@ -1161,11 +1273,12 @@ static int fuse_write_buf_response(int fd, uint32_t req_id,
  * Process a FUSE request, incl. writing the response.
  *
  * Note that yielding in any request-processing function can overwrite the
- * contents of exp->request_buf.  Anything that takes a buffer needs to take
+ * contents of q->request_buf.  Anything that takes a buffer needs to take
  * care that the content is copied before yielding.
  */
-static void coroutine_fn fuse_co_process_request(FuseExport *exp)
+static void coroutine_fn fuse_co_process_request(FuseQueue *q)
 {
+    FuseExport *exp = q->exp;
     uint32_t opcode;
     uint64_t req_id;
     /*
@@ -1188,7 +1301,7 @@ static void coroutine_fn fuse_co_process_request(FuseExport *exp)
     /* Limit scope to ensure pointer is no longer used after yielding */
     {
         const struct fuse_in_header *in_hdr =
-            (const struct fuse_in_header *)exp->request_buf;
+            (const struct fuse_in_header *)q->request_buf;
 
         opcode = in_hdr->opcode;
         req_id = in_hdr->unique;
@@ -1196,7 +1309,7 @@ static void coroutine_fn fuse_co_process_request(FuseExport *exp)
 
     switch (opcode) {
     case FUSE_INIT: {
-        const struct fuse_init_in *in = FUSE_IN_OP_STRUCT(init, exp);
+        const struct fuse_init_in *in = FUSE_IN_OP_STRUCT(init, q);
         ret = fuse_co_init(exp, FUSE_OUT_OP_STRUCT(init, out_buf),
                            in->max_readahead, in->flags);
         break;
@@ -1219,23 +1332,23 @@ static void coroutine_fn fuse_co_process_request(FuseExport *exp)
         break;
 
     case FUSE_SETATTR: {
-        const struct fuse_setattr_in *in = FUSE_IN_OP_STRUCT(setattr, exp);
+        const struct fuse_setattr_in *in = FUSE_IN_OP_STRUCT(setattr, q);
         ret = fuse_co_setattr(exp, FUSE_OUT_OP_STRUCT(attr, out_buf),
                               in->valid, in->size, in->mode, in->uid, in->gid);
         break;
     }
 
     case FUSE_READ: {
-        const struct fuse_read_in *in = FUSE_IN_OP_STRUCT(read, exp);
+        const struct fuse_read_in *in = FUSE_IN_OP_STRUCT(read, q);
         ret = fuse_co_read(exp, &out_data_buffer, in->offset, in->size);
         break;
     }
 
     case FUSE_WRITE: {
-        const struct fuse_write_in *in = FUSE_IN_OP_STRUCT(write, exp);
+        const struct fuse_write_in *in = FUSE_IN_OP_STRUCT(write, q);
         uint32_t req_len;
 
-        req_len = ((const struct fuse_in_header *)exp->request_buf)->len;
+        req_len = ((const struct fuse_in_header *)q->request_buf)->len;
         if (unlikely(req_len < sizeof(struct fuse_in_header) + sizeof(*in) +
                                in->size)) {
             warn_report("FUSE WRITE truncated; received %zu bytes of %" PRIu32,
@@ -1264,7 +1377,7 @@ static void coroutine_fn fuse_co_process_request(FuseExport *exp)
     }
 
     case FUSE_FALLOCATE: {
-        const struct fuse_fallocate_in *in = FUSE_IN_OP_STRUCT(fallocate, exp);
+        const struct fuse_fallocate_in *in = FUSE_IN_OP_STRUCT(fallocate, q);
         ret = fuse_co_fallocate(exp, in->offset, in->length, in->mode);
         break;
     }
@@ -1279,7 +1392,7 @@ static void coroutine_fn fuse_co_process_request(FuseExport *exp)
 
 #ifdef CONFIG_FUSE_LSEEK
     case FUSE_LSEEK: {
-        const struct fuse_lseek_in *in = FUSE_IN_OP_STRUCT(lseek, exp);
+        const struct fuse_lseek_in *in = FUSE_IN_OP_STRUCT(lseek, q);
         ret = fuse_co_lseek(exp, FUSE_OUT_OP_STRUCT(lseek, out_buf),
                             in->offset, in->whence);
         break;
@@ -1293,11 +1406,11 @@ static void coroutine_fn fuse_co_process_request(FuseExport *exp)
     /* Ignore errors from fuse_write*(), nothing we can do anyway */
     if (out_data_buffer) {
         assert(ret >= 0);
-        fuse_write_buf_response(exp->fuse_fd, req_id, out_hdr,
+        fuse_write_buf_response(q->fuse_fd, req_id, out_hdr,
                                 out_data_buffer, ret);
         qemu_vfree(out_data_buffer);
     } else {
-        fuse_write_response(exp->fuse_fd, req_id, out_hdr,
+        fuse_write_response(q->fuse_fd, req_id, out_hdr,
                             ret < 0 ? ret : 0,
                             ret < 0 ? 0 : ret);
     }
