@@ -30,6 +30,14 @@
 #define CONFIG_MSHV_IS_POSSIBLE
 #endif
 
+/*
+ * Set to 0 if we do not want to use eventfd to optimize the MMIO events.
+ * Set to 1 so that mshv kernel driver receives doorbell when the VM access
+ * MMIO memory and then signal eventfd to notify the qemu device
+ * without extra switching to qemu to emulate mmio access.
+ */
+#define MSHV_USE_IOEVENTFD 1
+
 #define MSHV_PAGE_SHIFT 12
 
 #ifdef CONFIG_MSHV_IS_POSSIBLE
