@@ -207,6 +207,13 @@ static void *hvf_cpu_thread_fn(void *arg)
     return NULL;
 }
 
+static void hvf_handle_interrupt(CPUState *cpu, int old_mask, int new_mask)
+{
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
+    }
+}
+
 struct hvf_sw_breakpoint *hvf_find_sw_breakpoint(CPUState *cpu, vaddr pc)
 {
     struct hvf_sw_breakpoint *bp;
@@ -358,6 +365,7 @@ static void hvf_accel_ops_class_init(ObjectClass *oc, const void *data)
     ops->kick_vcpu_thread = hvf_kick_vcpu_thread;
     ops->exec_vcpu_thread = hvf_vcpu_exec;
     ops->destroy_vcpu_thread = hvf_vcpu_destroy;
+    ops->handle_interrupt = hvf_handle_interrupt;
 
     ops->synchronize_post_reset = hvf_cpu_synchronize_post_reset;
     ops->synchronize_post_init = hvf_cpu_synchronize_post_init;

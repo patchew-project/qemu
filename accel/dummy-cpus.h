@@ -11,5 +11,6 @@
 
 void dummy_thread_precreate(CPUState *cpu);
 void *dummy_cpu_thread_routine(void *arg);
+void dummy_handle_interrupt(CPUState *cpu, int old_mask, int new_mask);
 
 #endif

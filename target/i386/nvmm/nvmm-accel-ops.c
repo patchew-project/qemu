@@ -61,6 +61,13 @@ static void *qemu_nvmm_cpu_thread_fn(void *arg)
     return NULL;
 }
 
+static void nvmm_handle_interrupt(CPUState *cpu, int old_mask, int new_mask)
+{
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
+    }
+}
+
 /*
  * Abort the call to run the virtual processor by another thread, and to
  * return the control to that thread.
@@ -77,6 +84,7 @@ static void nvmm_accel_ops_class_init(ObjectClass *oc, const void *data)
 
     ops->cpu_thread_routine = qemu_nvmm_cpu_thread_fn;
     ops->kick_vcpu_thread = nvmm_kick_vcpu_thread;
+    ops->handle_interrupt = nvmm_handle_interrupt;
 
     ops->synchronize_post_reset = nvmm_cpu_synchronize_post_reset;
     ops->synchronize_post_init = nvmm_cpu_synchronize_post_init;

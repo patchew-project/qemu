@@ -71,3 +71,10 @@ void dummy_thread_precreate(CPUState *cpu)
     qemu_sem_init(&cpu->sem, 0);
 #endif
 }
+
+void dummy_handle_interrupt(CPUState *cpu, int old_mask, int new_mask)
+{
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
+    }
+}
