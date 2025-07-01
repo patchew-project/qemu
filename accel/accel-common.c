@@ -122,9 +122,8 @@ void accel_create_vcpu_thread(AccelState *accel, CPUState *cpu)
     }
 }
 
-bool accel_cpu_common_realize(CPUState *cpu, Error **errp)
+bool accel_cpu_realize(AccelState *accel, CPUState *cpu, Error **errp)
 {
-    AccelState *accel = current_accel();
     AccelClass *acc = ACCEL_GET_CLASS(accel);
 
     /* target specific realization */
@@ -145,6 +144,11 @@ bool accel_cpu_common_realize(CPUState *cpu, Error **errp)
     }
 
     return true;
+}
+
+bool accel_cpu_common_realize(CPUState *cpu, Error **errp)
+{
+    return accel_cpu_realize(current_accel(), cpu, errp);
 }
 
 void accel_cpu_common_unrealize(CPUState *cpu)
