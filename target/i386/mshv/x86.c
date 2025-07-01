@@ -232,8 +232,9 @@ bool x86_is_long_mode(CPUState *cpu)
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
     uint64_t efer = env->efer;
+    uint64_t lme_lma = (MSR_EFER_LME | MSR_EFER_LMA);
 
-    return ((efer & (EFER_LME | EFER_LMA)) == (EFER_LME | EFER_LMA));
+    return ((efer & lme_lma) == lme_lma);
 }
 
 bool x86_is_long64_mode(CPUState *cpu)
