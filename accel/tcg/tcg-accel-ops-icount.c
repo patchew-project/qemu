@@ -90,7 +90,7 @@ void icount_handle_deadline(void)
 }
 
 /* Distribute the budget evenly across all CPUs */
-int64_t icount_percpu_budget(int cpu_count)
+void icount_update_percpu_budget(CPUState *cpu, int cpu_count)
 {
     int64_t limit = icount_get_limit();
     int64_t timeslice = limit / cpu_count;
@@ -99,10 +99,10 @@ int64_t icount_percpu_budget(int cpu_count)
         timeslice = limit;
     }
 
-    return timeslice;
+    cpu->cpu_budget = timeslice;
 }
 
-void icount_prepare_for_run(CPUState *cpu, int64_t cpu_budget)
+void icount_prepare_for_run(CPUState *cpu)
 {
     int insns_left;
 
@@ -116,7 +116,7 @@ void icount_prepare_for_run(CPUState *cpu, int64_t cpu_budget)
 
     replay_mutex_lock();
 
-    cpu->icount_budget = MIN(icount_get_limit(), cpu_budget);
+    cpu->icount_budget = MIN(icount_get_limit(), cpu->cpu_budget);
     insns_left = MIN(0xffff, cpu->icount_budget);
     cpu->neg.icount_decr.u16.low = insns_left;
     cpu->icount_extra = cpu->icount_budget - insns_left;

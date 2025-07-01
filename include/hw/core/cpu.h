@@ -498,6 +498,8 @@ struct CPUState {
     int singlestep_enabled;
     int64_t icount_budget;
     int64_t icount_extra;
+    int64_t cpu_budget; /* FIXME TCG specific */
+
     uint64_t random_seed;
     sigjmp_buf jmp_env;
 

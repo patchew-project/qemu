@@ -169,6 +169,27 @@ static int rr_cpu_count(void)
     return cpu_count;
 }
 
+static void *rr_vcpu_register(CPUState *cpu)
+{
+    Notifier *force_rcu = g_new(Notifier, 1);
+
+    assert(tcg_enabled());
+    force_rcu->notify = rr_force_rcu;
+    rcu_add_force_rcu_notifier(force_rcu);
+    tcg_register_thread();
+
+    return force_rcu;
+}
+
+static void rr_vcpu_unregister(CPUState *cpu, void *opaque)
+{
+    Notifier *force_rcu = opaque;
+
+    rcu_remove_force_rcu_notifier(force_rcu);
+
+    g_free(force_rcu);
+}
+
 /*
  * In the single-threaded case each vCPU is simulated in turn. If
  * there is more than a single vCPU we create a simple timer to kick
@@ -179,14 +200,11 @@ static int rr_cpu_count(void)
 
 static void *rr_cpu_thread_fn(void *arg)
 {
-    Notifier force_rcu;
+    Notifier *force_rcu;
     CPUState *cpu = arg;
 
-    assert(tcg_enabled());
     rcu_register_thread();
-    force_rcu.notify = rr_force_rcu;
-    rcu_add_force_rcu_notifier(&force_rcu);
-    tcg_register_thread();
+    force_rcu = rr_vcpu_register(cpu);
 
     bql_lock();
     qemu_thread_get_self(cpu->thread);
@@ -217,9 +235,6 @@ static void *rr_cpu_thread_fn(void *arg)
     cpu->exit_request = 1;
 
     while (1) {
-        /* Only used for icount_enabled() */
-        int64_t cpu_budget = 0;
-
         bql_unlock();
         replay_mutex_lock();
         bql_lock();
@@ -235,7 +250,7 @@ static void *rr_cpu_thread_fn(void *arg)
              */
             icount_handle_deadline();
 
-            cpu_budget = icount_percpu_budget(cpu_count);
+            icount_update_percpu_budget(cpu, cpu_count);
         }
 
         replay_mutex_unlock();
@@ -258,7 +273,7 @@ static void *rr_cpu_thread_fn(void *arg)
 
                 bql_unlock();
                 if (icount_enabled()) {
-                    icount_prepare_for_run(cpu, cpu_budget);
+                    icount_prepare_for_run(cpu);
                 }
                 r = tcg_cpu_exec(cpu);
                 if (icount_enabled()) {
@@ -304,6 +319,7 @@ static void *rr_cpu_thread_fn(void *arg)
         rr_deal_with_unplugged_cpus();
     }
 
+    rr_vcpu_unregister(cpu, force_rcu);
     rcu_unregister_thread();
 
     g_assert_not_reached();
