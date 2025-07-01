@@ -216,10 +216,14 @@ static void tcg_accel_ops_init(AccelClass *ac)
     if (qemu_tcg_mttcg_enabled()) {
         ops->cpu_thread_routine = mttcg_cpu_thread_routine;
         ops->kick_vcpu_thread = mttcg_kick_vcpu_thread;
+        ops->exec_vcpu_thread = mttcg_cpu_exec;
+        ops->destroy_vcpu_thread = tcg_cpu_destroy;
         ops->handle_interrupt = tcg_handle_interrupt;
     } else {
         ops->create_vcpu_thread = rr_start_vcpu_thread;
         ops->kick_vcpu_thread = rr_kick_vcpu_thread;
+        ops->exec_vcpu_thread = rr_cpu_exec;
+        ops->destroy_vcpu_thread = rr_vcpu_destroy;
 
         if (icount_enabled()) {
             ops->handle_interrupt = icount_handle_interrupt;
@@ -233,6 +237,7 @@ static void tcg_accel_ops_init(AccelClass *ac)
     ops->cpu_common_realize = tcg_exec_realizefn;
     ops->cpu_common_unrealize = tcg_exec_unrealizefn;
     ops->thread_precreate = tcg_vcpu_thread_precreate;
+    ops->init_vcpu_thread = tcg_vcpu_init,
     ops->cpu_reset_hold = tcg_cpu_reset_hold;
     ops->insert_breakpoint = tcg_insert_breakpoint;
     ops->remove_breakpoint = tcg_remove_breakpoint;
