@@ -354,7 +354,10 @@ static void hvf_accel_ops_class_init(ObjectClass *oc, const void *data)
     ops->cpu_target_realize = hvf_arch_cpu_realize;
 
     ops->cpu_thread_routine = hvf_cpu_thread_fn,
+    ops->init_vcpu_thread = hvf_init_vcpu,
     ops->kick_vcpu_thread = hvf_kick_vcpu_thread;
+    ops->exec_vcpu_thread = hvf_vcpu_exec;
+    ops->destroy_vcpu_thread = hvf_vcpu_destroy;
 
     ops->synchronize_post_reset = hvf_cpu_synchronize_post_reset;
     ops->synchronize_post_init = hvf_cpu_synchronize_post_init;
