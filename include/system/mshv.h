@@ -30,13 +30,9 @@
 #define CONFIG_MSHV_IS_POSSIBLE
 #endif
 
-/*
- * Set to 0 if we do not want to use eventfd to optimize the MMIO events.
- * Set to 1 so that mshv kernel driver receives doorbell when the VM access
- * MMIO memory and then signal eventfd to notify the qemu device
- * without extra switching to qemu to emulate mmio access.
- */
-#define MSHV_USE_IOEVENTFD 1
+typedef struct hyperv_message hv_message;
+
+#define MSHV_MAX_MSI_ROUTES 4096
 
 #define MSHV_PAGE_SHIFT 12
 
@@ -70,14 +66,15 @@ struct AccelCPUState {
     bool dirty;
 };
 
+typedef struct MshvMsiControl {
+    bool updated;
+    GHashTable *gsi_routes;
+} MshvMsiControl;
+
 #else /* CONFIG_MSHV_IS_POSSIBLE */
 #define mshv_enabled() false
 #endif
-#ifdef MSHV_USE_KERNEL_GSI_IRQFD
 #define mshv_msi_via_irqfd_enabled() mshv_enabled()
-#else
-#define mshv_msi_via_irqfd_enabled() false
-#endif
 
 /* cpu */
 void mshv_arch_amend_proc_features(
@@ -100,6 +97,11 @@ void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add);
 
 /* interrupt */
+void mshv_init_msicontrol(void);
+int mshv_request_interrupt(int vm_fd, uint32_t interrupt_type, uint32_t vector,
+                           uint32_t vp_index, bool logical_destination_mode,
+                           bool level_triggered);
+
 int mshv_irqchip_add_msi_route(int vector, PCIDevice *dev);
 int mshv_irqchip_update_msi_route(int virq, MSIMessage msg, PCIDevice *dev);
 void mshv_irqchip_commit_routes(void);
