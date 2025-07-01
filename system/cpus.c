@@ -765,6 +765,7 @@ int vm_prepare_start(bool step_pending)
     if (cpus_accel->synchronize_pre_resume) {
         cpus_accel->synchronize_pre_resume(step_pending);
     }
+    accel_pre_resume(MACHINE(qdev_get_machine()), step_pending);
 
     /* We are sending this now, but the CPUs will be resumed shortly later */
     qapi_event_send_resume();
