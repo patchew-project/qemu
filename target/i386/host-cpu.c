@@ -128,16 +128,12 @@ void host_cpu_vendor_fms(char *vendor, int *family, int *model, int *stepping)
     }
 }
 
-void host_cpu_instance_init(X86CPU *cpu)
+void apply_host_vendor(X86CPU *cpu)
 {
-    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
+    char vendor[CPUID_VENDOR_SZ + 1];
 
-    if (xcc->model) {
-        char vendor[CPUID_VENDOR_SZ + 1];
-
-        host_cpu_vendor_fms(vendor, NULL, NULL, NULL);
-        object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
-    }
+    host_cpu_vendor_fms(vendor, NULL, NULL, NULL);
+    object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
 }
 
 void host_cpu_max_instance_init(X86CPU *cpu)

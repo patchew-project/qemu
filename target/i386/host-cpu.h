@@ -11,7 +11,7 @@
 #define HOST_CPU_H
 
 uint32_t host_cpu_phys_bits(void);
-void host_cpu_instance_init(X86CPU *cpu);
+void apply_host_vendor(X86CPU *cpu);
 void host_cpu_max_instance_init(X86CPU *cpu);
 bool host_cpu_realizefn(CPUState *cs, Error **errp);
 

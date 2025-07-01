@@ -202,9 +202,9 @@ static void kvm_cpu_instance_init(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
 
-    host_cpu_instance_init(cpu);
-
     if (xcc->model) {
+        apply_host_vendor(cpu);
+
         /* only applies to builtin_x86_defs cpus */
         if (!kvm_irqchip_in_kernel()) {
             x86_cpu_change_kvm_default("x2apic", "off");
