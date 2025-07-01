@@ -15,6 +15,6 @@ void icount_prepare_for_run(CPUState *cpu);
 void icount_update_percpu_budget(CPUState *cpu, int cpu_count);
 void icount_process_data(CPUState *cpu);
 
-void icount_handle_interrupt(CPUState *cpu, int mask);
+void icount_handle_interrupt(CPUState *cpu, int old_mask, int new_mask);
 
 #endif /* TCG_ACCEL_OPS_ICOUNT_H */
