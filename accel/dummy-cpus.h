@@ -9,6 +9,7 @@
 #ifndef ACCEL_DUMMY_CPUS_H
 #define ACCEL_DUMMY_CPUS_H
 
+void dummy_thread_precreate(CPUState *cpu);
 void dummy_start_vcpu_thread(CPUState *cpu);
 
 #endif
