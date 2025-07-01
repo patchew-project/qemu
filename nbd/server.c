@@ -1793,6 +1793,7 @@ static const BlockDevOps nbd_block_ops = {
 };
 
 static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
+                             AioContext *const *multithread, size_t mt_count,
                              Error **errp)
 {
     NBDExport *exp = container_of(blk_exp, NBDExport, common);
@@ -1827,6 +1828,11 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
     if (nbd_export_find(name)) {
         error_setg(errp, "NBD server already has export named '%s'", name);
         return -EEXIST;
+    }
+
+    if (multithread) {
+        error_setg(errp, "NBD export does not support multi-threading");
+        return -EINVAL;
     }
 
     size = blk_getlength(blk);
