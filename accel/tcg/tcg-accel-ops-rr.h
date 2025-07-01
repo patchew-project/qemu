@@ -20,4 +20,6 @@ void rr_start_vcpu_thread(CPUState *cpu);
 
 int rr_cpu_exec(CPUState *cpu);
 
+void rr_vcpu_destroy(CPUState *cpu);
+
 #endif /* TCG_ACCEL_OPS_RR_H */

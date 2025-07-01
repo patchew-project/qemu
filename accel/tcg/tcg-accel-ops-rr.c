@@ -137,6 +137,11 @@ static void rr_deal_with_unplugged_cpus(void)
     }
 }
 
+void rr_vcpu_destroy(CPUState *cpu)
+{
+    /* Already dealt with in rr_deal_with_unplugged_cpus() */
+}
+
 static void rr_force_rcu(Notifier *notify, void *data)
 {
     rr_kick_next_cpu();
