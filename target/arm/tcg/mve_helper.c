@@ -147,6 +147,22 @@ static void mve_advance_vpt(CPUARMState *env)
     env->v7m.vpr = vpr;
 }
 
+/* Mapping of LDTYPE/STTYPE to the number of bytes accessed */
+#define MSIZE_b 1
+#define MSIZE_w 2
+#define MSIZE_l 4
+
+/* Mapping of LDTYPE/STTYPE to MemOp flag */
+#define MFLAG_b MO_UB
+#define MFLAG_w MO_TEUW
+#define MFLAG_l MO_TEUL
+
+#define MSIZE(t)  MSIZE_##t
+#define MFLAG(t)  MFLAG_##t
+
+#define SIGN_EXT(v, T, B) { \
+    ((T)(v) << (sizeof(T) * 8 - (B))) >> (sizeof(T) * 8 - (B)) }
+
 /* For loads, predicated lanes are zeroed instead of keeping their old values */
 #define DO_VLDR(OP, MSIZE, LDTYPE, ESIZE, TYPE)                         \
     void HELPER(mve_##OP)(CPUARMState *env, void *vd, uint32_t addr)    \
@@ -155,6 +171,8 @@ static void mve_advance_vpt(CPUARMState *env)
         uint16_t mask = mve_element_mask(env);                          \
         uint16_t eci_mask = mve_eci_mask(env);                          \
         unsigned b, e;                                                  \
+        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));            \
+        MemOpIdx oi = make_memop_idx(MFLAG(LDTYPE) | MO_ALIGN, mmu_idx);\
         /*                                                              \
          * R_SXTM allows the dest reg to become UNKNOWN for abandoned   \
          * beats so we don't care if we update part of the dest and     \
@@ -163,7 +181,10 @@ static void mve_advance_vpt(CPUARMState *env)
         for (b = 0, e = 0; b < 16; b += ESIZE, e++) {                   \
             if (eci_mask & (1 << b)) {                                  \
                 d[H##ESIZE(e)] = (mask & (1 << b)) ?                    \
-                    cpu_##LDTYPE##_data_ra(env, addr, GETPC()) : 0;     \
+                    SIGN_EXT(cpu_ld##LDTYPE##_mmu(env, addr, oi, GETPC()),\
+                             TYPE,                                      \
+                             MSIZE * 8)                                 \
+                    : 0;                                                \
             }                                                           \
             addr += MSIZE;                                              \
         }                                                               \
@@ -185,20 +206,20 @@ static void mve_advance_vpt(CPUARMState *env)
         mve_advance_vpt(env);                                           \
     }
 
-DO_VLDR(vldrb, 1, ldub, 1, uint8_t)
-DO_VLDR(vldrh, 2, lduw, 2, uint16_t)
-DO_VLDR(vldrw, 4, ldl, 4, uint32_t)
+DO_VLDR(vldrb, 1, b, 1, uint8_t)
+DO_VLDR(vldrh, 2, w, 2, uint16_t)
+DO_VLDR(vldrw, 4, l, 4, uint32_t)
 
 DO_VSTR(vstrb, 1, stb, 1, uint8_t)
 DO_VSTR(vstrh, 2, stw, 2, uint16_t)
 DO_VSTR(vstrw, 4, stl, 4, uint32_t)
 
-DO_VLDR(vldrb_sh, 1, ldsb, 2, int16_t)
-DO_VLDR(vldrb_sw, 1, ldsb, 4, int32_t)
-DO_VLDR(vldrb_uh, 1, ldub, 2, uint16_t)
-DO_VLDR(vldrb_uw, 1, ldub, 4, uint32_t)
-DO_VLDR(vldrh_sw, 2, ldsw, 4, int32_t)
-DO_VLDR(vldrh_uw, 2, lduw, 4, uint32_t)
+DO_VLDR(vldrb_sh, 1, b, 2, int16_t)
+DO_VLDR(vldrb_sw, 1, b, 4, int32_t)
+DO_VLDR(vldrb_uh, 1, b, 2, uint16_t)
+DO_VLDR(vldrb_uw, 1, b, 4, uint32_t)
+DO_VLDR(vldrh_sw, 2, w, 4, int32_t)
+DO_VLDR(vldrh_uw, 2, w, 4, uint32_t)
 
 DO_VSTR(vstrb_h, 1, stb, 2, int16_t)
 DO_VSTR(vstrb_w, 1, stb, 4, int32_t)
