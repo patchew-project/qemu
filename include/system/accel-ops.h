@@ -43,8 +43,11 @@ struct AccelOpsClass {
     void *(*cpu_thread_routine)(void *);
     void (*thread_precreate)(CPUState *cpu);
     void (*create_vcpu_thread)(CPUState *cpu);
+    int (*init_vcpu_thread)(CPUState *cpu);
     void (*kick_vcpu_thread)(CPUState *cpu);
     bool (*cpu_thread_is_idle)(CPUState *cpu);
+    int (*exec_vcpu_thread)(CPUState *cpu);
+    void (*destroy_vcpu_thread)(CPUState *cpu);
 
     /**
      * synchronize_post_reset:
