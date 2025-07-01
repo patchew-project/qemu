@@ -197,9 +197,11 @@ static void mve_advance_vpt(CPUARMState *env)
         TYPE *d = vd;                                                   \
         uint16_t mask = mve_element_mask(env);                          \
         unsigned b, e;                                                  \
+        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));            \
+        MemOpIdx oi = make_memop_idx(MFLAG(STTYPE) | MO_ALIGN, mmu_idx);\
         for (b = 0, e = 0; b < 16; b += ESIZE, e++) {                   \
             if (mask & (1 << b)) {                                      \
-                cpu_##STTYPE##_data_ra(env, addr, d[H##ESIZE(e)], GETPC()); \
+                cpu_st##STTYPE##_mmu(env, addr, d[H##ESIZE(e)], oi, GETPC());\
             }                                                           \
             addr += MSIZE;                                              \
         }                                                               \
@@ -210,9 +212,9 @@ DO_VLDR(vldrb, 1, b, 1, uint8_t)
 DO_VLDR(vldrh, 2, w, 2, uint16_t)
 DO_VLDR(vldrw, 4, l, 4, uint32_t)
 
-DO_VSTR(vstrb, 1, stb, 1, uint8_t)
-DO_VSTR(vstrh, 2, stw, 2, uint16_t)
-DO_VSTR(vstrw, 4, stl, 4, uint32_t)
+DO_VSTR(vstrb, 1, b, 1, uint8_t)
+DO_VSTR(vstrh, 2, w, 2, uint16_t)
+DO_VSTR(vstrw, 4, l, 4, uint32_t)
 
 DO_VLDR(vldrb_sh, 1, b, 2, int16_t)
 DO_VLDR(vldrb_sw, 1, b, 4, int32_t)
@@ -221,9 +223,9 @@ DO_VLDR(vldrb_uw, 1, b, 4, uint32_t)
 DO_VLDR(vldrh_sw, 2, w, 4, int32_t)
 DO_VLDR(vldrh_uw, 2, w, 4, uint32_t)
 
-DO_VSTR(vstrb_h, 1, stb, 2, int16_t)
-DO_VSTR(vstrb_w, 1, stb, 4, int32_t)
-DO_VSTR(vstrh_w, 2, stw, 4, int32_t)
+DO_VSTR(vstrb_h, 1, b, 2, int16_t)
+DO_VSTR(vstrb_w, 1, b, 4, int32_t)
+DO_VSTR(vstrh_w, 2, w, 4, int32_t)
 
 #undef DO_VLDR
 #undef DO_VSTR
