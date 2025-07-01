@@ -14,5 +14,6 @@
 void mttcg_kick_vcpu_thread(CPUState *cpu);
 
 void *mttcg_cpu_thread_routine(void *arg);
+int mttcg_cpu_exec(CPUState *cpu);
 
 #endif /* TCG_ACCEL_OPS_MTTCG_H */
