@@ -169,6 +169,25 @@ static int rr_cpu_count(void)
     return cpu_count;
 }
 
+int rr_cpu_exec(CPUState *cpu)
+{
+    int ret;
+
+    bql_unlock();
+    if (icount_enabled()) {
+        icount_prepare_for_run(cpu);
+    }
+
+    ret = tcg_cpu_exec(cpu);
+
+    if (icount_enabled()) {
+        icount_process_data(cpu);
+    }
+    bql_lock();
+
+    return ret;
+}
+
 static void *rr_vcpu_register(CPUState *cpu)
 {
     Notifier *force_rcu = g_new(Notifier, 1);
@@ -269,17 +288,7 @@ static void *rr_cpu_thread_fn(void *arg)
                               (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
             if (cpu_can_run(cpu)) {
-                int r;
-
-                bql_unlock();
-                if (icount_enabled()) {
-                    icount_prepare_for_run(cpu);
-                }
-                r = tcg_cpu_exec(cpu);
-                if (icount_enabled()) {
-                    icount_process_data(cpu);
-                }
-                bql_lock();
+                int r = rr_cpu_exec(cpu);
 
                 if (r == EXCP_DEBUG) {
                     cpu_handle_guest_debug(cpu);
