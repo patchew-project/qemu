@@ -506,6 +506,9 @@ static int mshv_cpu_exec(CPUState *cpu)
         switch (exit_reason) {
         case MshvVmExitIgnore:
             break;
+        case MshvVmExitHlt:
+            ret = EXCP_HLT;
+            break;
         default:
             ret = EXCP_INTERRUPT;
             break;

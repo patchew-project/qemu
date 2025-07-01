@@ -14,6 +14,7 @@
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"
 #include "qemu/typedefs.h"
+#include "qemu/main-loop.h"
 
 #include "system/mshv.h"
 #include "system/address-spaces.h"
@@ -1413,6 +1414,26 @@ static int handle_pio(CPUState *cpu, const struct hyperv_message *msg)
     return handle_pio_non_str(cpu, &info);
 }
 
+static int handle_halt(CPUState *cpu)
+{
+    int ret = 0;
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    uint32_t hw_irq = cpu->interrupt_request & CPU_INTERRUPT_HARD;
+    uint32_t nmi_irq = cpu->interrupt_request & CPU_INTERRUPT_NMI;
+    bool irqs_enabled = (env->eflags & IF_MASK) != 0;
+
+    bql_lock();
+    if (!nmi_irq && (!hw_irq || !irqs_enabled)) {
+        cpu->exception_index = EXCP_HLT;
+        cpu->halted = true;
+        ret = 1;
+    }
+    bql_unlock();
+
+    return ret;
+}
+
 int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
 {
     int ret;
@@ -1441,6 +1462,11 @@ int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
             return MshvVmExitSpecial;
         }
         return MshvVmExitIgnore;
+    case HVMSG_X64_HALT:
+        ret = handle_halt(cpu);
+        if (ret < 0) {
+            return MshvVmExitHlt;
+        }
     default:
         break;
     }

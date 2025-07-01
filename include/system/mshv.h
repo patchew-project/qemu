@@ -99,6 +99,7 @@ typedef enum MshvVmExit {
     MshvVmExitIgnore   = 0,
     MshvVmExitShutdown = 1,
     MshvVmExitSpecial  = 2,
+    MshvVmExitHlt      = 3,
 } MshvVmExit;
 
 void mshv_init_mmio_emu(void);
