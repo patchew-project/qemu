@@ -55,6 +55,27 @@ static void mttcg_force_rcu(Notifier *notify, void *data)
     async_run_on_cpu(cpu, do_nothing, RUN_ON_CPU_NULL);
 }
 
+static void *mttcg_vcpu_register(CPUState *cpu)
+{
+    MttcgForceRcuNotifier *force_rcu = g_new(MttcgForceRcuNotifier, 1);
+
+    force_rcu->notifier.notify = mttcg_force_rcu;
+    force_rcu->cpu = cpu;
+    rcu_add_force_rcu_notifier(&force_rcu->notifier);
+    tcg_register_thread();
+
+    return force_rcu;
+}
+
+static void mttcg_vcpu_unregister(CPUState *cpu, void *opaque)
+{
+    MttcgForceRcuNotifier *force_rcu = opaque;
+
+    rcu_remove_force_rcu_notifier(&force_rcu->notifier);
+
+    g_free(force_rcu);
+}
+
 /*
  * In the multi-threaded case each vCPU has its own thread. The TLS
  * variable current_cpu can be used deep in the code to find the
@@ -63,17 +84,14 @@ static void mttcg_force_rcu(Notifier *notify, void *data)
 
 void *mttcg_cpu_thread_routine(void *arg)
 {
-    MttcgForceRcuNotifier force_rcu;
+    MttcgForceRcuNotifier *force_rcu;
     CPUState *cpu = arg;
 
     assert(tcg_enabled());
     g_assert(!icount_enabled());
 
     rcu_register_thread();
-    force_rcu.notifier.notify = mttcg_force_rcu;
-    force_rcu.cpu = cpu;
-    rcu_add_force_rcu_notifier(&force_rcu.notifier);
-    tcg_register_thread();
+    force_rcu = mttcg_vcpu_register(cpu);
 
     bql_lock();
     qemu_thread_get_self(cpu->thread);
@@ -121,7 +139,7 @@ void *mttcg_cpu_thread_routine(void *arg)
 
     tcg_cpu_destroy(cpu);
     bql_unlock();
-    rcu_remove_force_rcu_notifier(&force_rcu.notifier);
+    mttcg_vcpu_unregister(cpu, force_rcu);
     rcu_unregister_thread();
     return NULL;
 }
