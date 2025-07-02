@@ -161,13 +161,6 @@ static const PCIIOMMUOps raven_iommu_ops = {
     .get_address_space = raven_pcihost_set_iommu,
 };
 
-static void raven_change_gpio(void *opaque, int n, int level)
-{
-    PREPPCIState *s = opaque;
-
-    memory_region_set_enabled(&s->pci_discontiguous_io, !!level);
-}
-
 static void raven_pcihost_realize(DeviceState *d, Error **errp)
 {
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
@@ -175,8 +168,6 @@ static void raven_pcihost_realize(DeviceState *d, Error **errp)
     PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(dev);
     Object *o = OBJECT(d);
     MemoryRegion *mr, *bm, *address_space_mem = get_system_memory();
-
-    qdev_init_gpio_in(d, raven_change_gpio, 1);
 
     memory_region_init(&s->pci_io, o, "pci-io", 0x3f800000);
     memory_region_init_io(&s->pci_discontiguous_io, o,
