@@ -207,6 +207,7 @@ struct VMStateDescription {
     MigrationPriority priority;
     int (*pre_load)(void *opaque);
     int (*post_load)(void *opaque, int version_id);
+    int (*post_load_with_error)(void *opaque, int version_id, Error **errp);
     int (*pre_save)(void *opaque);
     int (*post_save)(void *opaque);
     bool (*needed)(void *opaque);
