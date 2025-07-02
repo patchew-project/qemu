@@ -148,45 +148,45 @@ static void mve_advance_vpt(CPUARMState *env)
 }
 
 /* For loads, predicated lanes are zeroed instead of keeping their old values */
-#define DO_VLDR(OP, MFLAG, MSIZE, MTYPE, LDTYPE, ESIZE, TYPE)           \
-    void HELPER(mve_##OP)(CPUARMState *env, void *vd, uint32_t addr)    \
-    {                                                                   \
-        TYPE *d = vd;                                                   \
-        uint16_t mask = mve_element_mask(env);                          \
-        uint16_t eci_mask = mve_eci_mask(env);                          \
-        unsigned b, e;                                                  \
-        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));            \
-        MemOpIdx oi = make_memop_idx(MFLAG | MO_ALIGN, mmu_idx);        \
-        /*                                                              \
-         * R_SXTM allows the dest reg to become UNKNOWN for abandoned   \
-         * beats so we don't care if we update part of the dest and     \
-         * then take an exception.                                      \
-         */                                                             \
-        for (b = 0, e = 0; b < 16; b += ESIZE, e++) {                   \
-            if (eci_mask & (1 << b)) {                                  \
-                d[H##ESIZE(e)] = (mask & (1 << b)) ?                    \
-                    (MTYPE)cpu_##LDTYPE##_mmu(env, addr, oi, GETPC()) : 0;\
-            }                                                           \
-            addr += MSIZE;                                              \
-        }                                                               \
-        mve_advance_vpt(env);                                           \
+#define DO_VLDR(OP, MFLAG, MSIZE, MTYPE, LDTYPE, ESIZE, TYPE)               \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vd, uint32_t addr)        \
+    {                                                                       \
+        TYPE *d = vd;                                                       \
+        uint16_t mask = mve_element_mask(env);                              \
+        uint16_t eci_mask = mve_eci_mask(env);                              \
+        unsigned b, e;                                                      \
+        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));                \
+        MemOpIdx oi = make_memop_idx(MFLAG | MO_ALIGN, mmu_idx);            \
+        /*                                                                  \
+         * R_SXTM allows the dest reg to become UNKNOWN for abandoned       \
+         * beats so we don't care if we update part of the dest and         \
+         * then take an exception.                                          \
+         */                                                                 \
+        for (b = 0, e = 0; b < 16; b += ESIZE, e++) {                       \
+            if (eci_mask & (1 << b)) {                                      \
+                d[H##ESIZE(e)] = (mask & (1 << b)) ?                        \
+                    (MTYPE)cpu_##LDTYPE##_mmu(env, addr, oi, GETPC()) : 0;  \
+            }                                                               \
+            addr += MSIZE;                                                  \
+        }                                                                   \
+        mve_advance_vpt(env);                                               \
     }
 
-#define DO_VSTR(OP, MFLAG, MSIZE, STTYPE, ESIZE, TYPE)                  \
-    void HELPER(mve_##OP)(CPUARMState *env, void *vd, uint32_t addr)    \
-    {                                                                   \
-        TYPE *d = vd;                                                   \
-        uint16_t mask = mve_element_mask(env);                          \
-        unsigned b, e;                                                  \
-        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));            \
-        MemOpIdx oi = make_memop_idx(MFLAG | MO_ALIGN, mmu_idx);        \
-        for (b = 0, e = 0; b < 16; b += ESIZE, e++) {                   \
-            if (mask & (1 << b)) {                                      \
+#define DO_VSTR(OP, MFLAG, MSIZE, STTYPE, ESIZE, TYPE)                      \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vd, uint32_t addr)        \
+    {                                                                       \
+        TYPE *d = vd;                                                       \
+        uint16_t mask = mve_element_mask(env);                              \
+        unsigned b, e;                                                      \
+        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));                \
+        MemOpIdx oi = make_memop_idx(MFLAG | MO_ALIGN, mmu_idx);            \
+        for (b = 0, e = 0; b < 16; b += ESIZE, e++) {                       \
+            if (mask & (1 << b)) {                                          \
                 cpu_##STTYPE##_mmu(env, addr, d[H##ESIZE(e)], oi, GETPC()); \
-            }                                                           \
-            addr += MSIZE;                                              \
-        }                                                               \
-        mve_advance_vpt(env);                                           \
+            }                                                               \
+            addr += MSIZE;                                                  \
+        }                                                                   \
+        mve_advance_vpt(env);                                               \
     }
 
 DO_VLDR(vldrb, MO_UB, 1, uint8_t, ldb, 1, uint8_t)
@@ -219,57 +219,57 @@ DO_VSTR(vstrh_w, MO_TEUW, 2, stw, 4, int32_t)
  * their previous values.
  */
 #define DO_VLDR_SG(OP, MFLAG, MTYPE, LDTYPE, ESIZE, TYPE, OFFTYPE, ADDRFN, WB)\
-    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm,         \
-                          uint32_t base)                                \
-    {                                                                   \
-        TYPE *d = vd;                                                   \
-        OFFTYPE *m = vm;                                                \
-        uint16_t mask = mve_element_mask(env);                          \
-        uint16_t eci_mask = mve_eci_mask(env);                          \
-        unsigned e;                                                     \
-        uint32_t addr;                                                  \
-        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));            \
-        MemOpIdx oi = make_memop_idx(MFLAG | MO_ALIGN, mmu_idx);        \
-        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE, eci_mask >>= ESIZE) { \
-            if (!(eci_mask & 1)) {                                      \
-                continue;                                               \
-            }                                                           \
-            addr = ADDRFN(base, m[H##ESIZE(e)]);                        \
-            d[H##ESIZE(e)] = (mask & 1) ?                               \
-                (MTYPE)cpu_##LDTYPE##_mmu(env, addr, oi, GETPC()) : 0;  \
-            if (WB) {                                                   \
-                m[H##ESIZE(e)] = addr;                                  \
-            }                                                           \
-        }                                                               \
-        mve_advance_vpt(env);                                           \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm,               \
+                          uint32_t base)                                      \
+    {                                                                         \
+        TYPE *d = vd;                                                         \
+        OFFTYPE *m = vm;                                                      \
+        uint16_t mask = mve_element_mask(env);                                \
+        uint16_t eci_mask = mve_eci_mask(env);                                \
+        unsigned e;                                                           \
+        uint32_t addr;                                                        \
+        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));                  \
+        MemOpIdx oi = make_memop_idx(MFLAG | MO_ALIGN, mmu_idx);              \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE, eci_mask >>= ESIZE) {\
+            if (!(eci_mask & 1)) {                                            \
+                continue;                                                     \
+            }                                                                 \
+            addr = ADDRFN(base, m[H##ESIZE(e)]);                              \
+            d[H##ESIZE(e)] = (mask & 1) ?                                     \
+                (MTYPE)cpu_##LDTYPE##_mmu(env, addr, oi, GETPC()) : 0;        \
+            if (WB) {                                                         \
+                m[H##ESIZE(e)] = addr;                                        \
+            }                                                                 \
+        }                                                                     \
+        mve_advance_vpt(env);                                                 \
     }
 
 /* We know here TYPE is unsigned so always the same as the offset type */
-#define DO_VSTR_SG(OP, MFLAG, STTYPE, ESIZE, TYPE, ADDRFN, WB)          \
-    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm,         \
-                          uint32_t base)                                \
-    {                                                                   \
-        TYPE *d = vd;                                                   \
-        TYPE *m = vm;                                                   \
-        uint16_t mask = mve_element_mask(env);                          \
-        uint16_t eci_mask = mve_eci_mask(env);                          \
-        unsigned e;                                                     \
-        uint32_t addr;                                                  \
-        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));            \
-        MemOpIdx oi = make_memop_idx(MFLAG | MO_ALIGN, mmu_idx);        \
-        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE, eci_mask >>= ESIZE) { \
-            if (!(eci_mask & 1)) {                                      \
-                continue;                                               \
-            }                                                           \
-            addr = ADDRFN(base, m[H##ESIZE(e)]);                        \
-            if (mask & 1) {                                             \
-                cpu_##STTYPE##_mmu(env, addr, d[H##ESIZE(e)], oi, GETPC()); \
-            }                                                           \
-            if (WB) {                                                   \
-                m[H##ESIZE(e)] = addr;                                  \
-            }                                                           \
-        }                                                               \
-        mve_advance_vpt(env);                                           \
+#define DO_VSTR_SG(OP, MFLAG, STTYPE, ESIZE, TYPE, ADDRFN, WB)                \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm,               \
+                          uint32_t base)                                      \
+    {                                                                         \
+        TYPE *d = vd;                                                         \
+        TYPE *m = vm;                                                         \
+        uint16_t mask = mve_element_mask(env);                                \
+        uint16_t eci_mask = mve_eci_mask(env);                                \
+        unsigned e;                                                           \
+        uint32_t addr;                                                        \
+        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));                  \
+        MemOpIdx oi = make_memop_idx(MFLAG | MO_ALIGN, mmu_idx);              \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE, eci_mask >>= ESIZE) {\
+            if (!(eci_mask & 1)) {                                            \
+                continue;                                                     \
+            }                                                                 \
+            addr = ADDRFN(base, m[H##ESIZE(e)]);                              \
+            if (mask & 1) {                                                   \
+                cpu_##STTYPE##_mmu(env, addr, d[H##ESIZE(e)], oi, GETPC());   \
+            }                                                                 \
+            if (WB) {                                                         \
+                m[H##ESIZE(e)] = addr;                                        \
+            }                                                                 \
+        }                                                                     \
+        mve_advance_vpt(env);                                                 \
     }
 
 /*
@@ -280,58 +280,58 @@ DO_VSTR(vstrh_w, MO_TEUW, 2, stw, 4, int32_t)
  * Address writeback happens on the odd beats and updates the address
  * stored in the even-beat element.
  */
-#define DO_VLDR64_SG(OP, ADDRFN, WB)                                    \
-    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm,         \
-                          uint32_t base)                                \
-    {                                                                   \
-        uint32_t *d = vd;                                               \
-        uint32_t *m = vm;                                               \
-        uint16_t mask = mve_element_mask(env);                          \
-        uint16_t eci_mask = mve_eci_mask(env);                          \
-        unsigned e;                                                     \
-        uint32_t addr;                                                  \
-        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));            \
-        MemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN, mmu_idx);      \
-        for (e = 0; e < 16 / 4; e++, mask >>= 4, eci_mask >>= 4) {      \
-            if (!(eci_mask & 1)) {                                      \
-                continue;                                               \
-            }                                                           \
-            addr = ADDRFN(base, m[H4(e & ~1)]);                         \
-            addr += 4 * (e & 1);                                        \
-            d[H4(e)] = (mask & 1) ? cpu_ldl_mmu(env, addr, oi, GETPC()) : 0; \
-            if (WB && (e & 1)) {                                        \
-                m[H4(e & ~1)] = addr - 4;                               \
-            }                                                           \
-        }                                                               \
-        mve_advance_vpt(env);                                           \
+#define DO_VLDR64_SG(OP, ADDRFN, WB)                                          \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm,               \
+                          uint32_t base)                                      \
+    {                                                                         \
+        uint32_t *d = vd;                                                     \
+        uint32_t *m = vm;                                                     \
+        uint16_t mask = mve_element_mask(env);                                \
+        uint16_t eci_mask = mve_eci_mask(env);                                \
+        unsigned e;                                                           \
+        uint32_t addr;                                                        \
+        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));                  \
+        MemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN, mmu_idx);            \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4, eci_mask >>= 4) {            \
+            if (!(eci_mask & 1)) {                                            \
+                continue;                                                     \
+            }                                                                 \
+            addr = ADDRFN(base, m[H4(e & ~1)]);                               \
+            addr += 4 * (e & 1);                                              \
+            d[H4(e)] = (mask & 1) ? cpu_ldl_mmu(env, addr, oi, GETPC()) : 0;  \
+            if (WB && (e & 1)) {                                              \
+                m[H4(e & ~1)] = addr - 4;                                     \
+            }                                                                 \
+        }                                                                     \
+        mve_advance_vpt(env);                                                 \
     }
 
-#define DO_VSTR64_SG(OP, ADDRFN, WB)                                    \
-    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm,         \
-                          uint32_t base)                                \
-    {                                                                   \
-        uint32_t *d = vd;                                               \
-        uint32_t *m = vm;                                               \
-        uint16_t mask = mve_element_mask(env);                          \
-        uint16_t eci_mask = mve_eci_mask(env);                          \
-        unsigned e;                                                     \
-        uint32_t addr;                                                  \
-        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));            \
-        MemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN, mmu_idx);      \
-        for (e = 0; e < 16 / 4; e++, mask >>= 4, eci_mask >>= 4) {      \
-            if (!(eci_mask & 1)) {                                      \
-                continue;                                               \
-            }                                                           \
-            addr = ADDRFN(base, m[H4(e & ~1)]);                         \
-            addr += 4 * (e & 1);                                        \
-            if (mask & 1) {                                             \
-                cpu_stl_mmu(env, addr, d[H4(e)], oi, GETPC());          \
-            }                                                           \
-            if (WB && (e & 1)) {                                        \
-                m[H4(e & ~1)] = addr - 4;                               \
-            }                                                           \
-        }                                                               \
-        mve_advance_vpt(env);                                           \
+#define DO_VSTR64_SG(OP, ADDRFN, WB)                                          \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm,               \
+                          uint32_t base)                                      \
+    {                                                                         \
+        uint32_t *d = vd;                                                     \
+        uint32_t *m = vm;                                                     \
+        uint16_t mask = mve_element_mask(env);                                \
+        uint16_t eci_mask = mve_eci_mask(env);                                \
+        unsigned e;                                                           \
+        uint32_t addr;                                                        \
+        int mmu_idx = arm_to_core_mmu_idx(arm_mmu_idx(env));                  \
+        MemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN, mmu_idx);            \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4, eci_mask >>= 4) {            \
+            if (!(eci_mask & 1)) {                                            \
+                continue;                                                     \
+            }                                                                 \
+            addr = ADDRFN(base, m[H4(e & ~1)]);                               \
+            addr += 4 * (e & 1);                                              \
+            if (mask & 1) {                                                   \
+                cpu_stl_mmu(env, addr, d[H4(e)], oi, GETPC());                \
+            }                                                                 \
+            if (WB && (e & 1)) {                                              \
+                m[H4(e & ~1)] = addr - 4;                                     \
+            }                                                                 \
+        }                                                                     \
+        mve_advance_vpt(env);                                                 \
     }
 
 #define ADDR_ADD(BASE, OFFSET) ((BASE) + (OFFSET))
