@@ -2368,6 +2368,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     cpu->kvm_msr_buf = g_malloc0(MSR_BUF_SIZE);
 
+    if (cpu->amd_disable_arch_capabs &&
+        !(env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_CAPABILITIES)) {
+        has_msr_arch_capabs = false;
+    }
+
     if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_RDTSCP)) {
         has_msr_tsc_aux = false;
     }

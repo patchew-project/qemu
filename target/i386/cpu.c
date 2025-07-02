@@ -8324,6 +8324,22 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
+    /*
+     * For years, KVM has inadvertently emulated the ARCH_CAPABILITIES
+     * MSR on AMD although this is an Intel-specific MSR; and KVM will
+     * continue doing so to not change its ABI for existing setups.
+     *
+     * So ensure that the ARCH_CAPABILITIES MSR is disabled on AMD cpus
+     * to prevent providing a cpu with an MSR which is not supposed to
+     * be there.
+     */
+    if (cpu->amd_disable_arch_capabs && IS_AMD_CPU(env)) {
+        mark_unavailable_features(cpu, FEAT_7_0_EDX,
+            env->user_features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_CAPABILITIES,
+            "This feature is not available for AMD Guest");
+        env->features[FEAT_7_0_EDX] &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
+    }
+
     if (x86_threads_per_pkg(&env->topo_info) > 1) {
         env->features[FEAT_1_EDX] |= CPUID_HT;
 
@@ -9393,6 +9409,8 @@ static const Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-intel-pt-auto-level", X86CPU, intel_pt_auto_level,
                      true),
     DEFINE_PROP_BOOL("x-l1-cache-per-thread", X86CPU, l1_cache_per_core, true),
+    DEFINE_PROP_BOOL("x-amd-disable-arch-capabs", X86CPU, amd_disable_arch_capabs,
+                     true),
 };
 
 #ifndef CONFIG_USER_ONLY

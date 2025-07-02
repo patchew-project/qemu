@@ -2306,6 +2306,13 @@ struct ArchCPU {
      */
     uint32_t guest_phys_bits;
 
+    /*
+     * Compatibility bits for old machine types.
+     * If true disable CPUID_7_0_EDX_ARCH_CAPABILITIES and
+     * MSR_IA32_ARCH_CAPABILITIES for AMD Guest.
+     */
+    bool amd_disable_arch_capabs;
+
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct DeviceState *apic_state;
