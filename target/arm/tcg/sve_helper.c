@@ -4135,6 +4135,7 @@ uint32_t HELPER(sve_whilel)(void *vd, uint32_t count, uint32_t pred_desc)
     uint32_t oprbits = oprsz * 8;
     uint64_t esz_mask = pred_esz_masks[esz];
 
+    count <<= esz;
     do_zero(vd, oprsz);
     do_whilel(vd, esz_mask, count, oprbits);
 
@@ -4166,6 +4167,7 @@ uint32_t HELPER(sve_whileg)(void *vd, uint32_t count, uint32_t pred_desc)
     uint32_t oprbits = oprsz * 8;
     uint64_t esz_mask = pred_esz_masks[esz];
 
+    count <<= esz;
     do_zero(vd, oprsz);
     do_whileg(vd, esz_mask, count, oprbits);
 
