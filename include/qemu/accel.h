@@ -47,6 +47,7 @@ typedef struct AccelClass {
     bool (*has_memory)(AccelState *accel, AddressSpace *as,
                        hwaddr start_addr, hwaddr size);
     bool (*cpus_are_resettable)(AccelState *as);
+    void (*pre_resume_vm)(AccelState *as, bool step_pending);
 
     /* gdbstub related hooks */
     bool (*supports_guest_debug)(AccelState *as);
@@ -85,6 +86,8 @@ int accel_init_machine(AccelState *accel, MachineState *ms);
 
 /* Called just before os_setup_post (ie just before drop OS privs) */
 void accel_setup_post(MachineState *ms);
+
+void accel_pre_resume(MachineState *ms, bool step_pending);
 
 /**
  * accel_cpu_instance_init:
