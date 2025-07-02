@@ -235,8 +235,8 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 
     mr = g_new0(MemoryRegion, 1);
     memory_region_init_io(mr, OBJECT(h), &raven_mmcfg_ops, h->bus,
-                          "pci-mmcfg", 0x00400000);
-    memory_region_add_subregion(address_space_mem, 0x80800000, mr);
+                          "pci-mmcfg", 8 * MiB);
+    memory_region_add_subregion(&s->pci_io, 0x800000, mr);
 
     memory_region_init_io(&s->pci_intack, OBJECT(s), &raven_intack_ops, s,
                           "pci-intack", 1);
