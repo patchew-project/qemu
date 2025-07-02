@@ -3035,6 +3035,323 @@ void HELPER(sve_rev_d)(void *vd, void *vn, uint32_t desc)
     }
 }
 
+static uint64_t extractn(uint64_t *p, unsigned pos, unsigned len)
+{
+    uint64_t x;
+
+    p += pos / 64;
+    pos = pos % 64;
+
+    x = p[0];
+    if (pos + len > 64) {
+        x = (x >> pos) | (p[1] << (-pos & 63));
+        pos = 0;
+    }
+    return extract64(x, pos, len);
+}
+
+static void depositn(uint64_t *p, unsigned pos, unsigned len, uint64_t val)
+{
+    p += pos / 64;
+    pos = pos % 64;
+
+    if (pos + len <= 64) {
+        p[0] = deposit64(p[0], pos, len, val);
+    } else {
+        unsigned len0 = 64 - pos;
+        unsigned len1 = len - len0;
+
+        p[0] = deposit64(p[0], pos, len0, val);
+        p[1] = deposit64(p[1], 0, len1, val >> len0);
+    }
+}
+
+void HELPER(pmov_pv_h)(void *vd, void *vs, uint32_t desc)
+{
+    uint64_t *dst = vd;
+    unsigned vl = simd_oprsz(desc);
+    unsigned vq = vl / 16;
+    unsigned vofs = simd_data(desc) * vq;
+    uint64_t x;
+
+    for (; vq >= 4; vq -= 4) {
+        x = *(uint32_t *)(vs + H1_4(vofs));
+        vofs += 4;
+        *dst++ = half_shuffle64(x);
+    }
+
+    if (vq) {
+        x = *(uint32_t *)(vs + H1_4(vofs));
+        x = extract32(x, 0, vq * 8);
+        *dst++ = half_shuffle64(x);
+    }
+}
+
+static uint64_t one_pmov_pv_s(uint64_t x)
+{
+    x = ((x & 0xff00) << 24) | (x & 0xff);
+    x = ((x << 12) | x) & 0x000f000f000f000full;
+    x = ((x <<  6) | x) & 0x0303030303030303ull;
+    x = ((x <<  3) | x) & 0x1111111111111111ull;
+    return x;
+}
+
+void HELPER(pmov_pv_s)(void *vd, void *vs, uint32_t desc)
+{
+    uint64_t *dst = vd, *src = vs;
+    unsigned vl = simd_oprsz(desc);
+    unsigned idx = simd_data(desc);
+    unsigned width = (vl * 8) / 32;
+    uint64_t x0, x1, x2, x3;
+
+    switch (vl / 16) {
+    case 1:
+        x0 = extract64(*src, idx * 4, 4);
+        goto one;
+    case 2:
+        x0 = ((uint8_t *)vs)[H1(idx)];
+        goto one;
+    case 3:
+        x0 = extract64(*src, idx * 12, 12);
+        goto one;
+    case 4:
+        x0 = ((uint16_t *)vs)[H2(idx)];
+        goto one;
+    case 5:
+    case 6:
+    case 7:
+        x0 = extractn(src, idx * width, 16);
+        x1 = extractn(src, idx * width + 16, width - 16);
+        goto two;
+    case 8:
+        x0 = ((uint32_t *)vs)[H4(idx)];
+        x1 = x0 >> 16;
+        goto two;
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+        x0 = extractn(src, idx * width, 16);
+        x1 = extractn(src, idx * width + 16, 16);
+        x2 = extractn(src, idx * width + 32, width - 32);
+        goto three;
+    case 13:
+    case 14:
+    case 15:
+        x0 = extractn(src, idx * width, 16);
+        x1 = extractn(src, idx * width + 16, 16);
+        x2 = extractn(src, idx * width + 32, 16);
+        x3 = extractn(src, idx * width + 48, width - 48);
+        break;
+    case 16:
+        x0 = src[idx];
+        x1 = x0 >> 16;
+        x2 = x0 >> 32;
+        x3 = x0 >> 48;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    dst[3] = one_pmov_pv_s(x3);
+ three:
+    dst[2] = one_pmov_pv_s(x2);
+ two:
+    dst[1] = one_pmov_pv_s(x1);
+ one:
+    dst[0] = one_pmov_pv_s(x0);
+}
+
+static uint64_t one_pmov_pv_d(uint64_t x)
+{
+    x = ((x & 0xf0) << 28) | (x & 0xf);
+    x = ((x << 14) | x) & 0x0003000300030003ull;
+    x = ((x <<  7) | x) & 0x0101010101010101ull;
+    return x;
+}
+
+void HELPER(pmov_pv_d)(void *vd, void *vs, uint32_t desc)
+{
+    uint64_t *dst = vd, *src = vs;
+    unsigned vl = simd_oprsz(desc);
+    unsigned idx = simd_data(desc);
+    unsigned width = (vl * 8) / 64;
+    uint64_t x0, x1, x2, x3;
+
+    switch (vl / 16) {
+    case 1:
+        x0 = extract64(*src, idx * 2, 2);
+        goto one;
+    case 2:
+        x0 = extract64(*src, idx * 4, 4);
+        goto one;
+    case 3:
+        x0 = extract64(*src, idx * 6, 6);
+        goto one;
+    case 4:
+        x0 = ((uint8_t *)vs)[H1(idx)];
+        goto one;
+    case 5:
+    case 6:
+    case 7:
+        x0 = extractn(src, idx * width, 8);
+        x1 = extractn(src, idx * width + 8, width - 8);
+        goto two;
+    case 8:
+        x0 = ((uint16_t *)vs)[H2(idx)];
+        x1 = x0 >> 8;
+        goto two;
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+        x0 = extractn(src, idx * width, 8);
+        x1 = extractn(src, idx * width + 8, 8);
+        x2 = extractn(src, idx * width + 16, width - 16);
+        goto three;
+    case 13:
+    case 14:
+    case 15:
+        x0 = extractn(src, idx * width, 8);
+        x1 = extractn(src, idx * width + 8, 8);
+        x2 = extractn(src, idx * width + 16, 8);
+        x3 = extractn(src, idx * width + 24, width - 24);
+        break;
+    case 16:
+        x0 = ((uint32_t *)vs)[H4(idx)];
+        x1 = x0 >> 8;
+        x2 = x0 >> 16;
+        x3 = x0 >> 24;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    dst[3] = one_pmov_pv_d(x3);
+ three:
+    dst[2] = one_pmov_pv_d(x2);
+ two:
+    dst[1] = one_pmov_pv_d(x1);
+ one:
+    dst[0] = one_pmov_pv_d(x0);
+}
+
+static void pmov_vp_tail(uint64_t *dst, unsigned vl, unsigned width,
+                         unsigned idx, uint64_t val)
+{
+    /* Index 0 clears the rest of the vector; others just insert. */
+    if (idx == 0) {
+        dst[0] = val;
+        clear_tail(dst, 8, vl);
+        return;
+    }
+
+    switch (width) {
+    case 8:
+        ((uint8_t *)dst)[H1(idx)] = val;
+        break;
+    case 16:
+        ((uint16_t *)dst)[H2(idx)] = val;
+        break;
+    case 32:
+        ((uint32_t *)dst)[H4(idx)] = val;
+        break;
+    case 64:
+        dst[idx] = val;
+        break;
+    default:
+        depositn(dst, idx * width, width, val);
+        break;
+    }
+}
+
+void HELPER(pmov_vp_h)(void *vd, void *vs, uint32_t desc)
+{
+    uint64_t *dst = vd, *src = vs;
+    unsigned vl = simd_oprsz(desc);
+    unsigned idx = simd_data(desc);
+    unsigned pl_dr8 = DIV_ROUND_UP(vl, 64);
+    unsigned width = (vl * 8) / 16;
+    uint64_t x0 = 0, x1 = 0;
+
+    switch (pl_dr8) {
+    case 4:
+        x1 = half_unshuffle64(src[3]);
+        /* fall through */
+    case 3:
+        x1 = (x1 << 32) | half_unshuffle64(src[2]);
+        /* fall through */
+    case 2:
+        x0 = half_unshuffle64(src[1]);
+        /* fall through */
+    case 1:
+        x0 = (x0 << 32) | half_unshuffle64(src[0]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (width <= 64) {
+        pmov_vp_tail(dst, vl, width, idx, x0);
+    } else if (idx == 0) {
+        dst[0] = x0;
+        dst[1] = x1;
+        clear_tail(dst, 16, vl);
+    } else {
+        depositn(dst, idx * width, 64, x0);
+        depositn(dst, idx * width + 64, width - 64, x0);
+    }
+}
+
+static uint64_t one_pmov_vp_s(uint64_t x)
+{
+    x &= 0x1111111111111111ull;
+    x = ((x >>  3) | x) & 0x0303030303030303ull;
+    x = ((x >>  6) | x) & 0x000f000f000f000full;
+    x = ((x >> 12) | x) & 0x000000ff000000ffull;
+    x = ((x >> 24) | x) & 0xffff;
+    return x;
+}
+
+void HELPER(pmov_vp_s)(void *vd, void *vs, uint32_t desc)
+{
+    uint64_t *dst = vd, *src = vs;
+    unsigned vl = simd_oprsz(desc);
+    unsigned idx = simd_data(desc);
+    unsigned pl_dr8 = DIV_ROUND_UP(vl, 64);
+    unsigned width = (vl * 8) / 32;
+    uint64_t x = 0;
+
+    for (int i = pl_dr8 - 1; i >= 0; --i) {
+        x = (x << 16) | one_pmov_vp_s(src[i]);
+    }
+    pmov_vp_tail(dst, vl, width, idx, x);
+}
+
+static uint64_t one_pmov_vp_d(uint64_t x)
+{
+    x &= 0x0101010101010101ull;
+    x = ((x >>  7) | x) & 0x0003000300030003ull;
+    x = ((x >> 14) | x) & 0x0000000f0000000full;
+    x = ((x >> 28) | x) & 0xff;
+    return x;
+}
+
+void HELPER(pmov_vp_d)(void *vd, void *vs, uint32_t desc)
+{
+    uint64_t *dst = vd, *src = vs;
+    unsigned vl = simd_oprsz(desc);
+    unsigned idx = simd_data(desc);
+    unsigned pl_dr8 = DIV_ROUND_UP(vl, 64);
+    unsigned width = (vl * 8) / 64;
+    uint64_t x = 0;
+
+    for (int i = pl_dr8 - 1; i >= 0; --i) {
+        x = (x << 8) | one_pmov_vp_d(src[i]);
+    }
+    pmov_vp_tail(dst, vl, width, idx, x);
+}
+
 typedef void tb_impl_fn(void *, void *, void *, void *, uintptr_t, bool);
 
 static inline void do_tbl1(void *vd, void *vn, void *vm, uint32_t desc,
