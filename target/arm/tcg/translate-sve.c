@@ -89,7 +89,7 @@ static inline int expand_imm_sh8u(DisasContext *s, int x)
  */
 static inline int msz_dtype(DisasContext *s, int msz)
 {
-    static const uint8_t dtype[4] = { 0, 5, 10, 15 };
+    static const uint8_t dtype[5] = { 0, 5, 10, 15, 18 };
     return dtype[msz];
 }
 
@@ -4812,23 +4812,25 @@ static bool trans_STR_pri(DisasContext *s, arg_rri *a)
  */
 
 /* The memory mode of the dtype.  */
-static const MemOp dtype_mop[18] = {
+static const MemOp dtype_mop[19] = {
     MO_UB, MO_UB, MO_UB, MO_UB,
     MO_SL, MO_UW, MO_UW, MO_UW,
     MO_SW, MO_SW, MO_UL, MO_UL,
     MO_SB, MO_SB, MO_SB, MO_UQ,
-    MO_UL, MO_UQ,
+    /* Artificial values used by decode */
+    MO_UL, MO_UQ, MO_128
 };
 
 #define dtype_msz(x)  (dtype_mop[x] & MO_SIZE)
 
 /* The vector element size of dtype.  */
-static const uint8_t dtype_esz[18] = {
+static const uint8_t dtype_esz[19] = {
     0, 1, 2, 3,
     3, 1, 2, 3,
     3, 2, 2, 3,
     3, 2, 1, 3,
-    4, 4,
+    /* Artificial values used by decode */
+    4, 4, 4,
 };
 
 uint32_t make_svemte_desc(DisasContext *s, unsigned vsz, uint32_t nregs,
@@ -4879,7 +4881,7 @@ static void do_mem_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
 }
 
 /* Indexed by [mte][be][dtype][nreg] */
-static gen_helper_gvec_mem * const ldr_fns[2][2][18][4] = {
+static gen_helper_gvec_mem * const ldr_fns[2][2][19][4] = {
     { /* mte inactive, little-endian */
       { { gen_helper_sve_ld1bb_r, gen_helper_sve_ld2bb_r,
           gen_helper_sve_ld3bb_r, gen_helper_sve_ld4bb_r },
@@ -4907,6 +4909,8 @@ static gen_helper_gvec_mem * const ldr_fns[2][2][18][4] = {
 
         { gen_helper_sve_ld1squ_le_r, NULL, NULL, NULL },
         { gen_helper_sve_ld1dqu_le_r, NULL, NULL, NULL },
+        { NULL,                      gen_helper_sve_ld2qq_le_r,
+          gen_helper_sve_ld3qq_le_r, gen_helper_sve_ld4qq_le_r },
       },
 
       /* mte inactive, big-endian */
@@ -4936,6 +4940,8 @@ static gen_helper_gvec_mem * const ldr_fns[2][2][18][4] = {
 
         { gen_helper_sve_ld1squ_be_r, NULL, NULL, NULL },
         { gen_helper_sve_ld1dqu_be_r, NULL, NULL, NULL },
+        { NULL,                      gen_helper_sve_ld2qq_be_r,
+          gen_helper_sve_ld3qq_be_r, gen_helper_sve_ld4qq_be_r },
       },
     },
 
@@ -4974,6 +4980,10 @@ static gen_helper_gvec_mem * const ldr_fns[2][2][18][4] = {
 
         { gen_helper_sve_ld1squ_le_r_mte, NULL, NULL, NULL },
         { gen_helper_sve_ld1dqu_le_r_mte, NULL, NULL, NULL },
+        { NULL,
+          gen_helper_sve_ld2qq_le_r_mte,
+          gen_helper_sve_ld3qq_le_r_mte,
+          gen_helper_sve_ld4qq_le_r_mte },
       },
 
       /* mte active, big-endian */
@@ -5011,6 +5021,10 @@ static gen_helper_gvec_mem * const ldr_fns[2][2][18][4] = {
 
         { gen_helper_sve_ld1squ_be_r_mte, NULL, NULL, NULL },
         { gen_helper_sve_ld1dqu_be_r_mte, NULL, NULL, NULL },
+        { NULL,
+          gen_helper_sve_ld2qq_be_r_mte,
+          gen_helper_sve_ld3qq_be_r_mte,
+          gen_helper_sve_ld4qq_be_r_mte },
       },
     },
 };
@@ -5035,16 +5049,26 @@ static bool trans_LD_zprr(DisasContext *s, arg_rprr_load *a)
         return false;
     }
 
-    /* dtypes 16 and 17 are artificial, representing 128-bit element */
-    if (a->dtype < 16) {
+    /* dtypes 16-18 are artificial, representing 128-bit element */
+    switch (a->dtype) {
+    case 0 ... 15:
         if (!dc_isar_feature(aa64_sve, s)) {
             return false;
         }
-    } else {
+        break;
+    case 16: case 17:
         if (!dc_isar_feature(aa64_sve2p1, s)) {
             return false;
         }
         s->is_nonstreaming = true;
+        break;
+    case 18:
+        if (!dc_isar_feature(aa64_sme2p1_or_sve2p1, s)) {
+            return false;
+        }
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     if (sve_access_check(s)) {
@@ -5058,16 +5082,26 @@ static bool trans_LD_zprr(DisasContext *s, arg_rprr_load *a)
 
 static bool trans_LD_zpri(DisasContext *s, arg_rpri_load *a)
 {
-    /* dtypes 16 and 17 are artificial, representing 128-bit element */
-    if (a->dtype < 16) {
+    /* dtypes 16-18 are artificial, representing 128-bit element */
+    switch (a->dtype) {
+    case 0 ... 15:
         if (!dc_isar_feature(aa64_sve, s)) {
             return false;
         }
-    } else {
+        break;
+    case 16: case 17:
         if (!dc_isar_feature(aa64_sve2p1, s)) {
             return false;
         }
         s->is_nonstreaming = true;
+        break;
+    case 18:
+        if (!dc_isar_feature(aa64_sme2p1_or_sve2p1, s)) {
+            return false;
+        }
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     if (sve_access_check(s)) {
@@ -5579,55 +5613,67 @@ static void do_st_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
               gen_helper_sve_st1dd_be_r_mte,
               gen_helper_sve_st1dq_be_r_mte } } },
     };
-    static gen_helper_gvec_mem * const fn_multiple[2][2][3][4] = {
+    static gen_helper_gvec_mem * const fn_multiple[2][2][3][5] = {
         { { { gen_helper_sve_st2bb_r,
               gen_helper_sve_st2hh_le_r,
               gen_helper_sve_st2ss_le_r,
-              gen_helper_sve_st2dd_le_r },
+              gen_helper_sve_st2dd_le_r,
+              gen_helper_sve_st2qq_le_r },
             { gen_helper_sve_st3bb_r,
               gen_helper_sve_st3hh_le_r,
               gen_helper_sve_st3ss_le_r,
-              gen_helper_sve_st3dd_le_r },
+              gen_helper_sve_st3dd_le_r,
+              gen_helper_sve_st3qq_le_r },
             { gen_helper_sve_st4bb_r,
               gen_helper_sve_st4hh_le_r,
               gen_helper_sve_st4ss_le_r,
-              gen_helper_sve_st4dd_le_r } },
+              gen_helper_sve_st4dd_le_r,
+              gen_helper_sve_st4qq_le_r } },
           { { gen_helper_sve_st2bb_r,
               gen_helper_sve_st2hh_be_r,
               gen_helper_sve_st2ss_be_r,
-              gen_helper_sve_st2dd_be_r },
+              gen_helper_sve_st2dd_be_r,
+              gen_helper_sve_st2qq_be_r },
             { gen_helper_sve_st3bb_r,
               gen_helper_sve_st3hh_be_r,
               gen_helper_sve_st3ss_be_r,
-              gen_helper_sve_st3dd_be_r },
+              gen_helper_sve_st3dd_be_r,
+              gen_helper_sve_st3qq_be_r },
             { gen_helper_sve_st4bb_r,
               gen_helper_sve_st4hh_be_r,
               gen_helper_sve_st4ss_be_r,
-              gen_helper_sve_st4dd_be_r } } },
+              gen_helper_sve_st4dd_be_r,
+              gen_helper_sve_st4qq_be_r } } },
         { { { gen_helper_sve_st2bb_r_mte,
               gen_helper_sve_st2hh_le_r_mte,
               gen_helper_sve_st2ss_le_r_mte,
-              gen_helper_sve_st2dd_le_r_mte },
+              gen_helper_sve_st2dd_le_r_mte,
+              gen_helper_sve_st2qq_le_r_mte },
             { gen_helper_sve_st3bb_r_mte,
               gen_helper_sve_st3hh_le_r_mte,
               gen_helper_sve_st3ss_le_r_mte,
-              gen_helper_sve_st3dd_le_r_mte },
+              gen_helper_sve_st3dd_le_r_mte,
+              gen_helper_sve_st3qq_le_r_mte },
             { gen_helper_sve_st4bb_r_mte,
               gen_helper_sve_st4hh_le_r_mte,
               gen_helper_sve_st4ss_le_r_mte,
-              gen_helper_sve_st4dd_le_r_mte } },
+              gen_helper_sve_st4dd_le_r_mte,
+              gen_helper_sve_st4qq_le_r_mte } },
           { { gen_helper_sve_st2bb_r_mte,
               gen_helper_sve_st2hh_be_r_mte,
               gen_helper_sve_st2ss_be_r_mte,
-              gen_helper_sve_st2dd_be_r_mte },
+              gen_helper_sve_st2dd_be_r_mte,
+              gen_helper_sve_st2qq_be_r_mte },
             { gen_helper_sve_st3bb_r_mte,
               gen_helper_sve_st3hh_be_r_mte,
               gen_helper_sve_st3ss_be_r_mte,
-              gen_helper_sve_st3dd_be_r_mte },
+              gen_helper_sve_st3dd_be_r_mte,
+              gen_helper_sve_st3qq_be_r_mte },
             { gen_helper_sve_st4bb_r_mte,
               gen_helper_sve_st4hh_be_r_mte,
               gen_helper_sve_st4ss_be_r_mte,
-              gen_helper_sve_st4dd_be_r_mte } } },
+              gen_helper_sve_st4dd_be_r_mte,
+              gen_helper_sve_st4qq_be_r_mte } } },
     };
     gen_helper_gvec_mem *fn;
     int be = s->be_data == MO_BE;
@@ -5656,12 +5702,17 @@ static bool trans_ST_zprr(DisasContext *s, arg_rprr_store *a)
         }
         break;
     case MO_128:
-        assert(a->msz < a->esz);
-        assert(a->nreg == 0);
-        if (!dc_isar_feature(aa64_sve2p1, s)) {
-            return false;
+        if (a->nreg == 0) {
+            assert(a->msz < a->esz);
+            if (!dc_isar_feature(aa64_sve2p1, s)) {
+                return false;
+            }
+            s->is_nonstreaming = true;
+        } else {
+            if (!dc_isar_feature(aa64_sme2p1_or_sve2p1, s)) {
+                return false;
+            }
         }
-        s->is_nonstreaming = true;
         break;
     default:
         g_assert_not_reached();
@@ -5688,12 +5739,17 @@ static bool trans_ST_zpri(DisasContext *s, arg_rpri_store *a)
         }
         break;
     case MO_128:
-        assert(a->msz < a->esz);
-        assert(a->nreg == 0);
-        if (!dc_isar_feature(aa64_sve2p1, s)) {
-            return false;
+        if (a->nreg == 0) {
+            assert(a->msz < a->esz);
+            if (!dc_isar_feature(aa64_sve2p1, s)) {
+                return false;
+            }
+            s->is_nonstreaming = true;
+        } else {
+            if (!dc_isar_feature(aa64_sme2p1_or_sve2p1, s)) {
+                return false;
+            }
         }
-        s->is_nonstreaming = true;
         break;
     default:
         g_assert_not_reached();
