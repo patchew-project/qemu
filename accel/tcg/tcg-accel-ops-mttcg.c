@@ -91,10 +91,7 @@ void *mttcg_cpu_thread_routine(void *arg)
 
     do {
         if (cpu_can_run(cpu)) {
-            int r;
-            bql_unlock();
-            r = tcg_cpu_exec(cpu);
-            bql_lock();
+            int r = mttcg_cpu_exec(cpu);
             switch (r) {
             case EXCP_DEBUG:
                 cpu_handle_guest_debug(cpu);
@@ -129,4 +126,15 @@ void *mttcg_cpu_thread_routine(void *arg)
 void mttcg_kick_vcpu_thread(CPUState *cpu)
 {
     cpu_exit(cpu);
+}
+
+int mttcg_cpu_exec(CPUState *cpu)
+{
+    int ret;
+
+    bql_unlock();
+    ret = tcg_cpu_exec(cpu);
+    bql_lock();
+
+    return ret;
 }
