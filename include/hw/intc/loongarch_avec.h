@@ -23,6 +23,7 @@ typedef struct AVECCore {
 
 struct LoongArchAVECState {
     SysBusDevice parent_obj;
+    MemoryRegion avec_mmio;
     AVECCore *cpu;
     uint32_t num_cpu;
 };
