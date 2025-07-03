@@ -39,6 +39,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
 #endif
+#include "accel/accel-ops.h"
 #include "accel/tcg/cpu-ops.h"
 #include "internal-common.h"
 
