@@ -61,6 +61,7 @@ struct AccelOpsClass {
     void (*synchronize_pre_loadvm)(CPUState *cpu);
     void (*synchronize_pre_resume)(bool step_pending);
 
+    /* handle_interrupt is mandatory. */
     void (*handle_interrupt)(CPUState *cpu, int old_mask, int new_mask);
 
     /**
@@ -83,5 +84,7 @@ struct AccelOpsClass {
     int (*remove_breakpoint)(CPUState *cpu, int type, vaddr addr, vaddr len);
     void (*remove_all_breakpoints)(CPUState *cpu);
 };
+
+void generic_handle_interrupt(CPUState *cpu, int old_mask, int new_mask);
 
 #endif /* ACCEL_OPS_H */
