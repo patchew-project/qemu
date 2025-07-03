@@ -9,7 +9,7 @@ use std::{
     marker::PhantomData,
 };
 
-pub use bindings::{hwaddr, MemTxAttrs};
+pub use bindings::{hwaddr, MemTxAttrs, MemTxResult};
 
 use crate::{
     bindings::{self, device_endian, memory_region_init_io},
@@ -59,6 +59,20 @@ unsafe extern "C" fn memory_region_ops_read_cb<T, F: for<'a> FnCall<(&'a T, hwad
     F::call((unsafe { &*(opaque.cast::<T>()) }, addr, size))
 }
 
+unsafe extern "C" fn memory_region_ops_read_with_attrs_cb<
+    T,
+    F: for<'a> FnCall<(&'a T, hwaddr, *mut u64, Bits, MemTxAttrs), MemTxResult>,
+>(
+    opaque: *mut c_void,
+    addr: hwaddr,
+    data: *mut u64,
+    size: c_uint,
+    attrs: MemTxAttrs,
+) -> MemTxResult {
+    let size = Bits::try_from(size).expect("invalid size argument");
+    F::call((unsafe { &*(opaque.cast::<T>()) }, addr, data, size, attrs))
+}
+
 unsafe extern "C" fn memory_region_ops_write_cb<
     T,
     F: for<'a> FnCall<(&'a T, hwaddr, u64, Bits)>,
@@ -72,6 +86,20 @@ unsafe extern "C" fn memory_region_ops_write_cb<
     F::call((unsafe { &*(opaque.cast::<T>()) }, addr, data, size))
 }
 
+unsafe extern "C" fn memory_region_ops_write_with_attrs_cb<
+    T,
+    F: for<'a> FnCall<(&'a T, hwaddr, u64, Bits, MemTxAttrs), MemTxResult>,
+>(
+    opaque: *mut c_void,
+    addr: hwaddr,
+    data: u64,
+    size: c_uint,
+    attrs: MemTxAttrs,
+) -> MemTxResult {
+    let size = Bits::try_from(size).expect("invalid size argument");
+    F::call((unsafe { &*(opaque.cast::<T>()) }, addr, data, size, attrs))
+}
+
 impl<T> MemoryRegionOpsBuilder<T> {
     #[must_use]
     pub const fn read<F: for<'a> FnCall<(&'a T, hwaddr, Bits), u64>>(mut self, _f: &F) -> Self {
@@ -82,6 +110,28 @@ impl<T> MemoryRegionOpsBuilder<T> {
     #[must_use]
     pub const fn write<F: for<'a> FnCall<(&'a T, hwaddr, u64, Bits)>>(mut self, _f: &F) -> Self {
         self.0.write = Some(memory_region_ops_write_cb::<T, F>);
+        self
+    }
+
+    #[must_use]
+    pub const fn read_with_attrs<
+        F: for<'a> FnCall<(&'a T, hwaddr, *mut u64, Bits, MemTxAttrs), MemTxResult>,
+    >(
+        mut self,
+        _f: &F,
+    ) -> Self {
+        self.0.read_with_attrs = Some(memory_region_ops_read_with_attrs_cb::<T, F>);
+        self
+    }
+
+    #[must_use]
+    pub const fn write_with_attrs<
+        F: for<'a> FnCall<(&'a T, hwaddr, u64, Bits, MemTxAttrs), MemTxResult>,
+    >(
+        mut self,
+        _f: &F,
+    ) -> Self {
+        self.0.write_with_attrs = Some(memory_region_ops_write_with_attrs_cb::<T, F>);
         self
     }
 

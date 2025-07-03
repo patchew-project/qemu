@@ -26,6 +26,7 @@ foreach enum : c_enums
 endforeach
 c_bitfields = [
   'ClockEvent',
+  'MemTxResult',
   'VMStateFlags',
 ]
 foreach enum : c_bitfields
