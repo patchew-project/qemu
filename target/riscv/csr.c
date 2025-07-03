@@ -3126,14 +3126,14 @@ static RISCVException write_mscratch(CPURISCVState *env, int csrno,
 static RISCVException read_mepc(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
-    *val = env->mepc;
+    *val = env->mepc & get_xepc_mask(env);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_mepc(CPURISCVState *env, int csrno,
                                  target_ulong val, uintptr_t ra)
 {
-    env->mepc = val;
+    env->mepc = val & get_xepc_mask(env);
     return RISCV_EXCP_NONE;
 }
 
@@ -4113,14 +4113,14 @@ static RISCVException write_sscratch(CPURISCVState *env, int csrno,
 static RISCVException read_sepc(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
-    *val = env->sepc;
+    *val = env->sepc & get_xepc_mask(env);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_sepc(CPURISCVState *env, int csrno,
                                  target_ulong val, uintptr_t ra)
 {
-    env->sepc = val;
+    env->sepc = val & get_xepc_mask(env);
     return RISCV_EXCP_NONE;
 }
 
