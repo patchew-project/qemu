@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/type-helpers.h"
-#include "qapi/qapi-commands-machine.h"
+#include "qapi/qapi-commands-accelerator.h"
 #include "monitor/monitor.h"
 #include "system/tcg.h"
 #include "internal-common.h"
