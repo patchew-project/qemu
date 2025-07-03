@@ -10,7 +10,7 @@ use qemu_api::{
     irq::{IRQState, InterruptSource},
     log::Log,
     log_mask_ln,
-    memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
+    memory::{hwaddr, Bits, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
     qom::{ObjectImpl, Owned, ParentField, ParentInit},
@@ -501,7 +501,7 @@ impl PL011State {
             .read(&PL011State::read)
             .write(&PL011State::write)
             .native_endian()
-            .impl_sizes(4, 4)
+            .impl_sizes(Bits::_32, Bits::_32)
             .build();
 
         // SAFETY: this and this.iomem are guaranteed to be valid at this point
@@ -534,7 +534,7 @@ impl PL011State {
         }
     }
 
-    fn read(&self, offset: hwaddr, _size: u32) -> u64 {
+    fn read(&self, offset: hwaddr, _size: Bits) -> u64 {
         match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
                 let device_id = self.get_class().device_id;
@@ -555,7 +555,7 @@ impl PL011State {
         }
     }
 
-    fn write(&self, offset: hwaddr, value: u64, _size: u32) {
+    fn write(&self, offset: hwaddr, value: u64, _size: Bits) {
         let mut update_irq = false;
         if let Ok(field) = RegisterOffset::try_from(offset) {
             // qemu_chr_fe_write_all() calls into the can_receive
