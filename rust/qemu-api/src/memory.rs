@@ -20,6 +20,15 @@ use crate::{
     zeroable::Zeroable,
 };
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, qemu_api_macros::TryInto)]
+#[repr(u32)]
+pub enum Bits {
+    _8 = 1,
+    _16 = 2,
+    _32 = 4,
+    _64 = 8,
+}
+
 pub struct MemoryRegionOps<T>(
     bindings::MemoryRegionOps,
     // Note: quite often you'll see PhantomData<fn(&T)> mentioned when discussing
@@ -41,32 +50,37 @@ unsafe impl<T: Sync> Sync for MemoryRegionOps<T> {}
 #[derive(Clone)]
 pub struct MemoryRegionOpsBuilder<T>(bindings::MemoryRegionOps, PhantomData<fn(&T)>);
 
-unsafe extern "C" fn memory_region_ops_read_cb<T, F: for<'a> FnCall<(&'a T, hwaddr, u32), u64>>(
+unsafe extern "C" fn memory_region_ops_read_cb<T, F: for<'a> FnCall<(&'a T, hwaddr, Bits), u64>>(
     opaque: *mut c_void,
     addr: hwaddr,
     size: c_uint,
 ) -> u64 {
+    let size = Bits::try_from(size).expect("invalid size argument");
     F::call((unsafe { &*(opaque.cast::<T>()) }, addr, size))
 }
 
-unsafe extern "C" fn memory_region_ops_write_cb<T, F: for<'a> FnCall<(&'a T, hwaddr, u64, u32)>>(
+unsafe extern "C" fn memory_region_ops_write_cb<
+    T,
+    F: for<'a> FnCall<(&'a T, hwaddr, u64, Bits)>,
+>(
     opaque: *mut c_void,
     addr: hwaddr,
     data: u64,
     size: c_uint,
 ) {
+    let size = Bits::try_from(size).expect("invalid size argument");
     F::call((unsafe { &*(opaque.cast::<T>()) }, addr, data, size))
 }
 
 impl<T> MemoryRegionOpsBuilder<T> {
     #[must_use]
-    pub const fn read<F: for<'a> FnCall<(&'a T, hwaddr, u32), u64>>(mut self, _f: &F) -> Self {
+    pub const fn read<F: for<'a> FnCall<(&'a T, hwaddr, Bits), u64>>(mut self, _f: &F) -> Self {
         self.0.read = Some(memory_region_ops_read_cb::<T, F>);
         self
     }
 
     #[must_use]
-    pub const fn write<F: for<'a> FnCall<(&'a T, hwaddr, u64, u32)>>(mut self, _f: &F) -> Self {
+    pub const fn write<F: for<'a> FnCall<(&'a T, hwaddr, u64, Bits)>>(mut self, _f: &F) -> Self {
         self.0.write = Some(memory_region_ops_write_cb::<T, F>);
         self
     }
@@ -90,9 +104,9 @@ impl<T> MemoryRegionOpsBuilder<T> {
     }
 
     #[must_use]
-    pub const fn valid_sizes(mut self, min: u32, max: u32) -> Self {
-        self.0.valid.min_access_size = min;
-        self.0.valid.max_access_size = max;
+    pub const fn valid_sizes(mut self, min: Bits, max: Bits) -> Self {
+        self.0.valid.min_access_size = min as u32;
+        self.0.valid.max_access_size = max as u32;
         self
     }
 
@@ -103,9 +117,9 @@ impl<T> MemoryRegionOpsBuilder<T> {
     }
 
     #[must_use]
-    pub const fn impl_sizes(mut self, min: u32, max: u32) -> Self {
-        self.0.impl_.min_access_size = min;
-        self.0.impl_.max_access_size = max;
+    pub const fn impl_sizes(mut self, min: Bits, max: Bits) -> Self {
+        self.0.impl_.min_access_size = min as u32;
+        self.0.impl_.max_access_size = max as u32;
         self
     }
 

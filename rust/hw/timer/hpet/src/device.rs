@@ -18,7 +18,7 @@ use qemu_api::{
     cell::{BqlCell, BqlRefCell},
     irq::InterruptSource,
     memory::{
-        hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
+        hwaddr, Bits, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
     },
     prelude::*,
     qdev::{DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
@@ -703,8 +703,8 @@ impl HPETState {
                 .read(&HPETState::read)
                 .write(&HPETState::write)
                 .native_endian()
-                .valid_sizes(4, 8)
-                .impl_sizes(4, 8)
+                .valid_sizes(Bits::_32, Bits::_64)
+                .impl_sizes(Bits::_32, Bits::_64)
                 .build();
 
         MemoryRegion::init_io(
@@ -771,9 +771,9 @@ impl HPETState {
         self.rtc_irq_level.set(0);
     }
 
-    fn decode(&self, mut addr: hwaddr, size: u32) -> HPETAddrDecode<'_> {
+    fn decode(&self, mut addr: hwaddr, size: Bits) -> HPETAddrDecode<'_> {
         let shift = ((addr & 4) * 8) as u32;
-        let len = std::cmp::min(size * 8, 64 - shift);
+        let len = std::cmp::min(size as u32 * 8, 64 - shift);
 
         addr &= !4;
         let reg = if (0..=0xff).contains(&addr) {
@@ -796,7 +796,7 @@ impl HPETState {
         HPETAddrDecode { shift, len, reg }
     }
 
-    fn read(&self, addr: hwaddr, size: u32) -> u64 {
+    fn read(&self, addr: hwaddr, size: Bits) -> u64 {
         // TODO: Add trace point - trace_hpet_ram_read(addr)
         let HPETAddrDecode { shift, reg, .. } = self.decode(addr, size);
 
@@ -823,7 +823,7 @@ impl HPETState {
         }) >> shift
     }
 
-    fn write(&self, addr: hwaddr, value: u64, size: u32) {
+    fn write(&self, addr: hwaddr, value: u64, size: Bits) {
         let HPETAddrDecode { shift, len, reg } = self.decode(addr, size);
 
         // TODO: Add trace point - trace_hpet_ram_write(addr, value)
