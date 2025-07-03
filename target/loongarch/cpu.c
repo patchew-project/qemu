@@ -127,6 +127,16 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
         return;
     }
 
+    /* do INTC_AVEC irqs */
+    if (irq == INT_AVEC) {
+        for (int i = 256; i >= 0; i--) {
+            if (test_bit(i, &(env->CSR_MSGIS[i / 64]))) {
+                env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, MSGINT, 1);
+                env->CSR_ECFG = FIELD_DP64(env->CSR_ECFG, CSR_ECFG, MSGINT, 1);
+            }
+        }
+    }
+
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
