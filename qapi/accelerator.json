@@ -55,3 +55,20 @@
   'returns': 'HumanReadableText',
   'if': 'CONFIG_TCG',
   'features': [ 'unstable' ] }
+
+##
+# @x-accel-stats:
+#
+# Query accelerator statistics
+#
+# Features:
+#
+# @unstable: This command is meant for debugging.
+#
+# Returns: accelerator statistics
+#
+# Since: 10.1
+##
+{ 'command': 'x-accel-stats',
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
