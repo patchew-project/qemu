@@ -8,11 +8,8 @@ use std::{
 };
 
 use qemu_api::{
-    bindings::{qdev_prop_bool, qdev_prop_chr},
-    prelude::*,
-    vmstate::VMStateDescription,
-    vmstate_clock, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_unused,
-    zeroable::Zeroable,
+    prelude::*, vmstate::VMStateDescription, vmstate_clock, vmstate_fields, vmstate_of,
+    vmstate_struct, vmstate_subsections, vmstate_unused, zeroable::Zeroable,
 };
 
 use crate::device::{PL011Registers, PL011State};
@@ -82,22 +79,3 @@ pub static VMSTATE_PL011: VMStateDescription = VMStateDescription {
     },
     ..Zeroable::ZERO
 };
-
-qemu_api::declare_properties! {
-    PL011_PROPERTIES,
-    qemu_api::define_property!(
-        c"chardev",
-        PL011State,
-        char_backend,
-        unsafe { &qdev_prop_chr },
-        CharBackend
-    ),
-    qemu_api::define_property!(
-        c"migrate-clk",
-        PL011State,
-        migrate_clock,
-        unsafe { &qdev_prop_bool },
-        bool,
-        default = true
-    ),
-}

@@ -1031,11 +1031,13 @@ static VMSTATE_HPET: VMStateDescription = VMStateDescription {
     ..Zeroable::ZERO
 };
 
-impl DeviceImpl for HPETState {
+impl qemu_api::qdev::DevicePropertiesImpl for HPETState {
     fn properties() -> &'static [Property] {
         &HPET_PROPERTIES
     }
+}
 
+impl DeviceImpl for HPETState {
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&VMSTATE_HPET)
     }

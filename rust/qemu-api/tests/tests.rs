@@ -9,7 +9,7 @@ use qemu_api::{
     cell::{self, BqlCell},
     declare_properties, define_property,
     prelude::*,
-    qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
+    qdev::{DeviceImpl, DevicePropertiesImpl, DeviceState, Property, ResettablePhasesImpl},
     qom::{ObjectImpl, ParentField},
     sysbus::SysBusDevice,
     vmstate::VMStateDescription,
@@ -68,10 +68,13 @@ impl ObjectImpl for DummyState {
 
 impl ResettablePhasesImpl for DummyState {}
 
-impl DeviceImpl for DummyState {
+impl DevicePropertiesImpl for DummyState {
     fn properties() -> &'static [Property] {
         &DUMMY_PROPERTIES
     }
+}
+
+impl DeviceImpl for DummyState {
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&VMSTATE)
     }
@@ -84,6 +87,8 @@ pub struct DummyChildState {
 }
 
 qom_isa!(DummyChildState: Object, DeviceState, DummyState);
+
+impl DevicePropertiesImpl for DummyChildState {}
 
 pub struct DummyChildClass {
     parent_class: <DummyState as ObjectType>::Class,
