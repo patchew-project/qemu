@@ -224,7 +224,7 @@ static bool tcg_supports_guest_debug(AccelState *as)
     return true;
 }
 
-static int tcg_gdbstub_supported_sstep_flags(void)
+static int tcg_gdbstub_supported_sstep_flags(AccelState *as)
 {
     /*
      * In replay mode all events will come from the log and can't be

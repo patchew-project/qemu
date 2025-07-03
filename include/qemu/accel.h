@@ -52,7 +52,7 @@ typedef struct AccelClass {
 
     /* gdbstub related hooks */
     bool (*supports_guest_debug)(AccelState *as);
-    int (*gdbstub_supported_sstep_flags)(void);
+    int (*gdbstub_supported_sstep_flags)(AccelState *as);
 
     bool *allowed;
     /*
