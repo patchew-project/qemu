@@ -1230,6 +1230,12 @@ static int vhost_user_set_vring_base(struct vhost_dev *dev,
     return vhost_set_vring(dev, VHOST_USER_SET_VRING_BASE, ring, false);
 }
 
+static bool vhost_user_set_vring_enable_supported(struct vhost_dev *dev)
+{
+    return virtio_has_feature(dev->backend_features,
+                              VHOST_USER_F_PROTOCOL_FEATURES);
+}
+
 static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
 {
     int i;
@@ -3032,6 +3038,8 @@ const VhostOps user_ops = {
         .vhost_reset_device = vhost_user_reset_device,
         .vhost_get_vq_index = vhost_user_get_vq_index,
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
+        .vhost_set_vring_enable_supported =
+            vhost_user_set_vring_enable_supported,
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
         .vhost_migration_done = vhost_user_migration_done,
         .vhost_net_set_mtu = vhost_user_net_set_mtu,
