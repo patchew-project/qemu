@@ -380,7 +380,7 @@ static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
     }
 }
 
-static void virt_irq_init(LoongArchVirtMachineState *lvms)
+static void virt_irq_init(LoongArchVirtMachineState *lvms, MachineState *ms)
 {
     DeviceState *pch_pic, *pch_msi;
     DeviceState *ipi, *extioi, *avec;
@@ -470,6 +470,13 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
         sysbus_realize_and_unref(SYS_BUS_DEVICE(avec), &error_fatal);
         memory_region_add_subregion(get_system_memory(), VIRT_AVEC_BASE,
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(avec), 0));
+        CPUState *cpu_state;
+        DeviceState *cpudev;
+        for (int cpu = 0; cpu < ms->smp.cpus; cpu++) {
+            cpu_state = qemu_get_cpu(cpu);
+            cpudev = DEVICE(cpu_state);
+            qdev_connect_gpio_out(avec, cpu, qdev_get_gpio_in(cpudev, INT_AVEC));
+        }
     }
 
     /* Create EXTIOI device */
@@ -838,7 +845,7 @@ static void virt_init(MachineState *machine)
     }
 
     /* Initialize the IO interrupt subsystem */
-    virt_irq_init(lvms);
+    virt_irq_init(lvms, machine);
     lvms->machine_done.notify = virt_done;
     qemu_add_machine_init_done_notifier(&lvms->machine_done);
      /* connect powerdown request */
