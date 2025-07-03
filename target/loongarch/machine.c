@@ -10,6 +10,7 @@
 #include "migration/cpu.h"
 #include "system/tcg.h"
 #include "vec.h"
+#include "hw/loongarch/virt.h"
 
 static const VMStateDescription vmstate_fpu_reg = {
     .name = "fpu_reg",
@@ -41,6 +42,27 @@ static const VMStateDescription vmstate_fpu = {
         VMSTATE_FPU_REGS(env.fpr, LoongArchCPU, 0),
         VMSTATE_UINT32(env.fcsr0, LoongArchCPU),
         VMSTATE_BOOL_ARRAY(env.cf, LoongArchCPU, 8),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static bool msg_needed(void *opaque)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(ms);
+
+    return !!(lvms->misc_feature & BIT(IOCSRF_AVEC));
+}
+
+static const VMStateDescription vmstate_msg = {
+    .name = "cpu/msg",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = msg_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.CSR_MSGIS, LoongArchCPU, 4),
+        VMSTATE_UINT64(env.CSR_MSGIR, LoongArchCPU),
+        VMSTATE_UINT64(env.CSR_MSGIE, LoongArchCPU),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -168,8 +190,8 @@ static const VMStateDescription vmstate_tlb = {
 /* LoongArch CPU state */
 const VMStateDescription vmstate_loongarch_cpu = {
     .name = "cpu",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (const VMStateField[]) {
         VMSTATE_UINTTL_ARRAY(env.gpr, LoongArchCPU, 32),
         VMSTATE_UINTTL(env.pc, LoongArchCPU),
@@ -245,6 +267,7 @@ const VMStateDescription vmstate_loongarch_cpu = {
         &vmstate_tlb,
 #endif
         &vmstate_lbt,
+        &vmstate_msg,
         NULL
     }
 };
