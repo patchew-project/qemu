@@ -23,6 +23,7 @@ arm_user_ss.add(when: 'TARGET_AARCH64', if_false: files(
 ))
 arm_user_ss.add(files(
   'debug_helper.c',
+  'cpregs.c',
   'helper.c',
   'vfp_fpscr.c',
 ))
@@ -36,6 +37,7 @@ arm_common_system_ss.add(files(
   'arch_dump.c',
   'arm-powerctl.c',
   'cortex-regs.c',
+  'cpregs.c',
   'debug_helper.c',
   'helper.c',
   'machine.c',
