@@ -5,6 +5,7 @@
 use proc_macro2::Span;
 use quote::quote_spanned;
 
+#[derive(Debug)]
 pub enum MacroError {
     Message(String, Span),
     ParseError(syn::Error),
