@@ -28,7 +28,8 @@ config-cc.mak: Makefile
 	    $(call cc-option,-march=armv8.5-a,              CROSS_CC_HAS_ARMV8_5); \
 	    $(call cc-option,-mbranch-protection=standard,  CROSS_CC_HAS_ARMV8_BTI); \
 	    $(call cc-option,-march=armv8.5-a+memtag,       CROSS_CC_HAS_ARMV8_MTE); \
-	    $(call cc-option,-Wa$(COMMA)-march=armv9-a+sme $$fnia, CROSS_AS_HAS_ARMV9_SME)) 3> config-cc.mak
+	    $(call cc-option,-Wa$(COMMA)-march=armv9-a+sme $$fnia, CROSS_AS_HAS_ARMV9_SME); \
+	    $(call cc-option,-Wa$(COMMA)-march=armv9-a+sme2 $$fnia, CROSS_AS_HAS_ARMV9_SME2)) 3> config-cc.mak
 -include config-cc.mak
 
 ifneq ($(CROSS_CC_HAS_ARMV8_2),)
@@ -73,6 +74,14 @@ ifneq ($(CROSS_AS_HAS_ARMV9_SME),)
 SME_TESTS = sme-outprod1 sme-smopa-1 sme-smopa-2 sme-fmopa-1 sme-fmopa-2 sme-fmopa-3
 AARCH64_TESTS += $(SME_TESTS)
 $(SME_TESTS): CFLAGS += $(CROSS_AS_HAS_ARMV9_SME)
+endif
+
+# SME2 Tests
+ifneq ($(CROSS_AS_HAS_ARMV9_SME2),)
+sme2-matmul: CFLAGS += $(CROSS_AS_HAS_ARMV9_SME2)
+sme2-matmul: sme2-matmul-0.c sme2-matmul-1.S
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $^ -o $@ $(LDFLAGS)
+AARCH64_TESTS += sme2-matmul
 endif
 
 # System Registers Tests
