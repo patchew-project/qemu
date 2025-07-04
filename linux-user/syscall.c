@@ -12931,18 +12931,30 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
-    case TARGET_NR_get_robust_list:
         /* The ABI for supporting robust futexes has userspace pass
          * the kernel a pointer to a linked list which is updated by
          * userspace after the syscall; the list is walked by the kernel
          * when the thread exits. Since the linked list in QEMU guest
          * memory isn't a valid linked list for the host and we have
          * no way to reliably intercept the thread-death event, we can't
-         * support these. Silently return ENOSYS so that guest userspace
-         * falls back to a non-robust futex implementation (which should
-         * be OK except in the corner case of the guest crashing while
-         * holding a mutex that is shared with another process via
-         * shared memory).
+         * support these.
+         *
+         * We still return "0" here as for qemu-user based processes
+         * the call makes less practical difference:
+         * 1. glibc does not actually check the return value and assumes
+         *    robust lists anyway on the common architectures. As
+         *    their is only one per-thread list of robust locks this
+         *    will cover everything that uses glibc threading.
+         * 2. set_robust_list is about dealing with crashes while
+         *    holding the lock. Without robust futexes only a system
+         *    reboot can release a deadlocked futex. However for
+         *    qemu-user its "only" a restart of the qemu-user process.
+         */
+        return 0;
+    case TARGET_NR_get_robust_list:
+        /* For systems that double check via get_robust_list() we
+         * silently return ENOSYS so that guest userspace can fall
+         * back to a non-robust futex implementation.
          */
         return -TARGET_ENOSYS;
 #endif
