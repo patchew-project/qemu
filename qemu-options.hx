@@ -2797,11 +2797,13 @@ DEFHEADING(Network options:)
 
 DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifdef CONFIG_PASST
-    "-netdev passt,id=str[,path=file][,quiet=on|off][,param=list]\n"
+    "-netdev passt,id=str[,path=file][,quiet=on|off][,vhost-user=on|off][,param=list]\n"
     "                configure a passt network backend with ID 'str'\n"
     "                if 'path' is not provided 'passt' will be started according to PATH\n"
     "                by default, informational message of passt are not displayed (quiet=on)\n"
     "                to display this message, use 'quiet=off'\n"
+    "                by default, passt will be started in socket-based mode, to enable vhost-mode,\n"
+    "                use 'vhost-user=on'\n"
 #endif
 #ifdef CONFIG_SLIRP
     "-netdev user,id=str[,ipv4=on|off][,net=addr[/mask]][,host=addr]\n"
@@ -3056,6 +3058,12 @@ SRST
         By default, ``quiet=on`` to disable informational message from
         passt. ``quiet=on`` is passed as ``--quiet`` to passt.
 
+    ``vhost-user=on|off``
+        By default, ``vhost-user=off`` and QEMU uses the stream network
+        backend to communicate with passt. If ``vhost-user=on``, passt is
+        started with ``--vhost-user`` and QEMU uses the vhost-user network
+        backend to communicate with passt.
+
     ``param=string``
        ``string`` will be passed to passt has a command line parameter,
        we can have multiple occurences of the ``param`` parameter to
@@ -3065,7 +3073,7 @@ SRST
 
     .. parsed-literal::
 
-        |qemu_system| -nic passt,param=--tcp-ports=10001,param=--tcp-ports=10002,param=--udp-ports=10001
+        |qemu_system| -nic passt,vhost-user=on,param=--tcp-ports=10001,param=--tcp-ports=10002,param=--udp-ports=10001
 
 ``-netdev user,id=id[,option][,option][,...]``
     Configure user mode host network backend which requires no

@@ -121,6 +121,8 @@
 #
 # @quiet: don't print informational messages (default, passed as '--quiet')
 #
+# @vhost-user: enable vhost-user
+#
 # @param: parameter to pass to passt command
 #
 # Since: 10.1
@@ -129,6 +131,7 @@
   'data': {
     '*path':               'str',
     '*quiet':              'bool',
+    '*vhost-user':         'bool',
     '*param':             ['String'] },
     'if': 'CONFIG_PASST' }
 
