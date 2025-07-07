@@ -38,7 +38,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
      * address of a successful translation.  This is a translation not a
      * memory reference, so "memop = none = 0".
      */
-    ret = get_phys_addr_with_space_nogpc(env, value, access_type, 0,
+    ret = get_phys_addr_with_space_nogpc(env, value, 1 << access_type, 0,
                                          mmu_idx, ss, &res, &fi);
 
     /*
