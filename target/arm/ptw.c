@@ -2182,7 +2182,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
 static bool get_phys_addr_pmsav5(CPUARMState *env,
                                  S1Translate *ptw,
                                  uint32_t address,
-                                 MMUAccessType access_type,
+                                 unsigned access_perm,
                                  GetPhysAddrResult *result,
                                  ARMMMUFaultInfo *fi)
 {
@@ -2218,7 +2218,7 @@ static bool get_phys_addr_pmsav5(CPUARMState *env,
         return true;
     }
 
-    if (access_type == MMU_INST_FETCH) {
+    if (access_perm & PAGE_EXEC) {
         mask = env->cp15.pmsav5_insn_ap;
     } else {
         mask = env->cp15.pmsav5_data_ap;
@@ -3485,7 +3485,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
                                        result, fi);
         } else {
             /* Pre-v7 MPU */
-            ret = get_phys_addr_pmsav5(env, ptw, address, access_type,
+            ret = get_phys_addr_pmsav5(env, ptw, address, 1 << access_type,
                                        result, fi);
         }
         qemu_log_mask(CPU_LOG_MMU, "PMSA MPU lookup for %s at 0x%08" PRIx32
