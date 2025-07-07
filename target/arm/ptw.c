@@ -1103,7 +1103,7 @@ do_fault:
 }
 
 static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
-                             uint32_t address, MMUAccessType access_type,
+                             uint32_t address, unsigned access_perm,
                              GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
 {
     ARMCPU *cpu = env_archcpu(env);
@@ -1243,7 +1243,7 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
 
         result->f.prot = get_S1prot(env, mmu_idx, false, user_rw, prot_rw,
                                     xn, pxn, result->f.attrs.space, out_space);
-        if (!(result->f.prot & (1 << access_type))) {
+        if (access_perm & ~result->f.prot) {
             /* Access permission fault.  */
             fi->type = ARMFault_Permission;
             goto do_fault;
@@ -3513,7 +3513,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
                                   memop, result, fi);
     } else if (arm_feature(env, ARM_FEATURE_V7) ||
                regime_sctlr(env, mmu_idx) & SCTLR_XP) {
-        return get_phys_addr_v6(env, ptw, address, access_type, result, fi);
+        return get_phys_addr_v6(env, ptw, address, 1 << access_type, result, fi);
     } else {
         return get_phys_addr_v5(env, ptw, address, 1 << access_type, result, fi);
     }
