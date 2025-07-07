@@ -3193,7 +3193,7 @@ static ARMCacheAttrs combine_cacheattrs(uint64_t hcr,
 static bool get_phys_addr_disabled(CPUARMState *env,
                                    S1Translate *ptw,
                                    vaddr address,
-                                   MMUAccessType access_type,
+                                   unsigned access_perm,
                                    GetPhysAddrResult *result,
                                    ARMMMUFaultInfo *fi)
 {
@@ -3219,7 +3219,7 @@ static bool get_phys_addr_disabled(CPUARMState *env,
             int addrtop, tbi;
 
             tbi = aa64_va_parameter_tbi(tcr, mmu_idx);
-            if (access_type == MMU_INST_FETCH) {
+            if (access_perm & PAGE_EXEC) {
                 tbi &= ~aa64_va_parameter_tbid(tcr, mmu_idx);
             }
             tbi = (tbi >> extract64(address, 55, 1)) & 1;
@@ -3253,7 +3253,7 @@ static bool get_phys_addr_disabled(CPUARMState *env,
             }
         }
         if (memattr == 0) {
-            if (access_type == MMU_INST_FETCH) {
+            if (access_perm & PAGE_EXEC) {
                 if (regime_sctlr(env, mmu_idx) & SCTLR_I) {
                     memattr = 0xee;  /* Normal, WT, RA, NT */
                 } else {
@@ -3404,7 +3404,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
     case ARMMMUIdx_Phys_Root:
     case ARMMMUIdx_Phys_Realm:
         /* Checking Phys early avoids special casing later vs regime_el. */
-        return get_phys_addr_disabled(env, ptw, address, access_type,
+        return get_phys_addr_disabled(env, ptw, address, 1 << access_type,
                                       result, fi);
 
     case ARMMMUIdx_Stage1_E0:
@@ -3504,7 +3504,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
     /* Definitely a real MMU, not an MPU */
 
     if (regime_translation_disabled(env, mmu_idx, ptw->in_space)) {
-        return get_phys_addr_disabled(env, ptw, address, access_type,
+        return get_phys_addr_disabled(env, ptw, address, 1 << access_type,
                                       result, fi);
     }
 
