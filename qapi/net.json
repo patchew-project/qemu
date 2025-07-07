@@ -113,6 +113,26 @@
     'str': 'str' } }
 
 ##
+# @NetDevPasstOptions:
+#
+# Unprivileged user-mode network connectivity using passt
+#
+# @path: Filename of the passt program to run (by default 'passt', and use PATH)
+#
+# @quiet: don't print informational messages (default, passed as '--quiet')
+#
+# @param: parameter to pass to passt command
+#
+# Since: 10.1
+##
+{ 'struct': 'NetDevPasstOptions',
+  'data': {
+    '*path':               'str',
+    '*quiet':              'bool',
+    '*param':             ['String'] },
+    'if': 'CONFIG_PASST' }
+
+##
 # @NetdevUserOptions:
 #
 # Use the user mode network stack which requires no administrator
@@ -729,12 +749,15 @@
 #
 # @af-xdp: since 8.2
 #
+# @passt: since 10.1
+#
 # Since: 2.7
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'stream',
             'dgram', 'vde', 'bridge', 'hubport', 'netmap', 'vhost-user',
             'vhost-vdpa',
+            { 'name': 'passt', 'if': 'CONFIG_PASST' },
             { 'name': 'af-xdp', 'if': 'CONFIG_AF_XDP' },
             { 'name': 'vmnet-host', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-shared', 'if': 'CONFIG_VMNET' },
@@ -756,6 +779,8 @@
   'discriminator': 'type',
   'data': {
     'nic':      'NetLegacyNicOptions',
+    'passt':    { 'type': 'NetDevPasstOptions',
+                  'if': 'CONFIG_PASST' },
     'user':     'NetdevUserOptions',
     'tap':      'NetdevTapOptions',
     'l2tpv3':   'NetdevL2TPv3Options',

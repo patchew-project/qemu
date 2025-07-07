@@ -2796,6 +2796,13 @@ DEFHEADING()
 DEFHEADING(Network options:)
 
 DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
+#ifdef CONFIG_PASST
+    "-netdev passt,id=str[,path=file][,quiet=on|off][,param=list]\n"
+    "                configure a passt network backend with ID 'str'\n"
+    "                if 'path' is not provided 'passt' will be started according to PATH\n"
+    "                by default, informational message of passt are not displayed (quiet=on)\n"
+    "                to display this message, use 'quiet=off'\n"
+#endif
 #ifdef CONFIG_SLIRP
     "-netdev user,id=str[,ipv4=on|off][,net=addr[/mask]][,host=addr]\n"
     "         [,ipv6=on|off][,ipv6-net=addr[/int]][,ipv6-host=addr]\n"
@@ -2952,6 +2959,9 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                configure a hub port on the hub with ID 'n'\n", QEMU_ARCH_ALL)
 DEF("nic", HAS_ARG, QEMU_OPTION_nic,
     "-nic [tap|bridge|"
+#ifdef CONFIG_PASST
+    "passt|"
+#endif
 #ifdef CONFIG_SLIRP
     "user|"
 #endif
@@ -2984,6 +2994,9 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                configure or create an on-board (or machine default) NIC and\n"
     "                connect it to hub 0 (please use -nic unless you need a hub)\n"
     "-net ["
+#ifdef CONFIG_PASST
+    "passt|"
+#endif
 #ifdef CONFIG_SLIRP
     "user|"
 #endif
@@ -3005,7 +3018,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                old way to initialize a host network interface\n"
     "                (use the -netdev option if possible instead)\n", QEMU_ARCH_ALL)
 SRST
-``-nic [tap|bridge|user|l2tpv3|vde|netmap|af-xdp|vhost-user|socket][,...][,mac=macaddr][,model=mn]``
+``-nic [tap|passt|bridge|user|l2tpv3|vde|netmap|af-xdp|vhost-user|socket][,...][,mac=macaddr][,model=mn]``
     This option is a shortcut for configuring both the on-board
     (default) guest NIC hardware and the host network backend in one go.
     The host backend options are the same as with the corresponding
@@ -3026,6 +3039,33 @@ SRST
     override the default configuration (default NIC with "user" host
     network backend) which is activated if no other networking options
     are provided.
+
+``-netdev passt,id=str[,option][,...]``
+    Configure a passt network backend which requires no administrator
+    privilege to run. Valid options are:
+
+    ``id=id``
+        Assign symbolic name for use in monitor commands.
+
+    ``path=file``
+        Filename of the passt program to run. If it is not provided,
+        passt command will be started with the help of the PATH environment
+        variable.
+
+    ``quiet=on|off``
+        By default, ``quiet=on`` to disable informational message from
+        passt. ``quiet=on`` is passed as ``--quiet`` to passt.
+
+    ``param=string``
+       ``string`` will be passed to passt has a command line parameter,
+       we can have multiple occurences of the ``param`` parameter to
+       pass multiple parameters to passt.
+
+       For instance, to pass ``--tcp-ports=10001 --tcp-ports=10002 --udp-ports=10001`` to passt:
+
+    .. parsed-literal::
+
+        |qemu_system| -nic passt,param=--tcp-ports=10001,param=--tcp-ports=10002,param=--udp-ports=10001
 
 ``-netdev user,id=id[,option][,option][,...]``
     Configure user mode host network backend which requires no
@@ -3711,7 +3751,7 @@ SRST
     Use ``-net nic,model=help`` for a list of available devices for your
     target.
 
-``-net user|tap|bridge|socket|l2tpv3|vde[,...][,name=name]``
+``-net user|passt|tap|bridge|socket|l2tpv3|vde[,...][,name=name]``
     Configure a host network backend (with the options corresponding to
     the same ``-netdev`` option) and connect it to the emulated hub 0
     (the default hub). Use name to specify the name of the hub port.
