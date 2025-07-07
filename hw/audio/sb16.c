@@ -154,6 +154,22 @@ static int irq_of_magic (int magic)
     }
 }
 
+static void hold_DREQ(SB16State *s, int nchan)
+{
+    IsaDma *isa_dma = nchan == s->dma ? s->isa_dma : s->isa_hdma;
+    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
+
+    k->hold_DREQ(isa_dma, nchan);
+}
+
+static void release_DREQ(SB16State *s, int nchan)
+{
+    IsaDma *isa_dma = nchan == s->dma ? s->isa_dma : s->isa_hdma;
+    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
+
+    k->release_DREQ(isa_dma, nchan);
+}
+
 #if 0
 static void log_dsp (SB16State *dsp)
 {
@@ -177,19 +193,18 @@ static void speaker (SB16State *s, int on)
 
 static void control (SB16State *s, int hold)
 {
-    int dma = s->use_hdma ? s->hdma : s->dma;
-    IsaDma *isa_dma = s->use_hdma ? s->isa_hdma : s->isa_dma;
-    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
+    int nchan = s->use_hdma ? s->hdma : s->dma;
+
     s->dma_running = hold;
 
-    ldebug ("hold %d high %d dma %d\n", hold, s->use_hdma, dma);
+    ldebug("hold %d high %d nchan %d\n", hold, s->use_hdma, nchan);
 
     if (hold) {
-        k->hold_DREQ(isa_dma, dma);
+        hold_DREQ(s, nchan);
         AUD_set_active_out (s->voice, 1);
     }
     else {
-        k->release_DREQ(isa_dma, dma);
+        release_DREQ(s, nchan);
         AUD_set_active_out (s->voice, 0);
     }
 }
