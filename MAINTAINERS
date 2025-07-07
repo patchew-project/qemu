@@ -481,6 +481,14 @@ F: target/i386/sev*
 F: scripts/kvm/vmxcap
 F: tests/functional/test_x86_64_hotplug_cpu.py
 
+X86 TDX
+R: Xiaoyao Li <xiaoyao.li@intel.com>
+S: Supported
+F: target/i386/kvm/tdx*
+F: hw/i386/tdvf*
+F: include/hw/i386/tdvf*
+F: docs/system/i386/tdx.rst
+
 Xen emulation on X86 KVM CPUs
 M: David Woodhouse <dwmw2@infradead.org>
 M: Paul Durrant <paul@xen.org>
