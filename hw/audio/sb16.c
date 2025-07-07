@@ -200,7 +200,9 @@ static void control (SB16State *s, int hold)
     ldebug("hold %d high %d nchan %d\n", hold, s->use_hdma, nchan);
 
     if (hold) {
-        hold_DREQ(s, nchan);
+        if (!s->voice) {
+            hold_DREQ(s, nchan);
+        }
         AUD_set_active_out (s->voice, 1);
     }
     else {
@@ -890,6 +892,8 @@ static void legacy_reset (SB16State *s)
     s->fmt_bits = 8;
     s->fmt_stereo = 0;
 
+    s->audio_free = 0;
+
     as.freq = s->freq;
     as.nchannels = 1;
     as.fmt = AUDIO_FORMAT_U8;
@@ -1243,8 +1247,12 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     }
 
     if (s->voice) {
+        if (!dma_len) {
+            return dma_pos;
+        }
         free = s->audio_free & ~s->align;
-        if ((free <= 0) || !dma_len) {
+        if (free <= 0) {
+            release_DREQ(s, nchan);
             return dma_pos;
         }
     }
@@ -1269,6 +1277,7 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     written = write_audio (s, nchan, dma_pos, dma_len, copy);
     dma_pos = (dma_pos + written) % dma_len;
     s->left_till_irq -= written;
+    s->audio_free -= written;
 
     if (s->left_till_irq <= 0) {
         s->mixer_regs[0x82] |= (nchan & 4) ? 2 : 1;
@@ -1289,13 +1298,23 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
         s->left_till_irq = s->block_size + s->left_till_irq;
     }
 
+    if (s->voice) {
+        free = s->audio_free & ~s->align;
+        if (free <= 0) {
+            release_DREQ(s, nchan);
+        }
+    }
     return dma_pos;
 }
 
 static void SB_audio_callback (void *opaque, int free)
 {
     SB16State *s = opaque;
+    int nchan = s->use_hdma ? s->hdma : s->dma;
+
     s->audio_free = free;
+    /* run the DMA engine to call SB_read_DMA immediately */
+    hold_DREQ(s, nchan);
 }
 
 static int sb16_post_load (void *opaque, int version_id)
