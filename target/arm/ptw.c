@@ -2881,7 +2881,7 @@ void v8m_security_lookup(CPUARMState *env, uint32_t address,
 static bool get_phys_addr_pmsav8(CPUARMState *env,
                                  S1Translate *ptw,
                                  uint32_t address,
-                                 MMUAccessType access_type,
+                                 unsigned access_perm,
                                  GetPhysAddrResult *result,
                                  ARMMMUFaultInfo *fi)
 {
@@ -2891,9 +2891,9 @@ static bool get_phys_addr_pmsav8(CPUARMState *env,
     bool ret;
 
     if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
-        v8m_security_lookup(env, address, 1 << access_type, mmu_idx,
+        v8m_security_lookup(env, address, access_perm, mmu_idx,
                             secure, &sattrs);
-        if (access_type == MMU_INST_FETCH) {
+        if (access_perm & PAGE_EXEC) {
             /*
              * Instruction fetches always use the MMU bank and the
              * transaction attribute determined by the fetch address,
@@ -2952,7 +2952,7 @@ static bool get_phys_addr_pmsav8(CPUARMState *env,
         }
     }
 
-    ret = pmsav8_mpu_lookup(env, address, 1 << access_type, mmu_idx, secure,
+    ret = pmsav8_mpu_lookup(env, address, access_perm, mmu_idx, secure,
                             result, fi, NULL);
     if (sattrs.subpage) {
         result->f.lg_page_size = 0;
@@ -3477,7 +3477,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
 
         if (arm_feature(env, ARM_FEATURE_V8)) {
             /* PMSAv8 */
-            ret = get_phys_addr_pmsav8(env, ptw, address, access_type,
+            ret = get_phys_addr_pmsav8(env, ptw, address, 1 << access_type,
                                        result, fi);
         } else if (arm_feature(env, ARM_FEATURE_V7)) {
             /* PMSAv7 */
