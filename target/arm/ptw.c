@@ -2770,7 +2770,7 @@ static bool v8m_is_sau_exempt(CPUARMState *env,
 }
 
 void v8m_security_lookup(CPUARMState *env, uint32_t address,
-                         MMUAccessType access_type, ARMMMUIdx mmu_idx,
+                         unsigned access_perm, ARMMMUIdx mmu_idx,
                          bool is_secure, V8M_SAttributes *sattrs)
 {
     /*
@@ -2793,12 +2793,12 @@ void v8m_security_lookup(CPUARMState *env, uint32_t address,
                    &idau_nsc);
     }
 
-    if (access_type == MMU_INST_FETCH && extract32(address, 28, 4) == 0xf) {
+    if ((access_perm & PAGE_EXEC) && extract32(address, 28, 4) == 0xf) {
         /* 0xf0000000..0xffffffff is always S for insn fetches */
         return;
     }
 
-    if (idau_exempt || v8m_is_sau_exempt(env, address, 1 << access_type)) {
+    if (idau_exempt || v8m_is_sau_exempt(env, address, access_perm)) {
         sattrs->ns = !is_secure;
         return;
     }
@@ -2891,7 +2891,7 @@ static bool get_phys_addr_pmsav8(CPUARMState *env,
     bool ret;
 
     if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
-        v8m_security_lookup(env, address, access_type, mmu_idx,
+        v8m_security_lookup(env, address, 1 << access_type, mmu_idx,
                             secure, &sattrs);
         if (access_type == MMU_INST_FETCH) {
             /*
