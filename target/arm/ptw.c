@@ -1643,14 +1643,14 @@ static bool nv_nv1_enabled(CPUARMState *env, S1Translate *ptw)
  * @env: CPUARMState
  * @ptw: Current and next stage parameters for the walk.
  * @address: virtual address to get physical address for
- * @access_type: MMU_DATA_LOAD, MMU_DATA_STORE or MMU_INST_FETCH
+ * @access_perm: PAGE_{READ, WRITE, EXEC}, or 0
  * @memop: memory operation feeding this access, or 0 for none
  * @result: set on translation success,
  * @fi: set to fault info if the translation fails
  */
 static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
                                uint64_t address,
-                               MMUAccessType access_type, MemOp memop,
+                               unsigned access_perm, MemOp memop,
                                GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
 {
     ARMCPU *cpu = env_archcpu(env);
@@ -1678,7 +1678,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         int ps;
 
         param = aa64_va_parameters(env, address, mmu_idx,
-                                   access_type != MMU_INST_FETCH,
+                                   !(access_perm & PAGE_EXEC),
                                    !arm_el_is_aa64(env, 1));
         level = 0;
 
@@ -1945,7 +1945,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
          */
         if (param.hd
             && extract64(descriptor, 51, 1)  /* DBM */
-            && access_type == MMU_DATA_STORE) {
+            && (access_perm & PAGE_WRITE)) {
             if (regime_is_stage2(mmu_idx)) {
                 new_descriptor |= 1ull << 7;    /* set S2AP[1] */
             } else {
@@ -2123,7 +2123,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         result->f.tlb_fill_flags = 0;
     }
 
-    if (!(result->f.prot & (1 << access_type))) {
+    if (access_perm & ~result->f.prot) {
         fi->type = ARMFault_Permission;
         goto do_fault;
     }
@@ -3509,7 +3509,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
     }
 
     if (regime_using_lpae_format(env, mmu_idx)) {
-        return get_phys_addr_lpae(env, ptw, address, access_type,
+        return get_phys_addr_lpae(env, ptw, address, 1 << access_type,
                                   memop, result, fi);
     } else if (arm_feature(env, ARM_FEATURE_V7) ||
                regime_sctlr(env, mmu_idx) & SCTLR_XP) {
