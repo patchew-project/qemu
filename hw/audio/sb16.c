@@ -204,8 +204,7 @@ static void control (SB16State *s, int hold)
             hold_DREQ(s, nchan);
         }
         AUD_set_active_out (s->voice, 1);
-    }
-    else {
+    } else {
         release_DREQ(s, nchan);
         AUD_set_active_out (s->voice, 0);
     }
@@ -271,10 +270,10 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
     s->fmt_signed = 0;
     s->fmt_stereo = (s->mixer_regs[0x0e] & 2) != 0;
     if (-1 == s->time_const) {
-        if (s->freq <= 0)
+        if (s->freq <= 0) {
             s->freq = 11025;
-    }
-    else {
+        }
+    } else {
         int tmp = (256 - s->time_const);
         s->freq = (1000000 + (tmp / 2)) / tmp;
     }
@@ -282,8 +281,7 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
 
     if (dma_len != -1) {
         s->block_size = dma_len << s->fmt_stereo;
-    }
-    else {
+    } else {
         /* This is apparently the only way to make both Act1/PL
            and SecondReality/FC work
 
@@ -362,16 +360,13 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
     if (16 == s->fmt_bits) {
         if (s->fmt_signed) {
             s->fmt = AUDIO_FORMAT_S16;
-        }
-        else {
+        } else {
             s->fmt = AUDIO_FORMAT_U16;
         }
-    }
-    else {
+    } else {
         if (s->fmt_signed) {
             s->fmt = AUDIO_FORMAT_S8;
-        }
-        else {
+        } else {
             s->fmt = AUDIO_FORMAT_U8;
         }
     }
@@ -422,8 +417,7 @@ static inline uint8_t dsp_get_data (SB16State *s)
 {
     if (s->in_index) {
         return s->in2_data[--s->in_index];
-    }
-    else {
+    } else {
         dolog ("buffer underflow\n");
         return 0;
     }
@@ -447,8 +441,7 @@ static void command (SB16State *s, uint8_t cmd)
             qemu_log_mask(LOG_GUEST_ERROR, "%#x wrong bits\n", cmd);
         }
         s->needed_bytes = 3;
-    }
-    else {
+    } else {
         s->needed_bytes = 0;
 
         switch (cmd) {
@@ -674,8 +667,7 @@ static void command (SB16State *s, uint8_t cmd)
  exit:
     if (!s->needed_bytes) {
         s->cmd = -1;
-    }
-    else {
+    } else {
         s->cmd = cmd;
     }
     return;
@@ -715,14 +707,12 @@ static void complete (SB16State *s)
         if (s->cmd & 8) {
             dolog ("ADC params cmd = %#x d0 = %d, d1 = %d, d2 = %d\n",
                    s->cmd, d0, d1, d2);
-        }
-        else {
+        } else {
             ldebug ("cmd = %#x d0 = %d, d1 = %d, d2 = %d\n",
                     s->cmd, d0, d1, d2);
             dma_cmd (s, s->cmd, d0, d1 + (d2 << 8));
         }
-    }
-    else {
+    } else {
         switch (s->cmd) {
         case 0x04:
             s->csp_mode = dsp_get_data (s);
@@ -747,8 +737,7 @@ static void complete (SB16State *s)
                 ldebug ("0x83[%d] <- %#x\n", s->csp_reg83r, d0);
                 s->csp_reg83[s->csp_reg83r % 4] = d0;
                 s->csp_reg83r += 1;
-            }
-            else {
+            } else {
                 s->csp_regs[d1] = d0;
             }
             break;
@@ -763,8 +752,7 @@ static void complete (SB16State *s)
                         s->csp_reg83[s->csp_reg83w % 4]);
                 dsp_out_data (s, s->csp_reg83[s->csp_reg83w % 4]);
                 s->csp_reg83w += 1;
-            }
-            else {
+            } else {
                 dsp_out_data (s, s->csp_regs[d0]);
             }
             break;
@@ -819,8 +807,7 @@ static void complete (SB16State *s)
                 ticks = muldiv64(bytes, NANOSECONDS_PER_SECOND, freq);
                 if (ticks < NANOSECONDS_PER_SECOND / 1024) {
                     qemu_irq_raise (s->pic);
-                }
-                else {
+                } else {
                     if (s->aux_ts) {
                         timer_mod (
                             s->aux_ts,
@@ -992,12 +979,10 @@ static void dsp_write(void *opaque, uint32_t nport, uint32_t val)
                 log_dsp (s);
             }
 #endif
-        }
-        else {
+        } else {
             if (s->in_index == sizeof (s->in2_data)) {
                 dolog ("in data overrun\n");
-            }
-            else {
+            } else {
                 s->in2_data[s->in_index++] = val;
                 if (s->in_index == s->needed_bytes) {
                     s->needed_bytes = 0;
@@ -1032,8 +1017,7 @@ static uint32_t dsp_read(void *opaque, uint32_t nport)
         if (s->out_data_len) {
             retval = s->out_data[--s->out_data_len];
             s->last_read_byte = retval;
-        }
-        else {
+        } else {
             if (s->cmd != -1) {
                 dolog ("empty output buffer for command %#x\n",
                        s->cmd);
@@ -1255,8 +1239,7 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
             release_DREQ(s, nchan);
             return dma_pos;
         }
-    }
-    else {
+    } else {
         free = dma_len;
     }
 
