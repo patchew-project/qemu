@@ -332,6 +332,9 @@ static void kvm_arm_gicv3_put(GICv3State *s)
     kvm_gicr_access(s, GICR_TYPER + 4, 0, &regh, false);
     redist_typer = ((uint64_t)regh << 32) | regl;
 
+    reg = s->gicd_typer2;
+    kvm_gicd_access(s, GICD_TYPER2, &reg, true);
+
     reg = s->gicd_ctlr;
     kvm_gicd_access(s, GICD_CTLR, &reg, true);
 
@@ -518,6 +521,9 @@ static void kvm_arm_gicv3_get(GICv3State *s)
     kvm_gicr_access(s, GICR_TYPER, 0, &regl, false);
     kvm_gicr_access(s, GICR_TYPER + 4, 0, &regh, false);
     redist_typer = ((uint64_t)regh << 32) | regl;
+
+    kvm_gicd_access(s, GICD_TYPER2, &reg, false);
+    s->gicd_typer2 = reg;
 
     kvm_gicd_access(s, GICD_CTLR, &reg, false);
     s->gicd_ctlr = reg;

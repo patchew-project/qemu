@@ -267,6 +267,12 @@ struct GICv3State {
     GICv3CPUState *gicd_irouter_target[GICV3_MAXIRQ];
     uint32_t gicd_nsacr[DIV_ROUND_UP(GICV3_MAXIRQ, 16)];
 
+    /*
+     * GICv4.1 extended ID information. This is currently only needed
+     * for migration of a KVM GIC.
+     */
+    uint32_t gicd_typer2;
+
     GICv3CPUState *cpu;
     /* List of all ITSes connected to this GIC */
     GPtrArray *itslist;
