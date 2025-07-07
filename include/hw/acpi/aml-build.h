@@ -496,6 +496,8 @@ void build_srat_acpi_generic_port(GArray *table_data, uint32_t node,
 void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 const char *oem_id, const char *oem_table_id);
 
+typedef struct CPUPPTTCaches CPUCorePPTTCaches;
+
 void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 const char *oem_id, const char *oem_table_id);
 

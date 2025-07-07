@@ -39,6 +39,7 @@
 #include "system/kvm.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "qom/object.h"
+#include "hw/acpi/cpu.h"
 
 #define NUM_GICV2M_SPIS       64
 #define NUM_VIRTIO_TRANSPORTS 32
@@ -49,6 +50,8 @@
 
 /* GPIO pins */
 #define GPIO_PIN_POWER_BUTTON  3
+
+#define CPU_MAX_CACHES 16
 
 enum {
     VIRT_FLASH,
@@ -182,7 +185,9 @@ struct VirtMachineState {
 OBJECT_DECLARE_TYPE(VirtMachineState, VirtMachineClass, VIRT_MACHINE)
 
 void virt_acpi_setup(VirtMachineState *vms);
-bool virt_is_acpi_enabled(VirtMachineState *vms);
+bool virt_is_acpi_enabled(const VirtMachineState *vms);
+unsigned int virt_get_caches(const VirtMachineState *vms,
+                             CPUCorePPTTCaches *caches);
 
 /* Return number of redistributors that fit in the specified region */
 static uint32_t virt_redist_capacity(VirtMachineState *vms, int region)
