@@ -761,7 +761,7 @@ struct MachineState {
         } \
     } while (0)
 
-#define DEFINE_MACHINE(namestr, machine_initfn) \
+#define DEFINE_MACHINE_WITH_INTERFACES(namestr, machine_initfn, ifaces) \
     static void machine_initfn##_class_init(ObjectClass *oc, const void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
@@ -771,12 +771,16 @@ struct MachineState {
         .name       = MACHINE_TYPE_NAME(namestr), \
         .parent     = TYPE_MACHINE, \
         .class_init = machine_initfn##_class_init, \
+        .interfaces = ifaces, \
     }; \
     static void machine_initfn##_register_types(void) \
     { \
         type_register_static(&machine_initfn##_typeinfo); \
     } \
     type_init(machine_initfn##_register_types)
+
+#define DEFINE_MACHINE(namestr, machine_initfn) \
+    DEFINE_MACHINE_WITH_INTERFACES(namestr, machine_initfn, NULL)
 
 extern GlobalProperty hw_compat_10_0[];
 extern const size_t hw_compat_10_0_len;
