@@ -80,7 +80,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
 
 static bool get_phys_addr_gpc(CPUARMState *env, S1Translate *ptw,
                               vaddr address,
-                              MMUAccessType access_type, MemOp memop,
+                              unsigned access_perm, MemOp memop,
                               GetPhysAddrResult *result,
                               ARMMMUFaultInfo *fi);
 
@@ -584,7 +584,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
         };
         GetPhysAddrResult s2 = { };
 
-        if (get_phys_addr_gpc(env, &s2ptw, addr, MMU_DATA_LOAD, 0, &s2, fi)) {
+        if (get_phys_addr_gpc(env, &s2ptw, addr, PAGE_READ, 0, &s2, fi)) {
             goto fail;
         }
 
@@ -3522,11 +3522,11 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
 
 static bool get_phys_addr_gpc(CPUARMState *env, S1Translate *ptw,
                               vaddr address,
-                              MMUAccessType access_type, MemOp memop,
+                              unsigned access_perm, MemOp memop,
                               GetPhysAddrResult *result,
                               ARMMMUFaultInfo *fi)
 {
-    if (get_phys_addr_nogpc(env, ptw, address, 1 << access_type,
+    if (get_phys_addr_nogpc(env, ptw, address, access_perm,
                             memop, result, fi)) {
         return true;
     }
@@ -3627,7 +3627,7 @@ bool get_phys_addr(CPUARMState *env, vaddr address,
         .in_space = arm_mmu_idx_to_security_space(env, mmu_idx),
     };
 
-    return get_phys_addr_gpc(env, &ptw, address, access_type,
+    return get_phys_addr_gpc(env, &ptw, address, 1 << access_type,
                              memop, result, fi);
 }
 
@@ -3641,7 +3641,7 @@ static hwaddr arm_cpu_get_phys_page(CPUARMState *env, vaddr addr,
     };
     GetPhysAddrResult res = {};
     ARMMMUFaultInfo fi = {};
-    bool ret = get_phys_addr_gpc(env, &ptw, addr, MMU_DATA_LOAD, 0, &res, &fi);
+    bool ret = get_phys_addr_gpc(env, &ptw, addr, PAGE_READ, 0, &res, &fi);
     *attrs = res.f.attrs;
 
     if (ret) {
