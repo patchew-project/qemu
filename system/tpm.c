@@ -181,7 +181,7 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optstr)
 
     if (!strcmp(optstr, "help")) {
         tpm_display_backend_drivers();
-        return -1;
+        exit(EXIT_SUCCESS);
     }
     opts = qemu_opts_parse_noisily(opts_list, optstr, true);
     if (!opts) {
