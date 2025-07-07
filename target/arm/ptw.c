@@ -2754,14 +2754,14 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
 }
 
 static bool v8m_is_sau_exempt(CPUARMState *env,
-                              uint32_t address, MMUAccessType access_type)
+                              uint32_t address, unsigned access_perm)
 {
     /*
      * The architecture specifies that certain address ranges are
      * exempt from v8M SAU/IDAU checks.
      */
     return
-        (access_type == MMU_INST_FETCH && m_is_system_region(env, address)) ||
+        ((access_perm & PAGE_EXEC) && m_is_system_region(env, address)) ||
         (address >= 0xe0000000 && address <= 0xe0002fff) ||
         (address >= 0xe000e000 && address <= 0xe000efff) ||
         (address >= 0xe002e000 && address <= 0xe002efff) ||
@@ -2798,7 +2798,7 @@ void v8m_security_lookup(CPUARMState *env, uint32_t address,
         return;
     }
 
-    if (idau_exempt || v8m_is_sau_exempt(env, address, access_type)) {
+    if (idau_exempt || v8m_is_sau_exempt(env, address, 1 << access_type)) {
         sattrs->ns = !is_secure;
         return;
     }
