@@ -912,7 +912,6 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_SGX_12_0_EAX_FEATURES 0
 #define TCG_SGX_12_0_EBX_FEATURES 0
 #define TCG_SGX_12_1_EAX_FEATURES 0
-#define TCG_24_0_EBX_FEATURES 0
 
 #if defined CONFIG_USER_ONLY
 #define CPUID_8000_0008_EBX_KERNEL_FEATURES (CPUID_8000_0008_EBX_IBPB | \
@@ -1207,20 +1206,6 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_EDX,
         },
         .tcg_features = TCG_7_2_EDX_FEATURES,
-    },
-    [FEAT_24_0_EBX] = {
-        .type = CPUID_FEATURE_WORD,
-        .feat_names = {
-            [16] = "avx10-128",
-            [17] = "avx10-256",
-            [18] = "avx10-512",
-        },
-        .cpuid = {
-            .eax = 0x24,
-            .needs_ecx = true, .ecx = 0,
-            .reg = R_EBX,
-        },
-        .tcg_features = TCG_24_0_EBX_FEATURES,
     },
     [FEAT_8000_0007_EDX] = {
         .type = CPUID_FEATURE_WORD,
@@ -1838,22 +1823,6 @@ static FeatureDep feature_dependencies[] = {
     {
         .from = { FEAT_7_0_EBX,             CPUID_7_0_EBX_SGX },
         .to = { FEAT_SGX_12_1_EAX,          ~0ull },
-    },
-    {
-        .from = { FEAT_24_0_EBX,            CPUID_24_0_EBX_AVX10_128 },
-        .to = { FEAT_24_0_EBX,              CPUID_24_0_EBX_AVX10_256 },
-    },
-    {
-        .from = { FEAT_24_0_EBX,            CPUID_24_0_EBX_AVX10_256 },
-        .to = { FEAT_24_0_EBX,              CPUID_24_0_EBX_AVX10_512 },
-    },
-    {
-        .from = { FEAT_24_0_EBX,            CPUID_24_0_EBX_AVX10_VL_MASK },
-        .to = { FEAT_7_1_EDX,               CPUID_7_1_EDX_AVX10 },
-    },
-    {
-        .from = { FEAT_7_1_EDX,             CPUID_7_1_EDX_AVX10 },
-        .to = { FEAT_24_0_EBX,              ~0ull },
     },
 };
 
@@ -4732,9 +4701,6 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { "movdiri", "on" },
                     { "movdir64b", "on" },
                     { "avx10", "on" },
-                    { "avx10-128", "on" },
-                    { "avx10-256", "on" },
-                    { "avx10-512", "on" },
                     { "avx10-version", "1" },
                     { "stepping", "1" },
                     { /* end of list */ }
@@ -7720,7 +7686,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ecx = 0;
         *edx = 0;
         if ((env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) && count == 0) {
-            *ebx = env->features[FEAT_24_0_EBX] | env->avx10_version;
+            /* bit 16-18 are reserved at 1 */
+            *ebx = (0x7U << 16) | env->avx10_version;
         }
         break;
     }
