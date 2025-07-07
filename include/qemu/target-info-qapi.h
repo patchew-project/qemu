@@ -9,6 +9,7 @@
 #ifndef QEMU_TARGET_INFO_EXTRA_H
 #define QEMU_TARGET_INFO_EXTRA_H
 
+#include "qapi/qapi-types-common.h"
 #include "qapi/qapi-types-machine.h"
 
 /**
@@ -24,5 +25,12 @@ SysEmuTarget target_arch(void);
  * Returns: QAPI SysEmuTarget enum (i.e. SYS_EMU_TARGET_I386).
  */
 SysEmuTarget target_base_arch(void);
+
+/**
+ * target_endian_mode:
+ *
+ * Returns: QAPI EndianMode enum (i.e. ENDIAN_MODE_LITTLE).
+ */
+EndianMode target_endian_mode(void);
 
 #endif
