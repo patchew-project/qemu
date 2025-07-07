@@ -3641,7 +3641,7 @@ static hwaddr arm_cpu_get_phys_page(CPUARMState *env, vaddr addr,
     };
     GetPhysAddrResult res = {};
     ARMMMUFaultInfo fi = {};
-    bool ret = get_phys_addr_gpc(env, &ptw, addr, PAGE_READ, 0, &res, &fi);
+    bool ret = get_phys_addr_gpc(env, &ptw, addr, 0, 0, &res, &fi);
     *attrs = res.f.attrs;
 
     if (ret) {
