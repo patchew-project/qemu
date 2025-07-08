@@ -2313,6 +2313,11 @@ if not get_option('libdw').auto() or \
                        required: get_option('libdw'))
 endif
 
+v4l2 = not_found
+if not get_option('v4l2').auto() or (host_os == 'linux' and have_system)
+  v4l2 = declare_dependency()
+endif
+
 #################
 # config-host.h #
 #################
@@ -2360,6 +2365,15 @@ if have_system
 endif
 config_host_data.set('CONFIG_AUDIO_DRIVERS',
                      '"' + '", "'.join(audio_drivers_selected) + '", ')
+
+if have_system
+  video_backend_available = {
+    'v4l2': v4l2.found(),
+  }
+  foreach k, v: video_backend_available
+    config_host_data.set('CONFIG_VIDEO_' + k.to_upper(), v)
+  endforeach
+endif
 
 have_host_block_device = (host_os != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
@@ -3819,6 +3833,7 @@ subdir('io')
 subdir('chardev')
 subdir('fsdev')
 subdir('dump')
+subdir('video')
 
 if have_block
   block_ss.add(files(
@@ -4931,6 +4946,11 @@ summary_info += {'vde support':       vde}
 summary_info += {'netmap support':    have_netmap}
 summary_info += {'l2tpv3 support':    have_l2tpv3}
 summary(summary_info, bool_yn: true, section: 'Network backends')
+
+# Video backends
+summary_info = {}
+summary_info += {'v4l2 support':          v4l2}
+summary(summary_info, bool_yn: true, section: 'Video backends')
 
 # Libraries
 summary_info = {}

@@ -36,6 +36,7 @@
 #include "hw/pci/pcie.h"
 #include "hw/i386/x86.h"
 #include "util/block-helpers.h"
+#include "video/video.h"
 
 static bool check_prop_still_unset(Object *obj, const char *name,
                                    const void *old_val, const char *new_val,
@@ -1298,4 +1299,55 @@ const PropertyInfo qdev_prop_vmapple_virtio_blk_variant = {
     .get   = qdev_propinfo_get_enum,
     .set   = qdev_propinfo_set_enum,
     .set_default_value = qdev_propinfo_set_default_value_enum,
+};
+
+/* --- videodev --- */
+
+static void get_videodev(Object *obj, Visitor *v, const char* name,
+                         void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    Videodev *video = object_field_prop_ptr(obj, prop);
+    char *p = g_strdup(qemu_videodev_get_id(video));
+
+    visit_type_str(v, name, &p, errp);
+    g_free(p);
+}
+
+static void set_videodev(Object *obj, Visitor *v, const char* name,
+                         void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    void **ptr = object_field_prop_ptr(obj, prop);
+    Error *local_err = NULL;
+    g_autofree char *str = NULL;
+    Videodev *video;
+
+    if (!visit_type_str(v, name, &str, &local_err)) {
+        goto error;
+    }
+
+    video = qemu_videodev_by_id(str, &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    qemu_videodev_register(video, &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    *ptr = video;
+    return;
+
+error:
+    error_propagate(errp, local_err);
+}
+
+const PropertyInfo qdev_prop_videodev = {
+    .type = "str",
+    .description = "ID of an videodev to use as a backend",
+    /* release done on shutdown */
+    .get = get_videodev,
+    .set = set_videodev,
 };

@@ -147,3 +147,8 @@ config XLNX_USB_SUBSYS
 config USB_CHIPIDEA
     bool
     select USB_EHCI_SYSBUS
+
+config USB_VIDEO
+    bool
+    default y
+    depends on USB

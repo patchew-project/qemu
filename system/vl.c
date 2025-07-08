@@ -141,6 +141,7 @@
 #include "system/iothread.h"
 #include "qemu/guest-random.h"
 #include "qemu/keyval.h"
+#include "video/video.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 
@@ -508,6 +509,16 @@ static QemuOptsList qemu_action_opts = {
             .name = "watchdog",
             .type = QEMU_OPT_STRING,
         },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_videodev_opts = {
+    .name = "videodev",
+    .implied_opt_name = "backend",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_videodev_opts.head),
+    .desc = {
+        /* options are defined in the videodev backends */
         { /* end of list */ }
     },
 };
@@ -1220,6 +1231,20 @@ static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
     Error *local_err = NULL;
 
     if (!qemu_chr_new_from_opts(opts, NULL, &local_err)) {
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -1;
+        }
+        exit(0);
+    }
+    return 0;
+}
+
+static int videodev_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (!qemu_videodev_new_from_opts(opts, &local_err)) {
         if (local_err) {
             error_propagate(errp, local_err);
             return -1;
@@ -2066,6 +2091,9 @@ static void qemu_create_early_backends(void)
     if (default_audio) {
         audio_create_default_audiodevs();
     }
+
+    qemu_opts_foreach(qemu_find_opts("videodev"),
+                      videodev_init_func, NULL, &error_fatal);
 }
 
 
@@ -2876,6 +2904,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_videodev_opts);
     qemu_add_run_with_opts();
     module_call_init(MODULE_INIT_OPTS);
 
@@ -3707,7 +3736,15 @@ void qemu_init(int argc, char **argv)
                 break;
             }
 #endif /* CONFIG_POSIX */
-
+#if defined(CONFIG_LINUX)
+            case QEMU_OPTION_videodev:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("videodev"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(1);
+                }
+                break;
+#endif /* CONFIG_LINUX */
             default:
                 error_report("Option not supported in this build");
                 exit(1);

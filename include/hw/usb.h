@@ -81,6 +81,8 @@
 #define USB_CLASS_CDC_DATA              0x0a
 #define USB_CLASS_CSCID                 0x0b
 #define USB_CLASS_CONTENT_SEC           0x0d
+#define USB_CLASS_VIDEO                 0x0e
+#define USB_CLASS_MISCELLANEOUS         0xef
 #define USB_CLASS_APP_SPEC              0xfe
 #define USB_CLASS_VENDOR_SPEC           0xff
 

@@ -368,3 +368,13 @@ canokey_handle_data_out(uint8_t ep_out, uint32_t out_len) "ep %d len %d"
 canokey_handle_data_in(uint8_t ep_in, uint32_t in_len) "ep %d len %d"
 canokey_realize(void)
 canokey_unrealize(void)
+
+# dev-video.c
+usb_video_handle_control(int bus, int addr, int request, int value) "dev %d:%u got control 0x%x, value 0x%x"
+usb_video_handle_control_error(int bus, int addr, int request, int value, int index, int length) "dev %d:%u got unsupported/bogus control request 0x%x, value 0x%x, index 0x%x, length 0x%x"
+usb_video_handle_data_control_in(int bus, int addr, int len) "dev %d:%u streaming in %d"
+usb_video_handle_data_streaming_in(int bus, int addr, int len) "dev %d:%u streaming in %d"
+usb_video_handle_reset(int bus, int addr) "dev %d:%u reset"
+usb_video_set_interface(int bus, int addr, int iface, int value) "dev %d:%u set iface %d with value %d"
+usb_video_realize(int bus, int addr) "dev %d:%u"
+usb_video_unrealize(int bus, int addr) "dev %d:%u"
