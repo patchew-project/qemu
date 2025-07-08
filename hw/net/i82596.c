@@ -74,13 +74,16 @@ enum commands {
 #define SIZE_MASK       0x3fff
 
 /* various flags in the chip config registers */
-#define I596_PREFETCH   (s->config[0] & 0x80)
-#define I596_PROMISC    (s->config[8] & 0x01)
-#define I596_BC_DISABLE (s->config[8] & 0x02) /* broadcast disable */
-#define I596_NOCRC_INS  (s->config[8] & 0x08)
-#define I596_CRCINM     (s->config[11] & 0x04) /* CRC appended */
-#define I596_MC_ALL     (s->config[11] & 0x20)
-#define I596_MULTIIA    (s->config[13] & 0x40)
+#define I596_PREFETCH       (s->config[0] & 0x80)
+#define I596_LOOPBACK       (s->config[3] >> 6)     /* loopback mode */
+#define I596_PROMISC        (s->config[8] & 0x01)
+#define I596_BC_DISABLE     (s->config[8] & 0x02)   /* broadcast status */
+#define I596_NOCRC_INS      (s->config[8] & 0x08)   /* do not append CRC to Tx frame */
+#define I596_CRC16_32       (s->config[8] & 0x10)   /* CRC-16 or CRC-32 */
+#define I596_PADDING        (s->config[8] & 0x80)   /* Should we add padding?*/
+#define I596_MIN_FRAME_LEN  (s->config[10])         /* minimum frame length */
+#define I596_MC_ALL         (s->config[11] & 0x20)
+#define I596_MULTIIA        (s->config[13] & 0x40)
 
 
 static uint8_t get_byte(uint32_t addr)
@@ -132,35 +135,99 @@ struct qemu_ether_header {
 
 static void i82596_transmit(I82596State *s, uint32_t addr)
 {
-    uint32_t tdb_p; /* Transmit Buffer Descriptor */
+    uint32_t tbd_p; /* Transmit Buffer Descriptor */
+    uint16_t tcb_bytes = 0;
+    uint16_t tx_data_len = 0;
+    int insert_crc;
 
-    /* TODO: Check flexible mode */
-    tdb_p = get_uint32(addr + 8);
-    while (tdb_p != I596_NULL) {
-        uint16_t size, len;
+    /* Get TBD pointer */
+    tbd_p = get_uint32(addr + 8);
+
+    /* Get TCB byte count (immediate data in TCB) */
+    tcb_bytes = get_uint16(addr + 12);
+
+    /* Copy immediate data from TCB if present */
+    if (tcb_bytes > 0) {
+        assert(tcb_bytes <= sizeof(s->tx_buffer));
+        address_space_read(&address_space_memory, addr + 16,
+                           MEMTXATTRS_UNSPECIFIED, s->tx_buffer, tcb_bytes);
+        tx_data_len = tcb_bytes;
+    }
+
+    /* Process TBD chain if present */
+    if (tbd_p != I596_NULL) {
+        while (tbd_p != I596_NULL && tx_data_len < sizeof(s->tx_buffer)) {
+            uint16_t size;
         uint32_t tba;
+            uint16_t buf_len;
 
-        size = get_uint16(tdb_p);
-        len = size & SIZE_MASK;
-        tba = get_uint32(tdb_p + 8);
-        trace_i82596_transmit(len, tba);
+            size = get_uint16(tbd_p);
+            buf_len = size & SIZE_MASK;
+            tba = get_uint32(tbd_p + 8);
 
-        if (s->nic && len) {
-            assert(len <= sizeof(s->tx_buffer));
+            trace_i82596_transmit(buf_len, tba);
+
+            if (buf_len > 0 && (tx_data_len + buf_len) <= sizeof(s->tx_buffer)) {
             address_space_read(&address_space_memory, tba,
-                               MEMTXATTRS_UNSPECIFIED, s->tx_buffer, len);
-            DBG(PRINT_PKTHDR("Send", &s->tx_buffer));
-            DBG(printf("Sending %d bytes\n", len));
-            qemu_send_packet(qemu_get_queue(s->nic), s->tx_buffer, len);
+                                   MEMTXATTRS_UNSPECIFIED,
+                                   &s->tx_buffer[tx_data_len], buf_len);
+                tx_data_len += buf_len;
         }
 
-        /* was this the last package? */
+            /* Check if this is the last TBD */
         if (size & I596_EOF) {
             break;
         }
 
-        /* get next buffer pointer */
-        tdb_p = get_uint32(tdb_p + 4);
+            /* Get next TBD pointer */
+            tbd_p = get_uint32(tbd_p + 4);
+        }
+    }
+
+    /* We Check if we should insert CRC */
+    insert_crc = (I596_NOCRC_INS == 0) && !I596_LOOPBACK;
+
+    if (s->nic && tx_data_len > 0) {
+        DBG(printf("i82596_transmit: insert_crc = %d, len = %d\n", insert_crc, tx_data_len));
+
+        if (insert_crc && (tx_data_len + 4) <= sizeof(s->tx_buffer)) {
+            uint32_t crc = crc32(~0, s->tx_buffer, tx_data_len);
+            crc = cpu_to_be32(crc);
+            memcpy(&s->tx_buffer[tx_data_len], &crc, sizeof(crc));
+            tx_data_len += sizeof(crc);
+        }
+
+        /* Validate minimum frame size */
+        if (tx_data_len < I596_MIN_FRAME_LEN) {
+            /* Minimum Ethernet frame header */
+            DBG(printf("Adding Padding to reach minimum frame length\n"));
+            if(I596_PADDING){
+                int padding_needed = I596_MIN_FRAME_LEN - tx_data_len;
+                if (padding_needed > 0 && (tx_data_len + padding_needed) <= sizeof(s->tx_buffer)) {
+                    memset(&s->tx_buffer[tx_data_len], 0x7E, padding_needed);
+                    tx_data_len += padding_needed;
+                    DBG(printf("Added %d bytes of padding\n", padding_needed));
+                } else {
+                    /* Buffer overflow would occur if we added padding */
+                    DBG(printf("WARNING: Cannot add %d bytes of padding - would overflow buffer (tx_data_len=%d, buffer_size=%zu)\n",
+                               padding_needed, tx_data_len, sizeof(s->tx_buffer)));
+                }
+            }
+        }
+    }
+
+    DBG(PRINT_PKTHDR("Send", s->tx_buffer));
+    DBG(printf("Sending %d bytes (crc_inserted=%d)\n", tx_data_len, insert_crc));
+
+    switch (I596_LOOPBACK) {
+    case 0:     /* no loopback, send packet */
+        qemu_send_packet_raw(qemu_get_queue(s->nic), s->tx_buffer, tx_data_len);
+        break;
+    case 1:     /* external loopback enabled */
+        i82596_receive(qemu_get_queue(s->nic), s->tx_buffer, tx_data_len);
+        break;
+    default:    /* all other loopback modes: ignore! */
+        break;
     }
 }
 
