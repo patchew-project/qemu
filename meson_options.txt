@@ -383,5 +383,7 @@ option('rust', type: 'feature', value: 'disabled',
 option('strict_rust_lints', type: 'boolean', value: false,
        description: 'Enable stricter set of Rust warnings')
 
+option('gstreamer', type: 'feature', value: 'auto',
+       description: 'gstreamer video backend support')
 option('v4l2', type: 'feature', value: 'auto',
        description: 'v4l2 video backend support')

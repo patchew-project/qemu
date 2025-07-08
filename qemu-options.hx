@@ -1089,6 +1089,9 @@ SRST
 ERST
 
 DEF("videodev", HAS_ARG, QEMU_OPTION_videodev,
+#ifdef CONFIG_VIDEO_GSTREAMER
+    "-videodev gstreamer,id=id,pipeline=pipeline\n"
+#endif
 #ifdef CONFIG_VIDEO_V4L2
     "-videodev v4l2,id=id,device=path\n"
 #endif
