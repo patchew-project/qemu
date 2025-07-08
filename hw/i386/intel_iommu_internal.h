@@ -583,6 +583,8 @@ typedef enum VTDPCInvType {
 
     /* Reset all PASID cache entries, used in system level reset */
     VTD_PASID_CACHE_FORCE_RESET = 0x10,
+    /* Invalidate all PASID entries in a device */
+    VTD_PASID_CACHE_DEVSI,
 } VTDPCInvType;
 
 typedef struct VTDPASIDCacheInfo {
