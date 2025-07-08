@@ -332,6 +332,28 @@ static int load_kernel_with_initrd(filename_ip_t *fn_ip,
     return rc;
 }
 
+static int net_select_and_load_kernel(filename_ip_t *fn_ip,
+                                      int num_ent, int selected,
+                                      struct pl_cfg_entry *entries)
+{
+    unsigned int loadparm = get_loadparm_index();
+
+    if (num_ent <= 0) {
+        return -1;
+    }
+
+    if (loadparm > num_ent) {
+        printf("Error: loadparm is set to entry #%d, but there are only "
+               "%d entries in the pxelinux.cfg file!\n"
+               "Using default entry now instead.\n",
+               loadparm, num_ent);
+    } else if (loadparm > 0) {
+        selected = loadparm - 1;
+    }
+
+    return load_kernel_with_initrd(fn_ip, &entries[selected]);
+}
+
 #define MAX_PXELINUX_ENTRIES 16
 
 static int net_try_pxelinux_cfg(filename_ip_t *fn_ip)
@@ -343,11 +365,8 @@ static int net_try_pxelinux_cfg(filename_ip_t *fn_ip)
                                       DEFAULT_TFTP_RETRIES,
                                       cfgbuf, sizeof(cfgbuf),
                                       entries, MAX_PXELINUX_ENTRIES, &def_ent);
-    if (num_ent > 0) {
-        return load_kernel_with_initrd(fn_ip, &entries[def_ent]);
-    }
 
-    return -1;
+    return net_select_and_load_kernel(fn_ip, num_ent, def_ent, entries);
 }
 
 /**
@@ -433,10 +452,8 @@ static int net_try_direct_tftp_load(filename_ip_t *fn_ip)
 
             num_ent = pxelinux_parse_cfg(cfgbuf, sizeof(cfgbuf), entries,
                                          MAX_PXELINUX_ENTRIES, &def_ent);
-            if (num_ent <= 0) {
-                return -1;
-            }
-            return load_kernel_with_initrd(fn_ip, &entries[def_ent]);
+            return net_select_and_load_kernel(fn_ip, num_ent, def_ent,
+                                              entries);
         }
     }
 
