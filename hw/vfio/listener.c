@@ -364,7 +364,8 @@ static bool vfio_known_safe_misalignment(MemoryRegionSection *section)
     return true;
 }
 
-static bool vfio_listener_valid_section(MemoryRegionSection *section,
+static bool vfio_listener_valid_section(VFIOContainerBase *bcontainer,
+                                        MemoryRegionSection *section,
                                         const char *name)
 {
     if (vfio_listener_skipped_section(section)) {
@@ -372,6 +373,10 @@ static bool vfio_listener_valid_section(MemoryRegionSection *section,
                 section->offset_within_address_space,
                 section->offset_within_address_space +
                 int128_get64(int128_sub(section->size, int128_one())));
+        return false;
+    }
+
+    if (bcontainer && bcontainer->bypass_ro && section->readonly) {
         return false;
     }
 
@@ -494,7 +499,7 @@ void vfio_container_region_add(VFIOContainerBase *bcontainer,
     int ret;
     Error *err = NULL;
 
-    if (!vfio_listener_valid_section(section, "region_add")) {
+    if (!vfio_listener_valid_section(bcontainer, section, "region_add")) {
         return;
     }
 
@@ -655,7 +660,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     int ret;
     bool try_unmap = true;
 
-    if (!vfio_listener_valid_section(section, "region_del")) {
+    if (!vfio_listener_valid_section(bcontainer, section, "region_del")) {
         return;
     }
 
@@ -812,7 +817,7 @@ static void vfio_dirty_tracking_update(MemoryListener *listener,
         container_of(listener, VFIODirtyRangesListener, listener);
     hwaddr iova, end;
 
-    if (!vfio_listener_valid_section(section, "tracking_update") ||
+    if (!vfio_listener_valid_section(NULL, section, "tracking_update") ||
         !vfio_get_section_iova_range(dirty->bcontainer, section,
                                      &iova, &end, NULL)) {
         return;
