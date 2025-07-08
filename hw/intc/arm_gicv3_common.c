@@ -275,6 +275,29 @@ const VMStateDescription vmstate_gicv3_gicd_nmi = {
     }
 };
 
+static bool gicv3_typer2_needed(void *opaque)
+{
+    /*
+     * GICD_TYPER2 ID register for GICv4.1. Was RES0 for
+     * GICv3 and GICv4.0; don't migrate if zero for backwards
+     * compatibility.
+     */
+    GICv3State *cs = opaque;
+
+    return cs->gicd_typer2 != 0;
+}
+
+const VMStateDescription vmstate_gicv3_gicd_typer2 = {
+    .name = "arm_gicv3/gicd_typer2",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = gicv3_typer2_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(gicd_typer2, GICv3State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_gicv3 = {
     .name = "arm_gicv3",
     .version_id = 1,
@@ -304,6 +327,7 @@ static const VMStateDescription vmstate_gicv3 = {
     .subsections = (const VMStateDescription * const []) {
         &vmstate_gicv3_gicd_no_migration_shift_bug,
         &vmstate_gicv3_gicd_nmi,
+        &vmstate_gicv3_gicd_typer2,
         NULL
     }
 };

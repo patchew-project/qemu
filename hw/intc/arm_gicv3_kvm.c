@@ -405,7 +405,16 @@ static void kvm_arm_gicv3_put(GICv3State *s)
         }
     }
 
-    /* Distributor state (shared between all CPUs */
+    /* Distributor state (shared between all CPUs) */
+
+    /*
+     * This ID register is restored so that the kernel can fail
+     * the write if the migration source is GICv4.1 but the
+     * destination is not.
+     */
+    reg = s->gicd_typer2;
+    kvm_gicd_access(s, GICD_TYPER2, &reg, true);
+
     reg = s->gicd_statusr[GICV3_NS];
     kvm_gicd_access(s, GICD_STATUSR, &reg, true);
 
@@ -572,7 +581,10 @@ static void kvm_arm_gicv3_get(GICv3State *s)
         }
     }
 
-    /* Distributor state (shared between all CPUs */
+    /* Distributor state (shared between all CPUs) */
+
+    kvm_gicd_access(s, GICD_TYPER2, &reg, false);
+    s->gicd_typer2 = reg;
 
     kvm_gicd_access(s, GICD_STATUSR, &reg, false);
     s->gicd_statusr[GICV3_NS] = reg;
@@ -707,6 +719,7 @@ static void kvm_arm_gicv3_reset_hold(Object *obj, ResetType type)
 {
     GICv3State *s = ARM_GICV3_COMMON(obj);
     KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
+    uint32_t reg;
 
     DPRINTF("Reset\n");
 
@@ -718,6 +731,14 @@ static void kvm_arm_gicv3_reset_hold(Object *obj, ResetType type)
         DPRINTF("Cannot put kernel gic state, no kernel interface\n");
         return;
     }
+
+    /*
+     * The reset value of the GICD_TYPER2 ID register should be whatever
+     * the kernel says it is; otherwise the attempt to put the value
+     * in kvm_arm_gicv3_put() will fail.
+     */
+    kvm_gicd_access(s, GICD_TYPER2, &reg, false);
+    s->gicd_typer2 = reg;
 
     kvm_arm_gicv3_put(s);
 }
