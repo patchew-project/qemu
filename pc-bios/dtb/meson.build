@@ -1,13 +1,13 @@
-dtbs = [
-  'bamboo.dtb',
-  'canyonlands.dtb',
-  'petalogix-ml605.dtb',
-  'petalogix-s3adsp1800.dtb',
+dts_sources = [
+  'bamboo.dts',
+  'canyonlands.dts',
+  'petalogix-s3adsp1800.dts',
+  'petalogix-ml605.dts',
 ]
 
 if dtc.found()
-  foreach out : dtbs
-    f = fs.replace_suffix(out, '.dts')
+  foreach f : dts_sources
+    out = fs.replace_suffix(f, '.dtb')
     custom_target(out,
         build_by_default: have_system,
         input: files(f),
@@ -17,6 +17,4 @@ if dtc.found()
         command: [ dtc, '-q', '-I', 'dts', '-O', 'dtb',
                         '-o', '@OUTPUT@', '@INPUT0@' ])
   endforeach
-else
-    install_data(dtbs, install_dir: qemu_datadir / 'dtb')
 endif
