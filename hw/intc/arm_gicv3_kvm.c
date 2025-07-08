@@ -34,14 +34,6 @@
 #include "target/arm/cpregs.h"
 
 
-#ifdef DEBUG_GICV3_KVM
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, "kvm_gicv3: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
-
 #define TYPE_KVM_ARM_GICV3 "kvm-arm-gicv3"
 typedef struct KVMARMGICv3Class KVMARMGICv3Class;
 /* This is reusing the GICv3State typedef from ARM_GICV3_ITS_COMMON */
@@ -721,14 +713,11 @@ static void kvm_arm_gicv3_reset_hold(Object *obj, ResetType type)
     KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
     uint32_t reg;
 
-    DPRINTF("Reset\n");
-
     if (kgc->parent_phases.hold) {
         kgc->parent_phases.hold(obj, type);
     }
 
     if (s->migration_blocker) {
-        DPRINTF("Cannot put kernel gic state, no kernel interface\n");
         return;
     }
 
@@ -806,8 +795,6 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
     bool multiple_redist_region_allowed;
     Error *local_err = NULL;
     int i;
-
-    DPRINTF("kvm_arm_gicv3_realize\n");
 
     kgc->parent_realize(dev, &local_err);
     if (local_err) {
