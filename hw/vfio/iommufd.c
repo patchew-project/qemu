@@ -325,6 +325,7 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
 {
     ERRP_GUARD();
     IOMMUFDBackend *iommufd = vbasedev->iommufd;
+    struct iommu_hw_info_vtd vtd;
     uint32_t type, flags = 0;
     uint64_t hw_caps;
     VFIOIOASHwpt *hwpt;
@@ -372,8 +373,13 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
      * instead.
      */
     if (!iommufd_backend_get_device_info(vbasedev->iommufd, vbasedev->devid,
-                                         &type, NULL, 0, &hw_caps, errp)) {
+                                         &type, &vtd, sizeof(vtd), &hw_caps,
+                                         errp)) {
         return false;
+    }
+
+    if (vtd.flags & IOMMU_HW_INFO_VTD_ERRATA_772415_SPR17) {
+        container->bcontainer.bypass_ro = true;
     }
 
     if (hw_caps & IOMMU_HW_CAP_DIRTY_TRACKING) {
