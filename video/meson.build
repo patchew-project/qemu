@@ -11,6 +11,7 @@ video_modules = {}
 foreach m : [
   ['gstreamer', gstreamer, files('gstreamer.c')],
   ['gstreamer-app', gstreamer_app, files('gstreamer.c')],
+  ['libcamera', gstreamer, files('libcamera.c', 'gstreamer.c')],
   ['v4l2', v4l2, files('v4l2.c')],
 ]
   if m[dep].found()
