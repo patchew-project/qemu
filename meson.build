@@ -2089,13 +2089,15 @@ if numa.found() and not cc.links('''
 endif
 
 fdt = not_found
+dtc = not_found
 fdt_opt = get_option('fdt')
 if fdt_opt == 'enabled' and get_option('wrap_mode') == 'nodownload'
   fdt_opt = 'system'
 endif
 if fdt_opt in ['enabled', 'system'] or (fdt_opt == 'auto' and have_system)
   fdt = cc.find_library('fdt', required: fdt_opt == 'system')
-  if fdt.found() and cc.links('''
+  dtc = find_program('dtc', required: fdt_opt == 'system')
+  if dtc.found() and fdt.found() and cc.links('''
      #include <libfdt.h>
      #include <libfdt_env.h>
      int main(void) { fdt_find_max_phandle(NULL, NULL); return 0; }''',
@@ -2104,16 +2106,22 @@ if fdt_opt in ['enabled', 'system'] or (fdt_opt == 'auto' and have_system)
   elif fdt_opt != 'system'
     fdt_opt = get_option('wrap_mode') == 'nodownload' ? 'disabled' : 'internal'
     fdt = not_found
+    dtc = not_found
   else
-    error('system libfdt is too old (1.5.1 or newer required)')
+    if dtc.found()
+      error('system libfdt is too old (1.5.1 or newer required)')
+    else
+      error('device tree compiler not found')
+    endif
   endif
 endif
 if fdt_opt == 'internal'
   assert(not fdt.found())
   libfdt_proj = subproject('dtc', required: true,
-                           default_options: ['tools=false',  'yaml=disabled',
+                           default_options: ['tools=true',  'yaml=disabled',
                                              'python=disabled', 'default_library=static'])
-  fdt = libfdt_proj.get_variable('libfdt_dep')
+  fdt = dependency('libfdt', required: true)
+  dtc = find_program('dtc', required: true)
 endif
 
 rdma = not_found
