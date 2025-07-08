@@ -1,0 +1,62 @@
+diff --git a/libfdt/meson.build b/libfdt/meson.build
+index 0307ffb..6581965 100644
+--- a/libfdt/meson.build
++++ b/libfdt/meson.build
+@@ -30,6 +30,7 @@ libfdt_dep = declare_dependency(
+   include_directories: libfdt_inc,
+   link_with: libfdt,
+ )
++meson.override_dependency('libfdt', libfdt_dep)
+ 
+ install_headers(
+   files(
+diff --git a/meson.build b/meson.build
+index b23ea1b..7def0a6 100644
+--- a/meson.build
++++ b/meson.build
+@@ -54,6 +54,7 @@ version_gen_h = vcs_tag(
+ 
+ subdir('libfdt')
+ 
++dtc_tools = []
+ if get_option('tools')
+   flex = find_program('flex', required: true)
+   bison = find_program('bison', required: true)
+@@ -77,7 +78,7 @@ if get_option('tools')
+   )
+ 
+   if cc.check_header('fnmatch.h')
+-    executable(
++    dtc_tools += executable(
+       'convert-dtsv0',
+       [
+         lgen.process('convert-dtsv0-lexer.l'),
+@@ -88,7 +89,7 @@ if get_option('tools')
+     )
+   endif
+ 
+-  executable(
++  dtc_tools += executable(
+     'dtc',
+     [
+       lgen.process('dtc-lexer.l'),
+@@ -108,7 +109,7 @@ if get_option('tools')
+   )
+ 
+   foreach e: ['fdtdump', 'fdtget', 'fdtput', 'fdtoverlay']
+-    executable(e, files(e + '.c'), dependencies: util_dep, install: true)
++    dtc_tools += executable(e, files(e + '.c'), dependencies: util_dep, install: true)
+   endforeach
+ 
+   install_data(
+@@ -118,6 +119,10 @@ if get_option('tools')
+   )
+ endif
+ 
++foreach e: dtc_tools
++  meson.override_find_program(e.name(), e)
++endforeach
++
+ if not meson.is_cross_build()
+   if py.found() and swig.found()
+     subdir('pylibfdt')

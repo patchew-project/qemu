@@ -5,7 +5,6 @@ dtbs = [
   'petalogix-s3adsp1800.dtb',
 ]
 
-dtc = find_program('dtc', required: false)
 if dtc.found()
   foreach out : dtbs
     f = fs.replace_suffix(out, '.dts')
