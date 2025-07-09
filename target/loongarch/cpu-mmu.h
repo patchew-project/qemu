@@ -19,12 +19,21 @@ enum {
     TLBRET_PE = 7,
 };
 
+typedef struct pte_context {
+    target_ulong  vaddr;
+    uint64_t      pte;
+    int           page_shift;
+} pte_context;
+
 bool check_ps(CPULoongArchState *ent, uint8_t ps);
+int loongarch_check_pte(CPULoongArchState *env, hwaddr *physical, int *prot,
+                       pte_context *context, int access_type, int mmu_idx);
 int get_physical_address(CPULoongArchState *env, hwaddr *physical,
                          int *prot, target_ulong address,
                          MMUAccessType access_type, int mmu_idx, int is_debug);
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
                                uint64_t *dir_width, target_ulong level);
 hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+
 
 #endif  /* LOONGARCH_CPU_MMU_H */
