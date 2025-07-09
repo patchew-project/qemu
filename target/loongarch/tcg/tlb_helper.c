@@ -110,11 +110,8 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     if (!tlb_e) {
         return;
     }
-    if (index >= LOONGARCH_STLB) {
-        tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
-    } else {
-        tlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
-    }
+
+    tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
     pagesize = MAKE_64BIT_MASK(tlb_ps, 1);
     mask = MAKE_64BIT_MASK(0, tlb_ps + 1);
 
@@ -179,11 +176,8 @@ static void fill_tlb_entry(CPULoongArchState *env, int index)
         return;
     }
 
-    /* Only MTLB has the ps fields */
-    if (index >= LOONGARCH_STLB) {
-        tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, PS, csr_ps);
-    }
-
+    /* Store page size in field PS */
+    tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, PS, csr_ps);
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, VPPN, csr_vppn);
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 1);
     csr_asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
@@ -289,12 +283,7 @@ void helper_tlbrd(CPULoongArchState *env)
 
     index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
     tlb = &env->tlb[index];
-
-    if (index >= LOONGARCH_STLB) {
-        tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
-    } else {
-        tlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
-    }
+    tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
     tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
 
     if (!tlb_e) {
@@ -489,11 +478,8 @@ void helper_invtlb_page_asid(CPULoongArchState *env, target_ulong info,
         if (!tlb_e) {
             continue;
         }
-        if (i >= LOONGARCH_STLB) {
-            tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
-        } else {
-            tlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
-        }
+
+        tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
         tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
         vpn = (addr & TARGET_VIRT_MASK) >> (tlb_ps + 1);
         compare_shift = tlb_ps + 1 - R_TLB_MISC_VPPN_SHIFT;
@@ -522,11 +508,8 @@ void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
         if (!tlb_e) {
             continue;
         }
-        if (i >= LOONGARCH_STLB) {
-            tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
-        } else {
-            tlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
-        }
+
+        tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
         tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
         vpn = (addr & TARGET_VIRT_MASK) >> (tlb_ps + 1);
         compare_shift = tlb_ps + 1 - R_TLB_MISC_VPPN_SHIFT;
@@ -680,11 +663,7 @@ static int loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
     uint64_t tlb_entry, tlb_ppn;
     uint8_t tlb_ps, n, tlb_v, tlb_d, tlb_plv, tlb_nx, tlb_nr, tlb_rplv;
 
-    if (index >= LOONGARCH_STLB) {
-        tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
-    } else {
-        tlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
-    }
+    tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
     n = (address >> tlb_ps) & 0x1;/* Odd or even */
 
     tlb_entry = n ? tlb->tlb_entry1 : tlb->tlb_entry0;
