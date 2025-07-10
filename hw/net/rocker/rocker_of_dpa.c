@@ -202,7 +202,7 @@ static int of_dpa_mask2prefix(uint32_t mask)
     int count = 32;
 
     for (i = 0; i < 32; i++) {
-        if (!(ntohl(mask) & ((2 << i) - 1))) {
+        if (!(ntohl(mask) & ((2ULL << i) - 1))) {
             count--;
         }
     }
