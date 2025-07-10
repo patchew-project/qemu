@@ -1,0 +1,1 @@
+../riscv64/test_opensbi.py
