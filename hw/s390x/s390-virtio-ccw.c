@@ -792,6 +792,22 @@ static void machine_set_loadparm(Object *obj, Visitor *v,
     g_free(val);
 }
 
+static inline char *machine_get_boot_certificates(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return g_strdup(ms->boot_certificates);
+}
+
+static void machine_set_boot_certificates(Object *obj, const char *str,
+                                          Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    g_free(ms->boot_certificates);
+    ms->boot_certificates = g_strdup(str);
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -845,6 +861,12 @@ static void ccw_machine_class_init(ObjectClass *oc, const void *data)
             "Up to 8 chars in set of [A-Za-z0-9. ] (lower case chars converted"
             " to upper case) to pass to machine loader, boot manager,"
             " and guest kernel");
+
+    object_class_property_add_str(oc, "boot-certificates",
+                                  machine_get_boot_certificates,
+                                  machine_set_boot_certificates);
+    object_class_property_set_description(oc, "boot-certificates",
+            "provide path to a directory or a single certificate for secure boot");
 }
 
 static inline void s390_machine_initfn(Object *obj)

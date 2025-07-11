@@ -31,6 +31,7 @@ struct S390CcwMachineState {
     uint8_t loadparm[8];
     uint64_t memory_limit;
     uint64_t max_pagesize;
+    char *boot_certificates;
 
     SCLPDevice *sclp;
 };
