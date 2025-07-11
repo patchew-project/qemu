@@ -40,6 +40,14 @@ typedef enum {
     QCRYPTO_SIG_ALGO_ECDSA_SHA512,
 } QCryptoSigAlgo;
 
+typedef enum {
+    QCRYPTO_PK_ALGO_UNKNOWN,
+    QCRYPTO_PK_ALGO_RSA,
+    QCRYPTO_PK_ALGO_DSA,
+    QCRYPTO_PK_ALGO_DH,
+    QCRYPTO_PK_ALGO_ECDSA,
+} QCryptoPkAlgo;
+
 int qcrypto_get_x509_cert_fingerprint(uint8_t *cert, size_t size,
                                       QCryptoHashAlgo hash,
                                       uint8_t *result,
@@ -53,10 +61,10 @@ int qcrypto_get_x509_cert_fingerprint(uint8_t *cert, size_t size,
  * @result: output location for the allocated buffer for the certificate in DER format
             (the function allocates memory which must be freed by the caller)
  * @resultlen: pointer to the size of the buffer
-               (will be replaced by the actual size of the DER-encoded certificate)
+               (will be updated with the actual size of the DER-encoded certificate)
  * @errp: error pointer
  *
- * Convert given @cert from PEM to DER format.
+ * Convert the given @cert from PEM to DER format.
  *
  * Returns: 0 on success,
  *         -1 on error.
@@ -70,7 +78,7 @@ int qcrypto_x509_convert_cert_der(uint8_t *cert, size_t size,
  * qcrypto_x509_get_keyid_len
  * @flag: the key ID flag
  *
- * Determine the length of the key ID of the given @flag.
+ * Determine the length of the key ID corresponding to the given @flag.
  *
  * Returns: the length on success,
  *          -1 on error.
@@ -89,5 +97,67 @@ int qcrypto_x509_get_keyid_len(QCryptoKeyidFlags flag, Error **errp);
  *          -1 on error.
  */
 int qcrypto_x509_get_signature_algorithm(uint8_t *cert, size_t size, Error **errp);
+
+/**
+ * qcrypto_x509_get_cert_version
+ * @cert: pointer to the raw certificate data
+ * @size: size of the certificate
+ * @errp: error pointer
+ *
+ * Determine the version of the @cert.
+ *
+ * Returns: the version on success,
+ *          -1 on error.
+ */
+int qcrypto_x509_get_cert_version(uint8_t *cert, size_t size, Error **errp);
+
+/**
+ * qcrypto_x509_check_cert_times
+ * @cert: pointer to the raw certificate data
+ * @size: size of the certificate
+ * @errp: error pointer
+ *
+ * Check whether the activation and expiration times of @cert
+ * are valid at the current time.
+ *
+ * Returns: 0 if the certificate times are valid,
+ *         -1 on error.
+ */
+int qcrypto_x509_check_cert_times(uint8_t *cert, size_t size, Error **errp);
+
+/**
+ * qcrypto_x509_get_pk_algorithm
+ * @cert: pointer to the raw certificate data
+ * @size: size of the certificate
+ * @errp: error pointer
+ *
+ * Determine the public key algorithm of the @cert.
+ *
+ * Returns: a value from the QCryptoPkAlgo enum on success,
+ *          -1 on error.
+ */
+int qcrypto_x509_get_pk_algorithm(uint8_t *cert, size_t size, Error **errp);
+
+/**
+ * qcrypto_x509_get_cert_key_id
+ * @cert: pointer to the raw certificate data
+ * @size: size of the certificate
+ * @flag: the key ID flag
+ * @result: output location for the allocated buffer for key ID
+            (the function allocates memory which must be freed by the caller)
+ * @resultlen: pointer to the size of the buffer
+               (will be updated with the actual size of key id)
+ * @errp: error pointer
+ *
+ * Retrieve the key ID from the @cert based on the specified @flag.
+ *
+ * Returns: 0 if key ID was successfully stored in @result,
+ *         -1 on error.
+ */
+int qcrypto_x509_get_cert_key_id(uint8_t *cert, size_t size,
+                                 QCryptoKeyidFlags flag,
+                                 uint8_t **result,
+                                 size_t *resultlen,
+                                 Error **errp);
 
 #endif
