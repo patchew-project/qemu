@@ -16,6 +16,12 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "hw/qdev-properties.h"
+#include "target/loongarch/cpu.h"
+
+/* msg addr field */
+FIELD(MSG_ADDR, IRQ_NUM, 4, 8)
+FIELD(MSG_ADDR, CPU_NUM, 12, 8)
+FIELD(MSG_ADDR, FIX, 28, 12)
 
 static uint64_t loongarch_avec_mem_read(void *opaque,
                                         hwaddr addr, unsigned size)
@@ -23,12 +29,36 @@ static uint64_t loongarch_avec_mem_read(void *opaque,
     return 0;
 }
 
+static void avec_set_irq(LoongArchAVECState *s, int cpu_num, int irq_num, int level)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const CPUArchIdList *id_list = NULL;
+    CPUState *cpu;
+    CPULoongArchState *env;
+
+    assert(mc->possible_cpu_arch_ids(machine));
+    id_list = mc->possible_cpu_arch_ids(machine);
+    cpu = id_list->cpus[cpu_num].cpu;
+    env = &LOONGARCH_CPU(cpu)->env;
+
+    if (level) {
+        set_bit(irq_num, &env->CSR_MSGIS[irq_num / 64]);
+    }
+    qemu_set_irq(s->cpu[cpu_num].parent_irq, level);
+}
+
 static void loongarch_avec_mem_write(void *opaque, hwaddr addr,
                                      uint64_t val, unsigned size)
 {
-    return;
-}
+    int irq_num, cpu_num = 0;
+    LoongArchAVECState *s = LOONGARCH_AVEC(opaque);
+    uint64_t msg_addr = addr + VIRT_AVEC_BASE;
 
+    cpu_num = FIELD_EX64(msg_addr, MSG_ADDR, CPU_NUM);
+    irq_num = FIELD_EX64(msg_addr, MSG_ADDR, IRQ_NUM);
+    avec_set_irq(s, cpu_num, irq_num, 1);
+}
 
 static const MemoryRegionOps loongarch_avec_ops = {
     .read = loongarch_avec_mem_read,
