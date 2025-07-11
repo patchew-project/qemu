@@ -116,14 +116,81 @@ static void loongarch_avec_init(Object *obj)
     return;
 }
 
+static AVECCore *loongarch_avec_get_cpu(LoongArchAVECState *s,
+                                        DeviceState *dev)
+{
+    CPUClass *k = CPU_GET_CLASS(dev);
+    uint64_t arch_id = k->get_arch_id(CPU(dev));
+    int i;
+
+    for (i = 0; i < s->num_cpu; i++) {
+        if (s->cpu[i].arch_id == arch_id) {
+            return &s->cpu[i];
+        }
+    }
+
+    return NULL;
+}
+
+static void loongarch_avec_cpu_plug(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
+{
+    LoongArchAVECState *s = LOONGARCH_AVEC(hotplug_dev);
+    Object *obj = OBJECT(dev);
+    AVECCore *core;
+    int index;
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch AVEC: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+    core = loongarch_avec_get_cpu(s, dev);
+    if (!core) {
+        return;
+    }
+
+    core->cpu = CPU(dev);
+    index = core - s->cpu;
+
+    /* connect avec msg irq to cpu irq */
+    qdev_connect_gpio_out(DEVICE(s), index, qdev_get_gpio_in(dev, INT_AVEC));
+    return;
+}
+
+static void loongarch_avec_cpu_unplug(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    LoongArchAVECState *s = LOONGARCH_AVEC(hotplug_dev);
+    Object *obj = OBJECT(dev);
+    AVECCore *core;
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch AVEC: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+
+    core = loongarch_avec_get_cpu(s, dev);
+
+    if (!core) {
+        return;
+    }
+
+    core->cpu = NULL;
+}
+
 static void loongarch_avec_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     LoongArchAVECClass *lac = LOONGARCH_AVEC_CLASS(klass);
 
     dc->unrealize = loongarch_avec_unrealize;
     device_class_set_parent_realize(dc, loongarch_avec_realize,
                                     &lac->parent_realize);
+    hc->plug = loongarch_avec_cpu_plug;
+    hc->unplug = loongarch_avec_cpu_unplug;
 }
 
 static const TypeInfo loongarch_avec_info = {
@@ -132,6 +199,10 @@ static const TypeInfo loongarch_avec_info = {
     .instance_size = sizeof(LoongArchAVECState),
     .instance_init = loongarch_avec_init,
     .class_init    = loongarch_avec_class_init,
+    .interfaces    = (const InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    },
 };
 
 static void loongarch_avec_register_types(void)
