@@ -27,6 +27,7 @@ extern abi_ulong default_sigreturn;
 extern abi_ulong default_rt_sigreturn;
 
 void setup_sigtramp(abi_ulong tramp_page);
+bool is_vdso_sigreturn(abi_ulong pc);
 
 int on_sig_stack(unsigned long sp);
 int sas_ss_flags(unsigned long sp);

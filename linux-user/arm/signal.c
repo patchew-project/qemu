@@ -644,3 +644,8 @@ void setup_sigtramp(abi_ulong sigtramp_page)
 
     unlock_user(tramp, sigtramp_page, total_size);
 }
+
+bool is_vdso_sigreturn(abi_ulong pc)
+{
+    return (abi_ulong)(pc - default_sigreturn) <= 8 * RETCODE_BYTES;
+}

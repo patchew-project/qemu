@@ -789,3 +789,13 @@ do_sigsegv:
     force_sig(TARGET_SIGSEGV);
 }
 #endif /* TARGET_SPARC64 */
+
+bool is_vdso_sigreturn(abi_ulong pc)
+{
+#ifdef TARGET_ABI32
+    if (pc == default_sigreturn + 8 || pc == default_rt_sigreturn + 8) {
+        return true;
+    }
+#endif
+    return false;
+}

@@ -419,3 +419,8 @@ void setup_sigtramp(abi_ulong sigtramp_page)
 
     unlock_user(tramp, sigtramp_page, 2 + 2);
 }
+
+bool is_vdso_sigreturn(abi_ulong pc)
+{
+    return pc == default_sigreturn + 2 || pc == default_rt_sigreturn + 2;
+}

@@ -730,3 +730,13 @@ void setup_sigtramp(abi_ulong sigtramp_page)
 
     unlock_user(tramp, sigtramp_page, 2 * 8);
 }
+
+bool is_vdso_sigreturn(abi_ulong pc)
+{
+#ifdef TARGET_ARCH_HAS_SETUP_FRAME
+    if (pc == default_sigreturn + 8) {
+        return true;
+    }
+#endif
+    return pc == default_rt_sigreturn + 8;
+}

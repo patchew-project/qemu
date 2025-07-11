@@ -161,6 +161,11 @@ struct TaskState {
     /* This thread's sigaltstack, if it has one */
     struct target_sigaltstack sigaltstack_used;
 
+    /* This thread's SYSCALL_USER_DISPATCH state, len=~0 means disabled */
+    vaddr sys_dispatch;
+    abi_ulong sys_dispatch_len;
+    vaddr sys_dispatch_selector;
+
     /* Start time of task after system boot in clock ticks */
     uint64_t start_boottime;
 };

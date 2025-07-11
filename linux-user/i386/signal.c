@@ -865,3 +865,13 @@ void setup_sigtramp(abi_ulong sigtramp_page)
     unlock_user(tramp, sigtramp_page, 2 * 8);
 }
 #endif
+
+bool is_vdso_sigreturn(abi_ulong pc)
+{
+#ifndef TARGET_X86_64
+    if (pc == default_sigreturn + 8 || pc == default_rt_sigreturn + 7) {
+        return true;
+    }
+#endif
+    return false;
+}
