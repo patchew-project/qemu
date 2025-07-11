@@ -3089,7 +3089,9 @@ static int virtio_set_features_nocheck(VirtIODevice *vdev, const uint64_t *val)
 
     virtio_features_and(tmp, val, vdev->host_features_array);
 
-    if (k->set_features) {
+    if (k->set_features_ex) {
+        k->set_features_ex(vdev, val);
+    } else if (k->set_features) {
         bad = bad || virtio_features_use_extended(tmp);
         k->set_features(vdev, tmp[0]);
     }
@@ -3160,9 +3162,8 @@ virtio_set_128bit_features_nocheck_maybe_co(VirtIODevice *vdev,
     }
 }
 
-int virtio_set_features(VirtIODevice *vdev, uint64_t val)
+int virtio_set_features_ex(VirtIODevice *vdev, const uint64_t *features)
 {
-    uint64_t features[VIRTIO_FEATURES_DWORDS];
     int ret;
     /*
      * The driver must not attempt to set features after feature negotiation
@@ -3172,13 +3173,12 @@ int virtio_set_features(VirtIODevice *vdev, uint64_t val)
         return -EINVAL;
     }
 
-    if (val & (1ull << VIRTIO_F_BAD_FEATURE)) {
+    if (features[0] & (1ull << VIRTIO_F_BAD_FEATURE)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: guest driver for %s has enabled UNUSED(30) feature bit!\n",
                       __func__, vdev->name);
     }
 
-    virtio_features_from_u64(features, val);
     ret = virtio_set_features_nocheck(vdev, features);
     if (virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
         /* VIRTIO_RING_F_EVENT_IDX changes the size of the caches.  */
@@ -3196,6 +3196,14 @@ int virtio_set_features(VirtIODevice *vdev, uint64_t val)
         }
     }
     return ret;
+}
+
+int virtio_set_features(VirtIODevice *vdev, uint64_t val)
+{
+    uint64_t features[VIRTIO_FEATURES_DWORDS];
+
+    virtio_features_from_u64(features, val);
+    return virtio_set_features_ex(vdev, features);
 }
 
 void virtio_reset(void *opaque)
