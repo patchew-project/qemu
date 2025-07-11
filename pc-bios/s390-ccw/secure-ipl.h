@@ -86,6 +86,9 @@ static inline void zipl_secure_print(const char *message)
     case ZIPL_SECURE_AUDIT_MODE:
         IPL_check(false, message);
         break;
+    case ZIPL_SECURE_MODE:
+        IPL_assert(false, message);
+        break;
     default:
         break;
     }
