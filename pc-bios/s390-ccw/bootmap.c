@@ -8,6 +8,7 @@
  * directory.
  */
 
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "s390-ccw.h"
@@ -15,6 +16,7 @@
 #include "bootmap.h"
 #include "virtio.h"
 #include "bswap.h"
+#include "secure-ipl.h"
 
 #ifdef DEBUG
 /* #define DEBUG_FALLBACK */
@@ -33,6 +35,9 @@ static uint8_t sec[MAX_SECTOR_SIZE*4] __attribute__((__aligned__(PAGE_SIZE)));
 
 const uint8_t el_torito_magic[] = "EL TORITO SPECIFICATION"
                                   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+/* sector for storing signatures */
+static uint8_t sig_sec[MAX_SECTOR_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
 /*
  * Match two CCWs located after PSW and eight filler bytes.
@@ -676,6 +681,159 @@ static int zipl_load_segment(ComponentEntry *entry, uint64_t address)
     return comp_len;
 }
 
+static uint32_t zipl_handle_sig_entry(ComponentEntry *entry)
+{
+    uint32_t sig_len;
+
+    if (zipl_load_segment(entry, (uint64_t)sig_sec) < 0) {
+        return -1;
+    }
+
+    if (entry->compdat.sig_info.format != DER_SIGNATURE_FORMAT) {
+        puts("Signature is not in DER format");
+        return -1;
+    }
+    sig_len = entry->compdat.sig_info.sig_len;
+
+    return sig_len;
+}
+
+static int handle_certificate(int *cert_table, uint64_t **cert,
+                             uint64_t cert_len, uint8_t cert_idx,
+                             IplSignatureCertificateList *certs, int cert_index)
+{
+    bool unused;
+
+    unused = cert_table[cert_idx] == -1;
+    if (unused) {
+        if (zipl_secure_request_certificate(*cert, cert_idx)) {
+            zipl_secure_cert_list_add(certs, cert_index, *cert, cert_len);
+            cert_table[cert_idx] = cert_index;
+            *cert += cert_len;
+        } else {
+            puts("Could not get certificate");
+            return -1;
+        }
+
+        /* increment cert_index for the next cert entry */
+        return ++cert_index;
+    }
+
+    return cert_index;
+}
+
+static int zipl_run_secure(ComponentEntry *entry, uint8_t *tmp_sec)
+{
+    IplDeviceComponentList comps;
+    IplSignatureCertificateList certs;
+    uint64_t *cert = NULL;
+    int cert_index = 0;
+    int comp_index = 0;
+    uint64_t comp_addr;
+    int comp_len;
+    bool have_sig;
+    uint32_t sig_len;
+    uint64_t cert_len = -1;
+    uint8_t cert_idx = -1;
+    bool verified;
+    uint32_t certs_len;
+    /*
+     * Store indices of cert entry that have already used for signature verification
+     * to prevent allocating the same certificate multiple times.
+     * cert_table index: index of certificate from qemu cert store used for verification
+     * cert_table value: index of cert entry in cert list that contains the certificate
+     */
+    int cert_table[MAX_CERTIFICATES] = { [0 ... MAX_CERTIFICATES - 1] = -1};
+    int signed_count = 0;
+
+    if (!zipl_secure_ipl_supported()) {
+        return -1;
+    }
+
+    zipl_secure_init_lists(&comps, &certs);
+    certs_len = zipl_secure_get_certs_length();
+    cert = malloc(certs_len);
+
+    have_sig = false;
+    while (entry->component_type == ZIPL_COMP_ENTRY_LOAD ||
+           entry->component_type == ZIPL_COMP_ENTRY_SIGNATURE) {
+
+        if (entry->component_type == ZIPL_COMP_ENTRY_SIGNATURE) {
+            /* There should never be two signatures in a row */
+            if (have_sig) {
+                return -1;
+            }
+
+            sig_len = zipl_handle_sig_entry(entry);
+            if (sig_len < 0) {
+                return -1;
+            }
+
+            have_sig = true;
+        } else {
+            comp_addr = entry->compdat.load_addr;
+            comp_len = zipl_load_segment(entry, comp_addr);
+            if (comp_len < 0) {
+                return -1;
+            }
+
+            if (have_sig) {
+                verified = verify_signature(comp_len, comp_addr,
+                                            sig_len, (uint64_t)sig_sec,
+                                            &cert_len, &cert_idx);
+
+                if (verified) {
+                    cert_index = handle_certificate(cert_table, &cert,
+                                                    cert_len, cert_idx,
+                                                    &certs, cert_index);
+                    if (cert_index == -1) {
+                        return -1;
+                    }
+
+                    puts("Verified component");
+                    zipl_secure_comp_list_add(&comps, comp_index, cert_table[cert_idx],
+                                              comp_addr, comp_len,
+                                              S390_IPL_COMPONENT_FLAG_SC |
+                                              S390_IPL_COMPONENT_FLAG_CSV);
+                } else {
+                    zipl_secure_comp_list_add(&comps, comp_index, -1,
+                                              comp_addr, comp_len,
+                                              S390_IPL_COMPONENT_FLAG_SC);
+                    zipl_secure_print("Could not verify component");
+                }
+
+                comp_index++;
+                signed_count += 1;
+                /* After a signature is used another new one can be accepted */
+                have_sig = false;
+            }
+        }
+
+        entry++;
+
+        if ((uint8_t *)(&entry[1]) > tmp_sec + MAX_SECTOR_SIZE) {
+            puts("Wrong entry value");
+            return -EINVAL;
+        }
+    }
+
+    if (entry->component_type != ZIPL_COMP_ENTRY_EXEC) {
+        puts("No EXEC entry");
+        return -EINVAL;
+    }
+
+    if (signed_count == 0) {
+        zipl_secure_print("Secure boot is on, but components are not signed");
+    }
+
+    if (zipl_secure_update_iirb(&comps, &certs)) {
+        zipl_secure_print("Failed to write IPL Information Report Block");
+    }
+    write_reset_psw(entry->compdat.load_psw);
+
+    return 0;
+}
+
 static int zipl_run_normal(ComponentEntry *entry, uint8_t *tmp_sec)
 {
     while (entry->component_type == ZIPL_COMP_ENTRY_LOAD ||
@@ -735,8 +893,17 @@ static int zipl_run(ScsiBlockPtr *pte)
     /* Load image(s) into RAM */
     entry = (ComponentEntry *)(&header[1]);
 
-    if (zipl_run_normal(entry, tmp_sec)) {
-        return -1;
+    switch (boot_mode) {
+    case ZIPL_SECURE_AUDIT_MODE:
+        if (zipl_run_secure(entry, tmp_sec)) {
+            return -1;
+        }
+        break;
+    case ZIPL_NORMAL_MODE:
+        if (zipl_run_normal(entry, tmp_sec)) {
+            return -1;
+        }
+        break;
     }
 
     /* should not return */
@@ -1095,17 +1262,35 @@ static int zipl_load_vscsi(void)
  * IPL starts here
  */
 
+ZiplBootMode zipl_mode(uint8_t hdr_flags)
+{
+    bool sipl_set = hdr_flags & DIAG308_IPIB_FLAGS_SIPL;
+    bool iplir_set = hdr_flags & DIAG308_IPIB_FLAGS_IPLIR;
+
+    if (!sipl_set && iplir_set) {
+        return ZIPL_SECURE_AUDIT_MODE;
+    }
+
+    return ZIPL_NORMAL_MODE;
+}
+
 void zipl_load(void)
 {
     VDev *vdev = virtio_get_device();
 
     if (vdev->is_cdrom) {
+        if (boot_mode == ZIPL_SECURE_AUDIT_MODE) {
+            panic("Secure boot from ISO image is not supported!");
+        }
         ipl_iso_el_torito();
         puts("Failed to IPL this ISO image!");
         return;
     }
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {
+        if (boot_mode == ZIPL_SECURE_AUDIT_MODE) {
+            panic("Virtio net boot device does not support secure boot!");
+        }
         netmain();
         puts("Failed to IPL from this network!");
         return;
@@ -1114,6 +1299,10 @@ void zipl_load(void)
     if (ipl_scsi()) {
         puts("Failed to IPL from this SCSI device!");
         return;
+    }
+
+    if (boot_mode == ZIPL_SECURE_AUDIT_MODE) {
+        panic("ECKD boot device does not support secure boot!");
     }
 
     switch (virtio_get_device_type()) {
