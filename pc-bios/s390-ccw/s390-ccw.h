@@ -83,8 +83,10 @@ int virtio_read(unsigned long sector, void *load_addr);
 void zipl_load(void);
 
 typedef enum ZiplBootMode {
+    ZIPL_SECURE_INVALID_MODE = -1,
     ZIPL_NORMAL_MODE = 1,
     ZIPL_SECURE_AUDIT_MODE = 2,
+    ZIPL_SECURE_MODE = 3,
 } ZiplBootMode;
 
 extern ZiplBootMode boot_mode;
