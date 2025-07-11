@@ -17,6 +17,7 @@
 #include "s390x-internal.h"
 #include "hw/watchdog/wdt_diag288.h"
 #include "system/cpus.h"
+#include "hw/s390x/cert-store.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/ipl/diag320.h"
 #include "hw/s390x/s390-virtio-ccw.h"
@@ -24,6 +25,7 @@
 #include "kvm/kvm_s390x.h"
 #include "target/s390x/kvm/pv.h"
 #include "qemu/error-report.h"
+#include "crypto/x509-utils.h"
 
 
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
@@ -192,8 +194,252 @@ out:
     }
 }
 
+static int diag_320_is_cert_valid(S390IPLCertificate qcert)
+{
+    int version;
+    int rc;
+    Error *err = NULL;
+
+    version = qcrypto_x509_get_cert_version(qcert.raw, qcert.size, &err);
+    if (version < 0) {
+        error_report_err(err);
+        return -1;
+    }
+
+    rc = qcrypto_x509_check_cert_times(qcert.raw, qcert.size, &err);
+    if (rc != 0) {
+        error_report_err(err);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int diag_320_get_cert_info(VCEntry *vce, S390IPLCertificate qcert,
+                                  uint8_t **cert_der, unsigned char **key_id_data,
+                                  void **hash_data)
+{
+    int algo;
+    int rc;
+    Error *err = NULL;
+
+    /* key-type */
+    algo = qcrypto_x509_get_pk_algorithm(qcert.raw, qcert.size, &err);
+    if (algo < 0) {
+        error_report_err(err);
+        return -1;
+    }
+    if (algo == QCRYPTO_PK_ALGO_RSA) {
+        vce->key_type = DIAG_320_VCE_KEYTYPE_SELF_DESCRIBING;
+    }
+
+    /* certificate in DER format */
+    rc = qcrypto_x509_convert_cert_der(qcert.raw, qcert.size,
+                                       cert_der, &qcert.der_size, &err);
+    if (rc < 0) {
+        error_report_err(err);
+        goto out;
+    }
+
+    /* VC format */
+    vce->format = DIAG_320_VCE_FORMAT_X509_DER;
+
+    /* key id and key id len */
+    rc = qcrypto_x509_get_cert_key_id(qcert.raw, qcert.size,
+                                      QCRYPTO_KEYID_FLAGS_SHA256,
+                                      key_id_data, &qcert.key_id_size, &err);
+    if (rc < 0) {
+        error_report_err(err);
+        goto out;
+    }
+    vce->keyid_len = cpu_to_be16(qcert.key_id_size);
+
+    /* hash type */
+    if (qcert.hash_type == QCRYPTO_SIG_ALGO_RSA_SHA256) {
+        vce->hash_type = DIAG_320_VCE_HASHTYPE_SHA2_256;
+    }
+
+    /* hash and hash len */
+    *hash_data = g_malloc0(qcert.hash_size);
+    rc = qcrypto_get_x509_cert_fingerprint(qcert.raw, qcert.size,
+                                           QCRYPTO_HASH_ALGO_SHA256,
+                                           *hash_data, &qcert.hash_size, &err);
+    if (rc < 0) {
+        error_report_err(err);
+        goto out;
+    }
+    vce->hash_len = cpu_to_be16(qcert.hash_size);
+
+    return 0;
+
+out:
+    g_clear_pointer(cert_der, g_free);
+    g_clear_pointer(key_id_data, g_free);
+    g_clear_pointer(hash_data, g_free);
+
+    return -1;
+}
+
+static VCEntry *build_vce(S390IPLCertificate qcert, uint32_t vce_len, int idx,
+                          size_t keyid_buf_size, size_t hash_buf_size)
+{
+    g_autofree VCEntry *vce = NULL;
+    g_autofree uint8_t *cert_der = NULL;
+    g_autofree unsigned char *key_id_data = NULL;
+    g_autofree void *hash_data = NULL;
+    int is_valid = -1;
+    int rc;
+
+    /*
+     * Construct VCE
+     * Unused area following the VCE field contains zeros.
+     */
+    vce = g_malloc0(vce_len);
+
+    rc = diag_320_get_cert_info(vce, qcert, &cert_der, &key_id_data, &hash_data);
+    if (rc) {
+        return NULL;
+    }
+
+    is_valid = diag_320_is_cert_valid(qcert);
+
+    vce->len = cpu_to_be32(vce_len);
+    vce->cert_idx = cpu_to_be16(idx + 1);
+    vce->cert_len = cpu_to_be32(qcert.der_size);
+
+    strncpy((char *)vce->name, (char *)qcert.vc_name, VC_NAME_LEN_BYTES);
+
+    /* VCE field offset is also word aligned */
+    vce->hash_offset = cpu_to_be16(VCE_HEADER_LEN + keyid_buf_size);
+    vce->cert_offset = cpu_to_be16(VCE_HEADER_LEN + keyid_buf_size + hash_buf_size);
+
+    /* Write Key ID */
+    memcpy(vce->cert_buf, key_id_data, qcert.key_id_size);
+    /* Write Hash key */
+    memcpy(vce->cert_buf + keyid_buf_size, hash_data, qcert.hash_size);
+    /* Write VCE cert data */
+    memcpy(vce->cert_buf + keyid_buf_size + hash_buf_size, cert_der, qcert.der_size);
+
+    /* The certificate is valid and VCE contains the certificate */
+    if (is_valid == 0) {
+        vce->flags |= DIAG_320_VCE_FLAGS_VALID;
+    }
+
+    return g_steal_pointer(&vce);
+}
+
+static int handle_diag320_store_vc(S390CPU *cpu, uint64_t addr, uint64_t r1, uintptr_t ra,
+                                   S390IPLCertificateStore *qcs)
+{
+    g_autofree VCBlock *vcb = NULL;
+    size_t vce_offset;
+    size_t remaining_space;
+    size_t keyid_buf_size;
+    size_t hash_buf_size;
+    size_t cert_buf_size;
+    uint32_t vce_len;
+    uint16_t first_vc_index;
+    uint16_t last_vc_index;
+    uint32_t in_len;
+
+    vcb = g_new0(VCBlock, 1);
+    if (s390_cpu_virt_mem_read(cpu, addr, r1, vcb, sizeof(*vcb))) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
+        return -1;
+    }
+
+    in_len = be32_to_cpu(vcb->in_len);
+    first_vc_index = be16_to_cpu(vcb->first_vc_index);
+    last_vc_index = be16_to_cpu(vcb->last_vc_index);
+
+    if (in_len % TARGET_PAGE_SIZE != 0) {
+        return DIAG_320_RC_INVAL_VCB_LEN;
+    }
+
+    if (first_vc_index > last_vc_index) {
+        return DIAG_320_RC_BAD_RANGE;
+    }
+
+    if (first_vc_index == 0) {
+        /*
+         * Zero is a valid index for the first and last VC index.
+         * Zero index results in the VCB header and zero certificates returned.
+         */
+        if (last_vc_index == 0) {
+            goto out;
+        }
+
+        /* DIAG320 certificate store remains a one origin for cert entries */
+        vcb->first_vc_index = 1;
+        first_vc_index = 1;
+    }
+
+    vce_offset = VCB_HEADER_LEN;
+    vcb->out_len = VCB_HEADER_LEN;
+    remaining_space = in_len - VCB_HEADER_LEN;
+
+    for (int i = first_vc_index - 1; i < last_vc_index && i < qcs->count; i++) {
+        VCEntry *vce;
+        S390IPLCertificate qcert = qcs->certs[i];
+        /*
+         * Each VCE is word aligned.
+         * Each variable length field within the VCE is also word aligned.
+         */
+        keyid_buf_size = ROUND_UP(qcert.key_id_size, 4);
+        hash_buf_size = ROUND_UP(qcert.hash_size, 4);
+        cert_buf_size = ROUND_UP(qcert.der_size, 4);
+        vce_len = VCE_HEADER_LEN + cert_buf_size + keyid_buf_size + hash_buf_size;
+
+        /*
+         * If there is no more space to store the cert,
+         * set the remaining verification cert count and
+         * break early.
+         */
+        if (remaining_space < vce_len) {
+            vcb->remain_ct = cpu_to_be16(last_vc_index - i);
+            break;
+        }
+
+        vce = build_vce(qcert, vce_len, i, keyid_buf_size, hash_buf_size);
+        if (vce == NULL) {
+            continue;
+        }
+
+        /* Write VCE */
+        if (s390_cpu_virt_mem_write(cpu, addr + vce_offset, r1, vce, vce_len)) {
+            s390_cpu_virt_mem_handle_exc(cpu, ra);
+            return -1;
+        }
+
+        vce_offset += vce_len;
+        vcb->out_len += vce_len;
+        remaining_space -= vce_len;
+        vcb->stored_ct++;
+
+        g_free(vce);
+    }
+
+    vcb->out_len = cpu_to_be32(vcb->out_len);
+    vcb->stored_ct = cpu_to_be16(vcb->stored_ct);
+
+out:
+    /*
+     * Write VCB header
+     * All VCEs have been populated with the latest information
+     * and write VCB header last.
+     */
+    if (s390_cpu_virt_mem_write(cpu, addr, r1, vcb, VCB_HEADER_LEN)) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
+        return -1;
+    }
+
+    return DIAG_320_RC_OK;
+}
+
 QEMU_BUILD_BUG_MSG(sizeof(VCStorageSizeBlock) != 128,
                    "size of VCStorageSizeBlock is wrong");
+QEMU_BUILD_BUG_MSG(sizeof(VCBlock) != 64, "size of VCBlock is wrong");
+QEMU_BUILD_BUG_MSG(sizeof(VCEntry) != 128, "size of VCEntry is wrong");
 
 void handle_diag_320(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
 {
@@ -220,7 +466,7 @@ void handle_diag_320(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
 
     switch (subcode) {
     case DIAG_320_SUBC_QUERY_ISM:
-        uint64_t ism = cpu_to_be64(DIAG_320_ISM_QUERY_VCSI);
+        uint64_t ism = cpu_to_be64(DIAG_320_ISM_QUERY_VCSI | DIAG_320_ISM_STORE_VC);
 
         if (s390_cpu_virt_mem_write(cpu, addr, r1, &ism, sizeof(ism))) {
             s390_cpu_virt_mem_handle_exc(cpu, ra);
@@ -258,6 +504,12 @@ void handle_diag_320(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
             return;
         }
         rc = DIAG_320_RC_OK;
+        break;
+    case DIAG_320_SUBC_STORE_VC:
+        rc = handle_diag320_store_vc(cpu, addr, r1, ra, qcs);
+        if (rc == -1) {
+            return;
+        }
         break;
     default:
         s390_program_interrupt(env, PGM_SPECIFICATION, ra);
