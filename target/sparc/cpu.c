@@ -1093,6 +1093,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, const void *data)
     cc->gdb_core_xml_file = "sparc64-core.xml";
     cc->gdb_num_core_regs = 86;
 #else
+    cc->gdb_core_xml_file = "sparc32-core.xml";
     cc->gdb_num_core_regs = 72;
 #endif
     cc->tcg_ops = &sparc_tcg_ops;
