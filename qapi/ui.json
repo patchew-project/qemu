@@ -325,8 +325,6 @@
 #
 # Return information about the current SPICE server
 #
-# Returns: @SpiceInfo
-#
 # Since: 0.14
 #
 # .. qmp-example::
@@ -656,8 +654,6 @@
 #
 # Return information about the current VNC server
 #
-# Returns: @VncInfo
-#
 # Since: 0.14
 #
 # .. qmp-example::
@@ -686,8 +682,6 @@
 # @query-vnc-servers:
 #
 # Return a list of vnc servers.  The list can be empty.
-#
-# Returns: a list of @VncInfo2
 #
 # Since: 2.3
 ##
@@ -1563,8 +1557,6 @@
 # @query-display-options:
 #
 # Return information about display configuration
-#
-# Returns: @DisplayOptions
 #
 # Since: 3.1
 ##
