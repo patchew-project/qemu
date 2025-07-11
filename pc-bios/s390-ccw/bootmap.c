@@ -745,6 +745,10 @@ static int zipl_run_secure(ComponentEntry *entry, uint8_t *tmp_sec)
      */
     int cert_table[MAX_CERTIFICATES] = { [0 ... MAX_CERTIFICATES - 1] = -1};
     int signed_count = 0;
+    int unsigned_count = 0;
+    SecureIplSclabInfo sclab_info;
+    SecureIplCompAddrRange comp_addr_range[MAX_CERTIFICATES];
+    int addr_range_index = 0;
 
     if (!zipl_secure_ipl_supported()) {
         return -1;
@@ -777,7 +781,17 @@ static int zipl_run_secure(ComponentEntry *entry, uint8_t *tmp_sec)
                 return -1;
             }
 
-            if (have_sig) {
+            zipl_secure_addr_overlap_check(comp_addr_range, &addr_range_index,
+                                           comp_addr, comp_addr + comp_len, have_sig);
+
+            if (!have_sig) {
+                zipl_secure_check_unsigned_comp(comp_addr, &comps, comp_index,
+                                                cert_index, comp_len);
+                unsigned_count += 1;
+            } else {
+                zipl_secure_check_sclab(comp_addr, &comps, comp_len, comp_index,
+                                        &sclab_info);
+
                 verified = verify_signature(comp_len, comp_addr,
                                             sig_len, (uint64_t)sig_sec,
                                             &cert_len, &cert_idx);
@@ -802,11 +816,12 @@ static int zipl_run_secure(ComponentEntry *entry, uint8_t *tmp_sec)
                     zipl_secure_print("Could not verify component");
                 }
 
-                comp_index++;
                 signed_count += 1;
                 /* After a signature is used another new one can be accepted */
                 have_sig = false;
             }
+
+            comp_index++;
         }
 
         entry++;
@@ -822,9 +837,11 @@ static int zipl_run_secure(ComponentEntry *entry, uint8_t *tmp_sec)
         return -EINVAL;
     }
 
-    if (signed_count == 0) {
-        zipl_secure_print("Secure boot is on, but components are not signed");
-    }
+    zipl_secure_check_signed_comp(signed_count, &comps);
+    zipl_secure_check_sclab_count(sclab_info.count, &comps);
+    zipl_secure_check_global_sclab(sclab_info, comp_addr_range, addr_range_index,
+                                   entry->compdat.load_psw, unsigned_count, signed_count,
+                                   &comps, comp_index);
 
     if (zipl_secure_update_iirb(&comps, &certs)) {
         zipl_secure_print("Failed to write IPL Information Report Block");
