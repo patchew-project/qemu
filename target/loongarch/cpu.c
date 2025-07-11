@@ -130,7 +130,15 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
-        env->CSR_ESTAT = deposit64(env->CSR_ESTAT, irq, 1, level != 0);
+        /* do INTC_AVEC irqs */
+        if (irq == INT_AVEC) {
+            irq = find_first_bit(env->CSR_MSGIS, 256);
+            if (irq < 256) {
+                env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, MSGINT, 1);
+            }
+        } else {
+            env->CSR_ESTAT = deposit64(env->CSR_ESTAT, irq, 1, level != 0);
+        }
         if (FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS)) {
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
