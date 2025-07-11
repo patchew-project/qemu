@@ -594,6 +594,14 @@ static int kvm_riscv_get_regs_core(CPUState *cs)
     }
     env->pc = reg;
 
+    /*Restore the guest's privileged level after migration*/
+    ret = kvm_get_one_reg(cs, RISCV_CORE_REG(env, mode), &reg);
+    if (ret) {
+        return ret;
+    }
+    if(reg != 3) {
+        env->priv = reg;
+    }
     for (i = 1; i < 32; i++) {
         uint64_t id = KVM_RISCV_REG_ID_ULONG(KVM_REG_RISCV_CORE, i);
         ret = kvm_get_one_reg(cs, id, &reg);
@@ -617,6 +625,15 @@ static int kvm_riscv_put_regs_core(CPUState *cs)
     ret = kvm_set_one_reg(cs, RISCV_CORE_REG(regs.pc), &reg);
     if (ret) {
         return ret;
+    }
+
+    /*Save guest privilege level before migration*/
+    reg = env->priv;
+    if(reg != 3) {
+        ret = kvm_set_one_reg(cs, RISCV_CORE_REG(env, mode), &reg);
+        if (ret) {
+            return ret;
+        }
     }
 
     for (i = 1; i < 32; i++) {
@@ -1391,6 +1408,12 @@ int kvm_arch_put_registers(CPUState *cs, int level, Error **errp)
     ret = kvm_riscv_put_regs_vector(cs);
     if (ret) {
         return ret;
+    }
+
+    /*Ensure all non-core 0 CPUs are runnable after migration*/
+    if((level == KVM_PUT_FULL_STATE) && (cs->cpu_index != 0)){
+        RISCVCPU *cpu = RISCV_CPU(cs);
+        ret = kvm_riscv_sync_mpstate_to_kvm(cpu, KVM_MP_STATE_RUNNABLE);
     }
 
     if (KVM_PUT_RESET_STATE == level) {
