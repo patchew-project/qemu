@@ -88,6 +88,7 @@ Board-specific documentation
    arm/emcraft-sf2
    arm/exynos
    arm/fby35
+   arm/max78000
    arm/musicpal
    arm/kzm
    arm/nrf
