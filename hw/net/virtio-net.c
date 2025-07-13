@@ -389,6 +389,12 @@ static int virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
     int i;
     uint8_t queue_status;
 
+    if ((status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        !(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        bool vlan = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VLAN);
+        memset(n->vlans, vlan ? 0 : 0xff, MAX_VLAN >> 3);
+    }
+
     virtio_net_vnet_endian_status(n, status);
     virtio_net_vhost_status(n, status);
 
@@ -996,10 +1002,6 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
          * can't miss any features configured by guest virtio driver.
          */
         vhost_net_save_acked_features(nc->peer);
-    }
-
-    if (!virtio_has_feature(features, VIRTIO_NET_F_CTRL_VLAN)) {
-        memset(n->vlans, 0xff, MAX_VLAN >> 3);
     }
 
     if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
@@ -3990,7 +3992,6 @@ static void virtio_net_reset(VirtIODevice *vdev)
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
     memcpy(&n->mac[0], &n->nic->conf->macaddr, sizeof(n->mac));
     qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
-    memset(n->vlans, 0, MAX_VLAN >> 3);
 
     /* Flush any async TX */
     for (i = 0;  i < n->max_queue_pairs; i++) {
