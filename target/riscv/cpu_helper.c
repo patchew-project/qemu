@@ -2243,6 +2243,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             break;
         case RISCV_EXCP_ILLEGAL_INST:
         case RISCV_EXCP_VIRT_INSTRUCTION_FAULT:
+            /*
+             * Note: we'll set tval = 0 for illegal_inst cases
+             * where we failed to unwind and to get the proper
+             * opcode. See riscv_raise_exception() for more info.
+             */
             tval = env->bins;
             break;
         case RISCV_EXCP_BREAKPOINT:

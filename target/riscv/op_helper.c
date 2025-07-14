@@ -40,6 +40,27 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
                           env->pc);
 
     cs->exception_index = exception;
+
+    /*
+     * There is no guarantee that we'll be able to unwind
+     * and set env->bins (the opcode for the current PC)
+     * properly via the cpu_restore_state() path. The RISC-V
+     * priv ISA says that:
+     *
+     * "The mtval register can optionally also be used to return
+     * the faulting instruction bits on an illegal-instruction
+     * exception (mepc points to the faulting instruction in
+     * memory)."
+     *
+     * It's not ideal to set mtval != 0 in some cases and zero
+     * in others due to unwind failures, but it's way better
+     * than to set mtval to a bogus env->bins opcode from
+     * the last successful unwinding.
+     */
+    if (cs->exception_index == RISCV_EXCP_ILLEGAL_INST) {
+        env->bins = 0;
+    }
+
     cpu_loop_exit_restore(cs, pc);
 }
 
