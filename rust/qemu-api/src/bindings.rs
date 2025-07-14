@@ -18,11 +18,15 @@
 
 //! `bindgen`-generated declarations.
 
-#[cfg(MESON)]
-include!("bindings.inc.rs");
+#[allow(clippy::too_many_arguments)]
+mod gen {
+    #[cfg(MESON)]
+    include!("bindings.inc.rs");
 
-#[cfg(not(MESON))]
-include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
+    #[cfg(not(MESON))]
+    include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
+}
+pub use gen::*;
 
 // SAFETY: these are implemented in C; the bindings need to assert that the
 // BQL is taken, either directly or via `BqlCell` and `BqlRefCell`.
