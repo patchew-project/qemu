@@ -750,6 +750,20 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
     },
 };
 
+static int kvm_arm_save_pending_tables(GICv3State *s)
+{
+    Error *err = NULL;
+    int ret;
+
+    ret = kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+                            KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES,
+                            NULL, true, &err);
+    if (err) {
+        error_report_err(err);
+    }
+    return ret;
+}
+
 /**
  * vm_change_state_handler - VM change state callback aiming at flushing
  * RDIST pending tables into guest RAM
@@ -759,20 +773,12 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
 static void vm_change_state_handler(void *opaque, bool running,
                                     RunState state)
 {
-    GICv3State *s = (GICv3State *)opaque;
-    Error *err = NULL;
     int ret;
 
     if (running) {
         return;
     }
-
-    ret = kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-                           KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES,
-                           NULL, true, &err);
-    if (err) {
-        error_report_err(err);
-    }
+    ret = kvm_arm_save_pending_tables(opaque);
     if (ret < 0 && ret != -EFAULT) {
         abort();
     }
