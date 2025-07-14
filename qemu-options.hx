@@ -5994,6 +5994,46 @@ SRST
                  -machine ...,confidential-guest-support=sev0 \\
                  .....
 
+    ``-object tdx-guest,id=id,[attributes=attrs,sept-ve-disable=on|off,mrconfigid=sha384_digest,mrowner=sha384_digest,mrownerconfig=sha384_digest,quote-generation-socket=socketaddr]``
+        Create an Intel Trusted Domain eXtensions (TDX) guest object, which is
+        the type of ``confidentiala-guest-support`` object. When pass the object
+        ID to machine's ``confidentiala-guest-support`` property, it can create
+        a TDX guest.
+
+        The ``attributes`` is a 64-bit integer, which specifies the TD
+        attributes of the TD.
+
+        The ``sept-ve-disable`` controls the bit 28 of TD attributes
+        specifically. When it's on, the EPT violation conversion to #VE on
+        guest access of PENDING pages is disabled. Some guest OS (e.g., Linux
+        TD guest) may require this to be set, otherwise they refuse to boot.
+        The default value is on.
+
+        The ``mrconfigid`` is base64 encoded SHA384 digest, which provides the
+        ID for non-owner-defined configuration of the guest TD, e.g., run-time
+        or OS configuration. The default value is all zeros.
+
+        The ``mrowner`` is base64 encoded SHA384 digest, which provides the ID
+        for guest TD's owner. The default value is all zeros.
+
+        The ``mrownerconfig`` is base64 encoded SHA384 digest, which provides
+        the ID for owner-defined configuration of the guest TD, e.g., the
+        configuration specific to the workload rather than the run-time of OS.
+        The default value is all zeros.
+
+        The ``quote-generation-socket`` specifies the socket address of the
+        Quote Generation Service (QGS). QGS is a daemon running on the host.
+        QEMU forwards the <GetQuote> request from TD guest to QGS and sents the
+        reply (which contains generated QUOTE on success) from QGS to guest TD.
+
+        .. parsed-literal::
+
+             # |qemu_system_x86| \\
+                 ... \\
+                 -object tdx-guest,id=tdx0, \\
+                 -machine ...,confidential-guest-support=tdx0 \\
+                 ...
+
     ``-object authz-simple,id=id,identity=string``
         Create an authorization object that will control access to
         network services.
