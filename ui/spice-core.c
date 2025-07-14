@@ -489,6 +489,9 @@ static QemuOptsList qemu_spice_opts = {
             .name = "streaming-video",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "video-codec",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "agent-mouse",
             .type = QEMU_OPT_BOOL,
         },{
@@ -662,6 +665,8 @@ static void qemu_spice_init(void)
     char *x509_key_file = NULL,
         *x509_cert_file = NULL,
         *x509_cacert_file = NULL;
+    const char *video_codec = NULL;
+    g_autofree char *enc_codec = NULL;
     int port, tls_port, addr_flags;
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
@@ -838,6 +843,16 @@ static void qemu_spice_init(void)
         if ((port != 0) || (tls_port != 0)) {
 #if SPICE_SERVER_VERSION >= 0x000f03 /* release 0.15.3 */
             spice_remote_client = 1;
+
+            video_codec = qemu_opt_get(opts, "video-codec");
+            if (video_codec) {
+                enc_codec = g_strconcat("gstreamer:", video_codec, NULL);
+            }
+            if (spice_server_set_video_codecs(spice_server,
+                                              enc_codec ?: "gstreamer:h264")) {
+                error_report("invalid video codec");
+                exit(1);
+            }
 #else
             error_report("SPICE GL support is local-only for now and "
                          "incompatible with -spice port/tls-port");
