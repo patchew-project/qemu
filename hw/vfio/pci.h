@@ -132,6 +132,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI_BASE)
 
 struct VFIOPCIDevice {
     PCIDevice pdev;
+
     VFIODevice vbasedev;
     VFIOINTx intx;
     unsigned int config_size;
