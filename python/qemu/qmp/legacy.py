@@ -34,6 +34,7 @@ from typing import (
     TypeVar,
     Union,
 )
+import warnings
 
 from .error import QMPError
 from .protocol import Runstate, SocketAddrT
@@ -87,7 +88,11 @@ class QEMUMonitorProtocol:
 
         self._qmp = QMPClient(nickname)
         try:
-            self._aloop = asyncio.get_event_loop()
+            with warnings.catch_warnings():
+                # Python <= 3.13 will trigger deprecation warnings
+                # if no event loop is set
+                warnings.simplefilter("ignore")
+                self._aloop = asyncio.get_event_loop()
         except RuntimeError:
             self._aloop = asyncio.new_event_loop()
         self._address = address
