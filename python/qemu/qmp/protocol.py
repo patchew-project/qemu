@@ -41,7 +41,6 @@ from .util import (
     flush,
     pretty_traceback,
     upper_half,
-    wait_closed,
 )
 
 
@@ -830,7 +829,7 @@ class AsyncProtocol(Generic[T]):
 
         self.logger.debug("Waiting for StreamWriter to close ...")
         try:
-            await wait_closed(self._writer)
+            await self._writer.wait_closed()
         except Exception:  # pylint: disable=broad-except
             # It's hard to tell if the Stream is already closed or
             # not. Even if one of the tasks has failed, it may have
