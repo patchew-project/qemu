@@ -49,10 +49,11 @@ class Aarch64RMEVirtMachine(QemuSystemTest):
     # Stack is built with OP-TEE build environment from those instructions:
     # https://linaro.atlassian.net/wiki/spaces/QEMU/pages/29051027459/
     # https://github.com/pbo-linaro/qemu-rme-stack
+    # ./container.sh ./build_virt.sh && ./archive_artifacts.sh virt virt.tar.xz
     ASSET_RME_STACK_VIRT = Asset(
-        ('https://fileserver.linaro.org/s/iaRsNDJp2CXHMSJ/'
-         'download/rme-stack-op-tee-4.2.0-cca-v4-qemu_v8.tar.gz'),
-         '1851adc232b094384d8b879b9a2cfff07ef3d6205032b85e9b3a4a9ae6b0b7ad')
+        ('https://fileserver.linaro.org/s/YpLmzLNL6BAxYL8/'
+         'download/virt_cca_v10.tar.xz'),
+         'bc432c92d62f3cd3542a943cd5a6329b2464c986f8f5dc48f727a0e5386a0e95')
 
     # This tests the FEAT_RME cpu implementation, by booting a VM supporting it,
     # and launching a nested VM using it.
@@ -66,7 +67,7 @@ class Aarch64RMEVirtMachine(QemuSystemTest):
         stack_path_tar_gz = self.ASSET_RME_STACK_VIRT.fetch()
         self.archive_extract(stack_path_tar_gz, format="tar")
 
-        rme_stack = self.scratch_file('rme-stack-op-tee-4.2.0-cca-v4-qemu_v8')
+        rme_stack = self.scratch_file('.')
         kernel = os.path.join(rme_stack, 'out', 'bin', 'Image')
         bios = os.path.join(rme_stack, 'out', 'bin', 'flash.bin')
         drive = os.path.join(rme_stack, 'out-br', 'images', 'rootfs.ext4')

@@ -21,10 +21,11 @@ class Aarch64RMESbsaRefMachine(QemuSystemTest):
     # Stack is built with OP-TEE build environment from those instructions:
     # https://linaro.atlassian.net/wiki/spaces/QEMU/pages/29051027459/
     # https://github.com/pbo-linaro/qemu-rme-stack
+    # ./container.sh ./build_sbsa.sh && ./archive_artifacts.sh sbsa sbsa.tar.xz
     ASSET_RME_STACK_SBSA = Asset(
-        ('https://fileserver.linaro.org/s/KJyeBxL82mz2r7F/'
-         'download/rme-stack-op-tee-4.2.0-cca-v4-sbsa.tar.gz'),
-         'dd9ab28ec869bdf3b5376116cb3689103b43433fd5c4bca0f4a8d8b3c104999e')
+        ('https://fileserver.linaro.org/s/gW3mmtC4ZQaxNJ2/'
+         'download/sbsa_cca_v10.tar.xz'),
+         'b6ec3435a459eb298f221beb5073e485f290d38055d0aafbcff7d8e7c334aa73')
 
     # This tests the FEAT_RME cpu implementation, by booting a VM supporting it,
     # and launching a nested VM using it.
@@ -38,7 +39,7 @@ class Aarch64RMESbsaRefMachine(QemuSystemTest):
         stack_path_tar_gz = self.ASSET_RME_STACK_SBSA.fetch()
         self.archive_extract(stack_path_tar_gz, format="tar")
 
-        rme_stack = self.scratch_file('rme-stack-op-tee-4.2.0-cca-v4-sbsa')
+        rme_stack = self.scratch_file('.')
         pflash0 = os.path.join(rme_stack, 'images', 'SBSA_FLASH0.fd')
         pflash1 = os.path.join(rme_stack, 'images', 'SBSA_FLASH1.fd')
         virtual = os.path.join(rme_stack, 'images', 'disks', 'virtual')
