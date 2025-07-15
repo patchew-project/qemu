@@ -1348,9 +1348,7 @@ static void vfio_sub_page_bar_update_mapping(PCIDevice *pdev, int bar)
 
     memory_region_transaction_begin();
 
-    if (vdev->bars[bar].size < size) {
-        memory_region_set_size(base_mr, size);
-    }
+    memory_region_set_size(base_mr, size);
     memory_region_set_size(region_mr, size);
     memory_region_set_size(mmap_mr, size);
     if (size != vdev->bars[bar].size && memory_region_is_mapped(base_mr)) {
