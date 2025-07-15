@@ -172,7 +172,7 @@ static inline void qemu_funlockfile(FILE *f)
 bool qemu_socket_select(int sockfd, WSAEVENT hEventObject,
                         long lNetworkEvents, Error **errp);
 
-bool qemu_socket_unselect(int sockfd, Error **errp);
+bool qemu_socket_unselect(int sockfd);
 
 /* We wrap all the sockets functions so that we can set errno based on
  * WSAGetLastError(), and use file-descriptors instead of SOCKET.
