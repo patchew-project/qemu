@@ -46,7 +46,7 @@ typedef struct DesignwarePCIEViewport {
 
     uint64_t base;
     uint64_t target;
-    uint32_t limit;
+    uint64_t limit;
     uint32_t cr[2];
 
     bool inbound;
