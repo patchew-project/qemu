@@ -206,7 +206,7 @@ static inline bool vfio_pci_is(VFIOPCIDevice *vdev, uint32_t vendor, uint32_t de
 
 static inline bool vfio_is_vga(VFIOPCIDevice *vdev)
 {
-    PCIDevice *pdev = &vdev->pdev;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     uint16_t class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
 
     return class == PCI_CLASS_DISPLAY_VGA;
