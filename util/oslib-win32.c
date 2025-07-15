@@ -292,21 +292,18 @@ char *qemu_get_pid_name(pid_t pid)
 
 
 bool qemu_socket_select(int sockfd, WSAEVENT hEventObject,
-                        long lNetworkEvents, Error **errp)
+                        long lNetworkEvents)
 {
     SOCKET s = _get_osfhandle(sockfd);
 
-    if (errp == NULL) {
-        errp = &error_warn;
-    }
-
     if (s == INVALID_SOCKET) {
-        error_setg(errp, "invalid socket fd=%d", sockfd);
+        error_setg(&error_warn, "invalid socket fd=%d", sockfd);
         return false;
     }
 
     if (WSAEventSelect(s, hEventObject, lNetworkEvents) != 0) {
-        error_setg_win32(errp, WSAGetLastError(), "failed to WSAEventSelect()");
+        error_setg_win32(&error_warn, WSAGetLastError(),
+                         "failed to WSAEventSelect()");
         return false;
     }
 
@@ -315,7 +312,7 @@ bool qemu_socket_select(int sockfd, WSAEVENT hEventObject,
 
 bool qemu_socket_unselect(int sockfd)
 {
-    return qemu_socket_select(sockfd, NULL, 0, NULL);
+    return qemu_socket_select(sockfd, NULL, 0);
 }
 
 int qemu_socketpair(int domain, int type, int protocol, int sv[2])

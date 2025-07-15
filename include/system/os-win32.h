@@ -170,7 +170,7 @@ static inline void qemu_funlockfile(FILE *f)
 
 /* Helper for WSAEventSelect, to report errors */
 bool qemu_socket_select(int sockfd, WSAEVENT hEventObject,
-                        long lNetworkEvents, Error **errp);
+                        long lNetworkEvents);
 
 bool qemu_socket_unselect(int sockfd);
 
