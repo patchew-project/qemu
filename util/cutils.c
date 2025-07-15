@@ -1004,6 +1004,19 @@ char *freq_to_str(uint64_t freq_hz)
     return g_strdup_printf("%0.3g %sHz", freq, si_prefix(exp10));
 }
 
+char *time_us_to_str(uint64_t us)
+{
+    const char *units[] = {"us", "ms", "sec"};
+    int index = 0;
+
+    while (us > 1000 && index + 1 < ARRAY_SIZE(units)) {
+        us /= 1000;
+        index++;
+    }
+
+    return g_strdup_printf("%"PRIu64" %s", us, units[index]);
+}
+
 int qemu_pstrcmp0(const char **str1, const char **str2)
 {
     return g_strcmp0(*str1, *str2);

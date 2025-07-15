@@ -52,19 +52,6 @@ static void migration_global_dump(Monitor *mon)
                    ms->clear_bitmap_shift);
 }
 
-static const gchar *format_time_str(uint64_t us)
-{
-    const char *units[] = {"us", "ms", "sec"};
-    int index = 0;
-
-    while (us > 1000 && index + 1 < ARRAY_SIZE(units)) {
-        us /= 1000;
-        index++;
-    }
-
-    return g_strdup_printf("%"PRIu64" %s", us, units[index]);
-}
-
 static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
 {
     if (info->has_postcopy_blocktime) {
@@ -121,8 +108,8 @@ static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
         monitor_printf(mon, "Postcopy Latency Distribution:\n");
 
         while (item) {
-            g_autofree const gchar *from = format_time_str(1UL << count);
-            g_autofree const gchar *to = format_time_str(1UL << (count + 1));
+            g_autofree const gchar *from = time_us_to_str(1UL << count);
+            g_autofree const gchar *to = time_us_to_str(1UL << (count + 1));
 
             monitor_printf(mon, "  [ %8s - %8s ]: %10"PRIu64"\n",
                            from, to, item->value);
