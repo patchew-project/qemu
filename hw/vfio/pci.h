@@ -131,7 +131,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI_BASE)
 /* TYPE_VFIO_PCI shares struct VFIOPCIDevice. */
 
 struct VFIOPCIDevice {
-    PCIDevice pdev;
+    PCIDevice parent_obj;
 
     VFIODevice vbasedev;
     VFIOINTx intx;
