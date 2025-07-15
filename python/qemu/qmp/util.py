@@ -160,7 +160,10 @@ def asyncio_run(coro: Coroutine[Any, Any, T], *, debug: bool = False) -> T:
         return asyncio.run(coro, debug=debug)
 
     # Python 3.6
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
     loop.set_debug(debug)
     ret = loop.run_until_complete(coro)
     loop.close()
