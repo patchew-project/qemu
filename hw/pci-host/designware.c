@@ -41,6 +41,8 @@
 #define DESIGNWARE_PCIE_MSI_INTR0_ENABLE           0x828
 #define DESIGNWARE_PCIE_MSI_INTR0_MASK             0x82C
 #define DESIGNWARE_PCIE_MSI_INTR0_STATUS           0x830
+#define PCIE_VERSION_NUMBER                        0x8F8
+#define PCIE_VERSION_TYPE                          0x8FC
 #define DESIGNWARE_PCIE_ATU_VIEWPORT               0x900
 #define DESIGNWARE_PCIE_ATU_REGION_INBOUND         BIT(31)
 #define DESIGNWARE_PCIE_ATU_CR1                    0x904
@@ -144,6 +146,10 @@ designware_pcie_root_config_read(PCIDevice *d, uint32_t address, int len)
     uint32_t val;
 
     switch (address) {
+    case PCIE_VERSION_NUMBER:
+    case PCIE_VERSION_TYPE:
+        val = 0x3534302a;
+        break;
     case DESIGNWARE_PCIE_PORT_LINK_CONTROL:
         /*
          * Linux guest uses this register only to configure number of
@@ -427,7 +433,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         viewport->inbound = true;
         viewport->base    = 0x0000000000000000ULL;
         viewport->target  = 0x0000000000000000ULL;
-        viewport->limit   = UINT32_MAX;
+        viewport->limit   = UINT64_MAX;
         viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
 
         source      = &host->pci.address_space_root;
@@ -451,7 +457,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         viewport->inbound = false;
         viewport->base    = 0x0000000000000000ULL;
         viewport->target  = 0x0000000000000000ULL;
-        viewport->limit   = UINT32_MAX;
+        viewport->limit   = UINT64_MAX;
         viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
 
         destination = &host->pci.memory;
@@ -558,7 +564,7 @@ static const VMStateDescription vmstate_designware_pcie_viewport = {
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(base, DesignwarePCIEViewport),
         VMSTATE_UINT64(target, DesignwarePCIEViewport),
-        VMSTATE_UINT32(limit, DesignwarePCIEViewport),
+        VMSTATE_UINT64(limit, DesignwarePCIEViewport),
         VMSTATE_UINT32_ARRAY(cr, DesignwarePCIEViewport, 2),
         VMSTATE_END_OF_LIST()
     }
