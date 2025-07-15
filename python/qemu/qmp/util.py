@@ -104,22 +104,6 @@ def create_task(coro: Coroutine[Any, Any, T],
     return asyncio.ensure_future(coro, loop=loop)
 
 
-def is_closing(writer: asyncio.StreamWriter) -> bool:
-    """
-    Python 3.6-compatible `asyncio.StreamWriter.is_closing` wrapper.
-
-    :param writer: The `asyncio.StreamWriter` object.
-    :return: `True` if the writer is closing, or closed.
-    """
-    if sys.version_info >= (3, 7):
-        return writer.is_closing()
-
-    # Python 3.6:
-    transport = writer.transport
-    assert isinstance(transport, asyncio.WriteTransport)
-    return transport.is_closing()
-
-
 async def wait_closed(writer: asyncio.StreamWriter) -> None:
     """
     Python 3.6-compatible `asyncio.StreamWriter.wait_closed` wrapper.
