@@ -39,7 +39,6 @@ from .util import (
     create_task,
     exception_summary,
     flush,
-    is_closing,
     pretty_traceback,
     upper_half,
     wait_closed,
@@ -825,7 +824,7 @@ class AsyncProtocol(Generic[T]):
         if not self._writer:
             return
 
-        if not is_closing(self._writer):
+        if not self._writer.is_closing():
             self.logger.debug("Closing StreamWriter.")
             self._writer.close()
 
