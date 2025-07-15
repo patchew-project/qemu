@@ -8,7 +8,7 @@ import avocado
 
 from qemu.qmp import ConnectError, Runstate
 from qemu.qmp.protocol import AsyncProtocol, StateError
-from qemu.qmp.util import asyncio_run, create_task
+from qemu.qmp.util import create_task
 
 
 class NullProtocol(AsyncProtocol[None]):
