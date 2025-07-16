@@ -106,7 +106,7 @@ ifeq ($(filter %-softmmu, $(TARGET)),)
 # architecture in its VPATH. However some targets are so
 # minimal/broken just include directly and skip the common multiarch
 # tests Makefile.
-ifeq ($(filter $(TARGET_NAME),aarch64_be sparc),$(TARGET_NAME))
+ifeq ($(filter $(TARGET_NAME),aarch64_be sparc sparc32plus),$(TARGET_NAME))
 -include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.target
 else
 -include $(SRC_PATH)/tests/tcg/multiarch/Makefile.target
