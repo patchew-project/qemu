@@ -1983,7 +1983,8 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis,
         return -1;
     }
 
-    if (ram_postcopy_incoming_init(mis)) {
+    if (ram_postcopy_incoming_init(mis, NULL)) {
+        error_setg(errp, "PostCopy RAM incoming init failed");
         return -1;
     }
 
