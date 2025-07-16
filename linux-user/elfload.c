@@ -1756,6 +1756,7 @@ static uint32_t get_elf_hwcap(void)
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
 {
+    regs->d5 = infop->start_data;   /* For uClinux PIC binaries. */
     regs->usp = infop->start_stack;
     regs->sr = 0;
     regs->pc = infop->entry;
