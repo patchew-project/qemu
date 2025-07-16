@@ -267,6 +267,14 @@ known-good implementation to test against. GCC is in the process of
 dropping their support for iwMMXt codegen. These CPU types are
 therefore deprecated in QEMU, and will be removed in a future release.
 
+``sparc`` and ``sparc32plus`` (since 10.1)
+''''''''''''''''''''''''''''''''''''''''''
+
+Without regular testing these targets have bit-rotted and even after
+scrapping together the seemingly last packaged toolchain we can't
+generate binaries that can currently be run.
+
+
 System emulator CPUs
 --------------------
 
