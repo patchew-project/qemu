@@ -1482,6 +1482,11 @@ Chardev *serial_hd(int i)
     return NULL;
 }
 
+bool serial_exists(void)
+{
+    return serial_hd(0) ? true : false;
+}
+
 static bool parallel_parse(const char *devname, Error **errp)
 {
     static int index = 0;

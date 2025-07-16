@@ -61,6 +61,7 @@
 #include "hw/acpi/viot.h"
 #include "hw/virtio/virtio-acpi.h"
 #include "target/arm/multiprocessing.h"
+#include "system/system.h"
 
 #define ARM_SPI_BASE 32
 
@@ -908,11 +909,13 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
      */
     scope = aml_scope("\\_SB");
     acpi_dsdt_add_cpus(scope, vms);
-    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0],
-                       (irqmap[VIRT_UART0] + ARM_SPI_BASE), 0);
-    if (vms->second_ns_uart_present) {
-        acpi_dsdt_add_uart(scope, &memmap[VIRT_UART1],
-                           (irqmap[VIRT_UART1] + ARM_SPI_BASE), 1);
+    if (serial_exists()) {
+        acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0],
+                           (irqmap[VIRT_UART0] + ARM_SPI_BASE), 0);
+        if (vms->second_ns_uart_present) {
+            acpi_dsdt_add_uart(scope, &memmap[VIRT_UART1],
+                               (irqmap[VIRT_UART1] + ARM_SPI_BASE), 1);
+        }
     }
     if (vmc->acpi_expose_flash) {
         acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);
@@ -1024,7 +1027,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
     acpi_add_table(table_offsets, tables_blob);
 
-    if (ms->acpi_spcr_enabled) {
+    if (ms->acpi_spcr_enabled && serial_exists()) {
         spcr_setup(tables_blob, tables->linker, vms);
     }
 

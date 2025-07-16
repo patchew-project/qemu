@@ -485,8 +485,10 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 
     acpi_table_begin(&table, table_data);
     dsdt = init_aml_allocator();
-    for (i = 0; i < VIRT_UART_COUNT; i++) {
-        build_uart_device_aml(dsdt, i);
+    if (serial_exists()) {
+        for (i = 0; i < VIRT_UART_COUNT; i++) {
+            build_uart_device_aml(dsdt, i);
+        }
     }
     build_pci_device_aml(dsdt, lvms);
     build_la_ged_aml(dsdt, machine);
@@ -558,7 +560,7 @@ static void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     build_srat(tables_blob, tables->linker, machine);
     acpi_add_table(table_offsets, tables_blob);
 
-    if (machine->acpi_spcr_enabled)
+    if (machine->acpi_spcr_enabled && serial_exists())
         spcr_setup(tables_blob, tables->linker, machine);
 
     if (machine->numa_state->num_nodes) {

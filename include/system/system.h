@@ -75,6 +75,8 @@ extern unsigned int nb_prom_envs;
 /* Return the Chardev for serial port i, or NULL if none */
 Chardev *serial_hd(int i);
 
+bool serial_exists(void);
+
 /* parallel ports */
 
 #define MAX_PARALLEL_PORTS 3
