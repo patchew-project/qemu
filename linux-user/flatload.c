@@ -413,7 +413,9 @@ static int load_flat_file(struct linux_binprm * bprm,
                relocated first).  */
             if (get_user_ual(relval, reloc + i * sizeof(abi_ulong)))
                 return -EFAULT;
+#if !TARGET_BIG_ENDIAN
             relval = ntohl(relval);
+#endif
             if (flat_set_persistent(relval, &persistent))
                 continue;
             addr = flat_get_relocate_addr(relval);
