@@ -1,0 +1,45 @@
+# -*- Mode: makefile -*-
+#
+# For Sparc we only have multiarch tests - however as everything is
+# currently broken we have to duplicate the bits needed from the
+# multiarch makefile. This can be removed if we ever get running again
+# (or we deprecate the target).
+#
+
+# Compressed copy of tests/tcg/multiarch/Makefile.target
+MULTIARCH_SRC=$(SRC_PATH)/tests/tcg/multiarch
+VPATH 	       += $(MULTIARCH_SRC)
+MULTIARCH_SRCS =  $(notdir $(wildcard $(MULTIARCH_SRC)/*.c))
+ifeq ($(filter %-linux-user, $(TARGET)),$(TARGET))
+VPATH 	       += $(MULTIARCH_SRC)/linux
+MULTIARCH_SRCS += $(notdir $(wildcard $(MULTIARCH_SRC)/linux/*.c))
+endif
+MULTIARCH_TESTS = $(MULTIARCH_SRCS:.c=)
+
+float_%: LDFLAGS+=-lm
+float_%: float_%.c libs/float_helpers.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< $(MULTIARCH_SRC)/libs/float_helpers.c -o $@ $(LDFLAGS)
+
+fnmsub: LDFLAGS+=-lm
+testthread: LDFLAGS+=-lpthread
+threadcount: LDFLAGS+=-lpthread
+munmap-pthread: CFLAGS+=-pthread
+munmap-pthread: LDFLAGS+=-pthread
+sigreturn-sigmask: CFLAGS+=-pthread
+sigreturn-sigmask: LDFLAGS+=-pthread
+sha1: CFLAGS+=-Wno-stringop-overread -Wno-unknown-warning-option
+
+TESTS += $(MULTIARCH_TESTS)
+# End of copy of multiarch/Makefile.target
+
+# atomic primitives used by these tests need -latomic
+signals: LDFLAGS+=-lrt -lpthread -latomic
+vma-pthread: CFLAGS+=-pthread
+vma-pthread: LDFLAGS+=-pthread -latomic
+
+# all tests currently broken due to broken CASA
+run-%:
+	$(call skip-test, $*, "CASA is broken (see bug #1771)")
+
+# we can't even think about plugin tests yet
+SKIP_PLUGIN_TESTS=y
