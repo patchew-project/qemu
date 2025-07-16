@@ -38,6 +38,9 @@ typedef struct {
     void (*init)(Cpu *cpu);
     void (*end)(Cpu *cpu);
     uint64_t (*get_frame_pointer)(Cpu *cpu);
+    uint8_t (*get_privilege_level)(Cpu *cpu);
+    uint8_t (*num_privilege_levels)(void);
+    const char *(*get_privilege_level_name)(uint8_t pl);
     bool (*does_insn_modify_frame_pointer)(const char *disas);
 } CpuOps;
 
@@ -48,6 +51,7 @@ typedef struct Cpu {
     callstack *sample_cs;
     trace *trace;
     callstack *cs;
+    uint8_t privilege_level;
     GArray *callstacks; /* callstack *callstacks[] */
     GArray *traces; /* trace *traces [] */
     GByteArray *buf;
@@ -55,8 +59,23 @@ typedef struct Cpu {
     void *arch;
 } Cpu;
 
+typedef enum {
+    AARCH64_EL0_SECURE,
+    AARCH64_EL0_NONSECURE,
+    AARCH64_EL0_REALM,
+    AARCH64_EL1_SECURE,
+    AARCH64_EL1_NONSECURE,
+    AARCH64_EL1_REALM,
+    AARCH64_EL2_SECURE,
+    AARCH64_EL2_NONSECURE,
+    AARCH64_EL2_REALM,
+    AARCH64_EL3,
+} Aarch64PrivilegeLevel;
+
 typedef struct {
     struct qemu_plugin_register *reg_fp;
+    struct qemu_plugin_register *reg_cpsr;
+    struct qemu_plugin_register *reg_scr_el3;
 } Aarch64Cpu;
 
 typedef struct {
@@ -73,6 +92,7 @@ enum uftrace_record_type {
 
 static struct qemu_plugin_scoreboard *score;
 static uint64_t trace_sample;
+static bool trace_privilege_level;
 static CpuOps arch_ops;
 
 static void uftrace_write_map(bool system_emulation)
@@ -349,6 +369,16 @@ static uint64_t cpu_read_register64(Cpu *cpu, struct qemu_plugin_register *reg)
     return *((uint64_t *) buf->data);
 }
 
+static uint32_t cpu_read_register32(Cpu *cpu, struct qemu_plugin_register *reg)
+{
+    GByteArray *buf = cpu->buf;
+    g_byte_array_set_size(buf, 0);
+    size_t sz = qemu_plugin_read_register(reg, buf);
+    g_assert(sz == 4);
+    g_assert(buf->len == 4);
+    return *((uint32_t *) buf->data);
+}
+
 static uint64_t cpu_read_memory64(Cpu *cpu, uint64_t addr)
 {
     g_assert(addr);
@@ -418,6 +448,68 @@ static uint64_t cpu_get_timestamp(const Cpu *cpu)
     return cpu->insn_count;
 }
 
+static uint8_t aarch64_num_privilege_levels(void)
+{
+    return AARCH64_EL3 + 1;
+}
+
+static const char *aarch64_get_privilege_level_name(uint8_t pl)
+{
+    switch (pl) {
+    case AARCH64_EL0_SECURE: return "S-EL0";
+    case AARCH64_EL0_NONSECURE: return "NS-EL0";
+    case AARCH64_EL0_REALM: return "R-EL0";
+    case AARCH64_EL1_SECURE: return "S-EL1";
+    case AARCH64_EL1_NONSECURE: return "NS-EL1";
+    case AARCH64_EL1_REALM: return "R-EL1";
+    case AARCH64_EL2_SECURE: return "S-EL2";
+    case AARCH64_EL2_NONSECURE: return "NS-EL2";
+    case AARCH64_EL2_REALM: return "R-EL2";
+    case AARCH64_EL3: return "EL3";
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint8_t aarch64_get_privilege_level(Cpu *cpu_)
+{
+    Aarch64Cpu *cpu = cpu_->arch;
+    /*
+     * QEMU gdbstub does not provide access to CurrentEL,
+     * so we use CPSR instead.
+     */
+    uint8_t el = cpu_read_register32(cpu_, cpu->reg_cpsr) >> 2 & 0b11;
+
+    if (el == 3) {
+        return AARCH64_EL3;
+    }
+
+    uint8_t ss = AARCH64_EL0_SECURE;
+    if (!cpu->reg_scr_el3) {
+        ss = AARCH64_EL0_NONSECURE;
+    }
+    uint64_t scr_el3 = cpu_read_register64(cpu_, cpu->reg_scr_el3);
+    uint64_t ns = (scr_el3 >> 0) & 0b1;
+    uint64_t nse = (scr_el3 >> 62) & 0b1;
+    switch (nse << 1 | ns) {
+    case 0b00:
+        ss = AARCH64_EL0_SECURE;
+        break;
+    case 0b01:
+        ss = AARCH64_EL0_NONSECURE;
+        break;
+    case 0b11:
+        ss = AARCH64_EL0_REALM;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    const uint8_t num_ss = 3;
+    Aarch64PrivilegeLevel pl = el * num_ss + ss;
+    return pl;
+}
+
 static uint64_t aarch64_get_frame_pointer(Cpu *cpu_)
 {
     Aarch64Cpu *cpu = cpu_->arch;
@@ -434,6 +526,10 @@ static void aarch64_init(Cpu *cpu_)
         reg = &g_array_index(regs, qemu_plugin_reg_descriptor, i);
         if (!strcmp(reg->name, "x29")) {
             cpu->reg_fp = reg->handle;
+        } else if (!strcmp(reg->name, "cpsr")) {
+            cpu->reg_cpsr = reg->handle;
+        } else if (!strcmp(reg->name, "SCR_EL3")) {
+            cpu->reg_scr_el3 = reg->handle;
         }
     }
     if (!cpu->reg_fp) {
@@ -441,6 +537,8 @@ static void aarch64_init(Cpu *cpu_)
                         "available. Please use an AArch64 cpu (or -cpu max).\n");
         g_abort();
     }
+    g_assert(cpu->reg_cpsr);
+    /* scr_el3 is optional */
 }
 
 static void aarch64_end(Cpu *cpu)
@@ -462,8 +560,42 @@ static CpuOps aarch64_ops = {
     .init = aarch64_init,
     .end = aarch64_end,
     .get_frame_pointer = aarch64_get_frame_pointer,
+    .get_privilege_level = aarch64_get_privilege_level,
+    .num_privilege_levels = aarch64_num_privilege_levels,
+    .get_privilege_level_name = aarch64_get_privilege_level_name,
     .does_insn_modify_frame_pointer = aarch64_does_insn_modify_frame_pointer,
 };
+
+static void track_privilege_change(unsigned int cpu_index, void *udata)
+{
+    Cpu *cpu = qemu_plugin_scoreboard_find(score, cpu_index);
+    uint8_t new_pl = cpu->ops.get_privilege_level(cpu);
+
+    if (new_pl == cpu->privilege_level) {
+        return;
+    }
+
+    uint64_t pc = (uintptr_t) udata;
+    uint64_t timestamp = cpu_get_timestamp(cpu);
+
+    if (trace_sample) {
+        cpu_trace_last_sample(cpu, timestamp);
+    }
+
+    trace_exit_stack(cpu->trace, cpu->cs, timestamp);
+    callstack_clear(cpu->cs);
+
+    cpu->privilege_level = new_pl;
+    cpu->cs = g_array_index(cpu->callstacks, callstack*, new_pl);
+    cpu->trace = g_array_index(cpu->traces, trace*, new_pl);
+
+    cpu_unwind_stack(cpu, cpu->ops.get_frame_pointer(cpu), pc);
+    trace_enter_stack(cpu->trace, cpu->cs, timestamp);
+
+    if (trace_sample) {
+        cpu_set_new_sample(cpu, timestamp);
+    }
+}
 
 static void track_callstack(unsigned int cpu_index, void *udata)
 {
@@ -559,7 +691,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     qemu_plugin_u64 sample_insn_count = qemu_plugin_scoreboard_u64_in_struct(
                                             score, Cpu, sample_insn_count);
 
-    if (trace_sample) {
+    if (trace_sample && !trace_privilege_level) {
         /* We can do a light instrumentation, per tb only */
         qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
             tb, QEMU_PLUGIN_INLINE_ADD_U64, insn_count, n_insns);
@@ -570,6 +702,12 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
             QEMU_PLUGIN_COND_GE, sample_insn_count, trace_sample,
             (void *) tb_pc);
         return;
+    }
+
+    if (trace_privilege_level) {
+        qemu_plugin_register_vcpu_tb_exec_cb(tb, track_privilege_change,
+                                             QEMU_PLUGIN_CB_R_REGS,
+                                             (void *) tb_pc);
     }
 
     /*
@@ -614,17 +752,33 @@ static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
     g_assert(vcpu_index < 1000);
     uint32_t trace_id = 1000 * 1000 + vcpu_index * 1000;
 
-    g_autoptr(GString) trace_name = g_string_new(NULL);
-    g_string_append_printf(trace_name, "cpu%u", vcpu_index);
-    trace *t = trace_new(trace_id, trace_name);
-    g_array_append_val(cpu->traces, t);
-    callstack *cs = callstack_new();
-    g_array_append_val(cpu->callstacks, cs);
-    /* create/truncate trace file */
-    trace_flush(t, false);
+    if (trace_privilege_level) {
+        for (uint8_t pl = 0; pl < cpu->ops.num_privilege_levels(); ++pl) {
+            g_autoptr(GString) trace_name = g_string_new(NULL);
+            g_string_append_printf(trace_name, "cpu%u %s", vcpu_index,
+                                   cpu->ops.get_privilege_level_name(pl));
+            trace *t = trace_new(trace_id + pl, trace_name);
+            g_array_append_val(cpu->traces, t);
+            callstack *cs = callstack_new();
+            g_array_append_val(cpu->callstacks, cs);
+        }
+    } else {
+        g_autoptr(GString) trace_name = g_string_new(NULL);
+        g_string_append_printf(trace_name, "cpu%u", vcpu_index);
+        trace *t = trace_new(trace_id, trace_name);
+        g_array_append_val(cpu->traces, t);
+        callstack *cs = callstack_new();
+        g_array_append_val(cpu->callstacks, cs);
+    }
 
-    cpu->cs = cs;
-    cpu->trace = t;
+    for (size_t i = 0; i < cpu->traces->len; ++i) {
+        /* create/truncate trace files */
+        trace *t = g_array_index(cpu->traces, trace*, i);
+        trace_flush(t, false);
+    }
+
+    cpu->cs = g_array_index(cpu->callstacks, callstack*, cpu->privilege_level);
+    cpu->trace = g_array_index(cpu->traces, trace*, cpu->privilege_level);
 }
 
 static void vcpu_end(unsigned int vcpu_index)
@@ -689,6 +843,12 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                 return -1;
             }
             trace_sample = value;
+        } else if (g_strcmp0(tokens[0], "trace-privilege-level") == 0) {
+            if (!qemu_plugin_bool_parse(tokens[0], tokens[1],
+                                        &trace_privilege_level)) {
+                fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
+                return -1;
+            }
         } else {
             fprintf(stderr, "option parsing failed: %s\n", opt);
             return -1;
