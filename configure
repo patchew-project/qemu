@@ -1442,6 +1442,8 @@ probe_target_compiler() {
     riscv64) container_hosts=x86_64 ;;
     s390x) container_hosts=x86_64 ;;
     sh4) container_hosts=x86_64 ;;
+    sparc) container_hosts=x86_64 ;;
+    sparc32plus) container_hosts=x86_64 ;;
     sparc64) container_hosts=x86_64 ;;
     tricore) container_hosts=x86_64 ;;
     x86_64) container_hosts="aarch64 ppc64le x86_64" ;;
@@ -1468,6 +1470,10 @@ probe_target_compiler() {
       ppc|ppc64|ppc64le)
         container_image=debian-all-test-cross
         container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
+        ;;
+      sparc|sparc32plus)
+        container_image=sparc-leon-cross
+        container_cross_prefix=sparc-gaisler-linux5.10-
         ;;
 
       # debian-legacy-test-cross architectures (need Debian 11)
