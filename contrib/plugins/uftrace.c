@@ -93,6 +93,7 @@ enum uftrace_record_type {
 static struct qemu_plugin_scoreboard *score;
 static uint64_t trace_sample;
 static bool trace_privilege_level;
+static bool timestamp_based_on_real_time;
 static CpuOps arch_ops;
 
 static void uftrace_write_map(bool system_emulation)
@@ -445,7 +446,25 @@ static void cpu_set_new_sample(Cpu *cpu, uint64_t timestamp)
 
 static uint64_t cpu_get_timestamp(const Cpu *cpu)
 {
-    return cpu->insn_count;
+    if (!timestamp_based_on_real_time) {
+        return cpu->insn_count;
+    }
+
+#ifdef _WIN32
+    /*
+     * On Windows, timespec_get is available only with UCRT, but not with
+     * MinGW64 environment. Simplify by using only gettimeofday on this
+     * platform.
+     */
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    uint64_t now_ns = tv.tv_sec * 1000 * 1000 * 1000 + tv.tv_usec * 1000;
+#else
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    uint64_t now_ns = ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
+#endif
+    return now_ns;
 }
 
 static uint8_t aarch64_num_privilege_levels(void)
@@ -846,6 +865,12 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         } else if (g_strcmp0(tokens[0], "trace-privilege-level") == 0) {
             if (!qemu_plugin_bool_parse(tokens[0], tokens[1],
                                         &trace_privilege_level)) {
+                fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
+                return -1;
+            }
+        } else if (g_strcmp0(tokens[0], "timestamp-based-on-real-time") == 0) {
+            if (!qemu_plugin_bool_parse(tokens[0], tokens[1],
+                                        &timestamp_based_on_real_time)) {
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
                 return -1;
             }
