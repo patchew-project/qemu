@@ -171,6 +171,7 @@ int qemu_strtosz_MiB(const char *nptr, const char **end, uint64_t *result);
 int qemu_strtosz_metric(const char *nptr, const char **end, uint64_t *result);
 
 char *size_to_str(uint64_t val);
+char *time_us_to_str(uint64_t us);
 
 /**
  * freq_to_str:
