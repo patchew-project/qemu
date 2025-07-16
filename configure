@@ -1356,6 +1356,7 @@ fi
 : ${cross_prefix_sh4="sh4-linux-gnu-"}
 : ${cross_prefix_sparc64="sparc64-linux-gnu-"}
 : ${cross_prefix_sparc="$cross_prefix_sparc64"}
+: ${cross_prefix_sparc32plus="$cross_prefix_sparc64"}
 : ${cross_prefix_tricore="tricore-"}
 : ${cross_prefix_x86_64="x86_64-linux-gnu-"}
 
@@ -1371,8 +1372,8 @@ fi
 : ${cross_cc_ppc64le="$cross_cc_ppc64"}
 : ${cross_cc_cflags_ppc64le="-m64 -mlittle-endian"}
 : ${cross_cc_cflags_sparc64="-m64 -mcpu=ultrasparc"}
-: ${cross_cc_sparc="$cross_cc_sparc64"}
 : ${cross_cc_cflags_sparc="-m32 -mcpu=supersparc"}
+: ${cross_cc_cflags_sparc32plus="-m32 -mv8plus"}
 : ${cross_cc_cflags_x86_64="-m64 -mcx16"}
 
 compute_target_variable() {
@@ -1543,7 +1544,7 @@ probe_target_compiler() {
         i386:x86_64 | \
         mips*:mips64 | \
         ppc*:ppc64 | \
-        sparc:sparc64 | \
+        sparc:sparc32plus:sparc64 | \
         "$cpu:$cpu")
         try='native cross' ;;
       esac
