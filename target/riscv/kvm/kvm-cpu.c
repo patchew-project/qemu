@@ -1706,6 +1706,9 @@ static bool kvm_riscv_handle_debug(CPUState *cs)
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
     int ret = 0;
+    uint64_t code;
+    cpu_set_t set;
+    long cpus;
     switch (run->exit_reason) {
     case KVM_EXIT_RISCV_SBI:
         ret = kvm_riscv_handle_sbi(cs, run);
@@ -1718,6 +1721,18 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             ret = EXCP_DEBUG;
         }
         break;
+    case KVM_EXIT_FAIL_ENTRY:
+        code = run->fail_entry.hardware_entry_failure_reason;
+        if (code == CSR_HSTATUS) {
+            // Schedule vcpu to next hart upon VS-file 
+            // allocation failure on current hart.
+            cpus = sysconf(_SC_NPROCESSORS_ONLN);
+            CPU_ZERO(&set);
+            CPU_SET((run->fail_entry.cpu+1)%cpus, &set);
+            ret = sched_setaffinity(0, sizeof(set), &set);
+            break;
+        }
+        /* FALLTHRU */
     default:
         qemu_log_mask(LOG_UNIMP, "%s: un-handled exit reason %d\n",
                       __func__, run->exit_reason);
