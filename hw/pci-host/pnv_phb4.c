@@ -1167,6 +1167,7 @@ static int pnv_phb4_map_irq(PCIDevice *pci_dev, int irq_num)
 static void pnv_phb4_set_irq(void *opaque, int irq_num, int level)
 {
     PnvPHB4 *phb = PNV_PHB4(opaque);
+    XiveSource *xsrc = &phb->xsrc;
     uint32_t lsi_base;
 
     /* LSI only ... */
@@ -1175,6 +1176,7 @@ static void pnv_phb4_set_irq(void *opaque, int irq_num, int level)
     }
     lsi_base = GETFIELD(PHB_LSI_SRC_ID, phb->regs[PHB_LSI_SOURCE_ID >> 3]);
     lsi_base <<= 3;
+    lsi_base &= xsrc->nr_irqs - 1;
     qemu_set_irq(phb->qirqs[lsi_base + irq_num], level);
 }
 
