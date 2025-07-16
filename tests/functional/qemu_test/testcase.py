@@ -11,6 +11,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import argparse
 import logging
 import os
 from pathlib import Path
@@ -29,6 +30,20 @@ from .archive import archive_extract
 from .asset import Asset
 from .config import BUILD_DIR, dso_suffix
 from .uncompress import uncompress
+
+
+def parse_args(test_name: str) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog=test_name, description="QEMU Functional test"
+    )
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Also print test and console logs on stdout. This will make the"
+        " TAP output invalid and is meant for debugging only.",
+    )
+    return parser.parse_args()
 
 
 class QemuBaseTest(unittest.TestCase):
@@ -196,6 +211,9 @@ class QemuBaseTest(unittest.TestCase):
         return True
 
     def setUp(self):
+        path = os.path.basename(sys.argv[0])[:-3]
+        args = parse_args(path)
+        self.debug_output = args.debug
         self.qemu_bin = os.getenv('QEMU_TEST_QEMU_BINARY')
         self.assertIsNotNone(self.qemu_bin, 'QEMU_TEST_QEMU_BINARY must be set')
         self.arch = self.qemu_bin.split('-')[-1]
@@ -221,6 +239,16 @@ class QemuBaseTest(unittest.TestCase):
         self.machinelog.setLevel(logging.DEBUG)
         self.machinelog.addHandler(self._log_fh)
 
+        if self.debug_output:
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
+            self.machinelog.addHandler(handler)
+
         if not self.assets_available():
             self.skipTest('One or more assets is not available')
 
@@ -230,11 +258,16 @@ class QemuBaseTest(unittest.TestCase):
         if self.socketdir is not None:
             shutil.rmtree(self.socketdir.name)
             self.socketdir = None
-        self.machinelog.removeHandler(self._log_fh)
-        self.log.removeHandler(self._log_fh)
+        for handler in [self._log_fh, logging.StreamHandler(sys.stdout)]:
+            self.machinelog.removeHandler(handler)
+            self.log.removeHandler(handler)
 
     def main():
         path = os.path.basename(sys.argv[0])[:-3]
+        # If argparse receives --help or an unknown argument, it will raise a
+        # SystemExit which will get caught by the test runner. Parse the
+        # arguments here too to handle that case.
+        _ = parse_args(path)
 
         cache = os.environ.get("QEMU_TEST_PRECACHE", None)
         if cache is not None:
@@ -292,6 +325,14 @@ class QemuSystemTest(QemuBaseTest):
         fileFormatter = logging.Formatter('%(asctime)s: %(message)s')
         self._console_log_fh.setFormatter(fileFormatter)
         console_log.addHandler(self._console_log_fh)
+        if self.debug_output:
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            handler.setFormatter(formatter)
+            console_log.addHandler(handler)
 
     def set_machine(self, machinename):
         # TODO: We should use QMP to get the list of available machines
@@ -398,5 +439,9 @@ class QemuSystemTest(QemuBaseTest):
     def tearDown(self):
         for vm in self._vms.values():
             vm.shutdown()
-        logging.getLogger('console').removeHandler(self._console_log_fh)
+        for handler in [
+            self._console_log_fh,
+            logging.StreamHandler(sys.stdout),
+        ]:
+            logging.getLogger("console").removeHandler(handler)
         super().tearDown()
