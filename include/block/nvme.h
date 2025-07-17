@@ -1079,6 +1079,7 @@ enum {
 };
 
 enum NvmeLogIdentifier {
+    NVME_SUPP_LOG_PAGE                  = 0x00,
     NVME_LOG_ERROR_INFO                 = 0x01,
     NVME_LOG_SMART_INFO                 = 0x02,
     NVME_LOG_FW_SLOT_INFO               = 0x03,
@@ -1704,6 +1705,16 @@ typedef enum NvmeZoneState {
     NVME_ZONE_STATE_FULL             = 0x0e,
     NVME_ZONE_STATE_OFFLINE          = 0x0f,
 } NvmeZoneState;
+
+enum {
+    NVME_LID_SUPP        = 1 << 0,
+    NVME_INDEX_OFF_SUPP  = 1 << 1,
+};
+
+typedef struct QEMU_PACKED NvmeSuppLogpage {
+    uint16_t lsupp_ios;
+    uint16_t lidspec;
+} NvmeSuppLogpage;
 
 typedef struct QEMU_PACKED NvmePriCtrlCap {
     uint16_t    cntlid;

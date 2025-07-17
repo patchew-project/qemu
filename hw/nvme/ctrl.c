@@ -5106,6 +5106,22 @@ static uint16_t nvme_fw_log_info(NvmeCtrl *n, uint32_t buf_len, uint64_t off,
     return nvme_c2h(n, (uint8_t *) &fw_log + off, trans_len, req);
 }
 
+static uint16_t nvme_supp_log_page(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
+    uint64_t off, NvmeRequest *req)
+{
+    uint32_t supplogpagesize = sizeof(n->supplogpage);
+    uint32_t trans_len;
+
+    if (off >= supplogpagesize) {
+        trace_pci_nvme_err_invalid_log_page_offset(off, supplogpagesize);
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    trans_len = MIN(supplogpagesize - off, buf_len);
+
+    return nvme_c2h(n, ((uint8_t *)n->supplogpage) + off, trans_len, req);
+}
+
 static uint16_t nvme_error_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
                                 uint64_t off, NvmeRequest *req)
 {
@@ -5474,6 +5490,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
     }
 
     switch (lid) {
+    case NVME_SUPP_LOG_PAGE:
+        return nvme_supp_log_page(n, rae, len, off, req);
     case NVME_LOG_ERROR_INFO:
         return nvme_error_info(n, rae, len, off, req);
     case NVME_LOG_SMART_INFO:
@@ -8907,6 +8925,20 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     if (pci_is_vf(pci_dev) && !sctrl->scs) {
         stl_le_p(&n->bar.csts, NVME_CSTS_FAILED);
     }
+
+    n->supplogpage[NVME_SUPP_LOG_PAGE].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_ERROR_INFO].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_SMART_INFO].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_FW_SLOT_INFO].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_CHANGED_NSLIST].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_CMD_EFFECTS].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_ENDGRP].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_FDP_CONFS].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_FDP_RUH_USAGE].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_FDP_STATS].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_FDP_EVENTS].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_VENDOR_START].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_VENDOR_END].lsupp_ios = NVME_LID_SUPP;
 }
 
 static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
