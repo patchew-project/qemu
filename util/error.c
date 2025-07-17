@@ -188,6 +188,11 @@ void error_setg_win32_internal(Error **errp,
 
     if (win32_err != 0) {
         suffix = g_win32_error_message(win32_err);
+        // g_win32_error_message() failed
+        if (!suffix[0]) {
+            g_free(suffix);
+            suffix = g_strdup_printf("unknown Windows error 0x%x", win32_err);
+        }
     }
 
     va_start(ap, fmt);
