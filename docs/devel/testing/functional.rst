@@ -63,6 +63,8 @@ directory should be your build folder. For example::
   $ export QEMU_TEST_QEMU_BINARY=$PWD/qemu-system-x86_64
   $ pyvenv/bin/python3 ../tests/functional/test_file.py
 
+By default, functional tests redirect informational logs and console output to
+log files. Specify the ``--debug`` flag to also print those to standard output.
 The test framework will automatically purge any scratch files created during
 the tests. If needing to debug a failed test, it is possible to keep these
 files around on disk by setting ```QEMU_TEST_KEEP_SCRATCH=1``` as an env
