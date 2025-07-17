@@ -152,7 +152,13 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         trace_vmstate_load_state_end(vmsd->name, "too old", -EINVAL);
         return -EINVAL;
     }
-    if (vmsd->pre_load) {
+    if (vmsd->pre_load_errp) {
+        ret = vmsd->pre_load_errp(opaque, errp);
+        if (ret) {
+            error_prepend(errp, "VM pre load failed : %d ", ret);
+            return ret;
+        }
+    } else if (vmsd->pre_load) {
         ret = vmsd->pre_load(opaque);
         if (ret) {
             error_setg(errp, "VM pre load failed : %d", ret);
@@ -238,7 +244,12 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         qemu_file_set_error(f, ret);
         return ret;
     }
-    if (vmsd->post_load) {
+    if (vmsd->post_load_errp) {
+        ret = vmsd->post_load_errp(opaque, version_id, errp);
+        if (ret < 0) {
+            error_prepend(errp, "VM Post load failed : %d ", ret);
+        }
+    } else if (vmsd->post_load) {
         ret = vmsd->post_load(opaque, version_id);
         if (ret < 0) {
             error_setg(errp, "VM Post load failed : %d", ret);
@@ -414,7 +425,14 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
     trace_vmstate_save_state_top(vmsd->name);
 
-    if (vmsd->pre_save) {
+    if (vmsd->pre_save_errp) {
+        ret = vmsd->pre_save_errp(opaque, errp);
+        trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
+        if (ret) {
+            error_prepend(errp, "pre-save failed: %s ", vmsd->name);
+            return ret;
+        }
+    } else if (vmsd->pre_save) {
         ret = vmsd->pre_save(opaque);
         trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
         if (ret) {
@@ -524,7 +542,9 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 if (ret) {
                     error_setg(errp, "Save of field %s/%s failed",
                                 vmsd->name, field->name);
-                    if (vmsd->post_save) {
+                    if (vmsd->post_save_errp) {
+                        vmsd->post_save_errp(opaque, errp);
+                    } else if (vmsd->post_save) {
                         vmsd->post_save(opaque);
                     }
                     return ret;
@@ -552,7 +572,13 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
     ret = vmstate_subsection_save(f, vmsd, opaque, vmdesc, errp);
 
-    if (vmsd->post_save) {
+    if (vmsd->post_save_errp) {
+        int ps_ret = vmsd->post_save_errp(opaque, errp);
+        if (!ret && ps_ret) {
+            ret = ps_ret;
+            error_prepend(errp, "post-save failed: %s ", vmsd->name);
+        }
+    } else if (vmsd->post_save) {
         int ps_ret = vmsd->post_save(opaque);
         if (!ret && ps_ret) {
             ret = ps_ret;
