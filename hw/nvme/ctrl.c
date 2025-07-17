@@ -252,6 +252,24 @@ static const bool nvme_feature_support[NVME_FID_MAX] = {
     [NVME_FDP_EVENTS]               = true,
 };
 
+static const uint32_t nvme_fid_supp_effects[NVME_FID_MAX] = {
+    [NVME_ARBITRATION]             = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_POWER_MANAGEMENT]        = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_TEMPERATURE_THRESHOLD]   = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_ERROR_RECOVERY]          = NVME_EFFECTS_CSUPP | NVME_NMSP_SCOPE,
+    [NVME_VOLATILE_WRITE_CACHE]    = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_NUMBER_OF_QUEUES]        = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_INTERRUPT_COALESCING]    = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_INTERRUPT_VECTOR_CONF]   = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_WRITE_ATOMICITY]         = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_ASYNCHRONOUS_EVENT_CONF] = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_TIMESTAMP]               = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_HOST_BEHAVIOR_SUPPORT]   = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_COMMAND_SET_PROFILE]     = NVME_EFFECTS_CSUPP | NVME_CTRL_SCOPE,
+    [NVME_FDP_MODE]                = NVME_EFFECTS_CSUPP | NVME_ENDURANCE_SCOPE,
+    [NVME_FDP_EVENTS]              = NVME_EFFECTS_CSUPP,
+};
+
 static const uint32_t nvme_feature_cap[NVME_FID_MAX] = {
     [NVME_TEMPERATURE_THRESHOLD]    = NVME_FEAT_CAP_CHANGE,
     [NVME_ERROR_RECOVERY]           = NVME_FEAT_CAP_CHANGE | NVME_FEAT_CAP_NS,
@@ -5087,6 +5105,47 @@ static uint16_t nvme_endgrp_info(NvmeCtrl *n,  uint8_t rae, uint32_t buf_len,
     return nvme_c2h(n, (uint8_t *)&info + off, buf_len, req);
 }
 
+static uint16_t nvme_log_fid_supp_effects_log(NvmeCtrl *n, uint8_t csi,
+                uint32_t buf_len, uint64_t off, NvmeRequest *req)
+{
+    NvmeFidSuppLog log = {};
+    const uint32_t *supp_fid = NULL;
+    uint32_t trans_len;
+    bool ot = le32_to_cpu(req->cmd.cdw14) >> 23;
+
+    if (off >= sizeof(log) || (ot == 1 && (off * 4 >= sizeof(log)))) {
+        trace_pci_nvme_err_invalid_log_page_offset(off, sizeof(log));
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    switch (NVME_CC_CSS(ldl_le_p(&n->bar.cc))) {
+    case NVME_CC_CSS_NVM:
+        supp_fid = nvme_fid_supp_effects;
+        /* fall through */
+    case NVME_CC_CSS_ADMIN_ONLY:
+        break;
+    case NVME_CC_CSS_ALL:
+        switch (csi) {
+        case NVME_CSI_NVM:
+            supp_fid = nvme_fid_supp_effects;
+            break;
+        case NVME_CSI_ZONED:
+            break;
+        }
+    }
+
+    if (ot == 1) {
+        off *= 4;
+    }
+
+    if (supp_fid) {
+        memcpy(log.fis, supp_fid, sizeof(log.fis));
+    }
+
+    trans_len = MIN(sizeof(log) - off, buf_len);
+
+    return nvme_c2h(n, ((uint8_t *)&log) + off, trans_len, req);
+}
 
 static uint16_t nvme_fw_log_info(NvmeCtrl *n, uint32_t buf_len, uint64_t off,
                                  NvmeRequest *req)
@@ -5506,6 +5565,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
         return nvme_cmd_effects(n, csi, len, off, req);
     case NVME_LOG_ENDGRP:
         return nvme_endgrp_info(n, rae, len, off, req);
+    case NVME_LOG_FID_SUPP_EFFECTS:
+        return nvme_log_fid_supp_effects_log(n, csi, len, off, req);
     case NVME_LOG_FDP_CONFS:
         return nvme_fdp_confs(n, lspi, len, off, req);
     case NVME_LOG_FDP_RUH_USAGE:
@@ -8933,6 +8994,8 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     n->supplogpage[NVME_LOG_CHANGED_NSLIST].lsupp_ios = NVME_LID_SUPP;
     n->supplogpage[NVME_LOG_CMD_EFFECTS].lsupp_ios = NVME_LID_SUPP;
     n->supplogpage[NVME_LOG_ENDGRP].lsupp_ios = NVME_LID_SUPP;
+    n->supplogpage[NVME_LOG_FID_SUPP_EFFECTS].lsupp_ios = NVME_LID_SUPP
+                                                        | NVME_INDEX_OFF_SUPP;
     n->supplogpage[NVME_LOG_FDP_CONFS].lsupp_ios = NVME_LID_SUPP;
     n->supplogpage[NVME_LOG_FDP_RUH_USAGE].lsupp_ios = NVME_LID_SUPP;
     n->supplogpage[NVME_LOG_FDP_STATS].lsupp_ios = NVME_LID_SUPP;

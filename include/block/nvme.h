@@ -1068,6 +1068,10 @@ typedef struct NvmeEffectsLog {
     uint8_t     resv[2048];
 } NvmeEffectsLog;
 
+typedef struct NvmeFidSuppLog {
+    uint32_t    fis[256];
+} NvmeFidSuppLog;
+
 enum {
     NVME_CMD_EFF_CSUPP      = 1 << 0,
     NVME_CMD_EFF_LBCC       = 1 << 1,
@@ -1086,6 +1090,7 @@ enum NvmeLogIdentifier {
     NVME_LOG_CHANGED_NSLIST             = 0x04,
     NVME_LOG_CMD_EFFECTS                = 0x05,
     NVME_LOG_ENDGRP                     = 0x09,
+    NVME_LOG_FID_SUPP_EFFECTS           = 0x12,
     NVME_LOG_FDP_CONFS                  = 0x20,
     NVME_LOG_FDP_RUH_USAGE              = 0x21,
     NVME_LOG_FDP_STATS                  = 0x22,
@@ -1363,6 +1368,22 @@ typedef enum NvmeFeatureCap {
     NVME_FEAT_CAP_NS        = 1 << 1,
     NVME_FEAT_CAP_CHANGE    = 1 << 2,
 } NvmeFeatureCap;
+
+typedef enum NvmeFidSuppEffects {
+    NVME_EFFECTS_CSUPP      = 1 <<  0,
+    NVME_EFFECTS_UDCC       = 1 <<  1,
+    NVME_EFFECTS_NCC        = 1 <<  2,
+    NVME_EFFECTS_NIC        = 1 <<  3,
+    NVME_EFFECTS_CCC        = 1 <<  4,
+    NVME_EFFECTS_UUID_SEL   = 1 << 19,
+    NVME_NMSP_SCOPE         = 1 << 20,
+    NVME_CTRL_SCOPE         = 1 << 21,
+    NVME_NVM_SET_SCOPE      = 1 << 22,
+    NVME_ENDURANCE_SCOPE    = 1 << 23,
+    NVME_DOMAIN_SCOPE       = 1 << 24,
+    NVME_SUBSYSTEM_SCOPE    = 1 << 25,
+    NVME_CTRL_DATA_QUEUE    = 1 << 26,
+} NvmeFidSuppEffects;
 
 typedef enum NvmeGetFeatureSelect {
     NVME_GETFEAT_SELECT_CURRENT = 0x0,
