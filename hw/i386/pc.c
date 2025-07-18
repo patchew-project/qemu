@@ -975,7 +975,7 @@ void pc_memory_init(PCMachineState *pcms,
 
     rom_set_fw(fw_cfg);
 
-    if (machine->device_memory) {
+    if (machine->device_memory || cxl_resv_end) {
         uint64_t *val = g_malloc(sizeof(*val));
         uint64_t res_mem_end;
 
