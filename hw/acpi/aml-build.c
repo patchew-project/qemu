@@ -2123,20 +2123,22 @@ void build_spcr(GArray *table_data, BIOSLinker *linker,
     build_append_int_noprefix(table_data, f->pci_flags, 4);
     /* PCI Segment */
     build_append_int_noprefix(table_data, f->pci_segment, 1);
-    if (rev < 4) {
+    if (rev < 3) {
         /* Reserved */
         build_append_int_noprefix(table_data, 0, 4);
     } else {
         /* UartClkFreq */
         build_append_int_noprefix(table_data, f->uart_clk_freq, 4);
-        /* PreciseBaudrate */
-        build_append_int_noprefix(table_data, f->precise_baudrate, 4);
-        /* NameSpaceStringLength */
-        build_append_int_noprefix(table_data, f->namespace_string_length, 2);
-        /* NameSpaceStringOffset */
-        build_append_int_noprefix(table_data, f->namespace_string_offset, 2);
-        /* NamespaceString[] */
-        g_array_append_vals(table_data, name, f->namespace_string_length);
+        if (rev >= 4) {
+            /* PreciseBaudrate */
+            build_append_int_noprefix(table_data, f->precise_baudrate, 4);
+            /* NameSpaceStringLength */
+            build_append_int_noprefix(table_data, f->namespace_string_length, 2);
+            /* NameSpaceStringOffset */
+            build_append_int_noprefix(table_data, f->namespace_string_offset, 2);
+            /* NamespaceString[] */
+            g_array_append_vals(table_data, name, f->namespace_string_length);
+        }
     }
     acpi_table_end(linker, &table);
 }
