@@ -112,20 +112,19 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     }
 
     tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
-    pagesize = MAKE_64BIT_MASK(tlb_ps, 1);
-    mask = MAKE_64BIT_MASK(0, tlb_ps + 1);
+    pagesize = BIT_ULL(tlb_ps);
+    mask = ~((pagesize << 1) - 1) & TARGET_VIRT_MASK;
+    addr = (tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & mask;
 
     if (tlb_v0) {
-        addr = (tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & ~mask;    /* even */
         mmu_idx = BIT(FIELD_EX64(tlb->tlb_entry0, TLBENTRY, PLV));
         tlb_flush_range_by_mmuidx(env_cpu(env), addr, pagesize,
                                   mmu_idx, TARGET_LONG_BITS);
     }
 
     if (tlb_v1) {
-        addr = (tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & pagesize;    /* odd */
         mmu_idx = BIT(FIELD_EX64(tlb->tlb_entry1, TLBENTRY, PLV));
-        tlb_flush_range_by_mmuidx(env_cpu(env), addr, pagesize,
+        tlb_flush_range_by_mmuidx(env_cpu(env), addr + pagesize, pagesize,
                                   mmu_idx, TARGET_LONG_BITS);
     }
 }
