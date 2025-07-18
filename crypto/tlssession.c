@@ -615,10 +615,20 @@ qcrypto_tls_session_handshake(QCryptoTLSSession *session,
          * only have to protect against automatic rekeying
          * which doesn't trigger with CHACHA20
          */
+        trace_qcrypto_tls_session_parameters(
+            session,
+            session->requireThreadSafety,
+            gnutls_protocol_get_version(session->handle),
+            cipher);
+
         if (session->requireThreadSafety &&
             gnutls_protocol_get_version(session->handle) ==
             GNUTLS_TLS1_3 &&
             cipher != GNUTLS_CIPHER_CHACHA20_POLY1305) {
+            warn_report("WARNING: activating thread safety countermeasures "
+                        "for potentially broken GNUTLS with TLS1.3 cipher=%d",
+                        cipher);
+            trace_qcrypto_tls_session_bug1717_workaround(session);
             session->lockEnabled = true;
         }
 #endif
