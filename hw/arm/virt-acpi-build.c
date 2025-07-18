@@ -559,12 +559,13 @@ spcr_setup(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         .pci_function = 0,
         .pci_flags = 0,
         .pci_segment = 0,
+        .uart_clk_freq = 24000000, /* 24MHz */
     };
     /*
-     * Passing NULL as the SPCR Table for Revision 2 doesn't support
+     * Passing NULL as the SPCR Table for Revision 3 doesn't support
      * NameSpaceString.
      */
-    build_spcr(table_data, linker, &serial, 2, vms->oem_id, vms->oem_table_id,
+    build_spcr(table_data, linker, &serial, 3, vms->oem_id, vms->oem_table_id,
                NULL);
 }
 
