@@ -385,7 +385,8 @@ void helper_tlbclr(CPULoongArchState *env)
         }
     }
 
-    tlb_flush(env_cpu(env));
+    /* Flush all user tlb entries */
+    tlb_flush_by_mmuidx(env_cpu(env), BIT(MMU_USER_IDX));
 }
 
 void helper_tlbflush(CPULoongArchState *env)
@@ -447,7 +448,9 @@ void helper_invtlb_all_asid(CPULoongArchState *env, target_ulong info)
             tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
         }
     }
-    tlb_flush(env_cpu(env));
+
+    /* Flush all user tlb entries */
+    tlb_flush_by_mmuidx(env_cpu(env), BIT(MMU_USER_IDX));
 }
 
 void helper_invtlb_page_asid(CPULoongArchState *env, target_ulong info,
@@ -475,15 +478,19 @@ void helper_invtlb_page_asid(CPULoongArchState *env, target_ulong info,
         if (!tlb_g && (tlb_asid == asid) &&
            (vpn == (tlb_vppn >> compare_shift))) {
             tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
+            tlb_flush_range_by_mmuidx(env_cpu(env), vpn << (tlb_ps + 1),
+                                      BIT_ULL(tlb_ps + 1),
+                                      BIT(MMU_USER_IDX), TARGET_LONG_BITS);
+            break;
         }
     }
-    tlb_flush(env_cpu(env));
 }
 
 void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
                                   target_ulong info, target_ulong addr)
 {
     uint16_t asid = info & 0x3ff;
+    int mmu_idx;
 
     for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
         LoongArchTLB *tlb = &env->tlb[i];
@@ -505,9 +512,13 @@ void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
         if ((tlb_g || (tlb_asid == asid)) &&
             (vpn == (tlb_vppn >> compare_shift))) {
             tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
+            mmu_idx = BIT(FIELD_EX64(tlb->tlb_entry0, TLBENTRY, PLV));
+            tlb_flush_range_by_mmuidx(env_cpu(env), vpn << (tlb_ps + 1),
+                                      BIT_ULL(tlb_ps + 1),
+                                      mmu_idx, TARGET_LONG_BITS);
+            break;
         }
     }
-    tlb_flush(env_cpu(env));
 }
 
 bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
