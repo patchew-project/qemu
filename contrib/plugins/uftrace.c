@@ -4,6 +4,8 @@
  * Generates a trace compatible with uftrace (similar to uftrace record).
  * https://github.com/namhyung/uftrace
  *
+ * See docs/about/emulation.rst|Uftrace for details and examples.
+ *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
