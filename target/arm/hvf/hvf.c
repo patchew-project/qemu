@@ -1018,6 +1018,13 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     int i;
 
     env->aarch64 = true;
+    /*
+     * TODO: This does not correspond to the exposed generic
+     * timer frequency to the guest on Apple M3/M4.
+     * This is due to a scaled 1GHz counter being exposed
+     * to applications built with newer SDKs when running
+     * on that silicon, while VMs get an unscaled counter.
+     */
     asm volatile("mrs %0, cntfrq_el0" : "=r"(arm_cpu->gt_cntfrq_hz));
 
     /* Allocate enough space for our sysreg sync */
