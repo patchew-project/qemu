@@ -900,6 +900,24 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
     return ok;
 }
 
+/* pretty-print a KVM register */
+#define CP_REG_ARM64_SYSREG_OP(_reg, _op)                       \
+    ((uint8_t)((_reg & CP_REG_ARM64_SYSREG_ ## _op ## _MASK) >> \
+               CP_REG_ARM64_SYSREG_ ## _op ## _SHIFT))
+
+#define PRI_CP_REG_ARM64_SYSREG(_reg)                    \
+    ({                                                   \
+        char _out[32];                                   \
+        snprintf(_out, sizeof(_out),                     \
+                 "op0:%d op1:%d crn:%d crm:%d op2:%d",   \
+                 CP_REG_ARM64_SYSREG_OP(_reg, OP0),      \
+                 CP_REG_ARM64_SYSREG_OP(_reg, OP1),      \
+                 CP_REG_ARM64_SYSREG_OP(_reg, CRN),      \
+                 CP_REG_ARM64_SYSREG_OP(_reg, CRM),      \
+                 CP_REG_ARM64_SYSREG_OP(_reg, OP2));     \
+        _out;                                            \
+    })
+
 bool write_list_to_kvmstate(ARMCPU *cpu, int level)
 {
     CPUState *cs = CPU(cpu);
@@ -932,6 +950,41 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level)
              * a different value from what it actually contains".
              */
             ok = false;
+            switch (ret) {
+            case -ENOENT:
+                error_report("Could not set register %s: unknown to KVM",
+                             PRI_CP_REG_ARM64_SYSREG(regidx));
+                break;
+            case -EINVAL:
+                if ((regidx & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U32) {
+                    if (!kvm_get_one_reg(cs, regidx, &v32)) {
+                        error_report("Could not set register %s to %x (is %x)",
+                                     PRI_CP_REG_ARM64_SYSREG(regidx),
+                                     (uint32_t)cpu->cpreg_values[i], v32);
+                    } else {
+                        error_report("Could not set register %s to %x",
+                                     PRI_CP_REG_ARM64_SYSREG(regidx),
+                                     (uint32_t)cpu->cpreg_values[i]);
+                    }
+                } else /* U64 */ {
+                    uint64_t v64;
+
+                    if (!kvm_get_one_reg(cs, regidx, &v64)) {
+                        error_report("Could not set register %s to %lx (is %lx)",
+                                     PRI_CP_REG_ARM64_SYSREG(regidx),
+                                     cpu->cpreg_values[i], v64);
+                    } else {
+                        error_report("Could not set register %s to %lx",
+                                     PRI_CP_REG_ARM64_SYSREG(regidx),
+                                     cpu->cpreg_values[i]);
+                    }
+                }
+                break;
+            default:
+                error_report("Could not set register %s: %s",
+                             PRI_CP_REG_ARM64_SYSREG(regidx),
+                             strerror(-ret));
+            }
         }
     }
     return ok;
