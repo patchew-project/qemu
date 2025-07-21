@@ -263,6 +263,16 @@
 # @corrected-persistent-error-count: Total number of correctable
 #     errors in persistent memory
 #
+# @component-id: Device specific component identifier for the event.
+#     May describe a field replaceable sub-component of the device.
+#     See CXL r3.2 Table 8-59 Memory Module Event Record.
+#
+# @is-comp-id-pldm: Flag represents device specific component identifier
+#     format is PLDM or not.
+#
+# @sub-type: Device event sub-type.
+#     See CXL r3.2 Table 8-59 Memory Module Event Record.
+#
 # Since: 8.1
 ##
 { 'command': 'cxl-inject-memory-module-event',
@@ -274,7 +284,9 @@
             'life-used': 'uint8', 'temperature' : 'int16',
             'dirty-shutdown-count': 'uint32',
             'corrected-volatile-error-count': 'uint32',
-            'corrected-persistent-error-count': 'uint32'
+            'corrected-persistent-error-count': 'uint32',
+            '*component-id': 'str', '*is-comp-id-pldm':'uint8',
+            'sub-type':'uint8'
             }}
 
 ##
