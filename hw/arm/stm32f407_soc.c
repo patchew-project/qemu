@@ -20,6 +20,13 @@ static const int exti_irq[] = {
     40, 40, 40, 40, 40
 };
 
+static const uint32_t usart_addr[STM_NUM_USARTS] = {
+    STM32F407_USART1, STM32F407_USART2, STM32F407_USART3,
+    STM32F407_USART6
+};
+static const int usart_irq[STM_NUM_USARTS] = {
+    37, 38, 39, 71
+};
 
 static void stm32f407_soc_initfn(Object *obj)
 {
@@ -31,6 +38,12 @@ static void stm32f407_soc_initfn(Object *obj)
 
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32F4XX_SYSCFG);
     object_initialize_child(obj, "exti", &s->exti, TYPE_STM32F4XX_EXTI);
+
+   for (i = 0; i < STM_NUM_USARTS; i++) {
+        object_initialize_child(obj, "usart[*]", &s->usart[i],
+                                TYPE_STM32F4XX_USART);
+    }
+
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
     s->refclk = qdev_init_clock_in(DEVICE(s), "refclk", NULL, NULL, 0);
@@ -103,6 +116,18 @@ static void stm32f407_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     for (i = 0; i < 16; i) {
         qdev_connect_gpio_out(DEVICE(&s->syscfg), i, qdev_get_gpio_in(dev, i));
+    }
+
+    /* USART controllers */
+    for (i = 0; i < STM_NUM_USARTS; i) {
+        dev = DEVICE(&(s->usart[i]));
+        qdev_prop_set_chr(dev, "chardev", serial_hd(i));
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->usart[i]), errp)) {
+            return;
+        }
+        busdev = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(busdev, 0, usart_addr[i]);
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, usart_irq[i]));
     }
 
 }

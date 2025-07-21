@@ -6,6 +6,7 @@
 #include "hw/arm/armv7m.h"
 #include "hw/misc/stm32f4xx_syscfg.h"
 #include "hw/misc/stm32f4xx_exti.h"
+#include "hw/char/stm32f4xx_usart.h"
 
 #include "qom/object.h"
 
@@ -20,6 +21,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(STM32F407State, STM32F407_SOC)
 #define SRAM_BASE_ADDRESS   0x20000000
 #define SRAM_SIZE           (192 * 1024)
 
+#define STM_NUM_USARTS      4
+#define STM32F407_USART1    0x40011000
+#define STM32F407_USART2    0x40004400
+#define STM32F407_USART3    0x40004800
+#define STM32F407_USART6    0x40011400
+
 
 struct STM32F407State {
     /*< private >*/
@@ -31,6 +38,7 @@ struct STM32F407State {
 
     STM32F4xxSyscfgState syscfg;
     STM32F4xxExtiState exti;
+    STM32F4XXUsartState usart[STM_NUM_USARTS];
 
     Clock *sysclk;
     Clock *refclk;

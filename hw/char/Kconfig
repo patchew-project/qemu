@@ -54,6 +54,9 @@ config MAX78000_UART
 config STM32F2XX_USART
     bool
 
+config STM32F4XX_USART
+    bool
+
 config STM32L4X5_USART
     bool
 

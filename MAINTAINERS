@@ -1157,6 +1157,8 @@ M: Yihao Fan <fanyihao@rt-thread.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/stm32f407_soc.c
+F: hw/char/stm32f4xx_usart.c
+F: include/hw/char/stm32f4xx_usart.h
 
 Netduino 2
 M: Alistair Francis <alistair@alistair23.me>
