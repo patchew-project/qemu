@@ -8172,6 +8172,9 @@ static int open_self_maps_2(void *opaque, vaddr guest_start,
     while (1) {
         IntervalTreeNode *n =
             interval_tree_iter_first(d->host_maps, host_start, host_start);
+        if (n == NULL) {
+            return -1;
+        }
         MapInfo *mi = container_of(n, MapInfo, itree);
         uintptr_t this_hlast = MIN(host_last, n->last);
         target_ulong this_gend = h2g(this_hlast) + 1;
