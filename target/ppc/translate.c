@@ -2998,7 +2998,7 @@ static void gen_fetch_inc_conditional(DisasContext *ctx, MemOp memop,
 
     /* RT = (t != t2 ? t : u = 1<<(s*8-1)) */
     tcg_gen_movcond_tl(cond, cpu_gpr[rD(ctx->opcode)], t, t2, t,
-                       tcg_constant_tl(1 << (memop_size(memop) * 8 - 1)));
+                       tcg_constant_tl(1ULL << (memop_size(memop) * 8 - 1)));
 }
 
 static void gen_ld_atomic(DisasContext *ctx, MemOp memop)
