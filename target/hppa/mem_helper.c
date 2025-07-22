@@ -766,7 +766,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
 
             /* Create new BTLB entry */
             btlb->itree.start = virt_page << TARGET_PAGE_BITS;
-            btlb->itree.last = btlb->itree.start + len * TARGET_PAGE_SIZE - 1;
+            btlb->itree.last = btlb->itree.start + (long long) len * TARGET_PAGE_SIZE - 1;
             btlb->pa = phys_page << TARGET_PAGE_BITS;
             set_access_bits_pa11(env, btlb, env->gr[20]);
             btlb->t = 0;
