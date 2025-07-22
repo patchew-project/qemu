@@ -206,6 +206,10 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
                        node->value->name, EDID_NAME_MAX_LENGTH);
             return false;
         }
+        if (node->value && !(node->value->xres && node->value->yres)) {
+            error_setg(errp, "invalid resolution == 0");
+            return false;
+        }
     }
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
@@ -232,6 +236,14 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
 
     g->req_state[0].width = g->conf.xres;
     g->req_state[0].height = g->conf.yres;
+
+    for (output_idx = 0, node = g->conf.outputs;
+         node && output_idx < g->conf.max_outputs;
+         output_idx++, node = node->next) {
+        g->enabled_output_bitmask |= (1 << output_idx);
+        g->req_state[output_idx].width = node->value->xres;
+        g->req_state[output_idx].height = node->value->yres;
+    }
 
     g->hw_ops = &virtio_gpu_ops;
     for (i = 0; i < g->conf.max_outputs; i++) {

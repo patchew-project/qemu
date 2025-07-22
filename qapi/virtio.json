@@ -970,11 +970,15 @@
 #
 # @name: the name of the output
 #
+# @xres: horizontal resolution of the output in pixels
+#
+# @yres: vertical resolution of the output in pixels
+#
 # Since: 10.1
 ##
 
 { 'struct': 'VirtIOGPUOutput',
-  'data': { 'name': 'str' } }
+  'data': { 'name': 'str', 'xres': 'uint16', 'yres': 'uint16' } }
 
 ##
 # @DummyVirtioForceArrays:
