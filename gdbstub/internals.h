@@ -11,7 +11,7 @@
 
 #include "exec/cpu-common.h"
 
-#define MAX_PACKET_LENGTH 4096
+#define MAX_PACKET_LENGTH 131100
 
 /*
  * Shared structures and definitions
