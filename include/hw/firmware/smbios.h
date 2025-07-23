@@ -24,6 +24,9 @@ typedef struct {
     const char *vendor, *version, *date;
     bool have_major_minor, uefi;
     uint8_t major, minor;
+
+    bool have_extension_bytes[2];
+    uint8_t extension_bytes[2];
 } smbios_type0_t;
 extern smbios_type0_t smbios_type0;
 

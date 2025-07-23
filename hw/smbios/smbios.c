@@ -179,6 +179,14 @@ static const QemuOptDesc qemu_smbios_type0_opts[] = {
         .name = "uefi",
         .type = QEMU_OPT_BOOL,
         .help = "uefi support",
+    },{
+        .name = "extension_byte_1",
+        .type = QEMU_OPT_NUMBER,
+        .help = "BIOS characteristics extension byte 1"
+    },{
+        .name = "extension_byte_2",
+        .type = QEMU_OPT_NUMBER,
+        .help = "BIOS characteristics extension byte 2"
     },
     { /* end of list */ }
 };
@@ -573,10 +581,23 @@ static void smbios_build_type_0_table(void)
     t->bios_rom_size = 0; /* hardcoded in SeaBIOS with FIXME comment */
 
     t->bios_characteristics = cpu_to_le64(0x08); /* Not supported */
-    t->bios_characteristics_extension_bytes[0] = 0;
-    t->bios_characteristics_extension_bytes[1] = 0x14; /* TCD/SVVP | VM */
-    if (smbios_type0.uefi) {
-        t->bios_characteristics_extension_bytes[1] |= 0x08; /* |= UEFI */
+
+    if (smbios_type0.have_extension_bytes[0]) {
+        t->bios_characteristics_extension_bytes[0] =
+            smbios_type0.extension_bytes[0];
+    } else {
+        t->bios_characteristics_extension_bytes[0] = 0;
+    }
+
+    if (smbios_type0.have_extension_bytes[1]) {
+        t->bios_characteristics_extension_bytes[1] =
+            smbios_type0.extension_bytes[1];
+    } else {
+        t->bios_characteristics_extension_bytes[1] = 0x14; /* TCD/SVVP | VM */
+
+        if (smbios_type0.uefi) {
+            t->bios_characteristics_extension_bytes[1] |= 0x08; /* |= UEFI */
+        }
     }
 
     if (smbios_type0.have_major_minor) {
@@ -1404,7 +1425,42 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&smbios_type0.vendor, opts, "vendor");
             save_opt(&smbios_type0.version, opts, "version");
             save_opt(&smbios_type0.date, opts, "date");
-            smbios_type0.uefi = qemu_opt_get_bool(opts, "uefi", false);
+
+            if (qemu_opt_get(opts, "extension_byte_1")) {
+                uint64_t ex_val;
+
+                ex_val = qemu_opt_get_number(opts, "extension_byte_1", 0);
+                if (ex_val > 0xFF) {
+                    error_setg(errp, "Invalid extension_byte_1");
+                    return;
+                }
+
+                smbios_type0.extension_bytes[0] = ex_val;
+                smbios_type0.have_extension_bytes[0] = true;
+            }
+
+            if (qemu_opt_get(opts, "extension_byte_2")) {
+                uint64_t ex_val;
+
+                ex_val = qemu_opt_get_number(opts, "extension_byte_2", 0);
+                if (ex_val > 0xFF) {
+                    error_setg(errp, "Invalid extension_byte_2");
+                    return;
+                }
+
+                smbios_type0.extension_bytes[1] = ex_val;
+                smbios_type0.have_extension_bytes[1] = true;
+            }
+
+            if (qemu_opt_get(opts, "uefi")) {
+                if (smbios_type0.have_extension_bytes[1]) {
+                    error_setg(errp, "'uefi' and 'extension_byte_2' are "
+                                     "mutually exclusive");
+                    return;
+                }
+
+                smbios_type0.uefi = qemu_opt_get_bool(opts, "uefi", false);
+            }
 
             val = qemu_opt_get(opts, "release");
             if (val) {
