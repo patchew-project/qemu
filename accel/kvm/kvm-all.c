@@ -367,7 +367,9 @@ static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, boo
     mem.userspace_addr = (unsigned long)slot->ram;
     mem.flags = slot->flags;
     mem.guest_memfd = slot->guest_memfd;
-    mem.guest_memfd_offset = slot->guest_memfd_offset;
+    if (slot->guest_memfd >= 0) {
+        mem.guest_memfd_offset = slot->guest_memfd_offset;
+    }
 
     if (slot->memory_size && !new && (mem.flags ^ slot->old_flags) & KVM_MEM_READONLY) {
         /* Set the slot size to 0 before setting the slot to the desired
