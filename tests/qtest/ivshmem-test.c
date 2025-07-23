@@ -194,6 +194,55 @@ static void test_ivshmem_single(void)
     cleanup_vm(s);
 }
 
+static void test_memory_region_lifecycle(void)
+{
+    /* Device creation triggers memory region mapping (calls ref) */
+    IVState state1, state2;
+    uint32_t test_data, read_data;
+    int i;
+
+    setup_vm(&state1);
+
+    /* Basic verification that device works */
+    test_data = 0x12345678;
+    write_mem(&state1, 0, &test_data, sizeof(test_data));
+    read_mem(&state1, 0, &read_data, sizeof(read_data));
+    g_assert_cmpuint(read_data, ==, test_data);
+
+    /* Multiple devices stress test memory region ref counting */
+    setup_vm(&state2);
+
+    /* Verify both devices work independently */
+    test_data = 0xDEADBEEF;
+    write_mem(&state2, 4, &test_data, sizeof(test_data));
+    read_mem(&state2, 4, &read_data, sizeof(read_data));
+    g_assert_cmpuint(read_data, ==, test_data);
+
+    /* Device destruction triggers memory region unmapping (calls unref) */
+    cleanup_vm(&state1);
+
+    /* Verify remaining device still works after first device cleanup */
+    read_mem(&state2, 4, &read_data, sizeof(read_data));
+    g_assert_cmpuint(read_data, ==, test_data);
+
+    /* Final cleanup */
+    cleanup_vm(&state2);
+
+    /* Quick lifecycle stress test - multiple create/destroy cycles */
+    for (i = 0; i < 5; i++) {
+        IVState temp_state;
+        setup_vm(&temp_state);
+
+        /* Quick test to ensure device works */
+        test_data = 0x1000 + i;
+        write_mem(&temp_state, 0, &test_data, sizeof(test_data));
+        read_mem(&temp_state, 0, &read_data, sizeof(read_data));
+        g_assert_cmpuint(read_data, ==, test_data);
+
+        cleanup_vm(&temp_state);
+    }
+}
+
 static void test_ivshmem_pair(void)
 {
     IVState state1, state2, *s1, *s2;
@@ -503,6 +552,7 @@ int main(int argc, char **argv)
     tmpserver = g_strconcat(tmpdir, "/server", NULL);
 
     qtest_add_func("/ivshmem/single", test_ivshmem_single);
+    qtest_add_func("/ivshmem/memory-lifecycle", test_memory_region_lifecycle);
     qtest_add_func("/ivshmem/hotplug", test_ivshmem_hotplug);
     qtest_add_func("/ivshmem/memdev", test_ivshmem_memdev);
     if (g_test_slow()) {

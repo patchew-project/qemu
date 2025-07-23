@@ -1826,6 +1826,14 @@ Object *memory_region_owner(MemoryRegion *mr)
 
 void memory_region_ref(MemoryRegion *mr)
 {
+    /* Regions without an owner are considered static. */
+    if (!mr || !mr->owner) {
+        return;
+    }
+    if (mr->ram) {
+        object_ref(OBJECT(mr));
+        return;
+    }
     /* MMIO callbacks most likely will access data that belongs
      * to the owner, hence the need to ref/unref the owner whenever
      * the memory region is in use.
@@ -1836,16 +1844,20 @@ void memory_region_ref(MemoryRegion *mr)
      * Memory regions without an owner are supposed to never go away;
      * we do not ref/unref them because it slows down DMA sensibly.
      */
-    if (mr && mr->owner) {
-        object_ref(mr->owner);
-    }
+    object_ref(mr->owner);
 }
 
 void memory_region_unref(MemoryRegion *mr)
 {
-    if (mr && mr->owner) {
-        object_unref(mr->owner);
+    /* Regions without an owner are considered static. */
+    if (!mr || !mr->owner) {
+        return;
     }
+    if (mr->ram) {
+        object_unref(OBJECT(mr));
+        return;
+    }
+    object_unref(mr->owner);
 }
 
 uint64_t memory_region_size(MemoryRegion *mr)
