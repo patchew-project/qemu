@@ -14,14 +14,74 @@
 #include "qemu/error-report.h"
 #include "exec/cpu-defs.h"
 #include "hw/core/cpu.h"
+#include "hw/misc/vmcoreinfo.h"
 #include "qemu/win_dump_defs.h"
 #include "win_dump.h"
 #include "cpu.h"
+#include "elf.h"
 
 #if defined(TARGET_X86_64)
 
+#define ELF_NOTE_SIZE(hdr_size, name_size, desc_size)   \
+    ((DIV_ROUND_UP((hdr_size), 4) +                     \
+      DIV_ROUND_UP((name_size), 4) +                    \
+      DIV_ROUND_UP((desc_size), 4)) * 4)
+
 bool win_dump_available(Error **errp)
 {
+    uint64_t addr, note_head_size, name_size, desc_size;
+    uint32_t size;
+    uint16_t guest_format;
+    uint8_t *guest_note = NULL;
+    size_t guest_note_size = 0;
+    VMCoreInfoState *vmci = vmcoreinfo_find();
+    ArchDumpInfo dump_info = {};
+    GuestPhysBlockList blocks = {};
+    int ret;
+
+    if (!vmci || !vmci->has_vmcoreinfo)
+        return false;
+
+    ret = cpu_get_dump_info(&dump_info, &blocks);
+    if (ret < 0)
+        return false;
+
+    guest_format = le16_to_cpu(vmci->vmcoreinfo.guest_format);
+    if (guest_format != FW_CFG_VMCOREINFO_FORMAT_ELF)
+        return false;
+
+    size = le32_to_cpu(vmci->vmcoreinfo.size);
+    addr = le64_to_cpu(vmci->vmcoreinfo.paddr);
+    note_head_size = dump_info.d_class == ELFCLASS64 ?
+        sizeof(Elf64_Nhdr) : sizeof(Elf32_Nhdr);
+
+    guest_note = g_malloc(size + 1);
+    cpu_physical_memory_read(addr, guest_note, size);
+    if (dump_info.d_class == ELFCLASS64) {
+        const Elf64_Nhdr *hdr = (void *)guest_note;
+        if (dump_info.d_endian == ELFDATA2LSB) {
+            name_size = cpu_to_le64(hdr->n_namesz);
+            desc_size = cpu_to_le64(hdr->n_descsz);
+        } else {
+            name_size = cpu_to_be64(hdr->n_namesz);
+            desc_size = cpu_to_be64(hdr->n_descsz);
+        }
+    } else {
+        const Elf32_Nhdr *hdr = (void *)guest_note;
+        if (dump_info.d_endian == ELFDATA2LSB) {
+            name_size = cpu_to_le32(hdr->n_namesz);
+            desc_size = cpu_to_le32(hdr->n_descsz);
+        } else {
+            name_size = cpu_to_be32(hdr->n_namesz);
+            desc_size = cpu_to_be32(hdr->n_descsz);
+        }
+    }
+
+    guest_note_size = ELF_NOTE_SIZE(note_head_size, name_size, desc_size);
+    if (guest_note_size != VMCOREINFO_WIN_DUMP_NOTE_SIZE64 &&
+        guest_note_size != VMCOREINFO_WIN_DUMP_NOTE_SIZE32)
+        return false;
+
     return true;
 }
 
