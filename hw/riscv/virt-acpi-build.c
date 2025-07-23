@@ -27,6 +27,7 @@
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/acpi/generic_event_device.h"
 #include "hw/acpi/pci.h"
 #include "hw/acpi/utils.h"
 #include "hw/intc/riscv_aclint.h"
@@ -497,6 +498,15 @@ static void build_dsdt(GArray *table_data,
                              VIRTIO_COUNT);
         acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2);
     }
+
+    if (s->acpi_ged) {
+        build_ged_aml(scope, "\\_SB."GED_DEVICE,
+                      HOTPLUG_HANDLER(s->acpi_ged),
+                      ACPI_GED_IRQ, AML_SYSTEM_MEMORY,
+                      s->memmap[VIRT_ACPI_GED].base);
+    }
+
+    acpi_dsdt_add_power_button(scope);
 
     aml_append(dsdt, scope);
 
