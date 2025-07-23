@@ -361,6 +361,7 @@ static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, boo
     struct kvm_userspace_memory_region2 mem;
     int ret;
 
+    memset(&mem, 0, sizeof(mem));
     mem.slot = slot->slot | (kml->as_id << 16);
     mem.guest_phys_addr = slot->start_addr;
     mem.userspace_addr = (unsigned long)slot->ram;
