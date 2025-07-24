@@ -6874,6 +6874,7 @@ static bool do_shll_tb(DisasContext *s, arg_rri_esz *a,
     if (a->esz < 0 || a->esz > 2) {
         return false;
     }
+    assert(a->imm > 0 && a->imm <= (8 << a->esz));
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
         tcg_gen_gvec_2i(vec_full_reg_offset(s, a->rd),
