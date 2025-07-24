@@ -824,9 +824,8 @@ Uftrace
 This plugin generates a binary trace compatible with
 `uftrace <https://github.com/namhyung/uftrace>`_.
 
-Plugin supports aarch64 only (x64 support should be trivial to add), and works
-in user and system mode, allowing to trace a system boot, which is not something
-possible usually.
+Plugin supports aarch64 and x64, and works in user and system mode, allowing to
+trace a system boot, which is not something possible usually.
 
 In user mode, the memory mapping is directly copied from ``/proc/self/maps`` at
 the end of execution. Uftrace should be able to retrieve symbols by itself,
@@ -842,7 +841,8 @@ default again on x64
 <https://www.brendangregg.com/blog/2024-03-17/the-return-of-the-frame-pointers.html>`_.
 On aarch64, this is less of a problem, as they are usually part of the ABI,
 except for leaf functions. That's true for user space applications, but not
-necessarily for bare metal code.
+necessarily for bare metal code. You can read this `section
+<uftrace_build_system_example>` to easily build a system with frame pointers.
 
 Timestamps used for events are the number of instructions executed so far by
 default. As it's tracked per vcpu, each timeline should be considered
@@ -964,6 +964,8 @@ find below some sequences taken from this trace:
 Build and run system example
 ++++++++++++++++++++++++++++
 
+.. _uftrace_build_system_example:
+
 Building a full system image with frame pointers is not trivial.
 
 We provide a `simple way <https://github.com/pbo-linaro/qemu-linux-stack>`_ to
@@ -971,6 +973,10 @@ build an aarch64 system, combining Arm Trusted firmware, U-boot, Linux kernel
 and debian userland. It's based on containers (``podman`` only) and
 ``qemu-user-static (binfmt)`` to make sure it's easily reproducible and does not depend
 on machine where you build it.
+
+You can follow the exact same instructions for a x64 system, combining edk2,
+Linux, and Ubuntu, simply by switching to
+`x86_64 <https://github.com/pbo-linaro/qemu-linux-stack/tree/x86_64>`_ branch.
 
 To build the system::
 
