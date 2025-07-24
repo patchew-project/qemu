@@ -943,9 +943,14 @@ The usual ****strong****, *\*emphasized\** and ````literal```` markup
 should be used.  If you need a single literal ``*``, you will need to
 backslash-escape it.
 
-Use ``@foo`` to reference a name in the schema.  This is an rST
-extension.  It is rendered the same way as ````foo````, but carries
-additional meaning.
+Use ```foo``` to reference a name in the schema and generate a
+cross-reference link. In the event that a cross-reference is ambiguous
+and the manual compilation fails, `QAPI cross-reference roles
+<QAPI-XREF>` can be used to narrow the cross-reference results.
+
+Use ``@foo`` to reference members, which do not currently have a
+cross-reference target. This is an rST extension.  It is rendered the
+same way as ````foo````, but carries additional meaning.
 
 Example::
 
