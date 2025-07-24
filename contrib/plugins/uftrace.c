@@ -44,6 +44,9 @@ typedef struct {
 
 typedef struct Cpu {
     uint64_t insn_count;
+    uint64_t sample_insn_count;
+    uint64_t sample_timestamp;
+    callstack *sample_cs;
     trace *trace;
     callstack *cs;
     GArray *callstacks; /* callstack *callstacks[] */
@@ -70,6 +73,7 @@ enum uftrace_record_type {
 };
 
 static struct qemu_plugin_scoreboard *score;
+static uint64_t trace_sample;
 static CpuOps arch_ops;
 
 static void uftrace_write_map(bool system_emulation)
@@ -197,6 +201,13 @@ static callstack *callstack_new(void)
     callstack *cs = g_malloc0(sizeof(callstack));
     cs->s = g_array_new(false, false, sizeof(callstack_entry));
     return cs;
+}
+
+static callstack *callstack_clone(const callstack *cs)
+{
+    callstack *clone = g_malloc0(sizeof(callstack));
+    clone->s = g_array_copy(cs->s);
+    return clone;
 }
 
 static void callstack_free(callstack *cs)
@@ -391,6 +402,26 @@ static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
     }
 }
 
+static void cpu_trace_last_sample(Cpu *cpu, uint64_t timestamp)
+{
+    if (!cpu->sample_cs) {
+        return;
+    }
+    uint64_t elapsed = timestamp - cpu->sample_timestamp;
+    uint64_t middle_timestamp = cpu->sample_timestamp + (elapsed / 2);
+    trace_exit_stack(cpu->trace, cpu->sample_cs, middle_timestamp);
+    callstack_free(cpu->sample_cs);
+    cpu->sample_cs = NULL;
+    trace_enter_stack(cpu->trace, cpu->cs, middle_timestamp);
+}
+
+static void cpu_set_new_sample(Cpu *cpu, uint64_t timestamp)
+{
+    cpu->sample_insn_count = 0;
+    cpu->sample_cs = callstack_clone(cpu->cs);
+    cpu->sample_timestamp = timestamp;
+}
+
 static uint64_t cpu_get_timestamp(const Cpu *cpu)
 {
     return cpu->insn_count;
@@ -451,6 +482,13 @@ static void track_callstack(unsigned int cpu_index, void *udata)
     callstack *cs = cpu->cs;
     trace *t = cpu->trace;
 
+    if (trace_sample && cpu->sample_insn_count >= trace_sample) {
+        cpu_trace_last_sample(cpu, timestamp);
+        cpu_set_new_sample(cpu, timestamp);
+    }
+
+    bool trace_change = !trace_sample;
+
     uint64_t fp = cpu->ops.get_frame_pointer(cpu);
     if (!fp && callstack_empty(cs)) {
         /*
@@ -459,7 +497,9 @@ static void track_callstack(unsigned int cpu_index, void *udata)
          */
         callstack_push(cs, (callstack_entry){.frame_pointer = fp,
                                                .pc = pc});
-        trace_enter_function(t, timestamp, pc, callstack_depth(cs));
+        if (trace_change) {
+            trace_enter_function(t, timestamp, pc, callstack_depth(cs));
+        }
         return;
     }
 
@@ -473,7 +513,9 @@ static void track_callstack(unsigned int cpu_index, void *udata)
     if (fp == caller.frame_pointer) {
         /* return */
         callstack_entry e = callstack_pop(cs);
-        trace_exit_function(t, timestamp, e.pc, callstack_depth(cs));
+        if (trace_change) {
+            trace_exit_function(t, timestamp, e.pc, callstack_depth(cs));
+        }
         return;
     }
 
@@ -482,27 +524,65 @@ static void track_callstack(unsigned int cpu_index, void *udata)
         /* call */
         callstack_push(cs, (callstack_entry){.frame_pointer = fp,
                 .pc = pc});
-        trace_enter_function(t, timestamp, pc, callstack_depth(cs));
+        if (trace_change) {
+            trace_enter_function(t, timestamp, pc, callstack_depth(cs));
+        }
         return;
     }
 
     /* discontinuity, exit current stack and unwind new one */
-    trace_exit_stack(t, cs, timestamp);
+    if (trace_change) {
+        trace_exit_stack(t, cs, timestamp);
+    }
     callstack_clear(cs);
 
     cpu_unwind_stack(cpu, fp, pc);
-    trace_enter_stack(t, cs, timestamp);
+    if (trace_change) {
+        trace_enter_stack(t, cs, timestamp);
+    }
+}
+
+static void sample_callstack(unsigned int cpu_index, void *udata)
+{
+    uint64_t pc = (uintptr_t) udata;
+    Cpu *cpu = qemu_plugin_scoreboard_find(score, cpu_index);
+    uint64_t timestamp = cpu_get_timestamp(cpu);
+
+    trace_exit_stack(cpu->trace, cpu->cs, timestamp);
+    callstack_clear(cpu->cs);
+
+    cpu_unwind_stack(cpu, cpu->ops.get_frame_pointer(cpu), pc);
+    trace_enter_stack(cpu->trace, cpu->cs, timestamp);
+
+    /* reset counter */
+    cpu->sample_insn_count = 0;
 }
 
 static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 {
     size_t n_insns = qemu_plugin_tb_n_insns(tb);
+    uintptr_t tb_pc = qemu_plugin_tb_vaddr(tb);
 
     qemu_plugin_u64 insn_count = qemu_plugin_scoreboard_u64_in_struct(
                                       score, Cpu, insn_count);
+    qemu_plugin_u64 sample_insn_count = qemu_plugin_scoreboard_u64_in_struct(
+                                            score, Cpu, sample_insn_count);
+
+    if (trace_sample) {
+        /* We can do a light instrumentation, per tb only */
+        qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
+            tb, QEMU_PLUGIN_INLINE_ADD_U64, insn_count, n_insns);
+        qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
+            tb, QEMU_PLUGIN_INLINE_ADD_U64, sample_insn_count, n_insns);
+        qemu_plugin_register_vcpu_tb_exec_cond_cb(
+            tb, sample_callstack, QEMU_PLUGIN_CB_R_REGS,
+            QEMU_PLUGIN_COND_GE, sample_insn_count, trace_sample,
+            (void *) tb_pc);
+        return;
+    }
 
     /*
-     * We instrument all instructions following one that might have updated
+     * We now instrument all instructions following one that might have updated
      * the frame pointer. We always instrument first instruction in block, as
      * last executed instruction, in previous tb, may have modified it.
      */
@@ -511,6 +591,8 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, i);
         qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
                 insn, QEMU_PLUGIN_INLINE_ADD_U64, insn_count, 1);
+        qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
+                insn, QEMU_PLUGIN_INLINE_ADD_U64, sample_insn_count, 1);
 
         if (instrument_insn) {
             uintptr_t pc = qemu_plugin_insn_vaddr(insn);
@@ -536,6 +618,7 @@ static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
     cpu->buf = g_byte_array_new();
     cpu->callstacks = g_array_new(0, 0, sizeof(callstack *));
     cpu->traces = g_array_new(0, 0, sizeof(trace *));
+    cpu->sample_timestamp = cpu_get_timestamp(cpu);
 
     g_assert(vcpu_index < 1000);
     uint32_t trace_id = 1000 * 1000 + vcpu_index * 1000;
@@ -613,6 +696,22 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            const qemu_info_t *info,
                                            int argc, char **argv)
 {
+    for (int i = 0; i < argc; i++) {
+        char *opt = argv[i];
+        g_auto(GStrv) tokens = g_strsplit(opt, "=", 2);
+        if (g_strcmp0(tokens[0], "trace-sample") == 0) {
+            gint64 value = g_ascii_strtoll(tokens[1], NULL, 10);
+            if (value <= 0) {
+                fprintf(stderr, "bad trace-sample value: %s\n", tokens[1]);
+                return -1;
+            }
+            trace_sample = value;
+        } else {
+            fprintf(stderr, "option parsing failed: %s\n", opt);
+            return -1;
+        }
+    }
+
     if (!strcmp(info->target_name, "aarch64")) {
         arch_ops = aarch64_ops;
     } else {
