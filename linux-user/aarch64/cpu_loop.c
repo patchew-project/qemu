@@ -70,6 +70,8 @@ void cpu_loop(CPUARMState *env)
         case EXCP_DATA_ABORT:
             addr = env->exception.vaddress;
         do_syndrome:
+            /* Let signal delivery see that ESR is live. */
+            env->cp15.esr_el[1] = env->exception.syndrome;
             ec = syn_get_ec(env->exception.syndrome);
             switch (ec) {
             case EC_DATAABORT:
