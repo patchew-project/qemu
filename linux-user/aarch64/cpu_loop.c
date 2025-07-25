@@ -32,6 +32,7 @@ void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = env_cpu(env);
     int trapnr, ec, fsc, si_code, si_signo;
+    uint64_t addr;
     abi_long ret;
 
     for (;;) {
@@ -63,10 +64,12 @@ void cpu_loop(CPUARMState *env)
             /* just indicate that signals should be handled asap */
             break;
         case EXCP_UDEF:
-            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPN, env->pc);
-            break;
+            addr = env->pc;
+            goto do_syndrome;
         case EXCP_PREFETCH_ABORT:
         case EXCP_DATA_ABORT:
+            addr = env->exception.vaddress;
+        do_syndrome:
             ec = syn_get_ec(env->exception.syndrome);
             switch (ec) {
             case EC_DATAABORT:
@@ -99,10 +102,19 @@ void cpu_loop(CPUARMState *env)
                 si_signo = TARGET_SIGBUS;
                 si_code = TARGET_BUS_ADRALN;
                 break;
+            case EC_UNCATEGORIZED:
+            case EC_BTITRAP:
+                si_signo = TARGET_SIGILL;
+                si_code = TARGET_ILL_ILLOPC;
+                break;
+            case EC_PACFAIL:
+                si_signo = TARGET_SIGILL;
+                si_code = TARGET_ILL_ILLOPN;
+                break;
             default:
                 g_assert_not_reached();
             }
-            force_sig_fault(si_signo, si_code, env->exception.vaddress);
+            force_sig_fault(si_signo, si_code, addr);
             break;
         case EXCP_DEBUG:
         case EXCP_BKPT:
