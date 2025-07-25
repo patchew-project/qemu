@@ -10,7 +10,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "gicv3_internal.h"
+#include "hw/intc/gicv3_internal.h"
 #include "cpu.h"
 
 void gicv3_set_gicv3state(CPUState *cpu, GICv3CPUState *s)
