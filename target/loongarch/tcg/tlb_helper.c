@@ -515,15 +515,17 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                             bool probe, uintptr_t retaddr)
 {
     CPULoongArchState *env = cpu_env(cs);
+    mmu_context context;
     hwaddr physical;
     int prot;
     int ret;
 
     /* Data access */
-    ret = get_physical_address(env, &physical, &prot, address,
-                               access_type, mmu_idx, 0);
-
+    context.vaddr = address;
+    ret = get_physical_address(env, &context, access_type, mmu_idx, 0);
     if (ret == TLBRET_MATCH) {
+        physical = context.physical;
+        prot = context.prot;
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
