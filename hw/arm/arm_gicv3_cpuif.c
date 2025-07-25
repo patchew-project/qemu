@@ -17,7 +17,7 @@
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
-#include "gicv3_internal.h"
+#include "hw/intc/gicv3_internal.h"
 #include "hw/irq.h"
 #include "cpu.h"
 #include "target/arm/cpregs.h"
