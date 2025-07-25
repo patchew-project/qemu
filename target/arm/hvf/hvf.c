@@ -299,6 +299,7 @@ void hvf_arm_init_debug(void)
 /* EL2 registers */
 #define SYSREG_CNTHCTL_EL2    SYSREG(3, 4, 14, 1, 0)
 #define SYSREG_MDCCINT_EL1    SYSREG(2, 0, 0, 2, 0)
+#define SYSREG_CNTP_CVAL_EL0   SYSREG(3, 3, 14, 2, 2)
 
 #define WFX_IS_WFE (1 << 0)
 
@@ -1398,6 +1399,12 @@ static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint64_t *val)
     case SYSREG_CNTHCTL_EL2:
         assert_hvf_ok(hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_CNTHCTL_EL2, val));
         return 0;
+    case SYSREG_CNTP_CTL_EL0:
+        qemu_log_mask(LOG_UNIMP, "Unsupported read from CNTP_CTL_EL0\n");
+        return 0;
+    case SYSREG_CNTP_CVAL_EL0:
+        qemu_log_mask(LOG_UNIMP, "Unsupported read from CNTP_CVAL_EL0\n");
+        return 0;
     case SYSREG_MDCCINT_EL1:
         assert_hvf_ok(hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_MDCCINT_EL1, val));
         return 0;
@@ -1717,6 +1724,9 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
          * disable writes to it. Let it do so, but ignore the requests.
          */
         qemu_log_mask(LOG_UNIMP, "Unsupported write to CNTP_CTL_EL0\n");
+        return 0;
+    case SYSREG_CNTP_CVAL_EL0:
+        qemu_log_mask(LOG_UNIMP, "Unsupported write to CNTP_CVAL_EL0\n");
         return 0;
     case SYSREG_OSDLR_EL1:
         /* Dummy register */
