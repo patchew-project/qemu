@@ -51,4 +51,4 @@ system_ss.add(when: uadk, if_true: files('multifd-uadk.c'))
 system_ss.add(when: qatzip, if_true: files('multifd-qatzip.c'))
 
 specific_ss.add(when: 'CONFIG_SYSTEM_ONLY',
-                if_true: files('target.c'))
+                if_true: files('vfio.c'))
