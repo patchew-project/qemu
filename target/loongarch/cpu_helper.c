@@ -106,17 +106,18 @@ int loongarch_check_pte(CPULoongArchState *env, mmu_context *context,
     return TLBRET_MATCH;
 }
 
-static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
-                                       int *prot, target_ulong address,
+static int loongarch_page_table_walker(CPULoongArchState *env,
+                                       mmu_context *context,
                                        int access_type, int mmu_idx)
 {
     CPUState *cs = env_cpu(env);
     target_ulong index, phys;
     uint64_t dir_base, dir_width;
     uint64_t base;
-    int level, ret;
-    mmu_context context;
+    int level;
+    target_ulong address;
 
+    address = context->vaddr;
     if ((address >> 63) & 0x1) {
         base = env->CSR_PGDH;
     } else {
@@ -158,16 +159,9 @@ static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
         base = ldq_phys(cs->as, phys);
     }
 
-    context.vaddr = address;
-    context.ps = dir_base;
-    context.pte = base;
-    ret = loongarch_check_pte(env, &context, access_type, mmu_idx);
-    if (ret == TLBRET_MATCH) {
-        *physical = context.physical;
-        *prot = context.prot;
-    }
-
-    return ret;
+    context->ps = dir_base;
+    context->pte = base;
+    return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 
 static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
@@ -176,7 +170,9 @@ static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
                                  int is_debug)
 {
     int ret;
+    mmu_context context;
 
+    context.vaddr = address;
     if (tcg_enabled()) {
         ret = loongarch_get_addr_from_tlb(env, physical, prot, address,
                                           access_type, mmu_idx);
@@ -191,8 +187,7 @@ static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
          * legal mapping, even if the mapping is not yet in TLB. return 0 if
          * there is a valid map, else none zero.
          */
-        return loongarch_page_table_walker(env, physical, prot, address,
-                                           access_type, mmu_idx);
+        return loongarch_page_table_walker(env, &context, access_type, mmu_idx);
     }
 
     return TLBRET_NOMATCH;
