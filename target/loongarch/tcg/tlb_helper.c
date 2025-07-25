@@ -110,12 +110,12 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     target_ulong addr, mask, pagesize;
     uint8_t tlb_ps;
     LoongArchTLB *tlb = &env->tlb[index];
-
-    int mmu_idx = cpu_mmu_index(env_cpu(env), false);
+    int mmu_idx;
     uint8_t tlb_v0 = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, V);
     uint8_t tlb_v1 = FIELD_EX64(tlb->tlb_entry1, TLBENTRY, V);
     uint64_t tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
     uint8_t tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
+    uint16_t tlb_g, tlb_km;
 
     if (!tlb_e) {
         return;
@@ -125,13 +125,28 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     pagesize = MAKE_64BIT_MASK(tlb_ps, 1);
     mask = MAKE_64BIT_MASK(0, tlb_ps + 1);
     addr = __vaddr((tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & ~mask);
+    tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
+    tlb_km = FIELD_EX64(tlb->tlb_misc, TLB_MISC, KM);
+    if (tlb_g) {
+        mmu_idx = BIT(MMU_KERNEL_IDX);
+    } else {
+        mmu_idx = BIT(MMU_USER_IDX);
+    }
 
     if (tlb_v0) {
+        /* Even page is accessed in kernel mode */
+        if (tlb_km & 0x1) {
+            mmu_idx |= BIT(MMU_KERNEL_IDX);
+        }
         tlb_flush_range_by_mmuidx(env_cpu(env), addr, pagesize,
                                   mmu_idx, TARGET_LONG_BITS);
     }
 
     if (tlb_v1) {
+        /* Odd page is accessed in kernel mode */
+        if (tlb_km & 0x2) {
+            mmu_idx |= BIT(MMU_KERNEL_IDX);
+        }
         tlb_flush_range_by_mmuidx(env_cpu(env), addr + pagesize, pagesize,
                                   mmu_idx, TARGET_LONG_BITS);
     }
