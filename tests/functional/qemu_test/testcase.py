@@ -35,6 +35,7 @@ from .uncompress import uncompress
 
 class QemuBaseTest(unittest.TestCase):
     debug: bool = False
+    keep_scratch: bool = "QEMU_TEST_KEEP_SCRATCH" in os.environ
 
     """
     Class method that initializes class attributes from given command-line
@@ -53,8 +54,16 @@ class QemuBaseTest(unittest.TestCase):
             help="Also print test and console logs on stdout. This will make "
             "the TAP output invalid and is meant for debugging only.",
         )
+        parser.add_argument(
+            "--keep-scratch",
+            action="store_true",
+            help="Do not purge any scratch files created during the tests. "
+            "This is equivalent to setting QEMU_TEST_KEEP_SCRATCH=1 in the "
+            "environment.",
+        )
         args = parser.parse_args()
         QemuBaseTest.debug = args.debug
+        QemuBaseTest.keep_scratch |= args.keep_scratch
         return
 
     '''
@@ -262,8 +271,10 @@ class QemuBaseTest(unittest.TestCase):
             self.skipTest('One or more assets is not available')
 
     def tearDown(self):
-        if "QEMU_TEST_KEEP_SCRATCH" not in os.environ:
+        if not QemuBaseTest.keep_scratch:
             shutil.rmtree(self.workdir)
+        else:
+            self.log.info(f"Kept scratch files in {self.workdir}")
         if self.socketdir is not None:
             shutil.rmtree(self.socketdir.name)
             self.socketdir = None
