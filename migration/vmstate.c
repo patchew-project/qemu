@@ -152,7 +152,16 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         trace_vmstate_load_state_end(vmsd->name, "too old", -EINVAL);
         return -EINVAL;
     }
-    if (vmsd->pre_load) {
+    if (vmsd->pre_load_errp) {
+        ret = vmsd->pre_load_errp(opaque, errp);
+        if (ret) {
+            error_prepend(errp, "VM pre load failed for: '%s', "
+                          "version_id: '%d', minimum version_id: '%d', "
+                          "ret: %d: ", vmsd->name, vmsd->version_id,
+                          vmsd->minimum_version_id, ret);
+            return ret;
+        }
+    } else if (vmsd->pre_load) {
         ret = vmsd->pre_load(opaque);
         if (ret) {
             error_setg(errp, "VM pre load failed for: '%s', "
@@ -236,7 +245,14 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         qemu_file_set_error(f, ret);
         return ret;
     }
-    if (vmsd->post_load) {
+    if (vmsd->post_load_errp) {
+        ret = vmsd->post_load_errp(opaque, version_id, errp);
+        if (ret < 0) {
+            error_prepend(errp, "VM Post load failed for: %s, version_id: %d, "
+                          "minimum_version: %d, ret: %d: ", vmsd->name,
+                          vmsd->version_id, vmsd->minimum_version_id, ret);
+        }
+    } else if (vmsd->post_load) {
         ret = vmsd->post_load(opaque, version_id);
         if (ret < 0) {
             error_setg(errp,
@@ -412,11 +428,19 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                          void *opaque, JSONWriter *vmdesc, int version_id, Error **errp)
 {
     int ret = 0;
+    Error *local_err = NULL;
     const VMStateField *field = vmsd->fields;
 
     trace_vmstate_save_state_top(vmsd->name);
 
-    if (vmsd->pre_save) {
+    if (vmsd->pre_save_errp) {
+        ret = vmsd->pre_save_errp(opaque, errp);
+        trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
+        if (ret) {
+            error_prepend(errp, "pre-save failed: %s: ", vmsd->name);
+            return ret;
+        }
+    } else if (vmsd->pre_save) {
         ret = vmsd->pre_save(opaque);
         trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
         if (ret) {
@@ -524,10 +548,22 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 }
 
                 if (ret) {
-                    error_setg(errp, "Save of field %s/%s failed",
-                                vmsd->name, field->name);
-                    if (vmsd->post_save) {
-                        vmsd->post_save(opaque);
+                    if (*errp == NULL) {
+                        error_setg(errp, "Save of field %s/%s failed",
+                                   vmsd->name, field->name);
+                    }
+                    if (vmsd->post_save_errp) {
+                        int ps_ret = vmsd->post_save_errp(opaque, &local_err);
+                        if (ps_ret < 0) {
+                            error_free_or_abort(errp);
+                            error_propagate(errp, local_err);
+                            ret = ps_ret;
+                        }
+                    } else if (vmsd->post_save) {
+                        int ps_ret = vmsd->post_save(opaque);
+                        if (ps_ret < 0) {
+                            ret = ps_ret;
+                        }
                     }
                     return ret;
                 }
@@ -554,7 +590,17 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
     ret = vmstate_subsection_save(f, vmsd, opaque, vmdesc, errp);
 
-    if (vmsd->post_save) {
+    if (vmsd->post_save_errp) {
+        int ps_ret = vmsd->post_save_errp(opaque, &local_err);
+        if (!ret && ps_ret) {
+            ret = ps_ret;
+            error_propagate(errp, local_err);
+        } else if (ret && ps_ret) {
+            error_free_or_abort(errp);
+            error_propagate(errp, local_err);
+            ret = ps_ret;
+        }
+    } else if (vmsd->post_save) {
         int ps_ret = vmsd->post_save(opaque);
         if (!ret && ps_ret) {
             ret = ps_ret;
