@@ -23,14 +23,19 @@ static void kvm_ipi_access_regs(void *opaque, bool write)
     LoongarchIPIState *lis = LOONGARCH_IPI(opaque);
     IPICore *core;
     uint64_t attr;
-    int cpu, fd = lis->dev_fd;
+    int i, cpu, fd = lis->dev_fd;
 
     if (fd == 0) {
         return;
     }
 
-    for (cpu = 0; cpu < ipi->num_cpu; cpu++) {
-        core = &ipi->cpu[cpu];
+    for (i = 0; i < ipi->num_cpu; i++) {
+        core = &ipi->cpu[i];
+        if (core == NULL || core->cpu == NULL) {
+            continue;
+        }
+        cpu = core->cpu->cpu_index;
+
         attr = (cpu << 16) | CORE_STATUS_OFF;
         kvm_ipi_access_reg(fd, attr, &core->status, write);
 
