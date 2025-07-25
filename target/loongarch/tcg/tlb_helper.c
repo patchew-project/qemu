@@ -666,23 +666,15 @@ static int loongarch_map_tlb_entry(CPULoongArchState *env, mmu_context *context,
     return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 
-int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
-                                int *prot, target_ulong address,
+int loongarch_get_addr_from_tlb(CPULoongArchState *env, mmu_context *context,
                                 MMUAccessType access_type, int mmu_idx)
 {
     int index, match;
-    mmu_context context;
 
-    context.vaddr = address;
-    match = loongarch_tlb_search(env, address, &index);
+    match = loongarch_tlb_search(env, context->vaddr, &index);
     if (match) {
-        match = loongarch_map_tlb_entry(env, &context,
-                                        access_type, index, mmu_idx);
-        if (match == TLBRET_MATCH) {
-            *physical = context.physical;
-            *prot = context.prot;
-        }
-        return match;
+        return loongarch_map_tlb_entry(env, context,
+                                       access_type, index, mmu_idx);
     }
 
     return TLBRET_NOMATCH;
