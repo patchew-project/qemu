@@ -668,6 +668,9 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
 
     /* Invoke the signal handler with both SM and ZA disabled. */
     aarch64_set_svcr(env, 0, R_SVCR_SM_MASK | R_SVCR_ZA_MASK);
+    if (cpu_isar_feature(aa64_sme, env_archcpu(env))) {
+        env->cp15.tpidr2_el0 = 0;
+    }
 
     if (info) {
         frame->info = *info;
