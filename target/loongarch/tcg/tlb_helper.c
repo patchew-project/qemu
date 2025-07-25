@@ -96,6 +96,15 @@ static void raise_mmu_exception(CPULoongArchState *env, target_ulong address,
    }
 }
 
+/* Convert 48 bit virtual address from LoongArch TLB to 64 bit VA */
+static inline target_ulong __vaddr(target_ulong addr)
+{
+    target_ulong high;
+
+    high = -(addr >> (TARGET_VIRT_ADDR_SPACE_BITS - 1));
+    return addr + (high << TARGET_VIRT_ADDR_SPACE_BITS);
+}
+
 static void invalidate_tlb_entry(CPULoongArchState *env, int index)
 {
     target_ulong addr, mask, pagesize;
@@ -115,16 +124,15 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
     pagesize = MAKE_64BIT_MASK(tlb_ps, 1);
     mask = MAKE_64BIT_MASK(0, tlb_ps + 1);
+    addr = __vaddr((tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & ~mask);
 
     if (tlb_v0) {
-        addr = (tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & ~mask;    /* even */
         tlb_flush_range_by_mmuidx(env_cpu(env), addr, pagesize,
                                   mmu_idx, TARGET_LONG_BITS);
     }
 
     if (tlb_v1) {
-        addr = (tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & pagesize;    /* odd */
-        tlb_flush_range_by_mmuidx(env_cpu(env), addr, pagesize,
+        tlb_flush_range_by_mmuidx(env_cpu(env), addr + pagesize, pagesize,
                                   mmu_idx, TARGET_LONG_BITS);
     }
 }
