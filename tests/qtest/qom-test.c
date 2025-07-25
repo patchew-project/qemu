@@ -220,7 +220,6 @@ static void test_machine(gconstpointer data)
     qobject_unref(response);
 
     qtest_quit(qts);
-    g_free((void *)machine);
 }
 
 static void add_machine_test_case(const char *mname)
@@ -228,7 +227,7 @@ static void add_machine_test_case(const char *mname)
     char *path;
 
     path = g_strdup_printf("qom/%s", mname);
-    qtest_add_data_func(path, g_strdup(mname), test_machine);
+    qtest_add_data_func(path, mname, test_machine);
     g_free(path);
 }
 
