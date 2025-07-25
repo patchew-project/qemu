@@ -11,6 +11,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import argparse
 import logging
 import os
 from pathlib import Path
@@ -33,6 +34,28 @@ from .uncompress import uncompress
 
 
 class QemuBaseTest(unittest.TestCase):
+    debug: bool = False
+
+    """
+    Class method that initializes class attributes from given command-line
+    arguments.
+    """
+    @staticmethod
+    def parse_args():
+        test_name = os.path.basename(sys.argv[0])[:-3]
+        parser = argparse.ArgumentParser(
+            prog=test_name, description="QEMU Functional test"
+        )
+        parser.add_argument(
+            "-d",
+            "--debug",
+            action="store_true",
+            help="Also print test and console logs on stdout. This will make "
+            "the TAP output invalid and is meant for debugging only.",
+        )
+        args = parser.parse_args()
+        QemuBaseTest.debug = args.debug
+        return
 
     '''
     @params compressed: filename, Asset, or file-like object to uncompress
@@ -197,6 +220,14 @@ class QemuBaseTest(unittest.TestCase):
         return True
 
     def setUp(self):
+        self.stdout_handler = None
+        if QemuBaseTest.debug:
+            self.stdout_handler = logging.StreamHandler(sys.stdout)
+            self.stdout_handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            self.stdout_handler.setFormatter(formatter)
         self.qemu_bin = os.getenv('QEMU_TEST_QEMU_BINARY')
         self.assertIsNotNone(self.qemu_bin, 'QEMU_TEST_QEMU_BINARY must be set')
         self.arch = self.qemu_bin.split('-')[-1]
@@ -216,11 +247,16 @@ class QemuBaseTest(unittest.TestCase):
             '%(asctime)s - %(levelname)s: %(message)s')
         self._log_fh.setFormatter(fileFormatter)
         self.log.addHandler(self._log_fh)
+        if self.stdout_handler:
+            self.log.addHandler(self.stdout_handler)
 
         # Capture QEMUMachine logging
         self.machinelog = logging.getLogger('qemu.machine')
         self.machinelog.setLevel(logging.DEBUG)
         self.machinelog.addHandler(self._log_fh)
+
+        if self.stdout_handler:
+            self.machinelog.addHandler(self.stdout_handler)
 
         if not self.assets_available():
             self.skipTest('One or more assets is not available')
@@ -231,15 +267,19 @@ class QemuBaseTest(unittest.TestCase):
         if self.socketdir is not None:
             shutil.rmtree(self.socketdir.name)
             self.socketdir = None
-        self.machinelog.removeHandler(self._log_fh)
-        self.log.removeHandler(self._log_fh)
-        self._log_fh.close()
+        for handler in [self._log_fh, self.stdout_handler]:
+            if handler is None:
+                continue
+            self.machinelog.removeHandler(handler)
+            self.log.removeHandler(handler)
+            handler.close()
 
     def main():
         warnings.simplefilter("default")
         os.environ["PYTHONWARNINGS"] = "default"
 
         path = os.path.basename(sys.argv[0])[:-3]
+        QemuBaseTest.parse_args()
 
         cache = os.environ.get("QEMU_TEST_PRECACHE", None)
         if cache is not None:
@@ -297,6 +337,8 @@ class QemuSystemTest(QemuBaseTest):
         fileFormatter = logging.Formatter('%(asctime)s: %(message)s')
         self._console_log_fh.setFormatter(fileFormatter)
         console_log.addHandler(self._console_log_fh)
+        if self.stdout_handler:
+            console_log.addHandler(self.stdout_handler)
 
     def set_machine(self, machinename):
         # TODO: We should use QMP to get the list of available machines
@@ -403,6 +445,10 @@ class QemuSystemTest(QemuBaseTest):
     def tearDown(self):
         for vm in self._vms.values():
             vm.shutdown()
-        logging.getLogger('console').removeHandler(self._console_log_fh)
+        console_log = logging.getLogger("console")
+        console_log.removeHandler(self._console_log_fh)
         self._console_log_fh.close()
+        if self.stdout_handler:
+            console_log.removeHandler(self.stdout_handler)
+            self.stdout_handler.close()
         super().tearDown()
