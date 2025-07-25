@@ -167,9 +167,8 @@ static void invalidate_tlb(CPULoongArchState *env, int index)
     invalidate_tlb_entry(env, index);
 }
 
-static void fill_tlb_entry(CPULoongArchState *env, int index)
+static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb)
 {
-    LoongArchTLB *tlb = &env->tlb[index];
     uint64_t lo0, lo1, csr_vppn;
     uint16_t csr_asid;
     uint8_t csr_ps;
@@ -337,7 +336,7 @@ void helper_tlbwr(CPULoongArchState *env)
         return;
     }
 
-    fill_tlb_entry(env, index);
+    fill_tlb_entry(env, env->tlb + index);
 }
 
 void helper_tlbfill(CPULoongArchState *env)
@@ -375,7 +374,7 @@ void helper_tlbfill(CPULoongArchState *env)
     }
 
     invalidate_tlb(env, index);
-    fill_tlb_entry(env, index);
+    fill_tlb_entry(env, env->tlb + index);
 }
 
 void helper_tlbclr(CPULoongArchState *env)
