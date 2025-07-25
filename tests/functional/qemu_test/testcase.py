@@ -16,6 +16,7 @@ import logging
 import os
 from pathlib import Path
 import pycotap
+import itertools
 import shutil
 from subprocess import run
 import sys
@@ -37,6 +38,7 @@ class QemuBaseTest(unittest.TestCase):
     debug: bool = False
     keep_scratch: bool = "QEMU_TEST_KEEP_SCRATCH" in os.environ
     list_tests: bool = False
+    test_name_patterns: list[str] = []
 
     """
     Class method that initializes class attributes from given command-line
@@ -67,10 +69,19 @@ class QemuBaseTest(unittest.TestCase):
             action="store_true",
             help="List all tests that would be executed and exit.",
         )
+        parser.add_argument(
+            "-k",
+            dest="test_name_patterns",
+            action="append",
+            type=str,
+            help="Only run tests which match the given substring. "
+            "This argument is passed to unittest.main verbatim.",
+        )
         args = parser.parse_args()
         QemuBaseTest.debug = args.debug
         QemuBaseTest.keep_scratch |= args.keep_scratch
         QemuBaseTest.list_tests = args.list_tests
+        QemuBaseTest.test_name_patterns = args.test_name_patterns
         return
 
     '''
@@ -313,8 +324,16 @@ class QemuBaseTest(unittest.TestCase):
 
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
                                    test_output_log = pycotap.LogMode.LogToError)
-        res = unittest.main(module = None, testRunner = tr, exit = False,
-                            argv=["__dummy__", path])
+        argv = ["__dummy__", path] + (
+            list(
+                itertools.chain.from_iterable(
+                    ["-k", x] for x in QemuBaseTest.test_name_patterns
+                )
+            )
+            if QemuBaseTest.test_name_patterns
+            else []
+        )
+        res = unittest.main(module=None, testRunner=tr, exit=False, argv=argv)
         for (test, message) in res.result.errors + res.result.failures:
 
             if hasattr(test, "log_filename"):
