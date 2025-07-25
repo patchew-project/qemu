@@ -648,30 +648,22 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     env->CSR_TLBREHI = FIELD_DP64(env->CSR_TLBREHI, CSR_TLBREHI, PS, ps);
 }
 
-static int loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
-                                   int *prot, target_ulong address,
+static int loongarch_map_tlb_entry(CPULoongArchState *env, mmu_context *context,
                                    int access_type, int index, int mmu_idx)
 {
     LoongArchTLB *tlb = &env->tlb[index];
     uint64_t tlb_entry;
     uint8_t tlb_ps, n;
-    mmu_context context;
-    int ret;
+    target_ulong address;
 
+    address = context->vaddr;
     tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
     n = (address >> tlb_ps) & 0x1;/* Odd or even */
 
     tlb_entry = n ? tlb->tlb_entry1 : tlb->tlb_entry0;
-    context.vaddr = address;
-    context.ps = tlb_ps;
-    context.pte  = tlb_entry;
-    ret = loongarch_check_pte(env, &context, access_type, mmu_idx);
-    if (ret == TLBRET_MATCH) {
-        *physical = context.physical;
-        *prot = context.prot;
-    }
-
-    return ret;
+    context->ps = tlb_ps;
+    context->pte  = tlb_entry;
+    return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 
 int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
@@ -679,11 +671,18 @@ int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
                                 MMUAccessType access_type, int mmu_idx)
 {
     int index, match;
+    mmu_context context;
 
+    context.vaddr = address;
     match = loongarch_tlb_search(env, address, &index);
     if (match) {
-        return loongarch_map_tlb_entry(env, physical, prot,
-                                       address, access_type, index, mmu_idx);
+        match = loongarch_map_tlb_entry(env, &context,
+                                        access_type, index, mmu_idx);
+        if (match == TLBRET_MATCH) {
+            *physical = context.physical;
+            *prot = context.prot;
+        }
+        return match;
     }
 
     return TLBRET_NOMATCH;
