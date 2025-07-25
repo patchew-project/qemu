@@ -107,13 +107,15 @@ int loongarch_check_pte(CPULoongArchState *env, mmu_context *context,
 }
 
 static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
-                                 int *prot, target_ulong address)
+                                       int *prot, target_ulong address,
+                                       int access_type, int mmu_idx)
 {
     CPUState *cs = env_cpu(env);
     target_ulong index, phys;
     uint64_t dir_base, dir_width;
     uint64_t base;
-    int level;
+    int level, ret;
+    mmu_context context;
 
     if ((address >> 63) & 0x1) {
         base = env->CSR_PGDH;
@@ -156,29 +158,16 @@ static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
         base = ldq_phys(cs->as, phys);
     }
 
-    /* TODO: check plv and other bits? */
-
-    /* base is pte, in normal pte format */
-    if (!FIELD_EX64(base, TLBENTRY, V)) {
-        return TLBRET_NOMATCH;
+    context.vaddr = address;
+    context.ps = dir_base;
+    context.pte = base;
+    ret = loongarch_check_pte(env, &context, access_type, mmu_idx);
+    if (ret == TLBRET_MATCH) {
+        *physical = context.physical;
+        *prot = context.prot;
     }
 
-    if (!FIELD_EX64(base, TLBENTRY, D)) {
-        *prot = PAGE_READ;
-    } else {
-        *prot = PAGE_READ | PAGE_WRITE;
-    }
-
-    /* get TARGET_PAGE_SIZE aligned physical address */
-    base += (address & TARGET_PHYS_MASK) & ((1 << dir_base) - 1);
-    /* mask RPLV, NX, NR bits */
-    base = FIELD_DP64(base, TLBENTRY_64, RPLV, 0);
-    base = FIELD_DP64(base, TLBENTRY_64, NX, 0);
-    base = FIELD_DP64(base, TLBENTRY_64, NR, 0);
-    /* mask other attribute bits */
-    *physical = base & TARGET_PAGE_MASK;
-
-    return 0;
+    return ret;
 }
 
 static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
@@ -202,7 +191,8 @@ static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
          * legal mapping, even if the mapping is not yet in TLB. return 0 if
          * there is a valid map, else none zero.
          */
-        return loongarch_page_table_walker(env, physical, prot, address);
+        return loongarch_page_table_walker(env, physical, prot, address,
+                                           access_type, mmu_idx);
     }
 
     return TLBRET_NOMATCH;
