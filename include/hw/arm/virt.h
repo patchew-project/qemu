@@ -120,6 +120,7 @@ typedef enum VirtGICType {
 
 struct VirtMachineClass {
     MachineClass parent;
+    hwaddr min_highmem_base;
     bool no_tcg_its;
     bool no_highmem_compact;
     bool no_ged;   /* Machines < 4.2 have no support for ACPI GED device */
