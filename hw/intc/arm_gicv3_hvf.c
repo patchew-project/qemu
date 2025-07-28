@@ -18,6 +18,7 @@
 #include "hvf_arm.h"
 #include "gicv3_internal.h"
 #include "vgic_common.h"
+#include "migration/blocker.h"
 #include "qom/object.h"
 #include "target/arm/cpregs.h"
 #include <Hypervisor/Hypervisor.h>
@@ -702,6 +703,17 @@ static void hvf_gicv3_realize(DeviceState *dev, Error **errp)
     if (s->maint_irq && s->maint_irq != HV_GIC_INT_MAINTENANCE) {
         error_setg(errp, "vGIC maintenance IRQ mismatch with the hardcoded one in HVF.");
         return;
+    }
+
+    /* Temporary: current state known to be incomplete. */
+    if (s->num_cpu > 1) {
+        Error *hvf_mcpu_migration_blocker = NULL;
+        error_setg(&hvf_mcpu_migration_blocker,
+           "Live migration disabled because multiple CPUs are exposed.");
+        if (migrate_add_blocker(&hvf_mcpu_migration_blocker, errp)) {
+            error_free(hvf_mcpu_migration_blocker);
+            return;
+        }
     }
 }
 
