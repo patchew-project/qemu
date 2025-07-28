@@ -449,7 +449,9 @@ static bool build_guest_fsinfo_for_pci_dev(char const *syspath,
         has_ata = true;
     } else {
         p = strstr(syspath, "/host");
-        q = p + 5;
+        if (p) {
+            q = p + 5;
+        }
     }
     if (p && sscanf(q, "%u", &host) == 1) {
         has_host = true;
