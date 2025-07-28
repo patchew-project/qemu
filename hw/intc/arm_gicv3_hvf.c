@@ -15,6 +15,7 @@
 #include "system/runstate.h"
 #include "system/hvf.h"
 #include "system/hvf_int.h"
+#include "hvf_arm.h"
 #include "gicv3_internal.h"
 #include "vgic_common.h"
 #include "qom/object.h"
@@ -315,6 +316,62 @@ static void hvf_gicv3_put(GICv3State *s)
             hv_gic_set_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1, reg64);
         }
     }
+
+    /* Registers beyond this are with nested virt only */
+    if (!hvf_arm_el2_enabled()) {
+        return;
+    }
+
+    /* ICH */
+    for (ncpu = 0; ncpu < s->num_cpu; ncpu++) {
+        GICv3CPUState *c = &s->cpu[ncpu];
+        hv_vcpu_t vcpu = c->cpu->accel->fd;
+        int num_pri_bits;
+
+        hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_VMCR_EL2,
+                    c->ich_vmcr_el2);
+        hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_HCR_EL2,
+                    c->ich_hcr_el2);
+
+        for (int i = 0; i < GICV3_LR_MAX; i++) {
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_LR0_EL2,
+                c->ich_lr_el2[i]);
+        }
+
+        num_pri_bits = c->vpribits;
+
+        switch (num_pri_bits) {
+        case 7:
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_AP0R0_EL2 + 3
+                , c->ich_apr[GICV3_G0][3]);
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_AP0R0_EL2 + 2
+                , c->ich_apr[GICV3_G0][2]);
+            /* fall through */
+        case 6:
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_AP0R0_EL2 + 1
+                , c->ich_apr[GICV3_G0][1]);
+            /* fall through */
+        default:
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_AP0R0_EL2
+                , c->ich_apr[GICV3_G0][0]);
+        }
+
+        switch (num_pri_bits) {
+        case 7:
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_AP1R0_EL2 + 3
+                , c->ich_apr[GICV3_G1NS][3]);
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_AP1R0_EL2 + 2
+                , c->ich_apr[GICV3_G1NS][2]);
+            /* fall through */
+        case 6:
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_AP1R0_EL2 + 1
+                , c->ich_apr[GICV3_G1NS][1]);
+            /* fall through */
+        default:
+            hv_gic_set_ich_reg(vcpu, HV_GIC_ICH_REG_AP1R0_EL2
+                , c->ich_apr[GICV3_G1NS][0]);
+        }
+    }
 }
 
 static void hvf_gicv3_get(GICv3State *s)
@@ -450,6 +507,62 @@ static void hvf_gicv3_get(GICv3State *s)
         default:
             hv_gic_get_icc_reg(vcpu, HV_GIC_ICC_REG_AP1R0_EL1
                 , &c->icc_apr[GICV3_G1NS][0]);
+        }
+    }
+
+    /* Registers beyond this are with nested virt only */
+    if (!hvf_arm_el2_enabled()) {
+        return;
+    }
+
+    /* ICH */
+    for (ncpu = 0; ncpu < s->num_cpu; ncpu++) {
+        GICv3CPUState *c = &s->cpu[ncpu];
+        hv_vcpu_t vcpu = c->cpu->accel->fd;
+        int num_pri_bits;
+
+        hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_VMCR_EL2,
+                        &c->ich_vmcr_el2);
+        hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_HCR_EL2,
+                        &c->ich_hcr_el2);
+
+        for (int i = 0; i < GICV3_LR_MAX; i++) {
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_LR0_EL2,
+                &c->ich_lr_el2[i]);
+        }
+
+        num_pri_bits = c->vpribits;
+
+        switch (num_pri_bits) {
+        case 7:
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_AP0R0_EL2 + 3
+                , &c->ich_apr[GICV3_G0][3]);
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_AP0R0_EL2 + 2
+                , &c->ich_apr[GICV3_G0][2]);
+            /* fall through */
+        case 6:
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_AP0R0_EL2 + 1
+                , &c->ich_apr[GICV3_G0][1]);
+            /* fall through */
+        default:
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_AP0R0_EL2
+                , &c->ich_apr[GICV3_G0][0]);
+        }
+
+        switch (num_pri_bits) {
+        case 7:
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_AP1R0_EL2 + 3
+                , &c->ich_apr[GICV3_G1NS][3]);
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_AP1R0_EL2 + 2
+                , &c->ich_apr[GICV3_G1NS][2]);
+            /* fall through */
+        case 6:
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_AP1R0_EL2 + 1
+                , &c->ich_apr[GICV3_G1NS][1]);
+            /* fall through */
+        default:
+            hv_gic_get_ich_reg(vcpu, HV_GIC_ICH_REG_AP1R0_EL2
+                , &c->ich_apr[GICV3_G1NS][0]);
         }
     }
 }
