@@ -1401,9 +1401,15 @@ static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint64_t *val)
         assert_hvf_ok(hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_CNTHCTL_EL2, val));
         return 0;
     case SYSREG_CNTP_CTL_EL0:
+        if (hvf_irqchip_in_kernel()) {
+            abort();
+        }
         qemu_log_mask(LOG_UNIMP, "Unsupported read from CNTP_CTL_EL0\n");
         return 0;
     case SYSREG_CNTP_CVAL_EL0:
+        if (hvf_irqchip_in_kernel()) {
+            abort();
+        }
         qemu_log_mask(LOG_UNIMP, "Unsupported read from CNTP_CVAL_EL0\n");
         return 0;
     case SYSREG_MDCCINT_EL1:
@@ -1720,6 +1726,9 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
         env->cp15.oslsr_el1 = val & 1;
         return 0;
     case SYSREG_CNTP_CTL_EL0:
+        if (hvf_irqchip_in_kernel()) {
+            abort();
+        }
         /*
          * Guests should not rely on the physical counter, but macOS emits
          * disable writes to it. Let it do so, but ignore the requests.
@@ -1727,6 +1736,9 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
         qemu_log_mask(LOG_UNIMP, "Unsupported write to CNTP_CTL_EL0\n");
         return 0;
     case SYSREG_CNTP_CVAL_EL0:
+        if (hvf_irqchip_in_kernel()) {
+            abort();
+        }
         qemu_log_mask(LOG_UNIMP, "Unsupported write to CNTP_CVAL_EL0\n");
         return 0;
     case SYSREG_OSDLR_EL1:
