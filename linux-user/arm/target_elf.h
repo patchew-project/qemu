@@ -8,6 +8,11 @@
 #ifndef ARM_TARGET_ELF_H
 #define ARM_TARGET_ELF_H
 
+#define ELF_ARCH                EM_ARM
+#define ELF_CLASS               ELFCLASS32
+#define EXSTACK_DEFAULT         true
+#define USE_ELF_CORE_DUMP
+
 #define HI_COMMPAGE (intptr_t)0xffff0f00u
 
 #endif
