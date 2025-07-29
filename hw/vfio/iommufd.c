@@ -20,6 +20,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "system/iommufd.h"
+#include "hw/iommu.h"
 #include "hw/qdev-core.h"
 #include "hw/vfio/vfio-cpr.h"
 #include "system/reset.h"
@@ -377,6 +378,19 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
 
     if (hw_caps & IOMMU_HW_CAP_DIRTY_TRACKING) {
         flags = IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
+    }
+
+    /*
+     * If vIOMMU supports stage-1 translation, force to create nested parent
+     * domain which could be reused by vIOMMU to create nested domain.
+     */
+    if (vbasedev->type == VFIO_DEVICE_TYPE_PCI) {
+        VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+
+        hw_caps = pci_device_get_viommu_cap(&vdev->pdev);
+        if (hw_caps & VIOMMU_CAP_HW_NESTED) {
+            flags |= IOMMU_HWPT_ALLOC_NEST_PARENT;
+        }
     }
 
     if (cpr_is_incoming()) {
