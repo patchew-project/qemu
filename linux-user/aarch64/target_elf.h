@@ -8,4 +8,14 @@
 #ifndef AARCH64_TARGET_ELF_H
 #define AARCH64_TARGET_ELF_H
 
+#define ELF_ARCH                EM_AARCH64
+#define ELF_CLASS               ELFCLASS64
+#define USE_ELF_CORE_DUMP
+
+#if TARGET_BIG_ENDIAN
+# define VDSO_HEADER            "vdso-be.c.inc"
+#else
+# define VDSO_HEADER            "vdso-le.c.inc"
+#endif
+
 #endif
