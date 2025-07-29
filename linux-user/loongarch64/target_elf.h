@@ -9,7 +9,6 @@
 #define ELF_CLASS               ELFCLASS64
 #define ELF_MACHINE             EM_LOONGARCH
 #define EXSTACK_DEFAULT         true
-#define elf_check_arch(x)       ((x) == EM_LOONGARCH)
 #define VDSO_HEADER             "vdso.c.inc"
 #define USE_ELF_CORE_DUMP
 
