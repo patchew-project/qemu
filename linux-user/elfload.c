@@ -184,40 +184,17 @@ const char * __attribute__((weak)) get_elf_base_platform(CPUState *cs)
     return NULL;
 }
 
-#include "elf.h"
-
-/* We must delay the following stanzas until after "elf.h". */
-#if defined(TARGET_AARCH64)
-
-static bool arch_parse_elf_property(uint32_t pr_type, uint32_t pr_datasz,
-                                    const uint32_t *data,
-                                    struct image_info *info,
-                                    Error **errp)
-{
-    if (pr_type == GNU_PROPERTY_AARCH64_FEATURE_1_AND) {
-        if (pr_datasz != sizeof(uint32_t)) {
-            error_setg(errp, "Ill-formed GNU_PROPERTY_AARCH64_FEATURE_1_AND");
-            return false;
-        }
-        /* We will extract GNU_PROPERTY_AARCH64_FEATURE_1_BTI later. */
-        info->note_flags = *data;
-    }
-    return true;
-}
-#define ARCH_USE_GNU_PROPERTY 1
-
-#else
-
-static bool arch_parse_elf_property(uint32_t pr_type, uint32_t pr_datasz,
-                                    const uint32_t *data,
-                                    struct image_info *info,
-                                    Error **errp)
+#ifndef ARCH_USE_GNU_PROPERTY
+bool arch_parse_elf_property(uint32_t pr_type, uint32_t pr_datasz,
+                             const uint32_t *data, struct image_info *info,
+                             Error **errp)
 {
     g_assert_not_reached();
 }
 #define ARCH_USE_GNU_PROPERTY 0
-
 #endif
+
+#include "elf.h"
 
 struct exec
 {
