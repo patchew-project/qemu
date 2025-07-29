@@ -38,7 +38,6 @@
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
 #undef ELF_PLATFORM
-#undef ELF_HWCAP2
 #undef ELF_CLASS
 #undef ELF_DATA
 #undef ELF_ARCH
@@ -456,8 +455,6 @@ static bool init_guest_commpage(void)
     return true;
 }
 
-#define ELF_HWCAP2 get_elf_hwcap2(thread_cpu)
-
 #define ELF_PLATFORM get_elf_platform()
 
 static const char *get_elf_platform(void)
@@ -545,8 +542,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
-#define ELF_HWCAP2  get_elf_hwcap2(thread_cpu)
-
 #if TARGET_BIG_ENDIAN
 # define VDSO_HEADER  "vdso-be.c.inc"
 #else
@@ -600,8 +595,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #endif
 
 #define ELF_ARCH        EM_PPC
-
-#define ELF_HWCAP2 get_elf_hwcap2(thread_cpu)
 
 /*
  * The requirements here are:
@@ -1280,6 +1273,17 @@ static inline void init_thread(struct target_pt_regs *regs,
 #endif
 
 /*
+ * Locally declare get_elf_hwcap2 weak, so a target may omit it, and
+ * so that here in elfload.c we can tell that the target omitted it.
+ * The declaration in loader.h, used by the definitions in arch/hwcap.c,
+ * remains strong.
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wredundant-decls"
+abi_ulong get_elf_hwcap2(CPUState *cs) __attribute__((weak));
+#pragma GCC diagnostic pop
+
+/*
  * Provide fallback definitions that the target may omit.
  */
 abi_ulong __attribute__((weak)) get_elf_hwcap(CPUState *cs)
@@ -1808,9 +1812,9 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #ifdef DLINFO_ARCH_ITEMS
     size += DLINFO_ARCH_ITEMS * 2;
 #endif
-#ifdef ELF_HWCAP2
-    size += 2;
-#endif
+    if (get_elf_hwcap2) {
+        size += 2;
+    }
     info->auxv_len = size * n;
 
     size += envc + argc + 2;
@@ -1870,10 +1874,9 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_SECURE, (abi_ulong) qemu_getauxval(AT_SECURE));
     NEW_AUX_ENT(AT_EXECFN, info->file_string);
 
-#ifdef ELF_HWCAP2
-    NEW_AUX_ENT(AT_HWCAP2, (abi_ulong) ELF_HWCAP2);
-#endif
-
+    if (get_elf_hwcap2) {
+        NEW_AUX_ENT(AT_HWCAP2, get_elf_hwcap(thread_cpu));
+    }
     if (u_base_platform) {
         NEW_AUX_ENT(AT_BASE_PLATFORM, u_base_platform);
     }
