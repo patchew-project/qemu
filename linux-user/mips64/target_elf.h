@@ -8,4 +8,16 @@
 #ifndef MIPS64_TARGET_ELF_H
 #define MIPS64_TARGET_ELF_H
 
+#define ELF_CLASS               ELFCLASS64
+#define ELF_ARCH                EM_MIPS
+#define EXSTACK_DEFAULT         true
+
+#ifdef TARGET_ABI_MIPSN32
+#define elf_check_abi(x)        ((x) & EF_MIPS_ABI2)
+#else
+#define elf_check_abi(x)        (!((x) & EF_MIPS_ABI2))
+#endif
+
+#define USE_ELF_CORE_DUMP
+
 #endif
