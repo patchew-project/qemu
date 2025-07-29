@@ -138,16 +138,6 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifdef TARGET_OPENRISC
-
-#define ELF_ARCH EM_OPENRISC
-#define ELF_CLASS ELFCLASS32
-#define ELF_DATA  ELFDATA2MSB
-
-#define USE_ELF_CORE_DUMP
-
-#endif /* TARGET_OPENRISC */
-
 #ifdef TARGET_SH4
 
 #define ELF_CLASS ELFCLASS32
