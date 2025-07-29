@@ -112,13 +112,8 @@ void xtensa_collect_sr_names(const XtensaConfig *config)
 
             if (*pname) {
                 if (strstr(*pname, name) == NULL) {
-                    char *new_name =
-                        malloc(strlen(*pname) + strlen(name) + 2);
-
-                    strcpy(new_name, *pname);
-                    strcat(new_name, "/");
-                    strcat(new_name, name);
-                    free(*pname);
+                    char *new_name = g_strdup_printf("%s/%s", *pname, name);
+                    g_free(*pname);
                     *pname = new_name;
                 }
             } else {
