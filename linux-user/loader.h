@@ -98,16 +98,14 @@ abi_long memcpy_to_target(abi_ulong dest, const void *src,
 
 extern unsigned long guest_stack_size;
 
-#if defined(TARGET_I386) || defined(TARGET_X86_64)
+#if defined(TARGET_I386) || defined(TARGET_X86_64) || defined(TARGET_ARM)
 abi_ulong get_elf_hwcap(CPUState *cs);
+abi_ulong get_elf_hwcap2(CPUState *cs);
 #endif
-#if defined(TARGET_S390X) || defined(TARGET_AARCH64) || defined(TARGET_ARM)
+#if defined(TARGET_S390X)
 uint32_t get_elf_hwcap(void);
+#endif
 const char *elf_hwcap_str(uint32_t bit);
-#endif
-#if defined(TARGET_AARCH64) || defined(TARGET_ARM)
-uint64_t get_elf_hwcap2(void);
 const char *elf_hwcap2_str(uint32_t bit);
-#endif
 
 #endif /* LINUX_USER_LOADER_H */
