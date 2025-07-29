@@ -1050,6 +1050,11 @@ int main(int argc, char **argv, char **envp)
 
 #ifdef CONFIG_SEMIHOSTING
     qemu_semihosting_guestfd_init();
+
+    ts->stack_base = info->start_stack;
+    ts->heap_base = info->brk;
+    /* This will be filled in on the first SYS_HEAPINFO call.  */
+    ts->heap_limit = 0;
 #endif
 
     cpu_loop(env);
