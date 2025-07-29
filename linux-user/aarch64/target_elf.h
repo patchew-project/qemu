@@ -11,6 +11,7 @@
 #define ELF_MACHINE             EM_AARCH64
 #define ELF_CLASS               ELFCLASS64
 #define USE_ELF_CORE_DUMP
+#define ARCH_USE_GNU_PROPERTY   1
 
 #if TARGET_BIG_ENDIAN
 # define VDSO_HEADER            "vdso-be.c.inc"
