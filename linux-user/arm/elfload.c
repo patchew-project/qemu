@@ -9,6 +9,11 @@
 #include "elf.h"
 
 
+const char *get_elf_cpu_model(uint32_t eflags)
+{
+    return "any";
+}
+
 enum
 {
     ARM_HWCAP_ARM_SWP       = 1 << 0,

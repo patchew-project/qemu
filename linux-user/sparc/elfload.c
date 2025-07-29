@@ -6,6 +6,15 @@
 #include "elf.h"
 
 
+const char *get_elf_cpu_model(uint32_t eflags)
+{
+#ifdef TARGET_SPARC64
+    return "TI UltraSparc II";
+#else
+    return "Fujitsu MB86904";
+#endif
+}
+
 abi_ulong get_elf_hwcap(CPUState *cs)
 {
     /* There are not many sparc32 hwcap bits -- we have all of them. */

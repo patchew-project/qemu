@@ -5,6 +5,15 @@
 #include "loader.h"
 
 
+const char *get_elf_cpu_model(uint32_t eflags)
+{
+#ifdef TARGET_PPC64
+    return "POWER9";
+#else
+    return "750";
+#endif
+}
+
 /*
  * Feature masks for the Aux Vector Hardware Capabilities (AT_HWCAP).
  * See arch/powerpc/include/asm/cputable.h.

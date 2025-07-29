@@ -5,6 +5,11 @@
 #include "loader.h"
 
 
+const char *get_elf_cpu_model(uint32_t eflags)
+{
+    return "la464";
+}
+
 /* See arch/loongarch/include/uapi/asm/hwcap.h */
 enum {
     HWCAP_LOONGARCH_CPUCFG   = (1 << 0),
