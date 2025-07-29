@@ -181,7 +181,6 @@ typedef abi_int         target_pid_t;
 #define VDSO_HEADER "vdso.c.inc"
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE       4096
 
 #endif /* TARGET_I386 */
 
@@ -195,7 +194,6 @@ typedef abi_int         target_pid_t;
 #define EXSTACK_DEFAULT true
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE       4096
 
 #else
 /* 64 bit ARM definitions */
@@ -204,7 +202,6 @@ typedef abi_int         target_pid_t;
 #define ELF_CLASS       ELFCLASS64
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE       4096
 
 #if TARGET_BIG_ENDIAN
 # define VDSO_HEADER  "vdso-be.c.inc"
@@ -275,7 +272,6 @@ typedef abi_int         target_pid_t;
     } while (0)
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE       4096
 
 #ifndef TARGET_PPC64
 # define VDSO_HEADER  "vdso-32.c.inc"
@@ -298,7 +294,6 @@ typedef abi_int         target_pid_t;
 #define VDSO_HEADER "vdso.c.inc"
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE        4096
 
 #endif /* TARGET_LOONGARCH64 */
 
@@ -319,7 +314,6 @@ typedef abi_int         target_pid_t;
 #endif
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE        4096
 
 #endif /* TARGET_MIPS */
 
@@ -329,8 +323,6 @@ typedef abi_int         target_pid_t;
 
 #define ELF_CLASS   ELFCLASS32
 #define ELF_ARCH    EM_MICROBLAZE
-
-#define ELF_EXEC_PAGESIZE        4096
 
 #define USE_ELF_CORE_DUMP
 #endif /* TARGET_MICROBLAZE */
@@ -342,7 +334,6 @@ typedef abi_int         target_pid_t;
 #define ELF_DATA  ELFDATA2MSB
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE 8192
 
 #endif /* TARGET_OPENRISC */
 
@@ -352,7 +343,6 @@ typedef abi_int         target_pid_t;
 #define ELF_ARCH  EM_SH
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE        4096
 
 #endif
 
@@ -362,7 +352,6 @@ typedef abi_int         target_pid_t;
 #define ELF_ARCH        EM_68K
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE       8192
 
 #endif
 
@@ -370,8 +359,6 @@ typedef abi_int         target_pid_t;
 
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_ALPHA
-
-#define ELF_EXEC_PAGESIZE        8192
 
 #endif /* TARGET_ALPHA */
 
@@ -382,7 +369,6 @@ typedef abi_int         target_pid_t;
 #define ELF_ARCH	EM_S390
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE 4096
 
 #define VDSO_HEADER "vdso.c.inc"
 
@@ -399,8 +385,6 @@ typedef abi_int         target_pid_t;
 #define ELF_CLASS ELFCLASS64
 #define VDSO_HEADER "vdso-64.c.inc"
 #endif
-
-#define ELF_EXEC_PAGESIZE 4096
 
 #endif /* TARGET_RISCV */
 
@@ -421,7 +405,6 @@ typedef abi_int         target_pid_t;
 #define ELF_ARCH        EM_XTENSA
 
 #define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE       4096
 
 #endif /* TARGET_XTENSA */
 
@@ -2743,7 +2726,7 @@ static int wmr_fill_region_phdr(void *opaque, vaddr start,
     phdr->p_flags = (flags & PAGE_READ ? PF_R : 0)
                   | (flags & PAGE_WRITE_ORG ? PF_W : 0)
                   | (flags & PAGE_EXEC ? PF_X : 0);
-    phdr->p_align = ELF_EXEC_PAGESIZE;
+    phdr->p_align = TARGET_PAGE_SIZE;
 
     bswap_phdr(phdr, 1);
     d->phdr = phdr + 1;
@@ -2851,7 +2834,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     offset += size_note("CORE", sizeof(struct target_elf_prpsinfo));
     offset += size_note("CORE", sizeof(struct target_elf_prstatus)) * cpus;
     note_size = offset - note_offset;
-    data_offset = ROUND_UP(offset, ELF_EXEC_PAGESIZE);
+    data_offset = TARGET_PAGE_ALIGN(offset);
 
     /* Do not dump if the corefile size exceeds the limit. */
     if (dumpsize.rlim_cur != RLIM_INFINITY
