@@ -10,9 +10,4 @@
 
 #define HI_COMMPAGE (intptr_t)0xffff0f00u
 
-static inline const char *cpu_get_model(uint32_t eflags)
-{
-    return "any";
-}
-
 #endif

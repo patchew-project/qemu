@@ -6,6 +6,11 @@
 #include "elf.h"
 
 
+const char *get_elf_cpu_model(uint32_t eflags)
+{
+    return "qemu";
+}
+
 #define GET_FEATURE(_feat, _hwcap) \
     do { if (s390_has_feat(_feat)) { hwcap |= _hwcap; } } while (0)
 

@@ -6,6 +6,11 @@
 #include "target/arm/cpu-features.h"
 
 
+const char *get_elf_cpu_model(uint32_t eflags)
+{
+    return "any";
+}
+
 enum {
     ARM_HWCAP_A64_FP            = 1 << 0,
     ARM_HWCAP_A64_ASIMD         = 1 << 1,

@@ -5,6 +5,11 @@
 #include "loader.h"
 
 
+const char *get_elf_cpu_model(uint32_t eflags)
+{
+    return "sh7785";
+}
+
 enum {
     SH_CPU_HAS_FPU            = 0x0001, /* Hardware FPU support */
     SH_CPU_HAS_P2_FLUSH_BUG   = 0x0002, /* Need to flush the cache in P2 area */
