@@ -569,6 +569,15 @@ typedef enum VTDPCInvType {
     VTD_PASID_CACHE_DOMSI = VTD_INV_DESC_PASIDC_G_DSI,
     VTD_PASID_CACHE_PASIDSI = VTD_INV_DESC_PASIDC_G_PASID_SI,
     VTD_PASID_CACHE_GLOBAL_INV = VTD_INV_DESC_PASIDC_G_GLOBAL,
+
+    /*
+     * Internally used PASID cache invalidation type starts here,
+     * 0x10 is large enough as invalidation type in pc_inv_desc
+     * is 2bits in size.
+     */
+
+    /* Reset all PASID cache entries, used in system level reset */
+    VTD_PASID_CACHE_FORCE_RESET = 0x10,
 } VTDPCInvType;
 
 typedef struct VTDPASIDCacheInfo {
