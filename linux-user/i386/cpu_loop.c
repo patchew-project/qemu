@@ -331,11 +331,10 @@ static void target_cpu_free(void *obj)
     g_free(obj);
 }
 
-void target_cpu_copy_regs(CPUArchState *env, target_pt_regs *regs)
+void init_main_thread(CPUState *cpu, struct image_info *info)
 {
-    CPUState *cpu = env_cpu(env);
+    CPUArchState *env = cpu_env(cpu);
     bool is64 = (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) != 0;
-    int i;
 
     OBJECT(cpu)->free = target_cpu_free;
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
@@ -362,27 +361,9 @@ void target_cpu_copy_regs(CPUArchState *env, target_pt_regs *regs)
     env->eflags |= IF_MASK;
 
     /* linux register setup */
-#ifndef TARGET_ABI32
-    env->regs[R_EAX] = regs->rax;
-    env->regs[R_EBX] = regs->rbx;
-    env->regs[R_ECX] = regs->rcx;
-    env->regs[R_EDX] = regs->rdx;
-    env->regs[R_ESI] = regs->rsi;
-    env->regs[R_EDI] = regs->rdi;
-    env->regs[R_EBP] = regs->rbp;
-    env->regs[R_ESP] = regs->rsp;
-    env->eip = regs->rip;
-#else
-    env->regs[R_EAX] = regs->eax;
-    env->regs[R_EBX] = regs->ebx;
-    env->regs[R_ECX] = regs->ecx;
-    env->regs[R_EDX] = regs->edx;
-    env->regs[R_ESI] = regs->esi;
-    env->regs[R_EDI] = regs->edi;
-    env->regs[R_EBP] = regs->ebp;
-    env->regs[R_ESP] = regs->esp;
-    env->eip = regs->eip;
-#endif
+    memset(env->regs, 0, sizeof(env->regs));
+    env->regs[R_ESP] = info->start_stack;
+    env->eip = info->entry;
 
     /* linux interrupt setup */
 #ifndef TARGET_ABI32
@@ -394,7 +375,7 @@ void target_cpu_copy_regs(CPUArchState *env, target_pt_regs *regs)
                                 PROT_READ|PROT_WRITE,
                                 MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
     idt_table = g2h_untagged(env->idt.base);
-    for (i = 0; i < 20; i++) {
+    for (int i = 0; i < 20; i++) {
         set_idt(i, 0, is64);
     }
     set_idt(3, 3, is64);
