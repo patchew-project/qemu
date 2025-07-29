@@ -7,8 +7,12 @@
 
 #ifndef HPPA_TARGET_ELF_H
 #define HPPA_TARGET_ELF_H
+
+#define LO_COMMPAGE  0
+
 static inline const char *cpu_get_model(uint32_t eflags)
 {
     return "hppa";
 }
+
 #endif
