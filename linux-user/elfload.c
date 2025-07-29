@@ -138,20 +138,6 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifdef TARGET_LOONGARCH64
-
-#define ELF_CLASS   ELFCLASS64
-#define ELF_ARCH    EM_LOONGARCH
-#define EXSTACK_DEFAULT true
-
-#define elf_check_arch(x) ((x) == EM_LOONGARCH)
-
-#define VDSO_HEADER "vdso.c.inc"
-
-#define USE_ELF_CORE_DUMP
-
-#endif /* TARGET_LOONGARCH64 */
-
 #ifdef TARGET_MIPS
 
 #ifdef TARGET_MIPS64
