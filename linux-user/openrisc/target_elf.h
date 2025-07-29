@@ -8,7 +8,7 @@
 #ifndef OPENRISC_TARGET_ELF_H
 #define OPENRISC_TARGET_ELF_H
 
-#define ELF_ARCH                EM_OPENRISC
+#define ELF_MACHINE             EM_OPENRISC
 #define ELF_CLASS               ELFCLASS32
 #define USE_ELF_CORE_DUMP
 
