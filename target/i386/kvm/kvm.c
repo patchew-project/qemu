@@ -3230,6 +3230,7 @@ static int kvm_vm_enable_energy_msrs(KVMState *s)
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
+    X86MachineState *x86ms = X86_MACHINE(ms);
     int ret;
     struct utsname utsname;
     Error *local_err = NULL;
@@ -3311,8 +3312,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     if (kvm_check_extension(s, KVM_CAP_X86_SMM) &&
-        object_dynamic_cast(OBJECT(ms), TYPE_X86_MACHINE) &&
-        x86_machine_is_smm_enabled(X86_MACHINE(ms))) {
+        x86_machine_is_smm_enabled(x86ms)) {
         smram_machine_done.notify = register_smram_listener;
         qemu_add_machine_init_done_notifier(&smram_machine_done);
     }
@@ -3326,18 +3326,14 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
-    if (object_dynamic_cast(OBJECT(ms), TYPE_X86_MACHINE)) {
-        X86MachineState *x86ms = X86_MACHINE(ms);
-
-        if (x86ms->bus_lock_ratelimit > 0) {
-            ret = kvm_vm_enable_bus_lock_exit(s);
-            if (ret < 0) {
-                return ret;
-            }
-            ratelimit_init(&bus_lock_ratelimit_ctrl);
-            ratelimit_set_speed(&bus_lock_ratelimit_ctrl,
-                                x86ms->bus_lock_ratelimit, BUS_LOCK_SLICE_TIME);
+    if (x86ms->bus_lock_ratelimit > 0) {
+        ret = kvm_vm_enable_bus_lock_exit(s);
+        if (ret < 0) {
+            return ret;
         }
+        ratelimit_init(&bus_lock_ratelimit_ctrl);
+        ratelimit_set_speed(&bus_lock_ratelimit_ctrl,
+                            x86ms->bus_lock_ratelimit, BUS_LOCK_SLICE_TIME);
     }
 
     if (kvm_check_extension(s, KVM_CAP_X86_NOTIFY_VMEXIT)) {
