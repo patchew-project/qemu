@@ -104,4 +104,16 @@ const char *get_elf_platform(CPUState *cs);
 const char *get_elf_base_platform(CPUState *cs);
 bool init_guest_commpage(void);
 
+typedef struct {
+    const uint8_t *image;
+    const uint32_t *relocs;
+    unsigned image_size;
+    unsigned reloc_count;
+    unsigned sigreturn_ofs;
+    unsigned rt_sigreturn_ofs;
+} VdsoImageInfo;
+
+/* Note that both Elf32_Word and Elf64_Word are uint32_t. */
+const VdsoImageInfo *get_vdso_image_info(uint32_t elf_flags);
+
 #endif /* LINUX_USER_LOADER_H */

@@ -6,6 +6,7 @@
 #include "user-internals.h"
 #include "target_elf.h"
 #include "target/arm/cpu-features.h"
+#include "elf.h"
 
 
 enum
@@ -239,4 +240,23 @@ bool init_guest_commpage(void)
     page_set_flags(commpage, commpage | (host_page_size - 1),
                    PAGE_READ | PAGE_EXEC | PAGE_VALID);
     return true;
+}
+
+#if TARGET_BIG_ENDIAN
+# include "vdso-be8.c.inc"
+# include "vdso-be32.c.inc"
+#else
+# include "vdso-le.c.inc"
+#endif
+
+const VdsoImageInfo *get_vdso_image_info(uint32_t elf_flags)
+{
+#if TARGET_BIG_ENDIAN
+    return (EF_ARM_EABI_VERSION(elf_flags) >= EF_ARM_EABI_VER4
+            && (elf_flags & EF_ARM_BE8)
+            ? &vdso_be8_image_info
+            : &vdso_be32_image_info);
+#else
+    return &vdso_image_info;
+#endif
 }
