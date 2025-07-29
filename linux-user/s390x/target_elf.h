@@ -8,4 +8,10 @@
 #ifndef S390X_TARGET_ELF_H
 #define S390X_TARGET_ELF_H
 
+#define ELF_CLASS               ELFCLASS64
+#define ELF_DATA                ELFDATA2MSB
+#define ELF_ARCH                EM_S390
+#define VDSO_HEADER             "vdso.c.inc"
+#define USE_ELF_CORE_DUMP
+
 #endif
