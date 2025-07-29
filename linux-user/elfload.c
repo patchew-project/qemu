@@ -37,7 +37,6 @@
 
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
-#undef ELF_PLATFORM
 #undef ELF_CLASS
 #undef ELF_DATA
 #undef ELF_ARCH
@@ -155,8 +154,6 @@ typedef abi_uint        target_gid_t;
 typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
-
-#define ELF_PLATFORM get_elf_platform(thread_cpu)
 
 #ifdef TARGET_X86_64
 #define ELF_CLASS      ELFCLASS64
@@ -315,8 +312,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 #endif /* TARGET_I386 */
 
 #ifdef TARGET_ARM
-
-#define ELF_PLATFORM get_elf_platform(thread_cpu)
 
 #ifndef TARGET_AARCH64
 /* 32 bit ARM definitions */
@@ -672,8 +667,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
-#define ELF_PLATFORM get_elf_platform(thread_cpu)
-
 #endif /* TARGET_LOONGARCH64 */
 
 #ifdef TARGET_MIPS
@@ -852,8 +845,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
     (*regs)[32] = tswapreg(env->pc);
     (*regs)[33] = tswapreg(cpu_get_sr(env));
 }
-
-#define ELF_PLATFORM NULL
 
 #endif /* TARGET_OPENRISC */
 
@@ -1053,7 +1044,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_PARISC
-#define ELF_PLATFORM    get_elf_platform(thread_cpu)
 #define STACK_GROWS_DOWN 0
 #define STACK_ALIGNMENT  64
 
@@ -1189,10 +1179,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_BASE_PLATFORM (NULL)
 #endif
 
-#ifndef ELF_PLATFORM
-#define ELF_PLATFORM (NULL)
-#endif
-
 #ifndef ELF_MACHINE
 #define ELF_MACHINE ELF_ARCH
 #endif
@@ -1241,6 +1227,11 @@ abi_ulong get_elf_hwcap2(CPUState *cs) __attribute__((weak));
 abi_ulong __attribute__((weak)) get_elf_hwcap(CPUState *cs)
 {
     return 0;
+}
+
+const char * __attribute__((weak)) get_elf_platform(CPUState *cs)
+{
+    return NULL;
 }
 
 #include "elf.h"
@@ -1712,7 +1703,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     }
 
     u_platform = 0;
-    k_platform = ELF_PLATFORM;
+    k_platform = get_elf_platform(thread_cpu);
     if (k_platform) {
         size_t len = strlen(k_platform) + 1;
         if (STACK_GROWS_DOWN) {
