@@ -158,8 +158,6 @@ typedef abi_int         target_pid_t;
 #ifdef TARGET_X86_64
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
-
-#define INIT_GUEST_COMMPAGE
 #else
 
 /*
@@ -1151,10 +1149,13 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #else
 #define HI_COMMPAGE 0
 #define LO_COMMPAGE -1
-#ifndef INIT_GUEST_COMMPAGE
-#define init_guest_commpage() true
 #endif
-#endif
+
+bool __attribute__((weak)) init_guest_commpage(void)
+{
+    return true;
+}
+
 
 /**
  * pgb_try_mmap:
