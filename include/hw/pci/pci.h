@@ -463,6 +463,21 @@ typedef struct PCIIOMMUOps {
      */
     void (*unset_iommu_device)(PCIBus *bus, void *opaque, int devfn);
     /**
+     * @get_viommu_cap: get vIOMMU capabilities
+     *
+     * Optional callback, if not implemented, then vIOMMU doesn't
+     * support exposing capabilities to other subsystem, e.g., VFIO.
+     * vIOMMU can choose which capabilities to expose.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * Returns: 64bit bitmap with each bit represents a capability emulated by
+     * VIOMMU_CAP_* in include/hw/iommu.h, these capabilities are theoretical
+     * which are only determined by user's configuration and independent on the
+     * actual host capabilities they may depend on.
+     */
+    uint64_t (*get_viommu_cap)(void *opaque);
+    /**
      * @get_iotlb_info: get properties required to initialize a device IOTLB.
      *
      * Callback required if devices are allowed to cache translations.
@@ -641,6 +656,16 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 bool pci_device_set_iommu_device(PCIDevice *dev, HostIOMMUDevice *hiod,
                                  Error **errp);
 void pci_device_unset_iommu_device(PCIDevice *dev);
+
+/**
+ * pci_device_get_viommu_cap: get vIOMMU capabilities.
+ *
+ * Returns a 64bit bitmap with each bit represents a vIOMMU exposed
+ * capability, 0 if vIOMMU doesn't support esposing capabilities.
+ *
+ * @dev: PCI device pointer.
+ */
+uint64_t pci_device_get_viommu_cap(PCIDevice *dev);
 
 /**
  * pci_iommu_get_iotlb_info: get properties required to initialize a
