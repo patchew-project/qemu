@@ -8,4 +8,8 @@
 #ifndef XTENSA_TARGET_ELF_H
 #define XTENSA_TARGET_ELF_H
 
+#define ELF_CLASS               ELFCLASS32
+#define ELF_ARCH                EM_XTENSA
+#define USE_ELF_CORE_DUMP
+
 #endif
