@@ -74,6 +74,7 @@ struct HPETState {
     MemoryRegion iomem;
     uint64_t hpet_offset;
     bool hpet_offset_saved;
+    unsigned state_version;
     qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
     uint32_t flags;
     uint8_t rtc_irq_level;
@@ -430,17 +431,44 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
     trace_hpet_ram_read(addr);
     addr &= ~4;
 
-    QEMU_LOCK_GUARD(&s->lock);
     if ((addr <= 0xff) && (addr == HPET_COUNTER)) {
-        if (hpet_enabled(s)) {
-            cur_tick = hpet_get_ticks(s);
-        } else {
+        unsigned version;
+        bool release_lock = false;
+redo:
+        version = qatomic_load_acquire(&s->state_version);
+        if (unlikely(version & 1)) {
+                /*
+                 * Updater is running, state can be inconsistent
+                 * wait till it's done before reading counter
+                 */
+                release_lock = true;
+                qemu_mutex_lock(&s->lock);
+        }
+
+        if (unlikely(!hpet_enabled(s))) {
             cur_tick = s->hpet_counter;
+        } else {
+            cur_tick = hpet_get_ticks(s);
+        }
+
+        /*
+         * ensure counter math happens before we check version again
+         */
+        smp_rmb();
+        if (unlikely(version != qatomic_load_acquire(&s->state_version))) {
+            /*
+             * counter state has changed, re-read counter again
+             */
+            goto redo;
+        }
+        if (unlikely(release_lock)) {
+            qemu_mutex_unlock(&s->lock);
         }
         trace_hpet_ram_read_reading_counter(addr & 4, cur_tick);
         return cur_tick >> shift;
     }
 
+    QEMU_LOCK_GUARD(&s->lock);
     /*address range of all global regs*/
     if (addr <= 0xff) {
         switch (addr) {
@@ -500,6 +528,11 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             old_val = s->config;
             new_val = deposit64(old_val, shift, len, value);
             new_val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
+            /*
+             * Odd versions mark the critical section, any readers will be
+             * forced into lock protected read if they come in the middle of it
+             */
+            qatomic_inc(&s->state_version);
             s->config = new_val;
             if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                 /* Enable main counter and interrupt generation. */
@@ -518,6 +551,13 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                     hpet_del_timer(&s->timer[i]);
                 }
             }
+            /*
+             * even versions mark the end of critical section,
+             * any readers started before config change, but were still executed
+             * during the change, will be forced to re-read counter state
+             */
+            qatomic_inc(&s->state_version);
+
             /* i8254 and RTC output pins are disabled
              * when HPET is in legacy mode */
             if (activating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
