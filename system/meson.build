@@ -18,6 +18,7 @@ system_ss.add(files(
   'globals.c',
   'ioport.c',
   'ram-block-attributes.c',
+  'main.c',
   'memory_mapping.c',
   'memory.c',
   'physmem.c',
