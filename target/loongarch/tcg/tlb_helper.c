@@ -172,6 +172,7 @@ static void fill_tlb_entry(CPULoongArchState *env, int index)
     }
 
     /* Store page size in field PS */
+    tlb->tlb_misc = 0;
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, PS, csr_ps);
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, VPPN, csr_vppn);
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 1);
@@ -510,6 +511,24 @@ void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
     tlb_flush(env_cpu(env));
 }
 
+/*
+ * Record tlb entry with virtual address from user mode accessed from
+ * vCPU kernel mode.
+ *
+ * If set, when LoongArch TLB is flushed, need flush QEMU TLB with mmu
+ * idx MMU_KERNEL_IDX
+ */
+static inline void tlb_set_accessed(CPULoongArchState *env, vaddr address,
+                                    int index)
+{
+    LoongArchTLB *tlb = &env->tlb[index];
+    uint8_t tlb_ps, n;
+
+    tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
+    n = (address >> tlb_ps) & 0x1;/* Odd or even */
+    tlb->tlb_misc |= TLB_MISC_KM_PTE(n);
+}
+
 bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                             MMUAccessType access_type, int mmu_idx,
                             bool probe, uintptr_t retaddr)
@@ -529,6 +548,12 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
+
+        /* user mode address space is accessed in vCPU kernel mode */
+        if (mmu_idx == MMU_KERNEL_IDX && context.mmu_index == MMU_USER_IDX) {
+            tlb_set_accessed(env, address, context.tlb_index);
+        }
+
         qemu_log_mask(CPU_LOG_MMU,
                       "%s address=%" VADDR_PRIx " physical " HWADDR_FMT_plx
                       " prot %d\n", __func__, address, physical, prot);
@@ -662,6 +687,7 @@ static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env,
     n = (context->addr >> tlb_ps) & 0x1;/* Odd or even */
     context->pte = n ? tlb->tlb_entry1 : tlb->tlb_entry0;
     context->ps = tlb_ps;
+    context->tlb_index = index;
     return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 

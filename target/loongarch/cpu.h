@@ -253,6 +253,20 @@ FIELD(TLB_MISC, E, 0, 1)
 FIELD(TLB_MISC, ASID, 1, 10)
 FIELD(TLB_MISC, VPPN, 13, 35)
 FIELD(TLB_MISC, PS, 48, 6)
+/*
+ * Used by QEMU software, concept of mmu idx between QEMU TLB and LoongArch
+ * TLB emulation is different:
+ *   mmu idx in QEMU TLB is current working mode of vCPU
+ *   mmu idx in LoongArch TLB is PLV access level
+ * When funtion copy_from_user() executed with system emulation method,
+ * vCPU is in kernel mode however accessed address is user memory space.
+ *
+ * TLB lo0/lo1 entry mask with PLV MMU_USER_IDX accessed in kernel mode
+ */
+FIELD(TLB_MISC, KM, 54, 2)
+#define TLB_MISC_KM_PTE(n)          BIT_ULL(R_TLB_MISC_KM_SHIFT + n)
+#define TLB_MISC_KM_PTE_LOW0        TLB_MISC_KM_PTE(0)
+#define TLB_MISC_KM_PTE_LOW1        TLB_MISC_KM_PTE(1)
 
 #define LSX_LEN    (128)
 #define LASX_LEN   (256)
