@@ -502,7 +502,7 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_ISERROR:
         GET_ARG(0);
-        common_semi_set_ret(cs, (target_long)arg0 < 0);
+        common_semi_set_ret(cs, (int64_t)arg0 < 0);
         break;
 
     case TARGET_SYS_ISTTY:
