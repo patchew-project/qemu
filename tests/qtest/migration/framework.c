@@ -353,8 +353,17 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
         memory_backend = g_strdup_printf("-m %s ", memory_size);
     }
 
-    if (args->use_dirty_ring) {
-        kvm_opts = ",dirty-ring-size=4096";
+
+    if (g_str_equal(arch, "aarch64")) {
+        /*
+         * aarch64 is only tested with TCG because there is no single
+         * cpu that can be used for both KVM and TCG.
+         */
+        kvm_opts = NULL;
+    } else if (args->use_dirty_ring) {
+        kvm_opts = "-accel kvm,dirty-ring-size=4096";
+    } else {
+        kvm_opts = "-accel kvm";
     }
 
     if (!qtest_has_machine(machine_alias)) {
@@ -368,7 +377,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
 
     g_test_message("Using machine type: %s", machine);
 
-    cmd_source = g_strdup_printf("-accel kvm%s -accel tcg "
+    cmd_source = g_strdup_printf("%s -accel tcg "
                                  "-machine %s,%s "
                                  "-name source,debug-threads=on "
                                  "%s "
@@ -395,7 +404,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
      */
     events = args->defer_target_connect ? "-global migration.x-events=on" : "";
 
-    cmd_target = g_strdup_printf("-accel kvm%s -accel tcg "
+    cmd_target = g_strdup_printf("%s -accel tcg "
                                  "-machine %s,%s "
                                  "-name target,debug-threads=on "
                                  "%s "
