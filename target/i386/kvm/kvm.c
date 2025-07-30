@@ -5450,6 +5450,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
+    bool release_bql = 0;
     int ret;
 
     /* Inject NMI */
@@ -5478,15 +5479,16 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
         }
     }
 
-    if (!kvm_pic_in_kernel()) {
-        bql_lock();
-    }
 
     /* Force the VCPU out of its inner loop to process any INIT requests
      * or (for userspace APIC, but it is cheap to combine the checks here)
      * pending TPR access reports.
      */
     if (cpu->interrupt_request & (CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
+        if (!kvm_pic_in_kernel()) {
+            bql_lock();
+            release_bql = true;
+        }
         if ((cpu->interrupt_request & CPU_INTERRUPT_INIT) &&
             !(env->hflags & HF_SMM_MASK)) {
             cpu->exit_request = 1;
@@ -5497,24 +5499,31 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
     }
 
     if (!kvm_pic_in_kernel()) {
-        /* Try to inject an interrupt if the guest can accept it */
-        if (run->ready_for_interrupt_injection &&
-            (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-            (env->eflags & IF_MASK)) {
-            int irq;
+        if (cpu->interrupt_request & CPU_INTERRUPT_HARD) {
+            if (!release_bql) {
+                bql_lock();
+                release_bql = true;
+            }
 
-            cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
-            irq = cpu_get_pic_interrupt(env);
-            if (irq >= 0) {
-                struct kvm_interrupt intr;
+            /* Try to inject an interrupt if the guest can accept it */
+            if (run->ready_for_interrupt_injection &&
+                (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
+                (env->eflags & IF_MASK)) {
+                int irq;
 
-                intr.irq = irq;
-                DPRINTF("injected interrupt %d\n", irq);
-                ret = kvm_vcpu_ioctl(cpu, KVM_INTERRUPT, &intr);
-                if (ret < 0) {
-                    fprintf(stderr,
-                            "KVM: injection failed, interrupt lost (%s)\n",
-                            strerror(-ret));
+                cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                irq = cpu_get_pic_interrupt(env);
+                if (irq >= 0) {
+                    struct kvm_interrupt intr;
+
+                    intr.irq = irq;
+                    DPRINTF("injected interrupt %d\n", irq);
+                    ret = kvm_vcpu_ioctl(cpu, KVM_INTERRUPT, &intr);
+                    if (ret < 0) {
+                        fprintf(stderr,
+                                "KVM: injection failed, interrupt lost (%s)\n",
+                                strerror(-ret));
+                    }
                 }
             }
         }
@@ -5531,7 +5540,14 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
 
         DPRINTF("setting tpr\n");
         run->cr8 = cpu_get_apic_tpr(x86_cpu->apic_state);
+        /*
+         * make sure that request_interrupt_window/cr8 are set
+         * before KVM_RUN might read them
+         */
+        smp_mb();
+    }
 
+    if (release_bql) {
         bql_unlock();
     }
 }
