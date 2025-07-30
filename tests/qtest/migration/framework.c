@@ -317,7 +317,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
         memory_size = "150M";
         machine_alias = "virt";
         machine_opts = "gic-version=3";
-        arch_opts = g_strdup_printf("-cpu max -kernel %s", bootpath);
+        arch_opts = g_strdup_printf("-cpu neoverse-n1 -kernel %s", bootpath);
         start_address = ARM_TEST_MEM_START;
         end_address = ARM_TEST_MEM_END;
     } else {
