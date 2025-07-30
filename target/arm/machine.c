@@ -8,6 +8,7 @@
 #include "cpu-features.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
+#include "target/arm/cpregs.h"
 #include "target/arm/gtimer.h"
 
 static bool vfp_needed(void *opaque)
@@ -868,6 +869,14 @@ static const VMStateInfo vmstate_powered_off = {
     .put = put_power,
 };
 
+static uint64_t compat_cpreg_keys_virt_10_0[] = {
+    /*
+     * { .name = "DBGDTRTX", .state = ARM_CP_STATE_AA32,
+     * .cp = 14, .crn = 0, .crm = 5, .opc1 = 3, .opc2 = 0 }
+     */
+    ENCODE_CP_REG(14, 0, 1, 0, 5, 3, 0),
+};
+
 static int cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -951,7 +960,7 @@ static int cpu_post_load(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
-    int i, v;
+    int i, j, v;
 
     /*
      * Handle migration compatibility from old QEMU which didn't
@@ -987,10 +996,23 @@ static int cpu_post_load(void *opaque, int version_id)
         }
         if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
             /* register in their list but not ours: fail migration */
+
+            for (j = 0; j < ARRAY_SIZE(compat_cpreg_keys_virt_10_0); j++) {
+                if (cpu->cpreg_vmstate_indexes[v] ==
+                    cpreg_to_kvm_id(compat_cpreg_keys_virt_10_0[j])) {
+                    /*
+                     * ...unless the extra register is being explicitly
+                     * ignored for migration compatibility purposes.
+                     */
+                    i--;
+                    goto next;
+                }
+            }
             return -1;
         }
         /* matching register, copy the value over */
         cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
+    next:
         v++;
     }
 
