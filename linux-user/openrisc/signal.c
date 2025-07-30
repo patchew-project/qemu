@@ -22,6 +22,18 @@
 #include "signal-common.h"
 #include "linux-user/trace.h"
 
+/*
+ * Note that in linux/arch/openrisc/include/uapi/asm/ptrace.h,
+ * this is called user_regs_struct.  Given that this is what
+ * is used within struct sigcontext we need this definition.
+ * However, elfload.c wants this name.
+ */
+struct target_pt_regs {
+    abi_ulong gpr[32];
+    abi_ulong pc;
+    abi_ulong sr;
+};
+
 typedef struct target_sigcontext {
     struct target_pt_regs regs;
     abi_ulong oldmask;
