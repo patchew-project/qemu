@@ -25,6 +25,8 @@ typedef struct MMUContext {
     hwaddr        physical;
     int           ps;  /* page size shift */
     int           prot;
+    int           tlb_index;
+    int           mmu_index;
 } MMUContext;
 
 bool check_ps(CPULoongArchState *ent, uint8_t ps);
