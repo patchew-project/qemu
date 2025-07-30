@@ -313,16 +313,39 @@ void helper_tlbrd(CPULoongArchState *env)
 void helper_tlbwr(CPULoongArchState *env)
 {
     int index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
+    LoongArchTLB *old, new;
+    bool skip_inv = false;
+    uint8_t tlb_v0, tlb_v1;
 
-    invalidate_tlb(env, index);
-
+    old = env->tlb + index;
     if (FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, NE)) {
-        env->tlb[index].tlb_misc = FIELD_DP64(env->tlb[index].tlb_misc,
-                                              TLB_MISC, E, 0);
+        invalidate_tlb(env, index);
+        old->tlb_misc = FIELD_DP64(old->tlb_misc, TLB_MISC, E, 0);
         return;
     }
 
-    fill_tlb_entry(env, env->tlb + index);
+    new.tlb_misc = 0;
+    new.tlb_entry0 = 0;
+    new.tlb_entry1 = 0;
+    fill_tlb_entry(env, &new);
+    /* Check whether ASID/VPPN is the same */
+    if (old->tlb_misc == new.tlb_misc) {
+        /* Check whether pte is the same or invalid */
+        tlb_v0 = FIELD_EX64(old->tlb_entry0, TLBENTRY, V);
+        tlb_v1 = FIELD_EX64(old->tlb_entry1, TLBENTRY, V);
+        if ((!tlb_v0 || new.tlb_entry0 == old->tlb_entry0) &&
+            (!tlb_v1 || new.tlb_entry1 == old->tlb_entry1)) {
+            skip_inv = true;
+        }
+    }
+
+    /* flush tlb before updating the entry */
+    if (!skip_inv) {
+        invalidate_tlb(env, index);
+    }
+    old->tlb_misc = new.tlb_misc;
+    old->tlb_entry0 = new.tlb_entry0;
+    old->tlb_entry1 = new.tlb_entry1;
 }
 
 void helper_tlbfill(CPULoongArchState *env)
