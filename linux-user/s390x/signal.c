@@ -34,6 +34,11 @@
 #define S390_SYSCALL_OPCODE ((uint16_t)0x0a00)
 
 typedef struct {
+    abi_ulong mask;
+    abi_ulong addr;
+} __attribute__ ((aligned(8))) target_psw_t;
+
+typedef struct {
     target_psw_t psw;
     abi_ulong gprs[__NUM_GPRS];
     abi_uint acrs[__NUM_ACRS];
