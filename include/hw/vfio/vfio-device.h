@@ -157,6 +157,7 @@ bool vfio_device_attach_by_iommu_type(const char *iommu_type, char *name,
                                       Error **errp);
 void vfio_device_detach(VFIODevice *vbasedev);
 VFIODevice *vfio_get_vfio_device(Object *obj);
+struct VFIOPCIDevice *vfio_device_to_vfio_pci(VFIODevice *vbasedev);
 
 typedef QLIST_HEAD(VFIODeviceList, VFIODevice) VFIODeviceList;
 extern VFIODeviceList vfio_device_list;

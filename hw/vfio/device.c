@@ -129,7 +129,7 @@ static inline const char *action_to_str(int action)
 
 static const char *index_to_str(VFIODevice *vbasedev, int index)
 {
-    if (vbasedev->type != VFIO_DEVICE_TYPE_PCI) {
+    if (!vfio_device_to_vfio_pci(vbasedev)) {
         return NULL;
     }
 
@@ -427,6 +427,14 @@ VFIODevice *vfio_get_vfio_device(Object *obj)
     } else {
         return NULL;
     }
+}
+
+VFIOPCIDevice *vfio_device_to_vfio_pci(VFIODevice *vbasedev)
+{
+    if (vbasedev && vbasedev->type == VFIO_DEVICE_TYPE_PCI) {
+        return container_of(vbasedev, VFIOPCIDevice, vbasedev);
+    }
+    return NULL;
 }
 
 bool vfio_device_attach_by_iommu_type(const char *iommu_type, char *name,
