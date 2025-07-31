@@ -486,9 +486,10 @@ static void whpx_set_kernel_irqchip(Object *obj, Visitor *v,
 
 static void whpx_cpu_accel_class_init(ObjectClass *oc, const void *data)
 {
+#ifdef __x86_64__
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
-
     acc->cpu_instance_init = whpx_cpu_instance_init;
+#endif
 }
 
 static const TypeInfo whpx_cpu_accel_type = {
