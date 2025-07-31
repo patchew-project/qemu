@@ -731,10 +731,25 @@ static int sd_req_crc_validate(SDRequest *req)
 
 static size_t sd_response_r1_make(SDState *sd, uint8_t *response, size_t respsz)
 {
-    size_t rsplen = 4;
+    size_t rsplen;
 
-    assert(respsz >= 4);
-    stl_be_p(response, sd->card_status);
+    if (sd_is_spi(sd)) {
+        assert(respsz >= 1);
+        response[0] = sd->state == sd_idle_state
+                   && !FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
+        response[0] |= FIELD_EX32(sd->card_status, CSR, ERASE_RESET) << 1;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, ILLEGAL_COMMAND) << 2;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, COM_CRC_ERROR) << 3;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, ERASE_SEQ_ERROR) << 4;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, ADDRESS_ERROR) << 5;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, BLOCK_LEN_ERROR) << 6;
+        response[0] |= 0 << 7;
+        rsplen = 1;
+    } else {
+        assert(respsz >= 4);
+        stl_be_p(response, sd->card_status);
+        rsplen = 4;
+    }
 
     /* Clear the "clear on read" status bits */
     sd->card_status &= ~CARD_STATUS_C;
@@ -746,6 +761,10 @@ static size_t sd_response_r3_make(SDState *sd, uint8_t *response, size_t respsz)
 {
     size_t rsplen = 4;
 
+    if (sd_is_spi(sd)) {
+        rsplen += sd_response_r1_make(sd, response, respsz);
+        response++;
+    }
     assert(respsz >= rsplen);
     stl_be_p(response, sd->ocr & ACMD41_R3_MASK);
 
@@ -771,6 +790,10 @@ static size_t sd_response_r7_make(SDState *sd, uint8_t *response, size_t respsz)
 {
     size_t rsplen = 4;
 
+    if (sd_is_spi(sd)) {
+        rsplen += sd_response_r1_make(sd, response, respsz);
+        response++;
+    }
     assert(respsz >= rsplen);
     stl_be_p(response, sd->vhs);
 
@@ -2261,7 +2284,7 @@ send_response:
         sd->data_offset = 0;
         /* fall-through */
     case sd_illegal:
-        rsplen = 0;
+        rsplen = sd_is_spi(sd) ? sd_response_r1_make(sd, response, respsz) : 0;
         break;
     default:
         g_assert_not_reached();
