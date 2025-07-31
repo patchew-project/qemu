@@ -564,7 +564,7 @@ static int put_tmp(QEMUFile *f, void *pv, size_t size,
 
     /* Writes the parent field which is at the start of the tmp */
     *(void **)tmp = pv;
-    ret = vmstate_save_state(f, vmsd, tmp, vmdesc);
+    ret = vmstate_save_state(f, vmsd, tmp, vmdesc, &error_warn);
     g_free(tmp);
 
     return ret;
@@ -675,7 +675,7 @@ static int put_qtailq(QEMUFile *f, void *pv, size_t unused_size,
 
     QTAILQ_RAW_FOREACH(elm, pv, entry_offset) {
         qemu_put_byte(f, true);
-        ret = vmstate_save_state(f, vmsd, elm, vmdesc);
+        ret = vmstate_save_state(f, vmsd, elm, vmdesc, &error_warn);
         if (ret) {
             return ret;
         }
@@ -712,7 +712,8 @@ static gboolean put_gtree_elem(gpointer key, gpointer value, gpointer data)
     if (!capsule->key_vmsd) {
         qemu_put_be64(f, (uint64_t)(uintptr_t)(key)); /* direct key */
     } else {
-        ret = vmstate_save_state(f, capsule->key_vmsd, key, capsule->vmdesc);
+        ret = vmstate_save_state(f, capsule->key_vmsd, key, capsule->vmdesc,
+                                 &error_warn);
         if (ret) {
             capsule->ret = ret;
             return true;
@@ -720,7 +721,8 @@ static gboolean put_gtree_elem(gpointer key, gpointer value, gpointer data)
     }
 
     /* put the data */
-    ret = vmstate_save_state(f, capsule->val_vmsd, value, capsule->vmdesc);
+    ret = vmstate_save_state(f, capsule->val_vmsd, value, capsule->vmdesc,
+                             &error_warn);
     if (ret) {
         capsule->ret = ret;
         return true;
@@ -856,7 +858,7 @@ static int put_qlist(QEMUFile *f, void *pv, size_t unused_size,
     trace_put_qlist(field->name, vmsd->name, vmsd->version_id);
     QLIST_RAW_FOREACH(elm, pv, entry_offset) {
         qemu_put_byte(f, true);
-        ret = vmstate_save_state(f, vmsd, elm, vmdesc);
+        ret = vmstate_save_state(f, vmsd, elm, vmdesc, &error_warn);
         if (ret) {
             error_report("%s: failed to save %s (%d)", field->name,
                          vmsd->name, ret);
