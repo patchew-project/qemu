@@ -729,34 +729,52 @@ static int sd_req_crc_validate(SDRequest *req)
     return sd_crc7(buffer, 5) != req->crc;  /* TODO */
 }
 
-static void sd_response_r1_make(SDState *sd, uint8_t *response)
+static size_t sd_response_r1_make(SDState *sd, uint8_t *response, size_t respsz)
 {
+    size_t rsplen = 4;
+
+    assert(respsz >= 4);
     stl_be_p(response, sd->card_status);
 
     /* Clear the "clear on read" status bits */
     sd->card_status &= ~CARD_STATUS_C;
+
+    return rsplen;
 }
 
-static void sd_response_r3_make(SDState *sd, uint8_t *response)
+static size_t sd_response_r3_make(SDState *sd, uint8_t *response, size_t respsz)
 {
+    size_t rsplen = 4;
+
+    assert(respsz >= rsplen);
     stl_be_p(response, sd->ocr & ACMD41_R3_MASK);
+
+    return rsplen;
 }
 
-static void sd_response_r6_make(SDState *sd, uint8_t *response)
+static size_t sd_response_r6_make(SDState *sd, uint8_t *response, size_t respsz)
 {
     uint16_t status;
 
+    assert(respsz >= 4);
     status = ((sd->card_status >> 8) & 0xc000) |
              ((sd->card_status >> 6) & 0x2000) |
               (sd->card_status & 0x1fff);
     sd->card_status &= ~(CARD_STATUS_C & 0xc81fff);
     stw_be_p(response + 0, sd->rca);
     stw_be_p(response + 2, status);
+
+    return 4;
 }
 
-static void sd_response_r7_make(SDState *sd, uint8_t *response)
+static size_t sd_response_r7_make(SDState *sd, uint8_t *response, size_t respsz)
 {
+    size_t rsplen = 4;
+
+    assert(respsz >= rsplen);
     stl_be_p(response, sd->vhs);
+
+    return rsplen;
 }
 
 static uint32_t sd_blk_len(SDState *sd)
@@ -2207,33 +2225,31 @@ send_response:
     switch (rtype) {
     case sd_r1:
     case sd_r1b:
-        sd_response_r1_make(sd, response);
-        rsplen = 4;
+        rsplen = sd_response_r1_make(sd, response, respsz);
         break;
 
     case sd_r2_i:
+        assert(respsz >= 16);
         memcpy(response, sd->cid, sizeof(sd->cid));
         rsplen = 16;
         break;
 
     case sd_r2_s:
+        assert(respsz >= 16);
         memcpy(response, sd->csd, sizeof(sd->csd));
         rsplen = 16;
         break;
 
     case sd_r3:
-        sd_response_r3_make(sd, response);
-        rsplen = 4;
+        rsplen = sd_response_r3_make(sd, response, respsz);
         break;
 
     case sd_r6:
-        sd_response_r6_make(sd, response);
-        rsplen = 4;
+        rsplen = sd_response_r6_make(sd, response, respsz);
         break;
 
     case sd_r7:
-        sd_response_r7_make(sd, response);
-        rsplen = 4;
+        rsplen = sd_response_r7_make(sd, response, respsz);
         break;
 
     case sd_r0:
