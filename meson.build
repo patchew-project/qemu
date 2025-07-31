@@ -327,7 +327,8 @@ accelerator_targets += { 'CONFIG_XEN': xen_targets }
 
 if cpu == 'aarch64'
   accelerator_targets += {
-    'CONFIG_HVF': ['aarch64-softmmu']
+    'CONFIG_HVF': ['aarch64-softmmu'],
+    'CONFIG_WHPX': ['aarch64-softmmu']
   }
 elif cpu == 'x86_64'
   accelerator_targets += {
@@ -885,7 +886,7 @@ if get_option('kvm').allowed() and host_os == 'linux'
   accelerators += 'CONFIG_KVM'
 endif
 if get_option('whpx').allowed() and host_os == 'windows'
-  if get_option('whpx').enabled() and host_machine.cpu() != 'x86_64'
+  if get_option('whpx').enabled() and host_machine.cpu() in ['x86_64', 'aarch64']
     error('WHPX requires 64-bit host')
   elif cc.has_header('winhvplatform.h', required: get_option('whpx')) and \
        cc.has_header('winhvemulation.h', required: get_option('whpx'))
