@@ -16,8 +16,8 @@
 #include "qemu/guest-random.h"
 
 #include "system/whpx.h"
-#include "whpx-internal.h"
-#include "whpx-accel-ops.h"
+#include "system/whpx-internal.h"
+#include "system/whpx-accel-ops.h"
 
 static void *whpx_cpu_thread_fn(void *arg)
 {
@@ -80,7 +80,11 @@ static void whpx_kick_vcpu_thread(CPUState *cpu)
 
 static bool whpx_vcpu_thread_is_idle(CPUState *cpu)
 {
+#ifndef __aarch64__
     return !whpx_apic_in_platform();
+#else
+    return 0;
+#endif
 }
 
 static void whpx_accel_ops_class_init(ObjectClass *oc, const void *data)
