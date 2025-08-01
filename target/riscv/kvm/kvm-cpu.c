@@ -594,6 +594,15 @@ static int kvm_riscv_get_regs_core(CPUState *cs)
     }
     env->pc = reg;
 
+    /*Save the guest's privileged state before migration*/
+    ret = kvm_get_one_reg(cs, RISCV_CORE_REG(env, mode), &reg);
+    if (ret) {
+        return ret;
+    }
+    if(reg != PRV_M) {
+        env->priv = reg;
+    }
+
     for (i = 1; i < 32; i++) {
         uint64_t id = KVM_RISCV_REG_ID_ULONG(KVM_REG_RISCV_CORE, i);
         ret = kvm_get_one_reg(cs, id, &reg);
@@ -617,6 +626,16 @@ static int kvm_riscv_put_regs_core(CPUState *cs)
     ret = kvm_set_one_reg(cs, RISCV_CORE_REG(regs.pc), &reg);
     if (ret) {
         return ret;
+    }
+
+    /*Restore the guest's privileged state after migration*/
+    reg = env->priv;
+
+    if(reg != PRV_M) {
+        ret = kvm_set_one_reg(cs, RISCV_CORE_REG(env, mode), &reg);
+        if (ret) {
+            return ret;
+        }
     }
 
     for (i = 1; i < 32; i++) {
@@ -1348,22 +1367,46 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
         return ret;
     }
 
+    ret = kvm_riscv_sync_mpstate_to_qemu(cs);
+    if (ret) {
+        return ret;
+    }
+
     return ret;
 }
 
-int kvm_riscv_sync_mpstate_to_kvm(RISCVCPU *cpu, int state)
+int kvm_riscv_sync_mpstate_to_kvm(CPUState *cs)
 {
+    CPURISCVState *env = &RISCV_CPU(cs)->env;
     if (cap_has_mp_state) {
         struct kvm_mp_state mp_state = {
-            .mp_state = state
+            .mp_state = env->mp_state
         };
 
-        int ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MP_STATE, &mp_state);
+        int ret = kvm_vcpu_ioctl(cs, KVM_SET_MP_STATE, &mp_state);
         if (ret) {
             fprintf(stderr, "%s: failed to sync MP_STATE %d/%s\n",
                     __func__, ret, strerror(-ret));
             return -1;
         }
+    }
+
+    return 0;
+}
+
+int kvm_riscv_sync_mpstate_to_qemu(CPUState *cs)
+{
+    CPURISCVState *env = &RISCV_CPU(cs)->env;
+    if (cap_has_mp_state) {
+        struct kvm_mp_state mp_state;
+
+        int ret = kvm_vcpu_ioctl(cs, KVM_GET_MP_STATE, &mp_state);
+        if (ret) {
+            fprintf(stderr, "%s: failed to sync MP_STATE %d/%s\n",
+                    __func__, ret, strerror(-ret));
+            return -1;
+        }
+        env->mp_state = mp_state.mp_state;
     }
 
     return 0;
@@ -1394,12 +1437,20 @@ int kvm_arch_put_registers(CPUState *cs, int level, Error **errp)
     }
 
     if (KVM_PUT_RESET_STATE == level) {
-        RISCVCPU *cpu = RISCV_CPU(cs);
+        CPURISCVState *env = &RISCV_CPU(cs)->env;
         if (cs->cpu_index == 0) {
-            ret = kvm_riscv_sync_mpstate_to_kvm(cpu, KVM_MP_STATE_RUNNABLE);
+            env->mp_state = KVM_MP_STATE_RUNNABLE;
+            ret = kvm_riscv_sync_mpstate_to_kvm(cs);
         } else {
-            ret = kvm_riscv_sync_mpstate_to_kvm(cpu, KVM_MP_STATE_STOPPED);
+            env->mp_state = KVM_MP_STATE_STOPPED;
+            ret = kvm_riscv_sync_mpstate_to_kvm(cs);
         }
+        if (ret) {
+            return ret;
+        }
+    }
+    else {
+        ret = kvm_riscv_sync_mpstate_to_kvm(cs);
         if (ret) {
             return ret;
         }
