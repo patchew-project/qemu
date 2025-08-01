@@ -338,6 +338,22 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
         return 0;
     }
 
+    /*
+     * This feature triggers acquisition of mutexes around every
+     * read and write. Thus we must not sit in a blocking read
+     * if this is set, but must instead poll proactively. This
+     * does not work with some channel types, however, so must
+     * only pre-poll when the featre is set.
+     */
+    if (qio_channel_has_feature(f->ioc,
+                                QIO_CHANNEL_FEATURE_CONCURRENT_IO)) {
+        if (qemu_in_coroutine()) {
+            qio_channel_yield(f->ioc, G_IO_IN);
+        } else {
+            qio_channel_wait(f->ioc, G_IO_IN);
+        }
+    }
+
     do {
         struct iovec iov = { f->buf + pending, IO_BUF_SIZE - pending };
         len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd, 0,

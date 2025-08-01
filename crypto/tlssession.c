@@ -95,18 +95,10 @@ qcrypto_tls_session_push(void *opaque, const void *buf, size_t len)
         return -1;
     };
 
-    if (session->lockEnabled) {
-        qemu_mutex_unlock(&session->lock);
-    }
-
     error_free(session->werr);
     session->werr = NULL;
 
     ret = session->writeFunc(buf, len, session->opaque, &session->werr);
-
-    if (session->lockEnabled) {
-        qemu_mutex_lock(&session->lock);
-    }
 
     if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
         errno = EAGAIN;
@@ -134,15 +126,7 @@ qcrypto_tls_session_pull(void *opaque, void *buf, size_t len)
     error_free(session->rerr);
     session->rerr = NULL;
 
-    if (session->lockEnabled) {
-        qemu_mutex_unlock(&session->lock);
-    }
-
     ret = session->readFunc(buf, len, session->opaque, &session->rerr);
-
-    if (session->lockEnabled) {
-        qemu_mutex_lock(&session->lock);
-    }
 
     if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
         errno = EAGAIN;
