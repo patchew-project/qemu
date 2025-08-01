@@ -42,6 +42,7 @@ _supported_proto file
 _supported_os Linux
 _supported_cache_modes none directsync
 _require_disk_usage
+_require_o_direct
 
 echo
 echo "=== Initial image setup ==="
