@@ -8,6 +8,10 @@
 #ifndef S390X_TARGET_ELF_H
 #define S390X_TARGET_ELF_H
 
+#define ELF_CLASS               ELFCLASS64
+#define ELF_ARCH                EM_S390
+#define VDSO_HEADER             "vdso.c.inc"
+
 #define HAVE_ELF_HWCAP          1
 
 /* See linux kernel: arch/s390/include/uapi/asm/ptrace.h (s390_regs).  */
