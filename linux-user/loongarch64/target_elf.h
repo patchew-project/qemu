@@ -6,6 +6,12 @@
 #ifndef LOONGARCH_TARGET_ELF_H
 #define LOONGARCH_TARGET_ELF_H
 
+#define ELF_CLASS               ELFCLASS64
+#define ELF_ARCH                EM_LOONGARCH
+#define EXSTACK_DEFAULT         true
+#define elf_check_arch(x)       ((x) == EM_LOONGARCH)
+#define VDSO_HEADER             "vdso.c.inc"
+
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_PLATFORM       1
 
