@@ -408,25 +408,6 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 
 #define ELF_EXEC_PAGESIZE        4096
 
-#define ELF_NREG 38
-
-/* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-void elf_core_copy_regs(target_ulong *regs, const CPUMBState *env)
-{
-    int i, pos = 0;
-
-    for (i = 0; i < 32; i++) {
-        regs[pos++] = tswapl(env->regs[i]);
-    }
-
-    regs[pos++] = tswapl(env->pc);
-    regs[pos++] = tswapl(mb_cpu_read_msr(env));
-    regs[pos++] = 0;
-    regs[pos++] = tswapl(env->ear);
-    regs[pos++] = 0;
-    regs[pos++] = tswapl(env->esr);
-}
-
 #endif /* TARGET_MICROBLAZE */
 
 #ifdef TARGET_OPENRISC

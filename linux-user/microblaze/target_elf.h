@@ -8,4 +8,6 @@
 #ifndef MICROBLAZE_TARGET_ELF_H
 #define MICROBLAZE_TARGET_ELF_H
 
+#define ELF_NREG                38
+
 #endif
