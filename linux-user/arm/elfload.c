@@ -199,3 +199,12 @@ const char *get_elf_platform(CPUState *cs)
 
 #undef END
 }
+
+void elf_core_copy_regs(target_ulong *regs, const CPUARMState *env)
+{
+    for (int i = 0; i < 16; i++) {
+        regs[i] = tswapl(env->regs[i]);
+    }
+    regs[16] = tswapl(cpsr_read((CPUARMState *)env));
+    regs[17] = tswapl(env->regs[0]); /* XXX */
+}

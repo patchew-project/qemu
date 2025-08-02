@@ -210,17 +210,6 @@ static bool init_guest_commpage(void)
 #define ELF_CLASS       ELFCLASS32
 #define EXSTACK_DEFAULT true
 
-#define ELF_NREG    18
-
-void elf_core_copy_regs(target_ulong *regs, const CPUARMState *env)
-{
-    for (int i = 0; i < 16; i++) {
-        regs[i] = tswapl(env->regs[i]);
-    }
-    regs[16] = tswapl(cpsr_read((CPUARMState *)env));
-    regs[17] = tswapl(env->regs[0]); /* XXX */
-}
-
 #define ELF_EXEC_PAGESIZE       4096
 
 /* The commpage only exists for 32 bit kernels */
