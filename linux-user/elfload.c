@@ -145,46 +145,6 @@ typedef abi_int         target_pid_t;
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
 
-#define ELF_NREG    27
-
-/*
- * Note that ELF_NREG should be 29 as there should be place for
- * TRAPNO and ERR "registers" as well but linux doesn't dump
- * those.
- *
- * See linux kernel: arch/x86/include/asm/elf.h
- */
-void elf_core_copy_regs(target_ulong *regs, const CPUX86State *env)
-{
-    regs[0] = tswapl(env->regs[15]);
-    regs[1] = tswapl(env->regs[14]);
-    regs[2] = tswapl(env->regs[13]);
-    regs[3] = tswapl(env->regs[12]);
-    regs[4] = tswapl(env->regs[R_EBP]);
-    regs[5] = tswapl(env->regs[R_EBX]);
-    regs[6] = tswapl(env->regs[11]);
-    regs[7] = tswapl(env->regs[10]);
-    regs[8] = tswapl(env->regs[9]);
-    regs[9] = tswapl(env->regs[8]);
-    regs[10] = tswapl(env->regs[R_EAX]);
-    regs[11] = tswapl(env->regs[R_ECX]);
-    regs[12] = tswapl(env->regs[R_EDX]);
-    regs[13] = tswapl(env->regs[R_ESI]);
-    regs[14] = tswapl(env->regs[R_EDI]);
-    regs[15] = tswapl(get_task_state(env_cpu_const(env))->orig_ax);
-    regs[16] = tswapl(env->eip);
-    regs[17] = tswapl(env->segs[R_CS].selector & 0xffff);
-    regs[18] = tswapl(env->eflags);
-    regs[19] = tswapl(env->regs[R_ESP]);
-    regs[20] = tswapl(env->segs[R_SS].selector & 0xffff);
-    regs[21] = tswapl(env->segs[R_FS].selector & 0xffff);
-    regs[22] = tswapl(env->segs[R_GS].selector & 0xffff);
-    regs[23] = tswapl(env->segs[R_DS].selector & 0xffff);
-    regs[24] = tswapl(env->segs[R_ES].selector & 0xffff);
-    regs[25] = tswapl(env->segs[R_FS].selector & 0xffff);
-    regs[26] = tswapl(env->segs[R_GS].selector & 0xffff);
-}
-
 #if ULONG_MAX > UINT32_MAX
 #define INIT_GUEST_COMMPAGE
 static bool init_guest_commpage(void)
@@ -220,36 +180,6 @@ static bool init_guest_commpage(void)
 #define ELF_ARCH        EM_386
 
 #define EXSTACK_DEFAULT true
-
-#define ELF_NREG    17
-
-/*
- * Note that ELF_NREG should be 19 as there should be place for
- * TRAPNO and ERR "registers" as well but linux doesn't dump
- * those.
- *
- * See linux kernel: arch/x86/include/asm/elf.h
- */
-void elf_core_copy_regs(target_ulong *regs, const CPUX86State *env)
-{
-    regs[0] = tswapl(env->regs[R_EBX]);
-    regs[1] = tswapl(env->regs[R_ECX]);
-    regs[2] = tswapl(env->regs[R_EDX]);
-    regs[3] = tswapl(env->regs[R_ESI]);
-    regs[4] = tswapl(env->regs[R_EDI]);
-    regs[5] = tswapl(env->regs[R_EBP]);
-    regs[6] = tswapl(env->regs[R_EAX]);
-    regs[7] = tswapl(env->segs[R_DS].selector & 0xffff);
-    regs[8] = tswapl(env->segs[R_ES].selector & 0xffff);
-    regs[9] = tswapl(env->segs[R_FS].selector & 0xffff);
-    regs[10] = tswapl(env->segs[R_GS].selector & 0xffff);
-    regs[11] = tswapl(get_task_state(env_cpu_const(env))->orig_ax);
-    regs[12] = tswapl(env->eip);
-    regs[13] = tswapl(env->segs[R_CS].selector & 0xffff);
-    regs[14] = tswapl(env->eflags);
-    regs[15] = tswapl(env->regs[R_ESP]);
-    regs[16] = tswapl(env->segs[R_SS].selector & 0xffff);
-}
 
 /*
  * i386 is the only target which supplies AT_SYSINFO for the vdso.
