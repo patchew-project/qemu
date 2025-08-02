@@ -36,3 +36,31 @@ abi_ulong get_elf_hwcap(CPUState *cs)
 
     return hwcap;
 }
+
+/* See linux kernel: arch/sh/include/asm/ptrace.h.  */
+enum {
+    TARGET_REG_PC = 16,
+    TARGET_REG_PR = 17,
+    TARGET_REG_SR = 18,
+    TARGET_REG_GBR = 19,
+    TARGET_REG_MACH = 20,
+    TARGET_REG_MACL = 21,
+    TARGET_REG_SYSCALL = 22
+};
+
+void elf_core_copy_regs(target_ulong *regs, const CPUSH4State *env)
+{
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        regs[i] = tswapl(env->gregs[i]);
+    }
+
+    regs[TARGET_REG_PC] = tswapl(env->pc);
+    regs[TARGET_REG_PR] = tswapl(env->pr);
+    regs[TARGET_REG_SR] = tswapl(env->sr);
+    regs[TARGET_REG_GBR] = tswapl(env->gbr);
+    regs[TARGET_REG_MACH] = tswapl(env->mach);
+    regs[TARGET_REG_MACL] = tswapl(env->macl);
+    regs[TARGET_REG_SYSCALL] = 0; /* FIXME */
+}

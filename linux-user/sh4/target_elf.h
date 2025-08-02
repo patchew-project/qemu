@@ -10,4 +10,7 @@
 
 #define HAVE_ELF_HWCAP          1
 
+/* See linux kernel: arch/sh/include/asm/elf.h.  */
+#define ELF_NREG                23
+
 #endif
