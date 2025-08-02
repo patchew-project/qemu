@@ -13,5 +13,6 @@
 #define HAVE_ELF_PLATFORM       1
 
 #define ELF_NREG                18
+#define HI_COMMPAGE             ((intptr_t)0xffff0f00u)
 
 #endif
