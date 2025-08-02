@@ -9,4 +9,7 @@
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_PLATFORM       1
 
+/* See linux kernel: arch/loongarch/include/asm/elf.h */
+#define ELF_NREG                45
+
 #endif
