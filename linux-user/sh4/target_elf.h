@@ -8,6 +8,9 @@
 #ifndef SH4_TARGET_ELF_H
 #define SH4_TARGET_ELF_H
 
+#define ELF_CLASS               ELFCLASS32
+#define ELF_ARCH                EM_SH
+
 #define HAVE_ELF_HWCAP          1
 
 /* See linux kernel: arch/sh/include/asm/elf.h.  */
