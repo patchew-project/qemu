@@ -11,4 +11,7 @@
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_HWCAP2         1
 
+/* See linux kernel: arch/powerpc/include/asm/elf.h.  */
+#define ELF_NREG                48
+
 #endif

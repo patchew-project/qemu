@@ -129,3 +129,22 @@ abi_ulong get_elf_hwcap2(CPUState *cs)
 
     return features;
 }
+
+void elf_core_copy_regs(target_ulong *regs, const CPUPPCState *env)
+{
+    int i;
+    target_ulong ccr = 0;
+
+    for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
+        regs[i] = tswapl(env->gpr[i]);
+    }
+
+    regs[32] = tswapl(env->nip);
+    regs[33] = tswapl(env->msr);
+    regs[35] = tswapl(env->ctr);
+    regs[36] = tswapl(env->lr);
+    regs[37] = tswapl(cpu_read_xer(env));
+
+    ccr = ppc_get_cr(env);
+    regs[38] = tswapl(ccr);
+}
