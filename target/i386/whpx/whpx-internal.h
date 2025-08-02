@@ -117,3 +117,4 @@ typedef enum WHPFunctionList {
 } WHPFunctionList;
 
 #endif /* TARGET_I386_WHPX_INTERNAL_H */
+
