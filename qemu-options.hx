@@ -3307,10 +3307,10 @@ SRST
 
         ::
 
-            10.0.2.4 smbserver
+            10.0.2.4 smbserver #PRE #NOFNR
 
-        must be added in the file ``C:\WINDOWS\LMHOSTS`` (for windows
-        9x/Me) or ``C:\WINNT\SYSTEM32\DRIVERS\ETC\LMHOSTS`` (Windows
+        must be added in the file ``C:\WINDOWS\LMHOSTS`` (for Windows
+        3x/9x/Me) or ``C:\WINNT\SYSTEM32\DRIVERS\ETC\LMHOSTS`` (Windows
         NT/2000).
 
         Then ``dir`` can be accessed in ``\\smbserver\qemu``.
