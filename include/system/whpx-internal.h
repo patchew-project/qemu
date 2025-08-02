@@ -1,5 +1,6 @@
-#ifndef TARGET_I386_WHPX_INTERNAL_H
-#define TARGET_I386_WHPX_INTERNAL_H
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+#ifndef SYSTEM_WHPX_INTERNAL_H
+#define SYSTEM_WHPX_INTERNAL_H
 
 #include <windows.h>
 #include <winhvplatform.h>
@@ -117,4 +118,3 @@ typedef enum WHPFunctionList {
 } WHPFunctionList;
 
 #endif /* TARGET_I386_WHPX_INTERNAL_H */
-
