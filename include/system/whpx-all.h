@@ -8,5 +8,7 @@ void whpx_get_registers(CPUState *cpu);
 void whpx_set_registers(CPUState *cpu, int level);
 int whpx_accel_init(AccelState *as, MachineState *ms);
 void whpx_cpu_instance_init(CPUState *cs);
+#ifdef __x86_64__
 HRESULT whpx_set_exception_exit_bitmap(UINT64 exceptions);
+#endif
 #endif
