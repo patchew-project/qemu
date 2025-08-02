@@ -14,6 +14,7 @@
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_HWCAP2         1
 #define HAVE_ELF_PLATFORM       1
+#define HAVE_ELF_GNU_PROPERTY   1
 
 #define ELF_NREG                34
 
