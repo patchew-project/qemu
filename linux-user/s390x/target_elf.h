@@ -10,4 +10,7 @@
 
 #define HAVE_ELF_HWCAP          1
 
+/* See linux kernel: arch/s390/include/uapi/asm/ptrace.h (s390_regs).  */
+#define ELF_NREG                27
+
 #endif

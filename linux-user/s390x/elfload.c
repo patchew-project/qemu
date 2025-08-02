@@ -66,3 +66,28 @@ const char *elf_hwcap_str(uint32_t bit)
 
     return bit < ARRAY_SIZE(hwcap_str) ? hwcap_str[bit] : NULL;
 }
+
+enum {
+    TARGET_REG_PSWM = 0,
+    TARGET_REG_PSWA = 1,
+    TARGET_REG_GPRS = 2,
+    TARGET_REG_ARS = 18,
+    TARGET_REG_ORIG_R2 = 26,
+};
+
+void elf_core_copy_regs(target_ulong *regs, const CPUS390XState *env)
+{
+    int i;
+    uint32_t *aregs;
+
+    regs[TARGET_REG_PSWM] = tswapl(env->psw.mask);
+    regs[TARGET_REG_PSWA] = tswapl(env->psw.addr);
+    for (i = 0; i < 16; i++) {
+        regs[TARGET_REG_GPRS + i] = tswapl(env->regs[i]);
+    }
+    aregs = (uint32_t *)&regs[TARGET_REG_ARS];
+    for (i = 0; i < 16; i++) {
+        aregs[i] = tswap32(env->aregs[i]);
+    }
+    regs[TARGET_REG_ORIG_R2] = 0;
+}

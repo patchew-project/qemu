@@ -453,34 +453,6 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
 
-/* See linux kernel: arch/s390/include/uapi/asm/ptrace.h (s390_regs).  */
-#define ELF_NREG 27
-
-enum {
-    TARGET_REG_PSWM = 0,
-    TARGET_REG_PSWA = 1,
-    TARGET_REG_GPRS = 2,
-    TARGET_REG_ARS = 18,
-    TARGET_REG_ORIG_R2 = 26,
-};
-
-void elf_core_copy_regs(target_ulong *regs, const CPUS390XState *env)
-{
-    int i;
-    uint32_t *aregs;
-
-    regs[TARGET_REG_PSWM] = tswapl(env->psw.mask);
-    regs[TARGET_REG_PSWA] = tswapl(env->psw.addr);
-    for (i = 0; i < 16; i++) {
-        regs[TARGET_REG_GPRS + i] = tswapl(env->regs[i]);
-    }
-    aregs = (uint32_t *)&regs[TARGET_REG_ARS];
-    for (i = 0; i < 16; i++) {
-        aregs[i] = tswap32(env->aregs[i]);
-    }
-    regs[TARGET_REG_ORIG_R2] = 0;
-}
-
 #define ELF_EXEC_PAGESIZE 4096
 
 #define VDSO_HEADER "vdso.c.inc"
