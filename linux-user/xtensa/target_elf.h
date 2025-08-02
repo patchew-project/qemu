@@ -8,4 +8,7 @@
 #ifndef XTENSA_TARGET_ELF_H
 #define XTENSA_TARGET_ELF_H
 
+/* See linux kernel: arch/xtensa/include/asm/elf.h.  */
+#define ELF_NREG                128
+
 #endif
