@@ -418,20 +418,6 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 
 #define ELF_EXEC_PAGESIZE 8192
 
-/* See linux kernel arch/openrisc/include/asm/elf.h.  */
-#define ELF_NREG 34 /* gprs and pc, sr */
-
-void elf_core_copy_regs(target_ulong *regs, const CPUOpenRISCState *env)
-{
-    int i;
-
-    for (i = 0; i < 32; i++) {
-        regs[i] = tswapl(cpu_get_gpr(env, i));
-    }
-    regs[32] = tswapl(env->pc);
-    regs[33] = tswapl(cpu_get_sr(env));
-}
-
 #endif /* TARGET_OPENRISC */
 
 #ifdef TARGET_SH4
