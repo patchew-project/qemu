@@ -11,4 +11,7 @@
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_BASE_PLATFORM  1
 
+/* See linux kernel: arch/mips/include/asm/elf.h.  */
+#define ELF_NREG                45
+
 #endif
