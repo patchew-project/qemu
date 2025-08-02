@@ -154,7 +154,7 @@ typedef abi_int         target_pid_t;
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(target_ulong *regs, const CPUX86State *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUX86State *env)
 {
     regs[0] = tswapl(env->regs[15]);
     regs[1] = tswapl(env->regs[14]);
@@ -230,7 +230,7 @@ static bool init_guest_commpage(void)
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(target_ulong *regs, const CPUX86State *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUX86State *env)
 {
     regs[0] = tswapl(env->regs[R_EBX]);
     regs[1] = tswapl(env->regs[R_ECX]);
@@ -283,7 +283,7 @@ static void elf_core_copy_regs(target_ulong *regs, const CPUX86State *env)
 
 #define ELF_NREG    18
 
-static void elf_core_copy_regs(target_ulong *regs, const CPUARMState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUARMState *env)
 {
     for (int i = 0; i < 16; i++) {
         regs[i] = tswapl(env->regs[i]);
@@ -368,7 +368,7 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 
 #define ELF_NREG    34
 
-static void elf_core_copy_regs(target_ulong *regs, const CPUARMState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUARMState *env)
 {
     int i;
 
@@ -453,7 +453,7 @@ static void elf_core_copy_regs(target_ulong *regs, const CPUARMState *env)
 /* See linux kernel: arch/powerpc/include/asm/elf.h.  */
 #define ELF_NREG 48
 
-static void elf_core_copy_regs(target_ulong *regs, const CPUPPCState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUPPCState *env)
 {
     int i;
     target_ulong ccr = 0;
@@ -504,7 +504,7 @@ enum {
     TARGET_EF_CSR_BADV = TARGET_EF_R0 + 34,
 };
 
-static void elf_core_copy_regs(target_ulong *regs, const CPULoongArchState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPULoongArchState *env)
 {
     int i;
 
@@ -560,7 +560,7 @@ enum {
 };
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-static void elf_core_copy_regs(target_ulong *regs, const CPUMIPSState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUMIPSState *env)
 {
     int i;
 
@@ -601,7 +601,7 @@ static void elf_core_copy_regs(target_ulong *regs, const CPUMIPSState *env)
 #define ELF_NREG 38
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-static void elf_core_copy_regs(target_ulong *regs, const CPUMBState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUMBState *env)
 {
     int i, pos = 0;
 
@@ -631,7 +631,7 @@ static void elf_core_copy_regs(target_ulong *regs, const CPUMBState *env)
 /* See linux kernel arch/openrisc/include/asm/elf.h.  */
 #define ELF_NREG 34 /* gprs and pc, sr */
 
-static void elf_core_copy_regs(target_ulong *regs, const CPUOpenRISCState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUOpenRISCState *env)
 {
     int i;
 
@@ -663,7 +663,7 @@ enum {
     TARGET_REG_SYSCALL = 22
 };
 
-static void elf_core_copy_regs(target_ulong *regs, const CPUSH4State *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUSH4State *env)
 {
     int i;
 
@@ -693,7 +693,7 @@ static void elf_core_copy_regs(target_ulong *regs, const CPUSH4State *env)
 /* See linux kernel: arch/m68k/include/asm/elf.h.  */
 #define ELF_NREG 20
 
-static void elf_core_copy_regs(target_ulong *regs, const CPUM68KState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUM68KState *env)
 {
     regs[0] = tswapl(env->dregs[1]);
     regs[1] = tswapl(env->dregs[2]);
@@ -748,7 +748,7 @@ enum {
     TARGET_REG_ORIG_R2 = 26,
 };
 
-static void elf_core_copy_regs(target_ulong *regs, const CPUS390XState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUS390XState *env)
 {
     int i;
     uint32_t *aregs;
@@ -852,7 +852,7 @@ enum {
     TARGET_REG_AR0 = 64,
 };
 
-static void elf_core_copy_regs(target_ulong *regs, const CPUXtensaState *env)
+void elf_core_copy_regs(target_ulong *regs, const CPUXtensaState *env)
 {
     unsigned i;
 
@@ -2828,7 +2828,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
  * Last step is to implement target specific function that copies registers
  * from given cpu into just specified register set.  Prototype is:
  *
- * static void elf_core_copy_regs(target_ulong *regs, const CPUArchState *env);
+ * void elf_core_copy_regs(target_ulong *regs, const CPUArchState *env);
  *
  * Parameters:
  *     regs - copy register values into here (allocated and zeroed by caller)
