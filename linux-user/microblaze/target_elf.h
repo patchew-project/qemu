@@ -9,7 +9,7 @@
 #define MICROBLAZE_TARGET_ELF_H
 
 #define ELF_CLASS               ELFCLASS32
-#define ELF_ARCH                EM_MICROBLAZE
+#define ELF_MACHINE             EM_MICROBLAZE
 
 #define ELF_NREG                38
 

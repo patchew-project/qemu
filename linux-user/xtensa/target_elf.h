@@ -9,7 +9,7 @@
 #define XTENSA_TARGET_ELF_H
 
 #define ELF_CLASS               ELFCLASS32
-#define ELF_ARCH                EM_XTENSA
+#define ELF_MACHINE             EM_XTENSA
 
 /* See linux kernel: arch/xtensa/include/asm/elf.h.  */
 #define ELF_NREG                128

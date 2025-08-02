@@ -8,7 +8,7 @@
 #ifndef ARM_TARGET_ELF_H
 #define ARM_TARGET_ELF_H
 
-#define ELF_ARCH                EM_ARM
+#define ELF_MACHINE             EM_ARM
 #define ELF_CLASS               ELFCLASS32
 #define EXSTACK_DEFAULT         true
 

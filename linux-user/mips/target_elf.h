@@ -9,7 +9,7 @@
 #define MIPS_TARGET_ELF_H
 
 #define ELF_CLASS               ELFCLASS32
-#define ELF_ARCH                EM_MIPS
+#define ELF_MACHINE             EM_MIPS
 #define EXSTACK_DEFAULT         true
 
 #define HAVE_ELF_HWCAP          1
