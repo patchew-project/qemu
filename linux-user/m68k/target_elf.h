@@ -8,4 +8,7 @@
 #ifndef M68K_TARGET_ELF_H
 #define M68K_TARGET_ELF_H
 
+/* See linux kernel: arch/m68k/include/asm/elf.h.  */
+#define ELF_NREG                20
+
 #endif
