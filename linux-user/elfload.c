@@ -131,10 +131,8 @@ int info_is_fdpic(struct image_info *info)
 #endif
 
 #ifdef TARGET_ABI_MIPSN32
-typedef abi_ullong      target_elf_greg_t;
 #define tswapreg(ptr)   tswap64(ptr)
 #else
-typedef abi_ulong       target_elf_greg_t;
 #define tswapreg(ptr)   tswapal(ptr)
 #endif
 
@@ -154,7 +152,7 @@ typedef abi_int         target_pid_t;
 #define ELF_ARCH       EM_X86_64
 
 #define ELF_NREG    27
-typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 /*
  * Note that ELF_NREG should be 29 as there should be place for
@@ -231,7 +229,7 @@ static bool init_guest_commpage(void)
 #define EXSTACK_DEFAULT true
 
 #define ELF_NREG    17
-typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 /*
  * Note that ELF_NREG should be 19 as there should be place for
@@ -292,7 +290,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 #define EXSTACK_DEFAULT true
 
 #define ELF_NREG    18
-typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUARMState *env)
 {
@@ -392,7 +390,7 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 #define ELF_CLASS       ELFCLASS64
 
 #define ELF_NREG    34
-typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs,
                                const CPUARMState *env)
@@ -479,7 +477,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 /* See linux kernel: arch/powerpc/include/asm/elf.h.  */
 #define ELF_NREG 48
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *env)
 {
@@ -525,7 +523,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
 
 /* See linux kernel: arch/loongarch/include/asm/elf.h */
 #define ELF_NREG 45
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 enum {
     TARGET_EF_R0 = 0,
@@ -571,7 +569,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 /* See linux kernel: arch/mips/include/asm/elf.h.  */
 #define ELF_NREG 45
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 /* See linux kernel: arch/mips/include/asm/reg.h.  */
 enum {
@@ -630,7 +628,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMIPSState *e
 
 #define USE_ELF_CORE_DUMP
 #define ELF_NREG 38
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env)
@@ -662,7 +660,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
 
 /* See linux kernel arch/openrisc/include/asm/elf.h.  */
 #define ELF_NREG 34 /* gprs and pc, sr */
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs,
                                const CPUOpenRISCState *env)
@@ -685,7 +683,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 /* See linux kernel: arch/sh/include/asm/elf.h.  */
 #define ELF_NREG 23
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 /* See linux kernel: arch/sh/include/asm/ptrace.h.  */
 enum {
@@ -728,7 +726,7 @@ static inline void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 /* See linux kernel: arch/m68k/include/asm/elf.h.  */
 #define ELF_NREG 20
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *env)
 {
@@ -776,7 +774,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *e
 
 /* See linux kernel: arch/s390/include/uapi/asm/ptrace.h (s390_regs).  */
 #define ELF_NREG 27
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 enum {
     TARGET_REG_PSWM = 0,
@@ -877,7 +875,7 @@ static bool init_guest_commpage(void)
 
 /* See linux kernel: arch/xtensa/include/asm/elf.h.  */
 #define ELF_NREG 128
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef target_ulong target_elf_gregset_t[ELF_NREG];
 
 enum {
     TARGET_REG_PC,
@@ -2864,7 +2862,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
  * Next you define type of register set used for dumping.  ELF specification
  * says that it needs to be array of elf_greg_t that has size of ELF_NREG.
  *
- * typedef <target_regtype> target_elf_greg_t;
  * #define ELF_NREG <number of registers>
  * typedef taret_elf_greg_t target_elf_gregset_t[ELF_NREG];
  *
