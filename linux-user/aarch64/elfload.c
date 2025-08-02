@@ -347,3 +347,14 @@ const char *get_elf_platform(CPUState *cs)
 {
     return TARGET_BIG_ENDIAN ? "aarch64_be" : "aarch64";
 }
+
+void elf_core_copy_regs(target_ulong *regs, const CPUARMState *env)
+{
+    int i;
+
+    for (i = 0; i < 32; i++) {
+        regs[i] = tswapl(env->xregs[i]);
+    }
+    regs[32] = tswapl(env->pc);
+    regs[33] = tswapl(pstate_read((CPUARMState *)env));
+}
