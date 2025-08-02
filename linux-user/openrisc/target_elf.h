@@ -8,6 +8,9 @@
 #ifndef OPENRISC_TARGET_ELF_H
 #define OPENRISC_TARGET_ELF_H
 
+#define ELF_ARCH                EM_OPENRISC
+#define ELF_CLASS               ELFCLASS32
+
 /* See linux kernel arch/openrisc/include/asm/elf.h.  */
 #define ELF_NREG                34 /* gprs and pc, sr */
 
