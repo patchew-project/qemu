@@ -22,8 +22,15 @@
 #include "signal-common.h"
 #include "linux-user/trace.h"
 
+/* See linux/arch/openrisc/include/uapi/asm/ptrace.h. */
+struct user_regs_struct {
+    abi_ulong gpr[32];
+    abi_ulong pc;
+    abi_ulong sr;
+};
+
 typedef struct target_sigcontext {
-    struct target_pt_regs regs;
+    struct user_regs_struct regs;
     abi_ulong oldmask;
 } target_sigcontext;
 
