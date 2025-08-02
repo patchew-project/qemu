@@ -10,6 +10,7 @@
 
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_PLATFORM       1
+#define HAVE_GUEST_COMMPAGE     1
 
 /*
  * Note that ELF_NREG should be 29 as there should be place for
