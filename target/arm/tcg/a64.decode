@@ -208,6 +208,11 @@ TBZ             . 011011 nz:1 ..... .............. rt:5 &tbz  imm=%imm14 bitpos=
 # B.cond and BC.cond
 B_cond          0101010 0 ................... c:1 cond:4 imm=%imm19
 
+%imm9           5:s9   !function=times_4
+CB_cond         sf:1 1110100 cc:3 rm:5 00 ......... rt:5    imm=%imm9
+CBB_cond        0    1110100 cc:3 rm:5 10 ......... rt:5    imm=%imm9
+CBH_cond        0    1110100 cc:3 rm:5 11 ......... rt:5    imm=%imm9
+
 BR              1101011 0000 11111 000000 rn:5 00000 &r
 BLR             1101011 0001 11111 000000 rn:5 00000 &r
 RET             1101011 0010 11111 000000 rn:5 00000 &r
