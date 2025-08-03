@@ -1706,6 +1706,66 @@ static bool trans_B_cond(DisasContext *s, arg_B_cond *a)
     return true;
 }
 
+static bool do_cb_cond(DisasContext *s, int cc, int imm,
+                       int rt, int rm, MemOp mop)
+{
+    static const TCGCond cb_cond[8] = {
+        [0] = TCG_COND_GT,
+        [1] = TCG_COND_GE,
+        [2] = TCG_COND_GTU,
+        [3] = TCG_COND_GEU,
+        [4] = TCG_COND_NEVER,  /* reserved */
+        [5] = TCG_COND_NEVER,  /* reserved */
+        [6] = TCG_COND_EQ,
+        [7] = TCG_COND_NE,
+    };
+    TCGCond cond = cb_cond[cc];
+    TCGv_i64 t, m;
+
+    if (!dc_isar_feature(aa64_cmpbr, s) || cond == TCG_COND_NEVER) {
+        return false;
+    }
+
+    t = cpu_reg(s, rt);
+    m = cpu_reg(s, rm);
+    if (mop != MO_64) {
+        TCGv_i64 tt = tcg_temp_new_i64();
+        TCGv_i64 tm = tcg_temp_new_i64();
+
+        if (is_signed_cond(cond)) {
+            mop |= MO_SIGN;
+        }
+        tcg_gen_ext_i64(tt, t, mop);
+        tcg_gen_ext_i64(tm, m, mop);
+        t = tt;
+        m = tm;
+    }
+
+    reset_btype(s);
+    DisasLabel match = gen_disas_label(s);
+
+    tcg_gen_brcond_i64(cond, t, m, match.label);
+    gen_goto_tb(s, 0, 4);
+    set_disas_label(s, match);
+    gen_goto_tb(s, 1, imm);
+    return true;
+}
+
+static bool trans_CB_cond(DisasContext *s, arg_CB_cond *a)
+{
+    return do_cb_cond(s, a->cc, a->imm, a->rt, a->rm, a->sf ? 64 : 32);
+}
+
+static bool trans_CBB_cond(DisasContext *s, arg_CBB_cond *a)
+{
+    return do_cb_cond(s, a->cc, a->imm, a->rt, a->rm, 8);
+}
+
+static bool trans_CBH_cond(DisasContext *s, arg_CBH_cond *a)
+{
+    return do_cb_cond(s, a->cc, a->imm, 16, a->rt, a->rm);
+}
+
 static void set_btype_for_br(DisasContext *s, int rn)
 {
     if (dc_isar_feature(aa64_bti, s)) {
