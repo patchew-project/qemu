@@ -505,20 +505,20 @@ void error_set_internal(Error **errp,
  * It is safe to use even when it's not needed, but please avoid
  * cluttering the source with useless code.
  *
- * If @errp is NULL or &error_fatal, rewrite it to point to a local
- * Error variable, which will be automatically propagated to the
- * original @errp on function exit.
+ * If @errp is NULL, &error_fatal, or &error_warn, rewrite it to point
+ * to a local Error variable, which will be automatically propagated to
+ * the original @errp on function exit.
  *
  * Note: &error_abort is not rewritten, because that would move the
  * abort from the place where the error is created to the place where
  * it's propagated.
  */
-#define ERRP_GUARD()                                            \
-    g_auto(ErrorPropagator) _auto_errp_prop = {.errp = errp};   \
-    do {                                                        \
-        if (!errp || errp == &error_fatal) {                    \
-            errp = &_auto_errp_prop.local_err;                  \
-        }                                                       \
+#define ERRP_GUARD()                                                \
+    g_auto(ErrorPropagator) _auto_errp_prop = {.errp = errp};       \
+    do {                                                            \
+        if (!errp || errp == &error_fatal || errp == &error_warn) { \
+            errp = &_auto_errp_prop.local_err;                      \
+        }                                                           \
     } while (0)
 
 typedef struct ErrorPropagator {
