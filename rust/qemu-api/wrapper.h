@@ -69,3 +69,5 @@ typedef enum memory_order {
 #include "qemu/timer.h"
 #include "system/address-spaces.h"
 #include "hw/char/pl011.h"
+#include "trace/event-internal.h"
+#include "trace/control-internal.h"

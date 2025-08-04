@@ -56,3 +56,6 @@ unsafe impl Sync for VMStateField {}
 
 unsafe impl Send for VMStateInfo {}
 unsafe impl Sync for VMStateInfo {}
+
+unsafe impl Send for TraceEvent {}
+unsafe impl Sync for TraceEvent {}
