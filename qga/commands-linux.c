@@ -1300,6 +1300,12 @@ static void systemd_suspend(SuspendMode mode, Error **errp)
         return;
     }
 
+    if ((status == 1) && !local_err) {
+        error_setg(errp, "'systemctl %s' not suspend",
+                   systemctl_args[mode]);
+        return;
+    }
+
     if (local_err) {
         error_propagate(errp, local_err);
     } else {
@@ -1430,6 +1436,8 @@ static void guest_suspend(SuspendMode mode, Error **errp)
 
         if (!local_err) {
             return;
+        } else {
+            mode_supported = false;
         }
     }
 
