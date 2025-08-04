@@ -27,7 +27,14 @@ use qemu_api::{
     zeroable::Zeroable,
 };
 
-use crate::registers::{self, Interrupt, RegisterOffset};
+use crate::{
+    registers::{self, Interrupt, RegisterOffset},
+    trace_events::{
+        trace_pl011_can_receive, trace_pl011_fifo_rx_full, trace_pl011_fifo_rx_put,
+        trace_pl011_irq_state, trace_pl011_read, trace_pl011_read_fifo, trace_pl011_receive,
+        trace_pl011_write,
+    },
+};
 
 // TODO: You must disable the UART before any of the control registers are
 // reprogrammed. When the UART is disabled in the middle of transmission or
@@ -305,6 +312,7 @@ impl PL011Registers {
         }
         self.receive_status_error_clear.set_from_data(c);
         *update = true;
+        trace_pl011_read_fifo!(self.read_count, self.fifo_depth());
         u32::from(c)
     }
 
@@ -458,7 +466,9 @@ impl PL011Registers {
         self.read_fifo[slot] = value;
         self.read_count += 1;
         self.flags.set_receive_fifo_empty(false);
+        trace_pl011_fifo_rx_put!(value.into(), self.read_count, depth);
         if self.read_count == depth {
+            trace_pl011_fifo_rx_full!();
             self.flags.set_receive_fifo_full(true);
         }
 
@@ -554,6 +564,7 @@ impl PL011State {
                     self.update();
                     self.char_backend.accept_input();
                 }
+                trace_pl011_read!(offset, result, field);
                 result.into()
             }
         }
@@ -562,6 +573,7 @@ impl PL011State {
     fn write(&self, offset: hwaddr, value: u64, _size: u32) {
         let mut update_irq = false;
         if let Ok(field) = RegisterOffset::try_from(offset) {
+            trace_pl011_write!(offset, value, field);
             // qemu_chr_fe_write_all() calls into the can_receive
             // callback, so handle writes before entering PL011Registers.
             if field == RegisterOffset::DR {
@@ -589,11 +601,20 @@ impl PL011State {
 
     fn can_receive(&self) -> u32 {
         let regs = self.regs.borrow();
-        // trace_pl011_can_receive(s->lcr, s->read_count, r);
-        regs.fifo_depth() - regs.read_count
+        let fifo_depth = regs.fifo_depth();
+        let fifo_available = fifo_depth - regs.read_count;
+
+        trace_pl011_can_receive!(
+            regs.line_control.into(),
+            regs.read_count,
+            fifo_depth,
+            fifo_available
+        );
+        fifo_available
     }
 
     fn receive(&self, buf: &[u8]) {
+        trace_pl011_receive!(buf.len());
         let mut regs = self.regs.borrow_mut();
         if regs.loopback_enabled() {
             // In loopback mode, the RX input signal is internally disconnected
@@ -642,6 +663,7 @@ impl PL011State {
     fn update(&self) {
         let regs = self.regs.borrow();
         let flags = regs.int_level & regs.int_enabled;
+        trace_pl011_irq_state!((flags != 0).into());
         for (irq, i) in self.interrupts.iter().zip(IRQMASK) {
             irq.set(flags.any_set(i));
         }
