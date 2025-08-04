@@ -3585,11 +3585,6 @@ static bool gen_vldi(DisasContext *ctx, arg_vldi *a, uint32_t oprsz)
     int sel, vece;
     uint64_t value;
 
-    if (!check_valid_vldi_mode(a)) {
-        generate_exception(ctx, EXCCODE_INE);
-        return true;
-    }
-
     if (!check_vec(ctx, oprsz)) {
         return true;
     }
@@ -3597,6 +3592,11 @@ static bool gen_vldi(DisasContext *ctx, arg_vldi *a, uint32_t oprsz)
     sel = (a->imm >> 12) & 0x1;
 
     if (sel) {
+        if (!check_valid_vldi_mode(a)) {
+            generate_exception(ctx, EXCCODE_INE);
+            return true;
+        }
+
         value = vldi_get_value(ctx, a->imm);
         vece = MO_64;
     } else {
