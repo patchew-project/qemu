@@ -23,6 +23,10 @@ pub enum Log {
     /// Log guest access of unimplemented functionality.
     /// Corresponds to `LOG_UNIMP` in the C implementation.
     Unimp = bindings::LOG_UNIMP,
+
+    /// Log trace item.
+    /// Corresponds to `LOG_TRACE` in the C implementation.
+    Trace = bindings::LOG_TRACE,
 }
 
 /// A RAII guard for QEMU's logging infrastructure.  Creating the guard
