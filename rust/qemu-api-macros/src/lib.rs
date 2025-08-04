@@ -3,10 +3,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
-    parse_macro_input, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Data,
-    DeriveInput, Error, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token, Variant,
+    parse::{Parse, ParseStream},
+    parse_macro_input, parse_quote,
+    punctuated::Punctuated,
+    spanned::Spanned,
+    token::Comma,
+    Data, DeriveInput, Error, Field, Fields, FieldsUnnamed, FnArg, Ident, LitCStr, LitStr, Meta,
+    Path, Token, Variant,
 };
 mod bits;
 use bits::BitsConstInternal;
@@ -262,4 +267,133 @@ pub fn bits_const_internal(ts: TokenStream) -> TokenStream {
     BitsConstInternal::parse(&mut it)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
+}
+
+#[derive(Debug)]
+struct TraceModule {
+    module_name: syn::Ident,
+    trace_events: Vec<(proc_macro2::TokenStream, syn::Ident)>,
+}
+
+impl Parse for TraceModule {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Token![pub]) {
+            input.parse::<Token![pub]>()?;
+        }
+        input.parse::<Token![mod]>()?;
+        let module_name: Ident = input.parse()?;
+        let braced;
+        _ = syn::braced!(braced in input);
+        let mut trace_events = vec![];
+        while !braced.is_empty() {
+            braced.parse::<Token![fn]>()?;
+            let name = braced.parse::<Ident>()?;
+            let name_cstr = LitCStr::new(
+                &std::ffi::CString::new(name.to_string()).unwrap(),
+                name.span(),
+            );
+            let name_cstr_ident = format_ident!("trace_{name}_name");
+            let arguments_inner;
+            _ = syn::parenthesized!(arguments_inner in braced);
+            let fn_arguments: Punctuated<FnArg, Token![,]> =
+                Punctuated::parse_terminated(&arguments_inner)?;
+            let body;
+            _ = syn::braced!(body in braced);
+            let trace_event_format_str: LitStr = body.parse()?;
+            assert!(body.is_empty(), "{body:?}");
+
+            let trace_macro_ident = format_ident!("trace_{name}");
+            let name_ident = format_ident!("trace_{name}_EVENT");
+            let dstate = format_ident!("TRACE_{name}_DSTATE");
+            let enabled = format_ident!("TRACE_{name}_ENABLED");
+            trace_events.push(
+                (
+                    quote! {
+                        static mut #dstate: u16 = 0;
+                        const #enabled: bool = true;
+                        const #name_cstr_ident: &::std::ffi::CStr = #name_cstr;
+
+                        static mut #name_ident: ::qemu_api::bindings::TraceEvent = ::qemu_api::bindings::TraceEvent {
+                            id: 0,
+                            name: #name_cstr_ident.as_ptr(),
+                            sstate: #enabled,
+                            dstate: &raw mut #dstate,
+                        };
+
+                        macro_rules! #trace_macro_ident {
+                            ($($args:tt)*) => {{
+                                crate::#module_name::#name($($args)*);
+                            }};
+                        }
+                        pub(crate) use #trace_macro_ident;
+
+                        pub fn #name(#fn_arguments) {
+                            if #enabled
+                                && unsafe { ::qemu_api::bindings::trace_events_enabled_count > 0 }
+                            && unsafe { #dstate > 0 }
+                            && unsafe {
+                                (::qemu_api::bindings::qemu_loglevel & (::qemu_api::log::Log::Trace as std::os::raw::c_int)) != 0
+                            } {
+                                _ = ::qemu_api::log::LogGuard::log_fmt(
+                                    format_args!("{}", format!("{} {}\n", stringify!(#name), format_args!(#trace_event_format_str)))
+                                );
+                            }
+                        }
+                    },
+                    name_ident,
+                )
+            );
+        }
+
+        Ok(Self {
+            module_name,
+            trace_events,
+        })
+    }
+}
+
+#[proc_macro_attribute]
+pub fn trace_events(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as TraceModule);
+    let TraceModule {
+        module_name,
+        trace_events,
+    } = input;
+    let mut event_names = quote! {};
+    let mut trace_event_impl = quote! {};
+    let tracevents_len = trace_events.len() + 1;
+    for (body, event_name) in trace_events {
+        event_names = quote! {
+            #event_names
+            &raw mut #event_name,
+        };
+        trace_event_impl = quote! {
+            #trace_event_impl
+            #body
+        };
+    }
+
+    quote! {
+        #[macro_use]
+        mod #module_name {
+            #![allow(static_mut_refs)]
+            #![allow(non_upper_case_globals)]
+
+            #trace_event_impl
+
+            #[used]
+            static mut TRACE_EVENTS: [*mut ::qemu_api::bindings::TraceEvent; #tracevents_len] = unsafe {
+                [
+                    #event_names
+                    ::core::ptr::null_mut(),
+                ]
+            };
+
+            ::qemu_api::module_init!(
+                MODULE_INIT_TRACE => unsafe {
+                    ::qemu_api::bindings::trace_event_register_group(TRACE_EVENTS.as_mut_ptr())
+                }
+            );
+        }
+    }.into()
 }
