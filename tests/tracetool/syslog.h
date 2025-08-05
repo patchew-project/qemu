@@ -19,19 +19,12 @@ extern uint16_t _TRACE_TEST_WIBBLE_DSTATE;
     trace_event_get_state_dynamic_by_id(TRACE_TEST_BLAH) || \
     false)
 
-static inline void _nocheck__trace_test_blah(void *context, const char *filename)
-{
-    if (trace_event_get_state(TRACE_TEST_BLAH)) {
-#line 3 "trace-events"
-        syslog(LOG_INFO, "test_blah " "Blah context=%p filename=%s" , context, filename);
-#line 28 "../../../../../../../../dev/stdout"
-    }
-}
-
 static inline void trace_test_blah(void *context, const char *filename)
 {
-    if (true) {
-        _nocheck__trace_test_blah(context, filename);
+    if (trace_event_get_state(TRACE_TEST_BLAH)) {
+#line 4 "trace-events"
+        syslog(LOG_INFO, "test_blah " "Blah context=%p filename=%s" , context, filename);
+#line 28 "../../../../../../../../dev/stdout"
     }
 }
 
@@ -39,19 +32,12 @@ static inline void trace_test_blah(void *context, const char *filename)
     trace_event_get_state_dynamic_by_id(TRACE_TEST_WIBBLE) || \
     false)
 
-static inline void _nocheck__trace_test_wibble(void *context, int value)
-{
-    if (trace_event_get_state(TRACE_TEST_WIBBLE)) {
-#line 4 "trace-events"
-        syslog(LOG_INFO, "test_wibble " "Wibble context=%p value=%d" , context, value);
-#line 48 "../../../../../../../../dev/stdout"
-    }
-}
-
 static inline void trace_test_wibble(void *context, int value)
 {
-    if (true) {
-        _nocheck__trace_test_wibble(context, value);
+    if (trace_event_get_state(TRACE_TEST_WIBBLE)) {
+#line 5 "trace-events"
+        syslog(LOG_INFO, "test_wibble " "Wibble context=%p value=%d" , context, value);
+#line 41 "../../../../../../../../dev/stdout"
     }
 }
 #endif /* TRACE_TESTSUITE_GENERATED_TRACERS_H */
