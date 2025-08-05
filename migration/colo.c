@@ -659,6 +659,7 @@ void migrate_start_colo_process(MigrationState *s)
 static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
                       QEMUFile *fb, QIOChannelBuffer *bioc, Error **errp)
 {
+    ERRP_GUARD();
     uint64_t total_size;
     uint64_t value;
     Error *local_err = NULL;
@@ -686,11 +687,11 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
 
     bql_lock();
     cpu_synchronize_all_states();
-    ret = qemu_loadvm_state_main(mis->from_src_file, mis);
+    ret = qemu_loadvm_state_main(mis->from_src_file, mis, errp);
     bql_unlock();
 
     if (ret < 0) {
-        error_setg(errp, "Load VM's live state (ram) error");
+        error_prepend(errp, "Load VM's live state (ram) error: ");
         return;
     }
 
