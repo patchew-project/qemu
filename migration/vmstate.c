@@ -414,22 +414,43 @@ int vmstate_save_state_with_err(QEMUFile *f, const VMStateDescription *vmsd,
     return vmstate_save_state_v(f, vmsd, opaque, vmdesc_id, vmsd->version_id, errp);
 }
 
-int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
-                         void *opaque, JSONWriter *vmdesc, int version_id, Error **errp)
+static int pre_save_dispatch(const VMStateDescription *vmsd, void *opaque,
+                             Error **errp)
 {
     int ret = 0;
-    const VMStateField *field = vmsd->fields;
-
-    trace_vmstate_save_state_top(vmsd->name);
-
     if (vmsd->pre_save) {
         ret = vmsd->pre_save(opaque);
         trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
         if (ret) {
-            error_setg(errp, "pre-save failed: %s", vmsd->name);
-            return ret;
+            error_setg(errp, "pre-save for %s failed, ret: %d",
+                       vmsd->name, ret);
         }
     }
+    return ret;
+}
+
+static int post_save_dispatch(const VMStateDescription *vmsd, void *opaque,
+                              Error **errp)
+{
+    int ret = 0;
+    if (vmsd->post_save) {
+        ret = vmsd->post_save(opaque);
+        error_setg(errp, "post-save for %s failed, ret: %d",
+                   vmsd->name, ret);
+    }
+    return ret;
+}
+
+static int vmstate_save_dispatch(QEMUFile *f,
+                                 const VMStateDescription *vmsd,
+                                 void *opaque, JSONWriter *vmdesc,
+                                 int version_id, Error **errp)
+{
+    ERRP_GUARD();
+    int ret = 0;
+    int ps_ret = 0;
+    Error *local_err = NULL;
+    const VMStateField *field = vmsd->fields;
 
     if (vmdesc) {
         json_writer_str(vmdesc, "vmsd_name", vmsd->name);
@@ -532,9 +553,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 if (ret) {
                     error_setg(errp, "Save of field %s/%s failed",
                                 vmsd->name, field->name);
-                    if (vmsd->post_save) {
-                        vmsd->post_save(opaque);
-                    }
+                    ps_ret = post_save_dispatch(vmsd, opaque, &local_err);
                     return ret;
                 }
 
@@ -557,16 +576,39 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
     if (vmdesc) {
         json_writer_end_array(vmdesc);
     }
+    return ret;
+}
+
+
+int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
+                         void *opaque, JSONWriter *vmdesc, int version_id,
+                         Error **errp)
+{
+    ERRP_GUARD();
+    int ret = 0;
+    Error *local_err = NULL;
+    int ps_ret = 0;
+
+    trace_vmstate_save_state_top(vmsd->name);
+
+    ret = pre_save_dispatch(vmsd, opaque, errp);
+    if (ret) {
+        return ret;
+    }
+
+    ret = vmstate_save_dispatch(f, vmsd, opaque, vmdesc,
+                                version_id, errp);
+    if (ret) {
+        return ret;
+    }
 
     ret = vmstate_subsection_save(f, vmsd, opaque, vmdesc, errp);
-
-    if (vmsd->post_save) {
-        int ps_ret = vmsd->post_save(opaque);
-        if (!ret && ps_ret) {
-            ret = ps_ret;
-            error_setg(errp, "post-save failed: %s", vmsd->name);
-        }
+    ps_ret = post_save_dispatch(vmsd, opaque, &local_err);
+    if (!ret && ps_ret) {
+        ret = ps_ret;
+        error_setg(errp, "post-save failed: %s", vmsd->name);
     }
+
     return ret;
 }
 
