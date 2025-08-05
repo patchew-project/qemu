@@ -143,11 +143,15 @@ Region lifecycle
 ----------------
 
 A region is created by one of the memory_region_init*() functions and
-attached to an object, which acts as its owner or parent.  QEMU ensures
-that the owner object remains alive as long as the region is visible to
-the guest, or as long as the region is in use by a virtual CPU or another
-device.  For example, the owner object will not die between an
-address_space_map operation and the corresponding address_space_unmap.
+attached to an object, which acts as its owner or parent.
+
+For MMIO regions, QEMU ensures that the owner object remains alive as
+long as the region is visible to the guest, or as long as the region is in
+use by a virtual CPU or another device.  For example, the owner object will
+not die between an address_space_map operation and the corresponding
+address_space_unmap. For RAM regions, the region itself is kept alive
+rather than the owner, since RAM regions are self-contained data objects
+that manage their own lifecycle.
 
 After creation, a region can be added to an address space or a
 container with memory_region_add_subregion(), and removed using
@@ -174,7 +178,8 @@ callback.  The dynamically allocated data structure that contains the
 memory region then should obviously be freed in the instance_finalize
 callback as well.
 
-If you break this rule, the following situation can happen:
+If you break this rule, the following situation can happen for MMIO
+regions:
 
 - the memory region's owner had a reference taken via memory_region_ref
   (for example by address_space_map)
@@ -183,6 +188,13 @@ If you break this rule, the following situation can happen:
 
 - when address_space_unmap is called, the reference to the memory region's
   owner is leaked.
+
+Note that memory_region_ref() and memory_region_unref() handle different
+region types appropriately: MMIO regions reference their owner device
+(since MMIO callbacks access owner data), while RAM regions reference
+themselves (since they are self-contained). Regions without owners, such
+as system memory containers and I/O address spaces, skip reference
+counting entirely as they exist for the machine's lifetime.
 
 
 There is an exception to the above rule: it is okay to call
