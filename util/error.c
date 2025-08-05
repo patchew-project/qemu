@@ -17,13 +17,28 @@
 #include "qemu/error-report.h"
 #include "qapi/error-internal.h"
 
+#ifdef CONFIG_BACKTRACE
+#include <execinfo.h>
+#endif /* CONFIG_BACKTRACE */
+
 Error *error_abort;
 Error *error_fatal;
 Error *error_warn;
 
+static inline void dump_backtrace(void)
+{
+#ifdef CONFIG_BACKTRACE
+    void *buffer[255] = { 0 };
+    const int calls =
+        backtrace(buffer, sizeof(buffer) / sizeof(void *));
+    backtrace_symbols_fd(buffer, calls, 2);
+#endif /* CONFIG_BACKTRACE */
+}
+
 static void error_handle(Error **errp, Error *err)
 {
     if (errp == &error_abort) {
+        dump_backtrace();
         if (err->func) {
             fprintf(stderr, "Unexpected error in %s() at %.*s:%d:\n",
                     err->func, err->src_len, err->src, err->line);
@@ -38,10 +53,12 @@ static void error_handle(Error **errp, Error *err)
         abort();
     }
     if (errp == &error_fatal) {
+        dump_backtrace();
         error_report_err(err);
         exit(1);
     }
     if (errp == &error_warn) {
+        dump_backtrace();
         warn_report_err(err);
     } else if (errp && !*errp) {
         *errp = err;

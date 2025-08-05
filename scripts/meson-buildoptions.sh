@@ -22,6 +22,8 @@ meson_options_help() {
   printf "%s\n" '  --docdir=VALUE           Base directory for documentation installation'
   printf "%s\n" '                           (can be empty) [share/doc]'
   printf "%s\n" '  --enable-asan            enable address sanitizer'
+  printf "%s\n" '  --enable-backtrace-on-error'
+  printf "%s\n" '                           print backtrace on error'
   printf "%s\n" '  --enable-block-drv-whitelist-in-tools'
   printf "%s\n" '                           use block whitelist also in tools instead of only'
   printf "%s\n" '                           QEMU'
@@ -251,6 +253,8 @@ _meson_option_parse() {
     --disable-gcov) printf "%s" -Db_coverage=false ;;
     --enable-lto) printf "%s" -Db_lto=true ;;
     --disable-lto) printf "%s" -Db_lto=false ;;
+    --enable-backtrace-on-error) printf "%s" -Dbacktrace_on_error=true ;;
+    --disable-backtrace-on-error) printf "%s" -Dbacktrace_on_error=false ;;
     --bindir=*) quote_sh "-Dbindir=$2" ;;
     --enable-blkio) printf "%s" -Dblkio=enabled ;;
     --disable-blkio) printf "%s" -Dblkio=disabled ;;

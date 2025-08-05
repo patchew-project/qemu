@@ -2649,6 +2649,7 @@ config_host_data.set('CONFIG_DEBUG_STACK_USAGE', get_option('debug_stack_usage')
 config_host_data.set('CONFIG_DEBUG_TCG', get_option('debug_tcg'))
 config_host_data.set('CONFIG_DEBUG_REMAP', get_option('debug_remap'))
 config_host_data.set('CONFIG_QOM_CAST_DEBUG', get_option('qom_cast_debug'))
+config_host_data.set('CONFIG_BACKTRACE', get_option('backtrace_on_error'))
 config_host_data.set('CONFIG_REPLICATION', get_option('replication').allowed())
 config_host_data.set('CONFIG_FSFREEZE', qga_fsfreeze)
 config_host_data.set('CONFIG_FSTRIM', qga_fstrim)
@@ -4454,6 +4455,7 @@ foreach target : target_dirs
     endif
 
     emulator = executable(exe_name, exe['sources'],
+               export_dynamic: get_option('backtrace_on_error'),
                install: true,
                c_args: c_args,
                dependencies: arch_deps + exe['dependencies'],
@@ -4714,6 +4716,7 @@ if 'simple' in get_option('trace_backends')
   summary_info += {'Trace output file': get_option('trace_file') + '-<pid>'}
 endif
 summary_info += {'QOM debugging':     get_option('qom_cast_debug')}
+summary_info += {'Backtrace support':     get_option('backtrace_on_error')}
 summary_info += {'Relocatable install': get_option('relocatable')}
 summary_info += {'vhost-kernel support': have_vhost_kernel}
 summary_info += {'vhost-net support': have_vhost_net}
