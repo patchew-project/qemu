@@ -554,6 +554,12 @@ static int vmstate_save_dispatch(QEMUFile *f,
                     error_setg(errp, "Save of field %s/%s failed",
                                 vmsd->name, field->name);
                     ps_ret = post_save_dispatch(vmsd, opaque, &local_err);
+                    if (ps_ret) {
+                        ret = ps_ret;
+                        error_free_or_abort(errp);
+                        error_setg(errp, "post-save for %s failed, ret: %d",
+                                   vmsd->name, ret);
+                    }
                     return ret;
                 }
 
@@ -603,10 +609,14 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
     }
 
     ret = vmstate_subsection_save(f, vmsd, opaque, vmdesc, errp);
+
     ps_ret = post_save_dispatch(vmsd, opaque, &local_err);
-    if (!ret && ps_ret) {
+    if (ps_ret) {
+        if (ret) {
+            error_free_or_abort(errp);
+        }
         ret = ps_ret;
-        error_setg(errp, "post-save failed: %s", vmsd->name);
+        error_propagate(errp, local_err);
     }
 
     return ret;
