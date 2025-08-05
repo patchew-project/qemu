@@ -202,6 +202,7 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
 
 int cpr_state_load(MigrationChannel *channel, Error **errp)
 {
+    ERRP_GUARD();
     int ret;
     uint32_t v;
     QEMUFile *f;
@@ -233,9 +234,9 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
         return -ENOTSUP;
     }
 
-    ret = vmstate_load_state(f, &vmstate_cpr_state, &cpr_state, 1);
+    ret = vmstate_load_state(f, &vmstate_cpr_state, &cpr_state, 1, errp);
     if (ret) {
-        error_setg(errp, "vmstate_load_state error %d", ret);
+        error_prepend(errp, "vmstate_load_state error %d: ", ret);
         qemu_fclose(f);
         return ret;
     }
