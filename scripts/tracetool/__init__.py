@@ -38,8 +38,12 @@ out_fobj = sys.stdout
 
 def out_open(filename):
     global out_filename, out_fobj
-    out_filename = posix_relpath(filename)
-    out_fobj = open(filename, 'wt')
+    if filename == "-":
+        out_filename = "[stdout]"
+        out_fobj = sys.stdout
+    else:
+        out_filename = posix_relpath(filename)
+        out_fobj = open(filename, 'wt')
 
 def out(*lines, **kwargs):
     """Write a set of output lines.
