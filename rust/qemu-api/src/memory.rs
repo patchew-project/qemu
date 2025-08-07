@@ -31,7 +31,7 @@ use crate::{
         memory_region_init_io, section_access_allowed, section_covers_region_addr,
         section_fuzz_dma_read, section_get_host_addr, section_rust_load,
         section_rust_read_continue_step, section_rust_store, section_rust_write_continue_step,
-        MEMTX_OK,
+        target_big_endian, MEMTX_OK,
     },
     callbacks::FnCall,
     cell::Opaque,
@@ -1107,9 +1107,25 @@ impl AddressSpace {
     /// This function is similar to `address_space_st{size}` in C side.
     ///
     /// But it only assumes @val follows target-endian by default. So ensure
-    /// the endian of `val` aligned with target, before using this method.
+    /// the endian of `val` aligned with target, before using this method.  The
+    /// taget-endian can be checked with [`target_is_big_endian`].
     ///
     /// And it assumes the memory attributes is MEMTXATTRS_UNSPECIFIED.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use qemu_api::memory::{ADDRESS_SPACE_MEMORY, target_is_big_endian};
+    ///
+    /// let addr = GuestAddress(0x123438000);
+    /// let val: u32 = 5;
+    /// let val_end = if target_is_big_endian() {
+    ///     val.to_be()
+    /// } else {
+    ///     val.to_le()
+    /// }
+    ///
+    /// assert!(ADDRESS_SPACE_MEMORY.store(addr, val_end).is_ok());
     pub fn store<T: AtomicAccess>(&self, addr: GuestAddress, val: T) -> Result<()> {
         rcu_read_lock();
         let r = self.memory().deref().store(val, addr, Ordering::Relaxed);
@@ -1122,7 +1138,8 @@ impl AddressSpace {
     /// This function is similar to `address_space_ld{size}` in C side.
     ///
     /// But it only support target-endian by default.  The returned value is
-    /// with target-endian.
+    /// with target-endian.  The taget-endian can be checked with
+    /// [`target_is_big_endian`].
     ///
     /// And it assumes the memory attributes is MEMTXATTRS_UNSPECIFIED.
     pub fn load<T: AtomicAccess>(&self, addr: GuestAddress) -> Result<T> {
@@ -1147,3 +1164,8 @@ pub static ADDRESS_SPACE_MEMORY: &AddressSpace = unsafe {
     // the whole QEMU life.
     &*wrapper_ptr
 };
+
+pub fn target_is_big_endian() -> bool {
+    // SAFETY: the return value is boolean, so it is always valid.
+    unsafe { target_big_endian() }
+}
