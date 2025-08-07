@@ -31,7 +31,8 @@ subprojects="keycodemapdb libvfio-user berkeley-softfloat-3
   bilge-impl-0.2-rs either-1-rs foreign-0.3-rs itertools-0.11-rs
   libc-0.2-rs proc-macro2-1-rs
   proc-macro-error-1-rs proc-macro-error-attr-1-rs quote-1-rs
-  syn-2-rs thiserror-1-rs thiserror-impl-1-rs unicode-ident-1-rs"
+  syn-2-rs thiserror-1-rs thiserror-impl-1-rs unicode-ident-1-rs
+  winapi-i686-pc-windows-gnu-0.4-rs"
 sub_deinit=""
 
 function cleanup() {
