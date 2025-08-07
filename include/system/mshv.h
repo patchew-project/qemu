@@ -38,6 +38,8 @@ typedef struct hyperv_message hv_message;
 
 #define MSHV_PAGE_SHIFT 12
 
+#define MSHV_MSR_ENTRIES_COUNT 64
+
 #ifdef CONFIG_MSHV_IS_POSSIBLE
 extern bool mshv_allowed;
 #define mshv_enabled() (mshv_allowed)
@@ -119,7 +121,28 @@ void mshv_arch_amend_proc_features(
     union hv_partition_synthetic_processor_features *features);
 int mshv_arch_post_init_vm(int vm_fd);
 
+/* pio */
+int mshv_pio_write(uint64_t port, const uint8_t *data, uintptr_t size,
+                   bool is_secure_mode);
+void mshv_pio_read(uint64_t port, uint8_t *data, uintptr_t size,
+                   bool is_secure_mode);
+
+/* generic */
 int mshv_hvcall(int mshv_fd, const struct mshv_root_hvcall *args);
+
+/* msr */
+typedef struct MshvMsrEntry {
+  uint32_t index;
+  uint32_t reserved;
+  uint64_t data;
+} MshvMsrEntry;
+
+typedef struct MshvMsrEntries {
+    MshvMsrEntry entries[MSHV_MSR_ENTRIES_COUNT];
+    uint32_t nmsrs;
+} MshvMsrEntries;
+
+int mshv_configure_msr(int cpu_fd, const MshvMsrEntry *msrs, size_t n_msrs);
 
 /* memory */
 typedef struct MshvMemoryRegion {
