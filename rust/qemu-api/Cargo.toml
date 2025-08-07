@@ -19,6 +19,17 @@ anyhow = "~1.0"
 libc = "0.2.162"
 foreign = "~0.3.1"
 
+[dependencies.vm-memory]
+# The latest v0.16.2 didn't contain Paolo's commit 5f59e29c3d30
+# ("guest_memory: let multiple regions slice one global bitmap").
+# Once a new release has that change, switch to crates.io.
+git = "https://github.com/rust-vmm/vm-memory.git"
+rev = "5eb996a060d7ca3844cbd2f10b1d048c0c91942f"
+# Note "rawfd" (as the only default feature) is disabled by default in
+# meson. It cause compilation failure on Windows and fortunately, we
+# don't need it either.
+default-features = false
+
 [features]
 default = ["debug_cell"]
 allocator = []
