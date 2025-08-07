@@ -3119,6 +3119,14 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
     }
 }
 
+MemTxResult
+section_read_continue_step(MemoryRegionSection *section, MemTxAttrs attrs,
+                           uint8_t *buf, hwaddr len, hwaddr mr_addr,
+                           hwaddr *l)
+{
+    return flatview_read_continue_step(attrs, buf, len, mr_addr, l, section->mr);
+}
+
 /* Called within RCU critical section.  */
 MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    MemTxAttrs attrs, void *ptr,
@@ -3705,6 +3713,14 @@ static MemTxResult address_space_write_continue_cached(MemTxAttrs attrs,
     }
 
     return result;
+}
+
+MemTxResult
+section_rust_write_continue_step(MemoryRegionSection *section, MemTxAttrs attrs,
+                                 const uint8_t *buf, hwaddr len, hwaddr mr_addr,
+                                 hwaddr *l)
+{
+    return flatview_write_continue_step(attrs, buf, len, mr_addr, l, section->mr);
 }
 
 /* Called within RCU critical section.  */

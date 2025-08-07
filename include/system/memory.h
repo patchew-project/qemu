@@ -3413,6 +3413,57 @@ uint8_t *section_get_host_addr(const MemoryRegionSection *section,
 void section_fuzz_dma_read(MemoryRegionSection *section,
                            hwaddr addr, hwaddr len);
 
+/**
+ * section_rust_write_continue_step: write to #MemoryRegionSection.
+ *
+ * Not: This function should only used by Rust side, and user shouldn't
+ * call it directly!
+ *
+ * This function provides a wrapper of flatview_write_continue_step(),
+ * and allows Rust side to re-build a full write process as
+ * address_space_write() did.
+ *
+ * Should be called from an RCU critical section.
+ *
+ * @section: #MemoryRegionSection to be accessed.
+ * @attrs: memory transaction attributes.
+ * @buf: buffer with the data to be written.
+ * @len: the number of bytes to write.
+ * @mr_addr: address within that memory region.
+ * @l: the actual length of the data is written after function returns.
+ *
+ * Return a MemTxResult indicating whether the operation succeeded
+ * or failed (eg unassigned memory, device rejected the transaction,
+ * IOMMU fault).
+ */
+MemTxResult section_rust_write_continue_step(MemoryRegionSection *section,
+    MemTxAttrs attrs, const uint8_t *buf, hwaddr len, hwaddr mr_addr, hwaddr *l);
+
+/**
+ * section_read_continue_step: read from #MemoryRegionSection.
+ *
+ * Not: This function should only used by Rust side, and user shouldn't
+ * call it directly!
+ *
+ * This function provides a wrapper of flatview_read_continue_step(),
+ * and allows Rust side to re-build a full write process as
+ * address_space_read_full() did.
+ *
+ * Should be called from an RCU critical section.
+ *
+ * @section: #MemoryRegionSection to be accessed.
+ * @attrs: memory transaction attributes.
+ * @buf: buffer to be written.
+ * @len: the number of bytes is expected to read.
+ * @mr_addr: address within that memory region.
+ * @l: the actual length of the data is read after function returns.
+ *
+ * Return a MemTxResult indicating whether the operation succeeded
+ * or failed.
+ */
+MemTxResult section_read_continue_step(MemoryRegionSection *section,
+    MemTxAttrs attrs, uint8_t *buf, hwaddr len, hwaddr mr_addr, hwaddr *l);
+
 /*
  * Inhibit technologies that require discarding of pages in RAM blocks, e.g.,
  * to manage the actual amount of memory consumed by the VM (then, the memory
