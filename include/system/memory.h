@@ -1203,10 +1203,71 @@ struct FlatView {
     MemoryRegion *root;
 };
 
-static inline FlatView *address_space_to_flatview(AddressSpace *as)
-{
-    return qatomic_rcu_read(&as->current_map);
-}
+/**
+ * address_space_to_flatview: Get a transient RCU-protected pointer to
+ * the current FlatView.
+ *
+ * @as: The #AddressSpace to be accessed.
+ *
+ * This function retrieves a pointer to the current #FlatView for the
+ * given #AddressSpace.
+ *
+ * Note: This is a low-level, RCU-based accessor. It DOES NOT increment
+ * the FlatView's reference count. The returned pointer is only
+ * guaranteed to be valid within an RCU read-side critical section.
+ *
+ * Difference from address_space_get_flatview():
+ *
+ * For address_space_to_flatview() (this function), it is a lightweight
+ * "peek" operation. It is fast but unsafe for long-term use. Use it
+ * only for very short-lived access where performance is critical.
+ *
+ * For address_space_get_flatview(), it acquires a "strong" reference
+ * by safely incrementing the reference count. The returned pointer is
+ * stable and can be used for long-lived operations, even outside an
+ * RCU lock. It is the safer and generally preferred method, but it
+ * MUST be paired with a call to flatview_unref() after the use of
+ * #FlatView.
+ *
+ * Returns:
+ * A transient pointer to the current #FlatView, valid only under RCU
+ * protection.
+ */
+FlatView *address_space_to_flatview(AddressSpace *as);
+
+/**
+ * flatview_ref: Atomically increment the reference count of #FlatView.
+ *
+ * @view: The #FlatView whose reference count is to be incremented.
+ *
+ * This function attempts to atomically increment the reference count
+ * of the given @view. This operation is conditional and will only
+ * succeed if the current reference count is non-zero.
+ *
+ * A non-zero reference count indicates that the FlatView is live and
+ * in use. If the reference count is already zero, it indicates that the
+ * FlatView is being deinitialized, and no new references can be
+ * acquired.
+ *
+ * Returns:
+ * 'true' if the reference count was successfully incremented (i.e., it
+ * was non-zero before the call).
+ * 'false' if the reference count was already zero and could not be
+ * incremented.
+ */
+bool flatview_ref(FlatView *view);
+
+/**
+ * flatview_unref: Atomically decrement the reference count of
+ * #FlatView.
+ *
+ * @view: The #FlatView to be unreferenced.
+ *
+ * This function atomically decrements the reference count of the given
+ * @view. When the reference count drops to zero, #FlatView will be
+ * destroied via RCU.
+ */
+void flatview_unref(FlatView *view);
 
 /**
  * typedef flatview_cb: callback for flatview_for_each_range()

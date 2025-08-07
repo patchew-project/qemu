@@ -304,7 +304,7 @@ static void flatview_destroy(FlatView *view)
     g_free(view);
 }
 
-static bool flatview_ref(FlatView *view)
+bool flatview_ref(FlatView *view)
 {
     return qatomic_fetch_inc_nonzero(&view->ref) > 0;
 }
@@ -816,6 +816,11 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
             ++inew;
         }
     }
+}
+
+FlatView *address_space_to_flatview(AddressSpace *as)
+{
+    return qatomic_rcu_read(&as->current_map);
 }
 
 FlatView *address_space_get_flatview(AddressSpace *as)
