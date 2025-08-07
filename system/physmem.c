@@ -103,6 +103,9 @@ AddressSpace address_space_io;
 AddressSpace address_space_memory;
 
 static MemoryRegion io_mem_unassigned;
+static MemoryRegionSection unassigned_section = {
+    .mr = &io_mem_unassigned
+};
 
 typedef struct PhysPageEntry PhysPageEntry;
 
@@ -418,14 +421,11 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
  * This function is called from RCU critical section.  It is the common
  * part of flatview_do_translate and address_space_translate_cached.
  */
-static MemoryRegionSection address_space_translate_iommu(IOMMUMemoryRegion *iommu_mr,
-                                                         hwaddr *xlat,
-                                                         hwaddr *plen_out,
-                                                         hwaddr *page_mask_out,
-                                                         bool is_write,
-                                                         bool is_mmio,
-                                                         AddressSpace **target_as,
-                                                         MemTxAttrs attrs)
+static MemoryRegionSection *
+address_space_translate_iommu(IOMMUMemoryRegion *iommu_mr, hwaddr *xlat,
+                              hwaddr *plen_out, hwaddr *page_mask_out,
+                              bool is_write, bool is_mmio,
+                              AddressSpace **target_as, MemTxAttrs attrs)
 {
     MemoryRegionSection *section;
     hwaddr page_mask = (hwaddr)-1;
@@ -463,10 +463,10 @@ static MemoryRegionSection address_space_translate_iommu(IOMMUMemoryRegion *iomm
     if (page_mask_out) {
         *page_mask_out = page_mask;
     }
-    return *section;
+    return section;
 
 unassigned:
-    return (MemoryRegionSection) { .mr = &io_mem_unassigned };
+    return &unassigned_section;
 }
 
 /**
@@ -489,15 +489,10 @@ unassigned:
  *
  * This function is called from RCU critical section
  */
-static MemoryRegionSection flatview_do_translate(FlatView *fv,
-                                                 hwaddr addr,
-                                                 hwaddr *xlat,
-                                                 hwaddr *plen_out,
-                                                 hwaddr *page_mask_out,
-                                                 bool is_write,
-                                                 bool is_mmio,
-                                                 AddressSpace **target_as,
-                                                 MemTxAttrs attrs)
+static MemoryRegionSection *
+flatview_do_translate(FlatView *fv, hwaddr addr, hwaddr *xlat, hwaddr *plen_out,
+                      hwaddr *page_mask_out, bool is_write, bool is_mmio,
+                      AddressSpace **target_as, MemTxAttrs attrs)
 {
     MemoryRegionSection *section;
     IOMMUMemoryRegion *iommu_mr;
@@ -523,14 +518,14 @@ static MemoryRegionSection flatview_do_translate(FlatView *fv,
         *page_mask_out = ~TARGET_PAGE_MASK;
     }
 
-    return *section;
+    return section;
 }
 
 /* Called from RCU critical section */
 IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
                                             bool is_write, MemTxAttrs attrs)
 {
-    MemoryRegionSection section;
+    MemoryRegionSection *section;
     hwaddr xlat, page_mask;
 
     /*
@@ -542,13 +537,13 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
                                     attrs);
 
     /* Illegal translation */
-    if (section.mr == &io_mem_unassigned) {
+    if (section->mr == &io_mem_unassigned) {
         goto iotlb_fail;
     }
 
     /* Convert memory region offset into address space offset */
-    xlat += section.offset_within_address_space -
-        section.offset_within_region;
+    xlat += section->offset_within_address_space -
+        section->offset_within_region;
 
     return (IOMMUTLBEntry) {
         .target_as = as,
@@ -569,13 +564,13 @@ MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
                                  MemTxAttrs attrs)
 {
     MemoryRegion *mr;
-    MemoryRegionSection section;
+    MemoryRegionSection *section;
     AddressSpace *as = NULL;
 
     /* This can be MMIO, so setup MMIO bit. */
     section = flatview_do_translate(fv, addr, xlat, plen, NULL,
                                     is_write, true, &as, attrs);
-    mr = section.mr;
+    mr = section->mr;
 
     if (xen_enabled() && memory_access_is_direct(mr, is_write, attrs)) {
         hwaddr page = ((addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE) - addr;
@@ -3618,7 +3613,7 @@ static inline MemoryRegion *address_space_translate_cached(
     MemoryRegionCache *cache, hwaddr addr, hwaddr *xlat,
     hwaddr *plen, bool is_write, MemTxAttrs attrs)
 {
-    MemoryRegionSection section;
+    MemoryRegionSection *section;
     MemoryRegion *mr;
     IOMMUMemoryRegion *iommu_mr;
     AddressSpace *target_as;
@@ -3636,7 +3631,7 @@ static inline MemoryRegion *address_space_translate_cached(
     section = address_space_translate_iommu(iommu_mr, xlat, plen,
                                             NULL, is_write, true,
                                             &target_as, attrs);
-    return section.mr;
+    return section->mr;
 }
 
 /* Called within RCU critical section.  */
