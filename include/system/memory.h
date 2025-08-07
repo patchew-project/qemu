@@ -3440,7 +3440,7 @@ MemTxResult section_rust_write_continue_step(MemoryRegionSection *section,
     MemTxAttrs attrs, const uint8_t *buf, hwaddr len, hwaddr mr_addr, hwaddr *l);
 
 /**
- * section_read_continue_step: read from #MemoryRegionSection.
+ * section_rust_read_continue_step: read from #MemoryRegionSection.
  *
  * Not: This function should only used by Rust side, and user shouldn't
  * call it directly!
@@ -3461,8 +3461,56 @@ MemTxResult section_rust_write_continue_step(MemoryRegionSection *section,
  * Return a MemTxResult indicating whether the operation succeeded
  * or failed.
  */
-MemTxResult section_read_continue_step(MemoryRegionSection *section,
+MemTxResult section_rust_read_continue_step(MemoryRegionSection *section,
     MemTxAttrs attrs, uint8_t *buf, hwaddr len, hwaddr mr_addr, hwaddr *l);
+
+/**
+ * section_rust_store: store data to #MemoryRegionSection.
+ *
+ * Not: This function should only used by Rust side, and user shouldn't
+ * call it directly!
+ *
+ * This function provides a wrapper for address_space_st{size} without
+ * translation, and only supports native endian by default.
+ *
+ * Should be called from an RCU critical section.
+ *
+ * @section: #MemoryRegionSection to be accessed.
+ * @mr_offset: address within that memory region.
+ * @buf: buffer to be written.
+ * @attrs: memory transaction attributes.
+ * @len: the number of bytes is expected to read.
+ *
+ * Return a MemTxResult indicating whether the operation succeeded
+ * or failed.
+ */
+MemTxResult section_rust_store(MemoryRegionSection *section,
+                               hwaddr mr_offset, const uint8_t *buf,
+                               MemTxAttrs attrs, hwaddr len);
+
+/**
+ * section_rust_load: load data from #MemoryRegionSection.
+ *
+ * Not: This function should only used by Rust side, and user shouldn't
+ * call it directly!
+ *
+ * This function provides a wrapper for address_space_st{size} without
+ * translation, and only supports native endian by default.
+ *
+ * Should be called from an RCU critical section.
+ *
+ * @section: #MemoryRegionSection to be accessed.
+ * @mr_offset: address within that memory region.
+ * @buf: buffer to be written.
+ * @attrs: memory transaction attributes.
+ * @len: the number of bytes is expected to read.
+ *
+ * Return a MemTxResult indicating whether the operation succeeded
+ * or failed.
+ */
+MemTxResult section_rust_load(MemoryRegionSection *section,
+                              hwaddr mr_offset, uint8_t *buf,
+                              MemTxAttrs attrs, hwaddr len);
 
 /*
  * Inhibit technologies that require discarding of pages in RAM blocks, e.g.,

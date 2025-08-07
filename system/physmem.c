@@ -3120,9 +3120,9 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
 }
 
 MemTxResult
-section_read_continue_step(MemoryRegionSection *section, MemTxAttrs attrs,
-                           uint8_t *buf, hwaddr len, hwaddr mr_addr,
-                           hwaddr *l)
+section_rust_read_continue_step(MemoryRegionSection *section, MemTxAttrs attrs,
+                                uint8_t *buf, hwaddr len, hwaddr mr_addr,
+                                hwaddr *l)
 {
     return flatview_read_continue_step(attrs, buf, len, mr_addr, l, section->mr);
 }
@@ -3237,6 +3237,65 @@ void cpu_physical_memory_rw(hwaddr addr, void *buf,
 {
     address_space_rw(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
                      buf, len, is_write);
+}
+
+MemTxResult section_rust_store(MemoryRegionSection *section,
+                               hwaddr mr_offset, const uint8_t *buf,
+                               MemTxAttrs attrs, hwaddr len)
+{
+    MemoryRegion *mr = section->mr;
+    MemTxResult r;
+    uint64_t val;
+
+    val = ldn_he_p(buf, len);
+    if (!memory_access_is_direct(mr, true, attrs)) {
+        bool release_lock = false;
+
+        release_lock |= prepare_mmio_access(mr);
+        r = memory_region_dispatch_write(mr, mr_offset, val,
+                                         size_memop(len) |
+                                         devend_memop(DEVICE_NATIVE_ENDIAN),
+                                         attrs);
+        if (release_lock) {
+            bql_unlock();
+        }
+    } else {
+        uint8_t *ptr = qemu_map_ram_ptr(mr->ram_block, mr_offset);
+        stn_p(ptr, len, val);
+        invalidate_and_set_dirty(mr, mr_offset, len);
+        r = MEMTX_OK;
+    }
+
+    return r;
+}
+
+MemTxResult section_rust_load(MemoryRegionSection *section,
+                              hwaddr mr_offset, uint8_t *buf,
+                              MemTxAttrs attrs, hwaddr len)
+{
+    MemoryRegion *mr = section->mr;
+    MemTxResult r;
+    uint64_t val;
+
+    if (!memory_access_is_direct(mr, false, attrs)) {
+        bool release_lock = false;
+
+        release_lock |= prepare_mmio_access(mr);
+        r = memory_region_dispatch_read(mr, mr_offset, &val,
+                                        size_memop(len) |
+                                        devend_memop(DEVICE_NATIVE_ENDIAN),
+                                        attrs);
+        if (release_lock) {
+            bql_unlock();
+        }
+    } else {
+        uint8_t *ptr = qemu_map_ram_ptr(mr->ram_block, mr_offset);
+        val = ldn_p(ptr, len);
+        r = MEMTX_OK;
+    }
+
+    stn_he_p(buf, len, val);
+    return r;
 }
 
 enum write_rom_type {
