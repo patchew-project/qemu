@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 //! Bindings for `MemoryRegion`, `MemoryRegionOps`, `MemTxAttrs`
-//! `MemoryRegionSection` and `FlatView`.
+//! `MemoryRegionSection`, `FlatView` and `AddressSpace`.
 
 use std::{
     ffi::{c_uint, c_void, CStr, CString},
@@ -11,7 +11,7 @@ use std::{
     marker::PhantomData,
     mem::size_of,
     ops::Deref,
-    ptr::NonNull,
+    ptr::{addr_of, NonNull},
     sync::atomic::Ordering,
 };
 
@@ -19,21 +19,25 @@ use std::{
 pub use bindings::{hwaddr, MemTxAttrs};
 pub use vm_memory::GuestAddress;
 use vm_memory::{
-    bitmap::BS, Address, AtomicAccess, Bytes, GuestMemory, GuestMemoryError, GuestMemoryRegion,
-    GuestMemoryResult, GuestUsize, MemoryRegionAddress, ReadVolatile, VolatileSlice, WriteVolatile,
+    bitmap::BS, Address, AtomicAccess, Bytes, GuestAddressSpace, GuestMemory, GuestMemoryError,
+    GuestMemoryRegion, GuestMemoryResult, GuestUsize, MemoryRegionAddress, ReadVolatile,
+    VolatileSlice, WriteVolatile,
 };
 
 use crate::{
     bindings::{
-        self, address_space_lookup_section, device_endian, flatview_ref,
-        flatview_translate_section, flatview_unref, memory_region_init_io, section_access_allowed,
-        section_covers_region_addr, section_fuzz_dma_read, section_get_host_addr,
-        section_rust_load, section_rust_read_continue_step, section_rust_store,
-        section_rust_write_continue_step, MEMTX_OK,
+        self, address_space_lookup_section, address_space_memory, address_space_to_flatview,
+        device_endian, flatview_ref, flatview_translate_section, flatview_unref,
+        memory_region_init_io, section_access_allowed, section_covers_region_addr,
+        section_fuzz_dma_read, section_get_host_addr, section_rust_load,
+        section_rust_read_continue_step, section_rust_store, section_rust_write_continue_step,
+        MEMTX_OK,
     },
     callbacks::FnCall,
     cell::Opaque,
+    error::{Error, Result},
     prelude::*,
+    rcu::{rcu_read_lock, rcu_read_unlock},
     uninit::MaybeUninitField,
     zeroable::Zeroable,
 };
@@ -1016,3 +1020,130 @@ impl Clone for FlatViewRefGuard {
         )
     }
 }
+
+/// A safe wrapper around [`bindings::AddressSpace`].
+///
+/// [`AddressSpace`] is the address space abstraction in QEMU, which
+/// provides memory access for the Guest memory it managed.
+#[repr(transparent)]
+#[derive(qemu_api_macros::Wrapper)]
+pub struct AddressSpace(Opaque<bindings::AddressSpace>);
+
+unsafe impl Send for AddressSpace {}
+unsafe impl Sync for AddressSpace {}
+
+impl GuestAddressSpace for AddressSpace {
+    type M = FlatView;
+    type T = FlatViewRefGuard;
+
+    /// Get the memory of the [`AddressSpace`].
+    ///
+    /// This function retrieves the [`FlatView`] for the current
+    /// [`AddressSpace`].  And it should be called from an RCU
+    /// critical section.  The returned [`FlatView`] is used for
+    /// short-term memory access.
+    ///
+    /// Note, this function method may **panic** if [`FlatView`] is
+    /// being distroying.  Fo this case, we should consider to providing
+    /// the more stable binding with [`bindings::address_space_get_flatview`].
+    fn memory(&self) -> Self::T {
+        let flatp = unsafe { address_space_to_flatview(self.0.as_mut_ptr()) };
+        FlatViewRefGuard::new(unsafe { Self::M::from_raw(flatp) }).expect(
+            "Failed to clone FlatViewRefGuard: the FlatView may have been destroyed concurrently.",
+        )
+    }
+}
+
+/// The helper to convert [`vm_memory::GuestMemoryError`] to
+/// [`crate::error::Error`].
+#[track_caller]
+fn guest_mem_err_to_qemu_err(err: GuestMemoryError) -> Error {
+    match err {
+        GuestMemoryError::InvalidGuestAddress(addr) => {
+            Error::from(format!("Invalid guest address: {:#x}", addr.raw_value()))
+        }
+        GuestMemoryError::InvalidBackendAddress => Error::from("Invalid backend memory address"),
+        GuestMemoryError::GuestAddressOverflow => {
+            Error::from("Guest address addition resulted in an overflow")
+        }
+        GuestMemoryError::CallbackOutOfRange => {
+            Error::from("Callback accessed memory out of range")
+        }
+        GuestMemoryError::IOError(io_err) => Error::with_error("Guest memory I/O error", io_err),
+        other_err => Error::with_error("An unexpected guest memory error occurred", other_err),
+    }
+}
+
+impl AddressSpace {
+    /// The write interface of `AddressSpace`.
+    ///
+    /// This function is similar to `address_space_write` in C side.
+    ///
+    /// But it assumes the memory attributes is MEMTXATTRS_UNSPECIFIED.
+    pub fn write(&self, buf: &[u8], addr: GuestAddress) -> Result<usize> {
+        rcu_read_lock();
+        let r = self.memory().deref().write(buf, addr);
+        rcu_read_unlock();
+        r.map_err(guest_mem_err_to_qemu_err)
+    }
+
+    /// The read interface of `AddressSpace`.
+    ///
+    /// This function is similar to `address_space_read_full` in C side.
+    ///
+    /// But it assumes the memory attributes is MEMTXATTRS_UNSPECIFIED.
+    ///
+    /// It should also be noted that this function does not support the fast
+    /// path like `address_space_read` in C side.
+    pub fn read(&self, buf: &mut [u8], addr: GuestAddress) -> Result<usize> {
+        rcu_read_lock();
+        let r = self.memory().deref().read(buf, addr);
+        rcu_read_unlock();
+        r.map_err(guest_mem_err_to_qemu_err)
+    }
+
+    /// The store interface of `AddressSpace`.
+    ///
+    /// This function is similar to `address_space_st{size}` in C side.
+    ///
+    /// But it only assumes @val follows target-endian by default. So ensure
+    /// the endian of `val` aligned with target, before using this method.
+    ///
+    /// And it assumes the memory attributes is MEMTXATTRS_UNSPECIFIED.
+    pub fn store<T: AtomicAccess>(&self, addr: GuestAddress, val: T) -> Result<()> {
+        rcu_read_lock();
+        let r = self.memory().deref().store(val, addr, Ordering::Relaxed);
+        rcu_read_unlock();
+        r.map_err(guest_mem_err_to_qemu_err)
+    }
+
+    /// The load interface of `AddressSpace`.
+    ///
+    /// This function is similar to `address_space_ld{size}` in C side.
+    ///
+    /// But it only support target-endian by default.  The returned value is
+    /// with target-endian.
+    ///
+    /// And it assumes the memory attributes is MEMTXATTRS_UNSPECIFIED.
+    pub fn load<T: AtomicAccess>(&self, addr: GuestAddress) -> Result<T> {
+        rcu_read_lock();
+        let r = self.memory().deref().load(addr, Ordering::Relaxed);
+        rcu_read_unlock();
+        r.map_err(guest_mem_err_to_qemu_err)
+    }
+}
+
+/// The safe binding around [`bindings::address_space_memory`].
+///
+/// `ADDRESS_SPACE_MEMORY` provides the complete address space
+/// abstraction for the whole Guest memory.
+pub static ADDRESS_SPACE_MEMORY: &AddressSpace = unsafe {
+    let ptr: *const bindings::AddressSpace = addr_of!(address_space_memory);
+
+    // SAFETY: AddressSpace is #[repr(transparent)].
+    let wrapper_ptr: *const AddressSpace = ptr.cast();
+
+    // SAFETY: `address_space_memory` structure is valid in C side during
+    // the whole QEMU life.
+    &*wrapper_ptr
+};
