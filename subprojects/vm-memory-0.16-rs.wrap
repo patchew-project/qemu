@@ -1,0 +1,12 @@
+[wrap-git]
+directory = vm-memory-0.16
+# The latest v0.16.2 didn't contain Paolo's commit 5f59e29c3d30
+# ("guest_memory: let multiple regions slice one global bitmap").
+# Once a new release has that change, switch to crates.io.
+url = https://github.com/rust-vmm/vm-memory.git
+revision = 5eb996a060d7ca3844cbd2f10b1d048c0c91942f
+patch_directory = vm-memory-0.16-rs
+depth = 1
+
+# bump this version number on every change to meson.build or the patches:
+# v2
