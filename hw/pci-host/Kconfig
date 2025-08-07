@@ -75,6 +75,10 @@ config PCI_POWERNV
     select MSI_NONBROKEN
     select PCIE_PORT
 
+config CXL_HOST_BRIDGE
+    bool
+    select PCI_EXPRESS
+
 config REMOTE_PCIHOST
     bool
 
