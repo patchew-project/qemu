@@ -1204,6 +1204,27 @@ struct FlatView {
 };
 
 /**
+ * address_space_lookup_section: Find the MemoryRegionSection by a
+ * given #AddressSpaceDispatch.
+ *
+ * @d: The AddressSpaceDispatch to search within.
+ * @addr: The address to look up.
+ * @resolve_subpage: If 'true', resolve to a subpage section if the
+ * region is a subpage container.
+ *
+ * This function translates a address (@addr) into its corresponding
+ * #MemoryRegionSection within a given address space dispatch (@d).
+ * Called within RCU critical section.
+ *
+ * Returns:
+ * A pointer to the #MemoryRegionSection. If the address is not
+ * mapped, this will be a pointer to the 'unassigned' section.
+ */
+MemoryRegionSection *address_space_lookup_section(AddressSpaceDispatch *d,
+                                                  hwaddr addr,
+                                                  bool resolve_subpage);
+
+/**
  * address_space_to_flatview: Get a transient RCU-protected pointer to
  * the current FlatView.
  *

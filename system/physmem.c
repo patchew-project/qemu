@@ -341,9 +341,9 @@ static MemoryRegionSection *phys_page_find(AddressSpaceDispatch *d, hwaddr addr)
 }
 
 /* Called from RCU critical section */
-static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
-                                                        hwaddr addr,
-                                                        bool resolve_subpage)
+MemoryRegionSection *address_space_lookup_section(AddressSpaceDispatch *d,
+                                                  hwaddr addr,
+                                                  bool resolve_subpage)
 {
     MemoryRegionSection *section = qatomic_read(&d->mru_section);
     subpage_t *subpage;
@@ -369,7 +369,7 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
     MemoryRegion *mr;
     Int128 diff;
 
-    section = address_space_lookup_region(d, addr, resolve_subpage);
+    section = address_space_lookup_section(d, addr, resolve_subpage);
     /* Compute offset within MemoryRegionSection */
     addr -= section->offset_within_address_space;
 
