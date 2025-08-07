@@ -45,7 +45,8 @@ SUBPROJECTS="libvfio-user keycodemapdb berkeley-softfloat-3
   libc-0.2-rs proc-macro2-1-rs
   proc-macro-error-1-rs proc-macro-error-attr-1-rs quote-1-rs
   syn-2-rs thiserror-1-rs thiserror-impl-1-rs unicode-ident-1-rs
-  winapi-i686-pc-windows-gnu-0.4-rs winapi-x86_64-pc-windows-gnu-0.4-rs"
+  winapi-0.3-rs winapi-i686-pc-windows-gnu-0.4-rs
+  winapi-x86_64-pc-windows-gnu-0.4-rs"
 
 src="$1"
 version="$2"
