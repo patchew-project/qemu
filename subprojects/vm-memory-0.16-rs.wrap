@@ -8,5 +8,7 @@ revision = 5eb996a060d7ca3844cbd2f10b1d048c0c91942f
 patch_directory = vm-memory-0.16-rs
 depth = 1
 
+diff_files = vm-memory-0.16-rs/0001.diff, vm-memory-0.16-rs/0002.diff
+
 # bump this version number on every change to meson.build or the patches:
 # v2

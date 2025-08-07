@@ -1,0 +1,81 @@
+From 298f8ba019b2fe159fa943e0ae4dfd3c83ee64e0 Mon Sep 17 00:00:00 2001
+From: Zhao Liu <zhao1.liu@intel.com>
+Date: Wed, 6 Aug 2025 11:31:11 +0800
+Subject: [PATCH 1/2] guest_memory: Add a marker tarit to implement
+ Bytes<GuestAddress> for GuestMemory
+
+At present, Bytes<GuestAddress> is implemented as the blanet trait for
+all types which implemented GuestMemory.
+
+QEMU needs to customize its own Bytes<GuestAddress> implementation.
+
+So add a marker trait to still provide the default implementation for
+GuestRegionCollection and GuestMemoryMmap, and QEMU could have its own
+implementation.
+
+Signed-off-by: Zhao Liu <zhao1.liu@intel.com>
+---
+ src/guest_memory.rs | 8 +++++++-
+ src/lib.rs          | 2 +-
+ src/region.rs       | 6 ++++--
+ 3 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/guest_memory.rs b/src/guest_memory.rs
+index 39e4f10a89d6..5b78038c3c92 100644
+--- a/src/guest_memory.rs
++++ b/src/guest_memory.rs
+@@ -457,7 +457,13 @@ pub trait GuestMemory {
+     }
+ }
+ 
+-impl<T: GuestMemory + ?Sized> Bytes<GuestAddress> for T {
++/// A marker trait that if implemented on a type `M` makes available a default
++/// implementation of `Bytes<GuestAddress>` for `M`, based on the assumption
++/// that the entire `GuestMemory` is just traditional Guest memory abstraction
++/// without any special access requirements.
++pub trait GuestMemoryBytes: GuestMemory {}
++
++impl<M: GuestMemoryBytes + ?Sized> Bytes<GuestAddress> for M {
+     type E = Error;
+ 
+     fn write(&self, buf: &[u8], addr: GuestAddress) -> Result<usize> {
+diff --git a/src/lib.rs b/src/lib.rs
+index 2f87f4c8482f..64ed3ec27a36 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -47,7 +47,7 @@ pub use endian::{Be16, Be32, Be64, BeSize, Le16, Le32, Le64, LeSize};
+ pub mod guest_memory;
+ pub use guest_memory::{
+     Error as GuestMemoryError, FileOffset, GuestAddress, GuestAddressSpace, GuestMemory,
+-    GuestUsize, MemoryRegionAddress, Result as GuestMemoryResult,
++    GuestMemoryBytes, GuestUsize, MemoryRegionAddress, Result as GuestMemoryResult,
+ };
+ 
+ pub mod region;
+diff --git a/src/region.rs b/src/region.rs
+index e716a6290e75..7114dfbe15a7 100644
+--- a/src/region.rs
++++ b/src/region.rs
+@@ -3,8 +3,8 @@
+ use crate::bitmap::{Bitmap, BS};
+ use crate::guest_memory::Result;
+ use crate::{
+-    Address, AtomicAccess, Bytes, FileOffset, GuestAddress, GuestMemory, GuestMemoryError,
+-    GuestUsize, MemoryRegionAddress, ReadVolatile, VolatileSlice, WriteVolatile,
++    Address, AtomicAccess, Bytes, FileOffset, GuestAddress, GuestMemory, GuestMemoryBytes,
++    GuestMemoryError, GuestUsize, MemoryRegionAddress, ReadVolatile, VolatileSlice, WriteVolatile,
+ };
+ use std::sync::atomic::Ordering;
+ use std::sync::Arc;
+@@ -322,6 +322,8 @@ impl<R: GuestMemoryRegion> GuestMemory for GuestRegionCollection<R> {
+     }
+ }
+ 
++impl<R: GuestMemoryRegion> GuestMemoryBytes for GuestRegionCollection<R> {}
++
+ /// A marker trait that if implemented on a type `R` makes available a default
+ /// implementation of `Bytes<MemoryRegionAddress>` for `R`, based on the assumption
+ /// that the entire `GuestMemoryRegion` is just traditional memory without any
+-- 
+2.34.1
+
