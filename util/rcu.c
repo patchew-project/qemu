@@ -141,6 +141,49 @@ static void wait_for_readers(void)
     QLIST_SWAP(&registry, &qsreaders, node);
 }
 
+void rcu_read_lock(void)
+{
+    struct rcu_reader_data *p_rcu_reader = get_ptr_rcu_reader();
+    unsigned ctr;
+
+    if (p_rcu_reader->depth++ > 0) {
+        return;
+    }
+
+    ctr = qatomic_read(&rcu_gp_ctr);
+    qatomic_set(&p_rcu_reader->ctr, ctr);
+
+    /*
+     * Read rcu_gp_ptr and write p_rcu_reader->ctr before reading
+     * RCU-protected pointers.
+     */
+    smp_mb_placeholder();
+}
+
+void rcu_read_unlock(void)
+{
+    struct rcu_reader_data *p_rcu_reader = get_ptr_rcu_reader();
+
+    assert(p_rcu_reader->depth != 0);
+    if (--p_rcu_reader->depth > 0) {
+        return;
+    }
+
+    /* Ensure that the critical section is seen to precede the
+     * store to p_rcu_reader->ctr.  Together with the following
+     * smp_mb_placeholder(), this ensures writes to p_rcu_reader->ctr
+     * are sequentially consistent.
+     */
+    qatomic_store_release(&p_rcu_reader->ctr, 0);
+
+    /* Write p_rcu_reader->ctr before reading p_rcu_reader->waiting.  */
+    smp_mb_placeholder();
+    if (unlikely(qatomic_read(&p_rcu_reader->waiting))) {
+        qatomic_set(&p_rcu_reader->waiting, false);
+        qemu_event_set(&rcu_gp_event);
+    }
+}
+
 void synchronize_rcu(void)
 {
     QEMU_LOCK_GUARD(&rcu_sync_lock);
