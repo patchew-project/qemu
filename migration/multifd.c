@@ -1228,6 +1228,16 @@ void multifd_recv_sync_main(void)
             }
         }
         trace_multifd_recv_sync_main_signal(p->id);
+        do {
+            if (qemu_sem_timedwait(&multifd_recv_state->sem_sync, 10000) == 0) {
+                break;
+            }
+            if (qemu_in_coroutine()) {
+                aio_co_schedule(qemu_get_current_aio_context(),
+                                qemu_coroutine_self());
+                qemu_coroutine_yield();
+            }
+        } while (1);
         qemu_sem_post(&p->sem_sync);
     }
     trace_multifd_recv_sync_main(multifd_recv_state->packet_num);
