@@ -105,6 +105,8 @@ are missing:
   ``callbacks::FnCall``, but is still experimental.  ``ASSERT_IS_SOME``
   replaces it.
 
+* FFI support for 128-bit integers (`stable in 1.89.0 <https://blog.rust-lang.org/2025/08/07/Rust-1.89.0/#i128-and-u128-in-extern-c-functions>`_)
+
 __ https://github.com/rust-lang/rust/pull/125258
 
 QEMU also supports version 0.60.x of bindgen, which is missing option
