@@ -69,3 +69,4 @@ typedef enum memory_order {
 #include "qemu/timer.h"
 #include "system/address-spaces.h"
 #include "hw/char/pl011.h"
+#include "qemu/rcu.h"

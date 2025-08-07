@@ -26,6 +26,7 @@ pub mod memory;
 pub mod module;
 pub mod qdev;
 pub mod qom;
+pub mod rcu;
 pub mod sysbus;
 pub mod timer;
 pub mod uninit;
