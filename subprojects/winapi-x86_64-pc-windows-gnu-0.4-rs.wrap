@@ -1,0 +1,10 @@
+[wrap-file]
+directory = winapi-x86_64-pc-windows-gnu-0.4.0
+source_url = https://crates.io/api/v1/crates/winapi-x86_64-pc-windows-gnu/0.4.0/download
+source_filename = winapi-x86_64-pc-windows-gnu-0.4.0.tar.gz
+source_hash = 712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f
+#method = cargo
+patch_directory = winapi-x86_64-pc-windows-gnu-0.4-rs
+
+# bump this version number on every change to meson.build or the patches:
+# v2
