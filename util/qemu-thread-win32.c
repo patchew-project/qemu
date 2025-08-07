@@ -328,6 +328,16 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
+void qemu_thread_detach(QemuThread *thread)
+{
+    QemuThreadData *data;
+
+    if (data->mode == QEMU_THREAD_JOINABLE) {
+        data->mode = QEMU_THREAD_DETACHED;
+        DeleteCriticalSection(&data->cs);
+    }
+}
+
 static bool set_thread_description(HANDLE h, const char *name)
 {
     HRESULT hr;

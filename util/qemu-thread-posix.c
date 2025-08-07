@@ -536,3 +536,11 @@ void *qemu_thread_join(QemuThread *thread)
     }
     return ret;
 }
+
+void qemu_thread_detach(QemuThread *thread)
+{
+    int err = pthread_detach(thread->thread);
+    if (err) {
+        error_exit(err, __func__);
+    }
+}
