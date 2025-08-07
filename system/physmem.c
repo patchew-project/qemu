@@ -320,6 +320,29 @@ static inline bool section_covers_addr(const MemoryRegionSection *section,
                              int128_getlo(section->size), addr);
 }
 
+bool section_covers_region_addr(const MemoryRegionSection *section,
+                                hwaddr region_addr)
+{
+    return section->offset_within_region <= region_addr &&
+           section->offset_within_region + int128_get64(section->size) >= region_addr;
+}
+
+uint8_t *section_get_host_addr(const MemoryRegionSection *section,
+                               hwaddr region_addr)
+{
+    MemoryRegion *mr = section->mr;
+    assert(mr && mr->ram_block);
+
+    return qemu_map_ram_ptr(mr->ram_block,
+                            section->offset_within_region + region_addr);
+}
+
+void section_fuzz_dma_read(MemoryRegionSection *section,
+                           hwaddr addr, hwaddr len)
+{
+    fuzz_dma_read_cb(addr, len, section->mr);
+}
+
 static MemoryRegionSection *phys_page_find(AddressSpaceDispatch *d, hwaddr addr)
 {
     PhysPageEntry lp = d->phys_map, *p;
@@ -2945,6 +2968,13 @@ static bool memory_region_access_allowed(MemoryRegion *mr, MemTxAttrs attrs,
                   "addr 0x%" HWADDR_PRIX ", size %" HWADDR_PRIu ", "
                   "region '%s'\n", addr, len, memory_region_name(mr));
     return false;
+}
+
+bool section_access_allowed(MemoryRegionSection *section,
+                            MemTxAttrs attrs, hwaddr addr,
+                            hwaddr len)
+{
+    return memory_region_access_allowed(section->mr, attrs, addr, len);
 }
 
 static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,

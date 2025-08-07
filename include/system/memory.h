@@ -3357,6 +3357,62 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
 MemTxResult address_space_set(AddressSpace *as, hwaddr addr,
                               uint8_t c, hwaddr len, MemTxAttrs attrs);
 
+/**
+ * section_access_allowed
+ *
+ * @section: #MemoryRegionSection to be accessed.
+ * @attrs: memory transaction attributes.
+ * @addr: address within that memory region.
+ * @len: the number of bytes to access.
+ *
+ * Check if a memory transaction is allowed.
+ *
+ * Returns: true if transaction is allowed, false if denied.
+ */
+bool section_access_allowed(MemoryRegionSection *section,
+                            MemTxAttrs attrs, hwaddr addr,
+                            hwaddr len);
+
+/**
+ * section_covers_region_addr
+ *
+ * @section: #MemoryRegionSection to be accessed.
+ * @region_addr: memory region address within the region, which is
+ *               pointed by #MemoryRegionSection.
+ *
+ * Check if a region address is coverd by #MemoryRegionSection.
+ *
+ * Returns: true if transaction is allowed, false if denied.
+ */
+bool section_covers_region_addr(const MemoryRegionSection *section,
+                                hwaddr region_addr);
+
+/**
+ * section_get_host_addr
+ *
+ * @section: #MemoryRegionSection to be accessed.
+ * @region_addr: memory region address within the region, which is
+ *               pointed by #MemoryRegionSection.
+ *
+ * Get the pointer to the host address.
+ *
+ * Returns: pointer to the host address.
+ */
+uint8_t *section_get_host_addr(const MemoryRegionSection *section,
+                               hwaddr region_addr);
+
+/**
+ * section_fuzz_dma_read
+ *
+ * @section: #MemoryRegionSection to be accessed.
+ * @addr: memory address to be fuzzed.
+ * @len: length of the memory
+ *
+ * This function is wrapper of fuzz_dma_read_cb().
+ */
+void section_fuzz_dma_read(MemoryRegionSection *section,
+                           hwaddr addr, hwaddr len);
+
 /*
  * Inhibit technologies that require discarding of pages in RAM blocks, e.g.,
  * to manage the actual amount of memory consumed by the VM (then, the memory
