@@ -200,6 +200,7 @@ config SBSA_REF
     select GPIO_KEY
     select PCI_EXPRESS
     select PCI_EXPRESS_GENERIC_BRIDGE
+    select CXL_HOST_BRIDGE
     select PFLASH_CFI01
     select PL011 # UART
     select PL031 # RTC
