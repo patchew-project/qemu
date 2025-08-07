@@ -3663,6 +3663,7 @@ if have_system
   trace_events_subdirs += [
     'accel/hvf',
     'accel/kvm',
+    'accel/mshv',
     'audio',
     'backends',
     'backends/tpm',
