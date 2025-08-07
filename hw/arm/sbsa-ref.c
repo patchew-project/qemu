@@ -37,11 +37,15 @@
 #include "hw/arm/smmuv3.h"
 #include "hw/block/flash.h"
 #include "hw/boards.h"
+#include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_host.h"
 #include "hw/ide/ide-bus.h"
 #include "hw/ide/ahci-sysbus.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/loader.h"
+#include "hw/pci/pcie_port.h"
+#include "hw/pci-host/cxl_host_bridge.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/qdev-properties.h"
 #include "hw/usb.h"
@@ -94,6 +98,13 @@ enum {
     SBSA_SECURE_MEM,
     SBSA_AHCI,
     SBSA_XHCI,
+    SBSA_CXL,
+    SBSA_CXL_CHBCR,
+    SBSA_CXL_MMIO,
+    SBSA_CXL_MMIO_HIGH,
+    SBSA_CXL_PIO,
+    SBSA_CXL_ECAM,
+    SBSA_CXL_FIXED_WINDOW,
 };
 
 struct SBSAMachineState {
@@ -105,6 +116,7 @@ struct SBSAMachineState {
     int psci_conduit;
     DeviceState *gic;
     PFlashCFI01 *flash[2];
+    CXLState cxl_devices_state;
 };
 
 #define TYPE_SBSA_MACHINE   MACHINE_TYPE_NAME("sbsa-ref")
@@ -132,6 +144,14 @@ static const MemMapEntry sbsa_ref_memmap[] = {
     /* Space here reserved for more SMMUs */
     [SBSA_AHCI] =               { 0x60100000, 0x00010000 },
     [SBSA_XHCI] =               { 0x60110000, 0x00010000 },
+    /* 64K CXL Host Bridge Registers space */
+    [SBSA_CXL_CHBCR] =          { 0x60200000, 0x00010000 },
+    /* 64K CXL PIO space */
+    [SBSA_CXL_PIO] =            { 0x60300000, 0x00010000 },
+    /* 128M CXL 32-bit MMIO space */
+    [SBSA_CXL_MMIO] =           { 0x60400000, 0x08000000 },
+    /* 256M CXL ECAM space */
+    [SBSA_CXL_ECAM] =           { 0x68500000, 0x10000000 },
     /* Space here reserved for other devices */
     [SBSA_PCIE_PIO] =           { 0x7fff0000, 0x00010000 },
     /* 32-bit address PCIE MMIO space */
@@ -141,6 +161,10 @@ static const MemMapEntry sbsa_ref_memmap[] = {
     /* ~1TB PCIE MMIO space (4GB to 1024GB boundary) */
     [SBSA_PCIE_MMIO_HIGH] =     { 0x100000000ULL, 0xFF00000000ULL },
     [SBSA_MEM] =                { 0x10000000000ULL, RAMLIMIT_BYTES },
+    /* 4G CXL 64-bit MMIO space */
+    [SBSA_CXL_MMIO_HIGH] =      { 0x90000000000ULL, 0x100000000ULL },
+    /* 1TB CXL FIXED WINDOW space */
+    [SBSA_CXL_FIXED_WINDOW] =   { 0xA0000000000ULL, 0x10000000000ULL },
 };
 
 static const int sbsa_ref_irqmap[] = {
@@ -154,6 +178,7 @@ static const int sbsa_ref_irqmap[] = {
     [SBSA_XHCI] = 11,
     [SBSA_SMMU] = 12, /* ... to 15 */
     [SBSA_GWDT_WS0] = 16,
+    [SBSA_CXL] = 17, /* ... to 20 */
 };
 
 static uint64_t sbsa_ref_cpu_mp_affinity(SBSAMachineState *sms, int idx)
@@ -216,7 +241,7 @@ static void create_fdt(SBSAMachineState *sms)
      *                        fw compatibility.
      */
     qemu_fdt_setprop_cell(fdt, "/", "machine-version-major", 0);
-    qemu_fdt_setprop_cell(fdt, "/", "machine-version-minor", 4);
+    qemu_fdt_setprop_cell(fdt, "/", "machine-version-minor", 5);
 
     if (ms->numa_state->have_numa_distance) {
         int size = nb_numa_nodes * nb_numa_nodes * 3 * sizeof(uint32_t);
@@ -631,6 +656,91 @@ static void create_smmu(const SBSAMachineState *sms, PCIBus *bus)
     }
 }
 
+static void create_cxl_fixed_window(SBSAMachineState *sms,
+                                    MemoryRegion *mem, CXLHostBridge *host)
+{
+    DeviceState *dev = qdev_new(TYPE_CXL_FMW);
+    CXLFixedWindow *fw = CXL_FMW(dev);
+
+    fw->num_targets = 1;
+    fw->enc_int_ways = 0;
+    fw->enc_int_gran = 0;
+    fw->size = sbsa_ref_memmap[SBSA_CXL_FIXED_WINDOW].size;
+    fw->base = sbsa_ref_memmap[SBSA_CXL_FIXED_WINDOW].base;
+    fw->target_hbs[0] = OBJECT(host);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    memory_region_init_io(&fw->mr, OBJECT(sms), &cfmws_ops, fw,
+                          "cxl-fixed-memory-region", fw->size);
+
+    memory_region_add_subregion(mem, fw->base, &fw->mr);
+}
+
+static void create_cxl(SBSAMachineState *sms)
+{
+    MemoryRegion *ecam_alias, *mmio_alias, *mmio_alias_high;
+    DeviceState *dev;
+    PCIDevice *cxlrp;
+    int irq = sbsa_ref_irqmap[SBSA_CXL];
+    int i;
+
+    dev = qdev_new(TYPE_CXL_HOST);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sms->cxl_devices_state.is_enabled = true;
+
+    ecam_alias = g_new0(MemoryRegion, 1);
+    memory_region_init_alias(ecam_alias, OBJECT(dev), "cxl-ecam",
+                             sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1),
+                             0, sbsa_ref_memmap[SBSA_CXL_ECAM].size);
+    memory_region_add_subregion(get_system_memory(),
+                                sbsa_ref_memmap[SBSA_CXL_ECAM].base,
+                                ecam_alias);
+
+    mmio_alias = g_new0(MemoryRegion, 1);
+    memory_region_init_alias(mmio_alias, OBJECT(dev), "cxl-mmio",
+                             sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 2),
+                             sbsa_ref_memmap[SBSA_CXL_MMIO].base,
+                             sbsa_ref_memmap[SBSA_CXL_MMIO].size);
+    memory_region_add_subregion(get_system_memory(),
+                                sbsa_ref_memmap[SBSA_CXL_MMIO].base, mmio_alias);
+
+    mmio_alias_high = g_new0(MemoryRegion, 1);
+    memory_region_init_alias(mmio_alias_high, OBJECT(dev), "cxl-mmio-high",
+                             sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 2),
+                             sbsa_ref_memmap[SBSA_CXL_MMIO_HIGH].base,
+                             sbsa_ref_memmap[SBSA_CXL_MMIO_HIGH].size);
+    memory_region_add_subregion(get_system_memory(),
+                                sbsa_ref_memmap[SBSA_CXL_MMIO_HIGH].base,
+                                mmio_alias_high);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 3,
+                    sbsa_ref_memmap[SBSA_CXL_PIO].base);
+
+    for (i = 0; i < PCI_NUM_PINS; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(sms->gic, irq + i));
+        cxl_host_set_irq_num(CXL_HOST(dev), i, irq + i);
+    }
+
+    memory_region_init(&sms->cxl_devices_state.host_mr, OBJECT(sms),
+                       "cxl_host_reg", sbsa_ref_memmap[SBSA_CXL_CHBCR].size);
+    memory_region_add_subregion(get_system_memory(),
+                                sbsa_ref_memmap[SBSA_CXL_CHBCR].base,
+                                &sms->cxl_devices_state.host_mr);
+
+    for (i = 0; i < 4; i++) {
+        cxlrp = pci_new(-1, "cxl-rp");
+        PCIE_PORT(cxlrp)->port = i;
+        PCIE_SLOT(cxlrp)->slot = i;
+        pci_realize_and_unref(cxlrp, PCI_HOST_BRIDGE(dev)->bus, &error_fatal);
+    }
+
+    cxl_host_hook_up_registers(&sms->cxl_devices_state, CXL_HOST(dev));
+
+    create_cxl_fixed_window(sms, get_system_memory(), CXL_HOST(dev));
+}
+
 static void create_pcie(SBSAMachineState *sms)
 {
     hwaddr base_ecam = sbsa_ref_memmap[SBSA_PCIE_ECAM].base;
@@ -824,6 +934,8 @@ static void sbsa_ref_init(MachineState *machine)
     create_xhci(sms);
 
     create_pcie(sms);
+
+    create_cxl(sms);
 
     create_secure_ec(secure_sysmem);
 
