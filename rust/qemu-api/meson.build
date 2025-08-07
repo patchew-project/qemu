@@ -79,8 +79,8 @@ _qemu_api_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
-  dependencies: [anyhow_rs, foreign_rs, libc_rs, qemu_api_macros, qemuutil_rs,
-                 qom, hwcore, chardev, migration],
+  dependencies: [anyhow_rs, foreign_rs, libc_rs, vm_memory_rs, qemu_api_macros,
+                 qemuutil_rs, qom, hwcore, chardev, migration],
 )
 
 rust.test('rust-qemu-api-tests', _qemu_api_rs,
