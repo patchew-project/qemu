@@ -2,17 +2,33 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-//! Bindings for `MemoryRegion`, `MemoryRegionOps` and `MemTxAttrs`
+//! Bindings for `MemoryRegion`, `MemoryRegionOps`, `MemTxAttrs` and
+//! `MemoryRegionSection`.
 
 use std::{
     ffi::{c_uint, c_void, CStr, CString},
+    io::ErrorKind,
     marker::PhantomData,
+    mem::size_of,
+    ops::Deref,
+    sync::atomic::Ordering,
 };
 
+// FIXME: Convert hwaddr to GuestAddress
 pub use bindings::{hwaddr, MemTxAttrs};
+pub use vm_memory::GuestAddress;
+use vm_memory::{
+    bitmap::BS, Address, AtomicAccess, Bytes, GuestMemoryError, GuestMemoryRegion,
+    GuestMemoryResult, GuestUsize, MemoryRegionAddress, ReadVolatile, VolatileSlice, WriteVolatile,
+};
 
 use crate::{
-    bindings::{self, device_endian, memory_region_init_io},
+    bindings::{
+        self, device_endian, memory_region_init_io, section_access_allowed,
+        section_covers_region_addr, section_fuzz_dma_read, section_get_host_addr,
+        section_rust_load, section_rust_read_continue_step, section_rust_store,
+        section_rust_write_continue_step, MEMTX_OK,
+    },
     callbacks::FnCall,
     cell::Opaque,
     prelude::*,
@@ -202,3 +218,376 @@ pub const MEMTXATTRS_UNSPECIFIED: MemTxAttrs = MemTxAttrs {
     unspecified: true,
     ..Zeroable::ZERO
 };
+
+/// A safe wrapper around [`bindings::MemoryRegionSection`].
+///
+/// This struct is fundamental for integrating QEMU's memory model with
+/// the [`vm-memory`] ecosystem.  It directly maps to the concept of
+/// [`GuestMemoryRegion`](vm_memory::GuestMemoryRegion) and implements
+/// that trait.
+///
+/// ### `MemoryRegion` vs. `MemoryRegionSection`
+///
+/// Although QEMU already has native memory region abstraction, this is
+/// [`MemoryRegion`], which supports overlapping.  But `vm-memory` doesn't
+/// support overlapped memory, so `MemoryRegionSection` is more proper
+/// to implement [`GuestMemoryRegion`](vm_memory::GuestMemoryRegion)
+/// trait.
+///
+/// One point should pay attention is,
+/// [`MemoryRegionAddress`](vm_memory::MemoryRegionAddress) represents the
+/// address or offset within the `MemoryRegionSection`.  But traditional C
+/// bindings treats memory region address or offset as the offset within
+/// `MemoryRegion`.
+///
+/// Therefore, it's necessary to do conversion when calling C bindings
+/// with `MemoryRegionAddress` from the context of `MemoryRegionSection`.
+///
+/// ### Usage
+///
+/// Considerring memory access is almost always through `AddressSpace`
+/// in QEMU, `MemoryRegionSection` is intended for **internal use only**
+///  within the `vm-memory` backend implementation.
+///
+/// Device and other external users should **not** use or create
+/// `MemoryRegionSection`s directly.  Instead, they should work with the
+/// higher-level `MemoryRegion` API to create and manage their device's
+/// memory.  This separation of concerns mirrors the C API and avoids
+/// confusion about different memory abstractions.
+#[repr(transparent)]
+#[derive(qemu_api_macros::Wrapper)]
+pub struct MemoryRegionSection(Opaque<bindings::MemoryRegionSection>);
+
+unsafe impl Send for MemoryRegionSection {}
+unsafe impl Sync for MemoryRegionSection {}
+
+impl Deref for MemoryRegionSection {
+    type Target = bindings::MemoryRegionSection;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: Opaque<> wraps a pointer from C side. The validity
+        // of the pointer is confirmed at the creation of Opaque<>.
+        unsafe { &*self.0.as_ptr() }
+    }
+}
+
+impl MemoryRegionSection {
+    /// A fuzz testing hook for DMA read.
+    ///
+    /// When CONFIG_FUZZ is not set, this hook will do nothing.
+    #[allow(dead_code)]
+    fn fuzz_dma_read(&self, addr: GuestAddress, len: GuestUsize) -> &Self {
+        // SAFETY: Opaque<> ensures the pointer is valid, and here it
+        // takes into account the offset conversion between MemoryRegionSection
+        // and MemoryRegion.
+        unsafe {
+            section_fuzz_dma_read(
+                self.as_mut_ptr(),
+                addr.checked_add(self.deref().offset_within_region)
+                    .unwrap()
+                    .raw_value(),
+                len,
+            )
+        };
+        self
+    }
+
+    /// A helper to check if the memory access is allowed.
+    ///
+    /// This is needed for memory write/read.
+    #[allow(dead_code)]
+    fn is_access_allowed(&self, addr: MemoryRegionAddress, len: GuestUsize) -> bool {
+        // SAFETY: Opaque<> ensures the pointer is valid, and here it
+        // takes into account the offset conversion between MemoryRegionSection
+        // and MemoryRegion.
+        let allowed = unsafe {
+            section_access_allowed(
+                self.as_mut_ptr(),
+                MEMTXATTRS_UNSPECIFIED,
+                addr.checked_add(self.deref().offset_within_region)
+                    .unwrap()
+                    .raw_value(),
+                len,
+            )
+        };
+        allowed
+    }
+}
+
+impl Bytes<MemoryRegionAddress> for MemoryRegionSection {
+    type E = GuestMemoryError;
+
+    /// The memory wirte interface based on `MemoryRegionSection`.
+    ///
+    /// This function - as an intermediate step - is called by FlatView's
+    /// write(). And it shouldn't be called to access memory directly.
+    fn write(&self, buf: &[u8], addr: MemoryRegionAddress) -> GuestMemoryResult<usize> {
+        let len = buf.len() as u64;
+        let mut remain = len;
+
+        // SAFETY: the pointers and reference are convertible and the
+        // offset conversion is considerred.
+        let ret = unsafe {
+            section_rust_write_continue_step(
+                self.as_mut_ptr(),
+                MEMTXATTRS_UNSPECIFIED,
+                buf.as_ptr(),
+                len,
+                addr.checked_add(self.deref().offset_within_region)
+                    .unwrap()
+                    .raw_value(),
+                &mut remain,
+            )
+        };
+
+        if ret == MEMTX_OK {
+            return Ok(remain as usize);
+        } else {
+            return Err(GuestMemoryError::InvalidBackendAddress);
+        }
+    }
+
+    /// The memory read interface based on `MemoryRegionSection`.
+    ///
+    /// This function - as an intermediate step - is called by FlatView's
+    /// read(). And it shouldn't be called to access memory directly.
+    fn read(&self, buf: &mut [u8], addr: MemoryRegionAddress) -> GuestMemoryResult<usize> {
+        let len = buf.len() as u64;
+        let mut remain = len;
+
+        // SAFETY: the pointers and reference are convertible and the
+        // offset conversion is considerred.
+        let ret = unsafe {
+            section_rust_read_continue_step(
+                self.as_mut_ptr(),
+                MEMTXATTRS_UNSPECIFIED,
+                buf.as_mut_ptr(),
+                len,
+                addr.checked_add(self.deref().offset_within_region)
+                    .unwrap()
+                    .raw_value(),
+                &mut remain,
+            )
+        };
+
+        if ret == MEMTX_OK {
+            return Ok(remain as usize);
+        } else {
+            return Err(GuestMemoryError::InvalidBackendAddress);
+        }
+    }
+
+    /// The memory store interface based on `MemoryRegionSection`.
+    ///
+    /// This function - as the low-level store implementation - is
+    /// called by FlatView's store(). And it shouldn't be called to
+    ///  access memory directly.
+    fn store<T: AtomicAccess>(
+        &self,
+        val: T,
+        addr: MemoryRegionAddress,
+        _order: Ordering,
+    ) -> GuestMemoryResult<()> {
+        let len = size_of::<T>();
+
+        if len > size_of::<u64>() {
+            return Err(GuestMemoryError::IOError(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "failed to store the data more then 8 bytes",
+            )));
+        }
+
+        // Note: setcion_rust_store() accepts `const uint8_t *buf`.
+        //
+        // This is a "compromise" solution: vm-memory requires AtomicAccess
+        // but QEMU uses uint64_t as the default type. Here we can't convert
+        // AtomicAccess to u64, since complier will complain "an `as`
+        // expression can only be used to convert between primitive types or
+        // to coerce to a specific trait object", or other endless errors
+        // about convertion to u64.
+        //
+        // Fortunately, we can use a byte array to bridge the Rust wrapper
+        // and the C binding. This approach is not without a trade-off,
+        // however: the section_rust_store() function requires an additional
+        // conversion from bytes to a uint64_t. This performance overhead is
+        // considered acceptable.
+        //
+        // SAFETY: the pointers are convertible and the offset conversion is
+        // considerred.
+        let res = unsafe {
+            section_rust_store(
+                self.as_mut_ptr(),
+                addr.checked_add(self.deref().offset_within_region)
+                    .unwrap()
+                    .raw_value(),
+                val.as_slice().as_ptr(),
+                MEMTXATTRS_UNSPECIFIED,
+                len as u64,
+            )
+        };
+
+        match res {
+            MEMTX_OK => Ok(()),
+            _ => Err(GuestMemoryError::InvalidBackendAddress),
+        }
+    }
+
+    /// The memory load interface based on `MemoryRegionSection`.
+    ///
+    /// This function - as the low-level load implementation - is
+    /// called by FlatView's load(). And it shouldn't be called to
+    /// access memory directly.
+    fn load<T: AtomicAccess>(
+        &self,
+        addr: MemoryRegionAddress,
+        _order: Ordering,
+    ) -> GuestMemoryResult<T> {
+        let len = size_of::<T>();
+
+        if len > size_of::<u64>() {
+            return Err(GuestMemoryError::IOError(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "failed to load the data more then 8 bytes",
+            )));
+        }
+
+        let mut val: T = T::zeroed();
+
+        // Note: setcion_rust_load() accepts `uint8_t *buf`.
+        //
+        // It has the similar reason as store() with the slight difference,
+        // which is section_rust_load() requires additional conversion of
+        // uint64_t to bytes.
+        //
+        // SAFETY: the pointers are convertible and the offset conversion is
+        // considerred.
+        let res = unsafe {
+            section_rust_load(
+                self.as_mut_ptr(),
+                addr.checked_add(self.deref().offset_within_region)
+                    .unwrap()
+                    .raw_value(),
+                val.as_mut_slice().as_mut_ptr(),
+                MEMTXATTRS_UNSPECIFIED,
+                size_of::<T>() as u64,
+            )
+        };
+
+        match res {
+            MEMTX_OK => Ok(val),
+            _ => Err(GuestMemoryError::InvalidBackendAddress),
+        }
+    }
+
+    fn write_slice(&self, _buf: &[u8], _addr: MemoryRegionAddress) -> GuestMemoryResult<()> {
+        unimplemented!()
+    }
+
+    fn read_slice(&self, _buf: &mut [u8], _addr: MemoryRegionAddress) -> GuestMemoryResult<()> {
+        unimplemented!()
+    }
+
+    fn read_volatile_from<F>(
+        &self,
+        _addr: MemoryRegionAddress,
+        _src: &mut F,
+        _count: usize,
+    ) -> GuestMemoryResult<usize>
+    where
+        F: ReadVolatile,
+    {
+        unimplemented!()
+    }
+
+    fn read_exact_volatile_from<F>(
+        &self,
+        _addr: MemoryRegionAddress,
+        _src: &mut F,
+        _count: usize,
+    ) -> GuestMemoryResult<()>
+    where
+        F: ReadVolatile,
+    {
+        unimplemented!()
+    }
+
+    fn write_volatile_to<F>(
+        &self,
+        _addr: MemoryRegionAddress,
+        _dst: &mut F,
+        _count: usize,
+    ) -> GuestMemoryResult<usize>
+    where
+        F: WriteVolatile,
+    {
+        unimplemented!()
+    }
+
+    fn write_all_volatile_to<F>(
+        &self,
+        _addr: MemoryRegionAddress,
+        _dst: &mut F,
+        _count: usize,
+    ) -> GuestMemoryResult<()>
+    where
+        F: WriteVolatile,
+    {
+        unimplemented!()
+    }
+}
+
+impl GuestMemoryRegion for MemoryRegionSection {
+    type B = ();
+
+    /// Get the memory size covered by this MemoryRegionSection.
+    fn len(&self) -> GuestUsize {
+        self.deref().size as GuestUsize
+    }
+
+    /// Return the minimum (inclusive) Guest physical address managed by
+    /// this MemoryRegionSection.
+    fn start_addr(&self) -> GuestAddress {
+        GuestAddress(self.deref().offset_within_address_space)
+    }
+
+    fn bitmap(&self) -> BS<'_, Self::B> {
+        ()
+    }
+
+    /// Check whether the @addr is covered by this MemoryRegionSection.
+    fn check_address(&self, addr: MemoryRegionAddress) -> Option<MemoryRegionAddress> {
+        // SAFETY: the pointer is convertible and the offset conversion is
+        // considerred.
+        if unsafe {
+            section_covers_region_addr(
+                self.as_mut_ptr(),
+                addr.checked_add(self.deref().offset_within_region)
+                    .unwrap()
+                    .raw_value(),
+            )
+        } {
+            Some(addr)
+        } else {
+            None
+        }
+    }
+
+    /// Get the host virtual address from the offset of this MemoryRegionSection
+    /// (@addr).
+    fn get_host_address(&self, addr: MemoryRegionAddress) -> GuestMemoryResult<*mut u8> {
+        self.check_address(addr)
+            .ok_or(GuestMemoryError::InvalidBackendAddress)
+            .map(|addr|
+                // SAFETY: the pointers are convertible and the offset
+                // conversion is considerred.
+                unsafe { section_get_host_addr(self.as_mut_ptr(), addr.raw_value()) })
+    }
+
+    fn get_slice(
+        &self,
+        _offset: MemoryRegionAddress,
+        _count: usize,
+    ) -> GuestMemoryResult<VolatileSlice<BS<Self::B>>> {
+        unimplemented!()
+    }
+}
