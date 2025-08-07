@@ -203,6 +203,7 @@ const Property migration_properties[] = {
                         MIGRATION_CAPABILITY_SWITCHOVER_ACK),
     DEFINE_PROP_MIG_CAP("x-dirty-limit", MIGRATION_CAPABILITY_DIRTY_LIMIT),
     DEFINE_PROP_MIG_CAP("mapped-ram", MIGRATION_CAPABILITY_MAPPED_RAM),
+    DEFINE_PROP_MIG_CAP("postcopy-setup", MIGRATION_CAPABILITY_POSTCOPY_SETUP),
 };
 const size_t migration_properties_count = ARRAY_SIZE(migration_properties);
 
@@ -358,6 +359,13 @@ bool migrate_zero_copy_send(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
+}
+
+bool migrate_postcopy_setup(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_SETUP];
 }
 
 /* pseudo capabilities */
@@ -622,6 +630,14 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
             error_setg(errp,
                        "Mapped-ram migration is incompatible with postcopy");
+            return false;
+        }
+    }
+
+    if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_SETUP]) {
+        if (!migrate_postcopy_setup() && migration_is_running()) {
+            error_setg(errp,
+                       "Postcopy-setup cannot be enabled during migration");
             return false;
         }
     }

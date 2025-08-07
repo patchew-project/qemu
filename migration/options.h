@@ -42,6 +42,7 @@ bool migrate_return_path(void);
 bool migrate_validate_uuid(void);
 bool migrate_xbzrle(void);
 bool migrate_zero_copy_send(void);
+bool migrate_postcopy_setup(void);
 
 /*
  * pseudo capabilities

@@ -509,6 +509,12 @@ struct MigrationState {
     /* Is this a rdma migration */
     bool rdma_migration;
 
+    /*
+     * Indicates whether the destination ACKed loading the device state and is
+     * ready to receive POSTCOPY_RUN command.
+     */
+    bool postcopy_run_acked;
+
     GSource *hup_source;
 };
 
@@ -553,6 +559,7 @@ void migrate_send_rp_recv_bitmap(MigrationIncomingState *mis,
                                  char *block_name);
 void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value);
 int migrate_send_rp_switchover_ack(MigrationIncomingState *mis);
+int migrate_send_rp_postcopy_run_ack(MigrationIncomingState *mis);
 
 void dirty_bitmap_mig_before_vm_start(void);
 void dirty_bitmap_mig_cancel_outgoing(void);

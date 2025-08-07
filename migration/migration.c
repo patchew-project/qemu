@@ -91,6 +91,7 @@ enum mig_rp_message_type {
     MIG_RP_MSG_RECV_BITMAP,  /* send recved_bitmap back to source */
     MIG_RP_MSG_RESUME_ACK,   /* tell source that we are ready to resume */
     MIG_RP_MSG_SWITCHOVER_ACK, /* Tell source it's OK to do switchover */
+    MIG_RP_MSG_POSTCOPY_RUN_ACK, /* tell source it's OK to send postcopy run */
 
     MIG_RP_MSG_MAX
 };
@@ -896,6 +897,15 @@ process_incoming_migration_co(void *opaque)
              * the normal exit.
              */
             postcopy_ram_incoming_cleanup(mis);
+        } else if (ret < 0 && ps == POSTCOPY_INCOMING_LISTENING &&
+                   mis->state == MIGRATION_STATUS_ACTIVE) {
+            /*
+             * An error happened during postcopy start while we have not yet
+             * acknowledged to be started, wait for listen thread to exit and
+             * then do a normal cleanup.
+             */
+            qemu_thread_join(&mis->listen_thread);
+            postcopy_ram_incoming_cleanup(mis);
         } else if (ret >= 0) {
             /*
              * Postcopy was started, cleanup should happen at the end of the
@@ -1206,6 +1216,11 @@ void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value)
     migrate_send_rp_message(mis, MIG_RP_MSG_RESUME_ACK, sizeof(buf), &buf);
 }
 
+int migrate_send_rp_postcopy_run_ack(MigrationIncomingState *mis)
+{
+    return migrate_send_rp_message(mis, MIG_RP_MSG_POSTCOPY_RUN_ACK, 0, NULL);
+}
+
 bool migration_is_running(void)
 {
     MigrationState *s = current_migration;
@@ -1216,6 +1231,7 @@ bool migration_is_running(void)
 
     switch (s->state) {
     case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_POSTCOPY_SETUP:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
     case MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
@@ -1237,6 +1253,7 @@ static bool migration_is_active(void)
     MigrationState *s = current_migration;
 
     return (s->state == MIGRATION_STATUS_ACTIVE ||
+            s->state == MIGRATION_STATUS_POSTCOPY_SETUP ||
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
@@ -1359,6 +1376,7 @@ static void fill_source_migration_info(MigrationInfo *info)
         break;
     case MIGRATION_STATUS_ACTIVE:
     case MIGRATION_STATUS_CANCELLING:
+    case MIGRATION_STATUS_POSTCOPY_SETUP:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_PRE_SWITCHOVER:
     case MIGRATION_STATUS_DEVICE:
@@ -1412,6 +1430,7 @@ static void fill_destination_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_CANCELLING:
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_POSTCOPY_SETUP:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
     case MIGRATION_STATUS_POSTCOPY_RECOVER:
@@ -1712,6 +1731,7 @@ bool migration_in_postcopy(void)
     MigrationState *s = migrate_get_current();
 
     switch (s->state) {
+    case MIGRATION_STATUS_POSTCOPY_SETUP:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
     case MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
@@ -1725,6 +1745,7 @@ bool migration_in_postcopy(void)
 bool migration_postcopy_is_alive(MigrationStatus state)
 {
     switch (state) {
+    case MIGRATION_STATUS_POSTCOPY_SETUP:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_RECOVER:
         return true;
@@ -1806,6 +1827,7 @@ int migrate_init(MigrationState *s, Error **errp)
     s->threshold_size = 0;
     s->switchover_acked = false;
     s->rdma_migration = false;
+    s->postcopy_run_acked = false;
     /*
      * set mig_stats memory to zero for a new migration
      */
@@ -2615,6 +2637,10 @@ static void *source_return_path_thread(void *opaque)
             trace_source_return_path_thread_switchover_acked();
             break;
 
+        case MIG_RP_MSG_POSTCOPY_RUN_ACK:
+            ms->postcopy_run_acked = true;
+            break;
+
         default:
             break;
         }
@@ -2808,7 +2834,16 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         qemu_savevm_send_ping(fb, 3);
     }
 
-    qemu_savevm_send_postcopy_run(fb);
+    if (migrate_postcopy_setup()) {
+        /*
+         * EOF mark is necessary for the receiving side to stop reading contents
+         * of the CMD_PACKAGED buffer.
+         */
+        qemu_put_byte(fb, QEMU_VM_EOF);
+        qemu_fflush(fb);
+    } else {
+        qemu_savevm_send_postcopy_run(fb);
+    }
 
     /* <><> end of stuff going into the package */
 
@@ -2835,7 +2870,13 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     migration_call_notifiers(ms, MIG_EVENT_PRECOPY_DONE, NULL);
 
-    migration_downtime_end(ms);
+    if (!migrate_postcopy_setup()) {
+        /*
+         * With postcopy-setup enabled, POSTCOPY_RUN command is not present in
+         * the package. Downtime will end when the command is actually sent.
+         */
+        migration_downtime_end(ms);
+    }
 
     if (migrate_postcopy_ram()) {
         /*
@@ -2862,8 +2903,13 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     migration_rate_set(migrate_max_postcopy_bandwidth());
 
-    /* Now, switchover looks all fine, switching to postcopy-active */
+    /*
+    * Now, switchover looks all fine, switching to either postcopy-setup or
+    * directly postcopy-active depending on capabilities.
+    */
     migrate_set_state(&ms->state, MIGRATION_STATUS_DEVICE,
+                      migrate_postcopy_setup() ?
+                      MIGRATION_STATUS_POSTCOPY_SETUP :
                       MIGRATION_STATUS_POSTCOPY_ACTIVE);
 
     bql_unlock();
@@ -3305,8 +3351,8 @@ static MigThrError migration_detect_error(MigrationState *s)
         return postcopy_pause(s);
     } else {
         /*
-         * For precopy (or postcopy with error outside IO), we fail
-         * with no time.
+         * For precopy (or postcopy with error outside IO, or postcopy before
+         * the destination has been started), we fail with no time.
          */
         migrate_set_state(&s->state, state, MIGRATION_STATUS_FAILED);
         trace_migration_thread_file_err();
@@ -3441,7 +3487,8 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 {
     uint64_t must_precopy, can_postcopy, pending_size;
     Error *local_err = NULL;
-    bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
+    bool in_postcopy = (s->state == MIGRATION_STATUS_POSTCOPY_SETUP ||
+                        s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
     bool can_switchover = migration_can_switchover(s);
     bool complete_ready;
 
@@ -3489,6 +3536,18 @@ static MigIterateState migration_iteration_run(MigrationState *s)
          *     (which was calculated from expected downtime)
          */
         complete_ready = can_switchover && (pending_size <= s->threshold_size);
+    }
+
+    /*
+     * Destination ACKed POSTCOPY_RUN to be sent, or the migration is going to
+     * end in this iteration, so the destination must start.
+     */
+    if (s->state == MIGRATION_STATUS_POSTCOPY_SETUP &&
+        (s->postcopy_run_acked || complete_ready)) {
+        migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_SETUP,
+                          MIGRATION_STATUS_POSTCOPY_ACTIVE);
+        qemu_savevm_send_postcopy_run(s->to_dst_file);
+        migration_downtime_end(s);
     }
 
     if (complete_ready) {

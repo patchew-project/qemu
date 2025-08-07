@@ -139,6 +139,13 @@
 #
 # @active: in the process of doing migration.
 #
+# @postcopy-setup: Postcopy migration has been initiated, but the
+#     destination is not running yet, as it is processing the contents
+#     of CMD_PACKAGED.  After the destination ACKs to be started, the
+#     source transitions to postcopy-active state and sends
+#     POSTCOPY_RUN command.  Only present if postcopy-setup capability
+#     is enabled.  (Since 10.2)
+#
 # @postcopy-active: like active, but now in postcopy mode.
 #     (since 2.5)
 #
@@ -173,7 +180,7 @@
 ##
 { 'enum': 'MigrationStatus',
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
-            'active', 'postcopy-active', 'postcopy-paused',
+            'active', 'postcopy-setup', 'postcopy-active', 'postcopy-paused',
             'postcopy-recover-setup',
             'postcopy-recover', 'completed', 'failed', 'colo',
             'pre-switchover', 'device', 'wait-unplug' ] }
@@ -517,6 +524,14 @@
 #     each RAM page.  Requires a migration URI that supports seeking,
 #     such as a file.  (since 9.0)
 #
+# @postcopy-setup: If enabled, POSTCOPY_RUN command is not sent at the
+#     end of device states during postcopy switchover, but rather
+#     after the destination side ACKs that it has successfully loaded
+#     the device state and can be started.  Between these two events,
+#     machines are in postcopy-setup state which allows the source
+#     machine to fully recover and resume operation in case of errors.
+#     (Since 10.2)
+#
 # Features:
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
@@ -536,7 +551,7 @@
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
            'zero-copy-send', 'postcopy-preempt', 'switchover-ack',
-           'dirty-limit', 'mapped-ram'] }
+           'dirty-limit', 'mapped-ram', 'postcopy-setup'] }
 
 ##
 # @MigrationCapabilityStatus:

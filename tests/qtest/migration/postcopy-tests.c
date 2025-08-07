@@ -27,6 +27,17 @@ static void test_postcopy(void)
     test_postcopy_common(&args);
 }
 
+static void test_postcopy_setup(void)
+{
+    MigrateCommon args = {
+        .start = {
+            .caps[MIGRATION_CAPABILITY_POSTCOPY_SETUP] = true,
+        }
+    };
+
+    test_postcopy_common(&args);
+}
+
 static void test_postcopy_suspend(void)
 {
     MigrateCommon args = {
@@ -41,6 +52,18 @@ static void test_postcopy_preempt(void)
     MigrateCommon args = {
         .start = {
             .caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true,
+        },
+    };
+
+    test_postcopy_common(&args);
+}
+
+static void test_postcopy_preempt_setup(void)
+{
+    MigrateCommon args = {
+        .start = {
+            .caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true,
+            .caps[MIGRATION_CAPABILITY_POSTCOPY_SETUP] = true,
         },
     };
 
@@ -87,10 +110,13 @@ static void migration_test_add_postcopy_smoke(MigrationTestEnv *env)
 {
     if (env->has_uffd) {
         migration_test_add("/migration/postcopy/plain", test_postcopy);
+        migration_test_add("/migration/postcopy/setup", test_postcopy_setup);
         migration_test_add("/migration/postcopy/recovery/plain",
                            test_postcopy_recovery);
         migration_test_add("/migration/postcopy/preempt/plain",
                            test_postcopy_preempt);
+        migration_test_add("/migration/postcopy/preempt/setup",
+                           test_postcopy_preempt_setup);
     }
 }
 
@@ -105,12 +131,37 @@ static void test_multifd_postcopy(void)
     test_postcopy_common(&args);
 }
 
+static void test_multifd_postcopy_setup(void)
+{
+    MigrateCommon args = {
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
+            .caps[MIGRATION_CAPABILITY_POSTCOPY_SETUP] = true,
+        },
+    };
+
+    test_postcopy_common(&args);
+}
+
 static void test_multifd_postcopy_preempt(void)
 {
     MigrateCommon args = {
         .start = {
             .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
             .caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true,
+        },
+    };
+
+    test_postcopy_common(&args);
+}
+
+static void test_multifd_postcopy_preempt_setup(void)
+{
+    MigrateCommon args = {
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
+            .caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true,
+            .caps[MIGRATION_CAPABILITY_POSTCOPY_SETUP] = true,
         },
     };
 
@@ -139,8 +190,12 @@ void migration_test_add_postcopy(MigrationTestEnv *env)
 
         migration_test_add("/migration/multifd+postcopy/plain",
                            test_multifd_postcopy);
+        migration_test_add("/migration/multifd+postcopy/setup",
+                           test_multifd_postcopy_setup);
         migration_test_add("/migration/multifd+postcopy/preempt/plain",
                            test_multifd_postcopy_preempt);
+        migration_test_add("/migration/multifd+postcopy/preempt/setup",
+                           test_multifd_postcopy_preempt_setup);
         if (env->is_x86) {
             migration_test_add("/migration/postcopy/suspend",
                                test_postcopy_suspend);

@@ -1393,6 +1393,13 @@ retry:
                                         msg.arg.pagefault.address,
                                         msg.arg.pagefault.feat.ptid);
             if (ret) {
+                if (mis->state == MIGRATION_STATUS_ACTIVE) {
+                    /*
+                     * Not postcopy-active yet, there is no recovery from that,
+                     * exit the thread.
+                     */
+                    break;
+                }
                 /* May be network failure, try to wait for recovery */
                 postcopy_pause_fault_thread(mis);
                 goto retry;

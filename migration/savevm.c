@@ -279,6 +279,7 @@ static bool should_validate_capability(int capability)
     switch (capability) {
     case MIGRATION_CAPABILITY_X_IGNORE_SHARED:
     case MIGRATION_CAPABILITY_MAPPED_RAM:
+    case MIGRATION_CAPABILITY_POSTCOPY_SETUP:
         return true;
     default:
         return false;
@@ -2085,8 +2086,15 @@ static void *postcopy_ram_listen_thread(void *opaque)
 
     object_ref(OBJECT(migr));
 
-    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                                   MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    if (!migrate_postcopy_setup()) {
+        /*
+         * If postcopy-setup is enabled, we transition to postcopy-active after
+         * the machine finishes loading CMD_PACKAGED and ACKs to be started.
+         */
+        migrate_set_state(&mis->state,
+                          MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    }
     qemu_event_set(&mis->thread_sync_event);
     trace_postcopy_ram_listen_thread_start();
 
@@ -2099,6 +2107,14 @@ static void *postcopy_ram_listen_thread(void *opaque)
 
     /* TODO: sanity check that only postcopiable data will be loaded here */
     load_res = qemu_loadvm_state_main(f, mis);
+    if (load_res < 0 && mis->state != MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+        /*
+        * Something happened during device load in the main thread, as we are
+        * not running yet. Don't force exit, the main thread will handle
+        * incoming_state and postcopy_ram_incoming cleanups.
+        */
+        goto out;
+    }
 
     /*
      * This is tricky, but, mis->from_src_file can change after it
@@ -2150,6 +2166,10 @@ static void *postcopy_ram_listen_thread(void *opaque)
         exit(EXIT_FAILURE);
     }
 
+    if (mis->state != MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+        error_report("%s: at this point the destination should have been started already",
+                     __func__);
+    }
     migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                                    MIGRATION_STATUS_COMPLETED);
     /*
@@ -2162,6 +2182,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
     migration_incoming_state_destroy();
     bql_unlock();
 
+out:
     rcu_unregister_thread();
     mis->have_listen_thread = false;
     postcopy_state_set(POSTCOPY_INCOMING_END);
@@ -2276,6 +2297,13 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
     postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
     migration_bh_schedule(loadvm_postcopy_handle_run_bh, mis);
 
+    if (migrate_postcopy_setup()) {
+        /*
+         * With postcopy-setup enabled POSTCOPY_RUN command is processed by the
+         * listen thread instead of the main thread.
+         */
+        return 0;
+    }
     /* We need to finish reading the stream from the package
      * and also stop reading anything more from the stream that loaded the
      * package (since it's now being read by the listener thread).
@@ -2453,8 +2481,23 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis)
     trace_loadvm_handle_cmd_packaged_main(ret);
     qemu_fclose(packf);
     object_unref(OBJECT(bioc));
-
-    return ret;
+    if (ret < 0) {
+        return ret;
+    }
+    if (migrate_postcopy_setup()) {
+        ret = migrate_send_rp_postcopy_run_ack(mis);
+        if (ret < 0) {
+            return ret;
+        }
+        migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    }
+    /* We need to finish reading the stream from the package
+     * and also stop reading anything more from the stream that loaded the
+     * package (since it's now being read by the listener thread).
+     * LOADVM_QUIT will quit all the layers of nested loadvm loops.
+     */
+    return LOADVM_QUIT;
 }
 
 /*
