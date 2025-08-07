@@ -559,9 +559,9 @@ iotlb_fail:
 }
 
 /* Called from RCU critical section */
-MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
-                                 hwaddr *plen, bool is_write,
-                                 MemTxAttrs attrs)
+MemoryRegionSection *flatview_translate_section(FlatView *fv, hwaddr addr,
+                                                hwaddr *xlat, hwaddr *plen,
+                                                bool is_write, MemTxAttrs attrs)
 {
     MemoryRegion *mr;
     MemoryRegionSection *section;
@@ -577,7 +577,21 @@ MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
         *plen = MIN(page, *plen);
     }
 
-    return mr;
+    return section;
+}
+
+/* Called from RCU critical section */
+MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
+                                 hwaddr *plen, bool is_write,
+                                 MemTxAttrs attrs)
+{
+    MemoryRegionSection *section;
+
+    /* This can be MMIO, so setup MMIO bit. */
+    section = flatview_translate_section(fv, addr, xlat, plen,
+                                         is_write, attrs);
+
+    return section->mr;
 }
 
 #ifdef CONFIG_TCG

@@ -3053,24 +3053,74 @@ void address_space_cache_destroy(MemoryRegionCache *cache);
 IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
                                             bool is_write, MemTxAttrs attrs);
 
-/* address_space_translate: translate an address range into an address space
- * into a MemoryRegion and an address range into that section.  Should be
+/**
+ * flatview_translate_section: translate an guest physical address range
+ * to the corresponding MemoryRegionSection in Flatview. Should be
  * called from an RCU critical section, to avoid that the last reference
- * to the returned region disappears after address_space_translate returns.
+ * to the memory region (pointed by returned section) disappears after
+ * flatview_translate_section returns.
  *
- * @fv: #FlatView to be accessed
- * @addr: address within that address space
- * @xlat: pointer to address within the returned memory region section's
- * #MemoryRegion.
- * @len: pointer to length
+ * @fv: the flat view to be accessed.
+ * @addr: the address to be translated in above address space.
+ * @xlat: the translated address offset within the returned section's
+ *        #MemoryRegion.
+ * @len: pointer to length, and it will be changed to valid read/write
+ *       length of the translated address after this function returns.
  * @is_write: indicates the transfer direction
  * @attrs: memory attributes
+ *
+ * Returns:
+ * The #MemoryRegionSection that contains the translated address
+ */
+MemoryRegionSection *flatview_translate_section(FlatView *fv, hwaddr addr,
+                                                hwaddr *xlat, hwaddr *len,
+                                                bool is_write, MemTxAttrs attrs);
+
+/**
+ * flatview_translate: translate an guest physical address range
+ * to the corresponding MemoryRegionSection in Flatview. Should be
+ * called from an RCU critical section, to avoid that the last reference
+ * to the returned memory region disappears after flatview_translate
+ * returns.
+ *
+ * This function is the variant of flatview_translate_section(), with the
+ * difference that it returns the MemoryRegion contained in the
+ * MemoryRegionSection.
+ *
+ * @fv: the flat view to be accessed.
+ * @addr: the address to be translated in above address space.
+ * @xlat: the translated address offset within memory region.
+ * @len: pointer to length, and it will be changed to valid read/write
+ *       length of the translated address after this function returns.
+ * @is_write: whether the translation operation is for write.
+ * @attrs: memory transaction attributes.
+ *
+ * Returns:
+ * The #MemoryRegion that contains the translated address.
  */
 MemoryRegion *flatview_translate(FlatView *fv,
                                  hwaddr addr, hwaddr *xlat,
                                  hwaddr *len, bool is_write,
                                  MemTxAttrs attrs);
 
+/**
+ * address_space_translate: translate an guest physical address range
+ * to the corresponding MemoryRegionSection in Flatview. Should be
+ * called from an RCU critical section, to avoid that the last reference
+ * to the returned memory region disappears after flatview_translate
+ * returns.
+ *
+ * This function is the variant of flatview_translate(), with the difference
+ * that it accesses the AddressSpace which contains FlatView.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: the address to be translated in above address space.
+ * @xlat: the translated address offset within memory region.
+ * @len: pointer to length, and it will be changed to valid read/write
+ *       length of the translated address after this function returns.
+ * @is_write: whether the translation operation is for write.
+ * @attrs: memory transaction attributes.
+ */
 static inline MemoryRegion *address_space_translate(AddressSpace *as,
                                                     hwaddr addr, hwaddr *xlat,
                                                     hwaddr *len, bool is_write,
