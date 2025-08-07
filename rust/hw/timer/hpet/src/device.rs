@@ -6,19 +6,17 @@ use std::{
     ffi::{c_int, c_void, CStr},
     mem::MaybeUninit,
     pin::Pin,
-    ptr::{addr_of_mut, null_mut, NonNull},
+    ptr::NonNull,
     slice::from_ref,
 };
 
 use qemu_api::{
-    bindings::{
-        address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
-        qdev_prop_uint32, qdev_prop_usize,
-    },
+    bindings::{qdev_prop_bit, qdev_prop_bool, qdev_prop_uint32, qdev_prop_usize},
     cell::{BqlCell, BqlRefCell},
     irq::InterruptSource,
     memory::{
-        hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
+        hwaddr, GuestAddress, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder,
+        ADDRESS_SPACE_MEMORY,
     },
     prelude::*,
     qdev::{DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
@@ -327,17 +325,12 @@ impl HPETTimer {
 
         if set && self.is_int_enabled() && self.get_state().is_hpet_enabled() {
             if self.is_fsb_route_enabled() {
-                // SAFETY:
-                // the parameters are valid.
-                unsafe {
-                    address_space_stl_le(
-                        addr_of_mut!(address_space_memory),
-                        self.fsb >> 32,  // Timer N FSB int addr
-                        self.fsb as u32, // Timer N FSB int value, truncate!
-                        MEMTXATTRS_UNSPECIFIED,
-                        null_mut(),
-                    );
-                }
+                ADDRESS_SPACE_MEMORY
+                    .store(
+                        GuestAddress(self.fsb >> 32), // Timer N FSB int addr
+                        self.fsb as u32,              // Timer N FSB int value, truncate!
+                    )
+                    .expect("Failed to store into ADDRESS_SPACE_MEMORY.");
             } else if self.is_int_level_triggered() {
                 self.get_state().irqs[route].raise();
             } else {
