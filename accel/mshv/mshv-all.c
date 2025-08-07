@@ -431,7 +431,7 @@ static int mshv_init(AccelState *as, MachineState *ms)
         return -1;
     }
 
-    mshv_init_cpu_logic();
+    mshv_init_mmio_emu();
 
     mshv_init_msicontrol();
 
