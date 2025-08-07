@@ -901,6 +901,7 @@ process_incoming_migration_co(void *opaque)
              * Postcopy was started, cleanup should happen at the end of the
              * postcopy thread.
              */
+            qemu_thread_detach(&mis->listen_thread);
             trace_process_incoming_migration_co_postcopy_end_main();
             goto out;
         }
