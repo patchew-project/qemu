@@ -3519,6 +3519,7 @@ Rust-related patches CC here
 L: qemu-rust@nongnu.org
 F: tests/docker/test-rust
 F: rust/
+F: docs/devel/rust.rst
 
 SLIRP
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
