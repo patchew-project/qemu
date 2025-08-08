@@ -91,4 +91,9 @@
   </flags>
   <reg name="cpsr" bitsize="32" type="cpsr_flags"/>
 
+  <flags id="current_el_flags" size="8">
+    <!-- Exception Level.  -->
+    <field name="EL" start="2" end="3"/>
+  </flags>
+  <reg name="CurrentEL" bitsize="64" type="current_el"/>
 </feature>

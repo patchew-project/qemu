@@ -1473,6 +1473,7 @@ void pmu_init(ARMCPU *cpu);
  * AArch32 mode SPSRs are basically CPSR-format.
  */
 #define PSTATE_SP (1U)
+#define PSTATE_EL (3U << 2)
 #define PSTATE_M (0xFU)
 #define PSTATE_nRW (1U << 4)
 #define PSTATE_F (1U << 6)
