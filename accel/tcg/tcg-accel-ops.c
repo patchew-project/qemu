@@ -97,7 +97,8 @@ static void tcg_cpu_reset_hold(CPUState *cpu)
 /* mask must never be zero, except for A20 change call */
 void tcg_handle_interrupt(CPUState *cpu, int mask)
 {
-    cpu->interrupt_request |= mask;
+    qatomic_store_release(&cpu->interrupt_request,
+        cpu->interrupt_request | mask);
 
     /*
      * If called from iothread context, wake the target cpu in
