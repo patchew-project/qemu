@@ -778,7 +778,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
      */
     qatomic_set_mb(&cpu->neg.icount_decr.u16.high, 0);
 
-    if (unlikely(qatomic_read(&cpu->interrupt_request))) {
+    if (unlikely(cpu_test_interrupt(cpu, ~0))) {
         int interrupt_request;
         bql_lock();
         interrupt_request = cpu->interrupt_request;
@@ -786,7 +786,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             /* Mask out external interrupts for this step. */
             interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
         }
-        if (interrupt_request & CPU_INTERRUPT_DEBUG) {
+        if (cpu_test_interrupt(cpu, CPU_INTERRUPT_DEBUG)) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
             cpu->exception_index = EXCP_DEBUG;
             bql_unlock();
@@ -795,7 +795,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
 #if !defined(CONFIG_USER_ONLY)
         if (replay_mode == REPLAY_MODE_PLAY && !replay_has_interrupt()) {
             /* Do nothing */
-        } else if (interrupt_request & CPU_INTERRUPT_HALT) {
+        } else if (cpu_test_interrupt(cpu, CPU_INTERRUPT_HALT)) {
             replay_interrupt();
             cpu->interrupt_request &= ~CPU_INTERRUPT_HALT;
             cpu->halted = 1;
@@ -805,7 +805,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
         } else {
             const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
-            if (interrupt_request & CPU_INTERRUPT_RESET) {
+            if (cpu_test_interrupt(cpu, CPU_INTERRUPT_RESET)) {
                 replay_interrupt();
                 tcg_ops->cpu_exec_reset(cpu);
                 bql_unlock();
@@ -841,7 +841,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             interrupt_request = cpu->interrupt_request;
         }
 #endif /* !CONFIG_USER_ONLY */
-        if (interrupt_request & CPU_INTERRUPT_EXITTB) {
+        if (cpu_test_interrupt(cpu, CPU_INTERRUPT_EXITTB)) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
             /* ensure that no TB jump will be modified as
                the program flow was changed */
