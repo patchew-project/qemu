@@ -108,4 +108,16 @@
     <field name="N" start="31" end="31"/>
   </flags>
   <reg name="NZCV" bitsize="64" type="nzcv_flags"/>
+
+  <flags id="daif_flags" size="8">
+    <!-- FIQ interrupt mask.  -->
+    <field name="F" start="6" end="6"/>
+    <!-- IRQ interrupt mask.  -->
+    <field name="I" start="7" end="7"/>
+    <!-- SError interrupt mask.  -->
+    <field name="A" start="8" end="8"/>
+    <!-- Debug exception mask.  -->
+    <field name="D" start="9" end="9"/>
+  </flags>
+  <reg name="DAIF" bitsize="64" type="daif_flags"/>
 </feature>
