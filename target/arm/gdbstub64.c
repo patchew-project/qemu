@@ -51,6 +51,9 @@ int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     case 34:
         /* CurrentEL */
         return gdb_get_reg64(mem_buf, env->pstate & PSTATE_EL);
+    case 35:
+        /* NZCV */
+        return gdb_get_reg64(mem_buf, pstate_read(env) & PSTATE_NZCV);
     }
     /* Unknown register.  */
     return 0;
@@ -83,6 +86,11 @@ int aarch64_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     case 34:
         /* CurrentEL */
         return 0;
+    case 35:
+        /* NZCV */
+        tmp = (pstate_read(env) & ~PSTATE_NZCV) | (tmp & PSTATE_NZCV);
+        pstate_write(env, tmp);
+        return 8;
     }
     /* Unknown register.  */
     return 0;

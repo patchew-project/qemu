@@ -95,5 +95,17 @@
     <!-- Exception Level.  -->
     <field name="EL" start="2" end="3"/>
   </flags>
-  <reg name="CurrentEL" bitsize="64" type="current_el"/>
+  <reg name="CurrentEL" bitsize="64" type="current_el_flags"/>
+
+  <flags id="nzcv_flags" size="8">
+    <!-- Overflow Condition flag.  -->
+    <field name="V" start="28" end="28"/>
+    <!-- Carry Condition flag.  -->
+    <field name="C" start="29" end="29"/>
+    <!-- Zero Condition flag.  -->
+    <field name="Z" start="30" end="30"/>
+    <!-- Negative Condition flag.  -->
+    <field name="N" start="31" end="31"/>
+  </flags>
+  <reg name="NZCV" bitsize="64" type="nzcv_flags"/>
 </feature>
