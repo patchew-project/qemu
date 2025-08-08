@@ -132,7 +132,8 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 #ifdef WIN32
     fd = _open_osfhandle(fd, _O_BINARY);
     if (fd < 0) {
-        error_setg_win32(&error_warn, WSAGetLastError(), "Couldn't associate a FD with the SOCKET");
+        warn_report("Couldn't associate a FD with the SOCKET: %s"
+                    g_win32_error_message(WSAGetLastError()));
         return NULL;
     }
 #endif
