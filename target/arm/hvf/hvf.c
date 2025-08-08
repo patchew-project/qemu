@@ -2008,7 +2008,8 @@ int hvf_vcpu_exec(CPUState *cpu)
         g_assert_not_reached();
     }
 
-    hvf_sync_vtimer(cpu);
+    if (!hvf_irqchip_in_kernel())
+        hvf_sync_vtimer(cpu);
 
     switch (ec) {
     case EC_SOFTWARESTEP: {
