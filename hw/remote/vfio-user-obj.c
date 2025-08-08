@@ -75,12 +75,9 @@ OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
  */
 #define VFU_OBJECT_ERROR(o, fmt, ...)                                     \
     {                                                                     \
-        if (vfu_object_auto_shutdown()) {                                 \
-            error_setg(&error_abort, (fmt), ## __VA_ARGS__);              \
-        } else {                                                          \
-            error_report((fmt), ## __VA_ARGS__);                          \
-        }                                                                 \
-    }                                                                     \
+        error_report((fmt), ## __VA_ARGS__);                              \
+        assert(!vfu_object_auto_shutdown());                              \
+    }
 
 struct VfuObjectClass {
     ObjectClass parent_class;
