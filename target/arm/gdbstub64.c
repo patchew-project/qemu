@@ -57,6 +57,9 @@ int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     case 36:
         /* DAIF */
         return gdb_get_reg64(mem_buf, env->daif);
+    case 37:
+        /* SPSel */
+        return gdb_get_reg64(mem_buf, env->pstate & PSTATE_SP);
     }
     /* Unknown register.  */
     return 0;
@@ -97,6 +100,11 @@ int aarch64_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     case 36:
         /* DAIF */
         env->daif = tmp & PSTATE_DAIF;
+        return 8;
+    case 37:
+        /* SPSel */
+        tmp = (pstate_read(env) & ~PSTATE_SP) | (tmp & PSTATE_SP);
+        pstate_write(env, tmp);
         return 8;
     }
     /* Unknown register.  */

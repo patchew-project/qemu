@@ -120,4 +120,10 @@
     <field name="D" start="9" end="9"/>
   </flags>
   <reg name="DAIF" bitsize="64" type="daif_flags"/>
+
+  <flags id="spsel_flags" size="8">
+    <!-- Stack Pointer.  -->
+    <field name="SP" start="0" end="0"/>
+  </flags>
+  <reg name="SPSel" bitsize="64" type="spsel_flags"/>
 </feature>
