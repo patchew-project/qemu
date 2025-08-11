@@ -2507,6 +2507,18 @@ static inline ARMSecuritySpace arm_secure_to_space(bool secure)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+
+/**
+ * arm_hw_accel_cpu_feature_supported:
+ * @feat: Feature to test for support
+ * @can_emulate: Whether Allow to fall back to emulation if @feat is not
+ *               supported by hardware accelerator
+ *
+ * Hardware accelerator implementation of cpu_feature_supported().
+ */
+bool arm_hw_accel_cpu_feature_supported(enum arm_features feat,
+                                        bool can_emulate);
+
 /**
  * arm_security_space_below_el3:
  * @env: cpu context
