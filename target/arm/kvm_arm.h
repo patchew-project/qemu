@@ -178,14 +178,6 @@ void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp);
 bool kvm_arm_aarch32_supported(void);
 
 /**
- * kvm_arm_pmu_supported:
- *
- * Returns: true if KVM can enable the PMU
- * and false otherwise.
- */
-bool kvm_arm_pmu_supported(void);
-
-/**
  * kvm_arm_sve_supported:
  *
  * Returns true if KVM can enable SVE and false otherwise.
@@ -208,11 +200,6 @@ bool kvm_arm_el2_supported(void);
 #else
 
 static inline bool kvm_arm_aarch32_supported(void)
-{
-    return false;
-}
-
-static inline bool kvm_arm_pmu_supported(void)
 {
     return false;
 }
