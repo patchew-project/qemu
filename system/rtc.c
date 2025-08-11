@@ -98,6 +98,7 @@ time_t qemu_timedate_diff(struct tm *tm)
         struct tm tmp = *tm;
         tmp.tm_isdst = -1; /* use timezone to figure it out */
         seconds = mktime(&tmp);
+        assert(seconds >= 0);
         break;
     }
     default:
