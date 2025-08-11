@@ -94,16 +94,31 @@ import venv
 HAVE_DISTLIB = True
 try:
     import distlib.scripts
-    import distlib.version
 except ImportError:
     try:
         # Reach into pip's cookie jar.  pylint and flake8 don't understand
         # that these imports will be used via distlib.xxx.
         from pip._vendor import distlib
         import pip._vendor.distlib.scripts  # noqa, pylint: disable=unused-import
-        import pip._vendor.distlib.version  # noqa, pylint: disable=unused-import
     except ImportError:
         HAVE_DISTLIB = False
+
+
+HAVE_PACKAGING = True
+try:
+    import packaging.requirements  # type: ignore
+    import packaging.version  # type: ignore
+except ImportError:
+    try:
+        # Reach into pip's cookie jar yet again.
+        # Shush all the tools rightly telling us this is a bad idea.
+        # pylint: disable=ungrouped-imports, unused-import
+        from pip._vendor import packaging  # type: ignore
+        import pip._vendor.packaging.requirements
+        import pip._vendor.packaging.version  # noqa
+    except ImportError:
+        HAVE_PACKAGING = False
+
 
 # Try to load tomllib, with a fallback to tomli.
 # HAVE_TOMLLIB is checked below, just-in-time, so that mkvenv does not fail
@@ -669,12 +684,22 @@ def _do_ensure(
     canary = None
     for name, info in group.items():
         constraint = _make_version_constraint(info, False)
-        matcher = distlib.version.LegacyMatcher(name + constraint)
-        print(f"mkvenv: checking for {matcher}", file=sys.stderr)
+        req = packaging.requirements.Requirement(name + constraint)
+
+        def _match(
+            req: 'packaging.requirements.Requirement',
+            version_str: str
+        ) -> bool:
+            return bool(req.specifier.contains(
+                packaging.version.Version(version_str),
+                prereleases=True
+            ))
+
+        print(f"mkvenv: checking for {req}", file=sys.stderr)
 
         dist: Optional[Distribution] = None
         try:
-            dist = distribution(matcher.name)
+            dist = distribution(req.name)
         except PackageNotFoundError:
             pass
 
@@ -683,7 +708,7 @@ def _do_ensure(
             # Always pass installed package to pip, so that they can be
             # updated if the requested version changes
             or not _is_system_package(dist)
-            or not matcher.match(distlib.version.LegacyVersion(dist.version))
+            or not _match(req, dist.version)
         ):
             absent.append(name + _make_version_constraint(info, True))
             if len(absent) == 1:
@@ -753,6 +778,8 @@ def ensure_group(
 
     if not HAVE_DISTLIB:
         raise Ouch("found no usable distlib, please install it")
+    if not HAVE_PACKAGING:
+        raise Ouch("found no usable packaging lib, please install it")
 
     parsed_deps = _parse_groups(file)
 
