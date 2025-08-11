@@ -72,8 +72,7 @@ typedef struct GDBState {
     CPUState *g_cpu; /* current CPU for other ops */
     CPUState *query_cpu; /* for q{f|s}ThreadInfo */
     enum RSState state; /* parsing state */
-    char line_buf[MAX_PACKET_LENGTH];
-    int line_buf_index;
+    GString *line_buf;
     int line_sum; /* running checksum */
     int line_csum; /* checksum at the end of the packet */
     GByteArray *last_packet;

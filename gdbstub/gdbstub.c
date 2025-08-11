@@ -64,6 +64,7 @@ void gdb_init_gdbserver_state(void)
     memset(&gdbserver_state, 0, sizeof(GDBState));
     gdbserver_state.init = true;
     gdbserver_state.str_buf = g_string_new(NULL);
+    gdbserver_state.line_buf = g_string_new(NULL);
     gdbserver_state.mem_buf = g_byte_array_sized_new(MAX_PACKET_LENGTH);
     gdbserver_state.last_packet = g_byte_array_sized_new(MAX_PACKET_LENGTH + 4);
 
@@ -2369,7 +2370,7 @@ void gdb_read_byte(uint8_t ch)
         case RS_IDLE:
             if (ch == '$') {
                 /* start of command packet */
-                gdbserver_state.line_buf_index = 0;
+                g_string_set_size(gdbserver_state.line_buf, 0);
                 gdbserver_state.line_sum = 0;
                 gdbserver_state.state = RS_GETLINE;
             } else if (ch == '+') {
@@ -2393,12 +2394,12 @@ void gdb_read_byte(uint8_t ch)
             } else if (ch == '#') {
                 /* end of command, start of checksum*/
                 gdbserver_state.state = RS_CHKSUM1;
-            } else if (gdbserver_state.line_buf_index >= sizeof(gdbserver_state.line_buf) - 1) {
+            } else if (gdbserver_state.line_buf->len >= MAX_PACKET_LENGTH) {
                 trace_gdbstub_err_overrun();
                 gdbserver_state.state = RS_IDLE;
             } else {
                 /* unescaped command character */
-                gdbserver_state.line_buf[gdbserver_state.line_buf_index++] = ch;
+                g_string_append_c(gdbserver_state.line_buf, (gchar) ch);
                 gdbserver_state.line_sum += ch;
             }
             break;
@@ -2406,13 +2407,13 @@ void gdb_read_byte(uint8_t ch)
             if (ch == '#') {
                 /* unexpected end of command in escape sequence */
                 gdbserver_state.state = RS_CHKSUM1;
-            } else if (gdbserver_state.line_buf_index >= sizeof(gdbserver_state.line_buf) - 1) {
+            } else if (gdbserver_state.line_buf->len >= MAX_PACKET_LENGTH) {
                 /* command buffer overrun */
                 trace_gdbstub_err_overrun();
                 gdbserver_state.state = RS_IDLE;
             } else {
                 /* parse escaped character and leave escape state */
-                gdbserver_state.line_buf[gdbserver_state.line_buf_index++] = ch ^ 0x20;
+                g_string_append_c(gdbserver_state.line_buf, (gchar) ch ^ 0x20);
                 gdbserver_state.line_sum += ch;
                 gdbserver_state.state = RS_GETLINE;
             }
@@ -2429,19 +2430,20 @@ void gdb_read_byte(uint8_t ch)
             } else {
                 /* decode repeat length */
                 int repeat = ch - ' ' + 3;
-                if (gdbserver_state.line_buf_index + repeat >= sizeof(gdbserver_state.line_buf) - 1) {
+                if (gdbserver_state.line_buf->len + repeat >= MAX_PACKET_LENGTH) {
                     /* that many repeats would overrun the command buffer */
                     trace_gdbstub_err_overrun();
                     gdbserver_state.state = RS_IDLE;
-                } else if (gdbserver_state.line_buf_index < 1) {
+                } else if (gdbserver_state.line_buf->len < 1) {
                     /* got a repeat but we have nothing to repeat */
                     trace_gdbstub_err_invalid_rle();
                     gdbserver_state.state = RS_GETLINE;
                 } else {
                     /* repeat the last character */
-                    memset(gdbserver_state.line_buf + gdbserver_state.line_buf_index,
-                           gdbserver_state.line_buf[gdbserver_state.line_buf_index - 1], repeat);
-                    gdbserver_state.line_buf_index += repeat;
+                    for (int i = 0; i < repeat; i ++){
+                        g_string_append_c(gdbserver_state.line_buf, 
+                            gdbserver_state.line_buf->str[gdbserver_state.line_buf->len - 1]);
+                    }
                     gdbserver_state.line_sum += ch;
                     gdbserver_state.state = RS_GETLINE;
                 }
@@ -2454,7 +2456,6 @@ void gdb_read_byte(uint8_t ch)
                 gdbserver_state.state = RS_GETLINE;
                 break;
             }
-            gdbserver_state.line_buf[gdbserver_state.line_buf_index] = '\0';
             gdbserver_state.line_csum = fromhex(ch) << 4;
             gdbserver_state.state = RS_CHKSUM2;
             break;
@@ -2477,7 +2478,7 @@ void gdb_read_byte(uint8_t ch)
                 /* send ACK reply */
                 reply = '+';
                 gdb_put_buffer(&reply, 1);
-                gdbserver_state.state = gdb_handle_packet(gdbserver_state.line_buf);
+                gdbserver_state.state = gdb_handle_packet((char *) gdbserver_state.line_buf->str);
             }
             break;
         default:
