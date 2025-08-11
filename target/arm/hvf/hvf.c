@@ -1000,6 +1000,9 @@ uint32_t hvf_arm_get_max_ipa_bit_size(void)
 
 bool arm_hw_accel_cpu_feature_supported(enum arm_features feat, bool can_emulate)
 {
+    hv_return_t ret;
+    bool supported;
+
     if (!hvf_enabled()) {
         return false;
     }
@@ -1011,6 +1014,9 @@ bool arm_hw_accel_cpu_feature_supported(enum arm_features feat, bool can_emulate
     case ARM_FEATURE_GENERIC_TIMER:
         return true;
     case ARM_FEATURE_EL2:
+        ret = hv_vm_config_get_el2_supported(&supported);
+        assert_hvf_ok(ret);
+        return supported;
     case ARM_FEATURE_EL3:
         return false;
     default:
