@@ -79,15 +79,18 @@ _qemu_api_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
-  dependencies: [anyhow_rs, foreign_rs, libc_rs, qemu_api_macros, qemuutil_rs,
-                 qom, hwcore, chardev, migration],
+  # Cannot add qemuutil here; rustc adds it too early to the linker command line.
+  # Instead, we add it and all C static libraries to the executables only.
+  dependencies: [anyhow_rs, foreign_rs, libc_rs, qemu_api_macros],
 )
 
-rust.test('rust-qemu-api-tests', _qemu_api_rs,
-          suite: ['unit', 'rust'])
-
+qemu_api_rs = declare_dependency(link_with: _qemu_api_rs)
 qemu_api = declare_dependency(link_with: [_qemu_api_rs],
-  dependencies: [qemu_api_macros, qom, hwcore, chardev, migration])
+  dependencies: [qemu_api_macros, qom, hwcore, chardev, migration, qemuutil])
+
+rust.test('rust-qemu-api-tests', _qemu_api_rs,
+          suite: ['unit', 'rust'],
+          dependencies: [qemu_api_macros, qom, hwcore, chardev, migration, qemuutil])
 
 # Doctests are essentially integration tests, so they need the same dependencies.
 # Note that running them requires the object files for C code, so place them
