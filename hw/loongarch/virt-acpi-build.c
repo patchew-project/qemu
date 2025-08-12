@@ -551,8 +551,8 @@ static void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     build_madt(tables_blob, tables->linker, lvms);
 
     acpi_add_table(table_offsets, tables_blob);
-    build_pptt(tables_blob, tables->linker, machine,
-               lvms->oem_id, lvms->oem_table_id);
+    build_pptt(tables_blob, tables->linker, machine, lvms->oem_id,
+               lvms->oem_table_id, 0, NULL);
 
     acpi_add_table(table_offsets, tables_blob);
     build_srat(tables_blob, tables->linker, machine);
