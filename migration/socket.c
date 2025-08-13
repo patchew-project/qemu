@@ -129,6 +129,7 @@ static void socket_accept_incoming_migration(QIONetListener *listener,
     }
 
     qio_channel_set_name(QIO_CHANNEL(cioc), "migration-socket-incoming");
+    qio_channel_socket_keep_nonblock(QIO_CHANNEL(cioc));
     migration_channel_process_incoming(QIO_CHANNEL(cioc));
 }
 
