@@ -53,7 +53,10 @@ int vhost_net_set_config(struct vhost_net *net, const uint8_t *data,
 
 void vhost_net_ack_features(struct vhost_net *net, uint64_t features)
 {
-    net->dev.acked_features = net->dev.backend_features;
+    net->dev.acked_features =
+        (qemu_has_vnet_hdr(net->nc) ? 0 : (1ULL << VHOST_NET_F_VIRTIO_NET_HDR))
+         | (net->dev.features & (1ULL << VHOST_USER_F_PROTOCOL_FEATURES));
+
     vhost_ack_features(&net->dev, net->feature_bits, features);
 }
 
@@ -256,12 +259,9 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         if (r < 0) {
             goto fail;
         }
-        net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend)
-            ? 0 : (1ULL << VHOST_NET_F_VIRTIO_NET_HDR);
         net->backend = r;
         net->dev.protocol_features = 0;
     } else {
-        net->dev.backend_features = 0;
         net->dev.protocol_features = 0;
         net->backend = -1;
 
@@ -281,10 +281,10 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
                                sizeof(struct virtio_net_hdr_mrg_rxbuf))) {
             net->dev.features &= ~(1ULL << VIRTIO_NET_F_MRG_RXBUF);
         }
-        if (~net->dev.features & net->dev.backend_features) {
-            fprintf(stderr, "vhost lacks feature mask 0x%" PRIx64
-                   " for backend\n",
-                   (uint64_t)(~net->dev.features & net->dev.backend_features));
+        if (!qemu_has_vnet_hdr(options->net_backend) &&
+            (~net->dev.features & (1ULL << VHOST_NET_F_VIRTIO_NET_HDR))) {
+            fprintf(stderr, "vhost lacks feature mask 0x%llx for backend\n",
+                    ~net->dev.features & (1ULL << VHOST_NET_F_VIRTIO_NET_HDR));
             goto fail;
         }
     }
