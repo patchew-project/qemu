@@ -1134,6 +1134,16 @@ static int vhost_migration_log(MemoryListener *listener, bool enable)
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
     int r;
+
+    if (dev->vdev) {
+        VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev->vdev);
+
+        if (vdc->skip_vhost_migration_log &&
+            vdc->skip_vhost_migration_log(dev->vdev)) {
+            return 0;
+        }
+    }
+
     if (enable == dev->log_enabled) {
         return 0;
     }
