@@ -2682,6 +2682,32 @@ static int kvm_init(AccelState *as, MachineState *ms)
 
     s->vmfd = ret;
 
+/* if target platform has no notion of this or kernel version does
+ * not have it there is no use for compiling this in */
+#ifdef KVM_X86_QUIRK_IGNORE_GUEST_PAT
+    /* first check for modifiable quirks bitmask */
+    ret = kvm_check_extension(s, KVM_CAP_DISABLE_QUIRKS2);
+    /* next make sure disabling it is allowed */
+    if (ret & KVM_X86_QUIRK_IGNORE_GUEST_PAT) {
+        struct kvm_enable_cap *cap;
+        cap = calloc(1, sizeof(struct kvm_enable_cap));
+        if (cap) {
+            cap->cap = KVM_CAP_DISABLE_QUIRKS2;
+            cap->args[0] = KVM_X86_QUIRK_IGNORE_GUEST_PAT;
+            /* if intel cpu does not support self-snoop this is a nop */
+            ret = kvm_vm_ioctl(s, KVM_ENABLE_CAP, cap);
+            if (ret < 0) {
+                error_printf("KVM_X86_QUIRK_IGNORE_GUEST_PAT available and "
+                             "modifiable but we failed to disable it\n");
+            }
+            free(cap);
+        } else {
+            error_printf("KVM_X86_QUIRK_IGNORE_GUEST_PAT: could not "
+                         "allocate memory\n");
+        }
+    }
+#endif
+
     s->nr_as = kvm_vm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
     if (s->nr_as <= 1) {
         s->nr_as = 1;
