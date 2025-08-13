@@ -234,6 +234,8 @@ struct VirtioDeviceClass {
     /* May be called even when vdev->vhost_started is false */
     struct vhost_dev *(*get_vhost)(VirtIODevice *vdev);
     void (*toggle_device_iotlb)(VirtIODevice *vdev);
+
+    bool (*skip_vhost_migration_log)(VirtIODevice *vdev);
 };
 
 void virtio_instance_init_common(Object *proxy_obj, void *data,
