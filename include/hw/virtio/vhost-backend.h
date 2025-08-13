@@ -12,6 +12,7 @@
 #define VHOST_BACKEND_H
 
 #include "system/memory.h"
+#include "qapi/qapi-commands-virtio.h"
 
 typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,
@@ -160,6 +161,7 @@ typedef int (*vhost_set_device_state_fd_op)(struct vhost_dev *dev,
                                             int *reply_fd,
                                             Error **errp);
 typedef int (*vhost_check_device_state_op)(struct vhost_dev *dev, Error **errp);
+typedef void (*vhost_qmp_status_op)(struct vhost_dev *dev, VhostStatus *status);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
@@ -216,6 +218,7 @@ typedef struct VhostOps {
     vhost_supports_device_state_op vhost_supports_device_state;
     vhost_set_device_state_fd_op vhost_set_device_state_fd;
     vhost_check_device_state_op vhost_check_device_state;
+    vhost_qmp_status_op vhost_qmp_status;
 } VhostOps;
 
 int vhost_backend_update_device_iotlb(struct vhost_dev *dev,

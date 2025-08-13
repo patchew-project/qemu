@@ -788,12 +788,14 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
             qmp_decode_features(vdev->device_id, hdev->features);
         status->vhost_dev->acked_features =
             qmp_decode_features(vdev->device_id, hdev->acked_features);
-        status->vhost_dev->protocol_features =
-            qmp_decode_protocols(hdev->protocol_features);
         status->vhost_dev->max_queues = hdev->max_queues;
         status->vhost_dev->backend_cap = hdev->backend_cap;
         status->vhost_dev->log_enabled = hdev->log_enabled;
         status->vhost_dev->log_size = hdev->log_size;
+
+        if (hdev->vhost_ops->vhost_qmp_status) {
+            hdev->vhost_ops->vhost_qmp_status(hdev, status->vhost_dev);
+        }
     }
 
     return status;
