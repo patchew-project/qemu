@@ -269,6 +269,13 @@ bool migrate_local_char_socket(void)
     return s->capabilities[MIGRATION_CAPABILITY_LOCAL_CHAR_SOCKET];
 }
 
+bool migrate_local_vhost_user_blk(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_LOCAL_VHOST_USER_BLK];
+}
+
 bool migrate_ignore_shared(void)
 {
     MigrationState *s = migrate_get_current();

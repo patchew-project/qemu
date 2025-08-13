@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi-types-run-state.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
@@ -32,6 +33,11 @@
 #include "system/system.h"
 #include "system/runstate.h"
 #include "trace.h"
+#include "migration/qemu-file.h"
+#include "migration/migration.h"
+#include "migration/options.h"
+#include "qemu/event_notifier.h"
+#include <sys/mman.h>
 
 static const int user_feature_bits[] = {
     VIRTIO_BLK_F_SIZE_MAX,
@@ -159,32 +165,35 @@ static int vhost_user_blk_start(VirtIODevice *vdev, Error **errp)
 
     s->dev.acked_features = vdev->guest_features;
 
-    ret = vhost_dev_prepare_inflight(&s->dev, vdev);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "Error setting inflight format");
-        goto err_guest_notifiers;
-    }
-
-    if (!s->inflight->addr) {
-        ret = vhost_dev_get_inflight(&s->dev, s->queue_size, s->inflight);
+    if (!s->dev.migrating_backend) {
+        ret = vhost_dev_prepare_inflight(&s->dev, vdev);
         if (ret < 0) {
-            error_setg_errno(errp, -ret, "Error getting inflight");
+            error_setg_errno(errp, -ret, "Error setting inflight format");
             goto err_guest_notifiers;
         }
-    }
 
-    ret = vhost_dev_set_inflight(&s->dev, s->inflight);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "Error setting inflight");
-        goto err_guest_notifiers;
-    }
+        if (!s->inflight->addr) {
+            ret = vhost_dev_get_inflight(&s->dev, s->queue_size, s->inflight);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Error getting inflight");
+                goto err_guest_notifiers;
+            }
+        }
 
-    /* guest_notifier_mask/pending not used yet, so just unmask
-     * everything here. virtio-pci will do the right thing by
-     * enabling/disabling irqfd.
-     */
-    for (i = 0; i < s->dev.nvqs; i++) {
-        vhost_virtqueue_mask(&s->dev, vdev, i, false);
+        ret = vhost_dev_set_inflight(&s->dev, s->inflight);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Error setting inflight");
+            goto err_guest_notifiers;
+        }
+
+        /*
+         * guest_notifier_mask/pending not used yet, so just unmask
+         * everything here. virtio-pci will do the right thing by
+         * enabling/disabling irqfd.
+         */
+        for (i = 0; i < s->dev.nvqs; i++) {
+            vhost_virtqueue_mask(&s->dev, vdev, i, false);
+        }
     }
 
     s->dev.vq_index_end = s->dev.nvqs;
@@ -230,6 +239,10 @@ static int vhost_user_blk_stop(VirtIODevice *vdev)
 
     force_stop = s->skip_get_vring_base_on_force_shutdown &&
                  qemu_force_shutdown_requested();
+
+    s->dev.migrating_backend = s->dev.migrating_backend ||
+        (runstate_check(RUN_STATE_FINISH_MIGRATE) &&
+         migrate_local_vhost_user_blk());
 
     ret = force_stop ? vhost_dev_force_stop(&s->dev, vdev, true) :
                        vhost_dev_stop(&s->dev, vdev, true);
@@ -343,7 +356,9 @@ static void vhost_user_blk_reset(VirtIODevice *vdev)
     vhost_dev_free_inflight(s->inflight);
 }
 
-static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
+static int vhost_user_blk_connect(DeviceState *dev,
+                                  bool migrating_backend,
+                                  Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
@@ -359,6 +374,7 @@ static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
     s->dev.nvqs = s->num_queues;
     s->dev.vqs = s->vhost_vqs;
     s->dev.vq_index = 0;
+    s->dev.migrating_backend = migrating_backend;
 
     vhost_dev_set_config_notifier(&s->dev, &blk_ops);
 
@@ -409,7 +425,7 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        if (vhost_user_blk_connect(dev, &local_err) < 0) {
+        if (vhost_user_blk_connect(dev, false, &local_err) < 0) {
             error_report_err(local_err);
             qemu_chr_fe_disconnect(&s->chardev);
             return;
@@ -428,31 +444,37 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-static int vhost_user_blk_realize_connect(VHostUserBlk *s, Error **errp)
+static int vhost_user_blk_realize_connect(VHostUserBlk *s,
+                                          bool migrating_backend,
+                                          Error **errp)
 {
     DeviceState *dev = DEVICE(s);
     int ret;
 
     s->connected = false;
 
-    ret = qemu_chr_fe_wait_connected(&s->chardev, errp);
-    if (ret < 0) {
-        return ret;
+    if (!migrating_backend) {
+        ret = qemu_chr_fe_wait_connected(&s->chardev, errp);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
-    ret = vhost_user_blk_connect(dev, errp);
+    ret = vhost_user_blk_connect(dev, migrating_backend, errp);
     if (ret < 0) {
         qemu_chr_fe_disconnect(&s->chardev);
         return ret;
     }
     assert(s->connected);
 
-    ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
-                               VIRTIO_DEVICE(s)->config_len, errp);
-    if (ret < 0) {
-        qemu_chr_fe_disconnect(&s->chardev);
-        vhost_dev_cleanup(&s->dev);
-        return ret;
+    if (!migrating_backend) {
+        ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
+                                   VIRTIO_DEVICE(s)->config_len, errp);
+        if (ret < 0) {
+            qemu_chr_fe_disconnect(&s->chardev);
+            vhost_dev_cleanup(&s->dev);
+            return ret;
+        }
     }
 
     return 0;
@@ -468,6 +490,11 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     int i, ret;
 
     trace_vhost_user_blk_device_realize();
+
+    if (s->incoming_backend && !runstate_check(RUN_STATE_INMIGRATE)) {
+        error_setg(errp, "__yc_local-incoming can be used "
+                   "only for incoming migration");
+    }
 
     if (!s->chardev.chr) {
         error_setg(errp, "chardev is mandatory");
@@ -517,7 +544,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
             error_report_err(*errp);
             *errp = NULL;
         }
-        ret = vhost_user_blk_realize_connect(s, errp);
+        ret = vhost_user_blk_realize_connect(s, s->incoming_backend, errp);
     } while (ret < 0 && retries--);
 
     if (ret < 0) {
@@ -525,9 +552,12 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     }
 
     /* we're fully initialized, now we can operate, so add the handler */
-    qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL,
-                             vhost_user_blk_event, NULL, (void *)dev,
-                             NULL, true);
+    if (!s->incoming_backend) {
+        qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL,
+                                 vhost_user_blk_event, NULL, (void *)dev,
+                                 NULL, true);
+    }
+
     trace_vhost_user_blk_device_realize_finish();
     return;
 
@@ -592,6 +622,79 @@ static const VMStateDescription vmstate_vhost_user_blk = {
     },
 };
 
+static void vhost_user_blk_save(VirtIODevice *vdev, QEMUFile *f)
+{
+    VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    struct vhost_dev *hdev = vhost_user_blk_get_vhost(vdev);
+
+    if (!hdev->migrating_backend) {
+        return;
+    }
+
+    qemu_file_put_fd(f, s->inflight->fd);
+    qemu_put_be64(f, s->inflight->size);
+    qemu_put_be64(f, s->inflight->offset);
+    qemu_put_be16(f, s->inflight->queue_size);
+
+    vhost_save_backend(hdev, f);
+}
+
+static int vhost_user_blk_load(VirtIODevice *vdev, QEMUFile *f,
+                                      int version_id)
+{
+    VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    struct vhost_dev *hdev = vhost_user_blk_get_vhost(vdev);
+
+    if (!hdev->migrating_backend) {
+        return 0;
+    }
+
+    s->inflight->fd = qemu_file_get_fd(f);
+    qemu_get_be64s(f, &s->inflight->size);
+    qemu_get_be64s(f, &s->inflight->offset);
+    qemu_get_be16s(f, &s->inflight->queue_size);
+
+    s->inflight->addr = mmap(0, s->inflight->size, PROT_READ | PROT_WRITE,
+                             MAP_SHARED, s->inflight->fd, s->inflight->offset);
+    if (s->inflight->addr == MAP_FAILED) {
+        return -EINVAL;
+    }
+
+    vhost_load_backend(hdev, f);
+
+    return 0;
+}
+
+static int vhost_user_blk_post_load(VirtIODevice *vdev)
+{
+    VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    struct vhost_dev *hdev = vhost_user_blk_get_vhost(vdev);
+    DeviceState *dev = &s->parent_obj.parent_obj;
+
+    if (!hdev->migrating_backend) {
+        return 0;
+    }
+
+    memcpy(&s->blkcfg, vdev->config, vdev->config_len);
+
+    /* we're fully initialized, now we can operate, so add the handler */
+    qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL,
+                             vhost_user_blk_event, NULL, (void *)dev,
+                             NULL, true);
+
+    return 0;
+}
+
+static bool vhost_user_blk_skip_migration_log(VirtIODevice *vdev)
+{
+    /*
+     * Note that hdev->migrating_backend is false at this moment,
+     * as logging is being setup during outging migration setup stage,
+     * which is far before vm stop.
+     */
+    return migrate_local_vhost_user_blk();
+}
+
 static const Property vhost_user_blk_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserBlk, chardev),
     DEFINE_PROP_UINT16("num-queues", VHostUserBlk, num_queues,
@@ -605,6 +708,8 @@ static const Property vhost_user_blk_properties[] = {
                       VIRTIO_BLK_F_WRITE_ZEROES, true),
     DEFINE_PROP_BOOL("skip-get-vring-base-on-force-shutdown", VHostUserBlk,
                      skip_get_vring_base_on_force_shutdown, false),
+    DEFINE_PROP_BOOL("local-incoming", VHostUserBlk,
+                     incoming_backend, false),
 };
 
 static void vhost_user_blk_class_init(ObjectClass *klass, const void *data)
@@ -624,6 +729,10 @@ static void vhost_user_blk_class_init(ObjectClass *klass, const void *data)
     vdc->set_status = vhost_user_blk_set_status;
     vdc->reset = vhost_user_blk_reset;
     vdc->get_vhost = vhost_user_blk_get_vhost;
+    vdc->save = vhost_user_blk_save;
+    vdc->load = vhost_user_blk_load;
+    vdc->post_load = vhost_user_blk_post_load,
+    vdc->skip_vhost_migration_log = vhost_user_blk_skip_migration_log;
 }
 
 static const TypeInfo vhost_user_blk_info = {

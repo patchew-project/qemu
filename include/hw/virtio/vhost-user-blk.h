@@ -52,6 +52,8 @@ struct VHostUserBlk {
     bool started_vu;
 
     bool skip_get_vring_base_on_force_shutdown;
+
+    bool incoming_backend;
 };
 
 #endif
