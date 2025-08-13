@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
@@ -101,6 +102,70 @@ void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt)
     if (cnt->users == 0) {
         QTAILQ_REMOVE(&s->zpci_dma_limit, cnt, link);
     }
+}
+
+static int s390_pci_read_error_region(VFIOPCIDevice *vfio_pci,
+                                      struct vfio_device_zpci_err_region *err)
+{
+    struct vfio_region_info *region = NULL;
+    g_autofree void *buf;
+    int ret;
+
+    ret = vfio_device_get_region_info_type(&vfio_pci->vbasedev,
+                    VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_IBM,
+                    VFIO_REGION_SUBTYPE_IBM_ZPCI_ERROR_REGION, &region);
+
+    if (ret) {
+        error_report("Failed to get the region info for passthrough device"
+                    " (rc=%d)", ret);
+        return ret;
+    }
+
+    buf = g_malloc0(region->size);
+
+    if (!buf) {
+        error_report("Failed to allocate memory for error region");
+        return -ENOMEM;
+    }
+
+    ret = pread(vfio_pci->vbasedev.fd, buf, region->size, region->offset);
+    if (ret != region->size) {
+        error_report("Failed to read vfio zpci error region");
+        return -EINVAL;
+    }
+
+    memcpy(err, (struct vfio_device_zpci_err_region *) buf,
+            sizeof(struct vfio_device_zpci_err_region));
+    return 0;
+}
+
+static void s390_pci_err_handler(VFIOPCIDevice *vfio_pci)
+{
+    S390PCIBusDevice *pbdev;
+    struct vfio_device_zpci_err_region err;
+    int ret;
+
+    pbdev = s390_pci_find_dev_by_target(s390_get_phb(),
+                                        DEVICE(&vfio_pci->pdev)->id);
+
+    QEMU_LOCK_GUARD(&pbdev->err_handler_lock);
+
+    ret = s390_pci_read_error_region(vfio_pci, &err);
+    if (ret) {
+        return;
+    }
+
+    pbdev->state = ZPCI_FS_ERROR;
+    s390_pci_generate_error_event(err.pec, pbdev->fh, pbdev->fid, 0, 0);
+
+    while (err.pending_errors) {
+        ret = s390_pci_read_error_region(vfio_pci, &err);
+        if (ret) {
+            return;
+        }
+        s390_pci_generate_error_event(err.pec, pbdev->fh, pbdev->fid, 0, 0);
+    }
+    return;
 }
 
 static void s390_pci_read_base(S390PCIBusDevice *pbdev,
@@ -368,4 +433,21 @@ void s390_pci_get_clp_info(S390PCIBusDevice *pbdev)
     s390_pci_read_group(pbdev, info);
     s390_pci_read_util(pbdev, info);
     s390_pci_read_pfip(pbdev, info);
+}
+
+void s390_pci_setup_err_handler(S390PCIBusDevice *pbdev)
+{
+    int ret;
+    struct vfio_region_info *region = NULL;
+    VFIOPCIDevice *vdev =  container_of(pbdev->pdev, VFIOPCIDevice, pdev);
+
+    ret = vfio_device_get_region_info_type(&vdev->vbasedev,
+                    VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_IBM,
+                    VFIO_REGION_SUBTYPE_IBM_ZPCI_ERROR_REGION, &region);
+
+    if (ret) {
+        info_report("Automated error recovery not available for passthrough device");
+        return;
+    }
+    vdev->arch_err_handler = s390_pci_err_handler;
 }
