@@ -1986,15 +1986,12 @@ static int vhost_dev_set_vring_enable(struct vhost_dev *hdev, int enable)
         return 0;
     }
 
-    /*
-     * For vhost-user devices, if VHOST_USER_F_PROTOCOL_FEATURES has not
-     * been negotiated, the rings start directly in the enabled state, and
-     * .vhost_set_vring_enable callback will fail since
-     * VHOST_USER_SET_VRING_ENABLE is not supported.
-     */
-    if (hdev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER &&
-        !virtio_has_feature(hdev->backend_features,
-                            VHOST_USER_F_PROTOCOL_FEATURES)) {
+    if (hdev->vhost_ops->vhost_set_vring_enable_supported &&
+        !hdev->vhost_ops->vhost_set_vring_enable_supported(hdev)) {
+        /*
+         * This means, that rings are always enabled, and disable/enable
+         * API is not supported.
+         */
         return 0;
     }
 
