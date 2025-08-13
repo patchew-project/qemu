@@ -10,7 +10,15 @@ vhost_reject_section(const char *name, int d) "%s:%d"
 vhost_iotlb_miss(void *dev, int step) "%p step %d"
 vhost_dev_cleanup(void *dev) "%p"
 vhost_dev_start(void *dev, const char *name, bool vrings) "%p:%s vrings:%d"
+vhost_dev_start_finish(const char *name) "%s"
 vhost_dev_stop(void *dev, const char *name, bool vrings) "%p:%s vrings:%d"
+vhost_dev_stop_finish(const char *name) "%s"
+vhost_virtque_start(const char *name, int idx) "%s %d"
+vhost_virtque_start_finish(const char *name, int idx) "%s %d"
+vhost_virtque_stop(const char *name, int idx) "%s %d"
+vhost_virtque_stop_finish(const char *name, int idx) "%s %d"
+vhost_dev_init(void) ""
+vhost_dev_init_finish(void) ""
 
 
 # vhost-user.c
