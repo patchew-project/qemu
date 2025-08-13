@@ -49,6 +49,7 @@ struct QIOChannelSocket {
     socklen_t remoteAddrLen;
     ssize_t zero_copy_queued;
     ssize_t zero_copy_sent;
+    bool keep_nonblock;
 };
 
 
@@ -274,5 +275,7 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
 int qio_channel_socket_set_send_buffer(QIOChannelSocket *ioc,
                                        size_t size,
                                        Error **errp);
+
+void qio_channel_socket_keep_nonblock(QIOChannel *ioc);
 
 #endif /* QIO_CHANNEL_SOCKET_H */

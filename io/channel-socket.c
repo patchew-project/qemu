@@ -462,9 +462,16 @@ static void qio_channel_socket_finalize(Object *obj)
 }
 
 
+void qio_channel_socket_keep_nonblock(QIOChannel *ioc)
+{
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
+    sioc->keep_nonblock = true;
+}
+
+
 #ifndef WIN32
 static void qio_channel_socket_copy_fds(struct msghdr *msg,
-                                        int **fds, size_t *nfds)
+                                        int **fds, size_t *nfds, bool set_block)
 {
     struct cmsghdr *cmsg;
 
@@ -497,8 +504,9 @@ static void qio_channel_socket_copy_fds(struct msghdr *msg,
                 continue;
             }
 
-            /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-            qemu_socket_set_block(fd);
+            if (set_block) {
+                qemu_socket_set_block(fd);
+            }
 
 #ifndef MSG_CMSG_CLOEXEC
             qemu_set_cloexec(fd);
@@ -556,7 +564,7 @@ static ssize_t qio_channel_socket_readv(QIOChannel *ioc,
     }
 
     if (fds && nfds) {
-        qio_channel_socket_copy_fds(&msg, fds, nfds);
+        qio_channel_socket_copy_fds(&msg, fds, nfds, !sioc->keep_nonblock);
     }
 
     return ret;
