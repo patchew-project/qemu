@@ -98,10 +98,11 @@ struct vhost_dev {
      * offered by a backend which may be a subset of the total
      * features eventually offered to the guest.
      *
-     * @features: available features provided by the backend
+     * @_features: available features provided by the backend, private,
+     *             direct access only in vhost.c
      * @acked_features: final negotiated features with front-end driver
      */
-    uint64_t features;
+    uint64_t _features;
     uint64_t acked_features;
 
     uint64_t max_queues;
@@ -351,6 +352,22 @@ int vhost_dev_set_inflight(struct vhost_dev *dev,
 int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
                            struct vhost_inflight *inflight);
 bool vhost_dev_has_iommu(struct vhost_dev *dev);
+
+/**
+ * vhost_dev_has_feature() - check if vhost device has a specific feature
+ * @dev: common vhost_dev structure
+ * @feature: feature bit to check
+ *
+ * Return: true if the feature is supported, false otherwise
+ */
+bool vhost_dev_has_feature(struct vhost_dev *dev, uint64_t feature);
+
+/**
+ * vhost_dev_features() - simple getter for dev->features
+ */
+uint64_t vhost_dev_features(struct vhost_dev *dev);
+
+void vhost_dev_clear_feature(struct vhost_dev *dev, uint64_t feature);
 
 #ifdef CONFIG_VHOST
 int vhost_reset_device(struct vhost_dev *hdev);

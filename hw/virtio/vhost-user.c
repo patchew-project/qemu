@@ -1245,15 +1245,14 @@ static int vhost_user_set_vring_base(struct vhost_dev *dev,
 
 static bool vhost_user_set_vring_enable_supported(struct vhost_dev *dev)
 {
-    return virtio_has_feature(dev->features,
-                              VHOST_USER_F_PROTOCOL_FEATURES);
+    return vhost_dev_has_feature(dev, VHOST_USER_F_PROTOCOL_FEATURES);
 }
 
 static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
 {
     int i;
 
-    if (!virtio_has_feature(dev->features, VHOST_USER_F_PROTOCOL_FEATURES)) {
+    if (!vhost_dev_has_feature(dev, VHOST_USER_F_PROTOCOL_FEATURES)) {
         return -EINVAL;
     }
 
@@ -1465,7 +1464,7 @@ static int vhost_user_set_features(struct vhost_dev *dev,
      * Don't lose VHOST_USER_F_PROTOCOL_FEATURES, which is vhost-user
      * specific.
      */
-    if (virtio_has_feature(dev->features, VHOST_USER_F_PROTOCOL_FEATURES)) {
+    if (vhost_dev_has_feature(dev, VHOST_USER_F_PROTOCOL_FEATURES)) {
         features |= 1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
     }
 

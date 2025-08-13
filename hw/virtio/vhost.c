@@ -50,6 +50,21 @@ static QLIST_HEAD(, vhost_dev) vhost_log_devs[VHOST_BACKEND_TYPE_MAX];
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
+bool vhost_dev_has_feature(struct vhost_dev *dev, uint64_t feature)
+{
+    return virtio_has_feature(dev->_features, feature);
+}
+
+uint64_t vhost_dev_features(struct vhost_dev *dev)
+{
+    return dev->_features;
+}
+
+void vhost_dev_clear_feature(struct vhost_dev *dev, uint64_t feature)
+{
+    virtio_clear_feature(&dev->_features, feature);
+}
+
 unsigned int vhost_get_max_memslots(void)
 {
     unsigned int max = UINT_MAX;
@@ -1571,7 +1586,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         }
     }
 
-    hdev->features = features;
+    hdev->_features = features;
 
     hdev->memory_listener = (MemoryListener) {
         .name = "vhost",
@@ -1594,7 +1609,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     };
 
     if (hdev->migration_blocker == NULL) {
-        if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
+        if (!vhost_dev_has_feature(hdev, VHOST_F_LOG_ALL)) {
             error_setg(&hdev->migration_blocker,
                        "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
         } else if (vhost_dev_log_is_shared(hdev) && !qemu_memfd_alloc_check()) {
@@ -1865,7 +1880,7 @@ uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
     const int *bit = feature_bits;
     while (*bit != VHOST_INVALID_FEATURE_BIT) {
         uint64_t bit_mask = (1ULL << *bit);
-        if (!(hdev->features & bit_mask)) {
+        if (!vhost_dev_has_feature(hdev, *bit)) {
             features &= ~bit_mask;
         }
         bit++;
