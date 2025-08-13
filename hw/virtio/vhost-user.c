@@ -28,6 +28,8 @@
 #include "system/runstate.h"
 #include "system/cryptodev.h"
 #include "migration/postcopy-ram.h"
+#include "migration/qemu-file-types.h"
+#include "migration/qemu-file.h"
 #include "trace.h"
 #include "system/ramblock.h"
 
@@ -2273,6 +2275,10 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
     u->dev = dev;
     dev->opaque = u;
 
+    if (dev->migrating_backend) {
+        goto out;
+    }
+
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
         error_setg_errno(errp, -err, "vhost_backend_init failed");
@@ -2387,6 +2393,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
         }
     }
 
+out:
     u->postcopy_notifier.notify = vhost_user_postcopy_notifier;
     postcopy_add_notifier(&u->postcopy_notifier);
 
@@ -2936,6 +2943,10 @@ void vhost_user_async_close(DeviceState *d,
 
 static int vhost_user_dev_start(struct vhost_dev *dev, bool started)
 {
+    if (dev->migrating_backend) {
+        return 0;
+    }
+
     if (!vhost_user_has_prot(dev, VHOST_USER_PROTOCOL_F_STATUS)) {
         return 0;
     }
@@ -3105,6 +3116,55 @@ static void vhost_user_qmp_status(struct vhost_dev *dev, VhostStatus *status)
     status->protocol_features = qmp_decode_protocols(u->protocol_features);
 }
 
+static void vhost_user_save(struct vhost_dev *dev, QEMUFile *f)
+{
+    struct vhost_user *u = dev->opaque;
+    bool has_backend_channel = !!u->backend_sioc;
+    qemu_put_be64(f, u->protocol_features);
+    qemu_put_be32(f, u->user->memory_slots);
+
+    qemu_put_byte(f, has_backend_channel);
+    if (u->backend_sioc) {
+        qemu_file_put_fd(f, u->backend_sioc->fd);
+    }
+}
+
+static int vhost_user_load(struct vhost_dev *dev, QEMUFile *f)
+{
+    struct vhost_user *u = dev->opaque;
+    uint8_t has_backend_channel;
+    uint32_t memory_slots;
+
+    qemu_get_be64s(f, &u->protocol_features);
+    qemu_get_be32s(f, &memory_slots);
+    qemu_get_8s(f, &has_backend_channel);
+
+    u->user->memory_slots = memory_slots;
+
+    if (has_backend_channel) {
+        int fd = qemu_file_get_fd(f);
+        Error *local_err = NULL;
+
+        u->backend_sioc = qio_channel_socket_new_fd(fd, &local_err);
+        if (!u->backend_sioc) {
+            error_report_err(local_err);
+            return -ECONNREFUSED;
+        }
+        u->backend_src = qio_channel_add_watch_source(
+            QIO_CHANNEL(u->backend_sioc), G_IO_IN | G_IO_HUP,
+            backend_read, dev, NULL, NULL);
+    }
+
+    if (dev->migration_blocker == NULL &&
+        !vhost_user_has_prot(dev, VHOST_USER_PROTOCOL_F_LOG_SHMFD)) {
+        error_setg(&dev->migration_blocker,
+                   "Migration disabled: vhost-user backend lacks "
+                   "VHOST_USER_PROTOCOL_F_LOG_SHMFD feature.");
+    }
+
+    return 0;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_backend_init,
@@ -3146,4 +3206,6 @@ const VhostOps user_ops = {
         .vhost_set_device_state_fd = vhost_user_set_device_state_fd,
         .vhost_check_device_state = vhost_user_check_device_state,
         .vhost_qmp_status = vhost_user_qmp_status,
+        .vhost_save_backend = vhost_user_save,
+        .vhost_load_backend = vhost_user_load,
 };
