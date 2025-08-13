@@ -50,6 +50,7 @@ if have_block or have_user
   stub_ss.add(files('qtest.c'))
   stub_ss.add(files('vm-stop.c'))
   stub_ss.add(files('vmstate.c'))
+  stub_ss.add(files('qemu_file.c'))
 endif
 
 if have_user

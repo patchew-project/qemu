@@ -2,6 +2,7 @@
 #include "migration/vmstate.h"
 #include "qapi/qapi-types-migration.h"
 #include "migration/client-options.h"
+#include "migration/options.h"
 
 int vmstate_register_with_alias_id(VMStateIf *obj,
                                    uint32_t instance_id,
@@ -27,4 +28,9 @@ bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
 MigMode migrate_mode(void)
 {
     return MIG_MODE_NORMAL;
+}
+
+bool migrate_local_char_socket(void)
+{
+    return false;
 }
