@@ -286,7 +286,7 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
         return -ENOSYS;
     }
 
-    if (assign) {
+    if (assign && !virtio_is_vhost_migrating_backend(vdev)) {
         r = event_notifier_init(notifier, 1);
         if (r < 0) {
             error_report("%s: unable to init event notifier: %s (%d)",

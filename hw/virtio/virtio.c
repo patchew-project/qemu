@@ -26,6 +26,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/vhost.h"
 #include "migration/qemu-file-types.h"
+#include "migration/qemu-file.h"
 #include "qemu/atomic.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/qdev-properties.h"
@@ -2992,6 +2993,7 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t guest_features_lo = (vdev->guest_features & 0xffffffff);
     int i;
+    bool migrating_backend = virtio_is_vhost_migrating_backend(vdev);
 
     if (k->save_config) {
         k->save_config(qbus->parent, f);
@@ -3025,9 +3027,21 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
          */
         qemu_put_be64(f, vdev->vq[i].vring.desc);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
+
+        if (migrating_backend) {
+            qemu_file_put_fd(f,
+                             event_notifier_get_fd(&vdev->vq[i].host_notifier));
+            qemu_file_put_fd(
+                f, event_notifier_get_fd(&vdev->vq[i].guest_notifier));
+        }
+
         if (k->save_queue) {
             k->save_queue(qbus->parent, i, f);
         }
+    }
+
+    if (migrating_backend) {
+        qemu_file_put_fd(f, event_notifier_get_fd(&vdev->config_notifier));
     }
 
     if (vdc->save != NULL) {
@@ -3235,6 +3249,8 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    Error *local_err = NULL;
+    bool migrating_backend = virtio_is_vhost_migrating_backend(vdev);
 
     /*
      * We poison the endianness to ensure it does not get used before
@@ -3304,6 +3320,13 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         vdev->vq[i].signalled_used_valid = false;
         vdev->vq[i].notification = true;
 
+        if (migrating_backend) {
+            event_notifier_init_fd(&vdev->vq[i].host_notifier,
+                                   qemu_file_get_fd(f));
+            event_notifier_init_fd(&vdev->vq[i].guest_notifier,
+                                   qemu_file_get_fd(f));
+        }
+
         if (!vdev->vq[i].vring.desc && vdev->vq[i].last_avail_idx) {
             error_report("VQ %d address 0x0 "
                          "inconsistent with Host index 0x%x",
@@ -3315,6 +3338,10 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
             if (ret)
                 return ret;
         }
+    }
+
+    if (migrating_backend) {
+        event_notifier_init_fd(&vdev->config_notifier   , qemu_file_get_fd(f));
     }
 
     virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
@@ -3330,6 +3357,19 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         ret = vmstate_load_state(f, vdc->vmsd, vdev, version_id);
         if (ret) {
             return ret;
+        }
+    }
+
+    if (migrating_backend) {
+        /*
+         * On vhost backend migration, device do load host_features from
+         * migration stream. So update host_features.
+         */
+        vdev->host_features = vdc->get_features(vdev, vdev->host_features,
+                                                &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return -EINVAL;
         }
     }
 
@@ -3391,6 +3431,18 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                 vdev->vq[i].shadow_avail_idx = vdev->vq[i].last_avail_idx;
                 vdev->vq[i].shadow_avail_wrap_counter =
                                         vdev->vq[i].last_avail_wrap_counter;
+                continue;
+            }
+
+            if (migrating_backend) {
+                /*
+                 * Indices are not synced prior backend migration (as we don't
+                 * stop vrings by GET_VRING_BASE). No reason to sync them now,
+                 * and do any checks.
+                 */
+                vdev->vq[i].used_idx = 0;
+                vdev->vq[i].shadow_avail_idx = 0;
+                vdev->vq[i].inuse = 0;
                 continue;
             }
 
@@ -3762,8 +3814,9 @@ int virtio_queue_set_guest_notifier(VirtIODevice *vdev, int n, bool assign,
     EventNotifierHandler *read_fn = is_config ?
         virtio_config_guest_notifier_read :
         virtio_queue_guest_notifier_read;
+    bool migrating_backend = virtio_is_vhost_migrating_backend(vdev);
 
-    if (assign) {
+    if (assign && !migrating_backend) {
         int r = event_notifier_init(notifier, 0);
         if (r < 0) {
             return r;
@@ -3773,7 +3826,7 @@ int virtio_queue_set_guest_notifier(VirtIODevice *vdev, int n, bool assign,
     event_notifier_set_handler(notifier,
                                (assign && !with_irqfd) ? read_fn : NULL);
 
-    if (!assign) {
+    if (!assign && !migrating_backend) {
         /* Test and clear notifier before closing it,*/
         /* in case poll callback didn't have time to run. */
         read_fn(notifier);
@@ -4390,6 +4443,23 @@ done:
     }
 
     return element;
+}
+
+bool virtio_is_vhost_migrating_backend(VirtIODevice *vdev)
+{
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    struct vhost_dev *hdev;
+
+    if (!vdc->get_vhost) {
+        return false;
+    }
+
+    hdev = vdc->get_vhost(vdev);
+    if (!hdev) {
+        return false;
+    }
+
+    return hdev->migrating_backend;
 }
 
 static const TypeInfo virtio_device_info = {

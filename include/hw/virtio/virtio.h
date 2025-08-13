@@ -238,6 +238,8 @@ struct VirtioDeviceClass {
     bool (*skip_vhost_migration_log)(VirtIODevice *vdev);
 };
 
+bool virtio_is_vhost_migrating_backend(VirtIODevice *vdev);
+
 void virtio_instance_init_common(Object *proxy_obj, void *data,
                                  size_t vdev_size, const char *vdev_name);
 
