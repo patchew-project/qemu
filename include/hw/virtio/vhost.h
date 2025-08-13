@@ -103,6 +103,10 @@ struct vhost_dev {
      * @acked_features: final negotiated features with front-end driver
      */
     uint64_t _features;
+    bool _features_wait_incoming;
+
+    bool migrating_backend;
+
     uint64_t acked_features;
 
     uint64_t max_queues;
@@ -318,6 +322,8 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
  */
 uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
                             uint64_t features);
+void vhost_save_backend(struct vhost_dev *hdev, QEMUFile *f);
+int vhost_load_backend(struct vhost_dev *hdev, QEMUFile *f);
 
 /**
  * vhost_ack_features() - set vhost acked_features

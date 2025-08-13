@@ -163,6 +163,9 @@ typedef int (*vhost_set_device_state_fd_op)(struct vhost_dev *dev,
 typedef int (*vhost_check_device_state_op)(struct vhost_dev *dev, Error **errp);
 typedef void (*vhost_qmp_status_op)(struct vhost_dev *dev, VhostStatus *status);
 
+typedef void (*vhost_detached_save_op)(struct vhost_dev *dev, QEMUFile *f);
+typedef int (*vhost_detached_load_op)(struct vhost_dev *dev, QEMUFile *f);
+
 typedef struct VhostOps {
     VhostBackendType backend_type;
     vhost_backend_init vhost_backend_init;
@@ -219,6 +222,8 @@ typedef struct VhostOps {
     vhost_set_device_state_fd_op vhost_set_device_state_fd;
     vhost_check_device_state_op vhost_check_device_state;
     vhost_qmp_status_op vhost_qmp_status;
+    vhost_detached_save_op vhost_save_backend;
+    vhost_detached_load_op vhost_load_backend;
 } VhostOps;
 
 int vhost_backend_update_device_iotlb(struct vhost_dev *dev,

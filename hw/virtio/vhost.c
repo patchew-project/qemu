@@ -26,8 +26,10 @@
 #include "hw/mem/memory-device.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file-types.h"
+#include "migration/qemu-file.h"
 #include "system/dma.h"
 #include "trace.h"
+#include <stdint.h>
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -1321,6 +1323,8 @@ out:
     return ret;
 }
 
+static void vhost_virtqueue_error_notifier(EventNotifier *n);
+
 int vhost_virtqueue_start(struct vhost_dev *dev,
                           struct VirtIODevice *vdev,
                           struct vhost_virtqueue *vq,
@@ -1346,7 +1350,17 @@ int vhost_virtqueue_start(struct vhost_dev *dev,
         return r;
     }
 
-    vq->num = state.num = virtio_queue_get_num(vdev, idx);
+    vq->num = virtio_queue_get_num(vdev, idx);
+
+    if (dev->migrating_backend) {
+        if (dev->vhost_ops->vhost_set_vring_err) {
+            event_notifier_set_handler(&vq->error_notifier,
+                                       vhost_virtqueue_error_notifier);
+        }
+        return 0;
+    }
+
+    state.num = vq->num;
     r = dev->vhost_ops->vhost_set_vring_num(dev, &state);
     if (r) {
         VHOST_OPS_DEBUG(r, "vhost_set_vring_num failed");
@@ -1423,6 +1437,10 @@ static int do_vhost_virtqueue_stop(struct vhost_dev *dev,
     int r = 0;
 
     trace_vhost_virtque_stop(vdev->name, idx);
+
+    if (dev->migrating_backend) {
+        return 0;
+    }
 
     if (virtio_queue_get_desc_addr(vdev, idx) == 0) {
         /* Don't stop the virtqueue which might have not been started */
@@ -1514,7 +1532,15 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
     struct vhost_vring_file file = {
         .index = vhost_vq_index,
     };
-    int r = event_notifier_init(&vq->masked_notifier, 0);
+    int r;
+
+    vq->dev = dev;
+
+    if (dev->migrating_backend) {
+        return 0;
+    }
+
+    r = event_notifier_init(&vq->masked_notifier, 0);
     if (r < 0) {
         return r;
     }
@@ -1525,8 +1551,6 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
         VHOST_OPS_DEBUG(r, "vhost_set_vring_call failed");
         goto fail_call;
     }
-
-    vq->dev = dev;
 
     if (dev->vhost_ops->vhost_set_vring_err) {
         r = event_notifier_init(&vq->error_notifier, 0);
@@ -1564,10 +1588,14 @@ fail_call:
 
 static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
 {
-    event_notifier_cleanup(&vq->masked_notifier);
+    if (!vq->dev->migrating_backend) {
+        event_notifier_cleanup(&vq->masked_notifier);
+    }
     if (vq->dev->vhost_ops->vhost_set_vring_err) {
         event_notifier_set_handler(&vq->error_notifier, NULL);
-        event_notifier_cleanup(&vq->error_notifier);
+        if (!vq->dev->migrating_backend) {
+            event_notifier_cleanup(&vq->error_notifier);
+        }
     }
 }
 
@@ -1624,21 +1652,30 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     r = vhost_set_backend_type(hdev, backend_type);
     assert(r >= 0);
 
+    if (hdev->migrating_backend) {
+        /* backend must support detached state */
+        assert(hdev->vhost_ops->vhost_save_backend);
+        assert(hdev->vhost_ops->vhost_load_backend);
+        hdev->_features_wait_incoming = true;
+    }
+
     r = hdev->vhost_ops->vhost_backend_init(hdev, opaque, errp);
     if (r < 0) {
         goto fail;
     }
 
-    r = hdev->vhost_ops->vhost_set_owner(hdev);
-    if (r < 0) {
-        error_setg_errno(errp, -r, "vhost_set_owner failed");
-        goto fail;
-    }
+    if (!hdev->migrating_backend) {
+        r = hdev->vhost_ops->vhost_set_owner(hdev);
+        if (r < 0) {
+            error_setg_errno(errp, -r, "vhost_set_owner failed");
+            goto fail;
+        }
 
-    r = hdev->vhost_ops->vhost_get_features(hdev, &hdev->_features);
-    if (r < 0) {
-        error_setg_errno(errp, -r, "vhost_get_features failed");
-        goto fail;
+        r = hdev->vhost_ops->vhost_get_features(hdev, &hdev->_features);
+        if (r < 0) {
+            error_setg_errno(errp, -r, "vhost_get_features failed");
+            goto fail;
+        }
     }
 
     for (i = 0; i < hdev->nvqs; ++i, ++n_initialized_vqs) {
@@ -1670,7 +1707,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .region_del = vhost_iommu_region_del,
     };
 
-    if (hdev->migration_blocker == NULL) {
+    if (!hdev->migrating_backend && hdev->migration_blocker == NULL) {
         if (!vhost_dev_has_feature(hdev, VHOST_F_LOG_ALL)) {
             error_setg(&hdev->migration_blocker,
                        "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
@@ -1697,7 +1734,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
-    if (!check_memslots(hdev, errp)) {
+    if (!hdev->migrating_backend && !check_memslots(hdev, errp)) {
         r = -EINVAL;
         goto fail;
     }
@@ -1765,8 +1802,11 @@ void vhost_dev_disable_notifiers_nvqs(struct vhost_dev *hdev,
      */
     memory_region_transaction_commit();
 
-    for (i = 0; i < nvqs; ++i) {
-        virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i);
+    if (!hdev->migrating_backend) {
+        for (i = 0; i < nvqs; ++i) {
+            virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus),
+                                             hdev->vq_index + i);
+        }
     }
     virtio_device_release_ioeventfd(vdev);
 }
@@ -1920,6 +1960,12 @@ uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
                             uint64_t features)
 {
     const int *bit = feature_bits;
+
+    if (hdev->_features_wait_incoming) {
+        /* Excessive set is enough for early initialization. */
+        return features;
+    }
+
     while (*bit != VHOST_INVALID_FEATURE_BIT) {
         uint64_t bit_mask = (1ULL << *bit);
         if (!vhost_dev_has_feature(hdev, *bit)) {
@@ -1928,6 +1974,66 @@ uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
         bit++;
     }
     return features;
+}
+
+void vhost_save_backend(struct vhost_dev *hdev, QEMUFile *f)
+{
+    int i;
+
+    assert(hdev->migrating_backend);
+
+    if (hdev->vhost_ops->vhost_save_backend) {
+        hdev->vhost_ops->vhost_save_backend(hdev, f);
+    }
+
+    qemu_put_be64(f, hdev->_features);
+    qemu_put_be64(f, hdev->max_queues);
+    qemu_put_be64(f, hdev->nvqs);
+
+    for (i = 0; i < hdev->nvqs; i++) {
+        qemu_file_put_fd(f,
+                         event_notifier_get_fd(&hdev->vqs[i].error_notifier));
+        qemu_file_put_fd(f,
+                         event_notifier_get_fd(&hdev->vqs[i].masked_notifier));
+    }
+}
+
+int vhost_load_backend(struct vhost_dev *hdev, QEMUFile *f)
+{
+    int i;
+    Error *err = NULL;
+    uint64_t nvqs;
+
+    assert(hdev->migrating_backend);
+
+    if (hdev->vhost_ops->vhost_load_backend) {
+        hdev->vhost_ops->vhost_load_backend(hdev, f);
+    }
+
+    qemu_get_be64s(f, &hdev->_features);
+    qemu_get_be64s(f, &hdev->max_queues);
+    qemu_get_be64s(f, &nvqs);
+
+    if (nvqs != hdev->nvqs) {
+        error_report("%s: number of virt queues mismatch", __func__);
+        return -EINVAL;
+    }
+
+    for (i = 0; i < hdev->nvqs; i++) {
+        event_notifier_init_fd(&hdev->vqs[i].error_notifier,
+                               qemu_file_get_fd(f));
+        event_notifier_init_fd(&hdev->vqs[i].masked_notifier,
+                               qemu_file_get_fd(f));
+    }
+
+    if (!check_memslots(hdev, &err)) {
+        error_report_err(err);
+        return -EINVAL;
+    }
+
+    hdev->_features_wait_incoming = false;
+
+    return 0;
 }
 
 void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
@@ -2075,19 +2181,24 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
     hdev->started = true;
     hdev->vdev = vdev;
 
-    r = vhost_dev_set_features(hdev, hdev->log_enabled);
-    if (r < 0) {
-        goto fail_features;
+    if (!hdev->migrating_backend) {
+        r = vhost_dev_set_features(hdev, hdev->log_enabled);
+        if (r < 0) {
+            warn_report("%s %d", __func__, __LINE__);
+            goto fail_features;
+        }
     }
 
     if (vhost_dev_has_iommu(hdev)) {
         memory_listener_register(&hdev->iommu_listener, vdev->dma_as);
     }
 
-    r = hdev->vhost_ops->vhost_set_mem_table(hdev, hdev->mem);
-    if (r < 0) {
-        VHOST_OPS_DEBUG(r, "vhost_set_mem_table failed");
-        goto fail_mem;
+    if (!hdev->migrating_backend) {
+        r = hdev->vhost_ops->vhost_set_mem_table(hdev, hdev->mem);
+        if (r < 0) {
+            VHOST_OPS_DEBUG(r, "vhost_set_mem_table failed");
+            goto fail_mem;
+        }
     }
     for (i = 0; i < hdev->nvqs; ++i) {
         r = vhost_virtqueue_start(hdev,
@@ -2127,7 +2238,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
         }
         vhost_dev_elect_mem_logger(hdev, true);
     }
-    if (vrings) {
+    if (vrings && !hdev->migrating_backend) {
         r = vhost_dev_set_vring_enable(hdev, true);
         if (r) {
             goto fail_log;
@@ -2154,6 +2265,8 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
         }
     }
     vhost_start_config_intr(hdev);
+
+    hdev->migrating_backend = false;
 
     trace_vhost_dev_start_finish(vdev->name);
     return 0;
@@ -2204,14 +2317,29 @@ static int do_vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
     event_notifier_cleanup(
         &hdev->vqs[VHOST_QUEUE_NUM_CONFIG_INR].masked_config_notifier);
 
+    if (hdev->migrating_backend) {
+        /* backend must support detached state */
+        assert(hdev->vhost_ops->vhost_save_backend);
+        assert(hdev->vhost_ops->vhost_load_backend);
+    }
+
     trace_vhost_dev_stop(hdev, vdev->name, vrings);
 
     if (hdev->vhost_ops->vhost_dev_start) {
         hdev->vhost_ops->vhost_dev_start(hdev, false);
     }
-    if (vrings) {
+    if (vrings && !hdev->migrating_backend) {
         vhost_dev_set_vring_enable(hdev, false);
     }
+
+    if (hdev->migrating_backend) {
+        for (i = 0; i < hdev->nvqs; ++i) {
+            struct vhost_virtqueue *vq = hdev->vqs + i;
+
+            event_notifier_set_handler(&vq->error_notifier, NULL);
+        }
+    }
+
     for (i = 0; i < hdev->nvqs; ++i) {
         rc |= do_vhost_virtqueue_stop(hdev,
                                       vdev,
