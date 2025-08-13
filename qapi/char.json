@@ -280,10 +280,22 @@
 #     mutually exclusive with @reconnect.
 #     (default: 0) (Since: 9.2)
 #
+# @support-local-migration: The socket open file descriptor will
+#     migrate if this field is true and local-char-socket migration
+#     capability enabled (default: false) (Since: 10.2)
+#
+# @local-incoming: Do load open file descriptor for the socket
+#     on incoming migration. May be used only if QEMU is started
+#     for incoming migration and only together with local-char-socket
+#     migration capability (default: false) (Since: 10.2)
+#
 # Features:
 #
 # @deprecated: Member @reconnect is deprecated.  Use @reconnect-ms
 #     instead.
+#
+# @unstable: Members @support-local-migration and @local-incoming
+#            are experimental
 #
 # Since: 1.4
 ##
@@ -298,7 +310,9 @@
             '*tn3270': 'bool',
             '*websocket': 'bool',
             '*reconnect': { 'type': 'int', 'features': [ 'deprecated' ] },
-            '*reconnect-ms': 'int' },
+            '*reconnect-ms': 'int',
+            '*support-local-migration': { 'type': 'bool', 'features': [ 'unstable' ] },
+            '*local-incoming': { 'type': 'bool', 'features': [ 'unstable' ] } },
   'base': 'ChardevCommon' }
 
 ##

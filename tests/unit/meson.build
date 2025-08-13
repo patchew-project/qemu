@@ -139,7 +139,7 @@ if have_system
     'test-bufferiszero': [],
     'test-smp-parse': [qom, meson.project_source_root() / 'hw/core/machine-smp.c'],
     'test-vmstate': [migration, io],
-    'test-yank': ['socket-helpers.c', qom, io, chardev]
+    'test-yank': ['socket-helpers.c', qom, io, chardev, '../../hw/core/vmstate-if.c']
   }
   if config_host_data.get('CONFIG_INOTIFY1')
     tests += {'test-util-filemonitor': []}
@@ -151,7 +151,7 @@ if have_system
   if not get_option('tsan')
     if host_os != 'windows'
         tests += {
-          'test-char': ['socket-helpers.c', qom, io, chardev]
+          'test-char': ['socket-helpers.c', qom, io, chardev, '../../hw/core/vmstate-if.c']
         }
     endif
 

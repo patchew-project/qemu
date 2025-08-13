@@ -381,7 +381,7 @@ qtests = {
   'pxe-test': files('boot-sector.c'),
   'pnv-xive2-test': files('pnv-xive2-common.c', 'pnv-xive2-flush-sync.c',
                           'pnv-xive2-nvpg_bar.c'),
-  'qos-test': [chardev, io, qos_test_ss.apply({}).sources()],
+  'qos-test': [chardev, io, qos_test_ss.apply({}).sources(), '../../hw/core/vmstate-if.c'],
   'tpm-crb-swtpm-test': [io, tpmemu_files],
   'tpm-crb-test': [io, tpmemu_files],
   'tpm-tis-swtpm-test': [io, tpmemu_files, 'tpm-tis-util.c'],

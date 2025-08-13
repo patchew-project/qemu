@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "chardev/char.h"
+#include "qapi-types-char.h"
 #include "io/channel-socket.h"
 #include "io/channel-websock.h"
 #include "qemu/error-report.h"
@@ -34,6 +35,10 @@
 #include "qapi/qapi-visit-sockets.h"
 #include "qemu/yank.h"
 #include "trace.h"
+#include "migration/vmstate.h"
+#include "migration/qemu-file.h"
+#include "migration/migration.h"
+#include "hw/vmstate-if.h"
 
 #include "chardev/char-io.h"
 #include "chardev/char-socket.h"
@@ -1118,6 +1123,7 @@ static void char_socket_finalize(Object *obj)
         object_unref(OBJECT(s->tls_creds));
     }
     g_free(s->tls_authz);
+    g_free(s->vmstate_name);
     if (s->registered_yank) {
         /*
          * In the chardev-change special-case, we shouldn't unregister the yank
@@ -1276,8 +1282,15 @@ static int qmp_chardev_open_socket_client(Chardev *chr,
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
+    s->reconnect_time_ms = reconnect_ms;
+
+    if (s->local_incoming) {
+        /* We'll get fd at migreation load. This field works once */
+        s->local_incoming = false;
+        return 0;
+    }
+
     if (reconnect_ms > 0) {
-        s->reconnect_time_ms = reconnect_ms;
         tcp_chr_connect_client_async(chr);
         return 0;
     } else {
@@ -1367,6 +1380,52 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
     return true;
 }
 
+static int char_socket_save(QEMUFile *f, void *opaque, size_t size,
+                           const VMStateField *field, JSONWriter *vmdesc)
+{
+    SocketChardev *s = opaque;
+
+    warn_report("%s", __func__);
+    return qemu_file_put_fd(f, s->sioc->fd);
+}
+
+static int char_socket_load(QEMUFile *f, void *opaque, size_t size,
+                           const VMStateField *field)
+{
+    Chardev *chr = opaque;
+
+    int fd = qemu_file_get_fd(f);
+    warn_report("%s %d", __func__, fd);
+    if (fd < 0) {
+        return fd;
+    }
+    return tcp_chr_add_client(chr, fd);
+}
+
+static bool char_socket_needed(void *opaque)
+{
+    SocketChardev *s = opaque;
+
+    return !!s->vmstate_name;
+}
+
+const VMStateDescription vmstate_char_socket = {
+    .name = "char_socket",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = char_socket_needed,
+    .fields = (VMStateField[]) {
+        {
+            .name = "fd",
+            .info = &(const VMStateInfo) {
+                .name = "fd",
+                .get = char_socket_load,
+                .put = char_socket_save,
+            },
+        },
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static void qmp_chardev_open_socket(Chardev *chr,
                                     ChardevBackend *backend,
@@ -1381,14 +1440,36 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     bool is_websock     = sock->has_websocket ? sock->websocket : false;
+    bool support_local_mig = sock->has_support_local_migration
+                                 ? sock->support_local_migration
+                                 : false;
+    bool local_incoming = sock->local_incoming;
     int64_t reconnect_ms = 0;
     SocketAddress *addr;
+
+    if (support_local_mig && is_listen) {
+        error_setg(errp,
+                   "local migration is not supported for listening sockets");
+        return;
+    }
+
+    if (support_local_mig && !(chr->label && chr->label[0])) {
+        error_setg(errp,
+                   "local migration is not supported for unnamed chardevs");
+        return;
+    }
 
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
     s->is_tn3270 = is_tn3270;
     s->is_websock = is_websock;
     s->do_nodelay = do_nodelay;
+    s->local_incoming = local_incoming;
+
+    if (support_local_mig) {
+        s->vmstate_name = g_strdup_printf("__yc-chardev-%s", chr->label);
+    }
+
     if (sock->tls_creds) {
         Object *creds;
         creds = object_resolve_path_component(
@@ -1448,6 +1529,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     update_disconnected_filename(s);
 
     if (s->is_listen) {
+        assert(!s->vmstate_name);
         if (qmp_chardev_open_socket_server(chr, is_telnet || is_tn3270,
                                            is_waitconnect, errp) < 0) {
             return;
@@ -1463,6 +1545,8 @@ static void qmp_chardev_open_socket(Chardev *chr,
             return;
         }
     }
+
+    vmstate_register(VMSTATE_IF(s), -1, &vmstate_char_socket, s);
 }
 
 static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
@@ -1581,9 +1665,20 @@ char_socket_get_connected(Object *obj, Error **errp)
     return s->state == TCP_CHARDEV_STATE_CONNECTED;
 }
 
+static char *
+char_socket_if_get_id(VMStateIf *obj)
+{
+    SocketChardev *s = SOCKET_CHARDEV(obj);
+
+    return s->vmstate_name;
+}
+
 static void char_socket_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
+    VMStateIfClass *vc = VMSTATE_IF_CLASS(oc);
+
+    vc->get_id = char_socket_if_get_id;
 
     cc->supports_yank = true;
 
@@ -1613,6 +1708,10 @@ static const TypeInfo char_socket_type_info = {
     .instance_size = sizeof(SocketChardev),
     .instance_finalize = char_socket_finalize,
     .class_init = char_socket_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_VMSTATE_IF },
+        { }
+    }
 };
 
 static void register_types(void)

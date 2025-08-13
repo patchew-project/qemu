@@ -78,6 +78,9 @@ struct SocketChardev {
     bool connect_err_reported;
 
     QIOTask *connect_task;
+
+    char *vmstate_name;
+    bool local_incoming;
 };
 typedef struct SocketChardev SocketChardev;
 
