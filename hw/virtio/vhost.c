@@ -1329,6 +1329,8 @@ int vhost_virtqueue_start(struct vhost_dev *dev,
     };
     struct VirtQueue *vvq = virtio_get_queue(vdev, idx);
 
+    trace_vhost_virtque_start(vdev->name, idx);
+
     r = vhost_vrings_map(dev, vdev, vq, idx);
     if (r <= 0) {
         return r;
@@ -1390,6 +1392,8 @@ int vhost_virtqueue_start(struct vhost_dev *dev,
         }
     }
 
+    trace_vhost_virtque_start_finish(vdev->name, idx);
+
     return 0;
 
 fail:
@@ -1407,6 +1411,8 @@ static int do_vhost_virtqueue_stop(struct vhost_dev *dev,
         .index = vhost_vq_index,
     };
     int r = 0;
+
+    trace_vhost_virtque_stop(vdev->name, idx);
 
     if (virtio_queue_get_desc_addr(vdev, idx) == 0) {
         /* Don't stop the virtqueue which might have not been started */
@@ -1441,6 +1447,8 @@ static int do_vhost_virtqueue_stop(struct vhost_dev *dev,
     }
 
     vhost_vrings_unmap(dev, vq, true);
+
+    trace_vhost_virtque_stop_finish(vdev->name, idx);
     return r;
 }
 
@@ -1598,6 +1606,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 {
     int i, r, n_initialized_vqs = 0;
 
+    trace_vhost_dev_init();
+
     hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
 
@@ -1681,6 +1691,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         r = -EINVAL;
         goto fail;
     }
+
+    trace_vhost_dev_init_finish();
 
     return 0;
 
@@ -2132,6 +2144,8 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
         }
     }
     vhost_start_config_intr(hdev);
+
+    trace_vhost_dev_start_finish(vdev->name);
     return 0;
 fail_iotlb:
     if (vhost_dev_has_iommu(hdev) &&
@@ -2210,6 +2224,8 @@ static int do_vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
     hdev->started = false;
     vdev->vhost_started = false;
     hdev->vdev = NULL;
+
+    trace_vhost_dev_stop_finish(vdev->name);
     return rc;
 }
 
