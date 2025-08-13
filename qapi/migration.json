@@ -520,11 +520,19 @@
 # @local-char-socket: Migrate socket chardevs open file descriptors.
 #     Only may be used when migration channel is unix socket. Only
 #     involves socket chardevs with "support-local-migration" option
-#     enabled.  (since 10.2)
+#     enabled. For target device also @local-incoming option must
+#     be specified (since 10.2)
+#
+# @local-vhost-user-blk: Migrate vhost-user-blk locally, keeping
+#     backend alive. Open file descriptors and backend-related state are
+#     migrated. Only may be used when migration channel is unix socket.
+#     For target device also @local-incoming option must be specified
+#     (since 10.2)
 #
 # Features:
 #
-# @unstable: Members @x-colo and @x-ignore-shared are experimental.
+# @unstable: Members @x-colo, @x-ignore-shared, @local-char-socket,
+#     @local-vhost-user-blk are experimental.
 # @deprecated: Member @zero-blocks is deprecated as being part of
 #     block migration which was already removed.
 #
@@ -542,7 +550,8 @@
            'validate-uuid', 'background-snapshot',
            'zero-copy-send', 'postcopy-preempt', 'switchover-ack',
            'dirty-limit', 'mapped-ram',
-           { 'name': 'local-char-socket', 'features': [ 'unstable' ] } ] }
+           { 'name': 'local-char-socket', 'features': [ 'unstable' ] },
+           { 'name': 'local-vhost-user-blk', 'features': [ 'unstable' ] } ] }
 
 ##
 # @MigrationCapabilityStatus:
