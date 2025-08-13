@@ -82,4 +82,9 @@ struct vfio_device_info_cap_zpci_pfip {
 	__u8 pfip[];
 };
 
+struct vfio_device_zpci_err_region {
+	__u16 pec;
+	int pending_errors;
+};
+
 #endif
