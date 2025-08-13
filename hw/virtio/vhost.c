@@ -1596,7 +1596,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout,
                    Error **errp)
 {
-    uint64_t features;
     int i, r, n_initialized_vqs = 0;
 
     hdev->vdev = NULL;
@@ -1616,7 +1615,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
-    r = hdev->vhost_ops->vhost_get_features(hdev, &features);
+    r = hdev->vhost_ops->vhost_get_features(hdev, &hdev->_features);
     if (r < 0) {
         error_setg_errno(errp, -r, "vhost_get_features failed");
         goto fail;
@@ -1630,8 +1629,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
             goto fail;
         }
     }
-
-    hdev->_features = features;
 
     hdev->memory_listener = (MemoryListener) {
         .name = "vhost",
