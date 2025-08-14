@@ -215,8 +215,8 @@ static void vfio_ram_discard_notify_discard(RamDiscardListener *rdl,
     }
 }
 
-static int vfio_ram_discard_notify_populate(RamDiscardListener *rdl,
-                                            MemoryRegionSection *section)
+int vfio_ram_discard_notify_populate(RamDiscardListener *rdl,
+                                     MemoryRegionSection *section)
 {
     VFIORamDiscardListener *vrdl = container_of(rdl, VFIORamDiscardListener,
                                                 listener);
@@ -572,8 +572,8 @@ void vfio_container_region_add(VFIOContainerBase *bcontainer,
     if (memory_region_has_ram_discard_manager(section->mr)) {
         if (!cpr_remap) {
             vfio_ram_discard_register_listener(bcontainer, section);
-        } else if (!vfio_cpr_ram_discard_register_listener(bcontainer,
-                                                           section)) {
+        } else if (!vfio_cpr_ram_discard_replay_populated(bcontainer,
+                                                          section)) {
             goto fail;
         }
         return;

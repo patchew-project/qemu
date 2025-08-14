@@ -67,7 +67,7 @@ bool vfio_cpr_container_match(struct VFIOContainer *container,
 void vfio_cpr_giommu_remap(struct VFIOContainerBase *bcontainer,
                            MemoryRegionSection *section);
 
-bool vfio_cpr_ram_discard_register_listener(
+bool vfio_cpr_ram_discard_replay_populated(
     struct VFIOContainerBase *bcontainer, MemoryRegionSection *section);
 
 void vfio_cpr_save_vector_fd(struct VFIOPCIDevice *vdev, const char *name,
