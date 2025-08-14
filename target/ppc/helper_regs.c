@@ -310,11 +310,6 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
         value &= ~(1 << MSR_ME);
         value |= env->msr & (1 << MSR_ME);
     }
-    if ((value ^ env->msr) & (R_MSR_IR_MASK | R_MSR_DR_MASK)) {
-        if (!(env->flags & POWERPC_FLAG_PPE42)) {
-            cpu_interrupt_exittb(cs);
-        }
-    }
     if ((env->mmu_model == POWERPC_MMU_BOOKE ||
          env->mmu_model == POWERPC_MMU_BOOKE206) &&
         ((value ^ env->msr) & R_MSR_GS_MASK)) {
@@ -325,11 +320,17 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
         /* Swap temporary saved registers with GPRs */
         hreg_swap_gpr_tgpr(env);
     }
-    if (unlikely((value ^ env->msr) & R_MSR_EP_MASK)) {
-        if (!(env->flags & POWERPC_FLAG_PPE42)) {
+
+    /* PPE42 MSR has bits overlapping with others */
+    if (!(env->flags & POWERPC_FLAG_PPE42)) {
+        if ((value ^ env->msr) & (R_MSR_IR_MASK | R_MSR_DR_MASK)) {
+            cpu_interrupt_exittb(cs);
+        }
+        if (unlikely((value ^ env->msr) & R_MSR_EP_MASK)) {
             env->excp_prefix = FIELD_EX64(value, MSR, EP) * 0xFFF00000;
         }
     }
+
     /*
      * If PR=1 then EE, IR and DR must be 1
      *
