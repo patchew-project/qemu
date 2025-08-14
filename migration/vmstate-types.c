@@ -321,6 +321,10 @@ static int get_fd(QEMUFile *f, void *pv, size_t size,
                   const VMStateField *field)
 {
     int32_t *v = pv;
+    if (migrate_mode() == MIG_MODE_CPR_EXEC) {
+        qemu_get_sbe32s(f, v);
+        return 0;
+    }
     *v = qemu_file_get_fd(f);
     return 0;
 }
@@ -329,6 +333,10 @@ static int put_fd(QEMUFile *f, void *pv, size_t size,
                   const VMStateField *field, JSONWriter *vmdesc)
 {
     int32_t *v = pv;
+    if (migrate_mode() == MIG_MODE_CPR_EXEC) {
+        qemu_put_sbe32s(f, v);
+        return 0;
+    }
     return qemu_file_put_fd(f, *v);
 }
 
