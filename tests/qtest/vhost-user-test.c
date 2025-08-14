@@ -88,6 +88,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_GET_CONFIG = 24,
     VHOST_USER_SET_CONFIG = 25,
+    VHOST_USER_GET_SHMEM_CONFIG = 44,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -109,6 +110,20 @@ typedef struct VhostUserLog {
     uint64_t mmap_offset;
 } VhostUserLog;
 
+#define VIRTIO_MAX_SHMEM_REGIONS 256
+
+typedef struct VhostUserShMemConfig {
+    uint32_t nregions;
+    uint32_t padding;
+    uint64_t memory_sizes[VIRTIO_MAX_SHMEM_REGIONS];
+} VhostUserShMemConfig;
+
+typedef struct TestServerShmem {
+    bool test_enabled;
+    uint32_t nregions_sent;
+    uint64_t sizes_sent[VIRTIO_MAX_SHMEM_REGIONS];
+} TestServerShmem;
+
 typedef struct VhostUserMsg {
     VhostUserRequest request;
 
@@ -124,6 +139,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
         VhostUserLog log;
+        VhostUserShMemConfig shmem;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
@@ -170,6 +186,7 @@ typedef struct TestServer {
     bool test_fail;
     int test_flags;
     int queues;
+    TestServerShmem shmem;
     struct vhost_user_ops *vu_ops;
 } TestServer;
 
@@ -513,6 +530,31 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         qos_printf("set_vring(%d)=%s\n", msg.payload.state.index,
                    msg.payload.state.num ? "enabled" : "disabled");
         break;
+    
+    case VHOST_USER_GET_SHMEM_CONFIG:
+        if (!s->shmem.test_enabled) {
+            /* Reply with error if shmem feature not enabled */
+            msg.flags |= VHOST_USER_REPLY_MASK;
+            msg.size = sizeof(uint64_t);
+            msg.payload.u64 = -1; /* Error */
+            qemu_chr_fe_write_all(chr, (uint8_t *) &msg, VHOST_USER_HDR_SIZE + msg.size);
+        } else {
+            /* Reply with test shmem configuration */
+            msg.flags |= VHOST_USER_REPLY_MASK;
+            msg.size = sizeof(VhostUserShMemConfig);
+            msg.payload.shmem.nregions = 2; /* Test with 2 regions */
+            msg.payload.shmem.padding = 0;
+            msg.payload.shmem.memory_sizes[0] = 0x100000; /* 1MB */
+            msg.payload.shmem.memory_sizes[1] = 0x200000; /* 2MB */
+            
+            /* Record what we're sending for test validation */
+            s->shmem.nregions_sent = msg.payload.shmem.nregions;
+            s->shmem.sizes_sent[0] = msg.payload.shmem.memory_sizes[0];
+            s->shmem.sizes_sent[1] = msg.payload.shmem.memory_sizes[1];
+            
+            qemu_chr_fe_write_all(chr, (uint8_t *) &msg, VHOST_USER_HDR_SIZE + msg.size);
+        }
+        break;
 
     default:
         qos_printf("vhost-user: un-handled message: %d\n", msg.request);
@@ -809,6 +851,22 @@ static void *vhost_user_test_setup_shm(GString *cmd_line, void *arg)
     return server;
 }
 
+static void *vhost_user_test_setup_shmem_config(GString *cmd_line, void *arg)
+{
+    TestServer *server = test_server_new("vhost-user-test", arg);
+    test_server_listen(server);
+
+    /* Enable shmem testing for this server */
+    server->shmem.test_enabled = true;
+
+    append_mem_opts(server, cmd_line, 256, TEST_MEMFD_SHM);
+    server->vu_ops->append_opts(server, cmd_line, "");
+
+    g_test_queue_destroy(vhost_user_test_cleanup, server);
+
+    return server;
+}
+
 static void test_read_guest_mem(void *obj, void *arg, QGuestAllocator *alloc)
 {
     TestServer *server = arg;
@@ -1089,6 +1147,33 @@ static struct vhost_user_ops g_vu_net_ops = {
     .get_protocol_features = vu_net_get_protocol_features,
 };
 
+/* Test function for VHOST_USER_GET_SHMEM_CONFIG message */
+static void test_shmem_config(void *obj, void *arg, QGuestAllocator *alloc)
+{
+    TestServer *s = arg;
+    
+    g_assert_true(s->shmem.test_enabled);
+    
+    g_mutex_lock(&s->data_mutex);
+    s->shmem.nregions_sent = 0;
+    s->shmem.sizes_sent[0] = 0;
+    s->shmem.sizes_sent[1] = 0;
+    g_mutex_unlock(&s->data_mutex);
+    
+    VhostUserMsg msg = {
+        .request = VHOST_USER_GET_SHMEM_CONFIG,
+        .flags = VHOST_USER_VERSION,
+        .size = 0,
+    };
+    chr_read(s, (uint8_t *) &msg, VHOST_USER_HDR_SIZE);
+
+    g_mutex_lock(&s->data_mutex);
+    g_assert_cmpint(s->shmem.nregions_sent, ==, 2);
+    g_assert_cmpint(s->shmem.sizes_sent[0], ==, 0x100000); /* 1MB */
+    g_assert_cmpint(s->shmem.sizes_sent[1], ==, 0x200000); /* 2MB */
+    g_mutex_unlock(&s->data_mutex);
+}
+
 static void register_vhost_user_test(void)
 {
     QOSGraphTestOptions opts = {
@@ -1136,6 +1221,12 @@ static void register_vhost_user_test(void)
     qos_add_test("vhost-user/multiqueue",
                  "virtio-net",
                  test_multiqueue, &opts);
+    
+    opts.before = vhost_user_test_setup_shmem_config;
+    opts.edge.extra_device_opts = "";
+    qos_add_test("vhost-user/shmem-config",
+                 "virtio-net",
+                 test_shmem_config, &opts);
 }
 libqos_init(register_vhost_user_test);
 
