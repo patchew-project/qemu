@@ -767,6 +767,9 @@ static inline void qht_bucket_remove_entry(struct qht_bucket *orig, int pos)
                 return qht_entry_move(orig, pos, b, i - 1);
             }
             qht_debug_assert(prev);
+            if (!prev) {
+                continue;
+            }
             return qht_entry_move(orig, pos, prev, QHT_BUCKET_ENTRIES - 1);
         }
         prev = b;
