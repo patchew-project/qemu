@@ -269,6 +269,9 @@ struct VFIOIOMMUClass {
     void (*release)(VFIOContainerBase *bcontainer);
 };
 
+int vfio_ram_discard_notify_populate(RamDiscardListener *rdl,
+                                     MemoryRegionSection *section);
+
 VFIORamDiscardListener *vfio_find_ram_discard_listener(
     VFIOContainerBase *bcontainer, MemoryRegionSection *section);
 
