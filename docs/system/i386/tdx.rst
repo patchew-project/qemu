@@ -97,6 +97,28 @@ if the fixed-1 feature is requested to be disabled explicitly. This is newly
 added to QEMU for TDX because TDX has fixed-1 features that are forcibly enabled
 by TDX module and VMM cannot disable them.
 
+TD attestation
+~~~~~~~~~~~~~~
+
+In TD guest, the attestation process is used to verify the TDX guest
+trustworthiness to other entities before provisioning secrets to the guest.
+
+TD attestation is initiated first by calling TDG.MR.REPORT inside TD to get the
+REPORT. Then the REPORT data needs to be converted into a remotely verifiable
+TD-Quote signed by a service hosting TD-Quoting Enclave operating on the host.
+
+The guest issues TDG.VP.VMCALL<GetQuote> which is forwarded to user space by KVM.
+QEMU handles the request and sends the REPORT further to a Quote Generation Service
+(QGS) for signing. On success, a TD-Quote is returned back to the guest.
+
+To enable TD attestation, QGS destination must be configured using a
+"quote-generation-socket" property. Intel reference TDX QGS supports the
+following socket addresses: `{"type":"unix", "path":"/var/run/tdx-qgs/qgs.socket"}`
+or `{"type": "vsock", "cid":"2","port":"<portnum>"}`.
+
+See TDX Enabling Guide for details on how to provision the platform for
+TD attestation to work.
+
 Launching a TD (TDX VM)
 -----------------------
 
@@ -111,6 +133,9 @@ split kernel-irqchip, as below:
         -object tdx-guest,id=tdx0 \\
         -machine ...,confidential-guest-support=tdx0 \\
         -bios OVMF.fd \\
+
+Additional properties and their descriptions are documented in the QAPI
+schema for the 'tdx-guest' object.
 
 Restrictions
 ------------
@@ -135,19 +160,6 @@ SEAMCALLs and corresonponding QEMU change.
 
 It's targeted as future work.
 
-TD attestation
---------------
-
-In TD guest, the attestation process is used to verify the TDX guest
-trustworthiness to other entities before provisioning secrets to the guest.
-
-TD attestation is initiated first by calling TDG.MR.REPORT inside TD to get the
-REPORT. Then the REPORT data needs to be converted into a remotely verifiable
-Quote by SGX Quoting Enclave (QE).
-
-It's a future work in QEMU to add support of TD attestation since it lacks
-support in current KVM.
-
 Live Migration
 --------------
 
@@ -158,4 +170,4 @@ References
 
 - `TDX Homepage <https://www.intel.com/content/www/us/en/developer/articles/technical/intel-trust-domain-extensions.html>`__
 
-- `SGX QE <https://github.com/intel/SGXDataCenterAttestationPrimitives/tree/master/QuoteGeneration>`__
+- `TDX Enabling Guide <https://cc-enabling.trustedservices.intel.com/intel-tdx-enabling-guide/01/introduction/>`__
