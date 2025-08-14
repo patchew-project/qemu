@@ -1015,7 +1015,11 @@ static int virtio_pci_one_vector_unmask(VirtIOPCIProxy *proxy,
             event_notifier_set(n);
         }
     } else {
-        ret = kvm_virtio_pci_irqfd_use(proxy, n, vector);
+        if (proxy->vector_irqfd) {
+            ret = kvm_virtio_pci_irqfd_use(proxy, n, vector);
+        } else {
+            ret = -EFAULT;
+        }
     }
     return ret;
 }
