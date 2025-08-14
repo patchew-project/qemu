@@ -3329,7 +3329,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
     msg.msg_iov = vec;
 
     if (send) {
-        if (fd_trans_target_to_host_data(fd)) {
+        if (fd_trans_target_to_host_data(fd) && msg.msg_iov->iov_len) {
             void *host_msg;
 
             host_msg = g_malloc(msg.msg_iov->iov_len);
