@@ -16,6 +16,7 @@
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include <asm-x86/kvm.h>
 #include <math.h>
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
@@ -3364,6 +3365,21 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
                 error_report("kvm : error RAPL feature requirement not met");
                 return ret;
             }
+        }
+    }
+
+    /* rationale: most x86 cpus in current use have self-snoop so honoring
+     * guest pat is preferrable. as well, the bochs video driver bug which
+     * motivated making this a default enabled quirk in kvm was fixed long ago
+     * */
+    /* check if disabling this quirk is feasible and allowed */
+    ret = kvm_check_extension(s, KVM_CAP_DISABLE_QUIRKS2);
+    if (ret & KVM_X86_QUIRK_IGNORE_GUEST_PAT) {
+        ret = kvm_vm_enable_cap(s, KVM_CAP_DISABLE_QUIRKS2, 0, \
+                                KVM_X86_QUIRK_IGNORE_GUEST_PAT);
+        if (ret < 0) {
+            error_report("KVM_X86_QUIRK_IGNORE_GUEST_PAT available and "
+                         "modifiable but we failed to disable it\n");
         }
     }
 
