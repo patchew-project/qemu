@@ -318,14 +318,6 @@ int kvm_create_device(KVMState *s, uint64_t type, bool test);
 bool kvm_device_supported(int vmfd, uint64_t type);
 
 /**
- * kvm_park_vcpu - Park QEMU KVM vCPU context
- * @cpu: QOM CPUState object for which QEMU KVM vCPU context has to be parked.
- *
- * @returns: none
- */
-void kvm_park_vcpu(CPUState *cpu);
-
-/**
  * kvm_unpark_vcpu - unpark QEMU KVM vCPU context
  * @s: KVM State
  * @vcpu_id: Architecture vCPU ID of the parked vCPU
