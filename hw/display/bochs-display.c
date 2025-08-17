@@ -20,6 +20,8 @@
 #include "ui/qemu-pixman.h"
 #include "qom/object.h"
 
+#include "system/kvm.h"
+
 typedef struct BochsDisplayMode {
     pixman_format_code_t format;
     uint32_t             bytepp;
@@ -309,6 +311,8 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
     }
 
     memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
+
+    kvm_hack_do_not_enable_guest_pat();
 }
 
 static bool bochs_display_get_big_endian_fb(Object *obj, Error **errp)

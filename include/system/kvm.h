@@ -208,6 +208,7 @@ void kvm_close(void);
  */
 bool kvm_arm_supports_user_irq(void);
 
+void kvm_hack_do_not_enable_guest_pat(void);
 
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
