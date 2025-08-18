@@ -946,14 +946,6 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 return -1;
             }
 
-            if (queues > 1 && i == 0 && !tap->ifname) {
-                if (tap_fd_get_ifname(fd, ifname)) {
-                    error_setg(errp, "Fail to get ifname");
-                    close(fd);
-                    return -1;
-                }
-            }
-
             ret = net_init_tap_one(tap, peer, "tap", name, ifname,
                                    i >= 1 ? "no" : script,
                                    i >= 1 ? "no" : downscript,
