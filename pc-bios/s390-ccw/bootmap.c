@@ -15,6 +15,7 @@
 #include "bootmap.h"
 #include "virtio.h"
 #include "bswap.h"
+#include "secure-ipl.h"
 
 #ifdef DEBUG
 /* #define DEBUG_FALLBACK */
@@ -617,7 +618,7 @@ static int ipl_eckd(void)
  * Returns: length of the segment on sucess,
  *          negative value on error.
  */
-static int zipl_load_segment(ComponentEntry *entry, uint64_t address)
+int zipl_load_segment(ComponentEntry *entry, uint64_t address)
 {
     const int max_entries = (MAX_SECTOR_SIZE / sizeof(ScsiBlockPtr));
     ScsiBlockPtr *bprs = (void *)sec;
@@ -735,7 +736,19 @@ static int zipl_run(ScsiBlockPtr *pte)
     /* Load image(s) into RAM */
     entry = (ComponentEntry *)(&header[1]);
 
-    if (zipl_run_normal(&entry, tmp_sec)) {
+    switch (boot_mode) {
+    case ZIPL_BOOT_MODE_SECURE_AUDIT:
+        if (zipl_run_secure(&entry, tmp_sec)) {
+            return -1;
+        }
+        break;
+    case ZIPL_BOOT_MODE_NORMAL:
+        if (zipl_run_normal(&entry, tmp_sec)) {
+            return -1;
+        }
+        break;
+    default:
+        puts("Unknown boot mode");
         return -1;
     }
 
@@ -1101,17 +1114,35 @@ static int zipl_load_vscsi(void)
  * IPL starts here
  */
 
+ZiplBootMode zipl_mode(uint8_t hdr_flags)
+{
+    bool sipl_set = hdr_flags & DIAG308_IPIB_FLAGS_SIPL;
+    bool iplir_set = hdr_flags & DIAG308_IPIB_FLAGS_IPLIR;
+
+    if (!sipl_set && iplir_set) {
+        return ZIPL_BOOT_MODE_SECURE_AUDIT;
+    }
+
+    return ZIPL_BOOT_MODE_NORMAL;
+}
+
 void zipl_load(void)
 {
     VDev *vdev = virtio_get_device();
 
     if (vdev->is_cdrom) {
+        if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT) {
+            panic("Secure boot from ISO image is not supported!");
+        }
         ipl_iso_el_torito();
         puts("Failed to IPL this ISO image!");
         return;
     }
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {
+        if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT) {
+            panic("Virtio net boot device does not support secure boot!");
+        }
         netmain();
         puts("Failed to IPL from this network!");
         return;
@@ -1120,6 +1151,10 @@ void zipl_load(void)
     if (ipl_scsi()) {
         puts("Failed to IPL from this SCSI device!");
         return;
+    }
+
+    if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT) {
+        panic("ECKD boot device does not support secure boot!");
     }
 
     switch (virtio_get_device_type()) {
