@@ -1136,25 +1136,35 @@ ZiplBootMode zipl_mode(uint8_t hdr_flags)
     return ZIPL_BOOT_MODE_NORMAL;
 }
 
+int zipl_check_scsi_mbr_magic(void)
+{
+    ScsiMbr *mbr = (void *)sec;
+
+    /* Grab the MBR */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    if (virtio_read(0, mbr)) {
+        puts("Cannot read block 0");
+        return -EIO;
+    }
+
+    if (!magic_match(mbr->magic, ZIPL_MAGIC)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 void zipl_load(void)
 {
     VDev *vdev = virtio_get_device();
 
     if (vdev->is_cdrom) {
-        if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT ||
-            boot_mode == ZIPL_BOOT_MODE_SECURE) {
-            panic("Secure boot from ISO image is not supported!");
-        }
         ipl_iso_el_torito();
         puts("Failed to IPL this ISO image!");
         return;
     }
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {
-        if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT ||
-            boot_mode == ZIPL_BOOT_MODE_SECURE) {
-            panic("Virtio net boot device does not support secure boot!");
-        }
         netmain();
         puts("Failed to IPL from this network!");
         return;
@@ -1163,11 +1173,6 @@ void zipl_load(void)
     if (ipl_scsi()) {
         puts("Failed to IPL from this SCSI device!");
         return;
-    }
-
-    if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT ||
-        boot_mode == ZIPL_BOOT_MODE_SECURE) {
-        panic("ECKD boot device does not support secure boot!");
     }
 
     switch (virtio_get_device_type()) {
