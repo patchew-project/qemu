@@ -827,6 +827,20 @@ failed:
     return -1;
 }
 
+static int net_tap_from_monitor_fd(const Netdev *netdev, NetClientState *peer,
+                                   const char *name, const char *vhostfdname,
+                                   int *pvnet_hdr, const char *fdname,
+                                   Error **errp)
+{
+    int fd = monitor_fd_param(monitor_cur(), fdname, errp);
+    if (fd == -1) {
+        return -1;
+    }
+
+    return net_tap_fd_init_external(netdev, peer, "tap", name,
+                                    vhostfdname, pvnet_hdr, fd, errp);
+}
+
 static int net_tap_open(const Netdev *netdev,
                         const char *name,
                         NetClientState *peer,
@@ -874,7 +888,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
     const NetdevTapOptions *tap = &netdev->u.tap;
-    int fd, vnet_hdr = 0, i = 0;
+    int vnet_hdr = 0, i = 0;
     int ret = 0;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
@@ -906,16 +920,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        fd = monitor_fd_param(monitor_cur(), tap->fd, errp);
-        if (fd == -1) {
-            return -1;
-        }
-
-        ret = net_tap_fd_init_external(netdev, peer, "tap", name,
-                                       tap->vhostfd, NULL, fd, errp);
-        if (ret < 0) {
-            return -1;
-        }
+        return net_tap_from_monitor_fd(netdev, peer, name, tap->vhostfd,
+                                       NULL, tap->fd, errp);
     } else if (tap->fds) {
         g_auto(GStrv) fds = NULL;
         g_auto(GStrv) vhost_fds = NULL;
@@ -940,14 +946,9 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
         vnet_hdr = -1;
         for (i = 0; i < nfds; i++) {
-            fd = monitor_fd_param(monitor_cur(), fds[i], errp);
-            if (fd == -1) {
-                return -1;
-            }
-
-            ret = net_tap_fd_init_external(netdev, peer, "tap", name,
+            ret = net_tap_from_monitor_fd(netdev, peer, name,
                                            vhost_fds ? vhost_fds[i] : NULL,
-                                           &vnet_hdr, fd, errp);
+                                           &vnet_hdr, fds[i], errp);
             if (ret < 0) {
                 return -1;
             }
