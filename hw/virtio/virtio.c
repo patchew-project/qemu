@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-virtio.h"
+#include "hw/virtio/vhost-user-shmem.h"
 #include "trace.h"
 #include "qemu/defer-call.h"
 #include "qemu/error-report.h"
@@ -3045,6 +3046,100 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
     return vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
 
+VirtioSharedMemory *virtio_new_shmem_region(VirtIODevice *vdev, uint8_t shmid)
+{
+    VirtioSharedMemory *elem;
+    g_autofree char *name = NULL;
+
+    elem = g_new0(VirtioSharedMemory, 1);
+    elem->shmid = shmid;
+
+    /* Initialize embedded MemoryRegion as container for shmem mappings */
+    name = g_strdup_printf("virtio-shmem-%d", shmid);
+    memory_region_init(&elem->mr, OBJECT(vdev), name, UINT64_MAX);
+    QTAILQ_INIT(&elem->mmaps);
+    QSIMPLEQ_INSERT_TAIL(&vdev->shmem_list, elem, entry);
+    return QSIMPLEQ_LAST(&vdev->shmem_list, VirtioSharedMemory, entry);
+}
+
+VirtioSharedMemory *virtio_find_shmem_region(VirtIODevice *vdev, uint8_t shmid)
+{
+    VirtioSharedMemory *shmem, *next;
+    QSIMPLEQ_FOREACH_SAFE(shmem, &vdev->shmem_list, entry, next) {
+        if (shmem->shmid == shmid) {
+            return shmem;
+        }
+    }
+    return NULL;
+}
+
+int virtio_add_shmem_map(VirtioSharedMemory *shmem,
+                         VhostUserShmemObject *shmem_obj)
+{
+    VirtioSharedMemoryMapping *mmap;
+    if (!shmem_obj) {
+        error_report("VhostUserShmemObject cannot be NULL");
+        return -1;
+    }
+    if (!shmem_obj->mr) {
+        error_report("VhostUserShmemObject has no MemoryRegion");
+        return -1;
+    }
+
+    /* Validate boundaries against the VIRTIO shared memory region */
+    if (shmem_obj->shm_offset + shmem_obj->len > shmem->mr.size) {
+        error_report("Memory exceeds the shared memory boundaries");
+        return -1;
+    }
+
+    /* Create the VirtioSharedMemoryMapping wrapper */
+    mmap = g_new0(VirtioSharedMemoryMapping, 1);
+    mmap->mem = shmem_obj->mr;
+    mmap->offset = shmem_obj->shm_offset;
+    mmap->shmem_obj = shmem_obj;
+
+    /* Take a reference on the VhostUserShmemObject */
+    object_ref(OBJECT(shmem_obj));
+
+    /* Add as subregion to the VIRTIO shared memory */
+    memory_region_add_subregion(&shmem->mr, mmap->offset, mmap->mem);
+
+    /* Add to the mapped regions list */
+    QTAILQ_INSERT_TAIL(&shmem->mmaps, mmap, link);
+
+    return 0;
+}
+
+VirtioSharedMemoryMapping *virtio_find_shmem_map(VirtioSharedMemory *shmem,
+                                          hwaddr offset, uint64_t size)
+{
+    VirtioSharedMemoryMapping *mmap;
+    QTAILQ_FOREACH(mmap, &shmem->mmaps, link) {
+        if (mmap->offset == offset && mmap->mem->size == size) {
+            return mmap;
+        }
+    }
+    return NULL;
+}
+
+void virtio_del_shmem_map(VirtioSharedMemory *shmem, hwaddr offset,
+                          uint64_t size)
+{
+    VirtioSharedMemoryMapping *mmap = virtio_find_shmem_map(shmem, offset, size);
+    if (mmap == NULL) {
+        return;
+    }
+
+    /*
+     * Unref the VhostUserShmemObject which will trigger automatic cleanup
+     * when the reference count reaches zero.
+     */
+    object_unref(OBJECT(mmap->shmem_obj));
+
+    QTAILQ_REMOVE(&shmem->mmaps, mmap, link);
+    g_free(mmap);
+}
+
 /* A wrapper for use as a VMState .put function */
 static int virtio_device_put(QEMUFile *f, void *opaque, size_t size,
                               const VMStateField *field, JSONWriter *vmdesc)
@@ -3521,6 +3616,7 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
             NULL, virtio_vmstate_change, vdev);
     vdev->device_endian = virtio_default_endian();
     vdev->use_guest_notifier_mask = true;
+    QSIMPLEQ_INIT(&vdev->shmem_list);
 }
 
 /*
@@ -4032,11 +4128,24 @@ static void virtio_device_free_virtqueues(VirtIODevice *vdev)
 static void virtio_device_instance_finalize(Object *obj)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(obj);
+    VirtioSharedMemory *shmem;
 
     virtio_device_free_virtqueues(vdev);
 
     g_free(vdev->config);
     g_free(vdev->vector_queues);
+    while (!QSIMPLEQ_EMPTY(&vdev->shmem_list)) {
+        shmem = QSIMPLEQ_FIRST(&vdev->shmem_list);
+        while (!QTAILQ_EMPTY(&shmem->mmaps)) {
+            VirtioSharedMemoryMapping *mmap_reg = QTAILQ_FIRST(&shmem->mmaps);
+            virtio_del_shmem_map(shmem, mmap_reg->offset, mmap_reg->mem->size);
+        }
+
+        /* Clean up the embedded MemoryRegion */
+        object_unparent(OBJECT(&shmem->mr));
+        QSIMPLEQ_REMOVE_HEAD(&vdev->shmem_list, entry);
+        g_free(shmem);
+    }
 }
 
 static const Property virtio_properties[] = {

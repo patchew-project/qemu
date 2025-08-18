@@ -20,6 +20,7 @@ if have_vhost
     # fixme - this really should be generic
     specific_virtio_ss.add(files('vhost-user.c'))
     system_virtio_ss.add(files('vhost-user-base.c'))
+    system_virtio_ss.add(files('vhost-user-shmem.c'))
 
     # MMIO Stubs
     system_virtio_ss.add(files('vhost-user-device.c'))
