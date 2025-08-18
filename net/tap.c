@@ -692,14 +692,17 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 
 #define MAX_TAP_QUEUES 1024
 
-static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
+static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
                             const char *model, const char *name,
                             const char *ifname, const char *script,
                             const char *downscript, const char *vhostfdname,
                             int vnet_hdr, int fd, Error **errp)
 {
+    const NetdevTapOptions *tap = &netdev->u.tap;
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     int vhostfd;
+
+    assert(netdev->type == NET_CLIENT_DRIVER_TAP);
 
     if (tap_set_sndbuf(s->fd, tap, errp) < 0) {
         goto failed;
@@ -826,7 +829,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        ret = net_init_tap_one(tap, peer, "tap", name, NULL,
+        ret = net_init_tap_one(netdev, peer, "tap", name, NULL,
                                NULL, NULL,
                                tap->vhostfd, vnet_hdr, fd, errp);
         if (ret < 0) {
@@ -875,7 +878,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 return -1;
             }
 
-            ret = net_init_tap_one(tap, peer, "tap", name, NULL,
+            ret = net_init_tap_one(netdev, peer, "tap", name, NULL,
                                    NULL, NULL,
                                    vhost_fds ? vhost_fds[i] : NULL,
                                    vnet_hdr, fd, errp);
@@ -905,7 +908,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        ret = net_init_tap_one(tap, peer, "bridge", name, NULL,
+        ret = net_init_tap_one(netdev, peer, "bridge", name, NULL,
                                NULL, NULL, tap->vhostfd,
                                vnet_hdr, fd, errp);
         if (ret < 0) {
@@ -946,7 +949,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 return -1;
             }
 
-            ret = net_init_tap_one(tap, peer, "tap", name, ifname,
+            ret = net_init_tap_one(netdev, peer, "tap", name, ifname,
                                    i >= 1 ? "no" : script,
                                    i >= 1 ? "no" : downscript,
                                    tap->vhostfd, vnet_hdr, fd, errp);
