@@ -1189,4 +1189,7 @@ static inline bool arm_cpreg_traps_in_nv(const ARMCPRegInfo *ri)
                        (arm_is_secure(_env) && !arm_el_is_aa64((_env), 3)), \
                        (_val))
 
+/* Compare uint64_t for qsort and bsearch. */
+int compare_u64(const void *a, const void *b);
+
 #endif /* TARGET_ARM_CPREGS_H */
