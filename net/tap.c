@@ -609,6 +609,18 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
     }
 }
 
+static bool set_fd_nonblocking(int fd, const char *note, Error **errp)
+{
+    bool ok = g_unix_set_fd_nonblocking(fd, true, NULL);
+
+    if (!ok) {
+        error_setg_errno(errp, errno, "Failed to set fd %d (%s) nonblocking",
+                         fd, note);
+    }
+
+    return ok;
+}
+
 int net_init_bridge(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp)
 {
@@ -627,10 +639,10 @@ int net_init_bridge(const Netdev *netdev, const char *name,
         return -1;
     }
 
-    if (!g_unix_set_fd_nonblocking(fd, true, NULL)) {
-        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+    if (!set_fd_nonblocking(fd, name, errp)) {
         return -1;
     }
+
     vnet_hdr = tap_probe_vnet_hdr(fd, errp);
     if (vnet_hdr < 0) {
         close(fd);
@@ -729,9 +741,7 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                 error_propagate(errp, err);
                 goto failed;
             }
-            if (!g_unix_set_fd_nonblocking(vhostfd, true, NULL)) {
-                error_setg_errno(errp, errno, "%s: Can't use file descriptor %d",
-                                 name, fd);
+            if (!set_fd_nonblocking(vhostfd, vhostfdname, errp)) {
                 goto failed;
             }
         } else {
@@ -741,8 +751,7 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                                  "tap: open vhost char device failed");
                 goto failed;
             }
-            if (!g_unix_set_fd_nonblocking(vhostfd, true, NULL)) {
-                error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+            if (!set_fd_nonblocking(vhostfd, "opened /dev/vhost-net", errp)) {
                 goto failed;
             }
         }
@@ -839,9 +848,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        if (!g_unix_set_fd_nonblocking(fd, true, NULL)) {
-            error_setg_errno(errp, errno, "%s: Can't use file descriptor %d",
-                             name, fd);
+        if (!set_fd_nonblocking(fd, tap->fd, errp)) {
             close(fd);
             return -1;
         }
@@ -893,10 +900,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 goto free_fail;
             }
 
-            if (!g_unix_set_fd_nonblocking(fd, true, NULL)) {
+            if (!set_fd_nonblocking(fd, fds[i], errp)) {
                 ret = -1;
-                error_setg_errno(errp, errno, "%s: Can't use file descriptor %d",
-                                 name, fd);
                 goto free_fail;
             }
 
@@ -948,8 +953,7 @@ free_fail:
             return -1;
         }
 
-        if (!g_unix_set_fd_nonblocking(fd, true, NULL)) {
-            error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+        if (!set_fd_nonblocking(fd, name, errp)) {
             return -1;
         }
         vnet_hdr = tap_probe_vnet_hdr(fd, errp);
