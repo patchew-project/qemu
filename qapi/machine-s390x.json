@@ -119,3 +119,27 @@
 { 'command': 'query-s390x-cpu-polarization', 'returns': 'CpuPolarizationInfo',
   'features': [ 'unstable' ]
 }
+
+##
+# @BootCertPath:
+#
+# Boot certificate path.
+#
+# @path: path of certificate(s)
+#
+# Since: 10.1
+##
+{ 'struct': 'BootCertPath',
+  'data': {'path': 'str'} }
+
+##
+# @BootCerts:
+#
+# List of boot certificate paths.
+#
+# @boot-certs: List of BootCertPath
+#
+# Since: 10.1
+##
+{ 'struct': 'BootCerts',
+  'data': {'boot-certs': ['BootCertPath'] } }
