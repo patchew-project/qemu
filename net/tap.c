@@ -808,14 +808,12 @@ int net_init_tap(const Netdev *netdev, const char *name,
     /* for the no-fd, no-helper case */
     const char *script;
     const char *downscript;
-    const char *vhostfdname;
     char ifname[128];
     int ret = 0;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
     tap = &netdev->u.tap;
     queues = tap->has_queues ? tap->queues : 1;
-    vhostfdname = tap->vhostfd;
     script = tap->script;
     downscript = tap->downscript;
 
@@ -864,7 +862,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
         ret = net_init_tap_one(tap, peer, "tap", name, NULL,
                                script, downscript,
-                               vhostfdname, vnet_hdr, fd, errp);
+                               tap->vhostfd, vnet_hdr, fd, errp);
         if (ret < 0) {
             return -1;
         }
@@ -960,7 +958,7 @@ free_fail:
         }
 
         ret = net_init_tap_one(tap, peer, "bridge", name, ifname,
-                               script, downscript, vhostfdname,
+                               script, downscript, tap->vhostfd,
                                vnet_hdr, fd, errp);
         if (ret < 0) {
             close(fd);
@@ -1006,7 +1004,7 @@ free_fail:
             ret = net_init_tap_one(tap, peer, "tap", name, ifname,
                                    i >= 1 ? "no" : script,
                                    i >= 1 ? "no" : downscript,
-                                   vhostfdname, vnet_hdr, fd, errp);
+                                   tap->vhostfd, vnet_hdr, fd, errp);
             if (ret < 0) {
                 close(fd);
                 return -1;
