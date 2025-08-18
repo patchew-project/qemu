@@ -627,13 +627,40 @@ static bool set_fd_nonblocking(int fd, const char *note, Error **errp)
     return ok;
 }
 
+static int net_tap_fd_init_external(const Netdev *netdev, NetClientState *peer,
+                                    const char *model, const char *name,
+                                    const char *vhostfdname,
+                                    int *pvnet_hdr, int fd, Error **errp)
+{
+    int vnet_hdr;
+
+    if (!set_fd_nonblocking(fd, name, errp)) {
+        return -1;
+    }
+
+    vnet_hdr = tap_probe_vnet_hdr(fd, errp);
+    if (pvnet_hdr) {
+        if (*pvnet_hdr < 0) {
+            *pvnet_hdr = vnet_hdr;
+        } else if (vnet_hdr != *pvnet_hdr) {
+            error_setg(errp,
+                       "vnet_hdr not consistent across given tap fds");
+            return -1;
+        }
+    }
+
+    return net_init_tap_one(netdev, peer, model, name,
+                            NULL, NULL, NULL,
+                            vhostfdname, vnet_hdr, fd, errp);
+}
+
 int net_init_bridge(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp)
 {
     const NetdevTapOptions *tap = NULL;
     const NetdevBridgeOptions *bridge = NULL;
     const char *helper, *br;
-    int fd, vnet_hdr, ret;
+    int fd;
 
     if (netdev->type == NET_CLIENT_DRIVER_BRIDGE) {
         bridge = &netdev->u.bridge;
@@ -652,26 +679,8 @@ int net_init_bridge(const Netdev *netdev, const char *name,
         return -1;
     }
 
-    if (!set_fd_nonblocking(fd, name, errp)) {
-        return -1;
-    }
-
-    vnet_hdr = tap_probe_vnet_hdr(fd, errp);
-    if (vnet_hdr < 0) {
-        close(fd);
-        return -1;
-    }
-
-    ret = net_init_tap_one(netdev, peer, "bridge", name,
-                           NULL, NULL, NULL,
-                           tap ? tap->vhostfd : NULL,
-                           vnet_hdr, fd, errp);
-    if (ret < 0) {
-        close(fd);
-        return -1;
-    }
-
-    return 0;
+    return net_tap_fd_init_external(netdev, peer, "bridge", name,
+                                    tap ? tap->vhostfd : NULL, NULL, fd, errp);
 }
 
 static int net_tap_open_one(const Netdev *netdev,
@@ -902,20 +911,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        if (!set_fd_nonblocking(fd, tap->fd, errp)) {
-            close(fd);
-            return -1;
-        }
-
-        vnet_hdr = tap_probe_vnet_hdr(fd, errp);
-        if (vnet_hdr < 0) {
-            close(fd);
-            return -1;
-        }
-
-        ret = net_init_tap_one(netdev, peer, "tap", name, NULL,
-                               NULL, NULL,
-                               tap->vhostfd, vnet_hdr, fd, errp);
+        ret = net_tap_fd_init_external(netdev, peer, "tap", name,
+                                       tap->vhostfd, NULL, fd, errp);
         if (ret < 0) {
             return -1;
         }
@@ -941,31 +938,16 @@ int net_init_tap(const Netdev *netdev, const char *name,
             }
         }
 
+        vnet_hdr = -1;
         for (i = 0; i < nfds; i++) {
             fd = monitor_fd_param(monitor_cur(), fds[i], errp);
             if (fd == -1) {
                 return -1;
             }
 
-            if (!set_fd_nonblocking(fd, fds[i], errp)) {
-                return -1;
-            }
-
-            if (i == 0) {
-                vnet_hdr = tap_probe_vnet_hdr(fd, errp);
-                if (vnet_hdr < 0) {
-                    return -1;
-                }
-            } else if (vnet_hdr != tap_probe_vnet_hdr(fd, NULL)) {
-                error_setg(errp,
-                           "vnet_hdr not consistent across given tap fds");
-                return -1;
-            }
-
-            ret = net_init_tap_one(netdev, peer, "tap", name, NULL,
-                                   NULL, NULL,
-                                   vhost_fds ? vhost_fds[i] : NULL,
-                                   vnet_hdr, fd, errp);
+            ret = net_tap_fd_init_external(netdev, peer, "tap", name,
+                                           vhost_fds ? vhost_fds[i] : NULL,
+                                           &vnet_hdr, fd, errp);
             if (ret < 0) {
                 return -1;
             }
