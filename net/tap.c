@@ -88,6 +88,12 @@ static void launch_script(const char *setup_script, const char *ifname,
 static void tap_send(void *opaque);
 static void tap_writable(void *opaque);
 
+static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
+                            const char *model, const char *name,
+                            const char *ifname, const char *script,
+                            const char *downscript, const char *vhostfdname,
+                            int vnet_hdr, int fd, Error **errp);
+
 static void tap_update_fd_handler(TAPState *s)
 {
     qemu_set_fd_handler(s->fd,
@@ -626,8 +632,7 @@ int net_init_bridge(const Netdev *netdev, const char *name,
 {
     const NetdevBridgeOptions *bridge;
     const char *helper, *br;
-    TAPState *s;
-    int fd, vnet_hdr;
+    int fd, vnet_hdr, ret;
 
     assert(netdev->type == NET_CLIENT_DRIVER_BRIDGE);
     bridge = &netdev->u.bridge;
@@ -648,9 +653,14 @@ int net_init_bridge(const Netdev *netdev, const char *name,
         close(fd);
         return -1;
     }
-    s = net_tap_fd_init(peer, "bridge", name, fd, vnet_hdr);
 
-    qemu_set_info_str(&s->nc, "helper=%s,br=%s", helper, br);
+    ret = net_init_tap_one(netdev, peer, "bridge", name,
+                           NULL, NULL, NULL,
+                           NULL, vnet_hdr, fd, errp);
+    if (ret < 0) {
+        close(fd);
+        return -1;
+    }
 
     return 0;
 }
@@ -698,11 +708,19 @@ static int net_init_tap_one(const Netdev *netdev, NetClientState *peer,
                             const char *downscript, const char *vhostfdname,
                             int vnet_hdr, int fd, Error **errp)
 {
-    const NetdevTapOptions *tap = &netdev->u.tap;
+    const NetdevTapOptions *tap;
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     int vhostfd;
 
+    if (netdev->type == NET_CLIENT_DRIVER_BRIDGE) {
+        const NetdevBridgeOptions *bridge = &netdev->u.bridge;
+        qemu_set_info_str(&s->nc, "helper=%s,br=%s",
+                          bridge->helper, bridge->br);
+        return 0;
+    }
+
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
+    tap = &netdev->u.tap;
 
     if (tap_set_sndbuf(s->fd, tap, errp) < 0) {
         goto failed;
