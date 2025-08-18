@@ -818,6 +818,49 @@ failed:
     return -1;
 }
 
+static int net_tap_open(const Netdev *netdev,
+                        const char *name,
+                        NetClientState *peer,
+                        Error **errp)
+{
+    const NetdevTapOptions *tap = &netdev->u.tap;
+    const char *script = tap->script;
+    const char *downscript = tap->downscript;
+    int queues = tap->has_queues ? tap->queues : 1;
+    g_autofree char *default_script = NULL;
+    g_autofree char *default_downscript = NULL;
+    char ifname[128];
+    int i, ret;
+
+    assert(netdev->type == NET_CLIENT_DRIVER_TAP);
+
+    if (!script) {
+        script = default_script = get_relocated_path(DEFAULT_NETWORK_SCRIPT);
+    }
+    if (!downscript) {
+        downscript = default_downscript =
+                             get_relocated_path(DEFAULT_NETWORK_DOWN_SCRIPT);
+    }
+
+    if (tap->ifname) {
+        pstrcpy(ifname, sizeof ifname, tap->ifname);
+    } else {
+        ifname[0] = '\0';
+    }
+
+    for (i = 0; i < queues; i++) {
+        ret = net_tap_open_one(netdev, name, peer,
+                               i >= 1 ? "no" : script,
+                               i >= 1 ? "no" : downscript,
+                               ifname, sizeof ifname, queues > 1, errp);
+        if (ret < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
@@ -934,46 +977,14 @@ int net_init_tap(const Netdev *netdev, const char *name,
         }
 
         return net_init_bridge(netdev, name, peer, errp);
-    } else {
-        const char *script = tap->script;
-        const char *downscript = tap->downscript;
-        int queues = tap->has_queues ? tap->queues : 1;
-        g_autofree char *default_script = NULL;
-        g_autofree char *default_downscript = NULL;
-        char ifname[128];
-
-        if (tap->vhostfds) {
-            error_setg(errp, "vhostfds= is invalid if fds= wasn't specified");
-            return -1;
-        }
-
-        if (!script) {
-            script = default_script = get_relocated_path(DEFAULT_NETWORK_SCRIPT);
-        }
-        if (!downscript) {
-            downscript = default_downscript =
-                                 get_relocated_path(DEFAULT_NETWORK_DOWN_SCRIPT);
-        }
-
-        if (tap->ifname) {
-            pstrcpy(ifname, sizeof ifname, tap->ifname);
-        } else {
-            ifname[0] = '\0';
-        }
-
-        for (i = 0; i < queues; i++) {
-            ret = net_tap_open_one(netdev, name, peer,
-                                   i >= 1 ? "no" : script,
-                                   i >= 1 ? "no" : downscript,
-                                   ifname, sizeof ifname, queues > 1, errp);
-            if (ret < 0) {
-                return -1;
-            }
-
-        }
     }
 
-    return 0;
+    if (tap->vhostfds) {
+        error_setg(errp, "vhostfds= is invalid if fds= wasn't specified");
+        return -1;
+    }
+
+    return net_tap_open(netdev, name, peer, errp);
 }
 
 int tap_enable(NetClientState *nc)
