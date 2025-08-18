@@ -674,36 +674,50 @@ int net_init_bridge(const Netdev *netdev, const char *name,
     return 0;
 }
 
-static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
-                        const char *setup_script, char *ifname,
-                        size_t ifname_sz, int mq_required, Error **errp)
+static int net_tap_open_one(const Netdev *netdev,
+                            const char *name, NetClientState *peer,
+                            const char *script, const char *downscript,
+                            char *ifname, size_t ifname_sz,
+                            int mq_required, Error **errp)
 {
+    const NetdevTapOptions *tap = &netdev->u.tap;
     Error *err = NULL;
-    int fd, vnet_hdr_required;
+    int fd, vnet_hdr_required, vnet_hdr;
+    int ret;
+
+    assert(netdev->type == NET_CLIENT_DRIVER_TAP);
 
     if (tap->has_vnet_hdr) {
-        *vnet_hdr = tap->vnet_hdr;
-        vnet_hdr_required = *vnet_hdr;
+        vnet_hdr = tap->vnet_hdr;
+        vnet_hdr_required = vnet_hdr;
     } else {
-        *vnet_hdr = 1;
+        vnet_hdr = 1;
         vnet_hdr_required = 0;
     }
 
-    fd = RETRY_ON_EINTR(tap_open(ifname, ifname_sz, vnet_hdr, vnet_hdr_required,
-                      mq_required, errp));
+    fd = RETRY_ON_EINTR(tap_open(ifname, ifname_sz, &vnet_hdr,
+                                 vnet_hdr_required, mq_required, errp));
     if (fd < 0) {
         return -1;
     }
 
-    if (setup_script &&
-        setup_script[0] != '\0' &&
-        strcmp(setup_script, "no") != 0) {
-        launch_script(setup_script, ifname, fd, &err);
+    if (script &&
+        script[0] != '\0' &&
+        strcmp(script, "no") != 0) {
+        launch_script(script, ifname, fd, &err);
         if (err) {
             error_propagate(errp, err);
             close(fd);
             return -1;
         }
+    }
+
+    ret = net_init_tap_one(netdev, peer, "tap", name, ifname,
+                           script, downscript,
+                           tap->vhostfd, vnet_hdr, fd, errp);
+    if (ret < 0) {
+        close(fd);
+        return -1;
     }
 
     return fd;
@@ -948,20 +962,14 @@ int net_init_tap(const Netdev *netdev, const char *name,
         }
 
         for (i = 0; i < queues; i++) {
-            fd = net_tap_init(tap, &vnet_hdr, i >= 1 ? "no" : script,
-                              ifname, sizeof ifname, queues > 1, errp);
-            if (fd == -1) {
+            ret = net_tap_open_one(netdev, name, peer,
+                                   i >= 1 ? "no" : script,
+                                   i >= 1 ? "no" : downscript,
+                                   ifname, sizeof ifname, queues > 1, errp);
+            if (ret < 0) {
                 return -1;
             }
 
-            ret = net_init_tap_one(netdev, peer, "tap", name, ifname,
-                                   i >= 1 ? "no" : script,
-                                   i >= 1 ? "no" : downscript,
-                                   tap->vhostfd, vnet_hdr, fd, errp);
-            if (ret < 0) {
-                close(fd);
-                return -1;
-            }
         }
     }
 
