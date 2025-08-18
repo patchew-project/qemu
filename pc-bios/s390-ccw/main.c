@@ -277,10 +277,15 @@ static void ipl_boot_device(void)
         boot_mode = zipl_mode(iplb->hdr_flags);
     }
 
+    if (boot_mode == ZIPL_BOOT_MODE_INVALID) {
+        panic("Need at least one certificate for secure boot!");
+    }
+
     switch (cutype) {
     case CU_TYPE_DASD_3990:
     case CU_TYPE_DASD_2107:
-        if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT) {
+        if (boot_mode == ZIPL_BOOT_MODE_SECURE_AUDIT ||
+            boot_mode == ZIPL_BOOT_MODE_SECURE) {
             panic("Passthrough (vfio) device does not support secure boot!");
         }
 
