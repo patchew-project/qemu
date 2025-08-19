@@ -78,6 +78,7 @@ struct AspeedPCIERcState {
 
 /* Bridge between AHB bus and PCIe RC. */
 #define TYPE_ASPEED_PCIE_CFG "aspeed.pcie-cfg"
+#define TYPE_ASPEED_2700_PCIE_CFG TYPE_ASPEED_PCIE_CFG "-ast2700"
 OBJECT_DECLARE_TYPE(AspeedPCIECfgState, AspeedPCIECfgClass, ASPEED_PCIE_CFG);
 
 struct AspeedPCIECfgState {
@@ -88,6 +89,8 @@ struct AspeedPCIECfgState {
     uint32_t id;
 
     AspeedPCIERcState rc;
+    uint32_t tlpn_fifo[3];
+    uint32_t tlpn_idx;
 };
 
 struct AspeedPCIECfgClass {
