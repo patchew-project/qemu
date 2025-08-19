@@ -18,7 +18,7 @@
 #include "qemu/tsan.h"
 #include "qemu/bitmap.h"
 
-#ifdef CONFIG_PTHREAD_SET_NAME_NP
+#if defined(CONFIG_PTHREAD_SET_NAME_NP) || defined(CONFIG_PTHREAD_GET_NAME_NP)
 #include <pthread_np.h>
 #endif
 
@@ -542,4 +542,27 @@ uint64_t qemu_thread_get_id(void)
 #else
     return (uint64_t)pthread_self();
 #endif
+}
+
+#ifndef PTHREAD_MAX_NAMELEN_NP
+#define PTHREAD_MAX_NAMELEN_NP 16
+#endif
+
+static __thread char namebuf[PTHREAD_MAX_NAMELEN_NP];
+
+const char *qemu_thread_get_name(void)
+{
+    int rv;
+# if defined(CONFIG_PTHREAD_GETNAME_NP)
+    rv = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
+# elif defined(CONFIG_PTHREAD_GET_NAME_NP)
+    rv = pthread_get_name_np(pthread_self(), namebuf, sizeof(namebuf));
+# else
+    rv = -1;
+# endif
+    if (rv != 0) {
+        strncpy(namebuf, "unnamed", sizeof(namebuf) - 1);
+        namebuf[sizeof(namebuf) - 1] = '\0';
+    }
+    return namebuf;
 }
