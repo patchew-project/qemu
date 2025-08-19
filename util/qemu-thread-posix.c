@@ -532,3 +532,14 @@ void *qemu_thread_join(QemuThread *thread)
     }
     return ret;
 }
+
+uint64_t qemu_thread_get_id(void)
+{
+#ifdef CONFIG_GETTID
+    return (uint64_t)gettid();
+#elif defined(SYS_gettid)
+    return (uint64_t)syscall(SYS_gettid);
+#else
+    return (uint64_t)pthread_self();
+#endif
+}

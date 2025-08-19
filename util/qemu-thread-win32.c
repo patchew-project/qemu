@@ -412,3 +412,8 @@ bool qemu_thread_is_self(QemuThread *thread)
 {
     return GetCurrentThreadId() == thread->tid;
 }
+
+uint64_t qemu_thread_get_id(void)
+{
+    return (uint64_t)GetCurrentThreadId();
+}
