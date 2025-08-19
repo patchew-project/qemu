@@ -349,6 +349,23 @@ tests_xtensa_system_thorough = [
   'xtensa_replay',
 ]
 
+# Tests that require a specific runner.
+gdb = find_program('gdb-multiarch', required: false)
+if gdb.found()
+    gdb_runner_script =  meson.project_source_root() + '/tests/guest-debug/run-test.py'
+    gdb_runner = [gdb_runner_script, '--gdb', gdb, '--test']
+
+    # A test with a runner is a tuple (name, runner, protocol).
+    # The tests must be elements of an array named like:
+    #
+    # test_<arch>_<mode=[system|linuxuser|bsduser]>_<speed=[quick|thorough]>_with_runner = [
+    #      ['test0', gdb_runner, 'exitcode'],
+    #      ...
+    # ]
+else
+    message('GDB multiarch not found, skipping functional tests that rely on it.')
+endif
+
 precache_all = []
 foreach speed : ['quick', 'thorough']
   foreach dir : target_dirs
@@ -372,9 +389,11 @@ foreach speed : ['quick', 'thorough']
       suites = ['func-quick', 'func-' + target_base]
       target_tests = get_variable('tests_' + target_base + '_' + sysmode + '_quick', []) \
                      + get_variable('tests_generic_' + sysmode)
+      target_tests_r = get_variable('tests_' + target_base + '_' + sysmode + '_quick_with_runner', [])
     else
       suites = ['func-' + speed, 'func-' + target_base + '-' + speed, speed]
       target_tests = get_variable('tests_' + target_base + '_' + sysmode + '_' + speed, [])
+      target_tests_r = get_variable('tests_' + target_base + '_' + sysmode + '_' + speed + '_with_runner', [])
     endif
 
     test_deps = [roms, keymap_targets]
@@ -421,6 +440,49 @@ foreach speed : ['quick', 'thorough']
            protocol: 'tap',
            timeout: test_timeouts.get(test, 90),
            priority: test_timeouts.get(test, 90),
+           suite: suites)
+    endforeach
+
+    # Prepare tests that require a specific runner.
+    foreach test : target_tests_r
+      testname = '@0@-@1@'.format(target_base, test[0])
+      testfile = 'test_' + test[0] + '.py'
+      testpath = meson.current_source_dir() / testfile
+      teststamp = testname + '.tstamp'
+      testrunner  = test[1]
+      testproto = test[2]
+
+      test_precache_env = environment()
+      test_precache_env.set('QEMU_TEST_PRECACHE', meson.current_build_dir() / teststamp)
+      # python_site_packages, i.e., site packages from Python in pyvenv, is
+      # added to PYTHONPATH because some runners can run a program that has its
+      # own Python hooks that, by its turn, will search for modules based on
+      # PYTHONPATH independently of the Python used by the runner, like, for
+      # example, GDB using libpython.
+      test_precache_env.set('PYTHONPATH', meson.project_source_root() / 'python' +
+                                          ':' + meson.current_source_dir() +
+                                          ':' + python_site_packages)
+      precache = custom_target('func-precache-' + testname,
+                               output: teststamp,
+                               command: [testrunner, testpath],
+                               depend_files: files(testpath),
+                               build_by_default: false,
+                               env: test_precache_env)
+      precache_all += precache
+
+      # See comment above about python_site_packages in test_precache_env.
+      # Don't append to test_env since it will affect previous uses of it.
+      test_r_env = test_env
+      test_r_env.append('PYTHONPATH', python_site_packages)
+
+      test('func-' + testname,
+           python,
+           depends: [test_deps, test_emulator, emulator_modules, plugin_modules],
+           env: test_r_env,
+           args: [testrunner, testpath],
+           protocol: testproto,
+           timeout: test_timeouts.get(test[0], 90),
+           priority: test_timeouts.get(test[0], 90),
            suite: suites)
     endforeach
   endforeach

@@ -75,6 +75,10 @@ have_user = have_linux_user or have_bsd_user
 
 sh = find_program('sh')
 python = import('python').find_installation()
+# Meson python.get_path() on 'purelib' or 'platlib' doesn't properly return the
+# site-packages dir in pyvenv, so it is built manually.
+python_ver = python.language_version()
+python_site_packages = meson.build_root() / 'pyvenv/lib/python' + python_ver / 'site-packages'
 
 cc = meson.get_compiler('c')
 all_languages = ['c']
