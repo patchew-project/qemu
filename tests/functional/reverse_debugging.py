@@ -1,16 +1,26 @@
-# Reverse debugging test
-#
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
+# Reverse debugging test
+#
 # Copyright (c) 2020 ISP RAS
+# Copyright (c) 2025 Linaro Limited
 #
 # Author:
 #  Pavel Dovgalyuk <Pavel.Dovgalyuk@ispras.ru>
+#  Gustavo Romero <gustavo.romero@linaro.org> (Run without Avocado)
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
-import os
+
+try:
+    import gdb
+except ModuleNotFoundError:
+    from sys import exit
+    exit("This script must be launched via tests/guest-debug/run-test.py!")
 import logging
+import os
+import subprocess
+
 
 from qemu_test import LinuxKernelTest, get_qemu_img
 from qemu_test.ports import Ports
@@ -28,13 +38,9 @@ class ReverseDebugging(LinuxKernelTest):
     that the execution is stopped at the last of them.
     """
 
-    timeout = 10
     STEPS = 10
-    endian_is_le = True
 
     def run_vm(self, record, shift, args, replay_path, image_path, port):
-        from avocado.utils import datadrainer
-
         logger = logging.getLogger('replay')
         vm = self.get_vm(name='record' if record else 'replay')
         vm.set_console()
@@ -52,59 +58,46 @@ class ReverseDebugging(LinuxKernelTest):
         if args:
             vm.add_args(*args)
         vm.launch()
-        console_drainer = datadrainer.LineLogger(vm.console_socket.fileno(),
-                                    logger=self.log.getChild('console'),
-                                    stop_check=(lambda : not vm.is_running()))
-        console_drainer.start()
+
         return vm
 
     @staticmethod
-    def get_reg_le(g, reg):
-        res = g.cmd(b'p%x' % reg)
-        num = 0
-        for i in range(len(res))[-2::-2]:
-            num = 0x100 * num + int(res[i:i + 2], 16)
-        return num
+    def gdb_connect(host, port):
+        # Set debug on connection to get the qSupport string.
+        gdb.execute("set debug remote 1")
+        r = gdb.execute(f"target remote {host}:{port}", False, True)
+        gdb.execute("set debug remote 0")
+
+        return r
 
     @staticmethod
-    def get_reg_be(g, reg):
-        res = g.cmd(b'p%x' % reg)
-        return int(res, 16)
+    def get_pc():
+        val = gdb.parse_and_eval("$pc")
+        pc = int(val)
 
-    def get_reg(self, g, reg):
-        # value may be encoded in BE or LE order
-        if self.endian_is_le:
-            return self.get_reg_le(g, reg)
-        else:
-            return self.get_reg_be(g, reg)
+        return pc
 
-    def get_pc(self, g):
-        return self.get_reg(g, self.REG_PC)
-
-    def check_pc(self, g, addr):
-        pc = self.get_pc(g)
+    def check_pc(self, addr):
+        pc = self.get_pc()
         if pc != addr:
             self.fail('Invalid PC (read %x instead of %x)' % (pc, addr))
 
     @staticmethod
-    def gdb_step(g):
-        g.cmd(b's', b'T05thread:01;')
+    def gdb_step():
+        gdb.execute("stepi")
 
     @staticmethod
-    def gdb_bstep(g):
-        g.cmd(b'bs', b'T05thread:01;')
+    def gdb_bstep():
+        gdb.execute("reverse-stepi")
 
     @staticmethod
     def vm_get_icount(vm):
         return vm.qmp('query-replay')['return']['icount']
 
     def reverse_debugging(self, shift=7, args=None):
-        from avocado.utils import gdb
-        from avocado.utils import process
-
         logger = logging.getLogger('replay')
 
-        # create qcow2 for snapshots
+        # Create qcow2 for snapshots
         logger.info('creating qcow2 image for VM snapshots')
         image_path = os.path.join(self.workdir, 'disk.qcow2')
         qemu_img = get_qemu_img(self)
@@ -112,11 +105,11 @@ class ReverseDebugging(LinuxKernelTest):
             self.skipTest('Could not find "qemu-img", which is required to '
                           'create the temporary qcow2 image')
         cmd = '%s create -f qcow2 %s 128M' % (qemu_img, image_path)
-        process.run(cmd)
+        subprocess.run(cmd, shell=True)
 
         replay_path = os.path.join(self.workdir, 'replay.bin')
 
-        # record the log
+        # Record the log.
         vm = self.run_vm(True, shift, args, replay_path, image_path, -1)
         while self.vm_get_icount(vm) <= self.STEPS:
             pass
@@ -125,72 +118,71 @@ class ReverseDebugging(LinuxKernelTest):
 
         logger.info("recorded log with %s+ steps" % last_icount)
 
-        # replay and run debug commands
+        # Replay and run debug commands.
         with Ports() as ports:
             port = ports.find_free_port()
             vm = self.run_vm(False, shift, args, replay_path, image_path, port)
-        logger.info('connecting to gdbstub')
-        g = gdb.GDBRemote('127.0.0.1', port, False, False)
-        g.connect()
-        r = g.cmd(b'qSupported')
-        if b'qXfer:features:read+' in r:
-            g.cmd(b'qXfer:features:read:target.xml:0,ffb')
-        if b'ReverseStep+' not in r:
+        logger.info('Connecting to gdbstub')
+        r = self.gdb_connect('127.0.0.1', port)
+        if 'ReverseStep+' not in r:
             self.fail('Reverse step is not supported by QEMU')
-        if b'ReverseContinue+' not in r:
+        if 'ReverseContinue+' not in r:
             self.fail('Reverse continue is not supported by QEMU')
 
-        logger.info('stepping forward')
+        logger.info('Stepping forward')
         steps = []
-        # record first instruction addresses
+        # Record first instruction addresses.
         for _ in range(self.STEPS):
-            pc = self.get_pc(g)
-            logger.info('saving position %x' % pc)
+            pc = self.get_pc()
+            logger.info('Saving position %x' % pc)
             steps.append(pc)
-            self.gdb_step(g)
+            self.gdb_step()
 
-        # visit the recorded instruction in reverse order
-        logger.info('stepping backward')
+        # Visit the recorded instruction in reverse order.
+        logger.info('Stepping backward')
         for addr in steps[::-1]:
-            self.gdb_bstep(g)
-            self.check_pc(g, addr)
-            logger.info('found position %x' % addr)
+            self.gdb_bstep()
+            self.check_pc(addr)
+            logger.info('Found position %x' % addr)
 
-        # visit the recorded instruction in forward order
-        logger.info('stepping forward')
+        # Visit the recorded instruction in forward order.
+        logger.info('Stepping forward')
         for addr in steps:
-            self.check_pc(g, addr)
-            self.gdb_step(g)
-            logger.info('found position %x' % addr)
+            self.check_pc(addr)
+            self.gdb_step()
+            logger.info('Found position %x' % addr)
 
-        # set breakpoints for the instructions just stepped over
-        logger.info('setting breakpoints')
+        # Set breakpoints for the instructions just stepped over.
+        logger.info('Setting breakpoints')
         for addr in steps:
             # hardware breakpoint at addr with len=1
-            g.cmd(b'Z1,%x,1' % addr, b'OK')
+            gdb.execute(f"break *{hex(addr)}")
 
-        # this may hit a breakpoint if first instructions are executed
-        # again
-        logger.info('continuing execution')
+        # This may hit a breakpoint if first instructions are executed again.
+        logger.info('Continuing execution')
         vm.qmp('replay-break', icount=last_icount - 1)
-        # continue - will return after pausing
+        # continue - will return after pausing.
         # This could stop at the end and get a T02 return, or by
         # re-executing one of the breakpoints and get a T05 return.
-        g.cmd(b'c')
+        gdb.execute("continue")
         if self.vm_get_icount(vm) == last_icount - 1:
-            logger.info('reached the end (icount %s)' % (last_icount - 1))
+            logger.info('Reached the end (icount %s)' % (last_icount - 1))
         else:
-            logger.info('hit a breakpoint again at %x (icount %s)' %
+            logger.info('Hit a breakpoint again at %x (icount %s)' %
                         (self.get_pc(g), self.vm_get_icount(vm)))
 
-        logger.info('running reverse continue to reach %x' % steps[-1])
-        # reverse continue - will return after stopping at the breakpoint
-        g.cmd(b'bc', b'T05thread:01;')
+        logger.info('Running reverse continue to reach %x' % steps[-1])
+        # reverse continue - will return after stopping at the breakpoint.
+        gdb.execute("reverse-continue")
 
-        # assume that none of the first instructions is executed again
-        # breaking the order of the breakpoints
-        self.check_pc(g, steps[-1])
-        logger.info('successfully reached %x' % steps[-1])
+        # Assume that none of the first instructions is executed again
+        # breaking the order of the breakpoints.
+        # steps[-1] is the first saved $pc in reverse order.
+        self.check_pc(steps[-1])
+        logger.info('Successfully reached %x' % steps[-1])
 
-        logger.info('exiting gdb and qemu')
+        logger.info('Exiting GDB and QEMU')
+
         vm.shutdown()
+
+        self.assertTrue(True, "Test passed")
