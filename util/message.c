@@ -48,19 +48,21 @@ char *qmessage_context(int flags)
         uint64_t thid = qemu_thread_get_id();
         const char *thname = qemu_thread_get_name();
 
-        return g_strdup_printf("%s%s%s%s%s(%" PRIu64 ":%s): ",
+        return g_strdup_printf("%s%s%s%s%s%s(%" PRIu64 ":%s): ",
                                timestr ? timestr : "",
                                timestr ? " " : "",
+                               wknamestr ? "[" : "",
                                wknamestr ? wknamestr : "",
-                               wknamestr ? " " : "",
+                               wknamestr ? "] " : "",
                                pgnamestr ? pgnamestr : "",
                                thid, thname);
     } else {
-        return g_strdup_printf("%s%s%s%s%s%s",
+        return g_strdup_printf("%s%s%s%s%s%s%s",
                                timestr ? timestr : "",
                                timestr ? " " : "",
+                               wknamestr ? "[" : "",
                                wknamestr ? wknamestr : "",
-                               wknamestr ? " " : "",
+                               wknamestr ? "] " : "",
                                pgnamestr ? pgnamestr : "",
                                pgnamestr ? ": " : "");
     }
