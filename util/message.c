@@ -5,7 +5,7 @@
 #include "qemu/message.h"
 #include "monitor/monitor.h"
 
-static int message_format;
+static int message_format = QMESSAGE_FORMAT_PROGRAM_NAME;
 static char *message_workloadname;
 
 void qmessage_set_format(int flags)
@@ -24,6 +24,7 @@ char *qmessage_context(int flags)
 {
     g_autofree char *timestr = NULL;
     const char *wknamestr = NULL;
+    const char *pgnamestr = NULL;
 
     if ((flags & QMESSAGE_CONTEXT_SKIP_MONITOR) &&
         monitor_cur()) {
@@ -39,9 +40,15 @@ char *qmessage_context(int flags)
         wknamestr = message_workloadname;
     }
 
-    return g_strdup_printf("%s%s%s%s",
+    if (message_format & QMESSAGE_FORMAT_PROGRAM_NAME) {
+        pgnamestr = g_get_prgname();
+    }
+
+    return g_strdup_printf("%s%s%s%s%s%s",
                            timestr ? timestr : "",
                            timestr ? " " : "",
                            wknamestr ? wknamestr : "",
-                           wknamestr ? " " : "");
+                           wknamestr ? " " : "",
+                           pgnamestr ? pgnamestr : "",
+                           pgnamestr ? ": " : "");
 }
