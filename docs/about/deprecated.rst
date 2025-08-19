@@ -81,6 +81,13 @@ kernel since 2001. None of the board types QEMU supports need
 ``param_struct`` support, so this option has been deprecated and will
 be removed in a future QEMU version.
 
+``debug-threads`` option for ``-name``
+''''''''''''''''''''''''''''''''''''''
+
+Thread ``debug-threads`` option for the ``-name`` argument is now
+ignored. Thread naming is unconditionally enabled for all platforms
+where it is supported.
+
 User-mode emulator command line arguments
 -----------------------------------------
 
