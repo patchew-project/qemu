@@ -7,6 +7,7 @@ enum QMessageFormatFlags {
     QMESSAGE_FORMAT_TIMESTAMP = (1 << 0),
     QMESSAGE_FORMAT_WORKLOAD_NAME = (1 << 1),
     QMESSAGE_FORMAT_PROGRAM_NAME = (1 << 2),
+    QMESSAGE_FORMAT_THREAD_INFO = (1 << 3),
 };
 
 /**

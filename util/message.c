@@ -44,11 +44,24 @@ char *qmessage_context(int flags)
         pgnamestr = g_get_prgname();
     }
 
-    return g_strdup_printf("%s%s%s%s%s%s",
-                           timestr ? timestr : "",
-                           timestr ? " " : "",
-                           wknamestr ? wknamestr : "",
-                           wknamestr ? " " : "",
-                           pgnamestr ? pgnamestr : "",
-                           pgnamestr ? ": " : "");
+    if (message_format & QMESSAGE_FORMAT_THREAD_INFO) {
+        uint64_t thid = qemu_thread_get_id();
+        const char *thname = qemu_thread_get_name();
+
+        return g_strdup_printf("%s%s%s%s%s(%" PRIu64 ":%s): ",
+                               timestr ? timestr : "",
+                               timestr ? " " : "",
+                               wknamestr ? wknamestr : "",
+                               wknamestr ? " " : "",
+                               pgnamestr ? pgnamestr : "",
+                               thid, thname);
+    } else {
+        return g_strdup_printf("%s%s%s%s%s%s",
+                               timestr ? timestr : "",
+                               timestr ? " " : "",
+                               wknamestr ? wknamestr : "",
+                               wknamestr ? " " : "",
+                               pgnamestr ? pgnamestr : "",
+                               pgnamestr ? ": " : "");
+    }
 }
