@@ -332,6 +332,12 @@ static void set_thread_description(HANDLE h, const char *name)
     SetThreadDescriptionFunc(h, namew);
 }
 
+static void __attribute__((__constructor__(QEMU_CONSTRUCTOR_EARLY)))
+qemu_thread_init(void)
+{
+    set_thread_description(GetCurrentThread(), "main");
+}
+
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void *),
                        void *arg, int mode)
