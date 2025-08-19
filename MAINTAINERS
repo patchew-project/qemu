@@ -4403,6 +4403,9 @@ R: Thomas Huth <thuth@redhat.com>
 S: Maintained
 F: Makefile
 F: configure
+F: pythondeps.toml
+F: scripts/git-submodule.sh
+F: scripts/meson-buildoptions.py
 F: scripts/mtest2make.py
 F: tests/Makefile.include
 
