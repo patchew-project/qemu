@@ -22,6 +22,7 @@
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qemu/message.h"
 #include "qemu/cutils.h"
 #include "trace/control.h"
 #include "qemu/thread.h"
@@ -146,26 +147,19 @@ void qemu_log_unlock(FILE *logfile)
 void qemu_log(const char *fmt, ...)
 {
     FILE *f;
-    g_autofree const char *timestr = NULL;
-
     /*
-     * Prepare the timestamp *outside* the logging
-     * lock so it better reflects when the message
-     * was emitted if we are delayed acquiring the
-     * mutex
+     * Prepare the context *outside* the logging
+     * lock so any timestamp better reflects when
+     * the message was emitted if we are delayed
+     * acquiring the mutex
      */
-    if (message_with_timestamp) {
-        g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
-        timestr = g_date_time_format_iso8601(dt);
-    }
+    g_autofree const char *context = qmessage_context(0);
 
     f = qemu_log_trylock();
     if (f) {
         va_list ap;
 
-        if (timestr) {
-            fprintf(f, "%s ", timestr);
-        }
+        fwrite(context, 1, strlen(context), f);
 
         va_start(ap, fmt);
         vfprintf(f, fmt, ap);
