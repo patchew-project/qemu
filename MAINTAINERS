@@ -3585,7 +3585,7 @@ F: include/system/spdm-socket.h
 
 Checkpatch
 S: Odd Fixes
-F: scripts/checkpatch.pl
+F: scripts/checkpatch.p[ly]
 
 Migration
 M: Peter Xu <peterx@redhat.com>
