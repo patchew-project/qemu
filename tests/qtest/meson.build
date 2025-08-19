@@ -447,7 +447,7 @@ foreach dir : target_dirs
         deps += test_ss.all_dependencies()
       endif
       qtest_executables += {
-        test: executable(test, src, dependencies: deps)
+        test: executable(test, src, build_by_default: false, dependencies: deps)
       }
     endif
 

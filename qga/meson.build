@@ -197,6 +197,7 @@ if host_os != 'windows' and not get_option('fuzzing')
     i = i + 1
   endforeach
   qga_ssh_test = executable('qga-ssh-test', srcs,
+                            build_by_default: false,
                             dependencies: [qemuutil],
                             c_args: ['-DQGA_BUILD_UNIT_TEST'])
 

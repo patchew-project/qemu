@@ -102,6 +102,7 @@ test('rust-qemu-api-integration',
     executable(
         'rust-qemu-api-integration',
         files('tests/tests.rs', 'tests/vmstate_tests.rs'),
+        build_by_default: false,
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,

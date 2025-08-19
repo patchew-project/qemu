@@ -408,11 +408,10 @@ foreach speed : ['quick', 'thorough']
       # Ideally we would add 'precache' to 'depends' here, such that
       # 'build_by_default: false' lets the pre-caching automatically
       # run immediately before the test runs. In practice this is
-      # broken in meson, with it running the pre-caching in the normal
-      # compile phase https://github.com/mesonbuild/meson/issues/2518
-      # If the above bug ever gets fixed, when QEMU changes the min
-      # meson version, add the 'depends' and remove the custom
-      # 'run_target' logic below & in Makefile.include
+      # broken in older versions of meson, with it running the
+      # pre-caching in the normal compile phase. When QEMU changes
+      # the min meson version to >=1.7, add the 'depends' and remove
+      # the custom 'run_target' logic below & in Makefile.include
       test('func-' + testname,
            python,
            depends: [test_deps, test_emulator, emulator_modules, plugin_modules],

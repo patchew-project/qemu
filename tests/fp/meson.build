@@ -57,6 +57,7 @@ fpcflags = [
 fptest = executable(
   'fp-test',
   ['fp-test.c', '../../fpu/softfloat.c'],
+  build_by_default: false,
   dependencies: [qemuutil, libsoftfloat, libtestfloat, libslowfloat],
   c_args: fpcflags,
 )
@@ -149,6 +150,7 @@ executable(
 fptestlog2 = executable(
   'fp-test-log2',
   ['fp-test-log2.c', '../../fpu/softfloat.c'],
+  build_by_default: false,
   dependencies: [qemuutil, libsoftfloat],
   c_args: fpcflags,
 )

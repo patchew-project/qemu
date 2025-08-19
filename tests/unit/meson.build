@@ -189,7 +189,7 @@ foreach test_name, extra: tests
     src += test_ss.all_sources()
     deps += test_ss.all_dependencies()
   endif
-  exe = executable(test_name, src, genh, dependencies: deps)
+  exe = executable(test_name, src, genh, build_by_default: false, dependencies: deps)
 
   test(test_name, exe,
        depends: test_deps.get(test_name, []),
