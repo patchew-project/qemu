@@ -15,31 +15,13 @@ import tempfile
 import time
 
 from qemu_test import QemuSystemTest, skipIfMissingCommands
+from qemu_test.migration import Migration
 from qemu_test.ports import Ports
 
 
 class MigrationTest(QemuSystemTest):
 
     timeout = 10
-
-    @staticmethod
-    def migration_finished(vm):
-        return vm.cmd('query-migrate')['status'] in ('completed', 'failed')
-
-    def assert_migration(self, src_vm, dst_vm):
-
-        end = time.monotonic() + self.timeout
-        while time.monotonic() < end and not self.migration_finished(src_vm):
-           time.sleep(0.1)
-
-        end = time.monotonic() + self.timeout
-        while time.monotonic() < end and not self.migration_finished(dst_vm):
-           time.sleep(0.1)
-
-        self.assertEqual(src_vm.cmd('query-migrate')['status'], 'completed')
-        self.assertEqual(dst_vm.cmd('query-migrate')['status'], 'completed')
-        self.assertEqual(dst_vm.cmd('query-status')['status'], 'running')
-        self.assertEqual(src_vm.cmd('query-status')['status'],'postmigrate')
 
     def select_machine(self):
         target_machine = {
@@ -67,8 +49,8 @@ class MigrationTest(QemuSystemTest):
         source_vm = self.get_vm(name="source-qemu")
         source_vm.add_args('-nodefaults')
         source_vm.launch()
-        source_vm.qmp('migrate', uri=src_uri)
-        self.assert_migration(source_vm, dest_vm)
+
+        Migration().migrate(self, source_vm, dest_vm, src_uri, self.timeout)
 
     def _get_free_port(self, ports):
         port = ports.find_free_port()
