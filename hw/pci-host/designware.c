@@ -390,8 +390,6 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
 {
     DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(dev);
     DesignwarePCIEHost *host = designware_pcie_root_to_host(root);
-    MemoryRegion *host_mem = get_system_memory();
-    MemoryRegion *address_space = &host->pci.memory;
     PCIBridge *br = PCI_BRIDGE(dev);
     DesignwarePCIEViewport *viewport;
     /*
@@ -419,7 +417,6 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
     msi_init(dev, 0x50, 32, true, true, &error_fatal);
 
     for (i = 0; i < DESIGNWARE_PCIE_NUM_VIEWPORTS; i++) {
-        MemoryRegion *source, *destination, *mem;
         const char *direction;
         char *name;
 
@@ -430,20 +427,18 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         viewport->limit   = UINT32_MAX;
         viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
 
-        source      = &host->pci.address_space_root;
-        destination = host_mem;
         direction   = "Inbound";
 
         /*
          * Configure MemoryRegion implementing PCI -> CPU memory
          * access
          */
-        mem  = &viewport->mem;
         name = designware_pcie_viewport_name(direction, i, "MEM");
-        memory_region_init_alias(mem, OBJECT(root), name, destination,
-                                 dummy_offset, dummy_size);
-        memory_region_add_subregion_overlap(source, dummy_offset, mem, -1);
-        memory_region_set_enabled(mem, false);
+        memory_region_init_alias(&viewport->mem, OBJECT(root), name,
+                                 get_system_memory(), dummy_offset, dummy_size);
+        memory_region_add_subregion_overlap(&host->pci.address_space_root,
+                                            dummy_offset, &viewport->mem, -1);
+        memory_region_set_enabled(&viewport->mem, false);
         g_free(name);
 
         viewport = &root->viewports[DESIGNWARE_PCIE_VIEWPORT_OUTBOUND][i];
@@ -454,33 +449,31 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         viewport->limit   = UINT32_MAX;
         viewport->cr[0]   = DESIGNWARE_PCIE_ATU_TYPE_MEM;
 
-        destination = &host->pci.memory;
         direction   = "Outbound";
-        source      = host_mem;
 
         /*
          * Configure MemoryRegion implementing CPU -> PCI memory
          * access
          */
-        mem  = &viewport->mem;
         name = designware_pcie_viewport_name(direction, i, "MEM");
-        memory_region_init_alias(mem, OBJECT(root), name, destination,
-                                 dummy_offset, dummy_size);
-        memory_region_add_subregion(source, dummy_offset, mem);
-        memory_region_set_enabled(mem, false);
+        memory_region_init_alias(&viewport->mem, OBJECT(root), name,
+                                 &host->pci.memory, dummy_offset, dummy_size);
+        memory_region_add_subregion(get_system_memory(), dummy_offset,
+                                    &viewport->mem);
+        memory_region_set_enabled(&viewport->mem, false);
         g_free(name);
 
         /*
          * Configure MemoryRegion implementing access to configuration
          * space
          */
-        mem  = &viewport->cfg;
         name = designware_pcie_viewport_name(direction, i, "CFG");
         memory_region_init_io(&viewport->cfg, OBJECT(root),
                               &designware_pci_host_conf_ops,
                               viewport, name, dummy_size);
-        memory_region_add_subregion(source, dummy_offset, mem);
-        memory_region_set_enabled(mem, false);
+        memory_region_add_subregion(get_system_memory(), dummy_offset,
+                                    &viewport->cfg);
+        memory_region_set_enabled(&viewport->cfg, false);
         g_free(name);
     }
 
@@ -506,7 +499,8 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
      * in designware_pcie_root_update_msi_mapping() as a part of
      * initialization done by guest OS
      */
-    memory_region_add_subregion(address_space, dummy_offset, &root->msi.iomem);
+    memory_region_add_subregion(&host->pci.memory, dummy_offset,
+                                &root->msi.iomem);
     memory_region_set_enabled(&root->msi.iomem, false);
 }
 
