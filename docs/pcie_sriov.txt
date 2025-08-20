@@ -83,7 +83,7 @@ setting up a BAR for a VF.
       pcie_ari_init(d, 0x100);
       ...
       memory_region_init(mr, ... )
-      pcie_sriov_vf_register_bar(d, bar_nr, mr);
+      pcie_sriov_vf_register_bar(d, bar_nr, bar_type, mr);
       ...
    }
 

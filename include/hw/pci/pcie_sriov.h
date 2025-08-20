@@ -39,7 +39,7 @@ void pcie_sriov_pf_init_vf_bar(PCIDevice *dev, int region_num,
 
 /* Instantiate a bar for a VF */
 void pcie_sriov_vf_register_bar(PCIDevice *dev, int region_num,
-                                MemoryRegion *memory);
+                                uint8_t type, MemoryRegion *memory);
 
 /**
  * pcie_sriov_pf_init_from_user_created_vfs() - Initialize PF with user-created
