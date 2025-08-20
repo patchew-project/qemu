@@ -442,11 +442,6 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
     DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(dev);
     DesignwarePCIEHost *host = designware_pcie_root_to_host(root);
     PCIBridge *br = PCI_BRIDGE(dev);
-    /*
-     * Dummy values used for initial configuration of MemoryRegions
-     * that belong to a given viewport
-     */
-    const hwaddr dummy_offset = 0;
 
     br->bus_name  = "dw-pcie";
 
@@ -484,6 +479,26 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
             DesignwarePCIEViewport *viewport = &root->viewports[i][j];
             viewport->name    = names[i][j];
             viewport->inbound = i == DESIGNWARE_PCIE_VIEWPORT_INBOUND;
+        }
+    }
+
+    memory_region_init_io(&root->msi.iomem, OBJECT(root),
+                          &designware_pci_host_msi_ops,
+                          root, "pcie-msi", 0x4);
+    memory_region_add_subregion(&host->pci.memory, 0, &root->msi.iomem);
+}
+
+static void designware_pcie_root_reset(DeviceState *dev)
+{
+    DesignwarePCIERoot *root = DESIGNWARE_PCIE_ROOT(dev);
+    DesignwarePCIEViewport *viewport;
+
+    pci_bridge_reset(dev);
+
+    for (int i = 0; i < ARRAY_SIZE(root->viewports); i++) {
+        for (int j = 0; j < DESIGNWARE_PCIE_NUM_VIEWPORTS; j++) {
+            viewport = &root->viewports[i][j];
+
             viewport->base    = 0x0000000000000000ULL;
             viewport->target  = 0x0000000000000000ULL;
             viewport->limit   = UINT32_MAX;
@@ -494,17 +509,13 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
         }
     }
 
-    memory_region_init_io(&root->msi.iomem, OBJECT(root),
-                          &designware_pci_host_msi_ops,
-                          root, "pcie-msi", 0x4);
     /*
      * We initially place MSI interrupt I/O region at address 0 and
      * disable it. It'll be later moved to correct offset and enabled
      * in designware_pcie_root_update_msi_mapping() as a part of
      * initialization done by guest OS
      */
-    memory_region_add_subregion(&host->pci.memory, dummy_offset,
-                                &root->msi.iomem);
+    memory_region_set_address(&root->msi.iomem, 0);
     memory_region_set_enabled(&root->msi.iomem, false);
 }
 
@@ -602,7 +613,7 @@ static void designware_pcie_root_class_init(ObjectClass *klass,
     k->config_read = designware_pcie_root_config_read;
     k->config_write = designware_pcie_root_config_write;
 
-    device_class_set_legacy_reset(dc, pci_bridge_reset);
+    device_class_set_legacy_reset(dc, designware_pcie_root_reset);
     /*
      * PCI-facing part of the host bridge, not usable without the
      * host-facing part, which can't be device_add'ed, yet.
