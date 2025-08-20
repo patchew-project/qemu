@@ -703,8 +703,6 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
                        OBJECT(s),
                        "pcie-bus-address-space-root",
                        UINT64_MAX);
-    memory_region_add_subregion(&s->pci.address_space_root,
-                                0x0, &s->pci.memory);
     address_space_init(&s->pci.address_space,
                        &s->pci.address_space_root,
                        "pcie-bus-address-space");
