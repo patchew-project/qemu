@@ -283,6 +283,7 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
     if (enabled) {
         switch (iatu_type) {
         case DESIGNWARE_PCIE_ATU_TYPE_MEM:
+        case DESIGNWARE_PCIE_ATU_TYPE_IO:
             if (viewport->inbound) {
                 /*
                  * Configure MemoryRegion implementing PCI -> CPU memory
@@ -298,9 +299,12 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
                  * Configure MemoryRegion implementing CPU -> PCI memory
                  * access
                  */
+                MemoryRegion *mr = iatu_type == DESIGNWARE_PCIE_ATU_TYPE_IO
+                                       ? &host->pci.io
+                                       : &host->pci.memory;
+
                 memory_region_init_alias(&viewport->mem, OBJECT(root),
-                                         viewport->name, &host->pci.memory,
-                                         target, size);
+                                         viewport->name, mr, target, size);
                 memory_region_add_subregion(get_system_memory(), base,
                                             &viewport->mem);
             }
@@ -332,7 +336,6 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
             }
             break;
 
-        case DESIGNWARE_PCIE_ATU_TYPE_IO:
         case DESIGNWARE_PCIE_ATU_TYPE_MSG:
             qemu_log_mask(LOG_UNIMP, "%s: Unimplemented iATU type %d", __func__,
                           iatu_type);
