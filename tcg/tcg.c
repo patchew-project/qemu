@@ -1221,9 +1221,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_or, TCGOutOpBinary, outop_or),
     OUTOP(INDEX_op_orc, TCGOutOpBinary, outop_orc),
     OUTOP(INDEX_op_qemu_ld, TCGOutOpQemuLdSt, outop_qemu_ld),
-    OUTOP(INDEX_op_qemu_ld2, TCGOutOpQemuLdSt2, outop_qemu_ld2),
     OUTOP(INDEX_op_qemu_st, TCGOutOpQemuLdSt, outop_qemu_st),
-    OUTOP(INDEX_op_qemu_st2, TCGOutOpQemuLdSt2, outop_qemu_st2),
     OUTOP(INDEX_op_rems, TCGOutOpBinary, outop_rems),
     OUTOP(INDEX_op_remu, TCGOutOpBinary, outop_remu),
     OUTOP(INDEX_op_rotl, TCGOutOpBinary, outop_rotl),
@@ -1248,6 +1246,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
 
 #if TCG_TARGET_REG_BITS == 32
     OUTOP(INDEX_op_brcond2_i32, TCGOutOpBrcond2, outop_brcond2),
+    OUTOP(INDEX_op_qemu_ld2, TCGOutOpQemuLdSt2, outop_qemu_ld2),
+    OUTOP(INDEX_op_qemu_st2, TCGOutOpQemuLdSt2, outop_qemu_st2),
     OUTOP(INDEX_op_setcond2_i32, TCGOutOpSetcond2, outop_setcond2),
 #else
     OUTOP(INDEX_op_bswap64, TCGOutOpUnary, outop_bswap64),
@@ -5829,17 +5829,6 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
         break;
 
-    case INDEX_op_qemu_ld2:
-    case INDEX_op_qemu_st2:
-        {
-            const TCGOutOpQemuLdSt2 *out =
-                container_of(all_outop[op->opc], TCGOutOpQemuLdSt2, base);
-
-            out->out(s, type, new_args[0], new_args[1],
-                     new_args[2], new_args[3]);
-        }
-        break;
-
     case INDEX_op_brcond:
         {
             const TCGOutOpBrcond *out = &outop_brcond;
@@ -5887,6 +5876,16 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         break;
 
 #if TCG_TARGET_REG_BITS == 32
+    case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
+        {
+            const TCGOutOpQemuLdSt2 *out =
+                container_of(all_outop[op->opc], TCGOutOpQemuLdSt2, base);
+
+            out->out(s, type, new_args[0], new_args[1],
+                     new_args[2], new_args[3]);
+        }
+        break;
     case INDEX_op_brcond2_i32:
         {
             const TCGOutOpBrcond2 *out = &outop_brcond2;
@@ -5912,6 +5911,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
         break;
 #else
+    case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
     case INDEX_op_brcond2_i32:
     case INDEX_op_setcond2_i32:
         g_assert_not_reached();
