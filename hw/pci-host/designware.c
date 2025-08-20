@@ -222,26 +222,18 @@ designware_pcie_root_config_read(PCIDevice *d, uint32_t address, int len)
 static uint64_t designware_pcie_root_data_access(void *opaque, hwaddr addr,
                                                  uint64_t *val, unsigned len)
 {
-    DesignwarePCIEViewport *viewport = opaque;
-    DesignwarePCIERoot *root = viewport->root;
+    PCIDevice *pcidev = opaque;
 
-    const uint8_t busnum = DESIGNWARE_PCIE_ATU_BUS(viewport->target);
-    const uint8_t devfn  = DESIGNWARE_PCIE_ATU_DEVFN(viewport->target);
-    PCIBus    *pcibus    = pci_get_bus(PCI_DEVICE(root));
-    PCIDevice *pcidev    = pci_find_device(pcibus, busnum, devfn);
+    addr &= pci_config_size(pcidev) - 1;
 
-    if (pcidev) {
-        addr &= pci_config_size(pcidev) - 1;
-
-        if (val) {
-            pci_host_config_write_common(pcidev, addr,
-                                         pci_config_size(pcidev),
-                                         *val, len);
-        } else {
-            return pci_host_config_read_common(pcidev, addr,
-                                               pci_config_size(pcidev),
-                                               len);
-        }
+    if (val) {
+        pci_host_config_write_common(pcidev, addr,
+                                     pci_config_size(pcidev),
+                                     *val, len);
+    } else {
+        return pci_host_config_read_common(pcidev, addr,
+                                           pci_config_size(pcidev),
+                                           len);
     }
 
     return UINT64_MAX;
@@ -312,11 +304,22 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
                  * Configure MemoryRegion implementing access to configuration
                  * space
                  */
-                memory_region_init_io(&viewport->mem, OBJECT(root),
-                                      &designware_pci_host_conf_ops,
-                                      viewport, viewport->name, size);
-                memory_region_add_subregion(get_system_memory(), base,
-                                            &viewport->mem);
+                const uint8_t busnum = DESIGNWARE_PCIE_ATU_BUS(viewport->target);
+                const uint8_t devfn = DESIGNWARE_PCIE_ATU_DEVFN(viewport->target);
+                PCIBus *pcibus = pci_get_bus(PCI_DEVICE(root));
+                PCIDevice *pcidev = pci_find_device(pcibus, busnum, devfn);
+
+                if (pcidev) {
+                    memory_region_init_io(&viewport->mem, OBJECT(root),
+                                          &designware_pci_host_conf_ops,
+                                          pcidev, viewport->name, size);
+                    memory_region_add_subregion(get_system_memory(), base,
+                                                &viewport->mem);
+                } else {
+                    qemu_log_mask(LOG_GUEST_ERROR, "%s: No PCI device attached"
+                                  " under busnum: %d, devfn: %d\n", __func__,
+                                  (int)busnum, (int)devfn);
+                }
             }
         }
     }
@@ -444,7 +447,6 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
 
         for (size_t j = 0; j < DESIGNWARE_PCIE_NUM_VIEWPORTS; j++) {
             DesignwarePCIEViewport *viewport = &root->viewports[i][j];
-            viewport->root    = root;
             viewport->name    = names[i][j];
             viewport->inbound = i == DESIGNWARE_PCIE_VIEWPORT_INBOUND;
             viewport->base    = 0x0000000000000000ULL;

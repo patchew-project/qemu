@@ -39,7 +39,6 @@ struct DesignwarePCIERootBus {
 };
 
 typedef struct DesignwarePCIEViewport {
-    DesignwarePCIERoot *root;
     const char *name;
     MemoryRegion mem;
 
