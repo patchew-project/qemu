@@ -44,7 +44,11 @@
 #define DESIGNWARE_PCIE_ATU_VIEWPORT               0x900
 #define DESIGNWARE_PCIE_ATU_REGION_INBOUND         BIT(31)
 #define DESIGNWARE_PCIE_ATU_CR1                    0x904
-#define DESIGNWARE_PCIE_ATU_TYPE_MEM               (0x0 << 0)
+#define DESIGNWARE_PCIE_ATU_TYPE_MEM               0x0
+#define DESIGNWARE_PCIE_ATU_TYPE_IO                0x2
+#define DESIGNWARE_PCIE_ATU_TYPE_CFG0              0x4
+#define DESIGNWARE_PCIE_ATU_TYPE_CFG1              0x5
+#define DESIGNWARE_PCIE_ATU_TYPE_MSG               0x10
 #define DESIGNWARE_PCIE_ATU_CR2                    0x908
 #define DESIGNWARE_PCIE_ATU_ENABLE                 BIT(31)
 #define DESIGNWARE_PCIE_ATU_LOWER_BASE             0x90C
@@ -268,6 +272,7 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
     const uint64_t target = viewport->target;
     const uint64_t base   = viewport->base;
     const uint64_t size   = (uint64_t)viewport->limit - base + 1;
+    const int iatu_type   = viewport->cr[0];
     const bool enabled    = viewport->cr[1] & DESIGNWARE_PCIE_ATU_ENABLE;
 
     if (memory_region_is_mapped(&viewport->mem)) {
@@ -276,7 +281,8 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
     object_unparent(OBJECT(&viewport->mem));
 
     if (enabled) {
-        if (viewport->cr[0] == DESIGNWARE_PCIE_ATU_TYPE_MEM) {
+        switch (iatu_type) {
+        case DESIGNWARE_PCIE_ATU_TYPE_MEM:
             if (viewport->inbound) {
                 /*
                  * Configure MemoryRegion implementing PCI -> CPU memory
@@ -298,7 +304,10 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
                 memory_region_add_subregion(get_system_memory(), base,
                                             &viewport->mem);
             }
-        } else {
+            break;
+
+        case DESIGNWARE_PCIE_ATU_TYPE_CFG0:
+        case DESIGNWARE_PCIE_ATU_TYPE_CFG1:
             if (!viewport->inbound) {
                 /*
                  * Configure MemoryRegion implementing access to configuration
@@ -321,6 +330,18 @@ static void designware_pcie_update_viewport(DesignwarePCIERoot *root,
                                   (int)busnum, (int)devfn);
                 }
             }
+            break;
+
+        case DESIGNWARE_PCIE_ATU_TYPE_IO:
+        case DESIGNWARE_PCIE_ATU_TYPE_MSG:
+            qemu_log_mask(LOG_UNIMP, "%s: Unimplemented iATU type %d", __func__,
+                          iatu_type);
+            break;
+
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Illegal iATU type %d", __func__,
+                          iatu_type);
+            break;
         }
     }
 }
