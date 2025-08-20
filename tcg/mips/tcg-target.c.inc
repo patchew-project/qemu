@@ -26,7 +26,7 @@
 
 /* used for function call generation */
 #define TCG_TARGET_STACK_ALIGN        16
-#if _MIPS_SIM == _ABIO32
+#if defined(_ABIO32) && _MIPS_SIM == _ABIO32
 # define TCG_TARGET_CALL_STACK_OFFSET 16
 # define TCG_TARGET_CALL_ARG_I64      TCG_CALL_ARG_EVEN
 # define TCG_TARGET_CALL_RET_I128     TCG_CALL_RET_BY_REF
@@ -135,7 +135,8 @@ static const TCGReg tcg_target_call_iarg_regs[] = {
     TCG_REG_A1,
     TCG_REG_A2,
     TCG_REG_A3,
-#if _MIPS_SIM == _ABIN32 || _MIPS_SIM == _ABI64
+#if (defined(_ABIN32) && _MIPS_SIM == _ABIN32) \
+     || (defined(_ABI64) && _MIPS_SIM == _ABI64)
     TCG_REG_T0,
     TCG_REG_T1,
     TCG_REG_T2,

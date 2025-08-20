@@ -30,7 +30,7 @@
          * arguments being syscall arguments (also 'long').
          */
 
-#if _MIPS_SIM == _ABIO32
+#if defined(_ABIO32) && _MIPS_SIM == _ABIO32
 /* 8 * 4 = 32 for outgoing parameters; 1 * 4 for s0 save; 1 * 4 for align. */
 #define FRAME    40
 #define OFS_S0   32
@@ -47,7 +47,7 @@ NESTED(safe_syscall_base, FRAME, ra)
         .cfi_adjust_cfa_offset FRAME
         REG_S   s0, OFS_S0(sp)
         .cfi_rel_offset s0, OFS_S0
-#if _MIPS_SIM == _ABIO32
+#if defined(_ABIO32) && _MIPS_SIM == _ABIO32
         /*
          * The syscall calling convention is nearly the same as C:
          * we enter with a0 == &signal_pending

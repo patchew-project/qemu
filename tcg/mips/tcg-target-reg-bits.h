@@ -7,9 +7,10 @@
 #ifndef TCG_TARGET_REG_BITS_H
 #define TCG_TARGET_REG_BITS_H
 
-#if _MIPS_SIM == _ABIO32
+#if defined(_ABIO32) && _MIPS_SIM == _ABIO32
 # define TCG_TARGET_REG_BITS 32
-#elif _MIPS_SIM == _ABIN32 || _MIPS_SIM == _ABI64
+#elif (defined(_ABIN32) && _MIPS_SIM == _ABIN32) \
+       || (defined(_ABI64) && _MIPS_SIM == _ABI64)
 # define TCG_TARGET_REG_BITS 64
 #else
 # error "Unknown ABI"
