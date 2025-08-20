@@ -86,6 +86,7 @@ struct DesignwarePCIEHost {
     struct {
         AddressSpace address_space;
         MemoryRegion address_space_root;
+        MemoryRegion address_space_root_default;
 
         MemoryRegion memory;
         MemoryRegion io;
