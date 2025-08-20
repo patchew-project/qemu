@@ -684,7 +684,7 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
                           "pcie.reg", 4 * 1024);
     sysbus_init_mmio(sbd, &s->mmio);
 
-    memory_region_init(&s->pci.io, OBJECT(s), "pcie-pio", 16);
+    memory_region_init(&s->pci.io, OBJECT(s), "pcie-pio", UINT16_MAX);
     memory_region_init(&s->pci.memory, OBJECT(s),
                        "pcie-bus-memory",
                        UINT64_MAX);
