@@ -73,6 +73,10 @@ config AC_ADAPTER
     bool
     depends on ACPI
 
+config BUTTON
+    bool
+    depends on ACPI
+
 config ACPI_HW_REDUCED
     bool
     select ACPI

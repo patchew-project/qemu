@@ -97,3 +97,8 @@ battery_ioport_read_unknown(void) "Battery read unknown"
 acad_realize(void) "AC adapter device realize entry"
 acad_get_dynamic_status(uint8_t state) "AC adapter read state: %"PRIu8
 acad_ioport_read_unknown(void) "AC adapter read unknown"
+
+# button.c
+button_realize(void) "Button device realize entry"
+button_get_dynamic_status(void) "Button read dynamic status entry"
+button_ioport_read_unknown(void) "Button read unknown"

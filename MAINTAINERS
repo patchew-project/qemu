@@ -2933,6 +2933,12 @@ S: Maintained
 F: hw/acpi/acad.*
 F: docs/specs/acad.rst
 
+Button
+M: Leonid Bloch <lb.workbox@gmail.com>
+S: Maintained
+F: hw/acpi/button.*
+F: docs/specs/button.rst
+
 Subsystems
 ----------
 Overall Audio backends
