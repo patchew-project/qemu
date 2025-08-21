@@ -1808,7 +1808,7 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
  * or io operations to proceed.  Return the host address.
  */
 static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
-                               int size, uintptr_t retaddr)
+                               int size, uintptr_t retaddr, bool *need_bswap)
 {
     uintptr_t mmu_idx = get_mmuidx(oi);
     MemOp mop = get_memop(oi);
@@ -1892,6 +1892,14 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
 
     if (unlikely(tlb_addr & TLB_NOTDIRTY)) {
         notdirty_write(cpu, addr, size, full, retaddr);
+    }
+
+    if (unlikely(tlb_addr & TLB_BSWAP)) {
+        assert(!( (  full->slow_flags[MMU_DATA_STORE]
+            ^ full->slow_flags[MMU_DATA_LOAD ])
+            & TLB_BSWAP));
+
+        *need_bswap = !need_bswap;
     }
 
     if (unlikely(tlb_addr & TLB_WATCHPOINT)) {
