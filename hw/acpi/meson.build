@@ -32,6 +32,7 @@ if have_tpm
   acpi_ss.add(files('tpm.c'))
 endif
 acpi_ss.add(when: 'CONFIG_BATTERY', if_true: files('battery.c'))
+acpi_ss.add(when: 'CONFIG_AC_ADAPTER', if_true: files('acad.c'))
 system_ss.add(when: 'CONFIG_ACPI', if_false: files('acpi-stub.c', 'aml-build-stub.c', 'ghes-stub.c', 'acpi_interface.c'))
 system_ss.add(when: 'CONFIG_ACPI_PCI_BRIDGE', if_false: files('pci-bridge-stub.c'))
 system_ss.add_all(when: 'CONFIG_ACPI', if_true: acpi_ss)

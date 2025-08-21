@@ -2927,6 +2927,12 @@ S: Maintained
 F: hw/acpi/battery.*
 F: docs/specs/battery.rst
 
+AC Adapter
+M: Leonid Bloch <lb.workbox@gmail.com>
+S: Maintained
+F: hw/acpi/acad.*
+F: docs/specs/acad.rst
+
 Subsystems
 ----------
 Overall Audio backends
