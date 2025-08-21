@@ -357,6 +357,11 @@ found_tlb:
     }
 
     *prot = 0;
+
+    if (tlb->mas2 & MAS2_E) {
+        *prot |= PAGE_LE;
+    }
+
     if (pr) {
         if (tlb->mas7_3 & MAS3_UR) {
             *prot |= PAGE_READ;

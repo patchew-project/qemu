@@ -1187,6 +1187,10 @@ struct ppc_radix_page_info {
 };
 
 /*****************************************************************************/
+/* PowerPC usage of the PAGE_TARGET_1 bit for TLB little-endian bit */
+#define PAGE_LE  PAGE_TARGET_1
+
+/*****************************************************************************/
 /* Dynamic Execution Control Register */
 
 #define DEXCR_ASPECT(name, num)                    \

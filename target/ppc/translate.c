@@ -24,7 +24,9 @@
 #include "exec/target_page.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
+#include "accel/tcg/probe.h"
 #include "qemu/host-utils.h"
+#include "exec/tlb-flags.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -218,6 +220,27 @@ static inline bool need_byteswap(const DisasContext *ctx)
      return !ctx->le_mode;
 #endif
 }
+
+#ifndef CONFIG_USER_ONLY
+static bool is_page_little_endian(CPUPPCState *env, vaddr addr)
+{
+    CPUTLBEntryFull *full;
+    void *host;
+    int mmu_idx = ppc_env_mmu_index(env, true);
+    int flags;
+
+    flags = probe_access_full_mmu(env, addr, 0, MMU_INST_FETCH, mmu_idx,
+                                  &host, &full);
+    assert(!(flags & TLB_INVALID_MASK));
+
+    return full->tlb_fill_flags & TLB_BSWAP;
+}
+#else
+static bool is_page_little_endian(CPUPPCState *env, vaddr addr)
+{
+    return false;
+}
+#endif
 
 /* True when active word size < size of target_long.  */
 #ifdef TARGET_PPC64
@@ -6577,7 +6600,11 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
               ctx->base.pc_next, ctx->mem_idx, (int)msr_ir);
 
     ctx->cia = pc = ctx->base.pc_next;
-    insn = translator_ldl_swap(env, dcbase, pc, need_byteswap(ctx));
+    bool tlb_is_le = is_page_little_endian(env, ctx->base.pc_next);
+
+
+    insn = translator_ldl_swap(env, dcbase, pc, need_byteswap(ctx)
+                                                || tlb_is_le);
     ctx->base.pc_next = pc += 4;
 
     if (!is_prefix_insn(ctx, insn)) {

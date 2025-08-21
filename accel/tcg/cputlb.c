@@ -1401,7 +1401,8 @@ static int probe_access_internal(CPUState *cpu, vaddr addr,
     flags |= full->slow_flags[access_type];
 
     /* Fold all "mmio-like" bits into TLB_MMIO.  This is not RAM.  */
-    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY | TLB_CHECK_ALIGNED))
+    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY
+                           | TLB_CHECK_ALIGNED | TLB_BSWAP))
         || (access_type != MMU_INST_FETCH && force_mmio)) {
         *phost = NULL;
         return TLB_MMIO;
@@ -1792,12 +1793,9 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
             mmu_watch_or_dirty(cpu, &l->page[1], type, ra);
         }
 
-        /*
-         * Since target/sparc is the only user of TLB_BSWAP, and all
-         * Sparc accesses are aligned, any treatment across two pages
-         * would be arbitrary.  Refuse it until there's a use.
-         */
-        tcg_debug_assert((flags & TLB_BSWAP) == 0);
+        if (unlikely(flags & TLB_BSWAP)) {
+            l->memop ^= MO_BSWAP;
+        }
     }
 
     return crosspage;

@@ -27,6 +27,7 @@
 #include "exec/cputlb.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
+#include "exec/tlb-flags.h"
 #include "exec/log.h"
 #include "helper_regs.h"
 #include "qemu/error-report.h"
@@ -1368,8 +1369,20 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr eaddr, int size,
 
     if (ppc_xlate(cpu, eaddr, access_type, &raddr,
                   &page_size, &prot, mmu_idx, !probe)) {
-        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                     prot, mmu_idx, 1UL << page_size);
+        if (prot & PAGE_LE) {
+            CPUTLBEntryFull full = {
+                .phys_addr = raddr & TARGET_PAGE_MASK,
+                .attrs = MEMTXATTRS_UNSPECIFIED,
+                .prot = prot,
+                .lg_page_size = ctz64(1UL << page_size),
+                .tlb_fill_flags = TLB_BSWAP
+            };
+            tlb_set_page_full(cs, mmu_idx, eaddr & TARGET_PAGE_MASK, &full);
+
+        } else {
+            tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+                         prot, mmu_idx, 1UL << page_size);
+        }
         return true;
     }
     if (probe) {
