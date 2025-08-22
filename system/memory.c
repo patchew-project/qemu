@@ -511,27 +511,118 @@ static MemTxResult memory_region_write_with_attrs_accessor(MemoryRegion *mr,
     return mr->ops->write_with_attrs(mr->opaque, addr, tmp, size, attrs);
 }
 
+typedef MemTxResult (*MemoryRegionAccessFn)(MemoryRegion *mr,
+                                            hwaddr addr,
+                                            uint64_t *value,
+                                            unsigned size,
+                                            signed shift,
+                                            uint64_t mask,
+                                            MemTxAttrs attrs);
+
+static MemTxResult access_emulation(hwaddr addr,
+                                    uint64_t *value,
+                                    unsigned int size,
+                                    unsigned int access_size_min,
+                                    unsigned int access_size_max,
+                                    MemoryRegion *mr,
+                                    MemTxAttrs attrs,
+                                    MemoryRegionAccessFn access_fn_read,
+                                    MemoryRegionAccessFn access_fn_write,
+                                    bool is_write)
+{
+    hwaddr a;
+    uint8_t *d;
+    uint64_t v;
+    MemTxResult r = MEMTX_OK;
+    bool is_big_endian = devend_big_endian(mr->ops->endianness);
+    void (*store)(void *, int, uint64_t) = is_big_endian ? stn_be_p : stn_le_p;
+    uint64_t (*load)(const void *, int) = is_big_endian ? ldn_be_p : ldn_le_p;
+    size_t access_size = MAX(MIN(size, access_size_max), access_size_min);
+    uint64_t access_mask = MAKE_64BIT_MASK(0, access_size * 8);
+    hwaddr round_down = mr->ops->impl.unaligned && addr + size <= mr->size ?
+        0 : addr % access_size;
+    hwaddr start = addr - round_down;
+    hwaddr tail = addr + size <= mr->size ? addr + size : mr->size;
+    uint8_t data[16] = {0};
+    g_assert(size <= 8);
+
+    for (a = start, d = data, v = 0; a < tail;
+         a += access_size, d += access_size, v = 0) {
+        r |= access_fn_read(mr, a, &v, access_size, 0, access_mask,
+                            attrs);
+        store(d, access_size, v);
+    }
+    if (is_write) {
+        stn_he_p(&data[round_down], size, load(value, size));
+        for (a = start, d = data; a < tail;
+             a += access_size, d += access_size) {
+            v = load(d, access_size);
+            r |= access_fn_write(mr, a, &v, access_size, 0, access_mask,
+                                 attrs);
+        }
+    } else {
+        store(value, size, ldn_he_p(&data[round_down], size));
+    }
+
+    return r;
+}
+
+static bool is_access_fastpath(hwaddr addr,
+                               unsigned int size,
+                               unsigned int access_size_min,
+                               unsigned int access_size_max,
+                               MemoryRegion *mr)
+{
+    size_t access_size = MAX(MIN(size, access_size_max), access_size_min);
+    hwaddr round_down = mr->ops->impl.unaligned && addr + size <= mr->size ?
+        0 : addr % access_size;
+
+    return round_down == 0 && access_size <= size;
+}
+
+static MemTxResult access_fastpath(hwaddr addr,
+                                   uint64_t *value,
+                                   unsigned int size,
+                                   unsigned int access_size_min,
+                                   unsigned int access_size_max,
+                                   MemoryRegion *mr,
+                                   MemTxAttrs attrs,
+                                   MemoryRegionAccessFn fastpath)
+{
+    MemTxResult r = MEMTX_OK;
+    size_t access_size = MAX(MIN(size, access_size_max), access_size_min);
+    uint64_t access_mask = MAKE_64BIT_MASK(0, access_size * 8);
+
+    if (devend_big_endian(mr->ops->endianness)) {
+        for (size_t i = 0; i < size; i += access_size) {
+            r |= fastpath(mr, addr + i, value, access_size,
+                          (size - access_size - i) * 8, access_mask, attrs);
+        }
+    } else {
+        for (size_t i = 0; i < size; i += access_size) {
+            r |= fastpath(mr, addr + i, value, access_size,
+                          i * 8, access_mask, attrs);
+        }
+    }
+
+    return r;
+}
+
 static MemTxResult access_with_adjusted_size(hwaddr addr,
                                       uint64_t *value,
                                       unsigned size,
                                       unsigned access_size_min,
                                       unsigned access_size_max,
-                                      MemTxResult (*access_fn)
-                                                  (MemoryRegion *mr,
-                                                   hwaddr addr,
-                                                   uint64_t *value,
-                                                   unsigned size,
-                                                   signed shift,
-                                                   uint64_t mask,
-                                                   MemTxAttrs attrs),
+                                      MemoryRegionAccessFn access_fn_read,
+                                      MemoryRegionAccessFn access_fn_write,
+                                      bool is_write,
                                       MemoryRegion *mr,
                                       MemTxAttrs attrs)
 {
-    uint64_t access_mask;
-    unsigned access_size;
-    unsigned i;
     MemTxResult r = MEMTX_OK;
     bool reentrancy_guard_applied = false;
+    MemoryRegionAccessFn access_fn_fastpath =
+        is_write ? access_fn_write : access_fn_read;
 
     if (!access_size_min) {
         access_size_min = 1;
@@ -553,20 +644,16 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
         reentrancy_guard_applied = true;
     }
 
-    /* FIXME: support unaligned access? */
-    access_size = MAX(MIN(size, access_size_max), access_size_min);
-    access_mask = MAKE_64BIT_MASK(0, access_size * 8);
-    if (devend_big_endian(mr->ops->endianness)) {
-        for (i = 0; i < size; i += access_size) {
-            r |= access_fn(mr, addr + i, value, access_size,
-                        (size - access_size - i) * 8, access_mask, attrs);
-        }
+    if (is_access_fastpath(addr, size, access_size_min, access_size_max, mr)) {
+        r |= access_fastpath(addr, value, size,
+                             access_size_min, access_size_max, mr, attrs,
+                             access_fn_fastpath);
     } else {
-        for (i = 0; i < size; i += access_size) {
-            r |= access_fn(mr, addr + i, value, access_size, i * 8,
-                        access_mask, attrs);
-        }
+        r |= access_emulation(addr, value, size,
+                              access_size_min, access_size_max, mr, attrs,
+                              access_fn_read, access_fn_write, is_write);
     }
+
     if (mr->dev && reentrancy_guard_applied) {
         mr->dev->mem_reentrancy_guard.engaged_in_io = false;
     }
@@ -1452,13 +1539,15 @@ static MemTxResult memory_region_dispatch_read1(MemoryRegion *mr,
                                          mr->ops->impl.min_access_size,
                                          mr->ops->impl.max_access_size,
                                          memory_region_read_accessor,
-                                         mr, attrs);
+                                         memory_region_write_accessor,
+                                         false, mr, attrs);
     } else {
         return access_with_adjusted_size(addr, pval, size,
                                          mr->ops->impl.min_access_size,
                                          mr->ops->impl.max_access_size,
                                          memory_region_read_with_attrs_accessor,
-                                         mr, attrs);
+                                         memory_region_write_with_attrs_accessor,
+                                         false, mr, attrs);
     }
 }
 
@@ -1546,15 +1635,17 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
         return access_with_adjusted_size(addr, &data, size,
                                          mr->ops->impl.min_access_size,
                                          mr->ops->impl.max_access_size,
-                                         memory_region_write_accessor, mr,
-                                         attrs);
+                                         memory_region_read_accessor,
+                                         memory_region_write_accessor,
+                                         true, mr, attrs);
     } else {
         return
             access_with_adjusted_size(addr, &data, size,
                                       mr->ops->impl.min_access_size,
                                       mr->ops->impl.max_access_size,
+                                      memory_region_read_with_attrs_accessor,
                                       memory_region_write_with_attrs_accessor,
-                                      mr, attrs);
+                                      true, mr, attrs);
     }
 }
 
