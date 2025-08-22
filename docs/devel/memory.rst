@@ -365,6 +365,24 @@ callbacks are called:
 - .impl.unaligned specifies that the *implementation* supports unaligned
   accesses; if false, unaligned accesses will be emulated by two aligned
   accesses.
+- Additionally, if .valid.unaligned = true but .impl.unaligned = false, the
+  memory core will emulate each unaligned guest access by splitting it into
+  multiple aligned sub-accesses. This ensures that devices which only handle
+  aligned requests do not need to implement unaligned logic themselves. For
+  example, see xhci_cap_ops in hw/usb/hcd-xhci.c: it sets  .valid.unaligned
+  = true so guests can do unaligned reads on the xHCI Capability Registers,
+  while keeping .impl.unaligned = false to rely on the core splitting logic.
+  However, if a device’s registers have side effects on read or write, this
+  extra splitting can introduce undesired behavior. Specifically, for devices
+  whose registers trigger state changes on each read/write, splitting an access
+  can lead to reading or writing bytes beyond the originally requested subrange
+  thereby triggering repeated or otherwise unintended register side effects.
+  In such cases, one should set .valid.unaligned = false to reject unaligned
+  accesses entirely.
+- Conversely, if .valid.unaligned = false but .impl.unaligned = true,
+  that setting is considered invalid; it claims unaligned access is allowed
+  by the implementation yet disallowed for the device. QEMU enforces this with
+  an assertion to prevent contradictory usage.
 
 API Reference
 -------------
