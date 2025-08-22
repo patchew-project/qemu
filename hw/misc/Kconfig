@@ -25,6 +25,10 @@ config PCI_TESTDEV
     default y if TEST_DEVICES
     depends on PCI
 
+config MEMACCESS_TESTDEV
+    bool
+    default y if TEST_DEVICES
+
 config EDU
     bool
     default y if TEST_DEVICES
