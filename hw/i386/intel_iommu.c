@@ -1602,6 +1602,64 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     return 0;
 }
 
+static int vtd_as_to_iommu_pasid_locked(VTDAddressSpace *vtd_as,
+                                        uint32_t *pasid)
+{
+    VTDContextCacheEntry *cc_entry = &vtd_as->context_cache_entry;
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    uint8_t bus_num = pci_bus_num(vtd_as->bus);
+    uint8_t devfn = vtd_as->devfn;
+    VTDContextEntry ce;
+    int ret;
+
+    /* For Requests-with-PASID, its pasid value is used by vIOMMU directly */
+    if (vtd_as->pasid != PCI_NO_PASID) {
+        *pasid = vtd_as->pasid;
+        return 0;
+    }
+
+    if (cc_entry->context_cache_gen == s->context_cache_gen) {
+        ce = cc_entry->context_entry;
+    } else {
+        ret = vtd_dev_to_context_entry(s, bus_num, devfn, &ce);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    *pasid = VTD_CE_GET_RID2PASID(&ce);
+    return 0;
+}
+
+static gboolean vtd_find_as_by_sid_and_iommu_pasid(gpointer key, gpointer value,
+                                                   gpointer user_data)
+{
+    VTDAddressSpace *vtd_as = (VTDAddressSpace *)value;
+    struct vtd_as_raw_key *target = (struct vtd_as_raw_key *)user_data;
+    uint16_t sid = PCI_BUILD_BDF(pci_bus_num(vtd_as->bus), vtd_as->devfn);
+    uint32_t pasid;
+
+    if (vtd_as_to_iommu_pasid_locked(vtd_as, &pasid)) {
+        return false;
+    }
+
+    return (pasid == target->pasid) && (sid == target->sid);
+}
+
+/* Translate iommu pasid to vtd_as */
+static inline
+VTDAddressSpace *vtd_as_from_iommu_pasid_locked(IntelIOMMUState *s,
+                                                uint16_t sid, uint32_t pasid)
+{
+    struct vtd_as_raw_key key = {
+        .sid = sid,
+        .pasid = pasid
+    };
+
+    return g_hash_table_find(s->vtd_address_spaces,
+                             vtd_find_as_by_sid_and_iommu_pasid, &key);
+}
+
 static int vtd_sync_shadow_page_hook(const IOMMUTLBEvent *event,
                                      void *private)
 {
