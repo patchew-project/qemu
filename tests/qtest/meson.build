@@ -95,6 +95,7 @@ qtests_i386 = \
   (config_all_devices.has_key('CONFIG_SDHCI_PCI') ? ['fuzz-sdcard-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_ESP_PCI') ? ['am53c974-test'] : []) +                 \
   (config_all_devices.has_key('CONFIG_VTD') ? ['intel-iommu-test'] : []) +                 \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) +      \
   (host_os != 'windows' and                                                                \
    config_all_devices.has_key('CONFIG_ACPI_ERST') ? ['erst-test'] : []) +                   \
   (config_all_devices.has_key('CONFIG_PCIE_PORT') and                                       \
@@ -138,6 +139,7 @@ qtests_x86_64 = qtests_i386
 
 qtests_alpha = ['boot-serial-test'] + \
   qtests_filter + \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) +       \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
 qtests_avr = [ 'boot-serial-test' ]
@@ -162,6 +164,7 @@ qtests_microblazeel = qtests_microblaze
 
 qtests_mips = \
   qtests_filter + \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) +       \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
@@ -172,6 +175,7 @@ qtests_mips64el = qtests_mips
 qtests_ppc = \
   qtests_filter + \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) +       \
   (config_all_accel.has_key('CONFIG_TCG') ? ['prom-env-test'] : []) +                              \
   (config_all_accel.has_key('CONFIG_TCG') ? ['boot-serial-test'] : []) +                           \
   ['boot-order-test']
@@ -198,6 +202,7 @@ qtests_sparc = ['prom-env-test', 'm48t59-test', 'boot-serial-test'] + \
 
 qtests_sparc64 = \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) +       \
   qtests_filter + \
   ['prom-env-test', 'boot-serial-test']
 
@@ -248,6 +253,7 @@ qtests_arm = \
   (config_all_devices.has_key('CONFIG_FSI_APB2OPB_ASPEED') ? ['aspeed_fsi-test'] : []) + \
   (config_all_devices.has_key('CONFIG_STM32L4X5_SOC') and
    config_all_devices.has_key('CONFIG_DM163')? ['dm163-test'] : []) + \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) + \
   ['arm-cpu-features',
    'boot-serial-test']
 
@@ -263,6 +269,7 @@ qtests_aarch64 = \
    config_all_devices.has_key('CONFIG_TPM_TIS_I2C') ? ['tpm-tis-i2c-test'] : []) + \
   (config_all_devices.has_key('CONFIG_ASPEED_SOC') ? qtests_aspeed64 : []) + \
   (config_all_devices.has_key('CONFIG_NPCM8XX') ? qtests_npcm8xx : []) + \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) + \
   qtests_cxl +                                                                                  \
   ['arm-cpu-features',
    'numa-test',
@@ -279,9 +286,11 @@ qtests_s390x = \
    'migration-test']
 
 qtests_riscv32 = \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) + \
   (config_all_devices.has_key('CONFIG_SIFIVE_E_AON') ? ['sifive-e-aon-watchdog-test'] : [])
 
 qtests_riscv64 = ['riscv-csr-test'] + \
+  (config_all_devices.has_key('CONFIG_MEMACCESS_TESTDEV') ? ['memaccess-test'] : []) + \
   (unpack_edk2_blobs ? ['bios-tables-test'] : [])
 
 qos_test_ss = ss.source_set()
