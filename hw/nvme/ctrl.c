@@ -8276,6 +8276,11 @@ static const MemoryRegionOps nvme_cmb_ops = {
         .min_access_size = 1,
         .max_access_size = 8,
     },
+    .valid = {
+        .unaligned = true,
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
 };
 
 static bool nvme_check_params(NvmeCtrl *n, Error **errp)
