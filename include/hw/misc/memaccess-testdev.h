@@ -1,0 +1,104 @@
+/*
+ * QEMU memory access test device header
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Author: Tomoyuki HIROSE <hrstmyk811m@gmail.com>
+ */
+
+#ifndef HW_MISC_MEMACCESS_TESTDEV_H
+#define HW_MISC_MEMACCESS_TESTDEV_H
+
+#include "system/memory.h"
+#include "hw/qdev-core.h"
+
+#define TYPE_MEM_ACCESS_TEST_DEV "memaccess-testdev"
+
+#define MEMACCESS_TESTDEV_REGION_SIZE 32
+
+#define N_OPS_LIST_LITTLE_B_VALID   80
+#define N_OPS_LIST_LITTLE_B_INVALID 40
+#define N_OPS_LIST_LITTLE_W_VALID   60
+#define N_OPS_LIST_LITTLE_W_INVALID 30
+#define N_OPS_LIST_LITTLE_L_VALID   40
+#define N_OPS_LIST_LITTLE_L_INVALID 20
+#define N_OPS_LIST_LITTLE_Q_VALID   20
+#define N_OPS_LIST_LITTLE_Q_INVALID 10
+#define N_OPS_LIST_BIG_B_VALID      80
+#define N_OPS_LIST_BIG_B_INVALID    40
+#define N_OPS_LIST_BIG_W_VALID      60
+#define N_OPS_LIST_BIG_W_INVALID    30
+#define N_OPS_LIST_BIG_L_VALID      40
+#define N_OPS_LIST_BIG_L_INVALID    20
+#define N_OPS_LIST_BIG_Q_VALID      20
+#define N_OPS_LIST_BIG_Q_INVALID    10
+
+#define N_OPS_LIST \
+    (N_OPS_LIST_LITTLE_B_VALID   + \
+     N_OPS_LIST_LITTLE_B_INVALID + \
+     N_OPS_LIST_LITTLE_W_VALID   + \
+     N_OPS_LIST_LITTLE_W_INVALID + \
+     N_OPS_LIST_LITTLE_L_VALID   + \
+     N_OPS_LIST_LITTLE_L_INVALID + \
+     N_OPS_LIST_LITTLE_Q_VALID   + \
+     N_OPS_LIST_LITTLE_Q_INVALID + \
+     N_OPS_LIST_BIG_B_VALID      + \
+     N_OPS_LIST_BIG_B_INVALID    + \
+     N_OPS_LIST_BIG_W_VALID      + \
+     N_OPS_LIST_BIG_W_INVALID    + \
+     N_OPS_LIST_BIG_L_VALID      + \
+     N_OPS_LIST_BIG_L_INVALID    + \
+     N_OPS_LIST_BIG_Q_VALID      + \
+     N_OPS_LIST_BIG_Q_INVALID)
+
+#define OFF_IDX_OPS_LIST_LITTLE_B_VALID \
+    (0)
+#define OFF_IDX_OPS_LIST_LITTLE_B_INVALID \
+    (OFF_IDX_OPS_LIST_LITTLE_B_VALID + N_OPS_LIST_LITTLE_B_VALID)
+#define OFF_IDX_OPS_LIST_LITTLE_W_VALID \
+    (OFF_IDX_OPS_LIST_LITTLE_B_INVALID + N_OPS_LIST_LITTLE_B_INVALID)
+#define OFF_IDX_OPS_LIST_LITTLE_W_INVALID \
+    (OFF_IDX_OPS_LIST_LITTLE_W_VALID + N_OPS_LIST_LITTLE_W_VALID)
+#define OFF_IDX_OPS_LIST_LITTLE_L_VALID \
+    (OFF_IDX_OPS_LIST_LITTLE_W_INVALID + N_OPS_LIST_LITTLE_W_INVALID)
+#define OFF_IDX_OPS_LIST_LITTLE_L_INVALID \
+    (OFF_IDX_OPS_LIST_LITTLE_L_VALID + N_OPS_LIST_LITTLE_L_VALID)
+#define OFF_IDX_OPS_LIST_LITTLE_Q_VALID \
+    (OFF_IDX_OPS_LIST_LITTLE_L_INVALID + N_OPS_LIST_LITTLE_L_INVALID)
+#define OFF_IDX_OPS_LIST_LITTLE_Q_INVALID \
+    (OFF_IDX_OPS_LIST_LITTLE_Q_VALID + N_OPS_LIST_LITTLE_Q_VALID)
+#define OFF_IDX_OPS_LIST_BIG_B_VALID \
+    (OFF_IDX_OPS_LIST_LITTLE_Q_INVALID + N_OPS_LIST_LITTLE_Q_INVALID)
+#define OFF_IDX_OPS_LIST_BIG_B_INVALID \
+    (OFF_IDX_OPS_LIST_BIG_B_VALID + N_OPS_LIST_BIG_B_VALID)
+#define OFF_IDX_OPS_LIST_BIG_W_VALID \
+    (OFF_IDX_OPS_LIST_BIG_B_INVALID + N_OPS_LIST_BIG_B_INVALID)
+#define OFF_IDX_OPS_LIST_BIG_W_INVALID \
+    (OFF_IDX_OPS_LIST_BIG_W_VALID + N_OPS_LIST_BIG_W_VALID)
+#define OFF_IDX_OPS_LIST_BIG_L_VALID \
+    (OFF_IDX_OPS_LIST_BIG_W_INVALID + N_OPS_LIST_BIG_W_INVALID)
+#define OFF_IDX_OPS_LIST_BIG_L_INVALID \
+    (OFF_IDX_OPS_LIST_BIG_L_VALID + N_OPS_LIST_BIG_L_VALID)
+#define OFF_IDX_OPS_LIST_BIG_Q_VALID \
+    (OFF_IDX_OPS_LIST_BIG_L_INVALID + N_OPS_LIST_BIG_L_INVALID)
+#define OFF_IDX_OPS_LIST_BIG_Q_INVALID \
+    (OFF_IDX_OPS_LIST_BIG_Q_VALID + N_OPS_LIST_BIG_Q_VALID)
+
+typedef uint8_t MrData[MEMACCESS_TESTDEV_REGION_SIZE];
+#define MEMACCESS_TESTDEV_MR_DATA_SIZE (sizeof(MrData) * N_OPS_LIST)
+
+typedef DeviceClass MemAccessTestDevClass;
+typedef struct MemAccessTestDev {
+    /* Private */
+    DeviceState parent_obj;
+    /* Public */
+    MemoryRegion container;
+    MemoryRegion memory_regions[N_OPS_LIST]; /* test memory regions */
+    uint64_t base;                           /* map base address */
+    MrData *mr_data;                         /* memory region data array */
+} MemAccessTestDev;
+
+#define MEM_ACCESS_TEST_DEV(obj)                                    \
+    OBJECT_CHECK(MemAccessTestDev, obj, TYPE_MEM_ACCESS_TEST_DEV)
+
+#endif
